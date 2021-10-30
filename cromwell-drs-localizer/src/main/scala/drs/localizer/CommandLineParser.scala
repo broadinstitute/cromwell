@@ -1,21 +1,21 @@
 package drs.localizer
 
 import common.util.VersionUtil
-import drs.localizer.CommandLineParser.Cloud._
+import drs.localizer.CommandLineParser.AccessTokenStrategy._
 import scopt.{OParser, OParserBuilder}
 
 
 object CommandLineParser {
-  object Cloud {
+  object AccessTokenStrategy {
     val Azure = "azure"
     val Google = "google"
   }
 
   val Usage =
     s"""
-    java -jar /path/to/localizer.jar --cloud $Azure drs://provider/object /local/path/to/file.txt [--vault-name <name>] [--secret-name <name>] [--identity-client-id <id>]
+    java -jar /path/to/localizer.jar --token-strategy $Azure drs://provider/object /local/path/to/file.txt [--vault-name <name>] [--secret-name <name>] [--identity-client-id <id>]
 OR
-    java -jar /path/to/localizer.jar --cloud $Google drs://provider/object /local/path/to/file.txt [--requester-pays-project <project>]
+    java -jar /path/to/localizer.jar --token-strategy $Google drs://provider/object /local/path/to/file.txt [--requester-pays-project <project>]
     """
 
   lazy val localizerVersion: String = VersionUtil.getVersion("cromwell-drs-localizer")
@@ -35,8 +35,8 @@ OR
       arg[String]("container-path").text("Container path").required().
         action((s, c) =>
           c.copy(containerPath = Option(s))),
-      opt[String]('c', "cloud").text("Cloud vendor for which to generate an access token").required().
-        action((s, c) => c.copy(cloudName = Option(s))),
+      opt[String]('t', "token-strategy").text("Strategy to use when generating an access token to call Martha").required().
+        action((s, c) => c.copy(cloudName = Option(s.toLowerCase()))),
       opt[String]('v', "vault-name").text("Azure vault name").
         action((s, c) =>
           c.copy(azureVaultName = Option(s))),
@@ -52,15 +52,11 @@ OR
       checkConfig(c =>
         c.cloudName match {
           case Some(Azure) if c.googleRequesterPaysProject.isDefined =>
-            failure(s"'requester-pays-project' is only valid for --cloud $Google")
-          case Some(Google) if c.azureVaultName.isDefined =>
-            failure(s"'vault-name' is only valid for --cloud $Azure")
-          case Some(Google) if c.azureSecretName.isDefined =>
-            failure(s"'secret-name' is only valid for --cloud $Azure")
-          case Some(Google) if c.azureIdentityClientId.isDefined =>
-            failure(s"'identity-client-id' is only valid for --cloud $Azure")
+            failure(s"'requester-pays-project' is only valid for --token-strategy $Google")
+          case Some(Google) if c.azureVaultName.isDefined || c.azureSecretName.isDefined || c.azureIdentityClientId.isDefined =>
+            failure(s"--token-strategy 'google' specified, but 'vault-name', 'secret-name', and 'identity-client-id' are valid only with --token-strategy $Azure")
           case Some(Google) | Some(Azure) => success
-          case Some(other) => failure(s"Unrecognized --cloud '$other', only '$Azure' and '$Google' are supported.")
+          case Some(other) => failure(s"Unrecognized --token-strategy '$other', only '$Azure' and '$Google' are supported.")
           case _ => failure("")
         }
       )

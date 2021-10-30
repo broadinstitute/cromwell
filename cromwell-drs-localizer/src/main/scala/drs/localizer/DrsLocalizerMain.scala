@@ -6,11 +6,11 @@ import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDi
 import cloud.nio.impl.drs.{AccessUrl, DrsConfig, DrsPathResolver, MarthaField}
 import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
 import com.typesafe.scalalogging.StrictLogging
-import drs.localizer.CommandLineParser.Cloud.{Azure, Google}
+import drs.localizer.CommandLineParser.AccessTokenStrategy.{Azure, Google}
 import drs.localizer.CommandLineParser.buildParser
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
-import drs.localizer.tokenproviders.{AccessTokenProvider, AzureB2CTokenProvider, GoogleTokenProvider}
+import drs.localizer.tokenstrategy.{AccessTokenStrategy, AzureB2CTokenStrategy, GoogleTokenStrategy}
 import scopt.OParser
 
 import scala.concurrent.duration._
@@ -26,8 +26,8 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     parsedArgs match {
       case Some(pa) =>
         pa.cloudName match {
-          case Some(Azure) => runLocalizer(pa, AzureB2CTokenProvider(pa))
-          case Some(Google) => runLocalizer(pa, GoogleTokenProvider)
+          case Some(Azure) => runLocalizer(pa, AzureB2CTokenStrategy(pa))
+          case Some(Google) => runLocalizer(pa, GoogleTokenStrategy)
           case _ => usage // should never get here per checkConfig in parser
         }
       case _ => usage
@@ -50,7 +50,7 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     IO.pure(ExitCode.Error)
   }
 
-  def runLocalizer(commandLineArguments: CommandLineArguments, tokenProvider: AccessTokenProvider): IO[ExitCode] = {
+  def runLocalizer(commandLineArguments: CommandLineArguments, tokenProvider: AccessTokenStrategy): IO[ExitCode] = {
     val drsObject = commandLineArguments.drsObject.get
     val containerPath = commandLineArguments.containerPath.get
     new DrsLocalizerMain(drsObject, containerPath, tokenProvider, commandLineArguments.googleRequesterPaysProject).
@@ -60,7 +60,7 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
 
 class DrsLocalizerMain(drsUrl: String,
                        downloadLoc: String,
-                       accessTokenProvider: AccessTokenProvider,
+                       accessTokenProvider: AccessTokenStrategy,
                        requesterPaysProjectIdOption: Option[String]) extends StrictLogging {
 
   def getDrsPathResolver: IO[DrsLocalizerDrsPathResolver] = {

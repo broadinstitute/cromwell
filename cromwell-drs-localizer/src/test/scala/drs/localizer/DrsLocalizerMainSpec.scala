@@ -8,7 +8,7 @@ import common.assertion.CromwellTimeoutSpec
 import drs.localizer.MockDrsLocalizerDrsPathResolver.{FakeAccessTokenProvider, FakeHashes}
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
-import drs.localizer.tokenproviders.AccessTokenProvider
+import drs.localizer.tokenstrategy.AccessTokenStrategy
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -21,19 +21,19 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
   behavior of "DrsLocalizerMain"
 
   it should "fail if drs input is not passed" in {
-    DrsLocalizerMain.run(List("--cloud", "google", fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
+    DrsLocalizerMain.run(List("--token-strategy", "google", fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
   }
 
   it should "fail if download location is not passed" in {
-    DrsLocalizerMain.run(List("--cloud", "google", MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly)).unsafeRunSync() shouldBe ExitCode.Error
+    DrsLocalizerMain.run(List("--token-strategy", "google", MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly)).unsafeRunSync() shouldBe ExitCode.Error
   }
 
-  it should "fail if --cloud is not specified" in {
+  it should "fail if --token-strategy is not specified" in {
     DrsLocalizerMain.run(List(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
   }
 
-  it should "fail when an unsupported --cloud is specified" in {
-    DrsLocalizerMain.run(List("--cloud", "nebulous", MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
+  it should "fail when an unsupported --token-strategy is specified" in {
+    DrsLocalizerMain.run(List("--token-strategy", "nebulous", MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
   }
 
   it should "accept arguments and run successfully without Requester Pays ID" in {
@@ -348,7 +348,7 @@ class MockDrsLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
 
 object MockDrsLocalizerDrsPathResolver {
   val FakeHashes: Option[Map[String, String]] = Option(Map("md5" -> "abc123", "crc32c" -> "34fd67"))
-  val FakeAccessTokenProvider = new AccessTokenProvider {
+  val FakeAccessTokenProvider = new AccessTokenStrategy {
     override def getAccessToken(): String = throw new RuntimeException("testing exception: do not call me")
   }
 }

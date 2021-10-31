@@ -8,7 +8,7 @@ import drs.localizer.CommandLineParser.Usage
 class CommandLineParser extends scopt.OptionParser[CommandLineArguments](Usage) {
   lazy val localizerVersion: String = VersionUtil.getVersion("cromwell-drs-localizer")
 
-  val commonArguments = List(
+  private def commonArguments = List(
     arg[String]("drs-object-id").text("DRS object ID").required().
       action((s, c) =>
         c.copy(drsObject = Option(s))),
@@ -25,6 +25,8 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments](Usage) 
 
   cmd("azure").
     text("Localize DRS file using Azure UAMI / B2C access token strategy").
+    action((s, c) =>
+      c.copy(accessTokenStrategy = Option("azure"))).
     children(commonArguments ++ List(
       opt[String]('v', "vault-name").text("Azure vault name").
         action((s, c) =>
@@ -39,6 +41,8 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments](Usage) 
 
   cmd("google").
     text("Localize DRS file using Google Application Default Credentials access token strategy").
+    action((s, c) =>
+      c.copy(accessTokenStrategy = Option("google"))).
     children(commonArguments ++ List(
       opt[String]('r', "requester-pays-project").text("Google requester pays project name").
         action((s, c) =>

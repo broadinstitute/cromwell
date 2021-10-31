@@ -13,9 +13,10 @@ object CommandLineParser {
 
   val Usage =
     s"""
-    java -jar /path/to/localizer.jar --token-strategy $Azure drs://provider/object /local/path/to/file.txt [--vault-name <name>] [--secret-name <name>] [--identity-client-id <id>]
+Usage:
+    java -jar /path/to/localizer.jar --access-token-strategy $Azure drs://provider/object /local/path/to/file.txt [--vault-name <name>] [--secret-name <name>] [--identity-client-id <id>]
 OR
-    java -jar /path/to/localizer.jar --token-strategy $Google drs://provider/object /local/path/to/file.txt [--requester-pays-project <project>]
+    java -jar /path/to/localizer.jar --access-token-strategy $Google drs://provider/object /local/path/to/file.txt [--requester-pays-project <project>]
     """
 
   lazy val localizerVersion: String = VersionUtil.getVersion("cromwell-drs-localizer")
@@ -35,7 +36,8 @@ OR
       arg[String]("container-path").text("Container path").required().
         action((s, c) =>
           c.copy(containerPath = Option(s))),
-      opt[String]('t', "token-strategy").text("Strategy to use when generating an access token to call Martha").required().
+      opt[String]('t', "access-token-strategy").
+        text("Strategy to use when generating an access token to call Martha").required().
         action((s, c) => c.copy(accessTokenStrategy = Option(s.toLowerCase()))),
       opt[String]('v', "vault-name").text("Azure vault name").
         action((s, c) =>
@@ -52,7 +54,7 @@ OR
       checkConfig(c =>
         c.accessTokenStrategy match {
           case Some(Azure) if c.googleRequesterPaysProject.isDefined =>
-            failure(s"'requester-pays-project' is only valid for --token-strategy $Google")
+            failure(s"'requester-pays-project' is only valid for --access-token-strategy $Google")
           case Some(Google) if c.azureVaultName.isDefined || c.azureSecretName.isDefined || c.azureIdentityClientId.isDefined =>
             failure(s"token-strategy $Google specified, but 'vault-name', 'secret-name', and 'identity-client-id' are valid only with token-strategy $Azure")
           case Some(Google) | Some(Azure) => success

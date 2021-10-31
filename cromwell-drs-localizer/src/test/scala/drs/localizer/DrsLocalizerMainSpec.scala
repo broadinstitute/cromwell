@@ -21,19 +21,19 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
   behavior of "DrsLocalizerMain"
 
   it should "fail if drs input is not passed" in {
-    DrsLocalizerMain.run(List("--token-strategy", "google", fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
+    DrsLocalizerMain.run(List("--access-token-strategy", "google", fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
   }
 
   it should "fail if download location is not passed" in {
-    DrsLocalizerMain.run(List("--token-strategy", "google", MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly)).unsafeRunSync() shouldBe ExitCode.Error
+    DrsLocalizerMain.run(List("--access-token-strategy", "google", MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly)).unsafeRunSync() shouldBe ExitCode.Error
   }
 
-  it should "fail if --token-strategy is not specified" in {
+  it should "fail if --access-token-strategy is not specified" in {
     DrsLocalizerMain.run(List(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
   }
 
-  it should "fail when an unsupported --token-strategy is specified" in {
-    DrsLocalizerMain.run(List("--token-strategy", "nebulous", MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
+  it should "fail when an unsupported --access-token-strategy is specified" in {
+    DrsLocalizerMain.run(List("--access-token-strategy", "nebulous", MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
   }
 
   it should "accept arguments and run successfully without Requester Pays ID" in {

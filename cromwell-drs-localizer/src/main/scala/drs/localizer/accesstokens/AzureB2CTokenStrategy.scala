@@ -1,4 +1,4 @@
-package drs.localizer.tokenstrategy
+package drs.localizer.accesstokens
 
 import drs.localizer.CommandLineArguments
 

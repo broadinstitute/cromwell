@@ -10,7 +10,7 @@ import drs.localizer.CommandLineParser.AccessTokenStrategy.{Azure, Google}
 import drs.localizer.CommandLineParser.buildParser
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
-import drs.localizer.tokenstrategy.{AccessTokenStrategy, AzureB2CTokenStrategy, GoogleTokenStrategy}
+import drs.localizer.accesstokens.{AccessTokenStrategy, AzureB2CTokenStrategy, GoogleTokenStrategy}
 import scopt.OParser
 
 import scala.concurrent.duration._
@@ -25,7 +25,7 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
 
     val localize: Option[IO[ExitCode]] = for {
       pa <- parsedArgs
-      run <- pa.tokenStrategy.collect {
+      run <- pa.accessTokenStrategy.collect {
         case Azure => runLocalizer(pa, AzureB2CTokenStrategy(pa))
         case Google => runLocalizer(pa, GoogleTokenStrategy)
       }
@@ -50,23 +50,23 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     IO.pure(ExitCode.Error)
   }
 
-  def runLocalizer(commandLineArguments: CommandLineArguments, tokenProvider: AccessTokenStrategy): IO[ExitCode] = {
+  def runLocalizer(commandLineArguments: CommandLineArguments, accessTokenStrategy: AccessTokenStrategy): IO[ExitCode] = {
     val drsObject = commandLineArguments.drsObject.get
     val containerPath = commandLineArguments.containerPath.get
-    new DrsLocalizerMain(drsObject, containerPath, tokenProvider, commandLineArguments.googleRequesterPaysProject).
+    new DrsLocalizerMain(drsObject, containerPath, accessTokenStrategy, commandLineArguments.googleRequesterPaysProject).
       resolveAndDownloadWithRetries(downloadRetries = 3, checksumRetries = 1, defaultDownloaderFactory, Option(defaultBackoff)).map(_.exitCode)
   }
 }
 
 class DrsLocalizerMain(drsUrl: String,
                        downloadLoc: String,
-                       accessTokenProvider: AccessTokenStrategy,
+                       accessTokenStrategy: AccessTokenStrategy,
                        requesterPaysProjectIdOption: Option[String]) extends StrictLogging {
 
   def getDrsPathResolver: IO[DrsLocalizerDrsPathResolver] = {
     IO {
       val drsConfig = DrsConfig.fromEnv(sys.env)
-      new DrsLocalizerDrsPathResolver(drsConfig, accessTokenProvider)
+      new DrsLocalizerDrsPathResolver(drsConfig, accessTokenStrategy)
     }
   }
 

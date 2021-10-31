@@ -1,4 +1,4 @@
-package drs.localizer.tokenstrategy
+package drs.localizer.accesstokens
 
 import com.google.auth.oauth2.GoogleCredentials
 

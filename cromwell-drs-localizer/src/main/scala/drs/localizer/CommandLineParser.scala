@@ -36,7 +36,7 @@ OR
         action((s, c) =>
           c.copy(containerPath = Option(s))),
       opt[String]('t', "token-strategy").text("Strategy to use when generating an access token to call Martha").required().
-        action((s, c) => c.copy(tokenStrategy = Option(s.toLowerCase()))),
+        action((s, c) => c.copy(accessTokenStrategy = Option(s.toLowerCase()))),
       opt[String]('v', "vault-name").text("Azure vault name").
         action((s, c) =>
           c.copy(azureVaultName = Option(s))),
@@ -50,7 +50,7 @@ OR
         action((s, c) =>
           c.copy(googleRequesterPaysProject = Option(s))),
       checkConfig(c =>
-        c.tokenStrategy match {
+        c.accessTokenStrategy match {
           case Some(Azure) if c.googleRequesterPaysProject.isDefined =>
             failure(s"'requester-pays-project' is only valid for --token-strategy $Google")
           case Some(Google) if c.azureVaultName.isDefined || c.azureSecretName.isDefined || c.azureIdentityClientId.isDefined =>
@@ -64,7 +64,7 @@ OR
   }
 }
 
-case class CommandLineArguments(tokenStrategy: Option[String] = None,
+case class CommandLineArguments(accessTokenStrategy: Option[String] = None,
                                 drsObject: Option[String] = None,
                                 containerPath: Option[String] = None,
                                 googleRequesterPaysProject: Option[String] = None,

@@ -7,11 +7,9 @@ import cloud.nio.impl.drs.{AccessUrl, DrsConfig, DrsPathResolver, MarthaField}
 import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
 import com.typesafe.scalalogging.StrictLogging
 import drs.localizer.CommandLineParser.AccessTokenStrategy.{Azure, Google}
-import drs.localizer.CommandLineParser.buildParser
+import drs.localizer.accesstokens.{AccessTokenStrategy, AzureB2CAccessTokenStrategy, GoogleAccessTokenStrategy}
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
-import drs.localizer.accesstokens.{AccessTokenStrategy, AzureB2CAccessTokenStrategy, GoogleAccessTokenStrategy}
-import scopt.OParser
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -21,7 +19,7 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
   override def run(args: List[String]): IO[ExitCode] = {
     val parser = buildParser()
 
-    val parsedArgs = OParser.parse(parser, args, CommandLineArguments())
+    val parsedArgs = parser.parse(args, CommandLineArguments())
 
     val localize: Option[IO[ExitCode]] = for {
       pa <- parsedArgs
@@ -33,6 +31,8 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
 
     localize getOrElse printUsage
   }
+
+  def buildParser(): scopt.OptionParser[CommandLineArguments] = new CommandLineParser()
 
   val defaultBackoff: CloudNioBackoff = CloudNioSimpleExponentialBackoff(
     initialInterval = 10 seconds, maxInterval = 60 seconds, multiplier = 2)

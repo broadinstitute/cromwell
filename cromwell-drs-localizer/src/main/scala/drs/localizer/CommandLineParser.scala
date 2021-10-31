@@ -2,43 +2,30 @@ package drs.localizer
 
 import common.util.VersionUtil
 import drs.localizer.CommandLineParser.AccessTokenStrategy._
-import scopt.{OParser, OParserBuilder}
+import drs.localizer.CommandLineParser.Usage
 
 
-object CommandLineParser {
-  object AccessTokenStrategy {
-    val Azure = "azure"
-    val Google = "google"
-  }
-
-  val Usage =
-    s"""
-Usage:
-    java -jar /path/to/localizer.jar --access-token-strategy $Azure drs://provider/object /local/path/to/file.txt [--vault-name <name>] [--secret-name <name>] [--identity-client-id <id>]
-OR
-    java -jar /path/to/localizer.jar --access-token-strategy $Google drs://provider/object /local/path/to/file.txt [--requester-pays-project <project>]
-    """
-
+class CommandLineParser extends scopt.OptionParser[CommandLineArguments](Usage) {
   lazy val localizerVersion: String = VersionUtil.getVersion("cromwell-drs-localizer")
 
-  def buildParser(): OParser[Unit, CommandLineArguments] = {
-    import scopt.OParser
-    val builder: OParserBuilder[CommandLineArguments] = OParser.builder[CommandLineArguments]
+  val commonArguments = List(
+    arg[String]("drs-object-id").text("DRS object ID").required().
+      action((s, c) =>
+        c.copy(drsObject = Option(s))),
+    arg[String]("container-path").text("Container path").required().
+      action((s, c) =>
+        c.copy(containerPath = Option(s))),
+  )
 
-    import builder._
-    OParser.sequence(
-      version("version"),
-      help("help").text("Cromwell DRS Localizer"),
-      head("cromwell-drs-localizer", localizerVersion),
-      arg[String]("drs-object-id").text("DRS object ID").required().
-        action((s, c) =>
-          c.copy(drsObject = Option(s))),
-      arg[String]("container-path").text("Container path").required().
-        action((s, c) =>
-          c.copy(containerPath = Option(s))),
-      opt[String]('t', "access-token-strategy").
-        text("Strategy to use when generating an access token to call Martha").required().
-        action((s, c) => c.copy(accessTokenStrategy = Option(s.toLowerCase()))),
+  version("version")
+
+  help("help").text("Cromwell DRS Localizer")
+
+  head("cromwell-drs-localizer", localizerVersion)
+
+  cmd("azure").
+    text("Localize DRS file using Azure UAMI / B2C access token strategy").
+    children(commonArguments ++ List(
       opt[String]('v', "vault-name").text("Azure vault name").
         action((s, c) =>
           c.copy(azureVaultName = Option(s))),
@@ -48,22 +35,36 @@ OR
       opt[String]('i', "identity-client-id").text("Azure identity client id").
         action((s, c) =>
           c.copy(azureIdentityClientId = Option(s))),
+    ): _*)
+
+  cmd("google").
+    text("Localize DRS file using Google Application Default Credentials access token strategy").
+    children(commonArguments ++ List(
       opt[String]('r', "requester-pays-project").text("Google requester pays project name").
         action((s, c) =>
           c.copy(googleRequesterPaysProject = Option(s))),
-      checkConfig(c =>
-        c.accessTokenStrategy match {
-          case Some(Azure) if c.googleRequesterPaysProject.isDefined =>
-            failure(s"'requester-pays-project' is only valid for --access-token-strategy $Google")
-          case Some(Google) if c.azureVaultName.isDefined || c.azureSecretName.isDefined || c.azureIdentityClientId.isDefined =>
-            failure(s"token-strategy $Google specified, but 'vault-name', 'secret-name', and 'identity-client-id' are valid only with token-strategy $Azure")
-          case Some(Google) | Some(Azure) => success
-          case Some(other) => failure(s"Unrecognized token-strategy '$other', only '$Azure' and '$Google' are supported.")
-          case _ => failure("")
-        }
-      )
-    )
+    ): _*)
+}
+
+object CommandLineParser {
+  /**
+   * These access token strategies are named simplistically as there is currently only one access token strategy being
+   * used for each of these cloud vendors. But it is certainly possible that multiple strategies could come into use
+   * for a particular vendor, in which case the names may need to become more specific for disambiguation.
+   */
+  object AccessTokenStrategy {
+    val Azure = "azure"
+    val Google = "google"
   }
+
+  val Usage =
+    s"""
+Usage:
+    java -jar /path/to/localizer.jar $Azure drs://provider/object /local/path/to/file.txt [--vault-name <name>] [--secret-name <name>] [--identity-client-id <id>]
+OR
+    java -jar /path/to/localizer.jar $Google drs://provider/object /local/path/to/file.txt [--requester-pays-project <project>]
+    """
+
 }
 
 case class CommandLineArguments(accessTokenStrategy: Option[String] = None,

@@ -80,7 +80,6 @@ class PipelinesConversionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with
 
     action.get("commands") should be(a[java.util.List[_]])
     action.get("commands").asInstanceOf[java.util.List[_]] should contain theSameElementsAs List(
-      "--access-token-strategy",
       "google",
       "drs://drs.example.org/aaaabbbb-cccc-dddd-eeee-abcd0000dcba",
       "/cromwell_root/path/to/file.bai"

@@ -5,10 +5,11 @@ import cats.effect.{ExitCode, IO}
 import cloud.nio.impl.drs.DrsPathResolver.FatalRetryDisposition
 import cloud.nio.impl.drs.{AccessUrl, DrsConfig, MarthaField, MarthaResponse}
 import common.assertion.CromwellTimeoutSpec
+import drs.localizer.CommandLineParser.AccessTokenStrategy.Google
 import drs.localizer.MockDrsLocalizerDrsPathResolver.{FakeAccessTokenStrategy, FakeHashes}
+import drs.localizer.accesstokens.AccessTokenStrategy
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
-import drs.localizer.accesstokens.AccessTokenStrategy
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -21,19 +22,19 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
   behavior of "DrsLocalizerMain"
 
   it should "fail if drs input is not passed" in {
-    DrsLocalizerMain.run(List("--access-token-strategy", "google", fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
+    DrsLocalizerMain.run(List(Google, fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
   }
 
   it should "fail if download location is not passed" in {
-    DrsLocalizerMain.run(List("--access-token-strategy", "google", MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly)).unsafeRunSync() shouldBe ExitCode.Error
+    DrsLocalizerMain.run(List(Google, MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly)).unsafeRunSync() shouldBe ExitCode.Error
   }
 
-  it should "fail if --access-token-strategy is not specified" in {
+  it should "fail if access token strategy is not specified" in {
     DrsLocalizerMain.run(List(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
   }
 
-  it should "fail when an unsupported --access-token-strategy is specified" in {
-    DrsLocalizerMain.run(List("--access-token-strategy", "nebulous", MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
+  it should "fail when an unsupported access token strategy is specified" in {
+    DrsLocalizerMain.run(List("bogosity", MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
   }
 
   it should "accept arguments and run successfully without Requester Pays ID" in {

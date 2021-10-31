@@ -10,7 +10,7 @@ import drs.localizer.CommandLineParser.AccessTokenStrategy.{Azure, Google}
 import drs.localizer.CommandLineParser.buildParser
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
-import drs.localizer.accesstokens.{AccessTokenStrategy, AzureB2CTokenStrategy, GoogleTokenStrategy}
+import drs.localizer.accesstokens.{AccessTokenStrategy, AzureB2CAccessTokenStrategy, GoogleAccessTokenStrategy}
 import scopt.OParser
 
 import scala.concurrent.duration._
@@ -26,8 +26,8 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     val localize: Option[IO[ExitCode]] = for {
       pa <- parsedArgs
       run <- pa.accessTokenStrategy.collect {
-        case Azure => runLocalizer(pa, AzureB2CTokenStrategy(pa))
-        case Google => runLocalizer(pa, GoogleTokenStrategy)
+        case Azure => runLocalizer(pa, AzureB2CAccessTokenStrategy(pa))
+        case Google => runLocalizer(pa, GoogleAccessTokenStrategy)
       }
     } yield run
 

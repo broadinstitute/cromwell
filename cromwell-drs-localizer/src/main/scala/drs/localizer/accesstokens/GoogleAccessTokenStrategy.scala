@@ -5,9 +5,9 @@ import com.google.auth.oauth2.GoogleCredentials
 import scala.collection.JavaConverters._
 
 /**
- * Strategy for obtaining an access token from the Google Application Default creation 
+ * Strategy for obtaining an access token from the Google Application Default creation
  */
-case object GoogleTokenStrategy extends AccessTokenStrategy {
+case object GoogleAccessTokenStrategy extends AccessTokenStrategy {
   private final val UserInfoEmailScope = "https://www.googleapis.com/auth/userinfo.email"
   private final val UserInfoProfileScope = "https://www.googleapis.com/auth/userinfo.profile"
   private final val UserInfoScopes = List(UserInfoEmailScope, UserInfoProfileScope)

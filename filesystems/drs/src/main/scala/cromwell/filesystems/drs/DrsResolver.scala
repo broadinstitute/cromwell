@@ -14,6 +14,8 @@ object DrsResolver {
 
   private val GcsProtocolLength: Int = 5 // length of 'gs://'
 
+  private val DrsLocalizationPathsContainer = "drs_localization_paths"
+
   private def resolveError[A](pathAsString: String)(throwable: Throwable): IO[A] = {
     IO.raiseError(
       new RuntimeException(
@@ -81,36 +83,38 @@ object DrsResolver {
     val pathIO = for {
       drsPathResolver <- getDrsPathResolver(drsPath)
       localizationData <- getMarthaLocalizationData(drsPath.pathAsString, drsPathResolver)
-      /*
-      In the DOS/DRS spec file names are safe for file systems but not necessarily the DRS URIs.
-      Reuse the regex defined for ContentsObject.name, plus add "/" for directory separators.
-      https://ga4gh.github.io/data-repository-service-schemas/preview/release/drs-1.0.0/docs/#_contentsobject
-       */
-      rootPath = DefaultPathBuilder.get(drsPath.pathWithoutScheme.replaceAll("[^/A-Za-z0-9._-]", "_"))
-      containerRelativePath <- buildContainerRelativePath(localizationData, rootPath)
+      containerRelativePath <- buildContainerRelativePath(localizationData, drsPath)
     } yield containerRelativePath.pathAsString
 
     pathIO.handleErrorWith(resolveError(drsPath.pathAsString))
   }
 
   // Return the container relative path built from the Martha-specified localization path, file name, or gs URI.
-  private def buildContainerRelativePath(localizationData: MarthaLocalizationData, rootPath: Path): IO[Path] = {
+  private def buildContainerRelativePath(localizationData: MarthaLocalizationData, drsPath: Path): IO[Path] = {
+    // Return a relative path constructed from the DRS path minus the leading scheme.
+    // In the DOS/DRS spec file names are safe for file systems but not necessarily the DRS URIs.
+    // Reuse the regex defined for ContentsObject.name, plus add "/" for directory separators.
+    // https://ga4gh.github.io/data-repository-service-schemas/preview/release/drs-1.0.0/docs/#_contentsobject
+    def drsPathRelativePath: Path =
+      DefaultPathBuilder.get(drsPath.pathWithoutScheme.replaceAll("[^/A-Za-z0-9._-]", "_"))
+
     localizationData match {
       case MarthaLocalizationData(_, _, _, Some(localizationPath)) =>
-        // TDR may return an explicit localization path and if so this should not be made relative to the `rootPath`.
-        // Do strip any leading slashes as the resulting path will still be made relative to the container root.
-        val relativePath = if (localizationPath.startsWith("/")) localizationPath.tail else localizationPath
-        IO.fromTry(DefaultPathBuilder.build(relativePath))
+        // TDR may return an explicit localization path and if so we should not use the `drsPathRelativePath`.
+        // We want to end up with something like /cromwell_root/drs_localization_paths/tdr/specified/path/foo.bam.
+        // Calling code will add the `/cromwell_root/`, so strip any leading slashes to make this a relative path:
+        val relativeLocalizationPath = if (localizationPath.startsWith("/")) localizationPath.tail else localizationPath
+        IO.fromTry(DefaultPathBuilder.build(DrsLocalizationPathsContainer).map(_.resolve(relativeLocalizationPath)))
       case MarthaLocalizationData(_, Some(fileName), _, _) =>
-        // Paths specified by filename only are made relative to `rootPath`.
-        IO(rootPath.resolve(fileName))
+        // Paths specified by filename only are made relative to `drsPathRelativePath`.
+        IO(drsPathRelativePath.resolve(fileName))
       case _ =>
         // If this logic is forced to fall back on the GCS path there better be a GCS path to fall back on.
         IO
           .fromEither(localizationData.gsUri.toRight(UrlNotFoundException(GcsScheme)))
           .map(_.substring(GcsProtocolLength))
           .map(DefaultPathBuilder.get(_))
-          .map(path => rootPath.resolve(path.name))
+          .map(path => drsPathRelativePath.resolve(path.name))
     }
   }
 }

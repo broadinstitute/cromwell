@@ -16,7 +16,7 @@ metadata {
   status: Succeeded
 
   "outputs.drs_usa_jdr.path1" =
-    "/cromwell_root/CromwellSimpleWithFilerefs/hello_jade.json"
+    "/cromwell_root/drs_localization_paths/CromwellSimpleWithFilerefs/hello_jade.json"
   # This JDR file has a gsUri that can be preresolved to a regular GCS file for improved localization performance.
   # However this means that the file's container path is determined by the GCS localization logic and not the
   # `localizationPath`-aware DRS localization logic. The GCS localization logic always uses a containerized version
@@ -29,7 +29,7 @@ metadata {
   "outputs.drs_usa_jdr.size2" = 38.0
   # This JDR file has a gsUri that doesn't end in /fileName so it must be downloaded with the DRS localizer
   "outputs.drs_usa_jdr.cloud1" =
-    "/cromwell_root/CromwellSimpleWithFilerefs/hello_jade.json"
+    "/cromwell_root/drs_localization_paths/CromwellSimpleWithFilerefs/hello_jade.json"
   # This JDR file has a gsUri that can skip localization
   "outputs.drs_usa_jdr.cloud2" =
     "gs://broad-jade-dev-data-bucket/e1941fb9-6537-4e1a-b70d-34352a3a7817/ad783b60-aeba-4055-8f7b-194880f37259/hello_jade_2.json"

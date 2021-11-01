@@ -9,6 +9,8 @@ object MockDrsPaths {
 
   val mockToken = "mock.token"
 
+  val DrsLocalizationPathsContainer = "drs_localization_paths"
+
   private val drsPathPrefix = "drs://drs-host"
 
   val drsRelativePath = "drs-host/4d427aa3-5640-4f00-81ae-c33443f84acf/f3b148ac-1802-4acc-a0b9-610ea266fb61"
@@ -17,9 +19,9 @@ object MockDrsPaths {
 
   val gcsRelativePathWithFileName = "drs-host/d7c75399-bcd3-4762-90e9-434de005679b/file.txt"
 
-  val gcsRelativePathWithFileNameFromLocalizationPath = "dir/subdir/file.txt"
+  val gcsRelativePathWithFileNameFromLocalizationPath = s"$DrsLocalizationPathsContainer/dir/subdir/file.txt"
 
-  val gcsRelativePathWithFileNameFromAllThePaths = "dir/subdir/file.txt"
+  val gcsRelativePathWithFileNameFromAllThePaths = s"$DrsLocalizationPathsContainer/dir/subdir/file.txt"
 
   val drsPathResolvingGcsPath = s"$drsPathPrefix/4d427aa3-5640-4f00-81ae-c33443f84acf"
 

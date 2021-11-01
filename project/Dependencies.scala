@@ -520,8 +520,12 @@ object Dependencies {
   val bcsBackendDependencies: List[ModuleID] = commonDependencies ++ refinedTypeDependenciesList ++ aliyunBatchComputeDependencies
 
   val tesBackendAzureDependencies: List[ModuleID] = List(
-    "com.azure" % "azure-identity" % azureIdentitySdkV % "provided",
-    "com.azure" % "azure-security-keyvault-secrets" % azureKeyVaultSdkV % "provided"
+    "com.azure" % "azure-identity" % azureIdentitySdkV
+      exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
+      exclude("jakarta.activation", "jakarta.activation-api"),
+  "com.azure" % "azure-security-keyvault-secrets" % azureKeyVaultSdkV
+      exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
+      exclude("jakarta.activation", "jakarta.activation-api")
   )
 
   val tesBackendDependencies: List[ModuleID] = tesBackendAzureDependencies ++ akkaHttpDependencies

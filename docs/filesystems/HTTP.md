@@ -40,6 +40,6 @@ allows for this: `-Dbackend.providers.Local.config.filesystems.http.enabled=fals
 
 ### Caveats
 
-Using https inputs in Cromwell can produce some unexpected behavior:
-- Files specified by http URIs will be renamed locally, so programs that rely on file extensions or other filenaming conventions will not function properly
-- Files obstensibly located in the same remote http-defined directory will not be colocalted locally. This can cause problems if a program is expecting an index file (e.g. `.fai`), to appear in the same directory as the associated data file (e.g. `.fa`) without offering an means of specifying the index location.
+Using http inputs in Cromwell can produce some unexpected behavior:
+- Files specified by http URIs will be renamed locally, so programs that rely on file extensions or other filenaming conventions may not function properly
+- Files ostensibly located in the same remote http-defined directory will not be colocalted locally. This can cause problems if a program is expecting an index file (e.g. `.fai`), to appear in the same directory as the associated data file (e.g. `.fa`) without offering an means of specifying the index location.

@@ -23,9 +23,9 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments](Usage) 
   arg[String]("requester-pays-project").text("Requester pays project").optional().
     action((s, c) =>
       c.copy(googleRequesterPaysProject = Option(s)))
-  opt[String]('t', "access-token-strategy").text(s"Access token strategy, must be one of '$Azure' or '$Google''").
+  opt[String]('t', "access-token-strategy").text(s"Access token strategy, must be one of '$Azure' or '$Google' (default '$Google')").
     action((s, c) =>
-      c.copy(accessTokenStrategy = Option(s)))
+      c.copy(accessTokenStrategy = Option(s.toLowerCase())))
   opt[String]('v', "vault-name").text("Azure vault name").
     action((s, c) =>
       c.copy(azureVaultName = Option(s)))
@@ -61,7 +61,9 @@ object CommandLineParser {
   val Usage =
     s"""
 Usage:
-    java -jar /path/to/localizer.jar [options] drs://provider/object /local/path/to/file.txt
+    java -jar /path/to/localizer.jar [options] drs://provider/object /local/path/to/file.txt [requester pays project]
+
+    Note that the <requester pays project> optional argument is only valid with access token strategy 'Google'.
     """
 
 }

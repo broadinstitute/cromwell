@@ -23,10 +23,10 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments](Usage) 
 
   head("cromwell-drs-localizer", localizerVersion)
 
-  cmd("azure").
+  cmd(Azure).
     text("Localize DRS file using Azure UAMI / B2C access token strategy").
     action((s, c) =>
-      c.copy(accessTokenStrategy = Option("azure"))).
+      c.copy(accessTokenStrategy = Option(Azure))).
     children(commonArguments ++ List(
       opt[String]('v', "vault-name").text("Azure vault name").
         action((s, c) =>
@@ -39,10 +39,10 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments](Usage) 
           c.copy(azureIdentityClientId = Option(s))),
     ): _*)
 
-  cmd("google").
+  cmd(Google).
     text("Localize DRS file using Google Application Default Credentials access token strategy").
     action((s, c) =>
-      c.copy(accessTokenStrategy = Option("google"))).
+      c.copy(accessTokenStrategy = Option(Google))).
     children(commonArguments ++ List(
       opt[String]('r', "requester-pays-project").text("Google requester pays project name").
         action((s, c) =>

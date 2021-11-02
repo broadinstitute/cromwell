@@ -1,11 +1,13 @@
 package cloud.nio.impl.drs
 
 import cats.data.NonEmptyList
+import cats.data.Validated.{Invalid, Valid}
 import cats.effect.{IO, Resource}
 import cats.implicits._
 import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDisposition}
 import cloud.nio.impl.drs.MarthaResponseSupport._
-import common.exception.toIO
+import common.exception.{AggregatedMessageException, toIO}
+import common.validation.ErrorOr.ErrorOr
 import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.parser.decode
@@ -35,14 +37,21 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, retryInternally: Boolean = 
     clientBuilder
   }
 
-  def getAccessToken: String
+  def getAccessToken: ErrorOr[String]
 
-  private def makeHttpRequestToMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): HttpPost = {
-    val postRequest = new HttpPost(drsConfig.marthaUrl)
-    val requestJson = MarthaRequest(drsPath, fields).asJson.noSpaces
-    postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
-    postRequest.setHeader("Authorization", s"Bearer $getAccessToken")
-    postRequest
+  private def makeHttpRequestToMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): Resource[IO, HttpPost] = {
+    val io = getAccessToken match {
+      case Valid(token) => IO {
+        val postRequest = new HttpPost(drsConfig.marthaUrl)
+        val requestJson = MarthaRequest(drsPath, fields).asJson.noSpaces
+        postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
+        postRequest.setHeader("Authorization", s"Bearer $token")
+        postRequest
+      }
+      case Invalid(errors) =>
+        IO.raiseError(AggregatedMessageException("Error getting access token", errors.toList))
+    }
+    Resource.eval(io)
   }
 
   private def httpResponseToMarthaResponse(drsPathForDebugging: String)(httpResponse: HttpResponse): IO[MarthaResponse] = {
@@ -83,8 +92,10 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, retryInternally: Boolean = 
   }
 
   def rawMarthaResponse(drsPath: String, fields: NonEmptyList[MarthaField.Value]): Resource[IO, HttpResponse] = {
-    val httpPost = makeHttpRequestToMartha(drsPath, fields)
-    executeMarthaRequest(httpPost)
+    for {
+      httpPost <- makeHttpRequestToMartha(drsPath, fields)
+      response <- executeMarthaRequest(httpPost)
+    } yield response
   }
 
   /** *

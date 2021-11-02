@@ -2,9 +2,11 @@ package drs.localizer
 
 import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO}
+import cats.syntax.validated._
 import cloud.nio.impl.drs.DrsPathResolver.FatalRetryDisposition
 import cloud.nio.impl.drs.{AccessUrl, DrsConfig, MarthaField, MarthaResponse}
 import common.assertion.CromwellTimeoutSpec
+import common.validation.ErrorOr.ErrorOr
 import drs.localizer.CommandLineParser.AccessTokenStrategy.Google
 import drs.localizer.MockDrsLocalizerDrsPathResolver.{FakeAccessTokenStrategy, FakeHashes}
 import drs.localizer.accesstokens.AccessTokenStrategy
@@ -350,6 +352,6 @@ class MockDrsLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
 object MockDrsLocalizerDrsPathResolver {
   val FakeHashes: Option[Map[String, String]] = Option(Map("md5" -> "abc123", "crc32c" -> "34fd67"))
   val FakeAccessTokenStrategy = new AccessTokenStrategy {
-    override def getAccessToken(): String = throw new RuntimeException("testing exception: do not call me")
+    override def getAccessToken(): ErrorOr[String] = "testing code: do not call me".invalidNel
   }
 }

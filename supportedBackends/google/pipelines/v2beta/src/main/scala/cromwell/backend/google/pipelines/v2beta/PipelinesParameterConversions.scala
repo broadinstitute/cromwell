@@ -37,7 +37,7 @@ trait PipelinesParameterConversions {
           // Note: Don't ShellPath.escape the paths as we are directly invoking the localizer and NOT launching a shell.
           val drsCommand =
             List("--access-token-strategy", "google", fileInput.cloudPath.pathAsString, fileInput.containerPath.pathAsString) ++
-              drsPath.requesterPaysProjectIdOption.toList.flatMap(p => List("--requester-pays-project", p))
+              drsPath.requesterPaysProjectIdOption.toList
           val marthaEnv = DrsConfig.toEnv(drsFileSystemProvider.drsConfig)
           val localizationAction = ActionBuilder
             .withImage(drsDockerImage)

@@ -41,6 +41,18 @@ class DrsResolverSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
     DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync() should be (MockDrsPaths.gcsRelativePathWithFileName)
   }
 
+  it should "find DRS path from a localization path" in {
+    val drsPath = drsPathBuilder.build(MockDrsPaths.drsPathResolvingWithLocalizationPath).get.asInstanceOf[DrsPath]
+
+    DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync() should be (MockDrsPaths.gcsRelativePathWithFileNameFromLocalizationPath)
+  }
+
+  it should "find DRS path from all the paths" in {
+    val drsPath = drsPathBuilder.build(MockDrsPaths.drsPathResolvingWithAllThePaths).get.asInstanceOf[DrsPath]
+
+    DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync() should be (MockDrsPaths.gcsRelativePathWithFileNameFromAllThePaths)
+  }
+
   it should "throw GcsUrlNotFoundException when DRS path doesn't resolve to at least one GCS url" in {
     val drsPath = drsPathBuilder.build(MockDrsPaths.drsPathResolvingToNoGcsPath).get.asInstanceOf[DrsPath]
 

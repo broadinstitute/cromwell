@@ -6,8 +6,6 @@ import cats.syntax.validated._
 import cloud.nio.impl.drs.DrsPathResolver.FatalRetryDisposition
 import cloud.nio.impl.drs.{AccessUrl, DrsConfig, MarthaField, MarthaResponse}
 import common.assertion.CromwellTimeoutSpec
-import common.validation.ErrorOr.ErrorOr
-import drs.localizer.CommandLineParser.AccessTokenStrategy.Google
 import drs.localizer.MockDrsLocalizerDrsPathResolver.{FakeAccessTokenStrategy, FakeHashes}
 import drs.localizer.accesstokens.AccessTokenStrategy
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
@@ -24,19 +22,15 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
   behavior of "DrsLocalizerMain"
 
   it should "fail if drs input is not passed" in {
-    DrsLocalizerMain.run(List(Google, fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
+    DrsLocalizerMain.run(List(fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
   }
 
   it should "fail if download location is not passed" in {
-    DrsLocalizerMain.run(List(Google, MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly)).unsafeRunSync() shouldBe ExitCode.Error
-  }
-
-  it should "fail if access token strategy is not specified" in {
-    DrsLocalizerMain.run(List(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
+    DrsLocalizerMain.run(List(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly)).unsafeRunSync() shouldBe ExitCode.Error
   }
 
   it should "fail when an unsupported access token strategy is specified" in {
-    DrsLocalizerMain.run(List("bogosity", MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
+    DrsLocalizerMain.run(List("--access-token-strategy", "nebulous", MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
   }
 
   it should "accept arguments and run successfully without Requester Pays ID" in {
@@ -351,7 +345,5 @@ class MockDrsLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
 
 object MockDrsLocalizerDrsPathResolver {
   val FakeHashes: Option[Map[String, String]] = Option(Map("md5" -> "abc123", "crc32c" -> "34fd67"))
-  val FakeAccessTokenStrategy = new AccessTokenStrategy {
-    override def getAccessToken(): ErrorOr[String] = "testing code: do not call me".invalidNel
-  }
+  val FakeAccessTokenStrategy: AccessTokenStrategy = () => "testing code: do not call me".invalidNel
 }

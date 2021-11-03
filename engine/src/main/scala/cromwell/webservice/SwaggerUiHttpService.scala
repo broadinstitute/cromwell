@@ -134,8 +134,6 @@ trait SwaggerResourceHttpService {
    */
   protected def swaggerDocsPath = s"$swaggerDirectory/$swaggerServiceName.$swaggerResourceType"
 
-
-
   /**
    * @return A route that returns the swagger resource.
    */

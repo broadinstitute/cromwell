@@ -11,6 +11,11 @@ object Dependencies {
   private val ammoniteOpsV = "2.4.0"
   private val apacheHttpClientV = "4.5.13"
   private val awsSdkV = "2.17.29"
+  // We would like to use the BOM to manage Azure SDK versions, but SBT doesn't support it.
+  // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
+  // https://github.com/sbt/sbt/issues/4531
+  private val azureIdentitySdkV = "1.4.0"
+  private val azureKeyVaultSdkV = "4.3.4"
   private val betterFilesV = "3.9.1"
   /*
   cats-effect, fs2, http4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
@@ -511,7 +516,16 @@ object Dependencies {
 
   val bcsBackendDependencies: List[ModuleID] = commonDependencies ++ refinedTypeDependenciesList ++ aliyunBatchComputeDependencies
 
-  val tesBackendDependencies: List[ModuleID] = akkaHttpDependencies
+  val tesBackendAzureDependencies: List[ModuleID] = List(
+    "com.azure" % "azure-identity" % azureIdentitySdkV
+      exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
+      exclude("jakarta.activation", "jakarta.activation-api"),
+  "com.azure" % "azure-security-keyvault-secrets" % azureKeyVaultSdkV
+      exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
+      exclude("jakarta.activation", "jakarta.activation-api")
+  )
+
+  val tesBackendDependencies: List[ModuleID] = tesBackendAzureDependencies ++ akkaHttpDependencies
 
   val sfsBackendDependencies = List (
     "org.lz4" % "lz4-java" % lz4JavaV

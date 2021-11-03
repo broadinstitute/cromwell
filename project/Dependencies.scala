@@ -543,7 +543,8 @@ object Dependencies {
     "com.google.cloud" % "google-cloud-storage" % googleCloudStorageV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "com.iheart" %% "ficus" % ficusV,
-    "com.softwaremill.sttp" %% "circe" % sttpV
+    "com.softwaremill.sttp" %% "circe" % sttpV,
+    "com.github.scopt" %% "scopt" % scoptV,
   ) ++ circeDependencies ++ catsDependencies ++ slf4jBindingDependencies ++ languageFactoryDependencies
 
   val allProjectDependencies: List[ModuleID] =

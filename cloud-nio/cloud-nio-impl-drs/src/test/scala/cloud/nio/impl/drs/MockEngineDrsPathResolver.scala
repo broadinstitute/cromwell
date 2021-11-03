@@ -2,7 +2,9 @@ package cloud.nio.impl.drs
 
 import cats.data.NonEmptyList
 import cats.effect.IO
+import cats.syntax.validated._
 import com.google.cloud.NoCredentials
+import common.validation.ErrorOr.ErrorOr
 import org.apache.http.impl.client.HttpClientBuilder
 import org.specs2.mock.Mockito
 import org.specs2.mock.Mockito._
@@ -61,5 +63,5 @@ class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfi
     }
   }
 
-  override lazy val getAccessToken: String = MockDrsPaths.mockToken
+  override lazy val getAccessToken: ErrorOr[String] = MockDrsPaths.mockToken.validNel
 }

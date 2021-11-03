@@ -29,10 +29,6 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     DrsLocalizerMain.run(List(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly)).unsafeRunSync() shouldBe ExitCode.Error
   }
 
-  it should "fail when an unsupported access token strategy is specified" in {
-    DrsLocalizerMain.run(List("--access-token-strategy", "nebulous", MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
-  }
-
   it should "accept arguments and run successfully without Requester Pays ID" in {
     val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation, None)
     val expected = GcsUriDownloader(

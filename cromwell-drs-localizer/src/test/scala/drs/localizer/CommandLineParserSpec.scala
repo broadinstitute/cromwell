@@ -55,6 +55,18 @@ class CommandLineParserSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
     args.azureIdentityClientId shouldBe empty
   }
 
+  it should "successfully parse an explicit Google access token strategy invocation" in {
+    val args = parser.parse(Array("--access-token-strategy", "google", drsObject, containerPath, requesterPaysProject), CommandLineArguments()).get
+
+    args.drsObject.get shouldBe drsObject
+    args.containerPath.get shouldBe containerPath
+    args.accessTokenStrategy.get shouldBe AccessTokenStrategy.Google
+    args.googleRequesterPaysProject.get shouldBe requesterPaysProject
+    args.azureVaultName shouldBe empty
+    args.azureSecretName shouldBe empty
+    args.azureIdentityClientId shouldBe empty
+  }
+
   it should "successfully parse an Azure invocation" in {
     val args = parser.parse(Array("--access-token-strategy", AccessTokenStrategy.Azure, drsObject, containerPath), CommandLineArguments()).get
 
@@ -82,5 +94,10 @@ class CommandLineParserSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
     args.azureVaultName.get shouldBe azureVaultName
     args.azureSecretName.get shouldBe azureSecretName
     args.azureIdentityClientId.get shouldBe azureIdentityClientId
+  }
+
+  it should "fail to parse with an unrecognized access token strategy" in {
+    val args = parser.parse(Array("--access-token-strategy", "nebulous", drsObject, containerPath), CommandLineArguments())
+    args shouldBe None
   }
 }

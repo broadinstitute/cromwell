@@ -96,6 +96,11 @@ trait SwaggerUiConfigHttpService extends SwaggerUiHttpService {
  * swagger UI, but defaults to "yaml". This is an alternative to spray-swagger's SwaggerHttpService.
  */
 trait SwaggerResourceHttpService {
+
+  def getBasePathOverride(): Option[String] ={
+   Option(System.getenv("SWAGGER_BASE_PATH"))
+  }
+
   /**
    * @return The directory for the resource under the classpath, and in the url
    */
@@ -141,8 +146,8 @@ trait SwaggerResourceHttpService {
       basePath match {
         case _ if response.status != StatusCodes.OK => response
         case None => response
-        case Some(bp) => response.mapEntity { entity =>
-          val swapperFlow: Flow[ByteString, ByteString, Any] = Flow[ByteString].map(byteString => ByteString.apply(byteString.utf8String.replace("#basePath: ...", "basePath: " + bp)))
+        case Some(base_path) => response.mapEntity { entity =>
+          val swapperFlow: Flow[ByteString, ByteString, Any] = Flow[ByteString].map(byteString => ByteString.apply(byteString.utf8String.replace("#basePath: ...", "basePath: " + base_path)))
           entity.transformDataBytes(swapperFlow)
         }
       }
@@ -151,8 +156,7 @@ trait SwaggerResourceHttpService {
     val route = get {
       swaggerDocsDirective {
         // Return /uiPath/serviceName.resourceType from the classpath resources.
-        val basePathOverride = Option(System.getenv("SWAGGER_BASE_PATH"))
-        mapResponse(injectBasePath(basePathOverride))(getFromResource(swaggerDocsPath))
+        mapResponse(injectBasePath(getBasePathOverride()))(getFromResource(swaggerDocsPath))
       }
     }
 

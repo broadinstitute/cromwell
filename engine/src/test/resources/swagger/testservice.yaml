@@ -1,4 +1,6 @@
 swagger: '2.0'
+# This line is included when the YAML is served by Cromwell if it sees an environment variable called "SWAGGER_BASE_PATH"
+#basePath: ...
 info:
   title: Test Service API
   description: Test Service API

@@ -75,6 +75,21 @@ class BasicSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
   }
 }
 
+class OverrideBasePathSwaggerUiHttpServiceSpec extends SwaggerResourceHttpServiceSpec {
+  override def swaggerServiceName = "testservice"
+
+  override def getBasePathOverride(): Option[String] = Option("/proxy/abc")
+
+  behavior of "SwaggerResourceHttpService"
+
+  it should "inject basePath url into cromwell swagger service" in {
+    Get("/swagger/testservice.yaml") ~> swaggerResourceRoute ~> check {
+      status should be(StatusCodes.OK)
+      responseAs[String] should include("basePath: /proxy/abc")
+    }
+  }
+}
+
 class NoRedirectRootSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
   override def swaggerUiFromRoot = false
 

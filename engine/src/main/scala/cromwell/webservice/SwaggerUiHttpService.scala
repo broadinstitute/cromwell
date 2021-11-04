@@ -1,10 +1,12 @@
 package cromwell.webservice
 
-import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Route
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
 import akka.http.scaladsl.server.Directives._
+import akka.stream.scaladsl.Flow
+import akka.util.ByteString
 
 /**
  * Serves up the swagger UI from org.webjars/swagger-ui.
@@ -94,6 +96,11 @@ trait SwaggerUiConfigHttpService extends SwaggerUiHttpService {
  * swagger UI, but defaults to "yaml". This is an alternative to spray-swagger's SwaggerHttpService.
  */
 trait SwaggerResourceHttpService {
+
+  def getBasePathOverride(): Option[String] = {
+    Option(System.getenv("SWAGGER_BASE_PATH"))
+  }
+
   /**
    * @return The directory for the resource under the classpath, and in the url
    */
@@ -132,10 +139,22 @@ trait SwaggerResourceHttpService {
    */
   final def swaggerResourceRoute: Route = {
     val swaggerDocsDirective = path(separateOnSlashes(swaggerDocsPath))
+
+    def injectBasePath(basePath: Option[String])(response: HttpResponse): HttpResponse = {
+      basePath match {
+        case _ if response.status != StatusCodes.OK => response
+        case None => response
+        case Some(base_path) => response.mapEntity { entity =>
+          val swapperFlow: Flow[ByteString, ByteString, Any] = Flow[ByteString].map(byteString => ByteString.apply(byteString.utf8String.replace("#basePath: ...", "basePath: " + base_path)))
+          entity.transformDataBytes(swapperFlow)
+        }
+      }
+    }
+
     val route = get {
       swaggerDocsDirective {
         // Return /uiPath/serviceName.resourceType from the classpath resources.
-        getFromResource(swaggerDocsPath)
+        mapResponse(injectBasePath(getBasePathOverride()))(getFromResource(swaggerDocsPath))
       }
     }
 

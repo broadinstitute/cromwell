@@ -4,7 +4,7 @@
 
 ### Bug Fixes
 
-* Fixed an issue handling data in Google Cloud Storage buckets with requester pays enabled.
+* Fixed an issue handling data in Google Cloud Storage buckets with requester pays enabled that could sometimes cause I/O to fail.
 
 ## 70 Release Notes
 

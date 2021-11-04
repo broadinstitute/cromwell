@@ -25,7 +25,7 @@ class PipelinesConversionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with
 
   private val marthaConfig: Config = ConfigFactory.parseString(
     """martha {
-      |   url = "http://matha-url"
+      |   url = "http://martha-url"
       |}
       |""".stripMargin
   )

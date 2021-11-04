@@ -311,46 +311,11 @@ This filesystem has two required configuration options:
 
 ### Virtual Private Network
 
-To run your jobs in a private network add the `virtual-private-cloud` stanza in the `config` stanza of the PAPI v2 backend:
+Cromwell can arrange for jobs to run in specific GCP private networks via the `config.virtual-private-cloud` stanza of a PAPI v2 backend.
+There are two ways of specifying private networks:
 
-#### Virtual Private Network via Labels
-
-```hocon
-backend {
-  ...
-  providers {
-  	...
-  	PapiV2 {
-  	  actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
-  	  config {
-  		...
-  		virtual-private-cloud {
-  	          network-label-key = "my-private-network"
-  	          subnetwork-label-key = "my-private-subnetwork"
-  	          auth = "reference-to-auth-scheme"
-  	        }
-  	    ...
-  	  }  
-      }
-  }
-}
-```
-
-
-The `network-label-key` and `subnetwork-label-key` should reference the keys in your project's labels whose value is the name of your private network
-and subnetwork within that network respectively. `auth` should reference an auth scheme in the `google` stanza which will be used to get the project metadata from Google Cloud.
-The `subnetwork-label-key` is an optional config.
-
-For example, if your `virtual-private-cloud` config looks like the one above, and one of the labels in your project is
-
-```
-"my-private-network" = "vpc-network"
-```
-
-Cromwell will get labels from the project's metadata and look for a label whose key is `my-private-network`.
-Then it will use the value of the label, which is `vpc-network` here, as the name of private network and run the jobs on this network.
-If the network key is not present in the project's metadata Cromwell will fall back to trying to run jobs using literal
-network labels, and then fall back to running on the default network.
+* [Literal network and subnetwork values](#virtual-private-network-via-literals) that will apply to all projects
+* [Google project labels](#virtual-private-network-via-labels) whose values in a particular Google project will specify the network and subnetwork
 
 #### Virtual Private Network via Literals
 
@@ -362,11 +327,11 @@ backend {
     PapiV2 {
       actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
       config {
-      ...
-      virtual-private-cloud {
-              network-name = "vpc-network"
-              subnetwork-name = "vpc-subnetwork"
-            }
+        ...
+        virtual-private-cloud {
+          network-name = "vpc-network"
+          subnetwork-name = "vpc-subnetwork"
+        }
         ...
       }
     }
@@ -389,6 +354,45 @@ If the `network-name` does not contain a `/` then it will be prefixed with `proj
 Cromwell will then pass the network and subnetwork values to the Pipelines API. See the documentation for the
 [Cloud Life Sciences API](https://cloud.google.com/life-sciences/docs/reference/rest/v2beta/projects.locations.pipelines/run#Network)
 for more information on the various formats accepted for `network` and `subnetwork`.
+
+#### Virtual Private Network via Labels
+
+```hocon
+backend {
+  ...
+  providers {
+    ...
+    PapiV2 {
+      actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
+      config {
+        ...
+        virtual-private-cloud {
+          network-label-key = "my-private-network"
+          subnetwork-label-key = "my-private-subnetwork"
+          auth = "reference-to-auth-scheme"
+        }
+        ...
+      }
+    }
+  }
+}
+```
+
+
+The `network-label-key` and `subnetwork-label-key` should reference the keys in your project's labels whose value is the name of your private network
+and subnetwork within that network respectively. `auth` should reference an auth scheme in the `google` stanza which will be used to get the project metadata from Google Cloud.
+The `subnetwork-label-key` is an optional config.
+
+For example, if your `virtual-private-cloud` config looks like the one above, and one of the labels in your project is
+
+```
+"my-private-network" = "vpc-network"
+```
+
+Cromwell will get labels from the project's metadata and look for a label whose key is `my-private-network`.
+Then it will use the value of the label, which is `vpc-network` here, as the name of private network and run the jobs on this network.
+If the network key is not present in the project's metadata Cromwell will fall back to trying to run jobs using literal
+network labels, and then fall back to running on the default network.
 
 ### Custom Google Cloud SDK container
 Cromwell can't use Google's container registry if VPC Perimeter is used in project.

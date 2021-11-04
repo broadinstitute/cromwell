@@ -1,5 +1,11 @@
 # Cromwell Change Log
 
+## 71 Release Notes
+
+### Bug Fixes
+
+* Fixed an issue handling data in Google Cloud Storage buckets with requester pays enabled that could sometimes cause I/O to fail.
+
 ## 70 Release Notes
 
 ### CWL security fix [#6510](https://github.com/broadinstitute/cromwell/pull/6510)

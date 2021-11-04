@@ -3,7 +3,7 @@ package cromwell.backend.impl.tes
 import common.collections.EnhancedCollections._
 import common.util.StringUtil._
 import cromwell.backend.impl.tes.OutputMode.OutputMode
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendWorkflowDescriptor}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import wdl.draft2.model.FullyQualifiedName
@@ -212,20 +212,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     result
   }
 
-  private val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
-    case Some(x) =>
-      Option(x.to(MemoryUnit.GB).amount)
-    case None =>
-      None
-  }
-
-  val resources = Resources(
-    cpu_cores = runtimeAttributes.cpu.map(_.value),
-    ram_gb = ram,
-    disk_gb = disk,
-    preemptible = Option(runtimeAttributes.preemptible),
-    zones = None
-  )
+  val resources: Resources = TesTask.makeResources(runtimeAttributes, workflowDescriptor)
 
   val executors = Seq(Executor(
     image = dockerImageUsed,
@@ -236,6 +223,39 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     stdin = None,
     env = None
   ))
+}
+
+object TesTask {
+  def makeResources(runtimeAttributes: TesRuntimeAttributes,
+                    workflowDescriptor: BackendWorkflowDescriptor): Resources = {
+
+    // This was added in BT-409 to let us pass information to an Azure
+    // TES server about which user identity to run tasks as.
+    // Note that we validate the type of WorkflowExecutionIdentity
+    // in TesInitializationActor.
+    val backendParameters = workflowDescriptor
+      .workflowOptions
+      .get(TesWorkflowOptionKeys.WorkflowExecutionIdentity)
+      .toOption
+      .map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> _)
+      .toMap
+
+    val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
+      case Some(x) =>
+        Option(x.to(MemoryUnit.GB).amount)
+      case None =>
+        None
+    }
+
+    Resources(
+      cpu_cores = runtimeAttributes.cpu.map(_.value),
+      ram_gb = ram,
+      disk_gb = disk,
+      preemptible = Option(runtimeAttributes.preemptible),
+      zones = None,
+      backend_parameters = Option(backendParameters)
+    )
+  }
 }
 
 // Field requirements in classes below based off GA4GH schema
@@ -276,7 +296,8 @@ final case class Resources(cpu_cores: Option[Int],
                            ram_gb: Option[Double],
                            disk_gb: Option[Double],
                            preemptible: Option[Boolean],
-                           zones: Option[Seq[String]])
+                           zones: Option[Seq[String]],
+                           backend_parameters: Option[Map[String, String]])
 
 final case class OutputFileLog(url: String,
                                path: String,

@@ -37,9 +37,12 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments](Usage) 
       c.copy(azureIdentityClientId = Option(s)))
   checkConfig(c =>
     c.accessTokenStrategy match {
-      case Some(Azure) if c.googleRequesterPaysProject.isEmpty => Right(())
+      case Some(Azure) if c.googleRequesterPaysProject.nonEmpty =>
+        Left(s"Requester pays project is only valid with access token strategy '$Google'")
+      case Some(Azure) if List(c.azureVaultName, c.azureSecretName).exists(_.isEmpty) =>
+        Left(s"Both vault name and secret name must be specified for access token strategy $Azure")
+      case Some(Azure) => Right(())
       case Some(Google) if List(c.azureSecretName, c.azureVaultName, c.azureIdentityClientId).forall(_.isEmpty) => Right(())
-      case Some(Azure) => Left(s"Requester pays project is only valid with access token strategy '$Google'")
       case Some(Google) => Left(s"One or more specified options are only valid with access token strategy '$Azure'")
       case Some(huh) => Left(s"Unrecognized access token strategy '$huh'")
       case None => Left("Unspecified access token strategy")

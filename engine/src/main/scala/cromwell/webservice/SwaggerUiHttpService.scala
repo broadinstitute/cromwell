@@ -97,8 +97,8 @@ trait SwaggerUiConfigHttpService extends SwaggerUiHttpService {
  */
 trait SwaggerResourceHttpService {
 
-  def getBasePathOverride(): Option[String] ={
-   Option(System.getenv("SWAGGER_BASE_PATH"))
+  def getBasePathOverride(): Option[String] = {
+    Option(System.getenv("SWAGGER_BASE_PATH"))
   }
 
   /**

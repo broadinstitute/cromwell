@@ -6,7 +6,7 @@
 # https://github.com/broadinstitute/dsde-toolbox#authenticating-to-vault.
 #
 # Once Cromwell is running, the publish WDL, inputs and options can be submitted using Swagger
-# at `http://localhost:8000/swagger/index.html`.
+# at `http://localhost:8000/swagger`.
 #
 # Terminate the Cromwell server and MySQL server (if appropriate to avoid unwanted future call caching)
 # when the publish is complete.

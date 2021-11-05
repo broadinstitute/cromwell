@@ -31,7 +31,7 @@ case class Md5(override val rawValue: String) extends GetmChecksum {
     else if (isBase64(trimmed))
       decodeBase64(trimmed) |> encodeHexString
     else
-      // The baseline code was not doing anything special with hex / base64. It's not clear what throwing what do here
+      // The baseline code was not doing anything special with hex / base64. It's not clear what throwing would do here
       // so just return the raw value even though it's almost certainly going to lead to a checksum failure.
       rawValue
   }

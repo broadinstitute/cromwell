@@ -2,11 +2,16 @@ package drs.localizer.downloaders
 
 import cloud.nio.impl.drs.AccessUrl
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
+import mouse.all.anySyntaxMouse
+import org.apache.commons.codec.binary.Base64.{decodeBase64, isBase64}
+import org.apache.commons.codec.binary.Hex.encodeHexString
 import org.apache.commons.text.StringEscapeUtils
+
 
 sealed trait GetmChecksum {
   def getmAlgorithm: String
-  def value: String
+  def rawValue: String
+  def value: String = rawValue
   def args: String = {
     // The value for `--checksum-algorithm` is constrained by the algorithm names in the `sealed` hierarchy of
     // `GetmChecksum`, but the value for `--checksum` is largely a function of data returned by the DRS server.
@@ -15,21 +20,36 @@ sealed trait GetmChecksum {
     s"--checksum-algorithm '$getmAlgorithm' --checksum $escapedValue"
   }
 }
-case class Md5(override val value: String) extends GetmChecksum {
+
+case class Md5(override val rawValue: String) extends GetmChecksum {
+  override def value: String = {
+    val trimmed = rawValue.trim
+    if (trimmed.matches("[A-Fa-f0-9]+"))
+      rawValue
+    // Azure reports its md5's in base64, but `getm` knows only hex. For the sanity of humans storing data in Azure
+    // it's probably best if the DRS localizer does this conversion for `getm`.
+    else if (isBase64(trimmed))
+      decodeBase64(trimmed) |> encodeHexString
+    else
+      // The baseline code was not doing anything special with hex / base64. It's not clear what throwing what do here
+      // so just return the raw value even though it's almost certainly going to lead to a checksum failure.
+      rawValue
+  }
   override def getmAlgorithm: String = "md5"
 }
-case class Crc32c(override val value: String) extends GetmChecksum {
+
+case class Crc32c(override val rawValue: String) extends GetmChecksum {
   override def getmAlgorithm: String = "gs_crc32c"
 }
-case class AwsEtag(override val value: String) extends GetmChecksum {
+case class AwsEtag(override val rawValue: String) extends GetmChecksum {
   override def getmAlgorithm: String = "s3_etag"
 }
 case object Null extends GetmChecksum {
   override def getmAlgorithm: String = "null"
-  override def value: String = "null"
+  override def rawValue: String = "null"
 }
 // The `value` for `Unsupported` will be the named algorithm keys
-case class Unsupported(override val value: String) extends GetmChecksum {
+case class Unsupported(override val rawValue: String) extends GetmChecksum {
   override def getmAlgorithm: String = "null"
 }
 
@@ -59,7 +79,7 @@ object GetmChecksum {
           // If this code were running in Cromwell this condition would probably merit a warning but the localizer
           // runs on the VM and at best can only complain to stderr. The `getm` algorithm of `null` is specified which
           // means "do not validate checksums" with the stringified contents of the hash keys as a value.
-          Unsupported(value = hashes.keys.mkString(", "))
+          Unsupported(rawValue = hashes.keys.mkString(", "))
         }
       case _ => Null // None or an empty hashes map.
     }

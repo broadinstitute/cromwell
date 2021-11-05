@@ -17,24 +17,22 @@ case class AzureB2CAccessTokenStrategy(commandLineArguments: CommandLineArgument
   }
 }
 
-// Note: The AzureKeyVaultClient here is a copy/paste of the code currently but perhaps very temporarily living in the
-// TES backend. All of this KeyVault interaction is probably quite temporary, but the code in the TES backend might
-// be even more temporary than this.
+// Note: The AzureKeyVaultClient code here is basically a copy/paste of the code temporarily living in the TES backend.
+// All the current KeyVault interaction in Cromwell is temporary, but the code in the TES backend might be even more
+// temporary than this.
 class AzureKeyVaultClient(client: SecretClient) {
   def getSecret(secretName: String): ErrorOr[String] = ErrorOr(client.getSecret(secretName).getValue)
 }
 
 object AzureKeyVaultClient {
   def apply(vaultName: String, identityClientId: Option[String]): ErrorOr[AzureKeyVaultClient] = ErrorOr {
-    val defaultCreds = identityClientId.map(identityId =>
-      new DefaultAzureCredentialBuilder().managedIdentityClientId(identityId)
-    ).getOrElse(
-      new DefaultAzureCredentialBuilder()
-    ).build()
+    val credentialBuilder = identityClientId.foldLeft(new DefaultAzureCredentialBuilder()) {
+      (builder, clientId) => builder.managedIdentityClientId(clientId)
+    }
 
     val client = new SecretClientBuilder()
       .vaultUrl(s"https://${vaultName}.vault.azure.net")
-      .credential(defaultCreds)
+      .credential(credentialBuilder.build())
       .buildClient()
 
     new AzureKeyVaultClient(client)

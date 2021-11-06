@@ -29,7 +29,9 @@ class GetmChecksumSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
   {
     val results = Table(
       ("description", "algorithm", "expected"),
-      ("md5", Md5("abcdef"), "--checksum-algorithm 'md5' --checksum abcdef"),
+      ("md5 hex", Md5("abcdef"), "--checksum-algorithm 'md5' --checksum abcdef"),
+      ("md5 base64", Md5("cR84lXY1y17c3q7/7riLEA=="), "--checksum-algorithm 'md5' --checksum 711f38957635cb5edcdeaeffeeb88b10"),
+      ("md5 gibberish", Md5("what is this???"), "--checksum-algorithm 'md5' --checksum what\\ is\\ this\\?\\?\\?"),
       ("crc32c", Crc32c("012345"), "--checksum-algorithm 'gs_crc32c' --checksum 012345"),
       ("AWS ETag", AwsEtag("012345"), "--checksum-algorithm 's3_etag' --checksum 012345"),
       // Escape checksum values constructed from unvalidated data returned by DRS servers.
@@ -39,7 +41,7 @@ class GetmChecksumSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
 
     forAll(results) { (description, algorithm, expected) =>
       it should s"produce the expected checksum arguments for $description" in {
-        algorithm.args shouldBe (expected)
+        algorithm.args shouldBe expected
       }
     }
   }

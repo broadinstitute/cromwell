@@ -93,6 +93,16 @@ class CommandLineParserSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
     args shouldBe None
   }
 
+  it should "fail to parse an Azure invocation that specifies requester pays" in {
+    val args = parser.parse(Array(
+      "--access-token-strategy", AccessTokenStrategy.Azure,
+      "--secret-name", azureSecretName,
+      "--vault-name", azureVaultName,
+      drsObject, containerPath, requesterPaysProject), CommandLineArguments())
+
+    args shouldBe None
+  }
+
   it should "successfully parse an Azure invocation" in {
     val args = parser.parse(Array(
       "--access-token-strategy", AccessTokenStrategy.Azure,

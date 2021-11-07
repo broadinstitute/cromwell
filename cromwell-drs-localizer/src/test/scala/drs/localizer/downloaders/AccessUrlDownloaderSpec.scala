@@ -20,7 +20,7 @@ class AccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
 
     val expected = s"""mkdir -p $$(dirname '$fakeDownloadLocation') && rm -f '$fakeDownloadLocation' && getm --checksum-algorithm 'null' --checksum null --filepath '$fakeDownloadLocation' '$fakeAccessUrl'"""
 
-    downloader.generateDownloadScript() shouldBe expected
+    downloader.generateDownloadScript shouldBe expected
   }
 
   {

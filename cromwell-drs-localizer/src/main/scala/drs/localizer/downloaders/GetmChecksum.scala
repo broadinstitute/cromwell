@@ -1,6 +1,8 @@
 package drs.localizer.downloaders
 
+import cats.syntax.validated._
 import cloud.nio.impl.drs.AccessUrl
+import common.validation.ErrorOr.ErrorOr
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import mouse.all.anySyntaxMouse
 import org.apache.commons.codec.binary.Base64.{decodeBase64, isBase64}
@@ -11,29 +13,29 @@ import org.apache.commons.text.StringEscapeUtils
 sealed trait GetmChecksum {
   def getmAlgorithm: String
   def rawValue: String
-  def value: String = rawValue
-  def args: String = {
+  def value: ErrorOr[String] = rawValue.validNel
+  def args: ErrorOr[String] = {
     // The value for `--checksum-algorithm` is constrained by the algorithm names in the `sealed` hierarchy of
     // `GetmChecksum`, but the value for `--checksum` is largely a function of data returned by the DRS server.
     // Shell escape this to avoid injection.
-    val escapedValue = StringEscapeUtils.escapeXSI(value)
-    s"--checksum-algorithm '$getmAlgorithm' --checksum $escapedValue"
+    value map { v =>
+      val escapedValue = StringEscapeUtils.escapeXSI(v)
+      s"--checksum-algorithm '$getmAlgorithm' --checksum $escapedValue"
+    }
   }
 }
 
 case class Md5(override val rawValue: String) extends GetmChecksum {
-  override def value: String = {
+  override def value: ErrorOr[String] = {
     val trimmed = rawValue.trim
     if (trimmed.matches("[A-Fa-f0-9]+"))
-      rawValue
+      trimmed.validNel
     // Azure reports its md5's in base64, but `getm` knows only hex. For the sanity of humans storing data in Azure
     // it's probably best if the DRS localizer does this conversion for `getm`.
     else if (isBase64(trimmed))
-      decodeBase64(trimmed) |> encodeHexString
+      (decodeBase64(trimmed) |> encodeHexString).validNel
     else
-      // The baseline code was not doing anything special with hex / base64. It's not clear what throwing would do here
-      // so just return the raw value even though it's almost certainly going to lead to a checksum failure.
-      rawValue
+      s"Invalid md5 checksum value is neither hex nor base64: $rawValue".invalidNel
   }
   override def getmAlgorithm: String = "md5"
 }

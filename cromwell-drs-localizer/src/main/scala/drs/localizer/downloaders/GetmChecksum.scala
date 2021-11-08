@@ -30,10 +30,10 @@ case class Md5(override val rawValue: String) extends GetmChecksum {
     val trimmed = rawValue.trim
     if (trimmed.matches("[A-Fa-f0-9]+"))
       trimmed.validNel
-    // Azure reports its md5's in base64, but `getm` knows only hex. For the sanity of humans storing data in Azure
+    // Azure reports its md5s in base64, but `getm` knows only hex. For the sanity of humans storing data in Azure
     // it's probably best if the DRS localizer does this conversion for `getm`.
     else if (isBase64(trimmed))
-      (decodeBase64(trimmed) |> encodeHexString).validNel
+      (trimmed |> decodeBase64 |> encodeHexString).validNel
     else
       s"Invalid md5 checksum value is neither hex nor base64: $rawValue".invalidNel
   }

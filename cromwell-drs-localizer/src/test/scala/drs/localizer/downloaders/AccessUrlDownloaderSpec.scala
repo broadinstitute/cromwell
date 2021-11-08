@@ -1,6 +1,7 @@
 package drs.localizer.downloaders
 
 import cats.effect.ExitCode
+import cats.syntax.validated._
 import cloud.nio.impl.drs.AccessUrl
 import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
@@ -18,7 +19,7 @@ class AccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
       hashes = None
     )
 
-    val expected = s"""mkdir -p $$(dirname '$fakeDownloadLocation') && rm -f '$fakeDownloadLocation' && getm --checksum-algorithm 'null' --checksum null --filepath '$fakeDownloadLocation' '$fakeAccessUrl'"""
+    val expected = s"""mkdir -p $$(dirname '$fakeDownloadLocation') && rm -f '$fakeDownloadLocation' && getm --checksum-algorithm 'null' --checksum null --filepath '$fakeDownloadLocation' '$fakeAccessUrl'""".validNel
 
     downloader.generateDownloadScript shouldBe expected
   }

@@ -17,7 +17,7 @@ trait DrsReader {
 }
 
 object DrsReader {
-  def reader(googleAuthMode: GoogleAuthMode,
+  def reader(googleAuthMode: Option[GoogleAuthMode],
              options: WorkflowOptions,
              requesterPaysProjectIdOption: Option[String],
              drsPathResolver: DrsPathResolver,
@@ -27,7 +27,7 @@ object DrsReader {
         IO.pure(AccessUrlReader(drsPathResolver, accessUrl))
       case (_, Some(gcsPath)) =>
         IO.pure(GcsReader(
-          googleAuthMode,
+          googleAuthMode.get,
           options,
           requesterPaysProjectIdOption,
           gcsPath,
@@ -38,7 +38,7 @@ object DrsReader {
     }
   }
 
-  def readInterpreter(googleAuthMode: GoogleAuthMode,
+  def readInterpreter(googleAuthMode: Option[GoogleAuthMode],
                       options: WorkflowOptions,
                       requesterPaysProjectIdOption: Option[String])
                      (drsPathResolver: DrsPathResolver,

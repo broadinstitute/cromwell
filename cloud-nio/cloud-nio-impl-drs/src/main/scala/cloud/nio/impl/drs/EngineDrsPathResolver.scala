@@ -5,6 +5,10 @@ import common.validation.ErrorOr.ErrorOr
 
 import scala.concurrent.duration._
 import cats.syntax.validated._
+import com.azure.identity.DefaultAzureCredentialBuilder
+import com.azure.security.keyvault.secrets.SecretClientBuilder
+import com.google.cloud.NoCredentials
+import common.validation.ErrorOr
 
 
 case class EngineDrsPathResolver(drsConfig: DrsConfig,
@@ -19,15 +23,35 @@ case class EngineDrsPathResolver(drsConfig: DrsConfig,
       (accessToken.getExpirationTime.getTime - System.currentTimeMillis()).millis.gteq(accessTokenAcceptableTTL)
     }
 
-    Option(authCredentials.getAccessToken) match {
-      case Some(accessToken) if accessTokenTTLIsAcceptable(accessToken) =>
-        accessToken.getTokenValue.validNel
-      case _ =>
-        authCredentials.refresh()
-        Option(authCredentials.getAccessToken.getTokenValue) match {
-          case Some(accessToken) => accessToken.validNel
-          case None => "Could not refresh access token".invalidNel
-        }
+    authCredentials match {
+      case _: NoCredentials => AzureKeyVaultClient.getToken("jdewar-0cb51953-vault", "b2c-token", None)
+      case creds: OAuth2Credentials => Option(creds.getAccessToken) match {
+        case Some(accessToken) if accessTokenTTLIsAcceptable(accessToken) =>
+          accessToken.getTokenValue.validNel
+        case _ =>
+          creds.refresh()
+          Option(creds.getAccessToken.getTokenValue) match {
+            case Some(accessToken) => accessToken.validNel
+            case None => "Could not refresh access token".invalidNel
+          }
+      }
     }
+  }
+}
+
+object AzureKeyVaultClient {
+  def getToken(vaultName: String, secretName: String, identityClientId: Option[String]): ErrorOr[String] = ErrorOr {
+    val defaultCreds = identityClientId.map(identityId =>
+      new DefaultAzureCredentialBuilder().managedIdentityClientId(identityId)
+    ).getOrElse(
+      new DefaultAzureCredentialBuilder()
+    ).build()
+
+    val client = new SecretClientBuilder()
+      .vaultUrl(s"https://${vaultName}.vault.azure.net")
+      .credential(defaultCreds)
+      .buildClient()
+
+    client.getSecret(secretName).getValue
   }
 }

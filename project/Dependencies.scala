@@ -516,16 +516,16 @@ object Dependencies {
 
   val bcsBackendDependencies: List[ModuleID] = commonDependencies ++ refinedTypeDependenciesList ++ aliyunBatchComputeDependencies
 
-  val tesBackendAzureDependencies: List[ModuleID] = List(
+  val azureDependencies: List[ModuleID] = List(
     "com.azure" % "azure-identity" % azureIdentitySdkV
       exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
       exclude("jakarta.activation", "jakarta.activation-api"),
-  "com.azure" % "azure-security-keyvault-secrets" % azureKeyVaultSdkV
+    "com.azure" % "azure-security-keyvault-secrets" % azureKeyVaultSdkV
       exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
       exclude("jakarta.activation", "jakarta.activation-api")
   )
 
-  val tesBackendDependencies: List[ModuleID] = tesBackendAzureDependencies ++ akkaHttpDependencies
+  val tesBackendDependencies: List[ModuleID] = azureDependencies ++ akkaHttpDependencies
 
   val sfsBackendDependencies = List (
     "org.lz4" % "lz4-java" % lz4JavaV
@@ -559,7 +559,7 @@ object Dependencies {
     "com.iheart" %% "ficus" % ficusV,
     "com.softwaremill.sttp" %% "circe" % sttpV,
     "com.github.scopt" %% "scopt" % scoptV,
-  ) ++ circeDependencies ++ catsDependencies ++ slf4jBindingDependencies ++ languageFactoryDependencies
+  ) ++ circeDependencies ++ catsDependencies ++ slf4jBindingDependencies ++ languageFactoryDependencies ++ azureDependencies
 
   val allProjectDependencies: List[ModuleID] =
     backendDependencies ++

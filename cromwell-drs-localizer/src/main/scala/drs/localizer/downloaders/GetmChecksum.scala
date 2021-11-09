@@ -30,8 +30,10 @@ case class Md5(override val rawValue: String) extends GetmChecksum {
     val trimmed = rawValue.trim
     if (trimmed.matches("[A-Fa-f0-9]+"))
       trimmed.validNel
-    // Azure reports its md5s in base64, but `getm` knows only hex. For the sanity of humans storing data in Azure
-    // it's probably best if the DRS localizer does this conversion for `getm`.
+    // TDR currently returns a base64-encoded MD5 because that's what Azure seems to do. However,
+    // the DRS spec does not specify that any checksums should be base64-encoded, and `getm` also
+    // does not expect base64. This case handles the current behavior in the short term until
+    // https://broadworkbench.atlassian.net/browse/DR-2259 is done.
     else if (isBase64(trimmed))
       (trimmed |> decodeBase64 |> encodeHexString).validNel
     else

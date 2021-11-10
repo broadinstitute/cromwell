@@ -15,7 +15,7 @@ class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfi
                                 httpClientBuilderOverride: Option[HttpClientBuilder] = None,
                                 accessTokenAcceptableTTL: Duration = Duration.Inf,
                                )
-  extends EngineDrsPathResolver(drsConfig, accessTokenAcceptableTTL, NoCredentials.getInstance) {
+  extends EngineDrsPathResolver(drsConfig, accessTokenAcceptableTTL, GoogleDrsCredentials(NoCredentials.getInstance)) {
 
   override protected lazy val httpClientBuilder: HttpClientBuilder =
     httpClientBuilderOverride getOrElse Mockito.mock[HttpClientBuilder].smart

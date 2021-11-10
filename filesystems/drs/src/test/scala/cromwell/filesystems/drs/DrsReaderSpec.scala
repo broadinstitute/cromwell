@@ -28,7 +28,7 @@ class DrsReaderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matche
     val googleServiceAccount = None
     val marthaResponse = MarthaResponse(gsUri = Option(gsUri), googleServiceAccount = googleServiceAccount)
     val readerIo =
-      DrsReader.reader(googleAuthMode, workflowOptions, requesterPaysProjectIdOption, drsPathResolver, marthaResponse)
+      DrsReader.reader(Option(googleAuthMode), workflowOptions, requesterPaysProjectIdOption, drsPathResolver, marthaResponse)
     readerIo.unsafeRunSync() should be(
       GcsReader(googleAuthMode, workflowOptions, requesterPaysProjectIdOption, gsUri, googleServiceAccount)
     )
@@ -42,7 +42,7 @@ class DrsReaderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matche
     val accessUrl = AccessUrl("https://host/object/path", Option(Map("hello" -> "world")))
     val marthaResponse = MarthaResponse(accessUrl = Option(accessUrl))
     val readerIo =
-      DrsReader.reader(googleAuthMode, workflowOptions, requesterPaysProjectIdOption, drsPathResolver, marthaResponse)
+      DrsReader.reader(Option(googleAuthMode), workflowOptions, requesterPaysProjectIdOption, drsPathResolver, marthaResponse)
     readerIo.unsafeRunSync() should be(
       AccessUrlReader(drsPathResolver, accessUrl)
     )
@@ -55,7 +55,7 @@ class DrsReaderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matche
     val drsPathResolver = new MockEngineDrsPathResolver()
     val marthaResponse = MarthaResponse()
     val readerIo =
-      DrsReader.reader(googleAuthMode, workflowOptions, requesterPaysProjectIdOption, drsPathResolver, marthaResponse)
+      DrsReader.reader(Option(googleAuthMode), workflowOptions, requesterPaysProjectIdOption, drsPathResolver, marthaResponse)
     the[RuntimeException] thrownBy {
       readerIo.unsafeRunSync()
     } should have message DrsPathResolver.ExtractUriErrorMsg
@@ -77,7 +77,7 @@ class DrsReaderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matche
     val accessUrl = AccessUrl("https://host/object/path", Option(Map("hello" -> "world")))
     val marthaResponse = MarthaResponse(accessUrl = Option(accessUrl))
     val channelIo =
-      DrsReader.readInterpreter(MockAuthMode("unused"), WorkflowOptions.empty, None)(drsPathResolver, marthaResponse)
+      DrsReader.readInterpreter(Option(MockAuthMode("unused")), WorkflowOptions.empty, None)(drsPathResolver, marthaResponse)
     val channel = channelIo.unsafeRunSync()
 
     val buffer = ByteBuffer.allocate(exampleBytes.length)

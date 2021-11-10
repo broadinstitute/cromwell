@@ -8,9 +8,9 @@ import com.typesafe.config.Config
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{PathBuilder, PathBuilderFactory}
+import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
 
 /**
   * Cromwell Wrapper around DrsFileSystems to load the configuration.
@@ -26,8 +26,8 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
 
   // For Azure support
   private val workflowExecutionIdentityKey = "workflow_execution_identity"
-  private lazy val azureKeyVault = Try(instanceConfig.getString("azure-keyvault-name")).toOption
-  private lazy val azureSecretName = Try(instanceConfig.getString("azure-token-secret")).toOption
+  private lazy val azureKeyVault = instanceConfig.as[Option[String]]("azure-keyvault-name")
+  private lazy val azureSecretName = instanceConfig.as[Option[String]]("azure-token-secret")
 
   override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder] = {
     Future {

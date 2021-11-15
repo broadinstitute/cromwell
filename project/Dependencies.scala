@@ -193,6 +193,15 @@ object Dependencies {
     "org.typelevel" %% "cats-effect" % catsEffectV,
   )
 
+  val azureDependencies: List[ModuleID] = List(
+    "com.azure" % "azure-identity" % azureIdentitySdkV
+      exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
+      exclude("jakarta.activation", "jakarta.activation-api"),
+    "com.azure" % "azure-security-keyvault-secrets" % azureKeyVaultSdkV
+      exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
+      exclude("jakarta.activation", "jakarta.activation-api")
+  )
+
   val implFtpDependencies = List(
     "commons-net" % "commons-net" % commonNetV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV,
@@ -205,7 +214,7 @@ object Dependencies {
     "org.apache.commons" % "commons-lang3" % commonsLang3V,
     "com.google.cloud" % "google-cloud-storage" % googleCloudStorageV,
     "com.google.oauth-client" % "google-oauth-client" % googleOauthClientV
-  ) ++ circeDependencies ++ catsDependencies
+  ) ++ circeDependencies ++ catsDependencies ++ azureDependencies
 
   // Internal collections of dependencies
 
@@ -516,16 +525,7 @@ object Dependencies {
 
   val bcsBackendDependencies: List[ModuleID] = commonDependencies ++ refinedTypeDependenciesList ++ aliyunBatchComputeDependencies
 
-  val azureDependencies: List[ModuleID] = List(
-    "com.azure" % "azure-identity" % azureIdentitySdkV
-      exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
-      exclude("jakarta.activation", "jakarta.activation-api"),
-    "com.azure" % "azure-security-keyvault-secrets" % azureKeyVaultSdkV
-      exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
-      exclude("jakarta.activation", "jakarta.activation-api")
-  )
-
-  val tesBackendDependencies: List[ModuleID] = azureDependencies ++ akkaHttpDependencies
+  val tesBackendDependencies: List[ModuleID] = akkaHttpDependencies
 
   val sfsBackendDependencies = List (
     "org.lz4" % "lz4-java" % lz4JavaV

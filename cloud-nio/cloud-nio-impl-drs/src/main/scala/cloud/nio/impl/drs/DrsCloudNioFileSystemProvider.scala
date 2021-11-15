@@ -5,21 +5,16 @@ import java.nio.file.Path
 import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
 import cloud.nio.spi.{CloudNioFileProvider, CloudNioFileSystem, CloudNioFileSystemProvider, CloudNioPath}
 import com.typesafe.config.Config
-import net.ceedubs.ficus.Ficus._
-
-import scala.concurrent.duration.FiniteDuration
 
 class DrsCloudNioFileSystemProvider(rootConfig: Config,
-                                    drsCredentials: DrsCredentials,
+                                    val drsCredentials: DrsCredentials,
                                     drsReadInterpreter: DrsReadInterpreter,
                                    ) extends CloudNioFileSystemProvider {
 
   lazy val drsConfig: DrsConfig = DrsConfig.fromConfig(rootConfig.getConfig("martha"))
 
-  lazy val accessTokenAcceptableTTL: FiniteDuration = rootConfig.as[FiniteDuration]("access-token-acceptable-ttl")
-
   lazy val drsPathResolver: EngineDrsPathResolver =
-    EngineDrsPathResolver(drsConfig, accessTokenAcceptableTTL, drsCredentials)
+    EngineDrsPathResolver(drsConfig, drsCredentials)
 
   override def config: Config = rootConfig
 

@@ -4,8 +4,10 @@ import cats.syntax.validated._
 import com.azure.identity.DefaultAzureCredentialBuilder
 import com.azure.security.keyvault.secrets.{SecretClient, SecretClientBuilder}
 import com.google.auth.oauth2.{AccessToken, OAuth2Credentials}
+import com.typesafe.config.Config
 import common.validation.ErrorOr
 import common.validation.ErrorOr.ErrorOr
+import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
 
@@ -14,12 +16,12 @@ import scala.concurrent.duration._
   * for different cloud environments.
   **/
 sealed trait DrsCredentials {
-  def getAccessToken(acceptableTTL: Duration): ErrorOr[String]
+  def getAccessToken: ErrorOr[String]
 }
 
-case class GoogleDrsCredentials(credentials: OAuth2Credentials) extends DrsCredentials {
+case class GoogleDrsCredentials(credentials: OAuth2Credentials, acceptableTTL: Duration) extends DrsCredentials {
   //Based on method from GoogleRegistry
-  def getAccessToken(acceptableTTL: Duration): ErrorOr[String] = {
+  def getAccessToken: ErrorOr[String] = {
     def accessTokenTTLIsAcceptable(accessToken: AccessToken): Boolean = {
       (accessToken.getExpirationTime.getTime - System.currentTimeMillis()).millis.gteq(acceptableTTL)
     }
@@ -37,6 +39,11 @@ case class GoogleDrsCredentials(credentials: OAuth2Credentials) extends DrsCrede
   }
 }
 
+object GoogleDrsCredentials {
+  def apply(credentials: OAuth2Credentials, config: Config): GoogleDrsCredentials =
+    GoogleDrsCredentials(credentials, config.as[FiniteDuration]("access-token-acceptable-ttl"))
+}
+
 case class AzureDrsCredentials(identityClientId: Option[String], vaultName: String, secretName: String) extends DrsCredentials {
 
   lazy val secretClient: ErrorOr[SecretClient] = ErrorOr {
@@ -52,7 +59,7 @@ case class AzureDrsCredentials(identityClientId: Option[String], vaultName: Stri
       .buildClient()
   }
 
-  def getAccessToken(acceptableTTL: Duration): ErrorOr[String] = {
+  def getAccessToken: ErrorOr[String] = {
     // TTL value is unused
     secretClient.map(_.getSecret(secretName).getValue)
   }

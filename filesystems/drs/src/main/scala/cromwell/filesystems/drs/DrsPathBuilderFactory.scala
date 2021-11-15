@@ -41,7 +41,10 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
         case ("azure", Some(vaultName), Some(secretName)) => (None, AzureDrsCredentials(options.get(workflowExecutionIdentityKey).toOption, vaultName, secretName))
         case ("azure", _, _) => throw new RuntimeException(s"Error while instantiating DRS path builder factory. Couldn't find azure-keyvault-name and azure-token-secret in config.")
         case (googleAuthScheme, _, _) => googleConfiguration.auth(googleAuthScheme) match {
-          case Valid(auth) => (Option(auth), GoogleDrsCredentials(auth.credentials(options.get(_).get, marthaScopes)))
+          case Valid(auth) => (
+            Option(auth),
+            GoogleDrsCredentials(auth.credentials(options.get(_).get, marthaScopes), singletonConfig.config)
+          )
           case Invalid(error) => throw new RuntimeException(s"Error while instantiating DRS path builder factory. Errors: ${error.toString}")
         }
       }

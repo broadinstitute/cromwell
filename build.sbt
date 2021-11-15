@@ -244,6 +244,7 @@ lazy val tesBackend = (project in backendRoot / "tes")
   .withLibrarySettings("cromwell-tes-backend", tesBackendDependencies)
   .dependsOn(sfsBackend)
   .dependsOn(ftpFileSystem)
+  .dependsOn(drsFileSystem)
   .dependsOn(backend % "test->test")
   .dependsOn(common % "test->test")
 

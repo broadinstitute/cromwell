@@ -1,7 +1,7 @@
 package cromwell.filesystems.drs
 
 import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
-import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
+import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, GoogleDrsCredentials}
 import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.TestKitSuite
@@ -9,6 +9,8 @@ import cromwell.core.path._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.Tables.Table
+
+import scala.concurrent.duration.DurationInt
 
 class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with PathBuilderSpecUtils {
 
@@ -385,7 +387,7 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
   private lazy val fakeCredentials = NoCredentials.getInstance
 
   private lazy val drsPathBuilder = DrsPathBuilder(
-    new DrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, drsReadInterpreter),
+    new DrsCloudNioFileSystemProvider(marthaConfig, GoogleDrsCredentials(fakeCredentials, 1.minutes), drsReadInterpreter),
     None,
   )
 }

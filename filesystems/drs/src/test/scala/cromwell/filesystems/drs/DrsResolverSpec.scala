@@ -14,6 +14,7 @@ class DrsResolverSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
   private val marthaConfig: Config = ConfigFactory.parseMap(
     Map(
       "martha.url" -> "https://martha-url/martha_v3",
+      "access-token-acceptable-ttl" -> "1 minute"
     ).asJava
   )
 

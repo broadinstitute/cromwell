@@ -59,8 +59,5 @@ case class AzureDrsCredentials(identityClientId: Option[String], vaultName: Stri
       .buildClient()
   }
 
-  def getAccessToken: ErrorOr[String] = {
-    // TTL value is unused
-    secretClient.map(_.getSecret(secretName).getValue)
-  }
+  def getAccessToken: ErrorOr[String] = secretClient.map(_.getSecret(secretName).getValue)
 }

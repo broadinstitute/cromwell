@@ -1,6 +1,8 @@
 package cromwell.backend.impl.tes
 
 import akka.actor.ActorRef
+import cats.implicits._
+import common.validation.Validation._
 import cromwell.backend.standard._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
 import cromwell.core.path.PathBuilder
@@ -8,7 +10,7 @@ import spray.json.JsString
 import wom.graph.CommandCallNode
 
 import scala.concurrent.Future
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 case class TesInitializationActorParams
 (
@@ -36,14 +38,30 @@ class TesInitializationActor(params: TesInitializationActorParams)
   override lazy val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
     TesRuntimeAttributes.runtimeAttributesBuilder(tesConfiguration.runtimeConfig)
 
-  override def validateWorkflowOptions(): Try[Unit] =
-    workflowDescriptor.workflowOptions.toMap.get(TesWorkflowOptionKeys.WorkflowExecutionIdentity) match {
-      case None => Success(())
-      case Some(_: JsString) => Success(())
-      case Some(v) => Failure(
-        new Exception(s"Workflow option ${TesWorkflowOptionKeys.WorkflowExecutionIdentity} must be a string, was ${v}.")
-      )
+  override def validateWorkflowOptions(): Try[Unit] = {
+    def validateBothIdentities() = {
+      val optionsMap = workflowDescriptor.workflowOptions.toMap
+      (optionsMap.get(TesWorkflowOptionKeys.WorkflowExecutionIdentity), optionsMap.get(TesWorkflowOptionKeys.DataAccessIdentity)) match {
+        case (None, None) => ().validNel
+        case (Some(_), Some(_)) => ().validNel
+        case _ => s"Workflow options ${TesWorkflowOptionKeys.WorkflowExecutionIdentity} and ${TesWorkflowOptionKeys.DataAccessIdentity} are both required if one is provided.".invalidNel
+      }
     }
+
+    def validateIsString(key: String) = workflowDescriptor.workflowOptions.toMap.get(key) match {
+      case None => ().validNel
+      case Some(_: JsString) => ().validNel
+      case Some(v) => s"Workflow option $key must be a string, was $v.".invalidNel
+    }
+
+    // If provided, workflow execution identity and data access identity must both be specified and
+    // must both be strings.
+    (
+      validateBothIdentities(),
+      validateIsString(TesWorkflowOptionKeys.WorkflowExecutionIdentity),
+      validateIsString(TesWorkflowOptionKeys.DataAccessIdentity)
+    ).mapN((_, _, _) => ()).toTry
+  }
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     workflowPaths map { paths =>

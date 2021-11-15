@@ -39,7 +39,7 @@ class TesInitializationActor(params: TesInitializationActorParams)
     TesRuntimeAttributes.runtimeAttributesBuilder(tesConfiguration.runtimeConfig)
 
   override def validateWorkflowOptions(): Try[Unit] = {
-    def validateBothIdentities() = {
+    def validateIdentities() = {
       val optionsMap = workflowDescriptor.workflowOptions.toMap
       (optionsMap.get(TesWorkflowOptionKeys.WorkflowExecutionIdentity), optionsMap.get(TesWorkflowOptionKeys.DataAccessIdentity)) match {
         case (None, None) => ().validNel
@@ -57,7 +57,7 @@ class TesInitializationActor(params: TesInitializationActorParams)
     // If provided, workflow execution identity and data access identity must both be specified and
     // must both be strings.
     (
-      validateBothIdentities(),
+      validateIdentities(),
       validateIsString(TesWorkflowOptionKeys.WorkflowExecutionIdentity),
       validateIsString(TesWorkflowOptionKeys.DataAccessIdentity)
     ).mapN((_, _, _) => ()).toTry

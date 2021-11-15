@@ -120,7 +120,8 @@ class TesInitializationActorSpec extends TestKitSuite
           case InitializationSuccess(s) => fail(s"InitializationFailed was expected but got $s")
           case InitializationFailed(failure) =>
             val expectedMsg = nonStringErrorMessage(TesWorkflowOptionKeys.WorkflowExecutionIdentity)
-            if (!(failure.getMessage.contains(expectedMsg) && failure.getMessage.contains(bothRequiredErrorMessage))) {
+            if (!(failure.getMessage.contains(expectedMsg) &&
+                  failure.getMessage.contains(bothRequiredErrorMessage))) {
               fail(s"Exception message did not contain both '$expectedMsg' and '$bothRequiredErrorMessage'. Was '$failure'")
             }
         }

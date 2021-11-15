@@ -25,7 +25,7 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
   private lazy val scheme = instanceConfig.getString("auth")
 
   // For Azure support
-  private val workflowExecutionIdentityKey = "workflow_execution_identity"
+  private val workflowExecutionIdentityKey = "data_access_identity"
   private lazy val azureKeyVault = instanceConfig.as[Option[String]]("azure-keyvault-name")
   private lazy val azureSecretName = instanceConfig.as[Option[String]]("azure-token-secret")
 

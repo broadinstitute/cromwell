@@ -25,7 +25,7 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
   private lazy val scheme = instanceConfig.getString("auth")
 
   // For Azure support
-  private val workflowExecutionIdentityKey = "data_access_identity"
+  private val dataAccessIdentityKey = "data_access_identity"
   private lazy val azureKeyVault = instanceConfig.as[Option[String]]("azure-keyvault-name")
   private lazy val azureSecretName = instanceConfig.as[Option[String]]("azure-token-secret")
 
@@ -38,7 +38,7 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
       )
 
       val (googleAuthMode, drsCredentials) = (scheme, azureKeyVault, azureSecretName) match {
-        case ("azure", Some(vaultName), Some(secretName)) => (None, AzureDrsCredentials(options.get(workflowExecutionIdentityKey).toOption, vaultName, secretName))
+        case ("azure", Some(vaultName), Some(secretName)) => (None, AzureDrsCredentials(options.get(dataAccessIdentityKey).toOption, vaultName, secretName))
         case ("azure", _, _) => throw new RuntimeException(s"Error while instantiating DRS path builder factory. Couldn't find azure-keyvault-name and azure-token-secret in config.")
         case (googleAuthScheme, _, _) => googleConfiguration.auth(googleAuthScheme) match {
           case Valid(auth) => (

@@ -2,7 +2,7 @@ package cromwell.docker
 
 import akka.actor.{ActorRef, Scheduler}
 import akka.testkit.ImplicitSender
-import cats.effect.{ContextShift, IO}
+import cats.effect.IO
 import cromwell.core.TestKitSuite
 
 import scala.concurrent.ExecutionContext

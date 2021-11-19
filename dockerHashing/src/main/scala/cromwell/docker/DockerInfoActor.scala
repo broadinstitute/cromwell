@@ -3,7 +3,7 @@ package cromwell.docker
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
 import akka.stream._
 import cats.effect.IO._
-import cats.effect.{ContextShift, IO, Timer}
+import cats.effect.IO
 import cats.instances.list._
 import cats.syntax.parallel._
 import com.google.common.cache.CacheBuilder
@@ -28,6 +28,7 @@ import org.slf4j.{Logger, LoggerFactory}
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
+import cats.effect.Temporal
 
 final class DockerInfoActor(
                              dockerRegistryFlows: Seq[DockerRegistry],
@@ -132,7 +133,7 @@ final class DockerInfoActor(
    * To send requests to the stream, simply enqueue a request message.
    */
   private def startAndRegisterStream(registry: DockerRegistry): IO[(DockerRegistry, StreamQueue)] = {
-    implicit val timer: Timer[IO] = IO.timer(registry.config.executionContext)
+    implicit val timer: Temporal[IO] = IO.timer(registry.config.executionContext)
     implicit val cs: ContextShift[IO] = IO.contextShift(registry.config.executionContext)
 
     /*

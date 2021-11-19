@@ -2,7 +2,7 @@ package cromwell.docker.local
 
 import java.util.concurrent.TimeoutException
 
-import cats.effect.{ContextShift, IO, Timer}
+import cats.effect.IO
 import cromwell.docker.DockerInfoActor._
 import cromwell.docker._
 import org.http4s.client.Client
@@ -10,6 +10,7 @@ import org.http4s.client.Client
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
+import cats.effect.Temporal
 
 /**
   * A docker flow using the CLI to return docker hashes.
@@ -74,7 +75,7 @@ object DockerCliFlow {
     */
   private def lookupHashOrTimeout(timeout: FiniteDuration)
                                  (context: DockerInfoContext)
-                                 (implicit cs: ContextShift[IO], timer: Timer[IO]): IO[(DockerInfoResponse, DockerInfoContext)] = {
+                                 (implicit timer: Temporal[IO]): IO[(DockerInfoResponse, DockerInfoContext)] = {
     IO(lookupHash(context)).timeout(timeout)
       .handleErrorWith({
         case _: TimeoutException => IO.pure {

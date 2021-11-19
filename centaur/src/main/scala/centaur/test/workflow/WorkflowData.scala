@@ -4,7 +4,7 @@ import java.util.concurrent.Executors
 
 import better.files.File
 import cats.data.Validated._
-import cats.effect.{Blocker, ContextShift, IO}
+import cats.effect.IO
 import com.google.cloud.storage.{BlobId, StorageOptions}
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr

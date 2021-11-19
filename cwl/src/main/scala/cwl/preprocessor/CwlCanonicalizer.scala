@@ -1,6 +1,6 @@
 package cwl.preprocessor
 
-import cats.effect.{ContextShift, IO}
+import cats.effect.IO
 import cats.syntax.parallel._
 import cats.instances.list._
 import common.validation.ErrorOr.ErrorOr

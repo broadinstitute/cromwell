@@ -1,7 +1,7 @@
 package cromwell.engine.io.nio
 
 import akka.stream.scaladsl.Flow
-import cats.effect.{IO, Timer}
+import cats.effect.IO
 import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
 import com.typesafe.config.Config
 import common.util.IORetry
@@ -22,6 +22,7 @@ import java.io._
 import java.nio.charset.StandardCharsets
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
+import cats.effect.Temporal
 
 
 /**
@@ -34,7 +35,7 @@ class NioFlow(parallelism: Int,
               commandBackpressureStaleness: FiniteDuration
               )(implicit ec: ExecutionContext) extends IoCommandStalenessBackpressuring {
 
-  implicit private val timer: Timer[IO] = IO.timer(ec)
+  implicit private val timer: Temporal[IO] = IO.timer(ec)
 
   override def maxStaleness: FiniteDuration = commandBackpressureStaleness
 

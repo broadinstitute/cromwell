@@ -3,7 +3,7 @@ package cromwell.backend.impl.aws
 import java.util.concurrent.Executors
 
 import akka.actor.{Actor, ActorLogging, Props}
-import cats.effect.{IO, Timer}
+import cats.effect.IO
 import cromwell.backend.impl.aws.IntervalLimitedAwsJobSubmitActor.{CheckForWork, SubmitAwsJobRequest}
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.batch.BatchClient
@@ -12,6 +12,7 @@ import software.amazon.awssdk.services.batch.model.SubmitJobResponse
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.{Failure, Success}
+import cats.effect.Temporal
 
 /**
  * An actor that receives requests to submit jobs to, schedule work on, and check for work on the work queue
@@ -20,7 +21,7 @@ import scala.util.{Failure, Success}
 class IntervalLimitedAwsJobSubmitActor(configRegion: Option[Region]) extends Actor with ActorLogging {
 
   implicit val ec: ExecutionContext = context.dispatcher
-  implicit val timer: Timer[IO] = cats.effect.IO.timer(ExecutionContext.fromExecutor(Executors.newSingleThreadScheduledExecutor))
+  implicit val timer: Temporal[IO] = cats.effect.IO.timer(ExecutionContext.fromExecutor(Executors.newSingleThreadScheduledExecutor))
 
   val WorkInterval = 100.millis
 

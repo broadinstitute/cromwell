@@ -1,9 +1,10 @@
 package common.util
 
-import cats.effect.{IO, Timer}
+import cats.effect.IO
 
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
+import cats.effect.Temporal
 
 object IORetry {
   def noOpOnRetry[S]: (Throwable, S) => S = (_, s) => s
@@ -36,7 +37,7 @@ object IORetry {
                       isRetryable: Throwable => Boolean = throwableToTrue,
                       isInfinitelyRetryable: Throwable => Boolean = throwableToFalse,
                       onRetry: (Throwable, S) => S = noOpOnRetry[S])
-                     (implicit timer: Timer[IO], statefulIoException: StatefulIoError[S]): IO[A] = {
+                     (implicit timer: Temporal[IO], statefulIoException: StatefulIoError[S]): IO[A] = {
     lazy val delay = backoff.backoffMillis.millis
 
     def fail(throwable: Throwable) = IO.raiseError(statefulIoException.toThrowable(state, throwable))

@@ -3,7 +3,7 @@ package cromwell.services.healthmonitor.impl.common
 import akka.actor.ActorSystem
 import akka.pattern.ask
 import akka.util.Timeout
-import cats.effect.{ContextShift, IO}
+import cats.effect.IO
 import cromwell.docker.DockerInfoActor.{DockerInfoFailedResponse, DockerInfoResponse, DockerInfoSuccessResponse}
 import cromwell.docker.registryv2.flows.dockerhub.DockerHubRegistry
 import cromwell.docker.{DockerImageIdentifierWithoutHash, DockerInfoActor, DockerInfoRequest, DockerRegistryConfig}

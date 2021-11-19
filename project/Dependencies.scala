@@ -18,9 +18,9 @@ object Dependencies {
   private val azureKeyVaultSdkV = "4.3.4"
   private val betterFilesV = "3.9.1"
   /*
-  cats-effect, fs2, http4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
+  sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
    */
-  private val catsEffectV = "2.5.3" // scala-steward:off (CROM-6564)
+  private val catsEffectV = "3.2.9"
   private val catsV = "2.6.1"
   private val circeConfigV = "0.8.0"
   private val circeGenericExtrasV = "0.14.1"
@@ -41,14 +41,14 @@ object Dependencies {
   // The "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV dependency is an implicit, version-specific
   // runtime dependency of ScalaTest. At the time of this writing this is the newest version known to work.
   private val flexmarkV = "0.36.8" // scala-steward:off
-  private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
+  private val fs2V = "3.2.2"
   // Scala Steward opened PR #5775 titled "Update fs2-io from 2.0.1 to 2.4.3" to upgrade the following dependency.
   // However that PR was actually attempting an upgrade from 1.0.5 to 2.4.3 which is a much more significant
   // undertaking, resulting in some thoroughly broken statsd proxy code. As this component lacks tests and is
   // probably not the most important corner of the Cromwell repo, going to punt on this for now.
   // NOTE: fs2VStatsDProxy usage within allProjectDependencies breaks sbt whatDependsOn.  If you want to use
   // whatDependsOn temporarily set fs2VStatsDProxy to fs2V and revert back before trying to compile.
-  private val fs2VStatsDProxy = "1.0.5" // scala-steward:off
+  private val fs2VStatsDProxy = fs2V // scala-steward:off
   private val googleApiClientV = "1.32.1"
   private val googleCloudBigQueryV = "2.1.4"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-cloudkms
@@ -72,7 +72,7 @@ object Dependencies {
   private val guavaV = "30.1.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.6.0"
-  private val http4sV = "0.21.7" // scala-steward:off (CROM-6678)
+  private val http4sV = "0.23.6"
   private val jacksonV = "2.12.5"
   private val janinoV = "3.1.6"
   private val jsr305V = "3.0.2"
@@ -130,7 +130,7 @@ object Dependencies {
   private val snakeyamlV = "1.29"
   private val specs2MockV = "4.12.3"
   private val sprayJsonV = "1.3.6"
-  private val sttpV = "1.5.19" // scala-steward:off (CROM-6564)
+  private val sttpV = "3.3.16"
   private val swaggerParserV = "1.0.55"
   private val swaggerUiV = "3.23.11" // scala-steward:off (CROM-6621)
   private val testContainersScalaV = "0.39.8"
@@ -413,8 +413,7 @@ object Dependencies {
   ) ++ betterFilesDependencies
 
   val languageFactoryDependencies = List(
-    "com.softwaremill.sttp" %% "core" % sttpV,
-    "com.softwaremill.sttp" %% "async-http-client-backend-cats" % sttpV
+    "com.softwaremill.sttp.client3" %% "core" % sttpV
   )
 
   val draft2LanguageFactoryDependencies = List(
@@ -509,8 +508,7 @@ object Dependencies {
   val serverDependencies: List[ModuleID] = slf4jBindingDependencies
 
   val cromiamDependencies: List[ModuleID] = List(
-    "com.softwaremill.sttp" %% "core" % sttpV,
-    "com.softwaremill.sttp" %% "async-http-client-backend-future" % sttpV,
+    "com.softwaremill.sttp.client3" %% "core" % sttpV,
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "org.broadinstitute.dsde.workbench" %% "workbench-model" % workbenchModelV,
     "org.broadinstitute.dsde.workbench" %% "workbench-util" % workbenchUtilV
@@ -557,7 +555,7 @@ object Dependencies {
     "com.google.cloud" % "google-cloud-storage" % googleCloudStorageV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "com.iheart" %% "ficus" % ficusV,
-    "com.softwaremill.sttp" %% "circe" % sttpV,
+    "com.softwaremill.sttp.client3" %% "circe" % sttpV,
     "com.github.scopt" %% "scopt" % scoptV,
   ) ++ circeDependencies ++ catsDependencies ++ slf4jBindingDependencies ++ languageFactoryDependencies ++ azureDependencies
 

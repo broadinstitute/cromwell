@@ -7,13 +7,14 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import cats.arrow.FunctionK
 import cats.data.EitherT
-import cats.effect.{ContextShift, IO, Timer}
+import cats.effect.IO
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
 import cromwell.api.model.TimeUtil._
 import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
+import cats.effect.Temporal
 
 package object model {
 
@@ -57,7 +58,7 @@ package object model {
 
   implicit class EnhancedFailureResponseOrT[SuccessType](val responseIoT: FailureResponseOrT[SuccessType]) extends AnyVal {
     final def timeout(duration: FiniteDuration)
-                     (implicit timer: Timer[IO], cs: ContextShift[IO]): FailureResponseOrT[SuccessType] = {
+                     (implicit timer: Temporal[IO]): FailureResponseOrT[SuccessType] = {
       EitherT(responseIoT.value.timeout(duration))
     }
 

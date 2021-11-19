@@ -3,7 +3,7 @@ package cwl.preprocessor
 import java.util.concurrent.Executors
 
 import cats.data.NonEmptyList
-import cats.effect.{ContextShift, IO}
+import cats.effect.IO
 import cats.syntax.either._
 import common.validation.IOChecked._
 import cwl.CwlDecoder
@@ -120,7 +120,7 @@ class CwlPreProcessor(saladFunction: SaladFunction = saladCwlFile) {
   }
 
   // Like 'File', except that we don't read any contents before passing the path over to cwltool to canonicalize.
-  private def preProcessRemoteCwl(reference: CwlReference)(implicit cs: ContextShift[IO]): IOChecked[Json] = {
+  private def preProcessRemoteCwl(reference: CwlReference): IOChecked[Json] = {
     val cwlCanonicalizer = new CwlCanonicalizer(saladFunction)
     cwlCanonicalizer.getCanonicalCwl(reference)
   }

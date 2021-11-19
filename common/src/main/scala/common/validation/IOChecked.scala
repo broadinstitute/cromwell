@@ -4,7 +4,7 @@ package common.validation
 import cats.arrow.FunctionK
 import cats.data.EitherT.fromEither
 import cats.data.{EitherT, NonEmptyList, ValidatedNel}
-import cats.effect.{ContextShift, IO, LiftIO}
+import cats.effect.{IO, LiftIO}
 import cats.{Applicative, Monad, Parallel}
 import common.Checked
 import common.exception.{AggregatedException, AggregatedMessageException, CompositeException, MessageAggregation}
@@ -82,7 +82,7 @@ object IOChecked {
     *   EitherT.liftF(IO(Right(i.toChar))) // == IOChecked[Char]
     * )
     */
-  implicit def ioCheckedParallel(implicit cs: ContextShift[IO]) = new Parallel[IOChecked] {
+  implicit def ioCheckedParallel = new Parallel[IOChecked] {
     type F[A] = IOCheckedPar[A]
     // Applicative instance for IOCheckedPar is the one for Io.Par composed with Attempt, since IOCheckedPar[A] == IO.Par[Attempt[A]]
     override def applicative: Applicative[IOCheckedPar] = IO.parApplicative(cs).compose[Attempt]
@@ -176,7 +176,7 @@ object IOChecked {
   }
 
   implicit class FutureIOChecked[A](val future: Future[A]) extends AnyVal {
-    def toIOChecked(implicit cs: ContextShift[IO]): IOChecked[A] = {
+    def toIOChecked: IOChecked[A] = {
       IO.fromFuture(IO(future)).to[IOChecked]
     }
   }

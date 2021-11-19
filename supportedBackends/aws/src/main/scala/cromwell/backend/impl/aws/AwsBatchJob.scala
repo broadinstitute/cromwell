@@ -34,7 +34,7 @@ import java.security.MessageDigest
 
 import cats.data.ReaderT._
 import cats.data.{Kleisli, ReaderT}
-import cats.effect.{Async, Timer}
+import cats.effect.Async
 import cats.syntax.all._
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.impl.aws.io.AwsBatchWorkingDisk
@@ -57,6 +57,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.language.higherKinds
 import scala.util.{Random, Try}
+import cats.effect.Temporal
 
 /**
   *  The actual job for submission in AWS batch. `AwsBatchJob` is the primary interface to AWS Batch. It creates the
@@ -225,7 +226,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       buildKVPair("BATCH_FILE_S3_URL",batch_file_s3_url(scriptBucketName,scriptKeyPrefix,scriptKey)))
   }
 
-  def submitJob[F[_]]()( implicit timer: Timer[F], async: Async[F]): Aws[F, SubmitJobResponse] = {
+  def submitJob[F[_]]()( implicit timer: Temporal[F], async: Async[F]): Aws[F, SubmitJobResponse] = {
 
     val taskId = jobDescriptor.key.call.fullyQualifiedName + "-" + jobDescriptor.key.index + "-" + jobDescriptor.key.attempt
 
@@ -347,7 +348,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     *
     */
   private def findOrCreateDefinition[F[_]]()
-                                          (implicit async: Async[F], timer: Timer[F]): Aws[F, String] = ReaderT { awsBatchAttributes =>
+                                          (implicit async: Async[F], timer: Temporal[F]): Aws[F, String] = ReaderT { awsBatchAttributes =>
 
     // this is a call back that is executed below by the async.recoverWithRetry(retry)
     val submit = async.delay({

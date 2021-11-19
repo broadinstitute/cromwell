@@ -2,7 +2,7 @@ package centaur.test
 
 import java.util.UUID
 import cats.Monad
-import cats.effect.{ContextShift, IO, Timer}
+import cats.effect.IO
 import cats.implicits._
 import centaur._
 import centaur.api.CentaurCromwellClient
@@ -37,6 +37,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 import scala.util.Try
+import cats.effect.Temporal
 
 /**
   * A simplified riff on the final tagless pattern where the interpreter (monad & related bits) are fixed. Operation
@@ -132,7 +133,7 @@ object Operations extends StrictLogging {
     storageOptions.getService
   }
 
-  implicit private val timer: Timer[IO] = IO.timer(global)
+  implicit private val timer: Temporal[IO] = IO.timer(global)
   implicit private val contextShift: ContextShift[IO] = IO.contextShift(global)
 
   lazy val awsConfiguration: AwsConfiguration = AwsConfiguration(CentaurConfig.conf)

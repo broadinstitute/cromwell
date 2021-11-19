@@ -8,7 +8,7 @@ import akka.http.scaladsl.model.StatusCodes.ClientError
 import akka.http.scaladsl.model.{HttpRequest, StatusCodes}
 import akka.http.scaladsl.unmarshalling.Unmarshaller.UnsupportedContentTypeException
 import akka.stream.{ActorMaterializer, ActorMaterializerSettings, BufferOverflowException, StreamTcpException}
-import cats.effect.{ContextShift, IO, Timer}
+import cats.effect.IO
 import centaur.test.workflow.Workflow
 import centaur.{CentaurConfig, CromwellManager}
 import com.typesafe.config.ConfigFactory
@@ -23,6 +23,7 @@ import spray.json.DeserializationException
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.Try
+import cats.effect.Temporal
 
 object CentaurCromwellClient extends StrictLogging {
   private val config = ConfigFactory.load()
@@ -125,7 +126,7 @@ object CentaurCromwellClient extends StrictLogging {
     sendReceiveFutureCompletion(() => cromwellClient.query(id)).map(_.results.head.metadataArchiveStatus)
   }
   
-  implicit private val timer: Timer[IO] = IO.timer(blockingEc)
+  implicit private val timer: Temporal[IO] = IO.timer(blockingEc)
   implicit private val contextShift: ContextShift[IO] = IO.contextShift(blockingEc)
 
   lazy val backends: IO[CromwellBackends] = cromwellClient.backends.timeout(CromwellManager.timeout * 2).asIo

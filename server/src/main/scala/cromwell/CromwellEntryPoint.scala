@@ -6,7 +6,7 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.pattern.GracefulStopSupport
 import akka.stream.ActorMaterializer
 import cats.data.Validated._
-import cats.effect.{ContextShift, IO}
+import cats.effect.IO
 import cats.syntax.apply._
 import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigFactory}

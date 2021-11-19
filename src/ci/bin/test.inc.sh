@@ -850,6 +850,7 @@ cromwell::private::pip_install() {
 }
 
 cromwell::private::upgrade_pip() {
+    sudo apt-get install -y python3-pip
     cromwell::private::pip_install pip --upgrade
     cromwell::private::pip_install requests[security] --ignore-installed
 }

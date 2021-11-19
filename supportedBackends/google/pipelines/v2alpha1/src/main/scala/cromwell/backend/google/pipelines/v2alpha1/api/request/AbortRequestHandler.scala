@@ -15,9 +15,13 @@ import scala.util.{Failure, Success, Try}
 
 trait AbortRequestHandler extends LazyLogging { this: RequestHandler =>
   protected def handleGoogleError(abortQuery: PAPIAbortRequest, pollingManager: ActorRef, e: GoogleJsonError, responseHeaders: HttpHeaders): Try[Unit] = {
-    // No need to fail the request if the job already terminated, we're all good
-    // As seen in `cromwell.backend.google.pipelines.common.api.clients.PipelinesApiAbortClient` the difference between "finished" and "cancelled" only affects logging
-    // Enhance to be more specific if/when Google implements https://partnerissuetracker.corp.google.com/issues/171993833
+    // This condition is telling us that the job we tried to cancel is already in a terminal state. Technically PAPI
+    // was not able to cancel the job because the job could not be transitioned from 'Running' to 'Cancelled'. But from
+    // Cromwell's perspective a job cancellation is really just a request for the job to be in a terminal state, so
+    // Cromwell is okay with seeing this condition.
+    // Currently PAPI v2 cannot distinguish between "the job was already cancelled" and "the job already ran to completion".
+    // If/when Google implements https://partnerissuetracker.corp.google.com/issues/171993833 we could break these cases
+    // out and make our logging more specific if we wanted to.
     if (Option(e.getCode).contains(400) || StringUtils.contains(e.getMessage, "Precondition check failed")) {
       logger.info(s"PAPI declined to abort job ${abortQuery.jobId.jobId} in workflow ${abortQuery.workflowId}, most likely because it is no longer running. Marking as finished. Message: ${e.getMessage}")
       abortQuery.requester ! PAPIOperationIsAlreadyTerminal(abortQuery.jobId.jobId)

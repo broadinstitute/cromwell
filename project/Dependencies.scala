@@ -50,14 +50,14 @@ object Dependencies {
   // whatDependsOn temporarily set fs2VStatsDProxy to fs2V and revert back before trying to compile.
   private val fs2VStatsDProxy = "1.0.5" // scala-steward:off
   private val googleApiClientV = "1.32.1"
-  private val googleCloudBigQueryV = "2.1.4"
+  private val googleCloudBigQueryV = "2.1.13"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-cloudkms
-  private val googleCloudKmsV = "v1-rev20210812-1.32.1"
+  private val googleCloudKmsV = "v1-rev20210820-1.32.1"
   private val googleCloudMonitoringV = "3.0.2"
   // BW-808 Pinning googleCloudNioV to this tried-and-true old version and quieting Scala Steward.
   // 0.121.2 is the most recent version currently known to work.
   private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
-  private val googleCloudStorageV = "2.1.0"
+  private val googleCloudStorageV = "2.1.6"
   private val googleGaxGrpcV = "2.4.1"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-genomics
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"

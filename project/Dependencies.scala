@@ -1,7 +1,7 @@
 import sbt._
 
 object Dependencies {
-  private val akkaHttpCirceIntegrationV = "1.37.0"
+  private val akkaHttpCirceIntegrationV = "1.38.2"
   private val akkaHttpV = "10.1.14" // scala-steward:off (CROM-6619)
   private val akkaV = "2.5.32" // scala-steward:off (CROM-6637)
   private val aliyunBcsV = "6.2.4"
@@ -37,7 +37,7 @@ object Dependencies {
   private val configsV = "0.6.1"
   private val delightRhinoSandboxV = "0.0.15"
   private val diffsonSprayJsonV = "4.1.1"
-  private val ficusV = "1.5.0"
+  private val ficusV = "1.5.1"
   // The "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV dependency is an implicit, version-specific
   // runtime dependency of ScalaTest. At the time of this writing this is the newest version known to work.
   private val flexmarkV = "0.36.8" // scala-steward:off
@@ -53,7 +53,7 @@ object Dependencies {
   private val googleCloudBigQueryV = "2.1.13"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-cloudkms
   private val googleCloudKmsV = "v1-rev20210820-1.32.1"
-  private val googleCloudMonitoringV = "3.0.2"
+  private val googleCloudMonitoringV = "3.0.6"
   // BW-808 Pinning googleCloudNioV to this tried-and-true old version and quieting Scala Steward.
   // 0.121.2 is the most recent version currently known to work.
   private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
@@ -69,7 +69,7 @@ object Dependencies {
   private val googleOauthClientV = "1.32.1"
   private val googleCloudResourceManagerV = "1.0.4"
   private val grpcV = "1.40.1"
-  private val guavaV = "30.1.1-jre"
+  private val guavaV = "31.0.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.6.0"
   private val http4sV = "0.21.7" // scala-steward:off (CROM-6678)

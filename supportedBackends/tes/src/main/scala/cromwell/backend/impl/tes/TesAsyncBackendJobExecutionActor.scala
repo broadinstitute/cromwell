@@ -106,7 +106,8 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     womFile.mapFile(value =>
       getPath(value) match {
         case Success(drsPath: DrsPath) =>
-          DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()
+          val filepath = DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()
+          tesJobPaths.containerExec(commandDirectory, filepath)
         case Success(path: Path) if path.startsWith(tesJobPaths.workflowPaths.DockerRoot) =>
           path.pathAsString
         case Success(path: Path) if path.equals(tesJobPaths.callExecutionRoot) =>

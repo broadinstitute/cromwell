@@ -10,7 +10,7 @@ object Dependencies {
   private val aliyunOssV = "3.13.1"
   private val ammoniteOpsV = "2.4.0"
   private val apacheHttpClientV = "4.5.13"
-  private val awsSdkV = "2.17.29"
+  private val awsSdkV = "2.17.50"
   // We would like to use the BOM to manage Azure SDK versions, but SBT doesn't support it.
   // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
   // https://github.com/sbt/sbt/issues/4531
@@ -91,7 +91,7 @@ object Dependencies {
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "2.8.0"
   private val mockserverNettyV = "5.11.2"
-  private val mouseV = "1.0.4"
+  private val mouseV = "1.0.5"
   private val mysqlV = "8.0.26"
   private val nettyV = "4.1.66.Final"
   private val owlApiV = "5.1.19"
@@ -110,7 +110,7 @@ object Dependencies {
   private val scalacticV = "3.2.9"
   private val scalameterV = "0.19"
   private val scalamockV = "5.1.0"
-  private val scalatestV = "3.2.9"
+  private val scalatestV = "3.2.10"
   private val scalatestPlusMockitoV = "1.0.0-M2"
   private val scoptV = "4.0.1"
   private val sentryLogbackV = "5.1.2"
@@ -128,7 +128,7 @@ object Dependencies {
   */
   private val slickV = "3.3.2-2076hotfix" // scala-steward:off (CROM-6620)
   private val snakeyamlV = "1.29"
-  private val specs2MockV = "4.12.3"
+  private val specs2MockV = "4.12.12"
   private val sprayJsonV = "1.3.6"
   private val sttpV = "1.5.19" // scala-steward:off (CROM-6564)
   private val swaggerParserV = "1.0.55"

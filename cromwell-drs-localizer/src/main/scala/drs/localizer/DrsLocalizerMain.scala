@@ -6,6 +6,8 @@ import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDi
 import cloud.nio.impl.drs.{AccessUrl, DrsConfig, DrsPathResolver, MarthaField}
 import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
 import com.typesafe.scalalogging.StrictLogging
+import drs.localizer.CommandLineParser.AccessTokenStrategy.{Azure, Google}
+import drs.localizer.accesstokens.{AccessTokenStrategy, AzureB2CAccessTokenStrategy, GoogleAccessTokenStrategy}
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
 
@@ -14,29 +16,23 @@ import scala.language.postfixOps
 
 object DrsLocalizerMain extends IOApp with StrictLogging {
 
-  /* This assumes the args are as follows:
-      0: DRS input
-      1: download location
-      2: Optional parameter- Requester Pays Billing project ID
-     Martha URL is passed as an environment variable
-   */
   override def run(args: List[String]): IO[ExitCode] = {
-    val argsLength = args.length
+    val parser = buildParser()
 
-    argsLength match {
-      case 2 =>
-        new DrsLocalizerMain(args.head, args(1), None).
-          resolveAndDownloadWithRetries(downloadRetries = 3, checksumRetries = 1, defaultDownloaderFactory, Option(defaultBackoff)).map(_.exitCode)
-      case 3 =>
-        new DrsLocalizerMain(args.head, args(1), Option(args(2))).
-          resolveAndDownloadWithRetries(downloadRetries = 3, checksumRetries = 1, defaultDownloaderFactory, Option(defaultBackoff)).map(_.exitCode)
-      case _ =>
-        val argsList = if (args.nonEmpty) args.mkString(",") else "None"
-        logger.error(s"Received $argsLength arguments. DRS input and download location path is required. Requester Pays billing project ID is optional. " +
-          s"Arguments received: $argsList")
-        IO(ExitCode.Error)
-    }
+    val parsedArgs = parser.parse(args, CommandLineArguments())
+
+    val localize: Option[IO[ExitCode]] = for {
+      pa <- parsedArgs
+      run <- pa.accessTokenStrategy.collect {
+        case Azure => runLocalizer(pa, AzureB2CAccessTokenStrategy(pa))
+        case Google => runLocalizer(pa, GoogleAccessTokenStrategy)
+      }
+    } yield run
+
+    localize getOrElse printUsage
   }
+
+  def buildParser(): scopt.OptionParser[CommandLineArguments] = new CommandLineParser()
 
   val defaultBackoff: CloudNioBackoff = CloudNioSimpleExponentialBackoff(
     initialInterval = 10 seconds, maxInterval = 60 seconds, multiplier = 2)
@@ -48,16 +44,29 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] =
       IO.pure(GcsUriDownloader(gcsPath, serviceAccountJsonOption, downloadLoc, requesterPaysProjectOption))
   }
+
+  private def printUsage: IO[ExitCode] = {
+    System.err.println(CommandLineParser.Usage)
+    IO.pure(ExitCode.Error)
+  }
+
+  def runLocalizer(commandLineArguments: CommandLineArguments, accessTokenStrategy: AccessTokenStrategy): IO[ExitCode] = {
+    val drsObject = commandLineArguments.drsObject.get
+    val containerPath = commandLineArguments.containerPath.get
+    new DrsLocalizerMain(drsObject, containerPath, accessTokenStrategy, commandLineArguments.googleRequesterPaysProject).
+      resolveAndDownloadWithRetries(downloadRetries = 3, checksumRetries = 1, defaultDownloaderFactory, Option(defaultBackoff)).map(_.exitCode)
+  }
 }
 
 class DrsLocalizerMain(drsUrl: String,
                        downloadLoc: String,
+                       accessTokenStrategy: AccessTokenStrategy,
                        requesterPaysProjectIdOption: Option[String]) extends StrictLogging {
 
   def getDrsPathResolver: IO[DrsLocalizerDrsPathResolver] = {
     IO {
       val drsConfig = DrsConfig.fromEnv(sys.env)
-      new DrsLocalizerDrsPathResolver(drsConfig)
+      new DrsLocalizerDrsPathResolver(drsConfig, accessTokenStrategy)
     }
   }
 

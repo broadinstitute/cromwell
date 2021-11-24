@@ -63,6 +63,13 @@ trait MetadataEntryComponent {
     } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
+  val metadataEntriesForWorkflowSortedById = Compiled(
+    (workflowExecutionUuid: Rep[String]) => (for {
+      metadataEntry <- metadataEntries
+      if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
+    } yield metadataEntry).sortBy(_.metadataEntryId)
+  )
+
   val countMetadataEntriesForWorkflowExecutionUuid = Compiled(
     (rootWorkflowId: Rep[String], expandSubWorkflows: Rep[Boolean]) => {
       val targetWorkflowIds = for {

@@ -2,6 +2,7 @@ package cromwell.filesystems.gcs
 
 import com.google.api.client.googleapis.json.{GoogleJsonError, GoogleJsonResponseException}
 import com.google.cloud.storage.StorageException
+import org.apache.commons.lang3.StringUtils
 
 object RequesterPaysErrors {
   val BucketIsRequesterPaysErrorCode = 400
@@ -9,15 +10,15 @@ object RequesterPaysErrors {
   val DoesNotHaveServiceUsePermissionErrorCode = 403
   val DoesNotHaveServiceUsePermissionErrorMessage = "does not have serviceusage.services.use"
 
-  def isProjectNotProvidedError(storageException: StorageException) = 
+  def isProjectNotProvidedError(storageException: StorageException) =
     storageException.getCode == BucketIsRequesterPaysErrorCode &&
-    storageException.getMessage == BucketIsRequesterPaysErrorMessage
+    StringUtils.contains(storageException.getMessage, BucketIsRequesterPaysErrorMessage)
 
   def isProjectNotProvidedError(googleJsonError: GoogleJsonError) =
     googleJsonError.getCode == BucketIsRequesterPaysErrorCode &&
-      googleJsonError.getMessage == BucketIsRequesterPaysErrorMessage
+      StringUtils.contains(googleJsonError.getMessage, BucketIsRequesterPaysErrorMessage)
 
   def isProjectNotProvidedError(googleJsonError: GoogleJsonResponseException) =
     googleJsonError.getStatusCode == BucketIsRequesterPaysErrorCode &&
-      googleJsonError.getContent == BucketIsRequesterPaysErrorMessage
+      StringUtils.contains(googleJsonError.getContent, BucketIsRequesterPaysErrorMessage)
 }

@@ -1,7 +1,7 @@
 package cromwell.backend.google.pipelines.v2beta
 
 import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
-import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
+import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, GoogleDrsCredentials}
 import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
 import common.assertion.CromwellTimeoutSpec
@@ -16,6 +16,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration.DurationInt
 
 class PipelinesConversionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
@@ -25,7 +26,7 @@ class PipelinesConversionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with
 
   private val marthaConfig: Config = ConfigFactory.parseString(
     """martha {
-      |   url = "http://matha-url"
+      |   url = "http://martha-url"
       |}
       |""".stripMargin
   )
@@ -38,7 +39,7 @@ class PipelinesConversionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with
   it should "create a DRS input parameter" in {
 
     val drsPathBuilder = DrsPathBuilder(
-      new DrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, drsReadInterpreter),
+      new DrsCloudNioFileSystemProvider(marthaConfig, GoogleDrsCredentials(fakeCredentials, 1.minutes), drsReadInterpreter),
       None,
     )
     val drsPath = drsPathBuilder.build("drs://drs.example.org/aaaabbbb-cccc-dddd-eeee-abcd0000dcba").get

@@ -2,7 +2,6 @@ package cromwell.backend.impl.tes
 
 import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
-
 import cats.syntax.apply._
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
@@ -20,6 +19,7 @@ import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExec
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.retry.Retry._
+import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import wom.values.WomFile
 import net.ceedubs.ficus.Ficus._
 
@@ -105,6 +105,9 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override def mapCommandLineJobInputWomFile(womFile: WomFile): WomFile = {
     womFile.mapFile(value =>
       getPath(value) match {
+        case Success(drsPath: DrsPath) =>
+          val filepath = DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()
+          tesJobPaths.containerExec(commandDirectory, filepath)
         case Success(path: Path) if path.startsWith(tesJobPaths.workflowPaths.DockerRoot) =>
           path.pathAsString
         case Success(path: Path) if path.equals(tesJobPaths.callExecutionRoot) =>
@@ -168,6 +171,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   override def executeAsync(): Future[ExecutionHandle] = {
+
     // create call exec dir
     tesJobPaths.callExecutionRoot.createPermissionedDirectories()
     val taskMessageFuture = createTaskMessage().fold(

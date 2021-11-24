@@ -76,7 +76,7 @@ object Dependencies {
   private val jacksonV = "2.12.5"
   private val janinoV = "3.1.6"
   private val jsr305V = "3.0.2"
-  private val kindProjectorV = "0.9.10"
+  private val kindProjectorV = "0.10.0"
   private val kittensV = "2.3.2"
   private val liquibaseSlf4jV = "4.0.0"
   private val liquibaseV = "4.4.0" // 4.4.1+ needs https://github.com/liquibase/liquibase/pull/2001
@@ -89,7 +89,7 @@ object Dependencies {
    */
   private val metrics4ScalaV = "4.1.19"
   private val metrics3StatsdV = "4.2.0"
-  private val mockFtpServerV = "2.8.0"
+  private val mockFtpServerV = "3.0.0"
   private val mockserverNettyV = "5.11.2"
   private val mouseV = "1.0.5"
   private val mysqlV = "8.0.26"
@@ -107,7 +107,7 @@ object Dependencies {
   private val scalaLoggingV = "3.9.4"
   private val scalaPoolV = "0.4.3"
   private val scalacheckV = "1.15.4"
-  private val scalacticV = "3.2.9"
+  private val scalacticV = "3.2.10"
   private val scalameterV = "0.19"
   private val scalamockV = "5.1.0"
   private val scalatestV = "3.2.9"
@@ -131,7 +131,7 @@ object Dependencies {
   private val specs2MockV = "4.12.12"
   private val sprayJsonV = "1.3.6"
   private val sttpV = "1.5.19" // scala-steward:off (CROM-6564)
-  private val swaggerParserV = "1.0.55"
+  private val swaggerParserV = "1.0.56"
   private val swaggerUiV = "3.23.11" // scala-steward:off (CROM-6621)
   private val testContainersScalaV = "0.39.8"
   private val tikaV = "2.1.0"
@@ -543,7 +543,7 @@ object Dependencies {
     "com.dimafeng" %% "testcontainers-scala-postgresql" % testContainersScalaV
   ) ++ slf4jBindingDependencies // During testing, add an slf4j binding for _all_ libraries.
 
-  val kindProjectorPlugin = "org.spire-math" %% "kind-projector" % kindProjectorV
+  val kindProjectorPlugin = "org.typelevel" %% "kind-projector" % kindProjectorV
   val paradisePlugin = "org.scalamacros" % "paradise" % paradiseV cross CrossVersion.full
 
   // Version of the swagger UI to write into config files

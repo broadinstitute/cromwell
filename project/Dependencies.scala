@@ -76,7 +76,7 @@ object Dependencies {
   private val jacksonV = "2.12.5"
   private val janinoV = "3.1.6"
   private val jsr305V = "3.0.2"
-  private val kindProjectorV = "0.9.10"
+  private val kindProjectorV = "0.10.0"
   private val kittensV = "2.3.2"
   private val liquibaseSlf4jV = "4.0.0"
   private val liquibaseV = "4.4.0" // 4.4.1+ needs https://github.com/liquibase/liquibase/pull/2001
@@ -543,7 +543,7 @@ object Dependencies {
     "com.dimafeng" %% "testcontainers-scala-postgresql" % testContainersScalaV
   ) ++ slf4jBindingDependencies // During testing, add an slf4j binding for _all_ libraries.
 
-  val kindProjectorPlugin = "org.spire-math" %% "kind-projector" % kindProjectorV
+  val kindProjectorPlugin = "org.typelevel" %% "kind-projector" % kindProjectorV
   val paradisePlugin = "org.scalamacros" % "paradise" % paradiseV cross CrossVersion.full
 
   // Version of the swagger UI to write into config files

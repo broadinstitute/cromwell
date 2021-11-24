@@ -89,7 +89,7 @@ object Dependencies {
    */
   private val metrics4ScalaV = "4.1.19"
   private val metrics3StatsdV = "4.2.0"
-  private val mockFtpServerV = "2.8.0"
+  private val mockFtpServerV = "3.0.0"
   private val mockserverNettyV = "5.11.2"
   private val mouseV = "1.0.5"
   private val mysqlV = "8.0.26"

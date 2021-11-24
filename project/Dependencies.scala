@@ -110,7 +110,7 @@ object Dependencies {
   private val scalacticV = "3.2.10"
   private val scalameterV = "0.19"
   private val scalamockV = "5.1.0"
-  private val scalatestV = "3.2.9"
+  private val scalatestV = "3.2.10"
   private val scalatestPlusMockitoV = "1.0.0-M2"
   private val scoptV = "4.0.1"
   private val sentryLogbackV = "5.2.0"

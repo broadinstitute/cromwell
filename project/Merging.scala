@@ -22,6 +22,8 @@ object Merging {
           MergeStrategy.first
         case "maven" :: "com.google.guava" :: _ =>
           MergeStrategy.first
+        case "versions" :: _ if path.last == "module-info.class" =>
+          MergeStrategy.discard
         case "native-image" :: _ if Set("native-image.properties", "reflection-config.json").contains(path.last) =>
           /*
           Discard GraalVM configuration files.

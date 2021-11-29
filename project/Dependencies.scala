@@ -39,8 +39,8 @@ object Dependencies {
   private val diffsonSprayJsonV = "4.1.1"
   private val ficusV = "1.5.1"
   // The "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV dependency is an implicit, version-specific
-  // runtime dependency of ScalaTest. At the time of this writing this is the newest version known to work.
-  private val flexmarkV = "0.36.8" // scala-steward:off
+  // runtime dependency of ScalaTest. They must be upgraded together, based on the ScalaTest version.
+  private val flexmarkV = "0.62.2" // scala-steward:off
   private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
   // Scala Steward opened PR #5775 titled "Update fs2-io from 2.0.1 to 2.4.3" to upgrade the following dependency.
   // However that PR was actually attempting an upgrade from 1.0.5 to 2.4.3 which is a much more significant
@@ -110,7 +110,9 @@ object Dependencies {
   private val scalacticV = "3.2.10"
   private val scalameterV = "0.19"
   private val scalamockV = "5.1.0"
-  private val scalatestV = "3.2.9"
+  // scalatestV and flexmarkV must be upgraded together. Check the ScalaTest release notes to
+  // find the version of FlexMark that corresponds to the new version of ScalaTest.
+  private val scalatestV = "3.2.10"
   private val scalatestPlusMockitoV = "1.0.0-M2"
   private val scoptV = "4.0.1"
   private val sentryLogbackV = "5.2.0"

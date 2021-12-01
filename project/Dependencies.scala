@@ -14,7 +14,7 @@ object Dependencies {
   // We would like to use the BOM to manage Azure SDK versions, but SBT doesn't support it.
   // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
   // https://github.com/sbt/sbt/issues/4531
-  private val azureIdentitySdkV = "1.4.0"
+  private val azureIdentitySdkV = "1.4.2"
   private val azureKeyVaultSdkV = "4.3.4"
   private val betterFilesV = "3.9.1"
   /*

@@ -96,13 +96,13 @@ these and other types.
 If a backend developer wishes to take advantage of the initialization phase of the backend lifecycle they must implement
 this trait. There are three functions which must be implemented:
 
-1. [`abortInitialization: Unit`](https://github.com/broadinstitute/cromwell/blob/93392acf2881921dcf22ef4dbda12af42339b3ab/backend/src/main/scala/cromwell/backend/BackendWorkflowInitializationActor.scala#L168)
+* [`abortInitialization: Unit`](https://github.com/broadinstitute/cromwell/blob/93392acf2881921dcf22ef4dbda12af42339b3ab/backend/src/main/scala/cromwell/backend/BackendWorkflowInitializationActor.scala#L168)
    specifies what to do, if anything, when a workflow is requested to abort while a backend initialization is in
    progress.
-2. [`validate: Future[Unit]`](https://github.com/broadinstitute/cromwell/blob/93392acf2881921dcf22ef4dbda12af42339b3ab/backend/src/main/scala/cromwell/backend/BackendWorkflowInitializationActor.scala#L178)
+* [`validate: Future[Unit]`](https://github.com/broadinstitute/cromwell/blob/93392acf2881921dcf22ef4dbda12af42339b3ab/backend/src/main/scala/cromwell/backend/BackendWorkflowInitializationActor.scala#L178)
    is provided so that the backend can ensure that all of the calls it will handle conform to the rules of that backend.
    For instance, if a backend requires particular runtime attributes to exist.
-3. [`beforeAll: Future[Option[BackendInitializationData]]`](https://github.com/broadinstitute/cromwell/blob/93392acf2881921dcf22ef4dbda12af42339b3ab/backend/src/main/scala/cromwell/backend/BackendWorkflowInitializationActor.scala#L173)
+* [`beforeAll: Future[Option[BackendInitializationData]]`](https://github.com/broadinstitute/cromwell/blob/93392acf2881921dcf22ef4dbda12af42339b3ab/backend/src/main/scala/cromwell/backend/BackendWorkflowInitializationActor.scala#L173)
    is the actual initialization functionality. If a backend requires any work to be done prior to handling a call, that
    code must be called from here.
 
@@ -121,7 +121,7 @@ example:
 * [GA4GH Task Execution Service (TES)](https://github.com/broadinstitute/cromwell/blob/6bf7af3c12a411db26786ac34646238fc053ec97/supportedBackends/tes/src/main/scala/cromwell/backend/impl/tes/TesAsyncBackendJobExecutionActor.scala#L55)
 * [AWS Batch](https://github.com/broadinstitute/cromwell/blob/470d482e8ba2a9e2bc544896a4e6ceea57d55bb2/supportedBackends/aws/src/main/scala/cromwell/backend/impl/aws/AwsBatchAsyncBackendJobExecutionActor.scala#L83)
 
-Overrides required for compilation of `StandardAsyncExecutionActor` implementations:
+Overrides required for compilation and basic execution of `StandardAsyncExecutionActor` implementations:
 
 * [`type StandardAsyncRunInfo`](https://github.com/broadinstitute/cromwell/blob/9181235d364712b78dbea1f35042c3c6e431af87/backend/src/main/scala/cromwell/backend/standard/StandardAsyncExecutionActor.scala#L89)
   encapsulates the type of the run info when a job is started.
@@ -134,6 +134,12 @@ Overrides required for compilation of `StandardAsyncExecutionActor` implementati
   a standard set of parameters passed to the backend.
 * [`def isTerminal(runStatus: StandardAsyncRunState): Boolean`](https://github.com/broadinstitute/cromwell/blob/9181235d364712b78dbea1f35042c3c6e431af87/backend/src/main/scala/cromwell/backend/standard/StandardAsyncExecutionActor.scala#L829)
   Returns true when a job is complete, either successfully or unsuccessfully.
+* At least one of:
+  * [`def execute(): ExecutionHandle`](https://github.com/broadinstitute/cromwell/blob/9181235d364712b78dbea1f35042c3c6e431af87/backend/src/main/scala/cromwell/backend/standard/StandardAsyncExecutionActor.scala#L738) executes the job specified in the params
+  * [`def executeAsync(): Future[ExecutionHandle]`](https://github.com/broadinstitute/cromwell/blob/9181235d364712b78dbea1f35042c3c6e431af87/backend/src/main/scala/cromwell/backend/standard/StandardAsyncExecutionActor.scala#L748) asynchronously executes the job specified in the params
+* At least one of:
+  * [`def pollStatus(handle: StandardAsyncPendingExecutionHandle): StandardAsyncRunState`](https://github.com/broadinstitute/cromwell/blob/9181235d364712b78dbea1f35042c3c6e431af87/backend/src/main/scala/cromwell/backend/standard/StandardAsyncExecutionActor.scala#L798) returns the run status for the job
+  * [`def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[StandardAsyncRunState]`](https://github.com/broadinstitute/cromwell/blob/9181235d364712b78dbea1f35042c3c6e431af87/backend/src/main/scala/cromwell/backend/standard/StandardAsyncExecutionActor.scala#L808) asynchronously returns the run status for the job
 
 #### BackendWorkflowFinalizationActor
 

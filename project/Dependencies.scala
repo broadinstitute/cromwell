@@ -41,14 +41,7 @@ object Dependencies {
   // The "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV dependency is an implicit, version-specific
   // runtime dependency of ScalaTest. They must be upgraded together, based on the ScalaTest version.
   private val flexmarkV = "0.62.2" // scala-steward:off
-  private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
-  // Scala Steward opened PR #5775 titled "Update fs2-io from 2.0.1 to 2.4.3" to upgrade the following dependency.
-  // However that PR was actually attempting an upgrade from 1.0.5 to 2.4.3 which is a much more significant
-  // undertaking, resulting in some thoroughly broken statsd proxy code. As this component lacks tests and is
-  // probably not the most important corner of the Cromwell repo, going to punt on this for now.
-  // NOTE: fs2VStatsDProxy usage within allProjectDependencies breaks sbt whatDependsOn.  If you want to use
-  // whatDependsOn temporarily set fs2VStatsDProxy to fs2V and revert back before trying to compile.
-  private val fs2VStatsDProxy = "1.0.5" // scala-steward:off
+  private val fs2V = "3.2.2"
   private val googleApiClientV = "1.32.1"
   private val googleCloudBigQueryV = "2.1.13"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-cloudkms
@@ -72,7 +65,7 @@ object Dependencies {
   private val guavaV = "31.0.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.6.0"
-  private val http4sV = "0.21.7" // scala-steward:off (CROM-6678)
+  private val http4sV = "0.23.6"
   private val jacksonV = "2.13.0"
   private val janinoV = "3.1.6"
   private val jsr305V = "3.0.2"

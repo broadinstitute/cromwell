@@ -70,11 +70,18 @@ appropriate.
 This section is assuming that you both know the underlying execution platform you wish to use and that you know how to
 programmatically submit work to it.
 
-The Cromwell engine uses three different types of Akka actors in the backend while processing a workflow:
+The Cromwell engine uses backend-specific types extending Akka `Actor` while processing a workflow:
 
-* `BackendWorkflowInitializationActor`: Handles the initialization phase
-* `BackendJobExecutionActor`: Handles requests to execute a new job or recover an existing job
-* `BackendWorkflowFinalizationActor`: Handles the finalization phase
+* [`BackendLifecycleActorFactory`](https://github.com/broadinstitute/cromwell/blob/9bf1622ca8988365477b77b9f26ce388b54fc58c/backend/src/main/scala/cromwell/backend/BackendLifecycleActorFactory.scala#L17)
+  The entry point into the backend implementation specified in Cromwell configuration. e.g.
+  a [sample configuration for the Local backend](https://github.com/broadinstitute/cromwell/blob/2b19f00976ee258142185917083460d724f7fe3d/cromwell.example.backends/cromwell.examples.conf#L370)
+* [`BackendWorkflowInitializationActor`](https://github.com/broadinstitute/cromwell/blob/93392acf2881921dcf22ef4dbda12af42339b3ab/backend/src/main/scala/cromwell/backend/BackendWorkflowInitializationActor.scala#L27)
+  Handles the initialization phase
+* Usually a derivative
+  of [`StandardAsyncExecutionActor`](https://github.com/broadinstitute/cromwell/blob/9181235d364712b78dbea1f35042c3c6e431af87/backend/src/main/scala/cromwell/backend/standard/StandardAsyncExecutionActor.scala#L75)
+  to run an individual job within the workflow
+* [`BackendWorkflowFinalizationActor`](https://github.com/broadinstitute/cromwell/blob/a40de672c565c4bbd40f57ff96d4ee520dc2b4fc/backend/src/main/scala/cromwell/backend/BackendWorkflowFinalizationActor.scala#L10)
+  Handles the finalization phase
 
 These three actors are all represented by a trait which a backend developer would need to implement. Both the
 initialization and finalization actors are optional.
@@ -130,7 +137,8 @@ Overrides required for compilation of `StandardAsyncExecutionActor` implementati
 
 #### BackendWorkflowFinalizationActor
 
-There is only one function to override for this trait if the backend developer chooses to use the finalization functionality:
+There is only one function to override for this trait if the backend developer chooses to use the finalization
+functionality:
 
-* [`afterAll: Future[Unit]`](https://github.com/broadinstitute/cromwell/blob/a40de672c565c4bbd40f57ff96d4ee520dc2b4fc/backend/src/main/scala/cromwell/backend/BackendWorkflowFinalizationActor.scala#L37) is the hook to perform any desired functionality, and is called when the workflow is
-  completed.
+* [`afterAll: Future[Unit]`](https://github.com/broadinstitute/cromwell/blob/a40de672c565c4bbd40f57ff96d4ee520dc2b4fc/backend/src/main/scala/cromwell/backend/BackendWorkflowFinalizationActor.scala#L37)
+  is the hook to perform any desired functionality, and is called when the workflow is completed.

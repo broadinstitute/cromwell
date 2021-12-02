@@ -17,9 +17,6 @@ object Dependencies {
   private val azureIdentitySdkV = "1.4.2"
   private val azureKeyVaultSdkV = "4.3.4"
   private val betterFilesV = "3.9.1"
-  /*
-  sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
-   */
   private val catsEffectV = "3.2.9"
   private val catsV = "2.6.1"
   private val circeConfigV = "0.8.0"
@@ -124,7 +121,7 @@ object Dependencies {
   private val snakeyamlV = "1.29"
   private val specs2MockV = "4.12.12"
   private val sprayJsonV = "1.3.6"
-  private val sttpV = "1.5.19" // scala-steward:off (CROM-6564)
+  private val sttpV = "3.3.16"
   private val swaggerParserV = "1.0.56"
   private val swaggerUiV = "3.23.11" // scala-steward:off (CROM-6621)
   private val testContainersScalaV = "0.39.8"

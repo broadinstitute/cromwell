@@ -5,8 +5,8 @@
 Cromwell is a workflow execution service, which means it takes a representation of work to do (tasks) as well as the
 dependencies and code flow between them. When it comes to actually executing the specific task, Cromwell delegates that
 work to a “backend”. A backend is therefore responsible for the actual execution of a single task on some underlying
-computing platform, such as Google Cloud Platform, Azure, AWS, TES, SLURM, etc. Backends are implemented as a software
-layer between the Cromwell engine and that underlying platform.
+computing platform, such as Google Cloud Platform, AWS, TES, Local, etc. Backends are implemented as a software layer
+between the Cromwell engine and that underlying platform.
 
 The underlying platform services requests for a job to run while the backend shim provides the interface layer between
 Cromwell and the platform. In general, the more sophisticated the platform the thinner the shim needs to be and vice
@@ -35,9 +35,11 @@ above concepts to running a command. That mapping could happen completely in the
 mixture of the two. The implementer of a backend will need to strike the balance which works best for both their needs
 and the particulars of the platform itself.
 
-Throughout the rest of this document the following three terms are used, the difference between them is subtle but
+Throughout the rest of this document the following terms are used, the difference between them may be subtle but
 important:
 
+* Workflow: a container of one or more calls, possibly expressing execution dependencies on each other. May contain
+  scatters, conditional logic, or subworkflow invocations.
 * Task: The abstract definition of a thing to run. Think of this like a function in a programming language.
 * Call: An instantiated request in Cromwell of a thing to run. To further the function analogy this would be an
   invocation of that function.
@@ -87,39 +89,48 @@ these and other types.
 If a backend developer wishes to take advantage of the initialization phase of the backend lifecycle they must implement
 this trait. There are three functions which must be implemented:
 
-1. `abortInitialization: Future[WorkflowAbortResponse]` specifies what to do, if anything, when a workflow is requested
-   to abort while a backend initialization is in progress.
-2. `validate: Future[Unit]` is provided so that the backend can ensure that all of the calls it will handle conform to
-   the rules of that backend. For instance, if a backend requires particular runtime attributes to exist.
-3. `beforeAll: Future[Unit]` is the actual initialization functionality. If a backend requires any work to be done prior
-   to handling a call, that code must be called from here.
+1. [`abortInitialization: Unit`](https://github.com/broadinstitute/cromwell/blob/93392acf2881921dcf22ef4dbda12af42339b3ab/backend/src/main/scala/cromwell/backend/BackendWorkflowInitializationActor.scala#L168)
+   specifies what to do, if anything, when a workflow is requested to abort while a backend initialization is in
+   progress.
+2. [`validate: Future[Unit]`](https://github.com/broadinstitute/cromwell/blob/93392acf2881921dcf22ef4dbda12af42339b3ab/backend/src/main/scala/cromwell/backend/BackendWorkflowInitializationActor.scala#L178)
+   is provided so that the backend can ensure that all of the calls it will handle conform to the rules of that backend.
+   For instance, if a backend requires particular runtime attributes to exist.
+3. [`beforeAll: Future[Option[BackendInitializationData]]`](https://github.com/broadinstitute/cromwell/blob/93392acf2881921dcf22ef4dbda12af42339b3ab/backend/src/main/scala/cromwell/backend/BackendWorkflowInitializationActor.scala#L173)
+   is the actual initialization functionality. If a backend requires any work to be done prior to handling a call, that
+   code must be called from here.
 
-#### BackendJobExecutionActor
+#### StandardAsyncExecutionActor
 
-There are three functions to override in this trait
+Nearly all production backend implementations in Cromwell extend
+the [StandardAsyncExecutionActor](https://github.com/broadinstitute/cromwell/blob/9181235d364712b78dbea1f35042c3c6e431af87/backend/src/main/scala/cromwell/backend/standard/StandardAsyncExecutionActor.scala#L75)
+trait. The minimum overrides for implementations of this trait are enumerated below, but overrides of other methods will
+also be required. There are several backend implementations in the Cromwell codebase that can serve as references, for
+example:
 
-* `execute(jobDescriptor: BackendJobDescriptor): Future[BackendJobExecutionResponse]` requests that the backend run a
-  job. This will require detailed knowledge of how the execution platform works and the implementation of this function
-  will likely be unique to every platform. For instance an SGE backend using a shared filesystem might not need to do
-  anything with filename mappings and simply submit the job’s command to the SGE server. Another example would be the
-  [Google Life Sciences API](https://cloud.google.com/life-sciences/docs/reference/rest) which will spin up a VM with an
-  instance type determined from specified runtime attributes (# of CPU, amount of RAM), pull the task’s Docker image,
-  download the input files from Google Cloud Storage onto the VM, run the command in the Docker, copy the output files
-  up to Google Cloud Storage and shut down the VM.
-* `recover(jobDescriptor: BackendJobDescriptor): Future[BackendJobExecutionResponse]` requests that the backend
-  reconnect to a previously launched job. It is recommended that a backend developer implement this as requested but
-  that behavior isn’t appropriate for all situations, in which case it could for instance just call execute. In the case
-  of an SGE backend this might be implemented to determine the SGE ID for the job and start from there.
-* `abortJob(jobKey: BackendJobDescriptorKey): Future[JobAbortResponse]` requests that a running job be aborted. It is
-  recommended that this be properly implemented but that’s not always appropriate. This function could easily be
-  implemented as a no-op.
+* [Google Life Sciences / Pipelines API](https://github.com/broadinstitute/cromwell/blob/0aff35336b4e2ba19b18530a68e622df1462d9b7/supportedBackends/google/pipelines/common/src/main/scala/cromwell/backend/google/pipelines/common/PipelinesApiAsyncBackendJobExecutionActor.scala#L95)
+  common layer
+    * [Life Sciences API (beta)](https://github.com/broadinstitute/cromwell/blob/a49e1fc65703ccfda2840d1d9266fad2bdbb7339/supportedBackends/google/pipelines/v2beta/src/main/scala/cromwell/backend/google/pipelines/v2beta/PipelinesApiAsyncBackendJobExecutionActor.scala#L27)
+    * [Pipelines API (alpha)](https://github.com/broadinstitute/cromwell/blob/a49e1fc65703ccfda2840d1d9266fad2bdbb7339/supportedBackends/google/pipelines/v2alpha1/src/main/scala/cromwell/backend/google/pipelines/v2alpha1/PipelinesApiAsyncBackendJobExecutionActor.scala#L27)
+* [GA4GH Task Execution Service (TES)](https://github.com/broadinstitute/cromwell/blob/6bf7af3c12a411db26786ac34646238fc053ec97/supportedBackends/tes/src/main/scala/cromwell/backend/impl/tes/TesAsyncBackendJobExecutionActor.scala#L55)
+* [AWS Batch](https://github.com/broadinstitute/cromwell/blob/470d482e8ba2a9e2bc544896a4e6ceea57d55bb2/supportedBackends/aws/src/main/scala/cromwell/backend/impl/aws/AwsBatchAsyncBackendJobExecutionActor.scala#L83)
+
+Overrides required for compilation of `StandardAsyncExecutionActor` implementations:
+
+* [`type StandardAsyncRunInfo`](https://github.com/broadinstitute/cromwell/blob/9181235d364712b78dbea1f35042c3c6e431af87/backend/src/main/scala/cromwell/backend/standard/StandardAsyncExecutionActor.scala#L89)
+  encapsulates the type of the run info when a job is started.
+* [`type StandardAsyncRunState`](https://github.com/broadinstitute/cromwell/blob/9181235d364712b78dbea1f35042c3c6e431af87/backend/src/main/scala/cromwell/backend/standard/StandardAsyncExecutionActor.scala#L92)
+  encapsulates the type of the run status returned during each poll.
+* [`def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean`](https://github.com/broadinstitute/cromwell/blob/9181235d364712b78dbea1f35042c3c6e431af87/backend/src/main/scala/cromwell/backend/standard/StandardAsyncExecutionActor.scala#L97)
+  should return true if the status contained in `thiz` is equivalent to `that`, delta any other data that might be
+  carried around in the state type
+* [`def standardParams: StandardAsyncExecutionActorParams`](https://github.com/broadinstitute/cromwell/blob/9181235d364712b78dbea1f35042c3c6e431af87/backend/src/main/scala/cromwell/backend/standard/StandardAsyncExecutionActor.scala#L103)
+  a standard set of parameters passed to the backend.
+* [`def isTerminal(runStatus: StandardAsyncRunState): Boolean`](https://github.com/broadinstitute/cromwell/blob/9181235d364712b78dbea1f35042c3c6e431af87/backend/src/main/scala/cromwell/backend/standard/StandardAsyncExecutionActor.scala#L829)
+  Returns true when a job is complete, either successfully or unsuccessfully.
 
 #### BackendWorkflowFinalizationActor
 
-There are two functions to override for this trait if the backend developer chooses to use the finalization
-functionality
+There is only one function to override for this trait if the backend developer chooses to use the finalization functionality:
 
-* `abortFinalization: Future[WorkflowAbortResponse]` is called if a workflow is requested to abort while finalization is
-  happening.
-* `afterAll: Future[Unit]` is the hook to perform any desired functionality, and is called when the workflow is
+* [`afterAll: Future[Unit]`](https://github.com/broadinstitute/cromwell/blob/a40de672c565c4bbd40f57ff96d4ee520dc2b4fc/backend/src/main/scala/cromwell/backend/BackendWorkflowFinalizationActor.scala#L37) is the hook to perform any desired functionality, and is called when the workflow is
   completed.

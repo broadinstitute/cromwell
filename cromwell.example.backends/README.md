@@ -3,7 +3,7 @@
 This is a folder of example backend providers for Cromwell. You can read about
 the providers here, and then copy paste one or more of the providers you want
 to use to your Cromwell configuration file, represented here as the
-[cromwell.example.conf](../cromwell.example.conf) file in the base of the 
+[cromwell.examples.conf](cromwell.examples.conf) file in the base of the 
 repository.
 
 ## What are the backend providers?
@@ -58,7 +58,7 @@ backend {
 
 The examples here also have this section. You would want to copy paste the content
 of the file, specifically the section for the provider under backend -> providers,
-into the backend -> providers section in the [cromwell.example.conf](../cromwell.example.conf).
+into the backend -> providers section in the [cromwell.examples.conf](cromwell.examples.conf).
 Here is what it would look like to add the [slurm](slurm.conf) backend
 provider example. 
 

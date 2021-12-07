@@ -76,6 +76,7 @@ nav:
 - For Developers:
     - How to Build: developers/Building.md
     - Architecture: developers/Arch.md
+    - Backend Development: developers/Backend.md
     - Instrumentation: developers/Instrumentation.md
     - Integration tests: developers/Centaur.md
     - Security: developers/Security.md

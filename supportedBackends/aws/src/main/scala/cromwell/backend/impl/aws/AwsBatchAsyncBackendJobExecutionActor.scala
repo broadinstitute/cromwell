@@ -125,7 +125,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   private lazy val execScript =
     s"""|#!$jobShell
-        |${jobPaths.script.pathWithoutScheme}
+        |$jobShell ${jobPaths.script.pathWithoutScheme}
         |""".stripMargin
 
 

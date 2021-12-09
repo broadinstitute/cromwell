@@ -22,7 +22,7 @@ will need to be on the Broad internal network or VPN to open the following links
 
 #### Announce your intentions
 
-Post a message in `#dsp-batch` letting people know that a publish is imminent in case there are PRs they want to get
+Post a message in `#ftfy-private` letting people know that a publish is imminent in case there are PRs they want to get
 wrapped up and merged to `develop` to go out in the forthcoming version of Cromwell.
 
 #### Get a Github token
@@ -79,7 +79,8 @@ Using the Swagger API, submit the workflow to Cromwell along with the inputs fil
 * Check that there's now a new Cromwell release listed [here](https://github.com/broadinstitute/cromwell/releases).
 * If publishing to Homebrew, check that there's a Homebrew PR for the new Cromwell version [here](https://github.com/Homebrew/homebrew-core/pulls) (and that it passes their CI)
 * Look [in Travis](https://app.travis-ci.com/github/broadinstitute/cromwell/branches) for the release tag build that will publish Docker images for the new version.
-* Let `#dsp-batch` know that it's okay to resume merges to `develop`.
+* Let `#ftfy-private` know that it's okay to resume merges to `develop`.
+* Announce release in `#dsp-batch`, set expectations about when the new version will be available in Terra.
 
 ### How to Release Cromwell into Firecloud / Terra
 

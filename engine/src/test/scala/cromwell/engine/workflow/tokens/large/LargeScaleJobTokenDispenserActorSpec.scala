@@ -32,7 +32,7 @@ class LargeScaleJobTokenDispenserActorSpec extends TestKit(ActorSystem("LSJETDAS
     val totalJobsPerWorkflow = maxConcurrencyToTest + 1
     val tokenType = JobTokenType(backendName, Some(maxConcurrencyToTest), hogFactor)
 
-    val tokenDispenserUnderTest = TestActorRef(new JobTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyToTest + 1, 100.millis), None), "tokenDispenserUnderTest1")
+    val tokenDispenserUnderTest = TestActorRef(new JobTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyToTest + 1, 100.millis), None, "Execution", "Running"), "tokenDispenserUnderTest1")
 
     val globalRunningJobsCounter = new RunningJobCounter()
     val bigWorkflow1 = TestActorRef(new MultipleTokenUsingActor(tokenDispenserUnderTest, tokenType, totalJobsPerWorkflow, hogGroup = "hogGroupA", globalRunningJobsCounter), multipleTokenUsingActorName())
@@ -66,7 +66,7 @@ class LargeScaleJobTokenDispenserActorSpec extends TestKit(ActorSystem("LSJETDAS
     val totalJobsPerWorkflow = maxConcurrencyExpected + 1
     val tokenType = JobTokenType(backendName, Some(totalTokensAvailable), hogFactor)
 
-    val tokenDispenserUnderTest = TestActorRef(new JobTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyExpected + 1, 100.millis), None), "tokenDispenserUnderTest2")
+    val tokenDispenserUnderTest = TestActorRef(new JobTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyExpected + 1, 100.millis), None, "Execution", "Running"), "tokenDispenserUnderTest2")
 
     val globalRunningJobsCounter = new RunningJobCounter()
     val bigWorkflow1 = TestActorRef(new MultipleTokenUsingActor(tokenDispenserUnderTest, tokenType, totalJobsPerWorkflow, hogGroup = "hogGroupA", globalRunningJobsCounter), multipleTokenUsingActorName())
@@ -100,7 +100,7 @@ class LargeScaleJobTokenDispenserActorSpec extends TestKit(ActorSystem("LSJETDAS
     val totalJobsPerWorkflow = maxConcurrencyPerWorkflow + 1
     val tokenType = JobTokenType(backendName, Some(totalTokensAvailable), hogFactor)
 
-    val tokenDispenserUnderTest = TestActorRef(new JobTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyOverall + 1, 100.millis), None), "tokenDispenserUnderTest3")
+    val tokenDispenserUnderTest = TestActorRef(new JobTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyOverall + 1, 100.millis), None, "Execution", "Running"), "tokenDispenserUnderTest3")
 
     val globalRunningJobsCounter = new RunningJobCounter()
     val bigWorkflow1 = TestActorRef(new MultipleTokenUsingActor(tokenDispenserUnderTest, tokenType, totalJobsPerWorkflow, hogGroup = "hogGroupA", globalRunningJobsCounter), multipleTokenUsingActorName())
@@ -134,7 +134,7 @@ class LargeScaleJobTokenDispenserActorSpec extends TestKit(ActorSystem("LSJETDAS
     val totalJobsPerWorkflow = maxConcurrencyPerWorkflow * 2
     val tokenType = JobTokenType(backendName, Some(totalTokensAvailable), hogFactor)
 
-    val tokenDispenserUnderTest = TestActorRef(new JobTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyOverall + 1, 100.millis), None), "tokenDispenserUnderTest4")
+    val tokenDispenserUnderTest = TestActorRef(new JobTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyOverall + 1, 100.millis), None, "Execution", "Running"), "tokenDispenserUnderTest4")
 
     val globalRunningJobsCounter = new RunningJobCounter()
 
@@ -170,7 +170,7 @@ class LargeScaleJobTokenDispenserActorSpec extends TestKit(ActorSystem("LSJETDAS
     val totalJobsPerWorkflow = maxConcurrencyPerHogGroup * 2
     val tokenType = JobTokenType(backendName, Some(totalTokensAvailable), hogFactor)
 
-    val tokenDispenserUnderTest = TestActorRef(new JobTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyOverall + 1, 100.millis), None), "tokenDispenserUnderTest5")
+    val tokenDispenserUnderTest = TestActorRef(new JobTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyOverall + 1, 100.millis), None, "Execution", "Running"), "tokenDispenserUnderTest5")
 
     val hogGroupConcurrencyCounters = (0 until totalHogGroups).toVector map { _ => new RunningJobCounter() }
 

@@ -17,7 +17,7 @@ class EjeaRequestingExecutionTokenSpec extends EngineJobExecutionActorSpec with 
       s"do nothing when denied a token (with restarting=$restarting)" in {
         ejea = helper.buildEJEA(restarting = restarting)
 
-        helper.jobTokenDispenserProbe.expectNoMessage(max = awaitAlmostNothing)
+        helper.jobExecutionTokenDispenserProbe.expectNoMessage(max = awaitAlmostNothing)
         helper.jobPreparationProbe.msgAvailable should be(false)
         helper.jobStoreProbe.msgAvailable should be(false)
 

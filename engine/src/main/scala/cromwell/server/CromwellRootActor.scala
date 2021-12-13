@@ -157,7 +157,8 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
   lazy val rate = DynamicRateLimiter.Rate(systemConfig.as[Int]("job-rate-control.jobs"), systemConfig.as[FiniteDuration]("job-rate-control.per"))
   lazy val tokenLogInterval: Option[FiniteDuration] = systemConfig.as[Option[Int]]("hog-safety.token-log-interval-seconds").map(_.seconds)
 
-  lazy val jobExecutionTokenDispenserActor = context.actorOf(JobTokenDispenserActor.props(serviceRegistryActor, rate, tokenLogInterval), "JobExecutionTokenDispenser")
+  lazy val jobStoreCheckTokenDispenserActor: ActorRef = context.actorOf(JobTokenDispenserActor.props(serviceRegistryActor, rate, tokenLogInterval, "JobStore", "CheckingJobStore"), "JobStoreCheckTokenDispenser")
+  lazy val jobExecutionTokenDispenserActor: ActorRef = context.actorOf(JobTokenDispenserActor.props(serviceRegistryActor, rate, tokenLogInterval, "Execution", ExecutionStatus.Running.toString), "JobExecutionTokenDispenser")
 
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(
@@ -173,7 +174,8 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
       callCacheReadActor = callCacheReadActor,
       callCacheWriteActor = callCacheWriteActor,
       dockerHashActor = dockerHashActor,
-      jobTokenDispenserActor = jobExecutionTokenDispenserActor,
+      jobStoreCheckTokenDispenserActor = jobStoreCheckTokenDispenserActor,
+      jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
       backendSingletonCollection = backendSingletonCollection,
       serverMode = serverMode,
       workflowHeartbeatConfig = workflowHeartbeatConfig),

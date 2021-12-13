@@ -66,7 +66,8 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with AnyFlatSpecLik
     val jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props)
     val ioActor = system.actorOf(SimpleIoActor.props)
     val subWorkflowStoreActor = system.actorOf(AlwaysHappySubWorkflowStoreActor.props)
-    val jobTokenDispenserActor = system.actorOf(JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None))
+    val jobStoreCheckDispenserActor = system.actorOf(JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "JobStore", "CheckingJobStore"), "JobStoreCheckTokenDispenser")
+    val jobExecutionTokenDispenserActor = system.actorOf(JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "Execution", "Running"), "JobStoreCheckTokenDispenser")
     val MockBackendConfigEntry = BackendConfigurationEntry(
       name = "Mock",
       lifecycleActorFactoryClass = "cromwell.engine.backend.mock.RetryableBackendLifecycleActorFactory",
@@ -83,7 +84,7 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with AnyFlatSpecLik
     val weaSupervisor = TestProbe()
     val workflowExecutionActor = TestActorRef(
       props = WorkflowExecutionActor.props(engineWorkflowDescriptor, ioActor, serviceRegistryActor, jobStoreActor, subWorkflowStoreActor,
-        callCacheReadActor.ref, callCacheWriteActor.ref, dockerHashActor.ref, jobTokenDispenserActor, MockBackendSingletonCollection,
+        callCacheReadActor.ref, callCacheWriteActor.ref, dockerHashActor.ref, jobStoreCheckDispenserActor, jobExecutionTokenDispenserActor, MockBackendSingletonCollection,
         AllBackendInitializationData.empty, startState = Submitted, rootConfig, new AtomicInteger(), fileHashCacheActor = None, blacklistCache = None),
       name = "WorkflowExecutionActor",
       supervisor = weaSupervisor.ref)

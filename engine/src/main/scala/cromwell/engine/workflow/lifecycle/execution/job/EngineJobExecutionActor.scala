@@ -59,7 +59,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               ioActor: ActorRef,
                               jobStoreActor: ActorRef,
                               workflowDockerLookupActor: ActorRef,
-                              jobTokenDispenserActor: ActorRef,
+                              jobStoreCheckTokenDispenserActor: ActorRef,
+                              jobExecutionTokenDispenserActor: ActorRef,
                               backendSingletonActor: Option[ActorRef],
                               command: BackendJobExecutionActorCommand,
                               callCachingParameters: CallCachingParameters) extends LoggingFSM[EngineJobExecutionActorState, EJEAData]
@@ -540,12 +541,12 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   private def requestExecutionToken(): Unit = {
-    jobTokenDispenserActor ! JobTokenRequest(workflowDescriptor.backendDescriptor.hogGroup, backendLifecycleActorFactory.jobExecutionTokenType)
+    jobExecutionTokenDispenserActor ! JobTokenRequest(workflowDescriptor.backendDescriptor.hogGroup, backendLifecycleActorFactory.jobExecutionTokenType)
   }
 
   // Return the execution token (if we have one)
   private def returnExecutionToken(): Unit = if (stateName != Pending && stateName != RequestingExecutionToken) {
-    jobTokenDispenserActor ! JobTokenReturn
+    jobExecutionTokenDispenserActor ! JobTokenReturn
   }
 
   private def forwardAndStop(response: BackendJobExecutionResponse): State = {
@@ -944,7 +945,8 @@ object EngineJobExecutionActor {
             ioActor: ActorRef,
             jobStoreActor: ActorRef,
             workflowDockerLookupActor: ActorRef,
-            jobTokenDispenserActor: ActorRef,
+            jobStoreCheckTokenDispenserActor: ActorRef,
+            jobExecutionTokenDispenserActor: ActorRef,
             backendSingletonActor: Option[ActorRef],
             command: BackendJobExecutionActorCommand,
             callCachingParameters: EngineJobExecutionActor.CallCachingParameters) = {
@@ -960,7 +962,8 @@ object EngineJobExecutionActor {
       ioActor = ioActor,
       jobStoreActor = jobStoreActor,
       workflowDockerLookupActor = workflowDockerLookupActor,
-      jobTokenDispenserActor = jobTokenDispenserActor,
+      jobStoreCheckTokenDispenserActor = jobStoreCheckTokenDispenserActor,
+      jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
       backendSingletonActor = backendSingletonActor,
       command = command,
       callCachingParameters = callCachingParameters)).withDispatcher(EngineDispatcher)

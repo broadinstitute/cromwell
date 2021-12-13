@@ -24,7 +24,7 @@ class JobTokenDispenserActorSpec extends TestKitSuite
   val MaxWaitTime: FiniteDuration = 10.seconds
   implicit val pc: PatienceConfig = PatienceConfig(MaxWaitTime)
 
-  behavior of "JobExecutionTokenDispenserActor"
+  behavior of "JobTokenDispenserActor"
 
   val hogGroupA: HogGroup = HogGroup("hogGroupA")
   val hogGroupB: HogGroup = HogGroup("hogGroupB")

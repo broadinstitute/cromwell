@@ -67,7 +67,7 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with AnyFlatSpecLik
     val ioActor = system.actorOf(SimpleIoActor.props)
     val subWorkflowStoreActor = system.actorOf(AlwaysHappySubWorkflowStoreActor.props)
     val jobStoreCheckDispenserActor = system.actorOf(JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "JobStore", "CheckingJobStore"), "JobStoreCheckTokenDispenser")
-    val jobExecutionTokenDispenserActor = system.actorOf(JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "Execution", "Running"), "JobStoreCheckTokenDispenser")
+    val jobExecutionTokenDispenserActor = system.actorOf(JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "Execution", "Running"), "JobExecutionTokenDispenser")
     val MockBackendConfigEntry = BackendConfigurationEntry(
       name = "Mock",
       lifecycleActorFactoryClass = "cromwell.engine.backend.mock.RetryableBackendLifecycleActorFactory",

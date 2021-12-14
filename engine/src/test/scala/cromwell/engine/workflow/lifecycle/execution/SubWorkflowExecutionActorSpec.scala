@@ -48,7 +48,8 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
   var callCacheWriteActorProbe: TestProbe = _
   var dockerHashActorProbe: TestProbe = _
   var ioActorProbe: TestProbe = _
-  var jobTokenDispenserProbe: TestProbe = _
+  var jobRestartCheckTokenDispenserProbe: TestProbe = _
+  var jobExecutionTokenDispenserProbe: TestProbe = _
   var preparationActor: TestProbe = _
   var subWorkflowActor: TestProbe = _
   var deathWatch: TestProbe = _
@@ -79,7 +80,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
     callCacheWriteActorProbe = TestProbe()
     dockerHashActorProbe = TestProbe()
     ioActorProbe = TestProbe()
-    jobTokenDispenserProbe = TestProbe()
+    jobExecutionTokenDispenserProbe = TestProbe()
     preparationActor = TestProbe()
     subWorkflowActor = TestProbe()
     deathWatch = TestProbe()
@@ -100,7 +101,8 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
         callCacheReadActorProbe.ref,
         callCacheWriteActorProbe.ref,
         dockerHashActorProbe.ref,
-        jobTokenDispenserProbe.ref,
+        jobRestartCheckTokenDispenserProbe.ref,
+        jobExecutionTokenDispenserProbe.ref,
         BackendSingletonCollection(Map.empty),
         AllBackendInitializationData(Map.empty),
         startState,

@@ -18,7 +18,7 @@ class EjeaPendingSpec extends EngineJobExecutionActorSpec with CanValidateJobSto
         ejea = helper.buildEJEA(restarting = restarting)
         ejea ! Execute
 
-        helper.jobTokenDispenserProbe.expectMsgClass(max = awaitTimeout, classOf[JobTokenRequest])
+        helper.jobExecutionTokenDispenserProbe.expectMsgClass(max = awaitTimeout, classOf[JobTokenRequest])
 
         helper.jobPreparationProbe.msgAvailable should be(false)
         helper.jobStoreProbe.msgAvailable should be(false)
@@ -29,7 +29,7 @@ class EjeaPendingSpec extends EngineJobExecutionActorSpec with CanValidateJobSto
         ejea = helper.buildEJEA(restarting = restarting)
         ejea ! Execute
 
-        val tokenRequest = helper.jobTokenDispenserProbe.expectMsgClass(max = awaitTimeout, classOf[JobTokenRequest])
+        val tokenRequest = helper.jobExecutionTokenDispenserProbe.expectMsgClass(max = awaitTimeout, classOf[JobTokenRequest])
         // 1 is the default hog-factor value defined in reference.conf
         tokenRequest.jobTokenType.hogFactor should be(1)
       }
@@ -41,7 +41,7 @@ class EjeaPendingSpec extends EngineJobExecutionActorSpec with CanValidateJobSto
         ejea = helper.buildEJEA(restarting = restarting, backendConfigurationDescriptor = backendWithOverriddenHogFactorConfigDescriptor)
         ejea ! Execute
 
-        val tokenRequest = helper.jobTokenDispenserProbe.expectMsgClass(max = awaitTimeout, classOf[JobTokenRequest])
+        val tokenRequest = helper.jobExecutionTokenDispenserProbe.expectMsgClass(max = awaitTimeout, classOf[JobTokenRequest])
         tokenRequest.jobTokenType.hogFactor should be(expectedHogFactorValue)
       }
     }

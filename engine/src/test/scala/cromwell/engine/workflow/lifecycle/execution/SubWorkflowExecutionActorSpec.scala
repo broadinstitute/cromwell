@@ -80,6 +80,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
     callCacheWriteActorProbe = TestProbe()
     dockerHashActorProbe = TestProbe()
     ioActorProbe = TestProbe()
+    jobRestartCheckTokenDispenserProbe = TestProbe()
     jobExecutionTokenDispenserProbe = TestProbe()
     preparationActor = TestProbe()
     subWorkflowActor = TestProbe()

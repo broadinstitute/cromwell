@@ -219,9 +219,8 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
     // Fail all pending requests.  This logic does not blacklist the tag, which will allow lookups to be attempted
     // again in the future.
     val exceptionMessage = s"Failed Docker lookup '${dockerResponse.request.dockerImageID}' '${dockerResponse.request.credentials.map(_.getClass.getSimpleName).mkString("[", ",", "]")}'"
-    val failureResponse = WorkflowDockerLookupFailure(new Exception(dockerResponse.reason), dockerResponse.request)
+    val failureResponse = WorkflowDockerLookupFailure(new Exception(dockerResponse.reason), dockerResponse.request, exceptionMessage)
     val request = dockerResponse.request
-    println(exceptionMessage)
     data.hashRequests.get(request.dockerImageID) match {
       case Some(requestAndReplyTos) =>
         requestAndReplyTos foreach { case RequestAndReplyTo(_, replyTo) => replyTo ! failureResponse }
@@ -289,7 +288,7 @@ object WorkflowDockerLookupActor {
 
   /* Responses */
   sealed trait WorkflowDockerLookupResponse
-  final case class WorkflowDockerLookupFailure(reason: Throwable, request: DockerInfoRequest) extends WorkflowDockerLookupResponse
+  final case class WorkflowDockerLookupFailure(reason: Throwable, request: DockerInfoRequest, additionalLoggingMessage: String = "") extends WorkflowDockerLookupResponse
   final case class WorkflowDockerTerminalFailure(reason: Throwable, request: DockerInfoRequest) extends WorkflowDockerLookupResponse
 
   case class RequestAndReplyTo(request: DockerInfoRequest, replyTo: ActorRef)

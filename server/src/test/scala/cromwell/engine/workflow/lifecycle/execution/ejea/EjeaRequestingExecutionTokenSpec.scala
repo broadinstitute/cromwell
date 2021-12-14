@@ -27,7 +27,7 @@ class EjeaRequestingExecutionTokenSpec extends EngineJobExecutionActorSpec with 
 
     CallCachingModes foreach { mode =>
       s"check against the Job Store if restarting is true ($mode)" in {
-        ejea = helper.buildEJEA(restarting = true)
+        ejea = helper.buildEJEA(restarting = true)(RequestingRestartCheckToken)
         ejea ! JobTokenDispensed
 
         helper.jobStoreProbe.expectMsgPF(max = awaitTimeout, hint = "Awaiting job store lookup") {

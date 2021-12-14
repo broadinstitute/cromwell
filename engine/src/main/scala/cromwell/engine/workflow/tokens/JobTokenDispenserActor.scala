@@ -2,11 +2,11 @@ package cromwell.engine.workflow.tokens
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated, Timers}
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.JobExecutionToken._
-import cromwell.core.{ExecutionStatus, HogGroup, JobExecutionToken}
+import cromwell.core.JobToken._
+import cromwell.core.{ExecutionStatus, HogGroup, JobToken}
 import cromwell.engine.instrumentation.JobInstrumentation
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.TokensAvailable
-import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor._
+import cromwell.engine.workflow.tokens.JobTokenDispenserActor._
 import cromwell.engine.workflow.tokens.TokenQueue.{LeasedActor, TokenQueuePlaceholder, TokenQueueState}
 import cromwell.services.instrumentation.CromwellInstrumentation._
 import cromwell.services.instrumentation.CromwellInstrumentationScheduler
@@ -21,17 +21,17 @@ import io.circe.generic.semiauto._
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRef,
-                                      override val distributionRate: DynamicRateLimiter.Rate,
-                                      logInterval: Option[FiniteDuration])
+class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
+                             override val distributionRate: DynamicRateLimiter.Rate,
+                             logInterval: Option[FiniteDuration])
   extends Actor with ActorLogging with JobInstrumentation with CromwellInstrumentationScheduler with Timers with DynamicRateLimiter {
 
   /**
     * Lazily created token queue. We only create a queue for a token type when we need it
     */
-  var tokenQueues: Map[JobExecutionTokenType, TokenQueue] = Map.empty
+  var tokenQueues: Map[JobTokenType, TokenQueue] = Map.empty
   var currentTokenQueuePointer: Int = 0
-  var tokenAssignments: Map[ActorRef, Lease[JobExecutionToken]] = Map.empty
+  var tokenAssignments: Map[ActorRef, Lease[JobToken]] = Map.empty
 
   val instrumentationAction = () => {
     sendGaugeJob(ExecutionStatus.Running.toString, tokenAssignments.size.toLong)
@@ -51,7 +51,7 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
       case Some(someInterval) =>
         log.info(s"Triggering log of token queue status. Effective log interval = $someInterval")
         context.system.scheduler.scheduleOnce(someInterval) {
-          self ! LogJobExecutionTokenAllocation(someInterval)
+          self ! LogJobTokenAllocation(someInterval)
         }(context.dispatcher)
         ()
       case None =>
@@ -70,17 +70,17 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
   override def receive: Actor.Receive = tokenDistributionReceive.orElse(rateReceive).orElse(instrumentationReceive(instrumentationAction))
 
   private def tokenDistributionReceive: Receive = {
-    case JobExecutionTokenRequest(hogGroup, tokenType) => enqueue(sender, hogGroup.value, tokenType)
-    case JobExecutionTokenReturn => release(sender)
+    case JobTokenRequest(hogGroup, tokenType) => enqueue(sender, hogGroup.value, tokenType)
+    case JobTokenReturn => release(sender)
     case TokensAvailable(n) => distribute(n)
     case Terminated(terminee) => onTerminate(terminee)
-    case LogJobExecutionTokenAllocation(nextInterval) => logTokenAllocation(nextInterval)
+    case LogJobTokenAllocation(nextInterval) => logTokenAllocation(nextInterval)
     case ShutdownCommand => context stop self
   }
 
-  private def enqueue(sndr: ActorRef, hogGroup: String, tokenType: JobExecutionTokenType): Unit = {
+  private def enqueue(sndr: ActorRef, hogGroup: String, tokenType: JobTokenType): Unit = {
     if (tokenAssignments.contains(sndr)) {
-      sndr ! JobExecutionTokenDispensed
+      sndr ! JobTokenDispensed
     } else {
       val queue = tokenQueues.getOrElse(tokenType, TokenQueue(tokenType, tokenEventLogger))
       tokenQueues += tokenType -> queue.enqueue(TokenQueuePlaceholder(sndr, hogGroup))
@@ -113,14 +113,14 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
       case LeasedActor(queuePlaceholder, lease) if !tokenAssignments.contains(queuePlaceholder.actor) =>
         tokenAssignments = tokenAssignments + (queuePlaceholder.actor -> lease)
         incrementJob("Started")
-        queuePlaceholder.actor ! JobExecutionTokenDispensed
+        queuePlaceholder.actor ! JobTokenDispensed
       // Only one token per actor, so if you've already got one, we don't need to use this new one:
       case LeasedActor(queuePlaceholder, lease) =>
         log.error(s"Programmer Error: Actor ${queuePlaceholder.actor.path} requested a job execution token more than once.")
         // Because this actor already has a lease assigned to it:
         // a) tell the actor that it has a lease
         // b) don't hold onto this new lease - release it and let some other actor take it instead
-        queuePlaceholder.actor ! JobExecutionTokenDispensed
+        queuePlaceholder.actor ! JobTokenDispensed
         lease.release()
     })
 
@@ -144,7 +144,7 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
     tokenAssignments.get(terminee) match {
       case Some(_) =>
         log.debug("Actor {} stopped without returning its Job Execution Token. Reclaiming it!", terminee)
-        self.tell(msg = JobExecutionTokenReturn, sender = terminee)
+        self.tell(msg = JobTokenReturn, sender = terminee)
       case None =>
         log.debug("Actor {} stopped before receiving a token, removing it from any queues if necessary", terminee)
         // This is a very inefficient way to remove the actor from the queue and can lead to very poor performance for a large queue and a large number of actors to remove
@@ -169,28 +169,28 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
     log.info(tokenDispenserState.asJson.printWith(Printer.spaces2))
 
     // Schedule the next log event:
-    context.system.scheduler.scheduleOnce(someInterval) { self ! LogJobExecutionTokenAllocation(someInterval) }(context.dispatcher)
+    context.system.scheduler.scheduleOnce(someInterval) { self ! LogJobTokenAllocation(someInterval) }(context.dispatcher)
     ()
   }
 }
 
-object JobExecutionTokenDispenserActor {
+object JobTokenDispenserActor {
   case object TokensTimerKey
 
-  def props(serviceRegistryActor: ActorRef, rate: DynamicRateLimiter.Rate, logInterval: Option[FiniteDuration]) = Props(new JobExecutionTokenDispenserActor(serviceRegistryActor, rate, logInterval)).withDispatcher(EngineDispatcher)
+  def props(serviceRegistryActor: ActorRef, rate: DynamicRateLimiter.Rate, logInterval: Option[FiniteDuration]): Props = Props(new JobTokenDispenserActor(serviceRegistryActor, rate, logInterval)).withDispatcher(EngineDispatcher)
 
-  case class JobExecutionTokenRequest(hogGroup: HogGroup, jobExecutionTokenType: JobExecutionTokenType)
+  case class JobTokenRequest(hogGroup: HogGroup, jobTokenType: JobTokenType)
 
-  case object JobExecutionTokenReturn
-  case object JobExecutionTokenDispensed
-  final case class LogJobExecutionTokenAllocation(someInterval: FiniteDuration)
+  case object JobTokenReturn
+  case object JobTokenDispensed
+  final case class LogJobTokenAllocation(someInterval: FiniteDuration)
 
-  implicit val tokenEncoder = deriveEncoder[JobExecutionTokenType]
+  implicit val tokenEncoder = deriveEncoder[JobTokenType]
 
   @JsonCodec(encodeOnly = true)
   final case class TokenDispenserState(tokenTypes: Vector[TokenTypeState], pointer: Int, leased: Int)
 
   @JsonCodec(encodeOnly = true)
-  final case class TokenTypeState(tokenType: JobExecutionTokenType, queue: TokenQueueState)
+  final case class TokenTypeState(tokenType: JobTokenType, queue: TokenQueueState)
 
 }

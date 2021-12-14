@@ -21,7 +21,7 @@ import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.AbortAllWorkflowsCommand
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor, CallCacheWriteActor}
 import cromwell.engine.workflow.lifecycle.finalization.CopyWorkflowLogsActor
-import cromwell.engine.workflow.tokens.{DynamicRateLimiter, JobExecutionTokenDispenserActor}
+import cromwell.engine.workflow.tokens.{DynamicRateLimiter, JobTokenDispenserActor}
 import cromwell.engine.workflow.workflowstore.AbortRequestScanningActor.AbortConfig
 import cromwell.engine.workflow.workflowstore._
 import cromwell.jobstore.{JobStore, JobStoreActor, SqlJobStore}
@@ -46,7 +46,7 @@ import scala.util.{Failure, Success, Try}
   *
   * If any of the actors created by CromwellRootActor fail to initialize the ActorSystem will die, which means that
   * Cromwell will fail to start in a bad state regardless of the entry point.
-  * 
+  *
   * READ THIS: If you add a "system-level" actor here, make sure to consider what should be its
   * position in the shutdown process and modify CromwellShutdown accordingly.
   */
@@ -59,7 +59,7 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
   extends Actor with ActorLogging with GracefulShutdownHelper {
 
   import CromwellRootActor._
-  
+
   // Make sure the filesystems are initialized at startup
   val _ = CromwellFileSystems.instance
 
@@ -157,7 +157,7 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
   lazy val rate = DynamicRateLimiter.Rate(systemConfig.as[Int]("job-rate-control.jobs"), systemConfig.as[FiniteDuration]("job-rate-control.per"))
   lazy val tokenLogInterval: Option[FiniteDuration] = systemConfig.as[Option[Int]]("hog-safety.token-log-interval-seconds").map(_.seconds)
 
-  lazy val jobExecutionTokenDispenserActor = context.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistryActor, rate, tokenLogInterval), "JobExecutionTokenDispenser")
+  lazy val jobExecutionTokenDispenserActor: ActorRef = context.actorOf(JobTokenDispenserActor.props(serviceRegistryActor, rate, tokenLogInterval), "JobExecutionTokenDispenser")
 
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(
@@ -173,7 +173,7 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
       callCacheReadActor = callCacheReadActor,
       callCacheWriteActor = callCacheWriteActor,
       dockerHashActor = dockerHashActor,
-      jobTokenDispenserActor = jobExecutionTokenDispenserActor,
+      jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
       backendSingletonCollection = backendSingletonCollection,
       serverMode = serverMode,
       workflowHeartbeatConfig = workflowHeartbeatConfig),

@@ -5,7 +5,7 @@ import com.typesafe.config.Config
 import cromwell.backend.io.WorkflowPathsWithDocker
 import cromwell.backend.standard.callcaching.BlacklistCache
 import cromwell.core.CallOutputs
-import cromwell.core.JobExecutionToken.JobExecutionTokenType
+import cromwell.core.JobToken.JobTokenType
 import cromwell.core.path.Path
 import cromwell.core.path.PathFactory.PathBuilders
 import net.ceedubs.ficus.Ficus._
@@ -56,14 +56,14 @@ trait BackendLifecycleActorFactory {
                              ioActor: ActorRef,
                              backendSingletonActor: Option[ActorRef]): Props
 
-  lazy val jobExecutionTokenType: JobExecutionTokenType = {
+  lazy val jobExecutionTokenType: JobTokenType = {
     val concurrentJobLimit = configurationDescriptor.backendConfig.as[Option[Int]]("concurrent-job-limit")
     // if defined, use per-backend hog-factor, otherwise use system-level value
     val hogFactor = configurationDescriptor.backendConfig.as[Option[Int]]("hog-factor") match {
       case Some(backendHogFactorValue) => backendHogFactorValue
       case None => configurationDescriptor.globalConfig.getInt("system.hog-safety.hog-factor")
     }
-    JobExecutionTokenType(name, concurrentJobLimit, hogFactor)
+    JobTokenType(name, concurrentJobLimit, hogFactor)
   }
 
   /* ****************************** */
@@ -105,7 +105,7 @@ trait BackendLifecycleActorFactory {
                                   initializationData: Option[BackendInitializationData],
                                   ioActor: ActorRef,
                                   ec: ExecutionContext): IoFunctionSet = NoIoFunctionSet
-  
+
   def pathBuilders(initializationDataOption: Option[BackendInitializationData]): PathBuilders = List.empty
 
   def getExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config, initializationData: Option[BackendInitializationData]): Path = {

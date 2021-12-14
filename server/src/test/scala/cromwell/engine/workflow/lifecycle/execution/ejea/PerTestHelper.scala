@@ -154,7 +154,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
       ioActor = ioActorProbe.ref,
       jobStoreActor = jobStoreProbe.ref,
       dockerHashActor = dockerHashActorProbe.ref,
-      jobTokenDispenserActor = jobTokenDispenserProbe.ref,
+      jobExecutionTokenDispenserActor = jobTokenDispenserProbe.ref,
       callCachingParameters = callCachingParameters
     )), parentProbe.ref, s"EngineJobExecutionActorSpec-$workflowId")
 
@@ -175,7 +175,7 @@ private[ejea] class MockEjea(helper: PerTestHelper,
                              ioActor: ActorRef,
                              jobStoreActor: ActorRef,
                              dockerHashActor: ActorRef,
-                             jobTokenDispenserActor: ActorRef,
+                             jobExecutionTokenDispenserActor: ActorRef,
                              callCachingParameters: EngineJobExecutionActor.CallCachingParameters) extends EngineJobExecutionActor(
   replyTo = replyTo,
   jobDescriptorKey = jobDescriptorKey,
@@ -187,7 +187,7 @@ private[ejea] class MockEjea(helper: PerTestHelper,
   ioActor = ioActor,
   jobStoreActor = jobStoreActor,
   workflowDockerLookupActor = dockerHashActor,
-  jobTokenDispenserActor = jobTokenDispenserActor,
+  jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
   backendSingletonActor = None,
   command = if (restarting) RecoverJobCommand else ExecuteJobCommand,
   callCachingParameters = callCachingParameters) {

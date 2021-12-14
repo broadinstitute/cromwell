@@ -34,7 +34,7 @@ import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparat
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.{CallPreparation, JobPreparationActor}
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, TimedFSM}
-import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecutionTokenDispensed, JobExecutionTokenRequest, JobExecutionTokenReturn}
+import cromwell.engine.workflow.tokens.JobTokenDispenserActor.{JobTokenDispensed, JobTokenRequest, JobTokenReturn}
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore._
 import cromwell.services.CallCaching.CallCachingEntryId
@@ -59,7 +59,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               ioActor: ActorRef,
                               jobStoreActor: ActorRef,
                               workflowDockerLookupActor: ActorRef,
-                              jobTokenDispenserActor: ActorRef,
+                              jobExecutionTokenDispenserActor: ActorRef,
                               backendSingletonActor: Option[ActorRef],
                               command: BackendJobExecutionActorCommand,
                               callCachingParameters: CallCachingParameters) extends LoggingFSM[EngineJobExecutionActorState, EJEAData]
@@ -145,7 +145,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   when(RequestingExecutionToken) {
-    case Event(JobExecutionTokenDispensed, NoData) =>
+    case Event(JobTokenDispensed, NoData) =>
       replyTo ! JobStarting(jobDescriptorKey)
       if (restarting) {
         val jobStoreKey = jobDescriptorKey.toJobStoreKey(workflowIdForLogging)
@@ -540,12 +540,12 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   private def requestExecutionToken(): Unit = {
-    jobTokenDispenserActor ! JobExecutionTokenRequest(workflowDescriptor.backendDescriptor.hogGroup, backendLifecycleActorFactory.jobExecutionTokenType)
+    jobExecutionTokenDispenserActor ! JobTokenRequest(workflowDescriptor.backendDescriptor.hogGroup, backendLifecycleActorFactory.jobExecutionTokenType)
   }
 
   // Return the execution token (if we have one)
   private def returnExecutionToken(): Unit = if (stateName != Pending && stateName != RequestingExecutionToken) {
-    jobTokenDispenserActor ! JobExecutionTokenReturn
+    jobExecutionTokenDispenserActor ! JobTokenReturn
   }
 
   private def forwardAndStop(response: BackendJobExecutionResponse): State = {
@@ -944,7 +944,7 @@ object EngineJobExecutionActor {
             ioActor: ActorRef,
             jobStoreActor: ActorRef,
             workflowDockerLookupActor: ActorRef,
-            jobTokenDispenserActor: ActorRef,
+            jobExecutionTokenDispenserActor: ActorRef,
             backendSingletonActor: Option[ActorRef],
             command: BackendJobExecutionActorCommand,
             callCachingParameters: EngineJobExecutionActor.CallCachingParameters) = {
@@ -960,7 +960,7 @@ object EngineJobExecutionActor {
       ioActor = ioActor,
       jobStoreActor = jobStoreActor,
       workflowDockerLookupActor = workflowDockerLookupActor,
-      jobTokenDispenserActor = jobTokenDispenserActor,
+      jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
       backendSingletonActor = backendSingletonActor,
       command = command,
       callCachingParameters = callCachingParameters)).withDispatcher(EngineDispatcher)

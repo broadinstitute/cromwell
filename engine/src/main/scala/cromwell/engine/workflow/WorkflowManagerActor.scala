@@ -61,7 +61,7 @@ object WorkflowManagerActor {
             callCacheReadActor: ActorRef,
             callCacheWriteActor: ActorRef,
             dockerHashActor: ActorRef,
-            jobTokenDispenserActor: ActorRef,
+            jobExecutionTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             serverMode: Boolean,
             workflowHeartbeatConfig: WorkflowHeartbeatConfig): Props = {
@@ -78,7 +78,7 @@ object WorkflowManagerActor {
       callCacheReadActor = callCacheReadActor,
       callCacheWriteActor = callCacheWriteActor,
       dockerHashActor = dockerHashActor,
-      jobTokenDispenserActor = jobTokenDispenserActor,
+      jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
       backendSingletonCollection = backendSingletonCollection,
       serverMode = serverMode,
       workflowHeartbeatConfig = workflowHeartbeatConfig)
@@ -126,7 +126,7 @@ case class WorkflowManagerActorParams(config: Config,
                                       callCacheReadActor: ActorRef,
                                       callCacheWriteActor: ActorRef,
                                       dockerHashActor: ActorRef,
-                                      jobTokenDispenserActor: ActorRef,
+                                      jobExecutionTokenDispenserActor: ActorRef,
                                       backendSingletonCollection: BackendSingletonCollection,
                                       serverMode: Boolean,
                                       workflowHeartbeatConfig: WorkflowHeartbeatConfig)
@@ -307,7 +307,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       callCacheReadActor = params.callCacheReadActor,
       callCacheWriteActor = params.callCacheWriteActor,
       dockerHashActor = params.dockerHashActor,
-      jobTokenDispenserActor = params.jobTokenDispenserActor,
+      jobExecutionTokenDispenserActor = params.jobExecutionTokenDispenserActor,
       workflowStoreActor = params.workflowStore,
       backendSingletonCollection = params.backendSingletonCollection,
       serverMode = params.serverMode,
@@ -334,11 +334,11 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     reasons map {
       case reason: ThrowableAggregation => expandFailureReasons(reason.throwables.toSeq)
       case reason: KnownJobFailureException =>
-        val stderrMessage = reason.stderrPath map { path => 
+        val stderrMessage = reason.stderrPath map { path =>
           val content = Try(path.annotatedContentAsStringWithLimit(3000)).recover({
             case e => s"Could not retrieve content: ${e.getMessage}"
           }).get
-          s"\nCheck the content of stderr for potential additional information: ${path.pathAsString}.\n $content" 
+          s"\nCheck the content of stderr for potential additional information: ${path.pathAsString}.\n $content"
         } getOrElse ""
         reason.getMessage + stderrMessage
       case reason => ExceptionUtils.getStackTrace(reason)

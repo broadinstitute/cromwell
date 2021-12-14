@@ -23,7 +23,9 @@ import scala.util.{Failure, Success, Try}
 
 class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
                              override val distributionRate: DynamicRateLimiter.Rate,
-                             logInterval: Option[FiniteDuration])
+                             logInterval: Option[FiniteDuration],
+                             tokenTypeDescription: String,
+                             tokenAllocatedDescription: String)
   extends Actor with ActorLogging with JobInstrumentation with CromwellInstrumentationScheduler with Timers with DynamicRateLimiter {
 
   /**
@@ -34,7 +36,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
   var tokenAssignments: Map[ActorRef, Lease[JobToken]] = Map.empty
 
   val instrumentationAction = () => {
-    sendGaugeJob(ExecutionStatus.Running.toString, tokenAssignments.size.toLong)
+    sendGaugeJob(tokenAllocatedDescription, tokenAssignments.size.toLong)
     sendGaugeJob(ExecutionStatus.QueuedInCromwell.toString, tokenQueues.values.map(_.size).sum.toLong)
   }
 
@@ -106,7 +108,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
 
     if (nextTokens.nonEmpty) {
       val hogGroupCounts = nextTokens.groupBy(t => t.queuePlaceholder.hogGroup).map { case (hogGroup, list) => s"$hogGroup: ${list.size}" }
-      log.info(s"Assigned new job execution tokens to the following groups: ${hogGroupCounts.mkString(", ")}")
+      log.info(s"Assigned new job $tokenTypeDescription tokens to the following groups: ${hogGroupCounts.mkString(", ")}")
     }
 
     nextTokens.foreach({
@@ -116,7 +118,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
         queuePlaceholder.actor ! JobTokenDispensed
       // Only one token per actor, so if you've already got one, we don't need to use this new one:
       case LeasedActor(queuePlaceholder, lease) =>
-        log.error(s"Programmer Error: Actor ${queuePlaceholder.actor.path} requested a job execution token more than once.")
+        log.error(s"Programmer Error: Actor ${queuePlaceholder.actor.path} requested a job $tokenTypeDescription token more than once.")
         // Because this actor already has a lease assigned to it:
         // a) tell the actor that it has a lease
         // b) don't hold onto this new lease - release it and let some other actor take it instead
@@ -136,7 +138,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
         context.unwatch(actor)
         ()
       case None =>
-        log.error("Job execution token returned from incorrect actor: {}", actor.path.name)
+        log.error(s"Job {} token returned from incorrect actor: {}", tokenTypeDescription, actor.path.name)
     }
   }
 
@@ -177,7 +179,9 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
 object JobTokenDispenserActor {
   case object TokensTimerKey
 
-  def props(serviceRegistryActor: ActorRef, rate: DynamicRateLimiter.Rate, logInterval: Option[FiniteDuration]): Props = Props(new JobTokenDispenserActor(serviceRegistryActor, rate, logInterval)).withDispatcher(EngineDispatcher)
+  def props(serviceRegistryActor: ActorRef, rate: DynamicRateLimiter.Rate, logInterval: Option[FiniteDuration],
+            tokenTypeDescription: String, tokenAllocatedDescription: String): Props =
+    Props(new JobTokenDispenserActor(serviceRegistryActor, rate, logInterval, tokenTypeDescription, tokenAllocatedDescription)).withDispatcher(EngineDispatcher)
 
   case class JobTokenRequest(hogGroup: HogGroup, jobTokenType: JobTokenType)
 

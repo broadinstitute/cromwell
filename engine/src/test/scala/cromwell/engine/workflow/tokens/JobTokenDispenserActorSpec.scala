@@ -38,6 +38,8 @@ class JobTokenDispenserActorSpec extends TestKitSuite
           serviceRegistryActor = TestProbe(serviceRegistryActorName).ref,
           distributionRate = Rate(10, 100.millis),
           logInterval = None,
+          tokenTypeDescription = "execution",
+          tokenAllocatedDescription = "Running"
         ),
       name = jobExecutionTokenDispenserActorName,
     )
@@ -90,6 +92,8 @@ class JobTokenDispenserActorSpec extends TestKitSuite
           serviceRegistryActor = TestProbe("serviceRegistryActor-dispense-correct-amount").ref,
           distributionRate = Rate(10, 4.seconds),
           logInterval = None,
+          tokenTypeDescription = "execution",
+          tokenAllocatedDescription = "Running"
         ),
       name = "dispense-correct-amount",
     )
@@ -257,7 +261,10 @@ class JobTokenDispenserActorSpec extends TestKitSuite
     it should s"recover tokens lost to actors which are $name before they hand back their token" in {
       val actorRefUnderTest =
         TestActorRef(
-          new JobTokenDispenserActor(TestProbe(s"serviceRegistryActor-$name").ref, Rate(10, 100.millis), None),
+          new JobTokenDispenserActor(TestProbe(s"serviceRegistryActor-$name").ref, Rate(10, 100.millis), None,
+            tokenTypeDescription = "execution",
+            tokenAllocatedDescription = "Running"
+          ),
           s"lost-to-$name",
         )
       val grabberSupervisor = TestActorRef(new StoppingSupervisor(), s"lost-to-$name-supervisor")

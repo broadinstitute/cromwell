@@ -141,17 +141,28 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   when(Pending) {
     case Event(Execute, NoData) =>
       increment(NonEmptyList("jobs", List("ejea", "executing", "starting")))
-      requestExecutionToken()
-      goto(RequestingExecutionToken)
+      if (restarting) {
+        requestJobStoreCheckToken()
+        goto(RequestingJobStoreCheckToken)
+      } else {
+        requestExecutionToken()
+        goto(RequestingExecutionToken)
+      }
+  }
+
+  when(RequestingJobStoreCheckToken) {
+    case Event(JobTokenDispensed, NoData) =>
+      val jobStoreKey = jobDescriptorKey.toJobStoreKey(workflowIdForLogging)
+      jobStoreActor ! QueryJobCompletion(jobStoreKey, jobDescriptorKey.call.outputPorts.toSeq)
+      goto(CheckingJobStore)
   }
 
   when(RequestingExecutionToken) {
     case Event(JobTokenDispensed, NoData) =>
       replyTo ! JobStarting(jobDescriptorKey)
       if (restarting) {
-        val jobStoreKey = jobDescriptorKey.toJobStoreKey(workflowIdForLogging)
-        jobStoreActor ! QueryJobCompletion(jobStoreKey, jobDescriptorKey.call.outputPorts.toSeq)
-        goto(CheckingJobStore)
+        replyTo ! JobStarting(jobDescriptorKey)
+        checkCacheEntryExistence()
       } else {
         requestValueStore()
       }
@@ -160,8 +171,11 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   // When CheckingJobStore, the FSM always has NoData
   when(CheckingJobStore) {
     case Event(JobNotComplete, NoData) =>
-      checkCacheEntryExistence()
+      returnJobStoreCheckToken()
+      requestExecutionToken()
+      goto(RequestingExecutionToken)
     case Event(JobComplete(jobResult), NoData) =>
+      returnJobStoreCheckToken()
       respondAndStop(jobResult.toBackendJobResponse(jobDescriptorKey))
     case Event(f: JobStoreReadFailure, NoData) =>
       writeCallCachingModeToMetadata()
@@ -544,9 +558,17 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     jobExecutionTokenDispenserActor ! JobTokenRequest(workflowDescriptor.backendDescriptor.hogGroup, backendLifecycleActorFactory.jobExecutionTokenType)
   }
 
+  private def requestJobStoreCheckToken(): Unit = {
+    jobStoreCheckTokenDispenserActor ! JobTokenRequest(workflowDescriptor.backendDescriptor.hogGroup, backendLifecycleActorFactory.jobExecutionTokenType)
+  }
+
   // Return the execution token (if we have one)
   private def returnExecutionToken(): Unit = if (stateName != Pending && stateName != RequestingExecutionToken) {
     jobExecutionTokenDispenserActor ! JobTokenReturn
+  }
+
+  private def returnJobStoreCheckToken(): Unit = {
+    jobStoreCheckTokenDispenserActor ! JobTokenReturn
   }
 
   private def forwardAndStop(response: BackendJobExecutionResponse): State = {
@@ -888,6 +910,7 @@ object EngineJobExecutionActor {
   /** States */
   sealed trait EngineJobExecutionActorState
   case object Pending extends EngineJobExecutionActorState
+  case object RequestingJobStoreCheckToken extends EngineJobExecutionActorState
   case object RequestingExecutionToken extends EngineJobExecutionActorState
   case object CheckingJobStore extends EngineJobExecutionActorState
   case object CheckingCallCache extends EngineJobExecutionActorState

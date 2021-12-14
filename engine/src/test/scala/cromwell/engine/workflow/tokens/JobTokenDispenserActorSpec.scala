@@ -54,7 +54,7 @@ class JobTokenDispenserActorSpec extends TestKitSuite
     actorRefUnderTest ! JobTokenRequest(hogGroupA, TestInfiniteTokenType)
     expectMsg(max = MaxWaitTime, JobTokenDispensed)
     actorRefUnderTest.underlyingActor.tokenAssignments.contains(self) shouldBe true
-    actorRefUnderTest.underlyingActor.tokenAssignments(self).get().jobTokenType shouldBe TestInfiniteTokenType
+    actorRefUnderTest.underlyingActor.tokenAssignments(self).tokenLease.get().jobTokenType shouldBe TestInfiniteTokenType
   }
 
   it should "accept return of an infinite token correctly" in {
@@ -66,7 +66,7 @@ class JobTokenDispenserActorSpec extends TestKitSuite
     actorRefUnderTest ! JobTokenRequest(hogGroupA, TestInfiniteTokenType)
     expectMsg(max = MaxWaitTime, JobTokenDispensed)
     actorRefUnderTest.underlyingActor.tokenAssignments.contains(self) shouldBe true
-    actorRefUnderTest.underlyingActor.tokenAssignments(self).get().jobTokenType shouldBe TestInfiniteTokenType
+    actorRefUnderTest.underlyingActor.tokenAssignments(self).tokenLease.get().jobTokenType shouldBe TestInfiniteTokenType
     actorRefUnderTest ! JobTokenReturn
     actorRefUnderTest.underlyingActor.tokenAssignments.contains(self) shouldBe false
   }
@@ -118,7 +118,7 @@ class JobTokenDispenserActorSpec extends TestKitSuite
     actorRefUnderTest ! JobTokenRequest(hogGroupA, LimitedTo5Tokens)
     expectMsg(max = MaxWaitTime, JobTokenDispensed)
     actorRefUnderTest.underlyingActor.tokenAssignments.contains(self) shouldBe true
-    actorRefUnderTest.underlyingActor.tokenAssignments(self).get().jobTokenType shouldBe LimitedTo5Tokens
+    actorRefUnderTest.underlyingActor.tokenAssignments(self).tokenLease.get().jobTokenType shouldBe LimitedTo5Tokens
   }
 
   it should "accept return of a limited token type correctly" in {
@@ -130,7 +130,7 @@ class JobTokenDispenserActorSpec extends TestKitSuite
     actorRefUnderTest ! JobTokenRequest(hogGroupA, LimitedTo5Tokens)
     expectMsg(max = MaxWaitTime, JobTokenDispensed)
     actorRefUnderTest.underlyingActor.tokenAssignments.contains(self) shouldBe true
-    actorRefUnderTest.underlyingActor.tokenAssignments(self).get().jobTokenType shouldBe LimitedTo5Tokens
+    actorRefUnderTest.underlyingActor.tokenAssignments(self).tokenLease.get().jobTokenType shouldBe LimitedTo5Tokens
     actorRefUnderTest ! JobTokenReturn
     actorRefUnderTest.underlyingActor.tokenAssignments.contains(self) shouldBe false
   }

@@ -1,16 +1,21 @@
 package cromwell.engine.workflow.tokens
 
+import java.time.OffsetDateTime
+
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated, Timers}
+import cats.data.NonEmptyList
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.JobToken._
+import cromwell.core.instrumentation.InstrumentationPrefixes.ServicesPrefix
 import cromwell.core.{ExecutionStatus, HogGroup, JobToken}
 import cromwell.engine.instrumentation.JobInstrumentation
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.TokensAvailable
 import cromwell.engine.workflow.tokens.JobTokenDispenserActor._
 import cromwell.engine.workflow.tokens.TokenQueue.{LeasedActor, TokenQueuePlaceholder, TokenQueueState}
 import cromwell.services.instrumentation.CromwellInstrumentation._
-import cromwell.services.instrumentation.CromwellInstrumentationScheduler
+import cromwell.services.instrumentation.{CromwellInstrumentation, CromwellInstrumentationScheduler}
 import cromwell.services.loadcontroller.LoadControllerService.ListenToLoadController
+import cromwell.services.metadata.impl.MetadataServiceActor
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import io.circe.generic.JsonCodec
 import io.circe.Printer
@@ -26,14 +31,21 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
                              logInterval: Option[FiniteDuration],
                              dispenserType: String,
                              tokenAllocatedDescription: String)
-  extends Actor with ActorLogging with JobInstrumentation with CromwellInstrumentationScheduler with Timers with DynamicRateLimiter {
+  extends Actor
+    with ActorLogging
+    with JobInstrumentation
+    with CromwellInstrumentationScheduler
+    with Timers
+    with DynamicRateLimiter
+    with CromwellInstrumentation
+{
 
   /**
     * Lazily created token queue. We only create a queue for a token type when we need it
     */
   var tokenQueues: Map[JobTokenType, TokenQueue] = Map.empty
   var currentTokenQueuePointer: Int = 0
-  var tokenAssignments: Map[ActorRef, Lease[JobToken]] = Map.empty
+  var tokenAssignments: Map[ActorRef, TokenLeaseRecord] = Map.empty
 
   val instrumentationAction = () => {
     sendGaugeJob(tokenAllocatedDescription, tokenAssignments.size.toLong)
@@ -74,10 +86,19 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
   private def tokenDistributionReceive: Receive = {
     case JobTokenRequest(hogGroup, tokenType) => enqueue(sender, hogGroup.value, tokenType)
     case JobTokenReturn => release(sender)
-    case TokensAvailable(n) => distribute(n)
+    case TokensAvailable(n) =>
+      emitHeartbeatMetrics()
+      distribute(n)
     case Terminated(terminee) => onTerminate(terminee)
     case LogJobTokenAllocation(nextInterval) => logTokenAllocation(nextInterval)
     case ShutdownCommand => context stop self
+  }
+
+  // This makes sure the metric paths are being used even if there's no other activity on the token distributor:
+  private def emitHeartbeatMetrics(): Unit = {
+    count(requestsEnqueuedMetricPath, 0L, ServicesPrefix)
+    count(tokensLeasedMetricPath, 0L, ServicesPrefix)
+    count(tokensReturnedMetricPath, 0L, ServicesPrefix)
   }
 
   private def enqueue(sndr: ActorRef, hogGroup: String, tokenType: JobTokenType): Unit = {
@@ -87,6 +108,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
       val queue = tokenQueues.getOrElse(tokenType, TokenQueue(tokenType, tokenEventLogger))
       tokenQueues += tokenType -> queue.enqueue(TokenQueuePlaceholder(sndr, hogGroup))
       context.watch(sndr)
+      increment(requestsEnqueuedMetricPath, ServicesPrefix)
       ()
     }
   }
@@ -113,8 +135,9 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
 
     nextTokens.foreach({
       case LeasedActor(queuePlaceholder, lease) if !tokenAssignments.contains(queuePlaceholder.actor) =>
-        tokenAssignments = tokenAssignments + (queuePlaceholder.actor -> lease)
+        tokenAssignments = tokenAssignments + (queuePlaceholder.actor -> TokenLeaseRecord(lease, OffsetDateTime.now()))
         incrementJob("Started")
+        increment(tokensLeasedMetricPath, ServicesPrefix)
         queuePlaceholder.actor ! JobTokenDispensed
       // Only one token per actor, so if you've already got one, we don't need to use this new one:
       case LeasedActor(queuePlaceholder, lease) =>
@@ -132,10 +155,12 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
 
   private def release(actor: ActorRef): Unit = {
     tokenAssignments.get(actor) match {
-      case Some(leasedToken) =>
+      case Some(TokenLeaseRecord(leasedToken, timestamp)) =>
         tokenAssignments -= actor
         leasedToken.release()
         context.unwatch(actor)
+        increment(tokensReturnedMetricPath, ServicesPrefix)
+        sendTiming(tokenLeaseDurationMetricPath, calculateTimeSince(timestamp))
         ()
       case None =>
         log.error(s"Job {} token returned from incorrect actor: {}", dispenserType, actor.path.name)
@@ -197,4 +222,11 @@ object JobTokenDispenserActor {
   @JsonCodec(encodeOnly = true)
   final case class TokenTypeState(tokenType: JobTokenType, queue: TokenQueueState)
 
+  final case class TokenLeaseRecord(tokenLease: Lease[JobToken], time: OffsetDateTime)
+
+  private val tokenDispensorMetricsBasePath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "token_distributor"
+  private val requestsEnqueuedMetricPath: NonEmptyList[String] = tokenDispensorMetricsBasePath :+ "requests_enqueued"
+  private val tokensLeasedMetricPath: NonEmptyList[String] = tokenDispensorMetricsBasePath :+ "tokens_distributed"
+  private val tokensReturnedMetricPath: NonEmptyList[String] = tokenDispensorMetricsBasePath :+ "tokens_returned"
+  private val tokenLeaseDurationMetricPath: NonEmptyList[String] = tokenDispensorMetricsBasePath :+ "token_hold_duration"
 }

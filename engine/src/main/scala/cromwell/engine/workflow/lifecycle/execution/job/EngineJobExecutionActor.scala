@@ -145,7 +145,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         requestRestartCheckToken()
         goto(RequestingRestartCheckToken)
       } else {
-        replyTo ! JobStarting(jobDescriptorKey)
         requestExecutionToken()
         goto(RequestingExecutionToken)
       }

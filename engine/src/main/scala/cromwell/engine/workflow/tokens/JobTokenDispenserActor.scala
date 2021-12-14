@@ -108,7 +108,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
 
     if (nextTokens.nonEmpty) {
       val hogGroupCounts = nextTokens.groupBy(t => t.queuePlaceholder.hogGroup).map { case (hogGroup, list) => s"$hogGroup: ${list.size}" }
-      log.info(s"Assigned new job $tokenTypeDescription tokens to the following groups: ${hogGroupCounts.mkString(", ")}")
+      log.info(s"Assigned new $tokenTypeDescription tokens to the following groups: ${hogGroupCounts.mkString(", ")}")
     }
 
     nextTokens.foreach({
@@ -118,7 +118,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
         queuePlaceholder.actor ! JobTokenDispensed
       // Only one token per actor, so if you've already got one, we don't need to use this new one:
       case LeasedActor(queuePlaceholder, lease) =>
-        log.error(s"Programmer Error: Actor ${queuePlaceholder.actor.path} requested a job $tokenTypeDescription token more than once.")
+        log.error(s"Programmer Error: Actor ${queuePlaceholder.actor.path} requested a $tokenTypeDescription token more than once.")
         // Because this actor already has a lease assigned to it:
         // a) tell the actor that it has a lease
         // b) don't hold onto this new lease - release it and let some other actor take it instead

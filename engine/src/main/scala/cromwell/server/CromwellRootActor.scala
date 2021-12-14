@@ -154,11 +154,12 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
   }
   lazy val backendSingletonCollection = BackendSingletonCollection(backendSingletons)
 
-  lazy val rate = DynamicRateLimiter.Rate(systemConfig.as[Int]("job-rate-control.jobs"), systemConfig.as[FiniteDuration]("job-rate-control.per"))
+  lazy val jobExecutionRate: DynamicRateLimiter.Rate = DynamicRateLimiter.Rate(systemConfig.as[Int]("job-rate-control.jobs"), systemConfig.as[FiniteDuration]("job-rate-control.per"))
+  lazy val jobStoreCheckRate: DynamicRateLimiter.Rate = DynamicRateLimiter.Rate(systemConfig.as[Int]("job-store-check-rate-control.jobs"), systemConfig.as[FiniteDuration]("job-store-check-rate-control.per"))
   lazy val tokenLogInterval: Option[FiniteDuration] = systemConfig.as[Option[Int]]("hog-safety.token-log-interval-seconds").map(_.seconds)
 
-  lazy val jobStoreCheckTokenDispenserActor: ActorRef = context.actorOf(JobTokenDispenserActor.props(serviceRegistryActor, rate, tokenLogInterval, "JobStore", "CheckingJobStore"), "JobStoreCheckTokenDispenser")
-  lazy val jobExecutionTokenDispenserActor: ActorRef = context.actorOf(JobTokenDispenserActor.props(serviceRegistryActor, rate, tokenLogInterval, "Execution", ExecutionStatus.Running.toString), "JobExecutionTokenDispenser")
+  lazy val jobStoreCheckTokenDispenserActor: ActorRef = context.actorOf(JobTokenDispenserActor.props(serviceRegistryActor, jobStoreCheckRate, tokenLogInterval, "job store check", "CheckingJobStore"), "JobStoreCheckTokenDispenser")
+  lazy val jobExecutionTokenDispenserActor: ActorRef = context.actorOf(JobTokenDispenserActor.props(serviceRegistryActor, jobExecutionRate, tokenLogInterval, "job execution", ExecutionStatus.Running.toString), "JobExecutionTokenDispenser")
 
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(

@@ -141,29 +141,42 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   when(Pending) {
     case Event(Execute, NoData) =>
       increment(NonEmptyList("jobs", List("ejea", "executing", "starting")))
-      requestExecutionToken()
-      goto(RequestingExecutionToken)
+      if (restarting) {
+        requestRestartCheckToken()
+        goto(RequestingRestartCheckToken)
+      } else {
+        replyTo ! JobStarting(jobDescriptorKey)
+        requestExecutionToken()
+        goto(RequestingExecutionToken)
+      }
+  }
+
+  // This condition only applies for restarts
+  when(RequestingRestartCheckToken) {
+    case Event(JobTokenDispensed, NoData) =>
+      replyTo ! JobStarting(jobDescriptorKey)
+      val jobStoreKey = jobDescriptorKey.toJobStoreKey(workflowIdForLogging)
+      jobStoreActor ! QueryJobCompletion(jobStoreKey, jobDescriptorKey.call.outputPorts.toSeq)
+      goto(CheckingJobStore)
   }
 
   when(RequestingExecutionToken) {
     case Event(JobTokenDispensed, NoData) =>
-      replyTo ! JobStarting(jobDescriptorKey)
-      if (restarting) {
-        val jobStoreKey = jobDescriptorKey.toJobStoreKey(workflowIdForLogging)
-        jobStoreActor ! QueryJobCompletion(jobStoreKey, jobDescriptorKey.call.outputPorts.toSeq)
-        goto(CheckingJobStore)
-      } else {
-        requestValueStore()
-      }
+      if (!restarting)
+        replyTo ! JobStarting(jobDescriptorKey)
+      requestValueStore()
   }
 
   // When CheckingJobStore, the FSM always has NoData
+  // This condition only applies for restarts
   when(CheckingJobStore) {
     case Event(JobNotComplete, NoData) =>
       checkCacheEntryExistence()
     case Event(JobComplete(jobResult), NoData) =>
+      returnRestartCheckToken()
       respondAndStop(jobResult.toBackendJobResponse(jobDescriptorKey))
     case Event(f: JobStoreReadFailure, NoData) =>
+      returnRestartCheckToken()
       writeCallCachingModeToMetadata()
       log.error(f.reason, "{}: Error reading from JobStore", tag)
       // Escalate
@@ -175,9 +188,11 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   // writing to the JobStore. In that case, we can re-use the cached results and save them to the job store directly.
   // Note that this checks that *this* particular job has a cache entry, not that there is *a* cache hit (possibly from another job)
   // There's no need to copy the outputs because they're already *this* job's outputs
+  // This condition only applies for restarts
   when(CheckingCacheEntryExistence) {
     // There was already a cache entry for this job
     case Event(join: CallCachingJoin, NoData) =>
+      returnRestartCheckToken()
       Try(join.toJobSuccess(jobDescriptorKey, backendLifecycleActorFactory.pathBuilders(initializationData))).map({ jobSuccess =>
         // We can't create a CallCacheHashes to give to the SucceededResponseData here because it involves knowledge of
         // which hashes are file hashes and which are not. We can't know that (nor do we care) when pulling them from the
@@ -191,10 +206,12 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       }).get
     // No cache entry for this job - keep going
     case Event(NoCallCacheEntry(_), NoData) =>
-      requestValueStore()
+      requestExecutionToken()
+      goto(RequestingExecutionToken)
     case Event(CacheResultLookupFailure(reason), NoData) =>
       log.error(reason, "{}: Failure checking for cache entry existence: {}. Attempting to resume job anyway.", jobTag, reason.getMessage)
-      requestValueStore()
+      requestExecutionToken()
+      goto(RequestingExecutionToken)
   }
 
   /*
@@ -540,8 +557,17 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     runJob(updatedData)
   }
 
+  private def requestRestartCheckToken(): Unit = {
+    jobRestartCheckTokenDispenserActor ! JobTokenRequest(workflowDescriptor.backendDescriptor.hogGroup, backendLifecycleActorFactory.jobRestartCheckTokenType)
+  }
+
   private def requestExecutionToken(): Unit = {
     jobExecutionTokenDispenserActor ! JobTokenRequest(workflowDescriptor.backendDescriptor.hogGroup, backendLifecycleActorFactory.jobExecutionTokenType)
+  }
+
+  // Return the restart check token (if we have one)
+  private def returnRestartCheckToken(): Unit = if (stateName != Pending && stateName != RequestingRestartCheckToken) {
+    jobRestartCheckTokenDispenserActor ! JobTokenReturn
   }
 
   // Return the execution token (if we have one)
@@ -888,6 +914,7 @@ object EngineJobExecutionActor {
   /** States */
   sealed trait EngineJobExecutionActorState
   case object Pending extends EngineJobExecutionActorState
+  case object RequestingRestartCheckToken extends EngineJobExecutionActorState
   case object RequestingExecutionToken extends EngineJobExecutionActorState
   case object CheckingJobStore extends EngineJobExecutionActorState
   case object CheckingCallCache extends EngineJobExecutionActorState

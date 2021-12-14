@@ -66,6 +66,16 @@ trait BackendLifecycleActorFactory {
     JobTokenType(name, concurrentJobLimit, hogFactor)
   }
 
+  lazy val jobRestartCheckTokenType: JobTokenType = {
+    val concurrentRestartCheckLimit = configurationDescriptor.globalConfig.as[Option[Int]]("system.job-restart-check-rate-control.max-jobs")
+    // if defined, use per-backend hog-factor, otherwise use system-level value
+    val hogFactor = configurationDescriptor.backendConfig.as[Option[Int]]("hog-factor") match {
+      case Some(backendHogFactorValue) => backendHogFactorValue
+      case None => configurationDescriptor.globalConfig.getInt("system.hog-safety.hog-factor")
+    }
+    JobTokenType(name, concurrentRestartCheckLimit, hogFactor)
+  }
+
   /* ****************************** */
   /*      Workflow Finalization     */
   /* ****************************** */

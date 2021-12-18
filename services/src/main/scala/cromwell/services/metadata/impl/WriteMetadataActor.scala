@@ -2,15 +2,25 @@ package cromwell.services.metadata.impl
 
 import akka.actor.{ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyVector
+import com.google.common.cache.CacheBuilder
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.Mailbox.PriorityMailbox
+import cromwell.core.WorkflowId
 import cromwell.core.instrumentation.InstrumentationPrefixes
-import cromwell.services.metadata.MetadataEvent
+import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataString, MetadataValue}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.{EnhancedBatchActor, MetadataServicesStore}
 
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import java.time.{Duration => JDuration}
+import java.util.UUID
+import java.util.concurrent.Callable
+
+import cats.Monoid
+import cats.syntax.monoid._
+import cromwell.services.metadata.impl.WriteMetadataActor.MetadataStatisticsRecorder
+
+import scala.util.{Failure, Success, Try}
 
 
 class WriteMetadataActor(override val batchSize: Int,
@@ -21,6 +31,8 @@ class WriteMetadataActor(override val batchSize: Int,
     with ActorLogging
     with MetadataDatabaseAccess
     with MetadataServicesStore {
+
+  private val statsRecorder = new MetadataStatisticsRecorder()
 
   override def process(e: NonEmptyVector[MetadataWriteAction]) = instrumentedProcess {
     val empty = (Vector.empty[MetadataEvent], List.empty[(Iterable[MetadataEvent], ActorRef)])
@@ -33,6 +45,12 @@ class WriteMetadataActor(override val batchSize: Int,
     })
     val allPutEvents: Iterable[MetadataEvent] = putWithoutResponse ++ putWithResponse.flatMap(_._1)
     val dbAction = addMetadataEvents(allPutEvents)
+    allPutEvents.groupBy(_.key.workflowId).foreach { case (id, list) =>
+      val update = statsRecorder.recordNewRows(id, list)
+      update match {
+        case
+      }
+    }
 
     dbAction onComplete {
       case Success(_) =>
@@ -48,8 +66,11 @@ class WriteMetadataActor(override val batchSize: Int,
     dbAction.map(_ => allPutEvents.size)
   }
 
+  private def countActionsByWorkflow(writeActions: Vector[MetadataWriteAction]): Map[WorkflowId, Int] =
+    writeActions.flatMap(_.events).groupBy(_.key.workflowId).map { case (k, v) => k -> v.size }
+
   private def enumerateWorkflowWriteFailures(writeActions: Vector[MetadataWriteAction]): String =
-    writeActions.flatMap(_.events).groupBy(_.key.workflowId).map { case (wfid, list) => s"$wfid: ${list.size}" }.mkString(", ")
+    countActionsByWorkflow(writeActions).map { case (wfid, size) => s"$wfid: $size" }.mkString(", ")
 
   private def handleOutOfTries(writeActions: Vector[MetadataWriteAction], reason: Throwable): Unit = if (writeActions.nonEmpty) {
     log.error(reason, "Metadata event writes have failed irretrievably for the following workflows. They will be lost: " + enumerateWorkflowWriteFailures(writeActions))
@@ -88,4 +109,41 @@ object WriteMetadataActor {
     Props(new WriteMetadataActor(dbBatchSize, flushRate, serviceRegistryActor, threshold))
       .withDispatcher(ServiceDispatcher)
       .withMailbox(PriorityMailbox)
+
+  final class MetadataStatisticsRecorder() {
+
+    val workflowCacheSize = 10L * 1000000 // TODO: Replace with the configured max workflows value (or max workflows x 2?)
+    val metadataAlertInterval = 10L // TODO: Replace with our current understanding of a good metadata size
+
+    final case class WorkflowMetadataWriteStatistics(totalWrites: Long, lastLogged: Long, knownParent: Option[WorkflowId])
+    final case class HeavyMetadataAlert(workflowId: WorkflowId, count: Long)
+
+    // Statistics for each workflow
+    private val metadataWriteStatisticsCache = CacheBuilder.newBuilder()
+      .concurrencyLevel(2)
+      .expireAfterAccess(JDuration.ofSeconds(4.hours.toSeconds))
+      .maximumSize(workflowCacheSize)
+      .build[WorkflowId, WorkflowMetadataWriteStatistics]()
+
+    val writeStatisticsLoader: Callable[WorkflowMetadataWriteStatistics] = () => WorkflowMetadataWriteStatistics(0L, 0L, None)
+
+    def recordNewRows(workflowId: WorkflowId, events: Iterable[MetadataEvent]): Vector[HeavyMetadataAlert] = {
+      val workflowWriteStats = metadataWriteStatisticsCache.get(workflowId, writeStatisticsLoader)
+      val writesForWorkflow = workflowWriteStats.totalWrites + events.size.longValue()
+      val knownParent: Option[WorkflowId] = workflowWriteStats.knownParent.orElse( events.collectFirst {
+        case MetadataEvent(MetadataKey(_, None, "parentWorkflowId"), Some(MetadataValue(value, MetadataString)), _) => Try(UUID.fromString(value)).toOption
+      }.flatten )
+
+      if (writesForWorkflow > workflowWriteStats.lastLogged + metadataAlertInterval) {
+        metadataWriteStatisticsCache.put(workflowId, workflowWriteStats.copy(totalWrites = writesForWorkflow, lastLogged = writesForWorkflow))
+        Vector(HeavyMetadataAlert(workflowId, writesForWorkflow))
+      } else {
+        metadataWriteStatisticsCache.put(workflowId, workflowWriteStats.copy(totalWrites = writesForWorkflow))
+        Vector.empty
+      }
+    }
+
+  }
 }
+
+

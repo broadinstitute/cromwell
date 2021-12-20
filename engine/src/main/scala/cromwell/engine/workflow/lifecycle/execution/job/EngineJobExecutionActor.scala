@@ -99,6 +99,10 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     } else callCachingParameters.mode
   }
 
+  //noinspection ActorMutableStateInspection
+  // The token dispenser from which this actor has most recently received a token, if any.
+  private var mostRecentTokenDispenser: Option[ActorRef] = None
+
   // For tests:
   private[execution] def checkEffectiveCallCachingMode = effectiveCallCachingMode
 
@@ -153,6 +157,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   // This condition only applies for restarts
   when(RequestingRestartCheckToken) {
     case Event(JobTokenDispensed, NoData) =>
+      mostRecentTokenDispenser = Option(jobRestartCheckTokenDispenserActor)
       replyTo ! JobStarting(jobDescriptorKey)
       val jobStoreKey = jobDescriptorKey.toJobStoreKey(workflowIdForLogging)
       jobStoreActor ! QueryJobCompletion(jobStoreKey, jobDescriptorKey.call.outputPorts.toSeq)
@@ -161,6 +166,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   when(RequestingExecutionToken) {
     case Event(JobTokenDispensed, NoData) =>
+      mostRecentTokenDispenser = Option(jobExecutionTokenDispenserActor)
       if (!restarting)
         replyTo ! JobStarting(jobDescriptorKey)
       requestValueStore()
@@ -172,10 +178,9 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     case Event(JobNotComplete, NoData) =>
       checkCacheEntryExistence()
     case Event(JobComplete(jobResult), NoData) =>
-      returnRestartCheckToken()
       respondAndStop(jobResult.toBackendJobResponse(jobDescriptorKey))
     case Event(f: JobStoreReadFailure, NoData) =>
-      returnRestartCheckToken()
+      returnCurrentToken()
       writeCallCachingModeToMetadata()
       log.error(f.reason, "{}: Error reading from JobStore", tag)
       // Escalate
@@ -191,7 +196,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   when(CheckingCacheEntryExistence) {
     // There was already a cache entry for this job
     case Event(join: CallCachingJoin, NoData) =>
-      returnRestartCheckToken()
       Try(join.toJobSuccess(jobDescriptorKey, backendLifecycleActorFactory.pathBuilders(initializationData))).map({ jobSuccess =>
         // We can't create a CallCacheHashes to give to the SucceededResponseData here because it involves knowledge of
         // which hashes are file hashes and which are not. We can't know that (nor do we care) when pulling them from the
@@ -205,10 +209,12 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       }).get
     // No cache entry for this job - keep going
     case Event(NoCallCacheEntry(_), NoData) =>
+      returnCurrentToken()
       requestExecutionToken()
       goto(RequestingExecutionToken)
     case Event(CacheResultLookupFailure(reason), NoData) =>
       log.error(reason, "{}: Failure checking for cache entry existence: {}. Attempting to resume job anyway.", jobTag, reason.getMessage)
+      returnCurrentToken()
       requestExecutionToken()
       goto(RequestingExecutionToken)
   }
@@ -564,14 +570,10 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     jobExecutionTokenDispenserActor ! JobTokenRequest(workflowDescriptor.backendDescriptor.hogGroup, backendLifecycleActorFactory.jobExecutionTokenType)
   }
 
-  // Return the restart check token (if we have one)
-  private def returnRestartCheckToken(): Unit = if (stateName != Pending && stateName != RequestingRestartCheckToken) {
-    jobRestartCheckTokenDispenserActor ! JobTokenReturn
-  }
-
-  // Return the execution token (if we have one)
-  private def returnExecutionToken(): Unit = if (stateName != Pending && stateName != RequestingExecutionToken) {
-    jobExecutionTokenDispenserActor ! JobTokenReturn
+  // Return any currently held job restart check or execution token.
+  private def returnCurrentToken(): Unit = if (stateName != Pending && stateName != RequestingRestartCheckToken && stateName != RequestingExecutionToken) {
+    mostRecentTokenDispenser foreach { _ ! JobTokenReturn }
+    mostRecentTokenDispenser = None
   }
 
   private def forwardAndStop(response: BackendJobExecutionResponse): State = {
@@ -586,7 +588,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   private def stop(response: BackendJobExecutionResponse): State = {
     increment(NonEmptyList("jobs", List("ejea", "executing", "done")))
-    returnExecutionToken()
+    returnCurrentToken()
     instrumentJobComplete(response)
     pushExecutionEventsToMetadataService(jobDescriptorKey, eventList)
     recordExecutionStepTiming(stateName.toString, currentStateDuration)

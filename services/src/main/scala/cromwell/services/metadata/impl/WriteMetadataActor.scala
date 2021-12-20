@@ -16,8 +16,6 @@ import java.time.{Duration => JDuration}
 import java.util.UUID
 import java.util.concurrent.Callable
 
-import cats.Monoid
-import cats.syntax.monoid._
 import cromwell.services.metadata.impl.WriteMetadataActor.MetadataStatisticsRecorder
 
 import scala.util.{Failure, Success, Try}
@@ -46,10 +44,8 @@ class WriteMetadataActor(override val batchSize: Int,
     val allPutEvents: Iterable[MetadataEvent] = putWithoutResponse ++ putWithResponse.flatMap(_._1)
     val dbAction = addMetadataEvents(allPutEvents)
     allPutEvents.groupBy(_.key.workflowId).foreach { case (id, list) =>
-      val update = statsRecorder.recordNewRows(id, list)
-      update match {
-        case
-      }
+      val alerts = statsRecorder.recordNewRows(id, list)
+      alerts.foreach(a => log.warning(s"${a.workflowId} has logged a heavy amount of metadata (${a.count} rows)"))
     }
 
     dbAction onComplete {
@@ -110,13 +106,13 @@ object WriteMetadataActor {
       .withDispatcher(ServiceDispatcher)
       .withMailbox(PriorityMailbox)
 
+  final case class WorkflowMetadataWriteStatistics(totalWrites: Long, lastLogged: Long, knownParent: Option[WorkflowId])
+  final case class HeavyMetadataAlert(workflowId: WorkflowId, count: Long)
+
   final class MetadataStatisticsRecorder() {
 
     val workflowCacheSize = 10L * 1000000 // TODO: Replace with the configured max workflows value (or max workflows x 2?)
     val metadataAlertInterval = 10L // TODO: Replace with our current understanding of a good metadata size
-
-    final case class WorkflowMetadataWriteStatistics(totalWrites: Long, lastLogged: Long, knownParent: Option[WorkflowId])
-    final case class HeavyMetadataAlert(workflowId: WorkflowId, count: Long)
 
     // Statistics for each workflow
     private val metadataWriteStatisticsCache = CacheBuilder.newBuilder()
@@ -127,23 +123,26 @@ object WriteMetadataActor {
 
     val writeStatisticsLoader: Callable[WorkflowMetadataWriteStatistics] = () => WorkflowMetadataWriteStatistics(0L, 0L, None)
 
-    def recordNewRows(workflowId: WorkflowId, events: Iterable[MetadataEvent]): Vector[HeavyMetadataAlert] = {
+    def recordNewRows(workflowId: WorkflowId, events: Iterable[MetadataEvent], fromSubworkflow: Boolean = false): Vector[HeavyMetadataAlert] = {
       val workflowWriteStats = metadataWriteStatisticsCache.get(workflowId, writeStatisticsLoader)
       val writesForWorkflow = workflowWriteStats.totalWrites + events.size.longValue()
-      val knownParent: Option[WorkflowId] = workflowWriteStats.knownParent.orElse( events.collectFirst {
-        case MetadataEvent(MetadataKey(_, None, "parentWorkflowId"), Some(MetadataValue(value, MetadataString)), _) => Try(UUID.fromString(value)).toOption
+      val knownParent: Option[WorkflowId] = workflowWriteStats.knownParent.orElse( if(fromSubworkflow) None else events.collectFirst {
+        case MetadataEvent(MetadataKey(_, None, "parentWorkflowId"), Some(MetadataValue(value, MetadataString)), _) => Try(WorkflowId(UUID.fromString(value))).toOption
       }.flatten )
 
+      knownParent.foreach(p => recordNewRows(p, events))
+
       if (writesForWorkflow > workflowWriteStats.lastLogged + metadataAlertInterval) {
-        metadataWriteStatisticsCache.put(workflowId, workflowWriteStats.copy(totalWrites = writesForWorkflow, lastLogged = writesForWorkflow))
+        metadataWriteStatisticsCache.put(workflowId, workflowWriteStats.copy(totalWrites = writesForWorkflow, lastLogged = writesForWorkflow, knownParent = knownParent))
         Vector(HeavyMetadataAlert(workflowId, writesForWorkflow))
       } else {
-        metadataWriteStatisticsCache.put(workflowId, workflowWriteStats.copy(totalWrites = writesForWorkflow))
+        metadataWriteStatisticsCache.put(workflowId, workflowWriteStats.copy(totalWrites = writesForWorkflow, knownParent = knownParent))
         Vector.empty
       }
     }
 
+    def recordSubworkflowRows(workflowId: WorkflowId, count: Long) = {
+
+    }
   }
 }
-
-

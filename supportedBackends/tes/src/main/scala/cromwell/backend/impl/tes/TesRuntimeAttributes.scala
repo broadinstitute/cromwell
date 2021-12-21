@@ -18,7 +18,8 @@ case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
                                 cpu: Option[Int Refined Positive],
                                 memory: Option[MemorySize],
                                 disk: Option[MemorySize],
-                                preemptible: Boolean)
+                                preemptible: Boolean,
+                                backendParameters: Map[String, String])
 
 object TesRuntimeAttributes {
 
@@ -52,18 +53,51 @@ object TesRuntimeAttributes {
       preemptibleValidation(backendRuntimeConfig),
     )
 
-  def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, backendRuntimeConfig: Option[Config]): TesRuntimeAttributes = {
-    val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
-    val dockerWorkingDir: Option[String] = RuntimeAttributesValidation.extractOption(dockerWorkingDirValidation.key, validatedRuntimeAttributes)
-    val cpu: Option[Int Refined Positive] = RuntimeAttributesValidation.extractOption(cpuValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
-    val memory: Option[MemorySize] = RuntimeAttributesValidation.extractOption(memoryValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
-    val disk: Option[MemorySize] = RuntimeAttributesValidation.extractOption(diskSizeValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
-    val failOnStderr: Boolean =
-      RuntimeAttributesValidation.extract(failOnStderrValidation(backendRuntimeConfig), validatedRuntimeAttributes)
-    val continueOnReturnCode: ContinueOnReturnCode =
-      RuntimeAttributesValidation.extract(continueOnReturnCodeValidation(backendRuntimeConfig), validatedRuntimeAttributes)
-    val preemptible: Boolean =
-      RuntimeAttributesValidation.extract(preemptibleValidation(backendRuntimeConfig), validatedRuntimeAttributes)
+  def makeBackendParameters(runtimeAttributes: Map[String, WomValue],
+                            keysToExclude: Set[String],
+                            config: TesConfiguration): Map[String, String] = {
+
+    if (config.useBackendParameters)
+      runtimeAttributes
+        .filterKeys(k => !keysToExclude.contains(k))
+        .collect { case (key, strValue: WomString) => (key, strValue.value)}
+    else
+      Map.empty
+  }
+
+  def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, rawRuntimeAttributes: Map[String, WomValue], config: TesConfiguration): TesRuntimeAttributes = {
+
+    val usedRuntimeAttributes = scala.collection.mutable.Set[String]()
+    val backendRuntimeConfig = config.runtimeConfig
+
+    val docker = RuntimeAttributesValidation.extract[String](dockerValidation.key, validatedRuntimeAttributes)
+    usedRuntimeAttributes.add(dockerValidation.key)
+
+    val dockerWorkingDir = RuntimeAttributesValidation.extractOption[String](dockerWorkingDirValidation.key, validatedRuntimeAttributes)
+    usedRuntimeAttributes.add(dockerWorkingDirValidation.key)
+
+    val cpu = RuntimeAttributesValidation.extractOption[Int Refined Positive](cpuValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+    usedRuntimeAttributes.add(cpuValidation(backendRuntimeConfig).key)
+
+    val memory = RuntimeAttributesValidation.extractOption[MemorySize](memoryValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+    usedRuntimeAttributes.add(memoryValidation(backendRuntimeConfig).key)
+
+    val disk = RuntimeAttributesValidation.extractOption[MemorySize](diskSizeValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+    usedRuntimeAttributes.add(diskSizeValidation(backendRuntimeConfig).key)
+
+    val failOnStderr =
+      RuntimeAttributesValidation.extract[Boolean](failOnStderrValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+    usedRuntimeAttributes.add(failOnStderrValidation(backendRuntimeConfig).key)
+
+    val continueOnReturnCode =
+      RuntimeAttributesValidation.extract[ContinueOnReturnCode](continueOnReturnCodeValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+    usedRuntimeAttributes.add(continueOnReturnCodeValidation(backendRuntimeConfig).key)
+
+    val preemptible =
+      RuntimeAttributesValidation.extract[Boolean](preemptibleValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+    usedRuntimeAttributes.add(preemptibleValidation(backendRuntimeConfig).key)
+
+    val backendParameters = makeBackendParameters(rawRuntimeAttributes, usedRuntimeAttributes.toSet, config)
 
     new TesRuntimeAttributes(
       continueOnReturnCode,
@@ -73,7 +107,8 @@ object TesRuntimeAttributes {
       cpu,
       memory,
       disk,
-      preemptible
+      preemptible,
+      backendParameters
     )
   }
 }

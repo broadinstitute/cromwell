@@ -63,6 +63,25 @@ class TesInitializationActor(params: TesInitializationActorParams)
     ).mapN((_, _, _) => ()).toTry
   }
 
+  // TODO Figure out how to exclude valid backend parameters from this warning
+  override def checkForUnsupportedRuntimeAttributes(): Try[Unit] = Try {
+    calls foreach { call =>
+      val runtimeAttributes = call.callable.runtimeAttributes.attributes
+//      val backendParameters = TesRuntimeAttributes.makeBackendParameters(runtimeAttributes, tesConfiguration).keySet
+      val notSupportedAttributes =
+        runtimeAttributesBuilder
+          .unsupportedKeys(runtimeAttributes.keys.toList)
+//          .filterNot(backendParameters.contains)
+
+      if (notSupportedAttributes.nonEmpty) {
+        val notSupportedAttrString = notSupportedAttributes mkString ", "
+        workflowLogger.warn(
+          s"Key/s [$notSupportedAttrString] is/are not supported by backend. " +
+            s"Unsupported attributes will not be part of job executions.")
+      }
+    }
+  }
+
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     workflowPaths map { paths =>
       publishWorkflowRoot(paths.workflowRoot.toString)

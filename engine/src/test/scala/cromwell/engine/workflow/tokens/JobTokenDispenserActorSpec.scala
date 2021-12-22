@@ -38,8 +38,9 @@ class JobTokenDispenserActorSpec extends TestKitSuite
           serviceRegistryActor = TestProbe(serviceRegistryActorName).ref,
           distributionRate = Rate(10, 100.millis),
           logInterval = None,
-          tokenTypeDescription = "execution",
-          tokenAllocatedDescription = "Running"
+          dispenserType = "execution",
+          tokenAllocatedDescription = "Running",
+          logTokenAllocation = true
         ),
       name = jobExecutionTokenDispenserActorName,
     )
@@ -92,8 +93,9 @@ class JobTokenDispenserActorSpec extends TestKitSuite
           serviceRegistryActor = TestProbe("serviceRegistryActor-dispense-correct-amount").ref,
           distributionRate = Rate(10, 4.seconds),
           logInterval = None,
-          tokenTypeDescription = "execution",
-          tokenAllocatedDescription = "Running"
+          dispenserType = "execution",
+          tokenAllocatedDescription = "Running",
+          logTokenAllocation = true
         ),
       name = "dispense-correct-amount",
     )
@@ -262,8 +264,9 @@ class JobTokenDispenserActorSpec extends TestKitSuite
       val actorRefUnderTest =
         TestActorRef(
           new JobTokenDispenserActor(TestProbe(s"serviceRegistryActor-$name").ref, Rate(10, 100.millis), None,
-            tokenTypeDescription = "execution",
-            tokenAllocatedDescription = "Running"
+            dispenserType = "execution",
+            tokenAllocatedDescription = "Running",
+            logTokenAllocation = true
           ),
           s"lost-to-$name",
         )

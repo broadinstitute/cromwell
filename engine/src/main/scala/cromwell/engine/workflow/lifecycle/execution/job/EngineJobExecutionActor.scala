@@ -100,8 +100,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   //noinspection ActorMutableStateInspection
-  // The token dispenser from which this actor has most recently received a token, if any.
-  private var mostRecentTokenDispenser: Option[ActorRef] = None
+  // If this actor is currently holding a job token, the token dispenser to which the token should be returned.
+  private var currentTokenDispenser: Option[ActorRef] = None
 
   // For tests:
   private[execution] def checkEffectiveCallCachingMode = effectiveCallCachingMode
@@ -157,7 +157,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   // This condition only applies for restarts
   when(RequestingRestartCheckToken) {
     case Event(JobTokenDispensed, NoData) =>
-      mostRecentTokenDispenser = Option(jobRestartCheckTokenDispenserActor)
+      currentTokenDispenser = Option(jobRestartCheckTokenDispenserActor)
       replyTo ! JobStarting(jobDescriptorKey)
       val jobStoreKey = jobDescriptorKey.toJobStoreKey(workflowIdForLogging)
       jobStoreActor ! QueryJobCompletion(jobStoreKey, jobDescriptorKey.call.outputPorts.toSeq)
@@ -166,7 +166,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   when(RequestingExecutionToken) {
     case Event(JobTokenDispensed, NoData) =>
-      mostRecentTokenDispenser = Option(jobExecutionTokenDispenserActor)
+      currentTokenDispenser = Option(jobExecutionTokenDispenserActor)
       if (!restarting)
         replyTo ! JobStarting(jobDescriptorKey)
       requestValueStore()
@@ -572,8 +572,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   // Return any currently held job restart check or execution token.
   private def returnCurrentToken(): Unit = if (stateName != Pending && stateName != RequestingRestartCheckToken && stateName != RequestingExecutionToken) {
-    mostRecentTokenDispenser foreach { _ ! JobTokenReturn }
-    mostRecentTokenDispenser = None
+    currentTokenDispenser foreach { _ ! JobTokenReturn }
+    currentTokenDispenser = None
   }
 
   private def forwardAndStop(response: BackendJobExecutionResponse): State = {

@@ -1,5 +1,4 @@
 import sbt.*
-import sbt.Keys.ps
 import sbtassembly.AssemblyPlugin.autoImport.*
 import sbtassembly.{MergeStrategy, PathList}
 

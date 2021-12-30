@@ -91,7 +91,17 @@ trait AwsBatchJobDefinitionBuilder {
    */
   def containerPropertiesBuilder(context: AwsBatchJobDefinitionContext): (ContainerProperties.Builder, String) = {
 
-    def buildVolumes(disks: Seq[AwsBatchVolume]): List[Volume] =
+    def buildVolumes(disks: Seq[AwsBatchVolume], fsx: Option[List[String]]): List[Volume] = {
+
+      val fsx_volumes = fsx.isDefined match {
+        case true =>
+          fsx.get.map(mnt => Volume.builder().name(mnt).host(Host.builder().sourcePath(s"/$mnt").build()).build())
+        case false => List()
+      }
+
+      println("FSX!!!!!!!!!!!!!!!!")
+      println(fsx_volumes)
+
       // all the configured disks plus the fetch and run volume and the aws-cli volume
       disks.map(d => d.toVolume()).toList ++ List(
         Volume
@@ -105,9 +115,20 @@ trait AwsBatchJobDefinitionBuilder {
           .name("awsCliHome")
           .host(Host.builder().sourcePath("/usr/local/aws-cli").build())
           .build()
-      )
+      ) ++ fsx_volumes
+    }
 
-    def buildMountPoints(disks: Seq[AwsBatchVolume]): List[MountPoint] =
+    def buildMountPoints(disks: Seq[AwsBatchVolume], fsx: Option[List[String]]): List[MountPoint] = {
+
+      val fsx_disks = fsx.isDefined match {
+        case true =>
+          fsx.get.map(mnt => MountPoint.builder().readOnly(false).sourceVolume(mnt).containerPath(s"/$mnt").build())
+        case false => List()
+      }
+
+      println("FSX!!!!!!!!!!!!!!!!")
+      println(fsx_disks)
+
       // all the configured disks plus the fetch and run mount point and the AWS cli mount point
       disks.map(_.toMountPoint).toList ++ List(
         MountPoint
@@ -123,7 +144,8 @@ trait AwsBatchJobDefinitionBuilder {
           // where the aws-cli will be on the container
           .containerPath("/usr/local/aws-cli")
           .build()
-      )
+      ) ++ fsx_disks
+    }
 
     def buildUlimits(ulimits: Seq[Map[String, String]]): List[Ulimit] =
       ulimits
@@ -155,8 +177,8 @@ trait AwsBatchJobDefinitionBuilder {
       case _ => context.commandText
     }
     val packedCommand = packCommand("/bin/bash", "-c", cmdName)
-    val volumes = buildVolumes(context.runtimeAttributes.disks)
-    val mountPoints = buildMountPoints(context.runtimeAttributes.disks)
+    val volumes = buildVolumes(context.runtimeAttributes.disks, context.fsxFileSystem)
+    val mountPoints = buildMountPoints(context.runtimeAttributes.disks, context.fsxFileSystem)
     val ulimits = buildUlimits(context.runtimeAttributes.ulimits)
     val containerPropsName = buildName(
       context.runtimeAttributes.dockerImage,
@@ -259,7 +281,8 @@ case class AwsBatchJobDefinitionContext(runtimeAttributes: AwsBatchRuntimeAttrib
                                         jobDescriptor: BackendJobDescriptor,
                                         jobPaths: JobPaths,
                                         inputs: Set[AwsBatchInput],
-                                        outputs: Set[AwsBatchFileOutput]
+                                        outputs: Set[AwsBatchFileOutput],
+                                        fsxFileSystem: Option[List[String]]
 ) {
 
   override def toString: String =
@@ -273,5 +296,6 @@ case class AwsBatchJobDefinitionContext(runtimeAttributes: AwsBatchRuntimeAttrib
       .append("jobPaths", jobPaths)
       .append("inputs", inputs)
       .append("outputs", outputs)
+      .append("fsxFileSystem", fsxFileSystem)
       .build
 }

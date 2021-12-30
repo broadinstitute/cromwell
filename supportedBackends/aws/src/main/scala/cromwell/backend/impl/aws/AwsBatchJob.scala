@@ -30,6 +30,8 @@
  */
 package cromwell.backend.impl.aws
 
+import java.nio.file.attribute.PosixFilePermission
+
 import cats.data.ReaderT._
 import cats.data.{Kleisli, ReaderT}
 import cats.effect.{Async, Timer}
@@ -84,7 +86,8 @@ final case class AwsBatchJob(
   jobPaths: JobPaths, // Based on config, calculated in Job Paths, key to all things outside container
   parameters: Seq[AwsBatchParameter],
   configRegion: Option[Region],
-  optAwsAuthMode: Option[AwsAuthMode] = None
+  optAwsAuthMode: Option[AwsAuthMode] = None,
+  fsxFileSystem: Option[List[String]]
 ) {
 
   val Log: Logger = LoggerFactory.getLogger(AwsBatchJob.getClass)
@@ -279,6 +282,8 @@ final case class AwsBatchJob(
       val regex = "s3://([^/]*)/(.*)".r
       val regex(bucketName, key) = jobPaths.callExecutionRoot.toString
       writeReconfiguredScriptForAudit(reconfiguredScript, bucketName, key + "/reconfigured-script.sh")
+    } else {
+      jobPaths.script.addPermission(PosixFilePermission.OTHERS_EXECUTE)
     }
 
     val batch_script = runtimeAttributes.fileSystem match {
@@ -424,7 +429,8 @@ final case class AwsBatchJob(
           jobDescriptor = jobDescriptor,
           jobPaths = jobPaths,
           inputs = inputs,
-          outputs = outputs
+          outputs = outputs,
+          fsxFileSystem = fsxFileSystem
         )
 
         val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder

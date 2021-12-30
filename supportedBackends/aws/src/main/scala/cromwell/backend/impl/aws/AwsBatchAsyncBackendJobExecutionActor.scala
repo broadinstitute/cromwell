@@ -33,7 +33,6 @@ package cromwell.backend.impl.aws
 
 import java.net.SocketTimeoutException
 import java.io.FileNotFoundException
-
 import akka.actor.ActorRef
 import akka.pattern.AskSupport
 import akka.util.Timeout
@@ -132,8 +131,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override lazy val dockerImageUsed: Option[String] = Option(jobDockerImage)
 
   private lazy val execScript =
-    s"""|#!$jobShell
-        |$jobShell ${jobPaths.script.pathWithoutScheme}
+    s"""|${jobPaths.script.pathWithoutScheme}
         |""".stripMargin
 
   /* Batch job object (see AwsBatchJob). This has the configuration necessary
@@ -188,8 +186,10 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       jobPaths,
       Seq.empty[AwsBatchParameter],
       configuration.awsConfig.region,
-      Option(configuration.awsAuth)
+      Option(configuration.awsAuth),
+      configuration.fsxFileSystem
     )
+
   /* Tries to abort the job in flight
    *
    * @param job A StandardAsyncJob object (has jobId value) to cancel
@@ -304,11 +304,27 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     def getAbsolutePath(path: Path) =
       configuration.fileSystem match {
         case AWSBatchStorageSystems.s3 => AwsBatchWorkingDisk.MountPoint.resolve(path)
-        case _ => DefaultPathBuilder.get(configuration.root).resolve(path)
+        // case _ => DefaultPathBuilder.get(configuration.root).resolve(path)
+        case _ => AwsBatchWorkingDisk.MountPoint.resolve(path)
       }
+
+    val p = DefaultPathBuilder.get(path)
+    println("!!!!!!!!!!!!!!!!!!!!!!!!! relativePathAndVolume")
+    println(p.toString())
+    println(p.isAbsolute)
+    println(getAbsolutePath(p).toString())
+    println(configuration.root)
+    println(DefaultPathBuilder.get(configuration.root).toString())
+
     val absolutePath = DefaultPathBuilder.get(path) match {
       case p if !p.isAbsolute => getAbsolutePath(p)
       case p => p
+    }
+
+    println(absolutePath.toString())
+    disks.map { x =>
+      println(x.mountPoint.toString())
+      println("--------------")
     }
 
     disks.find(d => absolutePath.startsWith(d.mountPoint)) match {

@@ -71,7 +71,7 @@ object Dependencies {
   private val grpcV = "1.41.0"
   private val guavaV = "31.0.1-jre"
   private val heterodonV = "1.0.0-beta3"
-  private val hsqldbV = "2.6.0"
+  private val hsqldbV = "2.6.1"
   private val http4sV = "0.21.7" // scala-steward:off (CROM-6678)
   private val jacksonV = "2.13.0"
   private val janinoV = "3.1.6"

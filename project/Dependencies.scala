@@ -109,7 +109,7 @@ object Dependencies {
   private val scalacheckV = "1.15.4"
   private val scalacticV = "3.2.10"
   private val scalameterV = "0.19"
-  private val scalamockV = "5.1.0"
+  private val scalamockV = "5.2.0"
   // scalatestV and flexmarkV must be upgraded together. Check the ScalaTest release notes to
   // find the version of FlexMark that corresponds to the new version of ScalaTest.
   private val scalatestV = "3.2.10"

@@ -5,7 +5,7 @@ object Dependencies {
   private val akkaHttpV = "10.1.14" // scala-steward:off (CROM-6619)
   private val akkaV = "2.5.32" // scala-steward:off (CROM-6637)
   private val aliyunBcsV = "6.2.4"
-  private val aliyunCoreV = "4.5.25"
+  private val aliyunCoreV = "4.5.30"
   private val aliyunCrV = "4.1.2"
   private val aliyunOssV = "3.13.1"
   private val ammoniteOpsV = "2.4.0"

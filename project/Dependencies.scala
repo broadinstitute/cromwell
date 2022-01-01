@@ -98,7 +98,7 @@ object Dependencies {
   private val paradiseV = "2.1.1"
   private val pegdownV = "1.6.0"
   private val postgresV = "42.2.24"
-  private val pprintV = "0.6.6"
+  private val pprintV = "0.7.1"
   private val rdf4jV = "3.7.1"
   private val refinedV = "0.9.27"
   private val rhinoV = "1.7.13"

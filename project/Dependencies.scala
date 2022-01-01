@@ -115,7 +115,7 @@ object Dependencies {
   private val scalatestV = "3.2.10"
   private val scalatestPlusMockitoV = "1.0.0-M2"
   private val scoptV = "4.0.1"
-  private val sentryLogbackV = "5.2.0"
+  private val sentryLogbackV = "5.2.4"
   private val shapelessV = "2.3.7"
   private val simulacrumV = "1.0.1"
   private val slf4jV = "1.7.32"

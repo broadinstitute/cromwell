@@ -8,7 +8,7 @@ object Dependencies {
   private val aliyunCoreV = "4.5.25"
   private val aliyunCrV = "4.1.2"
   private val aliyunOssV = "3.13.1"
-  private val ammoniteOpsV = "2.4.0"
+  private val ammoniteOpsV = "2.4.1"
   private val apacheHttpClientV = "4.5.13"
   private val awsSdkV = "2.17.50"
   // We would like to use the BOM to manage Azure SDK versions, but SBT doesn't support it.

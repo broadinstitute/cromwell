@@ -97,7 +97,7 @@ object Dependencies {
   private val owlApiV = "5.1.19"
   private val paradiseV = "2.1.1"
   private val pegdownV = "1.6.0"
-  private val postgresV = "42.2.24"
+  private val postgresV = "42.3.1"
   private val pprintV = "0.6.6"
   private val rdf4jV = "3.7.1"
   private val refinedV = "0.9.27"

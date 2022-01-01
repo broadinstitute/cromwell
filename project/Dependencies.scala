@@ -53,7 +53,7 @@ object Dependencies {
   private val googleCloudBigQueryV = "2.1.13"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-cloudkms
   private val googleCloudKmsV = "v1-rev20210820-1.32.1"
-  private val googleCloudMonitoringV = "3.0.6"
+  private val googleCloudMonitoringV = "3.0.8"
   // BW-808 Pinning googleCloudNioV to this tried-and-true old version and quieting Scala Steward.
   // 0.121.2 is the most recent version currently known to work.
   private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off

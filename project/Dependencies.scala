@@ -15,7 +15,7 @@ object Dependencies {
   // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
   // https://github.com/sbt/sbt/issues/4531
   private val azureIdentitySdkV = "1.4.2"
-  private val azureKeyVaultSdkV = "4.3.4"
+  private val azureKeyVaultSdkV = "4.3.5"
   private val betterFilesV = "3.9.1"
   /*
   cats-effect, fs2, http4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.

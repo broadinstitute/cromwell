@@ -49,7 +49,7 @@ object Dependencies {
   // NOTE: fs2VStatsDProxy usage within allProjectDependencies breaks sbt whatDependsOn.  If you want to use
   // whatDependsOn temporarily set fs2VStatsDProxy to fs2V and revert back before trying to compile.
   private val fs2VStatsDProxy = "1.0.5" // scala-steward:off
-  private val googleApiClientV = "1.32.1"
+  private val googleApiClientV = "1.32.2"
   private val googleCloudBigQueryV = "2.1.13"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-cloudkms
   private val googleCloudKmsV = "v1-rev20210820-1.32.1"
@@ -66,7 +66,7 @@ object Dependencies {
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-lifesciences
   private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20210813-1.32.1"
   private val googleOauth2V = "1.1.0"
-  private val googleOauthClientV = "1.32.1"
+  private val googleOauthClientV = "1.32.2"
   private val googleCloudResourceManagerV = "1.1.2"
   private val grpcV = "1.41.0"
   private val guavaV = "31.0.1-jre"

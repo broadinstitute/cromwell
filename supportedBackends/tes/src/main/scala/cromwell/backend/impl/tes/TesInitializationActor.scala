@@ -63,21 +63,25 @@ class TesInitializationActor(params: TesInitializationActorParams)
     ).mapN((_, _, _) => ()).toTry
   }
 
-  // TODO Figure out how to exclude valid backend parameters from this warning
   override def checkForUnsupportedRuntimeAttributes(): Try[Unit] = Try {
     calls foreach { call =>
-      val runtimeAttributes = call.callable.runtimeAttributes.attributes
-//      val backendParameters = TesRuntimeAttributes.makeBackendParameters(runtimeAttributes, tesConfiguration).keySet
-      val notSupportedAttributes =
-        runtimeAttributesBuilder
-          .unsupportedKeys(runtimeAttributes.keys.toList)
-//          .filterNot(backendParameters.contains)
+      val runtimeAttributeKeys = call.callable.runtimeAttributes.attributes.keys.toList
+      val notSupportedAttributes = runtimeAttributesBuilder.unsupportedKeys(runtimeAttributeKeys).toList
 
       if (notSupportedAttributes.nonEmpty) {
         val notSupportedAttrString = notSupportedAttributes mkString ", "
-        workflowLogger.warn(
+        val message = if (tesConfiguration.useBackendParameters) {
+          // TODO we would like to use TesRuntimeAttributes.makeBackendParameters to determine which
+          // attributes are destined to become backend parameters, and not warn about those at all.
+          // This is difficult because we're dealing with WomExpression rather than WomValue.
+          s"Key/s [$notSupportedAttrString] is/are not explicitly supported by backend. Those with string values will " +
+            "be passed to TES server in backend_parameters map, other attributes will not be part of job executions."
+        }
+        else {
           s"Key/s [$notSupportedAttrString] is/are not supported by backend. " +
-            s"Unsupported attributes will not be part of job executions.")
+            s"Unsupported attributes will not be part of job executions."
+        }
+        workflowLogger.warn(msg = message)
       }
     }
   }

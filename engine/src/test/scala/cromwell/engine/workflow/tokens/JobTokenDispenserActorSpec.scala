@@ -39,8 +39,7 @@ class JobTokenDispenserActorSpec extends TestKitSuite
           distributionRate = Rate(10, 100.millis),
           logInterval = None,
           dispenserType = "execution",
-          tokenAllocatedDescription = "Running",
-          logTokenAllocation = true
+          tokenAllocatedDescription = "Running"
         ),
       name = jobExecutionTokenDispenserActorName,
     )
@@ -94,8 +93,7 @@ class JobTokenDispenserActorSpec extends TestKitSuite
           distributionRate = Rate(10, 4.seconds),
           logInterval = None,
           dispenserType = "execution",
-          tokenAllocatedDescription = "Running",
-          logTokenAllocation = true
+          tokenAllocatedDescription = "Running"
         ),
       name = "dispense-correct-amount",
     )
@@ -265,8 +263,7 @@ class JobTokenDispenserActorSpec extends TestKitSuite
         TestActorRef(
           new JobTokenDispenserActor(TestProbe(s"serviceRegistryActor-$name").ref, Rate(10, 100.millis), None,
             dispenserType = "execution",
-            tokenAllocatedDescription = "Running",
-            logTokenAllocation = true
+            tokenAllocatedDescription = "Running"
           ),
           s"lost-to-$name",
         )

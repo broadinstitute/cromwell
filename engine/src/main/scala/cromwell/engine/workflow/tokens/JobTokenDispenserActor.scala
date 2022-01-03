@@ -25,8 +25,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
                              override val distributionRate: DynamicRateLimiter.Rate,
                              logInterval: Option[FiniteDuration],
                              dispenserType: String,
-                             tokenAllocatedDescription: String,
-                             logTokenAllocation: Boolean)
+                             tokenAllocatedDescription: String)
   extends Actor with ActorLogging with JobInstrumentation with CromwellInstrumentationScheduler with Timers with DynamicRateLimiter {
 
   /**
@@ -49,21 +48,19 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
   }
 
   // Give the actor time to warm up, then start scheduling token allocation logging:
-  if (logTokenAllocation) {
-    context.system.scheduler.scheduleOnce(5.seconds) {
-      effectiveLogInterval match {
-        case Some(someInterval) =>
-          log.info(s"Triggering log of token queue status. Effective log interval = $someInterval")
-          context.system.scheduler.scheduleOnce(someInterval) {
-            self ! LogJobTokenAllocation(someInterval)
-          }(context.dispatcher)
-          ()
-        case None =>
-          log.info(s"Not triggering log of token queue status. Effective log interval = None")
-          ()
-      }
-    }(context.dispatcher)
-  }
+  context.system.scheduler.scheduleOnce(5.seconds) {
+    effectiveLogInterval match {
+      case Some(someInterval) =>
+        log.info(s"Triggering log of token queue status. Effective log interval = $someInterval")
+        context.system.scheduler.scheduleOnce(someInterval) {
+          self ! LogJobTokenAllocation(someInterval)
+        }(context.dispatcher)
+        ()
+      case None =>
+        log.info(s"Not triggering log of token queue status. Effective log interval = None")
+        ()
+    }
+  }(context.dispatcher)
 
   override def preStart() = {
     ratePreStart()
@@ -183,8 +180,8 @@ object JobTokenDispenserActor {
   case object TokensTimerKey
 
   def props(serviceRegistryActor: ActorRef, rate: DynamicRateLimiter.Rate, logInterval: Option[FiniteDuration],
-            dispenserType: String, tokenAllocatedDescription: String, logTokenAllocation: Boolean): Props =
-    Props(new JobTokenDispenserActor(serviceRegistryActor, rate, logInterval, dispenserType, tokenAllocatedDescription, logTokenAllocation)).withDispatcher(EngineDispatcher)
+            dispenserType: String, tokenAllocatedDescription: String): Props =
+    Props(new JobTokenDispenserActor(serviceRegistryActor, rate, logInterval, dispenserType, tokenAllocatedDescription)).withDispatcher(EngineDispatcher)
 
   case class JobTokenRequest(hogGroup: HogGroup, jobTokenType: JobTokenType)
 

@@ -34,8 +34,7 @@ class LargeScaleJobTokenDispenserActorSpec extends TestKit(ActorSystem("LSJETDAS
 
     val tokenDispenserUnderTest = TestActorRef(new JobTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyToTest + 1, 100.millis), None,
       dispenserType = "execution",
-      tokenAllocatedDescription = "Running",
-      logTokenAllocation = true
+      tokenAllocatedDescription = "Running"
     ), "tokenDispenserUnderTest1")
 
     val globalRunningJobsCounter = new RunningJobCounter()
@@ -72,8 +71,7 @@ class LargeScaleJobTokenDispenserActorSpec extends TestKit(ActorSystem("LSJETDAS
 
     val tokenDispenserUnderTest = TestActorRef(new JobTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyExpected + 1, 100.millis), None,
       dispenserType = "execution",
-      tokenAllocatedDescription = "Running",
-      logTokenAllocation = true
+      tokenAllocatedDescription = "Running"
     ), "tokenDispenserUnderTest2")
 
     val globalRunningJobsCounter = new RunningJobCounter()
@@ -110,8 +108,7 @@ class LargeScaleJobTokenDispenserActorSpec extends TestKit(ActorSystem("LSJETDAS
 
     val tokenDispenserUnderTest = TestActorRef(new JobTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyOverall + 1, 100.millis), None,
       dispenserType = "execution",
-      tokenAllocatedDescription = "Running",
-      logTokenAllocation = true
+      tokenAllocatedDescription = "Running"
     ), "tokenDispenserUnderTest3")
 
     val globalRunningJobsCounter = new RunningJobCounter()
@@ -148,8 +145,7 @@ class LargeScaleJobTokenDispenserActorSpec extends TestKit(ActorSystem("LSJETDAS
 
     val tokenDispenserUnderTest = TestActorRef(new JobTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyOverall + 1, 100.millis), None,
       dispenserType = "execution",
-      tokenAllocatedDescription = "Running",
-      logTokenAllocation = true
+      tokenAllocatedDescription = "Running"
     ), "tokenDispenserUnderTest4")
 
     val globalRunningJobsCounter = new RunningJobCounter()
@@ -188,8 +184,7 @@ class LargeScaleJobTokenDispenserActorSpec extends TestKit(ActorSystem("LSJETDAS
 
     val tokenDispenserUnderTest = TestActorRef(new JobTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyOverall + 1, 100.millis), None,
       dispenserType = "execution",
-      tokenAllocatedDescription = "Running",
-      logTokenAllocation = true
+      tokenAllocatedDescription = "Running"
     ), "tokenDispenserUnderTest5")
 
     val hogGroupConcurrencyCounters = (0 until totalHogGroups).toVector map { _ => new RunningJobCounter() }

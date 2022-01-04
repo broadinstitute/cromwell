@@ -51,13 +51,13 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
   context.system.scheduler.scheduleOnce(5.seconds) {
     effectiveLogInterval match {
       case Some(someInterval) =>
-        log.info(s"Triggering log of token queue status. Effective log interval = $someInterval")
+        log.info(s"Triggering log of $dispenserType token queue status. Effective log interval = $someInterval")
         context.system.scheduler.scheduleOnce(someInterval) {
           self ! LogJobTokenAllocation(someInterval)
         }(context.dispatcher)
         ()
       case None =>
-        log.info(s"Not triggering log of token queue status. Effective log interval = None")
+        log.info(s"Not triggering log of $dispenserType token queue status. Effective log interval = None")
         ()
     }
   }(context.dispatcher)

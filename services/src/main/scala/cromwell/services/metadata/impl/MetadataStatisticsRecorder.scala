@@ -7,23 +7,62 @@ import com.google.common.cache.CacheBuilder
 import cromwell.core.WorkflowId
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataString, MetadataValue}
 import java.time.{Duration => JDuration}
+import net.ceedubs.ficus.Ficus._
+import com.typesafe.config.Config
 import cromwell.services.metadata.impl.MetadataStatisticsRecorder._
+
 import scala.concurrent.duration._
 import scala.util.Try
 
 object MetadataStatisticsRecorder {
   final case class HeavyMetadataAlert(workflowId: WorkflowId, count: Long)
   final case class WorkflowMetadataWriteStatistics(workflowId: WorkflowId, totalWrites: Long, lastLogged: Long, knownParent: Option[WorkflowId])
+
+  sealed trait MetadataStatisticsRecorderSettings
+  case object MetadataStatisticsDisabled extends MetadataStatisticsRecorderSettings
+
+  final case class MetadataStatisticsEnabled(workflowCacheSize: Long,
+                                                      metadataAlertInterval: Long,
+                                                      bundleSubworkflowsIntoParents: Boolean) extends MetadataStatisticsRecorderSettings
+
+  def apply(statisticsRecorderSettings: MetadataStatisticsRecorderSettings): MetadataStatisticsRecorder = statisticsRecorderSettings match {
+    case MetadataStatisticsEnabled(cacheSize, interval, subworkflowBundling) => new ActiveMetadataStatisticsRecorder(cacheSize, interval, subworkflowBundling)
+    case MetadataStatisticsDisabled => new NoopMetadataStatisticsRecorder()
+  }
+
+
+  object MetadataStatisticsRecorderSettings {
+    val defaultCacheSize = 20000L
+    val defaultAlertInterval = 100000L
+    val defaultSubworkflowBundling = true
+
+    def apply(configSection: Option[Config]): MetadataStatisticsRecorderSettings = (configSection flatMap { conf: Config =>
+      if (conf.as[Option[Boolean]]("enabled").forall(identity)) {
+        val cacheSize: Long = conf.getOrElse("cache-size", defaultCacheSize)
+        val metadataAlertInterval: Long = conf.getOrElse("metadata-row-alert-interval", defaultAlertInterval)
+        val subworkflowBundling: Boolean = conf.getOrElse("sub-workflow-bundling", defaultSubworkflowBundling)
+        Option(MetadataStatisticsEnabled(cacheSize, metadataAlertInterval, subworkflowBundling))
+      } else None
+
+    }).getOrElse(MetadataStatisticsDisabled)
+  }
 }
 
-final class MetadataStatisticsRecorder(workflowCacheSize: Long = 100000L, // 100,000
-                                       metadataAlertInterval: Long = 1L * 1000000, // 1 million
+sealed trait MetadataStatisticsRecorder {
+  def processEvents(putEvents: Iterable[MetadataEvent]): Vector[HeavyMetadataAlert]
+}
+
+final class NoopMetadataStatisticsRecorder extends MetadataStatisticsRecorder {
+  def processEvents(putEvents: Iterable[MetadataEvent]): Vector[HeavyMetadataAlert] = Vector.empty
+}
+
+final class ActiveMetadataStatisticsRecorder(workflowCacheSize: Long = 100000L, // 100,000
+                                       metadataAlertInterval: Long = 100000L, // 100,000
                                        bundleSubworkflowsIntoParents: Boolean = false
-                                      ) {
+                                      ) extends MetadataStatisticsRecorder {
 
   // Statistics for each workflow
   private val metadataWriteStatisticsCache = CacheBuilder.newBuilder()
-    .concurrencyLevel(2)
     .expireAfterAccess(JDuration.ofSeconds(4.hours.toSeconds))
     .maximumSize(workflowCacheSize)
     .build[WorkflowId, WorkflowMetadataWriteStatistics]()

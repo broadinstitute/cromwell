@@ -8,23 +8,24 @@ import cromwell.core.WorkflowId
 import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.services.metadata.MetadataEvent
 import cromwell.services.metadata.MetadataService._
+import cromwell.services.metadata.impl.MetadataStatisticsRecorder.MetadataStatisticsRecorderSettings
 import cromwell.services.{EnhancedBatchActor, MetadataServicesStore}
 
 import scala.concurrent.duration._
-
 import scala.util.{Failure, Success}
 
 
 class WriteMetadataActor(override val batchSize: Int,
                          override val flushRate: FiniteDuration,
                          override val serviceRegistryActor: ActorRef,
-                         override val threshold: Int)
+                         override val threshold: Int,
+                         metadataStatisticsRecorderSettings: MetadataStatisticsRecorderSettings)
   extends EnhancedBatchActor[MetadataWriteAction](flushRate, batchSize)
     with ActorLogging
     with MetadataDatabaseAccess
     with MetadataServicesStore {
 
-  private val statsRecorder = new MetadataStatisticsRecorder()
+  private val statsRecorder = MetadataStatisticsRecorder(metadataStatisticsRecorderSettings)
 
   override def process(e: NonEmptyVector[MetadataWriteAction]) = instrumentedProcess {
     val empty = (Vector.empty[MetadataEvent], List.empty[(Iterable[MetadataEvent], ActorRef)])
@@ -93,8 +94,9 @@ object WriteMetadataActor {
   def props(dbBatchSize: Int,
             flushRate: FiniteDuration,
             serviceRegistryActor: ActorRef,
-            threshold: Int): Props =
-    Props(new WriteMetadataActor(dbBatchSize, flushRate, serviceRegistryActor, threshold))
+            threshold: Int,
+            statisticsRecorderSettings: MetadataStatisticsRecorderSettings): Props =
+    Props(new WriteMetadataActor(dbBatchSize, flushRate, serviceRegistryActor, threshold, statisticsRecorderSettings))
       .withDispatcher(ServiceDispatcher)
       .withMailbox(PriorityMailbox)
 }

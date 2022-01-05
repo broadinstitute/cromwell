@@ -11,6 +11,7 @@ import cromwell.database.sql.joins.MetadataJobQueryValue
 import cromwell.database.sql.tables.{InformationSchemaEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
 import cromwell.database.sql.{MetadataSqlDatabase, SqlDatabase}
 import cromwell.services.metadata.MetadataService.{MetadataWriteAction, MetadataWriteFailure, MetadataWriteSuccess, PutMetadataAction, PutMetadataActionAndRespond}
+import cromwell.services.metadata.impl.MetadataStatisticsRecorder.MetadataStatisticsDisabled
 import cromwell.services.metadata.impl.WriteMetadataActorSpec.BatchSizeCountingWriteMetadataActor
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import org.scalatest.concurrent.Eventually
@@ -317,7 +318,7 @@ object WriteMetadataActorSpec {
   class BatchSizeCountingWriteMetadataActor(override val batchSize: Int,
                                             override val flushRate: FiniteDuration,
                                             override val serviceRegistryActor: ActorRef,
-                                            override val threshold: Int) extends WriteMetadataActor(batchSize, flushRate, serviceRegistryActor, threshold) {
+                                            override val threshold: Int) extends WriteMetadataActor(batchSize, flushRate, serviceRegistryActor, threshold, MetadataStatisticsDisabled) {
 
     var batchSizes: Vector[Int] = Vector.empty
     var failureCount: Int = 0

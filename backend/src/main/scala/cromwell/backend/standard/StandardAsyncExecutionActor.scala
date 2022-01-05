@@ -449,8 +449,10 @@ trait StandardAsyncExecutionActor
         |tee $stderrRedirection < "$$$err" >&2 &
         |(
         |cd ${cwd.pathAsString}
+        |set -x
         |ENVIRONMENT_VARIABLES
         |INSTANTIATED_COMMAND
+        |set +x
         |) $stdinRedirection > "$$$out" 2> "$$$err"
         |echo $$? > $rcTmpPath
         |$emptyDirectoryFillCommand

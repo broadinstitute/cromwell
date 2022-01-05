@@ -34,7 +34,7 @@ package cromwell.backend.impl.aws
 import scala.collection.mutable.ListBuffer
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
-import software.amazon.awssdk.services.batch.model.{ContainerProperties, Host, KeyValuePair, MountPoint, ResourceRequirement, ResourceType, Volume}
+import software.amazon.awssdk.services.batch.model.{ContainerProperties, Host, KeyValuePair, MountPoint, ResourceRequirement, ResourceType, Volume, RetryStrategy, Ulimit}
 import cromwell.backend.impl.aws.io.AwsBatchVolume
 
 import scala.collection.JavaConverters._
@@ -60,12 +60,14 @@ import wdl4s.parser.MemoryUnit
   */
 sealed trait AwsBatchJobDefinition {
   def containerProperties: ContainerProperties
+  def retryStrategy: RetryStrategy
   def name: String
 
   override def toString: String = {
     new ToStringBuilder(this, ToStringStyle.JSON_STYLE)
       .append("name", name)
       .append("containerProperties", containerProperties)
+      .append("retryStrategy", retryStrategy)
       .build
   }
 }
@@ -76,21 +78,11 @@ trait AwsBatchJobDefinitionBuilder {
 
   /** Gets a builder, seeded with appropriate portions of the container properties
    *
-   *  @param dockerImage docker image with which to run
-   *  @return ContainerProperties builder ready for modification
+   *  @param context AwsBatchJobDefinitionContext with all the runtime attributes
+   *  @return ContainerProperties builder ready for modification and name
    *
    */
-  def builder(dockerImage: String): ContainerProperties.Builder =
-    ContainerProperties.builder().image(dockerImage)
-
-
-  def buildResources(builder: ContainerProperties.Builder,
-                     context: AwsBatchJobDefinitionContext): (ContainerProperties.Builder, String) = {
-    // The initial buffer should only contain one item - the hostpath of the
-    // local disk mount point, which will be needed by the docker container
-    // that copies data around
-
-    val environment = List.empty[KeyValuePair]
+  def containerPropertiesBuilder(context: AwsBatchJobDefinitionContext): (ContainerProperties.Builder, String) = {
 
 
     def buildVolumes(disks: Seq[AwsBatchVolume], fsx: Option[List[String]]): List[Volume] = {
@@ -99,9 +91,6 @@ trait AwsBatchJobDefinitionBuilder {
         case true => fsx.get.map(mnt => Volume.builder().name(mnt).host(Host.builder().sourcePath(s"/$mnt").build()).build())
         case false => List()
       }
-
-      println("FSX!!!!!!!!!!!!!!!!")
-      println(fsx_volumes)
 
       //all the configured disks plus the fetch and run volume and the aws-cli volume
       disks.map(d => d.toVolume()).toList ++ List(
@@ -124,9 +113,6 @@ trait AwsBatchJobDefinitionBuilder {
         case false => List()
       }
 
-      println("FSX!!!!!!!!!!!!!!!!")
-      println(fsx_disks)
-
       //all the configured disks plus the fetch and run mount point and the AWS cli mount point
       disks.map(_.toMountPoint).toList ++ List(
         MountPoint.builder()
@@ -144,36 +130,42 @@ trait AwsBatchJobDefinitionBuilder {
       ) ++ fsx_disks
     }
 
-    def buildName(imageName: String, packedCommand: String, volumes: List[Volume], mountPoints: List[MountPoint], env: Seq[KeyValuePair]): String = {
-      val str = s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints.map(_.toString).mkString(",")}:${env.map(_.toString).mkString(",")}"
+    def buildUlimits(ulimits: Seq[Map[String, String]]): List[Ulimit] = {
 
-      val sha1 = MessageDigest.getInstance("SHA-1")
-            .digest( str.getBytes("UTF-8") )
-            .map("%02x".format(_)).mkString
-
-      val prefix = s"cromwell_$imageName".slice(0,88) // will be joined to a 40 character SHA1 for total length of 128
-
-      sanitize(prefix + sha1)
+      ulimits.filter(_.nonEmpty).map(u =>
+        Ulimit.builder()
+          .name(u("name"))
+          .softLimit(u("softLimit").toInt)
+          .hardLimit(u("hardLimit").toInt)
+          .build()
+      ).toList
     }
 
+    def buildName(imageName: String, packedCommand: String, volumes: List[Volume], mountPoints: List[MountPoint], env: Seq[KeyValuePair], ulimits: List[Ulimit]): String = {
+      s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints.map(_.toString).mkString(",")}:${env.map(_.toString).mkString(",")}:${ulimits.map(_.toString).mkString(",")}"
+    }
 
+    val environment = List.empty[KeyValuePair]
     val cmdName = context.runtimeAttributes.fileSystem match {
-       case AWSBatchStorageSystems.s3 => "/var/scratch/fetch_and_run.sh"
-       case _ =>  context.commandText
+      case AWSBatchStorageSystems.s3 => "/var/scratch/fetch_and_run.sh"
+      case _ =>  context.commandText
     }
     val packedCommand = packCommand("/bin/bash", "-c", cmdName)
     val volumes =  buildVolumes( context.runtimeAttributes.disks, context.fsxFileSystem)
     val mountPoints = buildMountPoints( context.runtimeAttributes.disks, context.fsxFileSystem)
-    val jobDefinitionName = buildName(
+    val ulimits = buildUlimits( context.runtimeAttributes.ulimits)
+    val containerPropsName = buildName(
       context.runtimeAttributes.dockerImage,
       packedCommand.mkString(","),
       volumes,
       mountPoints,
-      environment
+      environment,
+      ulimits
     )
 
-    (builder
-       .command(packedCommand.asJava)
+    (ContainerProperties.builder()
+      .image(context.runtimeAttributes.dockerImage)
+      .command(packedCommand.asJava)
       .resourceRequirements(
         ResourceRequirement.builder()
           .`type`(ResourceType.MEMORY)
@@ -186,9 +178,18 @@ trait AwsBatchJobDefinitionBuilder {
       )
         .volumes( volumes.asJava)
         .mountPoints( mountPoints.asJava)
-        .environment(environment.asJava),
+        .environment(environment.asJava)
+        .ulimits(ulimits.asJava),
 
-      jobDefinitionName)
+      containerPropsName)
+  }
+
+  def retryStrategyBuilder(context: AwsBatchJobDefinitionContext): (RetryStrategy.Builder, String) = {
+    // We can add here the 'evaluateOnExit' statement
+
+    (RetryStrategy.builder()
+      .attempts(context.runtimeAttributes.awsBatchRetryAttempts),
+     context.runtimeAttributes.awsBatchRetryAttempts.toString)
   }
 
   private def packCommand(shell: String, options: String, mainCommand: String): Seq[String] = {
@@ -211,15 +212,29 @@ trait AwsBatchJobDefinitionBuilder {
 
 object StandardAwsBatchJobDefinitionBuilder extends AwsBatchJobDefinitionBuilder {
   def build(context: AwsBatchJobDefinitionContext): AwsBatchJobDefinition = {
-    //instantiate a builder with the name of the docker image
-    val builderInst = builder(context.runtimeAttributes.dockerImage)
-    val (b, name) = buildResources(builderInst, context)
 
-    new StandardAwsBatchJobDefinitionBuilder(b.build, name)
+    val (containerPropsInst, containerPropsName) = containerPropertiesBuilder(context)
+    val (retryStrategyInst, retryStrategyName) = retryStrategyBuilder(context)
+
+    val name = buildName(context.runtimeAttributes.dockerImage, containerPropsName, retryStrategyName)
+
+    new StandardAwsBatchJobDefinitionBuilder(containerPropsInst.build, retryStrategyInst.build, name)
+  }
+
+  def buildName(imageName: String, containerPropsName: String, retryStrategyName: String): String = {
+    val str = s"$imageName:$containerPropsName:$retryStrategyName"
+
+    val sha1 = MessageDigest.getInstance("SHA-1")
+          .digest( str.getBytes("UTF-8") )
+          .map("%02x".format(_)).mkString
+
+    val prefix = s"cromwell_${imageName}_".slice(0,88) // will be joined to a 40 character SHA1 for total length of 128
+
+    sanitize(prefix + sha1)
   }
 }
 
-case class StandardAwsBatchJobDefinitionBuilder private(containerProperties: ContainerProperties, name: String) extends AwsBatchJobDefinition
+case class StandardAwsBatchJobDefinitionBuilder private(containerProperties: ContainerProperties, retryStrategy: RetryStrategy, name: String) extends AwsBatchJobDefinition
 
 object AwsBatchJobDefinitionContext
 

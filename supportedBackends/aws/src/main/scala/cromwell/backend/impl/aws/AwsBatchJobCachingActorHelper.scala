@@ -55,27 +55,9 @@ trait AwsBatchJobCachingActorHelper extends StandardCachingActorHelper {
 
   lazy val runtimeAttributes: AwsBatchRuntimeAttributes = AwsBatchRuntimeAttributes(validatedRuntimeAttributes, configuration.runtimeConfig, configuration.fileSystem)
 
-  println("!!!!!!!!!!!!!!!!!!! DISKS")
-  println(runtimeAttributes.disks)
-  runtimeAttributes.disks.map(x =>{
-    println(x.fsType)
-    println(x.mountPoint)
-    println(x.name)
-  })
-
   lazy val workingDisk: AwsBatchVolume = runtimeAttributes.disks.find(x => configuration.fileSystem match {
-    case AWSBatchStorageSystems.s3 => {
-      println("!!!!!!!!!!!!!!!!!! S3")
-      println(x.name)
-      println(AwsBatchWorkingDisk.Name)
-     x.name == AwsBatchWorkingDisk.Name
-    }
+    case AWSBatchStorageSystems.s3 => x.name == AwsBatchWorkingDisk.Name
     case _ =>  {
-      println("!!!!!!!!!!!!!!!!!! LOCAL")
-      println(configuration.root)
-      println(x.mountPoint.pathAsString)
-      println(AwsBatchWorkingDisk.toString())
-      println(AwsBatchWorkingDisk.Name)
       // configuration.root.startsWith(x.mountPoint.pathAsString)
       x.name == AwsBatchWorkingDisk.Name
     }

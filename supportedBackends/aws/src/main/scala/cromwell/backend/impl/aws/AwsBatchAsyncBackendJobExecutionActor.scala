@@ -286,24 +286,10 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       }
     }
 
-    val p = DefaultPathBuilder.get(path)
-    println("!!!!!!!!!!!!!!!!!!!!!!!!! relativePathAndVolume")
-    println(p.toString())
-    println(p.isAbsolute)
-    println(getAbsolutePath(p).toString())
-    println(configuration.root)
-    println(DefaultPathBuilder.get(configuration.root).toString())
-
     val absolutePath = DefaultPathBuilder.get(path) match {
       case p if !p.isAbsolute => getAbsolutePath(p)
       case p => p
     }
-
-    println(absolutePath.toString())
-    disks.map(x=>{
-      println(x.mountPoint.toString())
-      println("--------------")
-    })
 
     disks.find(d => absolutePath.startsWith(d.mountPoint)) match {
       case Some(disk) => (disk.mountPoint.relativize(absolutePath), disk)

@@ -467,6 +467,7 @@ final case class AwsBatchJob(
             .jobDefinitionName(jobDefinitionName)
             // See https://stackoverflow.com/questions/24349517/scala-method-named-type
             .`type`(JobDefinitionType.CONTAINER)
+          // .build
 
           if (jobDefinitionContext.runtimeAttributes.awsBatchRetryAttempts != 0) {
             definitionRequest = definitionRequest.retryStrategy(jobDefinition.retryStrategy)

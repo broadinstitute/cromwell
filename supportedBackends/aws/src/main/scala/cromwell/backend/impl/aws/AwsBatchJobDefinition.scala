@@ -99,9 +99,6 @@ trait AwsBatchJobDefinitionBuilder {
         case false => List()
       }
 
-      println("FSX!!!!!!!!!!!!!!!!")
-      println(fsx_volumes)
-
       // all the configured disks plus the fetch and run volume and the aws-cli volume
       disks.map(d => d.toVolume()).toList ++ List(
         Volume
@@ -125,9 +122,6 @@ trait AwsBatchJobDefinitionBuilder {
           fsx.get.map(mnt => MountPoint.builder().readOnly(false).sourceVolume(mnt).containerPath(s"/$mnt").build())
         case false => List()
       }
-
-      println("FSX!!!!!!!!!!!!!!!!")
-      println(fsx_disks)
 
       // all the configured disks plus the fetch and run mount point and the AWS cli mount point
       disks.map(_.toMountPoint).toList ++ List(

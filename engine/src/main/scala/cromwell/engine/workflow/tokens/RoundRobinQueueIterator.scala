@@ -34,7 +34,7 @@ final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue], initial
   def unexpectedlyEmpty: LeasedActor =
     throw new IllegalStateException("Token iterator is empty")
 
-  // Goes over the JobExecutionTokenType queues and returns the first element that can be dequeued.
+  // Goes over the JobTokenType queues and returns the first element that can be dequeued.
   // NB: In normal usage, there's one queue per backend.
   private def findFirst: Option[LeasedActor] = {
     // Starting from pointer make a list of indices circling back to pointer

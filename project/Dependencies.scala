@@ -10,7 +10,7 @@ object Dependencies {
   private val aliyunOssV = "3.13.1"
   private val ammoniteOpsV = "2.4.0"
   private val apacheHttpClientV = "4.5.13"
-  private val awsSdkV = "2.17.50"
+  private val awsSdkV = "2.17.66"
   // We would like to use the BOM to manage Azure SDK versions, but SBT doesn't support it.
   // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
   // https://github.com/sbt/sbt/issues/4531
@@ -320,6 +320,9 @@ object Dependencies {
     "cloudwatchlogs",
     "s3",
     "sts",
+    "ecs",
+    "ecr",
+    "ecrpublic",
   ).map(artifactName => "software.amazon.awssdk" % artifactName % awsSdkV)
 
   private val googleCloudDependencies = List(
@@ -478,7 +481,7 @@ object Dependencies {
 
   val databaseMigrationDependencies: List[ModuleID] = liquibaseDependencies ++ dbmsDependencies
 
-  val dockerHashingDependencies: List[ModuleID] = http4sDependencies ++ circeDependencies ++ aliyunCrDependencies
+  val dockerHashingDependencies: List[ModuleID] = http4sDependencies ++ circeDependencies ++ aliyunCrDependencies ++ awsCloudDependencies
 
   val cromwellApiClientDependencies: List[ModuleID] = List(
     "org.typelevel" %% "cats-effect" % catsEffectV,

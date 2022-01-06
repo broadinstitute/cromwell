@@ -1,22 +1,14 @@
 package org.lerch.s3fs.util;
 
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
-import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
-import software.amazon.awssdk.services.s3.model.GetObjectAclRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectAclResponse;
-import software.amazon.awssdk.services.s3.model.Grant;
-import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
-import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
-import software.amazon.awssdk.services.s3.model.Owner;
-import software.amazon.awssdk.services.s3.model.Permission;
-import software.amazon.awssdk.services.s3.model.S3Object;
-import software.amazon.awssdk.services.s3.model.S3Exception;
 import com.google.common.collect.Sets;
-import org.lerch.s3fs.attribute.S3BasicFileAttributes;
 import org.lerch.s3fs.S3Path;
+import org.lerch.s3fs.attribute.S3BasicFileAttributes;
 import org.lerch.s3fs.attribute.S3PosixFileAttributes;
 import org.lerch.s3fs.attribute.S3UserPrincipal;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.*;
 
 import java.nio.file.NoSuchFileException;
 import java.nio.file.attribute.FileTime;
@@ -24,12 +16,12 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Utilities to work with Amazon S3 Objects.
  */
 public class S3Utils {
+    Logger log = LoggerFactory.getLogger("S3Utils");
 
     /**
      * Get the {@link S3Object} that represent this Path or her first child if this path not exists
@@ -41,18 +33,24 @@ public class S3Utils {
     public S3Object getS3ObjectSummary(S3Path s3Path) throws NoSuchFileException {
         String key = s3Path.getKey();
         String bucketName = s3Path.getFileStore().name();
-        S3Client client = s3Path.getFileSystem().getClient();
+        S3Client client = s3Path.getFileStore().getClient();
         // try to find the element with the current key (maybe with end slash or maybe not.)
         try {
             HeadObjectResponse metadata = client.headObject(HeadObjectRequest.builder().bucket(bucketName).key(key).build());
-            GetObjectAclResponse acl = client.getObjectAcl(GetObjectAclRequest.builder().bucket(bucketName).key(key).build());
+            Owner objectOwner = Owner.builder().build();
+            try {
+                GetObjectAclResponse acl = client.getObjectAcl(GetObjectAclRequest.builder().bucket(bucketName).key(key).build());
+                objectOwner = acl.owner();
+            } catch (S3Exception e2){
+                log.warn("Unable to determine the owner of object: '{}', setting owner as empty", s3Path);
+            }
             S3Object.Builder builder = S3Object.builder();
 
             builder
                 .key(key)
                 .lastModified(metadata.lastModified())
                 .eTag(metadata.eTag())
-                .owner(acl.owner())
+                .owner(objectOwner)
                 .size(metadata.contentLength())
                 .storageClass(metadata.storageClassAsString());
 
@@ -63,9 +61,9 @@ public class S3Utils {
         }
 
         // if not found (404 err) with the original key.
-        // try to find the elment as a directory.
+        // try to find the element as a directory.
         try {
-            // is a virtual directory
+            // is a virtual directory (S3 prefix)
             ListObjectsV2Request.Builder request = ListObjectsV2Request.builder();
             request.bucket(bucketName);
             String keyFolder = key;
@@ -111,7 +109,7 @@ public class S3Utils {
         Set<PosixFilePermission> permissions = null;
 
         if (!attrs.isDirectory()) {
-            S3Client client = s3Path.getFileSystem().getClient();
+            S3Client client = s3Path.getFileStore().getClient();
             GetObjectAclResponse acl = client.getObjectAcl(GetObjectAclRequest.builder().bucket(bucketName).key(key).build());
             Owner owner = acl.owner();
 

@@ -25,4 +25,4 @@ After completing this tutorial you might find the following page interesting:
 _Drop us a line in the [Forum](https://gatkforums.broadinstitute.org/wdl/categories/ask-the-wdl-team) if you have a question._
 
 \*\*\* **UNDER CONSTRUCTION** \*\*\*  
-[![Pennywell pig in red wellies - Richard Austin Images](http://www.richardaustinimages.com/wp-content/uploads/2015/04/fluffyAustin_Pigets_Wellies-500x395.jpg)](http://www.richardaustinimages.com/product/pennywell-pigs-under-umbrella-2/)
+[![Pennywell pig in red wellies - Richard Austin Images](https://static.wixstatic.com/media/b0d56a_6b627e45766d44fa8b2714f5d7860c84~mv2.jpg/v1/fill/w_787,h_551,al_c,q_50,usm_0.66_1.00_0.01/b0d56a_6b627e45766d44fa8b2714f5d7860c84~mv2.jpg)

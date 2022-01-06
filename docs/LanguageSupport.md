@@ -26,7 +26,7 @@ As well as the changes to the WDL spec between draft-2 and 1.0, Cromwell also su
 ### CWL 1.0
 
 Cromwell provides support for Common Workflow Language (CWL), beginning with the core spec, and most heavily used requirements.
-If you spot a CWL feature that Cromwell doesn't support, please notify us using an issue on our github page!
+If you spot a CWL feature that Cromwell doesn't support, please notify us using an issue on our [Jira page](https://broadworkbench.atlassian.net/secure/RapidBoard.jspa?rapidView=39&view=planning.nodetail&issueLimit=100)!
 
 
 ## Future Language Support

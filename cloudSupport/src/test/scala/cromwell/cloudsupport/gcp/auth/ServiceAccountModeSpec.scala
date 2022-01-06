@@ -1,40 +1,40 @@
 package cromwell.cloudsupport.gcp.auth
 
-import java.io.FileNotFoundException
-
 import better.files.File
 import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class ServiceAccountModeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
+import java.io.FileNotFoundException
+
+class ServiceAccountModeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ServiceAccountTestSupport {
 
   behavior of "ServiceAccountMode"
 
   it should "fail to generate a bad credential from json" in {
     val jsonMockFile = File
       .newTemporaryFile("service-account.", ".json")
-      .write(GoogleAuthModeSpec.serviceAccountJsonContents)
+      .write(serviceAccountJsonContents)
     val serviceAccountMode = ServiceAccountMode(
       "service-account",
       ServiceAccountMode.JsonFileFormat(jsonMockFile.pathAsString)
     )
     val exception = intercept[RuntimeException](serviceAccountMode.credentials())
     exception.getMessage should startWith("Google credentials are invalid: ")
-    jsonMockFile.delete(true)
+    jsonMockFile.delete(swallowIOExceptions = true)
   }
 
   it should "fail to generate a bad credential from a pem" in {
     val pemMockFile = File
       .newTemporaryFile("service-account.", ".pem")
-      .write(GoogleAuthModeSpec.serviceAccountPemContents)
+      .write(serviceAccountPemContents)
     val serviceAccountMode = ServiceAccountMode(
       "service-account",
       ServiceAccountMode.PemFileFormat("the_account_id", pemMockFile.pathAsString),
     )
     val exception = intercept[RuntimeException](serviceAccountMode.credentials())
     exception.getMessage should startWith("Google credentials are invalid: ")
-    pemMockFile.delete(true)
+    pemMockFile.delete(swallowIOExceptions = true)
   }
 
   it should "fail to generate a bad credential from a missing json" in {
@@ -62,7 +62,7 @@ class ServiceAccountModeSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
   it should "generate a non-validated credential from json" in {
     val jsonMockFile = File
       .newTemporaryFile("service-account.", ".json")
-      .write(GoogleAuthModeSpec.serviceAccountJsonContents)
+      .write(serviceAccountJsonContents)
     val serviceAccountMode = ServiceAccountMode(
       "service-account",
       ServiceAccountMode.JsonFileFormat(jsonMockFile.pathAsString)
@@ -70,13 +70,13 @@ class ServiceAccountModeSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
     serviceAccountMode.credentialsValidation = GoogleAuthMode.NoCredentialsValidation
     val credentials = serviceAccountMode.credentials()
     credentials.getAuthenticationType should be("OAuth2")
-    jsonMockFile.delete(true)
+    jsonMockFile.delete(swallowIOExceptions = true)
   }
 
   it should "generate a non-validated credential from a pem" in {
     val pemMockFile = File
       .newTemporaryFile("service-account.", ".pem")
-      .write(GoogleAuthModeSpec.serviceAccountPemContents)
+      .write(serviceAccountPemContents)
     val serviceAccountMode = ServiceAccountMode(
       "service-account",
       ServiceAccountMode.PemFileFormat("the_account_id", pemMockFile.pathAsString),
@@ -84,31 +84,6 @@ class ServiceAccountModeSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
     serviceAccountMode.credentialsValidation = GoogleAuthMode.NoCredentialsValidation
     val credentials = serviceAccountMode.credentials()
     credentials.getAuthenticationType should be("OAuth2")
-    pemMockFile.delete(true)
+    pemMockFile.delete(swallowIOExceptions = true)
   }
-
-  it should "requiresAuthFile from json" in {
-    val jsonMockFile = File
-      .newTemporaryFile("service-account.", ".json")
-      .write(GoogleAuthModeSpec.serviceAccountJsonContents)
-    val serviceAccountMode = ServiceAccountMode(
-      "service-account",
-      ServiceAccountMode.JsonFileFormat(jsonMockFile.pathAsString)
-    )
-    serviceAccountMode.requiresAuthFile should be(false)
-    jsonMockFile.delete(true)
-  }
-
-  it should "requiresAuthFile from a pem" in {
-    val pemMockFile = File
-      .newTemporaryFile("service-account.", ".pem")
-      .write(GoogleAuthModeSpec.serviceAccountPemContents)
-    val serviceAccountMode = ServiceAccountMode(
-      "service-account",
-      ServiceAccountMode.PemFileFormat("the_account_id", pemMockFile.pathAsString)
-    )
-    serviceAccountMode.requiresAuthFile should be(false)
-    pemMockFile.delete(true)
-  }
-
 }

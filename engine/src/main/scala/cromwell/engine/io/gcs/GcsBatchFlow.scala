@@ -1,8 +1,6 @@
 package cromwell.engine.io.gcs
 
 import akka.NotUsed
-import java.io.IOException
-
 import akka.actor.Scheduler
 import akka.stream._
 import akka.stream.scaladsl.{Flow, GraphDSL, MergePreferred, Partition}
@@ -10,7 +8,7 @@ import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.storage.Storage
-import com.typesafe.scalalogging.StrictLogging
+import com.typesafe.config.Config
 import common.util.StringUtil.EnhancedToStringable
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
@@ -19,12 +17,14 @@ import cromwell.engine.io.IoActor._
 import cromwell.engine.io.IoAttempts.EnhancedCromwellIoException
 import cromwell.engine.io.RetryableRequestSupport.{isInfinitelyRetryable, isRetryable}
 import cromwell.engine.io.gcs.GcsBatchFlow._
-import cromwell.engine.io.{IoAttempts, IoCommandContext}
+import cromwell.engine.io.{IoAttempts, IoCommandContext, IoCommandStalenessBackpressuring}
 import mouse.boolean._
+import net.ceedubs.ficus.Ficus._
+import net.ceedubs.ficus.readers.ValueReader
 
+import java.io.IOException
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.language.postfixOps
 import scala.util.{Failure, Try}
 
 object GcsBatchFlow {
@@ -42,10 +42,26 @@ object GcsBatchFlow {
     val matcher = ReadForbiddenPattern.matcher(errorMsg)
     matcher.matches().option(matcher.group(1))
   }
+
+  case class GcsBatchFlowConfig(parallelism: Int, maxBatchSize: Int, maxBatchDuration: FiniteDuration)
+
+  implicit val gcsFlowConfigReader: ValueReader[GcsBatchFlowConfig] = (config: Config, path: String) => {
+    val base = config.as[Config](path)
+    val parallelism = base.as[Int]("parallelism")
+    val maxBatchSize = base.as[Int]("max-batch-size")
+    val maxBatchDuration = base.as[FiniteDuration]("max-batch-duration")
+    GcsBatchFlowConfig(parallelism, maxBatchSize, maxBatchDuration)
+  }
 }
 
-class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandContext[_] => Throwable => Unit, applicationName: String)
-                  (implicit ec: ExecutionContext) extends StrictLogging {
+class GcsBatchFlow(batchSize: Int,
+                   batchTimespan: FiniteDuration,
+                   scheduler: Scheduler,
+                   onRetry: IoCommandContext[_] => Throwable => Unit,
+                   onBackpressure: Option[Double] => Unit,
+                   applicationName: String,
+                   backpressureStaleness: FiniteDuration)
+                  (implicit ec: ExecutionContext) extends IoCommandStalenessBackpressuring {
 
   // Does not carry any authentication, assumes all underlying requests are properly authenticated
   private val httpRequestInitializer = new HttpRequestInitializer {
@@ -55,6 +71,8 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
       ()
     }
   }
+
+  override def maxStaleness: FiniteDuration = backpressureStaleness
 
   /**
     * Returns a new BatchRequest instance.
@@ -111,7 +129,7 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     val batchProcessor = builder.add(
       Flow[GcsBatchCommandContext[_, _]]
         // Group commands together in batches so they can be processed as such
-      .groupedWithin(batchSize, 5 seconds)
+      .groupedWithin(batchSize, batchTimespan)
         // execute the batch and outputs each sub-response individually, as a Future
       .mapConcat[Future[GcsBatchResponse[_]]](executeBatch)
         // Wait for each Future to complete
@@ -165,6 +183,9 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
 
     // Add all requests to the batch
     contexts foreach { _.queue(batchRequest) }
+
+    // Apply backpressure if any of the contexts has been waiting too long to execute.
+    backpressureIfStale(contexts, onBackpressure)
 
     val batchCommandNamesList = contexts.map(_.request.toString)
     // Try to execute the batch request.

@@ -28,6 +28,7 @@ import scala.util.{Failure, Success, Try}
 //noinspection DuplicatedCode
 class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
                                rootAndSubworkflowIds: Set[WorkflowId],
+                               rootWorkflowRootPaths: Set[Path],
                                workflowFinalOutputs: Set[WomValue],
                                workflowAllOutputs: Set[WomValue],
                                pathBuilders: List[PathBuilder],
@@ -75,7 +76,10 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
         TryUtil.sequence(intermediateFiles.toSeq.map(gcsCommandBuilder.deleteCommand(_, swallowIoExceptions = false)))
       deleteCommandsTry match {
         case Success(deleteCommands) =>
-          deleteCommands foreach sendIoCommand
+          deleteCommands foreach { cmd =>
+            sendIoCommand(cmd)
+            log.info(s"Deleting intermediary file ${cmd.file} for root workflow $rootWorkflowId.")
+          }
           goto(WaitingForIoResponses) using WaitingForIoResponsesData(deleteCommands.toSet)
         case Failure(failure) =>
           self ! InvalidateCallCache
@@ -223,10 +227,20 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
     womValue.collectAsSeq({ case womSingleFile: WomSingleFile => womSingleFile })
   }
 
+  /**
+    * Returns Paths for WomSingleFiles in allOutputs that are not in finalOutputs, verifying that the Paths are contained
+    * in a workflow execution directory associated with the root workflow (as a sanity check to avoid deleting files
+    * outside of the workflow execution directory).
+    */
   def gatherIntermediateOutputFiles(allOutputs: Set[WomValue], finalOutputs: Set[WomValue]): Set[Path] = {
     val allOutputFiles = allOutputs.flatMap(getWomSingleFiles)
     val finalOutputFiles = finalOutputs.flatMap(getWomSingleFiles)
-    allOutputFiles.diff(finalOutputFiles).flatMap(toPath)
+    val potentialIntermediaries = allOutputFiles.diff(finalOutputFiles).flatMap(toPath)
+    val checkedIntermediaries = potentialIntermediaries.filter(p => rootWorkflowRootPaths.exists(r => p.toAbsolutePath.startsWith(r.toAbsolutePath)))
+    for ( path <- potentialIntermediaries.diff(checkedIntermediaries) ) {
+      log.info(s"Did not delete $path because it is not contained within a workflow root directory for $rootWorkflowId.")
+    }
+    checkedIntermediaries
   }
 
   override def ioActor: ActorRef = ioActorRef
@@ -334,6 +348,7 @@ object DeleteWorkflowFilesActor {
 
   def props(rootWorkflowId: RootWorkflowId,
             rootAndSubworkflowIds: Set[WorkflowId],
+            rootWorkflowRootPaths: Set[Path],
             workflowFinalOutputs: Set[WomValue],
             workflowAllOutputs: Set[WomValue],
             pathBuilders: List[PathBuilder],
@@ -344,6 +359,7 @@ object DeleteWorkflowFilesActor {
     Props(new DeleteWorkflowFilesActor(
       rootWorkflowId = rootWorkflowId,
       rootAndSubworkflowIds = rootAndSubworkflowIds,
+      rootWorkflowRootPaths = rootWorkflowRootPaths,
       workflowFinalOutputs = workflowFinalOutputs,
       workflowAllOutputs = workflowAllOutputs,
       pathBuilders = pathBuilders,

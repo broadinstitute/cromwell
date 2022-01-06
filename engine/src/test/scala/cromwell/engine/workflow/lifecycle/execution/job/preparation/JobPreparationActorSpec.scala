@@ -14,6 +14,7 @@ import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
+import wom.RuntimeAttributesKeys
 import wom.callable.Callable.InputDefinition
 import wom.core.LocallyQualifiedName
 import wom.values.{WomString, WomValue}
@@ -158,26 +159,66 @@ class JobPreparationActorSpec
     }
   }
 
-  it should "retry with more memory attribute when `memoryMultiplier` in BackendJobDescriptorKey is greater than 1" in {
-    val attributes = Map(
-      "memory" -> WomString("2 GB")
+  it should "lookup MemoryMultiplier key/value if available and accordingly update runtime attributes" in {
+    val attributes = Map (
+      "memory" -> WomString("1.1 GB")
     )
     val inputsAndAttributes = (inputs, attributes).validNel
-
-    val actor = TestActorRef(helper.buildTestJobPreparationActor(
-      backpressureTimeout = null,
-      noResponseTimeout = null,
-      dockerHashCredentials = null,
-      inputsAndAttributes = inputsAndAttributes,
-      kvStoreKeysForPrefetch = List.empty,
-      jobKey = helper.mockJobKeyWithMemoryMultiplier
-    ), self)
+    val prefetchedKey = "MemoryMultiplier"
+    val prefetchedVal = KvPair(helper.scopedKeyMaker(prefetchedKey), "1.1")
+    val prefetchedValues = Map(prefetchedKey -> prefetchedVal)
+    var keysToPrefetch = List(prefetchedKey)
+    val actor = TestActorRef(helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, inputsAndAttributes, List(prefetchedKey)), self)
     actor ! Start(ValueStore.empty)
+
+    helper.serviceRegistryProbe.expectMsgPF(max = 100 milliseconds) {
+      case KvGet(k) if keysToPrefetch.contains(k.key) =>
+        actor.tell(msg = prefetchedValues(k.key), sender = helper.serviceRegistryProbe.ref)
+        keysToPrefetch = keysToPrefetch diff List(k.key)
+    }
+
     expectMsgPF(5 seconds) {
       case success: BackendJobPreparationSucceeded =>
-        success.jobDescriptor.key.attempt shouldBe 3
-        success.jobDescriptor.key.memoryMultiplier.value shouldBe 1.21
-        success.jobDescriptor.runtimeAttributes("memory").valueString shouldBe "2.42 GB"
+        success.jobDescriptor.prefetchedKvStoreEntries should be(Map(prefetchedKey -> prefetchedVal))
+        success.jobDescriptor.runtimeAttributes(RuntimeAttributesKeys.MemoryKey) shouldBe WomString("1.2100000000000002 GB")
+    }
+  }
+
+  it should "mimic 100 memory retries and lookup MemoryMultiplier key/value to update runtime attributes" in {
+    val prefetchedKey = "MemoryMultiplier"
+    val retryFactor = 1.1
+    val taskMemory = 1.0
+    val attributes = Map ("memory" -> WomString(taskMemory + " GB"))
+    val inputsAndAttributes = (inputs, attributes).validNel
+
+    var previousMultiplier = 1.0
+
+    // mimic failure and retry task 100 times with more memory. At the end of this loop, the task memory would
+    // have been 1.1 ^ 100 = 13780.612339822379 GB. Note: This is just a hypothetical situation. In reality, PAPI would
+    // fail the task because a VM with such a large amount of memory might not exist
+    for (_ <- 1 to 100) {
+      // since the task has failed, increase it's multiplier
+      val nextMultiplier = previousMultiplier * retryFactor
+      previousMultiplier = nextMultiplier
+
+      val prefetchedVal = KvPair(helper.scopedKeyMaker(prefetchedKey), nextMultiplier.toString)
+      val prefetchedValues = Map(prefetchedKey -> prefetchedVal)
+      var keysToPrefetch = List(prefetchedKey)
+
+      val actor = TestActorRef(helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, inputsAndAttributes, List(prefetchedKey)), self)
+      actor ! Start(ValueStore.empty)
+
+      helper.serviceRegistryProbe.expectMsgPF(max = 100 milliseconds) {
+        case KvGet(k) if keysToPrefetch.contains(k.key) =>
+          actor.tell(msg = prefetchedValues(k.key), sender = helper.serviceRegistryProbe.ref)
+          keysToPrefetch = keysToPrefetch diff List(k.key)
+      }
+
+      expectMsgPF(5 seconds) {
+        case success: BackendJobPreparationSucceeded =>
+          success.jobDescriptor.prefetchedKvStoreEntries should be(Map(prefetchedKey -> prefetchedVal))
+          success.jobDescriptor.runtimeAttributes(RuntimeAttributesKeys.MemoryKey) shouldBe WomString((taskMemory * nextMultiplier) + " GB")
+      }
     }
   }
 }

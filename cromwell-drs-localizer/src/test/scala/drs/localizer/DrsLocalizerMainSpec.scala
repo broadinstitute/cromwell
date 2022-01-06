@@ -2,8 +2,13 @@ package drs.localizer
 
 import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO}
+import cats.syntax.validated._
+import cloud.nio.impl.drs.DrsPathResolver.FatalRetryDisposition
 import cloud.nio.impl.drs.{AccessUrl, DrsConfig, MarthaField, MarthaResponse}
 import common.assertion.CromwellTimeoutSpec
+import drs.localizer.MockDrsLocalizerDrsPathResolver.{FakeAccessTokenStrategy, FakeHashes}
+import drs.localizer.accesstokens.AccessTokenStrategy
+import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -55,7 +60,9 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
   it should "resolve to use the correct downloader for an access url" in {
     val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithAccessUrlResolutionOnly, fakeDownloadLocation, None)
     val expected = AccessUrlDownloader(
-      accessUrl = AccessUrl(url = "http://abc/def/ghi.bam", headers = None), downloadLoc = fakeDownloadLocation
+      accessUrl = AccessUrl(url = "http://abc/def/ghi.bam", headers = None),
+      downloadLoc = fakeDownloadLocation,
+      hashes = FakeHashes
     )
     mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloaderFactory).unsafeRunSync() shouldBe expected
   }
@@ -63,7 +70,8 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
   it should "resolve to use the correct downloader for an access url when the Martha response also contains a gs url" in {
     val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithAccessUrlAndGcsResolution, fakeDownloadLocation, None)
     val expected = AccessUrlDownloader(
-      accessUrl = AccessUrl(url = "http://abc/def/ghi.bam", headers = None), downloadLoc = fakeDownloadLocation
+      accessUrl = AccessUrl(url = "http://abc/def/ghi.bam", headers = None), downloadLoc = fakeDownloadLocation,
+      hashes = FakeHashes
     )
     mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloaderFactory).unsafeRunSync() shouldBe expected
   }
@@ -83,7 +91,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     })
 
     val downloaderFactory = new DownloaderFactory {
-      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String): IO[Downloader] = {
+      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader] = {
         accessUrlDownloader
       }
 
@@ -94,7 +102,8 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     }
 
     drsLocalizer.resolveAndDownloadWithRetries(
-      retries = 3,
+      downloadRetries = 3,
+      checksumRetries = 1,
       downloaderFactory = downloaderFactory,
       backoff = None
     ).unsafeRunSync() shouldBe DownloadSuccess
@@ -102,7 +111,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     actualAttempts shouldBe 1
   }
 
-  it should "retry an appropriate number of times for retryable access URL download failures" in {
+  it should "retry an appropriate number of times for regular retryable access URL download failures" in {
     var actualAttempts = 0
 
     val drsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithAccessUrlResolutionOnly, fakeDownloadLocation, None) {
@@ -113,11 +122,11 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     }
     val accessUrlDownloader = IO.pure(new Downloader {
       override def download: IO[DownloadResult] =
-        IO.pure(RetryableDownloadFailure(exitCode = ExitCode(0)))
+        IO.pure(RecognizedRetryableDownloadFailure(exitCode = ExitCode(0)))
     })
 
     val downloaderFactory = new DownloaderFactory {
-      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String): IO[Downloader] = {
+      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader] = {
         accessUrlDownloader
       }
 
@@ -129,13 +138,52 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
     assertThrows[Throwable] {
       drsLocalizer.resolveAndDownloadWithRetries(
-        retries = 3,
+        downloadRetries = 3,
+        checksumRetries = 1,
         downloaderFactory = downloaderFactory,
         backoff = None
       ).unsafeRunSync()
     }
 
     actualAttempts shouldBe 4 // 1 initial attempt + 3 retries = 4 total attempts
+  }
+
+  it should "retry an appropriate number of times for fatal retryable access URL download failures" in {
+    var actualAttempts = 0
+
+    val drsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithAccessUrlResolutionOnly, fakeDownloadLocation, None) {
+      override def resolveAndDownload(downloaderFactory: DownloaderFactory): IO[DownloadResult] = {
+        actualAttempts = actualAttempts + 1
+        IO.raiseError(new RuntimeException("testing: fatal error") with FatalRetryDisposition)
+      }
+    }
+
+    val accessUrlDownloader = IO.pure(new Downloader {
+      override def download: IO[DownloadResult] =
+        IO.pure(RecognizedRetryableDownloadFailure(exitCode = ExitCode(0)))
+    })
+
+    val downloaderFactory = new DownloaderFactory {
+      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader] = {
+        accessUrlDownloader
+      }
+
+      override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] = {
+        // This test path should never ask for the GCS downloader
+        throw new RuntimeException("test failure")
+      }
+    }
+
+    assertThrows[Throwable] {
+      drsLocalizer.resolveAndDownloadWithRetries(
+        downloadRetries = 3,
+        checksumRetries = 1,
+        downloaderFactory = downloaderFactory,
+        backoff = None
+      ).unsafeRunSync()
+    }
+
+    actualAttempts shouldBe 1 // 1 and done with a fatal exception
   }
 
   it should "not retry on GCS URI download success" in {
@@ -152,7 +200,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     })
 
     val downloaderFactory = new DownloaderFactory {
-      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String): IO[Downloader] = {
+      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader] = {
         // This test path should never ask for the access URL downloader
         throw new RuntimeException("test failure")
       }
@@ -163,7 +211,8 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     }
 
     drsLocalizer.resolveAndDownloadWithRetries(
-      retries = 3,
+      downloadRetries = 3,
+      checksumRetries = 1,
       downloaderFactory = downloaderFactory,
       backoff = None).unsafeRunSync()
 
@@ -180,11 +229,11 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     }
     val gcsUriDownloader = IO.pure(new Downloader {
       override def download: IO[DownloadResult] =
-        IO.pure(RetryableDownloadFailure(exitCode = ExitCode(1)))
+        IO.pure(RecognizedRetryableDownloadFailure(exitCode = ExitCode(1)))
     })
 
     val downloaderFactory = new DownloaderFactory {
-      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String): IO[Downloader] = {
+      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader] = {
         // This test path should never ask for the access URL downloader
         throw new RuntimeException("test failure")
       }
@@ -196,12 +245,48 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
     assertThrows[Throwable] {
       drsLocalizer.resolveAndDownloadWithRetries(
-        retries = 3,
+        downloadRetries = 3,
+        checksumRetries = 1,
         downloaderFactory = downloaderFactory,
         backoff = None).unsafeRunSync()
     }
 
     actualAttempts shouldBe 4 // 1 initial attempt + 3 retries = 4 total attempts
+  }
+
+  it should "retry an appropriate number of times for checksum failures" in {
+    var actualAttempts = 0
+    val drsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithAccessUrlResolutionOnly, fakeDownloadLocation, None) {
+      override def resolveAndDownload(downloaderFactory: DownloaderFactory): IO[DownloadResult] = {
+        actualAttempts = actualAttempts + 1
+        super.resolveAndDownload(downloaderFactory)
+      }
+    }
+    val accessUrlDownloader = IO.pure(new Downloader {
+      override def download: IO[DownloadResult] =
+        IO.pure(ChecksumFailure)
+    })
+
+    val downloaderFactory = new DownloaderFactory {
+      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader] = {
+        accessUrlDownloader
+      }
+
+      override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] = {
+        // This test path should never ask for the GCS URI downloader.
+        throw new RuntimeException("test failure")
+      }
+    }
+
+    assertThrows[Throwable] {
+      drsLocalizer.resolveAndDownloadWithRetries(
+        downloadRetries = 3,
+        checksumRetries = 1,
+        downloaderFactory = downloaderFactory,
+        backoff = None).unsafeRunSync()
+    }
+
+    actualAttempts shouldBe 2 // 1 initial attempt + 1 retry = 2 total attempts
   }
 }
 
@@ -217,7 +302,7 @@ class MockDrsLocalizerMain(drsUrl: String,
                            downloadLoc: String,
                            requesterPaysProjectIdOption: Option[String],
                           )
-  extends DrsLocalizerMain(drsUrl, downloadLoc, requesterPaysProjectIdOption) {
+  extends DrsLocalizerMain(drsUrl, downloadLoc, FakeAccessTokenStrategy, requesterPaysProjectIdOption) {
 
   override def getDrsPathResolver: IO[DrsLocalizerDrsPathResolver] = {
     IO {
@@ -228,12 +313,12 @@ class MockDrsLocalizerMain(drsUrl: String,
 
 
 class MockDrsLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
-  DrsLocalizerDrsPathResolver(drsConfig) {
+  DrsLocalizerDrsPathResolver(drsConfig, FakeAccessTokenStrategy) {
 
   override def resolveDrsThroughMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): IO[MarthaResponse] = {
     val marthaResponse = MarthaResponse(
       size = Option(1234),
-      hashes = Option(Map("md5" -> "abc123", "crc32c" -> "34fd67"))
+      hashes = FakeHashes
     )
 
     IO.pure(drsPath) map {
@@ -252,4 +337,9 @@ class MockDrsLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
       case e => throw new RuntimeException(s"Unexpected exception in DRS localization test code: $e")
     }
   }
+}
+
+object MockDrsLocalizerDrsPathResolver {
+  val FakeHashes: Option[Map[String, String]] = Option(Map("md5" -> "abc123", "crc32c" -> "34fd67"))
+  val FakeAccessTokenStrategy: AccessTokenStrategy = () => "testing code: do not call me".invalidNel
 }

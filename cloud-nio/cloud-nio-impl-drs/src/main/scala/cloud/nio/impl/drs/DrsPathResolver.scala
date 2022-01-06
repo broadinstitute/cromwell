@@ -1,10 +1,13 @@
 package cloud.nio.impl.drs
 
 import cats.data.NonEmptyList
+import cats.data.Validated.{Invalid, Valid}
 import cats.effect.{IO, Resource}
 import cats.implicits._
+import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDisposition}
 import cloud.nio.impl.drs.MarthaResponseSupport._
-import common.exception.toIO
+import common.exception.{AggregatedMessageException, toIO}
+import common.validation.ErrorOr.ErrorOr
 import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.parser.decode
@@ -21,38 +24,63 @@ import java.nio.ByteBuffer
 import java.nio.channels.{Channels, ReadableByteChannel}
 import scala.util.Try
 
-abstract class DrsPathResolver(drsConfig: DrsConfig) {
+abstract class DrsPathResolver(drsConfig: DrsConfig, retryInternally: Boolean = true) {
 
-  private lazy val retryHandler = new MarthaHttpRequestRetryStrategy(drsConfig)
+  protected lazy val httpClientBuilder: HttpClientBuilder = {
+    val clientBuilder = HttpClientBuilder.create()
+    if (retryInternally) {
+      val retryHandler = new MarthaHttpRequestRetryStrategy(drsConfig)
+      clientBuilder
+        .setRetryHandler(retryHandler)
+        .setServiceUnavailableRetryStrategy(retryHandler)
+    }
+    clientBuilder
+  }
 
-  protected lazy val httpClientBuilder: HttpClientBuilder =
-    HttpClientBuilder
-      .create()
-      .setRetryHandler(retryHandler)
-      .setServiceUnavailableRetryStrategy(retryHandler)
+  def getAccessToken: ErrorOr[String]
 
-  def getAccessToken: String
-
-  private def makeHttpRequestToMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): HttpPost = {
-    val postRequest = new HttpPost(drsConfig.marthaUrl)
-    val requestJson = MarthaRequest(drsPath, fields).asJson.noSpaces
-    postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
-    postRequest.setHeader("Authorization", s"Bearer $getAccessToken")
-    postRequest
+  private def makeHttpRequestToMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): Resource[IO, HttpPost] = {
+    val io = getAccessToken match {
+      case Valid(token) => IO {
+        val postRequest = new HttpPost(drsConfig.marthaUrl)
+        val requestJson = MarthaRequest(drsPath, fields).asJson.noSpaces
+        postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
+        postRequest.setHeader("Authorization", s"Bearer $token")
+        postRequest
+      }
+      case Invalid(errors) =>
+        IO.raiseError(AggregatedMessageException("Error getting access token", errors.toList))
+    }
+    Resource.eval(io)
   }
 
   private def httpResponseToMarthaResponse(drsPathForDebugging: String)(httpResponse: HttpResponse): IO[MarthaResponse] = {
-    val marthaResponseEntityOption = Option(httpResponse.getEntity).map(EntityUtils.toString)
     val responseStatusLine = httpResponse.getStatusLine
+    val status = responseStatusLine.getStatusCode
 
-    val exceptionMsg = errorMessageFromResponse(drsPathForDebugging, marthaResponseEntityOption, responseStatusLine, drsConfig.marthaUrl)
-    val responseEntityOption = (responseStatusLine.getStatusCode == HttpStatus.SC_OK).valueOrZero(marthaResponseEntityOption)
-    val responseContentIO = toIO(responseEntityOption, exceptionMsg)
+    lazy val retryMessage = {
+      val reason = responseStatusLine.getReasonPhrase
+      s"Unexpected response during resolution of '$drsPathForDebugging': HTTP status $status: $reason"
+    }
 
-    responseContentIO.flatMap{ responseContent =>
-      IO.fromEither(decode[MarthaResponse](responseContent))
-    }.handleErrorWith {
-      e => IO.raiseError(new RuntimeException(s"Unexpected response during DRS resolution: ${ExceptionUtils.getMessage(e)}"))
+    status match {
+      case 408 | 429 =>
+        IO.raiseError(new RuntimeException(retryMessage) with RegularRetryDisposition)
+      case s if s / 100 == 4 =>
+        IO.raiseError(new RuntimeException(retryMessage) with FatalRetryDisposition)
+      case s if s / 100 == 5 =>
+        IO.raiseError(new RuntimeException(retryMessage) with RegularRetryDisposition)
+      case _ =>
+        val marthaResponseEntityOption = Option(httpResponse.getEntity).map(EntityUtils.toString)
+        val exceptionMsg = errorMessageFromResponse(drsPathForDebugging, marthaResponseEntityOption, responseStatusLine, drsConfig.marthaUrl)
+        val responseEntityOption = (responseStatusLine.getStatusCode == HttpStatus.SC_OK).valueOrZero(marthaResponseEntityOption)
+        val responseContentIO = toIO(responseEntityOption, exceptionMsg)
+
+        responseContentIO.flatMap { responseContent =>
+          IO.fromEither(decode[MarthaResponse](responseContent))
+        }.handleErrorWith {
+          e => IO.raiseError(new RuntimeException(s"Unexpected response during DRS resolution: ${ExceptionUtils.getMessage(e)}"))
+        }
     }
   }
 
@@ -64,8 +92,10 @@ abstract class DrsPathResolver(drsConfig: DrsConfig) {
   }
 
   def rawMarthaResponse(drsPath: String, fields: NonEmptyList[MarthaField.Value]): Resource[IO, HttpResponse] = {
-    val httpPost = makeHttpRequestToMartha(drsPath, fields)
-    executeMarthaRequest(httpPost)
+    for {
+      httpPost <- makeHttpRequestToMartha(drsPath, fields)
+      response <- executeMarthaRequest(httpPost)
+    } yield response
   }
 
   /** *
@@ -115,6 +145,11 @@ abstract class DrsPathResolver(drsConfig: DrsConfig) {
 
 object DrsPathResolver {
   final val ExtractUriErrorMsg = "No access URL nor GCS URI starting with 'gs://' found in Martha response!"
+  sealed trait RetryDisposition
+  // Should immediately fail the download attempt.
+  trait FatalRetryDisposition extends RetryDisposition
+  // Should increase the attempt counter and continue retrying if more retry attempts remain.
+  trait RegularRetryDisposition extends RetryDisposition
 }
 
 object MarthaField extends Enumeration {
@@ -127,6 +162,7 @@ object MarthaField extends Enumeration {
   val Hashes: MarthaField.Value = Value("hashes")
   val FileName: MarthaField.Value = Value("fileName")
   val AccessUrl: MarthaField.Value = Value("accessUrl")
+  val LocalizationPath: MarthaField.Value = Value("localizationPath")
 }
 
 final case class MarthaRequest(url: String, fields: NonEmptyList[MarthaField.Value])
@@ -147,6 +183,9 @@ final case class AccessUrl(url: String, headers: Option[Map[String, String]])
   * @param fileName A possible different file name for the object at gsUri, ex: "gsutil cp gs://bucket/12/345 my.vcf"
   * @param hashes Hashes for the contents stored at gsUri
   * @param accessUrl URL to query for signed URL
+  * @param localizationPath Optional localization path. TDR is currently the sole DRS provider specifying this value in
+  *                         DRS metadata, via the `aliases` field. As this is a distinct field from `fileName` in DRS
+  *                         metadata it is also made a distinct field in this response object.
   */
 final case class MarthaResponse(size: Option[Long] = None,
                                 timeCreated: Option[String] = None,
@@ -156,7 +195,8 @@ final case class MarthaResponse(size: Option[Long] = None,
                                 googleServiceAccount: Option[SADataObject] = None,
                                 fileName: Option[String] = None,
                                 hashes: Option[Map[String, String]] = None,
-                                accessUrl: Option[AccessUrl] = None
+                                accessUrl: Option[AccessUrl] = None,
+                                localizationPath: Option[String] = None
                                )
 
 // Adapted from https://github.com/broadinstitute/martha/blob/f31933a3a11e20d30698ec4b4dc1e0abbb31a8bc/common/helpers.js#L210-L218

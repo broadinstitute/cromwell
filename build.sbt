@@ -244,6 +244,7 @@ lazy val tesBackend = (project in backendRoot / "tes")
   .withLibrarySettings("cromwell-tes-backend", tesBackendDependencies)
   .dependsOn(sfsBackend)
   .dependsOn(ftpFileSystem)
+  .dependsOn(drsFileSystem)
   .dependsOn(backend % "test->test")
   .dependsOn(common % "test->test")
 
@@ -385,7 +386,7 @@ lazy val perf = project
 lazy val `cromwell-drs-localizer` = project
   .withExecutableSettings("cromwell-drs-localizer", drsLocalizerDependencies, drsLocalizerSettings)
   .dependsOn(`cloud-nio-impl-drs`)
-  .dependsOn(common % "test->test")
+  .dependsOn(common)
   .dependsOn(`cloud-nio-impl-drs` % "test->test")
 
 lazy val server = project

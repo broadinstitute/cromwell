@@ -1,29 +1,46 @@
 package drs.localizer.downloaders
 
+import cats.data.Validated.{Invalid, Valid}
 import cats.effect.{ExitCode, IO}
 import cloud.nio.impl.drs.AccessUrl
 import com.typesafe.scalalogging.StrictLogging
+import common.exception.AggregatedMessageException
 import common.util.StringUtil._
+import common.validation.ErrorOr.ErrorOr
+import drs.localizer.downloaders.AccessUrlDownloader._
 
 import scala.sys.process.{Process, ProcessLogger}
+import scala.util.matching.Regex
 
-case class AccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String) extends Downloader with StrictLogging {
+case class GetmResult(returnCode: Int, stderr: String)
 
-  def generateDownloadScript(): String = {
+case class AccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes) extends Downloader with StrictLogging {
+  def generateDownloadScript: ErrorOr[String] = {
     val signedUrl = accessUrl.url
-    // TODO headers
-    s"""mkdir -p $$(dirname '$downloadLoc') && rm -f '$downloadLoc' && curl --silent --write-out '%{http_code}' --location --fail --output '$downloadLoc' '$signedUrl'"""
+    GetmChecksum(hashes, accessUrl).args map { checksumArgs =>
+      s"""mkdir -p $$(dirname '$downloadLoc') && rm -f '$downloadLoc' && getm $checksumArgs --filepath '$downloadLoc' '$signedUrl'"""
+    }
   }
 
-  def returnCodeAndHttpStatus: IO[(Int, String)] = IO {
-    val copyCommand = Seq("bash", "-c", generateDownloadScript())
-    val copyProcess = Process(copyCommand)
-    val statusString = new StringBuilder()
+  def runGetm: IO[GetmResult] = {
+    generateDownloadScript match {
+      case Invalid(errors) =>
+        IO.raiseError(AggregatedMessageException("Error generating access URL download script", errors.toList))
+      case Valid(script) => IO {
+        val copyCommand = Seq("bash", "-c", script)
+        val copyProcess = Process(copyCommand)
 
-    val returnCode = copyProcess ! ProcessLogger({ s => statusString.append(s); () }, logger.underlying.error)
-    val httpStatus = statusString.toString().trim
+        val stderr = new StringBuilder()
+        val errorCapture: String => Unit = { s => stderr.append(s); () }
 
-    (returnCode, httpStatus)
+        // As of `getm` version 0.0.4 the contents of stdout do not appear to be interesting (only a progress bar
+        // with no option to suppress it), so ignore stdout for now. If stdout becomes interesting in future versions
+        // of `getm` it can be captured just like stderr is being captured here.
+        val returnCode = copyProcess ! ProcessLogger(_ => (), errorCapture)
+
+        GetmResult(returnCode, stderr.toString().trim())
+      }
+    }
   }
 
   override def download: IO[DownloadResult] = {
@@ -32,33 +49,43 @@ case class AccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String) extend
     val masked = accessUrl.url.maskSensitiveUri
     logger.info(s"Attempting to download data to '$downloadLoc' from access URL '$masked'.")
 
-    for {
-      rh <- returnCodeAndHttpStatus
-      (returnCode, httpStatus) = rh
-      ret = result(returnCode, httpStatus, masked)
-    } yield ret
+    runGetm map toDownloadResult
   }
 
-  def result(returnCode: Int, httpStatus: String, maskedUrl: String): DownloadResult = {
-    (returnCode, httpStatus) match {
-      case (i, _) if i == 7 => // ECONNREFUSED
-        RetryableDownloadFailure(exitCode = ExitCode(i))
-      case (i, s) =>
-        try {
-          val intStatus = Integer.parseInt(s)
-          if (intStatus / 100 == 2) {
-            // Not expecting 3xx here since curl is invoked with --location.
-            DownloadSuccess
-          } else if (intStatus / 100 == 5 || intStatus == 408)
-            // The curl --retry behavior is to retry only 5xx or 408.
-            RetryableDownloadFailure(ExitCode(i))
-          else
-            NonRetryableDownloadFailure(ExitCode(i))
-        } catch {
-          case e: NumberFormatException =>
-            logger.warn(s"Unexpected non-numeric http status code for '$maskedUrl': $httpStatus", e)
-            RetryableDownloadFailure(ExitCode(i))
+  def toDownloadResult(getmResult: GetmResult): DownloadResult = {
+    getmResult match {
+      case GetmResult(0, stderr) if stderr.isEmpty =>
+        DownloadSuccess
+      case GetmResult(0, stderr) =>
+        stderr match {
+          case ChecksumFailureMessage() =>
+            ChecksumFailure
+          case _ =>
+            UnrecognizedRetryableDownloadFailure(ExitCode(0))
+        }
+      case GetmResult(rc, stderr) =>
+        stderr match {
+          case HttpStatusMessage(status) =>
+            Integer.parseInt(status) match {
+              case 408 | 429 =>
+                RecognizedRetryableDownloadFailure(ExitCode(rc))
+              case s if s / 100 == 4 =>
+                FatalDownloadFailure(ExitCode(rc))
+              case s if s / 100 == 5 =>
+                RecognizedRetryableDownloadFailure(ExitCode(rc))
+              case _ =>
+                UnrecognizedRetryableDownloadFailure(ExitCode(rc))
+            }
+          case _ =>
+            UnrecognizedRetryableDownloadFailure(ExitCode(rc))
         }
     }
   }
+}
+
+object AccessUrlDownloader {
+  type Hashes = Option[Map[String, String]]
+
+  val ChecksumFailureMessage: Regex = raw""".*AssertionError: Checksum failed!.*""".r
+  val HttpStatusMessage: Regex = raw"""ERROR:getm\.cli.*"status_code":\s*(\d+).*""".r
 }

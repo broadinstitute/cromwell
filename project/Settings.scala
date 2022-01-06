@@ -1,7 +1,7 @@
 import ContinuousIntegration._
 import Dependencies._
 import GenerateRestApiDocs._
-import Merging.customMergeStrategy
+import Merging._
 import Publishing._
 import Testing._
 import Version._
@@ -12,13 +12,6 @@ import sbtassembly.AssemblyPlugin.autoImport._
 import sbtdocker.{DockerPlugin, Instruction, Instructions}
 
 object Settings {
-
-  val commonResolvers = List(
-    Resolver.jcenterRepo,
-    "Broad Artifactory Releases" at "https://broadinstitute.jfrog.io/broadinstitute/libs-release/",
-    "Broad Artifactory Snapshots" at "https://broadinstitute.jfrog.io/broadinstitute/libs-snapshot/",
-    Resolver.sonatypeRepo("releases")
-  )
 
   /* The reason why -Xmax-classfile-name is set is because this will fail
      to build on Docker otherwise.  The reason why it's 200 is because it
@@ -89,18 +82,15 @@ object Settings {
     assembly / assemblyJarName := name.value + "-" + version.value + ".jar",
     assembly / test := {},
     assembly / assemblyMergeStrategy := customMergeStrategy.value,
-    assembly / logLevel :=
-      sys.env.get("CROMWELL_SBT_ASSEMBLY_LOG_LEVEL").flatMap(Level.apply).getOrElse((assembly / logLevel).value)
   )
 
-  // 2.12.13 blocked on the release of sbt-scoverage 1.6.2 https://github.com/scoverage/sbt-scoverage/issues/319
-  val Scala2_12Version = "2.12.12"
-  val ScalaVersion = Scala2_12Version
-  val sharedSettings =
-    cromwellVersionWithGit ++ artifactorySettings ++ List(
+  val Scala2_12Version = "2.12.15"
+  private val ScalaVersion: String = Scala2_12Version
+  private val sharedSettings: Seq[Setting[_]] =
+    cromwellVersionWithGit ++ publishingSettings ++ List(
     organization := "org.broadinstitute",
     scalaVersion := ScalaVersion,
-    resolvers ++= commonResolvers,
+    resolvers ++= additionalResolvers,
     // Don't run tasks in parallel, especially helps in low CPU environments like Travis
     Global / parallelExecution := false,
     Global / concurrentRestrictions ++= List(
@@ -125,20 +115,24 @@ object Settings {
 
   /*
       Docker instructions to install Google Cloud SDK image in docker image. It also installs `crcmod` which
-      is needed while downloading large files using `gsutil`
+      is needed while downloading large files using `gsutil`.
       References:
         - https://stackoverflow.com/questions/28372328/how-to-install-the-google-cloud-sdk-in-a-docker-image
         - https://cromwell.readthedocs.io/en/develop/backends/Google/#issues-with-composite-files
         - https://cloud.google.com/storage/docs/gsutil/addlhelp/CRC32CandInstallingcrcmod
+
+      Install `getm` for performant signed URL downloading with integrity checking.
+      References:
+        - https://github.com/xbrianh/getm
    */
-  val installGcloudSettings: List[Def.Setting[Seq[Instruction]]] = List(
+  val installLocalizerSettings: List[Setting[Seq[Instruction]]] = List(
     dockerCustomSettings := List(
       Instructions.Env("PATH", "$PATH:/usr/local/gcloud/google-cloud-sdk/bin"),
       // instructions to install `crcmod`
       Instructions.Run("apt-get -y update"),
       Instructions.Run("apt-get -y install python3.8"),
       Instructions.Run("apt -y install python3-pip"),
-      Instructions.Run("apt-get -y install gcc python-dev python-setuptools"),
+      Instructions.Run("apt-get -y install gcc python3-dev python3-setuptools"),
       Instructions.Run("pip3 uninstall crcmod"),
       Instructions.Run("pip3 install --no-cache-dir -U crcmod"),
       Instructions.Run("update-alternatives --install /usr/bin/python python /usr/bin/python3 1"),
@@ -148,14 +142,17 @@ object Settings {
       Instructions.Run("""mkdir -p /usr/local/gcloud \
                          | && tar -C /usr/local/gcloud -xvf /tmp/google-cloud-sdk.tar.gz \
                          | && /usr/local/gcloud/google-cloud-sdk/install.sh""".stripMargin),
+      // instructions to install `getm`. Pin to version 0.0.4 as the behaviors of future versions with respect to
+      // messages or exit codes may change.
+      Instructions.Run("pip3 install getm==0.0.4")
     )
   )
 
   val swaggerUiSettings = List(Compile / resourceGenerators += writeSwaggerUiVersionConf)
   val backendSettings = List(addCompilerPlugin(kindProjectorPlugin))
-  val engineSettings = swaggerUiSettings
-  val cromiamSettings = swaggerUiSettings
-  val drsLocalizerSettings = installGcloudSettings
+  val engineSettings: List[Setting[_]] = swaggerUiSettings
+  val cromiamSettings: List[Setting[_]] = swaggerUiSettings
+  val drsLocalizerSettings: List[Setting[_]] = installLocalizerSettings
 
   private def buildProject(project: Project,
                            projectName: String,
@@ -228,7 +225,7 @@ object Settings {
           .settings(publish := {})
           .settings(generateRestApiDocsSettings)
           .settings(ciSettings)
-          .settings(rootArtifactorySettings)
+          .settings(rootPublishingSettings)
       )
 
       buildProject(project, "root", Nil, builders)

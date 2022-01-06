@@ -11,18 +11,17 @@ import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core._
 import cromwell.core.actor.StreamActorHelper.ActorRestartException
 import cromwell.core.filesystem.CromwellFileSystems
-import cromwell.core.io.Throttle
-import cromwell.core.io.Throttle._
 import cromwell.docker.DockerInfoActor
 import cromwell.docker.local.DockerCliFlow
 import cromwell.engine.CromwellTerminator
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
+import cromwell.engine.io.IoActor.IoConfig
 import cromwell.engine.io.{IoActor, IoActorProxy}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.AbortAllWorkflowsCommand
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor, CallCacheWriteActor}
 import cromwell.engine.workflow.lifecycle.finalization.CopyWorkflowLogsActor
-import cromwell.engine.workflow.tokens.{DynamicRateLimiter, JobExecutionTokenDispenserActor}
+import cromwell.engine.workflow.tokens.{DynamicRateLimiter, JobTokenDispenserActor}
 import cromwell.engine.workflow.workflowstore.AbortRequestScanningActor.AbortConfig
 import cromwell.engine.workflow.workflowstore._
 import cromwell.jobstore.{JobStore, JobStoreActor, SqlJobStore}
@@ -47,7 +46,7 @@ import scala.util.{Failure, Success, Try}
   *
   * If any of the actors created by CromwellRootActor fail to initialize the ActorSystem will die, which means that
   * Cromwell will fail to start in a bad state regardless of the entry point.
-  * 
+  *
   * READ THIS: If you add a "system-level" actor here, make sure to consider what should be its
   * position in the shutdown process and modify CromwellShutdown accordingly.
   */
@@ -60,7 +59,7 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
   extends Actor with ActorLogging with GracefulShutdownHelper {
 
   import CromwellRootActor._
-  
+
   // Make sure the filesystems are initialized at startup
   val _ = CromwellFileSystems.instance
 
@@ -99,17 +98,19 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
       "WorkflowStoreActor")
 
   lazy val jobStore: JobStore = new SqlJobStore(EngineServicesStore.engineDatabaseInterface)
-  lazy val jobStoreActor = context.actorOf(JobStoreActor.props(jobStore, serviceRegistryActor, workflowStoreAccess), "JobStoreActor")
+  lazy val jobStoreActor: ActorRef = context.actorOf(JobStoreActor.props(jobStore, serviceRegistryActor, workflowStoreAccess), "JobStoreActor")
 
   lazy val subWorkflowStore: SubWorkflowStore = new SqlSubWorkflowStore(EngineServicesStore.engineDatabaseInterface)
-  lazy val subWorkflowStoreActor = context.actorOf(SubWorkflowStoreActor.props(subWorkflowStore), "SubWorkflowStoreActor")
+  lazy val subWorkflowStoreActor: ActorRef = context.actorOf(SubWorkflowStoreActor.props(subWorkflowStore), "SubWorkflowStoreActor")
 
-  // Io Actor
-  lazy val nioParallelism = systemConfig.as[Option[Int]]("io.nio.parallelism").getOrElse(10)
-  lazy val gcsParallelism = systemConfig.as[Option[Int]]("io.gcs.parallelism").getOrElse(10)
-  lazy val ioThrottle = systemConfig.getAs[Throttle]("io").getOrElse(Throttle(100000, 100.seconds, 100000))
-  lazy val ioActor = context.actorOf(IoActor.props(LoadConfig.IoQueueSize, nioParallelism, gcsParallelism, Option(ioThrottle), serviceRegistryActor, GoogleConfiguration(config).applicationName), "IoActor")
-  lazy val ioActorProxy = context.actorOf(IoActorProxy.props(ioActor), "IoProxy")
+  lazy val ioConfig: IoConfig = config.as[IoConfig]
+  lazy val ioActor: ActorRef = context.actorOf(
+    IoActor.props(
+      ioConfig = ioConfig,
+      serviceRegistryActor = serviceRegistryActor,
+      applicationName = GoogleConfiguration(config).applicationName),
+    "IoActor")
+  lazy val ioActorProxy: ActorRef = context.actorOf(IoActorProxy.props(ioActor), "IoProxy")
 
   // Register the IoActor with the service registry:
   serviceRegistryActor ! IoActorRef(ioActorProxy)
@@ -153,10 +154,14 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
   }
   lazy val backendSingletonCollection = BackendSingletonCollection(backendSingletons)
 
-  lazy val rate = DynamicRateLimiter.Rate(systemConfig.as[Int]("job-rate-control.jobs"), systemConfig.as[FiniteDuration]("job-rate-control.per"))
-  lazy val tokenLogInterval: Option[FiniteDuration] = systemConfig.as[Option[Int]]("hog-safety.token-log-interval-seconds").map(_.seconds)
+  lazy val jobRestartCheckRate: DynamicRateLimiter.Rate = DynamicRateLimiter.Rate(systemConfig.as[Int]("job-restart-check-rate-control.jobs"), systemConfig.as[FiniteDuration]("job-restart-check-rate-control.per"))
+  lazy val jobExecutionRate: DynamicRateLimiter.Rate = DynamicRateLimiter.Rate(systemConfig.as[Int]("job-rate-control.jobs"), systemConfig.as[FiniteDuration]("job-rate-control.per"))
 
-  lazy val jobExecutionTokenDispenserActor = context.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistryActor, rate, tokenLogInterval), "JobExecutionTokenDispenser")
+  lazy val restartCheckTokenLogInterval: Option[FiniteDuration] = systemConfig.as[Option[Int]]("job-restart-check-rate-control.token-log-interval-seconds").map(_.seconds)
+  lazy val executionTokenLogInterval: Option[FiniteDuration] = systemConfig.as[Option[Int]]("hog-safety.token-log-interval-seconds").map(_.seconds)
+
+  lazy val jobRestartCheckTokenDispenserActor: ActorRef = context.actorOf(JobTokenDispenserActor.props(serviceRegistryActor, jobRestartCheckRate, restartCheckTokenLogInterval, "restart checking", "CheckingRestart"), "JobRestartCheckTokenDispenser")
+  lazy val jobExecutionTokenDispenserActor: ActorRef = context.actorOf(JobTokenDispenserActor.props(serviceRegistryActor, jobExecutionRate, executionTokenLogInterval, "execution", ExecutionStatus.Running.toString), "JobExecutionTokenDispenser")
 
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(
@@ -172,7 +177,8 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
       callCacheReadActor = callCacheReadActor,
       callCacheWriteActor = callCacheWriteActor,
       dockerHashActor = dockerHashActor,
-      jobTokenDispenserActor = jobExecutionTokenDispenserActor,
+      jobRestartCheckTokenDispenserActor = jobRestartCheckTokenDispenserActor,
+      jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
       backendSingletonCollection = backendSingletonCollection,
       serverMode = serverMode,
       workflowHeartbeatConfig = workflowHeartbeatConfig),

@@ -478,6 +478,7 @@ The following CPU platforms are currently supported by the Google Cloud backend:
 - `Intel Haswell`     
 - `Intel Ivy Bridge`  
 - `Intel Sandy Bridge`
+- `AMD Rome`
 
 ### 'useDockerImageCache'
 

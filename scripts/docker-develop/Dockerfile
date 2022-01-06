@@ -17,8 +17,8 @@ RUN apt-get update -q && \
 #   Git
 
 # Env variables
-ENV SCALA_VERSION 2.12.12
-ENV SBT_VERSION 1.4.9
+ENV SCALA_VERSION 2.12.14
+ENV SBT_VERSION 1.5.5
 
 #
 ## AdoptOpenJDK Hotspot

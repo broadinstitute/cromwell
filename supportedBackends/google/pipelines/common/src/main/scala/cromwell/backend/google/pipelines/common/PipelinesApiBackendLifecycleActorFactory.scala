@@ -1,8 +1,10 @@
 package cromwell.backend.google.pipelines.common
 
 import akka.actor.{ActorRef, Props}
+import com.google.api.client.util.ExponentialBackOff
+import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend._
-import cromwell.backend.google.pipelines.common.PipelinesApiBackendLifecycleActorFactory._
+import cromwell.backend.google.pipelines.common.PipelinesApiBackendLifecycleActorFactory.{preemptionCountKey, robustBuildAttributes, unexpectedRetryCountKey}
 import cromwell.backend.google.pipelines.common.authentication.PipelinesApiDockerCredentials
 import cromwell.backend.google.pipelines.common.callcaching.{PipelinesApiBackendCacheHitCopyingActor, PipelinesApiBackendFileHashingActor}
 import cromwell.backend.standard._
@@ -12,7 +14,7 @@ import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.core.{CallOutputs, DockerCredentials}
 import wom.graph.CommandCallNode
 
-import scala.util.{Success, Try}
+import scala.util.{Failure, Success, Try}
 
 abstract class PipelinesApiBackendLifecycleActorFactory(override val name: String, override val configurationDescriptor: BackendConfigurationDescriptor)
   extends StandardLifecycleActorFactory {
@@ -23,9 +25,14 @@ abstract class PipelinesApiBackendLifecycleActorFactory(override val name: Strin
 
   override val requestedKeyValueStoreKeys: Seq[String] = Seq(preemptionCountKey, unexpectedRetryCountKey)
 
-  protected val googleConfig = GoogleConfiguration(configurationDescriptor.globalConfig)
+  protected val googleConfig: GoogleConfiguration = GoogleConfiguration(configurationDescriptor.globalConfig)
 
-  protected val papiAttributes = PipelinesApiConfigurationAttributes(googleConfig, configurationDescriptor.backendConfig, name)
+  protected val papiAttributes: PipelinesApiConfigurationAttributes = {
+    def defaultBuildAttributes() =
+      PipelinesApiConfigurationAttributes(googleConfig, configurationDescriptor.backendConfig, name)
+
+    robustBuildAttributes(defaultBuildAttributes)
+  }
 
   override lazy val initializationActorClass: Class[_ <: StandardInitializationActor] = classOf[PipelinesApiInitializationActor]
 
@@ -35,7 +42,7 @@ abstract class PipelinesApiBackendLifecycleActorFactory(override val name: Strin
     Option(classOf[PipelinesApiFinalizationActor])
   override lazy val jobIdKey: String = PipelinesApiAsyncBackendJobExecutionActor.JesOperationIdKey
 
-  override def backendSingletonActorProps(serviceRegistryActor: ActorRef) = Option(requiredBackendSingletonActor(serviceRegistryActor))
+  override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = Option(requiredBackendSingletonActor(serviceRegistryActor))
 
   override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[CommandCallNode],
                                                  serviceRegistryActor: ActorRef, restart: Boolean): StandardInitializationActorParams = {
@@ -79,7 +86,37 @@ abstract class PipelinesApiBackendLifecycleActorFactory(override val name: Strin
   }
 }
 
-object PipelinesApiBackendLifecycleActorFactory {
+object PipelinesApiBackendLifecycleActorFactory extends StrictLogging {
   val preemptionCountKey = "PreemptionCount"
   val unexpectedRetryCountKey = "UnexpectedRetryCount"
+
+  private [common] def robustBuildAttributes(buildAttributes: () => PipelinesApiConfigurationAttributes,
+                                             maxAttempts: Int = 3,
+                                             initialIntervalMillis: Int = 5000,
+                                             maxIntervalMillis: Int = 10000,
+                                             multiplier: Double = 1.5,
+                                             randomizationFactor: Double = 0.5): PipelinesApiConfigurationAttributes = {
+    val backoff = new ExponentialBackOff.Builder()
+      .setInitialIntervalMillis(initialIntervalMillis)
+      .setMaxIntervalMillis(maxIntervalMillis)
+      .setMultiplier(multiplier)
+      .setRandomizationFactor(randomizationFactor)
+      .build()
+
+    // `attempt` is 1-based
+    def build(attempt: Int): Try[PipelinesApiConfigurationAttributes] = {
+      Try {
+        buildAttributes()
+      } recoverWith {
+        // Try again if this was an Exception (as opposed to an Error) and we have not hit maxAttempts
+        case ex: Exception if attempt < maxAttempts =>
+          logger.warn(s"Failed to build PipelinesApiConfigurationAttributes on attempt $attempt of $maxAttempts, retrying.", ex)
+          Thread.sleep(backoff.nextBackOffMillis())
+          build(attempt + 1)
+        case e => Failure(new RuntimeException(s"Failed to build PipelinesApiConfigurationAttributes on attempt $attempt of $maxAttempts", e))
+      }
+    }
+    // This intentionally throws if the final result of `build` is a `Failure`.
+    build(attempt = 1).get
+  }
 }

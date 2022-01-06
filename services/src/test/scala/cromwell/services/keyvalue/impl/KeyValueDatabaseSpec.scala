@@ -125,7 +125,8 @@ object KeyValueDatabaseSpec {
   private def getFailureRegex(databaseSystem: DatabaseSystem): String = {
     databaseSystem.platform match {
       case HsqldbDatabasePlatform =>
-        "integrity constraint violation: NOT NULL check constraint; SYS_CT_10591 table: JOB_KEY_VALUE_ENTRY column: STORE_VALUE"
+        """integrity constraint violation: NOT NULL check constraint; """ +
+          """SYS_CT_\d+ table: JOB_KEY_VALUE_ENTRY column: STORE_VALUE"""
       case MariadbDatabasePlatform => """\(conn=\d+\) Column 'STORE_VALUE' cannot be null"""
       case MysqlDatabasePlatform => "Column 'STORE_VALUE' cannot be null"
       case PostgresqlDatabasePlatform =>

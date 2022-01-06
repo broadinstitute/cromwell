@@ -69,7 +69,8 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
   val dockerHashActorProbe = TestProbe()
   val callCacheHitCopyingProbe = TestProbe()
   val jobPreparationProbe = TestProbe()
-  val jobTokenDispenserProbe = TestProbe()
+  val jobRestartCheckTokenDispenserProbe = TestProbe()
+  val jobExecutionTokenDispenserProbe = TestProbe()
   val ejhaProbe = TestProbe()
 
   def buildFactory(backendConfigurationDescriptor: BackendConfigurationDescriptor): BackendLifecycleActorFactory = new BackendLifecycleActorFactory {
@@ -137,7 +138,8 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
       writeActor = callCacheWriteActorProbe.ref,
       fileHashCacheActor = Option(dockerHashActorProbe.ref),
       maxFailedCopyAttempts = callCachingMaxFailedCopyAttempts,
-      blacklistCache = None
+      blacklistCache = None,
+      fileHashBatchSize = 100
     )
 
     val myBrandNewEjea = new TestFSMRef[EngineJobExecutionActorState, EJEAData, MockEjea](system, Props(new MockEjea(
@@ -153,7 +155,8 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
       ioActor = ioActorProbe.ref,
       jobStoreActor = jobStoreProbe.ref,
       dockerHashActor = dockerHashActorProbe.ref,
-      jobTokenDispenserActor = jobTokenDispenserProbe.ref,
+      jobRestartCheckTokenDispenserActor = jobRestartCheckTokenDispenserProbe.ref,
+      jobExecutionTokenDispenserActor = jobExecutionTokenDispenserProbe.ref,
       callCachingParameters = callCachingParameters
     )), parentProbe.ref, s"EngineJobExecutionActorSpec-$workflowId")
 
@@ -174,7 +177,8 @@ private[ejea] class MockEjea(helper: PerTestHelper,
                              ioActor: ActorRef,
                              jobStoreActor: ActorRef,
                              dockerHashActor: ActorRef,
-                             jobTokenDispenserActor: ActorRef,
+                             jobRestartCheckTokenDispenserActor: ActorRef,
+                             jobExecutionTokenDispenserActor: ActorRef,
                              callCachingParameters: EngineJobExecutionActor.CallCachingParameters) extends EngineJobExecutionActor(
   replyTo = replyTo,
   jobDescriptorKey = jobDescriptorKey,
@@ -186,7 +190,8 @@ private[ejea] class MockEjea(helper: PerTestHelper,
   ioActor = ioActor,
   jobStoreActor = jobStoreActor,
   workflowDockerLookupActor = dockerHashActor,
-  jobTokenDispenserActor = jobTokenDispenserActor,
+  jobRestartCheckTokenDispenserActor = jobRestartCheckTokenDispenserActor,
+  jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
   backendSingletonActor = None,
   command = if (restarting) RecoverJobCommand else ExecuteJobCommand,
   callCachingParameters = callCachingParameters) {

@@ -3,7 +3,6 @@ package cromwell.engine.workflow.lifecycle.execution.job.preparation
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.TestProbe
 import common.validation.ErrorOr.ErrorOr
-import common.validation.Validation.MemoryRetryMultiplier
 import cromwell.backend._
 import cromwell.core.WorkflowId
 import cromwell.engine.EngineWorkflowDescriptor
@@ -11,7 +10,6 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.JobPreparationTestHelper._
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, ScopedKey}
-import eu.timepit.refined.refineMV
 import org.specs2.mock.Mockito
 import wdl.draft2.model.LocallyQualifiedName
 import wom.expression.NoIoFunctionSet
@@ -36,9 +34,6 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
   val serviceRegistryProbe = TestProbe()
   val ioActor = TestProbe()
   val workflowDockerLookupActor = TestProbe()
-
-  val mockJobKeyWithMemoryMultiplier = BackendJobDescriptorKey(call, None, 3, refineMV[MemoryRetryMultiplier](1.21))
-  val mockJobKeyWithMemoryMultiplierAs1 = BackendJobDescriptorKey(call, None, 2, refineMV[MemoryRetryMultiplier](1))
 
   val scopedKeyMaker: ScopedKeyMaker = key => ScopedKey(workflowId, KvJobKey("correct.horse.battery.staple", None, 1), key)
 

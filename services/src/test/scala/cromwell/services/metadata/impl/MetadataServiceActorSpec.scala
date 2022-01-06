@@ -119,6 +119,12 @@ class MetadataServiceActorSpec extends ServicesSpec {
 
   actorName should {
 
+    "receive a response to query1 with more time for the system to start up" in {
+      eventually(Timeout(30.seconds), Interval(2.seconds)) {
+        Await.result((actor ? GetMetadataAction(query1)).mapTo[SuccessfulMetadataJsonResponse], 1.seconds)
+      }
+    }
+
     testCases foreach { case (name, query, expectation) =>
 
       s"perform $name correctly" in {

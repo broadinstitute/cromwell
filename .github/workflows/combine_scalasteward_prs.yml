@@ -8,9 +8,16 @@ on:
   workflow_dispatch:
     inputs:
       prLimit:
-        description: 'How many scala-steward PRs to consolidate'
+        description: 'How many scala-steward PRs to consolidate in total'
         required: true
         default: 1000
+      prGroupSize:
+        description: 'How many scala-steward PRs to consolidate in each "consolidated" PR'
+        required: true
+        default: 5
+      jiraTicketId:
+        description: 'A Jira ticket ID to associate the new PRs with'
+        required: true
 
 jobs:
   build:
@@ -22,46 +29,80 @@ jobs:
         id: msp
         run: |
           export GITHUB_TOKEN=${{ secrets.BROADBOT_GITHUB_TOKEN }}
+          PR_LIMIT=${{ github.event.inputs.prLimit }}
+          PR_GROUP_SIZE=${{ github.event.inputs.prGroupSize }}
+          echo "BASH_VERSION=${BASH_VERSION}"
+
           git config user.name "broadbot"
+          echo "Fetching repo state..."
+          git fetch --quiet
+          git fetch origin develop:origin_develop
 
           echo "Bringing in PRs:"
-          gh pr list --limit 1000 | grep 'scala-steward:' | tac | head -n${{ github.event.inputs.prLimit }}
+          gh pr list --limit 1000 | grep 'scala-steward:' | tac | head -n${PR_LIMIT}
 
-          PR_LIST=$(gh pr list --limit 1000 | grep 'scala-steward:' | cut -d$'\t'  -f 1 | tac | head -n${{ github.event.inputs.prLimit }})
-          BRANCH="consolidated-scala-steward-prs-$(date +'%Y-%m-%d_%H-%M')"
+          PR_LIST=($(gh pr list --limit 1000 | grep 'scala-steward:' | cut -d$'\t'  -f 1 | tac | head -n${PR_LIMIT} | tr '\n' ' '))
+          PR_LIST_LENGTH=${#PR_LIST[@]}
 
-          SUCCESSFUL_PRS=()
-          UNSUCCESSFUL_PRS=()
-
-          git fetch
-          git checkout develop
-          git checkout -B $BRANCH
-
-          while IFS= read -r pr
+          echo "PR_LIST=${PR_LIST[@]}"
+          echo "PR_LIST_COUNT=${#PR_LIST[@]}"
+          NEXT_INDEX=0
+          NEXT_SLICE=("${PR_LIST[@]:$NEXT_INDEX:$PR_GROUP_SIZE}")
+          while [[ "${#NEXT_SLICE[@]}" -gt "0" ]]
           do
-            echo "Bringing in: $pr"
-            git fetch origin pull/${pr}/head:pr_${pr}
+            FIRST_PR="${NEXT_SLICE[0]}"
+            LAST_PR="${NEXT_SLICE[-1]}"
 
-            git checkout $BRANCH
-            git merge -m "merging PR #${pr}" pr_${pr} --allow-unrelated-histories && EXIT_CODE=$? || EXIT_CODE=$?
+            NEW_BRANCH="consolidated-scala-steward-prs-${FIRST_PR}-${LAST_PR}-$(date +'%Y-%m-%d_%H-%M')"
+            echo "NEW_BRANCH=${NEW_BRANCH}"
+            git checkout origin_develop
+            echo "develop is currently at: $(git rev-parse --verify HEAD)"
+            git checkout -B ${NEW_BRANCH}
 
-            if [ "${EXIT_CODE}" == "0" ]
+            SUCCESSFUL_PRS=()
+            UNSUCCESSFUL_PRS=()
+
+            for pr in ${NEXT_SLICE[@]}
+            do
+              echo "Bringing in: $pr"
+              git fetch origin pull/${pr}/head:pr_${pr}_temp
+              git checkout ${NEW_BRANCH}
+              echo "${NEW_BRANCH} is currently at: $(git rev-parse --verify HEAD)"
+              git checkout pr_${pr}_temp
+              echo "pr_${pr}_temp is currently at: $(git rev-parse --verify HEAD)"
+
+              git rebase "${NEW_BRANCH}" "pr_${pr}_temp" && EXIT_CODE=$? || EXIT_CODE=$?
+
+              if [ "${EXIT_CODE}" == "0" ]
+              then
+                git checkout ${NEW_BRANCH}
+                git reset --hard "pr_${pr}_temp"
+                SUCCESSFUL_PRS+=( "
+              * #$pr" )
+              else
+                echo "Unexpected exit code: ${EXIT_CODE}"
+                git rebase --abort
+                git checkout ${NEW_BRANCH}
+                UNSUCCESSFUL_PRS+=( "
+              * #$pr" )
+              fi
+            done <<< ${NEXT_SLICE[@]}
+
+            echo "SUCCESSFUL_PRS=${SUCCESSFUL_PRS[@]}"
+            echo "UNSUCCESSFUL_PRS=${UNSUCCESSFUL_PRS[@]}"
+
+            if [[ "${#SUCCESSFUL_PRS[@]}" -gt "0" ]]
             then
-              SUCCESSFUL_PRS+=( "
-          * #$pr" )
-            else
-              echo "Unexpected exit code: ${EXIT_CODE}"
-              git reset --hard HEAD
-              UNSUCCESSFUL_PRS+=( "
-          * #$pr" )
+              git push origin "${NEW_BRANCH}"
+              gh pr create \
+                --title "[${{ github.event.inputs.jiraTicketId }}] Scala-steward shepherding consolidation (${FIRST_PR} to ${LAST_PR})" \
+                --body "This PR was generated automatically by the github action: https://github.com/broadinstitute/cromwell/actions/workflows/combine_scalasteward_prs.yml
+
+          Consolidates scala-steward PRs: ${SUCCESSFUL_PRS[*]}
+
+          Merge conflicts during consolidation (if non-empty, this list of PRs will need to be manually applied): ${UNSUCCESSFUL_PRS[*]}"
             fi
-          done <<< "$PR_LIST"
-          git checkout $BRANCH
-          git push origin $BRANCH
-          gh pr create \
-            --title '[!! NEEDS Jira ID !!] Scala-steward shepherding consolidation' \
-            --body "This PR was generated automatically by the github action: https://github.com/broadinstitute/cromwell/actions/workflows/combine_scalasteward_prs.yml
 
-          Consolidates scala-steward PRs ${SUCCESSFUL_PRS[*]}.
-
-          Note that the following PRs were not able to be consolidated: ${UNSUCCESSFUL_PRS[*]}"
+            NEXT_INDEX=$(( NEXT_INDEX + PR_GROUP_SIZE ))
+            NEXT_SLICE=("${PR_LIST[@]:$NEXT_INDEX:$PR_GROUP_SIZE}")
+          done

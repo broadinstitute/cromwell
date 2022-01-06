@@ -2,8 +2,8 @@ package cromwell.engine.workflow.tokens.large
 
 
 import akka.actor.{Actor, ActorRef}
-import cromwell.core.JobExecutionToken.JobExecutionTokenType
-import cromwell.engine.workflow.tokens.large.LargeScaleJobExecutionTokenDispenserActorSpec.RunningJobCounter
+import cromwell.core.JobToken.JobTokenType
+import cromwell.engine.workflow.tokens.large.LargeScaleJobTokenDispenserActorSpec.RunningJobCounter
 import cromwell.engine.workflow.tokens.large.MultipleTokenUsingActor.TokenUsingActorCompletion
 import cromwell.engine.workflow.tokens.large.PatientTokenNeedingActor.{AllDone, Begin, ImBusy}
 
@@ -15,7 +15,7 @@ import cromwell.engine.workflow.tokens.large.PatientTokenNeedingActor.{AllDone, 
   *
   * Because I'm a good citizen, I'm going to record and return a value representing my "peak concurrent tokens distributed"
   */
-class MultipleTokenUsingActor(tokenDispenser: ActorRef, tokenType: JobExecutionTokenType, totalJobs: Int, hogGroup: String, globalRunningJobCounter: RunningJobCounter) extends Actor {
+class MultipleTokenUsingActor(tokenDispenser: ActorRef, tokenType: JobTokenType, totalJobs: Int, hogGroup: String, globalRunningJobCounter: RunningJobCounter) extends Actor {
 
   var hasToken: Boolean = false
 

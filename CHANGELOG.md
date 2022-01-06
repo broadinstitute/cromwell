@@ -1,9 +1,84 @@
 # Cromwell Change Log
 
+## 73 Release Notes
+
+### Workflow Restart Performance Improvements
+
+Cromwell now allows for improved performance restarting large workflows through the use of a separate rate limiter for restart checks than the rate limiter used for starting new jobs.
+The restart check rate limiter is pre-configured in Cromwell's bundled [reference.conf](https://github.com/broadinstitute/cromwell/blob/develop/core/src/main/resources/reference.conf); see the `job-restart-check-rate-control` stanza in that file for explanations of the various parameters if adjustments are desired.
+
+## 71 Release Notes
+
+### Bug Fixes
+
+* Fixed an issue handling data in Google Cloud Storage buckets with requester pays enabled that could sometimes cause I/O to fail.
+
+## 70 Release Notes
+
+### CWL security fix [#6510](https://github.com/broadinstitute/cromwell/pull/6510)
+
+Fixed an issue that could allow submission of an untrusted CWL file to initiate remote code execution. The vector was improper deserialization of the YAML source file.
+
+CWL execution is enabled by default unless a `CWL` [stanza](https://github.com/broadinstitute/cromwell/blob/develop/core/src/main/resources/reference.conf#L460-L482) is present in the configuration that specifies `enabled: false`. Cromwell instances with CWL disabled were not affected. Consequently, users who wish to mitigate the vulnerability without upgrading Cromwell may do so via this config change.
+
+- Thank you to [Bruno P. Kinoshita](https://github.com/kinow) who first found the issue in a different CWL project ([CVE-2021-41110](https://github.com/common-workflow-language/cwlviewer/security/advisories/GHSA-7g7j-f5g3-fqp7)) and [Michael R. Crusoe](https://github.com/mr-c) who suggested we investigate ours.
+
+## 68 Release Notes
+
+### Virtual Private Cloud
+
+Previous Cromwell versions allowed PAPIV2 jobs to run on a specific subnetwork inside a private network by adding the
+information to Google Cloud project labels.
+
+Cromwell now allows PAPIV2 jobs to run on a specific subnetwork inside a private network by adding the network and
+subnetwork name directly inside the `virtual-private-cloud` backend configuration. More info
+[here](https://cromwell.readthedocs.io/en/stable/backends/Google/).
+
+## 67 Release Notes
+
+### Configuration updates for improved scaling
+
+Some configuration changes were introduced in Cromwell 67 to support improved scaling. See Cromwell's `reference.conf` for details on new parameters.
+
+* I/O throttling moved from `io` to its own `io.throttle` stanza; config updates may be required if these values are currently being overridden in local deployments.
+
+* The default `system.job-rate-control` has been changed from 50 per second to 20 per 10 seconds.
+
+* New configuration parameters have been introduced for values which were previously hardcoded constants:
+  * `system.file-hash-batch-size`, value updated from `100` to `50`.
+  * `io.gcs.max-batch-size`, value stays the same at `100`.
+  * `io.gcs.max-batch-duration`, value stays the same at `5 seconds`.
+
+* New configuration parameters which should not require updating:
+  * `io.command-backpressure-staleness`
+  * `io.backpressure-extension-log-threshold`
+  * `load-control.io-normal-window-minimum`
+  * `load-control.io-normal-window-maximum`
+
+* `io.nio.parallelism` was previously misspelled in `reference.conf` but not in Cromwell's configuration reading code. Only correct spellings of this configuration key had or will have effect.
+
+## 66 Release Notes
+
+### Google Artifact Registry Support
+Cromwell now supports call caching when using Docker images hosted on
+[Google Artifact Registry](https://cloud.google.com/artifact-registry).
+
+### Google Image Repository Hashing Updates
+The previously documented `docker.hash-lookup.gcr` configuration has been renamed to `docker.hash-lookup.google` and
+now applies to both Google Container Registry (GCR) and Google Artifact Registry (GAR) repositories.
+Support for the `docker.hash-lookup.gcr-api-queries-per-100-seconds` configuration key has been formally discontinued
+and a bug preventing correct handling of `docker.hash-lookup...throttle` configuration has been fixed.
+Please see Cromwell's bundled
+[`reference.conf`](https://github.com/broadinstitute/cromwell/blob/develop/core/src/main/resources/reference.conf)
+for more details.
+
 ## 65 Release Notes
 
 * An additional set of metrics relating to metadata age were added.
-* No user facing changes in Cromwell 65.  
+
+### AMD Rome support on PAPI v2
+On the PAPI v2 backends "AMD Rome" is now supported as a CPU platform. More details can be found
+[here](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#cpuplatform).
 
 ## 64 Release Notes
 

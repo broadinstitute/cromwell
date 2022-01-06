@@ -706,7 +706,8 @@ object Operations extends StrictLogging {
                            expected: JsObject,
                            actual: JsObject,
                            submittedWorkflow: SubmittedWorkflow,
-                           workflow: Workflow): IO[Unit] = {
+                           workflow: Workflow,
+                           allowableAddedOneWordFields: List[String]): IO[Unit] = {
     if (actual.equals(expected)) {
       IO.unit
     } else {
@@ -718,40 +719,60 @@ object Operations extends StrictLogging {
 
       implicit val lcs: Patience[JsValue] = new Patience[JsValue]
 
-      implicit val writer: JsonWriter[JsonPatch[JsValue]] = new JsonWriter[JsonPatch[JsValue]] {
-        def processOperation(op: Operation[JsValue]): JsValue = op match {
-          case Add(path, value) => JsObject(Map[String, JsValue](
-            "op" -> JsString("add"),
-            "path" -> JsString(path.toString),
-            "value" -> value))
-          case Copy(from, path) => JsObject(Map[String, JsValue](
-            "op" -> JsString("copy"),
-            "from" -> JsString(from.toString),
-            "path" -> JsString(path.toString)))
-          case Move(from, path) => JsObject(Map[String, JsValue](
-            "op" -> JsString("move"),
-            "from" -> JsString(from.toString),
-            "path" -> JsString(path.toString)))
-          case Remove(path, old) => JsObject(Map[String, JsValue](
-            "op" -> JsString("remove"),
-            "path" -> JsString(path.toString)) ++ old.map(o => "old" -> o))
-          case Replace(path, value, old) => JsObject(Map[String, JsValue](
-            "op" -> JsString("replace"),
-            "path" -> JsString(path.toString),
-            "value" -> value) ++ old.map(o => "old" -> o))
-          case diffson.jsonpatch.Test(path, value) => JsObject(Map[String, JsValue](
-            "op" -> JsString("test"),
-            "path" -> JsString(path.toString),
-            "value" -> value))
-        }
-
-        override def write(obj: JsonPatch[JsValue]): JsValue = {
-          JsArray(obj.ops.toVector.map(processOperation))
-        }
+      // Sometimes new metadata is allowed to be added between the diffs. Account for that here:
+      def isAllowableAddition(pointer: jsonpointer.Pointer): Boolean = pointer.parts.toList match {
+        // Paths to metadata values are lists of Left(string)s - representing field names - and Right(integers) - for array indexing.
+        // This case represents a path starting with a field 'x' at the root of the metadata tree:
+        case Left(x) :: _ if allowableAddedOneWordFields.contains(x) => true
+        // This case represents a path starting something like 'calls.callname[0].x'
+        case Left("calls") :: Left(_) :: Right(_) :: Left(x) :: _ if allowableAddedOneWordFields.contains(x) => true
+        case _ => false
       }
 
-      val jsonDiff = diff(expected: JsValue, actual: JsValue).toJson.prettyPrint
-      IO.raiseError(CentaurTestException(s"Error during $testType metadata comparison. Diff (changes to mutate from 'expected' to 'actual'): $jsonDiff", workflow, submittedWorkflow))
+      val filteredDifferences = diff(expected: JsValue, actual: JsValue).ops.toVector filter {
+        case Add(path, _) if isAllowableAddition(path) => false // Exclude valid additions
+        case _ => true // Include anything else
+      }
+
+      if (filteredDifferences.isEmpty) {
+        IO.unit
+      } else {
+        val writer: JsonWriter[Vector[Operation[JsValue]]] = new JsonWriter[Vector[Operation[JsValue]]] {
+          def processOperation(op: Operation[JsValue]): JsValue = op match {
+            case Add(path, value) => JsObject(Map[String, JsValue](
+              "description" -> JsString("Unexpected value found"),
+              "path" -> JsString(path.toString),
+              "value" -> value))
+            case Copy(from, path) => JsObject(Map[String, JsValue](
+              "description" -> JsString("Value(s) unexpectedly copied"),
+              "expected_at" -> JsString(from.toString),
+              "also_at" -> JsString(path.toString)))
+            case Move(from, path) => JsObject(Map[String, JsValue](
+              "description" -> JsString("Value(s) unexpectedly moved"),
+              "expected_location" -> JsString(from.toString),
+              "actual_location" -> JsString(path.toString)))
+            case Remove(path, old) => JsObject(Map[String, JsValue](
+              "description" -> JsString("Value missing"),
+              "expected_location" -> JsString(path.toString)) ++
+              old.map(o => "expected_value" -> o))
+            case Replace(path, value, old) => JsObject(Map[String, JsValue](
+              "description" -> JsString("Incorrect value found"),
+              "path" -> JsString(path.toString),
+              "found_value" -> value) ++ old.map(o => "expected_value" -> o))
+            case diffson.jsonpatch.Test(path, value) => JsObject(Map[String, JsValue](
+              "op" -> JsString("test"),
+              "path" -> JsString(path.toString),
+              "value" -> value))
+          }
+
+          override def write(vector: Vector[Operation[JsValue]]): JsValue = {
+            JsArray(vector.map(processOperation))
+          }
+        }
+
+        val jsonDiff = filteredDifferences.toJson(writer).prettyPrint
+        IO.raiseError(CentaurTestException(s"Error during $testType metadata comparison. Diff: $jsonDiff Expected: $expected Actual: $actual", workflow, submittedWorkflow))
+      }
     }
   }
 
@@ -772,12 +793,11 @@ object Operations extends StrictLogging {
         Option(CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ jmArgs))
       jmMetadataObject <- IO.fromTry(Try(jmMetadata.value.parseJson.asJsObject))
       expectation <- IO.fromTry(Try(extractJmStyleMetadataFields(originalMetadata.parseJson.asJsObject)))
-
-      _ <- validateMetadataJson(testType = s"fetchAndValidateJobManagerStyleMetadata (initial fetch)", expectation, jmMetadataObject, submittedWorkflow, workflow)
+      _ <- validateMetadataJson(testType = s"fetchAndValidateJobManagerStyleMetadata", expectation, jmMetadataObject, submittedWorkflow, workflow, allowableOneWordAdditionsInJmMetadata)
     } yield jmMetadata
   }
 
-  val oneWordIncludeKeys = List(
+  val oneWordJmIncludeKeys = List(
     "attempt", "callRoot", "end",
     "executionStatus", "failures", "inputs", "jobId",
     "calls", "outputs", "shardIndex", "start", "stderr", "stdout",
@@ -785,8 +805,17 @@ object Operations extends StrictLogging {
     "returnCode", "status", "submission", "subWorkflowId", "workflowName"
   )
 
+  // Our Job Manager metadata validation works by comparing the first pull of metadata which satisfies all test requirements
+  // against what we get when we pull metadata again specifying the job-manager-specific fields.
+  // It's possible for new values to trickle in after the first metadata pull, because our validation wasn't specifically looking for them.
+  // In those cases, the second pull (for Job Manager metadata) may include new values not present in the original.
+  // That's not a sign of an error, so allow additions in these fields when comparing original vs "job-manager only" metadata:.
+  // Specifically, 'outputs', 'executionEvents' and 'end' times are likely to come in at the end of the workflow run and
+  // might be left unchecked by the initial metadata validation. So, let them come in without calling that an error:
+  val allowableOneWordAdditionsInJmMetadata = List("outputs", "executionEvents", "end")
+
   val jmArgs = Map(
-    "includeKey" -> (oneWordIncludeKeys :+ "callCaching:hit"),
+    "includeKey" -> (oneWordJmIncludeKeys :+ "callCaching:hit"),
     "excludeKey" -> List("callCaching:hitFailures"),
     "expandSubWorkflows" -> List("false")
   )
@@ -801,7 +830,7 @@ object Operations extends StrictLogging {
 
     // NB: this filter to remove "calls" is because - although it is a single word in the JM request,
     // it gets treated specially by the API (so has to be treated specially here too)
-    def processOneWordIncludes(json: JsObject) = (oneWordIncludeKeys.filterNot(_ == "calls") :+ "id").foldRight(JsObject.empty) { (toInclude, current) =>
+    def processOneWordIncludes(json: JsObject) = (oneWordJmIncludeKeys.filterNot(_ == "calls") :+ "id").foldRight(JsObject.empty) { (toInclude, current) =>
       json.fields.get(toInclude) match {
         case Some(jsonToInclude) => JsObject(current.fields + (toInclude -> jsonToInclude))
         case None => current

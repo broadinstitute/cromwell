@@ -257,7 +257,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     //find or create the script in s3 to execute for s3 fileSystem
     val scriptKey =  runtimeAttributes.fileSystem match {
        case AWSBatchStorageSystems.s3  =>  findOrCreateS3Script(reconfiguredScript, runtimeAttributes.scriptS3BucketName)
-       case _ => "" 
+       case _ => ""
     }
 
     if(runtimeAttributes.fileSystem == AWSBatchStorageSystems.s3) {

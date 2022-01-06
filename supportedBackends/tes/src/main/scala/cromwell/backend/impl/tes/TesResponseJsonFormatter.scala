@@ -7,7 +7,7 @@ final case class MinimalTaskView(id: String, state: String)
 final case class CancelTaskResponse()
 
 object TesResponseJsonFormatter extends DefaultJsonProtocol {
-  implicit val resourcesFormat = jsonFormat5(Resources)
+  implicit val resourcesFormat = jsonFormat6(Resources)
   implicit val inputFormat = jsonFormat6(Input)
   implicit val outputFormat = jsonFormat5(Output)
   implicit val executorFormat = jsonFormat7(Executor)

@@ -8,6 +8,7 @@
       <env name="CROMWELL_BUILD_RESOURCES_DIRECTORY" value="target/ci/resources" />
       <env name="CROMWELL_BUILD_PAPI_JSON_FILE" value="target/ci/resources/cromwell-centaur-service-account.json" />
       <env name="CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT" value="128000" />
+      <env name="CROMWELL_BUILD_CENTAUR_256_BITS_KEY" value="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" />
     </envs>
     <option name="MAIN_CLASS_NAME" value="cromwell.CromwellApp" />
     <module name="cromwell" />

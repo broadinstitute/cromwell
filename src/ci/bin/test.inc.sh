@@ -725,7 +725,7 @@ cromwell::private::create_conformance_variables() {
     # Setting CROMWELL_BUILD_CWL_TEST_PARALLELISM too high will cause false negatives due to cromwell server timeouts.
     case "${CROMWELL_BUILD_TYPE}" in
         conformanceTesk)
-            # BA-6547: TESK is not currently tested in GOTC-Jenkins, FC-Jenkins, nor Travis
+            # BA-6547: TESK is not currently tested in FC-Jenkins nor Travis
             CROMWELL_BUILD_CWL_RUNNER_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/ftp_centaur_cwl_runner.conf"
             CROMWELL_BUILD_CWL_TEST_PARALLELISM=8
             ;;
@@ -813,7 +813,7 @@ cromwell::private::install_sbt_launcher() {
     # Non-deb package installation instructions adapted from
     # - https://github.com/sbt/sbt/releases/tag/v1.4.9
     # - https://github.com/broadinstitute/scala-baseimage/pull/4/files
-    curl --location --fail --silent --show-error "https://github.com/sbt/sbt/releases/download/v1.4.9/sbt-1.4.9.tgz" |
+    curl --location --fail --silent --show-error "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.tgz" |
         sudo tar zxf - -C /usr/share
     sudo update-alternatives --install /usr/bin/sbt sbt /usr/share/sbt/bin/sbt 1
 }
@@ -850,6 +850,7 @@ cromwell::private::pip_install() {
 }
 
 cromwell::private::upgrade_pip() {
+    sudo apt-get install -y python3-pip
     cromwell::private::pip_install pip --upgrade
     cromwell::private::pip_install requests[security] --ignore-installed
 }
@@ -1084,6 +1085,8 @@ cromwell::private::login_docker() {
 }
 
 cromwell::private::render_secure_resources() {
+    # Avoid docker output to sbt's stderr by pulling the image here
+    docker pull broadinstitute/dsde-toolbox:dev | cat
     # Copy the CI resources, then render the secure resources using Vault
     sbt -Dsbt.supershell=false --warn renderCiResources \
     || if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
@@ -1145,9 +1148,9 @@ cromwell::private::assemble_jars() {
     # CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND allows for an override of the default `assembly` command for assembly.
     # This can be useful to reduce time and memory that might otherwise be spent assembling unused subprojects.
     # shellcheck disable=SC2086
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error \
-        sbt \
+    sbt \
         -Dsbt.supershell=false \
+        'set ThisBuild / assembly / logLevel := Level.Error' \
         --warn \
         ${CROMWELL_BUILD_SBT_COVERAGE_COMMAND} \
         --error \
@@ -1196,11 +1199,11 @@ cromwell::private::generate_code_coverage() {
 }
 
 cromwell::private::publish_artifacts_only() {
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt -Dsbt.supershell=false --warn "$@" publish
+    sbt 'set ThisBuild / assembly / logLevel := Level.Warn' -Dsbt.supershell=false --warn "$@" publish
 }
 
 cromwell::private::publish_artifacts_and_docker() {
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt -Dsbt.supershell=false --warn "$@" publish dockerBuildAndPush
+    sbt 'set ThisBuild / assembly / logLevel := Level.Warn' -Dsbt.supershell=false --warn "$@" publish dockerBuildAndPush
 }
 
 cromwell::private::publish_artifacts_check() {
@@ -1508,7 +1511,7 @@ cromwell:build::run_sbt_test() {
     sbt \
         -Dsbt.supershell=false \
         ${CROMWELL_BUILD_SBT_COVERAGE_COMMAND} \
-        test:compile
+        Test/compile
 
     local sbt_tests
 
@@ -1588,6 +1591,25 @@ cromwell::build::run_conformance() {
 cromwell::build::generate_code_coverage() {
     if [[ "${CROMWELL_BUILD_GENERATE_COVERAGE}" == "true" ]]; then
         cromwell::private::generate_code_coverage
+    fi
+}
+
+cromwell::build::check_published_artifacts() {
+    if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]] && \
+        [[ "${CROMWELL_BUILD_TYPE}" == "sbt" ]] && \
+        [[ "${CROMWELL_BUILD_SBT_INCLUDE}" == "" ]] && \
+        [[ "${CROMWELL_BUILD_EVENT}" == "push" ]]; then
+
+        if [[ "${CROMWELL_BUILD_BRANCH}" == "develop" ]] || \
+            [[ "${CROMWELL_BUILD_BRANCH}" =~ ^[0-9\.]+_hotfix$ ]] || \
+            [[ -n "${CROMWELL_BUILD_TAG:+set}" ]]; then
+            # If cromwell::build::publish_artifacts is going to be publishing later check now that it will work
+            sbt \
+                -Dsbt.supershell=false \
+                --error \
+                errorIfAlreadyPublished
+        fi
+
     fi
 }
 

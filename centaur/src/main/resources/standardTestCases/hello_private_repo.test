@@ -5,6 +5,8 @@ backends: [LocalDockerSecure]
 files {
   workflow: hello_private_repo/hello_private_repo.wdl
   inputs: hello_private_repo/hello_private_repo.inputs.json
+  options: common_options/cache_read_off_write_on.options
+  second-options: common_options/cache_read_on_write_on.options
 }
 
 metadata {

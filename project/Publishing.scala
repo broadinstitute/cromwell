@@ -1,12 +1,16 @@
-import java.io.FileNotFoundException
-
 import Version.cromwellVersion
+import org.apache.ivy.Ivy
+import org.apache.ivy.core.IvyPatternHelper
+import org.apache.ivy.core.module.descriptor.{DefaultModuleDescriptor, MDArtifact}
+import org.apache.ivy.plugins.resolver.IBiblioResolver
 import sbt.Keys._
 import sbt._
 import sbtassembly.AssemblyPlugin.autoImport._
 import sbtdocker.DockerPlugin.autoImport._
 import sbtdocker.Instruction
 
+import java.io.FileNotFoundException
+import scala.collection.JavaConverters._
 import scala.sys.process._
 
 object Publishing {
@@ -43,7 +47,7 @@ object Publishing {
       val artifact: File = assembly.value
       val artifactTargetPath = s"/app/${artifact.name}"
       val projectName = name.value
-      val additionalDockerInstr: Seq[Instruction] = dockerCustomSettings.value
+      val additionalDockerInstr: Seq[Instruction] = (dockerCustomSettings ?? Nil).value
 
       new Dockerfile {
         from("us.gcr.io/broad-dsp-gcr-public/base/jre:11-debian")
@@ -97,7 +101,6 @@ object Publishing {
       cache = false,
       removeIntermediateContainers = BuildOptions.Remove.Always
     ),
-    ThisBuild / dockerCustomSettings := Nil, // setting the default value
   )
 
   def dockerPushSettings(pushEnabled: Boolean): Seq[Setting[_]] = {
@@ -119,27 +122,32 @@ object Publishing {
                 exception
               )
           }
-        },
+        }
       )
     } else {
       List(
         DockerKeys.dockerPush := {
-          Map.empty[sbtdocker.ImageName,sbtdocker.ImageDigest]
-        },
+          Map.empty[sbtdocker.ImageName, sbtdocker.ImageDigest]
+        }
       )
     }
   }
 
+  private val broadArtifactoryResolver: Resolver =
+    "Broad Artifactory" at
+      "https://broadinstitute.jfrog.io/broadinstitute/libs-release/"
+
   // https://stackoverflow.com/questions/9819965/artifactory-snapshot-filename-handling
   private val buildTimestamp = System.currentTimeMillis() / 1000
 
-  private def artifactoryResolver(isSnapshot: Boolean): Resolver = {
-    val repoType = if (isSnapshot) "snapshot" else "release"
-    val repoUrl =
-      s"https://broadinstitute.jfrog.io/broadinstitute/libs-$repoType-local;build.timestamp=$buildTimestamp"
-    val repoName = "artifactory-publish"
-    repoName at repoUrl
-  }
+  private val broadArtifactoryLocalResolver: Resolver =
+    "Broad Artifactory Local" at
+      s"https://broadinstitute.jfrog.io/broadinstitute/libs-release-local;build.timestamp=$buildTimestamp/"
+
+  val additionalResolvers = List(
+    broadArtifactoryResolver,
+    Resolver.sonatypeRepo("releases")
+  )
 
   private val artifactoryCredentialsFile =
     file("target/ci/resources/artifactory_credentials.properties").getAbsoluteFile
@@ -151,14 +159,94 @@ object Publishing {
       Nil
   }
 
-  val verifyArtifactoryCredentialsExist = taskKey[Unit]("Verify that the artifactory credentials file exists.")
+  // BT-250 Check if publishing will fail due to already published artifacts
+  val checkAlreadyPublished = taskKey[Boolean]("Verifies if publishing has already occurred")
+  val errorIfAlreadyPublished = taskKey[Unit]("Fails the build if publishing has already occurred")
 
-  val artifactorySettings: Seq[Setting[_]] = List(
-    publishTo := Option(artifactoryResolver(isSnapshot.value)),
-    credentials ++= artifactoryCredentials,
+  private case class CromwellMDArtifactType(artifactType: String,
+                                            artifactExtension: String,
+                                            classifierOption: Option[String])
+
+  /**
+    * The types of MDArtifacts published by this sbt build.
+    *
+    * This static list is an alternative to retrieving the types from sbt's `publishConfiguration` and its `artifacts`.
+    * That `publishConfiguration` unfortunately depends on `compile` so it takes several minutes to run.
+    */
+  private val cromwellMDArtifactTypes = List(
+    CromwellMDArtifactType("pom", "pom", None),
+    CromwellMDArtifactType("jar", "jar", None),
+    CromwellMDArtifactType("src", "jar", Option("sources")),
+    CromwellMDArtifactType("doc", "jar", Option("javadoc"))
   )
 
-  val rootArtifactorySettings: Seq[Setting[_]] = List(
+  /**
+    * Retrieve the IBiblioResolver from sbt's Ivy setup.
+    */
+  private def getIBiblioResolver(ivy: Ivy): IBiblioResolver = {
+    ivy.getSettings.getResolver(broadArtifactoryResolver.name) match {
+      case iBiblioResolver: IBiblioResolver => iBiblioResolver
+      case other => sys.error(s"Expected an IBiblioResolver, got $other")
+    }
+  }
+
+  /**
+    * Maps an sbt artifact to the Apache Ivy artifact type.
+    */
+  private def makeMDArtifact(moduleDescriptor: DefaultModuleDescriptor)
+                            (cromwellMDArtifactType: CromwellMDArtifactType): MDArtifact = {
+    new MDArtifact(
+      moduleDescriptor,
+      moduleDescriptor.getModuleRevisionId.getName,
+      cromwellMDArtifactType.artifactType,
+      cromwellMDArtifactType.artifactExtension,
+      null,
+      cromwellMDArtifactType.classifierOption.map("classifier" -> _).toMap.asJava
+    )
+  }
+
+  /**
+    * Returns true and prints out an error if an artifact already exists.
+    */
+  private def existsMDArtifact(resolver: IBiblioResolver, log: Logger)(mdArtifact: MDArtifact): Boolean = {
+    val exists = resolver.exists(mdArtifact)
+    if (exists) {
+      val pattern = resolver.getRoot + resolver.getPattern
+      val urlString = IvyPatternHelper.substitute(pattern, mdArtifact)
+      log.error(s"Already published: $urlString")
+    }
+    exists
+  }
+
+  val publishingSettings: Seq[Setting[_]] = List(
+    publishTo := Option(broadArtifactoryLocalResolver),
+    credentials ++= artifactoryCredentials,
+    checkAlreadyPublished := {
+      val module = ivyModule.value
+      val log = streams.value.log
+
+      module.withModule(log) {
+        case (ivy, moduleDescriptor, _) =>
+          val resolver = getIBiblioResolver(ivy)
+          cromwellMDArtifactTypes
+            .map(makeMDArtifact(moduleDescriptor))
+            .map(existsMDArtifact(resolver, log))
+            .exists(identity)
+      }
+    },
+    errorIfAlreadyPublished := {
+      if (checkAlreadyPublished.value) {
+        sys.error(
+          s"Some ${version.value} artifacts were already published and will need to be manually deleted. " +
+          "See the errors above for the list of published artifacts."
+        )
+      }
+    }
+  )
+
+  val verifyArtifactoryCredentialsExist = taskKey[Unit]("Verify that the artifactory credentials file exists.")
+
+  val rootPublishingSettings: Seq[Setting[_]] = List(
     verifyArtifactoryCredentialsExist := {
       if (!artifactoryCredentialsFile.exists) {
         throw new FileNotFoundException(
@@ -169,6 +257,6 @@ object Publishing {
               |""".stripMargin
         )
       }
-    },
+    }
   )
 }

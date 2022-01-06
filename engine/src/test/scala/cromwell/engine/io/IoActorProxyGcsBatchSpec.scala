@@ -1,19 +1,22 @@
 package cromwell.engine.io
 
-import java.util.UUID
-
 import akka.stream.ActorMaterializer
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags.IntegrationTest
 import cromwell.core.io._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
+import cromwell.engine.io.IoActor._
+import cromwell.engine.io.IoActorProxyGcsBatchSpec.IoActorConfig
+import cromwell.engine.io.gcs.GcsBatchFlow.GcsBatchFlowConfig
+import cromwell.engine.io.nio.NioFlow.NioFlowConfig
 import cromwell.filesystems.gcs.batch._
 import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder, GcsPathBuilderFactory}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
+import java.util.UUID
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
 import scala.language.postfixOps
@@ -73,7 +76,7 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Ma
                        testActorName: String,
                        serviceRegistryActorName: String) = {
     val testActor = TestActorRef(
-      factory = new IoActor(10, 10, 10, None, TestProbe(serviceRegistryActorName).ref, "cromwell test"),
+      factory = new IoActor(IoActorConfig, TestProbe(serviceRegistryActorName).ref, "cromwell test"),
       name = testActorName,
     )
 
@@ -149,7 +152,7 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Ma
 
   it should "copy files across GCS storage classes" taggedAs IntegrationTest in {
     val testActor = TestActorRef(
-      factory = new IoActor(10, 10, 10, None, TestProbe("serviceRegistryActor").ref, "cromwell test"),
+      factory = new IoActor(IoActorConfig, TestProbe("serviceRegistryActor").ref, "cromwell test"),
       name = "testActor",
     )
 
@@ -160,5 +163,27 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Ma
     expectMsgClass(30 seconds, classOf[IoSuccess[_]])
 
     dstMultiRegional.exists shouldBe true
+  }
+}
+
+object IoActorProxyGcsBatchSpec {
+
+  val IoActorConfig: IoConfig = {
+    val gcsConfig: GcsBatchFlowConfig =
+      GcsBatchFlowConfig(parallelism = 10, maxBatchSize = 100, maxBatchDuration = 5 seconds)
+
+    val nioConfig: NioFlowConfig = NioFlowConfig(parallelism = 10)
+
+    IoConfig(
+      queueSize = 10000,
+      numberOfAttempts = 5,
+      commandBackpressureStaleness = 5 seconds,
+      backPressureExtensionLogThreshold = 1 second,
+      ioNormalWindowMinimum = 20 seconds,
+      ioNormalWindowMaximum = 60 seconds,
+      nio = nioConfig,
+      gcsBatch = gcsConfig,
+      throttle = None
+    )
   }
 }

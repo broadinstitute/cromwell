@@ -174,7 +174,8 @@ object WorkflowActor {
             callCacheReadActor: ActorRef,
             callCacheWriteActor: ActorRef,
             dockerHashActor: ActorRef,
-            jobTokenDispenserActor: ActorRef,
+            jobRestartCheckTokenDispenserActor: ActorRef,
+            jobExecutionTokenDispenserActor: ActorRef,
             workflowStoreActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             serverMode: Boolean,
@@ -196,7 +197,8 @@ object WorkflowActor {
         callCacheReadActor = callCacheReadActor,
         callCacheWriteActor = callCacheWriteActor,
         dockerHashActor = dockerHashActor,
-        jobTokenDispenserActor = jobTokenDispenserActor,
+        jobRestartCheckTokenDispenserActor = jobRestartCheckTokenDispenserActor,
+        jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
         workflowStoreActor = workflowStoreActor,
         backendSingletonCollection = backendSingletonCollection,
         serverMode = serverMode,
@@ -222,7 +224,8 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
                     callCacheReadActor: ActorRef,
                     callCacheWriteActor: ActorRef,
                     dockerHashActor: ActorRef,
-                    jobTokenDispenserActor: ActorRef,
+                    jobRestartCheckTokenDispenserActor: ActorRef,
+                    jobExecutionTokenDispenserActor: ActorRef,
                     workflowStoreActor: ActorRef,
                     backendSingletonCollection: BackendSingletonCollection,
                     serverMode: Boolean,
@@ -329,7 +332,8 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
         callCacheReadActor = callCacheReadActor,
         callCacheWriteActor = callCacheWriteActor,
         workflowDockerLookupActor = workflowDockerLookupActor,
-        jobTokenDispenserActor = jobTokenDispenserActor,
+        jobRestartCheckTokenDispenserActor = jobRestartCheckTokenDispenserActor,
+        jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
         backendSingletonCollection,
         initializationData,
         startState = data.effectiveStartableState,
@@ -339,7 +343,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
         blacklistCache = blacklistCache), name = s"WorkflowExecutionActor-$workflowId")
 
       executionActor ! ExecuteWorkflowCommand
-      
+
       val nextState = data.effectiveStartableState match {
         case RestartableAborting => WorkflowAbortingState
         case _ => ExecutingWorkflowState
@@ -352,11 +356,11 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
     case Event(AbortWorkflowCommand, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _)) if !restarting =>
       handleAbortCommand(data, workflowDescriptor)
   }
-  
+
   /* ********************* */
   /* ****** Running ****** */
   /* ********************* */
-  
+
   // Handles workflow completion events from the WEA and abort command
   val executionResponseHandler: StateFunction = {
     // Workflow responses
@@ -394,7 +398,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
     case Event(_: WorkflowInitializationResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, Map.empty, CallOutputs.empty, failures = None)
   }
-  
+
   // In aborting state, we can receive initialization responses or execution responses.
   when(WorkflowAbortingState)(abortHandler.orElse(executionResponseHandler))
 
@@ -431,7 +435,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       case Some(currentActor) =>
         currentActor ! EngineLifecycleActorAbortCommand
         goto(WorkflowAbortingState) using data.copy(lastStateReached = StateCheckpoint(stateName, exceptionCausedAbortOpt.map(List(_))))
-      case None => 
+      case None =>
         workflowLogger.warn(s"Received an abort command in state $stateName but there's no lifecycle actor associated. This is an abnormal state, finalizing the workflow anyway.")
         finalizeWorkflow(data, workflowDescriptor, Map.empty, CallOutputs.empty, None)
     }
@@ -583,6 +587,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       val rootWorkflowId = data.workflowDescriptor.get.rootWorkflowId
       val deleteActor = context.actorOf(DeleteWorkflowFilesActor.props(
         rootWorkflowId = rootWorkflowId,
+        rootWorkflowRootPaths = data.initializationData.getWorkflowRoots(),
         rootAndSubworkflowIds = data.rootAndSubworkflowIds,
         workflowFinalOutputs = data.workflowFinalOutputs,
         workflowAllOutputs = data.workflowAllOutputs,
@@ -620,7 +625,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       case InitializingWorkflowState => None
       case _ => Option(CopyWorkflowOutputsActor.props(workflowIdForLogging, ioActor, workflowDescriptor, workflowOutputs, stateData.initializationData))
     }
-    
+
     context.actorOf(WorkflowFinalizationActor.props(
       workflowDescriptor = workflowDescriptor,
       ioActor = ioActor,

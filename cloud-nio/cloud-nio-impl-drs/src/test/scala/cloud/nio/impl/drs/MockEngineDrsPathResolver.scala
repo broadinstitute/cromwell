@@ -2,7 +2,9 @@ package cloud.nio.impl.drs
 
 import cats.data.NonEmptyList
 import cats.effect.IO
+import cats.syntax.validated._
 import com.google.cloud.NoCredentials
+import common.validation.ErrorOr.ErrorOr
 import org.apache.http.impl.client.HttpClientBuilder
 import org.specs2.mock.Mockito
 import org.specs2.mock.Mockito._
@@ -13,7 +15,7 @@ class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfi
                                 httpClientBuilderOverride: Option[HttpClientBuilder] = None,
                                 accessTokenAcceptableTTL: Duration = Duration.Inf,
                                )
-  extends EngineDrsPathResolver(drsConfig, accessTokenAcceptableTTL, NoCredentials.getInstance) {
+  extends EngineDrsPathResolver(drsConfig, GoogleDrsCredentials(NoCredentials.getInstance, accessTokenAcceptableTTL)) {
 
   override protected lazy val httpClientBuilder: HttpClientBuilder =
     httpClientBuilderOverride getOrElse Mockito.mock[HttpClientBuilder].smart
@@ -37,6 +39,10 @@ class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfi
 
   private val marthaObjWithFileName = marthaObjWithGcsPath.copy(fileName = Option("file.txt"))
 
+  private val marthaObjWithLocalizationPath = marthaObjWithGcsPath.copy(localizationPath = Option("/dir/subdir/file.txt"))
+
+  private val marthaObjWithAllThePaths = marthaObjWithLocalizationPath.copy(fileName = marthaObjWithFileName.fileName)
+
   private val marthaObjWithNoGcsPath = marthaObjWithGcsPath.copy(gsUri = None)
 
   override def resolveDrsThroughMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): IO[MarthaResponse] = {
@@ -44,6 +50,8 @@ class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfi
       case MockDrsPaths.drsPathResolvingGcsPath => IO(marthaObjWithGcsPath)
       case MockDrsPaths.drsPathWithNonPathChars => IO(marthaObjWithGcsPath)
       case MockDrsPaths.drsPathResolvingWithFileName => IO(marthaObjWithFileName)
+      case MockDrsPaths.drsPathResolvingWithLocalizationPath => IO.pure(marthaObjWithLocalizationPath)
+      case MockDrsPaths.drsPathResolvingWithAllThePaths => IO.pure(marthaObjWithAllThePaths)
       case MockDrsPaths.drsPathResolvingToNoGcsPath => IO(marthaObjWithNoGcsPath)
       case MockDrsPaths.drsPathNotExistingInMartha =>
         IO.raiseError(
@@ -55,5 +63,5 @@ class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfi
     }
   }
 
-  override lazy val getAccessToken: String = MockDrsPaths.mockToken
+  override lazy val getAccessToken: ErrorOr[String] = MockDrsPaths.mockToken.validNel
 }

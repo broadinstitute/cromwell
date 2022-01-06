@@ -11,7 +11,7 @@ import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
 import com.google.auth.http.HttpCredentialsAdapter
 import com.google.auth.oauth2.OAuth2Credentials
-import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.VirtualPrivateCloudConfiguration
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes._
 import cromwell.backend.google.pipelines.common.PipelinesApiInitializationActor._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory
 import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
@@ -31,6 +31,7 @@ import spray.json.{JsObject, JsString}
 import wom.graph.CommandCallNode
 
 import scala.concurrent.Future
+import scala.util.Try
 
 case class PipelinesApiInitializationActorParams
 (
@@ -63,20 +64,7 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
   private lazy val genomicsCredentials: Future[Credentials] = pipelinesConfiguration.papiAttributes.auths.genomics
     .retryCredentials(workflowOptions, List(
       CloudLifeSciencesScopes.CLOUD_PLATFORM,
-      GenomicsScopes.GENOMICS,
-      /*
-      Used to write so-called "auth" files. The `gcsAuthFilePath` could probably be refactored such that *this* created
-      `genomicsCredentials` doesn't actually need DEVSTORAGE_FULL_CONTROL, but it's also not clear how the magic
-      Genomics Pipelines API parameter "__extra_config_gcs_path" works nor where it's documented.
-
-      See also:
-      - cromwell.backend.google.pipelines.common.PipelinesApiWorkflowPaths#gcsAuthFilePath
-      - https://github.com/broadinstitute/cromwell/pull/2435
-      - cromwell.backend.google.pipelines.common.PipelinesApiConfiguration#needAuthFileUpload
-      - cromwell.cloudsupport.gcp.auth.GoogleAuthMode#requiresAuthFile
-      - cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor#gcsAuthParameter
-       */
-      StorageScopes.DEVSTORAGE_FULL_CONTROL,
+      GenomicsScopes.GENOMICS
     ))
 
   // Genomics object to access the Genomics API
@@ -139,7 +127,7 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
       descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.GoogleProject, pipelinesParams.jesConfiguration.papiAttributes.project)
     }
 
-    def projectMetadataRequest(vpcConfig: VirtualPrivateCloudConfiguration): Future[HttpRequest] = {
+    def projectMetadataRequest(vpcConfig: VirtualPrivateCloudLabels): Future[HttpRequest] = {
       Future {
         val credentials = vpcConfig.auth.credentials(workflowOptions.get(_).get, List(CloudLifeSciencesScopes.CLOUD_PLATFORM))
 
@@ -163,8 +151,10 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
       }
     }
 
-    def networkLabelsFromProjectLabels(vpcConfig: VirtualPrivateCloudConfiguration, projectLabels: ProjectLabels): Option[VpcAndSubnetworkProjectLabelValues] = {
-      projectLabels.labels.get(vpcConfig.name) map { vpcNetworkLabelValue =>
+    def networkLabelsFromProjectLabels(vpcConfig: VirtualPrivateCloudLabels,
+                                       projectLabels: ProjectLabels,
+                                      ): Option[VpcAndSubnetworkProjectLabelValues] = {
+      projectLabels.labels.get(vpcConfig.network) map { vpcNetworkLabelValue =>
         val subnetworkLabelOption = vpcConfig.subnetwork.flatMap { s =>
           projectLabels.labels.collectFirst {
             case (labelName, labelValue) if labelName.equals(s) => labelValue
@@ -175,17 +165,37 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
       }
     }
 
-    def fetchVpcLabelsFromProjectMetadata(vpcConfig: VirtualPrivateCloudConfiguration): Future[Option[VpcAndSubnetworkProjectLabelValues]] = {
+    def fetchVpcLabelsFromProjectMetadata(vpcConfig: VirtualPrivateCloudLabels
+                                         ): Future[Option[VpcAndSubnetworkProjectLabelValues]] = {
       for {
         projectMetadataResponse <- projectMetadataRequest(vpcConfig).map(_.executeAsync().get())
         projectLabels <- projectMetadataResponseToLabels(projectMetadataResponse)
       } yield networkLabelsFromProjectLabels(vpcConfig, projectLabels)
     }
 
-    pipelinesConfiguration.papiAttributes.virtualPrivateCloudConfiguration match {
-      case None => Future.successful(None)
-      case Some(vpcConfig) => fetchVpcLabelsFromProjectMetadata(vpcConfig)
+    /*
+    First, try to fetch the network information from labels, where that fetch may still return None.
+    Then, if we did not discover a network via labels for whatever reason try to look for literal values.
+     */
+    def fetchVpcLabels(vpcConfig: VirtualPrivateCloudConfiguration
+                      ): Future[Option[VpcAndSubnetworkProjectLabelValues]] = {
+      // Added explicit types to hopefully help future devs who stumble across this two-step code
+      val fetchedFromLabels: Future[Option[VpcAndSubnetworkProjectLabelValues]] = vpcConfig.labelsOption match {
+        case Some(labels: VirtualPrivateCloudLabels) => fetchVpcLabelsFromProjectMetadata(labels)
+        case None => Future.successful(None)
+      }
+      fetchedFromLabels map {
+        _ orElse {
+          vpcConfig.literalsOption map { literals: VirtualPrivateCloudLiterals =>
+            VpcAndSubnetworkProjectLabelValues(literals.network, literals.subnetwork)
+          }
+        }
+      }
     }
+
+    val vpcConfig: VirtualPrivateCloudConfiguration =
+      pipelinesConfiguration.papiAttributes.virtualPrivateCloudConfiguration
+    fetchVpcLabels(vpcConfig)
   }
 
   override lazy val workflowPaths: Future[PipelinesApiWorkflowPaths] = for {
@@ -210,12 +220,12 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
     privateDockerEncryptedToken = privateDockerEncryptedToken,
     vpcNetworkAndSubnetworkProjectLabels = vpcNetworkAndSubnetworkProjectLabels)
 
+  override def validateWorkflowOptions(): Try[Unit] = GoogleLabels.fromWorkflowOptions(workflowOptions).map(_ => ())
+
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     for {
       paths <- workflowPaths
       _ = publishWorkflowRoot(paths.workflowRoot.pathAsString)
-      // Validate the google-labels workflow options, and only succeed initialization if they're good:
-      _ <- Future.fromTry(GoogleLabels.fromWorkflowOptions(workflowOptions))
       data <- initializationData
     } yield Option(data)
   }

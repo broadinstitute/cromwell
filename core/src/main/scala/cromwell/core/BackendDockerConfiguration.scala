@@ -1,10 +1,23 @@
 package cromwell.core
 
+import java.util.Base64
+
 import com.typesafe.config.Config
 import cromwell.core.ConfigUtil._
 
+import scala.util.Try
+
 object DockerCredentials {
   def unapply(arg: DockerCredentials): Option[String] = Option(arg.token)
+}
+
+object DockerCredentialUsernameAndPassword {
+  private val tokenStringFormat = raw"([^:]*):(.*)".r
+
+  def unapply(arg: DockerCredentials): Option[(String, String)] = Try(new String(Base64.getDecoder.decode(arg.token))).toOption match {
+    case Some(tokenStringFormat(username, password)) => Some((username, password))
+    case _ => None
+  }
 }
 
 /**

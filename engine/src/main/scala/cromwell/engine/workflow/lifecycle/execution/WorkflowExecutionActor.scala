@@ -2,7 +2,6 @@ package cromwell.engine.workflow.lifecycle.execution
 
 import java.time.OffsetDateTime
 import java.util.concurrent.atomic.AtomicInteger
-
 import _root_.wdl.draft2.model._
 import akka.actor.{Scope => _, _}
 import cats.data.NonEmptyList
@@ -47,6 +46,7 @@ import wom.graph._
 import wom.graph.expression.{ExposedExpressionNode, TaskCallInputExpressionNode}
 import wom.values._
 
+import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.control.NoStackTrace
@@ -59,12 +59,12 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     with Timers
     with CromwellInstrumentation {
 
-  implicit val ec = context.dispatcher
-  override val serviceRegistryActor = params.serviceRegistryActor
-  val workflowDescriptor = params.workflowDescriptor
-  override val workflowIdForLogging = workflowDescriptor.possiblyNotRootWorkflowId
-  override val rootWorkflowIdForLogging = workflowDescriptor.rootWorkflowId
-  override val workflowIdForCallMetadata = workflowDescriptor.id
+  implicit val ec: ExecutionContextExecutor = context.dispatcher
+  override val serviceRegistryActor: ActorRef = params.serviceRegistryActor
+  val workflowDescriptor: EngineWorkflowDescriptor = params.workflowDescriptor
+  override val workflowIdForLogging: PossiblyNotRootWorkflowId = workflowDescriptor.possiblyNotRootWorkflowId
+  override val rootWorkflowIdForLogging: RootWorkflowId = workflowDescriptor.rootWorkflowId
+  override val workflowIdForCallMetadata: WorkflowId = workflowDescriptor.id
   private val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
   private val restarting = params.startState.restarted
   private val tag = s"WorkflowExecutionActor [UUID(${workflowDescriptor.id.shortString})]"
@@ -73,6 +73,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   private val DefaultMaxScatterSize = 1000000
   private val TotalMaxJobsPerRootWf = params.rootConfig.getOrElse("system.total-max-jobs-per-root-workflow", DefaultTotalMaxJobsPerRootWf)
   private val MaxScatterWidth = params.rootConfig.getOrElse("system.max-scatter-width-per-scatter", DefaultMaxScatterSize)
+  private val FileHashBatchSize: Int = params.rootConfig.as[Int]("system.file-hash-batch-size")
 
   private val backendFactories: Map[String, BackendLifecycleActorFactory] = {
     val factoriesValidation = workflowDescriptor.backendAssignments.values.toList
@@ -263,8 +264,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     case Event(JobFailedNonRetryableResponse(jobKey, reason, returnCode), stateData) =>
       handleNonRetryableFailure(stateData, jobKey, reason, returnCode)
     // Job Retryable
-    case Event(JobFailedRetryableResponse(jobKey, reason, returnCode, memoryMultiplier), _) =>
-      handleRetryableFailure(jobKey, reason, returnCode, memoryMultiplier)
+    case Event(JobFailedRetryableResponse(jobKey, reason, returnCode), _) =>
+      handleRetryableFailure(jobKey, reason, returnCode)
     // Aborted? But we're outside of the AbortingState!?? Could happen if
     // - The job was aborted by something external to Cromwell
     // - The job lasted too long (eg PAPI 6 day timeout)
@@ -474,11 +475,9 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
   private def handleRetryableFailure(jobKey: BackendJobDescriptorKey,
                                      reason: Throwable,
-                                     returnCode: Option[Int],
-                                     memoryMultiplier: MemoryRetryMultiplierRefined) = {
+                                     returnCode: Option[Int]) = {
     pushFailedCallMetadata(jobKey, returnCode, reason, retryableFailure = true)
-
-    val newJobKey = jobKey.copy(attempt = jobKey.attempt + 1, memoryMultiplier = memoryMultiplier)
+    val newJobKey = jobKey.copy(attempt = jobKey.attempt + 1)
     workflowLogger.info(s"Retrying job execution for ${newJobKey.tag}")
 
     // Update current key to RetryableFailure status and add new key with attempt incremented and NotStarted status
@@ -662,7 +661,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       writeActor = params.callCacheWriteActor,
       fileHashCacheActor = params.fileHashCacheActor,
       maxFailedCopyAttempts = params.rootConfig.getInt("call-caching.max-failed-copy-attempts"),
-      blacklistCache = params.blacklistCache
+      blacklistCache = params.blacklistCache,
+      fileHashBatchSize = FileHashBatchSize
     )
 
     val ejeaProps = EngineJobExecutionActor.props(
@@ -676,7 +676,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       ioActor = params.ioActor,
       jobStoreActor = params.jobStoreActor,
       workflowDockerLookupActor = params.workflowDockerLookupActor,
-      jobTokenDispenserActor = params.jobTokenDispenserActor,
+      jobRestartCheckTokenDispenserActor = params.jobRestartCheckTokenDispenserActor,
+      jobExecutionTokenDispenserActor = params.jobExecutionTokenDispenserActor,
       backendSingleton,
       command,
       callCachingParameters
@@ -710,7 +711,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         callCacheReadActor = params.callCacheReadActor,
         callCacheWriteActor = params.callCacheWriteActor,
         workflowDockerLookupActor = params.workflowDockerLookupActor,
-        jobTokenDispenserActor = params.jobTokenDispenserActor,
+        jobRestartCheckTokenDispenserActor = params.jobRestartCheckTokenDispenserActor,
+        jobExecutionTokenDispenserActor = params.jobExecutionTokenDispenserActor,
         params.backendSingletonCollection,
         params.initializationData,
         params.startState,
@@ -814,15 +816,17 @@ object WorkflowExecutionActor {
     */
   private case object ExecutionHeartBeatKey
 
+  sealed trait SubWorkflowTerminalStateResponse { def jobExecutionMap: JobExecutionMap }
+
   case class SubWorkflowSucceededResponse(key: SubWorkflowKey,
                                           jobExecutionMap: JobExecutionMap,
                                           rootAndSubworklowIds: Set[WorkflowId],
                                           outputs: CallOutputs,
-                                          cumulativeOutputs: Set[WomValue] = Set.empty)
+                                          cumulativeOutputs: Set[WomValue] = Set.empty) extends SubWorkflowTerminalStateResponse
 
-  case class SubWorkflowFailedResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap, reason: Throwable)
+  case class SubWorkflowFailedResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap, reason: Throwable) extends SubWorkflowTerminalStateResponse
 
-  case class SubWorkflowAbortedResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap)
+  case class SubWorkflowAbortedResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap) extends SubWorkflowTerminalStateResponse
 
   case class WorkflowExecutionActorParams(
                                            workflowDescriptor: EngineWorkflowDescriptor,
@@ -833,7 +837,8 @@ object WorkflowExecutionActor {
                                            callCacheReadActor: ActorRef,
                                            callCacheWriteActor: ActorRef,
                                            workflowDockerLookupActor: ActorRef,
-                                           jobTokenDispenserActor: ActorRef,
+                                           jobRestartCheckTokenDispenserActor: ActorRef,
+                                           jobExecutionTokenDispenserActor: ActorRef,
                                            backendSingletonCollection: BackendSingletonCollection,
                                            initializationData: AllBackendInitializationData,
                                            startState: StartableState,
@@ -851,7 +856,8 @@ object WorkflowExecutionActor {
             callCacheReadActor: ActorRef,
             callCacheWriteActor: ActorRef,
             workflowDockerLookupActor: ActorRef,
-            jobTokenDispenserActor: ActorRef,
+            jobRestartCheckTokenDispenserActor: ActorRef,
+            jobExecutionTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             initializationData: AllBackendInitializationData,
             startState: StartableState,
@@ -870,7 +876,8 @@ object WorkflowExecutionActor {
           callCacheReadActor = callCacheReadActor,
           callCacheWriteActor = callCacheWriteActor,
           workflowDockerLookupActor = workflowDockerLookupActor,
-          jobTokenDispenserActor = jobTokenDispenserActor,
+          jobRestartCheckTokenDispenserActor = jobRestartCheckTokenDispenserActor,
+          jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
           backendSingletonCollection,
           initializationData,
           startState,

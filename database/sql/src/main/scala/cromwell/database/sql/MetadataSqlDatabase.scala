@@ -3,7 +3,7 @@ package cromwell.database.sql
 import java.sql.Timestamp
 
 import cromwell.database.sql.joins.MetadataJobQueryValue
-import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
+import cromwell.database.sql.tables.{InformationSchemaEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
 import slick.basic.DatabasePublisher
 
 import scala.concurrent.duration.Duration
@@ -195,4 +195,6 @@ trait MetadataSqlDatabase extends SqlDatabase {
                                                                        workflowEndTimestampThreshold: Timestamp)(implicit ec: ExecutionContext): Future[Int]
 
   def countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowEndTimestampThreshold: Timestamp)(implicit ec: ExecutionContext): Future[Int]
+
+  def getMetadataTableSizeInformation()(implicit ec: ExecutionContext): Future[Option[InformationSchemaEntry]]
 }

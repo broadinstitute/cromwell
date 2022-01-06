@@ -1,12 +1,13 @@
 package cromwell.backend.google.pipelines.v2alpha1
 
 import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
-import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
+import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, GoogleDrsCredentials}
 import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
 import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiFileInput
+import cromwell.backend.google.pipelines.common.action.ActionUtils
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkingDisk}
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.filesystems.drs.DrsPathBuilder
@@ -15,6 +16,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration.DurationInt
 
 class PipelinesConversionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
@@ -24,7 +26,7 @@ class PipelinesConversionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with
 
   private val marthaConfig: Config = ConfigFactory.parseString(
     """martha {
-      |   url = "http://matha-url"
+      |   url = "http://martha-url"
       |}
       |""".stripMargin
   )
@@ -37,7 +39,7 @@ class PipelinesConversionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with
   it should "create a DRS input parameter" in {
 
     val drsPathBuilder = DrsPathBuilder(
-      new DrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, drsReadInterpreter),
+      new DrsCloudNioFileSystemProvider(marthaConfig, GoogleDrsCredentials(fakeCredentials, 1.minutes), drsReadInterpreter),
       None,
     )
     val drsPath = drsPathBuilder.build("drs://drs.example.org/aaaabbbb-cccc-dddd-eeee-abcd0000dcba").get
@@ -65,7 +67,7 @@ class PipelinesConversionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with
     logging.get("mounts") should be(a[java.util.List[_]])
     logging.get("mounts").asInstanceOf[java.util.List[_]] should be (empty)
 
-    logging.get("imageUri") should be(GenomicsFactory.CloudSdkImage)
+    logging.get("imageUri") should be(ActionUtils.CloudSdkImage)
 
     val loggingLabels = logging.get("labels").asInstanceOf[java.util.Map[_, _]]
     loggingLabels.keySet.asScala should contain theSameElementsAs List("logging", "inputName")

@@ -1,9 +1,10 @@
 package cromwell.database.slick.tables
 
 import java.sql.Timestamp
-import javax.sql.rowset.serial.SerialClob
 
-import cromwell.database.sql.tables.MetadataEntry
+import javax.sql.rowset.serial.SerialClob
+import cromwell.database.sql.tables.{InformationSchemaEntry, MetadataEntry}
+import slick.jdbc.GetResult
 
 trait MetadataEntryComponent {
 
@@ -60,6 +61,13 @@ trait MetadataEntryComponent {
       metadataEntry <- metadataEntries
       if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
     } yield metadataEntry).sortBy(_.metadataTimestamp)
+  )
+
+  val metadataEntriesForWorkflowSortedById = Compiled(
+    (workflowExecutionUuid: Rep[String]) => (for {
+      metadataEntry <- metadataEntries
+      if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
+    } yield metadataEntry).sortBy(_.metadataEntryId)
   )
 
   val countMetadataEntriesForWorkflowExecutionUuid = Compiled(
@@ -288,6 +296,18 @@ trait MetadataEntryComponent {
       // regardless of the attempt
       if (metadataEntry.jobAttempt === jobAttempt) || jobAttempt.isEmpty
     } yield metadataEntry).size
+  }
+
+  def metadataTableSizeInformation() = {
+    val query =
+      sql"""
+          |SELECT DATA_LENGTH, INDEX_LENGTH, DATA_FREE
+          |FROM information_schema.tables
+          |WHERE TABLE_NAME = 'METADATA_ENTRY'
+         """.stripMargin
+    query.as[InformationSchemaEntry](rconv = GetResult { r =>
+      InformationSchemaEntry(r.<<, r.<<, r.<<)
+    }).headOption
   }
 
   private[this] def metadataEntryHasMetadataKeysLike(metadataEntry: MetadataEntries,

@@ -6,7 +6,7 @@ import cats.data.Validated.{Invalid, Valid}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr
 import common.validation.ErrorOr.ErrorOr
-import common.validation.Validation.MemoryRetryMultiplierRefined
+import cromwell.backend.BackendLifecycleActorFactory.MemoryMultiplierKey
 import cromwell.backend._
 import cromwell.backend.validation.DockerValidation
 import cromwell.core.Dispatcher.EngineDispatcher
@@ -33,7 +33,7 @@ import wom.values._
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.control.NoStackTrace
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 /**
   * Prepares a job for the backend. The goal of this actor is to build a BackendJobDescriptor.
@@ -75,10 +75,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   when(Idle) {
     case Event(Start(valueStore), JobPreparationActorNoData) =>
       evaluateInputsAndAttributes(valueStore) match {
-        case Valid((inputs, attributes)) => {
-          val updatedRuntimeAttributes = updateRuntimeMemory(attributes)
-          fetchDockerHashesIfNecessary(inputs, updatedRuntimeAttributes)
-        }
+        case Valid((inputs, attributes)) => fetchDockerHashesIfNecessary(inputs, attributes)
         case Invalid(failure) => sendFailureAndStop(new MessageAggregation with NoStackTrace {
           override def exceptionContext: String = s"Call input and runtime attributes evaluation failed for ${jobKey.call.localName}"
           override def errorMessages: Traversable[String] = failure.toList
@@ -89,7 +86,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   when(WaitingForDockerHash) {
     case Event(DockerInfoSuccessResponse(DockerInformation(dockerHash, dockerSize), _), data: JobPreparationDockerLookupData) =>
       handleDockerHashSuccess(dockerHash, dockerSize, data)
-    case Event(WorkflowDockerLookupFailure(reason, _), data: JobPreparationDockerLookupData) =>
+    case Event(WorkflowDockerLookupFailure(reason, _, _), data: JobPreparationDockerLookupData) =>
       workflowLogger.warn("Docker lookup failed", reason)
       handleDockerHashFailed(data)
     case Event(WorkflowDockerTerminalFailure(reason, _), _: JobPreparationDockerLookupData) =>
@@ -100,7 +97,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     case Event(kvResponse: KvResponse, data @ JobPreparationKeyLookupData(keyLookups, maybeCallCachingEligible, dockerSize, inputs, attributes)) =>
       keyLookups.withResponse(kvResponse.key, kvResponse) match {
         case newPartialLookup: PartialKeyValueLookups => stay using data.copy(keyLookups = newPartialLookup)
-        case finished: KeyValueLookupResults => 
+        case finished: KeyValueLookupResults =>
           sendResponseAndStop(prepareBackendDescriptor(inputs, attributes, maybeCallCachingEligible, finished.unscoped, dockerSize))
       }
   }
@@ -140,14 +137,14 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
 
     def handleDockerValue(value: String) = DockerImageIdentifier.fromString(value) match {
         // If the backend supports docker, lookup is enabled, and we got a tag - we need to lookup the hash
-      case Success(dockerImageId: DockerImageIdentifierWithoutHash) if hasDockerDefinition && DockerConfiguration.instance.enabled => 
+      case Success(dockerImageId: DockerImageIdentifierWithoutHash) if hasDockerDefinition && DockerConfiguration.instance.enabled =>
         sendDockerRequest(dockerImageId)
         // If the backend supports docker, we got a tag but lookup is disabled, continue with no call caching and no hash
       case Success(dockerImageId: DockerImageIdentifierWithoutHash) if hasDockerDefinition =>
         lookupKvsOrBuildDescriptorAndStop(inputs, attributes, FloatingDockerTagWithoutHash(dockerImageId.fullName), None)
 
       // If the backend doesn't support docker - no need to lookup and we're ok for call caching
-      case Success(_: DockerImageIdentifierWithoutHash) if !hasDockerDefinition => 
+      case Success(_: DockerImageIdentifierWithoutHash) if !hasDockerDefinition =>
         lookupKvsOrBuildDescriptorAndStop(inputs, attributes, NoDocker, None)
 
       // Even if the docker image has a hash, we need to (try to) find out the size, so send a request
@@ -165,13 +162,14 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     }
   }
 
-  private def updateRuntimeMemory(runtimeAttributes: Map[LocallyQualifiedName, WomValue]): Map[LocallyQualifiedName, WomValue] = {
-    def multiplyRuntimeMemory(multiplier: MemoryRetryMultiplierRefined): Map[LocallyQualifiedName, WomValue] = {
+  private def updateRuntimeMemory(runtimeAttributes: Map[LocallyQualifiedName, WomValue],
+                                  memoryMultiplierOption: Option[Double]): Map[LocallyQualifiedName, WomValue] = {
+    def multiplyRuntimeMemory(multiplier: Double): Map[LocallyQualifiedName, WomValue] = {
       runtimeAttributes.get(RuntimeAttributesKeys.MemoryKey) match {
         case Some(WomString(memory)) =>
           MemorySize.parse(memory) match {
             case Success(mem) =>
-              val memString = MemorySize(mem.amount * multiplier.value, mem.unit).toString
+              val memString = MemorySize(mem.amount * multiplier, mem.unit).toString
               runtimeAttributes ++ Map(RuntimeAttributesKeys.MemoryKey -> WomString(memString))
             case _ => runtimeAttributes
           }
@@ -179,9 +177,10 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
       }
     }
 
-    jobKey.memoryMultiplier match {
-      case multiplier: MemoryRetryMultiplierRefined if multiplier.value == 1.0 => runtimeAttributes
-      case multiplier: MemoryRetryMultiplierRefined => multiplyRuntimeMemory(multiplier)
+    memoryMultiplierOption match {
+      case None => runtimeAttributes
+      case Some(multiplier) if multiplier == 1.0 => runtimeAttributes
+      case Some(multiplier) => multiplyRuntimeMemory(multiplier)
     }
   }
 
@@ -204,7 +203,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     dockerSize.foreach(sendCompressedDockerSizeToMetadata)
     lookupKvsOrBuildDescriptorAndStop(data.inputs, data.attributes, DockerWithHash(hashValue.fullName), dockerSize)
   }
-  
+
   private def sendCompressedDockerSizeToMetadata(dockerSize: DockerSize) = {
     val event = MetadataEvent(metadataKeyForCall(jobKey, CallMetadataKeys.CompressedDockerSize), MetadataValue(dockerSize.compressedSize))
     serviceRegistryActor ! PutMetadataAction(event)
@@ -236,7 +235,20 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
                                                     maybeCallCachingEligible: MaybeCallCachingEligible,
                                                     prefetchedJobStoreEntries: Map[String, KvResponse],
                                                     dockerSize: Option[DockerSize]): BackendJobPreparationSucceeded = {
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, runtimeAttributes, inputEvaluation, maybeCallCachingEligible, dockerSize, prefetchedJobStoreEntries)
+    val memoryMultiplier: Option[Double] = prefetchedJobStoreEntries.get(MemoryMultiplierKey) match {
+      case Some(KvPair(_,v)) => Try(v.toDouble) match {
+        case Success(m) => Option(m)
+        case Failure(e) =>
+          // should not happen as we are converting a value that Cromwell put in DB after validation
+          log.error(e, s"Programmer error: unexpected failure attempting to convert value of MemoryMultiplierKey from JOB_KEY_VALUE_ENTRY table to Double.")
+          None
+      }
+      case _ => None
+    }
+
+    val updatedRuntimeAttributes = updateRuntimeMemory(runtimeAttributes, memoryMultiplier)
+
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, updatedRuntimeAttributes, inputEvaluation, maybeCallCachingEligible, dockerSize, prefetchedJobStoreEntries)
     BackendJobPreparationSucceeded(jobDescriptor, jobExecutionProps(jobDescriptor, initializationData, serviceRegistryActor, ioActor, backendSingletonActor))
   }
 

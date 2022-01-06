@@ -169,7 +169,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
         leasedToken.release()
         context.unwatch(actor)
         increment(tokensReturnedMetricPath, ServicesPrefix)
-        sendTiming(tokenLeaseDurationMetricPath, calculateTimeSince(timestamp))
+        sendTiming(tokenLeaseDurationMetricPath, calculateTimeSince(timestamp), ServicesPrefix)
         ()
       case None =>
         log.error(s"Job {} token returned from incorrect actor: {}", dispenserType, actor.path.name)

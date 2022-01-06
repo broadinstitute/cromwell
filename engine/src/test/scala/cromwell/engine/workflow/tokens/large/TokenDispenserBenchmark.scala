@@ -3,7 +3,7 @@ package cromwell.engine.workflow.tokens.large
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import cromwell.core.ExecutionStatus.{apply => _}
-import cromwell.core.JobExecutionToken.JobExecutionTokenType
+import cromwell.core.JobToken.JobTokenType
 import cromwell.engine.workflow.tokens.{NullTokenEventLogger, RoundRobinQueueIterator, TokenQueue}
 import cromwell.engine.workflow.tokens.TokenQueue.TokenQueuePlaceholder
 import org.scalameter.api._
@@ -77,7 +77,7 @@ object TokenDispenserBenchmark extends Bench[Double] with DefaultJsonProtocol {
       val queues = for {
         jobCount <- jobCounts
         hogFactor <- Gen.exponential("hogFactor")(from = 1, until = Math.min(jobCount, 65536), factor = 4)
-        tokenType = JobExecutionTokenType("BIG_PAPI", Some(poolSize), hogFactor)
+        tokenType = JobTokenType("BIG_PAPI", Some(poolSize), hogFactor)
 
       } yield (jobCount, hogFactor, tokenType)
 

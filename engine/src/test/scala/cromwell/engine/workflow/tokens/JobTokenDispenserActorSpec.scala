@@ -36,7 +36,7 @@ class JobTokenDispenserActorSpec extends TestKitSuite
       factory =
         new JobTokenDispenserActor(
           serviceRegistryActor = TestProbe(serviceRegistryActorName).ref,
-          distributionRate = Rate(10, 100.millis),
+          dispensingRate = Rate(10, 100.millis),
           logInterval = None,
           dispenserType = "execution",
           tokenAllocatedDescription = "Running"
@@ -90,7 +90,7 @@ class JobTokenDispenserActorSpec extends TestKitSuite
       factory =
         new JobTokenDispenserActor(
           serviceRegistryActor = TestProbe("serviceRegistryActor-dispense-correct-amount").ref,
-          distributionRate = Rate(10, 4.seconds),
+          dispensingRate = Rate(10, 4.seconds),
           logInterval = None,
           dispenserType = "execution",
           tokenAllocatedDescription = "Running"

@@ -26,7 +26,7 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
-                             override val distributionRate: DynamicRateLimiter.Rate,
+                             override val dispensingRate: DynamicRateLimiter.Rate,
                              logInterval: Option[FiniteDuration],
                              dispenserType: String,
                              tokenAllocatedDescription: String)
@@ -40,7 +40,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
 {
 
   // Metrics paths are based on the dispenser type
-  private val tokenDispenserMetricsBasePath: NonEmptyList[String] = NonEmptyList.of("token_distributor", dispenserType)
+  private val tokenDispenserMetricsBasePath: NonEmptyList[String] = NonEmptyList.of("token_dispenser", dispenserType)
 
   private val tokenLeaseDurationMetricPath: NonEmptyList[String] = tokenDispenserMetricsBasePath :+ "token_hold_duration"
 
@@ -90,20 +90,20 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
     super.preStart()
   }
 
-  override def receive: Actor.Receive = tokenDistributionReceive.orElse(rateReceive).orElse(instrumentationReceive(instrumentationAction))
+  override def receive: Actor.Receive = tokenDispensingReceive.orElse(rateReceive).orElse(instrumentationReceive(instrumentationAction))
 
-  private def tokenDistributionReceive: Receive = {
+  private def tokenDispensingReceive: Receive = {
     case JobTokenRequest(hogGroup, tokenType) => enqueue(sender, hogGroup.value, tokenType)
     case JobTokenReturn => release(sender)
     case TokensAvailable(n) =>
       emitHeartbeatMetrics()
-      distribute(n)
+      dispense(n)
     case Terminated(terminee) => onTerminate(terminee)
     case LogJobTokenAllocation(nextInterval) => logTokenAllocation(nextInterval)
     case ShutdownCommand => context stop self
   }
 
-  // This makes sure the metric paths are being used even if there's no other activity on the token distributor:
+  // This makes sure the metric paths are being used even if there's no other activity on the token dispenser:
   private def emitHeartbeatMetrics(): Unit = {
     count(requestsEnqueuedMetricPath, 0L, ServicesPrefix)
     count(tokensLeasedMetricPath, 0L, ServicesPrefix)
@@ -122,14 +122,14 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
     }
   }
 
-  private def distribute(n: Int) = if (tokenQueues.nonEmpty) {
+  private def dispense(n: Int) = if (tokenQueues.nonEmpty) {
 
     // Sort by backend name to avoid re-ordering across iterations:
     val iterator = new RoundRobinQueueIterator(tokenQueues.toList.sortBy(_._1.backend).map(_._2), currentTokenQueuePointer)
 
     // In rare cases, an abort might empty an inner queue between "available" and "dequeue", which could cause an
     // exception.
-    // If we do nothing now then when we rebuild the iterator next time we run distribute(), that won't happen again next time.
+    // If we do nothing now then when we rebuild the iterator next time we run dispense(), that won't happen again next time.
     val nextTokens = Try(iterator.take(n)) match {
       case Success(tokens) => tokens.toList
       case Failure(e) =>

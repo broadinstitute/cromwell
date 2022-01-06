@@ -15,7 +15,6 @@ import cromwell.engine.workflow.tokens.TokenQueue.{LeasedActor, TokenQueuePlaceh
 import cromwell.services.instrumentation.CromwellInstrumentation._
 import cromwell.services.instrumentation.{CromwellInstrumentation, CromwellInstrumentationScheduler}
 import cromwell.services.loadcontroller.LoadControllerService.ListenToLoadController
-import cromwell.services.metadata.impl.MetadataServiceActor
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import io.circe.generic.JsonCodec
 import io.circe.Printer
@@ -39,6 +38,16 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
     with DynamicRateLimiter
     with CromwellInstrumentation
 {
+
+  // Metrics paths are based on the dispenser type
+  private val tokenDispenserMetricsBasePath: NonEmptyList[String] = NonEmptyList.of("token_distributor", dispenserType)
+
+  private val tokenLeaseDurationMetricPath: NonEmptyList[String] = tokenDispenserMetricsBasePath :+ "token_hold_duration"
+
+  private val tokenDispenserMetricsActivityRates: NonEmptyList[String] = tokenDispenserMetricsBasePath :+ "activity_rate"
+  private val requestsEnqueuedMetricPath: NonEmptyList[String] = tokenDispenserMetricsActivityRates :+ "requests_enqueued"
+  private val tokensLeasedMetricPath: NonEmptyList[String] = tokenDispenserMetricsActivityRates :+ "tokens_dispensed"
+  private val tokensReturnedMetricPath: NonEmptyList[String] = tokenDispenserMetricsActivityRates :+ "tokens_returned"
 
   /**
     * Lazily created token queue. We only create a queue for a token type when we need it
@@ -223,10 +232,4 @@ object JobTokenDispenserActor {
   final case class TokenTypeState(tokenType: JobTokenType, queue: TokenQueueState)
 
   final case class TokenLeaseRecord(tokenLease: Lease[JobToken], time: OffsetDateTime)
-
-  private val tokenDispensorMetricsBasePath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "token_distributor"
-  private val requestsEnqueuedMetricPath: NonEmptyList[String] = tokenDispensorMetricsBasePath :+ "requests_enqueued"
-  private val tokensLeasedMetricPath: NonEmptyList[String] = tokenDispensorMetricsBasePath :+ "tokens_distributed"
-  private val tokensReturnedMetricPath: NonEmptyList[String] = tokenDispensorMetricsBasePath :+ "tokens_returned"
-  private val tokenLeaseDurationMetricPath: NonEmptyList[String] = tokenDispensorMetricsBasePath :+ "token_hold_duration"
 }

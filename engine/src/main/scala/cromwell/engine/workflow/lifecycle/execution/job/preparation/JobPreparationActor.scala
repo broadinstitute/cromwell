@@ -86,7 +86,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   when(WaitingForDockerHash) {
     case Event(DockerInfoSuccessResponse(DockerInformation(dockerHash, dockerSize), _), data: JobPreparationDockerLookupData) =>
       handleDockerHashSuccess(dockerHash, dockerSize, data)
-    case Event(WorkflowDockerLookupFailure(reason, _), data: JobPreparationDockerLookupData) =>
+    case Event(WorkflowDockerLookupFailure(reason, _, _), data: JobPreparationDockerLookupData) =>
       workflowLogger.warn("Docker lookup failed", reason)
       handleDockerHashFailed(data)
     case Event(WorkflowDockerTerminalFailure(reason, _), _: JobPreparationDockerLookupData) =>
@@ -97,7 +97,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     case Event(kvResponse: KvResponse, data @ JobPreparationKeyLookupData(keyLookups, maybeCallCachingEligible, dockerSize, inputs, attributes)) =>
       keyLookups.withResponse(kvResponse.key, kvResponse) match {
         case newPartialLookup: PartialKeyValueLookups => stay using data.copy(keyLookups = newPartialLookup)
-        case finished: KeyValueLookupResults => 
+        case finished: KeyValueLookupResults =>
           sendResponseAndStop(prepareBackendDescriptor(inputs, attributes, maybeCallCachingEligible, finished.unscoped, dockerSize))
       }
   }
@@ -137,14 +137,14 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
 
     def handleDockerValue(value: String) = DockerImageIdentifier.fromString(value) match {
         // If the backend supports docker, lookup is enabled, and we got a tag - we need to lookup the hash
-      case Success(dockerImageId: DockerImageIdentifierWithoutHash) if hasDockerDefinition && DockerConfiguration.instance.enabled => 
+      case Success(dockerImageId: DockerImageIdentifierWithoutHash) if hasDockerDefinition && DockerConfiguration.instance.enabled =>
         sendDockerRequest(dockerImageId)
         // If the backend supports docker, we got a tag but lookup is disabled, continue with no call caching and no hash
       case Success(dockerImageId: DockerImageIdentifierWithoutHash) if hasDockerDefinition =>
         lookupKvsOrBuildDescriptorAndStop(inputs, attributes, FloatingDockerTagWithoutHash(dockerImageId.fullName), None)
 
       // If the backend doesn't support docker - no need to lookup and we're ok for call caching
-      case Success(_: DockerImageIdentifierWithoutHash) if !hasDockerDefinition => 
+      case Success(_: DockerImageIdentifierWithoutHash) if !hasDockerDefinition =>
         lookupKvsOrBuildDescriptorAndStop(inputs, attributes, NoDocker, None)
 
       // Even if the docker image has a hash, we need to (try to) find out the size, so send a request
@@ -203,7 +203,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     dockerSize.foreach(sendCompressedDockerSizeToMetadata)
     lookupKvsOrBuildDescriptorAndStop(data.inputs, data.attributes, DockerWithHash(hashValue.fullName), dockerSize)
   }
-  
+
   private def sendCompressedDockerSizeToMetadata(dockerSize: DockerSize) = {
     val event = MetadataEvent(metadataKeyForCall(jobKey, CallMetadataKeys.CompressedDockerSize), MetadataValue(dockerSize.compressedSize))
     serviceRegistryActor ! PutMetadataAction(event)

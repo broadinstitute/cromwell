@@ -1,20 +1,37 @@
 package cromwell.backend.google.pipelines.common
 
 import akka.actor.ActorRef
+import com.google.api.client.http.{HttpRequest, HttpResponse}
+import com.google.api.services.cloudkms.v1.model.EncryptRequest
+import com.google.api.services.cloudkms.v1.{CloudKMS, CloudKMSScopes}
+import com.google.api.services.cloudresourcemanager.CloudResourceManager
+import com.google.api.services.genomics.v2alpha1.GenomicsScopes
+import com.google.api.services.lifesciences.v2beta.CloudLifeSciencesScopes
+import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
+import com.google.auth.http.HttpCredentialsAdapter
+import com.google.auth.oauth2.OAuth2Credentials
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes._
+import cromwell.backend.google.pipelines.common.PipelinesApiInitializationActor._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory
 import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
+import cromwell.cloudsupport.gcp.auth.GoogleAuthMode.{httpTransport, jsonFactory}
 import cromwell.cloudsupport.gcp.auth.{GoogleAuthMode, UserServiceAccountMode}
-import cromwell.core.Dispatcher
+import cromwell.core.{Dispatcher, WorkflowOptions}
 import cromwell.core.io.AsyncIoActorClient
 import cromwell.filesystems.gcs.GoogleUtil._
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
+import _root_.io.circe.Decoder
+import _root_.io.circe.generic.semiauto.deriveDecoder
+import _root_.io.circe.parser.decode
 import org.apache.commons.codec.binary.Base64
+import org.apache.commons.lang3.exception.ExceptionUtils
 import spray.json.{JsObject, JsString}
 import wom.graph.CommandCallNode
 
 import scala.concurrent.Future
+import scala.util.Try
 
 case class PipelinesApiInitializationActorParams
 (
@@ -31,21 +48,24 @@ case class PipelinesApiInitializationActorParams
 class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializationActorParams)
   extends StandardInitializationActor(pipelinesParams) with AsyncIoActorClient {
 
-  override lazy val ioActor = pipelinesParams.ioActor
-  protected val pipelinesConfiguration = pipelinesParams.jesConfiguration
-  protected val workflowOptions = workflowDescriptor.workflowOptions
+  override lazy val ioActor: ActorRef = pipelinesParams.ioActor
+  protected val pipelinesConfiguration: PipelinesApiConfiguration = pipelinesParams.jesConfiguration
+  protected val workflowOptions: WorkflowOptions = workflowDescriptor.workflowOptions
   private lazy val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
 
   override lazy val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
     PipelinesApiRuntimeAttributes.runtimeAttributesBuilder(pipelinesConfiguration)
 
   // Credentials object for the GCS API
-  private lazy val gcsCredentials: Future[Credentials] =
-    pipelinesConfiguration.jesAttributes.auths.gcs.retryPipelinesApiCredentials(workflowOptions)
+  private lazy val gcsCredentials: Future[Credentials] = pipelinesConfiguration.papiAttributes.auths.gcs
+      .retryCredentials(workflowOptions, List(StorageScopes.DEVSTORAGE_FULL_CONTROL))
 
   // Credentials object for the Genomics API
-  private lazy val genomicsCredentials: Future[Credentials] =
-    pipelinesConfiguration.jesAttributes.auths.genomics.retryPipelinesApiCredentials(workflowOptions)
+  private lazy val genomicsCredentials: Future[Credentials] = pipelinesConfiguration.papiAttributes.auths.genomics
+    .retryCredentials(workflowOptions, List(
+      CloudLifeSciencesScopes.CLOUD_PLATFORM,
+      GenomicsScopes.GENOMICS
+    ))
 
   // Genomics object to access the Genomics API
   private lazy val genomics: Future[PipelinesApiRequestFactory] = {
@@ -97,8 +117,85 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
       plain <- unencrypted
       auth <- effectiveAuth
       key <- privateDockerEncryptionKeyName
-      cred <- auth.apiClientGoogleCredential(k => workflowOptions.get(k).get)
-    } yield GoogleAuthMode.encryptKms(key, cred, plain)
+      credentials = auth.credentials(workflowOptions.get(_).get, List(CloudKMSScopes.CLOUD_PLATFORM))
+      encrypted = encryptKms(key, credentials, plain)
+    } yield encrypted
+  }
+
+  private def vpcNetworkAndSubnetworkProjectLabelsFuture(): Future[Option[VpcAndSubnetworkProjectLabelValues]] = {
+    def googleProject(descriptor: BackendWorkflowDescriptor): String = {
+      descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.GoogleProject, pipelinesParams.jesConfiguration.papiAttributes.project)
+    }
+
+    def projectMetadataRequest(vpcConfig: VirtualPrivateCloudLabels): Future[HttpRequest] = {
+      Future {
+        val credentials = vpcConfig.auth.credentials(workflowOptions.get(_).get, List(CloudLifeSciencesScopes.CLOUD_PLATFORM))
+
+        val httpCredentialsAdapter = new HttpCredentialsAdapter(credentials)
+        val cloudResourceManagerBuilder = new CloudResourceManager
+        .Builder(GoogleAuthMode.httpTransport, GoogleAuthMode.jsonFactory, httpCredentialsAdapter)
+          .setApplicationName(pipelinesConfiguration.googleConfig.applicationName)
+          .build()
+
+        val project = cloudResourceManagerBuilder.projects().get(googleProject(workflowDescriptor))
+
+        project.buildHttpRequest()
+      }
+    }
+
+    def projectMetadataResponseToLabels(httpResponse: HttpResponse): Future[ProjectLabels] = {
+      implicit val googleProjectMetadataLabelDecoder: Decoder[ProjectLabels] = deriveDecoder
+      Future.fromTry(decode[ProjectLabels](httpResponse.parseAsString()).toTry).recoverWith {
+        case e: Throwable => Future.failed(new RuntimeException(s"Failed to parse labels from project metadata response from Google Cloud Resource Manager API. " +
+          s"${ExceptionUtils.getMessage(e)}", e))
+      }
+    }
+
+    def networkLabelsFromProjectLabels(vpcConfig: VirtualPrivateCloudLabels,
+                                       projectLabels: ProjectLabels,
+                                      ): Option[VpcAndSubnetworkProjectLabelValues] = {
+      projectLabels.labels.get(vpcConfig.network) map { vpcNetworkLabelValue =>
+        val subnetworkLabelOption = vpcConfig.subnetwork.flatMap { s =>
+          projectLabels.labels.collectFirst {
+            case (labelName, labelValue) if labelName.equals(s) => labelValue
+          }
+        }
+
+        VpcAndSubnetworkProjectLabelValues(vpcNetworkLabelValue, subnetworkLabelOption)
+      }
+    }
+
+    def fetchVpcLabelsFromProjectMetadata(vpcConfig: VirtualPrivateCloudLabels
+                                         ): Future[Option[VpcAndSubnetworkProjectLabelValues]] = {
+      for {
+        projectMetadataResponse <- projectMetadataRequest(vpcConfig).map(_.executeAsync().get())
+        projectLabels <- projectMetadataResponseToLabels(projectMetadataResponse)
+      } yield networkLabelsFromProjectLabels(vpcConfig, projectLabels)
+    }
+
+    /*
+    First, try to fetch the network information from labels, where that fetch may still return None.
+    Then, if we did not discover a network via labels for whatever reason try to look for literal values.
+     */
+    def fetchVpcLabels(vpcConfig: VirtualPrivateCloudConfiguration
+                      ): Future[Option[VpcAndSubnetworkProjectLabelValues]] = {
+      // Added explicit types to hopefully help future devs who stumble across this two-step code
+      val fetchedFromLabels: Future[Option[VpcAndSubnetworkProjectLabelValues]] = vpcConfig.labelsOption match {
+        case Some(labels: VirtualPrivateCloudLabels) => fetchVpcLabelsFromProjectMetadata(labels)
+        case None => Future.successful(None)
+      }
+      fetchedFromLabels map {
+        _ orElse {
+          vpcConfig.literalsOption map { literals: VirtualPrivateCloudLiterals =>
+            VpcAndSubnetworkProjectLabelValues(literals.network, literals.subnetwork)
+          }
+        }
+      }
+    }
+
+    val vpcConfig: VirtualPrivateCloudConfiguration =
+      pipelinesConfiguration.papiAttributes.virtualPrivateCloudConfiguration
+    fetchVpcLabels(vpcConfig)
   }
 
   override lazy val workflowPaths: Future[PipelinesApiWorkflowPaths] = for {
@@ -112,6 +209,7 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
     jesWorkflowPaths <- workflowPaths
     gcsCreds <- gcsCredentials
     genomicsFactory <- genomics
+    vpcNetworkAndSubnetworkProjectLabels <- vpcNetworkAndSubnetworkProjectLabelsFuture()
   } yield PipelinesApiBackendInitializationData(
     workflowPaths = jesWorkflowPaths,
     runtimeAttributesBuilder = runtimeAttributesBuilder,
@@ -119,7 +217,10 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
     gcsCredentials = gcsCreds,
     genomicsRequestFactory = genomicsFactory,
     privateDockerEncryptionKeyName = privateDockerEncryptionKeyName,
-    privateDockerEncryptedToken = privateDockerEncryptedToken)
+    privateDockerEncryptedToken = privateDockerEncryptedToken,
+    vpcNetworkAndSubnetworkProjectLabels = vpcNetworkAndSubnetworkProjectLabels)
+
+  override def validateWorkflowOptions(): Try[Unit] = GoogleLabels.fromWorkflowOptions(workflowOptions).map(_ => ())
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     for {
@@ -132,10 +233,21 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
   def standardStreamNameToFileNameMetadataMapper(pipelinesApiJobPaths: PipelinesApiJobPaths, streamName: String): String =
     PipelinesApiInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper(pipelinesApiJobPaths, streamName)
 
-  override lazy val ioCommandBuilder = GcsBatchCommandBuilder
+  override lazy val ioCommandBuilder: GcsBatchCommandBuilder.type = GcsBatchCommandBuilder
 }
 
 object PipelinesApiInitializationActor {
   // For metadata publishing purposes default to using the name of a standard stream as the stream's filename.
   def defaultStandardStreamNameToFileNameMetadataMapper(pipelinesApiJobPaths: PipelinesApiJobPaths, streamName: String): String = streamName
+
+  def encryptKms(keyName: String, credentials: OAuth2Credentials, plainText: String): String = {
+    val httpCredentialsAdapter = new HttpCredentialsAdapter(credentials)
+    val kms = new CloudKMS.Builder(httpTransport, jsonFactory, httpCredentialsAdapter)
+      .setApplicationName("cromwell")
+      .build()
+
+    val request = new EncryptRequest().encodePlaintext(plainText.toCharArray.map(_.toByte))
+    val response = kms.projects.locations.keyRings.cryptoKeys.encrypt(keyName, request).execute
+    response.getCiphertext
+  }
 }

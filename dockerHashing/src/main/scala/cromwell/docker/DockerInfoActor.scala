@@ -1,8 +1,9 @@
 package cromwell.docker
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
 import akka.stream._
-import cats.effect.IO
+import cats.effect.IO._
+import cats.effect.{ContextShift, IO, Timer}
 import cats.instances.list._
 import cats.syntax.parallel._
 import com.google.common.cache.CacheBuilder
@@ -13,8 +14,9 @@ import cromwell.core.actor.StreamIntegration.{BackPressure, StreamContext}
 import cromwell.core.{Dispatcher, DockerConfiguration}
 import cromwell.docker.DockerInfoActor._
 import cromwell.docker.registryv2.DockerRegistryV2Abstract
+import cromwell.docker.registryv2.flows.alibabacloudcrregistry._
 import cromwell.docker.registryv2.flows.dockerhub.DockerHubRegistry
-import cromwell.docker.registryv2.flows.gcr.GcrRegistry
+import cromwell.docker.registryv2.flows.google.GoogleRegistry
 import cromwell.docker.registryv2.flows.quay.QuayRegistry
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import fs2.Pipe
@@ -22,8 +24,9 @@ import fs2.concurrent.{NoneTerminatedQueue, Queue}
 import net.ceedubs.ficus.Ficus._
 import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.client.middleware.{Retry, RetryPolicy}
-import org.slf4j.LoggerFactory
+import org.slf4j.{Logger, LoggerFactory}
 
+import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
 
 final class DockerInfoActor(
@@ -33,10 +36,10 @@ final class DockerInfoActor(
                              cacheSize: Long
                            ) extends Actor with ActorLogging {
 
-  implicit val system = context.system
-  implicit val ec = context.dispatcher
-  implicit val cs = IO.contextShift(ec)
-  val retryPolicy = RetryPolicy[IO](RetryPolicy.exponentialBackoff(DockerConfiguration.instance.maxTimeBetweenRetries, DockerConfiguration.instance.maxRetries))
+  implicit val system: ActorSystem = context.system
+  implicit val ec: ExecutionContextExecutor = context.dispatcher
+  implicit val cs: ContextShift[IO] = IO.contextShift(ec)
+  val retryPolicy: RetryPolicy[IO] = RetryPolicy[IO](RetryPolicy.exponentialBackoff(DockerConfiguration.instance.maxTimeBetweenRetries, DockerConfiguration.instance.maxRetries))
 
   /* Use the guava CacheBuilder class that implements a thread safe map with built in cache features.
    * https://google.github.io/guava/releases/20.0/api/docs/com/google/common/cache/CacheBuilder.html
@@ -68,7 +71,7 @@ final class DockerInfoActor(
     Option(cache.getIfPresent(dockerHashRequest.dockerImageID))
   }
 
-  override def receive = receiveBehavior(Map.empty)
+  override def receive: Receive = receiveBehavior(Map.empty)
 
   def receiveBehavior(registries: Map[DockerRegistry, StreamQueue]): Receive = {
     case request: DockerInfoRequest =>
@@ -82,13 +85,13 @@ final class DockerInfoActor(
       // Shutdown all streams by sending None to the queue
       registries
         .values.toList
-        .parTraverse[IO, IO.Par, Unit](_.enqueue1(None))
+        .parTraverse[IO, Unit](_.enqueue1(None))
         .unsafeRunSync()
 
       context stop self
   }
 
-  def sendToStream(registries: Map[DockerRegistry, StreamQueue], context: DockerInfoActor.DockerInfoContext) = {
+  def sendToStream(registries: Map[DockerRegistry, StreamQueue], context: DockerInfoActor.DockerInfoContext): Unit = {
     registries collectFirst {
       case (registry, queue) if registry.accepts(context.dockerImageID) => queue
     } match {
@@ -97,7 +100,7 @@ final class DockerInfoActor(
     }
   }
 
-  def enqueue(dockerInfoContext: DockerInfoContext, queue: StreamQueue) = {
+  def enqueue(dockerInfoContext: DockerInfoContext, queue: StreamQueue): Unit = {
     val enqueueIO = queue.offer1(Option(dockerInfoContext)).runAsync {
       case Right(true) => IO.unit// Good !
       case _ => backpressure(dockerInfoContext)
@@ -107,6 +110,7 @@ final class DockerInfoActor(
   }
 
   private def backpressure(commandContext: DockerInfoContext) = IO {
+    logger.warn(s"Backpressuring DockerInfoActor enqueue for image ${commandContext.dockerImageID.fullName}")
     commandContext.replyTo ! BackPressure(commandContext.request)
   }
 
@@ -128,8 +132,8 @@ final class DockerInfoActor(
    * To send requests to the stream, simply enqueue a request message.
    */
   private def startAndRegisterStream(registry: DockerRegistry): IO[(DockerRegistry, StreamQueue)] = {
-    implicit val timer = IO.timer(registry.config.executionContext)
-    implicit val cs = IO.contextShift(registry.config.executionContext)
+    implicit val timer: Timer[IO] = IO.timer(registry.config.executionContext)
+    implicit val cs: ContextShift[IO] = IO.contextShift(registry.config.executionContext)
 
     /*
      * An http4s client passed to the run method of registries so they can perform the necessary requests
@@ -142,7 +146,7 @@ final class DockerInfoActor(
     Queue.boundedNoneTerminated[IO, DockerInfoContext](queueBufferSize) map { queue =>
       val source = queue.dequeue
       // If the registry imposes throttling, debounce the stream to ensure the throttling rate is respected
-      val throttledSource = registry.config.throttle.map(_.delay).map(source.debounce[IO]).getOrElse(source)
+      val throttledSource = registry.config.throttle.map(_.delay).map(source.metered[IO]).getOrElse(source)
 
       val stream = clientStream.flatMap({ client =>
         throttledSource
@@ -159,7 +163,7 @@ final class DockerInfoActor(
     }
   }
 
-  override def preStart() = {
+  override def preStart(): Unit = {
     // Force initialization of the header constants to make sure they're valid
     locally(DockerRegistryV2Abstract)
     
@@ -178,7 +182,7 @@ final class DockerInfoActor(
 object DockerInfoActor {
   private type StreamQueue = NoneTerminatedQueue[IO, DockerInfoContext]
 
-  val logger = LoggerFactory.getLogger("DockerRegistry")
+  val logger: Logger = LoggerFactory.getLogger("DockerRegistry")
 
   /* Response Messages */
   sealed trait DockerInfoResponse {
@@ -210,8 +214,8 @@ object DockerInfoActor {
 
   /* Internal ADTs */
   case class DockerInfoContext(request: DockerInfoRequest, replyTo: ActorRef) extends StreamContext {
-    val dockerImageID = request.dockerImageID
-    val credentials = request.credentials
+    val dockerImageID: DockerImageIdentifier = request.dockerImageID
+    val credentials: List[Any] = request.credentials
   }
 
   private case class EnqueueResponse(result: QueueOfferResult, dockerInfoContext: DockerInfoContext)
@@ -220,24 +224,19 @@ object DockerInfoActor {
   def props(dockerRegistryFlows: Seq[DockerRegistry],
             queueBufferSize: Int = 100,
             cacheEntryTTL: FiniteDuration,
-            cacheSize: Long) = {
+            cacheSize: Long): Props = {
     Props(new DockerInfoActor(dockerRegistryFlows, queueBufferSize, cacheEntryTTL, cacheSize)).withDispatcher(Dispatcher.IoDispatcher)
   }
 
   def remoteRegistriesFromConfig(config: Config): List[DockerRegistry] = {
-    import cats.instances.list._
     import cats.syntax.traverse._
-
-    val gcrConstructor = { c: DockerRegistryConfig =>
-      c.copy(throttle = c.throttle.orElse(DockerConfiguration.instance.deprecatedGcrApiQueriesPer100Seconds))
-      new GcrRegistry(c)
-    }
 
     // To add a new registry, simply add it to that list
     List(
       ("dockerhub", { c: DockerRegistryConfig => new DockerHubRegistry(c) }),
-      ("gcr", gcrConstructor),
-      ("quay", { c: DockerRegistryConfig => new QuayRegistry(c) })
+      ("google", { c: DockerRegistryConfig => new GoogleRegistry(c) }),
+      ("quay", { c: DockerRegistryConfig => new QuayRegistry(c) }),
+      ("alibabacloudcr", {c: DockerRegistryConfig => new AlibabaCloudCRRegistry(c)})
     ).traverse[ErrorOr, DockerRegistry]({
       case (configPath, constructor) => DockerRegistryConfig.fromConfig(config.as[Config](configPath)).map(constructor)
     }).unsafe("Docker registry configuration")

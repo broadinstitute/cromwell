@@ -1,12 +1,14 @@
 package wdl.types
 
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import wdl.draft2.model.types.WdlFlavoredWomType._
 import wdl.draft2.parser.WdlParser.SyntaxError
 import wom.types.{WomMapType, WomObjectType, WomStringType}
 import wom.values.{WomMap, WomObject, WomString}
-import wdl.draft2.model.types.WdlFlavoredWomType._
 
-class WdlObjectTypeSpec extends FlatSpec with Matchers {
+class WdlObjectTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   val abcObject = WomObject(Map(
     "a" -> WomString("one"),
     "b" -> WomString("two"),

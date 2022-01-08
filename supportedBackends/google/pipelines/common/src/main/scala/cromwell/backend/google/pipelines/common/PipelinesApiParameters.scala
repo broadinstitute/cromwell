@@ -35,10 +35,22 @@ sealed trait PipelinesParameter {
     * e.g: /cromwell_root/root_bucket/input_data/my_input.bam
     */
   def containerPath: Path = mount.mountPoint.resolve(relativeHostPath)
+
+  /**
+    * True if this parameter represents a file; false if it represents a directory.
+    */
+  def isFileParameter: Boolean = this match {
+    case _: PipelinesApiFileInput => true
+    case _: PipelinesApiFileOutput => true
+    case _: PipelinesApiDirectoryInput => false
+    case _: PipelinesApiDirectoryOutput => false
+  }
 }
 
 sealed trait PipelinesApiInput extends PipelinesParameter
-sealed trait PipelinesApiOutput extends PipelinesParameter
+sealed trait PipelinesApiOutput extends PipelinesParameter {
+  def contentType: Option[ContentType] = None
+}
 
 final case class PipelinesApiFileInput(name: String,
                                        cloudPath: Path,
@@ -57,7 +69,7 @@ final case class PipelinesApiFileOutput(name: String,
                                         optional: Boolean,
                                         secondary: Boolean,
                                         uploadPeriod: Option[FiniteDuration] = None,
-                                        contentType: Option[ContentType] = None) extends PipelinesApiOutput
+                                        override val contentType: Option[ContentType] = None) extends PipelinesApiOutput
 
 final case class PipelinesApiDirectoryOutput(name: String,
                                              cloudPath: Path,
@@ -65,7 +77,7 @@ final case class PipelinesApiDirectoryOutput(name: String,
                                              mount: PipelinesApiAttachedDisk,
                                              optional: Boolean,
                                              secondary: Boolean,
-                                             contentType: Option[ContentType] = None) extends PipelinesApiOutput
+                                             override val contentType: Option[ContentType] = None) extends PipelinesApiOutput
 
 // TODO: Remove when support for V1 is stopped, this is only used to pass the extra_param auth file
 final case class PipelinesApiLiteralInput(name: String, value: String)

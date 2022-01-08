@@ -5,11 +5,13 @@ import akka.event.NoLogging
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse, StatusCodes}
 import akka.stream.ActorMaterializer
+import cats.Monad
 import cats.effect.IO
 import cromiam.auth.{Collection, User}
 import cromiam.cromwell.CromwellClient
 import cromiam.sam.SamClient
 import cromiam.sam.SamClient.{CollectionAuthorizationRequest, SamDenialException, SamRegisterCollectionException}
+import cromiam.webservice.MockSamClient._
 import cromwell.api.model._
 
 import scala.concurrent.ExecutionContextExecutor
@@ -51,11 +53,15 @@ class MockCromwellClient()(implicit system: ActorSystem,
 
   override def forwardToCromwell(httpRequest: HttpRequest): FailureResponseOrT[HttpResponse] = {
     val versionRoutePath = s"/engine/$version/version"
+    val womtoolRoutePath = s"/api/womtool/$version/describe"
 
     httpRequest.uri.path.toString match {
       //version endpoint doesn't require authentication
       case `versionRoutePath` =>
         FailureResponseOrT.pure(HttpResponse(status = OK, entity = "Response from Cromwell"))
+      // womtool endpoint requires authn which it gets for free from the proxy, does not care about authz
+      case `womtoolRoutePath` =>
+        FailureResponseOrT.pure(HttpResponse(status = OK, entity = "Hey there, workflow describer"))
       case _ => checkHeaderAuthorization(httpRequest)
     }
   }
@@ -84,11 +90,13 @@ class MockCromwellClient()(implicit system: ActorSystem,
   }
 }
 
-class MockSamClient(checkSubmitWhitelist: Boolean = true,
-                    samResponseOption: Option[HttpResponse] = None)
+/**
+  * Overrides some values, but doesn't override methods.
+  */
+class BaseMockSamClient(checkSubmitWhitelist: Boolean = true)
                    (implicit system: ActorSystem,
-                      ece: ExecutionContextExecutor,
-                      materializer: ActorMaterializer)
+                    ece: ExecutionContextExecutor,
+                    materializer: ActorMaterializer)
   extends SamClient(
     "http",
     "bar",
@@ -96,61 +104,59 @@ class MockSamClient(checkSubmitWhitelist: Boolean = true,
     checkSubmitWhitelist,
     NoLogging,
     ActorRef.noSender
-  )(system, ece, materializer) {
+  )(system, ece, materializer)
 
-  val authorizedUserCollectionStr: String = "123456789"
-  val unauthorizedUserCollectionStr: String = "987654321"
-
-  val notWhitelistedUser: String = "ABC123"
-
-  val userCollectionList: List[Collection] = List(Collection("col1"), Collection("col2"))
+/**
+  * Extends the base mock client with overriden methods.
+  */
+class MockSamClient(checkSubmitWhitelist: Boolean = true)
+                   (implicit system: ActorSystem,
+                      ece: ExecutionContextExecutor,
+                      materializer: ActorMaterializer)
+  extends BaseMockSamClient(checkSubmitWhitelist) {
 
   override def collectionsForUser(user: User, httpRequest: HttpRequest): FailureResponseOrT[List[Collection]] = {
-    samResponseOption match {
-      case Some(samResponse) => FailureResponseOrT.left(IO.pure(samResponse))
-      case None =>
-        val userId = user.userId.value
-        if (userId.equalsIgnoreCase(unauthorizedUserCollectionStr)) {
-          val exception = new Exception(s"Unable to look up collections for user $userId!")
-          FailureResponseOrT.left(IO.raiseError[HttpResponse](exception))
-        } else {
-          FailureResponseOrT.pure(userCollectionList)
-        }
+    val userId = user.userId.value
+    if (userId.equalsIgnoreCase(UnauthorizedUserCollectionStr)) {
+      val exception = new Exception(s"Unable to look up collections for user $userId!")
+      FailureResponseOrT.left(IO.raiseError[HttpResponse](exception))
+    } else {
+      FailureResponseOrT.pure(UserCollectionList)
     }
   }
 
   override def requestSubmission(user: User,
                                  collection: Collection,
                                  cromIamRequest: HttpRequest): FailureResponseOrT[Unit] = {
-    samResponseOption match {
-      case Some(samResponse) => FailureResponseOrT.left(IO.pure(samResponse))
-      case None =>
-        collection match {
-          case c if c.name.equalsIgnoreCase(unauthorizedUserCollectionStr) =>
-            val exception = SamRegisterCollectionException(StatusCodes.BadRequest)
-            FailureResponseOrT.left(IO.raiseError[HttpResponse](exception))
-          case c if c.name.equalsIgnoreCase(authorizedUserCollectionStr) => FailureResponseOrT.pure(())
-          case _ => FailureResponseOrT.pure(())
-        }
+    collection match {
+      case c if c.name.equalsIgnoreCase(UnauthorizedUserCollectionStr) =>
+        val exception = SamRegisterCollectionException(StatusCodes.BadRequest)
+        FailureResponseOrT.left(IO.raiseError[HttpResponse](exception))
+      case c if c.name.equalsIgnoreCase(AuthorizedUserCollectionStr) => Monad[FailureResponseOrT].unit
+      case _ => Monad[FailureResponseOrT].unit
     }
   }
 
   override def isSubmitWhitelistedSam(user: User, cromIamRequest: HttpRequest): FailureResponseOrT[Boolean] = {
-    samResponseOption match {
-      case Some(samResponse) => FailureResponseOrT.left(IO.pure(samResponse))
-      case None => FailureResponseOrT.pure(!user.userId.value.equalsIgnoreCase(notWhitelistedUser))
-    }
+    FailureResponseOrT.pure(!user.userId.value.equalsIgnoreCase(NotWhitelistedUser))
   }
 
   override def requestAuth(authorizationRequest: CollectionAuthorizationRequest,
                            cromIamRequest: HttpRequest): FailureResponseOrT[Unit] = {
-    samResponseOption match {
-      case Some(samResponse) => FailureResponseOrT.left(IO(samResponse))
-      case None =>
-        authorizationRequest.user.userId.value match {
-          case `authorizedUserCollectionStr` => FailureResponseOrT.pure(())
-          case _ => FailureResponseOrT.left(IO.raiseError[HttpResponse](new SamDenialException))
-        }
+    authorizationRequest.user.userId.value match {
+      case AuthorizedUserCollectionStr => Monad[FailureResponseOrT].unit
+      case _ => FailureResponseOrT.left(IO.raiseError[HttpResponse](new SamDenialException))
     }
+  }
+}
+
+object MockSamClient {
+  val AuthorizedUserCollectionStr: String = "123456789"
+  val UnauthorizedUserCollectionStr: String = "987654321"
+  val NotWhitelistedUser: String = "ABC123"
+  val UserCollectionList: List[Collection] = List(Collection("col1"), Collection("col2"))
+
+  def returnResponse[T](response: HttpResponse): FailureResponseOrT[T] = {
+    FailureResponseOrT.left(IO.pure(response))
   }
 }

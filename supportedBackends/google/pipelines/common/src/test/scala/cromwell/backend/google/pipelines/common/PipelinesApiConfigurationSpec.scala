@@ -1,14 +1,17 @@
 package cromwell.backend.google.pipelines.common
 
-import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import com.typesafe.config.ConfigFactory
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.BackendConfigurationDescriptor
-import cromwell.core.path.DefaultPathBuilder
-import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
-import PipelinesApiTestConfig._
+import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig._
 import cromwell.cloudsupport.gcp.GoogleConfiguration
+import cromwell.core.path.DefaultPathBuilder
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.prop.TableDrivenPropertyChecks
 
-class PipelinesApiConfigurationSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks with BeforeAndAfterAll {
+class PipelinesApiConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks with BeforeAndAfterAll {
 
   behavior of "PipelinesApiConfigurationSpec"
 
@@ -29,12 +32,6 @@ class PipelinesApiConfigurationSpec extends FlatSpec with Matchers with TableDri
       |    {
       |      name = "application-default"
       |      scheme = "application_default"
-      |    },
-      |    {
-      |      name = "user-via-refresh"
-      |      scheme = "refresh_token"
-      |      client-id = "secret_id"
-      |      client-secret = "${mockFile.pathAsString}"
       |    },
       |    {
       |      name = "service-account"
@@ -110,7 +107,7 @@ class PipelinesApiConfigurationSpec extends FlatSpec with Matchers with TableDri
     forAll(configs) { (backend, global) =>
       an[Exception] shouldBe thrownBy {
         val failingGoogleConf = GoogleConfiguration(global)
-        val failingAttributes = PipelinesApiAttributes(failingGoogleConf, backend)
+        val failingAttributes = PipelinesApiConfigurationAttributes(failingGoogleConf, backend, "papi")
         new PipelinesApiConfiguration(BackendConfigurationDescriptor(backend, global), genomicsFactory, failingGoogleConf, failingAttributes)
       }
     }
@@ -124,25 +121,5 @@ class PipelinesApiConfigurationSpec extends FlatSpec with Matchers with TableDri
     val dockerConf = new PipelinesApiConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), genomicsFactory, googleConfiguration, papiAttributes).dockerCredentials
     dockerConf shouldBe defined
     dockerConf.get.token shouldBe "dockerToken"
-  }
-
-  it should "have correct needAuthFileUpload" in {
-    val configs = Table(
-      ("backendConfig", "globalConfig"),
-      // With Docker
-      (backendConfig.withValue("filesystems.gcs.auth", ConfigValueFactory.fromAnyRef("application-default")), true),
-      (backendConfig.withValue("filesystems.gcs.auth", ConfigValueFactory.fromAnyRef("user-via-refresh")), true),
-      (backendConfig.withValue("filesystems.gcs.auth", ConfigValueFactory.fromAnyRef("service-account")), true),
-      // Without Docker
-      (backendConfig.withValue("filesystems.gcs.auth", ConfigValueFactory.fromAnyRef("application-default")).withoutPath("dockerhub"), false),
-      (backendConfig.withValue("filesystems.gcs.auth", ConfigValueFactory.fromAnyRef("user-via-refresh")).withoutPath("dockerhub"), true),
-      (backendConfig.withValue("filesystems.gcs.auth", ConfigValueFactory.fromAnyRef("service-account")).withoutPath("dockerhub"), false)
-    )
-
-    forAll(configs) { (backend, needAuthFileUpload) =>
-      val customGoogleConfig = GoogleConfiguration(globalConfig)
-      val attributes = PipelinesApiAttributes(customGoogleConfig, backend)
-      new PipelinesApiConfiguration(BackendConfigurationDescriptor(backend, globalConfig), genomicsFactory, googleConfiguration, attributes).needAuthFileUpload shouldBe needAuthFileUpload
-    }
   }
 }

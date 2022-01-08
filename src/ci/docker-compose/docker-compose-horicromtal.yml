@@ -1,0 +1,120 @@
+# Set CROMWELL_BUILD_RESOURCES_DIRECTORY explicitly so fully qualified paths to required credential files are rendered
+# into the CI config files.
+version: '2.3'
+services:
+  # Runs the database initialization but is NOT a workflow-running backend.
+  # Opts out of:
+  # - Running the summarizer
+  db-mstr:
+    image: "broadinstitute/cromwell:${CROMWELL_BUILD_CENTAUR_MANAGED_TAG}"
+    network_mode: host
+    working_dir: ${CROMWELL_BUILD_ROOT_DIRECTORY}
+    volumes:
+      - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
+    command: ["server"]
+    environment:
+      # See notes and warnings on JAVA_OPTS in Publishing.scala
+      - >-
+        JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_CENTAUR_MANAGED_CONFIG}
+        -Dwebservice.port=8080
+        -Dsystem.cromwell_id=master
+        -Dsystem.max-workflow-launch-count=0
+        -Dsystem.new-workflow-poll-rate=999999
+        -Dservices.MetadataService.config.metadata-summary-refresh-interval=Inf
+      - CROMWELL_BUILD_BCS_CLUSTER_ID
+      - CROMWELL_BUILD_CENTAUR_256_BITS_KEY
+      - CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
+      - CROMWELL_BUILD_CENTAUR_JDBC_URL
+      - CROMWELL_BUILD_CENTAUR_MAX_WORKFLOW_LENGTH
+      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER
+      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL
+      - CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE
+      - CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT
+      - CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
+      - CROMWELL_BUILD_PAPI_AUTH_MODE
+      - CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
+      - CROMWELL_BUILD_PAPI_ENDPOINT_URL
+      - CROMWELL_BUILD_RESOURCES_DIRECTORY
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080"]
+      interval: 2s
+      timeout: 120s
+      retries: 60
+  # Is a regular Cromwell workflow-running backend.
+  # Makes no changes to the config file we bring in, so always summarizes, and sometimes does metadata
+  # deletion things, but only if the underlying config file says that we do.
+  sum-back:
+    image: "broadinstitute/cromwell:${CROMWELL_BUILD_CENTAUR_MANAGED_TAG}"
+    network_mode: host
+    working_dir: ${CROMWELL_BUILD_ROOT_DIRECTORY}
+    volumes:
+      - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
+    command: ["server"]
+    environment:
+      # See notes and warnings on JAVA_OPTS in Publishing.scala
+      - >-
+        JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_CENTAUR_MANAGED_CONFIG}
+        -Dwebservice.port=8000
+        -Dsystem.cromwell_id=summarizer
+      - CROMWELL_BUILD_BCS_CLUSTER_ID
+      - CROMWELL_BUILD_CENTAUR_256_BITS_KEY
+      - CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
+      - CROMWELL_BUILD_CENTAUR_JDBC_URL
+      - CROMWELL_BUILD_CENTAUR_MAX_WORKFLOW_LENGTH
+      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER
+      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL
+      - CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE
+      - CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT
+      - CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
+      - CROMWELL_BUILD_PAPI_AUTH_MODE
+      - CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
+      - CROMWELL_BUILD_PAPI_ENDPOINT_URL
+      - CROMWELL_BUILD_RESOURCES_DIRECTORY
+    depends_on:
+      db-mstr:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8000"]
+      interval: 2s
+      timeout: 120s
+      retries: 60
+  # Is the Cromwell which Centaur communicates with (hence "frontend")
+  # Is also a regular Cromwell workflow-running "backend".
+  # Opts out of:
+  # - Running the summarizer
+  front-back:
+    image: "broadinstitute/cromwell:${CROMWELL_BUILD_CENTAUR_MANAGED_TAG}"
+    network_mode: host
+    working_dir: ${CROMWELL_BUILD_ROOT_DIRECTORY}
+    volumes:
+      - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
+    depends_on:
+      db-mstr:
+        condition: service_healthy
+    command: ["server"]
+    environment:
+      # See notes and warnings on JAVA_OPTS in Publishing.scala
+      - >-
+        JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_CENTAUR_MANAGED_CONFIG}
+        -Dwebservice.port=${CROMWELL_BUILD_CENTAUR_MANAGED_PORT}
+        -Dsystem.cromwell_id=frontend
+        -Dservices.MetadataService.config.metadata-summary-refresh-interval=Inf
+      - CROMWELL_BUILD_BCS_CLUSTER_ID
+      - CROMWELL_BUILD_CENTAUR_256_BITS_KEY
+      - CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
+      - CROMWELL_BUILD_CENTAUR_JDBC_URL
+      - CROMWELL_BUILD_CENTAUR_MAX_WORKFLOW_LENGTH
+      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER
+      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL
+      - CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE
+      - CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT
+      - CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
+      - CROMWELL_BUILD_PAPI_AUTH_MODE
+      - CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
+      - CROMWELL_BUILD_PAPI_ENDPOINT_URL
+      - CROMWELL_BUILD_RESOURCES_DIRECTORY
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:${CROMWELL_BUILD_CENTAUR_MANAGED_PORT}"]
+      interval: 2s
+      timeout: 120s
+      retries: 60

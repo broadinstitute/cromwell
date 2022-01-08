@@ -8,10 +8,17 @@ import cromwell.services.metadata.CallMetadataKeys
 object PipelinesApiJobPaths {
   val JesLogPathKey = "jesLog"
   val JesMonitoringKey = "monitoring"
+  val JesMonitoringImageKey = "monitoringImage"
   val JesExecParamName = "exec"
+  val GcsTransferLibraryName = "gcs_transfer.sh"
+  val GcsLocalizationScriptName = "gcs_localization.sh"
+  val GcsDelocalizationScriptName = "gcs_delocalization.sh"
 }
 
-final case class PipelinesApiJobPaths(override val workflowPaths: PipelinesApiWorkflowPaths, jobKey: BackendJobDescriptorKey) extends JobPaths {
+// Non-`final` as this is mocked for testing since using a real instance proved too difficult.
+// Do not subclass this or other case classes in production code, at least without understanding the pitfalls:
+// https://nrinaudo.github.io/scala-best-practices/tricky_behaviours/final_case_classes.html
+case class PipelinesApiJobPaths(override val workflowPaths: PipelinesApiWorkflowPaths, jobKey: BackendJobDescriptorKey, override val isCallCacheCopyAttempt: Boolean = false) extends JobPaths {
 
   // `jesLogBasename` is a `def` rather than a `val` because it is referenced polymorphically from
   // the initialization code of the extended `JobPaths` trait, but this class will not have initialized its `val`s
@@ -28,6 +35,7 @@ final case class PipelinesApiJobPaths(override val workflowPaths: PipelinesApiWo
   lazy val jesMonitoringLogPath: Path = callExecutionRoot.resolve(jesMonitoringLogFilename)
 
   val jesMonitoringScriptFilename: String = s"${PipelinesApiJobPaths.JesMonitoringKey}.sh"
+  val jesMonitoringImageScriptFilename: String = s"${PipelinesApiJobPaths.JesMonitoringImageKey}.sh"
 
   override lazy val customMetadataPaths = Map(
     CallMetadataKeys.BackendLogsPrefix + ":log" -> jesLogPath
@@ -50,4 +58,6 @@ final case class PipelinesApiJobPaths(override val workflowPaths: PipelinesApiWo
       k -> v.parent.resolve(updated)
     }
   }
+
+  override def forCallCacheCopyAttempts: JobPaths = this.copy(isCallCacheCopyAttempt = true)
 }

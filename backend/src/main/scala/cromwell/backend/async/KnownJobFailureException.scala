@@ -1,7 +1,8 @@
 package cromwell.backend.async
 
-import cromwell.core.path.Path
+import akka.event.LoggingAdapter
 import common.exception.ThrowableAggregation
+import cromwell.core.path.Path
 import wom.expression.{NoIoFunctionSet, WomExpression}
 
 abstract class KnownJobFailureException extends Exception {
@@ -23,6 +24,24 @@ final case class ReturnCodeIsNotAnInt(jobTag: String, returnCode: String, stderr
 
 final case class StderrNonEmpty(jobTag: String, stderrLength: Long, stderrPath: Option[Path]) extends KnownJobFailureException {
   override def getMessage = s"stderr for job $jobTag has length $stderrLength and 'failOnStderr' runtime attribute was true."
+}
+
+final case class RetryWithMoreMemory(jobTag: String,
+                                     stderrPath: Option[Path],
+                                     memoryRetryErrorKeys: Option[List[String]],
+                                     logger: LoggingAdapter) extends KnownJobFailureException {
+  val errorKeysAsString = memoryRetryErrorKeys match {
+    case None =>
+      // this should not occur at this point as one would reach this error class only if Cromwell found one of the
+      // `memory-retry-error-keys` in `stderr` of the task, which is only checked if the `memory-retry-error-keys`
+      // are instantiated in Cromwell config
+      logger.error(s"Programmer error: found one of the `system.memory-retry-error-keys` in the `stderr` of task but " +
+        s"didn't find the error keys while generating the exception!")
+      ""
+    case Some(keys) => keys.mkString(": [", ",", "]")
+  }
+  override def getMessage = s"stderr for job `$jobTag` contained one of the `memory-retry-error-keys${errorKeysAsString}` specified in " +
+    s"the Cromwell config. Job might have run out of memory."
 }
 
 

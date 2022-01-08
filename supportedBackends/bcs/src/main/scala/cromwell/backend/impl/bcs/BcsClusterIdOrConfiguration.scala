@@ -8,7 +8,8 @@ final case class AutoClusterConfiguration(resourceType: String,
                                     instanceType: String,
                                     imageId: String,
                                     spotStrategy: Option[String] = None,
-                                    spotPriceLimit: Option[Float] = None)
+                                    spotPriceLimit: Option[Float] = None,
+                                    clusterId: Option[String] = None)
 
 
 object BcsClusterIdOrConfiguration {
@@ -33,14 +34,23 @@ object BcsClusterIdOrConfiguration {
 
   val spotPattern = s"""$resourceAndInstanceAndImagePattern\\s+$spotStrategyPattern\\s+$spotPriceLimitPattern""".r
 
+  val attachClusterSimplePattern = s"""$instanceAndImagePattern\\s+$idPattern""".r
+
+  val attachClusterPattern = s"""$resourceAndInstanceAndImagePattern\\s+$idPattern""".r
+
+  val attachClusterSpotPattern = s"""$spotPattern\\s+$idPattern""".r
+
 
   def parse(cluster: String): Try[BcsClusterIdOrConfiguration] = {
     cluster match {
       case idPattern(clusterId) => Success(Left(clusterId))
       case instanceAndImagePattern(instanceType, imageId) => Success(Right(AutoClusterConfiguration(defaultResourceType, instanceType, imageId)))
+      case attachClusterSimplePattern(instanceType, imageId, clusterId) =>Success(Right(AutoClusterConfiguration(defaultResourceType, instanceType, imageId, clusterId=Option(clusterId))))
       case resourceAndInstanceAndImagePattern(resourceType, instanceType, imageId) => Success(Right(AutoClusterConfiguration(resourceType, instanceType, imageId)))
-      case spotPattern(resourceType, instanceType, imageId, spotStrategy, spotPriceLimit) => Success(Right(AutoClusterConfiguration(resourceType, instanceType, imageId, Some(spotStrategy), Some(spotPriceLimit.toFloat))))
-      case _ => Failure(new IllegalArgumentException("must be some string like 'cls-xxxx' or 'OnDemand ecs.s1.large img-ubuntu'"))
+      case attachClusterPattern(resourceType, instanceType, imageId, clusterId) => Success(Right(AutoClusterConfiguration(resourceType, instanceType, imageId, clusterId = Option(clusterId))))
+      case spotPattern(resourceType, instanceType, imageId, spotStrategy, spotPriceLimit) => Success(Right(AutoClusterConfiguration(resourceType, instanceType, imageId, Option(spotStrategy), Option(spotPriceLimit.toFloat))))
+      case attachClusterSpotPattern(resourceType, instanceType, imageId, spotStrategy, spotPriceLimit, clusterId) => Success(Right(AutoClusterConfiguration(resourceType, instanceType, imageId, Option(spotStrategy), Option(spotPriceLimit.toFloat), Option(clusterId))))
+      case _ => Failure(new IllegalArgumentException("must be some string like 'cls-xxxx' or 'OnDemand ecs.s1.large img-ubuntu' or 'OnDemand ecs.s1.large img-ubuntu cls-xxxx'"))
     }
   }
 }

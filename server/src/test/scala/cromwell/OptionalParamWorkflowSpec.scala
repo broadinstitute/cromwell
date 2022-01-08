@@ -1,13 +1,13 @@
 package cromwell
 
 import common.validation.Validation._
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 import wdl.draft2.model.WdlNamespace
 import wdl.draft2.model.expression.NoFunctions
 import wom.values.{WomSingleFile, WomString}
 
-
-class OptionalParamWorkflowSpec extends Matchers with WordSpecLike {
+class OptionalParamWorkflowSpec extends Matchers with AnyWordSpecLike {
   "A workflow with an optional parameter that has a prefix inside the tag" should {
     "not include that prefix if no value is specified" in {
       val wf = s"""

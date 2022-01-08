@@ -1,6 +1,7 @@
 package common.validation
 
 import java.io.{PrintWriter, StringWriter}
+import java.lang.reflect.InvocationTargetException
 
 import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, Validated, ValidatedNel}
@@ -9,6 +10,9 @@ import cats.syntax.validated._
 import common.Checked
 import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
+import eu.timepit.refined._
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Interval.Closed
 import org.slf4j.Logger
 
 import scala.concurrent.Future
@@ -16,8 +20,19 @@ import scala.util.{Failure, Success, Try}
 
 object Validation {
 
+  /*
+    `memory-retry-multiplier` of value 1.0 is valid as we want to let users disable the memory retry
+    feature by adjusting the value down to 1.0, which is more convenient than having to add or remove
+    the entire parameter
+   */
+  type MemoryRetryMultiplier = Closed[W.`1.0`.T, W.`99.0`.T]
+  type MemoryRetryMultiplierRefined = Refined[Double, MemoryRetryMultiplier]
+
   private type ThrowableToStringFunction = Throwable => String
-  private def defaultThrowableToString: ThrowableToStringFunction = t => t.getMessage
+  private def defaultThrowableToString: ThrowableToStringFunction = {
+    case ite: InvocationTargetException => ite.getTargetException.getMessage
+    case t => t.getMessage
+  }
 
   def warnNotRecognized(keys: Set[String], reference: Set[String], context: String, logger: Logger): Unit = {
     val unrecognizedKeys = keys.diff(reference)
@@ -66,7 +81,9 @@ object Validation {
       Either.fromTry(t).leftMap { ex => NonEmptyList.one(throwableToStringFunction(ex)) }
     }
 
-    def toCheckedWithContext(context: String, throwableToStringFunction: ThrowableToStringFunction): Checked[A] = toErrorOrWithContext(context, throwableToStringFunction).toEither
+    def toCheckedWithContext(context: String): Checked[A] = toErrorOrWithContext(context, defaultThrowableToString).toEither
+    def toCheckedWithContext(context: String,
+                             throwableToStringFunction: ThrowableToStringFunction): Checked[A] = toErrorOrWithContext(context, throwableToStringFunction).toEither
   }
 
   implicit class ValidationTry[A](val e: ErrorOr[A]) extends AnyVal {
@@ -92,11 +109,11 @@ object Validation {
   }
 
   implicit class OptionValidation[A](val o: Option[A]) extends AnyVal {
-    def toErrorOr(errorMessage: String): ErrorOr[A] = {
+    def toErrorOr(errorMessage: => String): ErrorOr[A] = {
       Validated.fromOption(o, NonEmptyList.of(errorMessage))
     }
 
-    def toChecked(errorMessage: String): Checked[A] = {
+    def toChecked(errorMessage: => String): Checked[A] = {
       Either.fromOption(o, NonEmptyList.of(errorMessage))
     }
   }

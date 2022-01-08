@@ -1,0 +1,4 @@
+value_f:
+  class: File
+  path: "centaur/src/main/resources/standardTestCases/cwl_input_typearray/input.txt"
+value_s: "centaur/src/main/resources/standardTestCases/cwl_input_typearray/nonexistent_path.txt"

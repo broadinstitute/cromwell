@@ -1,0 +1,19 @@
+# This test makes sure that:
+# - 10000 output files are all found and collected by the glob() method
+# - 10000 input files to a task doesn't make anything explode inappropriately
+name: lots_of_inputs_papiv2
+testFormat: workflowsuccess
+tags: [ big_metadata ]
+backends: [ Papiv2 ]
+
+files {
+  workflow: lots_of_inputs/lots_of_inputs.wdl
+  inputs: lots_of_inputs/lots_of_inputs_papiv2.inputs
+}
+
+metadata {
+    workflowName: lots_of_inputs
+    status: Succeeded
+    "outputs.lots_of_inputs.out_count": "10000"
+    "outputs.lots_of_inputs.nothing_out": "no-op"
+}

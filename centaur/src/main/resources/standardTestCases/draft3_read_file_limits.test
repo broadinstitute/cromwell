@@ -12,23 +12,23 @@ metadata {
   workflowName: draft3_read_file_limits
   status: Failed
   "calls.draft3_read_file_limits.readString.executionStatus": Failed
-  "calls.draft3_read_file_limits.readString.failures.0.causedBy.0.message": ~~"is larger than 128000 Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits."
+  "calls.draft3_read_file_limits.readString.failures.0.causedBy.0.message": ~~"is larger than requested maximum of 128000 Bytes."
   "calls.draft3_read_file_limits.readBoolean.executionStatus": Failed
-  "calls.draft3_read_file_limits.readBoolean.failures.0.causedBy.0.message": ~~"is larger than 7 Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits."
+  "calls.draft3_read_file_limits.readBoolean.failures.0.causedBy.0.message": ~~"is larger than requested maximum of 7 Bytes."
   "calls.draft3_read_file_limits.readLines.executionStatus": Failed
-  "calls.draft3_read_file_limits.readLines.failures.0.causedBy.0.message": ~~"is larger than 128000 Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits."
+  "calls.draft3_read_file_limits.readLines.failures.0.causedBy.0.message": ~~"is larger than requested maximum of 128000 Bytes."
   "calls.draft3_read_file_limits.readTsv.executionStatus": Failed
-  "calls.draft3_read_file_limits.readTsv.failures.0.causedBy.0.message": ~~"is larger than 128000 Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits."
+  "calls.draft3_read_file_limits.readTsv.failures.0.causedBy.0.message": ~~"is larger than requested maximum of 128000 Bytes."
   "calls.draft3_read_file_limits.readJson.executionStatus": Failed
-  "calls.draft3_read_file_limits.readJson.failures.0.causedBy.0.message": ~~"is larger than 128000 Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits."
+  "calls.draft3_read_file_limits.readJson.failures.0.causedBy.0.message": ~~"is larger than requested maximum of 128000 Bytes."
   "calls.draft3_read_file_limits.readObject.executionStatus": Failed
-  "calls.draft3_read_file_limits.readObject.failures.0.causedBy.0.message": ~~"is larger than 128000 Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits."
+  "calls.draft3_read_file_limits.readObject.failures.0.causedBy.0.message": ~~"is larger than requested maximum of 128000 Bytes."
   "calls.draft3_read_file_limits.readObjects.executionStatus": Failed
-  "calls.draft3_read_file_limits.readObjects.failures.0.causedBy.0.message": ~~"is larger than 128000 Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits."
+  "calls.draft3_read_file_limits.readObjects.failures.0.causedBy.0.message": ~~"is larger than requested maximum of 128000 Bytes."
   "calls.draft3_read_file_limits.readMap.executionStatus": Failed
-  "calls.draft3_read_file_limits.readMap.failures.0.causedBy.0.message": ~~"is larger than 128000 Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits."
+  "calls.draft3_read_file_limits.readMap.failures.0.causedBy.0.message": ~~"is larger than requested maximum of 128000 Bytes."
   "calls.draft3_read_file_limits.readInt.executionStatus": Failed
-  "calls.draft3_read_file_limits.readInt.failures.0.causedBy.0.message": ~~"is larger than 19 Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits."
+  "calls.draft3_read_file_limits.readInt.failures.0.causedBy.0.message": ~~"is larger than requested maximum of 19 Bytes."
   "calls.draft3_read_file_limits.readFloat.executionStatus": Failed
-  "calls.draft3_read_file_limits.readFloat.failures.0.causedBy.0.message": ~~"is larger than 50 Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits."
+  "calls.draft3_read_file_limits.readFloat.failures.0.causedBy.0.message": ~~"is larger than requested maximum of 50 Bytes."
 }

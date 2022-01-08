@@ -32,10 +32,11 @@ package cromwell.backend.impl.aws.io
 
 import cats.data.Validated._
 import cats.syntax.validated._
-import software.amazon.awssdk.services.batch.model.{MountPoint, Volume, Host}
+import software.amazon.awssdk.services.batch.model.{Host, MountPoint, Volume}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
+import cromwell.backend.DiskPatterns
 import wom.values._
 
 import scala.util.Try
@@ -50,16 +51,24 @@ import scala.util.matching.Regex
  */
 
 object AwsBatchVolume {
-  val Directory = "^\\/.+"
-  val MountedDiskPattern: Regex = s"""($Directory)""".r
-  val LocalDiskPattern: Regex = s"""local-disk""".r
+  // In AWS, disks are auto-sized so these patterns match simply "local-disk" or "/some/mnt"
+  val MountedDiskPattern: Regex = raw"""^\s*(${DiskPatterns.Directory})\s*$$""".r
+  val LocalDiskPattern: Regex = raw"""^\s*local-disk\s*$$""".r
 
   def parse(s: String): Try[AwsBatchVolume] = {
 
     val validation: ErrorOr[AwsBatchVolume] = s match {
-      case LocalDiskPattern() => Valid(AwsBatchWorkingDisk())
-      case MountedDiskPattern(mountPoint) => Valid(AwsBatchEmptyMountedDisk(DefaultPathBuilder.get(mountPoint)))
-      case _ => s"Disk strings should be of the format 'local-disk' or '/mount/point' but got: '$s'".invalidNel
+      case LocalDiskPattern() =>
+        Valid(AwsBatchWorkingDisk())
+      case MountedDiskPattern(mountPoint) =>
+        Valid(AwsBatchEmptyMountedDisk(DefaultPathBuilder.get(mountPoint)))
+      // In addition to the AWS-specific patterns above, we can also fall back to PAPI-style patterns and ignore the size
+      case DiskPatterns.WorkingDiskPattern(_, _) =>
+        Valid(AwsBatchWorkingDisk())
+      case DiskPatterns.MountedDiskPattern(mountPoint, _, fsType) =>
+        Valid(AwsBatchEmptyMountedDisk(DefaultPathBuilder.get(mountPoint),fsType))
+      case _ =>
+        s"Disk strings should be of the format 'local-disk' or '/mount/point' but got: '$s'".invalidNel
     }
 
     Try(validation match {
@@ -76,11 +85,18 @@ object AwsBatchVolume {
 trait AwsBatchVolume {
   def name: String
   def mountPoint: Path
-  def toVolume(id: String): Volume = {
+  def fsType: String
+  def getHostPath(id: Option[String]) : String =  {
+    id match {
+      case Some(id) => mountPoint.toAbsolutePath.pathAsString + "/" + id
+      case None   =>   mountPoint.toAbsolutePath.pathAsString
+    }
+  }
+  def toVolume(id: Option[String]=None): Volume = {
     Volume
       .builder
       .name(name)
-      .host(Host.builder.sourcePath(mountPoint.toAbsolutePath.pathAsString + "/" + id).build)
+      .host(Host.builder.sourcePath(getHostPath(id)).build)
       .build
   }
   def toMountPoint: MountPoint = {
@@ -92,19 +108,22 @@ trait AwsBatchVolume {
   }
 }
 
-case class AwsBatchEmptyMountedDisk(mountPoint: Path) extends AwsBatchVolume {
+case class AwsBatchEmptyMountedDisk(mountPoint: Path, ftype:String="ebs") extends AwsBatchVolume {
   val name = s"d-${mountPoint.pathAsString.md5Sum}"
+  val fsType = ftype.toLowerCase
   override def toString: String = s"$name $mountPoint"
 }
 
 object AwsBatchWorkingDisk {
   val MountPoint: Path = DefaultPathBuilder.get("/cromwell_root")
   val Name = "local-disk"
+  val fsType=  "ebs"
   val Default = AwsBatchWorkingDisk()
 }
 
 case class AwsBatchWorkingDisk() extends AwsBatchVolume {
   val mountPoint = AwsBatchWorkingDisk.MountPoint
   val name = AwsBatchWorkingDisk.Name
+  val fsType = AwsBatchWorkingDisk.fsType
   override def toString: String = s"$name $mountPoint"
 }

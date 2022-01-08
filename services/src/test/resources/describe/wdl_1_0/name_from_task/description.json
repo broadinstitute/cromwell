@@ -2,12 +2,30 @@
   "valid" : true,
   "errors" : [
   ],
+  "validWorkflow" : true,
   "name" : "use_this_name",
   "inputs" : [
+    {
+      "name" : "f",
+      "valueType" : {
+        "typeName" : "File"
+      },
+      "typeDisplayName" : "File",
+      "optional" : false,
+      "default" : null
+    }
   ],
   "outputs" : [
+    {
+      "name" : "f2",
+      "valueType" : {
+        "typeName" : "File"
+      },
+      "typeDisplayName" : "File"
+    }
   ],
   "images" : [
+    "\"docker image\""
   ],
   "submittedDescriptorType" : {
     "descriptorType" : "WDL",
@@ -16,6 +34,12 @@
   "importedDescriptorTypes" : [
   ],
   "meta" : {
+    "email" : "skroob@spaceballs.gov",
+    "author" : "President Skroob",
+    "description" : "Spaceballs: The Unit Test"
+  },
+  "parameterMeta" : {
 
-  }
+  },
+  "isRunnableWorkflow" : false
 }

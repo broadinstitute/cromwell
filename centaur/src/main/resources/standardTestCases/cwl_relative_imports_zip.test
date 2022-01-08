@@ -1,5 +1,6 @@
 name: cwl_relative_imports_zip
 testFormat: workflowsuccess
+skipDescribeEndpointValidation: true
 
 files {
   workflow: cwl_relative_imports/workflow.cwl

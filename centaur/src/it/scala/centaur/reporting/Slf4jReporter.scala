@@ -3,6 +3,7 @@ package centaur.reporting
 import cats.effect.IO
 import centaur.test.CentaurTestException
 import com.typesafe.scalalogging.StrictLogging
+import org.testcontainers.shaded.org.apache.commons.lang.exception.ExceptionUtils
 
 import scala.concurrent.ExecutionContext
 
@@ -17,17 +18,32 @@ class Slf4jReporter(override val params: ErrorReporterParams)
 
   override lazy val destination: String = "error"
 
-  override def logCentaurFailure(testEnvironment: TestEnvironment,
-                                 ciEnvironment: CiEnvironment,
-                                 centaurTestException: CentaurTestException)
-                                (implicit executionContext: ExecutionContext): IO[Unit] = {
+  override def logFailure(testEnvironment: TestEnvironment,
+                          ciEnvironment: CiEnvironment,
+                          throwable: Throwable)
+                         (implicit executionContext: ExecutionContext): IO[Unit] = {
     IO {
+
+      val errorMessage = throwable match {
+        case centaurTestException: CentaurTestException =>
+          centaurTestException.workflowIdOption.map("with workflow id '" + _ + "' ").getOrElse("")
+        case nonCentaurException =>
+          s"with unexpected non-Centaur exception $nonCentaurException"
+      }
+
       val message =
         s"Test '${testEnvironment.name}' " +
-          centaurTestException.workflowIdOption.map("with workflow id '" + _ + "' ").getOrElse("") +
           s"failed on attempt ${testEnvironment.attempt + 1} " +
-          s"of ${testEnvironment.retries + 1}"
-      logger.error(message, centaurTestException)
+          s"of ${testEnvironment.retries + 1} " +
+          errorMessage
+
+      // Only log fully on the final attempt. Otherwise log a shortened version
+      if (testEnvironment.attempt >= testEnvironment.retries) {
+        logger.error(message, throwable)
+      } else {
+        val messageWithShortExceptionContext = message + " (" + ExceptionUtils.getMessage(throwable).replace("\n", " ").take(150) + "[...])"
+        logger.warn(messageWithShortExceptionContext)
+      }
     }
   }
 }

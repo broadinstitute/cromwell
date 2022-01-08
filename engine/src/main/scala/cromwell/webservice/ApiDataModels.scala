@@ -24,9 +24,11 @@ object APIResponse {
   private def constructFailureResponse(status: String, ex: Throwable) = {
     ex match {
       case exceptionWithErrors: MessageAggregation =>
-        FailureResponse(status, exceptionWithErrors.getMessage,
-          Option(JsArray(exceptionWithErrors.errorMessages.toList.map(JsString(_)).toVector)))
-      case e: Throwable => FailureResponse(status, e.getMessage, Option(e.getCause).map(c => JsArray(JsString(ExceptionUtils.getMessage(c)))))
+        FailureResponse(
+          status,
+          exceptionWithErrors.exceptionContext,
+          Option(exceptionWithErrors.errorMessages.toVector))
+      case e: Throwable => FailureResponse(status, e.getMessage, Option(e.getCause).map(c => Vector(ExceptionUtils.getMessage(c))))
     }
   }
 
@@ -41,4 +43,4 @@ object APIResponse {
 }
 
 case class SuccessResponse(status: String, message: String, data: Option[JsValue])
-case class FailureResponse(status: String, message: String, errors: Option[JsValue])
+case class FailureResponse(status: String, message: String, errors: Option[Vector[String]])

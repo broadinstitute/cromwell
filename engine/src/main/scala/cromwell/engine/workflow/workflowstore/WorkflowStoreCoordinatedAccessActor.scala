@@ -2,7 +2,7 @@ package cromwell.engine.workflow.workflowstore
 
 import java.time.OffsetDateTime
 
-import akka.actor.{Actor, Props, Status}
+import akka.actor.{Actor, ActorSystem, Props, Status}
 import cats.data.NonEmptyVector
 import cromwell.core.{Dispatcher, WorkflowId}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreCoordinatedAccessActor._
@@ -20,6 +20,7 @@ import scala.util.{Failure, Success, Try}
   */
 class WorkflowStoreCoordinatedAccessActor(workflowStore: WorkflowStore) extends Actor {
   implicit val ec: ExecutionContext = context.system.dispatcher
+  implicit val actorSystem: ActorSystem = context.system
 
   def run[A](future: Future[A]): Unit = {
     val result = Try(Await.result(future, Timeout)) match {
@@ -30,16 +31,23 @@ class WorkflowStoreCoordinatedAccessActor(workflowStore: WorkflowStore) extends 
   }
 
   override def receive: Receive = {
-    case WriteHeartbeats(ids) =>
-      workflowStore.writeWorkflowHeartbeats(ids.toVector.toSet) |> run
+    case WriteHeartbeats(ids, heartbeatDateTime) =>
+      workflowStore.writeWorkflowHeartbeats(ids.toVector.toSet, heartbeatDateTime) |> run
     case FetchStartableWorkflows(count, cromwellId, heartbeatTtl) =>
       workflowStore.fetchStartableWorkflows(count, cromwellId, heartbeatTtl) |> run
+    case DeleteFromStore(workflowId) =>
+      workflowStore.deleteFromStore(workflowId) |> run
+    case Abort(workflowId) =>
+      workflowStore.abort(workflowId) |> run
   }
 }
 
 object WorkflowStoreCoordinatedAccessActor {
-  final case class WriteHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)])
+  final case class WriteHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)],
+                                   heartbeatDateTime: OffsetDateTime)
   final case class FetchStartableWorkflows(count: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
+  final case class DeleteFromStore(workflowId: WorkflowId)
+  final case class Abort(workflowId: WorkflowId)
 
   val Timeout = 1 minute
 

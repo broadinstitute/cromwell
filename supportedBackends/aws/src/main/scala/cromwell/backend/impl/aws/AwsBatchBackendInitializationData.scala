@@ -31,16 +31,23 @@
 
 package cromwell.backend.impl.aws
 
-import software.amazon.awssdk.auth.credentials.AwsCredentials
 import cromwell.backend.standard.{StandardInitializationData, StandardValidatedRuntimeAttributesBuilder}
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 
 case class AwsBatchBackendInitializationData
 (
   override val workflowPaths: AwsBatchWorkflowPaths,
   override val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder,
   configuration: AwsBatchConfiguration,
-  credentials: AwsCredentials,
+  provider: AwsCredentialsProvider,
   // TODO: We'll need something specific for batch probably, but I need to
   //       understand more about the genomics node first
   //genomics: Genomics
-) extends StandardInitializationData(workflowPaths, runtimeAttributesBuilder, classOf[AwsBatchExpressionFunctions])
+) extends StandardInitializationData(workflowPaths, runtimeAttributesBuilder, AwsBatchBackendInitializationDataUtility.getExpressionFunctionsClass(configuration.fileSystem))
+
+object  AwsBatchBackendInitializationDataUtility {
+   def getExpressionFunctionsClass(fs: String) = fs match {
+      case AWSBatchStorageSystems.s3 => classOf[AwsBatchExpressionFunctions]
+      case _ => classOf[AwsBatchExpressionFunctionsForFS]
+   }
+}

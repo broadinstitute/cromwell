@@ -33,7 +33,8 @@ object WomTypeJsonSupport {
         case a: WomArrayType =>
           Json.obj(
             ("typeName", Json.fromString("Array")),
-            ("arrayType", womTypeEncoder.apply(a.memberType))
+            ("arrayType", womTypeEncoder.apply(a.memberType)),
+            ("nonEmpty", Json.fromBoolean(a.guaranteedNonEmpty))
           )
         case a: WomCompositeType =>
           Json.obj(

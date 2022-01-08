@@ -2,9 +2,9 @@ package cromwell.backend.google.pipelines.v2alpha1.api
 
 import java.lang.reflect.ParameterizedType
 import java.util.{ArrayList => JArrayList, Map => JMap}
-
-import cats.instances.list._
 import cats.syntax.traverse._
+import cats.syntax.validated._
+import cats.instances.list._
 import com.google.api.client.json.GenericJson
 import com.google.api.services.genomics.v2alpha1.model._
 import common.validation.ErrorOr._
@@ -15,6 +15,7 @@ import mouse.all._
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
+
 /**
   * This bundles up some code to work around the fact that Operation is not deserialized
   * completely from the JSON HTTP response.
@@ -26,7 +27,8 @@ import scala.util.{Failure, Success, Try}
   */
 private [api] object Deserialization {
   def findEvent[T <: GenericJson](events: List[Event],
-                                  filter: T => Boolean = Function.const(true) _)(implicit tag: ClassTag[T]): Option[RequestContextReader[Option[T]]] =
+                                  filter: T => Boolean = Function.const(true)(_: T))
+                                 (implicit tag: ClassTag[T]): Option[RequestContextReader[Option[T]]] =
     events.toStream
       .map(_.details(tag))
       .collectFirst({
@@ -39,7 +41,9 @@ private [api] object Deserialization {
       * Returns None if the details are not of type T
       */
     def details[T <: GenericJson](implicit tag: ClassTag[T]): Option[Try[T]] = {
-      val detailsMap = event.getDetails
+      val detailsMap: JMap[String, Object] = Option(event)
+        .flatMap(event => Option(event.getDetails))
+        .getOrElse(Map.empty.asJava)
       if (hasDetailsClass(tag.runtimeClass.getSimpleName)) {
         Option(deserializeTo(detailsMap)(tag))
       } else None
@@ -47,7 +51,13 @@ private [api] object Deserialization {
 
     def hasDetailsClass(className: String): Boolean = {
       // The @type field contains the type of the attribute
-      event.getDetails.asScala.get("@type").exists(_.asInstanceOf[String].endsWith(className))
+      val classTypeOption = for {
+        event <- Option(event)
+        detailsJava <- Option(event.getDetails)
+        detailsScala <- Option(detailsJava.asScala)
+        classType <- detailsScala.get("@type")
+      } yield classType
+      classTypeOption.exists(_.asInstanceOf[String].endsWith(className))
     }
   }
 
@@ -55,20 +65,39 @@ private [api] object Deserialization {
     /**
       * Deserializes the events to com.google.api.services.genomics.v2alpha1.model.Event
       */
-    def events: ErrorOr[List[Event]] = operation
-      .getMetadata.asScala("events").asInstanceOf[JArrayList[JMap[String, Object]]]
-      .asScala.toList
-      .traverse[ErrorOr, Event](deserializeTo[Event](_).toErrorOr)
+    def events: ErrorOr[List[Event]] = {
+      val eventsErrorOrOption = for {
+        eventsMap <- metadata.get("events")
+        eventsErrorOr <- Option(eventsMap
+          .asInstanceOf[JArrayList[JMap[String, Object]]]
+          .asScala
+          .toList
+          .traverse[ErrorOr, Event](deserializeTo[Event](_).toErrorOr)
+        )
+      } yield eventsErrorOr
+      eventsErrorOrOption.getOrElse(Nil.validNel)
+    }
 
     /**
       * Deserializes the pipeline to com.google.api.services.genomics.v2alpha1.model.Pipeline
       */
-    def pipeline: Try[Pipeline] = operation
-      .getMetadata.asScala("pipeline").asInstanceOf[JMap[String, Object]] |> deserializeTo[Pipeline]
+    def pipeline: Option[Try[Pipeline]] = {
+      metadata
+        .get("pipeline")
+        .map(_.asInstanceOf[JMap[String, Object]] |> deserializeTo[Pipeline])
+    }
 
     // If there's a WorkerAssignedEvent it means a VM was created - which we consider as the job started
     // Note that the VM might still be booting
     def hasStarted = events.toOption.exists(_.exists(_.hasDetailsClass(classOf[WorkerAssignedEvent].getSimpleName)))
+
+    def metadata: Map[String, AnyRef] = {
+      val metadataOption = for {
+        operationValue <- Option(operation)
+        metadataJava <- Option(operationValue.getMetadata)
+      } yield metadataJava.asScala.toMap
+      metadataOption.getOrElse(Map.empty)
+    }
   }
 
   /**
@@ -76,7 +105,7 @@ private [api] object Deserialization {
     */
   private [api] def deserializeTo[T <: GenericJson](attributes: JMap[String, Object])(implicit tag: ClassTag[T]): Try[T] = Try {
     // Create a new instance, because it's a GenericJson there's always a 0-arg constructor
-    val newT = tag.runtimeClass.asInstanceOf[Class[T]].newInstance()
+    val newT = tag.runtimeClass.asInstanceOf[Class[T]].getConstructor().newInstance()
 
     // Optionally returns the field with the given name
     def field(name: String) = Option(newT.getClassInfo.getField(name))
@@ -125,7 +154,7 @@ private [api] object Deserialization {
     }
 
     // Go over the map entries and use the "set" method of GenericJson to set the attributes.
-    attributes.asScala.foreach((handleMap _).tupled)
+    Option(attributes).map(_.asScala).getOrElse(Map.empty).foreach((handleMap _).tupled)
     newT
   }
 }

@@ -1,19 +1,23 @@
 package wdl
 
+import common.assertion.CromwellTimeoutSpec
 import common.util.TryUtil
 import org.scalactic.Equality
 import org.scalatest.enablers.Aggregating._
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+import wdl.draft2.Draft2ResolvedImportBundle
 import wdl.draft2.model._
 import wdl.draft2.model.expression.{NoFunctions, WdlFunctions}
 import wdl.draft2.model.values.WdlCallOutputsObject
 import wdl.draft2.parser.WdlParser.SyntaxError
+import wom.ResolvedImportRecord
 import wom.types._
 import wom.values._
 
 import scala.util.{Failure, Success, Try}
 
-class WdlWorkflowSpec extends WordSpec with Matchers {
+class WdlWorkflowSpec extends AnyWordSpec with CromwellTimeoutSpec with Matchers {
 
   "Workflow" should {
     val subWorkflow =
@@ -169,7 +173,7 @@ class WdlWorkflowSpec extends WordSpec with Matchers {
     
     def verifyOutputs(outputString: String, declarationExpectations: Seq[WorkflowOutputExpectation], evaluationExpectations: Map[String, WomValue]) = {
       val ns = WdlNamespaceWithWorkflow.load(
-        wdl.replace("<<OUTPUTS>>", outputString), Seq((uri: String) => subWorkflow)).get
+        wdl.replace("<<OUTPUTS>>", outputString), Seq((uri: String) => Draft2ResolvedImportBundle(subWorkflow, ResolvedImportRecord(uri)))).get
       verifyOutputsForNamespace(ns, declarationExpectations, evaluationExpectations, outputResolverForWorkflow(ns.workflow))
     }
 
@@ -433,7 +437,7 @@ class WdlWorkflowSpec extends WordSpec with Matchers {
         """.stripMargin
 
       a[SyntaxError] should be thrownBy {
-        WdlNamespaceWithWorkflow.load(wdl.replace("<<OUTPUTS>>", output), Seq((uri: String) => subWorkflow)).get
+        WdlNamespaceWithWorkflow.load(wdl.replace("<<OUTPUTS>>", output), Seq((uri: String) => Draft2ResolvedImportBundle(subWorkflow, ResolvedImportRecord(uri)))).get
       }
     }
 
@@ -509,7 +513,7 @@ class WdlWorkflowSpec extends WordSpec with Matchers {
         """.stripMargin
       
       val exception = the[SyntaxError] thrownBy
-        WdlNamespaceWithWorkflow.load(parentWorkflow, Seq((uri: String) => subWorkflow)).get
+        WdlNamespaceWithWorkflow.load(parentWorkflow, Seq((uri: String) => Draft2ResolvedImportBundle(subWorkflow, ResolvedImportRecord(uri)))).get
       exception.getMessage shouldBe s"""Workflow sub_workflow is used as a sub workflow but has outputs declared with a deprecated syntax not compatible with sub workflows.
                                         |To use this workflow as a sub workflow please update the workflow outputs section to the latest WDL specification.
                                         |See https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#outputs""".stripMargin

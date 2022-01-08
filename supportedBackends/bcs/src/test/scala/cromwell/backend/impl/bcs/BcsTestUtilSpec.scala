@@ -2,16 +2,17 @@ package cromwell.backend.impl.bcs
 
 import com.typesafe.config.ConfigFactory
 import common.collections.EnhancedCollections._
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey, RuntimeAttributeDefinition}
-import cromwell.backend.BackendSpec.{buildWdlWorkflowDescriptor}
+import cromwell.backend.BackendSpec.buildWdlWorkflowDescriptor
 import cromwell.backend.validation.ContinueOnReturnCodeSet
-import cromwell.core.path.DefaultPathBuilder
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey, RuntimeAttributeDefinition}
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.filesystems.oss.OssPathBuilder
-import cromwell.filesystems.oss.nio.OssStorageConfiguration
+import cromwell.filesystems.oss.nio.DefaultOssStorageConfiguration
 import cromwell.util.SampleWdl
-import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
-import org.scalatest.mockito.MockitoSugar
+import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.mockito.MockitoSugar
 import org.slf4j.helpers.NOPLogger
 import spray.json.{JsObject, JsString}
 import wom.values.WomValue
@@ -25,17 +26,19 @@ object BcsTestUtilSpec {
       |  continueOnReturnCode: 0
       |  cluster: "cls-mycluster"
       |  mounts: "oss://bcs-bucket/bcs-dir/ /home/inputs/ false"
-      |  docker: "ubuntu/latest oss://bcs-reg/ubuntu/"
+      |  dockerTag: "ubuntu/latest oss://bcs-reg/ubuntu/"
+      |  docker: "registry.cn-beijing.aliyuncs.com/test/testubuntu:0.1"
       |  userData: "key value"
       |  reserveOnFail: true
       |  autoReleaseJob: true
       |  verbose: false
-      |  workerPath: "oss://bcs-bucket/workflow/worker.tar.gz"
       |  systemDisk: "cloud 50"
       |  dataDisk: "cloud 250 /home/data/"
       |  timeout: 3000
       |  vpc: "192.168.0.0/16 vpc-xxxx"
       |  tag: "jobTag"
+      |  imageId: "img-ubuntu-vpc"
+      |  isv: "test-isv"
       |}
     """.stripMargin
 
@@ -56,6 +59,9 @@ object BcsTestUtilSpec {
       |        access-id = ""
       |        access-key = ""
       |        security-token = ""
+      |    }
+      |    caching {
+      |        duplication-strategy = "reference"
       |    }
       |  }
       |}
@@ -111,16 +117,16 @@ object BcsTestUtilSpec {
   val EmptyWorkflowOption = WorkflowOptions.fromMap(Map.empty).get
 }
 
-trait BcsTestUtilSpec extends TestKitSuite with FlatSpecLike with Matchers with MockitoSugar with BeforeAndAfter {
+trait BcsTestUtilSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with MockitoSugar with BeforeAndAfter {
 
   before {
-    BcsMount.pathBuilders = List(mockPathBuiler)
+    BcsMount.pathBuilders = List(mockPathBuilder)
   }
 
   val jobId = "test-bcs-job"
-  val mockOssConf = OssStorageConfiguration("oss.aliyuncs.com", "test-id", "test-key")
-  val mockPathBuiler = OssPathBuilder(mockOssConf)
-  val mockPathBuilders = List(mockPathBuiler)
+  val mockOssConf = DefaultOssStorageConfiguration("oss.aliyuncs.com", "test-id", "test-key")
+  val mockPathBuilder = OssPathBuilder(mockOssConf)
+  val mockPathBuilders = List(mockPathBuilder)
   lazy val workflowDescriptor =  buildWdlWorkflowDescriptor(
     SampleWdl.HelloWorld.workflowSource(),
     inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.safeMapValues(JsString.apply)).compactPrint)
@@ -132,25 +138,27 @@ trait BcsTestUtilSpec extends TestKitSuite with FlatSpecLike with Matchers with 
 
 
   val expectedContinueOnReturn = ContinueOnReturnCodeSet(Set(0))
-  val expectedDocker = Some(BcsDockerWithPath("ubuntu/latest", "oss://bcs-reg/ubuntu/"))
+  val expectedDockerTag = Option(BcsDockerWithPath("ubuntu/latest", "oss://bcs-reg/ubuntu/"))
+  val expectedDocker = Option(BcsDockerWithoutPath("registry.cn-beijing.aliyuncs.com/test/testubuntu:0.1"))
   val expectedFailOnStderr = false
-  val expectedUserData = Some(Vector(new BcsUserData("key", "value")))
-  val expectedMounts = Some(Vector(new BcsInputMount(mockPathBuiler.build("oss://bcs-bucket/bcs-dir/").get, DefaultPathBuilder.build("/home/inputs/").get, false)))
-  val expectedCluster = Some(Left("cls-mycluster"))
-  val expectedSystemDisk = Some(BcsSystemDisk("cloud", 50))
-  val expectedDataDsik = Some(BcsDataDisk("cloud", 250, "/home/data/"))
+  val expectedUserData = Option(Vector(new BcsUserData("key", "value")))
+  val expectedMounts = Option(Vector(new BcsInputMount(Left(mockPathBuilder.build("oss://bcs-bucket/bcs-dir/").get), Right("/home/inputs/"), false)))
+  val expectedCluster = Option(Left("cls-mycluster"))
+  val expectedImageId = Option("img-ubuntu-vpc")
+  val expectedSystemDisk = Option(BcsSystemDisk("cloud", 50))
+  val expectedDataDisk = Option(BcsDataDisk("cloud", 250, "/home/data/"))
 
-  val expectedReserveOnFail = Some(true)
-  val expectedAutoRelease = Some(true)
-  val expectedWorkerPath = Some("oss://bcs-bucket/workflow/worker.tar.gz")
-  val expectedTimeout = Some(3000)
-  val expectedVerbose = Some(false)
-  val expectedVpc = Some(BcsVpcConfiguration(Some("192.168.0.0/16"), Some("vpc-xxxx")))
-  val expectedTag = Some("jobTag")
+  val expectedReserveOnFail = Option(true)
+  val expectedAutoRelease = Option(true)
+  val expectedTimeout = Option(3000)
+  val expectedVerbose = Option(false)
+  val expectedVpc = Option(BcsVpcConfiguration(Option("192.168.0.0/16"), Option("vpc-xxxx")))
+  val expectedTag = Option("jobTag")
+  val expectedIsv = Option("test-isv")
 
 
-  val expectedRuntimeAttributes = new BcsRuntimeAttributes(expectedContinueOnReturn, expectedDocker, expectedFailOnStderr,  expectedMounts, expectedUserData, expectedCluster,
-    expectedSystemDisk, expectedDataDsik, expectedReserveOnFail, expectedAutoRelease, expectedWorkerPath, expectedTimeout, expectedVerbose, expectedVpc, expectedTag)
+  val expectedRuntimeAttributes = new BcsRuntimeAttributes(expectedContinueOnReturn, expectedDockerTag, expectedDocker, expectedFailOnStderr,  expectedMounts, expectedUserData, expectedCluster,
+    expectedImageId, expectedSystemDisk, expectedDataDisk, expectedReserveOnFail, expectedAutoRelease, expectedTimeout, expectedVerbose, expectedVpc, expectedTag, expectedIsv)
 
 
   protected def createBcsRuntimeAttributes(runtimeAttributes: Map[String, WomValue]): BcsRuntimeAttributes = {

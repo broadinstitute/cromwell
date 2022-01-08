@@ -1,0 +1,18 @@
+# Used to generate JSON for testing label addition to sub workflows.
+name: sub_sub
+testFormat: workflowsuccess
+tags: [subworkflow]
+ignore: true
+
+files {
+  workflow: sub_sub/top.wdl
+  imports: [
+    sub_sub/sub.wdl,
+    sub_sub/sub_sub.wdl,
+    sub_sub/sub_sub_sub.wdl
+  ]
+}
+
+metadata {
+  status: Succeeded
+}

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 set -o errexit -o nounset -o pipefail
-export CROMWELL_BUILD_OPTIONAL_SECURE=true
 # import in shellcheck / CI / IntelliJ compatible ways
 # shellcheck source=/dev/null
 source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
@@ -12,16 +11,33 @@ cromwell::build::setup_centaur_environment
 
 cromwell::build::assemble_jars
 
-FUNNEL_PATH="${CROMWELL_BUILD_ROOT_DIRECTORY}/funnel"
-FUNNEL_CONF="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/funnel.conf"
+startup_funnel() {
+    local funnel_path
+    local funnel_conf
+    local funnel_tar_gz
 
-# Increase max open files to the maximum allowed. Attempt to help on macos due to the default soft ulimit -n -S 256.
-ulimit -n "$(ulimit -n -H)"
-if [[ ! -f "${FUNNEL_PATH}" ]]; then
-    FUNNEL_TAR_GZ="funnel-${CROMWELL_BUILD_OS}-amd64-0.5.0.tar.gz"
-    curl "https://github.com/ohsu-comp-bio/funnel/releases/download/0.5.0/${FUNNEL_TAR_GZ}" -o "${FUNNEL_TAR_GZ}" -L
-    tar xzf "${FUNNEL_TAR_GZ}"
-fi
+    funnel_path="${CROMWELL_BUILD_ROOT_DIRECTORY}/funnel"
+    funnel_conf="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/funnel.conf"
+
+    # Increase max open files to the maximum allowed. Attempt to help on macos due to the default soft ulimit -n -S 256.
+    ulimit -n "$(ulimit -n -H)"
+    if [[ ! -f "${funnel_path}" ]]; then
+        funnel_tar_gz="funnel-${CROMWELL_BUILD_OS}-amd64-0.5.0.tar.gz"
+        curl \
+            --location \
+            --output "${funnel_tar_gz}" \
+            "https://github.com/ohsu-comp-bio/funnel/releases/download/0.5.0/${funnel_tar_gz}"
+        tar xzf "${funnel_tar_gz}"
+    fi
+
+    mkdir -p logs
+    nohup "${funnel_path}" server run --config "${funnel_conf}" &> logs/funnel.log &
+
+    FUNNEL_PID=$!
+    export FUNNEL_PID
+
+    cromwell::build::add_exit_function shutdown_funnel
+}
 
 shutdown_funnel() {
     if [[ -n "${FUNNEL_PID+set}" ]]; then
@@ -29,12 +45,7 @@ shutdown_funnel() {
     fi
 }
 
-cromwell::build::add_exit_function shutdown_funnel
-
-mkdir -p logs
-nohup "${FUNNEL_PATH}" server run --config "${FUNNEL_CONF}" &> logs/funnel.log &
-
-FUNNEL_PID=$!
+startup_funnel
 
 # The following tests are skipped:
 #
@@ -45,8 +56,12 @@ FUNNEL_PID=$!
 # non_root_specified_user:   TES doesn't support switching users in the image
 # write_lines_files:         all inputs are read-only in TES
 # read_file_limits:          Fail only in Travis for unknown reason (Note that the draft 3 version does not fail)
+# docker_hash_dockerhub:     Prone to request rate limiting by Dockerhub
 
+# Limiting Centaur to 4 threads here in order to try to prevent exceeding the OS's max open files limit: BA-6153
 cromwell::build::run_centaur \
+    -p 2 \
+    -e docker_hash_dockerhub \
     -e call_cache_capoeira_local \
     -e draft3_call_cache_capoeira_local \
     -e read_file_limits \

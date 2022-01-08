@@ -6,7 +6,7 @@ import cromwell.backend._
 import cromwell.backend.standard.callcaching._
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.path.Path
-import cromwell.core.{CallOutputs, Dispatcher}
+import cromwell.core.{BackendDockerConfiguration, CallOutputs, Dispatcher}
 import wom.expression.IoFunctionSet
 import wom.graph.CommandCallNode
 
@@ -210,11 +210,16 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
     }
   }
 
-  override def runtimeAttributeDefinitions(initializationDataOption: Option[BackendInitializationData]):
-  Set[RuntimeAttributeDefinition] = {
+  override def runtimeAttributeDefinitions(initializationDataOption: Option[BackendInitializationData]): Set[RuntimeAttributeDefinition] = {
     val initializationData = BackendInitializationData.
       as[StandardInitializationData](initializationDataOption)
 
     initializationData.runtimeAttributesBuilder.definitions.toSet
+  }
+
+  override def dockerHashCredentials(workflowDescriptor: BackendWorkflowDescriptor,
+                                     initializationDataOption: Option[BackendInitializationData],
+                                    ): List[Any] = {
+    BackendDockerConfiguration.build(configurationDescriptor.backendConfig).dockerCredentials.toList
   }
 }

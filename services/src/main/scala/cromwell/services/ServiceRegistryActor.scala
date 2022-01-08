@@ -22,6 +22,11 @@ object ServiceRegistryActor {
 
   trait ListenToMessage extends ServiceRegistryMessage
 
+  sealed trait ServiceRegistryMetaRequest
+  case object RequestIoActorRef extends ServiceRegistryMetaRequest
+  final case class IoActorRef(ioActor: ActorRef) extends ServiceRegistryMetaRequest
+  case object NoIoActorRefAvailable
+
   def props(config: Config) = Props(new ServiceRegistryActor(config)).withDispatcher(ServiceDispatcher)
 
   // To enable testing, this lets us override a config value with a Props of our choice:
@@ -62,6 +67,9 @@ class ServiceRegistryActor(globalConfig: Config) extends Actor with ActorLogging
 
   def serviceProps = serviceNameToPropsMap(globalConfig, self)
 
+  // When the IO actor starts up, it can register itself here for other service registry actors to make use of it
+  var ioActor: Option[ActorRef] = None
+
   val services: Map[String, ActorRef] = serviceProps map {
     case (name, props) => name -> context.actorOf(props, name)
   }
@@ -79,6 +87,15 @@ class ServiceRegistryActor(globalConfig: Config) extends Actor with ActorLogging
           log.error("Received ServiceRegistryMessage requesting service '{}' for which no service is configured.  Message: {}", msg.serviceName, msg)
           sender ! ServiceRegistryFailure(msg.serviceName)
       }
+    case meta: ServiceRegistryMetaRequest => meta match {
+      case RequestIoActorRef => ioActor match {
+        case Some(ref) => sender ! IoActorRef(ref)
+        case None => sender ! NoIoActorRefAvailable
+      }
+      case IoActorRef(ref) =>
+        if (ioActor.isEmpty) { ioActor = Option(ref) }
+        else { log.error(s"Programmer Error: More than one IoActor is trying to register itself in the service registry ($ref will *NOT* replace the existing $ioActor)") }
+    }
     case ShutdownCommand =>
       services.values.toList match {
         case Nil => context stop self

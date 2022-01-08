@@ -1,0 +1,5 @@
+{
+  "default_runtime_attributes": {
+    "zones": "us-east1-c"
+  }
+}

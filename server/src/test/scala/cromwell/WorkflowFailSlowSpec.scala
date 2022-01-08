@@ -6,7 +6,7 @@ import cromwell.util.SampleWdl
 
 // TODO: These tests are (and were) somewhat unsatisfactory. They'd be much better if we use TestFSMRefs and TestProbes to simulate job completions against the WorkflowActor and make sure it only completes the workflow at the appropriate time.
 class WorkflowFailSlowSpec extends CromwellTestKitWordSpec {
-  val FailFastOptions =
+  val FailFastOptions: String =
     """
       |{
       |  "workflow_failure_mode": "NoNewCalls"
@@ -18,8 +18,8 @@ class WorkflowFailSlowSpec extends CromwellTestKitWordSpec {
       val outputs = runWdl(
         sampleWdl = SampleWdl.WorkflowFailSlow,
         workflowOptions = FailFastOptions,
-        runtime = "",
-        terminalState = WorkflowFailed
+        terminalState = WorkflowFailed,
+        testActorName = "TestCromwellRootActor-not-complete",
       )
       outputs.size should be(0)
     }
@@ -29,8 +29,8 @@ class WorkflowFailSlowSpec extends CromwellTestKitWordSpec {
     "behave like NoNewCalls, if no workflowFailureMode is set" in {
       val outputs = runWdl(
         sampleWdl = SampleWdl.WorkflowFailSlow,
-        runtime = "",
-        terminalState = WorkflowFailed
+        terminalState = WorkflowFailed,
+        testActorName = "TestCromwellRootActor-workflowFailureMode",
       )
       outputs.size should be(0)
     }

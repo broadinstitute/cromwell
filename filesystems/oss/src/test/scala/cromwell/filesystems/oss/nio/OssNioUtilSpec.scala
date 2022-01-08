@@ -3,8 +3,11 @@ package cromwell.filesystems.oss.nio
 import java.io.ByteArrayInputStream
 
 import com.aliyun.oss.OSSClient
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest._
-import org.scalatest.mockito.MockitoSugar
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.mockito.MockitoSugar
 
 import scala.util.control.Breaks
 import scala.util.{Failure, Success, Try}
@@ -26,7 +29,7 @@ object OssNioUtilSpec {
   )
 }
 
-trait OssNioUtilSpec extends FlatSpecLike with MockitoSugar with Matchers {
+trait OssNioUtilSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with MockitoSugar with Matchers {
 
   override def withFixture(test: NoArgTest): Outcome = {
     if (test.tags.contains(NeedAK.name)) {
@@ -54,7 +57,7 @@ trait OssNioUtilSpec extends FlatSpecLike with MockitoSugar with Matchers {
     OssStorageConfiguration.parseMap(ossInfo)
   } getOrElse(throw new IllegalArgumentException("you should supply oss info before testing oss related operation"))
 
-  lazy val mockOssConf: OssStorageConfiguration = new OssStorageConfiguration("mock-endpoint", "mock-id", "mock-key", None)
+  lazy val mockOssConf: OssStorageConfiguration = new DefaultOssStorageConfiguration("mock-endpoint", "mock-id", "mock-key", None)
 
   lazy val ossProvider = OssStorageFileSystemProvider(ossConf)
   lazy val mockProvider = OssStorageFileSystemProvider(mockOssConf)
@@ -95,6 +98,7 @@ trait OssNioUtilSpec extends FlatSpecLike with MockitoSugar with Matchers {
     OssStorageRetry.from(
       () => ossClient.deleteObject(path.bucket, path.key)
     )
+    ()
   }
 
   def writeObject(path: OssStoragePath): Unit = {

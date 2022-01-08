@@ -1,6 +1,6 @@
 package common.assertion
 
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 
 object CaseClassAssertions extends Matchers {
   implicit class ComparableCaseClass[A <: Product](actualA: A) {

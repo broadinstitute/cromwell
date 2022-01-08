@@ -1,0 +1,11 @@
+name: error_10_preemptible
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: error_10_preemptible/error_10_preemptible.wdl
+}
+
+metadata {
+  status: Succeeded
+}

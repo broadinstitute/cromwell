@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <!-- This changeset is misleadingly named. This used to be part of a two-changeset migration that widened the PK and
+         then added autoincrement. At the time this was first written the author did not realize that `addAutoIncrement`
+         could both alter the datatype of and add autoincrement to the PK in one shot. The changeset cannot be renamed
+         as the name is part of the Liquibase key that will prevent it from running again in environments that already
+         suffered through the old two-changeset migration. -->
+    <changeSet author="mcovarr" id="restore_auto_increment_call_caching_hash_entry_id" dbms="mysql,hsqldb">
+        <!-- This is the original comment from the two-changeset version of the code and it doesn't make a lot of sense in
+             the new one-changeset reality. Removing the comment doesn't alter the Liquibase hash but it does make the
+             resulting row in the DATABASECHANGELOG different. Keeping it for now out of an abundance of caution. -->
+        <comment>
+            Factored into a separate changeset from the above to allow for handling various RDBMS implementations differently.
+        </comment>
+        <addAutoIncrement columnName="CALL_CACHING_HASH_ENTRY_ID"
+                          columnDataType="BIGINT"
+                          incrementBy="1"
+                          tableName="CALL_CACHING_HASH_ENTRY"/>
+    </changeSet>
+
+</databaseChangeLog>

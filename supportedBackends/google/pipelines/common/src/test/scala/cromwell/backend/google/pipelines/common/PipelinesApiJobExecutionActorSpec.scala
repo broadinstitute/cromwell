@@ -7,7 +7,8 @@ import cromwell.backend.google.pipelines.common.ControllableFailingPabjea.Jabjea
 import cromwell.backend.standard.{DefaultStandardSyncExecutionActorParams, StandardSyncExecutionActor, StandardSyncExecutionActorParams}
 import cromwell.backend.{BackendJobDescriptor, MinimumRuntimeSettings}
 import cromwell.core.TestKitSuite
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 
 import scala.concurrent.duration._
@@ -15,7 +16,7 @@ import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
 
-class PipelinesApiJobExecutionActorSpec extends TestKitSuite("PipelinesApiJobExecutionActorSpec") with FlatSpecLike with Matchers with Mockito {
+class PipelinesApiJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Mockito {
 
   behavior of "PipelinesApiJobExecutionActor"
 
@@ -24,17 +25,17 @@ class PipelinesApiJobExecutionActorSpec extends TestKitSuite("PipelinesApiJobExe
   implicit val ec: ExecutionContext = system.dispatcher
 
   it should "catch failures in PABJEA initialization and fail the job accordingly" in {
-    val jobDescriptor = mock[BackendJobDescriptor]
+    val jobDescriptor = BackendJobDescriptor(null, null, null, Map.empty, null, null, null)
     val jesWorkflowInfo = mock[PipelinesApiConfiguration]
     val initializationData = mock[PipelinesApiBackendInitializationData]
-    val serviceRegistryActor = system.actorOf(Props.empty)
-    val ioActor = system.actorOf(Props.empty)
-    val jesBackendSingletonActor = Option(system.actorOf(Props.empty))
+    val serviceRegistryActor = system.actorOf(Props.empty, "serviceRegistryActor-initialization")
+    val ioActor = system.actorOf(Props.empty, "ioActor-initialization")
+    val jesBackendSingletonActor = Option(system.actorOf(Props.empty, "jesBackendSingletonActor-initialization"))
 
     initializationData.papiConfiguration returns jesWorkflowInfo
 
-    val parent = TestProbe()
-    val deathwatch = TestProbe()
+    val parent = TestProbe("parent")
+    val deathwatch = TestProbe("deathwatch")
     val params = DefaultStandardSyncExecutionActorParams(PipelinesApiAsyncBackendJobExecutionActor.JesOperationIdKey, serviceRegistryActor, ioActor,
       jobDescriptor, null, Option(initializationData), jesBackendSingletonActor,
       classOf[PipelinesApiAsyncBackendJobExecutionActor], MinimumRuntimeSettings())
@@ -51,22 +52,22 @@ class PipelinesApiJobExecutionActorSpec extends TestKitSuite("PipelinesApiJobExe
 
     parent.expectMsgPF(max = TimeoutDuration) {
       case JobFailedNonRetryableResponse(_, throwable, _) =>
-        throwable.getMessage should be("PipelinesApiAsyncBackendJobExecutionActor failed and didn't catch its exception.")
+        throwable.getMessage should be("PipelinesApiAsyncBackendJobExecutionActor failed and didn't catch its exception. This condition has been handled and the job will be marked as failed.")
     }
   }
 
   it should "catch failures at a random point during PABJEA processing and fail the job accordingly" in {
-    val jobDescriptor = mock[BackendJobDescriptor]
+    val jobDescriptor = BackendJobDescriptor(null, null, null, Map.empty, null, null, null)
     val jesWorkflowInfo = mock[PipelinesApiConfiguration]
     val initializationData = mock[PipelinesApiBackendInitializationData]
-    val serviceRegistryActor = system.actorOf(Props.empty)
-    val ioActor = system.actorOf(Props.empty)
-    val jesBackendSingletonActor = Option(system.actorOf(Props.empty))
+    val serviceRegistryActor = system.actorOf(Props.empty, "serviceRegistryActor-random")
+    val ioActor = system.actorOf(Props.empty, "ioActor-random")
+    val jesBackendSingletonActor = Option(system.actorOf(Props.empty, "jesBackendSingletonActor-random"))
 
     initializationData.papiConfiguration returns jesWorkflowInfo
 
-    val parent = TestProbe()
-    val deathwatch = TestProbe()
+    val parent = TestProbe("parent")
+    val deathwatch = TestProbe("deathwatch")
     val jabjeaConstructionPromise = Promise[ActorRef]()
     val params = DefaultStandardSyncExecutionActorParams(PipelinesApiAsyncBackendJobExecutionActor.JesOperationIdKey, serviceRegistryActor, ioActor,
       jobDescriptor, null, Option(initializationData), jesBackendSingletonActor,
@@ -97,7 +98,7 @@ class PipelinesApiJobExecutionActorSpec extends TestKitSuite("PipelinesApiJobExe
 
     parent.expectMsgPF(max = TimeoutDuration) {
       case JobFailedNonRetryableResponse(_, throwable, _) =>
-        throwable.getMessage should be("PipelinesApiAsyncBackendJobExecutionActor failed and didn't catch its exception.")
+        throwable.getMessage should be("PipelinesApiAsyncBackendJobExecutionActor failed and didn't catch its exception. This condition has been handled and the job will be marked as failed.")
     }
   }
 }

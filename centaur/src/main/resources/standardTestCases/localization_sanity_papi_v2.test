@@ -1,0 +1,16 @@
+name: localization_sanity_papi_v2
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: 1.0
+backends: [Papiv2]
+
+files {
+  workflow: localization_sanity_papi_v2/localization_sanity_papi_v2.wdl
+}
+
+metadata {
+  status: Succeeded
+  "outputs.localization_sanity.sanity_check.lines.0": "file a.txt: 1"
+  "outputs.localization_sanity.sanity_check.lines.1": "file b.txt: 1"
+  "outputs.localization_sanity.sanity_check.lines.2": "file c.txt: 1"
+}

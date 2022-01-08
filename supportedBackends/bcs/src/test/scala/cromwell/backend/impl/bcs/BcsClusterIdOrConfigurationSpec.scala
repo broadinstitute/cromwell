@@ -12,7 +12,7 @@ class BcsClusterIdOrConfigurationSpec extends BcsTestUtilSpec {
 
   val clusterIdTable = Table(
     ("unparsed", "parsed"),
-    ("cls-xxxx", Some("cls-xxxx")),
+    ("cls-xxxx", Option("cls-xxxx")),
     ("job-xxxx", None)
   )
 
@@ -24,8 +24,8 @@ class BcsClusterIdOrConfigurationSpec extends BcsTestUtilSpec {
 
   val resourceTypeTable = Table(
     ("unparsed", "parsed"),
-    ("OnDemand", Some("OnDemand")),
-    ("Spot", Some("Spot")),
+    ("OnDemand", Option("OnDemand")),
+    ("Spot", Option("Spot")),
     ("Other", None)
   )
 
@@ -38,8 +38,8 @@ class BcsClusterIdOrConfigurationSpec extends BcsTestUtilSpec {
 
   val instanceTypeTable = Table(
     ("unparsed", "parsed"),
-    ("ecs.s1.large", Some("ecs.s1.large")),
-    ("bcs.s1.large", Some("bcs.s1.large"))
+    ("ecs.s1.large", Option("ecs.s1.large")),
+    ("bcs.s1.large", Option("bcs.s1.large"))
   )
 
   it should "parse correct instance type" in {
@@ -50,8 +50,8 @@ class BcsClusterIdOrConfigurationSpec extends BcsTestUtilSpec {
 
   val spotStrategyTable = Table(
     ("unparsed", "parsed"),
-    ("SpotWithPriceLimit", Some("SpotWithPriceLimit")),
-    ("SpotAsPriceGo", Some("SpotAsPriceGo"))
+    ("SpotWithPriceLimit", Option("SpotWithPriceLimit")),
+    ("SpotAsPriceGo", Option("SpotAsPriceGo"))
   )
 
 
@@ -63,10 +63,10 @@ class BcsClusterIdOrConfigurationSpec extends BcsTestUtilSpec {
 
   val spotPriceLimitTable = Table(
     ("unparsed", "parsed"),
-    ("1.0", Some(1.0.toFloat)),
-    ("0.1", Some(0.1.toFloat)),
-    ("0.12", Some(0.12.toFloat)),
-    ("0.123", Some(0.123.toFloat))
+    ("1.0", Option(1.0.toFloat)),
+    ("0.1", Option(0.1.toFloat)),
+    ("0.12", Option(0.12.toFloat)),
+    ("0.123", Option(0.123.toFloat))
   )
 
   it should "parse correct spot price limit" in {
@@ -79,9 +79,14 @@ class BcsClusterIdOrConfigurationSpec extends BcsTestUtilSpec {
     ("unparsed", "parsed"),
     ("cls-id", Left("cls-id")),
     ("OnDemand ecs.s1.large img-test", Right(AutoClusterConfiguration("OnDemand", "ecs.s1.large", "img-test"))),
+    ("OnDemand ecs.s1.large img-test cls-test", Right(AutoClusterConfiguration("OnDemand", "ecs.s1.large", "img-test", clusterId = Option("cls-test")))),
     ("ecs.s1.large img-test", Right(AutoClusterConfiguration("OnDemand", "ecs.s1.large", "img-test"))),
-    ("Spot ecs.s1.large img-test SpotWithPriceLimit 0.1", Right(AutoClusterConfiguration("Spot", "ecs.s1.large", "img-test", Some("SpotWithPriceLimit"), Some(0.1.toFloat)))),
-    ("Spot ecs.s1.large img-test SpotAsPriceGo 0.1", Right(AutoClusterConfiguration("Spot", "ecs.s1.large", "img-test", Some("SpotAsPriceGo"), Some(0.1.toFloat)))),
+    ("ecs.s1.large img-test cls-test", Right(AutoClusterConfiguration("OnDemand", "ecs.s1.large", "img-test", clusterId = Option("cls-test")))),
+    ("Spot ecs.s1.large img-test SpotWithPriceLimit 0.1", Right(AutoClusterConfiguration("Spot", "ecs.s1.large", "img-test", Option("SpotWithPriceLimit"), Option(0.1.toFloat)))),
+    ("Spot ecs.s1.large img-test SpotWithPriceLimit 0.1 cls-test", Right(AutoClusterConfiguration("Spot", "ecs.s1.large", "img-test", Option("SpotWithPriceLimit"), Option(0.1.toFloat), Option("cls-test")))),
+    ("Spot ecs.s1.large img-test SpotAsPriceGo 0.1", Right(AutoClusterConfiguration("Spot", "ecs.s1.large", "img-test", Option("SpotAsPriceGo"), Option(0.1.toFloat)))),
+    ("Spot ecs.s1.large img-test SpotAsPriceGo 0.1 cls-test", Right(AutoClusterConfiguration("Spot", "ecs.s1.large", "img-test", Option("SpotAsPriceGo"), Option(0.1.toFloat), Option("cls-test")))),
+
   )
 
 

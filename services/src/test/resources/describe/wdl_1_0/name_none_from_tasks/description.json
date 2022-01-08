@@ -2,12 +2,15 @@
   "valid" : true,
   "errors" : [
   ],
+  "validWorkflow" : true,
   "name" : "",
   "inputs" : [
   ],
   "outputs" : [
   ],
   "images" : [
+    "\"docker image\"",
+    "((\"expression\" + \"based\") + \"image\")"
   ],
   "submittedDescriptorType" : {
     "descriptorType" : "WDL",
@@ -17,5 +20,9 @@
   ],
   "meta" : {
 
-  }
+  },
+  "parameterMeta" : {
+
+  },
+  "isRunnableWorkflow" : false
 }

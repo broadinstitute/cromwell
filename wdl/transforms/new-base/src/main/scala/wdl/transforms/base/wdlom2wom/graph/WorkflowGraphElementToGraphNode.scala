@@ -50,15 +50,15 @@ object WorkflowGraphElementToGraphNode {
       result.contextualizeErrors(s"process declaration '${typeElement.toWdlV1} $name = ${expr.toWdlV1}'")
 
     case se: ScatterElement =>
-      val scatterMakerInputs = ScatterNodeMakerInputs(se, a.upstreamCalls, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter, a.callables)
+      val scatterMakerInputs = ScatterNodeMakerInputs(se, a.upstreamCalls, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter, a.convertNestedScatterToSubworkflow, a.allowNestedInputs, a.callables)
       ScatterElementToGraphNode.convert(scatterMakerInputs)
 
     case ie: IfElement =>
-      val ifMakerInputs = ConditionalNodeMakerInputs(ie, a.upstreamCalls, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter, a.callables)
+      val ifMakerInputs = ConditionalNodeMakerInputs(ie, a.upstreamCalls, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter, a.convertNestedScatterToSubworkflow, a.allowNestedInputs, a.callables)
       IfElementToGraphNode.convert(ifMakerInputs)
 
     case ce: CallElement =>
-      val callNodeMakerInputs = CallNodeMakerInputs(ce, a.upstreamCalls, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter, a.callables)
+      val callNodeMakerInputs = CallNodeMakerInputs(ce, a.upstreamCalls, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter, a.allowNestedInputs, a.callables)
       CallElementToGraphNode.convert(callNodeMakerInputs)
   }
 
@@ -80,4 +80,6 @@ final case class GraphNodeMakerInputs(node: WorkflowGraphElement,
                                       availableTypeAliases: Map[String, WomType],
                                       workflowName: String,
                                       insideAScatter: Boolean,
+                                      convertNestedScatterToSubworkflow : Boolean,
+                                      allowNestedInputs: Boolean,
                                       callables: Map[String, Callable])

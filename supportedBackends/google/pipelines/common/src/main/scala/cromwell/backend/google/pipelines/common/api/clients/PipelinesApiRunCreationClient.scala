@@ -3,7 +3,7 @@ package cromwell.backend.google.pipelines.common.api.clients
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import cromwell.backend.google.pipelines.common.PapiInstrumentation
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{PAPIApiException, PipelinesApiRunCreationQueryFailed}
+import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{PipelinesApiRunCreationQueryFailed, SystemPAPIApiException}
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiRequestFactory, PipelinesApiRequestManager}
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.WorkflowId
@@ -18,7 +18,7 @@ object PipelinesApiRunCreationClient {
     * Exception used to represent the fact that a job was aborted before a creation attempt was made.
     * Meaning it was in the queue when the abort request was made, so it was just removed from the queue.
     */
-  case object JobAbortedException extends PAPIApiException(new Exception("The job was removed from the queue before a PAPI creation request was made"))
+  case object JobAbortedException extends SystemPAPIApiException(new Exception("The job was removed from the queue before a PAPI creation request was made"))
 }
 
 /**

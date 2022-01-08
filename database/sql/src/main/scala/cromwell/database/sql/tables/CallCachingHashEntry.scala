@@ -5,5 +5,5 @@ case class CallCachingHashEntry
   hashKey: String,
   hashValue: String,
   callCachingEntryId: Option[Int] = None,
-  callCachingHashEntryId: Option[Int] = None
+  callCachingHashEntryId: Option[Long] = None
 )

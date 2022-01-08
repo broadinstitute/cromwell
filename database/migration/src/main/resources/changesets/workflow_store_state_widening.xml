@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="tjeandet" id="workflow-store-state-widening">
+    <changeSet author="tjeandet" id="workflow-store-state-widening" dbms="mysql,hsqldb">
         <modifyDataType columnName="WORKFLOW_STATE"
                         newDataType="varchar(20)"
                         tableName="WORKFLOW_STORE_ENTRY"/>

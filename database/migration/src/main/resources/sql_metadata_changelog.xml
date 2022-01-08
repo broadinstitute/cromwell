@@ -8,5 +8,16 @@
     <include file="metadata_changesets/delete_duplicate_custom_labels.xml" relativeToChangelogFile="true"/>
     <include file="metadata_changesets/add_submission_timestamp_metadata_summary.xml" relativeToChangelogFile="true"/>
     <include file="metadata_changesets/custom_label_entry_key_value_index.xml" relativeToChangelogFile="true" />
+    <include file="metadata_changesets/add_parent_and_root_workflow_execution_uuid.xml" relativeToChangelogFile="true"/>
+    <include file="metadata_changesets/add_parent_and_root_workflow_typo_fix.xml" relativeToChangelogFile="true"/>
+    <include file="metadata_changesets/metadata_index_removals.xml" relativeToChangelogFile="true" />
+    <include file="metadata_changesets/postgresql_metadata_schema.xml" relativeToChangelogFile="true" />
+    <include file="metadata_changesets/mariadb_metadata_schema.xml" relativeToChangelogFile="true" />
+    <include file="metadata_changesets/add_metadata_archive_status.xml" relativeToChangelogFile="true" />
+    <include file="metadata_changesets/summarization_queue_table.xml" relativeToChangelogFile="true" />
+    <include file="metadata_changesets/summarization_queue_table_add_primary_key.xml" relativeToChangelogFile="true"/>
+    <include file="metadata_changesets/remove_non_summarizable_metadata_from_queue.xml" relativeToChangelogFile="true" />
+    <include file="metadata_changesets/update_metadata_archive_index.xml" relativeToChangelogFile="true" />
+    <include file="metadata_changesets/reset_archive_statuses_to_null.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>
 <!-- See Dos and Don'ts in changelog.xml -->

@@ -1,0 +1,78 @@
+digraph {
+
+  # Nodes
+
+  subgraph cluster_0 {
+    label="\lPublishing a RELEASE"
+    style=filled
+    node [style=filled,color=white];
+    color="lightgrey"
+
+    check_jenkins_tests [shape=oval label="CHECK JENKINS: Check that Jenkins tests in 2 locations have succeeded for current commit in \"develop\"\n(see \"Core Process: How to Publish and Release Cromwell\" paragraph of this document for details)"];
+    release_cromwell [shape=oval label="PUBLISH: Run the publish script to create a new Cromwell version"];
+  }
+
+  subgraph cluster_1 {
+    label="\lPublishing a HOTFIX"
+    style=filled
+    node [style=filled,color=white];
+    color="lightgrey"
+
+    hotfix_changes [shape=oval label="HOTFIX: Changes get merged to a hotfix branch"];
+    publish_hotfix [shape=oval label="Travis will automatically publish to dockerhub"];
+  }
+
+  subgraph cluster_2 {
+    label="Release\ninto Terra"
+    style=filled
+    node [style=filled,color=white];
+    color="lightgrey"
+    confirm_ticket [shape="oval" label="Confirm there is a JIRA ticket representing this release and that its description field is filled out"]
+    fcdev_pr [shape=oval label="Make (or update) the firecloud-develop PR for the new Cromwell version"];
+    # For an example PR see https://github.com/broadinstitute/terra-helmfile/pull/550#pullrequestreview-527531319
+    helmfile_pr [shape=oval label="Make (or update) the terra-helmfile PR for the new Cromwell version\n(We only need to update the dev.yaml version.\nEverything else is \"train\" style promotions)"];
+    confirm_cromwell_v [shape=oval label="[Jenkins] Check for the correct Cromwell version hash in swatomation environment variables\n(otherwise re-run 'dsl-seed' and use 'jenkins retest')"];
+    confirm_cromwell_v [shape=oval label="[Jenkins] Check for the correct Cromwell version hash in swatomation environment variables\n(otherwise re-run 'dsl-seed' and use 'jenkins retest')"];
+    fcdev_success [shape=oval label="Wait for swatomation to succeed"];
+
+    fcdev_merge [shape=oval label="Merge firecloud-develop PR"];
+    helmfile_merge [shape=oval label="Merge terra-helmfile PR"];
+
+    dspjenkins_PR [shape=oval label="Make dsp-jenkins PR setting new Cromwell version"];
+    dspjenkins_merge [shape=oval label="Merge dsp-jenkins PR"];
+
+    jenkins_set [shape=oval label="[Jenkins] Use dsl-seed to make our dsp-jenkins branch the default"];
+    jenkins_reset [shape=oval label="[Jenkins] Use dsl-seed to make 'master' the default again"];
+  }
+
+  coordinate_release_timing [shape=oval label="If downtime will be required, co-ordinate with the release engineer\nand user support/comms about timings and banners"];
+
+  update_release_ticket [shape=oval label="Update the release with full commit list (see doc)"];
+
+  resume_core_release_process [shape=oval label="Resume the core Cromwell release process to complete remaining steps"];
+
+  # Edges
+  check_jenkins_tests -> release_cromwell
+
+  hotfix_changes -> publish_hotfix
+  publish_hotfix -> confirm_ticket
+
+  release_cromwell -> confirm_ticket
+
+  fcdev_pr -> helmfile_pr
+  helmfile_pr -> confirm_cromwell_v
+
+  confirm_ticket -> dspjenkins_PR
+  dspjenkins_PR -> jenkins_set
+
+  jenkins_set -> fcdev_pr
+  confirm_cromwell_v -> fcdev_success
+
+  fcdev_success -> dspjenkins_merge
+  fcdev_success -> fcdev_merge
+
+  fcdev_merge -> helmfile_merge
+  helmfile_merge -> coordinate_release_timing
+  coordinate_release_timing -> update_release_ticket
+  update_release_ticket -> resume_core_release_process
+}

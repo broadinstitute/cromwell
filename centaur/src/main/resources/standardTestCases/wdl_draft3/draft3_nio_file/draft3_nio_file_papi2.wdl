@@ -124,7 +124,7 @@ task nio_file {
     find . -name y >> errors.txt
   }
   runtime {
-    docker: "google/cloud-sdk:slim"
+    docker: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
     zones: ["us-central1-c"]
   }
   output {

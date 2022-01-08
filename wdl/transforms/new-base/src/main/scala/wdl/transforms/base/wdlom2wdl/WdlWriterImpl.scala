@@ -453,6 +453,9 @@ object WdlWriterImpl {
         case _: Zip => functionCall("zip")
         case _: Cross => functionCall("cross")
         case _: Prefix => functionCall("prefix")
+        case _: Min => functionCall("min")
+        case _: Max => functionCall("max")
+        case _: Sep => functionCall("sep")
       }
     }
   }

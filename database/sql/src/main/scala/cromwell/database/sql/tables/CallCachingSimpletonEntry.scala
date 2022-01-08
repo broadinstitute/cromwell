@@ -1,11 +1,11 @@
 package cromwell.database.sql.tables
 
-import java.sql.Clob
+import javax.sql.rowset.serial.SerialClob
 
 case class CallCachingSimpletonEntry
 (
   simpletonKey: String,
-  simpletonValue: Option[Clob],
+  simpletonValue: Option[SerialClob],
   wdlType: String,
   callCachingEntryId: Option[Int] = None,
   callCachingSimpletonEntryId: Option[Int] = None

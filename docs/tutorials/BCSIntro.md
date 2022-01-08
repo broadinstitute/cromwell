@@ -1,4 +1,4 @@
-## Getting started on Alibaba Cloud
+## Getting started on Alibaba Cloud with the Batch Compute Service
 
 ### Prerequisites
 
@@ -8,7 +8,7 @@ This tutorial page relies on completing the previous tutorials:
 
 ### Goals
 
-In this tutorial you'll learn to run the first workflow against the BatchCompute service on Alibaba Cloud.
+In this tutorial you'll learn to run the first workflow against the Batch Compute service on Alibaba Cloud.
 
 ### Let's get started!
 
@@ -91,6 +91,8 @@ backend {
         }
         
         default-runtime-attributes {
+          failOnStderr: false
+          continueOnReturnCode: 0
           cluster: "OnDemand ecs.sn1ne.large img-ubuntu"
           vpc: "192.168.0.0/16"
         } 

@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="mcovarr" id="workflow-store-horizontal-db">
+    <changeSet author="mcovarr" id="workflow-store-horizontal-db" dbms="mysql,hsqldb">
         <dropColumn tableName="WORKFLOW_STORE_ENTRY" columnName="RESTARTED" />
         <addColumn tableName="WORKFLOW_STORE_ENTRY">
             <column name="CROMWELL_ID" type="VARCHAR(100)">

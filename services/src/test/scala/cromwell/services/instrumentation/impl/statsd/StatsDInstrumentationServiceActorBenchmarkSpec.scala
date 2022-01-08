@@ -6,22 +6,24 @@ import com.typesafe.config.ConfigFactory
 import cromwell.core.TestKitSuite
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.instrumentation._
+import cromwell.services.instrumentation.impl.statsd.StatsDInstrumentationServiceActor._
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.Eventually
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
-import StatsDInstrumentationServiceActor._
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
+
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
-class StatsDInstrumentationServiceActorBenchmarkSpec extends TestKitSuite with FlatSpecLike with BeforeAndAfterAll with Matchers with Eventually {
+class StatsDInstrumentationServiceActorBenchmarkSpec extends TestKitSuite with AnyFlatSpecLike with BeforeAndAfterAll with Matchers with Eventually {
   behavior of "StatsDInstrumentationServiceActor"
 
   val config = ConfigFactory.parseString(
-    """statsd {
+    """
       |hostname = "localhost"
       |port = 8125
       |prefix = "prefix_value" # can be used to prefix all metrics with an api key for example
       |flush-rate = 100 ms # rate at which aggregated metrics will be sent to statsd
-      |}
     """.stripMargin
   )
 

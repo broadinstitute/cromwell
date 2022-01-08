@@ -14,7 +14,7 @@ task cpu_platform {
     }
 
     runtime {
-        docker: "google/cloud-sdk:slim"
+        docker: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
         cpuPlatform: cpu_platform
     }
 
@@ -26,4 +26,6 @@ task cpu_platform {
 workflow cpus {
    call cpu_platform as haswell { input: cpu_platform = "Intel Haswell" }
    call cpu_platform as broadwell { input: cpu_platform = "Intel Broadwell" }
+   call cpu_platform as cascadeLake { input: cpu_platform = "Intel Cascade Lake" }
+   call cpu_platform as rome {input: cpu_platform = "AMD Rome" }
 }

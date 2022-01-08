@@ -4,8 +4,8 @@ import java.io.{FileNotFoundException, IOException}
 
 import akka.actor.ActorContext
 import akka.stream.ActorMaterializer
-import cats.instances.try_._
 import cats.syntax.functor._
+import cats.instances.try_._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import common.collections.EnhancedCollections._
@@ -14,11 +14,13 @@ import cromwell.backend.io.JobPaths
 import cromwell.core.CromwellFatalExceptionMarker
 import cromwell.core.path.{DefaultPath, DefaultPathBuilder, Path, PathFactory}
 import cromwell.filesystems.http.HttpPathBuilder
+import net.ceedubs.ficus.Ficus._
 import wom.WomFileMapper
 import wom.values._
 
 import scala.collection.JavaConverters._
-import scala.concurrent.Await
+import scala.collection.mutable
+import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration.Duration
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -39,7 +41,7 @@ object SharedFileSystem extends StrictLogging {
 
   case class PairOfFiles(src: Path, dst: Path)
   type DuplicationStrategy = (Path, Path, Boolean) => Try[Unit]
-  
+
   private def createParentDirectory(executionPath: Path, docker: Boolean) = {
     if (docker) executionPath.parent.createPermissionedDirectories()
     else executionPath.parent.createDirectories()
@@ -48,7 +50,7 @@ object SharedFileSystem extends StrictLogging {
   /**
     * Return a `Success` result if the file has already been localized, otherwise `Failure`.
     */
-  private def localizePathAlreadyLocalized(originalPath: Path, executionPath: Path, docker: Boolean): Try[Unit] = {
+  private def localizePathAlreadyLocalized(originalPath: Path, executionPath: Path): Boolean => Try[Unit] = { _ =>
     if (executionPath.exists) Success(()) else Failure(new RuntimeException(s"$originalPath doesn't exist"))
   }
 
@@ -92,12 +94,103 @@ object SharedFileSystem extends StrictLogging {
       TryUtil.sequence(attempts, s"Could not $description $source -> $dest").void
     }
   }
+
+  private lazy val beingCopied: mutable.Map[Path, Boolean] = mutable.Map[Path, Boolean]()
+
+  private def waitOnCopy(path: Path, lockFile: Path): Unit = {
+    while (beingCopied.getOrElse(path, false) || lockFile.exists)  {
+      Thread.sleep(1)
+    }
+  }
+
+  private def countLinks(path: Path): Int = {
+    path.getAttribute("unix:nlink").asInstanceOf[Int]
+  }
 }
 
 trait SharedFileSystem extends PathFactory {
   import SharedFileSystem._
 
   def sharedFileSystemConfig: Config
+  lazy val maxHardLinks: Int = sharedFileSystemConfig.getOrElse[Int]("max-hardlinks",950)  // Windows limit 1024. Keep a safe margin.
+  lazy val cachedCopyDir: Option[Path] = None
+
+  private def localizePathViaCachedCopy(originalPath: Path, executionPath: Path, docker: Boolean): Try[Unit] = {
+    val action = Try {
+      createParentDirectory(executionPath, docker)
+      // Hash the parent. This will make sure bamfiles and their indexes stay in the same dir. This is not ideal. But should work.
+      // There should be no file collisions because two files with the same name cannot exist in the same parent dir.
+      // use .get . This strategy should not be used when there is no cachedCopyDir
+      val cachedCopySubDir: Path = cachedCopyDir.get.createChild(originalPath.toAbsolutePath.parent.hashCode.toString, asDirectory = true)
+
+      // By prepending the modtime we prevent collisions in the cache from files that have changed in between.
+      // Md5 is safer but much much slower and way too CPU intensive for big files.
+      val pathAndModTime: String = originalPath.lastModifiedTime.toEpochMilli.toString + originalPath.name
+      val cachedCopyPath: Path = cachedCopySubDir./(pathAndModTime)
+      val cachedCopyPathLockFile: Path = cachedCopyPath.plusSuffix(".lock")
+
+      if (!cachedCopyPath.exists || countLinks(cachedCopyPath) >= maxHardLinks) {
+        // This variable is used so we can release the lock before we start with the copying.
+        var shouldCopy = false
+
+        // LOCK: This block should only be accessed by one thread at a time. Otherwise multiple threads
+        // will copy the same cache file. The performance impact should be minimal as it is only a few
+        // decisions which are not time consuming.
+        SharedFileSystem.synchronized {
+
+          // We check again if cachedCopyPath is there or if the number of Hardlinks is still exceeded.
+          // The copying may have been started while waiting on the lock.
+          // If it is not there or the maxHardLinks are exceeded, is it already being copied by another thread?
+          // if not copied by another thread, is it copied by another cromwell process? (Lock file present)
+          if ((!cachedCopyPath.exists || countLinks(cachedCopyPath) >= maxHardLinks) &&
+            !SharedFileSystem.beingCopied.getOrElse(cachedCopyPath, false) &&
+            !cachedCopyPathLockFile.exists) {
+            // Create a lock file so other cromwell processes know copying has started
+            try {
+              cachedCopyPathLockFile.touch()
+              // Create an entry in the dictionary so other threads in this process know copying
+              // has started (filesystem can be too slow if multiple threads need the same file at
+              // exactly the same time)
+              SharedFileSystem.beingCopied(cachedCopyPath) = true
+              // Set should copy to true for *this* thread. The lock can now be released.
+              // this thread will do the copying. The other threads and/or processes will wait for the copying to
+              // be completed.
+              shouldCopy = true
+            } catch {
+              case e: Exception =>
+                // In case any error happens, make sure that all locks are removed. Otherwise cromwell will hang in the
+                // future.
+                SharedFileSystem.beingCopied.remove(cachedCopyPath)
+                cachedCopyPathLockFile.delete(true)
+                throw e
+            }
+          }
+        } // LOCK RELEASE
+        if (shouldCopy) {
+          try {
+            val cachedCopyTmpPath = cachedCopyPath.plusExt("tmp")
+            // CachedCopyPath is overwritten. It is possible that the number of hardlinks is exceeded. In which case
+            // the file is already there.
+            originalPath.copyTo(cachedCopyTmpPath, overwrite = true).moveTo(cachedCopyPath, overwrite = true)
+          } catch {
+            case e: Exception => throw e
+          }
+          finally {
+            // Always remove the locks after copying. Even if there is an exception.
+            // We remove the key! Not set it to false. We don't want this map being flooded with
+            // keys if the cromwell process is active for months in server mode. (Memory leak!)
+            SharedFileSystem.beingCopied.remove(cachedCopyPath)
+            cachedCopyPathLockFile.delete()
+          }
+        }
+      }
+      // If the file does exist, it may still be copied/moved and therefore not all the bits might
+      // be there. Therefore we always wait until the locks are cleared.
+      SharedFileSystem.waitOnCopy(cachedCopyPath, cachedCopyPathLockFile)
+      cachedCopyPath.linkTo(executionPath)
+    }.void
+    logOnFailure(action, "cached copy file")
+  }
 
   implicit def actorContext: ActorContext
 
@@ -120,8 +213,10 @@ trait SharedFileSystem extends PathFactory {
 
   private def createStrategies(configStrategies: Seq[String], docker: Boolean): Seq[DuplicationStrategy] = {
     // If localizing for a docker job, remove soft-link as an option
+    // If no cachedCopyDir is defined, cached-copy can not be used and is removed.
     val filteredConfigStrategies = configStrategies filter {
       case "soft-link" if docker => false
+      case "cached-copy" if cachedCopyDir.isEmpty => false
       case _ => true
     }
 
@@ -130,11 +225,13 @@ trait SharedFileSystem extends PathFactory {
       case "hard-link" => localizePathViaHardLink _
       case "soft-link" => localizePathViaSymbolicLink _
       case "copy" => localizePathViaCopy _
+      case "cached-copy" => localizePathViaCachedCopy _
       case unsupported => throw new UnsupportedOperationException(s"Strategy $unsupported is not recognized")
     }
 
+    val alreadyLocalized: DuplicationStrategy = localizePathAlreadyLocalized(_, _)(_)
     // Prepend the default duplication strategy, and return the sequence
-    localizePathAlreadyLocalized _ +: mappedDuplicationStrategies
+    alreadyLocalized +: mappedDuplicationStrategies
   }
 
   def hostAbsoluteFilePath(jobPaths: JobPaths, pathString: String): Path = {
@@ -147,7 +244,7 @@ trait SharedFileSystem extends PathFactory {
   }
 
   def outputMapper(job: JobPaths)(womValue: WomValue): Try[WomValue] = {
-    WomFileMapper.mapWomFiles(mapJobWomFile(job), Set.empty)(womValue)
+    WomFileMapper.mapWomFiles(mapJobWomFile(job))(womValue)
   }
 
   def mapJobWomFile(jobPaths: JobPaths)(womFile: WomFile): WomFile = {
@@ -171,7 +268,7 @@ trait SharedFileSystem extends PathFactory {
    */
   def localizeInputs(inputsRoot: Path, docker: Boolean)(inputs: WomEvaluatedCallInputs): Try[WomEvaluatedCallInputs] = {
     TryUtil.sequenceMap(
-      inputs safeMapValues WomFileMapper.mapWomFiles(localizeWomFile(inputsRoot, docker), Set.empty),
+      inputs safeMapValues WomFileMapper.mapWomFiles(localizeWomFile(inputsRoot, docker)),
       "Failures during localization"
     ) recoverWith {
       case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)
@@ -212,7 +309,7 @@ trait SharedFileSystem extends PathFactory {
       pathBuilders.collectFirst({ case h: HttpPathBuilder if HttpPathBuilder.accepts(input) => h }) match {
         case Some(httpPathBuilder) =>
           implicit val materializer = ActorMaterializer()
-          implicit val ec = actorContext.dispatcher
+          implicit val ec: ExecutionContext = actorContext.dispatcher
 
           Await.result(httpPathBuilder.content(input).map { _.toString }, Duration.Inf)
         case _ => input
@@ -220,7 +317,7 @@ trait SharedFileSystem extends PathFactory {
     }
 
     // Optional function to adjust the path to "docker path" if the call runs in docker
-    localizeWomFile(toCallPath _, strategies.toStream, docker)(staged)
+    localizeWomFile(toCallPath, strategies.toStream, docker)(staged)
   }
 
   /**

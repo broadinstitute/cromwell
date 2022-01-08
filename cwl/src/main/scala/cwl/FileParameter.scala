@@ -1,8 +1,8 @@
 package cwl
 
 import cats.effect.IO
-import cats.instances.list._
 import cats.syntax.traverse._
+import cats.instances.list._
 import common.validation.ErrorOr._
 import common.validation.IOChecked._
 import common.validation.Validation._
@@ -80,6 +80,7 @@ object FileParameter {
   }
 
   def load64KiB(path: String, ioFunctionSet: IoFunctionSet): IO[String] = {
+    implicit val ec = IO.contextShift(ioFunctionSet.ec)
     IO.fromFuture(IO { ioFunctionSet.readFile(path, ReadLimit, failOnOverflow = false) })
   }
 

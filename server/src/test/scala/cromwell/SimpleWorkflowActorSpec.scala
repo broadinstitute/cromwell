@@ -1,3 +1,4 @@
+
 package cromwell
 
 import java.time.OffsetDateTime
@@ -9,12 +10,13 @@ import akka.testkit._
 import com.typesafe.config.ConfigFactory
 import cromwell.MetadataWatchActor.{FailureMatcher, Matcher}
 import cromwell.SimpleWorkflowActorSpec._
-import cromwell.core.{SimpleIoActor, WorkflowId, WorkflowSourceFilesWithoutImports}
+import cromwell.core._
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
+import cromwell.engine.workflow.WorkflowManagerActor.WorkflowActorWorkComplete
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.Rate
-import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
+import cromwell.engine.workflow.tokens.JobTokenDispenserActor
 import cromwell.engine.workflow.workflowstore.{Submitted, WorkflowHeartbeatConfig, WorkflowToStart}
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld.Addressee
@@ -46,18 +48,23 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
       workflowType = Option("WDL"),
       workflowTypeVersion = None,
       inputsJson = rawInputsOverride,
-      workflowOptionsJson = "{}",
+      workflowOptions = WorkflowOptions.empty,
       labelsJson = "{}",
       warnings = Vector.empty
     )
+
     val promise = Promise[Unit]()
     val watchActor = system.actorOf(MetadataWatchActor.props(promise, matchers: _*), s"service-registry-$workflowId-${UUID.randomUUID()}")
     val supervisor = TestProbe()
     val config = ConfigFactory.load()
-    val workflowToStart = WorkflowToStart(workflowId, OffsetDateTime.now(), workflowSources, Submitted)
+    val workflowToStart = WorkflowToStart(workflowId, OffsetDateTime.now(), workflowSources, Submitted, HogGroup("foo"))
+    val callCachingEnabled =false
+    val invalidateBadCacheResults =false
     val workflowActor = TestFSMRef(
       factory = new WorkflowActor(workflowToStart, config,
         ioActor = system.actorOf(SimpleIoActor.props),
+        callCachingEnabled = callCachingEnabled,
+        invalidateBadCacheResults = invalidateBadCacheResults,
         serviceRegistryActor = watchActor,
         workflowLogCopyRouter = system.actorOf(Props.empty, s"workflow-copy-log-router-$workflowId-${UUID.randomUUID()}"),
         jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props),
@@ -65,13 +72,14 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
         callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props),
         callCacheWriteActor = system.actorOf(EmptyCallCacheWriteActor.props),
         dockerHashActor = system.actorOf(EmptyDockerHashActor.props),
-        jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None)),
+        jobRestartCheckTokenDispenserActor = system.actorOf(JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running")),
+        jobExecutionTokenDispenserActor = system.actorOf(JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running")),
         backendSingletonCollection = BackendSingletonCollection(Map("Local" -> None)),
         serverMode = true,
         workflowStoreActor = system.actorOf(Props.empty),
         workflowHeartbeatConfig = WorkflowHeartbeatConfig(config),
         totalJobsByRootWf = new AtomicInteger(),
-        fileHashCacheActor = None,
+        fileHashCacheActorProps = None,
         blacklistCache = None),
       supervisor = supervisor.ref,
       name = s"workflow-actor-$workflowId"
@@ -86,6 +94,13 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
     workflowId = WorkflowId.randomId()
   }
 
+  def workflowManagerActorAwaitsSingleWorkCompleteMessage(workflowManagerActor: TestProbe, finalState: WorkflowState): Unit = {
+    workflowManagerActor.expectMsgPF(TestExecutionTimeout) {
+      case WorkflowActorWorkComplete(_, _, finalState) => finalState should be(finalState)
+    }
+    workflowManagerActor.expectNoMessage(AwaitAlmostNothing)
+  }
+
   "A WorkflowActor" should {
     "start, run, succeed and die" in {
       val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, _) = buildWorkflowActor(SampleWdl.HelloWorld, SampleWdl.HelloWorld.workflowJson, workflowId)
@@ -94,10 +109,9 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
       startingCallsFilter("wf_hello.hello") {
         workflowActor ! StartWorkflowCommand
       }
-
       probe.expectTerminated(workflowActor, TestExecutionTimeout)
-      // Check the parent didn't see anything:
-      supervisor.expectNoMessage(AwaitAlmostNothing) // The actor's already terminated. No point hanging around waiting...
+      // Check the parent gets the work complete message:
+      workflowManagerActorAwaitsSingleWorkCompleteMessage(supervisor, WorkflowSucceeded)
 
     }
 
@@ -116,6 +130,8 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
           x.reasons.size should be(1)
           x.reasons.head.getMessage.contains(expectedError) should be(true)
       }
+      // Check the parent gets the work complete message:
+      workflowManagerActorAwaitsSingleWorkCompleteMessage(supervisor, WorkflowFailed)
     }
 
     "fail to construct with inputs of the wrong type" in {
@@ -142,6 +158,8 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
           x.reasons.size should be(1)
           x.reasons.head.getMessage.contains(expectedError) should be(true)
       }
+      // Check the parent gets the work complete message:
+      workflowManagerActorAwaitsSingleWorkCompleteMessage(supervisor, WorkflowFailed)
     }
 
     "fail when a call fails" in {
@@ -161,6 +179,8 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
           x.reasons.size should be(1)
           x.reasons.head.getMessage.contains(expectedError) should be(true)
       }
+      // Check the parent gets the work complete message:
+      workflowManagerActorAwaitsSingleWorkCompleteMessage(supervisor, WorkflowFailed)
     }
 
     "gracefully handle malformed WDL" in {
@@ -187,6 +207,8 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
           x.reasons.size should be(1)
           x.reasons.head.getMessage.contains(expectedError) should be(true)
       }
+      // Check the parent gets the work complete message:
+      workflowManagerActorAwaitsSingleWorkCompleteMessage(supervisor, WorkflowFailed)
     }
   }
 
@@ -199,3 +221,4 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
     }
   }
 }
+

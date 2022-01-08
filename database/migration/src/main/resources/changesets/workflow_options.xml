@@ -4,7 +4,7 @@
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
     <property name="clob.type" value="LONGTEXT" dbms="mysql"/>
     <property name="clob.type" value="LONGVARCHAR" dbms="hsqldb"/>
-    <changeSet author="sfrazer" id="workflow-options">
+    <changeSet author="sfrazer" id="workflow-options" dbms="mysql,hsqldb">
         <addColumn tableName="WORKFLOW_EXECUTION_AUX">
             <column name="WORKFLOW_OPTIONS" type="${clob.type}" />
         </addColumn>

@@ -1,12 +1,13 @@
 package centaur
 
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import centaur.AbstractCromwellEngineOrBackendUpgradeTestCaseSpec._
 import centaur.test.standard.CentaurTestCase
 import cromwell.database.slick.{EngineSlickDatabase, MetadataSlickDatabase, SlickDatabase}
 import cromwell.database.sql.SqlDatabase
 import org.scalatest.{Assertions, BeforeAndAfter, DoNotDiscover}
 import shapeless.syntax.typeable._
+import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.Future
 
@@ -18,9 +19,10 @@ abstract class AbstractCromwellEngineOrBackendUpgradeTestCaseSpec(cromwellBacken
 
   def this() = this(CentaurTestSuite.cromwellBackends)
 
-  private val cromwellDatabase = CromwellDatabase.fromConfig(CentaurConfig.conf)
+  private val cromwellDatabase = CromwellDatabase.instance
   private val engineSlickDatabaseOption = cromwellDatabase.engineDatabase.cast[EngineSlickDatabase]
   private val metadataSlickDatabaseOption = cromwellDatabase.metadataDatabase.cast[MetadataSlickDatabase]
+  import TestContext._
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
@@ -54,7 +56,7 @@ abstract class AbstractCromwellEngineOrBackendUpgradeTestCaseSpec(cromwellBacken
 
 
 object AbstractCromwellEngineOrBackendUpgradeTestCaseSpec {
-  private def checkIsEmpty(database: SqlDatabase, lookup: => Future[Boolean], testType: => String): IO[Unit] = {
+  private def checkIsEmpty(database: SqlDatabase, lookup: => Future[Boolean], testType: => String)(implicit cs: ContextShift[IO]): IO[Unit] = {
     IO.fromFuture(IO(lookup)).flatMap(exists =>
       if (exists) {
         IO(Assertions.fail(
@@ -68,9 +70,9 @@ object AbstractCromwellEngineOrBackendUpgradeTestCaseSpec {
     )
   }
 
-  private def recreateDatabase(slickDatabase: SlickDatabase): IO[Unit] = {
+  private def recreateDatabase(slickDatabase: SlickDatabase)(implicit cs: ContextShift[IO]): IO[Unit] = {
     import slickDatabase.dataAccess.driver.api._
-    val schemaName = slickDatabase.databaseConfig.getString("db.schema")
+    val schemaName = slickDatabase.databaseConfig.getOrElse("db.cromwell-database-name", "cromwell_test")
     //noinspection SqlDialectInspection
     for {
       _ <- IO.fromFuture(IO(slickDatabase.database.run(sqlu"""DROP SCHEMA IF EXISTS #$schemaName""")))

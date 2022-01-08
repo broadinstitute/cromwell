@@ -5,15 +5,15 @@ site_author: Red Team at Broad Institute
 
 repo_url: https://github.com/broadinstitute/cromwell/
 
-pages:
+nav:
 - Introduction: index.md
 - Tutorials:
 #    - Tutorial Map: tutorials/Overview.md
     - Quick Introduction: tutorials/FiveMinuteIntro.md
     - How to Configure Cromwell: tutorials/ConfigurationFiles.md
-    - Getting started with Pipelines API: tutorials/PipelinesApi101.md
+    - Getting started with Google Cloud: tutorials/PipelinesApi101.md
     - Getting started with Alibaba Cloud: tutorials/BCSIntro.md
-    - Getting started with AWS Batch (beta): tutorials/AwsBatch101.md
+    - Getting started with AWS (beta): tutorials/AwsBatch101.md
     - View the Timing Diagrams: tutorials/TimingDiagrams.md
     - Persisting data between restarts: tutorials/PersistentServer.md
     - Getting started on HPC Clusters: tutorials/HPCIntro.md
@@ -27,7 +27,7 @@ pages:
 - Cromwell Basics:
     - Modes: Modes.md
     - Workflow Language Support: LanguageSupport.md
-    - Cromwell Releases: Getting.md
+    - Cromwell Releases: Releases.md
     - Support: GettingHelp.md
 - Command Line: CommandLine.md
 - Feature Documentation:
@@ -41,7 +41,11 @@ pages:
 - Workflow Optimizations:
   - Optimizations: optimizations/optimizations.md
   - "Task inputs: localization_optional": optimizations/FileLocalization.md
+  - "Volatile Tasks: volatile": optimizations/VolatileTasks.md
+  - "CheckpointFiles": optimizations/CheckpointFiles.md
 - Configuration: Configuring.md
+- Scaling / Horizontal Cromwell: Scaling.md
+- Ecosystem: Ecosystem.md
 - WOMtool: WOMtool.md
 - Imports: Imports.md
 - Sub-Workflows: SubWorkflows.md
@@ -51,9 +55,10 @@ pages:
     - Overview: backends/Backends.md
     - Local: backends/Local.md
     - Google Cloud: backends/Google.md
+    - AWS Batch: backends/AWSBatch.md
     - Alibaba Cloud: backends/BCS.md
+    - AWS Batch (beta): backends/AWS.md
     - GA4GH TES: backends/TES.md
-    - Spark: backends/Spark.md
     - HPC: backends/HPC.md
     - Sun GridEngine: backends/SGE.md
     - LSF: backends/LSF.md
@@ -71,11 +76,38 @@ pages:
 - For Developers:
     - How to Build: developers/Building.md
     - Architecture: developers/Arch.md
+    - Backend Development: developers/Backend.md
     - Instrumentation: developers/Instrumentation.md
     - Integration tests: developers/Centaur.md
     - Security: developers/Security.md
     - Contribute to docs: developers/Contribute.md
     - CWL Parsing: developers/CwlParsing.md
+    - Bitesize Design Docs:
+        - Workflow Parsing & Graph Construction:
+            - What is WOM?: developers/bitesize/workflowParsing/whatIsWom.md
+            - From WDL Source to WOM:
+                - Overview: developers/bitesize/workflowParsing/wdlParsingOverview.md
+                - From WDL to WDLOM: developers/bitesize/workflowParsing/wdlToWdlom.md
+                - Adding new WDL Engine Functions: developers/bitesize/workflowParsing/engineFunctionAddition.md
+            - From CWL Source to WOM: developers/bitesize/workflowParsing/cwlParsingOverview.md
+        - Cromwell Actor System:
+            - High level view: developers/bitesize/majorActorSystem/5000FtActorSystem.md
+            - Workflow Execution:
+                - Main Actors: developers/bitesize/workflowExecution/majorActors.md
+                - Workflow, Subworkflow and Job Stores: developers/bitesize/workflowExecution/workflowSubworkflowAndJobStores.md
+                - Job Key / Value Store: developers/bitesize/workflowExecution/jobKeyValueStore.md
+                - Job retry decision logic: developers/bitesize/jobRetryLogic/jobRetryLogic.md
+                - Evaluating WDL expressions in WOM: developers/bitesize/workflowExecution/wdlExpressionEvaluation.md
+                - Execution and Value Stores:
+                      - Execution Store: developers/bitesize/workflowExecution/executionStore.md
+                      - Value Store: developers/bitesize/workflowExecution/valueStore.md
+                      - Worked Examples: developers/bitesize/workflowExecution/executionAndValueStoreExamples.md
+            - IoActor: developers/bitesize/IoActor/IoActor.md
+        - Horizontal Cromwell ("Horicromtal"): developers/bitesize/horicromtal.md
+        - General Topics:
+            - Simpletons: developers/bitesize/general/simpletons.md
+        - Continuous Integration (CI) / Continuous Delivery (CD): developers/bitesize/ci/CICD.md
+        - Travis Centaur: developers/bitesize/ci/travis_centaur.md
 
 theme: readthedocs
 
@@ -84,5 +116,5 @@ extra_css:
 extra_javascript:
     - js/extra.js
 
-copyright: Copyright &copy; 2017 <a href="https://broadinstitute.org">Broad Institute</a>
+copyright: Copyright &copy; 2019 <a href="https://broadinstitute.org">Broad Institute</a>
 # google_analytics: ['identifierID', 'URL.org']

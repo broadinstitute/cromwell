@@ -1,12 +1,12 @@
 package cromwell.database.sql.tables
 
-import java.sql.Clob
+import javax.sql.rowset.serial.SerialClob
 
 case class JobStoreSimpletonEntry
 (
   simpletonKey: String,
-  simpletonValue: Option[Clob],
+  simpletonValue: Option[SerialClob],
   wdlType: String,
-  jobStoreEntryId: Option[Int] = None,
-  jobStoreSimpletonEntryId: Option[Int] = None
+  jobStoreEntryId: Option[Long] = None,
+  jobStoreSimpletonEntryId: Option[Long] = None
 )

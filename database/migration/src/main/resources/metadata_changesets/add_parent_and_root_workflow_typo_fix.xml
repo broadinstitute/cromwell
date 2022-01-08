@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet author="kshakir" id="add_parent_and_root_workflow_typo_fix" dbms="mysql,hsqldb">
+        <!--
+        The changeset add_parent_and_root_workflow_execution_uuid had a typo.
+
+        What was:
+        update SUMMARY_STATUS_ENTRY
+          set SUMMARY_NAME = 'WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING'
+          where SUMMARY_NAME = 'WORKFLOW_METADATA_SUMMARY';
+
+        Should have been:
+        update SUMMARY_STATUS_ENTRY
+          set SUMMARY_NAME = 'WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING'
+          where SUMMARY_NAME = 'WORKFLOW_METADATA_SUMMARY_ENTRY';
+
+        Delete any possible WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING entry and do the migration as it was intended.
+
+        For all databases (upgraded or not) this will effectively reset the summary-pointer of
+        `WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING` **backwards** to the summary-pointer of
+        `WORKFLOW_METADATA_SUMMARY_ENTRY'.
+        -->
+        <delete tableName="SUMMARY_STATUS_ENTRY">
+            <where>SUMMARY_NAME = 'WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING'</where>
+        </delete>
+        <update tableName="SUMMARY_STATUS_ENTRY">
+            <column name="SUMMARY_NAME" value="WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING" type="VARCHAR(255)"/>
+            <where>SUMMARY_NAME = 'WORKFLOW_METADATA_SUMMARY_ENTRY'</where>
+        </update>
+    </changeSet>
+
+</databaseChangeLog>

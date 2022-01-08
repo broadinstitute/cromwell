@@ -2,11 +2,13 @@ package cromiam.webservice
 
 import akka.http.scaladsl.model.{ContentTypes, StatusCodes}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
+import common.assertion.CromwellTimeoutSpec
 import cromiam.server.config.SwaggerOauthConfig
 import io.swagger.models.properties.RefProperty
 import io.swagger.parser.SwaggerParser
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 import org.yaml.snakeyaml.constructor.Constructor
 import org.yaml.snakeyaml.error.YAMLException
 import org.yaml.snakeyaml.nodes.MappingNode
@@ -14,7 +16,8 @@ import org.yaml.snakeyaml.{Yaml => SnakeYaml}
 
 import scala.collection.JavaConverters._
 
-class SwaggerServiceSpec extends FlatSpec with SwaggerService with ScalatestRouteTest with Matchers
+
+class SwaggerServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with SwaggerService with ScalatestRouteTest with Matchers
   with TableDrivenPropertyChecks {
   def actorRefFactory = system
   override def oauthConfig: SwaggerOauthConfig = SwaggerOauthConfig("clientId", "realm", "appName")
@@ -57,7 +60,8 @@ class SwaggerServiceSpec extends FlatSpec with SwaggerService with ScalatestRout
         resultWithInfo.getMessages.asScala.filterNot(_ == swaggerBugMsg) should be(empty)
 
         resultWithInfo.getSwagger.getDefinitions.asScala foreach {
-          case (defKey, defVal) => defVal.getProperties.asScala foreach {
+          // If no properties, `getProperties` returns `null` instead of an empty map
+          case (defKey, defVal) => Option(defVal.getProperties).map(_.asScala).getOrElse(Map.empty) foreach {
             /*
             Two against one.
             Swagger parser implementation lets a RefProperty have descriptions.

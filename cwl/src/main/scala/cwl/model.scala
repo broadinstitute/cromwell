@@ -1,7 +1,7 @@
 package cwl
 
 import cwl.CommandLineTool.{CommandBindingSortingKey, SortKeyAndCommandPart}
-import cwl.SchemaDefRequirement.SchemaDefTypes
+import cwl.SchemaDefRequirement.{AsInputEnumSchema, AsInputRecordSchema, SchemaDefTypes}
 import cwl.CwlType.CwlType
 import cwl.WorkflowStepInput.InputSource
 import cwl.command.ParentName
@@ -10,7 +10,7 @@ import eu.timepit.refined._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.MatchesRegex
 import shapeless.syntax.singleton._
-import shapeless.{:+:, CNil, Coproduct, Inl, Inr, Poly1, Witness}
+import shapeless.{:+:, CNil, Coproduct, Poly1, Witness}
 import wom.types.WomType
 import wom.values.WomValue
 import mouse.all._
@@ -182,7 +182,7 @@ case class SchemaDefRequirement(
 
   def lookupType(tpe: String): Option[WomType] =
     lookupCwlType(tpe).flatMap{
-      case Inl(inputRecordSchema) => MyriadInputInnerTypeToWomType.inputRecordSchemaToWomType(inputRecordSchema).apply(this) |> Option.apply
+      case AsInputRecordSchema(inputRecordSchema: InputRecordSchema) => MyriadInputInnerTypeToWomType.inputRecordSchemaToWomType(inputRecordSchema).apply(this) |> Option.apply
       case _ => None
     }
 
@@ -190,15 +190,16 @@ case class SchemaDefRequirement(
   def lookupCwlType(tpe: String): Option[SchemaDefTypes] = {
 
     def matchesType(inputEnumSchema: InputEnumSchema): Boolean = {
-      inputEnumSchema.name.fold(false){name => FileAndId(name)(ParentName.empty).id equalsIgnoreCase FullyQualifiedName(tpe)(ParentName.empty).id}
+      inputEnumSchema.name.fold(false){name => FileAndId(name)(ParentName.empty).id equalsIgnoreCase FileAndId(tpe)(ParentName.empty).id}
     }
 
     types.toList.flatMap {
-    case Inl(inputRecordSchema: InputRecordSchema) if FileAndId(inputRecordSchema.name)(ParentName.empty).id equalsIgnoreCase FullyQualifiedName(tpe)(ParentName.empty).id=>
-          List(Coproduct[SchemaDefTypes](inputRecordSchema))
-    case Inr(Inl(inputEnumSchema: InputEnumSchema)) if matchesType(inputEnumSchema)=>
-      List(Coproduct[SchemaDefTypes](inputEnumSchema))
-    case _ => List()
+      case AsInputRecordSchema(inputRecordSchema: InputRecordSchema) if FileAndId(inputRecordSchema.name)(ParentName.empty).id equalsIgnoreCase FileAndId(tpe)(ParentName.empty).id =>
+        List(Coproduct[SchemaDefTypes](inputRecordSchema))
+      case AsInputEnumSchema(inputEnumSchema: InputEnumSchema) if matchesType(inputEnumSchema) =>
+        List(Coproduct[SchemaDefTypes](inputEnumSchema))
+      case _ =>
+        List()
     }.headOption
   }
 }
@@ -206,6 +207,17 @@ case class SchemaDefRequirement(
 object SchemaDefRequirement {
   type SchemaDefTypes = InputRecordSchema :+: InputEnumSchema :+: InputArraySchema :+: CNil
 
+  object AsInputRecordSchema {
+    def unapply(arg: SchemaDefTypes): Option[InputRecordSchema] = arg.select[InputRecordSchema]
+  }
+
+  object AsInputEnumSchema {
+    def unapply(arg: SchemaDefTypes): Option[InputEnumSchema] = arg.select[InputEnumSchema]
+  }
+
+  object AsInputArraySchema {
+    def unapply(arg: SchemaDefTypes): Option[InputArraySchema] = arg.select[InputArraySchema]
+  }
 }
 
 //There is a large potential for regex refinements on these string types

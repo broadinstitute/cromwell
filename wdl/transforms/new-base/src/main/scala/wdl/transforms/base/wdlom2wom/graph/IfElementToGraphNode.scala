@@ -73,7 +73,11 @@ object IfElementToGraphNode {
         OuterGraphInputNode(WomIdentifier(name), port, preserveScatterIndex = true)
       }).toSet
 
-      val graphLikeConvertInputs = GraphLikeConvertInputs(graphElements.toSet, ogins, foundOuterGenerators.completionPorts, a.availableTypeAliases, a.workflowName, insideAScatter = a.insideAnotherScatter, a.callables)
+      val graphLikeConvertInputs = GraphLikeConvertInputs(graphElements.toSet, ogins, foundOuterGenerators.completionPorts, a.availableTypeAliases, a.workflowName,
+                                                          insideAScatter = a.insideAnotherScatter,
+                                                          convertNestedScatterToSubworkflow = a.convertNestedScatterToSubworkflow,
+                                                          allowNestedInputs = a.allowNestedInputs,
+                                                          a.callables)
       val innerGraph: ErrorOr[Graph] = WorkflowDefinitionElementToWomWorkflowDefinition.convertGraphElements(graphLikeConvertInputs)
 
       innerGraph map { ig =>
@@ -92,4 +96,6 @@ final case class ConditionalNodeMakerInputs(node: IfElement,
                                             availableTypeAliases: Map[String, WomType],
                                             workflowName: String,
                                             insideAnotherScatter: Boolean,
+                                            convertNestedScatterToSubworkflow : Boolean,
+                                            allowNestedInputs: Boolean,
                                             callables: Map[String, Callable])

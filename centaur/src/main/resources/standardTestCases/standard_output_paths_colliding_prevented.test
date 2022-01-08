@@ -1,0 +1,16 @@
+name: standard_output_paths_colliding_prevented
+testFormat: workflowsuccess
+
+files {
+  workflow: standard_output_paths_colliding_prevented/workflow_output_paths_colliding.wdl
+  options: standard_output_paths_colliding_prevented/options.json
+}
+
+metadata {
+  status: Succeeded
+}
+fileSystemCheck: "local"
+outputExpectations: {
+    "/tmp/outputs/standard_output_paths_colliding_prevented/Gutenberg/<<UUID>>/call-set_type/execution/typeset.txt": 1
+    "/tmp/outputs/standard_output_paths_colliding_prevented/Gutenberg/<<UUID>>/call-great_press/execution/typeset.txt": 1
+}

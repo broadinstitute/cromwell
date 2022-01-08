@@ -2,8 +2,8 @@ name: call_caching_stress_no_hint
 testFormat: workflowsuccess
 
 files {
-  workflow: "https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/scripts/perf/test_cases/call_caching_stress_workflow/callCachingStress.wdl"
-  inputs: "https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/scripts/perf/test_cases/call_caching_stress_workflow/callCachingStress.inputs"
+  workflow: "../call_caching_stress_workflow/callCachingStress.wdl"
+  inputs: "../call_caching_stress_workflow/callCachingStress.inputs"
   options: "gs://cromwell-perf-test/workflow_related_files/call_caching_sa2_workflow_options.json"
 }
 

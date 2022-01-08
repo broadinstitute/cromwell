@@ -1,11 +1,13 @@
 package cromwell.webservice
 
 import cats.data.Validated.{Invalid, Valid}
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
-class PartialWorkflowSourcesSpec extends FlatSpec with Matchers {
+class PartialWorkflowSourcesSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "mergeMaps method"
   it should "successfully merge and override multiple input files" in {
@@ -29,7 +31,7 @@ class PartialWorkflowSourcesSpec extends FlatSpec with Matchers {
 
     mergedMapsErrorOr match {
       case Valid(_) => fail("This is unexpected! This test is designed to fail!")
-      case Invalid(error) => error.head shouldBe "Submitted input '\"invalidInput\"' of type JsString is not a JSON object."
+      case Invalid(error) => error.head shouldBe "Submitted input '\"invalidInput\"' of type JsString is not a valid JSON object."
     }
   }
 

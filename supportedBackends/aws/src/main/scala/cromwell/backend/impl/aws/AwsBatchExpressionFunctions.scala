@@ -36,6 +36,7 @@ import cromwell.core.io.IoCommandBuilder
 import cromwell.filesystems.s3.S3PathBuilder
 import cromwell.filesystems.s3.S3PathBuilder.{InvalidS3Path, PossiblyValidRelativeS3Path, ValidFullS3Path}
 import cromwell.filesystems.s3.batch.S3BatchCommandBuilder
+import cromwell.core.path.{DefaultPath, Path}
 
 class AwsBatchExpressionFunctions(standardParams: StandardExpressionFunctionsParams)
   extends StandardExpressionFunctions(standardParams) {
@@ -46,6 +47,16 @@ class AwsBatchExpressionFunctions(standardParams: StandardExpressionFunctionsPar
       case _: ValidFullS3Path => str
       case PossiblyValidRelativeS3Path => callContext.root.resolve(str.stripPrefix("/")).pathAsString
       case invalid: InvalidS3Path => throw new IllegalArgumentException(invalid.errorMessage)
+    }
+  }
+}
+
+class AwsBatchExpressionFunctionsForFS(standardParams: StandardExpressionFunctionsParams)
+  extends StandardExpressionFunctions(standardParams) {
+  override def postMapping(path: Path) = {
+    path match {
+      case _: DefaultPath if !path.isAbsolute => callContext.root.resolve(path)
+      case _ => path
     }
   }
 }

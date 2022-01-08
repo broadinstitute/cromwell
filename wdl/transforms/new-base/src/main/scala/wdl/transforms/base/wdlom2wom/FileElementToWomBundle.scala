@@ -1,10 +1,11 @@
 package wdl.transforms.base.wdlom2wom
 
-import cats.instances.either._
-import cats.instances.vector._
+import cats.data.NonEmptyList
 import cats.syntax.either._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.vector._
+import cats.instances.either._
 import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.Checked._
@@ -34,11 +35,23 @@ object FileElementToWomBundle {
         val allStructs = structs ++ imports.flatMap(_.typeAliases)
 
         val localTasksValidation: ErrorOr[Map[String, Callable]] = {
-          tasks.traverse { taskDefinition =>
+          val validatedTasksVector: ErrorOr[Vector[(String, Callable)]] = tasks.traverse { taskDefinition =>
             a.taskConverter
               .run(TaskDefinitionElementToWomInputs(taskDefinition, structs))
               .map(t => t.name -> t).toValidated
-          }.map(_.toMap)
+          }
+
+          validatedTasksVector flatMap { tasksVector =>
+
+            val duplicateTaskNames = tasksVector.groupBy(_._1).collect { case (x, list) if list.size > 1 => x }
+
+            NonEmptyList.fromList(duplicateTaskNames.toList) match {
+              case None => tasksVector.toMap.validNel
+              case Some(duplicates) => duplicates.map { x => s"Cannot reuse the same task name ('$x') more than once" }.invalid
+
+            }
+
+          }
         }
 
         localTasksValidation flatMap { localTaskMapping =>
@@ -46,7 +59,10 @@ object FileElementToWomBundle {
           val workflowsValidation: ErrorOr[Vector[WorkflowDefinition]] = {
             a.fileElement.workflows.toVector.traverse { workflowDefinition =>
 
-              val convertInputs = WorkflowDefinitionConvertInputs(workflowDefinition, allStructs, localTaskMapping ++ imports.flatMap(_.allCallables))
+              val convertInputs = WorkflowDefinitionConvertInputs(workflowDefinition,
+                                                                  allStructs,
+                                                                  localTaskMapping ++ imports.flatMap(_.allCallables),
+                                                                  a.convertNestedScatterToSubworkflow)
               a.workflowConverter.run(convertInputs).toValidated
             }
           }
@@ -61,7 +77,7 @@ object FileElementToWomBundle {
 
             val bundledCallableMap = (localTaskMapping.values.toSet ++ workflows).map(c => c.name -> c).toMap
 
-            WomBundle(primary, bundledCallableMap, allStructs)
+            WomBundle(primary, bundledCallableMap, allStructs, imports.flatMap(_.resolvedImportRecords).toSet)
           }
         }
       }
@@ -86,7 +102,7 @@ object FileElementToWomBundle {
 
     val languageFactoryKleislis: List[CheckedAtoB[ResolvedImportBundle, WomBundle]] = languageFactories map { factory =>
       CheckedAtoB.fromCheck { resolutionBundle: ResolvedImportBundle =>
-        factory.getWomBundle(resolutionBundle.source, optionsJson, resolutionBundle.newResolvers, languageFactories)
+        factory.getWomBundle(resolutionBundle.source, Option(resolutionBundle.resolvedImportRecord), optionsJson, resolutionBundle.newResolvers, languageFactories)
       }
     }
     val compoundLanguageFactory: CheckedAtoB[ResolvedImportBundle, WomBundle] = CheckedAtoB.firstSuccess(languageFactoryKleislis, s"convert imported '${importElement.importUrl}' to WOM")
@@ -129,6 +145,7 @@ object FileElementToWomBundle {
 
 final case class FileElementToWomBundleInputs(fileElement: FileElement,
                                               workflowOptionsJson: WorkflowOptionsJson,
+                                              convertNestedScatterToSubworkflow : Boolean,
                                               importResolvers: List[ImportResolver],
                                               languageFactories: List[LanguageFactory],
                                               workflowConverter: CheckedAtoB[WorkflowDefinitionConvertInputs, WorkflowDefinition],

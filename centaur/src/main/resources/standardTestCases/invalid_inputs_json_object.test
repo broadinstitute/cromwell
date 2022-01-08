@@ -10,6 +10,6 @@ submit {
   statusCode: 400
   message: """{
   "status": "fail",
-  "message": "Error(s): Submitted input '\"this_is_not_a_valid_json_object\"' of type JsString is not a JSON object."
+  "message": "Error(s): Submitted input '\"this_is_not_a_valid_json_object\"' of type JsString is not a valid JSON object."
 }"""
 }

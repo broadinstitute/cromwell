@@ -55,19 +55,19 @@
 
 | Field                      | Type         | Null | Key | Default | Extra          |
 |----------------------------|--------------|------|-----|---------|----------------|
-| CALL_CACHING_HASH_ENTRY_ID | int(11)      | NO   | PRI | NULL    | auto_increment |
+| CALL_CACHING_HASH_ENTRY_ID | bigint(20)   | NO   | PRI | NULL    | auto_increment |
 | HASH_KEY                   | varchar(255) | NO   |     | NULL    |                |
 | HASH_VALUE                 | varchar(255) | NO   |     | NULL    |                |
 | CALL_CACHING_ENTRY_ID      | int(11)      | YES  | MUL | NULL    |                |
 
 ## Call Caching Simpleton Entry
 
-| Field                      | Type         | Null | Key | Default | Extra          |
-|----------------------------|--------------|------|-----|---------|----------------|
-| CALL_CACHING_HASH_ENTRY_ID | int(11)      | NO   | PRI | NULL    | auto_increment |
-| HASH_KEY                   | varchar(255) | NO   |     | NULL    |                |
-| HASH_VALUE                 | varchar(255) | NO   |     | NULL    |                |
-| CALL_CACHING_ENTRY_ID      | int(11)      | YES  | MUL | NULL    |                |
+| Field                           | Type         | Null | Key | Default | Extra          |
+|---------------------------------|--------------|------|-----|---------|----------------|
+| CALL_CACHING_SIMPLETON_ENTRY_ID | int(11)      | NO   | PRI | NULL    | auto_increment |
+| HASH_KEY                        | varchar(255) | NO   |     | NULL    |                |
+| HASH_VALUE                      | varchar(255) | NO   |     | NULL    |                |
+| CALL_CACHING_ENTRY_ID           | int(11)      | YES  | MUL | NULL    |                |
 
 ## Custom Labels
 

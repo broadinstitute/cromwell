@@ -1,4 +1,5 @@
 package wdl.model.draft3.elements
+import wom.SourceFileLocation
 
 final case class TaskDefinitionElement(name: String,
                                        inputsSection: Option[InputsSectionElement],
@@ -7,4 +8,5 @@ final case class TaskDefinitionElement(name: String,
                                        commandSection: CommandSectionElement,
                                        runtimeSection: Option[RuntimeAttributesSectionElement],
                                        metaSection: Option[MetaSectionElement],
-                                       parameterMetaSection: Option[ParameterMetaSectionElement]) extends FileBodyElement
+                                       parameterMetaSection: Option[ParameterMetaSectionElement],
+                                       override val sourceLocation : Option[SourceFileLocation]) extends FileBodyElement

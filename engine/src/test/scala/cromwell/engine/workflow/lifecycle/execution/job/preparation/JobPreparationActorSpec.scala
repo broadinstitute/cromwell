@@ -10,8 +10,11 @@ import cromwell.engine.workflow.WorkflowDockerLookupActor.WorkflowDockerLookupFa
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation.{BackendJobPreparationSucceeded, CallPreparationFailed, Start}
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvKeyLookupFailed, KvPair}
-import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
+import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
+import wom.RuntimeAttributesKeys
 import wom.callable.Callable.InputDefinition
 import wom.core.LocallyQualifiedName
 import wom.values.{WomString, WomValue}
@@ -20,7 +23,8 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.control.NoStackTrace
 
-class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") with FlatSpecLike with Matchers with ImplicitSender with BeforeAndAfter with Mockito {
+class JobPreparationActorSpec
+  extends TestKitSuite with AnyFlatSpecLike with Matchers with ImplicitSender with BeforeAndAfter with Mockito {
 
   behavior of "JobPreparationActor"
 
@@ -98,7 +102,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     val req = helper.workflowDockerLookupActor.expectMsgClass(classOf[DockerInfoRequest])
     helper.workflowDockerLookupActor.reply(DockerInfoSuccessResponse(DockerInformation(hashResult, None), req))
 
-    def respondFromKv() = {
+    def respondFromKv(): Unit = {
       helper.serviceRegistryProbe.expectMsgPF(max = 100 milliseconds) {
         case KvGet(k) if keysToPrefetch.contains(k.key) =>
           actor.tell(msg = prefetchedValues(k.key), sender = helper.serviceRegistryProbe.ref)
@@ -152,6 +156,69 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
       case success: BackendJobPreparationSucceeded =>
         success.jobDescriptor.runtimeAttributes("docker").valueString shouldBe dockerValue
         success.jobDescriptor.maybeCallCachingEligible shouldBe FloatingDockerTagWithoutHash("ubuntu:latest")
+    }
+  }
+
+  it should "lookup MemoryMultiplier key/value if available and accordingly update runtime attributes" in {
+    val attributes = Map (
+      "memory" -> WomString("1.1 GB")
+    )
+    val inputsAndAttributes = (inputs, attributes).validNel
+    val prefetchedKey = "MemoryMultiplier"
+    val prefetchedVal = KvPair(helper.scopedKeyMaker(prefetchedKey), "1.1")
+    val prefetchedValues = Map(prefetchedKey -> prefetchedVal)
+    var keysToPrefetch = List(prefetchedKey)
+    val actor = TestActorRef(helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, inputsAndAttributes, List(prefetchedKey)), self)
+    actor ! Start(ValueStore.empty)
+
+    helper.serviceRegistryProbe.expectMsgPF(max = 100 milliseconds) {
+      case KvGet(k) if keysToPrefetch.contains(k.key) =>
+        actor.tell(msg = prefetchedValues(k.key), sender = helper.serviceRegistryProbe.ref)
+        keysToPrefetch = keysToPrefetch diff List(k.key)
+    }
+
+    expectMsgPF(5 seconds) {
+      case success: BackendJobPreparationSucceeded =>
+        success.jobDescriptor.prefetchedKvStoreEntries should be(Map(prefetchedKey -> prefetchedVal))
+        success.jobDescriptor.runtimeAttributes(RuntimeAttributesKeys.MemoryKey) shouldBe WomString("1.2100000000000002 GB")
+    }
+  }
+
+  it should "mimic 100 memory retries and lookup MemoryMultiplier key/value to update runtime attributes" in {
+    val prefetchedKey = "MemoryMultiplier"
+    val retryFactor = 1.1
+    val taskMemory = 1.0
+    val attributes = Map ("memory" -> WomString(taskMemory + " GB"))
+    val inputsAndAttributes = (inputs, attributes).validNel
+
+    var previousMultiplier = 1.0
+
+    // mimic failure and retry task 100 times with more memory. At the end of this loop, the task memory would
+    // have been 1.1 ^ 100 = 13780.612339822379 GB. Note: This is just a hypothetical situation. In reality, PAPI would
+    // fail the task because a VM with such a large amount of memory might not exist
+    for (_ <- 1 to 100) {
+      // since the task has failed, increase it's multiplier
+      val nextMultiplier = previousMultiplier * retryFactor
+      previousMultiplier = nextMultiplier
+
+      val prefetchedVal = KvPair(helper.scopedKeyMaker(prefetchedKey), nextMultiplier.toString)
+      val prefetchedValues = Map(prefetchedKey -> prefetchedVal)
+      var keysToPrefetch = List(prefetchedKey)
+
+      val actor = TestActorRef(helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, inputsAndAttributes, List(prefetchedKey)), self)
+      actor ! Start(ValueStore.empty)
+
+      helper.serviceRegistryProbe.expectMsgPF(max = 100 milliseconds) {
+        case KvGet(k) if keysToPrefetch.contains(k.key) =>
+          actor.tell(msg = prefetchedValues(k.key), sender = helper.serviceRegistryProbe.ref)
+          keysToPrefetch = keysToPrefetch diff List(k.key)
+      }
+
+      expectMsgPF(5 seconds) {
+        case success: BackendJobPreparationSucceeded =>
+          success.jobDescriptor.prefetchedKvStoreEntries should be(Map(prefetchedKey -> prefetchedVal))
+          success.jobDescriptor.runtimeAttributes(RuntimeAttributesKeys.MemoryKey) shouldBe WomString((taskMemory * nextMultiplier) + " GB")
+      }
     }
   }
 }

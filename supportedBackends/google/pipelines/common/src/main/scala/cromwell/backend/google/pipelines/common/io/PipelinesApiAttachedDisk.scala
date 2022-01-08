@@ -5,22 +5,15 @@ import cats.syntax.apply._
 import cats.syntax.validated._
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
+import cromwell.backend.DiskPatterns._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
 import wom.values._
 
 import scala.util.Try
-import scala.util.matching.Regex
-
 
 object PipelinesApiAttachedDisk {
-  val Identifier = "[a-zA-Z0-9-_]+"
-  val Directory = """/[^\s]+"""
-  val Integer = "[1-9][0-9]*"
-  val WorkingDiskPattern: Regex = s"""${PipelinesApiWorkingDisk.Name}\\s+($Integer)\\s+($Identifier)""".r
-  val MountedDiskPattern: Regex = s"""($Directory)\\s+($Integer)\\s+($Identifier)""".r
-
   def parse(s: String): Try[PipelinesApiAttachedDisk] = {
 
     def sizeGbValidation(sizeGbString: String): ErrorOr[Int] = validateLong(sizeGbString).map(_.toInt)
@@ -88,7 +81,13 @@ object PipelinesApiWorkingDisk {
 }
 
 case class PipelinesApiWorkingDisk(diskType: DiskType, sizeGb: Int) extends PipelinesApiAttachedDisk {
-  val mountPoint = PipelinesApiWorkingDisk.MountPoint
-  val name = PipelinesApiWorkingDisk.Name
+  val mountPoint: Path = PipelinesApiWorkingDisk.MountPoint
+  val name: String = PipelinesApiWorkingDisk.Name
   override def toString: String = s"$name $sizeGb ${diskType.diskTypeName}"
+}
+
+case class PipelinesApiReferenceFilesDisk(image: String, sizeGb: Int) extends PipelinesApiAttachedDisk {
+  val mountPoint: Path = DefaultPathBuilder.get(s"/mnt/${image.md5Sum}")
+  val name: String = s"d-${mountPoint.pathAsString.md5Sum}"
+  val diskType: DiskType = DiskType.HDD
 }

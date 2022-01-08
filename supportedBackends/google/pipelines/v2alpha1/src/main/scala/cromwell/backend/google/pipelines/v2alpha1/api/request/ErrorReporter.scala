@@ -1,12 +1,13 @@
 package cromwell.backend.google.pipelines.v2alpha1.api.request
 
-import cats.data.{NonEmptyList, Reader}
 import cats.data.Validated.{Invalid, Valid}
+import cats.data.{NonEmptyList, Reader}
 import com.google.api.services.genomics.v2alpha1.model._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
-import cromwell.backend.google.pipelines.common.api.RunStatus.{Cancelled, Failed, Preempted}
-import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.Labels.Key
+import cromwell.backend.google.pipelines.common.action.ActionLabels._
+import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor
+import cromwell.backend.google.pipelines.common.api.RunStatus.{Cancelled, Failed, Preempted, UnsuccessfulRunStatus}
 import cromwell.backend.google.pipelines.v2alpha1.api.Deserialization._
 import cromwell.backend.google.pipelines.v2alpha1.api.request.RequestHandler.logger
 import cromwell.core.{ExecutionEvent, WorkflowId}
@@ -21,7 +22,7 @@ object ErrorReporter {
 
   // This can be used to log non-critical deserialization failures and not fail the task
   implicit class ErrorOrLogger[A](val t: ErrorOr[A]) extends AnyVal {
-    private def logErrors(errors: NonEmptyList[String], workflowId: WorkflowId, operation: Operation) = {
+    private def logErrors(errors: NonEmptyList[String], workflowId: WorkflowId, operation: Operation): Unit = {
       logger.error(s"[$workflowId] Failed to parse PAPI response. Operation Id: ${operation.getName}" + s"${errors.toList.mkString(", ")}")
     }
 
@@ -57,10 +58,16 @@ class ErrorReporter(machineType: Option[String],
                     workflowId: WorkflowId) {
   import ErrorReporter._
 
-  def toUnsuccessfulRunStatus(error: Status, events: List[Event]) = {
-    val status = GStatus.fromCodeValue(error.getCode)
+  def toUnsuccessfulRunStatus(error: Status, events: List[Event]): UnsuccessfulRunStatus = {
+    // If for some reason the status is null, set it as UNAVAILABLE
+    val statusOption = for {
+      errorValue <- Option(error)
+      code <- Option(errorValue.getCode)
+    } yield GStatus.fromCodeValue(code.toInt)
+    val status = statusOption.getOrElse(GStatus.UNAVAILABLE)
     val builder = status match {
       case GStatus.UNAVAILABLE if wasPreemptible => Preempted.apply _
+      case GStatus.ABORTED if wasPreemptible && Option(error.getMessage).exists(_.contains(PipelinesApiAsyncBackendJobExecutionActor.FailedV2Style)) => Preempted.apply _
       case GStatus.CANCELLED => Cancelled.apply _
       case _ => Failed.apply _
     }
@@ -89,7 +96,7 @@ class ErrorReporter(machineType: Option[String],
   private def unexpectedStatusErrorString(event: Event, stderr: Option[String], labelTag: Option[String], inputNameTag: Option[String]) = {
     labelTag.map("[" + _ + "] ").getOrElse("") +
       inputNameTag.map("Input name: " +  _ + " - ").getOrElse("") +
-      event.getDescription +
+      Option(event).flatMap(eventValue => Option(eventValue.getDescription)).getOrElse("") +
       stderr.map(": " + _).getOrElse("")
   }
 
@@ -107,7 +114,10 @@ class ErrorReporter(machineType: Option[String],
       .map(_.getStderr)
   }
 
-  private def actionLabelValue(action: Action, k: String) = action.getLabels.asScala.get(k)
+  private def actionLabelValue(action: Action, k: String): Option[String] = {
+    Option(action).flatMap(actionValue => Option(actionValue.getLabels)).map(_.asScala).flatMap(_.get(k))
+  }
+
   private def actionLabelTag(action: Action) = actionLabelValue(action, Key.Tag)
   private def actionLabelInputName(action: Action) = actionLabelValue(action, Key.InputName)
 }

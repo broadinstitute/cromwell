@@ -1,6 +1,7 @@
 package centaur.cwl
 import better.files.File
 import com.typesafe.config.Config
+import common.util.StringUtil._
 import common.validation.IOChecked.IOChecked
 import cwl.preprocessor.CwlPreProcessor
 import io.circe.optics.JsonPath
@@ -8,7 +9,7 @@ import io.circe.optics.JsonPath._
 import io.circe.yaml.Printer.StringStyle
 import io.circe.{Json, yaml}
 import net.ceedubs.ficus.Ficus._
-import common.util.StringUtil._
+import wom.util.YamlUtils
 
 /**
   * Tools to pre-process the CWL workflows and inputs before feeding them to Cromwell so they can be executed on PAPI.
@@ -39,7 +40,7 @@ class CloudPreprocessor(config: Config, prefixConfigPath: String) {
 
   // Parse value, apply f to it, and print it back to String using the printer
   private def process(value: String, f: Json => Json, printer: Json => String) = {
-    yaml.parser.parse(value) match {
+    YamlUtils.parse(value) match {
       case Left(error) => throw new Exception(error.getMessage)
       case Right(json) => printer(f(json))
     }

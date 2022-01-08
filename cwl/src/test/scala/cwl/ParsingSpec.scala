@@ -1,9 +1,12 @@
 package cwl
 
 import CwlDecoder._
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class WorkflowParsingSpec extends FlatSpec with Matchers {
+
+class WorkflowParsingSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "Workflow Json Parser"
 
@@ -31,7 +34,7 @@ class WorkflowParsingSpec extends FlatSpec with Matchers {
   }
 }
 
-class CommandLineToolParsingSpec extends FlatSpec with Matchers {
+class CommandLineToolParsingSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "CommandLineTool Json Parser"
 

@@ -1,18 +1,20 @@
 package cromwell.backend.impl.tes
 
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.backend.{BackendConfigurationDescriptor, RuntimeAttributeDefinition, TestConfig}
 import cromwell.core.WorkflowOptions
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineMV
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 import org.slf4j.helpers.NOPLogger
 import spray.json._
 import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
-class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
+class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec with Matchers {
 
   val expectedDefaults = new TesRuntimeAttributes(
     ContinueOnReturnCodeSet(Set(0)),
@@ -21,7 +23,9 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
     false,
     None,
     None,
-    None
+    None,
+    false,
+    Map.empty
   )
 
   val expectedDefaultsPlusUbuntuDocker = expectedDefaults.copy(dockerImage = "ubuntu:latest")
@@ -61,6 +65,17 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
       assertFailure(runtimeAttributes, "Expecting failOnStderr runtime attribute to be a Boolean or a String with values of 'true' or 'false'")
     }
 
+    "validate a valid preemptible entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "preemptible" -> WomBoolean(true))
+      val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(preemptible = true)
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "fail to validate an invalid preemptible entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "preemptible" -> WomString("yes"))
+      assertFailure(runtimeAttributes, "Expecting preemptible runtime attribute to be a Boolean or a String with values of 'true' or 'false'")
+    }
+    
     "validate a valid continueOnReturnCode entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomInteger(1))
       val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1)))
@@ -137,17 +152,38 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
       Map("docker" -> WomString("ubuntu:latest")),
       expectedDefaultsPlusUbuntuDocker
     )
+
+    "not turn unknown string attributes into backend parameters when using default config" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "foo" -> WomString("bar"))
+      assertSuccess(runtimeAttributes, expectedDefaults)
+    }
+
+    "turn unknown string attributes into backend parameters" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "foo" -> WomString("bar"))
+      val expectedRuntimeAttributes = expectedDefaults.copy(backendParameters = Map("foo" -> "bar"))
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes, tesConfig = mockTesConfigWithBackendParams)
+    }
+
+    "exclude unknown non-string attributes from backend parameters" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "foo" -> WomInteger(5), "bar" -> WomString("baz"))
+      val expectedRuntimeAttributes = expectedDefaults.copy(backendParameters = Map("bar" -> "baz"))
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes, tesConfig = mockTesConfigWithBackendParams)
+    }
   }
 
   private val mockConfigurationDescriptor = BackendConfigurationDescriptor(TesTestConfig.backendConfig, TestConfig.globalConfig)
   private val mockTesConfiguration = new TesConfiguration(mockConfigurationDescriptor)
+  private val mockTesConfigWithBackendParams = new TesConfiguration(
+    mockConfigurationDescriptor.copy(backendConfig = TesTestConfig.backendConfigWithBackendParams)
+  )
 
   private def assertSuccess(runtimeAttributes: Map[String, WomValue],
                             expectedRuntimeAttributes: TesRuntimeAttributes,
-                            workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
+                            workflowOptions: WorkflowOptions = emptyWorkflowOptions,
+                            tesConfig: TesConfiguration = mockTesConfiguration): Unit = {
 
     try {
-      val actualRuntimeAttributes = toTesRuntimeAttributes(runtimeAttributes, workflowOptions, mockTesConfiguration)
+      val actualRuntimeAttributes = toTesRuntimeAttributes(runtimeAttributes, workflowOptions, tesConfig)
       assert(actualRuntimeAttributes == expectedRuntimeAttributes)
     } catch {
       case ex: RuntimeException => fail(s"Exception was not expected but received: ${ex.getMessage}")
@@ -157,9 +193,10 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
   private def assertFailure(runtimeAttributes: Map[String, WomValue],
                             exMsg: String,
-                            workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
+                            workflowOptions: WorkflowOptions = emptyWorkflowOptions,
+                            tesConfig: TesConfiguration = mockTesConfiguration): Unit = {
     try {
-      toTesRuntimeAttributes(runtimeAttributes, workflowOptions, mockTesConfiguration)
+      toTesRuntimeAttributes(runtimeAttributes, workflowOptions, tesConfig)
       fail("A RuntimeException was expected.")
     } catch {
       case ex: RuntimeException => assert(ex.getMessage.contains(exMsg))
@@ -179,7 +216,6 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
     val defaultedAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(
       staticRuntimeAttributeDefinitions, workflowOptions)(runtimeAttributes)
     val validatedRuntimeAttributes = runtimeAttributesBuilder.build(defaultedAttributes, NOPLogger.NOP_LOGGER)
-    TesRuntimeAttributes(validatedRuntimeAttributes, tesConfiguration.runtimeConfig
-    )
+    TesRuntimeAttributes(validatedRuntimeAttributes, runtimeAttributes, tesConfiguration)
   }
 }

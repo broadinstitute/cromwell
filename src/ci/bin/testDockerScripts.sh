@@ -19,24 +19,9 @@ echo "1. Testing for install of sbt"
 docker run --rm "${docker_tag}" which sbt
 
 echo "2. Testing sbt assembly"
-docker run --rm -v "${PWD}:${PWD}" -w "${PWD}" "${docker_tag}" sbt assembly
-
-echo "3. Testing cloudwell docker compose"
-
-CROMWELL_TAG=develop
-export CROMWELL_TAG
-
-docker-compose -f scripts/docker-compose-mysql/docker-compose-cloudwell.yml up --scale cromwell=3 -d
-
-# Give them some time to be ready
-sleep 30
-
-# Set the test case
-CENTAUR_TEST_FILE=scripts/docker-compose-mysql/test/hello.test
-export CENTAUR_TEST_FILE
-
-# Call centaur with our custom test case
-sudo sbt "centaur/it:testOnly *ExternalTestCaseSpec"
-
-# Tear everything down
-docker-compose -f scripts/docker-compose-mysql/docker-compose-cloudwell.yml down
+docker run \
+    --rm \
+    --volume "${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}" \
+    --workdir "${CROMWELL_BUILD_ROOT_DIRECTORY}" \
+    "${docker_tag}" \
+    sbt -Dsbt.supershell=false --warn assembly

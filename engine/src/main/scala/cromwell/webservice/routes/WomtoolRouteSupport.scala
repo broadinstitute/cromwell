@@ -7,7 +7,7 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import cromwell.core.WorkflowSourceFilesCollection
+import cromwell.core.{WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.services.womtool.WomtoolServiceMessages.{DescribeFailure, DescribeRequest, DescribeResult, DescribeSuccess}
 import cromwell.webservice.WebServiceUtils
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
@@ -53,7 +53,7 @@ trait WomtoolRouteSupport extends WebServiceUtils {
       workflowType,
       workflowVersion,
       workflowInputs.getOrElse(""),
-      workflowOptionsJson = "",
+      workflowOptions = WorkflowOptions.empty,
       labelsJson = "",
       importsFile = None,
       workflowOnHold = false,

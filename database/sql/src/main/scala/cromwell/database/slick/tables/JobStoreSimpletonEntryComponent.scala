@@ -1,6 +1,6 @@
 package cromwell.database.slick.tables
 
-import java.sql.Clob
+import javax.sql.rowset.serial.SerialClob
 
 import cromwell.database.sql.tables.JobStoreSimpletonEntry
 import slick.model.ForeignKeyAction.Cascade
@@ -12,15 +12,15 @@ trait JobStoreSimpletonEntryComponent {
   import driver.api._
 
   class JobStoreSimpletonEntries(tag: Tag) extends Table[JobStoreSimpletonEntry](tag, "JOB_STORE_SIMPLETON_ENTRY") {
-    def jobStoreSimpletonEntryId = column[Int]("JOB_STORE_SIMPLETON_ENTRY_ID", O.PrimaryKey, O.AutoInc)
+    def jobStoreSimpletonEntryId = column[Long]("JOB_STORE_SIMPLETON_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
     def simpletonKey = column[String]("SIMPLETON_KEY", O.Length(255))
 
-    def simpletonValue = column[Option[Clob]]("SIMPLETON_VALUE")
+    def simpletonValue = column[Option[SerialClob]]("SIMPLETON_VALUE")
 
     def wdlType = column[String]("WDL_TYPE", O.Length(255))
 
-    def jobStoreEntryId = column[Int]("JOB_STORE_ENTRY_ID")
+    def jobStoreEntryId = column[Long]("JOB_STORE_ENTRY_ID")
 
     override def * = (simpletonKey, simpletonValue, wdlType, jobStoreEntryId.?, jobStoreSimpletonEntryId.?) <>
       (JobStoreSimpletonEntry.tupled, JobStoreSimpletonEntry.unapply)
@@ -41,7 +41,7 @@ trait JobStoreSimpletonEntryComponent {
     * Find all result simpletons which match a given JOB_STORE_ENTRY_ID
     */
   val jobStoreSimpletonEntriesForJobStoreEntryId = Compiled(
-    (jobStoreEntryId: Rep[Int]) => for {
+    (jobStoreEntryId: Rep[Long]) => for {
       jobStoreSimpletonEntry <- jobStoreSimpletonEntries if jobStoreSimpletonEntry.jobStoreEntryId === jobStoreEntryId
     } yield jobStoreSimpletonEntry
   )

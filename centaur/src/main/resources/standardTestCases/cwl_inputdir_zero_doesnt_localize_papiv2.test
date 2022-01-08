@@ -1,6 +1,7 @@
 name: cwl_inputdir_zero_doesnt_localize_papiv2
 testFormat: workflowsuccess
 backends: [Papiv2]
+skipDescribeEndpointValidation: true
 
 files {
   workflow: cwl_resources/cwl_inputdir_zero_doesnt_localize.cwl

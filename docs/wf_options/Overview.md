@@ -2,7 +2,7 @@
 
 Workflow options can affect the execution of a single workflow without having to change configuration options or restart Cromwell. 
 
-You provide workflow options to Cromwell in a JSON format. This can be supplied at workflow-submit time either via the [CLI](../CommandLine/) or the [REST endpoint](../api/RESTAPI/):
+You provide workflow options to Cromwell in a JSON format. This can be supplied at workflow-submit time either via the [CLI](../CommandLine.md) or the [REST endpoint](../api/RESTAPI.md):
 
 ```json
 {
@@ -11,7 +11,7 @@ You provide workflow options to Cromwell in a JSON format. This can be supplied 
 }
 ```
 
-Unless otherwise specified you can expect workflow options to override any hard-coded defaults in Cromwell or defaults provided in the [configuration file](../Configuring), but to be overridden by any values provided in the workflow definition file itself (WDL or CWL).
+Unless otherwise specified you can expect workflow options to override any hard-coded defaults in Cromwell or defaults provided in the [configuration file](../Configuring.md), but to be overridden by any values provided in the workflow definition file itself (WDL or CWL).
 
 Some workflow options apply only to tasks running on the [Google Pipelines API backend](Google).
 
@@ -25,7 +25,7 @@ Some options allow you to override or set defaults for runtime attributes.
 
 ### Setting Default Runtime Attributes
 
-You can supply a default for any [Runtime Attributes](../RuntimeAttributes) by adding a `default_runtime_attributes` map to your workflow options file. Use the key to provide the attribute name and the value to supply the default. 
+You can supply a default for any [Runtime Attributes](../RuntimeAttributes.md) by adding a `default_runtime_attributes` map to your workflow options file. Use the key to provide the attribute name and the value to supply the default. 
 
 These defaults replace any defaults in the Cromwell configuration file but are themselves replaced by any values explicitly provided by the task in the WDL or CWL file.
 
@@ -45,8 +45,8 @@ In this example, if a task in a workflow specifies a `docker:` attribute, the ta
 
 |Option|Value|Description|
 |---|---|---|
-|`continueOnReturnCode`|`true` or `false` or integer array|Globally overrides the `continueOnReturnCode` [runtime attribute](../RuntimeAttributes) for all tasks| 
-|`backend`|An [available](../Configuring) backend|Set the **default** backend specified in the Cromwell configuration for this workflow only.|
+|`continueOnReturnCode`|`true` or `false` or integer array|Globally overrides the `continueOnReturnCode` [runtime attribute](../RuntimeAttributes.md) for all tasks| 
+|`backend`|An [available](../Configuring.md) backend|Set the **default** backend specified in the Cromwell configuration for this workflow only.|
 
 Example `options.json`:
 ```json
@@ -60,7 +60,7 @@ In this example, all tasks will be given to the `Local` backend unless they prov
 
 ## Workflow Failure
 
-The `workflow_failure_mode` option can be given the following values. This overrides any default set by the `workflow-options.workflow-failure-mode` [configuration](../Configuring) options.
+The `workflow_failure_mode` option can be given the following values. This overrides any default set by the `workflow-options.workflow-failure-mode` [configuration](../Configuring.md) options.
 
 |Value|Description|
 |---|---|
@@ -78,6 +78,7 @@ Example `options.json`:
 |Option|Value|Description|
 |---|---|---|
 |`final_workflow_outputs_dir`|A directory available to Cromwell|Specifies a path where final workflow outputs will be written. If this is not specified, workflow outputs will not be copied out of the Cromwell workflow execution directory/path.|
+|`use_relative_output_paths`| A boolean | When set to `true` this will copy all the outputs relative to their execution directory. my_final_workflow_outputs_dir/~~MyWorkflow/af76876d8-6e8768fa/call-MyTask/execution/~~output_of_interest . Cromwell will throw an exception when this leads to collisions. When the option is not set it will default to `false`.|
 |`final_workflow_log_dir`|A directory available to Cromwell|Specifies a path where per-workflow logs will be written. If this is not specified, per-workflow logs will not be copied out of the Cromwell workflow log temporary directory/path before they are deleted.|
 |`final_call_logs_dir`|A directory available to Cromwell|Specifies a path where final call logs will be written.  If this is not specified, call logs will not be copied out of the Cromwell workflow execution directory/path.|
 
@@ -87,26 +88,59 @@ Example `options.json`:
 ```json
 {
     "final_workflow_outputs_dir": "/Users/michael_scott/cromwell/outputs",
+    "use_relative_output_paths": true,
     "final_workflow_log_dir": "/Users/michael_scott/cromwell/wf_logs",
     "final_call_logs_dir": "/Users/michael_scott/cromwell/call_logs"
 }
 ```
 
+With `"use_relative_output_paths": false` (the default) the outputs will look like this
+
+```
+final_workflow_outputs_dir/my_workflow/ade68a6d876e8d-8a98d7e9-ad98e9ae8d/call-my_one_task/execution/my_output_picture.jpg
+final_workflow_outputs_dir/my_workflow/ade68a6d876e8d-8a98d7e9-ad98e9ae8d/call-my_other_task/execution/created_subdir/submarine.txt
+```
+
+The above result will look like this when `"use_relative_output_paths": true`:
+```
+final_workflow_outputs_dir/my_output_picture.jpg
+final_workflow_outputs_dir/created_subdir/submarine.txt
+```
+
+This will create file collisions in `final_workflow_outputs_dir` when a workflow is run twice. When cromwell
+detects file collisions it will throw an error and report the workflow as failed.
+
 ## Call Caching Options
 
-These options can override Cromwell's configured call caching behavior for a single workflow. See the [Call Caching](../CallCaching) section for more details and how to set defaults. The call caching section will also explain how these options interact when, for example, one is set `true` and the other is `false`.
+These options can override Cromwell's configured call caching behavior for a single workflow. See the [Call Caching](../cromwell_features/CallCaching.md) section for more details and how to set defaults. The call caching section will also explain how these options interact when, for example, one is set `true` and the other is `false`.
 
 **Note:** If call caching is disabled, these options will be ignored and the options will be treated as though they were `false`.
 
 |Option|Values|Description|
 |---|---|---|
-|`write_to_cache`|`true` or `false`|If `false`, the completed calls from this workflow will not be added to the cache.  See the [Call Caching](../CallCaching) section for more details.|
-|`read_from_cache`|`true` or `false`|If `false`, Cromwell will not search the cache when invoking a call (i.e. every call will be executed unconditionally).  See the [Call Caching](../CallCaching) section for more details.|
+|`write_to_cache`|`true` or `false`|If `false`, the completed calls from this workflow will not be added to the cache.  See the [Call Caching](../cromwell_features/CallCaching.md) section for more details.|
+|`read_from_cache`|`true` or `false`|If `false`, Cromwell will not search the cache when invoking a call (i.e. every call will be executed unconditionally).  See the [Call Caching](../cromwell_features/CallCaching.md) section for more details.|
 
 Example `options.json`:
 ```json
 {
     "write_to_cache": true,
     "read_from_cache": true
+}
+```
+
+## Retry with More Memory Multiplier
+
+The `memory_retry_multiplier` workflow option sets the factor by which the memory should be multiplied while retrying 
+when Cromwell encounters one of the error keys (specified in Cromwell config using `system.memory-retry-error-keys`) in 
+the `stderr` file. The factor should be in the range `1.0 ≤ multipler ≤ 99.0` (note: if set to `1.0` the task will retry 
+with same amount of memory). If this is not specified, Cromwell will retry the task (if applicable) but not change the 
+memory amount. See the [Retry with More Memory](../cromwell_features/RetryWithMoreMemory.md) section for 
+more details.
+
+Example `options.json`:
+```json
+{
+    "memory_retry_multiplier" : 1.1
 }
 ```

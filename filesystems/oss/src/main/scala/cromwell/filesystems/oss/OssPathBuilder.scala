@@ -3,10 +3,15 @@ package cromwell.filesystems.oss
 import java.net.URI
 
 import com.google.common.net.UrlEscapers
+import com.typesafe.config.Config
+import net.ceedubs.ficus.Ficus._
+import cats.syntax.apply._
+import com.aliyun.oss.OSSClient
+import common.validation.Validation._
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.oss.OssPathBuilder._
-import cromwell.filesystems.oss.nio.{OssStorageConfiguration, OssStorageFileSystem, OssStoragePath}
+import cromwell.filesystems.oss.nio._
 
 import scala.language.postfixOps
 import scala.util.matching.Regex
@@ -78,15 +83,29 @@ object OssPathBuilder {
     nioPath.getFileSystem.provider().getScheme.equalsIgnoreCase(URI_SCHEME)
   }
 
-  def fromConfiguration(endpoint: String,
-                        accessId: String,
-                        accessKey: String,
-                        securityToken: Option[String],
+  def fromConfiguration(configuration: OssStorageConfiguration,
                         options: WorkflowOptions): OssPathBuilder = {
-
-    val configuration = OssStorageConfiguration(endpoint, accessId, accessKey, securityToken)
-
     OssPathBuilder(configuration)
+  }
+
+  def fromConfig(config: Config, options: WorkflowOptions): OssPathBuilder = {
+    val refresh = config.as[Option[Long]](TTLOssStorageConfiguration.RefreshInterval)
+
+    val (endpoint, accessId, accessKey, securityToken) = (
+      validate { config.as[String]("auth.endpoint") },
+      validate { config.as[String]("auth.access-id") },
+      validate { config.as[String]("auth.access-key") },
+      validate { config.as[Option[String]]("auth.security-token") }
+    ).tupled.unsafe("OSS filesystem configuration is invalid")
+
+    refresh match {
+      case None =>
+        val cfg = DefaultOssStorageConfiguration(endpoint, accessId, accessKey, securityToken)
+        fromConfiguration(cfg, options)
+      case Some(_) =>
+        val cfg = TTLOssStorageConfiguration(config)
+        fromConfiguration(cfg, options)
+    }
   }
 }
 
@@ -95,8 +114,8 @@ final case class OssPathBuilder(ossStorageConfiguration: OssStorageConfiguration
     validateOssPath(string) match {
       case ValidFullOssPath(bucket, path) =>
         Try {
-          val nioPath = OssStorageFileSystem(bucket, ossStorageConfiguration).getPath(path)
-          OssPath(nioPath)
+          val ossStorageFileSystem = OssStorageFileSystem(bucket, ossStorageConfiguration)
+          OssPath(ossStorageFileSystem.getPath(path), ossStorageFileSystem.provider.ossClient)
         }
       case PossiblyValidRelativeOssPath => Failure(new IllegalArgumentException(s"$string does not have a oss scheme"))
       case invalid: InvalidOssPath => Failure(new IllegalArgumentException(invalid.errorMessage))
@@ -108,10 +127,11 @@ final case class OssPathBuilder(ossStorageConfiguration: OssStorageConfiguration
 
 final case class BucketAndObj(bucket: String, obj: String)
 
-final case class OssPath private[oss](nioPath: NioPath) extends Path {
+final case class OssPath private[oss](nioPath: NioPath,
+                                      ossClient: OSSClient) extends Path {
 
   override protected def newPath(path: NioPath): OssPath = {
-    OssPath(path)
+    OssPath(path, ossClient)
   }
 
   override def pathAsString: String = ossStoragePath.pathAsString
@@ -127,6 +147,8 @@ final case class OssPath private[oss](nioPath: NioPath) extends Path {
   def key: String = {
     ossStoragePath.key
   }
+
+  lazy val eTag = ossClient.getSimplifiedObjectMeta(bucket, key).getETag
 
   def ossStoragePath: OssStoragePath = nioPath match {
     case ossPath: OssStoragePath => ossPath

@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="rmunshi" id="workflow_execution_uuid">
+    <changeSet author="rmunshi" id="workflow_execution_uuid" dbms="mysql,hsqldb">
         <comment>
             Change all Workflow UUID column names to Workflow Execution UUID.
         </comment>
@@ -21,7 +21,7 @@
                       tableName="JOB_STORE"/>
     </changeSet>
 
-    <changeSet author="rmunshi" id="call_job_identifiers">
+    <changeSet author="rmunshi" id="call_job_identifiers" dbms="mysql,hsqldb">
         <comment>
             Choose and implement common call/job identifiers.
         </comment>

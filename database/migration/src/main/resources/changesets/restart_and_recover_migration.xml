@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet id="WORKFLOW_STORE_MIGRATION" author="mcovarr" >
+    <changeSet id="WORKFLOW_STORE_MIGRATION" author="mcovarr"  dbms="mysql,hsqldb">
         <comment>
             Restart/recover migration from 0.19 to 0.21.
         </comment>
@@ -31,7 +31,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="JOB_STORE_MIGRATION" author="mcovarr" >
+    <changeSet id="JOB_STORE_MIGRATION" author="mcovarr"  dbms="mysql,hsqldb">
         <comment>
             Restart/recover migration from 0.19 to 0.21.
         </comment>
@@ -76,7 +76,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="JOB_STORE_RESULT_SIMPLETON_VALUE_NULLABLE" author="mcovarr">
+    <changeSet id="JOB_STORE_RESULT_SIMPLETON_VALUE_NULLABLE" author="mcovarr" dbms="mysql,hsqldb">
         <preConditions onFail="MARK_RAN">
             <tableExists tableName="JOB_STORE_RESULT_SIMPLETON"/>
         </preConditions>
@@ -93,14 +93,14 @@
                                columnDataType="LONGTEXT"/>
     </changeSet>
 
-    <changeSet id="JOB_STORE_RESULT_SIMPLETON_MIGRATION" author="mcovarr" >
+    <changeSet id="JOB_STORE_RESULT_SIMPLETON_MIGRATION" author="mcovarr"  dbms="mysql,hsqldb">
         <comment>
             Restart/recover migration from 0.19 to 0.21.
         </comment>
         <customChange class="cromwell.database.migration.restart.table.JobStoreSimpletonMigration" />
     </changeSet>
 
-    <changeSet id="BACKEND_KV_STORE_MIGRATION" author="mcovarr">
+    <changeSet id="BACKEND_KV_STORE_MIGRATION" author="mcovarr" dbms="mysql,hsqldb">
         <comment>
             Restart/recover migration from 0.19 to 0.21.
         </comment>
@@ -130,7 +130,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="WORKFLOW_OPTIONS_RENAME_MIGRATION" author="mcovarr">
+    <changeSet id="WORKFLOW_OPTIONS_RENAME_MIGRATION" author="mcovarr" dbms="mysql,hsqldb">
         <comment>
             Restart/recover migration from 0.19 to 0.21.
         </comment>

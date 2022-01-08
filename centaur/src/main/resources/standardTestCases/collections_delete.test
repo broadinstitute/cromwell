@@ -1,0 +1,35 @@
+# Tests one of the simplest versions of intermediate file deletion
+
+name: collections_delete
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: delete_intermediates/collections_delete.wdl
+  options: delete_intermediates/delete_intermediates.options
+}
+
+metadata {
+  workflowName: collections_delete
+  status: Succeeded
+  fileDeletionStatus: Succeeded
+}
+
+fileSystemCheck: "gcs"
+outputExpectations: {
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/collections_delete/<<UUID>>/call-collections/stdout": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/collections_delete/<<UUID>>/call-collections/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/collections_delete/<<UUID>>/call-collections/rc": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/collections_delete/<<UUID>>/call-collections/delete_array.txt": 0
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/collections_delete/<<UUID>>/call-collections/delete_pair.txt": 0
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/collections_delete/<<UUID>>/call-collections/delete_map.txt": 0
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/collections_delete/<<UUID>>/call-collections/delete_object.txt": 0
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/collections_delete/<<UUID>>/call-collections/delete_struct.txt": 0
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/collections_delete/<<UUID>>/call-collections/delete_array_of_array.txt": 0
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/collections_delete/<<UUID>>/call-collections/keep_array.txt": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/collections_delete/<<UUID>>/call-collections/keep_pair.txt": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/collections_delete/<<UUID>>/call-collections/keep_map.txt": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/collections_delete/<<UUID>>/call-collections/keep_object.txt": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/collections_delete/<<UUID>>/call-collections/keep_struct.txt": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/collections_delete/<<UUID>>/call-collections/keep_array_of_array.txt": 1
+}

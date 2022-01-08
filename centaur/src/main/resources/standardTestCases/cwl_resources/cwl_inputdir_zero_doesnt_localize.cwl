@@ -7,7 +7,7 @@ $graph:
   hints:
   - class: ShellCommandRequirement
   - class: DockerRequirement
-    dockerPull: google/cloud-sdk:slim
+    dockerPull: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
   - class: dx:InputResourceRequirement
     indirMin: 0
   inputs: []

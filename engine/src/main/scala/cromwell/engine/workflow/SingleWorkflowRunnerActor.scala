@@ -1,12 +1,11 @@
 package cromwell.engine.workflow
 
-import java.util.UUID
-
 import akka.actor.FSM.{CurrentState, Transition}
 import akka.actor._
 import akka.stream.ActorMaterializer
 import cats.instances.try_._
 import cats.syntax.functor._
+import com.typesafe.config.Config
 import common.util.VersionUtil
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core._
@@ -14,16 +13,16 @@ import cromwell.core.abort.WorkflowAbortFailureResponse
 import cromwell.core.actor.BatchActor.QueueWeight
 import cromwell.core.path.Path
 import cromwell.core.retry.SimpleExponentialBackoff
+import cromwell.engine.CromwellTerminator
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
 import cromwell.engine.workflow.WorkflowManagerActor.{PreventNewWorkflowsFromStarting, RetrieveNewWorkflows}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreSubmitActor}
 import cromwell.jobstore.EmptyJobStoreActor
 import cromwell.server.CromwellRootActor
+import cromwell.services.{SuccessfulMetadataJsonResponse, FailedMetadataJsonResponse}
 import cromwell.services.metadata.MetadataService.{GetSingleWorkflowMetadataAction, GetStatus, ListenToMetadataWriteActor, WorkflowOutputs}
 import cromwell.subworkflowstore.EmptySubWorkflowStoreActor
-import cromwell.webservice.metadata.MetadataBuilderActor
-import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse}
 import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -37,10 +36,13 @@ import scala.util.{Failure, Try}
  */
 class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
                                 metadataOutputPath: Option[Path],
+                                terminator: CromwellTerminator,
                                 gracefulShutdown: Boolean,
-                                abortJobsOnTerminate: Boolean
+                                abortJobsOnTerminate: Boolean,
+                                config: Config
                                 )(implicit materializer: ActorMaterializer)
-  extends CromwellRootActor(gracefulShutdown, abortJobsOnTerminate, false) with LoggingFSM[RunnerState, SwraData] {
+  extends CromwellRootActor(terminator, gracefulShutdown, abortJobsOnTerminate, false, config)
+    with LoggingFSM[RunnerState, SwraData] {
 
   import SingleWorkflowRunnerActor._
   private val backoff = SimpleExponentialBackoff(1 second, 1 minute, 1.2)
@@ -74,18 +76,18 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
     case Event(IssuePollRequest, RunningSwraData(_, id)) =>
       requestStatus(id)
       stay()
-    case Event(BuiltMetadataResponse(jsObject: JsObject), RunningSwraData(_, _)) if !jsObject.state.isTerminal =>
+    case Event(SuccessfulMetadataJsonResponse(_, jsObject: JsObject), RunningSwraData(_, _)) if !jsObject.state.isTerminal =>
       schedulePollRequest()
       stay()
-    case Event(BuiltMetadataResponse(jsObject: JsObject), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowSucceeded =>
+    case Event(SuccessfulMetadataJsonResponse(_, jsObject: JsObject), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowSucceeded =>
       log.info(s"$Tag workflow finished with status '$WorkflowSucceeded'.")
       serviceRegistryActor ! ListenToMetadataWriteActor
       goto(WaitingForFlushedMetadata) using SucceededSwraData(replyTo, id)
-    case Event(BuiltMetadataResponse(jsObject: JsObject), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowFailed =>
+    case Event(SuccessfulMetadataJsonResponse(_, jsObject: JsObject), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowFailed =>
       log.info(s"$Tag workflow finished with status '$WorkflowFailed'.")
       serviceRegistryActor ! ListenToMetadataWriteActor
       goto(WaitingForFlushedMetadata) using FailedSwraData(replyTo, id, new RuntimeException(s"Workflow $id transitioned to state $WorkflowFailed"))
-    case Event(BuiltMetadataResponse(jsObject: JsObject), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowAborted =>
+    case Event(SuccessfulMetadataJsonResponse(_, jsObject: JsObject), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowAborted =>
       log.info(s"$Tag workflow finished with status '$WorkflowAborted'.")
       serviceRegistryActor ! ListenToMetadataWriteActor
       goto(WaitingForFlushedMetadata) using AbortedSwraData(replyTo, id)
@@ -94,22 +96,21 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
   when (WaitingForFlushedMetadata) {
     case Event(QueueWeight(weight), _) if weight > 0 => stay()
     case Event(QueueWeight(_), data: SucceededSwraData) =>
-      val metadataBuilder = context.actorOf(MetadataBuilderActor.props(serviceRegistryActor),
-        s"CompleteRequest-Workflow-${data.id}-request-${UUID.randomUUID()}")
-      metadataBuilder ! WorkflowOutputs(data.id)
+
+      serviceRegistryActor ! WorkflowOutputs(data.id)
       goto(RequestingOutputs)
     case Event(QueueWeight(_), data : TerminalSwraData) =>
       requestMetadataOrIssueReply(data)
   }
 
   when (RequestingOutputs) {
-    case Event(BuiltMetadataResponse(outputs: JsObject), data: TerminalSwraData) =>
+    case Event(SuccessfulMetadataJsonResponse(_, outputs: JsObject), data: TerminalSwraData) =>
       outputOutputs(outputs)
       requestMetadataOrIssueReply(data)
   }
 
   when (RequestingMetadata) {
-    case Event(BuiltMetadataResponse(metadata: JsObject), data: TerminalSwraData) =>
+    case Event(SuccessfulMetadataJsonResponse(_, metadata: JsObject), data: TerminalSwraData) =>
       outputMetadata(metadata)
       issueReply(data)
   }
@@ -123,7 +124,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
     case Event(r: WorkflowAbortFailureResponse, data) => failAndFinish(r.failure, data)
     case Event(Failure(e), data) => failAndFinish(e, data)
     case Event(Status.Failure(e), data) => failAndFinish(e, data)
-    case Event(FailedMetadataResponse(e), data) => failAndFinish(e, data)
+    case Event(FailedMetadataJsonResponse(_, e), data) => failAndFinish(e, data)
     case Event(CurrentState(_, _) | Transition(_, _, _), _) =>
       // ignore uninteresting current state and transition messages
       stay()
@@ -139,8 +140,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
   private def requestMetadataOrIssueReply(newData: TerminalSwraData) = if (metadataOutputPath.isDefined) requestMetadata(newData) else issueReply(newData)
   
   private def requestMetadata(newData: TerminalSwraData): State = {
-    val metadataBuilder = context.actorOf(MetadataBuilderActor.props(serviceRegistryActor), s"MetadataRequest-Workflow-${newData.id}")
-    metadataBuilder ! GetSingleWorkflowMetadataAction(newData.id, None, None, expandSubWorkflows = true)
+    serviceRegistryActor ! GetSingleWorkflowMetadataAction(newData.id, None, None, expandSubWorkflows = true)
     goto (RequestingMetadata) using newData
   }
 
@@ -154,8 +154,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
     // This requests status via the metadata service rather than instituting an FSM watch on the underlying workflow actor.
     // Cromwell's eventual consistency means it isn't safe to use an FSM transition to a terminal state as the signal for
     // when outputs or metadata have stabilized.
-    val metadataBuilder = context.actorOf(MetadataBuilderActor.props(serviceRegistryActor), s"StatusRequest-Workflow-$id-request-${UUID.randomUUID()}")
-    metadataBuilder ! GetStatus(id)
+    serviceRegistryActor ! GetStatus(id)
   }
 
   private def issueSuccessReply(replyTo: ActorRef): State = {
@@ -220,9 +219,21 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
 object SingleWorkflowRunnerActor {
   def props(source: WorkflowSourceFilesCollection,
             metadataOutputFile: Option[Path],
+            terminator: CromwellTerminator,
             gracefulShutdown: Boolean,
-            abortJobsOnTerminate: Boolean)(implicit materializer: ActorMaterializer): Props = {
-    Props(new SingleWorkflowRunnerActor(source, metadataOutputFile, gracefulShutdown, abortJobsOnTerminate)).withDispatcher(EngineDispatcher)
+            abortJobsOnTerminate: Boolean,
+            config: Config)
+           (implicit materializer: ActorMaterializer): Props = {
+    Props(
+      new SingleWorkflowRunnerActor(
+        source = source,
+        metadataOutputPath = metadataOutputFile,
+        terminator = terminator,
+        gracefulShutdown = gracefulShutdown,
+        abortJobsOnTerminate = abortJobsOnTerminate,
+        config = config
+      )
+    ).withDispatcher(EngineDispatcher)
   }
 
   sealed trait RunnerMessage

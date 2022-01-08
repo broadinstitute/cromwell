@@ -1,9 +1,11 @@
 package cromwell.backend.impl.sfs.config
 
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 
-class ConfigAsyncJobExecutionActorSpec extends FlatSpec with Matchers {
+class ConfigAsyncJobExecutionActorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "getJobRegex"
 

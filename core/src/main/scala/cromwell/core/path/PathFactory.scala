@@ -41,19 +41,20 @@ object PathFactory {
 
   @tailrec
   private def findFirstSuccess(string: String,
-                               pathBuilders: PathBuilders,
-                               failures: Vector[String]): ErrorOr[Path] = pathBuilders match {
+                               allPathBuilders: PathBuilders,
+                               restPathBuilders: PathBuilders,
+                               failures: Vector[String]): ErrorOr[Path] = restPathBuilders match {
     case Nil => NonEmptyList.fromList(failures.toList) match {
       case Some(errors) => Invalid(errors)
       case None => s"Could not parse '$string' to path. No PathBuilders were provided".invalidNel
     }
     case pb :: rest =>
-      pb.build(string) match {
+      pb.build(string, allPathBuilders) match {
         case Success(path) =>
           path.validNel
         case Failure(f) =>
           val newFailure = s"${pb.name}: ${f.getMessage} (${f.getClass.getSimpleName})"
-          findFirstSuccess(string, rest, failures :+ newFailure)
+          findFirstSuccess(string, allPathBuilders, rest, failures :+ newFailure)
       }
   }
 
@@ -69,7 +70,7 @@ object PathFactory {
 
     val path = for {
       preMapped <- Try(preMapping(string)).toErrorOr.contextualizeErrors(s"pre map $string")
-      path <- findFirstSuccess(preMapped, pathBuilders, Vector.empty)
+      path <- findFirstSuccess(preMapped, pathBuilders, pathBuilders, Vector.empty)
       postMapped <- Try(postMapping(path)).toErrorOr.contextualizeErrors(s"post map $path")
     } yield postMapped
 

@@ -1,0 +1,12 @@
+{
+  "echo_strings.echo_files.input1": "gs://debtest3/h.txt",
+  "echo_strings.echo_files.input5": "gs://debtest3/h.txt",
+  "echo_strings.echo_files.input2": "gs://debtest3/h.txt",
+  "echo_strings.echo_files.input10": "gs://debtest3/h.txt",
+  "echo_strings.echo_files.input6": "gs://debtest3/h.txt",
+  "echo_strings.echo_files.input9": "gs://debtest3/h.txt",
+  "echo_strings.echo_files.input3": "gs://debtest3/h.txt",
+  "echo_strings.echo_files.input7": "gs://debtest3/h.txt",
+  "echo_strings.echo_files.input8": "gs://debtest3/h.txt",
+  "echo_strings.echo_files.input4": "gs://debtest3/h.txt"
+}

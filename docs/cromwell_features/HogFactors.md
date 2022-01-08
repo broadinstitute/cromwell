@@ -64,6 +64,19 @@ system {
 }
 ```
 
+Additionally, you can override system-level hog-factor on a backend level, by setting it in the particular backend configuration like this:
+```conf
+backend {
+  providers {
+    PAPIv2 {
+      config {
+        hog-factor: 2
+      }
+    }
+  }
+}
+```
+
 ### Setting a hog-factor
 
 The hog factor option sets the integer described in the [Hog Factor](#hog-factor) section above.
@@ -194,4 +207,4 @@ assign all workflows to the same hog-group in their workflow options.
     + To set this as the default, you can add a value to the default workflow options. 
     + For an example see the `workflow-options` / `default` stanza of [cromwell.examples.conf][cromwell-examples-conf].
 
-[cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.examples.conf
+[cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends/cromwell.examples.conf

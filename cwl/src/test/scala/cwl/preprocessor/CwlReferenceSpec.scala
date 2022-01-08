@@ -1,8 +1,10 @@
 package cwl.preprocessor
 
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class CwlReferenceSpec extends FlatSpec with Matchers {
+class CwlReferenceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "CwlReference.apply"
 
   it should "identify a pointerless local file reference" in {

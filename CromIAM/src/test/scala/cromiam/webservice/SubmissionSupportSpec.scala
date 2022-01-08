@@ -6,11 +6,14 @@ import akka.http.scaladsl.model.headers.{Authorization, OAuth2BearerToken, RawHe
 import akka.http.scaladsl.server.AuthorizationFailedRejection
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.testkit._
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class SubmissionSupportSpec extends FlatSpec with Matchers with ScalatestRouteTest with SubmissionSupport {
+
+class SubmissionSupportSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest with SubmissionSupport {
   override val cromwellClient = new MockCromwellClient()
   override val samClient = new MockSamClient()
   override val log: LoggingAdapter = NoLogging
@@ -18,9 +21,18 @@ class SubmissionSupportSpec extends FlatSpec with Matchers with ScalatestRouteTe
   implicit val routeTestTimeout = new RouteTestTimeout(10.seconds.dilated)
 
   val authorization = Authorization(OAuth2BearerToken("my-token"))
-  val badAuthHeaders: List[HttpHeader] = List(authorization, RawHeader("OIDC_CLAIM_user_id", samClient.unauthorizedUserCollectionStr))
-  val goodAuthHeaders: List[HttpHeader] = List(authorization, RawHeader("OIDC_CLAIM_user_id", samClient.authorizedUserCollectionStr))
-  val notWhitelistedUserHeader: List[HttpHeader] = List(authorization, RawHeader("OIDC_CLAIM_user_id", samClient.notWhitelistedUser))
+  val badAuthHeaders: List[HttpHeader] = List(
+    authorization,
+    RawHeader("OIDC_CLAIM_user_id", MockSamClient.UnauthorizedUserCollectionStr)
+  )
+  val goodAuthHeaders: List[HttpHeader] = List(
+    authorization,
+    RawHeader("OIDC_CLAIM_user_id", MockSamClient.AuthorizedUserCollectionStr)
+  )
+  val notWhitelistedUserHeader: List[HttpHeader] = List(
+    authorization,
+    RawHeader("OIDC_CLAIM_user_id", MockSamClient.NotWhitelistedUser)
+  )
 
   val submitPath: String = "/api/workflows/v1"
 

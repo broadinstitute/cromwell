@@ -15,6 +15,7 @@ object WorkflowMetadataKeys {
   val WorkflowRoot = "workflowRoot"
   val ParentWorkflowId = "parentWorkflowId"
   val RootWorkflowId = "rootWorkflowId"
+  val FileDeletionStatus = "fileDeletionStatus"
 
   val LanguageName = "actualWorkflowLanguage"
   val LanguageVersionName = "actualWorkflowLanguageVersion"
@@ -30,5 +31,10 @@ object WorkflowMetadataKeys {
   val SubmissionSection_Labels = "labels"
   val SubmissionSection_WorkflowTypeVersion = "workflowTypeVersion"
 
+  val SummaryNameIncreasing = "WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING"
+  val SummaryNameDecreasing = "WORKFLOW_METADATA_SUMMARY_ENTRY_DECREASING"
+
   val Labels = "labels"
+  val MetadataArchiveStatus = "metadataArchiveStatus"
+  val Message = "message"
 }

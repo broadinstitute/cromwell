@@ -51,6 +51,7 @@ object EngineFunctionEvaluators {
   implicit val zipValueConsumer: ExpressionValueConsumer[Zip] = forTwoParamFunction
   implicit val crossValueConsumer: ExpressionValueConsumer[Cross] = forTwoParamFunction
   implicit val prefixValueConsumer: ExpressionValueConsumer[Prefix] = forTwoParamFunction
+  implicit val joinValueConsumer: ExpressionValueConsumer[Sep] = forTwoParamFunction
 
   implicit val subFunctionValueConsumer: ExpressionValueConsumer[Sub] = new ExpressionValueConsumer[Sub] {
     override def expressionConsumedValueHooks(a: Sub)

@@ -21,7 +21,7 @@ case class CentaurTestException private(message: String,
 
 object CentaurTestException {
 
-  /** Create a new CentaurTestException for a submitted workflow. */
+  /** Create a new CentaurTestException for a completed workflow. */
   def apply(message: String,
             workflowDefinition: Workflow,
             submittedWorkflow: SubmittedWorkflow,
@@ -31,6 +31,19 @@ object CentaurTestException {
       workflowDefinition.testName,
       Option(submittedWorkflow.id.toString),
       Option(actualMetadata.value),
+      None
+    )
+  }
+
+  /** Create a new CentaurTestException for a submitted workflow. */
+  def apply(message: String,
+            workflowDefinition: Workflow,
+            submittedWorkflow: SubmittedWorkflow): CentaurTestException = {
+    new CentaurTestException(
+      message,
+      workflowDefinition.testName,
+      Option(submittedWorkflow.id.toString),
+      None,
       None
     )
   }

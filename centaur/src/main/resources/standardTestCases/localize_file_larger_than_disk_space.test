@@ -13,5 +13,5 @@ metadata {
   workflowName: localize_file_larger_than_disk_space
   status: Failed
   "failures.0.message": "Workflow failed"
-  "failures.0.causedBy.0.message": "Task localize_file_larger_than_disk_space.localize_file:NA:1 failed. The job was stopped before the command finished. PAPI error code 9. Please check the log file for more details: gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/travis/localize_file_larger_than_disk_space/<<UUID>>/call-localize_file/localize_file.log."
+  "failures.0.causedBy.0.message": "Task localize_file_larger_than_disk_space.localize_file:NA:1 failed. The job was stopped before the command finished. PAPI error code 9. Please check the log file for more details: gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/localize_file_larger_than_disk_space/<<UUID>>/call-localize_file/localize_file.log."
 }

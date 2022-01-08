@@ -1,15 +1,19 @@
 package wdl.transforms.wdlwom
 
 import cats.data.Validated.{Invalid, Valid}
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import wdl.draft2.Draft2ResolvedImportBundle
 import wdl.draft2.model.{Draft2ImportResolver, WdlNamespace, WdlNamespaceWithWorkflow}
+import wdl.transforms.draft2.wdlom2wom._
+import wom.ResolvedImportRecord
 import wom.graph._
 import wom.graph.expression.ExpressionNode
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.types.{WomArrayType, WomIntegerType, WomMaybeEmptyArrayType, WomStringType}
-import wdl.transforms.draft2.wdlom2wom._
 
-class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
+class WdlSubworkflowWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "WdlNamespaces with subworkflows"
 
@@ -47,7 +51,7 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
       """.stripMargin
 
 
-    def innerResolver: Draft2ImportResolver = _ => innerWdl
+    def innerResolver: Draft2ImportResolver = str => Draft2ResolvedImportBundle(innerWdl, ResolvedImportRecord(str))
 
     val namespace = WdlNamespace.loadUsingSource(
       workflowSource = outerWdl,
@@ -138,7 +142,7 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
       """.stripMargin
 
 
-    def innerResolver: Draft2ImportResolver = _ => innerWdl
+    def innerResolver: Draft2ImportResolver = str => Draft2ResolvedImportBundle(innerWdl, ResolvedImportRecord(str))
 
     val namespace = WdlNamespace.loadUsingSource(
       workflowSource = outerWdl,
@@ -200,7 +204,7 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    def innerResolver: Draft2ImportResolver = _ => innerWdl
+    def innerResolver: Draft2ImportResolver = str => Draft2ResolvedImportBundle(innerWdl, ResolvedImportRecord(str))
 
     val namespace = WdlNamespace.loadUsingSource(
       workflowSource = outerWdl,

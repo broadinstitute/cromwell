@@ -1,33 +1,28 @@
 package cromwell.engine.workflow.tokens
 
 import akka.actor.{Actor, ActorRef, Props, SupervisorStrategy}
-import cromwell.core.JobExecutionToken.JobExecutionTokenType
-import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecutionTokenDispensed, JobExecutionTokenRequest}
-import cromwell.util.AkkaTestUtil
-
-import scala.util.control.NoStackTrace
+import cromwell.core.HogGroup
+import cromwell.core.JobToken.JobTokenType
+import cromwell.engine.workflow.tokens.JobTokenDispenserActor.{JobTokenDispensed, JobTokenRequest}
+import cromwell.util.AkkaTestUtil.DeathTestActor
 
 /**
   * Grabs a token and doesn't let it go!
   */
-class TestTokenGrabbingActor(tokenDispenser: ActorRef, tokenType: JobExecutionTokenType) extends Actor {
+class TestTokenGrabbingActor(tokenDispenser: ActorRef, tokenType: JobTokenType) extends DeathTestActor {
 
   var hasToken: Boolean = false
 
-  def receive = {
-    case JobExecutionTokenDispensed => hasToken = true
-    case AkkaTestUtil.ThrowException =>
-      throw new RuntimeException("Test exception (don't be scared by the stack trace, it's deliberate!)")
-        with NoStackTrace
-    case AkkaTestUtil.InternalStop => context.stop(self)
+  override def receive = stoppingReceive orElse {
+    case JobTokenDispensed => hasToken = true
   }
 
-  tokenDispenser ! JobExecutionTokenRequest("hogGroupA", tokenType)
+  tokenDispenser ! JobTokenRequest(HogGroup("hogGroupA"), tokenType)
 }
 
 object TestTokenGrabbingActor {
 
-  def props(tokenDispenserActor: ActorRef, tokenType: JobExecutionTokenType) = Props(new TestTokenGrabbingActor(tokenDispenserActor, tokenType))
+  def props(tokenDispenserActor: ActorRef, tokenType: JobTokenType) = Props(new TestTokenGrabbingActor(tokenDispenserActor, tokenType))
 
   class StoppingSupervisor extends Actor {
     override val supervisorStrategy = SupervisorStrategy.stoppingStrategy

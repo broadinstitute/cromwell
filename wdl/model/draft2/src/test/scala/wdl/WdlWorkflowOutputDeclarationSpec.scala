@@ -1,9 +1,11 @@
 package wdl
 
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.WorkflowOutputWildcard
 
-class WdlWorkflowOutputDeclarationSpec extends FlatSpec with Matchers {
+class WdlWorkflowOutputDeclarationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   "WorkflowOutputDeclaration" should "match outputs" in {
     val declaration = WorkflowOutputWildcard("wf.mytask", wildcard = true, null)

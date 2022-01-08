@@ -63,7 +63,7 @@ trait CallCachingAggregationEntryComponent {
       if callCachingAggregationEntry.baseAggregation === baseAggregation
       detritus <- callCachingDetritusEntries
       if detritus.callCachingEntryId === callCachingEntry.callCachingEntryId
-      detritusPath = detritus.detritusValue.map { x => x.asColumnOf[String] }
+      detritusPath = detritus.detritusValue.map(clobToString)
       if (detritusPath.substring(0, prefix1Length) === prefix1) ||
         (detritusPath.substring(0, prefix2Length) === prefix2) ||
         (detritusPath.substring(0, prefix3Length) === prefix3)} yield ()).exists
@@ -99,7 +99,7 @@ trait CallCachingAggregationEntryComponent {
       // for each of the (currently 6) types of standard detritus.
       if detritus.detritusKey === "returnCode"
       if detritus.callCachingEntryId === callCachingEntry.callCachingEntryId
-      detritusPath = detritus.detritusValue.map { x => x.asColumnOf[String] }
+      detritusPath = detritus.detritusValue.map(clobToString)
       if (detritusPath.substring(0, prefix1Length) === prefix1) ||
         (detritusPath.substring(0, prefix2Length) === prefix2) ||
         (detritusPath.substring(0, prefix3Length) === prefix3)

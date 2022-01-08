@@ -2,6 +2,7 @@ package wom.callable
 
 import common.validation.IOChecked
 import common.validation.IOChecked.IOChecked
+import wom.SourceFileLocation
 import wom.callable.Callable.InputDefinition.InputValueMapper
 import wom.callable.Callable._
 import wom.expression.{IoFunctionSet, WomExpression}
@@ -14,6 +15,8 @@ trait Callable {
 
   def inputs: List[_ <: InputDefinition]
   def outputs: List[_ <: OutputDefinition]
+
+  val sourceLocation : Option[SourceFileLocation] = None
 }
 
 trait ExecutableCallable extends Callable {

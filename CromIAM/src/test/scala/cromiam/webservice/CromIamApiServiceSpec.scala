@@ -7,10 +7,12 @@ import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpHeader}
 import akka.http.scaladsl.server.MissingHeaderRejection
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import com.typesafe.config.Config
+import common.assertion.CromwellTimeoutSpec
 import cromiam.server.status.StatusService
-import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiService with ScalatestRouteTest {
+class CromIamApiServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with CromIamApiService with ScalatestRouteTest {
   override def testConfigSource = "akka.loglevel = DEBUG"
 
   val log = NoLogging
@@ -20,7 +22,6 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
   override def configuration = throw new UnsupportedOperationException("This spec shouldn't need to access the real interface/port")
 
   override lazy val cromwellClient = new MockCromwellClient()
-  override lazy val cromwellAbortClient = new MockCromwellClient()
   override lazy val samClient = new MockSamClient()
   override val statusService: StatusService = new StatusService(() => Map.empty)
 

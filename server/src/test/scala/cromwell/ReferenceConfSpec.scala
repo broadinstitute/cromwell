@@ -3,11 +3,13 @@ package cromwell
 import java.net.URL
 
 import com.typesafe.config.ConfigFactory
-import org.scalatest.{FlatSpecLike, Matchers, Suite}
+import org.scalatest.Suite
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
 
-class ReferenceConfSpec extends Suite with FlatSpecLike with Matchers {
+class ReferenceConfSpec extends Suite with AnyFlatSpecLike with Matchers {
 
   behavior of "reference.conf"
 

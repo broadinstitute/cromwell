@@ -1,24 +1,16 @@
 package cromwell.filesystems.drs
 
-import java.io.ByteArrayInputStream
-import java.nio.channels.ReadableByteChannel
-
 import akka.actor.ActorSystem
 import cats.data.Validated.{Invalid, Valid}
-import cats.effect.IO
-import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, GcsFilePath, MarthaResponse}
+import cloud.nio.impl.drs.{AzureDrsCredentials, DrsCloudNioFileSystemProvider, GoogleDrsCredentials}
 import com.google.api.services.oauth2.Oauth2Scopes
-import com.google.auth.oauth2.GoogleCredentials
-import com.google.cloud.storage.StorageOptions
 import com.typesafe.config.Config
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{PathBuilder, PathBuilderFactory}
-import org.apache.http.impl.client.HttpClientBuilder
+import net.ceedubs.ficus.Ficus._
 
-import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
-
 
 /**
   * Cromwell Wrapper around DrsFileSystems to load the configuration.
@@ -31,66 +23,63 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
 
   private lazy val googleConfiguration: GoogleConfiguration = GoogleConfiguration(globalConfig)
   private lazy val scheme = instanceConfig.getString("auth")
-  private lazy val googleAuthMode = googleConfiguration.auth(scheme) match {
-    case Valid(auth) => auth
-    case Invalid(error) => throw new RuntimeException(s"Error while instantiating DRS path builder factory. Errors: ${error.toString}")
-  }
 
-  private lazy val httpClientBuilder = HttpClientBuilder.create()
-
-  private val GcsScheme = "gs"
-
-
-  private def gcsInputStream(gcsFile: GcsFilePath, serviceAccount: String): IO[ReadableByteChannel] = {
-    val credentials = GoogleCredentials.fromStream(new ByteArrayInputStream(serviceAccount.getBytes()))
-    val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService
-
-    IO.delay {
-      val blob = storage.get(gcsFile.bucket, gcsFile.file)
-      blob.reader()
-    }
-  }
-
-
-  private def inputReadChannel(url: String, urlScheme: String, serviceAccount: String): IO[ReadableByteChannel] =  {
-    urlScheme match {
-      case GcsScheme => {
-        val Array(bucket, fileToBeLocalized) = url.replace(s"$GcsScheme://", "").split("/", 2)
-        gcsInputStream(GcsFilePath(bucket, fileToBeLocalized), serviceAccount)
-      }
-      case otherScheme => IO.raiseError(new UnsupportedOperationException(s"DRS currently doesn't support reading files for $otherScheme."))
-    }
-  }
-
-
-  private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] = {
-    val serviceAccount = marthaResponse.googleServiceAccount match {
-      case Some(googleSA) => googleSA.data.toString
-      case None => throw new GoogleSANotFoundException
-    }
-
-    //Currently, Martha only supports resolving DRS paths to GCS paths
-    DrsResolver.extractUrlForScheme(marthaResponse.dos.data_object.urls, GcsScheme) match {
-      case Right(url) => inputReadChannel(url, GcsScheme, serviceAccount)
-      case Left(e) => IO.raiseError(e)
-    }
-  }
-
+  // For Azure support
+  private val dataAccessIdentityKey = "data_access_identity"
+  private lazy val azureKeyVault = instanceConfig.as[Option[String]]("azure-keyvault-name")
+  private lazy val azureSecretName = instanceConfig.as[Option[String]]("azure-token-secret")
 
   override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder] = {
-    val marthaScopes = List(
-      // Profile and Email scopes are requirements for interacting with Martha v2
-      Oauth2Scopes.USERINFO_EMAIL,
-      Oauth2Scopes.USERINFO_PROFILE
-    ).asJavaCollection
-    val authCredentials = googleAuthMode.credentials((key: String) => options.get(key).get, marthaScopes)
+    Future {
+      val marthaScopes = List(
+        // Profile and Email scopes are requirements for interacting with Martha
+        Oauth2Scopes.USERINFO_EMAIL,
+        Oauth2Scopes.USERINFO_PROFILE
+      )
 
-    Future.successful(DrsPathBuilder(new DrsCloudNioFileSystemProvider(singletonConfig.config, authCredentials, httpClientBuilder, drsReadInterpreter)))
+      val (googleAuthMode, drsCredentials) = (scheme, azureKeyVault, azureSecretName) match {
+        case ("azure", Some(vaultName), Some(secretName)) => (None, AzureDrsCredentials(options.get(dataAccessIdentityKey).toOption, vaultName, secretName))
+        case ("azure", _, _) => throw new RuntimeException(s"Error while instantiating DRS path builder factory. Couldn't find azure-keyvault-name and azure-token-secret in config.")
+        case (googleAuthScheme, _, _) => googleConfiguration.auth(googleAuthScheme) match {
+          case Valid(auth) => (
+            Option(auth),
+            GoogleDrsCredentials(auth.credentials(options.get(_).get, marthaScopes), singletonConfig.config)
+          )
+          case Invalid(error) => throw new RuntimeException(s"Error while instantiating DRS path builder factory. Errors: ${error.toString}")
+        }
+      }
+
+      // Unlike PAPI we're not going to fall back to a "default" project from the backend config.
+      // ONLY use the project id from the User Service Account for requester pays
+      val requesterPaysProjectIdOption = options.get("google_project").toOption
+
+      /*
+      `override_preresolve_for_test` is a workflow option to override the default `martha.preresolve` specified in the
+      global config. This is only used for testing purposes.
+       */
+      val preResolve: Boolean =
+        options
+          .getBoolean("override_preresolve_for_test")
+          .toOption
+          .getOrElse(
+            singletonConfig
+              .config
+              .getBoolean("martha.preresolve")
+          )
+
+      DrsPathBuilder(
+        new DrsCloudNioFileSystemProvider(
+          singletonConfig.config,
+          drsCredentials,
+          DrsReader.readInterpreter(googleAuthMode, options, requesterPaysProjectIdOption),
+        ),
+        requesterPaysProjectIdOption,
+        preResolve,
+      )
+    }
   }
 }
 
-
-
-class GoogleSANotFoundException extends Exception(s"Error finding Google Service Account associated with DRS path through Martha.")
-
 case class UrlNotFoundException(scheme: String) extends Exception(s"No $scheme url associated with given DRS path.")
+
+case class MarthaResponseMissingKeyException(missingKey: String) extends Exception(s"The response from Martha doesn't contain the key '$missingKey'.")

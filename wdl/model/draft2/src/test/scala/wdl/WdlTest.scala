@@ -2,11 +2,15 @@ package wdl
 
 import better.files.File
 import better.files.File.currentWorkingDirectory
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
+import wdl.draft2.Draft2ResolvedImportBundle
 import wdl.draft2.model._
+import wom.ResolvedImportRecord
 
-trait WdlTest extends Matchers with WordSpecLike {
-  def resolver(root: File)(relPath: String): String = (root / relPath).contentAsString
+trait WdlTest extends Matchers with AnyWordSpecLike {
+  def resolver(root: File)(relPath: String): Draft2ResolvedImportBundle =
+    Draft2ResolvedImportBundle((root / relPath).contentAsString, ResolvedImportRecord((root / relPath).pathAsString))
   def loadWdl(path: String) = loadWdlFile(currentWorkingDirectory/"wom"/"src"/"test"/"resources"/path)
   def loadWdlFile(wdlFile: File) =
     WdlNamespaceWithWorkflow.load(wdlFile.contentAsString, Seq(resolver(wdlFile / "..") _)).get

@@ -1,9 +1,11 @@
 package cromwell.backend.google.pipelines.common
 
 import cats.data.Validated.{Invalid, Valid}
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class GoogleLabelsSpec extends FlatSpec with Matchers {
+class GoogleLabelsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "GoogleLabels"
 
@@ -22,8 +24,8 @@ class GoogleLabelsSpec extends FlatSpec with Matchers {
   )
 
   googleLabelConversions foreach { case (label: String, conversion: String) =>
-    it should s"not validate the bad label string '$label'" in {
-      GoogleLabels.validateLabelRegex(label, GoogleLabels.GoogleLabelsRegexPattern.r) match {
+    it should s"not validate the bad label key '$label'" in {
+      GoogleLabels.validateLabelRegex(label) match {
         case Invalid(_) => // Good!
         case Valid(_) => fail(s"Label validation succeeded but should have failed.")
       }

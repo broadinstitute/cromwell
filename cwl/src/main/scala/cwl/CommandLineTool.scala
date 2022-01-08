@@ -4,6 +4,8 @@ import cats.data.{NonEmptyList, OptionT}
 import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
+import cats.instances.future._
 import common.Checked
 import common.validation.ErrorOr._
 import cwl.CommandLineTool._
@@ -17,10 +19,11 @@ import wom.callable.{Callable, CallableTaskDefinition, ContainerizedInputExpress
 import wom.expression.{IoFunctionSet, ValueAsAnExpression, WomExpression}
 import wom.graph.GraphNodePort.OutputPort
 import wom.types.{WomArrayType, WomIntegerType, WomOptionalType}
+import wom.util.YamlUtils
 import wom.values.{WomArray, WomEvaluatedCallInputs, WomGlobFile, WomInteger, WomString, WomValue}
 import wom.{CommandPart, RuntimeAttributes, RuntimeAttributesKeys}
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.math.Ordering
 
 /**
@@ -141,12 +144,10 @@ case class CommandLineTool private(
                                                  ioFunctionSet: IoFunctionSet,
                                                  executionContext: ExecutionContext): OutputFunctionResponse = {
     implicit val ec = executionContext
-    import cats.instances.future._
     import cats.syntax.either._
 
     // Convert the parsed json to Wom-usable output values
     def jsonToOutputs(json: Map[String, Json]): Checked[List[(OutputPort, WomValue)]] = {
-      import cats.instances.list._
 
       outputPorts.toList.traverse[ErrorOr, (OutputPort, WomValue)]({ outputPort =>
         // If the type is optional, then we can set the value to none if there's nothing in the json
@@ -167,8 +168,9 @@ case class CommandLineTool private(
 
     // Parse content as json and return output values for each output port
     def parseContent(content: String): EvaluatedOutputs = {
+      val yaml = YamlUtils.parse(content)
       for {
-        parsed <- io.circe.yaml.parser.parse(content).flatMap(_.as[Map[String, Json]]).leftMap(error => NonEmptyList.one(error.getMessage))
+        parsed <- yaml.flatMap(_.as[Map[String, Json]]).leftMap(error => NonEmptyList.one(error.getMessage))
         jobOutputsMap <- jsonToOutputs(parsed)
       } yield jobOutputsMap.toMap
     }
@@ -177,7 +179,7 @@ case class CommandLineTool private(
       // Glob for "cwl.output.json"
       outputJsonGlobs <- OptionT.liftF { ioFunctionSet.glob(CwlOutputJson) }
       // There can only be 0 or 1, so try to take the head of the list
-      outputJsonFile <- OptionT.fromOption { outputJsonGlobs.headOption }
+      outputJsonFile <- OptionT.fromOption[Future] { outputJsonGlobs.headOption }
       // Read the content using the ioFunctionSet.readFile function
       content <- OptionT.liftF { ioFunctionSet.readFile(outputJsonFile, None, failOnOverflow = false) }
       // parse the content and validate it
@@ -212,7 +214,7 @@ case class CommandLineTool private(
       initialWorkDirRequirement <- requirements.select[InitialWorkDirRequirement].toArray
       listing <- initialWorkDirRequirement.listings
     } yield InitialWorkDirFileGeneratorExpression(listing, expressionLib)).toSet[ContainerizedInputExpression]
-    
+
     val dockerOutputDirectory = requirementsAndHints
       .flatMap(_.select[DockerRequirement])
       .flatMap(_.dockerOutputDirectory)
@@ -241,7 +243,8 @@ case class CommandLineTool private(
         additionalGlob = Option(WomGlobFile(CwlOutputJson)),
         customizedOutputEvaluation = outputEvaluationJsonFunction,
         homeOverride = Option(_.outputPath),
-        dockerOutputDirectory = dockerOutputDirectory
+        dockerOutputDirectory = dockerOutputDirectory,
+        sourceLocation = None
       )
     }
   }

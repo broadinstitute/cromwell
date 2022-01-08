@@ -1,0 +1,20 @@
+# Uses the Papiv2ParallelCompositeUploads backend which specifies a parallel composite upload threshold,
+# so parallel composite uploads should be on.
+
+name: parallel_composite_uploads_on_in_config
+testFormat: workflowsuccess
+backends: [Papiv2ParallelCompositeUploads]
+
+files {
+  workflow: parallel_composite_uploads/parallel_composite_uploads_on.wdl
+  imports: [
+    "parallel_composite_uploads/parallel_composite_uploads_lib.wdl"
+  ]
+  options: "parallel_composite_uploads/caching_off.options"
+}
+
+metadata {
+  workflowName: composite_status
+  status: Succeeded
+  "outputs.composite_status.check.composite" = "true"
+}

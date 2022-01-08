@@ -1,0 +1,19 @@
+name: use_cache_copy_dir
+testFormat: runtwiceexpectingcallcaching
+backends: [Papiv2]
+
+files {
+  workflow: use_cacheCopy_dir/use_cacheCopy_dir.wdl
+}
+
+metadata {
+  workflowName: wf_hello
+  status: Succeeded
+  "calls.wf_hello.hello.callCaching.result": "Cache Hit: <<CACHE_HIT_UUID>>:wf_hello.hello:-1"
+  "outputs.wf_hello.out": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf_hello/<<UUID>>/call-hello/cacheCopy/hello.txt"
+}
+
+fileSystemCheck: "gcs"
+outputExpectations: {
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf_hello/<<UUID>>/call-hello/cacheCopy/hello.txt": 1
+}

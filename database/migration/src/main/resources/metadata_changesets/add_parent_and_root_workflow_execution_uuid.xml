@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet author="kshakir" id="add_parent_and_root_workflow_execution_uuid" dbms="mysql,hsqldb">
+
+        <addColumn tableName="WORKFLOW_METADATA_SUMMARY_ENTRY">
+            <column name="PARENT_WORKFLOW_EXECUTION_UUID" type="VARCHAR(100)"/>
+            <column name="ROOT_WORKFLOW_EXECUTION_UUID" type="VARCHAR(100)"/>
+        </addColumn>
+
+        <createIndex tableName="WORKFLOW_METADATA_SUMMARY_ENTRY" indexName="IX_WORKFLOW_METADATA_SUMMARY_ENTRY_PWEU">
+            <column name="PARENT_WORKFLOW_EXECUTION_UUID"/>
+        </createIndex>
+
+        <createIndex tableName="WORKFLOW_METADATA_SUMMARY_ENTRY" indexName="IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU">
+            <column name="ROOT_WORKFLOW_EXECUTION_UUID"/>
+        </createIndex>
+
+        <dropUniqueConstraint tableName="SUMMARY_STATUS_ENTRY"
+                              constraintName="UC_SUMMARY_STATUS_ENTRY_STN_STN"/>
+
+        <renameColumn tableName="SUMMARY_STATUS_ENTRY"
+                      oldColumnName="SUMMARY_TABLE_NAME"
+                      newColumnName="SUMMARY_NAME"
+                      columnDataType="VARCHAR(255)"/>
+        <dropColumn tableName="SUMMARY_STATUS_ENTRY" columnName="SUMMARIZED_TABLE_NAME"/>
+        <renameColumn tableName="SUMMARY_STATUS_ENTRY"
+                      oldColumnName="MAXIMUM_ID"
+                      newColumnName="SUMMARY_POSITION"
+                      columnDataType="BIGINT"/>
+
+        <update tableName="SUMMARY_STATUS_ENTRY">
+            <column name="SUMMARY_NAME" value="WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING" type="VARCHAR(255)"/>
+            <where>SUMMARY_NAME = 'WORKFLOW_METADATA_SUMMARY'</where>
+        </update>
+
+        <addUniqueConstraint
+                tableName="SUMMARY_STATUS_ENTRY"
+                constraintName="UC_SUMMARY_STATUS_ENTRY_SN"
+                columnNames="SUMMARY_NAME"/>
+    </changeSet>
+
+</databaseChangeLog>

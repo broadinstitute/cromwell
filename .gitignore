@@ -2,7 +2,9 @@
 *~
 .DS_Store
 .artifactory
+.bsp
 .idea/*
+**/.idea/*
 .ensime_cache/*
 .config/*
 .local/*
@@ -13,6 +15,7 @@ tags
 .idea/inspectionProfiles/*
 !/.idea/inspectionProfiles/Project_Default.xml
 target
+/site
 
 # custom config
 cromwell-executions
@@ -35,13 +38,17 @@ cromwell-centaur-requester-pays-service-account.json
 cromwell-centaur-service-account.json
 cromwell-service-account.json
 cwl_conformance_test.inputs.json
-dockerhub_auth.inc.sh
 dockerhub_provider_config_v1.inc.conf
 dockerhub_provider_config_v2.inc.conf
 github_private_deploy_key
 papi_application.inc.conf
-papi_refresh_token.txt
+papi_refresh_token.options.json
+papi_v2_gcsa.options.json
 private_docker_papi_v2_usa.options
 tesk_application_ftp.conf
 ftp_centaur_cwl_runner.conf
 tesk_application.conf
+**/__pycache__/
+**/venv/
+exome_germline_single_sample_v1.3/
+**/*.pyc

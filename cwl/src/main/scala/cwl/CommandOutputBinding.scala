@@ -2,11 +2,11 @@ package cwl
 
 import cats.effect.IO
 import cats.effect.IO._
-import cats.instances.list._
 import cats.syntax.functor._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import cats.syntax.parallel._
+import cats.instances.list._
 import common.validation.ErrorOr._
 import common.validation.IOChecked._
 import common.validation.Validation._
@@ -179,7 +179,7 @@ object CommandOutputBinding {
       primaryPaths <- GlobEvaluator.globs(commandOutputBinding.glob, parameterContext, expressionLib).toIOChecked
 
       // 2. loadContents: load the contents of the primary files
-      primaryAsDirectoryOrFiles <- primaryPaths.parTraverse[IOChecked, IOCheckedPar, List[WomFile]] {
+      primaryAsDirectoryOrFiles <- primaryPaths.parTraverse[IOChecked, List[WomFile]] {
         loadPrimaryWithContents(ioFunctionSet, outputWomType, commandOutputBinding)
       } map (_.flatten)
 
@@ -187,7 +187,7 @@ object CommandOutputBinding {
       absolutePaths = primaryAsDirectoryOrFiles.map(_.mapFile(ioFunctionSet.pathFunctions.relativeToHostCallRoot))
       
       // Load file size
-      withFileSizes <- absolutePaths.parTraverse[IOChecked, IOCheckedPar, WomFile](_.withSize(ioFunctionSet).to[IOChecked])
+      withFileSizes <- absolutePaths.parTraverse[IOChecked, WomFile](_.withSize(ioFunctionSet).to[IOChecked])
 
       womFilesArray = WomArray(withFileSizes)
 
@@ -228,17 +228,32 @@ object CommandOutputBinding {
       case WomMaybePopulatedFileType if isRegularFile(cwlPath) =>
         loadFileWithContents(ioFunctionSet, commandOutputBinding)(cwlPath).to[IOChecked].map(List(_))
       case WomMaybePopulatedFileType =>
+        //TODO: HACK ALERT - DB: I am starting on ticket https://github.com/broadinstitute/cromwell/issues/3092 which will redeem me of this mortal sin.
+        val detritusFiles = List(
+          "docker_cid",
+          "gcs_delocalization.sh",
+          "gcs_localization.sh",
+          "gcs_transfer.sh",
+          "rc.tmp",
+          "script",
+          "script.background",
+          "script.submit",
+          "stderr",
+          "stderr.background",
+          "stdout",
+          "stdout.background",
+        )
         val globs: IOChecked[Seq[String]] = 
           ioFunctionSet.glob(cwlPath).toIOChecked
               .map({
-                _ //TODO: HACK ALERT - DB: I am starting on ticket https://github.com/broadinstitute/cromwell/issues/3092 which will redeem me of this mortal sin.
-                .filterNot{s =>
-                  s.endsWith("rc.tmp") || s.endsWith("docker_cid") || s.endsWith("script") || s.endsWith("script.background") || s.endsWith("script.submit") || s.endsWith("stderr") || s.endsWith("stderr.background") || s.endsWith("stdout") || s.endsWith("stdout.background")
+                _
+                .filterNot{ s =>
+                  detritusFiles exists s.endsWith
                 }
               })
 
         globs.flatMap({ files =>
-          files.toList.parTraverse[IOChecked, IOCheckedPar, WomFile](v => loadFileWithContents(ioFunctionSet, commandOutputBinding)(v).to[IOChecked])
+          files.toList.parTraverse[IOChecked, WomFile](v => loadFileWithContents(ioFunctionSet, commandOutputBinding)(v).to[IOChecked])
         }) 
       case other => s"Program error: $other type was not expected".invalidIOChecked
     }
@@ -253,7 +268,7 @@ object CommandOutputBinding {
 
     for {
       listing <- IO.fromFuture(IO { ioFunctionSet.listDirectory(path)(visited) }).to[IOChecked]
-      loadedListing <- listing.toList.parTraverse[IOChecked, IOCheckedPar, WomFile]({
+      loadedListing <- listing.toList.parTraverse[IOChecked, WomFile]({
         case IoFile(p) => loadFileWithContents(ioFunctionSet, commandOutputBinding)(p).to[IOChecked]
         case IoDirectory(p) => loadDirectoryWithListing(ioFunctionSet, commandOutputBinding)(p, visited :+ path).widen
       })

@@ -3,7 +3,7 @@ package cromwell.engine.workflow.workflowstore
 import java.time.OffsetDateTime
 
 import cats.data.NonEmptyList
-import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
+import cromwell.core.{HogGroup, WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreAbortResponse.WorkflowStoreAbortResponse
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreState.WorkflowStoreState
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowStoreAbortResponse, WorkflowStoreState, WorkflowSubmissionResponse}
@@ -38,7 +38,9 @@ class InMemoryWorkflowStore extends WorkflowStore {
     workflowStore = workflowStore ++ updatedWorkflows
 
     val workflowsToStart = startableWorkflows map {
-      case (workflow, WorkflowStoreState.Submitted) => WorkflowToStart(workflow.id, OffsetDateTime.now, workflow.sources, Submitted)
+      case (workflow, WorkflowStoreState.Submitted) =>
+        val hogGroup = HogGroup.decide(workflow.sources.workflowOptions, workflow.id)
+        WorkflowToStart(workflow.id, OffsetDateTime.now, workflow.sources, Submitted, hogGroup)
       case _ => throw new IllegalArgumentException("This workflow is not currently in a startable state")
     }
 
@@ -57,7 +59,7 @@ class InMemoryWorkflowStore extends WorkflowStore {
     Future.successful(())
   }
 
-  override def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] = {
+  override def abort(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] = {
     workflowStore collectFirst {
       case (workflowIdAndSources, workflowStoreState) if workflowIdAndSources.id == id =>
         (workflowIdAndSources, workflowStoreState)
@@ -74,12 +76,19 @@ class InMemoryWorkflowStore extends WorkflowStore {
     }
   }
 
-  override def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)])(implicit ec: ExecutionContext): Future[Int] =
+  override def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)],
+                                       heartbeatDateTime: OffsetDateTime)
+                                      (implicit ec: ExecutionContext): Future[Int] = {
     Future.successful(workflowIds.size)
+  }
 
   override def switchOnHoldToSubmitted(id: WorkflowId)(implicit ec: ExecutionContext): Future[Unit] = Future.successful(())
 
   override def findWorkflowsWithAbortRequested(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[WorkflowId]] = Future.successful(List.empty)
+
+  override def findWorkflows(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[WorkflowId]] = Future.successful(workflowStore.keys.map(_.id))
+
+  override def deleteFromStore(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] = Future.successful(0)
 }
 
 final case class WorkflowIdAndSources(id: WorkflowId, sources: WorkflowSourceFilesCollection)

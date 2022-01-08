@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="chrisl" id="execution_event_table">
+    <changeSet author="chrisl" id="execution_event_table" dbms="mysql,hsqldb">
         <createTable tableName="EXECUTION_EVENT">
             <column autoIncrement="true" name="EVENT_ID" type="INT">
                 <constraints primaryKey="true" primaryKeyName="PK_EVENT"/>

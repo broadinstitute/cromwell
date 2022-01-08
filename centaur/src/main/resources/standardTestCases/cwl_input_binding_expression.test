@@ -3,6 +3,7 @@ testFormat: workflowsuccess
 workflowType: CWL
 workflowTypeVersion: v1.0
 workflowRoot: cwl_input_binding_expression
+skipDescribeEndpointValidation: true
 
 files {
   workflow: cwl_input_binding_expression/cwl_input_binding_expression.cwl

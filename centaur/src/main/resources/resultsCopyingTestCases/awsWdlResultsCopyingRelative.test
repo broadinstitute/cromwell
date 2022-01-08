@@ -1,0 +1,21 @@
+name: awsWdlResultsCopyingRelative
+testFormat: workflowsuccess
+backends: [AWSBatch]
+tags: ["copyAws"]
+
+files {
+  workflow: wdlResultsCopying/simpleWorkflow.wdl
+  options: wdlResultsCopying/aws/optionsRelative.json
+}
+
+metadata {
+  status: Succeeded
+}
+
+fileSystemCheck: "aws"
+outputExpectations: {
+    "s3://<<s3-bucket-name-placeholder>>/wf_results/output.txt": 1
+    "s3://<<s3-bucket-name-placeholder>>/wf_logs/workflow.<<UUID>>.log": 1
+    "s3://<<s3-bucket-name-placeholder>>/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/simpleStdoutTask-stderr.log": 1
+    "s3://<<s3-bucket-name-placeholder>>/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/simpleStdoutTask-stdout.log": 1
+}

@@ -1,8 +1,8 @@
 package cromwell.engine.workflow.lifecycle.execution.job.preparation
 
-import wdl.draft2.model.LocallyQualifiedName
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.TestProbe
+import common.validation.ErrorOr.ErrorOr
 import cromwell.backend._
 import cromwell.core.WorkflowId
 import cromwell.engine.EngineWorkflowDescriptor
@@ -10,8 +10,8 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.JobPreparationTestHelper._
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, ScopedKey}
-import common.validation.ErrorOr.ErrorOr
 import org.specs2.mock.Mockito
+import wdl.draft2.model.LocallyQualifiedName
 import wom.expression.NoIoFunctionSet
 import wom.graph.{CommandCallNode, WomIdentifier}
 import wom.values.{WomEvaluatedCallInputs, WomValue}
@@ -29,12 +29,8 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
   workflowDescriptor.rootWorkflowId returns workflowId.toRoot
   workflowDescriptor.rootWorkflow returns workflowDescriptor
   executionData.workflowDescriptor returns workflowDescriptor
-  val jobKey = mock[BackendJobDescriptorKey]
-  val call = CommandCallNode(WomIdentifier("JobPreparationSpec_call"), null, null, null, Set.empty, null)
-  jobKey.call returns call
-  jobKey.node returns call
-  jobKey.index returns None
-  jobKey.attempt returns 1
+  val call = CommandCallNode(WomIdentifier("JobPreparationSpec_call"), null, null, null, Set.empty, null, None)
+  val mockJobKey = BackendJobDescriptorKey(call, None, 1)
   val serviceRegistryProbe = TestProbe()
   val ioActor = TestProbe()
   val workflowDockerLookupActor = TestProbe()
@@ -45,7 +41,8 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
                                    noResponseTimeout: FiniteDuration,
                                    dockerHashCredentials: List[Any],
                                    inputsAndAttributes: ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])],
-                                   kvStoreKeysForPrefetch: List[String]) = {
+                                   kvStoreKeysForPrefetch: List[String],
+                                   jobKey: BackendJobDescriptorKey = mockJobKey) = {
 
     Props(new TestJobPreparationActor(
       kvStoreKeysForPrefetch = kvStoreKeysForPrefetch,

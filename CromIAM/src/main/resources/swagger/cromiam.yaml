@@ -248,6 +248,37 @@ paths:
           - email
           - profile
   '/api/workflows/{version}/{id}/labels':
+    get:
+      operationId: labels
+      summary: Retrieves the current labels for a workflow
+      parameters:
+      - version:
+        name: version
+        description: Cromwell API Version
+        required: true
+        type: string
+        in: path
+        default: v1
+      - id:
+        name: id
+        description: A workflow ID
+        required: true
+        type: string
+        in: path
+        pattern: ^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$
+      tags:
+        - Workflows
+      responses:
+        '200':
+          description: Successful Request
+          schema:
+            $ref: '#/definitions/LabelsResponse'
+        '400':
+          $ref: '#/responses/BadRequest'
+        '404':
+          $ref: '#/responses/NotFound'
+        '500':
+          $ref: '#/responses/ServerError'
     patch:
       summary: Add new labels or update values for existing label keys by workflow id.
       parameters:
@@ -769,6 +800,43 @@ paths:
           - openid
           - email
           - profile
+  '/api/womtool/{version}/describe':
+    post:
+      operationId: describe
+      summary: Machine-readable description of a workflow, including inputs and outputs
+      consumes:
+        - multipart/form-data
+      parameters:
+        - name: version
+          description: API Version
+          required: true
+          type: string
+          in: path
+          default: v1
+        - name: workflowSource
+          description: The workflow source file to submit for execution. Either workflow source or workflow url is required.
+          required: false
+          type: file
+          in: formData
+        - name: workflowUrl
+          description: URL which points to the workflow. Either workflow source or workflow url is required.
+          required: false
+          type: string
+          in: formData
+        - name: workflowInputs
+          description: JSON or YAML file containing the inputs as an object.
+          required: false
+          type: file
+          in: formData
+        - $ref: '#/parameters/workflowTypeParam'
+        - $ref: '#/parameters/workflowTypeVersionParam'
+      responses:
+        '200':
+          description: Workflow description.
+          schema:
+            $ref: '#/definitions/WorkflowDescription'
+      tags:
+        - "Womtool"
   '/engine/{version}/version':
     get:
       summary: Returns the version of the Cromwell Engine
@@ -807,6 +875,37 @@ paths:
               description: At least one subsystem does not have an "ok" status
               schema:
                 $ref: '#/definitions/StatusResponse'
+
+responses:
+  BadRequest:
+    description: Malformed Workflow ID
+  NotFound:
+    description: Workflow ID Not Found
+  ServerError:
+    description: Internal Error
+
+parameters:
+  workflowTypeParam:
+    name: workflowType
+    type: string
+    description: The workflow language for the file you submitted. Cromwell currently supports WDL and CWL.
+    enum: [WDL, CWL]
+    required: false
+    in: formData
+  workflowTypeVersionParam:
+    name: workflowTypeVersion
+    description: The specification version for the workflow language being used. For WDL, Cromwell currently supports draft-2 and 1.0. For CWL, Cromwell currently supports v1.0.
+    required: false
+    type: string
+    enum: ["draft-2", "1.0", "v1.0"]
+    in: formData
+  versionParam:
+    name: version
+    description: Cromwell API Version
+    required: true
+    type: string
+    in: path
+    default: v1 # This really should be an enum but swagger-ui seems to not like it
 
 definitions:
   WorkflowSubmitResponse:
@@ -934,6 +1033,261 @@ definitions:
         type: string
         format: date-time
         description: The time at which this failure occurred
+  WorkflowDescription:
+    required:
+      - valid
+      - validWorkflow
+      - errors
+      - name
+      - inputs
+      - outputs
+      - submittedDescriptorType
+      - isRunnableWorkflow
+    properties:
+      valid:
+        type: boolean
+        description: Indicates that the workflow is valid and that the inputs, if provided, are compatible with the workflow.
+      errors:
+        type: array
+        items:
+          type: string
+        example:
+          - "The 'errors' field will be filled if 'valid' is false"
+          - "We might also provide warnings to a 'valid' workflow here"
+          - "Otherwise, 'errors' will be the empty array"
+        description: The set of validation failure messages
+      validWorkflow:
+        type: boolean
+        description: Indicates whether the workflow file is valid by itself. If inputs are provided, they are not considered when calculating this field; if inputs are not provided, the value is identical to `valid`.
+      name:
+        type: string
+        description: For a source file with one workflow and zero or more tasks, the name of the workflow. For a single task, the name of the task. For a source file with multiple tasks but no workflows, the empty string.
+      inputs:
+        description: A list of inputs for this tool
+        type: array
+        items:
+          $ref: '#/definitions/ToolInputParameter'
+        example:
+          - name: my_wf.string_input
+            valueType:
+              typeName: String
+            optional: false
+            default: null
+            typeDisplayName: String
+          - name: my_wf.array_input
+            valueType:
+              typeName: Array
+              arrayType:
+                typeName: String
+            optional: false
+            default: null
+            typeDisplayName: Array[String]
+          - name: my_wf.optional_input
+            valueType:
+              typeName: Optional
+              optionalType:
+                typeName: String
+            optional: true
+            default: "hello"
+            typeDisplayName: String?
+          - name: my_wf.map_input
+            valueType:
+              typeName: Map
+              mapType:
+                keyType:
+                  typeName: String
+                valueType:
+                  typeName: Int
+            optional: false
+            default: null
+            typeDisplayName: Map[String, Int]
+          - name: my_wf.object_input
+            valueType:
+              typeName: Object
+              objectFieldTypes:
+                - fieldName: "int_field"
+                  fieldType:
+                    typeName: Int
+                - fieldName: "int_array_field"
+                  fieldType:
+                    typeName: Array
+                    arrayType:
+                      typeName: Int
+            optional: false
+            default: null
+            typeDisplayName: Object
+          - name: my_wf.int_string_pair_input
+            valueType:
+              typeName: Pair
+              pairTypes:
+                - leftType:
+                    - typeName: Int
+                - rightType:
+                    - typeName: String
+            optional: false
+            default: null
+            typeDisplayName: Pair[Int, String]
+      outputs:
+        description: A list of outputs for this tool
+        type: array
+        items:
+          $ref: '#/definitions/ToolOutputParameter'
+        example:
+          - name: my_wf.string_output
+            valueType:
+              typeName: String
+            typeDisplayName: String
+          - name: my_wf.array_output
+            valueType:
+              typeName: Array
+              arrayType:
+                typeName: String
+            typeDisplayName: Array[String]
+          - name: my_wf.map_output
+            valueType:
+              typeName: Map
+              mapType:
+                keyType:
+                  typeName: String
+                valueType:
+                  typeName: Int
+            typeDisplayName: Map[String, Int]
+          - name: my_wf.object_output
+            valueType:
+              typeName: Object
+              objectFieldTypes:
+                - fieldName: "int_field"
+                  fieldType:
+                    typeName: Int
+                - fieldName: "int_array_field"
+                  fieldType:
+                    typeName: Array
+                    arrayType:
+                      typeName: Int
+            typeDisplayName: Object
+          - name: my_wf.int_string_pair_output
+            valueType:
+              typeName: Pair
+              tupleTypes:
+                - typeName: Int
+                - typeName: String
+            typeDisplayName: Pair[Int, String]
+      submittedDescriptorType:
+        $ref: '#/definitions/DescriptorTypeAndVersion'
+      isRunnableWorkflow:
+        description: Indicates whether this file can be run on its own (e.g. a WDL workflow)
+        type: boolean
+  ToolInputParameter:
+    type: object
+    description: >-
+      An input parameter for a tool or workflow.
+    required:
+      - name
+      - valueType
+      - optional
+      - default
+    properties:
+      name:
+        type: string
+        description: The name of this input value (formatted as expected by the tool)
+      valueType:
+        $ref: '#/definitions/ValueType'
+      optional:
+        type: boolean
+        description: Whether the tool allows this value to not be specified
+      default:
+        type: string
+        description: The in-language expression used to evaluate a default value for this parameter, if
+          none is supplied.
+  ToolOutputParameter:
+    type: object
+    description: >-
+      An output parameter for a tool or workflow.
+    required:
+      - name
+      - valueType
+    properties:
+      name:
+        type: string
+        description: The name of this input value (formatted as expected by the tool)
+      valueType:
+        $ref: '#/definitions/ValueType'
+  ValueType:
+    description: The type expected for a given value.
+    type: object
+    required:
+      - valueType
+    maxProperties: 2
+    properties:
+      typeName:
+        type: string
+        description: The type of this value
+        enum:
+          - String
+          - File
+          - Directory
+          - Float
+          - Int
+          - Boolean
+          - Optional
+          - Array
+          - Tuple
+          - Map
+          - Object
+          - Pair
+      optionalType:
+        $ref: '#/definitions/ValueType'
+      arrayType:
+        $ref: '#/definitions/ValueType'
+      mapType:
+        $ref: '#/definitions/MapValueType'
+      tupleTypes:
+        type: array
+        items:
+          $ref: '#/definitions/ValueType'
+      objectFieldTypes:
+        type: array
+        items:
+          type: object
+          properties:
+            fieldName:
+              type: string
+            fieldType:
+              $ref: '#/definitions/ValueType'
+  MapValueType:
+    type: object
+    description: A type representing a map from one type to another.
+    required:
+      - keyType
+      - valueType
+    properties:
+      keyType:
+        $ref: '#/definitions/ValueType'
+      valueType:
+        $ref: '#/definitions/ValueType'
+  DescriptorTypeAndVersion:
+    type: object
+    description: >-
+      A workflow descriptor file type and version.
+    required:
+      - descriptorType
+      - descriptorTypeVersion
+    properties:
+      descriptorType:
+        $ref: '#/definitions/DescriptorType'
+      descriptorTypeVersion:
+        type: string
+        example: "1.0"
+  DescriptorType:
+    type: string
+    description: >-
+      One from a list of descriptor type strings (e.g. CWL, WDL).
+      Note that these files can also include associated Docker/container files
+      and test parameters that further describe a version of a tool
+    example: "WDL"
+    enum:
+      - CWL
+      - WDL
   WorkflowQueryParameter:
     description: Workflow query parameters
     minProperties: 1

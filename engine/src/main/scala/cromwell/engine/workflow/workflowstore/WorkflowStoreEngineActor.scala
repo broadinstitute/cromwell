@@ -1,13 +1,14 @@
 package cromwell.engine.workflow.workflowstore
 
-import akka.actor.{ActorLogging, ActorRef, LoggingFSM, PoisonPill, Props, Timers}
+import akka.actor.{ActorLogging, ActorRef, ActorSystem, LoggingFSM, PoisonPill, Props, Timers}
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher._
+import cromwell.core.WorkflowProcessingEvents.DescriptionEventValue.PickedUp
+import cromwell.core._
 import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortRequestedResponse, WorkflowAbortedResponse}
-import cromwell.core.{WorkflowAborted, WorkflowAborting, WorkflowId, WorkflowSubmitted}
 import cromwell.engine.instrumentation.WorkflowInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
-import cromwell.engine.workflow.WorkflowMetadataHelper
+import cromwell.engine.workflow.{WorkflowMetadataHelper, WorkflowProcessingEventPublishing}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreState.WorkflowStoreState
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowStoreAbortResponse, WorkflowStoreState}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
@@ -26,6 +27,7 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
                                                   workflowHeartbeatConfig: WorkflowHeartbeatConfig)
   extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging with WorkflowInstrumentation with CromwellInstrumentationScheduler with WorkflowMetadataHelper with Timers {
 
+  implicit val actorSystem: ActorSystem = context.system
   implicit val ec: ExecutionContext = context.dispatcher
 
   startWith(Unstarted, WorkflowStoreActorData(None, List.empty))
@@ -98,14 +100,26 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
 
   private def startNewWork(command: WorkflowStoreActorEngineCommand, sndr: ActorRef, nextData: WorkflowStoreActorData) = {
     val work: Future[Any] = command match {
-      case FetchRunnableWorkflows(n) =>
-        newWorkflowMessage(n) map { nwm =>
-          nwm match {
-            case NewWorkflowsToStart(workflows) => log.info("{} new workflows fetched", workflows.toList.size)
-            case NoNewWorkflowsToStart => log.debug("No workflows fetched")
-            case _ => log.error("Unexpected response from newWorkflowMessage({}): {}", n, nwm)
+      case FetchRunnableWorkflows(count) =>
+        newWorkflowMessage(count) map { response =>
+          response match {
+            case NewWorkflowsToStart(workflows) =>
+              val workflowsIds = workflows.map(_.id).toList
+              log.info(
+                "{} new workflows fetched by {}: {}",
+                workflowsIds.size,
+                workflowHeartbeatConfig.cromwellId,
+                workflowsIds.mkString(", ")
+              )
+
+              workflowsIds foreach { w =>
+                WorkflowProcessingEventPublishing.publish(w, workflowHeartbeatConfig.cromwellId, PickedUp, serviceRegistryActor)
+              }
+
+            case NoNewWorkflowsToStart => log.debug("No workflows fetched by {}", workflowHeartbeatConfig.cromwellId)
+            case _ => log.error("Unexpected response from newWorkflowMessage({}): {}", count, response)
           }
-          sndr ! nwm
+          sndr ! response
         }
       case FindWorkflowsWithAbortRequested(cromwellId) =>
         store.findWorkflowsWithAbortRequested(cromwellId) map {
@@ -114,7 +128,7 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
           case t => sndr ! FindWorkflowsWithAbortRequestedFailure(t)
         }
       case AbortWorkflowCommand(id) =>
-        store.aborting(id) map { workflowStoreAbortResponse =>
+        workflowStoreAccess.abort(id) map { workflowStoreAbortResponse =>
           log.info(s"Abort requested for workflow $id.")
           workflowStoreAbortResponse
         } map {

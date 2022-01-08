@@ -2,6 +2,8 @@ package cromwell.util
 
 import java.nio.file.attribute.PosixFilePermission
 
+import cats.data.Validated.{Invalid, Valid}
+import common.validation.ErrorOr.ErrorOr
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import wom.values._
 
@@ -30,4 +32,15 @@ trait HashUtil extends TestFileUtil {
   val string1 = WomString("some text")
   val sameAsString1 = WomString("some text")
   val anotherString = WomString("different text")
+}
+
+object ErrorOrUtil {
+  implicit class EnhancedErrorOr[A](val value: ErrorOr[A]) extends AnyVal {
+    /** Extract a value from an `ErrorOr` box if the box is `Valid`, throw an exception if the box is `Invalid`.
+      * For test code only. */
+    def get: A = value match {
+      case Valid(a) => a
+      case Invalid(errors) => throw new RuntimeException(errors.toList.mkString("\n"))
+    }
+  }
 }

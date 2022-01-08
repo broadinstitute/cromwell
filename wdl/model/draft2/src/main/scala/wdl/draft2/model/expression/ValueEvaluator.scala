@@ -21,34 +21,34 @@ case class ValueEvaluator(override val lookup: String => WomValue, override val 
 
   private val InterpolationTagPattern = "\\$\\{\\s*([^\\}]*)\\s*\\}".r
 
-  private def replaceInterpolationTag(string: Try[WomString], tag: String): Try[WomString] = {
-    val expr = WdlExpression.fromString(tag.substring(2, tag.length - 1))
-    (expr.evaluate(lookup, functions), string) match {
-      case (Success(value), Success(str)) =>
-        value match {
-          case s: WomString if InterpolationTagPattern.anchored.findFirstIn(s.valueString).isDefined =>
-            replaceInterpolationTag(Success(WomString(str.value.replace(tag, s.valueString))), s.valueString)
-          case v => Success(WomString(str.value.replace(tag, v.valueString)))
-        }
-      case (Failure(ex), _) => Failure(ex)
-      case (_, Failure(ex)) => Failure(ex)
-    }
-  }
 
-  private def interpolate(str: String): Try[WomString] = {
-    InterpolationTagPattern.findAllIn(str).foldLeft(Try(WomString(str)))(replaceInterpolationTag)
-  }
+  private def interpolate(strToProcess: String, resultSoFar: Try[WomString] = Success(WomString(""))): Try[WomString] = {
 
-  private def interpolate(value: WomValue): Try[WomValue] = {
-    value match {
-      case s: WomString => interpolate(s.valueString)
-      case _ => Try(value)
+    def evaluateTag(tag: String): Try[WomString] = {
+      val expr = WdlExpression.fromString(tag.substring(2, tag.length - 1))
+      expr.evaluate(lookup, functions).map(result => WomString(result.valueString))
     }
+
+    InterpolationTagPattern.findFirstIn(strToProcess) match {
+      case Some(tag) =>
+        val prefix = strToProcess.substring(0, strToProcess.indexOf(tag))
+        val suffix = strToProcess.substring(strToProcess.indexOf(tag) + tag.length, strToProcess.length)
+
+        val newResultSoFar = for {
+          rsf <- resultSoFar
+          interpolatedTag <- evaluateTag(tag)
+        } yield WomString(rsf.value + prefix + interpolatedTag.value)
+
+        interpolate(suffix, newResultSoFar)
+
+      case None => resultSoFar.map(ws => WomString(ws.value + strToProcess))
+    }
+
   }
 
   override def evaluate(ast: AstNode): Try[WomValue] = {
     ast match {
-      case t: Terminal if t.getTerminalStr == "identifier" => Try(lookup(t.getSourceString)).flatMap(interpolate)
+      case t: Terminal if t.getTerminalStr == "identifier" => Try(lookup(t.getSourceString))
       case t: Terminal if t.getTerminalStr == "integer" => Success(WomInteger(t.getSourceString.toInt))
       case t: Terminal if t.getTerminalStr == "float" => Success(WomFloat(t.getSourceString.toDouble))
       case t: Terminal if t.getTerminalStr == "boolean" => Success(WomBoolean(t.getSourceString == "true"))
@@ -136,7 +136,7 @@ case class ValueEvaluator(override val lookup: String => WomValue, override val 
         a.getAttribute("rhs") match {
           case rhs:Terminal if rhs.getTerminalStr == "identifier" =>
             val memberAccessAsString = s"${a.getAttribute("lhs").sourceString}.${a.getAttribute("rhs").sourceString}"
-            Try(lookup(memberAccessAsString)).flatMap(interpolate).recoverWith {
+            Try(lookup(memberAccessAsString)).recoverWith {
               case _ =>
                 evaluate(a.getAttribute("lhs")).flatMap {
                   case o: WomObjectLike =>

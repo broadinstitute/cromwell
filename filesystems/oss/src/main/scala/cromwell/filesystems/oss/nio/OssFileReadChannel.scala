@@ -61,6 +61,7 @@ final case class OssFileReadChannel(ossClient: OSSClient, pos: Long, path: OssSt
         val channel = Channels.newChannel(in)
 
         val amt = channel.read(dst)
+        channel.close()
         internalPosition += amt
         amt
       }

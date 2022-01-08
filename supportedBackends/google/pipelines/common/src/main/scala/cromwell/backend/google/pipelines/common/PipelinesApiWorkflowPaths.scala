@@ -59,7 +59,7 @@ case class PipelinesApiWorkflowPaths(workflowDescriptor: BackendWorkflowDescript
       RetrySettings.newBuilder().build(),
       GcsStorage.DefaultCloudStorageConfiguration,
       workflowOptions,
-      Option(papiConfiguration.jesAttributes.project)
+      Option(papiConfiguration.papiAttributes.project)
     )
 
     val authBucket = pathBuilderWithGenomicsAuth.build(bucket) recover {

@@ -1,13 +1,13 @@
 package cromwell
 
 import cromwell.util.SampleWdl
-import org.scalatest.{Matchers, WordSpecLike}
-import wdl.draft2.model.WdlNamespaceWithWorkflow
-import wdl.draft2.model.{FullyQualifiedName, Draft2ImportResolver}
-import wom.callable.Callable.{OverridableInputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
+import wdl.draft2.model.{Draft2ImportResolver, FullyQualifiedName, WdlNamespaceWithWorkflow}
+import wom.callable.Callable.{OptionalInputDefinition, OverridableInputDefinitionWithDefault, RequiredInputDefinition}
 import wom.types.{WomOptionalType, WomSingleFileType, WomStringType}
 
-class DeclarationWorkflowSpec extends Matchers with WordSpecLike {
+class DeclarationWorkflowSpec extends Matchers with AnyWordSpecLike {
   "A workflow with declarations in it" should {
     "compute inputs properly" in {
 

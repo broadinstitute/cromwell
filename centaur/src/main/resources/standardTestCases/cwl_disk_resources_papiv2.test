@@ -1,6 +1,7 @@
 name: cwl_disk_resources_papiv2
 testFormat: workflowsuccess
 backends: [Papiv2]
+skipDescribeEndpointValidation: true
 
 files {
   workflow: cwl_resources/cwl_disk_resources.cwl

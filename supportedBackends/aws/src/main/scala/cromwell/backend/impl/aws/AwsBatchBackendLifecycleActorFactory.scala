@@ -31,26 +31,23 @@
 
 package cromwell.backend.impl.aws
 
-import akka.actor.{ActorRef}
-import cromwell.backend.{BackendConfigurationDescriptor,
-                         BackendWorkflowDescriptor,
-                         BackendInitializationData,
-                         JobExecutionMap}
-import cromwell.backend.standard.{StandardLifecycleActorFactory,
-                                  StandardAsyncExecutionActor,
-                                  StandardInitializationActor,
-                                  StandardFinalizationActor,
-                                  StandardInitializationActorParams,
-                                  StandardFinalizationActorParams}
+import akka.actor.{ActorRef, Props}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, JobExecutionMap}
+import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardFinalizationActor, StandardFinalizationActorParams, StandardInitializationActor, StandardInitializationActorParams, StandardLifecycleActorFactory}
 import cromwell.core.CallOutputs
 import wom.graph.CommandCallNode
-import org.slf4j.LoggerFactory
 
+/**
+  * Factory to create `Actor` objects to manage the lifecycle of a backend job on AWS Batch. This factory provides an
+  * object from the `AwsBatchAsyncBackendJobExecutionActor` class to create and manage the job.
+  * @param name Factory name
+  * @param configurationDescriptor configuration descriptor for the backend
+  */
 case class AwsBatchBackendLifecycleActorFactory(
   name: String,
   configurationDescriptor: BackendConfigurationDescriptor)
     extends StandardLifecycleActorFactory {
-  lazy val Log = LoggerFactory.getLogger(AwsBatchBackendLifecycleActorFactory.getClass)
+
   override lazy val initializationActorClass: Class[_ <: StandardInitializationActor]
     = classOf[AwsBatchInitializationActor]
 
@@ -71,7 +68,6 @@ case class AwsBatchBackendLifecycleActorFactory(
                                                   calls: Set[CommandCallNode],
                                                   serviceRegistryActor: ActorRef,
                                                   restart: Boolean): StandardInitializationActorParams = {
-    Log.debug("Initializing AwsBatchBackendLifecycleActorFactory")
     AwsBatchInitializationActorParams(workflowDescriptor, ioActor, calls, configuration, serviceRegistryActor, restart)
   }
 
@@ -91,5 +87,9 @@ case class AwsBatchBackendLifecycleActorFactory(
     // on the initialization data as there is with the execution or cache
     // hit copying actor methods.
     AwsBatchFinalizationActorParams(workflowDescriptor, ioActor, calls, configuration, jobExecutionMap, workflowOutputs, initializationDataOption)
+  }
+
+  override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = {
+    Option(AwsBatchSingletonActor.props(configuration.awsConfig.region, Option(configuration.awsAuth)))
   }
 }

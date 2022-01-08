@@ -1,0 +1,20 @@
+name: check_network_in_vpc
+testFormat: workflowsuccess
+backends: [Papiv2-Virtual-Private-Cloud-Labels, Papiv2-Virtual-Private-Cloud-Literals]
+
+files {
+  workflow: virtual_private_cloud/check_network_in_vpc.wdl
+  options: virtual_private_cloud/wf_zone_options.json
+}
+
+metadata {
+  workflowName: check_network_in_vpc
+  status: Succeeded
+
+  "outputs.check_network_in_vpc.network_used_labels": "cromwell-ci-vpc-network"
+  "outputs.check_network_in_vpc.subnetwork_used_labels": "cromwell-ci-vpc-network"
+  "outputs.check_network_in_vpc.zone_used_labels": "us-east1-c"
+  "outputs.check_network_in_vpc.network_used_literals": "cromwell-ci-vpc-network"
+  "outputs.check_network_in_vpc.subnetwork_used_literals": "cromwell-ci-vpc-network"
+  "outputs.check_network_in_vpc.zone_used_literals": "us-east1-c"
+}

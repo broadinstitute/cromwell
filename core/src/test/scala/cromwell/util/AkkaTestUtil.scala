@@ -2,10 +2,13 @@ package cromwell.util
 
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Kill, PoisonPill, Props, SupervisorStrategy}
 import akka.testkit.TestProbe
+import scala.util.control.NoStackTrace
 
 object AkkaTestUtil {
 
   implicit class EnhancedTestProbe(probe: TestProbe) {
+
+    // Get a 'props' handle which will return a (inbound-only!!) wrapper around this test probe when constructed
     def props = Props(new Actor with ActorLogging {
       def receive = {
         case outbound @ _ if sender == probe.ref =>
@@ -34,10 +37,24 @@ object AkkaTestUtil {
   }
 
   class DeathTestActor extends Actor {
-    private def stoppingReceive: Actor.Receive = {
+    protected def stoppingReceive: Actor.Receive = {
       case InternalStop => context.stop(self)
-      case ThrowException => throw new Exception("Don't panic, dear debugger! This was a deliberate exception for the test case.")
+      case ThrowException => throw new Exception("Don't panic, dear debugger! This was a deliberate exception for the test case.") with NoStackTrace
     }
     override def receive = stoppingReceive orElse Actor.ignoringBehavior
+  }
+
+  trait ReceiveLoggingActor extends Actor with ActorLogging {
+    def logMessage = new Receive {
+      def isDefinedAt(x: Any) = {
+        log.info(s"Received: $x")
+        false
+      }
+      def apply(x: Any) = throw new UnsupportedOperationException
+    }
+
+    def loggedReceive: Receive
+
+    override final def receive: Receive = logMessage orElse loggedReceive
   }
 }

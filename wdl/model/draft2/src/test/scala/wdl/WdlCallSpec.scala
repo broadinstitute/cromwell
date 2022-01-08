@@ -1,16 +1,20 @@
 package wdl
 
-import org.scalatest.{Matchers, WordSpec}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+import wdl.draft2.Draft2ResolvedImportBundle
 import wdl.draft2.model.exception.ValidationException
 import wdl.draft2.model.expression.{NoFunctions, PureStandardLibraryFunctionsLike}
 import wdl.draft2.model.values.WdlCallOutputsObject
 import wdl.draft2.model.{WdlGraphNode, WdlNamespace, WdlNamespaceWithWorkflow, WorkflowCoercedInputs}
+import wom.ResolvedImportRecord
 import wom.types._
 import wom.values._
 
 import scala.util.{Failure, Success, Try}
 
-class WdlCallSpec extends WordSpec with Matchers {
+class WdlCallSpec extends AnyWordSpec with CromwellTimeoutSpec with Matchers {
 
   "evaluate its declarations" in {
     val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.TaskDeclarationsWdl.workflowSource(), Seq.empty).get
@@ -185,7 +189,7 @@ class WdlCallSpec extends WordSpec with Matchers {
         |}
       """.stripMargin
 
-    val ns = WdlNamespaceWithWorkflow.load(wdl, Seq((_: String) => subWorkflow)).get
+    val ns = WdlNamespaceWithWorkflow.load(wdl, Seq((uri: String) => Draft2ResolvedImportBundle(subWorkflow, ResolvedImportRecord(uri)))).get
     ns.workflow.workflowCalls.size shouldBe 1
     ns.workflow.taskCalls.size shouldBe 1
   }

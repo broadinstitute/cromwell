@@ -1,6 +1,7 @@
 package centaur
 
-import org.scalatest.{DoNotDiscover, Matchers}
+import org.scalatest.DoNotDiscover
+import org.scalatest.matchers.should.Matchers
 
 /**
   * All test cases that trigger a Cromwell restart. Note that this suite does not mix in ParallelTestExecution
@@ -10,7 +11,7 @@ import org.scalatest.{DoNotDiscover, Matchers}
 class SequentialTestCaseSpec(cromwellBackends: List[String]) extends AbstractCentaurTestCaseSpec(cromwellBackends) with Matchers {
 
   def this() = this(CentaurTestSuite.cromwellBackends)
-  
-  allTestCases.filter(CentaurTestSuite.runSequential) foreach executeStandardTest
+
+  allTestCases.filterNot(_.testFormat.isParallel) foreach executeStandardTest
 
 }

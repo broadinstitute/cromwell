@@ -24,7 +24,7 @@ object FailOnStderrValidation {
 }
 
 class FailOnStderrValidation extends BooleanRuntimeAttributesValidation(RuntimeAttributesKeys.FailOnStderrKey) {
-  override protected def usedInCallCaching: Boolean = true
+  override def usedInCallCaching: Boolean = true
 
   override protected def missingValueMessage: String =
     s"Expecting $key runtime attribute to be a Boolean or a String with values of 'true' or 'false'"

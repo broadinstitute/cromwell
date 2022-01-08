@@ -13,7 +13,7 @@ class BcsJobSpec extends BcsTestUtilSpec {
   val name = "cromwell"
   val description = name
   val command = "python main.py"
-  val packagePath =  mockPathBuiler.build("oss://bcs-test/worker.tar.gz").get
+  val packagePath =  mockPathBuilder.build("oss://bcs-test/worker.tar.gz").get
   val mounts = Seq.empty[BcsMount]
   val envs = Map.empty[String, String]
 
@@ -45,7 +45,10 @@ class BcsJobSpec extends BcsTestUtilSpec {
     val dest = "/home/inputs/"
     val writeSupport = false
     val runtime = Map("mounts" -> WomString(s"$src $dest $writeSupport"))
-    taskWithRuntime(runtime).getInputMapping.get(src) shouldEqual dest
+    taskWithRuntime(runtime).getMounts().getEntries should have size(1)
+    taskWithRuntime(runtime).getMounts().getEntries.get(0).getSource shouldBe src
+    taskWithRuntime(runtime).getMounts().getEntries.get(0).getDestination shouldBe dest
+    taskWithRuntime(runtime).getMounts().getEntries.get(0).isWriteSupport shouldBe writeSupport
   }
 
   it should "have correct cluster id" in {
@@ -57,9 +60,9 @@ class BcsJobSpec extends BcsTestUtilSpec {
   it should "have correct docker option" in {
     val dockerImage = "ubuntu/latest"
     val dockerPath = "oss://bcs-reg/ubuntu/"toLowerCase()
-    val runtime = Map("docker" -> WomString(s"$dockerImage $dockerPath"))
-    taskWithRuntime(runtime).getParameters.getCommand.getEnvVars.get(BcsJob.BcsDockerImageEnvKey) shouldEqual dockerImage
-    taskWithRuntime(runtime).getParameters.getCommand.getEnvVars.get(BcsJob.BcsDockerPathEnvKey) shouldEqual dockerPath
+    val runtime = Map("dockerTag" -> WomString(s"$dockerImage $dockerPath"))
+    taskWithRuntime(runtime).getParameters.getCommand.getEnvVars.get(BcsJob.BcsDockerImageEnvKey) shouldEqual null
+    taskWithRuntime(runtime).getParameters.getCommand.getEnvVars.get(BcsJob.BcsDockerPathEnvKey) shouldEqual null
   }
 
   it should "have correct auto cluster configuration" in {
@@ -69,6 +72,7 @@ class BcsJobSpec extends BcsTestUtilSpec {
     val spotStrategy = "SpotWithPriceLimit"
     val spotPriceLimit = 0.12
     val cluster = s"$resourceType $instanceType $imageId $spotStrategy $spotPriceLimit"
+    val imageIdForCallCaching = "img-ubuntu-vpc"
     val reserveOnFail = true
     val cidr = "172.16.16.0/20"
     val vpcId = "vpc-test"
@@ -86,7 +90,8 @@ class BcsJobSpec extends BcsTestUtilSpec {
       "vpc" -> WomString(s"$cidr $vpcId"),
       "systemDisk" -> WomString(s"$systemDiskType $systemDiskSize"),
       "dataDisk" -> WomString(s"$dataDiskType $dataDiskSize $dataDiskMountPoint"),
-      "userData" -> WomString(s"$userDataKey $userDataValue")
+      "userData" -> WomString(s"$userDataKey $userDataValue"),
+      "imageId" -> WomString(s"$imageIdForCallCaching")
     )
 
     val task = taskWithRuntime(runtime)
@@ -94,7 +99,7 @@ class BcsJobSpec extends BcsTestUtilSpec {
 
     val autoCluster = task.getAutoCluster
     autoCluster.isReserveOnFail shouldEqual reserveOnFail
-    autoCluster.getImageId shouldEqual imageId
+    autoCluster.getImageId shouldEqual imageIdForCallCaching
     autoCluster.getResourceType shouldEqual resourceType
     autoCluster.getInstanceType shouldEqual instanceType
     autoCluster.getSpotStrategy shouldEqual spotStrategy
@@ -119,8 +124,8 @@ class BcsJobSpec extends BcsTestUtilSpec {
 
 
   private def withRuntime(runtime: Map[String, WomValue] = Map.empty[String, WomValue]): BcsJob = {
-    val rumtimeAttributes = createBcsRuntimeAttributes(runtime)
-    BcsJob(name, description, command, packagePath, rumtimeAttributes.mounts.getOrElse(mounts), envs, rumtimeAttributes, None, None, mockBcsClient)
+    val runtimeAttributes = createBcsRuntimeAttributes(runtime)
+    BcsJob(name, description, command, packagePath, runtimeAttributes.mounts.getOrElse(mounts), envs, runtimeAttributes, None, None, mockBcsClient)
   }
 
   private def taskWithRuntime(runtime: Map[String, WomValue] = Map.empty[String, WomValue]): TaskDescription = {

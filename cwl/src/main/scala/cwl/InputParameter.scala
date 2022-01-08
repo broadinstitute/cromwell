@@ -1,10 +1,11 @@
 package cwl
 
-import cats.instances.option._
 import cats.syntax.functor._
 import cats.syntax.parallel._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
+import cats.instances.option._
 import common.validation.ErrorOr._
 import common.validation.IOChecked._
 import common.validation.Validation._
@@ -45,8 +46,6 @@ object InputParameter {
   }
 
   type DefaultToWomValueFunction = WomType => ErrorOr[WomValue]
-
-  import cats.instances.list._
 
   object DefaultToWomValuePoly extends Poly1 {
     implicit def caseFileOrDirectory: Case.Aux[FileOrDirectory, DefaultToWomValueFunction] = {
@@ -168,11 +167,11 @@ object InputParameter {
               updated = loaded.copy(secondaryFiles = loaded.secondaryFiles ++  secondaries)
             } yield updated
           case womMaybeListedDirectory: WomMaybeListedDirectory => womMaybeListedDirectory.withSize(ioFunctionSet).to[IOChecked].widen
-          case WomArray(_, values) => values.toList.parTraverse[IOChecked, IOCheckedPar, WomValue](populateFiles).map(WomArray(_))
+          case WomArray(_, values) => values.toList.parTraverse[IOChecked, WomValue](populateFiles).map(WomArray(_))
           case WomOptionalValue(_, Some(innerValue)) => populateFiles(innerValue).map(WomOptionalValue(_))
           case obj: WomObjectLike =>
             // Map the values
-            val populated: IOChecked[WomObject] = obj.values.toList.parTraverse[IOChecked, IOCheckedPar, (String, WomValue)]({
+            val populated: IOChecked[WomObject] = obj.values.toList.parTraverse[IOChecked, (String, WomValue)]({
               case (key, value) => populateFiles(value).map(key -> _)
             })
             .map(_.toMap)

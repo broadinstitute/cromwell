@@ -14,11 +14,12 @@ object SqlConverters {
   // https://github.com/slick/slick/issues/1026
 
   implicit class TimestampToSystemOffsetDateTime(val timestamp: Timestamp) extends AnyVal {
-    def toSystemOffsetDateTime = timestamp.toLocalDateTime.atZone(ZoneId.systemDefault).toOffsetDateTime
+    def toSystemOffsetDateTime: OffsetDateTime = timestamp.toLocalDateTime.atZone(ZoneId.systemDefault).toOffsetDateTime
   }
 
   implicit class OffsetDateTimeToSystemTimestamp(val offsetDateTime: OffsetDateTime) extends AnyVal {
-    def toSystemTimestamp = Timestamp.valueOf(offsetDateTime.atZoneSameInstant(ZoneId.systemDefault).toLocalDateTime)
+    def toSystemTimestamp: Timestamp =
+      Timestamp.valueOf(offsetDateTime.atZoneSameInstant(ZoneId.systemDefault).toLocalDateTime)
   }
 
   implicit class ClobOptionToRawString(val clobOption: Option[Clob]) extends AnyVal {
@@ -32,12 +33,16 @@ object SqlConverters {
   }
 
   implicit class ClobToRawString(val clob: Clob) extends AnyVal {
-    // yes, it starts at 1
-    def toRawString: String = clob.getSubString(1, clob.length.toInt)
+    def toRawString: String = {
+      // See notes on empty clob issues in StringToClobOption
+      val length = clob.length.toInt
+      // yes, it starts at 1
+      if (length == 0) "" else clob.getSubString(1, length)
+    }
   }
 
   implicit class StringOptionToClobOption(val strOption: Option[String]) extends AnyVal {
-    def toClobOption: Option[Clob] = strOption.flatMap(_.toClobOption)
+    def toClobOption: Option[SerialClob] = strOption.flatMap(_.toClobOption)
   }
 
   implicit class StringToClobOption(val str: String) extends AnyVal {
@@ -52,17 +57,22 @@ object SqlConverters {
     import eu.timepit.refined.api.Refined
     import eu.timepit.refined.collection.NonEmpty
 
-    def toClobOption: Option[Clob] = if (str.isEmpty) None else Option(new SerialClob(str.toCharArray))
+    def toClobOption: Option[SerialClob] =
+      if (str == null || str.isEmpty) None else Option(new SerialClob(str.toCharArray))
 
-    def toClob(default: String Refined NonEmpty): Clob = {
-      val nonEmpty = if (str.isEmpty) default.value else str
+    def toClob(default: String Refined NonEmpty): SerialClob = {
+      val nonEmpty = if (str == null || str.isEmpty) default.value else str
       new SerialClob(nonEmpty.toCharArray)
     }
   }
 
   implicit class BlobToBytes(val blob: Blob) extends AnyVal {
-    // yes, it starts at 1
-    def toBytes: Array[Byte] = blob.getBytes(1, blob.length.toInt)
+    def toBytes: Array[Byte] = {
+      // See notes on empty blob issues in BytesOptionToBlob
+      val length = blob.length.toInt
+      // yes, it starts at 1
+      if (length == 0) Array.empty else blob.getBytes(1, length)
+    }
   }
 
   implicit class BlobOptionToBytes(val blobOption: Option[Blob]) extends AnyVal {
@@ -79,11 +89,11 @@ object SqlConverters {
     https://github.com/apache/derby/blob/10.13/java/engine/org/apache/derby/iapi/types/HarmonySerialBlob.java#L111
     OK! -> https://github.com/arteam/hsqldb/blob/2.3.4/src/org/hsqldb/jdbc/JDBCBlob.java#L184
      */
-    def toBlobOption: Option[Blob] = bytesOption.flatMap(_.toBlobOption)
+    def toBlobOption: Option[SerialBlob] = bytesOption.flatMap(_.toBlobOption)
   }
 
   implicit class BytesToBlobOption(val bytes: Array[Byte]) extends AnyVal {
-    def toBlobOption: Option[Blob] = if (bytes.isEmpty) None else Option(new SerialBlob(bytes))
+    def toBlobOption: Option[SerialBlob] = if (bytes == null || bytes.isEmpty) None else Option(new SerialBlob(bytes))
   }
 
   implicit class EnhancedFiniteDuration(val duration: FiniteDuration) extends AnyVal {

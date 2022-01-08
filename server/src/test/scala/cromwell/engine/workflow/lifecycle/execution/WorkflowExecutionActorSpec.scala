@@ -9,23 +9,25 @@ import cromwell._
 import cromwell.backend.AllBackendInitializationData
 import cromwell.core.{SimpleIoActor, WorkflowId}
 import cromwell.engine.backend.{BackendConfigurationEntry, BackendSingletonCollection, CromwellBackends}
-import cromwell.engine.workflow.WorkflowDescriptorBuilder
+import cromwell.engine.workflow.WorkflowDescriptorBuilderForSpecs
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{ExecuteWorkflowCommand, WorkflowExecutionFailedResponse}
-import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.Rate
+import cromwell.engine.workflow.tokens.JobTokenDispenserActor
 import cromwell.engine.workflow.workflowstore.Submitted
 import cromwell.services.ServiceRegistryActor
 import cromwell.services.metadata.MetadataService
 import cromwell.util.SampleWdl
-import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
+import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 
-class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike with Matchers with BeforeAndAfter with WorkflowDescriptorBuilder {
+class WorkflowExecutionActorSpec extends CromwellTestKitSpec with AnyFlatSpecLike with Matchers with BeforeAndAfter with WorkflowDescriptorBuilderForSpecs {
 
   override implicit val actorSystem = system
-  implicit val DefaultDuration = 20.seconds.dilated
+  implicit val DefaultDuration = 60.seconds.dilated
 
   def mockServiceRegistryActor = TestActorRef(new Actor {
     override def receive = {
@@ -64,7 +66,8 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike w
     val jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props)
     val ioActor = system.actorOf(SimpleIoActor.props)
     val subWorkflowStoreActor = system.actorOf(AlwaysHappySubWorkflowStoreActor.props)
-    val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None))
+    val jobRestartCheckTokenDispenserActor = system.actorOf(JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running"))
+    val jobExecutionTokenDispenserActor = system.actorOf(JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running"))
     val MockBackendConfigEntry = BackendConfigurationEntry(
       name = "Mock",
       lifecycleActorFactoryClass = "cromwell.engine.backend.mock.RetryableBackendLifecycleActorFactory",
@@ -81,7 +84,7 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike w
     val weaSupervisor = TestProbe()
     val workflowExecutionActor = TestActorRef(
       props = WorkflowExecutionActor.props(engineWorkflowDescriptor, ioActor, serviceRegistryActor, jobStoreActor, subWorkflowStoreActor,
-        callCacheReadActor.ref, callCacheWriteActor.ref, dockerHashActor.ref, jobTokenDispenserActor, MockBackendSingletonCollection,
+        callCacheReadActor.ref, callCacheWriteActor.ref, dockerHashActor.ref, jobRestartCheckTokenDispenserActor, jobExecutionTokenDispenserActor, MockBackendSingletonCollection,
         AllBackendInitializationData.empty, startState = Submitted, rootConfig, new AtomicInteger(), fileHashCacheActor = None, blacklistCache = None),
       name = "WorkflowExecutionActor",
       supervisor = weaSupervisor.ref)

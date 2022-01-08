@@ -1,0 +1,18 @@
+name: relative_output_paths_colliding
+testFormat: workflowfailure
+
+files {
+  workflow: relative_output_paths_colliding/workflow_output_paths_colliding.wdl
+  options: relative_output_paths_colliding/options.json
+}
+
+metadata {
+  status: Failed
+  "failures.0.message":"Cannot copy output files to given final_workflow_outputs_dir as multiple files will be copied to the same path: \n<<WORKFLOW_ROOT>>/call-great_press/execution/typeset.txt -> /tmp/outputs/relative_output_paths_colliding/typeset.txt\n<<WORKFLOW_ROOT>>/call-set_type/execution/typeset.txt -> /tmp/outputs/relative_output_paths_colliding/typeset.txt"
+}
+
+fileSystemCheck: "local"
+outputExpectations: {
+    "/tmp/outputs/relative_output_paths_colliding/typeset.txt": 0
+    "/tmp/outputs/relative_output_paths_colliding/greatpress.txt": 0
+}

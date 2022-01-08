@@ -1,0 +1,15 @@
+[secrets]
+    providers = git secrets --aws-provider
+    patterns = (A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}
+    patterns = (\"|')?(AWS|aws|Aws)?_?(SECRET|secret|Secret)?_?(ACCESS|access|Access)?_?(KEY|key|Key)(\"|')?\\s*(:|=>|=)\\s*(\"|')?[A-Za-z0-9/\\+=]{40}(\"|')?
+    patterns = (\"|')?(AWS|aws|Aws)?_?(ACCOUNT|account|Account)_?(ID|id|Id)?(\"|')?\\s*(:|=>|=)\\s*(\"|')?[0-9]{4}\\-?[0-9]{4}\\-?[0-9]{4}(\"|')?
+    allowed = AKIAIOSFODNN7EXAMPLE
+    allowed = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    patterns = private_key
+    patterns = private_key_id
+    allowed = \"private_key_id\": \"OMITTED\"
+    allowed = \"private_key\": \"-----BEGIN PRIVATE KEY-----\\\\nBASE64 ENCODED KEY WITH \\\\n TO REPRESENT NEWLINES\\\\n-----END PRIVATE KEY-----\\\\n\"
+    allowed = \"client_id\": \"22377410244549202395\"
+    allowed = `private_key` portion needs
+    allowed = .Data.private_key
+    allowed = .Data.service_account.private_key

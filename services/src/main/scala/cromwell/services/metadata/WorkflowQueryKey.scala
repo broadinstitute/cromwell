@@ -5,12 +5,13 @@ import java.time.OffsetDateTime
 import cats.data
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
 import cromwell.core.labels.Label
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
 import common.validation.ErrorOr._
 import cats.data.Validated._
-import cats.instances.list._
 import mouse.boolean._
+import cromwell.services.metadata.{MetadataArchiveStatus => MetadataArchiveStatusImported}
 
 import scala.util.{Success, Try}
 
@@ -29,7 +30,9 @@ object WorkflowQueryKey {
     PageSize,
     AdditionalQueryResultFields,
     SubmissionTime,
-    IncludeSubworkflows
+    IncludeSubworkflows,
+    MetadataArchiveStatus,
+    NewestFirst
   ) map { _.name }
 
   case object StartDate extends DateTimeWorkflowQueryKey {
@@ -108,7 +111,7 @@ object WorkflowQueryKey {
     override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[List[String]] = {
       val values = valuesFromMap(grouped).toList
       val nels = values map { v =>
-        if (Try(WorkflowId.fromString(v.toLowerCase.capitalize)).isSuccess) v.validNel[String] else v.invalidNel[String]
+        if (Try(WorkflowId.fromString(v.toLowerCase.capitalize)).isSuccess) v.validNel[String] else s"invalid Id value: '$v'".invalidNel[String]
       }
       sequenceListOfValidatedNels("Id values do match allowed workflow id pattern", nels)
     }
@@ -129,11 +132,25 @@ object WorkflowQueryKey {
     }
   }
 
+  case object MetadataArchiveStatus extends SeqWorkflowQueryKey[MetadataArchiveStatusImported] {
+    override val name = "Metadataarchivestatus"
+
+    override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[List[MetadataArchiveStatusImported]] = {
+      val values = valuesFromMap(grouped).toList
+      val nels = values map { v => MetadataArchiveStatusImported.withName(v) }
+      sequenceListOfValidatedNels("Unrecognized 'metadata archive status' value(s)", nels)
+    }
+  }
+
   case object AdditionalQueryResultFields extends SeqWorkflowQueryKey[String] {
     override val name = "Additionalqueryresultfields"
 
     override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[List[String]] = {
       val values = valuesFromMap(grouped).toList
+      /*
+        The inclusion of `WorkflowMetadataKeys.ParentWorkflowId` is for backwards compatibility. As of #4381
+        parentWorkflowId is always included, but we did not want to break old automated queries
+        */
       val allowedValues = Seq(WorkflowMetadataKeys.Labels, WorkflowMetadataKeys.ParentWorkflowId)
       val nels: List[ErrorOr[String]] = values map { v => {
         allowedValues.contains(v).fold(v.validNel[String], v.invalidNel[String])
@@ -147,6 +164,14 @@ object WorkflowQueryKey {
     override def displayName = "include subworkflows"
     override def defaultBooleanValue: Boolean = true
   }
+
+  // Note: `false` means "oldest first" not "no ordering specified". Might want to encode in code later.
+  case object NewestFirst extends BooleanWorkflowQueryKey {
+    override val name = "Newestfirst"
+    override def displayName = "return newest first"
+    override def defaultBooleanValue: Boolean = true
+  }
+
 }
 
 sealed trait WorkflowQueryKey[T] {

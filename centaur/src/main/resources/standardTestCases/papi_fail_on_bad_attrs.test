@@ -1,0 +1,12 @@
+name: papi_fail_on_bad_attrs
+testFormat: workflowfailure
+backends: [Papi] # Only PAPI should object to the malformed disk attribute
+
+files {
+  workflow: papi_fail_on_bad_attrs/papi_fail_on_bad_attrs.wdl
+}
+
+metadata {
+  workflowName: papi_fail_on_bad_attrs
+  status: Failed
+}

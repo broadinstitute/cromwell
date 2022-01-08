@@ -1,0 +1,12 @@
+ERROR: Sibling nodes have conflicting names:
+
+WdlTask defined here (line 10, col 6):
+
+task HelloWorld{
+     ^
+
+WdlTask statement defined here (line 19, col 6):
+
+task HelloWorld{
+     ^
+     

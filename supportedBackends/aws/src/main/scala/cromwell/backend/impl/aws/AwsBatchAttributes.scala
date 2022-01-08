@@ -43,6 +43,7 @@ import cromwell.cloudsupport.aws.AwsConfiguration
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import common.validation.Validation._
+import cromwell.backend.CommonBackendConfigurationAttributes
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.api._
 import eu.timepit.refined._
@@ -53,34 +54,24 @@ import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
 
-case class AwsBatchAttributes(auth: AwsAuthMode,
+case class AwsBatchAttributes(fileSystem: String,
+                              auth: AwsAuthMode,
                               executionBucket: String,
                               duplicationStrategy: AwsBatchCacheHitDuplicationStrategy,
                               submitAttempts: Int Refined Positive,
                               createDefinitionAttempts: Int Refined Positive)
 
 object AwsBatchAttributes {
-  lazy val Logger = LoggerFactory.getLogger("AwsBatchAttributes")
+  lazy val Logger = LoggerFactory.getLogger(this.getClass)
 
-  private val availableConfigKeys = Set(
+  private val availableConfigKeys = CommonBackendConfigurationAttributes.commonValidConfigurationAttributeKeys ++ Set(
     "concurrent-job-limit",
     "root",
-    "dockerhub",
-    "dockerhub.account",
-    "dockerhub.token",
     "filesystems",
+    "filesystems.local.auth",
     "filesystems.s3.auth",
     "filesystems.s3.caching.duplication-strategy",
-    "default-runtime-attributes",
-    "default-runtime-attributes.disks",
-    "default-runtime-attributes.memory",
-    "default-runtime-attributes.zones",
-    "default-runtime-attributes.continueOnReturnCode",
-    "default-runtime-attributes.cpu",
-    "default-runtime-attributes.noAddress",
-    "default-runtime-attributes.docker",
-    "default-runtime-attributes.queueArn",
-    "default-runtime-attributes.failOnStderr"
+    "filesystems.local.caching.duplication-strategy"
   )
 
   private val deprecatedAwsBatchKeys: Map[String, String] = Map(
@@ -102,16 +93,30 @@ object AwsBatchAttributes {
     warnDeprecated(configKeys, deprecatedAwsBatchKeys, context, Logger)
 
     val executionBucket: ErrorOr[String] = validate { backendConfig.as[String]("root") }
-    val filesystemAuthMode: ErrorOr[AwsAuthMode] =
+
+    val fileSysStr:ErrorOr[String] =  validate {backendConfig.hasPath("filesystems.s3") match {
+      case true => "s3"
+      case false => "local"
+    }}
+
+    val fileSysPath = backendConfig.hasPath("filesystems.s3") match {
+      case true => "filesystems.s3"
+      case false => "filesystems.local"
+    }
+    val filesystemAuthMode: ErrorOr[AwsAuthMode] = {
       (for {
-        authName <- validate { backendConfig.as[String]("filesystems.s3.auth") }.toEither
+        authName <- validate {
+          backendConfig.as[String](s"${fileSysPath}.auth")
+        }.toEither
         validAuth <- awsConfig.auth(authName).toEither
       } yield validAuth).toValidated
+    }
+
 
     val duplicationStrategy: ErrorOr[AwsBatchCacheHitDuplicationStrategy] =
       validate {
         backendConfig.
-          as[Option[String]]("filesystems.s3.caching.duplication-strategy").
+          as[Option[String]](s"${fileSysPath}.caching.duplication-strategy").
           getOrElse("copy") match {
             case "copy" => CopyCachedOutputs
             case "reference" => UseOriginalCachedOutputs
@@ -120,6 +125,7 @@ object AwsBatchAttributes {
       }
 
     (
+      fileSysStr,
       filesystemAuthMode,
       executionBucket,
       duplicationStrategy,

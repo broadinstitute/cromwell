@@ -3,12 +3,12 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet id="metadata_journal_id_int_to_big_int" author="kshakir">
+    <changeSet id="metadata_journal_id_int_to_big_int" author="kshakir" dbms="mysql,hsqldb">
         <modifyDataType tableName="METADATA_JOURNAL" columnName="METADATA_JOURNAL_ID" newDataType="BIGINT" />
         <addAutoIncrement tableName="METADATA_JOURNAL" columnName="METADATA_JOURNAL_ID" columnDataType="BIGINT" />
     </changeSet>
 
-    <changeSet id="workflow_metadata_summary" author="mcovarr">
+    <changeSet id="workflow_metadata_summary" author="mcovarr" dbms="mysql,hsqldb">
         <createTable tableName="WORKFLOW_METADATA_SUMMARY">
             <column autoIncrement="true" name="WORKFLOW_METADATA_SUMMARY_ID" type="BIGINT">
                 <constraints primaryKey="true" primaryKeyName="PK_WORKFLOW_METADATA_SUMMARY"/>
@@ -23,20 +23,20 @@
         </createTable>
     </changeSet>
 
-    <changeSet id="workflow_metadata_uuid_idx" author="mcovarr">
+    <changeSet id="workflow_metadata_uuid_idx" author="mcovarr" dbms="mysql,hsqldb">
         <addUniqueConstraint tableName="WORKFLOW_METADATA_SUMMARY"
                              constraintName="WORKFLOW_METADATA_UUID_IDX"
                              columnNames="WORKFLOW_EXECUTION_UUID" />
     </changeSet>
 
-    <changeSet id="workflow_metadata_name_idx" author="mcovarr">
+    <changeSet id="workflow_metadata_name_idx" author="mcovarr" dbms="mysql,hsqldb">
         <createIndex indexName="WORKFLOW_METADATA_NAME_IDX"
                      tableName="WORKFLOW_METADATA_SUMMARY" unique="false">
             <column name="WORKFLOW_NAME"/>
         </createIndex>
     </changeSet>
 
-    <changeSet id="workflow_metadata_status_idx" author="mcovarr">
+    <changeSet id="workflow_metadata_status_idx" author="mcovarr" dbms="mysql,hsqldb">
         <createIndex indexName="WORKFLOW_METADATA_STATUS_IDX"
                      tableName="WORKFLOW_METADATA_SUMMARY" unique="false">
             <column name="WORKFLOW_STATUS"/>

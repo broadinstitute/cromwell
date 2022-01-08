@@ -1,11 +1,14 @@
 package wdl
 
-import org.scalatest.{Matchers, WordSpec}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+import wdl.draft2.Draft2ResolvedImportBundle
 import wdl.draft2.model.WdlNamespace
 import wdl.draft2.model.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
-import wom.core.WorkflowSource
+import wom.ResolvedImportRecord
 
-class SyntaxHighlightSpec extends WordSpec with Matchers {
+class SyntaxHighlightSpec extends AnyWordSpec with CromwellTimeoutSpec with Matchers {
   "SyntaxFormatter for typical workflow" should {
     val namespace = WdlNamespace.loadUsingSource(
       """
@@ -258,9 +261,9 @@ class SyntaxHighlightSpec extends WordSpec with Matchers {
                        |}
                      """.stripMargin
 
-    def resolver(importUri: String): WorkflowSource = {
+    def resolver(importUri: String): Draft2ResolvedImportBundle = {
       importUri match {
-        case "foo.wdl" => fooTaskWdl
+        case "foo.wdl" => Draft2ResolvedImportBundle(fooTaskWdl, ResolvedImportRecord("foo.wdl"))
         case _ => throw new RuntimeException(s"Can't resolve $importUri")
       }
     }

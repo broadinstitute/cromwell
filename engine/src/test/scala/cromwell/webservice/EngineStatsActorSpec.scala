@@ -5,15 +5,16 @@ import akka.testkit.{TestActorRef, TestProbe}
 import cromwell.core.TestKitSuite
 import cromwell.webservice.EngineStatsActor.{EngineStats, JobCount, JobCountQuery}
 import cromwell.webservice.EngineStatsActorSpec.FakeWorkflowActor
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class EngineStatsActorSpec extends TestKitSuite("EngineStatsActor") with FlatSpecLike with Matchers {
+class EngineStatsActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
   behavior of "EngineStatsActor"
 
-  val replyTo = TestProbe()
+  val replyTo = TestProbe("replyTo")
   val defaultTimeout = 500 millis
 
   it should "return double zeros with no WorkflowActors" in {

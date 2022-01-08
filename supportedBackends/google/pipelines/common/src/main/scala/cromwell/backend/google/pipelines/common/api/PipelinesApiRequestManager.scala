@@ -3,7 +3,7 @@ package cromwell.backend.google.pipelines.common.api
 import java.io.IOException
 import java.util.UUID
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated, Timers}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, SupervisorStrategy, Terminated, Timers}
 import akka.dispatch.ControlMessage
 import cats.data.NonEmptyList
 import com.google.api.client.googleapis.json.GoogleJsonError
@@ -19,19 +19,21 @@ import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{CromwellFatalExceptionMarker, LoadConfig, Mailbox, WorkflowId}
 import cromwell.services.instrumentation.CromwellInstrumentationScheduler
 import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadMetric, NormalLoad}
-import cromwell.util.StopAndLogSupervisor
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric._
 
 import scala.collection.immutable.Queue
 import scala.concurrent.duration._
+import scala.util.control.NoStackTrace
 
 /**
-  * Holds a set of JES API requests until a JesQueryActor pulls the work.
+  * Holds a set of PAPI request until a PipelinesApiRequestActor pulls the work.
   */
 class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: Int Refined Positive, override val serviceRegistryActor: ActorRef)
                                    (implicit batchHandler: PipelinesApiRequestHandler) extends Actor
-  with ActorLogging with StopAndLogSupervisor with PapiInstrumentation with CromwellInstrumentationScheduler with Timers {
+  with ActorLogging with PapiInstrumentation with CromwellInstrumentationScheduler with Timers {
+
+  override val supervisorStrategy = SupervisorStrategy.stoppingStrategy
 
   private val maxRetries = 10
   /*
@@ -62,16 +64,15 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
     * 
   */
   private val maxBatchRequestSize: Long = 14L * 1024L * 1024L
-  private val requestTooLargeException = new PAPIApiException(new IllegalArgumentException(
-    "The task run request has exceeded the maximum PAPI request size." +
-      "If you have a task with a very large number of inputs and / or outputs in your workflow you should try to reduce it. " +
+  private val requestTooLargeException = new UserPAPIApiException(
+    cause = new IllegalArgumentException(s"The task run request has exceeded the maximum PAPI request size ($maxBatchRequestSize bytes)."),
+    helpfulHint = Option("If you have a task with a very large number of inputs and / or outputs in your workflow you should try to reduce it. " +
       "Depending on your case you could: 1) Zip your input files together and unzip them in the command. 2) Use a file of file names " +
-      "and localize the files yourself."
-  ))
+      "and localize the files yourself.")
+  )
 
   private[api] lazy val nbWorkers = requestWorkers.value
 
-  // 
   private lazy val workerBatchInterval = determineBatchInterval(qps) * nbWorkers.toLong
 
 
@@ -82,13 +83,14 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
   // the scheduled delay, unless the workflow is aborted in the meantime in which case they will be cancelled.
   private var queriesWaitingForRetry: Set[PAPIApiRequest] = Set.empty[PAPIApiRequest]
 
-  private def statusPollerProps = PipelinesApiRequestWorker.props(self, workerBatchInterval, serviceRegistryActor).withMailbox(Mailbox.PriorityMailbox)
+  private def papiRequestWorkerProps = PipelinesApiRequestWorker.props(self, workerBatchInterval, serviceRegistryActor).withMailbox(Mailbox.PriorityMailbox)
 
   // statusPollers is protected for the unit tests, not intended to be generally overridden
-  protected[api] var statusPollers: Vector[ActorRef] = resetAllWorkers()
+  protected[api] var statusPollers: Vector[ActorRef] = Vector.empty
+  self ! ResetAllRequestWorkers
 
   override def preStart() = {
-    log.info("{} Running with {} workers", self.path.name, requestWorkers.value)
+    log.info("Running with {} PAPI request workers", requestWorkers.value)
     startInstrumentationTimer()
     super.preStart()
   }
@@ -100,6 +102,7 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
   }
 
   val requestManagerReceive: Receive = {
+    case ResetAllRequestWorkers => resetAllWorkers()
     case BackendSingletonActorAbortWorkflow(id) => abort(id)
     case status: PAPIStatusPollRequest => workQueue :+= status
     case create: PAPIRunCreationRequest =>
@@ -107,12 +110,11 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
         create.requester ! PipelinesApiRunCreationQueryFailed(create, requestTooLargeException)
       } else workQueue :+= create
     case abort: PAPIAbortRequest => workQueue :+= abort
-    case PipelinesWorkerRequestWork(maxBatchSize) =>
-      log.debug("Request for JES Polling Work received (max batch: {}, current queue size is {})", maxBatchSize, workQueue.size)
-      handleJesPollingRequest(sender, maxBatchSize)
-    case failure: PAPIApiRequestFailed => handleQueryFailure(failure)
-    case Terminated(actorRef) => onFailure(actorRef, new RuntimeException("Polling stopped itself unexpectedly"))
-    case other => log.error(s"Unexpected message to JesPollingManager: $other")
+    case PipelinesWorkerRequestWork(maxBatchSize) => handleWorkerAskingForWork(sender, maxBatchSize)
+    case failure: PAPIApiRequestFailed =>
+      handleQueryFailure(failure)
+    case Terminated(actorRef) => onFailure(actorRef, new RuntimeException("PipelinesApiRequestHandler actor termination caught by manager") with NoStackTrace)
+    case other => log.error(s"Unexpected message from {} to ${this.getClass.getSimpleName}: {}", sender().path.name, other)
   }
 
   override def receive = instrumentationReceive(monitorQueueSize _).orElse(requestManagerReceive)
@@ -137,29 +139,48 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
     })
   }
 
-  private def handleQueryFailure(failure: PAPIApiRequestFailed) = if (failure.query.failedAttempts < maxRetries) {
-    val nextRequest = failure.query.withFailedAttempt
-    val delay = nextRequest.backoff.backoffMillis.millis
-    queriesWaitingForRetry = queriesWaitingForRetry + nextRequest
-    timers.startSingleTimer(nextRequest, nextRequest, delay)
-    failedQuery(failure)
-  } else {
-    retriedQuery(failure)
-    failure.query.requester ! failure
+  private def handleQueryFailure(failure: PAPIApiRequestFailed) = {
+    val userError: Boolean = failure.cause.isInstanceOf[UserPAPIApiException]
+
+    def failQuery(): Unit = {
+      // NB: we don't count user errors towards the PAPI failed queries count in our metrics:
+      if (!userError) {
+        failedQuery(failure)
+        log.warning(s"PAPI request workers tried and failed ${failure.query.failedAttempts} times to make ${failure.query.getClass.getSimpleName} request to PAPI")
+      }
+
+      failure.query.requester ! failure
+    }
+
+    def retryQuery(): Unit = {
+      retriedQuery(failure)
+      val nextRequest = failure.query.withFailedAttempt
+      val delay = nextRequest.backoff.backoffMillis.millis
+      queriesWaitingForRetry = queriesWaitingForRetry + nextRequest
+      timers.startSingleTimer(nextRequest, nextRequest, delay)
+    }
+
+    if (userError || failure.query.failedAttempts >= maxRetries ) {
+      failQuery()
+    } else {
+      retryQuery()
+    }
   }
 
-  private def handleJesPollingRequest(workPullingJesPollingActor: ActorRef, maxBatchSize: Int) = {
-    workInProgress -= workPullingJesPollingActor
+  private def handleWorkerAskingForWork(papiRequestWorkerActor: ActorRef, maxBatchSize: Int) = {
+    log.debug("Request for PAPI requests received from {} (max batch size is {}, current queue size is {})", papiRequestWorkerActor.path.name, maxBatchSize, workQueue.size)
+
+    workInProgress -= papiRequestWorkerActor
     val beheaded = beheadWorkQueue(maxBatchSize)
     beheaded.workToDo match {
       case Some(work) =>
-        log.debug("Sending work to JES API query manager.")
+        log.debug("Sending work to PAPI request worker {}", papiRequestWorkerActor.path.name)
         val workBatch = PipelinesApiWorkBatch(work)
-        workPullingJesPollingActor ! workBatch
-        workInProgress += (workPullingJesPollingActor -> workBatch)
+        papiRequestWorkerActor ! workBatch
+        workInProgress += (papiRequestWorkerActor -> workBatch)
       case None =>
-        log.debug("No work for JES poller")
-        workPullingJesPollingActor ! NoWorkToDo
+        log.debug("No work for PAPI request worker {}", papiRequestWorkerActor.path.name)
+        papiRequestWorkerActor ! NoWorkToDo
     }
 
     workQueue = beheaded.newWorkQueue
@@ -177,49 +198,81 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
     }
   }
 
-  override protected def onFailure(terminee: ActorRef, throwable: => Throwable) = {
+  /*
+     Triggered by the 'case Terminated' receive handle whenever an actor being watched (ie a worker) terminates.
+   */
+  private def onFailure(terminee: ActorRef, throwable: => Throwable) = {
     // We assume this is a polling actor. Might change in a future update:
     workInProgress.get(terminee) match {
       case Some(work) =>
-        // Most likely due to an unexpected HTTP error, push the work back on the queue and keep going
-        log.error(throwable, s"The JES API worker actor $terminee unexpectedly terminated while conducting ${work.workBatch.tail.size + 1} polls. Making a new one...")
+        // Most likely due to an unexpected HTTP error.
+        // Do some book-keeping, log the error, and then push the work back onto the queue and keep going
         workInProgress -= terminee
+        var runCreations = 0
+        var statusPolls = 0
+        var abortRequests = 0
+
         work.workBatch.toList.foreach {
           case statusQuery: PAPIStatusPollRequest =>
-            self ! PipelinesApiStatusQueryFailed(statusQuery, new PAPIApiException(throwable))
+            statusPolls += 1
+            self ! PipelinesApiStatusQueryFailed(statusQuery, new SystemPAPIApiException(throwable))
           case runCreationQuery: PAPIRunCreationRequest =>
-            self ! PipelinesApiRunCreationQueryFailed(runCreationQuery, new PAPIApiException(throwable))
+            runCreations += 1
+            self ! PipelinesApiRunCreationQueryFailed(runCreationQuery, new SystemPAPIApiException(throwable))
           case abortQuery: PAPIAbortRequest =>
-            self ! PipelinesApiAbortQueryFailed(abortQuery, new PAPIApiException(throwable))
+            abortRequests += 1
+            self ! PipelinesApiAbortQueryFailed(abortQuery, new SystemPAPIApiException(throwable))
         }
+
+        log.warning(
+          s"PAPI request worker ${terminee.path.name} terminated. " +
+            s"$runCreations run creation requests, $statusPolls status poll requests, and $abortRequests abort requests will be reconsidered. " +
+            "If any of those succeeded in the cloud before the batch request failed, they might be run twice. " +
+            s"Exception details: $throwable"
+        )
       case None =>
-        // It managed to die while doing absolutely nothing...!?
-        // Maybe it deserves an entry in https://en.wikipedia.org/wiki/List_of_unusual_deaths
-        // Oh well, in the mean time don't do anything, just start a new one
-        log.error(throwable, s"The JES API worker actor managed to unexpectedly terminate whilst doing absolutely nothing (${throwable.getMessage}). This is probably a programming error. Making a new one...")
+        log.error(throwable, "The PAPI request worker '{}' terminated ({}). The request manager did not know what work the actor was doing so cannot resubmit any requests or inform any requesters of failures. This should never happen - please report this as a programmer error.", terminee.path.name, throwable.getMessage)
     }
 
     resetWorker(terminee)
   }
 
-  private def resetWorker(worker: ActorRef) = {
-    statusPollers = statusPollers.filterNot(_ == worker) :+ makeWorkerActor()
+  private def resetWorker(worker: ActorRef): Unit = {
+
+    if (!statusPollers.contains(worker)) {
+      log.warning("PAPI request worker {} is being reset but was never registered in the pool of workers. This should never happen - please report this as a programmer error.", worker.path.name)
+    }
+
+    val stillGoodWorkers = statusPollers.filterNot(_ == worker)
+    val newWorker = makeAndWatchWorkerActor()
+
+    statusPollers = stillGoodWorkers :+ newWorker
+
+    log.info("PAPI request worker {} has been removed and replaced by {} in the pool of {} workers", worker.path.name, newWorker.path.name, statusPollers.size)
   }
 
-  private[api] def resetAllWorkers(): Vector[ActorRef] = {
-    val pollers = Vector.fill(nbWorkers) { makeWorkerActor() }
-    pollers
+  private[api] def resetAllWorkers() = {
+    log.info("'resetAllWorkers()' called to fill vector with {} new workers", nbWorkers)
+    val result = Vector.fill(nbWorkers) { makeAndWatchWorkerActor() }
+    statusPollers = result
+  }
+
+  private[api] def makeAndWatchWorkerActor(): ActorRef = {
+    val newWorker = makeWorkerActor()
+    context.watch(newWorker)
+    newWorker
   }
 
   // Separate method to allow overriding in tests:
   private[api] def makeWorkerActor(): ActorRef = {
-    val newWorker = context.actorOf(statusPollerProps, s"PAPIQueryWorker-${UUID.randomUUID()}")
-    context.watch(newWorker)
-    newWorker
+    val result = context.actorOf(papiRequestWorkerProps, s"PAPIQueryWorker-${UUID.randomUUID()}")
+    log.info(s"Request manager ${self.path.name} created new PAPI request worker ${result.path.name} with batch interval of ${workerBatchInterval}")
+    result
   }
 }
 
 object PipelinesApiRequestManager {
+  case object ResetAllRequestWorkers
   case object QueueMonitoringTimerKey
   case object QueueMonitoringTimerAction extends ControlMessage
   def props(qps: Int Refined Positive, requestWorkers: Int Refined Positive, serviceRegistryActor: ActorRef)
@@ -243,7 +296,10 @@ object PipelinesApiRequestManager {
     def withFailedAttempt: PAPIApiRequest
     def backoff: Backoff
     def httpRequest: HttpRequest
-    def contentLength: Long = Option(httpRequest.getContent).map(_.getLength).getOrElse(0L)
+    def contentLength: Long = (for {
+      r <- Option(httpRequest)
+      content <- Option(r.getContent)
+    } yield content.getLength).getOrElse(0L)
   }
   private object PAPIApiRequest {
     // This must be a def, we want a new one each time (they're mutable! Boo!)
@@ -294,7 +350,16 @@ object PipelinesApiRequestManager {
     override def getMessage: String = e.getMessage
   }
 
-  class PAPIApiException(val e: Throwable) extends RuntimeException(e) with CromwellFatalExceptionMarker {
-    override def getMessage: String = "Unable to complete JES Api Request"
+  sealed trait PAPIApiException extends RuntimeException with CromwellFatalExceptionMarker {
+    def cause: Throwable
+    override def getCause: Throwable = cause
+  }
+
+  class SystemPAPIApiException(val cause: Throwable) extends PAPIApiException {
+    override def getMessage: String = s"Unable to complete PAPI request due to system or connection error (${cause.getMessage})"
+  }
+
+  final class UserPAPIApiException(val cause: Throwable, helpfulHint: Option[String]) extends PAPIApiException {
+    override def getMessage: String = s"Unable to complete PAPI request due to a problem with the request (${cause.getMessage}). ${helpfulHint.getOrElse("")}"
   }
 }

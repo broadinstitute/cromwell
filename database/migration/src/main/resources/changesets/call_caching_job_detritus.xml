@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="rmunshi" id="call_caching_job_detritus">
+    <changeSet author="rmunshi" id="call_caching_job_detritus" dbms="mysql,hsqldb">
         <comment>
             One row per job detritus file (i.e, one row for the stdout, stderr, etc)
             The job detritus key contains the filename, such as hello-stdout, and the job detritus
@@ -28,13 +28,13 @@
     </changeSet>
 
     <!-- Don't want to store the same standard output key twice for each job/RESULT_METAINFO_ID) -->
-    <changeSet author="rmunshi" id="call_caching_job_detritus_key_uniqueness">
+    <changeSet author="rmunshi" id="call_caching_job_detritus_key_uniqueness" dbms="mysql,hsqldb">
         <addUniqueConstraint constraintName="UK_CALL_CACHING_JOB_DETRITUS_KEY"
                              tableName="CALL_CACHING_JOB_DETRITUS" columnNames="JOB_DETRITUS_KEY, RESULT_METAINFO_ID" />
     </changeSet>
 
     <!-- Make RESULT_METAINFO_ID a FK into CALL_CACHING_RESULT_METAINFO -->
-    <changeSet author="rmunshi" id="call_caching_job_detritus_foreign_key">
+    <changeSet author="rmunshi" id="call_caching_job_detritus_foreign_key" dbms="mysql,hsqldb">
         <addForeignKeyConstraint constraintName="CCJD_RESULT_METAINFO_ID_FK"
                                  baseTableName="CALL_CACHING_JOB_DETRITUS"
                                  baseColumnNames="RESULT_METAINFO_ID"

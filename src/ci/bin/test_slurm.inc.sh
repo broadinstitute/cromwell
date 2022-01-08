@@ -16,13 +16,13 @@ source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 #     Functions for use only within this file by cromwell::build::slurm::* functions
 #
 
-cromwell::build::slurm::slurm_install() {
+cromwell::build::slurm::setup_slurm_environment() {
     # Installs the Slurm Workload Manager (WLM) on Ubuntu
     # https://slurm.schedmd.com/
     sudo apt-get update
 
     # Try the Lawrence Livermore National Laboratory (LLNL) version first
-    sudo apt-get install -y slurm-llnl || apt-get install -y slurm-wlm
+    sudo apt-get install -y slurm-llnl || sudo apt-get install -y slurm-wlm
 
     # Create various directories used by slurm
     sudo mkdir -p /etc/slurm-llnl
@@ -36,6 +36,7 @@ cromwell::build::slurm::slurm_install() {
     # https://slurm.schedmd.com/slurm.conf.html
     # https://slurm.schedmd.com/quickstart_admin.html
     cat <<SLURM_CONF | sudo tee /etc/slurm-llnl/slurm.conf >/dev/null
+ClusterName=localhost
 ControlMachine=localhost
 NodeName=localhost
 PartitionName=localpartition Nodes=localhost Default=YES
@@ -45,17 +46,6 @@ SelectType=select/cons_res
 SelectTypeParameters=CR_CPU
 SlurmctldDebug=3
 SLURM_CONF
-
-    # Munge will run as the munge user, so change the owner of the directory
-    sudo chown munge:munge /var/run/munge
-
-    # Create a munge key, required for slurm-llnl
-    dd if=/dev/random bs=1 count=1024 | sudo tee /etc/munge/munge.key >/dev/null
-    sudo chown munge:munge /etc/munge/munge.key
-    sudo chmod 400 /etc/munge/munge.key
-
-    # Start munge as the munge user
-    sudo -u munge munged
 
     # Start the slurm master
     sudo slurmctld

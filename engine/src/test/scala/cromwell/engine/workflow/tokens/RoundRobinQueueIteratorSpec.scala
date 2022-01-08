@@ -1,17 +1,18 @@
 package cromwell.engine.workflow.tokens
 
 import akka.testkit.TestProbe
-import cromwell.core.JobExecutionToken.JobExecutionTokenType
+import cromwell.core.JobToken.JobTokenType
 import cromwell.core.TestKitSuite
 import cromwell.engine.workflow.tokens.TokenQueue.TokenQueuePlaceholder
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
-class RoundRobinQueueIteratorSpec extends TestKitSuite with FlatSpecLike with Matchers {
+class RoundRobinQueueIteratorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
   behavior of "RoundRobinQueueIterator"
-  
-  val InfiniteTokenType = JobExecutionTokenType("infinite", None, 1)
-  val Pool1 = JobExecutionTokenType("pool1", Option(1), 1)
-  val Pool2 = JobExecutionTokenType("pool2", Option(2), 1)
+
+  val InfiniteTokenType = JobTokenType("infinite", None, 1)
+  val Pool1 = JobTokenType("pool1", Option(1), 1)
+  val Pool2 = JobTokenType("pool2", Option(2), 1)
 
   val tokenEventLogger = NullTokenEventLogger
 
@@ -28,12 +29,12 @@ class RoundRobinQueueIteratorSpec extends TestKitSuite with FlatSpecLike with Ma
     iterator.hasNext shouldBe true
     val next = iterator.next()
     next.actor shouldBe probe1
-    next.lease.get().jobExecutionTokenType shouldBe InfiniteTokenType
+    next.lease.get().jobTokenType shouldBe InfiniteTokenType
     iterator.hasNext shouldBe false
 
     iterator.updatedQueues.head.queues shouldBe empty
   }
-  
+
   it should "rotate between queues" in {
     val probe1 = TestProbe("probe-1").ref
     val probe2 = TestProbe("probe-2").ref
@@ -44,20 +45,20 @@ class RoundRobinQueueIteratorSpec extends TestKitSuite with FlatSpecLike with Ma
     )
     val iterator = new RoundRobinQueueIterator(queues, 0)
     iterator.hasNext shouldBe true
-    
+
     var next = iterator.next()
     next.actor shouldBe probe1
-    next.lease.get().jobExecutionTokenType shouldBe InfiniteTokenType
+    next.lease.get().jobTokenType shouldBe InfiniteTokenType
     iterator.hasNext shouldBe true
-    
+
     next = iterator.next()
     next.actor shouldBe probe2
-    next.lease.get().jobExecutionTokenType shouldBe Pool2
+    next.lease.get().jobTokenType shouldBe Pool2
     iterator.hasNext shouldBe true
 
     next = iterator.next()
     next.actor shouldBe probe3
-    next.lease.get().jobExecutionTokenType shouldBe InfiniteTokenType
+    next.lease.get().jobTokenType shouldBe InfiniteTokenType
     iterator.hasNext shouldBe false
 
     iterator.updatedQueues.head.queues shouldBe empty
@@ -84,19 +85,19 @@ class RoundRobinQueueIteratorSpec extends TestKitSuite with FlatSpecLike with Ma
     var next = iterator.next()
     next.actor shouldBe probe1
     val probe1Lease = next.lease
-    probe1Lease.get().jobExecutionTokenType shouldBe Pool1
+    probe1Lease.get().jobTokenType shouldBe Pool1
     iterator.hasNext shouldBe true
 
     next = iterator.next()
     next.actor shouldBe probe2
-    next.lease.get().jobExecutionTokenType shouldBe Pool2
+    next.lease.get().jobTokenType shouldBe Pool2
     iterator.hasNext shouldBe true
-    
+
     // Pool 1 has given its only token, so take from pool2 again
     next = iterator.next()
     next.actor shouldBe probe4
-    next.lease.get().jobExecutionTokenType shouldBe Pool2
-    
+    next.lease.get().jobTokenType shouldBe Pool2
+
     // both queues still have actors but the pools are empty
     iterator.hasNext shouldBe false
 
@@ -108,13 +109,13 @@ class RoundRobinQueueIteratorSpec extends TestKitSuite with FlatSpecLike with Ma
     iterator.hasNext shouldBe true
     next = iterator.next()
     next.actor shouldBe probe3
-    next.lease.get().jobExecutionTokenType shouldBe Pool1
+    next.lease.get().jobTokenType shouldBe Pool1
     iterator.hasNext shouldBe false
 
     iterator.updatedQueues.head.queues.flatMap(_._2) shouldBe empty
     iterator.updatedQueues.last.queues.flatMap(_._2).toList.map(_.actor) should contain theSameElementsAs List(probe5)
   }
-  
+
   it should "throw an exception when calling next() on an empty iterator" in {
     assertThrows[IllegalStateException](new RoundRobinQueueIterator(List.empty, 0).next())
   }

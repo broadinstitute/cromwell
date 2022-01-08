@@ -5,7 +5,29 @@ import scala.util.Try
 trait PathBuilder {
   def name: String
 
+  /**
+    * Builds a path from a string.
+    *
+    * @param pathAsString The path to build
+    * @param pathBuilders Nil, or other potential builders, for example internally map GCS to a pre-signed HTTPS url
+    * @return A Success(path) or a Failure(throwable)
+    */
+  def build(pathAsString: String, pathBuilders: List[PathBuilder]): Try[Path] = build(pathAsString)
+
+  /**
+    * Alternative, simpler method of building a Path from a String.
+    */
   def build(pathAsString: String): Try[Path]
+}
+
+/**
+  * Extension of PathBuilder that attempts to pre-resolve paths to a different Path type, for example pre-resolving a
+  * DrsPath to a GcsPath.
+  */
+trait PreResolvePathBuilder extends PathBuilder {
+  def build(pathAsString: String, pathBuilders: List[PathBuilder]): Try[Path]
+
+  final override def build(pathAsString: String): Try[Path] = build(pathAsString, Nil)
 }
 
 /**
@@ -24,7 +46,7 @@ trait Path extends PathObjectMethods with NioPathMethods with BetterFileMethods 
     *
     * @return The internal nioPath.
     */
-  protected def nioPath: NioPath
+  def nioPath: NioPath
 
   /**
     * Wraps the nioPath in our container type.

@@ -1,0 +1,36 @@
+digraph {
+
+  # Nodes
+
+  something_wrong [shape=oval label="Something went wrong with Cromwell and I can't 'fix' it.\nI just want it to go away and restore service."];
+
+  # Always start with a restart:
+  restart_cromwell_instance [shape=oval label="Restart Cromwell's 'writer' instance"];
+
+  download_submission_print_out [shape=oval label="Download submission_print_out.sh from github repo dsp-scripts/cromwell"];
+  make_sure_gcloud_use_firecloud [shape=oval label="Make sure gcloud is using a firecloud.org account configuration"];
+  determine_submissions_of_interest [shape=oval label="Determine a submission of interest at a time right before alerts are generated.\nRun the script as\n\n./submission_print_out.sh <env>"];
+
+  place_submissions_on_hold [shape=oval label="Place all workflows from that submission on hold in the database."];
+
+
+  go_to_sleep [shape=oval label="Great!\nYour work here is done."];
+
+  { rank=max go_to_sleep }
+
+
+  # Edges
+
+  something_wrong -> restart_cromwell_instance
+
+  restart_cromwell_instance -> go_to_sleep [label="That worked!"]
+
+  restart_cromwell_instance -> download_submission_print_out [label="The problem persists"]
+  download_submission_print_out -> make_sure_gcloud_use_firecloud
+  make_sure_gcloud_use_firecloud -> determine_submissions_of_interest
+  determine_submissions_of_interest -> place_submissions_on_hold
+
+  place_submissions_on_hold -> restart_cromwell_instance
+
+
+}

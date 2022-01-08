@@ -1,0 +1,16 @@
+name: file_evaluator_identifier_lookups
+testFormat: workflowsuccess
+
+files {
+  workflow: file_evaluator_identifier_lookups/file_evaluator_identifier_lookups.wdl
+}
+
+metadata {
+  workflowName: file_evaluator_identifier_lookups
+  status: Succeeded
+  "outputs.file_evaluator_identifier_lookups.identifier.id": "OK"
+  "outputs.file_evaluator_identifier_lookups.identifier_member_access.left": "LEFT"
+  "outputs.file_evaluator_identifier_lookups.identifier_member_access.right": "RIGHT"
+  "outputs.file_evaluator_identifier_lookups.index_access.zero": "ZERO"
+  "outputs.file_evaluator_identifier_lookups.index_access.one": "ONE"
+}

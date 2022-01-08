@@ -1,13 +1,16 @@
 package wdl
 
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import wdl.draft2.Draft2ResolvedImportBundle
 import wdl.draft2.model.exception.ValidationException
 import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
-import wom.core.WorkflowSource
+import wom.ResolvedImportRecord
 
 import scala.util.Failure
 
-class ThreeStepImportNamespaceSpec extends FlatSpec with Matchers {
+class ThreeStepImportNamespaceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   val psTaskWdl = """
     |task ps {
     |  command {
@@ -56,11 +59,11 @@ class ThreeStepImportNamespaceSpec extends FlatSpec with Matchers {
     |  }
     |}""".stripMargin
 
-  def resolver(importUri: String): WorkflowSource = {
+  def resolver(importUri: String): Draft2ResolvedImportBundle = {
     importUri match {
-      case "ps" => psTaskWdl
-      case "cgrep" => cgrepTaskWdl
-      case "wc" => wcTaskWdl
+      case "ps" => Draft2ResolvedImportBundle(psTaskWdl, ResolvedImportRecord("ps"))
+      case "cgrep" => Draft2ResolvedImportBundle(cgrepTaskWdl, ResolvedImportRecord("cgrep"))
+      case "wc" => Draft2ResolvedImportBundle(wcTaskWdl, ResolvedImportRecord("wc"))
       case _ => throw new RuntimeException(s"Can't resolve $importUri")
     }
   }
@@ -78,7 +81,7 @@ class ThreeStepImportNamespaceSpec extends FlatSpec with Matchers {
     namespace.namespaces flatMap {_.tasks} map {_.name} shouldEqual Seq("ps", "cgrep", "wc")
   }
   it should "Throw an exception if the import resolver fails to resolve an import" in {
-    def badResolver(s: String): String = {
+    def badResolver(s: String): Draft2ResolvedImportBundle = {
       throw new RuntimeException(s"Can't Resolve")
     }
     WdlNamespace.loadUsingSource(workflowWdl, None, Option(Seq(badResolver))) match {

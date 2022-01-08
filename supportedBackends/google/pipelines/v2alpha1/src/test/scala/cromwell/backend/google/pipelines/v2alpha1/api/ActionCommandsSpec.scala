@@ -2,16 +2,18 @@ package cromwell.backend.google.pipelines.v2alpha1.api
 
 import java.nio.file.Path
 
-import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.LocalizationConfiguration
+import common.assertion.CromwellTimeoutSpec
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
+import cromwell.backend.google.pipelines.common.action.ActionCommands._
 import cromwell.filesystems.gcs.GcsPath
-import org.scalatest.{FlatSpec, Matchers}
-import org.specs2.mock.Mockito
 import eu.timepit.refined.refineMV
-import ActionCommands._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.specs2.mock.Mockito
 
-class ActionCommandsSpec extends FlatSpec with Matchers with Mockito {
+class ActionCommandsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito {
   behavior of "ActionCommands"
-  
+
   it should "inject project flag when request fails because of requester pays" in {
     val path = GcsPath(any[Path], any[com.google.api.services.storage.Storage], any[com.google.cloud.storage.Storage], "my-project")
     val recovered = recoverRequesterPaysError(path) { flag =>
@@ -37,9 +39,10 @@ class ActionCommandsSpec extends FlatSpec with Matchers with Mockito {
                          |  exit 0
                          |fi""".stripMargin
   }
-  
-  it should "use LocalizationConfiguration to set the number of localization retries" in {
-    implicit val localizationConfiguration = LocalizationConfiguration(refineMV(31380))
+
+  it should "use GcsTransferConfiguration to set the number of localization retries" in {
+    implicit val gcsTransferConfiguration = GcsTransferConfiguration(
+      transferAttempts = refineMV(31380), parallelCompositeUploadThreshold = "0")
     retry("I'm very flaky") shouldBe """for i in $(seq 31380); do
                                        |  (
                                        |    I'm very flaky

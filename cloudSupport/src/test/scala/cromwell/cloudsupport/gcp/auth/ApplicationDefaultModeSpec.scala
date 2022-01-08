@@ -1,8 +1,11 @@
 package cromwell.cloudsupport.gcp.auth
 
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class ApplicationDefaultModeSpec extends FlatSpec with Matchers {
+
+class ApplicationDefaultModeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "ApplicationDefaultMode"
 
@@ -12,11 +15,4 @@ class ApplicationDefaultModeSpec extends FlatSpec with Matchers {
     val credentials = applicationDefaultMode.credentials()
     credentials.getAuthenticationType should be("OAuth2")
   }
-
-  it should "requiresAuthFile" in {
-    GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
-    val applicationDefaultMode = new ApplicationDefaultMode("application-default")
-    applicationDefaultMode.requiresAuthFile should be(false)
-  }
-
 }

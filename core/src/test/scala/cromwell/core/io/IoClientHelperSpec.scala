@@ -7,13 +7,14 @@ import cromwell.core.TestKitSuite
 import cromwell.core.io.DefaultIoCommand.DefaultIoSizeCommand
 import cromwell.core.path.Path
 import cromwell.core.retry.SimpleExponentialBackoff
-import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.mockito.MockitoSugar
 
 import scala.concurrent.duration.{FiniteDuration, _}
 import scala.language.postfixOps
 
-class IoClientHelperSpec extends TestKitSuite with FlatSpecLike with Matchers with MockitoSugar {
+class IoClientHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with MockitoSugar {
 
   behavior of "IoClientHelperSpec"
 

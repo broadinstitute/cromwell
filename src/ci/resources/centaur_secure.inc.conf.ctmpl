@@ -1,13 +1,6 @@
-{{with $centaurSentry := vault (printf "secret/dsde/cromwell/common/centaur-sentry")}}
+# NOTE: This file will only be included if secrets can be rendered.
 error-reporter {
   providers {
-    sentry {
-      class: "centaur.reporting.SentryReporter"
-      config {
-        dsn: "{{$centaurSentry.Data.error_reporter_dsn}}"
-      }
-    }
-
     big-query {
       class: "centaur.reporting.BigQueryReporter"
       config {
@@ -18,4 +11,3 @@ error-reporter {
     }
   }
 }
-{{end}}

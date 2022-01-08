@@ -1,15 +1,18 @@
 import centaur.cwl.CloudPreprocessor
 import com.typesafe.config.ConfigFactory
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import wom.util.YamlUtils
 
-class CloudPreprocessorSpec extends FlatSpec with Matchers {
+class CloudPreprocessorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "PAPIPreProcessor"
 
   val pAPIPreprocessor = new CloudPreprocessor(ConfigFactory.load(), "papi.default-input-gcs-prefix")
   
   def validate(result: String, expectation: String) = {
-    val parsedResult = io.circe.yaml.parser.parse(result).right.get
-    val parsedExpectation = io.circe.yaml.parser.parse(expectation).right.get
+    val parsedResult = YamlUtils.parse(result).right.get
+    val parsedExpectation = YamlUtils.parse(expectation).right.get
 
     // This is an actual Json comparison from circe
     parsedResult shouldBe parsedExpectation
@@ -52,26 +55,26 @@ class CloudPreprocessorSpec extends FlatSpec with Matchers {
          |  "input": {
          |    "null": null,
          |    "file": {
-         |      "location": "gs://centaur-cwl-conformance/cwl-inputs/whale.txt",
+         |      "location": "gs://centaur-cwl-conformance-1f501e3/cwl-inputs/whale.txt",
          |      "class": "File",
          |      "secondaryFiles": [
          |        {
          |          "class": File,
-         |          "location": "gs://centaur-cwl-conformance/cwl-inputs/hello.txt"
+         |          "location": "gs://centaur-cwl-conformance-1f501e3/cwl-inputs/hello.txt"
          |        }
          |      ],
          |      "default": {
-         |        "location": "gs://centaur-cwl-conformance/cwl-inputs/default_whale.txt",
+         |        "location": "gs://centaur-cwl-conformance-1f501e3/cwl-inputs/default_whale.txt",
          |        "class": "File",
          |      }
          |    },
          |    "directory": {
-         |      "location": "gs://centaur-cwl-conformance/cwl-inputs/ref.fasta",
+         |      "location": "gs://centaur-cwl-conformance-1f501e3/cwl-inputs/ref.fasta",
          |      "class": "Directory",
          |      "listing": [
          |        {
          |          "class": File,
-         |          "location": "gs://centaur-cwl-conformance/cwl-inputs/hello.txt"
+         |          "location": "gs://centaur-cwl-conformance-1f501e3/cwl-inputs/hello.txt"
          |        }
          |      ]
          |    }
@@ -114,7 +117,7 @@ class CloudPreprocessorSpec extends FlatSpec with Matchers {
          |    inputBinding: { position: 2 }
          |    default:
          |      class: File
-         |      location: gs://centaur-cwl-conformance/cwl-inputs/args.py
+         |      location: gs://centaur-cwl-conformance-1f501e3/cwl-inputs/args.py
          |
          |outputs:
          |  args: string[]

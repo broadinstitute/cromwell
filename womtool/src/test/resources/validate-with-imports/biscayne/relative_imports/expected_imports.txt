@@ -1,0 +1,5 @@
+Success!
+List of Workflow dependencies is:
+{REPLACE_WITH_ROOT_PATH}/womtool/src/test/resources/validate/biscayne/valid/relative_imports/structs/my_struct.wdl
+{REPLACE_WITH_ROOT_PATH}/womtool/src/test/resources/validate/biscayne/valid/relative_imports/sub_wfs/tasks/add5.wdl
+{REPLACE_WITH_ROOT_PATH}/womtool/src/test/resources/validate/biscayne/valid/relative_imports/sub_wfs/foo.wdl

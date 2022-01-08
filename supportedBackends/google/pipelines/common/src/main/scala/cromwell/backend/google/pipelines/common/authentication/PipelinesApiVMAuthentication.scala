@@ -5,7 +5,6 @@ import cats.syntax.validated._
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.cloudsupport.gcp.GoogleConfiguration
-import cromwell.cloudsupport.gcp.auth.ClientSecrets
 import cromwell.core.DockerCredentials
 import spray.json.{JsString, JsValue}
 /**
@@ -17,18 +16,6 @@ sealed trait PipelinesApiAuthObject {
   def map: Map[String, JsValue]
 
   def toMap: Map[String, Map[String, JsValue]] =  Map(context -> map)
-}
-
-/**
- * Authentication information for data (de)localization as the user.
- */
-case class GcsLocalizing(clientSecrets: ClientSecrets, token: String) extends PipelinesApiAuthObject {
-  override val context = "boto"
-  override val map = Map(
-    "client_id" -> JsString(clientSecrets.clientId),
-    "client_secret" -> JsString(clientSecrets.clientSecret),
-    "refresh_token" -> JsString(token)
-  )
 }
 
 object PipelinesApiDockerCredentials {

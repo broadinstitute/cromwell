@@ -3,9 +3,9 @@ package cwl
 import java.nio.file.Paths
 
 import cats.data.NonEmptyList
-import cats.instances.list._
 import cats.syntax.either._
 import cats.syntax.traverse._
+import cats.instances.list._
 import common.Checked
 import common.validation.ErrorOr._
 import common.validation.Validation._
@@ -15,7 +15,8 @@ import cwl.Workflow.{WorkflowInputParameter, WorkflowOutputParameter}
 import cwl.command.ParentName
 import shapeless._
 import shapeless.syntax.singleton._
-import wom.callable.WorkflowDefinition
+import wom.SourceFileLocation
+import wom.callable.{MetaValueElement, WorkflowDefinition}
 import wom.executable.Executable
 import wom.expression.{IoFunctionSet, ValueAsAnExpression}
 import wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
@@ -187,15 +188,17 @@ case class Workflow private(
 
   def womDefinition(validator: RequirementsValidator, expressionLib: ExpressionLib): Checked[WorkflowDefinition] = {
     val name: String = Paths.get(id).getFileName.toString
-    val meta: Map[String, String] = Map.empty
-    val paramMeta: Map[String, String] = Map.empty
+    val meta: Map[String, MetaValueElement.MetaValueElementString] = Map.empty
+    val paramMeta: Map[String, MetaValueElement.MetaValueElementString] = Map.empty
+    val lexInfo : Option[SourceFileLocation] = None
 
     womGraph(name, validator, expressionLib).map(graph =>
       WorkflowDefinition(
         name,
         graph,
         meta,
-        paramMeta
+        paramMeta,
+        lexInfo
       )
     )
   }

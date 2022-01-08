@@ -17,16 +17,22 @@ import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.expressionElementWriter
 
 object EngineFunctionEvaluators {
 
-  private def evaluateToFile(forFunction: String, a: ExpressionElement, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet)
+  private def evaluateToFile(forFunction: String, outermostElement: ExpressionElement, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, nestedElement: Option[ExpressionElement] = None)
                             (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] = {
-    (a match {
-      case _: IdentifierLookup | _: IdentifierMemberAccess | _: IndexAccess => Set.empty[WomFile].validNel
+    // `IndexAccess` `ExpressionElement`s require recursion to look for contained `IdentifierLookup` or `IdentifierMemberAccess`.
+    // After all `IndexAccess` elements have been traversed the original `outermostElement` should be evaluated for files.
+    val elementToExamine = nestedElement getOrElse outermostElement
+    (elementToExamine match {
+      case IndexAccess(expressionElement, _) => evaluateToFile(forFunction, outermostElement, inputs, ioFunctionSet, Option(expressionElement))
+      // If the specified identifier is not among the inputs there are no files to delocalize from this expression.
+      case IdentifierLookup(identifier) if !inputs.contains(identifier) => Set.empty[WomFile].validNel
+      case IdentifierMemberAccess(first, _, _) if !inputs.contains(first) => Set.empty[WomFile].validNel
       case _ =>
-        a.evaluateValue(inputs, ioFunctionSet, None) flatMap {
+        outermostElement.evaluateValue(inputs, ioFunctionSet, None) flatMap {
           case EvaluatedValue(p: WomPrimitive, _) => Set[WomFile](WomSingleFile(p.valueString)).validNel
           case other => s"Expected a primitive but got ${other.getClass.getSimpleName}".invalidNel
         }
-    }).contextualizeErrors(s"predict files needed to de-localize from '${a.toWdlV1}' for $forFunction")
+    }).contextualizeErrors(s"predict files needed to de-localize from '${outermostElement.toWdlV1}' for $forFunction")
   }
 
   def singleParameterPassthroughFileEvaluator[A <: OneParamFunctionCallElement]: FileEvaluator[A] = new FileEvaluator[A] {
@@ -141,29 +147,20 @@ object EngineFunctionEvaluators {
       Set.empty[WomFile].validNel
   }
 
-  implicit val zipFunctionEvaluator: FileEvaluator[Zip] = new FileEvaluator[Zip] {
-    override def predictFilesNeededToEvaluate(a: Zip, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
+  def twoParameterFunctionPassthroughFileEvaluator[A <: TwoParamFunctionCallElement] = new FileEvaluator[A] {
+    override def predictFilesNeededToEvaluate(a: A,
+                                              inputs: Map[String, WomValue],
+                                              ioFunctionSet: IoFunctionSet,
+                                              coerceTo: WomType)
                                              (implicit fileEvaluator: FileEvaluator[ExpressionElement],
                                               valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
       (a.arg1.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo),
         a.arg2.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)) mapN { _ ++ _ }
   }
 
-  implicit val crossFunctionEvaluator: FileEvaluator[Cross] = new FileEvaluator[Cross] {
-    override def predictFilesNeededToEvaluate(a: Cross, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      (a.arg1.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo),
-        a.arg2.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)) mapN { _ ++ _ }
-  }
-
-  implicit val prefixFunctionEvaluator: FileEvaluator[Prefix] = new FileEvaluator[Prefix] {
-    override def predictFilesNeededToEvaluate(a: Prefix, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      (a.arg1.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo),
-        a.arg2.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)) mapN { _ ++ _ }
-  }
+  implicit val zipFunctionEvaluator: FileEvaluator[Zip] = twoParameterFunctionPassthroughFileEvaluator[Zip]
+  implicit val crossFunctionEvaluator: FileEvaluator[Cross] = twoParameterFunctionPassthroughFileEvaluator[Cross]
+  implicit val prefixFunctionEvaluator: FileEvaluator[Prefix] = twoParameterFunctionPassthroughFileEvaluator[Prefix]
 
   implicit val subFunctionEvaluator: FileEvaluator[Sub] = new FileEvaluator[Sub] {
     override def predictFilesNeededToEvaluate(a: Sub, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)

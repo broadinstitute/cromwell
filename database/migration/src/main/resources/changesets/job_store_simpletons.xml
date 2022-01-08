@@ -6,7 +6,7 @@
     <property name="clob.type" value="LONGTEXT" dbms="mysql"/>
     <property name="clob.type" value="LONGVARCHAR" dbms="hsqldb"/>
 
-    <changeSet author="mcovarr" id="job_store_result_simpletons">
+    <changeSet author="mcovarr" id="job_store_result_simpletons" dbms="mysql,hsqldb">
         <comment>
             One row per result simpleton in the job result.
             Simpleton: a single non-complex WDL value.
@@ -35,13 +35,13 @@
     </changeSet>
 
     <!-- Unlike the metadata journal, we never want to store the same simpleton key twice (for the same RESULT_METAINFO_ID) -->
-    <changeSet author="mcovarr" id="job_store_result_simpletons_uniqueness">
+    <changeSet author="mcovarr" id="job_store_result_simpletons_uniqueness" dbms="mysql,hsqldb">
         <addUniqueConstraint constraintName="UK_JOB_STORE_RESULT_SIMPLETON"
                              tableName="JOB_STORE_RESULT_SIMPLETON" columnNames="SIMPLETON_KEY, JOB_STORE_ID" />
     </changeSet>
 
     <!-- Make JOB_STORE_ID a FK into JOB_STORE -->
-    <changeSet author="mcovarr" id="job_store_result_simpletons_foreign_key">
+    <changeSet author="mcovarr" id="job_store_result_simpletons_foreign_key" dbms="mysql,hsqldb">
         <addForeignKeyConstraint constraintName="JSRS_JOB_STORE_FK"
                                  baseTableName="JOB_STORE_RESULT_SIMPLETON"
                                  baseColumnNames="JOB_STORE_ID"
@@ -51,7 +51,7 @@
         />
     </changeSet>
 
-    <changeSet id="job_store_remove_job_output" author="mcovarr">
+    <changeSet id="job_store_remove_job_output" author="mcovarr" dbms="mysql,hsqldb">
         <comment>
             There is no attempt at migrating the contents of JOB_STORE.JOB_OUTPUTS to simpletons, this just removes the column.
         </comment>

@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="mcovarr" id="CREATE_EXECUTION_INFO">
+    <changeSet author="mcovarr" id="CREATE_EXECUTION_INFO" dbms="mysql,hsqldb">
         <createTable tableName="EXECUTION_INFO">
             <column autoIncrement="true" name="EXECUTION_INFO_ID" type="INT">
                 <constraints primaryKey="true" primaryKeyName="PK_EXECUTION_INFO"/>
@@ -20,14 +20,14 @@
         </createTable>
     </changeSet>
 
-    <changeSet id="add_foreign_key_constraints" author="mcovarr">
+    <changeSet id="add_foreign_key_constraints" author="mcovarr" dbms="mysql,hsqldb">
         <addForeignKeyConstraint constraintName="FK_EXECUTION_INFO_EXECUTION"
                                  baseTableName="EXECUTION_INFO" baseColumnNames="EXECUTION_ID"
                                  referencedTableName="EXECUTION"
                                  referencedColumnNames="EXECUTION_ID"/>
     </changeSet>
 
-    <changeSet id="add_backend_type_column" author="mcovarr">
+    <changeSet id="add_backend_type_column" author="mcovarr" dbms="mysql,hsqldb">
         <addColumn tableName="EXECUTION">
             <column name="BACKEND_TYPE" type="VARCHAR(255)">
                 <constraints nullable="true"/>
@@ -35,7 +35,7 @@
         </addColumn>
     </changeSet>
 
-    <changeSet id="insert_data_from_backend_tables" author="mcovarr">
+    <changeSet id="insert_data_from_backend_tables" author="mcovarr" dbms="mysql,hsqldb">
         <sql>
             insert into EXECUTION_INFO(EXECUTION_ID, INFO_KEY, INFO_VALUE)
             select EXECUTION_ID, "JES_RUN_ID", JES_RUN_ID from JES_JOB;
@@ -51,7 +51,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="set_backend_type" author="mcovarr">
+    <changeSet id="set_backend_type" author="mcovarr" dbms="mysql,hsqldb">
         <sql>
             update EXECUTION e set BACKEND_TYPE = 'JES' where exists
             (select 1 from JES_JOB jj where jj.EXECUTION_ID = e.EXECUTION_ID);
@@ -64,19 +64,19 @@
         </sql>
     </changeSet>
 
-    <changeSet id="drop_job_tables" author="mcovarr">
+    <changeSet id="drop_job_tables" author="mcovarr" dbms="mysql,hsqldb">
         <dropTable tableName="JES_JOB" />
         <dropTable tableName="SGE_JOB" />
         <dropTable tableName="LOCAL_JOB" />
     </changeSet>
 
-    <changeSet id="execution_info_uniqueness_constraint" author="mcovarr">
+    <changeSet id="execution_info_uniqueness_constraint" author="mcovarr" dbms="mysql,hsqldb">
         <addUniqueConstraint constraintName="UK_EXECUTION_INFO"
                              tableName="EXECUTION_INFO"
                              columnNames="EXECUTION_ID, INFO_KEY" />
     </changeSet>
 
-    <changeSet id="execution_backend_type_not_null" author="mcovarr">
+    <changeSet id="execution_backend_type_not_null" author="mcovarr" dbms="mysql,hsqldb">
         <addNotNullConstraint tableName="EXECUTION"
                               columnName="BACKEND_TYPE"
                               columnDataType="VARCHAR(255)"/>

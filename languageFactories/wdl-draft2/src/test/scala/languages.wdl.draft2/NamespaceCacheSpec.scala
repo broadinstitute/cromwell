@@ -1,19 +1,22 @@
 package languages.wdl.draft2
 
-import cats.instances.list._
 import cats.syntax.functor._
+import cats.instances.list._
 import com.typesafe.config.ConfigFactory
 import common.Checked
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core.{CacheConfig, WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.languages.util.ImportResolver.HttpResolver
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wom.expression.NoIoFunctionSet
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class NamespaceCacheSpec extends FlatSpec with BeforeAndAfterAll with Matchers {
+class NamespaceCacheSpec extends AnyFlatSpec with CromwellTimeoutSpec with BeforeAndAfterAll with Matchers {
 
   "The WdlDraft2LanguageFactory" should "parse a fully enabled config correctly" in {
     val factory = new WdlDraft2LanguageFactory(ConfigFactory.parseString(EnabledConfig))
@@ -49,7 +52,7 @@ class NamespaceCacheSpec extends FlatSpec with BeforeAndAfterAll with Matchers {
       workflowType = None,
       workflowTypeVersion = None,
       inputsJson = EmptyJson,
-      workflowOptionsJson = EmptyJson,
+      workflowOptions = WorkflowOptions.empty,
       labelsJson = EmptyJson,
       importsFile = None,
       workflowOnHold = false,

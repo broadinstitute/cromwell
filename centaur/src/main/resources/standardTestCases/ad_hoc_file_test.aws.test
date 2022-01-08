@@ -1,0 +1,14 @@
+name: ad_hoc_file_test.aws
+testFormat: workflowsuccess
+backends: [ AWSBATCH ]
+
+files {
+  workflow: ad_hoc_file_test/workflow.cwl
+  imports: [
+    ad_hoc_file_test/cwl-test.cwl
+  ]
+}
+
+metadata {
+  status: Succeeded
+}

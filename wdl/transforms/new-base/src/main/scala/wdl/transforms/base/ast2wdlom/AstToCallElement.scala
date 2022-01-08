@@ -2,13 +2,15 @@ package wdl.transforms.base.ast2wdlom
 
 import cats.syntax.validated._
 import cats.syntax.either._
-import cats.instances.either._
 import cats.syntax.apply._
+import cats.instances.either._
 import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr._
 import wdl.model.draft3.elements.{CallBodyElement, CallElement}
 import wdl.model.draft3.elements.ExpressionElement.KvPair
+import wom.SourceFileLocation
 
 object AstToCallElement {
 
@@ -30,8 +32,14 @@ object AstToCallElement {
 
     val callBodyValidation: ErrorOr[Option[CallBodyElement]] = ast.getAttributeAsOptional[CallBodyElement]("body").toValidated
 
-    (callableNameValidation, aliasValidation, afterValidation, callBodyValidation) mapN { (name, alias, after, body) =>
-      CallElement(name, alias, after, body)
+    val sourceLocation : Option[SourceFileLocation] = ast.getSourceLine.map(SourceFileLocation(_))
+
+    // This 'mapN' is split into two so that if we have a call name we can include it in the error message
+    (callableNameValidation, aliasValidation) flatMapN { (name, alias) =>
+      val result = (afterValidation, callBodyValidation) mapN { (after, body) =>
+        CallElement(name, alias, after, body, sourceLocation)
+      }
+      result.contextualizeErrors(s"call $name" + alias.fold("")(a => s" as $a"))
     }
   }
 

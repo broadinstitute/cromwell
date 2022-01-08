@@ -37,12 +37,12 @@ import common.validation.Validation._
 import cromwell.cloudsupport.aws.AwsConfiguration
 import cromwell.cloudsupport.aws.auth.AwsAuthMode
 import cromwell.cloudsupport.aws.s3.S3Storage
-import cromwell.core.path.PathBuilderFactory
 import cromwell.core.WorkflowOptions
+import cromwell.core.path.PathBuilderFactory
 import net.ceedubs.ficus.Ficus._
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 
 import scala.concurrent.{ExecutionContext, Future}
-import software.amazon.awssdk.auth.credentials.AwsCredentials
 
 // The constructor of this class is required to be Config, Config by cromwell
 // So, we need to take this config and get the AuthMode out of it
@@ -61,8 +61,8 @@ final case class S3PathBuilderFactory private(globalConfig: Config, instanceConf
 
   // Ignores the authMode and creates an S3PathBuilder using the passed credentials directly.
   // Can be used when the Credentials are already available.
-  def fromCredentials(options: WorkflowOptions, credentials: AwsCredentials): S3PathBuilder = {
-    S3PathBuilder.fromCredentials(credentials, S3Storage.DefaultConfiguration, options, conf.region)
+  def fromProvider(options: WorkflowOptions, provider: AwsCredentialsProvider): S3PathBuilder = {
+    S3PathBuilder.fromProvider(provider, S3Storage.DefaultConfiguration, options, conf.region)
   }
 }
 

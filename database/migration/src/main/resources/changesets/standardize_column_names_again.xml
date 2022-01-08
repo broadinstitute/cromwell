@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="kshakir" id="standardize_column_names_again">
+    <changeSet author="kshakir" id="standardize_column_names_again" dbms="mysql,hsqldb">
 
         <!--
         NOTE: Column related changes to METADATA_JOURNAL (aka METADATA_ENTRY) are not included at this time.

@@ -4,9 +4,9 @@ import java.time.OffsetDateTime
 import java.util
 
 import cats.effect.IO
-import cats.syntax.traverse._
-import cats.syntax.apply._
 import cats.instances.list._
+import cats.syntax.apply._
+import cats.syntax.traverse._
 import centaur.reporting.BigQueryReporter._
 import centaur.test.CentaurTestException
 import centaur.test.metadata.CallAttemptFailure
@@ -15,6 +15,7 @@ import com.google.api.services.bigquery.BigqueryScopes
 import com.google.auth.Credentials
 import com.google.cloud.bigquery.InsertAllRequest.RowToInsert
 import com.google.cloud.bigquery.{BigQuery, BigQueryError, BigQueryOptions, InsertAllRequest, InsertAllResponse, TableId}
+import common.util.TimeUtil._
 import common.validation.Validation._
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.database.sql.SqlConverters._
@@ -71,23 +72,32 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
     }
   }
 
-  override def logCentaurFailure(testEnvironment: TestEnvironment,
-                                 ciEnvironment: CiEnvironment,
-                                 centaurTestException: CentaurTestException)
-                                (implicit executionContext: ExecutionContext): IO[Unit] = {
-    for {
-      callAttemptFailures <- CallAttemptFailure.buildFailures(centaurTestException.metadataJsonOption)
-      jobKeyValueEntries <- params.database.jobKeyValueEntriesIo(centaurTestException.workflowIdOption)
-      metadataEntries <- params.database.metadataEntriesIo(centaurTestException.workflowIdOption)
-      _ <- sendBigQueryFailure(
-        testEnvironment,
-        ciEnvironment,
-        centaurTestException,
-        callAttemptFailures,
-        jobKeyValueEntries,
-        metadataEntries
-      )
-    } yield ()
+  /**
+    * In this ErrorReporter implementation this method will send information about exceptions of type
+    * CentaurTestException to BigQuery. Exceptions of other types will be ignored.
+    */
+  override def logFailure(testEnvironment: TestEnvironment,
+                          ciEnvironment: CiEnvironment,
+                          throwable: Throwable)
+                         (implicit executionContext: ExecutionContext): IO[Unit] = {
+    throwable match {
+      case centaurTestException: CentaurTestException =>
+        for {
+          callAttemptFailures <- CallAttemptFailure.buildFailures(centaurTestException.metadataJsonOption)
+          jobKeyValueEntries <- params.database.jobKeyValueEntriesIo(centaurTestException.workflowIdOption)
+          metadataEntries <- params.database.metadataEntriesIo(centaurTestException.workflowIdOption)
+          _ <- sendBigQueryFailure(
+            testEnvironment,
+            ciEnvironment,
+            centaurTestException,
+            callAttemptFailures,
+            jobKeyValueEntries,
+            metadataEntries
+          )
+        } yield ()
+      case _ =>
+        IO.unit // this ErrorReporter only supports exceptions of CentaurTestException type
+    }
   }
 
   private def sendBigQueryFailure(testEnvironment: TestEnvironment,
@@ -154,7 +164,7 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
       "test_message" -> Option(centaurTestException.message),
       "test_name" -> Option(testEnvironment.name),
       "test_stack_trace" -> Option(ExceptionUtils.getStackTrace(centaurTestException)),
-      "test_timestamp" -> Option(OffsetDateTime.now.toString),
+      "test_timestamp" -> Option(OffsetDateTime.now.toUtcMilliString),
       "test_workflow_id" -> centaurTestException.workflowIdOption,
     ).collect {
       case (key, Some(value)) => (key, value)
@@ -165,11 +175,11 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
     RowToInsert of Map(
       "call_fully_qualified_name" -> Option(callAttemptFailure.callFullyQualifiedName),
       "call_root" -> callAttemptFailure.callRootOption,
-      "end" -> callAttemptFailure.endOption.map(_.toString),
+      "end" -> callAttemptFailure.endOption.map(_.toUtcMilliString),
       "job_attempt" -> Option(callAttemptFailure.jobAttempt),
       "job_index" -> Option(callAttemptFailure.jobIndex),
       "message" -> Option(callAttemptFailure.message),
-      "start" -> callAttemptFailure.startOption.map(_.toString),
+      "start" -> callAttemptFailure.startOption.map(_.toUtcMilliString),
       "stderr" -> callAttemptFailure.stderrOption,
       "stdout" -> callAttemptFailure.stdoutOption,
       "workflow_id" -> Option(callAttemptFailure.workflowId),
@@ -195,7 +205,7 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
       "job_attempt" -> metadataEntry.jobAttempt,
       "job_index" -> metadataEntry.jobIndex,
       "metadata_key" -> Option(metadataEntry.metadataKey),
-      "metadata_timestamp" -> Option(metadataEntry.metadataTimestamp.toSystemOffsetDateTime.toString),
+      "metadata_timestamp" -> Option(metadataEntry.metadataTimestamp.toSystemOffsetDateTime.toUtcMilliString),
       "metadata_value" -> metadataEntry.metadataValue.map(_.toRawString),
       "metadata_value_type" -> metadataEntry.metadataValueType,
       "workflow_execution_uuid" -> Option(metadataEntry.workflowExecutionUuid),

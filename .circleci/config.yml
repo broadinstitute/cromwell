@@ -1,0 +1,178 @@
+version: 2.1
+
+orbs:
+  slack: circleci/slack@4.2.1
+  build-tools: circleci/build-tools@2.9.0
+
+jobs:
+  test:
+    parameters:
+      machine-size:
+        type: string
+        default: large
+      build-type:
+        type: string
+      build-mysql:
+        type: string
+        default: ""
+      build-mariadb:
+        type: string
+        default: ""
+      build-postgresql:
+        type: string
+        default: ""
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: << parameters.machine-size >>
+    steps:
+      - run:
+          name: Halt builds except SBT test suite if there is no PR associated with the commit
+          command: |
+            if [[ -z "${CI_PULL_REQUEST}" ]] && [[ "${BUILD_TYPE}" != "sbt" ]] ; then
+              circleci-agent step halt
+            fi
+      - checkout
+      - run:
+          name: Custom step - configure GIT identity
+          command: |
+            git config user.email "circleci@example.com"
+            git config user.name "CircleCI"
+      - build-tools/merge-with-parent:
+          parent: develop
+      - restore_cache:
+          key: sbt-cache
+      - run:
+          command: src/ci/bin/test.sh
+          no_output_timeout: 1h
+      - run:
+          name: Do tricks to avoid unnecessary cache updates
+          command: |
+            find ~/.ivy2/cache -name "ivydata-*.properties" -print -delete
+            find ~/.sbt -name "*.lock" -print -delete
+      - store_test_results:
+          path: target/test-reports
+      - save_cache:
+          key: sbt-cache
+          paths:
+            - "~/.ivy2/cache"
+            - "~/.sbt"
+    environment:
+      CIRCLE_COMMIT_RANGE: << pipeline.git.base_revision >>...<< pipeline.git.revision >>
+      BUILD_TYPE: << parameters.build-type >>
+      BUILD_MYSQL: << parameters.build-mysql >>
+      BUILD_MARIADB: << parameters.build-mariadb >>
+      BUILD_POSTGRESQL: << parameters.build-postgresql >>
+
+workflows:
+  all-tests:
+    jobs:
+      - test:
+          name: testSbt
+          build-type: "sbt"
+      - test:
+          name: testSingleWorkflowRunner
+          build-type: "singleWorkflowRunner"
+      - test:
+          name: testDbms
+          build-type: "dbms"
+      - test:
+          name: testHoricromtalDeadlock
+          build-type: "horicromtalDeadlock"
+      - test:
+          name: testDockerScripts
+          build-type: "dockerScripts"
+      - test:
+          name: testReferenceDiskManifestBuilderApp
+          build-type: "referenceDiskManifestBuilderApp"
+      - test:
+          name: testCentaurAws
+          build-type: "centaurAws"
+          build-mysql: "5.7"
+      - test:
+          name: testCentaurBcs
+          build-type: "centaurBcs"
+          build-mysql: "5.7"
+      - test:
+          name: testCentaurDummy
+          build-type: "centaurDummy"
+          build-mysql: "5.7"
+      - test:
+          name: testCentaurEngineUpgradeLocal
+          build-type: "centaurEngineUpgradeLocal"
+          build-mysql: "5.7"
+      - test:
+          name: testCentaurEngineUpgradePapiV2alpha1
+          build-type: "centaurEngineUpgradePapiV2alpha1"
+          build-mysql: "5.7"
+      - test:
+          name: testCentaurHoricromtalPapiV2alpha1
+          build-type: "centaurHoricromtalPapiV2alpha1"
+          build-mysql: "5.7"
+      - test:
+          name: testCentaurHoricromtalPapiV2beta-MySQL
+          build-type: "centaurHoricromtalPapiV2beta"
+          build-mysql: "5.7"
+      - test:
+          name: testCentaurHoricromtalPapiV2beta-MariaDB
+          build-type: "centaurHoricromtalPapiV2beta"
+          build-mariadb: "10.3"
+      - test:
+          name: testCentaurHoricromtalEngineUpgradePapiV2alpha1-MySQL
+          build-type: "centaurHoricromtalEngineUpgradePapiV2alpha1"
+          build-mysql: "5.7"
+      - test:
+          name: testCentaurHoricromtalEngineUpgradePapiV2alpha1-MariaDB
+          build-type: "centaurHoricromtalEngineUpgradePapiV2alpha1"
+          build-mariadb: "10.3"
+      - test:
+          name: testCentaurPapiUpgradePapiV2alpha1
+          build-type: "centaurPapiUpgradePapiV2alpha1"
+          build-mysql: "5.7"
+      - test:
+          name: testCentaurPapiUpgradeNewWorkflowsPapiV2alpha1
+          build-type: "centaurPapiUpgradeNewWorkflowsPapiV2alpha1"
+          build-mysql: "5.7"
+      - test:
+          name: testCentaurLocal-MySQL
+          build-type: "centaurLocal"
+          build-mysql: "5.7"
+      - test:
+          name: testCentaurLocal-Postgresql
+          build-type: "centaurLocal"
+          build-postgresql: "11.3"
+      - test:
+          name: testCentaurPapiV2alpha1
+          build-type: "centaurPapiV2alpha1"
+          build-mysql: "5.7"
+      - test:
+          name: testCentaurPapiV2beta
+          build-type: "centaurPapiV2beta"
+          build-mysql: "5.7"
+      - test:
+          name: testCentaurSlurm
+          build-type: "centaurSlurm"
+          build-mysql: "5.7"
+      - test:
+          name: testCentaurTes
+          build-type: "centaurTes"
+          build-mysql: "5.7"
+      - test:
+          name: testCentaurWdlUpgradeLocal
+          build-type: "centaurWdlUpgradeLocal"
+          build-mysql: "5.7"
+      - test:
+          name: testCheckPublish
+          build-type: "checkPublish"
+          build-mysql: "5.7"
+      - test:
+          name: testConformanceLocal
+          build-type: "conformanceLocal"
+          build-mysql: "5.7"
+      - test:
+          name: testConformancePapiV2beta
+          build-type: "conformancePapiV2beta"
+          build-mysql: "5.7"
+      - test:
+          name: testConformanceTesk
+          build-type: "conformanceTesk"
+          build-mysql: "5.7"

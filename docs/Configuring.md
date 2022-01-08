@@ -242,7 +242,8 @@ For more information about docker compose: [Docker compose doc](https://docs.doc
 
 **Insert Batch Size**
 
-Cromwell queues up and then inserts batches of records into the database for increased performance. You can adjust the number of database rows batch inserted by cromwell as follows:
+Cromwell queues up and then inserts batches of records into the database for increased performance. You can adjust the
+number of database rows batch inserted by Cromwell as follows:
 
 ```hocon
 database {
@@ -274,7 +275,124 @@ database {
 
 If no override is found for `metadata`, Cromwell falls back to using the settings under the root `database` configuration.
 
-## Abort
+**Database Time Zones**
+
+Cromwell's default configuration assumes that its MySQL database is set to UTC.
+
+The following MySQL configurations typically default to UTC and work with Cromwell out of the box:
+- Google CloudSQL
+- An official MySQL image running in Docker
+
+These configurations may use the system, or local, time zone instead:
+- MySQL installed natively on a workstation or server
+
+If Cromwell fails to start with a message like
+```
+The server time zone value 'XXX' is unrecognized or represents more than one time zone.
+```
+you can resolve the problem by adding the option `&serverTimezone=UTC` to your database connection URL:
+```hocon
+url = "jdbc:mysql://host/cromwell?rewriteBatchedStatements=true&serverTimezone=UTC"
+```
+
+Using this option does not alter your database's underlying timezone; rather, it causes Cromwell to "speak UTC" when communicating with the DB, and the DB server performs the conversion for you. 
+
+**Using Cromwell with Postgresql**
+
+To use Postgresql as the database, you will need to install and enable the
+Large Object extension.  If the extension is present, setting up the database
+requires just these commands:
+
+```
+$ createdb cromwell
+$ psql -d cromwell -c "create extension lo;"
+```
+
+Postgresql configuration in Cromwell is very similar to MySQL.  An example:
+
+```hocon
+database {
+  profile = "slick.jdbc.PostgresProfile$"
+  db {
+    driver = "org.postgresql.Driver"
+    url = "jdbc:postgresql://localhost:5432/cromwell"
+    user = "user"
+    password = "pass"
+    port = 5432
+    connectionTimeout = 5000
+  }
+}
+```
+
+**Using Cromwell with file-based database (No server required)**
+
+SQLite is currently not supported. However, HSQLDB does support running with a persistence file.
+To set this up the following configuration can be used:
+```hocon
+database {
+  profile = "slick.jdbc.HsqldbProfile$"
+  db {
+    driver = "org.hsqldb.jdbcDriver"
+    url = """
+    jdbc:hsqldb:file:cromwell-executions/cromwell-db/cromwell-db;
+    shutdown=false;
+    hsqldb.default_table_type=cached;hsqldb.tx=mvcc;
+    hsqldb.result_max_memory_rows=10000;
+    hsqldb.large_data=true;
+    hsqldb.applog=1;
+    hsqldb.lob_compressed=true;
+    hsqldb.script_format=3
+    """
+    connectionTimeout = 120000
+    numThreads = 1
+   }
+}
+```
+
+Explanation of the options (see also http://hsqldb.org/doc/2.0/guide/dbproperties-chapt.html):
+
+* `jdbc:hsqldb:file:cromwell-executions/cromwell-db/cromwell-db;` This will make sure
+   all persistence files will end up in a folder `cromwell-db` inside `cromwell-executions`.
+* `shutdown=false`. This makes sure the database will not be shutdown unless Cromwell explicitly does so.
+* `hsqlldb.default_table_type=cached`. 
+   By default hsqldb uses in memory tables, this will ensure data is written to disk and 
+   decrease memory usage.
+* `hsqldb.result_max_memory_rows=10000` . Limits the amount of rows in memory for temp tables. 
+* `hsqldb.tx=mvcc` this is a  cromwell default for running with hsqldb.
+* `hsqldb.large_data=true`. Cromwell creates huge DBs that need to be opened.
+* `hsqldb.applog=1`. Log errors relating to the database.
+* `hsqldb.lob_compressed=true`. Compress lobs. This saves some space. Do note that lobs are 
+  compressed individually. The total database will still contain a lot of redundancy because a
+  lot of lobs will be similar.
+* `hsqldb.script_format=3`. Compress script. (uses gzip internally). 
+   The script can still be opened normally after decompressing with gzip.
+* `connectionTimeout = 120000` opening the large database files again when running cromwell will 
+  take some time. The default timeout of 3000 ms (3s) is not enough. So it is set to 120000ms (120s).
+* `numThreads = 1`. This will limit the CPU usage of Cromwell, which can be useful in HPC environments.
+
+Comparison to MySQL (or PostgreSQL) server:
+Advantages:
+
+* No need to set up a server
+* No worries about database users, passwords and permissions. This will be handled by filesystem permissions.
+
+Disadvantages:
+
+* Cromwell requires more memory
+* The database files will consume a lot of disk space (multiple gigabytes are not uncommon)
+* Cromwell's interaction with the database is slower.
+
+Comparison to the default in-memory database:
+Advantages:
+
+* Much less memory needed.
+* Call-caching enabled
+
+Disadvantages:
+
+* Slower.
+
+### Abort
 
 **Control-C (SIGINT) abort handler**
 
@@ -296,7 +414,8 @@ Read the [Abort](execution/ExecutionTwists/#abort) section to learn more about h
 
 ### Call caching
 
-Call Caching allows Cromwell to detect when a job has been run in the past so it doesn't have to re-compute results.  To learn more see [Call Caching](cromwell_features/CallCaching).
+Call Caching allows Cromwell to detect when a job has been run in the past so it doesn't have to re-compute results.  
+To learn more see [Call Caching](cromwell_features/CallCaching).
 
 To enable Call Caching, add the following to your Cromwell configuration:
 
@@ -314,25 +433,45 @@ Cromwell also accepts [Workflow Options](wf_options/Overview#call-caching-option
 
 ### Local filesystem options
 
-When running a job on the Config (Shared Filesystem) backend, Cromwell provides some additional options in the backend's config section:
+When running a job on the Config (Shared Filesystem) backend, Cromwell provides some additional options in the backend's 
+config section:
 
 ```HOCON
       config {
         filesystems {
           local {
+            # When localizing a file, what type of file duplication should occur. 
+            # possible values: "hard-link", "soft-link", "copy", "cached-copy".
+            # For more information check: https://cromwell.readthedocs.io/en/stable/backends/HPC/#shared-filesystem
+            localization: [
+              "hard-link", "soft-link", "copy"
+            ]
+
             caching {
-              # When copying a cached result, what type of file duplication should occur. Attempted in the order listed below:
+              # When copying a cached result, what type of file duplication should occur. 
+              # possible values: "hard-link", "soft-link", "copy", "cached-copy".
+              # For more information check: https://cromwell.readthedocs.io/en/stable/backends/HPC/#shared-filesystem
+              # Attempted in the order listed below:
               duplication-strategy: [
                 "hard-link", "soft-link", "copy"
               ]
 
-              # Possible values: file, path, path+modtime
-              # "file" will compute an md5 hash of the file content.
+              # Possible values: md5, xxh64, fingerprint, path, path+modtime
+              # For extended explanation check: https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching
+              # "md5" will compute an md5 hash of the file content.
+              # "xxh64" will compute an xxh64 hash of the file content. Much faster than md5
+              # "fingerprint" will take last modified time, size and hash the first 10 mb with xxh64 to create a file fingerprint.
+              # This strategy will only be effective if the duplication-strategy (above) is set to "hard-link", as copying changes the last modified time.
               # "path" will compute an md5 hash of the file path. This strategy will only be effective if the duplication-strategy (above) is set to "soft-link",
               # in order to allow for the original file path to be hashed.
               # "path+modtime" will compute an md5 hash of the file path and the last modified time. The same conditions as for "path" apply here.
-              # Default: file
-              hashing-strategy: "file"
+              # Default: "md5"
+              hashing-strategy: "md5"
+              
+              # When the 'fingerprint' strategy is used set how much of the beginning of the file is read as fingerprint. 
+              # If the file is smaller than this size the entire file will be read.
+              # Default: 10485760 (10MB). 
+              fingerprint-size: 10485760
 
               # When true, will check if a sibling file with the same name and the .md5 extension exists, and if it does, use the content of this file as a hash.
               # If false or the md5 does not exist, will proceed with the above-defined hashing strategy.
@@ -344,6 +483,30 @@ When running a job on the Config (Shared Filesystem) backend, Cromwell provides 
       }
 ```
 
+#### Call cache strategy options for local filesystem
+
+* hash based options. These read the entire file. These strategies work with containers.
+    * `xxh64` (community-supported*). This uses the 64-bit implementation of the [xxHash](https://www.xxhash.com)
+             algorithm. This algorithm is optimized for file integrity hashing and provides a more than 10x speed improvement over
+             md5.
+    * `md5`. The well-known md5sum algorithm
+* Path based options. These are based on filepath. Extremely lightweight, but only work with the `soft-link` file 
+caching strategy and can therefore never work with containers.
+    * `path` creates a md5 hash of the path.
+    * `path+modtime` creates a md5 hash of the path and its modification time.
+* Fingerprinting. This strategy works with containers.
+    * `fingerprint` (community-supported*) tries to create a fingerprint for each file by taking its last modified time (milliseconds since
+       epoch in hexadecimal) + size (bytes in hexadecimal) + the xxh64 sum of the first 10 MB** of the file. 
+       It is much more lightweight than the hash based options while still unique enough that collisions are unlikely. This 
+       strategy works well for workflows that generate multi-gigabyte files and where hashing these files on the 
+       cromwell instance provides CPU or I/O problems. 
+       NOTE: This strategy requires hard-linking as a dupliation strategy, as copying changes the last modified time.
+
+(*) The `fingerprint` and `xxh64` strategies are features that are community supported by Cromwell's HPC community. There
+is no official support from the core Cromwell team.
+
+(**) This value is configurable.
+ 
 ### Workflow log directory
 
 To change the directory where Cromwell writes workflow logs, change the directory location via the setting:
@@ -396,5 +559,138 @@ per-backend basis with `<config-key-for-backend>.job-shell`. For example:
 For the Config backend the value of the job shell will be available in the `${job_shell}` variable. See Cromwell's `reference.conf` for an example
 of how this is used for the default configuration of the `Local` backend.
 
-[cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.examples.conf
+[cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends/cromwell.examples.conf
 [cromwell-examples-folder]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends
+
+### Workflow Heartbeats
+
+**Cromwell ID**
+
+Each Cromwell instance is assigned a `cromwell_id`. By default, the Cromwell ID is `cromid-<7_digit_random_hex>`.
+A custom identifier may replace the "cromid" portion of the string. For example:
+
+```hocon
+system {
+  cromwell_id = "main"
+}
+```
+
+This would generates a `cromwell_id` of `main-<7_digit_random_hex>`. Each time Cromwell restarts the random part of the
+ID will change, however the `main` prefix would remain the same.
+
+If the random part of the Cromwell ID should not be generated, set the configuration value:
+
+```hocon
+system {
+  cromwell_id_random_suffix = false
+}
+```
+
+**Heartbeat TTL**
+
+When a Cromwell instance begins running or resuming a workflow it stores the above `cromwell_id` within the database row
+for the workflow, along with a timestamp called the "heartbeat". As the workflow continues to run the Cromwell instance
+will intermittently update the heartbeat for the running workflow.  If the Cromwell dies, after some time-to-live (TTL),
+the workflow has been abandoned, and will be resumed by another available Cromwell instance.
+
+Adjust the heartbeat TTL via the configuration value:
+
+```hocon
+system.workflow-heartbeats {
+  ttl = 10 minutes
+}
+```
+
+The default TTL is 10 minutes. The shortest allowable value for the TTL option is 10 seconds.
+
+**Heartbeat Interval**
+
+The interval for writing heartbeats may be adjusted via:
+
+```hocon
+system.workflow-heartbeats {
+  heartbeat-interval = 2 minutes
+}
+```
+
+The default interval is 2 minutes. The shortest interval option is 3.333 seconds. The interval may not be greater than
+the TTL.
+
+**Heartbeat Failure Shutdown**
+
+Cromwell will automatically shutdown when unable to write heartbeats for a period of time. This period of time may be
+adjusted via:
+
+```hocon
+system.workflow-heartbeats {
+  write-failure-shutdown-duration = 5 minutes
+}
+```
+
+The default shutdown duration is 5 minutes. The maximum allowed shutdown duration is the TTL.
+
+**Heartbeat Batch Size**
+
+Workflow heartbeats are internally queued by Cromwell and written in batches. When the configurable batch size is
+reached, all of the heartbeats within the batch will be written at the same time, even if the heartbeat interval has not
+elapsed.
+
+This batch threshold may be adjusted via:
+
+```hocon
+system.workflow-heartbeats {
+  write-batch-size = 100
+}
+```
+
+The default batch size is 100.
+
+**Heartbeat Threshold**
+
+Cromwell writes one batch of workflow heartbeats at a time. While the internal queue of heartbeats-to-write passes above
+a configurable threshold then [instrumentation](developers/Instrumentation.md) may send a metric signal that the
+heartbeat load is above normal.
+
+This threshold may be configured via the configuration value:
+
+```hocon
+system.workflow-heartbeats {
+  write-threshold = 100
+}
+```
+
+The default threshold value is 100, just like the default for the heartbeat batch size.
+
+### YAML
+
+**Maximum number of nodes**
+
+Cromwell will throw an error when detecting cyclic loops in Yaml inputs. However one can craft small acyclic YAML
+documents that consume significant amounts of memory or cpu. To limit the amount of processing during parsing, there is
+a limit on the number of nodes parsed per YAML document.
+
+This limit may be configured via the configuration value:
+
+```hocon
+yaml {
+  max-nodes = 1000000
+}
+```
+
+The default limit is 1,000,000 nodes.
+
+**Maximum nesting depth**
+
+There is a limit on the maximum depth of nested YAML. If you decide to increase this value, you will likely need to also
+increase the Java Virtual Machine's thread stack size as well using
+[either `-Xss` or `-XX:ThreadStackSize`](https://docs.oracle.com/javase/8/docs/technotes/tools/unix/java.html).
+
+This limit may be configured via the configuration value:
+
+```hocon
+yaml {
+  max-depth = 1000
+}
+```
+
+The default limit is a maximum nesting depth of 1,000.

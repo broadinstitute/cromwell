@@ -2,6 +2,7 @@ package centaur.cwl
 
 import centaur.api.CentaurCromwellClient
 import centaur.test.metadata.WorkflowFlatMetadata._
+import common.collections.EnhancedCollections._
 import common.validation.IOChecked._
 import cromwell.api.model.SubmittedWorkflow
 import cromwell.core.path.PathBuilder
@@ -9,7 +10,7 @@ import cwl.ontology.Schema
 import cwl.{Cwl, CwlDecoder, MyriadOutputType}
 import io.circe.Json
 import io.circe.syntax._
-import scalaz.syntax.std.map._
+import mouse.map._
 import shapeless.Poly1
 import spray.json.{JsObject, JsString, JsValue}
 
@@ -51,7 +52,7 @@ object Outputs {
                   //converting the whole response to Json using Circe's auto-encoder derivation
                   asJson.
                   //drop null values so that we don't print when Option == None
-                  pretty(io.circe.Printer.spaces2.copy(dropNullValues = true))
+                  printWith(io.circe.Printer.spaces2.copy(dropNullValues = true))
               case other => s"it seems cromwell is not returning outputs as a Jsobject but is instead a $other"
             }
           case Right(Left(error)) => s"couldn't parse workflow: $workflow failed with error: $error"

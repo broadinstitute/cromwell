@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="tjeandet" id="DOCKER_HASH_STORE_ENTRY">
+    <changeSet author="tjeandet" id="DOCKER_HASH_STORE_ENTRY" dbms="mysql,hsqldb">
         <comment>
             Temporary storage area for docker hashes from workflows that are still in progress.
         </comment>
@@ -26,7 +26,7 @@
         </modifySql>
     </changeSet>
 
-    <changeSet author="tjeandet" id="docker_hash_store_uuid_unique_constraint">
+    <changeSet author="tjeandet" id="docker_hash_store_uuid_unique_constraint" dbms="mysql,hsqldb">
         <addUniqueConstraint
                 constraintName="UC_DOCKER_HASH_STORE_ENTRY_WEU_DT"
                 tableName="DOCKER_HASH_STORE_ENTRY"

@@ -6,10 +6,10 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.pattern.GracefulStopSupport
 import akka.stream.ActorMaterializer
 import cats.data.Validated._
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import cats.syntax.apply._
 import cats.syntax.validated._
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import cromwell.CommandLineArguments.{ValidSubmission, WorkflowSourceOrUrl}
@@ -21,34 +21,36 @@ import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDepe
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.server.{CromwellServer, CromwellShutdown, CromwellSystem}
-import io.sentry.Sentry
-import io.sentry.config.Lookup
-import io.sentry.dsn.Dsn
-import io.sentry.util.Util
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future, TimeoutException}
+import scala.concurrent.{Await, ExecutionContext, Future, TimeoutException}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object CromwellEntryPoint extends GracefulStopSupport {
 
-  lazy val EntryPointLogger = LoggerFactory.getLogger("Cromwell EntryPoint")
+  private lazy val EntryPointLogger = LoggerFactory.getLogger("Cromwell EntryPoint")
   private lazy val config = ConfigFactory.load()
 
   // Only abort jobs on SIGINT if the config explicitly sets system.abort-jobs-on-terminate = true.
-  val abortJobsOnTerminate = config.as[Option[Boolean]]("system.abort-jobs-on-terminate")
+  private val abortJobsOnTerminate = config.as[Option[Boolean]]("system.abort-jobs-on-terminate")
 
-  val gracefulShutdown = config.as[Boolean]("system.graceful-server-shutdown")
+  private val gracefulShutdown = config.as[Boolean]("system.graceful-server-shutdown")
+
+  // 3 minute DNS TTL down from JVM default of infinite [BA-6454]
+  private val dnsCacheTtl = config.getOrElse("system.dns-cache-ttl", 3 minutes)
+  java.security.Security.setProperty("networkaddress.cache.ttl", dnsCacheTtl.toSeconds.toString)
 
   /**
     * Run Cromwell in server mode.
     */
-  def runServer() = {
-    val system = buildCromwellSystem(Server)
+  def runServer(): Unit = {
+    initLogging(Server)
+
+    val system = buildCromwellSystem()
     waitAndExit(CromwellServer.run(gracefulShutdown, abortJobsOnTerminate.getOrElse(false)) _, system)
   }
 
@@ -56,11 +58,21 @@ object CromwellEntryPoint extends GracefulStopSupport {
     * Run a single workflow using the successfully parsed but as yet not validated arguments.
     */
   def runSingle(args: CommandLineArguments): Unit = {
-    val cromwellSystem = buildCromwellSystem(Run)
-    implicit val actorSystem = cromwellSystem.actorSystem
+    initLogging(Run)
 
     val sources = validateRunArguments(args)
-    val runnerProps = SingleWorkflowRunnerActor.props(sources, args.metadataOutput, gracefulShutdown, abortJobsOnTerminate.getOrElse(true))(cromwellSystem.materializer)
+
+    val cromwellSystem = buildCromwellSystem()
+    implicit val actorSystem: ActorSystem = cromwellSystem.actorSystem
+
+    val runnerProps = SingleWorkflowRunnerActor.props(
+      source = sources,
+      metadataOutputFile = args.metadataOutput,
+      terminator = cromwellSystem,
+      gracefulShutdown = gracefulShutdown,
+      abortJobsOnTerminate = abortJobsOnTerminate.getOrElse(true),
+      config = cromwellSystem.config
+    )(cromwellSystem.materializer)
 
     val runner = cromwellSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
 
@@ -72,9 +84,10 @@ object CromwellEntryPoint extends GracefulStopSupport {
     initLogging(Submit)
     lazy val Log = LoggerFactory.getLogger("cromwell-submit")
 
-    implicit val actorSystem = ActorSystem("SubmitSystem")
-    implicit val materializer = ActorMaterializer()
-    implicit val ec = actorSystem.dispatcher
+    implicit val actorSystem: ActorSystem = ActorSystem("SubmitSystem")
+    implicit val materializer: ActorMaterializer = ActorMaterializer()
+    implicit val ec: ExecutionContext = actorSystem.dispatcher
+    implicit val cs: ContextShift[IO] = IO.contextShift(ec)
 
     val cromwellClient = new CromwellClient(args.host, "v2")
 
@@ -103,11 +116,12 @@ object CromwellEntryPoint extends GracefulStopSupport {
     waitAndExit(submissionFuture, () => actorSystem.terminate())
   }
 
-  private def buildCromwellSystem(command: Command): CromwellSystem = {
-    initLogging(command)
+  private def buildCromwellSystem(): CromwellSystem = {
     lazy val Log = LoggerFactory.getLogger("cromwell")
     Try {
-      new CromwellSystem {}
+      new CromwellSystem {
+        override lazy val config: Config = CromwellEntryPoint.config
+      }
     } recoverWith {
       case t: Throwable =>
         Log.error(s"Failed to instantiate Cromwell System. Shutting down Cromwell.", t)
@@ -152,15 +166,10 @@ object CromwellEntryPoint extends GracefulStopSupport {
     Make sure that the next time one uses the ConfigFactory that our updated system properties are loaded.
      */
     ConfigFactory.invalidateCaches()
-
-    // Quiet warnings about missing sentry DSNs by just providing the default.
-    val dsn = Option(Lookup.lookup("dsn")).filterNot(Util.isNullOrEmpty).getOrElse(
-      Dsn.DEFAULT_DSN + "&stacktrace.app.packages=quieted_with_any_value_because_empty_was_not_working")
-    Sentry.init(dsn)
     ()
   }
 
-  protected def waitAndExit[A](operation: () => Future[A], shutdown: () => Future[Any]) = {
+  protected def waitAndExit[A](operation: () => Future[A], shutdown: () => Future[Any]): Nothing = {
     val futureResult = operation()
     Await.ready(futureResult, Duration.Inf)
 
@@ -190,12 +199,14 @@ object CromwellEntryPoint extends GracefulStopSupport {
     import spray.json._
 
     val validation = args.validateSubmission(EntryPointLogger) map {
-      case ValidSubmission(w, u, r, i, o, l, z) =>
-        val finalWorkflowSourceAndUrl: WorkflowSourceOrUrl = {
-          if (w.isDefined) WorkflowSourceOrUrl(w,u)  // submission has CWL workflow file path and no imports
-          else if (u.get.startsWith("http")) WorkflowSourceOrUrl(w, u)
-          else WorkflowSourceOrUrl(Option(DefaultPathBuilder.get(u.get).contentAsString), None) //case where url is a WDL/CWL file
-        }
+      case ValidSubmission(s, u, r, i, o, l, z) =>
+        val finalWorkflowSourceAndUrl: WorkflowSourceOrUrl =
+          (s, u) match {
+            case (None, Some(url)) if !url.startsWith("http") => //case where url is a WDL/CWL file
+              WorkflowSourceOrUrl(Option(DefaultPathBuilder.get(url).contentAsString), None)
+            case _ =>
+              WorkflowSourceOrUrl(s, u)
+          }
 
         WorkflowSingleSubmission(
           workflowSource = finalWorkflowSourceAndUrl.source,
@@ -204,7 +215,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,
           inputsJson = Option(i),
-          options = Option(o),
+          options = Option(o.asPrettyJson),
           labels = Option(l.parseJson.convertTo[List[Label]]),
           zippedImports = z)
     }
@@ -213,31 +224,32 @@ object CromwellEntryPoint extends GracefulStopSupport {
   }
 
   def validateRunArguments(args: CommandLineArguments): WorkflowSourceFilesCollection = {
+
     val sourceFileCollection = (args.validateSubmission(EntryPointLogger), writeableMetadataPath(args.metadataOutput)) mapN {
-      case (ValidSubmission(w, u, r, i, o, l, Some(z)), _) =>
+      case (ValidSubmission(s, u, r, i, o, l, Some(z)), _) =>
         //noinspection RedundantDefaultArgument
         WorkflowSourceFilesWithDependenciesZip.apply(
-          workflowSource = w,
+          workflowSource = s,
           workflowUrl = u,
           workflowRoot = r,
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,
           inputsJson = i,
-          workflowOptionsJson = o,
+          workflowOptions = o,
           labelsJson = l,
           importsZip = z.loadBytes,
           warnings = Vector.empty,
           workflowOnHold = false)
-      case (ValidSubmission(w, u, r, i, o, l, None), _) =>
+      case (ValidSubmission(s, u, r, i, o, l, None), _) =>
         //noinspection RedundantDefaultArgument
         WorkflowSourceFilesWithoutImports.apply(
-          workflowSource = w,
+          workflowSource = s,
           workflowUrl = u,
           workflowRoot = r,
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,
           inputsJson = i,
-          workflowOptionsJson = o,
+          workflowOptions = o,
           labelsJson = l,
           warnings = Vector.empty,
           workflowOnHold = false)

@@ -1,9 +1,10 @@
 package cromwell.backend.impl.bcs
 
 import com.typesafe.config.ConfigValueFactory
+import cromwell.backend.impl.bcs.callcaching.UseOriginalCachedOutputs
 
 class BcsConfigurationSpec extends BcsTestUtilSpec {
-  behavior of s"BcsConfiguration"
+  behavior of "BcsConfiguration"
   type ValueOrDelete = Either[Boolean, AnyRef]
 
   def backendConfiguration = BcsTestUtilSpec.BcsBackendConfigurationDescriptor
@@ -24,6 +25,14 @@ class BcsConfigurationSpec extends BcsTestUtilSpec {
     conf.bcsAccessId shouldEqual Some(id)
     conf.bcsAccessKey shouldEqual Some(key)
   }
+
+  it should "have correct bcs callcaching strategy" in {
+    val region = "cn-hangzhou"
+    val configs = Map("region" -> Right(region))
+    val conf = withConfig(configs)
+    conf.duplicationStrategy shouldEqual UseOriginalCachedOutputs
+  }
+
 
   private def withConfig(configs: Map[String, ValueOrDelete]) = {
     var descriptor = BcsTestUtilSpec.BcsBackendConfigurationDescriptor.copy()

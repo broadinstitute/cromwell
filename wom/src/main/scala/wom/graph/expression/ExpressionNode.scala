@@ -1,8 +1,7 @@
 package wom.graph.expression
-
-import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
 import common.Checked
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.Validation._
@@ -11,6 +10,8 @@ import wom.graph.GraphNodePort.{ConnectedInputPort, GraphNodeOutputPort, InputPo
 import wom.graph.{GraphNode, GraphNodePort, GraphNodeWithSingleOutputPort, WomIdentifier}
 import wom.types.WomType
 import wom.values.WomValue
+
+import scala.util.Try
 
 /**
   * Encapsulates a WomExpression with input ports connected to the expression's dependencies.
@@ -40,7 +41,6 @@ abstract class ExpressionNode(override val identifier: WomIdentifier,
       evaluated <- evaluateAndCoerce(inputs, ioFunctionSet)
     } yield Map(singleOutputPort -> evaluated)
   }
-  
 }
 
 object ExpressionNode {
@@ -58,12 +58,16 @@ object ExpressionNode {
                                                (identifier: WomIdentifier, expression: WomExpression, inputMapping: Map[String, OutputPort]): ErrorOr[E] = {
     val graphNodeSetter = new GraphNode.GraphNodeSetter[ExpressionNode]()
 
-    (for {
+    val builtExpressionNode = for {
       combined <- linkWithInputs(graphNodeSetter, expression, inputMapping)
       (evaluatedType, inputPorts) = combined
       expressionNode = constructor(identifier, expression, evaluatedType, inputPorts)
       _ = graphNodeSetter._graphNode = expressionNode
-    } yield expressionNode).leftMap(es => es.map(e => s"Cannot build expression for '${identifier.fullyQualifiedName.value} = ${expression.sourceString}': $e"))
+    } yield expressionNode
+
+    def safeSourceString(e: WomExpression) = Try(expression.sourceString).getOrElse("<<expected an expression, none found>>")
+
+    builtExpressionNode.leftMap(_.map(e => s"Cannot build expression for '${identifier.fullyQualifiedName.value} = ${safeSourceString(expression)}': $e"))
   }
 
   /**

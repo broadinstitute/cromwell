@@ -1,0 +1,338 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.5.xsd">
+
+    <changeSet author="kshakir" id="mariadb-engine-init" dbms="mariadb">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <changeSetExecuted
+                        author="mcovarr"
+                        id="restore_auto_increment_call_caching_hash_entry_id"
+                        changeLogFile="changesets/enlarge_call_caching_hash_entry_id.xml"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="CALL_CACHING_AGGREGATION_ENTRY">
+            <column autoIncrement="true" name="CALL_CACHING_AGGREGATION_ENTRY_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_CALL_CACHING_AGGREGATION_ENTRY"/>
+            </column>
+            <column name="CALL_CACHING_ENTRY_ID" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="BASE_AGGREGATION" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="INPUT_FILES_AGGREGATION" type="VARCHAR(255)"/>
+        </createTable>
+
+        <createTable tableName="CALL_CACHING_DETRITUS_ENTRY">
+            <column autoIncrement="true" name="CALL_CACHING_DETRITUS_ENTRY_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_CALL_CACHING_DETRITUS_ENTRY"/>
+            </column>
+            <column name="DETRITUS_KEY" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="DETRITUS_VALUE" type="CLOB"/>
+            <column name="CALL_CACHING_ENTRY_ID" type="INT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createTable tableName="CALL_CACHING_ENTRY">
+            <column autoIncrement="true" name="CALL_CACHING_ENTRY_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_CALL_CACHING_ENTRY"/>
+            </column>
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CALL_FULLY_QUALIFIED_NAME" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="JOB_INDEX" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="RETURN_CODE" type="INT"/>
+            <column defaultValueBoolean="true" name="ALLOW_RESULT_REUSE" type="TINYINT">
+                <constraints nullable="false"/>
+            </column>
+            <column defaultValueComputed="NULL" name="JOB_ATTEMPT" type="INT"/>
+        </createTable>
+
+        <createTable tableName="CALL_CACHING_HASH_ENTRY">
+            <column autoIncrement="true" name="CALL_CACHING_HASH_ENTRY_ID" type="BIGINT">
+                <constraints primaryKey="true" primaryKeyName="PK_CALL_CACHING_HASH_ENTRY"/>
+            </column>
+            <column name="HASH_KEY" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="HASH_VALUE" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CALL_CACHING_ENTRY_ID" type="INT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createTable tableName="CALL_CACHING_SIMPLETON_ENTRY">
+            <column autoIncrement="true" name="CALL_CACHING_SIMPLETON_ENTRY_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_CALL_CACHING_SIMPLETON_ENTRY"/>
+            </column>
+            <column name="SIMPLETON_KEY" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="SIMPLETON_VALUE" type="CLOB"/>
+            <column name="WDL_TYPE" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CALL_CACHING_ENTRY_ID" type="INT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createTable tableName="DOCKER_HASH_STORE_ENTRY">
+            <column autoIncrement="true" name="DOCKER_HASH_STORE_ENTRY_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_DOCKER_HASH_STORE_ENTRY"/>
+            </column>
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="DOCKER_TAG" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="DOCKER_HASH" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column defaultValueComputed="NULL" name="DOCKER_SIZE" type="BIGINT"/>
+        </createTable>
+
+        <createTable tableName="JOB_KEY_VALUE_ENTRY">
+            <column autoIncrement="true" name="JOB_KEY_VALUE_ENTRY_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_JOB_KEY_VALUE_ENTRY"/>
+            </column>
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CALL_FULLY_QUALIFIED_NAME" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="JOB_INDEX" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="JOB_ATTEMPT" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="STORE_KEY" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="STORE_VALUE" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createTable tableName="JOB_STORE_ENTRY">
+            <column autoIncrement="true" name="JOB_STORE_ENTRY_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_JOB_STORE_ENTRY"/>
+            </column>
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CALL_FULLY_QUALIFIED_NAME" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="JOB_INDEX" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="JOB_ATTEMPT" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="JOB_SUCCESSFUL" type="TINYINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="RETURN_CODE" type="INT"/>
+            <column name="EXCEPTION_MESSAGE" type="CLOB"/>
+            <column name="RETRYABLE_FAILURE" type="TINYINT"/>
+        </createTable>
+
+        <createTable tableName="JOB_STORE_SIMPLETON_ENTRY">
+            <column autoIncrement="true" name="JOB_STORE_SIMPLETON_ENTRY_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_JOB_STORE_SIMPLETON_ENTRY"/>
+            </column>
+            <column name="SIMPLETON_KEY" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="SIMPLETON_VALUE" type="CLOB"/>
+            <column name="WDL_TYPE" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="JOB_STORE_ENTRY_ID" type="INT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createTable tableName="SUB_WORKFLOW_STORE_ENTRY">
+            <column autoIncrement="true" name="SUB_WORKFLOW_STORE_ENTRY_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_SUB_WORKFLOW_STORE_ENTRY"/>
+            </column>
+            <column name="ROOT_WORKFLOW_ID" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="PARENT_WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CALL_FULLY_QUALIFIED_NAME" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CALL_INDEX" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CALL_ATTEMPT" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="SUB_WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createTable tableName="WORKFLOW_STORE_ENTRY">
+            <column autoIncrement="true" name="WORKFLOW_STORE_ENTRY_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_WORKFLOW_STORE_ENTRY"/>
+            </column>
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="WORKFLOW_DEFINITION" type="CLOB"/>
+            <column name="WORKFLOW_INPUTS" type="CLOB"/>
+            <column name="WORKFLOW_OPTIONS" type="CLOB"/>
+            <column name="WORKFLOW_STATE" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="SUBMISSION_TIME" type="DATETIME(6)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="IMPORTS_ZIP" type="LONGBLOB"/>
+            <column name="CUSTOM_LABELS" type="CLOB">
+                <constraints nullable="false"/>
+            </column>
+            <column name="WORKFLOW_TYPE" type="VARCHAR(30)"/>
+            <column name="WORKFLOW_TYPE_VERSION" type="VARCHAR(255)"/>
+            <column name="WORKFLOW_ROOT" type="VARCHAR(100)"/>
+            <column name="CROMWELL_ID" type="VARCHAR(100)"/>
+            <column name="HEARTBEAT_TIMESTAMP" type="DATETIME(6)"/>
+            <column name="WORKFLOW_URL" type="VARCHAR(2000)"/>
+            <column name="HOG_GROUP" type="VARCHAR(100)"/>
+        </createTable>
+
+        <addUniqueConstraint
+                columnNames="CALL_CACHING_ENTRY_ID, DETRITUS_KEY"
+                constraintName="UC_CALL_CACHING_DETRITUS_ENTRY_CCEI_DK"
+                tableName="CALL_CACHING_DETRITUS_ENTRY"/>
+
+        <addUniqueConstraint
+                columnNames="WORKFLOW_EXECUTION_UUID, CALL_FULLY_QUALIFIED_NAME, JOB_INDEX"
+                constraintName="UC_CALL_CACHING_ENTRY_WEU_CFQN_JI"
+                tableName="CALL_CACHING_ENTRY"/>
+
+        <addUniqueConstraint
+                columnNames="CALL_CACHING_ENTRY_ID, HASH_KEY"
+                constraintName="UC_CALL_CACHING_HASH_ENTRY_CCEI_HK"
+                tableName="CALL_CACHING_HASH_ENTRY"/>
+
+        <addUniqueConstraint
+                columnNames="CALL_CACHING_ENTRY_ID, SIMPLETON_KEY"
+                constraintName="UC_CALL_CACHING_SIMPLETON_ENTRY_CCEI_SK"
+                tableName="CALL_CACHING_SIMPLETON_ENTRY"/>
+
+        <addUniqueConstraint
+                columnNames="WORKFLOW_EXECUTION_UUID, DOCKER_TAG"
+                constraintName="UC_DOCKER_HASH_STORE_ENTRY_WEU_DT"
+                tableName="DOCKER_HASH_STORE_ENTRY"/>
+
+        <addUniqueConstraint
+                columnNames="WORKFLOW_EXECUTION_UUID, CALL_FULLY_QUALIFIED_NAME, JOB_INDEX, JOB_ATTEMPT, STORE_KEY"
+                constraintName="UC_JOB_KEY_VALUE_ENTRY_WEU_CFQN_JI_JA_SK"
+                tableName="JOB_KEY_VALUE_ENTRY"/>
+
+        <addUniqueConstraint
+                columnNames="WORKFLOW_EXECUTION_UUID, CALL_FULLY_QUALIFIED_NAME, JOB_INDEX, JOB_ATTEMPT"
+                constraintName="UC_JOB_STORE_ENTRY_WEU_CFQN_JI_JA"
+                tableName="JOB_STORE_ENTRY"/>
+
+        <addUniqueConstraint
+                columnNames="JOB_STORE_ENTRY_ID, SIMPLETON_KEY"
+                constraintName="UC_JOB_STORE_SIMPLETON_ENTRY_JSEI_SK"
+                tableName="JOB_STORE_SIMPLETON_ENTRY"/>
+
+        <addUniqueConstraint
+                columnNames="PARENT_WORKFLOW_EXECUTION_UUID, CALL_FULLY_QUALIFIED_NAME, CALL_INDEX, CALL_ATTEMPT"
+                constraintName="UC_SUB_WORKFLOW_STORE_ENTRY_PWEU_CFQN_CI_CA"
+                tableName="SUB_WORKFLOW_STORE_ENTRY"/>
+
+        <addUniqueConstraint
+                columnNames="WORKFLOW_EXECUTION_UUID"
+                constraintName="UC_WORKFLOW_STORE_ENTRY_WEU"
+                tableName="WORKFLOW_STORE_ENTRY"/>
+
+        <createIndex indexName="IX_CALL_CACHING_AGGREGATION_ENTRY_BA_IFA" tableName="CALL_CACHING_AGGREGATION_ENTRY">
+            <column name="BASE_AGGREGATION"/>
+            <column name="INPUT_FILES_AGGREGATION"/>
+        </createIndex>
+
+        <createIndex indexName="IX_JOB_STORE_ENTRY_WEU" tableName="JOB_STORE_ENTRY">
+            <column name="WORKFLOW_EXECUTION_UUID"/>
+        </createIndex>
+
+        <createIndex indexName="IX_SUB_WORKFLOW_STORE_ENTRY_PWEU" tableName="SUB_WORKFLOW_STORE_ENTRY">
+            <column name="PARENT_WORKFLOW_EXECUTION_UUID"/>
+        </createIndex>
+
+        <createIndex indexName="IX_WORKFLOW_STORE_ENTRY_WS" tableName="WORKFLOW_STORE_ENTRY">
+            <column name="WORKFLOW_STATE"/>
+        </createIndex>
+
+        <addForeignKeyConstraint
+                baseColumnNames="CALL_CACHING_ENTRY_ID"
+                baseTableName="CALL_CACHING_AGGREGATION_ENTRY"
+                constraintName="FK_CALL_CACHING_AGGREGATION_ENTRY_CALL_CACHING_ENTRY_ID"
+                referencedColumnNames="CALL_CACHING_ENTRY_ID"
+                referencedTableName="CALL_CACHING_ENTRY"/>
+
+        <addForeignKeyConstraint
+                baseColumnNames="CALL_CACHING_ENTRY_ID"
+                baseTableName="CALL_CACHING_DETRITUS_ENTRY"
+                constraintName="FK_CALL_CACHING_DETRITUS_ENTRY_CALL_CACHING_ENTRY_ID"
+                referencedColumnNames="CALL_CACHING_ENTRY_ID"
+                referencedTableName="CALL_CACHING_ENTRY"/>
+
+        <addForeignKeyConstraint
+                baseColumnNames="CALL_CACHING_ENTRY_ID"
+                baseTableName="CALL_CACHING_HASH_ENTRY"
+                constraintName="FK_CALL_CACHING_HASH_ENTRY_CALL_CACHING_ENTRY_ID"
+                referencedColumnNames="CALL_CACHING_ENTRY_ID"
+                referencedTableName="CALL_CACHING_ENTRY"/>
+
+        <addForeignKeyConstraint
+                baseColumnNames="CALL_CACHING_ENTRY_ID"
+                baseTableName="CALL_CACHING_SIMPLETON_ENTRY"
+                constraintName="FK_CALL_CACHING_SIMPLETON_ENTRY_CALL_CACHING_ENTRY_ID"
+                referencedColumnNames="CALL_CACHING_ENTRY_ID"
+                referencedTableName="CALL_CACHING_ENTRY"/>
+
+        <addForeignKeyConstraint
+                baseColumnNames="JOB_STORE_ENTRY_ID"
+                baseTableName="JOB_STORE_SIMPLETON_ENTRY"
+                constraintName="FK_JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_ENTRY_ID"
+                onDelete="CASCADE"
+                referencedColumnNames="JOB_STORE_ENTRY_ID"
+                referencedTableName="JOB_STORE_ENTRY"/>
+
+        <addForeignKeyConstraint
+                baseColumnNames="ROOT_WORKFLOW_ID"
+                baseTableName="SUB_WORKFLOW_STORE_ENTRY"
+                constraintName="FK_SUB_WORKFLOW_STORE_ENTRY_ROOT_WORKFLOW_ID"
+                onDelete="CASCADE"
+                referencedColumnNames="WORKFLOW_STORE_ENTRY_ID"
+                referencedTableName="WORKFLOW_STORE_ENTRY"/>
+    </changeSet>
+</databaseChangeLog>

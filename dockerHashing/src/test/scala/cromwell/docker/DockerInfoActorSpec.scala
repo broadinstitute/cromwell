@@ -3,19 +3,21 @@ package cromwell.docker
 import cromwell.core.Tags.IntegrationTest
 import cromwell.docker.DockerInfoActor._
 import cromwell.docker.registryv2.flows.dockerhub.DockerHubRegistry
-import cromwell.docker.registryv2.flows.gcr.GcrRegistry
+import cromwell.docker.registryv2.flows.google.GoogleRegistry
 import cromwell.docker.registryv2.flows.quay.QuayRegistry
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class DockerInfoActorSpec extends DockerRegistrySpec("DockerHashActorSpec") with FlatSpecLike with Matchers with BeforeAndAfterAll {
+class DockerInfoActorSpec extends DockerRegistrySpec with AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
   behavior of "DockerRegistryActor"
 
   override protected lazy val registryFlows = List(
     new DockerHubRegistry(DockerRegistryConfig.default),
-    new GcrRegistry(DockerRegistryConfig.default),
+    new GoogleRegistry(DockerRegistryConfig.default),
     new QuayRegistry(DockerRegistryConfig.default)
   )
 
@@ -31,6 +33,16 @@ class DockerInfoActorSpec extends DockerRegistrySpec("DockerHashActorSpec") with
 
   it should "retrieve a public docker hash on gcr" taggedAs IntegrationTest in {
     dockerActor ! makeRequest("gcr.io/google-containers/alpine-with-bash:1.0")
+
+    expectMsgPF(5 second) {
+      case DockerInfoSuccessResponse(DockerInformation(DockerHashResult(alg, hash), _), _) =>
+        alg shouldBe "sha256"
+        hash should not be empty
+    }
+  }
+
+  it should "retrieve a public docker hash on gar" taggedAs IntegrationTest in {
+    dockerActor ! makeRequest("us-central1-docker.pkg.dev/broad-dsde-cromwell-dev/bt-335/ubuntu:bt-335")
 
     expectMsgPF(5 second) {
       case DockerInfoSuccessResponse(DockerInformation(DockerHashResult(alg, hash), _), _) =>
@@ -74,7 +86,10 @@ class DockerInfoActorSpec extends DockerRegistrySpec("DockerHashActorSpec") with
     
     // Send back success, failure, success, failure, ...
     val mockHttpFlow = new DockerRegistryMock(mockResponseSuccess, mockResponseFailure)
-    val dockerActorWithCache = system.actorOf(DockerInfoActor.props(Seq(mockHttpFlow), 1000, 3 seconds, 10))
+    val dockerActorWithCache = system.actorOf(
+      props = DockerInfoActor.props(Seq(mockHttpFlow), 1000, 3 seconds, 10),
+      name = "dockerActorWithCache",
+    )
     
     dockerActorWithCache ! request
     expectMsg(DockerInfoSuccessResponse(DockerInformation(hashSuccess, None), request))
@@ -97,7 +112,10 @@ class DockerInfoActorSpec extends DockerRegistrySpec("DockerHashActorSpec") with
 
 
   it should "not deadlock" taggedAs IntegrationTest in {
-    lazy val dockerActorScale = system.actorOf(DockerInfoActor.props(registryFlows, 1000, 20.minutes, 0))
+    lazy val dockerActorScale = system.actorOf(
+      props = DockerInfoActor.props(registryFlows, 1000, 20.minutes, 0),
+      name = "dockerActorScale",
+    )
     0 until 400 foreach { _ =>
       dockerActorScale ! makeRequest("gcr.io/google-containers/alpine-with-bash:1.0")
     }

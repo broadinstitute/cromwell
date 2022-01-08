@@ -3,6 +3,7 @@
   "errors" : [
     "ERROR: Unexpected end of file"
   ],
+  "validWorkflow" : false,
   "name" : "",
   "inputs" : [
   ],
@@ -11,11 +12,16 @@
   "images" : [
   ],
   "submittedDescriptorType" : {
-
+    "descriptorType" : "WDL",
+    "descriptorTypeVersion" : "1.0"
   },
   "importedDescriptorTypes" : [
   ],
   "meta" : {
 
-  }
+  },
+  "parameterMeta" : {
+
+  },
+  "isRunnableWorkflow" : false
 }

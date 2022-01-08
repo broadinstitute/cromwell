@@ -3,7 +3,7 @@
 This is a folder of example backend providers for Cromwell. You can read about
 the providers here, and then copy paste one or more of the providers you want
 to use to your Cromwell configuration file, represented here as the
-[cromwell.example.conf](../cromwell.example.conf) file in the base of the 
+[cromwell.examples.conf](cromwell.examples.conf) file in the base of the 
 repository.
 
 ## What are the backend providers?
@@ -30,7 +30,6 @@ repository.
  - [LSF](LSF.conf): the Platform Load Sharing Facility backend ([documentation](https://cromwell.readthedocs.io/en/stable/backends/LSF/))
  - [SGE](SGE.conf): a backend for Sungrid Engine ([documentation](https://cromwell.readthedocs.io/en/stable/backends/SGE))
  - [slurm](slurm.conf): SLURM workload manager ([documentation](https://cromwell.readthedocs.io/en/stable/backends/SLURM/))
- - [Spark](Spark.conf): a backend for a Spark cluster ([documentation](https://cromwell.readthedocs.io/en/stable/backends/Spark/))
 
 ### Custom
 
@@ -59,7 +58,7 @@ backend {
 
 The examples here also have this section. You would want to copy paste the content
 of the file, specifically the section for the provider under backend -> providers,
-into the backend -> providers section in the [cromwell.example.conf](../cromwell.example.conf).
+into the backend -> providers section in the [cromwell.examples.conf](cromwell.examples.conf).
 Here is what it would look like to add the [slurm](slurm.conf) backend
 provider example. 
 

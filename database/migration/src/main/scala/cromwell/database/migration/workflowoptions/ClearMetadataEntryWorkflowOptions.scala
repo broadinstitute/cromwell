@@ -11,5 +11,5 @@ class ClearMetadataEntryWorkflowOptions extends WorkflowOptionsChange {
   override val workflowOptionsColumn = "METADATA_VALUE"
   override val additionalReadBatchFilters = "AND METADATA_KEY = 'submittedFiles:options'"
 
-  override def migrateWorkflowOptions(workflowOptions: WorkflowOptions) = workflowOptions.clearEncryptedValues
+  override def migrateWorkflowOptions(workflowOptions: WorkflowOptions) = workflowOptions.clearEncryptedValues.asPrettyJson
 }

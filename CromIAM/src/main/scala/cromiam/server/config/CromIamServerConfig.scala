@@ -1,9 +1,7 @@
 package cromiam.server.config
 
 import akka.http.scaladsl.settings.ServerSettings
-import cats.instances.option._
 import cats.syntax.apply._
-import cats.syntax.functor._
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
@@ -16,7 +14,6 @@ import scala.util.{Failure, Success, Try}
 
 final case class CromIamServerConfig(cromIamConfig: CromIamConfig,
                                      cromwellConfig: ServiceConfig,
-                                     cromwellAbortConfig: ServiceConfig,
                                      samConfig: SamClientConfig,
                                      swaggerOauthConfig: SwaggerOauthConfig)
 
@@ -24,12 +21,10 @@ object CromIamServerConfig {
   def getFromConfig(conf: Config): ErrorOr[CromIamServerConfig] = {
     val cromIamConfig = CromIamConfig.getFromConfig(conf, "cromiam")
     val cromwellConfig = ServiceConfig.getFromConfig(conf, "cromwell")
-    val cromwellAbortConfig = conf.as[Option[Config]]("cromwell_abort") as { ServiceConfig.getFromConfig(conf, "cromwell_abort") }
-    val effectiveCromwellAbortConfig = cromwellAbortConfig.getOrElse(cromwellConfig)
     val samConfig = SamClientConfig.getFromConfig(conf, "sam")
     val googleConfig = SwaggerOauthConfig.getFromConfig(conf, "swagger_oauth")
 
-    (cromIamConfig, cromwellConfig, effectiveCromwellAbortConfig, samConfig, googleConfig) mapN CromIamServerConfig.apply
+    (cromIamConfig, cromwellConfig, samConfig, googleConfig) mapN CromIamServerConfig.apply
   }
 
   private[config] def getValidatedConfigPath[A](conf: Config, path: String, getter: (Config, String) => A, default: Option[A] = None): ErrorOr[A] = {

@@ -31,7 +31,7 @@ import scala.collection.JavaConverters._
 
 class WomGraph(graphName: String, graph: Graph) {
 
-  def indent(s: String) = s.lines.map(x => s"  $x").mkString(System.lineSeparator)
+  def indent(s: String) = s.linesIterator.map(x => s"  $x").mkString(System.lineSeparator)
   def combine(ss: Iterable[String]) = ss.mkString(start="", sep=System.lineSeparator, end=System.lineSeparator)
   def indentAndCombine(ss: Iterable[String]) = combine(ss.map(indent))
   implicit val monoid = cats.derived.MkMonoid[NodesAndLinks]
@@ -160,7 +160,7 @@ class WomGraph(graphName: String, graph: Graph) {
 }
 
 object WomGraph {
-  
+
   implicit val cwlPreProcessor = CwlPreProcessor.noLogging
 
   final case class WorkflowDigraph(workflowName: String, digraph: NodesAndLinks)
@@ -188,7 +188,7 @@ object WomGraph {
       firstLine.startsWith("version 1.0")
     }
     val womBundle: Checked[WomBundle] = if (version1) {
-      val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen wrapAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, "{}", List.empty, List.empty, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
+      val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen wrapAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, "{}", convertNestedScatterToSubworkflow = true, List.empty, List.empty, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
       converter.run(File(filePath))
     } else {
 

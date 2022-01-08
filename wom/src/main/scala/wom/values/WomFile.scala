@@ -4,8 +4,9 @@ import java.io.FileNotFoundException
 import java.nio.file.NoSuchFileException
 
 import cats.effect.IO
-import cats.instances.list._
+import cats.effect.IO._
 import cats.syntax.parallel._
+import cats.instances.list._
 import common.validation.IOChecked
 import common.validation.IOChecked.IOChecked
 import wom.expression.IoFunctionSet
@@ -150,14 +151,14 @@ final case class WomUnlistedDirectory(value: String) extends WomPrimitiveFile {
   override def toWomString = s""""$value""""
 
   override def add(rhs: WomValue): Try[WomValue] = rhs match {
-    case r: WomString => Success(this.copy(value = value + r.value))
+    case r: WomString => Success(this.copy(value = value + r.value.trim))
     case r: WomOptionalValue => evaluateIfDefined("+", r, add)
     case _ => invalid(s"$value + $rhs")
   }
 
   override def equals(rhs: WomValue): Try[WomBoolean] = rhs match {
     case r: WomUnlistedDirectory => Success(WomBoolean(this.equals(r)))
-    case r: WomString => Success(WomBoolean(value.equals(r.value)))
+    case r: WomString => Success(WomBoolean(value.equals(r.value.trim)))
     case r: WomOptionalValue => evaluateIfDefined("==", r, equals)
     case _ => invalid(s"$value == $rhs")
   }
@@ -184,14 +185,14 @@ final case class WomSingleFile(value: String) extends WomPrimitiveFile {
   override def toWomString = s""""$value""""
 
   override def add(rhs: WomValue): Try[WomValue] = rhs match {
-    case r: WomString => Success(this.copy(value = value + r.value))
+    case r: WomString => Success(this.copy(value = value + r.value.trim))
     case r: WomOptionalValue => evaluateIfDefined("+", r, add)
     case _ => invalid(s"$value + $rhs")
   }
 
   override def equals(rhs: WomValue): Try[WomBoolean] = rhs match {
     case r: WomSingleFile => Success(WomBoolean(this.equals(r)))
-    case r: WomString => Success(WomBoolean(value.equals(r.value)))
+    case r: WomString => Success(WomBoolean(value.equals(r.value.trim)))
     case r: WomOptionalValue => evaluateIfDefined("==", r, equals)
     case _ => invalid(s"$value == $rhs")
   }
@@ -209,6 +210,7 @@ final case class WomSingleFile(value: String) extends WomPrimitiveFile {
   }
 
   override def withSize(ioFunctionSet: IoFunctionSet): IO[WomFile] = {
+    implicit def cs = ioFunctionSet.cs
     IO.fromFuture(IO { ioFunctionSet.size(value)})
       .map(Option.apply)
       .handleErrorWith(recoverFileNotFound(None))
@@ -232,14 +234,14 @@ final case class WomGlobFile(value: String) extends WomPrimitiveFile {
   override def toWomString = s"""glob("$value")"""
 
   override def add(rhs: WomValue): Try[WomValue] = rhs match {
-    case r: WomString => Success(this.copy(value + r.value))
+    case r: WomString => Success(this.copy(value + r.value.trim))
     case r: WomOptionalValue => evaluateIfDefined("+", r, add)
     case _ => invalid(s"$value + $rhs")
   }
 
   override def equals(rhs: WomValue): Try[WomBoolean] = rhs match {
     case r: WomGlobFile => Success(WomBoolean(value.equals(r.value) && womType.equals(r.womType)))
-    case r: WomString => Success(WomBoolean(value.toString.equals(r.value.toString)))
+    case r: WomString => Success(WomBoolean(value.toString.equals(r.value.toString.trim)))
     case r: WomOptionalValue => evaluateIfDefined("==", r, equals)
     case _ => invalid(s"$value == $rhs")
   }
@@ -291,7 +293,7 @@ case class WomMaybeListedDirectory(valueOption: Option[String] = None,
 
     listingOption.map({
       _.toList
-        .parTraverse[IO, IO.Par, WomFile](_.withSize(ioFunctionSet))
+        .parTraverse[IO, WomFile](_.withSize(ioFunctionSet))
         .map(listingWithSize => this.copy(listingOption = Option(listingWithSize)))
     })
       .getOrElse(IO.pure(this))
@@ -357,7 +359,7 @@ case class WomMaybePopulatedFile(valueOption: Option[String] = None,
     
     for {
       size <- ioSize
-      secondaryFilesWithSize <- secondaryFiles.toList.parTraverse[IO, IO.Par, WomFile](_.withSize(ioFunctionSet))
+      secondaryFilesWithSize <- secondaryFiles.toList.parTraverse[IO, WomFile](_.withSize(ioFunctionSet))
     } yield this.copy(sizeOption = size, secondaryFiles = secondaryFilesWithSize)
   }
 

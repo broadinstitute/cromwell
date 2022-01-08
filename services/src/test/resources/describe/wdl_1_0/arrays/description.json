@@ -2,6 +2,7 @@
   "valid" : true,
   "errors" : [
   ],
+  "validWorkflow" : true,
   "name" : "arrays",
   "inputs" : [
     {
@@ -13,7 +14,8 @@
           "optionalType" : {
             "typeName" : "Int"
           }
-        }
+        },
+        "nonEmpty" : false
       },
       "typeDisplayName" : "Array[Int?]",
       "optional" : false,
@@ -25,7 +27,8 @@
         "typeName" : "Array",
         "arrayType" : {
           "typeName" : "Int"
-        }
+        },
+        "nonEmpty" : false
       },
       "typeDisplayName" : "Array[Int]",
       "optional" : true,
@@ -57,6 +60,19 @@
       "default" : null
     },
     {
+      "name" : "nonempty_array",
+      "valueType" : {
+        "typeName" : "Array",
+        "arrayType" : {
+          "typeName" : "Int"
+        },
+        "nonEmpty" : true
+      },
+      "typeDisplayName" : "Array[Int]+",
+      "optional" : false,
+      "default" : null
+    },
+    {
       "name" : "optional_array",
       "valueType" : {
         "typeName" : "Optional",
@@ -64,7 +80,8 @@
           "typeName" : "Array",
           "arrayType" : {
             "typeName" : "Int"
-          }
+          },
+          "nonEmpty" : false
         }
       },
       "typeDisplayName" : "Array[Int]?",
@@ -82,10 +99,27 @@
             "optionalType" : {
               "typeName" : "Int"
             }
-          }
+          },
+          "nonEmpty" : false
         }
       },
       "typeDisplayName" : "Array[Int?]?",
+      "optional" : true,
+      "default" : null
+    },
+    {
+      "name" : "optional_nonempty_array",
+      "valueType" : {
+        "typeName" : "Optional",
+        "optionalType" : {
+          "typeName" : "Array",
+          "arrayType" : {
+            "typeName" : "Int"
+          },
+          "nonEmpty" : true
+        }
+      },
+      "typeDisplayName" : "Array[Int]+?",
       "optional" : true,
       "default" : null
     },
@@ -112,7 +146,8 @@
         "typeName" : "Array",
         "arrayType" : {
           "typeName" : "Int"
-        }
+        },
+        "nonEmpty" : false
       },
       "typeDisplayName" : "Array[Int]",
       "optional" : false,
@@ -129,7 +164,8 @@
           "optionalType" : {
             "typeName" : "Int"
           }
-        }
+        },
+        "nonEmpty" : false
       },
       "typeDisplayName" : "Array[Int?]"
     },
@@ -157,6 +193,17 @@
       "typeDisplayName" : "Pair[Pair[Int, Int], String]"
     },
     {
+      "name" : "output_nonempty_array",
+      "valueType" : {
+        "typeName" : "Array",
+        "arrayType" : {
+          "typeName" : "Int"
+        },
+        "nonEmpty" : true
+      },
+      "typeDisplayName" : "Array[Int]+"
+    },
+    {
       "name" : "output_optional_array",
       "valueType" : {
         "typeName" : "Optional",
@@ -164,7 +211,8 @@
           "typeName" : "Array",
           "arrayType" : {
             "typeName" : "Int"
-          }
+          },
+          "nonEmpty" : false
         }
       },
       "typeDisplayName" : "Array[Int]?"
@@ -180,10 +228,25 @@
             "optionalType" : {
               "typeName" : "Int"
             }
-          }
+          },
+          "nonEmpty" : false
         }
       },
       "typeDisplayName" : "Array[Int?]?"
+    },
+    {
+      "name" : "output_optional_nonempty_array",
+      "valueType" : {
+        "typeName" : "Optional",
+        "optionalType" : {
+          "typeName" : "Array",
+          "arrayType" : {
+            "typeName" : "Int"
+          },
+          "nonEmpty" : true
+        }
+      },
+      "typeDisplayName" : "Array[Int]+?"
     },
     {
       "name" : "output_pair",
@@ -206,7 +269,8 @@
         "typeName" : "Array",
         "arrayType" : {
           "typeName" : "Int"
-        }
+        },
+        "nonEmpty" : false
       },
       "typeDisplayName" : "Array[Int]"
     }
@@ -221,5 +285,9 @@
   ],
   "meta" : {
 
-  }
+  },
+  "parameterMeta" : {
+
+  },
+  "isRunnableWorkflow" : true
 }

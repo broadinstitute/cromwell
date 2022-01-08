@@ -10,7 +10,8 @@ import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiatio
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wom.OptionalNotSuppliedException
 import wom.expression.IoFunctionSet
-import wom.values.{WomBoolean, WomString, WomValue}
+import wom.types.WomStringType
+import wom.values.{WomBoolean, WomOptionalValue, WomValue}
 
 import scala.util.Try
 
@@ -49,7 +50,7 @@ object BinaryOperatorEvaluators {
 
             // Allow unsupplied optionals, but only if we're instantiating a command:
             val handleOptionals = rawResult.recover {
-              case OptionalNotSuppliedException(_) if forCommandInstantiationOptions.isDefined => WomString("")
+              case OptionalNotSuppliedException(_) if forCommandInstantiationOptions.isDefined => WomOptionalValue(WomStringType, None)
             }
 
             handleOptionals.toErrorOr map { newValue => EvaluatedValue(newValue, left.sideEffectFiles ++ right.sideEffectFiles) }

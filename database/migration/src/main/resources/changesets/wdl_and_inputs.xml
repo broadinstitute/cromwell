@@ -6,7 +6,7 @@
     <property name="clob.type" value="LONGTEXT" dbms="mysql"/>
     <property name="clob.type" value="LONGVARCHAR" dbms="hsqldb"/>
 
-    <changeSet author="mcovarr" id="WORKFLOW_EXECUTION_AUX">
+    <changeSet author="mcovarr" id="WORKFLOW_EXECUTION_AUX" dbms="mysql,hsqldb">
         <comment>
             Auxiliary data related to a workflow execution not stored with the workflow execution itself
             for size reasons.
@@ -24,7 +24,7 @@
         </modifySql>
     </changeSet>
 
-    <changeSet author="mcovarr" id="WE_AUX_CONSTRAINTS">
+    <changeSet author="mcovarr" id="WE_AUX_CONSTRAINTS" dbms="mysql,hsqldb">
         <comment>
             This adds:
             A foreign key constraint from WORKFLOW_EXECUTION_ID to WORKFLOW_EXECUTION.WORKFLOW_EXECUTION_ID.

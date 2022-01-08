@@ -6,7 +6,7 @@
     <property name="clob.type" value="LONGTEXT" dbms="mysql"/>
     <property name="clob.type" value="LONGVARCHAR" dbms="hsqldb"/>
 
-    <changeSet author="chrisl" id="call_caching_result_metainfo">
+    <changeSet author="chrisl" id="call_caching_result_metainfo" dbms="mysql,hsqldb">
         <comment>
             One row per cached job result.
             Stores meta info about which job the result came from.
@@ -41,12 +41,12 @@
     </changeSet>
 
     <!-- We don't want to store results for the exact same job twice -->
-    <changeSet author="chrisl" id="call_caching_result_metainfo_uniqueness">
+    <changeSet author="chrisl" id="call_caching_result_metainfo_uniqueness" dbms="mysql,hsqldb">
         <addUniqueConstraint constraintName="UK_CALL_CACHING_RESULT_METAINFO"
                              tableName="CALL_CACHING_RESULT_METAINFO" columnNames="WORKFLOW_UUID, CALL_FQN, JOB_SCATTER_INDEX" />
     </changeSet>
 
-    <changeSet author="chrisl" id="call_caching_hashes">
+    <changeSet author="chrisl" id="call_caching_hashes" dbms="mysql,hsqldb">
         <comment>
             One row per hashkey per call cache meta info.
             Allows us to link hash keys and values to any matching call cache results.
@@ -71,13 +71,13 @@
     </changeSet>
 
     <!-- We don't want to store the same hash key twice for the same RESULT_METAINFO_ID -->
-    <changeSet author="chrisl" id="call_caching_result_hashes_uniqueness">
+    <changeSet author="chrisl" id="call_caching_result_hashes_uniqueness" dbms="mysql,hsqldb">
         <addUniqueConstraint constraintName="UK_CALL_CACHING_HASH"
                              tableName="CALL_CACHING_HASH" columnNames="HASH_KEY, RESULT_METAINFO_ID" />
     </changeSet>
 
     <!-- Make RESULT_METAINFO_ID a FK into CALL_CACHING_RESULT_METAINFO -->
-    <changeSet author="chrisl" id="call_caching_result_hashes_uniqueness_foreign_key">
+    <changeSet author="chrisl" id="call_caching_result_hashes_uniqueness_foreign_key" dbms="mysql,hsqldb">
         <addForeignKeyConstraint constraintName="CCH_RESULT_METAINFO_ID_FK"
                                  baseTableName="CALL_CACHING_HASH"
                                  baseColumnNames="RESULT_METAINFO_ID"
@@ -86,7 +86,7 @@
         />
     </changeSet>
 
-    <changeSet author="chrisl" id="call_caching_result_simpletons">
+    <changeSet author="chrisl" id="call_caching_result_simpletons" dbms="mysql,hsqldb">
         <comment>
             One row per result simpleton in the job result.
             Simpleton: a single non-complex WDL value.
@@ -115,13 +115,13 @@
     </changeSet>
 
     <!-- Unlike the metadata journal, we never want to store the same simpleton key twice (for the same RESULT_METAINFO_ID) -->
-    <changeSet author="chrisl" id="call_caching_result_simpletons_uniqueness">
+    <changeSet author="chrisl" id="call_caching_result_simpletons_uniqueness" dbms="mysql,hsqldb">
         <addUniqueConstraint constraintName="UK_CALL_CACHING_RESULT_SIMPLETON"
                              tableName="CALL_CACHING_RESULT_SIMPLETON" columnNames="SIMPLETON_KEY, RESULT_METAINFO_ID" />
     </changeSet>
 
     <!-- Make RESULT_METAINFO_ID a FK into CALL_CACHING_RESULT_METAINFO -->
-    <changeSet author="chrisl" id="call_caching_result_simpletons_foreign_key">
+    <changeSet author="chrisl" id="call_caching_result_simpletons_foreign_key" dbms="mysql,hsqldb">
         <addForeignKeyConstraint constraintName="CCRS_RESULT_METAINFO_ID_FK"
                                  baseTableName="CALL_CACHING_RESULT_SIMPLETON"
                                  baseColumnNames="RESULT_METAINFO_ID"

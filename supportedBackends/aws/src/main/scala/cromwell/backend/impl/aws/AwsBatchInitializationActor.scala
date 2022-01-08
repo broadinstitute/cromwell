@@ -34,13 +34,11 @@ package cromwell.backend.impl.aws
 import java.io.IOException
 
 import akka.actor.ActorRef
-import software.amazon.awssdk.auth.credentials.AwsCredentials
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import cromwell.filesystems.s3.batch.S3BatchCommandBuilder
-import cromwell.backend.standard.{StandardInitializationActor,
-                                  StandardInitializationActorParams,
-                                  StandardValidatedRuntimeAttributesBuilder}
-import cromwell.backend.{BackendConfigurationDescriptor,
-                         BackendWorkflowDescriptor}
+import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, BackendInitializationData}
+import cromwell.core.io.DefaultIoCommandBuilder
 import cromwell.core.io.AsyncIoActorClient
 import cromwell.core.path.Path
 import wom.graph.CommandCallNode
@@ -71,20 +69,41 @@ class AwsBatchInitializationActor(params: AwsBatchInitializationActorParams)
   private val configuration = params.configuration
   override implicit val system = context.system
 
+  override def beforeAll(): Future[Option[BackendInitializationData]] = {
+    configuration.fileSystem match {
+      case AWSBatchStorageSystems.s3  => super.beforeAll
+      case _ => { 
+        initializationData map { data =>
+          publishWorkflowRoot(data.workflowPaths.workflowRoot.pathAsString)
+          Option(data)
+        } 
+      }
+    }
+  }
+
   override lazy val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
     AwsBatchRuntimeAttributes.runtimeAttributesBuilder(configuration)
 
-  private lazy val credentials: Future[AwsCredentials] =
-    Future { configuration.awsAuth.credential(_ => "") }
+  private lazy val provider: Future[AwsCredentialsProvider] =
+    Future { configuration.awsAuth.provider() }
 
   override lazy val workflowPaths: Future[AwsBatchWorkflowPaths] = for {
-    creds <- credentials
-  } yield new AwsBatchWorkflowPaths(workflowDescriptor, creds, configuration)
+    prov <- provider
+  } yield new AwsBatchWorkflowPaths(workflowDescriptor, prov, configuration)
 
   override lazy val initializationData: Future[AwsBatchBackendInitializationData] = for {
     workflowPaths <- workflowPaths
-    creds <- credentials
-  } yield AwsBatchBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, creds)
+    prov <- provider
+  } yield AwsBatchBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, prov)
 
-  override lazy val ioCommandBuilder = S3BatchCommandBuilder
+  override lazy val ioCommandBuilder =  {
+    val conf = Option(configuration) match {
+      case Some(cf) => cf
+      case None =>  new  AwsBatchConfiguration(params.configurationDescriptor)
+    }
+    conf.fileSystem match {
+      case  AWSBatchStorageSystems.s3 =>  S3BatchCommandBuilder
+      case _ =>   DefaultIoCommandBuilder
+    }
+  }
 }

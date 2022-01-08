@@ -6,16 +6,20 @@ import cats.effect.IO
 import cats.instances.list._
 import cats.syntax.flatMap._
 import cats.syntax.traverse._
+import centaur.callcaching.CromwellDatabaseCallCaching
 import centaur.reporting.{ErrorReporters, SuccessReporters, TestEnvironment}
 import centaur.test.CentaurTestException
 import centaur.test.standard.CentaurTestCase
 import centaur.test.submit.{SubmitResponse, SubmitWorkflowResponse}
+import centaur.test.workflow.WorkflowData
 import org.scalatest._
+import org.scalatest.flatspec.AsyncFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.Future
 
 @DoNotDiscover
-abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) extends AsyncFlatSpec with Matchers {
+abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromwellTracker: Option[CromwellTracker] = None) extends AsyncFlatSpec with Matchers {
 
   /*
   NOTE: We need to statically initialize the object so that the exceptions appear here in the class constructor.
@@ -27,7 +31,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
 
   private def testCases(baseFile: File): List[CentaurTestCase] = {
     val files = baseFile.list.filter(_.isRegularFile).toList
-    val testCases = files.traverse(CentaurTestCase.fromFile)
+    val testCases = files.traverse(CentaurTestCase.fromFile(cromwellTracker))
 
     testCases match {
       case Valid(l) => l
@@ -38,20 +42,32 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
   def allTestCases: List[CentaurTestCase] = {
     val optionalTestCases = CentaurConfig.optionalTestPath map (File(_)) map testCases getOrElse List.empty
     val standardTestCases = testCases(CentaurConfig.standardTestCasePath)
-    optionalTestCases ++ standardTestCases
+    val allTestsCases = optionalTestCases ++ standardTestCases
+    val duplicateTestNames = allTestsCases
+      .map(_.workflow.testName)
+      .groupBy(identity)
+      .collect({ case (key, values) if values.lengthCompare(1) > 0 => key })
+    if (duplicateTestNames.nonEmpty) {
+      throw new RuntimeException("The following test names are duplicated in more than one test file: " +
+        duplicateTestNames.mkString(", "))
+    }
+    allTestsCases
   }
 
   def executeStandardTest(testCase: CentaurTestCase): Unit = {
     def nameTest = s"${testCase.testFormat.testSpecString} ${testCase.workflow.testName}"
 
-    def runTest(): IO[SubmitResponse] = testCase.testFunction.run
+    def runTestAndDeleteZippedImports(): IO[SubmitResponse] = for {
+      submitResponse <- testCase.testFunction.run
+      _ = cleanUpImports(testCase.workflow.data) // cleanup imports in the end of test
+    } yield submitResponse
 
     // Make tags, but enforce lowercase:
     val tags = (testCase.testOptions.tags :+ testCase.workflow.testName :+ testCase.testFormat.name) map { x => Tag(x.toLowerCase) }
     val isIgnored = testCase.isIgnored(cromwellBackends)
-    val retries = if (testCase.workflow.retryTestFailures) ErrorReporters.retryAttempts else 0
+    val retries = ErrorReporters.retryAttempts
 
-    runOrDont(nameTest, tags, isIgnored, retries, runTest())
+    runOrDont(nameTest, tags, isIgnored, retries, runTestAndDeleteZippedImports())
   }
 
   def executeWdlUpgradeTest(testCase: CentaurTestCase): Unit =
@@ -95,11 +111,11 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
         testName = testCase.workflow.testName + " (draft-2 to 1.0 upgrade)",
         data = testCase.workflow.data.copy(
           workflowContent = Option(upgradeResult.stdout.get), // this '.get' catches an error if upgrade fails
-          zippedImports = Option(upgradedImportsDir.zip())))) // An empty zip appears to be completely harmless, so no special handling
+          zippedImports = Option(upgradedImportsDir.zip()))))(cromwellTracker) // An empty zip appears to be completely harmless, so no special handling
 
-    rootWorkflowFile.delete(true)
-    upgradedImportsDir.delete(true)
-    workingDir.delete(true)
+    rootWorkflowFile.delete(swallowIOExceptions = true)
+    upgradedImportsDir.delete(swallowIOExceptions = true)
+    workingDir.delete(swallowIOExceptions = true)
 
     newCase
   }
@@ -157,8 +173,12 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     def maybeRetry(centaurTestException: CentaurTestException): IO[SubmitResponse] = {
       val testEnvironment = TestEnvironment(testName, retries, attempt)
       for {
-        _ <- ErrorReporters.logCentaurFailure(testEnvironment, centaurTestException)
+        _ <- ErrorReporters.logFailure(testEnvironment, centaurTestException)
         r <- if (attempt < retries) {
+          centaurTestException
+            .workflowIdOption
+            .map(CromwellDatabaseCallCaching.clearCachedResults)
+            .getOrElse(IO.unit) *>
           tryTryAgain(testName, runTest, retries, attempt + 1)
         } else {
           IO.raiseError(centaurTestException)
@@ -170,14 +190,28 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
 
     runTestIo.redeemWith(
       {
-        case centaurTestException: CentaurTestException => maybeRetry(centaurTestException)
-        case _ => runTestIo
+        case centaurTestException: CentaurTestException =>
+          maybeRetry(centaurTestException)
+        case nonCentaurThrowable: Throwable =>
+          val testEnvironment = TestEnvironment(testName, retries = attempt + 1, attempt) // allow one last retry
+          ErrorReporters.logFailure(testEnvironment, nonCentaurThrowable)
+          runTestIo
       },
       {
         case workflowResponse: SubmitWorkflowResponse => SuccessReporters.logSuccessfulRun(workflowResponse)
         case other => IO.pure(other)
       }
     )
+  }
+
+  /**
+   * Clean up temporary zip files created for Imports testing.
+   */
+  private def cleanUpImports(wfData: WorkflowData) = {
+    wfData.zippedImports match {
+      case Some(zipFile) => zipFile.delete(swallowIOExceptions = true)
+      case None => //
+    }
   }
 
 }

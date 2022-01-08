@@ -1,15 +1,24 @@
 Call Caching allows Cromwell to detect when a job has been run in the past so that it doesn't have to re-compute results, saving both time and money.  Cromwell searches the cache of previously run jobs for one that has the exact same command and exact same inputs.  If a previously run job is found in the cache, Cromwell will use the results of the previous job instead of re-running it.
 
-Cromwell's call cache is maintained in its database.  In order for call caching to be used on any previously run jobs, it is best to configure Cromwell to [point to a MySQL database](Configuring#database) instead of the default in-memory database.  This way any invocation of Cromwell (either with `run` or `server` subcommands) will be able to utilize results from all calls that are in that database.
+Cromwell's call cache is maintained in its database.  In order for call caching to be used on any previously run jobs,
+it is best to configure Cromwell to [point to a MySQL database](../Configuring.md#database) instead of the default
+in-memory database.  This way any invocation of Cromwell (either with `run` or `server` subcommands) will be able to
+utilize results from all calls that are in that database.
 
 **Configuring Call Caching**
 
-*Call Caching is disabled by default.*  Call Caching can be enabled in your Cromwell [Configuration](Configuring#call-caching) and the behavior can be modified via [Workflow Options](wf_options/Overview). If you are adding Workflow options, do not set [`read_from_cache` or `write_to_cache`](wf_options/Overview#call-caching-options) = false, as it will impact the following process.
+*Call Caching is disabled by default.*  Call Caching can be enabled in your Cromwell
+[Configuration](../Configuring.md#call-caching) and the behavior can be modified via
+[Workflow Options](../wf_options/Overview.md). If you are adding Workflow options, do not set
+[`read_from_cache` or `write_to_cache`](../wf_options/Overview.md#call-caching-options) = false, as it will impact the
+following process.
 
 Once enabled, Cromwell by default will search the call cache for every `call` statement invocation.
 
 * If there was no cache hit, the `call` will be executed as normal.  Once finished it will add itself to the cache.
-* If there was a cache hit, outputs are either **copied from the original cached job to the new job's output directory** or **referenced from the original cached job** depending on the Cromwell [Configuration](Configuring#call-caching) settings.
+* If there was a cache hit, outputs are either **copied from the original cached job to the new job's output directory**
+or **referenced from the original cached job** depending on the Cromwell
+[Configuration](../Configuring.md#call-caching) settings.
 
 > **Note:** If call caching is enabled, be careful not to change the contents of the output directory for any previously run job.  Doing so might cause cache hits in Cromwell to copy over modified data and Cromwell currently does not check that the contents of the output directory changed.  Additionally, if any files from a previous job directory are removed, call caching will fail due to missing files.
 
@@ -18,14 +27,8 @@ Once enabled, Cromwell by default will search the call cache for every `call` st
 Cromwell offers the option to cache file hashes within the scope of a root workflow to prevent repeatedly requesting the hashes of the
 same files multiple times. File hash caching is off by default and can be turned on with the configuration option `system.file-hash-cache=true`.
 
-***Call cache copy authorization failure prefix blacklisting***
-
-Cromwell has the option to filter call cache hits based on authorization failures copying previous 
-call cache hits. In a multi-user environment user A might cache hit to one of user B's results
-but that doesn't necessarily mean user A is authorized to read user B's outputs from the filesystem. Call cache blacklisting
-allows Cromwell to record on a per-root-workflow level which file path prefixes were involved in cache result copy authorization failures.
-If Cromwell sees that the file paths for a candidate cache hit have a blacklisted prefix, Cromwell will quickly 
-fail the copy attempt without doing any potentially expensive I/O.
+***Call cache blacklisting***
+Cromwell offers the ability to filter cache hits based on copying failures. 
 
 Call cache blacklisting configuration looks like:
 
@@ -38,23 +41,82 @@ call-caching {
   invalidate-bad-cache-results = false
 
   blacklist-cache {
-    # The call caching blacklist cache is off by default. This is used to blacklist cache hit paths based on the
-    # prefixes of cache hit paths that Cromwell previously failed to copy for authorization reasons.
-    enabled: true
-    # Guava cache concurrency.
-    concurrency: 10000
-    # How long entries in the cache should live from the time of their last access.
-    ttl: 20 minutes
-    # Maximum number of entries in the cache.
-    size: 1000
+     # The call caching blacklist cache is off by default. This cache is used to blacklist cache hits based on cache
+     # hit ids or buckets of cache hit paths that Cromwell has previously failed to copy for permissions reasons.
+     enabled: true
+
+     # All blacklisting values below are optional. In order to use groupings (blacklist caches shared among root
+     # workflows) a value must be specified for `groupings.workflow-option` in configuration and the workflows to
+     # be grouped must be submitted with workflow options specifying the same group.
+     groupings {
+       workflow-option: call-cache-blacklist-group
+       concurrency: 10000
+       ttl: 2 hours
+       size: 1000
+     }
+
+     buckets {
+       # Guava cache concurrency.
+       concurrency: 10000
+       # How long entries in the cache should live from the time of their last access.
+       ttl: 1 hour
+       # Maximum number of entries in the cache.
+       size: 1000
+     }
+
+     hits {
+       # Guava cache concurrency.
+       concurrency: 10000
+       # How long entries in the cache should live from the time of their last access.
+       ttl: 1 hour
+       # Maximum number of entries in the cache.
+       size: 20000
+     }
   }
 }
 ```
 
-Call cache blacklisting could be supported by any backend type though is currently implemented only for the Google Pipelines API (PAPI) backends.
-For PAPI backends the bucket is considered the prefix for blacklisting purposes.
+**** Blacklist cache grouping ****
 
-***Call cache hit path prefixes***
+By default Cromwell's blacklist caches work at the granularity of root workflows, but Cromwell can also be configured to
+share a blacklist cache among a group of workflows. 
+If a value is specified for `call-caching.blacklisting.groupings.workflow-option` and a workflow option is specified
+having a matching key, all workflows specifying the same value will share a blacklist cache. 
+
+For example, if Cromwell configuration contains `call-caching.blacklisting.groupings.workflow-option = "project"` and
+a workflow is submitted with the options
+
+```json
+{
+  "project": "Mary"
+}
+```
+
+then this workflow will share a blacklist cache with any other workflows whose workflow options contain `"project": "Mary"`.
+
+Grouping of blacklist caches can significantly improve blacklisting effectiveness and overall call caching performance.
+Workflows should be grouped by their effective authorization to ensure the same filesystem/object store permissions
+exist for every workflow in the group.
+
+**** Hit blacklisting ****
+
+If a cache hit fails copying for any reason, Cromwell will record that failure in the blacklist cache and will not use
+the hit again. Hit blacklisting is particularly effective at improving call caching performance in conjunction with the 
+grouping feature described above.
+
+**** Path prefix (GCS bucket) blacklisting on 403 Forbidden errors ****
+
+In a multi-user environment user A might cache hit to one of user B's results
+but that doesn't necessarily mean user A is authorized to read user B's outputs from the filesystem. Call cache blacklisting
+allows Cromwell to record which file path prefixes were involved in cache result copy authorization failures.
+If Cromwell sees that the file paths for a candidate cache hit have a blacklisted prefix, Cromwell will quickly 
+fail the copy attempt without doing any potentially expensive I/O.
+
+Path prefix blacklisting could be supported by any backend type though it is currently implemented only for Google
+(PAPI) backends. For Google backends the GCS bucket is considered the prefix for blacklisting purposes.
+
+
+***Call cache whitelisting***
  
 In a multi-user environment where access to job outputs may be restricted among different users, it can be useful to limit
 cache hits to those that are more likely to actually be readable for cache hit copies.
@@ -80,6 +142,12 @@ Cromwell would search cache hits in all of the `gs://alice_bucket`, `gs://bob_bu
 `gs://charles_bucket` bucket explicitly in `call_cache_hit_path_prefixes`.
 
 If no `call_cache_hit_path_prefixes` are specified then all matching cache hits will be considered.
+
+***Call cache failure logging***
+
+When Cromwell fails to cache a job from a previous result the reason will be logged. To reduce the verbosity of the logs
+only the first three failure reasons will be logged per shard of each job. Cromwell will continue to try copying
+previous results for the call, and when no candidates are left Cromwell will run the job on the backend.
 
 **Docker Tags**
 
@@ -123,18 +191,28 @@ Cromwell provides two methods to lookup a Docker hash from a Docker tag:
     
     Docker registry and access levels supported by Cromwell for docker digest lookup in "remote" mode:
     
-    |       |       DockerHub    ||       GCR       ||
-    |:-----:|:---------:|:-------:|:------:|:-------:|
-    |       |   Public  | Private | Public | Private |
-    | Pipelines API  |     X     |    X    |    X   |    X    |
-    | Other |     X     |         |    X   |         |
-    
+    <!-- Pasted into then regenerated at https://www.tablesgenerator.com/markdown_tables -->
+
+    |               | DockerHub | DockerHub |   GCR  |   GCR   |   ECR  |   ECR   |   ACR  |   ACR   |
+    |:-------------:|:---------:|:---------:|:------:|:-------:|:------:|:-------:|:------:|:-------:|
+    |               |   Public  |  Private  | Public | Private | Public | Private | Public | Private |
+    | Pipelines API |     X     |     X     |    X   |    X    |        |         |        |         |
+    |   AWS Batch   |     X     |           |    X   |         |        |         |        |         |
+    |      BCS      |           |           |        |         |        |         |        |    X    |
+    |     Other     |     X     |           |    X   |         |        |         |        |         |
+
+    <!-- Pasted then regenerated at https://www.tablesgenerator.com/markdown_tables -->
+
 **Runtime Attributes**
 
-As well as call inputs and the command to run, call caching considers the following [runtime attributes](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/) of a given task when determining whether to call cache:
+As well as call inputs and the command to run, call caching considers the following [runtime
+attributes](../RuntimeAttributes.md) of a given task when determining whether to call cache:
 
-* [`ContinueOnReturnCode`](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#continueonreturncode)
-* [`Docker`](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#docker)
-* [`FailOnStderr`](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#failonstderr)
+* [`ContinueOnReturnCode`](../RuntimeAttributes.md#continueonreturncode)
+* [`Docker`](../RuntimeAttributes.md#docker)
+* [`FailOnStderr`](../RuntimeAttributes.md#failonstderr)
 
-If any of these attributes have changed from a previous instance of the same task, that instance will not be call-cached from. Other runtime attributes, including [`memory`](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#memory), [`cpu`](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#cpu), and [`disks`](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#disks), are not considered by call caching and therefore may be changed without preventing a cached result from being used. 
+If any of these attributes have changed from a previous instance of the same task, that instance will not be call-cached
+from. Other runtime attributes, including [`memory`](../RuntimeAttributes.md#memory),
+[`cpu`](../RuntimeAttributes.md#cpu), and [`disks`](../RuntimeAttributes.md#disks), are not considered by call caching
+and therefore may be changed without preventing a cached result from being used.

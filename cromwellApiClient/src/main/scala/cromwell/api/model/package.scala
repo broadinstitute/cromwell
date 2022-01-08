@@ -9,6 +9,7 @@ import cats.arrow.FunctionK
 import cats.data.EitherT
 import cats.effect.{ContextShift, IO, Timer}
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
+import cromwell.api.model.TimeUtil._
 import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}
 
 import scala.concurrent.duration.FiniteDuration
@@ -20,7 +21,7 @@ package object model {
 
   object OffsetDateTimeJsonFormatter extends DefaultJsonProtocol {
     object OffsetDateTimeFormat extends RootJsonFormat[OffsetDateTime] {
-      def write(odt: OffsetDateTime) = new JsString(odt.toString)
+      def write(offsetDateTime: OffsetDateTime) = new JsString(offsetDateTime.toUtcMilliString)
       def read(value: JsValue) = value match {
         case JsString(string) => OffsetDateTime.parse(string)
         case other => throw new UnsupportedOperationException(s"Cannot deserialize $other into an OffsetDateTime")
@@ -32,7 +33,8 @@ package object model {
   val FailureResponseOrT = EitherT
 
   implicit class EnhancedFutureHttpResponse(val responseFuture: Future[HttpResponse]) extends AnyVal {
-    def asFailureResponseOrT: FailureResponseOrT[HttpResponse] = {
+    def asFailureResponseOrT(implicit ec: ExecutionContext): FailureResponseOrT[HttpResponse] = {
+      implicit def cs = IO.contextShift(ec)
       val ioHttpResponse = IO.fromFuture(IO(responseFuture))
       val ioEither = ioHttpResponse map {
         case response if response.status.isFailure() => Left(response)
@@ -62,6 +64,7 @@ package object model {
     def asIo(implicit materializer: ActorMaterializer, executionContext: ExecutionContext): IO[SuccessType] = {
       responseIoT.value flatMap {
         case Left(response) =>
+          implicit def cs = IO.contextShift(executionContext)
           IO.fromFuture(IO {
             Unmarshal(response.entity).to[String] flatMap { responseString =>
               Future.failed(UnsuccessfulRequestException(responseString, response))

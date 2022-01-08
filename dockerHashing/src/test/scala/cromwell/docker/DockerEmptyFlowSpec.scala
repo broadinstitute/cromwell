@@ -1,11 +1,12 @@
 package cromwell.docker
 
 import cromwell.docker.DockerInfoActor.DockerHashUnknownRegistry
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class DockerEmptyFlowSpec extends DockerRegistrySpec("DockerEmptyFlowSpec") with FlatSpecLike with Matchers {
+class DockerEmptyFlowSpec extends DockerRegistrySpec with AnyFlatSpecLike with Matchers {
   behavior of "An empty docker flow"
 
   override protected def registryFlows: Seq[DockerRegistry] = Seq()
@@ -18,6 +19,12 @@ class DockerEmptyFlowSpec extends DockerRegistrySpec("DockerEmptyFlowSpec") with
 
   it should "send an unrecognized host message back for a public docker on gcr" in {
     dockerActor ! makeRequest("gcr.io/google-containers/alpine-with-bash:1.0")
+
+    expectMsgClass(5.seconds, classOf[DockerHashUnknownRegistry])
+  }
+
+  it should "send an unrecognized host message back for a public docker on gar" in {
+    dockerActor ! makeRequest("us-central1-docker.pkg.dev/google-containers/alpine-with-bash:1.0")
 
     expectMsgClass(5.seconds, classOf[DockerHashUnknownRegistry])
   }

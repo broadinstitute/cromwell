@@ -1,9 +1,9 @@
 package cromwell.services.healthmonitor.impl.common
 
 import cromwell.services.EngineServicesStore
-import cromwell.services.healthmonitor.HealthMonitorServiceActor.{MonitoredSubsystem, SubsystemStatus, OkStatus}
-import cats.instances.future._
+import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{MonitoredSubsystem, SubsystemStatus, OkStatus}
 import cats.syntax.functor._
+import cats.instances.future._
 import scala.concurrent.{ExecutionContext, Future}
 
 /**

@@ -21,7 +21,7 @@ package object values {
   type FileHasher = WomFile => SymbolHash
 
   type WomEvaluatedCallInputs = Map[InputDefinition, WomValue]
-  
+
   implicit class EnhancedWomEvaluatedCallInputs(val inputs: WomEvaluatedCallInputs) extends AnyVal {
     def prettyString = inputs.map({
       case (inputDef, womValue) => s"${inputDef.name} -> ${womValue.valueString}"
@@ -57,6 +57,11 @@ package object core {
   type ExecutableInputMap = Map[String, Any]
 }
 
+/***
+  * @param importPath The string representing the resolved import.
+  */
+final case class ResolvedImportRecord(importPath: String) extends AnyVal
+
 /**
   * @param commandString The string representing the instantiation of this command.
   * @param environmentVariables Key/value environment variable pairs.
@@ -88,3 +93,20 @@ final case class InstantiatedCommand(commandString: String,
   * @param relativeLocalPath Optionally, an override of the usual localization logic. A path relative to execution root.
   */
 final case class CommandSetupSideEffectFile(file: WomFile, relativeLocalPath: Option[String] = None)
+
+// Reference to program source code. Allows:
+// 1) Relating a WOM error back to the original source code.
+// 2) Getting back information lost during compilation.
+// For example, in a program like:
+//  workflow {
+//    call A
+//    call B
+//    call C
+//  }
+// the WOM graph does not say which call (A,B, or C) comes first.
+//
+//
+// We would actually like to have the entire source extent covered
+// by the AST. However, it is tricky to get full information from Hermes
+// at the moment.
+final case class SourceFileLocation(startLine: Int)

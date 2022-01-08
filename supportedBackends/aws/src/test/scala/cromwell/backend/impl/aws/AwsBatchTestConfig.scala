@@ -59,7 +59,8 @@ object AwsBatchTestConfig {
       |    disks: "local-disk"
       |    noAddress: false
       |    zones:["us-east-1a", "us-east-1b"]
-      |    queueArn: "arn::::"
+      |    queueArn: "arn:aws:batch:us-east-1:111222333444:job-queue/job-queue"
+      |    scriptBucketName: "my-bucket"
       |}
       |
       |""".stripMargin
@@ -74,6 +75,85 @@ object AwsBatchTestConfig {
       |
       |filesystems {
       |  s3 {
+      |    auth = "default"
+      |  }
+      |}
+      |""".stripMargin
+
+  private val AwsBatchGlobalConfigString =
+    s"""
+       |aws {
+       |  application-name = "cromwell"
+       |  auths = [
+       |    {
+       |      name = "default"
+       |      scheme = "default"
+       |    }
+       |  ]
+       |}
+       |
+       |backend {
+       |  default = "AWS"
+       |  providers {
+       |    AWS {
+       |      actor-factory = "cromwell.backend.impl.aws.AwsBatchBackendLifecycleFactory"
+       |      config {
+       |      $AwsBatchBackendConfigString
+       |      }
+       |    }
+       |  }
+       |}
+       |
+       |""".stripMargin
+
+  val AwsBatchBackendConfig = ConfigFactory.parseString(AwsBatchBackendConfigString)
+  val AwsBatchGlobalConfig = ConfigFactory.parseString(AwsBatchGlobalConfigString)
+  val AwsBatchBackendNoDefaultConfig = ConfigFactory.parseString(NoDefaultsConfigString)
+  val AwsBatchBackendConfigurationDescriptor = BackendConfigurationDescriptor(AwsBatchBackendConfig, AwsBatchGlobalConfig)
+  val NoDefaultsConfigurationDescriptor = BackendConfigurationDescriptor(AwsBatchBackendNoDefaultConfig, AwsBatchGlobalConfig)
+}
+
+object AwsBatchTestConfigForLocalFS {
+
+  private val AwsBatchBackendConfigString =
+    """
+      |root = "/root/my-cromwell-workflows"
+      |
+      |filesystems {
+      |  local {
+      |    auth = "default"
+      |  }
+      |}
+      |
+      |auth = "default"
+      |   numSubmitAttempts = 6
+      |   numCreateDefinitionAttempts = 6
+      |
+      |default-runtime-attributes {
+      |    cpu: 1
+      |    failOnStderr: false
+      |    continueOnReturnCode: 0
+      |    docker: "ubuntu:latest"
+      |    memory: "2 GB"
+      |    disks: "local-disk"
+      |    noAddress: false
+      |    zones:["us-east-1a", "us-east-1b"]
+      |    queueArn: "arn:aws:batch:us-east-1:111222333444:job-queue/job-queue"
+      |    scriptBucketName: ""
+      |}
+      |
+      |""".stripMargin
+
+  private val NoDefaultsConfigString =
+    """
+      |root = "/root/my-cromwell-workflows"
+      |
+      |auth = "default"
+      |   numSubmitAttempts = 6
+      |   numCreateDefinitionAttempts = 6
+      |
+      |filesystems {
+      |  local {
       |    auth = "default"
       |  }
       |}

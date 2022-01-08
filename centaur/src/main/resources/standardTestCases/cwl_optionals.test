@@ -1,5 +1,6 @@
 name: cwl_optionals
 testFormat: workflowsuccess
+skipDescribeEndpointValidation: true
 
 files {
   workflow: cwl_optionals/cwl_optionals.cwl

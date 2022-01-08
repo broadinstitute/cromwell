@@ -1,8 +1,5 @@
 package cromwell
 
-import java.util.UUID
-import java.util.concurrent.atomic.AtomicInteger
-
 import akka.actor.{Actor, ActorRef, ActorSystem, Props, Terminated}
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
@@ -14,6 +11,8 @@ import cromwell.core.path.BetterFileMethods.Cmds
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.docker.DockerInfoActor.{DockerInfoSuccessResponse, DockerInformation}
 import cromwell.docker.{DockerHashResult, DockerInfoRequest}
+import cromwell.engine.MockCromwellTerminator
+import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CacheLookupNoHit, CacheLookupRequest}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor.SaveCallCacheHashes
@@ -21,32 +20,35 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteSu
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowSubmittedToStore
 import cromwell.engine.workflow.workflowstore.{InMemorySubWorkflowStore, InMemoryWorkflowStore, WorkflowStoreActor}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteSuccess, JobStoreWriterCommand}
+import cromwell.languages.config.{CromwellLanguages, LanguageConfiguration}
 import cromwell.server.{CromwellRootActor, CromwellSystem}
-import cromwell.services.ServiceRegistryActor
 import cromwell.services.metadata.MetadataService._
+import cromwell.services.{FailedMetadataJsonResponse, MetadataJsonResponse, ServiceRegistryActor, SuccessfulMetadataJsonResponse}
 import cromwell.subworkflowstore.EmptySubWorkflowStoreActor
 import cromwell.util.SampleWdl
-import cromwell.webservice.metadata.MetadataBuilderActor
-import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
 import org.scalactic.Equality
 import org.scalatest._
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
+import org.scalatest.enablers.Retrying
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
+import org.scalatest.wordspec.AnyWordSpecLike
 import spray.json._
 import wom.core.FullyQualifiedName
 import wom.types._
 import wom.values._
 
+import scala.annotation.tailrec
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.language.postfixOps
 import scala.util.matching.Regex
 
 case class OutputNotFoundException(outputFqn: String, actualOutputs: String) extends RuntimeException(s"Expected output $outputFqn was not found in: '$actualOutputs'")
 case class LogNotFoundException(log: String) extends RuntimeException(s"Expected log $log was not found")
 
 object CromwellTestKitSpec {
-  val ConfigText =
+
+  val ConfigText: String =
     """
       |akka {
       |  loggers = ["akka.testkit.TestEventListener"]
@@ -92,7 +94,7 @@ object CromwellTestKitSpec {
       |    # Some of our tests fire off a message, then expect a particular event message within 3s (the default).
       |    # Especially on CI, the metadata test does not seem to be returning in time. So, overriding the timeouts
       |    # with slightly higher values. Alternatively, could also adjust the akka.test.timefactor only in CI.
-      |    filter-leeway = 10s
+      |    filter-leeway = 60s
       |    single-expect-default = 5s
       |    default-timeout = 10s
       |  }
@@ -101,21 +103,17 @@ object CromwellTestKitSpec {
       |services {}
     """.stripMargin
 
-  val TimeoutDuration = 60 seconds
+  val TimeoutDuration: FiniteDuration = 60.seconds
 
-  private val testWorkflowManagerSystemCount = new AtomicInteger()
-
-  class TestWorkflowManagerSystem extends CromwellSystem {
-    override protected def systemName: String = "test-system-" + testWorkflowManagerSystemCount.incrementAndGet()
-    override protected def newActorSystem() = ActorSystem(systemName, ConfigFactory.parseString(CromwellTestKitSpec.ConfigText))
+  class TestWorkflowManagerSystem(testActorSystem: ActorSystem, override val config: Config) extends CromwellSystem {
+    override protected def systemName: String = testActorSystem.name
+    override protected def newActorSystem(): ActorSystem = testActorSystem
     /**
       * Do NOT shut down the test actor system inside the normal flow.
       * The actor system will be externally shutdown outside the block.
       */
     // -Ywarn-value-discard
     override def shutdownActorSystem(): Future[Terminated] = { Future.successful(null) }
-
-    def shutdownTestActorSystem() = super.shutdownActorSystem()
   }
 
   /**
@@ -155,6 +153,7 @@ object CromwellTestKitSpec {
     }
   }
 
+
   /**
     * Special case for validating outputs. Used when the test wants to check that an output exists, but doesn't care what
     * the actual value was.
@@ -175,11 +174,13 @@ object CromwellTestKitSpec {
     }
   }
 
-  lazy val DefaultConfig = ConfigFactory.load.withValue(
+  lazy val DefaultConfig: Config = ConfigFactory.load
+
+  lazy val NooPServiceActorConfig: Config = DefaultConfig.withValue(
     "services.LoadController.class", ConfigValueFactory.fromAnyRef("cromwell.services.NooPServiceActor")
   )
 
-  lazy val JesBackendConfig = ConfigFactory.parseString(
+  lazy val JesBackendConfig: Config = ConfigFactory.parseString(
     """
       |{
       |  // Google project
@@ -228,12 +229,14 @@ object CromwellTestKitSpec {
     */
   private val ServiceRegistryActorSystem = akka.actor.ActorSystem("cromwell-service-registry-system")
 
-  val ServiceRegistryActorInstance = {
-    ServiceRegistryActorSystem.actorOf(ServiceRegistryActor.props(ConfigFactory.load()), "ServiceRegistryActor")
+  val ServiceRegistryActorInstance: ActorRef = {
+    ServiceRegistryActorSystem.actorOf(ServiceRegistryActor.props(CromwellTestKitSpec.DefaultConfig), "ServiceRegistryActor")
   }
 
-  class TestCromwellRootActor(override val config: Config)(implicit materializer: ActorMaterializer) extends CromwellRootActor(false, false, serverMode = true) {
-    override lazy val serviceRegistryActor = ServiceRegistryActorInstance
+  class TestCromwellRootActor(config: Config)(implicit materializer: ActorMaterializer)
+    extends CromwellRootActor(MockCromwellTerminator, false, false, serverMode = true, config = config) {
+
+    override lazy val serviceRegistryActor: ActorRef = ServiceRegistryActorInstance
     override lazy val workflowStore = new InMemoryWorkflowStore
     override lazy val subWorkflowStore = new InMemorySubWorkflowStore(workflowStore)
     def submitWorkflow(sources: WorkflowSourceFilesCollection): WorkflowId = {
@@ -243,24 +246,37 @@ object CromwellTestKitSpec {
       result
     }
   }
-
-  def defaultTwms = new CromwellTestKitSpec.TestWorkflowManagerSystem()
 }
 
-abstract class CromwellTestKitWordSpec extends CromwellTestKitSpec with WordSpecLike
-abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = defaultTwms) extends TestKit(twms.actorSystem)
-  with DefaultTimeout with ImplicitSender with Matchers with ScalaFutures with Eventually with Suite with OneInstancePerTest with BeforeAndAfterAll {
+abstract class CromwellTestKitWordSpec extends CromwellTestKitSpec with AnyWordSpecLike
+abstract class CromwellTestKitSpec extends TestKitSuite
+  with DefaultTimeout with ImplicitSender with Matchers with ScalaFutures with Eventually with OneInstancePerTest {
 
-  override protected def afterAll() = { twms.shutdownTestActorSystem(); () }
+  override protected lazy val actorSystemConfig: Config = ConfigFactory.parseString(CromwellTestKitSpec.ConfigText)
 
-  implicit val defaultPatience = PatienceConfig(timeout = Span(200, Seconds), interval = Span(1000, Millis))
-  implicit val ec = system.dispatcher
-  implicit val materializer = twms.materializer
-  val dummyServiceRegistryActor = system.actorOf(Props.empty)
-  val dummyLogCopyRouter = system.actorOf(Props.empty)
+  lazy val twms: TestWorkflowManagerSystem =
+    new CromwellTestKitSpec.TestWorkflowManagerSystem(system, CromwellTestKitSpec.DefaultConfig)
 
+  /*
+  These singletons must be initialized before a lot of other work is done, otherwise their `var mySingleton = _`
+  end up causing cryptic NullPointerException errors.
+
+  Initializing them (repeatedly) here is good enough for tests.
+   */
+  CromwellBackends.initBackends(BackendConfiguration.AllBackendEntries)
+  CromwellLanguages.initLanguages(LanguageConfiguration.AllLanguageEntries)
+
+  implicit lazy val defaultPatience: PatienceConfig =
+    PatienceConfig(timeout = Span(200, Seconds), interval = Span(1000, Millis))
+  implicit lazy val ec: ExecutionContext = system.dispatcher
+  implicit lazy val materializer: ActorMaterializer = twms.materializer
+  lazy val dummyServiceRegistryActor: ActorRef = system.actorOf(Props.empty, "dummyServiceRegistryActor")
+  lazy val dummyLogCopyRouter: ActorRef = system.actorOf(Props.empty, "dummyLogCopyRouter")
+
+  //noinspection ConvertExpressionToSAM
   // Allow to use shouldEqual between 2 WdlTypes while acknowledging for edge cases
-  implicit val wdlTypeSoftEquality = new Equality[WomType] {
+  implicit val wdlTypeSoftEquality: Equality[WomType] = new Equality[WomType] {
+    @tailrec
     override def areEqual(a: WomType, b: Any): Boolean = (a, b) match {
       case (WomStringType | WomSingleFileType, WomSingleFileType | WomStringType) => true
       case (arr1: WomArrayType, arr2: WomArrayType) => areEqual(arr1.memberType, arr2.memberType)
@@ -270,8 +286,8 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
   }
 
   // Allow to use shouldEqual between 2 WdlValues while acknowledging for edge cases and checking for WomType compatibility
-  implicit val wdlEquality = new Equality[WomValue] {
-    def fileEquality(f1: String, f2: String) =
+  implicit val wdlEquality: Equality[WomValue] = new Equality[WomValue] {
+    def fileEquality(f1: String, f2: String): Boolean =
       DefaultPathBuilder.get(f1).getFileName == DefaultPathBuilder.get(f2).getFileName
 
     override def areEqual(a: WomValue, b: Any): Boolean = {
@@ -288,7 +304,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
             array.value.zip(expectedArray.value).map(Function.tupled(areEqual)).forall(identity)
         case (map: WomMap, expectedMap: WomMap) =>
           val mapped = map.value.map {
-            case (k, v) => expectedMap.value.get(k).isDefined && areEqual(v, expectedMap.value(k))
+            case (k, v) => expectedMap.value.contains(k) && areEqual(v, expectedMap.value(k))
           }
 
           (map.value.size == expectedMap.value.size) && mapped.forall(identity)
@@ -299,8 +315,8 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
     }
   }
 
-  protected def buildCromwellRootActor(config: Config) = {
-    TestActorRef(new TestCromwellRootActor(config), name = "TestCromwellRootActor" + UUID.randomUUID().toString)
+  protected def buildCromwellRootActor(config: Config, actorName: String): TestActorRef[TestCromwellRootActor] = {
+    TestActorRef(new TestCromwellRootActor(config), actorName)
   }
 
   def runWdl(sampleWdl: SampleWdl,
@@ -308,10 +324,12 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
              workflowOptions: String = "{}",
              customLabels: String = "{}",
              terminalState: WorkflowState = WorkflowSucceeded,
-             config: Config = DefaultConfig,
-             patienceConfig: PatienceConfig = defaultPatience)(implicit ec: ExecutionContext): Map[FullyQualifiedName, WomValue] = {
+             config: Config = NooPServiceActorConfig,
+             patienceConfig: PatienceConfig = defaultPatience,
+             testActorName: String,
+            )(implicit ec: ExecutionContext): Map[FullyQualifiedName, WomValue] = {
 
-    val rootActor = buildCromwellRootActor(config)
+    val rootActor = buildCromwellRootActor(config, testActorName)
     val sources = sampleWdl.asWorkflowSources(
       runtime = runtime,
       workflowOptions = workflowOptions,
@@ -320,7 +338,9 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
       labels = customLabels
     )
     val workflowId = rootActor.underlyingActor.submitWorkflow(sources)
-    eventually { verifyWorkflowState(rootActor.underlyingActor.serviceRegistryActor, workflowId, terminalState) } (config = patienceConfig, pos = implicitly[org.scalactic.source.Position])
+    eventually { verifyWorkflowComplete(rootActor.underlyingActor.serviceRegistryActor, workflowId) } (config = patienceConfig, pos = implicitly[org.scalactic.source.Position], retrying = implicitly[Retrying[Unit]])
+    verifyWorkflowState(rootActor.underlyingActor.serviceRegistryActor, workflowId, terminalState)
+
     val outcome = getWorkflowOutputsFromMetadata(workflowId, rootActor.underlyingActor.serviceRegistryActor)
     system.stop(rootActor)
     // And return the outcome:
@@ -328,20 +348,21 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
   }
 
   def runWdlAndAssertOutputs(sampleWdl: SampleWdl,
-                             eventFilter: EventFilter,
                              expectedOutputs: Map[FullyQualifiedName, WomValue],
                              runtime: String = "",
                              workflowOptions: String = "{}",
                              allowOtherOutputs: Boolean = true,
-                             terminalState: WorkflowState = WorkflowSucceeded,
-                             config: Config = DefaultConfig,
-                             patienceConfig: PatienceConfig = defaultPatience)
+                             config: Config = NooPServiceActorConfig,
+                             patienceConfig: PatienceConfig = defaultPatience,
+                             testActorName: String,
+                            )
                             (implicit ec: ExecutionContext): WorkflowId = {
-    val rootActor = buildCromwellRootActor(config)
+    val rootActor = buildCromwellRootActor(config, testActorName)
     val sources = sampleWdl.asWorkflowSources(runtime, workflowOptions)
 
     val workflowId = rootActor.underlyingActor.submitWorkflow(sources)
-    eventually { verifyWorkflowState(rootActor.underlyingActor.serviceRegistryActor, workflowId, terminalState) } (config = patienceConfig, pos = implicitly[org.scalactic.source.Position])
+    eventually { verifyWorkflowComplete(rootActor.underlyingActor.serviceRegistryActor, workflowId) } (config = patienceConfig, pos = implicitly[org.scalactic.source.Position], retrying = implicitly[Retrying[Unit]])
+    verifyWorkflowState(rootActor.underlyingActor.serviceRegistryActor, workflowId, WorkflowSucceeded)
 
     val outputs = getWorkflowOutputsFromMetadata(workflowId, rootActor.underlyingActor.serviceRegistryActor)
     val actualOutputNames = outputs.keys mkString ", "
@@ -362,31 +383,37 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
     workflowId
   }
 
+  private def getWorkflowState(workflowId: WorkflowId, serviceRegistryActor: ActorRef)(implicit ec: ExecutionContext): WorkflowState = {
+    val statusResponse = serviceRegistryActor.ask(GetStatus(workflowId))(TimeoutDuration).collect {
+      case SuccessfulMetadataJsonResponse(_, jsObject) => WorkflowState.withName(jsObject.fields("status").asInstanceOf[JsString].value)
+      case f => throw new RuntimeException(s"Unexpected status response for $workflowId: $f")
+    }
+    Await.result(statusResponse, TimeoutDuration)
+  }
+
   /**
-    * Verifies that a state is correct. // TODO: There must be a better way...?
+    * Verifies that a workflow is complete
+    */
+  protected def verifyWorkflowComplete(serviceRegistryActor: ActorRef, workflowId: WorkflowId)(implicit ec: ExecutionContext): Unit = {
+    List(WorkflowSucceeded, WorkflowFailed, WorkflowAborted) should contain(getWorkflowState(workflowId, serviceRegistryActor))
+    ()
+  }
+
+  /**
+    * Verifies that a state is correct.
     */
   protected def verifyWorkflowState(serviceRegistryActor: ActorRef, workflowId: WorkflowId, expectedState: WorkflowState)(implicit ec: ExecutionContext): Unit = {
-    def getWorkflowState(workflowId: WorkflowId, serviceRegistryActor: ActorRef)(implicit ec: ExecutionContext): WorkflowState = {
-      val statusResponse = serviceRegistryActor.ask(GetStatus(workflowId))(TimeoutDuration).collect {
-        case StatusLookupResponse(_, state) => state
-        case f => throw new RuntimeException(s"Unexpected status response for $workflowId: $f")
-      }
-      Await.result(statusResponse, TimeoutDuration)
-    }
-
     getWorkflowState(workflowId, serviceRegistryActor) should equal (expectedState)
     ()
   }
 
   private def getWorkflowOutputsFromMetadata(id: WorkflowId, serviceRegistryActor: ActorRef): Map[FullyQualifiedName, WomValue] = {
-    val mba = system.actorOf(MetadataBuilderActor.props(serviceRegistryActor))
-    val response = mba.ask(WorkflowOutputs(id)).mapTo[MetadataBuilderActorResponse] collect {
-      case BuiltMetadataResponse(r) => r
-      case FailedMetadataResponse(e) => throw e
+
+    val response = serviceRegistryActor.ask(WorkflowOutputs(id)).mapTo[MetadataJsonResponse] collect {
+      case SuccessfulMetadataJsonResponse(_, r) => r
+      case FailedMetadataJsonResponse(_, e) => throw e
     }
     val jsObject = Await.result(response, TimeoutDuration)
-
-    system.stop(mba)
 
     jsObject.getFields(WorkflowMetadataKeys.Outputs).toList match {
       case head::_ => head.asInstanceOf[JsObject].fields.map( x => (x._1, jsValueToWdlValue(x._2)))

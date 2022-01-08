@@ -1,23 +1,28 @@
 package cromwell.webservice
 
-import akka.http.scaladsl.model.{StatusCodes, Uri}
 import akka.http.scaladsl.model.headers.Location
+import akka.http.scaladsl.model.{StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.testkit.ScalatestRouteTest
+import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import com.typesafe.config.ConfigFactory
+import common.assertion.CromwellTimeoutSpec
 import cromwell.webservice.SwaggerUiHttpServiceSpec._
 import cromwell.webservice.routes.CromwellApiService
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
+import scala.concurrent.duration._
 
-trait SwaggerUiHttpServiceSpec extends FlatSpec with Matchers with ScalatestRouteTest with SwaggerUiHttpService {
+trait SwaggerUiHttpServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest with SwaggerUiHttpService {
   override def swaggerUiVersion = CromwellApiService.swaggerUiVersion
 }
 
-trait SwaggerResourceHttpServiceSpec extends FlatSpec with Matchers with ScalatestRouteTest with
+trait SwaggerResourceHttpServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest with
 TableDrivenPropertyChecks with SwaggerResourceHttpService {
   val testPathsForOptions = Table("endpoint", "/", "/swagger", "/swagger/index.html", "/api", "/api/example",
     "/api/example?with=param", "/api/example/path")
+
+  implicit val timeout: RouteTestTimeout = RouteTestTimeout(5.seconds)
 }
 
 trait SwaggerUiResourceHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerResourceHttpServiceSpec with
@@ -28,9 +33,10 @@ object SwaggerUiHttpServiceSpec {
     """
       |<!DOCTYPE html>
       |<html lang="en">
-      |<head>
-      |  <meta charset="UTF-8">
-      |  <title>Swagger UI</title>""".stripMargin.trim // workaround IDEA's weird formatting of interpolated strings
+      |  <head>
+      |    <meta charset="UTF-8">
+      |    <title>Swagger UI</title>
+      |""".stripMargin.trim // workaround IDEA's weird formatting of interpolated strings
 
   /**
     * Strips out an HTML comment at the front of the string and then tries to whittle it down to the same length as '
@@ -65,6 +71,21 @@ class BasicSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
   it should "return index.html from the swagger-ui jar" in {
     Get("/swagger/index.html") ~> swaggerUiRoute ~> check {
       status should be(StatusCodes.OK)
+    }
+  }
+}
+
+class OverrideBasePathSwaggerUiHttpServiceSpec extends SwaggerResourceHttpServiceSpec {
+  override def swaggerServiceName = "testservice"
+
+  override def getBasePathOverride(): Option[String] = Option("/proxy/abc")
+
+  behavior of "SwaggerResourceHttpService"
+
+  it should "inject basePath url into cromwell swagger service" in {
+    Get("/swagger/testservice.yaml") ~> swaggerResourceRoute ~> check {
+      status should be(StatusCodes.OK)
+      responseAs[String] should include("basePath: /proxy/abc")
     }
   }
 }

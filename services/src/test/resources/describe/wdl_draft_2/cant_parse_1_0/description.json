@@ -3,6 +3,7 @@
   "errors" : [
     "ERROR: Finished parsing without consuming all tokens.\n\nversion 1.0\n^\n     "
   ],
+  "validWorkflow" : false,
   "name" : "",
   "inputs" : [
   ],
@@ -11,11 +12,16 @@
   "images" : [
   ],
   "submittedDescriptorType" : {
-
+    "descriptorType" : "WDL",
+    "descriptorTypeVersion" : "draft-2"
   },
   "importedDescriptorTypes" : [
   ],
   "meta" : {
 
-  }
+  },
+  "parameterMeta" : {
+
+  },
+  "isRunnableWorkflow" : false
 }

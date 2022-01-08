@@ -3,6 +3,7 @@ testFormat: workflowsuccess
 workflowType: CWL
 workflowTypeVersion: v1.0
 workflowRoot: hello
+skipDescribeEndpointValidation: true
 
 files {
   workflow: hello_cwl/hello.cwl

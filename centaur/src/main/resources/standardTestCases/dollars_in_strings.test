@@ -1,0 +1,14 @@
+name: dollars_in_strings
+testFormat: workflowsuccess
+
+files {
+  workflow: dollars_in_strings/dollars_in_strings.wdl
+}
+
+metadata {
+  workflowName: read_dollared_strings
+  status: Succeeded
+  "outputs.read_dollared_strings.s1": "${BLAH}"
+  "outputs.read_dollared_strings.s2": "${BLAH}"
+  "outputs.read_dollared_strings.s3": "oops ${BLAH}"
+}

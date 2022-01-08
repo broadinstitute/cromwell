@@ -14,7 +14,7 @@ SLURM {
     submit = """
         sbatch -J ${job_name} -D ${cwd} -o ${out} -e ${err} -t ${runtime_minutes} -p ${queue} \
         ${"-c " + cpus} \
-        --mem-per-cpu=${requested_memory_mb_per_core} \
+        --mem-per-cpu ${requested_memory_mb_per_core} \
         --wrap "/bin/bash ${script}"
     """
     kill = "scancel ${job_id}"

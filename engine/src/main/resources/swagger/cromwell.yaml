@@ -3,6 +3,9 @@
 #
 
 swagger: '2.0'
+
+# This line is included when the YAML is served by Cromwell if it sees an environment variable called "SWAGGER_BASE_PATH"
+#basePath: ...
 info:
   title: Cromwell Server REST API
   description: Describes the REST API provided by a Cromwell server
@@ -436,7 +439,7 @@ paths:
             type: string
           collectionFormat: multi
           description: >
-            Includes the specified keys in the metadata for the returned workflows.
+            Currently only 'labels' is a valid value here. Use it to include a list of labels with each result.
         - name : includeSubworkflows
           required: false
           type: boolean
@@ -511,8 +514,8 @@ paths:
         - $ref: '#/parameters/singleId'
         - name: includeKey
           description: >
-            When specified key(s) to include from the metadata. Matches any key starting with the value. May not be
-            used with excludeKey. This applies to all keys in the response, including within nested blocks.
+            When specified, filters metadata to only return fields with names which begins with this value.
+            This key is used relative to the root of the response *and* relative to each call's metadata fields.
           required: false
           type: array
           items:
@@ -521,8 +524,9 @@ paths:
           in: query
         - name: excludeKey
           description: >
-            When specified key(s) to exclude from the metadata. Matches any key starting with the value. May not be
-            used with includeKey. This applies to all keys in the response, including within nested blocks.
+            When specified, filters metadata to not return any field with a name which begins with this value.
+            This key is used relative to the root of the response *and* relative to each call's metadata fields.
+            Use 'calls' to filter out all call level metadata.
           required: false
           type: array
           items:
@@ -534,7 +538,6 @@ paths:
             When true, metadata for sub workflows will be fetched and inserted automatically in the metadata response.
           required: false
           type: boolean
-          default: false
           in: query
       tags:
         - Workflows
@@ -615,7 +618,6 @@ paths:
     post:
       operationId: describe
       summary: Machine-readable description of a workflow, including inputs and outputs
-      description: This endpoint is undergoing active development. Its performance has not been validated and it **should not be called on a production instance of Cromwell**.
       consumes:
         - multipart/form-data
       parameters:
@@ -643,7 +645,7 @@ paths:
           schema:
             $ref: '#/definitions/WorkflowDescription'
       tags:
-        - "Womtool (beta)"
+        - "Womtool"
   '/engine/{version}/version':
     get:
       operationId: engineVersion
@@ -731,7 +733,7 @@ definitions:
       id:
         type: string
         description: The identifier of the workflow
-        example: e442e52a-9de1-47f0-8b4f-e6e565008cf1
+        example: 00001111-2222-3333-aaaa-bbbbccccdddd
       status:
         type: string
         description: The status of the workflow
@@ -744,7 +746,7 @@ definitions:
       id:
         type: string
         description: The identifier of the workflow
-        example: e442e52a-9de1-47f0-8b4f-e6e565008cf1
+        example: 00001111-2222-3333-aaaa-bbbbccccdddd
       status:
         type: string
         description: The status of the workflow
@@ -843,15 +845,17 @@ definitions:
   WorkflowDescription:
     required:
       - valid
+      - validWorkflow
       - errors
       - name
       - inputs
       - outputs
       - submittedDescriptorType
+      - isRunnableWorkflow
     properties:
       valid:
         type: boolean
-        description: Whether the workflow and inputs as submitted passed validation
+        description: Indicates that the workflow is valid and that the inputs, if provided, are compatible with the workflow.
       errors:
         type: array
         items:
@@ -861,6 +865,9 @@ definitions:
           - "We might also provide warnings to a 'valid' workflow here"
           - "Otherwise, 'errors' will be the empty array"
         description: The set of validation failure messages
+      validWorkflow:
+        type: boolean
+        description: Indicates whether the workflow file is valid by itself. If inputs are provided, they are not considered when calculating this field; if inputs are not provided, the value is identical to `valid`.
       name:
         type: string
         description: For a source file with one workflow and zero or more tasks, the name of the workflow. For a single task, the name of the task. For a source file with multiple tasks but no workflows, the empty string.
@@ -976,6 +983,9 @@ definitions:
             typeDisplayName: Pair[Int, String]
       submittedDescriptorType:
         $ref: '#/definitions/DescriptorTypeAndVersion'
+      isRunnableWorkflow:
+        description: Indicates whether this file can be run on its own (e.g. a WDL workflow)
+        type: boolean
   ToolInputParameter:
     type: object
     description: >-
@@ -985,6 +995,7 @@ definitions:
       - valueType
       - optional
       - default
+      - typeDisplayName
     properties:
       name:
         type: string
@@ -998,6 +1009,9 @@ definitions:
         type: string
         description: The in-language expression used to evaluate a default value for this parameter, if
           none is supplied.
+      typeDisplayName:
+        type: string
+        description: An easy-to-read display name for the type of the input
   ToolOutputParameter:
     type: object
     description: >-
@@ -1005,12 +1019,16 @@ definitions:
     required:
       - name
       - valueType
+      - typeDisplayName
     properties:
       name:
         type: string
         description: The name of this input value (formatted as expected by the tool)
       valueType:
         $ref: '#/definitions/ValueType'
+      typeDisplayName:
+        type: string
+        description: An easy-to-read display name for the type of the output
   ValueType:
     description: The type expected for a given value.
     type: object
@@ -1033,6 +1051,7 @@ definitions:
           - Tuple
           - Map
           - Object
+          - Pair
       optionalType:
         $ref: '#/definitions/ValueType'
       arrayType:
@@ -1156,10 +1175,10 @@ definitions:
         format: boolean
         description: Include subworkflows in results. By default, it is taken as true.
       page:
-        type: int
+        type: integer
         description: When pageSize is set, which page of results to return. If not set, the first page of 'pageSize' results will be returned.
       pageSize:
-        type: int
+        type: integer
         description: The number of results to return at a time
   WorkflowQueryResponse:
     description: Response to a workflow query

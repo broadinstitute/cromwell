@@ -1,10 +1,12 @@
 package wdl
 
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.SampleWdl.ScatterWdl
-import org.scalatest.{FlatSpec, Matchers}
 import wdl.draft2.model.WdlNamespaceWithWorkflow
 
-class PrerequisiteScopesSpec extends FlatSpec with Matchers {
+class PrerequisiteScopesSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   val namespace = WdlNamespaceWithWorkflow.load((new ScatterWdl).workflowSource(), Seq.empty).get
   val workflow = namespace.workflow
   val allCalls = workflow.calls

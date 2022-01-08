@@ -1,7 +1,7 @@
 import ContinuousIntegration._
 import Dependencies._
 import GenerateRestApiDocs._
-import Merging.customMergeStrategy
+import Merging._
 import Publishing._
 import Testing._
 import Version._
@@ -9,17 +9,9 @@ import sbt.Keys._
 import sbt._
 import sbtassembly.AssemblyPlugin
 import sbtassembly.AssemblyPlugin.autoImport._
-import sbtdocker.DockerPlugin
-import sbtrelease.ReleasePlugin
+import sbtdocker.{DockerPlugin, Instruction, Instructions}
 
 object Settings {
-
-  val commonResolvers = List(
-    Resolver.jcenterRepo,
-    "Broad Artifactory Releases" at "https://broadinstitute.jfrog.io/broadinstitute/libs-release/",
-    "Broad Artifactory Snapshots" at "https://broadinstitute.jfrog.io/broadinstitute/libs-snapshot/",
-    Resolver.sonatypeRepo("releases")
-  )
 
   /* The reason why -Xmax-classfile-name is set is because this will fail
      to build on Docker otherwise.  The reason why it's 200 is because it
@@ -47,7 +39,6 @@ object Settings {
     "-Ybackend-parallelism", "3",
     "-Ycache-plugin-class-loader:last-modified",
     "-Ycache-macro-class-loader:last-modified",
-    "-target:jvm-1.8",
     "-encoding", "UTF-8"
   )
 
@@ -88,35 +79,80 @@ object Settings {
   )
 
   lazy val assemblySettings = Seq(
-    assemblyJarName in assembly := name.value + "-" + version.value + ".jar",
-    test in assembly := {},
-    assemblyMergeStrategy in assembly := customMergeStrategy.value,
-    logLevel in assembly :=
-      sys.env.get("CROMWELL_SBT_ASSEMBLY_LOG_LEVEL").flatMap(Level.apply).getOrElse((logLevel in assembly).value)
+    assembly / assemblyJarName := name.value + "-" + version.value + ".jar",
+    assembly / test := {},
+    assembly / assemblyMergeStrategy := customMergeStrategy.value,
   )
 
-  val Scala2_12Version = "2.12.6"
-  val ScalaVersion = Scala2_12Version
-  val sharedSettings = ReleasePlugin.projectSettings ++
-    cromwellVersionWithGit ++ artifactorySettings ++ List(
+  val Scala2_12Version = "2.12.15"
+  private val ScalaVersion: String = Scala2_12Version
+  private val sharedSettings: Seq[Setting[_]] =
+    cromwellVersionWithGit ++ publishingSettings ++ List(
     organization := "org.broadinstitute",
     scalaVersion := ScalaVersion,
-    resolvers ++= commonResolvers,
-    parallelExecution := false,
+    resolvers ++= additionalResolvers,
+    // Don't run tasks in parallel, especially helps in low CPU environments like Travis
+    Global / parallelExecution := false,
+    Global / concurrentRestrictions ++= List(
+      // Don't run any other tasks while running tests, especially helps in low CPU environments like Travis
+      Tags.exclusive(Tags.Test),
+      // Only run tests on one sub-project at a time, especially helps in low CPU environments like Travis
+      Tags.limit(Tags.Test, 1)
+    ),
     dependencyOverrides ++= cromwellDependencyOverrides,
     scalacOptions ++= baseSettings ++ warningSettings ++ consoleHostileSettings,
     // http://stackoverflow.com/questions/31488335/scaladoc-2-11-6-fails-on-throws-tag-with-unable-to-find-any-member-to-link#31497874
-    scalacOptions in(Compile, doc) ++= baseSettings ++ List("-no-link-warnings"),
+    Compile / doc / scalacOptions ++= baseSettings ++ List("-no-link-warnings"),
     // No console-hostile options, otherwise the console is effectively unusable.
     // https://github.com/sbt/sbt/issues/1815
-    scalacOptions in(Compile, console) --= consoleHostileSettings,
-    addCompilerPlugin(paradisePlugin)
+    Compile / console / scalacOptions --= consoleHostileSettings,
+    addCompilerPlugin(paradisePlugin),
+    excludeDependencies ++= List(
+      "org.typelevel" % "simulacrum-scalafix-annotations_2.12",
+      "org.typelevel" % "simulacrum-scalafix-annotations_2.13"
+    )
   )
 
-  val swaggerUiSettings = List(resourceGenerators in Compile += writeSwaggerUiVersionConf)
+  /*
+      Docker instructions to install Google Cloud SDK image in docker image. It also installs `crcmod` which
+      is needed while downloading large files using `gsutil`.
+      References:
+        - https://stackoverflow.com/questions/28372328/how-to-install-the-google-cloud-sdk-in-a-docker-image
+        - https://cromwell.readthedocs.io/en/develop/backends/Google/#issues-with-composite-files
+        - https://cloud.google.com/storage/docs/gsutil/addlhelp/CRC32CandInstallingcrcmod
+
+      Install `getm` for performant signed URL downloading with integrity checking.
+      References:
+        - https://github.com/xbrianh/getm
+   */
+  val installLocalizerSettings: List[Setting[Seq[Instruction]]] = List(
+    dockerCustomSettings := List(
+      Instructions.Env("PATH", "$PATH:/usr/local/gcloud/google-cloud-sdk/bin"),
+      // instructions to install `crcmod`
+      Instructions.Run("apt-get -y update"),
+      Instructions.Run("apt-get -y install python3.8"),
+      Instructions.Run("apt -y install python3-pip"),
+      Instructions.Run("apt-get -y install gcc python3-dev python3-setuptools"),
+      Instructions.Run("pip3 uninstall crcmod"),
+      Instructions.Run("pip3 install --no-cache-dir -U crcmod"),
+      Instructions.Run("update-alternatives --install /usr/bin/python python /usr/bin/python3 1"),
+      Instructions.Env("CLOUDSDK_PYTHON", "python3"),
+      // instructions to install Google Cloud SDK
+      Instructions.Run("curl https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.tar.gz > /tmp/google-cloud-sdk.tar.gz"),
+      Instructions.Run("""mkdir -p /usr/local/gcloud \
+                         | && tar -C /usr/local/gcloud -xvf /tmp/google-cloud-sdk.tar.gz \
+                         | && /usr/local/gcloud/google-cloud-sdk/install.sh""".stripMargin),
+      // instructions to install `getm`. Pin to version 0.0.4 as the behaviors of future versions with respect to
+      // messages or exit codes may change.
+      Instructions.Run("pip3 install getm==0.0.4")
+    )
+  )
+
+  val swaggerUiSettings = List(Compile / resourceGenerators += writeSwaggerUiVersionConf)
   val backendSettings = List(addCompilerPlugin(kindProjectorPlugin))
-  val engineSettings = swaggerUiSettings
-  val cromiamSettings = swaggerUiSettings
+  val engineSettings: List[Setting[_]] = swaggerUiSettings
+  val cromiamSettings: List[Setting[_]] = swaggerUiSettings
+  val drsLocalizerSettings: List[Setting[_]] = installLocalizerSettings
 
   private def buildProject(project: Project,
                            projectName: String,
@@ -142,7 +178,7 @@ object Settings {
         if (integrationTests) addIntegrationTestSettings else identity,
         _
           .disablePlugins(AssemblyPlugin)
-          .settings(resourceGenerators in Compile += writeProjectVersionConf)
+          .settings(Compile / resourceGenerators += writeProjectVersionConf)
           .settings(customSettings)
       )
 
@@ -170,14 +206,13 @@ object Settings {
         },
         _
           .settings(assemblySettings)
-          .settings(resourceGenerators in Compile += writeProjectVersionConf)
+          .settings(Compile / resourceGenerators += writeProjectVersionConf)
           .settings(customSettings)
       )
 
       buildProject(project, executableName, dependencies, builders)
     }
   }
-
 
   // Adds settings to build the root project
   implicit class ProjectRootSettings(val project: Project) extends AnyVal {
@@ -190,10 +225,18 @@ object Settings {
           .settings(publish := {})
           .settings(generateRestApiDocsSettings)
           .settings(ciSettings)
-          .settings(rootArtifactorySettings)
+          .settings(rootPublishingSettings)
       )
 
       buildProject(project, "root", Nil, builders)
+    }
+
+    /**
+      * After aggregations have been added to the root project, we can do additional tasks like checking if every
+      * sub-project in build.sbt will also be tested by the root-aggregated `sbt test` command.
+      */
+    def withAggregateSettings(): Project = {
+      project.settings(aggregateSettings(project))
     }
   }
 

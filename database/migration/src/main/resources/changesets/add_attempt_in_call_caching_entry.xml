@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet id="add_attempt_in_call_caching_entry" author="tjeandet">
+    <changeSet id="add_attempt_in_call_caching_entry" author="tjeandet" dbms="mysql,hsqldb">
         <addColumn tableName="CALL_CACHING_ENTRY">
             <column name="JOB_ATTEMPT" type="INT" defaultValue="NULL">
                 <constraints nullable="true" />

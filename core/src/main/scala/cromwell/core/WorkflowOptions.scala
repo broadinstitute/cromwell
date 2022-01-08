@@ -55,15 +55,19 @@ object WorkflowOptions {
   case object FinalWorkflowLogDir extends WorkflowOption("final_workflow_log_dir")
   case object FinalCallLogsDir extends WorkflowOption("final_call_logs_dir")
   case object FinalWorkflowOutputsDir extends WorkflowOption("final_workflow_outputs_dir")
+  case object UseRelativeOutputPaths extends WorkflowOption(name="use_relative_output_paths")
 
   // Misc.
   case object DefaultRuntimeOptions extends WorkflowOption("default_runtime_attributes")
   case object WorkflowFailureMode extends WorkflowOption("workflow_failure_mode")
+  case object UseReferenceDisks extends WorkflowOption("use_reference_disks")
+  case object MemoryRetryMultiplier extends WorkflowOption("memory_retry_multiplier")
 
   private lazy val WorkflowOptionsConf = ConfigFactory.load.getConfig("workflow-options")
   private lazy val EncryptedFields: Seq[String] = WorkflowOptionsConf.getStringList("encrypted-fields").asScala
   private lazy val EncryptionKey: String = WorkflowOptionsConf.getString("base64-encryption-key")
   private lazy val defaultRuntimeOptionKey: String = DefaultRuntimeOptions.name
+  private lazy val validObjectKeys: Set[String] = Set(DefaultRuntimeOptions.name, "google_labels")
 
   def encryptField(value: JsString): Try[JsObject] = {
     Aes256Cbc.encrypt(value.value.getBytes("utf-8"), SecretKey(EncryptionKey)) match {
@@ -93,7 +97,7 @@ object WorkflowOptions {
       case (k, v: JsString) if EncryptedFields.contains(k) => k -> encryptField(v)
       case (k, v: JsString) => k -> Success(v)
       case (k, v: JsBoolean) => k -> Success(v)
-      case (k, v: JsObject) if defaultRuntimeOptionKey.equals(k) => k -> Success(v)
+      case (k, v: JsObject) if validObjectKeys.contains(k) => k -> Success(v)
       case (k, v: JsNumber) => k -> Success(v)
       case (k, v) if isEncryptedField(v) => k -> Success(v)
       case (k, v: JsArray) => k -> Success(v)
@@ -177,18 +181,22 @@ case class WorkflowOptions(jsObject: JsObject) {
 
   /**
     * Returns a JSON representation of these workflow options where the encrypted values
-    * have been replaced by the string "cleared". This will be called on the workflow
-    * options (and subsequently stored back in the database) once a workflow finishes
-    * and the encrypted values aren't needed anymore. This protects us in case the
-    * database and private key become compromised, the attacker will not be able to
-    * decrypt values for completed workflows.
+    * have been replaced by the string "cleared".
+    *
+    * Used to protect encrypted values from being stored in metadata
     */
-  def clearEncryptedValues: String = {
-    val revoked = jsObject.fields map {
-      case (k, v: JsObject) if isEncryptedField(v) => k -> JsString("cleared")
-      case (k, v) => k -> v
+  def clearEncryptedValues: WorkflowOptions = {
+
+    def revoke(o: JsObject): JsObject = {
+      val newFields = o.fields map {
+        case (k, v: JsObject) if isEncryptedField(v) => k -> JsString("cleared")
+        case (k, v: JsObject) => k -> revoke(v)
+        case (k, v) => k -> v
+      }
+      JsObject(newFields)
     }
-    JsObject(revoked).prettyPrint
+
+    WorkflowOptions(revoke(jsObject))
   }
 }
 

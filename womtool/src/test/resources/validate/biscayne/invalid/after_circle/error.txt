@@ -1,3 +1,3 @@
 Failed to process workflow definition 'after_circle' (reason 1 of 1): This workflow contains a cyclic dependency:
-"call foo as foo2 after foo1 {" -> "call foo as foo1 after foo2 {"
 "call foo as foo1 after foo2 {" -> "call foo as foo2 after foo1 {"
+"call foo as foo2 after foo1 {" -> "call foo as foo1 after foo2 {"

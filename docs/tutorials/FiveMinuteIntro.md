@@ -20,15 +20,15 @@ At the end of this five minute introduction you will have:
 
 We host our Cromwell releases on GitHub! You can find the latest version on our [Releases](https://github.com/broadinstitute/cromwell/releases/latest) page.
 
-* Head down to the bottom of the page and find the link to download `cromwell-29.jar`. Note that when you read these instructions, the latest Cromwell version might be higher than 29. That's fine, these instructions will work just as well! Download the jar file.
- 	 * WARNING! If you're on a Mac, the security settings might try to stop you from running Cromwell! Don't worry, if this happens just go to `System Preferences > Security & Privacy > General` and find the `cromwell` jar listed on the page. Click `Open anyway`. The `cromwell-29.jar` will now automatically download to your `Downloads` directory.
+* Look for the latest version at the top of the page, and find the link to download the jar. It'll have a name like `cromwell-XY.jar` where `XY` is the version. Download the jar file.
+* WARNING! If you're on a Mac, the security settings might try to stop you from running Cromwell! Don't worry, if this happens just go to `System Preferences > Security & Privacy > General` and find the `cromwell` jar listed on the page. Click `Open anyway`. The `cromwell-XY.jar` will now automatically download to your `Downloads` directory.
 * Put your downloaded Cromwell somewhere you can find it later, like in a Cromwell directory in your home directory.
 
 For example, in a terminal:
 ```sh
 cd ~
 mkdir cromwell
-cp ~/Downloads/cromwell-29.jar cromwell/
+cp ~/Downloads/cromwell-XY.jar cromwell/
 cd cromwell/
 ```
 _(if you're not using a Mac, the final command might be different for you)_
@@ -63,7 +63,7 @@ Ok, we have Cromwell, we have a workflow, let's put it all together!
 
 Make sure you're in the cromwell directory with the `.jar` file and the `.wdl` file. Now type in:
 ```sh
-java -jar cromwell-29.jar run myWorkflow.wdl
+java -jar cromwell-XY.jar run myWorkflow.wdl
 ```
 
 Cromwell will print out a fair old chunk of logging information, which can be configured (once you've completed this tutorial and [Configuration Files](ConfigurationFiles), you might want to investigate the [Logging](../Logging) page)

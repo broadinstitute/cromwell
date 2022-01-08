@@ -1,5 +1,6 @@
 name: cwl_scatter_wf1
 testFormat: workflowsuccess
+skipDescribeEndpointValidation: true
 
 files {
   workflow: cwls/scatter-wf1.cwl

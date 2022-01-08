@@ -13,7 +13,8 @@ import common.util.VersionUtil
 import cromwell.api.model.{Aborted, Failed, NonTerminalStatus, Succeeded}
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.PathBuilderFactory
-import cwl.preprocessor.{CwlPreProcessor, CwlFileReference}
+import cromwell.core.path.BetterFileMethods.Cmds
+import cwl.preprocessor.{CwlFileReference, CwlPreProcessor}
 import spray.json._
 
 import scala.concurrent.Await
@@ -63,7 +64,7 @@ object CentaurCwlRunner extends StrictLogging {
   private lazy val versionString = s"$centaurCwlRunnerVersion ${centaurCwlRunnerRunMode.description}"
 
   private def showUsage(): ExitCode.Value = {
-    parser.showUsage()
+    System.err.println(parser.usage)
     ExitCode.Failure
   }
 
@@ -173,9 +174,12 @@ object CentaurCwlRunner extends StrictLogging {
       directoryContentCounts,
       backends,
       retryTestFailures = false,
-      allowOtherOutputs = true
+      allowOtherOutputs = true,
+      skipDescribeEndpointValidation = true,
+      maximumAllowedTime = None
     )
-    val testCase = CentaurTestCase(workflow, testFormat, testOptions, submitResponseOption)
+
+    val testCase = CentaurTestCase(workflow, testFormat, testOptions, submitResponseOption)(cromwellTracker = None)
 
     if (!args.quiet) {
       logger.info(s"Starting test for $workflowPath")

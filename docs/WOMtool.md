@@ -6,12 +6,12 @@ The following is the toolchain used for development of womtool.  Other versions 
 
 * [Scala 2.12](http://www.scala-lang.org/)
 * [SBT 1.x](https://www.scala-sbt.org/)
-* [Java 8](http://www.oracle.com/technetwork/java/javase/overview/java8-2100321.html)
+* [AdoptOpenJDK 11 HotSpot](https://adoptopenjdk.net/)
 * [Git](https://git-scm.com/)
 
 ## Building
 
-`sbt assembly` will build a runnable JAR in `target/scala-2.11/`
+`sbt assembly` will build a runnable JAR in `womtool/target/scala-2.12/`
 
 Tests are run via `sbt test`.  Note that the tests do require Docker to be running.  To test this out while downloading the Ubuntu image that is required for tests, run `docker pull ubuntu:latest` prior to running `sbt test`
 
@@ -25,10 +25,11 @@ Run the JAR file with no arguments to get the usage message:
 java -jar /path/to/womtool.jar <action> <parameters>
 
 Actions:
-validate <WDL file>
+validate [--list-dependencies] <WDL file>
 
   Performs full validation of the WDL file including syntax
-  and semantic checking
+  and semantic checking. -l or --list-dependencies is an optional flag to 
+  list files referenced in import statements.
 
 inputs <WDL file>
 
@@ -55,7 +56,8 @@ graph <WDL file>
 
   Reads a WDL file against the grammar and prints out a
   .dot of the DAG if it is valid, and a syntax error
-  otherwise.
+  otherwise. Note that graph currently DOES NOT WORK on
+  version 1.0 workflows.
 
 womgraph <WDL or CWL file> [ancillary files]
 
@@ -96,6 +98,20 @@ Import statement defined here (line 1, col 20):
 
 import "ps.wdl" as ps
                    ^
+```
+
+##### --list-dependencies or -l flag
+
+For a successful validation, this will output the list of files referenced in import statements in workflows and their subworkflows.
+
+`$ java -jar womtool.jar validate -l myWdl.wdl`
+
+```hocon
+Success!
+List of Workflow dependencies are:
+/path/to/my/import/myImport.wdl
+/path/to/another/import/anotherImport.wdl
+https://path-to-http-import/httpImport.wdl
 ```
 
 ### `inputs`

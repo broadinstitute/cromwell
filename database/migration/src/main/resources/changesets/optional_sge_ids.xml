@@ -2,7 +2,7 @@
 <databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
-    <changeSet author="chrisl" id="optional_sge_ids">
+    <changeSet author="chrisl" id="optional_sge_ids" dbms="mysql,hsqldb">
         <modifyDataType
                 tableName="SGE_JOB"
                 columnName="SGE_JOB_NUMBER"

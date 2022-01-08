@@ -16,13 +16,14 @@ object BcsJobPaths {
 	val BcsStderrRedirectPath = "bcs-stderr"
 }
 
-final case class BcsJobPaths(workflowPaths: BcsWorkflowPaths, jobKey: BackendJobDescriptorKey) extends JobPaths {
+final case class BcsJobPaths(workflowPaths: BcsWorkflowPaths, jobKey: BackendJobDescriptorKey, override val isCallCacheCopyAttempt: Boolean = false) extends JobPaths {
 
 	import BcsJobPaths._
 
-	// alibaba cloud's batchcompute service can only support tar.gz formatted package.
-	val workerFileName = "worker.tar.gz"
+	val workerFileName = "worker"
 	val workerPath = callRoot.resolve(workerFileName)
 	val bcsStdoutPath = callRoot.resolve(BcsStdoutRedirectPath)
 	val bcsStderrPath = callRoot.resolve(BcsStderrRedirectPath)
+
+	override def forCallCacheCopyAttempts: JobPaths = this.copy(isCallCacheCopyAttempt = true)
 }

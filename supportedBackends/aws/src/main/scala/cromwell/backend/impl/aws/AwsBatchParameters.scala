@@ -31,10 +31,14 @@
 
 package cromwell.backend.impl.aws
 
-import software.amazon.awssdk.services.batch.model.KeyValuePair
 import cromwell.backend.impl.aws.io.AwsBatchVolume
 import cromwell.core.path.Path
+import software.amazon.awssdk.services.batch.model.KeyValuePair
 
+/**
+ * Data about a Parameter for AWS Batch. Holds the name (key), the [[software.amazon.awssdk.services.batch.model.KeyValuePair]]
+ * and a `(String, String)` tuple of the key and value
+ */
 sealed trait AwsBatchParameter {
   def name: String
   def toKeyValuePair: KeyValuePair

@@ -14,6 +14,7 @@ import io.circe.optics.JsonPath._
 import io.circe.{Json, JsonNumber, JsonObject}
 import mouse.all._
 import org.slf4j.LoggerFactory
+import wom.util.YamlUtils
 
 import scala.concurrent.ExecutionContext
 
@@ -144,7 +145,7 @@ object CwlPreProcessor {
   private val saladCwlFileWithoutLogging: SaladFunction = saladSpinner(false)
 
   implicit class PrintableJson(val json: Json) extends AnyVal {
-    def printCompact = io.circe.Printer.noSpaces.pretty(json)
+    def printCompact = io.circe.Printer.noSpaces.print(json)
   }
 
   def noLogging = new CwlPreProcessor(saladCwlFileWithoutLogging)
@@ -218,7 +219,8 @@ object CwlPreProcessor {
   }
 
   private [preprocessor] def parseYaml(in: String): IOChecked[Json] = {
-   io.circe.yaml.parser.parse(in).leftMap(error => NonEmptyList.one(error.message)).toIOChecked
+    val yaml = YamlUtils.parse(in)
+    yaml.leftMap(error => NonEmptyList.one(error.message)).toIOChecked
   }
 
   /**

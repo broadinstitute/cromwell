@@ -1,9 +1,8 @@
 package cromwell.backend.google.pipelines.common.api
 
-import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
+import com.google.api.client.http.HttpRequestInitializer
 import com.google.auth.Credentials
 import com.google.auth.http.HttpCredentialsAdapter
-import mouse.all._
 
 /**
   * The interface provides a single method to build a PipelinesApiRequestFactory
@@ -13,16 +12,10 @@ import mouse.all._
   * Pipelines API for this workflow.
   */
 abstract class PipelinesApiFactoryInterface {
-  private def httpRequestInitializerFromCredentials(credentials: Credentials) = {
-    val delegate = new HttpCredentialsAdapter(credentials)
-    new HttpRequestInitializer() {
-      def initialize(httpRequest: HttpRequest) = {
-        delegate.initialize(httpRequest)
-      }
-    }
+  final def fromCredentials(credentials: Credentials): PipelinesApiRequestFactory = {
+    val httpCredentialsAdapter = new HttpCredentialsAdapter(credentials)
+    build(httpCredentialsAdapter)
   }
-  
-  final def fromCredentials(credentials: Credentials): PipelinesApiRequestFactory = build(credentials |> httpRequestInitializerFromCredentials)
   
   protected def build(httpRequestInitializer: HttpRequestInitializer): PipelinesApiRequestFactory
 

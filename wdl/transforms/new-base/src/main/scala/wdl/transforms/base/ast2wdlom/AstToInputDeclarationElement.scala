@@ -18,6 +18,9 @@ object AstToInputDeclarationElement {
       case None => None.validNel
     }
 
-    (nameValidation, inputTypeValidation, expressionValidation) mapN { (name, inputType, expression) => InputDeclarationElement(inputType, name, expression) }
+    (nameValidation, inputTypeValidation, expressionValidation) mapN {
+      (name, inputType, expression) =>
+        InputDeclarationElement(inputType, name, expression)
+    }
   }
 }

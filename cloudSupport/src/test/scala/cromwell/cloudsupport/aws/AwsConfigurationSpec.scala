@@ -31,14 +31,16 @@
 
 package cromwell.cloudsupport.aws
 
-import cats.implicits._
+import cats.syntax.all._
 import com.typesafe.config.{ConfigException, ConfigFactory}
+import common.assertion.CromwellTimeoutSpec
 import cromwell.cloudsupport.aws.AwsConfiguration.AwsConfigurationException
-import cromwell.cloudsupport.aws.auth.{AssumeRoleMode,CustomKeyMode,DefaultMode}
-import org.scalatest.{FlatSpec, Matchers}
+import cromwell.cloudsupport.aws.auth.{AssumeRoleMode, CustomKeyMode, DefaultMode}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 
-class AwsConfigurationSpec extends FlatSpec with Matchers {
+class AwsConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "AwsConfiguration"
 
@@ -163,7 +165,7 @@ class AwsConfigurationSpec extends FlatSpec with Matchers {
 
     the[AwsConfigurationException] thrownBy {
       AwsConfiguration(ConfigFactory.parseString(applessAwsConfig))
-    } should have message "AWS configuration:\nNo configuration setting found for key 'application-name'"
+    } should have message "AWS configuration:\nString: 2: No configuration setting found for key 'application-name'"
   }
 
   it should "not parse a configuration stanza without service account credentials" in {
@@ -224,7 +226,7 @@ class AwsConfigurationSpec extends FlatSpec with Matchers {
 
     the[ConfigException.Missing] thrownBy {
       AwsConfiguration(ConfigFactory.parseString(schemeless))
-    } should have message "No configuration setting found for key 'scheme'"
+    } should have message "String: 6: No configuration setting found for key 'scheme'"
   }
 
   it should "not parse a configuration stanza without an auth name" in {
@@ -243,7 +245,7 @@ class AwsConfigurationSpec extends FlatSpec with Matchers {
 
     the[ConfigException.Missing] thrownBy {
       AwsConfiguration(ConfigFactory.parseString(nameless))
-    } should have message "No configuration setting found for key 'name'"
+    } should have message "String: 6: No configuration setting found for key 'name'"
   }
 
   it should "not parse a configuration stanza with a bad access-key in custom keys mode" in {
@@ -290,7 +292,7 @@ class AwsConfigurationSpec extends FlatSpec with Matchers {
 
     the[AwsConfigurationException] thrownBy {
       AwsConfiguration(ConfigFactory.parseString(badKeyInUserMode))
-    } should have message "AWS configuration:\nNo configuration setting found for key 'role-arn'"
+    } should have message "AWS configuration:\nString: 6: No configuration setting found for key 'role-arn'"
   }
 
   it should "not parse a configuration stanza with a duplicate auth name" in {

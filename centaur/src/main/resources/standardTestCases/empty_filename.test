@@ -1,0 +1,14 @@
+name: empty_filename
+testFormat: workflowfailure
+
+
+files {
+  workflow: empty_filename/empty_filename.wdl
+  inputs: empty_filename/oops.inputs.json
+}
+
+metadata {
+  status: Failed
+  "failures.0.message": "Workflow input processing failed"
+  "failures.0.causedBy.0.message": "Invalid value for File input 'file': empty value"
+}

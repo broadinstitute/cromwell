@@ -1,8 +1,11 @@
 package cromwell.cloudsupport.gcp.auth
 
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class UserServiceAccountModeSpec extends FlatSpec with Matchers {
+
+class UserServiceAccountModeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "UserServiceAccountMode"
 
@@ -18,11 +21,6 @@ class UserServiceAccountModeSpec extends FlatSpec with Matchers {
     val userServiceAccountMode = UserServiceAccountMode("user-service-account")
     val exception = intercept[OptionLookupException](userServiceAccountMode.credentials())
     exception.getMessage should be("user_service_account_json")
-  }
-
-  it should "requiresAuthFile" in {
-    val userServiceAccountMode = UserServiceAccountMode("user-service-account")
-    userServiceAccountMode.requiresAuthFile should be(false)
   }
 
 }

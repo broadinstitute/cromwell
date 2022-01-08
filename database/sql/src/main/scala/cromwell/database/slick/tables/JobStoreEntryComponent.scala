@@ -1,6 +1,6 @@
 package cromwell.database.slick.tables
 
-import java.sql.Clob
+import javax.sql.rowset.serial.SerialClob
 
 import cromwell.database.sql.tables.JobStoreEntry
 
@@ -11,7 +11,7 @@ trait JobStoreEntryComponent {
   import driver.api._
 
   class JobStoreEntries(tag: Tag) extends Table[JobStoreEntry](tag, "JOB_STORE_ENTRY") {
-    def jobStoreEntryId = column[Int]("JOB_STORE_ENTRY_ID", O.PrimaryKey, O.AutoInc)
+    def jobStoreEntryId = column[Long]("JOB_STORE_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
     def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID", O.Length(255))
 
@@ -26,7 +26,7 @@ trait JobStoreEntryComponent {
     def returnCode = column[Option[Int]]("RETURN_CODE")
 
     // Only set for failure:
-    def exceptionMessage = column[Option[Clob]]("EXCEPTION_MESSAGE")
+    def exceptionMessage = column[Option[SerialClob]]("EXCEPTION_MESSAGE")
 
     def retryableFailure = column[Option[Boolean]]("RETRYABLE_FAILURE")
 

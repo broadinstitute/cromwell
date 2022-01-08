@@ -1,11 +1,14 @@
 package cromwell.webservice.routes
 
+import java.time.OffsetDateTime
+
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.stream.ActorMaterializer
+import com.typesafe.scalalogging.StrictLogging
 import common.util.VersionUtil
 import cromwell.core._
 import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortRequestedResponse, WorkflowAbortedResponse}
@@ -14,16 +17,21 @@ import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{WorkflowOnHoldToSubmittedFailure, WorkflowOnHoldToSubmittedSuccess}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
-import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse, SubsystemStatus}
+import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse, SubsystemStatus}
+import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
+import cromwell.services.metadata.MetadataArchiveStatus._
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
+import cromwell.services.metadata.impl.builder.MetadataBuilderActor
+import cromwell.services._
 import cromwell.services.womtool.WomtoolServiceMessages.{DescribeFailure, DescribeRequest, DescribeSuccess}
 import cromwell.services.womtool.models.WorkflowDescription
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.{EngineStatsActor, FailureResponse}
 import mouse.boolean._
-import org.scalatest.{AsyncFlatSpec, Matchers}
+import org.scalatest.flatspec.AsyncFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json._
 
 import scala.concurrent.duration._
@@ -472,7 +480,6 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           assertResult("<html>") {
             responseAs[String].substring(0, 6)
           }
-          assert(responseAs[String].contains("var metadataJson = {\"testKey1b\":\"myValue1b\",\"calls\":{},\"testKey1a\":\"myValue1a\",\"id\":\"c4c6339c-8cc9-47fb-acc5-b5cb8d2809f5\",\"testKey2a\":\"myValue2a\"};"))
         }
     }
 
@@ -519,8 +526,27 @@ object CromwellApiServiceSpec {
   val SucceededWorkflowId = WorkflowId.fromString("0cb43b8c-0259-4a19-b7fe-921ced326738")
   val FailedWorkflowId = WorkflowId.fromString("df501790-cef5-4df7-9b48-8760533e3136")
   val SummarizedWorkflowId = WorkflowId.fromString("f0000000-0000-0000-0000-000000000000")
-  val RecognizedWorkflowIds = Set(ExistingWorkflowId, AbortedWorkflowId, OnHoldWorkflowId, RunningWorkflowId, AbortingWorkflowId, SucceededWorkflowId, FailedWorkflowId, SummarizedWorkflowId)
-  val SummarizedWorkflowIds = Set(SummarizedWorkflowId)
+  val WorkflowIdExistingOnlyInSummaryTable = WorkflowId.fromString("f0000000-0000-0000-0000-000000000011")
+  val ArchivedWorkflowId = WorkflowId.fromString("c4c6339c-2145-47fb-acc5-b5cb8d2809f5")
+  val ArchivedAndDeletedWorkflowId = WorkflowId.fromString("abc1234d-2145-47fb-acc5-b5cb8d2809f5")
+  val SummarizedWorkflowIds = Set(
+    SummarizedWorkflowId,
+    WorkflowIdExistingOnlyInSummaryTable,
+    ArchivedWorkflowId,
+    ArchivedAndDeletedWorkflowId
+  )
+  val RecognizedWorkflowIds = Set(
+    ExistingWorkflowId,
+    AbortedWorkflowId,
+    OnHoldWorkflowId,
+    RunningWorkflowId,
+    AbortingWorkflowId,
+    SucceededWorkflowId,
+    FailedWorkflowId,
+    SummarizedWorkflowId,
+    ArchivedWorkflowId,
+    ArchivedAndDeletedWorkflowId
+  )
 
   class MockApiService()(implicit val system: ActorSystem) extends CromwellApiService {
     override def actorRefFactory = system
@@ -533,14 +559,22 @@ object CromwellApiServiceSpec {
   }
 
   object MockServiceRegistryActor {
-    def fullMetadataResponse(workflowId: WorkflowId) = {
-      List(MetadataEvent(MetadataKey(workflowId, None, "testKey1"), MetadataValue("myValue1", MetadataString)),
-        MetadataEvent(MetadataKey(workflowId, None, "testKey2"), MetadataValue("myValue2", MetadataString)))
-    }
-    def filteredMetadataResponse(workflowId: WorkflowId) = {
-      List(MetadataEvent(MetadataKey(workflowId, None, "testKey1a"), MetadataValue("myValue1a", MetadataString)),
+
+    private def fullMetadataResponse(workflowId: WorkflowId) = {
+      List(
+        MetadataEvent(MetadataKey(workflowId, None, "testKey1a"), MetadataValue("myValue1a", MetadataString)),
         MetadataEvent(MetadataKey(workflowId, None, "testKey1b"), MetadataValue("myValue1b", MetadataString)),
-        MetadataEvent(MetadataKey(workflowId, None, "testKey2a"), MetadataValue("myValue2a", MetadataString)))
+        MetadataEvent(MetadataKey(workflowId, None, "testKey2a"), MetadataValue("myValue2a", MetadataString))
+      )
+    }
+
+    def responseMetadataValues(workflowId: WorkflowId, withKeys: List[String], withoutKeys: List[String]): JsObject = {
+      def keyFilter(keys: List[String])(m: MetadataEvent) = keys.exists(k => m.key.key.startsWith(k))
+      val events = fullMetadataResponse(workflowId)
+        .filter(m => withKeys.isEmpty || keyFilter(withKeys)(m))
+        .filter(m => withoutKeys.isEmpty || !keyFilter(withoutKeys)(m))
+
+      MetadataBuilderActor.workflowMetadataResponse(workflowId, events, includeCallsIfEmpty = false, Map.empty)
     }
 
     def metadataQuery(workflowId: WorkflowId) =
@@ -554,19 +588,18 @@ object CromwellApiServiceSpec {
     }
   }
 
-  class MockServiceRegistryActor extends Actor {
+  class MockServiceRegistryActor extends Actor with StrictLogging {
     import MockServiceRegistryActor._
+
     override def receive = {
-      case WorkflowQuery(parameters) =>
+      case QueryForWorkflowsMatchingParameters(parameters) =>
         val labels: Option[Map[String, String]] = {
           parameters.contains(("additionalQueryResultFields", "labels")).option(
             Map("key1" -> "label1", "key2" -> "label2"))
         }
-        val parentWorkflowId: Option[String] =  {
-          parameters.contains(("additionalQueryResultFields", "parentWorkflowId")).option("pid")
-        }
+
         val response = WorkflowQuerySuccess(WorkflowQueryResponse(List(WorkflowQueryResult(ExistingWorkflowId.toString,
-          None, Some(WorkflowSucceeded.toString), None, None, None, labels, parentWorkflowId)), 1), None)
+          None, Some(WorkflowSucceeded.toString), None, None, None, labels, Option("pid"), Option("rid"), Unarchived)), 1), None)
         sender ! response
       case ValidateWorkflowIdInMetadata(id) =>
         if (RecognizedWorkflowIds.contains(id)) sender ! MetadataService.RecognizedWorkflowId
@@ -574,27 +607,40 @@ object CromwellApiServiceSpec {
       case ValidateWorkflowIdInMetadataSummaries(id) =>
         if (SummarizedWorkflowIds.contains(id)) sender ! MetadataService.RecognizedWorkflowId
         else sender ! MetadataService.UnrecognizedWorkflowId
+      case FetchWorkflowMetadataArchiveStatusAndEndTime(id) =>
+        id match {
+          case ArchivedAndDeletedWorkflowId => sender ! WorkflowMetadataArchivedStatusAndEndTime(ArchivedAndDeleted, Option(OffsetDateTime.now))
+          case ArchivedWorkflowId => sender ! WorkflowMetadataArchivedStatusAndEndTime(Archived, Option(OffsetDateTime.now))
+          case _ => sender ! WorkflowMetadataArchivedStatusAndEndTime(Unarchived, Option(OffsetDateTime.now))
+        }
       case GetCurrentStatus =>
         sender ! StatusCheckResponse(
           ok = true,
           systems = Map(
             "Engine Database" -> SubsystemStatus(ok = true, messages = None)))
-      case GetStatus(id) if id == OnHoldWorkflowId => sender ! StatusLookupResponse(id, WorkflowOnHold)
-      case GetStatus(id) if id == RunningWorkflowId => sender ! StatusLookupResponse(id, WorkflowRunning)
-      case GetStatus(id) if id == AbortingWorkflowId => sender ! StatusLookupResponse(id, WorkflowAborting)
-      case GetStatus(id) if id == AbortedWorkflowId => sender ! StatusLookupResponse(id, WorkflowAborted)
-      case GetStatus(id) if id == SucceededWorkflowId => sender ! StatusLookupResponse(id, WorkflowSucceeded)
-      case GetStatus(id) if id == FailedWorkflowId => sender ! StatusLookupResponse(id, WorkflowFailed)
-      case GetStatus(id) => sender ! StatusLookupResponse(id, WorkflowSubmitted)
-      case GetLabels(id) => sender ! LabelLookupResponse(id, Map("key1" -> "label1", "key2" -> "label2"))
-      case WorkflowOutputs(id) =>
+      case request @ GetStatus(id) =>
+        val status = id match {
+          case OnHoldWorkflowId => WorkflowOnHold
+          case RunningWorkflowId => WorkflowRunning
+          case AbortingWorkflowId => WorkflowAborting
+          case AbortedWorkflowId => WorkflowAborted
+          case SucceededWorkflowId => WorkflowSucceeded
+          case FailedWorkflowId => WorkflowFailed
+          case _ => WorkflowSubmitted
+        }
+        sender ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.processStatusResponse(id, status))
+      case request @ GetLabels(id) =>
+        sender ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.processLabelsResponse(id, Map("key1" -> "label1", "key2" -> "label2")))
+      case request @ WorkflowOutputs(id) =>
         val event = Vector(MetadataEvent(MetadataKey(id, None, "outputs:test.hello.salutation"), MetadataValue("Hello foo!", MetadataString)))
-        sender ! WorkflowOutputsResponse(id, event)
-      case GetLogs(id) => sender ! LogsResponse(id, logsEvents(id))
-      case GetSingleWorkflowMetadataAction(id, None, None, _) => sender ! MetadataLookupResponse(metadataQuery(id), fullMetadataResponse(id))
-      case GetSingleWorkflowMetadataAction(id, Some(_), None, _) => sender ! MetadataLookupResponse(metadataQuery(id), filteredMetadataResponse(id))
-      case GetSingleWorkflowMetadataAction(id, None, Some(_), _) => sender ! MetadataLookupResponse(metadataQuery(id), filteredMetadataResponse(id))
-      case PutMetadataActionAndRespond(events, _) =>
+        sender ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.processOutputsResponse(id, event))
+      case request @ GetLogs(id) =>
+        sender ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.workflowMetadataResponse(id, logsEvents(id), includeCallsIfEmpty = false, Map.empty))
+      case request @ GetMetadataAction(MetadataQuery(id, _, _, withKeys, withoutKeys, _), _) =>
+        val withKeysList = withKeys.map(_.toList).getOrElse(List.empty)
+        val withoutKeysList = withoutKeys.map(_.toList).getOrElse(List.empty)
+        sender ! SuccessfulMetadataJsonResponse(request, responseMetadataValues(id, withKeysList, withoutKeysList))
+      case PutMetadataActionAndRespond(events, _, _) =>
         events.head.key.workflowId match {
           case CromwellApiServiceSpec.ExistingWorkflowId => sender ! MetadataWriteSuccess(events)
           case CromwellApiServiceSpec.SummarizedWorkflowId => sender ! MetadataWriteSuccess(events)
@@ -617,9 +663,10 @@ object CromwellApiServiceSpec {
               s"[reading back DescribeRequest contents] version: ${sourceFiles.workflowTypeVersion}"
             )
 
-            sender ! DescribeSuccess(description = WorkflowDescription(valid = true, readBack))
+            sender ! DescribeSuccess(description = WorkflowDescription(valid = true, errors = readBack, validWorkflow = true))
         }
-
+      case _: InstrumentationServiceMessage => // Do nothing.
+      case m => logger.error("Unexpected message received by MockServiceRegistryActor: {}", m)
     }
   }
 
@@ -644,7 +691,7 @@ object CromwellApiServiceSpec {
       case GetWorkflowStoreStats => sender ! Map(WorkflowRunning -> 5, WorkflowSubmitted -> 3, WorkflowAborting -> 2)
     }
   }
-  
+
   class MockWorkflowManagerActor extends Actor with ActorLogging {
     override def receive: Receive = {
       case WorkflowManagerActor.EngineStatsCommand =>

@@ -1,8 +1,8 @@
 package wdl.transforms.base.ast2wdlom
 
-import cats.instances.vector._
 import cats.syntax.either._
 import cats.syntax.traverse._
+import cats.instances.vector._
 import common.validation.Checked._
 import common.Checked
 import common.transforms.CheckedAtoB
@@ -29,6 +29,15 @@ trait GenericAstNode {
     }
 
     allTerminals.foldLeft[Option[GenericTerminal]](None)(foldFunction)
+  }
+
+  // We would actually like to get the extent that is covered by this AST. A representation
+  // like:  (startLine, startColumn, endLine, endColumn) would be efficient, while conveying
+  // all the information needed for downstream analysis phases. However, it turns out that
+  // getting accurate information out of Hermes is not that simple. For now, we just
+  // get the initial source line, which is -more or less- accurate.
+  def getSourceLine: Option[Int] = {
+    firstTerminal map {t => t.getLine }
   }
 
   def lineAndColumnString = firstTerminal map { t => s" at line ${t.getLine} column ${t.getColumn}"} getOrElse("")

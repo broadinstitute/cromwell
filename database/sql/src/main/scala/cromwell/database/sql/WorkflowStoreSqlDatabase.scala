@@ -78,14 +78,14 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
                            (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]]
 
   def writeWorkflowHeartbeats(workflowExecutionUuids: Seq[String],
-                              heartbeatTimestampOption: Option[Timestamp])
+                              heartbeatTimestamp: Timestamp)
                              (implicit ec: ExecutionContext): Future[Int]
 
   /**
     * Clears out cromwellId and heartbeatTimestamp for all workflow store entries currently assigned
     * the specified cromwellId.
     */
-  def releaseWorkflowStoreEntries(cromwellId: String)(implicit ec: ExecutionContext): Future[Unit]
+  def releaseWorkflowStoreEntries(cromwellId: String)(implicit ec: ExecutionContext): Future[Int]
 
   /**
     * Deletes a workflow from the database, returning the number of rows affected.
@@ -101,5 +101,7 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
                          (implicit ec: ExecutionContext): Future[Int]
 
   def findWorkflowsWithAbortRequested(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[String]]
+
+  def findWorkflows(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[String]]
 
 }

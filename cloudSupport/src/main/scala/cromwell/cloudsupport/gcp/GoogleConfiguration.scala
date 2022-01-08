@@ -3,9 +3,9 @@ package cromwell.cloudsupport.gcp
 import java.io.IOException
 
 import cats.data.Validated._
-import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.typesafe.config.{Config, ConfigException}
 import common.exception.MessageAggregation
@@ -32,15 +32,15 @@ object GoogleConfiguration {
   import scala.concurrent.duration._
   import scala.language.postfixOps
 
-  lazy val DefaultConnectionTimeout = 3 minutes
-  lazy val DefaultReadTimeout = 3 minutes
+  lazy val DefaultConnectionTimeout: FiniteDuration = 3 minutes
+  lazy val DefaultReadTimeout: FiniteDuration = 3 minutes
 
   def withCustomTimeouts(httpRequestInitializer: HttpRequestInitializer,
                          connectionTimeout: FiniteDuration = DefaultConnectionTimeout,
-                         readTimeout: FiniteDuration = DefaultReadTimeout) = {
+                         readTimeout: FiniteDuration = DefaultReadTimeout): HttpRequestInitializer = {
     new HttpRequestInitializer() {
       @throws[IOException]
-      override def initialize(httpRequest: HttpRequest) = {
+      override def initialize(httpRequest: HttpRequest): Unit = {
         httpRequestInitializer.initialize(httpRequest)
         httpRequest.setConnectTimeout(connectionTimeout.toMillis.toInt)
         httpRequest.setReadTimeout(readTimeout.toMillis.toInt)
@@ -73,15 +73,7 @@ object GoogleConfiguration {
       }
 
       def userAccountAuth(authConfig: Config, name: String): ErrorOr[GoogleAuthMode] =  validate {
-        UserMode(
-          name,
-          authConfig.as[String]("user"),
-          authConfig.as[String]("secrets-file"),
-          authConfig.as[String]("data-store-dir"))
-      }
-
-      def refreshTokenAuth(authConfig: Config, name: String): ErrorOr[GoogleAuthMode] = validate {
-        RefreshTokenMode(name, authConfig.as[String]("client-id"), authConfig.as[String]("client-secret"))
+        UserMode(name, authConfig.as[String]("secrets-file"))
       }
 
       def applicationDefaultAuth(name: String): ErrorOr[GoogleAuthMode] = ApplicationDefaultMode(name).validNel
@@ -95,9 +87,9 @@ object GoogleConfiguration {
       scheme match {
         case "service_account" => serviceAccountAuth(authConfig, name)
         case "user_account" => userAccountAuth(authConfig, name)
-        case "refresh_token" => refreshTokenAuth(authConfig, name)
         case "application_default" => applicationDefaultAuth(name)
         case "user_service_account" => userServiceAccountAuth(name)
+        case "mock" => MockAuthMode(name).validNel
         case wut => s"Unsupported authentication scheme: $wut".invalidNel
       }
     }

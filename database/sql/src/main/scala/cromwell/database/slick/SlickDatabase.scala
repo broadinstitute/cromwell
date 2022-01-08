@@ -8,9 +8,10 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.database.slick.tables.DataAccessComponent
 import cromwell.database.sql.SqlDatabase
 import net.ceedubs.ficus.Ficus._
+import org.postgresql.util.{PSQLException, ServerErrorMessage}
 import org.slf4j.LoggerFactory
 import slick.basic.DatabaseConfig
-import slick.jdbc.{JdbcCapabilities, JdbcProfile, TransactionIsolation}
+import slick.jdbc.{JdbcCapabilities, JdbcProfile, PostgresProfile, TransactionIsolation}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -135,8 +136,7 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
 
   protected[this] lazy val insertBatchSize = databaseConfig.getOrElse("insert-batch-size", 2000)
 
-  protected[this] lazy val useSlickUpserts =
-    dataAccess.driver.capabilities.contains(JdbcCapabilities.insertOrUpdate)
+  protected[this] lazy val useSlickUpserts = dataAccess.driver.capabilities.contains(JdbcCapabilities.insertOrUpdate)
 
   protected[this] def assertUpdateCount(description: String, updates: Int, expected: Int): DBIO[Unit] = {
     if (updates == expected) {
@@ -163,19 +163,41 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
   private val debugExitConfigPath = "danger.debug.only.exit-on-rollback-exception-with-status-code"
   private val debugExitStatusCodeOption = ConfigFactory.load.getAs[Int](debugExitConfigPath)
 
-  protected[this] def runTransaction[R](action: DBIO[R], isolationLevel: TransactionIsolation = TransactionIsolation.RepeatableRead): Future[R] = {
-    runActionInternal(action.transactionally.withTransactionIsolation(isolationLevel))
+  protected[this] def runTransaction[R](action: DBIO[R],
+                                        isolationLevel: TransactionIsolation = TransactionIsolation.RepeatableRead,
+                                        timeout: Duration = Duration.Inf): Future[R] = {
+    runActionInternal(action.transactionally.withTransactionIsolation(isolationLevel), timeout = timeout)
   }
 
+  /* Note that this is only appropriate for actions that do not involve Blob
+   * or Clob fields in Postgres, since large object support requires running
+   * transactionally.  Use runLobAction instead, which will still run in
+   * auto-commit mode when using other database engines.
+   */
   protected[this] def runAction[R](action: DBIO[R]): Future[R] = {
     runActionInternal(action.withPinnedSession)
   }
 
-  private def runActionInternal[R](action: DBIO[R]): Future[R] = {
+  /* Wrapper for queries where Clob/Blob types are used
+   * https://stackoverflow.com/questions/3164072/large-objects-may-not-be-used-in-auto-commit-mode#answer-3164352
+   */
+  protected[this] def runLobAction[R](action: DBIO[R]): Future[R] = {
+    dataAccess.driver match {
+      case PostgresProfile => runTransaction(action)
+      case _ => runAction(action)
+    }
+  }
+
+  private def runActionInternal[R](action: DBIO[R], timeout: Duration = Duration.Inf): Future[R] = {
     //database.run(action) <-- See comment above private val actionThreadPool
     Future {
       try {
-        Await.result(database.run(action), Duration.Inf)
+        if (timeout.isFinite()) {
+          // https://stackoverflow.com/a/52569275/818054
+          Await.result(database.run(action.withStatementParameters(statementInit = _.setQueryTimeout(timeout.toSeconds.toInt))), Duration.Inf)
+        } else {
+          Await.result(database.run(action), Duration.Inf)
+        }
       } catch {
         case rollbackException: MySQLTransactionRollbackException =>
           debugExitStatusCodeOption match {
@@ -186,6 +208,33 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
             case _ => /* keep going */
           }
           throw rollbackException
+        case pSQLException: PSQLException =>
+          val detailOption = for {
+            message <- Option(pSQLException.getServerErrorMessage)
+            detail <- Option(message.getDetail)
+          } yield detail
+
+          detailOption match {
+            case None => throw pSQLException
+            case Some(_) =>
+              /*
+              The exception may contain possibly sensitive row contents within the DETAIL section. Remove it.
+
+              Tried adjusting this using configuration:
+              - log_error_verbosity=TERSE
+              - log_min_messages=PANIC
+              - client_min_messages=ERROR
+
+              Instead resorting to reflection.
+               */
+              val message = pSQLException.getServerErrorMessage
+              val field = classOf[ServerErrorMessage].getDeclaredField("mesgParts")
+              field.setAccessible(true)
+              val parts = field.get(message).asInstanceOf[java.util.Map[Character, String]]
+              parts.remove('D')
+              // The original exception has already stored the DETAIL into a string. So we must create a new Exception.
+              throw new PSQLException(message)
+          }
       }
     }(actionExecutionContext)
   }

@@ -1,6 +1,6 @@
 # The idea here is to submit a bad workflow and validate that the labels are persisted even though the workflow failed to materialize
 
-name: valid_labels
+name: labels_bad_workflow
 testFormat: workflowfailure
 tags: [ labels ]
 

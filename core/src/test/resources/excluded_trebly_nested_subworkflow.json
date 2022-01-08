@@ -1,0 +1,1006 @@
+{
+  "workflowProcessingEvents": [
+    {
+      "cromwellId": "cromid-9e130a6",
+      "description": "PickedUp",
+      "timestamp": "2019-10-08T22:53:53.164Z",
+      "cromwellVersion": "48-b728585-SNAP"
+    },
+    {
+      "cromwellId": "cromid-9e130a6",
+      "description": "Finished",
+      "timestamp": "2019-10-08T22:54:31.639Z",
+      "cromwellVersion": "48-b728585-SNAP"
+    }
+  ],
+  "actualWorkflowLanguageVersion": "draft-2",
+  "submittedFiles": {
+    "workflow": "import \"sub.wdl\" as sub\n\nworkflow wf {\n  scatter (i in range(2)) {\n    call sub.wf\n  }\n}\n",
+    "root": "",
+    "options": "{\n\n}",
+    "inputs": "{}",
+    "workflowUrl": "",
+    "labels": "{}",
+    "imports": {
+      "sub_sub.wdl": "import \"sub_sub_sub.wdl\" as sub_sub_sub\n\nworkflow wf {\n  scatter (i in range(2)) {\n    call sub_sub_sub.wf\n  }\n}\n",
+      "sub.wdl": "import \"sub_sub.wdl\" as sub_sub\n\nworkflow wf {\n  scatter (i in range(2)) {\n    call sub_sub.wf\n  }\n}\n",
+      "sub_sub_sub.wdl": "\ntask foo {\n  command {\n    echo \"foo\"\n  }\n}\n\nworkflow wf {\n  scatter (i in range(2)) {\n    call foo\n  }\n}\n"
+    }
+  },
+  "calls": {
+    "wf.wf": [
+      {
+        "executionStatus": "Done",
+        "subWorkflowMetadata": {
+          "rootWorkflowId": "e0c918bb-695e-458a-ab37-be33db7bf721",
+          "calls": {
+            "wf.wf": [
+              {
+                "executionStatus": "Done",
+                "subWorkflowMetadata": {
+                  "rootWorkflowId": "e0c918bb-695e-458a-ab37-be33db7bf721",
+                  "calls": {
+                    "wf.wf": [
+                      {
+                        "executionStatus": "Done",
+                        "subWorkflowMetadata": {
+                          "rootWorkflowId": "e0c918bb-695e-458a-ab37-be33db7bf721",
+                          "calls": {
+                            "wf.foo": [
+                              {
+                                "executionStatus": "Done",
+                                "stdout": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-0/sub_sub.wf/9e1a2146-f48a-4c04-a589-d66a50dde39b/call-wf/shard-0/sub_sub_sub.wf/ba56c1ab-02e0-45f2-97cf-5f91a9138a31/call-foo/shard-0/execution/stdout",
+                                "backendStatus": "Done",
+                                "commandLine": "echo \"foo\"",
+                                "shardIndex": 0,
+                                "outputs": {},
+                                "runtimeAttributes": {
+                                  "maxRetries": "0",
+                                  "failOnStderr": "false",
+                                  "continueOnReturnCode": "0"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "hit": false,
+                                  "result": "Cache Miss",
+                                  "hashes": {
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "docker": "N/A",
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    },
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "backend name": "509820290D57F333403F490DDE7316F4",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E"
+                                  },
+                                  "effectiveCallCachingMode": "ReadAndWriteCache"
+                                },
+                                "inputs": {},
+                                "returnCode": 0,
+                                "jobId": "28922",
+                                "backend": "Local",
+                                "end": "2019-10-08T22:54:20.808Z",
+                                "stderr": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-0/sub_sub.wf/9e1a2146-f48a-4c04-a589-d66a50dde39b/call-wf/shard-0/sub_sub_sub.wf/ba56c1ab-02e0-45f2-97cf-5f91a9138a31/call-foo/shard-0/execution/stderr",
+                                "callRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-0/sub_sub.wf/9e1a2146-f48a-4c04-a589-d66a50dde39b/call-wf/shard-0/sub_sub_sub.wf/ba56c1ab-02e0-45f2-97cf-5f91a9138a31/call-foo/shard-0",
+                                "attempt": 1,
+                                "start": "2019-10-08T22:54:09.278Z"
+                              },
+                              {
+                                "executionStatus": "Done",
+                                "stdout": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-0/sub_sub.wf/9e1a2146-f48a-4c04-a589-d66a50dde39b/call-wf/shard-0/sub_sub_sub.wf/ba56c1ab-02e0-45f2-97cf-5f91a9138a31/call-foo/shard-1/execution/stdout",
+                                "backendStatus": "Done",
+                                "commandLine": "echo \"foo\"",
+                                "shardIndex": 1,
+                                "outputs": {},
+                                "runtimeAttributes": {
+                                  "maxRetries": "0",
+                                  "failOnStderr": "false",
+                                  "continueOnReturnCode": "0"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "hit": false,
+                                  "result": "Cache Miss",
+                                  "hashes": {
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "docker": "N/A",
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    },
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "backend name": "509820290D57F333403F490DDE7316F4",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E"
+                                  },
+                                  "effectiveCallCachingMode": "ReadAndWriteCache"
+                                },
+                                "inputs": {},
+                                "returnCode": 0,
+                                "jobId": "29157",
+                                "backend": "Local",
+                                "end": "2019-10-08T22:54:20.810Z",
+                                "stderr": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-0/sub_sub.wf/9e1a2146-f48a-4c04-a589-d66a50dde39b/call-wf/shard-0/sub_sub_sub.wf/ba56c1ab-02e0-45f2-97cf-5f91a9138a31/call-foo/shard-1/execution/stderr",
+                                "callRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-0/sub_sub.wf/9e1a2146-f48a-4c04-a589-d66a50dde39b/call-wf/shard-0/sub_sub_sub.wf/ba56c1ab-02e0-45f2-97cf-5f91a9138a31/call-foo/shard-1",
+                                "attempt": 1,
+                                "start": "2019-10-08T22:54:09.278Z"
+                              }
+                            ]
+                          },
+                          "outputs": {},
+                          "workflowRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721",
+                          "id": "ba56c1ab-02e0-45f2-97cf-5f91a9138a31",
+                          "inputs": {},
+                          "status": "Succeeded",
+                          "parentWorkflowId": "9e1a2146-f48a-4c04-a589-d66a50dde39b",
+                          "end": "2019-10-08T22:54:22.558Z",
+                          "start": "2019-10-08T22:54:06.162Z"
+                        },
+                        "shardIndex": 0,
+                        "outputs": {},
+                        "inputs": {},
+                        "end": "2019-10-08T22:54:22.558Z",
+                        "attempt": 1,
+                        "start": "2019-10-08T22:54:06.159Z"
+                      },
+                      {
+                        "executionStatus": "Done",
+                        "subWorkflowMetadata": {
+                          "rootWorkflowId": "e0c918bb-695e-458a-ab37-be33db7bf721",
+                          "calls": {
+                            "wf.foo": [
+                              {
+                                "executionStatus": "Done",
+                                "stdout": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-0/sub_sub.wf/9e1a2146-f48a-4c04-a589-d66a50dde39b/call-wf/shard-1/sub_sub_sub.wf/22c6faba-a95a-4e8d-86c3-9a246d7db19b/call-foo/shard-0/execution/stdout",
+                                "backendStatus": "Done",
+                                "commandLine": "echo \"foo\"",
+                                "shardIndex": 0,
+                                "outputs": {},
+                                "runtimeAttributes": {
+                                  "maxRetries": "0",
+                                  "failOnStderr": "false",
+                                  "continueOnReturnCode": "0"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "hit": false,
+                                  "result": "Cache Miss",
+                                  "hashes": {
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "docker": "N/A",
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    },
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "backend name": "509820290D57F333403F490DDE7316F4",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E"
+                                  },
+                                  "effectiveCallCachingMode": "ReadAndWriteCache"
+                                },
+                                "inputs": {},
+                                "returnCode": 0,
+                                "jobId": "28926",
+                                "backend": "Local",
+                                "end": "2019-10-08T22:54:20.809Z",
+                                "stderr": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-0/sub_sub.wf/9e1a2146-f48a-4c04-a589-d66a50dde39b/call-wf/shard-1/sub_sub_sub.wf/22c6faba-a95a-4e8d-86c3-9a246d7db19b/call-foo/shard-0/execution/stderr",
+                                "callRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-0/sub_sub.wf/9e1a2146-f48a-4c04-a589-d66a50dde39b/call-wf/shard-1/sub_sub_sub.wf/22c6faba-a95a-4e8d-86c3-9a246d7db19b/call-foo/shard-0",
+                                "attempt": 1,
+                                "start": "2019-10-08T22:54:09.277Z"
+                              },
+                              {
+                                "executionStatus": "Done",
+                                "stdout": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-0/sub_sub.wf/9e1a2146-f48a-4c04-a589-d66a50dde39b/call-wf/shard-1/sub_sub_sub.wf/22c6faba-a95a-4e8d-86c3-9a246d7db19b/call-foo/shard-1/execution/stdout",
+                                "backendStatus": "Done",
+                                "commandLine": "echo \"foo\"",
+                                "shardIndex": 1,
+                                "outputs": {},
+                                "runtimeAttributes": {
+                                  "maxRetries": "0",
+                                  "failOnStderr": "false",
+                                  "continueOnReturnCode": "0"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "hit": false,
+                                  "result": "Cache Miss",
+                                  "hashes": {
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "docker": "N/A",
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    },
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "backend name": "509820290D57F333403F490DDE7316F4",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E"
+                                  },
+                                  "effectiveCallCachingMode": "ReadAndWriteCache"
+                                },
+                                "inputs": {},
+                                "returnCode": 0,
+                                "jobId": "28927",
+                                "backend": "Local",
+                                "end": "2019-10-08T22:54:20.812Z",
+                                "stderr": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-0/sub_sub.wf/9e1a2146-f48a-4c04-a589-d66a50dde39b/call-wf/shard-1/sub_sub_sub.wf/22c6faba-a95a-4e8d-86c3-9a246d7db19b/call-foo/shard-1/execution/stderr",
+                                "callRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-0/sub_sub.wf/9e1a2146-f48a-4c04-a589-d66a50dde39b/call-wf/shard-1/sub_sub_sub.wf/22c6faba-a95a-4e8d-86c3-9a246d7db19b/call-foo/shard-1",
+                                "attempt": 1,
+                                "start": "2019-10-08T22:54:09.279Z"
+                              }
+                            ]
+                          },
+                          "outputs": {},
+                          "workflowRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721",
+                          "id": "22c6faba-a95a-4e8d-86c3-9a246d7db19b",
+                          "inputs": {},
+                          "status": "Succeeded",
+                          "parentWorkflowId": "9e1a2146-f48a-4c04-a589-d66a50dde39b",
+                          "end": "2019-10-08T22:54:22.557Z",
+                          "start": "2019-10-08T22:54:06.162Z"
+                        },
+                        "shardIndex": 1,
+                        "outputs": {},
+                        "inputs": {},
+                        "end": "2019-10-08T22:54:22.558Z",
+                        "attempt": 1,
+                        "start": "2019-10-08T22:54:06.159Z"
+                      }
+                    ]
+                  },
+                  "outputs": {},
+                  "workflowRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721",
+                  "id": "9e1a2146-f48a-4c04-a589-d66a50dde39b",
+                  "inputs": {},
+                  "status": "Succeeded",
+                  "parentWorkflowId": "be186a2f-b52c-4c6d-96dd-b9a7f16ac526",
+                  "end": "2019-10-08T22:54:24.518Z",
+                  "start": "2019-10-08T22:54:03.090Z"
+                },
+                "shardIndex": 0,
+                "outputs": {},
+                "inputs": {},
+                "end": "2019-10-08T22:54:24.519Z",
+                "attempt": 1,
+                "start": "2019-10-08T22:54:03.089Z"
+              },
+              {
+                "executionStatus": "Done",
+                "subWorkflowMetadata": {
+                  "rootWorkflowId": "e0c918bb-695e-458a-ab37-be33db7bf721",
+                  "calls": {
+                    "wf.wf": [
+                      {
+                        "executionStatus": "Done",
+                        "subWorkflowMetadata": {
+                          "rootWorkflowId": "e0c918bb-695e-458a-ab37-be33db7bf721",
+                          "calls": {
+                            "wf.foo": [
+                              {
+                                "executionStatus": "Done",
+                                "stdout": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-1/sub_sub.wf/0e299e7a-bddc-4367-92e2-3e1a61283ca7/call-wf/shard-0/sub_sub_sub.wf/7d6fba3d-d8e5-43aa-b580-2ace8675ffbd/call-foo/shard-0/execution/stdout",
+                                "backendStatus": "Done",
+                                "commandLine": "echo \"foo\"",
+                                "shardIndex": 0,
+                                "outputs": {},
+                                "runtimeAttributes": {
+                                  "maxRetries": "0",
+                                  "failOnStderr": "false",
+                                  "continueOnReturnCode": "0"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "hit": false,
+                                  "result": "Cache Miss",
+                                  "hashes": {
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "docker": "N/A",
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    },
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "backend name": "509820290D57F333403F490DDE7316F4",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E"
+                                  },
+                                  "effectiveCallCachingMode": "ReadAndWriteCache"
+                                },
+                                "inputs": {},
+                                "returnCode": 0,
+                                "jobId": "28999",
+                                "backend": "Local",
+                                "end": "2019-10-08T22:54:20.808Z",
+                                "stderr": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-1/sub_sub.wf/0e299e7a-bddc-4367-92e2-3e1a61283ca7/call-wf/shard-0/sub_sub_sub.wf/7d6fba3d-d8e5-43aa-b580-2ace8675ffbd/call-foo/shard-0/execution/stderr",
+                                "callRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-1/sub_sub.wf/0e299e7a-bddc-4367-92e2-3e1a61283ca7/call-wf/shard-0/sub_sub_sub.wf/7d6fba3d-d8e5-43aa-b580-2ace8675ffbd/call-foo/shard-0",
+                                "attempt": 1,
+                                "start": "2019-10-08T22:54:09.277Z"
+                              },
+                              {
+                                "executionStatus": "Done",
+                                "stdout": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-1/sub_sub.wf/0e299e7a-bddc-4367-92e2-3e1a61283ca7/call-wf/shard-0/sub_sub_sub.wf/7d6fba3d-d8e5-43aa-b580-2ace8675ffbd/call-foo/shard-1/execution/stdout",
+                                "backendStatus": "Done",
+                                "commandLine": "echo \"foo\"",
+                                "shardIndex": 1,
+                                "outputs": {},
+                                "runtimeAttributes": {
+                                  "maxRetries": "0",
+                                  "failOnStderr": "false",
+                                  "continueOnReturnCode": "0"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "hit": false,
+                                  "result": "Cache Miss",
+                                  "hashes": {
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "docker": "N/A",
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    },
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "backend name": "509820290D57F333403F490DDE7316F4",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E"
+                                  },
+                                  "effectiveCallCachingMode": "ReadAndWriteCache"
+                                },
+                                "inputs": {},
+                                "returnCode": 0,
+                                "jobId": "28924",
+                                "backend": "Local",
+                                "end": "2019-10-08T22:54:20.812Z",
+                                "stderr": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-1/sub_sub.wf/0e299e7a-bddc-4367-92e2-3e1a61283ca7/call-wf/shard-0/sub_sub_sub.wf/7d6fba3d-d8e5-43aa-b580-2ace8675ffbd/call-foo/shard-1/execution/stderr",
+                                "callRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-1/sub_sub.wf/0e299e7a-bddc-4367-92e2-3e1a61283ca7/call-wf/shard-0/sub_sub_sub.wf/7d6fba3d-d8e5-43aa-b580-2ace8675ffbd/call-foo/shard-1",
+                                "attempt": 1,
+                                "start": "2019-10-08T22:54:09.278Z"
+                              }
+                            ]
+                          },
+                          "outputs": {},
+                          "workflowRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721",
+                          "id": "7d6fba3d-d8e5-43aa-b580-2ace8675ffbd",
+                          "inputs": {},
+                          "status": "Succeeded",
+                          "parentWorkflowId": "0e299e7a-bddc-4367-92e2-3e1a61283ca7",
+                          "end": "2019-10-08T22:54:22.557Z",
+                          "start": "2019-10-08T22:54:06.150Z"
+                        },
+                        "shardIndex": 0,
+                        "outputs": {},
+                        "inputs": {},
+                        "end": "2019-10-08T22:54:22.559Z",
+                        "attempt": 1,
+                        "start": "2019-10-08T22:54:06.148Z"
+                      },
+                      {
+                        "executionStatus": "Done",
+                        "subWorkflowMetadata": {
+                          "rootWorkflowId": "e0c918bb-695e-458a-ab37-be33db7bf721",
+                          "calls": {
+                            "wf.foo": [
+                              {
+                                "executionStatus": "Done",
+                                "stdout": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-1/sub_sub.wf/0e299e7a-bddc-4367-92e2-3e1a61283ca7/call-wf/shard-1/sub_sub_sub.wf/210b9e04-5606-4231-9cb5-43355d60197d/call-foo/shard-0/execution/stdout",
+                                "backendStatus": "Done",
+                                "commandLine": "echo \"foo\"",
+                                "shardIndex": 0,
+                                "outputs": {},
+                                "runtimeAttributes": {
+                                  "failOnStderr": "false",
+                                  "continueOnReturnCode": "0",
+                                  "maxRetries": "0"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "hit": false,
+                                  "result": "Cache Miss",
+                                  "hashes": {
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "docker": "N/A",
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    },
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "backend name": "509820290D57F333403F490DDE7316F4",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E"
+                                  },
+                                  "effectiveCallCachingMode": "ReadAndWriteCache"
+                                },
+                                "inputs": {},
+                                "returnCode": 0,
+                                "jobId": "29132",
+                                "backend": "Local",
+                                "end": "2019-10-08T22:54:23.790Z",
+                                "stderr": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-1/sub_sub.wf/0e299e7a-bddc-4367-92e2-3e1a61283ca7/call-wf/shard-1/sub_sub_sub.wf/210b9e04-5606-4231-9cb5-43355d60197d/call-foo/shard-0/execution/stderr",
+                                "callRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-1/sub_sub.wf/0e299e7a-bddc-4367-92e2-3e1a61283ca7/call-wf/shard-1/sub_sub_sub.wf/210b9e04-5606-4231-9cb5-43355d60197d/call-foo/shard-0",
+                                "attempt": 1,
+                                "start": "2019-10-08T22:54:09.278Z"
+                              },
+                              {
+                                "executionStatus": "Done",
+                                "stdout": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-1/sub_sub.wf/0e299e7a-bddc-4367-92e2-3e1a61283ca7/call-wf/shard-1/sub_sub_sub.wf/210b9e04-5606-4231-9cb5-43355d60197d/call-foo/shard-1/execution/stdout",
+                                "backendStatus": "Done",
+                                "commandLine": "echo \"foo\"",
+                                "shardIndex": 1,
+                                "outputs": {},
+                                "runtimeAttributes": {
+                                  "maxRetries": "0",
+                                  "failOnStderr": "false",
+                                  "continueOnReturnCode": "0"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "hit": false,
+                                  "result": "Cache Miss",
+                                  "hashes": {
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "docker": "N/A",
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    },
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "backend name": "509820290D57F333403F490DDE7316F4",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E"
+                                  },
+                                  "effectiveCallCachingMode": "ReadAndWriteCache"
+                                },
+                                "inputs": {},
+                                "returnCode": 0,
+                                "jobId": "28935",
+                                "backend": "Local",
+                                "end": "2019-10-08T22:54:20.809Z",
+                                "stderr": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-1/sub_sub.wf/0e299e7a-bddc-4367-92e2-3e1a61283ca7/call-wf/shard-1/sub_sub_sub.wf/210b9e04-5606-4231-9cb5-43355d60197d/call-foo/shard-1/execution/stderr",
+                                "callRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-0/sub.wf/be186a2f-b52c-4c6d-96dd-b9a7f16ac526/call-wf/shard-1/sub_sub.wf/0e299e7a-bddc-4367-92e2-3e1a61283ca7/call-wf/shard-1/sub_sub_sub.wf/210b9e04-5606-4231-9cb5-43355d60197d/call-foo/shard-1",
+                                "attempt": 1,
+                                "start": "2019-10-08T22:54:09.278Z"
+                              }
+                            ]
+                          },
+                          "outputs": {},
+                          "workflowRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721",
+                          "id": "210b9e04-5606-4231-9cb5-43355d60197d",
+                          "inputs": {},
+                          "status": "Succeeded",
+                          "parentWorkflowId": "0e299e7a-bddc-4367-92e2-3e1a61283ca7",
+                          "end": "2019-10-08T22:54:25.599Z",
+                          "start": "2019-10-08T22:54:06.149Z"
+                        },
+                        "shardIndex": 1,
+                        "outputs": {},
+                        "inputs": {},
+                        "end": "2019-10-08T22:54:25.599Z",
+                        "attempt": 1,
+                        "start": "2019-10-08T22:54:06.148Z"
+                      }
+                    ]
+                  },
+                  "outputs": {},
+                  "workflowRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721",
+                  "id": "0e299e7a-bddc-4367-92e2-3e1a61283ca7",
+                  "inputs": {},
+                  "status": "Succeeded",
+                  "parentWorkflowId": "be186a2f-b52c-4c6d-96dd-b9a7f16ac526",
+                  "end": "2019-10-08T22:54:27.568Z",
+                  "start": "2019-10-08T22:54:03.090Z"
+                },
+                "shardIndex": 1,
+                "outputs": {},
+                "inputs": {},
+                "end": "2019-10-08T22:54:27.568Z",
+                "attempt": 1,
+                "start": "2019-10-08T22:54:03.089Z"
+              }
+            ]
+          },
+          "outputs": {},
+          "workflowRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721",
+          "id": "be186a2f-b52c-4c6d-96dd-b9a7f16ac526",
+          "inputs": {},
+          "status": "Succeeded",
+          "parentWorkflowId": "e0c918bb-695e-458a-ab37-be33db7bf721",
+          "end": "2019-10-08T22:54:29.609Z",
+          "start": "2019-10-08T22:54:00.022Z"
+        },
+        "shardIndex": 0,
+        "outputs": {},
+        "inputs": {},
+        "end": "2019-10-08T22:54:29.609Z",
+        "attempt": 1,
+        "start": "2019-10-08T22:53:59.990Z"
+      },
+      {
+        "executionStatus": "Done",
+        "subWorkflowMetadata": {
+          "rootWorkflowId": "e0c918bb-695e-458a-ab37-be33db7bf721",
+          "calls": {
+            "wf.wf": [
+              {
+                "executionStatus": "Done",
+                "subWorkflowMetadata": {
+                  "rootWorkflowId": "e0c918bb-695e-458a-ab37-be33db7bf721",
+                  "calls": {
+                    "wf.wf": [
+                      {
+                        "executionStatus": "Done",
+                        "subWorkflowMetadata": {
+                          "rootWorkflowId": "e0c918bb-695e-458a-ab37-be33db7bf721",
+                          "calls": {
+                            "wf.foo": [
+                              {
+                                "executionStatus": "Done",
+                                "stdout": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-0/sub_sub.wf/bc649e17-418d-40f6-a145-5a6a8d0c2c5d/call-wf/shard-0/sub_sub_sub.wf/6382fcbb-fa69-4a6d-bc0f-871013226ad3/call-foo/shard-0/execution/stdout",
+                                "backendStatus": "Done",
+                                "commandLine": "echo \"foo\"",
+                                "shardIndex": 0,
+                                "outputs": {},
+                                "runtimeAttributes": {
+                                  "maxRetries": "0",
+                                  "failOnStderr": "false",
+                                  "continueOnReturnCode": "0"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "hit": false,
+                                  "result": "Cache Miss",
+                                  "hashes": {
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "docker": "N/A",
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    },
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "backend name": "509820290D57F333403F490DDE7316F4",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E"
+                                  },
+                                  "effectiveCallCachingMode": "ReadAndWriteCache"
+                                },
+                                "inputs": {},
+                                "returnCode": 0,
+                                "jobId": "28934",
+                                "backend": "Local",
+                                "end": "2019-10-08T22:54:20.812Z",
+                                "stderr": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-0/sub_sub.wf/bc649e17-418d-40f6-a145-5a6a8d0c2c5d/call-wf/shard-0/sub_sub_sub.wf/6382fcbb-fa69-4a6d-bc0f-871013226ad3/call-foo/shard-0/execution/stderr",
+                                "callRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-0/sub_sub.wf/bc649e17-418d-40f6-a145-5a6a8d0c2c5d/call-wf/shard-0/sub_sub_sub.wf/6382fcbb-fa69-4a6d-bc0f-871013226ad3/call-foo/shard-0",
+                                "attempt": 1,
+                                "start": "2019-10-08T22:54:09.277Z"
+                              },
+                              {
+                                "executionStatus": "Done",
+                                "stdout": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-0/sub_sub.wf/bc649e17-418d-40f6-a145-5a6a8d0c2c5d/call-wf/shard-0/sub_sub_sub.wf/6382fcbb-fa69-4a6d-bc0f-871013226ad3/call-foo/shard-1/execution/stdout",
+                                "backendStatus": "Done",
+                                "commandLine": "echo \"foo\"",
+                                "shardIndex": 1,
+                                "outputs": {},
+                                "runtimeAttributes": {
+                                  "maxRetries": "0",
+                                  "failOnStderr": "false",
+                                  "continueOnReturnCode": "0"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "hit": false,
+                                  "result": "Cache Miss",
+                                  "hashes": {
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "docker": "N/A",
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    },
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "backend name": "509820290D57F333403F490DDE7316F4",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E"
+                                  },
+                                  "effectiveCallCachingMode": "ReadAndWriteCache"
+                                },
+                                "inputs": {},
+                                "returnCode": 0,
+                                "jobId": "28923",
+                                "backend": "Local",
+                                "end": "2019-10-08T22:54:20.808Z",
+                                "stderr": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-0/sub_sub.wf/bc649e17-418d-40f6-a145-5a6a8d0c2c5d/call-wf/shard-0/sub_sub_sub.wf/6382fcbb-fa69-4a6d-bc0f-871013226ad3/call-foo/shard-1/execution/stderr",
+                                "callRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-0/sub_sub.wf/bc649e17-418d-40f6-a145-5a6a8d0c2c5d/call-wf/shard-0/sub_sub_sub.wf/6382fcbb-fa69-4a6d-bc0f-871013226ad3/call-foo/shard-1",
+                                "attempt": 1,
+                                "start": "2019-10-08T22:54:09.281Z"
+                              }
+                            ]
+                          },
+                          "outputs": {},
+                          "workflowRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721",
+                          "id": "6382fcbb-fa69-4a6d-bc0f-871013226ad3",
+                          "inputs": {},
+                          "status": "Succeeded",
+                          "parentWorkflowId": "bc649e17-418d-40f6-a145-5a6a8d0c2c5d",
+                          "end": "2019-10-08T22:54:22.558Z",
+                          "start": "2019-10-08T22:54:06.162Z"
+                        },
+                        "shardIndex": 0,
+                        "outputs": {},
+                        "inputs": {},
+                        "end": "2019-10-08T22:54:22.559Z",
+                        "attempt": 1,
+                        "start": "2019-10-08T22:54:06.159Z"
+                      },
+                      {
+                        "executionStatus": "Done",
+                        "subWorkflowMetadata": {
+                          "rootWorkflowId": "e0c918bb-695e-458a-ab37-be33db7bf721",
+                          "calls": {
+                            "wf.foo": [
+                              {
+                                "executionStatus": "Done",
+                                "stdout": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-0/sub_sub.wf/bc649e17-418d-40f6-a145-5a6a8d0c2c5d/call-wf/shard-1/sub_sub_sub.wf/55383be2-9a7a-4004-8623-f1cf5a539433/call-foo/shard-0/execution/stdout",
+                                "backendStatus": "Done",
+                                "commandLine": "echo \"foo\"",
+                                "shardIndex": 0,
+                                "outputs": {},
+                                "runtimeAttributes": {
+                                  "maxRetries": "0",
+                                  "failOnStderr": "false",
+                                  "continueOnReturnCode": "0"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "hit": false,
+                                  "result": "Cache Miss",
+                                  "hashes": {
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "docker": "N/A",
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    },
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "backend name": "509820290D57F333403F490DDE7316F4",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E"
+                                  },
+                                  "effectiveCallCachingMode": "ReadAndWriteCache"
+                                },
+                                "inputs": {},
+                                "returnCode": 0,
+                                "jobId": "28921",
+                                "backend": "Local",
+                                "end": "2019-10-08T22:54:20.808Z",
+                                "stderr": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-0/sub_sub.wf/bc649e17-418d-40f6-a145-5a6a8d0c2c5d/call-wf/shard-1/sub_sub_sub.wf/55383be2-9a7a-4004-8623-f1cf5a539433/call-foo/shard-0/execution/stderr",
+                                "callRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-0/sub_sub.wf/bc649e17-418d-40f6-a145-5a6a8d0c2c5d/call-wf/shard-1/sub_sub_sub.wf/55383be2-9a7a-4004-8623-f1cf5a539433/call-foo/shard-0",
+                                "attempt": 1,
+                                "start": "2019-10-08T22:54:09.277Z"
+                              },
+                              {
+                                "executionStatus": "Done",
+                                "stdout": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-0/sub_sub.wf/bc649e17-418d-40f6-a145-5a6a8d0c2c5d/call-wf/shard-1/sub_sub_sub.wf/55383be2-9a7a-4004-8623-f1cf5a539433/call-foo/shard-1/execution/stdout",
+                                "backendStatus": "Done",
+                                "commandLine": "echo \"foo\"",
+                                "shardIndex": 1,
+                                "outputs": {},
+                                "runtimeAttributes": {
+                                  "maxRetries": "0",
+                                  "failOnStderr": "false",
+                                  "continueOnReturnCode": "0"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "hit": false,
+                                  "result": "Cache Miss",
+                                  "hashes": {
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "docker": "N/A",
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    },
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "backend name": "509820290D57F333403F490DDE7316F4",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E"
+                                  },
+                                  "effectiveCallCachingMode": "ReadAndWriteCache"
+                                },
+                                "inputs": {},
+                                "returnCode": 0,
+                                "jobId": "28928",
+                                "backend": "Local",
+                                "end": "2019-10-08T22:54:20.811Z",
+                                "stderr": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-0/sub_sub.wf/bc649e17-418d-40f6-a145-5a6a8d0c2c5d/call-wf/shard-1/sub_sub_sub.wf/55383be2-9a7a-4004-8623-f1cf5a539433/call-foo/shard-1/execution/stderr",
+                                "callRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-0/sub_sub.wf/bc649e17-418d-40f6-a145-5a6a8d0c2c5d/call-wf/shard-1/sub_sub_sub.wf/55383be2-9a7a-4004-8623-f1cf5a539433/call-foo/shard-1",
+                                "attempt": 1,
+                                "start": "2019-10-08T22:54:09.281Z"
+                              }
+                            ]
+                          },
+                          "outputs": {},
+                          "workflowRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721",
+                          "id": "55383be2-9a7a-4004-8623-f1cf5a539433",
+                          "inputs": {},
+                          "status": "Succeeded",
+                          "parentWorkflowId": "bc649e17-418d-40f6-a145-5a6a8d0c2c5d",
+                          "end": "2019-10-08T22:54:22.557Z",
+                          "start": "2019-10-08T22:54:06.162Z"
+                        },
+                        "shardIndex": 1,
+                        "outputs": {},
+                        "inputs": {},
+                        "end": "2019-10-08T22:54:22.559Z",
+                        "attempt": 1,
+                        "start": "2019-10-08T22:54:06.159Z"
+                      }
+                    ]
+                  },
+                  "outputs": {},
+                  "workflowRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721",
+                  "id": "bc649e17-418d-40f6-a145-5a6a8d0c2c5d",
+                  "inputs": {},
+                  "status": "Succeeded",
+                  "parentWorkflowId": "540d2d9b-eccc-4e4f-8478-574e4e48f98d",
+                  "end": "2019-10-08T22:54:24.518Z",
+                  "start": "2019-10-08T22:54:03.092Z"
+                },
+                "shardIndex": 0,
+                "outputs": {},
+                "inputs": {},
+                "end": "2019-10-08T22:54:24.518Z",
+                "attempt": 1,
+                "start": "2019-10-08T22:54:03.089Z"
+              },
+              {
+                "executionStatus": "Done",
+                "subWorkflowMetadata": {
+                  "rootWorkflowId": "e0c918bb-695e-458a-ab37-be33db7bf721",
+                  "calls": {
+                    "wf.wf": [
+                      {
+                        "executionStatus": "Done",
+                        "subWorkflowMetadata": {
+                          "rootWorkflowId": "e0c918bb-695e-458a-ab37-be33db7bf721",
+                          "calls": {
+                            "wf.foo": [
+                              {
+                                "executionStatus": "Done",
+                                "stdout": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-1/sub_sub.wf/ffa835a7-68de-4c9d-a777-89f3f7b286dc/call-wf/shard-0/sub_sub_sub.wf/0571a73e-1485-4b28-9320-e87036685d61/call-foo/shard-0/execution/stdout",
+                                "backendStatus": "Done",
+                                "commandLine": "echo \"foo\"",
+                                "shardIndex": 0,
+                                "outputs": {},
+                                "runtimeAttributes": {
+                                  "maxRetries": "0",
+                                  "failOnStderr": "false",
+                                  "continueOnReturnCode": "0"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "hit": false,
+                                  "result": "Cache Miss",
+                                  "hashes": {
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "docker": "N/A",
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    },
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "backend name": "509820290D57F333403F490DDE7316F4",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E"
+                                  },
+                                  "effectiveCallCachingMode": "ReadAndWriteCache"
+                                },
+                                "inputs": {},
+                                "returnCode": 0,
+                                "jobId": "28925",
+                                "backend": "Local",
+                                "end": "2019-10-08T22:54:20.808Z",
+                                "stderr": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-1/sub_sub.wf/ffa835a7-68de-4c9d-a777-89f3f7b286dc/call-wf/shard-0/sub_sub_sub.wf/0571a73e-1485-4b28-9320-e87036685d61/call-foo/shard-0/execution/stderr",
+                                "callRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-1/sub_sub.wf/ffa835a7-68de-4c9d-a777-89f3f7b286dc/call-wf/shard-0/sub_sub_sub.wf/0571a73e-1485-4b28-9320-e87036685d61/call-foo/shard-0",
+                                "attempt": 1,
+                                "start": "2019-10-08T22:54:09.278Z"
+                              },
+                              {
+                                "executionStatus": "Done",
+                                "stdout": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-1/sub_sub.wf/ffa835a7-68de-4c9d-a777-89f3f7b286dc/call-wf/shard-0/sub_sub_sub.wf/0571a73e-1485-4b28-9320-e87036685d61/call-foo/shard-1/execution/stdout",
+                                "backendStatus": "Done",
+                                "commandLine": "echo \"foo\"",
+                                "shardIndex": 1,
+                                "outputs": {},
+                                "runtimeAttributes": {
+                                  "maxRetries": "0",
+                                  "failOnStderr": "false",
+                                  "continueOnReturnCode": "0"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "hit": false,
+                                  "result": "Cache Miss",
+                                  "hashes": {
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "docker": "N/A",
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    },
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "backend name": "509820290D57F333403F490DDE7316F4",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E"
+                                  },
+                                  "effectiveCallCachingMode": "ReadAndWriteCache"
+                                },
+                                "inputs": {},
+                                "returnCode": 0,
+                                "jobId": "29127",
+                                "backend": "Local",
+                                "end": "2019-10-08T22:54:23.790Z",
+                                "stderr": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-1/sub_sub.wf/ffa835a7-68de-4c9d-a777-89f3f7b286dc/call-wf/shard-0/sub_sub_sub.wf/0571a73e-1485-4b28-9320-e87036685d61/call-foo/shard-1/execution/stderr",
+                                "callRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-1/sub_sub.wf/ffa835a7-68de-4c9d-a777-89f3f7b286dc/call-wf/shard-0/sub_sub_sub.wf/0571a73e-1485-4b28-9320-e87036685d61/call-foo/shard-1",
+                                "attempt": 1,
+                                "start": "2019-10-08T22:54:09.280Z"
+                              }
+                            ]
+                          },
+                          "outputs": {},
+                          "workflowRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721",
+                          "id": "0571a73e-1485-4b28-9320-e87036685d61",
+                          "inputs": {},
+                          "status": "Succeeded",
+                          "parentWorkflowId": "ffa835a7-68de-4c9d-a777-89f3f7b286dc",
+                          "end": "2019-10-08T22:54:25.599Z",
+                          "start": "2019-10-08T22:54:06.152Z"
+                        },
+                        "shardIndex": 0,
+                        "outputs": {},
+                        "inputs": {},
+                        "end": "2019-10-08T22:54:25.599Z",
+                        "attempt": 1,
+                        "start": "2019-10-08T22:54:06.149Z"
+                      },
+                      {
+                        "executionStatus": "Done",
+                        "subWorkflowMetadata": {
+                          "rootWorkflowId": "e0c918bb-695e-458a-ab37-be33db7bf721",
+                          "calls": {
+                            "wf.foo": [
+                              {
+                                "executionStatus": "Done",
+                                "stdout": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-1/sub_sub.wf/ffa835a7-68de-4c9d-a777-89f3f7b286dc/call-wf/shard-1/sub_sub_sub.wf/d9ce3320-727f-42f5-a946-e11177ebd7dd/call-foo/shard-0/execution/stdout",
+                                "backendStatus": "Done",
+                                "commandLine": "echo \"foo\"",
+                                "shardIndex": 0,
+                                "outputs": {},
+                                "runtimeAttributes": {
+                                  "maxRetries": "0",
+                                  "failOnStderr": "false",
+                                  "continueOnReturnCode": "0"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "hit": false,
+                                  "result": "Cache Miss",
+                                  "hashes": {
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "docker": "N/A",
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    },
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "backend name": "509820290D57F333403F490DDE7316F4",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E"
+                                  },
+                                  "effectiveCallCachingMode": "ReadAndWriteCache"
+                                },
+                                "inputs": {},
+                                "returnCode": 0,
+                                "jobId": "29177",
+                                "backend": "Local",
+                                "end": "2019-10-08T22:54:20.808Z",
+                                "stderr": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-1/sub_sub.wf/ffa835a7-68de-4c9d-a777-89f3f7b286dc/call-wf/shard-1/sub_sub_sub.wf/d9ce3320-727f-42f5-a946-e11177ebd7dd/call-foo/shard-0/execution/stderr",
+                                "callRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-1/sub_sub.wf/ffa835a7-68de-4c9d-a777-89f3f7b286dc/call-wf/shard-1/sub_sub_sub.wf/d9ce3320-727f-42f5-a946-e11177ebd7dd/call-foo/shard-0",
+                                "attempt": 1,
+                                "start": "2019-10-08T22:54:09.277Z"
+                              },
+                              {
+                                "executionStatus": "Done",
+                                "stdout": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-1/sub_sub.wf/ffa835a7-68de-4c9d-a777-89f3f7b286dc/call-wf/shard-1/sub_sub_sub.wf/d9ce3320-727f-42f5-a946-e11177ebd7dd/call-foo/shard-1/execution/stdout",
+                                "backendStatus": "Done",
+                                "commandLine": "echo \"foo\"",
+                                "shardIndex": 1,
+                                "outputs": {},
+                                "runtimeAttributes": {
+                                  "maxRetries": "0",
+                                  "failOnStderr": "false",
+                                  "continueOnReturnCode": "0"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "hit": false,
+                                  "result": "Cache Miss",
+                                  "hashes": {
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "docker": "N/A",
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    },
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "backend name": "509820290D57F333403F490DDE7316F4",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E"
+                                  },
+                                  "effectiveCallCachingMode": "ReadAndWriteCache"
+                                },
+                                "inputs": {},
+                                "returnCode": 0,
+                                "jobId": "28939",
+                                "backend": "Local",
+                                "end": "2019-10-08T22:54:20.812Z",
+                                "stderr": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-1/sub_sub.wf/ffa835a7-68de-4c9d-a777-89f3f7b286dc/call-wf/shard-1/sub_sub_sub.wf/d9ce3320-727f-42f5-a946-e11177ebd7dd/call-foo/shard-1/execution/stderr",
+                                "callRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721/call-wf/shard-1/sub.wf/540d2d9b-eccc-4e4f-8478-574e4e48f98d/call-wf/shard-1/sub_sub.wf/ffa835a7-68de-4c9d-a777-89f3f7b286dc/call-wf/shard-1/sub_sub_sub.wf/d9ce3320-727f-42f5-a946-e11177ebd7dd/call-foo/shard-1",
+                                "attempt": 1,
+                                "start": "2019-10-08T22:54:09.279Z"
+                              }
+                            ]
+                          },
+                          "outputs": {},
+                          "workflowRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721",
+                          "id": "d9ce3320-727f-42f5-a946-e11177ebd7dd",
+                          "inputs": {},
+                          "status": "Succeeded",
+                          "parentWorkflowId": "ffa835a7-68de-4c9d-a777-89f3f7b286dc",
+                          "end": "2019-10-08T22:54:22.557Z",
+                          "start": "2019-10-08T22:54:06.152Z"
+                        },
+                        "shardIndex": 1,
+                        "outputs": {},
+                        "inputs": {},
+                        "end": "2019-10-08T22:54:22.559Z",
+                        "attempt": 1,
+                        "start": "2019-10-08T22:54:06.148Z"
+                      }
+                    ]
+                  },
+                  "outputs": {},
+                  "workflowRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721",
+                  "id": "ffa835a7-68de-4c9d-a777-89f3f7b286dc",
+                  "inputs": {},
+                  "status": "Succeeded",
+                  "parentWorkflowId": "540d2d9b-eccc-4e4f-8478-574e4e48f98d",
+                  "end": "2019-10-08T22:54:27.568Z",
+                  "start": "2019-10-08T22:54:03.090Z"
+                },
+                "shardIndex": 1,
+                "outputs": {},
+                "inputs": {},
+                "end": "2019-10-08T22:54:27.568Z",
+                "attempt": 1,
+                "start": "2019-10-08T22:54:03.089Z"
+              }
+            ]
+          },
+          "outputs": {},
+          "workflowRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721",
+          "id": "540d2d9b-eccc-4e4f-8478-574e4e48f98d",
+          "inputs": {},
+          "status": "Succeeded",
+          "parentWorkflowId": "e0c918bb-695e-458a-ab37-be33db7bf721",
+          "end": "2019-10-08T22:54:29.610Z",
+          "start": "2019-10-08T22:54:00.022Z"
+        },
+        "shardIndex": 1,
+        "outputs": {},
+        "inputs": {},
+        "end": "2019-10-08T22:54:29.611Z",
+        "attempt": 1,
+        "start": "2019-10-08T22:53:59.994Z"
+      }
+    ]
+  },
+  "outputs": {},
+  "workflowRoot": "/home/jamie/gitrepos/cromwell/cromwell-executions/wf/e0c918bb-695e-458a-ab37-be33db7bf721",
+  "actualWorkflowLanguage": "WDL",
+  "id": "e0c918bb-695e-458a-ab37-be33db7bf721",
+  "inputs": {},
+  "labels": {
+    "cromwell-workflow-id": "cromwell-e0c918bb-695e-458a-ab37-be33db7bf721"
+  },
+  "submission": "2019-10-08T22:53:52.676Z",
+  "status": "Succeeded",
+  "end": "2019-10-08T22:54:31.639Z",
+  "start": "2019-10-08T22:53:53.332Z"
+}

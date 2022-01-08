@@ -1,1 +1,1 @@
-For information on Cromwell's Integration Testing Suite, see the [Cromwell documentation on Centaur](https://cromwell.readthedocs.io/en/develop/Centaur/).
+For information on Cromwell's Integration Testing Suite, see the [Cromwell documentation on Centaur](https://cromwell.readthedocs.io/en/develop/developers/Centaur/).

@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="sshah" id="change_max_size_for_workflow_url">
+    <changeSet author="sshah" id="change_max_size_for_workflow_url" dbms="mysql,hsqldb">
         <modifyDataType tableName="WORKFLOW_STORE_ENTRY" columnName="WORKFLOW_URL" newDataType="VARCHAR(2000)"/>
     </changeSet>
 

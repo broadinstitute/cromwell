@@ -1,0 +1,23 @@
+# When requesting to delete files, the call cache should be invalidated
+
+name: no_cache_delete
+testFormat: runtwiceexpectingnocallcaching
+backends: [Papiv2]
+
+files {
+  workflow: delete_intermediates/no_cache_delete.wdl
+  options: delete_intermediates/delete_intermediates.options
+}
+
+metadata {
+  workflowName: no_cache_delete
+  status: Succeeded
+  fileDeletionStatus: Succeeded
+}
+
+fileSystemCheck: "gcs"
+outputExpectations: {
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/no_cache_delete/<<UUID>>/call-no_cache/stdout": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/no_cache_delete/<<UUID>>/call-no_cache/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/no_cache_delete/<<UUID>>/call-no_cache/rc": 1
+}

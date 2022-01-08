@@ -31,16 +31,17 @@
 package cromwell.filesystems.s3
 
 import java.net.URI
+
 import com.google.common.net.UrlEscapers
-import software.amazon.awssdk.auth.credentials.AwsCredentials
-import software.amazon.awssdk.services.s3.{S3Configuration,S3Client}
 import cromwell.cloudsupport.aws.auth.AwsAuthMode
-import cromwell.cloudsupport.aws.s3.S3Storage
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.s3.S3PathBuilder._
-import org.lerch.s3fs.S3FileSystemProvider
+import org.lerch.s3fs.{AmazonS3ClientFactory, S3FileSystemProvider}
+import org.lerch.s3fs.util.S3Utils
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -113,39 +114,37 @@ object S3PathBuilder {
                    configuration: S3Configuration,
                    options: WorkflowOptions,
                    storageRegion: Option[Region])(implicit ec: ExecutionContext): Future[S3PathBuilder] = {
-    val credentials = authMode.credential((key: String) => options.get(key).get)
+    val provider = authMode.provider()
 
     // Other backends needed retry here. In case we need retry, we'll return
     // a future. This will allow us to add capability without changing signature
-    Future(fromCredentials(credentials,
+    Future(fromProvider(provider,
       configuration,
       options,
       storageRegion
     ))
   }
 
-  def fromCredentials(credentials: AwsCredentials,
-                      configuration: S3Configuration,
-                      options: WorkflowOptions,
-                      storageRegion: Option[Region]): S3PathBuilder = {
-    new S3PathBuilder(S3Storage.s3Client(credentials, storageRegion), configuration)
+  def fromProvider(provider: AwsCredentialsProvider,
+                   configuration: S3Configuration,
+                   options: WorkflowOptions,
+                   storageRegion: Option[Region]): S3PathBuilder = {
+    new S3PathBuilder(configuration)
   }
 }
 
-class S3PathBuilder(client: S3Client,
-                     configuration: S3Configuration
+class S3PathBuilder(configuration: S3Configuration
                      ) extends PathBuilder {
   // Tries to create a new S3Path from a String representing an absolute s3 path: s3://<bucket>[/<key>].
   def build(string: String): Try[S3Path] = {
     validatePath(string) match {
       case ValidFullS3Path(bucket, path) =>
         Try {
-          // TODO: System.getenv needs to turn into a full Auth thingy
-          // TODO: This assumes the "global endpoint". Need to handle other endpoints
           val s3Path = new S3FileSystemProvider()
             .getFileSystem(URI.create("s3:////"), System.getenv)
             .getPath(s"""/$bucket/$path""")
-          S3Path(s3Path, bucket, client)
+          S3Path(s3Path, bucket,
+            new AmazonS3ClientFactory().getS3Client(URI.create("s3:////"), System.getProperties))
         }
       case PossiblyValidRelativeS3Path => Failure(new IllegalArgumentException(s"$string does not have a s3 scheme"))
       case invalid: InvalidS3Path => Failure(new IllegalArgumentException(invalid.errorMessage))
@@ -161,15 +160,24 @@ case class S3Path private[s3](nioPath: NioPath,
                                ) extends Path {
   override protected def newPath(nioPath: NioPath): S3Path = S3Path(nioPath, bucket, client)
 
-  override def pathAsString: String = {
-    // pathWithoutScheme will have a leading '/', so by only prepending 's3:/', we'll end up with s3:// as expected
-    s"s3:/$pathWithoutScheme"
-  }
+  override def pathAsString: String = s"s3://$pathWithoutScheme"
 
-  override def pathWithoutScheme: String =
-   safeAbsolutePath.stripPrefix("s3://s3.amazonaws.com")
+  override def pathWithoutScheme: String = safeAbsolutePath.stripPrefix("s3://s3.amazonaws.com/")
 
   def key: String = safeAbsolutePath
+
+  /*
+    This is a bit of a headache. We could make S3Path in S3PathBuilder as that can fulfill all usages of
+    nioPath. However cromwell.core.path.Path requires the NioPath argument. Further we already know that
+    nioPath is a valid S3Path by nature of how it was created in S3PathBuilder.build. However, better safe than
+    sorry
+   */
+  lazy val s3Path = nioPath match {
+    case s3Path: org.lerch.s3fs.S3Path => s3Path
+    case _ => throw new RuntimeException("Internal path was not an S3 path: " + nioPath)
+  }
+
+  lazy val eTag = new S3Utils().getS3ObjectSummary(s3Path).eTag()
 
   /** Gets an absolute path for multiple forms of input. The FS provider does
    *  not support "toAbsolutePath" on forms such as "mypath/" or "foo.bar"
@@ -177,11 +185,11 @@ case class S3Path private[s3](nioPath: NioPath,
    *  while leaving properly rooted input or input beginning with s3:// alone
    */
   def safeAbsolutePath: String = {
-    val originalPath = nioPath.toString
-    if (originalPath.startsWith("s3")) return nioPath.toAbsolutePath.toString
+    val originalPath = s3Path.toString
+    if (originalPath.startsWith("s3")) return s3Path.toAbsolutePath.toString
     originalPath.charAt(0) match {
-      case '/' =>  nioPath.toAbsolutePath.toString
-      case _ => nioPath.resolve(s"/$bucket/$originalPath").toAbsolutePath.toString
+      case '/' =>  s3Path.toAbsolutePath.toString
+      case _ => s3Path.resolve(s"/$bucket/$originalPath").toAbsolutePath.toString
     }
   }
 }

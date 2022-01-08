@@ -2,13 +2,15 @@ package cwl.preprocessor
 
 import better.files.File
 import cats.data.NonEmptyList
+import common.assertion.CromwellTimeoutSpec
 import common.validation.IOChecked._
 import io.circe.Printer
 import org.scalamock.function.MockFunction1
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class CwlPreProcessorSpec extends FlatSpec with Matchers with MockFactory {
+class CwlPreProcessorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with MockFactory {
   behavior of "CwlPreProcessor"
 
   val resourcesRoot = File(getClass.getResource(".").getPath)
@@ -109,7 +111,7 @@ class CwlPreProcessorSpec extends FlatSpec with Matchers with MockFactory {
       case (Left(errors), None) => fail("Unexpected failure to pre-process workflow: " + errors.toList.mkString(", "))
       case (Right(result), None) =>
         val content = (testRoot / "expected_result.json").contentAsString
-        val uuid = uuidExtractor.flatMap(_.r.findFirstMatchIn(result.pretty(Printer.noSpaces)).map(_.group(1)))
+        val uuid = uuidExtractor.flatMap(_.r.findFirstMatchIn(result.printWith(Printer.noSpaces)).map(_.group(1)))
         val expectationContent = content
           .replaceAll("<<RESOURCES_ROOT>>", resourcesRoot.pathAsString)
           .replaceAll("<<RANDOM_UUID>>", uuid.getOrElse(""))

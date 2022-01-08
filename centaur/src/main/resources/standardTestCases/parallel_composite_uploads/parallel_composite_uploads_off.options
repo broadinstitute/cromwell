@@ -1,0 +1,4 @@
+{
+  "parallel_composite_upload_threshold": "0",
+  "read_from_cache": false
+}

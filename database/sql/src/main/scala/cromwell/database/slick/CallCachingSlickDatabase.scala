@@ -1,9 +1,11 @@
 package cromwell.database.slick
 
+import cats.instances.future._
 import cats.instances.list._
 import cats.instances.tuple._
 import cats.syntax.apply._
 import cats.syntax.foldable._
+import cats.syntax.functor._
 import com.rms.miu.slickcats.DBIOInstances._
 import cromwell.database.sql._
 import cromwell.database.sql.joins.CallCachingJoin
@@ -154,6 +156,17 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
       callCachingEntryOption <- dataAccess.callCachingEntriesForId(callCachingEntryId).result.headOption
     } yield callCachingEntryOption
 
+    runTransaction(action)
+  }
+
+  override def invalidateCallCacheEntryIdsForWorkflowId(workflowExecutionUuid: String)
+                                                       (implicit ec: ExecutionContext): Future[Unit] = {
+    val action = dataAccess.allowResultReuseForWorkflowId(workflowExecutionUuid).update(false)
+    runTransaction(action).void
+  }
+
+  override def callCacheEntryIdsForWorkflowId(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Seq[Int]] = {
+    val action = dataAccess.callCachingEntryIdsForWorkflowId(workflowExecutionUuid).result
     runTransaction(action)
   }
 }

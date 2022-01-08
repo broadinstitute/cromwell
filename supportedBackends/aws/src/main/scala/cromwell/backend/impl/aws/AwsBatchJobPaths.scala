@@ -33,8 +33,6 @@ package cromwell.backend.impl.aws
 
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.backend.io.JobPaths
-import cromwell.core.path.Path
-import cromwell.services.metadata.CallMetadataKeys
 
 object AwsBatchJobPaths {
   val AwsBatchLogPathKey = "cromwellLog"
@@ -42,7 +40,12 @@ object AwsBatchJobPaths {
   val AwsBatchExecParamName = "exec"
 }
 
-final case class AwsBatchJobPaths(override val workflowPaths: AwsBatchWorkflowPaths, jobKey: BackendJobDescriptorKey) extends JobPaths {
+/**
+ * Paths of files or directories relavent to the execution of a job such as stdout and stderr logs
+ * @param workflowPaths the paths for the job
+ * @param jobKey the job
+ */
+final case class AwsBatchJobPaths(override val workflowPaths: AwsBatchWorkflowPaths, jobKey: BackendJobDescriptorKey, override val isCallCacheCopyAttempt: Boolean = false) extends JobPaths {
 
   def logBasename = {
     val index = jobKey.index.map(s => s"-$s").getOrElse("")
@@ -56,18 +59,5 @@ final case class AwsBatchJobPaths(override val workflowPaths: AwsBatchWorkflowPa
   override def defaultStdoutFilename: String = s"$logBasename-stdout.log"
   override def defaultStderrFilename: String = s"$logBasename-stderr.log"
 
-  val logFilename: String = s"$logBasename.log"
-  lazy val logPath: Path = callExecutionRoot.resolve(logFilename)
-
-  override lazy val customMetadataPaths = Map(
-    CallMetadataKeys.BackendLogsPrefix + ":log" -> logPath
-  )
-
-  override lazy val customDetritusPaths: Map[String, Path] = Map(
-    AwsBatchJobPaths.AwsBatchLogPathKey -> logPath
-  )
-
-  override lazy val customLogPaths: Map[String, Path] = Map(
-    AwsBatchJobPaths.AwsBatchLogPathKey -> logPath
-  )
+  override def forCallCacheCopyAttempts: JobPaths = this.copy(isCallCacheCopyAttempt = true)
 }

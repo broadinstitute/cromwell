@@ -7,6 +7,7 @@ import cromwell.core._
 import cromwell.core.labels.Labels
 import org.slf4j.{Logger, LoggerFactory}
 import wom.values._
+import common.util.TimeUtil._
 
 case class MetadataJobKey(callFqn: String, index: Option[Int], attempt: Int)
 
@@ -62,6 +63,7 @@ object MetadataValue {
       case _: Int | Long | _: java.lang.Long | _: java.lang.Integer => new MetadataValue(value.toString, MetadataInt)
       case _: Double | Float | _: java.lang.Double | _: java.lang.Float => new MetadataValue(value.toString, MetadataNumber)
       case _: Boolean | _: java.lang.Boolean => new MetadataValue(value.toString, MetadataBoolean)
+      case offsetDateTime: OffsetDateTime => new MetadataValue(offsetDateTime.toUtcMilliString, MetadataString)
       case other => new MetadataValue(other.toString, MetadataString)
     }
   }
@@ -92,7 +94,9 @@ object MetadataQueryJobKey {
   def forMetadataJobKey(jobKey: MetadataJobKey) = MetadataQueryJobKey(jobKey.callFqn, jobKey.index, Option(jobKey.attempt))
 }
 
-case class MetadataQuery(workflowId: WorkflowId, jobKey: Option[MetadataQueryJobKey], key: Option[String],
+case class MetadataQuery(workflowId: WorkflowId,
+                         jobKey: Option[MetadataQueryJobKey],
+                         key: Option[String],
                          includeKeysOption: Option[NonEmptyList[String]],
                          excludeKeysOption: Option[NonEmptyList[String]],
                          expandSubWorkflows: Boolean)

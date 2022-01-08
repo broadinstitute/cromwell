@@ -2,7 +2,6 @@ package languages.cwl
 
 import better.files.File
 import cats.data.EitherT.fromEither
-import cats.data.NonEmptyList
 import cats.effect.IO
 import com.typesafe.config.Config
 import common.Checked
@@ -14,6 +13,7 @@ import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import cwl.preprocessor.CwlReference
 import cwl.{Cwl, CwlDecoder}
+import wom.ResolvedImportRecord
 import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
 import wom.executable.WomBundle
 import wom.expression.IoFunctionSet
@@ -31,18 +31,21 @@ class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactor
                                  ioFunctions: IoFunctionSet,
                                  importResolvers: List[ImportResolver]): IOChecked[ValidatedWomNamespace] = {
 
-    def parse(): IOChecked[Cwl] = source.workflowUrl match {
-      case Some(url) => for {
-        reference <- fromEither[IO](CwlReference.fromString(url).map(Right(_)).getOrElse(Left(NonEmptyList.one(s"Invalid workflow reference: $url")))): IOChecked[CwlReference]
-        parsed <- CwlDecoder.decodeCwlReference(reference.changePointer(source.workflowRoot))
-      } yield parsed
-      case None =>
-        CwlDecoder.decodeCwlString(
-          workflowSource,
-          source.importsZipFileOption.map(File.newTemporaryFile().appendByteArray(_)),
-          source.workflowRoot,
-          "cwl_temp_file_" + workflowIdForLogging.toString
-        )
+    def parse(): IOChecked[Cwl] = {
+      val decodedCwlReference =
+        for {
+          url <- source.workflowUrl
+          reference <- CwlReference.fromString(url)
+        } yield CwlDecoder.decodeCwlReference(reference.changePointer(source.workflowRoot))
+
+      decodedCwlReference
+        .getOrElse(
+          CwlDecoder.decodeCwlString(
+            workflowSource,
+            source.importsZipFileOption.map(File.newTemporaryFile().appendByteArray(_)),
+            source.workflowRoot,
+            cwlFilename = s"cwl_temp_file_$workflowIdForLogging"
+          ))
     }
 
     import cwl.AcceptAllRequirements
@@ -54,13 +57,18 @@ class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactor
     } yield validatedWomNamespace
   }
 
-  override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver], languageFactories: List[LanguageFactory]): Checked[WomBundle] =
+  override def getWomBundle(workflowSource: WorkflowSource,
+                            workflowSourceOrigin: Option[ResolvedImportRecord],
+                            workflowOptionsJson: WorkflowOptionsJson,
+                            importResolvers: List[ImportResolver],
+                            languageFactories: List[LanguageFactory],
+                            convertNestedScatterToSubworkflow : Boolean = true): Checked[WomBundle] =
     enabledCheck flatMap { _ => "No getWomBundle method implemented in CWL v1".invalidNelCheck }
 
   override def createExecutable(womBundle: WomBundle, inputs: WorkflowJson, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] =
     enabledCheck flatMap { _ => "No createExecutable method implemented in CWL v1".invalidNelCheck }
 
-  override def looksParsable(content: String): Boolean = content.lines.exists { l =>
+  override def looksParsable(content: String): Boolean = content.linesIterator.exists { l =>
     val trimmed = l.trim.stripSuffix(",")
     trimmed == """"cwlVersion": "v1.0"""" || trimmed == "cwlVersion: v1.0"
   }

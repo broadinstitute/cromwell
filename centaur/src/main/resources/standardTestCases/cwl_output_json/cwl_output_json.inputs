@@ -1,22 +1,22 @@
 {
     "args.py": {
       "class": "File",
-      "location": "gs://centaur-cwl-conformance/cwl-inputs/args.py"
+      "location": "gs://centaur-cwl-conformance-1f501e3/cwl-inputs/args.py"
     },
     "reference": {
         "class": "File",
-        "location": "gs://centaur-cwl-conformance/cwl-inputs/chr20.fa",
+        "location": "gs://centaur-cwl-conformance-1f501e3/cwl-inputs/chr20.fa",
         "size": 123,
         "checksum": "sha1$hash"
     },
     "reads": [
         {
             "class": "File",
-            "location": "gs://centaur-cwl-conformance/cwl-inputs/example_human_Illumina.pe_1.fastq"
+            "location": "gs://centaur-cwl-conformance-1f501e3/cwl-inputs/example_human_Illumina.pe_1.fastq"
         },
         {
             "class": "File",
-            "location": "gs://centaur-cwl-conformance/cwl-inputs/example_human_Illumina.pe_2.fastq"
+            "location": "gs://centaur-cwl-conformance-1f501e3/cwl-inputs/example_human_Illumina.pe_2.fastq"
         }
     ]
 }

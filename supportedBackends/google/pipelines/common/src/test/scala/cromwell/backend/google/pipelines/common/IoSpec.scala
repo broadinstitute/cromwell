@@ -2,9 +2,11 @@ package cromwell.backend.google.pipelines.common
 
 import com.google.api.client.http.HttpResponseException
 import com.google.api.client.testing.http.{HttpTesting, MockHttpTransport, MockLowLevelHttpRequest, MockLowLevelHttpResponse}
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class IoSpec extends FlatSpec with Matchers {
+class IoSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "io"
 

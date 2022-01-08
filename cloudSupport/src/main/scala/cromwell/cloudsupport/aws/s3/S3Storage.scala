@@ -32,7 +32,7 @@ package cromwell.cloudsupport.aws.s3
 
 import com.typesafe.config.ConfigFactory
 import net.ceedubs.ficus.Ficus._
-import software.amazon.awssdk.auth.credentials.{AwsCredentials, StaticCredentialsProvider}
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 
@@ -49,16 +49,16 @@ object S3Storage {
       .build
   }
 
-  def s3Client(configuration: S3Configuration, credentials: AwsCredentials, region: Option[Region]): S3Client = {
+  def s3Client(configuration: S3Configuration, provider: AwsCredentialsProvider, region: Option[Region]): S3Client = {
     val builder = S3Client.builder
       .serviceConfiguration(configuration)
-      .credentialsProvider(StaticCredentialsProvider.create(credentials))
+      .credentialsProvider(provider)
     region.foreach(builder.region)
     builder.build
   }
 
-  def s3Client(credentials: AwsCredentials, region: Option[Region]): S3Client = {
-    s3Client(s3Configuration(), credentials, region)
+  def s3Client(provider: AwsCredentialsProvider, region: Option[Region]): S3Client = {
+    s3Client(s3Configuration(), provider, region)
   }
 
   def s3Configuration(accelerateModeEnabled: Boolean = false,

@@ -1,8 +1,8 @@
 package cwl.preprocessor
 
 import cats.effect.{ContextShift, IO}
-import cats.instances.list._
 import cats.syntax.parallel._
+import cats.instances.list._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.IOChecked._
 import common.validation.Validation._
@@ -199,7 +199,6 @@ private [preprocessor] class CwlCanonicalizer(saladFunction: SaladFunction)(impl
      * @return a Map[String, Json], where the key is the cwl id of the workflow, and the value its content
      */
     def findRunInlinedWorkflows(json: Json): ErrorOr[Map[String, Json]] = {
-      import cats.instances.list._
       import cats.syntax.traverse._
 
       json.asArray match {
@@ -229,7 +228,7 @@ private [preprocessor] class CwlCanonicalizer(saladFunction: SaladFunction)(impl
     // Recursively process the inlined run workflows (where run is a Json object representing a workflow)
     val processedInlineReferences: IOChecked[Map[String, ProcessedJsonAndDependencies]] = (for {
       inlineWorkflowReferences <- findRunInlinedWorkflows(saladedJson).toIOChecked
-      flattenedWorkflows <- inlineWorkflowReferences.toList.parTraverse[IOChecked, IOCheckedPar, (String, ProcessedJsonAndDependencies)]({
+      flattenedWorkflows <- inlineWorkflowReferences.toList.parTraverse[IOChecked, (String, ProcessedJsonAndDependencies)]({
         case (id, value) => flattenJson(value, unProcessedReferences, processedReferences, breadCrumbs, namespacesJsonOption, schemasJsonOption).map(id -> _)
       })
     } yield flattenedWorkflows).map(_.toMap)

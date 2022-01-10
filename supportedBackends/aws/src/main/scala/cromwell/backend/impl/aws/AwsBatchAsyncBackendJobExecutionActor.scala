@@ -124,7 +124,8 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override lazy val dockerImageUsed: Option[String] = Option(jobDockerImage)
 
   private lazy val execScript =
-    s"""|${jobPaths.script.pathWithoutScheme}
+    s"""|ls -lah ${jobPaths.script.pathWithoutScheme}
+        |${jobPaths.script.pathWithoutScheme}
         |""".stripMargin
 
 

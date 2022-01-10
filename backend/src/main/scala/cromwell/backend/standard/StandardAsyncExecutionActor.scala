@@ -507,6 +507,7 @@ trait StandardAsyncExecutionActor
           |${directoryScripts(directoryOutputs)}
           |)
           |mv $rcTmpPath $rcPath
+          |exit $$(head -n 1 $rcPath)
           |""".stripMargin
         .replace("SCRIPT_PREAMBLE", preamble)
         .replace("ENVIRONMENT_VARIABLES", environmentVariables)

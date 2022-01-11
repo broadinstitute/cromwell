@@ -9,8 +9,6 @@ object Merging {
       MergeStrategy.filterDistinctLines
     case PathList(ps@_*) if ps.last == "logback.xml" =>
       MergeStrategy.first
-    case PathList(ps@_*) if Set("nowarn.class", "nowarn$.class").contains(ps.last) =>
-      MergeStrategy.discard
     // AWS SDK v2 configuration files - can be discarded
     case PathList(ps@_*) if Set("codegen.config" , "service-2.json" , "waiters-2.json" , "customization.config" , "examples-1.json" , "paginators-1.json").contains(ps.last) =>
       MergeStrategy.discard
@@ -57,6 +55,9 @@ object Merging {
       }
     case "asm-license.txt" | "module-info.class" | "overview.html" | "cobertura.properties" =>
       MergeStrategy.discard
+    // inspired by https://github.com/ergoplatform/explorer-backend/blob/7364ecfdeabeb691f0f25525e577d6c48240c672/build.sbt#L14-L15
+    case other if other.contains("scala/annotation/nowarn.class")  => MergeStrategy.discard
+    case other if other.contains("scala/annotation/nowarn$.class") => MergeStrategy.discard
     case PathList("mime.types") =>
       MergeStrategy.last
     case x =>

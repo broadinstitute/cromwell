@@ -49,7 +49,6 @@ object Dependencies {
   private val googleCloudMonitoringV = "3.0.6"
   // BW-808 Pinning googleCloudNioV to this tried-and-true old version and quieting Scala Steward.
   // 0.121.2 is the most recent version currently known to work.
-  // runtime dependency of ScalaTest. At the time of this writing this is the newest version known to work.
   private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
   private val googleCloudStorageV = "2.1.6"
   private val googleGaxGrpcV = "2.4.1"
@@ -388,7 +387,7 @@ object Dependencies {
     "com.github.pathikrit" %% "better-files" % betterFilesV
   )
 
-  val womDependencies = List[ModuleID] = List(
+  val womDependencies: List[ModuleID] = List(
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "io.spray" %% "spray-json" % sprayJsonV,
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,

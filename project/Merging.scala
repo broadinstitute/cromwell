@@ -9,6 +9,8 @@ object Merging {
       MergeStrategy.filterDistinctLines
     case PathList(ps@_*) if ps.last == "logback.xml" =>
       MergeStrategy.first
+    case PathList(ps@_*) if Set("nowarn.class", "nowarn$.class").contains(ps.last) =>
+      MergeStrategy.discard
     // AWS SDK v2 configuration files - can be discarded
     case PathList(ps@_*) if Set("codegen.config" , "service-2.json" , "waiters-2.json" , "customization.config" , "examples-1.json" , "paginators-1.json").contains(ps.last) =>
       MergeStrategy.discard

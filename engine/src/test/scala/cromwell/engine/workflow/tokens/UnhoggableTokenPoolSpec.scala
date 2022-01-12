@@ -1,7 +1,7 @@
 package cromwell.engine.workflow.tokens
 
 import common.assertion.CromwellTimeoutSpec
-import cromwell.core.JobExecutionToken.JobExecutionTokenType
+import cromwell.core.JobToken.JobTokenType
 import cromwell.engine.workflow.tokens.UnhoggableTokenPool.{HogLimitExceeded, TokenHoggingLease, TokenTypeExhausted, TokensAvailable}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpec
@@ -15,16 +15,16 @@ class UnhoggableTokenPoolSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
   implicit val patience = patienceConfig
 
   val hogLimitingTokenTypeToHogLimit = List(
-    JobExecutionTokenType("backend", Some(150), 2) -> 75,
-    JobExecutionTokenType("backend", Some(150), 75) -> 2,
-    JobExecutionTokenType("backend", Some(150), 150) -> 1
+    JobTokenType("backend", Some(150), 2) -> 75,
+    JobTokenType("backend", Some(150), 75) -> 2,
+    JobTokenType("backend", Some(150), 150) -> 1
   )
 
   val tokenTypeToHogLimit = List(
-    JobExecutionTokenType("backend", Some(150), 1) -> None,
-    JobExecutionTokenType("backend", Some(150), 200) -> Some(1),
-    JobExecutionTokenType("backend", None, 1) -> None,
-    JobExecutionTokenType("backend", None, 150) -> None
+    JobTokenType("backend", Some(150), 1) -> None,
+    JobTokenType("backend", Some(150), 200) -> Some(1),
+    JobTokenType("backend", None, 1) -> None,
+    JobTokenType("backend", None, 150) -> None
   ) ++ (hogLimitingTokenTypeToHogLimit map { case (k,v) => (k, Some(v)) })
 
   tokenTypeToHogLimit foreach { case (tokenType, expectedHogLimit) =>
@@ -80,7 +80,7 @@ class UnhoggableTokenPoolSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
 
   it should "allow tokens to be returned" in {
     // A pool distributing tokens with a hogLimit of 2:
-    val hogLimitPool = new UnhoggableTokenPool(JobExecutionTokenType("backend", Some(150), 75))
+    val hogLimitPool = new UnhoggableTokenPool(JobTokenType("backend", Some(150), 75))
 
     // Use all the "group1" tokens:
     val lease1 = hogLimitPool.tryAcquire("group1").asInstanceOf[TokenHoggingLease]

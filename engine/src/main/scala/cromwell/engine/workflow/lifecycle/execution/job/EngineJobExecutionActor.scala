@@ -34,7 +34,7 @@ import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparat
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.{CallPreparation, JobPreparationActor}
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, TimedFSM}
-import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecutionTokenDispensed, JobExecutionTokenRequest, JobExecutionTokenReturn}
+import cromwell.engine.workflow.tokens.JobTokenDispenserActor.{JobTokenDispensed, JobTokenRequest, JobTokenReturn}
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore._
 import cromwell.services.CallCaching.CallCachingEntryId
@@ -59,7 +59,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               ioActor: ActorRef,
                               jobStoreActor: ActorRef,
                               workflowDockerLookupActor: ActorRef,
-                              jobTokenDispenserActor: ActorRef,
+                              jobRestartCheckTokenDispenserActor: ActorRef,
+                              jobExecutionTokenDispenserActor: ActorRef,
                               backendSingletonActor: Option[ActorRef],
                               command: BackendJobExecutionActorCommand,
                               callCachingParameters: CallCachingParameters) extends LoggingFSM[EngineJobExecutionActorState, EJEAData]
@@ -97,6 +98,10 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       callCachingParameters.mode.withoutRead
     } else callCachingParameters.mode
   }
+
+  //noinspection ActorMutableStateInspection
+  // If this actor is currently holding a job token, the token dispenser to which the token should be returned.
+  private var currentTokenDispenser: Option[ActorRef] = None
 
   // For tests:
   private[execution] def checkEffectiveCallCachingMode = effectiveCallCachingMode
@@ -140,29 +145,42 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   when(Pending) {
     case Event(Execute, NoData) =>
       increment(NonEmptyList("jobs", List("ejea", "executing", "starting")))
-      requestExecutionToken()
-      goto(RequestingExecutionToken)
-  }
-
-  when(RequestingExecutionToken) {
-    case Event(JobExecutionTokenDispensed, NoData) =>
-      replyTo ! JobStarting(jobDescriptorKey)
       if (restarting) {
-        val jobStoreKey = jobDescriptorKey.toJobStoreKey(workflowIdForLogging)
-        jobStoreActor ! QueryJobCompletion(jobStoreKey, jobDescriptorKey.call.outputPorts.toSeq)
-        goto(CheckingJobStore)
+        requestRestartCheckToken()
+        goto(RequestingRestartCheckToken)
       } else {
-        requestValueStore()
+        requestExecutionToken()
+        goto(RequestingExecutionToken)
       }
   }
 
+  // This condition only applies for restarts
+  when(RequestingRestartCheckToken) {
+    case Event(JobTokenDispensed, NoData) =>
+      currentTokenDispenser = Option(jobRestartCheckTokenDispenserActor)
+      replyTo ! JobStarting(jobDescriptorKey)
+      val jobStoreKey = jobDescriptorKey.toJobStoreKey(workflowIdForLogging)
+      jobStoreActor ! QueryJobCompletion(jobStoreKey, jobDescriptorKey.call.outputPorts.toSeq)
+      goto(CheckingJobStore)
+  }
+
+  when(RequestingExecutionToken) {
+    case Event(JobTokenDispensed, NoData) =>
+      currentTokenDispenser = Option(jobExecutionTokenDispenserActor)
+      if (!restarting)
+        replyTo ! JobStarting(jobDescriptorKey)
+      requestValueStore()
+  }
+
   // When CheckingJobStore, the FSM always has NoData
+  // This condition only applies for restarts
   when(CheckingJobStore) {
     case Event(JobNotComplete, NoData) =>
       checkCacheEntryExistence()
     case Event(JobComplete(jobResult), NoData) =>
       respondAndStop(jobResult.toBackendJobResponse(jobDescriptorKey))
     case Event(f: JobStoreReadFailure, NoData) =>
+      returnCurrentToken()
       writeCallCachingModeToMetadata()
       log.error(f.reason, "{}: Error reading from JobStore", tag)
       // Escalate
@@ -174,6 +192,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   // writing to the JobStore. In that case, we can re-use the cached results and save them to the job store directly.
   // Note that this checks that *this* particular job has a cache entry, not that there is *a* cache hit (possibly from another job)
   // There's no need to copy the outputs because they're already *this* job's outputs
+  // This condition only applies for restarts
   when(CheckingCacheEntryExistence) {
     // There was already a cache entry for this job
     case Event(join: CallCachingJoin, NoData) =>
@@ -190,10 +209,14 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       }).get
     // No cache entry for this job - keep going
     case Event(NoCallCacheEntry(_), NoData) =>
-      requestValueStore()
+      returnCurrentToken()
+      requestExecutionToken()
+      goto(RequestingExecutionToken)
     case Event(CacheResultLookupFailure(reason), NoData) =>
       log.error(reason, "{}: Failure checking for cache entry existence: {}. Attempting to resume job anyway.", jobTag, reason.getMessage)
-      requestValueStore()
+      returnCurrentToken()
+      requestExecutionToken()
+      goto(RequestingExecutionToken)
   }
 
   /*
@@ -539,13 +562,18 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     runJob(updatedData)
   }
 
-  private def requestExecutionToken(): Unit = {
-    jobTokenDispenserActor ! JobExecutionTokenRequest(workflowDescriptor.backendDescriptor.hogGroup, backendLifecycleActorFactory.jobExecutionTokenType)
+  private def requestRestartCheckToken(): Unit = {
+    jobRestartCheckTokenDispenserActor ! JobTokenRequest(workflowDescriptor.backendDescriptor.hogGroup, backendLifecycleActorFactory.jobRestartCheckTokenType)
   }
 
-  // Return the execution token (if we have one)
-  private def returnExecutionToken(): Unit = if (stateName != Pending && stateName != RequestingExecutionToken) {
-    jobTokenDispenserActor ! JobExecutionTokenReturn
+  private def requestExecutionToken(): Unit = {
+    jobExecutionTokenDispenserActor ! JobTokenRequest(workflowDescriptor.backendDescriptor.hogGroup, backendLifecycleActorFactory.jobExecutionTokenType)
+  }
+
+  // Return any currently held job restart check or execution token.
+  private def returnCurrentToken(): Unit = if (stateName != Pending && stateName != RequestingRestartCheckToken && stateName != RequestingExecutionToken) {
+    currentTokenDispenser foreach { _ ! JobTokenReturn }
+    currentTokenDispenser = None
   }
 
   private def forwardAndStop(response: BackendJobExecutionResponse): State = {
@@ -560,7 +588,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   private def stop(response: BackendJobExecutionResponse): State = {
     increment(NonEmptyList("jobs", List("ejea", "executing", "done")))
-    returnExecutionToken()
+    returnCurrentToken()
     instrumentJobComplete(response)
     pushExecutionEventsToMetadataService(jobDescriptorKey, eventList)
     recordExecutionStepTiming(stateName.toString, currentStateDuration)
@@ -887,6 +915,7 @@ object EngineJobExecutionActor {
   /** States */
   sealed trait EngineJobExecutionActorState
   case object Pending extends EngineJobExecutionActorState
+  case object RequestingRestartCheckToken extends EngineJobExecutionActorState
   case object RequestingExecutionToken extends EngineJobExecutionActorState
   case object CheckingJobStore extends EngineJobExecutionActorState
   case object CheckingCallCache extends EngineJobExecutionActorState
@@ -944,7 +973,8 @@ object EngineJobExecutionActor {
             ioActor: ActorRef,
             jobStoreActor: ActorRef,
             workflowDockerLookupActor: ActorRef,
-            jobTokenDispenserActor: ActorRef,
+            jobRestartCheckTokenDispenserActor: ActorRef,
+            jobExecutionTokenDispenserActor: ActorRef,
             backendSingletonActor: Option[ActorRef],
             command: BackendJobExecutionActorCommand,
             callCachingParameters: EngineJobExecutionActor.CallCachingParameters) = {
@@ -960,7 +990,8 @@ object EngineJobExecutionActor {
       ioActor = ioActor,
       jobStoreActor = jobStoreActor,
       workflowDockerLookupActor = workflowDockerLookupActor,
-      jobTokenDispenserActor = jobTokenDispenserActor,
+      jobRestartCheckTokenDispenserActor = jobRestartCheckTokenDispenserActor,
+      jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
       backendSingletonActor = backendSingletonActor,
       command = command,
       callCachingParameters = callCachingParameters)).withDispatcher(EngineDispatcher)

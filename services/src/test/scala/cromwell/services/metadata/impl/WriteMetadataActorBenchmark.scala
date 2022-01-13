@@ -7,6 +7,7 @@ import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.database.slick.MetadataSlickDatabase
 import cromwell.services.database.{DatabaseTestKit, MetadataDatabaseType, MysqlEarliestDatabaseSystem}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
+import cromwell.services.metadata.impl.MetadataStatisticsRecorder.MetadataStatisticsDisabled
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -44,7 +45,7 @@ class WriteMetadataActorBenchmark extends TestKitSuite with AnyFlatSpecLike with
   }
 
   it should "provide good throughput" taggedAs IntegrationTest in {
-    val writeActor = TestFSMRef(new WriteMetadataActor(1000, 5.seconds, registry, Int.MaxValue) {
+    val writeActor = TestFSMRef(new WriteMetadataActor(1000, 5.seconds, registry, Int.MaxValue, MetadataStatisticsDisabled) {
       override val metadataDatabaseInterface: MetadataSlickDatabase = dataAccess
     })
 

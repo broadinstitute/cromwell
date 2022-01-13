@@ -18,7 +18,8 @@ class TesTaskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
     None,
     None,
     None,
-    false
+    false,
+    Map.empty
   )
 
   def workflowDescriptorWithIdentity(excIdentity: Option[String]) = {

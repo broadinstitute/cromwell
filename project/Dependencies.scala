@@ -2,7 +2,7 @@ import sbt._
 
 object Dependencies {
   private val akkaHttpCirceIntegrationV = "1.38.2"
-  private val akkaHttpV = "10.1.14" // scala-steward:off (CROM-6619)
+  private val akkaHttpV = "10.1.15" // (CROM-6619)
   private val akkaV = "2.5.32" // scala-steward:off (CROM-6637)
   private val aliyunBcsV = "6.2.4"
   private val aliyunCoreV = "4.5.25"
@@ -42,14 +42,7 @@ object Dependencies {
   // runtime dependency of ScalaTest. They must be upgraded together, based on the ScalaTest version.
   private val flexmarkV = "0.62.2" // scala-steward:off
   private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
-  // Scala Steward opened PR #5775 titled "Update fs2-io from 2.0.1 to 2.4.3" to upgrade the following dependency.
-  // However that PR was actually attempting an upgrade from 1.0.5 to 2.4.3 which is a much more significant
-  // undertaking, resulting in some thoroughly broken statsd proxy code. As this component lacks tests and is
-  // probably not the most important corner of the Cromwell repo, going to punt on this for now.
-  // NOTE: fs2VStatsDProxy usage within allProjectDependencies breaks sbt whatDependsOn.  If you want to use
-  // whatDependsOn temporarily set fs2VStatsDProxy to fs2V and revert back before trying to compile.
-  private val fs2VStatsDProxy = "1.0.5" // scala-steward:off
-  private val googleApiClientV = "1.32.2"
+  private val googleApiClientV = "1.32.1"
   private val googleCloudBigQueryV = "2.1.13"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-cloudkms
   private val googleCloudKmsV = "v1-rev20210820-1.32.1"
@@ -72,7 +65,7 @@ object Dependencies {
   private val guavaV = "31.0.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.6.0"
-  private val http4sV = "0.21.7" // scala-steward:off (CROM-6678)
+  private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
   private val jacksonV = "2.13.0"
   private val janinoV = "3.1.6"
   private val jsr305V = "3.0.2"
@@ -80,7 +73,7 @@ object Dependencies {
   private val kittensV = "2.3.2"
   private val liquibaseSlf4jV = "4.0.0"
   private val liquibaseV = "4.6.1"
-  private val logbackV = "1.2.6"
+  private val logbackV = "1.2.10"
   private val lz4JavaV = "1.8.0"
   private val mariadbV = "2.7.4"
   /*
@@ -93,7 +86,7 @@ object Dependencies {
   private val mockserverNettyV = "5.11.2"
   private val mouseV = "1.0.5"
   private val mysqlV = "8.0.26"
-  private val nettyV = "4.1.66.Final"
+  private val nettyV = "4.1.72.Final"
   private val owlApiV = "5.1.19"
   private val paradiseV = "2.1.1"
   private val pegdownV = "1.6.0"
@@ -115,7 +108,7 @@ object Dependencies {
   private val scalatestV = "3.2.10"
   private val scalatestPlusMockitoV = "1.0.0-M2"
   private val scoptV = "4.0.1"
-  private val sentryLogbackV = "5.2.0"
+  private val sentryLogbackV = "5.2.4"
   private val shapelessV = "2.3.7"
   private val simulacrumV = "1.0.1"
   private val slf4jV = "1.7.32"
@@ -394,12 +387,6 @@ object Dependencies {
     "com.github.pathikrit" %% "better-files" % betterFilesV
   )
 
-  val statsDProxyDependencies: List[ModuleID] = List(
-    "co.fs2" %% "fs2-io" % fs2VStatsDProxy,
-    "com.iheart" %% "ficus" % ficusV,
-    "com.google.cloud" % "google-cloud-nio" % googleCloudNioV
-  ) ++ commonDependencies
-
   val womDependencies: List[ModuleID] = List(
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "io.spray" %% "spray-json" % sprayJsonV,
@@ -591,7 +578,6 @@ object Dependencies {
       sfsBackendDependencies ++
       spiDependencies ++
       spiUtilDependencies ++
-      statsDProxyDependencies ++
       tesBackendDependencies ++
       wdlDependencies ++
       wes2cromwellDependencies ++

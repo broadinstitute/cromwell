@@ -42,7 +42,7 @@ object Dependencies {
   // runtime dependency of ScalaTest. They must be upgraded together, based on the ScalaTest version.
   private val flexmarkV = "0.62.2" // scala-steward:off
   private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
-  private val googleApiClientV = "1.32.1"
+  private val googleApiClientV = "1.32.2"
   private val googleCloudBigQueryV = "2.1.13"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-cloudkms
   private val googleCloudKmsV = "v1-rev20210820-1.32.1"

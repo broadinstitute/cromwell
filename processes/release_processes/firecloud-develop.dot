@@ -42,7 +42,6 @@ digraph {
     dspjenkins_merge [shape=oval label="Merge dsp-jenkins PR"];
 
     jenkins_set [shape=oval label="[Jenkins] Use dsl-seed to make our dsp-jenkins branch the default"];
-    jenkins_reset [shape=oval label="[Jenkins] Use dsl-seed to make 'master' the default again"];
   }
 
   coordinate_release_timing [shape=oval label="If downtime will be required, co-ordinate with the release engineer\nand user support/comms about timings and banners"];

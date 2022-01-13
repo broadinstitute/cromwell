@@ -2,8 +2,8 @@ package cromwell.engine.workflow.tokens
 
 import akka.actor.ActorRef
 import com.typesafe.scalalogging.StrictLogging
-import cromwell.core.JobExecutionToken
-import cromwell.core.JobExecutionToken.JobExecutionTokenType
+import cromwell.core.JobToken
+import cromwell.core.JobToken.JobTokenType
 import cromwell.engine.workflow.tokens.TokenQueue._
 import cromwell.engine.workflow.tokens.UnhoggableTokenPool._
 import io.circe.generic.JsonCodec
@@ -136,10 +136,10 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
 
 object TokenQueue {
   case class DequeueResult(leasedActor: Option[LeasedActor], tokenQueue: TokenQueue)
-  case class LeasedActor(queuePlaceholder: TokenQueuePlaceholder, lease: Lease[JobExecutionToken]) {
+  case class LeasedActor(queuePlaceholder: TokenQueuePlaceholder, lease: Lease[JobToken]) {
     def actor: ActorRef = queuePlaceholder.actor
   }
-  def apply(tokenType: JobExecutionTokenType, logger: TokenEventLogger) = new TokenQueue(Map.empty, Vector.empty, logger, new UnhoggableTokenPool(tokenType))
+  def apply(tokenType: JobTokenType, logger: TokenEventLogger) = new TokenQueue(Map.empty, Vector.empty, logger, new UnhoggableTokenPool(tokenType))
   final case class TokenQueuePlaceholder(actor: ActorRef, hogGroup: String)
 
   @JsonCodec

@@ -4,113 +4,86 @@ Parse a time-sorted array of JSON log entries for backpressure messages. The Log
 resource.labels.container_name="cromwell1-runner-app"
 (jsonPayload.message=~"IoActor backpressure off" OR jsonPayload.message=~"Beginning IoActor backpressure")
 
-And the jq cleanup code looks like:
-
-jq '[
-  .[] |
-  {
-    message: .jsonPayload.message,
-    timestamp: .jsonPayload.localTimestamp,
-    pod:.resource.labels.pod_name
-  }] |
-reverse' downloaded-logs-20220112-191349.json > logs-20220112-191349-processed.json
-
 """
-import argparse
-from collections import defaultdict
 from datetime import timedelta
 from dateutil import parser
 import json
+import sys
+
+from lib.backpressure_event import BackpressureEvent
 
 
-def parse_args():
+def read_input_files_to_log_jsons():
+    return [json.load(open(f, 'r')) for f in sys.argv[1:]]
+
+
+def parse_log_jsons_to_backpressure_events(logs):
     """
-    Parse the args, for now only defines 'input' as the name of the input file.
-    :return: args dictionary
-    """
-    parser = argparse.ArgumentParser(
-        description=__doc__,
-        formatter_class=argparse.RawTextHelpFormatter,
-    )
-    parser.add_argument("input")
-    args = parser.parse_args()
-    return args
-
-
-def read_input(infile):
-    """
-    Read the specified input file as return as JSON.
-    :param infile:
-    :return:
-    """
-    f = open(infile, 'r')
-    return json.load(f)
-
-
-def parse_logs_to_backpressure_windows(logs):
-    """
-    Parse the processed logs to a list of backpressure window sorted by start:
-    {
-      "start": <start timestamp>,
-      "end": <end timestamp>,
-      "pod": <pod name>
-    }
+    Logs are assumed to be sorted *most recent first*, this will not work as is if sorted any other way.
     :param logs:
     :return:
     """
-
-    in_progress = {}
     complete = []
+    seen_insert_ids = set(())
+    in_progress_ends_by_pod = {}
 
-    for entry in logs:
-        pod = entry['pod'].split('-')[-1]
-        message = entry['message']
-        if message == 'IoActor backpressure off':
-            if pod in in_progress:
-                # Make a backpressure window object
-                start = parser.isoparse(in_progress[pod])
-                end = parser.isoparse(entry['timestamp'])
+    for log in logs:
+        for entry in log:
+            insert_id = entry['insertId']
+            # skip duplicates
+            if insert_id in seen_insert_ids:
+                continue
+            else:
+                seen_insert_ids.add(insert_id)
 
-                obj = {
-                    'start': start,
-                    'end': end,
-                    'pod': pod,
-                    'duration': (end - start).seconds
-                }
-                # Add this object to complete
-                complete.append(obj)
-                # Remove the wip object from in_progress
-                in_progress.pop(pod)
-                # print(obj)
-        elif message.startswith('Beginning IoActor backpressure'):
-            in_progress[pod] = entry['timestamp']
+            pod = entry['resource']['labels']['pod_name'].split('-')[-1]
+            message = entry['jsonPayload']['message']
+
+            if message.startswith('Beginning IoActor backpressure'):
+                if pod in in_progress_ends_by_pod.keys():
+                    # Make a backpressure event object
+                    end = parser.isoparse(in_progress_ends_by_pod[pod])
+                    start = parser.isoparse(entry['timestamp'])
+                    event = BackpressureEvent(pod=pod, start=start, end=end)
+
+                    # Add this object to complete
+                    complete.append(event)
+
+                    # Remove the wip object from in_progress_ends_by_pod
+                    in_progress_ends_by_pod.pop(pod)
+                    # print(event)
+
+            elif message.startswith('IoActor backpressure off'):
+                in_progress_ends_by_pod[pod] = entry['timestamp']
+
     return complete
 
 
-def build_windows_by_hour(windows, hour_delta=1):
-    hour = windows[0]['start'].replace(minute=0, second=0, microsecond=0)
-    next_hour = hour + timedelta(hours=hour_delta)
+def build_windows_by_hour(windows, window_width_hours=1):
+    reversed_windows = windows.copy()
+    reversed_windows.reverse()
+    hour = reversed_windows[0].start.replace(minute=0, second=0, microsecond=0)
+    next_hour = hour + timedelta(hours=window_width_hours)
 
     windows_by_hour = {hour: []}
 
-    for window in windows:
-        while window['start'] >= next_hour:
+    for window in reversed_windows:
+        while window.start >= next_hour:
             hour = next_hour
             windows_by_hour[hour] = []
-            next_hour = next_hour + timedelta(hours=hour_delta)
+            next_hour = next_hour + timedelta(hours=window_width_hours)
         windows_by_hour[hour].append(window)
     return windows_by_hour
 
 
-def print_windows_by_hour(by_hour):
-    for hour, windows in by_hour.items():
-        print(str(hour), sum([w['duration'] for w in windows]))
+def print_windows(by_hour):
+    for hour, events in by_hour.items():
+        print(str(hour), sum([e.duration() for e in events]))
 
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    args = parse_args()
-    json_logs = read_input(args.input)
-    windows = parse_logs_to_backpressure_windows(json_logs)
-    by_hour = build_windows_by_hour(windows, hour_delta=24)
-    print_windows_by_hour(by_hour)
+    json_logs = read_input_files_to_log_jsons()
+    events = parse_log_jsons_to_backpressure_events(json_logs)
+    by_hour = build_windows_by_hour(events, window_width_hours=4)
+    print_windows(by_hour)

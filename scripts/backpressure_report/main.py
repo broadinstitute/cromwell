@@ -31,15 +31,15 @@ def filter_and_sort_log_entries(log) -> list:
         entry for entry in log if (is_event_start(entry) or is_event_end(entry))
     ]
 
-    # Most recent first
-    filtered.sort(key=(lambda e: e['timestamp']), reverse=True)
+    # Oldest first
+    filtered.sort(key=(lambda e: e['timestamp']))
     return filtered
 
 
 def build_backpressure_events_from_log_jsons(logs):
     complete = []
     seen_insert_ids = set(())
-    in_progress_ends_by_pod = {}
+    in_progress_starts_by_pod = {}
 
     for log in logs:
         for entry in filter_and_sort_log_entries(log):
@@ -51,35 +51,33 @@ def build_backpressure_events_from_log_jsons(logs):
             seen_insert_ids.add(insert_id)
             pod = entry['resource']['labels']['pod_name'].split('-')[-1]
 
-            if is_event_start(entry):
-                if pod in in_progress_ends_by_pod.keys():
+            if is_event_end(entry):
+                if pod in in_progress_starts_by_pod.keys():
                     # Make a backpressure event object
-                    end = parser.isoparse(in_progress_ends_by_pod[pod])
-                    start = parser.isoparse(entry['timestamp'])
+                    start = parser.isoparse(in_progress_starts_by_pod[pod])
+                    end = parser.isoparse(entry['timestamp'])
                     event = BackpressureEvent(pod=pod, start=start, end=end)
 
                     # Add this object to complete
                     complete.append(event)
 
-                    # Remove the wip object from in_progress_ends_by_pod
-                    in_progress_ends_by_pod.pop(pod)
+                    # Remove the wip object from in_progress_starts_by_pod
+                    in_progress_starts_by_pod.pop(pod)
                     # print(event)
 
-            elif is_event_end(entry):
-                in_progress_ends_by_pod[pod] = entry['timestamp']
+            elif is_event_start(entry):
+                in_progress_starts_by_pod[pod] = entry['timestamp']
 
     return complete
 
 
-def build_backpressure_windows_from_events(windows, window_width_in_hours=1):
-    reversed_windows = windows.copy()
-    reversed_windows.reverse()
-    hour = reversed_windows[0].start.replace(minute=0, second=0, microsecond=0)
+def build_backpressure_windows_from_events(events, window_width_in_hours=1):
+    hour = events[0].start.replace(minute=0, second=0, microsecond=0)
     next_hour = hour + timedelta(hours=window_width_in_hours)
 
     windows_by_hour = {hour: []}
 
-    for window in reversed_windows:
+    for window in events:
         while window.start >= next_hour:
             hour = next_hour
             windows_by_hour[hour] = []

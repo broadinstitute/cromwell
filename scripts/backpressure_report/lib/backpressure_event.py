@@ -13,4 +13,4 @@ class BackpressureEvent:
         return (self.end - self.start).seconds
 
     def __str__(self) -> AnyStr:
-        return f"pod = {self.pod}, start={str(self.start)}, end={str(self.end)}, duration={(self.duration())}"
+        return f"BackpressureEvent(pod = {self.pod},start={str(self.start)},duration={(self.duration())}s)"

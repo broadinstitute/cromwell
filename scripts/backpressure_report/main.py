@@ -1,8 +1,13 @@
 """
-Parse a time-sorted array of JSON log entries for backpressure messages. The Logs Explorer query looks like:
+Parse JSON logs for backpressure messages to produce a csv of backpressure seconds by time windows.
+The Logs Explorer query looks like::
 
-resource.labels.container_name="cromwell1-runner-app"
-(jsonPayload.message=~"IoActor backpressure off" OR jsonPayload.message=~"Beginning IoActor backpressure")
+    resource.labels.container_name="cromwell1-runner-app"
+    (jsonPayload.message=~"IoActor backpressure off" OR jsonPayload.message=~"Beginning IoActor backpressure")
+
+Usage:
+
+python main.py <files with json formatted Log Explorer logs>
 
 """
 from datetime import timedelta
@@ -13,7 +18,7 @@ import sys
 from lib.backpressure_event import BackpressureEvent
 
 
-def build_log_jsons_from_input_files():
+def build_log_jsons_from_input_files() -> list:
     return [json.load(open(f, 'r')) for f in sys.argv[1:]]
 
 
@@ -71,13 +76,13 @@ def build_backpressure_events_from_log_jsons(logs):
     return complete
 
 
-def build_backpressure_windows_from_events(events, window_width_in_hours=1):
-    hour = events[0].start.replace(minute=0, second=0, microsecond=0)
+def build_backpressure_windows_from_events(backpressure_events, window_width_in_hours=1):
+    hour = backpressure_events[0].start.replace(minute=0, second=0, microsecond=0)
     next_hour = hour + timedelta(hours=window_width_in_hours)
 
     windows_by_hour = {hour: []}
 
-    for window in events:
+    for window in backpressure_events:
         while window.start >= next_hour:
             hour = next_hour
             windows_by_hour[hour] = []
@@ -86,14 +91,14 @@ def build_backpressure_windows_from_events(events, window_width_in_hours=1):
     return windows_by_hour
 
 
-def print_windows(by_hour):
-    for hour, events in by_hour.items():
-        print(f"{str(hour)},{sum([e.duration() for e in events])}")
+def print_windows(backpressure_windows):
+    for interval, backpressure_events in backpressure_windows.items():
+        print(f"{str(interval)},{sum([e.duration() for e in backpressure_events])}")
 
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     log_jsons = build_log_jsons_from_input_files()
     events = build_backpressure_events_from_log_jsons(log_jsons)
-    by_hour = build_backpressure_windows_from_events(events, window_width_in_hours=4)
-    print_windows(by_hour)
+    windows = build_backpressure_windows_from_events(events, window_width_in_hours=4)
+    print_windows(windows)

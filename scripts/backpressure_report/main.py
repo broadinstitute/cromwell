@@ -88,7 +88,7 @@ def build_backpressure_windows_from_events(events, window_width_in_hours=1):
 
 def print_windows(by_hour):
     for hour, events in by_hour.items():
-        print(str(hour), sum([e.duration() for e in events]))
+        print(f"{str(hour)},{sum([e.duration() for e in events])}")
 
 
 # Press the green button in the gutter to run the script.

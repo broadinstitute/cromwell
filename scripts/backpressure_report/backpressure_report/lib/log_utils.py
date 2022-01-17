@@ -2,13 +2,12 @@ import json
 
 
 def build_log_jsons_from_input_files(input_files: list) -> list:
-    # This could be written more compactly as a list comprehension, but I don't know how to close all the files and the
-    # unit tests were rightly complaining about this.
-    files = [open(f, 'r') for f in input_files]
-    jsons = [json.load(f) for f in files]
-    for f in files:
-        f.close()
-    return jsons
+    def load(path):
+        # `with` to auto-close files
+        with open(path, 'r') as f:
+            return json.load(f)
+
+    return [load(f) for f in input_files]
 
 
 def is_event_start(entry) -> bool:

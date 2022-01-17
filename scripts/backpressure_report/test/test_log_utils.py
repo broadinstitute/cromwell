@@ -1,9 +1,9 @@
 import pathlib
 import unittest
 from backpressure_report.lib import log_utils
+from test.lib.log_helper import log_path
 
-__log_path = pathlib.Path(__file__).parent / 'resources' / 'alpha_logs.json'
-LOG = log_utils.build_log_jsons_from_input_files([__log_path])[0]
+LOG = log_utils.build_log_jsons_from_input_files([log_path])[0]
 
 
 class LogUtilsTestMethods(unittest.TestCase):

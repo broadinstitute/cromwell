@@ -7,7 +7,7 @@ The Logs Explorer query looks like::
 
 Usage:
 
-python -m backpressure_report.main. <files with json formatted Log Explorer logs>
+python -m backpressure_report.main <files with json formatted Log Explorer logs>
 
 """
 from backpressure_report.lib import backpressure_event, log_utils

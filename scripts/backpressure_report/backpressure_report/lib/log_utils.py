@@ -10,18 +10,18 @@ def build_log_jsons_from_input_files(input_files: list) -> list:
     return [load(f) for f in input_files]
 
 
-def is_event_start(entry) -> bool:
+def is_start_event(entry) -> bool:
     return entry['jsonPayload']['message'].startswith('Beginning IoActor backpressure')
 
 
-def is_event_end(entry) -> bool:
+def is_end_event(entry) -> bool:
     return entry['jsonPayload']['message'] == 'IoActor backpressure off'
 
 
 def filter_and_sort_log_entries(log) -> list:
     # Only start or end events are interesting
     filtered = [
-        entry for entry in log if (is_event_start(entry) or is_event_end(entry))
+        entry for entry in log if (is_start_event(entry) or is_end_event(entry))
     ]
 
     # Oldest first

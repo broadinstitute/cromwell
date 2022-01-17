@@ -12,11 +12,11 @@ class LogUtilsTestMethods(unittest.TestCase):
         self.assertEqual(34, len(LOG))
 
     def test_is_event_start(self):
-        starts = [e for e in LOG if log_utils.is_event_start(e)]
+        starts = [e for e in LOG if log_utils.is_start_event(e)]
         self.assertEqual(17, len(starts))
 
     def test_is_event_end(self):
-        starts = [e for e in LOG if log_utils.is_event_end(e)]
+        starts = [e for e in LOG if log_utils.is_end_event(e)]
         self.assertEqual(17, len(starts))
 
     def test_filter_and_sort_log_entries(self):

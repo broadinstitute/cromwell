@@ -3,7 +3,7 @@ from datetime import timedelta
 
 def build_windows_from_events(backpressure_events, window_width_in_hours=1):
     """
-    Generate histogram-friendly time windows with counts of backpressuring durations within each window.
+    Generate barchart-friendly time windows with counts of backpressuring durations within each window.
 
     :param backpressure_events: a list of BackpressureEvents to be broken up into time windows
     :param window_width_in_hours: how wide each time window should be in hours

@@ -13,8 +13,8 @@ class LogUtilsTestMethods(unittest.TestCase):
         self.assertEqual(17, len(starts))
 
     def test_is_end_event(self):
-        starts = [e for e in LOG if log_utils.is_end_event(e)]
-        self.assertEqual(17, len(starts))
+        ends = [e for e in LOG if log_utils.is_end_event(e)]
+        self.assertEqual(17, len(ends))
 
     def test_filter_and_sort_log_entries(self):
         filtered = log_utils.filter_and_sort_log_entries(LOG)

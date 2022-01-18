@@ -6,6 +6,14 @@ job execution or restart check tokens, so job starts and restarts will be slowed
 
 ## Running
 
+Installation:
+
+Probably best done inside a [virtual environment](https://docs.python.org/3/library/venv.html)
+
+```shell
+pip install .
+```
+
 Usage:
 
 ```shell

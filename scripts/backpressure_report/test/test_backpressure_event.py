@@ -1,9 +1,7 @@
 import unittest
 
-from backpressure_report.lib import backpressure_event, log_utils
-from test.lib.log_helper import log_path
-
-LOG = log_utils.build_log_jsons_from_input_files([log_path])[0]
+from backpressure_report.lib import backpressure_event
+from test.lib.log_helper import LOG
 
 
 class BackpressureEventTestMethods(unittest.TestCase):

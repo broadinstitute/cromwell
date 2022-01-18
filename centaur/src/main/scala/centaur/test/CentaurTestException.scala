@@ -15,6 +15,7 @@ import cromwell.api.model.{SubmittedWorkflow, WorkflowMetadata}
 case class CentaurTestException private(message: String,
                                         testName: String,
                                         workflowIdOption: Option[String],
+                                        associatedWorkflowIdOption: Option[String],
                                         metadataJsonOption: Option[String],
                                         causeOption: Option[Exception])
   extends RuntimeException(message, causeOption.orNull)
@@ -30,6 +31,23 @@ object CentaurTestException {
       message,
       workflowDefinition.testName,
       Option(submittedWorkflow.id.toString),
+      None,
+      Option(actualMetadata.value),
+      None
+    )
+  }
+
+  /** Create a new CentaurTestException for a completed workflow with an optional associated workflow. */
+  def apply(message: String,
+            workflowDefinition: Workflow,
+            submittedWorkflow: SubmittedWorkflow,
+            associatedWorkflow: Option[SubmittedWorkflow],
+            actualMetadata: WorkflowMetadata): CentaurTestException = {
+    new CentaurTestException(
+      message,
+      workflowDefinition.testName,
+      Option(submittedWorkflow.id.toString),
+      associatedWorkflow.map(_.id.toString),
       Option(actualMetadata.value),
       None
     )
@@ -44,6 +62,7 @@ object CentaurTestException {
       workflowDefinition.testName,
       Option(submittedWorkflow.id.toString),
       None,
+      None,
       None
     )
   }
@@ -55,6 +74,7 @@ object CentaurTestException {
       workflowDefinition.testName,
       None,
       None,
+      None,
       None
     )
   }
@@ -64,6 +84,7 @@ object CentaurTestException {
     new CentaurTestException(
       message,
       workflowDefinition.testName,
+      None,
       None,
       None,
       Option(cause)

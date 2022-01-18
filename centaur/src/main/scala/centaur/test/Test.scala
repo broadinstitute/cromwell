@@ -1,6 +1,5 @@
 package centaur.test
 
-import java.util.UUID
 import cats.Monad
 import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
@@ -626,7 +625,7 @@ object Operations extends StrictLogging {
 
   def fetchAndValidateNonSubworkflowMetadata(submittedWorkflow: SubmittedWorkflow,
                                              workflowSpec: Workflow,
-                                             cacheHitUUID: Option[UUID] = None): Test[WorkflowMetadata] = {
+                                             workflowToCacheFrom: Option[SubmittedWorkflow] = None): Test[WorkflowMetadata] = {
     new Test[WorkflowMetadata] {
 
       def fetchOnce(): IO[WorkflowMetadata] = fetchMetadata(submittedWorkflow, expandSubworkflows = false)
@@ -646,7 +645,7 @@ object Operations extends StrictLogging {
         def checkDiff(diffs: Iterable[String], actualMetadata: WorkflowMetadata): IO[Unit] = {
           if (diffs.nonEmpty) {
             val message = s"Invalid metadata response:\n -${diffs.mkString("\n -")}\n"
-            IO.raiseError(CentaurTestException(message, workflowSpec, workflow, actualMetadata))
+            IO.raiseError(CentaurTestException(message, workflowSpec, workflow, workflowToCacheFrom, actualMetadata))
           } else {
             IO.unit
           }
@@ -687,7 +686,7 @@ object Operations extends StrictLogging {
           actualMetadata <- fetchOnce()
           _ <- validateUnwantedMetadata(actualMetadata)
           _ <- validateAllowOtherOutputs(actualMetadata)
-          diffs = expectedMetadata.diff(actualMetadata.asFlat, workflow.id.id, cacheHitUUID)
+          diffs = expectedMetadata.diff(actualMetadata.asFlat, workflow.id.id, workflowToCacheFrom.map(_.id.id))
           _ <- checkDiff(diffs, actualMetadata)
         } yield actualMetadata
       }

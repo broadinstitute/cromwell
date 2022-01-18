@@ -175,8 +175,10 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
       for {
         _ <- ErrorReporters.logFailure(testEnvironment, centaurTestException)
         r <- if (attempt < retries) {
-          centaurTestException
-            .workflowIdOption
+          centaurTestException.workflowIdOption
+            .map(CromwellDatabaseCallCaching.clearCachedResults)
+            .getOrElse(IO.unit) *>
+          centaurTestException.associatedWorkflowIdOption
             .map(CromwellDatabaseCallCaching.clearCachedResults)
             .getOrElse(IO.unit) *>
           tryTryAgain(testName, runTest, retries, attempt + 1)

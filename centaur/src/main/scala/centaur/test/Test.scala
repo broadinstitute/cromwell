@@ -32,6 +32,7 @@ import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client
 import spray.json._
 
+import java.util.UUID
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
@@ -625,7 +626,7 @@ object Operations extends StrictLogging {
 
   def fetchAndValidateNonSubworkflowMetadata(submittedWorkflow: SubmittedWorkflow,
                                              workflowSpec: Workflow,
-                                             workflowToCacheFrom: Option[SubmittedWorkflow] = None): Test[WorkflowMetadata] = {
+                                             cacheHitUUID: Option[UUID] = None): Test[WorkflowMetadata] = {
     new Test[WorkflowMetadata] {
 
       def fetchOnce(): IO[WorkflowMetadata] = fetchMetadata(submittedWorkflow, expandSubworkflows = false)
@@ -645,7 +646,7 @@ object Operations extends StrictLogging {
         def checkDiff(diffs: Iterable[String], actualMetadata: WorkflowMetadata): IO[Unit] = {
           if (diffs.nonEmpty) {
             val message = s"Invalid metadata response:\n -${diffs.mkString("\n -")}\n"
-            IO.raiseError(CentaurTestException(message, workflowSpec, workflow, workflowToCacheFrom, actualMetadata))
+            IO.raiseError(CentaurTestException(message, workflowSpec, workflow, cacheHitUUID.map(_.toString), actualMetadata))
           } else {
             IO.unit
           }
@@ -686,7 +687,7 @@ object Operations extends StrictLogging {
           actualMetadata <- fetchOnce()
           _ <- validateUnwantedMetadata(actualMetadata)
           _ <- validateAllowOtherOutputs(actualMetadata)
-          diffs = expectedMetadata.diff(actualMetadata.asFlat, workflow.id.id, workflowToCacheFrom.map(_.id.id))
+          diffs = expectedMetadata.diff(actualMetadata.asFlat, workflow.id.id, cacheHitUUID)
           _ <- checkDiff(diffs, actualMetadata)
         } yield actualMetadata
       }

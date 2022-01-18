@@ -41,13 +41,13 @@ object CentaurTestException {
   def apply(message: String,
             workflowDefinition: Workflow,
             submittedWorkflow: SubmittedWorkflow,
-            associatedWorkflow: Option[SubmittedWorkflow],
+            associatedWorkflowId: Option[String],
             actualMetadata: WorkflowMetadata): CentaurTestException = {
     new CentaurTestException(
       message,
       workflowDefinition.testName,
       Option(submittedWorkflow.id.toString),
-      associatedWorkflow.map(_.id.toString),
+      associatedWorkflowId,
       Option(actualMetadata.value),
       None
     )

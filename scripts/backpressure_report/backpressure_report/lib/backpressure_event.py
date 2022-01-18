@@ -5,6 +5,9 @@ from typing import AnyStr
 
 
 class BackpressureEvent:
+    """
+    Represents a span during which a single pod was backpressuring / in high I/O and not dispensing job tokens.
+    """
     def __init__(self, pod: str, start: datetime, end: datetime):
         self.pod = pod
         self.start = start

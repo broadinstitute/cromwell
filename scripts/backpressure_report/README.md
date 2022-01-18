@@ -9,7 +9,7 @@ job execution or restart check tokens, so job starts and restarts will be slowed
 Usage:
 
 ```shell
-python -m backpressure_report.main <files with JSON formatted Log Explorer logs>
+python -m backpressure_report.main <files with JSON formatted Logs Explorer logs>
 ```
 
 The program parses JSON-formatted Google Logs Explorer logs JSON looking for backpressure messages.
@@ -20,7 +20,7 @@ The Logs Explorer query should look like the following:
     (jsonPayload.message=~"IoActor backpressure off" OR jsonPayload.message=~"Beginning IoActor backpressure")
 ```
 
-Multiple input files may be required to capture logging output from an entire interval of interest as Google imposes
+Multiple input files may be required to capture logging output from an entire interval of interest since Google imposes
 limits on the number of log entries that can be exported from a single query.
 
 ### Questions
@@ -34,7 +34,7 @@ limits on the number of log entries that can be exported from a single query.
 To run the Python unit tests from the top-level `backpressure_report` directory 
 (ie the one containing this README.MD file), run:
 ```sh
-# python3 -m unittest discover -v
+python -m unittest discover -v
 ```
 
 This will:

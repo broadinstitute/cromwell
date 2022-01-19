@@ -1,5 +1,7 @@
 from collections import defaultdict
 from datetime import timedelta
+import itertools
+from typing import AnyStr
 
 
 class BackpressureWindow:
@@ -12,13 +14,18 @@ class BackpressureWindow:
 
     def durations_by_pod(self) -> dict:
         # defaultdict(int) also returns 0 by default, more cryptically
-        ret = defaultdict(lambda _: 0)
+        ret = defaultdict(int)
         for pod, events in self.pod_events.items():
             ret[pod] = sum([e.duration() for e in events])
         return ret
 
+    def report_line(self, all_pods) -> AnyStr:
+        durations = self.durations_by_pod()
+        cells = itertools.chain([str(self.timestamp)], [str(durations[pod]) for pod in all_pods])
+        return ','.join(cells)
 
-def build_windows_from_events(backpressure_events, window_width_in_hours=1):
+
+def build_windows_and_pods_from_events(backpressure_events, window_width_in_hours=1) -> (list, list):
     """
     Generate barchart-friendly time windows with counts of backpressuring durations within each window.
 
@@ -44,7 +51,9 @@ def build_windows_from_events(backpressure_events, window_width_in_hours=1):
             windows.append(BackpressureWindow(interval))
             next_interval = next_interval + timedelta(hours=window_width_in_hours)
         windows[-1].add_event(event)
-    return windows, all_pods
+    all_pods_list = list(all_pods)
+    all_pods_list.sort()
+    return windows, all_pods_list
 
 
 def print_windows(windows):

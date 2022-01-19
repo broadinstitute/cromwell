@@ -13,15 +13,16 @@ class BackpressureWindow:
         self.pod_events[event.pod].append(event)
 
     def durations_by_pod(self) -> dict:
-        # defaultdict(int) also returns 0 by default, more cryptically
-        ret = defaultdict(int)
+        # Return 0 by default for pods that aren't in this window at all.
+        ret = defaultdict(lambda: 0)
         for pod, events in self.pod_events.items():
             ret[pod] = sum([e.duration() for e in events])
         return ret
 
     def report_line(self, all_pods) -> AnyStr:
         durations = self.durations_by_pod()
-        cells = itertools.chain([str(self.timestamp)], [str(durations[pod]) for pod in all_pods])
+        sum_durations = sum(durations.values())
+        cells = itertools.chain([str(self.timestamp), str(sum_durations)], [str(durations[pod]) for pod in all_pods])
         return ','.join(cells)
 
 
@@ -60,11 +61,9 @@ def print_windows(windows, all_pods, window_width_in_hours) -> None:
     """
     CSV format output generation for the specified backpressure windows.
     """
-    header1_cells = itertools.chain([f"{window_width_in_hours} hour interval"], ["Backpressure seconds"] * len(all_pods))
-    print(",".join(header1_cells))
-
-    header2_cells = itertools.chain(["Interval start"], all_pods)
-    print(",".join(header2_cells))
+    header_cells = itertools.chain([f"Interval ({window_width_in_hours} hour)", "All pods"],
+                                   [f"Pod {pod}" for pod in all_pods])
+    print(",".join(header_cells))
 
     for window in windows:
         print(window.report_line(all_pods))

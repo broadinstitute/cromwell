@@ -44,7 +44,7 @@ Interval (1 hour),All pods,Pod 47z68,Pod 4hgd4,Pod 7svrs,Pod 9l2ld,Pod 9p9j4,Pod
 ```
 
 The first column is the timestamp for the interval start, the second column is the sum of all backpressure durations from all runner
-pods during that interval, and all subsequent columns are the backpressure durations for individual pods during the interval.
+pods during that interval in seconds, and all subsequent columns are the backpressure durations for individual pods during the interval in seconds.
 
 ### Questions
 

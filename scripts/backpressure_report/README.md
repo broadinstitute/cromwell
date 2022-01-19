@@ -31,6 +31,21 @@ The Logs Explorer query should look like the following:
 Multiple input files may be required to capture logging output from an entire interval of interest since Google imposes
 limits on the number of log entries that can be exported from a single query.
 
+Output is a CSV file like:
+
+```
+Interval (1 hour),All pods,Pod 47z68,Pod 4hgd4,Pod 7svrs,Pod 9l2ld,Pod 9p9j4,Pod bj4vh,Pod d85vc,Pod gdp8x,Pod gth4r,Pod jkpbj,Pod jrgsx,Pod ltmvs,Pod mkdjt,Pod qt2bq,Pod th2p8,Pod thwz9,Pod xvcrk,Pod z7jfk
+2022-01-01 05:00:00+00:00,62,20,0,0,0,42,0,0,0,0,0,0,0,0,0,0,0,0,0
+2022-01-01 06:00:00+00:00,40,0,0,0,0,0,0,0,40,0,0,0,0,0,0,0,0,0,0
+2022-01-01 07:00:00+00:00,20,20,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+2022-01-01 08:00:00+00:00,40,20,0,0,0,20,0,0,0,0,0,0,0,0,0,0,0,0,0
+2022-01-01 09:00:00+00:00,110,0,0,0,0,70,0,0,40,0,0,0,0,0,0,0,0,0,0
+...
+```
+
+The first column is the timestamp for the interval start, the second column is the sum of all backpressure durations from all runner
+pods during that interval, and all subsequent columns are the backpressure durations for individual pods during the interval.
+
 ### Questions
 
 - Q: Why not run the scripts directly, eg `python main.py`?

@@ -292,7 +292,6 @@ class GetRequestHandlerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
         None
       )
     ),
-
     // As of 2022-01 the zone `us-west3` in `broad-dsde-cromwell-dev` has its CPU quota purposely de-rated to 1 for testing
     ("check that a job is AwaitingCloudQuota if its most recent event is quota exhaustion",
       """{
@@ -656,7 +655,6 @@ class GetRequestHandlerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
         new ExecutionEvent("Complete in GCE / Cromwell Poll Interval", OffsetDateTime.parse("2022-01-19T19:37:22.764120036Z"), None)
       ), Option("custom-1-2048"), Option("us-west3-c"), Option("google-pipelines-worker-8eff543e6858c204c8f67520aee75432"))
     )
-
   )
 
   forAll(interpretedStatus) { (description, json, expectedStatus) =>

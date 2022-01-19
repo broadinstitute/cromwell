@@ -56,10 +56,15 @@ def build_windows_and_pods_from_events(backpressure_events, window_width_in_hour
     return windows, all_pods_list
 
 
-def print_windows(windows):
+def print_windows(windows, all_pods, window_width_in_hours) -> None:
     """
     CSV format output generation for the specified backpressure windows.
-    :param windows: dictionary of time windows to list of BackpressureEvents
     """
-    for interval, backpressure_events in windows.items():
-        print(f"{str(interval)},{sum([e.duration() for e in backpressure_events])}")
+    header1_cells = itertools.chain([f"{window_width_in_hours} hour interval"], ["Backpressure seconds"] * len(all_pods))
+    print(",".join(header1_cells))
+
+    header2_cells = itertools.chain(["Interval start"], all_pods)
+    print(",".join(header2_cells))
+
+    for window in windows:
+        print(window.report_line(all_pods))

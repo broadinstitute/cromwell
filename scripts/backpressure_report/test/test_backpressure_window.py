@@ -11,9 +11,9 @@ class BackpressureWindowTestMethods(unittest.TestCase):
         self.expected = [36, 0, 32, 0, 189, 0, 0, 0, 46, 0, 0, 142, 60, 29]
 
     def __actual(self) -> list:
-        windows = backpressure_window.build_windows_from_events(self.events, window_width_in_hours=8)
+        windows, all_pods = backpressure_window.build_windows_from_events(self.events, window_width_in_hours=8)
         return [
-            sum(e.duration() for e in es) for t, es in windows.items()
+            sum(w.durations_by_pod().values()) for w in windows
         ]
 
     def test_forward(self):

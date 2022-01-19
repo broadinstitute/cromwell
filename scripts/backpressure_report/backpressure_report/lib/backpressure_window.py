@@ -1,4 +1,21 @@
+from collections import defaultdict
 from datetime import timedelta
+
+
+class BackpressureWindow:
+    def __init__(self, timestamp):
+        self.timestamp = timestamp
+        self.pod_events = defaultdict(list)
+
+    def add_event(self, event):
+        self.pod_events[event.pod].append(event)
+
+    def durations_by_pod(self) -> dict:
+        # defaultdict(int) also returns 0 by default, more cryptically
+        ret = defaultdict(lambda _: 0)
+        for pod, events in self.pod_events.items():
+            ret[pod] = sum([e.duration() for e in events])
+        return ret
 
 
 def build_windows_from_events(backpressure_events, window_width_in_hours=1):
@@ -14,18 +31,20 @@ def build_windows_from_events(backpressure_events, window_width_in_hours=1):
     sorted_events = backpressure_events.copy()
     sorted_events.sort(key=lambda e: e.start)
 
-    hour = sorted_events[0].start.replace(minute=0, second=0, microsecond=0)
-    next_hour = hour + timedelta(hours=window_width_in_hours)
+    interval = sorted_events[0].start.replace(minute=0, second=0, microsecond=0)
+    next_interval = interval + timedelta(hours=window_width_in_hours)
 
-    windows_by_hour = {hour: []}
+    all_pods = set(())
+    windows = [BackpressureWindow(interval)]
 
-    for window in sorted_events:
-        while window.start >= next_hour:
-            hour = next_hour
-            windows_by_hour[hour] = []
-            next_hour = next_hour + timedelta(hours=window_width_in_hours)
-        windows_by_hour[hour].append(window)
-    return windows_by_hour
+    for event in sorted_events:
+        all_pods.add(event.pod)
+        while event.start >= next_interval:
+            interval = next_interval
+            windows.append(BackpressureWindow(interval))
+            next_interval = next_interval + timedelta(hours=window_width_in_hours)
+        windows[-1].add_event(event)
+    return windows, all_pods
 
 
 def print_windows(windows):

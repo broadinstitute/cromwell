@@ -4,25 +4,27 @@
 
 ### New `AwaitingCloudQuota` backend status
 
-For Cloud Life Sciences v2beta only, Cromwell emits a new backend status to indicate that a job is waiting for GCP quota.
+For Cloud Life Sciences v2beta only.
 
-This status is informational and does not require any action. Users wishing to maximize throughput can use `AwaitingCloudQuota` as an indication they should check quota in Cloud Console and submit quota increase requests to GCP.
+When a user's GCP project reaches a quota limit, Cromwell continues to submit jobs and Life Sciences acknowledges them as created even if the physical VM cannot yet start. Cromwell now detects this condition in the backend and reports `AwaitingCloudQuota`.
 
-When a job encounters quota delays within the backend, its metadata will show the following lifecycle:
-```
-"backendStatus": "Initializing"
-"backendStatus": "AwaitingCloudQuota"
-"backendStatus": "Running"
-"backendStatus": "Success"
-```
-When there are no quota delays the `AwaitingCloudQuota` status is skipped:
-```
-"backendStatus": "Initializing"
-"backendStatus": "Running"
-"backendStatus": "Success"
-```
+The status is informational and does not require any action. Users wishing to maximize throughput can use `AwaitingCloudQuota` as an indication they should check quota in Cloud Console and request a quota increase from GCP.
 
-There is no change to how Cromwell reports execution status for jobs or workflows (`executionStatus` in metadata).
+`AwaitingCloudQuota` will appear between the `Initializing` and `Running` backend statuses, and will be skipped if not applicable.
+
+Now:
+
+| Status in metadata |Quota normal| Quota delay          | Status meaning                                    |
+|--------------------|----|----------------------|---------------------------------------------------|
+| `executionStatus`    |`Running`| `Running`            | Job state Cromwell is requesting from the backend |
+| `backendStatus`      |`Running`| `AwaitingCloudQuota` | Job state reported by backend                          |
+
+Previously:
+
+| Status in metadata |Quota normal|Quota delay| Status meaning                                            |
+|--------------------|----|----|-----------------------------------------------------------|
+| `executionStatus`    |`Running`|`Running`| Job state Cromwell is requesting from the backend |
+| `backendStatus`      |`Running`|`Running`| Job state reported by backend |
 
 ## 73 Release Notes
 

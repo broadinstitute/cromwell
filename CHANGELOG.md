@@ -1,5 +1,29 @@
 # Cromwell Change Log
 
+## 74 Release Notes
+
+### New `AwaitingCloudQuota` backend status
+
+For Cloud Life Sciences v2beta only, Cromwell emits a new backend status to indicate that a job is waiting for GCP quota.
+
+This status is informational and does not require any action. Users wishing to maximize throughput can use `AwaitingCloudQuota` as an indication they should check quota in Cloud Console and submit quota increase requests to GCP.
+
+When a job encounters quota delays within the backend, its metadata will show the following lifecycle:
+```
+"backendStatus": "Initializing"
+"backendStatus": "AwaitingCloudQuota"
+"backendStatus": "Running"
+"backendStatus": "Success"
+```
+When there are no quota delays the `AwaitingCloudQuota` status is skipped:
+```
+"backendStatus": "Initializing"
+"backendStatus": "Running"
+"backendStatus": "Success"
+```
+
+There is no change to how Cromwell reports execution status for jobs or workflows (`executionStatus` in metadata).
+
 ## 73 Release Notes
 
 ### Workflow Restart Performance Improvements

@@ -53,7 +53,7 @@ sealed trait MetadataStatisticsRecorder {
 }
 
 final class NoopMetadataStatisticsRecorder extends MetadataStatisticsRecorder {
-  def processEvents(putEvents: Iterable[MetadataEvent]): Vector[HeavyMetadataAlert] = Vector.empty
+  def processEventsAndGenerateAlerts(putEvents: Iterable[MetadataEvent]): Vector[HeavyMetadataAlert] = Vector.empty
 }
 
 final class ActiveMetadataStatisticsRecorder(workflowCacheSize: Long = 100000L, // 100,000
@@ -69,7 +69,7 @@ final class ActiveMetadataStatisticsRecorder(workflowCacheSize: Long = 100000L, 
 
   def writeStatisticsLoader(workflowId: WorkflowId): Callable[WorkflowMetadataWriteStatistics] = () => WorkflowMetadataWriteStatistics(workflowId, 0L, 0L, None)
 
-  def processEvents(putEvents: Iterable[MetadataEvent]): Vector[HeavyMetadataAlert] = {
+  def processEventsAndGenerateAlerts(putEvents: Iterable[MetadataEvent]): Vector[HeavyMetadataAlert] = {
     putEvents.groupBy(_.key.workflowId).toVector.flatMap { case (id, list) => processEventsForWorkflow(id, list)}
   }
 

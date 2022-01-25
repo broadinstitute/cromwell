@@ -49,7 +49,7 @@ object MetadataStatisticsRecorder {
 }
 
 sealed trait MetadataStatisticsRecorder {
-  def processEvents(putEvents: Iterable[MetadataEvent]): Vector[HeavyMetadataAlert]
+  def processEventsAndGenerateAlerts(putEvents: Iterable[MetadataEvent]): Vector[HeavyMetadataAlert]
 }
 
 final class NoopMetadataStatisticsRecorder extends MetadataStatisticsRecorder {

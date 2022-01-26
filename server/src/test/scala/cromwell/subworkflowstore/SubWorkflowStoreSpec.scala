@@ -10,7 +10,7 @@ import cromwell.engine.workflow.CoordinatedWorkflowStoreActorBuilder
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowSubmittedToStore
 import cromwell.engine.workflow.workflowstore._
-import cromwell.services.EngineServicesStore
+import cromwell.services.{EngineServicesStore, MetadataServicesStore}
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
 import cromwell.subworkflowstore.SubWorkflowStoreSpec._
 import cromwell.util.WomMocks
@@ -36,7 +36,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkf
       lazy val subWorkflowStore = new SqlSubWorkflowStore(EngineServicesStore.engineDatabaseInterface)
       val subWorkflowStoreService = system.actorOf(SubWorkflowStoreActor.props(subWorkflowStore))
 
-      lazy val workflowStore = SqlWorkflowStore(EngineServicesStore.engineDatabaseInterface)
+      lazy val workflowStore = SqlWorkflowStore(EngineServicesStore.engineDatabaseInterface, MetadataServicesStore.metadataDatabaseInterface)
       val workflowHeartbeatConfig = WorkflowHeartbeatConfig(CromwellTestKitSpec.DefaultConfig)
       val workflowStoreService = system.actorOf(
         WorkflowStoreActor.props(

@@ -8,7 +8,7 @@ import common.assertion.CromwellTimeoutSpec
 import cromwell.core.Tags.DbmsTest
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowStoreAbortResponse, WorkflowStoreState}
-import cromwell.services.database.{DatabaseSystem, DatabaseTestKit, EngineDatabaseType}
+import cromwell.services.database.{DatabaseSystem, DatabaseTestKit, EngineDatabaseType, MetadataDatabaseType}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
@@ -44,8 +44,9 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
 
     lazy val dataAccess = DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, EngineDatabaseType, databaseSystem)
+    lazy val metadataDataAccess = DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, MetadataDatabaseType, databaseSystem)
 
-    lazy val workflowStore = SqlWorkflowStore(dataAccess)
+    lazy val workflowStore = SqlWorkflowStore(dataAccess, metadataDataAccess)
 
     it should "start container if required" taggedAs DbmsTest in {
       containerOpt.foreach { _.start }

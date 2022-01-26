@@ -30,7 +30,7 @@ trait SwaggerUiResourceHttpServiceSpec extends SwaggerUiHttpServiceSpec with Swa
 
 object SwaggerUiHttpServiceSpec {
   // TODO: Re-common-ize swagger out of cromwell's engine and reuse.
-  val TestSwaggerUiVersion = "3.23.11" // scala-steward:off
+  val TestSwaggerUiVersion = "4.2.1"
   val SwaggerIndexPreamble =
     """
       |<!-- HTML for static distribution bundle build -->

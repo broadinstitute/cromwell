@@ -35,7 +35,8 @@ final case class PartialWorkflowSources(workflowSource: Option[WorkflowSource] =
                                         customLabels: Option[WorkflowJson] = None,
                                         zippedImports: Option[Array[Byte]] = None,
                                         warnings: Seq[String] = List.empty,
-                                        workflowOnHold: Boolean)
+                                        workflowOnHold: Boolean,
+                                        requestedWorkflowIds: Option[Vector[WorkflowId]])
 
 object PartialWorkflowSources {
   val log = LoggerFactory.getLogger(classOf[PartialWorkflowSources])
@@ -53,9 +54,10 @@ object PartialWorkflowSources {
   val WdlDependenciesKey = "wdlDependencies"
   val WorkflowDependenciesKey = "workflowDependencies"
   val workflowOnHoldKey = "workflowOnHold"
+  val RequestedWorkflowIdKey = "requestedWorkflowId"
 
   val allKeys = List(WdlSourceKey, WorkflowUrlKey, WorkflowRootKey, WorkflowSourceKey, WorkflowTypeKey, WorkflowTypeVersionKey, WorkflowInputsKey,
-    WorkflowOptionsKey, labelsKey, WdlDependenciesKey, WorkflowDependenciesKey, workflowOnHoldKey)
+    WorkflowOptionsKey, labelsKey, WdlDependenciesKey, WorkflowDependenciesKey, workflowOnHoldKey, RequestedWorkflowIdKey)
 
   val allPrefixes = List(WorkflowInputsAuxPrefix)
 
@@ -112,11 +114,22 @@ object PartialWorkflowSources {
         case (None, None, None) => s"$WorkflowSourceKey or $WorkflowUrlKey needs to be supplied".invalidNel
       }
 
-      // workflow inputs
-      val workflowInputs: ErrorOr[Vector[WorkflowJson]] = getStringValue(WorkflowInputsKey) match {
+      case class InputsAndRequestedIds(workflowInputs: Vector[WorkflowJson], requestedIds: Option[Vector[WorkflowId]])
+
+      def unpackIdsString(idsString: Option[String]): ErrorOr[Option[Vector[WorkflowId]]] = {
+        idsString match {
+          case Some(ids) => Try(Option(ids.split(",").map(WorkflowId.fromString).toVector)).toErrorOrWithContext("parse requested workflow Ids")
+          case None => None.validNel
+        }
+      }
+
+      val workflowInputs = getStringValue(WorkflowInputsKey) match {
         case Some(inputs) => workflowInputsValidation(inputs)
         case None => Vector.empty.validNel
       }
+
+      val requestedIds = unpackIdsString(getStringValue(RequestedWorkflowIdKey))
+
       val workflowInputsAux: ErrorOr[Map[Int, String]] = formData.toList.flatTraverse[ErrorOr, (Int, String)]({
         case (name, value) if name.startsWith(WorkflowInputsAuxPrefix) =>
           Try(name.stripPrefix(WorkflowInputsAuxPrefix).toInt).toErrorOr.map(index => List((index, value.utf8String)))
@@ -139,8 +152,8 @@ object PartialWorkflowSources {
 
       val onHold: ErrorOr[Boolean] = getBooleanValue(workflowOnHoldKey).getOrElse(false.validNel)
 
-      (unrecognized, workflowSourceFinal, workflowInputs, workflowInputsAux, workflowDependenciesFinal, onHold) mapN {
-        case (_, source, inputs, aux, dep, onHoldActual) => PartialWorkflowSources(
+      (unrecognized, workflowSourceFinal, requestedIds, workflowInputs, workflowInputsAux, workflowDependenciesFinal, onHold) mapN {
+        case (_, source, ids, inputs, aux, dep, onHoldActual) => PartialWorkflowSources(
           workflowSource = source,
           workflowUrl = workflowUrl,
           workflowRoot = getStringValue(WorkflowRootKey),
@@ -152,7 +165,8 @@ object PartialWorkflowSources {
           customLabels = getStringValue(labelsKey),
           zippedImports = dep,
           warnings = wdlSourceWarning.toVector ++ wdlDependenciesWarning.toVector,
-          workflowOnHold = onHoldActual
+          workflowOnHold = onHoldActual,
+          requestedWorkflowIds = ids
         )
       }
     }
@@ -183,8 +197,10 @@ object PartialWorkflowSources {
 
   private def partialSourcesToSourceCollections(partialSources: ErrorOr[PartialWorkflowSources],
                                                 allowNoInputs: Boolean): ErrorOr[Seq[WorkflowSourceFilesCollection]] = {
-    def validateInputs(pws: PartialWorkflowSources): ErrorOr[Seq[WorkflowJson]] =
-      (pws.workflowInputs.isEmpty, allowNoInputs) match {
+    case class RequestedIdAndInputs(requestedId: Option[WorkflowId], inputs: WorkflowJson)
+
+    def validateInputsAndRequestedIds(pws: PartialWorkflowSources): ErrorOr[Seq[RequestedIdAndInputs]] = {
+      val workflowInputsValidation = (pws.workflowInputs.isEmpty, allowNoInputs) match {
         case (true, true) => Vector("{}").validNel
         case (true, false) => "No inputs were provided".invalidNel
         case _ =>
@@ -193,6 +209,16 @@ object PartialWorkflowSources {
             mergeMaps(Seq(Option(workflowInputSet)) ++ sortedInputAuxes).map(_.toString)
           }
       }
+
+      workflowInputsValidation flatMap { workflowInputs =>
+        pws.requestedWorkflowIds match {
+          case None => (workflowInputs map { i => RequestedIdAndInputs(None, i) }).validNel
+          case Some(requestedIds) if requestedIds.size == workflowInputs.size =>
+            (requestedIds.zip(workflowInputs).map { case (id, inputs) => RequestedIdAndInputs(Option(id), inputs) }).validNel
+          case Some(requestedIds) => s"Mismatch between requested IDs count (${requestedIds.size}) and workflow inputs counts (${workflowInputs.size})".invalidNel
+        }
+      }
+    }
 
     def validateOptions(options: Option[WorkflowOptionsJson]): ErrorOr[WorkflowOptions] =
       WorkflowOptions.fromJsonString(options.getOrElse("{}")).toErrorOr leftMap { _ map { i => s"Invalid workflow options provided: $i" } }
@@ -208,7 +234,6 @@ object PartialWorkflowSources {
         }).void
       }
 
-
       Try(labels.parseJson) match {
         case Success(JsObject(inputs)) => validateLabelRestrictions(inputs).map(_ => labels)
         case Failure(reason: Throwable) => s"Workflow contains invalid labels JSON: ${reason.getMessage}".invalidNel
@@ -218,12 +243,12 @@ object PartialWorkflowSources {
 
     partialSources match {
       case Valid(partialSource) =>
-        (validateInputs(partialSource),
+        (validateInputsAndRequestedIds(partialSource),
           validateOptions(partialSource.workflowOptions),
           validateLabels(partialSource.customLabels.getOrElse("{}")),
           partialSource.workflowUrl.traverse(validateWorkflowUrl)) mapN {
-          case (wfInputs, wfOptions, workflowLabels, wfUrl) =>
-            wfInputs.map(inputsJson => WorkflowSourceFilesCollection(
+          case (wfInputsAndIds, wfOptions, workflowLabels, wfUrl) =>
+            wfInputsAndIds.map { case RequestedIdAndInputs(id, inputsJson) => WorkflowSourceFilesCollection(
               workflowSource = partialSource.workflowSource,
               workflowUrl = wfUrl,
               workflowRoot = partialSource.workflowRoot,
@@ -234,7 +259,8 @@ object PartialWorkflowSources {
               labelsJson = workflowLabels,
               importsFile = partialSource.zippedImports,
               warnings = partialSource.warnings,
-              workflowOnHold = partialSource.workflowOnHold))
+              workflowOnHold = partialSource.workflowOnHold,
+              requestedWorkflowId = id) }
         }
       case Invalid(err) => err.invalid
     }

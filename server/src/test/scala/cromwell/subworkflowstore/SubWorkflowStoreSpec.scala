@@ -73,7 +73,8 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkf
         inputsJson = "{}",
         workflowOptions = WorkflowOptions.empty,
         labelsJson = "{}",
-        warnings = Vector.empty)
+        warnings = Vector.empty,
+        requestedWorkflowId = None)
       )
       val rootWorkflowId = expectMsgType[WorkflowSubmittedToStore](10 seconds).workflowId
 

@@ -23,7 +23,19 @@ import scala.concurrent.duration._
 class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
   implicit val ec = ExecutionContext.global
   implicit val defaultPatience = PatienceConfig(scaled(Span(10, Seconds)), scaled(Span(100, Millis)))
-  val sourceFilesCollection = NonEmptyList.of(WorkflowSourceFilesCollection(Option("sample"), None, None, None, None, "input", WorkflowOptions.empty, "string", None, workflowOnHold = true, Seq.empty))
+  val sourceFilesCollection = NonEmptyList.of(WorkflowSourceFilesCollection(
+    Option("sample"),
+    None,
+    None,
+    None,
+    None,
+    "input",
+    WorkflowOptions.empty,
+    "string",
+    None,
+    workflowOnHold = true,
+    Seq.empty,
+    requestedWorkflowId = None))
 
   DatabaseSystem.All foreach { databaseSystem =>
 

@@ -154,6 +154,8 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
 
     (startableStateValidation, workflowOptionsValidation) mapN { (startableState, workflowOptions) =>
 
+      val id = WorkflowId.fromString(workflowStoreEntry.workflowExecutionUuid)
+
       val sources = WorkflowSourceFilesCollection(
         workflowSource = workflowStoreEntry.workflowDefinition.toRawStringOption,
         workflowUrl = workflowStoreEntry.workflowUrl,
@@ -165,10 +167,10 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
         labelsJson = workflowStoreEntry.customLabels.toRawString,
         importsFile = workflowStoreEntry.importsZip.toBytesOption,
         warnings = Vector.empty,
-        workflowOnHold = false
+        workflowOnHold = false,
+        requestedWorkflowId = Option(id)
       )
 
-      val id = WorkflowId.fromString(workflowStoreEntry.workflowExecutionUuid)
       val hogGroup: HogGroup = workflowStoreEntry.hogGroup.map(HogGroup(_)).getOrElse(HogGroup.decide(workflowOptions, id))
 
       WorkflowToStart(
@@ -194,7 +196,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
 
     val actualWorkflowState = workflowSubmissionState(workflowSourceFiles)
 
-    val workflowId = WorkflowId.randomId()
+    val workflowId = workflowSourceFiles.requestedWorkflowId.getOrElse(WorkflowId.randomId())
     val hogGroup = HogGroup.decide(workflowSourceFiles.workflowOptions, workflowId)
 
     WorkflowStoreEntry(

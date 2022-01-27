@@ -87,6 +87,11 @@ paths:
           required: false
           type: file
           in: formData
+        - name: requestedWorkflowId
+          description: An ID to ascribe to this workflow. Must be in UUID-format. If not supplied a random ID will be generated for the workflow.
+          required: false
+          type: string
+          in: formData
       tags:
         - Workflows
       responses:
@@ -143,6 +148,11 @@ paths:
           description: ZIP file containing workflow source files that are used to resolve local imports. This zip bundle will be unpacked in a sandbox accessible to these workflows.
           required: false
           type: file
+          in: formData
+        - name: requestedWorkflowId
+          description: A set of IDs to ascribe to these workflows. Must be a comma-separated list of values in UUID-format. Must have the same number of entries and be in the same order as the workflow inputs list. If not supplied, random ID will be generated for the workflows.
+          required: false
+          type: string
           in: formData
       tags:
         - Workflows

@@ -146,7 +146,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase, metadataSqlDa
     val duplicatedIds = requestedWorkflowIds.diff(requestedWorkflowIds.toSet.toSeq)
 
     if(duplicatedIds.nonEmpty) {
-      Future.failed(new DuplicateWorkflowIdsRequested(duplicatedIds))
+      Future.failed(DuplicateWorkflowIdsRequested(duplicatedIds))
     } else {
       findPreexistingWorkflowIds(requestedWorkflowIds) flatMap { preexistingIds =>
         if (preexistingIds.nonEmpty) {

@@ -13,7 +13,7 @@ import cromwell.database.sql.{MetadataSqlDatabase, WorkflowStoreSqlDatabase}
 import cromwell.database.sql.tables.WorkflowStoreEntry
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreAbortResponse.WorkflowStoreAbortResponse
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreState.WorkflowStoreState
-import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{NotInOnHoldStateException, WorkflowIdsAlreadyInUseException, WorkflowStoreAbortResponse, WorkflowStoreState, WorkflowSubmissionResponse}
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{DuplicateWorkflowIdsRequested, NotInOnHoldStateException, WorkflowIdsAlreadyInUseException, WorkflowStoreAbortResponse, WorkflowStoreState, WorkflowSubmissionResponse}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.collection._
 
@@ -22,6 +22,9 @@ import scala.concurrent.{ExecutionContext, Future}
 
 object SqlWorkflowStore {
   case class WorkflowSubmissionResponse(state: WorkflowStoreState, id: WorkflowId)
+
+  case class DuplicateWorkflowIdsRequested(workflowIds: Seq[WorkflowId]) extends
+    Exception (s"Requested workflow IDs are duplicated: ${workflowIds.mkString(", ")}")
 
   case class WorkflowIdsAlreadyInUseException(workflowIds: Seq[WorkflowId]) extends
     Exception (s"Requested workflow IDs are already in use: ${workflowIds.mkString(", ")}")
@@ -140,20 +143,26 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase, metadataSqlDa
   override def add(sources: NonEmptyList[WorkflowSourceFilesCollection])(implicit ec: ExecutionContext): Future[NonEmptyList[WorkflowSubmissionResponse]] = {
 
     val requestedWorkflowIds = sources.map(_.requestedWorkflowId).collect { case Some(id) => id }
-    findPreexistingWorkflowIds(requestedWorkflowIds) flatMap { preexistingIds =>
-      if (preexistingIds.nonEmpty) {
-        Future.failed(WorkflowIdsAlreadyInUseException(preexistingIds))
-      } else {
-        val asStoreEntries = sources map toWorkflowStoreEntry
-        val returnValue = asStoreEntries map { workflowStore =>
-          WorkflowSubmissionResponse(
-            WorkflowStoreState.withName(workflowStore.workflowState),
-            WorkflowId.fromString(workflowStore.workflowExecutionUuid)
-          )
-        }
+    val duplicatedIds = requestedWorkflowIds.diff(requestedWorkflowIds.toSet.toSeq)
 
-        // The results from the Future aren't useful, so on completion map it into the precalculated return value instead. Magic!
-        sqlDatabase.addWorkflowStoreEntries(asStoreEntries.toList) map { _ => returnValue }
+    if(duplicatedIds.nonEmpty) {
+      Future.failed(new DuplicateWorkflowIdsRequested(duplicatedIds))
+    } else {
+      findPreexistingWorkflowIds(requestedWorkflowIds) flatMap { preexistingIds =>
+        if (preexistingIds.nonEmpty) {
+          Future.failed(WorkflowIdsAlreadyInUseException(preexistingIds))
+        } else {
+          val asStoreEntries = sources map toWorkflowStoreEntry
+          val returnValue = asStoreEntries map { workflowStore =>
+            WorkflowSubmissionResponse(
+              WorkflowStoreState.withName(workflowStore.workflowState),
+              WorkflowId.fromString(workflowStore.workflowExecutionUuid)
+            )
+          }
+
+          // The results from the Future aren't useful, so on completion map it into the precalculated return value instead. Magic!
+          sqlDatabase.addWorkflowStoreEntries(asStoreEntries.toList) map { _ => returnValue }
+        }
       }
     }
   }

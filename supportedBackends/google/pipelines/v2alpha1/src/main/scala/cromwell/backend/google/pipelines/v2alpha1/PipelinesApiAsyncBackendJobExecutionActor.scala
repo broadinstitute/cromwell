@@ -19,6 +19,7 @@ import wom.core.FullyQualifiedName
 import wom.expression.FileEvaluation
 import wom.values.{GlobFunctions, WomFile, WomGlobFile, WomMaybeListedDirectory, WomMaybePopulatedFile, WomSingleFile, WomUnlistedDirectory}
 
+import java.io.FileNotFoundException
 import scala.concurrent.Future
 import scala.io.Source
 import scala.language.postfixOps
@@ -29,7 +30,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
     with PipelinesApiReferenceFilesMappingOperations {
 
   // The original implementation assumes the WomFiles are all WomMaybePopulatedFiles and wraps everything in a PipelinesApiFileInput
-  // In v2 we can differentiate files from directories 
+  // In v2 we can differentiate files from directories
   override protected def pipelinesApiInputsFromWomFiles(inputName: String,
                                                         remotePathArray: Seq[WomFile],
                                                         localPathArray: Seq[WomFile],
@@ -289,7 +290,14 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   override def womFileToGcsPath(jesOutputs: Set[PipelinesApiOutput])(womFile: WomFile): WomFile = {
     womFile mapFile { path =>
       jesOutputs collectFirst {
-        case jesOutput if jesOutput.name == makeSafeReferenceName(path) => jesOutput.cloudPath.pathAsString
+        case jesOutput if jesOutput.name == makeSafeReferenceName(path) =>
+          val pathAsString = jesOutput.cloudPath.pathAsString
+          if (!jesOutput.cloudPath.exists) {
+            // This is not necessarily an error if the file corresponds to an optional File type (File?) but this
+            // code should throw to produce an "empty optional" null value.
+            throw new FileNotFoundException(s"GCS output file not found: $pathAsString")
+          }
+          pathAsString
       } getOrElse {
         GcsPathBuilder.validateGcsPath(path) match {
           case _: ValidFullGcsPath => path

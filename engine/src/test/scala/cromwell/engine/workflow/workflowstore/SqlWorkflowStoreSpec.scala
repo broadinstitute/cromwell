@@ -60,7 +60,6 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         _ <- workflowStore.switchOnHoldToSubmitted(submissionResponses.head.id)
         startableWorkflows2 <- workflowStore.fetchStartableWorkflows(10, "A00", 1.second)
         _ = startableWorkflows2.map(_.id).intersect(submissionResponses.map(_.id).toList).size should be(1)
-
         _ <- workflowStore.deleteFromStore(startableWorkflows2.head.id) // Tidy up
       } yield ()).futureValue
     }
@@ -73,7 +72,6 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         abortWorkflowId = submissionResponses.head.id
         workflowStoreAbortResponse <- workflowStore.abort(abortWorkflowId)
         _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.AbortedOnHoldOrSubmitted)
-
         _ <- workflowStore.deleteFromStore(abortWorkflowId) // Tidy up
       } yield ()).futureValue
     }
@@ -87,7 +85,6 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         _ <- workflowStore.switchOnHoldToSubmitted(abortWorkflowId)
         workflowStoreAbortResponse <- workflowStore.abort(abortWorkflowId)
         _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.AbortedOnHoldOrSubmitted)
-
         _ <- workflowStore.deleteFromStore(abortWorkflowId) // Tidy up
       } yield ()).futureValue
     }
@@ -102,7 +99,6 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         _ <- workflowStore.writeWorkflowHeartbeats(Set((abortWorkflowId, OffsetDateTime.now)), OffsetDateTime.now)
         workflowStoreAbortResponse <- workflowStore.abort(abortWorkflowId)
         _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.AbortedOnHoldOrSubmitted)
-
         _ <- workflowStore.deleteFromStore(abortWorkflowId) // Tidy up
       } yield ()).futureValue
     }
@@ -122,7 +118,6 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         )
         workflowStoreAbortResponse <- workflowStore.abort(abortWorkflowId)
         _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.AbortRequested)
-
         _ <- workflowStore.deleteFromStore(abortWorkflowId) // Tidy up
       } yield ()).futureValue
     }
@@ -143,7 +138,6 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         _ <- workflowStore.writeWorkflowHeartbeats(Set((abortWorkflowId, OffsetDateTime.now)), OffsetDateTime.now)
         workflowStoreAbortResponse <- workflowStore.abort(abortWorkflowId)
         _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.AbortRequested)
-
         _ <- workflowStore.deleteFromStore(abortWorkflowId) // Tidy up
       } yield ()).futureValue
     }
@@ -170,7 +164,6 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A00", 1.second)
         _ = startableWorkflows.map(_.id).intersect(submissionResponses.map(_.id).toList).size should be(1)
         _ = startableWorkflows.map(_.id).intersect(submissionResponses.map(_.id).toList).head should be(requestedId)
-
         _ <- workflowStore.deleteFromStore(requestedId) // tidy up
       } yield ()).futureValue
     }
@@ -229,7 +222,6 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
           }
           stats <- workflowStore.stats
           _ = stats should be(Map(WorkflowStoreState.OnHold -> 1)) // Only the original (on-hold) version of requested ID 1 should be in the store
-
           _ <- workflowStore.deleteFromStore(requestedId1)
 
         } yield message

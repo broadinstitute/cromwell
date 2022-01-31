@@ -186,21 +186,19 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
         s"""
            |touch ${output.name}
            |$s3Cmd cp --no-progress ${output.name} ${output.s3key}
-           |if [ -e $globDirectory ]; then $s3Cmd cp --no-progress $globDirectory $s3GlobOutDirectory --recursive --exclude "cromwell_glob_control_file"; fi
-           |""".stripMargin
+           |if [ -e $globDirectory ]; then $s3Cmd cp --no-progress $globDirectory $s3GlobOutDirectory --recursive --exclude "cromwell_glob_control_file"; fi""".stripMargin
 
       case output: AwsBatchFileOutput if output.s3key.startsWith("s3://") && output.mount.mountPoint.pathAsString == AwsBatchWorkingDisk.MountPoint.pathAsString =>
         //output is on working disk mount
         s"""
-           |$s3Cmd cp --no-progress $workDir/${output.local.pathAsString} ${output.s3key}
-           |""".stripMargin
+           |$s3Cmd cp --no-progress $workDir/${output.local.pathAsString} ${output.s3key}""".stripMargin
       case output: AwsBatchFileOutput =>
         //output on a different mount
         s"$s3Cmd cp --no-progress ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} ${output.s3key}"
       case _ => ""
     }.mkString("\n") + "\n" +
       s"""
-         |if [ -f $workDir/${jobPaths.returnCodeFilename} ]; then $s3Cmd cp --no-progress $workDir/${jobPaths.returnCodeFilename} ${jobPaths.callRoot.pathAsString}/${jobPaths.returnCodeFilename} ; fi\n
+         |if [ -f $workDir/${jobPaths.returnCodeFilename} ]; then $s3Cmd cp --no-progress $workDir/${jobPaths.returnCodeFilename} ${jobPaths.callRoot.pathAsString}/${jobPaths.returnCodeFilename} ; fi
          |if [ -f $stdErr ]; then $s3Cmd cp --no-progress $stdErr ${jobPaths.standardPaths.error.pathAsString}; fi
          |if [ -f $stdOut ]; then $s3Cmd cp --no-progress $stdOut ${jobPaths.standardPaths.output.pathAsString}; fi
          |""".stripMargin
@@ -214,6 +212,10 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
          |echo '*** DELOCALIZING OUTPUTS ***'
          |$outputCopyCommand
          |echo '*** COMPLETED DELOCALIZATION ***'
+         |echo '*** EXITING WITH RETURN CODE ***'
+         |rc=$$(head -n 1 $workDir/${jobPaths.returnCodeFilename})
+         |echo $$rc
+         |exit $$rc
          |}
          |""".stripMargin
   }

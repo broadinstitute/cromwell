@@ -124,7 +124,8 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override lazy val dockerImageUsed: Option[String] = Option(jobDockerImage)
 
   private lazy val execScript =
-    s"""|ls -lah ${jobPaths.script.pathWithoutScheme}
+    s"""|df -h
+        |ls -lah ${jobPaths.script.pathWithoutScheme}
         |${jobPaths.script.pathWithoutScheme}
         |""".stripMargin
 
@@ -397,6 +398,21 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override lazy val commandDirectory: Path = configuration.fileSystem match  {
     case AWSBatchStorageSystems.s3 => AwsBatchWorkingDisk.MountPoint
     case _ =>  jobPaths.callExecutionRoot
+  }
+
+  override def scriptPreamble: String = {
+    configuration.fileSystem match {
+      case  AWSBatchStorageSystems.s3 => ""
+      case _ => s"""|# clean directory in case of multiple retries
+                    |ls | grep -v script | xargs rm -rf""".stripMargin
+    }
+  }
+
+  override def scriptClosure: String = {
+    configuration.fileSystem match {
+      case  AWSBatchStorageSystems.s3 => ""
+      case _ => s"exit $$(head -n 1 $rcPath)"
+    }
   }
 
   override def globParentDirectory(womGlobFile: WomGlobFile): Path =

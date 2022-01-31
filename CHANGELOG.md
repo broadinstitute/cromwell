@@ -26,6 +26,13 @@ Previously:
 | `executionStatus`    |`Running`|`Running`| Job state Cromwell is requesting from the backend |
 | `backendStatus`      |`Running`|`Running`| Job state reported by backend |
 
+### New 'requestedWorkflowId' API Option
+
+Allows users to choose their own workflow IDs at workflow submission time. 
+
+If supplied for single workflows, this value must be a JSON string containing a valid, and not already used, UUID. For batch submissions, this value must be a JSON array of valid UUIDs.
+
+If not supplied, the behavior is as today: Cromwell will generate a random workflow ID for every workflow submitted. 
 
 ### Bug Fixes
 

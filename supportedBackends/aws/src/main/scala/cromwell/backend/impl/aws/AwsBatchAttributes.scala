@@ -59,7 +59,8 @@ case class AwsBatchAttributes(fileSystem: String,
                               executionBucket: String,
                               duplicationStrategy: AwsBatchCacheHitDuplicationStrategy,
                               submitAttempts: Int Refined Positive,
-                              createDefinitionAttempts: Int Refined Positive)
+                              createDefinitionAttempts: Int Refined Positive,
+                              fsxFileSystem: Option[List[String]])
 
 object AwsBatchAttributes {
   lazy val Logger = LoggerFactory.getLogger(this.getClass)
@@ -97,6 +98,14 @@ object AwsBatchAttributes {
       deprecatedKeys foreach { key => logger.warn(s"Found deprecated configuration key $key, replaced with ${deprecated.get(key)}") }
     }
 
+    def parseFSx(backendConfig: Config): Option[List[String]] = {
+      val fsxConfig = backendConfig.getStringList("filesystems.fsx")
+      fsxConfig.isEmpty match {
+        case true => None
+        case false => Some(fsxConfig.asScala.toList)
+      }
+    }
+
     warnDeprecated(configKeys, deprecatedAwsBatchKeys, context, Logger)
 
     val executionBucket: ErrorOr[String] = validate { backendConfig.as[String]("root") }
@@ -130,6 +139,11 @@ object AwsBatchAttributes {
             case other => throw new IllegalArgumentException(s"Unrecognized caching duplication strategy: $other. Supported strategies are copy and reference. See reference.conf for more details.")
           }
       }
+    
+    val fsx: ErrorOr[Option[List[String]]] = validate {backendConfig.hasPath("filesystems.fsx") match {
+      case true => parseFSx(backendConfig)
+      case false => None
+    }}
 
     (
       fileSysStr,
@@ -137,7 +151,8 @@ object AwsBatchAttributes {
       executionBucket,
       duplicationStrategy,
       backendConfig.as[ErrorOr[Int Refined Positive]]("numSubmitAttempts"),
-      backendConfig.as[ErrorOr[Int Refined Positive]]("numCreateDefinitionAttempts")
+      backendConfig.as[ErrorOr[Int Refined Positive]]("numCreateDefinitionAttempts"),
+      fsx
     ).tupled.map((AwsBatchAttributes.apply _).tupled) match {
       case Valid(r) => r
       case Invalid(f) =>

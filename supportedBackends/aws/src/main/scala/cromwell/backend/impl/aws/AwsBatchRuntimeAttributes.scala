@@ -176,7 +176,9 @@ object AwsBatchRuntimeAttributes {
       memoryMinValidation(runtimeConfig),
       noAddressValidation(runtimeConfig),
       dockerValidation,
-      queueArnValidation(runtimeConfig)
+      queueArnValidation(runtimeConfig),
+      awsBatchRetryAttemptsValidation(runtimeConfig),
+      ulimitsValidation(runtimeConfig)
     )
 
     configuration.fileSystem match  {
@@ -199,10 +201,9 @@ object AwsBatchRuntimeAttributes {
     val scriptS3BucketName = fileSystem match  {
        case AWSBatchStorageSystems.s3 => RuntimeAttributesValidation.extract(scriptS3BucketNameValidation(runtimeAttrsConfig) , validatedRuntimeAttributes)
        case _ => ""
-     }
+    }
     val awsBatchRetryAttempts: Int = RuntimeAttributesValidation.extract(awsBatchRetryAttemptsValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val ulimits: Vector[Map[String, String]] = RuntimeAttributesValidation.extract(ulimitsValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-
 
     new AwsBatchRuntimeAttributes(
       cpu,
@@ -485,4 +486,5 @@ object UlimitsValidation
 
   override protected def missingValueMessage: String =
     s"Expecting $key runtime attribute to be an Array[Map[String, String]]"
+
 }

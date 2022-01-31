@@ -60,7 +60,7 @@ import wdl4s.parser.MemoryUnit
   */
 sealed trait AwsBatchJobDefinition {
   def containerProperties: ContainerProperties
-  def retryStrategy: RetryStrategy 
+  def retryStrategy: RetryStrategy
   def name: String
 
   override def toString: String = {
@@ -83,9 +83,13 @@ trait AwsBatchJobDefinitionBuilder {
    *
    */
   def containerPropertiesBuilder(context: AwsBatchJobDefinitionContext): (ContainerProperties.Builder, String) = {
-    
-    
-    def buildVolumes(disks: Seq[AwsBatchVolume]): List[Volume] = {
+
+    def buildVolumes(disks: Seq[AwsBatchVolume], fsx: Option[List[String]]): List[Volume] = {
+
+      val fsx_volumes = fsx.isDefined match {
+        case true => fsx.get.map(mnt => Volume.builder().name(mnt).host(Host.builder().sourcePath(s"/$mnt").build()).build())
+        case false => List()
+      }
 
       //all the configured disks plus the fetch and run volume and the aws-cli volume
       disks.map(d => d.toVolume()).toList ++ List(
@@ -98,11 +102,15 @@ trait AwsBatchJobDefinitionBuilder {
           .name("awsCliHome")
           .host(Host.builder().sourcePath("/usr/local/aws-cli").build())
           .build()
-      )
+      ) ++ fsx_volumes
     }
 
+    def buildMountPoints(disks: Seq[AwsBatchVolume], fsx: Option[List[String]]): List[MountPoint] = {
 
-    def buildMountPoints(disks: Seq[AwsBatchVolume]): List[MountPoint] = {
+      val fsx_disks = fsx.isDefined match {
+        case true => fsx.get.map(mnt => MountPoint.builder().readOnly(false).sourceVolume(mnt).containerPath(s"/$mnt").build())
+        case false => List()
+      }
 
       //all the configured disks plus the fetch and run mount point and the AWS cli mount point
       disks.map(_.toMountPoint).toList ++ List(
@@ -118,9 +126,8 @@ trait AwsBatchJobDefinitionBuilder {
           //where the aws-cli will be on the container
           .containerPath("/usr/local/aws-cli")
           .build()
-      )
+      ) ++ fsx_disks
     }
-
 
     def buildUlimits(ulimits: Seq[Map[String, String]]): List[Ulimit] = {
 
@@ -133,11 +140,9 @@ trait AwsBatchJobDefinitionBuilder {
       ).toList
     }
 
-
     def buildName(imageName: String, packedCommand: String, volumes: List[Volume], mountPoints: List[MountPoint], env: Seq[KeyValuePair], ulimits: List[Ulimit]): String = {
       s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints.map(_.toString).mkString(",")}:${env.map(_.toString).mkString(",")}:${ulimits.map(_.toString).mkString(",")}"
     }
-    
 
     val environment = List.empty[KeyValuePair]
     val cmdName = context.runtimeAttributes.fileSystem match {
@@ -145,8 +150,8 @@ trait AwsBatchJobDefinitionBuilder {
       case _ =>  context.commandText
     }
     val packedCommand = packCommand("/bin/bash", "-c", cmdName)
-    val volumes =  buildVolumes( context.runtimeAttributes.disks )
-    val mountPoints = buildMountPoints( context.runtimeAttributes.disks)
+    val volumes =  buildVolumes( context.runtimeAttributes.disks, context.fsxFileSystem)
+    val mountPoints = buildMountPoints( context.runtimeAttributes.disks, context.fsxFileSystem)
     val ulimits = buildUlimits( context.runtimeAttributes.ulimits)
     val containerPropsName = buildName(
       context.runtimeAttributes.dockerImage,
@@ -173,7 +178,6 @@ trait AwsBatchJobDefinitionBuilder {
 
   def retryStrategyBuilder(context: AwsBatchJobDefinitionContext): (RetryStrategy.Builder, String) = {
     // We can add here the 'evaluateOnExit' statement
-    
     (RetryStrategy.builder()
       .attempts(context.runtimeAttributes.awsBatchRetryAttempts),
      context.runtimeAttributes.awsBatchRetryAttempts.toString)
@@ -200,7 +204,6 @@ trait AwsBatchJobDefinitionBuilder {
 
 object StandardAwsBatchJobDefinitionBuilder extends AwsBatchJobDefinitionBuilder {
   def build(context: AwsBatchJobDefinitionContext): AwsBatchJobDefinition = {
-    
     val (containerPropsInst, containerPropsName) = containerPropertiesBuilder(context)
     val (retryStrategyInst, retryStrategyName) = retryStrategyBuilder(context)
 
@@ -210,16 +213,16 @@ object StandardAwsBatchJobDefinitionBuilder extends AwsBatchJobDefinitionBuilder
   }
 
   def buildName(imageName: String, containerPropsName: String, retryStrategyName: String): String = {
-      val str = s"$imageName:$containerPropsName:$retryStrategyName"
+    val str = s"$imageName:$containerPropsName:$retryStrategyName"
 
-      val sha1 = MessageDigest.getInstance("SHA-1")
-            .digest( str.getBytes("UTF-8") )
-            .map("%02x".format(_)).mkString
+    val sha1 = MessageDigest.getInstance("SHA-1")
+          .digest( str.getBytes("UTF-8") )
+          .map("%02x".format(_)).mkString
 
-      val prefix = s"cromwell_${imageName}_".slice(0,88) // will be joined to a 40 character SHA1 for total length of 128
+    val prefix = s"cromwell_${imageName}_".slice(0,88) // will be joined to a 40 character SHA1 for total length of 128
 
-      sanitize(prefix + sha1)
-    }
+    sanitize(prefix + sha1)
+  }
 }
 
 case class StandardAwsBatchJobDefinitionBuilder private(containerProperties: ContainerProperties, retryStrategy: RetryStrategy, name: String) extends AwsBatchJobDefinition
@@ -235,7 +238,8 @@ case class AwsBatchJobDefinitionContext(
             jobDescriptor: BackendJobDescriptor,
             jobPaths: JobPaths,
             inputs: Set[AwsBatchInput],
-            outputs: Set[AwsBatchFileOutput]){
+            outputs: Set[AwsBatchFileOutput],
+            fsxFileSystem: Option[List[String]]){
 
   override def toString: String = {
     new ToStringBuilder(this, ToStringStyle.JSON_STYLE)
@@ -248,6 +252,7 @@ case class AwsBatchJobDefinitionContext(
       .append("jobPaths", jobPaths)
       .append("inputs", inputs)
       .append("outputs", outputs)
+      .append("fsxFileSystem", fsxFileSystem)
       .build
   }
 }

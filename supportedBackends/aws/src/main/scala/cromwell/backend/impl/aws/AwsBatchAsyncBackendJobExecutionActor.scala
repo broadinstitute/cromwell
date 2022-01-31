@@ -124,8 +124,9 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override lazy val dockerImageUsed: Option[String] = Option(jobDockerImage)
 
   private lazy val execScript =
-    s"""|#!$jobShell
-        |$jobShell ${jobPaths.script.pathWithoutScheme}
+    s"""|df -h
+        |ls -lah ${jobPaths.script.pathWithoutScheme}
+        |${jobPaths.script.pathWithoutScheme}
         |""".stripMargin
 
 
@@ -178,7 +179,8 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       generateAwsBatchOutputs(jobDescriptor),
       jobPaths, Seq.empty[AwsBatchParameter],
       configuration.awsConfig.region,
-      Option(configuration.awsAuth))
+      Option(configuration.awsAuth),
+      configuration.fsxFileSystem)
   }
   /* Tries to abort the job in flight
    *
@@ -289,9 +291,11 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     def getAbsolutePath(path: Path) = {
       configuration.fileSystem match {
         case AWSBatchStorageSystems.s3 => AwsBatchWorkingDisk.MountPoint.resolve(path)
-        case _ => DefaultPathBuilder.get(configuration.root).resolve(path)
+        // case _ => DefaultPathBuilder.get(configuration.root).resolve(path)
+        case _ => AwsBatchWorkingDisk.MountPoint.resolve(path)
       }
-  }
+    }
+
     val absolutePath = DefaultPathBuilder.get(path) match {
       case p if !p.isAbsolute => getAbsolutePath(p)
       case p => p
@@ -402,6 +406,21 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override lazy val commandDirectory: Path = configuration.fileSystem match  {
     case AWSBatchStorageSystems.s3 => AwsBatchWorkingDisk.MountPoint
     case _ =>  jobPaths.callExecutionRoot
+  }
+
+  override def scriptPreamble: String = {
+    configuration.fileSystem match {
+      case  AWSBatchStorageSystems.s3 => ""
+      case _ => s"""|# clean directory in case of multiple retries
+                    |ls | grep -v script | xargs rm -rf""".stripMargin
+    }
+  }
+
+  override def scriptClosure: String = {
+    configuration.fileSystem match {
+      case  AWSBatchStorageSystems.s3 => ""
+      case _ => s"exit $$(head -n 1 $rcPath)"
+    }
   }
 
   override def globParentDirectory(womGlobFile: WomGlobFile): Path =

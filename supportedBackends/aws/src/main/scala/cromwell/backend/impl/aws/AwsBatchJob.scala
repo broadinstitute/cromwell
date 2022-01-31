@@ -30,6 +30,10 @@
  */
 package cromwell.backend.impl.aws
 
+
+import java.security.MessageDigest
+import java.nio.file.attribute.PosixFilePermission
+
 import cats.data.ReaderT._
 import cats.data.{Kleisli, ReaderT}
 import cats.effect.{Async, Timer}
@@ -79,7 +83,8 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                              jobPaths: JobPaths, // Based on config, calculated in Job Paths, key to all things outside container
                              parameters: Seq[AwsBatchParameter],
                              configRegion: Option[Region],
-                             optAwsAuthMode: Option[AwsAuthMode] = None
+                             optAwsAuthMode: Option[AwsAuthMode] = None,
+                             fsxFileSystem: Option[List[String]]
                             ) {
 
 
@@ -204,21 +209,20 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
         s"""
            |touch ${output.name}
            |$awsCmd s3 cp --no-progress ${output.name} ${output.s3key}
-           |if [ -e $globDirectory ]; then $awsCmd s3 cp --no-progress $globDirectory $s3GlobOutDirectory --recursive --exclude "cromwell_glob_control_file"; fi
-           |""".stripMargin
+           |if [ -e $globDirectory ]; then $awsCmd s3 cp --no-progress $globDirectory $s3GlobOutDirectory --recursive --exclude "cromwell_glob_control_file"; fi""".stripMargin
+
 
       case output: AwsBatchFileOutput if output.s3key.startsWith("s3://") && output.mount.mountPoint.pathAsString == AwsBatchWorkingDisk.MountPoint.pathAsString =>
         //output is on working disk mount
-        s"""
-           |$awsCmd s3 cp --no-progress $workDir/${output.local.pathAsString} ${output.s3key}
-           |""".stripMargin
+        s"""$awsCmd s3 cp --no-progress $workDir/${output.local.pathAsString} ${output.s3key}""".stripMargin
+
       case output: AwsBatchFileOutput =>
         //output on a different mount
         s"$awsCmd s3 cp --no-progress ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} ${output.s3key}"
       case _ => ""
     }.mkString("\n") + "\n" +
       s"""
-         |if [ -f $workDir/${jobPaths.returnCodeFilename} ]; then $awsCmd s3 cp --no-progress $workDir/${jobPaths.returnCodeFilename} ${jobPaths.callRoot.pathAsString}/${jobPaths.returnCodeFilename} ; fi\n
+         |if [ -f $workDir/${jobPaths.returnCodeFilename} ]; then $awsCmd s3 cp --no-progress $workDir/${jobPaths.returnCodeFilename} ${jobPaths.callRoot.pathAsString}/${jobPaths.returnCodeFilename} ; fi
          |if [ -f $stdErr ]; then $awsCmd s3 cp --no-progress $stdErr ${jobPaths.standardPaths.error.pathAsString}; fi
          |if [ -f $stdOut ]; then $awsCmd s3 cp --no-progress $stdOut ${jobPaths.standardPaths.output.pathAsString}; fi
          |""".stripMargin
@@ -264,6 +268,8 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
        val regex = "s3://([^/]*)/(.*)".r
        val regex(bucketName, key) = jobPaths.callExecutionRoot.toString
        writeReconfiguredScriptForAudit(reconfiguredScript, bucketName, key+"/reconfigured-script.sh")
+    }else{
+      jobPaths.script.addPermission(PosixFilePermission.OTHERS_EXECUTE)
     }
 
 
@@ -383,7 +389,8 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
         jobDescriptor = jobDescriptor,
         jobPaths = jobPaths,
         inputs = inputs,
-        outputs = outputs)
+        outputs = outputs,
+        fsxFileSystem = fsxFileSystem)
 
       val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder
       val jobDefinition = jobDefinitionBuilder.build(jobDefinitionContext)

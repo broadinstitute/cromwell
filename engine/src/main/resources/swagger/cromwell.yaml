@@ -88,7 +88,7 @@ paths:
           type: file
           in: formData
         - name: requestedWorkflowId
-          description: An ID to ascribe to this workflow. Must be in UUID-format. If not supplied a random ID will be generated for the workflow.
+          description: An ID to ascribe to this workflow. Must be a JSON string in UUID-format. If not supplied a random ID will be generated for the workflow.
           required: false
           type: string
           in: formData
@@ -150,7 +150,7 @@ paths:
           type: file
           in: formData
         - name: requestedWorkflowId
-          description: A set of IDs to ascribe to these workflows. Must be a comma-separated list of values in UUID-format. Must have the same number of entries and be in the same order as the workflow inputs list. If not supplied, random ID will be generated for the workflows.
+          description: A set of IDs to ascribe to these workflows. Must be a JSON list of strings in UUID-format. Must have the same number of entries and be in the same order as the workflow inputs list. If not supplied, random ID will be generated for the workflows.
           required: false
           type: string
           in: formData

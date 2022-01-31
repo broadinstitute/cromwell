@@ -36,7 +36,7 @@ final case class PartialWorkflowSources(workflowSource: Option[WorkflowSource] =
                                         zippedImports: Option[Array[Byte]] = None,
                                         warnings: Seq[String] = List.empty,
                                         workflowOnHold: Boolean,
-                                        requestedWorkflowIds: Option[Vector[WorkflowId]])
+                                        requestedWorkflowIds: Vector[WorkflowId])
 
 object PartialWorkflowSources {
   val log = LoggerFactory.getLogger(classOf[PartialWorkflowSources])
@@ -114,21 +114,15 @@ object PartialWorkflowSources {
         case (None, None, None) => s"$WorkflowSourceKey or $WorkflowUrlKey needs to be supplied".invalidNel
       }
 
-      def unpackIdsString(idsString: Option[String]): ErrorOr[Option[Vector[WorkflowId]]] = {
-        idsString match {
-          case Some(ids) => Try(Option(ids.split(",").map(WorkflowId.fromString).toVector)).toErrorOrWithContext("parse requested workflow Ids")
-          case None => None.validNel
-        }
-      }
-
-
-
       val workflowInputs = getStringValue(WorkflowInputsKey) match {
         case Some(inputs) => workflowInputsValidation(inputs)
         case None => Vector.empty.validNel
       }
 
-      val requestedIds = unpackIdsString(getStringValue(RequestedWorkflowIdKey))
+      val requestedIds = getStringValue(RequestedWorkflowIdKey) match {
+        case Some(inputs) => workflowIdsValidation(inputs)
+        case None => Vector.empty.validNel
+      }
 
       val workflowInputsAux: ErrorOr[Map[Int, String]] = formData.toList.flatTraverse[ErrorOr, (Int, String)]({
         case (name, value) if name.startsWith(WorkflowInputsAuxPrefix) =>
@@ -177,22 +171,45 @@ object PartialWorkflowSources {
     }
   }
 
-  private def workflowInputsValidation(data: String): ErrorOr[Vector[WorkflowJson]] = {
-    import _root_.io.circe.Printer
+  private def arrayTypeElementValidation[A](data: String, interpretElementFunction: _root_.io.circe.Json => ErrorOr[A]) = {
     import cats.syntax.validated._
 
     val parseInputsTry = Try {
       YamlUtils.parse(data) match {
         // If it's an array, treat each element as an individual input object, otherwise simply toString the whole thing
-        case Right(json) => json.asArray.map(_.map(_.toString())).getOrElse(Vector(json.printWith(Printer.noSpaces))).validNel
+        case Right(json) => json.asArray.map(_.traverse(interpretElementFunction)).getOrElse(interpretElementFunction(json).map(Vector(_))).validNel
         case Left(error) => s"Input file is not a valid yaml or json. Inputs data: '$data'. Error: ${ExceptionUtils.getMessage(error)}.".invalidNel
       }
     }
 
     parseInputsTry match {
-      case Success(v) => v
+      case Success(v) => v.flatten
       case Failure(error) => s"Input file is not a valid yaml or json. Inputs data: '$data'. Error: ${ExceptionUtils.getMessage(error)}.".invalidNel
     }
+  }
+
+  def workflowInputsValidation(data: String): ErrorOr[Vector[WorkflowJson]] = {
+    import _root_.io.circe.Printer
+    import _root_.io.circe.Json
+    import cats.syntax.validated._
+
+    def interpretEachElement(json: Json): ErrorOr[String] = json.printWith(Printer.noSpaces).validNel
+
+    arrayTypeElementValidation(data, interpretEachElement)
+  }
+
+  def workflowIdsValidation(data: String): ErrorOr[Vector[WorkflowId]] = {
+    import _root_.io.circe.Json
+    import _root_.io.circe.Printer
+    import cats.syntax.validated._
+
+    def interpretEachElement(json: Json): ErrorOr[WorkflowId] = {
+      if (json.isString) {
+        Try(WorkflowId.fromString(json.asString.get)).toErrorOrWithContext("parse requested workflow ID as UUID")
+      } else s"Requested workflow IDs must be strings but got: '${json.printWith(Printer.noSpaces)}'".invalidNel
+    }
+
+    arrayTypeElementValidation(data, interpretEachElement)
   }
 
   private def partialSourcesToSourceCollections(partialSources: ErrorOr[PartialWorkflowSources],
@@ -211,11 +228,12 @@ object PartialWorkflowSources {
       }
 
       workflowInputsValidation flatMap { workflowInputs =>
-        pws.requestedWorkflowIds match {
-          case None => (workflowInputs map { i => RequestedIdAndInputs(None, i) }).validNel
-          case Some(requestedIds) if requestedIds.size == workflowInputs.size =>
-            (requestedIds.zip(workflowInputs).map { case (id, inputs) => RequestedIdAndInputs(Option(id), inputs) }).validNel
-          case Some(requestedIds) => s"Mismatch between requested IDs count (${requestedIds.size}) and workflow inputs counts (${workflowInputs.size})".invalidNel
+        if (pws.requestedWorkflowIds.isEmpty) {
+          (workflowInputs map { i => RequestedIdAndInputs(None, i) }).validNel
+        } else if (pws.requestedWorkflowIds.size == workflowInputs.size) {
+          (pws.requestedWorkflowIds.zip(workflowInputs).map { case (id, inputs) => RequestedIdAndInputs(Option(id), inputs) }).validNel
+        } else {
+          s"Mismatch between requested IDs count (${pws.requestedWorkflowIds.size}) and workflow inputs counts (${workflowInputs.size})".invalidNel
         }
       }
     }

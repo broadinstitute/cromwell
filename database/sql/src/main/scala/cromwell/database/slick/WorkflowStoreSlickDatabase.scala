@@ -152,11 +152,10 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
   }
 
   override def findWorkflows(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[String]] = {
-    println(s"*** Searching for '${cromwellId}' in the workflow store")
     runTransaction(dataAccess.findWorkflows(cromwellId).result)
   }
 
-  override def workflowExists(workflowId: String)(implicit ec: ExecutionContext): Future[Boolean] = {
+  override def workflowWhetherWorkflowExists(workflowId: String)(implicit ec: ExecutionContext): Future[Boolean] = {
     runTransaction(dataAccess.checkExists(workflowId).result.map(_.nonEmpty))
   }
 }

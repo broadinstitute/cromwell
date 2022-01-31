@@ -114,14 +114,14 @@ object PartialWorkflowSources {
         case (None, None, None) => s"$WorkflowSourceKey or $WorkflowUrlKey needs to be supplied".invalidNel
       }
 
-      case class InputsAndRequestedIds(workflowInputs: Vector[WorkflowJson], requestedIds: Option[Vector[WorkflowId]])
-
       def unpackIdsString(idsString: Option[String]): ErrorOr[Option[Vector[WorkflowId]]] = {
         idsString match {
           case Some(ids) => Try(Option(ids.split(",").map(WorkflowId.fromString).toVector)).toErrorOrWithContext("parse requested workflow Ids")
           case None => None.validNel
         }
       }
+
+
 
       val workflowInputs = getStringValue(WorkflowInputsKey) match {
         case Some(inputs) => workflowInputsValidation(inputs)

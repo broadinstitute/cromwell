@@ -548,10 +548,18 @@ task releaseHomebrew {
         install_exit_status=$?
         brew test Formula/cromwell.rb
         test_exit_status=$?
-        brew audit --strict Formula/cromwell.rb
-        audit_exit_status=$?
         brew style Formula/cromwell.rb
         style_exit_status=$?
+
+        # Need to add formula to a tap in order to audit it
+        tapName="cromwell~{releaseVersion}test/tap"
+        echo "Tapping ${tapName} in order to audit formula"
+        brew tap-new --no-git ${tapName}
+        cp Formula/cromwell.rb $(brew --repo ${tapName})/Formula
+        brew audit --strict ${tapName}/cromwell
+        audit_exit_status=$?
+        brew untap ${tapName}
+
         set +x
         set -e
 

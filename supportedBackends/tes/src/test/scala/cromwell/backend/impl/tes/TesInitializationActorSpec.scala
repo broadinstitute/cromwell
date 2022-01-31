@@ -1,7 +1,6 @@
 package cromwell.backend.impl.tes
 
 import java.util.UUID
-
 import akka.actor.Props
 import akka.testkit.{EventFilter, ImplicitSender, TestDuration}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -10,11 +9,12 @@ import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed
 import cromwell.backend.async.RuntimeAttributeValidationFailures
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
 import cromwell.core.Tags.PostWomTest
-import cromwell.core.TestKitSuite
+import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.logging.LoggingTest._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
+import spray.json.{JsNumber, JsObject, JsString}
 import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
@@ -78,7 +78,7 @@ class TesInitializationActorSpec extends TestKitSuite
   val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate)
   val conf: BackendConfigurationDescriptor = new BackendConfigurationDescriptor(backendConfig, globalConfig) {
     override private[backend] lazy val cromwellFileSystems = new CromwellFileSystems(globalConfig)
-  } 
+  }
 
   // TODO WOM: needs runtime attributes validation working again
   "TesInitializationActor" should {
@@ -95,6 +95,65 @@ class TesInitializationActorSpec extends TestKitSuite
         expectMsgPF() {
           case InitializationSuccess(_) => // Docker entry is present.
           case InitializationFailed(failure) => fail(s"InitializationSuccess was expected but got $failure")
+        }
+      }
+    }
+
+    def initializeActor(workflowOptions: WorkflowOptions): Unit = {
+      val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld,
+        runtime = """runtime { docker: "ubuntu/latest" }""",
+        options = workflowOptions)
+      val backend = getActorRef(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, conf)
+      backend ! Initialize
+    }
+
+    def nonStringErrorMessage(key: String) = s"Workflow option $key must be a string"
+    val bothRequiredErrorMessage = s"Workflow options ${TesWorkflowOptionKeys.WorkflowExecutionIdentity} and ${TesWorkflowOptionKeys.DataAccessIdentity} are both required if one is provided"
+
+    "fail when WorkflowExecutionIdentity is not a string and DataAccessIdentity is missing" in {
+      within(Timeout) {
+        val workflowOptions = WorkflowOptions(
+          JsObject(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> JsNumber(5)))
+        )
+        initializeActor(workflowOptions)
+        expectMsgPF() {
+          case InitializationSuccess(s) => fail(s"InitializationFailed was expected but got $s")
+          case InitializationFailed(failure) =>
+            val expectedMsg = nonStringErrorMessage(TesWorkflowOptionKeys.WorkflowExecutionIdentity)
+            if (!(failure.getMessage.contains(expectedMsg) &&
+                  failure.getMessage.contains(bothRequiredErrorMessage))) {
+              fail(s"Exception message did not contain both '$expectedMsg' and '$bothRequiredErrorMessage'. Was '$failure'")
+            }
+        }
+      }
+    }
+
+    "fail when WorkflowExecutionIdentity is a string but DataAccessIdentity is not a string" in {
+      within(Timeout) {
+        val workflowOptions = WorkflowOptions(JsObject(Map(
+          TesWorkflowOptionKeys.WorkflowExecutionIdentity -> JsString("5"),
+          TesWorkflowOptionKeys.DataAccessIdentity -> JsNumber(6)
+        )))
+        initializeActor(workflowOptions)
+        expectMsgPF() {
+          case InitializationSuccess(s) => fail(s"InitializationFailed was expected but got $s")
+          case InitializationFailed(failure) =>
+            val expectedMsg = nonStringErrorMessage(TesWorkflowOptionKeys.DataAccessIdentity)
+            if (!failure.getMessage.contains(expectedMsg)) fail(s"Exception message did not contain '$expectedMsg'")
+        }
+      }
+    }
+
+    "successfully start when both WorkflowExecutionIdentity and DataAccessIdentity are strings" in {
+      within(Timeout) {
+        val workflowOptions = WorkflowOptions(JsObject(Map(
+          TesWorkflowOptionKeys.WorkflowExecutionIdentity -> JsString("5"),
+          TesWorkflowOptionKeys.DataAccessIdentity -> JsString("6")
+        )))
+        initializeActor(workflowOptions)
+        expectMsgPF() {
+          case InitializationSuccess(_) =>
+          case InitializationFailed(f) => fail(s"InitializationSuccess was expected but got $f")
         }
       }
     }

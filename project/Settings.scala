@@ -84,7 +84,7 @@ object Settings {
     assembly / assemblyMergeStrategy := customMergeStrategy.value,
   )
 
-  val Scala2_12Version = "2.12.14"
+  val Scala2_12Version = "2.12.15"
   private val ScalaVersion: String = Scala2_12Version
   private val sharedSettings: Seq[Setting[_]] =
     cromwellVersionWithGit ++ publishingSettings ++ List(

@@ -1,5 +1,18 @@
 # Cromwell Change Log
 
+## 73 Release Notes
+
+### Workflow Restart Performance Improvements
+
+Cromwell now allows for improved performance restarting large workflows through the use of a separate rate limiter for restart checks than the rate limiter used for starting new jobs.
+The restart check rate limiter is pre-configured in Cromwell's bundled [reference.conf](https://github.com/broadinstitute/cromwell/blob/develop/core/src/main/resources/reference.conf); see the `job-restart-check-rate-control` stanza in that file for explanations of the various parameters if adjustments are desired.
+
+## 71 Release Notes
+
+### Bug Fixes
+
+* Fixed an issue handling data in Google Cloud Storage buckets with requester pays enabled that could sometimes cause I/O to fail.
+
 ## 70 Release Notes
 
 ### CWL security fix [#6510](https://github.com/broadinstitute/cromwell/pull/6510)

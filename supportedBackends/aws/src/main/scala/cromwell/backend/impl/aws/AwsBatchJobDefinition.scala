@@ -34,7 +34,7 @@ package cromwell.backend.impl.aws
 import scala.collection.mutable.ListBuffer
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
-import software.amazon.awssdk.services.batch.model.{ContainerProperties, Host, KeyValuePair, MountPoint, ResourceRequirement, ResourceType, Volume, RetryStrategy, Ulimit}
+import software.amazon.awssdk.services.batch.model.{ContainerProperties, Host, KeyValuePair, MountPoint, ResourceRequirement, ResourceType, RetryStrategy, Ulimit, Volume}
 import cromwell.backend.impl.aws.io.AwsBatchVolume
 
 import scala.collection.JavaConverters._
@@ -83,7 +83,6 @@ trait AwsBatchJobDefinitionBuilder {
    *
    */
   def containerPropertiesBuilder(context: AwsBatchJobDefinitionContext): (ContainerProperties.Builder, String) = {
-
 
     def buildVolumes(disks: Seq[AwsBatchVolume], fsx: Option[List[String]]): List[Volume] = {
 
@@ -167,30 +166,23 @@ trait AwsBatchJobDefinitionBuilder {
       .image(context.runtimeAttributes.dockerImage)
       .command(packedCommand.asJava)
       .resourceRequirements(
-        ResourceRequirement.builder()
-          .`type`(ResourceType.MEMORY)
-          .value(context.runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt.toString)
-          .build(),
-        ResourceRequirement.builder()
-          .`type`(ResourceType.VCPU)
-          .value(context.runtimeAttributes.cpu.value.toString)
-          .build(),
+        ResourceRequirement.builder().`type`(ResourceType.VCPU).value(context.runtimeAttributes.cpu.##.toString).build(),
+        ResourceRequirement.builder().`type`(ResourceType.MEMORY).value(context.runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt.toString).build()
       )
-        .volumes( volumes.asJava)
-        .mountPoints( mountPoints.asJava)
-        .environment(environment.asJava)
-        .ulimits(ulimits.asJava),
-
-      containerPropsName)
+      .volumes(volumes.asJava)
+      .mountPoints(mountPoints.asJava)
+      .environment(environment.asJava)
+      .ulimits(ulimits.asJava),
+     containerPropsName)
   }
 
   def retryStrategyBuilder(context: AwsBatchJobDefinitionContext): (RetryStrategy.Builder, String) = {
     // We can add here the 'evaluateOnExit' statement
-
     (RetryStrategy.builder()
       .attempts(context.runtimeAttributes.awsBatchRetryAttempts),
      context.runtimeAttributes.awsBatchRetryAttempts.toString)
   }
+
 
   private def packCommand(shell: String, options: String, mainCommand: String): Seq[String] = {
     val rc = new ListBuffer[String]()
@@ -212,7 +204,6 @@ trait AwsBatchJobDefinitionBuilder {
 
 object StandardAwsBatchJobDefinitionBuilder extends AwsBatchJobDefinitionBuilder {
   def build(context: AwsBatchJobDefinitionContext): AwsBatchJobDefinition = {
-
     val (containerPropsInst, containerPropsName) = containerPropertiesBuilder(context)
     val (retryStrategyInst, retryStrategyName) = retryStrategyBuilder(context)
 

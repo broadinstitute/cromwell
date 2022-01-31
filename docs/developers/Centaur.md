@@ -14,7 +14,7 @@ You can now run the tests from another terminal.
 
 There are two ways to invoke the integration tests:
 
-* `sbt "centaur/it:test"` - compiles and run via sbt directly, simple but also has the problem of running 2x cores tests in parallel which can overwhelm your Cromwell server if running in a development environment
+* `sbt "centaur / IntegrationTest / test"` - compiles and run via sbt directly, simple but also has the problem of running 2x cores tests in parallel which can overwhelm your Cromwell server if running in a development environment
 
 * `src/ci/bin/testCentaurLocal.sh` - runs the same tests using the continuous integration pipeline configuration
 
@@ -26,12 +26,12 @@ Tag names are all lower case, so a test named "tagFoo" has a tag "tagfoo".
 
 To run only those tests which have been tagged with a specified tag `tagFoo`:
 ```
-sbt "centaur/it:testOnly * -- -n tagfoo"
+sbt "centaur / IntegrationTest / testOnly * -- -n tagfoo"
 ```
 
 Or to instead exclude all tests which have been tagged with a specified tag `tagFoo`:
 ```
-sbt "centaur/it:testOnly * -- -l tagfoo"
+sbt "centaur / IntegrationTest / testOnly * -- -l tagfoo"
 ```
 
 ## Adding custom tests

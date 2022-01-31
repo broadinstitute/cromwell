@@ -204,10 +204,18 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   private def inputsFromWomFiles(namePrefix: String,
                                     remotePathArray: Seq[WomFile],
                                     localPathArray: Seq[WomFile],
-                                    jobDescriptor: BackendJobDescriptor): Iterable[AwsBatchInput] = {
+                                    jobDescriptor: BackendJobDescriptor,
+                                    flag: Boolean): Iterable[AwsBatchInput] = {
+
     (remotePathArray zip localPathArray zipWithIndex) flatMap {
       case ((remotePath, localPath), index) =>
-        Seq(AwsBatchFileInput(s"$namePrefix-$index", remotePath.valueString, DefaultPathBuilder.get(localPath.valueString), workingDisk))
+        var localPathString = localPath.valueString
+        if (localPathString.startsWith("s3://")){
+          localPathString = localPathString.replace("s3://", "")
+        }else if (localPathString.startsWith("s3:/")) {
+          localPathString = localPathString.replace("s3:/", "")
+        }
+        Seq(AwsBatchFileInput(s"$namePrefix-$index", remotePath.valueString, DefaultPathBuilder.get(localPathString), workingDisk))
     }
   }
 
@@ -239,7 +247,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     val writeFunctionFiles = instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f) } toMap
 
     val writeFunctionInputs = writeFunctionFiles flatMap {
-      case (name, files) => inputsFromWomFiles(name, files.map(_.file), files.map(localizationPath), jobDescriptor)
+      case (name, files) => inputsFromWomFiles(name, files.map(_.file), files.map(localizationPath), jobDescriptor, false)
     }
 
     // Collect all WomFiles from inputs to the call.
@@ -259,7 +267,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     }
 
     val callInputInputs = callInputFiles flatMap {
-      case (name, files) => inputsFromWomFiles(name, files, files.map(relativeLocalizationPath), jobDescriptor)
+      case (name, files) => inputsFromWomFiles(name, files, files.map(relativeLocalizationPath), jobDescriptor, true)
     }
 
     val scriptInput: AwsBatchInput = AwsBatchFileInput(

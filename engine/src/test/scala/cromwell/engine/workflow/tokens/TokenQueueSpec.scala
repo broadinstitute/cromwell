@@ -1,7 +1,7 @@
 package cromwell.engine.workflow.tokens
 
 import akka.testkit.TestProbe
-import cromwell.core.JobExecutionToken.JobExecutionTokenType
+import cromwell.core.JobToken.JobTokenType
 import cromwell.core.TestKitSuite
 import cromwell.engine.workflow.tokens.TokenQueue.TokenQueuePlaceholder
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -9,7 +9,7 @@ import org.scalatest.matchers.should.Matchers
 
 class TokenQueueSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
   behavior of "TokenQueue"
-  val tokenType = JobExecutionTokenType("pool1", Option(1), 1)
+  val tokenType = JobTokenType("pool1", Option(1), 1)
 
   val tokenEventLogger = NullTokenEventLogger
 
@@ -31,25 +31,25 @@ class TokenQueueSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
     val dequeued = tq.dequeue
     dequeued.leasedActor shouldBe defined
     dequeued.leasedActor.get.actor shouldBe probe
-    dequeued.leasedActor.get.lease.get().jobExecutionTokenType shouldBe tokenType
+    dequeued.leasedActor.get.lease.get().jobTokenType shouldBe tokenType
     dequeued.tokenQueue.queues shouldBe empty
     dequeued.tokenQueue.queueOrder should be(List.empty)
     dequeued.tokenQueue.size shouldBe 0
   }
-  
+
   it should "return true for available iff there's an element in the queue and room in the pool" in {
     val probe1 = TestProbe().ref
     val probe2 = TestProbe().ref
     val tq = TokenQueue(tokenType, tokenEventLogger)
     // queue is empty
     tq.available shouldBe false
-    
+
     // with something in the queue, available is true
     val queueWith1 = tq.enqueue(TokenQueuePlaceholder(probe1, "hogGroupA"))
     queueWith1.available shouldBe true
 
     val queueWith2 = queueWith1.enqueue(TokenQueuePlaceholder(probe2, "hogGroupA"))
-    
+
     val dequeued = queueWith2.dequeue
     // probe 2 is still in there
     dequeued.tokenQueue.size shouldBe 1
@@ -65,7 +65,7 @@ class TokenQueueSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
     val refA1 = TestProbe("A1").ref
 
     // Start with an empty queue which can dish out up to 1 token each, to up to 2 hog groups:
-    val tq = TokenQueue(JobExecutionTokenType("pool1", Option(2), 2), tokenEventLogger)
+    val tq = TokenQueue(JobTokenType("pool1", Option(2), 2), tokenEventLogger)
     tq.available shouldBe false
 
     val queueWith1 = tq.enqueue(TokenQueuePlaceholder(refA1, "hogGroupA"))
@@ -132,7 +132,7 @@ class TokenQueueSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
     val jobCount = 150
     val jobsAtATime = 5
     val hogFactor = 10
-    val tokenType = JobExecutionTokenType("BIG_PAPI", Some(poolSize), hogFactor)
+    val tokenType = JobTokenType("BIG_PAPI", Some(poolSize), hogFactor)
 
     val hogGroupCount = 25
     val hogGroups = (0 until hogGroupCount) map { i => s"hogGroup$i" }

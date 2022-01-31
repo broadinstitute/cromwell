@@ -181,7 +181,7 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
     data.hashRequests.get(request.dockerImageID) match {
       case Some(actors) => actors foreach { case RequestAndReplyTo(_, replyTo) => replyTo ! DockerInfoSuccessResponse(response.dockerInformation, request) }
       case None => fail(new Exception(s"Could not find the actors associated with $request. Available requests are ${data.hashRequests.keys.mkString(", ")}") with NoStackTrace)
-    } 
+    }
     val updatedData = data.copy(hashRequests = data.hashRequests - request.dockerImageID, mappings = data.mappings + (request.dockerImageID -> response.dockerInformation))
     stay using updatedData
   }
@@ -218,7 +218,8 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
   private def handleLookupFailure(dockerResponse: DockerHashFailureResponse, data: WorkflowDockerLookupActorData): State = {
     // Fail all pending requests.  This logic does not blacklist the tag, which will allow lookups to be attempted
     // again in the future.
-    val failureResponse = WorkflowDockerLookupFailure(new Exception(dockerResponse.reason), dockerResponse.request)
+    val exceptionMessage = s"Failed Docker lookup '${dockerResponse.request.dockerImageID}' '${dockerResponse.request.credentialDetails.mkString("[", ", ", "]")}'"
+    val failureResponse = WorkflowDockerLookupFailure(new Exception(dockerResponse.reason), dockerResponse.request, exceptionMessage)
     val request = dockerResponse.request
     data.hashRequests.get(request.dockerImageID) match {
       case Some(requestAndReplyTos) =>
@@ -287,7 +288,7 @@ object WorkflowDockerLookupActor {
 
   /* Responses */
   sealed trait WorkflowDockerLookupResponse
-  final case class WorkflowDockerLookupFailure(reason: Throwable, request: DockerInfoRequest) extends WorkflowDockerLookupResponse
+  final case class WorkflowDockerLookupFailure(reason: Throwable, request: DockerInfoRequest, additionalLoggingMessage: String = "") extends WorkflowDockerLookupResponse
   final case class WorkflowDockerTerminalFailure(reason: Throwable, request: DockerInfoRequest) extends WorkflowDockerLookupResponse
 
   case class RequestAndReplyTo(request: DockerInfoRequest, replyTo: ActorRef)

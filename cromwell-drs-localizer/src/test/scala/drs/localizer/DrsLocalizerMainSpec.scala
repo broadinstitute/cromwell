@@ -2,10 +2,12 @@ package drs.localizer
 
 import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO}
+import cats.syntax.validated._
 import cloud.nio.impl.drs.DrsPathResolver.FatalRetryDisposition
 import cloud.nio.impl.drs.{AccessUrl, DrsConfig, MarthaField, MarthaResponse}
 import common.assertion.CromwellTimeoutSpec
-import drs.localizer.MockDrsLocalizerDrsPathResolver.FakeHashes
+import drs.localizer.MockDrsLocalizerDrsPathResolver.{FakeAccessTokenStrategy, FakeHashes}
+import drs.localizer.accesstokens.AccessTokenStrategy
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
 import org.scalatest.flatspec.AnyFlatSpec
@@ -300,7 +302,7 @@ class MockDrsLocalizerMain(drsUrl: String,
                            downloadLoc: String,
                            requesterPaysProjectIdOption: Option[String],
                           )
-  extends DrsLocalizerMain(drsUrl, downloadLoc, requesterPaysProjectIdOption) {
+  extends DrsLocalizerMain(drsUrl, downloadLoc, FakeAccessTokenStrategy, requesterPaysProjectIdOption) {
 
   override def getDrsPathResolver: IO[DrsLocalizerDrsPathResolver] = {
     IO {
@@ -311,7 +313,7 @@ class MockDrsLocalizerMain(drsUrl: String,
 
 
 class MockDrsLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
-  DrsLocalizerDrsPathResolver(drsConfig) {
+  DrsLocalizerDrsPathResolver(drsConfig, FakeAccessTokenStrategy) {
 
   override def resolveDrsThroughMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): IO[MarthaResponse] = {
     val marthaResponse = MarthaResponse(
@@ -339,4 +341,5 @@ class MockDrsLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
 
 object MockDrsLocalizerDrsPathResolver {
   val FakeHashes: Option[Map[String, String]] = Option(Map("md5" -> "abc123", "crc32c" -> "34fd67"))
+  val FakeAccessTokenStrategy: AccessTokenStrategy = () => "testing code: do not call me".invalidNel
 }

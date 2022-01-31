@@ -30,6 +30,7 @@
  */
 package cromwell.backend.impl.aws
 
+
 import java.security.MessageDigest
 import java.nio.file.attribute.PosixFilePermission
 
@@ -50,16 +51,15 @@ import software.amazon.awssdk.services.batch.BatchClient
 import software.amazon.awssdk.services.batch.model._
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient
 import software.amazon.awssdk.services.cloudwatchlogs.model.{GetLogEventsRequest, OutputLogEvent}
-import software.amazon.awssdk.services.ecs.EcsClient
-import software.amazon.awssdk.services.ecs.model.DescribeContainerInstancesRequest
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.{GetObjectRequest, HeadObjectRequest, NoSuchKeyException, PutObjectRequest}
 import wdl4s.parser.MemoryUnit
 
+import java.security.MessageDigest
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.language.higherKinds
-import scala.util.{Random, Try}
+import scala.util.Try
 
 /**
   *  The actual job for submission in AWS batch. `AwsBatchJob` is the primary interface to AWS Batch. It creates the
@@ -87,18 +87,12 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                              fsxFileSystem: Option[List[String]]
                             ) {
 
-  // values for container environment
-  val AWS_MAX_ATTEMPTS: String = "AWS_MAX_ATTEMPTS"
-  val AWS_MAX_ATTEMPTS_DEFAULT_VALUE: String = "14"
-  val AWS_RETRY_MODE: String = "AWS_RETRY_MODE"
-  val AWS_RETRY_MODE_DEFAULT_VALUE: String = "adaptive"
 
   val Log: Logger = LoggerFactory.getLogger(AwsBatchJob.getClass)
 
   //this will be the "folder" that scripts will live in (underneath the script bucket)
   val scriptKeyPrefix = "scripts/"
 
-  // TODO: Auth, endpoint
   lazy val batchClient: BatchClient = {
     val builder = BatchClient.builder()
     configureClient(builder, optAwsAuthMode, configRegion)
@@ -121,26 +115,25 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     */
   lazy val reconfiguredScript: String = {
     //this is the location of the aws cli mounted into the container by the ec2 launch template
-    val s3Cmd = "/usr/local/aws-cli/v2/current/bin/aws s3"
+    val awsCmd = "/usr/local/aws-cli/v2/current/bin/aws "
     //internal to the container, therefore not mounted
     val workDir = "/tmp/scratch"
     //working in a mount will cause collisions in long running workers
     val replaced = commandScript.replaceAllLiterally(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
     val insertionPoint = replaced.indexOf("\n", replaced.indexOf("#!")) +1 //just after the new line after the shebang!
 
-    /* generate a series of s3 copy statements to copy any s3 files into the container. We randomize the order
-       so that large scatters don't all attempt to copy the same thing at the same time. */
-    val inputCopyCommand = Random.shuffle(inputs.map {
+    /* generate a series of s3 copy statements to copy any s3 files into the container. */
+    val inputCopyCommand = inputs.map {
       case input: AwsBatchFileInput if input.s3key.startsWith("s3://") && input.s3key.endsWith(".tmp") =>
         //we are localizing a tmp file which may contain workdirectory paths that need to be reconfigured
         s"""
-           |$s3Cmd cp --no-progress ${input.s3key} $workDir/${input.local}
+           |_s3_localize_with_retry ${input.s3key} $workDir/${input.local}
            |sed -i 's#${AwsBatchWorkingDisk.MountPoint.pathAsString}#$workDir#g' $workDir/${input.local}
            |""".stripMargin
 
 
       case input: AwsBatchFileInput if input.s3key.startsWith("s3://") =>
-        s"$s3Cmd cp --no-progress ${input.s3key} ${input.mount.mountPoint.pathAsString}/${input.local}"
+        s"_s3_localize_with_retry ${input.s3key} ${input.mount.mountPoint.pathAsString}/${input.local}"
           .replaceAllLiterally(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
 
       case input: AwsBatchFileInput =>
@@ -151,11 +144,41 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
         s"test -e $filePath || echo 'input file: $filePath does not exist' && exit 1"
 
       case _ => ""
-    }.toList).mkString("\n")
+    }.toList.mkString("\n")
 
     // this goes at the start of the script after the #!
     val preamble =
       s"""
+         |export AWS_METADATA_SERVICE_TIMEOUT=10
+         |export AWS_METADATA_SERVICE_NUM_ATTEMPTS=10
+         |
+         |function _s3_localize_with_retry() {
+         |  local s3_path=$$1
+         |  # destination must be the path to a file and not just the directory you want the file in
+         |  local destination=$$2
+         |
+         |  for i in {1..5};
+         |  do
+         |    if [[ $$s3_path =~ s3://([^/]+)/(.+) ]]; then
+         |        bucket="$${BASH_REMATCH[1]}"
+         |        key="$${BASH_REMATCH[2]}"
+         |        content_length=$$($awsCmd s3api head-object --bucket "$$bucket" --key "$$key" --query 'ContentLength')
+         |    else
+         |      echo "$$s3_path is not an S3 path with a bucket and key. aborting"
+         |      exit 1
+         |    fi
+         |    $awsCmd s3 cp --no-progress "$$s3_path" "$$destination" &&
+         |    [[ $$(LC_ALL=C ls -dn -- "$$destination" | awk '{print $$5; exit}') -eq "$$content_length" ]] && break ||
+         |    echo "attempt $$i to copy $$s3_path failed";
+         |
+         |    if [ "$$i" -eq 5 ]; then
+         |        echo "failed to copy $$s3_path after $$i attempts. aborting"
+         |        exit 2
+         |    fi
+         |    sleep $$((7 * "$$i"))
+         |  done
+         |}
+         |
          |{
          |set -e
          |echo '*** LOCALIZING INPUTS ***'
@@ -185,22 +208,23 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
          */
         s"""
            |touch ${output.name}
-           |$s3Cmd cp --no-progress ${output.name} ${output.s3key}
-           |if [ -e $globDirectory ]; then $s3Cmd cp --no-progress $globDirectory $s3GlobOutDirectory --recursive --exclude "cromwell_glob_control_file"; fi""".stripMargin
+           |$awsCmd s3 cp --no-progress ${output.name} ${output.s3key}
+           |if [ -e $globDirectory ]; then $awsCmd s3 cp --no-progress $globDirectory $s3GlobOutDirectory --recursive --exclude "cromwell_glob_control_file"; fi""".stripMargin
+
 
       case output: AwsBatchFileOutput if output.s3key.startsWith("s3://") && output.mount.mountPoint.pathAsString == AwsBatchWorkingDisk.MountPoint.pathAsString =>
         //output is on working disk mount
-        s"""
-           |$s3Cmd cp --no-progress $workDir/${output.local.pathAsString} ${output.s3key}""".stripMargin
+        s"""$awsCmd s3 cp --no-progress $workDir/${output.local.pathAsString} ${output.s3key}""".stripMargin
+
       case output: AwsBatchFileOutput =>
         //output on a different mount
-        s"$s3Cmd cp --no-progress ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} ${output.s3key}"
+        s"$awsCmd s3 cp --no-progress ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} ${output.s3key}"
       case _ => ""
     }.mkString("\n") + "\n" +
       s"""
-         |if [ -f $workDir/${jobPaths.returnCodeFilename} ]; then $s3Cmd cp --no-progress $workDir/${jobPaths.returnCodeFilename} ${jobPaths.callRoot.pathAsString}/${jobPaths.returnCodeFilename} ; fi
-         |if [ -f $stdErr ]; then $s3Cmd cp --no-progress $stdErr ${jobPaths.standardPaths.error.pathAsString}; fi
-         |if [ -f $stdOut ]; then $s3Cmd cp --no-progress $stdOut ${jobPaths.standardPaths.output.pathAsString}; fi
+         |if [ -f $workDir/${jobPaths.returnCodeFilename} ]; then $awsCmd s3 cp --no-progress $workDir/${jobPaths.returnCodeFilename} ${jobPaths.callRoot.pathAsString}/${jobPaths.returnCodeFilename} ; fi
+         |if [ -f $stdErr ]; then $awsCmd s3 cp --no-progress $stdErr ${jobPaths.standardPaths.error.pathAsString}; fi
+         |if [ -f $stdOut ]; then $awsCmd s3 cp --no-progress $stdOut ${jobPaths.standardPaths.output.pathAsString}; fi
          |""".stripMargin
 
 
@@ -225,8 +249,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
   }
 
   private def generateEnvironmentKVPairs(scriptBucketName: String, scriptKeyPrefix: String, scriptKey: String): List[KeyValuePair] = {
-    List(buildKVPair(AWS_MAX_ATTEMPTS, AWS_MAX_ATTEMPTS_DEFAULT_VALUE),
-      buildKVPair(AWS_RETRY_MODE, AWS_RETRY_MODE_DEFAULT_VALUE),
+    List(
       buildKVPair("BATCH_FILE_TYPE", "script"),
       buildKVPair("BATCH_FILE_S3_URL",batch_file_s3_url(scriptBucketName,scriptKeyPrefix,scriptKey)))
   }
@@ -238,7 +261,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     //find or create the script in s3 to execute for s3 fileSystem
     val scriptKey =  runtimeAttributes.fileSystem match {
        case AWSBatchStorageSystems.s3  =>  findOrCreateS3Script(reconfiguredScript, runtimeAttributes.scriptS3BucketName)
-       case _ => "" 
+       case _ => ""
     }
 
     if(runtimeAttributes.fileSystem == AWSBatchStorageSystems.s3) {
@@ -270,18 +293,11 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
             .containerOverrides(
               ContainerOverrides.builder
                 .environment(
-
                   generateEnvironmentKVPairs(runtimeAttributes.scriptS3BucketName, scriptKeyPrefix, scriptKey): _*
                 )
                 .resourceRequirements(
-                  ResourceRequirement.builder()
-                    .`type`(ResourceType.VCPU)
-                    .value(runtimeAttributes.cpu.value.toString)
-                    .build(),
-                  ResourceRequirement.builder()
-                    .`type`(ResourceType.MEMORY)
-                    .value(runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt.toString)
-                    .build(),
+                  ResourceRequirement.builder().`type`(ResourceType.VCPU).value(runtimeAttributes.cpu.##.toString).build(),
+                  ResourceRequirement.builder().`type`(ResourceType.MEMORY).value(runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt.toString).build()
                 )
                 .build()
             )
@@ -409,7 +425,6 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
           .jobDefinitionName(jobDefinitionName)
           // See https://stackoverflow.com/questions/24349517/scala-method-named-type
           .`type`(JobDefinitionType.CONTAINER)
-          //.build
 
         if (jobDefinitionContext.runtimeAttributes.awsBatchRetryAttempts != 0){
           definitionRequest = definitionRequest.retryStrategy(jobDefinition.retryStrategy)
@@ -456,54 +471,16 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     */
   def status(jobId: String): Try[RunStatus] = for {
     statusString <- Try(detail(jobId).status)
-    batchJobContainerContext <- Try(batchJobContainerContext(jobId))
-    _ <- Try(Log.debug(s"Task ${jobDescriptor.key.call.fullyQualifiedName + "-" + jobDescriptor.key.index + "-" + jobDescriptor.key.attempt} in container context $batchJobContainerContext"))
     runStatus <- RunStatus.fromJobStatus(statusString, jobId)
   } yield runStatus
 
   def detail(jobId: String): JobDetail = {
-    //TODO: This client call should be wrapped in a cats Effect
     val describeJobsResponse = batchClient.describeJobs(DescribeJobsRequest.builder.jobs(jobId).build)
 
     val jobDetail = describeJobsResponse.jobs.asScala.headOption.
       getOrElse(throw new RuntimeException(s"Expected a job Detail to be present from this request: $describeJobsResponse and this response: $describeJobsResponse "))
 
     jobDetail
-  }
-
-  /**
-    * Return information about the container, ECS Cluster and EC2 instance that is (or was) hosting this job
-    * @param jobId the id of the job for which you want the context
-    * @return the context
-    */
-  def batchJobContainerContext(jobId: String): BatchJobContainerContext ={
-    if (jobId == null) return BatchJobContainerContext("","",Seq.empty, Seq.empty)
-
-    val containerInstanceArn = detail(jobId).container().containerInstanceArn()
-    if(containerInstanceArn == null || containerInstanceArn.isEmpty) return BatchJobContainerContext(jobId,"",Seq.empty, Seq.empty)
-
-    val describeJobQueuesResponse = batchClient.describeJobQueues( DescribeJobQueuesRequest.builder().jobQueues( runtimeAttributes.queueArn ).build())
-    val computeEnvironments = describeJobQueuesResponse.jobQueues().asScala.head.computeEnvironmentOrder().asScala.map(_.computeEnvironment())
-    val describeComputeEnvironmentsResponse = batchClient.describeComputeEnvironments( DescribeComputeEnvironmentsRequest.builder().computeEnvironments(computeEnvironments.asJava).build())
-    val ecsClusterArns = describeComputeEnvironmentsResponse.computeEnvironments().asScala.map(_.ecsClusterArn())
-
-    val ecsClient = configureClient(EcsClient.builder(), optAwsAuthMode, configRegion)
-
-    val instanceIds: Seq[String] = ecsClusterArns.map(containerArn => ecsClient.describeContainerInstances(DescribeContainerInstancesRequest.builder().containerInstances(containerInstanceArn).cluster(containerArn).build()))
-      .map(r => r.containerInstances().asScala).flatMap(_.map(_.ec2InstanceId()))
-
-    BatchJobContainerContext(jobId, containerInstanceArn, ecsClusterArns, instanceIds)
-  }
-
-  case class BatchJobContainerContext(jobId: String, containerInstanceArn: String, ecsClusterArns: Seq[String], ec2InstanceIds: Seq[String]) {
-    override def toString: String = {
-      new ToStringBuilder(this, ToStringStyle.JSON_STYLE)
-        .append("jobId", this.jobId)
-        .append("containerInstanceArn", containerInstanceArn)
-        .append("ecsClusterArns", ecsClusterArns)
-        .append("ec2InstanceIds", ec2InstanceIds)
-        .build()
-    }
   }
 
   def rc(detail: JobDetail): Integer = {

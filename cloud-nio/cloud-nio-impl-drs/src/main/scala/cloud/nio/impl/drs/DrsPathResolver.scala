@@ -1,11 +1,13 @@
 package cloud.nio.impl.drs
 
 import cats.data.NonEmptyList
+import cats.data.Validated.{Invalid, Valid}
 import cats.effect.{IO, Resource}
 import cats.implicits._
 import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDisposition}
 import cloud.nio.impl.drs.MarthaResponseSupport._
-import common.exception.toIO
+import common.exception.{AggregatedMessageException, toIO}
+import common.validation.ErrorOr.ErrorOr
 import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.parser.decode
@@ -35,14 +37,21 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, retryInternally: Boolean = 
     clientBuilder
   }
 
-  def getAccessToken: String
+  def getAccessToken: ErrorOr[String]
 
-  private def makeHttpRequestToMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): HttpPost = {
-    val postRequest = new HttpPost(drsConfig.marthaUrl)
-    val requestJson = MarthaRequest(drsPath, fields).asJson.noSpaces
-    postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
-    postRequest.setHeader("Authorization", s"Bearer $getAccessToken")
-    postRequest
+  private def makeHttpRequestToMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): Resource[IO, HttpPost] = {
+    val io = getAccessToken match {
+      case Valid(token) => IO {
+        val postRequest = new HttpPost(drsConfig.marthaUrl)
+        val requestJson = MarthaRequest(drsPath, fields).asJson.noSpaces
+        postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
+        postRequest.setHeader("Authorization", s"Bearer $token")
+        postRequest
+      }
+      case Invalid(errors) =>
+        IO.raiseError(AggregatedMessageException("Error getting access token", errors.toList))
+    }
+    Resource.eval(io)
   }
 
   private def httpResponseToMarthaResponse(drsPathForDebugging: String)(httpResponse: HttpResponse): IO[MarthaResponse] = {
@@ -83,8 +92,10 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, retryInternally: Boolean = 
   }
 
   def rawMarthaResponse(drsPath: String, fields: NonEmptyList[MarthaField.Value]): Resource[IO, HttpResponse] = {
-    val httpPost = makeHttpRequestToMartha(drsPath, fields)
-    executeMarthaRequest(httpPost)
+    for {
+      httpPost <- makeHttpRequestToMartha(drsPath, fields)
+      response <- executeMarthaRequest(httpPost)
+    } yield response
   }
 
   /** *
@@ -151,6 +162,7 @@ object MarthaField extends Enumeration {
   val Hashes: MarthaField.Value = Value("hashes")
   val FileName: MarthaField.Value = Value("fileName")
   val AccessUrl: MarthaField.Value = Value("accessUrl")
+  val LocalizationPath: MarthaField.Value = Value("localizationPath")
 }
 
 final case class MarthaRequest(url: String, fields: NonEmptyList[MarthaField.Value])
@@ -171,6 +183,9 @@ final case class AccessUrl(url: String, headers: Option[Map[String, String]])
   * @param fileName A possible different file name for the object at gsUri, ex: "gsutil cp gs://bucket/12/345 my.vcf"
   * @param hashes Hashes for the contents stored at gsUri
   * @param accessUrl URL to query for signed URL
+  * @param localizationPath Optional localization path. TDR is currently the sole DRS provider specifying this value in
+  *                         DRS metadata, via the `aliases` field. As this is a distinct field from `fileName` in DRS
+  *                         metadata it is also made a distinct field in this response object.
   */
 final case class MarthaResponse(size: Option[Long] = None,
                                 timeCreated: Option[String] = None,
@@ -180,7 +195,8 @@ final case class MarthaResponse(size: Option[Long] = None,
                                 googleServiceAccount: Option[SADataObject] = None,
                                 fileName: Option[String] = None,
                                 hashes: Option[Map[String, String]] = None,
-                                accessUrl: Option[AccessUrl] = None
+                                accessUrl: Option[AccessUrl] = None,
+                                localizationPath: Option[String] = None
                                )
 
 // Adapted from https://github.com/broadinstitute/martha/blob/f31933a3a11e20d30698ec4b4dc1e0abbb31a8bc/common/helpers.js#L210-L218

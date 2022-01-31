@@ -75,7 +75,7 @@ case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      scriptS3BucketName: String,
                                      awsBatchRetryAttempts: Int,
                                      ulimits: Vector[Map[String, String]],
-                                     fileSystem:String= "s3")
+                                     fileSystem: String= "s3")
 
 object AwsBatchRuntimeAttributes {
 
@@ -149,7 +149,7 @@ object AwsBatchRuntimeAttributes {
   }
 
   private def ulimitsValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Vector[Map[String, String]]] =
-    UlimitsValidation.withDefault(UlimitsValidation.configDefaultWomValue(runtimeConfig) getOrElse UlimitsDefaultValue)
+   UlimitsValidation.withDefault(UlimitsValidation.configDefaultWomValue(runtimeConfig) getOrElse UlimitsDefaultValue)
 
   def runtimeAttributesBuilder(configuration: AwsBatchConfiguration): StandardValidatedRuntimeAttributesBuilder = {
     val runtimeConfig = configuration.runtimeConfig
@@ -165,7 +165,7 @@ object AwsBatchRuntimeAttributes {
                         queueArnValidation(runtimeConfig),
                         scriptS3BucketNameValidation(runtimeConfig),
                         awsBatchRetryAttemptsValidation(runtimeConfig),
-                        ulimitsValidation(runtimeConfig)
+                        ulimitsValidation(runtimeConfig),
                       )
    def validationsLocalBackend  = StandardValidatedRuntimeAttributesBuilder.default(runtimeConfig).withValidation(
       cpuValidation(runtimeConfig),
@@ -486,4 +486,5 @@ object UlimitsValidation
 
   override protected def missingValueMessage: String =
     s"Expecting $key runtime attribute to be an Array[Map[String, String]]"
+
 }

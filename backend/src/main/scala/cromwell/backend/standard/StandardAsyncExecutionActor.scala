@@ -356,6 +356,9 @@ trait StandardAsyncExecutionActor
   /** Any custom code that should be run within commandScriptContents before the instantiated command. */
   def scriptPreamble: ErrorOr[ScriptPreambleData] = ScriptPreambleData("").valid
 
+  /** Any custom code that should be run within commandScriptContents right before exiting. */
+  def scriptClosure: String = ""
+
   def cwd: Path = commandDirectory
   def rcPath: Path = cwd./(jobPaths.returnCodeFilename)
 
@@ -491,14 +494,14 @@ trait StandardAsyncExecutionActor
           |touch $stdoutRedirection $stderrRedirection
           |tee $stdoutRedirection < "$$$out" &
           |tee $stderrRedirection < "$$$err" >&2 &
+          |set -x
           |(
           |cd ${cwd.pathAsString}
-          |set -x
           |ENVIRONMENT_VARIABLES
           |INSTANTIATED_COMMAND
-          |set +x
           |) $stdinRedirection > "$$$out" 2> "$$$err"
           |echo $$? > $rcTmpPath
+          |set +x
           |$emptyDirectoryFillCommand
           |(
           |cd ${cwd.pathAsString}
@@ -507,13 +510,14 @@ trait StandardAsyncExecutionActor
           |${directoryScripts(directoryOutputs)}
           |)
           |mv $rcTmpPath $rcPath
-          |exit $$(head -n 1 $rcPath)
+          |SCRIPT_CLOSURE
           |""".stripMargin
         .replace("SCRIPT_PREAMBLE", preamble)
         .replace("ENVIRONMENT_VARIABLES", environmentVariables)
         .replace("INSTANTIATED_COMMAND", commandString)
         .replace("SCRIPT_EPILOGUE", scriptEpilogue)
         .replace("DOCKER_OUTPUT_DIR_LINK", dockerOutputDir)
+        .replace("SCRIPT_CLOSURE", scriptClosure)
     )
   }
 

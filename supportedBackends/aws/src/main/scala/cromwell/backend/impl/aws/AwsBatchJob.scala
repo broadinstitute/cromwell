@@ -214,8 +214,7 @@ final case class AwsBatchJob(
           s"""
              |touch ${output.name}
              |$awsCmd s3 cp --no-progress ${output.name} ${output.s3key}
-             |if [ -e $globDirectory ]; then $awsCmd s3 cp --no-progress $globDirectory $s3GlobOutDirectory --recursive --exclude "cromwell_glob_control_file"; fi
-             |""".stripMargin
+             |if [ -e $globDirectory ]; then $awsCmd s3 cp --no-progress $globDirectory $s3GlobOutDirectory --recursive --exclude "cromwell_glob_control_file"; fi""".stripMargin
 
         case output: AwsBatchFileOutput
             if output.s3key.startsWith(
@@ -223,8 +222,7 @@ final case class AwsBatchJob(
             ) && output.mount.mountPoint.pathAsString == AwsBatchWorkingDisk.MountPoint.pathAsString =>
           // output is on working disk mount
           s"""
-             |$awsCmd s3 cp --no-progress $workDir/${output.local.pathAsString} ${output.s3key}
-             |""".stripMargin
+             |$awsCmd s3 cp --no-progress $workDir/${output.local.pathAsString} ${output.s3key}""".stripMargin
         case output: AwsBatchFileOutput =>
           // output on a different mount
           s"$awsCmd s3 cp --no-progress ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} ${output.s3key}"
@@ -232,7 +230,7 @@ final case class AwsBatchJob(
       }
       .mkString("\n") + "\n" +
       s"""
-         |if [ -f $workDir/${jobPaths.returnCodeFilename} ]; then $awsCmd s3 cp --no-progress $workDir/${jobPaths.returnCodeFilename} ${jobPaths.callRoot.pathAsString}/${jobPaths.returnCodeFilename} ; fi\n
+         |if [ -f $workDir/${jobPaths.returnCodeFilename} ]; then $awsCmd s3 cp --no-progress $workDir/${jobPaths.returnCodeFilename} ${jobPaths.callRoot.pathAsString}/${jobPaths.returnCodeFilename} ; fi
          |if [ -f $stdErr ]; then $awsCmd s3 cp --no-progress $stdErr ${jobPaths.standardPaths.error.pathAsString}; fi
          |if [ -f $stdOut ]; then $awsCmd s3 cp --no-progress $stdOut ${jobPaths.standardPaths.output.pathAsString}; fi
          |""".stripMargin

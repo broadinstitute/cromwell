@@ -293,8 +293,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
         case jesOutput if jesOutput.name == makeSafeReferenceName(path) =>
           val pathAsString = jesOutput.cloudPath.pathAsString
           if (!jesOutput.cloudPath.exists) {
-            // This is not necessarily an error if the file corresponds to an optional File type (File?) but this
-            // code should throw to produce an "empty optional" null value.
+            // This is not an error if the path represents a `File?` optional output (the PAPI delocalization script
+            // should have failed if this file output was not optional but missing). Throw to produce the correct "empty
+            // optional" value for a missing optional file output.
             throw new FileNotFoundException(s"GCS output file not found: $pathAsString")
           }
           pathAsString

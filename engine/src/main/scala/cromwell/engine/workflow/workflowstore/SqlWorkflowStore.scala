@@ -122,7 +122,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase, metadataSqlDa
 
   def workflowAlreadyExists(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Boolean] = {
     Future.sequence(Seq(
-      sqlDatabase.workflowWhetherWorkflowExists(workflowId.id.toString),
+      sqlDatabase.checkWhetherWorkflowExists(workflowId.id.toString),
       metadataSqlDatabase.getWorkflowStatus(workflowId.id.toString).map(_.nonEmpty)
     )).map(_.exists(_ == true))
   }

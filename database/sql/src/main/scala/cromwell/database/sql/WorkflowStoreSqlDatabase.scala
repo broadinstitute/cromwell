@@ -104,6 +104,6 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
 
   def findWorkflows(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[String]]
 
-  def workflowWhetherWorkflowExists(cromwellId: String)(implicit ec: ExecutionContext): Future[Boolean]
+  def checkWhetherWorkflowExists(cromwellId: String)(implicit ec: ExecutionContext): Future[Boolean]
 
 }

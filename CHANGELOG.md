@@ -26,6 +26,11 @@ Previously:
 | `executionStatus`    |`Running`|`Running`| Job state Cromwell is requesting from the backend |
 | `backendStatus`      |`Running`|`Running`| Job state reported by backend |
 
+
+### Bug Fixes
+
+* Fixed a bug on Google Pipelines API backends where missing optional output files (`File?`) were not correctly detected by Cromwell and caused invalid call cache entries to be written.
+
 ## 73 Release Notes
 
 ### Workflow Restart Performance Improvements

@@ -401,6 +401,10 @@ lazy val server = project
   .dependsOn(engine % "test->test")
   .dependsOn(common % "test->test")
 
+lazy val nioChecksumTest = project
+  .withExecutableSettings("nioChecksumTest", pushDocker = false)
+  .dependsOn(engine)
+
 lazy val root = (project in file("."))
   .withRootSettings()
   // Full list of all sub-projects to build with the root (ex: include in `sbt test`)
@@ -456,4 +460,5 @@ lazy val root = (project in file("."))
   .aggregate(wes2cromwell)
   .aggregate(wom)
   .aggregate(womtool)
+  .aggregate(nioChecksumTest)
   .withAggregateSettings()

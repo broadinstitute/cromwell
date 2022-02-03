@@ -1,7 +1,6 @@
 package cromwell.engine.workflow.workflowstore
 
 import java.time.OffsetDateTime
-
 import cats.data.NonEmptyList
 import com.dimafeng.testcontainers.Container
 import common.assertion.CromwellTimeoutSpec
@@ -16,6 +15,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.enablers.Emptiness._
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.specs2.mock.Mockito
+import spray.json.{JsObject, JsString}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -23,7 +23,37 @@ import scala.concurrent.duration._
 class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
   implicit val ec = ExecutionContext.global
   implicit val defaultPatience = PatienceConfig(scaled(Span(10, Seconds)), scaled(Span(100, Millis)))
-  val sourceFilesCollection = NonEmptyList.of(WorkflowSourceFilesCollection(Option("sample"), None, None, None, None, "input", WorkflowOptions.empty, "string", None, workflowOnHold = true, Seq.empty))
+  val onHoldSourceFilesCollection = NonEmptyList.of(
+    WorkflowSourceFilesCollection(
+      Option("sample"),
+      None,
+      None,
+      None,
+      None,
+      "input",
+      WorkflowOptions.empty,
+      "string",
+      None,
+      workflowOnHold = true,
+      Seq.empty
+    )
+  )
+
+  val withGroupSourceFilesCollection = NonEmptyList.of(
+    WorkflowSourceFilesCollection(
+      Option("sample"),
+      None,
+      None,
+      None,
+      None,
+      "input",
+      WorkflowOptions(JsObject(Map("hogGroup" -> JsString("Zardoz")))),
+      "string",
+      None,
+      workflowOnHold = false,
+      Seq.empty
+    )
+  )
 
   DatabaseSystem.All foreach { databaseSystem =>
 
@@ -41,19 +71,19 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
     it should "honor the onHold flag" taggedAs DbmsTest in {
       (for {
-        submissionResponses <- workflowStore.add(sourceFilesCollection)
-        startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A00", 1.second)
+        submissionResponses <- workflowStore.add(onHoldSourceFilesCollection)
+        startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A00", 1.second, Set.empty)
         _ = startableWorkflows.map(_.id).intersect(submissionResponses.map(_.id).toList) should be(empty)
         _ <- workflowStore.switchOnHoldToSubmitted(submissionResponses.head.id)
-        startableWorkflows2 <- workflowStore.fetchStartableWorkflows(10, "A00", 1.second)
-        _ = startableWorkflows2.map(_.id).intersect(submissionResponses.map(_.id).toList).size should be(1)
+        startableWorkflows2 <- workflowStore.fetchStartableWorkflows(10, "A00", 1.second, Set.empty)
+        _ = startableWorkflows2.map(_.id).intersect(submissionResponses.map(_.id).toList).size should be(1) //
       } yield ()).futureValue
     }
 
     it should "abort an onHold workflow" taggedAs DbmsTest in {
       (for {
-        submissionResponses <- workflowStore.add(sourceFilesCollection)
-        startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A01", 1.second)
+        submissionResponses <- workflowStore.add(onHoldSourceFilesCollection)
+        startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A01", 1.second, Set.empty)
         _ = startableWorkflows.map(_.id).intersect(submissionResponses.map(_.id).toList) should be(empty)
         abortWorkflowId = submissionResponses.head.id
         workflowStoreAbortResponse <- workflowStore.abort(abortWorkflowId)
@@ -63,8 +93,8 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
     it should "abort an onHold then submitted workflow without a heartbeat" taggedAs DbmsTest in {
       (for {
-        submissionResponses <- workflowStore.add(sourceFilesCollection)
-        startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A02", 1.second)
+        submissionResponses <- workflowStore.add(onHoldSourceFilesCollection)
+        startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A02", 1.second, Set.empty)
         _ = startableWorkflows.map(_.id).intersect(submissionResponses.map(_.id).toList) should be(empty)
         abortWorkflowId = submissionResponses.head.id
         _ <- workflowStore.switchOnHoldToSubmitted(abortWorkflowId)
@@ -75,8 +105,8 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
     it should "abort an onHold then submitted workflow with a heartbeat" taggedAs DbmsTest in {
       (for {
-        submissionResponses <- workflowStore.add(sourceFilesCollection)
-        startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A03", 1.second)
+        submissionResponses <- workflowStore.add(onHoldSourceFilesCollection)
+        startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A03", 1.second, Set.empty)
         _ = startableWorkflows.map(_.id).intersect(submissionResponses.map(_.id).toList) should be(empty)
         abortWorkflowId = submissionResponses.head.id
         _ <- workflowStore.switchOnHoldToSubmitted(abortWorkflowId)
@@ -88,8 +118,8 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
     it should "abort an onHold then running workflow without a heartbeat" taggedAs DbmsTest in {
       (for {
-        submissionResponses <- workflowStore.add(sourceFilesCollection)
-        startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A04", 1.second)
+        submissionResponses <- workflowStore.add(onHoldSourceFilesCollection)
+        startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A04", 1.second, Set.empty)
         _ = startableWorkflows.map(_.id).intersect(submissionResponses.map(_.id).toList) should be(empty)
         abortWorkflowId = submissionResponses.head.id
         _ <- workflowStore.switchOnHoldToSubmitted(abortWorkflowId)
@@ -106,8 +136,8 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
     it should "abort an onHold then running workflow with a heartbeat" taggedAs DbmsTest in {
       (for {
-        submissionResponses <- workflowStore.add(sourceFilesCollection)
-        startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A05", 1.second)
+        submissionResponses <- workflowStore.add(onHoldSourceFilesCollection)
+        startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A05", 1.second, Set.empty)
         _ = startableWorkflows.map(_.id).intersect(submissionResponses.map(_.id).toList) should be(empty)
         abortWorkflowId = submissionResponses.head.id
         _ <- workflowStore.switchOnHoldToSubmitted(abortWorkflowId)
@@ -129,6 +159,22 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
       (for {
         workflowStoreAbortResponse <- workflowStore.abort(notFoundWorkflowId)
         _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.NotFound)
+      } yield ()).futureValue
+    }
+
+    it should "find a grouped workflow normally" taggedAs DbmsTest in {
+      (for {
+        submissionResponses <- workflowStore.add(withGroupSourceFilesCollection)
+        startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A06", 1.second, Set.empty)
+        _ = startableWorkflows.map(_.id).intersect(submissionResponses.map(_.id).toList).size should be(1)
+      } yield ()).futureValue
+    }
+
+    it should "honor the excludedGroups parameter" taggedAs DbmsTest in {
+      (for {
+        submissionResponses <- workflowStore.add(withGroupSourceFilesCollection)
+        startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A07", 1.second, Set("Zardoz"))
+        _ = startableWorkflows.map(_.id).intersect(submissionResponses.map(_.id).toList) should be(empty)
       } yield ()).futureValue
     }
 

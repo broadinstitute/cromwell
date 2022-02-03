@@ -47,7 +47,8 @@ class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
           inputsJson = "",
           workflowOptions = WorkflowOptions.empty,
           labelsJson = "",
-          warnings = Seq.empty
+          warnings = Seq.empty,
+          requestedWorkflowId = None
         )
 
         val wsfc = testCase match {

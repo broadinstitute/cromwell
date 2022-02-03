@@ -16,6 +16,7 @@ sealed trait WorkflowSourceFilesCollection {
   def workflowType: Option[WorkflowType]
   def workflowTypeVersion: Option[WorkflowTypeVersion]
   def workflowOnHold: Boolean
+  def requestedWorkflowId: Option[WorkflowId]
 
   def warnings: Seq[String]
 
@@ -49,7 +50,8 @@ object WorkflowSourceFilesCollection {
             labelsJson: WorkflowJson,
             importsFile: Option[Array[Byte]],
             workflowOnHold: Boolean,
-            warnings: Seq[String]): WorkflowSourceFilesCollection = importsFile match {
+            warnings: Seq[String],
+            requestedWorkflowId: Option[WorkflowId]): WorkflowSourceFilesCollection = importsFile match {
     case Some(imports) =>
       WorkflowSourceFilesWithDependenciesZip(
         workflowSource = workflowSource,
@@ -62,7 +64,8 @@ object WorkflowSourceFilesCollection {
         labelsJson = labelsJson,
         importsZip = imports,
         workflowOnHold = workflowOnHold,
-        warnings = warnings)
+        warnings = warnings,
+        requestedWorkflowId = requestedWorkflowId)
     case None =>
       WorkflowSourceFilesWithoutImports(
         workflowSource = workflowSource,
@@ -74,7 +77,8 @@ object WorkflowSourceFilesCollection {
         workflowOptions = workflowOptions,
         labelsJson = labelsJson,
         workflowOnHold = workflowOnHold,
-        warnings = warnings)
+        warnings = warnings,
+        requestedWorkflowId = requestedWorkflowId)
   }
 }
 
@@ -87,7 +91,8 @@ final case class WorkflowSourceFilesWithoutImports(workflowSource: Option[Workfl
                                                    workflowOptions: WorkflowOptions,
                                                    labelsJson: WorkflowJson,
                                                    workflowOnHold: Boolean = false,
-                                                   warnings: Seq[String]) extends WorkflowSourceFilesCollection
+                                                   warnings: Seq[String],
+                                                   requestedWorkflowId: Option[WorkflowId]) extends WorkflowSourceFilesCollection
 
 final case class WorkflowSourceFilesWithDependenciesZip(workflowSource: Option[WorkflowSource],
                                                         workflowUrl: Option[WorkflowUrl],
@@ -99,7 +104,8 @@ final case class WorkflowSourceFilesWithDependenciesZip(workflowSource: Option[W
                                                         labelsJson: WorkflowJson,
                                                         importsZip: Array[Byte],
                                                         workflowOnHold: Boolean = false,
-                                                        warnings: Seq[String]) extends WorkflowSourceFilesCollection {
+                                                        warnings: Seq[String],
+                                                        requestedWorkflowId: Option[WorkflowId]) extends WorkflowSourceFilesCollection {
   override def toString = {
     s"WorkflowSourceFilesWithDependenciesZip($workflowSource, $workflowUrl, $workflowType, $workflowTypeVersion," +
       s""" $inputsJson, ${workflowOptions.asPrettyJson}, $labelsJson, <<ZIP BINARY CONTENT>>, $warnings)"""

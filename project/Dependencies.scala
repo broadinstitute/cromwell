@@ -127,6 +127,7 @@ object Dependencies {
   private val sttpV = "1.5.19" // scala-steward:off (CROM-6564)
   private val swaggerParserV = "1.0.56"
   private val swaggerUiV = "3.23.11" // scala-steward:off (CROM-6621)
+  private val swaggerUiCromiamV = "4.2.1"
   private val testContainersScalaV = "0.39.8"
   private val tikaV = "2.1.0"
   private val typesafeConfigV = "1.4.1"
@@ -277,6 +278,12 @@ object Dependencies {
 
   private val swaggerUiDependencies = List(
     "org.webjars" % "swagger-ui" % swaggerUiV,
+    "io.swagger" % "swagger-parser" % swaggerParserV % Test,
+    "org.yaml" % "snakeyaml" % snakeyamlV % Test
+  )
+
+  private val swaggerUiCromiamDependencies = List(
+    "org.webjars" % "swagger-ui" % swaggerUiCromiamV,
     "io.swagger" % "swagger-parser" % swaggerParserV % Test,
     "org.yaml" % "snakeyaml" % snakeyamlV % Test
   )
@@ -502,7 +509,7 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "org.broadinstitute.dsde.workbench" %% "workbench-model" % workbenchModelV,
     "org.broadinstitute.dsde.workbench" %% "workbench-util" % workbenchUtilV
-  ) ++ akkaHttpDependencies ++ swaggerUiDependencies ++ slf4jBindingDependencies
+  ) ++ akkaHttpDependencies ++ swaggerUiCromiamDependencies ++ slf4jBindingDependencies
 
   val wes2cromwellDependencies: List[ModuleID] = coreDependencies ++ akkaHttpDependencies
 

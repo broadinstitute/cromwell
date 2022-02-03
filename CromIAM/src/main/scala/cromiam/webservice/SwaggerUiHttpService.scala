@@ -66,7 +66,7 @@ trait SwaggerUiHttpService extends Directives {
    *
    * @return Route serving the swagger UI.
    */
-  final def swaggerUiRoute = {
+  final def swaggerUiRoute: Route = {
     // when the user hits the doc url, redirect to the index.html with api docs specified on the url
     val indexRedirect: Route = pathEndOrSingleSlash {
       redirect(

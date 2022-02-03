@@ -1,18 +1,17 @@
 package cromwell.database.slick
 
-import java.sql.{Connection, PreparedStatement, Statement}
-import java.util.concurrent.{ExecutorService, Executors}
-
 import com.mysql.cj.jdbc.exceptions.MySQLTransactionRollbackException
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.database.slick.tables.DataAccessComponent
 import cromwell.database.sql.SqlDatabase
 import net.ceedubs.ficus.Ficus._
-import org.postgresql.util.{PSQLException, ServerErrorMessage}
-import org.slf4j.LoggerFactory
+import org.postgresql.util.PSQLException
+import org.slf4j.{Logger, LoggerFactory}
 import slick.basic.DatabaseConfig
 import slick.jdbc.{JdbcCapabilities, JdbcProfile, PostgresProfile, TransactionIsolation}
 
+import java.sql.{Connection, PreparedStatement, Statement}
+import java.util.concurrent.{ExecutorService, Executors}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 
@@ -20,9 +19,9 @@ object SlickDatabase {
   /**
     * Returns either the "url" or "properties.url"
     */
-  def urlKey(config: Config) = if (config.hasPath("db.url")) "db.url" else "db.properties.url"
+  def urlKey(config: Config): String = if (config.hasPath("db.url")) "db.url" else "db.properties.url"
 
-  lazy val log = LoggerFactory.getLogger("cromwell.database.slick")
+  lazy val log: Logger = LoggerFactory.getLogger("cromwell.database.slick")
 
   def createSchema(slickDatabase: SlickDatabase): Unit = {
     // NOTE: Slick 3.0.0 schema creation, Clobs, and MySQL don't mix:  https://github.com/slick/slick/issues/637
@@ -57,7 +56,7 @@ object SlickDatabase {
   */
 abstract class SlickDatabase(override val originalDatabaseConfig: Config) extends SqlDatabase {
 
-  override val urlKey = SlickDatabase.urlKey(originalDatabaseConfig)
+  override val urlKey: String = SlickDatabase.urlKey(originalDatabaseConfig)
   protected val slickConfig = DatabaseConfig.forConfig[JdbcProfile]("", databaseConfig)
 
   /*
@@ -73,7 +72,7 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
   // NOTE: if you want to refactor database is inner-class type: this.dataAccess.driver.backend.DatabaseFactory
   val database = slickConfig.db
 
-  override lazy val connectionDescription = databaseConfig.getString(urlKey)
+  override lazy val connectionDescription: String = databaseConfig.getString(urlKey)
 
   SlickDatabase.log.info(s"Running with database $urlKey = $connectionDescription")
 
@@ -134,10 +133,12 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
     actionThreadPool, database.executor.executionContext.reportFailure
   )
 
-  protected[this] lazy val insertBatchSize = databaseConfig.getOrElse("insert-batch-size", 2000)
+  protected[this] lazy val insertBatchSize: Int = databaseConfig.getOrElse("insert-batch-size", 2000)
 
-  protected[this] lazy val useSlickUpserts = dataAccess.driver.capabilities.contains(JdbcCapabilities.insertOrUpdate)
+  protected[this] lazy val useSlickUpserts: Boolean =
+    dataAccess.driver.capabilities.contains(JdbcCapabilities.insertOrUpdate)
 
+  //noinspection SameParameterValue
   protected[this] def assertUpdateCount(description: String, updates: Int, expected: Int): DBIO[Unit] = {
     if (updates == expected) {
       DBIO.successful(())
@@ -220,20 +221,11 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
               /*
               The exception may contain possibly sensitive row contents within the DETAIL section. Remove it.
 
-              Tried adjusting this using configuration:
-              - log_error_verbosity=TERSE
-              - log_min_messages=PANIC
-              - client_min_messages=ERROR
-
-              Instead resorting to reflection.
+              Discussion: https://github.com/pgjdbc/pgjdbc/issues/1577
                */
               val message = pSQLException.getServerErrorMessage
-              val field = classOf[ServerErrorMessage].getDeclaredField("mesgParts")
-              field.setAccessible(true)
-              val parts = field.get(message).asInstanceOf[java.util.Map[Character, String]]
-              parts.remove('D')
               // The original exception has already stored the DETAIL into a string. So we must create a new Exception.
-              throw new PSQLException(message)
+              throw new PSQLException(message, false)
           }
       }
     }(actionExecutionContext)

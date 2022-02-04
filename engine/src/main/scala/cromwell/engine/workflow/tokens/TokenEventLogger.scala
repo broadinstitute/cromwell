@@ -7,15 +7,11 @@ import scala.concurrent.duration.FiniteDuration
 
 trait TokenEventLogger {
   def flagTokenHog(hogGroup: String): Unit
-  def getLimitedGroups: Set[String]
-
   def outOfTokens(backend: String): Unit
 }
 
 case object NullTokenEventLogger extends TokenEventLogger {
   override def flagTokenHog(hogGroup: String): Unit = ()
-  override def getLimitedGroups: Set[String] = Set.empty
-
   override def outOfTokens(backend: String): Unit = ()
 }
 
@@ -24,33 +20,24 @@ class CachingTokenEventLogger(log: LoggingAdapter,
 
   log.info("Using CachingTokenEventLogger with an interval of {} to log token queue events", cacheEntryTTL)
 
-  private val groupCache = CacheBuilder.newBuilder()
+  private val cache = CacheBuilder.newBuilder()
     .expireAfterWrite(cacheEntryTTL._1, cacheEntryTTL._2)
     .maximumSize(10000)
     .build[String, Object]()
 
-  // Log when rate limiting is first detected, but do not continually log on subsequent clock ticks
+
   override def flagTokenHog(hogGroup: String): Unit = {
-    if (Option(groupCache.getIfPresent(hogGroup)).isEmpty) {
+    if (Option(cache.getIfPresent("HOG_" + hogGroup)).isEmpty) {
       log.info(s"Token Dispenser: The group $hogGroup has reached its job limit and is being rate-limited.")
-      groupCache.put(hogGroup, new Object())
+      cache.put("HOG_" + hogGroup, new Object())
     }
   }
 
-  override def getLimitedGroups: Set[String] = {
-    import scala.collection.JavaConverters._
-    groupCache.asMap().keySet().asScala.toSet
-  }
-
-  private val backendCache = CacheBuilder.newBuilder()
-    .expireAfterWrite(cacheEntryTTL._1, cacheEntryTTL._2)
-    .maximumSize(10000)
-    .build[String, Object]()
 
   override def outOfTokens(backend: String): Unit = {
-    if (Option(backendCache.getIfPresent(backend)).isEmpty) {
+    if (Option(cache.getIfPresent("OOT_" + backend)).isEmpty) {
       log.info(s"Token Dispenser: The backend $backend is starting too many jobs. New jobs are being limited.")
-      backendCache.put(backend, new Object())
+      cache.put("OOT_" + backend, new Object())
     }
   }
 

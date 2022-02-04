@@ -220,9 +220,6 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         _ = startableWorkflows.map(_.id).intersect(submissionResponsesExcluded.map(_.id).toList).size should be(0)
         _ = startableWorkflows.map(_.id).intersect(submissionResponsesIncluded.map(_.id).toList).size should be(1)
 
-        // For cleanup only
-        //        workflowsToCleanUp <- workflowStore.fetchStartableWorkflows(10, "A08", 1.second, Set.empty)
-        //        _ = workflowsToCleanUp.map(_.id).size should be(2)
         _ <- workflowStore.deleteFromStore(submissionResponsesExcluded.head.id) // Tidy up
         _ <- workflowStore.deleteFromStore(submissionResponsesIncluded.head.id) // Tidy up
       } yield ()).futureValue

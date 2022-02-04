@@ -195,7 +195,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     it should "find a grouped workflow normally when not excluding" taggedAs DbmsTest in {
       (for {
         submissionResponses <- workflowStore.add(excludedGroupSourceFilesCollection)
-        startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A06", 1.second, Set.empty)
+        startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A06", 1.second, excludedGroups = Set.empty)
         _ = startableWorkflows.map(_.id).intersect(submissionResponses.map(_.id).toList).size should be(1)
         _ <- workflowStore.deleteFromStore(startableWorkflows.head.id) // Tidy up
       } yield ()).futureValue
@@ -204,7 +204,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     it should "honor the excludedGroups parameter for a target group" taggedAs DbmsTest in {
       (for {
         submissionResponses <- workflowStore.add(excludedGroupSourceFilesCollection)
-        startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A07", 1.second, Set("Zardoz"))
+        startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A07", 1.second, excludedGroups = Set("Zardoz"))
         _ = startableWorkflows.map(_.id).intersect(submissionResponses.map(_.id).toList) should be(empty)
         _ <- workflowStore.deleteFromStore(submissionResponses.head.id) // Tidy up
       } yield ()).futureValue
@@ -214,7 +214,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
       (for {
         submissionResponsesExcluded <- workflowStore.add(excludedGroupSourceFilesCollection)
         submissionResponsesIncluded <- workflowStore.add(includedGroupSourceFilesCollection)
-        startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A08", 1.second, Set("Zardoz"))
+        startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A08", 1.second, excludedGroups = Set("Zardoz"))
         _ = startableWorkflows.map(_.id).intersect(submissionResponsesExcluded.map(_.id).toList).size should be(0)
         _ = startableWorkflows.map(_.id).intersect(submissionResponsesIncluded.map(_.id).toList).size should be(1)
         _ <- workflowStore.deleteFromStore(submissionResponsesExcluded.head.id) // Tidy up

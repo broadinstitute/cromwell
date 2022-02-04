@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.workflowstore
 
 import java.time.OffsetDateTime
+
 import cats.data.NonEmptyList
 import com.dimafeng.testcontainers.Container
 import common.assertion.CromwellTimeoutSpec
@@ -205,10 +206,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         submissionResponses <- workflowStore.add(excludedGroupSourceFilesCollection)
         startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A07", 1.second, Set("Zardoz"))
         _ = startableWorkflows.map(_.id).intersect(submissionResponses.map(_.id).toList) should be(empty)
-
-        // For cleanup only
-        workflowsToCleanUp <- workflowStore.fetchStartableWorkflows(10, "A07", 1.second, Set.empty)
-        _ <- workflowStore.deleteFromStore(workflowsToCleanUp.head.id) // Tidy up
+        _ <- workflowStore.deleteFromStore(submissionResponses.head.id) // Tidy up
       } yield ()).futureValue
     }
 
@@ -219,7 +217,6 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A08", 1.second, Set("Zardoz"))
         _ = startableWorkflows.map(_.id).intersect(submissionResponsesExcluded.map(_.id).toList).size should be(0)
         _ = startableWorkflows.map(_.id).intersect(submissionResponsesIncluded.map(_.id).toList).size should be(1)
-
         _ <- workflowStore.deleteFromStore(submissionResponsesExcluded.head.id) // Tidy up
         _ <- workflowStore.deleteFromStore(submissionResponsesIncluded.head.id) // Tidy up
       } yield ()).futureValue

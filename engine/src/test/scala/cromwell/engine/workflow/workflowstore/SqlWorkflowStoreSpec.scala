@@ -55,6 +55,22 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     )
   )
 
+  val otherWithGroupSourceFilesCollection = NonEmptyList.of(
+    WorkflowSourceFilesCollection(
+      Option("sample"),
+      None,
+      None,
+      None,
+      None,
+      "input",
+      WorkflowOptions(JsObject(Map("hogGroup" -> JsString("Goldfinger")))),
+      "string",
+      None,
+      workflowOnHold = false,
+      Seq.empty
+    )
+  )
+
   DatabaseSystem.All foreach { databaseSystem =>
 
     behavior of s"SqlWorkflowStore on ${databaseSystem.name}"
@@ -175,6 +191,15 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         submissionResponses <- workflowStore.add(withGroupSourceFilesCollection)
         startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A07", 1.second, Set("Zardoz"))
         _ = startableWorkflows.map(_.id).intersect(submissionResponses.map(_.id).toList) should be(empty)
+      } yield ()).futureValue
+    }
+
+    it should "select appropriately with the excludedGroups parameter" taggedAs DbmsTest in {
+      (for {
+        submissionResponses <- workflowStore.add(withGroupSourceFilesCollection)
+        submissionResponses <- workflowStore.add(otherWithGroupSourceFilesCollection)
+        startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A08", 1.second, Set("Zardoz"))
+        _ = startableWorkflows.map(_.id).intersect(submissionResponses.map(_.id).toList).size should be(1)
       } yield ()).futureValue
     }
 

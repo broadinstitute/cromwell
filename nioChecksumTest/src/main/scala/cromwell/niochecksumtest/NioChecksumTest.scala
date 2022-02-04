@@ -19,7 +19,7 @@ import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success, Try}
 
 /**
-  * This class is set up to read a single (small!) DRS file into memory from our dev environment.
+  * This class is set up to read a single (small!) DRS file into memory.
   * Ensure that the Google account you're using has permission to access the DRS file in the
   * environment you're targeting (use your test Google account in dev Terra!).
   * (1) Log into your Google account locally: `gcloud auth login [your username]`
@@ -93,8 +93,8 @@ object NioChecksumTest {
       context.stop(serviceRegistryActor)
     }
 
-    // Compiler gets mad if we don't use the result of the terminate call.
-    println(s"Termination result is ${Await.result(context.terminate(), 60.seconds)}")
+    Await.result(context.terminate(), 60.seconds)
+    ()
   }
 
   def resolveDrsFile(pathToResolve: String, asyncIo: AsyncIo): String = {
@@ -109,7 +109,7 @@ object NioChecksumTest {
 
     val fileContents = Try(
       Await.result(
-        asyncIo.contentAsStringAsync(drsPath, Option(100000), failOnOverflow = false),
+        asyncIo.contentAsStringAsync(drsPath, Option(100000), failOnOverflow = true),
         60.seconds
       )
     )

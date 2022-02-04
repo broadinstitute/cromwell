@@ -39,7 +39,7 @@ class WriteMetadataActor(override val batchSize: Int,
     val allPutEvents: Iterable[MetadataEvent] = putWithoutResponse ++ putWithResponse.flatMap(_._1)
     val dbAction = addMetadataEvents(allPutEvents)
 
-    statsRecorder.processEvents(allPutEvents) foreach(a => log.warning(s"${a.workflowId} has logged a heavy amount of metadata (${a.count} rows)"))
+    statsRecorder.processEventsAndGenerateAlerts(allPutEvents) foreach(a => log.warning(s"${a.workflowId} has logged a heavy amount of metadata (${a.count} rows)"))
 
     dbAction onComplete {
       case Success(_) =>

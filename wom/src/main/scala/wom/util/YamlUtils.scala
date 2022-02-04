@@ -65,12 +65,6 @@ object YamlUtils {
     }
   }
 
-  private lazy val composerRecursiveNodesField = {
-    val field = classOf[Composer].getDeclaredField("recursiveNodes")
-    field.setAccessible(true)
-    field
-  }
-
   private val yamlConfig = ConfigFactory.load().getConfig("yaml")
   private val defaultMaxNodes = yamlConfig.as[Int Refined NonNegative]("max-nodes")
   private val defaultMaxDepth = yamlConfig.as[Int Refined NonNegative]("max-depth")
@@ -92,52 +86,45 @@ object YamlUtils {
       loaderOptions
     ) {
 
-    private lazy val composerRecursiveFields: java.util.Set[Node] = getRecursiveNodeSet(this)
+    private val depth = new Counter
 
-    private def checkDepth(): Unit = {
-      if (composerRecursiveFields.size > maxDepth.value)
+    private def checkDepth[A](f: => A): A = {
+      depth.count += 1
+      if (depth.count > maxDepth.value)
         throw new IllegalArgumentException(s"Parsing halted at node depth $maxDepth")
+      val result = f
+      depth.count -= 1
+      result
     }
 
     override def composeScalarNode(anchor: String, blockComments: util.List[CommentLine]): Node = {
-      checkDepth()
-      super.composeScalarNode(anchor, blockComments)
+      checkDepth(super.composeScalarNode(anchor, blockComments))
     }
 
     override def composeSequenceNode(anchor: String): Node = {
-      checkDepth()
-      super.composeSequenceNode(anchor)
+      checkDepth(super.composeSequenceNode(anchor))
     }
 
     override def composeMappingNode(anchor: String): Node = {
-      checkDepth()
-      super.composeMappingNode(anchor)
+      checkDepth(super.composeMappingNode(anchor))
     }
 
     override def composeMappingChildren(children: util.List[NodeTuple], node: MappingNode): Unit = {
-      checkDepth()
-      super.composeMappingChildren(children, node)
+      checkDepth(super.composeMappingChildren(children, node))
     }
 
     override def composeKeyNode(node: MappingNode): Node = {
-      checkDepth()
-      super.composeKeyNode(node)
+      checkDepth(super.composeKeyNode(node))
     }
 
     override def composeValueNode(node: MappingNode): Node = {
-      checkDepth()
-      super.composeValueNode(node)
+      checkDepth(super.composeValueNode(node))
     }
   }
 
   /** A "pointer" reference to a mutable count. */
   private class Counter {
     var count = 0L
-  }
-
-  /** Use reflection to access the existing but private Set of nested nodes */
-  private def getRecursiveNodeSet(composer: Composer): java.util.Set[Node] = {
-    composerRecursiveNodesField.get(composer).asInstanceOf[java.util.Set[Node]]
   }
 
   /**

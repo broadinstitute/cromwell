@@ -27,8 +27,8 @@ class MetadataStatisticsRecorderSpec extends AnyFlatSpec with Matchers {
     val workflowId = WorkflowId(UUID.randomUUID())
 
     (1 to 10) foreach { i =>
-      recorder.processEvents(9 of uninterestingWriteEvent(workflowId)) should be(Vector.empty)
-      recorder.processEvents(1 of uninterestingWriteEvent(workflowId)) should be(Vector(HeavyMetadataAlert(workflowId, 10L * i)))
+      recorder.processEventsAndGenerateAlerts(9 of uninterestingWriteEvent(workflowId)) should be(Vector.empty)
+      recorder.processEventsAndGenerateAlerts(1 of uninterestingWriteEvent(workflowId)) should be(Vector(HeavyMetadataAlert(workflowId, 10L * i)))
       ()
     }
   }
@@ -42,7 +42,7 @@ class MetadataStatisticsRecorderSpec extends AnyFlatSpec with Matchers {
       val bigMetadataDump = Math.abs(Random.nextInt(101)) + 10
       val expectedCountAfterProcessing = runningCounter + bigMetadataDump
 
-      recorder.processEvents(bigMetadataDump of uninterestingWriteEvent(workflowId)) should be(Vector(HeavyMetadataAlert(workflowId, expectedCountAfterProcessing)))
+      recorder.processEventsAndGenerateAlerts(bigMetadataDump of uninterestingWriteEvent(workflowId)) should be(Vector(HeavyMetadataAlert(workflowId, expectedCountAfterProcessing)))
       runningCounter = expectedCountAfterProcessing
       ()
     }
@@ -54,25 +54,25 @@ class MetadataStatisticsRecorderSpec extends AnyFlatSpec with Matchers {
     val workflowId2 = WorkflowId(UUID.randomUUID())
     val workflowId3 = WorkflowId(UUID.randomUUID())
 
-    recorder.processEvents(
+    recorder.processEventsAndGenerateAlerts(
       (3 of uninterestingWriteEvent(workflowId1)) ++
         (5 of uninterestingWriteEvent(workflowId2)) ++
         (7 of uninterestingWriteEvent(workflowId3))
     ) should be(Vector.empty)
 
-    recorder.processEvents(
+    recorder.processEventsAndGenerateAlerts(
       (3 of uninterestingWriteEvent(workflowId1)) ++
         (5 of uninterestingWriteEvent(workflowId2)) ++
         (7 of uninterestingWriteEvent(workflowId3))
     ).toSet should be(Set(HeavyMetadataAlert(workflowId2, 10), HeavyMetadataAlert(workflowId3, 14)))
 
-    recorder.processEvents(
+    recorder.processEventsAndGenerateAlerts(
       (3 of uninterestingWriteEvent(workflowId1)) ++
         (5 of uninterestingWriteEvent(workflowId2)) ++
         (7 of uninterestingWriteEvent(workflowId3))
     ) should be(Vector.empty)
 
-    recorder.processEvents(
+    recorder.processEventsAndGenerateAlerts(
       (3 of uninterestingWriteEvent(workflowId1)) ++
         (5 of uninterestingWriteEvent(workflowId2)) ++
         (7 of uninterestingWriteEvent(workflowId3))
@@ -89,41 +89,41 @@ class MetadataStatisticsRecorderSpec extends AnyFlatSpec with Matchers {
 
     // Recording SW1 parentage adds 2 events against subWorkflowId1 (and thus rootWorkflowId)
     withClue(recorder.statusString()) {
-      recorder.processEvents(parentNotificationEvent(rootWorkflowId, rootWorkflowId, subWorkflow1Id)) should be(Vector.empty)
+      recorder.processEventsAndGenerateAlerts(parentNotificationEvent(rootWorkflowId, rootWorkflowId, subWorkflow1Id)) should be(Vector.empty)
     }
 
     // Recording SW2 parentage adds 2 events against subWorkflowId2 (and thus subWorkflow1Id and thus rootWorkflowId)
     withClue(recorder.statusString()) {
-      recorder.processEvents(parentNotificationEvent(rootWorkflowId, subWorkflow1Id, subWorkflow2Id)) should be(Vector.empty)
+      recorder.processEventsAndGenerateAlerts(parentNotificationEvent(rootWorkflowId, subWorkflow1Id, subWorkflow2Id)) should be(Vector.empty)
     }
 
     // To get started, add 7 events to the root subworkflow:
     withClue(recorder.statusString()) {
-      recorder.processEvents(7 of uninterestingWriteEvent(rootWorkflowId)) should be(Vector(HeavyMetadataAlert(rootWorkflowId, 11)))
+      recorder.processEventsAndGenerateAlerts(7 of uninterestingWriteEvent(rootWorkflowId)) should be(Vector(HeavyMetadataAlert(rootWorkflowId, 11)))
     }
 
     // Current standing: root: 11, sub1: 4, sub2: 2
 
     withClue(recorder.statusString()) {
-      recorder.processEvents(7 of uninterestingWriteEvent(subWorkflow1Id)) should be(Vector(HeavyMetadataAlert(subWorkflow1Id, 11)))
+      recorder.processEventsAndGenerateAlerts(7 of uninterestingWriteEvent(subWorkflow1Id)) should be(Vector(HeavyMetadataAlert(subWorkflow1Id, 11)))
     }
 
     // Current standing: root: 18, sub1: 11, sub2: 2
 
     withClue(recorder.statusString()) {
-      recorder.processEvents(7 of uninterestingWriteEvent(subWorkflow2Id)) should be(Vector(HeavyMetadataAlert(rootWorkflowId, 25)))
+      recorder.processEventsAndGenerateAlerts(7 of uninterestingWriteEvent(subWorkflow2Id)) should be(Vector(HeavyMetadataAlert(rootWorkflowId, 25)))
     }
 
     // Current standing: root: 25, sub1: 18, sub2: 9
 
     withClue(recorder.statusString()) {
-      recorder.processEvents(7 of uninterestingWriteEvent(subWorkflow1Id)) should be(Vector(HeavyMetadataAlert(subWorkflow1Id, 25)))
+      recorder.processEventsAndGenerateAlerts(7 of uninterestingWriteEvent(subWorkflow1Id)) should be(Vector(HeavyMetadataAlert(subWorkflow1Id, 25)))
     }
 
     // Current standing: root: 32, sub1: 25, sub2: 9
 
     withClue(recorder.statusString()) {
-      recorder.processEvents(7 of uninterestingWriteEvent(subWorkflow2Id)).toSet should be(Set(HeavyMetadataAlert(rootWorkflowId, 39), HeavyMetadataAlert(subWorkflow2Id, 16)))
+      recorder.processEventsAndGenerateAlerts(7 of uninterestingWriteEvent(subWorkflow2Id)).toSet should be(Set(HeavyMetadataAlert(rootWorkflowId, 39), HeavyMetadataAlert(subWorkflow2Id, 16)))
     }
 
     // Current standing: root: 39, sub1: 32, sub2: 16
@@ -135,16 +135,16 @@ class MetadataStatisticsRecorderSpec extends AnyFlatSpec with Matchers {
     val subWorkflow1Id = WorkflowId(UUID.randomUUID())
     val subWorkflow2Id = WorkflowId(UUID.randomUUID())
 
-    recorder.processEvents(parentNotificationEvent(rootWorkflowId, rootWorkflowId, subWorkflow1Id)) should be(Vector.empty)
-    recorder.processEvents(parentNotificationEvent(rootWorkflowId, subWorkflow1Id, subWorkflow2Id)) should be(Vector.empty)
+    recorder.processEventsAndGenerateAlerts(parentNotificationEvent(rootWorkflowId, rootWorkflowId, subWorkflow1Id)) should be(Vector.empty)
+    recorder.processEventsAndGenerateAlerts(parentNotificationEvent(rootWorkflowId, subWorkflow1Id, subWorkflow2Id)) should be(Vector.empty)
 
     // If we were accumulating these would alert, but we see nothing if not accumulating:
-    recorder.processEvents(7 of uninterestingWriteEvent(subWorkflow1Id)) should be(Vector.empty)
-    recorder.processEvents(7 of uninterestingWriteEvent(subWorkflow2Id)) should be(Vector.empty)
+    recorder.processEventsAndGenerateAlerts(7 of uninterestingWriteEvent(subWorkflow1Id)) should be(Vector.empty)
+    recorder.processEventsAndGenerateAlerts(7 of uninterestingWriteEvent(subWorkflow2Id)) should be(Vector.empty)
 
     // When we trip the limits, we should only see alerts for individual workflows.
     // Note: it's 16 not 14 because of the two parent notification entries above
-    recorder.processEvents(7 of uninterestingWriteEvent(subWorkflow1Id)) should be(Vector(HeavyMetadataAlert(subWorkflow1Id, 16)))
-    recorder.processEvents(7 of uninterestingWriteEvent(subWorkflow2Id)) should be(Vector(HeavyMetadataAlert(subWorkflow2Id, 16)))
+    recorder.processEventsAndGenerateAlerts(7 of uninterestingWriteEvent(subWorkflow1Id)) should be(Vector(HeavyMetadataAlert(subWorkflow1Id, 16)))
+    recorder.processEventsAndGenerateAlerts(7 of uninterestingWriteEvent(subWorkflow2Id)) should be(Vector(HeavyMetadataAlert(subWorkflow2Id, 16)))
   }
 }

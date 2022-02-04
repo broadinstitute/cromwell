@@ -178,6 +178,7 @@ trait WorkflowStoreEntryComponent {
     }
   )
 
+  // Find workflows running on a given Cromwell instance with abort requested:
   val findWorkflowsWithAbortRequested = Compiled(
     (cromwellId: Rep[String]) => for {
       workflowStoreEntry <- workflowStoreEntries
@@ -185,10 +186,18 @@ trait WorkflowStoreEntryComponent {
     } yield workflowStoreEntry.workflowExecutionUuid
   )
 
+  // Find workflows running on a given Cromwell instance:
   val findWorkflows = Compiled(
     (cromwellId: Rep[String]) => for {
       workflowStoreEntry <- workflowStoreEntries
       if workflowStoreEntry.cromwellId === cromwellId
     } yield workflowStoreEntry.workflowExecutionUuid
+  )
+
+  val checkExists = Compiled(
+    (workflowId: Rep[String]) => (for {
+      workflowStoreEntry <- workflowStoreEntries
+      if workflowStoreEntry.workflowExecutionUuid === workflowId
+    } yield 1)
   )
 }

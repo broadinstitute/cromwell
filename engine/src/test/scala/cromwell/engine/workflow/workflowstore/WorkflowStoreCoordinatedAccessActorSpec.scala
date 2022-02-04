@@ -60,7 +60,8 @@ class WorkflowStoreCoordinatedAccessActorSpec extends TestKitSuite
       labelsJson = "string",
       importsFile = None,
       workflowOnHold = true,
-      warnings = Seq.empty
+      warnings = Seq.empty,
+      requestedWorkflowId = None
     )
     val now = OffsetDateTime.now()
     val expected: List[WorkflowToStart] = List(WorkflowToStart(WorkflowId.randomId(), now, collection, Submitted, HogGroup("foo")))
@@ -90,7 +91,8 @@ class WorkflowStoreCoordinatedAccessActorSpec extends TestKitSuite
       labelsJson = "",
       importsFile = None,
       workflowOnHold = false,
-      warnings = Seq.empty
+      warnings = Seq.empty,
+      requestedWorkflowId = None
     )
     val now = OffsetDateTime.now()
     val expected: List[WorkflowToStart] = List(WorkflowToStart(WorkflowId.randomId(), now, collection, Submitted, HogGroup("foo")))

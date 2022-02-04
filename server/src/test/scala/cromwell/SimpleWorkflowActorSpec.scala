@@ -50,7 +50,8 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
       inputsJson = rawInputsOverride,
       workflowOptions = WorkflowOptions.empty,
       labelsJson = "{}",
-      warnings = Vector.empty
+      warnings = Vector.empty,
+      requestedWorkflowId = None
     )
 
     val promise = Promise[Unit]()

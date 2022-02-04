@@ -44,7 +44,8 @@ trait SampleWdl extends TestFileUtil {
           workflowTypeVersion = workflowTypeVersion,
           warnings = Vector.empty,
           workflowOnHold = workflowOnHold,
-          importsZip = zip)
+          importsZip = zip,
+          requestedWorkflowId = None)
       case None =>
         WorkflowSourceFilesWithoutImports(
           workflowSource = Option(workflowSource(runtime)),
@@ -56,7 +57,8 @@ trait SampleWdl extends TestFileUtil {
           workflowType = workflowType,
           workflowTypeVersion = workflowTypeVersion,
           warnings = Vector.empty,
-          workflowOnHold = workflowOnHold)
+          workflowOnHold = workflowOnHold,
+          requestedWorkflowId = None)
     }
   }
 

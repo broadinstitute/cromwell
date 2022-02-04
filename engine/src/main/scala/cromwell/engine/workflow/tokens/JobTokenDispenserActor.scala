@@ -100,6 +100,8 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
       dispense(n)
     case Terminated(terminee) => onTerminate(terminee)
     case LogJobTokenAllocation(nextInterval) => logTokenAllocation(nextInterval)
+//    case QueryLimitedGroups =>
+//      tokenQueues.head._2.queues.head._2.
     case ShutdownCommand => context stop self
   }
 
@@ -222,6 +224,7 @@ object JobTokenDispenserActor {
   case object JobTokenReturn
   case object JobTokenDispensed
   final case class LogJobTokenAllocation(someInterval: FiniteDuration)
+  case object QueryLimitedGroups
 
   implicit val tokenEncoder = deriveEncoder[JobTokenType]
 

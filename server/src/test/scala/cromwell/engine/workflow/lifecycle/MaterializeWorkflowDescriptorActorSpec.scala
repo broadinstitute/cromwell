@@ -87,7 +87,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         inputsJson = validInputsJson,
         workflowOptions = validOptions,
         labelsJson = validCustomLabelsFile,
-        warnings = Vector.empty)
+        warnings = Vector.empty,
+        requestedWorkflowId = None)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf, callCachingEnabled,
         invalidateBadCacheResults)
 
@@ -131,7 +132,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         inputsJson = inputs.toJson.toString(),
         workflowOptions = WorkflowOptions.empty,
         labelsJson = "{}",
-        warnings = Vector.empty)
+        warnings = Vector.empty,
+        requestedWorkflowId = None)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf, callCachingEnabled,
         invalidateBadCacheResults)
 
@@ -187,7 +189,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         inputsJson = "{}",
         workflowOptions = WorkflowOptions.empty,
         labelsJson = validCustomLabelsFile,
-        warnings = Vector.empty)
+        warnings = Vector.empty,
+        requestedWorkflowId = None)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, differentDefaultBackendConf, callCachingEnabled,
         invalidateBadCacheResults)
 
@@ -232,7 +235,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         inputsJson = "{}",
         workflowOptions = WorkflowOptions.empty,
         labelsJson = "{}",
-        warnings = Vector.empty)
+        warnings = Vector.empty,
+        requestedWorkflowId = None)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, differentDefaultBackendConf, callCachingEnabled,
         invalidateBadCacheResults)
 
@@ -261,7 +265,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         inputsJson = validInputsJson,
         workflowOptions = validOptions,
         labelsJson = validCustomLabelsFile,
-        warnings = Vector.empty)
+        warnings = Vector.empty,
+        requestedWorkflowId = None)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf, callCachingEnabled,
         invalidateBadCacheResults)
 
@@ -291,7 +296,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         inputsJson = inputs.toJson.toString(),
         workflowOptions = WorkflowOptions.empty,
         labelsJson = "{}",
-        warnings = Vector.empty)
+        warnings = Vector.empty,
+        requestedWorkflowId = None)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf, callCachingEnabled,
         invalidateBadCacheResults)
 
@@ -328,7 +334,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         inputsJson = validInputsJson,
         workflowOptions = validOptions,
         labelsJson = validCustomLabelsFile,
-        warnings = Vector.empty)
+        warnings = Vector.empty,
+        requestedWorkflowId = None)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf, callCachingEnabled,
         invalidateBadCacheResults)
 
@@ -356,7 +363,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         inputsJson = unstructuredFile,
         workflowOptions = validOptions,
         labelsJson = validCustomLabelsFile,
-        warnings = Vector.empty)
+        warnings = Vector.empty,
+        requestedWorkflowId = None)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf, callCachingEnabled,
         invalidateBadCacheResults)
 
@@ -385,7 +393,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         inputsJson = noInputsJson,
         workflowOptions = validOptions,
         labelsJson = validCustomLabelsFile,
-        warnings = Vector.empty)
+        warnings = Vector.empty,
+        requestedWorkflowId = None)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(badOptionsSources, minimumConf, callCachingEnabled,
         invalidateBadCacheResults)
 
@@ -421,7 +430,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         inputsJson = "{}",
         workflowOptions = validOptions,
         labelsJson = validCustomLabelsFile,
-        warnings = Vector.empty)
+        warnings = Vector.empty,
+        requestedWorkflowId = None)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf, callCachingEnabled,
         invalidateBadCacheResults)
 
@@ -466,7 +476,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         inputsJson = jsonInput,
         workflowOptions = validOptions,
         labelsJson = validCustomLabelsFile,
-        warnings = Vector.empty)
+        warnings = Vector.empty,
+        requestedWorkflowId = None)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf, callCachingEnabled,
         invalidateBadCacheResults)
 
@@ -523,7 +534,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         inputsJson = validInputsJson,
         workflowOptions = invalidMemoryRetryOptions1,
         labelsJson = validCustomLabelsFile,
-        warnings = Vector.empty)
+        warnings = Vector.empty,
+        requestedWorkflowId = None)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf, callCachingEnabled,
         invalidateBadCacheResults)
 

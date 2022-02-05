@@ -202,14 +202,14 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
 
     def validateArguments(value: Try[WomValue]) = value match {
       case Success(intValue: WomValue) if WomIntegerType.isCoerceableFrom(intValue.womType) =>
-        Integer.valueOf(intValue.valueString) match {
+        java.lang.Long.valueOf(intValue.valueString) match {
           case i if i >= 0 => Success(i)
           case n => Failure(new IllegalArgumentException(s"Parameter to seq must be greater than or equal to 0 (but got $n)"))
         }
       case _ => Failure(new IllegalArgumentException(s"Invalid parameter for engine function seq: $value."))
     }
 
-    extractAndValidateArguments map { intValue => WomArray(WomArrayType(WomIntegerType), (0 until intValue).map(WomInteger)) }
+    extractAndValidateArguments map { intValue => WomArray(WomArrayType(WomIntegerType), (0L until intValue).map(WomInteger.apply)) }
   }
 
   def sub(params: Seq[Try[WomValue]]): Try[WomString] = {

@@ -32,7 +32,7 @@ object WomValueSimpleton {
 
   implicit class WomValueSimplifier(womValue: WomValue) {
     private def toStringSimpleton(key: String)(value: String) = WomValueSimpleton(key, WomString(value))
-    private def toNumberSimpleton(key: String)(value: Long) = WomValueSimpleton(key, WomInteger(value.toInt))
+    private def toNumberSimpleton(key: String)(value: Long) = WomValueSimpleton(key, WomInteger(value.toLong))
 
     // Pass the simplifyMode down to recursive calls without having to sling the parameter around explicitly.
     def simplify(name: String)(implicit simplifyMode: SimplifyMode = SimplifyMode(forCaching = false)): Iterable[WomValueSimpleton] = {

@@ -5,6 +5,8 @@ services:
 language: minimal
 git:
   depth: false
+before_install:
+  - vault write -field=token auth/approle/login role_id=${VAULT_ROLE_ID} secret_id=${VAULT_SECRET_ID} > ~/.vault-token
 cache:
   directories:
     - $HOME/.ivy2/cache

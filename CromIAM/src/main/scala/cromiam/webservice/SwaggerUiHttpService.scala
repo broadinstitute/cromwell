@@ -6,9 +6,7 @@ import akka.http.scaladsl.server._
 import akka.stream.Materializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
-import com.typesafe.config.Config
 import cromiam.server.config.SwaggerOauthConfig
-import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.{ExecutionContext, Future}
 

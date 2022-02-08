@@ -4,7 +4,6 @@ import akka.http.scaladsl.model.headers.Location
 import akka.http.scaladsl.model.{ContentTypes, StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import com.typesafe.config.ConfigFactory
 import common.assertion.CromwellTimeoutSpec
 import cromiam.server.config.SwaggerOauthConfig
 import cromiam.webservice.SwaggerUiHttpServiceSpec._

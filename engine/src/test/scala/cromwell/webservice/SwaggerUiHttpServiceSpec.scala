@@ -4,13 +4,12 @@ import akka.http.scaladsl.model.headers.Location
 import akka.http.scaladsl.model.{StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
-import com.typesafe.config.ConfigFactory
 import common.assertion.CromwellTimeoutSpec
-import cromwell.webservice.SwaggerUiHttpServiceSpec._
 import cromwell.webservice.routes.CromwellApiService
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
+
 import scala.concurrent.duration._
 
 trait SwaggerUiHttpServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest with SwaggerUiHttpService {

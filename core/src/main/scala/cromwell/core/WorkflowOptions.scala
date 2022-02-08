@@ -56,6 +56,7 @@ object WorkflowOptions {
   case object FinalCallLogsDir extends WorkflowOption("final_call_logs_dir")
   case object FinalWorkflowOutputsDir extends WorkflowOption("final_workflow_outputs_dir")
   case object UseRelativeOutputPaths extends WorkflowOption(name="use_relative_output_paths")
+  case object HardlinkOutputPaths extends WorkflowOption(name="hardlink_output_paths")
 
   // Misc.
   case object DefaultRuntimeOptions extends WorkflowOption("default_runtime_attributes")

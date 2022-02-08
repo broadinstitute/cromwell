@@ -19,7 +19,7 @@ case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
                                 memory: Option[MemorySize],
                                 disk: Option[MemorySize],
                                 preemptible: Boolean,
-                                backendParameters: Map[String, String])
+                                backendParameters: Map[String, Option[String]])
 
 object TesRuntimeAttributes {
 
@@ -55,12 +55,12 @@ object TesRuntimeAttributes {
 
   def makeBackendParameters(runtimeAttributes: Map[String, WomValue],
                             keysToExclude: Set[String],
-                            config: TesConfiguration): Map[String, String] = {
+                            config: TesConfiguration): Map[String, Option[String]] = {
 
     if (config.useBackendParameters)
       runtimeAttributes
         .filterKeys(k => !keysToExclude.contains(k))
-        .collect { case (key, strValue: WomString) => (key, strValue.value)}
+        .collect { case (key, WomString(s)) => (key, Option(s))}
     else
       Map.empty
   }

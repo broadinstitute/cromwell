@@ -128,24 +128,6 @@ trait SwaggerUiHttpService extends Directives {
 }
 
 /**
- * Extends the SwaggerUiHttpService to gets UI configuration values from a provided Typesafe Config.
- */
-trait SwaggerUiConfigHttpService extends SwaggerUiHttpService {
-  /**
-   * @return The swagger UI config.
-   */
-  def swaggerUiConfig: Config
-
-  override def swaggerUiVersion = swaggerUiConfig.getString("uiVersion")
-
-  abstract override def swaggerUiBaseUrl = swaggerUiConfig.as[Option[String]]("baseUrl").getOrElse(super.swaggerUiBaseUrl)
-
-  abstract override def swaggerUiPath = swaggerUiConfig.as[Option[String]]("uiPath").getOrElse(super.swaggerUiPath)
-
-  abstract override def swaggerUiDocsPath = swaggerUiConfig.as[Option[String]]("docsPath").getOrElse(super.swaggerUiDocsPath)
-}
-
-/**
  * An extension of HttpService to serve up a resource containing the swagger api as yaml or json. The resource
  * directory and path on the classpath must match the path for route. The resource can be any file type supported by the
  * swagger UI, but defaults to "yaml". This is an alternative to spray-swagger's SwaggerHttpService.

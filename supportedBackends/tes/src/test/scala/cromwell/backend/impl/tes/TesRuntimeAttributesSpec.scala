@@ -173,7 +173,7 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
 
     "turn populated optional unknown string attributes into backend parameters" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "foo" -> WomOptionalValue(WomString("bar")))
-      val expectedRuntimeAttributes = expectedDefaults.copy(backendParameters = Map("foo" -> Some("bar")))
+      val expectedRuntimeAttributes = expectedDefaults.copy(backendParameters = Map("foo" -> Option("bar")))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes, tesConfig = mockTesConfigWithBackendParams)
     }
 

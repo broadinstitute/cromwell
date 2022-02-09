@@ -4,7 +4,7 @@ tags: ["copyLocal"]
 
 files {
   workflow: wdlResultsCopying/simpleWorkflow.wdl
-  options: wdlResultsCopying/local/optionsRelative.json
+  options: wdlResultsCopying/local/optionsRelativeHardlink.json
 }
 
 metadata {

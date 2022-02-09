@@ -1,0 +1,1158 @@
+[
+  {
+    "insertId": "5syrl7s3faqbgnd1",
+    "jsonPayload": {
+      "localTimestamp": "2022-01-14 23:17:11,327",
+      "message": "IoActor backpressure off",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-643"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "location": "us-central1-a",
+        "namespace_name": "terra-alpha",
+        "cluster_name": "terra-alpha",
+        "pod_name": "cromwell1-runner-775c9f895f-jhpvf",
+        "project_id": "broad-dsde-alpha",
+        "container_name": "cromwell1-runner-app"
+      }
+    },
+    "timestamp": "2022-01-14T23:17:11.328118670Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-5j7g",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "k8s-pod/pod-template-hash": "775c9f895f"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-14T23:17:13.280918051Z"
+  },
+  {
+    "insertId": "6hqtu5dl4w9ajk0k",
+    "jsonPayload": {
+      "localTimestamp": "2022-01-14 23:16:42,079",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-44",
+      "message": "Beginning IoActor backpressure for 29.22 seconds"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "project_id": "broad-dsde-alpha",
+        "pod_name": "cromwell1-runner-775c9f895f-jhpvf",
+        "container_name": "cromwell1-runner-app",
+        "cluster_name": "terra-alpha",
+        "location": "us-central1-a",
+        "namespace_name": "terra-alpha"
+      }
+    },
+    "timestamp": "2022-01-14T23:16:42.079692927Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-5j7g",
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-14T23:16:43.284332343Z"
+  },
+  {
+    "insertId": "0k4nevmfm69uyv3n",
+    "jsonPayload": {
+      "localTimestamp": "2022-01-14 09:28:38,486",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-489",
+      "message": "IoActor backpressure off"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "namespace_name": "terra-alpha",
+        "pod_name": "cromwell1-runner-775c9f895f-5s2fh",
+        "project_id": "broad-dsde-alpha",
+        "cluster_name": "terra-alpha",
+        "container_name": "cromwell1-runner-app",
+        "location": "us-central1-a"
+      }
+    },
+    "timestamp": "2022-01-14T09:28:38.486509890Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-6hpn",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "k8s-pod/pod-template-hash": "775c9f895f"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-14T09:28:43.431563178Z"
+  },
+  {
+    "insertId": "q1ybvz8ule7lr1w3",
+    "jsonPayload": {
+      "localTimestamp": "2022-01-14 09:27:37,915",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-671",
+      "message": "Beginning IoActor backpressure for 59.50 seconds"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "pod_name": "cromwell1-runner-775c9f895f-5s2fh",
+        "location": "us-central1-a",
+        "project_id": "broad-dsde-alpha",
+        "namespace_name": "terra-alpha",
+        "cluster_name": "terra-alpha",
+        "container_name": "cromwell1-runner-app"
+      }
+    },
+    "timestamp": "2022-01-14T09:27:37.915274643Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-6hpn",
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/app_kubernetes_io/component": "cromwell"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-14T09:27:38.448546928Z"
+  },
+  {
+    "insertId": "6o0roivwhmyn9xic",
+    "jsonPayload": {
+      "localTimestamp": "2022-01-14 06:56:49,754",
+      "message": "IoActor backpressure off",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-726"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "cluster_name": "terra-alpha",
+        "pod_name": "cromwell1-runner-775c9f895f-jx9b9",
+        "container_name": "cromwell1-runner-app",
+        "project_id": "broad-dsde-alpha",
+        "namespace_name": "terra-alpha",
+        "location": "us-central1-a"
+      }
+    },
+    "timestamp": "2022-01-14T06:56:49.755052202Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-khw2",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/app_kubernetes_io/name": "cromwell"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-14T06:56:50.044767637Z"
+  },
+  {
+    "insertId": "ssq5lqyz0epefhvq",
+    "jsonPayload": {
+      "localTimestamp": "2022-01-14 06:56:28,045",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-60",
+      "message": "Beginning IoActor backpressure for 21.69 seconds"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "container_name": "cromwell1-runner-app",
+        "pod_name": "cromwell1-runner-775c9f895f-jx9b9",
+        "namespace_name": "terra-alpha",
+        "project_id": "broad-dsde-alpha",
+        "cluster_name": "terra-alpha",
+        "location": "us-central1-a"
+      }
+    },
+    "timestamp": "2022-01-14T06:56:28.045929738Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-khw2",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/app_kubernetes_io/part-of": "terra"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-14T06:56:30.038201413Z"
+  },
+  {
+    "insertId": "e6qnz5dvylluhzuy",
+    "jsonPayload": {
+      "message": "IoActor backpressure off",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-638",
+      "localTimestamp": "2022-01-14 06:42:12,530"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "project_id": "broad-dsde-alpha",
+        "container_name": "cromwell1-runner-app",
+        "namespace_name": "terra-alpha",
+        "pod_name": "cromwell1-runner-775c9f895f-qtn7p",
+        "location": "us-central1-a",
+        "cluster_name": "terra-alpha"
+      }
+    },
+    "timestamp": "2022-01-14T06:42:12.531174853Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-8qdm",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/app_kubernetes_io/part-of": "terra"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-14T06:42:12.646518634Z"
+  },
+  {
+    "insertId": "euccfz5nkjy0g3te",
+    "jsonPayload": {
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-640",
+      "localTimestamp": "2022-01-14 06:41:39,926",
+      "message": "Beginning IoActor backpressure for 32.58 seconds"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "container_name": "cromwell1-runner-app",
+        "location": "us-central1-a",
+        "project_id": "broad-dsde-alpha",
+        "pod_name": "cromwell1-runner-775c9f895f-qtn7p",
+        "namespace_name": "terra-alpha",
+        "cluster_name": "terra-alpha"
+      }
+    },
+    "timestamp": "2022-01-14T06:41:39.926659814Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-8qdm",
+      "k8s-pod/app_kubernetes_io/name": "cromwell"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-14T06:41:42.644333594Z"
+  },
+  {
+    "insertId": "f53f1suuzmq3st84",
+    "jsonPayload": {
+      "localTimestamp": "2022-01-14 06:29:27,196",
+      "message": "IoActor backpressure off",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-627"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "project_id": "broad-dsde-alpha",
+        "container_name": "cromwell1-runner-app",
+        "pod_name": "cromwell1-runner-775c9f895f-9hlbc",
+        "namespace_name": "terra-alpha",
+        "location": "us-central1-a",
+        "cluster_name": "terra-alpha"
+      }
+    },
+    "timestamp": "2022-01-14T06:29:27.197107340Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-jnsf",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/pod-template-hash": "775c9f895f"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-14T06:29:27.549363799Z"
+  },
+  {
+    "insertId": "63tcpb6gv3vhws4k",
+    "jsonPayload": {
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-439",
+      "localTimestamp": "2022-01-14 06:28:54,368",
+      "message": "Beginning IoActor backpressure for 32.80 seconds"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "namespace_name": "terra-alpha",
+        "location": "us-central1-a",
+        "cluster_name": "terra-alpha",
+        "container_name": "cromwell1-runner-app",
+        "project_id": "broad-dsde-alpha",
+        "pod_name": "cromwell1-runner-775c9f895f-9hlbc"
+      }
+    },
+    "timestamp": "2022-01-14T06:28:54.368850421Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-jnsf"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-14T06:28:57.555227959Z"
+  },
+  {
+    "insertId": "quv8gs3rhyl2e14b",
+    "jsonPayload": {
+      "message": "IoActor backpressure off",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-646",
+      "localTimestamp": "2022-01-14 06:08:53,517"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "pod_name": "cromwell1-runner-775c9f895f-9hlbc",
+        "location": "us-central1-a",
+        "project_id": "broad-dsde-alpha",
+        "namespace_name": "terra-alpha",
+        "container_name": "cromwell1-runner-app",
+        "cluster_name": "terra-alpha"
+      }
+    },
+    "timestamp": "2022-01-14T06:08:53.517615126Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-jnsf",
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/app_kubernetes_io/name": "cromwell"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-14T06:08:57.551013074Z"
+  },
+  {
+    "insertId": "4bxvbztmmj31sqqa",
+    "jsonPayload": {
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-21",
+      "message": "IoActor backpressure off",
+      "localTimestamp": "2022-01-14 06:08:47,805"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "container_name": "cromwell1-runner-app",
+        "location": "us-central1-a",
+        "project_id": "broad-dsde-alpha",
+        "pod_name": "cromwell1-runner-775c9f895f-jx9b9",
+        "namespace_name": "terra-alpha",
+        "cluster_name": "terra-alpha"
+      }
+    },
+    "timestamp": "2022-01-14T06:08:47.805498754Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-khw2",
+      "k8s-pod/app_kubernetes_io/component": "cromwell"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-14T06:08:50.046215519Z"
+  },
+  {
+    "insertId": "dpo5vck1ejsgqvbk",
+    "jsonPayload": {
+      "message": "Beginning IoActor backpressure for 29.98 seconds",
+      "localTimestamp": "2022-01-14 06:08:23,511",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-24"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "namespace_name": "terra-alpha",
+        "container_name": "cromwell1-runner-app",
+        "location": "us-central1-a",
+        "project_id": "broad-dsde-alpha",
+        "pod_name": "cromwell1-runner-775c9f895f-9hlbc",
+        "cluster_name": "terra-alpha"
+      }
+    },
+    "timestamp": "2022-01-14T06:08:23.512094438Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-jnsf",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/app_kubernetes_io/part-of": "terra"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-14T06:08:27.547919533Z"
+  },
+  {
+    "insertId": "ssmhy0t7rsshd1rr",
+    "jsonPayload": {
+      "message": "Beginning IoActor backpressure for 27.91 seconds",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-52",
+      "localTimestamp": "2022-01-14 06:08:19,875"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "location": "us-central1-a",
+        "project_id": "broad-dsde-alpha",
+        "cluster_name": "terra-alpha",
+        "namespace_name": "terra-alpha",
+        "pod_name": "cromwell1-runner-775c9f895f-jx9b9",
+        "container_name": "cromwell1-runner-app"
+      }
+    },
+    "timestamp": "2022-01-14T06:08:19.875844661Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-khw2",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/app_kubernetes_io/part-of": "terra"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-14T06:08:20.043104696Z"
+  },
+  {
+    "insertId": "jm56jxa07lfvwpcx",
+    "jsonPayload": {
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-672",
+      "localTimestamp": "2022-01-13 06:47:20,797",
+      "message": "IoActor backpressure off"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "namespace_name": "terra-alpha",
+        "cluster_name": "terra-alpha",
+        "pod_name": "cromwell1-runner-775c9f895f-jhpvf",
+        "location": "us-central1-a",
+        "project_id": "broad-dsde-alpha",
+        "container_name": "cromwell1-runner-app"
+      }
+    },
+    "timestamp": "2022-01-13T06:47:20.797671436Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/deployment": "cromwell1-runner",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-5j7g",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "k8s-pod/app_kubernetes_io/part-of": "terra"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-13T06:47:23.275716933Z"
+  },
+  {
+    "insertId": "bi8pwo7odduzrxwm",
+    "jsonPayload": {
+      "localTimestamp": "2022-01-13 06:46:55,340",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-667",
+      "message": "Beginning IoActor backpressure for 25.44 seconds"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "project_id": "broad-dsde-alpha",
+        "namespace_name": "terra-alpha",
+        "cluster_name": "terra-alpha",
+        "location": "us-central1-a",
+        "pod_name": "cromwell1-runner-775c9f895f-jhpvf",
+        "container_name": "cromwell1-runner-app"
+      }
+    },
+    "timestamp": "2022-01-13T06:46:55.341037081Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-5j7g",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-13T06:46:58.288976005Z"
+  },
+  {
+    "insertId": "bdwpv7fn8qpa0hdn",
+    "jsonPayload": {
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-723",
+      "message": "IoActor backpressure off",
+      "localTimestamp": "2022-01-13 06:12:19,784"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "project_id": "broad-dsde-alpha",
+        "pod_name": "cromwell1-runner-775c9f895f-jx9b9",
+        "namespace_name": "terra-alpha",
+        "container_name": "cromwell1-runner-app",
+        "location": "us-central1-a",
+        "cluster_name": "terra-alpha"
+      }
+    },
+    "timestamp": "2022-01-13T06:12:19.785011197Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-khw2"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-13T06:12:20.043389797Z"
+  },
+  {
+    "insertId": "flg1ljypvzfq0lyl",
+    "jsonPayload": {
+      "localTimestamp": "2022-01-13 06:11:58,044",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-733",
+      "message": "Beginning IoActor backpressure for 21.72 seconds"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "location": "us-central1-a",
+        "pod_name": "cromwell1-runner-775c9f895f-jx9b9",
+        "cluster_name": "terra-alpha",
+        "container_name": "cromwell1-runner-app",
+        "namespace_name": "terra-alpha",
+        "project_id": "broad-dsde-alpha"
+      }
+    },
+    "timestamp": "2022-01-13T06:11:58.044285482Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-khw2",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-13T06:12:00.045266839Z"
+  },
+  {
+    "insertId": "1tz3zroz7aue4jvq",
+    "jsonPayload": {
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-574",
+      "message": "IoActor backpressure off",
+      "localTimestamp": "2022-01-11 21:16:56,726"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "cluster_name": "terra-alpha",
+        "container_name": "cromwell1-runner-app",
+        "pod_name": "cromwell1-runner-775c9f895f-5s2fh",
+        "namespace_name": "terra-alpha",
+        "project_id": "broad-dsde-alpha",
+        "location": "us-central1-a"
+      }
+    },
+    "timestamp": "2022-01-11T21:16:56.727212494Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-6hpn",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "k8s-pod/pod-template-hash": "775c9f895f"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-11T21:16:58.450848427Z"
+  },
+  {
+    "insertId": "t4wvehhu7frda1lk",
+    "jsonPayload": {
+      "message": "Beginning IoActor backpressure for 31.99 seconds",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-492",
+      "localTimestamp": "2022-01-11 21:16:24,652"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "location": "us-central1-a",
+        "cluster_name": "terra-alpha",
+        "project_id": "broad-dsde-alpha",
+        "namespace_name": "terra-alpha",
+        "pod_name": "cromwell1-runner-775c9f895f-5s2fh",
+        "container_name": "cromwell1-runner-app"
+      }
+    },
+    "timestamp": "2022-01-11T21:16:24.652383265Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-6hpn",
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-11T21:16:28.466397760Z"
+  },
+  {
+    "insertId": "nzaz0g6tzjb0vhno",
+    "jsonPayload": {
+      "localTimestamp": "2022-01-11 18:33:34,805",
+      "message": "IoActor backpressure off",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-460"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "project_id": "broad-dsde-alpha",
+        "location": "us-central1-a",
+        "container_name": "cromwell1-runner-app",
+        "cluster_name": "terra-alpha",
+        "pod_name": "cromwell1-runner-775c9f895f-9x9hd",
+        "namespace_name": "terra-alpha"
+      }
+    },
+    "timestamp": "2022-01-11T18:33:34.805904100Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-1n0h",
+      "k8s-pod/pod-template-hash": "775c9f895f"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-11T18:33:36.049821033Z"
+  },
+  {
+    "insertId": "x2jyrdor48jk83yg",
+    "jsonPayload": {
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-13",
+      "message": "Beginning IoActor backpressure for 32.96 seconds",
+      "localTimestamp": "2022-01-11 18:33:01,824"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "cluster_name": "terra-alpha",
+        "project_id": "broad-dsde-alpha",
+        "pod_name": "cromwell1-runner-775c9f895f-9x9hd",
+        "namespace_name": "terra-alpha",
+        "container_name": "cromwell1-runner-app",
+        "location": "us-central1-a"
+      }
+    },
+    "timestamp": "2022-01-11T18:33:01.824427921Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-1n0h",
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-11T18:33:06.051167514Z"
+  },
+  {
+    "insertId": "tb64rp6qqcbp08n1",
+    "jsonPayload": {
+      "message": "IoActor backpressure off",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-475",
+      "localTimestamp": "2022-01-11 18:12:37,325"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "namespace_name": "terra-alpha",
+        "pod_name": "cromwell1-runner-775c9f895f-9x9hd",
+        "container_name": "cromwell1-runner-app",
+        "cluster_name": "terra-alpha",
+        "project_id": "broad-dsde-alpha",
+        "location": "us-central1-a"
+      }
+    },
+    "timestamp": "2022-01-11T18:12:37.326152125Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-1n0h",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "k8s-pod/pod-template-hash": "775c9f895f"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-11T18:12:41.045981753Z"
+  },
+  {
+    "insertId": "wpip1wp8bkitg12i",
+    "jsonPayload": {
+      "localTimestamp": "2022-01-11 18:12:32,200",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-449",
+      "message": "IoActor backpressure off"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "project_id": "broad-dsde-alpha",
+        "container_name": "cromwell1-runner-app",
+        "cluster_name": "terra-alpha",
+        "namespace_name": "terra-alpha",
+        "location": "us-central1-a",
+        "pod_name": "cromwell1-runner-775c9f895f-qtn7p"
+      }
+    },
+    "timestamp": "2022-01-11T18:12:32.201304059Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-8qdm",
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/app_kubernetes_io/component": "cromwell"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-11T18:12:32.662625803Z"
+  },
+  {
+    "insertId": "9pmgxi1psnygk5s7",
+    "jsonPayload": {
+      "message": "IoActor backpressure off",
+      "localTimestamp": "2022-01-11 18:12:31,406",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-574"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "container_name": "cromwell1-runner-app",
+        "pod_name": "cromwell1-runner-775c9f895f-5s2fh",
+        "location": "us-central1-a",
+        "namespace_name": "terra-alpha",
+        "project_id": "broad-dsde-alpha",
+        "cluster_name": "terra-alpha"
+      }
+    },
+    "timestamp": "2022-01-11T18:12:31.406835144Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-6hpn",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/app_kubernetes_io/name": "cromwell"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-11T18:12:33.442645480Z"
+  },
+  {
+    "insertId": "c9eefxhj24gxs1ee",
+    "jsonPayload": {
+      "message": "Beginning IoActor backpressure for 24.63 seconds",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-634",
+      "localTimestamp": "2022-01-11 18:12:07,552"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "location": "us-central1-a",
+        "namespace_name": "terra-alpha",
+        "container_name": "cromwell1-runner-app",
+        "pod_name": "cromwell1-runner-775c9f895f-qtn7p",
+        "cluster_name": "terra-alpha",
+        "project_id": "broad-dsde-alpha"
+      }
+    },
+    "timestamp": "2022-01-11T18:12:07.552573970Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-8qdm",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/app_kubernetes_io/part-of": "terra"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-11T18:12:07.648514975Z"
+  },
+  {
+    "insertId": "5xr71n5apqsdc7xv",
+    "jsonPayload": {
+      "message": "Beginning IoActor backpressure for 31.05 seconds",
+      "localTimestamp": "2022-01-11 18:12:06,254",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-470"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "project_id": "broad-dsde-alpha",
+        "pod_name": "cromwell1-runner-775c9f895f-9x9hd",
+        "cluster_name": "terra-alpha",
+        "location": "us-central1-a",
+        "namespace_name": "terra-alpha",
+        "container_name": "cromwell1-runner-app"
+      }
+    },
+    "timestamp": "2022-01-11T18:12:06.254799065Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-1n0h",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/app_kubernetes_io/part-of": "terra"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-11T18:12:11.048291145Z"
+  },
+  {
+    "insertId": "ujvm8qx4pm4mtbsh",
+    "jsonPayload": {
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-488",
+      "message": "Beginning IoActor backpressure for 23.63 seconds",
+      "localTimestamp": "2022-01-11 18:11:46,640"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "namespace_name": "terra-alpha",
+        "container_name": "cromwell1-runner-app",
+        "project_id": "broad-dsde-alpha",
+        "cluster_name": "terra-alpha",
+        "pod_name": "cromwell1-runner-775c9f895f-5s2fh",
+        "location": "us-central1-a"
+      }
+    },
+    "timestamp": "2022-01-11T18:11:46.640221128Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-6hpn",
+      "k8s-pod/app_kubernetes_io/name": "cromwell"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-11T18:11:48.431579557Z"
+  },
+  {
+    "insertId": "0w4sawy9n19nyld1",
+    "jsonPayload": {
+      "localTimestamp": "2022-01-11 17:42:35,915",
+      "message": "IoActor backpressure off",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-648"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "pod_name": "cromwell1-runner-775c9f895f-9x9hd",
+        "cluster_name": "terra-alpha",
+        "container_name": "cromwell1-runner-app",
+        "namespace_name": "terra-alpha",
+        "project_id": "broad-dsde-alpha",
+        "location": "us-central1-a"
+      }
+    },
+    "timestamp": "2022-01-11T17:42:35.915634947Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-1n0h",
+      "k8s-pod/pod-template-hash": "775c9f895f"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-11T17:42:36.054016355Z"
+  },
+  {
+    "insertId": "cbmumk56tes95ilj",
+    "jsonPayload": {
+      "localTimestamp": "2022-01-11 17:42:09,783",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-13",
+      "message": "Beginning IoActor backpressure for 26.12 seconds"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "location": "us-central1-a",
+        "pod_name": "cromwell1-runner-775c9f895f-9x9hd",
+        "project_id": "broad-dsde-alpha",
+        "namespace_name": "terra-alpha",
+        "cluster_name": "terra-alpha",
+        "container_name": "cromwell1-runner-app"
+      }
+    },
+    "timestamp": "2022-01-11T17:42:09.783329241Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-1n0h",
+      "k8s-pod/pod-template-hash": "775c9f895f",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/app_kubernetes_io/component": "cromwell"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-11T17:42:11.047348877Z"
+  },
+  {
+    "insertId": "50u6xj4go9cvjcjo",
+    "jsonPayload": {
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-234",
+      "message": "IoActor backpressure off",
+      "localTimestamp": "2022-01-11 02:43:40,598"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "pod_name": "cromwell1-runner-5c4f9c49cd-prs67",
+        "project_id": "broad-dsde-alpha",
+        "location": "us-central1-a",
+        "container_name": "cromwell1-runner-app",
+        "cluster_name": "terra-alpha",
+        "namespace_name": "terra-alpha"
+      }
+    },
+    "timestamp": "2022-01-11T02:43:40.598882561Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/pod-template-hash": "5c4f9c49cd",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-khw2",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/app_kubernetes_io/name": "cromwell"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-11T02:43:45.041569324Z"
+  },
+  {
+    "insertId": "jqzhlphajtqjz554",
+    "jsonPayload": {
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-233",
+      "localTimestamp": "2022-01-11 02:43:08,012",
+      "message": "Beginning IoActor backpressure for 32.56 seconds"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "cluster_name": "terra-alpha",
+        "location": "us-central1-a",
+        "pod_name": "cromwell1-runner-5c4f9c49cd-prs67",
+        "namespace_name": "terra-alpha",
+        "container_name": "cromwell1-runner-app",
+        "project_id": "broad-dsde-alpha"
+      }
+    },
+    "timestamp": "2022-01-11T02:43:08.013133481Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/pod-template-hash": "5c4f9c49cd",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-khw2",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/app_kubernetes_io/part-of": "terra"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-11T02:43:10.045131471Z"
+  },
+  {
+    "insertId": "h4eyi9ut12tr1zoj",
+    "jsonPayload": {
+      "message": "IoActor backpressure off",
+      "localTimestamp": "2022-01-10 08:01:16,388",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-16"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "pod_name": "cromwell1-runner-5c4f9c49cd-tcfrr",
+        "namespace_name": "terra-alpha",
+        "container_name": "cromwell1-runner-app",
+        "project_id": "broad-dsde-alpha",
+        "cluster_name": "terra-alpha",
+        "location": "us-central1-a"
+      }
+    },
+    "timestamp": "2022-01-10T08:01:16.389082718Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/pod-template-hash": "5c4f9c49cd",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-8vgj",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/app_kubernetes_io/part-of": "terra"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-10T08:01:20.572532753Z"
+  },
+  {
+    "insertId": "xo9wueok4wnstx6q",
+    "jsonPayload": {
+      "localTimestamp": "2022-01-10 08:00:39,672",
+      "sourceThread": "cromwell-system-akka.dispatchers.io-dispatcher-211",
+      "message": "Beginning IoActor backpressure for 36.70 seconds"
+    },
+    "resource": {
+      "type": "k8s_container",
+      "labels": {
+        "pod_name": "cromwell1-runner-5c4f9c49cd-tcfrr",
+        "project_id": "broad-dsde-alpha",
+        "namespace_name": "terra-alpha",
+        "cluster_name": "terra-alpha",
+        "location": "us-central1-a",
+        "container_name": "cromwell1-runner-app"
+      }
+    },
+    "timestamp": "2022-01-10T08:00:39.672924004Z",
+    "severity": "INFO",
+    "labels": {
+      "k8s-pod/app_kubernetes_io/managed-by": "Helm",
+      "k8s-pod/deployment": "cromwell1-runner",
+      "k8s-pod/app_kubernetes_io/part-of": "terra",
+      "k8s-pod/app_kubernetes_io/instance": "cromwell",
+      "k8s-pod/pod-template-hash": "5c4f9c49cd",
+      "k8s-pod/helm_sh/chart": "cromwell-0.26.0",
+      "k8s-pod/app_kubernetes_io/component": "cromwell",
+      "k8s-pod/app_kubernetes_io/name": "cromwell",
+      "compute.googleapis.com/resource_name": "gke-terra-alpha-cromwell-v3-5142b1df-8vgj"
+    },
+    "logName": "projects/broad-dsde-alpha/logs/stdout",
+    "receiveTimestamp": "2022-01-10T08:00:40.585240843Z"
+  }
+]

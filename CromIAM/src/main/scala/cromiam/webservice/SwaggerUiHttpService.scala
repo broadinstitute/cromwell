@@ -6,9 +6,7 @@ import akka.http.scaladsl.server._
 import akka.stream.Materializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
-import com.typesafe.config.Config
 import cromiam.server.config.SwaggerOauthConfig
-import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -125,24 +123,6 @@ trait SwaggerUiHttpService extends Directives {
 
   /** Rewrite the swagger index.html. Default passes through the origin data. */
   protected def rewriteSwaggerIndex(data: String): String = data
-}
-
-/**
- * Extends the SwaggerUiHttpService to gets UI configuration values from a provided Typesafe Config.
- */
-trait SwaggerUiConfigHttpService extends SwaggerUiHttpService {
-  /**
-   * @return The swagger UI config.
-   */
-  def swaggerUiConfig: Config
-
-  override def swaggerUiVersion = swaggerUiConfig.getString("uiVersion")
-
-  abstract override def swaggerUiBaseUrl = swaggerUiConfig.as[Option[String]]("baseUrl").getOrElse(super.swaggerUiBaseUrl)
-
-  abstract override def swaggerUiPath = swaggerUiConfig.as[Option[String]]("uiPath").getOrElse(super.swaggerUiPath)
-
-  abstract override def swaggerUiDocsPath = swaggerUiConfig.as[Option[String]]("docsPath").getOrElse(super.swaggerUiDocsPath)
 }
 
 /**

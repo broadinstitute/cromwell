@@ -9,6 +9,7 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import wom.RuntimeAttributesKeys
 import wom.format.MemorySize
+import wom.types.WomStringType
 import wom.values._
 
 case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
@@ -60,7 +61,12 @@ object TesRuntimeAttributes {
     if (config.useBackendParameters)
       runtimeAttributes
         .filterKeys(k => !keysToExclude.contains(k))
-        .collect { case (key, WomString(s)) => (key, Option(s))}
+        .flatMap( _ match {
+          case (key, WomString(s)) => Option((key, Option(s)))
+          case (key, WomOptionalValue(WomStringType, Some(WomString(optS)))) => Option((key, Option(optS)))
+          case (key, WomOptionalValue(WomStringType, None)) => Option((key, None))
+          case _ => None
+        })
     else
       Map.empty
   }

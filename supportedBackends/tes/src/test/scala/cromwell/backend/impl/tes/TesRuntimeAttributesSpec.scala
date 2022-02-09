@@ -171,6 +171,18 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
     }
   }
 
+  "turn populated optional unknown string attributes into backend parameters" in {
+    val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "foo" -> WomOptionalValue(WomString("bar")))
+    val expectedRuntimeAttributes = expectedDefaults.copy(backendParameters = Map("foo" -> Some("bar")))
+    assertSuccess(runtimeAttributes, expectedRuntimeAttributes, tesConfig = mockTesConfigWithBackendParams)
+  }
+
+  "turn unpopulated optional unknown string attributes into backend parameters" in {
+    val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "foo" -> WomOptionalValue.none(WomStringType))
+    val expectedRuntimeAttributes = expectedDefaults.copy(backendParameters = Map("foo" -> None))
+    assertSuccess(runtimeAttributes, expectedRuntimeAttributes, tesConfig = mockTesConfigWithBackendParams)
+  }
+
   private val mockConfigurationDescriptor = BackendConfigurationDescriptor(TesTestConfig.backendConfig, TestConfig.globalConfig)
   private val mockTesConfiguration = new TesConfiguration(mockConfigurationDescriptor)
   private val mockTesConfigWithBackendParams = new TesConfiguration(

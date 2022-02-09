@@ -75,7 +75,7 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "preemptible" -> WomString("yes"))
       assertFailure(runtimeAttributes, "Expecting preemptible runtime attribute to be a Boolean or a String with values of 'true' or 'false'")
     }
-    
+
     "validate a valid continueOnReturnCode entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomInteger(1))
       val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1)))
@@ -169,18 +169,19 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
       val expectedRuntimeAttributes = expectedDefaults.copy(backendParameters = Map("bar" -> Option("baz")))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes, tesConfig = mockTesConfigWithBackendParams)
     }
-  }
 
-  "turn populated optional unknown string attributes into backend parameters" in {
-    val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "foo" -> WomOptionalValue(WomString("bar")))
-    val expectedRuntimeAttributes = expectedDefaults.copy(backendParameters = Map("foo" -> Some("bar")))
-    assertSuccess(runtimeAttributes, expectedRuntimeAttributes, tesConfig = mockTesConfigWithBackendParams)
-  }
 
-  "turn unpopulated optional unknown string attributes into backend parameters" in {
-    val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "foo" -> WomOptionalValue.none(WomStringType))
-    val expectedRuntimeAttributes = expectedDefaults.copy(backendParameters = Map("foo" -> None))
-    assertSuccess(runtimeAttributes, expectedRuntimeAttributes, tesConfig = mockTesConfigWithBackendParams)
+    "turn populated optional unknown string attributes into backend parameters" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "foo" -> WomOptionalValue(WomString("bar")))
+      val expectedRuntimeAttributes = expectedDefaults.copy(backendParameters = Map("foo" -> Some("bar")))
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes, tesConfig = mockTesConfigWithBackendParams)
+    }
+
+    "turn unpopulated optional unknown string attributes into backend parameters" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "foo" -> WomOptionalValue.none(WomStringType))
+      val expectedRuntimeAttributes = expectedDefaults.copy(backendParameters = Map("foo" -> None))
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes, tesConfig = mockTesConfigWithBackendParams)
+    }
   }
 
   private val mockConfigurationDescriptor = BackendConfigurationDescriptor(TesTestConfig.backendConfig, TestConfig.globalConfig)

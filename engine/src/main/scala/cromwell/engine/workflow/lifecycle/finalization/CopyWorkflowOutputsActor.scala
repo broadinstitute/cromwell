@@ -79,8 +79,8 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
           false
         }
         catch {
-          case _: java.nio.file.FileSystemException =>
-            log.error(s"Could not hardlink $src to $dest. Trying copying instead.")
+          case error: java.nio.file.FileSystemException =>
+            log.error(s"Could not hardlink $src to $dest. Error: ${error.toString}. Trying copying instead.")
             true
         }
       }

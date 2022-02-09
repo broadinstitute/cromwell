@@ -59,7 +59,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     )
   )
 
-  val includedGroupSourceFilesCollection = NonEmptyList.of(
+  val includedGroupSourceFilesCollection1 = NonEmptyList.of(
     WorkflowSourceFilesCollection(
       Option("sample"),
       None,
@@ -68,6 +68,40 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
       None,
       "input",
       WorkflowOptions(JsObject(Map("hogGroup" -> JsString("Goldfinger")))),
+      "string",
+      None,
+      workflowOnHold = false,
+      Seq.empty,
+      None
+    )
+  )
+
+  val includedGroupSourceFilesCollection2 = NonEmptyList.of(
+    WorkflowSourceFilesCollection(
+      Option("sample"),
+      None,
+      None,
+      None,
+      None,
+      "input",
+      WorkflowOptions(JsObject(Map("hogGroup" -> JsString("Highlander")))),
+      "string",
+      None,
+      workflowOnHold = false,
+      Seq.empty,
+      None
+    )
+  )
+
+  val includedGroupSourceFilesCollection3 = NonEmptyList.of(
+    WorkflowSourceFilesCollection(
+      Option("sample"),
+      None,
+      None,
+      None,
+      None,
+      "input",
+      WorkflowOptions(JsObject(Map("hogGroup" -> JsString("Finding Forrester")))),
       "string",
       None,
       workflowOnHold = false,
@@ -213,12 +247,19 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     it should "select appropriately with the excludedGroups parameter" taggedAs DbmsTest in {
       (for {
         submissionResponsesExcluded <- workflowStore.add(excludedGroupSourceFilesCollection)
-        submissionResponsesIncluded <- workflowStore.add(includedGroupSourceFilesCollection)
-        startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A08", 1.second, excludedGroups = Set("Zardoz"))
+        submissionResponsesIncluded1 <- workflowStore.add(includedGroupSourceFilesCollection1)
+        submissionResponsesIncluded2 <- workflowStore.add(includedGroupSourceFilesCollection2)
+        submissionResponsesIncluded3 <- workflowStore.add(includedGroupSourceFilesCollection3)
+        startableWorkflows <- workflowStore.fetchStartableWorkflows(3, "A08", 1.second, excludedGroups = Set("Zardoz"))
         _ = startableWorkflows.map(_.id).intersect(submissionResponsesExcluded.map(_.id).toList).size should be(0)
-        _ = startableWorkflows.map(_.id).intersect(submissionResponsesIncluded.map(_.id).toList).size should be(1)
+        _ = startableWorkflows.map(_.id).intersect(submissionResponsesIncluded1.map(_.id).toList).size should be(1)
+        _ = startableWorkflows.map(_.id).intersect(submissionResponsesIncluded2.map(_.id).toList).size should be(1)
+        _ = startableWorkflows.map(_.id).intersect(submissionResponsesIncluded3.map(_.id).toList).size should be(1)
+        _ = startableWorkflows.map(_.id).size should be(3)
         _ <- workflowStore.deleteFromStore(submissionResponsesExcluded.head.id) // Tidy up
-        _ <- workflowStore.deleteFromStore(submissionResponsesIncluded.head.id) // Tidy up
+        _ <- workflowStore.deleteFromStore(submissionResponsesIncluded1.head.id) // Tidy up
+        _ <- workflowStore.deleteFromStore(submissionResponsesIncluded2.head.id) // Tidy up
+        _ <- workflowStore.deleteFromStore(submissionResponsesIncluded3.head.id) // Tidy up
       } yield ()).futureValue
     }
 

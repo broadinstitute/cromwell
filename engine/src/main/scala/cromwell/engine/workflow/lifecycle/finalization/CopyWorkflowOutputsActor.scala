@@ -72,6 +72,9 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
     val outputPaths = if (hardlinkOutputs) {
       outputFilePaths filter {
         case (src, dest) =>  try {
+          if(!dest.parent.exists()){
+            dest.parent.createDirectories()
+          }
           Files.createLink(src.nioPath, dest.nioPath)
           false
         }

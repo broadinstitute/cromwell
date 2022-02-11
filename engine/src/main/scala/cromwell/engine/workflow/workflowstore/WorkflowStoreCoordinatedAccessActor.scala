@@ -33,8 +33,8 @@ class WorkflowStoreCoordinatedAccessActor(workflowStore: WorkflowStore) extends 
   override def receive: Receive = {
     case WriteHeartbeats(ids, heartbeatDateTime) =>
       workflowStore.writeWorkflowHeartbeats(ids.toVector.toSet, heartbeatDateTime) |> run
-    case FetchStartableWorkflows(count, cromwellId, heartbeatTtl) =>
-      workflowStore.fetchStartableWorkflows(count, cromwellId, heartbeatTtl) |> run
+    case FetchStartableWorkflows(count, cromwellId, heartbeatTtl, excludedGroups) =>
+      workflowStore.fetchStartableWorkflows(count, cromwellId, heartbeatTtl, excludedGroups) |> run
     case DeleteFromStore(workflowId) =>
       workflowStore.deleteFromStore(workflowId) |> run
     case Abort(workflowId) =>
@@ -45,7 +45,7 @@ class WorkflowStoreCoordinatedAccessActor(workflowStore: WorkflowStore) extends 
 object WorkflowStoreCoordinatedAccessActor {
   final case class WriteHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)],
                                    heartbeatDateTime: OffsetDateTime)
-  final case class FetchStartableWorkflows(count: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
+  final case class FetchStartableWorkflows(count: Int, cromwellId: String, heartbeatTtl: FiniteDuration, excludedGroups: Set[String])
   final case class DeleteFromStore(workflowId: WorkflowId)
   final case class Abort(workflowId: WorkflowId)
 

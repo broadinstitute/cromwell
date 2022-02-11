@@ -75,11 +75,11 @@ trait WorkflowStoreEntryComponent {
   /**
     * Returns up to "limit" startable workflows, sorted by submission time.
     */
-  val fetchStartableWorkflows = Compiled(
-    (limit: ConstColumn[Long],
-     heartbeatTimestampTimedOut: ConstColumn[Timestamp],
-     excludeWorkflowState: Rep[String]
-    ) => {
+  def fetchStartableWorkflows(limit: Long,
+     heartbeatTimestampTimedOut: Timestamp,
+     excludeWorkflowState: String,
+     excludedGroups: Set[String]
+    ): Query[WorkflowStoreEntries, WorkflowStoreEntry, Seq] = {
       val query = for {
         row <- workflowStoreEntries
         /*
@@ -93,11 +93,11 @@ trait WorkflowStoreEntryComponent {
         transaction that we know will impact those readers.
          */
         if (row.heartbeatTimestamp.isEmpty || row.heartbeatTimestamp < heartbeatTimestampTimedOut) &&
-          (row.workflowState =!= excludeWorkflowState)
+          (row.workflowState =!= excludeWorkflowState) &&
+          !(row.hogGroup inSet excludedGroups)
       } yield row
       query.forUpdate.sortBy(_.submissionTime.asc).take(limit)
     }
-  )
 
   /**
     * Useful for counting workflows in a given state.

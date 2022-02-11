@@ -1,7 +1,6 @@
 package cromwell.engine.workflow.workflowstore
 
 import java.time.OffsetDateTime
-
 import cats.data.NonEmptyList
 import cromwell.core.{HogGroup, WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreAbortResponse.WorkflowStoreAbortResponse
@@ -32,7 +31,10 @@ class InMemoryWorkflowStore extends WorkflowStore {
     * Retrieves up to n workflows which have not already been pulled into the engine and sets their pickedUp
     * flag to true
     */
-  override def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
+  override def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration, excludedGroups: Set[String])(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
+    if (excludedGroups.nonEmpty)
+      throw new UnsupportedOperationException("Programmer Error: group filtering not supported for single-tenant/in-memory workflow store")
+
     val startableWorkflows = workflowStore filter { _._2 == WorkflowStoreState.Submitted } take n
     val updatedWorkflows = startableWorkflows map { _._1 -> WorkflowStoreState.Running }
     workflowStore = workflowStore ++ updatedWorkflows

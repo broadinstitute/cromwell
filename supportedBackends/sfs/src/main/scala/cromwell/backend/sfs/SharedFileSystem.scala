@@ -215,7 +215,8 @@ trait SharedFileSystem extends PathFactory {
     // If localizing for a docker job, remove soft-link as an option
     // If no cachedCopyDir is defined, cached-copy can not be used and is removed.
     val filteredConfigStrategies = configStrategies filter {
-      case "soft-link" if docker => false
+      // amcpherson: this case prevents the user of soft-links with singularity running docker containers
+      // case "soft-link" if docker => false
       case "cached-copy" if cachedCopyDir.isEmpty => false
       case _ => true
     }

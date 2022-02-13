@@ -8,5 +8,5 @@ files {
 }
 
 metadata {
-  workflowName: directory_type
+  workflowName: main
 }

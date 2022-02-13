@@ -1,0 +1,12 @@
+name: directory_type_output_local
+testFormat: workflowsuccess
+tags: ["wdl_biscayne"]
+backends: [Local]
+
+files {
+  workflow: wdl_biscayne/directory_type_output/directory_type_output.wdl
+}
+
+metadata {
+  workflowName: directory_type
+}

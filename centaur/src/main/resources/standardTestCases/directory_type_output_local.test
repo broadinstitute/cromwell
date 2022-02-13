@@ -4,7 +4,9 @@ tags: ["wdl_biscayne"]
 backends: [Local]
 
 files {
-  workflow: wdl_biscayne/directory_type_output/directory_type_output.wdl
+  # Run with a version of the WDL that forces the Local backend as otherwise TES picks this up
+  # and fails (not sure why TES picks it up or fails).
+  workflow: wdl_biscayne/directory_type_output/directory_type_output_local.wdl
 }
 
 metadata {

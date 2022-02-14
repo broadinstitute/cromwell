@@ -4,7 +4,6 @@ import akka.http.scaladsl.model.headers.Location
 import akka.http.scaladsl.model.{ContentTypes, StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import com.typesafe.config.ConfigFactory
 import common.assertion.CromwellTimeoutSpec
 import cromiam.server.config.SwaggerOauthConfig
 import cromiam.webservice.SwaggerUiHttpServiceSpec._
@@ -109,56 +108,6 @@ class NoRedirectRootSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
   it should "return index.html from the swagger-ui jar" in {
     Get("/swagger/index.html") ~> swaggerUiRoute ~> check {
       status should be(StatusCodes.OK)
-      contentType should be(ContentTypes.`text/html(UTF-8)`)
-    }
-  }
-}
-
-class DefaultSwaggerUiConfigHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerUiConfigHttpService {
-  override def swaggerUiConfig = ConfigFactory.parseString(s"uiVersion = $TestSwaggerUiVersion")
-
-  behavior of "SwaggerUiConfigHttpService"
-
-  it should "redirect /swagger to the index.html" in {
-    Get("/swagger") ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.TemporaryRedirect)
-      header("Location") should be(Option(Location(Uri("/swagger/index.html?url=/api-docs"))))
-      contentType should be(ContentTypes.`text/html(UTF-8)`)
-    }
-  }
-
-  it should "return index.html from the swagger-ui jar" in {
-    Get("/swagger/index.html") ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.OK)
-      responseAs[String].take(SwaggerIndexPreamble.length) should be(SwaggerIndexPreamble)
-      contentType should be(ContentTypes.`text/html(UTF-8)`)
-    }
-  }
-}
-
-class OverriddenSwaggerUiConfigHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerUiConfigHttpService {
-  override def swaggerUiConfig = ConfigFactory.parseString(
-    s"""
-       |baseUrl = /base
-       |docsPath = swagger/cromiam.yaml
-       |uiPath = ui/path
-       |uiVersion = $TestSwaggerUiVersion
-     """.stripMargin)
-
-  behavior of "SwaggerUiConfigHttpService"
-
-  it should "redirect /ui/path to the index.html under /base" in {
-    Get("/ui/path") ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.TemporaryRedirect)
-      header("Location") should be(Option(Location(Uri("/base/ui/path/index.html?url=/base/swagger/cromiam.yaml"))))
-      contentType should be(ContentTypes.`text/html(UTF-8)`)
-    }
-  }
-
-  it should "return index.html from the swagger-ui jar" in {
-    Get("/ui/path/index.html") ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.OK)
-      responseAs[String].take(SwaggerIndexPreamble.length) should be(SwaggerIndexPreamble)
       contentType should be(ContentTypes.`text/html(UTF-8)`)
     }
   }

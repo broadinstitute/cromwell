@@ -238,7 +238,7 @@ object TesTask {
         .workflowOptions
         .get(TesWorkflowOptionKeys.WorkflowExecutionIdentity)
         .toOption
-        .map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> _)
+        .map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option(_))
         .toMap
 
     val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
@@ -298,7 +298,7 @@ final case class Resources(cpu_cores: Option[Int],
                            disk_gb: Option[Double],
                            preemptible: Option[Boolean],
                            zones: Option[Seq[String]],
-                           backend_parameters: Option[Map[String, String]])
+                           backend_parameters: Option[Map[String, Option[String]]])
 
 final case class OutputFileLog(url: String,
                                path: String,

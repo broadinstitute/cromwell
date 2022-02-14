@@ -4,13 +4,12 @@ import akka.http.scaladsl.model.headers.Location
 import akka.http.scaladsl.model.{StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
-import com.typesafe.config.ConfigFactory
 import common.assertion.CromwellTimeoutSpec
-import cromwell.webservice.SwaggerUiHttpServiceSpec._
 import cromwell.webservice.routes.CromwellApiService
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
+
 import scala.concurrent.duration._
 
 trait SwaggerUiHttpServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest with SwaggerUiHttpService {
@@ -117,51 +116,6 @@ class NoRedirectRootSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
   it should "return index.html from the swagger-ui jar" in {
     Get("/swagger/index.html") ~> swaggerUiRoute ~> check {
       status should be(StatusCodes.OK)
-    }
-  }
-}
-
-class DefaultSwaggerUiConfigHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerUiConfigHttpService {
-  override def swaggerUiConfig = ConfigFactory.parseString(s"uiVersion = ${CromwellApiService.swaggerUiVersion}")
-
-  behavior of "SwaggerUiConfigHttpService"
-
-  it should "redirect /swagger to the index.html" in {
-    Get("/swagger") ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.TemporaryRedirect)
-      header("Location") should be(Option(Location(Uri("/swagger/index.html?url=/api-docs"))))
-    }
-  }
-
-  it should "return index.html from the swagger-ui jar" in {
-    Get("/swagger/index.html") ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.OK)
-      responseAs[String].splitAt(51)._2.take(SwaggerIndexPreamble.length) should be(SwaggerIndexPreamble)
-    }
-  }
-}
-
-class OverriddenSwaggerUiConfigHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerUiConfigHttpService {
-  override def swaggerUiConfig = ConfigFactory.parseString(
-    s"""|baseUrl = /base
-        |docsPath = swagger/common.yaml
-        |uiPath = ui/path
-        |uiVersion = ${CromwellApiService.swaggerUiVersion}
-        |""".stripMargin)
-
-  behavior of "SwaggerUiConfigHttpService"
-
-  it should "redirect /ui/path to the index.html under /base" in {
-    Get("/ui/path") ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.TemporaryRedirect)
-      header("Location") should be(Option(Location(Uri("/base/ui/path/index.html?url=/base/swagger/common.yaml"))))
-    }
-  }
-
-  it should "return index.html from the swagger-ui jar" in {
-    Get("/ui/path/index.html") ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.OK)
-      responseAs[String].splitAt(51)._2.take(SwaggerIndexPreamble.length) should be(SwaggerIndexPreamble)
     }
   }
 }

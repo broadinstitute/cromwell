@@ -1,10 +1,8 @@
 package cromwell.webservice
 
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
-import akka.http.scaladsl.server.Route
-import com.typesafe.config.Config
-import net.ceedubs.ficus.Ficus._
 import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.Route
 import akka.stream.scaladsl.Flow
 import akka.util.ByteString
 
@@ -70,24 +68,6 @@ trait SwaggerUiHttpService {
     if (swaggerUiFromRoot) route ~ routeFromRoot else route
   }
 
-}
-
-/**
- * Extends the SwaggerUiHttpService to gets UI configuration values from a provided Typesafe Config.
- */
-trait SwaggerUiConfigHttpService extends SwaggerUiHttpService {
-  /**
-   * @return The swagger UI config.
-   */
-  def swaggerUiConfig: Config
-
-  override def swaggerUiVersion = swaggerUiConfig.getString("uiVersion")
-
-  abstract override def swaggerUiBaseUrl = swaggerUiConfig.as[Option[String]]("baseUrl").getOrElse(super.swaggerUiBaseUrl)
-
-  abstract override def swaggerUiPath = swaggerUiConfig.as[Option[String]]("uiPath").getOrElse(super.swaggerUiPath)
-
-  abstract override def swaggerUiDocsPath = swaggerUiConfig.as[Option[String]]("docsPath").getOrElse(super.swaggerUiDocsPath)
 }
 
 /**

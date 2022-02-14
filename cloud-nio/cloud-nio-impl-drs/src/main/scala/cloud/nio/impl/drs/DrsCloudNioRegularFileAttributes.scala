@@ -29,7 +29,7 @@ class DrsCloudNioRegularFileAttributes(drsPath: String,
   override def lastModifiedTime(): FileTime = timeUpdatedOption.getOrElse(FileTime.fromMillis(0))
 }
 
-case class DrsHash(hash: String, hashType: String)
+case class DrsHash(hashType: String, hash: String)
 
 object DrsCloudNioRegularFileAttributes {
   private val priorityHashList: Seq[String] = Seq("crc32c", "md5", "sha256")
@@ -38,13 +38,13 @@ object DrsCloudNioRegularFileAttributes {
     hashesOption match {
       case Some(hashes) if hashes.nonEmpty =>
         val drsHash: Option[DrsHash] = priorityHashList collectFirst {
-          case hashKey if hashes.contains(hashKey) => DrsHash(hashes(hashKey), hashKey)
+          case hashKey if hashes.contains(hashKey) => DrsHash(hashKey, hashes(hashKey))
         }
 
         // if no preferred hash was found, sort the hashes alphabetically by type and take the first one
         drsHash.orElse(Option(
           hashes.keys.min match {
-            case hashKey => DrsHash(hashes(hashKey), hashKey)
+            case hashKey => DrsHash(hashKey, hashes(hashKey))
           }
         ))
       case _ => None

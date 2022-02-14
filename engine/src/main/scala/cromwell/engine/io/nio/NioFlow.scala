@@ -3,6 +3,7 @@ package cromwell.engine.io.nio
 import akka.stream.scaladsl.Flow
 import cats.effect.{IO, Timer}
 import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
+import cloud.nio.spi.FileHash
 import com.typesafe.config.Config
 import common.util.IORetry
 import cromwell.core.io._
@@ -120,7 +121,7 @@ class NioFlow(parallelism: Int,
   private def hash(hash: IoHashCommand): IO[String] = {
     hash.file match {
       case gcsPath: GcsPath => IO.fromTry { gcsPath.objectBlobId.map(gcsPath.cloudStorage.get(_).getCrc32c) }
-      case drsPath: DrsPath => getFileHashForDrsPath(drsPath)
+      case drsPath: DrsPath => getFileHashForDrsPath(drsPath).map(_.hash)
       case s3Path: S3Path => IO { s3Path.eTag }
       case ossPath: OssPath => IO { ossPath.eTag}
       case path =>
@@ -152,7 +153,7 @@ class NioFlow(parallelism: Int,
 
   private def createDirectories(path: Path) = path.parent.createDirectories()
 
-  private def getFileHashForDrsPath(drsPath: DrsPath): IO[String] = {
+  private def getFileHashForDrsPath(drsPath: DrsPath): IO[FileHash] = {
     val drsFileSystemProvider = drsPath.drsPath.getFileSystem.provider.asInstanceOf[DrsCloudNioFileSystemProvider]
 
     //Since this does not actually do any IO work it is not wrapped in IO

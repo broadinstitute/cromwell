@@ -5,12 +5,14 @@ import java.nio.file.attribute.{BasicFileAttributes, FileTime}
 import cloud.nio.spi.CloudNioFileAttributes._
 
 trait CloudNioFileAttributes extends BasicFileAttributes {
-  def fileHash: Option[String]
+  def fileHash: Option[FileHash]
 }
 
 object CloudNioFileAttributes {
   val FileTimeZero: FileTime = FileTime.fromMillis(0)
 }
+
+case class FileHash(hashType: String, hash: String)
 
 trait CloudNioRegularFileAttributes extends CloudNioFileAttributes {
   override def lastAccessTime(): FileTime = FileTimeZero
@@ -45,5 +47,5 @@ final case class CloudNioDirectoryAttributes(path: CloudNioPath) extends CloudNi
 
   override val fileKey: AnyRef = path
 
-  override val fileHash: Option[String] = None
+  override val fileHash: Option[FileHash] = None
 }

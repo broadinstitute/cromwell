@@ -3,6 +3,7 @@ package cloud.nio.impl.drs
 import cats.data.NonEmptyList
 import cats.effect.IO
 import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
+import cloud.nio.spi.FileHash
 import com.typesafe.config.ConfigFactory
 import common.assertion.CromwellTimeoutSpec
 import org.apache.commons.compress.utils.SeekableInMemoryByteChannel
@@ -153,7 +154,7 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
     drsFileAttributes.creationTime().toMillis should be(123L)
     drsFileAttributes.lastModifiedTime().toMillis should be(456L)
     drsFileAttributes.size() should be(789L)
-    drsFileAttributes.fileHash should be(Option("gg0217869"))
+    drsFileAttributes.fileHash should be(Option(FileHash("rot13", "gg0217869")))
   }
 
   it should "throw exceptions for unsupported methods" in {

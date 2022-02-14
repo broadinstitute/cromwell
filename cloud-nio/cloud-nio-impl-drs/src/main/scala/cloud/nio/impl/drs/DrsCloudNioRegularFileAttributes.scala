@@ -3,15 +3,12 @@ package cloud.nio.impl.drs
 import java.nio.file.attribute.FileTime
 import java.time.{LocalDateTime, OffsetDateTime, ZoneOffset}
 import cats.effect.IO
-import cloud.nio.spi.CloudNioRegularFileAttributes
+import cloud.nio.spi.{CloudNioRegularFileAttributes, FileHash}
 import org.apache.commons.lang3.exception.ExceptionUtils
-
-//import java.io
 
 class DrsCloudNioRegularFileAttributes(drsPath: String,
                                        sizeOption: Option[Long],
-                                       hashOption: Option[String],
-//                                       hashTypeOption: Option[String],
+                                       hashOption: Option[FileHash],
                                        timeCreatedOption: Option[FileTime],
                                        timeUpdatedOption: Option[FileTime],
                                       ) extends CloudNioRegularFileAttributes{
@@ -20,7 +17,7 @@ class DrsCloudNioRegularFileAttributes(drsPath: String,
 
   override def size(): Long = sizeOption.getOrElse(0)
 
-  override def fileHash: Option[String] = hashOption
+  override def fileHash: Option[FileHash] = hashOption
 
 //  override def hashType: Option[String] = hashTypeOption
 
@@ -29,22 +26,20 @@ class DrsCloudNioRegularFileAttributes(drsPath: String,
   override def lastModifiedTime(): FileTime = timeUpdatedOption.getOrElse(FileTime.fromMillis(0))
 }
 
-case class DrsHash(hashType: String, hash: String)
-
 object DrsCloudNioRegularFileAttributes {
   private val priorityHashList: Seq[String] = Seq("crc32c", "md5", "sha256")
 
-  def getPreferredHash(hashesOption: Option[Map[String, String]]): Option[DrsHash] = {
+  def getPreferredHash(hashesOption: Option[Map[String, String]]): Option[FileHash] = {
     hashesOption match {
       case Some(hashes) if hashes.nonEmpty =>
-        val drsHash: Option[DrsHash] = priorityHashList collectFirst {
-          case hashKey if hashes.contains(hashKey) => DrsHash(hashKey, hashes(hashKey))
+        val drsHash: Option[FileHash] = priorityHashList collectFirst {
+          case hashKey if hashes.contains(hashKey) => FileHash(hashKey, hashes(hashKey))
         }
 
         // if no preferred hash was found, sort the hashes alphabetically by type and take the first one
         drsHash.orElse(Option(
           hashes.keys.min match {
-            case hashKey => DrsHash(hashKey, hashes(hashKey))
+            case hashKey => FileHash(hashKey, hashes(hashKey))
           }
         ))
       case _ => None

@@ -4,6 +4,7 @@ import java.nio.file.attribute.FileTime
 import java.time.OffsetDateTime
 
 import cloud.nio.impl.drs.DrsCloudNioRegularFileAttributes._
+import cloud.nio.spi.FileHash
 import common.assertion.CromwellTimeoutSpec
 import io.circe.{Json, JsonObject}
 import org.apache.http.ProtocolVersion
@@ -72,19 +73,19 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
   behavior of "fileHash()"
 
   it should "return crc32c hash from `hashes` in Martha response when there is a crc32c" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(completeHashesMap) shouldBe Option(DrsHash("crc32c", crcHashValue))
+    DrsCloudNioRegularFileAttributes.getPreferredHash(completeHashesMap) shouldBe Option(FileHash("crc32c", crcHashValue))
   }
 
   it should "return md5 hash from `hashes` in Martha response when there is no crc32c" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(missingCRCHashesMap) shouldBe Option(DrsHash("md5", md5HashValue))
+    DrsCloudNioRegularFileAttributes.getPreferredHash(missingCRCHashesMap) shouldBe Option(FileHash("md5", md5HashValue))
   }
 
   it should "return sha256 hash from `hashes` in Martha response when there is only a sha256" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(onlySHAHashesMap) shouldBe Option(DrsHash("sha256", shaHashValue))
+    DrsCloudNioRegularFileAttributes.getPreferredHash(onlySHAHashesMap) shouldBe Option(FileHash("sha256", shaHashValue))
   }
 
   it should "return first (alphabetized by type) hash from `hashes` in Martha response when there are no preferred hash types" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(noPreferredHashesMap) shouldBe Option(DrsHash("alfred", alfredHashValue))
+    DrsCloudNioRegularFileAttributes.getPreferredHash(noPreferredHashesMap) shouldBe Option(FileHash("alfred", alfredHashValue))
   }
 
   it should "return None when no hashes object is returned" in {

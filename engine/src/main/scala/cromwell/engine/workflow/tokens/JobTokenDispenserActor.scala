@@ -100,6 +100,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
       dispense(n)
     case Terminated(terminee) => onTerminate(terminee)
     case LogJobTokenAllocation(nextInterval) => logTokenAllocation(nextInterval)
+    case FetchLimitedGroups(maxNewWorkflows) => sender ! getTokenExhaustedGroups(maxNewWorkflows)
     case ShutdownCommand => context stop self
   }
 
@@ -208,6 +209,20 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
     context.system.scheduler.scheduleOnce(someInterval) { self ! LogJobTokenAllocation(someInterval) }(context.dispatcher)
     ()
   }
+
+  /*
+  This function is not backend-aware because:
+    (1) it is used for workflow pickup decisions, and the backend is not known at that time
+    (2) the modern purpose of tokens is to manage Cromwell capacity, not backend capacity,
+          so it's desirable that a group submitting to two or more backends pause workflow
+          pickup globally when it exhausts tokens in one of the backends
+   */
+  private def getTokenExhaustedGroups(maxNewWorkflows: Int): ReplyLimitedGroups = {
+    ReplyLimitedGroups(
+      tokenQueues.values.flatMap(_.eventLogger.getLimitedGroups).toSet,
+      maxNewWorkflows
+    )
+  }
 }
 
 object JobTokenDispenserActor {
@@ -222,6 +237,8 @@ object JobTokenDispenserActor {
   case object JobTokenReturn
   case object JobTokenDispensed
   final case class LogJobTokenAllocation(someInterval: FiniteDuration)
+  final case class FetchLimitedGroups(maxNewWorkflows: Int)
+  final case class ReplyLimitedGroups(groups: Set[String], maxNewWorkflows: Int)
 
   implicit val tokenEncoder = deriveEncoder[JobTokenType]
 

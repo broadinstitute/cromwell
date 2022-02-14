@@ -1,7 +1,6 @@
 package cromwell.engine.workflow
 
 import java.util.concurrent.atomic.AtomicInteger
-
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
@@ -16,6 +15,7 @@ import cromwell.engine.SubWorkflowStart
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
+import cromwell.engine.workflow.tokens.JobTokenDispenserActor.{FetchLimitedGroups, ReplyLimitedGroups}
 import cromwell.engine.workflow.workflowstore.{WorkflowHeartbeatConfig, WorkflowStoreActor, WorkflowStoreEngineActor}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
 import cromwell.webservice.EngineStatsActor
@@ -173,7 +173,10 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
         Determine the number of available workflow slots and request the smaller of that number and maxWorkflowsToLaunch.
        */
       val maxNewWorkflows = maxWorkflowsToLaunch min (maxWorkflowsRunning - stateData.workflows.size - stateData.subWorkflows.size)
-      params.workflowStore ! WorkflowStoreActor.FetchRunnableWorkflows(maxNewWorkflows, excludedGroups = Set.empty)
+      params.jobExecutionTokenDispenserActor ! FetchLimitedGroups(maxNewWorkflows)
+      stay()
+    case Event(ReplyLimitedGroups(groups, maxNewWorkflows), _) =>
+      params.workflowStore ! WorkflowStoreActor.FetchRunnableWorkflows(maxNewWorkflows, excludedGroups = groups)
       stay()
     case Event(WorkflowStoreEngineActor.NoNewWorkflowsToStart, _) =>
       log.debug("WorkflowStore provided no new workflows to start")

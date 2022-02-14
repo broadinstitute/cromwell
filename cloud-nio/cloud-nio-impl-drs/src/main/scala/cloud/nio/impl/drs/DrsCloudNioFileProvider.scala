@@ -71,7 +71,7 @@ class DrsCloudNioFileProvider(drsPathResolver: EngineDrsPathResolver,
       hashOption = getPreferredHash(marthaResponse.hashes)
       timeCreatedOption <- convertToFileTime(drsPath, MarthaField.TimeCreated, marthaResponse.timeCreated)
       timeUpdatedOption <- convertToFileTime(drsPath, MarthaField.TimeUpdated, marthaResponse.timeUpdated)
-    } yield new DrsCloudNioRegularFileAttributes(drsPath, sizeOption, hashOption, timeCreatedOption, timeUpdatedOption)
+    } yield new DrsCloudNioRegularFileAttributes(drsPath, sizeOption, hashOption.map(_.hash), timeCreatedOption, timeUpdatedOption)
 
     Option(fileAttributesIO.unsafeRunSync())
   }

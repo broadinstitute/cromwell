@@ -2,14 +2,16 @@ package cloud.nio.impl.drs
 
 import java.nio.file.attribute.FileTime
 import java.time.{LocalDateTime, OffsetDateTime, ZoneOffset}
-
 import cats.effect.IO
 import cloud.nio.spi.CloudNioRegularFileAttributes
 import org.apache.commons.lang3.exception.ExceptionUtils
 
+//import java.io
+
 class DrsCloudNioRegularFileAttributes(drsPath: String,
                                        sizeOption: Option[Long],
                                        hashOption: Option[String],
+//                                       hashTypeOption: Option[String],
                                        timeCreatedOption: Option[FileTime],
                                        timeUpdatedOption: Option[FileTime],
                                       ) extends CloudNioRegularFileAttributes{
@@ -20,31 +22,31 @@ class DrsCloudNioRegularFileAttributes(drsPath: String,
 
   override def fileHash: Option[String] = hashOption
 
+//  override def hashType: Option[String] = hashTypeOption
+
   override def creationTime(): FileTime = timeCreatedOption.getOrElse(lastModifiedTime())
 
   override def lastModifiedTime(): FileTime = timeUpdatedOption.getOrElse(FileTime.fromMillis(0))
 }
 
+case class DrsHash(hash: String, hashType: String)
+
 object DrsCloudNioRegularFileAttributes {
   private val priorityHashList: Seq[String] = Seq("crc32c", "md5", "sha256")
 
-  def getPreferredHash(hashesOption: Option[Map[String, String]]): Option[String] = {
+  def getPreferredHash(hashesOption: Option[Map[String, String]]): Option[DrsHash] = {
     hashesOption match {
       case Some(hashes) if hashes.nonEmpty =>
-        val preferredHash = priorityHashList collectFirst {
-          case hashKey if hashes.contains(hashKey) => hashes(hashKey)
+        val drsHash: Option[DrsHash] = priorityHashList collectFirst {
+          case hashKey if hashes.contains(hashKey) => DrsHash(hashes(hashKey), hashKey)
         }
 
         // if no preferred hash was found, sort the hashes alphabetically by type and take the first one
-        Option(
-          preferredHash.getOrElse(
-            hashes.toSeq minBy {
-              case (hashType, _) => hashType
-            } match {
-              case (_, hashValue) => hashValue
-            }
-          )
-        )
+        drsHash.orElse(Option(
+          hashes.keys.min match {
+            case hashKey => DrsHash(hashes(hashKey), hashKey)
+          }
+        ))
       case _ => None
     }
   }

@@ -72,19 +72,19 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
   behavior of "fileHash()"
 
   it should "return crc32c hash from `hashes` in Martha response when there is a crc32c" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(completeHashesMap) shouldBe Option(crcHashValue)
+    DrsCloudNioRegularFileAttributes.getPreferredHash(completeHashesMap) shouldBe Option(DrsHash(crcHashValue, "crc32c"))
   }
 
   it should "return md5 hash from `hashes` in Martha response when there is no crc32c" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(missingCRCHashesMap) shouldBe Option(md5HashValue)
+    DrsCloudNioRegularFileAttributes.getPreferredHash(missingCRCHashesMap) shouldBe Option(DrsHash(md5HashValue, "md5"))
   }
 
   it should "return sha256 hash from `hashes` in Martha response when there is only a sha256" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(onlySHAHashesMap) shouldBe Option(shaHashValue)
+    DrsCloudNioRegularFileAttributes.getPreferredHash(onlySHAHashesMap) shouldBe Option(DrsHash(shaHashValue, "sha256"))
   }
 
   it should "return first (alphabetized by type) hash from `hashes` in Martha response when there are no preferred hash types" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(noPreferredHashesMap) shouldBe Option(alfredHashValue)
+    DrsCloudNioRegularFileAttributes.getPreferredHash(noPreferredHashesMap) shouldBe Option(DrsHash(alfredHashValue, "alfred"))
   }
 
   it should "return None when no hashes object is returned" in {

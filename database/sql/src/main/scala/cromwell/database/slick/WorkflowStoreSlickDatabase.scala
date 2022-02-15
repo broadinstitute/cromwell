@@ -88,13 +88,23 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
       } yield ()
     }
 
+    def fetchAndUpdateStartableWfs(hogGroup: Option[String]) = {
+      for {
+        workflowStoreEntries <- dataAccess.fetchStartableWfsForHogGroup(
+          (limit.toLong, heartbeatTimestampTimedOut, workflowStateExcluded, hogGroup)
+        ).result
+        _ <- DBIO.sequence(
+          workflowStoreEntries map updateForFetched(cromwellId, heartbeatTimestampTo, workflowStateFrom, workflowStateTo)
+        )
+      } yield workflowStoreEntries
+    }
+
     val action = for {
-      workflowStoreEntries <- dataAccess.fetchStartableWorkflows(
-        limit.toLong, heartbeatTimestampTimedOut, workflowStateExcluded, excludedGroups
-      ).result
-      _ <- DBIO.sequence(
-        workflowStoreEntries map updateForFetched(cromwellId, heartbeatTimestampTo, workflowStateFrom, workflowStateTo)
-      )
+      hogGroupOption <- dataAccess.getHogGroupWithLowestRunningWfs(heartbeatTimestampTimedOut, workflowStateExcluded, excludedGroups).result.headOption
+      workflowStoreEntries <- hogGroupOption match {
+        case None => DBIO.successful(Seq.empty[WorkflowStoreEntry])
+        case Some(hogGroup) => fetchAndUpdateStartableWfs(hogGroup)
+      }
     } yield workflowStoreEntries
 
     // This should be safe because there are no repeated reads and the same rows are being locked for update as with

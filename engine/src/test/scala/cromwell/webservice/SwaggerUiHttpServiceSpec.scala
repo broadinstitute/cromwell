@@ -160,41 +160,6 @@ class JsonSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpServiceSpec 
   }
 }
 
-class NoOptionsSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpServiceSpec {
-  override def swaggerServiceName = "testservice"
-
-  override def swaggerAllOptionsOk = false
-
-  behavior of "SwaggerResourceHttpService"
-
-  it should "service swagger yaml" in {
-    Get("/swagger/testservice.yaml") ~> swaggerResourceRoute ~> check {
-      status should be(StatusCodes.OK)
-      responseAs[String] should startWith("swagger: '2.0'\n")
-    }
-  }
-
-  it should "not service swagger json" in {
-    Get("/swagger/testservice.json") ~> Route.seal(swaggerResourceRoute) ~> check {
-      status should be(StatusCodes.NotFound)
-    }
-  }
-
-  it should "not service /swagger" in {
-    Get("/swagger") ~> Route.seal(swaggerResourceRoute) ~> check {
-      status should be(StatusCodes.NotFound)
-    }
-  }
-
-  it should "not return options for all routes" in {
-    forAll(testPathsForOptions) { path =>
-      Options(path) ~> Route.seal(swaggerResourceRoute) ~> check {
-        status should be(StatusCodes.MethodNotAllowed)
-      }
-    }
-  }
-}
-
 class YamlSwaggerUiResourceHttpServiceSpec extends SwaggerUiResourceHttpServiceSpec {
   override def swaggerServiceName = "testservice"
 

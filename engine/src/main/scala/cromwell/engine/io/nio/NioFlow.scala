@@ -106,12 +106,26 @@ class NioFlow(parallelism: Int,
     ()
   }
 
-  private def readAsString(read: IoContentAsStringCommand) = IO {
-    new String(
-      read.file.limitFileContent(read.options.maxBytes, read.options.failOnOverflow),
-      StandardCharsets.UTF_8
-    )
-      .replaceAll("\\r\\n", "\\\n")
+  private def readAsString(read: IoContentAsStringCommand) = {
+    def readFile: IO[String] = IO {
+      new String(
+        read.file.limitFileContent(read.options.maxBytes, read.options.failOnOverflow),
+        StandardCharsets.UTF_8
+      )
+    }
+
+    val fileHash: Option[IO[FileHash]] = read.file match {
+      case drsPath: DrsPath =>
+        Option(getFileHashForDrsPath(drsPath))
+      case _ => None
+    }
+
+    val value: IO[String] = fileHash match {
+      case Some(_) => readFile
+      case None => readFile
+    }
+
+    value.map(_.replaceAll("\\r\\n", "\\\n"))
   }
 
   private def size(size: IoSizeCommand) = IO {

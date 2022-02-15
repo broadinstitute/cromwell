@@ -89,36 +89,6 @@ class OverrideBasePathSwaggerUiHttpServiceSpec extends SwaggerResourceHttpServic
   }
 }
 
-class NoRedirectRootSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
-  override def swaggerUiFromRoot = false
-
-  behavior of "SwaggerUiHttpService"
-
-  it should "not redirect / to /swagger" in {
-    Get() ~> Route.seal(swaggerUiRoute) ~> check {
-      status should be(StatusCodes.NotFound)
-    }
-  }
-
-  it should "not return options for /" in {
-    Options() ~> Route.seal(swaggerUiRoute) ~> check {
-      status should be(StatusCodes.MethodNotAllowed)
-    }
-  }
-
-  it should "redirect /swagger to the index.html" in {
-    Get("/swagger") ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.TemporaryRedirect)
-      header("Location") should be(Option(Location(Uri("/swagger/index.html?url=/api-docs"))))
-    }
-  }
-
-  it should "return index.html from the swagger-ui jar" in {
-    Get("/swagger/index.html") ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.OK)
-    }
-  }
-}
 
 class YamlSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpServiceSpec {
   override def swaggerServiceName = "testservice"

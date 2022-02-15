@@ -37,11 +37,6 @@ trait SwaggerUiHttpService {
    */
   def swaggerUiDocsPath: String = "api-docs"
 
-  /**
-   * @return When true, if someone requests / (or /baseUrl if setup), redirect to the swagger UI.
-   */
-  def swaggerUiFromRoot: Boolean = true
-
   private def routeFromRoot: Route = get {
     pathEndOrSingleSlash {
       // Redirect / to the swagger UI
@@ -65,7 +60,7 @@ trait SwaggerUiHttpService {
         } ~ getFromResourceDirectory(s"META-INF/resources/webjars/swagger-ui/$swaggerUiVersion")
       }
     }
-    if (swaggerUiFromRoot) route ~ routeFromRoot else route
+    route ~ routeFromRoot
   }
 
 }

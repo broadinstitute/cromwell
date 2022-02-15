@@ -81,109 +81,56 @@ trait WorkflowStoreEntryComponent {
     excludedGroups: Set[String]
   ): Query[WorkflowStoreEntries, WorkflowStoreEntry, Seq] = {
 
-      /* ----- USING LEFT OUTER JOIN AND JOIN APPROACH (marked 1 in SQL File 9)
-      val eligibleWorkflows = for {
-        row <- workflowStoreEntries
-        if (row.heartbeatTimestamp.isEmpty || row.heartbeatTimestamp < heartbeatTimestampTimedOut) &&
-          (row.workflowState =!= excludeWorkflowState)
-      } yield row
+    val startableWorkflows = for {
+      row <- workflowStoreEntries
+      /*
+        This looks for:
 
-      val hogGroupsRunningWf = for {
-        row <- workflowStoreEntries
-        if !row.heartbeatTimestamp.isEmpty && !(row.heartbeatTimestamp < heartbeatTimestampTimedOut) &&
-          (row.workflowState === "Running")
-      } yield row
-
-      val eligibleHogGroups: Query[(Rep[Option[String]], Rep[Int]), (Option[String], Int), Seq] = workflowStoreEntries
-        .joinLeft(hogGroupsRunningWf)
-        .on(_.workflowExecutionUuid === _.workflowExecutionUuid)
-        .groupBy(_._1.hogGroup)
-        .map {
-          case (name, groups) => (name, groups.length)
-        }
-        .sortBy(_._2.asc)
-
-      val workflowsMatchingHogGroups = for {
-        h <- eligibleHogGroups
-        w <- eligibleWorkflows if h._1 === w.hogGroup
-      } yield (w, h)
-
-      val workflowsToStart = workflowsMatchingHogGroups
-        .sortBy {
-          case (x, y) => (y._2.asc, y._1, x.submissionTime.asc)
-        }
-        .map(s => s._1)
-
-      workflowsToStart.forUpdate.take(limit)
-
+        1) Workflows with no heartbeat (newly submitted or from a cleanly shut down Cromwell).
+        2) Workflows with old heartbeats, presumably abandoned by a defunct Cromwell.
+        3) And excludes workflows that belong to excludedGroups
       */
+      if (row.heartbeatTimestamp.isEmpty || row.heartbeatTimestamp < heartbeatTimestampTimedOut) &&
+        (row.workflowState =!= excludeWorkflowState) &&
+        !(row.hogGroup inSet excludedGroups)
+    } yield row
 
-      val startableWorkflows = for {
-        row <- workflowStoreEntries
-        if (row.heartbeatTimestamp.isEmpty || row.heartbeatTimestamp < heartbeatTimestampTimedOut) &&
-          (row.workflowState =!= excludeWorkflowState) &&
-          !(row.hogGroup inSet excludedGroups)
-      } yield row
+    val numOfStartableWfsByHogGroup = startableWorkflows
+      .groupBy(_.hogGroup)
+      .map { case (hogGroupName, groups) => (hogGroupName, groups.length) }
+      .sortBy(_._2.asc)
 
-      val numOfStartableWfsByHogGroup = startableWorkflows
-        .groupBy(_.hogGroup)
-        .map {
-          case (hogGroupName, groups) => (hogGroupName, groups.length)
-        }
-        .sortBy(_._2.asc)
+    val totalWorkflows = for {
+      row <- workflowStoreEntries
+      if row.workflowState =!= excludeWorkflowState &&
+        !(row.hogGroup inSet excludedGroups)
+    } yield row
 
-      val totalWorkflows = for {
-        row <- workflowStoreEntries
-        if row.workflowState =!= excludeWorkflowState &&
-          !(row.hogGroup inSet excludedGroups)
-      } yield row
+    val totalWorkflowsByHogGroup = totalWorkflows
+      .groupBy(_.hogGroup)
+      .map { case (hogGroupName, groups) => (hogGroupName, groups.length) }
+      .sortBy(_._2.asc)
 
-      val totalWorkflowsByHogGroup = totalWorkflows
-        .groupBy(_.hogGroup)
-        .map {
-          case (hogGroupName, groups) => (hogGroupName, groups.length)
-        }
-        .sortBy(_._2.asc)
+    val wfsRunningPerHogGroup = for {
+      (t_group, t_ct) <- totalWorkflowsByHogGroup
+      (s_group, s_ct) <- numOfStartableWfsByHogGroup if t_group === s_group
+    } yield (t_group, t_ct - s_ct)
 
-      val wfsRunningPerHogGroup = for {
-        (t_group, t_ct) <- totalWorkflowsByHogGroup
-        (e_group, e_ct) <- numOfStartableWfsByHogGroup if t_group === e_group
-      } yield (t_group, t_ct - e_ct)
+    val workflowsMatchingHogGroups = for {
+      h <- wfsRunningPerHogGroup.sortBy(_._2.asc)
+      w <- startableWorkflows if h._1 === w.hogGroup
+    } yield (w, h)
 
-      val workflowsMatchingHogGroups = for {
-        h <- wfsRunningPerHogGroup.sortBy(_._2.asc)
-        w <- startableWorkflows if h._1 === w.hogGroup
-      } yield (w, h)
+    val workflowsToStart = workflowsMatchingHogGroups
+      .sortBy { case (wf, (hogGroup, wfRunningCt)) => (wfRunningCt.asc, hogGroup, wf.submissionTime.asc) }
+      .map { case (wf, _) => wf }
 
-      val workflowsToStart = workflowsMatchingHogGroups
-        .sortBy { case (wf, (hogGroup, wfRunningCt)) => (wfRunningCt.asc, hogGroup, wf.submissionTime.asc) }
-        .map { case (wf, _) => wf }
-
-      workflowsToStart.forUpdate.take(limit)
-
-
-      // -----------------
-
-//      val query = for {
-//        row <- workflowStoreEntries
-//        /*
-//        This looks for:
-//
-//        1) Workflows with no heartbeat (newly submitted or from a cleanly shut down Cromwell).
-//        2) Workflows with old heartbeats, presumably abandoned by a defunct Cromwell.
-//
-//        Workflows are taken by submission time, oldest first. This is a "query for update", meaning rows are
-//        locked such that readers are blocked since we will do an update subsequent to this select in the same
-//        transaction that we know will impact those readers.
-//         */
-//        if (row.heartbeatTimestamp.isEmpty || row.heartbeatTimestamp < heartbeatTimestampTimedOut) &&
-//          (row.workflowState =!= excludeWorkflowState)
-//      } yield row
-//
-//      query.forUpdate
-//        .sortBy(_.submissionTime.asc)
-//        .take(limit)
-    }
+    /*
+      This is a "query for update", meaning rows are locked such that readers are blocked since we will
+      do an update subsequent to this select in the same transaction that we know will impact those readers.
+     */
+    workflowsToStart.forUpdate.take(limit)
+  }
 
   /**
     * Useful for counting workflows in a given state.

@@ -13,13 +13,12 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.enablers.Emptiness._
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsString}
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future}
 
 class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
   implicit val ec = ExecutionContext.global
@@ -261,6 +260,108 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         _ <- workflowStore.deleteFromStore(submissionResponsesIncluded2.head.id) // Tidy up
         _ <- workflowStore.deleteFromStore(submissionResponsesIncluded3.head.id) // Tidy up
       } yield ()).futureValue
+    }
+
+    it should "select workflows from hog groups to start in round robin approach" taggedAs DbmsTest in {
+      // first submission of 50 workflows for hogGroup "Goldfinger"
+      for (_ <- 1 to 50) {
+        workflowStore.add(includedGroupSourceFilesCollection1)
+      }
+      Thread.sleep(5.seconds.toMillis)
+      // second submission of 50 workflows for hogGroup "Highlander"
+      for (_ <- 1 to 50) {
+        workflowStore.add(includedGroupSourceFilesCollection2)
+      }
+
+      val workflowsList: Seq[List[WorkflowToStart]] = for (_ <- 1 to 10) yield {
+        (for {
+          startableWorkflows1 <- workflowStore.fetchStartableWorkflows(5, "A08", 10.seconds, Set.empty[String])
+          _ = startableWorkflows1.map(_.hogGroup.value).toSet.head should be("Goldfinger")
+          _ = startableWorkflows1.foreach { wf =>
+            Await.result(workflowStore.sqlDatabase.updateWorkflowState(
+              wf.id.toString,
+              WorkflowStoreState.Submitted.toString,
+              WorkflowStoreState.Running.toString
+            ), 1.second)
+          }
+
+          startableWorkflows2 <- workflowStore.fetchStartableWorkflows(5, "A08", 10.seconds, Set.empty[String])
+          _ = startableWorkflows2.map(_.hogGroup.value).toSet.head should be("Highlander")
+          _ = startableWorkflows2.foreach { wf =>
+            Await.result(workflowStore.sqlDatabase.updateWorkflowState(
+              wf.id.toString,
+              WorkflowStoreState.Submitted.toString,
+              WorkflowStoreState.Running.toString
+            ), 1.second)
+          }
+        } yield startableWorkflows1 ++ startableWorkflows2).futureValue
+      }
+
+      // remove entries from WorkflowStore
+      workflowsList.foreach(_.foreach(wf => Await.result(workflowStore.deleteFromStore(wf.id), 1.second)))
+    }
+
+    it should "respect excludedHogGroups and select workflows from hog groups to start in round robin approach" in {
+      // first submission of 10 workflows for hogGroup "Goldfinger"
+      for (_ <- 1 to 10) {
+        workflowStore.add(includedGroupSourceFilesCollection1)
+      }
+      Thread.sleep(5.seconds.toMillis)
+      // second submission of 10 workflows for hogGroup "Zardoz"
+      for (_ <- 1 to 10) {
+        workflowStore.add(excludedGroupSourceFilesCollection)
+      }
+
+      (for {
+        startableWorkflows1 <- workflowStore.fetchStartableWorkflows(5, "A08", 10.seconds, excludedGroups = Set("Zardoz"))
+        _ = startableWorkflows1.map(_.hogGroup.value).toSet.head should be("Goldfinger")
+        _ = startableWorkflows1.foreach { wf =>
+          Await.result(workflowStore.sqlDatabase.updateWorkflowState(
+            wf.id.toString,
+            WorkflowStoreState.Submitted.toString,
+            WorkflowStoreState.Running.toString
+          ), 1.second)
+        }
+
+        startableWorkflows2 <- workflowStore.fetchStartableWorkflows(5, "A08", 10.seconds, excludedGroups = Set("Zardoz"))
+        _ = startableWorkflows2.map(_.hogGroup.value).toSet.head should be("Goldfinger")
+        _ = startableWorkflows2.foreach { wf =>
+          Await.result(workflowStore.sqlDatabase.updateWorkflowState(
+            wf.id.toString,
+            WorkflowStoreState.Submitted.toString,
+            WorkflowStoreState.Running.toString
+          ), 1.second)
+        }
+
+        // there are 10 workflows from hog group "Zardoz" in the store, but since the group is excluded, 0 workflows are returned here
+        startableWorkflows3 <- workflowStore.fetchStartableWorkflows(5, "A08", 10.seconds, excludedGroups = Set("Zardoz"))
+        _ = startableWorkflows3.size should be(0)
+
+        // hog group "Zardoz" has tokens to run workflows, hence don't exclude it
+        startableWorkflows4 <- workflowStore.fetchStartableWorkflows(5, "A08", 10.seconds, Set.empty[String])
+        _ = startableWorkflows4.map(_.hogGroup.value).toSet.head should be("Zardoz")
+        _ = startableWorkflows4.foreach { wf =>
+          Await.result(workflowStore.sqlDatabase.updateWorkflowState(
+            wf.id.toString,
+            WorkflowStoreState.Submitted.toString,
+            WorkflowStoreState.Running.toString
+          ), 1.second)
+        }
+
+        startableWorkflows5 <- workflowStore.fetchStartableWorkflows(5, "A08", 10.seconds, Set.empty[String])
+        _ = startableWorkflows5.map(_.hogGroup.value).toSet.head should be("Zardoz")
+        _ = startableWorkflows5.foreach { wf =>
+          Await.result(workflowStore.sqlDatabase.updateWorkflowState(
+            wf.id.toString,
+            WorkflowStoreState.Submitted.toString,
+            WorkflowStoreState.Running.toString
+          ), 1.second)
+        }
+
+        // remove entries from WorkflowStore
+        workflowsList = startableWorkflows1 ++ startableWorkflows2 ++ startableWorkflows3 ++ startableWorkflows4 ++ startableWorkflows5
+        _ = workflowsList.foreach(wf => Await.result(workflowStore.deleteFromStore(wf.id), 1.second))
+      } yield()).futureValue
     }
 
     it should "accept and honor a requested workflow ID" taggedAs DbmsTest in {

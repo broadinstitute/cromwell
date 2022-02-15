@@ -88,7 +88,7 @@ trait WorkflowStoreEntryComponent {
 
         1) Workflows with no heartbeat (newly submitted or from a cleanly shut down Cromwell).
         2) Workflows with old heartbeats, presumably abandoned by a defunct Cromwell.
-        3) And excludes workflows that belong to excludedGroups
+        3) And excludes workflows that belong to hog groups in excludedGroups
       */
       if (row.heartbeatTimestamp.isEmpty || row.heartbeatTimestamp < heartbeatTimestampTimedOut) &&
         (row.workflowState =!= excludeWorkflowState) &&

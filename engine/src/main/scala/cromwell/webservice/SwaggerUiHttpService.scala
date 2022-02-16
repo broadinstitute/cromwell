@@ -6,30 +6,12 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.stream.scaladsl.Flow
 import akka.util.ByteString
+import cromwell.webservice.routes.CromwellApiService
 
 /**
  * Serves up the swagger UI from org.webjars/swagger-ui.
  */
 trait SwaggerUiHttpService {
-  /**
-   * @return The version of the org.webjars/swagger-ui artifact. For example "2.1.1".
-   */
-  def swaggerUiVersion: String
-
-  /**
-   * Informs the swagger UI of the base of the application url, as hosted on the server.
-   * If your entire app is served under "http://myserver/myapp", then the base URL is "/myapp".
-   * If the app is served at the root of the application, leave this value as the empty string.
-   *
-   * @return The base URL used by the application, or the empty string if there is no base URL. For example "/myapp".
-   */
-  def swaggerUiBaseUrl: String = ""
-
-  /**
-   * @return The path to the swagger UI html documents. For example "swagger"
-   */
-  def swaggerUiPath: String = "swagger"
-
   /**
    * The path to the actual swagger documentation in either yaml or json, to be rendered by the swagger UI html.
    *
@@ -38,7 +20,7 @@ trait SwaggerUiHttpService {
    */
   def swaggerUiDocsPath: String = "api-docs"
 
-  private lazy val resourceDirectory = s"META-INF/resources/webjars/swagger-ui/$swaggerUiVersion"
+  private lazy val resourceDirectory = s"META-INF/resources/webjars/swagger-ui/${CromwellApiService.swaggerUiVersion}"
 
   private val serveIndex: server.Route = {
     val swaggerOptions =

@@ -100,8 +100,10 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
     }
 
     val action = for {
+      // find hog group with lowest actively running workflows
       hogGroupOption <- dataAccess.getHogGroupWithLowestRunningWfs(heartbeatTimestampTimedOut, workflowStateExcluded, excludedGroups).result.headOption
       workflowStoreEntries <- hogGroupOption match {
+        // if no such hog group was found, all hog groups have workflows either actively running or in "OnHold" status
         case None => DBIO.successful(Seq.empty[WorkflowStoreEntry])
         case Some(hogGroup) => fetchAndUpdateStartableWfs(hogGroup)
       }

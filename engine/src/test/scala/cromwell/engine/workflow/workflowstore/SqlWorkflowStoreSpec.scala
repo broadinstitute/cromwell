@@ -121,6 +121,16 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
     lazy val workflowStore = SqlWorkflowStore(dataAccess, metadataDataAccess)
 
+    def updateWfToRunning(startableWorkflows: List[WorkflowToStart]): Unit = {
+      startableWorkflows.foreach { wf =>
+        Await.result(workflowStore.sqlDatabase.updateWorkflowState(
+          wf.id.toString,
+          WorkflowStoreState.Submitted.toString,
+          WorkflowStoreState.Running.toString
+        ), 5.seconds)
+      }
+    }
+
     it should "start container if required" taggedAs DbmsTest in {
       containerOpt.foreach {
         _.start
@@ -244,26 +254,6 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
       } yield ()).futureValue
     }
 
-    // TODO: Saloni - modify this test
-//    it should "select appropriately with the excludedGroups parameter" taggedAs DbmsTest in {
-//      (for {
-//        submissionResponsesExcluded <- workflowStore.add(excludedGroupSourceFilesCollection)
-//        submissionResponsesIncluded1 <- workflowStore.add(includedGroupSourceFilesCollection1)
-//        submissionResponsesIncluded2 <- workflowStore.add(includedGroupSourceFilesCollection2)
-//        submissionResponsesIncluded3 <- workflowStore.add(includedGroupSourceFilesCollection3)
-//        startableWorkflows <- workflowStore.fetchStartableWorkflows(3, "A08", 10.seconds, excludedGroups = Set("Zardoz"))
-//        _ = startableWorkflows.map(_.id).intersect(submissionResponsesExcluded.map(_.id).toList).size should be(0)
-//        _ = startableWorkflows.map(_.id).intersect(submissionResponsesIncluded1.map(_.id).toList).size should be(1)
-//        _ = startableWorkflows.map(_.id).intersect(submissionResponsesIncluded2.map(_.id).toList).size should be(1)
-//        _ = startableWorkflows.map(_.id).intersect(submissionResponsesIncluded3.map(_.id).toList).size should be(1)
-//        _ = startableWorkflows.map(_.id).size should be(3)
-//        _ <- workflowStore.deleteFromStore(submissionResponsesExcluded.head.id) // Tidy up
-//        _ <- workflowStore.deleteFromStore(submissionResponsesIncluded1.head.id) // Tidy up
-//        _ <- workflowStore.deleteFromStore(submissionResponsesIncluded2.head.id) // Tidy up
-//        _ <- workflowStore.deleteFromStore(submissionResponsesIncluded3.head.id) // Tidy up
-//      } yield ()).futureValue
-//    }
-
     it should "select workflows from hog groups to start in round robin approach" taggedAs DbmsTest in {
       // first submission of 50 workflows for hogGroup "Goldfinger"
       for (_ <- 1 to 50) {
@@ -277,33 +267,22 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
       val workflowsList: Seq[List[WorkflowToStart]] = for (_ <- 1 to 10) yield {
         (for {
-          startableWorkflows1 <- workflowStore.fetchStartableWorkflows(5, "A08", 10.seconds, Set.empty[String])
+          // since both hog groups have 0 workflows running, the hog groups are sorted alphabetically and first one is picked
+          startableWorkflows1 <- workflowStore.fetchStartableWorkflows(5, "A08", 1.minute, Set.empty[String])
           _ = startableWorkflows1.map(_.hogGroup.value).toSet.head should be("Goldfinger")
-          _ = startableWorkflows1.foreach { wf =>
-            Await.result(workflowStore.sqlDatabase.updateWorkflowState(
-              wf.id.toString,
-              WorkflowStoreState.Submitted.toString,
-              WorkflowStoreState.Running.toString
-            ), 1.second)
-          }
+          _ = updateWfToRunning(startableWorkflows1)
 
-          startableWorkflows2 <- workflowStore.fetchStartableWorkflows(5, "A08", 10.seconds, Set.empty[String])
+          startableWorkflows2 <- workflowStore.fetchStartableWorkflows(5, "A08", 1.minute, Set.empty[String])
           _ = startableWorkflows2.map(_.hogGroup.value).toSet.head should be("Highlander")
-          _ = startableWorkflows2.foreach { wf =>
-            Await.result(workflowStore.sqlDatabase.updateWorkflowState(
-              wf.id.toString,
-              WorkflowStoreState.Submitted.toString,
-              WorkflowStoreState.Running.toString
-            ), 1.second)
-          }
+          _ = updateWfToRunning(startableWorkflows2)
         } yield startableWorkflows1 ++ startableWorkflows2).futureValue
       }
 
       // remove entries from WorkflowStore
-      workflowsList.foreach(_.foreach(wf => Await.result(workflowStore.deleteFromStore(wf.id), 1.second)))
+      workflowsList.foreach(_.foreach(wf => Await.result(workflowStore.deleteFromStore(wf.id), 5.seconds)))
     }
 
-    it should "respect excludedHogGroups and select workflows from hog groups to start in round robin approach" in {
+    it should "respect excludedHogGroups and select workflows from hog groups to start in round robin approach" taggedAs DbmsTest in {
       // first submission of 10 workflows for hogGroup "Goldfinger"
       for (_ <- 1 to 10) {
         workflowStore.add(includedGroupSourceFilesCollection1)
@@ -315,72 +294,92 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
       }
 
       (for {
-        startableWorkflows1 <- workflowStore.fetchStartableWorkflows(5, "A08", 10.seconds, excludedGroups = Set("Zardoz"))
+        startableWorkflows1 <- workflowStore.fetchStartableWorkflows(5, "A08", 1.minute, excludedGroups = Set("Zardoz"))
         _ = startableWorkflows1.map(_.hogGroup.value).toSet.head should be("Goldfinger")
-        _ = startableWorkflows1.foreach { wf =>
-          Await.result(workflowStore.sqlDatabase.updateWorkflowState(
-            wf.id.toString,
-            WorkflowStoreState.Submitted.toString,
-            WorkflowStoreState.Running.toString
-          ), 1.second)
-        }
+        _ = updateWfToRunning(startableWorkflows1)
 
-        startableWorkflows2 <- workflowStore.fetchStartableWorkflows(5, "A08", 10.seconds, excludedGroups = Set("Zardoz"))
+        startableWorkflows2 <- workflowStore.fetchStartableWorkflows(5, "A08", 1.minute, excludedGroups = Set("Zardoz"))
         _ = startableWorkflows2.map(_.hogGroup.value).toSet.head should be("Goldfinger")
-        _ = startableWorkflows2.foreach { wf =>
-          Await.result(workflowStore.sqlDatabase.updateWorkflowState(
-            wf.id.toString,
-            WorkflowStoreState.Submitted.toString,
-            WorkflowStoreState.Running.toString
-          ), 1.second)
-        }
+        _ = updateWfToRunning(startableWorkflows2)
 
         // there are 10 workflows from hog group "Zardoz" in the store, but since the group is excluded, 0 workflows are returned here
-        startableWorkflows3 <- workflowStore.fetchStartableWorkflows(5, "A08", 10.seconds, excludedGroups = Set("Zardoz"))
+        startableWorkflows3 <- workflowStore.fetchStartableWorkflows(5, "A08", 1.minute, excludedGroups = Set("Zardoz"))
         _ = startableWorkflows3.size should be(0)
 
         // hog group "Zardoz" has tokens to run workflows, hence don't exclude it
-        startableWorkflows4 <- workflowStore.fetchStartableWorkflows(5, "A08", 10.seconds, Set.empty[String])
+        startableWorkflows4 <- workflowStore.fetchStartableWorkflows(5, "A08", 1.minute, Set.empty[String])
         _ = startableWorkflows4.map(_.hogGroup.value).toSet.head should be("Zardoz")
-        _ = startableWorkflows4.foreach { wf =>
-          Await.result(workflowStore.sqlDatabase.updateWorkflowState(
-            wf.id.toString,
-            WorkflowStoreState.Submitted.toString,
-            WorkflowStoreState.Running.toString
-          ), 1.second)
-        }
+        _ = updateWfToRunning(startableWorkflows4)
 
-        startableWorkflows5 <- workflowStore.fetchStartableWorkflows(5, "A08", 10.seconds, Set.empty[String])
+        startableWorkflows5 <- workflowStore.fetchStartableWorkflows(5, "A08", 1.minute, Set.empty[String])
         _ = startableWorkflows5.map(_.hogGroup.value).toSet.head should be("Zardoz")
-        _ = startableWorkflows5.foreach { wf =>
-          Await.result(workflowStore.sqlDatabase.updateWorkflowState(
-            wf.id.toString,
-            WorkflowStoreState.Submitted.toString,
-            WorkflowStoreState.Running.toString
-          ), 1.second)
-        }
+        _ = updateWfToRunning(startableWorkflows5)
 
         // remove entries from WorkflowStore
         workflowsList = startableWorkflows1 ++ startableWorkflows2 ++ startableWorkflows3 ++ startableWorkflows4 ++ startableWorkflows5
-        _ = workflowsList.foreach(wf => Await.result(workflowStore.deleteFromStore(wf.id), 1.second))
+        _ = workflowsList.foreach(wf => Await.result(workflowStore.deleteFromStore(wf.id), 5.seconds))
       } yield()).futureValue
     }
 
-//    it should "select workflows from hog groups to start in round robin approach for multiple hog groups" in {
-//      // first submission of 10 workflows for hogGroup "Goldfinger"
-//      for (_ <- 1 to 10) {
-//        workflowStore.add(includedGroupSourceFilesCollection1)
-//      }
-//      Thread.sleep(5.seconds.toMillis)
-//      // second submission of 10 workflows for hogGroup "Highlander"
-//      for (_ <- 1 to 15) {
-//        workflowStore.add(includedGroupSourceFilesCollection2)
-//      }
-//
-//      (for {
-//
-//      } yield ()).futureValue
-//    }
+    it should "select workflows from hog groups to start in round robin approach for multiple hog groups" taggedAs DbmsTest in {
+      // first submission of 10 workflows for hogGroup "Goldfinger"
+      for (_ <- 1 to 10) {
+        workflowStore.add(includedGroupSourceFilesCollection1)
+      }
+      Thread.sleep(5.seconds.toMillis)
+      // second submission of 10 workflows for hogGroup "Highlander"
+      for (_ <- 1 to 15) {
+        workflowStore.add(includedGroupSourceFilesCollection2)
+      }
+
+      (for {
+        // since both hog groups have 0 workflows running, the hog groups are sorted alphabetically and first one is picked
+        startableWorkflows1 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, excludedGroups = Set.empty[String])
+        _ = startableWorkflows1.map(_.hogGroup.value).toSet.head should be("Goldfinger")
+        _ = updateWfToRunning(startableWorkflows1)
+
+        startableWorkflows2 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, excludedGroups = Set.empty[String])
+        _ = startableWorkflows2.map(_.hogGroup.value).toSet.head should be("Highlander")
+        _ = updateWfToRunning(startableWorkflows2)
+
+        // new submission for hog group "Finding Forrester"
+        _ = for (_ <- 1 to 10) {
+          Await.result(workflowStore.add(includedGroupSourceFilesCollection3), 2.seconds)
+        }
+
+        // now hog group "Finding Forrester" has 0 workflows running, hence it is picked to run
+        startableWorkflows3 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, excludedGroups = Set.empty[String])
+        _ = startableWorkflows3.map(_.hogGroup.value).toSet.head should be("Finding Forrester")
+        _ = updateWfToRunning(startableWorkflows3)
+
+        // since all 3 hog groups have 5 workflows running each, the hog groups are sorted alphabetically and first one is picked
+        startableWorkflows4 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, excludedGroups = Set.empty[String])
+        _ = startableWorkflows4.map(_.hogGroup.value).toSet.head should be("Finding Forrester")
+        _ = updateWfToRunning(startableWorkflows4)
+
+        startableWorkflows5 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, excludedGroups = Set.empty[String])
+        _ = startableWorkflows5.map(_.hogGroup.value).toSet.head should be("Goldfinger")
+        _ = updateWfToRunning(startableWorkflows5)
+
+        startableWorkflows6 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, excludedGroups = Set.empty[String])
+        _ = startableWorkflows6.map(_.hogGroup.value).toSet.head should be("Highlander")
+        _ = updateWfToRunning(startableWorkflows6)
+
+        startableWorkflows7 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, excludedGroups = Set.empty[String])
+        _ = startableWorkflows7.map(_.hogGroup.value).toSet.head should be("Highlander")
+        _ = updateWfToRunning(startableWorkflows7)
+
+        // remove entries from WorkflowStore
+        workflowsList = startableWorkflows1 ++
+          startableWorkflows2 ++
+          startableWorkflows3 ++
+          startableWorkflows4 ++
+          startableWorkflows5 ++
+          startableWorkflows6 ++
+          startableWorkflows7
+        _ = workflowsList.foreach(wf => Await.result(workflowStore.deleteFromStore(wf.id), 5.seconds))
+      } yield ()).futureValue
+    }
 
     it should "accept and honor a requested workflow ID" taggedAs DbmsTest in {
       val requestedId = WorkflowId.randomId()

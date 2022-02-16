@@ -9,16 +9,9 @@ import akka.util.ByteString
 import cromwell.webservice.routes.CromwellApiService
 
 /**
- * Serves up the swagger UI from org.webjars/swagger-ui.
+ * Serves up the swagger UI from org.webjars/swagger-ui, lightly editing the index.html.
  */
 trait SwaggerUiHttpService {
-  /**
-   * The path to the actual swagger documentation in either yaml or json, to be rendered by the swagger UI html.
-   *
-   * @return The path to the api documentation to render in the swagger UI.
-   *         For example "api-docs" or "swagger/common.yaml".
-   */
-  def swaggerUiDocsPath: String = "api-docs"
 
   private lazy val resourceDirectory = s"META-INF/resources/webjars/swagger-ui/${CromwellApiService.swaggerUiVersion}"
 
@@ -34,7 +27,7 @@ trait SwaggerUiHttpService {
       entityFromJar.transformDataBytes(Flow.fromFunction[ByteString, ByteString] { original: ByteString =>
         ByteString(
           original.utf8String
-            .replace("""url: "https://petstore.swagger.io/v2/swagger.json"""", "url: '/swagger/cromwell.yaml'")
+            .replace("""url: "https://petstore.swagger.io/v2/swagger.json"""", "url: 'cromwell.yaml'")
             .replace("""layout: "StandaloneLayout"""", s"""layout: "StandaloneLayout", $swaggerOptions""")
         )
       })
@@ -101,7 +94,7 @@ trait SwaggerResourceHttpService {
    * @return A route that returns the swagger resource.
    */
   final def swaggerResourceRoute: Route = {
-    val swaggerDocsDirective = path(separateOnSlashes(swaggerDocsPath))
+    val swaggerDocsDirective = path(separateOnSlashes(swaggerDocsPath)) | path(s"$swaggerServiceName.$swaggerResourceType")
 
     def injectBasePath(basePath: Option[String])(response: HttpResponse): HttpResponse = {
       basePath match {
@@ -132,8 +125,6 @@ trait SwaggerResourceHttpService {
  * Extends the SwaggerUiHttpService and SwaggerResourceHttpService to serve up both.
  */
 trait SwaggerUiResourceHttpService extends SwaggerUiHttpService with SwaggerResourceHttpService {
-  override def swaggerUiDocsPath = swaggerDocsPath
-
   /**
    * @return A route that redirects to the swagger UI and returns the swagger resource.
    */

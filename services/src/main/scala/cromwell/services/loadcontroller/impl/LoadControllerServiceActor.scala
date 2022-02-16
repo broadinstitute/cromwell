@@ -2,9 +2,9 @@ package cromwell.services.loadcontroller.impl
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Terminated, Timers}
 import akka.routing.Listeners
-import cats.data.NonEmptyList
 import com.typesafe.config.Config
 import cromwell.services.instrumentation.CromwellInstrumentation
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import cromwell.services.loadcontroller.LoadControllerService._
 import cromwell.services.loadcontroller.impl.LoadControllerServiceActor._
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
@@ -17,7 +17,7 @@ object LoadControllerServiceActor {
   val LoadInstrumentationPrefix = Option("load")
   case object LoadControlTimerKey
   case object LoadControlTimerAction
-  case class ActorAndMetric(actorRef: ActorRef, metricPath: NonEmptyList[String])
+  case class ActorAndMetric(actorRef: ActorRef, metricPath: InstrumentationPath)
 }
 
 /**
@@ -78,7 +78,7 @@ class LoadControllerServiceActor(serviceConfig: Config,
       gossip(newLoadLevel)
     }
     loadLevel = newLoadLevel
-    sendGauge(NonEmptyList.one("global"), loadLevel.level.toLong, LoadInstrumentationPrefix)
+    sendGauge(InstrumentationPath.withParts("global"), loadLevel.level.toLong, LoadInstrumentationPrefix)
   }
   
   private def handleTerminated(terminee: ActorRef) = {
@@ -90,7 +90,7 @@ class LoadControllerServiceActor(serviceConfig: Config,
   
   private def highLoadMetricsForLogging = {
     loadMetrics.collect({
-      case (ActorAndMetric(_, metricPath), HighLoad) => metricPath.head
+      case (ActorAndMetric(_, metricPath), HighLoad) => metricPath.getPath.head
     }).toSet.mkString(", ")
   }
 }

@@ -1,7 +1,7 @@
 package cromwell.jobstore
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import cats.data.{NonEmptyList, NonEmptyVector}
+import cats.data.NonEmptyVector
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.LoadConfig
 import cromwell.core.actor.BatchActor._
@@ -10,6 +10,7 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreAccess
 import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
 import cromwell.jobstore.JobStoreActor._
 import cromwell.services.EnhancedBatchActor
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -64,7 +65,7 @@ case class JobStoreWriterActor(jsd: JobStore,
   // EnhancedBatchActor overrides
   override def receive = enhancedReceive.orElse(super.receive)
   override protected def weightFunction(command: CommandAndReplyTo[JobStoreWriterCommand]) = 1
-  override protected def instrumentationPath = NonEmptyList.of("store", "write")
+  override protected def instrumentationPath = InstrumentationPath.withParts("store", "write")
   override protected def instrumentationPrefix = InstrumentationPrefixes.JobPrefix
   override def commandToData(snd: ActorRef): PartialFunction[Any, CommandAndReplyTo[JobStoreWriterCommand]] = {
     case command: JobStoreWriterCommand => CommandAndReplyTo(command, snd)

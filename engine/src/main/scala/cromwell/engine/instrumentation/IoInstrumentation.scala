@@ -3,7 +3,6 @@ package cromwell.engine.instrumentation
 import java.time.OffsetDateTime
 
 import akka.actor.Actor
-import cats.data.NonEmptyList
 import cromwell.core.instrumentation.InstrumentationKeys._
 import cromwell.core.instrumentation.InstrumentationPrefixes._
 import cromwell.core.io._
@@ -17,11 +16,11 @@ import scala.concurrent.duration._
   * Implicit methods to help convert Io objects to metric values
   */
 private object IoInstrumentationImplicits {
-  val LocalPath = NonEmptyList.of("local")
-  val GcsPath = NonEmptyList.of("gcs")
-  val UnknownFileSystemPath = NonEmptyList.of("unknown")
+  val LocalPath = InstrumentationPath.withParts("local")
+  val GcsPath = InstrumentationPath.withParts("gcs")
+  val UnknownFileSystemPath = InstrumentationPath.withParts("unknown")
 
-  val backpressure = NonEmptyList.of("backpressure")
+  val backpressure = InstrumentationPath.withParts("backpressure")
 
   /**
     * Augments IoResult to provide instrumentation conversion methods
@@ -37,7 +36,7 @@ private object IoInstrumentationImplicits {
     /**
       * Returns the instrumentation path of this IoResult
       */
-    def toDurationPath: InstrumentationPath = toCounterPath.concatNel(NonEmptyList.of("duration"))
+    def toDurationPath: InstrumentationPath = toCounterPath.withParts("duration")
   }
 
   /**
@@ -60,26 +59,26 @@ private object IoInstrumentationImplicits {
         case _ => UnknownFileSystemPath
       }
 
-      path.concatNel(ioCommand.name)
+      path.withParts(ioCommand.name)
     }
 
     /**
       * Returns a successful instrumentation path for this IoCommand
       */
-    def successPath: InstrumentationPath = ioCommand.toPath.concatNel(SuccessKey)
+    def successPath: InstrumentationPath = ioCommand.toPath.withParts(SuccessKey)
 
     /**
       * Returns a failed instrumentation path for this IoCommand provided a throwable
       */
     def failedPath(failure: Throwable): InstrumentationPath = {
-      ioCommand.toPath.concatNel(FailureKey).withStatusCodeFailure(GoogleUtil.extractStatusCode(failure))
+      ioCommand.toPath.withParts(FailureKey).withStatusCodeFailure(GoogleUtil.extractStatusCode(failure))
     }
 
     /**
       * Returns a retried instrumentation path for this IoCommand provided a throwable
       */
     def retriedPath(failure: Throwable): InstrumentationPath = {
-      ioCommand.toPath.concatNel(RetryKey).withStatusCodeFailure(GoogleUtil.extractStatusCode(failure))
+      ioCommand.toPath.withParts(RetryKey).withStatusCodeFailure(GoogleUtil.extractStatusCode(failure))
     }
   }
 }

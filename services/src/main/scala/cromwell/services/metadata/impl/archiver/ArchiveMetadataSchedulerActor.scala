@@ -8,7 +8,6 @@ import java.util.UUID
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.ask
 import akka.util.Timeout
-import cats.data.NonEmptyList
 import com.google.common.io.BaseEncoding
 import com.google.common.primitives.Longs
 import common.util.StringUtil.EnhancedToStringable
@@ -53,18 +52,18 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
     new AsyncIo(ioActor, DefaultIoCommandBuilder)
   } }
 
-  private val archiverMetricsBasePath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "archiver"
-  private val rowsProcessedMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "rows_processed"
-  private val rowsPerWorkflowMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "rows_per_workflow"
-  private val bytesProcessedMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "bytes_processed"
-  private val bytesPerWorkflowMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "bytes_per_workflow"
-  private val workflowsProcessedSuccessMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflows_processed" :+ "success"
-  private val workflowsProcessedFailureMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflows_processed" :+ "failure"
-  private val timeBehindExpectedDelayMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "time_behind_expected_delay"
-  private val workflowArchiveTotalTimeMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflow_archive_total_time"
-  private val workflowsToArchiveMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflows_to_archive"
-  private val archiverTimingMetricsBasePath: NonEmptyList[String] = archiverMetricsBasePath :+ "timings"
-  private val archiverStreamTimingMetricsBasePath: NonEmptyList[String] = archiverTimingMetricsBasePath :+ "streaming"
+  private val archiverMetricsBasePath = MetadataServiceActor.MetadataInstrumentationPrefix :+ "archiver"
+  private val rowsProcessedMetricPath = archiverMetricsBasePath :+ "rows_processed"
+  private val rowsPerWorkflowMetricPath = archiverMetricsBasePath :+ "rows_per_workflow"
+  private val bytesProcessedMetricPath = archiverMetricsBasePath :+ "bytes_processed"
+  private val bytesPerWorkflowMetricPath = archiverMetricsBasePath :+ "bytes_per_workflow"
+  private val workflowsProcessedSuccessMetricPath = archiverMetricsBasePath :+ "workflows_processed" :+ "success"
+  private val workflowsProcessedFailureMetricPath = archiverMetricsBasePath :+ "workflows_processed" :+ "failure"
+  private val timeBehindExpectedDelayMetricPath = archiverMetricsBasePath :+ "time_behind_expected_delay"
+  private val workflowArchiveTotalTimeMetricPath = archiverMetricsBasePath :+ "workflow_archive_total_time"
+  private val workflowsToArchiveMetricPath = archiverMetricsBasePath :+ "workflows_to_archive"
+  private val archiverTimingMetricsBasePath = archiverMetricsBasePath :+ "timings"
+  private val archiverStreamTimingMetricsBasePath = archiverTimingMetricsBasePath :+ "streaming"
 
   private val TerminalWorkflowStatuses: List[String] = List(WorkflowSucceeded, WorkflowAborted, WorkflowFailed).map(_.toString)
 

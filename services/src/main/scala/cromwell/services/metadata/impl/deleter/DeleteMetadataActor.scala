@@ -5,7 +5,6 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.Timeout
-import cats.data.NonEmptyList
 import common.util.StringUtil.EnhancedToStringable
 import cromwell.core.instrumentation.InstrumentationPrefixes.ServicesPrefix
 import cromwell.core.WorkflowId
@@ -32,12 +31,12 @@ class DeleteMetadataActor(deleteMetadataConfig: DeleteMetadataConfig,
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val askTimeout: Timeout = new Timeout(60.seconds)
 
-  private val deleterMetricsBasePath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "deleter"
-  private val rowsDeletedMetricPath: NonEmptyList[String] = deleterMetricsBasePath :+ "rows_deleted"
-  private val workflowsDeletedSuccessMetricPath: NonEmptyList[String] = deleterMetricsBasePath :+ "workflows_deleted" :+ "success"
-  private val workflowsDeletedFailureMetricPath: NonEmptyList[String] = deleterMetricsBasePath :+ "workflows_deleted" :+ "failure"
-  private val workflowDeleteTotalTimeMetricPath: NonEmptyList[String] = deleterMetricsBasePath :+ "workflow_delete_total_time"
-  private val workflowsToDeleteMetricPath: NonEmptyList[String] = deleterMetricsBasePath :+ "workflows_to_delete"
+  private val deleterMetricsBasePath = MetadataServiceActor.MetadataInstrumentationPrefix :+ "deleter"
+  private val rowsDeletedMetricPath = deleterMetricsBasePath :+ "rows_deleted"
+  private val workflowsDeletedSuccessMetricPath = deleterMetricsBasePath :+ "workflows_deleted" :+ "success"
+  private val workflowsDeletedFailureMetricPath = deleterMetricsBasePath :+ "workflows_deleted" :+ "failure"
+  private val workflowDeleteTotalTimeMetricPath = deleterMetricsBasePath :+ "workflow_delete_total_time"
+  private val workflowsToDeleteMetricPath = deleterMetricsBasePath :+ "workflows_to_delete"
 
   // Send an initial delete message to get things started:
   self ! DeleteNextWorkflowMessage

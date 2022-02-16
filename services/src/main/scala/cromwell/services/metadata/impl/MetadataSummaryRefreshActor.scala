@@ -2,7 +2,6 @@ package cromwell.services.metadata.impl
 
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
-import cats.data.NonEmptyList
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.services.MetadataServicesStore
@@ -43,8 +42,8 @@ class MetadataSummaryRefreshActor(override val serviceRegistryActor: ActorRef)
 
   implicit val ec = context.dispatcher
 
-  private val summaryMetricsGapsPath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "summarizer" :+ "gap"
-  private val summaryMetricsProcessedPath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "summarizer" :+ "processed"
+  private val summaryMetricsGapsPath = MetadataServiceActor.MetadataInstrumentationPrefix :+ "summarizer" :+ "gap"
+  private val summaryMetricsProcessedPath = MetadataServiceActor.MetadataInstrumentationPrefix :+ "summarizer" :+ "processed"
 
 
   val increasingGapPath = summaryMetricsGapsPath :+ "increasing"

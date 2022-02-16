@@ -1,6 +1,5 @@
 package cromwell.backend.google.pipelines.common
 
-import cats.data.NonEmptyList
 import cromwell.backend.google.pipelines.common.PapiInstrumentation._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager._
 import cromwell.core.instrumentation.InstrumentationKeys._
@@ -10,17 +9,17 @@ import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.instrumentation.CromwellInstrumentation._
 
 object PapiInstrumentation {
-  private val PapiKey = NonEmptyList.of("papi")
-  private val PapiPollKey = PapiKey.concatNel("poll")
-  private val PapiRunKey = PapiKey.concatNel("run")
-  private val PapiAbortKey = PapiKey.concatNel("abort")
+  private val PapiKey = InstrumentationPath.withParts("papi")
+  private val PapiPollKey = PapiKey.withParts("poll")
+  private val PapiRunKey = PapiKey.withParts("run")
+  private val PapiAbortKey = PapiKey.withParts("abort")
 
-  private val PapiPollFailedKey = PapiPollKey.concatNel(FailureKey)
-  private val PapiRunFailedKey = PapiRunKey.concatNel(FailureKey)
-  private val PapiAbortFailedKey = PapiAbortKey.concatNel(FailureKey)
-  private val PapiPollRetriedKey = PapiPollKey.concatNel(RetryKey)
-  private val PapiRunRetriedKey = PapiRunKey.concatNel(RetryKey)
-  private val PapiAbortRetriedKey = PapiAbortKey.concatNel(RetryKey)
+  private val PapiPollFailedKey = PapiPollKey.withParts(FailureKey)
+  private val PapiRunFailedKey = PapiRunKey.withParts(FailureKey)
+  private val PapiAbortFailedKey = PapiAbortKey.withParts(FailureKey)
+  private val PapiPollRetriedKey = PapiPollKey.withParts(RetryKey)
+  private val PapiRunRetriedKey = PapiRunKey.withParts(RetryKey)
+  private val PapiAbortRetriedKey = PapiAbortKey.withParts(RetryKey)
 
   implicit class StatsDPathGoogleEnhanced(val statsDPath: InstrumentationPath) extends AnyVal {
     def withGoogleThrowable(failure: Throwable) = {
@@ -30,9 +29,9 @@ object PapiInstrumentation {
 }
 
 trait PapiInstrumentation extends CromwellInstrumentation {
-  def pollSuccess() = increment(PapiPollKey.concatNel(SuccessKey), BackendPrefix)
-  def runSuccess() = increment(PapiRunKey.concatNel(SuccessKey), BackendPrefix)
-  def abortSuccess() = increment(PapiAbortKey.concatNel(SuccessKey), BackendPrefix)
+  def pollSuccess() = increment(PapiPollKey.withParts(SuccessKey), BackendPrefix)
+  def runSuccess() = increment(PapiRunKey.withParts(SuccessKey), BackendPrefix)
+  def abortSuccess() = increment(PapiAbortKey.withParts(SuccessKey), BackendPrefix)
 
   def failedQuery(failedQuery: PAPIApiRequestFailed) = failedQuery.query match {
     case _: PAPIStatusPollRequest => increment(PapiPollFailedKey.withGoogleThrowable(failedQuery.cause.cause), BackendPrefix)
@@ -46,5 +45,5 @@ trait PapiInstrumentation extends CromwellInstrumentation {
     case _: PAPIAbortRequest => increment(PapiAbortRetriedKey.withGoogleThrowable(failedQuery.cause.cause), BackendPrefix)
   }
 
-  def updateQueueSize(size: Int) = sendGauge(PapiKey.concatNel("queue_size"), size.toLong, BackendPrefix)
+  def updateQueueSize(size: Int) = sendGauge(PapiKey.withParts("queue_size"), size.toLong, BackendPrefix)
 }

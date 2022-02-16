@@ -3,7 +3,6 @@ package cromwell.engine.instrumentation
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.http.scaladsl.server.Directive0
 import akka.http.scaladsl.server.Directives.{extractRequest, mapResponse}
-import cats.data.NonEmptyList
 import cromwell.core.instrumentation.InstrumentationPrefixes._
 import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.instrumentation.CromwellInstrumentation._
@@ -19,16 +18,15 @@ object HttpInstrumentation {
 
 trait HttpInstrumentation extends CromwellInstrumentation {
   
-  private def makeRequestPath(httpRequest: HttpRequest, httpResponse: HttpResponse): InstrumentationPath = NonEmptyList.of(
+  private def makeRequestPath(httpRequest: HttpRequest, httpResponse: HttpResponse): InstrumentationPath = InstrumentationPath.
     // Returns the path of the URI only, without query parameters (e.g: api/engine/workflows/metadata)
-    httpRequest.uri.path.toString().stripPrefix("/")
+    withHighVariantPart("uri", httpRequest.uri.path.toString().stripPrefix("/")
       // Replace UUIDs with [id] to keep paths same regardless of the workflow
-      .replaceAll(HttpInstrumentation.UUIDRegex, "[id]"),
+      .replaceAll(HttpInstrumentation.UUIDRegex, "[id]"))
     // Name of the method (e.g: GET)
-    httpRequest.method.value,
+    .withHighVariantPart("method", httpRequest.method.value)
     // Status code of the Response (e.g: 200)
-    httpResponse.status.intValue.toString
-  )
+    .withHighVariantPart("response", httpResponse.status.intValue.toString)
 
   private def sendTimingApi(statsDPath: InstrumentationPath, timing: FiniteDuration) = {
     sendTiming(statsDPath, timing, ApiPrefix)

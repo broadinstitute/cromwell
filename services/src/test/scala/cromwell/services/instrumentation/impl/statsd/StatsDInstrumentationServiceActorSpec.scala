@@ -1,13 +1,12 @@
 package cromwell.services.instrumentation.impl.statsd
 
 import java.net.InetSocketAddress
-
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.io.{IO, Udp}
 import akka.testkit.{TestActorRef, TestProbe}
-import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
 import cromwell.core.TestKitSuite
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.instrumentation._
 import org.scalatest.BeforeAndAfterAll
@@ -33,8 +32,8 @@ class StatsDInstrumentationServiceActorSpec extends TestKitSuite with AnyFlatSpe
   val registryProbe = TestProbe().ref
   val udpProbe = TestProbe()
   val patience = 1.second
-  val testBucket = CromwellBucket(List("test_prefix"), NonEmptyList.of("test", "metric", "bucket"))
-  val testGaugeBucket = CromwellBucket(List("test_prefix"), NonEmptyList.of("test", "gauge", "metric", "bucket"))
+  val testBucket = CromwellBucket(List("test_prefix"), InstrumentationPath.withParts("test", "metric", "bucket"))
+  val testGaugeBucket = CromwellBucket(List("test_prefix"), InstrumentationPath.withParts("test", "gauge", "metric", "bucket"))
   
   var udpListenerActor: ActorRef = _
   

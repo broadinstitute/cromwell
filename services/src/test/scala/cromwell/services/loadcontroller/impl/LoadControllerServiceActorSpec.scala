@@ -3,9 +3,9 @@ package cromwell.services.loadcontroller.impl
 import akka.actor.Kill
 import akka.routing.Listen
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
-import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
 import cromwell.core.TestKitSuite
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadMetric, NormalLoad}
 import cromwell.services.loadcontroller.impl.LoadControllerServiceActor.ActorAndMetric
 import cromwell.services.loadcontroller.impl.LoadControllerServiceActorSpec._
@@ -27,8 +27,8 @@ class LoadControllerServiceActorSpec extends TestKitSuite with AnyFlatSpecLike w
     val loadActor = TestActorRef(new LoadControllerServiceActor(Config, Config, TestProbe().ref))
     loadActor ! LoadMetric("itsme", NormalLoad)
     loadActor ! LoadMetric("itsotherme", HighLoad)
-    loadActor.underlyingActor.loadMetrics(ActorAndMetric(self, NonEmptyList.one("itsme"))) shouldBe NormalLoad
-    loadActor.underlyingActor.loadMetrics(ActorAndMetric(self, NonEmptyList.one("itsotherme"))) shouldBe HighLoad
+    loadActor.underlyingActor.loadMetrics(ActorAndMetric(self, InstrumentationPath.withParts("itsme"))) shouldBe NormalLoad
+    loadActor.underlyingActor.loadMetrics(ActorAndMetric(self, InstrumentationPath.withParts("itsotherme"))) shouldBe HighLoad
   }
 
   it should "update global load level periodically" in {
@@ -53,8 +53,8 @@ class LoadControllerServiceActorSpec extends TestKitSuite with AnyFlatSpecLike w
     loadActor.tell(LoadMetric("itsmeagain", HighLoad), snd)
 
     // Check that we've got them
-    loadActor.underlyingActor.loadMetrics(ActorAndMetric(snd, NonEmptyList.one("itsme"))) shouldBe NormalLoad
-    loadActor.underlyingActor.loadMetrics(ActorAndMetric(snd, NonEmptyList.one("itsmeagain"))) shouldBe HighLoad
+    loadActor.underlyingActor.loadMetrics(ActorAndMetric(snd, InstrumentationPath.withParts("itsme"))) shouldBe NormalLoad
+    loadActor.underlyingActor.loadMetrics(ActorAndMetric(snd, InstrumentationPath.withParts("itsmeagain"))) shouldBe HighLoad
 
     // Check that we're monitoring this actor
     loadActor.underlyingActor.monitoredActors shouldBe Set(snd)

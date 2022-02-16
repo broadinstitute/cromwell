@@ -1,9 +1,9 @@
 package cromwell.services.instrumentation.impl.stackdriver
 
 import akka.testkit.{TestActorRef, TestProbe}
-import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
 import cromwell.core.TestKitSuite
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.instrumentation._
 import org.scalatest.concurrent.Eventually
@@ -35,9 +35,9 @@ class StackdriverInstrumentationServiceActorSpec extends TestKitSuite with AnyFl
   private val registryProbe = TestProbe().ref
   val resourceLabels = Map("project_id" -> "my-project")
 
-  private val testBucket = CromwellBucket(List("test_prefix"), NonEmptyList.of("test", "metric", "bucket"))
+  private val testBucket = CromwellBucket(List("test_prefix"), InstrumentationPath.withParts("test", "metric", "bucket"))
   private val testGaugeBucket =
-    CromwellBucket(List("test_prefix"), NonEmptyList.of("test", "gauge", "metric", "bucket"))
+    CromwellBucket(List("test_prefix"), InstrumentationPath.withParts("test", "gauge", "metric", "bucket"))
 
 
   it should "correctly receive the metrics with resource labels" in {

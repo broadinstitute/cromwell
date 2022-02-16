@@ -1,7 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{ActorRef, Props}
-import cats.data.{NonEmptyList, NonEmptyVector}
+import cats.data.NonEmptyVector
 import cats.implicits._
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.LoadConfig
@@ -10,6 +10,7 @@ import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCacheHashBundle
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor.SaveCallCacheHashes
 import cromwell.services.EnhancedBatchActor
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -38,7 +39,7 @@ case class CallCacheWriteActor(callCache: CallCache, serviceRegistryActor: Actor
   // EnhancedBatchActor overrides
   override def receive = enhancedReceive.orElse(super.receive)
   override protected def weightFunction(command: CommandAndReplyTo[SaveCallCacheHashes]) = 1
-  override protected def instrumentationPath = NonEmptyList.of("callcaching", "write")
+  override protected def instrumentationPath = InstrumentationPath.withParts("callcaching", "write")
   override protected def instrumentationPrefix = InstrumentationPrefixes.JobPrefix
   def commandToData(snd: ActorRef): PartialFunction[Any, CommandAndReplyTo[SaveCallCacheHashes]] = {
     case command: SaveCallCacheHashes => CommandAndReplyTo(command, snd)

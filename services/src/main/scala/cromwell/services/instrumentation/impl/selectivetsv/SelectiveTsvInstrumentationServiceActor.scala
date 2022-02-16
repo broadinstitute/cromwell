@@ -3,7 +3,6 @@ package cromwell.services.instrumentation.impl.selectivetsv
 import java.io.File
 import java.time.OffsetDateTime
 import java.util.UUID
-
 import akka.actor.{Actor, ActorRef, Props}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
@@ -35,17 +34,19 @@ class SelectiveTsvInstrumentationServiceActor(serviceConfig: Config, globalConfi
 
   override def receive: Receive = {
     case InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(_, path))) =>
-      val pathString = path.init.mkString(".")
+      val pathList = path.getPath
+      val pathString = pathList.init.mkString(".")
 
-      if (path.last == "starting") {
+      if (pathList.last == "starting") {
         stateHistory = stateHistory.increment(pathString)
-      } else if (path.last == "done") {
+      } else if (pathList.last == "done") {
         stateHistory = stateHistory.decrement(pathString)
       }
 
     case InstrumentationServiceMessage(CromwellGauge(CromwellBucket(_, path), value)) =>
-      val pathString = path.init.mkString(".")
-      if (path.last == "set") {
+      val pathList = path.getPath
+      val pathString = pathList.init.mkString(".")
+      if (pathList.last == "set") {
         stateHistory = stateHistory.set(pathString, value)
       }
 

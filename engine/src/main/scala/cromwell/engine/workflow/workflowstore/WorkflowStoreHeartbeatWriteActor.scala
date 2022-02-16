@@ -2,15 +2,15 @@ package cromwell.engine.workflow.workflowstore
 
 import java.time.{OffsetDateTime, Duration => JDuration}
 import java.util.concurrent.TimeUnit
-
 import akka.actor.{ActorRef, ActorSystem, CoordinatedShutdown, Props}
-import cats.data.{NonEmptyList, NonEmptyVector}
+import cats.data.NonEmptyVector
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowId
 import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.engine.CromwellTerminator
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.WorkflowStoreWriteHeartbeatCommand
 import cromwell.services.EnhancedBatchActor
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import mouse.all._
 
 import scala.concurrent.Future
@@ -51,7 +51,7 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreAccess: WorkflowStoreAc
 
   override def receive = enhancedReceive.orElse(super.receive)
   override protected def weightFunction(command: (WorkflowId, OffsetDateTime)) = 1
-  override protected def instrumentationPath = NonEmptyList.of("store", "heartbeat-writes")
+  override protected def instrumentationPath = InstrumentationPath.withParts("store", "heartbeat-writes")
   override protected def instrumentationPrefix = InstrumentationPrefixes.WorkflowPrefix
   override def commandToData(snd: ActorRef): PartialFunction[Any, (WorkflowId, OffsetDateTime)] = {
     case command: WorkflowStoreWriteHeartbeatCommand => (command.workflowId, command.submissionTime)

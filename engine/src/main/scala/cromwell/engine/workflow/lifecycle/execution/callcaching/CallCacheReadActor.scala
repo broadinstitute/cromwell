@@ -1,7 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{ActorLogging, ActorRef, Props}
-import cats.data.NonEmptyList
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.{LoadConfig, WorkflowId}
@@ -14,6 +13,7 @@ import scala.concurrent.Future
 import scala.util.{Failure, Success}
 import CallCache._
 import cromwell.services.CallCaching.CallCachingEntryId
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 
 /**
   * Queues up work sent to it because its receive is non-blocking.
@@ -56,7 +56,7 @@ class CallCacheReadActor(cache: CallCache,
 
   // EnhancedBatchActor overrides
   override def receive: Receive = enhancedReceive.orElse(super.receive)
-  override protected def instrumentationPath = NonEmptyList.of("callcaching", "read")
+  override protected def instrumentationPath = InstrumentationPath.withParts("callcaching", "read")
   override protected def instrumentationPrefix = InstrumentationPrefixes.JobPrefix
   override def commandToData(snd: ActorRef) = {
     case request: CallCacheReadActorRequest => CommandAndReplyTo(request, snd)

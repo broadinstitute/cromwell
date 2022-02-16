@@ -1,9 +1,8 @@
 package cromwell.services.instrumentation
 
 import java.time.OffsetDateTime
-
-import cats.data.NonEmptyList
 import cromwell.core.actor.BatchActor
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import cromwell.services.instrumentation.InstrumentedBatchActor.{QueueSizeTimerAction, QueueSizeTimerKey}
 
 import scala.concurrent.Future
@@ -20,14 +19,14 @@ object InstrumentedBatchActor {
   */
 trait InstrumentedBatchActor[C] { this: BatchActor[C] with CromwellInstrumentation =>
 
-  protected def instrumentationPath: NonEmptyList[String]
+  protected def instrumentationPath: InstrumentationPath
   protected def instrumentationPrefix: Option[String]
 
   // If this actor is behind a router, add its name to the instrumentation path so that all routees don't override each other's values
-  private def makePath(name: String) = if (routed)
-    instrumentationPath.concatNel(NonEmptyList.of(self.path.name, name))
-  else
-    instrumentationPath.concatNel(NonEmptyList.one(name))
+  private def makePath(name: String) = if (routed) {
+    instrumentationPath.withHighVariantPart("actor", self.path.name).withParts(name)
+  } else
+    instrumentationPath.withParts(name)
 
   private val processedPath = makePath("processed")
   private val durationPath = makePath("time_per_batch")

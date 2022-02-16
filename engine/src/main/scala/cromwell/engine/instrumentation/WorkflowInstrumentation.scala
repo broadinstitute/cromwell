@@ -1,7 +1,6 @@
 package cromwell.engine.instrumentation
 
 import akka.actor.Actor
-import cats.data.NonEmptyList
 import cromwell.core.WorkflowState
 import cromwell.core.instrumentation.InstrumentationPrefixes._
 import cromwell.engine.instrumentation.WorkflowInstrumentation._
@@ -14,14 +13,14 @@ import scala.language.postfixOps
 
 object WorkflowInstrumentation {
   private val WorkflowStatePaths: Map[WorkflowState, InstrumentationPath] = WorkflowState.WorkflowStateValues map { state =>
-    state -> NonEmptyList.of(state.toString)
+    state -> InstrumentationPath.withParts(state.toString)
   } toMap
 
   // Use "Queued" instead of "Submitted" as it seems to reflect better the actual state
-  private val SubmittedPath = NonEmptyList.of("Queued")
-  private val RunningPath = NonEmptyList.of(WorkflowStoreState.Running.toString)
-  private val OnHoldPath = NonEmptyList.of(WorkflowStoreState.OnHold.toString)
-  private val AbortingPath = NonEmptyList.of(WorkflowStoreState.Aborting.toString)
+  private val SubmittedPath = InstrumentationPath.withParts("Queued")
+  private val RunningPath = InstrumentationPath.withParts(WorkflowStoreState.Running.toString)
+  private val OnHoldPath = InstrumentationPath.withParts(WorkflowStoreState.OnHold.toString)
+  private val AbortingPath = InstrumentationPath.withParts(WorkflowStoreState.Aborting.toString)
 }
 
 /**

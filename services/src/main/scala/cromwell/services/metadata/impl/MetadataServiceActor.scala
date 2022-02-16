@@ -11,6 +11,7 @@ import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.{LoadConfig, WorkflowId}
 import cromwell.services.MetadataServicesStore
 import cromwell.services.instrumentation.CromwellInstrumentation
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.impl.MetadataDatabaseAccess.WorkflowArchiveStatusAndEndTimestamp
@@ -28,7 +29,7 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 object MetadataServiceActor {
-  val MetadataInstrumentationPrefix = NonEmptyList.of("metadata")
+  val MetadataInstrumentationPrefix = InstrumentationPath.withParts("metadata")
 
   def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) = Props(MetadataServiceActor(serviceConfig, globalConfig, serviceRegistryActor)).withDispatcher(ServiceDispatcher)
 }
@@ -67,10 +68,10 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
 
   private val metadataTableMetricsInterval: Option[FiniteDuration] = serviceConfig.getAs[FiniteDuration]("metadata-table-metrics-interval")
 
-  private val metadataTableMetricsPath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "table"
-  private val dataFreeMetricsPath: NonEmptyList[String] = metadataTableMetricsPath :+ "data_free"
-  private val dataLengthMetricsPath: NonEmptyList[String] = metadataTableMetricsPath :+ "data_length"
-  private val indexLengthMetricsPath:  NonEmptyList[String] = metadataTableMetricsPath :+ "index_length"
+  private val metadataTableMetricsPath = MetadataServiceActor.MetadataInstrumentationPrefix :+ "table"
+  private val dataFreeMetricsPath = metadataTableMetricsPath :+ "data_free"
+  private val dataLengthMetricsPath = metadataTableMetricsPath :+ "data_length"
+  private val indexLengthMetricsPath = metadataTableMetricsPath :+ "index_length"
 
   def readMetadataWorkerActorProps(): Props =
     ReadDatabaseMetadataWorkerActor

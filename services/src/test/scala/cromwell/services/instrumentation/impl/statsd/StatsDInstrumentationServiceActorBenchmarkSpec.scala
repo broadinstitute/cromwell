@@ -1,9 +1,9 @@
 package cromwell.services.instrumentation.impl.statsd
 
 import akka.testkit.{TestActorRef, TestProbe}
-import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
 import cromwell.core.TestKitSuite
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.instrumentation._
 import cromwell.services.instrumentation.impl.statsd.StatsDInstrumentationServiceActor._
@@ -29,7 +29,7 @@ class StatsDInstrumentationServiceActorBenchmarkSpec extends TestKitSuite with A
 
   val registryProbe = TestProbe().ref
   override implicit val patienceConfig: PatienceConfig = PatienceConfig(scaled(3.seconds))
-  val testBucket = CromwellBucket(List("test_prefix"), NonEmptyList.of("test", "metric", "benchmark", "bucket"))
+  val testBucket = CromwellBucket(List("test_prefix"), InstrumentationPath.withParts("test", "metric", "benchmark", "bucket"))
 
 
   it should "have good throughput for gauges" in {

@@ -2,12 +2,10 @@ package cromwell.backend.google.pipelines.common
 
 import java.nio.file.Paths
 import java.util.UUID
-
 import _root_.io.grpc.Status
 import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration, TestProbe}
-import cats.data.NonEmptyList
 import com.google.api.client.http.HttpRequest
 import com.google.cloud.NoCredentials
 import common.collections.EnhancedCollections._
@@ -29,6 +27,7 @@ import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder, MockGcsPathBuilder}
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import cromwell.services.instrumentation.{CromwellBucket, CromwellIncrement}
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.keyvalue.InMemoryKvServiceActor
@@ -350,8 +349,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite
     val expectedInput2 = PipelinesApiFileInput(name = "testfile2", relativeHostPath = DefaultPathBuilder.build(Paths.get(s"test/reference/path/file2")), mount = null, cloudPath = null)
     val expectedReferenceInputFiles = Set[PipelinesApiInput](expectedInput1, expectedInput2)
 
-    val expectedMsg1 = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, NonEmptyList.of("referencefiles", expectedInput1.relativeHostPath.pathAsString))))
-    val expectedMsg2 = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, NonEmptyList.of("referencefiles", expectedInput2.relativeHostPath.pathAsString))))
+    val expectedMsg1 = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, InstrumentationPath.withParts("referencefiles", expectedInput1.relativeHostPath.pathAsString))))
+    val expectedMsg2 = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, InstrumentationPath.withParts("referencefiles", expectedInput2.relativeHostPath.pathAsString))))
 
     val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0)
     val serviceRegistryProbe = TestProbe()
@@ -384,7 +383,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite
     val serviceRegistryProbe = TestProbe()
     val madeUpDockerImageName = "test_madeup_docker_image_name"
 
-    val expectedMessageWhenRequestedNotFound = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, NonEmptyList("docker", List("image", "cache", "image_not_in_cache", madeUpDockerImageName)))))
+    val expectedMessageWhenRequestedNotFound = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, InstrumentationPath.withParts("docker", "image", "cache", "image_not_in_cache", madeUpDockerImageName))))
     val backendDockerCacheRequestedButNotFound = executionActor(
       jobDescriptor,
       Promise[BackendJobExecutionResponse](),
@@ -403,7 +402,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite
     backendDockerCacheRequestedButNotFound ! Execute
     serviceRegistryProbe.expectMsg(expectedMessageWhenRequestedNotFound)
 
-    val expectedMessageWhenRequestedAndFound = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, NonEmptyList("docker", List("image", "cache", "used_image_from_cache", madeUpDockerImageName)))))
+    val expectedMessageWhenRequestedAndFound = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, InstrumentationPath.withParts("docker", "image", "cache", "used_image_from_cache", madeUpDockerImageName))))
     val backendDockerCacheRequestedAndFound = executionActor(
       jobDescriptor,
       Promise[BackendJobExecutionResponse](),
@@ -422,7 +421,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite
     backendDockerCacheRequestedAndFound ! Execute
     serviceRegistryProbe.expectMsg(expectedMessageWhenRequestedAndFound)
 
-    val expectedMessageWhenNotRequestedButFound = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, NonEmptyList("docker", List("image", "cache", "cached_image_not_used", madeUpDockerImageName)))))
+    val expectedMessageWhenNotRequestedButFound = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, InstrumentationPath.withParts("docker", "image", "cache", "cached_image_not_used", madeUpDockerImageName))))
     val backendDockerCacheNotRequestedButFound = executionActor(
       jobDescriptor,
       Promise[BackendJobExecutionResponse](),

@@ -2,8 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution.job
 
 import akka.actor.SupervisorStrategy.{Escalate, Stop}
 import akka.actor.{ActorInitializationException, ActorRef, LoggingFSM, OneForOneStrategy, Props}
-import cats.data.NonEmptyList
-import cromwell.backend.BackendCacheHitCopyingActor.{CacheCopyFailure, CopyOutputsCommand, CopyingOutputsFailedResponse, CopyAttemptError, BlacklistSkip}
+import cromwell.backend.BackendCacheHitCopyingActor.{BlacklistSkip, CacheCopyFailure, CopyAttemptError, CopyOutputsCommand, CopyingOutputsFailedResponse}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.MetricableCacheCopyErrorCategory.MetricableCacheCopyErrorCategory
@@ -40,6 +39,7 @@ import cromwell.jobstore._
 import cromwell.services.CallCaching.CallCachingEntryId
 import cromwell.services.EngineServicesStore
 import cromwell.services.instrumentation.CromwellInstrumentation
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import cromwell.services.metadata.CallMetadataKeys.CallCachingKeys
 import cromwell.services.metadata.{CallMetadataKeys, MetadataKey}
 import cromwell.webservice.EngineStatsActor
@@ -144,7 +144,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   // When Pending, the FSM always has NoData
   when(Pending) {
     case Event(Execute, NoData) =>
-      increment(NonEmptyList("jobs", List("ejea", "executing", "starting")))
+      increment(InstrumentationPath.withParts("jobs", "ejea", "executing", "starting"))
       if (restarting) {
         requestRestartCheckToken()
         goto(RequestingRestartCheckToken)
@@ -587,7 +587,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   private def stop(response: BackendJobExecutionResponse): State = {
-    increment(NonEmptyList("jobs", List("ejea", "executing", "done")))
+    increment(InstrumentationPath.withParts("jobs", "ejea", "executing", "done"))
     returnCurrentToken()
     instrumentJobComplete(response)
     pushExecutionEventsToMetadataService(jobDescriptorKey, eventList)
@@ -791,24 +791,18 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   private def publishCopyAttemptFailuresMetrics(data: ResponsePendingData): Unit = {
-    val copyErrorsPerHitPath: NonEmptyList[String] =
-      NonEmptyList.of(
-        "job",
-        "callcaching", "read", "error", "invalidhits", "copyerrors")
-    val copyBlacklistsPerHitPath: NonEmptyList[String] =
-      NonEmptyList.of(
-        "job",
-        "callcaching", "read", "error", "invalidhits", "blacklisted")
+    val copyErrorsPerHitPath = InstrumentationPath.withParts(
+        "job", "callcaching", "read", "error", "invalidhits", "copyerrors")
+    val copyBlacklistsPerHitPath = InstrumentationPath.withParts(
+        "job", "callcaching", "read", "error", "invalidhits", "blacklisted")
 
     sendGauge(copyErrorsPerHitPath, data.failedCopyAttempts.longValue)
     sendGauge(copyBlacklistsPerHitPath, data.cacheHitFailureCount - data.failedCopyAttempts.longValue)
   }
 
   private def publishCopyAttemptAbandonedMetrics(data: ResponsePendingData): Unit = {
-    val cacheCopyAttemptAbandonedPath: NonEmptyList[String] =
-      NonEmptyList.of(
-        "job",
-        "callcaching", "read", "error", "invalidhits", "abandonments")
+    val cacheCopyAttemptAbandonedPath = InstrumentationPath.withParts(
+        "job", "callcaching", "read", "error", "invalidhits", "abandonments")
     increment(cacheCopyAttemptAbandonedPath)
 
     // Also publish the attempt failure metrics
@@ -816,10 +810,10 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   private def publishBlacklistReadMetrics(data: ResponsePendingData, failureCategory: MetricableCacheCopyErrorCategory): Unit = {
-    val callCachingErrorsMetricPath: NonEmptyList[String] =
-      NonEmptyList.of(
-        "job",
-        "callcaching", "read", "error", failureCategory.toString, data.jobDescriptor.taskCall.localName, data.jobDescriptor.workflowDescriptor.hogGroup.value)
+    val callCachingErrorsMetricPath = InstrumentationPath.withParts(
+        "job","callcaching", "read", "error", failureCategory.toString)
+      .withHighVariantPart("task", data.jobDescriptor.taskCall.localName)
+      .withHighVariantPart("group", data.jobDescriptor.workflowDescriptor.hogGroup.value)
     increment(callCachingErrorsMetricPath)
   }
 

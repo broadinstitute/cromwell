@@ -3,7 +3,6 @@ package cromwell.engine.workflow.tokens
 import java.time.OffsetDateTime
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated, Timers}
-import cats.data.NonEmptyList
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.JobToken._
 import cromwell.core.instrumentation.InstrumentationPrefixes.ServicesPrefix
@@ -40,14 +39,14 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
 {
 
   // Metrics paths are based on the dispenser type
-  private val tokenDispenserMetricsBasePath: NonEmptyList[String] = NonEmptyList.of("token_dispenser", dispenserType)
+  private val tokenDispenserMetricsBasePath = InstrumentationPath.withParts("token_dispenser", dispenserType)
 
-  private val tokenLeaseDurationMetricPath: NonEmptyList[String] = tokenDispenserMetricsBasePath :+ "token_hold_duration"
+  private val tokenLeaseDurationMetricPath = tokenDispenserMetricsBasePath :+ "token_hold_duration"
 
-  private val tokenDispenserMetricsActivityRates: NonEmptyList[String] = tokenDispenserMetricsBasePath :+ "activity_rate"
-  private val requestsEnqueuedMetricPath: NonEmptyList[String] = tokenDispenserMetricsActivityRates :+ "requests_enqueued"
-  private val tokensLeasedMetricPath: NonEmptyList[String] = tokenDispenserMetricsActivityRates :+ "tokens_dispensed"
-  private val tokensReturnedMetricPath: NonEmptyList[String] = tokenDispenserMetricsActivityRates :+ "tokens_returned"
+  private val tokenDispenserMetricsActivityRates = tokenDispenserMetricsBasePath :+ "activity_rate"
+  private val requestsEnqueuedMetricPath = tokenDispenserMetricsActivityRates :+ "requests_enqueued"
+  private val tokensLeasedMetricPath = tokenDispenserMetricsActivityRates :+ "tokens_dispensed"
+  private val tokensReturnedMetricPath = tokenDispenserMetricsActivityRates :+ "tokens_returned"
 
   /**
     * Lazily created token queue. We only create a queue for a token type when we need it
@@ -57,8 +56,8 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
   var tokenAssignments: Map[ActorRef, TokenLeaseRecord] = Map.empty
 
   val instrumentationAction = () => {
-    sendGaugeJob(tokenAllocatedDescription, tokenAssignments.size.toLong)
-    sendGaugeJob(ExecutionStatus.QueuedInCromwell.toString, tokenQueues.values.map(_.size).sum.toLong)
+    sendGaugeJob(InstrumentationPath.withParts(tokenAllocatedDescription), tokenAssignments.size.toLong)
+    sendGaugeJob(InstrumentationPath.withParts(ExecutionStatus.QueuedInCromwell.toString), tokenQueues.values.map(_.size).sum.toLong)
   }
 
   lazy val effectiveLogInterval: Option[FiniteDuration] = logInterval.filterNot(_ == 0.seconds)
@@ -145,7 +144,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
     nextTokens.foreach({
       case LeasedActor(queuePlaceholder, lease) if !tokenAssignments.contains(queuePlaceholder.actor) =>
         tokenAssignments = tokenAssignments + (queuePlaceholder.actor -> TokenLeaseRecord(lease, OffsetDateTime.now()))
-        incrementJob("Started")
+        incrementJob(InstrumentationPath.withParts("Started"))
         increment(tokensLeasedMetricPath, ServicesPrefix)
         queuePlaceholder.actor ! JobTokenDispensed
       // Only one token per actor, so if you've already got one, we don't need to use this new one:

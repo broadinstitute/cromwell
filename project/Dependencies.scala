@@ -91,6 +91,7 @@ object Dependencies {
   private val pegdownV = "1.6.0"
   private val postgresV = "42.2.24"
   private val pprintV = "0.6.6"
+  private val prometheusV = "0.15.0"
   private val rdf4jV = "3.7.1"
   private val refinedV = "0.9.27"
   private val rhinoV = "1.7.13"
@@ -369,6 +370,10 @@ object Dependencies {
     "commons-io" % "commons-io" % commonsIoV,
   ) ++ configDependencies ++ catsDependencies ++ slickDependencies ++ dbmsDependencies ++ refinedTypeDependenciesList
 
+  val prometheusDependencies = List(
+    "io.prometheus" % "simpleclient" % prometheusV
+  )
+
   val statsDDependencies = List(
     "nl.grons" %% "metrics4-scala" % metrics4ScalaV,
     "com.readytalk" % "metrics3-statsd" % metrics3StatsdV
@@ -460,7 +465,7 @@ object Dependencies {
   ) ++ akkaStreamDependencies ++ configDependencies ++ catsDependencies ++ circeDependencies ++
     googleApiClientDependencies ++ statsDDependencies ++ betterFilesDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.
-    slf4jBindingDependencies ++ stackdriverDependencies
+    slf4jBindingDependencies ++ stackdriverDependencies ++ prometheusDependencies
 
   val databaseMigrationDependencies: List[ModuleID] = liquibaseDependencies ++ dbmsDependencies
 

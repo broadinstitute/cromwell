@@ -1,11 +1,9 @@
 package cromwell.backend.google.pipelines.common
 
 import java.net.SocketTimeoutException
-
 import _root_.io.grpc.Status
 import akka.actor.ActorRef
 import akka.http.scaladsl.model.{ContentType, ContentTypes}
-import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
@@ -38,6 +36,7 @@ import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.sra.SraPath
 import cromwell.google.pipelines.common.PreviousRetryReasons
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
 import mouse.all._
@@ -670,7 +669,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     referenceInputFilesOpt match {
       case Some(referenceInputFiles) =>
         referenceInputFiles.foreach { referenceInputFile =>
-          increment(NonEmptyList.of("referencefiles", referenceInputFile.relativeHostPath.pathAsString))
+          increment(InstrumentationPath.withParts("referencefiles", referenceInputFile.relativeHostPath.pathAsString))
         }
       case _ =>
         // do nothing - reference disks feature is either not configured in Cromwell or disabled in workflow options
@@ -681,9 +680,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
                                                         dockerImageAsSpecifiedByUser: String,
                                                         isDockerImageCacheUsageRequested: Boolean): Unit = {
     (isDockerImageCacheUsageRequested, dockerImageCacheDiskOpt) match {
-      case (true, None) => increment(NonEmptyList("docker", List("image", "cache", "image_not_in_cache", dockerImageAsSpecifiedByUser)))
-      case (true, Some(_)) => increment(NonEmptyList("docker", List("image", "cache", "used_image_from_cache", dockerImageAsSpecifiedByUser)))
-      case (false, Some(_)) => increment(NonEmptyList("docker", List("image", "cache", "cached_image_not_used", dockerImageAsSpecifiedByUser)))
+      case (true, None) => increment(InstrumentationPath.withParts("docker", "image", "cache", "image_not_in_cache", dockerImageAsSpecifiedByUser))
+      case (true, Some(_)) => increment(InstrumentationPath.withParts("docker", "image", "cache", "used_image_from_cache", dockerImageAsSpecifiedByUser))
+      case (false, Some(_)) => increment(InstrumentationPath.withParts("docker", "image", "cache", "cached_image_not_used", dockerImageAsSpecifiedByUser))
       case _ => // docker image cache not requested and image is not in cache anyway - do nothing
     }
   }

@@ -1,13 +1,13 @@
 package cromwell.jobstore
 
 import akka.actor.{ActorLogging, ActorRef, Props}
-import cats.data.NonEmptyList
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.LoadConfig
 import cromwell.core.actor.BatchActor.CommandAndReplyTo
 import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.jobstore.JobStoreActor.{JobComplete, JobNotComplete, JobStoreReadFailure, QueryJobCompletion}
 import cromwell.services.EnhancedThrottlerActor
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 
 import scala.util.{Failure, Success}
 
@@ -33,7 +33,7 @@ class JobStoreReaderActor(database: JobStore, override val serviceRegistryActor:
 
   // EnhancedBatchActorOverrides
   override def receive = enhancedReceive.orElse(super.receive)
-  override protected def instrumentationPath = NonEmptyList.of("store", "read")
+  override protected def instrumentationPath = InstrumentationPath.withParts("store", "read")
   override protected def instrumentationPrefix = InstrumentationPrefixes.JobPrefix
   override def commandToData(snd: ActorRef) = {
     case query: QueryJobCompletion => CommandAndReplyTo(query, sender())

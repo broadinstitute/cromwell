@@ -1,7 +1,7 @@
 package cromwell.services.loadcontroller
 
-import cats.data.NonEmptyList
 import cromwell.services.ServiceRegistryActor.{ListenToMessage, ServiceRegistryMessage}
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import cromwell.services.loadcontroller.impl.LoadControllerServiceActor.LoadControllerServiceName
 
 object LoadControllerService {
@@ -9,9 +9,9 @@ object LoadControllerService {
     def serviceName = LoadControllerServiceName
   }
   object LoadMetric {
-    def apply(name: String, loadLevel: LoadLevel) = new LoadMetric(NonEmptyList.one(name), loadLevel)
+    def apply(name: String, loadLevel: LoadLevel) = new LoadMetric(InstrumentationPath.withParts(name), loadLevel)
   }
-  case class LoadMetric(name: NonEmptyList[String], loadLevel: LoadLevel) extends LoadControllerMessage
+  case class LoadMetric(name: InstrumentationPath, loadLevel: LoadLevel) extends LoadControllerMessage
 
   sealed trait LoadLevel { def level: Int }
   case object NormalLoad extends LoadLevel { val level = 0 }

@@ -2,8 +2,6 @@ package cromwell.backend.dummy
 
 import java.time.OffsetDateTime
 import java.util.UUID
-
-import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import cats.implicits._
 import common.exception.AggregatedMessageException
@@ -14,6 +12,7 @@ import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExec
 import cromwell.core.CallOutputs
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.services.instrumentation.CromwellInstrumentation
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import wom.expression.NoIoFunctionSet
 import wom.graph.GraphNodePort.{ExpressionBasedOutputPort, OutputPort}
 import wom.values.WomValue
@@ -59,7 +58,7 @@ class DummyAsyncExecutionActor(override val standardParams: StandardAsyncExecuti
 
   override def executeAsync(): Future[ExecutionHandle] = {
     finishTime = Option(OffsetDateTime.now().plusMinutes(3))
-    increment(NonEmptyList("jobs", List("dummy", "executing", "starting")))
+    increment(InstrumentationPath.withParts("jobs", "dummy", "executing", "starting"))
     singletonActor ! DummySingletonActor.PlusOne
     Future.successful(
       PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState](
@@ -84,7 +83,7 @@ class DummyAsyncExecutionActor(override val standardParams: StandardAsyncExecuti
 
     if (state == "done") {
 
-      increment(NonEmptyList("jobs", List("dummy", "executing", "done")))
+      increment(InstrumentationPath.withParts("jobs", "dummy", "executing", "done"))
       singletonActor ! DummySingletonActor.MinusOne
 
       val outputsValidation: ErrorOr[Map[OutputPort, WomValue]] = jobDescriptor.taskCall.outputPorts.toList.traverse {

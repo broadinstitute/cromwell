@@ -1,8 +1,8 @@
 package cromwell.backend.standard.callcaching
-import cats.data.NonEmptyList
 import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
 import cromwell.core.io.{IoCommand, IoCopyCommand}
 import cromwell.services.CallCaching.CallCachingEntryId
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 
 
 object CopyingActorBlacklistCacheSupport {
@@ -52,9 +52,8 @@ trait CopyingActorBlacklistCacheSupport {
   }
 
   def publishBlacklistMetric(verb: Verb, entityType: EntityType, value: BlacklistStatus): Unit = {
-    val metricPath = NonEmptyList.of(
-      "job",
-      "callcaching", "blacklist", verb.metricFormat, entityType.metricFormat, value.toString)
+    val metricPath = InstrumentationPath.withParts(
+      "job","callcaching", "blacklist", verb.metricFormat, entityType.metricFormat, value.toString)
     increment(metricPath)
   }
 

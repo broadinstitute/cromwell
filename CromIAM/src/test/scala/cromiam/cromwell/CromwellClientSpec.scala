@@ -7,7 +7,6 @@ import akka.event.NoLogging
 import akka.http.scaladsl.model.headers.{Authorization, OAuth2BearerToken}
 import akka.http.scaladsl.model.{HttpHeader, HttpRequest, HttpResponse}
 import akka.stream.ActorMaterializer
-import cats.data.NonEmptyList
 import cats.effect.IO
 import cromiam.auth.User
 import cromwell.api.model._
@@ -73,7 +72,7 @@ object CromwellClientSpec {
 
     override def sendTimingApi(statsDPath: InstrumentationPath,
                                timing: FiniteDuration,
-                               prefixToStatsd: NonEmptyList[String]
+                               prefixToStatsd: InstrumentationPath
                               ): Unit = ()
   }
 

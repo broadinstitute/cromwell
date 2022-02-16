@@ -5,6 +5,7 @@ import akka.actor.{Actor, ActorInitializationException, ActorLogging, OneForOneS
 import cats.data.NonEmptyList
 import cromwell.core.{JobKey, WorkflowId}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
@@ -37,7 +38,7 @@ object KeyValueServiceActor {
   final case class KvKeyLookupFailed(action: KvGet) extends KvResponse with KvMessageWithAction
   final case class KvPutSuccess(action: KvPut) extends KvResponse with KvMessageWithAction
 
-  val InstrumentationPath = NonEmptyList.of("keyvalue")
+  val instrumentationPath = InstrumentationPath.withParts("keyvalue")
 }
 
 trait KeyValueServiceActor extends Actor with GracefulShutdownHelper with ActorLogging {

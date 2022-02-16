@@ -1,12 +1,11 @@
 package cromwell.services.instrumentation
 
-import cats.data.NonEmptyList
 import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 
 import scala.concurrent.duration.FiniteDuration
 
 object CromwellBucket {
-  def apply(singleString: String): CromwellBucket = CromwellBucket(List.empty, NonEmptyList.of(singleString))
+  def apply(singleString: String): CromwellBucket = CromwellBucket(List.empty, InstrumentationPath.withParts(singleString))
 }
 
 /**
@@ -15,7 +14,7 @@ object CromwellBucket {
   * This allow for deferred insertion of control elements in between prefix and key when building a bucket string.
   */
 case class CromwellBucket(prefix: List[String], path: InstrumentationPath) {
-  def expand(key: String): CromwellBucket = this.copy(path = path.concatNel(NonEmptyList.of(key)))
+  def expand(key: String): CromwellBucket = this.copy(path = path.withParts(key))
 }
 
 /**

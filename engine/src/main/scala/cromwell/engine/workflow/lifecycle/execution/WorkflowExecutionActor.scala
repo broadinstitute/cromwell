@@ -35,6 +35,7 @@ import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, Eng
 import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.services.instrumentation.CromwellInstrumentation
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataValue}
 import cromwell.util.StopAndLogSupervisor
@@ -200,7 +201,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   def measureTimeBetweenHeartbeats(): Unit = {
     val now = OffsetDateTime.now
     previousHeartbeatTime foreach { previous =>
-      sendGauge(NonEmptyList("workflows", List("workflowexecutionactor", "heartbeat", "interval_millis", "set")), now.toInstant.toEpochMilli - previous.toInstant.toEpochMilli)
+      sendGauge(InstrumentationPath.withParts("workflows", "workflowexecutionactor", "heartbeat", "interval_millis", "set"), now.toInstant.toEpochMilli - previous.toInstant.toEpochMilli)
     }
     previousHeartbeatTime = Option(now)
   }
@@ -505,7 +506,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     case msg =>
       val starttime = OffsetDateTime.now
       super[LoggingFSM].receive(msg)
-      sendGauge(NonEmptyList("workflows", List("workflowexecutionactor", this.stateName.toString, msg.getClass.getSimpleName , "processing_millis", "set")), OffsetDateTime.now.toInstant.toEpochMilli - starttime.toInstant.toEpochMilli)
+      sendGauge(InstrumentationPath.withParts("workflows", "workflowexecutionactor", this.stateName.toString, msg.getClass.getSimpleName , "processing_millis", "set"), OffsetDateTime.now.toInstant.toEpochMilli - starttime.toInstant.toEpochMilli)
   }
 
   /**
@@ -577,7 +578,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
     // Merge the execution diffs upon success
     val result = updateExecutionStore(keyStartDiffs, updatedData)
-    sendGauge(NonEmptyList("workflows", List("workflowexecutionactor", "startRunnableNodes", "duration_millis", "set")), OffsetDateTime.now.toInstant.toEpochMilli - startRunnableStartTimestamp.toInstant.toEpochMilli)
+    sendGauge(InstrumentationPath.withParts("workflows", "workflowexecutionactor", "startRunnableNodes", "duration_millis", "set"), OffsetDateTime.now.toInstant.toEpochMilli - startRunnableStartTimestamp.toInstant.toEpochMilli)
     result
   }
 

@@ -1,7 +1,6 @@
 package cromwell.engine.instrumentation
 
 import akka.actor.Actor
-import cats.data.NonEmptyList
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.core.instrumentation.InstrumentationKeys._
 import cromwell.core.instrumentation.InstrumentationPrefixes._
@@ -12,13 +11,13 @@ import cromwell.services.instrumentation.CromwellInstrumentationActor
 import scala.concurrent.duration.FiniteDuration
 
 object JobInstrumentation {
-  private val jobTimingKey = NonEmptyList.one("timing")
+  private val jobTimingKey = InstrumentationPath.withParts("timing")
 
   private def backendJobExecutionResponsePaths(response: BackendJobExecutionResponse) = response match {
-    case _: JobSucceededResponse => jobTimingKey.concatNel(SuccessKey)
-    case _: JobAbortedResponse => jobTimingKey.concatNel(AbortedKey)
-    case _: JobFailedNonRetryableResponse => jobTimingKey.concatNel(FailureKey)
-    case _: JobFailedRetryableResponse => jobTimingKey.concatNel(RetryKey)
+    case _: JobSucceededResponse => jobTimingKey.withParts(SuccessKey)
+    case _: JobAbortedResponse => jobTimingKey.withParts(AbortedKey)
+    case _: JobFailedNonRetryableResponse => jobTimingKey.withParts(FailureKey)
+    case _: JobFailedRetryableResponse => jobTimingKey.withParts(RetryKey)
   }
 }
 
@@ -54,6 +53,6 @@ trait JobInstrumentation extends CromwellInstrumentationActor { this: Actor =>
   }
   
   def recordExecutionStepTiming(state: String, duration: FiniteDuration): Unit = {
-    sendTiming(jobTimingKey.concatNel("state").concatNel(state), duration, JobPrefix)
+    sendTiming(jobTimingKey.withParts("state", state), duration, JobPrefix)
   }
 }

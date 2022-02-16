@@ -2,12 +2,12 @@ package cromwell.services.instrumentation
 
 import akka.actor.{ActorRef, LoggingFSM, Props, Status}
 import akka.pattern.pipe
-import cats.data.NonEmptyList
 import cromwell.services.instrumentation.AsynchronousThrottlingGaugeMetricActor._
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class AsynchronousThrottlingGaugeMetricActor(metricPath: NonEmptyList[String],
+class AsynchronousThrottlingGaugeMetricActor(metricPath: InstrumentationPath,
                                              instrumentationPrefix: Option[String],
                                              override val serviceRegistryActor: ActorRef)
   extends LoggingFSM[AsynchronousThrottlingGaugeMetricActorState, Unit]
@@ -57,7 +57,7 @@ class AsynchronousThrottlingGaugeMetricActor(metricPath: NonEmptyList[String],
 
 object AsynchronousThrottlingGaugeMetricActor {
 
-  def props(metricPath: NonEmptyList[String], instrumentationPrefix: Option[String], serviceRegistryActor: ActorRef) =
+  def props(metricPath: InstrumentationPath, instrumentationPrefix: Option[String], serviceRegistryActor: ActorRef) =
     Props(new AsynchronousThrottlingGaugeMetricActor(metricPath, instrumentationPrefix, serviceRegistryActor))
 
   // states

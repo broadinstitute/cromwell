@@ -73,12 +73,10 @@ class SwaggerServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Swagg
     Get("/swagger/index.html?url=/swagger/cromwell.yaml") ~>
       swaggerUiResourceRoute ~>
       check {
-        assertResult(StatusCodes.OK) {
+        assertResult(StatusCodes.MovedPermanently) {
           status
         }
-        assertResult("<!-- HTML for s") {
-          responseAs[String].take(15)
-        }
+        responseAs[String] shouldEqual """This and all future requests should be directed to <a href="/">this URI</a>."""
       }
   }
 

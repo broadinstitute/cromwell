@@ -82,7 +82,7 @@ trait SwaggerResourceHttpService {
   /**
    * @return The directory for the resource under the classpath, and in the url
    */
-  def swaggerDirectory: String = "swagger"
+  lazy val swaggerDirectory: String = "swagger"
 
   /**
    * @return Name of the service, used to map the documentation resource at "/uiPath/serviceName.resourceType".
@@ -97,12 +97,13 @@ trait SwaggerResourceHttpService {
   /**
    * @return The path to the swagger docs.
    */
-  protected def swaggerDocsPath = s"$swaggerDirectory/$swaggerServiceName.$swaggerResourceType"
+  protected lazy val swaggerDocsPath = s"$swaggerDirectory/$swaggerServiceName.$swaggerResourceType"
 
   /**
    * @return A route that returns the swagger resource.
    */
   final def swaggerResourceRoute: Route = {
+    // Serve Cromwell API docs from either `/swagger/cromwell.yaml` or just `cromwell.yaml`.
     val swaggerDocsDirective = path(separateOnSlashes(swaggerDocsPath)) | path(s"$swaggerServiceName.$swaggerResourceType")
 
     def injectBasePath(basePath: Option[String])(response: HttpResponse): HttpResponse = {

@@ -23,9 +23,9 @@ trait InstrumentedBatchActor[C] { this: BatchActor[C] with CromwellInstrumentati
   protected def instrumentationPrefix: Option[String]
 
   // If this actor is behind a router, add its name to the instrumentation path so that all routees don't override each other's values
-  private def makePath(name: String) = if (routed) {
+  private def makePath(name: String) = if (routed)
     instrumentationPath.withHighVariantPart("actor", self.path.name).withParts(name)
-  } else
+  else
     instrumentationPath.withParts(name)
 
   private val processedPath = makePath("processed")

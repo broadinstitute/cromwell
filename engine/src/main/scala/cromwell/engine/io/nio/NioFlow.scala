@@ -3,7 +3,7 @@ package cromwell.engine.io.nio
 import akka.stream.scaladsl.Flow
 import cats.effect.{IO, Timer}
 import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
-import cloud.nio.spi.FileHash
+import cloud.nio.spi.{ChecksumFailure, ChecksumResult, ChecksumSuccess, FileHash}
 import com.typesafe.config.Config
 import common.util.IORetry
 import cromwell.core.io._
@@ -61,7 +61,7 @@ class NioFlow(parallelism: Int,
       result <- operationResult
     } yield (result, commandContext)
 
-     io handleErrorWith {
+    io handleErrorWith {
       failure => IO.pure(commandContext.fail(failure))
     }
   }
@@ -114,14 +114,31 @@ class NioFlow(parallelism: Int,
       )
     }
 
-    val fileHash: Option[IO[FileHash]] = read.file match {
-      case drsPath: DrsPath =>
-        Option(getFileHashForDrsPath(drsPath))
-      case _ => None
+    def checkHash(value: String, fileHash: FileHash): IO[ChecksumResult] = IO.pure(ChecksumSuccess())
+
+    // IoActor can retry, but that mostly helps in cases where a short delay before
+    // retrying might help. In this case, we just want to stream the bytes again
+    // and hope to avoid the rare error. Waiting before retrying won't really help.
+    def tryReadFile(fileHashIO: IO[FileHash], attempt: Int = 1): IO[String] = {
+      println(s"attempt: $attempt")
+      for {
+        fileHash <- fileHashIO
+        uncheckedValue <- readFile
+        checksumResult <- checkHash(uncheckedValue, fileHash)
+        verifiedValue <- checksumResult match {
+          case _: ChecksumSuccess => IO.pure(uncheckedValue)
+          case _: ChecksumFailure =>
+            if (attempt < 3) tryReadFile(fileHashIO, attempt + 1)
+            else IO.raiseError(new RuntimeException(s"Failed checksum for: ${read.file}"))
+        }
+      } yield (verifiedValue)
     }
 
-    val value: IO[String] = fileHash match {
-      case Some(_) => readFile
+    // TODO: remove the wrapping Option since we're getting the hash for all Path types, not just DrsPath
+    val fileHashOption: Option[IO[FileHash]] = Option(getHash(read.file))
+
+    val value: IO[String] = fileHashOption match {
+      case Some(fileHash) => tryReadFile(fileHash)
       case None => readFile
     }
 
@@ -133,17 +150,27 @@ class NioFlow(parallelism: Int,
   }
 
   private def hash(hash: IoHashCommand): IO[String] = {
-    hash.file match {
-      case gcsPath: GcsPath => IO.fromTry { gcsPath.objectBlobId.map(gcsPath.cloudStorage.get(_).getCrc32c) }
-      case drsPath: DrsPath => getFileHashForDrsPath(drsPath).map(_.hash)
-      case s3Path: S3Path => IO { s3Path.eTag }
-      case ossPath: OssPath => IO { ossPath.eTag}
+    getHash(hash.file).map(_.hash)
+  }
+
+  private def getHash(file: Path): IO[FileHash] = {
+    file match {
+      case gcsPath: GcsPath => IO.fromTry {
+        gcsPath.objectBlobId.map(id => FileHash("crc32c", gcsPath.cloudStorage.get(id).getCrc32c))
+      }
+      case drsPath: DrsPath => getFileHashForDrsPath(drsPath)
+      case s3Path: S3Path => IO {
+        FileHash("etag", s3Path.eTag)
+      }
+      case ossPath: OssPath => IO {
+        FileHash("etag", ossPath.eTag)
+      }
       case path =>
         IO.fromEither(
-        tryWithResource(() => path.newInputStream) { inputStream =>
-          org.apache.commons.codec.digest.DigestUtils.md5Hex(inputStream)
-        }.toEither
-      )
+          tryWithResource(() => path.newInputStream) { inputStream =>
+            FileHash("md5", org.apache.commons.codec.digest.DigestUtils.md5Hex(inputStream))
+          }.toEither
+        )
     }
   }
 

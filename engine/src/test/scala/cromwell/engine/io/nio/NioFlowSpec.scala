@@ -4,7 +4,7 @@ import akka.actor.ActorRef
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import cats.effect.IO
-import com.google.cloud.storage.StorageException
+import com.google.cloud.storage.{Blob, BlobId, Storage, StorageException}
 import cromwell.core.io.DefaultIoCommandBuilder._
 import cromwell.core.io._
 import cromwell.core.path.DefaultPathBuilder
@@ -13,16 +13,19 @@ import cromwell.engine.io.IoActor.DefaultCommandContext
 import cromwell.engine.io.IoAttempts.EnhancedCromwellIoException
 import cromwell.engine.io.IoCommandContext
 import cromwell.filesystems.gcs.GcsPath
+import org.mockito.Mockito.when
 import org.scalatest.flatspec.AsyncFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar
 import org.specs2.mock.Mockito._
 
+import java.io.ByteArrayInputStream
 import java.nio.file.NoSuchFileException
 import java.util.UUID
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.Failure
+import scala.util.{Failure, Success}
 import scala.util.control.NoStackTrace
 
 class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with MockitoSugar {
@@ -38,7 +41,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     onBackpressure = NoopOnBackpressure,
     numberOfAttempts = 5,
     commandBackpressureStaleness = 5 seconds)(system.dispatcher).flow
-  
+
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   private val replyTo = mock[ActorRef]
   private val readSink = Sink.head[(IoAck[_], IoCommandContext[_])]
@@ -63,12 +66,12 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
   it should "read from a Nio Path" in {
     val testPath = DefaultPathBuilder.createTempFile()
     testPath.write("hello")
-    
+
     val context = DefaultCommandContext(contentAsStringCommand(testPath, None, failOnOverflow = false).get, replyTo)
     val testSource = Source.single(context)
 
     val stream = testSource.via(flow).toMat(readSink)(Keep.right)
-    
+
     stream.run() map {
       case (success: IoSuccess[_], _) => assert(success.result.asInstanceOf[String] == "hello")
       case _ => fail("read returned an unexpected message")
@@ -89,7 +92,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
       case _ => fail("size returned an unexpected message")
     }
   }
-  
+
   it should "get hash from a Nio Path" in {
     val testPath = DefaultPathBuilder.createTempFile()
     testPath.write("hello")
@@ -117,8 +120,32 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
 
     stream.run() map {
       case (IoFailure(_, EnhancedCromwellIoException(_, receivedException)), _) =>
-        receivedException should be(receivedException)
+        receivedException should be(exception)
       case unexpected => fail(s"hash returned an unexpected message: $unexpected")
+    }
+  }
+
+  it should "fail if hash doesn't match checksum" in {
+    val testPath = mock[GcsPath].smart
+    when(testPath.mediaInputStream).thenReturn(new ByteArrayInputStream("hello".getBytes()))
+    val blobId = BlobId.of("bucket", "name")
+    testPath.objectBlobId.returns(Success(blobId))
+    val mockCloudStorage = mock[Storage].smart
+    when(testPath.cloudStorage).thenReturn(mockCloudStorage)
+    val mockBlob = mock[Blob].smart
+    when(mockCloudStorage.get(blobId)).thenReturn(mockBlob)
+    when(mockBlob.getCrc32c).thenReturn("boom!")
+
+    val context = DefaultCommandContext(contentAsStringCommand(testPath, Option(100), failOnOverflow = true).get, replyTo)
+    val testSource = Source.single(context)
+
+    val stream = testSource.via(flow).toMat(readSink)(Keep.right)
+
+    val eventualTuple: Future[(IoAck[_], IoCommandContext[_])] = stream.run()
+    eventualTuple map {
+      case (IoFailure(_, EnhancedCromwellIoException(_, receivedException)), _) =>
+        receivedException should be (new Exception())
+      case (result, _) => fail(s"oops: $result")
     }
   }
 
@@ -141,10 +168,10 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
   it should "copy Nio paths with" in {
     val testPath = DefaultPathBuilder.createTempFile()
     testPath.write("goodbye")
-    
+
     val testCopyPath = DefaultPathBuilder.createTempFile()
     testCopyPath.write("hello")
-    
+
     val context = DefaultCommandContext(copyCommand(testPath, testCopyPath).get, replyTo)
 
     val testSource = Source.single(context)
@@ -229,7 +256,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
         }
        }
     }.flow
-    
+
     val stream = testSource.via(customFlow).toMat(readSink)(Keep.right)
 
     stream.run() map {

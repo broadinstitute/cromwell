@@ -1,6 +1,7 @@
 package cromwell.webservice
 
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
+import akka.http.scaladsl.server
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.stream.scaladsl.Flow
@@ -37,12 +38,29 @@ trait SwaggerUiHttpService {
    */
   def swaggerUiDocsPath: String = "api-docs"
 
-  private def routeFromRoot: Route = get {
-    pathEndOrSingleSlash {
-      // Redirect / to the swagger UI
-      redirect(s"$swaggerUiBaseUrl/$swaggerUiPath", StatusCodes.TemporaryRedirect)
+  private lazy val resourceDirectory = s"META-INF/resources/webjars/swagger-ui/$swaggerUiVersion"
+
+  private val serveIndex: server.Route = {
+    val swaggerOptions =
+      """
+        |        validatorUrl: null,
+        |        apisSorter: "alpha",
+        |        operationsSorter: "alpha"
+      """.stripMargin
+
+    mapResponseEntity { entityFromJar =>
+      entityFromJar.transformDataBytes(Flow.fromFunction[ByteString, ByteString] { original: ByteString =>
+        ByteString(
+          original.utf8String
+            .replace("""url: "https://petstore.swagger.io/v2/swagger.json"""", "url: '/swagger/cromwell.yaml'")
+            .replace("""layout: "StandaloneLayout"""", s"""layout: "StandaloneLayout", $swaggerOptions""")
+        )
+      })
+    } {
+      getFromResource(s"$resourceDirectory/index.html")
     }
   }
+
 
   /**
    * Serves up the swagger UI only. Redirects requests to the root of the UI path to the index.html.
@@ -50,21 +68,22 @@ trait SwaggerUiHttpService {
    * @return Route serving the swagger UI.
    */
   final def swaggerUiRoute: Route = {
-    val route = get {
-      pathPrefix(separateOnSlashes(swaggerUiPath)) {
-        // when the user hits the doc url, redirect to the index.html with api docs specified on the url
-        pathEndOrSingleSlash {
-          redirect(
-            s"$swaggerUiBaseUrl/$swaggerUiPath/index.html?url=$swaggerUiBaseUrl/$swaggerUiDocsPath",
-            StatusCodes.TemporaryRedirect)
-        } ~ getFromResourceDirectory(s"META-INF/resources/webjars/swagger-ui/$swaggerUiVersion")
+    path("") {
+      get {
+        serveIndex
       }
-    }
-    route ~ routeFromRoot
+    } ~
+      // We have to be explicit about the paths here since we're matching at the root URL and we don't
+      // want to catch all paths lest we circumvent Spray's not-found and method-not-allowed error
+      // messages.
+      (pathPrefixTest("swagger-ui") | pathPrefixTest("oauth2") | pathSuffixTest("js")
+        | pathSuffixTest("css") | pathPrefixTest("favicon")) {
+        get {
+          getFromResourceDirectory(resourceDirectory)
+        }
+      }
   }
-
 }
-
 /**
  * An extension of HttpService to serve up a resource containing the swagger api as yaml or json. The resource
  * directory and path on the classpath must match the path for route. The resource can be any file type supported by the

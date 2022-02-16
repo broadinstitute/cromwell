@@ -21,19 +21,56 @@ object CromwellInstrumentation {
     .as[Option[FiniteDuration]]("instrumentation-rate")
     .getOrElse(5.seconds)
 
-  type InstrumentationPath = NonEmptyList[String]
+  implicit class InstrumentationPath (private val internalPath: NonEmptyList[Either[String, (String, String)]]) {
+    def :+(part: String): InstrumentationPath = internalPath.append(Left(part))
+    def withParts(parts: String *): InstrumentationPath = withParts(parts.toList)
+    def withParts(parts: List[String]): InstrumentationPath = internalPath.concat(parts.map(Left(_)))
+    def withHighVariantPart(label: String, part: String): InstrumentationPath = withHighVariantPart(label -> part)
+    def withHighVariantPart(tuple: (String, String)): InstrumentationPath = internalPath.append(Right(tuple))
+    def withStatusCodeFailure(code: Option[Int]): InstrumentationPath = code match {
+      case Some(value) => withHighVariantPart("code", value.toString)
+      case None => this
+    }
+    def withThrowable(failure: Throwable, statusCodeExtractor: Throwable => Option[Int]): InstrumentationPath =
+      internalPath.withStatusCodeFailure(statusCodeExtractor(failure))
 
-  implicit def stringToNel(str: String): NonEmptyList[String] = NonEmptyList.of(str)
+    def concat(other: InstrumentationPath): InstrumentationPath = internalPath.concatNel(other.internalPath)
 
-  implicit class EnhancedStatsDPath(val path: InstrumentationPath) extends AnyVal {
-    def withStatusCodeFailure(code: Option[Int]) = code
-      .map(c => path.concatNel(NonEmptyList.of(c.toString)))
-      .getOrElse(path)
+    /**
+     * Get all path parts, in the order they were added, without special handling for high variant parts.
+     * The "labels" recorded for high variant parts are unused.
+     * @return a NeL of the parts of the instrumentation path
+     */
+    def getPath: NonEmptyList[String] = internalPath.map {
+      case Left(part) => part
+      case Right((_, part)) => part
+    }
 
-    def withThrowable(failure: Throwable, statusCodeExtractor: Throwable => Option[Int]) = {
-      path.withStatusCodeFailure(statusCodeExtractor(failure))
+    /**
+     * A best-effort method to get a non-empty list of path parts with the fewest number of high variant parts
+     * possible. Any high variant parts not included in the list are returned as a label-part map.
+     * @return a NeL of the instrumentation path, with as many high variant parts as possible instead returned in a map
+     */
+    def getPathLowVariants: (NonEmptyList[String], Map[String, String]) = {
+      var nameParts = internalPath.collect { case Left(p) => p }
+      var labelParts = internalPath.collect { case Right(p) => p }
+      // path is a NeL, so if nameParts is empty then labelParts is not
+      if (nameParts.isEmpty) {
+        nameParts = labelParts.take(1).map(_._2)
+        labelParts = labelParts.drop(1)
+      }
+      (NonEmptyList.fromListUnsafe(nameParts), labelParts.toMap)
     }
   }
+
+  object InstrumentationPath {
+    def withParts(part: String, additional: String *): InstrumentationPath = NonEmptyList.of(Left(part), additional.map(Left(_)):_*)
+    def withHighVariantPart(tuple: (String, String)): InstrumentationPath = NonEmptyList.of(Right(tuple))
+    def withHighVariantPart(label: String, part: String): InstrumentationPath = withHighVariantPart(label -> part)
+  }
+
+  @deprecated("CromwellInstrumentation no longer exposes NeLs; this method will be removed", "Cromwell 75")
+  implicit def stringToNel(str: String): NonEmptyList[String] = NonEmptyList.of(str)
 }
 
 trait CromwellInstrumentationActor extends CromwellInstrumentation { this: Actor =>

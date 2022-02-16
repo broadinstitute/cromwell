@@ -265,7 +265,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         workflowStore.add(includedGroupSourceFilesCollection2)
       }
 
-      val workflowsList: Seq[List[WorkflowToStart]] = for (_ <- 1 to 10) yield {
+      val workflowsList = for (_ <- 1 to 10) yield {
         (for {
           // since both hog groups have 0 workflows running, the hog groups are sorted alphabetically and first one is picked
           startableWorkflows1 <- workflowStore.fetchStartableWorkflows(5, "A08", 1.minute, Set.empty[String])

@@ -73,7 +73,7 @@ trait WorkflowStoreEntryComponent {
   )
 
   /**
-   * Return hog group with the lowest count of actively running workflows.
+   * Return hog group with the lowest count of actively running workflows
    */
   def getHogGroupWithLowestRunningWfs(heartbeatTimestampTimedOut: Timestamp,
                                       excludeWorkflowState: String,
@@ -115,9 +115,9 @@ trait WorkflowStoreEntryComponent {
       .map { case (hogGroupName, groups) => (hogGroupName, groups.length) }
       .sortBy(_._2.asc)
 
-    // calculate the number of actively running workflows for each hog group. If a hog group
-    // has all it's workflows either actively running or in "OnHold" status it is not included in the list.
-    // Hog groups that have no workflows actively running return count as 0
+    // calculates the number of actively running workflows for each hog group. If a hog group
+    // has all it's workflows that are either actively running or in "OnHold" status it is not
+    // included in the list. Hog groups that have no workflows actively running return count as 0
     val wfsRunningPerHogGroup = for {
       (t_group, t_ct) <- totalWorkflowsByHogGroup
       (s_group, s_ct) <- numOfStartableWfsByHogGroup if t_group === s_group
@@ -142,7 +142,6 @@ trait WorkflowStoreEntryComponent {
         row <- workflowStoreEntries
         /*
           This looks for:
-
           1) Workflows with no heartbeat (newly submitted or from a cleanly shut down Cromwell).
           2) Workflows with old heartbeats, presumably abandoned by a defunct Cromwell.
           3) Workflows not in "OnHold" state

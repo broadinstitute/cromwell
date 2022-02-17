@@ -55,6 +55,7 @@ class BasicSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
     Get("/swagger/index.html?url=/swagger/cromwell.yaml") ~> swaggerUiRoute ~> check {
       status should be(StatusCodes.MovedPermanently)
       header("Location") should be(Option(Location(Uri("/"))))
+      responseAs[String] shouldEqual """This and all future requests should be directed to <a href="/">this URI</a>."""
     }
   }
 

@@ -1,6 +1,7 @@
 package cromwell.webservice
 
-import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.{StatusCodes, Uri}
+import akka.http.scaladsl.model.headers.Location
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import common.assertion.CromwellTimeoutSpec
 import io.swagger.models.properties.RefProperty
@@ -66,17 +67,6 @@ class SwaggerServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Swagg
             case _ => /* ignore */
           }
         }
-      }
-  }
-
-  it should "return the index.html" in {
-    Get("/swagger/index.html?url=/swagger/cromwell.yaml") ~>
-      swaggerUiResourceRoute ~>
-      check {
-        assertResult(StatusCodes.MovedPermanently) {
-          status
-        }
-        responseAs[String] shouldEqual """This and all future requests should be directed to <a href="/">this URI</a>."""
       }
   }
 

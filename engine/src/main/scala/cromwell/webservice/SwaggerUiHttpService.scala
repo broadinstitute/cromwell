@@ -56,11 +56,12 @@ trait SwaggerUiHttpService {
           getFromResourceDirectory(resourceDirectory)
         }
       } ~
-      // Redirect legacy `/swagger/index.html?url=/swagger/cromwell.yaml#fragment` requests to the root URL. This is
-      // (somewhat magically) well-behaved in throwing away the `url` query parameter that was the subject of the CVE
-      // linked below while preserving any fragment identifiers to scroll to the right spot in the Swagger UI.
+      // Redirect legacy `/swagger` or `/swagger/index.html?url=/swagger/cromwell.yaml#fragment` requests to the root
+      // URL. The latter form is (somewhat magically) well-behaved in throwing away the `url` query parameter that was
+      // the subject of the CVE linked below while preserving any fragment identifiers to scroll to the right spot in
+      // the Swagger UI.
       // https://github.com/swagger-api/swagger-ui/security/advisories/GHSA-qrmm-w75w-3wpx
-      path("swagger" / "index.html") {
+      (path("swagger" / "index.html") | path ("swagger")) {
         get {
           redirect("/", StatusCodes.MovedPermanently)
         }

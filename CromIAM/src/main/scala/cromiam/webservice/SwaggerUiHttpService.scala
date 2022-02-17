@@ -147,19 +147,6 @@ trait SwaggerResourceHttpService {
   def swaggerResourceType = "yaml"
 
   /**
-   * Swagger UI sends HTTP OPTIONS before ALL requests, and expects a status 200 / OK. When true (the default) the
-   * swaggerResourceRoute will return 200 / OK for requests for OPTIONS.
-   *
-   * See also:
-   * - https://github.com/swagger-api/swagger-ui/issues/1209
-   * - https://github.com/swagger-api/swagger-ui/issues/161
-   * - https://groups.google.com/forum/#!topic/swagger-swaggersocket/S6_I6FBjdZ8
-   *
-   * @return True if status code 200 should be returned for HTTP OPTIONS requests for the swagger resource.
-   */
-  def swaggerAllOptionsOk = true
-
-  /**
    * @return The path to the swagger docs.
    */
   protected def swaggerDocsPath = s"$swaggerDirectory/$swaggerServiceName.$swaggerResourceType"
@@ -168,7 +155,8 @@ trait SwaggerResourceHttpService {
    * @return A route that returns the swagger resource.
    */
   final def swaggerResourceRoute = {
-    val swaggerDocsDirective = path(separateOnSlashes(swaggerDocsPath))
+    // Serve CromIAM API docs from either `/swagger/cromiam.yaml` or just `cromiam.yaml`.
+    val swaggerDocsDirective = path(separateOnSlashes(swaggerDocsPath)) | path(s"$swaggerServiceName.$swaggerResourceType")
     val route = get {
       swaggerDocsDirective {
         // Return /uiPath/serviceName.resourceType from the classpath resources.
@@ -176,12 +164,10 @@ trait SwaggerResourceHttpService {
       }
     }
 
-    if (swaggerAllOptionsOk) {
-      route ~ options {
-        // Also return status 200 / OK for all OPTIONS requests.
-        complete(StatusCodes.OK)
-      }
-    } else route
+    route ~ options {
+      // Also return status 200 / OK for all OPTIONS requests.
+      complete(StatusCodes.OK)
+    }
   }
 }
 

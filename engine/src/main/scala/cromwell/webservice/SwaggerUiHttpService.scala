@@ -36,7 +36,6 @@ trait SwaggerUiHttpService {
     }
   }
 
-
   /**
    * Serves up the swagger UI only. Redirects requests to the root of the UI path to the index.html.
    *
@@ -82,7 +81,7 @@ trait SwaggerResourceHttpService {
   /**
    * @return The directory for the resource under the classpath, and in the url
    */
-  lazy val swaggerDirectory: String = "swagger"
+  val swaggerDirectory: String = "swagger"
 
   /**
    * @return Name of the service, used to map the documentation resource at "/uiPath/serviceName.resourceType".

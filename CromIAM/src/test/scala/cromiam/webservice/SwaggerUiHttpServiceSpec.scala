@@ -78,41 +78,6 @@ class BasicSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
   }
 }
 
-class NoRedirectRootSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
-  override def swaggerUiFromRoot = false
-
-  behavior of "SwaggerUiHttpService"
-
-  it should "not redirect / to /swagger" in {
-    Get() ~> Route.seal(swaggerUiRoute) ~> check {
-      status should be(StatusCodes.NotFound)
-      contentType should be(ContentTypes.`text/plain(UTF-8)`)
-    }
-  }
-
-  it should "not return options for /" in {
-    Options() ~> Route.seal(swaggerUiRoute) ~> check {
-      status should be(StatusCodes.MethodNotAllowed)
-      contentType should be(ContentTypes.`text/plain(UTF-8)`)
-    }
-  }
-
-  it should "redirect /swagger to the index.html" in {
-    Get("/swagger") ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.TemporaryRedirect)
-      header("Location") should be(Option(Location(Uri("/swagger/index.html?url=/api-docs"))))
-      contentType should be(ContentTypes.`text/html(UTF-8)`)
-    }
-  }
-
-  it should "return index.html from the swagger-ui jar" in {
-    Get("/swagger/index.html") ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.OK)
-      contentType should be(ContentTypes.`text/html(UTF-8)`)
-    }
-  }
-}
-
 class YamlSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpServiceSpec {
   override def swaggerServiceName = "testservice"
 
@@ -185,45 +150,6 @@ class JsonSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpServiceSpec 
       Options(path) ~> swaggerResourceRoute ~> check {
         status should be(StatusCodes.OK)
         responseAs[String] should be("OK")
-        contentType should be(ContentTypes.`text/plain(UTF-8)`)
-      }
-    }
-  }
-}
-
-class NoOptionsSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpServiceSpec {
-  override def swaggerServiceName = "testservice"
-
-  override def swaggerAllOptionsOk = false
-
-  behavior of "SwaggerResourceHttpService"
-
-  it should "service swagger yaml" in {
-    Get("/swagger/testservice.yaml") ~> swaggerResourceRoute ~> check {
-      status should be(StatusCodes.OK)
-      responseAs[String] should startWith("swagger: '2.0'\n")
-      contentType should be(ContentTypes.`application/octet-stream`)
-    }
-  }
-
-  it should "not service swagger json" in {
-    Get("/swagger/testservice.json") ~> Route.seal(swaggerResourceRoute) ~> check {
-      status should be(StatusCodes.NotFound)
-      contentType should be(ContentTypes.`text/plain(UTF-8)`)
-    }
-  }
-
-  it should "not service /swagger" in {
-    Get("/swagger") ~> Route.seal(swaggerResourceRoute) ~> check {
-      status should be(StatusCodes.NotFound)
-      contentType should be(ContentTypes.`text/plain(UTF-8)`)
-    }
-  }
-
-  it should "not return options for all routes" in {
-    forAll(testPathsForOptions) { path =>
-      Options(path) ~> Route.seal(swaggerResourceRoute) ~> check {
-        status should be(StatusCodes.MethodNotAllowed)
         contentType should be(ContentTypes.`text/plain(UTF-8)`)
       }
     }

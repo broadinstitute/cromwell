@@ -30,15 +30,16 @@ class CachingTokenEventLogger(log: LoggingAdapter,
     .build[String, Object]()
 
   // Log when rate limiting is first detected, but do not continually log on subsequent clock ticks
+  // Potential issue: the `isEmpty` check prevents a cache entry from refreshing its TTL; instead it expires, is dropped, then re-added
+  // The interval before re-adding allows new workflows to unexpectedly sneak through.
   override def flagTokenHog(hogGroup: String): Unit = {
-    if (Option(groupCache.getIfPresent(hogGroup)).isEmpty) {
-      log.info(s"Token Dispenser: The group $hogGroup has reached its job limit and is being rate-limited.")
-      groupCache.put(hogGroup, new Object())
-    }
+    log.info(s"Token Dispenser: The group $hogGroup has reached its job limit and is being rate-limited.")
+    groupCache.put(hogGroup, new Object())
   }
 
   override def getLimitedGroups: Set[String] = {
     import scala.collection.JavaConverters._
+    log.info(s"[TokenEventLogger] Responding with limited groups ${groupCache.asMap()}")
     groupCache.asMap().keySet().asScala.toSet
   }
 

@@ -176,6 +176,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       params.jobExecutionTokenDispenserActor ! FetchLimitedGroups(maxNewWorkflows)
       stay()
     case Event(ReplyLimitedGroups(groups, maxNewWorkflows), _) =>
+      log.info(s"Excluding groups from workflow launch: $groups")
       params.workflowStore ! WorkflowStoreActor.FetchRunnableWorkflows(maxNewWorkflows, excludedGroups = groups)
       stay()
     case Event(WorkflowStoreEngineActor.NoNewWorkflowsToStart, _) =>

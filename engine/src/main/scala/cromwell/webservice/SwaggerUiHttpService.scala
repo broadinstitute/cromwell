@@ -82,7 +82,7 @@ trait SwaggerResourceHttpService {
   /**
    * @return The directory for the resource under the classpath, and in the url
    */
-  val swaggerDirectory: String = "swagger"
+  private val swaggerDirectory: String = "swagger"
 
   /**
    * @return Name of the service, used to map the documentation resource at "/uiPath/serviceName.resourceType".
@@ -97,7 +97,7 @@ trait SwaggerResourceHttpService {
   /**
    * @return The path to the swagger docs.
    */
-  protected lazy val swaggerDocsPath = s"$swaggerDirectory/$swaggerServiceName.$swaggerResourceType"
+  private lazy val swaggerDocsPath = s"$swaggerDirectory/$swaggerServiceName.$swaggerResourceType"
 
   /**
    * @return A route that returns the swagger resource.

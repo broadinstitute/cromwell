@@ -68,6 +68,7 @@ class BasicSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
   it should "return index.html from the swagger-ui jar for /" in {
     Get("/") ~> swaggerUiRoute ~> check {
       status should be(StatusCodes.OK)
+      responseAs[String].take(15) should be("<!-- HTML for s")
     }
   }
 

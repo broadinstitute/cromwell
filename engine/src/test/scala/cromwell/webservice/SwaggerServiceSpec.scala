@@ -1,7 +1,6 @@
 package cromwell.webservice
 
-import akka.http.scaladsl.model.{StatusCodes, Uri}
-import akka.http.scaladsl.model.headers.Location
+import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import common.assertion.CromwellTimeoutSpec
 import io.swagger.models.properties.RefProperty

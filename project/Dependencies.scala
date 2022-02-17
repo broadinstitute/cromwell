@@ -126,7 +126,7 @@ object Dependencies {
   private val sprayJsonV = "1.3.6"
   private val sttpV = "1.5.19" // scala-steward:off (CROM-6564)
   private val swaggerParserV = "1.0.56"
-  private val swaggerUiV = "4.5.0"
+  private val swaggerUiV = "3.23.11" // scala-steward:off (CROM-6621)
   private val testContainersScalaV = "0.39.8"
   private val tikaV = "2.1.0"
   private val typesafeConfigV = "1.4.1"

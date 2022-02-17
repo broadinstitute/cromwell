@@ -171,13 +171,6 @@ class YamlSwaggerUiResourceHttpServiceSpec extends SwaggerUiResourceHttpServiceS
 
   behavior of "SwaggerUiResourceHttpService"
 
-  it should "redirect /swagger to /" in {
-    Get("/swagger") ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.MovedPermanently)
-      header("Location") should be(Option(Location(Uri("/"))))
-    }
-  }
-
   it should "service swagger yaml" in {
     Get("/swagger/testservice.yaml") ~> swaggerUiResourceRoute ~> check {
       status should be(StatusCodes.OK)
@@ -208,13 +201,6 @@ class JsonSwaggerUiResourceHttpServiceSpec extends SwaggerUiResourceHttpServiceS
   override def swaggerResourceType = "json"
 
   behavior of "SwaggerUiResourceHttpService"
-
-  it should "redirect /swagger to /" in {
-    Get("/swagger") ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.MovedPermanently)
-      header("Location") should be(Option(Location(Uri("/"))))
-    }
-  }
 
   it should "service swagger json" in {
     Get("/swagger/testservice.json") ~> swaggerUiResourceRoute ~> check {

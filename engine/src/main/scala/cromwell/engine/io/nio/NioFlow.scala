@@ -21,6 +21,7 @@ import net.ceedubs.ficus.readers.ValueReader
 
 import java.io._
 import java.nio.charset.StandardCharsets
+import java.util.zip.CRC32C
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
@@ -106,43 +107,49 @@ class NioFlow(parallelism: Int,
     ()
   }
 
-  private def readAsString(read: IoContentAsStringCommand) = {
-    def readFile: IO[String] = IO {
-      new String(
-        read.file.limitFileContent(read.options.maxBytes, read.options.failOnOverflow),
-        StandardCharsets.UTF_8
-      )
+  private def readAsString(read: IoContentAsStringCommand): IO[String] = {
+    def checkHash(value: String, fileHash: FileHash): IO[ChecksumResult] = {
+      // Disable checksum validation if failOnOverflow is false. We might not read
+      // the entire stream, in which case the checksum will definitely fail.
+      // Ideally, we would only disable checksum validation if there was an actual
+      // overflow, but we don't know that here.
+      if (!read.options.failOnOverflow) return IO.pure(ChecksumSuccess())
+
+      // TODO: add remaining hash types
+      val hash = fileHash.hashType match {
+        case "crc32c" =>
+          val crc32c = new CRC32C()
+          crc32c.update(value.getBytes)
+          crc32c.getValue.toString
+        case "md5" =>
+          org.apache.commons.codec.digest.DigestUtils.md5Hex(value)
+        case _ =>
+          throw new RuntimeException(s"Unsupported checksum type: ${fileHash.hashType}")
+      }
+      if (hash == fileHash.hash) IO.pure(ChecksumSuccess())
+      else IO.pure(ChecksumFailure(hash))
     }
 
-    def checkHash(value: String, fileHash: FileHash): IO[ChecksumResult] = IO.pure(ChecksumSuccess())
-
-    // IoActor can retry, but that mostly helps in cases where a short delay before
-    // retrying might help. In this case, we just want to stream the bytes again
-    // and hope to avoid the rare error. Waiting before retrying won't really help.
-    def tryReadFile(fileHashIO: IO[FileHash], attempt: Int = 1): IO[String] = {
-      println(s"attempt: $attempt")
+    def readFile: IO[String] = {
       for {
-        fileHash <- fileHashIO
-        uncheckedValue <- readFile
+        fileHash <- getHash(read.file)
+        uncheckedValue <- IO {
+          new String(
+            read.file.limitFileContent(read.options.maxBytes, read.options.failOnOverflow),
+            StandardCharsets.UTF_8
+          )
+        }
         checksumResult <- checkHash(uncheckedValue, fileHash)
         verifiedValue <- checksumResult match {
           case _: ChecksumSuccess => IO.pure(uncheckedValue)
-          case _: ChecksumFailure =>
-            if (attempt < 3) tryReadFile(fileHashIO, attempt + 1)
-            else IO.raiseError(new RuntimeException(s"Failed checksum for: ${read.file}"))
+          case failure: ChecksumFailure => IO.raiseError(
+            ChecksumFailedException(
+              s"Failed checksum for: ${read.file}. expected: '$fileHash' actual: '${failure.calculatedHash}'"))
         }
-      } yield (verifiedValue)
+      } yield verifiedValue
     }
 
-    // TODO: remove the wrapping Option since we're getting the hash for all Path types, not just DrsPath
-    val fileHashOption: Option[IO[FileHash]] = Option(getHash(read.file))
-
-    val value: IO[String] = fileHashOption match {
-      case Some(fileHash) => tryReadFile(fileHash)
-      case None => readFile
-    }
-
-    value.map(_.replaceAll("\\r\\n", "\\\n"))
+    readFile.map(_.replaceAll("\\r\\n", "\\\n"))
   }
 
   private def size(size: IoSizeCommand) = IO {
@@ -222,3 +229,5 @@ object NioFlow {
     NioFlowConfig(parallelism)
   }
 }
+
+case class ChecksumFailedException(message: String) extends IOException(message)

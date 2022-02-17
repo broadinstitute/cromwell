@@ -19,10 +19,9 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar
 import org.specs2.mock.Mockito._
 
-import java.io.ByteArrayInputStream
 import java.nio.file.NoSuchFileException
 import java.util.UUID
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
@@ -39,8 +38,8 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     parallelism = 1,
     onRetryCallback = NoopOnRetry,
     onBackpressure = NoopOnBackpressure,
-    numberOfAttempts = 5,
-    commandBackpressureStaleness = 5 seconds)(system.dispatcher).flow
+    numberOfAttempts = 3,
+    commandBackpressureStaleness = 1 seconds)(system.dispatcher).flow
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   private val replyTo = mock[ActorRef]
@@ -74,7 +73,8 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
 
     stream.run() map {
       case (success: IoSuccess[_], _) => assert(success.result.asInstanceOf[String] == "hello")
-      case _ => fail("read returned an unexpected message")
+      case (ack, _) =>
+        fail(s"read returned an unexpected message:\n$ack\n\n")
     }
   }
 
@@ -126,15 +126,15 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
   }
 
   it should "fail if hash doesn't match checksum" in {
-    val testPath = mock[GcsPath].smart
-    when(testPath.mediaInputStream).thenReturn(new ByteArrayInputStream("hello".getBytes()))
+    val testPath = mock[GcsPath]
+    when(testPath.limitFileContent(any[Option[Int]], any[Boolean])(any[ExecutionContext])).thenReturn("hello".getBytes)
     val blobId = BlobId.of("bucket", "name")
     testPath.objectBlobId.returns(Success(blobId))
     val mockCloudStorage = mock[Storage].smart
     when(testPath.cloudStorage).thenReturn(mockCloudStorage)
     val mockBlob = mock[Blob].smart
     when(mockCloudStorage.get(blobId)).thenReturn(mockBlob)
-    when(mockBlob.getCrc32c).thenReturn("boom!")
+    when(mockBlob.getCrc32c).thenReturn("boom") // correct checksum is 2591144780
 
     val context = DefaultCommandContext(contentAsStringCommand(testPath, Option(100), failOnOverflow = true).get, replyTo)
     val testSource = Source.single(context)
@@ -144,7 +144,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     val eventualTuple: Future[(IoAck[_], IoCommandContext[_])] = stream.run()
     eventualTuple map {
       case (IoFailure(_, EnhancedCromwellIoException(_, receivedException)), _) =>
-        receivedException should be (new Exception())
+        receivedException.getMessage should include ("Failed checksum")
       case (result, _) => fail(s"oops: $result")
     }
   }

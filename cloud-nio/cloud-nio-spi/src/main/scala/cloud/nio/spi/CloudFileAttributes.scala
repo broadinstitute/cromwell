@@ -17,7 +17,7 @@ case class FileHash(hashType: String, hash: String)
 
 sealed trait ChecksumResult
 case class ChecksumSuccess() extends ChecksumResult
-case class ChecksumFailure() extends ChecksumResult
+case class ChecksumFailure(calculatedHash: String) extends ChecksumResult
 
 trait CloudNioRegularFileAttributes extends CloudNioFileAttributes {
   override def lastAccessTime(): FileTime = FileTimeZero

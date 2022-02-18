@@ -43,11 +43,18 @@ class BasicSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
   // Replace same magic string used in SwaggerUiResourceHttpService.rewriteSwaggerIndex
     data.replace("window.ui = ui", "replaced-client-id")
 
-  it should "redirect / to /swagger" in {
-    Get() ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.TemporaryRedirect)
-      header("Location") should be(Option(Location(Uri("/swagger"))))
-      contentType should be(ContentTypes.`text/html(UTF-8)`)
+  it should "redirect /swagger to /" in {
+    Get("/swagger") ~> swaggerUiRoute ~> check {
+      status should be(StatusCodes.MovedPermanently)
+      header("Location") should be(Option(Location(Uri("/"))))
+    }
+  }
+
+  it should "redirect /swagger/index.html?url=/swagger/cromiam.yaml to /" in {
+    Get("/swagger/index.html?url=/swagger/cromiam.yaml") ~> swaggerUiRoute ~> check {
+      status should be(StatusCodes.MovedPermanently)
+      header("Location") should be(Option(Location(Uri("/"))))
+      responseAs[String] shouldEqual """This and all future requests should be directed to <a href="/">this URI</a>."""
     }
   }
 
@@ -58,19 +65,17 @@ class BasicSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
     }
   }
 
-  it should "redirect /swagger to the index.html" in {
-    Get("/swagger") ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.TemporaryRedirect)
-      header("Location") should be(Option(Location(Uri("/swagger/index.html?url=/api-docs"))))
-      contentType should be(ContentTypes.`text/html(UTF-8)`)
+  it should "return index.html from the swagger-ui jar for /" in {
+    Get("/") ~> swaggerUiRoute ~> check {
+      status should be(StatusCodes.OK)
+      responseAs[String].take(15) should be("<!-- HTML for s")
     }
   }
 
-  it should "return index.html from the swagger-ui jar" in {
-    Get("/swagger/index.html") ~> swaggerUiRoute ~> check {
+  it should "return index.html from the swagger-ui jar for base url" in {
+    Get() ~> swaggerUiRoute ~> check {
       status should be(StatusCodes.OK)
-      responseAs[String] should include("replaced-client-id")
-      contentType should be(ContentTypes.`text/html(UTF-8)`)
+      responseAs[String].take(15) should be("<!-- HTML for s")
     }
   }
 

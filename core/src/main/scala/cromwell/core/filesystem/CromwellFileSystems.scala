@@ -134,6 +134,7 @@ class CromwellFileSystems(globalConfig: Config) {
         // Build the factory for each entry.
         case (key, config: ConfigObject) if isFilesystemEnabled(config) =>
           // This filesystem is enabled, wrap in a List.
+          println("Adding filefactory: " + key)
           buildFactory(key, config.toConfig).toValidated map { pbf => List(key -> pbf) }
         case (_, _: ConfigObject) =>
           // This filesystem is not enabled, return an empty List.

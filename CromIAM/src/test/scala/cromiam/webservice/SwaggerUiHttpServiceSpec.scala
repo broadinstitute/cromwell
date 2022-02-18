@@ -6,7 +6,6 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import common.assertion.CromwellTimeoutSpec
 import cromiam.server.config.SwaggerOauthConfig
-import cromiam.webservice.SwaggerUiHttpServiceSpec._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -14,8 +13,6 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 
 trait SwaggerUiHttpServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest with SwaggerUiHttpService {
   def actorRefFactory = system
-
-  override def swaggerUiVersion = TestSwaggerUiVersion
 }
 
 trait SwaggerResourceHttpServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest with
@@ -76,6 +73,10 @@ class BasicSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
       contentType should be(ContentTypes.`text/html(UTF-8)`)
     }
   }
+
+  override def oauthConfig: SwaggerOauthConfig = SwaggerOauthConfig(
+    clientId = "test-client-id", realm = "test-realm", appName = "test-appname"
+  )
 }
 
 class YamlSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpServiceSpec {

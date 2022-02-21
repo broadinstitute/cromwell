@@ -75,7 +75,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
           if(!dest.parent.exists()){
             dest.parent.createDirectories()
           }
-          Files.createLink(src.nioPath, dest.nioPath)
+          Files.createLink(dest.nioPath, src.nioPath)
           false
         }
         catch {

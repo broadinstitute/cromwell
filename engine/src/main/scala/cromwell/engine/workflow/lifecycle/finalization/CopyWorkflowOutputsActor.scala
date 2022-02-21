@@ -75,6 +75,10 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
           if(!dest.parent.exists()){
             dest.parent.createDirectories()
           }
+          if (dest.exists()) {
+            log.warning(s"File already exists: ${dest.pathAsString}, forcing link.")
+            dest.delete(swallowIOExceptions = true)
+          }
           Files.createLink(dest.nioPath, src.nioPath)
           false
         }

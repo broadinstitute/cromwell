@@ -1,7 +1,7 @@
 include required(classpath("application.conf"))
 include "centaur_cwl_runner_application.conf"
 
-{{with $cromwellFtp := vault (printf "secret/dsde/cromwell/common/cromwell-ftp")}}
+{{with $cromwellFtp := secret (printf "secret/dsde/cromwell/common/cromwell-ftp")}}
 centaur {
   cwl-runner {
     ftp {

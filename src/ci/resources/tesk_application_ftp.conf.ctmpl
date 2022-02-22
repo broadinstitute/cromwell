@@ -1,4 +1,4 @@
-{{with $cromwellFtp := vault (printf "secret/dsde/cromwell/common/cromwell-ftp")}}
+{{with $cromwellFtp := secret (printf "secret/dsde/cromwell/common/cromwell-ftp")}}
 filesystems {
    ftp.global.config.max-connection-per-server-per-user = 5
 }

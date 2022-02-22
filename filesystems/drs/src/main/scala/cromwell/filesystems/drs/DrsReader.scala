@@ -96,7 +96,7 @@ case class GcsReader(googleAuthMode: GoogleAuthMode,
         throwable =>
           (requesterPaysProjectIdOption, throwable) match {
             case (Some(requesterPaysProjectId), storageException: StorageException)
-              if storageException.getMessage == "Bucket is requester pays bucket but no user project provided." =>
+              if storageException.getMessage.contains("requester pays bucket but no user project") =>
               IO(
                 storage
                   .get(bucketName, objectName, BlobGetOption.userProject(requesterPaysProjectId))

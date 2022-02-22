@@ -81,5 +81,29 @@ class CromwellInstrumentationSpec extends TestKitSuite with AnyFlatSpecLike with
     ))
   }
 
-  // TODO (jack-r-warren): test the convenience status code and throwable methods
+  it should "handle status codes" in {
+    InstrumentationPath
+      .withParts("something")
+      .withStatusCodeFailure(Some(200))
+      .internalPath shouldBe NonEmptyList
+      .of(Left("something"), Right("code" -> "200"))
+    InstrumentationPath
+      .withParts("something")
+      .withStatusCodeFailure(None)
+      .internalPath shouldBe NonEmptyList
+      .of(Left("something"))
+  }
+
+  it should "handle throwables" in {
+    InstrumentationPath
+      .withParts("something")
+      .withThrowable(new RuntimeException(), _ => Some(404))
+      .internalPath shouldBe NonEmptyList
+      .of(Left("something"), Right("code" -> "404"))
+    InstrumentationPath
+      .withParts("something")
+      .withThrowable(new RuntimeException(), _ => None)
+      .internalPath shouldBe NonEmptyList
+      .of(Left("something"))
+  }
 }

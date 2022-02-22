@@ -32,7 +32,7 @@ object CromwellInstrumentation {
       case None => this
     }
     def withThrowable(failure: Throwable, statusCodeExtractor: Throwable => Option[Int]): InstrumentationPath =
-      internalPath.withStatusCodeFailure(statusCodeExtractor(failure))
+      withStatusCodeFailure(statusCodeExtractor(failure))
 
     def concat(other: InstrumentationPath): InstrumentationPath = internalPath.concatNel(other.internalPath)
 

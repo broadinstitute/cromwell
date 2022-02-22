@@ -39,18 +39,19 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
     fullMarthaResponse
       .copy(timeUpdated = fullMarthaResponse.timeUpdated.map(_.stripSuffix("Z") + "BADTZ"))
 
-  private val alfredHashValue = "xrd"
+  private val etagHashValue = "something"
   private val completeHashesMap = Option(Map(
     "betty" -> "abc123",
     "charles" -> "456",
-    "alfred" -> alfredHashValue,
+    "alfred" -> "xrd",
     "sha256" -> shaHashValue,
     "crc32c" -> crcHashValue,
     "md5" -> md5HashValue,
+    "etag" -> etagHashValue,
   ))
 
   private val missingCRCHashesMap = Option(Map(
-    "alfred" -> alfredHashValue,
+    "alfred" -> "xrd",
     "sha256" -> shaHashValue,
     "betty" -> "abc123",
     "md5" -> md5HashValue,
@@ -60,32 +61,33 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
   private val onlySHAHashesMap = Option(Map(
     "betty" -> "abc123",
     "charles" -> "456",
-    "alfred" -> alfredHashValue,
+    "alfred" -> "xrd",
     "sha256" -> shaHashValue,
   ))
 
-  private val noPreferredHashesMap = Option(Map(
-    "alfred" -> alfredHashValue,
+  private val onlyEtagHashesMap = Option(Map(
+    "alfred" -> "xrd",
     "betty" -> "abc123",
     "charles" -> "456",
+    "etag" -> etagHashValue,
   ))
 
   behavior of "fileHash()"
 
   it should "return crc32c hash from `hashes` in Martha response when there is a crc32c" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(completeHashesMap) shouldBe Option(FileHash("crc32c", crcHashValue))
+    DrsCloudNioRegularFileAttributes.getPreferredHash(completeHashesMap) shouldBe Option(FileHash(FileHash.Crc32c, crcHashValue))
   }
 
   it should "return md5 hash from `hashes` in Martha response when there is no crc32c" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(missingCRCHashesMap) shouldBe Option(FileHash("md5", md5HashValue))
+    DrsCloudNioRegularFileAttributes.getPreferredHash(missingCRCHashesMap) shouldBe Option(FileHash(FileHash.Md5, md5HashValue))
   }
 
   it should "return sha256 hash from `hashes` in Martha response when there is only a sha256" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(onlySHAHashesMap) shouldBe Option(FileHash("sha256", shaHashValue))
+    DrsCloudNioRegularFileAttributes.getPreferredHash(onlySHAHashesMap) shouldBe Option(FileHash(FileHash.Sha256, shaHashValue))
   }
 
-  it should "return first (alphabetized by type) hash from `hashes` in Martha response when there are no preferred hash types" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(noPreferredHashesMap) shouldBe Option(FileHash("alfred", alfredHashValue))
+  it should "return etag hash from `hashes` in Martha response when there is only an etag" in {
+    DrsCloudNioRegularFileAttributes.getPreferredHash(onlyEtagHashesMap) shouldBe Option(FileHash(FileHash.Etag, etagHashValue))
   }
 
   it should "return None when no hashes object is returned" in {

@@ -12,8 +12,14 @@ object CloudNioFileAttributes {
   val FileTimeZero: FileTime = FileTime.fromMillis(0)
 }
 
-// TODO: enumerate hash types
-case class FileHash(hashType: String, hash: String)
+case class FileHash(hashType: FileHash.Value, hash: String)
+
+object FileHash extends Enumeration {
+  val Crc32c: FileHash.Value = Value("crc32c")
+  val Etag: FileHash.Value = Value("etag")
+  val Md5: FileHash.Value = Value("md5")
+  val Sha256: FileHash.Value = Value("sha256")
+}
 
 sealed trait ChecksumResult
 case class ChecksumSuccess() extends ChecksumResult

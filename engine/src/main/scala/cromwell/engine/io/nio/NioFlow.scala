@@ -117,11 +117,11 @@ class NioFlow(parallelism: Int,
 
       // TODO: add remaining hash types
       val hash = fileHash.hashType match {
-        case "crc32c" =>
+        case FileHash.Crc32c =>
           val crc32c = new CRC32C()
           crc32c.update(value.getBytes)
           crc32c.getValue.toString
-        case "md5" =>
+        case FileHash.Md5 =>
           org.apache.commons.codec.digest.DigestUtils.md5Hex(value)
         case _ =>
           throw new RuntimeException(s"Unsupported checksum type: ${fileHash.hashType}")
@@ -163,19 +163,19 @@ class NioFlow(parallelism: Int,
   private def getHash(file: Path): IO[FileHash] = {
     file match {
       case gcsPath: GcsPath => IO.fromTry {
-        gcsPath.objectBlobId.map(id => FileHash("crc32c", gcsPath.cloudStorage.get(id).getCrc32c))
+        gcsPath.objectBlobId.map(id => FileHash(FileHash.Crc32c, gcsPath.cloudStorage.get(id).getCrc32c))
       }
       case drsPath: DrsPath => getFileHashForDrsPath(drsPath)
       case s3Path: S3Path => IO {
-        FileHash("etag", s3Path.eTag)
+        FileHash(FileHash.Etag, s3Path.eTag)
       }
       case ossPath: OssPath => IO {
-        FileHash("etag", ossPath.eTag)
+        FileHash(FileHash.Etag, ossPath.eTag)
       }
       case path =>
         IO.fromEither(
           tryWithResource(() => path.newInputStream) { inputStream =>
-            FileHash("md5", org.apache.commons.codec.digest.DigestUtils.md5Hex(inputStream))
+            FileHash(FileHash.Md5, org.apache.commons.codec.digest.DigestUtils.md5Hex(inputStream))
           }.toEither
         )
     }

@@ -21,7 +21,7 @@ object CromwellInstrumentation {
     .as[Option[FiniteDuration]]("instrumentation-rate")
     .getOrElse(5.seconds)
 
-  implicit class InstrumentationPath (private val internalPath: NonEmptyList[Either[String, (String, String)]]) {
+  implicit class InstrumentationPath (val internalPath: NonEmptyList[Either[String, (String, String)]]) {
     def :+(part: String): InstrumentationPath = internalPath.append(Left(part))
     def withParts(parts: String *): InstrumentationPath = withParts(parts.toList)
     def withParts(parts: List[String]): InstrumentationPath = internalPath.concat(parts.map(Left(_)))

@@ -9,19 +9,16 @@ import org.scalatest.matchers.should.Matchers
 
 class CromwellInstrumentationSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with PrivateMethodTester {
 
-  private val getRawInternalPath =
-    PrivateMethod[NonEmptyList[Either[String, (String, String)]]]('internalPath)
-
   it should "keep order from constructor" in {
     InstrumentationPath
-      .withParts("a", "b", "c", "d") invokePrivate getRawInternalPath() shouldBe NonEmptyList
+      .withParts("a", "b", "c", "d").internalPath shouldBe NonEmptyList
       .of(Left("a"), Left("b"), Left("c"), Left("d"))
   }
 
   it should "allow path to start with a high-variant part" in {
     InstrumentationPath
       .withHighVariantPart("label" -> "a")
-      .withParts("b", "c") invokePrivate getRawInternalPath() shouldBe NonEmptyList
+      .withParts("b", "c").internalPath shouldBe NonEmptyList
       .of(Right("label" -> "a"), Left("b"), Left("c"))
   }
 
@@ -33,7 +30,7 @@ class CromwellInstrumentationSpec extends TestKitSuite with AnyFlatSpecLike with
     .withParts(List("f", "g"))
 
   it should "keep order across different parts" in {
-    pathOne invokePrivate getRawInternalPath() shouldBe NonEmptyList
+    pathOne.internalPath shouldBe NonEmptyList
       .of(Left("a"), Right("label-b" -> "b"), Left("c"), Left("d"), Right("label-e" -> "e"), Left("f"), Left("g"))
   }
 
@@ -67,7 +64,7 @@ class CromwellInstrumentationSpec extends TestKitSuite with AnyFlatSpecLike with
   }
 
   it should "handle concatenation of paths" in {
-    pathOne.concat(pathTwo)invokePrivate getRawInternalPath() shouldBe NonEmptyList
+    pathOne.concat(pathTwo).internalPath shouldBe NonEmptyList
       .of(Left("a"), Right("label-b" -> "b"), Left("c"), Left("d"), Right("label-e" -> "e"), Left("f"), Left("g"),
         Right("label-a" -> "A"), Right("label-b" -> "B"), Right("label-c" -> "C"))
   }

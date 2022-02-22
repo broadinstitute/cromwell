@@ -126,7 +126,7 @@ private::determine_requester_pays() {
       USE_REQUESTER_PAYS=${use_requester_pays}
       break
     elif [[ "$use_requester_pays" = "false" ]]; then
-      if grep -q "Bucket is requester pays bucket but no user project provided." ${gsutil_log}; then
+      if grep -q "requester pays bucket but no user project" ${gsutil_log}; then
         use_requester_pays=true
         command="$REQUESTER_PAYS_COMMAND"
       else
@@ -332,7 +332,7 @@ delocalize() {
 
         # If the requester pays status of the GCS bucket is not certain look for requester pays errors.
         if [[ ${rp_status_certain} = false ]]; then
-          if grep -q "Bucket is requester pays bucket but no user project provided." "${gsutil_log}"; then
+          if grep -q "requester pays bucket but no user project" "${gsutil_log}"; then
             timestamped_message "Retrying with user project"
             use_requester_pays=true
             # Do not increment the attempt number, a requester pays failure does not count against retries.

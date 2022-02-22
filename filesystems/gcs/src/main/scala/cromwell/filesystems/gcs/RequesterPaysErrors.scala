@@ -6,7 +6,7 @@ import org.apache.commons.lang3.StringUtils
 
 object RequesterPaysErrors {
   val BucketIsRequesterPaysErrorCode = 400
-  val BucketIsRequesterPaysErrorMessage = "Bucket is requester pays bucket but no user project provided."
+  val BucketIsRequesterPaysErrorMessage = "requester pays bucket but no user project"
   val DoesNotHaveServiceUsePermissionErrorCode = 403
   val DoesNotHaveServiceUsePermissionErrorMessage = "does not have serviceusage.services.use"
 

@@ -26,7 +26,7 @@ object StatsDInstrumentationServiceActor {
       * Transforms a CromwellBucket to a StatsD path, optionally inserting a value between prefix and path
       */
     def toStatsDString(insert: Option[String] = None): String =
-      (cromwellBucket.prefix ++ insert ++ cromwellBucket.path.getPath.toList).mkString(".")
+      (cromwellBucket.prefix ++ insert ++ cromwellBucket.path.getFlatPath.toList).mkString(".")
   }
 }
 

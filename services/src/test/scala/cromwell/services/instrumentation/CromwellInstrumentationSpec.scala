@@ -35,12 +35,12 @@ class CromwellInstrumentationSpec extends TestKitSuite with AnyFlatSpecLike with
   }
 
   it should "provide an 'all parts in order' view like the old Nel representation" in {
-    pathOne.getPath shouldBe NonEmptyList
+    pathOne.getFlatPath shouldBe NonEmptyList
       .of("a", "b", "c", "d", "e", "f", "g")
   }
 
   it should "provide a 'low-variant parts in order with others in map' view" in {
-    pathOne.getPathLowVariants shouldBe ((
+    pathOne.getPathAndLabels shouldBe ((
       NonEmptyList.of("a", "c", "d", "f", "g"),
       Map("label-b" -> "b", "label-e" -> "e")
     ))
@@ -52,12 +52,12 @@ class CromwellInstrumentationSpec extends TestKitSuite with AnyFlatSpecLike with
     .withHighVariantPart("label-c" -> "C")
 
   it should "handle no normal parts" in {
-    pathTwo.getPath shouldBe NonEmptyList
+    pathTwo.getFlatPath shouldBe NonEmptyList
       .of("A", "B", "C")
   }
 
   it should "use a high-variant part if the low-variant parts would be empty" in {
-    pathTwo.getPathLowVariants shouldBe ((
+    pathTwo.getPathAndLabels shouldBe ((
       NonEmptyList.of("A"),
       Map("label-b" -> "B", "label-c" -> "C")
     ))
@@ -70,12 +70,12 @@ class CromwellInstrumentationSpec extends TestKitSuite with AnyFlatSpecLike with
   }
 
   it should "provide 'all parts in order' view across concatenations" in {
-    pathOne.concat(pathTwo).getPath shouldBe NonEmptyList
+    pathOne.concat(pathTwo).getFlatPath shouldBe NonEmptyList
       .of("a", "b", "c", "d", "e", "f", "g", "A", "B", "C")
   }
 
   it should "make labels last-distinct when providing 'low-variant' view" in {
-    pathOne.concat(pathTwo).getPathLowVariants shouldBe ((
+    pathOne.concat(pathTwo).getPathAndLabels shouldBe ((
       NonEmptyList.of("a", "c", "d", "f", "g"),
       Map("label-b" -> "B", "label-e" -> "e", "label-a" -> "A", "label-c" -> "C")
     ))

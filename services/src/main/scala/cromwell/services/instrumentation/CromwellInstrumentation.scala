@@ -12,7 +12,6 @@ import cromwell.services.instrumentation.InstrumentationService.InstrumentationS
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
-import scala.language.implicitConversions
 
 object CromwellInstrumentation {
 
@@ -21,6 +20,21 @@ object CromwellInstrumentation {
     .as[Option[FiniteDuration]]("instrumentation-rate")
     .getOrElse(5.seconds)
 
+  /**
+   * A representation of a metric name, with different output formats for different kinds of instrumentation services.
+   * Those designed to handle one time series per metric name can get a simple list of name parts with [[getFlatPath]],
+   * while those designed to handle multiple time series per metric name can get a shorter metric name and
+   * frequently-changing, high-variant "labels" separately via [[getPathAndLabels]].
+   *
+   * This distinction exists because instrumentation services meant to handle multiple time series per metric name
+   * (like Prometheus) are poorly built to store numerous metric names or query across them. The more complex
+   * [[getPathAndLabels]] output allows the backends for those instrumentation services to "play nice" with their
+   * associated ecosystems.
+   *
+   * @param internalPath the runtime representation of this class, where the 'left' is a simple, always-present
+   *                     low-variant name part, and the 'right' is a key-value pair for a frequently-changing
+   *                     high-variant name part
+   */
   implicit class InstrumentationPath (val internalPath: NonEmptyList[Either[String, (String, String)]]) extends AnyVal {
     def :+(part: String): InstrumentationPath = internalPath.append(Left(part))
     def withParts(parts: String *): InstrumentationPath = withParts(parts.toList)
@@ -37,21 +51,22 @@ object CromwellInstrumentation {
     def concat(other: InstrumentationPath): InstrumentationPath = internalPath.concatNel(other.internalPath)
 
     /**
-     * Get all path parts, in the order they were added, without special handling for high variant parts.
-     * The "labels" recorded for high variant parts are unused.
+     * Get all path parts as an ordered list, handling high-variant parts by extracting only the value of the key-value
+     * pair.
      * @return a NeL of the parts of the instrumentation path
      */
-    def getPath: NonEmptyList[String] = internalPath.map {
+    def getFlatPath: NonEmptyList[String] = internalPath.map {
       case Left(part) => part
       case Right((_, part)) => part
     }
 
     /**
-     * A best-effort method to get a non-empty list of path parts with the fewest number of high variant parts
-     * possible. Any high variant parts not included in the list are returned as a label-part map.
-     * @return a NeL of the instrumentation path, with as many high variant parts as possible instead returned in a map
+     * Get path parts as an ordered list, with as many high-variant parts as possible excluded and instead returned in a
+     * label map (the invariant is that the path part list not be empty, so this method will handle the first
+     * high-variant part like [[getFlatPath]] if there are zero normal parts).
+     * @return a NeL of the parts of the instrumentation path, and a separate map for labels
      */
-    def getPathLowVariants: (NonEmptyList[String], Map[String, String]) = {
+    def getPathAndLabels: (NonEmptyList[String], Map[String, String]) = {
       var nameParts = internalPath.collect { case Left(p) => p }
       var labelParts = internalPath.collect { case Right(p) => p }
       // path is a NeL, so if nameParts is empty then labelParts is not
@@ -63,14 +78,15 @@ object CromwellInstrumentation {
     }
   }
 
+  /**
+   * Companion object for [[InstrumentationPath]], containing constructor methods to help maintain the non-empty path
+   * invariant.
+   */
   object InstrumentationPath {
     def withParts(part: String, additional: String *): InstrumentationPath = NonEmptyList.of(Left(part), additional.map(Left(_)):_*)
     def withHighVariantPart(tuple: (String, String)): InstrumentationPath = NonEmptyList.of(Right(tuple))
     def withHighVariantPart(label: String, part: String): InstrumentationPath = withHighVariantPart(label -> part)
   }
-
-  @deprecated("CromwellInstrumentation no longer exposes NeLs; this method will be removed", "Cromwell 75")
-  implicit def stringToNel(str: String): NonEmptyList[String] = NonEmptyList.of(str)
 }
 
 trait CromwellInstrumentationActor extends CromwellInstrumentation { this: Actor =>

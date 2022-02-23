@@ -34,7 +34,7 @@ class SelectiveTsvInstrumentationServiceActor(serviceConfig: Config, globalConfi
 
   override def receive: Receive = {
     case InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(_, path))) =>
-      val pathList = path.getPath
+      val pathList = path.getFlatPath
       val pathString = pathList.init.mkString(".")
 
       if (pathList.last == "starting") {
@@ -44,7 +44,7 @@ class SelectiveTsvInstrumentationServiceActor(serviceConfig: Config, globalConfi
       }
 
     case InstrumentationServiceMessage(CromwellGauge(CromwellBucket(_, path), value)) =>
-      val pathList = path.getPath
+      val pathList = path.getFlatPath
       val pathString = pathList.init.mkString(".")
       if (pathList.last == "set") {
         stateHistory = stateHistory.set(pathString, value)

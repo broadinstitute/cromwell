@@ -90,7 +90,7 @@ class LoadControllerServiceActor(serviceConfig: Config,
   
   private def highLoadMetricsForLogging = {
     loadMetrics.collect({
-      case (ActorAndMetric(_, metricPath), HighLoad) => metricPath.getPath.head
+      case (ActorAndMetric(_, metricPath), HighLoad) => metricPath.getFlatPath.head
     }).toSet.mkString(", ")
   }
 }

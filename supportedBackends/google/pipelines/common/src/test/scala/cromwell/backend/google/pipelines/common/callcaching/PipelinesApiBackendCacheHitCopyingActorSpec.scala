@@ -105,14 +105,14 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
 
       val counts = instrumentationCounts(n = 4, serviceRegistryActor = serviceRegistryActor)
       val (List(hitBegin, hitEnd), List(bucketBegin, bucketEnd)) = counts partition {
-        _.bucket.path.getPath.toList.contains("hit")
+        _.bucket.path.getFlatPath.toList.contains("hit")
       }
 
-      hitBegin.bucket.path.getPath.toList shouldBe expectedMetric(Hit, Read, UntestedCacheResult)
-      bucketBegin.bucket.path.getPath.toList shouldBe expectedMetric(Bucket, Read, UntestedCacheResult)
+      hitBegin.bucket.path.getFlatPath.toList shouldBe expectedMetric(Hit, Read, UntestedCacheResult)
+      bucketBegin.bucket.path.getFlatPath.toList shouldBe expectedMetric(Bucket, Read, UntestedCacheResult)
 
-      hitEnd.bucket.path.getPath.toList shouldBe expectedMetric(Hit, Write, GoodCacheResult)
-      bucketEnd.bucket.path.getPath.toList shouldBe expectedMetric(Bucket, Write, GoodCacheResult)
+      hitEnd.bucket.path.getFlatPath.toList shouldBe expectedMetric(Hit, Write, GoodCacheResult)
+      bucketEnd.bucket.path.getFlatPath.toList shouldBe expectedMetric(Bucket, Write, GoodCacheResult)
 
       blacklistCache.bucketCache.size() shouldBe 1
       blacklistCache.bucketCache.get(WideOpenBucket) shouldBe GoodCacheResult
@@ -158,14 +158,14 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
       // Expect read hit and read bucket UntestedCacheResult followed by write hit and write bucket BadCacheResult.
       {
         val (List(hitBegin, hitEnd), List(bucketBegin, bucketEnd)) = counts partition {
-          _.bucket.path.getPath.toList.contains("hit")
+          _.bucket.path.getFlatPath.toList.contains("hit")
         }
 
-        hitBegin.bucket.path.getPath.toList shouldBe expectedMetric(Hit, Read, UntestedCacheResult)
-        bucketBegin.bucket.path.getPath.toList shouldBe expectedMetric(Bucket, Read, UntestedCacheResult)
+        hitBegin.bucket.path.getFlatPath.toList shouldBe expectedMetric(Hit, Read, UntestedCacheResult)
+        bucketBegin.bucket.path.getFlatPath.toList shouldBe expectedMetric(Bucket, Read, UntestedCacheResult)
 
-        hitEnd.bucket.path.getPath.toList shouldBe expectedMetric(Hit, Write, BadCacheResult)
-        bucketEnd.bucket.path.getPath.toList shouldBe expectedMetric(Bucket, Write, BadCacheResult)
+        hitEnd.bucket.path.getFlatPath.toList shouldBe expectedMetric(Hit, Write, BadCacheResult)
+        bucketEnd.bucket.path.getFlatPath.toList shouldBe expectedMetric(Bucket, Write, BadCacheResult)
       }
 
       // Assert blacklist entries were made for bucket and hit.
@@ -208,8 +208,8 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
       val List(hitMessage, bucketMessage) = instrumentationCounts(n = 2, serviceRegistryActor = serviceRegistryActor)
 
       // Hit status is unknown but bucket status is known bad.
-      hitMessage.bucket.path.getPath.toList shouldBe expectedMetric(Hit, Read, UntestedCacheResult)
-      bucketMessage.bucket.path.getPath.toList shouldBe expectedMetric(Bucket, Read, BadCacheResult)
+      hitMessage.bucket.path.getFlatPath.toList shouldBe expectedMetric(Hit, Read, UntestedCacheResult)
+      bucketMessage.bucket.path.getFlatPath.toList shouldBe expectedMetric(Bucket, Read, BadCacheResult)
 
       blacklistCache.bucketCache.size() shouldBe 2
       blacklistCache.bucketCache.get(WideOpenBucket) shouldBe GoodCacheResult
@@ -251,9 +251,9 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
 
       val List(readHit, readBucket, writeHit) = instrumentationCounts(n = 3, serviceRegistryActor = serviceRegistryActor)
 
-      readHit.bucket.path.getPath.toList shouldBe expectedMetric(Hit, Read, UntestedCacheResult)
-      readBucket.bucket.path.getPath.toList shouldBe expectedMetric(Bucket, Read, GoodCacheResult)
-      writeHit.bucket.path.getPath.toList shouldBe expectedMetric(Hit, Write, BadCacheResult)
+      readHit.bucket.path.getFlatPath.toList shouldBe expectedMetric(Hit, Read, UntestedCacheResult)
+      readBucket.bucket.path.getFlatPath.toList shouldBe expectedMetric(Bucket, Read, GoodCacheResult)
+      writeHit.bucket.path.getFlatPath.toList shouldBe expectedMetric(Hit, Write, BadCacheResult)
 
       // Assert blacklist entries were made for bucket and hit.
       blacklistCache.bucketCache.size() shouldBe 2
@@ -301,7 +301,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
 
       val List(readHit) = instrumentationCounts(n = 1, serviceRegistryActor = serviceRegistryActor)
 
-      readHit.bucket.path.getPath.toList shouldBe expectedMetric(Hit, Read, BadCacheResult)
+      readHit.bucket.path.getFlatPath.toList shouldBe expectedMetric(Hit, Read, BadCacheResult)
 
       // Assert blacklist entries were made for bucket and hit.
       blacklistCache.bucketCache.size() shouldBe 2
@@ -343,8 +343,8 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
 
       val List(readHit, readBucket) = instrumentationCounts(n = 2, serviceRegistryActor = serviceRegistryActor)
 
-      readHit.bucket.path.getPath.toList shouldBe expectedMetric(Hit, Read, UntestedCacheResult)
-      readBucket.bucket.path.getPath.toList shouldBe expectedMetric(Bucket, Read, BadCacheResult)
+      readHit.bucket.path.getFlatPath.toList shouldBe expectedMetric(Hit, Read, UntestedCacheResult)
+      readBucket.bucket.path.getFlatPath.toList shouldBe expectedMetric(Bucket, Read, BadCacheResult)
 
       // Assert blacklist entries were made for bucket and hit.
       blacklistCache.bucketCache.size() shouldBe 2

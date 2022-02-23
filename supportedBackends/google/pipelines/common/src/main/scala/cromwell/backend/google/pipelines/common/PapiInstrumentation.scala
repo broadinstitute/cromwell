@@ -21,11 +21,8 @@ object PapiInstrumentation {
   private val PapiRunRetriedKey = PapiRunKey.withParts(RetryKey)
   private val PapiAbortRetriedKey = PapiAbortKey.withParts(RetryKey)
 
-  implicit class StatsDPathGoogleEnhanced(val statsDPath: InstrumentationPath) extends AnyVal {
-    def withGoogleThrowable(failure: Throwable) = {
-      statsDPath.withThrowable(failure, GoogleUtil.extractStatusCode)
-    }
-  }
+  def pathFromFailedQuery(path: InstrumentationPath, failedQuery: PAPIApiRequestFailed): InstrumentationPath =
+    path.withThrowable(failedQuery.cause.cause, GoogleUtil.extractStatusCode)
 }
 
 trait PapiInstrumentation extends CromwellInstrumentation {
@@ -34,15 +31,15 @@ trait PapiInstrumentation extends CromwellInstrumentation {
   def abortSuccess() = increment(PapiAbortKey.withParts(SuccessKey), BackendPrefix)
 
   def failedQuery(failedQuery: PAPIApiRequestFailed) = failedQuery.query match {
-    case _: PAPIStatusPollRequest => increment(PapiPollFailedKey.withGoogleThrowable(failedQuery.cause.cause), BackendPrefix)
-    case _: PAPIRunCreationRequest => increment(PapiRunFailedKey.withGoogleThrowable(failedQuery.cause.cause), BackendPrefix)
-    case _: PAPIAbortRequest => increment(PapiAbortFailedKey.withGoogleThrowable(failedQuery.cause.cause), BackendPrefix)
+    case _: PAPIStatusPollRequest => increment(pathFromFailedQuery(PapiPollFailedKey, failedQuery), BackendPrefix)
+    case _: PAPIRunCreationRequest => increment(pathFromFailedQuery(PapiRunFailedKey, failedQuery), BackendPrefix)
+    case _: PAPIAbortRequest => increment(pathFromFailedQuery(PapiAbortFailedKey, failedQuery), BackendPrefix)
   }
 
   def retriedQuery(failedQuery: PAPIApiRequestFailed) = failedQuery.query match {
-    case _: PAPIStatusPollRequest => increment(PapiPollRetriedKey.withGoogleThrowable(failedQuery.cause.cause), BackendPrefix)
-    case _: PAPIRunCreationRequest => increment(PapiRunRetriedKey.withGoogleThrowable(failedQuery.cause.cause), BackendPrefix)
-    case _: PAPIAbortRequest => increment(PapiAbortRetriedKey.withGoogleThrowable(failedQuery.cause.cause), BackendPrefix)
+    case _: PAPIStatusPollRequest => increment(pathFromFailedQuery(PapiPollRetriedKey, failedQuery), BackendPrefix)
+    case _: PAPIRunCreationRequest => increment(pathFromFailedQuery(PapiRunRetriedKey, failedQuery), BackendPrefix)
+    case _: PAPIAbortRequest => increment(pathFromFailedQuery(PapiAbortRetriedKey, failedQuery), BackendPrefix)
   }
 
   def updateQueueSize(size: Int) = sendGauge(PapiKey.withParts("queue_size"), size.toLong, BackendPrefix)

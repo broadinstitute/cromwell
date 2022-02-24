@@ -3,6 +3,7 @@ package cloud.nio.spi
 import java.nio.file.attribute.{BasicFileAttributes, FileTime}
 
 import cloud.nio.spi.CloudNioFileAttributes._
+import cloud.nio.spi.HashType.HashType
 
 trait CloudNioFileAttributes extends BasicFileAttributes {
   def fileHash: Option[FileHash]
@@ -12,14 +13,7 @@ object CloudNioFileAttributes {
   val FileTimeZero: FileTime = FileTime.fromMillis(0)
 }
 
-case class FileHash(hashType: FileHash.Value, hash: String)
-
-object FileHash extends Enumeration {
-  val Crc32c: FileHash.Value = Value("crc32c")
-  val Etag: FileHash.Value = Value("etag")
-  val Md5: FileHash.Value = Value("md5")
-  val Sha256: FileHash.Value = Value("sha256")
-}
+case class FileHash(hashType: HashType, hash: String)
 
 sealed trait ChecksumResult
 case class ChecksumSuccess() extends ChecksumResult

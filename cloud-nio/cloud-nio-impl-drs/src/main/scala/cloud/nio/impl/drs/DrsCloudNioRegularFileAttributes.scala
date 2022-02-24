@@ -3,7 +3,8 @@ package cloud.nio.impl.drs
 import java.nio.file.attribute.FileTime
 import java.time.{LocalDateTime, OffsetDateTime, ZoneOffset}
 import cats.effect.IO
-import cloud.nio.spi.{CloudNioRegularFileAttributes, FileHash}
+import cloud.nio.spi.HashType.HashType
+import cloud.nio.spi.{CloudNioRegularFileAttributes, FileHash, HashType}
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 class DrsCloudNioRegularFileAttributes(drsPath: String,
@@ -19,15 +20,13 @@ class DrsCloudNioRegularFileAttributes(drsPath: String,
 
   override def fileHash: Option[FileHash] = hashOption
 
-//  override def hashType: Option[String] = hashTypeOption
-
   override def creationTime(): FileTime = timeCreatedOption.getOrElse(lastModifiedTime())
 
   override def lastModifiedTime(): FileTime = timeUpdatedOption.getOrElse(FileTime.fromMillis(0))
 }
 
 object DrsCloudNioRegularFileAttributes {
-  private val priorityHashList: Seq[FileHash.Value] = Seq(FileHash.Crc32c, FileHash.Md5, FileHash.Sha256, FileHash.Etag)
+  private val priorityHashList: Seq[HashType] = Seq(HashType.Crc32c, HashType.Md5, HashType.Sha256, HashType.Etag)
 
   def getPreferredHash(hashesOption: Option[Map[String, String]]): Option[FileHash] = {
     hashesOption match {

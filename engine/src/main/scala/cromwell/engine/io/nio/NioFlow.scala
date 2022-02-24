@@ -3,7 +3,7 @@ package cromwell.engine.io.nio
 import akka.stream.scaladsl.Flow
 import cats.effect.{IO, Timer}
 import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
-import cloud.nio.spi.{ChecksumFailure, ChecksumResult, ChecksumSuccess, FileHash}
+import cloud.nio.spi.{ChecksumFailure, ChecksumResult, ChecksumSuccess, FileHash, HashType}
 import com.typesafe.config.Config
 import common.util.IORetry
 import cromwell.core.io._
@@ -21,7 +21,6 @@ import net.ceedubs.ficus.readers.ValueReader
 
 import java.io._
 import java.nio.charset.StandardCharsets
-import java.util.zip.CRC32C
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
@@ -115,17 +114,7 @@ class NioFlow(parallelism: Int,
       // overflow, but we don't know that here.
       if (!read.options.failOnOverflow) return IO.pure(ChecksumSuccess())
 
-      // TODO: add remaining hash types
-      val hash = fileHash.hashType match {
-        case FileHash.Crc32c =>
-          val crc32c = new CRC32C()
-          crc32c.update(value.getBytes)
-          crc32c.getValue.toString
-        case FileHash.Md5 =>
-          org.apache.commons.codec.digest.DigestUtils.md5Hex(value)
-        case _ =>
-          throw new RuntimeException(s"Unsupported checksum type: ${fileHash.hashType}")
-      }
+      val hash = fileHash.hashType.calculateHash(value)
       if (hash == fileHash.hash) IO.pure(ChecksumSuccess())
       else IO.pure(ChecksumFailure(hash))
     }
@@ -163,19 +152,19 @@ class NioFlow(parallelism: Int,
   private def getHash(file: Path): IO[FileHash] = {
     file match {
       case gcsPath: GcsPath => IO.fromTry {
-        gcsPath.objectBlobId.map(id => FileHash(FileHash.Crc32c, gcsPath.cloudStorage.get(id).getCrc32c))
+        gcsPath.objectBlobId.map(id => FileHash(HashType.Crc32c, gcsPath.cloudStorage.get(id).getCrc32c))
       }
       case drsPath: DrsPath => getFileHashForDrsPath(drsPath)
       case s3Path: S3Path => IO {
-        FileHash(FileHash.Etag, s3Path.eTag)
+        FileHash(HashType.Etag, s3Path.eTag)
       }
       case ossPath: OssPath => IO {
-        FileHash(FileHash.Etag, ossPath.eTag)
+        FileHash(HashType.Etag, ossPath.eTag)
       }
       case path =>
         IO.fromEither(
           tryWithResource(() => path.newInputStream) { inputStream =>
-            FileHash(FileHash.Md5, org.apache.commons.codec.digest.DigestUtils.md5Hex(inputStream))
+            FileHash(HashType.Md5, org.apache.commons.codec.digest.DigestUtils.md5Hex(inputStream))
           }.toEither
         )
     }

@@ -29,7 +29,7 @@ trait JobInstrumentation extends CromwellInstrumentationActor { this: Actor =>
   /**
     * Generic method to increment a workflow related counter metric value
     */
-  def incrementJob(statsDPath: InstrumentationPath) = increment(statsDPath, JobPrefix)
+  def incrementJob(statsDPath: InstrumentationPath): Unit = increment(statsDPath, JobPrefix)
 
   /**
     * Generic method to add a workflow related timing metric value

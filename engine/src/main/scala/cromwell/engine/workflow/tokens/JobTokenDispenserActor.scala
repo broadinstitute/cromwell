@@ -55,7 +55,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
   var currentTokenQueuePointer: Int = 0
   var tokenAssignments: Map[ActorRef, TokenLeaseRecord] = Map.empty
 
-  val instrumentationAction = () => {
+  val instrumentationAction: () => Unit = () => {
     sendGaugeJob(InstrumentationPath.withParts(tokenAllocatedDescription), tokenAssignments.size.toLong)
     sendGaugeJob(InstrumentationPath.withParts(ExecutionStatus.QueuedInCromwell.toString), tokenQueues.values.map(_.size).sum.toLong)
   }

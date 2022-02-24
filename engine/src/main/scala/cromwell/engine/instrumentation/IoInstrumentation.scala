@@ -16,11 +16,11 @@ import scala.concurrent.duration._
   * Implicit methods to help convert Io objects to metric values
   */
 private object IoInstrumentationImplicits {
-  val LocalPath = InstrumentationPath.withParts("local")
-  val GcsPath = InstrumentationPath.withParts("gcs")
-  val UnknownFileSystemPath = InstrumentationPath.withParts("unknown")
+  val LocalPath: InstrumentationPath = InstrumentationPath.withParts("local")
+  val GcsPath: InstrumentationPath = InstrumentationPath.withParts("gcs")
+  val UnknownFileSystemPath: InstrumentationPath = InstrumentationPath.withParts("unknown")
 
-  val backpressure = InstrumentationPath.withParts("backpressure")
+  val backpressure: InstrumentationPath = InstrumentationPath.withParts("backpressure")
 
   /**
     * Augments IoResult to provide instrumentation conversion methods

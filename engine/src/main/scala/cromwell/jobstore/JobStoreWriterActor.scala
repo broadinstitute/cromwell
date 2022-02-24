@@ -65,8 +65,8 @@ case class JobStoreWriterActor(jsd: JobStore,
   // EnhancedBatchActor overrides
   override def receive = enhancedReceive.orElse(super.receive)
   override protected def weightFunction(command: CommandAndReplyTo[JobStoreWriterCommand]) = 1
-  override protected def instrumentationPath = InstrumentationPath.withParts("store", "write")
-  override protected def instrumentationPrefix = InstrumentationPrefixes.JobPrefix
+  override protected def instrumentationPath: InstrumentationPath = InstrumentationPath.withParts("store", "write")
+  override protected def instrumentationPrefix: Option[String] = InstrumentationPrefixes.JobPrefix
   override def commandToData(snd: ActorRef): PartialFunction[Any, CommandAndReplyTo[JobStoreWriterCommand]] = {
     case command: JobStoreWriterCommand => CommandAndReplyTo(command, snd)
   }

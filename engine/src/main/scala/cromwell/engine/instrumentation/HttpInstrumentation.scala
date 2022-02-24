@@ -28,7 +28,7 @@ trait HttpInstrumentation extends CromwellInstrumentation {
     // Status code of the Response (e.g: 200)
     .withHighVariantPart("response", httpResponse.status.intValue.toString)
 
-  private def sendTimingApi(statsDPath: InstrumentationPath, timing: FiniteDuration) = {
+  private def sendTimingApi(statsDPath: InstrumentationPath, timing: FiniteDuration): Unit = {
     sendTiming(statsDPath, timing, ApiPrefix)
   }
 

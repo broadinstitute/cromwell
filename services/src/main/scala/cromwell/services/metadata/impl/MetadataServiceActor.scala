@@ -29,7 +29,7 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 object MetadataServiceActor {
-  val MetadataInstrumentationPrefix = InstrumentationPath.withParts("metadata")
+  val MetadataInstrumentationPrefix: InstrumentationPath = InstrumentationPath.withParts("metadata")
 
   def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) = Props(MetadataServiceActor(serviceConfig, globalConfig, serviceRegistryActor)).withDispatcher(ServiceDispatcher)
 }

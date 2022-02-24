@@ -56,8 +56,8 @@ class CallCacheReadActor(cache: CallCache,
 
   // EnhancedBatchActor overrides
   override def receive: Receive = enhancedReceive.orElse(super.receive)
-  override protected def instrumentationPath = InstrumentationPath.withParts("callcaching", "read")
-  override protected def instrumentationPrefix = InstrumentationPrefixes.JobPrefix
+  override protected def instrumentationPath: InstrumentationPath = InstrumentationPath.withParts("callcaching", "read")
+  override protected def instrumentationPrefix: Option[String] = InstrumentationPrefixes.JobPrefix
   override def commandToData(snd: ActorRef) = {
     case request: CallCacheReadActorRequest => CommandAndReplyTo(request, snd)
   }

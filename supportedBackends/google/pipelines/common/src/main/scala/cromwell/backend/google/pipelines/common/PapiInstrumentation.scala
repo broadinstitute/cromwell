@@ -26,21 +26,21 @@ object PapiInstrumentation {
 }
 
 trait PapiInstrumentation extends CromwellInstrumentation {
-  def pollSuccess() = increment(PapiPollKey.withParts(SuccessKey), BackendPrefix)
-  def runSuccess() = increment(PapiRunKey.withParts(SuccessKey), BackendPrefix)
-  def abortSuccess() = increment(PapiAbortKey.withParts(SuccessKey), BackendPrefix)
+  def pollSuccess(): Unit = increment(PapiPollKey.withParts(SuccessKey), BackendPrefix)
+  def runSuccess(): Unit = increment(PapiRunKey.withParts(SuccessKey), BackendPrefix)
+  def abortSuccess(): Unit = increment(PapiAbortKey.withParts(SuccessKey), BackendPrefix)
 
-  def failedQuery(failedQuery: PAPIApiRequestFailed) = failedQuery.query match {
+  def failedQuery(failedQuery: PAPIApiRequestFailed): Unit = failedQuery.query match {
     case _: PAPIStatusPollRequest => increment(pathFromFailedQuery(PapiPollFailedKey, failedQuery), BackendPrefix)
     case _: PAPIRunCreationRequest => increment(pathFromFailedQuery(PapiRunFailedKey, failedQuery), BackendPrefix)
     case _: PAPIAbortRequest => increment(pathFromFailedQuery(PapiAbortFailedKey, failedQuery), BackendPrefix)
   }
 
-  def retriedQuery(failedQuery: PAPIApiRequestFailed) = failedQuery.query match {
+  def retriedQuery(failedQuery: PAPIApiRequestFailed): Unit = failedQuery.query match {
     case _: PAPIStatusPollRequest => increment(pathFromFailedQuery(PapiPollRetriedKey, failedQuery), BackendPrefix)
     case _: PAPIRunCreationRequest => increment(pathFromFailedQuery(PapiRunRetriedKey, failedQuery), BackendPrefix)
     case _: PAPIAbortRequest => increment(pathFromFailedQuery(PapiAbortRetriedKey, failedQuery), BackendPrefix)
   }
 
-  def updateQueueSize(size: Int) = sendGauge(PapiKey.withParts("queue_size"), size.toLong, BackendPrefix)
+  def updateQueueSize(size: Int): Unit = sendGauge(PapiKey.withParts("queue_size"), size.toLong, BackendPrefix)
 }

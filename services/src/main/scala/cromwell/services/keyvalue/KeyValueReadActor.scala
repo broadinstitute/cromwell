@@ -4,6 +4,7 @@ import akka.actor.ActorRef
 import cromwell.core.actor.BatchActor.CommandAndReplyTo
 import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.services.EnhancedThrottlerActor
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvFailure, KvGet, KvResponse}
 
 import scala.concurrent.Future
@@ -26,8 +27,8 @@ abstract class KeyValueReadActor(override val threshold: Int, override val servi
   
   def processGet(get: KvGet): Future[KvResponse]
 
-  override protected lazy val instrumentationPath = KeyValueServiceActor.instrumentationPath.withParts("read")
-  override protected lazy val instrumentationPrefix = InstrumentationPrefixes.ServicesPrefix
+  override protected lazy val instrumentationPath: InstrumentationPath = KeyValueServiceActor.instrumentationPath.withParts("read")
+  override protected lazy val instrumentationPrefix: Option[String] = InstrumentationPrefixes.ServicesPrefix
   override def commandToData(snd: ActorRef) = {
     case get: KvGet => CommandAndReplyTo(get, snd)
   }

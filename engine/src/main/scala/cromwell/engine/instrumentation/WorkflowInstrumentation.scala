@@ -68,20 +68,20 @@ trait WorkflowInstrumentation extends CromwellInstrumentationActor { this: Actor
   /**
     * Set the current number of submitted workflows (queued but not running)
     */
-  def updateWorkflowsQueued(count: Int) = sendGaugeWorkflow(SubmittedPath, count.toLong)
+  def updateWorkflowsQueued(count: Int): Unit = sendGaugeWorkflow(SubmittedPath, count.toLong)
 
   /**
     * Set the current number of running workflows
     */
-  def updateWorkflowsRunning(count: Int) = sendGaugeWorkflow(RunningPath, count.toLong)
+  def updateWorkflowsRunning(count: Int): Unit = sendGaugeWorkflow(RunningPath, count.toLong)
 
   /**
     * Set the current number of on hold workflows
     */
-  def updateWorkflowsOnHold(count: Int) = sendGaugeWorkflow(OnHoldPath, count.toLong)
+  def updateWorkflowsOnHold(count: Int): Unit = sendGaugeWorkflow(OnHoldPath, count.toLong)
 
   /**
     * Set the current number of aborting workflows
     */
-  def updateWorkflowsAborting(count: Int) = sendGaugeWorkflow(AbortingPath, count.toLong)
+  def updateWorkflowsAborting(count: Int): Unit = sendGaugeWorkflow(AbortingPath, count.toLong)
 }

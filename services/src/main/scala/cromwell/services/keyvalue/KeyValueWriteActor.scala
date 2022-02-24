@@ -1,10 +1,11 @@
 package cromwell.services.keyvalue
 
 import akka.actor.ActorRef
-import cats.data.{NonEmptyVector}
+import cats.data.NonEmptyVector
 import cromwell.core.actor.BatchActor.CommandAndReplyTo
 import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.services.EnhancedBatchActor
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvFailure, KvPut, KvPutSuccess}
 
 import scala.concurrent.Future
@@ -35,8 +36,8 @@ abstract class KeyValueWriteActor(override val serviceRegistryActor: ActorRef, f
   // EnhancedBatchActor overrides
   override def receive = enhancedReceive.orElse(super.receive)
   override protected def weightFunction(command: CommandAndReplyTo[KvPut]) = 1
-  override protected def instrumentationPath = KeyValueServiceActor.instrumentationPath.withParts("write")
-  override protected def instrumentationPrefix = InstrumentationPrefixes.ServicesPrefix
+  override protected def instrumentationPath: InstrumentationPath = KeyValueServiceActor.instrumentationPath.withParts("write")
+  override protected def instrumentationPrefix: Option[String] = InstrumentationPrefixes.ServicesPrefix
   override def commandToData(snd: ActorRef) = {
     case put: KvPut => CommandAndReplyTo(put, snd)
   }

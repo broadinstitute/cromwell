@@ -14,7 +14,7 @@ import scala.concurrent.duration._
 
 object LoadControllerServiceActor {
   val LoadControllerServiceName = "LoadController"
-  val LoadInstrumentationPrefix = Option("load")
+  val LoadInstrumentationPrefix: Option[String] = Option("load")
   case object LoadControlTimerKey
   case object LoadControlTimerAction
   case class ActorAndMetric(actorRef: ActorRef, metricPath: InstrumentationPath)

@@ -38,7 +38,7 @@ object KeyValueServiceActor {
   final case class KvKeyLookupFailed(action: KvGet) extends KvResponse with KvMessageWithAction
   final case class KvPutSuccess(action: KvPut) extends KvResponse with KvMessageWithAction
 
-  val instrumentationPath = InstrumentationPath.withParts("keyvalue")
+  val instrumentationPath: InstrumentationPath = InstrumentationPath.withParts("keyvalue")
 }
 
 trait KeyValueServiceActor extends Actor with GracefulShutdownHelper with ActorLogging {

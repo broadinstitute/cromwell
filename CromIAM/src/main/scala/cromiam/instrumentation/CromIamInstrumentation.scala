@@ -17,16 +17,16 @@ object CromIamInstrumentation {
 
 trait CromIamInstrumentation extends CromwellInstrumentation {
 
-  val samPrefix = InstrumentationPath.withParts("sam")
-  val getWhitelistPrefix = InstrumentationPath.withParts("get-whitelist")
-  val userCollectionPrefix = InstrumentationPath.withParts("user-collection")
-  val authCollectionPrefix = InstrumentationPath.withParts("auth-collection")
-  val registerCollectionPrefix = InstrumentationPath.withParts("register-collection")
-  val rootWfIdPrefix = InstrumentationPath.withParts("root-workflow-id")
-  val wfCollectionPrefix = InstrumentationPath.withParts("workflow-collection")
+  val samPrefix: InstrumentationPath = InstrumentationPath.withParts("sam")
+  val getWhitelistPrefix: InstrumentationPath = InstrumentationPath.withParts("get-whitelist")
+  val userCollectionPrefix: InstrumentationPath = InstrumentationPath.withParts("user-collection")
+  val authCollectionPrefix: InstrumentationPath = InstrumentationPath.withParts("auth-collection")
+  val registerCollectionPrefix: InstrumentationPath = InstrumentationPath.withParts("register-collection")
+  val rootWfIdPrefix: InstrumentationPath = InstrumentationPath.withParts("root-workflow-id")
+  val wfCollectionPrefix: InstrumentationPath = InstrumentationPath.withParts("workflow-collection")
 
 
-  def convertRequestToPath(httpRequest: HttpRequest) = InstrumentationPath
+  def convertRequestToPath(httpRequest: HttpRequest): InstrumentationPath = InstrumentationPath
     // Returns the path of the URI only, without query parameters (e.g: api/engine/workflows/metadata)
     .withHighVariantPart("uri", httpRequest.uri.path.toString().stripPrefix("/")
       // Replace UUIDs with [id] to keep paths same regardless of the workflow

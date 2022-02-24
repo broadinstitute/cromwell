@@ -39,8 +39,8 @@ case class CallCacheWriteActor(callCache: CallCache, serviceRegistryActor: Actor
   // EnhancedBatchActor overrides
   override def receive = enhancedReceive.orElse(super.receive)
   override protected def weightFunction(command: CommandAndReplyTo[SaveCallCacheHashes]) = 1
-  override protected def instrumentationPath = InstrumentationPath.withParts("callcaching", "write")
-  override protected def instrumentationPrefix = InstrumentationPrefixes.JobPrefix
+  override protected def instrumentationPath: InstrumentationPath = InstrumentationPath.withParts("callcaching", "write")
+  override protected def instrumentationPrefix: Option[String] = InstrumentationPrefixes.JobPrefix
   def commandToData(snd: ActorRef): PartialFunction[Any, CommandAndReplyTo[SaveCallCacheHashes]] = {
     case command: SaveCallCacheHashes => CommandAndReplyTo(command, snd)
   }

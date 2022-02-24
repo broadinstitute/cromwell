@@ -15,27 +15,37 @@ import scala.concurrent.duration._
 
 object CromwellInstrumentation {
 
-  val InstrumentationRate = ConfigFactory.load()
+  val InstrumentationRate: FiniteDuration = ConfigFactory.load()
     .getConfig("system")
     .as[Option[FiniteDuration]]("instrumentation-rate")
     .getOrElse(5.seconds)
 
   /**
-   * A representation of a metric name, with different output formats for different kinds of instrumentation services.
-   * Those designed to handle one time series per metric name can get a simple list of name parts with [[getFlatPath]],
-   * while those designed to handle multiple time series per metric name can get a shorter metric name and
-   * frequently-changing, high-variant "labels" separately via [[getPathAndLabels]].
-   *
-   * This distinction exists because instrumentation services meant to handle multiple time series per metric name
-   * (like Prometheus) are poorly built to store numerous metric names or query across them. The more complex
-   * [[getPathAndLabels]] output allows the backends for those instrumentation services to "play nice" with their
-   * associated ecosystems.
-   *
-   * @param internalPath the runtime representation of this class, where the 'left' is a simple, always-present
-   *                     low-variant name part, and the 'right' is a key-value pair for a frequently-changing
-   *                     high-variant name part
+   * A part of a metric name that does not take on many other values. These low variant parts will always be included
+   * in a final metric name regardless of the backing instrumentation service.
    */
-  implicit class InstrumentationPath (val internalPath: NonEmptyList[Either[String, (String, String)]]) extends AnyVal {
+  private type LowVariantPart = String
+
+  /**
+   * A part of a metric name that may take on many other values, represented by a key-value pair. The key should be
+   * consistent for a given type of part (like `"code" -> response.status.intValue.toString`) to facilitate querying in
+   * some backing instrumentation services. These high variant parts will either be included in the metric name directly
+   * of will be supplied alongside as labels.
+   */
+  private type HighVariantPart = (String, String)
+
+  /**
+   * The lossless internal representation of a metric name, maintaining both part ordering and part variance.
+   */
+  private type InternalPath = NonEmptyList[Either[LowVariantPart, HighVariantPart]]
+
+  /**
+   * A wrapping type around an [[InternalPath]] providing methods for building metric names and retrieving them in
+   * formats suitable for different backing instrumentation services.
+   *
+   * @param internalPath the runtime representation of this class
+   */
+  implicit class InstrumentationPath (val internalPath: InternalPath) extends AnyVal {
     def :+(part: String): InstrumentationPath = internalPath.append(Left(part))
     def withParts(parts: String *): InstrumentationPath = withParts(parts.toList)
     def withParts(parts: List[String]): InstrumentationPath = internalPath.concat(parts.map(Left(_)))
@@ -51,7 +61,7 @@ object CromwellInstrumentation {
     def concat(other: InstrumentationPath): InstrumentationPath = internalPath.concatNel(other.internalPath)
 
     /**
-     * Get all path parts as an ordered list, handling high-variant parts by extracting only the value of the key-value
+     * Get all path parts as an ordered list, handling [[HighVariantPart]] by extracting only the value of the key-value
      * pair.
      * @return a NeL of the parts of the instrumentation path
      */
@@ -61,9 +71,9 @@ object CromwellInstrumentation {
     }
 
     /**
-     * Get path parts as an ordered list, with as many high-variant parts as possible excluded and instead returned in a
-     * label map (the invariant is that the path part list not be empty, so this method will handle the first
-     * high-variant part like [[getFlatPath]] if there are zero normal parts).
+     * Get path parts as an ordered list, with as many [[HighVariantPart]] as possible excluded and instead returned in
+     * a label map (the invariant is that the path part list not be empty, so if there are no [[LowVariantPart]] then
+     * the first [[HighVariantPart]] will be handled like [[getFlatPath]]).
      * @return a NeL of the parts of the instrumentation path, and a separate map for labels
      */
     def getPathAndLabels: (NonEmptyList[String], Map[String, String]) = {
@@ -159,7 +169,7 @@ trait CromwellInstrumentation {
   /**
     * Add a timing information for the given bucket
     */
-  protected final def sendTiming(path: InstrumentationPath, duration: FiniteDuration, prefix: Option[String] = None) = {
+  protected final def sendTiming(path: InstrumentationPath, duration: FiniteDuration, prefix: Option[String] = None): Unit = {
     serviceRegistryActor.tell(timingMessage(path, duration, prefix), instrumentationSender)
   }
 
@@ -176,7 +186,7 @@ trait CromwellInstrumentationScheduler { this: Actor with Timers =>
   private case object InstrumentationTimerKey
   private case object InstrumentationTimerAction extends ControlMessage
 
-  def startInstrumentationTimer() = {
+  def startInstrumentationTimer(): Unit = {
     timers.startSingleTimer(InstrumentationTimerKey, InstrumentationTimerAction, InstrumentationRate)
   }
 

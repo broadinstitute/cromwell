@@ -51,8 +51,8 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreAccess: WorkflowStoreAc
 
   override def receive = enhancedReceive.orElse(super.receive)
   override protected def weightFunction(command: (WorkflowId, OffsetDateTime)) = 1
-  override protected def instrumentationPath = InstrumentationPath.withParts("store", "heartbeat-writes")
-  override protected def instrumentationPrefix = InstrumentationPrefixes.WorkflowPrefix
+  override protected def instrumentationPath: InstrumentationPath = InstrumentationPath.withParts("store", "heartbeat-writes")
+  override protected def instrumentationPrefix: Option[String] = InstrumentationPrefixes.WorkflowPrefix
   override def commandToData(snd: ActorRef): PartialFunction[Any, (WorkflowId, OffsetDateTime)] = {
     case command: WorkflowStoreWriteHeartbeatCommand => (command.workflowId, command.submissionTime)
   }

@@ -32,8 +32,8 @@ class StatsDInstrumentationServiceActorSpec extends TestKitSuite with AnyFlatSpe
   val registryProbe = TestProbe().ref
   val udpProbe = TestProbe()
   val patience = 1.second
-  val testBucket = CromwellBucket(List("test_prefix"), InstrumentationPath.withParts("test", "metric", "bucket"))
-  val testGaugeBucket = CromwellBucket(List("test_prefix"), InstrumentationPath.withParts("test", "gauge", "metric", "bucket"))
+  private val testBucket = CromwellBucket(List("test_prefix"), InstrumentationPath.withParts("test", "metric", "bucket"))
+  private val testGaugeBucket = CromwellBucket(List("test_prefix"), InstrumentationPath.withParts("test", "gauge", "metric", "bucket"))
   
   var udpListenerActor: ActorRef = _
   

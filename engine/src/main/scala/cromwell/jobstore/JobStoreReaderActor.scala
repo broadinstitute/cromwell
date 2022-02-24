@@ -33,8 +33,8 @@ class JobStoreReaderActor(database: JobStore, override val serviceRegistryActor:
 
   // EnhancedBatchActorOverrides
   override def receive = enhancedReceive.orElse(super.receive)
-  override protected def instrumentationPath = InstrumentationPath.withParts("store", "read")
-  override protected def instrumentationPrefix = InstrumentationPrefixes.JobPrefix
+  override protected def instrumentationPath: InstrumentationPath = InstrumentationPath.withParts("store", "read")
+  override protected def instrumentationPrefix: Option[String] = InstrumentationPrefixes.JobPrefix
   override def commandToData(snd: ActorRef) = {
     case query: QueryJobCompletion => CommandAndReplyTo(query, sender())
   }

@@ -292,7 +292,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
       jesOutputs collectFirst {
         case jesOutput if jesOutput.name == makeSafeReferenceName(path) =>
           val pathAsString = jesOutput.cloudPath.pathAsString
-          if (!jesOutput.cloudPath.exists) {
+          if (jesOutput.isFileParameter && !jesOutput.cloudPath.exists) {
             // This is not an error if the path represents a `File?` optional output (the PAPI delocalization script
             // should have failed if this file output was not optional but missing). Throw to produce the correct "empty
             // optional" value for a missing optional file output.

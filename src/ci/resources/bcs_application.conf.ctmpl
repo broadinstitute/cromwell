@@ -1,7 +1,7 @@
 include required(classpath("application.conf"))
 include "build_application.inc.conf"
 
-{{with $cromwellBcs := vault (printf "secret/dsde/cromwell/common/cromwell-bcs")}}
+{{with $cromwellBcs := secret (printf "secret/dsde/cromwell/common/cromwell-bcs")}}
 backend {
   default = "BCS"
 

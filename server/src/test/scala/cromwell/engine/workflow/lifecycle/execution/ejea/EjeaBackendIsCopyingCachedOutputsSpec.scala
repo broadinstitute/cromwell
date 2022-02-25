@@ -1,6 +1,5 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-import cats.data.NonEmptyList
 import cromwell.core.callcaching._
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
@@ -8,6 +7,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashing
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
 import cromwell.engine.workflow.lifecycle.execution.ejea.HasJobSuccessResponse.SuccessfulCallCacheHashes
 import cromwell.services.CallCaching.CallCachingEntryId
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import cromwell.services.instrumentation.{CromwellBucket, CromwellIncrement}
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 
@@ -193,10 +193,10 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
                 helper.serviceRegistryProbe.fishForSpecificMessage(2.seconds) {
                   case InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(prefix, path))) =>
                     prefix should be(List.empty[String])
-                    path should be(NonEmptyList.of(
-                      "job",
-                      "callcaching", "read", "error", "bucketblacklisted", helper.taskName, helper.backendWorkflowDescriptor.hogGroup.value
-                    ))
+                    path should be(InstrumentationPath
+                      .withParts("job", "callcaching", "read", "error", "bucketblacklisted")
+                      .withHighVariantPart("task" -> helper.taskName)
+                      .withHighVariantPart("group" -> helper.backendWorkflowDescriptor.hogGroup.value))
                 }
               }
             }

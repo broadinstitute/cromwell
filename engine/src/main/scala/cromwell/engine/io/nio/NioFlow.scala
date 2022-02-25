@@ -3,6 +3,7 @@ package cromwell.engine.io.nio
 import akka.stream.scaladsl.Flow
 import cats.effect.{IO, Timer}
 import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
+import scala.util.Try
 import cloud.nio.spi.{ChecksumFailure, ChecksumResult, ChecksumSuccess, FileHash, HashType}
 import com.typesafe.config.Config
 import common.util.IORetry
@@ -151,9 +152,7 @@ class NioFlow(parallelism: Int,
 
   private def getHash(file: Path): IO[FileHash] = {
     file match {
-      case gcsPath: GcsPath => IO.fromTry {
-        gcsPath.objectBlobId.map(id => FileHash(HashType.Crc32c, gcsPath.cloudStorage.get(id).getCrc32c))
-      }
+      case gcsPath: GcsPath => getFileHashForGcsPath(gcsPath)
       case drsPath: DrsPath => getFileHashForDrsPath(drsPath)
       case s3Path: S3Path => IO {
         FileHash(HashType.Etag, s3Path.eTag)
@@ -161,12 +160,7 @@ class NioFlow(parallelism: Int,
       case ossPath: OssPath => IO {
         FileHash(HashType.Etag, ossPath.eTag)
       }
-      case path =>
-        IO.fromEither(
-          tryWithResource(() => path.newInputStream) { inputStream =>
-            FileHash(HashType.Md5, org.apache.commons.codec.digest.DigestUtils.md5Hex(inputStream))
-          }.toEither
-        )
+      case path => getMd5FileHashForPath(path)
     }
   }
 
@@ -190,21 +184,36 @@ class NioFlow(parallelism: Int,
 
   private def createDirectories(path: Path) = path.parent.createDirectories()
 
-  private def getFileHashForDrsPath(drsPath: DrsPath): IO[FileHash] = {
+  /**
+    * Lazy evaluation of a Try in a delayed IO. This avoids accidentally eagerly evaluating the Try.
+    *
+    * IMPORTANT: Use this instead of IO.fromTry to make sure the Try will be reevaluated if the
+    * IoCommand is retried.
+    */
+  private def delayedIoFromTry[A](t: => Try[A]): IO[A] = IO[A] { t.get }
+
+  private def getFileHashForGcsPath(gcsPath: GcsPath): IO[FileHash] = delayedIoFromTry {
+    gcsPath.objectBlobId.map(id => FileHash(HashType.Crc32c, gcsPath.cloudStorage.get(id).getCrc32c))
+  }
+
+  private def getFileHashForDrsPath(drsPath: DrsPath): IO[FileHash] = IO {
     val drsFileSystemProvider = drsPath.drsPath.getFileSystem.provider.asInstanceOf[DrsCloudNioFileSystemProvider]
 
-    //Since this does not actually do any IO work it is not wrapped in IO
     val fileAttributesOption = drsFileSystemProvider.fileProvider.fileAttributes(drsPath.drsPath.cloudHost, drsPath.drsPath.cloudPath)
 
     fileAttributesOption match {
       case Some(fileAttributes) =>
-        val fileHashIO = IO { fileAttributes.fileHash }
+        fileAttributes.fileHash match {
+          case Some(fileHash) => fileHash
+          case None => throw new IOException(s"Error while resolving DRS path $drsPath. The response from Martha doesn't contain the 'md5' hash for the file.")
+        }
+      case None => throw new IOException(s"Error getting file hash of DRS path $drsPath. Reason: File attributes class DrsCloudNioRegularFileAttributes wasn't defined in DrsCloudNioFileProvider.")
+    }
+  }
 
-        fileHashIO.flatMap({
-          case Some(fileHash) => IO.pure(fileHash)
-          case None => IO.raiseError(new IOException(s"Error while resolving DRS path $drsPath. The response from Martha doesn't contain the 'md5' hash for the file."))
-        })
-      case None => IO.raiseError(new IOException(s"Error getting file hash of DRS path $drsPath. Reason: File attributes class DrsCloudNioRegularFileAttributes wasn't defined in DrsCloudNioFileProvider."))
+  private def getMd5FileHashForPath(path: Path): IO[FileHash] = delayedIoFromTry {
+    tryWithResource(() => path.newInputStream) { inputStream =>
+      FileHash(HashType.Md5, org.apache.commons.codec.digest.DigestUtils.md5Hex(inputStream))
     }
   }
 }

@@ -21,7 +21,7 @@ import org.specs2.mock.Mockito._
 
 import java.nio.file.NoSuchFileException
 import java.util.UUID
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
@@ -39,7 +39,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     onRetryCallback = NoopOnRetry,
     onBackpressure = NoopOnBackpressure,
     numberOfAttempts = 3,
-    commandBackpressureStaleness = 1 seconds)(system.dispatcher).flow
+    commandBackpressureStaleness = 5 seconds)(system.dispatcher).flow
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   private val replyTo = mock[ActorRef]
@@ -66,7 +66,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     val testPath = DefaultPathBuilder.createTempFile()
     testPath.write("hello")
 
-    val context = DefaultCommandContext(contentAsStringCommand(testPath, None, failOnOverflow = false).get, replyTo)
+    val context = DefaultCommandContext(contentAsStringCommand(testPath, None, failOnOverflow = true).get, replyTo)
     val testSource = Source.single(context)
 
     val stream = testSource.via(flow).toMat(readSink)(Keep.right)
@@ -125,15 +125,25 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     }
   }
 
-  it should "fail if hash doesn't match checksum" in {
-    val testPath = mock[GcsPath]
-    when(testPath.limitFileContent(any[Option[Int]], any[Boolean])(any[ExecutionContext])).thenReturn("hello".getBytes)
+  private def mockGcsBlob(testPath: GcsPath) = {
     val blobId = BlobId.of("bucket", "name")
     testPath.objectBlobId.returns(Success(blobId))
     val mockCloudStorage = mock[Storage].smart
     when(testPath.cloudStorage).thenReturn(mockCloudStorage)
     val mockBlob = mock[Blob].smart
     when(mockCloudStorage.get(blobId)).thenReturn(mockBlob)
+    mockBlob
+  }
+
+  private def mockGcsPath(content: String) = {
+    val testPath = mock[GcsPath]
+    when(testPath.limitFileContent(any[Option[Int]], any[Boolean])(any[ExecutionContext])).thenReturn(content.getBytes)
+    val mockBlob = mockGcsBlob(testPath)
+    (testPath, mockBlob)
+  }
+
+  it should "fail if hash doesn't match checksum" in {
+    val (testPath: GcsPath, mockBlob: Blob) = mockGcsPath("hello")
     when(mockBlob.getCrc32c).thenReturn("boom") // correct checksum is 2591144780
 
     val context = DefaultCommandContext(contentAsStringCommand(testPath, Option(100), failOnOverflow = true).get, replyTo)
@@ -141,11 +151,28 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
 
     val stream = testSource.via(flow).toMat(readSink)(Keep.right)
 
-    val eventualTuple: Future[(IoAck[_], IoCommandContext[_])] = stream.run()
-    eventualTuple map {
+    stream.run() map {
       case (IoFailure(_, EnhancedCromwellIoException(_, receivedException)), _) =>
         receivedException.getMessage should include ("Failed checksum")
-      case (result, _) => fail(s"oops: $result")
+      case (ack, _) => fail(s"read returned an unexpected message:\n$ack\n\n")
+    }
+  }
+
+  it should "retry if hash check fails, then succeed if the second check passes" in {
+    val (testPath, mockBlob) = mockGcsPath("hello")
+    when(mockBlob.getCrc32c)
+      .thenReturn("boom")
+      .thenReturn("2591144780")
+
+    val context = DefaultCommandContext(contentAsStringCommand(testPath, Option(100), failOnOverflow = true).get, replyTo)
+    val testSource = Source.single(context)
+
+    val stream = testSource.via(flow).toMat(readSink)(Keep.right)
+
+    stream.run() map {
+      case (success: IoSuccess[_], _) => assert(success.result.asInstanceOf[String] == "hello")
+      case (ack, _) =>
+        fail(s"read returned an unexpected message:\n$ack\n\n")
     }
   }
 

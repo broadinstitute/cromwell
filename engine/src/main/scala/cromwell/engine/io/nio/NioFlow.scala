@@ -134,7 +134,7 @@ class NioFlow(parallelism: Int,
           case _: ChecksumSuccess => IO.pure(uncheckedValue)
           case failure: ChecksumFailure => IO.raiseError(
             ChecksumFailedException(
-              s"Failed checksum for: ${read.file}. expected: '$fileHash' actual: '${failure.calculatedHash}'"))
+              s"Failed checksum for '${read.file}'. Expected '${fileHash.hashType}' hash of '${fileHash.hash}'. Calculated hash '${failure.calculatedHash}'"))
         }
       } yield verifiedValue
     }

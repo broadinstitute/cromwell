@@ -1,6 +1,8 @@
 package cloud.nio.spi
 
+import java.nio.{ByteBuffer, ByteOrder}
 import java.security.MessageDigest
+import java.util.Base64
 import java.util.zip.CRC32C
 
 object HashType extends Enumeration {
@@ -15,7 +17,9 @@ object HashType extends Enumeration {
       case Crc32c =>
         val crc32c = new CRC32C()
         crc32c.update(s.getBytes)
-        crc32c.getValue.toString
+        val byteBuffer = ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
+        byteBuffer.putInt(crc32c.getValue.toInt)
+        Base64.getEncoder.encodeToString(byteBuffer.array)
       case Etag =>
         val chunkSize = 8 * 1024 * 1024
         val numChunks = (s.length.toDouble / chunkSize).ceil.toInt

@@ -162,7 +162,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     val (testPath, mockBlob) = mockGcsPath("hello")
     when(mockBlob.getCrc32c)
       .thenReturn("boom")
-      .thenReturn("2591144780")
+      .thenReturn("mnG7TA==")
 
     val context = DefaultCommandContext(contentAsStringCommand(testPath, Option(100), failOnOverflow = true).get, replyTo)
     val testSource = Source.single(context)

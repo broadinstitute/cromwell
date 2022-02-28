@@ -2,6 +2,9 @@ name: fofn_caching
 testFormat: runtwiceexpectingcallcaching
 backends: [Papi-Caching-No-Copy]
 
+# CROM-6807 Don't retry failures, subsequent runs will fail because of unexpected cache hits from the initial run
+retryTestFailures: false
+
 files {
   workflow: fofn_caching/fofn_caching.wdl
 }

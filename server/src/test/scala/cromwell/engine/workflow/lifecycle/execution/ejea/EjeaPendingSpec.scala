@@ -4,7 +4,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.backend.TestConfig.globalConfig
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor._
-import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.JobExecutionTokenRequest
+import cromwell.engine.workflow.tokens.JobTokenDispenserActor.JobTokenRequest
 import org.scalatest.concurrent.Eventually
 
 class EjeaPendingSpec extends EngineJobExecutionActorSpec with CanValidateJobStoreKey with Eventually {
@@ -18,20 +18,28 @@ class EjeaPendingSpec extends EngineJobExecutionActorSpec with CanValidateJobSto
         ejea = helper.buildEJEA(restarting = restarting)
         ejea ! Execute
 
-        helper.jobTokenDispenserProbe.expectMsgClass(max = awaitTimeout, classOf[JobExecutionTokenRequest])
+        if (restarting) {
+          helper.jobRestartCheckTokenDispenserProbe.expectMsgClass(max = awaitTimeout, classOf[JobTokenRequest])
+        } else {
+          helper.jobExecutionTokenDispenserProbe.expectMsgClass(max = awaitTimeout, classOf[JobTokenRequest])
 
-        helper.jobPreparationProbe.msgAvailable should be(false)
-        helper.jobStoreProbe.msgAvailable should be(false)
-        ejea.stateName should be(RequestingExecutionToken)
+          helper.jobPreparationProbe.msgAvailable should be(false)
+          helper.jobStoreProbe.msgAvailable should be(false)
+          ejea.stateName should be(RequestingExecutionToken)
+        }
       }
 
       s"should use system-level hog-factor setting in token request, if hog-factor is not overridden in backend configuration (with restarting=$restarting)" in {
         ejea = helper.buildEJEA(restarting = restarting)
         ejea ! Execute
 
-        val tokenRequest = helper.jobTokenDispenserProbe.expectMsgClass(max = awaitTimeout, classOf[JobExecutionTokenRequest])
-        // 1 is the default hog-factor value defined in reference.conf
-        tokenRequest.jobExecutionTokenType.hogFactor should be(1)
+        if (restarting) {
+          helper.jobRestartCheckTokenDispenserProbe.expectMsgClass(max = awaitTimeout, classOf[JobTokenRequest])
+        } else {
+          val tokenRequest = helper.jobExecutionTokenDispenserProbe.expectMsgClass(max = awaitTimeout, classOf[JobTokenRequest])
+          // 1 is the default hog-factor value defined in reference.conf
+          tokenRequest.jobTokenType.hogFactor should be(1)
+        }
       }
 
       s"should use hog-factor defined in backend configuration in token request (with restarting=$restarting)" in {
@@ -41,8 +49,12 @@ class EjeaPendingSpec extends EngineJobExecutionActorSpec with CanValidateJobSto
         ejea = helper.buildEJEA(restarting = restarting, backendConfigurationDescriptor = backendWithOverriddenHogFactorConfigDescriptor)
         ejea ! Execute
 
-        val tokenRequest = helper.jobTokenDispenserProbe.expectMsgClass(max = awaitTimeout, classOf[JobExecutionTokenRequest])
-        tokenRequest.jobExecutionTokenType.hogFactor should be(expectedHogFactorValue)
+        if (restarting) {
+          helper.jobRestartCheckTokenDispenserProbe.expectMsgClass(max = awaitTimeout, classOf[JobTokenRequest])
+        } else {
+          val tokenRequest = helper.jobExecutionTokenDispenserProbe.expectMsgClass(max = awaitTimeout, classOf[JobTokenRequest])
+          tokenRequest.jobTokenType.hogFactor should be(expectedHogFactorValue)
+        }
       }
     }
   }

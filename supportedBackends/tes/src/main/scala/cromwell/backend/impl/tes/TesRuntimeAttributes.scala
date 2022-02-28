@@ -9,6 +9,7 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import wom.RuntimeAttributesKeys
 import wom.format.MemorySize
+import wom.types.WomStringType
 import wom.values._
 
 case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
@@ -18,7 +19,8 @@ case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
                                 cpu: Option[Int Refined Positive],
                                 memory: Option[MemorySize],
                                 disk: Option[MemorySize],
-                                preemptible: Boolean)
+                                preemptible: Boolean,
+                                backendParameters: Map[String, Option[String]])
 
 object TesRuntimeAttributes {
 
@@ -52,7 +54,25 @@ object TesRuntimeAttributes {
       preemptibleValidation(backendRuntimeConfig),
     )
 
-  def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, backendRuntimeConfig: Option[Config]): TesRuntimeAttributes = {
+  def makeBackendParameters(runtimeAttributes: Map[String, WomValue],
+                            keysToExclude: Set[String],
+                            config: TesConfiguration): Map[String, Option[String]] = {
+
+    if (config.useBackendParameters)
+      runtimeAttributes
+        .filterKeys(k => !keysToExclude.contains(k))
+        .flatMap( _ match {
+          case (key, WomString(s)) => Option((key, Option(s)))
+          case (key, WomOptionalValue(WomStringType, Some(WomString(optS)))) => Option((key, Option(optS)))
+          case (key, WomOptionalValue(WomStringType, None)) => Option((key, None))
+          case _ => None
+        })
+    else
+      Map.empty
+  }
+
+  def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, rawRuntimeAttributes: Map[String, WomValue], config: TesConfiguration): TesRuntimeAttributes = {
+    val backendRuntimeConfig = config.runtimeConfig
     val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
     val dockerWorkingDir: Option[String] = RuntimeAttributesValidation.extractOption(dockerWorkingDirValidation.key, validatedRuntimeAttributes)
     val cpu: Option[Int Refined Positive] = RuntimeAttributesValidation.extractOption(cpuValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
@@ -65,6 +85,24 @@ object TesRuntimeAttributes {
     val preemptible: Boolean =
       RuntimeAttributesValidation.extract(preemptibleValidation(backendRuntimeConfig), validatedRuntimeAttributes)
 
+    // !! NOTE !! If new validated attributes are added to TesRuntimeAttributes, be sure to include
+    // their validations here so that they will be handled correctly with backendParameters.
+    val validations = Set(
+      dockerValidation,
+      dockerWorkingDirValidation,
+      cpuValidation(backendRuntimeConfig),
+      memoryValidation(backendRuntimeConfig),
+      diskSizeValidation(backendRuntimeConfig),
+      failOnStderrValidation(backendRuntimeConfig),
+      continueOnReturnCodeValidation(backendRuntimeConfig),
+      preemptibleValidation(backendRuntimeConfig)
+    )
+
+    // BT-458 any strings included in runtime attributes that aren't otherwise used should be
+    // passed through to the TES server as part of backend_parameters
+    val keysToExclude = validations map { _.key }
+    val backendParameters = makeBackendParameters(rawRuntimeAttributes, keysToExclude, config)
+
     new TesRuntimeAttributes(
       continueOnReturnCode,
       docker,
@@ -73,7 +111,8 @@ object TesRuntimeAttributes {
       cpu,
       memory,
       disk,
-      preemptible
+      preemptible,
+      backendParameters
     )
   }
 }

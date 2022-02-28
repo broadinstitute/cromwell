@@ -175,7 +175,8 @@ class LobSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Sc
           heartbeatTimestampTo = OffsetDateTime.now.toSystemTimestamp,
           workflowStateFrom = "Submitted",
           workflowStateTo = "Running",
-          workflowStateExcluded = "On Hold"
+          workflowStateExcluded = "On Hold",
+          excludedGroups = Set.empty
         )
 
         _ = {

@@ -74,7 +74,8 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
                             heartbeatTimestampTo: Timestamp,
                             workflowStateFrom: String,
                             workflowStateTo: String,
-                            workflowStateExcluded: String)
+                            workflowStateExcluded: String,
+                            excludedGroups: Set[String])
                            (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]]
 
   def writeWorkflowHeartbeats(workflowExecutionUuids: Seq[String],
@@ -103,5 +104,7 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
   def findWorkflowsWithAbortRequested(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[String]]
 
   def findWorkflows(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[String]]
+
+  def checkWhetherWorkflowExists(cromwellId: String)(implicit ec: ExecutionContext): Future[Boolean]
 
 }

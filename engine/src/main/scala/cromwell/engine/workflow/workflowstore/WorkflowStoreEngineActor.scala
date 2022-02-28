@@ -100,8 +100,8 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
 
   private def startNewWork(command: WorkflowStoreActorEngineCommand, sndr: ActorRef, nextData: WorkflowStoreActorData) = {
     val work: Future[Any] = command match {
-      case FetchRunnableWorkflows(count) =>
-        newWorkflowMessage(count) map { response =>
+      case FetchRunnableWorkflows(count, excludedGroups) =>
+        newWorkflowMessage(count, excludedGroups) map { response =>
           response match {
             case NewWorkflowsToStart(workflows) =>
               val workflowsIds = workflows.map(_.id).toList
@@ -185,10 +185,10 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
   /**
     * Fetches at most n workflows, and builds the correct response message based on if there were any workflows or not
     */
-  private def newWorkflowMessage(maxWorkflows: Int): Future[WorkflowStoreEngineActorResponse] = {
+  private def newWorkflowMessage(maxWorkflows: Int, excludedGroups: Set[String]): Future[WorkflowStoreEngineActorResponse] = {
     def fetchStartableWorkflowsIfNeeded = {
       if (maxWorkflows > 0) {
-        workflowStoreAccess.fetchStartableWorkflows(maxWorkflows, workflowHeartbeatConfig.cromwellId, workflowHeartbeatConfig.ttl)
+        workflowStoreAccess.fetchStartableWorkflows(maxWorkflows, workflowHeartbeatConfig.cromwellId, workflowHeartbeatConfig.ttl, excludedGroups)
       } else {
         Future.successful(List.empty[WorkflowToStart])
       }

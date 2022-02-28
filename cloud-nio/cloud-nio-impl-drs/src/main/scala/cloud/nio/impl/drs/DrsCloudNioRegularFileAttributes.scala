@@ -32,7 +32,7 @@ object DrsCloudNioRegularFileAttributes {
     hashesOption match {
       case Some(hashes: Map[String, String]) if hashes.nonEmpty =>
         priorityHashList collectFirst {
-          case hashKey if hashes.contains(hashKey.toString) => FileHash(hashKey, hashes(hashKey.toString))
+          case hashType if hashes.contains(hashType.toString) => FileHash(hashType, hashes(hashType.toString))
         }
         // if no preferred hash was found, go ahead and return none because we don't support anything that the DRS object is offering
       case _ => None

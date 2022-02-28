@@ -7,14 +7,23 @@ import java.util.zip.CRC32C
 
 object HashType extends Enumeration {
   type HashType = Value
+
+  // crc32c as a hex string
   val Crc32c: HashType.Value = Value("crc32c")
+  // AWS etag
   val Etag: HashType.Value = Value("etag")
+  // GCS crc32c, which is base64-encoded instead of a hex string
+  val GcsCrc32c: HashType.Value = Value("gcs_crc32c")
   val Md5: HashType.Value = Value("md5")
   val Sha256: HashType.Value = Value("sha256")
 
   implicit class HashTypeValue(hashType: Value) {
     def calculateHash(s: String): String = hashType match {
       case Crc32c =>
+        val crc32c = new CRC32C()
+        crc32c.update(s.getBytes)
+        crc32c.getValue.toHexString
+      case GcsCrc32c =>
         val crc32c = new CRC32C()
         crc32c.update(s.getBytes)
         val byteBuffer = ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)

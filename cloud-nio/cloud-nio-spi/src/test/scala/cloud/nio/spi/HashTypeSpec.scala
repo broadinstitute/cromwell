@@ -8,7 +8,11 @@ class HashTypeSpec extends AnyFlatSpecLike with Matchers {
   behavior of "HashType.calculateHash"
 
   it should "calculate a crc32c hash" in {
-    HashType.Crc32c.calculateHash("hello") shouldBe "mnG7TA=="
+    HashType.Crc32c.calculateHash("hello") shouldBe "9a71bb4c"
+  }
+
+  it should "calculate a GCS crc32c hash" in {
+    HashType.GcsCrc32c.calculateHash("hello") shouldBe "mnG7TA=="
   }
 
   it should "calculate an etag hash on short data" in {

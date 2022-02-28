@@ -115,7 +115,7 @@ class NioFlow(parallelism: Int,
       if (!command.options.failOnOverflow) return IO.pure(ChecksumSuccess())
 
       val hash = fileHash.hashType.calculateHash(value)
-      if (hash == fileHash.hash) IO.pure(ChecksumSuccess())
+      if (hash.toLowerCase == fileHash.hash.toLowerCase) IO.pure(ChecksumSuccess())
       else IO.pure(ChecksumFailure(hash))
     }
 
@@ -200,7 +200,7 @@ class NioFlow(parallelism: Int,
   private def delayedIoFromTry[A](t: => Try[A]): IO[A] = IO[A] { t.get }
 
   private def getFileHashForGcsPath(gcsPath: GcsPath): IO[FileHash] = delayedIoFromTry {
-    gcsPath.objectBlobId.map(id => FileHash(HashType.Crc32c, gcsPath.cloudStorage.get(id).getCrc32c))
+    gcsPath.objectBlobId.map(id => FileHash(HashType.GcsCrc32c, gcsPath.cloudStorage.get(id).getCrc32c))
   }
 
   private def getMd5FileHashForPath(path: Path): IO[FileHash] = delayedIoFromTry {

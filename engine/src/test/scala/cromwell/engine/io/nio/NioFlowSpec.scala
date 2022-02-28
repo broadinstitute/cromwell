@@ -130,7 +130,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
   it should "fail if DrsPath hash doesn't match checksum" in {
     val testPath = mock[DrsPath]
     when(testPath.limitFileContent(any[Option[Int]], any[Boolean])(any[ExecutionContext])).thenReturn("hello".getBytes)
-    when(testPath.getFileHash).thenReturn(FileHash(HashType.Crc32c, "boom")) // correct Base64-encoded crc32c checksum is "mnG7TA=="
+    when(testPath.getFileHash).thenReturn(FileHash(HashType.Crc32c, "boom")) // correct Base64-encoded crc32c checksum is "9a71bb4c"
 
     val context = DefaultCommandContext(contentAsStringCommand(testPath, Option(100), failOnOverflow = true).get, replyTo)
     val testSource = Source.single(context)
@@ -151,9 +151,9 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
       .thenReturn("hello".getBytes)
       .thenReturn("hello".getBytes)
     when(testPath.getFileHash)
-      .thenReturn(FileHash(HashType.Crc32c, "mnG7TA=="))
+      .thenReturn(FileHash(HashType.Crc32c, "9a71bb4c"))
       .thenReturn(FileHash(HashType.Crc32c, "boom"))
-      .thenReturn(FileHash(HashType.Crc32c, "mnG7TA=="))
+      .thenReturn(FileHash(HashType.Crc32c, "9a71bb4c"))
 
     val context = DefaultCommandContext(contentAsStringCommand(testPath, Option(100), failOnOverflow = true).get, replyTo)
     val testSource = Source.single(context)

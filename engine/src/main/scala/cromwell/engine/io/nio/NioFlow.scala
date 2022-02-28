@@ -152,7 +152,9 @@ class NioFlow(parallelism: Int,
   private def getHash(file: Path): IO[FileHash] = {
     file match {
       case gcsPath: GcsPath => getFileHashForGcsPath(gcsPath)
-      case drsPath: DrsPath => drsPath.getFileHash
+      case drsPath: DrsPath => IO {
+        drsPath.getFileHash
+      }
       case s3Path: S3Path => IO {
         FileHash(HashType.Etag, s3Path.eTag)
       }

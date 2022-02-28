@@ -1,6 +1,5 @@
 package cromwell.filesystems.drs
 
-import cats.effect.IO
 import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
 import cloud.nio.spi.{CloudNioPath, FileHash}
 import cromwell.core.path.{NioPath, Path}
@@ -20,7 +19,7 @@ case class DrsPath(drsPath: CloudNioPath, requesterPaysProjectIdOption: Option[S
 
   override def pathWithoutScheme: String = pathAsString.stripPrefix(drsPath.getFileSystem.provider.getScheme + "://")
 
-  def getFileHash: IO[FileHash] = IO {
+  def getFileHash: FileHash = {
     val drsFileSystemProvider = drsPath.getFileSystem.provider.asInstanceOf[DrsCloudNioFileSystemProvider]
 
     val fileAttributesOption = drsFileSystemProvider.fileProvider.fileAttributes(drsPath.cloudHost, drsPath.cloudPath)

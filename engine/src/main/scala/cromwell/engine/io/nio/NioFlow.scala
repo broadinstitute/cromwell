@@ -2,7 +2,6 @@ package cromwell.engine.io.nio
 
 import akka.stream.scaladsl.Flow
 import cats.effect.{IO, Timer}
-import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
 import scala.util.Try
 import cloud.nio.spi.{ChecksumFailure, ChecksumResult, ChecksumSuccess, FileHash, HashType}
 import com.typesafe.config.Config
@@ -153,7 +152,7 @@ class NioFlow(parallelism: Int,
   private def getHash(file: Path): IO[FileHash] = {
     file match {
       case gcsPath: GcsPath => getFileHashForGcsPath(gcsPath)
-      case drsPath: DrsPath => getFileHashForDrsPath(drsPath)
+      case drsPath: DrsPath => drsPath.getFileHash
       case s3Path: S3Path => IO {
         FileHash(HashType.Etag, s3Path.eTag)
       }
@@ -194,21 +193,6 @@ class NioFlow(parallelism: Int,
 
   private def getFileHashForGcsPath(gcsPath: GcsPath): IO[FileHash] = delayedIoFromTry {
     gcsPath.objectBlobId.map(id => FileHash(HashType.Crc32c, gcsPath.cloudStorage.get(id).getCrc32c))
-  }
-
-  private def getFileHashForDrsPath(drsPath: DrsPath): IO[FileHash] = IO {
-    val drsFileSystemProvider = drsPath.drsPath.getFileSystem.provider.asInstanceOf[DrsCloudNioFileSystemProvider]
-
-    val fileAttributesOption = drsFileSystemProvider.fileProvider.fileAttributes(drsPath.drsPath.cloudHost, drsPath.drsPath.cloudPath)
-
-    fileAttributesOption match {
-      case Some(fileAttributes) =>
-        fileAttributes.fileHash match {
-          case Some(fileHash) => fileHash
-          case None => throw new IOException(s"Error while resolving DRS path $drsPath. The response from Martha doesn't contain the 'md5' hash for the file.")
-        }
-      case None => throw new IOException(s"Error getting file hash of DRS path $drsPath. Reason: File attributes class DrsCloudNioRegularFileAttributes wasn't defined in DrsCloudNioFileProvider.")
-    }
   }
 
   private def getMd5FileHashForPath(path: Path): IO[FileHash] = delayedIoFromTry {

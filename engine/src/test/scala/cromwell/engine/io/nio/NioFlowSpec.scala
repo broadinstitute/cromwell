@@ -5,7 +5,7 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import cats.effect.IO
 import cloud.nio.spi.{FileHash, HashType}
-import com.google.cloud.storage.{Blob, BlobId, Storage, StorageException}
+import com.google.cloud.storage.StorageException
 import cromwell.core.io.DefaultIoCommandBuilder._
 import cromwell.core.io._
 import cromwell.core.path.DefaultPathBuilder
@@ -26,7 +26,7 @@ import java.util.UUID
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.{Failure, Success}
+import scala.util.Failure
 import scala.util.control.NoStackTrace
 
 class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with MockitoSugar {
@@ -124,59 +124,6 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
       case (IoFailure(_, EnhancedCromwellIoException(_, receivedException)), _) =>
         receivedException should be(exception)
       case unexpected => fail(s"hash returned an unexpected message: $unexpected")
-    }
-  }
-
-  private def mockGcsBlob(testPath: GcsPath) = {
-    val blobId = BlobId.of("bucket", "name")
-    testPath.objectBlobId.returns(Success(blobId))
-    val mockCloudStorage = mock[Storage].smart
-    when(testPath.cloudStorage).thenReturn(mockCloudStorage)
-    val mockBlob = mock[Blob].smart
-    when(mockCloudStorage.get(blobId)).thenReturn(mockBlob)
-    mockBlob
-  }
-
-  private def mockGcsPath(content: String) = {
-    val testPath = mock[GcsPath]
-    when(testPath.limitFileContent(any[Option[Int]], any[Boolean])(any[ExecutionContext])).thenReturn(content.getBytes)
-    val mockBlob = mockGcsBlob(testPath)
-    (testPath, mockBlob)
-  }
-
-  // TODO: make this test fail, then remove
-  it should "fail if hash doesn't match checksum" in {
-    val (testPath: GcsPath, mockBlob: Blob) = mockGcsPath("hello")
-    when(mockBlob.getCrc32c).thenReturn("boom") // correct checksum is "mnG7TA=="
-
-    val context = DefaultCommandContext(contentAsStringCommand(testPath, Option(100), failOnOverflow = true).get, replyTo)
-    val testSource = Source.single(context)
-
-    val stream = testSource.via(flow).toMat(readSink)(Keep.right)
-
-    stream.run() map {
-      case (IoFailure(_, EnhancedCromwellIoException(_, receivedException)), _) =>
-        receivedException.getMessage should include ("Failed checksum")
-      case (ack, _) => fail(s"read returned an unexpected message:\n$ack\n\n")
-    }
-  }
-
-  // TODO: make this test fail, then remove
-  it should "retry if hash check fails, then succeed if the second check passes" in {
-    val (testPath, mockBlob) = mockGcsPath("hello")
-    when(mockBlob.getCrc32c)
-      .thenReturn("boom")
-      .thenReturn("mnG7TA==")
-
-    val context = DefaultCommandContext(contentAsStringCommand(testPath, Option(100), failOnOverflow = true).get, replyTo)
-    val testSource = Source.single(context)
-
-    val stream = testSource.via(flow).toMat(readSink)(Keep.right)
-
-    stream.run() map {
-      case (success: IoSuccess[_], _) => assert(success.result.asInstanceOf[String] == "hello")
-      case (ack, _) =>
-        fail(s"read returned an unexpected message:\n$ack\n\n")
     }
   }
 

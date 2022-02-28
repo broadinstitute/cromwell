@@ -106,39 +106,45 @@ class NioFlow(parallelism: Int,
     ()
   }
 
-  private def readAsString(read: IoContentAsStringCommand): IO[String] = {
+  private def readAsString(command: IoContentAsStringCommand): IO[String] = {
     def checkHash(value: String, fileHash: FileHash): IO[ChecksumResult] = {
       // Disable checksum validation if failOnOverflow is false. We might not read
       // the entire stream, in which case the checksum will definitely fail.
       // Ideally, we would only disable checksum validation if there was an actual
       // overflow, but we don't know that here.
-      if (!read.options.failOnOverflow) return IO.pure(ChecksumSuccess())
+      if (!command.options.failOnOverflow) return IO.pure(ChecksumSuccess())
 
       val hash = fileHash.hashType.calculateHash(value)
       if (hash == fileHash.hash) IO.pure(ChecksumSuccess())
       else IO.pure(ChecksumFailure(hash))
     }
 
-    def readFile: IO[String] = {
+    def readFile: IO[String] = IO {
+      new String(
+        command.file.limitFileContent(command.options.maxBytes, command.options.failOnOverflow),
+        StandardCharsets.UTF_8
+      )
+    }
+
+    def readFileAndChecksum: IO[String] = {
       for {
-        fileHash <- getHash(read.file)
-        uncheckedValue <- IO {
-          new String(
-            read.file.limitFileContent(read.options.maxBytes, read.options.failOnOverflow),
-            StandardCharsets.UTF_8
-          )
-        }
+        fileHash <- getHash(command.file)
+        uncheckedValue <- readFile
         checksumResult <- checkHash(uncheckedValue, fileHash)
         verifiedValue <- checksumResult match {
           case _: ChecksumSuccess => IO.pure(uncheckedValue)
           case failure: ChecksumFailure => IO.raiseError(
             ChecksumFailedException(
-              s"Failed checksum for '${read.file}'. Expected '${fileHash.hashType}' hash of '${fileHash.hash}'. Calculated hash '${failure.calculatedHash}'"))
+              s"Failed checksum for '${command.file}'. Expected '${fileHash.hashType}' hash of '${fileHash.hash}'. Calculated hash '${failure.calculatedHash}'"))
         }
       } yield verifiedValue
     }
 
-    readFile.map(_.replaceAll("\\r\\n", "\\\n"))
+    val fileContentIo = command.file match {
+      case _: DrsPath => readFileAndChecksum
+      case _ => readFile
+    }
+    fileContentIo.map(_.replaceAll("\\r\\n", "\\\n"))
   }
 
   private def size(size: IoSizeCommand) = IO {

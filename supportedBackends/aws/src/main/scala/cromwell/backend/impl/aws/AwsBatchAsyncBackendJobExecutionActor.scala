@@ -123,9 +123,12 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override lazy val dockerImageUsed: Option[String] = Option(jobDockerImage)
 
+  // |cd ${jobPaths.script.parent.pathWithoutScheme}; ls | grep -v script | xargs rm -rf; cd -
+
   private lazy val execScript =
     s"""|df -h
         |ls -lah ${jobPaths.script.pathWithoutScheme}
+        |find ${jobPaths.script.parent.pathWithoutScheme} -group root | grep -v script | xargs rm -vrf
         |${jobPaths.script.pathWithoutScheme}
         |""".stripMargin
 
@@ -411,8 +414,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override def scriptPreamble: String = {
     configuration.fileSystem match {
       case  AWSBatchStorageSystems.s3 => ""
-      case _ => s"""|# clean directory in case of multiple retries
-                    |ls | grep -v script | xargs rm -rf""".stripMargin
+      case _ => s""
     }
   }
 

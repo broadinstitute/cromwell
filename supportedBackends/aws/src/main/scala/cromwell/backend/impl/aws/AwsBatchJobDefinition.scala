@@ -186,14 +186,15 @@ trait AwsBatchJobDefinitionBuilder {
 
   private def packCommand(shell: String, options: String, mainCommand: String): Seq[String] = {
     val rc = new ListBuffer[String]()
-    val lim = 1024
-    val packedCommand = mainCommand.length() match {
-      case len if len <= lim => mainCommand
-      case len if len > lim => {
-        rc += "gzipdata" // This is hard coded in our agent and must be the first item
-        gzip(mainCommand)
-      }
-    }
+    // val lim = 1024
+    // val packedCommand = mainCommand.length() match {
+    //   case len if len <= lim => mainCommand
+    //   case len if len > lim => {
+    //     rc += "gzipdata" // This is hard coded in our agent and must be the first item
+    //     gzip(mainCommand)
+    //   }
+    // }
+    val packedCommand = mainCommand
     rc += shell
     rc += options
     rc += packedCommand

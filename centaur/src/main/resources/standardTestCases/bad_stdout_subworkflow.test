@@ -1,0 +1,15 @@
+# Verifies that if we use stdout in a workflow level, the workflow fails properly.
+name: bad_stdout_subworkflow
+testFormat: workflowfailure
+
+files {
+  workflow: bad_stdouts/bad_stdout_subworkflow.wdl
+  imports: [
+    bad_stdouts/bad_stdout_mid_workflow.wdl
+  ]
+}
+
+metadata {
+  workflowName: calls_bad_stdout_subworkflow
+  status: Failed
+}

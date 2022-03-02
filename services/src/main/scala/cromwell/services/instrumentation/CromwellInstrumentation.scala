@@ -2,11 +2,11 @@ package cromwell.services.instrumentation
 
 import java.time.{OffsetDateTime, Duration => JDuration}
 import java.util.concurrent.TimeUnit
-
 import akka.actor.{Actor, ActorRef, Timers}
 import akka.dispatch.ControlMessage
 import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath.requireNotEmpty
 import cromwell.services.instrumentation.CromwellInstrumentation._
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import net.ceedubs.ficus.Ficus._
@@ -23,6 +23,7 @@ object CromwellInstrumentation {
   /**
    * A part of a metric name that does not take on many other values. These low variant parts will always be included
    * in a final metric name regardless of the backing instrumentation service.
+   * An empty [[LowVariantPart]] should be entirely excluded from metric names.
    */
   private type LowVariantPart = String
 
@@ -31,11 +32,14 @@ object CromwellInstrumentation {
    * consistent for a given type of part (like `"code" -> response.status.intValue.toString`) to facilitate querying in
    * some backing instrumentation services. These high variant parts will either be included in the metric name directly
    * of will be supplied alongside as labels.
+   * A [[HighVariantPart]] with an empty value should be entirely excluded from any metric names but should be included
+   * in any labels to keep the label keys consistent. Empty keys are not permitted.
    */
   private type HighVariantPart = (String, String)
 
   /**
    * The lossless internal representation of a metric name, maintaining both part ordering and part variance.
+   * The leading part should not be an empty string so as to conceptually maintain the non-empty invariant.
    */
   private type InternalPath = NonEmptyList[Either[LowVariantPart, HighVariantPart]]
 
@@ -47,14 +51,15 @@ object CromwellInstrumentation {
    */
   implicit class InstrumentationPath (val internalPath: InternalPath) extends AnyVal {
     def :+(part: String): InstrumentationPath = internalPath.append(Left(part))
-    def withParts(parts: String *): InstrumentationPath = withParts(parts.toList)
-    def withParts(parts: List[String]): InstrumentationPath = internalPath.concat(parts.map(Left(_)))
-    def withHighVariantPart(label: String, part: String): InstrumentationPath = withHighVariantPart(label -> part)
-    def withHighVariantPart(tuple: (String, String)): InstrumentationPath = internalPath.append(Right(tuple))
-    def withStatusCodeFailure(code: Option[Int]): InstrumentationPath = code match {
-      case Some(value) => withHighVariantPart("code", value.toString)
-      case None => this
+    def withParts(parts: String *): InstrumentationPath = internalPath.concat(parts.toList.map(Left(_)))
+    def withHighVariantPart(label: String, part: String): InstrumentationPath = {
+      requireNotEmpty("label", label)
+      internalPath.append(Right(label -> part))
     }
+    def withHighVariantPart(label: String, part: Option[String]): InstrumentationPath =
+      withHighVariantPart(label, part.getOrElse(""))
+    def withStatusCodeFailure(code: Option[Int]): InstrumentationPath =
+      withHighVariantPart("code", code.map(_.toString))
     def withThrowable(failure: Throwable, statusCodeExtractor: Throwable => Option[Int]): InstrumentationPath =
       withStatusCodeFailure(statusCodeExtractor(failure))
 
@@ -65,10 +70,14 @@ object CromwellInstrumentation {
      * pair.
      * @return a NeL of the parts of the instrumentation path
      */
-    def getFlatPath: NonEmptyList[String] = internalPath.map {
-      case Left(part) => part
-      case Right((_, part)) => part
-    }
+    def getFlatPath: NonEmptyList[String] = NonEmptyList.fromListUnsafe(
+      internalPath.map {
+        case Left(part) => part
+        case Right((_, part)) => part
+      }
+        // the leading part is never blank, per InstrumentationPath's object
+        .filterNot(_.isBlank)
+    )
 
     /**
      * Get path parts as an ordered list, with as many [[HighVariantPart]] as possible excluded and instead returned in
@@ -79,23 +88,32 @@ object CromwellInstrumentation {
     def getPathAndLabels: (NonEmptyList[String], Map[String, String]) = {
       var nameParts = internalPath.collect { case Left(p) => p }
       var labelParts = internalPath.collect { case Right(p) => p }
-      // path is a NeL, so if nameParts is empty then labelParts is not
+      // internalPath is a NeL, so if nameParts is empty then labelParts is not
       if (nameParts.isEmpty) {
         nameParts = labelParts.take(1).map(_._2)
         labelParts = labelParts.drop(1)
       }
-      (NonEmptyList.fromListUnsafe(nameParts), labelParts.toMap)
+      // the leading part is never blank, per InstrumentationPath's object
+      (NonEmptyList.fromListUnsafe(nameParts.filterNot(_.isBlank)), labelParts.toMap)
     }
   }
 
   /**
    * Companion object for [[InstrumentationPath]], containing constructor methods to help maintain the non-empty path
-   * invariant.
+   * invariant (including that the leading part of a path cannot be empty).
    */
   object InstrumentationPath {
-    def withParts(part: String, additional: String *): InstrumentationPath = NonEmptyList.of(Left(part), additional.map(Left(_)):_*)
-    def withHighVariantPart(tuple: (String, String)): InstrumentationPath = NonEmptyList.of(Right(tuple))
-    def withHighVariantPart(label: String, part: String): InstrumentationPath = withHighVariantPart(label -> part)
+    private def requireNotEmpty(descriptor: String, value: String): Unit =
+      require(!value.isBlank, s"InstrumentationPath $descriptor cannot be empty here")
+    def withParts(part: String, additional: String *): InstrumentationPath = {
+      requireNotEmpty("part", part)
+      NonEmptyList.of(Left(part), additional.map(Left(_)):_*)
+    }
+    def withHighVariantPart(label: String, part: String): InstrumentationPath = {
+      requireNotEmpty("label", label)
+      requireNotEmpty("part", part)
+      NonEmptyList.of(Right(label -> part))
+    }
   }
 }
 

@@ -17,17 +17,17 @@ class CromwellInstrumentationSpec extends TestKitSuite with AnyFlatSpecLike with
 
   it should "allow path to start with a high-variant part" in {
     InstrumentationPath
-      .withHighVariantPart("label" -> "a")
+      .withHighVariantPart("label", "a")
       .withParts("b", "c").internalPath shouldBe NonEmptyList
       .of(Right("label" -> "a"), Left("b"), Left("c"))
   }
 
   private val pathOne = InstrumentationPath
     .withParts("a")
-    .withHighVariantPart("label-b" -> "b")
+    .withHighVariantPart("label-b", "b")
     .withParts("c", "d")
     .withHighVariantPart("label-e", "e")
-    .withParts(List("f", "g"))
+    .withParts("f", "g")
 
   it should "keep order across different parts" in {
     pathOne.internalPath shouldBe NonEmptyList
@@ -47,9 +47,9 @@ class CromwellInstrumentationSpec extends TestKitSuite with AnyFlatSpecLike with
   }
 
   private val pathTwo = InstrumentationPath
-    .withHighVariantPart("label-a" -> "A")
-    .withHighVariantPart("label-b" -> "B")
-    .withHighVariantPart("label-c" -> "C")
+    .withHighVariantPart("label-a", "A")
+    .withHighVariantPart("label-b", "B")
+    .withHighVariantPart("label-c", "C")
 
   it should "handle no normal parts" in {
     pathTwo.getFlatPath shouldBe NonEmptyList
@@ -91,7 +91,7 @@ class CromwellInstrumentationSpec extends TestKitSuite with AnyFlatSpecLike with
       .withParts("something")
       .withStatusCodeFailure(None)
       .internalPath shouldBe NonEmptyList
-      .of(Left("something"))
+      .of(Left("something"), Right("code" -> ""))
   }
 
   it should "handle throwables" in {
@@ -104,6 +104,42 @@ class CromwellInstrumentationSpec extends TestKitSuite with AnyFlatSpecLike with
       .withParts("something")
       .withThrowable(new RuntimeException(), _ => None)
       .internalPath shouldBe NonEmptyList
-      .of(Left("something"))
+      .of(Left("something"), Right("code" -> ""))
+  }
+
+  private val pathWithBlanks = InstrumentationPath
+    .withParts("a")
+    .withHighVariantPart("label-b", None)
+    .withParts("")
+    .withHighVariantPart("label-d", "d")
+
+  it should "filter empty values from flat view" in {
+    pathWithBlanks.getFlatPath shouldBe NonEmptyList
+      .of("a", "d")
+  }
+
+  it should "filter empty values from 'low-variant' view" in {
+    pathWithBlanks.getPathAndLabels shouldBe ((
+      NonEmptyList.of("a"),
+      Map("label-b" -> "", "label-d" -> "d")
+    ))
+  }
+
+  it should "reject leading empty values" in {
+    assertThrows[IllegalArgumentException] {
+      InstrumentationPath.withParts("", "foo", "bar")
+    }
+    assertThrows[IllegalArgumentException] {
+      InstrumentationPath.withHighVariantPart("label", "")
+    }
+  }
+
+  it should "always reject empty high variant labels" in {
+    assertThrows[IllegalArgumentException] {
+      InstrumentationPath.withHighVariantPart("", "foo")
+    }
+    assertThrows[IllegalArgumentException] {
+      InstrumentationPath.withParts("foo").withHighVariantPart("", "bar")
+    }
   }
 }

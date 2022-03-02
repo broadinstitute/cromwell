@@ -195,8 +195,8 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
                     prefix should be(List.empty[String])
                     path should be(InstrumentationPath
                       .withParts("job", "callcaching", "read", "error", "bucketblacklisted")
-                      .withHighVariantPart("task" -> helper.taskName)
-                      .withHighVariantPart("group" -> helper.backendWorkflowDescriptor.hogGroup.value))
+                      .withHighVariantPart("task", helper.taskName)
+                      .withHighVariantPart("group", helper.backendWorkflowDescriptor.hogGroup.value))
                 }
               }
             }

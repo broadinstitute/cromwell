@@ -76,7 +76,7 @@ object CromwellInstrumentation {
         case Right((_, part)) => part
       }
         // the leading part is never blank, per InstrumentationPath's object
-        .filterNot(_.isBlank)
+        .filterNot(_.isEmpty)
     )
 
     /**
@@ -94,7 +94,7 @@ object CromwellInstrumentation {
         labelParts = labelParts.drop(1)
       }
       // the leading part is never blank, per InstrumentationPath's object
-      (NonEmptyList.fromListUnsafe(nameParts.filterNot(_.isBlank)), labelParts.toMap)
+      (NonEmptyList.fromListUnsafe(nameParts.filterNot(_.isEmpty)), labelParts.toMap)
     }
   }
 
@@ -104,7 +104,7 @@ object CromwellInstrumentation {
    */
   object InstrumentationPath {
     private def requireNotEmpty(descriptor: String, value: String): Unit =
-      require(!value.isBlank, s"InstrumentationPath $descriptor cannot be empty here")
+      require(!value.isEmpty, s"InstrumentationPath $descriptor cannot be empty here")
     def withParts(part: String, additional: String *): InstrumentationPath = {
       requireNotEmpty("part", part)
       NonEmptyList.of(Left(part), additional.map(Left(_)):_*)

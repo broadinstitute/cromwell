@@ -16,6 +16,7 @@ object CloudNioFileAttributes {
 case class FileHash(hashType: HashType, hash: String)
 
 sealed trait ChecksumResult
+case class ChecksumSkipped() extends ChecksumResult
 case class ChecksumSuccess() extends ChecksumResult
 case class ChecksumFailure(calculatedHash: String) extends ChecksumResult
 

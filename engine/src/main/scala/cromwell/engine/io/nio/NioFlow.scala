@@ -2,8 +2,9 @@ package cromwell.engine.io.nio
 
 import akka.stream.scaladsl.Flow
 import cats.effect.{IO, Timer}
+
 import scala.util.Try
-import cloud.nio.spi.{ChecksumFailure, ChecksumResult, ChecksumSuccess, FileHash, HashType}
+import cloud.nio.spi.{ChecksumFailure, ChecksumResult, ChecksumSkipped, ChecksumSuccess, FileHash, HashType}
 import com.typesafe.config.Config
 import common.util.IORetry
 import cromwell.core.io._
@@ -112,7 +113,7 @@ class NioFlow(parallelism: Int,
       // the entire stream, in which case the checksum will definitely fail.
       // Ideally, we would only disable checksum validation if there was an actual
       // overflow, but we don't know that here.
-      if (!command.options.failOnOverflow) return IO.pure(ChecksumSuccess())
+      if (!command.options.failOnOverflow) return IO.pure(ChecksumSkipped())
 
       val hash = fileHash.hashType.calculateHash(value)
       if (hash.toLowerCase == fileHash.hash.toLowerCase) IO.pure(ChecksumSuccess())
@@ -132,6 +133,7 @@ class NioFlow(parallelism: Int,
         uncheckedValue <- readFile
         checksumResult <- checkHash(uncheckedValue, fileHash)
         verifiedValue <- checksumResult match {
+          case _: ChecksumSkipped => IO.pure(uncheckedValue)
           case _: ChecksumSuccess => IO.pure(uncheckedValue)
           case failure: ChecksumFailure => IO.raiseError(
             ChecksumFailedException(

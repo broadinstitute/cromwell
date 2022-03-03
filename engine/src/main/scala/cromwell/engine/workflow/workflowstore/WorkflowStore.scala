@@ -40,8 +40,8 @@ trait WorkflowStore {
     */
   def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]]
 
-  def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)],
-                              heartbeatDateTime: OffsetDateTime)
+  def writeWorkflowHeartbeats(workflowIds: Set[WorkflowId],
+                              heartbeatWriteDateTime: OffsetDateTime)
                              (implicit ec: ExecutionContext): Future[Int]
 
   def switchOnHoldToSubmitted(id: WorkflowId)(implicit ec: ExecutionContext): Future[Unit]

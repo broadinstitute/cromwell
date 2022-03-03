@@ -43,7 +43,7 @@ class WorkflowStoreCoordinatedAccessActor(workflowStore: WorkflowStore) extends 
 }
 
 object WorkflowStoreCoordinatedAccessActor {
-  final case class WriteHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)],
+  final case class WriteHeartbeats(workflowIds: NonEmptyVector[WorkflowId],
                                    heartbeatDateTime: OffsetDateTime)
   final case class FetchStartableWorkflows(count: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
   final case class DeleteFromStore(workflowId: WorkflowId)

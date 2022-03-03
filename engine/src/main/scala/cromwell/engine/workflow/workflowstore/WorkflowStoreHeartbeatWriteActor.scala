@@ -41,11 +41,27 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreAccess: WorkflowStoreAc
     * @return the number of elements processed
     */
   override protected def process(data: NonEmptyVector[(WorkflowId, OffsetDateTime)]): Future[Int] = instrumentedProcess {
-    val heartbeatDateTime = OffsetDateTime.now()
-    val processFuture = workflowStoreAccess.writeWorkflowHeartbeats(data, heartbeatDateTime)
-    processFuture transform {
-      // Track the `Try`, and then return the original `Try`. Similar to `andThen` but doesn't swallow exceptions.
-      _ <| trackRepeatedFailures(heartbeatDateTime, data.length)
+    val heartbeatWriteTime = OffsetDateTime.now()
+    val staleHeartbeats = data.filter { case (_, heartbeatCreationTime) =>
+      JDuration.between(heartbeatCreationTime, heartbeatWriteTime).toNanos >= failureShutdownDuration.toNanos
+    }
+
+    if (staleHeartbeats.isEmpty) {
+      val processFuture = workflowStoreAccess.writeWorkflowHeartbeats(data.map { _._1 }, heartbeatWriteTime)
+      processFuture transform {
+        // Track the `Try`, and then return the original `Try`. Similar to `andThen` but doesn't swallow exceptions.
+        _ <| trackRepeatedFailures(heartbeatWriteTime, data.length)
+      }
+    } else {
+      log.error(String.format(
+        "Shutting down %s as %s stale workflow heartbeats (older than %s) were found. Workflow ids with stale heartbeats: %s",
+        workflowHeartbeatConfig.cromwellId,
+        staleHeartbeats.size.toString,
+        failureShutdownDuration.toString(),
+        staleHeartbeats.map { _._1.toString } mkString ", "
+      ))
+      terminator.beginCromwellShutdown(WorkflowStoreHeartbeatWriteActor.Shutdown)
+      Future.successful(0)
     }
   }
 
@@ -54,7 +70,7 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreAccess: WorkflowStoreAc
   override protected def instrumentationPath = NonEmptyList.of("store", "heartbeat-writes")
   override protected def instrumentationPrefix = InstrumentationPrefixes.WorkflowPrefix
   override def commandToData(snd: ActorRef): PartialFunction[Any, (WorkflowId, OffsetDateTime)] = {
-    case command: WorkflowStoreWriteHeartbeatCommand => (command.workflowId, command.submissionTime)
+    case command: WorkflowStoreWriteHeartbeatCommand => (command.workflowId, command.heartbeatCreatedTime)
   }
 
   /*

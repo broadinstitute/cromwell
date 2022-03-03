@@ -87,7 +87,7 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
   }
 
   it should "return etag hash from `hashes` in Martha response when there is only an etag" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(onlyEtagHashesMap) shouldBe Option(FileHash(HashType.Etag, etagHashValue))
+    DrsCloudNioRegularFileAttributes.getPreferredHash(onlyEtagHashesMap) shouldBe Option(FileHash(HashType.S3Etag, etagHashValue))
   }
 
   it should "return None when no hashes object is returned" in {

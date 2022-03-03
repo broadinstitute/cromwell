@@ -26,13 +26,18 @@ class DrsCloudNioRegularFileAttributes(drsPath: String,
 }
 
 object DrsCloudNioRegularFileAttributes {
-  private val priorityHashList: Seq[HashType] = Seq(HashType.Crc32c, HashType.Md5, HashType.Sha256, HashType.Etag)
+  private val priorityHashList: Seq[(String, HashType)] = Seq(
+    ("crc32c", HashType.Crc32c),
+    ("md5", HashType.Md5),
+    ("sha256", HashType.Sha256),
+    ("etag", HashType.S3Etag)
+  )
 
   def getPreferredHash(hashesOption: Option[Map[String, String]]): Option[FileHash] = {
     hashesOption match {
       case Some(hashes: Map[String, String]) if hashes.nonEmpty =>
         priorityHashList collectFirst {
-          case hashType if hashes.contains(hashType.toString) => FileHash(hashType, hashes(hashType.toString))
+          case (key, hashType) if hashes.contains(key) => FileHash(hashType, hashes(key))
         }
         // if no preferred hash was found, go ahead and return none because we don't support anything that the DRS object is offering
       case _ => None

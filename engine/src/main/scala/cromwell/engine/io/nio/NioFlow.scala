@@ -162,10 +162,10 @@ class NioFlow(parallelism: Int,
         drsPath.getFileHash
       }
       case s3Path: S3Path => IO {
-        FileHash(HashType.Etag, s3Path.eTag)
+        FileHash(HashType.S3Etag, s3Path.eTag)
       }
       case ossPath: OssPath => IO {
-        FileHash(HashType.Etag, ossPath.eTag)
+        FileHash(HashType.OssEtag, ossPath.eTag)
       }
       case path => getMd5FileHashForPath(path)
     }

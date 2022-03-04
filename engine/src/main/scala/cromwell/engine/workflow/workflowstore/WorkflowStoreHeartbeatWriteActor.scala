@@ -22,13 +22,13 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreAccess: WorkflowStoreAc
                                             terminator: CromwellTerminator,
                                             override val serviceRegistryActor: ActorRef)
 
-  extends EnhancedBatchActor[(WorkflowId, OffsetDateTime)](
+  extends EnhancedBatchActor[(WorkflowId, OffsetDateTime, OffsetDateTime)](
     flushRate = workflowHeartbeatConfig.heartbeatInterval,
     batchSize = workflowHeartbeatConfig.writeBatchSize) {
 
   implicit val actorSystem: ActorSystem = context.system
 
-  override val threshold = workflowHeartbeatConfig.writeThreshold
+  override val threshold: Int = workflowHeartbeatConfig.writeThreshold
 
   private val failureShutdownDuration = workflowHeartbeatConfig.failureShutdownDuration
 
@@ -40,21 +40,37 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreAccess: WorkflowStoreAc
     *
     * @return the number of elements processed
     */
-  override protected def process(data: NonEmptyVector[(WorkflowId, OffsetDateTime)]): Future[Int] = instrumentedProcess {
-    val heartbeatDateTime = OffsetDateTime.now()
-    val processFuture = workflowStoreAccess.writeWorkflowHeartbeats(data, heartbeatDateTime)
-    processFuture transform {
-      // Track the `Try`, and then return the original `Try`. Similar to `andThen` but doesn't swallow exceptions.
-      _ <| trackRepeatedFailures(heartbeatDateTime, data.length)
+  override protected def process(data: NonEmptyVector[(WorkflowId, OffsetDateTime, OffsetDateTime)]): Future[Int] = instrumentedProcess {
+    val heartbeatWriteTime = OffsetDateTime.now()
+    val workflowsIdsHavingStaleHeartbeats: Seq[WorkflowId] = data.collect {
+      case (id, _, heartbeatCreationTime) if JDuration.between(heartbeatCreationTime, heartbeatWriteTime).toNanos >= failureShutdownDuration.toNanos => id
+    }
+
+    if (workflowsIdsHavingStaleHeartbeats.isEmpty) {
+      val processFuture = workflowStoreAccess.writeWorkflowHeartbeats(data.map { d => (d._1, d._2) }, heartbeatWriteTime)
+      processFuture transform {
+        // Track the `Try`, and then return the original `Try`. Similar to `andThen` but doesn't swallow exceptions.
+        _ <| trackRepeatedFailures(heartbeatWriteTime, data.length)
+      }
+    } else {
+      log.error(String.format(
+        "Shutting down %s as %s stale workflow heartbeats (older than %s) were found. Workflow ids with stale heartbeats: %s",
+        workflowHeartbeatConfig.cromwellId,
+        workflowsIdsHavingStaleHeartbeats.size.toString,
+        failureShutdownDuration.toString(),
+        workflowsIdsHavingStaleHeartbeats mkString ", "
+      ))
+      terminator.beginCromwellShutdown(WorkflowStoreHeartbeatWriteActor.Shutdown)
+      Future.successful(0)
     }
   }
 
-  override def receive = enhancedReceive.orElse(super.receive)
-  override protected def weightFunction(command: (WorkflowId, OffsetDateTime)) = 1
-  override protected def instrumentationPath = NonEmptyList.of("store", "heartbeat-writes")
-  override protected def instrumentationPrefix = InstrumentationPrefixes.WorkflowPrefix
-  override def commandToData(snd: ActorRef): PartialFunction[Any, (WorkflowId, OffsetDateTime)] = {
-    case command: WorkflowStoreWriteHeartbeatCommand => (command.workflowId, command.submissionTime)
+  override def receive: Receive = enhancedReceive.orElse(super.receive)
+  override protected def weightFunction(command: (WorkflowId, OffsetDateTime, OffsetDateTime)) = 1
+  override protected def instrumentationPath: NonEmptyList[String] = NonEmptyList.of("store", "heartbeat-writes")
+  override protected def instrumentationPrefix: Option[String] = InstrumentationPrefixes.WorkflowPrefix
+  override def commandToData(snd: ActorRef): PartialFunction[Any, (WorkflowId, OffsetDateTime, OffsetDateTime)] = {
+    case command: WorkflowStoreWriteHeartbeatCommand => (command.workflowId, command.submissionTime, command.heartbeatTime)
   }
 
   /*

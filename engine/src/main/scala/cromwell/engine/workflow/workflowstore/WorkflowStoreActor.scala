@@ -79,7 +79,7 @@ object WorkflowStoreActor {
 
   final case object GetWorkflowStoreStats
 
-  case class WorkflowStoreWriteHeartbeatCommand(workflowId: WorkflowId, heartbeatCreatedTime: OffsetDateTime = OffsetDateTime.now())
+  case class WorkflowStoreWriteHeartbeatCommand(workflowId: WorkflowId, submissionTime: OffsetDateTime)
 
   def props(
              workflowStoreDatabase: WorkflowStore,

@@ -1,5 +1,7 @@
 package cromwell.engine.workflow
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import com.typesafe.config.Config
@@ -35,7 +37,6 @@ import cromwell.webservice.EngineStatsActor
 import org.apache.commons.lang3.exception.ExceptionUtils
 import wom.values.WomValue
 
-import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Failure
@@ -239,7 +240,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
   with WorkflowInstrumentation with Timers {
 
   implicit val ec = context.dispatcher
-  private val WorkflowToStart(workflowId, _, sources, initialStartableState, hogGroup) = workflowToStart
+  private val WorkflowToStart(workflowId, submissionTime, sources, initialStartableState, hogGroup) = workflowToStart
   override val workflowIdForLogging = workflowId.toPossiblyNotRoot
   override val rootWorkflowIdForLogging = workflowId.toRoot
 
@@ -655,6 +656,6 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
     )
   }
 
-  private def sendHeartbeat(): Unit = workflowStoreActor ! WorkflowStoreWriteHeartbeatCommand(workflowId)
+  private def sendHeartbeat(): Unit = workflowStoreActor ! WorkflowStoreWriteHeartbeatCommand(workflowId, submissionTime)
 
 }

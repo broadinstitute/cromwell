@@ -26,8 +26,8 @@ class WorkflowStoreHeartbeatWriteActorSpec extends TestKitSuite
     var shutdownCalled = false
 
     val workflowStore = new InMemoryWorkflowStore {
-      override def writeWorkflowHeartbeats(workflowIds: Set[WorkflowId],
-                                           heartbeatWriteDateTime: OffsetDateTime)
+      override def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)],
+                                           heartbeatDateTime: OffsetDateTime)
                                           (implicit ec: ExecutionContext): Future[Int] = {
         Future.failed(new RuntimeException("this is expected") with NoStackTrace)
       }
@@ -62,12 +62,13 @@ class WorkflowStoreHeartbeatWriteActorSpec extends TestKitSuite
     )
 
     val workflowId = WorkflowId.randomId()
+    val submissionTime = OffsetDateTime.now()
 
     implicit val patienceConfig: PatienceConfig = PatienceConfig(timeout = 30.seconds, interval = 200.milliseconds)
     eventually {
       if (!shutdownCalled) {
         // Workflow heartbeats are not automatically retried. Instead, write the heartbeat each time we retry.
-        workflowStoreHeartbeatWriteActor ! WorkflowStoreWriteHeartbeatCommand(workflowId)
+        workflowStoreHeartbeatWriteActor ! WorkflowStoreWriteHeartbeatCommand(workflowId, submissionTime)
         fail("shutdown was not called")
       }
     }

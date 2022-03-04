@@ -23,7 +23,7 @@ import scala.concurrent.{ExecutionContext, Future}
   *
   */
 sealed trait WorkflowStoreAccess {
-  def writeWorkflowHeartbeats(workflowIds: NonEmptyVector[WorkflowId],
+  def writeWorkflowHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)],
                               heartbeatDateTime: OffsetDateTime)
                              (implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[Int]
 
@@ -44,7 +44,7 @@ sealed trait WorkflowStoreAccess {
   */
 case class UncoordinatedWorkflowStoreAccess(store: WorkflowStore) extends WorkflowStoreAccess {
 
-  override def writeWorkflowHeartbeats(workflowIds: NonEmptyVector[WorkflowId],
+  override def writeWorkflowHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)],
                                        heartbeatDateTime: OffsetDateTime)
                                       (implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[Int] = {
     store.writeWorkflowHeartbeats(workflowIds.toVector.toSet, heartbeatDateTime)
@@ -71,7 +71,7 @@ case class UncoordinatedWorkflowStoreAccess(store: WorkflowStore) extends Workfl
 case class CoordinatedWorkflowStoreAccess(coordinatedWorkflowStoreAccessActor: ActorRef) extends WorkflowStoreAccess {
   implicit val timeout = Timeout(WorkflowStoreCoordinatedAccessActor.Timeout)
 
-  override def writeWorkflowHeartbeats(workflowIds: NonEmptyVector[WorkflowId],
+  override def writeWorkflowHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)],
                                        heartbeatDateTime: OffsetDateTime)
                                       (implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[Int] = {
     withRetryForTransactionRollback(

@@ -328,7 +328,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
         storeActor ! SubmitWorkflow(helloWorldSourceFiles)
         val workflowId = expectMsgType[WorkflowSubmittedToStore](10.seconds).workflowId
         coordinatedAccess.coordinatedWorkflowStoreAccessActor !
-          WriteHeartbeats(NonEmptyVector.of(workflowId), OffsetDateTime.now())
+          WriteHeartbeats(NonEmptyVector.of((workflowId, OffsetDateTime.now())), OffsetDateTime.now())
         expectMsg(10.seconds, 1)
         storeActor ! AbortWorkflowCommand(workflowId)
         val abortResponse = expectMsgType[AbortResponse](10.seconds)
@@ -396,7 +396,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
         Await.result(futureUpdate, 10.seconds.dilated) should be(1)
 
         coordinatedAccess.coordinatedWorkflowStoreAccessActor !
-          WriteHeartbeats(NonEmptyVector.of(workflowId), OffsetDateTime.now())
+          WriteHeartbeats(NonEmptyVector.of((workflowId, OffsetDateTime.now())), OffsetDateTime.now())
 
         expectMsg(10.seconds, 1)
         storeActor ! AbortWorkflowCommand(workflowId)

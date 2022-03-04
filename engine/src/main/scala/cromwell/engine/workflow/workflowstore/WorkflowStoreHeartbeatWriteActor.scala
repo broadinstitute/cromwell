@@ -22,7 +22,7 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreAccess: WorkflowStoreAc
                                             terminator: CromwellTerminator,
                                             override val serviceRegistryActor: ActorRef)
 
-  extends EnhancedBatchActor[(WorkflowId, OffsetDateTime, OffsetDateTime)](
+  extends EnhancedBatchActor[WorkflowStoreWriteHeartbeatCommand](
     flushRate = workflowHeartbeatConfig.heartbeatInterval,
     batchSize = workflowHeartbeatConfig.writeBatchSize) {
 
@@ -40,17 +40,17 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreAccess: WorkflowStoreAc
     *
     * @return the number of elements processed
     */
-  override protected def process(data: NonEmptyVector[(WorkflowId, OffsetDateTime, OffsetDateTime)]): Future[Int] = instrumentedProcess {
-    val heartbeatWriteTime = OffsetDateTime.now()
+  override protected def process(data: NonEmptyVector[WorkflowStoreWriteHeartbeatCommand]): Future[Int] = instrumentedProcess {
+    val now = OffsetDateTime.now()
     val workflowsIdsHavingStaleHeartbeats: Seq[WorkflowId] = data.collect {
-      case (id, _, heartbeatCreationTime) if JDuration.between(heartbeatCreationTime, heartbeatWriteTime).toNanos >= failureShutdownDuration.toNanos => id
+      case h if JDuration.between(h.heartbeatTime, now).toNanos >= failureShutdownDuration.toNanos => h.workflowId
     }
 
     if (workflowsIdsHavingStaleHeartbeats.isEmpty) {
-      val processFuture = workflowStoreAccess.writeWorkflowHeartbeats(data.map { d => (d._1, d._2) }, heartbeatWriteTime)
+      val processFuture = workflowStoreAccess.writeWorkflowHeartbeats(data.map { h => (h.workflowId, h.submissionTime) }, now)
       processFuture transform {
         // Track the `Try`, and then return the original `Try`. Similar to `andThen` but doesn't swallow exceptions.
-        _ <| trackRepeatedFailures(heartbeatWriteTime)
+        _ <| trackRepeatedFailures(now)
       }
     } else {
       log.error(String.format(
@@ -66,11 +66,11 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreAccess: WorkflowStoreAc
   }
 
   override def receive: Receive = enhancedReceive.orElse(super.receive)
-  override protected def weightFunction(command: (WorkflowId, OffsetDateTime, OffsetDateTime)) = 1
+  override protected def weightFunction(command: WorkflowStoreWriteHeartbeatCommand) = 1
   override protected def instrumentationPath: NonEmptyList[String] = NonEmptyList.of("store", "heartbeat-writes")
   override protected def instrumentationPrefix: Option[String] = InstrumentationPrefixes.WorkflowPrefix
-  override def commandToData(snd: ActorRef): PartialFunction[Any, (WorkflowId, OffsetDateTime, OffsetDateTime)] = {
-    case command: WorkflowStoreWriteHeartbeatCommand => (command.workflowId, command.submissionTime, command.heartbeatTime)
+  override def commandToData(snd: ActorRef): PartialFunction[Any, WorkflowStoreWriteHeartbeatCommand] = {
+    case command: WorkflowStoreWriteHeartbeatCommand => command
   }
 
   /*

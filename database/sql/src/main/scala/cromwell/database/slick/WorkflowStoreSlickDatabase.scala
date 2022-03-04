@@ -59,8 +59,7 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
                                      heartbeatTimestampTo: Timestamp,
                                      workflowStateFrom: String,
                                      workflowStateTo: String,
-                                     workflowStateExcluded: String,
-                                     excludedGroups: Set[String])
+                                     workflowStateExcluded: String)
                                     (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]] = {
 
     def updateForFetched(cromwellId: String,
@@ -90,7 +89,7 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
 
     val action = for {
       workflowStoreEntries <- dataAccess.fetchStartableWorkflows(
-        limit.toLong, heartbeatTimestampTimedOut, workflowStateExcluded, excludedGroups
+        (limit.toLong, heartbeatTimestampTimedOut, workflowStateExcluded)
       ).result
       _ <- DBIO.sequence(
         workflowStoreEntries map updateForFetched(cromwellId, heartbeatTimestampTo, workflowStateFrom, workflowStateTo)

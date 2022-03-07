@@ -115,7 +115,7 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
     // modified will be locked. Any rows that are inserted due to the absence of the gap and next-key locks should be
     // valid candidates for workflow pickup.
     // https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html
-    runTransaction(action, TransactionIsolation.RepeatableRead) // test: restore default, higher level of isolation
+    runTransaction(action, TransactionIsolation.Serializable) // test: increase isolation level beyond default
   }
 
   override def writeWorkflowHeartbeats(workflowExecutionUuids: Seq[String],

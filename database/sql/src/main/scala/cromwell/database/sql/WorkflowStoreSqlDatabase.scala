@@ -74,8 +74,7 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
                             heartbeatTimestampTo: Timestamp,
                             workflowStateFrom: String,
                             workflowStateTo: String,
-                            workflowStateExcluded: String,
-                            excludedGroups: Set[String])
+                            workflowStateExcluded: String)
                            (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]]
 
   def writeWorkflowHeartbeats(workflowExecutionUuids: Seq[String],

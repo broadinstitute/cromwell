@@ -70,7 +70,7 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreAccess: WorkflowStoreAc
       val processFuture = workflowStoreAccess.writeWorkflowHeartbeats(data.map { h => (h.workflowId, h.submissionTime) }, now)
       processFuture transform {
         // Track the `Try`, and then return the original `Try`. Similar to `andThen` but doesn't swallow exceptions.
-        _ <| trackRepeatedFailures(now)
+        _ <| trackRepeatedFailures(now, data.length)
       }
     } else {
       log.error(
@@ -100,7 +100,7 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreAccess: WorkflowStoreAc
   We are expecting the underlying FSM to ensure that the call to this method does NOT occur in parallel, waiting for
   the call to `process` to complete.
    */
-  private def trackRepeatedFailures(heartbeatDateTime: OffsetDateTime)(processTry: Try[Int]): Unit = {
+  private def trackRepeatedFailures(heartbeatDateTime: OffsetDateTime, workflowCount: Int)(processTry: Try[Int]): Unit = {
     processTry match {
       case Success(_) =>
         lastSuccessOption = Option(heartbeatDateTime)
@@ -119,9 +119,9 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreAccess: WorkflowStoreAc
           val failureUnits = failureShutdownDuration.unit
           val failureLength = FiniteDuration(failureJDuration.toNanos, TimeUnit.NANOSECONDS).toUnit(failureUnits)
           log.error(String.format(
-            "Shutting down %s as at least %s of heartbeat write errors have occurred between %s and %s (%s %s)",
+            "Shutting down %s as at least %d heartbeat write errors have occurred between %s and %s (%s %s)",
             workflowHeartbeatConfig.cromwellId,
-            failureShutdownDuration,
+            Integer.valueOf(workflowCount),
             lastSuccess,
             now,
             failureLength.toString,

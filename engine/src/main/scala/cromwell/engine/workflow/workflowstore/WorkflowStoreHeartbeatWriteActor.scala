@@ -42,11 +42,31 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreAccess: WorkflowStoreAc
     */
   override protected def process(data: NonEmptyVector[WorkflowStoreWriteHeartbeatCommand]): Future[Int] = instrumentedProcess {
     val now = OffsetDateTime.now()
-    val workflowsIdsHavingStaleHeartbeats: Seq[WorkflowId] = data.collect {
-      case h if JDuration.between(h.heartbeatTime, now).toNanos >= failureShutdownDuration.toNanos => h.workflowId
+
+    val warnDuration = (failureShutdownDuration + workflowHeartbeatConfig.heartbeatInterval) / 2
+    val warnThreshold = warnDuration.toNanos
+    val errorThreshold = failureShutdownDuration.toNanos
+
+    // Traverse these heartbeats looking for staleness of warning or error severity.
+    val (warningIds, errorIds) = data.foldLeft((Seq.empty[WorkflowId], Seq.empty[WorkflowId])) { case ((w, e), h) =>
+      val staleness = JDuration.between(h.heartbeatTime, now).toNanos
+
+      // w = warning ids, e = error ids, h = heartbeat datum
+      if (staleness > errorThreshold) (w, e :+ h.workflowId)
+      else if (staleness > warnThreshold) (w :+ h.workflowId, e)
+      else (w, e)
     }
 
-    if (workflowsIdsHavingStaleHeartbeats.isEmpty) {
+    if (warningIds.nonEmpty) {
+      log.error(String.format(
+        "Found %s stale workflow heartbeats (more than %s old): %s",
+        warningIds.size.toString,
+        warnDuration.toString(),
+        warningIds.mkString(", ")
+      ))
+    }
+
+    if (errorIds.isEmpty) {
       val processFuture = workflowStoreAccess.writeWorkflowHeartbeats(data.map { h => (h.workflowId, h.submissionTime) }, now)
       processFuture transform {
         // Track the `Try`, and then return the original `Try`. Similar to `andThen` but doesn't swallow exceptions.
@@ -54,11 +74,11 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreAccess: WorkflowStoreAc
       }
     } else {
       log.error(String.format(
-        "Shutting down %s as %s stale workflow heartbeats (older than %s) were found. Workflow ids with stale heartbeats: %s",
+        "Shutting down Cromwell instance %s as %s stale workflow heartbeats (more than %s old) were found: %s",
         workflowHeartbeatConfig.cromwellId,
-        workflowsIdsHavingStaleHeartbeats.size.toString,
+        errorIds.size.toString,
         failureShutdownDuration.toString(),
-        workflowsIdsHavingStaleHeartbeats mkString ", "
+        errorIds.mkString(", ")
       ))
       terminator.beginCromwellShutdown(WorkflowStoreHeartbeatWriteActor.Shutdown)
       Future.successful(0)

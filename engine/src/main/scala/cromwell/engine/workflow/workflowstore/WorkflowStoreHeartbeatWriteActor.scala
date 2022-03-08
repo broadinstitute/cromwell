@@ -58,12 +58,12 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreAccess: WorkflowStoreAc
     }
 
     if (warningIds.nonEmpty) {
-      log.error(String.format(
-        "Found %s stale workflow heartbeats (more than %s old): %s",
+      log.warning(
+        "Found {} stale workflow heartbeats (more than {} old): {}",
         warningIds.size.toString,
         warnDuration.toString(),
         warningIds.mkString(", ")
-      ))
+      )
     }
 
     if (errorIds.isEmpty) {
@@ -73,13 +73,13 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreAccess: WorkflowStoreAc
         _ <| trackRepeatedFailures(now)
       }
     } else {
-      log.error(String.format(
-        "Shutting down Cromwell instance %s as %s stale workflow heartbeats (more than %s old) were found: %s",
+      log.error(
+        "Shutting down Cromwell instance {} as {} stale workflow heartbeats (more than {} old) were found: {}",
         workflowHeartbeatConfig.cromwellId,
         errorIds.size.toString,
         failureShutdownDuration.toString(),
         errorIds.mkString(", ")
-      ))
+      )
       terminator.beginCromwellShutdown(WorkflowStoreHeartbeatWriteActor.Shutdown)
       Future.successful(0)
     }

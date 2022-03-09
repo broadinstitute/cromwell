@@ -59,8 +59,7 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
                                      heartbeatTimestampTo: Timestamp,
                                      workflowStateFrom: String,
                                      workflowStateTo: String,
-                                     workflowStateExcluded: String,
-                                     excludedGroups: Set[String])
+                                     workflowStateExcluded: String)
                                     (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]] = {
 
     def updateForFetched(cromwellId: String,
@@ -88,25 +87,13 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
       } yield ()
     }
 
-    def fetchAndUpdateStartableWfs(hogGroup: Option[String]) = {
-      for {
-        workflowStoreEntries <- dataAccess.fetchStartableWfsForHogGroup(
-          (limit.toLong, heartbeatTimestampTimedOut, workflowStateExcluded, hogGroup)
-        ).result
-        _ <- DBIO.sequence(
-          workflowStoreEntries map updateForFetched(cromwellId, heartbeatTimestampTo, workflowStateFrom, workflowStateTo)
-        )
-      } yield workflowStoreEntries
-    }
-
     val action = for {
-      // find hog group with lowest count of actively running workflows
-      hogGroupOption <- dataAccess.getHogGroupWithLowestRunningWfs(heartbeatTimestampTimedOut, workflowStateExcluded, excludedGroups).result.headOption
-      workflowStoreEntries <- hogGroupOption match {
-        // if no such hog group was found, all hog groups have workflows that are either actively running or in "OnHold" status
-        case None => DBIO.successful(Seq.empty[WorkflowStoreEntry])
-        case Some(hogGroup) => fetchAndUpdateStartableWfs(hogGroup)
-      }
+      workflowStoreEntries <- dataAccess.fetchStartableWorkflows(
+        (limit.toLong, heartbeatTimestampTimedOut, workflowStateExcluded)
+      ).result
+      _ <- DBIO.sequence(
+        workflowStoreEntries map updateForFetched(cromwellId, heartbeatTimestampTo, workflowStateFrom, workflowStateTo)
+      )
     } yield workflowStoreEntries
 
     // This should be safe because there are no repeated reads and the same rows are being locked for update as with

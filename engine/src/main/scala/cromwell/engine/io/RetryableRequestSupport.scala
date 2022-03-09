@@ -2,9 +2,10 @@ package cromwell.engine.io
 
 import java.io.IOException
 import java.net.{SocketException, SocketTimeoutException}
-
 import com.google.cloud.storage.StorageException
 import cromwell.engine.io.gcs.GcsBatchFlow.BatchFailedException
+import cromwell.engine.io.nio.ChecksumFailedException
+
 import javax.net.ssl.SSLException
 
 object RetryableRequestSupport {
@@ -21,6 +22,7 @@ object RetryableRequestSupport {
         AdditionalRetryableErrorMessages.contains(msg.toLowerCase))
     case _: SSLException => true
     case _: BatchFailedException => true
+    case _: ChecksumFailedException => true
     case _: SocketException => true
     case _: SocketTimeoutException => true
     case ioE: IOException if Option(ioE.getMessage).exists(_.contains("Error getting access token for service account")) => true

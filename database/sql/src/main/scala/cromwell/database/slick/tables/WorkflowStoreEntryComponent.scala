@@ -75,29 +75,26 @@ trait WorkflowStoreEntryComponent {
   /**
     * Returns up to "limit" startable workflows, sorted by submission time.
     */
-  val fetchStartableWorkflows = Compiled(
-    (limit: ConstColumn[Long],
-     heartbeatTimestampTimedOut: ConstColumn[Timestamp],
-     excludeWorkflowState: Rep[String]
-    ) => {
-      val query = for {
-        row <- workflowStoreEntries
-        /*
-        This looks for:
+  def fetchStartableWorkflows(limit: Long,
+                              heartbeatTimestampTimedOut: Timestamp,
+                              excludeWorkflowState: String): Query[WorkflowStoreEntries, WorkflowStoreEntry, Seq] = {
+    val query = for {
+      row <- workflowStoreEntries
+      /*
+      This looks for:
 
-        1) Workflows with no heartbeat (newly submitted or from a cleanly shut down Cromwell).
-        2) Workflows with old heartbeats, presumably abandoned by a defunct Cromwell.
+      1) Workflows with no heartbeat (newly submitted or from a cleanly shut down Cromwell).
+      2) Workflows with old heartbeats, presumably abandoned by a defunct Cromwell.
 
-        Workflows are taken by submission time, oldest first. This is a "query for update", meaning rows are
-        locked such that readers are blocked since we will do an update subsequent to this select in the same
-        transaction that we know will impact those readers.
-         */
-        if (row.heartbeatTimestamp.isEmpty || row.heartbeatTimestamp < heartbeatTimestampTimedOut) &&
-          (row.workflowState =!= excludeWorkflowState)
-      } yield row
-      query.forUpdate.sortBy(_.submissionTime.asc).take(limit)
-    }
-  )
+      Workflows are taken by submission time, oldest first. This is a "query for update", meaning rows are
+      locked such that readers are blocked since we will do an update subsequent to this select in the same
+      transaction that we know will impact those readers.
+       */
+      if (row.heartbeatTimestamp.isEmpty || row.heartbeatTimestamp < heartbeatTimestampTimedOut) &&
+        (row.workflowState =!= excludeWorkflowState)
+    } yield row
+    query.forUpdate.sortBy(_.submissionTime.asc).take(limit)
+  }
 
   /**
     * Useful for counting workflows in a given state.

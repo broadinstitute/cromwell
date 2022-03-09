@@ -88,8 +88,8 @@ trait WorkflowStoreEntryComponent {
         4) Workflows that don't belong to hog groups in excludedGroups
       */
       if (row.heartbeatTimestamp.isEmpty || row.heartbeatTimestamp < heartbeatTimestampTimedOut) &&
-        (row.workflowState =!= excludeWorkflowState) &&
-        !(row.hogGroup inSet excludedGroups)
+        (row.workflowState =!= excludeWorkflowState) // &&
+        // !(row.hogGroup inSet excludedGroups)
     } yield row
 
     // calculates the count of startable workflows per hog group
@@ -105,8 +105,8 @@ trait WorkflowStoreEntryComponent {
         1) Workflows not in "OnHold" state
         2) Workflows that don't belong to hog groups in excludedGroups
       */
-      if row.workflowState =!= excludeWorkflowState &&
-        !(row.hogGroup inSet excludedGroups)
+      if row.workflowState =!= excludeWorkflowState // &&
+        // !(row.hogGroup inSet excludedGroups)
     } yield row
 
     // calculates the count of total workflows per hog group

@@ -9,7 +9,7 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import wom.RuntimeAttributesKeys
 import wom.format.MemorySize
-import wom.types.WomStringType
+import wom.types.{WomIntegerType, WomStringType}
 import wom.values._
 
 case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
@@ -151,6 +151,26 @@ object PreemptibleValidation {
 class PreemptibleValidation extends BooleanRuntimeAttributesValidation(TesRuntimeAttributes.PreemptibleKey) {
   override def usedInCallCaching: Boolean = false
 
+  override protected def validateExpression: PartialFunction[WomValue, Boolean] = {
+    case womBoolValue if womType.coerceRawValue(womBoolValue).isSuccess => true
+    case womIntValue if WomIntegerType.coerceRawValue(womIntValue).isSuccess => true
+  }
+
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[Boolean]] = {
+    case value if womType.coerceRawValue(value).isSuccess =>
+      validateCoercedValue(womType.coerceRawValue(value).get.asInstanceOf[WomBoolean])
+    // The TES spec requires a boolean preemptible value, but many WDLs written originally
+    // for other backends use an integer. Interpret integers > 0 as true, others as false.
+    case value if WomIntegerType.coerceRawValue(value).isSuccess =>
+      validateCoercedValue(WomBoolean(WomIntegerType.coerceRawValue(value).get.asInstanceOf[WomInteger].value > 0))
+    case value if womType.coerceRawValue(value.valueString).isSuccess =>
+      /*
+      NOTE: This case statement handles WdlString("true") coercing to WdlBoolean(true).
+      For some reason "true" as String is coercable... but not the WdlString.
+       */
+      validateCoercedValue(womType.coerceRawValue(value.valueString).get.asInstanceOf[WomBoolean])
+  }
+
   override protected def missingValueMessage: String =
-    s"Expecting $key runtime attribute to be a Boolean or a String with values of 'true' or 'false'"
+    s"Expecting $key runtime attribute to be an Integer, Boolean, or a String with values of 'true' or 'false'"
 }

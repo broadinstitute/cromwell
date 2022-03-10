@@ -71,9 +71,32 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
-    "fail to validate an invalid preemptible entry" in {
+    "convert a positive integer preemptible entry to true boolean" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "preemptible" -> WomInteger(3))
+      val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(preemptible = true)
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "convert a nonpositive integer preemptible entry to false boolean" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "preemptible" -> WomInteger(-1))
+      val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(preemptible = false)
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "convert a valid string preemptible entry to boolean" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "preemptible" -> WomString("true"))
+      val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(preemptible = true)
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "fail to validate an invalid string preemptible entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "preemptible" -> WomString("yes"))
-      assertFailure(runtimeAttributes, "Expecting preemptible runtime attribute to be a Boolean or a String with values of 'true' or 'false'")
+      assertFailure(runtimeAttributes, "Expecting preemptible runtime attribute to be an Integer, Boolean, or a String with values of 'true' or 'false'")
+    }
+
+    "fail to validate an invalid type preemptible entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "preemptible" -> WomFloat(3.14))
+      assertFailure(runtimeAttributes, "Expecting preemptible runtime attribute to be an Integer, Boolean, or a String with values of 'true' or 'false'")
     }
 
     "validate a valid continueOnReturnCode entry" in {

@@ -67,7 +67,7 @@ class FtpCloudNioFileProviderSpec extends AnyFlatSpec with CromwellTimeoutSpec w
       case _ => fail("Copy failed")
     }
   }
-  
+
   it should "throw when trying to copy files across hosts" in {
     an[UnsupportedOperationException] shouldBe thrownBy(fileProvider.copy("a", "b", "c", "d"))
   }
@@ -108,7 +108,7 @@ class FtpCloudNioFileProviderSpec extends AnyFlatSpec with CromwellTimeoutSpec w
     val writer = Channels.newOutputStream(writableByteChannel)
     writer.write("salut!".getBytes("ASCII"))
     writer.close()
-    
+
     Option(fakeUnixFileSystem.getEntry(file)) match {
       case Some(f: FileEntry) =>
         var content: String = ""

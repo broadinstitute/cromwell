@@ -78,7 +78,7 @@ trait WorkflowStoreEntryComponent {
   def fetchStartableWorkflows(limit: Long,
      heartbeatTimestampTimedOut: Timestamp,
      excludeWorkflowState: String,
-     excludedGroups: Set[String]
+     excludedGroups: String
     ): Query[WorkflowStoreEntries, WorkflowStoreEntry, Seq] = {
       val query = for {
         row <- workflowStoreEntries
@@ -94,7 +94,7 @@ trait WorkflowStoreEntryComponent {
          */
         if (row.heartbeatTimestamp.isEmpty || row.heartbeatTimestamp < heartbeatTimestampTimedOut) &&
           (row.workflowState =!= excludeWorkflowState) &&
-          !(row.hogGroup inSet excludedGroups)
+          (row.hogGroup.isEmpty || (excludedGroups: Rep[String]).indexOf(("|": Rep[String]) ++ row.hogGroup ++ "|") < 0)
       } yield row
       query.forUpdate.sortBy(_.submissionTime.asc).take(limit)
     }

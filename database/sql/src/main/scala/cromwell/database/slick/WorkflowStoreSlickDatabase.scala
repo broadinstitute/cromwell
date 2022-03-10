@@ -90,7 +90,7 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
 
     val action = for {
       workflowStoreEntries <- dataAccess.fetchStartableWorkflows(
-        limit.toLong, heartbeatTimestampTimedOut, workflowStateExcluded, excludedGroups
+        limit.toLong, heartbeatTimestampTimedOut, workflowStateExcluded, excludedGroups.mkString("|", "|", "|")
       ).result
       _ <- DBIO.sequence(
         workflowStoreEntries map updateForFetched(cromwellId, heartbeatTimestampTo, workflowStateFrom, workflowStateTo)

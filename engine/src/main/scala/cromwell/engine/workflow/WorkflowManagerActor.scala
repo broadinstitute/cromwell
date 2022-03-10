@@ -173,7 +173,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
         Determine the number of available workflow slots and request the smaller of that number and maxWorkflowsToLaunch.
        */
       val maxNewWorkflows = maxWorkflowsToLaunch min (maxWorkflowsRunning - stateData.workflows.size - stateData.subWorkflows.size)
-      params.workflowStore ! WorkflowStoreActor.FetchRunnableWorkflows(maxNewWorkflows)
+      params.workflowStore ! WorkflowStoreActor.FetchRunnableWorkflows(maxNewWorkflows, excludedGroups = Set.empty) // Entry point for subsequent work in BW-675
       stay()
     case Event(WorkflowStoreEngineActor.NoNewWorkflowsToStart, _) =>
       log.debug("WorkflowStore provided no new workflows to start")

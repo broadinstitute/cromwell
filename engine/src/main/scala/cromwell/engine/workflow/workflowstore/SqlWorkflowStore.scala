@@ -96,7 +96,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase, metadataSqlDa
     * Retrieves up to n workflows which have not already been pulled into the engine and sets their pickedUp
     * flag to true
     */
-  override def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
+  override def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration, excludedGroups: Set[String])(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
     import cats.syntax.traverse._
     import common.validation.Validation._
     sqlDatabase.fetchWorkflowsInState(
@@ -106,7 +106,8 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase, metadataSqlDa
       OffsetDateTime.now.toSystemTimestamp,
       WorkflowStoreState.Submitted.toString,
       WorkflowStoreState.Running.toString,
-      WorkflowStoreState.OnHold.toString
+      WorkflowStoreState.OnHold.toString,
+      excludedGroups
     ) map {
       // .get on purpose here to fail the future if something went wrong
       _.toList.traverse(fromWorkflowStoreEntry).toTry.get

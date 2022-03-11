@@ -21,7 +21,7 @@ object Dependencies {
   cats-effect, fs2, http4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
    */
   private val catsEffectV = "2.5.3" // scala-steward:off (CROM-6564)
-  private val catsV = "2.6.1"
+  private val catsV = "2.7"
   private val circeConfigV = "0.8.0"
   private val circeGenericExtrasV = "0.14.1"
   private val circeOpticsV = "0.14.1"
@@ -69,7 +69,7 @@ object Dependencies {
   private val jacksonV = "2.13.0"
   private val janinoV = "3.1.6"
   private val jsr305V = "3.0.2"
-  private val kindProjectorV = "0.10.0"
+  private val kindProjectorV = "0.10.3"
   private val kittensV = "2.3.2"
   private val liquibaseV = "4.6.1"
   private val logbackV = "1.2.10"
@@ -83,7 +83,7 @@ object Dependencies {
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "3.0.0"
   private val mockserverNettyV = "5.11.2"
-  private val mouseV = "1.0.5"
+  private val mouseV = "1.0.8"
   private val mysqlV = "8.0.26"
   private val nettyV = "4.1.72.Final"
   private val owlApiV = "5.1.19"
@@ -101,7 +101,7 @@ object Dependencies {
   private val scalacheckV = "1.15.4"
   private val scalacticV = "3.2.10"
   private val scalameterV = "0.19"
-  private val scalamockV = "5.1.0"
+  private val scalamockV = "5.2.0"
   // scalatestV and flexmarkV must be upgraded together. Check the ScalaTest release notes to
   // find the version of FlexMark that corresponds to the new version of ScalaTest.
   private val scalatestV = "3.2.10"
@@ -121,8 +121,8 @@ object Dependencies {
     * Related Slick PR: https://github.com/slick/slick/pull/2101
   */
   private val slickV = "3.3.2-2076hotfix" // scala-steward:off (CROM-6620)
-  private val snakeyamlV = "1.29"
-  private val specs2MockV = "4.12.12"
+  private val snakeyamlV = "1.30"
+  private val specs2MockV = "4.13.1"
   private val sprayJsonV = "1.3.6"
   private val sttpV = "1.5.19" // scala-steward:off (CROM-6564)
   private val swaggerParserV = "1.0.56"

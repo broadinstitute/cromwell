@@ -6,10 +6,11 @@ import cats.instances.future._
 import cromwell.database.sql.WorkflowStoreSqlDatabase
 import cromwell.database.sql.tables.WorkflowStoreEntry
 import slick.jdbc.TransactionIsolation
+import slick.util.Logging
 
 import scala.concurrent.{ExecutionContext, Future}
 
-trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
+trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase with Logging {
   this: EngineSlickDatabase =>
 
   import dataAccess.driver.api._
@@ -93,6 +94,7 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
         workflowStoreEntries <- dataAccess.fetchStartableWfsForHogGroup(
           (limit.toLong, heartbeatTimestampTimedOut, workflowStateExcluded, hogGroup)
         ).result
+        _ = if (workflowStoreEntries.isEmpty) logger.warn("Found no workflow store entries to update for hog group " + hogGroup)
         _ <- DBIO.sequence(
           workflowStoreEntries map updateForFetched(cromwellId, heartbeatTimestampTo, workflowStateFrom, workflowStateTo)
         )

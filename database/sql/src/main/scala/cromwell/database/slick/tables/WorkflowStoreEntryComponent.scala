@@ -95,7 +95,7 @@ trait WorkflowStoreEntryComponent {
     // calculates the count of startable workflows per hog group
     val numOfStartableWfsByHogGroup = startableWorkflows
       .groupBy(_.hogGroup)
-      .map { case (hogGroupName, groups) => (hogGroupName, groups.length) }
+      .map { case (hogGroupName, groups) => (hogGroupName, groups.length, groups.map(_.submissionTime).min) }
       .sortBy(_._2.asc)
 
     val totalWorkflows = for {
@@ -120,12 +120,12 @@ trait WorkflowStoreEntryComponent {
     // included in the list. Hog groups that have no workflows actively running return count as 0
     val wfsRunningPerHogGroup = for {
       (t_group, t_ct) <- totalWorkflowsByHogGroup
-      (s_group, s_ct) <- numOfStartableWfsByHogGroup if t_group === s_group
-    } yield (t_group, t_ct - s_ct)
+      (s_group, s_ct, s_sub_time) <- numOfStartableWfsByHogGroup if t_group === s_group
+    } yield (t_group, t_ct - s_ct, s_sub_time)
 
     // sort the above calculated result set first by the count of actively running workflows and then sort it
     // alphabetically by hog group. Then take the first row of the result and return the hog group name.
-    wfsRunningPerHogGroup.sortBy { case (hogGroupName, ct) => (ct.asc, hogGroupName) }.take(1).map(_._1)
+    wfsRunningPerHogGroup.sortBy { case (hogGroupName, ct, sub_time) => (ct.asc, sub_time, hogGroupName) }.take(1).map(_._1)
   }
 
   /**

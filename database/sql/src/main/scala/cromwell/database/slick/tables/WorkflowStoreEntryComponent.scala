@@ -125,7 +125,7 @@ trait WorkflowStoreEntryComponent {
 
     // sort the above calculated result set first by the count of actively running workflows and then sort it
     // alphabetically by hog group. Then take the first row of the result and return the hog group name.
-    wfsRunningPerHogGroup.sortBy { case (hogGroupName, ct) => (ct.asc, hogGroupName) }.take(1).map(_._1)
+    wfsRunningPerHogGroup.sortBy { case (hogGroupName, ct) => (ct, hogGroupName) }.take(1).map(_._1)
   }
 
   /**

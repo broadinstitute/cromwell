@@ -106,7 +106,9 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase with Logging {
       hogGroupOption <- dataAccess.getHogGroupWithLowestRunningWfs(heartbeatTimestampTimedOut, workflowStateExcluded, excludedGroups).result.headOption
       workflowStoreEntries <- hogGroupOption match {
         // if no such hog group was found, all hog groups have workflows that are either actively running or in "OnHold" status
-        case None => DBIO.successful(Seq.empty[WorkflowStoreEntry])
+        case None =>
+          logger.warn("Found no hog groups with startable workflows")
+          DBIO.successful(Seq.empty[WorkflowStoreEntry])
         case Some(hogGroup) => fetchAndUpdateStartableWfs(hogGroup)
       }
     } yield workflowStoreEntries

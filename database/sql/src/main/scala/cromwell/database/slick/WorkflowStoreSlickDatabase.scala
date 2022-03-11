@@ -15,6 +15,14 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase with Logging {
 
   import dataAccess.driver.api._
 
+  private var logCounter = 0
+
+  private def shouldLog: Boolean = {
+    val ret = logCounter % 10 == 0
+    logCounter = logCounter + 1
+    ret
+  }
+
   override def setStateToState(fromWorkflowState: String, toWorkflowState: String)
                               (implicit ec: ExecutionContext): Future[Unit] = {
     val action = dataAccess
@@ -94,7 +102,7 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase with Logging {
         workflowStoreEntries <- dataAccess.fetchStartableWfsForHogGroup(
           (limit.toLong, heartbeatTimestampTimedOut, workflowStateExcluded, hogGroup)
         ).result
-        _ = if (workflowStoreEntries.isEmpty) logger.warn("Found no workflow store entries to update for hog group " + hogGroup)
+        _ = if (workflowStoreEntries.isEmpty && shouldLog) logger.warn("Found no workflow store entries to update for hog group " + hogGroup)
         _ <- DBIO.sequence(
           workflowStoreEntries map updateForFetched(cromwellId, heartbeatTimestampTo, workflowStateFrom, workflowStateTo)
         )
@@ -107,7 +115,7 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase with Logging {
       workflowStoreEntries <- hogGroupOption match {
         // if no such hog group was found, all hog groups have workflows that are either actively running or in "OnHold" status
         case None =>
-          logger.warn("Found no hog groups with startable workflows")
+          if (shouldLog) logger.warn("Found no hog groups with startable workflows")
           DBIO.successful(Seq.empty[WorkflowStoreEntry])
         case Some(hogGroup) => fetchAndUpdateStartableWfs(hogGroup)
       }

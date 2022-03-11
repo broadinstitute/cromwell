@@ -39,7 +39,6 @@ class CachingTokenEventLogger(log: LoggingAdapter,
 
   override def getLimitedGroups: Set[String] = {
     import scala.collection.JavaConverters._
-    log.info(s"[TokenEventLogger] Responding with limited groups ${groupCache.asMap()}")
     groupCache.asMap().keySet().asScala.toSet
   }
 

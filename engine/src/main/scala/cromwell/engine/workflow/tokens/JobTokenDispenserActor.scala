@@ -205,6 +205,9 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
 
     log.info(tokenDispenserState.asJson.printWith(Printer.spaces2))
 
+    tokenEventLogger.logOutOfTokens()
+    tokenEventLogger.logLimitedGroups()
+
     // Schedule the next log event:
     context.system.scheduler.scheduleOnce(someInterval) { self ! LogJobTokenAllocation(someInterval) }(context.dispatcher)
     ()

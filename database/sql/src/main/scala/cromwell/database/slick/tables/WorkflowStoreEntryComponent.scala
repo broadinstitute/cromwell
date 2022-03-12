@@ -92,7 +92,8 @@ trait WorkflowStoreEntryComponent {
         !(row.hogGroup inSet excludedGroups)
     } yield row
 
-    // calculates the count of startable workflows per hog group
+    // calculates the count of startable workflows per hog group and oldest submission timestamp of workflow
+    // present in that hog group
     val numOfStartableWfsByHogGroup = startableWorkflows
       .groupBy(_.hogGroup)
       .map { case (hogGroupName, groups) => (hogGroupName, groups.length, groups.map(_.submissionTime).min) }

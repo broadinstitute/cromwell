@@ -124,9 +124,12 @@ trait WorkflowStoreEntryComponent {
       (s_group, s_ct, s_sub_time) <- numOfStartableWfsByHogGroup if t_group === s_group
     } yield (t_group, t_ct - s_ct, s_sub_time)
 
-    // sort the above calculated result set first by the count of actively running workflows and then sort it
-    // alphabetically by hog group. Then take the first row of the result and return the hog group name.
-    wfsRunningPerHogGroup.sortBy { case (hogGroupName, ct, sub_time) => (ct.asc, sub_time, hogGroupName) }.take(1).map(_._1)
+    // sort the above calculated result set first by the count of actively running workflows, then by hog group with
+    // oldest submission timestamp and then sort it alphabetically by hog group name. Then take the first row of
+    // the result and return the hog group name.
+    wfsRunningPerHogGroup.sortBy {
+      case (hogGroupName, ct, sub_time) => (ct.asc, sub_time, hogGroupName)
+    }.take(1).map(_._1)
   }
 
   /**

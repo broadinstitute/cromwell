@@ -262,7 +262,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
       for (_ <- 1 to 10) yield {
         (for {
-          // since both hog groups have 0 workflows running, the hog groups are sorted alphabetically and first one is picked
+          // since both hog groups have 0 workflows running, the hog group with oldest submission time is picked first
           startableWorkflows1 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, Set.empty[String])
           _ = startableWorkflows1.map(_.hogGroup.value).toSet.head should be("Goldfinger")
           _ = startableWorkflows1.map(_.id).foreach(x => goldFingerWorkflowIds.toList should contain(x))

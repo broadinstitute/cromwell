@@ -1,6 +1,7 @@
 package cromwell.engine.workflow
 
 import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
@@ -176,7 +177,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       params.jobExecutionTokenDispenserActor ! FetchLimitedGroups(maxNewWorkflows)
       stay()
     case Event(ReplyLimitedGroups(groups, maxNewWorkflows), _) =>
-      log.info(s"Excluding groups from workflow launch: $groups")
+      log.info(s"Excluding groups from workflow launch: ${groups.mkString(", ")}")
       params.workflowStore ! WorkflowStoreActor.FetchRunnableWorkflows(maxNewWorkflows, excludedGroups = groups)
       stay()
     case Event(WorkflowStoreEngineActor.NoNewWorkflowsToStart, _) =>

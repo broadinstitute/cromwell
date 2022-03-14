@@ -351,17 +351,18 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         _ = startableWorkflows3.map(_.id).foreach(x => foresterWorkflowIds.toList should contain(x))
         _ = updateWfToRunning(startableWorkflows3)
 
+        // since all 3 hog groups have 5 workflows running each, the hog group with oldest submission time is picked first
         startableWorkflows5 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, excludedGroups = Set.empty[String])
         _ = startableWorkflows5.map(_.hogGroup.value).toSet.head should be("Goldfinger")
         _ = startableWorkflows5.map(_.id).foreach(x => goldFingerWorkflowIds.toList should contain(x))
         _ = updateWfToRunning(startableWorkflows5)
 
+        // since both "Highlander" and "Finding Forrester" have 5 workflows in Running state, the hog group with oldest submission time is picked first
         startableWorkflows6 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, excludedGroups = Set.empty[String])
         _ = startableWorkflows6.map(_.hogGroup.value).toSet.head should be("Highlander")
         _ = startableWorkflows6.map(_.id).foreach(x => highlanderWorkflowIds.toList should contain(x))
         _ = updateWfToRunning(startableWorkflows6)
 
-        // since all 3 hog groups have 5 workflows running each, the hog groups are sorted alphabetically and first one is picked
         startableWorkflows4 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, excludedGroups = Set.empty[String])
         _ = startableWorkflows4.map(_.hogGroup.value).toSet.head should be("Finding Forrester")
         _ = startableWorkflows4.map(_.id).foreach(x => foresterWorkflowIds.toList should contain(x))

@@ -363,6 +363,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         _ = startableWorkflows6.map(_.id).foreach(x => highlanderWorkflowIds.toList should contain(x))
         _ = updateWfToRunning(startableWorkflows6)
 
+        // "Finding Forrester" is now the hog group with least running workflows and has 5 more workflows to run, hence it is picked to run
         startableWorkflows4 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, excludedGroups = Set.empty[String])
         _ = startableWorkflows4.map(_.hogGroup.value).toSet.head should be("Finding Forrester")
         _ = startableWorkflows4.map(_.id).foreach(x => foresterWorkflowIds.toList should contain(x))

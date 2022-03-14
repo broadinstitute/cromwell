@@ -100,7 +100,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
       dispense(n)
     case Terminated(terminee) => onTerminate(terminee)
     case LogJobTokenAllocation(nextInterval) => logTokenAllocation(nextInterval)
-    case FetchLimitedGroups(maxNewWorkflows) => sender ! getTokenExhaustedGroups(maxNewWorkflows)
+    case FetchLimitedGroups => sender ! getTokenExhaustedGroups
     case ShutdownCommand => context stop self
   }
 
@@ -225,10 +225,9 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
           so it's desirable that a group submitting to two or more backends pause workflow
           pickup globally when it exhausts tokens in one of the backends
    */
-  private def getTokenExhaustedGroups(maxNewWorkflows: Int): ReplyLimitedGroups = {
+  private def getTokenExhaustedGroups: ReplyLimitedGroups = {
     ReplyLimitedGroups(
-      tokenQueues.values.flatMap(_.eventLogger.getLimitedGroups).toSet,
-      maxNewWorkflows
+      tokenQueues.values.flatMap(_.eventLogger.getLimitedGroups).toSet
     )
   }
 }
@@ -245,8 +244,8 @@ object JobTokenDispenserActor {
   case object JobTokenReturn
   case object JobTokenDispensed
   final case class LogJobTokenAllocation(someInterval: FiniteDuration)
-  final case class FetchLimitedGroups(maxNewWorkflows: Int)
-  final case class ReplyLimitedGroups(groups: Set[String], maxNewWorkflows: Int)
+  case object FetchLimitedGroups
+  final case class ReplyLimitedGroups(groups: Set[String])
 
   implicit val tokenEncoder = deriveEncoder[JobTokenType]
 

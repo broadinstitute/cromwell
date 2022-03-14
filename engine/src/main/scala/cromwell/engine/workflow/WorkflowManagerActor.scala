@@ -168,19 +168,19 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     /*
      Commands from clients
      */
-    case Event(RetrieveNewWorkflows, stateData) =>
+    case Event(RetrieveNewWorkflows, _) =>
       /*
         Cap the total number of workflows in flight, but also make sure we don't pull too many in at once.
         Determine the number of available workflow slots and request the smaller of that number and maxWorkflowsToLaunch.
        */
-      val maxNewWorkflows = maxWorkflowsToLaunch min (maxWorkflowsRunning - stateData.workflows.size - stateData.subWorkflows.size)
-      params.jobExecutionTokenDispenserActor ! FetchLimitedGroups(maxNewWorkflows)
+      params.jobExecutionTokenDispenserActor ! FetchLimitedGroups
       stay()
-    case Event(ReplyLimitedGroups(groups, maxNewWorkflows), _) =>
+    case Event(ReplyLimitedGroups(groups), stateData) =>
       if (groups.nonEmpty)
-        log.debug(s"Excluding groups from workflow launch: ${groups.mkString(", ")}")
+        log.info(s"Excluding groups from workflow launch: ${groups.mkString(", ")}")
       else
         log.debug("No groups excluded from workflow launch.")
+      val maxNewWorkflows = maxWorkflowsToLaunch min (maxWorkflowsRunning - stateData.workflows.size - stateData.subWorkflows.size)
       params.workflowStore ! WorkflowStoreActor.FetchRunnableWorkflows(maxNewWorkflows, excludedGroups = groups)
       stay()
     case Event(WorkflowStoreEngineActor.NoNewWorkflowsToStart, _) =>

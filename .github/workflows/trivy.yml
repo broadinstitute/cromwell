@@ -14,7 +14,6 @@ jobs:
         - cromwell-drs-localizer
         - perf
         - server
-        - statsDProxy
         - womtool
 
     steps:
@@ -22,6 +21,8 @@ jobs:
 
       # fetch SBT package
       - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: adopt@1.11
 
       # set up SBT cache
       - uses: actions/cache@v2

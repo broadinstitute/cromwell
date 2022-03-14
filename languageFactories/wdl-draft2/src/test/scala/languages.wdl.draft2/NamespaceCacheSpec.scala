@@ -56,7 +56,8 @@ class NamespaceCacheSpec extends AnyFlatSpec with CromwellTimeoutSpec with Befor
       labelsJson = EmptyJson,
       importsFile = None,
       workflowOnHold = false,
-      warnings = Seq.empty
+      warnings = Seq.empty,
+      requestedWorkflowId = None
     )
 
     var lookupCount = 0

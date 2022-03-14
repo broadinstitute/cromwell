@@ -10,7 +10,7 @@ import common.validation.Validation._
 import cromwell.backend.google.pipelines.common.action.ActionLabels._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager._
 import cromwell.backend.google.pipelines.common.api.RunStatus
-import cromwell.backend.google.pipelines.common.api.RunStatus.{Initializing, Running, Success, UnsuccessfulRunStatus}
+import cromwell.backend.google.pipelines.common.api.RunStatus.{AwaitingCloudQuota, Initializing, Running, Success, UnsuccessfulRunStatus}
 import cromwell.backend.google.pipelines.v2beta.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2beta.api.Deserialization._
 import cromwell.backend.google.pipelines.v2beta.api.request.ErrorReporter._
@@ -53,10 +53,10 @@ trait GetRequestHandler { this: RequestHandler =>
       UnsuccessfulRunStatus(Status.UNKNOWN, Option(errorMessage), Nil, None, None, None, wasPreemptible = false)
     } else {
       try {
+        val events: List[Event] = operation.events.fallBackTo(List.empty)(pollingRequest.workflowId -> operation)
         if (operation.getDone) {
           val metadata = Try(operation.getMetadata.asScala.toMap).getOrElse(Map[String, AnyRef]())
           // Deserialize the response
-          val events: List[Event] = operation.events.fallBackTo(List.empty)(pollingRequest.workflowId -> operation)
           val pipeline: Option[Pipeline] = operation.pipeline.flatMap(
             _.toErrorOr.fallBack(pollingRequest.workflowId -> operation)
           )
@@ -108,6 +108,8 @@ trait GetRequestHandler { this: RequestHandler =>
               errorReporter.toUnsuccessfulRunStatus(error, events)
             case None => Success(executionEvents, machineType, zone, instanceName)
           }
+        } else if (isQuotaDelayed(events)) {
+          AwaitingCloudQuota
         } else if (operation.hasStarted) {
           Running
         } else {
@@ -164,4 +166,26 @@ trait GetRequestHandler { this: RequestHandler =>
 
     starterEvent.toList ++ filteredExecutionEvents ++ completionEvent
   }
+
+  // Future enhancement: parse as `com.google.api.services.lifesciences.v2beta.model.DelayedEvent` instead of
+  // generic `Event` and take advantage of `getMetrics` which has a string array of problem quota(s):
+  //   "metrics": [
+  //     "CPUS"
+  //   ]
+  private def isQuotaDelayed(events: List[Event]): Boolean = {
+    events.sortBy(_.getTimestamp).reverse.headOption match {
+      case Some(event) =>
+        quotaMessages.exists(event.getDescription.contains)
+      case None =>
+        // If the events list is empty, we're not waiting for quota yet
+        false
+    }
+  }
+
+  private val quotaMessages = List(
+    "A resource limit has delayed the operation",
+    "usage too high",
+    "no available zones",
+    "resource_exhausted"
+  )
 }

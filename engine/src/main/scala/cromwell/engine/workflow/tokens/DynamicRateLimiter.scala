@@ -11,25 +11,25 @@ import scala.concurrent.duration._
   * Simply listen to load alerts and freeze the token distribution if the load is high, restore it when load is back to normal.
   */
 trait DynamicRateLimiter { this: Actor with Timers with ActorLogging =>
-  protected def distributionRate: Rate
+  protected def dispensingRate: Rate
 
   protected def ratePreStart(): Unit = {
     startDistributionTimer()
-    log.info("{} - Distribution rate: {}.", self.path.name, distributionRate)
+    log.info("{} - Distribution rate: {}.", self.path.name, dispensingRate)
   }
 
   protected def rateReceive: Receive = {
-    case ResetAction if distributionRate.n != 0 => releaseTokens()
+    case ResetAction if dispensingRate.n != 0 => releaseTokens()
     case HighLoad => highLoad()
     case NormalLoad => backToNormal()
   }
 
-  private def startDistributionTimer() = if (!distributionRate.isZero && !timers.isTimerActive(ResetKey)) {
-    timers.startPeriodicTimer(ResetKey, ResetAction, distributionRate.per)
+  private def startDistributionTimer() = if (!dispensingRate.isZero && !timers.isTimerActive(ResetKey)) {
+    timers.startPeriodicTimer(ResetKey, ResetAction, dispensingRate.per)
   }
 
   private def releaseTokens() = {
-    self ! TokensAvailable(distributionRate.n)
+    self ! TokensAvailable(dispensingRate.n)
   }
 
   // When load is high, freeze token distribution

@@ -2,9 +2,8 @@ package cromwell.services.metadata.impl.archiver
 
 import java.io.{OutputStream, OutputStreamWriter}
 import java.nio.file.{Files, StandardOpenOption}
-import java.time.{OffsetDateTime, Duration => JDuration}
+import java.time.OffsetDateTime
 import java.util.UUID
-import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.ask
@@ -74,11 +73,6 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
 
   // initial schedule for workflows left to archive metric
   context.system.scheduler.scheduleOnce(archiveMetadataConfig.instrumentationInterval)(workflowsLeftToArchiveMetric())
-
-  def calculateTimeDifference(startTime: OffsetDateTime, endTime: OffsetDateTime): FiniteDuration = {
-    FiniteDuration(JDuration.between(startTime, endTime).toMillis, TimeUnit.MILLISECONDS)
-  }
-  def calculateTimeSince(startTime: OffsetDateTime): FiniteDuration = calculateTimeDifference(startTime, OffsetDateTime.now())
 
   override def receive: Receive = {
     case ArchiveNextWorkflowMessage =>
@@ -158,8 +152,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
 
   private def archiveSummaryEntry(entry: WorkflowMetadataSummaryEntry): Future[Long] = {
     entry.endTimestamp.foreach { workflowEndTime =>
-      val millisSinceWorkflowEnd = JDuration.between(workflowEndTime.toSystemOffsetDateTime, OffsetDateTime.now()).toMillis
-      sendGauge(timeBehindExpectedDelayMetricPath, millisSinceWorkflowEnd - archiveMetadataConfig.archiveDelay.toMillis, ServicesPrefix)
+      sendGauge(timeBehindExpectedDelayMetricPath, calculateTimeSince(workflowEndTime.toSystemOffsetDateTime).toMillis - archiveMetadataConfig.archiveDelay.toMillis, ServicesPrefix)
     }
 
     val archiveStartTime = OffsetDateTime.now()

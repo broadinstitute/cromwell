@@ -60,7 +60,7 @@ Ensure you have at least 8GB; 4GB is not sufficient.
 
 #### Let people know the publish is underway
 
-Post another message in `#dsp-batch` that the release is underway, asking everyone to hold off merges to develop until
+Post another message in `#ftfy-private` that the release is underway, asking everyone to hold off merges to develop until
 the release is published.
 
 #### Run the `publish_workflow.wdl` Workflow

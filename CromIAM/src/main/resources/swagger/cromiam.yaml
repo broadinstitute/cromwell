@@ -135,6 +135,11 @@ paths:
           required: false
           type: file
           in: formData
+        - name: requestedWorkflowId
+          description: An ID to assign to this workflow. Must be a JSON string in UUID-format. If not supplied a random ID will be generated for the workflow.
+          required: false
+          type: string
+          in: formData
       tags:
         - Workflows
       responses:
@@ -197,6 +202,11 @@ paths:
           description: Zip file containing WDL dependencies
           required: false
           type: file
+          in: formData
+        - name: requestedWorkflowId
+          description: A set of IDs to assign to these workflows. Must be a JSON list of strings in UUID-format. Must have the same number of entries and be in the same order as the workflow inputs list. If not supplied, random ID will be generated for the workflows.
+          required: false
+          type: string
           in: formData
       tags:
         - Workflows

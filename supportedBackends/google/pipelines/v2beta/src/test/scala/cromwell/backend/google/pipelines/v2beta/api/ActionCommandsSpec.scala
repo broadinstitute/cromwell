@@ -29,7 +29,7 @@ class ActionCommandsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
                          |  cat gsutil_output.txt
                          |
                          |  # Check if it matches the BucketIsRequesterPaysErrorMessage
-                         |  if grep -q "Bucket is requester pays bucket but no user project provided." gsutil_output.txt; then
+                         |  if grep -q "requester pays bucket but no user project" gsutil_output.txt; then
                          |    printf '%s %s\n' "$(date -u '+%Y/%m/%d %H:%M:%S')" Retrying\ with\ user\ project
                          |    flag is -u my-project
                          |  else

@@ -57,7 +57,8 @@ trait WomtoolRouteSupport extends WebServiceUtils {
       labelsJson = "",
       importsFile = None,
       workflowOnHold = false,
-      warnings = Seq.empty
+      warnings = Seq.empty,
+      requestedWorkflowId = None
     )
 
     onComplete(serviceRegistryActor.ask(DescribeRequest(wsfc)).mapTo[DescribeResult]) {

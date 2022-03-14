@@ -82,7 +82,8 @@ class WdlDraft3CachingSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         WorkflowOptions.empty,
         "{}",
         workflowOnHold = false,
-        Seq.empty
+        Seq.empty,
+        requestedWorkflowId = None
       ),
       workflowSource,
       WorkflowOptions.empty,

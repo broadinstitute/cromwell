@@ -61,7 +61,7 @@ final case class WorkflowStoreActor private(
 
 object WorkflowStoreActor {
   sealed trait WorkflowStoreActorEngineCommand
-  final case class FetchRunnableWorkflows(n: Int) extends WorkflowStoreActorEngineCommand
+  final case class FetchRunnableWorkflows(n: Int, excludedGroups: Set[String]) extends WorkflowStoreActorEngineCommand
   final case class AbortWorkflowCommand(id: WorkflowId) extends WorkflowStoreActorEngineCommand
   final case class WorkflowOnHoldToSubmittedCommand(id: WorkflowId) extends WorkflowStoreActorEngineCommand
   case object InitializerCommand extends WorkflowStoreActorEngineCommand
@@ -79,7 +79,7 @@ object WorkflowStoreActor {
 
   final case object GetWorkflowStoreStats
 
-  case class WorkflowStoreWriteHeartbeatCommand(workflowId: WorkflowId, submissionTime: OffsetDateTime)
+  case class WorkflowStoreWriteHeartbeatCommand(workflowId: WorkflowId, submissionTime: OffsetDateTime, heartbeatTime: OffsetDateTime = OffsetDateTime.now())
 
   def props(
              workflowStoreDatabase: WorkflowStore,

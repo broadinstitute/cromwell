@@ -1,5 +1,8 @@
 package cromwell.services.instrumentation
 
+import java.time.{OffsetDateTime, Duration => JDuration}
+import java.util.concurrent.TimeUnit
+
 import akka.actor.{Actor, ActorRef, Timers}
 import akka.dispatch.ControlMessage
 import cats.data.NonEmptyList
@@ -12,16 +15,16 @@ import scala.concurrent.duration._
 import scala.language.implicitConversions
 
 object CromwellInstrumentation {
-  
+
   val InstrumentationRate = ConfigFactory.load()
     .getConfig("system")
     .as[Option[FiniteDuration]]("instrumentation-rate")
     .getOrElse(5.seconds)
 
   type InstrumentationPath = NonEmptyList[String]
-  
+
   implicit def stringToNel(str: String): NonEmptyList[String] = NonEmptyList.of(str)
-  
+
   implicit class EnhancedStatsDPath(val path: InstrumentationPath) extends AnyVal {
     def withStatusCodeFailure(code: Option[Int]) = code
       .map(c => path.concatNel(NonEmptyList.of(c.toString)))
@@ -41,7 +44,7 @@ trait CromwellInstrumentation {
   protected def instrumentationSender: ActorRef = ActorRef.noSender
 
   def serviceRegistryActor: ActorRef
-  
+
   /**
     * Builds a bucket from path.
     * The cromwell bucket prefix is always prepended:
@@ -64,7 +67,7 @@ trait CromwellInstrumentation {
   protected final def count(path: InstrumentationPath, count: Long, prefix: Option[String] = None): Unit = {
     serviceRegistryActor.tell(countMessage(path, count, prefix), instrumentationSender)
   }
-  
+
   /**
     * Creates an increment message for the given bucket
     */
@@ -106,6 +109,11 @@ trait CromwellInstrumentation {
   protected final def sendTiming(path: InstrumentationPath, duration: FiniteDuration, prefix: Option[String] = None) = {
     serviceRegistryActor.tell(timingMessage(path, duration, prefix), instrumentationSender)
   }
+
+  def calculateTimeDifference(startTime: OffsetDateTime, endTime: OffsetDateTime): FiniteDuration = {
+    FiniteDuration(JDuration.between(startTime, endTime).toMillis, TimeUnit.MILLISECONDS)
+  }
+  def calculateTimeSince(startTime: OffsetDateTime): FiniteDuration = calculateTimeDifference(startTime, OffsetDateTime.now())
 }
 
 /**
@@ -120,7 +128,7 @@ trait CromwellInstrumentationScheduler { this: Actor with Timers =>
   }
 
   protected def instrumentationReceive(instrumentationAction: () => Unit): Receive = {
-    case InstrumentationTimerAction => 
+    case InstrumentationTimerAction =>
       instrumentationAction()
       timers.startSingleTimer(InstrumentationTimerKey, InstrumentationTimerAction, InstrumentationRate)
   }

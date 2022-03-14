@@ -205,8 +205,13 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
 
     log.info(tokenDispenserState.asJson.printWith(Printer.spaces2))
 
-    tokenEventLogger.logOutOfTokens()
-    tokenEventLogger.logLimitedGroups()
+    tokenEventLogger.getLimitedGroups foreach { group =>
+      log.info(s"Token Dispenser: The group $group has reached its job limit and is being rate-limited.")
+    }
+
+    tokenEventLogger.getLimitedBackends foreach { backend =>
+      log.info(s"Token Dispenser: The backend $backend is starting too many jobs. New jobs are being limited.")
+    }
 
     // Schedule the next log event:
     context.system.scheduler.scheduleOnce(someInterval) { self ! LogJobTokenAllocation(someInterval) }(context.dispatcher)

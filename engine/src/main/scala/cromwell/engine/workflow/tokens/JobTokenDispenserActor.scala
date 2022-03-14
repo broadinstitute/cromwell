@@ -64,7 +64,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
   lazy val effectiveLogInterval: Option[FiniteDuration] = logInterval.filterNot(_ == 0.seconds)
 
   lazy val tokenEventLogger = effectiveLogInterval match {
-    case Some(someInterval: FiniteDuration) => new CachingTokenEventLogger(log, someInterval)
+    case Some(someInterval: FiniteDuration) => new CachingTokenEventLogger(someInterval)
     case None => NullTokenEventLogger
   }
 

@@ -1,6 +1,5 @@
 package cromwell.engine.workflow.tokens
 
-import akka.event.LoggingAdapter
 import com.google.common.cache.CacheBuilder
 
 import scala.concurrent.duration.FiniteDuration
@@ -21,8 +20,7 @@ case object NullTokenEventLogger extends TokenEventLogger {
   override def getLimitedBackends: Set[String] = Set.empty
 }
 
-class CachingTokenEventLogger(log: LoggingAdapter,
-                              cacheEntryTTL: FiniteDuration) extends TokenEventLogger {
+class CachingTokenEventLogger(cacheEntryTTL: FiniteDuration) extends TokenEventLogger {
 
   private val groupCache = CacheBuilder.newBuilder()
     .expireAfterWrite(cacheEntryTTL._1, cacheEntryTTL._2)

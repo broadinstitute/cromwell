@@ -101,7 +101,7 @@ object Dependencies {
   private val scalacheckV = "1.15.4"
   private val scalacticV = "3.2.10"
   private val scalameterV = "0.19"
-  private val scalamockV = "5.1.0"
+  private val scalamockV = "5.2.0"
   // scalatestV and flexmarkV must be upgraded together. Check the ScalaTest release notes to
   // find the version of FlexMark that corresponds to the new version of ScalaTest.
   private val scalatestV = "3.2.10"
@@ -121,8 +121,8 @@ object Dependencies {
     * Related Slick PR: https://github.com/slick/slick/pull/2101
   */
   private val slickV = "3.3.2-2076hotfix" // scala-steward:off (CROM-6620)
-  private val snakeyamlV = "1.29"
-  private val specs2MockV = "4.12.12"
+  private val snakeyamlV = "1.30"
+  private val specs2MockV = "4.13.3"
   private val sprayJsonV = "1.3.6"
   private val sttpV = "1.5.19" // scala-steward:off (CROM-6564)
   private val swaggerParserV = "1.0.56"

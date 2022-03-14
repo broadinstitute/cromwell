@@ -3,6 +3,7 @@ package cromwell.docker.registryv2.flows.aws
 import cats.effect.IO
 import cromwell.docker.{DockerImageIdentifier, DockerInfoActor, DockerRegistryConfig}
 import org.http4s.client.Client
+import org.slf4j.{Logger, LoggerFactory}
 import software.amazon.awssdk.services.ecrpublic.EcrPublicClient
 import software.amazon.awssdk.services.ecrpublic.model.GetAuthorizationTokenRequest
 
@@ -10,6 +11,9 @@ import scala.concurrent.Future
 
 
 class AmazonEcrPublic(override val config: DockerRegistryConfig, ecrClient: EcrPublicClient = EcrPublicClient.create()) extends AmazonEcrAbstract(config) {
+ private val logger: Logger = LoggerFactory.getLogger(this.getClass)
+
+
   /**
     * public.ecr.aws
     */
@@ -23,7 +27,7 @@ class AmazonEcrPublic(override val config: DockerRegistryConfig, ecrClient: EcrP
 
 
   override protected def getToken(dockerInfoContext: DockerInfoActor.DockerInfoContext)(implicit client: Client[IO]): IO[Option[String]] = {
-
+    logger.info("obtaining access token for '{}'", dockerInfoContext.dockerImageID.fullName)
     val eventualMaybeToken: Future[Option[String]] = Future(
       Option(ecrClient
         .getAuthorizationToken(GetAuthorizationTokenRequest.builder().build())

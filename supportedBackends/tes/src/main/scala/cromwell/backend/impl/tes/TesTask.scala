@@ -233,12 +233,13 @@ object TesTask {
     // TES server about which user identity to run tasks as.
     // Note that we validate the type of WorkflowExecutionIdentity
     // in TesInitializationActor.
-    val backendParameters = workflowDescriptor
-      .workflowOptions
-      .get(TesWorkflowOptionKeys.WorkflowExecutionIdentity)
-      .toOption
-      .map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> _)
-      .toMap
+    val backendParameters = runtimeAttributes.backendParameters ++
+      workflowDescriptor
+        .workflowOptions
+        .get(TesWorkflowOptionKeys.WorkflowExecutionIdentity)
+        .toOption
+        .map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option(_))
+        .toMap
 
     val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
       case Some(x) =>
@@ -297,7 +298,7 @@ final case class Resources(cpu_cores: Option[Int],
                            disk_gb: Option[Double],
                            preemptible: Option[Boolean],
                            zones: Option[Seq[String]],
-                           backend_parameters: Option[Map[String, String]])
+                           backend_parameters: Option[Map[String, Option[String]]])
 
 final case class OutputFileLog(url: String,
                                path: String,

@@ -38,7 +38,7 @@ trait WorkflowStore {
     * Retrieves up to n workflows which have not already been pulled into the engine and sets their pickedUp
     * flag to true
     */
-  def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]]
+  def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration, excludedGroups: Set[String])(implicit ec: ExecutionContext): Future[List[WorkflowToStart]]
 
   def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)],
                               heartbeatDateTime: OffsetDateTime)

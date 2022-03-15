@@ -28,6 +28,9 @@ private [api] object Deserialization {
   implicit class OperationDeserialization(val operation: Operation) extends AnyVal {
     /**
       * Deserializes the events to com.google.api.services.genomics.v2beta.model.Event
+      *
+      * There could also be entries of `com.google.api.services.lifesciences.v2beta.model.DelayedEvent`
+      * They are effectively upcast to regular `Event` even though they're unrelated types
       */
     def events: ErrorOr[List[Event]] = {
       val eventsErrorOrOption = for {

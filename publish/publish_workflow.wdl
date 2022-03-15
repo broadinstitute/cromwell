@@ -460,11 +460,16 @@ task releaseHomebrew {
         doc: "https://docs.brew.sh/How-To-Open-a-Homebrew-Pull-Request"
     }
 
-    # 'brew bump-formula-pr' seems very promising and could simplify a lot of this, however it's unclear if it would be
-    # able to update the womtool version too.
+    # 'brew bump-formula-pr' seems very promising and could simplify a lot of this, however it doesn't seem to update
+    # the womtool version which causes the Homebrew CI checks to fail.
     command <<<
         # Do not use `set -x` or it will print the GitHub token!
         set -euo pipefail
+
+        # Homebrew no longer lets the `root` user run its scripts. The `linuxbrew` user is already set up in the default
+        # `broadinstitute/cromwell-publish:latest` image used for this task so `su linuxbrew` to run with that identity
+        # instead. Despite the name there doesn't appear to be anything special about this user, it just isn't root.
+        su linuxbrew
 
         echo 'Setup Git'
         /cromwell-publish/git-setup.sh \
@@ -577,6 +582,7 @@ task releaseHomebrew {
             sed \
                 -i \
                 -e '/guidelines for contributing/s/\[[[:space:]]\]/[x]/' \
+                -e '/ensured that your commits follow/s/\[[[:space:]]\]/[x]/' \
                 -e "/checked that there aren't other open/s/\[[[:space:]]\]/[x]/" \
                 -e "/built your formula locally/s/\[[[:space:]]\]/[x]/" \
                 -e "/your test running fine/s/\[[[:space:]]\]/[x]/" \

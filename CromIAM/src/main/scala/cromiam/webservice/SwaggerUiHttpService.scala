@@ -1,16 +1,13 @@
 package cromiam.webservice
 
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.server
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
-import akka.stream.Materializer
-import akka.stream.scaladsl.Sink
+import akka.stream.scaladsl.Flow
 import akka.util.ByteString
-import com.typesafe.config.Config
+import common.util.VersionUtil
 import cromiam.server.config.SwaggerOauthConfig
-import net.ceedubs.ficus.Ficus._
-
-import scala.concurrent.{ExecutionContext, Future}
 
 /**
  * Serves up the swagger UI from org.webjars/swagger-ui.
@@ -22,42 +19,21 @@ import scala.concurrent.{ExecutionContext, Future}
   * https://vimeo.com/215325495
  */
 trait SwaggerUiHttpService extends Directives {
-  /**
-   * @return The version of the org.webjars/swagger-ui artifact. For example "2.1.1".
-   */
-  def swaggerUiVersion: String
 
-  /**
-   * Informs the swagger UI of the base of the application url, as hosted on the server.
-   * If your entire app is served under "http://myserver/myapp", then the base URL is "/myapp".
-   * If the app is served at the root of the application, leave this value as the empty string.
-   *
-   * @return The base URL used by the application, or the empty string if there is no base URL. For example "/myapp".
-   */
-  def swaggerUiBaseUrl = ""
+  def oauthConfig: SwaggerOauthConfig
 
-  /**
-   * @return The path to the swagger UI html documents. For example "swagger"
-   */
-  def swaggerUiPath = "swagger"
+  private lazy val resourceDirectory = {
+    val swaggerUiVersion = VersionUtil.getVersion("swagger-ui", VersionUtil.sbtDependencyVersion("swaggerUi"))
+    s"META-INF/resources/webjars/swagger-ui/$swaggerUiVersion"
+  }
 
-  /**
-   * The path to the actual swagger documentation in either yaml or json, to be rendered by the swagger UI html.
-   *
-   * @return The path to the api documentation to render in the swagger UI.
-   *         For example "api-docs" or "swagger/lenthall.yaml".
-   */
-  def swaggerUiDocsPath = "api-docs"
-
-  /**
-   * @return When true, if someone requests / (or /baseUrl if setup), redirect to the swagger UI.
-   */
-  def swaggerUiFromRoot = true
-
-  private def routeFromRoot = get {
-    pathEndOrSingleSlash {
-      // Redirect / to the swagger UI
-      redirect(s"$swaggerUiBaseUrl/$swaggerUiPath", StatusCodes.TemporaryRedirect)
+  private val serveIndex: server.Route = {
+    mapResponseEntity { entityFromJar =>
+      entityFromJar.transformDataBytes(Flow.fromFunction[ByteString, ByteString] { original: ByteString =>
+        ByteString(rewriteSwaggerIndex(original.utf8String))
+      })
+    } {
+      getFromResource(s"$resourceDirectory/index.html")
     }
   }
 
@@ -66,83 +42,65 @@ trait SwaggerUiHttpService extends Directives {
    *
    * @return Route serving the swagger UI.
    */
-  final def swaggerUiRoute = {
-    // when the user hits the doc url, redirect to the index.html with api docs specified on the url
-    val indexRedirect: Route = pathEndOrSingleSlash {
-      redirect(
-        s"$swaggerUiBaseUrl/$swaggerUiPath/index.html?url=$swaggerUiBaseUrl/$swaggerUiDocsPath",
-        StatusCodes.TemporaryRedirect)
-    }
+  final def swaggerUiRoute: Route = {
+    pathEndOrSingleSlash {
+      get {
+        serveIndex
+      }
+    } ~
+      // We have to be explicit about the paths here since we're matching at the root URL and we don't
+      // want to catch all paths lest we circumvent Spray's not-found and method-not-allowed error
+      // messages.
+      (pathPrefixTest("swagger-ui") | pathPrefixTest("oauth2") | pathSuffixTest("js")
+        | pathSuffixTest("css") | pathPrefixTest("favicon")) {
+        get {
+          getFromResourceDirectory(resourceDirectory)
+        }
+      } ~
+      // Redirect legacy `/swagger` or `/swagger/index.html?url=/swagger/cromwell.yaml#fragment` requests to the root
+      // URL. The latter form is (somewhat magically) well-behaved in throwing away the `url` query parameter that was
+      // the subject of the CVE linked below while preserving any fragment identifiers to scroll to the right spot in
+      // the Swagger UI.
+      // https://github.com/swagger-api/swagger-ui/security/advisories/GHSA-qrmm-w75w-3wpx
+      (path("swagger" / "index.html") | path("swagger")) {
+        get {
+          redirect("/", StatusCodes.MovedPermanently)
 
-    /* Serve a resource from the swagger-ui webjar/bundle */
-    val resourceServe: Route = getFromResourceDirectory(s"META-INF/resources/webjars/swagger-ui/$swaggerUiVersion")
-
-    /* Mashup of mapResponseWith and mapResponseEntity */
-    def mapResponseEntityWith(f: ResponseEntity => Future[ResponseEntity]): Directive0 = {
-      extractExecutionContext flatMap { implicit executionContext =>
-        mapRouteResultWithPF {
-          case RouteResult.Complete(response) =>
-            f(response.entity) map { entity =>
-              RouteResult.Complete(response.withEntity(entity))
-            }
         }
       }
-    }
-
-    /* Serve up the index.html, after passing it through a function that rewrites the response. */
-    val indexServe: Route = {
-      pathPrefixTest("index.html") {
-        extractExecutionContext { implicit executionContext =>
-          extractMaterializer { implicit materializer =>
-            mapResponseEntityWith(rewriteSwaggerIndex) {
-              resourceServe
-            }
-          }
-        }
-      }
-    }
-
-    /* Redirect to the index, serve the rewritten index, or a resource from the swaggerUI webjar. */
-    val route = get {
-      pathPrefix(separateOnSlashes(swaggerUiPath)) {
-        concat(indexRedirect, indexServe, resourceServe)
-      }
-    }
-    if (swaggerUiFromRoot) route ~ routeFromRoot else route
-  }
-
-  private[this] final def rewriteSwaggerIndex(responseEntity: ResponseEntity)
-                                             (implicit
-                                              executionContext: ExecutionContext,
-                                              materializer: Materializer
-                                             ): Future[ResponseEntity] = {
-    val contentType = responseEntity.contentType
-    for {
-      data <- responseEntity.dataBytes.runWith(Sink.head) // Similar to responseEntity.toStrict, but without a timeout
-      replaced = rewriteSwaggerIndex(data.utf8String)
-    } yield HttpEntity.Strict(contentType, ByteString(replaced))
   }
 
   /** Rewrite the swagger index.html. Default passes through the origin data. */
-  protected def rewriteSwaggerIndex(data: String): String = data
-}
+  protected def rewriteSwaggerIndex(original: String): String = {
+    val swaggerOptions =
+      s"""
+        |        validatorUrl: null,
+        |        apisSorter: "alpha",
+        |        oauth2RedirectUrl: window.location.origin + "/swagger/oauth2-redirect.html",
+        |        operationsSorter: "alpha"
+      """.stripMargin
 
-/**
- * Extends the SwaggerUiHttpService to gets UI configuration values from a provided Typesafe Config.
- */
-trait SwaggerUiConfigHttpService extends SwaggerUiHttpService {
-  /**
-   * @return The swagger UI config.
-   */
-  def swaggerUiConfig: Config
+    val initOAuthOriginal = "window.ui = ui"
 
-  override def swaggerUiVersion = swaggerUiConfig.getString("uiVersion")
+    val initOAuthReplacement =
+      s"""|
+          |ui.initOAuth({
+          |    clientId: "${oauthConfig.clientId}",
+          |    realm: "${oauthConfig.realm}",
+          |    appName: "${oauthConfig.appName}",
+          |    scopeSeparator: " "
+          |  })
+          |
+          |$initOAuthOriginal
+          |""".stripMargin
 
-  abstract override def swaggerUiBaseUrl = swaggerUiConfig.as[Option[String]]("baseUrl").getOrElse(super.swaggerUiBaseUrl)
 
-  abstract override def swaggerUiPath = swaggerUiConfig.as[Option[String]]("uiPath").getOrElse(super.swaggerUiPath)
+    original
+      .replace(initOAuthOriginal, initOAuthReplacement)
+      .replace("""url: "https://petstore.swagger.io/v2/swagger.json"""", "url: 'cromiam.yaml'")
+      .replace("""layout: "StandaloneLayout"""", s"""layout: "StandaloneLayout", $swaggerOptions""")
 
-  abstract override def swaggerUiDocsPath = swaggerUiConfig.as[Option[String]]("docsPath").getOrElse(super.swaggerUiDocsPath)
+  }
 }
 
 /**
@@ -167,28 +125,16 @@ trait SwaggerResourceHttpService {
   def swaggerResourceType = "yaml"
 
   /**
-   * Swagger UI sends HTTP OPTIONS before ALL requests, and expects a status 200 / OK. When true (the default) the
-   * swaggerResourceRoute will return 200 / OK for requests for OPTIONS.
-   *
-   * See also:
-   * - https://github.com/swagger-api/swagger-ui/issues/1209
-   * - https://github.com/swagger-api/swagger-ui/issues/161
-   * - https://groups.google.com/forum/#!topic/swagger-swaggersocket/S6_I6FBjdZ8
-   *
-   * @return True if status code 200 should be returned for HTTP OPTIONS requests for the swagger resource.
-   */
-  def swaggerAllOptionsOk = true
-
-  /**
    * @return The path to the swagger docs.
    */
-  protected def swaggerDocsPath = s"$swaggerDirectory/$swaggerServiceName.$swaggerResourceType"
+  private lazy val swaggerDocsPath = s"$swaggerDirectory/$swaggerServiceName.$swaggerResourceType"
 
   /**
    * @return A route that returns the swagger resource.
    */
-  final def swaggerResourceRoute = {
-    val swaggerDocsDirective = path(separateOnSlashes(swaggerDocsPath))
+  final def swaggerResourceRoute: Route = {
+    // Serve CromIAM API docs from either `/swagger/cromiam.yaml` or just `cromiam.yaml`.
+    val swaggerDocsDirective = path(separateOnSlashes(swaggerDocsPath)) | path(s"$swaggerServiceName.$swaggerResourceType")
     val route = get {
       swaggerDocsDirective {
         // Return /uiPath/serviceName.resourceType from the classpath resources.
@@ -196,12 +142,10 @@ trait SwaggerResourceHttpService {
       }
     }
 
-    if (swaggerAllOptionsOk) {
-      route ~ options {
-        // Also return status 200 / OK for all OPTIONS requests.
-        complete(StatusCodes.OK)
-      }
-    } else route
+    route ~ options {
+      // Also return status 200 / OK for all OPTIONS requests.
+      complete(StatusCodes.OK)
+    }
   }
 }
 
@@ -209,48 +153,9 @@ trait SwaggerResourceHttpService {
  * Extends the SwaggerUiHttpService and SwaggerResourceHttpService to serve up both.
  */
 trait SwaggerUiResourceHttpService extends SwaggerUiHttpService with SwaggerResourceHttpService {
-  override def swaggerUiDocsPath = swaggerDocsPath
-
-  def oauthConfig: SwaggerOauthConfig
 
   /**
    * @return A route that redirects to the swagger UI and returns the swagger resource.
    */
-  final def swaggerUiResourceRoute = swaggerUiRoute ~ swaggerResourceRoute
-
-  override protected def rewriteSwaggerIndex(data: String): String = {
-    // via https://github.com/swagger-api/swagger-ui/tree/v3.2.2#swaggeruibundle
-
-    val bundleOriginal       = """url: "http://petstore.swagger.io/v2/swagger.json","""
-    val bundleOriginalSecure = """url: "https://petstore.swagger.io/v2/swagger.json","""
-
-    val bundleReplacement =
-      s"""|url: "/$swaggerDocsPath",
-          |validatorUrl: null,
-          |oauth2RedirectUrl: window.location.origin + "/$swaggerDirectory/oauth2-redirect.html",
-          |tagsSorter: "alpha",
-          |operationsSorter: "alpha",
-          |""".stripMargin
-
-    // NOTE: Until engine and cromiam can re-common-ize the swagger code, this needs to be sync'ed with
-    //   cromiam.webservice.BasicSwaggerUiHttpServiceSpec.rewriteSwaggerIndex
-    val initOAuthOriginal = "window.ui = ui"
-
-    val initOAuthReplacement =
-      s"""|
-          |ui.initOAuth({
-          |    clientId: "${oauthConfig.clientId}",
-          |    realm: "${oauthConfig.realm}",
-          |    appName: "${oauthConfig.appName}",
-          |    scopeSeparator: " "
-          |  })
-          |
-          |$initOAuthOriginal
-          |""".stripMargin
-
-    data
-      .replace(initOAuthOriginal, initOAuthReplacement)
-      .replace(bundleOriginal, bundleReplacement)
-      .replace(bundleOriginalSecure, bundleReplacement)
-  }
+  final def swaggerUiResourceRoute: Route = swaggerUiRoute ~ swaggerResourceRoute
 }

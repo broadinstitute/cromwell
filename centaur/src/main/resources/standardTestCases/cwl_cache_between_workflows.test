@@ -5,6 +5,9 @@ workflowType: CWL
 workflowTypeVersion: v1.0
 skipDescribeEndpointValidation: true
 
+# CROM-6807 Don't retry failures, subsequent runs will fail because of unexpected cache hits from the initial run
+retryTestFailures: false
+
 files {
   workflow: cwl_cache_between_workflows/cwl_cache_between_workflows.cwl
   inputs: cwl_cache_between_workflows/cwl_cache_between_workflows.json

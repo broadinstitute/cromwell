@@ -61,7 +61,8 @@ object WorkflowManagerActor {
             callCacheReadActor: ActorRef,
             callCacheWriteActor: ActorRef,
             dockerHashActor: ActorRef,
-            jobTokenDispenserActor: ActorRef,
+            jobRestartCheckTokenDispenserActor: ActorRef,
+            jobExecutionTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             serverMode: Boolean,
             workflowHeartbeatConfig: WorkflowHeartbeatConfig): Props = {
@@ -78,7 +79,8 @@ object WorkflowManagerActor {
       callCacheReadActor = callCacheReadActor,
       callCacheWriteActor = callCacheWriteActor,
       dockerHashActor = dockerHashActor,
-      jobTokenDispenserActor = jobTokenDispenserActor,
+      jobRestartCheckTokenDispenserActor = jobRestartCheckTokenDispenserActor,
+      jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
       backendSingletonCollection = backendSingletonCollection,
       serverMode = serverMode,
       workflowHeartbeatConfig = workflowHeartbeatConfig)
@@ -126,7 +128,8 @@ case class WorkflowManagerActorParams(config: Config,
                                       callCacheReadActor: ActorRef,
                                       callCacheWriteActor: ActorRef,
                                       dockerHashActor: ActorRef,
-                                      jobTokenDispenserActor: ActorRef,
+                                      jobRestartCheckTokenDispenserActor: ActorRef,
+                                      jobExecutionTokenDispenserActor: ActorRef,
                                       backendSingletonCollection: BackendSingletonCollection,
                                       serverMode: Boolean,
                                       workflowHeartbeatConfig: WorkflowHeartbeatConfig)
@@ -170,7 +173,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
         Determine the number of available workflow slots and request the smaller of that number and maxWorkflowsToLaunch.
        */
       val maxNewWorkflows = maxWorkflowsToLaunch min (maxWorkflowsRunning - stateData.workflows.size - stateData.subWorkflows.size)
-      params.workflowStore ! WorkflowStoreActor.FetchRunnableWorkflows(maxNewWorkflows)
+      params.workflowStore ! WorkflowStoreActor.FetchRunnableWorkflows(maxNewWorkflows, excludedGroups = Set.empty) // Entry point for subsequent work in BW-675
       stay()
     case Event(WorkflowStoreEngineActor.NoNewWorkflowsToStart, _) =>
       log.debug("WorkflowStore provided no new workflows to start")
@@ -307,7 +310,8 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       callCacheReadActor = params.callCacheReadActor,
       callCacheWriteActor = params.callCacheWriteActor,
       dockerHashActor = params.dockerHashActor,
-      jobTokenDispenserActor = params.jobTokenDispenserActor,
+      jobRestartCheckTokenDispenserActor = params.jobRestartCheckTokenDispenserActor,
+      jobExecutionTokenDispenserActor = params.jobExecutionTokenDispenserActor,
       workflowStoreActor = params.workflowStore,
       backendSingletonCollection = params.backendSingletonCollection,
       serverMode = params.serverMode,
@@ -334,11 +338,11 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     reasons map {
       case reason: ThrowableAggregation => expandFailureReasons(reason.throwables.toSeq)
       case reason: KnownJobFailureException =>
-        val stderrMessage = reason.stderrPath map { path => 
+        val stderrMessage = reason.stderrPath map { path =>
           val content = Try(path.annotatedContentAsStringWithLimit(3000)).recover({
             case e => s"Could not retrieve content: ${e.getMessage}"
           }).get
-          s"\nCheck the content of stderr for potential additional information: ${path.pathAsString}.\n $content" 
+          s"\nCheck the content of stderr for potential additional information: ${path.pathAsString}.\n $content"
         } getOrElse ""
         reason.getMessage + stderrMessage
       case reason => ExceptionUtils.getStackTrace(reason)

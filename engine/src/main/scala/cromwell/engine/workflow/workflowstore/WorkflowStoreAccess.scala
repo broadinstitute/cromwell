@@ -27,7 +27,7 @@ sealed trait WorkflowStoreAccess {
                               heartbeatDateTime: OffsetDateTime)
                              (implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[Int]
 
-  def fetchStartableWorkflows(maxWorkflows: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
+  def fetchStartableWorkflows(maxWorkflows: Int, cromwellId: String, heartbeatTtl: FiniteDuration, excludedGroups: Set[String])
                              (implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[List[WorkflowToStart]]
 
   def abort(workflowId: WorkflowId)
@@ -50,9 +50,9 @@ case class UncoordinatedWorkflowStoreAccess(store: WorkflowStore) extends Workfl
     store.writeWorkflowHeartbeats(workflowIds.toVector.toSet, heartbeatDateTime)
   }
 
-  override def fetchStartableWorkflows(maxWorkflows: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
+  override def fetchStartableWorkflows(maxWorkflows: Int, cromwellId: String, heartbeatTtl: FiniteDuration, excludedGroups: Set[String])
                                       (implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[List[WorkflowToStart]] = {
-    store.fetchStartableWorkflows(maxWorkflows, cromwellId, heartbeatTtl)
+    store.fetchStartableWorkflows(maxWorkflows, cromwellId, heartbeatTtl, excludedGroups)
   }
 
   override def deleteFromStore(workflowId: WorkflowId)(implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[Int] = {
@@ -79,9 +79,9 @@ case class CoordinatedWorkflowStoreAccess(coordinatedWorkflowStoreAccessActor: A
     )
   }
 
-  override def fetchStartableWorkflows(maxWorkflows: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
+  override def fetchStartableWorkflows(maxWorkflows: Int, cromwellId: String, heartbeatTtl: FiniteDuration, excludedGroups: Set[String])
                                       (implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[List[WorkflowToStart]] = {
-    val message = WorkflowStoreCoordinatedAccessActor.FetchStartableWorkflows(maxWorkflows, cromwellId, heartbeatTtl)
+    val message = WorkflowStoreCoordinatedAccessActor.FetchStartableWorkflows(maxWorkflows, cromwellId, heartbeatTtl, excludedGroups)
     withRetryForTransactionRollback(
       () => coordinatedWorkflowStoreAccessActor.ask(message).mapTo[List[WorkflowToStart]]
     )

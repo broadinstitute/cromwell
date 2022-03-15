@@ -16,7 +16,7 @@ import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowActorWorkComplete
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.Rate
-import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
+import cromwell.engine.workflow.tokens.JobTokenDispenserActor
 import cromwell.engine.workflow.workflowstore.{Submitted, WorkflowHeartbeatConfig, WorkflowToStart}
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld.Addressee
@@ -50,7 +50,8 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
       inputsJson = rawInputsOverride,
       workflowOptions = WorkflowOptions.empty,
       labelsJson = "{}",
-      warnings = Vector.empty
+      warnings = Vector.empty,
+      requestedWorkflowId = None
     )
 
     val promise = Promise[Unit]()
@@ -72,7 +73,8 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
         callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props),
         callCacheWriteActor = system.actorOf(EmptyCallCacheWriteActor.props),
         dockerHashActor = system.actorOf(EmptyDockerHashActor.props),
-        jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None)),
+        jobRestartCheckTokenDispenserActor = system.actorOf(JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running")),
+        jobExecutionTokenDispenserActor = system.actorOf(JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running")),
         backendSingletonCollection = BackendSingletonCollection(Map("Local" -> None)),
         serverMode = true,
         workflowStoreActor = system.actorOf(Props.empty),

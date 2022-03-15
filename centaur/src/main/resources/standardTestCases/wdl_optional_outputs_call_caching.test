@@ -1,0 +1,16 @@
+name: wdl_optional_outputs_call_caching
+testFormat: runtwiceexpectingcallcaching
+backends: [Papiv2]
+
+# CROM-6807 Don't retry failures, subsequent runs will fail because of unexpected cache hits from the initial run
+retryTestFailures: false
+
+files {
+  workflow: wdl_optional_outputs_call_caching/wdl_optional_outputs_call_caching.wdl
+}
+
+metadata {
+  workflowName: missing_optional_output
+  status: Succeeded
+  "calls.missing_optional_output.do_and_do_not_output.callCaching.result": "Cache Hit: <<CACHE_HIT_UUID>>:missing_optional_output.do_and_do_not_output:-1"
+}

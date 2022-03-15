@@ -358,7 +358,8 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec {
       labelsJson = "",
       importsFile = None,
       workflowOnHold = false,
-      warnings = Seq.empty
+      warnings = Seq.empty,
+      requestedWorkflowId = None
     )
   }
 

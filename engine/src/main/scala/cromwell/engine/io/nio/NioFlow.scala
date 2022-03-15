@@ -2,7 +2,9 @@ package cromwell.engine.io.nio
 
 import akka.stream.scaladsl.Flow
 import cats.effect.{IO, Timer}
-import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
+
+import scala.util.Try
+import cloud.nio.spi.{ChecksumFailure, ChecksumResult, ChecksumSkipped, ChecksumSuccess, FileHash, HashType}
 import com.typesafe.config.Config
 import common.util.IORetry
 import cromwell.core.io._
@@ -60,7 +62,7 @@ class NioFlow(parallelism: Int,
       result <- operationResult
     } yield (result, commandContext)
 
-     io handleErrorWith {
+    io handleErrorWith {
       failure => IO.pure(commandContext.fail(failure))
     }
   }
@@ -105,12 +107,46 @@ class NioFlow(parallelism: Int,
     ()
   }
 
-  private def readAsString(read: IoContentAsStringCommand) = IO {
-    new String(
-      read.file.limitFileContent(read.options.maxBytes, read.options.failOnOverflow),
-      StandardCharsets.UTF_8
-    )
-      .replaceAll("\\r\\n", "\\\n")
+  private def readAsString(command: IoContentAsStringCommand): IO[String] = {
+    def checkHash(value: String, fileHash: FileHash): IO[ChecksumResult] = {
+      // Disable checksum validation if failOnOverflow is false. We might not read
+      // the entire stream, in which case the checksum will definitely fail.
+      // Ideally, we would only disable checksum validation if there was an actual
+      // overflow, but we don't know that here.
+      if (!command.options.failOnOverflow) return IO.pure(ChecksumSkipped())
+
+      val hash = fileHash.hashType.calculateHash(value)
+      if (hash.toLowerCase == fileHash.hash.toLowerCase) IO.pure(ChecksumSuccess())
+      else IO.pure(ChecksumFailure(hash))
+    }
+
+    def readFile: IO[String] = IO {
+      new String(
+        command.file.limitFileContent(command.options.maxBytes, command.options.failOnOverflow),
+        StandardCharsets.UTF_8
+      )
+    }
+
+    def readFileAndChecksum: IO[String] = {
+      for {
+        fileHash <- getHash(command.file)
+        uncheckedValue <- readFile
+        checksumResult <- checkHash(uncheckedValue, fileHash)
+        verifiedValue <- checksumResult match {
+          case _: ChecksumSkipped => IO.pure(uncheckedValue)
+          case _: ChecksumSuccess => IO.pure(uncheckedValue)
+          case failure: ChecksumFailure => IO.raiseError(
+            ChecksumFailedException(
+              s"Failed checksum for '${command.file}'. Expected '${fileHash.hashType}' hash of '${fileHash.hash}'. Calculated hash '${failure.calculatedHash}'"))
+        }
+      } yield verifiedValue
+    }
+
+    val fileContentIo = command.file match {
+      case _: DrsPath => readFileAndChecksum
+      case _ => readFile
+    }
+    fileContentIo.map(_.replaceAll("\\r\\n", "\\\n"))
   }
 
   private def size(size: IoSizeCommand) = IO {
@@ -118,17 +154,22 @@ class NioFlow(parallelism: Int,
   }
 
   private def hash(hash: IoHashCommand): IO[String] = {
-    hash.file match {
-      case gcsPath: GcsPath => IO.fromTry { gcsPath.objectBlobId.map(gcsPath.cloudStorage.get(_).getCrc32c) }
-      case drsPath: DrsPath => getFileHashForDrsPath(drsPath)
-      case s3Path: S3Path => IO { s3Path.eTag }
-      case ossPath: OssPath => IO { ossPath.eTag}
-      case path =>
-        IO.fromEither(
-        tryWithResource(() => path.newInputStream) { inputStream =>
-          org.apache.commons.codec.digest.DigestUtils.md5Hex(inputStream)
-        }.toEither
-      )
+    getHash(hash.file).map(_.hash)
+  }
+
+  private def getHash(file: Path): IO[FileHash] = {
+    file match {
+      case gcsPath: GcsPath => getFileHashForGcsPath(gcsPath)
+      case drsPath: DrsPath => IO {
+        drsPath.getFileHash
+      }
+      case s3Path: S3Path => IO {
+        FileHash(HashType.S3Etag, s3Path.eTag)
+      }
+      case ossPath: OssPath => IO {
+        FileHash(HashType.OssEtag, ossPath.eTag)
+      }
+      case path => getMd5FileHashForPath(path)
     }
   }
 
@@ -152,21 +193,21 @@ class NioFlow(parallelism: Int,
 
   private def createDirectories(path: Path) = path.parent.createDirectories()
 
-  private def getFileHashForDrsPath(drsPath: DrsPath): IO[String] = {
-    val drsFileSystemProvider = drsPath.drsPath.getFileSystem.provider.asInstanceOf[DrsCloudNioFileSystemProvider]
+  /**
+    * Lazy evaluation of a Try in a delayed IO. This avoids accidentally eagerly evaluating the Try.
+    *
+    * IMPORTANT: Use this instead of IO.fromTry to make sure the Try will be reevaluated if the
+    * IoCommand is retried.
+    */
+  private def delayedIoFromTry[A](t: => Try[A]): IO[A] = IO[A] { t.get }
 
-    //Since this does not actually do any IO work it is not wrapped in IO
-    val fileAttributesOption = drsFileSystemProvider.fileProvider.fileAttributes(drsPath.drsPath.cloudHost, drsPath.drsPath.cloudPath)
+  private def getFileHashForGcsPath(gcsPath: GcsPath): IO[FileHash] = delayedIoFromTry {
+    gcsPath.objectBlobId.map(id => FileHash(HashType.GcsCrc32c, gcsPath.cloudStorage.get(id).getCrc32c))
+  }
 
-    fileAttributesOption match {
-      case Some(fileAttributes) =>
-        val fileHashIO = IO { fileAttributes.fileHash }
-
-        fileHashIO.flatMap({
-          case Some(fileHash) => IO.pure(fileHash)
-          case None => IO.raiseError(new IOException(s"Error while resolving DRS path $drsPath. The response from Martha doesn't contain the 'md5' hash for the file."))
-        })
-      case None => IO.raiseError(new IOException(s"Error getting file hash of DRS path $drsPath. Reason: File attributes class DrsCloudNioRegularFileAttributes wasn't defined in DrsCloudNioFileProvider."))
+  private def getMd5FileHashForPath(path: Path): IO[FileHash] = delayedIoFromTry {
+    tryWithResource(() => path.newInputStream) { inputStream =>
+      FileHash(HashType.Md5, org.apache.commons.codec.digest.DigestUtils.md5Hex(inputStream))
     }
   }
 }
@@ -180,3 +221,5 @@ object NioFlow {
     NioFlowConfig(parallelism)
   }
 }
+
+case class ChecksumFailedException(message: String) extends IOException(message)

@@ -2,6 +2,9 @@ name: use_cache_copy_dir
 testFormat: runtwiceexpectingcallcaching
 backends: [Papiv2]
 
+# CROM-6807 Don't retry failures, subsequent runs will fail because of unexpected cache hits from the initial run
+retryTestFailures: false
+
 files {
   workflow: use_cacheCopy_dir/use_cacheCopy_dir.wdl
 }

@@ -6,18 +6,11 @@ import cromwell.core.ExecutionEvent
 
 import scala.util.Try
 
-sealed trait RunStatus {
-  import RunStatus._
-
-  // Could be defined as false for Initializing and true otherwise, but this is more defensive.
-  def isRunningOrComplete = this match {
-    case Running | _: TerminalRunStatus => true
-    case _ => false
-  }
-}
+sealed trait RunStatus
 
 object RunStatus {
   case object Initializing extends RunStatus
+  case object AwaitingCloudQuota extends RunStatus
   case object Running extends RunStatus
 
   sealed trait TerminalRunStatus extends RunStatus {

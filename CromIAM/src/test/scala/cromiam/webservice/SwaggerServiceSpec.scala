@@ -77,20 +77,6 @@ class SwaggerServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Swagg
       }
   }
 
-  it should "return the index.html" in {
-    Get("/swagger/index.html") ~>
-      swaggerUiResourceRoute ~>
-      check {
-        assertResult(StatusCodes.OK) {
-          status
-        }
-        assertResult("<!-- HTML for static distribution bundle build -->") {
-          responseAs[String].take(50)
-        }
-        assertResult(ContentTypes.`text/html(UTF-8)`)(contentType)
-      }
-  }
-
   it should "return status OK when getting OPTIONS on paths" in {
     val pathExamples = Table("path", "/", "/swagger", "/swagger/cromwell.yaml", "/swagger/index.html", "/api",
       "/api/workflows/", "/api/workflows/v1", "/workflows/v1/outputs", "/workflows/v1/status",

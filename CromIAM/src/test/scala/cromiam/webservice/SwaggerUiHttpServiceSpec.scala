@@ -4,10 +4,8 @@ import akka.http.scaladsl.model.headers.Location
 import akka.http.scaladsl.model.{ContentTypes, StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import com.typesafe.config.ConfigFactory
 import common.assertion.CromwellTimeoutSpec
 import cromiam.server.config.SwaggerOauthConfig
-import cromiam.webservice.SwaggerUiHttpServiceSpec._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -15,8 +13,6 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 
 trait SwaggerUiHttpServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest with SwaggerUiHttpService {
   def actorRefFactory = system
-
-  override def swaggerUiVersion = TestSwaggerUiVersion
 }
 
 trait SwaggerResourceHttpServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest with
@@ -47,121 +43,45 @@ class BasicSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
   // Replace same magic string used in SwaggerUiResourceHttpService.rewriteSwaggerIndex
     data.replace("window.ui = ui", "replaced-client-id")
 
-  it should "redirect / to /swagger" in {
+  it should "redirect /swagger to /" in {
+    Get("/swagger") ~> swaggerUiRoute ~> check {
+      status should be(StatusCodes.MovedPermanently)
+      header("Location") should be(Option(Location(Uri("/"))))
+    }
+  }
+
+  it should "redirect /swagger/index.html?url=/swagger/cromiam.yaml to /" in {
+    Get("/swagger/index.html?url=/swagger/cromiam.yaml") ~> swaggerUiRoute ~> check {
+      status should be(StatusCodes.MovedPermanently)
+      header("Location") should be(Option(Location(Uri("/"))))
+      responseAs[String] shouldEqual """This and all future requests should be directed to <a href="/">this URI</a>."""
+    }
+  }
+
+  it should "not return options for /" in {
+    Options() ~> Route.seal(swaggerUiRoute) ~> check {
+      status should be(StatusCodes.MethodNotAllowed)
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
+    }
+  }
+
+  it should "return index.html from the swagger-ui jar for /" in {
+    Get("/") ~> swaggerUiRoute ~> check {
+      status should be(StatusCodes.OK)
+      responseAs[String].take(15) should be("<!-- HTML for s")
+    }
+  }
+
+  it should "return index.html from the swagger-ui jar for base url" in {
     Get() ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.TemporaryRedirect)
-      header("Location") should be(Option(Location(Uri("/swagger"))))
-      contentType should be(ContentTypes.`text/html(UTF-8)`)
-    }
-  }
-
-  it should "not return options for /" in {
-    Options() ~> Route.seal(swaggerUiRoute) ~> check {
-      status should be(StatusCodes.MethodNotAllowed)
-      contentType should be(ContentTypes.`text/plain(UTF-8)`)
-    }
-  }
-
-  it should "redirect /swagger to the index.html" in {
-    Get("/swagger") ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.TemporaryRedirect)
-      header("Location") should be(Option(Location(Uri("/swagger/index.html?url=/api-docs"))))
-      contentType should be(ContentTypes.`text/html(UTF-8)`)
-    }
-  }
-
-  it should "return index.html from the swagger-ui jar" in {
-    Get("/swagger/index.html") ~> swaggerUiRoute ~> check {
       status should be(StatusCodes.OK)
-      responseAs[String] should include("replaced-client-id")
-      contentType should be(ContentTypes.`text/html(UTF-8)`)
-    }
-  }
-}
-
-class NoRedirectRootSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
-  override def swaggerUiFromRoot = false
-
-  behavior of "SwaggerUiHttpService"
-
-  it should "not redirect / to /swagger" in {
-    Get() ~> Route.seal(swaggerUiRoute) ~> check {
-      status should be(StatusCodes.NotFound)
-      contentType should be(ContentTypes.`text/plain(UTF-8)`)
+      responseAs[String].take(15) should be("<!-- HTML for s")
     }
   }
 
-  it should "not return options for /" in {
-    Options() ~> Route.seal(swaggerUiRoute) ~> check {
-      status should be(StatusCodes.MethodNotAllowed)
-      contentType should be(ContentTypes.`text/plain(UTF-8)`)
-    }
-  }
-
-  it should "redirect /swagger to the index.html" in {
-    Get("/swagger") ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.TemporaryRedirect)
-      header("Location") should be(Option(Location(Uri("/swagger/index.html?url=/api-docs"))))
-      contentType should be(ContentTypes.`text/html(UTF-8)`)
-    }
-  }
-
-  it should "return index.html from the swagger-ui jar" in {
-    Get("/swagger/index.html") ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.OK)
-      contentType should be(ContentTypes.`text/html(UTF-8)`)
-    }
-  }
-}
-
-class DefaultSwaggerUiConfigHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerUiConfigHttpService {
-  override def swaggerUiConfig = ConfigFactory.parseString(s"uiVersion = $TestSwaggerUiVersion")
-
-  behavior of "SwaggerUiConfigHttpService"
-
-  it should "redirect /swagger to the index.html" in {
-    Get("/swagger") ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.TemporaryRedirect)
-      header("Location") should be(Option(Location(Uri("/swagger/index.html?url=/api-docs"))))
-      contentType should be(ContentTypes.`text/html(UTF-8)`)
-    }
-  }
-
-  it should "return index.html from the swagger-ui jar" in {
-    Get("/swagger/index.html") ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.OK)
-      responseAs[String].take(SwaggerIndexPreamble.length) should be(SwaggerIndexPreamble)
-      contentType should be(ContentTypes.`text/html(UTF-8)`)
-    }
-  }
-}
-
-class OverriddenSwaggerUiConfigHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerUiConfigHttpService {
-  override def swaggerUiConfig = ConfigFactory.parseString(
-    s"""
-       |baseUrl = /base
-       |docsPath = swagger/cromiam.yaml
-       |uiPath = ui/path
-       |uiVersion = $TestSwaggerUiVersion
-     """.stripMargin)
-
-  behavior of "SwaggerUiConfigHttpService"
-
-  it should "redirect /ui/path to the index.html under /base" in {
-    Get("/ui/path") ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.TemporaryRedirect)
-      header("Location") should be(Option(Location(Uri("/base/ui/path/index.html?url=/base/swagger/cromiam.yaml"))))
-      contentType should be(ContentTypes.`text/html(UTF-8)`)
-    }
-  }
-
-  it should "return index.html from the swagger-ui jar" in {
-    Get("/ui/path/index.html") ~> swaggerUiRoute ~> check {
-      status should be(StatusCodes.OK)
-      responseAs[String].take(SwaggerIndexPreamble.length) should be(SwaggerIndexPreamble)
-      contentType should be(ContentTypes.`text/html(UTF-8)`)
-    }
-  }
+  override def oauthConfig: SwaggerOauthConfig = SwaggerOauthConfig(
+    clientId = "test-client-id", realm = "test-realm", appName = "test-appname"
+  )
 }
 
 class YamlSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpServiceSpec {
@@ -242,59 +162,12 @@ class JsonSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpServiceSpec 
   }
 }
 
-class NoOptionsSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpServiceSpec {
-  override def swaggerServiceName = "testservice"
-
-  override def swaggerAllOptionsOk = false
-
-  behavior of "SwaggerResourceHttpService"
-
-  it should "service swagger yaml" in {
-    Get("/swagger/testservice.yaml") ~> swaggerResourceRoute ~> check {
-      status should be(StatusCodes.OK)
-      responseAs[String] should startWith("swagger: '2.0'\n")
-      contentType should be(ContentTypes.`application/octet-stream`)
-    }
-  }
-
-  it should "not service swagger json" in {
-    Get("/swagger/testservice.json") ~> Route.seal(swaggerResourceRoute) ~> check {
-      status should be(StatusCodes.NotFound)
-      contentType should be(ContentTypes.`text/plain(UTF-8)`)
-    }
-  }
-
-  it should "not service /swagger" in {
-    Get("/swagger") ~> Route.seal(swaggerResourceRoute) ~> check {
-      status should be(StatusCodes.NotFound)
-      contentType should be(ContentTypes.`text/plain(UTF-8)`)
-    }
-  }
-
-  it should "not return options for all routes" in {
-    forAll(testPathsForOptions) { path =>
-      Options(path) ~> Route.seal(swaggerResourceRoute) ~> check {
-        status should be(StatusCodes.MethodNotAllowed)
-        contentType should be(ContentTypes.`text/plain(UTF-8)`)
-      }
-    }
-  }
-}
-
 class YamlSwaggerUiResourceHttpServiceSpec extends SwaggerUiResourceHttpServiceSpec {
 
   override def oauthConfig: SwaggerOauthConfig = SwaggerOauthConfig("clientId", "realm", "appName")
   override def swaggerServiceName = "testservice"
 
   behavior of "SwaggerUiResourceHttpService"
-
-  it should "redirect /swagger to /swagger/index.html with yaml" in {
-    Get("/swagger") ~> swaggerUiResourceRoute ~> check {
-      status should be(StatusCodes.TemporaryRedirect)
-      header("Location") should be(Option(Location(Uri("/swagger/index.html?url=/swagger/testservice.yaml"))))
-      contentType should be(ContentTypes.`text/html(UTF-8)`)
-    }
-  }
 
   it should "service swagger yaml" in {
     Get("/swagger/testservice.yaml") ~> swaggerUiResourceRoute ~> check {
@@ -331,14 +204,6 @@ class JsonSwaggerUiResourceHttpServiceSpec extends SwaggerUiResourceHttpServiceS
   override def swaggerResourceType = "json"
 
   behavior of "SwaggerUiResourceHttpService"
-
-  it should "redirect /swagger to /swagger/index.html with yaml with json" in {
-    Get("/swagger") ~> swaggerUiResourceRoute ~> check {
-      status should be(StatusCodes.TemporaryRedirect)
-      header("Location") should be(Option(Location(Uri("/swagger/index.html?url=/swagger/testservice.json"))))
-      contentType should be(ContentTypes.`text/html(UTF-8)`)
-    }
-  }
 
   it should "service swagger json" in {
     Get("/swagger/testservice.json") ~> swaggerUiResourceRoute ~> check {

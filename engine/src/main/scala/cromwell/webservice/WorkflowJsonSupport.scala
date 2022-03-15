@@ -33,7 +33,15 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
     override def write(obj: WorkflowOptions): JsValue = JsString(obj.asPrettyJson)
   }
 
-  implicit val workflowSourceData = jsonFormat10(WorkflowSourceFilesWithoutImports)
+  implicit val workflowIdFormatter: JsonFormat[WorkflowId] = new JsonFormat[WorkflowId]  {
+    override def read(json: JsValue): WorkflowId = json match {
+      case str: JsString => WorkflowId.fromString(str.value)
+      case other => throw new UnsupportedOperationException(s"Cannot use ${other.getClass.getSimpleName} value. Expected a workflow ID String")
+    }
+    override def write(obj: WorkflowId): JsValue = JsString(obj.id.toString)
+  }
+
+  implicit val workflowSourceData = jsonFormat11(WorkflowSourceFilesWithoutImports)
   implicit val subsystemStatusFormat = jsonFormat2(SubsystemStatus)
   implicit val statusCheckResponseFormat = jsonFormat2(StatusCheckResponse)
 
@@ -45,7 +53,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
     }
   }
 
-  implicit val workflowSourceDataWithImports = jsonFormat11(WorkflowSourceFilesWithDependenciesZip)
+  implicit val workflowSourceDataWithImports = jsonFormat12(WorkflowSourceFilesWithDependenciesZip)
   implicit val errorResponse = jsonFormat3(FailureResponse)
 
   // By default the formatter for JsValues prints them out ADT-style.

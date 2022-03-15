@@ -14,6 +14,7 @@ import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.impl.MetadataDatabaseAccess.WorkflowArchiveStatusAndEndTimestamp
+import cromwell.services.metadata.impl.MetadataStatisticsRecorder.MetadataStatisticsRecorderSettings
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
 import cromwell.services.metadata.impl.archiver.{ArchiveMetadataConfig, ArchiveMetadataSchedulerActor}
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
@@ -84,7 +85,8 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
 
   val dbFlushRate = serviceConfig.getOrElse("db-flush-rate", 5.seconds)
   val dbBatchSize = serviceConfig.getOrElse("db-batch-size", 200)
-  val writeActor = context.actorOf(WriteMetadataActor.props(dbBatchSize, dbFlushRate, serviceRegistryActor, LoadConfig.MetadataWriteThreshold), "WriteMetadataActor")
+  val metadataWriteStatisticsConfig = MetadataStatisticsRecorderSettings(serviceConfig.as[Option[Config]]("metadata-write-statistics"))
+  val writeActor = context.actorOf(WriteMetadataActor.props(dbBatchSize, dbFlushRate, serviceRegistryActor, LoadConfig.MetadataWriteThreshold, metadataWriteStatisticsConfig), "WriteMetadataActor")
 
   implicit val ec = context.dispatcher
   //noinspection ActorMutableStateInspection

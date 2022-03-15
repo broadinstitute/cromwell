@@ -4,9 +4,11 @@ import akka.actor.{ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyVector
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.Mailbox.PriorityMailbox
+import cromwell.core.WorkflowId
 import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.services.metadata.MetadataEvent
 import cromwell.services.metadata.MetadataService._
+import cromwell.services.metadata.impl.MetadataStatisticsRecorder.MetadataStatisticsRecorderSettings
 import cromwell.services.{EnhancedBatchActor, MetadataServicesStore}
 
 import scala.concurrent.duration._
@@ -16,11 +18,14 @@ import scala.util.{Failure, Success}
 class WriteMetadataActor(override val batchSize: Int,
                          override val flushRate: FiniteDuration,
                          override val serviceRegistryActor: ActorRef,
-                         override val threshold: Int)
+                         override val threshold: Int,
+                         metadataStatisticsRecorderSettings: MetadataStatisticsRecorderSettings)
   extends EnhancedBatchActor[MetadataWriteAction](flushRate, batchSize)
     with ActorLogging
     with MetadataDatabaseAccess
     with MetadataServicesStore {
+
+  private val statsRecorder = MetadataStatisticsRecorder(metadataStatisticsRecorderSettings)
 
   override def process(e: NonEmptyVector[MetadataWriteAction]) = instrumentedProcess {
     val empty = (Vector.empty[MetadataEvent], List.empty[(Iterable[MetadataEvent], ActorRef)])
@@ -33,6 +38,8 @@ class WriteMetadataActor(override val batchSize: Int,
     })
     val allPutEvents: Iterable[MetadataEvent] = putWithoutResponse ++ putWithResponse.flatMap(_._1)
     val dbAction = addMetadataEvents(allPutEvents)
+
+    statsRecorder.processEventsAndGenerateAlerts(allPutEvents) foreach(a => log.warning(s"${a.workflowId} has logged a heavy amount of metadata (${a.count} rows)"))
 
     dbAction onComplete {
       case Success(_) =>
@@ -48,8 +55,11 @@ class WriteMetadataActor(override val batchSize: Int,
     dbAction.map(_ => allPutEvents.size)
   }
 
+  private def countActionsByWorkflow(writeActions: Vector[MetadataWriteAction]): Map[WorkflowId, Int] =
+    writeActions.flatMap(_.events).groupBy(_.key.workflowId).map { case (k, v) => k -> v.size }
+
   private def enumerateWorkflowWriteFailures(writeActions: Vector[MetadataWriteAction]): String =
-    writeActions.flatMap(_.events).groupBy(_.key.workflowId).map { case (wfid, list) => s"$wfid: ${list.size}" }.mkString(", ")
+    countActionsByWorkflow(writeActions).map { case (wfid, size) => s"$wfid: $size" }.mkString(", ")
 
   private def handleOutOfTries(writeActions: Vector[MetadataWriteAction], reason: Throwable): Unit = if (writeActions.nonEmpty) {
     log.error(reason, "Metadata event writes have failed irretrievably for the following workflows. They will be lost: " + enumerateWorkflowWriteFailures(writeActions))
@@ -84,8 +94,9 @@ object WriteMetadataActor {
   def props(dbBatchSize: Int,
             flushRate: FiniteDuration,
             serviceRegistryActor: ActorRef,
-            threshold: Int): Props =
-    Props(new WriteMetadataActor(dbBatchSize, flushRate, serviceRegistryActor, threshold))
+            threshold: Int,
+            statisticsRecorderSettings: MetadataStatisticsRecorderSettings): Props =
+    Props(new WriteMetadataActor(dbBatchSize, flushRate, serviceRegistryActor, threshold, statisticsRecorderSettings))
       .withDispatcher(ServiceDispatcher)
       .withMailbox(PriorityMailbox)
 }

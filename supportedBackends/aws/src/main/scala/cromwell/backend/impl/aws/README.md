@@ -42,7 +42,6 @@ Docker Hub authentication for AWS Backend enable users to access and use private
 dockerhub { token = "<enconded-string-from-point-2>" }
 ```
 
-
 AWS Batch
 ---------
 
@@ -83,46 +82,22 @@ will auto-expand,
 generated shell scripts from S3 that contain the instructions of the workflow
 task 
 
-```text
-                  +-------------+
-                  |             |
-                  |  AWS Batch  |
-                  |             |
-                  +------+------+
-                         |
-                         |
-                         |
-                         |
-                         |
-        +----------------v------------------+
-        |                                   |
-        |  Elastic Container Service (ECS)  |
-        |                                   |
-        +----------------+------------------+
-                         |
-                         |
-                         |
-                         |
-                         |
-+------------------------v-------------------------+
-|                                                  |
-|  AutoScaling Group                               |
-|                                                  |
-| +---------------------------------+              |
-| |                                 |              |
-| |  EC2 Instance                   |              |
-| |                                 |              |
-| |  +--------------------+         |              |
-| |  |                    |         |              |
-| |  |  Docker Container  |         |              |
-| |  |                    |         |              |
-| |  +--------------------+  ...    |              |
-| |                                 |              |
-| +---------------------------------+     ...      |
-|                                                  |
-+--------------------------------------------------+
 
+```mermaid
+  flowchart LR
+    subgraph auto ["AutoScaling Group"]
+      direction RL
+      subgraph ec2_1 ["EC2 Instance"]
+          docker_1["Docker Container"]
+      end
+      subgraph ec2_2 ["EC2 Instance"]
+          docker_2["Docker Container"]
+      end
+    end
+    batch["AWS Batch"]-->ecs["Elastic Container Service (ECS)"];
+    ecs-->auto;
 ```
+
 
 Cromwell AWS Batch Backend
 --------------------------

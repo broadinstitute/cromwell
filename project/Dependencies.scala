@@ -42,15 +42,15 @@ object Dependencies {
   // runtime dependency of ScalaTest. They must be upgraded together, based on the ScalaTest version.
   private val flexmarkV = "0.62.2" // scala-steward:off
   private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
-  private val googleApiClientV = "1.32.1"
-  private val googleCloudBigQueryV = "2.1.13"
-  // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-cloudkms
-  private val googleCloudKmsV = "v1-rev20210820-1.32.1"
-  private val googleCloudMonitoringV = "3.0.6"
+  private val googleApiClientV = "1.33.2"
+  private val googleCloudBigQueryV = "2.10.0"
+  // latest date via: https://github.com/googleapis/google-api-java-client-services/blob/main/clients/google-api-services-cloudkms/v1.metadata.json
+  private val googleCloudKmsV = "v1-rev20220104-1.32.1"
+  private val googleCloudMonitoringV = "3.2.5"
   // BW-808 Pinning googleCloudNioV to this tried-and-true old version and quieting Scala Steward.
   // 0.121.2 is the most recent version currently known to work.
   private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
-  private val googleCloudStorageV = "2.1.6"
+  private val googleCloudStorageV = "2.1.10"
   private val googleGaxGrpcV = "2.4.1"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-genomics
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"
@@ -58,9 +58,9 @@ object Dependencies {
   private val googleHttpClientV = "1.38.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-lifesciences
   private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20210813-1.32.1"
-  private val googleOauth2V = "1.1.0"
-  private val googleOauthClientV = "1.32.1"
-  private val googleCloudResourceManagerV = "1.1.2"
+  private val googleOauth2V = "1.5.3"
+  private val googleOauthClientV = "1.33.1"
+  private val googleCloudResourceManagerV = "1.2.5"
   private val grpcV = "1.45.0"
   private val guavaV = "31.0.1-jre"
   private val heterodonV = "1.0.0-beta3"

@@ -134,11 +134,11 @@ AWS Batch Job Instantiation
 ---------------------------
 
 ```mermaid
-  flowchart TD;
-    cromwell[Cromwell Backend]
-    batch[AWS Batch]
-    ecs[ECS Agent]
-    task[Task Container]
+  flowchart TD
+    cromwell["Cromwell Backend"]
+    batch["AWS Batch"]
+    ecs["ECS Agent"]
+    task["Task Container"]
     
     cromwell-- SubmitJob -->batch
     batch-- Polls -->ecs
@@ -252,58 +252,62 @@ The flow described below represents the permissions needed by each stage, from
 Cromwell server through the task running. This includes the permissions needed for
 the AWS Services involved in the processing of the work.
 
-```text
-+----------------------------+
-|                            |  s3:GetObject on bucket for workflow and script bucket
-|                            |  s3:ListObjects on script bucket
-|                            |  s3:PutObject on script bucket
-|          Cromwell          |  batch:RegisterTaskDefinition
-|                            |  batch:SubmitJob
-|                            |  batch:DescribeJobs
-|                            |  batch:DescribeJobDefinitions
-+-------------+--------------+
-              |
-              |
-              |
-+-------------v--------------+
-|                            |  AWSBatchServiceRole managed policy - described at:
-|          AWS Batch         |
-|                            |     https://docs.aws.amazon.com/batch/latest/userguide/service_IAM_role.html
-+-------------+--------------+
-              |
-              |
-              |
-+-------------v--------------+
-|                            |  AWSServiceRoleForECS Service-linked role, documented at:
-|                            |
-| Elastic Container Service  |     https://docs.aws.amazon.com/AmazonECS/latest/developerguide/using-service-linked-roles.html
-|                            |
-|  (See discussion #1 below) |  AmazonEC2ContainerServiceAutoscaleRole managed policy - described at:
-|                            |
-|                            |     https://docs.aws.amazon.com/AmazonECS/latest/developerguide/autoscale_IAM_role.html
-+-------------+--------------+
-              |
-              |
-              |
-+-------------v--------------+
-|                            |
-|                            |  AmazonEC2ContainerServiceforEC2Role managed policy, described at:
-| ECS Agent (running on EC2) |     https://docs.aws.amazon.com/AmazonECS/latest/developerguide/instance_IAM_role.html (EC2)
-|                            |    OR
-|                            |  AmazonECSTaskExecutionRolePolicy managed policy, described at:  
-|                            |     https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html (Fargate)
-+-------------+--------------+ 
-              |
-              |
-              |
-+-------------v--------------+
-|                            |  Task Role permissions. These are user defined, but ecs-tasks.amazon.com must have sts:AssumeRole trust relationship defined. Documentation:
-|       Task Container       |
-|                            |     https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_IAM_role.html
-|                            |  s3:GetObject, s3:PutObject, s3:ListObjects
-+----------------------------+
-```
+```mermaid
+  flowchart TD
+    cromwell["Cromwell"]
+    batch["AWS Batch"]
+    ecs["Elastic Container Service\n\n(See discussion #1 below)"]
+    ec2["ECS Agent (running on EC2)"]
+    task["Task Container"]
 
+    cromwell_desc["s3:GetObject on bucket for workflow and script bucket
+                   s3:ListObjects on script bucket
+                   s3:PutObject on script bucket
+                   batch:RegisterTaskDefinition
+                   batch:SubmitJob
+                   batch:DescribeJobs
+                   batch:DescribeJobDefinitions"]
+
+    batch_desc["AWSBatchServiceRole managed policy, described <a href='https://docs.aws.amazon.com/batch/latest/userguide/service_IAM_role.html'>here</a>"]
+
+    ecs_desc["AWSServiceRoleForECS Service-linked role, described <a href='https://docs.aws.amazon.com/AmazonECS/latest/developerguide/using-service-linked-roles.html'>here</a>
+    
+              AmazonEC2ContainerServiceAutoscaleRole managed policy, described <a href='https://docs.aws.amazon.com/AmazonECS/latest/developerguide/autoscale_IAM_role.html'>here</a>"]
+
+    ec2_desc["(EC2) AmazonEC2ContainerServiceforEC2Role managed policy, described <a href='https://docs.aws.amazon.com/AmazonECS/latest/developerguide/instance_IAM_role.html'>here</a>
+    
+              (Fargate) AmazonECSTaskExecutionRolePolicy managed policy, described <a href='https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html'>here</a>"]
+
+    task_desc["Task Role permissions.
+              These are user defined, but ecs-tasks.amazon.com must have sts:AssumeRole trust relationship defined.
+              Documentation <a href='https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_IAM_role.html'>here</a>
+              s3:GetObject
+              s3:PutObject
+              s3:ListObjects"]
+
+    subgraph 1 [" "]
+      direction RL
+      cromwell_desc-->cromwell
+    end
+    subgraph 2 [" "]
+      direction RL
+      batch_desc-->batch
+    end
+    subgraph 3 [" "]
+      direction RL
+      ecs_desc-->ecs
+    end
+    subgraph 4 [" "]
+      direction RL
+      ec2_desc-->ec2
+    end
+    subgraph 5 [" "]
+      direction RL
+      task_desc-->task
+    end
+
+    1-->2-->3-->4-->5
+```
 
 1. ECS has several sets of permissions for various items. AWS Batch, however,
    does not take advantage of certain features of ECS, most importantly

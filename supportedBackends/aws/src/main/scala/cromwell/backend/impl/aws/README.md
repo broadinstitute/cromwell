@@ -29,6 +29,20 @@ defined.
 This infrastructure and all the associated configuration still exists; however,
 it is moved out of the Cromwell configuration.
 
+Features
+---------------------
+### Docker Hub Authentication
+
+Docker Hub authentication for AWS Backend enable users to access and use private Docker containers.
+
+1. Create an access token in Docker Hub;
+2. Encode the following string as base64: `<dockerhub-username>:<dockerhub-acess-token>`
+3. Place the following snippet into `cromwell.conf` file under `config`:
+```
+dockerhub { token = "<enconded-string-from-point-2>" }
+```
+
+
 AWS Batch
 ---------
 
@@ -378,19 +392,6 @@ the AWS Services involved in the processing of the work.
 
 NOTE: ECS Agent permissions currently must use the permissions as outlined
       in the AmazonEC2ContainerServiceForEC2Role managed policy.
-
-Features
----------------------
-### Docker Hub Authentication
-
-Docker Hub authentication for AWS Backend enable users to access and use private Docker containers.
-
-1. Create an access token in Docker Hub;
-2. Encode the following string as base64: `<dockerhub-username>:<dockerhub-acess-token>`
-3. Place the following snippet into `cromwell.conf` file under `config`:
-```
-dockerhub { token = "<enconded-string-from-point-2>" }
-```
 
 
 Future considerations

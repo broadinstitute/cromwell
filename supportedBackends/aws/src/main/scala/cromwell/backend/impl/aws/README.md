@@ -106,32 +106,14 @@ There are several scala classes as part of the AWS Batch Backend, but
 the primary classes involved in running the backend are shown below. The
 arrows represent the flow of job submission.
 
-```text
-    +----------------------------------------+
-    |                                        |
-    |  AwsBatchBackendLifecycleActorFactory  |
-    |                                        |
-    +------------------+---------------------+
-                       |
-                       |
-                       |
-                       |
-                       |
-    +------------------v----------------------+
-    |                                         |
-    |  AwsBatchAsyncBackendJobExecutionActor  |
-    |                                         |
-    +------------------+----------------------+
-                       |
-                       |
-                       |
-                       |
-                       |
-               +-------v-------+                 +-------------------------+
-               |               |                 |                         |
-               |  AwsBatchJob  +----------------->  AwsBatchJobDefinition  |
-               |               |                 |                         |
-               +---------------+                 +-------------------------+
+```mermaid
+  flowchart TD;
+    factory[AwsBatchBackendLifecycleActorFactory]
+    execution[AwsBatchAsyncBackendJobExecutionActor]
+    job[AwsBatchJob]
+    definition[AwsBatchJobDefinition]
+    
+    factory-->execution-->job-->definition;
 ```
 
 1. The `AwsBatchBackendLifecycleActorFactory` class is configured by the user
@@ -150,41 +132,17 @@ arrows represent the flow of job submission.
 
 AWS Batch Job Instantiation
 ---------------------------
-```text
-             +--------------------+
-             |                    |
-             |  Cromwell Backend  |
-             |                    |
-             +---------+----------+
-                       |
-                       |
-                   SubmitJob
-                       |
-                       |
-                +------v------+
-                |             |
-                |  AWS Batch  |
-                |             |
-                +------^------+
-                       |
-                       |
-                     Polls
-                       |
-                       |
-                +------+------+
-                |             |
-                |  ECS Agent  |
-                |             |
-                +------+------+
-                       |
-           Creates, Launches and Monitors
-                       |
-              +--------v---------+ 
-              |                  |
-              |  Task Container  |
-              |                  |
-              +------------------+
 
+```mermaid
+  flowchart TD;
+    cromwell[Cromwell Backend]
+    batch[AWS Batch]
+    ecs[ECS Agent]
+    task[Task Container]
+    
+    cromwell-- SubmitJob -->batch
+    batch-- Polls -->ecs
+    ecs-- Creates, Launches and Monitors -->task
 ```
 
 When a Cromwell task begins, the Cromwell backend will call the SubmitJob

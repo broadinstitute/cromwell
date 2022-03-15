@@ -323,6 +323,7 @@ object Dependencies {
     "ecs",
     "ecr",
     "ecrpublic",
+    "secretsmanager",
   ).map(artifactName => "software.amazon.awssdk" % artifactName % awsSdkV)
 
   private val googleCloudDependencies = List(

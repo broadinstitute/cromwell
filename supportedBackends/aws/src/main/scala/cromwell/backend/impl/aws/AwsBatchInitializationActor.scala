@@ -35,6 +35,8 @@ import java.io.IOException
 
 import akka.actor.ActorRef
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient
+import software.amazon.awssdk.services.secretsmanager.model.{CreateSecretRequest, SecretsManagerException, SecretListEntry, UpdateSecretRequest}
 import cromwell.filesystems.s3.batch.S3BatchCommandBuilder
 import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, BackendInitializationData}
@@ -42,8 +44,12 @@ import cromwell.core.io.DefaultIoCommandBuilder
 import cromwell.core.io.AsyncIoActorClient
 import cromwell.core.path.Path
 import wom.graph.CommandCallNode
+import org.apache.commons.codec.binary.Base64
+import spray.json.{JsObject, JsString}
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.concurrent.Future
+import scala.collection.JavaConverters._
 
 case class AwsBatchInitializationActorParams
 (
@@ -64,6 +70,8 @@ object AwsBatchInitializationActor {
 
 class AwsBatchInitializationActor(params: AwsBatchInitializationActorParams)
   extends StandardInitializationActor(params) with AsyncIoActorClient {
+
+  val Log: Logger = LoggerFactory.getLogger(AwsBatchInitializationActor.getClass)
 
   override lazy val ioActor = params.ioActor
   private val configuration = params.configuration
@@ -86,6 +94,63 @@ class AwsBatchInitializationActor(params: AwsBatchInitializationActorParams)
 
   private lazy val provider: Future[AwsCredentialsProvider] =
     Future { configuration.awsAuth.provider() }
+
+  lazy val secretsClient: SecretsManagerClient = {
+    val builder = SecretsManagerClient.builder()
+    configureClient(builder, Option(configuration.awsAuth), configuration.awsConfig.region)
+  }
+
+  private def storePrivateDockerToken(token: String) = {
+    try {
+
+      val secretName: String = "cromwell/credentials/dockerhub"
+
+      // Check if secret already exists
+      // If exists, update it otherwise create it
+      val secretsList: List[SecretListEntry] = secretsClient.listSecrets().secretList().asScala.toList
+
+      if(secretsList.exists(_.name == secretName)){
+        val secretRequest: UpdateSecretRequest = UpdateSecretRequest.builder()
+          .secretId(secretName)
+          .secretString(token)
+          .build();
+
+        secretsClient.updateSecret(secretRequest);
+
+        Log.info(s"Secret '$secretName' was updated.")
+      } else {
+        val secretRequest: CreateSecretRequest = CreateSecretRequest.builder()
+          .name(secretName)
+          .secretString(token)
+          .build()
+
+        secretsClient.createSecret(secretRequest)
+
+        Log.info(s"Secret '$secretName' was created.")
+      }
+    }
+    catch {
+      case e: SecretsManagerException => Log.warn(e.awsErrorDetails().errorMessage())
+    }
+  }
+
+  val privateDockerUnencryptedToken: Option[String] = configuration.dockerToken flatMap { dockerToken =>
+    new String(Base64.decodeBase64(dockerToken)).split(':') match {
+      case Array(username, password) =>
+        // unencrypted tokens are base64-encoded username:password
+        Option(JsObject(
+          Map(
+            "username" -> JsString(username),
+            "password" -> JsString(password)
+          )).compactPrint)
+      case _ => throw new RuntimeException(s"provided dockerhub token '$dockerToken' is not a base64-encoded username:password")
+    }
+  }
+
+  privateDockerUnencryptedToken match {
+    case Some(token) => storePrivateDockerToken(token)
+    case None => Log.debug("No docker token was passed")
+  }
 
   override lazy val workflowPaths: Future[AwsBatchWorkflowPaths] = for {
     prov <- provider

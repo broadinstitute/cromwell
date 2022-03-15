@@ -84,7 +84,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                              parameters: Seq[AwsBatchParameter],
                              configRegion: Option[Region],
                              optAwsAuthMode: Option[AwsAuthMode] = None,
-                             fsxFileSystem: Option[List[String]]
+                             fsxMntPoint: Option[List[String]]
                             ) {
 
 
@@ -390,7 +390,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
         jobPaths = jobPaths,
         inputs = inputs,
         outputs = outputs,
-        fsxFileSystem = fsxFileSystem)
+        fsxMntPoint = fsxMntPoint)
 
       val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder
       val jobDefinition = jobDefinitionBuilder.build(jobDefinitionContext)

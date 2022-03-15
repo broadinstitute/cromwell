@@ -183,7 +183,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       jobPaths, Seq.empty[AwsBatchParameter],
       configuration.awsConfig.region,
       Option(configuration.awsAuth),
-      configuration.fsxFileSystem)
+      configuration.fsxMntPoint)
   }
   /* Tries to abort the job in flight
    *

@@ -6,18 +6,18 @@ import scala.concurrent.duration.FiniteDuration
 
 trait TokenEventLogger {
   def flagTokenHog(hogGroup: String): Unit
-  def getLimitedGroups: Set[String]
+  def tokenExhaustedGroups: Set[String]
 
   def outOfTokens(backend: String): Unit
-  def getLimitedBackends: Set[String]
+  def tokenExhaustedBackends: Set[String]
 }
 
 case object NullTokenEventLogger extends TokenEventLogger {
   override def flagTokenHog(hogGroup: String): Unit = ()
-  override def getLimitedGroups: Set[String] = Set.empty
+  override def tokenExhaustedGroups: Set[String] = Set.empty
 
   override def outOfTokens(backend: String): Unit = ()
-  override def getLimitedBackends: Set[String] = Set.empty
+  override def tokenExhaustedBackends: Set[String] = Set.empty
 }
 
 class CachingTokenEventLogger(cacheEntryTTL: FiniteDuration) extends TokenEventLogger {
@@ -31,7 +31,7 @@ class CachingTokenEventLogger(cacheEntryTTL: FiniteDuration) extends TokenEventL
     groupCache.put(hogGroup, new Object())
   }
 
-  override def getLimitedGroups: Set[String] = {
+  override def tokenExhaustedGroups: Set[String] = {
     import scala.collection.JavaConverters._
     groupCache.asMap().keySet().asScala.toSet
   }
@@ -46,7 +46,7 @@ class CachingTokenEventLogger(cacheEntryTTL: FiniteDuration) extends TokenEventL
     backendCache.put(backend, new Object())
   }
 
-  override def getLimitedBackends: Set[String] = {
+  override def tokenExhaustedBackends: Set[String] = {
     import scala.collection.JavaConverters._
     backendCache.asMap().keySet().asScala.toSet
   }

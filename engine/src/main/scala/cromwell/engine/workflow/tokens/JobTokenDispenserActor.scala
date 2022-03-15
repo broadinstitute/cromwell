@@ -100,7 +100,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
       dispense(n)
     case Terminated(terminee) => onTerminate(terminee)
     case LogJobTokenAllocation(nextInterval) => logTokenAllocation(nextInterval)
-    case FetchLimitedGroups => sender ! getTokenExhaustedGroups
+    case FetchLimitedGroups => sender ! tokenExhaustedGroups
     case ShutdownCommand => context stop self
   }
 
@@ -205,11 +205,11 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
 
     log.info(tokenDispenserState.asJson.printWith(Printer.spaces2))
 
-    tokenEventLogger.getLimitedGroups foreach { group =>
+    tokenEventLogger.tokenExhaustedGroups foreach { group =>
       log.info(s"Token Dispenser: The group $group has reached its job limit and is being rate-limited.")
     }
 
-    tokenEventLogger.getLimitedBackends foreach { backend =>
+    tokenEventLogger.tokenExhaustedBackends foreach { backend =>
       log.info(s"Token Dispenser: The backend $backend is starting too many jobs. New jobs are being limited.")
     }
 
@@ -225,9 +225,9 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
           so it's desirable that a group submitting to two or more backends pause workflow
           pickup globally when it exhausts tokens in one of the backends
    */
-  private def getTokenExhaustedGroups: ReplyLimitedGroups = {
+  private def tokenExhaustedGroups: ReplyLimitedGroups = {
     ReplyLimitedGroups(
-      tokenQueues.values.flatMap(_.eventLogger.getLimitedGroups).toSet
+      tokenQueues.values.flatMap(_.eventLogger.tokenExhaustedGroups).toSet
     )
   }
 }

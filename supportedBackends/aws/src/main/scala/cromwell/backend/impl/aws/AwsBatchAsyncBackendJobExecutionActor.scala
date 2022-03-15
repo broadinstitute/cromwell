@@ -192,7 +192,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       Seq.empty[AwsBatchParameter],
       configuration.awsConfig.region,
       Option(configuration.awsAuth),
-      configuration.fsxFileSystem
+      configuration.fsxMntPoint
     )
 
   /* Tries to abort the job in flight
@@ -437,19 +437,17 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     case _ => jobPaths.callExecutionRoot
   }
 
-  override def scriptPreamble: String = {
+  override def scriptPreamble: String =
     configuration.fileSystem match {
-      case  AWSBatchStorageSystems.s3 => ""
+      case AWSBatchStorageSystems.s3 => ""
       case _ => s""
     }
-  }
 
-  override def scriptClosure: String = {
+  override def scriptClosure: String =
     configuration.fileSystem match {
-      case  AWSBatchStorageSystems.s3 => ""
+      case AWSBatchStorageSystems.s3 => ""
       case _ => s"exit $$(head -n 1 $rcPath)"
     }
-  }
 
   override def globParentDirectory(womGlobFile: WomGlobFile): Path =
     configuration.fileSystem match {

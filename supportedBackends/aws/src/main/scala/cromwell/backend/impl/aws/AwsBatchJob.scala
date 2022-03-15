@@ -87,7 +87,7 @@ final case class AwsBatchJob(
   parameters: Seq[AwsBatchParameter],
   configRegion: Option[Region],
   optAwsAuthMode: Option[AwsAuthMode] = None,
-  fsxFileSystem: Option[List[String]]
+  fsxMntPoint: Option[List[String]]
 ) {
 
   val Log: Logger = LoggerFactory.getLogger(AwsBatchJob.getClass)
@@ -428,7 +428,7 @@ final case class AwsBatchJob(
           jobPaths = jobPaths,
           inputs = inputs,
           outputs = outputs,
-          fsxFileSystem = fsxFileSystem
+          fsxMntPoint = fsxMntPoint
         )
 
         val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder

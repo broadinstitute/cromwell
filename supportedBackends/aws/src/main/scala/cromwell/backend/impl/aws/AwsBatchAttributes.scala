@@ -62,7 +62,7 @@ case class AwsBatchAttributes(fileSystem: String,
                               duplicationStrategy: AwsBatchCacheHitDuplicationStrategy,
                               submitAttempts: Int Refined Positive,
                               createDefinitionAttempts: Int Refined Positive,
-                              fsxFileSystem: Option[List[String]]
+                              fsxMntPoint: Option[List[String]]
 )
 
 object AwsBatchAttributes {
@@ -73,12 +73,14 @@ object AwsBatchAttributes {
     "root",
     "filesystems",
     "filesystems.local.auth",
+    "filesystems.local.fsx",
+    "filesystems.local.localization",
+    "filesystems.local.caching.hashing-strategy",
+    "filesystems.local.caching.duplication-strategy",
     "filesystems.s3.auth",
     "filesystems.s3.caching.duplication-strategy",
-    "filesystems.local.caching.duplication-strategy",
     "auth",
     "numCreateDefinitionAttempts",
-    "filesystems.s3.duplication-strategy",
     "numSubmitAttempts",
     "default-runtime-attributes.scriptBucketName",
     "awsBatchRetryAttempts",
@@ -105,13 +107,11 @@ object AwsBatchAttributes {
       }
     }
 
-    def parseFSx(backendConfig: Config): Option[List[String]] = {
-      val fsxConfig = backendConfig.getStringList("filesystems.fsx")
-      fsxConfig.isEmpty match {
+    def parseFSx(config: List[String]): Option[List[String]] =
+      config.isEmpty match {
         case true => None
-        case false => Some(fsxConfig.asScala.toList)
+        case false => Some(config)
       }
-    }
 
     warnDeprecated(configKeys, deprecatedAwsBatchKeys, context, Logger)
 
@@ -148,9 +148,9 @@ object AwsBatchAttributes {
         }
       }
 
-    val fsx: ErrorOr[Option[List[String]]] = validate {
-      backendConfig.hasPath("filesystems.fsx") match {
-        case true => parseFSx(backendConfig)
+    val fsxMntPoint: ErrorOr[Option[List[String]]] = validate {
+      backendConfig.hasPath("filesystems.local.fsx") match {
+        case true => parseFSx(backendConfig.getStringList("filesystems.local.fsx").asScala.toList)
         case false => None
       }
     }
@@ -162,7 +162,7 @@ object AwsBatchAttributes {
       duplicationStrategy,
       backendConfig.as[ErrorOr[Int Refined Positive]]("numSubmitAttempts"),
       backendConfig.as[ErrorOr[Int Refined Positive]]("numCreateDefinitionAttempts"),
-      fsx
+      fsxMntPoint
     ).tupled.map((AwsBatchAttributes.apply _).tupled) match {
       case Valid(r) => r
       case Invalid(f) =>

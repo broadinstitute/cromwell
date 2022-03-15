@@ -171,8 +171,8 @@ trait AwsBatchJobDefinitionBuilder {
       case _ => context.commandText
     }
     val packedCommand = packCommand("/bin/bash", "-c", cmdName)
-    val volumes = buildVolumes(context.runtimeAttributes.disks, context.fsxFileSystem)
-    val mountPoints = buildMountPoints(context.runtimeAttributes.disks, context.fsxFileSystem)
+    val volumes = buildVolumes(context.runtimeAttributes.disks, context.fsxMntPoint)
+    val mountPoints = buildMountPoints(context.runtimeAttributes.disks, context.fsxMntPoint)
     val ulimits = buildUlimits(context.runtimeAttributes.ulimits)
     val containerPropsName = buildName(
       context.runtimeAttributes.dockerImage,
@@ -278,7 +278,7 @@ case class AwsBatchJobDefinitionContext(runtimeAttributes: AwsBatchRuntimeAttrib
                                         jobPaths: JobPaths,
                                         inputs: Set[AwsBatchInput],
                                         outputs: Set[AwsBatchFileOutput],
-                                        fsxFileSystem: Option[List[String]]
+                                        fsxMntPoint: Option[List[String]]
 ) {
 
   override def toString: String =
@@ -292,6 +292,6 @@ case class AwsBatchJobDefinitionContext(runtimeAttributes: AwsBatchRuntimeAttrib
       .append("jobPaths", jobPaths)
       .append("inputs", inputs)
       .append("outputs", outputs)
-      .append("fsxFileSystem", fsxFileSystem)
+      .append("fsxMntPoint", fsxMntPoint)
       .build
 }

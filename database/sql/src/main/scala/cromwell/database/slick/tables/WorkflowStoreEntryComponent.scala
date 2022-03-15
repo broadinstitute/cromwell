@@ -73,7 +73,7 @@ trait WorkflowStoreEntryComponent {
   )
 
   /**
-   * Return hog group with the lowest count of actively running workflows
+   * Return hog group with the lowest count of actively running workflows, that has nonzero startable workflows
    */
   def getHogGroupWithLowestRunningWfs(heartbeatTimestampTimedOut: Timestamp,
                                       excludeWorkflowState: String,
@@ -94,9 +94,13 @@ trait WorkflowStoreEntryComponent {
 
     // calculates the count of startable workflows per hog group and oldest submission timestamp of workflow
     // present in that hog group
-    val numOfStartableWfsByHogGroup = startableWorkflows
+    val numOfStartableWfsByHogGroup: Query[
+      (Rep[Option[String]], Rep[Int], Rep[Option[Timestamp]]),
+      (Option[String], Int, Option[Timestamp]),
+      Seq
+    ] = startableWorkflows
       .groupBy(_.hogGroup)
-      .map { case (hogGroupName, groups) => (hogGroupName, groups.length, groups.map(_.submissionTime).min) }
+      .map { case (hogGroupName, workflows) => (hogGroupName, workflows.length, workflows.map(_.submissionTime).min) }
       .sortBy(_._2.asc)
 
     val totalWorkflows = for {
@@ -111,24 +115,28 @@ trait WorkflowStoreEntryComponent {
     } yield row
 
     // calculates the count of total workflows per hog group
-    val totalWorkflowsByHogGroup = totalWorkflows
+    val totalWorkflowsByHogGroup: Query[(Rep[Option[String]], Rep[Int]), (Option[String], Int), Seq] = totalWorkflows
       .groupBy(_.hogGroup)
-      .map { case (hogGroupName, groups) => (hogGroupName, groups.length) }
+      .map { case (hogGroupName, workflows) => (hogGroupName, workflows.length) }
       .sortBy(_._2.asc)
 
     // calculates the number of actively running workflows for each hog group. If a hog group
     // has all it's workflows that are either actively running or in "OnHold" status it is not
     // included in the list. Hog groups that have no workflows actively running return count as 0
-    val wfsRunningPerHogGroup = for {
-      (t_group, t_ct) <- totalWorkflowsByHogGroup
-      (s_group, s_ct, s_sub_time) <- numOfStartableWfsByHogGroup if t_group === s_group
-    } yield (t_group, t_ct - s_ct, s_sub_time)
+    val wfsRunningPerHogGroup: Query[
+      (Rep[Option[String]], Rep[Int], Rep[Option[Timestamp]]),
+      (Option[String], Int, Option[Timestamp]),
+      Seq
+    ] = for {
+      (hog_group, workflows_ct) <- totalWorkflowsByHogGroup
+      (startable_hog_group, startable_workflows_ct, oldest_submission_time) <- numOfStartableWfsByHogGroup if hog_group === startable_hog_group
+    } yield (hog_group, workflows_ct - startable_workflows_ct, oldest_submission_time)
 
     // sort the above calculated result set first by the count of actively running workflows, then by hog group with
     // oldest submission timestamp and then sort it alphabetically by hog group name. Then take the first row of
     // the result and return the hog group name.
     wfsRunningPerHogGroup.sortBy {
-      case (hogGroupName, ct, sub_time) => (ct.asc, sub_time, hogGroupName)
+      case (hogGroupName, running_wf_ct, oldest_submission_time) => (running_wf_ct.asc, oldest_submission_time, hogGroupName)
     }.take(1).map(_._1)
   }
 

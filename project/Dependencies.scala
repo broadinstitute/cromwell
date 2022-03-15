@@ -127,7 +127,7 @@ object Dependencies {
   private val sttpV = "1.5.19" // scala-steward:off (CROM-6564)
   private val swaggerParserV = "1.0.56"
   private val swaggerUiV = "4.5.0"
-  private val testContainersScalaV = "0.39.8"
+  private val testContainersScalaV = "0.39.12"
   private val tikaV = "2.3.0"
   private val typesafeConfigV = "1.4.1"
   private val workbenchGoogleV = "0.21-5c9c4f6" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/google/CHANGELOG.md

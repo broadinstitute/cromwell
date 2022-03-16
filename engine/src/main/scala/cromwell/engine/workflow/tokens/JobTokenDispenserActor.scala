@@ -64,7 +64,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
   lazy val effectiveLogInterval: Option[FiniteDuration] = logInterval.filterNot(_ == 0.seconds)
 
   lazy val tokenEventLogger = effectiveLogInterval match {
-    case Some(someInterval) => new CachingTokenEventLogger(log, someInterval)
+    case Some(someInterval: FiniteDuration) => new CachingTokenEventLogger(someInterval)
     case None => NullTokenEventLogger
   }
 
@@ -100,6 +100,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
       dispense(n)
     case Terminated(terminee) => onTerminate(terminee)
     case LogJobTokenAllocation(nextInterval) => logTokenAllocation(nextInterval)
+    case FetchLimitedGroups => sender ! tokenExhaustedGroups
     case ShutdownCommand => context stop self
   }
 
@@ -204,9 +205,30 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
 
     log.info(tokenDispenserState.asJson.printWith(Printer.spaces2))
 
+    tokenEventLogger.tokenExhaustedGroups foreach { group =>
+      log.info(s"Token Dispenser: The group $group has reached its job limit and is being rate-limited.")
+    }
+
+    tokenEventLogger.tokenExhaustedBackends foreach { backend =>
+      log.info(s"Token Dispenser: The backend $backend is starting too many jobs. New jobs are being limited.")
+    }
+
     // Schedule the next log event:
     context.system.scheduler.scheduleOnce(someInterval) { self ! LogJobTokenAllocation(someInterval) }(context.dispatcher)
     ()
+  }
+
+  /*
+  This function is not backend-aware because:
+    (1) it is used for workflow pickup decisions, and the backend is not known at that time
+    (2) the modern purpose of tokens is to manage Cromwell capacity, not backend capacity,
+          so it's desirable that a group submitting to two or more backends pause workflow
+          pickup globally when it exhausts tokens in one of the backends
+   */
+  private def tokenExhaustedGroups: ReplyLimitedGroups = {
+    ReplyLimitedGroups(
+      tokenQueues.values.flatMap(_.eventLogger.tokenExhaustedGroups).toSet
+    )
   }
 }
 
@@ -222,6 +244,8 @@ object JobTokenDispenserActor {
   case object JobTokenReturn
   case object JobTokenDispensed
   final case class LogJobTokenAllocation(someInterval: FiniteDuration)
+  case object FetchLimitedGroups
+  final case class ReplyLimitedGroups(groups: Set[String])
 
   implicit val tokenEncoder = deriveEncoder[JobTokenType]
 

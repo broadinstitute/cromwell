@@ -16,6 +16,7 @@ import cromwell.engine.SubWorkflowStart
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
+import cromwell.engine.workflow.tokens.JobTokenDispenserActor.{FetchLimitedGroups, ReplyLimitedGroups}
 import cromwell.engine.workflow.workflowstore.{WorkflowHeartbeatConfig, WorkflowStoreActor, WorkflowStoreEngineActor}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
 import cromwell.webservice.EngineStatsActor
@@ -167,13 +168,20 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     /*
      Commands from clients
      */
-    case Event(RetrieveNewWorkflows, stateData) =>
+    case Event(RetrieveNewWorkflows, _) =>
       /*
         Cap the total number of workflows in flight, but also make sure we don't pull too many in at once.
         Determine the number of available workflow slots and request the smaller of that number and maxWorkflowsToLaunch.
        */
+      params.jobExecutionTokenDispenserActor ! FetchLimitedGroups
+      stay()
+    case Event(ReplyLimitedGroups(groups), stateData) =>
+      if (groups.nonEmpty)
+        log.info(s"Excluding groups from workflow launch: ${groups.mkString(", ")}")
+      else
+        log.debug("No groups excluded from workflow launch.")
       val maxNewWorkflows = maxWorkflowsToLaunch min (maxWorkflowsRunning - stateData.workflows.size - stateData.subWorkflows.size)
-      params.workflowStore ! WorkflowStoreActor.FetchRunnableWorkflows(maxNewWorkflows, excludedGroups = Set.empty) // Entry point for subsequent work in BW-675
+      params.workflowStore ! WorkflowStoreActor.FetchRunnableWorkflows(maxNewWorkflows, excludedGroups = groups)
       stay()
     case Event(WorkflowStoreEngineActor.NoNewWorkflowsToStart, _) =>
       log.debug("WorkflowStore provided no new workflows to start")

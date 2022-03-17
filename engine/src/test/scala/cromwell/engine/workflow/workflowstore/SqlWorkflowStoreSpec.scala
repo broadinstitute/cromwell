@@ -13,17 +13,16 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.enablers.Emptiness._
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsString}
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future}
 
 class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
   implicit val ec = ExecutionContext.global
-  implicit val defaultPatience = PatienceConfig(scaled(Span(10, Seconds)), scaled(Span(100, Millis)))
+  implicit val defaultPatience = PatienceConfig(scaled(Span(20, Seconds)), scaled(Span(100, Millis)))
 
   val onHoldSourceFilesCollection = NonEmptyList.of(
     WorkflowSourceFilesCollection(
@@ -120,6 +119,16 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     lazy val metadataDataAccess = DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, MetadataDatabaseType, databaseSystem)
 
     lazy val workflowStore = SqlWorkflowStore(dataAccess, metadataDataAccess)
+
+    def updateWfToRunning(startableWorkflows: List[WorkflowToStart]): Unit = {
+      startableWorkflows.foreach { wf =>
+        Await.result(workflowStore.sqlDatabase.updateWorkflowState(
+          wf.id.toString,
+          WorkflowStoreState.Submitted.toString,
+          WorkflowStoreState.Running.toString
+        ), 5.seconds)
+      }
+    }
 
     it should "start container if required" taggedAs DbmsTest in {
       containerOpt.foreach {
@@ -244,22 +253,130 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
       } yield ()).futureValue
     }
 
-    it should "select appropriately with the excludedGroups parameter" taggedAs DbmsTest in {
+    it should "start workflows from hog group with lowest count of running workflows" taggedAs DbmsTest in {
+      // first submission of 50 workflows for hogGroup "Goldfinger"
+      val goldFingerWorkflowIds = (for (_ <- 1 to 50) yield Await.result(workflowStore.add(includedGroupSourceFilesCollection1), 5.seconds)).flatMap(_.map(_.id).toList)
+
+      // second submission of 50 workflows for hogGroup "Highlander"
+      val highlanderWorkflowIds = (for (_ <- 1 to 50) yield Await.result(workflowStore.add(includedGroupSourceFilesCollection2), 5.seconds)).flatMap(_.map(_.id).toList)
+
+      for (_ <- 1 to 10) yield {
+        (for {
+          // since both hog groups have 0 workflows running, the hog group with oldest submission time is picked first
+          startableWorkflows1 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, Set.empty[String])
+          _ = startableWorkflows1.map(_.hogGroup.value).toSet.head should be("Goldfinger")
+          _ = startableWorkflows1.map(_.id).foreach(x => goldFingerWorkflowIds.toList should contain(x))
+          _ = updateWfToRunning(startableWorkflows1)
+
+          startableWorkflows2 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, Set.empty[String])
+          _ = startableWorkflows2.map(_.hogGroup.value).toSet.head should be("Highlander")
+          _ = startableWorkflows2.map(_.id).foreach(x => highlanderWorkflowIds.toList should contain(x))
+          _ = updateWfToRunning(startableWorkflows2)
+        } yield ()).futureValue
+      }
+
+      // remove entries from WorkflowStore
+      (goldFingerWorkflowIds ++ highlanderWorkflowIds).foreach(id => Await.result(workflowStore.deleteFromStore(id), 5.seconds))
+    }
+
+    it should "respect excludedHogGroups and start workflows from hog group with lowest count of running workflows" taggedAs DbmsTest in {
       (for {
-        submissionResponsesExcluded <- workflowStore.add(excludedGroupSourceFilesCollection)
-        submissionResponsesIncluded1 <- workflowStore.add(includedGroupSourceFilesCollection1)
-        submissionResponsesIncluded2 <- workflowStore.add(includedGroupSourceFilesCollection2)
-        submissionResponsesIncluded3 <- workflowStore.add(includedGroupSourceFilesCollection3)
-        startableWorkflows <- workflowStore.fetchStartableWorkflows(3, "A08", 1.second, excludedGroups = Set("Zardoz"))
-        _ = startableWorkflows.map(_.id).intersect(submissionResponsesExcluded.map(_.id).toList).size should be(0)
-        _ = startableWorkflows.map(_.id).intersect(submissionResponsesIncluded1.map(_.id).toList).size should be(1)
-        _ = startableWorkflows.map(_.id).intersect(submissionResponsesIncluded2.map(_.id).toList).size should be(1)
-        _ = startableWorkflows.map(_.id).intersect(submissionResponsesIncluded3.map(_.id).toList).size should be(1)
-        _ = startableWorkflows.map(_.id).size should be(3)
-        _ <- workflowStore.deleteFromStore(submissionResponsesExcluded.head.id) // Tidy up
-        _ <- workflowStore.deleteFromStore(submissionResponsesIncluded1.head.id) // Tidy up
-        _ <- workflowStore.deleteFromStore(submissionResponsesIncluded2.head.id) // Tidy up
-        _ <- workflowStore.deleteFromStore(submissionResponsesIncluded3.head.id) // Tidy up
+        // first submission of 10 workflows for hogGroup "Goldfinger"
+        goldFingerSubmissions <- Future.sequence(for (_ <- 1 to 10) yield workflowStore.add(includedGroupSourceFilesCollection1))
+        goldFingerWorkflowIds = goldFingerSubmissions.flatMap(_.map(_.id).toList)
+
+        // second submission of 10 workflows for hogGroup "Zardoz"
+        zardozSubmissions <- Future.sequence(for (_ <- 1 to 10) yield workflowStore.add(excludedGroupSourceFilesCollection))
+        zardozWorkflowIds = zardozSubmissions.flatMap(_.map(_.id).toList)
+
+        startableWorkflows1 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, excludedGroups = Set("Zardoz"))
+        _ = startableWorkflows1.map(_.hogGroup.value).toSet.head should be("Goldfinger")
+        _ = startableWorkflows1.map(_.id).foreach(x => goldFingerWorkflowIds.toList should contain(x))
+        _ = updateWfToRunning(startableWorkflows1)
+
+        startableWorkflows2 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, excludedGroups = Set("Zardoz"))
+        _ = startableWorkflows2.map(_.hogGroup.value).toSet.head should be("Goldfinger")
+        _ = startableWorkflows2.map(_.id).foreach(x => goldFingerWorkflowIds.toList should contain(x))
+        _ = updateWfToRunning(startableWorkflows2)
+
+        // there are 10 workflows from hog group "Zardoz" in the store, but since the group is excluded, 0 workflows are returned here
+        startableWorkflows3 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, excludedGroups = Set("Zardoz"))
+        _ = startableWorkflows3.size should be(0)
+
+        // hog group "Zardoz" has tokens to run workflows, hence don't exclude it
+        startableWorkflows4 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, Set.empty[String])
+        _ = startableWorkflows4.map(_.hogGroup.value).toSet.head should be("Zardoz")
+        _ = startableWorkflows4.map(_.id).foreach(x => zardozWorkflowIds.toList should contain(x))
+        _ = updateWfToRunning(startableWorkflows4)
+
+        startableWorkflows5 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, Set.empty[String])
+        _ = startableWorkflows5.map(_.hogGroup.value).toSet.head should be("Zardoz")
+        _ = startableWorkflows5.map(_.id).foreach(x => zardozWorkflowIds.toList should contain(x))
+        _ = updateWfToRunning(startableWorkflows5)
+
+        // remove entries from WorkflowStore
+        workflowsList = goldFingerWorkflowIds ++ zardozWorkflowIds
+        _ = workflowsList.foreach(id => Await.result(workflowStore.deleteFromStore(id), 5.seconds))
+      } yield()).futureValue
+    }
+
+    it should "start workflows from hog group with lowest count of running workflows for multiple hog groups" taggedAs DbmsTest in {
+      (for {
+        // first submission of 10 workflows for hogGroup "Goldfinger"
+        goldFingerSubmissions <- Future.sequence(for (_ <- 1 to 10) yield workflowStore.add(includedGroupSourceFilesCollection1))
+        goldFingerWorkflowIds = goldFingerSubmissions.flatMap(_.map(_.id).toList)
+
+        // second submission of 10 workflows for hogGroup "Highlander"
+        highlanderSubmissions <- Future.sequence(for (_ <- 1 to 15) yield workflowStore.add(includedGroupSourceFilesCollection2))
+        highlanderWorkflowIds = highlanderSubmissions.flatMap(_.map(_.id).toList)
+
+        // since both hog groups have 0 workflows running, the hog group with oldest submission time is picked first
+        startableWorkflows1 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, excludedGroups = Set.empty[String])
+        _ = startableWorkflows1.map(_.hogGroup.value).toSet.head should be("Goldfinger")
+        _ = startableWorkflows1.map(_.id).foreach(x => goldFingerWorkflowIds.toList should contain(x))
+        _ = updateWfToRunning(startableWorkflows1)
+
+        startableWorkflows2 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, excludedGroups = Set.empty[String])
+        _ = startableWorkflows2.map(_.hogGroup.value).toSet.head should be("Highlander")
+        _ = startableWorkflows2.map(_.id).foreach(x => highlanderWorkflowIds.toList should contain(x))
+        _ = updateWfToRunning(startableWorkflows2)
+
+        // new submission for hog group "Finding Forrester"
+        foresterSubmissions <- Future.sequence(for (_ <- 1 to 10) yield workflowStore.add(includedGroupSourceFilesCollection3))
+        foresterWorkflowIds = foresterSubmissions.flatMap(_.map(_.id).toList)
+
+        // now hog group "Finding Forrester" has 0 workflows running, hence it is picked to run
+        startableWorkflows3 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, excludedGroups = Set.empty[String])
+        _ = startableWorkflows3.map(_.hogGroup.value).toSet.head should be("Finding Forrester")
+        _ = startableWorkflows3.map(_.id).foreach(x => foresterWorkflowIds.toList should contain(x))
+        _ = updateWfToRunning(startableWorkflows3)
+
+        // since all 3 hog groups have 5 workflows running each, the hog group with oldest submission time is picked first
+        startableWorkflows5 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, excludedGroups = Set.empty[String])
+        _ = startableWorkflows5.map(_.hogGroup.value).toSet.head should be("Goldfinger")
+        _ = startableWorkflows5.map(_.id).foreach(x => goldFingerWorkflowIds.toList should contain(x))
+        _ = updateWfToRunning(startableWorkflows5)
+
+        // since both "Highlander" and "Finding Forrester" have 5 workflows in Running state, the hog group with oldest submission time is picked first
+        startableWorkflows6 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, excludedGroups = Set.empty[String])
+        _ = startableWorkflows6.map(_.hogGroup.value).toSet.head should be("Highlander")
+        _ = startableWorkflows6.map(_.id).foreach(x => highlanderWorkflowIds.toList should contain(x))
+        _ = updateWfToRunning(startableWorkflows6)
+
+        // "Finding Forrester" is now the hog group with least running workflows and has 5 more workflows to run, hence it is picked to run
+        startableWorkflows4 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, excludedGroups = Set.empty[String])
+        _ = startableWorkflows4.map(_.hogGroup.value).toSet.head should be("Finding Forrester")
+        _ = startableWorkflows4.map(_.id).foreach(x => foresterWorkflowIds.toList should contain(x))
+        _ = updateWfToRunning(startableWorkflows4)
+
+        startableWorkflows7 <- workflowStore.fetchStartableWorkflows(5, "A08", 5.minutes, excludedGroups = Set.empty[String])
+        _ = startableWorkflows7.map(_.hogGroup.value).toSet.head should be("Highlander")
+        _ = startableWorkflows7.map(_.id).foreach(x => highlanderWorkflowIds.toList should contain(x))
+        _ = updateWfToRunning(startableWorkflows7)
+
+        // remove entries from WorkflowStore
+        workflowsList = goldFingerWorkflowIds ++ highlanderWorkflowIds ++ foresterWorkflowIds
+        _ = workflowsList.foreach(id => Await.result(workflowStore.deleteFromStore(id), 5.seconds))
       } yield ()).futureValue
     }
 

@@ -1,7 +1,7 @@
 import sbt._
 
 object Dependencies {
-  private val akkaHttpCirceIntegrationV = "1.38.2"
+  private val akkaHttpCirceIntegrationV = "1.39.2"
   private val akkaHttpV = "10.1.15" // (CROM-6619)
   private val akkaV = "2.5.32" // scala-steward:off (CROM-6637)
   private val aliyunBcsV = "6.2.4"
@@ -15,7 +15,7 @@ object Dependencies {
   // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
   // https://github.com/sbt/sbt/issues/4531
   private val azureIdentitySdkV = "1.4.2"
-  private val azureKeyVaultSdkV = "4.3.4"
+  private val azureKeyVaultSdkV = "4.3.7"
   private val betterFilesV = "3.9.1"
   /*
   cats-effect, fs2, http4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
@@ -51,7 +51,7 @@ object Dependencies {
   // 0.121.2 is the most recent version currently known to work.
   private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
   private val googleCloudStorageV = "2.1.10"
-  private val googleGaxGrpcV = "2.4.1"
+  private val googleGaxGrpcV = "2.12.2"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-genomics
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"
   private val googleHttpClientApacheV = "2.1.2"
@@ -64,7 +64,7 @@ object Dependencies {
   private val grpcV = "1.45.0"
   private val guavaV = "31.0.1-jre"
   private val heterodonV = "1.0.0-beta3"
-  private val hsqldbV = "2.6.0"
+  private val hsqldbV = "2.6.1"
   private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
   private val jacksonV = "2.13.0"
   private val janinoV = "3.1.6"
@@ -127,7 +127,7 @@ object Dependencies {
   private val sttpV = "1.5.19" // scala-steward:off (CROM-6564)
   private val swaggerParserV = "1.0.56"
   private val swaggerUiV = "4.5.0"
-  private val testContainersScalaV = "0.39.8"
+  private val testContainersScalaV = "0.40.2"
   private val tikaV = "2.3.0"
   private val typesafeConfigV = "1.4.1"
   private val workbenchGoogleV = "0.21-5c9c4f6" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/google/CHANGELOG.md

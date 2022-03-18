@@ -1,7 +1,6 @@
 package centaur.test.workflow
 
 import java.nio.file.Path
-
 import better.files._
 import cats.data.Validated._
 import cats.syntax.apply._
@@ -12,7 +11,7 @@ import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import configs.Result
 import configs.syntax._
-import cromwell.api.model.{WorkflowDescribeRequest, WorkflowSingleSubmission}
+import cromwell.api.model.{SubmittedWorkflow, WorkflowDescribeRequest, WorkflowSingleSubmission}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success, Try}
@@ -27,6 +26,13 @@ final case class Workflow private(testName: String,
                                   allowOtherOutputs: Boolean,
                                   skipDescribeEndpointValidation: Boolean,
                                   maximumAllowedTime: Option[FiniteDuration]) {
+
+  var workflowsForCleanup: List[SubmittedWorkflow] = List.empty
+
+  def cleanupOnError(workflow: SubmittedWorkflow): Unit = {
+    workflowsForCleanup = workflow :: workflowsForCleanup
+  }
+
   def toWorkflowSubmission: WorkflowSingleSubmission = WorkflowSingleSubmission(
     workflowSource = data.workflowContent,
     workflowUrl = data.workflowUrl,

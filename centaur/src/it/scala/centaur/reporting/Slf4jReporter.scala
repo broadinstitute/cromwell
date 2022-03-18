@@ -32,7 +32,7 @@ class Slf4jReporter(override val params: ErrorReporterParams)
       }
 
       val message =
-        s"Test '${testEnvironment.name}' " +
+        s"Test '${testEnvironment.testCase.name}' " +
           s"failed on attempt ${testEnvironment.attempt + 1} " +
           s"of ${testEnvironment.retries + 1} " +
           errorMessage

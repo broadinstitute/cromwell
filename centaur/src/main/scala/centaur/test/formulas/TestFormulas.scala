@@ -90,7 +90,9 @@ object TestFormulas extends StrictLogging {
       _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
       _ <- timingVerificationNotSupported(workflowDefinition.maximumAllowedTime)
       firstWF <- runSuccessfulWorkflow(workflowDefinition)
+      _ = workflowDefinition.cleanupOnError(firstWF)
       secondWf <- runSuccessfulWorkflow(workflowDefinition.secondRun)
+      _ = workflowDefinition.cleanupOnError(secondWf)
       _ <- printHashDifferential(firstWF, secondWf)
       metadata <- fetchAndValidateNonSubworkflowMetadata(secondWf, workflowDefinition, Option(firstWF.id.id))
       _ <- fetchAndValidateJobManagerStyleMetadata(secondWf, workflowDefinition, prefetchedOriginalNonSubWorkflowMetadata = None)
@@ -105,11 +107,14 @@ object TestFormulas extends StrictLogging {
       _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
       _ <- timingVerificationNotSupported(workflowDefinition.maximumAllowedTime)
       firstWf <- runSuccessfulWorkflow(workflowDefinition)
+      _ = workflowDefinition.cleanupOnError(firstWf)
       secondWf <- runSuccessfulWorkflow(workflowDefinition.secondRun)
+      _ = workflowDefinition.cleanupOnError(secondWf)
       metadataTwo <- fetchAndValidateNonSubworkflowMetadata(secondWf, workflowDefinition, Option(firstWf.id.id))
       _ = cromwellTracker.track(metadataTwo)
       _ <- validateNoCacheHits(secondWf, metadataTwo, workflowDefinition)
       thirdWf <- runSuccessfulWorkflow(workflowDefinition.thirdRun)
+      _ = workflowDefinition.cleanupOnError(thirdWf)
       _ <- printHashDifferential(secondWf, thirdWf)
       metadataThree <- fetchAndValidateNonSubworkflowMetadata(thirdWf, workflowDefinition, Option(secondWf.id.id))
       _ <- validateNoCacheMisses(thirdWf, metadataThree, workflowDefinition)
@@ -121,28 +126,32 @@ object TestFormulas extends StrictLogging {
     for {
       _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
       _ <- timingVerificationNotSupported(workflowDefinition.maximumAllowedTime)
-      _ <- runSuccessfulWorkflow(workflowDefinition) // Build caches
-      testWf <- runSuccessfulWorkflow(workflowDefinition.secondRun)
-      metadata <- fetchAndValidateNonSubworkflowMetadata(testWf, workflowDefinition)
-      _ <- fetchAndValidateJobManagerStyleMetadata(testWf, workflowDefinition, prefetchedOriginalNonSubWorkflowMetadata = None)
+      firstWf <- runSuccessfulWorkflow(workflowDefinition) // Build caches
+      _ = workflowDefinition.cleanupOnError(firstWf)
+      secondWf <- runSuccessfulWorkflow(workflowDefinition.secondRun)
+      _ = workflowDefinition.cleanupOnError(secondWf)
+      metadata <- fetchAndValidateNonSubworkflowMetadata(secondWf, workflowDefinition)
+      _ <- fetchAndValidateJobManagerStyleMetadata(secondWf, workflowDefinition, prefetchedOriginalNonSubWorkflowMetadata = None)
       _ = cromwellTracker.track(metadata)
-      _ <- validateNoCacheHits(testWf, metadata, workflowDefinition)
-      _ <- validateDirectoryContentsCounts(workflowDefinition, testWf, metadata)
-    } yield SubmitResponse(testWf)
+      _ <- validateNoCacheHits(secondWf, metadata, workflowDefinition)
+      _ <- validateDirectoryContentsCounts(workflowDefinition, secondWf, metadata)
+    } yield SubmitResponse(secondWf)
   }
 
   def runFailingWorkflowTwiceExpectingNoCaching(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = {
     for {
       _ <- checkDescription(workflowDefinition, validityExpectation = None)
       _ <- timingVerificationNotSupported(workflowDefinition.maximumAllowedTime)
-      _ <- runFailingWorkflow(workflowDefinition) // Build caches
-      testWf <- runFailingWorkflow(workflowDefinition)
-      metadata <- fetchAndValidateNonSubworkflowMetadata(testWf, workflowDefinition)
-      _ <- fetchAndValidateJobManagerStyleMetadata(testWf, workflowDefinition, prefetchedOriginalNonSubWorkflowMetadata = None)
+      firstWf <- runFailingWorkflow(workflowDefinition) // Build caches
+      _ = workflowDefinition.cleanupOnError(firstWf)
+      secondWf <- runFailingWorkflow(workflowDefinition)
+      _ = workflowDefinition.cleanupOnError(secondWf)
+      metadata <- fetchAndValidateNonSubworkflowMetadata(secondWf, workflowDefinition)
+      _ <- fetchAndValidateJobManagerStyleMetadata(secondWf, workflowDefinition, prefetchedOriginalNonSubWorkflowMetadata = None)
       _ = cromwellTracker.track(metadata)
-      _ <- validateNoCacheHits(testWf, metadata, workflowDefinition)
-      _ <- validateDirectoryContentsCounts(workflowDefinition, testWf, metadata)
-    } yield SubmitResponse(testWf)
+      _ <- validateNoCacheHits(secondWf, metadata, workflowDefinition)
+      _ <- validateDirectoryContentsCounts(workflowDefinition, secondWf, metadata)
+    } yield SubmitResponse(secondWf)
   }
 
   private def cromwellRestart(workflowDefinition: Workflow,

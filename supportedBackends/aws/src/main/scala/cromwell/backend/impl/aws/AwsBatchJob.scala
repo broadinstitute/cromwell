@@ -450,18 +450,18 @@ final case class AwsBatchJob(
             describeJobDefinitionResponse.jobDefinitions().asScala.toList.sortWith(_.revision > _.revision).head
 
           // TODO test this
-          if (
-            existingDefinition.containerProperties().memory() != null || existingDefinition
-              .containerProperties()
-              .vcpus() != null
-          ) {
-            Log.warn("the job definition '{}' has deprecated configuration for memory and vCPU and will be replaced",
-                     existingDefinition.jobDefinitionName()
-            )
-            registerJobDefinition(jobDefinition, jobDefinitionContext).jobDefinitionArn()
-          } else {
-            existingDefinition.jobDefinitionArn()
-          }
+//          if (
+//            existingDefinition.containerProperties().memory() != null || existingDefinition
+//              .containerProperties()
+//              .vcpus() != null
+//          ) {
+//            Log.warn("the job definition '{}' has deprecated configuration for memory and vCPU and will be replaced",
+//                     existingDefinition.jobDefinitionName()
+//            )
+//            registerJobDefinition(jobDefinition, jobDefinitionContext).jobDefinitionArn()
+//          } else {
+          existingDefinition.jobDefinitionArn()
+//          }
         } else {
           Log.debug(s"No job definition found. Creating job definition: ${jobDefinition.name}")
           val response: RegisterJobDefinitionResponse =
@@ -540,8 +540,17 @@ final case class AwsBatchJob(
     jobDetail
   }
 
+  // code didn't get into the null block, so possibly not needed.
   def rc(detail: JobDetail): Integer =
-    detail.container.exitCode
+    if (detail.container.exitCode == null) {
+      // if exitCode is not present, return failed ( exitCode == 127 for command not found)
+      Log.info("rc value missing. Setting to failed and sleeping for 30s...")
+      Thread.sleep(30000)
+      127
+    } else {
+      Log.info("rc value found. Setting to '{}'", detail.container.exitCode.toString())
+      detail.container.exitCode
+    }
 
   def output(detail: JobDetail): String = {
     val events: Seq[OutputLogEvent] = cloudWatchLogsClient

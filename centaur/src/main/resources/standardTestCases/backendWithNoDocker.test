@@ -2,9 +2,6 @@ name: backendWithNoDocker
 backends: [LocalNoDocker]
 testFormat: runtwiceexpectingcallcaching
 
-# CROM-6807 Don't retry failures, subsequent runs will fail because of unexpected cache hits from the initial run
-retryTestFailures: false
-
 files {
   workflow: backendWithNoDocker/backendWithNoDocker.wdl
 }

@@ -27,10 +27,16 @@ final case class Workflow private(testName: String,
                                   skipDescribeEndpointValidation: Boolean,
                                   maximumAllowedTime: Option[FiniteDuration]) {
 
-  var workflowsForCleanup: List[SubmittedWorkflow] = List.empty
+  private var submittedWorkflows: List[SubmittedWorkflow] = List.empty
 
-  def cleanupOnError(workflow: SubmittedWorkflow): Unit = {
-    workflowsForCleanup = workflow :: workflowsForCleanup
+  def workflowIdsToCleanUpBeforeRetry: List[String] = submittedWorkflows.map(_.id.toString)
+
+  /**
+   * Add a `SubmittedWorkflow` to the list of `SubmittedWorkflow`s to be cleaned up should this `Workflow` require a
+   * retry. Prevents unwanted cache hits from partially successful attempts when retrying a call caching test case.
+   */
+  def cleanUpBeforeRetry(submittedWorkflow: SubmittedWorkflow): Unit = {
+    submittedWorkflows = submittedWorkflow :: submittedWorkflows
   }
 
   def toWorkflowSubmission: WorkflowSingleSubmission = WorkflowSingleSubmission(

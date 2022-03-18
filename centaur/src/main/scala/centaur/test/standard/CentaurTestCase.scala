@@ -54,6 +54,8 @@ case class CentaurTestCase(workflow: Workflow,
   def containsTag(tag: String): Boolean = testOptions.tags.contains(tag)
 
   def name: String = s"${testFormat.testSpecString} ${workflow.testName}"
+
+  def workflowIdsToCleanUpBeforeRetry: List[String] = workflow.workflowIdsToCleanUpBeforeRetry
 }
 
 object CentaurTestCase {

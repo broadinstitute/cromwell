@@ -173,7 +173,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
       for {
         _ <- ErrorReporters.logFailure(testEnvironment, centaurTestException)
         r <- if (attempt < retries) {
-          testCase.workflow.workflowsForCleanup.map(_.id.toString).traverse(CromwellDatabaseCallCaching.clearCachedResults) *>
+          testCase.workflowIdsToCleanUpBeforeRetry.traverse(CromwellDatabaseCallCaching.clearCachedResults) *>
             tryTryAgain(testCase, runTest, retries, attempt + 1)
         } else {
           IO.raiseError(centaurTestException)

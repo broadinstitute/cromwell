@@ -12,6 +12,7 @@ import centaur.test.CentaurTestException
 import centaur.test.standard.CentaurTestCase
 import centaur.test.submit.{SubmitResponse, SubmitWorkflowResponse}
 import centaur.test.workflow.WorkflowData
+import cromwell.api.model.WorkflowId
 import org.scalatest._
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -168,12 +169,16 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
     * @return IO effect that will run the test, possibly retrying.
     */
   private def tryTryAgain(testCase: CentaurTestCase, runTest: => IO[SubmitResponse], retries: Int, attempt: Int = 0): IO[SubmitResponse] = {
+
     def maybeRetry(centaurTestException: CentaurTestException): IO[SubmitResponse] = {
+
+      def clearCachedResults(workflowId: WorkflowId): IO[Unit] = CromwellDatabaseCallCaching.clearCachedResults(workflowId.toString)
+
       val testEnvironment = TestEnvironment(testCase, retries, attempt)
       for {
         _ <- ErrorReporters.logFailure(testEnvironment, centaurTestException)
         r <- if (attempt < retries) {
-          testCase.cleanUpBeforeRetry(CromwellDatabaseCallCaching.clearCachedResults) *>
+          testCase.cleanUpBeforeRetry(clearCachedResults) *>
             tryTryAgain(testCase, runTest, retries, attempt + 1)
         } else {
           IO.raiseError(centaurTestException)

@@ -12,7 +12,7 @@ import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import configs.Result
 import configs.syntax._
-import cromwell.api.model.{SubmittedWorkflow, WorkflowDescribeRequest, WorkflowSingleSubmission}
+import cromwell.api.model.{SubmittedWorkflow, WorkflowDescribeRequest, WorkflowId, WorkflowSingleSubmission}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success, Try}
@@ -30,13 +30,13 @@ final case class Workflow private(testName: String,
                                   skipDescribeEndpointValidation: Boolean,
                                   maximumAllowedTime: Option[FiniteDuration]) {
 
-  private var submittedWorkflowIds: List[String] = List.empty
+  private var submittedWorkflowIds: List[WorkflowId] = List.empty
 
   /**
    * Run the specified cleanup function on the submitted workflow IDs tracked by this `Workflow`, clearing out the list
    * of submitted workflow IDs afterward.
    */
-  def cleanUpBeforeRetry(cleanUpFunction: String => IO[Unit]): IO[Unit] = for {
+  def cleanUpBeforeRetry(cleanUpFunction: WorkflowId => IO[Unit]): IO[Unit] = for {
     _ <- submittedWorkflowIds.traverse(cleanUpFunction)
     _ = submittedWorkflowIds = List.empty
   } yield ()
@@ -46,7 +46,7 @@ final case class Workflow private(testName: String,
    * retry. Prevents unwanted cache hits from partially successful attempts when retrying a call caching test case.
    */
   def addSubmittedWorkflow(submittedWorkflow: SubmittedWorkflow): Unit = {
-    submittedWorkflowIds = submittedWorkflow.id.toString :: submittedWorkflowIds
+    submittedWorkflowIds = submittedWorkflow.id :: submittedWorkflowIds
   }
 
   def toWorkflowSubmission: WorkflowSingleSubmission = WorkflowSingleSubmission(

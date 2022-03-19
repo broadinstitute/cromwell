@@ -12,7 +12,7 @@ import centaur.test.submit.{SubmitHttpResponse, SubmitResponse}
 import centaur.test.workflow.{AllBackendsRequired, AnyBackendRequired, OnlyBackendsAllowed, Workflow}
 import com.typesafe.config.{Config, ConfigFactory}
 import common.validation.ErrorOr._
-import cromwell.api.model.{Failed, Succeeded}
+import cromwell.api.model.{Failed, Succeeded, WorkflowId}
 
 import scala.util.{Failure, Success, Try}
 
@@ -59,7 +59,7 @@ case class CentaurTestCase(workflow: Workflow,
   /**
    * Run the specified cleanup function before retrying this test.
    */
-  def cleanUpBeforeRetry(cleanUpFunction: String => IO[Unit]): IO[Unit] = workflow.cleanUpBeforeRetry(cleanUpFunction)
+  def cleanUpBeforeRetry(cleanUpFunction: WorkflowId => IO[Unit]): IO[Unit] = workflow.cleanUpBeforeRetry(cleanUpFunction)
 }
 
 object CentaurTestCase {

@@ -2,6 +2,7 @@ package centaur.test.standard
 
 import better.files._
 import cats.data.Validated._
+import cats.effect.IO
 import cats.syntax.all._
 import centaur.CromwellTracker
 import centaur.test._
@@ -54,6 +55,11 @@ case class CentaurTestCase(workflow: Workflow,
   def containsTag(tag: String): Boolean = testOptions.tags.contains(tag)
 
   def name: String = s"${testFormat.testSpecString} ${workflow.testName}"
+
+  /**
+   * Run the specified cleanup function before retrying this test.
+   */
+  def cleanUpBeforeRetry(cleanUpFunction: String => IO[Unit]): IO[List[Unit]] = workflow.cleanUpBeforeRetry(cleanUpFunction)
 }
 
 object CentaurTestCase {

@@ -3,6 +3,7 @@ package centaur.test.workflow
 import java.nio.file.Path
 import better.files._
 import cats.data.Validated._
+import cats.effect.IO
 import cats.syntax.apply._
 import cats.syntax.validated._
 import centaur.test.metadata.WorkflowFlatMetadata
@@ -15,6 +16,8 @@ import cromwell.api.model.{SubmittedWorkflow, WorkflowDescribeRequest, WorkflowS
 
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success, Try}
+import cats.instances.list._
+import cats.syntax.traverse._
 
 final case class Workflow private(testName: String,
                                   data: WorkflowData,
@@ -27,13 +30,18 @@ final case class Workflow private(testName: String,
                                   skipDescribeEndpointValidation: Boolean,
                                   maximumAllowedTime: Option[FiniteDuration]) {
 
-  var submittedWorkflowIds: List[String] = List.empty
+  private var submittedWorkflowIds: List[String] = List.empty
+
+  /**
+   * Run the specified cleanup function before retrying the test represented by this `Workflow`.
+   */
+  def cleanUpBeforeRetry(cleanUpFunction: String => IO[Unit]): IO[List[Unit]] = submittedWorkflowIds.traverse(cleanUpFunction)
 
   /**
    * Add a `SubmittedWorkflow` to the list of `SubmittedWorkflow`s to be cleaned up should this `Workflow` require a
    * retry. Prevents unwanted cache hits from partially successful attempts when retrying a call caching test case.
    */
-  def cleanUpBeforeRetry(submittedWorkflow: SubmittedWorkflow): Unit = {
+  def addSubmittedWorkflow(submittedWorkflow: SubmittedWorkflow): Unit = {
     submittedWorkflowIds = submittedWorkflow.id.toString :: submittedWorkflowIds
   }
 

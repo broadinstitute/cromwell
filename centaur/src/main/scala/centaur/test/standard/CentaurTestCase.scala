@@ -59,7 +59,7 @@ case class CentaurTestCase(workflow: Workflow,
   /**
    * Run the specified cleanup function before retrying this test.
    */
-  def cleanUpBeforeRetry(cleanUpFunction: String => IO[Unit]): IO[List[Unit]] = workflow.cleanUpBeforeRetry(cleanUpFunction)
+  def cleanUpBeforeRetry(cleanUpFunction: String => IO[Unit]): IO[Unit] = workflow.cleanUpBeforeRetry(cleanUpFunction)
 }
 
 object CentaurTestCase {

@@ -33,9 +33,13 @@ final case class Workflow private(testName: String,
   private var submittedWorkflowIds: List[String] = List.empty
 
   /**
-   * Run the specified cleanup function before retrying the test represented by this `Workflow`.
+   * Run the specified cleanup function on the submitted workflow IDs tracked by this `Workflow`, clearing out the list
+   * of submitted workflow IDs afterward.
    */
-  def cleanUpBeforeRetry(cleanUpFunction: String => IO[Unit]): IO[List[Unit]] = submittedWorkflowIds.traverse(cleanUpFunction)
+  def cleanUpBeforeRetry(cleanUpFunction: String => IO[Unit]): IO[Unit] = for {
+    _ <- submittedWorkflowIds.traverse(cleanUpFunction)
+    _ = submittedWorkflowIds = List.empty
+  } yield ()
 
   /**
    * Add a `SubmittedWorkflow` to the list of `SubmittedWorkflow`s to be cleaned up should this `Workflow` require a

@@ -1433,14 +1433,14 @@ trait StandardAsyncExecutionActor
     def JobExitCode: Future[String] = {
 
       // read if the file exists
-      def readRCFile(fileExists: Boolean): Future[String] = {
+      def readRCFile(fileExists: Boolean): Future[String] =
         if (fileExists)
           asyncIo.contentAsStringAsync(jobPaths.returnCode, None, failOnOverflow = false)
-        else
+        else {
           jobLogger.warn("RC file not found. Setting job to failed & waiting 5m before retry.")
-        Thread.sleep(300000)
-        Future("1")
-      }
+          Thread.sleep(300000)
+          Future("1")
+        }
       // finally : assign the yielded variable
       for {
         fileExists <- asyncIo.existsAsync(jobPaths.returnCode)

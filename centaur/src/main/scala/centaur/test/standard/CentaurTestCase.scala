@@ -12,7 +12,7 @@ import centaur.test.submit.{SubmitHttpResponse, SubmitResponse}
 import centaur.test.workflow.{AllBackendsRequired, AnyBackendRequired, OnlyBackendsAllowed, Workflow}
 import com.typesafe.config.{Config, ConfigFactory}
 import common.validation.ErrorOr._
-import cromwell.api.model.{Failed, Succeeded, WorkflowId}
+import cromwell.api.model.{Failed, SubmittedWorkflow, Succeeded, WorkflowId}
 
 import scala.util.{Failure, Success, Try}
 
@@ -56,10 +56,24 @@ case class CentaurTestCase(workflow: Workflow,
 
   def name: String = s"${testFormat.testSpecString} ${workflow.testName}"
 
+  private var submittedWorkflowIds: List[WorkflowId] = List.empty
+
   /**
-   * Run the specified cleanup function before retrying this test.
+   * Run the specified cleanup function on the submitted workflow IDs tracked by this `Workflow`, clearing out the list
+   * of submitted workflow IDs afterward.
    */
-  def cleanUpBeforeRetry(cleanUpFunction: WorkflowId => IO[Unit]): IO[Unit] = workflow.cleanUpBeforeRetry(cleanUpFunction)
+  def cleanUpBeforeRetry(cleanUpFunction: WorkflowId => IO[Unit]): IO[Unit] = for {
+    _ <- submittedWorkflowIds.traverse(cleanUpFunction)
+    _ = submittedWorkflowIds = List.empty
+  } yield ()
+
+  /**
+   * Add a `SubmittedWorkflow` to the list of `SubmittedWorkflow`s to clean up should this `CentaurTestCase` require a
+   * retry. Prevents unwanted cache hits from partially successful attempts when retrying a call caching test case.
+   */
+  def addSubmittedWorkflow(submittedWorkflow: SubmittedWorkflow): Unit = {
+    submittedWorkflowIds = submittedWorkflow.id :: submittedWorkflowIds
+  }
 }
 
 object CentaurTestCase {
@@ -76,9 +90,10 @@ object CentaurTestCase {
     val format: ErrorOr[CentaurTestFormat] = CentaurTestFormat.fromConfig(conf).toValidated
     val options = TestOptions.fromConfig(conf)
     val submit = SubmitHttpResponse.fromConfig(conf)
-    (workflow, format, options, submit) mapN {
-      CentaurTestCase(_, _, _, _)(cromwellTracker)
-    }
+    for {
+      testCase <- (workflow, format, options, submit) mapN { CentaurTestCase(_, _, _, _)(cromwellTracker) }
+      _ = testCase.workflow.setTestCase(testCase)
+    } yield testCase
   }
 
   private def validateTestCase(testCase: CentaurTestCase): ErrorOr[CentaurTestCase] = {

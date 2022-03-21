@@ -1,23 +1,20 @@
 package centaur.test.workflow
 
-import java.nio.file.Path
 import better.files._
 import cats.data.Validated._
-import cats.effect.IO
 import cats.syntax.apply._
 import cats.syntax.validated._
 import centaur.test.metadata.WorkflowFlatMetadata
-import com.typesafe.config.{Config, ConfigFactory}
+import centaur.test.standard.CentaurTestCase
+import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import configs.Result
 import configs.syntax._
-import cromwell.api.model.{SubmittedWorkflow, WorkflowDescribeRequest, WorkflowId, WorkflowSingleSubmission}
+import cromwell.api.model.{SubmittedWorkflow, WorkflowDescribeRequest, WorkflowSingleSubmission}
 
+import java.nio.file.Path
 import scala.concurrent.duration.FiniteDuration
-import scala.util.{Failure, Success, Try}
-import cats.instances.list._
-import cats.syntax.traverse._
 
 final case class Workflow private(testName: String,
                                   data: WorkflowData,
@@ -29,25 +26,6 @@ final case class Workflow private(testName: String,
                                   allowOtherOutputs: Boolean,
                                   skipDescribeEndpointValidation: Boolean,
                                   maximumAllowedTime: Option[FiniteDuration]) {
-
-  private var submittedWorkflowIds: List[WorkflowId] = List.empty
-
-  /**
-   * Run the specified cleanup function on the submitted workflow IDs tracked by this `Workflow`, clearing out the list
-   * of submitted workflow IDs afterward.
-   */
-  def cleanUpBeforeRetry(cleanUpFunction: WorkflowId => IO[Unit]): IO[Unit] = for {
-    _ <- submittedWorkflowIds.traverse(cleanUpFunction)
-    _ = submittedWorkflowIds = List.empty
-  } yield ()
-
-  /**
-   * Add a `SubmittedWorkflow` to the list of `SubmittedWorkflow`s to be cleaned up should this `Workflow` require a
-   * retry. Prevents unwanted cache hits from partially successful attempts when retrying a call caching test case.
-   */
-  def addSubmittedWorkflow(submittedWorkflow: SubmittedWorkflow): Unit = {
-    submittedWorkflowIds = submittedWorkflow.id :: submittedWorkflowIds
-  }
 
   def toWorkflowSubmission: WorkflowSingleSubmission = WorkflowSingleSubmission(
     workflowSource = data.workflowContent,
@@ -75,16 +53,20 @@ final case class Workflow private(testName: String,
   def thirdRun: Workflow = {
     copy(data = data.copy(options = data.thirdOptions))
   }
+
+  private var testCase: Option[CentaurTestCase] = None
+
+  def setTestCase(testCase: CentaurTestCase): Unit = this.testCase = Option(testCase)
+
+  /**
+   * Add a `SubmittedWorkflow` to the list of `SubmittedWorkflow`s to be cleaned up should this `Workflow` require a
+   * retry. Prevents unwanted cache hits from partially successful attempts when retrying a call caching test case.
+   */
+  def addSubmittedWorkflow(submittedWorkflow: SubmittedWorkflow): Unit =
+    testCase.foreach { _.addSubmittedWorkflow(submittedWorkflow) }
 }
 
 object Workflow {
-
-  def fromPath(path: Path): ErrorOr[Workflow] = {
-    Try(ConfigFactory.parseFile(path.toFile).resolve()) match {
-      case Success(c) => Workflow.fromConfig(c, path.getParent)
-      case Failure(_) => invalidNel(s"Invalid test config: $path")
-    }
-  }
 
   def fromConfig(conf: Config, configFile: File): ErrorOr[Workflow] = {
     conf.get[String]("name") match {

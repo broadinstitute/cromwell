@@ -59,8 +59,8 @@ case class CentaurTestCase(workflow: Workflow,
   private var submittedWorkflowIds: List[WorkflowId] = List.empty
 
   /**
-   * Run the specified cleanup function on the submitted workflow IDs tracked by this `Workflow`, clearing out the list
-   * of submitted workflow IDs afterward.
+   * Run the specified cleanup function on the submitted workflow IDs tracked by this `CentaurTestCase`, clearing out
+   * the list of submitted workflow IDs afterward.
    */
   def cleanUpBeforeRetry(cleanUpFunction: WorkflowId => IO[Unit]): IO[Unit] = for {
     _ <- submittedWorkflowIds.traverse(cleanUpFunction)

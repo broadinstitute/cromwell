@@ -22,13 +22,13 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreAccess: WorkflowStoreAc
                                             terminator: CromwellTerminator,
                                             override val serviceRegistryActor: ActorRef)
 
-  extends EnhancedBatchActor[(WorkflowId, OffsetDateTime)](
+  extends EnhancedBatchActor[WorkflowStoreWriteHeartbeatCommand](
     flushRate = workflowHeartbeatConfig.heartbeatInterval,
     batchSize = workflowHeartbeatConfig.writeBatchSize) {
 
   implicit val actorSystem: ActorSystem = context.system
 
-  override val threshold = workflowHeartbeatConfig.writeThreshold
+  override val threshold: Int = workflowHeartbeatConfig.writeThreshold
 
   private val failureShutdownDuration = workflowHeartbeatConfig.failureShutdownDuration
 
@@ -40,21 +40,57 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreAccess: WorkflowStoreAc
     *
     * @return the number of elements processed
     */
-  override protected def process(data: NonEmptyVector[(WorkflowId, OffsetDateTime)]): Future[Int] = instrumentedProcess {
-    val heartbeatDateTime = OffsetDateTime.now()
-    val processFuture = workflowStoreAccess.writeWorkflowHeartbeats(data, heartbeatDateTime)
-    processFuture transform {
-      // Track the `Try`, and then return the original `Try`. Similar to `andThen` but doesn't swallow exceptions.
-      _ <| trackRepeatedFailures(heartbeatDateTime, data.length)
+  override protected def process(data: NonEmptyVector[WorkflowStoreWriteHeartbeatCommand]): Future[Int] = instrumentedProcess {
+    val now = OffsetDateTime.now()
+
+    val warnDuration = (failureShutdownDuration + workflowHeartbeatConfig.heartbeatInterval) / 2
+    val warnThreshold = warnDuration.toNanos
+    val errorThreshold = failureShutdownDuration.toNanos
+
+    // Traverse these heartbeats looking for staleness of warning or error severity.
+    val (warningIds, errorIds) = data.foldLeft((Seq.empty[WorkflowId], Seq.empty[WorkflowId])) { case ((w, e), h) =>
+      val staleness = JDuration.between(h.heartbeatTime, now).toNanos
+
+      // w = warning ids, e = error ids, h = heartbeat datum
+      if (staleness > errorThreshold) (w, e :+ h.workflowId)
+      else if (staleness > warnThreshold) (w :+ h.workflowId, e)
+      else (w, e)
+    }
+
+    if (warningIds.nonEmpty) {
+      log.warning(
+        "Found {} stale workflow heartbeats (more than {} old): {}",
+        warningIds.size.toString,
+        warnDuration.toString(),
+        warningIds.mkString(", ")
+      )
+    }
+
+    if (errorIds.isEmpty) {
+      val processFuture = workflowStoreAccess.writeWorkflowHeartbeats(data.map { h => (h.workflowId, h.submissionTime) }, now)
+      processFuture transform {
+        // Track the `Try`, and then return the original `Try`. Similar to `andThen` but doesn't swallow exceptions.
+        _ <| trackRepeatedFailures(now, data.length)
+      }
+    } else {
+      log.error(
+        "Shutting down Cromwell instance {} as {} stale workflow heartbeats (more than {} old) were found: {}",
+        workflowHeartbeatConfig.cromwellId,
+        errorIds.size.toString,
+        failureShutdownDuration.toString(),
+        errorIds.mkString(", ")
+      )
+      terminator.beginCromwellShutdown(WorkflowStoreHeartbeatWriteActor.Shutdown)
+      Future.successful(0)
     }
   }
 
-  override def receive = enhancedReceive.orElse(super.receive)
-  override protected def weightFunction(command: (WorkflowId, OffsetDateTime)) = 1
-  override protected def instrumentationPath = NonEmptyList.of("store", "heartbeat-writes")
-  override protected def instrumentationPrefix = InstrumentationPrefixes.WorkflowPrefix
-  override def commandToData(snd: ActorRef): PartialFunction[Any, (WorkflowId, OffsetDateTime)] = {
-    case command: WorkflowStoreWriteHeartbeatCommand => (command.workflowId, command.submissionTime)
+  override def receive: Receive = enhancedReceive.orElse(super.receive)
+  override protected def weightFunction(command: WorkflowStoreWriteHeartbeatCommand) = 1
+  override protected def instrumentationPath: NonEmptyList[String] = NonEmptyList.of("store", "heartbeat-writes")
+  override protected def instrumentationPrefix: Option[String] = InstrumentationPrefixes.WorkflowPrefix
+  override def commandToData(snd: ActorRef): PartialFunction[Any, WorkflowStoreWriteHeartbeatCommand] = {
+    case command: WorkflowStoreWriteHeartbeatCommand => command
   }
 
   /*
@@ -83,9 +119,9 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreAccess: WorkflowStoreAc
           val failureUnits = failureShutdownDuration.unit
           val failureLength = FiniteDuration(failureJDuration.toNanos, TimeUnit.NANOSECONDS).toUnit(failureUnits)
           log.error(String.format(
-            "Shutting down %s as at least %s of heartbeat write errors have occurred between %s and %s (%s %s)",
+            "Shutting down %s as at least %d heartbeat write errors have occurred between %s and %s (%s %s)",
             workflowHeartbeatConfig.cromwellId,
-            failureShutdownDuration,
+            Integer.valueOf(workflowCount),
             lastSuccess,
             now,
             failureLength.toString,

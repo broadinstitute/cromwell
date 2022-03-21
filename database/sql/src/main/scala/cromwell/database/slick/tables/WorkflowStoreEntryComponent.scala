@@ -73,31 +73,104 @@ trait WorkflowStoreEntryComponent {
   )
 
   /**
-    * Returns up to "limit" startable workflows, sorted by submission time.
-    */
-  def fetchStartableWorkflows(limit: Long,
-     heartbeatTimestampTimedOut: Timestamp,
-     excludeWorkflowState: String,
-     excludedGroups: Set[String]
-    ): Query[WorkflowStoreEntries, WorkflowStoreEntry, Seq] = {
-      val query = for {
-        row <- workflowStoreEntries
-        /*
+   * Return hog group with the lowest count of actively running workflows, that has nonzero startable workflows
+   */
+  def getHogGroupWithLowestRunningWfs(heartbeatTimestampTimedOut: Timestamp,
+                                      excludeWorkflowState: String,
+                                      excludedGroups: Set[String]): Query[Rep[Option[String]], Option[String], Seq] = {
+    val startableWorkflows = for {
+      row <- workflowStoreEntries
+      /*
         This looks for:
-
         1) Workflows with no heartbeat (newly submitted or from a cleanly shut down Cromwell).
         2) Workflows with old heartbeats, presumably abandoned by a defunct Cromwell.
+        3) Workflows not in "OnHold" state
+        4) Workflows that don't belong to hog groups in excludedGroups
+      */
+      if (row.heartbeatTimestamp.isEmpty || row.heartbeatTimestamp < heartbeatTimestampTimedOut) &&
+        (row.workflowState =!= excludeWorkflowState) &&
+        !(row.hogGroup inSet excludedGroups)
+    } yield row
 
-        Workflows are taken by submission time, oldest first. This is a "query for update", meaning rows are
-        locked such that readers are blocked since we will do an update subsequent to this select in the same
-        transaction that we know will impact those readers.
-         */
+    // calculates the count of startable workflows per hog group and oldest submission timestamp of workflow
+    // present in that hog group
+    val numOfStartableWfsByHogGroup: Query[
+      (Rep[Option[String]], Rep[Int], Rep[Option[Timestamp]]),
+      (Option[String], Int, Option[Timestamp]),
+      Seq
+    ] = startableWorkflows
+      .groupBy(_.hogGroup)
+      .map { case (hogGroupName, workflows) => (hogGroupName, workflows.length, workflows.map(_.submissionTime).min) }
+      .sortBy(_._2.asc)
+
+    val totalWorkflows = for {
+      row <- workflowStoreEntries
+      /*
+        This looks for:
+        1) Workflows not in "OnHold" state
+        2) Workflows that don't belong to hog groups in excludedGroups
+      */
+      if row.workflowState =!= excludeWorkflowState &&
+        !(row.hogGroup inSet excludedGroups)
+    } yield row
+
+    // calculates the count of total workflows per hog group
+    val totalWorkflowsByHogGroup: Query[(Rep[Option[String]], Rep[Int]), (Option[String], Int), Seq] = totalWorkflows
+      .groupBy(_.hogGroup)
+      .map { case (hogGroupName, workflows) => (hogGroupName, workflows.length) }
+      .sortBy(_._2.asc)
+
+    // calculates the number of actively running workflows for each hog group. If a hog group
+    // has all it's workflows that are either actively running or in "OnHold" status it is not
+    // included in the list. Hog groups that have no workflows actively running return count as 0
+    val wfsRunningPerHogGroup: Query[
+      (Rep[Option[String]], Rep[Int], Rep[Option[Timestamp]]),
+      (Option[String], Int, Option[Timestamp]),
+      Seq
+    ] = for {
+      (hog_group, workflows_ct) <- totalWorkflowsByHogGroup
+      (startable_hog_group, startable_workflows_ct, oldest_submission_time) <- numOfStartableWfsByHogGroup if hog_group === startable_hog_group
+    } yield (hog_group, workflows_ct - startable_workflows_ct, oldest_submission_time)
+
+    // sort the above calculated result set first by the count of actively running workflows, then by hog group with
+    // oldest submission timestamp and then sort it alphabetically by hog group name. Then take the first row of
+    // the result and return the hog group name.
+    wfsRunningPerHogGroup.sortBy {
+      case (hogGroupName, running_wf_ct, oldest_submission_time) => (running_wf_ct.asc, oldest_submission_time, hogGroupName)
+    }.take(1).map(_._1)
+  }
+
+  /**
+   * Returns up to "limit" startable workflows, sorted by submission time, that belong to
+   * given hog group and are not in "OnHold" status.
+   */
+  val fetchStartableWfsForHogGroup = Compiled(
+    (limit: ConstColumn[Long],
+     heartbeatTimestampTimedOut: ConstColumn[Timestamp],
+     excludeWorkflowState: Rep[String],
+     hogGroup: Rep[Option[String]]) => {
+
+      val workflowsToStart = for {
+        row <- workflowStoreEntries
+        /*
+          This looks for:
+          1) Workflows with no heartbeat (newly submitted or from a cleanly shut down Cromwell).
+          2) Workflows with old heartbeats, presumably abandoned by a defunct Cromwell.
+          3) Workflows not in "OnHold" state
+          4) Workflows that belong to included hog group
+        */
         if (row.heartbeatTimestamp.isEmpty || row.heartbeatTimestamp < heartbeatTimestampTimedOut) &&
           (row.workflowState =!= excludeWorkflowState) &&
-          !(row.hogGroup inSet excludedGroups)
+          (row.hogGroup === hogGroup)
       } yield row
-      query.forUpdate.sortBy(_.submissionTime.asc).take(limit)
+
+      /*
+        This is a "query for update", meaning rows are locked such that readers are blocked since we will
+        do an update subsequent to this select in the same transaction that we know will impact those readers.
+       */
+      workflowsToStart.forUpdate.sortBy(_.submissionTime.asc).take(limit)
     }
+  )
 
   /**
     * Useful for counting workflows in a given state.

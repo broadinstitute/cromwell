@@ -21,7 +21,7 @@ object Dependencies {
   cats-effect, fs2, http4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
    */
   private val catsEffectV = "2.5.3" // scala-steward:off (CROM-6564)
-  private val catsV = "2.6.1"
+  private val catsV = "2.7.0"
   private val circeConfigV = "0.8.0"
   private val circeGenericExtrasV = "0.14.1"
   private val circeOpticsV = "0.14.1"
@@ -69,7 +69,7 @@ object Dependencies {
   private val jacksonV = "2.13.0"
   private val janinoV = "3.1.6"
   private val jsr305V = "3.0.2"
-  private val kindProjectorV = "0.10.0"
+  private val kindProjectorV = "0.13.2"
   private val kittensV = "2.3.2"
   private val liquibaseV = "4.8.0"
   private val logbackV = "1.2.10"
@@ -83,7 +83,7 @@ object Dependencies {
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "3.0.0"
   private val mockserverNettyV = "5.11.2"
-  private val mouseV = "1.0.5"
+  private val mouseV = "1.0.10"
   private val mysqlV = "8.0.26"
   private val nettyV = "4.1.72.Final"
   private val owlApiV = "5.1.19"

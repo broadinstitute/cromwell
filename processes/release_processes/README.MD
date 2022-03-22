@@ -86,6 +86,8 @@ The workflow outputs its status to the console.
 * Let `#ftfy-private` know that it's okay to resume merges to `develop`.
 * Announce release in `#dsp-batch`, set expectations about when the new version will be available in Terra.
 * It will take about an additional hour for the Docker image to build in Travis before its tag appears on the [Cromwell Docker Hub page](https://hub.docker.com/r/broadinstitute/cromwell/tags).
+    * The relevant build is the one named `XX_hotfix` in [this list](https://app.travis-ci.com/github/broadinstitute/cromwell/builds).
+    * See the `cromwell::build::publish_artifacts()` function for details
 
 ### How to Release Cromwell into Firecloud / Terra
 

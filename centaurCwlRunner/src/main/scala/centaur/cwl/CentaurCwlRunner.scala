@@ -7,7 +7,7 @@ import centaur.cwl.Outputs._
 import centaur.test.TestOptions
 import centaur.test.standard.{CentaurTestCase, CentaurTestFormat}
 import centaur.test.submit.{SubmitHttpResponse, SubmitWorkflowResponse}
-import centaur.test.workflow.{AllBackendsRequired, Workflow, WorkflowData}
+import centaur.test.workflow.{AllBackendsRequired, SubmittedWorkflowTracker, Workflow, WorkflowData}
 import com.typesafe.scalalogging.StrictLogging
 import common.util.VersionUtil
 import cromwell.api.model.{Aborted, Failed, NonTerminalStatus, Succeeded}
@@ -155,6 +155,8 @@ object CentaurCwlRunner extends StrictLogging {
     val testOptions = TestOptions(List.empty, ignore = false)
     val submitResponseOption = None
 
+    val submittedWorkflowTracker = new SubmittedWorkflowTracker()
+
     val workflowData = WorkflowData(
       Option(workflowContents),
       None,
@@ -176,10 +178,11 @@ object CentaurCwlRunner extends StrictLogging {
       retryTestFailures = false,
       allowOtherOutputs = true,
       skipDescribeEndpointValidation = true,
+      submittedWorkflowTracker = submittedWorkflowTracker,
       maximumAllowedTime = None
     )
 
-    val testCase = CentaurTestCase(workflow, testFormat, testOptions, submitResponseOption)(cromwellTracker = None)
+    val testCase = CentaurTestCase(workflow, testFormat, testOptions, submittedWorkflowTracker, submitResponseOption)(cromwellTracker = None)
 
     if (!args.quiet) {
       logger.info(s"Starting test for $workflowPath")

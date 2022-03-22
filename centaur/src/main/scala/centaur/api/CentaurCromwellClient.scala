@@ -56,7 +56,7 @@ object CentaurCromwellClient extends StrictLogging {
         submittedWorkflow =>
           for {
             _ <- IO(logger.info(s"Submitting ${workflow.testName} returned workflow id ${submittedWorkflow.id}"))
-            _ = workflow.addSubmittedWorkflow(submittedWorkflow)
+            _ = workflow.submittedWorkflowTracker.add(submittedWorkflow)
           } yield submittedWorkflow
       )
     })

@@ -5,13 +5,12 @@ import cats.data.Validated._
 import cats.syntax.apply._
 import cats.syntax.validated._
 import centaur.test.metadata.WorkflowFlatMetadata
-import centaur.test.standard.CentaurTestCase
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import configs.Result
 import configs.syntax._
-import cromwell.api.model.{SubmittedWorkflow, WorkflowDescribeRequest, WorkflowSingleSubmission}
+import cromwell.api.model.{WorkflowDescribeRequest, WorkflowSingleSubmission}
 
 import java.nio.file.Path
 import scala.concurrent.duration.FiniteDuration
@@ -25,6 +24,7 @@ final case class Workflow private(testName: String,
                                   retryTestFailures: Boolean,
                                   allowOtherOutputs: Boolean,
                                   skipDescribeEndpointValidation: Boolean,
+                                  submittedWorkflowTracker: SubmittedWorkflowTracker,
                                   maximumAllowedTime: Option[FiniteDuration]) {
 
   def toWorkflowSubmission: WorkflowSingleSubmission = WorkflowSingleSubmission(
@@ -53,22 +53,11 @@ final case class Workflow private(testName: String,
   def thirdRun: Workflow = {
     copy(data = data.copy(options = data.thirdOptions))
   }
-
-  private var testCase: Option[CentaurTestCase] = None
-
-  def setTestCase(testCase: CentaurTestCase): Unit = this.testCase = Option(testCase)
-
-  /**
-   * Add a `SubmittedWorkflow` to the list of `SubmittedWorkflow`s to be cleaned up should this `Workflow` require a
-   * retry. Prevents unwanted cache hits from partially successful attempts when retrying a call caching test case.
-   */
-  def addSubmittedWorkflow(submittedWorkflow: SubmittedWorkflow): Unit =
-    testCase.foreach { _.addSubmittedWorkflow(submittedWorkflow) }
 }
 
 object Workflow {
 
-  def fromConfig(conf: Config, configFile: File): ErrorOr[Workflow] = {
+  def fromConfig(conf: Config, configFile: File, submittedWorkflowTracker: SubmittedWorkflowTracker): ErrorOr[Workflow] = {
     conf.get[String]("name") match {
       case Result.Success(n) =>
         // If backend is provided, Centaur will only run this test if that backend is available on Cromwell
@@ -100,7 +89,7 @@ object Workflow {
         val maximumTime: Option[FiniteDuration] = conf.get[Option[FiniteDuration]]("maximumTime").value
 
         (files, directoryContentCheckValidation, metadata, retryTestFailuresErrorOr) mapN {
-          (f, d, m, retryTestFailures) => Workflow(n, f, m, absentMetadata, d, backendsRequirement, retryTestFailures, allowOtherOutputs, validateDescription, maximumTime)
+          (f, d, m, retryTestFailures) => Workflow(n, f, m, absentMetadata, d, backendsRequirement, retryTestFailures, allowOtherOutputs, validateDescription, submittedWorkflowTracker, maximumTime)
         }
 
       case Result.Failure(_) => invalidNel(s"No test 'name' for: $configFile")

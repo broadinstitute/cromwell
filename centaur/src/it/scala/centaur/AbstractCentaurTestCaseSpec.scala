@@ -178,7 +178,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
       for {
         _ <- ErrorReporters.logFailure(testEnvironment, centaurTestException)
         r <- if (attempt < retries) {
-          testCase.cleanUpBeforeRetry(clearCachedResults) *>
+          testCase.submittedWorkflowTracker.cleanUpBeforeRetry(clearCachedResults) *>
             tryTryAgain(testCase, runTest, retries, attempt + 1)
         } else {
           IO.raiseError(centaurTestException)

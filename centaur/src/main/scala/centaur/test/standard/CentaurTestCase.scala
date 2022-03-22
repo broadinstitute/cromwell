@@ -2,23 +2,23 @@ package centaur.test.standard
 
 import better.files._
 import cats.data.Validated._
-import cats.effect.IO
 import cats.syntax.all._
 import centaur.CromwellTracker
 import centaur.test._
 import centaur.test.formulas.TestFormulas
 import centaur.test.standard.CentaurTestFormat._
 import centaur.test.submit.{SubmitHttpResponse, SubmitResponse}
-import centaur.test.workflow.{AllBackendsRequired, AnyBackendRequired, OnlyBackendsAllowed, Workflow}
+import centaur.test.workflow._
 import com.typesafe.config.{Config, ConfigFactory}
 import common.validation.ErrorOr._
-import cromwell.api.model.{Failed, SubmittedWorkflow, Succeeded, WorkflowId}
+import cromwell.api.model.{Failed, Succeeded}
 
 import scala.util.{Failure, Success, Try}
 
 case class CentaurTestCase(workflow: Workflow,
                            testFormat: CentaurTestFormat,
                            testOptions: TestOptions,
+                           submittedWorkflowTracker: SubmittedWorkflowTracker,
                            submitResponseOption: Option[SubmitHttpResponse])(
                            implicit cromwellTracker: Option[CromwellTracker]) {
 
@@ -55,25 +55,6 @@ case class CentaurTestCase(workflow: Workflow,
   def containsTag(tag: String): Boolean = testOptions.tags.contains(tag)
 
   def name: String = s"${testFormat.testSpecString} ${workflow.testName}"
-
-  private var submittedWorkflowIds: List[WorkflowId] = List.empty
-
-  /**
-   * Run the specified cleanup function on the submitted workflow IDs tracked by this `CentaurTestCase`, clearing out
-   * the list of submitted workflow IDs afterward.
-   */
-  def cleanUpBeforeRetry(cleanUpFunction: WorkflowId => IO[Unit]): IO[Unit] = for {
-    _ <- submittedWorkflowIds.traverse(cleanUpFunction)
-    _ = submittedWorkflowIds = List.empty
-  } yield ()
-
-  /**
-   * Add a `SubmittedWorkflow` to the list of `SubmittedWorkflow`s to clean up should this `CentaurTestCase` require a
-   * retry. Prevents unwanted cache hits from partially successful attempts when retrying a call caching test case.
-   */
-  def addSubmittedWorkflow(submittedWorkflow: SubmittedWorkflow): Unit = {
-    submittedWorkflowIds = submittedWorkflow.id :: submittedWorkflowIds
-  }
 }
 
 object CentaurTestCase {
@@ -86,14 +67,14 @@ object CentaurTestCase {
   }
 
   def fromConfig(conf: Config, configFile: File, cromwellTracker: Option[CromwellTracker]): ErrorOr[CentaurTestCase] = {
-    val workflow = Workflow.fromConfig(conf, configFile)
+    val submittedWorkflowTracker = new SubmittedWorkflowTracker()
+    val workflow = Workflow.fromConfig(conf, configFile, submittedWorkflowTracker)
     val format: ErrorOr[CentaurTestFormat] = CentaurTestFormat.fromConfig(conf).toValidated
     val options = TestOptions.fromConfig(conf)
     val submit = SubmitHttpResponse.fromConfig(conf)
-    for {
-      testCase <- (workflow, format, options, submit) mapN { CentaurTestCase(_, _, _, _)(cromwellTracker) }
-      _ = testCase.workflow.setTestCase(testCase)
-    } yield testCase
+    (workflow, format, options, submit) mapN {
+      CentaurTestCase(_, _, _, submittedWorkflowTracker, _)(cromwellTracker)
+    }
   }
 
   private def validateTestCase(testCase: CentaurTestCase): ErrorOr[CentaurTestCase] = {

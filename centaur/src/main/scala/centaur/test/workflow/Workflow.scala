@@ -1,21 +1,19 @@
 package centaur.test.workflow
 
-import java.nio.file.Path
-
 import better.files._
 import cats.data.Validated._
 import cats.syntax.apply._
 import cats.syntax.validated._
 import centaur.test.metadata.WorkflowFlatMetadata
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import configs.Result
 import configs.syntax._
 import cromwell.api.model.{WorkflowDescribeRequest, WorkflowSingleSubmission}
 
+import java.nio.file.Path
 import scala.concurrent.duration.FiniteDuration
-import scala.util.{Failure, Success, Try}
 
 final case class Workflow private(testName: String,
                                   data: WorkflowData,
@@ -26,7 +24,9 @@ final case class Workflow private(testName: String,
                                   retryTestFailures: Boolean,
                                   allowOtherOutputs: Boolean,
                                   skipDescribeEndpointValidation: Boolean,
+                                  submittedWorkflowTracker: SubmittedWorkflowTracker,
                                   maximumAllowedTime: Option[FiniteDuration]) {
+
   def toWorkflowSubmission: WorkflowSingleSubmission = WorkflowSingleSubmission(
     workflowSource = data.workflowContent,
     workflowUrl = data.workflowUrl,
@@ -57,14 +57,7 @@ final case class Workflow private(testName: String,
 
 object Workflow {
 
-  def fromPath(path: Path): ErrorOr[Workflow] = {
-    Try(ConfigFactory.parseFile(path.toFile).resolve()) match {
-      case Success(c) => Workflow.fromConfig(c, path.getParent)
-      case Failure(_) => invalidNel(s"Invalid test config: $path")
-    }
-  }
-
-  def fromConfig(conf: Config, configFile: File): ErrorOr[Workflow] = {
+  def fromConfig(conf: Config, configFile: File, submittedWorkflowTracker: SubmittedWorkflowTracker): ErrorOr[Workflow] = {
     conf.get[String]("name") match {
       case Result.Success(n) =>
         // If backend is provided, Centaur will only run this test if that backend is available on Cromwell
@@ -96,7 +89,7 @@ object Workflow {
         val maximumTime: Option[FiniteDuration] = conf.get[Option[FiniteDuration]]("maximumTime").value
 
         (files, directoryContentCheckValidation, metadata, retryTestFailuresErrorOr) mapN {
-          (f, d, m, retryTestFailures) => Workflow(n, f, m, absentMetadata, d, backendsRequirement, retryTestFailures, allowOtherOutputs, validateDescription, maximumTime)
+          (f, d, m, retryTestFailures) => Workflow(n, f, m, absentMetadata, d, backendsRequirement, retryTestFailures, allowOtherOutputs, validateDescription, submittedWorkflowTracker, maximumTime)
         }
 
       case Result.Failure(_) => invalidNel(s"No test 'name' for: $configFile")

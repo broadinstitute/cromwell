@@ -8,7 +8,7 @@ import centaur.test._
 import centaur.test.formulas.TestFormulas
 import centaur.test.standard.CentaurTestFormat._
 import centaur.test.submit.{SubmitHttpResponse, SubmitResponse}
-import centaur.test.workflow.{AllBackendsRequired, AnyBackendRequired, OnlyBackendsAllowed, Workflow}
+import centaur.test.workflow._
 import com.typesafe.config.{Config, ConfigFactory}
 import common.validation.ErrorOr._
 import cromwell.api.model.{Failed, Succeeded}
@@ -18,6 +18,7 @@ import scala.util.{Failure, Success, Try}
 case class CentaurTestCase(workflow: Workflow,
                            testFormat: CentaurTestFormat,
                            testOptions: TestOptions,
+                           submittedWorkflowTracker: SubmittedWorkflowTracker,
                            submitResponseOption: Option[SubmitHttpResponse])(
                            implicit cromwellTracker: Option[CromwellTracker]) {
 
@@ -52,6 +53,8 @@ case class CentaurTestCase(workflow: Workflow,
   }
 
   def containsTag(tag: String): Boolean = testOptions.tags.contains(tag)
+
+  def name: String = s"${testFormat.testSpecString} ${workflow.testName}"
 }
 
 object CentaurTestCase {
@@ -64,12 +67,13 @@ object CentaurTestCase {
   }
 
   def fromConfig(conf: Config, configFile: File, cromwellTracker: Option[CromwellTracker]): ErrorOr[CentaurTestCase] = {
-    val workflow = Workflow.fromConfig(conf, configFile)
+    val submittedWorkflowTracker = new SubmittedWorkflowTracker()
+    val workflow = Workflow.fromConfig(conf, configFile, submittedWorkflowTracker)
     val format: ErrorOr[CentaurTestFormat] = CentaurTestFormat.fromConfig(conf).toValidated
     val options = TestOptions.fromConfig(conf)
     val submit = SubmitHttpResponse.fromConfig(conf)
     (workflow, format, options, submit) mapN {
-      CentaurTestCase(_, _, _, _)(cromwellTracker)
+      CentaurTestCase(_, _, _, submittedWorkflowTracker, _)(cromwellTracker)
     }
   }
 

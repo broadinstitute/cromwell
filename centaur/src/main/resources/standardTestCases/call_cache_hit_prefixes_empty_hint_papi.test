@@ -3,9 +3,6 @@ name: call_cache_hit_prefixes_empty_hint_papi
 testFormat: runtwiceexpectingcallcaching
 backends: [Papi]
 
-# CROM-6807 Don't retry failures, subsequent runs will fail because of unexpected cache hits from the initial run
-retryTestFailures: false
-
 files {
   workflow: call_cache_hit_prefixes/call_cache_hit_prefixes.wdl
   inputs: call_cache_hit_prefixes/call_cache_hit_prefixes_empty_hint.inputs

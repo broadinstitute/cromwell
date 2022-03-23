@@ -1,13 +1,12 @@
 package cwl
 
-import cats.syntax.validated._
+import cats.instances.list._
 import cats.syntax.functor._
 import cats.syntax.traverse._
-import cats.instances.list._
+import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
-import common.validation.IOChecked
-import common.validation.Validation._
 import common.validation.IOChecked._
+import common.validation.Validation._
 import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
 import cwl.InitialWorkDirFileGeneratorExpression._
 import cwl.InitialWorkDirRequirement.IwdrListingArrayEntry
@@ -66,7 +65,7 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
         }
       } yield WomMaybeListedDirectory(Option(directory), Option(fileListing))
     }
-    
+
     inputValues.toList.traverse[IOChecked, (String, WomValue)]({
       case (k, v: WomMaybeListedDirectory) =>
         val absolutePathString = ioFunctionSet.pathFunctions.relativeToHostCallRoot(v.value)
@@ -163,7 +162,7 @@ object InitialWorkDirFileGeneratorExpression {
           val expressionEvaluation = ExpressionEvaluator.eval(expression, unmappedParameterContext)
 
           expressionEvaluation flatMap {
-            case array: WomArray if array.value.forall(_.isInstanceOf[WomFile]) => 
+            case array: WomArray if array.value.forall(_.isInstanceOf[WomFile]) =>
               array.value.toList.map(_.asInstanceOf[WomFile]).map(AdHocValue(_, alternativeName = None, inputName = None)).validNel
             case file: WomFile =>
               List(AdHocValue(file, alternativeName = None, inputName = None)).validNel

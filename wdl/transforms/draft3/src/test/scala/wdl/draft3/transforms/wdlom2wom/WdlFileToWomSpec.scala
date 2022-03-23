@@ -77,7 +77,7 @@ class WdlFileToWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
         // get the top scatter node
         graph.scatters.size shouldBe(1)
         val topScatter : ScatterNode = graph.scatters.toVector.head
-        val wfCalls = graph.allNodes.filterByType[WorkflowCallNode]
+        val wfCalls = graph.allNodes.collect { case n: WorkflowCallNode => n }
 
         // don't generate any sub-workflows
         wfCalls.size shouldBe(0)

@@ -3,34 +3,11 @@ package common.collections
 import cats.data.NonEmptyList
 
 import scala.annotation.tailrec
-import scala.collection.TraversableLike
-import scala.collection.generic.CanBuildFrom
-import scala.collection.immutable.{MapLike, Queue}
-import scala.reflect.ClassTag
+import scala.collection.immutable.Queue
 
 object EnhancedCollections {
 
   case class DeQueued[A](head: Vector[A], tail: Queue[A])
-
-  /**
-    * After trying and failing to do this myself, I got this to work by copying the answer from here:
-    * https://stackoverflow.com/questions/29886246/scala-filter-by-type
-    */
-  implicit class EnhancedTraversableLike[T2, Repr <: TraversableLike[T2, Repr], That](val traversable: TraversableLike[T2, Repr]) extends AnyVal {
-    /**
-      * Lets you filter a collection by type.
-      *
-      * Warning: intelliJ has problems working out the return type but it is what you'd expect it to be.
-      * If you dislike intelliJ red, you can use type ascription to give it a hand
-      *
-      * eg.
-      * val xs: Set[Object]
-      * val strings: Set[String] = xs.filterByType[String]
-      */
-    def filterByType[T <: T2](implicit tag: ClassTag[T], bf: CanBuildFrom[Repr, T, That]): That = traversable.collect { case t: T => t }
-
-    def firstByType[T <: T2](implicit tag: ClassTag[T]): Option[T] = traversable collectFirst { case t: T => t }
-  }
 
   implicit class EnhancedQueue[A](val queue: Queue[A]) extends AnyVal {
 
@@ -95,7 +72,7 @@ object EnhancedCollections {
     }
   }
 
-  implicit class EnhancedMapLike[A, +B, +This <: MapLike[A, B, This] with Map[A, B]](val mapLike: MapLike[A, B, This]) {
+  implicit class EnhancedMapLike[A, +B, +This <: Map[A, B]](val mapLike: Map[A, B]) {
     /**
       * 'safe' in that unlike the implementation hiding behind `MapLike#mapValues` this is strict. i.e. this will only
       * evaluate the supplied function once on each value and at the time this method is called.

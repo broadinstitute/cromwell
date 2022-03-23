@@ -3,7 +3,7 @@ package cloud.nio.spi
 import java.nio.file._
 import java.nio.file.attribute.UserPrincipalLookupService
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object CloudNioFileSystem {
   val Separator: String = "/"

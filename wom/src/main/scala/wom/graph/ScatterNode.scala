@@ -1,7 +1,6 @@
 package wom.graph
 
 import common.Checked
-import common.collections.EnhancedCollections._
 import common.validation.Checked._
 import wom.graph.GraphNode.{GeneratedNodeAndNewNodes, GraphNodeWithInnerGraph}
 import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort, ScatterGathererPort}
@@ -44,7 +43,7 @@ final case class ScatterNode private(override val innerGraph: Graph,
 
 object ScatterNode {
   case class ScatterVariableAndValue(scatterVariableNode: ScatterVariableNode, arrayValue: WomArray)
-  
+
   type ScatterProcessingFunction = List[ScatterVariableAndValue] => Checked[Int]
   // Use dot product as the default processing function (works well for single variable scatters too)
   val DefaultScatterProcessingFunction: ScatterProcessingFunction = { nodesAndValues: List[ScatterVariableAndValue] =>
@@ -53,10 +52,10 @@ object ScatterNode {
       case _ => "All arrays must have the same number of element when using the dot product scatter method".invalidNelCheck
     }
   }
-  
+
   type ScatterCollectionFunction = (List[WomValue], WomArrayType) => WomArray
   val DefaultScatterCollectionFunction: ScatterCollectionFunction = { (shards: List[WomValue], valueType: WomArrayType) => WomArray(valueType, shards) }
-  
+
   type ScatterCollectionFunctionBuilder = List[Int] => ScatterCollectionFunction
   val DefaultScatterCollectionFunctionBuilder: ScatterCollectionFunctionBuilder = { _: List[Int] => DefaultScatterCollectionFunction }
 
@@ -69,9 +68,11 @@ object ScatterNode {
   final case class ScatterNodeWithNewNodes(node: ScatterNode) extends GeneratedNodeAndNewNodes {
     override val newExpressions: Set[ExpressionNode] = node.scatterCollectionExpressionNodes.toSet
     override val newInputs: Set[ExternalGraphInputNode] = node.innerGraph.externalInputNodes
-    override val usedOuterGraphInputNodes: Set[OuterGraphInputNode] =
-      (node.scatterCollectionExpressionNodes.flatMap(_.upstream).toSet.filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode]) ++
-      (node.innerGraph.outerGraphInputNodes.map(_.linkToOuterGraphNode).filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode])
+    override val usedOuterGraphInputNodes: Set[OuterGraphInputNode] = {
+      val typeFilter: PartialFunction[GraphNode, OuterGraphInputNode] = { case n: OuterGraphInputNode => n }
+      node.scatterCollectionExpressionNodes.flatMap(_.upstream).toSet.collect(typeFilter) ++
+      node.innerGraph.outerGraphInputNodes.map(_.linkToOuterGraphNode).collect(typeFilter)
+    }
   }
 
   /**
@@ -99,11 +100,11 @@ object ScatterNode {
     */
   class ScatterNodeBuilder {
     private val graphNodeSetter = new GraphNode.GraphNodeSetter[ScatterNode]()
-    
+
     def makeOutputPort(womType: WomArrayType, nodeToGather: PortBasedGraphOutputNode): ScatterGathererPort = {
       ScatterGathererPort(womType, nodeToGather, graphNodeSetter.get)
     }
-    
+
     def build(innerGraph: Graph,
               outputPorts: Set[ScatterGathererPort],
               scatterVariableNodes: List[ScatterVariableNode],

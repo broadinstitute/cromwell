@@ -45,6 +45,7 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments](Usage) 
       case Some(Google) if List(c.azureSecretName, c.azureVaultName, c.azureIdentityClientId).forall(_.isEmpty) => Right(())
       case Some(Google) => Left(s"One or more specified options are only valid with access token strategy '$Azure'")
       case Some(huh) => Left(s"Unrecognized access token strategy '$huh'")
+      case None => Left("Programmer error, access token strategy should not be None")
     }
   )
 }

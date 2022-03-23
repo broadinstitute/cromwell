@@ -4,7 +4,7 @@ import cats.syntax.validated._
 import com.google.auth.oauth2.GoogleCredentials
 import common.validation.ErrorOr.ErrorOr
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 /**

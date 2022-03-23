@@ -9,7 +9,7 @@ import scala.concurrent.duration.FiniteDuration
 
 object IoPromiseProxyActor {
   case class IoCommandWithPromise[A](ioCommand: IoCommand[A], timeout: FiniteDuration = defaultTimeout) {
-    val promise = Promise[A]
+    val promise = Promise[A]()
   }
   def props(ioActor: ActorRef) = Props(new IoPromiseProxyActor(ioActor))
 }
@@ -22,9 +22,9 @@ object IoPromiseProxyActor {
   */
 class IoPromiseProxyActor(override val ioActor: ActorRef) extends Actor with ActorLogging with IoClientHelper {
   override def receive = ioReceive orElse actorReceive
-  
+
   def actorReceive: Receive = {
-    case withPromise: IoCommandWithPromise[_] => 
+    case withPromise: IoCommandWithPromise[_] =>
       sendIoCommandWithContext(withPromise.ioCommand, withPromise.promise, withPromise.timeout)
   }
 

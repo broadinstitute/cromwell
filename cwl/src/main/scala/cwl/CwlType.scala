@@ -1,12 +1,11 @@
 package cwl
 
-import cats.syntax.traverse._
-import cats.syntax.functor._
-import cats.syntax.validated._
 import cats.instances.list._
 import cats.instances.option._
+import cats.syntax.functor._
+import cats.syntax.traverse._
+import cats.syntax.validated._
 import common.validation.ErrorOr._
-import common.validation.IOChecked
 import common.validation.IOChecked._
 import eu.timepit.refined._
 import mouse.all._
@@ -252,7 +251,7 @@ case class Directory private
         val initializeFunction: WomMaybeListedDirectory => IoFunctionSet => IOChecked[WomValue] = { dir =>ioFunctionSet =>
           ioFunctionSet.createTemporaryDirectory(basename).toIOChecked(ioFunctionSet.cs) map { tempDir =>
             dir.copy(valueOption = Option(tempDir))
-          } 
+          }
         }
         new WomMaybeListedDirectory(None, listingOption, basename, initializeFunction = initializeFunction).valid
       }

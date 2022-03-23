@@ -2,7 +2,6 @@ package wom.graph
 
 import cats.syntax.all._
 import cats.instances.list._
-import common.collections.EnhancedCollections._
 import common.validation.ErrorOr.ErrorOr
 import wom.callable.Callable
 import wom.callable.Callable._
@@ -53,7 +52,7 @@ trait GraphNode {
   /**
     * The set of all OuterGraphInputNodes which are somewhere upstream of this Node (in the same graph)
     */
-  lazy val upstreamOuterGraphInputNodes: Set[OuterGraphInputNode] = upstreamAncestry.filterByType[OuterGraphInputNode]
+  lazy val upstreamOuterGraphInputNodes: Set[OuterGraphInputNode] = upstreamAncestry.collect { case n: OuterGraphInputNode => n }
   protected def calculateUpstreamPorts: Set[OutputPort] = inputPorts.map(_.upstream)
   lazy val upstreamPorts: Set[OutputPort] = calculateUpstreamPorts
   lazy val upstream: Set[GraphNode] = upstreamPorts.map(_.graphNode)

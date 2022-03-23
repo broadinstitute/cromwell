@@ -22,7 +22,7 @@ import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success, Try}
 
 trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
-  def readFile(path: String, sizeLimit: Int): String 
+  def readFile(path: String, sizeLimit: Int): String
 
   def writeFile(path: String, content: String): Try[WomFile]
 
@@ -327,7 +327,7 @@ object WdlStandardLibraryFunctions {
         def optionalSafeFileSize(value: WomValue): Try[Long] = value match {
           case f if f.isInstanceOf[WomSingleFile] || WomSingleFileType.isCoerceableFrom(f.womType) => Try(Await.result(ioFunctionSet.size(f.valueString), Duration.Inf))
           case WomOptionalValue(_, Some(o)) => optionalSafeFileSize(o)
-          case WomOptionalValue(f, None) if isOptionalOfFileType(f) => Success(0l)
+          case WomOptionalValue(f, None) if isOptionalOfFileType(f) => Success(0L)
           case _ => Failure(new Exception(s"The 'size' method expects a 'File' or 'File?' argument but instead got ${value.womType.stableName}."))
         }
 

@@ -128,7 +128,7 @@ object StringUtilSpec {
   final case class Foo(bar: String, list: List[Bar])
 
   final class Bar(index: Int) {
-    private def longLine(i: Int) = '"' +  s"blah$i" * 100 + '"'
+    private def longLine(i: Int) = "\"" +  s"blah$i" * 100 + "\""
     override def toString: String = if (index < 2) {
       longLine(index)
     } else {

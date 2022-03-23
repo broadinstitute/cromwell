@@ -12,7 +12,7 @@ import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import nl.grons.metrics4.scala.{DefaultInstrumented, Meter, MetricName}
 import net.ceedubs.ficus.Ficus._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 
 object StatsDInstrumentationServiceActor {

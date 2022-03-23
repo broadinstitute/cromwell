@@ -3,7 +3,7 @@ package wdl.draft3.transforms.parsing
 import better.files.File
 import common.Checked
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import common.validation.Validation.TryValidation
 import wdl.draft3.parser.WdlParser
 import wdl.draft3.parser.WdlParser.Ast

@@ -27,7 +27,7 @@ import wom.transforms.WomBundleMaker.ops._
 import wom.types.{WomMaybePopulatedFileType, _}
 import womtool.graph.WomGraph._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class WomGraph(graphName: String, graph: Graph) {
 

@@ -18,7 +18,7 @@ import cromwell.backend.google.pipelines.v2alpha1.RuntimeOutputMapping
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import wom.runtime.WomOutputRuntimeExtractor
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 
 object Delocalization {

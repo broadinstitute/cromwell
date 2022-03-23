@@ -100,14 +100,14 @@ class AwsConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     val assumeRoleWithId = (auths collectFirst { case a: AssumeRoleMode => a }).get
     assumeRoleWithId.name shouldBe "assume-role-based-on-another-with-external"
     assumeRoleWithId.baseAuthName shouldBe "default"
-    assumeRoleWithId.baseAuthentication.name shouldBe "default"
+    assumeRoleWithId.baseAuthentication().name shouldBe "default"
     assumeRoleWithId.roleArn shouldBe "my-role-arn"
     assumeRoleWithId.externalId shouldBe "my-external-id"
 
     val assumeRole = (auths.takeRight(1) collectFirst { case a: AssumeRoleMode => a }).get
     assumeRole.name shouldBe "assume-role-based-on-another"
     assumeRole.baseAuthName shouldBe "default"
-    assumeRole.baseAuthentication.name shouldBe "default"
+    assumeRole.baseAuthentication().name shouldBe "default"
     assumeRole.roleArn shouldBe "my-role-arn"
     assumeRole.externalId shouldBe ""
   }

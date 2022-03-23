@@ -10,7 +10,7 @@ import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import net.ceedubs.ficus.Ficus._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object ServiceRegistryActor {
   case object NoopMessage
@@ -73,7 +73,7 @@ class ServiceRegistryActor(globalConfig: Config) extends Actor with ActorLogging
   val services: Map[String, ActorRef] = serviceProps map {
     case (name, props) => name -> context.actorOf(props, name)
   }
-  
+
   private def transform(message: Any, from: ActorRef): Any = message match {
     case _: ListenToMessage => Listen(from)
     case _ => message

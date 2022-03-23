@@ -37,7 +37,7 @@ import cromwell.backend.io.JobPaths
 import software.amazon.awssdk.services.batch.model.{ContainerProperties, Host, KeyValuePair, MountPoint, ResourceRequirement, ResourceType, Volume}
 import cromwell.backend.impl.aws.io.AwsBatchVolume
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import java.security.MessageDigest
 import org.apache.commons.lang3.builder.{ToStringBuilder, ToStringStyle}
 import org.slf4j.{Logger, LoggerFactory}

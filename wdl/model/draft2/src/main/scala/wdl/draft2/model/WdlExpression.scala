@@ -23,7 +23,7 @@ import wom.graph.expression.AnonymousExpressionNode.AnonymousExpressionConstruct
 import wom.types.{WomAnyType, WomType}
 import wom.values.{WomFile, WomFloat, WomSingleFile, WomValue}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.language.postfixOps
@@ -202,7 +202,7 @@ case class WdlExpression(ast: AstNode) extends WomValue {
 
   override def toWomString: String = toString(NullSyntaxHighlighter)
 
-  def prerequisiteCallNames: Set[FullyQualifiedName] = {
+  def prerequisiteCallNames: Set[String] = {
     this.topLevelMemberAccesses map { _.lhsString }
   }
   def topLevelMemberAccesses: Set[MemberAccess] = AstTools.findTopLevelMemberAccesses(ast) map { MemberAccess(_) } toSet

@@ -24,7 +24,7 @@ import mouse.all._
 import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, endpointUrl: URL)(implicit gcsTransferConfiguration: GcsTransferConfiguration) extends PipelinesApiFactoryInterface
   with ContainerSetup

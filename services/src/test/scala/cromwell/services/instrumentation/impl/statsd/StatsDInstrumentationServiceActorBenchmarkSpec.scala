@@ -12,7 +12,7 @@ import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 
 class StatsDInstrumentationServiceActorBenchmarkSpec extends TestKitSuite with AnyFlatSpecLike with BeforeAndAfterAll with Matchers with Eventually {

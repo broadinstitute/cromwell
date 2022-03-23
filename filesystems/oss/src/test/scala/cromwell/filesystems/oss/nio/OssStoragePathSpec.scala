@@ -1,7 +1,7 @@
 package cromwell.filesystems.oss.nio
 
 import cromwell.core.TestKitSuite
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 
 class OssStoragePathSpec extends TestKitSuite with OssNioUtilSpec {

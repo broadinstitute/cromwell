@@ -15,7 +15,7 @@ import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilderFactory}
 import net.ceedubs.ficus.Ficus._
 import shapeless.syntax.typeable._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.language.{existentials, postfixOps}
 import scala.util.{Failure, Try}
 

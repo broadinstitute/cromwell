@@ -33,7 +33,7 @@ class AsyncIo(ioEndpoint: ActorRef, ioCommandBuilder: IoCommandBuilder) {
         commandWithPromise.promise.future
     }
   }
-  
+
   /**
     * IMPORTANT: This loads the entire content of the file into memory !
     * Only use for small files !
@@ -62,10 +62,10 @@ class AsyncIo(ioEndpoint: ActorRef, ioCommandBuilder: IoCommandBuilder) {
     asyncCommand(ioCommandBuilder.existsCommand(path))
   }
 
-  def readLinesAsync(path: Path): Future[Traversable[String]] = {
+  def readLinesAsync(path: Path): Future[Iterable[String]] = {
     asyncCommand(ioCommandBuilder.readLines(path))
   }
-  
+
   def isDirectory(path: Path): Future[Boolean] = {
     asyncCommand(ioCommandBuilder.isDirectoryCommand(path))
   }

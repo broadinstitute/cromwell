@@ -4,7 +4,7 @@ import java.lang.ProcessBuilder.Redirect
 
 import better.files.File
 import com.typesafe.scalalogging.StrictLogging
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 trait CromwellProcess extends StrictLogging {
   def logFile: String

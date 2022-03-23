@@ -24,7 +24,7 @@ import net.ceedubs.ficus.Ficus._
 import org.slf4j.{Logger, LoggerFactory}
 
 import java.net.URL
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 import scala.util.matching.Regex
 import scala.util.{Failure, Success, Try}

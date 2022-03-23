@@ -9,7 +9,7 @@ import cromwell.backend.google.pipelines.v2beta.api.Deserialization._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success}
 
 class DeserializationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with StrictLogging {
@@ -49,7 +49,7 @@ class DeserializationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     val event1 = deserializedEvents.head
     event1.getDescription shouldBe "event 1 description"
     event1.getTimestamp shouldBe "2018-04-20T14:38:25+00:00"
-    // Event1 details are of type WorkerAssignedEvent, so it should not be defined for something else 
+    // Event1 details are of type WorkerAssignedEvent, so it should not be defined for something else
     event1.getContainerStarted shouldBe null
 
     val event1Details = event1.getWorkerAssigned
@@ -137,7 +137,7 @@ class DeserializationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
 
   it should "be able to say if the operation has started" in {
     val operation = new Operation()
-    
+
     def makeMetadata(details: Map[String, Object]) = Map[String, AnyRef](
       "events" -> new util.ArrayList(
         List[java.util.Map[String, Object]](
@@ -158,7 +158,7 @@ class DeserializationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     val metadataMapNotStarted2 = makeMetadata(Map[String, Object](
       "containerStarted" -> Map().asJava
     ))
-    
+
     operation.setMetadata(metadataMapStarted)
     operation.hasStarted shouldBe true
     operation.setMetadata(metadataMapNotStarted)
@@ -166,7 +166,7 @@ class DeserializationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     operation.setMetadata(metadataMapNotStarted2)
     operation.hasStarted shouldBe false
   }
-  
+
   it should "deserialize big decimals correctly" in {
     val valueMap = Map[String, Object](
       "integerValue" -> BigDecimal(5),
@@ -174,7 +174,7 @@ class DeserializationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
       "floatValue" -> BigDecimal.decimal(7F),
       "longValue" -> BigDecimal.decimal(8L)
     ).asJava
-    
+
     val deserialized = Deserialization.deserializeTo[DeserializationTestClass](valueMap)
     deserialized match {
       case Success(deserializedSuccess) =>
@@ -186,5 +186,5 @@ class DeserializationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
         fail("Bad deserialization", f)
     }
   }
-  
+
 }

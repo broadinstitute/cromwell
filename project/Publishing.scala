@@ -10,7 +10,7 @@ import sbtdocker.DockerPlugin.autoImport._
 import sbtdocker.Instruction
 
 import java.io.FileNotFoundException
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.sys.process._
 
 object Publishing {

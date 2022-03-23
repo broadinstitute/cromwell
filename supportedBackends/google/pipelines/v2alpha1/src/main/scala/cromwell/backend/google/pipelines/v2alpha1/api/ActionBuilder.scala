@@ -13,7 +13,7 @@ import cromwell.docker.DockerImageIdentifier
 import cromwell.docker.registryv2.flows.dockerhub.DockerHub
 import mouse.all._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 
 /**

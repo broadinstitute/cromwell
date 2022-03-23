@@ -18,7 +18,7 @@ import net.ceedubs.ficus.Ficus._
 import wom.WomFileMapper
 import wom.values._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration.Duration

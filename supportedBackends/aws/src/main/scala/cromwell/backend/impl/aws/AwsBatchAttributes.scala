@@ -52,7 +52,7 @@ import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.{StringReader, ValueReader}
 import org.slf4j.{Logger, LoggerFactory}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 case class AwsBatchAttributes(fileSystem: String,
                               auth: AwsAuthMode,

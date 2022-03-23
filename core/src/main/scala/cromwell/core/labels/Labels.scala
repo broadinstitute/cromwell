@@ -5,7 +5,7 @@ import cats.instances.vector._
 import cats.syntax.traverse._
 import common.validation.ErrorOr.ErrorOr
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 case class Labels(value: Vector[Label]) {
 

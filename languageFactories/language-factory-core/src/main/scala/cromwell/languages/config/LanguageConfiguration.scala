@@ -5,7 +5,7 @@ import java.util.Map.Entry
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.languages.config.CromwellLanguages.{CromwellLanguageName, CromwellLanguageVersion}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 final case class LanguagesConfiguration(languages: List[LanguageVersionConfigurationEntry], default: Option[String])
 final case class LanguageVersionConfigurationEntry(name: CromwellLanguageName, versions: Map[CromwellLanguageVersion, LanguageVersionConfig], default: Option[String])

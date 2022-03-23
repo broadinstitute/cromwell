@@ -26,9 +26,9 @@ object IoCommand {
     .setRandomizationFactor(0.2D)
     .setMaxElapsedTimeMillis((10 minutes).toMillis.toInt)
     .build()
-  
+
   def defaultBackoff: Backoff = SimpleExponentialBackoff(defaultGoogleBackoff)
-  
+
   type RetryCommand[T] = (FiniteDuration, IoCommand[T])
 }
 
@@ -66,7 +66,7 @@ trait IoCommand[+T] {
     logIOMsgOverLimit(s"IOCommand.success '$value'")
     IoSuccess(this, value)
   }
-  
+
   /**
     * Fail the command with an exception
     */
@@ -98,13 +98,13 @@ abstract class IoCopyCommand(val source: Path, val destination: Path) extends Io
   override def toString = s"copy ${source.pathAsString} to ${destination.pathAsString}"
   override lazy val name = "copy"
 }
-  
+
 object IoContentAsStringCommand {
 
   /**
     * Options to customize reading of a file.
     * @param maxBytes If specified, only reads up to maxBytes Bytes from the file
-    * @param failOnOverflow If this is true, maxBytes is specified, and the file is larger than maxBytes, fail the command. 
+    * @param failOnOverflow If this is true, maxBytes is specified, and the file is larger than maxBytes, fail the command.
     */
   case class IoReadOptions(maxBytes: Option[Int], failOnOverflow: Boolean)
 }
@@ -172,7 +172,7 @@ abstract class IoExistsCommand(val file: Path) extends SingleFileIoCommand[Boole
 /**
   * Return the lines of a file in a collection
   */
-abstract class IoReadLinesCommand(val file: Path) extends SingleFileIoCommand[Traversable[String]] {
+abstract class IoReadLinesCommand(val file: Path) extends SingleFileIoCommand[Iterable[String]] {
   override def toString = s"read lines of ${file.pathAsString}"
   override lazy val name = "read lines"
 }

@@ -16,7 +16,7 @@ import cromwell.services.instrumentation.impl.stackdriver.StackdriverConfig._
 import cromwell.services.instrumentation.impl.stackdriver.StackdriverInstrumentationServiceActor._
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 import scala.util.Try
 

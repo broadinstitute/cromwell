@@ -44,7 +44,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
     } yield file
   }
 
-  def read_objects(params: Seq[Try[WomValue]]): Try[WomArray] = extractObjects("read_objects", params) map { WomArray(WomArrayType(WomObjectType), _) }
+  def read_objects(params: Seq[Try[WomValue]]): Try[WomArray] = extractObjects("read_objects", params) map { a => WomArray(WomArrayType(WomObjectType), a.toIndexedSeq) }
   def read_string(params: Seq[Try[WomValue]]): Try[WomString] = readContentsFromSingleFileParameter("read_string", params, fileSizeLimitationConfig.readStringLimit).map(s => WomString(s.trim))
   def read_json(params: Seq[Try[WomValue]]): Try[WomValue] = readContentsFromSingleFileParameter("read_json", params, fileSizeLimitationConfig.readJsonLimit).map(_.parseJson).flatMap(WomObjectType.coerceRawValue)
   def read_int(params: Seq[Try[WomValue]]): Try[WomInteger] = readContentsFromSingleFileParameter("read_int", params, fileSizeLimitationConfig.readIntLimit).map(s => WomString(s.trim)) map { s => WomInteger(s.value.trim.toInt) }
@@ -65,7 +65,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
     for {
       contents <- readContentsFromSingleFileParameter("read_lines", params, fileSizeLimitationConfig.readLinesLimit)
       lines = contents.split("\n")
-    } yield WomArray(WomArrayType(WomStringType), lines map WomString)
+    } yield WomArray(WomArrayType(WomStringType), lines.toIndexedSeq map WomString)
   }
 
   def read_map(params: Seq[Try[WomValue]]): Try[WomMap] = {

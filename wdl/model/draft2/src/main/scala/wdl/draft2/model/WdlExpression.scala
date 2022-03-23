@@ -101,7 +101,7 @@ object WdlExpression {
     ValueEvaluator(lookup, functions).evaluate(ast)
 
   def evaluateFiles(ast: AstNode, lookup: ScopedLookupFunction, functions: WdlFunctions[WomValue], coerceTo: WomType = WomAnyType) =
-    FileEvaluator(expression.ValueEvaluator(lookup, functions), coerceTo).evaluate(ast)
+    FileEvaluator(ValueEvaluator(lookup, functions), coerceTo).evaluate(ast)
 
   def evaluateType(ast: AstNode, lookup: (String) => WomType, functions: WdlFunctions[WomType], from: Option[Scope] = None) =
     TypeEvaluator(lookup, functions, from).evaluate(ast)

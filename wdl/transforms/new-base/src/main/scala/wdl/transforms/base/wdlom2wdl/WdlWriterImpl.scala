@@ -203,7 +203,7 @@ object WdlWriterImpl {
       // TODO: use graph ordering
       // https://github.com/broadinstitute/cromwell/issues/3796
       val inputDeclarationElements: List[InputDeclarationElement] =
-      a.graphElements.toList.filterByType[InputDeclarationElement]
+      a.graphElements.toList.collect { case e: InputDeclarationElement => e }
       val intermediateValueDeclarationElements: List[IntermediateValueDeclarationElement] =
         a.graphElements.toList.filterByType[IntermediateValueDeclarationElement]
       val ifElements: List[IfElement] =

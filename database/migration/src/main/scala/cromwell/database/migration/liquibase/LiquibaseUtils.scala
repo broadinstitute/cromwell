@@ -160,7 +160,7 @@ object LiquibaseUtils {
     */
   def getChangeSets(settings: LiquibaseSettings): Seq[ChangeSet] = {
     mutex.synchronized {
-      getChangeLog(settings).getChangeSets.asScala
+      getChangeLog(settings).getChangeSets.asScala.toList
     }
   }
 

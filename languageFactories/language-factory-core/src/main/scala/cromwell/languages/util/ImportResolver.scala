@@ -2,10 +2,9 @@ package cromwell.languages.util
 
 import java.net.{URI, URL}
 import java.nio.file.Paths
-
 import better.files.File
 import cats.data.NonEmptyList
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import cats.syntax.either._
 import cats.syntax.validated._
 import com.softwaremill.sttp._
@@ -16,16 +15,16 @@ import common.validation.ErrorOr._
 import common.validation.Checked._
 import common.validation.Validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}
+
 import java.nio.file.{Path => NioPath}
 import java.security.MessageDigest
-
 import cromwell.core.WorkflowId
 import wom.ResolvedImportRecord
 import wom.core.WorkflowSource
 import wom.values._
 
 import scala.concurrent.duration._
-import scala.concurrent.Await
+import scala.concurrent.{Await, ExecutionContext}
 import scala.util.{Failure, Success, Try}
 
 object ImportResolver {
@@ -192,7 +191,7 @@ object ImportResolver {
 
           // temporary situation to get functionality working before
           // starting in on async-ifying the entire WdlNamespace flow
-          val result: Checked[String] = Await.result(responseIO.unsafeToFuture, 15.seconds).body.leftMap { e => NonEmptyList(e.toString.trim, List.empty) }
+          val result: Checked[String] = Await.result(responseIO.unsafeToFuture(), 15.seconds).body.leftMap { e => NonEmptyList(e.toString.trim, List.empty) }
 
           result map {
             ResolvedImportBundle(_, newResolverList(toLookup), ResolvedImportRecord(toLookup))
@@ -215,6 +214,9 @@ object ImportResolver {
     import common.util.IntrospectableLazy._
 
     val sttpBackend: IntrospectableLazy[SttpBackend[IO, Nothing]] = lazily {
+      implicit val ec: ExecutionContext = null
+      implicit val cs: ContextShift[IO] = IO.contextShift(ec)
+
       AsyncHttpClientCatsBackend[IO]()
     }
 

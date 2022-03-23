@@ -2,7 +2,6 @@ package wdl.transforms.base.ast2wdlom
 
 import cats.syntax.apply._
 import cats.syntax.either._
-import common.collections.EnhancedCollections._
 import common.transforms.CheckedAtoB
 import common.validation.ErrorOr._
 import wdl.model.draft3.elements._
@@ -19,7 +18,7 @@ object AstToFileElement {
     (validatedImportElements, validatedFileBodyElements) mapN { (importElements, fileBodyElements) =>
       val workflowElements: Vector[WorkflowDefinitionElement] = fileBodyElements.collect { case e: WorkflowDefinitionElement => e }
       val taskElements: Vector[TaskDefinitionElement] = fileBodyElements.collect { case e: TaskDefinitionElement => e }
-      val structElements: Vector[StructElement] = fileBodyElements..collect { case e: StructElement => e }
+      val structElements: Vector[StructElement] = fileBodyElements.collect { case e: StructElement => e }
       FileElement(importElements, structElements, workflowElements, taskElements)
     }
   }

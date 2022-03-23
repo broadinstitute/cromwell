@@ -38,7 +38,7 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
     ),
     (
       "log error with one arg",
-      _.error("Hello {} {} {} {}", "arg1"),
+      _.error("Hello {} {} {} {}", arguments = "arg1"),
       List(Slf4jMessage(Level.ERROR, List("tag: Hello {} {} {} {}", "arg1"))),
       List(AkkaMessage(Logging.ErrorLevel, "tag: Hello arg1 {} {} {}"))
     ),
@@ -93,7 +93,7 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
     ),
     (
       "log warn with one arg",
-      _.warn("Hello {} {} {} {}", "arg1"),
+      _.warn("Hello {} {} {} {}", arguments = "arg1"),
       List(Slf4jMessage(Level.WARN, List("tag: Hello {} {} {} {}", "arg1"))),
       List(AkkaMessage(Logging.WarningLevel, "tag: Hello arg1 {} {} {}"))
     ),
@@ -136,7 +136,7 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
     ),
     (
       "log info with one arg",
-      _.info("Hello {} {} {} {}", "arg1"),
+      _.info("Hello {} {} {} {}", arguments = "arg1"),
       List(Slf4jMessage(Level.INFO, List("tag: Hello {} {} {} {}", "arg1"))),
       List(AkkaMessage(Logging.InfoLevel, "tag: Hello arg1 {} {} {}"))
     ),
@@ -179,7 +179,7 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
     ),
     (
       "log debug with one arg",
-      _.debug("Hello {} {} {} {}", "arg1"),
+      _.debug("Hello {} {} {} {}", arguments ="arg1"),
       List(Slf4jMessage(Level.DEBUG, List("tag: Hello {} {} {} {}", "arg1"))),
       List(AkkaMessage(Logging.DebugLevel, "tag: Hello arg1 {} {} {}"))
     ),
@@ -222,7 +222,7 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
     ),
     (
       "log trace with one arg",
-      _.trace("Hello {} {} {} {}", "arg1"),
+      _.trace("Hello {} {} {} {}", arguments = "arg1"),
       List(Slf4jMessage(Level.TRACE, List("tag: Hello {} {} {} {}", "arg1"))),
       Nil
     ),

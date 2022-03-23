@@ -411,7 +411,7 @@ object WdlNamespace {
 
     case class ScopeAccumulator(accumulated: Seq[Scope] = Seq.empty, errors: Seq[String] = Seq.empty)
 
-    def lookForDuplicates(scopes: Traversable[Scope]) = {
+    def lookForDuplicates(scopes: Iterable[Scope]) = {
       scopes.foldLeft(ScopeAccumulator()) { (acc, cur) =>
         val possibleError = acc.accumulated.find(_.unqualifiedName == cur.unqualifiedName) map { duplicate =>
           val (dupName, dupTerminal) = scopeNameAndTerminal(duplicate)

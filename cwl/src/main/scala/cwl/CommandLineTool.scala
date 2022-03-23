@@ -314,7 +314,7 @@ object CommandLineTool {
   })
 
   // Ordering for a CommandBindingSortingKey
-  implicit val SortingKeyOrdering: Ordering[CommandBindingSortingKey] = Ordering.by(_.value.toIterable)
+  implicit val SortingKeyOrdering: Ordering[CommandBindingSortingKey] = Ordering.by(_.value.toList)
 
   // Ordering for a CommandPartSortMapping: order by sorting key
   implicit val SortKeyAndCommandPartOrdering: Ordering[SortKeyAndCommandPart] = Ordering.by(_.sortingKey)

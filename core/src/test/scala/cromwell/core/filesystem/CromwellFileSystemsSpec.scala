@@ -25,10 +25,10 @@ class CromwellFileSystemsSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
     """.stripMargin)
 
   val cromwellFileSystems = new CromwellFileSystems(globalConfig)
-  
+
   it should "build factory builders and factories for valid configuration" in {
     cromwellFileSystems.factoryBuilders.keySet shouldBe Set("fs1", "fs2", "fs3")
-    
+
     val factoriesConfig = ConfigFactory.parseString(
       """
         |filesystems {
@@ -39,14 +39,14 @@ class CromwellFileSystemsSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
 
     val pathFactories = cromwellFileSystems.factoriesFromConfig(factoriesConfig)
     pathFactories.isRight shouldBe true
-    val fs1 = pathFactories.right.get("fs1")
-    val fs2 = pathFactories.right.get("fs2")
+    val fs1 = pathFactories.toOption.get("fs1")
+    val fs2 = pathFactories.toOption.get("fs2")
     fs1 shouldBe a[MockPathBuilderFactory]
     fs2 shouldBe a[MockPathBuilderFactory]
     fs1.asInstanceOf[MockPathBuilderFactory].instanceConfig.getString("somekey") shouldBe "somevalue"
     fs2.asInstanceOf[MockPathBuilderFactory].instanceConfig.getString("someotherkey") shouldBe "someothervalue"
   }
-  
+
   it should "build singleton instance if specified" in {
     val rootConf = ConfigFactory.parseString(
       """
@@ -69,8 +69,8 @@ class CromwellFileSystemsSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
     val factory2 = cromwellFileSystems.buildFactory("fs1", ConfigFactory.empty)
 
     // The singleton configs should be the same for different factories
-    assert(factory1.right.get.asInstanceOf[MockPathBuilderFactoryCustomSingletonConfig].singletonConfig ==
-      factory2.right.get.asInstanceOf[MockPathBuilderFactoryCustomSingletonConfig].singletonConfig)
+    assert(factory1.toOption.get.asInstanceOf[MockPathBuilderFactoryCustomSingletonConfig].singletonConfig ==
+      factory2.toOption.get.asInstanceOf[MockPathBuilderFactoryCustomSingletonConfig].singletonConfig)
   }
 
   List(
@@ -82,10 +82,10 @@ class CromwellFileSystemsSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
       it should s"fail to build factories $description" in {
         val result = cromwellFileSystems.factoriesFromConfig(ConfigFactory.parseString(config))
           result.isLeft shouldBe true
-        result.left.get shouldBe expected
+        result.swap.toOption.get shouldBe expected
       }
   }
-  
+
   val classNotFoundException = AggregatedMessageException(
     "Failed to initialize Cromwell filesystems",
     List("Class do.not.exists for filesystem fs1 cannot be found in the class path.")
@@ -105,7 +105,7 @@ class CromwellFileSystemsSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
     "Failed to initialize Cromwell filesystems",
     List("Filesystem configuration fs1 doesn't have a class field")
   )
-  
+
   List(
     ("is invalid", "filesystems.gcs = true", invalidConfigException),
     ("is missing class fields", "filesystems.fs1.notclass = hello", missingClassFieldException),

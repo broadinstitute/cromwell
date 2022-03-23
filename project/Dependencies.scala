@@ -330,6 +330,7 @@ object Dependencies {
 
   private val aliyunOssDependencies = List(
     "com.aliyun.oss" % "aliyun-sdk-oss" % aliyunOssV
+      exclude("com.sun.activation", "jakarta.activation")
   )
 
   private val aliyunBatchComputeDependencies = List(

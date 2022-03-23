@@ -42,7 +42,6 @@ object Settings {
   )
 
   val warningSettings = List(
-    "-Xfuture",
     "-Xlint:adapted-args",
     "-Xlint:constant",
     "-Xlint:delayedinit-select",

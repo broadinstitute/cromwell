@@ -118,12 +118,15 @@ object Dependencies {
     * and manually uploaded to the Broad Institute artifactory at https://broadinstitute.jfrog.io/broadinstitute/.
     * Consider updating to the official newer Slick version once they fix issue #2076
     * Related Slick PR: https://github.com/slick/slick/pull/2101
+    *
+    * Update 2022-03-23: This #2201 PR cherry picks Greg's #2101 PR above and claims to fix the issue:
+    * https://github.com/slick/slick/pull/2201
   */
-  private val slickV = "3.3.2-2076hotfix" // scala-steward:off (CROM-6620)
+  private val slickV = "3.4.0-M1"
   private val snakeyamlV = "1.30"
   private val specs2MockV = "4.13.3"
   private val sprayJsonV = "1.3.6"
-  private val sttpV = "1.5.19" // scala-steward:off (CROM-6564)
+  private val sttpV = "1.6.8"
   private val swaggerParserV = "1.0.56"
   private val swaggerUiV = "4.5.0"
   private val testContainersScalaV = "0.40.2"
@@ -534,7 +537,6 @@ object Dependencies {
   ) ++ slf4jBindingDependencies // During testing, add an slf4j binding for _all_ libraries.
 
   val kindProjectorPlugin = "org.typelevel" % "kind-projector" % kindProjectorV cross CrossVersion.full
-  val paradisePlugin = "org.scalamacros" % "paradise" % paradiseV cross CrossVersion.full
 
   // Version of the swagger UI to write into config files
   val swaggerUiVersion: String = swaggerUiV

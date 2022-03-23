@@ -67,7 +67,7 @@ class CloudNioFileSystem(override val provider: CloudNioFileSystemProvider, val 
   }
 
   override def hashCode(): Int = {
-    val state = List(provider, host)
+    val state = List[Object](provider, host)
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }

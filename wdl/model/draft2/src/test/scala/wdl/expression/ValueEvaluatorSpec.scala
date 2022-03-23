@@ -12,6 +12,7 @@ import wom.OptionalNotSuppliedException
 import wom.types._
 import wom.values._
 
+import scala.annotation.nowarn
 import scala.util.{Failure, Success, Try}
 
 class ValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
@@ -351,6 +352,7 @@ class ValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     (""" "hello" > true """)
   )
 
+  @nowarn("msg=Unicode escapes in triple quoted strings are deprecated, use the literal character instead")
   val identifierLookupExpressions = Table(
     ("expression", "value"),
 
@@ -413,7 +415,7 @@ class ValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     ("s == someStr", WomBoolean(false)),
     ("s < someStr", WomBoolean(true)),
     ("s > someStr", WomBoolean(false)),
-    
+
     ("someStr + s", WomString("someStrs")),
     ("someInt + s", WomString("1s")),
     ("someFloat + s", WomString("0.5s")),

@@ -1,9 +1,8 @@
 package wdl.draft3.transforms.wdlom2wom
 
-import cats.instances.either._
 import better.files.File
+import cats.instances.either._
 import common.assertion.CromwellTimeoutSpec
-import common.collections.EnhancedCollections._
 import common.transforms.CheckedAtoB
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -16,7 +15,7 @@ import wdl.transforms.base.wdlom2wom._
 import wdl.transforms.base.wdlom2wom.expression.WdlomWomExpression
 import wom.callable.Callable.{FixedInputDefinitionWithDefault, OptionalInputDefinition}
 import wom.callable.MetaValueElement._
-import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
+import wom.callable.{Callable, CallableTaskDefinition, WorkflowDefinition}
 import wom.executable.WomBundle
 import wom.graph.expression.{ExposedExpressionNode, TaskCallInputExpressionNode}
 import wom.graph.{ScatterNode, WorkflowCallNode}
@@ -106,7 +105,7 @@ class WdlFileToWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
 
         // There should be just one scatter.
         graph.scatters.size shouldBe(1)
-        val wfCalls = graph.allNodes.filterByType[WorkflowCallNode]
+        val wfCalls = graph.allNodes.collect { case e: WorkflowCallNode => e }
 
         // There should be a call to a generated sub-workflow in the graph
         wfCalls.size shouldBe(1)
@@ -161,9 +160,9 @@ class WdlFileToWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
   private def anyWomWillDo(b: WomBundle): Assertion = Succeeded
 
   private def validateStructDefinitionWom(b: WomBundle): Assertion = {
-    val wfDef: WorkflowDefinition = (b.allCallables.values.toSet.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).head
+    val wfDef: WorkflowDefinition = (b.allCallables.values.toSet.collect({ case e: WorkflowDefinition => e }: PartialFunction[Callable, WorkflowDefinition])).head
     b.typeAliases.keySet shouldBe Set("FooStruct")
-    val structOutputType = (wfDef.graph.outputNodes.map(_.womType).filterByType[WomCompositeType]: Set[WomCompositeType]).head
+    val structOutputType = (wfDef.graph.outputNodes.map(_.womType).collect({ case e: WomCompositeType => e }: PartialFunction[WomType, WomCompositeType])).head
 
     structOutputType.typeMap shouldBe Map(
       "simple" -> WomIntegerType,
@@ -172,7 +171,7 @@ class WdlFileToWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
   }
 
   private def validateTaskDefinitionWom(b: WomBundle): Assertion = {
-    val taskDef: CallableTaskDefinition = (b.allCallables.values.toSet.filterByType[CallableTaskDefinition]: Set[CallableTaskDefinition]).head
+    val taskDef: CallableTaskDefinition = b.allCallables.values.toSet.collect({ case e: CallableTaskDefinition => e }: PartialFunction[Callable, CallableTaskDefinition]).head
     taskDef.name shouldBe "simple"
     taskDef.commandTemplate(Map.empty) shouldBe List(WdlomWomStringCommandPart(StringCommandPartElement("echo Hello World ")))
   }

@@ -115,7 +115,7 @@ class UnixPathSpec extends TestKitSuite with OssNioUtilSpec  {
 
     it should "match expected seemsLikeDirectory" in
       withClue(clue) {
-        unixPath.seemsLikeDirectory shouldBe path.likeDir
+        unixPath.seemsLikeDirectory() shouldBe path.likeDir
       }
   }
 

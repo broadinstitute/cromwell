@@ -48,8 +48,8 @@ object WomToWdlom {
 
   def womBundleToFileElement: CheckedAtoB[WomBundle, FileElement] =
     CheckedAtoB.fromCheck { a: WomBundle =>
-      val tasks: Iterable[CallableTaskDefinition] = a.allCallables.values.filterByType[CallableTaskDefinition]
-      val workflows: Iterable[WorkflowDefinition] = a.allCallables.values.filterByType[WorkflowDefinition]
+      val tasks: Iterable[CallableTaskDefinition] = a.allCallables.values.collect { case e: CallableTaskDefinition => e }
+      val workflows: Iterable[WorkflowDefinition] = a.allCallables.values.collect { case e: WorkflowDefinition => e }
 
       for {
         workflows <- workflows.map(workflowDefinitionToWorkflowDefinitionElement(_)).toList.sequence[Checked, WorkflowDefinitionElement]
@@ -221,10 +221,10 @@ object WomToWdlom {
   // WOM has some explicit representations that are implicit in WDL; they are necessary for execution,
   // but do not make sense (or are illegal) in WDL source.
   private def selectWdlomRepresentableNodes(allNodes: Set[GraphNode]): Set[GraphNode] = {
-    val expressions: Set[GraphNode] = allNodes.filterByType[ExposedExpressionNode]
-    val scatters: Set[GraphNode] = allNodes.filterByType[ScatterNode]
-    val calls: Set[GraphNode] = allNodes.filterByType[CallNode]
-    val conditionals: Set[GraphNode] = allNodes.filterByType[ConditionalNode]
+    val expressions: Set[GraphNode] = allNodes.collect { case e: ExposedExpressionNode => e }
+    val scatters: Set[GraphNode] = allNodes.collect { case e: ScatterNode => e }
+    val calls: Set[GraphNode] = allNodes.collect { case e: CallNode => e }
+    val conditionals: Set[GraphNode] = allNodes.collect { case e: ConditionalNode => e }
 
     expressions ++ scatters ++ calls ++ conditionals
   }

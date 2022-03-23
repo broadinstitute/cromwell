@@ -2,7 +2,6 @@ package wdl.transforms.wdlwom
 
 import cats.data.Validated.{Invalid, Valid}
 import common.assertion.CromwellTimeoutSpec
-import common.collections.EnhancedCollections._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow, WdlWomExpression}
@@ -85,7 +84,7 @@ class WdlNamespaceWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
       workflowGraph.nodes.collectFirst({ case wcInFile: ExpressionNode if wcInFile.localName == "wc.in_file" => wcInFile }).get
     }
 
-    workflowGraph.nodes.filterByType[CallNode] should be(Set(ps, cgrep, wc))
+    workflowGraph.nodes.collect { case e: CallNode => e } should be(Set(ps, cgrep, wc))
     ps.inputPorts.map(_.name) should be(Set.empty)
     cgrep.inputPorts.map(_.name) should be(Set("pattern", "in_file"))
     wc.inputPorts.map(_.name) should be(Set("in_file"))

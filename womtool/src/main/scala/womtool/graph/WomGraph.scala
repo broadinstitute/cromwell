@@ -196,7 +196,7 @@ object WomGraph {
     }
 
     womBundle match {
-      case Right(wom) if (wom.allCallables.values.toSet.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).size == 1 => (wom.allCallables.values.toSet.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).head.graph
+      case Right(wom) if (wom.allCallables.values.toSet.collect { case e: WorkflowDefinition => e }: Set[WorkflowDefinition]).size == 1 => (wom.allCallables.values.toSet.collect { case e: WorkflowDefinition => e }: Set[WorkflowDefinition]).head.graph
       case Right(_) => throw new Exception("Can only 'wom graph' a WDL with exactly one workflow")
       case Left(errors) =>
         val formattedErrors = errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())

@@ -140,7 +140,7 @@ object EngineFunctionEvaluators {
         val tryResult = for {
           read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readObjectLimit)
           objects <- WomObject.fromTsv(read)
-        } yield WomArray(objects)
+        } yield WomArray(objects.toIndexedSeq)
 
         tryResult.map(EvaluatedValue(_, Seq.empty)).toErrorOr.contextualizeErrors(s"""read_objects("${fileToRead.value}")""")
       }

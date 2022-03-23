@@ -2,7 +2,6 @@ package wdl.transforms.wdlwom
 
 import cats.data.Validated.{Invalid, Valid}
 import common.assertion.CromwellTimeoutSpec
-import common.collections.EnhancedCollections._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
@@ -46,9 +45,9 @@ class WdlConditionalWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
 
       case class OuterGraphValidations(conditionalNode: ConditionalNode, foo_i_inputNode: GraphInputNode)
       def validateOuterGraph: OuterGraphValidations = {
-        val conditionalNode = workflowGraph.nodes.firstByType[ConditionalNode].getOrElse(fail("Resulting graph did not contain a ConditionalNode"))
+        val conditionalNode = workflowGraph.nodes.collectFirst { case n: ConditionalNode => n } .getOrElse(fail("Resulting graph did not contain a ConditionalNode"))
 
-        val inputNodes: Set[GraphInputNode] = workflowGraph.nodes.filterByType[GraphInputNode]
+        val inputNodes: Set[GraphInputNode] = workflowGraph.nodes.collect { case e: GraphInputNode => e }
 
         val b_inputNode = inputNodes.find(_.localName == "b").getOrElse(fail("Resulting graph did not contain the 'b' GraphInputNode"))
         b_inputNode.womType should be(WomBooleanType)
@@ -60,7 +59,7 @@ class WdlConditionalWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
         }.getOrElse(fail("Resulting graph did not contain the 'foo.out' GraphOutputNode"))
         foo_out_output.womType should be(WomOptionalType(WomStringType))
         foo_out_output.identifier.fullyQualifiedName.value shouldBe "conditional_test.foo.out"
-        
+
         val expressionNode = workflowGraph.nodes.collectFirst {
           case expr: ExpressionNode if expr.localName == "conditional" => expr
         }.getOrElse(fail("Resulting graph did not contain the 'conditional' ExpressionNode"))

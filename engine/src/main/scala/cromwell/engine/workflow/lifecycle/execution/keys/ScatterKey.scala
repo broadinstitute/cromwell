@@ -42,7 +42,7 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
   def populate(count: Int, scatterCollectionFunction: ScatterCollectionFunction): Map[JobKey, ExecutionStatus.Value] = {
     val shards = node.innerGraph.nodes flatMap { makeShards(_, count) }
     val collectors = makeCollectors(count, scatterCollectionFunction)
-    val callCompletions = node.innerGraph.nodes.filterByType[CallNode].map(cn => ScatteredCallCompletionKey(cn, count))
+    val callCompletions = node.innerGraph.nodes.collect { case e: CallNode => e }.map(cn => ScatteredCallCompletionKey(cn, count))
     (shards ++ collectors ++ callCompletions) map { _ -> ExecutionStatus.NotStarted } toMap
   }
 

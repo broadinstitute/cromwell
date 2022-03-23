@@ -8,6 +8,8 @@ import wdl.draft2.model.WdlNamespace
 import wdl.draft2.model.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
 import wom.ResolvedImportRecord
 
+import scala.annotation.nowarn
+
 class SyntaxHighlightSpec extends AnyWordSpec with CromwellTimeoutSpec with Matchers {
   "SyntaxFormatter for typical workflow" should {
     val namespace = WdlNamespace.loadUsingSource(
@@ -101,6 +103,7 @@ class SyntaxHighlightSpec extends AnyWordSpec with CromwellTimeoutSpec with Matc
         |}
      """.stripMargin, None, None).get
 
+    @nowarn("msg=Unicode escapes in triple quoted strings are deprecated, use the literal character instead")
     val console =
       """\u001b[38;5;214mtask\u001b[0m \u001b[38;5;253mPairedFastQsToUnmappedBAM\u001b[0m {
         |  \u001b[38;5;33mFile\u001b[0m \u001b[38;5;112mfastq_1\u001b[0m

@@ -2,14 +2,13 @@ package wdl.transforms.wdlwom
 
 import cats.data.Validated.{Invalid, Valid}
 import common.assertion.CromwellTimeoutSpec
-import common.collections.EnhancedCollections._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wdl.transforms.draft2.wdlom2wom._
 import wom.graph.GraphNodePort.ScatterGathererPort
 import wom.graph.expression.ExpressionNode
-import wom.graph.{GraphInputNode, ScatterNode, _}
+import wom.graph._
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.types.{WomArrayType, WomIntegerType, WomStringType}
 
@@ -46,7 +45,7 @@ class WdlScatterWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
 
       case class OuterGraphValidations(scatterNode: ScatterNode, xs_inputNode: GraphInputNode)
       def validateOuterGraph: OuterGraphValidations = {
-        val scatterNode = workflowGraph.nodes.firstByType[ScatterNode].getOrElse(fail("Resulting graph did not contain a ScatterNode"))
+        val scatterNode = workflowGraph.nodes.collectFirst({ case n: ScatterNode => n }).getOrElse(fail("Resulting graph did not contain a ScatterNode"))
 
         val xs_inputNode = workflowGraph.nodes.collectFirst {
           case gin: GraphInputNode if gin.localName == "xs" => gin
@@ -55,9 +54,9 @@ class WdlScatterWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
         val scatterExpressionNode = workflowGraph.nodes.collectFirst {
           case expr: ExpressionNode if expr.localName == "x" => expr
         }.getOrElse(fail("Resulting graph did not contain the 'x' ExpressionNode"))
-        
+
         scatterNode.inputPorts.map(_.upstream) shouldBe Set(scatterExpressionNode.singleOutputPort)
-        
+
         val foo_out_output = workflowGraph.nodes.collectFirst {
           case gon: GraphOutputNode if gon.localName == "foo.out" => gon
         }.getOrElse(fail("Resulting graph did not contain the 'foo.out' GraphOutputNode"))
@@ -77,7 +76,7 @@ class WdlScatterWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
         val foo_callNode = validatedOuterGraph.scatterNode.innerGraph.nodes.collectFirst {
           case c: CommandCallNode if c.localName == "foo" => c
         }.getOrElse(fail("Scatter inner graph did not contain a call to 'foo'"))
-        
+
         foo_callNode.identifier.fullyQualifiedName.value shouldBe "scatter_test.foo"
 
         val foo_out_innerOutput = validatedOuterGraph.scatterNode.innerGraph.nodes.collectFirst {
@@ -188,7 +187,7 @@ class WdlScatterWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
     def validateGraph(workflowGraph: Graph) = {
 
       // Find the inputs:
-      val inputNodes: Set[ExternalGraphInputNode] = workflowGraph.nodes.filterByType[RequiredGraphInputNode]
+      val inputNodes: Set[ExternalGraphInputNode] = workflowGraph.nodes.collect { case e: RequiredGraphInputNode => e }
       inputNodes.map {_.localName} should be(Set("foo.j"))
       inputNodes.map {_.identifier.fullyQualifiedName.value} should be(Set("scatter_test.foo.j"))
 
@@ -197,9 +196,9 @@ class WdlScatterWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
         case s: ScatterNode => s
       }.getOrElse(fail("Resulting graph did not contain a ScatterNode"))
 
-      val scatterInnerInputs: Set[ExternalGraphInputNode] = scatterNode.innerGraph.nodes.filterByType[ExternalGraphInputNode]
+      val scatterInnerInputs: Set[ExternalGraphInputNode] = scatterNode.innerGraph.nodes.collect { case e: ExternalGraphInputNode => e }
       scatterInnerInputs map {_.identifier.fullyQualifiedName.value} should be(Set("scatter_test.foo.j"))
-      val scatterInnerItemInput: Set[OuterGraphInputNode] = scatterNode.innerGraph.nodes.filterByType[OuterGraphInputNode]
+      val scatterInnerItemInput: Set[OuterGraphInputNode] = scatterNode.innerGraph.nodes.collect { case e: OuterGraphInputNode => e }
       scatterInnerItemInput map {_.localName} should be(Set("s"))
 
       // Find the outputs:

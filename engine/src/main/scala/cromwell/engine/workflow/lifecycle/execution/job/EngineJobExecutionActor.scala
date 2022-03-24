@@ -262,7 +262,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         log.info(template, jobTag, data.failedCopyAttempts, callCachingParameters.maxFailedCopyAttempts, data.aggregatedHashString)
       } else {
         log.info(s"BT-322 {} cache hit copying nomatch: could not find a suitable cache hit.", jobTag)
-        workflowLogger.info("Could not copy a suitable cache hit for {}. No copy attempts were made.", jobTag)
+        workflowLogger.info("Could not copy a suitable cache hit for {}. No copy attempts were made.", arg = jobTag)
       }
 
       runJob(data)
@@ -731,7 +731,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
     data.ejha match {
       case Some(ejha) if data.failedCopyAttempts < callCachingParameters.maxFailedCopyAttempts =>
-        workflowLogger.debug("Trying to use another cache hit for job: {}", jobDescriptorKey)
+        workflowLogger.debug("Trying to use another cache hit for job: {}", argument = jobDescriptorKey)
         ejha ! NextHit
         goto(CheckingCallCache) using data
       case Some(_) =>

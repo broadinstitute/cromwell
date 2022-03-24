@@ -20,7 +20,7 @@ class PubSubMetadataServiceActorSpec extends ServicesSpec {
   import PubSubMetadataServiceActorSpec._
 
   val registryProbe: ActorRef = TestProbe("registryProbe").ref
-  
+
   "A PubSubMetadataActor with an empty serviceConfig" should {
     "fail to build" in {
       EventFilter[ActorInitializationException](occurrences = 1) intercept {
@@ -203,22 +203,22 @@ object PubSubMetadataServiceActorSpec {
 
     override def createTopic(topicName: String): Future[Boolean]
     override def createSubscription(topicName: String, subscriptionName: String): Future[Boolean]
-    override def publishMessages(topicName: String, messages: Seq[String]): Future[Unit]
+    override def publishMessages(topicName: String, messages: scala.collection.Seq[String]): Future[Unit]
 
     // The following aren't used so leaving them empty
     override def deleteTopic(topicName: String): Future[Boolean] = throw new UnsupportedOperationException
     override def getTopic(topicName: String)(implicit executionContext: ExecutionContext): Future[Option[Topic]] = throw new UnsupportedOperationException
     override def deleteSubscription(subscriptionName: String): Future[Boolean] = throw new UnsupportedOperationException
-    override def acknowledgeMessages(subscriptionName: String, messages: Seq[PubSubMessage]): Future[Unit] = throw new UnsupportedOperationException
-    override def acknowledgeMessagesById(subscriptionName: String, ackIds: Seq[String]): Future[Unit] = throw new UnsupportedOperationException
-    override def pullMessages(subscriptionName: String, maxMessages: Int): Future[Seq[PubSubMessage]] = throw new UnsupportedOperationException
+    override def acknowledgeMessages(subscriptionName: String, messages: scala.collection.Seq[PubSubMessage]): Future[Unit] = throw new UnsupportedOperationException
+    override def acknowledgeMessagesById(subscriptionName: String, ackIds: scala.collection.Seq[String]): Future[Unit] = throw new UnsupportedOperationException
+    override def pullMessages(subscriptionName: String, maxMessages: Int): Future[scala.collection.Seq[PubSubMessage]] = throw new UnsupportedOperationException
     override def setTopicIamPermissions(topicName: String, permissions: Map[WorkbenchEmail, String]): Future[Unit] = throw new UnsupportedOperationException
   }
 
   class SuccessfulMockGooglePubSubDao extends MockGooglePubSubDao {
     override def createTopic(topicName: String): Future[Boolean] = Future.successful(true)
     override def createSubscription(topicName: String, subscriptionName: String): Future[Boolean] = Future.successful(true)
-    override def publishMessages(topicName: String, messages: Seq[String]): Future[Unit] = Future.successful(())
+    override def publishMessages(topicName: String, messages: scala.collection.Seq[String]): Future[Unit] = Future.successful(())
   }
 
   class FailingToCreateTopicMockGooglePubSubDao extends SuccessfulMockGooglePubSubDao {
@@ -226,7 +226,7 @@ object PubSubMetadataServiceActorSpec {
   }
 
   class FailToPublishMockGooglePubSubDao extends SuccessfulMockGooglePubSubDao {
-    override def publishMessages(topicName: String, messages: Seq[String]): Future[Unit] = Future.failed(new RuntimeException("sorry charlie"))
+    override def publishMessages(topicName: String, messages: scala.collection.Seq[String]): Future[Unit] = Future.failed(new RuntimeException("sorry charlie"))
   }
 
   // This doesn't include a project so should be a failure

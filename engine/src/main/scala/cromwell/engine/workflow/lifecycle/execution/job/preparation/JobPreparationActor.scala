@@ -63,7 +63,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
 
   private[preparation] lazy val expressionLanguageFunctions = {
     val ioFunctionSet: IoFunctionSet = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, jobKey, initializationData, ioActor, ioEc)
-    ioFunctionSet.makeInputSpecificFunctions
+    ioFunctionSet.makeInputSpecificFunctions()
   }
 
   private[preparation] lazy val dockerHashCredentials = factory.dockerHashCredentials(workflowDescriptor.backendDescriptor, initializationData)
@@ -96,7 +96,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   when(FetchingKeyValueStoreEntries) {
     case Event(kvResponse: KvResponse, data @ JobPreparationKeyLookupData(keyLookups, maybeCallCachingEligible, dockerSize, inputs, attributes)) =>
       keyLookups.withResponse(kvResponse.key, kvResponse) match {
-        case newPartialLookup: PartialKeyValueLookups => stay using data.copy(keyLookups = newPartialLookup)
+        case newPartialLookup: PartialKeyValueLookups => stay() using data.copy(keyLookups = newPartialLookup)
         case finished: KeyValueLookupResults =>
           sendResponseAndStop(prepareBackendDescriptor(inputs, attributes, maybeCallCachingEligible, finished.unscoped, dockerSize))
       }

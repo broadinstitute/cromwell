@@ -547,7 +547,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       .map({
         case (node, keys) =>
           val tag = node.fullyQualifiedName
-          val shardCount = keys.map(_.index).distinct.size
+          val shardCount = keys.map(_.index).toList.distinct.size
           if (shardCount == 1) tag
           else s"$tag ($shardCount shards)"
       })

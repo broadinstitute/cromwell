@@ -317,7 +317,7 @@ class ArnValidation(override val key: String) extends StringRuntimeAttributesVal
 object ZonesValidation extends RuntimeAttributesValidation[Vector[String]] {
   override def key: String = AwsBatchRuntimeAttributes.ZonesKey
 
-  override def coercion: Traversable[WomType] = Set(WomStringType, WomArrayType(WomStringType))
+  override def coercion: Iterable[WomType] = Set(WomStringType, WomArrayType(WomStringType))
 
   override protected def validateValue: PartialFunction[WomValue, ErrorOr[Vector[String]]] = {
     case WomString(s) => s.split("\\s+").toVector.validNel
@@ -332,7 +332,7 @@ object ZonesValidation extends RuntimeAttributesValidation[Vector[String]] {
 object DisksValidation extends RuntimeAttributesValidation[Seq[AwsBatchVolume]] {
   override def key: String = AwsBatchRuntimeAttributes.DisksKey
 
-  override def coercion: Traversable[WomType] = Set(WomStringType, WomArrayType(WomStringType))
+  override def coercion: Iterable[WomType] = Set(WomStringType, WomArrayType(WomStringType))
 
   override protected def validateValue: PartialFunction[WomValue, ErrorOr[Seq[AwsBatchVolume]]] = {
     case WomString(value) => validateLocalDisks(value.split(",\\s*").toSeq)

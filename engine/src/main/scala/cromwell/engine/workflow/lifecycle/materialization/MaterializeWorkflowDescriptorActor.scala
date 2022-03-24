@@ -249,7 +249,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       goto(MaterializationAbortedState)
     case unhandledMessage =>
       workflowLogger.warn(s"received an unhandled message $unhandledMessage in state $stateName")
-      stay
+      stay()
   }
 
   private def workflowInitializationFailed(errors: NonEmptyList[String], replyTo: ActorRef) = {
@@ -283,7 +283,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
         workflowLogger.info(s"Parsing workflow as ${validFactory.languageName} ${validFactory.languageVersionName}")
         pushLanguageToMetadata(validFactory.languageName, validFactory.languageVersionName)
       }
-      
+
       factory
     }
 

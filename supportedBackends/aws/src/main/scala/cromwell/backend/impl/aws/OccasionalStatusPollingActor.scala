@@ -45,7 +45,7 @@ class OccasionalStatusPollingActor(configRegion: Option[Region], optAwsAuthMode:
   override def receive = {
     case WhatsMyStatus(queueArn, jobId) =>
       queuesToMonitor += queueArn // Set addition so expectation is a no-op almost every time
-      sender ! NotifyOfStatus(queueArn, jobId, statuses.get(jobId))
+      sender() ! NotifyOfStatus(queueArn, jobId, statuses.get(jobId))
 
     case UpdateStatuses =>
       Future {

@@ -29,7 +29,7 @@ class ErrorReporters(rootConfig: Config) {
     AggregatedIo.aggregateExceptions("Errors while creating ErrorReporters", errorReporterNames.map(getErrorReporter))
   }
 
-  val errorReporters: List[ErrorReporter] = errorReportersIo.unsafeRunSync
+  val errorReporters: List[ErrorReporter] = errorReportersIo.unsafeRunSync()
 
   /** The number of times any test should be retried. */
   val retryAttempts: Int = errorReporterConfig.getOrElse("retry-attempts", 0)

@@ -187,7 +187,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         .setResources(resources)
         .setActions(sortedActions.asJava)
         .setEnvironment(environment)
-        .setTimeout(createPipelineParameters.pipelineTimeout.toSeconds + "s")
+        .setTimeout(createPipelineParameters.pipelineTimeout.toSeconds.toString + "s")
 
       val pipelineRequest = new RunPipelineRequest()
         .setPipeline(pipeline)

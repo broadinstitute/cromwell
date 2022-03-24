@@ -188,6 +188,7 @@ trait AwsBatchJobDefinitionBuilder {
     rc += shell
     rc += options
     rc += packedCommand
+    rc.toList
   }
 
   def build(context: AwsBatchJobDefinitionContext): AwsBatchJobDefinition

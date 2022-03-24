@@ -47,7 +47,7 @@ object ActionBuilder {
     def withMounts(mounts: List[Mount]): Action = action.setMounts(mounts.asJava)
     def withLabels(labels: Map[String, String]): Action = action.setLabels(labels.asJava)
     def withTimeout(timeout: Duration): Action = timeout match {
-      case fd: FiniteDuration => action.setTimeout(fd.toSeconds + "s")
+      case fd: FiniteDuration => action.setTimeout(fd.toSeconds.toString + "s")
       case _ => action
     }
     def withIgnoreExitStatus(ignoreExitStatus: Boolean): Action = action.setIgnoreExitStatus(ignoreExitStatus)

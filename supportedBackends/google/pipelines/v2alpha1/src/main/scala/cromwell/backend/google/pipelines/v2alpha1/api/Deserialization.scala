@@ -29,7 +29,7 @@ private [api] object Deserialization {
   def findEvent[T <: GenericJson](events: List[Event],
                                   filter: T => Boolean = Function.const(true)(_: T))
                                  (implicit tag: ClassTag[T]): Option[RequestContextReader[Option[T]]] =
-    events.toStream
+    events.to(LazyList)
       .map(_.details(tag))
       .collectFirst({
         case Some(event) if event.map(filter).getOrElse(false) => event.toErrorOr.fallBack

@@ -194,7 +194,7 @@ object PipelinesApiConfigurationAttributes
     val pipelineTimeout: FiniteDuration = backendConfig.getOrElse("pipeline-timeout", 7.days)
 
     val logFlushPeriod: Option[FiniteDuration] = backendConfig.as[Option[FiniteDuration]]("log-flush-period") match {
-      case Some(duration) if duration.isFinite() => Option(duration)
+      case Some(duration) if duration.isFinite => Option(duration)
       // "Inf" disables upload
       case Some(_) => None
       // Defaults to 1 minute

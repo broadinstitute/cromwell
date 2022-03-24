@@ -89,6 +89,46 @@ Parameter description:
   - Type: Integer
   - Required: Yes, when `ulimits` is used.
 
+### Call Caching with ECR private
+
+AWS ECR is a private container registry, for which access can be regulated using IAM. Call caching is possible by setting up the following configuration:
+
+1. Setup a user with pull-access to ECR, then use this role to run cromwell
+
+profile default region must be setup in ~/.aws/config: 
+```
+[profile MyECR-user]
+region = eu-west-1
+```
+Provide the profile when launching cromwell:
+```
+AWS_PROFILE=MyECR-user java .... -jar cromwell.jar run .... 
+```
+
+Other methods to provide the profile might also work, but are not tested (Environment, roles, ...)
+
+2. Enable call caching in the cromwell configuration
+
+The following statement enable call caching, with "local" hash checking:
+
+```
+call-caching {
+  enabled = true
+  invalidate-bad-cache-results = true
+}
+docker {
+   hash-lookup {
+       method = "local"
+   }
+}
+```
+
+Notes:
+- local hashing means that all used containers are pulled. Make sure you have enough storage
+- enable a database to make the cache persistent over cromwell restarts
+
+
+
 AWS Batch
 ---------
 
@@ -422,3 +462,4 @@ Cromwell
   the introduction of the S3 filesystem and the AWS SDK). Dependency management
   is challenging as a result. Adding significant new functionality is relatively
   painful when new dependencies are needed.
+* 

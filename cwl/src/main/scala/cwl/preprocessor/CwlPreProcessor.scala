@@ -194,7 +194,7 @@ object CwlPreProcessor {
   private [preprocessor] def mapNumbers(json: Json): Json = {
     // Circumvent Circe's scientific format for numbers: convert to a JSON String without exponential notation.
     def nonScientificNumberFormatting(jsonNumber: JsonNumber): Json = {
-      val conversions = Stream[JsonNumber => Option[Any]](
+      val conversions = LazyList[JsonNumber => Option[Any]](
         _.toBigInt.map(_.longValue),
         _.toBigDecimal.map(_.doubleValue),
         Function.const(Option("null")))

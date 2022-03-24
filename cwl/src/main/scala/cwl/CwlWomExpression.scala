@@ -42,6 +42,8 @@ case class ECMAScriptWomExpression(expression: Expression,
   override def sourceString = expression match {
     case Expression.ECMAScriptExpression(s) => s.value
     case Expression.ECMAScriptFunction(s) => s.value
+    // 2.13 non-exhaustive match
+    case oh => throw new Exception(s"Programmer error!: $oh")
   }
 
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet) = {

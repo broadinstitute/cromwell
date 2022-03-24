@@ -35,7 +35,7 @@ class StatsDInstrumentationServiceActorBenchmarkSpec extends TestKitSuite with A
   it should "have good throughput for gauges" in {
     val instrumentationActor = TestActorRef(new StatsDInstrumentationServiceActor(config, ConfigFactory.load(), registryProbe))
     val gaugeName = instrumentationActor.underlyingActor.metricBaseName.append(testBucket.toStatsDString()).name
-    Stream.range(0, 1 * 1000 * 1000, 1).foreach({ i =>
+    LazyList.range(0, 1 * 1000 * 1000, 1).foreach({ i =>
       instrumentationActor ! InstrumentationServiceMessage(CromwellGauge(testBucket, i.toLong))
     })
     eventually {

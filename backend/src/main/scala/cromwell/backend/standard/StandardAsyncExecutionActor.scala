@@ -250,7 +250,7 @@ trait StandardAsyncExecutionActor
     * @param directoryFiles The directories.
     * @return The shell scripting.
     */
-  def directoryScripts(directoryFiles: Traversable[WomUnlistedDirectory]): String =
+  def directoryScripts(directoryFiles: Iterable[WomUnlistedDirectory]): String =
     directoryFiles map directoryScript mkString "\n"
 
   /**
@@ -284,7 +284,7 @@ trait StandardAsyncExecutionActor
     * @param globFiles The globs.
     * @return The shell scripting.
     */
-  def globScripts(globFiles: Traversable[WomGlobFile]): String =
+  def globScripts(globFiles: Iterable[WomGlobFile]): String =
     globFiles map globScript mkString "\n"
 
   /**
@@ -549,6 +549,8 @@ trait StandardAsyncExecutionActor
       CommandSetupSideEffectFile(womValue, alternativeName)
     case AsLocalizedAdHocValue(LocalizedAdHocValue(AdHocValue(womValue, alternativeName, _), _)) =>
       CommandSetupSideEffectFile(womValue, alternativeName)
+    // 2.13 non-exhaustive match
+    case oh => throw new Exception(s"Programmer error!: $oh")
   }
 
   lazy val evaluatedAdHocFiles: ErrorOr[List[AdHocValue]] = {
@@ -986,7 +988,7 @@ trait StandardAsyncExecutionActor
       case InvalidJobOutputs(errors) =>
         val exception = new MessageAggregation {
           override def exceptionContext: String = "Failed to evaluate job outputs"
-          override def errorMessages: Traversable[String] = errors.toList
+          override def errorMessages: Iterable[String] = errors.toList
         }
         FailedNonRetryableExecutionHandle(exception, kvPairsToSave = None)
       case JobOutputsEvaluationException(exception: Exception) if retryEvaluateOutputsAggregated(exception) =>
@@ -1068,7 +1070,7 @@ trait StandardAsyncExecutionActor
       Map(key -> nextKvPair)
     }
 
-    val kvsFromPreviousAttemptUpd = kvsFromPreviousAttempt.mapValues(kvPair => kvPair.copy(key = kvPair.key.copy(jobKey = nextKvJobKey)))
+    val kvsFromPreviousAttemptUpd = kvsFromPreviousAttempt.view.mapValues(kvPair => kvPair.copy(key = kvPair.key.copy(jobKey = nextKvJobKey)))
 
     val failedRetryCountKvPair: Map[String, KvPair] =
       if (incrementFailedRetryCount) getNextKvPair(FailedRetryCountKey, (previousFailedRetries + 1).toString)
@@ -1081,7 +1083,7 @@ trait StandardAsyncExecutionActor
 
     val mergedKvs = kvsFromPreviousAttemptUpd ++ kvsForNextAttempt ++ failedRetryCountKvPair ++ memoryMultiplierKvPair
 
-    makeKvRequest(mergedKvs.values.map(KvPut).toSeq) map { respSeq =>
+    makeKvRequest(mergedKvs.toMap.values.map(KvPut).toSeq) map { respSeq =>
       val failures = respSeq.filter(_.isInstanceOf[KvFailure])
       if (failures.isEmpty) {
         respSeq

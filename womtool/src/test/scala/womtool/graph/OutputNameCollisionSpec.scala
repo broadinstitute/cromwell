@@ -1,9 +1,8 @@
 package womtool.graph
 
-import common.collections.EnhancedCollections._
 import wdl.draft2.model.WdlNamespaceWithWorkflow
 import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomBundleMakers._
-import wom.callable.WorkflowDefinition
+import wom.callable.{Callable, WorkflowDefinition}
 import wom.transforms.WomBundleMaker.ops._
 
 class OutputNameCollisionSpec extends WomDotGraphTest {
@@ -33,7 +32,7 @@ class OutputNameCollisionSpec extends WomDotGraphTest {
     val namespace = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
 
     namespace.toWomBundle match {
-      case Right(bundle) => (bundle.allCallables.values.toSet.collect { case e: WorkflowDefinition => e }: Set[WorkflowDefinition]).head.graph
+      case Right(bundle) => (bundle.allCallables.values.toSet.collect({ case e: WorkflowDefinition => e }: PartialFunction[Callable, WorkflowDefinition]): Set[WorkflowDefinition]).head.graph
       case Left(errors) => throw new Exception(errors.toList.mkString(", "))
     }
   }

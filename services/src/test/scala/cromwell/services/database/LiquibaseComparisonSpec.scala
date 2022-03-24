@@ -225,7 +225,7 @@ class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
       }
 
       it should "stop container if required" taggedAs DbmsTest in {
-        containerOpt.foreach { _.stop }
+        containerOpt.foreach { _.stop() }
       }
     }
   }

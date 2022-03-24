@@ -217,6 +217,8 @@ case class WorkflowStep(
         case Run.CommandLineTool(clt) => clt.buildTaskDefinition(validator, expressionLib)
         case Run.Workflow(wf) => wf.womDefinition(validator, expressionLib)
         case Run.ExpressionTool(et) => et.buildTaskDefinition(validator, expressionLib)
+        // 2.13 non-exhaustive match
+        case oh => throw new Exception(s"Programmer error!: $oh")
       }
 
       val callNodeBuilder = new CallNode.CallNodeBuilder()
@@ -354,6 +356,8 @@ case class WorkflowStep(
             InputDefinitionFold(
               mappings = List(optional -> Coproduct[InputDefinitionPointer](optional.womType.none: WomValue))
             ).validNel
+          // 2.13 non-exhaustive match
+          case oh => throw new Exception(s"Programmer error!: $oh")
         }
       }
 

@@ -311,10 +311,15 @@ object CommandLineTool {
     case (StringOrInt.Int(_), StringOrInt.String(_)) => true
     // String > Int
     case (StringOrInt.String(_), StringOrInt.Int(_)) => false
+    // 2.13 non-exhaustive match
+    case oh => throw new Exception(s"Programmer error!: $oh")
   })
 
+  // FIXME 2.13
+  implicit val SortingKeyTypeListOrdering: Ordering[List[StringOrInt]] = null
+
   // Ordering for a CommandBindingSortingKey
-  implicit val SortingKeyOrdering: Ordering[CommandBindingSortingKey] = Ordering.by(_.value.toList)
+  implicit val SortingKeyOrdering: Ordering[CommandBindingSortingKey] = Ordering.by(_.value)
 
   // Ordering for a CommandPartSortMapping: order by sorting key
   implicit val SortKeyAndCommandPartOrdering: Ordering[SortKeyAndCommandPart] = Ordering.by(_.sortingKey)

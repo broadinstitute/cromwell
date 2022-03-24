@@ -68,6 +68,8 @@ class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Con
       case CromwellCount(bucket, value, _) => updateCounter(bucket, value)
       case CromwellGauge(bucket, value) => updateGauge(bucket, value)
       case CromwellTiming(bucket, value, _) => updateTiming(bucket, value)
+      // 2.13 non-exhaustive match
+      case oh => throw new Exception(s"Programmer error!: $oh")
     }
     case ShutdownCommand => context stop self
   }

@@ -36,7 +36,7 @@ class RootWorkflowFileHashCacheActor private[callcaching](override val ioActor: 
     // Hash Request
     case hashCommand: IoHashCommandWithContext =>
       val key = hashCommand.fileHashContext.file
-      lazy val requester = FileHashRequester(sender, hashCommand.fileHashContext, hashCommand.ioHashCommand)
+      lazy val requester = FileHashRequester(sender(), hashCommand.fileHashContext, hashCommand.ioHashCommand)
       cache.get(key) match {
         case FileHashValueNotRequested =>
           // The hash is not in the cache and has not been requested. Make the hash request and register this requester
@@ -48,9 +48,9 @@ class RootWorkflowFileHashCacheActor private[callcaching](override val ioActor: 
           // hash to become available.
           cache.put(key, FileHashValueRequested(requesters = requester :: requesters))
         case FileHashSuccess(value) =>
-          sender ! Tuple2(hashCommand.fileHashContext, IoSuccess(requester.ioCommand, value))
+          sender() ! Tuple2(hashCommand.fileHashContext, IoSuccess(requester.ioCommand, value))
         case FileHashFailure(error) =>
-          sender ! Tuple2(hashCommand.fileHashContext, IoFailure(requester.ioCommand, new IOException(error)))
+          sender() ! Tuple2(hashCommand.fileHashContext, IoFailure(requester.ioCommand, new IOException(error)))
       }
     // Hash Success
     case (hashContext: FileHashContext, success @ IoSuccess(_, value: String)) =>

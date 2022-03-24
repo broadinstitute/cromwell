@@ -84,7 +84,7 @@ object RuntimeAttributesValidation {
     new RuntimeAttributesValidation[ValidatedType] {
       override def key: String = validation.key
 
-      override def coercion: Traversable[WomType] = validation.coercion
+      override def coercion: Iterable[WomType] = validation.coercion
 
       override protected def validateValue: PartialFunction[WomValue, ErrorOr[ValidatedType]] =
         validation.validateValuePackagePrivate
@@ -108,7 +108,7 @@ object RuntimeAttributesValidation {
     new RuntimeAttributesValidation[ValidatedType] {
       override def key: String = validation.key
 
-      override def coercion: Traversable[WomType] = validation.coercion
+      override def coercion: Iterable[WomType] = validation.coercion
 
       override protected def validateValue: PartialFunction[WomValue, ErrorOr[ValidatedType]] =
         validation.validateValuePackagePrivate
@@ -132,7 +132,7 @@ object RuntimeAttributesValidation {
     new OptionalRuntimeAttributesValidation[ValidatedType] {
       override def key: String = validation.key
 
-      override def coercion: Traversable[WomType] = validation.coercion
+      override def coercion: Iterable[WomType] = validation.coercion
 
       override protected def validateOption: PartialFunction[WomValue, ErrorOr[ValidatedType]] =
         validation.validateValuePackagePrivate
@@ -162,7 +162,7 @@ object RuntimeAttributesValidation {
     val attributeOptions: Map[String, Option[Any]] = validatedRuntimeAttributes.attributes.safeMapValues(unpackOption)
 
     val attributes: Map[String, String] = attributeOptions collect {
-      case (name, Some(values: Traversable[_])) => (name, values.mkString(","))
+      case (name, Some(values: Iterable[_])) => (name, values.mkString(","))
       case (name, Some(value)) => (name, value.toString)
     }
 
@@ -271,7 +271,7 @@ trait RuntimeAttributesValidation[ValidatedType] {
     *
     * @return traversable of wdl types
     */
-  def coercion: Traversable[WomType]
+  def coercion: Iterable[WomType]
 
   /**
     * Validates the wdl value.

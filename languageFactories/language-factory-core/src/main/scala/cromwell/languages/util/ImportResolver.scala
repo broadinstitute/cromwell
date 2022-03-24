@@ -216,7 +216,7 @@ object ImportResolver {
     val sttpBackend: IntrospectableLazy[SttpBackend[IO, Nothing]] = lazily {
       // 2.13 FIXME
       import scala.concurrent.ExecutionContext.Implicits.global
-      implicit val ec: ExecutionContext = implicitly[ExecutionContext]
+      val ec: ExecutionContext = implicitly[ExecutionContext]
       implicit val cs: ContextShift[IO] = IO.contextShift(ec)
 
       AsyncHttpClientCatsBackend[IO]()

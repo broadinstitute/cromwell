@@ -127,7 +127,7 @@ trait CallMetadataHelper {
           ) ++ (eventCurrent.grouping map { g => metadataEvent(s"$eventKey:grouping", g) })
       }
 
-      serviceRegistryActor ! PutMetadataAction(events.toIterable)
+      serviceRegistryActor ! PutMetadataAction(events.toList)
     }
   }
 

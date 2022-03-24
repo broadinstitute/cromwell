@@ -78,7 +78,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
         case Valid((inputs, attributes)) => fetchDockerHashesIfNecessary(inputs, attributes)
         case Invalid(failure) => sendFailureAndStop(new MessageAggregation with NoStackTrace {
           override def exceptionContext: String = s"Call input and runtime attributes evaluation failed for ${jobKey.call.localName}"
-          override def errorMessages: Traversable[String] = failure.toList
+          override def errorMessages: Iterable[String] = failure.toList
         })
       }
   }
@@ -152,6 +152,9 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
         sendDockerRequest(dockerImageId)
 
       case Failure(failure) => sendFailureAndStop(failure)
+
+      // 2.13 non-exhaustive match
+      case oh => throw new Exception(s"Programmer error!: $oh")
     }
 
     attributes.get(RuntimeAttributesKeys.DockerKey) match {

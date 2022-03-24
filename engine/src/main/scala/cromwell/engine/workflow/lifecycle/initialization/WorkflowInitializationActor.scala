@@ -89,7 +89,7 @@ case class WorkflowInitializationActor(workflowIdForLogging: PossiblyNotRootWork
   override def failureResponse(reasons: Seq[Throwable]) = WorkflowInitializationFailedResponse(reasons)
   override val abortedResponse = WorkflowInitializationAbortedResponse
 
-  private var backendActorsAndBackends: Traversable[BackendActorAndBackend] = _
+  private var backendActorsAndBackends: Iterable[BackendActorAndBackend] = _
 
   when(InitializationPendingState) {
     case Event(StartInitializationCommand, _) =>

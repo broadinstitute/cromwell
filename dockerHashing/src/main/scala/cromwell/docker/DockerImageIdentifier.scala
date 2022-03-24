@@ -84,8 +84,8 @@ object DockerImageIdentifier {
       case host :: rest if isRegistryHostName(host) =>
         val repo = rest.init.mkString("/")
         (Option(host), Option(repo), rest.last)
-      // match may not be exhaustive error, improvements encouraged
-      case ugh => throw new Exception(s"Programmer error!: $ugh")
+      // 2.13 match may not be exhaustive
+      case oh => throw new RuntimeException(s"Programmer error! $oh")
     }
 
     (tag, hash) match {

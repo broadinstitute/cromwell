@@ -227,7 +227,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       workflowInitializationFailed(error, sender())
       goto(MaterializationFailedState)
     case Event(Status.Failure(failure), _) =>
-      workflowInitializationFailed(NonEmptyList.of(failure.getMessage, failure.getStackTrace.map(_.toString):_*), sender())
+      workflowInitializationFailed(NonEmptyList.of(failure.getMessage, failure.getStackTrace.toList.map(_.toString):_*), sender())
       goto(MaterializationFailedState)
   }
 

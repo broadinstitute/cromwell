@@ -33,6 +33,14 @@ trait WebServiceUtils {
   }
 
   /**
+   * Completes a response of a List of Product (probably a case class), using an implicit marshaller, probably a json encoder.
+   */
+  def completeResponse[A <: Product](statusCode: StatusCode, values: List[A], warnings: Seq[String])
+                                    (implicit mt: ToEntityMarshaller[List[A]]): Route = {
+    complete((statusCode, warningHeaders(warnings), values))
+  }
+
+  /**
     * Completes a response of string with the supplied content type.
     *
     * This is currently only used for pretty printing json, which should ideally be a query string option wired into

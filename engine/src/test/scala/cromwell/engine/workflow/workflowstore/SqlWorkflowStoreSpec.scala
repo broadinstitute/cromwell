@@ -488,7 +488,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
     it should "stop container if required" taggedAs DbmsTest in {
       containerOpt.foreach {
-        _.stop
+        _.stop()
       }
     }
   }

@@ -369,7 +369,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     def handleWorkflowOutputsFailure(errors: NonEmptyList[String]) = {
       val exception = new MessageAggregation {
         override def exceptionContext: String = "Workflow output evaluation failed"
-        override def errorMessages: Traversable[String] = errors.toList
+        override def errorMessages: Iterable[String] = errors.toList
       }
       context.parent ! WorkflowExecutionFailedResponse(data.jobExecutionMap, exception)
       goto(WorkflowExecutionFailedState)

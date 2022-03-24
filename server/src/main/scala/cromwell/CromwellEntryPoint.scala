@@ -268,7 +268,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
   def validOrFailSubmission[A](validation: ErrorOr[A]): A = {
     validation.valueOr(errors => throw new RuntimeException with MessageAggregation {
       override def exceptionContext: String = "ERROR: Unable to submit workflow to Cromwell:"
-      override def errorMessages: Traversable[String] = errors.toList
+      override def errorMessages: Iterable[String] = errors.toList
     })
   }
 

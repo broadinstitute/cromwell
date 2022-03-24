@@ -342,7 +342,7 @@ class JobTokenDispenserActorSpec extends TestKitSuite
       TestActorRef[TestTokenGrabbingActor](TestTokenGrabbingActor.props(actorRefUnderTest, LimitedTo5Tokens), grabberSupervisor, s"grabber_" + i)
     }
 
-    val actorIterator = tokenGrabbingActors.toIterator
+    val actorIterator = tokenGrabbingActors.iterator
 
     while (actorIterator.hasNext) {
 

@@ -1132,7 +1132,7 @@ cromwell::private::make_build_directories() {
 
 cromwell::private::find_cromwell_jar() {
     CROMWELL_BUILD_CROMWELL_JAR="$( \
-        find "${CROMWELL_BUILD_ROOT_DIRECTORY}/server/target/scala-2.12" -name "cromwell-*.jar" -print0 \
+        find "${CROMWELL_BUILD_ROOT_DIRECTORY}/server/target/scala-2.13" -name "cromwell-*.jar" -print0 \
         | xargs -0 ls -1 -t \
         | head -n 1 \
         2> /dev/null \

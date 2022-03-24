@@ -32,6 +32,7 @@ trait WebServiceUtils {
     complete((statusCode, warningHeaders(warnings), value))
   }
 
+  // 2.13 added this, not sure why the baseline version was compiling actually.
   /**
    * Completes a response of a List of Product (probably a case class), using an implicit marshaller, probably a json encoder.
    */

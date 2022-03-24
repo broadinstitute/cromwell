@@ -184,7 +184,7 @@ object CallElementToGraphNode {
             // Leave it unsupplied:
             InputDefinitionFold()
           }
-        // match may not be exhaustive
+        // 2.13 match may not be exhaustive
         case oops => throw new RuntimeException(s"Programmer error!: $oops")
       }
     }

@@ -27,7 +27,7 @@ object OssStorageRetry {
         } else {
           throw e
         }
-      // match may not be exhaustive
+      // 2.13 match may not be exhaustive
       case oh => throw new RuntimeException(s"Programmer error! $oh")
     }
   }

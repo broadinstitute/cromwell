@@ -82,15 +82,15 @@ class ServiceRegistryActor(globalConfig: Config) extends Actor with ActorLogging
   def receive = {
     case msg: ServiceRegistryMessage =>
       services.get(msg.serviceName) match {
-        case Some(ref) => ref.tell(transform(msg, sender), sender)
+        case Some(ref) => ref.tell(transform(msg, sender()), sender())
         case None =>
           log.error("Received ServiceRegistryMessage requesting service '{}' for which no service is configured.  Message: {}", msg.serviceName, msg)
-          sender ! ServiceRegistryFailure(msg.serviceName)
+          sender() ! ServiceRegistryFailure(msg.serviceName)
       }
     case meta: ServiceRegistryMetaRequest => meta match {
       case RequestIoActorRef => ioActor match {
-        case Some(ref) => sender ! IoActorRef(ref)
-        case None => sender ! NoIoActorRefAvailable
+        case Some(ref) => sender() ! IoActorRef(ref)
+        case None => sender() ! NoIoActorRefAvailable
       }
       case IoActorRef(ref) =>
         if (ioActor.isEmpty) { ioActor = Option(ref) }
@@ -104,7 +104,7 @@ class ServiceRegistryActor(globalConfig: Config) extends Actor with ActorLogging
     case NoopMessage => // Nothing to do - useful for streams that use this actor as a sink and want to send a message on completion
     case fool =>
       log.error("Received message which is not a ServiceRegistryMessage: {}", fool)
-      sender ! ServiceRegistryFailure("Message is not a ServiceRegistryMessage: " + fool)
+      sender() ! ServiceRegistryFailure("Message is not a ServiceRegistryMessage: " + fool)
   }
 
   /**

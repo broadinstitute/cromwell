@@ -11,6 +11,10 @@ object EnhancedCollections {
 
   case class DeQueued[A](head: Vector[A], tail: Queue[A])
 
+  /**
+   * After trying and failing to do this myself, I got this to work by copying the answer from here:
+   * https://stackoverflow.com/questions/29886246/scala-filter-by-type
+   */
   implicit class EnhancedIterableOps[T2, Repr[x] <: IterableOps[x, Repr, Repr[x]]](val traversable: IterableOps[T2, Repr, Repr[T2]]) extends AnyVal {
     /**
       * Lets you filter a collection by type.

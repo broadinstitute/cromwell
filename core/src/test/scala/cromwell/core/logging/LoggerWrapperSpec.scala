@@ -298,31 +298,31 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
       mockLogger.error(anyString).answers(updateSlf4jMessages(Level.ERROR, _))
       mockLogger.error(anyString, any[Any]()).answers(updateSlf4jMessages(Level.ERROR, _))
       mockLogger.error(anyString, any[Any](), any[Any]()).answers(updateSlf4jMessages(Level.ERROR, _))
-      mockLogger.error(anyString, anyVarArg[AnyRef]).answers(updateSlf4jMessages(Level.ERROR, _))
+      mockLogger.error(anyString, any[Array[Object]](): _*).answers(updateSlf4jMessages(Level.ERROR, _))
       mockLogger.error(anyString, any[Throwable]()).answers(updateSlf4jMessages(Level.ERROR, _))
 
       mockLogger.warn(anyString).answers(updateSlf4jMessages(Level.WARN, _))
       mockLogger.warn(anyString, any[Any]()).answers(updateSlf4jMessages(Level.WARN, _))
       mockLogger.warn(anyString, any[Any](), any[Any]()).answers(updateSlf4jMessages(Level.WARN, _))
-      mockLogger.warn(anyString, anyVarArg[AnyRef]).answers(updateSlf4jMessages(Level.WARN, _))
+      mockLogger.warn(anyString, any[Array[Object]](): _*).answers(updateSlf4jMessages(Level.WARN, _))
       mockLogger.warn(anyString, any[Throwable]()).answers(updateSlf4jMessages(Level.WARN, _))
 
       mockLogger.info(anyString).answers(updateSlf4jMessages(Level.INFO, _))
       mockLogger.info(anyString, any[Any]()).answers(updateSlf4jMessages(Level.INFO, _))
       mockLogger.info(anyString, any[Any](), any[Any]()).answers(updateSlf4jMessages(Level.INFO, _))
-      mockLogger.info(anyString, anyVarArg[AnyRef]).answers(updateSlf4jMessages(Level.INFO, _))
+      mockLogger.info(anyString, any[Array[Object]](): _*).answers(updateSlf4jMessages(Level.INFO, _))
       mockLogger.info(anyString, any[Throwable]()).answers(updateSlf4jMessages(Level.INFO, _))
 
       mockLogger.debug(anyString).answers(updateSlf4jMessages(Level.DEBUG, _))
       mockLogger.debug(anyString, any[Any]()).answers(updateSlf4jMessages(Level.DEBUG, _))
       mockLogger.debug(anyString, any[Any](), any[Any]()).answers(updateSlf4jMessages(Level.DEBUG, _))
-      mockLogger.debug(anyString, anyVarArg[AnyRef]).answers(updateSlf4jMessages(Level.DEBUG, _))
+      mockLogger.debug(anyString, any[Array[Object]](): _*).answers(updateSlf4jMessages(Level.DEBUG, _))
       mockLogger.debug(anyString, any[Throwable]()).answers(updateSlf4jMessages(Level.DEBUG, _))
 
       mockLogger.trace(anyString).answers(updateSlf4jMessages(Level.TRACE, _))
       mockLogger.trace(anyString, any[Any]()).answers(updateSlf4jMessages(Level.TRACE, _))
       mockLogger.trace(anyString, any[Any](), any[Any]()).answers(updateSlf4jMessages(Level.TRACE, _))
-      mockLogger.trace(anyString, anyVarArg[AnyRef]).answers(updateSlf4jMessages(Level.TRACE, _))
+      mockLogger.trace(anyString, any[Array[Object]](): _*).answers(updateSlf4jMessages(Level.TRACE, _))
       mockLogger.trace(anyString, any[Throwable]()).answers(updateSlf4jMessages(Level.TRACE, _))
 
       val mockLoggingAdapter: LoggingAdapter = new LoggingAdapter {

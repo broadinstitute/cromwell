@@ -24,7 +24,7 @@ class EnhancedCollectionsSpec extends AsyncFlatSpec with Matchers {
 
     val abcs = List(new A(), new B(), new C(), new B(), new A())
     val cs: List[C] = abcs.filterByType[C]
-    cs should be(List(new C()))
+    cs shouldEqual( abcs.collect { case c: C => c })
   }
 
   it should "filter a Set by type and return a Set" in {

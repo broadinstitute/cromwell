@@ -157,7 +157,7 @@ class SyntaxHighlightSpec extends AnyWordSpec with CromwellTimeoutSpec with Matc
         |  \u001b[38;5;33mMap[String, Array[String]]\u001b[0m \u001b[38;5;112mmetadata\u001b[0m
         |  \u001b[38;5;214mscatter\u001b[0m (readgroup in readgroup_list) {
         |    \u001b[38;5;214mcall\u001b[0m \u001b[38;5;253mPairedFastQsToUnmappedBAM\u001b[0m {
-        |      input: library_name=metadata[readgroup][1], run_date=metadata[readgroup][3], readgroup_name=readgroup, platform_name=metadata[readgroup][4], platform_unit=metadata[readgroup][2], fastq_1=fastq_pairs[readgroup][0], fastq_2=fastq_pairs[readgroup][1], sample_name=metadata[readgroup][0], sequencing_center=metadata[readgroup][5]
+        |      input: library_name=metadata[readgroup][1], platform_unit=metadata[readgroup][2], fastq_1=fastq_pairs[readgroup][0], fastq_2=fastq_pairs[readgroup][1], sample_name=metadata[readgroup][0], sequencing_center=metadata[readgroup][5], run_date=metadata[readgroup][3], readgroup_name=readgroup, platform_name=metadata[readgroup][4]
         |    }
         |  }
         |  \u001b[38;5;33mArray[File]\u001b[0m \u001b[38;5;112moutput_bams\u001b[0m = PairedFastQsToUnmappedBAM.output_bam
@@ -225,7 +225,7 @@ class SyntaxHighlightSpec extends AnyWordSpec with CromwellTimeoutSpec with Matc
         |  <span class="type">Map[String, Array[String]]</span> <span class="variable">metadata</span>
         |  <span class="keyword">scatter</span> (readgroup in readgroup_list) {
         |    <span class="keyword">call</span> <span class="name">PairedFastQsToUnmappedBAM</span> {
-        |      input: library_name=metadata[readgroup][1], run_date=metadata[readgroup][3], readgroup_name=readgroup, platform_name=metadata[readgroup][4], platform_unit=metadata[readgroup][2], fastq_1=fastq_pairs[readgroup][0], fastq_2=fastq_pairs[readgroup][1], sample_name=metadata[readgroup][0], sequencing_center=metadata[readgroup][5]
+        |      input: library_name=metadata[readgroup][1], platform_unit=metadata[readgroup][2], fastq_1=fastq_pairs[readgroup][0], fastq_2=fastq_pairs[readgroup][1], sample_name=metadata[readgroup][0], sequencing_center=metadata[readgroup][5], run_date=metadata[readgroup][3], readgroup_name=readgroup, platform_name=metadata[readgroup][4]
         |    }
         |  }
         |  <span class="type">Array[File]</span> <span class="variable">output_bams</span> = PairedFastQsToUnmappedBAM.output_bam

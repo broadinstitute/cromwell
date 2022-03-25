@@ -162,26 +162,94 @@ final case class AwsBatchJob(
          |  # destination must be the path to a file and not just the directory you want the file in
          |  local destination=$$2
          |
-         |  for i in {1..5};
+         |  for i in {1..6};
          |  do
-         |    if [[ $$s3_path =~ s3://([^/]+)/(.+) ]]; then
-         |        bucket="$${BASH_REMATCH[1]}"
-         |        key="$${BASH_REMATCH[2]}"
-         |        content_length=$$($awsCmd s3api head-object --bucket "$$bucket" --key "$$key" --query 'ContentLength')
-         |    else
+         |    # abort if tries are exhausted
+         |    if [ "$$i" -eq 6 ]; then
+         |        echo "failed to copy $$s3_path after $$(( $$i - 1 )) attempts. aborting"
+         |        exit 2
+         |    fi
+         |    # check validity of source path
+         |    if ! [[ $$s3_path =~ s3://([^/]+)/(.+) ]]; then
          |      echo "$$s3_path is not an S3 path with a bucket and key. aborting"
          |      exit 1
          |    fi
-         |    $awsCmd s3 cp --no-progress "$$s3_path" "$$destination" &&
-         |    [[ $$(LC_ALL=C ls -dn -- "$$destination" | awk '{print $$5; exit}') -eq "$$content_length" ]] && break ||
-         |    echo "attempt $$i to copy $$s3_path failed";
+         |    # copy  
+         |    $awsCmd s3 cp --no-progress "$$s3_path" "$$destination"  ||
+         |        ( echo "attempt $$i to copy $$s3_path failed" sleep $$((7 * "$$i")) && continue)
+         |    # check data integrity
+         |    _check_data_integrity $$destination $$s3_path || 
+         |       (echo "data content length difference detected in attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue)
+         |    # copy succeeded
+         |    break
+         |  done
+         |}
          |
-         |    if [ "$$i" -eq 5 ]; then
-         |        echo "failed to copy $$s3_path after $$i attempts. aborting"
+         |function _s3_delocalize_with_retry() {
+         |  local local_path=$$1
+         |  # destination must be the path to a file and not just the directory you want the file in
+         |  local destination=$$2
+         |
+         |  for i in {1..6};
+         |  do
+         |    # if tries exceeded : abort
+         |    if [ "$$i" -eq 6 ]; then
+         |        echo "failed to delocalize $$local_path after $$(( $$i - 1 )) attempts. aborting"
          |        exit 2
          |    fi
-         |    sleep $$((7 * "$$i"))
+         |    # if destination is not a bucket : abort
+         |    if ! [[ $$destination =~ s3://([^/]+)/(.+) ]]; then 
+         |     echo "$$destination is not an S3 path with a bucket and key. aborting"
+         |      exit 1
+         |    fi
+         |    # copy ok or try again.
+         |    if [[ -d "$$local_path" ]]; then
+         |       # make sure to strip the trailing / in destination 
+         |       destination=$${destination%/}
+         |       # glob directory. do recursive copy
+         |       $awsCmd s3 cp --no-progress $$local_path $$destination --recursive --exclude "cromwell_glob_control_file" || 
+         |         ( echo "attempt $$i to copy globDir $$local_path failed" && sleep $$((7 * "$$i")) && continue) 
+         |       # check integrity for each of the files
+         |       for FILE in $$(cd $$local_path ; ls | grep -v cromwell_glob_control_file); do
+         |           _check_data_integrity $$local_path/$$FILE $$destination/$$FILE || 
+         |               ( echo "data content length difference detected in attempt $$i to copy $$local_path/$$FILE failed" && sleep $$((7 * "$$i")) && continue 2)
+         |       done
+         |    else 
+         |      $awsCmd s3 cp --no-progress "$$local_path" "$$destination" || 
+         |         ( echo "attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue) 
+         |      # check content length for data integrity
+         |      _check_data_integrity $$local_path $$destination || 
+         |         ( echo "data content length difference detected in attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue)
+         |    fi
+         |    # copy succeeded
+         |    break
          |  done
+         |}
+         |
+         |function _check_data_integrity() {
+         |  local local_path=$$1
+         |  local s3_path=$$2
+         |  
+         |  # remote : use content_length
+         |  if [[ $$s3_path =~ s3://([^/]+)/(.+) ]]; then 
+         |        bucket="$${BASH_REMATCH[1]}"
+         |        key="$${BASH_REMATCH[2]}"
+         |  else
+         |      # this is already checked in the caller function
+         |      echo "$$s3_path is not an S3 path with a bucket and key. aborting"
+         |      exit 1
+         |  fi
+         |  s3_content_length=$$($awsCmd s3api head-object --bucket "$$bucket" --key "$$key" --query 'ContentLength') || 
+         |        ( echo "Attempt to get head of object failed for $$s3_path." && return 1 )
+         |  # local
+         |  local_content_length=$$(LC_ALL=C ls -dn -- "$$local_path" | awk '{print $$5; exit}' ) || 
+         |        ( echo "Attempt to get local content length failed for $$_local_path." && return 1 )   
+         |  # compare
+         |  if [[ "$$s3_content_length" -eq "$$local_content_length" ]]; then
+         |       true
+         |  else
+         |       false  
+         |  fi
          |}
          |
          |{
@@ -213,8 +281,8 @@ final case class AwsBatchJob(
            */
           s"""
              |touch ${output.name}
-             |$awsCmd s3 cp --no-progress ${output.name} ${output.s3key}
-             |if [ -e $globDirectory ]; then $awsCmd s3 cp --no-progress $globDirectory $s3GlobOutDirectory --recursive --exclude "cromwell_glob_control_file"; fi""".stripMargin
+             |_s3_delocalize_with_retry ${output.name} ${output.s3key}
+             |if [ -e $globDirectory ]; then _s3_delocalize_with_retry $globDirectory $s3GlobOutDirectory "; fi""".stripMargin
 
         case output: AwsBatchFileOutput
             if output.s3key.startsWith(
@@ -222,17 +290,17 @@ final case class AwsBatchJob(
             ) && output.mount.mountPoint.pathAsString == AwsBatchWorkingDisk.MountPoint.pathAsString =>
           // output is on working disk mount
           s"""
-             |$awsCmd s3 cp --no-progress $workDir/${output.local.pathAsString} ${output.s3key}""".stripMargin
+             |_s3_delocalize_with_retry $workDir/${output.local.pathAsString} ${output.s3key}""".stripMargin
         case output: AwsBatchFileOutput =>
           // output on a different mount
-          s"$awsCmd s3 cp --no-progress ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} ${output.s3key}"
+          s"_s3_delocalize_with_retry ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} ${output.s3key}"
         case _ => ""
       }
       .mkString("\n") + "\n" +
       s"""
-         |if [ -f $workDir/${jobPaths.returnCodeFilename} ]; then $awsCmd s3 cp --no-progress $workDir/${jobPaths.returnCodeFilename} ${jobPaths.callRoot.pathAsString}/${jobPaths.returnCodeFilename} ; fi
-         |if [ -f $stdErr ]; then $awsCmd s3 cp --no-progress $stdErr ${jobPaths.standardPaths.error.pathAsString}; fi
-         |if [ -f $stdOut ]; then $awsCmd s3 cp --no-progress $stdOut ${jobPaths.standardPaths.output.pathAsString}; fi
+         |if [ -f $workDir/${jobPaths.returnCodeFilename} ]; then _s3_delocalize_with_retry $workDir/${jobPaths.returnCodeFilename} ${jobPaths.callRoot.pathAsString}/${jobPaths.returnCodeFilename} ; fi
+         |if [ -f $stdErr ]; then _s3_delocalize_with_retry $stdErr ${jobPaths.standardPaths.error.pathAsString}; fi
+         |if [ -f $stdOut ]; then _s3_delocalize_with_retry $stdOut ${jobPaths.standardPaths.output.pathAsString}; fi
          |""".stripMargin
 
     // insert the preamble at the insertion point and the postscript copy command at the end

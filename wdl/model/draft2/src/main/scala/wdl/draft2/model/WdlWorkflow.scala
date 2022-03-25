@@ -54,7 +54,8 @@ case class WdlWorkflow(unqualifiedName: String,
     * Also include workflow outputs which are not technically children but should be processed as such
     */
   override lazy val childGraphNodes: Set[WdlGraphNode] = {
-    children.toSet.collect({ case n: WdlGraphNode => n }: PartialFunction[Scope, WdlGraphNode]) ++ outputs
+    import common.collections.EnhancedCollections._
+    (children.toSet.filterByType[WdlGraphNode]: Set[WdlGraphNode]) ++ outputs
   }
 
   def unsatisfiedCallInputs: Set[InputDefinition] = calls.flatMap(_.workflowInputs)

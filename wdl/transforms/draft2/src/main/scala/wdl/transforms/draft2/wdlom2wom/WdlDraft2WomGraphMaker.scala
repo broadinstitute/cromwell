@@ -3,6 +3,7 @@ package wdl.transforms.draft2.wdlom2wom
 import cats.syntax.either._
 import cats.syntax.validated._
 import common.Checked
+import common.collections.EnhancedCollections._
 import common.validation.ErrorOr.ErrorOr
 import wdl.draft2.model._
 import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
@@ -12,8 +13,8 @@ import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.transforms.WomCallNodeMaker.ops._
 import wom.transforms.WomConditionalNodeMaker.ops._
-import wom.transforms.WomGraphMaker
 import wom.transforms.WomScatterNodeMaker.ops._
+import wom.transforms.WomGraphMaker
 
 object WdlDraft2WomGraphMaker extends WomGraphMaker[Scope] {
 
@@ -99,7 +100,7 @@ object WdlDraft2WomGraphMaker extends WomGraphMaker[Scope] {
 
     def outerLinkInputs(nodes: Set[GraphNode]): Set[OuterGraphInputNode] = nodes flatMap {
       // NB: this curious type annotation just gives intelliJ a hand:
-      _.inputPorts.map(_.upstream.graphNode).collect { case n: OuterGraphInputNode => n } : Set[OuterGraphInputNode]
+      _.inputPorts.map(_.upstream.graphNode).filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode]
     }
 
     // Default outputs should be if we're:

@@ -1,6 +1,7 @@
 package wdl.draft2.model
 
 import common.Checked
+import common.collections.EnhancedCollections._
 import common.validation.Checked._
 import wdl.draft2.model.exception.VariableNotFoundException
 import wdl.draft2.model.expression.WdlFunctions
@@ -41,7 +42,7 @@ trait Scope {
     } else throw new UnsupportedOperationException("children is write-once")
   }
 
-  lazy val childGraphNodes: Set[WdlGraphNode] = children.toSet.collect({ case n: WdlGraphNode => n }: PartialFunction[Scope, WdlGraphNode])
+  lazy val childGraphNodes: Set[WdlGraphNode] = children.toSet.filterByType[WdlGraphNode]
   lazy val childGraphNodesSorted: Checked[List[WdlGraphNode]] = {
     // We can't use a classic ordering because the upstream / downstream order is not total over the set of nodes
     // Instead we use topological sorting to guarantee that we process the nodes top to bottom
@@ -116,7 +117,7 @@ trait Scope {
   lazy val fullyQualifiedName = {
     (ancestry.filter(_.appearsInFqn).map(_.unqualifiedName).reverse :+ unqualifiedName).mkString(".")
   }
-
+  
   lazy val womIdentifier = {
     /* Limit the fully qualified name to the parent workflow, if it exists.
      * The reason for this is if this scope comes from an imported namespace,
@@ -145,7 +146,7 @@ trait Scope {
     (ancestry.takeWhile(_ != relativeTo)
       // we want relativeTo in the lqn but it's been rejected by takeWhile wo add it back
       .:+(relativeTo)
-      // Reverse because we start from the scope and climb up the ancestry tree but in the end we want a top-bottom lqn
+      // Reverse because we start from the scope and climb up the ancestry tree but in the end we want a top-bottom lqn 
       .reverse
       // Get rid of scatters, ifs... because we don't want them here
       .filter(_.appearsInFqn)

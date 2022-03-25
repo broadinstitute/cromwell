@@ -1,5 +1,6 @@
 package wdl.draft2.model
 
+import common.collections.EnhancedCollections._
 import wdl.draft2.model.AstTools.{EnhancedAstNode, VariableReference}
 
 
@@ -29,7 +30,7 @@ sealed trait WdlGraphNode extends Scope {
     // But because our children's upstream might also include these (which we don't want), filter out:
     // - This
     // - Any other WdlGraphNode descendants of this
-    (referencedNodes ++ closestScopedAncestor.toSeq ++ childGraphNodes.flatMap(_.upstream)).toSet - this -- (descendants.collect { case n: WdlGraphNode => n })
+    (referencedNodes ++ closestScopedAncestor.toSeq ++ childGraphNodes.flatMap(_.upstream)).toSet - this -- descendants.filterByType[WdlGraphNode]
   }
 
   final lazy val downstream: Set[WdlGraphNode] = {

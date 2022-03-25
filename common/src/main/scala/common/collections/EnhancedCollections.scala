@@ -11,7 +11,7 @@ object EnhancedCollections {
 
   case class DeQueued[A](head: Vector[A], tail: Queue[A])
 
-  implicit class EnhancedTraversableLike[T2, Repr[x] <: IterableOps[x, Repr, Repr[x]], That](val traversable: IterableOps[T2, Repr, Repr[T2]]) extends AnyVal {
+  implicit class EnhancedIterableOps[T2, Repr[x] <: IterableOps[x, Repr, Repr[x]]](val traversable: IterableOps[T2, Repr, Repr[T2]]) extends AnyVal {
     /**
       * Lets you filter a collection by type.
       *

@@ -1,10 +1,11 @@
 package cromwell.engine.workflow.lifecycle.execution.keys
 
 import akka.actor.ActorRef
-import cats.instances.list._
 import cats.syntax.either._
 import cats.syntax.validated._
+import cats.instances.list._
 import common.Checked
+import common.collections.EnhancedCollections._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.backend.BackendJobExecutionActor.JobFailedNonRetryableResponse
@@ -41,7 +42,7 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
   def populate(count: Int, scatterCollectionFunction: ScatterCollectionFunction): Map[JobKey, ExecutionStatus.Value] = {
     val shards = node.innerGraph.nodes flatMap { makeShards(_, count) }
     val collectors = makeCollectors(count, scatterCollectionFunction)
-    val callCompletions = node.innerGraph.nodes.collect { case e: CallNode => e }.map(cn => ScatteredCallCompletionKey(cn, count))
+    val callCompletions = node.innerGraph.nodes.filterByType[CallNode].map(cn => ScatteredCallCompletionKey(cn, count))
     (shards ++ collectors ++ callCompletions) map { _ -> ExecutionStatus.NotStarted } toMap
   }
 

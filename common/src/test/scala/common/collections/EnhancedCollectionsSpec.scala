@@ -12,21 +12,31 @@ class EnhancedCollectionsSpec extends AsyncFlatSpec with Matchers {
 
   it should "filter a List by type and return a List" in {
     val objectList = List("hello", 3, None, "world")
-    val stringList = objectList.collect { case s: String => s }
+    val stringList = objectList.filterByType[String]
 
     stringList should be(List("hello", "world"))
   }
 
+  it should "work with non-Anys" in {
+    class A
+    class B extends A
+    class C extends B
+
+    val abcs = List(new A(), new B(), new C(), new B(), new A())
+    val cs: List[C] = abcs.filterByType[C]
+    cs should be(List(new C()))
+  }
+
   it should "filter a Set by type and return a Set" in {
     val objectSet = Set("hello", 3, None, "world")
-    val intSet: Set[Int] = objectSet.collect { case i: Int => i }
+    val intSet: Set[Int] = objectSet.filterByType[Int]
 
     intSet should be(Set(3))
   }
 
   it should "find the first Int in a List" in {
     val objectSet = List("hello", 3, None, 4, "world")
-    objectSet.collectFirst { case i: Int => i } should be(Some(3))
+    objectSet.firstByType[Int] should be(Some(3))
   }
 
   behavior of "EnhancedQueue"

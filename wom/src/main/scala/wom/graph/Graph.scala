@@ -1,11 +1,12 @@
 package wom.graph
 
 import cats.data.NonEmptyList
-import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.functor._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
+import common.collections.EnhancedCollections._
 import common.validation.ErrorOr.ErrorOr
 import shapeless.{:+:, CNil}
 import wom.expression.WomExpression
@@ -17,14 +18,14 @@ import wom.values.WomValue
   * A sealed set of graph nodes.
   */
 final case class Graph private (nodes: Set[GraphNode]) {
-  lazy val inputNodes: Set[GraphInputNode] = nodes.collect { case n: GraphInputNode => n }
-  lazy val externalInputNodes: Set[ExternalGraphInputNode] = nodes.collect { case n: ExternalGraphInputNode => n }
-  lazy val outerGraphInputNodes: Set[OuterGraphInputNode] = nodes.collect { case n: OuterGraphInputNode => n }
-  lazy val outputNodes: Set[GraphOutputNode] = nodes.collect { case n: GraphOutputNode => n }
-  lazy val calls: Set[CallNode] = nodes.collect { case n: CallNode => n }
-  lazy val workflowCalls = calls.collect { case n: WorkflowCallNode => n }: Set[WorkflowCallNode]
-  lazy val scatters: Set[ScatterNode] = nodes.collect { case n: ScatterNode => n }
-  lazy val conditionals: Set[ConditionalNode] = nodes.collect { case n: ConditionalNode => n }
+  lazy val inputNodes: Set[GraphInputNode] = nodes.filterByType[GraphInputNode]
+  lazy val externalInputNodes: Set[ExternalGraphInputNode] = nodes.filterByType[ExternalGraphInputNode]
+  lazy val outerGraphInputNodes: Set[OuterGraphInputNode] = nodes.filterByType[OuterGraphInputNode]
+  lazy val outputNodes: Set[GraphOutputNode] = nodes.filterByType[GraphOutputNode]
+  lazy val calls: Set[CallNode] = nodes.filterByType[CallNode]
+  lazy val workflowCalls = calls.filterByType[WorkflowCallNode]: Set[WorkflowCallNode]
+  lazy val scatters: Set[ScatterNode] = nodes.filterByType[ScatterNode]
+  lazy val conditionals: Set[ConditionalNode] = nodes.filterByType[ConditionalNode]
 
   /**
     * Returns all nodes contained in this graph (recursively, i.e nodes in a scatter, conditional or workflow call will
@@ -64,7 +65,7 @@ object Graph {
     }
 
     def validateInnerNodes(node: GraphNode): ErrorOr[Unit] = node match {
-      case g: GraphNodeWithInnerGraph => g.innerGraph.nodes.collect { case n: OuterGraphInputNode => n }.toList.traverse(outerGraphInputNodePointsHere).void
+      case g: GraphNodeWithInnerGraph => g.innerGraph.nodes.filterByType[OuterGraphInputNode].toList.traverse(outerGraphInputNodePointsHere).void
       case _ => ().validNel
     }
 

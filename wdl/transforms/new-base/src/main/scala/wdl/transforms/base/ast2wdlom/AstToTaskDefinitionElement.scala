@@ -1,8 +1,9 @@
 package wdl.transforms.base.ast2wdlom
 
 import cats.syntax.apply._
-import cats.syntax.either._
 import cats.syntax.validated._
+import cats.syntax.either._
+import common.collections.EnhancedCollections._
 import common.transforms.CheckedAtoB
 import common.validation.ErrorOr._
 import wdl.model.draft3.elements._
@@ -27,14 +28,14 @@ object AstToTaskDefinitionElement {
   def combineElements(nameElement: String,
                       bodyElements: Vector[TaskSectionElement],
                       sourceLocation: Option[SourceFileLocation]) = {
-    val inputsSectionElement: ErrorOr[Option[InputsSectionElement]] = validateOneMax(bodyElements.collect { case e: InputsSectionElement => e }, "inputs")
-    val declarations: Vector[IntermediateValueDeclarationElement] = bodyElements.collect { case e: IntermediateValueDeclarationElement => e }
-    val outputsSectionElement: ErrorOr[Option[OutputsSectionElement]] = validateOneMax(bodyElements.collect { case e: OutputsSectionElement => e }, "outputs")
-    val commandSectionElement: ErrorOr[CommandSectionElement] = validateExists(bodyElements.collect { case e: CommandSectionElement => e }, "command")
-    val runtimeSectionElement: ErrorOr[Option[RuntimeAttributesSectionElement]] = validateOneMax(bodyElements.collect { case e: RuntimeAttributesSectionElement => e }, "runtime")
+    val inputsSectionElement: ErrorOr[Option[InputsSectionElement]] = validateOneMax(bodyElements.filterByType[InputsSectionElement], "inputs")
+    val declarations: Vector[IntermediateValueDeclarationElement] = bodyElements.filterByType[IntermediateValueDeclarationElement]
+    val outputsSectionElement: ErrorOr[Option[OutputsSectionElement]] = validateOneMax(bodyElements.filterByType[OutputsSectionElement], "outputs")
+    val commandSectionElement: ErrorOr[CommandSectionElement] = validateExists(bodyElements.filterByType[CommandSectionElement], "command")
+    val runtimeSectionElement: ErrorOr[Option[RuntimeAttributesSectionElement]] = validateOneMax(bodyElements.filterByType[RuntimeAttributesSectionElement], "runtime")
 
-    val metaSectionElement: ErrorOr[Option[MetaSectionElement]] = validateOneMax(bodyElements.collect { case e: MetaSectionElement => e }, "meta")
-    val parameterMetaSectionElement: ErrorOr[Option[ParameterMetaSectionElement]] = validateOneMax(bodyElements.collect { case e: ParameterMetaSectionElement => e }, "parameterMeta")
+    val metaSectionElement: ErrorOr[Option[MetaSectionElement]] = validateOneMax(bodyElements.filterByType[MetaSectionElement], "meta")
+    val parameterMetaSectionElement: ErrorOr[Option[ParameterMetaSectionElement]] = validateOneMax(bodyElements.filterByType[ParameterMetaSectionElement], "parameterMeta")
 
     (inputsSectionElement, outputsSectionElement, commandSectionElement, runtimeSectionElement, metaSectionElement, parameterMetaSectionElement) mapN {
       (inputs, outputs, command, runtime, meta, parameterMeta) =>

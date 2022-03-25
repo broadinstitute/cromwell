@@ -3,6 +3,7 @@ package wdl.transforms.base.ast2wdlom
 import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.validated._
+import common.collections.EnhancedCollections._
 import common.transforms.CheckedAtoB
 import common.validation.ErrorOr._
 import wdl.model.draft3.elements._
@@ -25,13 +26,13 @@ object AstToWorkflowDefinitionElement {
                               sourceLocation: Option[SourceFileLocation],
                               bodyElements: Vector[WorkflowBodyElement]) = {
 
-    val inputsSectionValidation: ErrorOr[Option[InputsSectionElement]] = validateSize(bodyElements.collect { case e: InputsSectionElement => e }, "inputs", 1)
-    val outputsSectionValidation: ErrorOr[Option[OutputsSectionElement]] = validateSize(bodyElements.collect { case e: OutputsSectionElement => e }, "outputs", 1)
+    val inputsSectionValidation: ErrorOr[Option[InputsSectionElement]] = validateSize(bodyElements.filterByType[InputsSectionElement], "inputs", 1)
+    val outputsSectionValidation: ErrorOr[Option[OutputsSectionElement]] = validateSize(bodyElements.filterByType[OutputsSectionElement], "outputs", 1)
 
-    val graphSections: Vector[WorkflowGraphElement] = bodyElements.collect { case e: WorkflowGraphElement => e }
+    val graphSections: Vector[WorkflowGraphElement] = bodyElements.filterByType[WorkflowGraphElement]
 
-    val metaSectionValidation: ErrorOr[Option[MetaSectionElement]] = validateSize(bodyElements.collect { case e: MetaSectionElement => e }, "meta", 1)
-    val parameterMetaSectionValidation: ErrorOr[Option[ParameterMetaSectionElement]] = validateSize(bodyElements.collect { case e: ParameterMetaSectionElement => e }, "parameterMeta", 1)
+    val metaSectionValidation: ErrorOr[Option[MetaSectionElement]] = validateSize(bodyElements.filterByType[MetaSectionElement], "meta", 1)
+    val parameterMetaSectionValidation: ErrorOr[Option[ParameterMetaSectionElement]] = validateSize(bodyElements.filterByType[ParameterMetaSectionElement], "parameterMeta", 1)
 
     (inputsSectionValidation, outputsSectionValidation, metaSectionValidation, parameterMetaSectionValidation) mapN {
       (validInputs, validOutputs, meta, parameterMeta) =>

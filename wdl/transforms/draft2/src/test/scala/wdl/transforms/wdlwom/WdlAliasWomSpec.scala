@@ -2,6 +2,7 @@ package wdl.transforms.wdlwom
 
 import cats.data.Validated.{Invalid, Valid}
 import common.assertion.CromwellTimeoutSpec
+import common.collections.EnhancedCollections._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
@@ -38,15 +39,15 @@ class WdlAliasWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
 
     def validateGraph(workflowGraph: Graph) = {
 
-      val inputNodes: Set[ExternalGraphInputNode] = workflowGraph.nodes.collect { case e: ExternalGraphInputNode => e }
+      val inputNodes: Set[ExternalGraphInputNode] = workflowGraph.nodes.filterByType[ExternalGraphInputNode]
       inputNodes.map(_.localName) should be(Set("foo1.i", "foo2.i"))
       inputNodes.map(_.identifier.fullyQualifiedName.value) should be(Set("conditional_test.foo1.i", "conditional_test.foo2.i"))
 
-      val callNodes: Set[CallNode] = workflowGraph.nodes.collect { case e: CallNode => e }
+      val callNodes: Set[CallNode] = workflowGraph.nodes.filterByType[CallNode]
       callNodes.map(_.localName) should be(Set("foo1", "foo2"))
       callNodes.map(_.identifier.fullyQualifiedName.value) should be(Set("conditional_test.foo1", "conditional_test.foo2"))
 
-      val outputNodes: Set[GraphOutputNode] = workflowGraph.nodes.collect { case e: GraphOutputNode => e }
+      val outputNodes: Set[GraphOutputNode] = workflowGraph.nodes.filterByType[GraphOutputNode]
       outputNodes.map(_.localName) should be(Set("foo1.out", "foo2.out"))
       outputNodes.map(_.identifier.fullyQualifiedName.value) should be(Set("conditional_test.foo1.out", "conditional_test.foo2.out"))
 

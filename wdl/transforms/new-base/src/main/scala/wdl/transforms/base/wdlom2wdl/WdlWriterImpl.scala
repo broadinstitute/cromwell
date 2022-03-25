@@ -1,13 +1,14 @@
 package wdl.transforms.base.wdlom2wdl
 
-import org.apache.commons.text.StringEscapeUtils
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.elements._
-import wdl.transforms.base.wdlom2wdl.WdlWriter._
 import wom.callable.MetaValueElement
 import wom.callable.MetaValueElement._
 import wom.types._
+import WdlWriter._
+import common.collections.EnhancedCollections._
+import org.apache.commons.text.StringEscapeUtils
 
 object WdlWriterImpl {
 
@@ -202,17 +203,17 @@ object WdlWriterImpl {
       // TODO: use graph ordering
       // https://github.com/broadinstitute/cromwell/issues/3796
       val inputDeclarationElements: List[InputDeclarationElement] =
-      a.graphElements.toList.collect { case e: InputDeclarationElement => e }
+      a.graphElements.toList.filterByType[InputDeclarationElement]
       val intermediateValueDeclarationElements: List[IntermediateValueDeclarationElement] =
-        a.graphElements.toList.collect { case e: IntermediateValueDeclarationElement => e }
+        a.graphElements.toList.filterByType[IntermediateValueDeclarationElement]
       val ifElements: List[IfElement] =
-        a.graphElements.toList.collect { case e: IfElement => e }
+        a.graphElements.toList.filterByType[IfElement]
       val scatterElements: List[ScatterElement] =
-        a.graphElements.toList.collect { case e: ScatterElement => e }
+        a.graphElements.toList.filterByType[ScatterElement]
       val callElements: List[CallElement] =
-        a.graphElements.toList.collect { case e: CallElement => e }
+        a.graphElements.toList.filterByType[CallElement]
       val outputDeclarationElements: List[OutputDeclarationElement] =
-        a.graphElements.toList.collect { case e: OutputDeclarationElement => e }
+        a.graphElements.toList.filterByType[OutputDeclarationElement]
 
       val combined: List[WorkflowGraphElement] = inputDeclarationElements ++
         intermediateValueDeclarationElements ++

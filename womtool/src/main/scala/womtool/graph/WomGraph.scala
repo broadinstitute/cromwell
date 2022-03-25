@@ -1,20 +1,25 @@
 package womtool.graph
 
+import java.nio.file.{Files, Paths}
+import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
+
 import better.files.File
 import cats.implicits._
 import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.Validation._
+import common.collections.EnhancedCollections._
 import cwl.CwlDecoder
 import cwl.preprocessor.CwlPreProcessor
 import spray.json.{JsArray, JsBoolean, JsNull, JsNumber, JsObject, JsString, JsValue}
 import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
+import wdl.transforms.base.wdlom2wom.FileElementToWomBundleInputs
+import wdl.draft3.transforms.wdlom2wom._
 import wdl.draft3.transforms.ast2wdlom.{astToFileElement, wrapAst}
 import wdl.draft3.transforms.parsing.fileToAst
-import wdl.draft3.transforms.wdlom2wom._
-import wdl.transforms.base.wdlom2wom.FileElementToWomBundleInputs
 import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomBundleMakers._
-import wom.callable.{Callable, WorkflowDefinition}
+import wom.callable.WorkflowDefinition
 import wom.executable.WomBundle
 import wom.expression.NoIoFunctionSet
 import wom.graph._
@@ -22,9 +27,6 @@ import wom.transforms.WomBundleMaker.ops._
 import wom.types._
 import womtool.graph.WomGraph._
 
-import java.nio.file.{Files, Paths}
-import java.util.UUID
-import java.util.concurrent.atomic.AtomicInteger
 import scala.jdk.CollectionConverters._
 
 class WomGraph(graphName: String, graph: Graph) {
@@ -194,7 +196,7 @@ object WomGraph {
     }
 
     womBundle match {
-      case Right(wom) if (wom.allCallables.values.toSet.collect({ case e: WorkflowDefinition => e }: PartialFunction[Callable, WorkflowDefinition]): Set[WorkflowDefinition]).size == 1 => wom.allCallables.values.toSet.collect({ case e: WorkflowDefinition => e }: scala.PartialFunction[Callable, WorkflowDefinition]).head.graph
+      case Right(wom) if (wom.allCallables.values.toSet.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).size == 1 => (wom.allCallables.values.toSet.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).head.graph
       case Right(_) => throw new Exception("Can only 'wom graph' a WDL with exactly one workflow")
       case Left(errors) =>
         val formattedErrors = errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())

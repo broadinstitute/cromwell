@@ -30,12 +30,12 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
       List(Slf4jMessage(Level.ERROR, List("tag: Hello {} {} {} {}"))),
       List(AkkaMessage(Logging.ErrorLevel, "tag: Hello {} {} {} {}"))
     ),
-//    (
-//      "log error with empty args",
-//      _.error("Hello {} {} {} {}", Seq.empty[AnyRef]: _*),
-//      List(Slf4jMessage(Level.ERROR, List("tag: Hello {} {} {} {}"))),
-//      List(AkkaMessage(Logging.ErrorLevel, "tag: Hello {} {} {} {}"))
-//    ),
+    (
+      "log error with empty args",
+      _.error("Hello {} {} {} {}", Seq.empty[AnyRef]: _*),
+      List(Slf4jMessage(Level.ERROR, List("tag: Hello {} {} {} {}"))),
+      List(AkkaMessage(Logging.ErrorLevel, "tag: Hello {} {} {} {}"))
+    ),
     (
       "log error with one arg",
       _.error("Hello {} {} {} {}", arg = "arg1"),
@@ -54,30 +54,30 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
       List(Slf4jMessage(Level.ERROR, List("tag: Hello {} {} {} {}", "arg1", "arg2"))),
       List(AkkaMessage(Logging.ErrorLevel, s"tag: Hello arg1 arg2 {} {}"))
     ),
-//    (
-//      "log error with three args",
-//      _.error("Hello {} {} {} {}", "arg1", "arg2", "arg3"),
-//      List(Slf4jMessage(Level.ERROR, List("tag: Hello {} {} {} {}", "arg1", "arg2", "arg3"))),
-//      List(AkkaMessage(Logging.ErrorLevel, s"tag: Hello arg1 arg2 arg3 {}"))
-//    ),
+    (
+      "log error with three args",
+      _.error("Hello {} {} {} {}", "arg1", "arg2", "arg3"),
+      List(Slf4jMessage(Level.ERROR, List("tag: Hello {} {} {} {}", "arg1", "arg2", "arg3"))),
+      List(AkkaMessage(Logging.ErrorLevel, s"tag: Hello arg1 arg2 arg3 {}"))
+    ),
     (
       "log error with one arg one exception",
       _.error("Hello {} {} {} {}", exception),
       List(Slf4jMessage(Level.ERROR, List("tag: Hello {} {} {} {}", exception))),
       List(AkkaMessage(Logging.ErrorLevel, s"tag: Hello {} {} {} {}", Option(exception)))
     ),
-//    (
-//      "log error with an exception and no args",
-//      _.error(exception, "Hello {} {} {} {}"),
-//      List(Slf4jMessage(Level.ERROR, List("tag: Hello {} {} {} {}", exception))),
-//      List(AkkaMessage(Logging.ErrorLevel, s"tag: Hello {} {} {} {}", Option(exception)))
-//    ),
-//    (
-//      "log error with an exception and one arg",
-//      _.error(exception, "Hello {} {} {} {}", "arg1"),
-//      List(Slf4jMessage(Level.ERROR, List("tag: Hello {} {} {} {}", "arg1", exception))),
-//      List(AkkaMessage(Logging.ErrorLevel, s"tag: Hello arg1 {} {} {}", Option(exception)))
-//    ),
+    (
+      "log error with an exception and no args",
+      _.error(exception, "Hello {} {} {} {}"),
+      List(Slf4jMessage(Level.ERROR, List("tag: Hello {} {} {} {}", exception))),
+      List(AkkaMessage(Logging.ErrorLevel, s"tag: Hello {} {} {} {}", Option(exception)))
+    ),
+    (
+      "log error with an exception and one arg",
+      _.error(exception, "Hello {} {} {} {}", "arg1"),
+      List(Slf4jMessage(Level.ERROR, List("tag: Hello {} {} {} {}", "arg1", exception))),
+      List(AkkaMessage(Logging.ErrorLevel, s"tag: Hello arg1 {} {} {}", Option(exception)))
+    ),
 
     (
       "log warn with no args",
@@ -85,12 +85,12 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
       List(Slf4jMessage(Level.WARN, List("tag: Hello {} {} {} {}"))),
       List(AkkaMessage(Logging.WarningLevel, "tag: Hello {} {} {} {}"))
     ),
-//    (
-//      "log warn with empty args",
-//      _.warn("Hello {} {} {} {}", Seq.empty[AnyRef]: _*),
-//      List(Slf4jMessage(Level.WARN, List("tag: Hello {} {} {} {}"))),
-//      List(AkkaMessage(Logging.WarningLevel, "tag: Hello {} {} {} {}"))
-//    ),
+    (
+      "log warn with empty args",
+      _.warn("Hello {} {} {} {}", Seq.empty[AnyRef]: _*),
+      List(Slf4jMessage(Level.WARN, List("tag: Hello {} {} {} {}"))),
+      List(AkkaMessage(Logging.WarningLevel, "tag: Hello {} {} {} {}"))
+    ),
     (
       "log warn with one arg",
       _.warn("Hello {} {} {} {}", argument = "arg1"),
@@ -109,12 +109,12 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
       List(Slf4jMessage(Level.WARN, List("tag: Hello {} {} {} {}", "arg1", "arg2"))),
       List(AkkaMessage(Logging.WarningLevel, s"tag: Hello arg1 arg2 {} {}"))
     ),
-//    (
-//      "log warn with three args",
-//      _.warn("Hello {} {} {} {}", "arg1", "arg2", "arg3"),
-//      List(Slf4jMessage(Level.WARN, List("tag: Hello {} {} {} {}", "arg1", "arg2", "arg3"))),
-//      List(AkkaMessage(Logging.WarningLevel, s"tag: Hello arg1 arg2 arg3 {}"))
-//    ),
+    (
+      "log warn with three args",
+      _.warn("Hello {} {} {} {}", "arg1", "arg2", "arg3"),
+      List(Slf4jMessage(Level.WARN, List("tag: Hello {} {} {} {}", "arg1", "arg2", "arg3"))),
+      List(AkkaMessage(Logging.WarningLevel, s"tag: Hello arg1 arg2 arg3 {}"))
+    ),
     (
       "log warn with one arg one exception",
       _.warn("Hello {} {} {} {}", exception),
@@ -128,15 +128,15 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
       List(Slf4jMessage(Level.INFO, List("tag: Hello {} {} {} {}"))),
       List(AkkaMessage(Logging.InfoLevel, "tag: Hello {} {} {} {}"))
     ),
-//    (
-//      "log info with empty args",
-//      _.info("Hello {} {} {} {}", Seq.empty[AnyRef]: _*),
-//      List(Slf4jMessage(Level.INFO, List("tag: Hello {} {} {} {}"))),
-//      List(AkkaMessage(Logging.InfoLevel, "tag: Hello {} {} {} {}"))
-//    ),
+    (
+      "log info with empty args",
+      _.info("Hello {} {} {} {}", Seq.empty[AnyRef]: _*),
+      List(Slf4jMessage(Level.INFO, List("tag: Hello {} {} {} {}"))),
+      List(AkkaMessage(Logging.InfoLevel, "tag: Hello {} {} {} {}"))
+    ),
     (
       "log info with one arg",
-      _.info("Hello {} {} {} {}", arg = "arg1"),
+      _.info("Hello {} {} {} {}", arg ="arg1"),
       List(Slf4jMessage(Level.INFO, List("tag: Hello {} {} {} {}", "arg1"))),
       List(AkkaMessage(Logging.InfoLevel, "tag: Hello arg1 {} {} {}"))
     ),
@@ -152,12 +152,12 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
       List(Slf4jMessage(Level.INFO, List("tag: Hello {} {} {} {}", "arg1", "arg2"))),
       List(AkkaMessage(Logging.InfoLevel, s"tag: Hello arg1 arg2 {} {}"))
     ),
-//    (
-//      "log info with three args",
-//      _.info("Hello {} {} {} {}", "arg1", "arg2", "arg3"),
-//      List(Slf4jMessage(Level.INFO, List("tag: Hello {} {} {} {}", "arg1", "arg2", "arg3"))),
-//      List(AkkaMessage(Logging.InfoLevel, s"tag: Hello arg1 arg2 arg3 {}"))
-//    ),
+    (
+      "log info with three args",
+      _.info("Hello {} {} {} {}", "arg1", "arg2", "arg3"),
+      List(Slf4jMessage(Level.INFO, List("tag: Hello {} {} {} {}", "arg1", "arg2", "arg3"))),
+      List(AkkaMessage(Logging.InfoLevel, s"tag: Hello arg1 arg2 arg3 {}"))
+    ),
     (
       "log info with one arg one exception",
       _.info("Hello {} {} {} {}", exception),
@@ -171,12 +171,12 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
       List(Slf4jMessage(Level.DEBUG, List("tag: Hello {} {} {} {}"))),
       List(AkkaMessage(Logging.DebugLevel, "tag: Hello {} {} {} {}"))
     ),
-//    (
-//      "log debug with empty args",
-//      _.debug("Hello {} {} {} {}", Seq.empty[AnyRef]: _*),
-//      List(Slf4jMessage(Level.DEBUG, List("tag: Hello {} {} {} {}"))),
-//      List(AkkaMessage(Logging.DebugLevel, "tag: Hello {} {} {} {}"))
-//    ),
+    (
+      "log debug with empty args",
+      _.debug("Hello {} {} {} {}", Seq.empty[AnyRef]: _*),
+      List(Slf4jMessage(Level.DEBUG, List("tag: Hello {} {} {} {}"))),
+      List(AkkaMessage(Logging.DebugLevel, "tag: Hello {} {} {} {}"))
+    ),
     (
       "log debug with one arg",
       _.debug("Hello {} {} {} {}", argument ="arg1"),
@@ -195,12 +195,12 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
       List(Slf4jMessage(Level.DEBUG, List("tag: Hello {} {} {} {}", "arg1", "arg2"))),
       List(AkkaMessage(Logging.DebugLevel, s"tag: Hello arg1 arg2 {} {}"))
     ),
-//    (
-//      "log debug with three args",
-//      _.debug("Hello {} {} {} {}", "arg1", "arg2", "arg3"),
-//      List(Slf4jMessage(Level.DEBUG, List("tag: Hello {} {} {} {}", "arg1", "arg2", "arg3"))),
-//      List(AkkaMessage(Logging.DebugLevel, s"tag: Hello arg1 arg2 arg3 {}"))
-//    ),
+    (
+      "log debug with three args",
+      _.debug("Hello {} {} {} {}", "arg1", "arg2", "arg3"),
+      List(Slf4jMessage(Level.DEBUG, List("tag: Hello {} {} {} {}", "arg1", "arg2", "arg3"))),
+      List(AkkaMessage(Logging.DebugLevel, s"tag: Hello arg1 arg2 arg3 {}"))
+    ),
     (
       "log debug with one arg one exception",
       _.debug("Hello {} {} {} {}", exception),
@@ -214,12 +214,12 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
       List(Slf4jMessage(Level.TRACE, List("tag: Hello {} {} {} {}"))),
       Nil
     ),
-//    (
-//      "log trace with empty args",
-//      _.trace("Hello {} {} {} {}", Seq.empty[AnyRef]: _*),
-//      List(Slf4jMessage(Level.TRACE, List("tag: Hello {} {} {} {}"))),
-//      Nil
-//    ),
+    (
+      "log trace with empty args",
+      _.trace("Hello {} {} {} {}", Seq.empty[AnyRef]: _*),
+      List(Slf4jMessage(Level.TRACE, List("tag: Hello {} {} {} {}"))),
+      Nil
+    ),
     (
       "log trace with one arg",
       _.trace("Hello {} {} {} {}", arg = "arg1"),
@@ -238,12 +238,12 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
       List(Slf4jMessage(Level.TRACE, List("tag: Hello {} {} {} {}", "arg1", "arg2"))),
       Nil
     ),
-//    (
-//      "log trace with three args",
-//      _.trace("Hello {} {} {} {}", "arg1", "arg2", "arg3"),
-//      List(Slf4jMessage(Level.TRACE, List("tag: Hello {} {} {} {}", "arg1", "arg2", "arg3"))),
-//      Nil
-//    ),
+    (
+      "log trace with three args",
+      _.trace("Hello {} {} {} {}", "arg1", "arg2", "arg3"),
+      List(Slf4jMessage(Level.TRACE, List("tag: Hello {} {} {} {}", "arg1", "arg2", "arg3"))),
+      Nil
+    ),
     (
       "log trace with one arg one exception",
       _.trace("Hello {} {} {} {}", exception),
@@ -298,26 +298,31 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
       mockLogger.error(anyString).answers(updateSlf4jMessages(Level.ERROR, _))
       mockLogger.error(anyString, any[Any]()).answers(updateSlf4jMessages(Level.ERROR, _))
       mockLogger.error(anyString, any[Any](), any[Any]()).answers(updateSlf4jMessages(Level.ERROR, _))
+      mockLogger.error(anyString, anyVarArg[AnyRef]).answers(updateSlf4jMessages(Level.ERROR, _))
       mockLogger.error(anyString, any[Throwable]()).answers(updateSlf4jMessages(Level.ERROR, _))
 
       mockLogger.warn(anyString).answers(updateSlf4jMessages(Level.WARN, _))
       mockLogger.warn(anyString, any[Any]()).answers(updateSlf4jMessages(Level.WARN, _))
       mockLogger.warn(anyString, any[Any](), any[Any]()).answers(updateSlf4jMessages(Level.WARN, _))
+      mockLogger.warn(anyString, anyVarArg[AnyRef]).answers(updateSlf4jMessages(Level.WARN, _))
       mockLogger.warn(anyString, any[Throwable]()).answers(updateSlf4jMessages(Level.WARN, _))
 
       mockLogger.info(anyString).answers(updateSlf4jMessages(Level.INFO, _))
       mockLogger.info(anyString, any[Any]()).answers(updateSlf4jMessages(Level.INFO, _))
       mockLogger.info(anyString, any[Any](), any[Any]()).answers(updateSlf4jMessages(Level.INFO, _))
+      mockLogger.info(anyString, anyVarArg[AnyRef]).answers(updateSlf4jMessages(Level.INFO, _))
       mockLogger.info(anyString, any[Throwable]()).answers(updateSlf4jMessages(Level.INFO, _))
 
       mockLogger.debug(anyString).answers(updateSlf4jMessages(Level.DEBUG, _))
       mockLogger.debug(anyString, any[Any]()).answers(updateSlf4jMessages(Level.DEBUG, _))
       mockLogger.debug(anyString, any[Any](), any[Any]()).answers(updateSlf4jMessages(Level.DEBUG, _))
+      mockLogger.debug(anyString, anyVarArg[AnyRef]).answers(updateSlf4jMessages(Level.DEBUG, _))
       mockLogger.debug(anyString, any[Throwable]()).answers(updateSlf4jMessages(Level.DEBUG, _))
 
       mockLogger.trace(anyString).answers(updateSlf4jMessages(Level.TRACE, _))
       mockLogger.trace(anyString, any[Any]()).answers(updateSlf4jMessages(Level.TRACE, _))
       mockLogger.trace(anyString, any[Any](), any[Any]()).answers(updateSlf4jMessages(Level.TRACE, _))
+      mockLogger.trace(anyString, anyVarArg[AnyRef]).answers(updateSlf4jMessages(Level.TRACE, _))
       mockLogger.trace(anyString, any[Throwable]()).answers(updateSlf4jMessages(Level.TRACE, _))
 
       val mockLoggingAdapter: LoggingAdapter = new LoggingAdapter {

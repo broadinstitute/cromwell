@@ -315,8 +315,23 @@ object CommandLineTool {
     case oh => throw new Exception(s"Programmer error!: $oh")
   })
 
-  // FIXME 2.13
-  implicit val SortingKeyTypeListOrdering: Ordering[List[StringOrInt]] = null
+  // https://github.com/scala/bug/issues/4097#issuecomment-292388627
+  implicit def IterableSubclass[CC[X] <: Iterable[X], T: Ordering] : Ordering[CC[T]] = {
+    new Ordering[CC[T]] {
+      val ord = implicitly[Ordering[T]]
+      def compare(x: CC[T], y: CC[T]): Int = {
+        val xe = x.iterator
+        val ye = y.iterator
+
+        while (xe.hasNext && ye.hasNext) {
+          val res = ord.compare(xe.next(), ye.next())
+          if (res != 0) return res
+        }
+
+        Ordering.Boolean.compare(xe.hasNext, ye.hasNext)
+      }
+    }
+  }
 
   // Ordering for a CommandBindingSortingKey
   implicit val SortingKeyOrdering: Ordering[CommandBindingSortingKey] = Ordering.by(_.value)

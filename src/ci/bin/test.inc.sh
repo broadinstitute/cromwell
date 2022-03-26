@@ -52,19 +52,30 @@ cromwell::private::set_variable_if_only_some_files_changed() {
     if [[ "${TRAVIS_EVENT_TYPE:-unset}" != "pull_request" ]]; then
         export "${variable_to_set}=false"
     else
-      # https://stackoverflow.com/a/19120674
-      # Large changesets seem to trigger the situation described in the linked article where `grep` exits 0 with the
-      # first match but `git diff` is still writing to the pipe, leading to an exit code 141.
-      set +o pipefail
-      git diff --name-only "origin/${TRAVIS_BRANCH}" 2>&1 | grep -E -q --invert-match "${files_changed_regex}"
-      set -o pipefail
+      # Large changesets seem to trigger the situation described in [1] where a `git diff` pipelined to `grep` can cause
+      # `grep` to exit 0 on the first match while `git diff` is still writing to the pipe. When this happens `git diff`
+      # is killed with a SIGPIPE and exits with code 141. With `set -o pipefail` this causes the entire pipeline to exit
+      # with code 141, which sets `$variable_to_set` to `true` when it probably should have been set to `false`.
+      #
+      # Instead of composing these commands into a pipeline write to a temporary file.
+      #
+      # [1] https://stackoverflow.com/a/19120674
+      # [2] https://gist.github.com/mohanpedala/1e2ff5661761d3abd0385e8223e16425#set--o-pipefail
+
+      files_changed_temporary_file=$(mktemp)
+
+      git diff --name-only "origin/${TRAVIS_BRANCH}" > "${files_changed_temporary_file}" 2>&1
+      grep -E -q --invert-match "${files_changed_regex}" "${files_changed_temporary_file}"
       RESULT=$?
+
       if [[ $RESULT -eq 0 ]]; then
         export "${variable_to_set}=false"
       else
         export "${variable_to_set}=true"
       fi
     fi
+
+    rm "${files_changed_temporary_file}"
 }
 
 # Exports environment variables used for scripts.

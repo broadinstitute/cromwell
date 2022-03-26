@@ -30,9 +30,9 @@ set -o errexit -o nounset -o pipefail
 
 cromwell::private::check_debug() {
     # shellcheck disable=SC2154
-    if [[ -n "${crmdbg:+set}" ]]; then
+    #if [[ -n "${crmdbg:+set}" ]]; then
         set -o xtrace
-    fi
+    #fi
 
     # shellcheck disable=SC2154
     if [[ -n "${crmcit:+set}" ]]; then

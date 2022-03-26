@@ -33,7 +33,7 @@ class CentaurOperationsSpec extends AnyFlatSpec with Matchers {
       case Success(_) if !expectMatching => fail("Metadata unexpectedly matches")
       case Failure(e) if expectMatching  => fail("Metadata unexpectedly mismatches", e)
       case Failure(_) if !expectMatching => // great
-      // 2.13 non-exhaustive match
+      // 2.13 match may not be exhaustive
       case oh => throw new Exception(s"Programmer error!: $oh")
     }
   }

@@ -185,7 +185,7 @@ object CallElementToGraphNode {
             InputDefinitionFold()
           }
         // 2.13 match may not be exhaustive
-        case oops => throw new RuntimeException(s"Programmer error!: $oops")
+        case oh => throw new Exception(s"Programmer error!: $oh")
       }
     }
 

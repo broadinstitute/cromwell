@@ -51,7 +51,7 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
       case CromwellGauge(bucket, value) => updateMetricMap(bucket, value.toDouble, StackdriverGauge)
       case CromwellCount(bucket, value, _) => updateMetricMap(bucket, value.toDouble, StackdriverCumulative)
       case CromwellIncrement(bucket) => updateMetricMap(bucket, metricValue = 1D, metricKind = StackdriverCumulative)
-      // 2.13 non-exhaustive match
+      // 2.13 match may not be exhaustive
       case oh => throw new Exception(s"Programmer error!: $oh")
     }
     case ShutdownCommand =>

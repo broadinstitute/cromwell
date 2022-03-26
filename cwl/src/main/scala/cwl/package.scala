@@ -94,13 +94,13 @@ package object cwl extends TypeAliases {
         case Cwl.Workflow(w) => w.womExecutable(validator, inputsFile, ioFunctions, strictValidation)
         case Cwl.CommandLineTool(clt) => clt.womExecutable(validator, inputsFile, ioFunctions, strictValidation)
         case Cwl.ExpressionTool(et) => et.womExecutable(validator, inputsFile, ioFunctions, strictValidation)
-        // 2.13 non-exhaustive match
+        // 2.13 match may not be exhaustive
         case oh => throw new Exception(s"Programmer error!: $oh")
       }
       Try(executable) match {
         case Success(s) => s
         case Failure(f) => f.getMessage.invalidNelCheck
-        // 2.13 non-exhaustive match
+        // 2.13 match may not be exhaustive
         case oh => throw new Exception(s"Programmer error!: $oh")
       }
     }
@@ -118,7 +118,7 @@ package object cwl extends TypeAliases {
         case Cwl.ExpressionTool(et) => selectWomTypeInputs(et.inputs collect {
           case i if i.`type`.isDefined => FullyQualifiedName(i.id).id -> i.`type`.get
         })
-        // 2.13 non-exhaustive match
+        // 2.13 match may not be exhaustive
         case oh => throw new Exception(s"Programmer error!: $oh")
       }
     }

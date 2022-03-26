@@ -549,7 +549,7 @@ trait StandardAsyncExecutionActor
       CommandSetupSideEffectFile(womValue, alternativeName)
     case AsLocalizedAdHocValue(LocalizedAdHocValue(AdHocValue(womValue, alternativeName, _), _)) =>
       CommandSetupSideEffectFile(womValue, alternativeName)
-    // 2.13 non-exhaustive match
+    // 2.13 match may not be exhaustive
     case oh => throw new Exception(s"Programmer error!: $oh")
   }
 

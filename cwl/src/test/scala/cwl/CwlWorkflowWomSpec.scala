@@ -128,7 +128,7 @@ class CwlWorkflowWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     // can't collapse this to a single "case StringOrExpression.Expression(e) => e.value":
     case StringOrExpression.ECMAScriptExpression(e) => e.value
     case StringOrExpression.ECMAScriptFunction(f) => f.value
-    // 2.13 non-exhaustive match
+    // 2.13 match may not be exhaustive
     case oh => throw new Exception(s"Programmer error!: $oh")
   }
 

@@ -42,7 +42,7 @@ case class ECMAScriptWomExpression(expression: Expression,
   override def sourceString = expression match {
     case Expression.ECMAScriptExpression(s) => s.value
     case Expression.ECMAScriptFunction(s) => s.value
-    // 2.13 non-exhaustive match
+    // 2.13 match may not be exhaustive
     case oh => throw new Exception(s"Programmer error!: $oh")
   }
 

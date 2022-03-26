@@ -1382,6 +1382,7 @@ cromwell::private::run_conformance_wdl() {
 
 cromwell::build::exec_test_script() {
     cromwell::private::create_build_variables
+    crmdbg=y
     if [[ "${CROMWELL_BUILD_RUN_TESTS}" == "false" ]]; then
       echo "Use '[force ci]' in commit message to run tests on 'push'"
       exit 0

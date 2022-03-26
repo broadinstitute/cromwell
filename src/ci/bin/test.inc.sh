@@ -73,9 +73,9 @@ cromwell::private::set_variable_if_only_some_files_changed() {
       else
         export "${variable_to_set}=true"
       fi
-    fi
 
-    rm "${files_changed_temporary_file}"
+      rm "${files_changed_temporary_file}"
+    fi
 }
 
 # Exports environment variables used for scripts.

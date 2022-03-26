@@ -52,7 +52,12 @@ cromwell::private::set_variable_if_only_some_files_changed() {
     if [[ "${TRAVIS_EVENT_TYPE:-unset}" != "pull_request" ]]; then
         export "${variable_to_set}=false"
     else
+      # https://stackoverflow.com/a/19120674
+      # Large changesets seem to trigger the situation described in the linked article where `grep` exits 0 with the
+      # first match but `git diff` is still writing to the pipe, leading to an exit code 141.
+      set +o pipefail
       git diff --name-only "origin/${TRAVIS_BRANCH}" 2>&1 | grep -E -q --invert-match "${files_changed_regex}"
+      set -o pipefail
       RESULT=$?
       if [[ $RESULT -eq 0 ]]; then
         export "${variable_to_set}=false"

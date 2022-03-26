@@ -51,10 +51,13 @@ cromwell::private::set_variable_if_only_some_files_changed() {
 
     if [[ "${TRAVIS_EVENT_TYPE:-unset}" != "pull_request" ]]; then
         export "${variable_to_set}=false"
-    elif git diff --name-only "origin/${TRAVIS_BRANCH}" 2>&1 | grep -E -q --invert-match "${files_changed_regex}"; then
-        export "${variable_to_set}=false"
     else
+      git diff --name-only "origin/${TRAVIS_BRANCH}" 2>&1 | grep -E -q --invert-match "${files_changed_regex}"
+      if [[ $? ]]; then
+        export "${variable_to_set}=false"
+      else
         export "${variable_to_set}=true"
+      fi
     fi
 }
 

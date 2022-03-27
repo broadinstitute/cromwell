@@ -64,8 +64,8 @@ cromwell::private::set_variable_if_only_some_files_changed() {
 
       files_changed_temporary_file=$(mktemp)
 
-      git diff --name-only "origin/${TRAVIS_BRANCH}" > "${files_changed_temporary_file}" 2>&1
-      grep -E -q --invert-match "${files_changed_regex}" "${files_changed_temporary_file}"
+      git diff --name-only "origin/${TRAVIS_BRANCH}" > "${files_changed_temporary_file}" 2>&1 && \
+          grep -E -q --invert-match "${files_changed_regex}" "${files_changed_temporary_file}"
       RESULT=$?
 
       if [[ $RESULT -eq 0 ]]; then

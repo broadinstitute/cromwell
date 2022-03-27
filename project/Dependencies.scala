@@ -126,7 +126,7 @@ object Dependencies {
   private val snakeyamlV = "1.30"
   private val specs2MockV = "4.13.3"
   private val sprayJsonV = "1.3.6"
-  private val sttpV = "1.6.8"
+  private val sttpV = "1.7.2"
   private val swaggerParserV = "1.0.56"
   private val swaggerUiV = "4.5.0"
   private val testContainersScalaV = "0.40.2"

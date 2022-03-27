@@ -4,7 +4,7 @@ Command line utilities for interacting with the Workflow Object Model (WOM). You
 
 The following is the toolchain used for development of womtool.  Other versions may work, but these are recommended.
 
-* [Scala 2.12](http://www.scala-lang.org/)
+* [Scala 2.13](http://www.scala-lang.org/)
 * [SBT 1.x](https://www.scala-sbt.org/)
 * [AdoptOpenJDK 11 HotSpot](https://adoptopenjdk.net/)
 * [Git](https://git-scm.com/)

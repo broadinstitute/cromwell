@@ -15,7 +15,7 @@ object EnhancedCollections {
     * After trying and failing to do this myself, I got this to work by copying the answer from here:
     * https://stackoverflow.com/questions/29886246/scala-filter-by-type
     */
-  implicit class EnhancedIterableOps[T2, Repr[x] <: IterableOps[x, Repr, Repr[x]]](val traversable: IterableOps[T2, Repr, Repr[T2]]) extends AnyVal {
+  implicit class EnhancedIterableOps[T2, Repr[x] <: IterableOps[x, Repr, Repr[x]]](val iterableOps: IterableOps[T2, Repr, Repr[T2]]) extends AnyVal {
     /**
       * Lets you filter a collection by type.
       *
@@ -26,9 +26,9 @@ object EnhancedCollections {
       * val xs: Set[Object]
       * val strings: Set[String] = xs.filterByType[String]
       */
-    def filterByType[T <: T2](implicit tag: ClassTag[T]): Repr[T] = traversable.collect { case t: T => t }
+    def filterByType[T <: T2](implicit tag: ClassTag[T]): Repr[T] = iterableOps.collect { case t: T => t }
 
-    def firstByType[T <: T2](implicit tag: ClassTag[T]): Option[T] = traversable collectFirst { case t: T => t }
+    def firstByType[T <: T2](implicit tag: ClassTag[T]): Option[T] = iterableOps collectFirst { case t: T => t }
   }
 
   implicit class EnhancedQueue[A](val queue: Queue[A]) extends AnyVal {

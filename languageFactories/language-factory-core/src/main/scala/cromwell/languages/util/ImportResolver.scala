@@ -214,11 +214,15 @@ object ImportResolver {
     import common.util.IntrospectableLazy._
 
     val sttpBackend: IntrospectableLazy[SttpBackend[IO, Nothing]] = lazily {
-      // 2.13 FIXME
+      // 2.13 Beginning with sttp 1.6.x a `ContextShift` parameter is now required to construct an
+      // `AsyncHttpClientCatsBackend`. There may be a more appropriate choice for backing this than the global
+      // execution context, but even that appears to be a better option than the status quo in 1.5.x [2].
       import scala.concurrent.ExecutionContext.Implicits.global
       val ec: ExecutionContext = implicitly[ExecutionContext]
       implicit val cs: ContextShift[IO] = IO.contextShift(ec)
 
+      // [1] https://github.com/softwaremill/sttp/releases/tag/v1.6.0
+      // [2] https://github.com/softwaremill/sttp/issues/217#issuecomment-499874267
       AsyncHttpClientCatsBackend[IO]()
     }
 

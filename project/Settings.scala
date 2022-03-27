@@ -13,14 +13,8 @@ import sbtdocker.{DockerPlugin, Instruction, Instructions}
 
 object Settings {
 
-  /* The reason why -Xmax-classfile-name is set is because this will fail
-     to build on Docker otherwise.  The reason why it's 200 is because it
-     fails if the value is too close to 256 (even 254 fails).  For more info:
-
-     https://github.com/sbt/sbt-assembly/issues/69
-     https://github.com/scala/pickling/issues/10
-
-     Other fancy flags from https://tpolecat.github.io/2017/04/25/scalac-flags.html.
+  /*
+     Fancy flags from https://tpolecat.github.io/2017/04/25/scalac-flags.html.
 
      Per JG's work in Cromwell, the following can't be turned on without causing piles of errors in wdl4s.  Many of the
      constructs that are flagged look suspicious and probably warrant further scrutiny, but no time for that now.
@@ -76,7 +70,6 @@ object Settings {
     assembly / assemblyMergeStrategy := customMergeStrategy.value,
   )
 
-  // val Scala2_12Version = "2.12.15"
   val Scala2_13Version = "2.13.8"
   private val ScalaVersion: String = Scala2_13Version
   private val sharedSettings: Seq[Setting[_]] =
@@ -100,7 +93,6 @@ object Settings {
     // https://github.com/sbt/sbt/issues/1815
     Compile / console / scalacOptions --= consoleHostileSettings,
     excludeDependencies ++= List(
-      "org.typelevel" % "simulacrum-scalafix-annotations_2.12",
       "org.typelevel" % "simulacrum-scalafix-annotations_2.13"
     )
   )

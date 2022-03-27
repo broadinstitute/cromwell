@@ -1,5 +1,11 @@
 # Cromwell Change Log
 
+## 79 Release Notes
+
+### Scala 2.13
+
+Cromwell is now built with Scala version 2.13. This change should not be noticeable to users but may be of interest to developers of Cromwell backend implementations.
+
 ## 75 Release Notes
 
 ### New `AwaitingCloudQuota` backend status

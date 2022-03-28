@@ -2,8 +2,8 @@ package cromwell.engine.workflow.tokens.large
 
 import akka.actor.{Actor, ActorRef, Props}
 import cromwell.core.HogGroup
-import cromwell.core.JobExecutionToken.JobExecutionTokenType
-import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecutionTokenDispensed, JobExecutionTokenRequest, JobExecutionTokenReturn}
+import cromwell.core.JobToken.JobTokenType
+import cromwell.engine.workflow.tokens.JobTokenDispenserActor.{JobTokenDispensed, JobTokenRequest, JobTokenReturn}
 import cromwell.engine.workflow.tokens.large.PatientTokenNeedingActor.{AllDone, Begin, ImBusy, RequestToken}
 import org.joda.time.DateTime
 
@@ -18,7 +18,7 @@ import scala.util.Random
   *
   * I'm happy to wait as long as necessary to get my token.
   */
-class PatientTokenNeedingActor(tokenDispenser: ActorRef, tokenType: JobExecutionTokenType, hogGroup: String) extends Actor {
+class PatientTokenNeedingActor(tokenDispenser: ActorRef, tokenType: JobTokenType, hogGroup: String) extends Actor {
 
   var hasToken: Boolean = false
   var starter: ActorRef = _
@@ -36,14 +36,14 @@ class PatientTokenNeedingActor(tokenDispenser: ActorRef, tokenType: JobExecution
       context.system.scheduler.scheduleOnce(requestDelay.millis, self, RequestToken)(context.dispatcher)
       ()
     case RequestToken =>
-      tokenDispenser ! JobExecutionTokenRequest(HogGroup(hogGroup), tokenType)
+      tokenDispenser ! JobTokenRequest(HogGroup(hogGroup), tokenType)
       startTime = DateTime.now()
-    case JobExecutionTokenDispensed =>
+    case JobTokenDispensed =>
       context.system.scheduler.scheduleOnce(1.seconds, self, AllDone)(context.dispatcher)
       starter ! ImBusy(DateTime.now().getMillis - startTime.getMillis)
     case AllDone =>
       starter ! AllDone
-      tokenDispenser ! JobExecutionTokenReturn
+      tokenDispenser ! JobTokenReturn
       context.stop(self)
     case other =>
       throw new Exception(s"Bad message received: $other")
@@ -60,5 +60,5 @@ object PatientTokenNeedingActor {
   // Indicate to myself that I'm done (and gets forwarded to my parent)
   case object AllDone
 
-  def props(tokenDispenser: ActorRef, tokenType: JobExecutionTokenType, hogGroup: String): Props = Props(new PatientTokenNeedingActor(tokenDispenser, tokenType, hogGroup))
+  def props(tokenDispenser: ActorRef, tokenType: JobTokenType, hogGroup: String): Props = Props(new PatientTokenNeedingActor(tokenDispenser, tokenType, hogGroup))
 }

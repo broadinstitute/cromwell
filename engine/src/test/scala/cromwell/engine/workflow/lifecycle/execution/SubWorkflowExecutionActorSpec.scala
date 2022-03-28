@@ -44,18 +44,20 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
 
   private var serviceRegistryProbe: TestProbe = _
   private var jobStoreProbe: TestProbe = _
+  private var jobRestartCheckTokenDispenserProbe: TestProbe = _
+  private var jobExecutionTokenDispenserProbe: TestProbe = _
   private var subWorkflowStoreProbe: TestProbe = _
   private var callCacheReadActorProbe: TestProbe = _
   private var callCacheWriteActorProbe: TestProbe = _
   private var dockerHashActorProbe: TestProbe = _
   private var ioActorProbe: TestProbe = _
-  private var jobTokenDispenserProbe: TestProbe = _
   private var preparationActor: TestProbe = _
   private var subWorkflowActor: TestProbe = _
   private var deathWatch: TestProbe = _
   private var parentProbe: TestProbe = _
   private val parentBackendDescriptor = mock[BackendWorkflowDescriptor]
   private val parentWorkflowId: WorkflowId = WorkflowId.randomId()
+
   parentBackendDescriptor.id returns parentWorkflowId
   private val parentWorkflowDescriptor = EngineWorkflowDescriptor(
     WomMocks.mockWorkflowDefinition("workflow"),
@@ -80,7 +82,8 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
     callCacheWriteActorProbe = TestProbe()
     dockerHashActorProbe = TestProbe()
     ioActorProbe = TestProbe()
-    jobTokenDispenserProbe = TestProbe()
+    jobRestartCheckTokenDispenserProbe = TestProbe()
+    jobExecutionTokenDispenserProbe = TestProbe()
     preparationActor = TestProbe()
     subWorkflowActor = TestProbe()
     deathWatch = TestProbe()
@@ -101,7 +104,8 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
         callCacheReadActorProbe.ref,
         callCacheWriteActorProbe.ref,
         dockerHashActorProbe.ref,
-        jobTokenDispenserProbe.ref,
+        jobRestartCheckTokenDispenserProbe.ref,
+        jobExecutionTokenDispenserProbe.ref,
         BackendSingletonCollection(Map.empty),
         AllBackendInitializationData(Map.empty),
         startState,

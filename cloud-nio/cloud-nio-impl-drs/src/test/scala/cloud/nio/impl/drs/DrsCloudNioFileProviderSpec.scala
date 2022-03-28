@@ -3,6 +3,7 @@ package cloud.nio.impl.drs
 import cats.data.NonEmptyList
 import cats.effect.IO
 import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
+import cloud.nio.spi.{FileHash, HashType}
 import com.typesafe.config.ConfigFactory
 import common.assertion.CromwellTimeoutSpec
 import org.apache.http.HttpVersion
@@ -31,7 +32,10 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
 
     val fileSystemProvider = new MockDrsCloudNioFileSystemProvider(config = config)
     fileSystemProvider.drsConfig.marthaUrl should be("https://from.config")
-    fileSystemProvider.accessTokenAcceptableTTL should be(1.minute)
+    fileSystemProvider.drsCredentials match {
+      case GoogleDrsCredentials(_, ttl) => ttl should be(1.minute)
+      case error => fail(s"Expected GoogleDrsCredentials, found $error")
+    }
     fileSystemProvider.fileProvider should be(a[DrsCloudNioFileProvider])
     fileSystemProvider.isFatal(new RuntimeException) should be(false)
     fileSystemProvider.isTransient(new RuntimeException) should be(false)
@@ -137,7 +141,7 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
             size = Option(789L),
             timeCreated = Option(OffsetDateTime.ofInstant(instantCreated, ZoneOffset.UTC).toString),
             timeUpdated = Option(OffsetDateTime.ofInstant(instantUpdated, ZoneOffset.UTC).toString),
-            hashes = Option(Map("rot13" -> "gg0217869")),
+            hashes = Option(Map("md5" -> "gg0217869")),
           )
         )
       }
@@ -150,7 +154,7 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
     drsFileAttributes.creationTime().toMillis should be(123L)
     drsFileAttributes.lastModifiedTime().toMillis should be(456L)
     drsFileAttributes.size() should be(789L)
-    drsFileAttributes.fileHash should be(Option("gg0217869"))
+    drsFileAttributes.fileHash should be(Option(FileHash(HashType.Md5, "gg0217869")))
   }
 
   it should "throw exceptions for unsupported methods" in {

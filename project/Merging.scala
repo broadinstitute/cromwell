@@ -22,6 +22,8 @@ object Merging {
           MergeStrategy.first
         case "maven" :: "com.google.guava" :: _ =>
           MergeStrategy.first
+        case "versions" :: _ if path.last == "module-info.class" =>
+          MergeStrategy.discard
         case "native-image" :: _ if Set("native-image.properties", "reflection-config.json").contains(path.last) =>
           /*
           Discard GraalVM configuration files.
@@ -53,6 +55,9 @@ object Merging {
       }
     case "asm-license.txt" | "module-info.class" | "overview.html" | "cobertura.properties" =>
       MergeStrategy.discard
+    // inspired by https://github.com/ergoplatform/explorer-backend/blob/7364ecfdeabeb691f0f25525e577d6c48240c672/build.sbt#L14-L15
+    case other if other.contains("scala/annotation/nowarn.class")  => MergeStrategy.discard
+    case other if other.contains("scala/annotation/nowarn$.class") => MergeStrategy.discard
     case PathList("mime.types") =>
       MergeStrategy.last
     case x =>

@@ -244,6 +244,7 @@ lazy val tesBackend = (project in backendRoot / "tes")
   .withLibrarySettings("cromwell-tes-backend", tesBackendDependencies)
   .dependsOn(sfsBackend)
   .dependsOn(ftpFileSystem)
+  .dependsOn(drsFileSystem)
   .dependsOn(backend % "test->test")
   .dependsOn(common % "test->test")
 
@@ -373,10 +374,6 @@ lazy val `cloud-nio-impl-drs` = (project in cloudNio / "cloud-nio-impl-drs")
   .dependsOn(common)
   .dependsOn(common % "test->test")
 
-lazy val statsDProxy = (project in Path("scripts") / "perf" / "statsd-proxy")
-  .withExecutableSettings("statsd-proxy", dependencies = statsDProxyDependencies, pushDocker = false)
-  .dependsOn(common % "test->test")
-
 lazy val perf = project
   .withExecutableSettings("perf", dependencies = perfDependencies, pushDocker = false)
   .dependsOn(common)
@@ -385,7 +382,7 @@ lazy val perf = project
 lazy val `cromwell-drs-localizer` = project
   .withExecutableSettings("cromwell-drs-localizer", drsLocalizerDependencies, drsLocalizerSettings)
   .dependsOn(`cloud-nio-impl-drs`)
-  .dependsOn(common % "test->test")
+  .dependsOn(common)
   .dependsOn(`cloud-nio-impl-drs` % "test->test")
 
 lazy val server = project
@@ -443,7 +440,6 @@ lazy val root = (project in file("."))
   .aggregate(services)
   .aggregate(sfsBackend)
   .aggregate(sraFileSystem)
-  .aggregate(statsDProxy)
   .aggregate(tesBackend)
   .aggregate(wdlBiscayneLanguageFactory)
   .aggregate(wdlDraft2LanguageFactory)

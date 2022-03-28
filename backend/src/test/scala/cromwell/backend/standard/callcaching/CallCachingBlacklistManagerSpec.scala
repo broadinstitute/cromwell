@@ -23,7 +23,8 @@ class CallCachingBlacklistManagerSpec extends AnyFlatSpec with CromwellTimeoutSp
     workflowOptions = WorkflowOptions(JsObject.empty),
     labelsJson = "",
     workflowOnHold = false,
-    warnings = List.empty
+    warnings = List.empty,
+    requestedWorkflowId = None
   )
 
   val workflowSourcesYesGrouping = workflowSourcesNoGrouping.copy(

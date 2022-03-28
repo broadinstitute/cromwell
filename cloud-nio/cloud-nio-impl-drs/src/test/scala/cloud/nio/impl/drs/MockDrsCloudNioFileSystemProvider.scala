@@ -17,7 +17,7 @@ class MockDrsCloudNioFileSystemProvider(config: Config = mockConfig,
                                           ),
                                         mockResolver: Option[EngineDrsPathResolver] = None,
                                        )
-  extends DrsCloudNioFileSystemProvider(config, NoCredentials.getInstance, drsReadInterpreter) {
+  extends DrsCloudNioFileSystemProvider(config, GoogleDrsCredentials(NoCredentials.getInstance, config), drsReadInterpreter) {
 
   override lazy val drsPathResolver: EngineDrsPathResolver = {
     mockResolver getOrElse

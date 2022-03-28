@@ -1,12 +1,12 @@
 package cromwell.filesystems.gcs
 
-import java.io.FileNotFoundException
-
 import akka.http.scaladsl.model.StatusCodes
 import cats.effect.IO
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.cloud.storage.StorageException
 import cromwell.filesystems.gcs.RequesterPaysErrors.isProjectNotProvidedError
+
+import java.io.FileNotFoundException
 
 object GcsEnhancedRequest {
 
@@ -19,11 +19,11 @@ object GcsEnhancedRequest {
         // Use NoSuchFileException for better error reporting
         case e: StorageException if e.getCode == StatusCodes.NotFound.intValue =>
           IO.raiseError(new FileNotFoundException(s"File not found: ${path.pathAsString}"))
-        case e: GoogleJsonResponseException if isProjectNotProvidedError(e) => 
+        case e: GoogleJsonResponseException if isProjectNotProvidedError(e) =>
           IO(f(true))
         case e: GoogleJsonResponseException if e.getStatusCode == StatusCodes.NotFound.intValue =>
           IO.raiseError(new FileNotFoundException(s"File not found: ${path.pathAsString}"))
-        case e => 
+        case e =>
           IO.raiseError(e)
       })
   }

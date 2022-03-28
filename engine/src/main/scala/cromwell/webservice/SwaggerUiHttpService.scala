@@ -1,51 +1,38 @@
 package cromwell.webservice
 
-import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.server.Route
-import com.typesafe.config.Config
-import net.ceedubs.ficus.Ficus._
+import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
+import akka.http.scaladsl.server
 import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.Route
+import akka.stream.scaladsl.Flow
+import akka.util.ByteString
+import cromwell.webservice.routes.CromwellApiService
 
 /**
- * Serves up the swagger UI from org.webjars/swagger-ui.
+ * Serves up the swagger UI from org.webjars/swagger-ui, lightly editing the index.html.
  */
 trait SwaggerUiHttpService {
-  /**
-   * @return The version of the org.webjars/swagger-ui artifact. For example "2.1.1".
-   */
-  def swaggerUiVersion: String
 
-  /**
-   * Informs the swagger UI of the base of the application url, as hosted on the server.
-   * If your entire app is served under "http://myserver/myapp", then the base URL is "/myapp".
-   * If the app is served at the root of the application, leave this value as the empty string.
-   *
-   * @return The base URL used by the application, or the empty string if there is no base URL. For example "/myapp".
-   */
-  def swaggerUiBaseUrl: String = ""
+  private lazy val resourceDirectory = s"META-INF/resources/webjars/swagger-ui/${CromwellApiService.swaggerUiVersion}"
 
-  /**
-   * @return The path to the swagger UI html documents. For example "swagger"
-   */
-  def swaggerUiPath: String = "swagger"
+  private val serveIndex: server.Route = {
+    val swaggerOptions =
+      """
+        |        validatorUrl: null,
+        |        apisSorter: "alpha",
+        |        operationsSorter: "alpha"
+      """.stripMargin
 
-  /**
-   * The path to the actual swagger documentation in either yaml or json, to be rendered by the swagger UI html.
-   *
-   * @return The path to the api documentation to render in the swagger UI.
-   *         For example "api-docs" or "swagger/common.yaml".
-   */
-  def swaggerUiDocsPath: String = "api-docs"
-
-  /**
-   * @return When true, if someone requests / (or /baseUrl if setup), redirect to the swagger UI.
-   */
-  def swaggerUiFromRoot: Boolean = true
-
-  private def routeFromRoot: Route = get {
-    pathEndOrSingleSlash {
-      // Redirect / to the swagger UI
-      redirect(s"$swaggerUiBaseUrl/$swaggerUiPath", StatusCodes.TemporaryRedirect)
+    mapResponseEntity { entityFromJar =>
+      entityFromJar.transformDataBytes(Flow.fromFunction[ByteString, ByteString] { original: ByteString =>
+        ByteString(
+          original.utf8String
+            .replace("""url: "https://petstore.swagger.io/v2/swagger.json"""", "url: 'cromwell.yaml'")
+            .replace("""layout: "StandaloneLayout"""", s"""layout: "StandaloneLayout", $swaggerOptions""")
+        )
+      })
+    } {
+      getFromResource(s"$resourceDirectory/index.html")
     }
   }
 
@@ -55,49 +42,47 @@ trait SwaggerUiHttpService {
    * @return Route serving the swagger UI.
    */
   final def swaggerUiRoute: Route = {
-    val route = get {
-      pathPrefix(separateOnSlashes(swaggerUiPath)) {
-        // when the user hits the doc url, redirect to the index.html with api docs specified on the url
-        pathEndOrSingleSlash {
-          redirect(
-            s"$swaggerUiBaseUrl/$swaggerUiPath/index.html?url=$swaggerUiBaseUrl/$swaggerUiDocsPath",
-            StatusCodes.TemporaryRedirect)
-        } ~ getFromResourceDirectory(s"META-INF/resources/webjars/swagger-ui/$swaggerUiVersion")
+    pathEndOrSingleSlash {
+      get {
+        serveIndex
       }
-    }
-    if (swaggerUiFromRoot) route ~ routeFromRoot else route
+    } ~
+      // We have to be explicit about the paths here since we're matching at the root URL and we don't
+      // want to catch all paths lest we circumvent Spray's not-found and method-not-allowed error
+      // messages.
+      (pathPrefixTest("swagger-ui") | pathPrefixTest("oauth2") | pathSuffixTest("js")
+        | pathSuffixTest("css") | pathPrefixTest("favicon")) {
+        get {
+          getFromResourceDirectory(resourceDirectory)
+        }
+      } ~
+      // Redirect legacy `/swagger` or `/swagger/index.html?url=/swagger/cromwell.yaml#fragment` requests to the root
+      // URL. The latter form is (somewhat magically) well-behaved in throwing away the `url` query parameter that was
+      // the subject of the CVE linked below while preserving any fragment identifiers to scroll to the right spot in
+      // the Swagger UI.
+      // https://github.com/swagger-api/swagger-ui/security/advisories/GHSA-qrmm-w75w-3wpx
+      (path("swagger" / "index.html") | path ("swagger")) {
+        get {
+          redirect("/", StatusCodes.MovedPermanently)
+        }
+      }
   }
-
 }
-
-/**
- * Extends the SwaggerUiHttpService to gets UI configuration values from a provided Typesafe Config.
- */
-trait SwaggerUiConfigHttpService extends SwaggerUiHttpService {
-  /**
-   * @return The swagger UI config.
-   */
-  def swaggerUiConfig: Config
-
-  override def swaggerUiVersion = swaggerUiConfig.getString("uiVersion")
-
-  abstract override def swaggerUiBaseUrl = swaggerUiConfig.as[Option[String]]("baseUrl").getOrElse(super.swaggerUiBaseUrl)
-
-  abstract override def swaggerUiPath = swaggerUiConfig.as[Option[String]]("uiPath").getOrElse(super.swaggerUiPath)
-
-  abstract override def swaggerUiDocsPath = swaggerUiConfig.as[Option[String]]("docsPath").getOrElse(super.swaggerUiDocsPath)
-}
-
 /**
  * An extension of HttpService to serve up a resource containing the swagger api as yaml or json. The resource
  * directory and path on the classpath must match the path for route. The resource can be any file type supported by the
  * swagger UI, but defaults to "yaml". This is an alternative to spray-swagger's SwaggerHttpService.
  */
 trait SwaggerResourceHttpService {
+
+  def getBasePathOverride(): Option[String] = {
+    Option(System.getenv("SWAGGER_BASE_PATH"))
+  }
+
   /**
    * @return The directory for the resource under the classpath, and in the url
    */
-  def swaggerDirectory: String = "swagger"
+  private val swaggerDirectory: String = "swagger"
 
   /**
    * @return Name of the service, used to map the documentation resource at "/uiPath/serviceName.resourceType".
@@ -110,41 +95,39 @@ trait SwaggerResourceHttpService {
   def swaggerResourceType: String = "yaml"
 
   /**
-   * Swagger UI sends HTTP OPTIONS before ALL requests, and expects a status 200 / OK. When true (the default) the
-   * swaggerResourceRoute will return 200 / OK for requests for OPTIONS.
-   *
-   * See also:
-   * - https://github.com/swagger-api/swagger-ui/issues/1209
-   * - https://github.com/swagger-api/swagger-ui/issues/161
-   * - https://groups.google.com/forum/#!topic/swagger-swaggersocket/S6_I6FBjdZ8
-   *
-   * @return True if status code 200 should be returned for HTTP OPTIONS requests for the swagger resource.
-   */
-  def swaggerAllOptionsOk: Boolean = true
-
-  /**
    * @return The path to the swagger docs.
    */
-  protected def swaggerDocsPath = s"$swaggerDirectory/$swaggerServiceName.$swaggerResourceType"
+  private lazy val swaggerDocsPath = s"$swaggerDirectory/$swaggerServiceName.$swaggerResourceType"
 
   /**
    * @return A route that returns the swagger resource.
    */
   final def swaggerResourceRoute: Route = {
-    val swaggerDocsDirective = path(separateOnSlashes(swaggerDocsPath))
-    val route = get {
-      swaggerDocsDirective {
-        // Return /uiPath/serviceName.resourceType from the classpath resources.
-        getFromResource(swaggerDocsPath)
+    // Serve Cromwell API docs from either `/swagger/cromwell.yaml` or just `cromwell.yaml`.
+    val swaggerDocsDirective = path(separateOnSlashes(swaggerDocsPath)) | path(s"$swaggerServiceName.$swaggerResourceType")
+
+    def injectBasePath(basePath: Option[String])(response: HttpResponse): HttpResponse = {
+      basePath match {
+        case _ if response.status != StatusCodes.OK => response
+        case None => response
+        case Some(base_path) => response.mapEntity { entity =>
+          val swapperFlow: Flow[ByteString, ByteString, Any] = Flow[ByteString].map(byteString => ByteString.apply(byteString.utf8String.replace("#basePath: ...", "basePath: " + base_path)))
+          entity.transformDataBytes(swapperFlow)
+        }
       }
     }
 
-    if (swaggerAllOptionsOk) {
-      route ~ options {
-        // Also return status 200 / OK for all OPTIONS requests.
-        complete(StatusCodes.OK)
+    val route = get {
+      swaggerDocsDirective {
+        // Return /uiPath/serviceName.resourceType from the classpath resources.
+        mapResponse(injectBasePath(getBasePathOverride()))(getFromResource(swaggerDocsPath))
       }
-    } else route
+    }
+
+    route ~ options {
+      // Also return status 200 / OK for all OPTIONS requests.
+      complete(StatusCodes.OK)
+    }
   }
 }
 
@@ -152,8 +135,6 @@ trait SwaggerResourceHttpService {
  * Extends the SwaggerUiHttpService and SwaggerResourceHttpService to serve up both.
  */
 trait SwaggerUiResourceHttpService extends SwaggerUiHttpService with SwaggerResourceHttpService {
-  override def swaggerUiDocsPath = swaggerDocsPath
-
   /**
    * @return A route that redirects to the swagger UI and returns the swagger resource.
    */

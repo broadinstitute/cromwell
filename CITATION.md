@@ -12,7 +12,7 @@ If you use `Cromwell` in your work we would prefer it if you would use the follo
   title = {Full-stack genomics pipelining with GATK4 + WDL + Cromwell [version 1; not peer reviewed]},
   journal = {ISCB Comm J},
   publisher = {F1000Research},
-  type = {slides}
+  type = {slides},
   volume = {6},
   number = {1381},
   year = {2017}

@@ -17,28 +17,30 @@ trait DrsReader {
 }
 
 object DrsReader {
-  def reader(googleAuthMode: GoogleAuthMode,
+  def reader(googleAuthMode: Option[GoogleAuthMode],
              options: WorkflowOptions,
              requesterPaysProjectIdOption: Option[String],
              drsPathResolver: DrsPathResolver,
              marthaResponse: MarthaResponse): IO[DrsReader] = {
-    (marthaResponse.accessUrl, marthaResponse.gsUri) match {
-      case (Some(accessUrl), _) =>
+    (marthaResponse.accessUrl, marthaResponse.gsUri, googleAuthMode) match {
+      case (Some(accessUrl), _, _) =>
         IO.pure(AccessUrlReader(drsPathResolver, accessUrl))
-      case (_, Some(gcsPath)) =>
+      case (_, Some(gcsPath), Some(authMode)) =>
         IO.pure(GcsReader(
-          googleAuthMode,
+          authMode,
           options,
           requesterPaysProjectIdOption,
           gcsPath,
           marthaResponse.googleServiceAccount,
         ))
+      case (_, Some(_), _) =>
+        IO.raiseError(new RuntimeException("GCS URI found in Martha response, but no Google auth found!"))
       case _ =>
         IO.raiseError(new RuntimeException(DrsPathResolver.ExtractUriErrorMsg))
     }
   }
 
-  def readInterpreter(googleAuthMode: GoogleAuthMode,
+  def readInterpreter(googleAuthMode: Option[GoogleAuthMode],
                       options: WorkflowOptions,
                       requesterPaysProjectIdOption: Option[String])
                      (drsPathResolver: DrsPathResolver,
@@ -94,7 +96,7 @@ case class GcsReader(googleAuthMode: GoogleAuthMode,
         throwable =>
           (requesterPaysProjectIdOption, throwable) match {
             case (Some(requesterPaysProjectId), storageException: StorageException)
-              if storageException.getMessage == "Bucket is requester pays bucket but no user project provided." =>
+              if storageException.getMessage.contains("requester pays bucket but no user project") =>
               IO(
                 storage
                   .get(bucketName, objectName, BlobGetOption.userProject(requesterPaysProjectId))

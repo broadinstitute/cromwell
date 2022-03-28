@@ -129,7 +129,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
       storeActor ! BatchSubmitWorkflows(NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloCwlWorldSourceFiles))
       val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.toList
 
-      storeActor ! FetchRunnableWorkflows(2)
+      storeActor ! FetchRunnableWorkflows(2, Set.empty)
       expectMsgPF(10 seconds) {
         case NewWorkflowsToStart(workflowNel) =>
           workflowNel.toList.size shouldBe 2
@@ -142,7 +142,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
           }
       }
 
-      storeActor ! FetchRunnableWorkflows(1)
+      storeActor ! FetchRunnableWorkflows(1, Set.empty)
       expectMsgPF(10 seconds) {
         case NewWorkflowsToStart(workflowNel) =>
           workflowNel.toList.size shouldBe 1
@@ -182,7 +182,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
       storeActor ! BatchSubmitWorkflows(NonEmptyList.of(optionedSourceFiles))
       val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.toList
 
-      storeActor ! FetchRunnableWorkflows(1)
+      storeActor ! FetchRunnableWorkflows(1, Set.empty)
       expectMsgPF(10 seconds) {
         case NewWorkflowsToStart(workflowNel) =>
           workflowNel.toList.size should be(1)
@@ -232,7 +232,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
       storeActor ! BatchSubmitWorkflows(NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloWorldSourceFiles))
       val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.toList
 
-      storeActor ! FetchRunnableWorkflows(100)
+      storeActor ! FetchRunnableWorkflows(100, Set.empty)
       expectMsgPF(10 seconds) {
         case NewWorkflowsToStart(workflowNel) =>
           workflowNel.toList.size shouldBe 3
@@ -260,7 +260,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
         "WorkflowStoreActor-RemainResponsiveForUnknown"
       )
 
-      storeActor ! FetchRunnableWorkflows(100)
+      storeActor ! FetchRunnableWorkflows(100, Set.empty)
       expectMsgPF(10 seconds) {
         case NoNewWorkflowsToStart => // Great
         case x => fail(s"Unexpected response from supposedly empty WorkflowStore: $x")

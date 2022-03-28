@@ -1,5 +1,5 @@
-{{with $cromwellDockerhub := vault (printf "secret/dsde/cromwell/common/cromwell-dockerhub")}}
-{{with $cromwellServiceAccount := vault (printf "secret/dsde/cromwell/common/cromwell-service-account.json")}}
+{{with $cromwellDockerhub := secret (printf "secret/dsde/cromwell/common/cromwell-dockerhub")}}
+{{with $cromwellServiceAccount := secret (printf "secret/dsde/cromwell/common/cromwell-service-account.json")}}
 {
    "read_from_cache": false,
    "user_service_account_json": "{{$cromwellServiceAccount.Data | toJSON | replaceAll "\\" "\\\\" | replaceAll "\"" "\\\"" }}",

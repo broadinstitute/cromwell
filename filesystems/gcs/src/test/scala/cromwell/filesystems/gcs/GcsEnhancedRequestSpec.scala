@@ -24,7 +24,7 @@ class GcsEnhancedRequestSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
       mock[com.google.cloud.storage.Storage],
       "GcsEnhancedRequest-project",
     )
-  val requesterPaysException = new StorageException(BucketIsRequesterPaysErrorCode, BucketIsRequesterPaysErrorMessage)
+  val requesterPaysException = new StorageException(BucketIsRequesterPaysErrorCode, "Bucket is a requester pays bucket but no user project provided.")
 
   it should "attempt first without project, and not retry if the requests succeeds" in {
     val testFunction = mock[Boolean => String]

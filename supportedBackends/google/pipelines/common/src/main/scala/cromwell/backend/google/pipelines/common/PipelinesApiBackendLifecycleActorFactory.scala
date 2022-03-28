@@ -103,25 +103,14 @@ object PipelinesApiBackendLifecycleActorFactory extends StrictLogging {
       .setRandomizationFactor(randomizationFactor)
       .build()
 
-    // Is this an `Exception` (as opposed to an `Error`) with a message indicating the operation should be retried?
-    def isRetryableException(t: Throwable): Boolean = {
-      t match {
-        case e: Exception =>
-          Option(e.getMessage) match {
-            case Some(message) => message.contains("Please try again.")
-            case None => false
-          }
-        case _ => false
-      }
-    }
-
     // `attempt` is 1-based
     def build(attempt: Int): Try[PipelinesApiConfigurationAttributes] = {
       Try {
         buildAttributes()
       } recoverWith {
-        case t if isRetryableException(t) && attempt < maxAttempts =>
-          logger.warn(s"Failed to build PipelinesApiConfigurationAttributes on attempt $attempt of $maxAttempts, retrying.", t)
+        // Try again if this was an Exception (as opposed to an Error) and we have not hit maxAttempts
+        case ex: Exception if attempt < maxAttempts =>
+          logger.warn(s"Failed to build PipelinesApiConfigurationAttributes on attempt $attempt of $maxAttempts, retrying.", ex)
           Thread.sleep(backoff.nextBackOffMillis())
           build(attempt + 1)
         case e => Failure(new RuntimeException(s"Failed to build PipelinesApiConfigurationAttributes on attempt $attempt of $maxAttempts", e))

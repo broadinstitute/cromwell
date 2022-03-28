@@ -12,6 +12,7 @@ import centaur.test.CentaurTestException
 import centaur.test.standard.CentaurTestCase
 import centaur.test.submit.{SubmitResponse, SubmitWorkflowResponse}
 import centaur.test.workflow.WorkflowData
+import cromwell.api.model.WorkflowId
 import org.scalatest._
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -55,8 +56,6 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
   }
 
   def executeStandardTest(testCase: CentaurTestCase): Unit = {
-    def nameTest = s"${testCase.testFormat.testSpecString} ${testCase.workflow.testName}"
-
     def runTestAndDeleteZippedImports(): IO[SubmitResponse] = for {
       submitResponse <- testCase.testFunction.run
       _ = cleanUpImports(testCase.workflow.data) // cleanup imports in the end of test
@@ -65,9 +64,9 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
     // Make tags, but enforce lowercase:
     val tags = (testCase.testOptions.tags :+ testCase.workflow.testName :+ testCase.testFormat.name) map { x => Tag(x.toLowerCase) }
     val isIgnored = testCase.isIgnored(cromwellBackends)
-    val retries = ErrorReporters.retryAttempts
+    val retries = if (testCase.workflow.retryTestFailures) ErrorReporters.retryAttempts else 0
 
-    runOrDont(nameTest, tags, isIgnored, retries, runTestAndDeleteZippedImports())
+    runOrDont(testCase, tags, isIgnored, retries, runTestAndDeleteZippedImports())
   }
 
   def executeWdlUpgradeTest(testCase: CentaurTestCase): Unit =
@@ -120,66 +119,67 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
     newCase
   }
 
-  private def runOrDont(testName: String,
+  private def runOrDont(testCase: CentaurTestCase,
                         tags: List[Tag],
                         ignore: Boolean,
                         retries: Int,
                         runTest: => IO[SubmitResponse]): Unit = {
 
-    val itShould: ItVerbString = it should testName
+    val itShould: ItVerbString = it should testCase.name
 
     tags match {
-      case Nil => runOrDont(itShould, ignore, testName, retries, runTest)
-      case head :: Nil => runOrDont(itShould taggedAs head, ignore, testName, retries, runTest)
-      case head :: tail => runOrDont(itShould taggedAs(head, tail: _*), ignore, testName, retries, runTest)
+      case Nil => runOrDont(itShould, ignore, testCase, retries, runTest)
+      case head :: Nil => runOrDont(itShould taggedAs head, ignore, testCase, retries, runTest)
+      case head :: tail => runOrDont(itShould taggedAs(head, tail: _*), ignore, testCase, retries, runTest)
     }
   }
 
   private def runOrDont(itVerbString: ItVerbString,
                         ignore: Boolean,
-                        testName: String,
+                        testCase: CentaurTestCase,
                         retries: Int,
                         runTest: => IO[SubmitResponse]): Unit = {
     if (ignore) {
       itVerbString ignore Future.successful(succeed)
     } else {
-      itVerbString in tryTryAgain(testName, runTest, retries).unsafeToFuture().map(_ => succeed)
+      itVerbString in tryTryAgain(testCase, runTest, retries).unsafeToFuture().map(_ => succeed)
     }
   }
 
   private def runOrDont(itVerbStringTaggedAs: ItVerbStringTaggedAs,
                         ignore: Boolean,
-                        testName: String,
+                        testCase: CentaurTestCase,
                         retries: Int,
                         runTest: => IO[SubmitResponse]): Unit = {
     if (ignore) {
       itVerbStringTaggedAs ignore Future.successful(succeed)
     } else {
       itVerbStringTaggedAs in
-        tryTryAgain(testName, runTest, retries).unsafeToFuture().map(_ => succeed)
+        tryTryAgain(testCase, runTest, retries).unsafeToFuture().map(_ => succeed)
     }
   }
 
   /**
     * Returns an IO effect that will recursively try to run a test.
     *
-    * @param testName Name of the ScalaTest.
+    * @param testCase CentaurTestCase.
     * @param runTest Thunk to run the test.
     * @param retries Total number of attempts to retry.
     * @param attempt Current zero based attempt.
     * @return IO effect that will run the test, possibly retrying.
     */
-  private def tryTryAgain(testName: String, runTest: => IO[SubmitResponse], retries: Int, attempt: Int = 0): IO[SubmitResponse] = {
+  private def tryTryAgain(testCase: CentaurTestCase, runTest: => IO[SubmitResponse], retries: Int, attempt: Int = 0): IO[SubmitResponse] = {
+
     def maybeRetry(centaurTestException: CentaurTestException): IO[SubmitResponse] = {
-      val testEnvironment = TestEnvironment(testName, retries, attempt)
+
+      def clearCachedResults(workflowId: WorkflowId): IO[Unit] = CromwellDatabaseCallCaching.clearCachedResults(workflowId.toString)
+
+      val testEnvironment = TestEnvironment(testCase, retries, attempt)
       for {
         _ <- ErrorReporters.logFailure(testEnvironment, centaurTestException)
         r <- if (attempt < retries) {
-          centaurTestException
-            .workflowIdOption
-            .map(CromwellDatabaseCallCaching.clearCachedResults)
-            .getOrElse(IO.unit) *>
-          tryTryAgain(testName, runTest, retries, attempt + 1)
+          testCase.submittedWorkflowTracker.cleanUpBeforeRetry(clearCachedResults) *>
+            tryTryAgain(testCase, runTest, retries, attempt + 1)
         } else {
           IO.raiseError(centaurTestException)
         }
@@ -193,7 +193,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
         case centaurTestException: CentaurTestException =>
           maybeRetry(centaurTestException)
         case nonCentaurThrowable: Throwable =>
-          val testEnvironment = TestEnvironment(testName, retries = attempt + 1, attempt) // allow one last retry
+          val testEnvironment = TestEnvironment(testCase, retries = attempt + 1, attempt) // allow one last retry
           ErrorReporters.logFailure(testEnvironment, nonCentaurThrowable)
           runTestIo
       },

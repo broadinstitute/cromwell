@@ -63,6 +63,7 @@ This backend supports CPU, memory and disk size configuration through the use of
     * Type: String (ex: "1 GB" or "1024 MB")
 * `preemptible` defines whether or not to use preemptible VMs. 
     * Type: Boolean (ex: "true" or "false")
+    * Integers are accepted and will be converted to boolean (true if > 0)
 
 If they are not set, the TES backend may use default values.
 

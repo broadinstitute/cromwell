@@ -79,7 +79,8 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem)
   val dockerHashActorProbe: TestProbe = TestProbe()
   val callCacheHitCopyingProbe: TestProbe = TestProbe()
   val jobPreparationProbe: TestProbe = TestProbe()
-  val jobTokenDispenserProbe: TestProbe = TestProbe()
+  val jobRestartCheckTokenDispenserProbe: TestProbe = TestProbe()
+  val jobExecutionTokenDispenserProbe: TestProbe = TestProbe()
   val ejhaProbe: TestProbe = TestProbe()
 
   def buildFactory(backendConfigurationDescriptor: BackendConfigurationDescriptor): BackendLifecycleActorFactory = new BackendLifecycleActorFactory {
@@ -155,7 +156,8 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem)
       ioActor = ioActorProbe.ref,
       jobStoreActor = jobStoreProbe.ref,
       dockerHashActor = dockerHashActorProbe.ref,
-      jobTokenDispenserActor = jobTokenDispenserProbe.ref,
+      jobRestartCheckTokenDispenserActor = jobRestartCheckTokenDispenserProbe.ref,
+      jobExecutionTokenDispenserActor = jobExecutionTokenDispenserProbe.ref,
       callCachingParameters = callCachingParameters
     )), parentProbe.ref, s"EngineJobExecutionActorSpec-$workflowId")
 
@@ -176,7 +178,8 @@ private[ejea] class MockEjea(helper: PerTestHelper,
                              ioActor: ActorRef,
                              jobStoreActor: ActorRef,
                              dockerHashActor: ActorRef,
-                             jobTokenDispenserActor: ActorRef,
+                             jobRestartCheckTokenDispenserActor: ActorRef,
+                             jobExecutionTokenDispenserActor: ActorRef,
                              callCachingParameters: EngineJobExecutionActor.CallCachingParameters) extends EngineJobExecutionActor(
   replyTo = replyTo,
   jobDescriptorKey = jobDescriptorKey,
@@ -188,7 +191,8 @@ private[ejea] class MockEjea(helper: PerTestHelper,
   ioActor = ioActor,
   jobStoreActor = jobStoreActor,
   workflowDockerLookupActor = dockerHashActor,
-  jobTokenDispenserActor = jobTokenDispenserActor,
+  jobRestartCheckTokenDispenserActor = jobRestartCheckTokenDispenserActor,
+  jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
   backendSingletonActor = None,
   command = if (restarting) RecoverJobCommand else ExecuteJobCommand,
   callCachingParameters = callCachingParameters) {

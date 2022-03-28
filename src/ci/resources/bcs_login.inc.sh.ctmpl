@@ -8,7 +8,7 @@ set -o errexit -o nounset -o pipefail
 local bcs_access_id
 local bcs_access_key
 
-{{with $cromwellBcs := vault (printf "secret/dsde/cromwell/common/cromwell-bcs")}}
+{{with $cromwellBcs := secret (printf "secret/dsde/cromwell/common/cromwell-bcs")}}
 bcs_access_id="{{$cromwellBcs.Data.access_id}}"
 bcs_access_key="{{$cromwellBcs.Data.access_key}}"
 {{end}}

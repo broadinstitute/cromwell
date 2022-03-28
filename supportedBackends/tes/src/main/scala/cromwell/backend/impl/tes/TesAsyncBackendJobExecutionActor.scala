@@ -2,7 +2,6 @@ package cromwell.backend.impl.tes
 
 import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
-
 import cats.syntax.apply._
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
@@ -11,8 +10,7 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
-import cats.data.Validated.{Invalid, Valid}
-import common.validation.ErrorOr._
+import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.backend.BackendJobLifecycleActor
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
@@ -21,6 +19,7 @@ import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExec
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.retry.Retry._
+import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import wom.values.WomFile
 import net.ceedubs.ficus.Ficus._
 
@@ -106,6 +105,9 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override def mapCommandLineJobInputWomFile(womFile: WomFile): WomFile = {
     womFile.mapFile(value =>
       getPath(value) match {
+        case Success(drsPath: DrsPath) =>
+          val filepath = DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()
+          tesJobPaths.containerExec(commandDirectory, filepath)
         case Success(path: Path) if path.startsWith(tesJobPaths.workflowPaths.DockerRoot) =>
           path.pathAsString
         case Success(path: Path) if path.equals(tesJobPaths.callExecutionRoot) =>
@@ -169,18 +171,6 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   override def executeAsync(): Future[ExecutionHandle] = {
-
-    // BT-426 temporary log msg to exercise KeyVault access
-    val executionIdentity = workflowDescriptor.workflowOptions.get(TesWorkflowOptionKeys.WorkflowExecutionIdentity).toOption
-    val secretMessage: Option[String] =
-      (tesConfiguration.azureKeyVaultName, tesConfiguration.azureB2CTokenSecretName).mapN { case (keyVaultName, secretName) =>
-        AzureKeyVaultClient(keyVaultName, executionIdentity)
-          .flatMap(_.getSecret(secretName)) match {
-            case Valid(secret) => s"Successfully accessed a secret of length ${secret.length} from KeyVault"
-            case Invalid(err) => s"Couldn't access KeyVault secret: $err"
-          }
-      }
-    secretMessage.foreach(jobLogger.info)
 
     // create call exec dir
     tesJobPaths.callExecutionRoot.createPermissionedDirectories()

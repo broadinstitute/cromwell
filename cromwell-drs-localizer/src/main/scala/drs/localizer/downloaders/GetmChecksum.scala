@@ -1,35 +1,59 @@
 package drs.localizer.downloaders
 
+import cats.syntax.validated._
 import cloud.nio.impl.drs.AccessUrl
+import common.validation.ErrorOr.ErrorOr
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
+import mouse.all.anySyntaxMouse
+import org.apache.commons.codec.binary.Base64.{decodeBase64, isBase64}
+import org.apache.commons.codec.binary.Hex.encodeHexString
 import org.apache.commons.text.StringEscapeUtils
+
 
 sealed trait GetmChecksum {
   def getmAlgorithm: String
-  def value: String
-  def args: String = {
+  def rawValue: String
+  def value: ErrorOr[String] = rawValue.validNel
+  def args: ErrorOr[String] = {
     // The value for `--checksum-algorithm` is constrained by the algorithm names in the `sealed` hierarchy of
     // `GetmChecksum`, but the value for `--checksum` is largely a function of data returned by the DRS server.
     // Shell escape this to avoid injection.
-    val escapedValue = StringEscapeUtils.escapeXSI(value)
-    s"--checksum-algorithm '$getmAlgorithm' --checksum $escapedValue"
+    value map { v =>
+      val escapedValue = StringEscapeUtils.escapeXSI(v)
+      s"--checksum-algorithm '$getmAlgorithm' --checksum $escapedValue"
+    }
   }
 }
-case class Md5(override val value: String) extends GetmChecksum {
+
+case class Md5(override val rawValue: String) extends GetmChecksum {
+  override def value: ErrorOr[String] = {
+    val trimmed = rawValue.trim
+    if (trimmed.matches("[A-Fa-f0-9]+"))
+      trimmed.validNel
+    // TDR currently returns a base64-encoded MD5 because that's what Azure seems to do. However,
+    // the DRS spec does not specify that any checksums should be base64-encoded, and `getm` also
+    // does not expect base64. This case handles the current behavior in the short term until
+    // https://broadworkbench.atlassian.net/browse/DR-2259 is done.
+    else if (isBase64(trimmed))
+      (trimmed |> decodeBase64 |> encodeHexString).validNel
+    else
+      s"Invalid md5 checksum value is neither hex nor base64: $rawValue".invalidNel
+  }
   override def getmAlgorithm: String = "md5"
 }
-case class Crc32c(override val value: String) extends GetmChecksum {
+
+case class Crc32c(override val rawValue: String) extends GetmChecksum {
   override def getmAlgorithm: String = "gs_crc32c"
 }
-case class AwsEtag(override val value: String) extends GetmChecksum {
+case class AwsEtag(override val rawValue: String) extends GetmChecksum {
   override def getmAlgorithm: String = "s3_etag"
 }
 case object Null extends GetmChecksum {
   override def getmAlgorithm: String = "null"
-  override def value: String = "null"
+  override def rawValue: String = "null"
 }
 // The `value` for `Unsupported` will be the named algorithm keys
-case class Unsupported(override val value: String) extends GetmChecksum {
+case class Unsupported(override val rawValue: String) extends GetmChecksum {
   override def getmAlgorithm: String = "null"
 }
 
@@ -59,7 +83,7 @@ object GetmChecksum {
           // If this code were running in Cromwell this condition would probably merit a warning but the localizer
           // runs on the VM and at best can only complain to stderr. The `getm` algorithm of `null` is specified which
           // means "do not validate checksums" with the stringified contents of the hash keys as a value.
-          Unsupported(value = hashes.keys.mkString(", "))
+          Unsupported(rawValue = hashes.keys.mkString(", "))
         }
       case _ => Null // None or an empty hashes map.
     }

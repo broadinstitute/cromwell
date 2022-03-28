@@ -18,5 +18,6 @@ trait TesJobCachingActorHelper extends StandardCachingActorHelper {
 
   lazy val tesConfiguration: TesConfiguration = initializationData.tesConfiguration
 
-  lazy val runtimeAttributes = TesRuntimeAttributes(validatedRuntimeAttributes, tesConfiguration.runtimeConfig)
+  lazy val runtimeAttributes = TesRuntimeAttributes(validatedRuntimeAttributes, jobDescriptor.runtimeAttributes, tesConfiguration)
+
 }

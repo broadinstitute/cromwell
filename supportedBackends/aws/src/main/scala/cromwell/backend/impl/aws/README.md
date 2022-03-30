@@ -42,6 +42,8 @@ Docker Hub authentication for AWS Backend enable users to access and use private
 dockerhub { token = "<enconded-string-from-point-2>" }
 ```
 
+Stack must be deployed through https://github.com/aws-samples/aws-genomics-workflows.
+
 ### `awsBatchRetryAttempts`
 
 *Default: _0_*
@@ -49,6 +51,8 @@ dockerhub { token = "<enconded-string-from-point-2>" }
 This runtime attribute adds support to [*AWS Batch Automated Job Retries*](https://docs.aws.amazon.com/batch/latest/userguide/job_retries.html) which makes it possible to tackle transient job failures. For example, if a task fails due to a timeout from accessing an external service, then this option helps re-run the failed the task without having to re-run the entire workflow. This option is also very useful when using SPOT instances.
 
 It takes an Int, between 1 and 10, as a value that indicates the maximum number of times AWS Batch should retry a failed task. If the value 0 is passed, the [*Retry Strategy*](https://docs.aws.amazon.com/batch/latest/userguide/job_definition_parameters.html#retryStrategy) will not be added to the job definiton and the task will run just once.
+
+This configuration should be passed in the `options.json` file when launching the pipeline.
 
 ```
 runtime {
@@ -61,6 +65,8 @@ runtime {
 *Default: _empty_*
 
 A list of [`ulimits`](https://docs.aws.amazon.com/batch/latest/userguide/job_definition_parameters.html#containerProperties) values to set in the container. This parameter maps to `Ulimits` in the [Create a container](https://docs.docker.com/engine/api/v1.38/) section of the [Docker Remote API](https://docs.docker.com/engine/api/v1.38/) and the `--ulimit` option to [docker run](https://docs.docker.com/engine/reference/commandline/run/).
+
+This configuration should be passed in the `options.json` file when launching the pipeline.
 
 ```
 "ulimits": [
@@ -95,7 +101,7 @@ AWS ECR is a private container registry, for which access can be regulated using
 
 1. Setup a user with pull-access to ECR, then use this role to run cromwell
 
-profile default region must be setup in ~/.aws/config: 
+profile default region must be setup in `~/.aws/config`: 
 ```
 [profile MyECR-user]
 region = eu-west-1
@@ -462,4 +468,3 @@ Cromwell
   the introduction of the S3 filesystem and the AWS SDK). Dependency management
   is challenging as a result. Adding significant new functionality is relatively
   painful when new dependencies are needed.
-* 

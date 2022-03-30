@@ -1,8 +1,10 @@
 [![codecov](https://codecov.io/gh/broadinstitute/cromwell/branch/develop/graph/badge.svg)](https://codecov.io/gh/broadinstitute/cromwell)
 
-## Welcome to "AWS-friendly" Cromwell
+## Welcome to the "AWS-friendly" Cromwell
 
 More information regarding AWS features can be found [here](https://github.com/henriqueribeiro/cromwell/tree/master/supportedBackends/aws/src/main/scala/cromwell/backend/impl/aws)
+
+Contact: henrique [at] loka [dot] com 
 
 Cromwell is an open-source Workflow Management System for bioinformatics. Licensing is [BSD 3-Clause](LICENSE.txt).
 

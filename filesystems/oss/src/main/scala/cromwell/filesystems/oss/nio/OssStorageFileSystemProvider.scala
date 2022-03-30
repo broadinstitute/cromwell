@@ -32,7 +32,7 @@ final case class OssStorageFileSystemProvider(config: OssStorageConfiguration) e
           case Some(marker: String) if !marker.isEmpty => iterator = listNext(marker)
           case Some(marker: String) if marker.isEmpty  => iterator = Iterator()
           case Some(null) => iterator = Iterator()
-          case oh => throw new RuntimeException(s"Programmer error! $oh")
+          case oh => throw new RuntimeException(s"Programmer Error! Unexpected case match: $oh")
         }
       }
 

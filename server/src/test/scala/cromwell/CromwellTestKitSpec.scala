@@ -436,7 +436,7 @@ abstract class CromwellTestKitSpec extends TestKitSuite
         val valuesMap: Map[WomValue, WomValue] = map.fields.map { case (fieldName, fieldValue) => (WomString(fieldName), jsValueToWdlValue(fieldValue)) }
         if (valuesMap.isEmpty) WomMap(WomMapType(WomStringType, WomStringType), Map.empty)
         else WomMap(WomMapType(WomStringType, valuesMap.head._2.womType), valuesMap)
-      case oh => throw new RuntimeException(s"Programmer error! $oh")
+      case oh => throw new RuntimeException(s"Programmer Error! Unexpected case match: $oh")
     }
   }
 }

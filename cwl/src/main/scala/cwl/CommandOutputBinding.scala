@@ -129,8 +129,7 @@ object CommandOutputBinding {
           ExpressionEvaluator.eval(expression, outputEvalParameterContext)
         case None =>
           womFilesArray.valid
-        // 2.13 match may not be exhaustive
-        case oh => throw new Exception(s"Programmer error!: $oh")
+        case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
       }
     }
 

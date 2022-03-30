@@ -311,8 +311,7 @@ object CommandLineTool {
     case (StringOrInt.Int(_), StringOrInt.String(_)) => true
     // String > Int
     case (StringOrInt.String(_), StringOrInt.Int(_)) => false
-    // 2.13 match may not be exhaustive
-    case oh => throw new Exception(s"Programmer error!: $oh")
+    case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
   })
 
   // https://github.com/scala/bug/issues/4097#issuecomment-292388627

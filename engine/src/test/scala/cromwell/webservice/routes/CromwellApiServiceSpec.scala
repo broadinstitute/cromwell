@@ -646,8 +646,7 @@ object CromwellApiServiceSpec {
           case CromwellApiServiceSpec.SummarizedWorkflowId => sender() ! MetadataWriteSuccess(events)
           case CromwellApiServiceSpec.AbortedWorkflowId => sender() ! MetadataWriteFailure(new Exception("mock exception of db failure"), events)
           case WorkflowId(_) => throw new Exception("Something untoward happened, this situation is not believed to be possible at this time")
-          // 2.13 match may not be exhaustive
-          case oh => throw new Exception(s"Programmer error!: $oh")
+          case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
         }
       case DescribeRequest(sourceFiles) =>
         sourceFiles.workflowSource match {
@@ -688,13 +687,11 @@ object CromwellApiServiceSpec {
           case OnHoldWorkflowId | SubmittedWorkflowId => WorkflowAbortedResponse(id)
           case UnrecognizedWorkflowId => WorkflowAbortFailureResponse(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
           case WorkflowId(_) => throw new Exception("Something untoward happened")
-          // 2.13 match may not be exhaustive
-          case oh => throw new Exception(s"Programmer error!: $oh")
+          case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
         }
         sender() ! message
       case GetWorkflowStoreStats => sender() ! Map(WorkflowRunning -> 5, WorkflowSubmitted -> 3, WorkflowAborting -> 2)
-      // 2.13 match may not be exhaustive
-      case oh => throw new Exception(s"Programmer error!: $oh")
+      case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
     }
   }
 

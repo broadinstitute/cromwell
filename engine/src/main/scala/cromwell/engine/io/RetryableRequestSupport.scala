@@ -28,7 +28,7 @@ object RetryableRequestSupport {
     case ioE: IOException
         if Option(ioE.getMessage).exists(_.contains("Error getting access token for service account")) =>
       true
-    case ioE: IOException => isGcs500(ioE) || isGcs503(ioE) || isGcs504(ioE) || isAws504(ioE)
+    case ioE: IOException => isGcs500(ioE) || isGcs503(ioE) || isGcs504(ioE)
     case other =>
       // Infinitely retryable is a subset of retryable
       isInfinitelyRetryable(other)
@@ -87,27 +87,4 @@ object RetryableRequestSupport {
       msg.contains("Could not read from gs") &&
         msg.contains("504 Gateway Timeout")
     )
-
-  // AWS timeout error
-  def isAws504(failure: Throwable): Boolean =
-    Option(failure.getMessage).exists(msg =>
-      (
-        // timeout in reading form s3.
-        msg.contains("Could not read from s3") &&
-          msg.contains("Timeout waiting for connection")
-      ) || (
-        // reading in cromwell wdl (read_lines() etc)
-        msg.contains("Failed to evaluate") &&
-          msg.contains("s3://") &&
-          msg.contains("Timed out after")
-      )
-    )
-  // General AWS IO error : all items unreadable except rc.txt files (might be missing)
-  //   => mainly for testing. will retry mis-specified s3 paths as well...
-  def isAwsIO(failure: Throwable): Boolean =
-    Option(failure.getMessage).exists(msg =>
-      msg.contains("Could not read from s3") &&
-        !msg.contains("-rc.txt")
-    )
-
 }

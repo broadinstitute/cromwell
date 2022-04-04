@@ -176,10 +176,10 @@ final case class AwsBatchJob(
          |    fi
          |    # copy  
          |    $awsCmd s3 cp --no-progress "$$s3_path" "$$destination"  ||
-         |        { echo "attempt $$i to copy $$s3_path failed" sleep $$((7 * "$$i")) && continue; }
+         |        ( echo "attempt $$i to copy $$s3_path failed" sleep $$((7 * "$$i")) && continue)
          |    # check data integrity
          |    _check_data_integrity $$destination $$s3_path || 
-         |       { echo "data content length difference detected in attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
+         |       (echo "data content length difference detected in attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue)
          |    # copy succeeded
          |    break
          |  done
@@ -208,18 +208,18 @@ final case class AwsBatchJob(
          |       destination=$${destination%/}
          |       # glob directory. do recursive copy
          |       $awsCmd s3 cp --no-progress $$local_path $$destination --recursive --exclude "cromwell_glob_control_file" || 
-         |         { echo "attempt $$i to copy globDir $$local_path failed" && sleep $$((7 * "$$i")) && continue; } 
+         |         ( echo "attempt $$i to copy globDir $$local_path failed" && sleep $$((7 * "$$i")) && continue) 
          |       # check integrity for each of the files
          |       for FILE in $$(cd $$local_path ; ls | grep -v cromwell_glob_control_file); do
          |           _check_data_integrity $$local_path/$$FILE $$destination/$$FILE || 
-         |               { echo "data content length difference detected in attempt $$i to copy $$local_path/$$FILE failed" && sleep $$((7 * "$$i")) && continue 2; }
+         |               ( echo "data content length difference detected in attempt $$i to copy $$local_path/$$FILE failed" && sleep $$((7 * "$$i")) && continue 2)
          |       done
          |    else 
          |      $awsCmd s3 cp --no-progress "$$local_path" "$$destination" || 
-         |         { echo "attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; } 
+         |         ( echo "attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue) 
          |      # check content length for data integrity
          |      _check_data_integrity $$local_path $$destination || 
-         |         { echo "data content length difference detected in attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
+         |         ( echo "data content length difference detected in attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue)
          |    fi
          |    # copy succeeded
          |    break
@@ -240,10 +240,10 @@ final case class AwsBatchJob(
          |      exit 1
          |  fi
          |  s3_content_length=$$($awsCmd s3api head-object --bucket "$$bucket" --key "$$key" --query 'ContentLength') || 
-         |        { echo "Attempt to get head of object failed for $$s3_path." && return 1 ; }
+         |        ( echo "Attempt to get head of object failed for $$s3_path." && return 1 )
          |  # local
          |  local_content_length=$$(LC_ALL=C ls -dn -- "$$local_path" | awk '{print $$5; exit}' ) || 
-         |        { echo "Attempt to get local content length failed for $$_local_path." && return 1; }   
+         |        ( echo "Attempt to get local content length failed for $$_local_path." && return 1 )   
          |  # compare
          |  if [[ "$$s3_content_length" -eq "$$local_content_length" ]]; then
          |       true
@@ -282,7 +282,7 @@ final case class AwsBatchJob(
           s"""
              |touch ${output.name}
              |_s3_delocalize_with_retry ${output.name} ${output.s3key}
-             |if [ -e $globDirectory ]; then _s3_delocalize_with_retry $globDirectory $s3GlobOutDirectory ; fi""".stripMargin
+             |if [ -e $globDirectory ]; then _s3_delocalize_with_retry $globDirectory $s3GlobOutDirectory "; fi""".stripMargin
 
         case output: AwsBatchFileOutput
             if output.s3key.startsWith(

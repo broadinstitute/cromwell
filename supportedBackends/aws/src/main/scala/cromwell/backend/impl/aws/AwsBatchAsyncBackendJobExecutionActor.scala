@@ -56,7 +56,10 @@ import cromwell.filesystems.s3.S3Path
 import cromwell.filesystems.s3.batch.S3BatchCommandBuilder
 import cromwell.services.keyvalue.KvClient
 import org.slf4j.{Logger, LoggerFactory}
-import software.amazon.awssdk.services.batch.model.{BatchException, SubmitJobResponse}
+import software.amazon.awssdk.services.batch.BatchClient
+//import software.amazon.awssdk.services.batch.model.{BatchException, SubmitJobResponse}
+import software.amazon.awssdk.services.batch.model._
+
 import wom.callable.Callable.OutputDefinition
 import wom.core.FullyQualifiedName
 import wom.expression.NoIoFunctionSet
@@ -193,6 +196,12 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       Option(configuration.awsAuth),
       configuration.fsxMntPoint
     )
+
+  // setup batch client to query job container info
+  lazy val batchClient: BatchClient = {
+    val builder = BatchClient.builder()
+    configureClient(builder, batchJob.optAwsAuthMode, batchJob.configRegion)
+  }
 
   /* Tries to abort the job in flight
    *
@@ -544,6 +553,32 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       quickAnswer <- backendSingletonActor ? WhatsMyStatus(runtimeAttributes.queueArn, jobId)
       guaranteedAnswer <- useQuickAnswerOrFallback(quickAnswer)
     } yield guaranteedAnswer
+  }
+
+  // new OOM detection
+  override def memoryRetryRC(job: StandardAsyncJob): Future[Boolean] = Future {
+    Log.debug(s"Looking for memoryRetry in job '${job.jobId}'")
+    val describeJobsResponse = batchClient.describeJobs(DescribeJobsRequest.builder.jobs(job.jobId).build)
+    val jobDetail = describeJobsResponse.jobs.get(
+      0
+    ) // OrElse(throw new RuntimeException(s"Could not get job details for job '${job.jobId}'"))
+    val nrAttempts = jobDetail.attempts.size
+    val lastattempt = jobDetail.attempts.get(nrAttempts - 1)
+    val containerRC = lastattempt.container.exitCode
+    // if not zero => get reason, else set retry to false.
+    containerRC.toString() match {
+      case "0" =>
+        Log.debug("container exit code was zero")
+        false
+      case _ =>
+        val containerStatusReason = lastattempt.container.reason
+        Log.warn(s"Job failed with Container status reason : '${containerStatusReason}'")
+        val RetryMemoryKeys = memoryRetryErrorKeys.toList.flatten
+        val retry = RetryMemoryKeys.exists(containerStatusReason.contains)
+        Log.debug(s"Retry job based on provided keys : '${retry}'")
+        retry
+    }
+
   }
 
   // Despite being a "runtime" exception, BatchExceptions for 429 (too many requests) are *not* fatal:

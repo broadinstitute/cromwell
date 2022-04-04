@@ -30,23 +30,27 @@ object AstToWorkflowDefinitionElement {
     val inputsSectionValidation: ErrorOr[Option[InputsSectionElement]] = validateSize(bodyElements.filterByType[InputsSectionElement], "inputs", 1)
     val outputsSectionValidation: ErrorOr[Option[OutputsSectionElement]] = validateSize(bodyElements.filterByType[OutputsSectionElement], "outputs", 1)
 
+    val inputsSectionStdoutValidation: ErrorOr[ErrorOr[Option[String]]] = inputsSectionValidation.map(checkIfStdoutExist)
+
     val graphSections: Vector[WorkflowGraphElement] = bodyElements.filterByType[WorkflowGraphElement]
 
     val metaSectionValidation: ErrorOr[Option[MetaSectionElement]] = validateSize(bodyElements.filterByType[MetaSectionElement], "meta", 1)
     val parameterMetaSectionValidation: ErrorOr[Option[ParameterMetaSectionElement]] = validateSize(bodyElements.filterByType[ParameterMetaSectionElement], "parameterMeta", 1)
 
-    (inputsSectionValidation, outputsSectionValidation, metaSectionValidation, parameterMetaSectionValidation) mapN {
-      (validInputs, validOutputs, meta, parameterMeta) =>
+    (inputsSectionValidation, outputsSectionValidation, metaSectionValidation, parameterMetaSectionValidation, inputsSectionStdoutValidation) mapN {
+      (validInputs, validOutputs, meta, parameterMeta, _) =>
       WorkflowDefinitionElement(name, validInputs, graphSections.toSet, validOutputs, meta, parameterMeta, sourceLocation)
     }
   }
 
-  private def checkStdout(inputSectionValidation: WorkflowBodyElement, b: outputsSectionValidation[WorkflowBodyElement]): Unit = {
-    inputsSectionValidation.map(x => x match {
-      case Some(value) => val here = value.inputDeclarations.flatMap(_.expression).exists(_.isInstanceOf[StdoutElement.type])
-        s"Workflow cannot have more than $numExpected $sectionName sections, found ${elements.size}.".invalidNel
-      case None => _
-    })
+  private def checkIfStdoutExist(inputSection: Option[InputsSectionElement]): ErrorOr[Option[String]] = {
+    inputSection match {
+      case Some(section) =>
+        if (section.inputDeclarations.flatMap(_.expression).exists(_.isInstanceOf[StdoutElement.type])) {
+          s"Workflow cannot have stdout expression in input section at workflow-level.".invalidNel
+        } else None.validNel
+      case None => None.validNel
+    }
   }
 
   private def validateSize[A](elements: Vector[A], sectionName: String, numExpected: Int): ErrorOr[Option[A]] = {

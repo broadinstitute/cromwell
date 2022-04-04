@@ -8,6 +8,7 @@ import common.transforms.CheckedAtoB
 import common.validation.ErrorOr._
 import wdl.model.draft3.elements._
 import wom.SourceFileLocation
+import wdl.model.draft3.elements.ExpressionElement.StdoutElement
 
 object AstToWorkflowDefinitionElement {
 
@@ -40,12 +41,32 @@ object AstToWorkflowDefinitionElement {
     }
   }
 
+  private def checkStdout(inputSectionValidation: WorkflowBodyElement, b: outputsSectionValidation[WorkflowBodyElement]): Unit = {
+    inputsSectionValidation.map(x => x match {
+      case Some(value) => val here = value.inputDeclarations.flatMap(_.expression).exists(_.isInstanceOf[StdoutElement.type])
+        s"Workflow cannot have more than $numExpected $sectionName sections, found ${elements.size}.".invalidNel
+      case None => _
+    })
+  }
+
   private def validateSize[A](elements: Vector[A], sectionName: String, numExpected: Int): ErrorOr[Option[A]] = {
     val sectionValidation: ErrorOr[Option[A]] = if (elements.size > numExpected) {
       s"Workflow cannot have more than $numExpected $sectionName sections, found ${elements.size}.".invalidNel
     } else {
       elements.headOption.validNel
     }
+
     sectionValidation
   }
+
+  /*for(validate<-AstToWorkflowDefinitionElement){
+    validate match {
+      case check input{}
+      case check p
+
+    }
+    */
+
 }
+
+//def validateStdout(a:)

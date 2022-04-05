@@ -133,6 +133,48 @@ Notes:
 - local hashing means that all used containers are pulled. Make sure you have enough storage
 - enable a database to make the cache persistent over cromwell restarts
 
+### Retry with more memory
+
+Cromwell can be configured to retry jobs with more allocated memory, under a defined set of conditions. To enable this, set the following parameters:
+
+cromwell configuration: `cromwell.config`:
+```
+// set the maximal amount of retries.
+// backend.providers.AWSBatch.config.default-runtime-attribues.maxRetries
+backend {
+  providers {
+    AWSBatch {
+      config {
+        default-runtime-attributes {
+          maxRetries: 6 
+        }
+      }
+    }
+  }
+}
+
+// set the keys for Out-Of-Memory killing. 
+// system.io.memory-retry-error-keys
+system{
+    io{
+        memory-retry-error-keys = ["OutOfMemory","Killed"]
+    }
+}
+```
+
+Workflow specific runtime options : `workflow_options.json`:
+```
+{
+    "memory_retry_multiplier" : 1.5
+}
+```
+
+When providing the options.json file during workflow submission, jobs that were terminated due to insufficient memory will be retried 6 times, with increasing memory allocation. For example 4Gb => 6Gb => 9Gb => 13.5Gb => ... 
+
+Note: Retries of jobs using the `awsBatchRetryAttempts` counter do *not* increase memory allocation. 
+
+
+
 AWS Batch
 ---------
 

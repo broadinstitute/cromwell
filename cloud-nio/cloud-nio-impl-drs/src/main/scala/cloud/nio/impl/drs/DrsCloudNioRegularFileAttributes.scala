@@ -2,14 +2,14 @@ package cloud.nio.impl.drs
 
 import java.nio.file.attribute.FileTime
 import java.time.{LocalDateTime, OffsetDateTime, ZoneOffset}
-
 import cats.effect.IO
-import cloud.nio.spi.CloudNioRegularFileAttributes
+import cloud.nio.spi.HashType.HashType
+import cloud.nio.spi.{CloudNioRegularFileAttributes, FileHash, HashType}
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 class DrsCloudNioRegularFileAttributes(drsPath: String,
                                        sizeOption: Option[Long],
-                                       hashOption: Option[String],
+                                       hashOption: Option[FileHash],
                                        timeCreatedOption: Option[FileTime],
                                        timeUpdatedOption: Option[FileTime],
                                       ) extends CloudNioRegularFileAttributes{
@@ -18,7 +18,7 @@ class DrsCloudNioRegularFileAttributes(drsPath: String,
 
   override def size(): Long = sizeOption.getOrElse(0)
 
-  override def fileHash: Option[String] = hashOption
+  override def fileHash: Option[FileHash] = hashOption
 
   override def creationTime(): FileTime = timeCreatedOption.getOrElse(lastModifiedTime())
 
@@ -26,25 +26,20 @@ class DrsCloudNioRegularFileAttributes(drsPath: String,
 }
 
 object DrsCloudNioRegularFileAttributes {
-  private val priorityHashList: Seq[String] = Seq("crc32c", "md5", "sha256")
+  private val priorityHashList: Seq[(String, HashType)] = Seq(
+    ("crc32c", HashType.Crc32c),
+    ("md5", HashType.Md5),
+    ("sha256", HashType.Sha256),
+    ("etag", HashType.S3Etag)
+  )
 
-  def getPreferredHash(hashesOption: Option[Map[String, String]]): Option[String] = {
+  def getPreferredHash(hashesOption: Option[Map[String, String]]): Option[FileHash] = {
     hashesOption match {
-      case Some(hashes) if hashes.nonEmpty =>
-        val preferredHash = priorityHashList collectFirst {
-          case hashKey if hashes.contains(hashKey) => hashes(hashKey)
+      case Some(hashes: Map[String, String]) if hashes.nonEmpty =>
+        priorityHashList collectFirst {
+          case (key, hashType) if hashes.contains(key) => FileHash(hashType, hashes(key))
         }
-
-        // if no preferred hash was found, sort the hashes alphabetically by type and take the first one
-        Option(
-          preferredHash.getOrElse(
-            hashes.toSeq minBy {
-              case (hashType, _) => hashType
-            } match {
-              case (_, hashValue) => hashValue
-            }
-          )
-        )
+        // if no preferred hash was found, go ahead and return none because we don't support anything that the DRS object is offering
       case _ => None
     }
   }

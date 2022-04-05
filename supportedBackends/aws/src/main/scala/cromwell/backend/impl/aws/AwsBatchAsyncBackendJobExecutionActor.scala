@@ -546,6 +546,43 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     } yield guaranteedAnswer
   }
 
+  // new OOM detection
+  override def memoryRetryRC(job: StandardAsyncJob): Future[Boolean] = Future {
+    Log.debug(s"Looking for memoryRetry in job '${job.jobId}'")
+    val describeJobsResponse = batchClient.describeJobs(DescribeJobsRequest.builder.jobs(job.jobId).build)
+    val jobDetail = describeJobsResponse.jobs.get(
+      0
+    ) // OrElse(throw new RuntimeException(s"Could not get job details for job '${job.jobId}'"))
+    val nrAttempts = jobDetail.attempts.size
+    val lastattempt = jobDetail.attempts.get(nrAttempts - 1)
+    val containerRC = lastattempt.container.exitCode
+    // if not zero => get reason, else set retry to false.
+    containerRC.toString() match {
+      case "0" =>
+        Log.debug("container exit code was zero")
+        false
+      case _ =>
+        // not every failed job has a container exit reason.
+        val containerStatusReason: String = {
+          var lastReason = lastattempt.container.reason
+          // cast null to empty-string to prevent nullpointer execption.
+          if (lastReason == null || lastReason.isEmpty) {
+            lastReason = ""
+            log.debug("No exit reason found for container.")
+          } else {
+            Log.warn(s"Job failed with Container status reason : '${lastReason}'")
+          }
+          lastReason
+        }
+        // check the list of OOM-keys against the exit reason.
+        val RetryMemoryKeys = memoryRetryErrorKeys.toList.flatten
+        val retry = RetryMemoryKeys.exists(containerStatusReason.contains)
+        Log.debug(s"Retry job based on provided keys : '${retry}'")
+        retry
+    }
+
+  }
+
   // Despite being a "runtime" exception, BatchExceptions for 429 (too many requests) are *not* fatal:
   override def isFatal(throwable: Throwable): Boolean = throwable match {
     case be: BatchException => !be.getMessage.contains("Status Code: 429")

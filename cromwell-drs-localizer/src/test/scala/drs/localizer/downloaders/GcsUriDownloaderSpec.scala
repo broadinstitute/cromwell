@@ -10,6 +10,10 @@ class GcsUriDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
   val fakeDownloadLocation = "/root/foo/foo-123.bam"
   val fakeRequesterPaysId = "fake-billing-project"
+
+  //  Note that this value represents the error *message*, which is capitalized, not the error *reason*, which is not.
+  //  * Message: "UserProjectMissing"
+  //  *  Reason: "userProjectMissing"
   val RequesterPaysErrorMsg = "UserProjectMissing"
 
   it should "return correct download script for a drs url without Requester Pays ID and Google SA returned from Martha" in {

@@ -7,12 +7,13 @@ import org.apache.commons.lang3.StringUtils
 object RequesterPaysErrors {
   val BucketIsRequesterPaysErrorCode = 400
   val BucketIsRequesterPaysErrorMessage = "requester pays bucket but no user project"
+  val BucketIsRequesterPaysErrorReason = "userProjectMissing"
   val DoesNotHaveServiceUsePermissionErrorCode = 403
   val DoesNotHaveServiceUsePermissionErrorMessage = "does not have serviceusage.services.use"
 
   def isProjectNotProvidedError(storageException: StorageException) =
     storageException.getCode == BucketIsRequesterPaysErrorCode &&
-    StringUtils.contains(storageException.getMessage, BucketIsRequesterPaysErrorMessage)
+      storageException.getReason().equals(BucketIsRequesterPaysErrorReason)
 
   def isProjectNotProvidedError(googleJsonError: GoogleJsonError) =
     googleJsonError.getCode == BucketIsRequesterPaysErrorCode &&

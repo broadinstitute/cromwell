@@ -126,7 +126,7 @@ private::determine_requester_pays() {
       USE_REQUESTER_PAYS=${use_requester_pays}
       break
     elif [[ "$use_requester_pays" = "false" ]]; then
-      if grep -q "requester pays bucket but no user project" ${gsutil_log}; then
+      if grep -q "UserProjectMissing" ${gsutil_log}; then
         use_requester_pays=true
         command="$REQUESTER_PAYS_COMMAND"
       else

@@ -17,7 +17,12 @@ class GcsEnhancedRequestSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
   behavior of "GcsEnhancedRequest"
 
   val path = GcsPath(CloudStorageFileSystem.forBucket("bucket").getPath("test"), any[com.google.api.services.storage.Storage], any[com.google.cloud.storage.Storage], anyString)
-  val requesterPaysException = new StorageException(BucketIsRequesterPaysErrorCode, "Bucket is a requester pays bucket but no user project provided.")
+  val BucketIsRequesterPaysErrorReason = "userProjectMissing"  // TODO: where should this value live?
+  val requesterPaysException = new StorageException(
+    BucketIsRequesterPaysErrorCode,
+    "Bucket is a requester pays bucket but no user project provided.",
+    BucketIsRequesterPaysErrorReason
+  )
 
   it should "attempt first without project, and not retry if the requests succeeds" in {
     val testFunction = mockFunction[Boolean, String]

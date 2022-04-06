@@ -17,12 +17,12 @@ object MinioPathBuilder extends PathBuilder{
     if (MinioPathBuilder.accepts(pathAsString)) Try {
       MinioPath(Paths.get(pathAsString))
     } else {
-      Failure(new IllegalArgumentException(s"$pathAsString does not have an http or https scheme"))
+      Failure(new IllegalArgumentException(s"$pathAsString does not have an minio S3 scheme"))
     }      
   }  
 
 
-  def accepts(url: String): Boolean = url.matches("^minio://.*")
+  def accepts(url: String): Boolean = url.matches("^s3://.*")
 
 }
 
@@ -32,6 +32,6 @@ case class MinioPath(nioPath: NioPath) extends Path {
 
   override def pathAsString: String = nioPath.toString.replaceFirst("/", "//")
 
-  override def pathWithoutScheme: String = pathAsString.replaceFirst("minio://", "")
+  override def pathWithoutScheme: String = pathAsString.replaceFirst("s3://", "")
 
 }

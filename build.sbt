@@ -253,6 +253,7 @@ lazy val tesBackend = (project in backendRoot / "tes")
   .dependsOn(sfsBackend)
   .dependsOn(ftpFileSystem)
   .dependsOn(drsFileSystem)
+  .dependsOn(awsS3FileSystem)
   .dependsOn(backend % "test->test")
   .dependsOn(common % "test->test")
 

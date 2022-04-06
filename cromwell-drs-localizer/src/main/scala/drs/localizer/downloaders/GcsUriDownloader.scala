@@ -65,7 +65,7 @@ case class GcsUriDownloader(gcsUrl: String,
     }
 
     def recoverWithRequesterPays(): String = {
-      requesterPaysProjectIdOption match {
+      requesterPaysProjectIdOption match { 
         case Some(userProject) =>
           s"""if [ "$$RC_GSUTIL" != "0" ]; then
              |  # Check if error is requester pays. If yes, retry gsutil copy using project flag

@@ -10,6 +10,7 @@ class GcsUriDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
   val fakeDownloadLocation = "/root/foo/foo-123.bam"
   val fakeRequesterPaysId = "fake-billing-project"
+  val RequesterPaysErrorMsg = "UserProjectMissing"
 
   it should "return correct download script for a drs url without Requester Pays ID and Google SA returned from Martha" in {
     val gcsUrl = "gs://foo/bar.bam"
@@ -77,7 +78,7 @@ class GcsUriDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
          |
          |if [ "$$RC_GSUTIL" != "0" ]; then
          |  # Check if error is requester pays. If yes, retry gsutil copy using project flag
-         |  if grep -q 'requester pays bucket but no user project' gsutil_output.txt; then
+         |  if grep -q '$RequesterPaysErrorMsg' gsutil_output.txt; then
          |    echo "Received 'Bucket is requester pays' error. Attempting again using Requester Pays billing project"
          |    gsutil -u fake-billing-project cp $gcsUrl $fakeDownloadLocation > gsutil_output.txt 2>&1
          |    RC_GSUTIL=$$?

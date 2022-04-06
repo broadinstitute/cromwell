@@ -104,5 +104,5 @@ case class GcsUriDownloader(gcsUrl: String,
 }
 
 object GcsUriDownloader {
-  private final val RequesterPaysErrorMsg = "requester pays bucket but no user project"
+  private final val RequesterPaysErrorMsg = "UserProjectMissing"
 }

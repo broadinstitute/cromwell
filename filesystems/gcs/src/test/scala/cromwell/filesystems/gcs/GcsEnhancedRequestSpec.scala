@@ -20,8 +20,7 @@ class GcsEnhancedRequestSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
   val BucketIsRequesterPaysErrorReason = "userProjectMissing"  // TODO: where should this value live?
   val requesterPaysException = new StorageException(
     BucketIsRequesterPaysErrorCode,
-    "Bucket is a requester pays bucket but no user project provided.",
-    BucketIsRequesterPaysErrorReason
+    "Bucket is a requester pays bucket but no user project provided."
   )
 
   it should "attempt first without project, and not retry if the requests succeeds" in {

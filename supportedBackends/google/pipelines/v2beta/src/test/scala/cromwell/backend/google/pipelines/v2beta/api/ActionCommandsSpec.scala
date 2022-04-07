@@ -14,11 +14,6 @@ import org.specs2.mock.Mockito
 class ActionCommandsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito {
   behavior of "ActionCommands"
 
-  //  Note that this value represents the error *message*, which is capitalized, not the error *reason*, which is not.
-  //  * Message: "UserProjectMissing"
-  //  *  Reason: "userProjectMissing"
-  val RequesterPaysErrorMsg = "UserProjectMissing"  // TODO: insert this into formatted string in the test below.
-
   it should "inject project flag when request fails because of requester pays" in {
     val path = GcsPath(any[Path], any[com.google.api.services.storage.Storage], any[com.google.cloud.storage.Storage], "my-project")
     val recovered = recoverRequesterPaysError(path) { flag =>
@@ -34,7 +29,7 @@ class ActionCommandsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
                          |  cat gsutil_output.txt
                          |
                          |  # Check if it matches the BucketIsRequesterPaysErrorMessage
-                         |  if grep -q "UserProjectMissing" gsutil_output.txt; then
+                         |  if grep -q "requester pays bucket but no user project" gsutil_output.txt; then
                          |    printf '%s %s\n' "$(date -u '+%Y/%m/%d %H:%M:%S')" Retrying\ with\ user\ project
                          |    flag is -u my-project
                          |  else

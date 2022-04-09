@@ -557,6 +557,12 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   // new OOM detection
   override def memoryRetryRC(job: StandardAsyncJob): Future[Boolean] = Future {
+    // STATUS LOGIC:
+    //   - success : container exit code is zero
+    //   - command failure: container exit code > 0, no statusReason in container
+    //   - OOM kill : container exit code > 0, statusReason contains "OutOfMemory"
+    //   - spot kill : no container exit code set. statusReason of ATTEMPT (not container) says "host EC2 (...) terminated"
+
     Log.debug(s"Looking for memoryRetry in job '${job.jobId}'")
     val describeJobsResponse = batchClient.describeJobs(DescribeJobsRequest.builder.jobs(job.jobId).build)
     val jobDetail = describeJobsResponse.jobs.get(
@@ -564,17 +570,22 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     ) // OrElse(throw new RuntimeException(s"Could not get job details for job '${job.jobId}'"))
     val nrAttempts = jobDetail.attempts.size
     val lastattempt = jobDetail.attempts.get(nrAttempts - 1)
-    val containerRC = lastattempt.container.exitCode
+    var containerRC = lastattempt.container.exitCode
+    // if missing, set to failed.
+    if (containerRC == null) {
+      Log.debug(s"No RC found for job '${job.jobId}', most likely a spot kill")
+      containerRC = 1
+    }
     // if not zero => get reason, else set retry to false.
     containerRC.toString() match {
       case "0" =>
-        Log.debug("container exit code was zero")
+        Log.debug("container exit code was zero. job succeeded")
         false
       case _ =>
-        // not every failed job has a container exit reason.
+        // failed job due to command errors (~ user errors) don't have a container exit reason.
         val containerStatusReason: String = {
           var lastReason = lastattempt.container.reason
-          // cast null to empty-string to prevent nullpointer execption.
+          // cast null to empty-string to prevent nullpointer exception.
           if (lastReason == null || lastReason.isEmpty) {
             lastReason = ""
             log.debug("No exit reason found for container.")

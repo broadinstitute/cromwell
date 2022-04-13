@@ -1,27 +1,13 @@
-###
-### IMPORTANT: Please file new issues over in our Jira issue tracker!
-###
-### https://broadworkbench.atlassian.net/projects/BA/issues
-###
-### You may need to create an account before you can view/create issues.
-###
-
 <!--
 Hi!  Thanks for taking the time to report feedback.
 
-Before posting an issue over in Jira tracker, please check whether your question is already answered in our:
-  forum  https://gatkforums.broadinstitute.org/wdl/categories/ask-the-wdl-team
-  documentation http://cromwell.readthedocs.io/en/develop/
-
-Other forums:
-FireCloud https://gatkforums.broadinstitute.org/firecloud/categories/ask-the-firecloud-team
-WDL https://gatkforums.broadinstitute.org/wdl/categories/ask-the-wdl-team
-CWL https://www.biostars.org/
+Please check whether your question is already answered in our:
+  Documentation  http://cromwell.readthedocs.io/en/develop/
+  Bioinformatics Stack Exchange  https://bioinformatics.stackexchange.com/search?q=cromwell
+  Slack  https://join.slack.com/t/cromwellhq/shared_invite/zt-dxmmrtye-JHxwKE53rfKE_ZWdOHIB4g
 -->
 
-<!-- Are you seeing something that looks like a bug?  Then great!  You're almost in the right place.  -->
-
-<!-- You'll want to go to https://broadworkbench.atlassian.net/projects/BA/issues and then tell us: -->
+<!-- Are you seeing something that looks like a bug?  Please attach as much information as possible.  -->
 
 <!-- Which backend are you running?  -->
 

@@ -11,13 +11,13 @@ RUN apt-get update -q && \
 
 # Development environment for Cromwell that includes:
 #
-#   Scala 2.12
+#   Scala 2.13
 #   SBT 1.x
 #   Java 11
 #   Git
 
 # Env variables
-ENV SCALA_VERSION 2.12.14
+ENV SCALA_VERSION 2.13.8
 ENV SBT_VERSION 1.5.5
 
 #

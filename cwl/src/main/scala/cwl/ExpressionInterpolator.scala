@@ -7,7 +7,7 @@ import common.validation.ErrorOr._
 import wom.types.WomNothingType
 import wom.values._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 /**
   * Partial copy-port of cwltool's expression.py.

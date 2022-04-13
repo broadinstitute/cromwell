@@ -38,13 +38,13 @@ class MultipleTokenUsingActor(tokenDispenser: ActorRef, tokenType: JobTokenType,
       startedJobs = totalJobs
     case ImBusy(msInQueue) =>
       runningJobs += 1
-      globalRunningJobCounter.increment
+      globalRunningJobCounter.increment()
       queueWaits :+= msInQueue
       maximumConcurrency = math.max(runningJobs, maximumConcurrency)
     case AllDone =>
       completedJobs += 1
       runningJobs -= 1
-      globalRunningJobCounter.decrement
+      globalRunningJobCounter.decrement()
       if (completedJobs == startedJobs) {
         starter ! TokenUsingActorCompletion(queueWaits, maximumConcurrency, errors)
         context.stop(self)

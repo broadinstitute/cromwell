@@ -5,7 +5,7 @@ import wdl.draft2.model.AstTools.{AstNodeName, EnhancedAstNode}
 import wdl.draft2.parser.WdlParser.{Ast, AstList}
 import wom.RuntimeAttributes
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 case class WdlRuntimeAttributes(attrs: Map[String, WdlExpression]) {
   def toWomRuntimeAttributes(task: WdlTask) = RuntimeAttributes(attrs.safeMapValues(WdlWomExpression(_, task)))

@@ -4,7 +4,7 @@ import java.nio.file.attribute.FileTime
 
 import com.aliyun.oss.model.ObjectMetadata
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable.Map
 import scala.util.Try
 

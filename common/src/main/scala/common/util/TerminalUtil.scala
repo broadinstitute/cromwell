@@ -1,7 +1,7 @@
 package common.util
 
 object TerminalUtil {
-  def highlight(colorCode:Int, string:String) = s"\033[38;5;${colorCode}m$string\033[0m"
+  def highlight(colorCode:Int, string:String) = s"\u001B[38;5;${colorCode}m$string\u001B[0m"
   def mdTable(rows: Seq[Seq[String]], header: Seq[String]): String = {
     def maxWidth(lengths: Seq[Seq[Int]], column: Int) = lengths.map { length => length(column) }.max
     val widths = (rows :+ header).map { row => row.map { s => s.length } }

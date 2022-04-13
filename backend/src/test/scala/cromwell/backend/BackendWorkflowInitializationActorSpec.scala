@@ -79,7 +79,7 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite
       val valid =
         ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
-      valid.toEither.right.get should be(ContinueOnReturnCodeFlag(value))
+      valid.toEither.toOption.get should be(ContinueOnReturnCodeFlag(value))
     }
 
     forAll(booleanRows) { value =>
@@ -90,7 +90,7 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite
       val valid =
         ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
-      valid.toEither.right.get should be(ContinueOnReturnCodeFlag(value))
+      valid.toEither.toOption.get should be(ContinueOnReturnCodeFlag(value))
     }
 
     forAll(booleanRows) { value =>
@@ -109,7 +109,7 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite
       val valid =
         ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
-      valid.toEither.right.get should be(ContinueOnReturnCodeSet(Set(value)))
+      valid.toEither.toOption.get should be(ContinueOnReturnCodeSet(Set(value)))
     }
 
     forAll(integerRows) { value =>
@@ -120,7 +120,7 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite
       val valid =
         ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
-      valid.toEither.right.get should be(ContinueOnReturnCodeSet(Set(value)))
+      valid.toEither.toOption.get should be(ContinueOnReturnCodeSet(Set(value)))
     }
 
     forAll(integerRows) { value =>
@@ -139,7 +139,7 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite
       val valid =
         ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
-      valid.toEither.right.get should be(ContinueOnReturnCodeSet(Set(value)))
+      valid.toEither.toOption.get should be(ContinueOnReturnCodeSet(Set(value)))
     }
 
     forAll(integerRows) { value =>
@@ -150,7 +150,7 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite
       val valid =
         ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
-      valid.toEither.right.get should be(ContinueOnReturnCodeSet(Set(value)))
+      valid.toEither.toOption.get should be(ContinueOnReturnCodeSet(Set(value)))
     }
 
     forAll(integerRows) { value =>
@@ -176,7 +176,7 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite
       val valid =
         ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
-      valid.toEither.left.get.toList should contain theSameElementsAs List(
+      valid.toEither.swap.toOption.get.toList should contain theSameElementsAs List(
         "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
       )
     }

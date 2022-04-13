@@ -16,7 +16,7 @@ class LeasedInputStream(cloudHost: String, cloudPath: String, inputStream: Input
   override def available = inputStream.available()
   override def close() = {
     inputStream.close()
-    autoRelease(IO.pure(lease))(FtpCompletePendingCommand(cloudHost, cloudPath, "close input steam").run).void unsafeRunSync()
+    autoRelease(IO.pure(lease))(FtpCompletePendingCommand(cloudHost, cloudPath, "close input steam").run).void.unsafeRunSync()
   }
   override def mark(readlimit: Int) = inputStream.mark(readlimit)
   override def reset() = inputStream.reset()

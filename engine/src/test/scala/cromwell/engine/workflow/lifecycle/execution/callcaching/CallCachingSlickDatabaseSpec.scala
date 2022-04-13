@@ -141,7 +141,7 @@ class CallCachingSlickDatabaseSpec
     }
 
     it should "stop container if required" taggedAs DbmsTest in {
-      containerOpt.foreach { _.stop }
+      containerOpt.foreach { _.stop() }
     }
   }
 }

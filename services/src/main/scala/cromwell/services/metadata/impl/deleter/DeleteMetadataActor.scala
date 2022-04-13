@@ -79,7 +79,7 @@ class DeleteMetadataActor(deleteMetadataConfig: DeleteMetadataConfig,
 
     }
     case ShutdownCommand => context.stop(self)  // TODO: cancel any deletion action that might be happening?
-    case other => log.info(s"Programmer Error! The DeleteMetadataSchedulerActor received unexpected message! ($sender sent ${other.toPrettyElidedString(1000)}})")
+    case other => log.info(s"Programmer Error! The DeleteMetadataSchedulerActor received unexpected message! (${sender()} sent ${other.toPrettyElidedString(1000)}})")
   }
 
   def workflowsLeftToDeleteMetric(): Unit = {

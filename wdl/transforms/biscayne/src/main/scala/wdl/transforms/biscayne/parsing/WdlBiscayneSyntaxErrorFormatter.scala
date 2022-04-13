@@ -3,7 +3,7 @@ package wdl.transforms.biscayne.parsing
 import wdl.biscayne.parser.WdlParser._
 import wom.core.WorkflowSource
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 case class WdlBiscayneSyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSource]) extends SyntaxErrorFormatter {
 

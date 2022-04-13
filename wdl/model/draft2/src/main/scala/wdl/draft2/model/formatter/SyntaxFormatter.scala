@@ -7,7 +7,7 @@ import wdl.draft2.model.command.StringCommandPart
 import wdl.draft2.parser.WdlParser.{Ast, AstList, AstNode}
 import wom.types.WomType
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 trait SyntaxHighlighter {
   def keyword(s: String): String = s

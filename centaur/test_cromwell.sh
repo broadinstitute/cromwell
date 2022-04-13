@@ -132,7 +132,7 @@ else
 fi
 
 # Add the it-classes folder to the classpath to ensure logback configuration files are picked up.
-CP="${CP}:${RUN_DIR}/centaur/target/scala-2.12/it-classes"
+CP="${CP}:${RUN_DIR}/centaur/target/scala-2.13/it-classes"
 
 # This is set in cromwell::private::create_centaur_variables
 if [ -n "${CENTAUR_CONFIG_STRING}" ]; then
@@ -156,7 +156,7 @@ fi
 
 
 TEST_DESCRIPTION="Running Centaur with sbt test"
-TEST_COMMAND="java ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -u target/test-reports -PS${TEST_THREAD_COUNT}"
+TEST_COMMAND="java ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.13/it-classes -oD -u target/test-reports -PS${TEST_THREAD_COUNT}"
 
 if [[ -n ${EXCLUDE_TAG[*]} ]]; then
     TEST_DESCRIPTION=${TEST_DESCRIPTION}" excluding ${EXCLUDE_TAG[*]} tests"

@@ -1,8 +1,5 @@
 package cromwell.backend.impl
 
-import java.io.ByteArrayOutputStream
-import java.util.zip.GZIPOutputStream
-
 import cats.data.ReaderT
 import com.google.common.io.BaseEncoding
 import cromwell.cloudsupport.aws.auth.AwsAuthMode
@@ -10,7 +7,8 @@ import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.batch.model.KeyValuePair
 
-import scala.language.higherKinds
+import java.io.ByteArrayOutputStream
+import java.util.zip.GZIPOutputStream
 
 package object aws {
 

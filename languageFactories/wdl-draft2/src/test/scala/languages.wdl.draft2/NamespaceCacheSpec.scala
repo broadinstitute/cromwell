@@ -77,7 +77,7 @@ class NamespaceCacheSpec extends AnyFlatSpec with CromwellTimeoutSpec with Befor
         workflowIdForLogging = WorkflowId.randomId(),
         ioFunctions = NoIoFunctionSet,
         importResolvers = List(countingResolver)).value.unsafeToFuture()
-      Await.result(futureNamespace, Duration.Inf).right.get
+      Await.result(futureNamespace, Duration.Inf).toOption.get
     }
 
     expectations foreach { e =>

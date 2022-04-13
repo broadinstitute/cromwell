@@ -17,8 +17,8 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
   val hashError = HashError(new Exception("ARGH!!!") with NoStackTrace)
 
   val failureCases = List(
-    ("FailedRetryableResponse", failureRetryableResponse _, true),
-    ("FailedNonRetryableResponse", failureNonRetryableResponse _, false)
+    ("FailedRetryableResponse", () => failureRetryableResponse, true),
+    ("FailedNonRetryableResponse", () => failureNonRetryableResponse, false)
   )
 
   "A 'RunningJob' EJEA" should {

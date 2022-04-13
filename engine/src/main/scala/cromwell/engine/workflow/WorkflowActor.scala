@@ -473,7 +473,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
     case Event(msg @ EngineStatsActor.JobCountQuery, data) =>
       data.currentLifecycleStateActor match {
         case Some(a) => a forward msg
-        case None => sender ! EngineStatsActor.NoJobs // This should be impossible, but if somehow here it's technically correct
+        case None => sender() ! EngineStatsActor.NoJobs // This should be impossible, but if somehow here it's technically correct
       }
       stay()
     case Event(AwaitMetadataIntegrity, data) =>

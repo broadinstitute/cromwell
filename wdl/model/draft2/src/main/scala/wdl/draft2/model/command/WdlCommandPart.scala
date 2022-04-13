@@ -3,7 +3,6 @@ package wdl.draft2.model.command
 import common.validation.ErrorOr.ErrorOr
 import wdl.draft2.model.Declaration
 import wdl.draft2.model.expression.{WdlFunctions, WdlStandardLibraryFunctions}
-import wdl.draft2.model.expression.WdlStandardLibraryFunctions
 import wdl.shared.FileSizeLimitationConfig
 import wom.callable.RuntimeEnvironment
 import wom.expression.IoFunctionSet

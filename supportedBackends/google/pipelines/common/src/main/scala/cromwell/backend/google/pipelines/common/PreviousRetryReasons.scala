@@ -1,14 +1,12 @@
 package cromwell.google.pipelines.common
 
-import cromwell.services.keyvalue.KeyValueServiceActor._
-import common.validation.ErrorOr.ErrorOr
-import cats.syntax.validated._
 import cats.syntax.apply._
+import cats.syntax.validated._
+import common.validation.ErrorOr.ErrorOr
+import cromwell.backend.google.pipelines.common.PipelinesApiBackendLifecycleActorFactory.{preemptionCountKey, unexpectedRetryCountKey}
+import cromwell.services.keyvalue.KeyValueServiceActor._
 
 import scala.util.{Failure, Success, Try}
-import cromwell.backend.google.pipelines.common.PipelinesApiBackendLifecycleActorFactory.preemptionCountKey
-import cromwell.backend.google.pipelines.common.PipelinesApiBackendLifecycleActorFactory.unexpectedRetryCountKey
-import common.validation.ErrorOr
 
 case class PreviousRetryReasons(preempted: Int, unexpectedRetry: Int)
 

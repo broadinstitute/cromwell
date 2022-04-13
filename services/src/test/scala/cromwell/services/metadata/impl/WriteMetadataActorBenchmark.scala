@@ -67,6 +67,6 @@ class WriteMetadataActorBenchmark extends TestKitSuite with AnyFlatSpecLike with
   }
 
   it should "stop container if required" taggedAs IntegrationTest in {
-    containerOpt.foreach { _.stop }
+    containerOpt.foreach { _.stop() }
   }
 }

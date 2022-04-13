@@ -304,7 +304,7 @@ trait MetadataDatabaseAccess {
       }
     }
 
-    def summariesToQueryResults(workflows: Traversable[WorkflowMetadataSummaryEntry]): Future[List[MetadataService.WorkflowQueryResult]] = {
+    def summariesToQueryResults(workflows: Iterable[WorkflowMetadataSummaryEntry]): Future[List[MetadataService.WorkflowQueryResult]] = {
       workflows.toList.traverse(summaryToQueryResult)
     }
 

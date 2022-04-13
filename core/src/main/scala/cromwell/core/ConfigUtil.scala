@@ -7,7 +7,7 @@ import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigException, ConfigValue}
 import org.slf4j.LoggerFactory
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.reflect.{ClassTag, classTag}
 
 object ConfigUtil {

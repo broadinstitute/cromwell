@@ -345,7 +345,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
       |""".stripMargin
     val backendConfig = ConfigFactory.parseString(configString(manifestConfig))
     val validation = PipelinesApiConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "papi")
-    val manifests: List[ManifestFile] = validation.toEither.right.get.get
+    val manifests: List[ManifestFile] = validation.toEither.toOption.get.get
 
     manifests shouldBe List(
       ManifestFile(

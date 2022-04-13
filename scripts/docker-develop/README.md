@@ -53,7 +53,7 @@ will be `server/target`. Remember, here we are inside the container with scala a
 $ sbt assembly
 ```
 
-`sbt assembly` will build the runnable Cromwell JAR in `server/target/scala-2.12/` with a name like `cromwell-<VERSION>.jar`.
+`sbt assembly` will build the runnable Cromwell JAR in `server/target/scala-2.13/` with a name like `cromwell-<VERSION>.jar`.
 
 You can then interact with it in the container, or on your host if you like. Remember that
 you have Java already in the container, so it makes sense to develop there.

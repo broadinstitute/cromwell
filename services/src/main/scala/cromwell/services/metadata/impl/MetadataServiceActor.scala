@@ -55,7 +55,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
 
   private val metadataSummaryRefreshInterval: Option[FiniteDuration] = {
     val duration = serviceConfig.getOrElse[Duration]("metadata-summary-refresh-interval", default = 1 second)
-    if (duration.isFinite()) Option(duration.asInstanceOf[FiniteDuration]) else None
+    if (duration.isFinite) Option(duration.asInstanceOf[FiniteDuration]) else None
   }
 
   private val metadataSummaryRefreshLimit = serviceConfig.getOrElse("metadata-summary-refresh-limit", default = 5000)
@@ -180,7 +180,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
   }
 
   private def sendMetadataTableSizeMetrics(): Unit = {
-    getMetadataTableSizeInformation onComplete {
+    getMetadataTableSizeInformation() onComplete {
       case Success(v) =>
         v foreach { d =>
           sendGauge(dataLengthMetricsPath, d.dataLength)

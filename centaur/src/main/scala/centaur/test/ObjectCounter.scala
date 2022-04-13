@@ -5,7 +5,7 @@ import com.google.cloud.storage.{Blob, Storage}
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.language.implicitConversions
 
 trait ObjectCounter[A] {

@@ -7,7 +7,6 @@ import wom.expression.IoFunctionSet
 import wom.types.{WomOptionalType, WomType}
 
 import scala.annotation.tailrec
-import scala.language.higherKinds
 import scala.util.{Success, Try}
 
 final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) extends WomValue {
@@ -23,7 +22,7 @@ final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) e
     case Some(lhs) => lhs.subtract(rhs)
     case None => emptyValueFailure("-")
   }
-  
+
   override def multiply(rhs: WomValue): Try[WomValue] = value match {
     case Some(lhs) => lhs.multiply(rhs)
     case None => emptyValueFailure("*")
@@ -33,7 +32,7 @@ final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) e
     case Some(lhs) => lhs.divide(rhs)
     case None => emptyValueFailure("/")
   }
-  
+
   override def mod(rhs: WomValue): Try[WomValue] = value match {
     case Some(lhs) => lhs.mod(rhs)
     case None => emptyValueFailure("%")
@@ -135,7 +134,7 @@ final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) e
     case Some(v) => v.valueString
     case None => ""
   }
-  
+
   def traverse[A <: WomValue, G[_]](f: WomValue => G[A])(implicit applicative: Applicative[G]) = value map { v =>
     applicative.map(f(v)) {
       WomOptionalValue(_)

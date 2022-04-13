@@ -58,7 +58,7 @@ trait AbortableWorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends 
         goto(abortedState) using newData
       } else super.checkForDoneAndTransition(newData)
     } else {
-      stay using newData
+      stay() using newData
     }
   }
 }
@@ -81,7 +81,7 @@ trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends LoggingFS
   whenUnhandled {
     case unhandledMessage =>
       workflowLogger.warn(s"received an unhandled message: $unhandledMessage")
-      stay
+      stay()
   }
 
   onTransition {
@@ -102,7 +102,7 @@ trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends LoggingFS
         goto(failureState) using newData
       }
     } else {
-      stay using newData
+      stay() using newData
     }
   }
 

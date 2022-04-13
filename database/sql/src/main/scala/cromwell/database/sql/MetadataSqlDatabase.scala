@@ -161,7 +161,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
                              page: Option[Int],
                              pageSize: Option[Int],
                              newestFirst: Boolean)
-                             (implicit ec: ExecutionContext): Future[Traversable[WorkflowMetadataSummaryEntry]]
+                             (implicit ec: ExecutionContext): Future[Iterable[WorkflowMetadataSummaryEntry]]
 
   def countWorkflowSummaries(parentIdWorkflowMetadataKey: String,
                              workflowStatuses: Set[String], workflowNames: Set[String],

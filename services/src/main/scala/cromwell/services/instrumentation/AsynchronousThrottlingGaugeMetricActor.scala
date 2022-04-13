@@ -44,7 +44,7 @@ class AsynchronousThrottlingGaugeMetricActor(metricPath: NonEmptyList[String],
 
   whenUnhandled {
     case Event(unexpected, _) =>
-      log.warning(s"Programmer error: this actor should not receive message $unexpected from ${sender.path} while in state $stateName")
+      log.warning(s"Programmer error: this actor should not receive message $unexpected from ${sender().path} while in state $stateName")
       stay()
   }
 

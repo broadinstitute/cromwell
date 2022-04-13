@@ -18,8 +18,8 @@ class StringUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
     // With the elided string, we stop processing early and are able to produce a nice, short string without ever
     // touching the later elements:
     fooOfBars.toPrettyElidedString(1000) should be("""Foo(
-                                                    |  "long long list",
-                                                    |  List(
+                                                    |  bar = "long long list",
+                                                    |  list = List(
                                                     |    "blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0blah0",
                                                     |    "blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah1blah...""".stripMargin)
 
@@ -128,7 +128,7 @@ object StringUtilSpec {
   final case class Foo(bar: String, list: List[Bar])
 
   final class Bar(index: Int) {
-    private def longLine(i: Int) = '"' +  s"blah$i" * 100 + '"'
+    private def longLine(i: Int) = "\"" +  s"blah$i" * 100 + "\""
     override def toString: String = if (index < 2) {
       longLine(index)
     } else {

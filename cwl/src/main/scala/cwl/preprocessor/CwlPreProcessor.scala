@@ -29,7 +29,7 @@ class CwlPreProcessor(saladFunction: SaladFunction = saladCwlFile) {
 
   private val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(5))
   private implicit val cs = IO.contextShift(ec)
-  
+
   /**
     * This is THE main entry point into the CWL pre-processor. Takes a CWL reference and
     * returns a canonical JSON version with all references resolved.
@@ -194,9 +194,9 @@ object CwlPreProcessor {
   private [preprocessor] def mapNumbers(json: Json): Json = {
     // Circumvent Circe's scientific format for numbers: convert to a JSON String without exponential notation.
     def nonScientificNumberFormatting(jsonNumber: JsonNumber): Json = {
-      val conversions = Stream[JsonNumber => Option[Any]](
-        _.toBigInt.map(_.longValue()),
-        _.toBigDecimal.map(_.doubleValue()),
+      val conversions = LazyList[JsonNumber => Option[Any]](
+        _.toBigInt.map(_.longValue),
+        _.toBigDecimal.map(_.doubleValue),
         Function.const(Option("null")))
 
       // The `get` is safe because `Option("null")` guarantees a match even if the other two Stream elements

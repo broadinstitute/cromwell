@@ -18,7 +18,7 @@ import net.ceedubs.ficus.Ficus._
 import wom.WomFileMapper
 import wom.values._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration.Duration
@@ -88,8 +88,8 @@ object SharedFileSystem extends StrictLogging {
     action
   }
 
-  private def duplicate(description: String, source: Path, dest: Path, strategies: Stream[DuplicationStrategy], docker: Boolean): Try[Unit] = {
-    val attempts: Stream[Try[Unit]] = strategies.map(_.apply(source.followSymbolicLinks, dest, docker))
+  private def duplicate(description: String, source: Path, dest: Path, strategies: LazyList[DuplicationStrategy], docker: Boolean): Try[Unit] = {
+    val attempts: LazyList[Try[Unit]] = strategies.map(_.apply(source.followSymbolicLinks, dest, docker))
     attempts.find(_.isSuccess) getOrElse {
       TryUtil.sequence(attempts, s"Could not $description $source -> $dest").void
     }
@@ -205,7 +205,7 @@ trait SharedFileSystem extends PathFactory {
 
   private def getConfigStrategies(configPath: String): Seq[String] = {
     if (sharedFileSystemConfig.hasPath(configPath)) {
-      sharedFileSystemConfig.getStringList(configPath).asScala
+      sharedFileSystemConfig.getStringList(configPath).asScala.toList
     } else {
       DefaultStrategies
     }
@@ -259,7 +259,7 @@ trait SharedFileSystem extends PathFactory {
   }
 
   def cacheCopy(sourceFilePath: Path, destinationFilePath: Path): Try[Unit] = {
-    duplicate("cache", sourceFilePath, destinationFilePath, Cachers.toStream, docker = false)
+    duplicate("cache", sourceFilePath, destinationFilePath, Cachers.to(LazyList), docker = false)
   }
 
   /**
@@ -317,7 +317,7 @@ trait SharedFileSystem extends PathFactory {
     }
 
     // Optional function to adjust the path to "docker path" if the call runs in docker
-    localizeWomFile(toCallPath, strategies.toStream, docker)(staged)
+    localizeWomFile(toCallPath, strategies.to(LazyList), docker)(staged)
   }
 
   /**
@@ -328,7 +328,7 @@ trait SharedFileSystem extends PathFactory {
     * @param womFile WomFile to localize
     * @return localized WomFile
     */
-  private def localizeWomFile(toDestPath: WomFile => String => Try[PairOfFiles], strategies: Stream[DuplicationStrategy], docker: Boolean)
+  private def localizeWomFile(toDestPath: WomFile => String => Try[PairOfFiles], strategies: LazyList[DuplicationStrategy], docker: Boolean)
                              (womFile: WomFile): WomFile = {
     val localized = womFile mapWomFile { file =>
       val result = toDestPath(file)(file.value) flatMap {

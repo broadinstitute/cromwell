@@ -25,7 +25,7 @@ class WomObjectSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers w
     // Test both a version of the TSV with and without a trailing newline.
     correctTSV.withTrimmed foreach { tsv =>
       val parsed = WomObject.fromTsv(tsv)
-      parsed should be a 'success
+      parsed should be a Symbol("success")
       val array: Array[WomObject] = parsed.success.value
       array should have size 1
 
@@ -47,13 +47,13 @@ class WomObjectSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers w
     for {
       tsv <- List(emptyTSV, oneRowTSV)
       t <- tsv.withTrimmed
-      _ = WomObject.fromTsv(t) should be a 'failure
+      _ = WomObject.fromTsv(t) should be a Symbol("failure")
     } yield ()
   }
 
   it should "NOT read from a non homogeneous TSV file" in {
     nonHomogeneousTSV.withTrimmed foreach {
-      WomObject.fromTsv(_) should be a 'failure
+      WomObject.fromTsv(_) should be a Symbol("failure")
     }
   }
 
@@ -61,7 +61,7 @@ class WomObjectSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers w
     correctTSV.withTrimmed foreach { tsv =>
       val obj = WomObject.fromTsv(tsv).get.head
       val serialized = obj.tsvSerialize
-      serialized should be a 'success
+      serialized should be a Symbol("success")
       serialized.success.value shouldEqual correctTSV
     }
   }
@@ -69,7 +69,7 @@ class WomObjectSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers w
   it should "read a WomArray[WomObject] from a correct TSV file" in {
     List(arrayTSV, arrayTSV.trim) foreach { tsv =>
       val parsed = WomObject.fromTsv(tsv)
-      parsed should be a 'success
+      parsed should be a Symbol("success")
       val array: Array[WomObject] = parsed.success.value
       array should have size 2
 
@@ -96,9 +96,9 @@ class WomObjectSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers w
 
   it should "serialize a WomArray[WomObject] to TSV" in {
     List(arrayTSV, arrayTSV.trim) foreach { tsv =>
-      val array = WomArray(WomArrayType(WomObjectType), WomObject.fromTsv(tsv).get)
+      val array = WomArray(WomArrayType(WomObjectType), WomObject.fromTsv(tsv).get.toIndexedSeq)
       val serialized = array.tsvSerialize
-      serialized should be a 'success
+      serialized should be a Symbol("success")
       serialized.success.value shouldEqual arrayTSV
     }
   }

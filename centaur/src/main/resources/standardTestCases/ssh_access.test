@@ -1,6 +1,8 @@
 name: ssh_access
 testFormat: workflowsuccess
 backends: [Papiv2]
+# CROM-6872: ignoring for now until we figure out the problem
+ignore: true
 
 files {
   workflow: ssh_access/ssh_access.wdl

@@ -161,7 +161,7 @@ task wc {
 
 ```
 {
-    "testwf.wc.in_file" : "minio://test/README.md"
+    "testwf.wc.in_file" : "s3://test/README.md"
 }
 ```
 

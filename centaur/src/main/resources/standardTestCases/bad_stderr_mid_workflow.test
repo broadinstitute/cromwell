@@ -1,0 +1,12 @@
+# Verifies that if we use stderr in a workflow level, the workflow fails properly.
+name: bad_stderr_mid_workflow
+testFormat: workflowfailure
+
+files {
+  workflow: bad_stderrs/bad_stderr_mid_workflow.wdl
+}
+
+metadata {
+  workflowName: bad_stderr
+  status: Failed
+}

@@ -8,7 +8,7 @@ import common.transforms.CheckedAtoB
 import common.validation.ErrorOr._
 import wdl.model.draft3.elements._
 import wom.SourceFileLocation
-import wdl.model.draft3.elements.ExpressionElement.StdoutElement
+import wdl.model.draft3.elements.ExpressionElement._
 
 object AstToWorkflowDefinitionElement {
 
@@ -27,23 +27,33 @@ object AstToWorkflowDefinitionElement {
                               sourceLocation: Option[SourceFileLocation],
                               bodyElements: Vector[WorkflowBodyElement]) = {
 
-    val inputsSectionValidation: ErrorOr[Option[InputsSectionElement]] = validateSize(bodyElements.filterByType[InputsSectionElement], "inputs", 1)
-    val outputsSectionValidation: ErrorOr[Option[OutputsSectionElement]] = validateSize(bodyElements.filterByType[OutputsSectionElement], "outputs", 1)
+    val inputsSectionValidation: ErrorOr[Option[InputsSectionElement]] = for {
+      inputValidateElement <- validateSize(bodyElements.filterByType[InputsSectionElement], "inputs", 1): ErrorOr[Option[InputsSectionElement]]
+      _ <- checkIfStdoutInputExist(inputValidateElement)
+      _ <- checkIfStderrInputExist(inputValidateElement)
+    } yield inputValidateElement
 
-    val inputsSectionStdoutValidation: ErrorOr[ErrorOr[Option[String]]] = inputsSectionValidation.map(checkIfStdoutExist)
+    val intermediateValueDeclarationStdoutCheck: ErrorOr[Option[String]] = checkStdoutIntermediates(bodyElements.filterByType[IntermediateValueDeclarationElement])
+    val intermediateValueDeclarationStderrCheck: ErrorOr[Option[String]] = checkStderrIntermediates(bodyElements.filterByType[IntermediateValueDeclarationElement])
+
+    val outputsSectionValidation: ErrorOr[Option[OutputsSectionElement]] = for {
+      outputValidateElement <- validateSize(bodyElements.filterByType[OutputsSectionElement], "outputs", 1): ErrorOr[Option[OutputsSectionElement]]
+      _ <- checkIfStdoutOutputExists(outputValidateElement)
+      _ <- checkIfStderrOutputExists(outputValidateElement)
+    } yield outputValidateElement
 
     val graphSections: Vector[WorkflowGraphElement] = bodyElements.filterByType[WorkflowGraphElement]
 
     val metaSectionValidation: ErrorOr[Option[MetaSectionElement]] = validateSize(bodyElements.filterByType[MetaSectionElement], "meta", 1)
     val parameterMetaSectionValidation: ErrorOr[Option[ParameterMetaSectionElement]] = validateSize(bodyElements.filterByType[ParameterMetaSectionElement], "parameterMeta", 1)
 
-    (inputsSectionValidation, outputsSectionValidation, metaSectionValidation, parameterMetaSectionValidation, inputsSectionStdoutValidation) mapN {
-      (validInputs, validOutputs, meta, parameterMeta, _) =>
+    (inputsSectionValidation, outputsSectionValidation, metaSectionValidation, parameterMetaSectionValidation, intermediateValueDeclarationStdoutCheck, intermediateValueDeclarationStderrCheck) mapN {
+      (validInputs, validOutputs, meta, parameterMeta, _, _) =>
       WorkflowDefinitionElement(name, validInputs, graphSections.toSet, validOutputs, meta, parameterMeta, sourceLocation)
     }
   }
 
-  private def checkIfStdoutExist(inputSection: Option[InputsSectionElement]): ErrorOr[Option[String]] = {
+  private def checkIfStdoutInputExist(inputSection: Option[InputsSectionElement]): ErrorOr[Option[String]] = {
     inputSection match {
       case Some(section) =>
         if (section.inputDeclarations.flatMap(_.expression).exists(_.isInstanceOf[StdoutElement.type])) {
@@ -51,6 +61,48 @@ object AstToWorkflowDefinitionElement {
         } else None.validNel
       case None => None.validNel
     }
+  }
+
+  private def checkIfStdoutOutputExists(outputSection: Option[OutputsSectionElement]): ErrorOr[Option[String]] = {
+    outputSection match {
+      case Some(section) =>
+        if (section.outputs.map(_.expression).exists(_.isInstanceOf[StdoutElement.type])) {
+          s"Workflow cannot have stdout expression in output section at workflow-level.".invalidNel
+        } else None.validNel
+      case None => None.validNel
+    }
+  }
+
+  private def checkStdoutIntermediates(intermediate: Vector[IntermediateValueDeclarationElement]): ErrorOr[Option[String]] = {
+    if (intermediate.map(_.expression).exists(_.isInstanceOf[StdoutElement.type])) {
+      s"Workflow cannot have stderr expression at intermediate declaration section at workflow-level.".invalidNel
+    } else None.validNel
+  }
+
+  private def checkIfStderrInputExist(inputs: Option[InputsSectionElement]): ErrorOr[Option[String]] = {
+    inputs match {
+      case Some(section) =>
+        if (section.inputDeclarations.flatMap(_.expression).exists(_.isInstanceOf[StderrElement.type])) {
+          s"Workflow cannot have stderr expression in input section at workflow-level.".invalidNel
+        } else None.validNel
+      case None => None.validNel
+    }
+  }
+
+  private def checkIfStderrOutputExists(outputs: Option[OutputsSectionElement]): ErrorOr[Option[String]] = {
+    outputs match {
+      case Some(section) =>
+        if (section.outputs.map(_.expression).exists(_.isInstanceOf[StderrElement.type])) {
+          s"Workflow cannot have stderr expression in output section at workflow-level.".invalidNel
+        } else None.validNel
+      case None => None.validNel
+    }
+  }
+
+  private def checkStderrIntermediates(intermediates: Vector[IntermediateValueDeclarationElement]): ErrorOr[Option[String]] = {
+    if (intermediates.map(_.expression).exists(_.isInstanceOf[StderrElement.type])) {
+      s"Workflow cannot have stdout expression at intermediate declaration section at workflow-level.".invalidNel
+    } else None.validNel
   }
 
   private def validateSize[A](elements: Vector[A], sectionName: String, numExpected: Int): ErrorOr[Option[A]] = {
@@ -62,15 +114,4 @@ object AstToWorkflowDefinitionElement {
 
     sectionValidation
   }
-
-  /*for(validate<-AstToWorkflowDefinitionElement){
-    validate match {
-      case check input{}
-      case check p
-
-    }
-    */
-
 }
-
-//def validateStdout(a:)

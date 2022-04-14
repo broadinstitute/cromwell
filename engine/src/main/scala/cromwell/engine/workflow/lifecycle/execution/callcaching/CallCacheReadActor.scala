@@ -33,8 +33,8 @@ class CallCacheReadActor(cache: CallCache,
           case true => HasMatchingEntries
           case false => NoMatchingEntries
         }
-      case CacheLookupRequest(aggregatedCallHashes, cacheHitNumber, prefixesHint) =>
-        cache.callCachingHitForAggregatedHashes(aggregatedCallHashes, prefixesHint, cacheHitNumber) map {
+      case CacheLookupRequest(aggregatedCallHashes, excludedIds, prefixesHint) =>
+        cache.callCachingHitForAggregatedHashes(aggregatedCallHashes, prefixesHint, excludedIds) map {
           case Some(nextHit) => CacheLookupNextHit(nextHit)
           case None => CacheLookupNoHit
         }
@@ -78,7 +78,7 @@ object CallCacheReadActor {
   case class AggregatedCallHashes(baseAggregatedHash: String, inputFilesAggregatedHash: Option[String])
 
   sealed trait CallCacheReadActorRequest
-  final case class CacheLookupRequest(aggregatedCallHashes: AggregatedCallHashes, cacheHitNumber: Int, prefixesHint: Option[CallCachePathPrefixes]) extends CallCacheReadActorRequest
+  final case class CacheLookupRequest(aggregatedCallHashes: AggregatedCallHashes, excludedIds: Set[CallCachingEntryId], prefixesHint: Option[CallCachePathPrefixes]) extends CallCacheReadActorRequest
   final case class HasMatchingInitialHashLookup(aggregatedTaskHash: String, cacheHitHints: List[CacheHitHint] = List.empty) extends CallCacheReadActorRequest
   final case class CallCacheEntryForCall(workflowId: WorkflowId, jobKey: BackendJobDescriptorKey) extends CallCacheReadActorRequest
 

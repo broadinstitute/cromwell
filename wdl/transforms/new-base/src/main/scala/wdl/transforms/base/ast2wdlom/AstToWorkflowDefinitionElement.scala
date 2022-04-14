@@ -75,7 +75,7 @@ object AstToWorkflowDefinitionElement {
 
   private def checkStdoutIntermediates(intermediate: Vector[IntermediateValueDeclarationElement]): ErrorOr[Option[String]] = {
     if (intermediate.map(_.expression).exists(_.isInstanceOf[StdoutElement.type])) {
-      s"Workflow cannot have stderr expression at intermediate declaration section at workflow-level.".invalidNel
+      s"Workflow cannot have stdout expression at intermediate declaration section at workflow-level.".invalidNel
     } else None.validNel
   }
 
@@ -101,7 +101,7 @@ object AstToWorkflowDefinitionElement {
 
   private def checkStderrIntermediates(intermediates: Vector[IntermediateValueDeclarationElement]): ErrorOr[Option[String]] = {
     if (intermediates.map(_.expression).exists(_.isInstanceOf[StderrElement.type])) {
-      s"Workflow cannot have stdout expression at intermediate declaration section at workflow-level.".invalidNel
+      s"Workflow cannot have stderr expression at intermediate declaration section at workflow-level.".invalidNel
     } else None.validNel
   }
 

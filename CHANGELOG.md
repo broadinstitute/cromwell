@@ -6,6 +6,10 @@
 
 Cromwell is now built with Scala version 2.13. This change should not be noticeable to users but may be of interest to developers of Cromwell backend implementations.
 
+### Bug Fixes
+
+ * Fixed a call caching bug in which an invalid cache entry could cause a valid cache entry to be ignored.
+
 ## 75 Release Notes
 
 ### New `AwaitingCloudQuota` backend status

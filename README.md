@@ -24,7 +24,7 @@ Talk to us:
 
 A majority of Cromwell users today run their workflows in [Terra](https://app.terra.bio/), a fully-managed cloud-native bioinformatics computing platform. See [here](https://support.terra.bio/hc/en-us/articles/360036379771-Get-started-running-workflows) for a quick-start guide.
 
-Users with specialized needs who wish to install and maintain their own Cromwell instances can [download](https://github.com/broadinstitute/cromwell/releases) a JAR or Docker image.
+Users with specialized needs who wish to install and maintain their own Cromwell instances can [download](https://github.com/broadinstitute/cromwell/releases) a JAR or Docker image. The development team accepts reproducible bug reports from self-managed instances, but cannot feasibly provide direct support.
 
 [Cromwell's backends](https://cromwell.readthedocs.io/en/stable/backends/Backends/) receive development resources proportional to customer demand. The team is actively developing for Google Cloud and AWS. Maintenance of other backends is primarily community-based.
 
@@ -34,8 +34,16 @@ Cromwell [supports](https://cromwell.readthedocs.io/en/stable/LanguageSupport/) 
 
 If you believe you have found a security issue please contact `infosec@broadinstitute.org`.
 
-### Issues
+### Issue tracking in JIRA
 
-[Issues in Github](https://github.com/broadinstitute/cromwell/issues) are available for discussion among community members but are not actively monitored by the development team.
+<!--
+AEN external issue filing tested 2020-12-08 with `oednichols@gmail.com` / `https://broadworkbench.atlassian.net/browse/CROM-6681`
+-->
+
+Need to file an issue? Head over to [our JIRA](https://broadworkbench.atlassian.net/jira/software/c/projects/CROM/issues). You must create a free profile to view or create.
+
+[Issues in Github](https://github.com/broadinstitute/cromwell/issues) remain available for discussion among community members but are not actively monitored by the development team.
+
+![Cromwell JIRA](docs/img/cromwell_jira.png)
 
 ![Jamie, the Cromwell pig](docs/jamie_the_cromwell_pig.png)

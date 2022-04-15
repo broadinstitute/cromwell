@@ -5,8 +5,3 @@ testFormat: workflowfailure
 files {
   workflow: bad_stdouts/bad_stdout_input.wdl
 }
-
-metadata {
-  workflowName: bad_stdout
-  status: Failed
-}

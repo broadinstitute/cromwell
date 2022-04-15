@@ -8,8 +8,3 @@ files {
     bad_stdouts/bad_stdout_mid_workflow.wdl
   ]
 }
-
-metadata {
-  workflowName: calls_bad_stdout_subworkflow
-  status: Failed
-}

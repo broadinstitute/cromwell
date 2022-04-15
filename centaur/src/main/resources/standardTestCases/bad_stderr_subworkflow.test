@@ -8,8 +8,3 @@ files {
     bad_stderrs/bad_stderr_mid_workflow.wdl
   ]
 }
-
-metadata {
-  workflowName: calls_bad_stderr_subworkflow
-  status: Failed
-}

@@ -7,7 +7,7 @@ import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.workflowstore.AbortRequestScanningActor.{AbortConfig, RunScan}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{FindWorkflowsWithAbortRequested, FindWorkflowsWithAbortRequestedFailure, FindWorkflowsWithAbortRequestedSuccess}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 
 

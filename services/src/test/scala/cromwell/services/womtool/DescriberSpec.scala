@@ -56,7 +56,7 @@ class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
           case UrlAndDescription(url, _) => interimWsfc.copy(workflowUrl = Option(url))
         }
 
-        check(wsfc, parse(testCase.expectedDescription).right.get)
+        check(wsfc, parse(testCase.expectedDescription).toOption.get)
       }
     }
   }

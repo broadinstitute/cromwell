@@ -5,7 +5,7 @@ import cromwell.backend.google.pipelines.common.action.ActionUtils
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.v2beta.api.ActionBuilder._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 trait SSHAccessAction {
 

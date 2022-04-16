@@ -35,7 +35,7 @@ object LanguageFactoryUtil {
       DefaultPathBuilder.createTempFile(s"imports_workflow_${workflowId}_", ".zip").writeByteArray(zipContents)(OpenOptions.default)
     }
 
-    def unZipFile(f: Path) = Try(f.unzip)
+    def unZipFile(f: Path) = Try(f.unzip())
 
     val importsFile = for {
       zipFile <- makeZipFile

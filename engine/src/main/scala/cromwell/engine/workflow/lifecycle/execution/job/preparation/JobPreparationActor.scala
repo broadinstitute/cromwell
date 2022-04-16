@@ -63,7 +63,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
 
   private[preparation] lazy val expressionLanguageFunctions = {
     val ioFunctionSet: IoFunctionSet = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, jobKey, initializationData, ioActor, ioEc)
-    ioFunctionSet.makeInputSpecificFunctions
+    ioFunctionSet.makeInputSpecificFunctions()
   }
 
   private[preparation] lazy val dockerHashCredentials = factory.dockerHashCredentials(workflowDescriptor.backendDescriptor, initializationData)
@@ -78,7 +78,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
         case Valid((inputs, attributes)) => fetchDockerHashesIfNecessary(inputs, attributes)
         case Invalid(failure) => sendFailureAndStop(new MessageAggregation with NoStackTrace {
           override def exceptionContext: String = s"Call input and runtime attributes evaluation failed for ${jobKey.call.localName}"
-          override def errorMessages: Traversable[String] = failure.toList
+          override def errorMessages: Iterable[String] = failure.toList
         })
       }
   }
@@ -96,7 +96,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   when(FetchingKeyValueStoreEntries) {
     case Event(kvResponse: KvResponse, data @ JobPreparationKeyLookupData(keyLookups, maybeCallCachingEligible, dockerSize, inputs, attributes)) =>
       keyLookups.withResponse(kvResponse.key, kvResponse) match {
-        case newPartialLookup: PartialKeyValueLookups => stay using data.copy(keyLookups = newPartialLookup)
+        case newPartialLookup: PartialKeyValueLookups => stay() using data.copy(keyLookups = newPartialLookup)
         case finished: KeyValueLookupResults =>
           sendResponseAndStop(prepareBackendDescriptor(inputs, attributes, maybeCallCachingEligible, finished.unscoped, dockerSize))
       }
@@ -152,6 +152,8 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
         sendDockerRequest(dockerImageId)
 
       case Failure(failure) => sendFailureAndStop(failure)
+
+      case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
     }
 
     attributes.get(RuntimeAttributesKeys.DockerKey) match {

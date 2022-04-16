@@ -3,7 +3,7 @@ package cromwell.services.instrumentation.impl.stackdriver
 import akka.actor.ActorRef
 import com.google.monitoring.v3.CreateTimeSeriesRequest
 import com.typesafe.config.Config
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class TestStackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
   extends StackdriverInstrumentationServiceActor(serviceConfig, globalConfig, serviceRegistryActor) {

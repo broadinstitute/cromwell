@@ -49,7 +49,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   when(Pending) {
     case Event(ioReceivable, _) if ioReceive.isDefinedAt(ioReceivable) =>
       ioReceive.apply(ioReceivable)
-      stay
+      stay()
     case Event(StartWorkflowFilesDeletion, NoData) =>
       val intermediateOutputs = gatherIntermediateOutputFiles(workflowAllOutputs, workflowFinalOutputs)
       if (intermediateOutputs.nonEmpty) {
@@ -65,7 +65,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   when(DeleteIntermediateFiles) {
     case Event(ioReceivable, _) if ioReceive.isDefinedAt(ioReceivable) =>
       ioReceive.apply(ioReceivable)
-      stay
+      stay()
     case Event(DeleteFiles, DeletingIntermediateFilesData(intermediateFiles)) =>
       // update deletion status in metadata
       val deletionInProgressEvent = metadataEventForDeletionStatus(InProgress)
@@ -90,7 +90,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   when(WaitingForIoResponses) {
     case Event(ioReceivable, _) if ioReceive.isDefinedAt(ioReceivable) =>
       ioReceive.apply(ioReceivable)
-      stay
+      stay()
     case Event(IoSuccess(command: IoDeleteCommand, _), data: WaitingForIoResponsesData) =>
       val (newData: WaitingForIoResponsesData, commandState) = data.commandComplete(command)
       commandState match {
@@ -127,7 +127,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   when(InvalidatingCallCache) {
     case Event(ioReceivable, _) if ioReceive.isDefinedAt(ioReceivable) =>
       ioReceive.apply(ioReceivable)
-      stay
+      stay()
     case Event(InvalidateCallCache, _) =>
       fetchCallCacheEntries(callCache) onComplete {
         case Failure(throwable) => self ! FailedRetrieveCallCacheIds(throwable)
@@ -154,7 +154,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   when(WaitingForInvalidateCCResponses) {
     case Event(ioReceivable, _) if ioReceive.isDefinedAt(ioReceivable) =>
       ioReceive.apply(ioReceivable)
-      stay
+      stay()
     case Event(CallCacheInvalidatedSuccess(cacheId, _), data: WaitingForInvalidateCCResponsesData) =>
       val (newData: WaitingForInvalidateCCResponsesData, invalidateState) = data.commandComplete(cacheId.id)
       invalidateState match {
@@ -173,7 +173,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   whenUnhandled {
     case Event(ioReceivable, _) if ioReceive.isDefinedAt(ioReceivable) =>
       ioReceive.apply(ioReceivable)
-      stay
+      stay()
     case Event(ShutdownCommand, _) => stopSelf()
     case other =>
       log.error(s"Programmer Error: Unexpected message to ${getClass.getSimpleName} ${self.path.name} in state $stateName with $stateData: ${other.toPrettyElidedString(1000)}")

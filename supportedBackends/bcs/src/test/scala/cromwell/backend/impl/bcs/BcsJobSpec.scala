@@ -60,7 +60,7 @@ class BcsJobSpec extends BcsTestUtilSpec with MockSugar {
 
   it should "have correct docker option" in {
     val dockerImage = "ubuntu/latest"
-    val dockerPath = "oss://bcs-reg/ubuntu/"toLowerCase()
+    val dockerPath = "oss://bcs-reg/ubuntu/".toLowerCase()
     val runtime = Map("dockerTag" -> WomString(s"$dockerImage $dockerPath"))
     taskWithRuntime(runtime).getParameters.getCommand.getEnvVars.get(BcsJob.BcsDockerImageEnvKey) shouldEqual null
     taskWithRuntime(runtime).getParameters.getCommand.getEnvVars.get(BcsJob.BcsDockerPathEnvKey) shouldEqual null

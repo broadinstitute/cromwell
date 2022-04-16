@@ -47,7 +47,7 @@ trait ValidatedRuntimeAttributesBuilder {
   /**
     * Returns a map of coercions suitable for RuntimeAttributesDefault.workflowOptionsDefault.
     */
-  final lazy val coercionMap: Map[String, Traversable[WomType]] = {
+  final lazy val coercionMap: Map[String, Iterable[WomType]] = {
     validations.map(validation => validation.key -> validation.coercion).toMap
   }
 
@@ -64,7 +64,7 @@ trait ValidatedRuntimeAttributesBuilder {
       case Invalid(nel) => throw new RuntimeException with MessageAggregation with NoStackTrace {
         override def exceptionContext: String = "Runtime attribute validation failed"
 
-        override def errorMessages: Traversable[String] = nel.toList
+        override def errorMessages: Iterable[String] = nel.toList
       }
     }
   }

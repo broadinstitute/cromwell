@@ -26,6 +26,7 @@ import wom.graph._
 import wom.graph.expression.ExpressionNode
 import wom.types.WomType
 import wom.values.WomValue
+import wom.graph.{FullyQualifiedName => WomFullyQualifiedName}
 
 /**
   * An individual job to run.
@@ -59,9 +60,9 @@ case class WorkflowStep(
 
   lazy val allRequirements = RequirementsAndHints(requirements.toList.flatten ++ parentWorkflow.allRequirements.list)
 
-  lazy val womFqn: wom.graph.FullyQualifiedName = {
+  lazy val womFqn: WomFullyQualifiedName = {
     implicit val parentName = parentWorkflow.explicitWorkflowName
-    val localFqn = FullyQualifiedName.maybeApply(id).map(_.id).getOrElse(id)
+    val localFqn = cwl.FullyQualifiedName.maybeApply(id).map(_.id).getOrElse(id)
     parentWorkflow.womFqn.map(_.combine(localFqn)).getOrElse(wom.graph.FullyQualifiedName(localFqn))
   }
 
@@ -83,12 +84,12 @@ case class WorkflowStep(
     // Find the type of the outputs of the run section
     val runOutputTypes = run.fold(RunOutputsToTypeMap).apply(allRequirements.schemaDefRequirement)
       .map({
-        case (runOutputId, womType) => FullyQualifiedName(runOutputId).id -> womType
+        case (runOutputId, womType) => cwl.FullyQualifiedName(runOutputId).id -> womType
       })
     // Use them to find get the final type of the workflow outputs, and only the workflow outputs
     out.map({ stepOutput =>
       val stepOutputValue = stepOutput.select[WorkflowStepOutput].map(_.id).getOrElse(stepOutput.select[String].get)
-      val stepOutputId = FullyQualifiedName(stepOutputValue)
+      val stepOutputId = cwl.FullyQualifiedName(stepOutputValue)
       stepOutputValue -> scatterTypeFunction(runOutputTypes(stepOutputId.id))
     }).toMap
   }
@@ -185,12 +186,12 @@ case class WorkflowStep(
     val scatterLookupSet =
       scatter.toList.
         flatMap(_.fold(StringOrStringArrayToStringList)).
-        map(id => FullyQualifiedName(id).id)
+        map(id => cwl.FullyQualifiedName(id).id)
 
     def isStepScattered(workflowStepInputId: String) = scatterLookupSet.contains(workflowStepInputId)
 
     val unqualifiedStepId: WomIdentifier = {
-      FullyQualifiedName.maybeApply(id).map({ fqn =>
+      cwl.FullyQualifiedName.maybeApply(id).map({ fqn =>
         WomIdentifier(LocalName(fqn.id), womFqn)
       }).getOrElse(WomIdentifier(id))
     }
@@ -216,6 +217,7 @@ case class WorkflowStep(
         case Run.CommandLineTool(clt) => clt.buildTaskDefinition(validator, expressionLib)
         case Run.Workflow(wf) => wf.womDefinition(validator, expressionLib)
         case Run.ExpressionTool(et) => et.buildTaskDefinition(validator, expressionLib)
+        case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
       }
 
       val callNodeBuilder = new CallNode.CallNodeBuilder()
@@ -254,7 +256,7 @@ case class WorkflowStep(
           def buildUpstreamNodes(upstreamStepId: String, accumulatedNodes: Set[GraphNode]): Checked[Set[GraphNode]] =
           // Find the step corresponding to this upstreamStepId in the set of all the steps of this workflow
             for {
-              step <- workflow.steps.find { step => FullyQualifiedName(step.id).id == upstreamStepId }.
+              step <- workflow.steps.find { step => cwl.FullyQualifiedName(step.id).id == upstreamStepId }.
                 toRight(NonEmptyList.one(s"no step of id $upstreamStepId found in ${workflow.steps.map(_.id).toList}"))
               call <- step.callWithInputs(typeMap, workflow, accumulatedNodes, workflowInputs, validator, expressionLib)
             } yield call
@@ -278,7 +280,7 @@ case class WorkflowStep(
               }
           }
 
-          lazy val workflowStepInputId = FullyQualifiedName(workflowStepInput.id).id
+          lazy val workflowStepInputId = cwl.FullyQualifiedName(workflowStepInput.id).id
 
           def updateFold(sourceMappings: Map[String, OutputPort], newNodes: Set[GraphNode]): Checked[WorkflowStepInputFold] = {
             val typeExpectedByRunInput: Option[cwl.MyriadInputType] = typedRunInputs.get(workflowStepInputId).flatten
@@ -313,7 +315,7 @@ case class WorkflowStep(
                  *   - points to a workflow input
                  *   - points to an upstream step
                  */
-                FullyQualifiedName(inputSource) match {
+                cwl.FullyQualifiedName(inputSource) match {
                   // The source points to a workflow input, which means it should be in the workflowInputs map
                   case FileAndId(_, _, inputId) => fromWorkflowInput(inputId).map(newMap => (sourceMappings ++ newMap, graphNodes))
                   // The source points to an output from a different step
@@ -353,6 +355,7 @@ case class WorkflowStep(
             InputDefinitionFold(
               mappings = List(optional -> Coproduct[InputDefinitionPointer](optional.womType.none: WomValue))
             ).validNel
+          case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
         }
       }
 

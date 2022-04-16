@@ -27,6 +27,7 @@ object OssStorageRetry {
         } else {
           throw e
         }
+      case oh => throw new RuntimeException(s"Programmer Error! Unexpected case match: $oh")
     }
   }
 

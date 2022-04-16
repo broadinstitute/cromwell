@@ -10,7 +10,7 @@ object Dependencies {
   private val aliyunOssV = "3.14.0"
   private val ammoniteOpsV = "2.4.1"
   private val apacheHttpClientV = "4.5.13"
-  private val awsSdkV = "2.17.50"
+  private val awsSdkV = "2.17.152"
   // We would like to use the BOM to manage Azure SDK versions, but SBT doesn't support it.
   // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
   // https://github.com/sbt/sbt/issues/4531
@@ -86,7 +86,6 @@ object Dependencies {
   private val mysqlV = "8.0.28"
   private val nettyV = "4.1.72.Final"
   private val owlApiV = "5.1.19"
-  private val paradiseV = "2.1.1"
   private val postgresV = "42.3.3"
   private val pprintV = "0.7.1"
   private val rdf4jV = "3.7.1"
@@ -113,11 +112,14 @@ object Dependencies {
     * and manually uploaded to the Broad Institute artifactory at https://broadinstitute.jfrog.io/broadinstitute/.
     * Consider updating to the official newer Slick version once they fix issue #2076
     * Related Slick PR: https://github.com/slick/slick/pull/2101
+    *
+    * Update 2022-03-23: This #2201 PR cherry picks Greg's #2101 PR above and claims to fix the issue:
+    * https://github.com/slick/slick/pull/2201
   */
-  private val slickV = "3.3.2-2076hotfix" // scala-steward:off (CROM-6620)
+  private val slickV = "3.4.0-M1"
   private val snakeyamlV = "1.30"
   private val sprayJsonV = "1.3.6"
-  private val sttpV = "1.5.19" // scala-steward:off (CROM-6564)
+  private val sttpV = "1.7.2"
   private val swaggerParserV = "1.0.56"
   private val swaggerUiV = "4.5.0"
   private val testContainersScalaV = "0.40.2"
@@ -558,7 +560,6 @@ object Dependencies {
   ) ++ slf4jBindingDependencies // During testing, add an slf4j binding for _all_ libraries.
 
   val kindProjectorPlugin = "org.typelevel" % "kind-projector" % kindProjectorV cross CrossVersion.full
-  val paradisePlugin = "org.scalamacros" % "paradise" % paradiseV cross CrossVersion.full
 
   // Version of the swagger UI to write into config files
   val swaggerUiVersion: String = swaggerUiV

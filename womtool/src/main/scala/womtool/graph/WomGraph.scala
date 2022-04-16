@@ -24,10 +24,10 @@ import wom.executable.WomBundle
 import wom.expression.NoIoFunctionSet
 import wom.graph._
 import wom.transforms.WomBundleMaker.ops._
-import wom.types.{WomMaybePopulatedFileType, _}
+import wom.types._
 import womtool.graph.WomGraph._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class WomGraph(graphName: String, graph: Graph) {
 
@@ -209,7 +209,7 @@ object WomGraph {
     (for {
       clt <- CwlDecoder.decodeCwlFile(File(filePath)).
         value.
-        unsafeRunSync
+        unsafeRunSync()
       inputs = clt.requiredInputs
       fakedInputs = JsObject(inputs map { i => i._1 -> fakeInput(i._2) })
       wom <- clt.womExecutable(AcceptAllRequirements, Option(fakedInputs.prettyPrint), NoIoFunctionSet, strictValidation = false)

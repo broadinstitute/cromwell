@@ -5,7 +5,7 @@ import liquibase.diff.{DiffResult, Difference, ObjectDifferences}
 import liquibase.structure.DatabaseObject
 import liquibase.structure.core._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 /**
   * Filters liquibase results.

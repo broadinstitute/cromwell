@@ -25,7 +25,7 @@ class CromwellClientSpec extends AsyncFlatSpec with BeforeAndAfterAll with Match
     tempFile.delete(swallowIOExceptions = true)
     super.afterAll()
   }
-  
+
   it should "build an uri with query arguments" in {
     val id = WorkflowId.randomId()
     val args = Option(
@@ -141,14 +141,14 @@ class CromwellClientSpec extends AsyncFlatSpec with BeforeAndAfterAll with Match
                   |$chunkValue
                   |""".stripMargin.replace("\n", "\r\n").trim
           }
-          val expectedFileChunks = expectedFiles map {
+          val expectedFileChunks = expectedFiles.iterator map {
             case (chunkKey, chunkFile) =>
               s"""|--$boundary
                   |Content-Type: application/zip
                   |Content-Disposition: form-data; filename="${chunkFile.name}"; name="$chunkKey"
                   |""".stripMargin.replace("\n", "\r\n").trim
           }
-          val expectedFileContents = expectedFiles map {
+          val expectedFileContents = expectedFiles.iterator map {
             case (_, chunkFile) => chunkFile.contentAsString
           }
           val boundaryEnd = s"--$boundary--"

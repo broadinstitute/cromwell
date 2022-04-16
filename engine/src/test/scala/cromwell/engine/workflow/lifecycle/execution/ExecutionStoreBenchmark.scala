@@ -1,8 +1,8 @@
 package cromwell.engine.workflow.lifecycle.execution
 
 import cromwell.backend.BackendJobDescriptorKey
+import cromwell.core.ExecutionStatus
 import cromwell.core.ExecutionStatus.{apply => _, _}
-import cromwell.core.{ExecutionStatus, JobKey}
 import cromwell.engine.workflow.lifecycle.execution.keys.ScatterCollectorKey
 import cromwell.engine.workflow.lifecycle.execution.stores.ActiveExecutionStore
 import cromwell.util.SampleWdl
@@ -12,9 +12,9 @@ import org.scalameter.reporting.RegressionReporter.Historian.Window
 import org.scalameter.reporting.RegressionReporter.Tester.Accepter
 import spray.json.DefaultJsonProtocol
 import wdl.draft2.model.WdlNamespaceWithWorkflow
-import wom.graph.{CommandCallNode, ScatterNode}
 import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomExecutableMakers._
 import wom.expression.NoIoFunctionSet
+import wom.graph.{CommandCallNode, ScatterNode}
 import wom.transforms.WomExecutableMaker.ops._
 
 /**
@@ -31,14 +31,14 @@ object ExecutionStoreBenchmark extends Bench[Double] with DefaultJsonProtocol {
   lazy val executor = LocalExecutor(new Executor.Warmer.Default, Aggregator.average, measurer)
   lazy val reporter = new RegressionReporter[Double](Accepter(), Window(0))
   lazy val persistor = Persistor.None
-  
+
   val inputJson = Option(SampleWdl.PrepareScatterGatherWdl().rawInputs.toJson.compactPrint)
   val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.PrepareScatterGatherWdl().workflowSource(), Seq.empty).get
   val graph = namespace.toWomExecutable(inputJson, NoIoFunctionSet, strictValidation = true).getOrElse(throw new Exception("Failed to build womExecutable")).graph
   val prepareCall: CommandCallNode = graph.calls.find(_.localName == "do_prepare").get.asInstanceOf[CommandCallNode]
   val scatterCall: CommandCallNode = graph.allNodes.find(_.localName == "do_scatter").get.asInstanceOf[CommandCallNode]
   val scatter: ScatterNode = graph.scatters.head
-  
+
   private def makeKey(call: CommandCallNode, executionStatus: ExecutionStatus)(index: Int) = {
     BackendJobDescriptorKey(call, Option(index), 1) -> executionStatus
   }
@@ -53,13 +53,13 @@ object ExecutionStoreBenchmark extends Bench[Double] with DefaultJsonProtocol {
       doneMap = (0 until size map makeKey(prepareCall, ExecutionStatus.Done)).toMap
       collectorKeys = scatter.outputMapping.map(om => ScatterCollectorKey(om, size, ScatterNode.DefaultScatterCollectionFunction) -> ExecutionStatus.NotStarted).toMap
       notStartedMap = (0 until size map makeKey(scatterCall, ExecutionStatus.NotStarted)).toMap ++ collectorKeys
-      finalMap: Map[JobKey, ExecutionStatus] = doneMap ++ notStartedMap
-    } yield ActiveExecutionStore(finalMap, needsUpdate = true)
+      finalMap = doneMap ++ notStartedMap
+    } yield ActiveExecutionStore(finalMap.toMap, needsUpdate = true)
   }
-  
+
   performance of "ExecutionStore" in {
     // Measures how fast the execution store can find runnable calls with lots of "Done" calls and "NotStarted" calls.
-    // Other "shapes" would be valuable to get a better sense of how this method behaves in various situations (with Collector Keys etc...)  
+    // Other "shapes" would be valuable to get a better sense of how this method behaves in various situations (with Collector Keys etc...)
     measure method "update" in {
       val sizes: Gen[Int] = Gen.range("size")(from = 1000, upto = 10000, hop = 1000)
       using(stores(sizes)) in { es =>

@@ -144,7 +144,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
 
   it should "generate appropriate KV pairs for the container environment for S3" in {
     val job = generateBasicJob
-    val generateEnvironmentKVPairs = PrivateMethod[List[KeyValuePair]]('generateEnvironmentKVPairs)
+    val generateEnvironmentKVPairs = PrivateMethod[List[KeyValuePair]](Symbol("generateEnvironmentKVPairs"))
 
     // testing a private method see https://www.scalatest.org/user_guide/using_PrivateMethodTester
     val kvPairs = job invokePrivate generateEnvironmentKVPairs("script-bucket", "prefix-", "key")
@@ -157,7 +157,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
 
   it should "generate appropriate KV pairs for the container environment for Local FS" in {
     val job = generateBasicJobForLocalFS
-    val generateEnvironmentKVPairs = PrivateMethod[List[KeyValuePair]]('generateEnvironmentKVPairs)
+    val generateEnvironmentKVPairs = PrivateMethod[List[KeyValuePair]](Symbol("generateEnvironmentKVPairs"))
 
     // testing a private method see https://www.scalatest.org/user_guide/using_PrivateMethodTester
     val kvPairs = job invokePrivate generateEnvironmentKVPairs("script-bucket", "prefix-", "key")

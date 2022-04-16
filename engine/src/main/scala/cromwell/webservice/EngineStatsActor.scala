@@ -19,8 +19,8 @@ final case class EngineStatsActor(workflowActors: List[ActorRef], replyTo: Actor
   private var jobCounts = Map.empty[ActorRef, Int]
 
   /*
-   * FIXME 
-   * Because of sub workflows there is currently no reliable way to know if we received responses from all running WEAs. 
+   * FIXME
+   * Because of sub workflows there is currently no reliable way to know if we received responses from all running WEAs.
    * For now, we always wait for the timeout duration before responding to give a chance to all WEAs to respond (even nested ones).
    * This could be improved by having WEAs wait for their sub WEAs before sending back the response.
   */
@@ -31,7 +31,7 @@ final case class EngineStatsActor(workflowActors: List[ActorRef], replyTo: Actor
 
   override def receive = {
     case JobCount(count) =>
-      jobCounts += (sender -> count)
+      jobCounts += (sender() -> count)
     case ShutItDown =>
       reportStats()
     case wompWomp => log.error("Unexpected message to EngineStatsActor: {}", wompWomp)

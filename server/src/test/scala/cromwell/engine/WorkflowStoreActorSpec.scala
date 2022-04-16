@@ -41,7 +41,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
   /**
     * Fold down a list of WorkflowToStart's, checking that their IDs are all unique
     */
-  private def checkDistinctIds(list: Traversable[WorkflowToStart]): Boolean = {
+  private def checkDistinctIds(list: Iterable[WorkflowToStart]): Boolean = {
     def folderFunction(knownDistinct: (List[WorkflowToStart], Boolean), next: WorkflowToStart) = {
       val (list, distinct) = knownDistinct
       if (!distinct) {

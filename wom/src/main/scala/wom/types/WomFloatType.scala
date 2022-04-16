@@ -12,7 +12,7 @@ case object WomFloatType extends WomPrimitiveType {
     case f: Float => WomFloat(f.toDouble)
     case d: Double => WomFloat(d)
     case i: Integer => WomFloat(i.toDouble)
-    case n: JsNumber => WomFloat(n.value.doubleValue())
+    case n: JsNumber => WomFloat(n.value.doubleValue)
     case f: WomFloat => f
     case i: WomInteger => WomFloat(i.value.toDouble)
     case l: WomLong => WomFloat(l.value.toDouble)

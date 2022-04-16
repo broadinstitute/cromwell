@@ -10,7 +10,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class GcsBatchIoCommandSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
   behavior of "GcsBatchIoCommand"
@@ -34,7 +34,7 @@ class GcsBatchIoCommandSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
 
     command.mapGoogleResponse(null)
 
-    command.onSuccess(null, new HttpHeaders()).toEither.right.get.left.get
+    command.onSuccess(null, new HttpHeaders()).toEither.toOption.get.swap.toOption.get
 
     command.onFailure(new GoogleJsonError(), new HttpHeaders()) should be(None)
   }
@@ -59,7 +59,7 @@ class GcsBatchIoCommandSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
     response.setSize(BigInt(139).bigInteger)
     command.mapGoogleResponse(response) should be(Valid(139L))
 
-    command.onSuccess(response, new HttpHeaders()).toEither.right.get.left.get should be(139L)
+    command.onSuccess(response, new HttpHeaders()).toEither.toOption.get.swap.toOption.get should be(139L)
 
     command.onFailure(new GoogleJsonError(), new HttpHeaders()) should be(None)
   }
@@ -82,7 +82,7 @@ class GcsBatchIoCommandSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
 
     command.mapGoogleResponse(response) should be(Valid("aeiouy"))
 
-    command.onSuccess(response, new HttpHeaders()).toEither.right.get.left.get should be("aeiouy")
+    command.onSuccess(response, new HttpHeaders()).toEither.toOption.get.swap.toOption.get should be("aeiouy")
 
     command.onFailure(new GoogleJsonError(), new HttpHeaders()) should be(None)
   }
@@ -103,7 +103,7 @@ class GcsBatchIoCommandSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
     val response = new StorageObject()
     command.mapGoogleResponse(response)
 
-    command.onSuccess(response, new HttpHeaders()).toEither.right.get.left.get
+    command.onSuccess(response, new HttpHeaders()).toEither.toOption.get.swap.toOption.get
 
     command.onFailure(new GoogleJsonError(), new HttpHeaders()) should be(None)
   }
@@ -124,7 +124,7 @@ class GcsBatchIoCommandSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
     val response = new StorageObject()
     command.mapGoogleResponse(response) should be(Valid(true))
 
-    command.onSuccess(response, new HttpHeaders()).toEither.right.get.left.get should be(true)
+    command.onSuccess(response, new HttpHeaders()).toEither.toOption.get.swap.toOption.get should be(true)
 
     val error = new GoogleJsonError()
     command.onFailure(error, new HttpHeaders()) should be(None)
@@ -152,7 +152,7 @@ class GcsBatchIoCommandSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
     response.setItems(List(new StorageObject()).asJava)
     command.mapGoogleResponse(response) should be(Valid(true))
 
-    command.onSuccess(response, new HttpHeaders()).toEither.right.get.left.get should be(true)
+    command.onSuccess(response, new HttpHeaders()).toEither.toOption.get.swap.toOption.get should be(true)
 
     command.onFailure(new GoogleJsonError(), new HttpHeaders()) should be(None)
   }
@@ -178,11 +178,11 @@ class GcsBatchIoCommandSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
     command.mapGoogleResponse(response) should be(Valid(()))
 
     response.setDone(true)
-    command.onSuccess(response, new HttpHeaders()).toEither.right.get.left.get should be(())
+    command.onSuccess(response, new HttpHeaders()).toEither.toOption.get.swap.toOption.get should be(())
 
     response.setDone(false)
     response.setRewriteToken("token")
-    command.onSuccess(response, new HttpHeaders()).toEither.right.get.right.get.rewriteToken should be(Option("token"))
+    command.onSuccess(response, new HttpHeaders()).toEither.toOption.get.toOption.get.rewriteToken should be(Option("token"))
 
     command.onFailure(new GoogleJsonError(), new HttpHeaders()) should be(None)
   }

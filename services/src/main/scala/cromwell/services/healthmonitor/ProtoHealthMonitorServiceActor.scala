@@ -76,7 +76,7 @@ trait ProtoHealthMonitorServiceActor extends Actor with LazyLogging with Timers 
     case Store(subsystem, status) =>
       store(subsystem, status)
       scheduleSweepCheck(subsystem)
-    case GetCurrentStatus => sender ! getCurrentStatus
+    case GetCurrentStatus => sender() ! getCurrentStatus
     case ShutdownCommand => context.stop(self) // Not necessary but service registry requires it. See #2575
     case Status.Failure(f) => logger.error("Unexpected Status.Failure received", f)
     case e => logger.error("Unexpected Status.Failure received: {}", e.toString)

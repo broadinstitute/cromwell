@@ -32,8 +32,8 @@ final case class MetadataWatchActor(promise: Promise[Unit], matchers: Matcher*) 
       if (unsatisfiedMatchers.nonEmpty) tryMatchingEvents(events)
       replyTo ! MetadataWriteSuccess(events)
     // Because the MetadataWatchActor is sometimes used in place of the ServiceRegistryActor, this allows WFs to continue:
-    case kvGet: KvGet => sender ! KvKeyLookupFailed(kvGet)
-    case kvPut: KvPut => sender ! KvPutSuccess(kvPut)
+    case kvGet: KvGet => sender() ! KvKeyLookupFailed(kvGet)
+    case kvPut: KvPut => sender() ! KvPutSuccess(kvPut)
     case _: InstrumentationServiceMessage => // No-op, just ignore
     case other => log.error(s"Invalid message to MetadataWatchActor: $other")
   }
@@ -45,11 +45,11 @@ object MetadataWatchActor {
 
   trait Matcher {
     private var _fullEventList: List[MetadataEvent] = List.empty
-    final def matches(events: Traversable[MetadataEvent]): Boolean = {
+    final def matches(events: Iterable[MetadataEvent]): Boolean = {
       _fullEventList ++= events
       _matches(events)
     }
-    def _matches(events: Traversable[MetadataEvent]): Boolean
+    def _matches(events: Iterable[MetadataEvent]): Boolean
     private var _nearMisses: List[String] = List.empty
     private def addNearMissInfo(miss: String) = _nearMisses :+= miss
     def nearMissInformation = _nearMisses
@@ -68,14 +68,14 @@ object MetadataWatchActor {
   }
 
   final case class JobKeyMetadataKeyAndValueContainStringMatcher(jobKeyCheck: Option[MetadataJobKey] => Boolean, key: String, value: String) extends Matcher {
-    def _matches(events: Traversable[MetadataEvent]): Boolean = {
+    def _matches(events: Iterable[MetadataEvent]): Boolean = {
       events.exists(e => e.key.key.contains(key) && jobKeyCheck(e.key.jobKey) && e.value.exists { v => v.valueType == MetadataString && checkMetadataValueContains(e.key.key, v, value) })
     }
   }
 
   abstract class KeyMatchesRegexAndValueContainsStringMatcher(keyTemplate: String, value: String) extends Matcher {
     val templateRegex = keyTemplate.r
-    def _matches(events: Traversable[MetadataEvent]): Boolean = {
+    def _matches(events: Iterable[MetadataEvent]): Boolean = {
       events.exists(e => templateRegex.findFirstIn(e.key.key).isDefined &&
         e.value.exists { v => checkMetadataValueContains(e.key.key, v, value) })
     }

@@ -29,17 +29,17 @@ class WomtoolCommandLineParser extends scopt.OptionParser[PartialWomtoolCommandL
 
   arg[String]("workflow-source")
     .text("Path to workflow file.")
-    .required
+    .required()
     .action((s, c) => c.copy(workflowSource = Option(DefaultPathBuilder.get(s))))
 
   opt[String]('i', "inputs")
     .text("Workflow inputs file.")
-    .optional
+    .optional()
     .action((s, c) => c.copy(workflowInputs = Option(DefaultPathBuilder.get(s))))
 
   opt[String]('h', "highlight-mode")
     .text("Highlighting mode, one of 'html', 'console' (used only with 'highlight' command)")
-    .optional
+    .optional()
     .action((s, c) => s match {
       case "html" => c.copy(highlightMode = Option(HtmlHighlighting))
       case "console" => c.copy(highlightMode = Option(ConsoleHighlighting))
@@ -48,12 +48,12 @@ class WomtoolCommandLineParser extends scopt.OptionParser[PartialWomtoolCommandL
 
   opt[Boolean]('o', name="optional-inputs")
     .text("If set, optional inputs are also included in the inputs set. Default is 'true' (used only with the inputs command)")
-    .optional
+    .optional()
     .action((b, c) => c.copy(displayOptionalInputs = Some(b)))
 
   opt[Unit]('l', name = "list-dependencies")
     .text("An optional flag to list files referenced in import statements (used only with 'validate' command)")
-    .optional
+    .optional()
     .action((_, c) => c.copy(listDependencies = Option(true)))
 
   head("womtool", womtoolVersion)

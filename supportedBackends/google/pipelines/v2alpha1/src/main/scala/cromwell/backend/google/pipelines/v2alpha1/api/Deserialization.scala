@@ -12,7 +12,7 @@ import common.validation.Validation._
 import cromwell.backend.google.pipelines.v2alpha1.api.request.ErrorReporter._
 import mouse.all._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 
@@ -29,12 +29,12 @@ private [api] object Deserialization {
   def findEvent[T <: GenericJson](events: List[Event],
                                   filter: T => Boolean = Function.const(true)(_: T))
                                  (implicit tag: ClassTag[T]): Option[RequestContextReader[Option[T]]] =
-    events.toStream
+    events.to(LazyList)
       .map(_.details(tag))
       .collectFirst({
         case Some(event) if event.map(filter).getOrElse(false) => event.toErrorOr.fallBack
       })
-  
+
   implicit class EventDeserialization(val event: Event) extends AnyVal {
     /**
       * Attempts to deserialize the details map to T
@@ -131,7 +131,7 @@ private [api] object Deserialization {
         // If the value can be assigned directly to the field, just do that
         case (Some(f), _) if f.getType.isAssignableFrom(value.getClass) => newT.set(key, value)
 
-        // If it can't be assigned and the value is a map, it is very likely that the field "key" of T is of some type U 
+        // If it can't be assigned and the value is a map, it is very likely that the field "key" of T is of some type U
         // but has been deserialized to a Map[String, Object]. In this case we retrieve the type U from the field and recurse
         // to deserialize properly
         case (Some(f), map: java.util.Map[String, Object] @unchecked) if classOf[GenericJson].isAssignableFrom(f.getType) =>

@@ -402,7 +402,7 @@ class ValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     (""" "a\nb" """, WomString("a\nb")),
     (""" "a\nb\t" """, WomString("a\nb\t")),
     (""" "a\n\"b\t\"" """, WomString("a\n\"b\t\"")),
-    (""" "be \u266f or be \u266e, just don't be \u266d" """, WomString("be \u266f or be \u266e, just don't be \u266d")),
+    (""" "be ♯ or be ♮, just don't be ♭" """, WomString("be ♯ or be ♮, just don't be ♭")),
 
     // Optional types
     // String
@@ -413,7 +413,7 @@ class ValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     ("s == someStr", WomBoolean(false)),
     ("s < someStr", WomBoolean(true)),
     ("s > someStr", WomBoolean(false)),
-    
+
     ("someStr + s", WomString("someStrs")),
     ("someInt + s", WomString("1s")),
     ("someFloat + s", WomString("0.5s")),

@@ -18,7 +18,7 @@ import scala.util.control.NoStackTrace
 class BatchActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually {
 
   behavior of "BatchingDbWriter"
-  
+
   override val patienceConfig = PatienceConfig(timeout = scaled(5.seconds), interval = scaled(1.second))
   implicit val patience = patienceConfig
 
@@ -41,7 +41,7 @@ class BatchActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wit
     batch.underlyingActor.processed shouldBe Vector.empty
     // With this message the weight goes over 10
     batch ! "bonjour"
-    
+
     batch.underlyingActor.processed shouldBe Vector("hello", "hola")
 
     batch.stateData.weight shouldBe 7
@@ -134,7 +134,7 @@ class BatchActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wit
     val watcher = TestProbe()
     watcher.watch(batch)
     batch ! ShutdownCommand
-    
+
     eventually {
       watcher.expectTerminated(batch)
     }
@@ -163,9 +163,9 @@ class BatchActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wit
     watcher.watch(batch)
     batch ! "hola"
     batch ! "hello"
-    
+
     batch ! ShutdownCommand
-    
+
     batch ! ProcessingComplete
 
     eventually {
@@ -198,7 +198,7 @@ class BatchActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wit
     override protected def process(data: NonEmptyVector[String]) = {
       if (processingTime != Duration.Zero) {
         processed = processed ++ data.toVector
-       val promise = Promise[Int]
+       val promise = Promise[Int]()
         system.scheduler.scheduleOnce(processingTime) { promise.success(data.map(weightFunction).toVector.sum) }
         promise.future
       } else if (!fail) {

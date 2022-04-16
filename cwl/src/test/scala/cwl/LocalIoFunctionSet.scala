@@ -5,7 +5,7 @@ import java.util.concurrent.Executors
 
 import wom.expression.EmptyIoFunctionSet
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
@@ -14,7 +14,7 @@ import scala.util.Try
   */
 object LocalIoFunctionSet extends EmptyIoFunctionSet {
   override implicit def ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(1))
-  
+
   private def stripLocalPrefix(path: String): String = {
     path.stripPrefix("file://")
   }

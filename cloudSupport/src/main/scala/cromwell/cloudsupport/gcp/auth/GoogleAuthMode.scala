@@ -17,7 +17,7 @@ import cromwell.cloudsupport.gcp.auth.ApplicationDefaultMode.applicationDefaultC
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode._
 import cromwell.cloudsupport.gcp.auth.ServiceAccountMode.{CredentialFileFormat, JsonFileFormat, PemFileFormat}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 object GoogleAuthMode {

@@ -7,7 +7,7 @@ import wom.callable.MetaValueElement
 import wom.callable.MetaValueElement._
 import wom.types._
 import WdlWriter._
-import common.collections.EnhancedCollections.EnhancedTraversableLike
+import common.collections.EnhancedCollections._
 import org.apache.commons.text.StringEscapeUtils
 
 object WdlWriterImpl {

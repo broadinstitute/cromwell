@@ -5,7 +5,7 @@ import spray.json.JsArray
 import wom.values.WomArray.WomArrayLike
 import wom.values.{WomArray, WomSingleFile, WomString, WomValue}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 sealed trait WomArrayType extends WomType {
@@ -24,7 +24,7 @@ sealed trait WomArrayType extends WomType {
   override protected def coercion: PartialFunction[Any, WomValue] = {
     case s: Seq[Any] if allowEmpty || s.nonEmpty => coerceIterable(s)
     case js: JsArray if allowEmpty || js.elements.nonEmpty => coerceIterable(js.elements)
-    case javaList: java.util.List[_] if allowEmpty || !javaList.isEmpty => coerceIterable(javaList.asScala)
+    case javaList: java.util.List[_] if allowEmpty || !javaList.isEmpty => coerceIterable(javaList.asScala.toList)
     case WomArray(WomMaybeEmptyArrayType.EmptyArrayType, _) => WomArray(this, Seq.empty)
     case womArray: WomArray
       if (allowEmpty || womArray.nonEmpty)

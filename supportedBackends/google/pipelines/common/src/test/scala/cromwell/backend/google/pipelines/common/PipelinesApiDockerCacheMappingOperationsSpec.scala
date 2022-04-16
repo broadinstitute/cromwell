@@ -60,7 +60,7 @@ class PipelinesApiDockerCacheMappingOperationsSpec
       mockClient
     }
 
-    val readFileFromGcsPrivateMethod = PrivateMethod[IO[DockerImageCacheManifest]]('readDockerImageCacheManifestFileFromGCS)
+    val readFileFromGcsPrivateMethod = PrivateMethod[IO[DockerImageCacheManifest]](Symbol("readDockerImageCacheManifestFileFromGCS"))
     val parsedJsonAsManifestIO = pipelinesApiDockerCacheMappingOperationsMock invokePrivate readFileFromGcsPrivateMethod(mockGcsClient, testJsonGcsPath)
     val parsedJsonAsManifest = parsedJsonAsManifestIO.unsafeRunSync()
 

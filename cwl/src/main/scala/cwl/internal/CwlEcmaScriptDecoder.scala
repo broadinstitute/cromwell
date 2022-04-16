@@ -13,7 +13,7 @@ import shapeless.Coproduct
 import wom.types.WomNothingType
 import wom.values._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class CwlEcmaScriptDecoder {
 

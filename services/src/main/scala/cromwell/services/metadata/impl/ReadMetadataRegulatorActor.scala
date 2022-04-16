@@ -59,7 +59,7 @@ class ReadMetadataRegulatorActor(metadataBuilderActorProps: PropsMaker, readMeta
         case response @ (_: MetadataJsonResponse | _: MetadataQueryResponse | _: RootAndSubworkflowLabelsLookupResponse | _: MetadataLookupStreamSuccess) =>
           handleResponseFromMetadataWorker(response)
       }
-    case other => log.error(s"Programmer Error: Unexpected message $other received from $sender")
+    case other => log.error(s"Programmer Error: Unexpected message $other received from ${sender()}")
   }
 
   def handleResponseFromMetadataWorker(response: Any): Unit = {

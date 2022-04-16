@@ -12,7 +12,7 @@ import com.aliyun.oss.OSSClient
 import com.aliyun.oss.model.{GenericRequest, ListObjectsRequest}
 import com.google.common.collect.AbstractIterator
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.immutable.Set
 import collection.mutable.ArrayBuffer
 
@@ -32,6 +32,7 @@ final case class OssStorageFileSystemProvider(config: OssStorageConfiguration) e
           case Some(marker: String) if !marker.isEmpty => iterator = listNext(marker)
           case Some(marker: String) if marker.isEmpty  => iterator = Iterator()
           case Some(null) => iterator = Iterator()
+          case oh => throw new RuntimeException(s"Programmer Error! Unexpected case match: $oh")
         }
       }
 

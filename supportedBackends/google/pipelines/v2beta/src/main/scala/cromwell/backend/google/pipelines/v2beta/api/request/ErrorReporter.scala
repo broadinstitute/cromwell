@@ -12,7 +12,7 @@ import cromwell.core.{ExecutionEvent, WorkflowId}
 import io.grpc.{Status => GStatus}
 import mouse.all._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object ErrorReporter {
   type RequestContext = (WorkflowId, Operation)

@@ -3,9 +3,8 @@ package common.collections
 import cats.data.NonEmptyList
 
 import scala.annotation.tailrec
-import scala.collection.TraversableLike
-import scala.collection.generic.CanBuildFrom
-import scala.collection.immutable.{MapLike, Queue}
+import scala.collection.IterableOps
+import scala.collection.immutable.Queue
 import scala.reflect.ClassTag
 
 object EnhancedCollections {
@@ -16,7 +15,7 @@ object EnhancedCollections {
     * After trying and failing to do this myself, I got this to work by copying the answer from here:
     * https://stackoverflow.com/questions/29886246/scala-filter-by-type
     */
-  implicit class EnhancedTraversableLike[T2, Repr <: TraversableLike[T2, Repr], That](val traversable: TraversableLike[T2, Repr]) extends AnyVal {
+  implicit class EnhancedIterableOps[T2, Repr[x] <: IterableOps[x, Repr, Repr[x]]](val iterableOps: IterableOps[T2, Repr, Repr[T2]]) extends AnyVal {
     /**
       * Lets you filter a collection by type.
       *
@@ -27,9 +26,9 @@ object EnhancedCollections {
       * val xs: Set[Object]
       * val strings: Set[String] = xs.filterByType[String]
       */
-    def filterByType[T <: T2](implicit tag: ClassTag[T], bf: CanBuildFrom[Repr, T, That]): That = traversable.collect { case t: T => t }
+    def filterByType[T <: T2](implicit tag: ClassTag[T]): Repr[T] = iterableOps.collect { case t: T => t }
 
-    def firstByType[T <: T2](implicit tag: ClassTag[T]): Option[T] = traversable collectFirst { case t: T => t }
+    def firstByType[T <: T2](implicit tag: ClassTag[T]): Option[T] = iterableOps collectFirst { case t: T => t }
   }
 
   implicit class EnhancedQueue[A](val queue: Queue[A]) extends AnyVal {
@@ -95,7 +94,7 @@ object EnhancedCollections {
     }
   }
 
-  implicit class EnhancedMapLike[A, +B, +This <: MapLike[A, B, This] with Map[A, B]](val mapLike: MapLike[A, B, This]) {
+  implicit class EnhancedMapLike[A, +B, +This <: Map[A, B]](val mapLike: Map[A, B]) {
     /**
       * 'safe' in that unlike the implementation hiding behind `MapLike#mapValues` this is strict. i.e. this will only
       * evaluate the supplied function once on each value and at the time this method is called.
@@ -103,7 +102,7 @@ object EnhancedCollections {
     def safeMapValues[C](f: B => C): Map[A, C] = mapLike map { case (k, v) => k -> f(v) }
 
     /**
-      * Based on scalaz's intersectWith, applies `f` to values of keys found in this `mapLike` and map`
+      * Based on scalaz's intersectWith, applies `f` to values of keys found in this `mapLike` and map
       */
     def intersectWith[C, D](map: Map[A, C])(f: (B, C) => D): Map[A, D] = {
       mapLike collect {

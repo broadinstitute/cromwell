@@ -35,7 +35,7 @@ class DrsPathBuilderFactorySpec extends AnyFlatSpec with CromwellTimeoutSpec wit
          |""".stripMargin
     )
 
-    val fileSystems = new CromwellFileSystems(globalFileSystemConfig).factoriesFromConfig(fileSystemConfig).right.get
+    val fileSystems = new CromwellFileSystems(globalFileSystemConfig).factoriesFromConfig(fileSystemConfig).toOption.get
     fileSystems.keys should contain theSameElementsAs List("drs")
     fileSystems("drs") should be(a[DrsPathBuilderFactory])
   }

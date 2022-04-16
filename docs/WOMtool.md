@@ -4,14 +4,14 @@ Command line utilities for interacting with the Workflow Object Model (WOM). You
 
 The following is the toolchain used for development of womtool.  Other versions may work, but these are recommended.
 
-* [Scala 2.12](http://www.scala-lang.org/)
+* [Scala 2.13](http://www.scala-lang.org/)
 * [SBT 1.x](https://www.scala-sbt.org/)
 * [AdoptOpenJDK 11 HotSpot](https://adoptopenjdk.net/)
 * [Git](https://git-scm.com/)
 
 ## Building
 
-`sbt assembly` will build a runnable JAR in `womtool/target/scala-2.12/`
+`sbt assembly` will build a runnable JAR in `womtool/target/scala-2.13/`
 
 Tests are run via `sbt test`.  Note that the tests do require Docker to be running.  To test this out while downloading the Ubuntu image that is required for tests, run `docker pull ubuntu:latest` prior to running `sbt test`
 

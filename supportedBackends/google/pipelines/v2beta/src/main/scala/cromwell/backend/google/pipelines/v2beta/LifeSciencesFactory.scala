@@ -24,7 +24,7 @@ import mouse.all._
 import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode, endpointUrl: URL, location: String)(implicit gcsTransferConfiguration: GcsTransferConfiguration) extends PipelinesApiFactoryInterface
   with ContainerSetup
@@ -185,7 +185,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
         .setResources(resources)
         .setActions(sortedActions.asJava)
         .setEnvironment(environment)
-        .setTimeout(createPipelineParameters.pipelineTimeout.toSeconds + "s")
+        .setTimeout(createPipelineParameters.pipelineTimeout.toSeconds.toString + "s")
 
       val pipelineRequest = new RunPipelineRequest()
         .setPipeline(pipeline)

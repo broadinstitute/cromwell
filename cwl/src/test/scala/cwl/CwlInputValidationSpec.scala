@@ -20,7 +20,7 @@ class CwlInputValidationSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
 
   var cwlFile: BFile = _
   var inputTempFile: BFile = _
-  
+
   override def beforeAll(): Unit = {
     inputTempFile = BFile.newTemporaryFile()
     cwlFile = BFile.newTemporaryFile().write(
@@ -46,7 +46,7 @@ class CwlInputValidationSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
         |     items:
         |       type: array
         |       items: string
-        | # enable this when InputRecordSchemas are enabled      
+        | # enable this when InputRecordSchemas are enabled
         | #w9:
         | #  type:
         | #    name: w9
@@ -54,16 +54,16 @@ class CwlInputValidationSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
         | #    fields:
         | #    - name: w9a
         | #      type: record
-        | #      fields: 
+        | #      fields:
         | #      - name: w9aa
-        | #        type: string  
+        | #        type: string
         | w10: Directory
-        |steps: []    
+        |steps: []
         |outputs: []
       """.stripMargin
     )
   }
-  
+
   override def afterAll(): Unit = {
     cwlFile.delete()
     inputTempFile.delete()
@@ -72,7 +72,7 @@ class CwlInputValidationSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
 
   lazy val cwlWorkflow = decodeCwlFile(cwlFile).map {
     _.select[Workflow].get
-  }.value.unsafeRunSync.fold(error => throw new RuntimeException(s"broken parse! msg was $error"), identity)
+  }.value.unsafeRunSync().fold(error => throw new RuntimeException(s"broken parse! msg was $error"), identity)
 
   lazy val graph = cwlWorkflow.womDefinition(AcceptAllRequirements, Vector.empty) match {
     case Left(errors) => fail(s"Failed to build wom definition: ${errors.toList.mkString(", ")}")
@@ -80,7 +80,7 @@ class CwlInputValidationSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
   }
 
   def getOutputPort(n: Int) = graph.inputNodes.find(_.localName == s"w$n").getOrElse(fail(s"Failed to find an input node for w$n")).singleOutputPort
-  
+
   lazy val w0OutputPort = getOutputPort(0)
   lazy val w1OutputPort = getOutputPort(1)
   lazy val w2OutputPort = getOutputPort(2)
@@ -92,7 +92,7 @@ class CwlInputValidationSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
   lazy val w8OutputPort = getOutputPort(8)
 //  lazy val w9OutputPort = getOutputPort(9)
   lazy val w10OutputPort = getOutputPort(10)
-  
+
   def validate(inputFile: String): Map[GraphNodePort.OutputPort, ResolvedExecutableInput] = {
     cwlWorkflow.womExecutable(AcceptAllRequirements, Option(inputFile), LocalIoFunctionSet, strictValidation = false) match {
       case Left(errors) => fail(s"Failed to build a wom executable: ${errors.toList.mkString(", ")}")

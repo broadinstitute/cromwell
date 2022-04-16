@@ -74,7 +74,7 @@ class StandardValidatedRuntimeAttributesBuilderSpec extends AnyWordSpecLike with
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"))
       var warnings = List.empty[Any]
       val mockLogger = mock[Logger]
-      mockLogger.warn(anyString).answers(warnings :+= _)
+      mockLogger.warn(anyString).answers((warnings :+= _): Any => Unit)
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes,
         includeDockerSupport = false, logger = mockLogger)
       warnings should contain theSameElementsAs List("Unrecognized runtime attribute keys: docker")
@@ -96,7 +96,7 @@ class StandardValidatedRuntimeAttributesBuilderSpec extends AnyWordSpecLike with
       val runtimeAttributes = Map("docker" -> WomInteger(1))
       var warnings = List.empty[Any]
       val mockLogger = mock[Logger]
-      mockLogger.warn(anyString).answers(warnings :+= _)
+      mockLogger.warn(anyString).answers((warnings :+= _): Any => Unit)
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes,
         includeDockerSupport = false, logger = mockLogger)
       warnings should contain theSameElementsAs List("Unrecognized runtime attribute keys: docker")

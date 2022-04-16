@@ -109,7 +109,7 @@ object SubmissionSupport {
   }
 
   def extractInputAux: Directive1[Map[String, String]] = {
-    formFieldMap.map(_.filterKeys(_.startsWith(WorkflowInputsAuxPrefix)))
+    formFieldMap.map(_.view.filterKeys(_.startsWith(WorkflowInputsAuxPrefix)).toMap)
   }
 
   // FIXME: Much like CromwellClient see if there are ways of unifying this a bit w/ the mothership

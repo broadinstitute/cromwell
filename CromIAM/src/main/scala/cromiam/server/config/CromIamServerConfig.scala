@@ -9,7 +9,7 @@ import common.validation.Validation._
 import cromiam.server.config.CromIamServerConfig._
 import net.ceedubs.ficus.Ficus._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 final case class CromIamServerConfig(cromIamConfig: CromIamConfig,

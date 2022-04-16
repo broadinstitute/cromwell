@@ -2,7 +2,7 @@ package cloud.nio.util
 
 import java.nio.file.{Files, Path}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 /**
   * Common file access utilities similar to java.nio.file.Files.

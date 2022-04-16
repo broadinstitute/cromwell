@@ -7,7 +7,7 @@ sealed trait DockerImageIdentifier {
   def repository: Option[String]
   def image: String
   def reference: String
-  
+
   def swapReference(newReference: String): DockerImageIdentifier
 
   // The name of the image with a repository prefix iff a repository was explicitly specified.
@@ -32,42 +32,42 @@ case class DockerImageIdentifierWithHash(host: Option[String], repository: Optio
 
 object DockerImageIdentifier {
   private val DefaultDockerTag = "latest"
-  
+
   private val DockerStringRegex =
     s"""
        (?x)                                     # Turn on comments and whitespace insensitivity
-       
+
        (                                        # Begin capturing group for name
           [a-z0-9]+(?:[._-][a-z0-9]+)*          # API v2 name component regex - see https://docs.docker.com/registry/spec/api/#/overview
           (?::[0-9]+)?                          # Optional port
           (?:/[a-z0-9]+(?:[._-][a-z0-9]+)*)*    # Optional additional name components separated by /
        )                                        # End capturing group for name
-       
-       (?:   
+
+       (?:
           :                                     # Tag separator. ':' is followed by a tag
-       
-          (                                     # Begin capturing group for reference 
+
+          (                                     # Begin capturing group for reference
             [A-Za-z0-9]+(?:[-.:_A-Za-z0-9]+)*   # Reference
-          )                                     # End capturing group for reference  
+          )                                     # End capturing group for reference
        )?
-       (?:   
+       (?:
           @                                     # Tag separator '@' is followed by a digest
-             
-          (                                     # Begin capturing group for reference 
+
+          (                                     # Begin capturing group for reference
             [A-Za-z0-9]+(?:[-.:_A-Za-z0-9]+)*   # Reference
-          )                                     # End capturing group for reference  
+          )                                     # End capturing group for reference
        )?
        """.trim.r
-  
+
   def fromString(dockerString: String): Try[DockerImageIdentifier] = {
     dockerString.trim match {
       case DockerStringRegex(name, tag, hash) => buildId(name, Option(tag), Option(hash))
       case _ => Failure(new IllegalArgumentException(s"Docker image $dockerString has an invalid syntax."))
     }
   }
-  
+
   private def isRegistryHostName(str: String) = str.contains('.') || str.startsWith("localhost")
-  
+
   private def buildId(name: String, tag: Option[String], hash: Option[String]) = {
     val (dockerHost, dockerRepo, dockerImage): (Option[String], Option[String], String) = name.split('/').toList match {
       // If just one component (e.g ubuntu)
@@ -84,8 +84,9 @@ object DockerImageIdentifier {
       case host :: rest if isRegistryHostName(host) =>
         val repo = rest.init.mkString("/")
         (Option(host), Option(repo), rest.last)
+      case oh => throw new RuntimeException(s"Programmer Error! Unexpected case match: $oh")
     }
-    
+
     (tag, hash) match {
       case (None, None) => Success(DockerImageIdentifierWithoutHash(dockerHost, dockerRepo, dockerImage, DefaultDockerTag))
       case (Some(t), None) => Success(DockerImageIdentifierWithoutHash(dockerHost, dockerRepo, dockerImage, t))

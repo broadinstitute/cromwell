@@ -69,7 +69,7 @@ class OssStorageObjectAttributesSpec extends TestKitSuite with OssNioUtilSpec {
 
     attr.creationTime shouldEqual attr.lastModifiedTime()
     attr.lastAccessTime shouldEqual FileTime.fromMillis(0)
-    attr.cacheControl shouldBe empty
+    attr.cacheControl() shouldBe empty
     attr.contentDisposition shouldBe empty
     attr.contentEncoding shouldBe empty
     attr.etag shouldBe Option(DEFAULT_ETAG)
@@ -83,7 +83,7 @@ class OssStorageObjectAttributesSpec extends TestKitSuite with OssNioUtilSpec {
 
     attr.creationTime shouldEqual attr.lastModifiedTime()
     attr.lastAccessTime shouldEqual FileTime.fromMillis(0)
-    attr.cacheControl shouldBe empty
+    attr.cacheControl() shouldBe empty
     attr.contentDisposition shouldBe empty
     attr.contentEncoding shouldBe empty
     attr.etag shouldBe empty

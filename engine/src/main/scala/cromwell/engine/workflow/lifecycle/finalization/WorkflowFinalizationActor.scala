@@ -80,7 +80,7 @@ case class WorkflowFinalizationActor(workflowDescriptor: EngineWorkflowDescripto
 
   // If an engine or backend finalization actor (children of this actor) dies, send ourselves the failure and stop the child actor
   override def supervisorStrategy = OneForOneStrategy() {
-    case failure => 
+    case failure =>
       self.tell(FinalizationFailed(failure), sender())
       Stop
   }
@@ -108,10 +108,10 @@ case class WorkflowFinalizationActor(workflowDescriptor: EngineWorkflowDescripto
 
       allActors match {
         case Failure(ex) =>
-          sender ! WorkflowFinalizationFailedResponse(Seq(ex))
+          sender() ! WorkflowFinalizationFailedResponse(Seq(ex))
           goto(WorkflowFinalizationFailedState)
         case Success(actors) if actors.isEmpty =>
-          sender ! WorkflowFinalizationSucceededResponse
+          sender() ! WorkflowFinalizationSucceededResponse
           goto(FinalizationSucceededState)
         case Success(actors) =>
           val actorSet = actors.toSet
@@ -121,7 +121,7 @@ case class WorkflowFinalizationActor(workflowDescriptor: EngineWorkflowDescripto
           goto(WorkflowFinalizationFailedState)
       }
   }
-  
+
   // Only send to each backend the jobs that it executed
   private def filterJobExecutionsForBackend(calls: Set[CommandCallNode]): JobExecutionMap = {
     jobExecutionMap map {
@@ -132,8 +132,8 @@ case class WorkflowFinalizationActor(workflowDescriptor: EngineWorkflowDescripto
   }
 
   when(FinalizationInProgressState) {
-    case Event(FinalizationSuccess, stateData) => checkForDoneAndTransition(stateData.withSuccess(sender))
-    case Event(FinalizationFailed(reason), stateData) => checkForDoneAndTransition(stateData.withFailure(sender, reason))
+    case Event(FinalizationSuccess, stateData) => checkForDoneAndTransition(stateData.withSuccess(sender()))
+    case Event(FinalizationFailed(reason), stateData) => checkForDoneAndTransition(stateData.withFailure(sender(), reason))
   }
 
   when(FinalizationSucceededState) { FSM.NullFunction }

@@ -7,7 +7,7 @@ import wom.core.WorkflowSource
 import wom.types.{WomBooleanType, WomFloatType, WomIntegerType, WomType}
 import wom.values.{WomBoolean, WomFloat, WomInteger, WomValue}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object WdlFlavoredWomType {
   private val parser = new WdlParser()

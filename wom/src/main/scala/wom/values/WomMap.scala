@@ -12,7 +12,6 @@ import cats.syntax.traverse._
 import common.validation.IOChecked.IOChecked
 import wom.expression.IoFunctionSet
 
-import scala.language.higherKinds
 import scala.util.{Failure, Success, Try}
 
 object WomMap {

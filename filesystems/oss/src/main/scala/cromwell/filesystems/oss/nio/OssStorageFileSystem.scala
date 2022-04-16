@@ -10,7 +10,7 @@ import com.aliyun.oss.common.auth.DefaultCredentialProvider
 import com.aliyun.oss.{ClientConfiguration, OSSClient}
 import cromwell.filesystems.oss.nio.OssStorageConfiguration.{ACCESS_ID_KEY, ACCESS_KEY_KEY, ENDPOINT_KEY, SECURITY_TOKEN_KEY}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 
 object OssStorageFileSystem {

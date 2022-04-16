@@ -12,7 +12,7 @@ import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import nl.grons.metrics4.scala.{DefaultInstrumented, Meter, MetricName}
 import net.ceedubs.ficus.Ficus._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 
 object StatsDInstrumentationServiceActor {
@@ -68,6 +68,7 @@ class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Con
       case CromwellCount(bucket, value, _) => updateCounter(bucket, value)
       case CromwellGauge(bucket, value) => updateGauge(bucket, value)
       case CromwellTiming(bucket, value, _) => updateTiming(bucket, value)
+      case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
     }
     case ShutdownCommand => context stop self
   }

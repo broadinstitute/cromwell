@@ -12,7 +12,7 @@ import java.util.zip.Deflater
 
 import better.files.{Dispose, DisposeableExtensions, StringSplitter}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.io.{BufferedSource, Codec, Source}
 
 /**
@@ -106,7 +106,7 @@ trait BetterFileMethods {
 
   final def chars(implicit charset: Charset = DefaultCharset): Iterator[Char] = betterFile.chars(charset)
 
-  final def lines(implicit charset: Charset = DefaultCharset): Traversable[String] = betterFile.lines(charset)
+  final def lines(implicit charset: Charset = DefaultCharset): Iterable[String] = betterFile.lines(charset)
 
   final def lineIterator(implicit charset: Charset= DefaultCharset): Iterator[String] = betterFile.lineIterator(charset)
 
@@ -147,7 +147,7 @@ trait BetterFileMethods {
     betterFile.append(text)(charset)
     this
   }
-  
+
   final def appendText(text: String)(implicit charset: Charset = DefaultCharset): this.type = {
     betterFile.appendText(text)(charset)
     this
@@ -178,7 +178,7 @@ trait BetterFileMethods {
     betterFile.writeText(text)(openOptions, charset)
     this
   }
-  
+
   final def write(text: String)
                  (implicit openOptions: OpenOptions = OpenOptions.default,
                   charset: Charset = DefaultCharset): this.type = {
@@ -574,7 +574,7 @@ object BetterFileMethods {
 
     def zip(files: better.files.File*)(destination: better.files.File, compressionLevel: Int = Deflater.DEFAULT_COMPRESSION)
            (implicit charset: Charset = DefaultCharset): destination.type = {
-      destination.zipIn(files.toIterator, compressionLevel)(charset)
+      destination.zipIn(files.iterator, compressionLevel)(charset)
     }
   }
 

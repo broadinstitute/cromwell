@@ -14,7 +14,7 @@ import wom.values.{WomEvaluatedCallInputs, WomValue}
 import scala.util.Random
 
 trait CallMetadataHelper {
-  
+
   def workflowIdForCallMetadata: WorkflowId
   def serviceRegistryActor: ActorRef
 
@@ -92,7 +92,7 @@ trait CallMetadataHelper {
       case _ =>
         throwableToMetadataEvents(metadataKeyForCall(jobKey, s"${CallMetadataKeys.Failures}"), failure).+:(retryableFailureEvent)
     }
-  
+
     serviceRegistryActor ! PutMetadataAction(completionEvents ++ failureEvents)
   }
 
@@ -108,7 +108,7 @@ trait CallMetadataHelper {
       val metadataKey = metadataKeyForCall(jobKey, k)
       MetadataEvent(metadataKey, metadataValue)
     }
-    
+
     val sortedEvents = eventList.sortBy(_.offsetDateTime)
 
     sortedEvents.headOption foreach { firstEvent =>
@@ -127,7 +127,7 @@ trait CallMetadataHelper {
           ) ++ (eventCurrent.grouping map { g => metadataEvent(s"$eventKey:grouping", g) })
       }
 
-      serviceRegistryActor ! PutMetadataAction(events.toIterable)
+      serviceRegistryActor ! PutMetadataAction(events.toList)
     }
   }
 
@@ -141,8 +141,8 @@ trait CallMetadataHelper {
       MetadataEvent(metadataKeyForCall(jobKey, CallMetadataKeys.End), MetadataValue(OffsetDateTime.now))
     ) ++ returnCodeEvent.getOrElse(List.empty)
   }
-  
-  private def randomNumberString: String = Random.nextInt.toString.stripPrefix("-")
+
+  private def randomNumberString: String = Random.nextInt().toString.stripPrefix("-")
 
   def metadataKeyForCall(jobKey: JobKey, myKey: String) = MetadataKey(workflowIdForCallMetadata, Option(MetadataJobKey(jobKey.node.fullyQualifiedName, jobKey.index, jobKey.attempt)), myKey)
 }

@@ -105,7 +105,6 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   def fixRelativePath(path: S3Path): String = {
     val out = tesJobPaths.callInputsRoot.resolve(path.pathAsString).pathAsString
-    jobLogger.info("TESPath Fix: " + path + out)
     return out
   }
 

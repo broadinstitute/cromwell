@@ -1,6 +1,10 @@
 name: ssh_access
 testFormat: workflowsuccess
 backends: [Papiv2]
+# CROM-6872: disabling this test because it is consistently failing in our test infrastructure. This
+#   is a community-contributed feature that is not officially supported by the Cromwell development
+#   team at the Broad Institute.
+ignore: true
 
 files {
   workflow: ssh_access/ssh_access.wdl

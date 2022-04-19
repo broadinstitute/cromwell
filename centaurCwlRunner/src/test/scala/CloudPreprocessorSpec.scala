@@ -9,10 +9,10 @@ class CloudPreprocessorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
   behavior of "PAPIPreProcessor"
 
   val pAPIPreprocessor = new CloudPreprocessor(ConfigFactory.load(), "papi.default-input-gcs-prefix")
-  
+
   def validate(result: String, expectation: String) = {
-    val parsedResult = YamlUtils.parse(result).right.get
-    val parsedExpectation = YamlUtils.parse(expectation).right.get
+    val parsedResult = YamlUtils.parse(result).toOption.get
+    val parsedExpectation = YamlUtils.parse(expectation).toOption.get
 
     // This is an actual Json comparison from circe
     parsedResult shouldBe parsedExpectation
@@ -50,7 +50,7 @@ class CloudPreprocessorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
            |    }
            |  }
            |}
-           |""".stripMargin).value.unsafeRunSync().right.get,
+           |""".stripMargin).value.unsafeRunSync().toOption.get,
       """|{
          |  "input": {
          |    "null": null,

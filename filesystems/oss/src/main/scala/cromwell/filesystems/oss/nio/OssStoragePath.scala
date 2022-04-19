@@ -196,7 +196,7 @@ final case class OssStoragePathImpl(filesystem: OssStorageFileSystem, override v
   override def register(watcher: WatchService, events: Array[WatchEvent.Kind[_]], modifiers: WatchEvent.Modifier*): WatchKey = throw new UnsupportedOperationException
 
   override def iterator(): util.Iterator[Path] = {
-    if (path.isEmpty || path.isRoot) {
+    if (path.isEmpty() || path.isRoot) {
       return util.Collections.emptyIterator()
     }
 

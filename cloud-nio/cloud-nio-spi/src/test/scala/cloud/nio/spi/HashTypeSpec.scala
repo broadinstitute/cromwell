@@ -21,13 +21,13 @@ class HashTypeSpec extends AnyFlatSpecLike with Matchers {
 
   it should "calculate an etag hash on medium data" in {
     val eightMB = 8 * 1024 * 1024
-    val value = Stream.continually(".").take(eightMB).mkString
+    val value = LazyList.continually(".").take(eightMB).mkString
     HashType.S3Etag.calculateHash(value) shouldBe "f89801f68b5028d64e0238ffb5a1b8e0"
   }
 
   it should "calculate an etag hash on long data" in {
     val eightMB = 8 * 1024 * 1024
-    val value = Stream.continually(".").take(eightMB + 1).mkString
+    val value = LazyList.continually(".").take(eightMB + 1).mkString
     HashType.S3Etag.calculateHash(value) shouldBe "8e224b463f4f5202c9621820f7690a01-2"
   }
 

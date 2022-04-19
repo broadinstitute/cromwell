@@ -17,7 +17,7 @@ import wom.executable.WomBundle
 import wom.expression.NoIoFunctionSet
 import wom.graph._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 object WomGraphMaker {

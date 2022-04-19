@@ -174,11 +174,11 @@ final private[spi] case class UnixPath(path: String) extends CharSequence {
     breakable(
       while (left.hasNext && right.hasNext) {
         if (!(left.head == right.head)) {
-          break
+          break()
         }
 
-        left.next
-        right.next
+        left.next()
+        right.next()
       }
     )
 
@@ -186,11 +186,11 @@ final private[spi] case class UnixPath(path: String) extends CharSequence {
     while (left.hasNext) {
       result.append(UnixPath.ParentDir)
       result.append(UnixPath.Separator)
-      left.next
+      left.next()
     }
 
     while (right.hasNext) {
-      result.append(right.next)
+      result.append(right.next())
       result.append(UnixPath.Separator)
     }
 
@@ -280,7 +280,7 @@ final private[spi] case class UnixPath(path: String) extends CharSequence {
 
   def startsWith(left: Iterator[String], right: Iterator[String]): Boolean = {
     while (right.hasNext) {
-      if (!left.hasNext || right.next != left.next) {
+      if (!left.hasNext || right.next() != left.next()) {
         return false
       }
     }

@@ -8,7 +8,7 @@ import java.nio.file.spi.FileSystemProvider
 
 import com.typesafe.config.{Config, ConfigFactory}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import net.ceedubs.ficus.Ficus._
 
 /**
@@ -18,7 +18,7 @@ import net.ceedubs.ficus.Ficus._
 abstract class CloudNioFileSystemProvider extends FileSystemProvider {
 
   def config: Config
-  
+
   def usePseudoDirectories: Boolean = true
 
   def fileProvider: CloudNioFileProvider
@@ -94,7 +94,7 @@ abstract class CloudNioFileSystemProvider extends FileSystemProvider {
       cloudNioReadChannel(retry, cloudNioPath)
     }
   }
-  
+
   protected def cloudNioReadChannel(retry: CloudNioRetry, cloudNioPath: CloudNioPath): CloudNioReadChannel = new CloudNioReadChannel(fileProvider, retry, cloudNioPath)
   protected def cloudNioWriteChannel(retry: CloudNioRetry, cloudNioPath: CloudNioPath): CloudNioWriteChannel = new CloudNioWriteChannel(fileProvider, retry, cloudNioPath)
 

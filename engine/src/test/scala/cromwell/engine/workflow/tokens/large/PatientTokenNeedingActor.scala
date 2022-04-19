@@ -31,7 +31,7 @@ class PatientTokenNeedingActor(tokenDispenser: ActorRef, tokenType: JobTokenType
     */
   override def receive = {
     case Begin =>
-      starter = sender
+      starter = sender()
       val requestDelay = Random.nextInt(30) + 1
       context.system.scheduler.scheduleOnce(requestDelay.millis, self, RequestToken)(context.dispatcher)
       ()

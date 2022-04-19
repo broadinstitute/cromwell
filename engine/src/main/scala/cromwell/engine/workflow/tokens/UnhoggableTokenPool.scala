@@ -33,10 +33,10 @@ final class UnhoggableTokenPool(val tokenType: JobTokenType) extends SimplePool[
   def available(hogGroup: String): UnhoggableTokenPoolAvailability = {
 
     hogLimitOption match {
-      case None if leased < capacity => TokensAvailable
+      case None if leased() < capacity => TokensAvailable
       case None => TokenTypeExhausted
       case Some(hogLimit) =>
-        if (leased < capacity) {
+        if (leased() < capacity) {
           synchronized {
             if (hogGroupAssignments.get(hogGroup).forall(_.size < hogLimit)) {
               TokensAvailable
@@ -59,12 +59,12 @@ final class UnhoggableTokenPool(val tokenType: JobTokenType) extends SimplePool[
             super.tryAcquire() match {
               case Some(lease) =>
                 val hoggingLease = new TokenHoggingLease(lease, hogGroup, this)
-                hogGroupAssignments += hogGroup -> (thisHogSet + hoggingLease.get)
+                hogGroupAssignments += hogGroup -> (thisHogSet + hoggingLease.get())
                 hoggingLease
               case None => TokenTypeExhausted
             }
           } else {
-            if (leased == capacity) TokenTypeExhausted else HogLimitExceeded
+            if (leased() == capacity) TokenTypeExhausted else HogLimitExceeded
           }
         }
       case None =>
@@ -80,7 +80,7 @@ final class UnhoggableTokenPool(val tokenType: JobTokenType) extends SimplePool[
   def unhog(hogGroup: String, lease: Lease[JobToken]): Unit = {
     hogLimitOption foreach { _ =>
       synchronized {
-        val newAssignment = hogGroupAssignments.getOrElse(hogGroup, HashSet.empty) - lease.get
+        val newAssignment = hogGroupAssignments.getOrElse(hogGroup, HashSet.empty) - lease.get()
 
         if (newAssignment.isEmpty) {
           hogGroupAssignments -= hogGroup
@@ -103,7 +103,7 @@ final class UnhoggableTokenPool(val tokenType: JobTokenType) extends SimplePool[
       case None => (None, None)
     }
 
-    TokenPoolState(hogGroupUsages, hogLimitValue, capacity, leased, leased < capacity)
+    TokenPoolState(hogGroupUsages, hogLimitValue, capacity, leased(), leased() < capacity)
   }
 }
 
@@ -115,7 +115,7 @@ object UnhoggableTokenPool {
 
   final class TokenHoggingLease(lease: Lease[JobToken], hogGroup: String, pool: UnhoggableTokenPool) extends Lease[JobToken] with UnhoggableTokenPoolResult {
     private[this] val dirty = new AtomicBoolean(false)
-    override protected[this] def a: JobToken = lease.get
+    override protected[this] def a: JobToken = lease.get()
 
     override protected[this] def handleRelease(): Unit = {
       if (dirty.compareAndSet(false, true)) {

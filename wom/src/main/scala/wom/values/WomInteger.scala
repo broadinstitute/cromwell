@@ -10,7 +10,7 @@ case class WomInteger(value: Int) extends WomPrimitive {
 
   override def add(rhs: WomValue): Try[WomValue] = rhs match {
     case r:WomInteger => Success(WomInteger(value + r.value))
-    case r:WomString => Success(WomString(value + r.value))
+    case r:WomString => Success(WomString(s"$value${r.value}"))
     case r:WomFloat => Success(WomFloat(value + r.value))
     case r: WomOptionalValue => evaluateIfDefined("+", r, add)
     case _ => invalid(s"$value + $rhs")

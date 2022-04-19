@@ -16,7 +16,7 @@ import cromwell.services.instrumentation.impl.stackdriver.StackdriverConfig._
 import cromwell.services.instrumentation.impl.stackdriver.StackdriverInstrumentationServiceActor._
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 import scala.util.Try
 
@@ -51,6 +51,7 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
       case CromwellGauge(bucket, value) => updateMetricMap(bucket, value.toDouble, StackdriverGauge)
       case CromwellCount(bucket, value, _) => updateMetricMap(bucket, value.toDouble, StackdriverCumulative)
       case CromwellIncrement(bucket) => updateMetricMap(bucket, metricValue = 1D, metricKind = StackdriverCumulative)
+      case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
     }
     case ShutdownCommand =>
       // flush out metrics (if any) before shut down

@@ -17,6 +17,16 @@ class EnhancedCollectionsSpec extends AsyncFlatSpec with Matchers {
     stringList should be(List("hello", "world"))
   }
 
+  it should "work with non-Anys" in {
+    class A
+    class B extends A
+    class C extends B
+
+    val abcs = List(new A(), new B(), new C(), new B(), new A())
+    val cs: List[C] = abcs.filterByType[C]
+    cs shouldEqual abcs.collect { case c: C => c }
+  }
+
   it should "filter a Set by type and return a Set" in {
     val objectSet = Set("hello", 3, None, "world")
     val intSet: Set[Int] = objectSet.filterByType[Int]

@@ -7,8 +7,8 @@ import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 class EmptyJobStoreActor extends Actor {
   override def receive: Receive = {
-    case w: JobStoreWriterCommand => sender ! JobStoreWriteSuccess(w)
-    case _: QueryJobCompletion => sender ! JobNotComplete
+    case w: JobStoreWriterCommand => sender() ! JobStoreWriteSuccess(w)
+    case _: QueryJobCompletion => sender() ! JobNotComplete
     case ShutdownCommand => context stop self
   }
 }

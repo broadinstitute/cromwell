@@ -61,7 +61,9 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
   import CromwellRootActor._
 
   // Make sure the filesystems are initialized at startup
-  val _ = CromwellFileSystems.instance
+  locally {
+    val _ = CromwellFileSystems.instance
+  }
 
   private val logger = Logging(context.system, this)
 

@@ -93,14 +93,14 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
   override def receive: Actor.Receive = tokenDispensingReceive.orElse(rateReceive).orElse(instrumentationReceive(instrumentationAction))
 
   private def tokenDispensingReceive: Receive = {
-    case JobTokenRequest(hogGroup, tokenType) => enqueue(sender, hogGroup.value, tokenType)
-    case JobTokenReturn => release(sender)
+    case JobTokenRequest(hogGroup, tokenType) => enqueue(sender(), hogGroup.value, tokenType)
+    case JobTokenReturn => release(sender())
     case TokensAvailable(n) =>
       emitHeartbeatMetrics()
       dispense(n)
     case Terminated(terminee) => onTerminate(terminee)
     case LogJobTokenAllocation(nextInterval) => logTokenAllocation(nextInterval)
-    case FetchLimitedGroups => sender ! tokenExhaustedGroups
+    case FetchLimitedGroups => sender() ! tokenExhaustedGroups
     case ShutdownCommand => context stop self
   }
 

@@ -53,9 +53,8 @@ import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.{GetObjectRequest, HeadObjectRequest, NoSuchKeyException, PutObjectRequest}
 import wdl4s.parser.MemoryUnit
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
-import scala.language.higherKinds
 import scala.util.{Random, Try}
 
 /**
@@ -121,7 +120,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     //internal to the container, therefore not mounted
     val workDir = "/tmp/scratch"
     //working in a mount will cause collisions in long running workers
-    val replaced = commandScript.replaceAllLiterally(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
+    val replaced = commandScript.replace(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
     val insertionPoint = replaced.indexOf("\n", replaced.indexOf("#!")) +1 //just after the new line after the shebang!
 
     /* generate a series of s3 copy statements to copy any s3 files into the container. We randomize the order
@@ -137,12 +136,12 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
       case input: AwsBatchFileInput if input.s3key.startsWith("s3://") =>
         s"$s3Cmd cp --no-progress ${input.s3key} ${input.mount.mountPoint.pathAsString}/${input.local}"
-          .replaceAllLiterally(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
+          .replace(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
 
       case input: AwsBatchFileInput =>
         //here we don't need a copy command but the centaurTests expect us to verify the existence of the file
         val filePath = s"${input.mount.mountPoint.pathAsString}/${input.local.pathAsString}"
-          .replaceAllLiterally(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
+          .replace(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
 
         s"test -e $filePath || echo 'input file: $filePath does not exist' && exit 1"
 
@@ -466,7 +465,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       .logGroupName("/aws/batch/job")
       .logStreamName(detail.container.logStreamName)
       .startFromHead(true)
-      .build).events.asScala
+      .build).events.asScala.toList
     val eventMessages = for ( event <- events ) yield event.message
     eventMessages mkString "\n"
   }

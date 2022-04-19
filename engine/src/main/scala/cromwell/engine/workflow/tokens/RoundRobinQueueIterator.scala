@@ -42,7 +42,7 @@ final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue], initial
     // and don't keep emptying the same queue as long as it has elements
     // For instance, if we have 5 queues and pointer is 2, we want to try indices (2, 3, 4, 0, 1)
 
-    val indexStream = ((pointer until numberOfQueues) ++ (0 until pointer)).toStream
+    val indexStream = ((pointer until numberOfQueues) ++ (0 until pointer)).to(LazyList)
     val dequeuedTokenStream = indexStream.map(index => tokenQueues(index).dequeue -> index)
 
     val firstLeasedActor = dequeuedTokenStream.collectFirst({

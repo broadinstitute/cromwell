@@ -19,7 +19,7 @@ import org.yaml.snakeyaml.parser.ParserImpl
 import org.yaml.snakeyaml.reader.StreamReader
 import org.yaml.snakeyaml.resolver.Resolver
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object YamlUtils {
 

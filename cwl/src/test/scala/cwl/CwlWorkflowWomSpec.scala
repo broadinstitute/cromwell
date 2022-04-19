@@ -22,12 +22,12 @@ class CwlWorkflowWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
   import TestSetup._
 
   implicit val parentName = ParentName.empty
-  
+
   "A Cwl object for 1st-tool" should "convert to WOM" in {
     def validateWom(callable: Callable): Unit = callable match {
       case taskDefinition: CommandTaskDefinition =>
-        val inputDef = taskDefinition.inputs.head 
-        inputDef.name shouldBe "message" 
+        val inputDef = taskDefinition.inputs.head
+        inputDef.name shouldBe "message"
         inputDef.womType shouldBe WomStringType
         ()
 
@@ -39,7 +39,7 @@ class CwlWorkflowWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
       clt <- decodeCwlFile(rootPath/"1st-tool.cwl").
               map(_.select[CommandLineTool].get).
               value.
-              unsafeRunSync
+              unsafeRunSync()
       taskDef <- clt.buildTaskDefinition(_.validNel, Vector.empty)
     } yield validateWom(taskDef)).leftMap(e => throw new RuntimeException(s"error! $e"))
   }
@@ -48,7 +48,7 @@ class CwlWorkflowWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     (for {
       wf <- decodeCwlFile(rootPath/"1st-workflow.cwl").
               value.
-              unsafeRunSync.
+              unsafeRunSync().
               map(_.select[Workflow].get)
 
       womDefinition <- wf.womDefinition(AcceptAllRequirements, Vector.empty)
@@ -128,12 +128,13 @@ class CwlWorkflowWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     // can't collapse this to a single "case StringOrExpression.Expression(e) => e.value":
     case StringOrExpression.ECMAScriptExpression(e) => e.value
     case StringOrExpression.ECMAScriptFunction(f) => f.value
+    case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
   }
 
   private lazy val commandLineTool: CommandLineTool = {
     val wf = decodeCwlFile(rootPath / "three_step.cwl").map { wf =>
       wf.select[Workflow].get
-    }.value.unsafeRunSync.fold(error => throw new RuntimeException(s"broken parse! msg was ${error.toList.mkString(", ")}"), identity)
+    }.value.unsafeRunSync().fold(error => throw new RuntimeException(s"broken parse! msg was ${error.toList.mkString(", ")}"), identity)
 
     wf.id should include("three_step")
 
@@ -159,7 +160,7 @@ class CwlWorkflowWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
 
     val wf = decodeCwlFile(rootPath/"three_step.cwl").map {
       _.select[Workflow].get
-    }.value.unsafeRunSync.fold(error => throw new RuntimeException(s"broken parse: $error"), identity)
+    }.value.unsafeRunSync().fold(error => throw new RuntimeException(s"broken parse: $error"), identity)
 
     wf.id should include("three_step")
 

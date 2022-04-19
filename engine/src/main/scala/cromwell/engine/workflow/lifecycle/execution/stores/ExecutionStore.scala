@@ -230,7 +230,7 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     * which is equivalent to non of them being in a non-terminal status and faster to verify
     */
   def isDone: Boolean = {
-    NonTerminalStatuses.map(keysWithStatus).forall(_.isEmpty)
+    NonTerminalStatuses.toList.map(keysWithStatus).forall(_.isEmpty)
   }
 
   def isStalled: Boolean = {
@@ -284,7 +284,7 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     }
 
     // Filter for unstarted keys:
-    val readyToStart = keysWithStatus(NotStarted).toStream.filter(filterFunction)
+    val readyToStart = keysWithStatus(NotStarted).to(LazyList).filter(filterFunction)
 
     // Compute the first ExecutionStore.MaxJobsToStartPerTick + 1 runnable keys
     val keysToStartPlusOne = readyToStart.take(MaxJobsToStartPerTick + 1).toList

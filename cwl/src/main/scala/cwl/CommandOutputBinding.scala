@@ -129,6 +129,7 @@ object CommandOutputBinding {
           ExpressionEvaluator.eval(expression, outputEvalParameterContext)
         case None =>
           womFilesArray.valid
+        case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
       }
     }
 
@@ -185,7 +186,7 @@ object CommandOutputBinding {
 
       // Make globbed files absolute paths by prefixing them with the output dir if necessary
       absolutePaths = primaryAsDirectoryOrFiles.map(_.mapFile(ioFunctionSet.pathFunctions.relativeToHostCallRoot))
-      
+
       // Load file size
       withFileSizes <- absolutePaths.parTraverse[IOChecked, WomFile](_.withSize(ioFunctionSet).to[IOChecked])
 
@@ -243,7 +244,7 @@ object CommandOutputBinding {
           "stdout",
           "stdout.background",
         )
-        val globs: IOChecked[Seq[String]] = 
+        val globs: IOChecked[Seq[String]] =
           ioFunctionSet.glob(cwlPath).toIOChecked
               .map({
                 _
@@ -254,7 +255,7 @@ object CommandOutputBinding {
 
         globs.flatMap({ files =>
           files.toList.parTraverse[IOChecked, WomFile](v => loadFileWithContents(ioFunctionSet, commandOutputBinding)(v).to[IOChecked])
-        }) 
+        })
       case other => s"Program error: $other type was not expected".invalidIOChecked
     }
   }

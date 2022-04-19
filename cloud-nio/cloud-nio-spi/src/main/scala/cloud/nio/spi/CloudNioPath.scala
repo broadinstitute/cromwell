@@ -5,7 +5,7 @@ import java.net.URI
 import java.nio.file._
 import java.util.Objects
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object CloudNioPath {
 
@@ -191,7 +191,7 @@ class CloudNioPath(filesystem: CloudNioFileSystem, private[spi] val unixPath: Un
     if (unixPath.isEmpty || unixPath.isRoot) {
       java.util.Collections.emptyIterator()
     } else {
-      unixPath.split().toStream.map(part => newPath(UnixPath.getPath(part)).asInstanceOf[Path]).toIterator.asJava
+      unixPath.split().to(LazyList).map(part => newPath(UnixPath.getPath(part)).asInstanceOf[Path]).iterator.asJava
     }
   }
 

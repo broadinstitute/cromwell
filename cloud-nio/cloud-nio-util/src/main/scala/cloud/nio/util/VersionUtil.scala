@@ -5,7 +5,7 @@ import java.nio.file.{Files, Paths}
 import com.typesafe.config.ConfigFactory
 import net.ceedubs.ficus.Ficus._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 /**
   * Retrieves the version from an SBT generated config file.

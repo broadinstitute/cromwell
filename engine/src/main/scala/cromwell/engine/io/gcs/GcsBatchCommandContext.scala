@@ -47,7 +47,7 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
                                               override val clientContext: Option[Any] = None,
                                               backoff: Backoff = GcsBatchCommandContext.defaultBackoff,
                                               currentAttempt: Int = 1,
-                                              promise: Promise[BatchResponse] = Promise[BatchResponse]
+                                              promise: Promise[BatchResponse] = Promise[BatchResponse]()
                                              )
   extends IoCommandContext[T]
   with StrictLogging {
@@ -84,14 +84,14 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
     * Increment backoff time and attempt count
     */
   lazy val next: GcsBatchCommandContext[T, U] = {
-    this.copy(backoff = backoff.next, currentAttempt = currentAttempt + 1, promise = Promise[BatchResponse])
+    this.copy(backoff = backoff.next, currentAttempt = currentAttempt + 1, promise = Promise[BatchResponse]())
   }
 
   /**
     * Only increment backoff. To be used for failures that should be retried infinitely
     */
   lazy val nextTransient: GcsBatchCommandContext[T, U] = {
-    this.copy(backoff = backoff.next, promise = Promise[BatchResponse])
+    this.copy(backoff = backoff.next, promise = Promise[BatchResponse]())
   }
 
   /**
@@ -117,7 +117,7 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
           // Left means the command is complete, so just create the corresponding IoSuccess with the value
           case Left(responseValue) => Left(success(responseValue))
           // Right means there is a subsequent request to be executed, clone this context with the new request and a new promise
-          case Right(nextCommand) => Right(this.copy(request = nextCommand, promise = Promise[BatchResponse]))
+          case Right(nextCommand) => Right(this.copy(request = nextCommand, promise = Promise[BatchResponse]()))
         }
 
         promise.trySuccess(promiseResponse)

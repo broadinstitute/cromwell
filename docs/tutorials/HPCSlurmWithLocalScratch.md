@@ -129,7 +129,7 @@ sbt assembly
 ### 5. When the build was successful, we can move the new jar file into the cromwell directory
 
 ```hocon
-cp server/target/scala-2.12/cromwell-52-*-SNAP.jar \
+cp server/target/scala-2.13/cromwell-52-*-SNAP.jar \
 cromwell/cromwell-52-fix.jar
 ```
 

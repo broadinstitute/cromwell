@@ -211,7 +211,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       data.idFromActor(workflowActor) foreach { workflowId =>
         params.jobStoreActor ! RegisterWorkflowCompleted(workflowId)
       }
-      stay using data.without(workflowActor)
+      stay() using data.without(workflowActor)
   }
 
   val scheduleNextNewWorkflowPollStateFunction: StateFunction = {
@@ -257,12 +257,12 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     case Event(SubWorkflowStart(actorRef), data) =>
       // Watch for this subworkflow to expire to remove it from the Set of running subworkflows.
       context.watch(actorRef)
-      stay using data.copy(subWorkflows = data.subWorkflows + actorRef)
+      stay() using data.copy(subWorkflows = data.subWorkflows + actorRef)
     case Event(Terminated(actorRef), data) =>
       // This is looking only for subworkflow actor terminations. If for some reason we see a termination for a
       // different type of actor this should be a noop since the ActorRef element being removed from the set of
       // subworkflows would not have been in the set in the first place.
-      stay using data.copy(subWorkflows = data.subWorkflows - actorRef)
+      stay() using data.copy(subWorkflows = data.subWorkflows - actorRef)
     // Uninteresting transition and current state notifications.
     case Event(Transition(_, _, _) | CurrentState(_, _), _) => stay()
     case Event(JobStoreWriteSuccess(_), _) => stay() // Snoozefest

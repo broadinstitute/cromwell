@@ -103,7 +103,7 @@ class CallCachingSlickDatabaseSpec
             "BASE_AGGREGATION",
             Option("FILE_AGGREGATION"),
             callCachePathPrefixes = prefixOption,
-            1
+            Set.empty
           )
           _ = hit shouldBe empty
         } yield ()).futureValue
@@ -141,7 +141,7 @@ class CallCachingSlickDatabaseSpec
     }
 
     it should "stop container if required" taggedAs DbmsTest in {
-      containerOpt.foreach { _.stop }
+      containerOpt.foreach { _.stop() }
     }
   }
 }

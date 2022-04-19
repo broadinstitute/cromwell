@@ -188,7 +188,7 @@ class JobPreparationActorSpec
     val prefetchedKey = "MemoryMultiplier"
     val retryFactor = 1.1
     val taskMemory = 1.0
-    val attributes = Map ("memory" -> WomString(taskMemory + " GB"))
+    val attributes = Map ("memory" -> WomString(s"$taskMemory GB"))
     val inputsAndAttributes = (inputs, attributes).validNel
 
     var previousMultiplier = 1.0
@@ -217,7 +217,7 @@ class JobPreparationActorSpec
       expectMsgPF(5 seconds) {
         case success: BackendJobPreparationSucceeded =>
           success.jobDescriptor.prefetchedKvStoreEntries should be(Map(prefetchedKey -> prefetchedVal))
-          success.jobDescriptor.runtimeAttributes(RuntimeAttributesKeys.MemoryKey) shouldBe WomString((taskMemory * nextMultiplier) + " GB")
+          success.jobDescriptor.runtimeAttributes(RuntimeAttributesKeys.MemoryKey) shouldBe WomString(s"${taskMemory * nextMultiplier} GB")
       }
     }
   }

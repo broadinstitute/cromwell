@@ -184,6 +184,7 @@ object CallElementToGraphNode {
             // Leave it unsupplied:
             InputDefinitionFold()
           }
+        case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
       }
     }
 

@@ -14,7 +14,7 @@ import wdl.draft2.parser.WdlParser._
 import wom.InstantiatedCommand
 import wom.values.WomValue
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 
 object WdlTask {
@@ -120,7 +120,7 @@ case class WdlTask(name: String,
     import WdlTask.instantiatedCommandMonoid
     val fullInstantiatedCommand: ErrorOr[InstantiatedCommand] = commandTemplate.toList
       .flatTraverse(_.instantiate(declarations, mappedInputs, functions, valueMapper)).map(_.combineAll)
-    
+
     // `normalize` the instantiation (i.e. don't break Python code indentation)
     fullInstantiatedCommand map { c => List(c.copy(commandString = StringUtil.normalize(c.commandString)))}
   }

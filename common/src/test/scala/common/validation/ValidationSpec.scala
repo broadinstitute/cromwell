@@ -21,7 +21,7 @@ class ValidationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
   it should "warn unrecognized keys" in {
     var warnings = List.empty[Any]
     val mockLogger = mock[Logger]
-    mockLogger.warn(anyString).answers(warnings :+= _)
+    mockLogger.warn(anyString).answers((warnings :+= _): Any => Unit)
     val keys = Set("hello")
     val reference = Set("world")
     val context = "warnings"
@@ -32,7 +32,7 @@ class ValidationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
   it should "not warn recognized keys" in {
     var warnings = List.empty[Any]
     val mockLogger = mock[Logger]
-    mockLogger.warn(anyString).answers(warnings :+= _)
+    mockLogger.warn(anyString).answers((warnings :+= _): Any => Unit)
     val keys = Set("hello")
     val reference = Set("hello", "world")
     val context = "warnings"

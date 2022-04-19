@@ -5,7 +5,7 @@ import java.util.Map.Entry
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.languages.config.CromwellLanguages.{CromwellLanguageName, CromwellLanguageVersion}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 final case class LanguagesConfiguration(languages: List[LanguageVersionConfigurationEntry], default: Option[String])
 final case class LanguageVersionConfigurationEntry(name: CromwellLanguageName, versions: Map[CromwellLanguageVersion, LanguageVersionConfig], default: Option[String])
@@ -21,9 +21,10 @@ object LanguageConfiguration {
     val languages = LanguageNames.toList map { languageName =>
 
       val languageConfig = LanguagesConfig.getConfig(languageName)
-      val defaultVersionName: Option[String] = if (LanguagesConfig.hasPath("default")) { Option(LanguagesConfig.getString("default")) } else None
       val versionSet = languageConfig.getConfig("versions")
-      val languageVersionNames: Set[String] = versionSet.entrySet().asScala.map(findFirstKey).filterNot(_ == "default").toSet
+      val allLanguageVersionNames: Set[String] = versionSet.entrySet().asScala.map(findFirstKey).toSet
+      val (defaultVersionKey, languageVersionNames) = allLanguageVersionNames.partition(_ == "default")
+      val defaultVersionName: Option[String] = defaultVersionKey.headOption map { _ => versionSet.getString("default") }
 
       val versions = (languageVersionNames.toList map { languageVersionName =>
         val configEntry = versionSet.getConfig(s""""$languageVersionName"""")

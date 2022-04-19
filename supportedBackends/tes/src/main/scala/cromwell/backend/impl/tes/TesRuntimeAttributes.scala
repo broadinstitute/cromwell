@@ -60,13 +60,13 @@ object TesRuntimeAttributes {
 
     if (config.useBackendParameters)
       runtimeAttributes
-        .filterKeys(k => !keysToExclude.contains(k))
+        .view.filterKeys(k => !keysToExclude.contains(k))
         .flatMap( _ match {
           case (key, WomString(s)) => Option((key, Option(s)))
           case (key, WomOptionalValue(WomStringType, Some(WomString(optS)))) => Option((key, Option(optS)))
           case (key, WomOptionalValue(WomStringType, None)) => Option((key, None))
           case _ => None
-        })
+        }).toMap
     else
       Map.empty
   }

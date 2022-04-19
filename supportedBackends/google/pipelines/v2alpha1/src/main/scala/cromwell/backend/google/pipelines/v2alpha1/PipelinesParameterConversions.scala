@@ -29,7 +29,7 @@ trait PipelinesParameterConversions {
       fileInput.cloudPath match {
         case drsPath: DrsPath =>
 
-          import collection.JavaConverters._
+          import scala.jdk.CollectionConverters._
 
           val drsFileSystemProvider = drsPath.drsPath.getFileSystem.provider.asInstanceOf[DrsCloudNioFileSystemProvider]
 

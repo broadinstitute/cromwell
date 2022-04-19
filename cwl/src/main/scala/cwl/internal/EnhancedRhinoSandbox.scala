@@ -4,7 +4,7 @@ import cwl.internal.EnhancedRhinoSandbox._
 import delight.rhinosandox.internal._
 import org.mozilla.javascript._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.reflect._
 
 /**

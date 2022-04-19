@@ -46,15 +46,15 @@ object CentaurCwlRunner extends StrictLogging {
   // TODO: This would be cleaner with Enumeratum
   object ExitCode extends Enumeration {
 
-    protected case class Val(status: Int) extends super.Val
+    protected case class ExitVal(status: Int) extends super.Val
 
     implicit class ValueToVal(val exitCodeValue: Value) extends AnyVal {
-      def status: Int = exitCodeValue.asInstanceOf[Val].status
+      def status: Int = exitCodeValue.asInstanceOf[ExitVal].status
     }
 
-    val Success = Val(0)
-    val Failure = Val(1)
-    val NotImplemented = Val(33)
+    val Success = ExitVal(0)
+    val Failure = ExitVal(1)
+    val NotImplemented = ExitVal(33)
   }
 
   private val cwlPreProcessor = new CwlPreProcessor()

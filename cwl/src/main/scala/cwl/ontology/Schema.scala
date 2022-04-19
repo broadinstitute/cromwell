@@ -23,7 +23,7 @@ import org.semanticweb.owlapi.reasoner.{OWLReasoner, OWLReasonerFactory}
 import org.semanticweb.owlapi.util.OWLAPIStreamUtils
 import org.slf4j.LoggerFactory
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.ExecutionContext
 import scala.util.Try
 

@@ -20,8 +20,8 @@ class DirectorySpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "Directory"
 
   it should "dir_example" in {
-    val cwl = decodeCwlFile(rootPath / "dir_example.cwl").value.unsafeRunSync.right.get
-    val executable = cwl.womExecutable(AcceptAllRequirements, None, NoIoFunctionSet, strictValidation = false).right.get
+    val cwl = decodeCwlFile(rootPath / "dir_example.cwl").value.unsafeRunSync().toOption.get
+    val executable = cwl.womExecutable(AcceptAllRequirements, None, NoIoFunctionSet, strictValidation = false).toOption.get
     val call = executable.graph.calls.head
     val runtimeEnvironment = RuntimeEnvironment("output/path", "temp/path",refineMV[Positive](1), 2e10, 100, 100)
     val defaultCallInputs = executable.graph.nodes.collect({

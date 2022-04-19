@@ -41,7 +41,7 @@ object IoCommandBuilder {
   * One might want to create different I/O commands to allow for optimizations when the commands are processed by the I/O actor.
   * Currently the only other command builder is the GcsBatchCommandBuilder that overrides some of the operations
   * to return GcsBatchCommands instead that will be optimized by the IoActor.
-  * 
+  *
   * This always defaults to building a DefaultIoCommand.
   * @param partialBuilders list of PartialIoCommandBuilder to try
   */
@@ -50,40 +50,40 @@ class IoCommandBuilder(partialBuilders: List[PartialIoCommandBuilder] = List.emp
   private def buildOrDefault[A, B](builder: PartialIoCommandBuilder => PartialFunction[A, Try[B]],
                                    params: A,
                                    default: => B): Try[B] = {
-    partialBuilders.toStream.map(builder(_).lift(params)).collectFirst({
+    partialBuilders.to(LazyList).map(builder(_).lift(params)).collectFirst({
       case Some(command) => command
     }).getOrElse(Try(default))
   }
-  
+
   def contentAsStringCommand(path: Path,
                              maxBytes: Option[Int],
                              failOnOverflow: Boolean): Try[IoContentAsStringCommand] = {
     buildOrDefault(_.contentAsStringCommand, (path, maxBytes, failOnOverflow), DefaultIoContentAsStringCommand(path, IoReadOptions(maxBytes, failOnOverflow)))
   }
-  
+
   def writeCommand(path: Path,
                    content: String,
                    options: OpenOptions,
                    compressPayload: Boolean = false): Try[IoWriteCommand] = {
     buildOrDefault(_.writeCommand, (path, content, options, compressPayload), DefaultIoWriteCommand(path, content, options, compressPayload))
   }
-  
+
   def sizeCommand(path: Path): Try[IoSizeCommand] = {
     buildOrDefault(_.sizeCommand, path, DefaultIoSizeCommand(path))
-  } 
-  
+  }
+
   def deleteCommand(path: Path, swallowIoExceptions: Boolean = true): Try[IoDeleteCommand] = {
     buildOrDefault(_.deleteCommand, (path, swallowIoExceptions), DefaultIoDeleteCommand(path, swallowIoExceptions))
   }
-  
+
   def copyCommand(src: Path, dest: Path): Try[IoCopyCommand] = {
     buildOrDefault(_.copyCommand, (src, dest), DefaultIoCopyCommand(src, dest))
   }
-  
+
   def hashCommand(file: Path): Try[IoHashCommand] = {
     buildOrDefault(_.hashCommand, file, DefaultIoHashCommand(file))
   }
-  
+
   def touchCommand(file: Path): Try[IoTouchCommand] = {
     buildOrDefault(_.touchCommand, file, DefaultIoTouchCommand(file))
   }

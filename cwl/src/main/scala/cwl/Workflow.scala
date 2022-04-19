@@ -139,11 +139,11 @@ case class Workflow private(
           val womType: WomType = tpe.fold(MyriadOutputTypeToWomType).apply(allRequirements.schemaDefRequirement)
 
           val parsedWorkflowOutput = FileAndId(id)
-          val parsedOutputSource = FullyQualifiedName(outputSource)
+          val parsedOutputSource = cwl.FullyQualifiedName(outputSource)
 
           // Try to find an output port for this cwl output in the set of available nodes
-          def lookupOutputSource(fqn: FullyQualifiedName): Checked[OutputPort] = {
-            def isRightOutputPort(op: GraphNodePort.OutputPort) = FullyQualifiedName.maybeApply(op.name) match {
+          def lookupOutputSource(fqn: cwl.FullyQualifiedName): Checked[OutputPort] = {
+            def isRightOutputPort(op: GraphNodePort.OutputPort) = cwl.FullyQualifiedName.maybeApply(op.name) match {
               case Some(f) => f.id == fqn.id
               case None => op.internalName == fqn.id
             }

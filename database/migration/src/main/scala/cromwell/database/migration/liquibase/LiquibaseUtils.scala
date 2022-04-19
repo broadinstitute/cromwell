@@ -13,7 +13,7 @@ import liquibase.snapshot.{DatabaseSnapshot, SnapshotControl, SnapshotGeneratorF
 import liquibase.{Contexts, LabelExpression, Liquibase}
 import org.hsqldb.persist.HsqlDatabaseProperties
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object LiquibaseUtils {
   // Paranoia: Create our own mutex. https://stackoverflow.com/questions/442564/avoid-synchronizedthis-in-java
@@ -160,7 +160,7 @@ object LiquibaseUtils {
     */
   def getChangeSets(settings: LiquibaseSettings): Seq[ChangeSet] = {
     mutex.synchronized {
-      getChangeLog(settings).getChangeSets.asScala
+      getChangeLog(settings).getChangeSets.asScala.toList
     }
   }
 

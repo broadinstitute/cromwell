@@ -13,7 +13,7 @@ import cromwell.docker.DockerImageIdentifier
 import cromwell.docker.registryv2.flows.dockerhub.DockerHub
 import mouse.all._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 
 /**
@@ -51,7 +51,7 @@ object ActionBuilder {
     def withMounts(mounts: List[Mount]): Action = action.setMounts(mounts.asJava)
     def withLabels(labels: Map[String, String]): Action = action.setLabels(labels.asJava)
     def withTimeout(timeout: Duration): Action = timeout match {
-      case fd: FiniteDuration => action.setTimeout(fd.toSeconds + "s")
+      case fd: FiniteDuration => action.setTimeout(fd.toSeconds.toString + "s")
       case _ => action
     }
 

@@ -21,7 +21,7 @@ import wom.callable.MetaValueElement.MetaValueElementInteger
 import wom.types.WomIntegerType
 import wom.values.WomInteger
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object Ast2WdlomSpec {
   val parser = new WdlParser()

@@ -60,7 +60,7 @@ trait WomValue {
 
   private def symbolHash[K](hashedMap: Map[K, SymbolHash])(implicit ord: Ordering[K]): SymbolHash = {
     // productIterator returns an Iterator over the elements of a Tuple2 Map entry.
-    val concatenatedMap = TreeMap(hashedMap.toArray: _*) flatMap { _.productIterator } mkString ""
+    val concatenatedMap = TreeMap(hashedMap.toIndexedSeq: _*) flatMap { _.productIterator } mkString ""
     symbolHash(concatenatedMap)
   }
 
@@ -79,8 +79,8 @@ trait WomValue {
   /**
     * Perform any potentially async initialization on this wom value before it can be used to evaluate an expression
     * or instantiate a command for instance.
-    * 
-    * TODO: It would be better if the return type was the concrete one instead of a generic WomValue, but this 
+    *
+    * TODO: It would be better if the return type was the concrete one instead of a generic WomValue, but this
     * seems hard to do without WomValue being parameterized.
     */
   def initialize(ioFunctionSet: IoFunctionSet): IOChecked[WomValue] = IOChecked.pure(this)

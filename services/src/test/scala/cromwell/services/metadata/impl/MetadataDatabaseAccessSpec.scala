@@ -597,7 +597,7 @@ class MetadataDatabaseAccessSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
     }
 
     it should "stop container if required" taggedAs DbmsTest in {
-      containerOpt.foreach { _.stop }
+      containerOpt.foreach { _.stop() }
     }
   }
 }

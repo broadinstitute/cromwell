@@ -13,7 +13,7 @@ class ExceptionAggregationSpec extends AnyFlatSpecLike with CromwellTimeoutSpec 
   "MessageAggregation" should "aggregate messages" in {
     val aggregatedException = new Exception with MessageAggregation {
       override def exceptionContext: String = "Bouuhhh"
-      override def errorMessages: Traversable[String] = List("Didn't work", "didn't work either")
+      override def errorMessages: Iterable[String] = List("Didn't work", "didn't work either")
     }
 
     aggregatedException.getMessage shouldBe
@@ -23,7 +23,7 @@ class ExceptionAggregationSpec extends AnyFlatSpecLike with CromwellTimeoutSpec 
   }
 
   "AggregatedMessageException" should "aggregate empty messages" in {
-    val aggregatedMessageException = AggregatedMessageException("Bouuhhh", Traversable.empty)
+    val aggregatedMessageException = AggregatedMessageException("Bouuhhh", Iterable.empty)
     aggregatedMessageException.getMessage shouldBe "Bouuhhh"
   }
 
@@ -37,7 +37,7 @@ class ExceptionAggregationSpec extends AnyFlatSpecLike with CromwellTimeoutSpec 
 
     val throwableAggregation = new Exception with ThrowableAggregation {
       override def exceptionContext: String = "Clearly not working"
-      override def throwables: Traversable[Throwable] = List(exception1, exception2)
+      override def throwables: Iterable[Throwable] = List(exception1, exception2)
     }
 
     val aggregatedException = AggregatedException("Clearly not working", List(exception1, exception2))
@@ -51,14 +51,14 @@ class ExceptionAggregationSpec extends AnyFlatSpecLike with CromwellTimeoutSpec 
       e.getSuppressed should contain theSameElementsAs List(exception1, exception2)
     }
   }
-  
+
   "ThrowableAggregation" should "aggregate throwable aggregations recursively" in {
     val exception1 = new RuntimeException("Nope")
     val exception2 = new RuntimeException("Still nope")
     val subAggregatedException = AggregatedException("Nope exception", List(exception1, exception2))
     val exception3 = new RuntimeException("Yep Exception")
     val aggregatedException = AggregatedException("This is why nothing works", List(subAggregatedException, exception3))
-    
+
     aggregatedException.getMessage shouldBe """This is why nothing works:
                                               |Nope exception:
                                               |	Nope
@@ -87,13 +87,13 @@ class ExceptionAggregationSpec extends AnyFlatSpecLike with CromwellTimeoutSpec 
 
   "ThrowableAggregation" should "flatten throwables" in {
     import Aggregation._
-    
+
     val exception1 = new RuntimeException("Nope")
     val exception2 = new RuntimeException("Still nope")
     val subAggregatedException = AggregatedException("Nope exception", List(exception1, exception2))
     val exception3 = new RuntimeException("Yep Exception")
     val aggregatedException = AggregatedException("This is why nothing works", List(subAggregatedException, exception3))
-    
+
     aggregatedException.flatten.toSet shouldBe Set(exception1, exception2, exception3)
   }
 }

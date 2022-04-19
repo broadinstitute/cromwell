@@ -86,11 +86,9 @@ class AlibabaCloudCRRegistry(config: DockerRegistryConfig) extends DockerRegistr
     request.setRepoName(dockerImageID.image)
     dockerImageID.repository foreach { repository => request.setRepoNamespace(repository) }
 
-    manifestResponseHandler(client, request, context)
-      .getOrElse(new Exception(s"handle response fail, please make sure the image id is correct: ${context.dockerImageID}")) match {
-      case succ: DockerInfoSuccessResponse => succ
-      case fail: DockerInfoFailedResponse => fail
-      case ex: Exception => throw new Exception(s"Get AliyunCr manifest failed, ${ex.getMessage}")
+    manifestResponseHandler(client, request, context) match {
+      case Success(response) => response // may be DockerInfoSuccessResponse or DockerInfoFailedResponse
+      case Failure(ex) => throw new Exception(s"Get AliyunCr manifest failed for ${context.dockerImageID}", ex)
     }
   }
 

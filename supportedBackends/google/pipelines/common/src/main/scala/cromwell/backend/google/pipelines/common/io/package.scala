@@ -8,11 +8,11 @@ package object io {
   implicit class PathEnhanced(val path: Path) extends AnyVal {
 
     def writeAsJson(content: String): Path = {
-      path.writeBytes(content.getBytes.toIterator)(Seq(CloudStorageOptions.withMimeType("application/json")))
+      path.writeBytes(content.getBytes.iterator)(Seq(CloudStorageOptions.withMimeType("application/json")))
     }
 
     def writeAsText(content: String): Path = {
-      path.writeBytes(content.getBytes.toIterator)(Seq(CloudStorageOptions.withMimeType("text/plain")))
+      path.writeBytes(content.getBytes.iterator)(Seq(CloudStorageOptions.withMimeType("text/plain")))
     }
   }
 

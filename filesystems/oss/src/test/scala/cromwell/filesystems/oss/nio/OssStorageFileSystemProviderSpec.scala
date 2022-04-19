@@ -7,7 +7,7 @@ import java.nio.file.{DirectoryStream, NoSuchFileException, Path, StandardOpenOp
 import cromwell.core.TestKitSuite
 import org.scalatest.BeforeAndAfter
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks
 

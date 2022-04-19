@@ -8,7 +8,7 @@ import java.util.zip.GZIPOutputStream
 import better.files.File.OpenOptions
 import cromwell.util.TryWithResource.tryWithResource
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.ExecutionContext
 import scala.io.Codec
 import scala.util.{Failure, Try}

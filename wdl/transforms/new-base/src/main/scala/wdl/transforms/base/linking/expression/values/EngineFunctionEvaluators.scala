@@ -140,7 +140,7 @@ object EngineFunctionEvaluators {
         val tryResult = for {
           read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readObjectLimit)
           objects <- WomObject.fromTsv(read)
-        } yield WomArray(objects)
+        } yield WomArray(objects.toIndexedSeq)
 
         tryResult.map(EvaluatedValue(_, Seq.empty)).toErrorOr.contextualizeErrors(s"""read_objects("${fileToRead.value}")""")
       }
@@ -568,7 +568,7 @@ object EngineFunctionEvaluators {
         case f if f.isInstanceOf[WomSingleFile] || WomSingleFileType.isCoerceableFrom(f.womType) =>
           f.coerceToType[WomSingleFile] flatMap { file => Try(Await.result(ioFunctionSet.size(file.valueString), Duration.Inf)).toErrorOr }
         case WomOptionalValue(f, Some(o)) if isOptionalOfFileType(f) => optionalSafeFileSize(o)
-        case WomOptionalValue(f, None) if isOptionalOfFileType(f) => 0l.validNel
+        case WomOptionalValue(f, None) if isOptionalOfFileType(f) => 0L.validNel
         case WomArray(WomArrayType(womType), values) if isOptionalOfFileType(womType) => values.toList.traverse(optionalSafeFileSize).map(_.sum)
         case _ => s"The 'size' method expects a 'File', 'File?', 'Array[File]' or Array[File?] argument but instead got ${value.womType.stableName}.".invalidNel
       }

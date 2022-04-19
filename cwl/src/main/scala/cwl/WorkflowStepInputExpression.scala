@@ -40,6 +40,7 @@ final case class WorkflowStepInputExpression(inputName: String,
         val parameterContext = ParameterContext(ioFunctionSet, expressionLib, inputValues, selfValue)
 
         expression.fold(EvaluateExpression).apply(parameterContext)
+      case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
     }
   }
 

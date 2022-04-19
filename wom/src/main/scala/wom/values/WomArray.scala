@@ -11,7 +11,7 @@ import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values.WomArray.WomArrayLike
 
-import scala.language.{higherKinds, postfixOps}
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object WomArray {

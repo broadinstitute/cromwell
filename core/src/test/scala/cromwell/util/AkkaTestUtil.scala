@@ -11,7 +11,7 @@ object AkkaTestUtil {
     // Get a 'props' handle which will return a (inbound-only!!) wrapper around this test probe when constructed
     def props = Props(new Actor with ActorLogging {
       def receive = {
-        case outbound @ _ if sender == probe.ref =>
+        case outbound @ _ if sender() == probe.ref =>
           val msg = "Unexpected outbound message from Probe. You're doing something wrong!"
           log.error(msg)
           throw new RuntimeException(msg)

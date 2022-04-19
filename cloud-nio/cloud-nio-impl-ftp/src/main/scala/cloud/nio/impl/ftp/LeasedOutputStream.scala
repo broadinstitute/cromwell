@@ -15,6 +15,6 @@ class LeasedOutputStream(cloudHost: String, cloudPath: String, outputStream: Out
   override def flush() = outputStream.flush()
   override def close() = {
     outputStream.close()
-    autoRelease(IO.pure(lease))(FtpCompletePendingCommand(cloudHost, cloudPath, "close input steam").run).void unsafeRunSync()
+    autoRelease(IO.pure(lease))(FtpCompletePendingCommand(cloudHost, cloudPath, "close input steam").run).void.unsafeRunSync()
   }
 }

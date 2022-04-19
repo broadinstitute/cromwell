@@ -9,7 +9,7 @@ import software.amazon.awssdk.services.batch.BatchClient
 import software.amazon.awssdk.services.batch.model.ListJobsRequest
 
 import scala.annotation.tailrec
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
@@ -45,7 +45,7 @@ class OccasionalStatusPollingActor(configRegion: Option[Region], optAwsAuthMode:
   override def receive = {
     case WhatsMyStatus(queueArn, jobId) =>
       queuesToMonitor += queueArn // Set addition so expectation is a no-op almost every time
-      sender ! NotifyOfStatus(queueArn, jobId, statuses.get(jobId))
+      sender() ! NotifyOfStatus(queueArn, jobId, statuses.get(jobId))
 
     case UpdateStatuses =>
       Future {

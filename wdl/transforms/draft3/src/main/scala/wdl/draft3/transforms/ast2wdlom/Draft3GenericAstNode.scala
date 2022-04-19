@@ -2,7 +2,7 @@ package wdl.draft3.transforms.ast2wdlom
 
 import wdl.draft3.parser.WdlParser.{Ast, AstList, AstNode, Terminal}
 import wdl.transforms.base.ast2wdlom.{GenericAst, GenericAstList, GenericAstNode, GenericTerminal}
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 case class Draft3GenericAst(ast: Ast) extends GenericAst {
   override def getAttribute(attr: String): GenericAstNode = Option(ast.getAttribute(attr)).map(Draft3GenericAstNode.apply).orNull

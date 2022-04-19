@@ -21,6 +21,7 @@ import wom.types.WomSingleFileType
 import wom.values._
 import mouse.all._
 
+import scala.annotation.nowarn
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Success, Try}
@@ -311,6 +312,7 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
     bcsJobPaths.workerPath
   }
 
+  @nowarn("msg=a type was inferred to be `Object`; this may indicate a programming error.")
   override def executeAsync(): Future[ExecutionHandle] = {
     commandScriptContents.fold(
       errors => Future.failed(new RuntimeException(errors.toList.mkString(", "))),

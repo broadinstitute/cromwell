@@ -193,7 +193,7 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
     //database.run(action) <-- See comment above private val actionThreadPool
     Future {
       try {
-        if (timeout.isFinite()) {
+        if (timeout.isFinite) {
           // https://stackoverflow.com/a/52569275/818054
           Await.result(database.run(action.withStatementParameters(statementInit = _.setQueryTimeout(timeout.toSeconds.toInt))), Duration.Inf)
         } else {
@@ -254,7 +254,7 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
       if (failures.isEmpty) DBIO.successful(())
       else {
         val valueList = values.toList
-        val failedRequests = failures.map(valueList(_))
+        val failedRequests = failures.toList.map(valueList(_))
         DBIO.failed(new RuntimeException(
           s"$description failed to upsert the following rows: ${failedRequests.mkString(", ")}"
         ))

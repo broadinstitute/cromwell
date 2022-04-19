@@ -23,9 +23,9 @@ class IoClientHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
     val delegateProbe = TestProbe()
     val backoff = SimpleExponentialBackoff(100 seconds, 10.hours, 2D, 0D)
     val noResponseTimeout = 3 seconds
-    
-    val testActor = TestActorRef(new IoClientHelperTestActor(ioActorProbe.ref, delegateProbe.ref, backoff, noResponseTimeout)) 
-    
+
+    val testActor = TestActorRef(new IoClientHelperTestActor(ioActorProbe.ref, delegateProbe.ref, backoff, noResponseTimeout))
+
     val command = DefaultIoSizeCommand(mock[Path])
     val response = IoSuccess(command, 5)
 
@@ -34,13 +34,13 @@ class IoClientHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
 
     // Io actor receives the command
     ioActorProbe.expectMsg(command)
-    
+
     // Io actor replies
     ioActorProbe.reply(response)
-    
+
     // delegate should receive the response
     delegateProbe.expectMsg(response)
-    
+
     // And nothing else, meaning the timeout timer has been cancelled
     delegateProbe.expectNoMessage()
 
@@ -82,7 +82,7 @@ class IoClientHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
   }
 
   private case object ServiceUnreachable
-  
+
   private class IoClientHelperTestActor(override val ioActor: ActorRef,
                                 delegateTo: ActorRef,
                                 backoff: Backoff,
@@ -90,8 +90,8 @@ class IoClientHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
 
     implicit val ioCommandBuilder = DefaultIoCommandBuilder
 
-    override protected def initialBackoff = backoff
-    
+    override protected def initialBackoff(): Backoff = backoff
+
     context.become(ioReceive orElse receive)
 
     override def receive: Receive = {

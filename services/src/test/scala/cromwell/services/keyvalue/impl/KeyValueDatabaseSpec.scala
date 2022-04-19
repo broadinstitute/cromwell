@@ -116,7 +116,7 @@ class KeyValueDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     }
 
     it should "stop container" taggedAs DbmsTest in {
-      containerOpt.foreach { _.stop }
+      containerOpt.foreach { _.stop() }
     }
   }
 }

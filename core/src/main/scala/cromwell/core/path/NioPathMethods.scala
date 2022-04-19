@@ -3,7 +3,7 @@ package cromwell.core.path
 import java.nio.file.WatchEvent.{Kind, Modifier}
 import java.nio.file.{LinkOption, WatchKey, WatchService}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 /**
   * Implements methods with the same names and signatures as java.nio.Path

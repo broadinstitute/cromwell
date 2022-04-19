@@ -41,7 +41,7 @@ object PathCopier {
     */
   def copy(sourceFilePath: Path, destinationFilePath: Path): Try[Unit] = {
     Try {
-      Option(destinationFilePath.parent).foreach(_.createDirectories)
+      Option(destinationFilePath.parent).foreach(_.createDirectories())
       sourceFilePath.copyTo(destinationFilePath, overwrite = true)
       ()
     } recoverWith {

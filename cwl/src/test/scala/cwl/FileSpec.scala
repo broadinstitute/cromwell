@@ -27,8 +27,8 @@ class FileSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with T
 
   forAll(fileTests) { (description, filePath, ioFunctionSet, expectedCommand) =>
     it should description in {
-      val cwl = decodeCwlFile(rootPath / filePath).value.unsafeRunSync.right.get
-      val executable = cwl.womExecutable(AcceptAllRequirements, None, ioFunctionSet, strictValidation = false).right.get
+      val cwl = decodeCwlFile(rootPath / filePath).value.unsafeRunSync().toOption.get
+      val executable = cwl.womExecutable(AcceptAllRequirements, None, ioFunctionSet, strictValidation = false).toOption.get
       val call = executable.graph.calls.head
       val runtimeEnvironment = RuntimeEnvironment("output/path", "temp/path", refineMV[Positive](1), 2e10, 100, 100)
       val defaultCallInputs = executable.graph.nodes.collect({
@@ -39,14 +39,14 @@ class FileSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with T
           val value: WomValue = key
             .valueMapper(ioFunctionSet)(oginwd.default.evaluateValue(Map.empty, ioFunctionSet).toTry.get)
             .value.unsafeRunSync()
-            .right.get
+            .toOption.get
 
           key -> value
       }).toMap
       val commandEither = call.callable.asInstanceOf[CallableTaskDefinition].instantiateCommand(
         defaultCallInputs, ioFunctionSet, identity, runtimeEnvironment
       ).toEither
-      val command = commandEither.right.get.commandString
+      val command = commandEither.toOption.get.commandString
       command should be(expectedCommand)
     }
   }

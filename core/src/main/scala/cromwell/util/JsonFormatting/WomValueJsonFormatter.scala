@@ -38,7 +38,7 @@ object WomValueJsonFormatter extends DefaultJsonProtocol {
       case JsString(str) => WomString(str)
       case JsBoolean(bool) => WomBoolean(bool)
       case JsNumber(decimal) if decimal.isValidInt => WomInteger(decimal.toIntExact)
-      case JsNumber(decimal) => WomFloat(decimal.doubleValue())
+      case JsNumber(decimal) => WomFloat(decimal.doubleValue)
       case unsupported => throw new UnsupportedOperationException(s"Cannot deserialize $unsupported to a WomValue")
     }
   }

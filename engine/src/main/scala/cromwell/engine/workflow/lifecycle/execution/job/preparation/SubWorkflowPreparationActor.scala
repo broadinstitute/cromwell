@@ -73,7 +73,7 @@ class SubWorkflowPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
         case Valid(response) => context.parent ! response
         case Invalid(f) => context.parent ! CallPreparationFailed(callKey, new MessageAggregation {
           override def exceptionContext: String = "Failed to evaluate inputs for sub workflow"
-          override def errorMessages: Traversable[String] = f.toList
+          override def errorMessages: Iterable[String] = f.toList
         })
       }
       context stop self

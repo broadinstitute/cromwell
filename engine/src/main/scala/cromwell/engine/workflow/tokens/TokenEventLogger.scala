@@ -32,7 +32,7 @@ class CachingTokenEventLogger(cacheEntryTTL: FiniteDuration) extends TokenEventL
   }
 
   override def tokenExhaustedGroups: Set[String] = {
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     groupCache.asMap().keySet().asScala.toSet
   }
 
@@ -47,7 +47,7 @@ class CachingTokenEventLogger(cacheEntryTTL: FiniteDuration) extends TokenEventL
   }
 
   override def tokenExhaustedBackends: Set[String] = {
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     backendCache.asMap().keySet().asScala.toSet
   }
 

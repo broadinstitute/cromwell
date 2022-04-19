@@ -21,15 +21,15 @@ class QueryForWorkflowsMatchingParametersSpec extends AnyWordSpec with CromwellT
       val result = WorkflowQueryParameters.runValidation(Seq.empty)
       result match {
         case Valid(r) =>
-          r.startDate should be('empty)
-          r.endDate should be('empty)
-          r.names should be('empty)
-          r.statuses should be('empty)
-          r.labelsAnd should be ('empty)
-          r.labelsOr should be ('empty)
-          r.excludeLabelsAnd should be ('empty)
-          r.excludeLabelsOr should be ('empty)
-          r.submissionTime should be('empty)
+          r.startDate should be(Symbol("empty"))
+          r.endDate should be(Symbol("empty"))
+          r.names should be(Symbol("empty"))
+          r.statuses should be(Symbol("empty"))
+          r.labelsAnd should be (Symbol("empty"))
+          r.labelsOr should be (Symbol("empty"))
+          r.excludeLabelsAnd should be (Symbol("empty"))
+          r.excludeLabelsOr should be (Symbol("empty"))
+          r.submissionTime should be(Symbol("empty"))
         case Invalid(fs) =>
           throw new RuntimeException(fs.toList.mkString(", "))
       }
@@ -221,7 +221,7 @@ class QueryForWorkflowsMatchingParametersSpec extends AnyWordSpec with CromwellT
           fs.toList.head should include("Label values do not match allowed pattern label-key:label-value")
       }
     }
-    
+
     "valid labels with invalid format for OR" in {
       val goodLabelKey = "0-label-key"
       val rawParameters = Seq(
@@ -297,9 +297,9 @@ class QueryForWorkflowsMatchingParametersSpec extends AnyWordSpec with CromwellT
           throw new RuntimeException(s"Unexpected success: $r")
         case Invalid(fs) =>
           fs.toList should have size 3
-          fs.toList find { _ == "Unrecognized status values: Moseying" } getOrElse fail
-          fs.toList find { _ contains "does not parse as a datetime" } getOrElse fail
-          fs.toList find { _ contains "Name values do not match allowed workflow naming pattern" } getOrElse fail
+          fs.toList find { _ == "Unrecognized status values: Moseying" } getOrElse fail()
+          fs.toList find { _ contains "does not parse as a datetime" } getOrElse fail()
+          fs.toList find { _ contains "Name values do not match allowed workflow naming pattern" } getOrElse fail()
       }
     }
   }

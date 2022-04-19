@@ -51,10 +51,30 @@ cromwell::private::set_variable_if_only_some_files_changed() {
 
     if [[ "${TRAVIS_EVENT_TYPE:-unset}" != "pull_request" ]]; then
         export "${variable_to_set}=false"
-    elif git diff --name-only "origin/${TRAVIS_BRANCH}" 2>&1 | grep -E -q --invert-match "${files_changed_regex}"; then
-        export "${variable_to_set}=false"
     else
+      # Large changesets seem to trigger the situation described in [1] where a `git diff` pipelined to `grep` can cause
+      # `grep` to exit 0 on the first match while `git diff` is still writing to the pipe. When this happens `git diff`
+      # is killed with a SIGPIPE and exits with code 141. With `set -o pipefail` this causes the entire pipeline to exit
+      # with code 141, which sets `$variable_to_set` to `true` when it probably should have been set to `false`.
+      #
+      # Instead of composing these commands into a pipeline write to a temporary file.
+      #
+      # [1] https://stackoverflow.com/a/19120674
+      # [2] https://gist.github.com/mohanpedala/1e2ff5661761d3abd0385e8223e16425#set--o-pipefail
+
+      files_changed_temporary_file=$(mktemp)
+
+      git diff --name-only "origin/${TRAVIS_BRANCH}" > "${files_changed_temporary_file}" 2>&1 && \
+          grep -E -q --invert-match "${files_changed_regex}" "${files_changed_temporary_file}"
+      RESULT=$?
+
+      if [[ $RESULT -eq 0 ]]; then
+        export "${variable_to_set}=false"
+      else
         export "${variable_to_set}=true"
+      fi
+
+      rm "${files_changed_temporary_file}"
     fi
 }
 
@@ -1132,7 +1152,7 @@ cromwell::private::make_build_directories() {
 
 cromwell::private::find_cromwell_jar() {
     CROMWELL_BUILD_CROMWELL_JAR="$( \
-        find "${CROMWELL_BUILD_ROOT_DIRECTORY}/server/target/scala-2.12" -name "cromwell-*.jar" -print0 \
+        find "${CROMWELL_BUILD_ROOT_DIRECTORY}/server/target/scala-2.13" -name "cromwell-*.jar" -print0 \
         | xargs -0 ls -1 -t \
         | head -n 1 \
         2> /dev/null \

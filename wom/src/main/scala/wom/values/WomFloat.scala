@@ -11,7 +11,7 @@ case class WomFloat(value: Double) extends WomPrimitive {
     rhs match {
       case r:WomFloat => Success(WomFloat(value + r.value))
       case r:WomInteger => Success(WomFloat(value + r.value))
-      case r:WomString => Success(WomString(value + r.value))
+      case r:WomString => Success(WomString(s"$value${r.value}"))
       case r: WomOptionalValue => evaluateIfDefined("+", r, add)
       case _ => invalid(s"$this + $rhs")
     }

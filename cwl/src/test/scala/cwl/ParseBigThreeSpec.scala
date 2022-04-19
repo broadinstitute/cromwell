@@ -14,21 +14,21 @@ class ParseBigThreeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
 
   decodeCwlFile(rootPath/"1st-tool.cwl").
     value.
-    unsafeRunSync.
+    unsafeRunSync().
     isRight shouldBe true
   }
 
   it should "parse first workflow" in {
     decodeCwlFile(rootPath/"1st-workflow.cwl").
       value.
-      unsafeRunSync.
+      unsafeRunSync().
       isRight shouldBe true
   }
 
   it should "parse env cwl" in {
     decodeCwlFile(rootPath/"env.cwl").
       value.
-      unsafeRunSync.
+      unsafeRunSync().
       isRight shouldBe true
   }
 }

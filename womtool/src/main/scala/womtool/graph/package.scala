@@ -6,7 +6,7 @@ import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode}
 
 package object graph {
 
-  private[graph] def dotSafe(s: String) = s""""${s.replaceAllLiterally("\"", "\\\"")}""""
+  private[graph] def dotSafe(s: String) = s""""${s.replace("\"", "\\\"")}""""
 
   private[graph] implicit class GraphNodeGraphics(val graphNode: GraphNode) extends AnyVal {
     def graphFillColor = graphNode match {

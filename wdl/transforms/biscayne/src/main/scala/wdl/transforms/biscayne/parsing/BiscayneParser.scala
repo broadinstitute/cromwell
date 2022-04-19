@@ -7,7 +7,7 @@ import wdl.biscayne.parser.WdlParser
 import wdl.biscayne.parser.WdlParser.Ast
 import wom.core.WorkflowSource
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 object StringParser {

@@ -20,11 +20,11 @@ class FtpCloudNioFileProvider(fsProvider: FtpCloudNioFileSystemProvider) extends
     FtpListFiles(cloudHost, cloudPath, "determine file existence")
       .run(client)
       .map(_.nonEmpty)
-  } unsafeRunSync()
+  }.unsafeRunSync()
 
   override def existsPaths(cloudHost: String, cloudPathPrefix: String): Boolean = withAutoRelease(cloudHost) { client =>
     existsPathsWithClient(cloudHost, cloudPathPrefix, client)
-  } unsafeRunSync()
+  }.unsafeRunSync()
 
   private def existsPathsWithClient(cloudHost: String, cloudPathPrefix: String, client: FTPClient): IO[Boolean] = {
     val operation = FtpListDirectories(cloudHost, cloudPathPrefix, "determine directory existence")
@@ -44,7 +44,7 @@ class FtpCloudNioFileProvider(fsProvider: FtpCloudNioFileSystemProvider) extends
         val cleanFiles = files.map(_.getName).map(cloudPathPrefix.stripPrefix("/").ensureSlashed + _)
         CloudNioFileList(cleanFiles, markerOption)
       })
-  } unsafeRunSync()
+  }.unsafeRunSync()
 
   override def copy(sourceCloudHost: String, sourceCloudPath: String, targetCloudHost: String, targetCloudPath: String): Unit = {
     if (sourceCloudHost != targetCloudHost) throw new UnsupportedOperationException(s"Cannot copy files across different ftp servers: Source host: $sourceCloudHost, Target host: $targetCloudHost")
@@ -69,11 +69,11 @@ class FtpCloudNioFileProvider(fsProvider: FtpCloudNioFileSystemProvider) extends
 
   override def deleteIfExists(cloudHost: String, cloudPath: String): Boolean = withAutoRelease(cloudHost) { client =>
     FtpDeleteFile(cloudHost, cloudPath, "delete").run(client)
-  } unsafeRunSync()
+  }.unsafeRunSync()
 
   private def inputStream(cloudHost: String, cloudPath: String, offset: Long, lease: Lease[FTPClient]): IO[LeasedInputStream] = {
     FtpInputStream(cloudHost, cloudPath, offset)
-      .run(lease.get)
+      .run(lease.get())
       // Wrap the input stream in a LeasedInputStream so that the lease can be released when the stream is closed
       .map(new LeasedInputStream(cloudHost, cloudPath, _, lease))
   }
@@ -83,7 +83,7 @@ class FtpCloudNioFileProvider(fsProvider: FtpCloudNioFileSystemProvider) extends
       lease <- acquireLease(cloudHost)
       is <- inputStream(cloudHost, cloudPath, offset, lease)
     } yield Channels.newChannel(is)
-  } unsafeRunSync()
+  }.unsafeRunSync()
 
   private def outputStream(cloudHost: String, cloudPath: String, lease: Lease[FTPClient]): IO[LeasedOutputStream] = {
     FtpOutputStream(cloudHost, cloudPath)
@@ -96,7 +96,7 @@ class FtpCloudNioFileProvider(fsProvider: FtpCloudNioFileSystemProvider) extends
       lease <- acquireLease(cloudHost)
       os <- outputStream(cloudHost, cloudPath, lease)
     } yield Channels.newChannel(os)
-  } unsafeRunSync()
+  }.unsafeRunSync()
 
   override def fileAttributes(cloudHost: String, cloudPath: String): Option[CloudNioRegularFileAttributes] = withAutoRelease(cloudHost) { client =>
     FtpListFiles(cloudHost, cloudPath, "get file attributes")
@@ -106,7 +106,7 @@ class FtpCloudNioFileProvider(fsProvider: FtpCloudNioFileSystemProvider) extends
           new FtpCloudNioRegularFileAttributes(file, cloudHost + cloudPath)
         }
       )
-  } unsafeRunSync()
+  }.unsafeRunSync()
 
   override def createDirectory(cloudHost: String, cloudPath: String) = withAutoRelease(cloudHost) { client =>
     val operation = FtpCreateDirectory(cloudHost, cloudPath)
@@ -114,7 +114,7 @@ class FtpCloudNioFileProvider(fsProvider: FtpCloudNioFileSystemProvider) extends
     operation.run(client) handleErrorWith {
       /*
        * Sometimes the creation fails with a cryptic error message and the exception generator did not recognize it.
-       * In that case, check after the fact if the directory does exist, and if so throw a more appropriate exception 
+       * In that case, check after the fact if the directory does exist, and if so throw a more appropriate exception
        */
       case e: FtpIoException =>
         existsPathsWithClient(cloudHost, cloudPath, client) flatMap {
@@ -125,7 +125,7 @@ class FtpCloudNioFileProvider(fsProvider: FtpCloudNioFileSystemProvider) extends
         }
       case other => IO.raiseError(other)
     }
-  }.void unsafeRunSync()
+  }.void.unsafeRunSync()
 
   private def findFileSystem(host: String): FtpCloudNioFileSystem = fsProvider.newCloudNioFileSystemFromHost(host)
 

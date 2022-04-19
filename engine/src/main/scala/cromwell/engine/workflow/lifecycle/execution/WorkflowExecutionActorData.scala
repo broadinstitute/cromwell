@@ -126,14 +126,14 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     )
   }
 
-  def mergeExecutionDiffs(diffs: Traversable[WorkflowExecutionDiff]): WorkflowExecutionActorData = {
+  def mergeExecutionDiffs(diffs: Iterable[WorkflowExecutionDiff]): WorkflowExecutionActorData = {
     diffs.foldLeft(this)((newData, diff) => newData.mergeExecutionDiff(diff))
   }
 
   def jobExecutionMap: JobExecutionMap = {
     downstreamExecutionMap updated (workflowDescriptor.backendDescriptor, executionStore.startedJobs)
   }
-  
+
   def executionStoreUpdate: DataStoreUpdate = {
     val update = executionStore.update
     DataStoreUpdate(update.runnableKeys, update.statusChanges, this.copy(executionStore = update.updatedStore))

@@ -39,29 +39,29 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
   /*
     * Context: the batch.execute() method throws an IOException("insufficient data written") in certain conditions.
     * Here is what we know about it and how this attempts to address the issue.
-    * 
+    *
     * It was determined empirically that errors start to be thrown when the batch request approaches 15MB.
     * Looking more closely at timing it appears that the exception takes almost exactly 60 seconds to be thrown
     * from the batch.execute method, which suggests that this might be time related rather than byte size related and that
     * the 15MB limit is just an artifact of how much data can be sent / received in 60 seconds by the client / server.
-    * 
+    *
     * In an attempt to provide a fix for this issue, the total size of the batch size is limited to 14MB, which is a rather
     * arbitrary value only supported by local testing.
-    * 
+    *
     * Result of further investigation on the cause:
     * IOException("insufficient data written") is being thrown because the http request attempts to close() its output stream.
     * The close() method throws the "insufficient data written" exception because it still had data to send.
     * The close() method was called as part of a finally, because an exception was thrown earlier when attempting to write to the
     * stream. This exception is however swallowed by the one thrown in the close().
-    * This commit https://github.com/google/google-http-java-client/pull/333 fixes the swallowing issue so the original 
+    * This commit https://github.com/google/google-http-java-client/pull/333 fixes the swallowing issue so the original
     * exception is thrown instead: IOException(“Error writing request body to server”).
     * Tracing back why this exception is being thrown, it appears that at some point the socket gets closed externally
     * (maybe the google server closes it ?)
     * which results in a SocketException("broken pipe") being thrown and eventually bubbles up to the IOExceptions above.
-    * 
+    *
     * see sun.net.www.protocol.http.HttpURLConnection
     * and com.google.api.client.http.javanet.NetHttpRequest
-    * 
+    *
   */
   private val maxBatchRequestSize: Long = 14L * 1024L * 1024L
   private val requestTooLargeException = new UserPAPIApiException(
@@ -110,7 +110,7 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
         create.requester ! PipelinesApiRunCreationQueryFailed(create, requestTooLargeException)
       } else workQueue :+= create
     case abort: PAPIAbortRequest => workQueue :+= abort
-    case PipelinesWorkerRequestWork(maxBatchSize) => handleWorkerAskingForWork(sender, maxBatchSize)
+    case PipelinesWorkerRequestWork(maxBatchSize) => handleWorkerAskingForWork(sender(), maxBatchSize)
     case failure: PAPIApiRequestFailed =>
       handleQueryFailure(failure)
     case Terminated(actorRef) => onFailure(actorRef, new RuntimeException("PipelinesApiRequestHandler actor termination caught by manager") with NoStackTrace)

@@ -4,7 +4,7 @@ import cats.syntax.traverse._
 import cats.instances.list._
 import cats.instances.either._
 import common.Checked
-import common.collections.EnhancedCollections.EnhancedTraversableLike
+import common.collections.EnhancedCollections._
 import common.transforms.CheckedAtoB
 import common.validation.Checked._
 import shapeless.{Inl, Inr}
@@ -221,10 +221,10 @@ object WomToWdlom {
   // WOM has some explicit representations that are implicit in WDL; they are necessary for execution,
   // but do not make sense (or are illegal) in WDL source.
   private def selectWdlomRepresentableNodes(allNodes: Set[GraphNode]): Set[GraphNode] = {
-    val expressions: Set[GraphNode] = allNodes.filterByType[ExposedExpressionNode]
-    val scatters: Set[GraphNode] = allNodes.filterByType[ScatterNode]
-    val calls: Set[GraphNode] = allNodes.filterByType[CallNode]
-    val conditionals: Set[GraphNode] = allNodes.filterByType[ConditionalNode]
+    val expressions = allNodes.filterByType[ExposedExpressionNode]
+    val scatters = allNodes.filterByType[ScatterNode]
+    val calls = allNodes.filterByType[CallNode]
+    val conditionals = allNodes.filterByType[ConditionalNode]
 
     expressions ++ scatters ++ calls ++ conditionals
   }

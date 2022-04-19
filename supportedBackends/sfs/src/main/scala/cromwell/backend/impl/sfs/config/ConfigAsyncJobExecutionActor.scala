@@ -147,12 +147,12 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
       Map.empty
     )
 
-    dockerPaths ++ Map(
+    (dockerPaths ++ Map(
       StdoutInput -> WomString(standardPaths.output.pathAsString),
       StderrInput -> WomString(standardPaths.error.pathAsString),
       ScriptInput -> WomString(jobPaths.script.pathAsString),
       JobShellInput -> WomString(jobShell),
-    )
+    )).toMap
   }
 
   /**

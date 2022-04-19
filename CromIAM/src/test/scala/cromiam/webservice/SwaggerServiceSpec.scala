@@ -14,7 +14,7 @@ import org.yaml.snakeyaml.error.YAMLException
 import org.yaml.snakeyaml.nodes.MappingNode
 import org.yaml.snakeyaml.{Yaml => SnakeYaml}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 
 class SwaggerServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with SwaggerService with ScalatestRouteTest with Matchers

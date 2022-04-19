@@ -46,7 +46,7 @@ object CromIamServer extends HttpApp with CromIamApiService with SwaggerService 
 
   override val routes: Route = allRoutes ~ swaggerUiResourceRoute
 
-  override val statusService: StatusService = new StatusService(() => Map(Cromwell -> cromwellClient.subsystemStatus, Sam -> samClient.subsystemStatus))
+  override val statusService: StatusService = new StatusService(() => Map(Cromwell -> cromwellClient.subsystemStatus(), Sam -> samClient.subsystemStatus()))
 
   // Override default shutdownsignal which was just "hit return/enter"
   override def waitForShutdownSignal(actorSystem: ActorSystem)(implicit executionContext: ExecutionContext): Future[Done] = {

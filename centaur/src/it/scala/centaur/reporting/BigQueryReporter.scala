@@ -24,7 +24,7 @@ import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.threeten.bp.Duration
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.ExecutionContext
 
 class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorReporter {

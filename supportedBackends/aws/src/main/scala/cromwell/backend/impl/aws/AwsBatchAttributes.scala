@@ -31,28 +31,26 @@
 
 package cromwell.backend.impl.aws
 
-import java.net.{URI, URL}
-
 import cats.data.Validated._
-import cats.syntax.either._
 import cats.syntax.apply._
+import cats.syntax.either._
 import com.typesafe.config.{Config, ConfigValue}
-import cromwell.cloudsupport.aws.auth.AwsAuthMode
-import cromwell.backend.impl.aws.callcaching.{AwsBatchCacheHitDuplicationStrategy, CopyCachedOutputs, UseOriginalCachedOutputs}
-import cromwell.cloudsupport.aws.AwsConfiguration
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend.CommonBackendConfigurationAttributes
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.api._
+import cromwell.backend.impl.aws.callcaching.{AwsBatchCacheHitDuplicationStrategy, CopyCachedOutputs, UseOriginalCachedOutputs}
+import cromwell.cloudsupport.aws.AwsConfiguration
+import cromwell.cloudsupport.aws.auth.AwsAuthMode
 import eu.timepit.refined._
+import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric._
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.{StringReader, ValueReader}
 import org.slf4j.{Logger, LoggerFactory}
 
-import scala.collection.JavaConverters._
+import java.net.{URI, URL}
+import scala.jdk.CollectionConverters._
 
 case class AwsBatchAttributes(fileSystem: String,
                               auth: AwsAuthMode,

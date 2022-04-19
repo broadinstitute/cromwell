@@ -53,7 +53,7 @@ class MetadataServiceActorSpec extends ServicesSpec {
   val event3_1: MetadataEvent = MetadataEvent(key3, Option(MetadataValue("value3")), moment.plusSeconds(4))
   val event3_2: MetadataEvent = MetadataEvent(key3, None, moment.plusSeconds(5))
 
-  override def beforeAll: Unit = {
+  override def beforeAll(): Unit = {
 
     // Even though event1_1 arrives second, the older timestamp should mean it does not replace event1_2:
     val putAction2 = PutMetadataAction(event1_2)

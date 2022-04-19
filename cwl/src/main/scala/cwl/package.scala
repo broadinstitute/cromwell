@@ -38,7 +38,7 @@ package object cwl extends TypeAliases {
 
   type CwlFile = Array[Cwl] :+: Cwl :+: CNil
   type Cwl = Workflow :+: CommandLineTool :+: ExpressionTool :+: CNil
-  
+
   object Cwl {
     object Workflow { def unapply(cwl: Cwl): Option[Workflow] = cwl.select[Workflow] }
     object CommandLineTool { def unapply(cwl: Cwl): Option[CommandLineTool] = cwl.select[CommandLineTool] }
@@ -94,16 +94,18 @@ package object cwl extends TypeAliases {
         case Cwl.Workflow(w) => w.womExecutable(validator, inputsFile, ioFunctions, strictValidation)
         case Cwl.CommandLineTool(clt) => clt.womExecutable(validator, inputsFile, ioFunctions, strictValidation)
         case Cwl.ExpressionTool(et) => et.womExecutable(validator, inputsFile, ioFunctions, strictValidation)
+        case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
       }
       Try(executable) match {
         case Success(s) => s
         case Failure(f) => f.getMessage.invalidNelCheck
+        case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
       }
     }
 
     def requiredInputs: Map[String, WomType] = {
       implicit val parent = ParentName.empty
-      
+
       cwl match {
         case Cwl.Workflow(w) => selectWomTypeInputs(w.inputs collect {
           case i if i.`type`.isDefined => FullyQualifiedName(i.id).id -> i.`type`.get
@@ -114,6 +116,7 @@ package object cwl extends TypeAliases {
         case Cwl.ExpressionTool(et) => selectWomTypeInputs(et.inputs collect {
           case i if i.`type`.isDefined => FullyQualifiedName(i.id).id -> i.`type`.get
         })
+        case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
       }
     }
 
@@ -139,7 +142,7 @@ package object cwl extends TypeAliases {
 
     private def getSchema(schemasOption: Option[Array[String]],
                           namespacesOption: Option[Map[String, String]]): Option[Schema] = {
-      schemasOption.map(Schema(_, namespacesOption getOrElse Map.empty))
+      schemasOption.map(a => Schema(a.toIndexedSeq, namespacesOption getOrElse Map.empty))
     }
   }
 

@@ -3,7 +3,7 @@ Most users should not need to build Cromwell and can use pre-built Cromwell [rel
 If for some reason you require a non-release version of Cromwell or are developing new Cromwell
 features or fixes, the following are required to build Cromwell from source:
 
-* [Scala 2.12](http://www.scala-lang.org/)
+* [Scala 2.13](http://www.scala-lang.org/)
 * [SBT 1.x](https://www.scala-sbt.org/)
 * [AdoptOpenJDK 11 HotSpot](https://adoptopenjdk.net/)
 * [Git](https://git-scm.com/)
@@ -38,7 +38,7 @@ $ sbt assembly
 NOTE: This command will run for a long time the first time.  
 NOTE: Compiling will not succeed on directories encrypted with ecryptfs (ubuntu encrypted home dirs for example), due to long file paths.
 
-`sbt assembly` will build the runnable Cromwell JAR in `server/target/scala-2.12/` with a name like `cromwell-<VERSION>.jar`. It will also build a runnable Womtool JAR in `womtool/target/scala-2.12/` with a name like `womtool-<VERSION>.jar`.
+`sbt assembly` will build the runnable Cromwell JAR in `server/target/scala-2.13/` with a name like `cromwell-<VERSION>.jar`. It will also build a runnable Womtool JAR in `womtool/target/scala-2.13/` with a name like `womtool-<VERSION>.jar`.
 
 To build a [Docker](https://www.docker.com/) image, run:
 

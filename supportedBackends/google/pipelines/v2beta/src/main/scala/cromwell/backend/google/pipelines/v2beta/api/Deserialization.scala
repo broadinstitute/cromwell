@@ -12,7 +12,7 @@ import common.validation.ErrorOr._
 import common.validation.Validation._
 import mouse.all._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 

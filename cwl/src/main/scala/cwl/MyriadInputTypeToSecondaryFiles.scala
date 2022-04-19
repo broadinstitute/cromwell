@@ -10,7 +10,7 @@ object MyriadInputTypeToSecondaryFiles extends Poly1 {
   }
 
   implicit val caseArrayMyriadInputInnerType: Case.Aux[Array[MyriadInputInnerType], Option[SecondaryFiles]] = at {
-    _.toStream.flatMap(_.fold(MyriadInputInnerTypeToSecondaryFiles)).headOption
+    _.to(LazyList).flatMap(_.fold(MyriadInputInnerTypeToSecondaryFiles)).headOption
   }
 }
 

@@ -4,7 +4,7 @@ import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
 import cromwell.backend.google.pipelines.common.action.ActionUtils
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 trait SSHAccessAction {
 

@@ -4,7 +4,7 @@ import java.net.URI
 import java.util.Properties
 
 import com.google.common.net.UrlEscapers
-import cromwell.core.path.PathBuilder
+
 import cromwell.filesystems.s3.S3PathBuilder._
 import org.lerch.s3fs.{AmazonS3Factory,S3FileSystemProvider}
 import scala.language.postfixOps

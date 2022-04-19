@@ -165,7 +165,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       outputs = Option(task.outputs),
       resources = Option(task.resources),
       executors = task.executors,
-      volumes = None,
+      volumes = Option(Seq(tesJobPaths.callDockerRoot.toString())),
       tags = None,
       logs = None
     ))
@@ -181,7 +181,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override def executeAsync(): Future[ExecutionHandle] = {
 
     // create call exec dir
-    tesJobPaths.callExecutionRoot.createPermissionedDirectories()
+    //tesJobPaths.callExecutionRoot.createPermissionedDirectories()
     val taskMessageFuture = createTaskMessage().fold(
       errors => Future.failed(new RuntimeException(errors.toList.mkString(", "))),
       Future.successful)

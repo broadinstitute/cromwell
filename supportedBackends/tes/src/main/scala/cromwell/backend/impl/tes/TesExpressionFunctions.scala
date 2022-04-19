@@ -6,7 +6,7 @@ import cromwell.backend.standard.StandardExpressionFunctionsParams
 class TesExpressionFunctions(standardParams: StandardExpressionFunctionsParams) extends SharedFileSystemExpressionFunctions(standardParams) {
 
   override def preMapping(str: String) = {
-    if (str.startsWith("/") || str.startsWith("ftp://")) str
+    if (str.startsWith("/") || str.startsWith("ftp://") || str.startsWith("s3://")) str
     else standardParams.callContext.root.resolve(str).toString
   }
 }

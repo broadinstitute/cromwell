@@ -4,9 +4,6 @@ on:
   pull_request:
     types:
       - closed
-  push:
-    branches:
-      - aen_bw_1211
 
 jobs:
   chart-update:

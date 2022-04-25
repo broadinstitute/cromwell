@@ -7,15 +7,18 @@ import cromwell.core.WorkflowOptions
 import org.apache.http.client.methods.{CloseableHttpResponse, HttpGet}
 import org.apache.http.entity.ByteArrayEntity
 import org.apache.http.impl.client.{CloseableHttpClient, HttpClientBuilder}
-import org.mockito.Mockito.verify
+import org.mockito.ArgumentMatchers._
+import org.mockito.Mockito._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
-import org.testcontainers.shaded.org.apache.commons.io.IOUtils
+import common.mock.MockSugar
 
+import java.io.EOFException
 import java.nio.ByteBuffer
+import java.nio.channels.ReadableByteChannel
+import scala.annotation.tailrec
 
-class DrsReaderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matchers with Mockito {
+class DrsReaderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matchers with MockSugar {
 
   behavior of "DrsReader"
 
@@ -63,13 +66,13 @@ class DrsReaderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matche
 
   it should "return a closeable channel for an access url" in {
     val exampleBytes = Array[Byte](1, 2, 3)
-    val httpResponse = mock[CloseableHttpResponse].smart
+    val httpResponse = mock[CloseableHttpResponse]
     httpResponse.getEntity returns new ByteArrayEntity(exampleBytes)
 
-    val httpClient = mock[CloseableHttpClient].smart
-    doReturn(httpResponse).when(httpClient).execute(anyObject[HttpGet])
+    val httpClient = mock[CloseableHttpClient]
+    httpClient.execute(any[HttpGet]) returns httpResponse
 
-    val httpClientBuilder = mock[HttpClientBuilder].smart
+    val httpClientBuilder = mock[HttpClientBuilder]
     httpClientBuilder.build() returns httpClient
 
     val drsPathResolver = new MockEngineDrsPathResolver(httpClientBuilderOverride = Option(httpClientBuilder))
@@ -82,7 +85,7 @@ class DrsReaderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matche
 
     val buffer = ByteBuffer.allocate(exampleBytes.length)
     channel.isOpen should be (true)
-    IOUtils.readFully(channel, buffer)
+    DrsReaderSpec.readToBuffer(channel, buffer)
     channel.close()
 
     val httpGetCapture = capture[HttpGet]
@@ -92,9 +95,22 @@ class DrsReaderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matche
     verify(httpClient).close()
     verify(httpResponse).close()
 
-    val actualHeaders = httpGetCapture.value.getAllHeaders
+    val actualHeaders = httpGetCapture.getValue.getAllHeaders
     actualHeaders.length should be(1)
     actualHeaders(0).getName should be("hello")
     actualHeaders(0).getValue should be("world")
+  }
+}
+
+object DrsReaderSpec {
+  @tailrec
+  def readToBuffer(input: ReadableByteChannel, buffer: ByteBuffer): Unit = {
+    if (buffer.remaining() > 0) {
+      if (input.read(buffer) >= 0) {
+        readToBuffer(input, buffer)
+      } else {
+        throw new EOFException(s"input exhausted with ${buffer.remaining()} expected bytes")
+      }
+    }
   }
 }

@@ -5,18 +5,20 @@ import akka.event.{Logging, LoggingAdapter}
 import common.assertion.CromwellTimeoutSpec
 import cromwell.core.logging.LoggerWrapperSpec._
 import org.apache.commons.lang3.exception.ExceptionUtils
+import org.mockito.ArgumentMatchers._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop._
 import org.slf4j.Logger
 import org.slf4j.event.Level
-import org.specs2.mock.Mockito
+import common.mock.MockSugar
 
-class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito with TableDrivenPropertyChecks {
+class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with MockSugar
+  with TableDrivenPropertyChecks {
 
   behavior of "LoggerWrapper"
 
-  val wrapperTests = Table[String, LoggerWrapper => Unit, List[Slf4jMessage], List[AkkaMessage]](
+  private val wrapperTests = Table[String, LoggerWrapper => Unit, List[Slf4jMessage], List[AkkaMessage]](
     (
       "description",
       "wrapperFunction",

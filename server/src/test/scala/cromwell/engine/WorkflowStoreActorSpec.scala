@@ -26,13 +26,13 @@ import mouse.all._
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWorkflowStoreActorBuilder with SqlWorkflowStoreBuilder with Matchers with BeforeAndAfter with Mockito with Eventually with CromwellTimeoutSpec {
+class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWorkflowStoreActorBuilder
+  with SqlWorkflowStoreBuilder with Matchers with BeforeAndAfter with Eventually with CromwellTimeoutSpec {
   private val helloWorldSourceFiles = HelloWorld.asWorkflowSources().asInstanceOf[WorkflowSourceFilesWithoutImports]
   private val helloWorldSourceFilesOnHold = HelloWorld.asWorkflowSources(workflowOnHold = true)
   private val helloCwlWorldSourceFiles =

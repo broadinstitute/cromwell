@@ -9,13 +9,18 @@ import cromwell.filesystems.gcs.GcsPath
 import eu.timepit.refined.refineMV
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
+import common.mock.MockSugar
 
-class ActionCommandsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito {
+class ActionCommandsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with MockSugar {
   behavior of "ActionCommands"
 
   it should "inject project flag when request fails because of requester pays" in {
-    val path = GcsPath(any[Path], any[com.google.api.services.storage.Storage], any[com.google.cloud.storage.Storage], "my-project")
+    val path = GcsPath(
+      mock[Path],
+      mock[com.google.api.services.storage.Storage],
+      mock[com.google.cloud.storage.Storage],
+      "my-project",
+    )
     val recovered = recoverRequesterPaysError(path) { flag =>
       s"flag is $flag"
     }
@@ -41,7 +46,7 @@ class ActionCommandsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
   }
 
   it should "use GcsTransferConfiguration to set the number of localization retries" in {
-    implicit val gcsTransferConfiguration = GcsTransferConfiguration(
+    implicit val gcsTransferConfiguration: GcsTransferConfiguration = GcsTransferConfiguration(
       transferAttempts = refineMV(31380), parallelCompositeUploadThreshold = "0")
     retry("I'm very flaky") shouldBe """for i in $(seq 31380); do
                                        |  (

@@ -3,7 +3,7 @@ package centaur.reporting
 import cats.effect.IO
 import centaur.test.CentaurTestException
 import com.typesafe.scalalogging.StrictLogging
-import org.testcontainers.shaded.org.apache.commons.lang.exception.ExceptionUtils
+import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.ExecutionContext
 

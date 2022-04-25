@@ -11,11 +11,11 @@ class OssStorageFileAttributesViewSpec extends OssNioUtilSpec {
 
   import OssStorageObjectAttributesSpec._
 
-  def getObject = {
+  private def getObject = {
     OssStoragePath.getPath(mockFileSystem, fileName)
   }
 
-  def getDir = {
+  private def getDir = {
     OssStoragePath.getPath(mockFileSystem, "/bcs-dir/")
   }
 

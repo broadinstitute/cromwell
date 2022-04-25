@@ -56,8 +56,6 @@ object Testing {
     Tests.Argument(
       TestFrameworks.ScalaTest,
       "-oDSI",
-      "-h",
-      "target/test-reports",
       "-u",
       "target/test-reports",
       "-F",
@@ -91,14 +89,18 @@ object Testing {
   // Only run one minnie-kenny.sh at a time!
   private lazy val minnieKennySingleRunner = new MinnieKennySingleRunner
 
+  private val ScalaMeterFramework = new TestFramework("org.scalameter.ScalaMeterFramework")
+
   val testSettings = List(
     libraryDependencies ++= testDependencies.map(_ % Test),
     // `test` (or `assembly`) - Run most tests
     Test / testOptions ++= Seq(TestReportArgs) ++ filterTestArgs,
     // `alltests:test` - Run all tests
     AllTests / testOptions := (Test / testOptions).value.diff(filterTestArgs),
+    // Reduce the load on SBT by only searching for ScalaTest specs excluding others like JUnit and ScalaCheck
+    testFrameworks := List(TestFrameworks.ScalaTest),
     // Add scalameter as a test framework in the CromwellBenchmarkTest scope
-    CromwellBenchmarkTest / testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
+    CromwellBenchmarkTest / testFrameworks := List(TestFrameworks.ScalaTest, ScalaMeterFramework),
     // Don't execute benchmarks in parallel
     CromwellBenchmarkTest / parallelExecution := false,
     // Until we move away from Travis do not execute ANY tests in parallel (see also Settings.sharedSettings)

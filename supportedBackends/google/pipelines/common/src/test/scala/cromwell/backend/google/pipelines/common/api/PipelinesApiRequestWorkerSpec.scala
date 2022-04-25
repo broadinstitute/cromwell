@@ -18,7 +18,6 @@ import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
 
 import scala.collection.immutable.Queue
 import scala.concurrent.duration._
@@ -26,10 +25,10 @@ import scala.concurrent.{Future, Promise}
 import scala.util.Try
 
 abstract class PipelinesApiRequestWorkerSpec[O >: Null]
-  extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually with BeforeAndAfter with Mockito {
+  extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually with BeforeAndAfter {
 
   implicit var batchHandler: TestPipelinesApiBatchHandler[O]
-  
+
   behavior of "PipelinesApiRequestWorker"
 
   implicit val TestExecutionTimeout: FiniteDuration = 10.seconds.dilated
@@ -104,7 +103,7 @@ abstract class PipelinesApiRequestWorkerSpec[O >: Null]
 
 //noinspection ScalaUnusedSymbol
 class TestPipelinesApiRequestWorker(manager: ActorRef, qps: Int Refined Positive, registryProbe: ActorRef)(implicit batchHandler: TestPipelinesApiBatchHandler[_])
-  extends PipelinesApiRequestWorker(manager, 10.milliseconds, registryProbe) with Mockito {
+  extends PipelinesApiRequestWorker(manager, 10.milliseconds, registryProbe) {
   override def createBatch(): BatchRequest = null
   override def runBatch(batch: BatchRequest): Unit = batchHandler.runBatch()
 }
@@ -134,11 +133,11 @@ abstract class TestPipelinesApiBatchHandler[O >: Null] extends PipelinesApiReque
     addStatusPollToBatch(null, batch, resultHandler)
     completionPromise.future
   }
-  
+
   def statusPollResultHandler(pollRequest: PAPIStatusPollRequest, completionPromise: Promise[Try[Unit]]): JsonBatchCallback[O]
 
   def addStatusPollToBatch(httpRequest: HttpRequest, batch: BatchRequest, resultHandler: JsonBatchCallback[O]): Unit = resultHandlers :+= resultHandler
-  
+
   def mockStatusInterpreter(operation: O): RunStatus = {
     val (status, newQueue) = operationStatusResponses.dequeue
     operationStatusResponses = newQueue
@@ -155,7 +154,7 @@ object TestPipelinesApiRequestWorker {
       registryProbe
     ))
   }
-  
+
   sealed trait PipelinesApiBatchCallbackResponse
   case object CallbackSuccess extends PipelinesApiBatchCallbackResponse
   case object CallbackFailure extends PipelinesApiBatchCallbackResponse

@@ -2,10 +2,11 @@ package cromwell.backend.impl.bcs
 
 import com.aliyuncs.batchcompute.main.v20151111.BatchComputeClient
 import com.aliyuncs.batchcompute.pojo.v20151111.TaskDescription
+import common.mock.MockSugar
 import wom.values._
 
 
-class BcsJobSpec extends BcsTestUtilSpec {
+class BcsJobSpec extends BcsTestUtilSpec with MockSugar {
 
   behavior of s"BcsJob"
 

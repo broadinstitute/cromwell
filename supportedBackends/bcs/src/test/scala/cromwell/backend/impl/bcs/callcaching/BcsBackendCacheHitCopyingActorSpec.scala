@@ -4,34 +4,31 @@ package cromwell.backend.impl.bcs.callcaching
 import akka.actor.Props
 import akka.testkit.TestActorRef
 import com.typesafe.config.ConfigValueFactory
+import common.mock.MockSugar
 import cromwell.backend.impl.bcs.{BcsBackendInitializationData, BcsConfiguration, BcsRuntimeAttributes, BcsTestUtilSpec, BcsWorkflowPaths}
 import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActorParams
-import cromwell.core.path.{Path}
+import cromwell.core.path.Path
 import wom.values._
 import cromwell.backend.impl.bcs.BcsTestUtilSpec.BcsBackendConfig
 import cromwell.backend.standard.callcaching.DefaultStandardCacheHitCopyingActorParams
 import cromwell.core.simpleton.WomValueSimpleton
 import cromwell.filesystems.oss.OssPath
-import org.mockito.Mockito.when
+import org.mockito.Mockito._
 
 import scala.util.Try
 
 
-class BcsBackendCacheHitCopyingActorSpec extends BcsTestUtilSpec  {
+class BcsBackendCacheHitCopyingActorSpec extends BcsTestUtilSpec with MockSugar {
   behavior of "BcsBackendCacheHitCopyingActor"
   type ValueOrDelete = Either[Boolean, AnyRef]
 
-  val workflowPaths = BcsWorkflowPaths(workflowDescriptor, BcsBackendConfig, mockPathBuilders)
-
+  private val workflowPaths = BcsWorkflowPaths(workflowDescriptor, BcsBackendConfig, mockPathBuilders)
 
   private def buildInitializationData(configuration: BcsConfiguration) = {
 
     val runtimeAttributesBuilder = BcsRuntimeAttributes.runtimeAttributesBuilder(BcsTestUtilSpec.BcsBackendConfigurationDescriptor.backendRuntimeAttributesConfig)
     BcsBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, null)
   }
-
-  val runtimeAttributesBuilder = BcsRuntimeAttributes.runtimeAttributesBuilder(BcsTestUtilSpec.BcsBackendConfigurationDescriptor.backendRuntimeAttributesConfig)
-
 
   private def withConfig(configs: Map[String, ValueOrDelete]) = {
     var descriptor = BcsTestUtilSpec.BcsBackendConfigurationDescriptor.copy()
@@ -45,7 +42,7 @@ class BcsBackendCacheHitCopyingActorSpec extends BcsTestUtilSpec  {
   }
 
 
-  var cacheHitCopyingActorParams = {
+  private val cacheHitCopyingActorParams = {
     val mockCacheHitCopyingActorParams = mock[DefaultStandardCacheHitCopyingActorParams]
     val id = "test-access-id"
     val key = "test-access-key"
@@ -61,8 +58,6 @@ class BcsBackendCacheHitCopyingActorSpec extends BcsTestUtilSpec  {
     val id = "test-access-id"
     val key = "test-access-key"
     val configs = Map("access-id" -> Right(id), "access-key" -> Right(key))
-    val conf = withConfig(configs)
-
 
     def this() = {
       this(cacheHitCopyingActorParams)

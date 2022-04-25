@@ -11,7 +11,6 @@ import org.scalatest.TestSuite
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.slf4j.helpers.NOPLogger
-import org.specs2.mock.Mockito
 import spray.json._
 import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
@@ -23,7 +22,6 @@ import scala.util.{Failure, Success, Try}
 final class PipelinesApiRuntimeAttributesSpec
   extends AnyWordSpecLike
     with Matchers
-    with Mockito
     with PipelinesApiRuntimeAttributesSpecsMixin {
 
   "PipelinesApiRuntimeAttributes" should {
@@ -306,8 +304,8 @@ trait PipelinesApiRuntimeAttributesSpecsMixin { this: TestSuite =>
     PipelinesApiRuntimeAttributes(validatedRuntimeAttributes, papiConfiguration.runtimeConfig)
   }
 
-  val emptyWorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
-  val defaultZones = NonEmptyList.of("us-central1-b", "us-central1-a")
+  val emptyWorkflowOptions: WorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
+  val defaultZones: NonEmptyList[String] = NonEmptyList.of("us-central1-b", "us-central1-a")
   val noDefaultsPapiConfiguration = new PipelinesApiConfiguration(PipelinesApiTestConfig.NoDefaultsConfigurationDescriptor, genomicsFactory, googleConfiguration, papiAttributes)
   val staticRuntimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
     PipelinesApiRuntimeAttributes.runtimeAttributesBuilder(PipelinesApiTestConfig.papiConfiguration).definitions.toSet

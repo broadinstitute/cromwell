@@ -2,6 +2,7 @@ package cromwell.core.io
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.testkit.{TestActorRef, TestProbe}
+import common.mock.MockSugar
 import common.util.Backoff
 import cromwell.core.TestKitSuite
 import cromwell.core.io.DefaultIoCommand.DefaultIoSizeCommand
@@ -9,12 +10,11 @@ import cromwell.core.path.Path
 import cromwell.core.retry.SimpleExponentialBackoff
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.mockito.MockitoSugar
 
-import scala.concurrent.duration.{FiniteDuration, _}
+import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class IoClientHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with MockitoSugar {
+class IoClientHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with MockSugar {
 
   behavior of "IoClientHelperSpec"
 
@@ -88,7 +88,7 @@ class IoClientHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
                                 backoff: Backoff,
                                 noResponseTimeout: FiniteDuration) extends Actor with ActorLogging with IoClientHelper {
 
-    implicit val ioCommandBuilder = DefaultIoCommandBuilder
+    implicit val ioCommandBuilder: DefaultIoCommandBuilder.type = DefaultIoCommandBuilder
 
     override protected def initialBackoff(): Backoff = backoff
 
@@ -98,11 +98,11 @@ class IoClientHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       case message => delegateTo ! message
     }
 
-    def sendMessage(command: IoCommand[_]) = {
+    def sendMessage(command: IoCommand[_]): Unit = {
       sendIoCommandWithCustomTimeout(command, noResponseTimeout)
     }
 
-    def sendMessageWithContext(context: Any, command: IoCommand[_]) = {
+    def sendMessageWithContext(context: Any, command: IoCommand[_]): Unit = {
       sendIoCommandWithContext(command, context, noResponseTimeout)
     }
 

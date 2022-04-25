@@ -42,14 +42,13 @@ import eu.timepit.refined.refineMV
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.slf4j.helpers.NOPLogger
-import org.specs2.mock.Mockito
 import spray.json._
 import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
-class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec with Matchers with Mockito {
+class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec with Matchers {
 
   def workflowOptionsWithDefaultRA(defaults: Map[String, JsValue]): WorkflowOptions = {
     WorkflowOptions(JsObject(Map(

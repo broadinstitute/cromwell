@@ -7,7 +7,6 @@ import common.assertion.CromwellTimeoutSpec
 import org.scalatest._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.mockito.MockitoSugar
 
 import scala.util.control.Breaks
 import scala.util.{Failure, Success, Try}
@@ -29,7 +28,7 @@ object OssNioUtilSpec {
   )
 }
 
-trait OssNioUtilSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with MockitoSugar with Matchers {
+trait OssNioUtilSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matchers {
 
   override def withFixture(test: NoArgTest): Outcome = {
     if (test.tags.contains(NeedAK.name)) {
@@ -57,14 +56,15 @@ trait OssNioUtilSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Mocki
     OssStorageConfiguration.parseMap(ossInfo)
   } getOrElse(throw new IllegalArgumentException("you should supply oss info before testing oss related operation"))
 
-  lazy val mockOssConf: OssStorageConfiguration = new DefaultOssStorageConfiguration("mock-endpoint", "mock-id", "mock-key", None)
+  lazy val mockOssConf: OssStorageConfiguration =
+    DefaultOssStorageConfiguration("mock-endpoint", "mock-id", "mock-key", None)
 
-  lazy val ossProvider = OssStorageFileSystemProvider(ossConf)
-  lazy val mockProvider = OssStorageFileSystemProvider(mockOssConf)
-  lazy val ossFileSystem = OssStorageFileSystem(bucket, ossConf)
-  lazy val mockFileSystem = OssStorageFileSystem(bucket, mockOssConf)
-  val fileName = DEFAULT_FILE_NAME
-  val fileContent = DEFAULT_CONTENT
+  lazy val ossProvider: OssStorageFileSystemProvider = OssStorageFileSystemProvider(ossConf)
+  lazy val mockProvider: OssStorageFileSystemProvider = OssStorageFileSystemProvider(mockOssConf)
+  lazy val ossFileSystem: OssStorageFileSystem = OssStorageFileSystem(bucket, ossConf)
+  lazy val mockFileSystem: OssStorageFileSystem = OssStorageFileSystem(bucket, mockOssConf)
+  val fileName: String = DEFAULT_FILE_NAME
+  val fileContent: String = DEFAULT_CONTENT
 
   lazy val ossClient: OSSClient = mockOssConf.newOssClient()
 

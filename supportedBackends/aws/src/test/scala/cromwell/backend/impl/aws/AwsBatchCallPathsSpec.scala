@@ -36,15 +36,13 @@ import cromwell.backend.BackendSpec
 import cromwell.backend.io.JobPathsSpecHelper._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
-// import cromwell.cloudsupport.gcp.auth.AwsBatchAuthModeSpec
 import cromwell.core.Tags.AwsTest
 import cromwell.core.TestKitSuite
 import cromwell.util.SampleWdl
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsString}
 
-class AwsBatchCallPathsSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Mockito {
+class AwsBatchCallPathsSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
 
   import AwsBatchTestConfig._
   import BackendSpec._
@@ -52,7 +50,6 @@ class AwsBatchCallPathsSpec extends TestKitSuite with AnyFlatSpecLike with Match
   behavior of "AwsBatchCallPaths"
 
   it should "map the correct filenames" taggedAs AwsTest in {
-    // AwsBatchAuthModeSpec.assumeHasApplicationDefaultCredentials()
 
     val workflowDescriptor = buildWdlWorkflowDescriptor(
       SampleWdl.HelloWorld.workflowSource(),
@@ -114,7 +111,7 @@ class AwsBatchCallPathsSpec extends TestKitSuite with AnyFlatSpecLike with Match
     )
 
     val callPaths = AwsBatchJobPaths(workflowPaths, jobDescriptorKey)
-    
+
     callPaths.callContext.root.pathAsString should
       be(s"s3://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello")
     callPaths.callContext.stdout should

@@ -40,14 +40,14 @@ import cromwell.backend.{BackendJobDescriptor, MinimumRuntimeSettings}
 import cromwell.core.TestKitSuite
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
+import common.mock.MockSugar
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
 
-class AwsBatchJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Mockito {
+class AwsBatchJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with MockSugar {
 
   behavior of "AwsBatchJobExecutionActor"
 

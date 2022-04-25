@@ -1,18 +1,21 @@
 package cromwell.backend.standard
 
+import com.typesafe.config.Config
 import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.validation._
 import cromwell.backend.{RuntimeAttributeDefinition, TestConfig}
 import cromwell.core.WorkflowOptions
+import org.mockito.ArgumentMatchers._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.slf4j.{Logger, LoggerFactory}
-import org.specs2.mock.Mockito
+import common.mock.MockSugar
 import spray.json.{JsArray, JsBoolean, JsNumber, JsObject, JsValue}
 import wom.RuntimeAttributesKeys._
 import wom.values._
 
-class StandardValidatedRuntimeAttributesBuilderSpec extends AnyWordSpecLike with CromwellTimeoutSpec with Matchers with Mockito {
+class StandardValidatedRuntimeAttributesBuilderSpec extends AnyWordSpecLike with CromwellTimeoutSpec with Matchers
+  with MockSugar {
 
   val HelloWorld: String =
     s"""
@@ -139,7 +142,7 @@ class StandardValidatedRuntimeAttributesBuilderSpec extends AnyWordSpecLike with
   val defaultLogger: Logger = LoggerFactory.getLogger(classOf[StandardValidatedRuntimeAttributesBuilderSpec])
   val emptyWorkflowOptions: WorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
 
-  val mockBackendRuntimeConfig = Option(TestConfig.optionalRuntimeConfig)
+  val mockBackendRuntimeConfig: Option[Config] = Option(TestConfig.optionalRuntimeConfig)
 
   private def assertRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WomValue],
                                                         expectedRuntimeAttributes: Map[String, Any],

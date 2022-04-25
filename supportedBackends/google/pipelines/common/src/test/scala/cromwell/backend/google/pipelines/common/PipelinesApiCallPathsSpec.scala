@@ -8,10 +8,9 @@ import cromwell.core.TestKitSuite
 import cromwell.util.SampleWdl
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsString}
 
-class PipelinesApiCallPathsSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Mockito {
+class PipelinesApiCallPathsSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
 
   import BackendSpec._
   import PipelinesApiTestConfig._

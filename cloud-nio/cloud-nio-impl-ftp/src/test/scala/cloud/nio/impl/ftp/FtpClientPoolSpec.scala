@@ -1,15 +1,14 @@
 package cloud.nio.impl.ftp
 
 import common.assertion.CromwellTimeoutSpec
+import common.mock.MockSugar
 import org.apache.commons.net.ftp.FTPClient
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
 
 import scala.concurrent.duration._
 
-
-class FtpClientPoolSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito {
+class FtpClientPoolSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with MockSugar {
 
   behavior of "FtpClientPoolSpec"
 

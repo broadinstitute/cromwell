@@ -10,7 +10,7 @@ import cromwell.core.io.{IoCommand, IoCommandBuilder, IoHashCommand, IoSuccess, 
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
+import common.mock.MockSugar
 import wom.values.WomSingleFile
 
 import scala.concurrent.TimeoutException
@@ -19,7 +19,7 @@ import scala.util.control.NoStackTrace
 import scala.util.{Failure, Try}
 
 class StandardFileHashingActorSpec extends TestKitSuite with ImplicitSender
-  with AnyFlatSpecLike with Matchers with Mockito {
+  with AnyFlatSpecLike with Matchers with MockSugar {
 
   behavior of "StandardFileHashingActor"
 
@@ -104,9 +104,9 @@ class StandardFileHashingActorSpec extends TestKitSuite with ImplicitSender
     })
     val standardFileHashingActorRef = parentProbe.childActorOf(props, "testStandardFileHashingActorHashString")
 
-    val fileHashContext = mock[FileHashContext].smart
+    val fileHashContext = mock[FileHashContext]
     fileHashContext.file returns "/expected/failure/path"
-    val command = mock[IoCommand[Int]].smart
+    val command = mock[IoCommand[Int]]
     val message: (FileHashContext, IoSuccess[Int]) = (fileHashContext, IoSuccess(command, 1357))
 
     standardFileHashingActorRef ! message

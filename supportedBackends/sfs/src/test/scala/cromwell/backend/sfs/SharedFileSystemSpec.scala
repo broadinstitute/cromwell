@@ -5,6 +5,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.BackendSpec
 import cromwell.core.CromwellFatalExceptionMarker
+import cromwell.core.path.PathFactory.PathBuilders
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -23,6 +24,12 @@ class SharedFileSystemSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
   val softLinkLocalization = ConfigFactory.parseString(""" localization: [soft-link] """)
   val cachedCopyLocalization = ConfigFactory.parseString(""" localization: [cached-copy] """)
   val cachedCopyLocalizationMaxHardlinks = ConfigFactory.parseString("""{localization: [cached-copy], max-hardlinks: 3 }""")
+  val softLinkDockerLocalization = ConfigFactory.parseString(
+    """
+      |localization: [soft-link]
+      |docker.allow-soft-links: true
+      |""".stripMargin
+  )
   val localPathBuilder = List(DefaultPathBuilder)
 
 
@@ -95,6 +102,7 @@ class SharedFileSystemSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
   it should "localize a file via symbolic link" in {
     localizationTest(softLinkLocalization, docker = false, symlink = true)
+    localizationTest(softLinkDockerLocalization, docker = true, symlink = true)
   }
 
   it should "localize a file via cached copy" in {
@@ -171,6 +179,26 @@ it should "copy the file again when the copy-cached file has exceeded the maximu
     dests.foreach(_.delete(swallowIOExceptions = true))
   }
 
+  it should "throw a fatal exception if docker soft link localization fails" in {
+    val callDir = DefaultPathBuilder.createTempDirectory("SharedFileSystem")
+    val orig = DefaultPathBuilder.createTempFile("inputFile")
+    val testText =
+      """This is a simple text to check if the localization
+        | works correctly for the file contents.
+        |""".stripMargin
+    orig.touch()
+    orig.writeText(testText)
+
+    val inputs = fqnWdlMapToDeclarationMap(Map("input" -> WomSingleFile(orig.pathAsString)))
+    val sharedFS: SharedFileSystem = new SharedFileSystem {
+      override val pathBuilders: PathBuilders = localPathBuilder
+      override val sharedFileSystemConfig: Config = softLinkLocalization
+      override implicit def actorContext: ActorContext = null
+    }
+    val result = sharedFS.localizeInputs(callDir, docker = true)(inputs)
+    result.isFailure shouldBe true
+    result.failed.get.isInstanceOf[CromwellFatalExceptionMarker] shouldBe true
+  }
 
   private[this] def countLinks(file: Path): Int = file.getAttribute("unix:nlink").asInstanceOf[Int]
 

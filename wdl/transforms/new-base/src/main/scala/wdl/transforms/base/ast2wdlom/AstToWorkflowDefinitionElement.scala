@@ -53,13 +53,6 @@ object AstToWorkflowDefinitionElement {
     }
   }
 
-  /*private def check[A <: WorkflowGraphElement, B](section: Seq[A], expressionType: B, expressionName: String): ErrorOr[Option[String]] = {
-    if (section.map(_.expression).exists(_.isInstanceOf[expressionType.type])) {
-      s"Workflow cannot have $expressionName expression at workflow-level.".invalidNel
-    } else None.validNel
-  }
-  */
-
   private def checkIfStdInputExist(inputSection: Option[InputsSectionElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Option[String]] = {
     inputSection match {
       case Some(section) =>

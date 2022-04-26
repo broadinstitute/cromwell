@@ -52,6 +52,7 @@ trait WesRouteSupport extends HttpInstrumentation {
               complete(ServiceInfo.toWesResponse(workflowStoreActor))
             },
             pathPrefix("runs") {
+              // Need actual flow to be run here
               concat(
                 path(Segment / "status") { possibleWorkflowId =>
                   val response = validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor).flatMap(w => serviceRegistryActor.ask(GetStatus(w)).mapTo[MetadataServiceResponse])

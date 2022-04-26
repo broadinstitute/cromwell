@@ -686,7 +686,7 @@ paths:
           description: At least one subsystem does not have an "ok" status
           schema:
             $ref: '#/definitions/StatusResponse'
-  '/api/ga4gh/wes/service-info':
+  '/api/ga4gh/wes/v1/service-info':
     get:
       tags:
         - Workflow Execution Service - ALPHA

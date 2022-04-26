@@ -33,7 +33,7 @@ object AstToWorkflowDefinitionElement {
       _ <- checkIfStdInputExist(inputValidateElement, StderrElement, "stderr")
     } yield inputValidateElement
 
-    val intermediateValueDeclarationStdoutCheck: ErrorOr[Option[String]] = checkStdIntermediates(bodyElements.filterByType[IntermediateValueDeclarationElement], StdoutElement, "stdout")
+    val intermediateValueDeclarationStdoutCheck = checkStdIntermediates(bodyElements.filterByType[IntermediateValueDeclarationElement], StdoutElement, "stdout")
     val intermediateValueDeclarationStderrCheck: ErrorOr[Option[String]] = checkStdIntermediates(bodyElements.filterByType[IntermediateValueDeclarationElement], StderrElement, "stderr")
 
     val outputsSectionValidation: ErrorOr[Option[OutputsSectionElement]] = for {
@@ -53,7 +53,7 @@ object AstToWorkflowDefinitionElement {
     }
   }
 
-  private def checkIfStdInputExist(inputSection: Option[InputsSectionElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Option[String]] = {
+  def checkIfStdInputExist(inputSection: Option[InputsSectionElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Option[String]] = {
     inputSection match {
       case Some(section) =>
         if (section.inputDeclarations.flatMap(_.expression).exists(_.isInstanceOf[expressionType.type])) {
@@ -63,7 +63,7 @@ object AstToWorkflowDefinitionElement {
     }
   }
 
-  private def checkIfStdOutputExists[A](outputSection: Option[OutputsSectionElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Option[String]] = {
+  def checkIfStdOutputExists[A](outputSection: Option[OutputsSectionElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Option[String]] = {
     outputSection match {
       case Some(section) =>
         if (section.outputs.map(_.expression).exists(_.isInstanceOf[expressionType.type])) {
@@ -73,7 +73,7 @@ object AstToWorkflowDefinitionElement {
     }
   }
 
-  private def checkStdIntermediates[A](intermediate: Vector[IntermediateValueDeclarationElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Option[String]] = {
+  def checkStdIntermediates[A](intermediate: Vector[IntermediateValueDeclarationElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Option[String]] = {
     if (intermediate.map(_.expression).exists(_.isInstanceOf[expressionType.type])) {
       s"Workflow cannot have $expressionName expression at intermediate declaration section at workflow-level.".invalidNel
     } else None.validNel

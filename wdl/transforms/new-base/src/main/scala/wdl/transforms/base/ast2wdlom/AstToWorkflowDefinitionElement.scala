@@ -34,7 +34,7 @@ object AstToWorkflowDefinitionElement {
     } yield inputValidateElement
 
     val intermediateValueDeclarationStdoutCheck = checkDisallowedIntermediates(bodyElements.filterByType[IntermediateValueDeclarationElement], StdoutElement, "stdout")
-    val intermediateValueDeclarationStderrCheck: ErrorOr[Option[String]] = checkDisallowedIntermediates(bodyElements.filterByType[IntermediateValueDeclarationElement], StderrElement, "stderr")
+    val intermediateValueDeclarationStderrCheck = checkDisallowedIntermediates(bodyElements.filterByType[IntermediateValueDeclarationElement], StderrElement, "stderr")
 
     val outputsSectionValidation: ErrorOr[Option[OutputsSectionElement]] = for {
       outputValidateElement <- validateSize(bodyElements.filterByType[OutputsSectionElement], "outputs", 1): ErrorOr[Option[OutputsSectionElement]]

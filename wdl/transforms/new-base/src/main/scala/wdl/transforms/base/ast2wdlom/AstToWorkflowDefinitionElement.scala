@@ -63,7 +63,7 @@ object AstToWorkflowDefinitionElement {
     }
   }
 
-  def checkIfStdOutputExists[A](outputSection: Option[OutputsSectionElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Option[String]] = {
+  def checkIfStdOutputExists(outputSection: Option[OutputsSectionElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Option[String]] = {
     outputSection match {
       case Some(section) =>
         if (section.outputs.map(_.expression).exists(_.isInstanceOf[expressionType.type])) {
@@ -73,7 +73,7 @@ object AstToWorkflowDefinitionElement {
     }
   }
 
-  def checkStdIntermediates[A](intermediate: Vector[IntermediateValueDeclarationElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Option[String]] = {
+  def checkStdIntermediates(intermediate: Vector[IntermediateValueDeclarationElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Option[String]] = {
     if (intermediate.map(_.expression).exists(_.isInstanceOf[expressionType.type])) {
       s"Workflow cannot have $expressionName expression at intermediate declaration section at workflow-level.".invalidNel
     } else None.validNel

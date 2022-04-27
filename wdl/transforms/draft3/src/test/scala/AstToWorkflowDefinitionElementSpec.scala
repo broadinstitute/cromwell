@@ -86,7 +86,7 @@ class AstToWorkflowDefinitionElementSpec extends AnyFlatSpec{
     }
   }
 
-  it should "not throw an error for non-stdout/stderr in the intermediates section" in {
+  it should "not return an error for non-stdout/stderr in the intermediates section" in {
     val testIntermediates = checkStdIntermediates(mockIntermediatesNonStd, StdoutElement, "non-stdout/stderr")
     testIntermediates match {
       case Valid(_) => "Intermediate section contained a non-stdout/stderr element."

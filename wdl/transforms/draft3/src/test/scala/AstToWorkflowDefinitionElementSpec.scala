@@ -25,7 +25,7 @@ class AstToWorkflowDefinitionElementSpec extends AnyFlatSpec{
 
 
   it should "return an error when there is an stdout in input section" in {
-    val testInputs = checkIfStdInputExist(mockInputSectionStdout, StdoutElement, "stdout")
+    val testInputs = checkDisallowedInputElement(mockInputSectionStdout, StdoutElement, "stdout")
     testInputs match {
       case Valid(_) => fail("Input section contained stdout. Should have failed.")
       case Invalid(e) => e.head should be("Workflow cannot have stdout expression in input section at workflow-level.")
@@ -33,7 +33,7 @@ class AstToWorkflowDefinitionElementSpec extends AnyFlatSpec{
   }
 
   it should "return an error when there is an stderr in input section" in {
-    val testInputs = checkIfStdInputExist(mockInputSectionStderr, StderrElement, "stderr")
+    val testInputs = checkDisallowedInputElement(mockInputSectionStderr, StderrElement, "stderr")
     testInputs match {
       case Valid(_) => fail("Input section contained stderr. Should have failed.")
       case Invalid(e) => e.head should be("Workflow cannot have stderr expression in input section at workflow-level.")
@@ -41,7 +41,7 @@ class AstToWorkflowDefinitionElementSpec extends AnyFlatSpec{
   }
 
   it should "not return an error for non-stdout/stderr in the inputs section" in {
-    val testInputs = checkIfStdInputExist(mockInputSectionNonStd, StdoutElement, "non-stdout/stderr")
+    val testInputs = checkDisallowedInputElement(mockInputSectionNonStd, StdoutElement, "non-stdout/stderr")
     testInputs match {
       case Valid(_) => "Input section contained a non-stdout/stderr element."
       case Invalid(e) => e.head should be("Workflow failed at input section.")
@@ -49,7 +49,7 @@ class AstToWorkflowDefinitionElementSpec extends AnyFlatSpec{
   }
 
   it should "return an error when there is an stdout in output section" in {
-    val testOutputs = checkIfStdOutputExists(mockOutputSectionStdout, StdoutElement, "stdout")
+    val testOutputs = checkDisallowedOutputElement(mockOutputSectionStdout, StdoutElement, "stdout")
     testOutputs match {
       case Valid(_) => fail("Output section contained stdout. Should have failed.")
       case Invalid(e) => e.head should be("Workflow cannot have stdout expression in output section at workflow-level.")
@@ -57,14 +57,14 @@ class AstToWorkflowDefinitionElementSpec extends AnyFlatSpec{
   }
 
   it should "return an error when there is an stderr in output section" in {
-    val testOutputs = checkIfStdOutputExists(mockOutputSectionStderr, StderrElement, "stderr")
+    val testOutputs = checkDisallowedOutputElement(mockOutputSectionStderr, StderrElement, "stderr")
     testOutputs match {
       case Valid(_) => fail("Output section contained stderr. Should have failed.")
       case Invalid(e) => e.head should be("Workflow cannot have stderr expression in output section at workflow-level.")
     }
   }
   it should "not return an error for non-stdout/stderr in the outputs section" in {
-    val testOutputs = checkIfStdOutputExists(mockOutputSectionNonStd, StdoutElement, "non-stdout/stderr")
+    val testOutputs = checkDisallowedOutputElement(mockOutputSectionNonStd, StdoutElement, "non-stdout/stderr")
     testOutputs match {
       case Valid(_) => "Output section contained a non-stdout/stderr element."
       case Invalid(e) => e.head should be("Workflow failed at output section.")
@@ -72,14 +72,14 @@ class AstToWorkflowDefinitionElementSpec extends AnyFlatSpec{
   }
 
   it should "return an error when there is an stdout at intermediate declaration section" in {
-    val testIntermediates = checkStdIntermediates(mockIntermediatesStdout, StdoutElement, "stdout")
+    val testIntermediates = checkDisallowedIntermediates(mockIntermediatesStdout, StdoutElement, "stdout")
     testIntermediates match {
       case Valid(_) => fail("Intermediate section contained stdout. Should have failed.")
       case Invalid(e) => e.head should be("Workflow cannot have stdout expression at intermediate declaration section at workflow-level.")
     }
   }
   it should "return an error when there is an stderr at intermediate declaration section" in {
-    val testIntermediates = checkStdIntermediates(mockIntermediatesStderr, StderrElement, "stderr")
+    val testIntermediates = checkDisallowedIntermediates(mockIntermediatesStderr, StderrElement, "stderr")
     testIntermediates match {
       case Valid(_) => fail("Intermediate section contained stderr. Should have failed.")
       case Invalid(e) => e.head should be("Workflow cannot have stderr expression at intermediate declaration section at workflow-level.")
@@ -87,7 +87,7 @@ class AstToWorkflowDefinitionElementSpec extends AnyFlatSpec{
   }
 
   it should "not return an error for non-stdout/stderr in the intermediates section" in {
-    val testIntermediates = checkStdIntermediates(mockIntermediatesNonStd, StdoutElement, "non-stdout/stderr")
+    val testIntermediates = checkDisallowedIntermediates(mockIntermediatesNonStd, StdoutElement, "non-stdout/stderr")
     testIntermediates match {
       case Valid(_) => "Intermediate section contained a non-stdout/stderr element."
       case Invalid(e) => e.head should be("Workflow failed at intermediate section.")

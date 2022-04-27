@@ -29,17 +29,17 @@ object AstToWorkflowDefinitionElement {
 
     val inputsSectionValidation: ErrorOr[Option[InputsSectionElement]] = for {
       inputValidateElement <- validateSize(bodyElements.filterByType[InputsSectionElement], "inputs", 1): ErrorOr[Option[InputsSectionElement]]
-      _ <- checkIfStdInputExist(inputValidateElement, StdoutElement, "stdout")
-      _ <- checkIfStdInputExist(inputValidateElement, StderrElement, "stderr")
+      _ <- checkDisallowedInputElement(inputValidateElement, StdoutElement, "stdout")
+      _ <- checkDisallowedInputElement(inputValidateElement, StderrElement, "stderr")
     } yield inputValidateElement
 
-    val intermediateValueDeclarationStdoutCheck = checkStdIntermediates(bodyElements.filterByType[IntermediateValueDeclarationElement], StdoutElement, "stdout")
-    val intermediateValueDeclarationStderrCheck: ErrorOr[Option[String]] = checkStdIntermediates(bodyElements.filterByType[IntermediateValueDeclarationElement], StderrElement, "stderr")
+    val intermediateValueDeclarationStdoutCheck = checkDisallowedIntermediates(bodyElements.filterByType[IntermediateValueDeclarationElement], StdoutElement, "stdout")
+    val intermediateValueDeclarationStderrCheck: ErrorOr[Option[String]] = checkDisallowedIntermediates(bodyElements.filterByType[IntermediateValueDeclarationElement], StderrElement, "stderr")
 
     val outputsSectionValidation: ErrorOr[Option[OutputsSectionElement]] = for {
       outputValidateElement <- validateSize(bodyElements.filterByType[OutputsSectionElement], "outputs", 1): ErrorOr[Option[OutputsSectionElement]]
-      _ <- checkIfStdOutputExists(outputValidateElement, StdoutElement, "stdout")
-      _ <- checkIfStdOutputExists(outputValidateElement, StderrElement, "stderr")
+      _ <- checkDisallowedOutputElement(outputValidateElement, StdoutElement, "stdout")
+      _ <- checkDisallowedOutputElement(outputValidateElement, StderrElement, "stderr")
     } yield outputValidateElement
 
     val graphSections: Vector[WorkflowGraphElement] = bodyElements.filterByType[WorkflowGraphElement]
@@ -53,7 +53,7 @@ object AstToWorkflowDefinitionElement {
     }
   }
 
-  def checkIfStdInputExist(inputSection: Option[InputsSectionElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Option[String]] = {
+  def checkDisallowedInputElement(inputSection: Option[InputsSectionElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Option[String]] = {
     inputSection match {
       case Some(section) =>
         if (section.inputDeclarations.flatMap(_.expression).exists(_.isInstanceOf[expressionType.type])) {
@@ -63,7 +63,7 @@ object AstToWorkflowDefinitionElement {
     }
   }
 
-  def checkIfStdOutputExists[A](outputSection: Option[OutputsSectionElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Option[String]] = {
+  def checkDisallowedOutputElement(outputSection: Option[OutputsSectionElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Option[String]] = {
     outputSection match {
       case Some(section) =>
         if (section.outputs.map(_.expression).exists(_.isInstanceOf[expressionType.type])) {
@@ -73,7 +73,7 @@ object AstToWorkflowDefinitionElement {
     }
   }
 
-  def checkStdIntermediates[A](intermediate: Vector[IntermediateValueDeclarationElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Option[String]] = {
+  def checkDisallowedIntermediates(intermediate: Vector[IntermediateValueDeclarationElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Option[String]] = {
     if (intermediate.map(_.expression).exists(_.isInstanceOf[expressionType.type])) {
       s"Workflow cannot have $expressionName expression at intermediate declaration section at workflow-level.".invalidNel
     } else None.validNel

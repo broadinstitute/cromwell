@@ -11,8 +11,8 @@ class AstToWorkflowDefinitionElementSpec extends AnyFlatSpec{
   behavior of "Check Stdouts and Stderrs"
 
   val mockInputSectionStdout = Option(InputsSectionElement(Vector(InputDeclarationElement(PrimitiveTypeElement(WomSingleFileType), "i", Some(StdoutElement)))))
-  val mockInputSectionStderr= Option(InputsSectionElement(Vector(InputDeclarationElement(PrimitiveTypeElement(WomSingleFileType), "i", Some(StderrElement)))))
-  val mockInputSectionNonStd= Option(InputsSectionElement(Vector(InputDeclarationElement(PrimitiveTypeElement(WomStringType), "more", Some(StringLiteral("more"))))))
+  val mockInputSectionStderr = Option(InputsSectionElement(Vector(InputDeclarationElement(PrimitiveTypeElement(WomSingleFileType), "i", Some(StderrElement)))))
+  val mockInputSectionNonStd = Option(InputsSectionElement(Vector(InputDeclarationElement(PrimitiveTypeElement(WomStringType), "more", Some(StringLiteral("more"))))))
 
 
   val mockIntermediatesStdout = Vector(IntermediateValueDeclarationElement(PrimitiveTypeElement(WomSingleFileType), "y", StdoutElement))

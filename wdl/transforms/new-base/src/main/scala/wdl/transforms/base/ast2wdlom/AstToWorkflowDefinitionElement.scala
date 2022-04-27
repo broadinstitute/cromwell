@@ -53,30 +53,30 @@ object AstToWorkflowDefinitionElement {
     }
   }
 
-  def checkDisallowedInputElement(inputSection: Option[InputsSectionElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Option[String]] = {
+  def checkDisallowedInputElement(inputSection: Option[InputsSectionElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Unit] = {
     inputSection match {
       case Some(section) =>
         if (section.inputDeclarations.flatMap(_.expression).exists(_.isInstanceOf[expressionType.type])) {
           s"Workflow cannot have $expressionName expression in input section at workflow-level.".invalidNel
-        } else None.validNel
-      case None => None.validNel
+        } else ().validNel
+      case None => ().validNel
     }
   }
 
-  def checkDisallowedOutputElement(outputSection: Option[OutputsSectionElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Option[String]] = {
+  def checkDisallowedOutputElement(outputSection: Option[OutputsSectionElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Unit] = {
     outputSection match {
       case Some(section) =>
         if (section.outputs.map(_.expression).exists(_.isInstanceOf[expressionType.type])) {
           s"Workflow cannot have $expressionName expression in output section at workflow-level.".invalidNel
-        } else None.validNel
-      case None => None.validNel
+        } else ().validNel
+      case None => ().validNel
     }
   }
 
-  def checkDisallowedIntermediates(intermediate: Vector[IntermediateValueDeclarationElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Option[String]] = {
+  def checkDisallowedIntermediates(intermediate: Vector[IntermediateValueDeclarationElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Unit] = {
     if (intermediate.map(_.expression).exists(_.isInstanceOf[expressionType.type])) {
       s"Workflow cannot have $expressionName expression at intermediate declaration section at workflow-level.".invalidNel
-    } else None.validNel
+    } else ().validNel
   }
 
   private def validateSize[A](elements: Vector[A], sectionName: String, numExpected: Int): ErrorOr[Option[A]] = {

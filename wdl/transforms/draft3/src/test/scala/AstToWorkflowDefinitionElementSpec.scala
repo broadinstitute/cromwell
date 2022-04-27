@@ -63,7 +63,7 @@ class AstToWorkflowDefinitionElementSpec extends AnyFlatSpec{
       case Invalid(e) => e.head should be("Workflow cannot have stderr expression in output section at workflow-level.")
     }
   }
-  it should "not throw an error for non-stdout/stderr in the outputs section" in {
+  it should "not return an error for non-stdout/stderr in the outputs section" in {
     val testOutputs = checkIfStdOutputExists(mockOutputSectionNonStd, StdoutElement, "non-stdout/stderr")
     testOutputs match {
       case Valid(_) => "Output section contained a non-stdout/stderr element."

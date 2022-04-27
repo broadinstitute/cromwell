@@ -40,7 +40,7 @@ class AstToWorkflowDefinitionElementSpec extends AnyFlatSpec{
     }
   }
 
-  it should "not throw an error for non-stdout/stderr in the inputs section" in {
+  it should "not return an error for non-stdout/stderr in the inputs section" in {
     val testInputs = checkIfStdInputExist(mockInputSectionNonStd, StdoutElement, "non-stdout/stderr")
     testInputs match {
       case Valid(_) => "Input section contained a non-stdout/stderr element."

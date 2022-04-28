@@ -803,7 +803,7 @@ paths:
           headers: { }
           content:
               schema:
-                $ref: '#/definition/RunStatus'
+                $ref: '#/definitions/RunStatus'
         '401':
           description: The request is unauthorized.
           $ref: '#/responses/ErrorResponse'
@@ -845,6 +845,18 @@ responses:
     description: Workflow ID Not Found
   ServerError:
     description: Internal Error
+  ErrorResponse:
+    title: ErrorResponse
+    type: object
+    properties:
+      msg:
+        type: string
+        description: A detailed error message.
+      status_code:
+        type: integer
+        description: 'The integer representing the HTTP status code (e.g. 200, 404).'
+        format: int32
+    description: An object that can optionally include information about the error.
 parameters:
   singleId:
     name: id
@@ -1416,7 +1428,6 @@ definitions:
         type: string
         description: The labels which have been updated
         example: label-value-1
-
   DefaultWorkflowEngineParameter:
     title: DefaultWorkflowEngineParameter
     type: object
@@ -1705,18 +1716,6 @@ definitions:
           type: string
         description: an array of one or more acceptable types for the `workflow_type`
     description: Available workflow types supported by a given instance of the service.
-  ErrorResponse:
-    title: ErrorResponse
-    type: object
-    properties:
-      msg:
-        type: string
-        description: A detailed error message.
-      status_code:
-        type: integer
-        description: 'The integer representing the HTTP status code (e.g. 200, 404).'
-        format: int32
-    description: An object that can optionally include information about the error.
   ServiceType:
     description: Type of a GA4GH service
     type: object

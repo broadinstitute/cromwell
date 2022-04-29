@@ -1,7 +1,0 @@
-# Verifies that if we use stdout in a workflow level, the workflow fails properly.
-name: bad_stdout_output
-testFormat: workflowfailure
-
-files {
-  workflow: bad_stdouts/bad_stdout_output.wdl
-}

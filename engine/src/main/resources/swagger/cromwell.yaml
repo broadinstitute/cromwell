@@ -699,14 +699,12 @@ paths:
       parameters: []
       responses:
         '200':
-          description: 'Successful request'
+          description: Successful Request
           schema:
             $ref: '#/definitions/ServiceInfo'
         '500':
           description: An unexpected error occurred.
-          schema:
-            $ref: '#/responses/ErrorResponse'
-      deprecated: false
+          $ref: '#/responses/ServerError'
   '/api/ga4gh/wes/v1/runs/{run_id}/cancel':
     post:
       tags:
@@ -722,26 +720,21 @@ paths:
           type: string
       responses:
         '200':
-          description: 'Successful request'
+          description: Successful Request
           schema:
             $ref: '#/definitions/RunId'
         '401':
           description: The request is unauthorized.
-          schema:
-            $ref: '#/responses/ErrorResponse'
+          $ref: '#/responses/InvalidSubmission'
         '403':
           description: The requester is not authorized to perform this action.
-          schema:
-            $ref: '#/responses/ErrorResponse'
+          $ref: '#/responses/Forbidden'
         '404':
           description: The requested workflow run wasn't found.
-          schema:
-            $ref: '#/responses/ErrorResponse'
+          $ref: '#/responses/NotFound'
         '500':
           description: An unexpected error occurred.
-          schema:
-            $ref: '#/responses/ErrorResponse'
-      deprecated: false
+          $ref: '#/responses/ServerError'
   '/api/ga4gh/wes/v1/runs/{run_id}/status':
     get:
       tags:
@@ -761,25 +754,21 @@ paths:
           type: string
       responses:
         '200':
-          description: 'Successful request'
+          description: Successful Request
           schema:
             $ref: '#/definitions/RunStatus'
         '401':
           description: The request is unauthorized.
-          $ref: '#/responses/ErrorResponse'
+          $ref: '#/responses/InvalidSubmission'
         '403':
           description: The requester is not authorized to perform this action.
-          schema:
-            $ref: '#/responses/ErrorResponse'
+          $ref: '#/responses/Forbidden'
         '404':
           description: The requested workflow run wasn't found.
-          schema:
-            $ref: '#/responses/ErrorResponse'
+          $ref: '#/responses/NotFound'
         '500':
           description: An unexpected error occurred.
-          schema:
-            $ref: '#/responses/ErrorResponse'
-      deprecated: false
+          $ref: '#/responses/ServerError'
 responses:
   OkIdAndStatus:
     description: Successful Request
@@ -799,8 +788,6 @@ responses:
     description: Workflow ID Not Found
   ServerError:
     description: Internal Error
-  ErrorResponse:
-    description: An object that can optionally include information about the error.
 parameters:
   singleId:
     name: id

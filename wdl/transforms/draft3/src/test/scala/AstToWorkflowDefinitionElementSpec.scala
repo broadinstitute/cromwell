@@ -44,7 +44,7 @@ class AstToWorkflowDefinitionElementSpec extends AnyFlatSpec{
     val testInputs = checkDisallowedInputElement(mockInputSectionNonStd, StdoutElement, "non-stdout/stderr")
     testInputs match {
       case Valid(_) => // No action
-      case Invalid(e) => fail("Check shouldn't have returned error as input section had non-stdout/stderr inputs")
+      case Invalid(_) => fail("Check shouldn't have returned error as input section had non-stdout/stderr inputs")
     }
   }
 
@@ -67,7 +67,7 @@ class AstToWorkflowDefinitionElementSpec extends AnyFlatSpec{
     val testOutputs = checkDisallowedOutputElement(mockOutputSectionNonStd, StdoutElement, "non-stdout/stderr")
     testOutputs match {
       case Valid(_) => // No action
-      case Invalid(e) => fail("Check shouldn't have returned error as output section had non-stdout/stderr outputs")
+      case Invalid(_) => fail("Check shouldn't have returned error as output section had non-stdout/stderr outputs")
     }
   }
 
@@ -90,7 +90,7 @@ class AstToWorkflowDefinitionElementSpec extends AnyFlatSpec{
     val testIntermediates = checkDisallowedIntermediates(mockIntermediatesNonStd, StdoutElement, "non-stdout/stderr")
     testIntermediates match {
       case Valid(_) => // No action
-      case Invalid(e) => fail("Check shouldn't have returned error as intermediate section had non-stdout/stderr intermediates.")
+      case Invalid(_) => fail("Check shouldn't have returned error as intermediate section had non-stdout/stderr intermediates.")
     }
   }
 

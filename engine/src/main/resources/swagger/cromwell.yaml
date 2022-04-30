@@ -699,36 +699,13 @@ paths:
       parameters: []
       responses:
         '200':
-          description: ''
-          headers: {}
-          content:
-            application/json:
-              schema:
-                $ref: '#/definitions/ServiceInfo'
-        '400':
-          description: The request is malformed.
-          content:
-            application/json:
-              schema:
-                $ref: '#/responses/ErrorResponse'
-        '401':
-          description: The request is unauthorized.
-          content:
-            application/json:
-              schema:
-                $ref: '#/responses/ErrorResponse'
-        '403':
-          description: The requester is not authorized to perform this action.
-          content:
-            application/json:
-              schema:
-                $ref: '#/responses/ErrorResponse'
+          description: 'Successful request'
+          schema:
+            $ref: '#/definitions/ServiceInfo'
         '500':
           description: An unexpected error occurred.
-          content:
-            application/json:
-              schema:
-                $ref: '#/responses/ErrorResponse'
+          schema:
+            $ref: '#/responses/ErrorResponse'
       deprecated: false
   '/api/ga4gh/wes/v1/runs/{run_id}/cancel':
     post:
@@ -740,43 +717,30 @@ paths:
       parameters:
         - name: run_id
           in: path
-          description: ''
+          description: Run ID
           required: true
-          style: simple
-          schema:
-            type: string
+          type: string
       responses:
         '200':
-          description: ''
-          headers: { }
-          content:
-            application/json:
-              schema:
-                $ref: '#/definitions/RunId'
+          description: 'Successful request'
+          schema:
+            $ref: '#/definitions/RunId'
         '401':
           description: The request is unauthorized.
-          content:
-            application/json:
-              schema:
-                $ref: '#/responses/ErrorResponse'
+          schema:
+            $ref: '#/responses/ErrorResponse'
         '403':
           description: The requester is not authorized to perform this action.
-          content:
-            application/json:
-              schema:
-                $ref: '#/responses/ErrorResponse'
+          schema:
+            $ref: '#/responses/ErrorResponse'
         '404':
           description: The requested workflow run wasn't found.
-          content:
-            application/json:
-              schema:
-                $ref: '#/responses/ErrorResponse'
+          schema:
+            $ref: '#/responses/ErrorResponse'
         '500':
           description: An unexpected error occurred.
-          content:
-            application/json:
-              schema:
-                $ref: '#/responses/ErrorResponse'
+          schema:
+            $ref: '#/responses/ErrorResponse'
       deprecated: false
   '/api/ga4gh/wes/v1/runs/{run_id}/status':
     get:
@@ -792,39 +756,29 @@ paths:
       parameters:
         - name: run_id
           in: path
-          description: ''
+          description: Run ID
           required: true
-          style: simple
-          schema:
-            type: string
+          type: string
       responses:
         '200':
-          description: ''
-          headers: { }
-          content:
-              schema:
-                $ref: '#/definitions/RunStatus'
+          description: 'Successful request'
+          schema:
+            $ref: '#/definitions/RunStatus'
         '401':
           description: The request is unauthorized.
           $ref: '#/responses/ErrorResponse'
         '403':
           description: The requester is not authorized to perform this action.
-          content:
-            application/json:
-              schema:
-                $ref: '#/responses/ErrorResponse'
+          schema:
+            $ref: '#/responses/ErrorResponse'
         '404':
           description: The requested workflow run wasn't found.
-          content:
-            application/json:
-              schema:
-                $ref: '#/responses/ErrorResponse'
+          schema:
+            $ref: '#/responses/ErrorResponse'
         '500':
           description: An unexpected error occurred.
-          content:
-            application/json:
-              schema:
-                $ref: '#/responses/ErrorResponse'
+          schema:
+            $ref: '#/responses/ErrorResponse'
       deprecated: false
 responses:
   OkIdAndStatus:
@@ -846,16 +800,6 @@ responses:
   ServerError:
     description: Internal Error
   ErrorResponse:
-    title: ErrorResponse
-    type: object
-    properties:
-      msg:
-        type: string
-        description: A detailed error message.
-      status_code:
-        type: integer
-        description: 'The integer representing the HTTP status code (e.g. 200, 404).'
-        format: int32
     description: An object that can optionally include information about the error.
 parameters:
   singleId:

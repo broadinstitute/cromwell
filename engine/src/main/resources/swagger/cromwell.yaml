@@ -689,7 +689,7 @@ paths:
   '/api/ga4gh/wes/v1/service-info':
     get:
       tags:
-        - Workflow Execution Service - ALPHA
+        - GA4GH Workflow Execution Service (WES) - Alpha preview
       summary: Get service info
       description: >-
         May include information related (but not limited to) the workflow
@@ -708,7 +708,7 @@ paths:
   '/api/ga4gh/wes/v1/runs/{run_id}/cancel':
     post:
       tags:
-        - Workflow Execution Service - ALPHA
+        - GA4GH Workflow Execution Service (WES) - Alpha preview
       summary: Cancel run
       description: Cancel a running workflow.
       operationId: CancelRun
@@ -738,7 +738,7 @@ paths:
   '/api/ga4gh/wes/v1/runs/{run_id}/status':
     get:
       tags:
-        - Workflow Execution Service - ALPHA
+        - GA4GH Workflow Execution Service (WES) - Alpha preview
       summary: Get run status
       description: >-
         This provides an abbreviated (and likely fast depending on

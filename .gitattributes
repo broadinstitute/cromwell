@@ -3,3 +3,4 @@
 *.MD text
 *.java text
 *.html text
+docs/api/RESTAPI.md linguist-generated=true

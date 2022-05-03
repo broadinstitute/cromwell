@@ -2,6 +2,16 @@
 
 ## 79 Release Notes
 
+### WES endpoints preview
+
+As a means to stay on top of endpoints within our repo, 3 new Workflow Execution Service (WES) endpoints are now documented in the Cromwell Swagger (others to follow as part of later work):
+
+| HTTP verb | Endpoint path | Description   |
+| --------- | ------------- |---------------|
+| GET | /api/ga4gh/wes/v1/service-info | Server info |
+| POST | /api/ga4gh/wes/v1/runs/{run_id}/cancel | Abort workflow |
+| GET | /api/ga4gh/wes/v1/runs/{run_id}/status | Workflow status |
+
 ### Scala 2.13
 
 Cromwell is now built with Scala version 2.13. This change should not be noticeable to users but may be of interest to developers of Cromwell backend implementations.

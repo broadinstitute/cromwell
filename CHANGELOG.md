@@ -4,14 +4,16 @@
 
 ### Last release with CWL support
 
-Cromwell 79 is the last release with CWL. Support will be deprecated in Cromwell 80 and above. CWL will be re-introduced at a later date in the [Terra platform](https://terra.bio/), using a solution other than Cromwell. See the blog post ["Terra’s roadmap to supporting more workflow languages"](https://terra.bio/terras-roadmap-to-supporting-more-workflow-languages/) for details.
+Cromwell 79 is the last release with CWL. Support will be deprecated in Cromwell 80 and above. CWL will be re-introduced at a later date in the [Terra platform](https://terra.bio/), using a solution other than Cromwell.
 
-|Product| Language | Support |
-|---|----------|---------|
-|Cromwell standalone| WDL      | :white_check_mark:|
-|Cromwell standalone| CWL      | Cromwell 79 and earlier|
-|Terra SaaS platform| WDL      | :white_check_mark:|
-|Terra SaaS platform| CWL      | Future support planned|
+See the blog post ["Terra’s roadmap to supporting more workflow languages"](https://terra.bio/terras-roadmap-to-supporting-more-workflow-languages/) for details.
+
+| Product                                   | Language | Support |
+|-------------------------------------------|----------|---------|
+| Cromwell standalone                       | WDL      | :white_check_mark:|
+| Cromwell standalone                       | CWL      | Cromwell 79 and earlier|
+| [Terra SaaS platform](https://terra.bio/) | WDL      | :white_check_mark:|
+| [Terra SaaS platform](https://terra.bio/) | CWL      | Future support planned|
 
 ### Alibaba Cloud deprecation notice
 

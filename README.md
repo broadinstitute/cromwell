@@ -22,7 +22,7 @@ Talk to us:
 
 ### Capabilities and roadmap
 
-Many Cromwell users today run their workflows in [Terra](https://app.terra.bio/), a fully-managed cloud-native bioinformatics computing platform. See [here](https://support.terra.bio/hc/en-us/articles/360036379771-Get-started-running-workflows) for a quick-start guide.
+Many users today run their WDL workflows in [Terra](https://app.terra.bio/), a managed cloud bioinformatics platform with built-in WDL support provided by Cromwell. See [here](https://support.terra.bio/hc/en-us/articles/360036379771-Get-started-running-workflows) for a quick-start guide.
 
 Users with specialized needs who wish to install and maintain their own Cromwell instances can [download](https://github.com/broadinstitute/cromwell/releases) a JAR or Docker image. The development team accepts reproducible bug reports from self-managed instances, but cannot feasibly provide direct support.
 

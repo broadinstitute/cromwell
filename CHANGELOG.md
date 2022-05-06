@@ -17,7 +17,7 @@ See the blog post ["Terra’s roadmap to supporting more workflow languages"](ht
 
 ### Alibaba Cloud deprecation notice
 
-Support for Alibaba Cloud will be deprecated in a future version of Crowmell.
+Support for Alibaba Cloud will be deprecated and removed in a future version of Crowmell.
 
 ### WES endpoints preview
 

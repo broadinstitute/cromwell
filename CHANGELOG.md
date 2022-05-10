@@ -17,7 +17,7 @@ CWL will be re-introduced at a later date in the [Terra platform](https://terra.
 
 ### Alibaba Cloud deprecation notice
 
-Support for Alibaba Cloud will be deprecated and removed in a future version of Crowmell.
+Support for Alibaba Cloud will be deprecated and removed in a future version of Cromwell.
 
 ### WES endpoints preview
 

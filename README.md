@@ -40,6 +40,6 @@ If you believe you have found a security issue please contact `infosec@broadinst
 
 Need to file an issue? Head over to [Github Issues](https://github.com/broadinstitute/cromwell/issues).
 
-If you previously filed an issue in JIRA, the link is [here](https://github.com/broadinstitute/cromwell/issues). New signups are no longer accepted.
+If you previously filed an issue in JIRA, the link is [here](https://broadworkbench.atlassian.net/jira/software/c/projects/CROM/issues). New signups are no longer accepted.
 
 ![Jamie, the Cromwell pig](docs/jamie_the_cromwell_pig.png)

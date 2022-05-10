@@ -30,7 +30,7 @@ Users with specialized needs who wish to install and maintain their own Cromwell
 
 Cromwell [supports](https://cromwell.readthedocs.io/en/stable/LanguageSupport/) the WDL workflow language. Support for CWL is deprecated in Cromwell version 80 and above.
 
-CWL will re-introduced at a later date in the [Terra platform](https://terra.bio/), using a solution other than Cromwell. See the blog post ["Terra’s roadmap to supporting more workflow languages"](https://terra.bio/terras-roadmap-to-supporting-more-workflow-languages/) for details.
+CWL will be re-introduced at a later date in the [Terra platform](https://terra.bio/), using a solution other than Cromwell. See the blog post ["Terra’s roadmap to supporting more workflow languages"](https://terra.bio/terras-roadmap-to-supporting-more-workflow-languages/) for details.
 
 ### Security reports
 

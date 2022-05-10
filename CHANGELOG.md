@@ -17,7 +17,7 @@ CWL will be re-introduced at a later date in the [Terra platform](https://terra.
 
 ### Last release with Alibaba Cloud
 
-The Alibaba Cloud backend will no longer be included in Cromwell version 80 and above.
+The BCS backend and OSS filesystem (both of which support Alibaba Cloud) will be removed in version 80.
 
 ### WES endpoints preview
 

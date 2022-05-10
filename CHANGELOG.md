@@ -15,11 +15,9 @@ CWL will be re-introduced at a later date in the [Terra platform](https://terra.
 | [Terra SaaS platform](https://terra.bio/) | WDL      | :white_check_mark:    |
 | [Terra SaaS platform](https://terra.bio/) | CWL      | Future support planned |
 
-### Alibaba Cloud notice
+### Last release with Alibaba Cloud
 
-The Alibaba Cloud backend will no longer be included in the base Cromwell release JAR from version 80 onwards.
-
-It will still be possible to include it as a pluggable backend by building the backend classes separately and adding them to the classpath at runtime.
+The Alibaba Cloud backend will no longer be included in Cromwell version 80 and above.
 
 ### WES endpoints preview
 

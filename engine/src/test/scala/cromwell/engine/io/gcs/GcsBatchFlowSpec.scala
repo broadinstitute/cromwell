@@ -11,14 +11,14 @@ import cromwell.filesystems.gcs.batch.GcsBatchCrc32Command
 import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
+import common.mock.MockSugar
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.language.postfixOps
 
-
-class GcsBatchFlowSpec extends TestKitSuite with AnyFlatSpecLike with CromwellTimeoutSpec with Matchers with PrivateMethodTester with Mockito {
+class GcsBatchFlowSpec extends TestKitSuite with AnyFlatSpecLike with CromwellTimeoutSpec with Matchers
+  with PrivateMethodTester with MockSugar {
 
   private val NoopOnRetry: IoCommandContext[_] => Throwable => Unit = _ => _ => ()
   private val NoopOnBackpressure: Option[Double] => Unit = _ => ()
@@ -67,12 +67,12 @@ class GcsBatchFlowSpec extends TestKitSuite with AnyFlatSpecLike with CromwellTi
 
     val mockGcsPath = GcsPath(
       nioPath = CloudStorageFileSystem.forBucket("bucket").getPath("test"),
-      apiStorage = anyObject[com.google.api.services.storage.Storage],
-      cloudStorage = anyObject[com.google.cloud.storage.Storage],
-      projectId = anyString,
+      apiStorage = mock[com.google.api.services.storage.Storage],
+      cloudStorage = mock[com.google.cloud.storage.Storage],
+      projectId = "GcsBatchFlowSpec-project",
     )
     val gcsBatchCommandContext = GcsBatchCommandContext(GcsBatchCrc32Command.forPath(mockGcsPath).get, TestProbe().ref, 5)
-    val recoverCommandPrivateMethod = PrivateMethod[PartialFunction[Throwable, Future[GcsBatchResponse[_]]]]('recoverCommand)
+    val recoverCommandPrivateMethod = PrivateMethod[PartialFunction[Throwable, Future[GcsBatchResponse[_]]]](Symbol("recoverCommand"))
     val partialFuncAcceptingThrowable = gcsBatchFlow invokePrivate recoverCommandPrivateMethod(gcsBatchCommandContext)
 
     val futureRes = partialFuncAcceptingThrowable(new NullPointerException(null)) // no unhandled exceptions should be thrown here

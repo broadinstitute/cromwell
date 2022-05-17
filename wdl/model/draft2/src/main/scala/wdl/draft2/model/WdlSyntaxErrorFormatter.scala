@@ -5,7 +5,7 @@ import wdl.draft2.parser.WdlParser._
 import wom.core._
 import wom.types.WomType
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSource]) extends SyntaxErrorFormatter {
 

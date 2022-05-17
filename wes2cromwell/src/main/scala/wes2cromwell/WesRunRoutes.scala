@@ -100,7 +100,7 @@ object WesRunRoutes {
     case _ => None
   }
 
-  def completeCromwellResponse(future: ⇒ Future[WesResponse]): Route = {
+  def completeCromwellResponse(future: => Future[WesResponse]): Route = {
     onComplete(future) {
       case Success(a) => complete(a)
       case Failure(e) => complete(WesErrorResponse(e.getMessage, StatusCodes.InternalServerError.intValue))

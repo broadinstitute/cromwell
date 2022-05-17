@@ -19,32 +19,32 @@ class Draft2SizeFunctionSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
   behavior of "ReadLikeFunctions.size"
 
   it should "correctly report a 2048 byte file, in bytes by default" in {
-    val readLike = testFunctions(Success(2048l))
+    val readLike = testFunctions(Success(2048L))
     validate(readLike.size(Seq(Success(WomSingleFile("blah"))))) { res => assert(res == WomFloat(2048d)) }
   }
 
   it should "correctly report a 2048 byte file, in bytes" in {
-    val readLike = testFunctions(Success(2048l))
+    val readLike = testFunctions(Success(2048L))
     validate(readLike.size(Seq(Success(WomSingleFile("blah")), Success(WomString("B"))))) { res => assert(res == WomFloat(2048d)) }
   }
 
   it should "correctly report a 2048 byte file, in KB" in {
-    val readLike = testFunctions(Success(2048l))
+    val readLike = testFunctions(Success(2048L))
     validate(readLike.size(Seq(Success(WomSingleFile("blah")), Success(WomString("KB"))))) { res => assert(res == WomFloat(2d)) }
   }
 
   it should "correctly report a 2048 byte file, in KiB" in {
-    val readLike = testFunctions(Success(2048l))
+    val readLike = testFunctions(Success(2048L))
     validate(readLike.size(Seq(Success(WomSingleFile("blah")), Success(WomString("Ki"))))) { res => assert(res == WomFloat(2d)) }
   }
 
   it should "correctly report the size of a supplied, optional, 2048 byte file" in {
-    val readLike = testFunctions(Success(2048l))
+    val readLike = testFunctions(Success(2048L))
     validate(readLike.size(Seq(Success(WomOptionalValue(WomSingleFileType, Option(WomSingleFile("blah"))))))) { res => assert(res == WomFloat(2048d)) }
   }
 
   it should "correctly report the size of a supplied, optional optional, 2048 byte file" in {
-    val readLike = testFunctions(Success(2048l))
+    val readLike = testFunctions(Success(2048L))
     validate(readLike.size(Seq(Success(WomOptionalValue(
       WomOptionalType(WomSingleFileType),
       Option(WomOptionalValue(WomSingleFileType, Option(WomSingleFile("blah"))))
@@ -52,24 +52,24 @@ class Draft2SizeFunctionSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
   }
 
   it should "correctly report the size of a supplied, optional, 2048 byte file, in MB" in {
-    val readLike = testFunctions(Success(2048l))
+    val readLike = testFunctions(Success(2048L))
     validate(readLike.size(Seq(Success(WomOptionalValue(
       WomSingleFileType, Option(WomSingleFile("blah")))), Success(WomString("MB")
     )))) { res => assert(res == WomFloat(0.001953125d)) }
   }
 
   it should "correctly report that an unsupplied optional file is empty" in {
-    val readLike = testFunctions(Success(2048l))
+    val readLike = testFunctions(Success(2048L))
     validate(readLike.size(Seq(Success(WomOptionalValue(WomSingleFileType, None))))) { res => assert(res == WomFloat(0d)) }
   }
 
   it should "correctly report that an unsupplied File?? is empty" in {
-    val readLike = testFunctions(Success(2048l))
+    val readLike = testFunctions(Success(2048L))
     validate(readLike.size(Seq(Success(WomOptionalValue(WomOptionalType(WomSingleFileType), None))))) { res => assert(res == WomFloat(0d)) }
   }
 
   it should "correctly report that an unsupplied optional file is empty, even in MB" in {
-    val readLike = testFunctions(Success(2048l))
+    val readLike = testFunctions(Success(2048L))
     validate(readLike.size(Seq(Success(WomOptionalValue(WomSingleFileType, None)), Success(WomString("MB")))))  { res => assert(res == WomFloat(0d)) }
   }
 

@@ -17,7 +17,7 @@ class DummyInitializationActor(pipelinesParams: StandardInitializationActorParam
   val backendAttributeValidation: RuntimeAttributesValidation[String] = new RuntimeAttributesValidation[String] {
     override def key: String = "backend"
 
-    override def coercion: Traversable[WomType] = Vector(WomStringType)
+    override def coercion: Iterable[WomType] = Vector(WomStringType)
 
     override protected def validateValue: PartialFunction[WomValue, ErrorOr[String]] = {
       case WomString("Dummy") => "Dummy".validNel

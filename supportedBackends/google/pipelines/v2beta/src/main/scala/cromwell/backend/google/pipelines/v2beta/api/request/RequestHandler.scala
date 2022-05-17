@@ -11,7 +11,7 @@ import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import org.slf4j.{Logger, LoggerFactory}
 
 import java.net.URL
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 

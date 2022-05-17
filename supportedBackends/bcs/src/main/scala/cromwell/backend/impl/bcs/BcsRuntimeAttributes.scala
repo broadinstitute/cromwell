@@ -176,7 +176,7 @@ object MountsValidation {
 class MountsValidation(override val config: Option[Config]) extends RuntimeAttributesValidation[Seq[BcsMount]] with OptionalWithDefault[Seq[BcsMount]] {
   override def key: String = BcsRuntimeAttributes.MountsKey
 
-  override def coercion: Traversable[WomType] = Set(WomStringType, WomArrayType(WomStringType))
+  override def coercion: Iterable[WomType] = Set(WomStringType, WomArrayType(WomStringType))
 
   override protected def validateValue: PartialFunction[WomValue, ErrorOr[Seq[BcsMount]]] = {
     case WomString(value) => validateMounts(value.split(",\\s*").toSeq)
@@ -218,7 +218,7 @@ class UserDataValidation(override val config: Option[Config]) extends RuntimeAtt
 
   override def usedInCallCaching: Boolean = true
 
-  override def coercion: Traversable[WomType] = Set(WomStringType, WomArrayType(WomStringType))
+  override def coercion: Iterable[WomType] = Set(WomStringType, WomArrayType(WomStringType))
 
   override protected def validateValue: PartialFunction[WomValue, ErrorOr[Seq[BcsUserData]]] = {
     case WomString(value) => validateUserData(value.split(",\\s*").toSeq)
@@ -284,7 +284,7 @@ class ClusterValidation(override val config: Option[Config]) extends RuntimeAttr
 {
   override def key: String = "cluster"
 
-  override def coercion: Traversable[WomType] = Set(WomStringType)
+  override def coercion: Iterable[WomType] = Set(WomStringType)
 
   override def validateValue: PartialFunction[WomValue, ErrorOr[BcsClusterIdOrConfiguration]] = {
     case WomString(s) => BcsClusterIdOrConfiguration.parse(s.toString) match {
@@ -301,7 +301,7 @@ object SystemDiskValidation {
 class SystemDiskValidation(override val config: Option[Config]) extends RuntimeAttributesValidation[BcsSystemDisk] with OptionalWithDefault[BcsSystemDisk]
 {
   override def key: String = "systemDisk"
-  override def coercion: Traversable[WomType] = Set(WomStringType)
+  override def coercion: Iterable[WomType] = Set(WomStringType)
   override def validateValue: PartialFunction[WomValue, ErrorOr[BcsSystemDisk]] = {
     case WomString(s) => BcsDisk.parse(s.toString) match {
       case Success(disk: BcsSystemDisk) => disk.validNel
@@ -317,7 +317,7 @@ object DataDiskValidation {
 class DataDiskValidation(override val config: Option[Config]) extends RuntimeAttributesValidation[BcsDataDisk] with OptionalWithDefault[BcsDataDisk]
 {
   override def key: String = "dataDisk"
-  override def coercion: Traversable[WomType] = Set(WomStringType)
+  override def coercion: Iterable[WomType] = Set(WomStringType)
   override def validateValue: PartialFunction[WomValue, ErrorOr[BcsDataDisk]] = {
     case WomString(s) => BcsDisk.parse(s.toString) match {
       case Success(disk: BcsDataDisk) => disk.validNel
@@ -333,7 +333,7 @@ object DockerTagValidation {
 class DockerTagValidation(override val config: Option[Config]) extends RuntimeAttributesValidation[BcsDocker] with OptionalWithDefault[BcsDocker]
 {
   override def key: String = "dockerTag"
-  override def coercion: Traversable[WomType] = Set(WomStringType)
+  override def coercion: Iterable[WomType] = Set(WomStringType)
   override def validateValue: PartialFunction[WomValue, ErrorOr[BcsDocker]] = {
     case WomString(s) => BcsDocker.parse(s.toString) match {
       case Success(docker: BcsDocker) => docker.validNel
@@ -359,7 +359,7 @@ object VpcValidation {
 class VpcValidation(override val config: Option[Config]) extends RuntimeAttributesValidation[BcsVpcConfiguration] with OptionalWithDefault[BcsVpcConfiguration]
 {
   override def key: String = "vpc"
-  override def coercion: Traversable[WomType] = Set(WomStringType)
+  override def coercion: Iterable[WomType] = Set(WomStringType)
   override def validateValue: PartialFunction[WomValue, ErrorOr[BcsVpcConfiguration]] = {
     case WomString(s) => BcsVpcConfiguration.parse(s.toString) match {
       case Success(vpc: BcsVpcConfiguration) => vpc.validNel

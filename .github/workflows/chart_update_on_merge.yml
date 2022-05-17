@@ -1,0 +1,71 @@
+name: chart-update-on-merge
+
+on:
+  pull_request:
+    types:
+      - closed
+
+jobs:
+  chart-update:
+    name: Cromwhelm Chart Auto Updater
+    if: github.event.pull_request.merged == true
+    runs-on: self-hosted # Faster machines; see https://github.com/broadinstitute/cromwell/settings/actions/runners
+    steps:
+    - name: Clone Cromwell
+      uses: actions/checkout@v2
+      with:
+        repository: broadinstitute/cromwell
+        token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
+        path: cromwell
+    - uses: olafurpg/setup-scala@v10
+      with:
+        java-version: adopt@1.11
+    - name: Clone Cromwhelm
+      uses: actions/checkout@v2
+      with:
+        repository: broadinstitute/cromwhelm
+        token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
+        path: cromwhelm
+    - name: Find Cromwell short SHA
+      run: |
+        set -e
+        cd cromwell
+        echo "CROMWELL_SHORT_SHA=`git rev-parse --short $GITHUB_SHA`" >> $GITHUB_ENV
+    - name: Find Cromwell release number
+      run: |
+        set -e
+        previous_version=$(curl -X GET https://api.github.com/repos/broadinstitute/cromwell/releases/latest | jq .tag_name | xargs)
+        if ! [[ "${previous_version}" =~ ^[0-9][0-9]+$ ]]; then
+          exit 1
+        fi
+        echo "CROMWELL_NUMBER=$((previous_version + 1))" >> $GITHUB_ENV
+    - name: Save complete image ID
+      run: |
+        echo "CROMWELL_SNAP_VERSION=`echo "$CROMWELL_NUMBER-$CROMWELL_SHORT_SHA-SNAP"`" >> $GITHUB_ENV
+    # `DSDEJENKINS_PASSWORD` auto syncs from vault with https://github.com/broadinstitute/terraform-ap-deployments/pull/614
+    - name: Login to Docker Hub
+      uses: docker/login-action@v1
+      with:
+        username: dsdejenkins
+        password: ${{ secrets.DSDEJENKINS_PASSWORD }}
+    - name: Build Cromwell Docker
+      run: |
+        set -e
+        cd cromwell
+        sbt server/docker
+        docker push broadinstitute/cromwell:$CROMWELL_SNAP_VERSION
+    - name: Edit & push chart
+      env:
+        BROADBOT_GITHUB_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+      run: |
+        set -e
+        cd cromwhelm
+        git checkout main
+        ls -la
+        sed -i "s/appVersion.*/appVersion: \"$CROMWELL_SNAP_VERSION\"/" cromwell-helm/Chart.yaml
+        sed -i "s/image: broadinstitute\/cromwell.*/image: broadinstitute\/cromwell:$CROMWELL_SNAP_VERSION/" cromwell-helm/templates/cromwell.yaml
+        git diff
+        git config --global user.name "broadbot"
+        git config --global user.email "broadbot@broadinstitute.org"
+        git commit -am "Auto update to Cromwell $CROMWELL_SNAP_VERSION"
+        git push https://broadbot:$BROADBOT_GITHUB_TOKEN@github.com/broadinstitute/cromwhelm.git main

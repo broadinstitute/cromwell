@@ -262,7 +262,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         log.info(template, jobTag, data.failedCopyAttempts, callCachingParameters.maxFailedCopyAttempts, data.aggregatedHashString)
       } else {
         log.info(s"BT-322 {} cache hit copying nomatch: could not find a suitable cache hit.", jobTag)
-        workflowLogger.info("Could not copy a suitable cache hit for {}. No copy attempts were made.", jobTag)
+        workflowLogger.info("Could not copy a suitable cache hit for {}. No copy attempts were made.", arg = jobTag)
       }
 
       runJob(data)
@@ -300,7 +300,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     case Event(HashError(t), data: ResponsePendingData) =>
       disableCacheWrite(t)
       // Can't write hashes for this job, but continue to wait for the lookup response.
-      stay using data.copy(hashes = Option(Failure(t)))
+      stay() using data.copy(hashes = Option(Failure(t)))
   }
 
   when(BackendIsCopyingCachedOutputs) {
@@ -314,7 +314,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     case Event(response: JobSucceededResponse, data: ResponsePendingData) if effectiveCallCachingMode.writeToCache && data.hashes.isEmpty =>
       logCacheHitSuccessAndNotifyMetadata(data)
       // Wait for the CallCacheHashes
-      stay using data.withSuccessResponse(response)
+      stay() using data.withSuccessResponse(response)
     case Event(response: JobSucceededResponse, data: ResponsePendingData) => // bad hashes or cache write off
       logCacheHitSuccessAndNotifyMetadata(data)
       saveJobCompletionToJobStore(data.withSuccessResponse(response))
@@ -337,7 +337,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     case Event(HashError(t), data: ResponsePendingData) =>
       disableCacheWrite(t)
       // Can't write hashes for this job, but continue to wait for the copy response.
-      stay using data.copy(hashes = Option(Failure(t)))
+      stay() using data.copy(hashes = Option(Failure(t)))
   }
 
   when(InvalidatingCacheEntry) {
@@ -352,7 +352,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     case Event(HashError(t), data: ResponsePendingData) =>
       disableCacheWrite(t)
       // Can't write hashes for this job, but continue to wait for the copy response.
-      stay using data.copy(hashes = Option(Failure(t)))
+      stay() using data.copy(hashes = Option(Failure(t)))
   }
 
   // Handles JobSucceededResponse messages
@@ -370,7 +370,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     // Hashes are still missing and we want them (writeToCache is true) - wait for them
     case Event(response: JobSucceededResponse, data: ResponsePendingData) if effectiveCallCachingMode.writeToCache && data.hashes.isEmpty =>
       eventList ++= response.executionEvents
-      stay using data.withSuccessResponse(response)
+      stay() using data.withSuccessResponse(response)
     // Hashes are missing but writeToCache is OFF - complete the job
     case Event(response: JobSucceededResponse, data: ResponsePendingData) =>
       eventList ++= response.executionEvents
@@ -387,7 +387,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       saveJobCompletionToJobStore(data.withFailedResponse(response))
     // Hashes are still missing and we want them (writeToCache is true) - wait for them
     case Event(response: BackendJobFailedResponse, data: ResponsePendingData) if effectiveCallCachingMode.writeToCache && data.hashes.isEmpty =>
-      stay using data.withFailedResponse(response)
+      stay() using data.withFailedResponse(response)
     // Hashes are missing but writeToCache is OFF - complete the job
     case Event(response: BackendJobFailedResponse, data: ResponsePendingData) =>
       saveJobCompletionToJobStore(data.withFailedResponse(response))
@@ -445,7 +445,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     // We're getting hash errors and the job is still running, disable call caching and stay here to wait for the job to finish
     case Event(HashError(t), data: ResponsePendingData) =>
       disableCallCaching(Option(t))
-      stay using data.copy(hashes = Option(Failure(t)))
+      stay() using data.copy(hashes = Option(Failure(t)))
   }
 
   when(RunningJob)(jobSuccessHandler.orElse(jobFailedHandler).orElse(jobAbortedHandler).orElse(hashSuccessResponseHandler).orElse(hashFailureResponseHandler))
@@ -479,7 +479,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   whenUnhandled {
     case Event(EngineStatsActor.JobCountQuery, _) =>
-      sender ! EngineStatsActor.JobCount(1)
+      sender() ! EngineStatsActor.JobCount(1)
       stay()
     case Event(e: ActorInitializationException, _) =>
       respondAndStop(JobFailedNonRetryableResponse(jobDescriptorKey, e, None))
@@ -502,8 +502,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       // due to timeouts). That's ok, we just ignore this message in any other situation:
       stay()
     case Event(msg, _) =>
-      log.error("Bad message from {} to EngineJobExecutionActor in state {}(with data {}): {}", sender, stateName, stateData, msg)
-      stay
+      log.error("Bad message from {} to EngineJobExecutionActor in state {}(with data {}): {}", sender(), stateName, stateData, msg)
+      stay()
   }
 
   private def publishHashesToMetadata(maybeHashes: Option[Try[CallCacheHashes]]) = publishHashResultsToMetadata(maybeHashes.map(_.map(_.hashes)))
@@ -731,7 +731,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
     data.ejha match {
       case Some(ejha) if data.failedCopyAttempts < callCachingParameters.maxFailedCopyAttempts =>
-        workflowLogger.debug("Trying to use another cache hit for job: {}", jobDescriptorKey)
+        workflowLogger.debug("Trying to use another cache hit for job: {}", argument = jobDescriptorKey)
         ejha ! NextHit
         goto(CheckingCallCache) using data
       case Some(_) =>
@@ -907,7 +907,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       case responseData: ResponseData => responseData.withHashes(Option(Success(hashes)))
       case _ => data
     }
-    stay using updatedData
+    stay() using updatedData
   }
 }
 

@@ -43,7 +43,6 @@ import eu.timepit.refined.numeric._
 import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 import software.amazon.awssdk.services.batch.model.KeyValuePair
 import spray.json.{JsObject, JsString}
@@ -51,7 +50,7 @@ import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
 import wom.graph.CommandCallNode
 
-class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Mockito with PrivateMethodTester {
+class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with PrivateMethodTester {
   import AwsBatchTestConfig._
 
   System.setProperty("aws.region", "us-east-1")
@@ -145,7 +144,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
 
   it should "generate appropriate KV pairs for the container environment for S3" in {
     val job = generateBasicJob
-    val generateEnvironmentKVPairs = PrivateMethod[List[KeyValuePair]]('generateEnvironmentKVPairs)
+    val generateEnvironmentKVPairs = PrivateMethod[List[KeyValuePair]](Symbol("generateEnvironmentKVPairs"))
 
     // testing a private method see https://www.scalatest.org/user_guide/using_PrivateMethodTester
     val kvPairs = job invokePrivate generateEnvironmentKVPairs("script-bucket", "prefix-", "key")
@@ -158,7 +157,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
 
   it should "generate appropriate KV pairs for the container environment for Local FS" in {
     val job = generateBasicJobForLocalFS
-    val generateEnvironmentKVPairs = PrivateMethod[List[KeyValuePair]]('generateEnvironmentKVPairs)
+    val generateEnvironmentKVPairs = PrivateMethod[List[KeyValuePair]](Symbol("generateEnvironmentKVPairs"))
 
     // testing a private method see https://www.scalatest.org/user_guide/using_PrivateMethodTester
     val kvPairs = job invokePrivate generateEnvironmentKVPairs("script-bucket", "prefix-", "key")

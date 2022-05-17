@@ -51,8 +51,8 @@ class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Bool
     * cromwell.yaml is broken unless the swagger index.html is patched. Copy/paste the code from rawls or cromiam if
     * actual cromwell+swagger+oauth+/api support is needed.
     */
-  val apiRoutes: Route = pathPrefix("api")(concat(workflowRoutes, womtoolRoutes))
-  val nonApiRoutes: Route = concat(engineRoutes, swaggerUiResourceRoute, wesRoutes)
+  val apiRoutes: Route = pathPrefix("api")(concat(workflowRoutes, womtoolRoutes, wesRoutes))
+  val nonApiRoutes: Route = concat(engineRoutes, swaggerUiResourceRoute)
   val allRoutes: Route = concat(apiRoutes, nonApiRoutes)
 
   val serverBinding = Http().bindAndHandle(allRoutes, interface, port)

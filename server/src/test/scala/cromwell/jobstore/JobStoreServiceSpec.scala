@@ -11,7 +11,6 @@ import cromwell.jobstore.JobStoreServiceSpec._
 import cromwell.services.EngineServicesStore
 import cromwell.util.WomMocks
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
 import wom.callable.Callable.OutputDefinition
 import wom.expression.PlaceholderWomExpression
 import wom.graph.WomIdentifier
@@ -25,7 +24,8 @@ object JobStoreServiceSpec {
   private val EmptyExpression = PlaceholderWomExpression(Set.empty, WomStringType)
 }
 
-class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Mockito with CoordinatedWorkflowStoreActorBuilder with SqlWorkflowStoreBuilder with CromwellTimeoutSpec {
+class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with CoordinatedWorkflowStoreActorBuilder
+  with SqlWorkflowStoreBuilder with CromwellTimeoutSpec {
 
   "JobStoreService" should {
     "register Job and Workflow completions and read back (query) the result" in {

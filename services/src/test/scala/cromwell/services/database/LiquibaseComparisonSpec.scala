@@ -15,7 +15,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import slick.jdbc.GetResult
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.reflect._
@@ -225,7 +225,7 @@ class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
       }
 
       it should "stop container if required" taggedAs DbmsTest in {
-        containerOpt.foreach { _.stop }
+        containerOpt.foreach { _.stop() }
       }
     }
   }

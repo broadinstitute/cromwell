@@ -52,7 +52,7 @@ trait PipelinesApiReferenceFilesMappingOperations {
 
   def getReferenceDisksToMount(referenceFileToDiskImageMapping: Map[String, PipelinesApiReferenceFilesDisk],
                                inputFilePaths: Set[String]): List[PipelinesApiReferenceFilesDisk] = {
-    referenceFileToDiskImageMapping.filterKeys(key => inputFilePaths.contains(s"gs://$key")).values.toList.distinct
+    referenceFileToDiskImageMapping.view.filterKeys(key => inputFilePaths.contains(s"gs://$key")).values.toList.distinct
   }
 
   private def getReferenceFileToValidatedGcsPathMap(referenceFiles: Set[ReferenceFile]): IO[Map[ReferenceFile, ValidFullGcsPath]] = {
@@ -106,16 +106,16 @@ trait PipelinesApiReferenceFilesMappingOperations {
       for {
         referenceFilesWithValidPaths <- getReferenceFileToValidatedGcsPathMap(allReferenceFilesFromManifestMap.keySet)
         filesWithValidatedCrc32cs <- bulkValidateCrc32cs(gcsClient, referenceFilesWithValidPaths)
-      } yield allReferenceFilesFromManifestMap.filterKeys(key => filesWithValidatedCrc32cs.getOrElse(key, false))
+      } yield allReferenceFilesFromManifestMap.view.filterKeys(key => filesWithValidatedCrc32cs.getOrElse(key, false))
 
     validReferenceFilesFromManifestMapIo map { validReferenceFilesFromManifestMap =>
       val invalidReferenceFiles = allReferenceFilesFromManifestMap.keySet -- validReferenceFilesFromManifestMap.keySet
       if (invalidReferenceFiles.nonEmpty) {
         logger.warn(s"The following files listed in references manifest have checksum mismatch with actual files in GCS: ${invalidReferenceFiles.mkString(",")}")
       }
-      validReferenceFilesFromManifestMap map {
+      validReferenceFilesFromManifestMap.map {
         case (refFile, disk) => (refFile.path, disk)
-      }
+      }.toMap
     }
   }
 }

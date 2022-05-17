@@ -8,20 +8,20 @@ import org.apache.http.message.BasicStatusLine
 import org.apache.http.protocol.HttpContext
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
+import common.mock.MockSugar
 
 import scala.concurrent.duration._
 
-class MarthaHttpRequestRetryStrategySpec extends AnyFlatSpec with Matchers with Mockito {
+class MarthaHttpRequestRetryStrategySpec extends AnyFlatSpec with Matchers with MockSugar {
 
   behavior of "MarthaHttpRequestRetryStrategy"
 
   it should "retry 500 errors a configured number of times" in {
     val drsConfig = MockDrsPaths.mockDrsConfig.copy(numRetries = 3)
     val retryStrategy = new MarthaHttpRequestRetryStrategy(drsConfig)
-    val http500Response = mock[CloseableHttpResponse].smart
+    val http500Response = mock[CloseableHttpResponse]
     http500Response.getStatusLine returns new BasicStatusLine(HttpVersion.HTTP_1_1, 500, "Testing 500")
-    val httpContext = mock[HttpContext].smart
+    val httpContext = mock[HttpContext]
 
     // initial failure
     retryStrategy.retryRequest(http500Response, 1, httpContext) should be(true)
@@ -36,13 +36,13 @@ class MarthaHttpRequestRetryStrategySpec extends AnyFlatSpec with Matchers with 
   it should "retry 500 errors even after a number of 408/429 errors" in {
     val drsConfig = MockDrsPaths.mockDrsConfig.copy(numRetries = 3)
     val retryStrategy = new MarthaHttpRequestRetryStrategy(drsConfig)
-    val http500Response = mock[CloseableHttpResponse].smart
+    val http500Response = mock[CloseableHttpResponse]
     http500Response.getStatusLine returns new BasicStatusLine(HttpVersion.HTTP_1_1, 500, "Testing 500")
-    val http408Response = mock[CloseableHttpResponse].smart
+    val http408Response = mock[CloseableHttpResponse]
     http408Response.getStatusLine returns new BasicStatusLine(HttpVersion.HTTP_1_1, 408, "Testing 408")
-    val http429Response = mock[CloseableHttpResponse].smart
+    val http429Response = mock[CloseableHttpResponse]
     http429Response.getStatusLine returns new BasicStatusLine(HttpVersion.HTTP_1_1, 429, "Testing 429")
-    val httpContext = mock[HttpContext].smart
+    val httpContext = mock[HttpContext]
 
     // initial failure
     retryStrategy.retryRequest(http500Response, 1, httpContext) should be(true)
@@ -64,9 +64,9 @@ class MarthaHttpRequestRetryStrategySpec extends AnyFlatSpec with Matchers with 
   it should "not retry an HTTP 401" in {
     val drsConfig = MockDrsPaths.mockDrsConfig.copy(numRetries = 3)
     val retryStrategy = new MarthaHttpRequestRetryStrategy(drsConfig)
-    val http400Response = mock[CloseableHttpResponse].smart
+    val http400Response = mock[CloseableHttpResponse]
     http400Response.getStatusLine returns new BasicStatusLine(HttpVersion.HTTP_1_1, 401, "Testing 401")
-    val httpContext = mock[HttpContext].smart
+    val httpContext = mock[HttpContext]
 
     retryStrategy.retryRequest(http400Response, 1, httpContext) should be(false)
   }
@@ -74,8 +74,8 @@ class MarthaHttpRequestRetryStrategySpec extends AnyFlatSpec with Matchers with 
   it should "retry IO exceptions a configured number of times" in {
     val drsConfig = MockDrsPaths.mockDrsConfig.copy(numRetries = 3)
     val retryStrategy = new MarthaHttpRequestRetryStrategy(drsConfig)
-    val exception = mock[IOException].smart
-    val httpContext = mock[HttpContext].smart
+    val exception = mock[IOException]
+    val httpContext = mock[HttpContext]
 
     // initial failure
     retryStrategy.retryRequest(exception, 1, httpContext) should be(true)

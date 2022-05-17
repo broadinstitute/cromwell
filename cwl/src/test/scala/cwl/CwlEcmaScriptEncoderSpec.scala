@@ -27,7 +27,7 @@ class CwlEcmaScriptEncoderSpec extends AnyFlatSpec with CromwellTimeoutSpec with
     )
     val result: EcmaScriptUtil.ECMAScriptVariable = encoder.encode(file)
     val resultMap = result.asInstanceOf[ESObject].fields
-    resultMap.filterKeys(_ != "secondaryFiles").toList should contain theSameElementsAs expected
+    resultMap.view.filterKeys(_ != "secondaryFiles").toList should contain theSameElementsAs expected
     resultMap("secondaryFiles") should be(a[ESArray])
     resultMap("secondaryFiles").asInstanceOf[ESArray].array should be(empty)
   }

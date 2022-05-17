@@ -7,10 +7,9 @@ import cromwell.core.TestKitSuite
 import cromwell.util.SampleWdl
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsString}
 
-class PipelinesApiWorkflowPathsSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Mockito {
+class PipelinesApiWorkflowPathsSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
   import BackendSpec._
   import PipelinesApiTestConfig._
   import cromwell.filesystems.gcs.MockGcsPathBuilder._
@@ -20,12 +19,12 @@ class PipelinesApiWorkflowPathsSpec extends TestKitSuite with AnyFlatSpecLike wi
   var workflowDescriptor: BackendWorkflowDescriptor = _
   var workflowPaths: PipelinesApiWorkflowPaths = _
 
-  override def beforeAll: Unit = {
+  override def beforeAll(): Unit = {
     workflowDescriptor = buildWdlWorkflowDescriptor(
       SampleWdl.HelloWorld.workflowSource(),
       inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.safeMapValues(JsString.apply)).compactPrint)
     )
-    workflowPaths = PipelinesApiWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), papiConfiguration, pathBuilders, PipelinesApiInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper)
+    workflowPaths = PipelinesApiWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), papiConfiguration, pathBuilders(), PipelinesApiInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper)
   }
 
   it should "map the correct paths" in {

@@ -58,9 +58,9 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
         log.debug("Workflow store initialization successful")
       }
       addWorkCompletionHooks(InitializerCommand, work)
-      goto(Working) using stateData.withCurrentCommand(InitializerCommand, sender)
+      goto(Working) using stateData.withCurrentCommand(InitializerCommand, sender())
     case Event(x: WorkflowStoreActorEngineCommand, _) =>
-      stay using stateData.withPendingCommand(x, sender)
+      stay() using stateData.withPendingCommand(x, sender())
   }
 
   when(Idle) {
@@ -68,7 +68,7 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
       if (stateData.currentOperation.nonEmpty || stateData.pendingOperations.nonEmpty) {
         log.error("Non-empty WorkflowStoreActorData when in Idle state: {}", stateData)
       }
-      startNewWork(cmd, sender, stateData.withCurrentCommand(cmd, sender))
+      startNewWork(cmd, sender(), stateData.withCurrentCommand(cmd, sender()))
   }
 
   when(Working) {
@@ -78,7 +78,7 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
         case None => goto(Idle) using newData
         case Some(WorkflowStoreActorCommandWithSender(cmd, sndr)) => startNewWork(cmd, sndr, newData)
       }
-    case Event(cmd: WorkflowStoreActorEngineCommand, data) => stay using data.withPendingCommand(cmd, sender)
+    case Event(cmd: WorkflowStoreActorEngineCommand, data) => stay() using data.withPendingCommand(cmd, sender())
   }
 
   whenUnhandled {
@@ -90,7 +90,7 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
       stay()
     case Event(msg, _) =>
       log.warning("Unexpected message to WorkflowStoreActor in state {} with data {}: {}", stateName, stateData, msg)
-      stay
+      stay()
   }
 
   onTransition {

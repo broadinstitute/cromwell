@@ -16,7 +16,7 @@ class CentaurOperationsSpec extends AnyFlatSpec with Matchers {
   behavior of "validateMetadataJson"
 
   val placeholderSubmittedWorkflow: SubmittedWorkflow = SubmittedWorkflow(id = WorkflowId(UUID.randomUUID()), null, null)
-  val placeholderWorkflow: Workflow = Workflow(testName = "", null, null, null, null, null, false, false, false, null)
+  val placeholderWorkflow: Workflow = Workflow(testName = "", null, null, null, null, null, false, false, false, null, null)
 
   val allowableOneWordAdditions = List("farmer")
 
@@ -33,6 +33,7 @@ class CentaurOperationsSpec extends AnyFlatSpec with Matchers {
       case Success(_) if !expectMatching => fail("Metadata unexpectedly matches")
       case Failure(e) if expectMatching  => fail("Metadata unexpectedly mismatches", e)
       case Failure(_) if !expectMatching => // great
+      case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
     }
   }
 

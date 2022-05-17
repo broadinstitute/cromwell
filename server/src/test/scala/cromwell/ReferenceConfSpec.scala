@@ -7,7 +7,7 @@ import org.scalatest.Suite
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class ReferenceConfSpec extends Suite with AnyFlatSpecLike with Matchers {
 

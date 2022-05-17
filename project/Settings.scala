@@ -13,14 +13,8 @@ import sbtdocker.{DockerPlugin, Instruction, Instructions}
 
 object Settings {
 
-  /* The reason why -Xmax-classfile-name is set is because this will fail
-     to build on Docker otherwise.  The reason why it's 200 is because it
-     fails if the value is too close to 256 (even 254 fails).  For more info:
-
-     https://github.com/sbt/sbt-assembly/issues/69
-     https://github.com/scala/pickling/issues/10
-
-     Other fancy flags from https://tpolecat.github.io/2017/04/25/scalac-flags.html.
+  /*
+     Fancy flags from https://tpolecat.github.io/2017/04/25/scalac-flags.html.
 
      Per JG's work in Cromwell, the following can't be turned on without causing piles of errors in wdl4s.  Many of the
      constructs that are flagged look suspicious and probably warrant further scrutiny, but no time for that now.
@@ -32,27 +26,23 @@ object Settings {
     "-deprecation",
     "-feature",
     "-explaintypes",
-    "-Xmax-classfile-name", "200",
-
     // the backend runs bytecode serialization, classfile writing and method-local
     // optimizations (-opt:l:method) in parallel on N threads
     "-Ybackend-parallelism", "3",
     "-Ycache-plugin-class-loader:last-modified",
     "-Ycache-macro-class-loader:last-modified",
-    "-encoding", "UTF-8"
+    "-encoding", "UTF-8",
+    "-Ymacro-annotations"
   )
 
   val warningSettings = List(
-    "-Xfuture",
     "-Xlint:adapted-args",
-    "-Xlint:by-name-right-associative",
     "-Xlint:constant",
     "-Xlint:delayedinit-select",
     "-Xlint:doc-detached",
     "-Xlint:inaccessible",
     "-Xlint:infer-any",
     "-Xlint:missing-interpolator",
-    "-Xlint:nullary-override",
     "-Xlint:nullary-unit",
     "-Xlint:option-implicit",
     "-Xlint:package-object-classes",
@@ -60,16 +50,12 @@ object Settings {
     "-Xlint:private-shadow",
     "-Xlint:stars-align",
     "-Xlint:type-parameter-shadow",
-    "-Xlint:unsound-match",
-    "-Yno-adapted-args",
     "-Ywarn-dead-code",
     "-Ywarn-numeric-widen",
     "-Ywarn-value-discard",
-    "-Ywarn-inaccessible",
     "-Ywarn-unused:implicits",
     "-Ywarn-unused:privates",
     "-Ywarn-unused:locals",
-    "-Ypartial-unification",
     "-Ywarn-unused:patvars"
   )
 
@@ -84,8 +70,8 @@ object Settings {
     assembly / assemblyMergeStrategy := customMergeStrategy.value,
   )
 
-  val Scala2_12Version = "2.12.15"
-  private val ScalaVersion: String = Scala2_12Version
+  val Scala2_13Version = "2.13.8"
+  private val ScalaVersion: String = Scala2_13Version
   private val sharedSettings: Seq[Setting[_]] =
     cromwellVersionWithGit ++ publishingSettings ++ List(
     organization := "org.broadinstitute",
@@ -106,9 +92,7 @@ object Settings {
     // No console-hostile options, otherwise the console is effectively unusable.
     // https://github.com/sbt/sbt/issues/1815
     Compile / console / scalacOptions --= consoleHostileSettings,
-    addCompilerPlugin(paradisePlugin),
     excludeDependencies ++= List(
-      "org.typelevel" % "simulacrum-scalafix-annotations_2.12",
       "org.typelevel" % "simulacrum-scalafix-annotations_2.13"
     )
   )

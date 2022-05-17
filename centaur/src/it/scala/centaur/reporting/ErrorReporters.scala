@@ -6,7 +6,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.StrictLogging
 import net.ceedubs.ficus.Ficus._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.ExecutionContext
 
 /**
@@ -29,7 +29,7 @@ class ErrorReporters(rootConfig: Config) {
     AggregatedIo.aggregateExceptions("Errors while creating ErrorReporters", errorReporterNames.map(getErrorReporter))
   }
 
-  val errorReporters: List[ErrorReporter] = errorReportersIo.unsafeRunSync
+  val errorReporters: List[ErrorReporter] = errorReportersIo.unsafeRunSync()
 
   /** The number of times any test should be retried. */
   val retryAttempts: Int = errorReporterConfig.getOrElse("retry-attempts", 0)

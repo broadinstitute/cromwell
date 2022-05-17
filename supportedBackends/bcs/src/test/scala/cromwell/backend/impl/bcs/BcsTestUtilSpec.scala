@@ -1,10 +1,10 @@
 package cromwell.backend.impl.bcs
 
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import common.collections.EnhancedCollections._
 import cromwell.backend.BackendSpec.buildWdlWorkflowDescriptor
 import cromwell.backend.validation.ContinueOnReturnCodeSet
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey, RuntimeAttributeDefinition}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, RuntimeAttributeDefinition}
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.filesystems.oss.OssPathBuilder
 import cromwell.filesystems.oss.nio.DefaultOssStorageConfiguration
@@ -12,14 +12,13 @@ import cromwell.util.SampleWdl
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.mockito.MockitoSugar
 import org.slf4j.helpers.NOPLogger
 import spray.json.{JsObject, JsString}
 import wom.values.WomValue
 
 object BcsTestUtilSpec {
 
-  val DefaultRunAttributesString =
+  val DefaultRunAttributesString: String =
     """
       |default-runtime-attributes {
       |  failOnStderr: false
@@ -42,7 +41,7 @@ object BcsTestUtilSpec {
       |}
     """.stripMargin
 
-  val BcsBackendConfigString =
+  val BcsBackendConfigString: String =
     s"""
       |root = "oss://your-bucket/cromwell-exe"
       |dockerRoot = "/cromwell-executions"
@@ -70,7 +69,7 @@ object BcsTestUtilSpec {
       |
       |""".stripMargin
 
-  val BcsBackendConfigWithoutDefaultString =
+  val BcsBackendConfigWithoutDefaultString: String =
     s"""
        |root = "oss://your-bucket/cromwell-exe"
        |dockerRoot = "/cromwell-executions"
@@ -93,7 +92,7 @@ object BcsTestUtilSpec {
        |
        |""".stripMargin
 
-  val BcsGlobalConfigString =
+  val BcsGlobalConfigString: String =
     s"""
       |backend {
       |  default = "BCS"
@@ -109,52 +108,65 @@ object BcsTestUtilSpec {
       |
       |""".stripMargin
 
-  val BcsBackendConfig = ConfigFactory.parseString(BcsBackendConfigString)
-  val BcsGlobalConfig = ConfigFactory.parseString(BcsGlobalConfigString)
-  val BcsBackendConfigWithoutDefault = ConfigFactory.parseString(BcsBackendConfigWithoutDefaultString)
-  val BcsBackendConfigurationDescriptor = BackendConfigurationDescriptor(BcsBackendConfig, BcsGlobalConfig)
-  val BcsBackendConfigurationWithoutDefaultDescriptor = BackendConfigurationDescriptor(BcsBackendConfigWithoutDefault, BcsGlobalConfig)
-  val EmptyWorkflowOption = WorkflowOptions.fromMap(Map.empty).get
+  val BcsBackendConfig: Config = ConfigFactory.parseString(BcsBackendConfigString)
+  val BcsGlobalConfig: Config = ConfigFactory.parseString(BcsGlobalConfigString)
+  val BcsBackendConfigWithoutDefault: Config = ConfigFactory.parseString(BcsBackendConfigWithoutDefaultString)
+  val BcsBackendConfigurationDescriptor: BackendConfigurationDescriptor =
+    BackendConfigurationDescriptor(BcsBackendConfig, BcsGlobalConfig)
+  val BcsBackendConfigurationWithoutDefaultDescriptor: BackendConfigurationDescriptor =
+    BackendConfigurationDescriptor(BcsBackendConfigWithoutDefault, BcsGlobalConfig)
+  val EmptyWorkflowOption: WorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
 }
 
-trait BcsTestUtilSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with MockitoSugar with BeforeAndAfter {
+trait BcsTestUtilSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with BeforeAndAfter {
 
   before {
     BcsMount.pathBuilders = List(mockPathBuilder)
   }
 
   val jobId = "test-bcs-job"
-  val mockOssConf = DefaultOssStorageConfiguration("oss.aliyuncs.com", "test-id", "test-key")
-  val mockPathBuilder = OssPathBuilder(mockOssConf)
+  val mockOssConf: DefaultOssStorageConfiguration =
+    DefaultOssStorageConfiguration("oss.aliyuncs.com", "test-id", "test-key")
+  lazy val mockPathBuilder: OssPathBuilder = OssPathBuilder(mockOssConf)
   val mockPathBuilders = List(mockPathBuilder)
-  lazy val workflowDescriptor =  buildWdlWorkflowDescriptor(
+  lazy val workflowDescriptor: BackendWorkflowDescriptor =  buildWdlWorkflowDescriptor(
     SampleWdl.HelloWorld.workflowSource(),
     inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.safeMapValues(JsString.apply)).compactPrint)
   )
-  lazy val jobKey = {
+  lazy val jobKey: BackendJobDescriptorKey = {
     val call = workflowDescriptor.callable.taskCallNodes.head
     BackendJobDescriptorKey(call, None, 1)
   }
 
 
-  val expectedContinueOnReturn = ContinueOnReturnCodeSet(Set(0))
-  val expectedDockerTag = Option(BcsDockerWithPath("ubuntu/latest", "oss://bcs-reg/ubuntu/"))
-  val expectedDocker = Option(BcsDockerWithoutPath("registry.cn-beijing.aliyuncs.com/test/testubuntu:0.1"))
+  val expectedContinueOnReturn: ContinueOnReturnCodeSet = ContinueOnReturnCodeSet(Set(0))
+  val expectedDockerTag: Option[BcsDockerWithPath] =
+    Option(BcsDockerWithPath("ubuntu/latest", "oss://bcs-reg/ubuntu/"))
+  val expectedDocker: Option[BcsDockerWithoutPath] =
+    Option(BcsDockerWithoutPath("registry.cn-beijing.aliyuncs.com/test/testubuntu:0.1"))
   val expectedFailOnStderr = false
-  val expectedUserData = Option(Vector(new BcsUserData("key", "value")))
-  val expectedMounts = Option(Vector(new BcsInputMount(Left(mockPathBuilder.build("oss://bcs-bucket/bcs-dir/").get), Right("/home/inputs/"), false)))
-  val expectedCluster = Option(Left("cls-mycluster"))
-  val expectedImageId = Option("img-ubuntu-vpc")
-  val expectedSystemDisk = Option(BcsSystemDisk("cloud", 50))
-  val expectedDataDisk = Option(BcsDataDisk("cloud", 250, "/home/data/"))
+  val expectedUserData: Option[Vector[BcsUserData]] = Option(Vector(new BcsUserData("key", "value")))
+  val expectedMounts: Option[Vector[BcsInputMount]] =
+    Option(Vector(
+      BcsInputMount(
+        src = Left(mockPathBuilder.build("oss://bcs-bucket/bcs-dir/").get),
+        dest = Right("/home/inputs/"),
+        writeSupport = false,
+      )
+    ))
+  val expectedCluster: Option[Left[String, Nothing]] = Option(Left("cls-mycluster"))
+  val expectedImageId: Option[String] = Option("img-ubuntu-vpc")
+  val expectedSystemDisk: Option[BcsSystemDisk] = Option(BcsSystemDisk("cloud", 50))
+  val expectedDataDisk: Option[BcsDataDisk] = Option(BcsDataDisk("cloud", 250, "/home/data/"))
 
-  val expectedReserveOnFail = Option(true)
-  val expectedAutoRelease = Option(true)
-  val expectedTimeout = Option(3000)
-  val expectedVerbose = Option(false)
-  val expectedVpc = Option(BcsVpcConfiguration(Option("192.168.0.0/16"), Option("vpc-xxxx")))
-  val expectedTag = Option("jobTag")
-  val expectedIsv = Option("test-isv")
+  val expectedReserveOnFail: Option[Boolean] = Option(true)
+  val expectedAutoRelease: Option[Boolean] = Option(true)
+  val expectedTimeout: Option[Int] = Option(3000)
+  val expectedVerbose: Option[Boolean] = Option(false)
+  val expectedVpc: Option[BcsVpcConfiguration] =
+    Option(BcsVpcConfiguration(Option("192.168.0.0/16"), Option("vpc-xxxx")))
+  val expectedTag: Option[String] = Option("jobTag")
+  val expectedIsv: Option[String] = Option("test-isv")
 
 
   val expectedRuntimeAttributes = new BcsRuntimeAttributes(expectedContinueOnReturn, expectedDockerTag, expectedDocker, expectedFailOnStderr,  expectedMounts, expectedUserData, expectedCluster,

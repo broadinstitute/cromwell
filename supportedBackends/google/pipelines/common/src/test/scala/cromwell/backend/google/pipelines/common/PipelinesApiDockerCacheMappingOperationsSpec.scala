@@ -9,7 +9,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.mockito.Mockito._
 import org.scalatest.PrivateMethodTester
-import org.specs2.mock.Mockito
+import common.mock.MockSugar
 
 import scala.io.Source
 
@@ -17,7 +17,7 @@ class PipelinesApiDockerCacheMappingOperationsSpec
   extends AnyFlatSpecLike
     with CromwellTimeoutSpec
     with Matchers
-    with Mockito
+    with MockSugar
     with PrivateMethodTester {
 
   private val pipelinesApiDockerCacheMappingOperationsMock = new PipelinesApiDockerCacheMappingOperations {}
@@ -60,7 +60,7 @@ class PipelinesApiDockerCacheMappingOperationsSpec
       mockClient
     }
 
-    val readFileFromGcsPrivateMethod = PrivateMethod[IO[DockerImageCacheManifest]]('readDockerImageCacheManifestFileFromGCS)
+    val readFileFromGcsPrivateMethod = PrivateMethod[IO[DockerImageCacheManifest]](Symbol("readDockerImageCacheManifestFileFromGCS"))
     val parsedJsonAsManifestIO = pipelinesApiDockerCacheMappingOperationsMock invokePrivate readFileFromGcsPrivateMethod(mockGcsClient, testJsonGcsPath)
     val parsedJsonAsManifest = parsedJsonAsManifestIO.unsafeRunSync()
 
@@ -98,7 +98,7 @@ class PipelinesApiDockerCacheMappingOperationsSpec
         jobLogger = mockJobLogger
       )
 
-    dockerImageCacheDiskOpt shouldBe Some(expectedDiskImageName)
+    dockerImageCacheDiskOpt shouldBe Option(expectedDiskImageName)
   }
 
   it should "not use docker image cache if requested docker image is not in cache" in {

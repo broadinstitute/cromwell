@@ -11,7 +11,6 @@ import org.scalatest.TestSuite
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.slf4j.helpers.NOPLogger
-import org.specs2.mock.Mockito
 import spray.json._
 import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
@@ -23,7 +22,6 @@ import scala.util.{Failure, Success, Try}
 final class PipelinesApiRuntimeAttributesSpec
   extends AnyWordSpecLike
     with Matchers
-    with Mockito
     with PipelinesApiRuntimeAttributesSpecsMixin {
 
   "PipelinesApiRuntimeAttributes" should {
@@ -74,13 +72,13 @@ final class PipelinesApiRuntimeAttributesSpec
     }
 
     "validate a valid continueOnReturnCode array entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomArray(WomArrayType(WomIntegerType), Array(WomInteger(1), WomInteger(2))))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomArray(WomArrayType(WomIntegerType), List(WomInteger(1), WomInteger(2))))
       val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2)))
       assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "coerce then validate a valid continueOnReturnCode array entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomArray(WomArrayType(WomStringType), Array(WomString("1"), WomString("2"))))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomArray(WomArrayType(WomStringType), List(WomString("1"), WomString("2"))))
       val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2)))
       assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
@@ -119,13 +117,13 @@ final class PipelinesApiRuntimeAttributesSpec
     }
 
     "validate a valid array zones entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "zones" -> WomArray(WomArrayType(WomStringType), Array(WomString("us-central1-y"), WomString("us-central1-z"))))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "zones" -> WomArray(WomArrayType(WomStringType), List(WomString("us-central1-y"), WomString("us-central1-z"))))
       val expectedRuntimeAttributes = expectedDefaults.copy(zones = Vector("us-central1-y", "us-central1-z"))
       assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "fail to validate an invalid array zones entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "zones" -> WomArray(WomArrayType(WomIntegerType), Array(WomInteger(1), WomInteger(2))))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "zones" -> WomArray(WomArrayType(WomIntegerType), List(WomInteger(1), WomInteger(2))))
       assertPapiRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting zones runtime attribute to be either a whitespace separated String or an Array[String]")
     }
 
@@ -164,13 +162,13 @@ final class PipelinesApiRuntimeAttributesSpec
     }
 
     "validate a valid disks array entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomArray(WomArrayType(WomStringType), Array(WomString("local-disk 20 SSD"), WomString("local-disk 30 SSD"))))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomArray(WomArrayType(WomStringType), List(WomString("local-disk 20 SSD"), WomString("local-disk 30 SSD"))))
       val expectedRuntimeAttributes = expectedDefaults.copy(disks = Seq(PipelinesApiAttachedDisk.parse("local-disk 20 SSD").get, PipelinesApiAttachedDisk.parse("local-disk 30 SSD").get))
       assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "fail to validate a valid disks array entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomArray(WomArrayType(WomStringType), Array(WomString("blah"), WomString("blah blah"))))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomArray(WomArrayType(WomStringType), List(WomString("blah"), WomString("blah blah"))))
       assertPapiRuntimeAttributesFailedCreation(runtimeAttributes, "Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE'")
     }
 
@@ -306,8 +304,8 @@ trait PipelinesApiRuntimeAttributesSpecsMixin { this: TestSuite =>
     PipelinesApiRuntimeAttributes(validatedRuntimeAttributes, papiConfiguration.runtimeConfig)
   }
 
-  val emptyWorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
-  val defaultZones = NonEmptyList.of("us-central1-b", "us-central1-a")
+  val emptyWorkflowOptions: WorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
+  val defaultZones: NonEmptyList[String] = NonEmptyList.of("us-central1-b", "us-central1-a")
   val noDefaultsPapiConfiguration = new PipelinesApiConfiguration(PipelinesApiTestConfig.NoDefaultsConfigurationDescriptor, genomicsFactory, googleConfiguration, papiAttributes)
   val staticRuntimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
     PipelinesApiRuntimeAttributes.runtimeAttributesBuilder(PipelinesApiTestConfig.papiConfiguration).definitions.toSet

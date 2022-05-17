@@ -69,26 +69,26 @@ trait CallCachingAggregationEntryComponent {
         (detritusPath.substring(0, prefix3Length) === prefix3)} yield ()).exists
   )
 
-  def callCachingEntriesForAggregatedHashes(baseAggregation: Rep[String], inputFilesAggregation: Rep[Option[String]], number: Int) = {
+  def callCachingEntriesForAggregatedHashes(baseAggregation: Rep[String], inputFilesAggregation: Rep[Option[String]], excludedIds: Set[Int]) = {
     (for {
       callCachingEntry <- callCachingEntries
-      if callCachingEntry.allowResultReuse
+      if callCachingEntry.allowResultReuse && !(callCachingEntry.callCachingEntryId inSet excludedIds)
       callCachingAggregationEntry <- callCachingAggregationEntries
       if callCachingEntry.callCachingEntryId === callCachingAggregationEntry.callCachingEntryId
       if callCachingAggregationEntry.baseAggregation === baseAggregation
       if (callCachingAggregationEntry.inputFilesAggregation.isEmpty && inputFilesAggregation.isEmpty) ||
         (callCachingAggregationEntry.inputFilesAggregation === inputFilesAggregation)
-    } yield callCachingAggregationEntry.callCachingEntryId).drop(number - 1).take(1)
+    } yield callCachingAggregationEntry.callCachingEntryId).take(1)
   }
 
   def callCachingEntriesForAggregatedHashesWithPrefixes(baseAggregation: Rep[String], inputFilesAggregation: Rep[Option[String]],
                                                         prefix1: Rep[String], prefix1Length: Rep[Int],
                                                         prefix2: Rep[String], prefix2Length: Rep[Int],
                                                         prefix3: Rep[String], prefix3Length: Rep[Int],
-                                                        number: Int) = {
+                                                        excludedIds: Set[Int]) = {
     (for {
       callCachingEntry <- callCachingEntries
-      if callCachingEntry.allowResultReuse
+      if callCachingEntry.allowResultReuse && !(callCachingEntry.callCachingEntryId inSet excludedIds)
       callCachingAggregationEntry <- callCachingAggregationEntries
       if callCachingEntry.callCachingEntryId === callCachingAggregationEntry.callCachingEntryId
       if callCachingAggregationEntry.baseAggregation === baseAggregation
@@ -103,6 +103,6 @@ trait CallCachingAggregationEntryComponent {
       if (detritusPath.substring(0, prefix1Length) === prefix1) ||
         (detritusPath.substring(0, prefix2Length) === prefix2) ||
         (detritusPath.substring(0, prefix3Length) === prefix3)
-    } yield callCachingAggregationEntry.callCachingEntryId).drop(number - 1).take(1)
+    } yield callCachingAggregationEntry.callCachingEntryId).take(1)
   }
 }

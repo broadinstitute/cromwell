@@ -63,7 +63,7 @@ object WomValueBuilder {
   private val MapElementPattern = raw"^:((?:\\[]\[:]|[^]\[:])+)(.*)".r
 
   // Group tuples by key using a Map with key type `K`.
-  private def group[K](tuples: Traversable[(K, SimpletonComponent)]): Map[K, Traversable[SimpletonComponent]] = {
+  private def group[K](tuples: Iterable[(K, SimpletonComponent)]): Map[K, Iterable[SimpletonComponent]] = {
     tuples groupBy { case (i, _) => i } map { case (k, v) => k -> (v map { case (_, s) => s}) }
   }
 
@@ -83,14 +83,14 @@ object WomValueBuilder {
     component.path match { case MapElementPattern(key, more) => key.unescapeMeta -> component.copy(path = more)}
   }
 
-  private implicit class EnhancedSimpletonComponents(val components: Traversable[SimpletonComponent]) extends AnyVal {
-    def asArray: List[Traversable[SimpletonComponent]] = group(components map descendIntoArray).toList.sortBy(_._1).map(_._2)
-    def asMap: Map[String, Traversable[SimpletonComponent]] = group(components map descendIntoMap)
+  private implicit class EnhancedSimpletonComponents(val components: Iterable[SimpletonComponent]) extends AnyVal {
+    def asArray: List[Iterable[SimpletonComponent]] = group(components map descendIntoArray).toList.sortBy(_._1).map(_._2)
+    def asMap: Map[String, Iterable[SimpletonComponent]] = group(components map descendIntoMap)
     def asPrimitive: WomValue = components.head.value
     def asString: String = asPrimitive.valueString
   }
 
-  private def toWomValue(outputType: WomType, components: Traversable[SimpletonComponent]): WomValue = {
+  private def toWomValue(outputType: WomType, components: Iterable[SimpletonComponent]): WomValue = {
 
 
 
@@ -106,19 +106,19 @@ object WomValueBuilder {
         case MapElementPattern("right", more) => PairRight -> component.copy(path = more)
       }
     }
-    
-    def toWomFile(components: Traversable[SimpletonComponent]) = {
+
+    def toWomFile(components: Iterable[SimpletonComponent]) = {
       // If there's just one simpleton, it's a primitive (file or directory)
       if (components.size == 1) components.asPrimitive
       else {
         // Otherwise make a map of the components and detect the type of file from the class field
         val groupedListing = components.asMap
-        
+
         def isClass(className: String) = {
           groupedListing.get(ClassKey)
           /* If the class field is in an array it will be prefixed with a ':', so check for that as well.
-           * e.g: secondaryFiles[0]:class -> "File" 
-           *      secondaryFiles[0]:value -> "file/path" 
+           * e.g: secondaryFiles[0]:class -> "File"
+           *      secondaryFiles[0]:value -> "file/path"
            * would produce a Map(
            *  ":class" -> List(Simpleton("File")),
            *  ":value" -> List(Simpleton("file/path"))
@@ -127,8 +127,8 @@ object WomValueBuilder {
           .orElse(groupedListing.get(s":$ClassKey"))
           .map(_.asPrimitive.valueString)
           .contains(className)
-        } 
-          
+        }
+
         def isDirectory = isClass(WomValueSimpleton.DirectoryClass)
         def isFile = isClass(WomValueSimpleton.FileClass)
 
@@ -137,7 +137,7 @@ object WomValueBuilder {
         else throw new IllegalArgumentException(s"There is no WomFile that can be built from simpletons: ${groupedListing.toList.mkString(", ")}")
       }
     }
-    
+
     outputType match {
       case _: WomPrimitiveType =>
         components.asPrimitive
@@ -153,18 +153,18 @@ object WomValueBuilder {
         // map keys are guaranteed by WOM to be primitives, so the "coerceRawValue(..).get" is safe.
         WomMap(mapType, components.asMap map { case (k, ss) => mapType.keyType.coerceRawValue(k).get -> toWomValue(mapType.valueType, ss) })
       case pairType: WomPairType =>
-        val groupedByLeftOrRight: Map[PairLeftOrRight, Traversable[SimpletonComponent]] = group(components map descendIntoPair)
+        val groupedByLeftOrRight: Map[PairLeftOrRight, Iterable[SimpletonComponent]] = group(components map descendIntoPair)
         WomPair(toWomValue(pairType.leftType, groupedByLeftOrRight(PairLeft)), toWomValue(pairType.rightType, groupedByLeftOrRight(PairRight)))
       case WomObjectType =>
         // map keys are guaranteed by WOM to be primitives, so the "coerceRawValue(..).get" is safe.
         val map: Map[String, WomValue] = components.asMap map { case (k, ss) => k -> toWomValue(WomAnyType, ss) }
         WomObject(map)
       case composite: WomCompositeType =>
-        val map: Map[String, WomValue] = components.asMap map { case (k, ss) => 
+        val map: Map[String, WomValue] = components.asMap map { case (k, ss) =>
           val valueType = composite
             .typeMap
             .getOrElse(k, throw new RuntimeException(s"Field $k is not a declared field of composite type $composite. Cannot build a WomValue from the simpletons."))
-          k -> toWomValue(valueType, ss) 
+          k -> toWomValue(valueType, ss)
         }
         WomObject.withTypeUnsafe(map, composite)
       case WomMaybeListedDirectoryType =>
@@ -183,7 +183,7 @@ object WomValueBuilder {
         val size = populatedValues.get("size").map(_.asString.toLong)
         val format = populatedValues.get("format").map(_.asString)
         val contents = populatedValues.get("contents").map(_.asString)
-        val secondaryFiles = populatedValues.get("secondaryFiles").toList.flatMap({ 
+        val secondaryFiles = populatedValues.get("secondaryFiles").toList.flatMap({
           _.asArray.map(toWomFile).collect({ case womFile: WomFile => womFile })
         })
 
@@ -234,11 +234,11 @@ object WomValueBuilder {
     */
   private case class SimpletonComponent(path: String, value: WomValue)
 
-  def toJobOutputs(taskOutputs: Traversable[OutputPort], simpletons: Traversable[WomValueSimpleton]): CallOutputs = {
+  def toJobOutputs(taskOutputs: Iterable[OutputPort], simpletons: Iterable[WomValueSimpleton]): CallOutputs = {
     CallOutputs(toWomValues(taskOutputs, simpletons))
   }
 
-  def toWomValues(taskOutputs: Traversable[OutputPort], simpletons: Traversable[WomValueSimpleton]): Map[OutputPort, WomValue] = {
+  def toWomValues(taskOutputs: Iterable[OutputPort], simpletons: Iterable[WomValueSimpleton]): Map[OutputPort, WomValue] = {
 
     def simpletonToComponent(name: String)(simpleton: WomValueSimpleton): SimpletonComponent = {
       SimpletonComponent(simpleton.simpletonKey.drop(name.length), simpleton.simpletonValue)
@@ -248,7 +248,7 @@ object WomValueBuilder {
     // "dehydrated" to WomValueSimpletons correctly. This code is not robust to corrupt input whatsoever.
     val types = taskOutputs map { o => o -> o.womType } toMap
     val simpletonsByOutputName = simpletons groupBy { _.simpletonKey match { case IdentifierAndPathPattern(i, _) => i } }
-    val simpletonComponentsByOutputName: Map[String, Traversable[SimpletonComponent]] =
+    val simpletonComponentsByOutputName: Map[String, Iterable[SimpletonComponent]] =
       simpletonsByOutputName map { case (name, ss) => name -> (ss map simpletonToComponent(name)) }
     types map { case (outputPort, outputType) => outputPort -> toWomValue(outputType, simpletonComponentsByOutputName.getOrElse(outputPort.internalName, Seq.empty))}
   }

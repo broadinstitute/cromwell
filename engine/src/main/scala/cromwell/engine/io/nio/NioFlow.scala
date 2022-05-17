@@ -183,7 +183,7 @@ class NioFlow(parallelism: Int,
 
   private def readLines(exists: IoReadLinesCommand) = IO {
     exists.file.withReader { reader =>
-      Stream.continually(reader.readLine()).takeWhile(_ != null).toList
+      LazyList.continually(reader.readLine()).takeWhile(_ != null).toList
     }
   }
 

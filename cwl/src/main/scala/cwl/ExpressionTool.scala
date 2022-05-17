@@ -56,9 +56,10 @@ case class ExpressionTool(
       val womExpression = expression match {
         case StringOrExpression.String(str) => ValueAsAnExpression(WomString(str))
         case StringOrExpression.Expression(expr) => ECMAScriptWomExpression(expr, inputNames, expressionLib)
+        case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
       }
 
-      // If we expect a certain type for 
+      // If we expect a certain type for
       def coerce(womValue: WomValue, womType: WomType): Checked[WomValue] = womType.coerceRawValue(womValue).toChecked
 
       /*

@@ -9,12 +9,11 @@ import net.ceedubs.ficus.Ficus._
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.mockito.MockitoSugar
 import spray.json._
 
 object AlibabaCloudCRRegistrySpec {
 
-  val AlibabaCloudCRRegistryConfigString =
+  val AlibabaCloudCRRegistryConfigString: String =
     s"""
        |enable = true
        |# How should docker hashes be looked up. Possible values are "local" and "remote"
@@ -33,16 +32,16 @@ object AlibabaCloudCRRegistrySpec {
        |
       """.stripMargin
 
-  val AlibabaCloudCRRegistryConfig = ConfigFactory.parseString(AlibabaCloudCRRegistryConfigString)
+  val AlibabaCloudCRRegistryConfig: Config = ConfigFactory.parseString(AlibabaCloudCRRegistryConfigString)
 }
 
-class AlibabaCloudCRRegistrySpec extends TestKitSuite with AnyFlatSpecLike with Matchers with MockitoSugar with BeforeAndAfter {
+class AlibabaCloudCRRegistrySpec extends TestKitSuite with AnyFlatSpecLike with Matchers with BeforeAndAfter {
   behavior of "AlibabaCloudCRRegistry"
 
   val hashValue = "fcf39ed78ef0fa27bcc74713b85259alop1b12e6a201e3083af50fd8eda1cbe1"
   val tag = "0.2"
   val notExistTag = "0.3"
-  val CRResponse =
+  val CRResponse: String =
     s"""
       |{
       |    "data": {
@@ -81,7 +80,7 @@ class AlibabaCloudCRRegistrySpec extends TestKitSuite with AnyFlatSpecLike with 
     val testCRDockerImage = s"registry.cn-shanghai.aliyuncs.com/batchcompute/ubuntu:$tag"
     val testInvalidCRDockerImage = "registry.cn-not-exist.aliyuncs.com/batchcompute/ubuntu:0.2"
     registry.accepts(DockerImageIdentifier.fromString(testCRDockerImage).get) shouldEqual true
-    registry.isValidAlibabaCloudCRHost(Some(testInvalidCRDockerImage)) shouldEqual false
+    registry.isValidAlibabaCloudCRHost(Option(testInvalidCRDockerImage)) shouldEqual false
     registry.isValidAlibabaCloudCRHost(None) shouldEqual false
   }
 
@@ -111,7 +110,8 @@ class AlibabaCloudCRRegistrySpec extends TestKitSuite with AnyFlatSpecLike with 
 
     val cRResponseJsObj = CRResponse.parseJson.asJsObject()
     registry.extractDigestFromBody(cRResponseJsObj, context) match {
-      case DockerInfoFailedResponse(t, _) => t.getMessage should be(s"Manifest response did not contain a expected tag: $notExistTag, ${cRResponseJsObj}")
+      case DockerInfoFailedResponse(t, _) =>
+        t.getMessage should be(s"Manifest response did not contain a expected tag: $notExistTag, $cRResponseJsObj")
       case _ => fail("Failed to get a DockerInfoFailedResponse result.")
     }
   }

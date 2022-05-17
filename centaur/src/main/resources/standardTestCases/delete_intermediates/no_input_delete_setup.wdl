@@ -25,7 +25,9 @@ task makeFileAndIndex {
     input {
     }
     command {
-        gsutil cp gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/no_input_delete/source_files/*.* gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/no_input_delete/test_execution
+        set -euo pipefail # Makes sure we fail quickly if the gsutil cp fails
+
+        gsutil cp 'gs://cloud-cromwell-dev/cromwell_execution/no_input_delete/source_files/*.*' gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/no_input_delete/test_execution/
         echo $(gsutil stat gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/no_input_delete/test_execution/no_input_delete.txt) > ~{outputFile}
     }
     runtime {

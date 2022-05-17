@@ -16,7 +16,7 @@ import wdl.model.draft3.elements.ExpressionElement.IdentifierLookup
 import wdl.model.draft3.elements._
 import wdl.transforms.base.ast2wdlom.GenericAstNode
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class Ast2WdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 

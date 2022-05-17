@@ -24,7 +24,7 @@ import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.threeten.bp.Duration
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.ExecutionContext
 
 class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorReporter {
@@ -162,7 +162,7 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
       "ci_env_centaur_type" -> ciEnvironment.centaurType,
       "test_attempt" -> Option(testEnvironment.attempt + 1),
       "test_message" -> Option(centaurTestException.message),
-      "test_name" -> Option(testEnvironment.name),
+      "test_name" -> Option(testEnvironment.testCase.name),
       "test_stack_trace" -> Option(ExceptionUtils.getStackTrace(centaurTestException)),
       "test_timestamp" -> Option(OffsetDateTime.now.toUtcMilliString),
       "test_workflow_id" -> centaurTestException.workflowIdOption,

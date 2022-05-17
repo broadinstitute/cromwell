@@ -8,7 +8,6 @@ import cromwell.backend.BackendSpec._
 import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed, InitializationSuccess, Initialize}
 import cromwell.backend.async.RuntimeAttributeValidationFailures
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
-import cromwell.core.Tags.PostWomTest
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.logging.LoggingTest._
@@ -158,7 +157,7 @@ class TesInitializationActorSpec extends TestKitSuite
       }
     }
 
-    "return InitializationFailed when docker runtime attribute key is not present" taggedAs PostWomTest ignore {
+    "return InitializationFailed when docker runtime attribute key is not present" in {
       within(Timeout) {
         val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
         val backend = getActorRef(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, conf)
@@ -175,4 +174,3 @@ class TesInitializationActorSpec extends TestKitSuite
     }
   }
 }
-

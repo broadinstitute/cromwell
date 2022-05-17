@@ -15,11 +15,11 @@ import cromwell.engine.io.IoAttempts.EnhancedCromwellIoException
 import cromwell.engine.io.IoCommandContext
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPath
+import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito.{times, verify, when}
 import org.scalatest.flatspec.AsyncFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.mockito.MockitoSugar
-import org.specs2.mock.Mockito._
+import common.mock.MockSugar
 
 import java.nio.file.NoSuchFileException
 import java.util.UUID
@@ -29,7 +29,7 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.control.NoStackTrace
 
-class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with MockitoSugar {
+class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with MockSugar {
 
   behavior of "NioFlowSpec"
 
@@ -112,7 +112,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
 
   it should "get hash from a GcsPath" in {
     val exception = new Exception("everything's fine, I am an expected blob failure") with NoStackTrace
-    val testPath = mock[GcsPath].smart
+    val testPath = mock[GcsPath]
     testPath.objectBlobId returns Failure(exception)
 
     val context = DefaultCommandContext(hashCommand(testPath).get, replyTo)

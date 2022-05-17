@@ -12,13 +12,12 @@ import org.scalatest._
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-import org.specs2.mock.Mockito
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
 trait EngineJobExecutionActorSpec extends AbstractEngineJobExecutionActorSpec
-  with Matchers with Mockito with BeforeAndAfterAll with BeforeAndAfter {
+  with Matchers with BeforeAndAfterAll with BeforeAndAfter {
 
   // If we WANT something to happen, make sure it happens within this window:
   val awaitTimeout: FiniteDuration = 10 seconds

@@ -29,7 +29,7 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
   override def makeProcessRunner(): ProcessRunner = {
     val stdout = standardPaths.output.plusExt("background")
     val stderr = standardPaths.error.plusExt("background")
-    val argv = Seq("/bin/bash", backgroundScript)
+    val argv: Seq[Any] = Seq("/bin/bash", backgroundScript)
     new ProcessRunner(argv, stdout, stderr)
   }
 

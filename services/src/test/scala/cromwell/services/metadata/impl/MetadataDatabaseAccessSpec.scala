@@ -18,7 +18,6 @@ import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.enablers.Emptiness._
-import org.specs2.mock.Mockito
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -39,23 +38,25 @@ object MetadataDatabaseAccessSpec {
   val Subworkflow2Name = "test_subworkflow_2"
 }
 
-class MetadataDatabaseAccessSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Eventually with Mockito {
+class MetadataDatabaseAccessSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures
+  with BeforeAndAfterAll with Eventually {
   import MetadataDatabaseAccessSpec._
 
-  implicit val ec = ExecutionContext.global
+  implicit val ec: ExecutionContext = ExecutionContext.global
 
-  implicit val defaultPatience = PatienceConfig(scaled(Span(30, Seconds)), scaled(Span(100, Millis)))
+  implicit val defaultPatience: PatienceConfig = PatienceConfig(scaled(Span(30, Seconds)), scaled(Span(100, Millis)))
 
   DatabaseSystem.All foreach { databaseSystem =>
     behavior of s"MetadataDatabaseAccess on ${databaseSystem.name}"
 
     val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
 
-    lazy val dataAccess = new MetadataDatabaseAccess with MetadataServicesStore {
-      override val metadataDatabaseInterface: MetadataSlickDatabase = {
-        DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, MetadataDatabaseType, databaseSystem)
+    lazy val dataAccess: MetadataDatabaseAccess with MetadataServicesStore =
+      new MetadataDatabaseAccess with MetadataServicesStore {
+        override val metadataDatabaseInterface: MetadataSlickDatabase = {
+          DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, MetadataDatabaseType, databaseSystem)
+        }
       }
-    }
 
     def publishMetadataEvents(baseKey: MetadataKey, keyValues: Array[(String, String)]): Future[Unit] = {
       val events = keyValues map { case (k, v) =>
@@ -597,7 +598,7 @@ class MetadataDatabaseAccessSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
     }
 
     it should "stop container if required" taggedAs DbmsTest in {
-      containerOpt.foreach { _.stop }
+      containerOpt.foreach { _.stop() }
     }
   }
 }

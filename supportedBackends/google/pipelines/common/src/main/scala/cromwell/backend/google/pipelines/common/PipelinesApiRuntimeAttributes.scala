@@ -239,7 +239,7 @@ object PipelinesApiRuntimeAttributes {
 object ZonesValidation extends RuntimeAttributesValidation[Vector[String]] {
   override def key: String = PipelinesApiRuntimeAttributes.ZonesKey
 
-  override def coercion: Traversable[WomType] = Set(WomStringType, WomArrayType(WomStringType))
+  override def coercion: Iterable[WomType] = Set(WomStringType, WomArrayType(WomStringType))
 
   override protected def validateValue: PartialFunction[WomValue, ErrorOr[Vector[String]]] = {
     case WomString(s) => s.split("\\s+").toVector.validNel
@@ -254,7 +254,7 @@ object ZonesValidation extends RuntimeAttributesValidation[Vector[String]] {
 object DisksValidation extends RuntimeAttributesValidation[Seq[PipelinesApiAttachedDisk]] {
   override def key: String = PipelinesApiRuntimeAttributes.DisksKey
 
-  override def coercion: Traversable[WomType] = Set(WomStringType, WomArrayType(WomStringType))
+  override def coercion: Iterable[WomType] = Set(WomStringType, WomArrayType(WomStringType))
 
   override protected def validateValue: PartialFunction[WomValue, ErrorOr[Seq[PipelinesApiAttachedDisk]]] = {
     case WomString(value) => validateLocalDisks(value.split(",\\s*").toSeq)

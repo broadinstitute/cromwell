@@ -12,7 +12,7 @@ import cromwell.core.io._
 import cromwell.filesystems.gcs._
 import mouse.all._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 /**

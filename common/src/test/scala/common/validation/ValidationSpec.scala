@@ -6,22 +6,23 @@ import cats.syntax.validated._
 import common.assertion.CromwellTimeoutSpec
 import common.exception.AggregatedMessageException
 import common.validation.Validation._
+import org.mockito.ArgumentMatchers._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.slf4j.Logger
-import org.specs2.mock.Mockito
+import common.mock.MockSugar
 
 import scala.util.{Failure, Success}
 
 
-class ValidationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito {
+class ValidationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with MockSugar {
 
   behavior of "Validation"
 
   it should "warn unrecognized keys" in {
     var warnings = List.empty[Any]
     val mockLogger = mock[Logger]
-    mockLogger.warn(anyString).answers(warnings :+= _)
+    mockLogger.warn(anyString).answers((warnings :+= _): Any => Unit)
     val keys = Set("hello")
     val reference = Set("world")
     val context = "warnings"
@@ -32,7 +33,7 @@ class ValidationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
   it should "not warn recognized keys" in {
     var warnings = List.empty[Any]
     val mockLogger = mock[Logger]
-    mockLogger.warn(anyString).answers(warnings :+= _)
+    mockLogger.warn(anyString).answers((warnings :+= _): Any => Unit)
     val keys = Set("hello")
     val reference = Set("hello", "world")
     val context = "warnings"

@@ -89,7 +89,7 @@ case class WorkflowInitializationActor(workflowIdForLogging: PossiblyNotRootWork
   override def failureResponse(reasons: Seq[Throwable]) = WorkflowInitializationFailedResponse(reasons)
   override val abortedResponse = WorkflowInitializationAbortedResponse
 
-  private var backendActorsAndBackends: Traversable[BackendActorAndBackend] = _
+  private var backendActorsAndBackends: Iterable[BackendActorAndBackend] = _
 
   when(InitializationPendingState) {
     case Event(StartInitializationCommand, _) =>
@@ -105,11 +105,11 @@ case class WorkflowInitializationActor(workflowIdForLogging: PossiblyNotRootWork
 
       backendInitializationActors match {
         case Failure(ex) =>
-          sender ! WorkflowInitializationFailedResponse(Seq(ex))
+          sender() ! WorkflowInitializationFailedResponse(Seq(ex))
           goto(InitializationFailedState)
         case Success(actors) if actors.isEmpty =>
           backendActorsAndBackends = List.empty
-          sender ! WorkflowInitializationSucceededResponse(AllBackendInitializationData.empty)
+          sender() ! WorkflowInitializationSucceededResponse(AllBackendInitializationData.empty)
           goto(InitializationSucceededState)
         case Success(actors) =>
           backendActorsAndBackends = actors
@@ -124,17 +124,17 @@ case class WorkflowInitializationActor(workflowIdForLogging: PossiblyNotRootWork
   }
 
   when(InitializationInProgressState) {
-    case Event(InitializationSuccess(initData), stateData) => checkForDoneAndTransition(stateData.withSuccess(sender, initData))
-    case Event(InitializationFailed(reason), stateData) => checkForDoneAndTransition(stateData.withFailure(sender, reason))
+    case Event(InitializationSuccess(initData), stateData) => checkForDoneAndTransition(stateData.withSuccess(sender(), initData))
+    case Event(InitializationFailed(reason), stateData) => checkForDoneAndTransition(stateData.withFailure(sender(), reason))
     case Event(EngineLifecycleActorAbortCommand, stateData) =>
       stateData.actors foreach { _ ! BackendWorkflowInitializationActor.Abort }
       goto(InitializationAbortingState)
   }
 
   when(InitializationAbortingState) {
-    case Event(InitializationSuccess(initData), stateData) => checkForDoneAndTransition(stateData.withSuccess(sender, initData))
-    case Event(InitializationFailed(reason), stateData) => checkForDoneAndTransition(stateData.withFailure(sender, reason))
-    case Event(BackendActorAbortedResponse, stateData) => checkForDoneAndTransition(stateData.withAborted(sender))
+    case Event(InitializationSuccess(initData), stateData) => checkForDoneAndTransition(stateData.withSuccess(sender(), initData))
+    case Event(InitializationFailed(reason), stateData) => checkForDoneAndTransition(stateData.withFailure(sender(), reason))
+    case Event(BackendActorAbortedResponse, stateData) => checkForDoneAndTransition(stateData.withAborted(sender()))
   }
 
   when(InitializationSucceededState) { FSM.NullFunction }

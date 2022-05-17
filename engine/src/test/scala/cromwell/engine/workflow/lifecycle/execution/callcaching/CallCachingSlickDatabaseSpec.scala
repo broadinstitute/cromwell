@@ -14,19 +14,19 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.specs2.mock.Mockito
 
 import scala.concurrent.ExecutionContext
 
 class CallCachingSlickDatabaseSpec
-  extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito with TableDrivenPropertyChecks {
+  extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures with BeforeAndAfterAll
+    with TableDrivenPropertyChecks {
 
-  implicit val ec = ExecutionContext.global
-  implicit val defaultPatience = PatienceConfig(scaled(Span(5, Seconds)), scaled(Span(100, Millis)))
+  implicit val ec: ExecutionContext = ExecutionContext.global
+  implicit val defaultPatience: PatienceConfig = PatienceConfig(scaled(Span(5, Seconds)), scaled(Span(100, Millis)))
 
   // Test with and without prefixes. With prefixing tests accessing the detritus value CLOB, especially with MariaDB.
   // https://jira.mariadb.org/browse/CONJ-717
-  val allowResultReuseTests = Table(
+  private val allowResultReuseTests = Table(
     ("description", "prefixOption"),
     ("without prefixes", None),
     ("with some prefixes", Option(List("prefix1", "prefix2", "prefix3", "prefix4"))),
@@ -103,7 +103,7 @@ class CallCachingSlickDatabaseSpec
             "BASE_AGGREGATION",
             Option("FILE_AGGREGATION"),
             callCachePathPrefixes = prefixOption,
-            1
+            Set.empty
           )
           _ = hit shouldBe empty
         } yield ()).futureValue
@@ -141,7 +141,7 @@ class CallCachingSlickDatabaseSpec
     }
 
     it should "stop container if required" taggedAs DbmsTest in {
-      containerOpt.foreach { _.stop }
+      containerOpt.foreach { _.stop() }
     }
   }
 }

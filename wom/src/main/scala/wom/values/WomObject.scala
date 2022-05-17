@@ -12,7 +12,6 @@ import wom.expression.IoFunctionSet
 import wom.types._
 import wom.util.FileUtil
 
-import scala.language.higherKinds
 import scala.util.{Failure, Success, Try}
 
 trait WomObjectLike extends WomValue {
@@ -93,9 +92,9 @@ object WomObject {
       case _ => Failure(new UnsupportedOperationException("Could not serialize array: Objects in the array have different attributes."))
     }
   }
-  
+
   def apply(values: Map[String, WomValue]) = new WomObject(values, WomObjectType)
-  
+
   def withTypeUnsafe(values: Map[String, Any], objectTypeLike: WomObjectTypeLike): WomObject = {
     import common.validation.Validation._
     withTypeErrorOr(values, objectTypeLike).toTry.get
@@ -115,7 +114,7 @@ case class WomObject private[WomObject] (values: Map[String, WomValue], womType:
   lazy val orderedAttributes = values.keySet.toSeq
   lazy val orderedValues = orderedAttributes map { values(_) }
   lazy val womObjectTypeLike = womType
-  
+
   def tsvSerialize: Try[String] = Try {
     val keysLine = orderedAttributes.mkString(start = "", sep = "\t", end = "\n")
     val values = orderedValues map {

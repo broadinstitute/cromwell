@@ -6,7 +6,7 @@ import cromwell.core.CallKey
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
+import common.mock.MockSugar
 import shapeless._
 import wom.callable.Callable.RequiredInputDefinition
 import wom.expression.{NoIoFunctionSet, WomExpression}
@@ -15,7 +15,7 @@ import wom.graph.CommandCallNode
 import wom.types.WomSingleFileType
 import wom.values.WomString
 
-class CallPreparationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito {
+class CallPreparationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with MockSugar {
   it should "disallow empty Strings being input as Files" in {
     val callKey = mock[CallKey]
 

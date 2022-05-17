@@ -3,7 +3,7 @@ package cromwell.engine.backend
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendLifecycleActorFactory}
 import net.ceedubs.ficus.Ficus._
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 case class BackendConfigurationEntry(name: String, lifecycleActorFactoryClass: String, config: Config) {

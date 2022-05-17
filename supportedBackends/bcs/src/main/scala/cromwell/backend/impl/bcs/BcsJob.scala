@@ -6,7 +6,7 @@ import com.aliyuncs.batchcompute.pojo.v20151111._
 import cromwell.core.ExecutionEvent
 import cromwell.core.path.Path
 
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 object BcsJob{

@@ -2,10 +2,11 @@ package cromwell.backend.impl.bcs
 
 import com.aliyuncs.batchcompute.main.v20151111.BatchComputeClient
 import com.aliyuncs.batchcompute.pojo.v20151111.TaskDescription
+import common.mock.MockSugar
 import wom.values._
 
 
-class BcsJobSpec extends BcsTestUtilSpec {
+class BcsJobSpec extends BcsTestUtilSpec with MockSugar {
 
   behavior of s"BcsJob"
 
@@ -59,7 +60,7 @@ class BcsJobSpec extends BcsTestUtilSpec {
 
   it should "have correct docker option" in {
     val dockerImage = "ubuntu/latest"
-    val dockerPath = "oss://bcs-reg/ubuntu/"toLowerCase()
+    val dockerPath = "oss://bcs-reg/ubuntu/".toLowerCase()
     val runtime = Map("dockerTag" -> WomString(s"$dockerImage $dockerPath"))
     taskWithRuntime(runtime).getParameters.getCommand.getEnvVars.get(BcsJob.BcsDockerImageEnvKey) shouldEqual null
     taskWithRuntime(runtime).getParameters.getCommand.getEnvVars.get(BcsJob.BcsDockerPathEnvKey) shouldEqual null

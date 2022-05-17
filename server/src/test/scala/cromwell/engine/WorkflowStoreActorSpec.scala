@@ -26,13 +26,13 @@ import mouse.all._
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWorkflowStoreActorBuilder with SqlWorkflowStoreBuilder with Matchers with BeforeAndAfter with Mockito with Eventually with CromwellTimeoutSpec {
+class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWorkflowStoreActorBuilder
+  with SqlWorkflowStoreBuilder with Matchers with BeforeAndAfter with Eventually with CromwellTimeoutSpec {
   private val helloWorldSourceFiles = HelloWorld.asWorkflowSources().asInstanceOf[WorkflowSourceFilesWithoutImports]
   private val helloWorldSourceFilesOnHold = HelloWorld.asWorkflowSources(workflowOnHold = true)
   private val helloCwlWorldSourceFiles =
@@ -41,7 +41,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
   /**
     * Fold down a list of WorkflowToStart's, checking that their IDs are all unique
     */
-  private def checkDistinctIds(list: Traversable[WorkflowToStart]): Boolean = {
+  private def checkDistinctIds(list: Iterable[WorkflowToStart]): Boolean = {
     def folderFunction(knownDistinct: (List[WorkflowToStart], Boolean), next: WorkflowToStart) = {
       val (list, distinct) = knownDistinct
       if (!distinct) {

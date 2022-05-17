@@ -17,7 +17,6 @@ import cromwell.util.WomMocks
 import cromwell.{CromwellTestKitSpec, CromwellTestKitWordSpec}
 import mouse.all._
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
 import wdl.draft2.model.WdlExpression
 import wom.graph.{GraphNode, WomIdentifier}
 
@@ -30,7 +29,8 @@ object SubWorkflowStoreSpec {
   val EmptyExpression = WdlExpression.fromString(""" "" """)
 }
 
-class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkflowStoreActorBuilder with CromwellTimeoutSpec with Matchers with Mockito {
+class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkflowStoreActorBuilder
+  with CromwellTimeoutSpec with Matchers {
   "SubWorkflowStore" should {
     "work" in {
       lazy val subWorkflowStore = new SqlSubWorkflowStore(EngineServicesStore.engineDatabaseInterface)
@@ -88,7 +88,15 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkf
 
       // Query for sub workflow
       subWorkflowStoreService ! QuerySubWorkflow(parentWorkflowId, jobKey)
-      val subWorkflowEntry = SubWorkflowStoreEntry(Option(0), parentWorkflowId.toString, jobKey.node.fullyQualifiedName, jobKey.index.fromIndex, jobKey.attempt, subWorkflowId.toString, Some(0))
+      val subWorkflowEntry = SubWorkflowStoreEntry(
+        rootWorkflowId = Option(0),
+        parentWorkflowExecutionUuid = parentWorkflowId.toString,
+        callFullyQualifiedName = jobKey.node.fullyQualifiedName,
+        callIndex = jobKey.index.fromIndex,
+        callAttempt = jobKey.attempt,
+        subWorkflowExecutionUuid = subWorkflowId.toString,
+        subWorkflowStoreEntryId = Option(0),
+      )
       expectMsg[SubWorkflowFound](SubWorkflowFound(subWorkflowEntry))
 
       // Register sub sub workflow
@@ -97,7 +105,15 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkf
 
       // Query for sub sub workflow
       subWorkflowStoreService ! QuerySubWorkflow(subWorkflowId, jobKey)
-      val subSubWorkflowEntry = SubWorkflowStoreEntry(Option(0), subWorkflowId.toString, jobKey.node.fullyQualifiedName, jobKey.index.fromIndex, jobKey.attempt, subSubWorkflowId.toString, Some(1))
+      val subSubWorkflowEntry = SubWorkflowStoreEntry(
+        rootWorkflowId = Option(0),
+        parentWorkflowExecutionUuid = subWorkflowId.toString,
+        callFullyQualifiedName = jobKey.node.fullyQualifiedName,
+        callIndex = jobKey.index.fromIndex,
+        callAttempt = jobKey.attempt,
+        subWorkflowExecutionUuid = subSubWorkflowId.toString,
+        subWorkflowStoreEntryId = Option(1),
+      )
       expectMsg[SubWorkflowFound](SubWorkflowFound(subSubWorkflowEntry))
 
       // Delete root workflow

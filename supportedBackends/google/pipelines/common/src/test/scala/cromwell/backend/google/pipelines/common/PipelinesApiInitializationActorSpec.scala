@@ -11,19 +11,17 @@ import cromwell.backend.google.pipelines.common.PipelinesApiInitializationActorS
 import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig.{PapiGlobalConfig, genomicsFactory, googleConfiguration, papiAttributes}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
 import cromwell.core.Dispatcher.BackendDispatcher
-import cromwell.core.Tags.{IntegrationTest, PostWomTest}
 import cromwell.core.TestKitSuite
 import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.logging.LoggingTest._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
 import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
 
 class PipelinesApiInitializationActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
-  with ImplicitSender with Mockito {
+  with ImplicitSender {
   val Timeout: FiniteDuration = 30.second.dilated
 
   import BackendSpec._
@@ -62,7 +60,7 @@ class PipelinesApiInitializationActorSpec extends TestKitSuite with AnyFlatSpecL
 
   behavior of "PipelinesApiInitializationActor"
 
-  it should "log a warning message when there are unsupported runtime attributes" taggedAs IntegrationTest in {
+  it should "log a warning message when there are unsupported runtime attributes" in {
 
     within(Timeout) {
       val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld,
@@ -81,8 +79,7 @@ class PipelinesApiInitializationActorSpec extends TestKitSuite with AnyFlatSpecL
     }
   }
 
-  // Depends on https://github.com/broadinstitute/cromwell/issues/2606
-  it should "return InitializationFailed when docker runtime attribute key is not present" taggedAs PostWomTest in {
+  it should "return InitializationFailed when docker runtime attribute key is not present" in {
     within(Timeout) {
       val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
       val backend = getJesBackend(workflowDescriptor, workflowDescriptor.callable.taskCallNodes,
@@ -110,7 +107,7 @@ object PipelinesApiInitializationActorSpec {
       |  auths = [
       |    {
       |      name = "application-default"
-      |      scheme = "application_default"
+      |      scheme = "mock"
       |    }
       |  ]
       |}

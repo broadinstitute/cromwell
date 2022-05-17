@@ -1,7 +1,6 @@
 package cromwell.engine.workflow.workflowstore
 
 import java.time.OffsetDateTime
-
 import cats.data.NonEmptyList
 import com.dimafeng.testcontainers.Container
 import common.assertion.CromwellTimeoutSpec
@@ -14,17 +13,20 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.specs2.mock.Mockito
+
+import scala.concurrent.ExecutionContextExecutor
 import spray.json.{JsObject, JsString}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 
-class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
-  implicit val ec = ExecutionContext.global
-  implicit val defaultPatience = PatienceConfig(scaled(Span(20, Seconds)), scaled(Span(100, Millis)))
 
-  val onHoldSourceFilesCollection = NonEmptyList.of(
+class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures
+  with BeforeAndAfterAll {
+  implicit val ec: ExecutionContextExecutor = ExecutionContext.global
+  implicit val defaultPatience: PatienceConfig = PatienceConfig(scaled(Span(20, Seconds)), scaled(Span(100, Millis)))
+
+  private val onHoldSourceFilesCollection = NonEmptyList.of(
     WorkflowSourceFilesCollection(
       Option("sample"),
       None,
@@ -41,7 +43,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     )
   )
 
-  val excludedGroupSourceFilesCollection = NonEmptyList.of(
+  private val excludedGroupSourceFilesCollection = NonEmptyList.of(
     WorkflowSourceFilesCollection(
       Option("sample"),
       None,
@@ -58,7 +60,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     )
   )
 
-  val includedGroupSourceFilesCollection1 = NonEmptyList.of(
+  private val includedGroupSourceFilesCollection1 = NonEmptyList.of(
     WorkflowSourceFilesCollection(
       Option("sample"),
       None,
@@ -75,7 +77,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     )
   )
 
-  val includedGroupSourceFilesCollection2 = NonEmptyList.of(
+  private val includedGroupSourceFilesCollection2 = NonEmptyList.of(
     WorkflowSourceFilesCollection(
       Option("sample"),
       None,
@@ -92,7 +94,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     )
   )
 
-  val includedGroupSourceFilesCollection3 = NonEmptyList.of(
+  private val includedGroupSourceFilesCollection3 = NonEmptyList.of(
     WorkflowSourceFilesCollection(
       Option("sample"),
       None,
@@ -410,7 +412,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
       ((for {
         _ <- workflowStore.add(sourcesToSubmit1)
         _ <- workflowStore.add(sourcesToSubmit2)
-      } yield ("incorrectly accepted")) recoverWith {
+      } yield "incorrectly accepted") recoverWith {
         case error => for {
           message <- Future {
             error.getMessage should be(s"Requested workflow IDs are already in use: $requestedId")
@@ -443,7 +445,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
       ((for {
         _ <- workflowStore.add(sourcesToSubmit1)
         _ <- workflowStore.add(sourcesToSubmit2)
-      } yield ("incorrectly accepted")) recoverWith {
+      } yield "incorrectly accepted") recoverWith {
         case error => for {
           message <- Future {
             error.getMessage should be(s"Requested workflow IDs are already in use: $requestedId1")
@@ -473,7 +475,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
       ((for {
         _ <- workflowStore.add(sourcesToSubmit)
-      } yield ("incorrectly accepted")) recoverWith {
+      } yield "incorrectly accepted") recoverWith {
         case error => for {
           message <- Future {
             error.getMessage should be(s"Requested workflow IDs are duplicated: $requestedId1")
@@ -488,7 +490,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
     it should "stop container if required" taggedAs DbmsTest in {
       containerOpt.foreach {
-        _.stop
+        _.stop()
       }
     }
   }

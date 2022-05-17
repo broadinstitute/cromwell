@@ -3,7 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import akka.testkit.{TestFSMRef, TestProbe}
 import com.typesafe.config.ConfigFactory
 import common.assertion.ManyTimes
@@ -30,34 +30,36 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
+import common.mock.MockSugar
 import wom.graph.WomIdentifier
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.control.NoStackTrace
 
-class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Mockito with Eventually with BeforeAndAfterAll {
+class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with MockSugar
+  with Eventually with BeforeAndAfterAll {
 
   behavior of "SubWorkflowExecutionActor"
 
-  var serviceRegistryProbe: TestProbe = _
-  var jobStoreProbe: TestProbe = _
-  var subWorkflowStoreProbe: TestProbe = _
-  var callCacheReadActorProbe: TestProbe = _
-  var callCacheWriteActorProbe: TestProbe = _
-  var dockerHashActorProbe: TestProbe = _
-  var ioActorProbe: TestProbe = _
-  var jobRestartCheckTokenDispenserProbe: TestProbe = _
-  var jobExecutionTokenDispenserProbe: TestProbe = _
-  var preparationActor: TestProbe = _
-  var subWorkflowActor: TestProbe = _
-  var deathWatch: TestProbe = _
-  var parentProbe: TestProbe = _
-  val parentBackendDescriptor = mock[BackendWorkflowDescriptor]
-  val parentWorkflowId: WorkflowId = WorkflowId.randomId()
+  private var serviceRegistryProbe: TestProbe = _
+  private var jobStoreProbe: TestProbe = _
+  private var jobRestartCheckTokenDispenserProbe: TestProbe = _
+  private var jobExecutionTokenDispenserProbe: TestProbe = _
+  private var subWorkflowStoreProbe: TestProbe = _
+  private var callCacheReadActorProbe: TestProbe = _
+  private var callCacheWriteActorProbe: TestProbe = _
+  private var dockerHashActorProbe: TestProbe = _
+  private var ioActorProbe: TestProbe = _
+  private var preparationActor: TestProbe = _
+  private var subWorkflowActor: TestProbe = _
+  private var deathWatch: TestProbe = _
+  private var parentProbe: TestProbe = _
+  private val parentBackendDescriptor = mock[BackendWorkflowDescriptor]
+  private val parentWorkflowId: WorkflowId = WorkflowId.randomId()
+
   parentBackendDescriptor.id returns parentWorkflowId
-  val parentWorkflowDescriptor = EngineWorkflowDescriptor(
+  private val parentWorkflowDescriptor = EngineWorkflowDescriptor(
     WomMocks.mockWorkflowDefinition("workflow"),
     parentBackendDescriptor,
     Map.empty,
@@ -65,12 +67,12 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
     List.empty,
     CallCachingOff
   )
-  val subWorkflow = WomMocks.mockWorkflowDefinition("sub_wf")
-  val subWorkflowCall = WomMocks.mockWorkflowCall(WomIdentifier("workflow"), definition = subWorkflow)
-  val subKey: SubWorkflowKey = SubWorkflowKey(subWorkflowCall, None, 1)
-  val rootConfig = ConfigFactory.load
+  private val subWorkflow = WomMocks.mockWorkflowDefinition("sub_wf")
+  private val subWorkflowCall = WomMocks.mockWorkflowCall(WomIdentifier("workflow"), definition = subWorkflow)
+  private val subKey: SubWorkflowKey = SubWorkflowKey(subWorkflowCall, None, 1)
+  private val rootConfig = ConfigFactory.load
 
-  val awaitTimeout: FiniteDuration = 10 seconds
+  private val awaitTimeout: FiniteDuration = 10 seconds
 
   override def beforeAll(): Unit = {
     serviceRegistryProbe = TestProbe()
@@ -88,7 +90,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
     parentProbe = TestProbe()
   }
 
-  def buildSWEA(startState: StartableState = Submitted) = {
+  private def buildSWEA(startState: StartableState = Submitted) = {
     new TestFSMRef[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData, SubWorkflowExecutionActor](system, Props(
       new SubWorkflowExecutionActor(
         subKey,
@@ -112,8 +114,9 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
         fileHashCacheActor = None,
         blacklistCache = None
       ) {
-        override def createSubWorkflowPreparationActor(subWorkflowId: WorkflowId) = preparationActor.ref
-        override def createSubWorkflowActor(createSubWorkflowActor: EngineWorkflowDescriptor) = subWorkflowActor.ref
+        override def createSubWorkflowPreparationActor(subWorkflowId: WorkflowId): ActorRef = preparationActor.ref
+        override def createSubWorkflowActor(createSubWorkflowActor: EngineWorkflowDescriptor): ActorRef =
+          subWorkflowActor.ref
       }), parentProbe.ref, s"SubWorkflowExecutionActorSpec-${UUID.randomUUID()}")
   }
 
@@ -140,7 +143,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
 
     eventually {
       swea.stateName shouldBe WaitingForValueStore
-      swea.stateData.subWorkflowId shouldBe Some(subWorkflowUuid)
+      swea.stateData.subWorkflowId shouldBe Option(subWorkflowUuid)
     }
   }
 
@@ -175,7 +178,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
 
   it should "Run a sub workflow" in {
     val swea = buildSWEA()
-    swea.setState(SubWorkflowPreparingState, SubWorkflowExecutionActorLiveData(Some(WorkflowId.randomId()), None))
+    swea.setState(SubWorkflowPreparingState, SubWorkflowExecutionActorLiveData(Option(WorkflowId.randomId()), None))
 
     val subWorkflowId = WorkflowId.randomId()
     val subBackendDescriptor = mock[BackendWorkflowDescriptor]
@@ -199,7 +202,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
 
   it should "Fail a sub workflow if preparation fails" in {
     val swea = buildSWEA()
-    swea.setState(SubWorkflowPreparingState, SubWorkflowExecutionActorLiveData(Some(WorkflowId.randomId()), None))
+    swea.setState(SubWorkflowPreparingState, SubWorkflowExecutionActorLiveData(Option(WorkflowId.randomId()), None))
     deathWatch watch swea
 
     val subWorkflowKey = mock[SubWorkflowKey]
@@ -217,7 +220,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
   it should "Relay Workflow Successful message" in {
     val swea = buildSWEA()
     val subworkflowId = WorkflowId.randomId()
-    swea.setState(SubWorkflowRunningState, SubWorkflowExecutionActorLiveData(Some(subworkflowId), None))
+    swea.setState(SubWorkflowRunningState, SubWorkflowExecutionActorLiveData(Option(subworkflowId), None))
 
     deathWatch watch swea
 
@@ -234,7 +237,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
 
   it should "Relay Workflow Failed message" in {
     val swea = buildSWEA()
-    swea.setState(SubWorkflowRunningState, SubWorkflowExecutionActorLiveData(Some(WorkflowId.randomId()), None))
+    swea.setState(SubWorkflowRunningState, SubWorkflowExecutionActorLiveData(Option(WorkflowId.randomId()), None))
 
     deathWatch watch swea
 
@@ -252,7 +255,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
 
   it should "Switch Succeeded to Failed and try again if the final metadata entry doesn't write" in {
     val swea = buildSWEA()
-    swea.setState(SubWorkflowRunningState, SubWorkflowExecutionActorLiveData(Some(WorkflowId.randomId()), None))
+    swea.setState(SubWorkflowRunningState, SubWorkflowExecutionActorLiveData(Option(WorkflowId.randomId()), None))
 
     deathWatch watch swea
 
@@ -295,7 +298,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
 
   it should "Relay Workflow Aborted message" in {
     val swea = buildSWEA()
-    swea.setState(SubWorkflowRunningState, SubWorkflowExecutionActorLiveData(Some(WorkflowId.randomId()), None))
+    swea.setState(SubWorkflowRunningState, SubWorkflowExecutionActorLiveData(Option(WorkflowId.randomId()), None))
 
     deathWatch watch swea
 
@@ -311,7 +314,10 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
 
   it should "Relay Workflow Abort command message" in {
     val swea = buildSWEA()
-    swea.setState(SubWorkflowRunningState, SubWorkflowExecutionActorLiveData(Some(WorkflowId.randomId()), Option(subWorkflowActor.ref)))
+    swea.setState(
+      SubWorkflowRunningState,
+      SubWorkflowExecutionActorLiveData(Option(WorkflowId.randomId()), Option(subWorkflowActor.ref)),
+    )
 
     deathWatch watch swea
 

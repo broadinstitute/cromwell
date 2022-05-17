@@ -19,8 +19,10 @@ import wdl.draft2.model.command.StringCommandPart
 import wom.core.LocallyQualifiedName
 import wom.graph.WomIdentifier
 import wom.values.WomValue
+import common.mock.MockSugar
 
-class EngineJobHashingActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with BackendSpec with TableDrivenPropertyChecks with Eventually {
+class EngineJobHashingActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with BackendSpec
+  with MockSugar with TableDrivenPropertyChecks with Eventually {
   behavior of "EngineJobHashingActor"
 
   def templateJobDescriptor(inputs: Map[LocallyQualifiedName, WomValue] = Map.empty): BackendJobDescriptor = {
@@ -33,7 +35,7 @@ class EngineJobHashingActorSpec extends TestKitSuite with AnyFlatSpecLike with M
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), Map.empty, fqnWdlMapToDeclarationMap(inputs), NoDocker, None, Map.empty)
     jobDescriptor
   }
-  
+
   val serviceRegistryActorProbe: TestProbe = TestProbe()
 
   def makeEJHA(receiver: ActorRef, activity: CallCachingActivity, ccReaderProps: Props = Props.empty): TestActorRef[EngineJobHashingActor] = {
@@ -62,7 +64,7 @@ class EngineJobHashingActorSpec extends TestKitSuite with AnyFlatSpecLike with M
     val initialResult: InitialHashingResult = mock[InitialHashingResult]
     actorUnderTest ! initialResult
     eventually {
-      actorUnderTest.underlyingActor.initialHash shouldBe Some(initialResult)
+      actorUnderTest.underlyingActor.initialHash shouldBe Option(initialResult)
     }
   }
 
@@ -94,14 +96,14 @@ class EngineJobHashingActorSpec extends TestKitSuite with AnyFlatSpecLike with M
   it should "send hashes to receiver when receiving a CompleteFileHashingResult" in {
     val receiver = TestProbe()
     val actorUnderTest = makeEJHA(receiver.ref, CallCachingActivity(ReadAndWriteCache))
-    
+
     val initialHashes = Set(HashResult(HashKey("key"), HashValue("value")))
     val initialAggregatedHash = "aggregatedHash"
     val initialResult = InitialHashingResult(initialHashes, initialAggregatedHash)
     val fileHashes = Set(HashResult(HashKey("file key"), HashValue("value")))
     val fileAggregatedHash = "aggregatedFileHash"
     val fileResult = CompleteFileHashingResult(fileHashes, fileAggregatedHash)
-    
+
     actorUnderTest ! initialResult
     actorUnderTest ! fileResult
     receiver.expectMsg(CallCacheHashes(initialHashes, initialAggregatedHash, Option(FileHashes(fileHashes, fileAggregatedHash))))
@@ -135,7 +137,7 @@ class EngineJobHashingActorSpec extends TestKitSuite with AnyFlatSpecLike with M
         case NextHit => monitorProbe.ref forward NextHit
       }
     })
-    
+
     val actorUnderTest = makeEJHA(receiver.ref, activity, ccReadActorProps)
 
     actorUnderTest ! NextHit
@@ -174,7 +176,7 @@ class EngineJobHashingActorSpec extends TestKitSuite with AnyFlatSpecLike with M
     serviceRegistryActorProbe.expectMsgClass(classOf[PutMetadataAction])
     receiver.expectTerminated(actorUnderTest)
   }
-  
+
   object EngineJobHashingActorTest {
     def props(receiver: ActorRef,
               serviceRegistryActor: ActorRef,
@@ -199,7 +201,7 @@ class EngineJobHashingActorSpec extends TestKitSuite with AnyFlatSpecLike with M
       callCachingEligible = callCachingEligible,
       fileHashBatchSize = fileHashBatchSize))
   }
-  
+
   class EngineJobHashingActorTest(receiver: ActorRef,
                                   serviceRegistryActor: ActorRef,
                                   jobDescriptor: BackendJobDescriptor,

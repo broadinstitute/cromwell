@@ -124,6 +124,8 @@ object WdlDraft2WomCallNodeMaker extends WomCallNodeMaker[WdlCall] {
         case optional@OptionalInputDefinition(n, womType, _, _) =>
           val identifier = wdlCall.womIdentifier.combine(n)
           withGraphInputNode(optional, OptionalGraphInputNode(identifier, womType, identifier.fullyQualifiedName.value))
+
+        case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
       }
     }
 

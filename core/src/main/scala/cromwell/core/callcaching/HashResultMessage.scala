@@ -7,7 +7,7 @@ object HashKey {
   private val KeySeparator = ": "
   def apply(keyComponents: String*) = new HashKey(true, keyComponents.toList)
   def apply(checkForHitOrMiss: Boolean, keyComponents: String*) = new HashKey(checkForHitOrMiss, keyComponents.toList)
-  def deserialize(serializedKey: String) = HashKey(true, serializedKey.split(KeySeparator).map(_.trim): _*)
+  def deserialize(serializedKey: String) = HashKey(true, serializedKey.split(KeySeparator).map(_.trim).toList)
 }
 
 case class HashKey(checkForHitOrMiss: Boolean, keyComponents: List[String]) {

@@ -175,7 +175,7 @@ object MetadataService {
   final case class WorkflowQuerySuccess(response: WorkflowQueryResponse, meta: Option[QueryMetadata]) extends MetadataQueryResponse
   final case class WorkflowQueryFailure(reason: Throwable) extends MetadataQueryResponse
 
-  private implicit class EnhancedWomTraversable(val womValues: Traversable[WomValue]) extends AnyVal {
+  private implicit class EnhancedWomTraversable(val womValues: Iterable[WomValue]) extends AnyVal {
     def toEvents(metadataKey: MetadataKey): List[MetadataEvent] = if (womValues.isEmpty) {
       List(MetadataEvent.empty(metadataKey.copy(key = s"${metadataKey.key}[]")))
     } else {

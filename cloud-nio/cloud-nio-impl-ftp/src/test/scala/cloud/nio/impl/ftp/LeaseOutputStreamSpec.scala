@@ -6,11 +6,10 @@ import common.assertion.CromwellTimeoutSpec
 import org.apache.commons.net.ftp.FTPClient
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
+import common.mock.MockSugar
 import scala.concurrent.duration._
 
-
-class LeaseOutputStreamSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito {
+class LeaseOutputStreamSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with MockSugar {
 
   behavior of "LeaseInputStreamSpec"
 
@@ -33,11 +32,11 @@ class LeaseOutputStreamSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
     // When accessing a released lease, get throws an IllegalStateException
     an[IllegalStateException] shouldBe thrownBy(lease.get())
   }
-  
+
   private class TestOutputStream extends OutputStream {
     var closed = false
-    override def close() = closed = true
-    def isClosed = closed
-    override def write(b: Int) = {}
+    override def close(): Unit = closed = true
+    def isClosed: Boolean = closed
+    override def write(b: Int): Unit = {}
   }
 }

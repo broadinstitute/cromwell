@@ -337,20 +337,22 @@ class JobTokenDispenserActorSpec extends TestKitSuite
         jobExecutionTokenDispenserActorName = "skip-dead-repeatedly",
       )
     val grabberSupervisor = TestActorRef(new StoppingSupervisor(), "skip-dead-repeatedly-supervisor")
-    // The first 5 get a token and the 6th and 7h one are queued
+    // The first 5 get a token and the 6th and 7th one are queued
     val tokenGrabbingActors = (0 until 1000).toVector.map { i =>
       TestActorRef[TestTokenGrabbingActor](TestTokenGrabbingActor.props(actorRefUnderTest, LimitedTo5Tokens), grabberSupervisor, s"grabber_" + i)
     }
 
-    val actorIterator = tokenGrabbingActors.toIterator
+    // Create a sliding window of 10 actors, skipping by 10 so the windows do not overlap.
+    val actorIterator = tokenGrabbingActors.sliding(10, 10)
 
     while (actorIterator.hasNext) {
 
       // We won't actually dispense 100, this is simulating the "steady drip" message
       // so that we don't have to wait 4 seconds per drip for the test case...
       actorRefUnderTest ! TokensAvailable(100)
-      val withTokens = actorIterator.take(5).toList
-      val nextInLine = actorIterator.take(5).toList
+      val window = actorIterator.next()
+      val withTokens = window.take(5) // First 5 in the window
+      val nextInLine = window.drop(5) // Last 5 in the window
 
       eventually {
         withTokens.foreach(_.underlyingActor.hasToken should be(true))

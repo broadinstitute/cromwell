@@ -1,4 +1,4 @@
-package wes2cromwell
+package cromwell.webservice.routes.wes
 
 import java.net.URL
 
@@ -22,7 +22,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
-trait WesRunRoutes extends RequestSupport {
+trait WesRunRoutes {
   implicit def system: ActorSystem
   implicit def materializer: ActorMaterializer
 
@@ -50,48 +50,14 @@ trait WesRunRoutes extends RequestSupport {
                     parameters(("page_size".as[Int].?, "page_token".?)) { (pageSize, pageToken) =>
                       completeCromwellResponse(wes2CromwellInterface.listRuns(pageSize, pageToken, cromwellRequestHeaders))
                     }
-                  },
-                  post {
-                    extractStrictRequest { request =>
-                      extractSubmission() { submission =>
-                        completeCromwellResponse(wes2CromwellInterface.runWorkflow(submission, cromwellRequestHeaders))
-                      }
-                    }
                   }
                 )
-              },
-              path(Segment) { workflowId =>
-                concat(
-                  get {
-                    completeCromwellResponse(wes2CromwellInterface.runLog(workflowId, cromwellRequestHeaders))
-                  },
-                  delete {
-                    completeCromwellResponse(wes2CromwellInterface.cancelRun(workflowId, cromwellRequestHeaders))
-                  }
-                )
-              },
-              path(Segment / "status") { workflowId =>
-                get {
-                  completeCromwellResponse(wes2CromwellInterface.runStatus(workflowId, cromwellRequestHeaders))
-                }
               }
             )
           }
         )
       }
     }
-
-  def extractSubmission(): Directive1[WesSubmission] = {
-    formFields((
-      "workflow_params",
-      "workflow_type",
-      "workflow_type_version",
-      "tags".?,
-      "workflow_engine_parameters".?,
-      "workflow_url",
-      "workflow_attachment".as[String].*
-    )).as(WesSubmission)
-  }
 }
 
 object WesRunRoutes {

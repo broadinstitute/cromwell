@@ -8,6 +8,8 @@ sealed trait WesResponse extends Product with Serializable
 final case class WesErrorResponse(msg: String, status_code: Int) extends WesResponse
 final case class WesRunId(run_id: String) extends WesResponse
 final case class WesRunStatus(run_id: String, state: WesState) extends WesResponse
+final case class WesResponseRunList(runs: List[WesRunStatus]) extends WesResponse
+
 
 final case class WesStatusInfoResponse(workflow_type_version: Map[String, Iterable[String]],
                                     supported_wes_versions: Iterable[String],

@@ -12,6 +12,7 @@ import com.typesafe.config.ConfigFactory
 import net.ceedubs.ficus.Ficus._
 import WesRunRoutes._
 import akka.stream.ActorMaterializer
+import cromwell.webservice.routes.CromwellApiService
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global

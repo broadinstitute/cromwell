@@ -705,6 +705,65 @@ paths:
         '500':
           description: An unexpected error occurred.
           $ref: '#/responses/ServerError'
+  '/api/ga4gh/wes/v1/runs':
+    get:
+      tags:
+        - GA4GH Workflow Execution Service (WES) - Alpha preview
+      summary: ListRuns
+      description: >-
+        This list should be provided in a stable ordering. (The actual ordering
+        is implementation dependent.) When paging through the list, the client
+        should not make assumptions about live updates, but should assume the
+        contents of the list reflect the workflow list at the moment that the
+        first page is requested.  To monitor a specific workflow run, use
+        GetRunStatus or GetRunLog.
+      operationId: ListRuns
+      parameters:
+        - name: page_size
+          in: query
+          description: >-
+            OPTIONAL The preferred number of workflow runs to return in a page.
+            If not provided, the implementation should use a default page size.
+            The implementation must not return more items than `page_size`, but
+            it may return fewer.  Clients should not assume that if fewer than
+            `page_size` items are returned that all items have been returned. 
+            The availability of additional pages is indicated by the value of
+            `next_page_token` in the response.
+          style: form
+          explode: true
+          schema:
+            type: integer
+            format: int64
+        - name: page_token
+          in: query
+          description: >-
+            OPTIONAL Token to use to indicate where to start getting results. If
+            unspecified, return the first page of results.
+          style: form
+          explode: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful Request
+          schema:
+            $ref: '#/definitions/RunListResponse'
+        '400':
+          description: The request is malformed.
+          schema:
+            $ref: '#/responses/BadRequest'
+        '401':
+          description: The request is unauthorized.
+          schema:
+            $ref: '#/responses/InvalidSubmission'
+        '403':
+          description: The requester is not authorized to perform this action.
+          schema:
+            $ref: '#/responses/Forbidden'
+        '500':
+          description: An unexpected error occurred.
+          schema:
+            $ref: '#/responses/ServerError'
   '/api/ga4gh/wes/v1/runs/{run_id}/cancel':
     post:
       tags:
@@ -1768,3 +1827,4 @@ definitions:
           are also allowed. The version should be changed whenever the service
           is updated.
         example: 1.0.0
+

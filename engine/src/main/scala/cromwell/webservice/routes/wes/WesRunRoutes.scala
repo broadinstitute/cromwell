@@ -65,8 +65,13 @@ object WesRunRoutes {
   }
 
   def completeCromwellResponse(future: => Future[WesResponse]): Route = {
+
+    import WesResponseJsonSupport.WesResponseErrorFormat
+    import cromwell.webservice.routes.wes.WesResponseJsonSupport.WesResponseFormat
+    import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+
     onComplete(future) {
-      case Success(a) => complete(a)
+      case Success(response: WesResponse) => complete(response)
       case Failure(e) => complete(WesErrorResponse(e.getMessage, StatusCodes.InternalServerError.intValue))
     }
   }

@@ -29,6 +29,7 @@ object WesResponseJsonSupport extends SprayJsonSupport with DefaultJsonProtocol 
   implicit val WesResponseRunIdFormat = jsonFormat1(WesRunId)
   implicit val WesResponseStatusFormat = jsonFormat2(WesRunStatus)
   implicit val WesResponseStatusInfoFormat = jsonFormat9(WesStatusInfoResponse)
+  implicit val WesResponseRunListFormat = jsonFormat1(WesResponseRunList) 
 
   implicit object WesResponseFormat extends RootJsonFormat[WesResponse] {
     import spray.json._
@@ -39,6 +40,7 @@ object WesResponseJsonSupport extends SprayJsonSupport with DefaultJsonProtocol 
         case s: WesRunStatus => s.toJson
         case e: WesErrorResponse => e.toJson
         case i: WesStatusInfoResponse => i.toJson
+        case l: WesResponseRunList => l.toJson
       }
     }
 

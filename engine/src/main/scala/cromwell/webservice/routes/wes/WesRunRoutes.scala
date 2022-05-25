@@ -72,3 +72,4 @@ object WesRunRoutes {
   }
 
 }
+

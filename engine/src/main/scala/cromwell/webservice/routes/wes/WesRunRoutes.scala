@@ -1,12 +1,11 @@
 package cromwell.webservice.routes.wes
 
 import java.net.URL
-
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.event.LoggingAdapter
 import akka.http.scaladsl.model.{HttpHeader, StatusCodes}
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.{Route}
+import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
@@ -32,6 +31,8 @@ trait WesRunRoutes {
   implicit lazy val duration: FiniteDuration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
   implicit lazy val timeout: Timeout = duration
 
+  val serviceRegistryActor: ActorRef
+
   lazy val wes2CromwellInterface = new Wes2CromwellInterface()
 
   lazy val runRoutes: Route =
@@ -45,7 +46,7 @@ trait WesRunRoutes {
                 concat(
                   get {
                     parameters(("page_size".as[Int].?, "page_token".?)) { (pageSize, pageToken) =>
-                      completeCromwellResponse(wes2CromwellInterface.listRuns(pageSize, pageToken, cromwellRequestHeaders))
+                      completeCromwellResponse(wes2CromwellInterface.listRuns(pageSize, pageToken, cromwellRequestHeaders, serviceRegistryActor))
                     }
                   }
                 )

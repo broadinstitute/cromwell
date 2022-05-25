@@ -1,36 +1,31 @@
 package cromwell.webservice.routes.wes
 
-import java.net.URL
-import akka.actor.{ActorRef, ActorSystem}
-import akka.event.LoggingAdapter
+// import java.net.URL
+import akka.actor.ActorRef
+// import akka.event.LoggingAdapter
 import akka.http.scaladsl.model.{HttpHeader, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.util.Timeout
-import com.typesafe.config.ConfigFactory
-import net.ceedubs.ficus.Ficus._
 import WesRunRoutes._
 import akka.stream.ActorMaterializer
-import cromwell.webservice.routes.CromwellApiService
 
-import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 trait WesRunRoutes {
-  implicit def system: ActorSystem
+  // implicit def system: ActorSystem
   implicit def materializer: ActorMaterializer
 
-  val log: LoggingAdapter
+  // val log: LoggingAdapter
 
-  def cromwellUrl: URL
-  def cromwellApiVersion: String
-  def cromwellPath: URL = new URL(cromwellUrl.toString + s"/api/workflows/$cromwellApiVersion")
+//  def cromwellUrl: URL
+//  def cromwellApiVersion: String
+//  def cromwellPath: URL = new URL(cromwellUrl.toString + s"/api/workflows/$cromwellApiVersion")
 
-  implicit lazy val duration: FiniteDuration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
-  implicit lazy val timeout: Timeout = duration
+  implicit val timeout: Timeout
 
   val serviceRegistryActor: ActorRef
 

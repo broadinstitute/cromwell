@@ -6,14 +6,11 @@ import akka.actor.ActorSystem
 import akka.event.LoggingAdapter
 import akka.http.scaladsl.model.{HttpHeader, StatusCodes}
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.{Directive1, Route}
-import akka.http.scaladsl.server.directives.MethodDirectives.post
+import akka.http.scaladsl.server.{Route}
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import net.ceedubs.ficus.Ficus._
-import cromiam.webservice.RequestSupport
-import wes2cromwell.WesResponseJsonSupport._
 import WesRunRoutes._
 import akka.stream.ActorMaterializer
 
@@ -35,7 +32,7 @@ trait WesRunRoutes {
   implicit lazy val duration: FiniteDuration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
   implicit lazy val timeout: Timeout = duration
 
-  lazy val wes2CromwellInterface = new Wes2CromwellInterface(cromwellPath)
+  lazy val wes2CromwellInterface = new Wes2CromwellInterface()
 
   lazy val runRoutes: Route =
     optionalHeaderValue(extractAuthorizationHeader) { authHeader =>

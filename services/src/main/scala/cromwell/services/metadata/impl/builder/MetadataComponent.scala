@@ -11,6 +11,7 @@ import spray.json._
 import scala.collection.immutable.TreeMap
 import scala.language.postfixOps
 import scala.util.{Random, Try}
+import java.time.Instant
 
 object MetadataComponent {
   implicit val MetadataComponentMonoid: Monoid[MetadataComponent] = new Monoid[MetadataComponent] {
@@ -88,8 +89,12 @@ object MetadataComponent {
   }
 
   private def customOrdering(event: MetadataEvent): Option[Ordering[MetadataPrimitive]] = event match {
-    case MetadataEvent(MetadataKey(_, Some(_), key), _, _) if key == CallMetadataKeys.ExecutionStatus => Option(MetadataPrimitive.ExecutionStatusOrdering)
-    case MetadataEvent(MetadataKey(_, None, key), _, _) if key == WorkflowMetadataKeys.Status => Option(MetadataPrimitive.WorkflowStateOrdering)
+    case MetadataEvent(MetadataKey(_, Some(_), key), _, _)
+      if key == CallMetadataKeys.ExecutionStatus => Option(MetadataPrimitive.ExecutionStatusOrdering)
+    case MetadataEvent(MetadataKey(_, _, key), _, _)
+      if key == CallMetadataKeys.Start || key == CallMetadataKeys.End => Option(MetadataPrimitive.TimestampOrdering)
+    case MetadataEvent(MetadataKey(_, None, key), _, _)
+      if key == WorkflowMetadataKeys.Status => Option(MetadataPrimitive.WorkflowStateOrdering)
     case _ => None
   }
 
@@ -151,6 +156,10 @@ object MetadataPrimitive {
   val WorkflowStateOrdering: Ordering[MetadataPrimitive] = Ordering.by { primitive: MetadataPrimitive =>
     WorkflowState.withName(primitive.v.value)
   }
+
+  val TimestampOrdering: Ordering[MetadataPrimitive] = Ordering.by { primitive: MetadataPrimitive =>
+    Instant.parse(primitive.v.value)
+  }.reverse
 }
 case class MetadataPrimitive(v: MetadataValue, customOrdering: Option[Ordering[MetadataPrimitive]] = None) extends MetadataComponent
 

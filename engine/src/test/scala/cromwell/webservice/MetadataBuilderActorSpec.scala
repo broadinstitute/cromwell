@@ -231,13 +231,16 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
   it should "use reverse date ordering (oldest first) for event start and stop values" in {
     val eventBuilderList = List(
       ("start", "1990-12-20T12:30:00.000Z", OffsetDateTime.now),
-      ("start", "1990-12-20T12:30:01.000Z", OffsetDateTime.now.plusSeconds(1))
+      ("start", "1990-12-20T12:30:01.000Z", OffsetDateTime.now.plusSeconds(1)),
+      ("end", "2018-06-02T12:30:00.000Z", OffsetDateTime.now.plusSeconds(2)),
+      ("end", "2018-06-02T12:30:01.000Z", OffsetDateTime.now.plusSeconds(3)),
     )
     val workflowId = WorkflowId.randomId()
     val expectedRes =
       s""""calls": {
          |    "fqn": [{
          |      "attempt": 1,
+         |      "end": "2018-06-02T12:30:00.000Z",
          |      "start": "1990-12-20T12:30:00.000Z",
          |      "shardIndex": -1
          |    }]

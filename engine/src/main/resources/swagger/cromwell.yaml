@@ -729,8 +729,6 @@ paths:
             `page_size` items are returned that all items have been returned. 
             The availability of additional pages is indicated by the value of
             `next_page_token` in the response.
-          style: form
-          explode: true
           type: integer
           format: int64
         - name: page_token
@@ -738,8 +736,6 @@ paths:
           description: >-
             OPTIONAL Token to use to indicate where to start getting results. If
             unspecified, return the first page of results.
-          style: form
-          explode: true
           type: string
       responses:
         '200':

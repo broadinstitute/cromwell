@@ -1,8 +1,6 @@
 package cromwell.webservice.routes.wes
 
-// import java.net.URL
 import akka.actor.ActorRef
-// import akka.event.LoggingAdapter
 import akka.http.scaladsl.model.{HttpHeader, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
@@ -16,14 +14,7 @@ import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 trait WesRunRoutes {
-  // implicit def system: ActorSystem
   implicit def materializer: ActorMaterializer
-
-  // val log: LoggingAdapter
-
-//  def cromwellUrl: URL
-//  def cromwellApiVersion: String
-//  def cromwellPath: URL = new URL(cromwellUrl.toString + s"/api/workflows/$cromwellApiVersion")
 
   implicit val timeout: Timeout
 

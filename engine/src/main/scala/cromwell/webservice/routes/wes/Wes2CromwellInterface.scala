@@ -1,8 +1,7 @@
 package cromwell.webservice.routes.wes
 
-import akka.actor.{ActorRef} // ActorSystem
-import akka.http.scaladsl.model.{HttpHeader, StatusCodes}
-// import akka.stream.ActorMaterializer
+import akka.actor.{ActorRef}
+import akka.http.scaladsl.model.{HttpHeader}
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import net.ceedubs.ficus.Ficus._
@@ -30,10 +29,3 @@ final class Wes2CromwellInterface()(implicit ec: ExecutionContext) {
   }
 }
 
-object Wes2CromwellInterface {
-  val BadRequestError = WesErrorResponse("The request is malformed", StatusCodes.BadRequest.intValue)
-  val InternalServerError = WesErrorResponse("Cromwell server error", StatusCodes.InternalServerError.intValue)
-  val UnauthorizedError = WesErrorResponse("The request is unauthorized", StatusCodes.Unauthorized.intValue)
-  val ForbiddenError = WesErrorResponse("The requester is not authorized to perform this action", StatusCodes.Forbidden.intValue)
-  val NotFoundError = WesErrorResponse("The requested workflow run wasn't found", StatusCodes.NotFound.intValue)
-}

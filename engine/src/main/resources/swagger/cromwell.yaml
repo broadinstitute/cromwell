@@ -709,7 +709,7 @@ paths:
     get:
       tags:
         - GA4GH Workflow Execution Service (WES) - Alpha preview
-      summary: ListRuns
+      summary: List runs
       description: >-
         This list should be provided in a stable ordering. (The actual ordering
         is implementation dependent.) When paging through the list, the client
@@ -731,9 +731,8 @@ paths:
             `next_page_token` in the response.
           style: form
           explode: true
-          schema:
-            type: integer
-            format: int64
+          type: integer
+          format: int64
         - name: page_token
           in: query
           description: >-
@@ -741,8 +740,7 @@ paths:
             unspecified, return the first page of results.
           style: form
           explode: true
-          schema:
-            type: string
+          type: string
       responses:
         '200':
           description: Successful Request
@@ -750,20 +748,16 @@ paths:
             $ref: '#/definitions/RunListResponse'
         '400':
           description: The request is malformed.
-          schema:
-            $ref: '#/responses/BadRequest'
+          $ref: '#/responses/BadRequest'
         '401':
           description: The request is unauthorized.
-          schema:
-            $ref: '#/responses/InvalidSubmission'
+          $ref: '#/responses/InvalidSubmission'
         '403':
           description: The requester is not authorized to perform this action.
-          schema:
-            $ref: '#/responses/Forbidden'
+          $ref: '#/responses/Forbidden'
         '500':
           description: An unexpected error occurred.
-          schema:
-            $ref: '#/responses/ServerError'
+          $ref: '#/responses/ServerError'
   '/api/ga4gh/wes/v1/runs/{run_id}/cancel':
     post:
       tags:

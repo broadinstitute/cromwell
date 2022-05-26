@@ -13,7 +13,7 @@ object RunListResponse {
       case w: WorkflowQuerySuccess =>
         val runs = w.response.results.toList.map(x => WesRunStatus(x.id, fromStatusString(x.status)))
         RunListResponse(runs, "Not Yet Implemented")
-      case _: WorkflowQueryFailure => ???
+      case _: WorkflowQueryFailure => ??? // FIXME: What do we return when we fail to get a Workflow Query?
     }
   }
 }

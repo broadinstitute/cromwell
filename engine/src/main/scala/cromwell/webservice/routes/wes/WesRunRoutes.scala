@@ -23,8 +23,6 @@ trait WesRunRoutes {
   lazy val wes2CromwellInterface = new Wes2CromwellInterface()
 
   lazy val runRoutes: Route =
-    optionalHeaderValue(extractAuthorizationHeader) { authHeader =>
-      val cromwellRequestHeaders = authHeader.toList
       pathPrefix("ga4gh" / "wes" / "v1") {
         concat(
           pathPrefix("runs") {
@@ -33,16 +31,16 @@ trait WesRunRoutes {
                 concat(
                   get {
                     parameters(("page_size".as[Int].?, "page_token".?)) { (pageSize, pageToken) =>
-                      completeCromwellResponse(wes2CromwellInterface.listRuns(pageSize, pageToken, cromwellRequestHeaders, serviceRegistryActor))
+                      completeCromwellResponse(wes2CromwellInterface.listRuns(pageSize, pageToken, serviceRegistryActor))
                     }
                   }
+
                 )
               }
             )
           }
         )
       }
-    }
 }
 
 object WesRunRoutes {

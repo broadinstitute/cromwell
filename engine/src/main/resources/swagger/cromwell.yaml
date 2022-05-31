@@ -711,11 +711,10 @@ paths:
         - GA4GH Workflow Execution Service (WES) - Alpha preview
       summary: List runs
       description: >-
-        This list should be provided in a stable ordering. (Runs are listed from newest
-        to oldest.) When paging through the list, the client
+        Runs are listed from newest to oldest. When paging through the list, the client
         should not make assumptions about live updates, but should assume the
         contents of the list reflect the workflow list at the moment that the
-        first page is requested.  To monitor a specific workflow run, use
+        first page is requested. To monitor a specific workflow run, use
         GetRunStatus or GetRunLog.
       operationId: ListRuns
       parameters:

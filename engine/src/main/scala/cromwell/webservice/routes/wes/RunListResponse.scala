@@ -14,21 +14,18 @@ import scala.None
 case class RunListResponse(runs: List[WesRunStatus], next_page_token: String)
 
 object RunListResponse {
-  def fromMetadataQueryResponse(response: Option[MetadataService.MetadataQueryResponse]): ErrorOr[RunListResponse] = {
-    val status_code = StatusCodes.BadRequest.intValue
+  def fromMetadataQueryResponse(response: Option[MetadataService.MetadataQueryResponse]): WesResponse = {
     response match {
       case Some(w: WorkflowQuerySuccess) =>
         val runs = w.response.results.toList.map(x => WesRunStatus(x.id, fromStatusString(x.status)))
-        RunListResponse(runs, "Not Yet Implemented").validNel
-      case Some(w: WorkflowQueryFailure) =>
-        val runs = w.reason.errorRequest(StatusCodes.BadRequest)
-        RunListResponse(runs, "Not Yet Implemented").validNel
-      case None => ().invalidNel
+        WesResponseRunList(runs)
+      case Some(_: WorkflowQueryFailure) => WesErrorResponse("Unable to fetch metadata query", StatusCodes.BadRequest.intValue)
+      case None => WesErrorResponse("Unable to fetch metadata query", StatusCodes.NotFound.intValue)
     }
   }
 }
 
-(x => WesErrorResponse("Failed to fetch query.", StatusCodes.BadRequest.intValue))
+// (x => WesErrorResponse("Failed to fetch query.", StatusCodes.BadRequest.intValue))
 
 //case w: WorkflowQuerySuccess =>
 //  val runs = w.response.results.toList.map(x => WesRunStatus(x.id, fromStatusString(x.status)))

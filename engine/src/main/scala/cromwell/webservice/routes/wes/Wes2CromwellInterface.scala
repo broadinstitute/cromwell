@@ -23,6 +23,10 @@ final class Wes2CromwellInterface()(implicit ec: ExecutionContext) {
     val metadataResponse: Option[Future[MetadataService.MetadataQueryResponse]] = Option.apply(metadataQueryRequest(Seq.empty[(String, String)], serviceRegistryActor))
     WesResponseRunList(RunListResponse.fromMetadataQueryResponse(metadataResponse).runs)
 
+    metadataResponse.flatMap({
+      x => WesResponseRunList(RunListResponse.fromMetadataQueryResponse())
+    })
+
     metadataResponse.map {
       x: MetadataService.MetadataQueryResponse => WesResponseRunList(RunListResponse.fromMetadataQueryResponse(x).runs)
 

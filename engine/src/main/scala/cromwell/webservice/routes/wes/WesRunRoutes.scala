@@ -8,6 +8,8 @@ import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.util.Timeout
 import WesRunRoutes._
 import akka.stream.ActorMaterializer
+import com.typesafe.config.ConfigFactory
+import cromwell.webservice.routes.MetadataRouteSupport.metadataQueryRequest
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -20,8 +22,6 @@ trait WesRunRoutes {
 
   val serviceRegistryActor: ActorRef
 
-  lazy val wes2CromwellInterface = new Wes2CromwellInterface()
-
   lazy val runRoutes: Route =
       pathPrefix("ga4gh" / "wes" / "v1") {
         concat(
@@ -31,7 +31,7 @@ trait WesRunRoutes {
                 concat(
                   get {
                     parameters(("page_size".as[Int].?, "page_token".?)) { (pageSize, pageToken) =>
-                      completeCromwellResponse(wes2CromwellInterface.listRuns(pageSize, pageToken, serviceRegistryActor))
+                      completeCromwellResponse(listRuns(pageSize, pageToken, serviceRegistryActor))
                     }
                   }
 
@@ -44,6 +44,14 @@ trait WesRunRoutes {
 }
 
 object WesRunRoutes {
+
+  import akka.util.Timeout
+  import scala.concurrent.duration.FiniteDuration
+  import net.ceedubs.ficus.Ficus._
+
+  implicit lazy val duration: FiniteDuration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
+  implicit lazy val timeout: Timeout = duration
+
   def extractAuthorizationHeader: HttpHeader => Option[HttpHeader] = {
     case h: HttpHeader if h.name() == "Authorization" => Option(h)
     case _ => None
@@ -59,6 +67,12 @@ object WesRunRoutes {
       case Success(response: WesResponse) => complete(response)
       case Failure(e) => complete(WesErrorResponse(e.getMessage, StatusCodes.InternalServerError.intValue))
     }
+  }
+
+  def listRuns(pageSize: Option[Int], pageToken: Option[String], serviceRegistryActor: ActorRef): Future[WesResponse] = {
+    // FIXME: to handle - page_size, page_token
+    // FIXME: How to handle next_page_token in response?
+    metadataQueryRequest(Seq.empty[(String, String)], serviceRegistryActor).map(RunListResponse.fromMetadataQueryResponse)
   }
 
 }

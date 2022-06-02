@@ -413,6 +413,20 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.UseDockerImageCache).getOrElse(false)
   }
 
+  protected def localizationEgress(descriptor: BackendWorkflowDescriptor): String = {
+    val validEgressValues = List("global","continental","local")
+    val egressValue = descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.LocalizationEgress, "global")
+    if (validEgressValues.contains(egressValue)) {
+      egressValue
+    } else {
+      throw new IllegalArgumentException(s"Unsupported localizationEgress value: $egressValue")
+    }
+  }
+
+  protected def localizationEgressStrict(descriptor: BackendWorkflowDescriptor): Boolean = {
+    descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.LocalizationEgressStrict).getOrElse(false)
+  }
+
   override def isTerminal(runStatus: RunStatus): Boolean = {
     runStatus match {
       case _: TerminalRunStatus => true
@@ -514,7 +528,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           checkpointingConfiguration,
           enableSshAccess = enableSshAccess,
           vpcNetworkAndSubnetworkProjectLabels = data.vpcNetworkAndSubnetworkProjectLabels,
-          dockerImageCacheDiskOpt = isDockerImageCacheUsageRequested.option(dockerImageCacheDiskOpt).flatten
+          dockerImageCacheDiskOpt = isDockerImageCacheUsageRequested.option(dockerImageCacheDiskOpt).flatten,
+          localizationEgress = localizationEgress(jobDescriptor.workflowDescriptor),
+          localizationEgressStrict = localizationEgressStrict(jobDescriptor.workflowDescriptor)
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")
@@ -543,6 +559,11 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   }
 
   protected def uploadGcsTransferLibrary(createPipelineParameters: CreatePipelineParameters, cloudPath: Path, gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = Future.successful(())
+
+  protected def uploadGcsEgressCheckScript(createPipelineParameters: CreatePipelineParameters,
+                                           cloudPath: Path,
+                                           transferLibraryContainerPath: Path,
+                                           gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = Future.successful(())
 
   protected def uploadGcsLocalizationScript(createPipelineParameters: CreatePipelineParameters,
                                             cloudPath: Path,
@@ -646,6 +667,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       gcsLocalizationScriptCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsLocalizationScriptName
       referenceInputsToMountedPathsOpt = getReferenceInputsToMountedPathsOpt(createParameters)
       _ <- uploadGcsLocalizationScript(createParameters, gcsLocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration, referenceInputsToMountedPathsOpt)
+      gcsEgressCheckScriptCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsEgressCheckScriptName
+      _ <- uploadGcsEgressCheckScript(createParameters, gcsEgressCheckScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration)
       gcsDelocalizationScriptCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsDelocalizationScriptName
       _ <- uploadGcsDelocalizationScript(createParameters, gcsDelocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration)
       _ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined

@@ -13,6 +13,7 @@ object PipelinesApiJobPaths {
   val GcsTransferLibraryName = "gcs_transfer.sh"
   val GcsLocalizationScriptName = "gcs_localization.sh"
   val GcsDelocalizationScriptName = "gcs_delocalization.sh"
+  val GcsEgressCheckScriptName = "gcs_egress_check.sh"
 }
 
 // Non-`final` as this is mocked for testing since using a real instance proved too difficult.

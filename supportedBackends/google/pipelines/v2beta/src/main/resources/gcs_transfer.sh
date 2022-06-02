@@ -373,3 +373,97 @@ localize_singleton_file() {
   # As a side effect of determining requester pays this one file will be localized.
   private::determine_requester_pays ${max_attempts}
 }
+
+
+egress_check() {
+  local localization_egress_value="$1"
+  local localization_egress_strict="$2"
+  local project="$3"
+  local max_attempts="$4"
+  shift 4
+
+  if [[ "${localization_egress_value}" == "global" ]]; then
+    echo "localization_egress_value=${localization_egress_value}. Egress check will be skipped."
+    exit 0
+  fi
+
+  declare -A multi_regions=(
+    [asia]=1 [eu]=1 [us]=1
+  )
+  declare -A dual_regions=(
+    [asia1]=1 [eur4]=1 [nam4]=1
+  )
+
+  declare -A buckets
+  while [[ $# -gt 0 ]]; do
+    cloud_file="$1"
+    bucket_name="$(echo "${cloud_file}" | cut -d "/" -f3)"
+    buckets["${bucket_name}"]=1
+    shift
+  done
+
+  for bucket_name in "${!buckets[@]}"; do
+
+    if ! gsutil ls -L -b "gs://${bucket_name}" > /dev/null 2>&1; then
+      echo "No access to ${bucket_name} (or it does not exist)."
+      echo "No egress check can be done, so skipping."
+      continue
+    fi
+
+    # bucket_location will be either a region (e.g. us-central1), dual-region (e.g. nam4), or a multi-region (e.g. US)
+    # We may have access to the object, but not the bucket metadata. So we may not be able to get bucket location
+    # In this case, Cromwell should determine (based on a flag) whether to proceed or hard-fail.
+    bucket_location="$(gsutil ls -L -b "gs://${bucket_name}" | grep "Location constraint" | awk '{print tolower($3)}')"
+
+    curl_output="$(curl "http://metadata.google.internal/computeMetadata/v1/instance/zone" -H "Metadata-Flavor: Google")"
+    vm_location_zone="$(basename ${curl_output})"
+    # vm_location_zone is something like us-central1-a. Get its region by removing everything after and including the last hyphen 
+    vm_location="${vm_location_zone%-*}"
+    
+    if [[ -v multi_regions[$bucket_location] ]]; then
+      # Bucket is a multi-region bucket. Exit if the vm is in a different continent.
+      vm_continent=$(echo "${vm_location}" | cut -d- -f1)
+      if [[ "${bucket_location}" == "asia" ]] && [[ "${vm_continent}" != "asia" ]]; then
+        echo "Multi-region bucket ${bucket_name} in ${bucket_location}. VM in ${vm_location}. Egress will occur. Exiting due to option localization_egress_value=${localization_egress_value}"
+        exit 1
+      elif [[ "${bucket_location}" == "eu" ]] && [[ "${vm_continent}" != "europe" ]]; then
+        echo "Multi-region bucket ${bucket_name} in ${bucket_location}. VM in ${vm_location}. Egress will occur. Exiting due to option localization_egress_value=${localization_egress_value}"
+        exit 1
+      elif [[ "${bucket_location}" == "us" ]] && [[ "${vm_continent}" != "us" ]]; then
+        echo "Multi-region bucket ${bucket_name} in ${bucket_location}. VM in ${vm_location}. Egress will occur. Exiting due to option localization_egress_value=${localization_egress_value}"
+        exit 1
+      else
+        echo "Multi-region bucket ${bucket_name} in ${bucket_location}. VM in ${vm_location}. No egress will occur."
+      fi
+    elif [[ -v dual_regions[$bucket_location] ]]; then
+      # Bucket is a dual-region bucket. Exit if the vm is not one of the two regions.
+      if [[ "${bucket_location}" == "asia1" ]]; then
+        if [[ "${vm_location}" != "asia-northeast1" ]] || [[ "${vm_location}" != "asia-northeast2" ]]; then
+          echo "Multi-region bucket ${bucket_name} in ${bucket_location}. VM in ${vm_location}. Egress will occur. Exiting due to option localization_egress_value=${localization_egress_value}."
+          exit 1
+        fi
+      elif [[ "${bucket_location}" == "eur4" ]]; then
+        if [[ "${vm_location}" != "europe-north1" ]] || [[ "${vm_location}" != "europe-west4" ]]; then
+          echo "Multi-region bucket ${bucket_name} in ${bucket_location}. VM in ${vm_location}. Egress will occur. Exiting due to option localization_egress_value=${localization_egress_value}."
+          exit 1
+        fi
+      elif [[ "${bucket_location}" == "nam4" ]]; then
+        if [[ "${vm_location}" != "us-central1" ]] || [[ "${vm_location}" != "us-east1" ]]; then
+          echo "Multi-region bucket ${bucket_name} in ${bucket_location}. VM in ${vm_location}. Egress will occur. Exiting due to option localization_egress_value=${localization_egress_value}."
+          exit 1
+        fi
+      else
+        echo "Dual-region bucket ${bucket_name} in ${bucket_location}. VM in ${vm_location}. No egress will occur."
+      fi
+    else
+      # Bucket is a regional bucket. Exit if the vm is in a different region.
+      if [[ "${bucket_location}" != "${vm_location}" ]]; then
+        echo "Bucket ${bucket_name} in ${bucket_location} is in a different region from VM in ${vm_location}. Exiting due to option localization_egress_value=${localization_egress_value}.."
+        exit 1
+      else
+        echo "Regional bucket ${bucket_name} in ${bucket_location}. VM in ${vm_location}. No egress will occur."
+      fi
+    fi
+  done
+
+}

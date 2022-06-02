@@ -20,17 +20,7 @@ final class Wes2CromwellInterface()(implicit ec: ExecutionContext) {
   def listRuns(pageSize: Option[Int], pageToken: Option[String], serviceRegistryActor: ActorRef): Future[WesResponse] = {
     // FIXME: to handle - page_size, page_token
     // FIXME: How to handle next_page_token in response?
-    val metadataResponse: Option[Future[MetadataService.MetadataQueryResponse]] = Option.apply(metadataQueryRequest(Seq.empty[(String, String)], serviceRegistryActor))
-    WesResponseRunList(RunListResponse.fromMetadataQueryResponse(metadataResponse).runs)
-
-    metadataResponse.flatMap({
-      x => WesResponseRunList(RunListResponse.fromMetadataQueryResponse())
-    })
-
-    metadataResponse.map {
-      x: MetadataService.MetadataQueryResponse => WesResponseRunList(RunListResponse.fromMetadataQueryResponse(x).runs)
-
-    }
+    metadataQueryRequest(Seq.empty[(String, String)], serviceRegistryActor).map(RunListResponse.fromMetadataQueryResponse)
   }
 }
 

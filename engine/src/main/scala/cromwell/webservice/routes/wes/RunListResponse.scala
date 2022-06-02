@@ -20,7 +20,7 @@ object RunListResponse {
         val runs = w.response.results.toList.map(x => WesRunStatus(x.id, fromStatusString(x.status)))
         WesResponseRunList(runs)
       case Some(_: WorkflowQueryFailure) => WesErrorResponse("Unable to fetch metadata query", StatusCodes.BadRequest.intValue)
-      case None => WesErrorResponse("Unable to fetch metadata query", StatusCodes.NotFound.intValue)
+      case None => WesErrorResponse("The requested workflow run wasn't found", StatusCodes.NotFound.intValue)
     }
   }
 }

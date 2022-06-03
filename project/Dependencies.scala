@@ -713,7 +713,8 @@ object Dependencies {
 
 
   private val nimbusdsOverrides = List(
-    "com.nimbusds" % "nimbus-jose-jwt" % "9.23"
+    "com.nimbusds" % "nimbus-jose-jwt" % "9.23",
+  )
 
   private val bouncyCastleOverrides = List(
     "org.bouncycastle" % "bcprov-jdk15on" % "1.70",

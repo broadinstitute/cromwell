@@ -2,13 +2,13 @@
 
 ## 80 Release Notes
 
-### No Longer Supporting wes2cromwell
+### Direct WES support in Cromwell
 
 Cromwell 80 will no longer support the wes2cromwell project within the Cromwell repository.
 
 In the previous release, 3 Wes2Cromwell endpoints in the Cromwell project were implemented and documented in the Swagger API. Three new endpoints,
-located within the Wes2Cromwell project, will be moved, implemented, and documented in the Cromwell project and Wes2Cromwell
-will be deprecated.
+located within the wes2cromwell project, will also be moved, implemented, and documented within Cromwell. As a result of this, we can safely remove 
+and deprecate the wes2cromwell project from the repo.
 
 ## 79 Release Notes
 

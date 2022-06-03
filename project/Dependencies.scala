@@ -703,6 +703,10 @@ object Dependencies {
     "org.asynchttpclient" % "async-http-client" % "2.10.5",
   )
 
+  private val bouncyCastleOverrides = List(
+    "org.bouncycastle" % "bcprov-jdk15on" % "1.70",
+  )
+
   /*
   If we use a version in one of our projects, that's the one we want all the libraries to use
   ...plus other groups of transitive dependencies shared across multiple projects
@@ -714,5 +718,6 @@ object Dependencies {
       rdf4jDependencyOverrides ++
       grpcDependencyOverrides ++
       scalaCollectionCompatOverrides ++
-      asyncHttpClientOverrides
+      asyncHttpClientOverrides ++
+      bouncyCastleOverrides
 }

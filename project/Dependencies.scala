@@ -711,8 +711,12 @@ object Dependencies {
     "org.asynchttpclient" % "async-http-client" % "2.10.5",
   )
 
+
   private val nimbusdsOverrides = List(
     "com.nimbusds" % "nimbus-jose-jwt" % "9.23"
+
+  private val bouncyCastleOverrides = List(
+    "org.bouncycastle" % "bcprov-jdk15on" % "1.70",
   )
 
   /*
@@ -727,5 +731,6 @@ object Dependencies {
       grpcDependencyOverrides ++
       scalaCollectionCompatOverrides ++
       asyncHttpClientOverrides ++
-      nimbusdsOverrides
+      nimbusdsOverrides ++
+      bouncyCastleOverrides
 }

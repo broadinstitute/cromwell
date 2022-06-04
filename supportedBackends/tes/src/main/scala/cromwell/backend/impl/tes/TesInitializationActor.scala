@@ -89,7 +89,7 @@ class TesInitializationActor(params: TesInitializationActorParams)
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     workflowPaths map { paths =>
       publishWorkflowRoot(paths.workflowRoot.toString)
-      paths.workflowRoot.createPermissionedDirectories()
+      //paths.workflowRoot.createPermissionedDirectories()
       Option(TesBackendInitializationData(paths, runtimeAttributesBuilder, tesConfiguration))
     }
   }

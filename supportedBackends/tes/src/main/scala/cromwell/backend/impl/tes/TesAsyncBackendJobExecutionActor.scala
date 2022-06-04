@@ -12,6 +12,7 @@ import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
+import cromwell.filesystems.s3.S3Path
 import cromwell.backend.BackendJobLifecycleActor
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
@@ -102,12 +103,18 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     )
   }
 
+  def fixRelativePath(path: S3Path): String = {
+    val out = tesJobPaths.callInputsRoot.resolve(path.pathAsString).pathAsString
+    return out
+  }
+
   override def mapCommandLineJobInputWomFile(womFile: WomFile): WomFile = {
     womFile.mapFile(value =>
       getPath(value) match {
         case Success(drsPath: DrsPath) =>
           val filepath = DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()
           tesJobPaths.containerExec(commandDirectory, filepath)
+        case Success(path: S3Path) => fixRelativePath(path)
         case Success(path: Path) if path.startsWith(tesJobPaths.workflowPaths.DockerRoot) =>
           path.pathAsString
         case Success(path: Path) if path.equals(tesJobPaths.callExecutionRoot) =>
@@ -157,7 +164,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       outputs = Option(task.outputs),
       resources = Option(task.resources),
       executors = task.executors,
-      volumes = None,
+      volumes = Option(Seq(tesJobPaths.callDockerRoot.toString())),
       tags = None,
       logs = None
     ))
@@ -173,7 +180,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override def executeAsync(): Future[ExecutionHandle] = {
 
     // create call exec dir
-    tesJobPaths.callExecutionRoot.createPermissionedDirectories()
+    //tesJobPaths.callExecutionRoot.createPermissionedDirectories()
     val taskMessageFuture = createTaskMessage().fold(
       errors => Future.failed(new RuntimeException(errors.toList.mkString(", "))),
       Future.successful)

@@ -5,9 +5,7 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
-import akka.util.Timeout
 import WesRunRoutes._
-import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 
 import cromwell.webservice.routes.MetadataRouteSupport.metadataQueryRequest

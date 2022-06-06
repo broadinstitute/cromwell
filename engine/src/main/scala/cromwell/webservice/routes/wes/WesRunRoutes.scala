@@ -18,31 +18,21 @@ import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 trait WesRunRoutes {
-  implicit def materializer: ActorMaterializer
-
-  implicit val timeout: Timeout
 
   val serviceRegistryActor: ActorRef
 
   lazy val runRoutes: Route =
-      pathPrefix("ga4gh" / "wes" / "v1") {
-        concat(
-          pathPrefix("runs") {
-            concat(
-              pathEnd {
-                concat(
-                  get {
-                    parameters(("page_size".as[Int].?, "page_token".?)) { (pageSize, pageToken) =>
-                      completeCromwellResponse(listRuns(pageSize, pageToken, serviceRegistryActor))
-                    }
-                  }
-
-                )
-              }
-            )
+    pathPrefix("ga4gh" / "wes" / "v1") {
+      pathPrefix("runs") {
+        pathEnd {
+          get {
+            parameters(("page_size".as[Int].?, "page_token".?)) { (pageSize, pageToken) =>
+              completeCromwellResponse(wes2CromwellInterface.listRuns(pageSize, pageToken, cromwellRequestHeaders, serviceRegistryActor))
+            }
           }
-        )
+        }
       }
+    }
 }
 
 object WesRunRoutes {

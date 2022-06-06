@@ -16,9 +16,6 @@ import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 trait WesRunRoutes {
-  implicit def materializer: ActorMaterializer
-
-  implicit val timeout: Timeout
 
   val serviceRegistryActor: ActorRef
 

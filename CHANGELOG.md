@@ -10,6 +10,22 @@ In the previous release, 3 Wes2Cromwell endpoints in the Cromwell project were i
 located within the wes2cromwell project, will also be moved, implemented, and documented within Cromwell. As a result of this, we can safely remove 
 and deprecate the wes2cromwell project from the repo.
 
+Previous endpoints:
+
+| HTTP verb | Endpoint path | Description   |
+| --------- | ------------- |---------------|
+| GET | /api/ga4gh/wes/v1/service-info | Server info |
+| POST | /api/ga4gh/wes/v1/runs/{run_id}/cancel | Abort workflow |
+| GET | /api/ga4gh/wes/v1/runs/{run_id}/status | Workflow status |
+
+Newly implemented endpoints:
+
+| HTTP verb | Endpoint path | Description     |
+| --------- | ------------- |-----------------|
+| GET | /api/ga4gh/wes/v1/runs | List workflows  |
+| POST | /api/ga4gh/wes/v1/runs | Submit workflow |
+| GET | /api/ga4gh/wes/v1/runs/{run_id} | Workflow details |
+
 ## 79 Release Notes
 
 ### Last release with CWL support

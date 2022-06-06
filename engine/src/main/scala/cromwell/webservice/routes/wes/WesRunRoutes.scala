@@ -1,7 +1,7 @@
 package cromwell.webservice.routes.wes
 
 import akka.actor.ActorRef
-import akka.http.scaladsl.model.{HttpHeader, StatusCodes}
+import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
@@ -9,8 +9,7 @@ import akka.util.Timeout
 import WesRunRoutes._
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
-import cromwell.services.metadata.MetadataService.QueryMetadata
-import cromwell.services.metadata.WorkflowQueryParameters
+
 import cromwell.webservice.routes.MetadataRouteSupport.metadataQueryRequest
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -22,17 +21,24 @@ trait WesRunRoutes {
   val serviceRegistryActor: ActorRef
 
   lazy val runRoutes: Route =
-    pathPrefix("ga4gh" / "wes" / "v1") {
-      pathPrefix("runs") {
-        pathEnd {
-          get {
-            parameters(("page_size".as[Int].?, "page_token".?)) { (pageSize, pageToken) =>
-              completeCromwellResponse(wes2CromwellInterface.listRuns(pageSize, pageToken, cromwellRequestHeaders, serviceRegistryActor))
-            }
+      pathPrefix("ga4gh" / "wes" / "v1") {
+        concat(
+          pathPrefix("runs") {
+            concat(
+              pathEnd {
+                concat(
+                  get {
+                    parameters(("page_size".as[Int].?, "page_token".?)) { (pageSize, pageToken) =>
+                      completeCromwellResponse(listRuns(pageSize, pageToken, serviceRegistryActor))
+                    }
+                  }
+
+                )
+              }
+            )
           }
-        }
+        )
       }
-    }
 }
 
 object WesRunRoutes {
@@ -56,12 +62,10 @@ object WesRunRoutes {
     }
   }
 
-  def listRuns(pageSize: Option[Int], pageToken: Option[Int], serviceRegistryActor: ActorRef): Future[WesResponse] = {
+  def listRuns(pageSize: Option[Int], pageToken: Option[String], serviceRegistryActor: ActorRef): Future[WesResponse] = {
     // FIXME: to handle - page_size, page_token
     // FIXME: How to handle next_page_token in response?
     metadataQueryRequest(Seq.empty[(String, String)], serviceRegistryActor).map(RunListResponse.fromMetadataQueryResponse)
     }
-  }
-
 }
 

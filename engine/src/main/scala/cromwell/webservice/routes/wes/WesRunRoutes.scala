@@ -59,4 +59,3 @@ def listRuns(pageSize: Option[Int], pageToken: Option[String], serviceRegistryAc
   metadataQueryRequest(Seq.empty[(String, String)], serviceRegistryActor).map(RunListResponse.fromMetadataQueryResponse)
   }
 }
-

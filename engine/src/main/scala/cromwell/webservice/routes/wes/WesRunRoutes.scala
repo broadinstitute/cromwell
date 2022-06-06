@@ -20,7 +20,6 @@ trait WesRunRoutes {
 
   lazy val runRoutes: Route =
     pathPrefix("ga4gh" / "wes" / "v1") {
-      concat(
         pathPrefix("runs") {
           pathEnd {
             get {
@@ -30,7 +29,6 @@ trait WesRunRoutes {
             }
           }
         }
-      )
     }
 }
 

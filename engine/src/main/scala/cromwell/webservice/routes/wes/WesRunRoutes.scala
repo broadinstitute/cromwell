@@ -9,6 +9,8 @@ import akka.util.Timeout
 import WesRunRoutes._
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
+import cromwell.services.metadata.MetadataService.QueryMetadata
+import cromwell.services.metadata.WorkflowQueryParameters
 import cromwell.webservice.routes.MetadataRouteSupport.metadataQueryRequest
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -52,11 +54,6 @@ object WesRunRoutes {
   implicit lazy val duration: FiniteDuration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
   implicit lazy val timeout: Timeout = duration
 
-  def extractAuthorizationHeader: HttpHeader => Option[HttpHeader] = {
-    case h: HttpHeader if h.name() == "Authorization" => Option(h)
-    case _ => None
-  }
-
   def completeCromwellResponse(future: => Future[WesResponse]): Route = {
 
     import WesResponseJsonSupport.WesResponseErrorFormat
@@ -69,10 +66,11 @@ object WesRunRoutes {
     }
   }
 
-  def listRuns(pageSize: Option[Int], pageToken: Option[String], serviceRegistryActor: ActorRef): Future[WesResponse] = {
+  def listRuns(pageSize: Option[Int], pageToken: Option[Int], serviceRegistryActor: ActorRef): Future[WesResponse] = {
     // FIXME: to handle - page_size, page_token
     // FIXME: How to handle next_page_token in response?
     metadataQueryRequest(Seq.empty[(String, String)], serviceRegistryActor).map(RunListResponse.fromMetadataQueryResponse)
+    }
   }
 
 }

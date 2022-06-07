@@ -7,8 +7,9 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import WesRunRoutes._
 import com.typesafe.config.ConfigFactory
-
-import cromwell.webservice.routes.MetadataRouteSupport.metadataQueryRequest
+import cromwell.core.WorkflowId
+import cromwell.services.metadata.MetadataService.BuildMetadataJsonAction
+import cromwell.webservice.routes.MetadataRouteSupport.{metadataBuilderActorRequest, metadataQueryRequest}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -20,15 +21,22 @@ trait WesRunRoutes {
 
   lazy val runRoutes: Route =
     pathPrefix("ga4gh" / "wes" / "v1") {
+      concat(
         pathPrefix("runs") {
-          pathEnd {
-            get {
-              parameters(("page_size".as[Int].?, "page_token".?)) { (pageSize, pageToken) =>
-                completeCromwellResponse(listRuns(pageSize, pageToken, serviceRegistryActor))
-              }
+          get {
+            parameters(("page_size".as[Int].?, "page_token".?)) { (pageSize, pageToken) =>
+              completeCromwellResponse(listRuns(pageSize, pageToken, serviceRegistryActor))
             }
           }
+          concat(
+            path(Segment) { workflowId =>
+              get {
+                completeCromwellResponse(runLog(workflowId))
+              }
+            }
+          )
         }
+      )
     }
 }
 
@@ -58,4 +66,11 @@ def listRuns(pageSize: Option[Int], pageToken: Option[String], serviceRegistryAc
   // FIXME: How to handle next_page_token in response?
   metadataQueryRequest(Seq.empty[(String, String)], serviceRegistryActor).map(RunListResponse.fromMetadataQueryResponse)
   }
+
+def runLog(workflowId: String, request: WorkflowId => BuildMetadataJsonAction, serviceRegistryActor: ActorRef): Future[WesResponse] = {
+  val metadataJsonResponse = metadataBuilderActorRequest(workflowId, request, serviceRegistryActor)
+
+   WesResponseWorkflowMetadata(WesRunLog.fromCromwellMetadata())
+}
+
 }

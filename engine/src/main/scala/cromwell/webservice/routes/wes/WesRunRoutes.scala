@@ -5,11 +5,11 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
-import WesRunRoutes._
+import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowId
-import cromwell.services.metadata.MetadataService.BuildMetadataJsonAction
-import cromwell.webservice.routes.MetadataRouteSupport.{metadataBuilderActorRequest, metadataQueryRequest}
+import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, GetSingleWorkflowMetadataAction}
+import cromwell.webservice.routes.MetadataRouteSupport.metadataQueryRequest
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -25,13 +25,20 @@ trait WesRunRoutes {
         pathPrefix("runs") {
           get {
             parameters(("page_size".as[Int].?, "page_token".?)) { (pageSize, pageToken) =>
-              completeCromwellResponse(listRuns(pageSize, pageToken, serviceRegistryActor))
+              WesRunRoutes.completeCromwellResponse(WesRunRoutes.listRuns(pageSize, pageToken, serviceRegistryActor))
             }
           }
           concat(
             path(Segment) { workflowId =>
               get {
-                completeCromwellResponse(runLog(workflowId))
+                parameters((Symbol("includeKey").*, Symbol("excludeKey").*, Symbol("expandSubWorkflows").as[Boolean].?)) { (includeKeys, excludeKeys, expandSubWorkflowsOption) =>
+                  val includeKeysOption = NonEmptyList.fromList(includeKeys.toList)
+                  val excludeKeysOption = NonEmptyList.fromList(excludeKeys.toList)
+                  val expandSubWorkflows = expandSubWorkflowsOption.getOrElse(false)
+                  WesRunRoutes.completeCromwellResponse(WesRunRoutes.runLog(workflowId,
+                    (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, includeKeysOption, excludeKeysOption, expandSubWorkflows),
+                    serviceRegistryActor))
+                }
               }
             }
           )
@@ -68,9 +75,27 @@ def listRuns(pageSize: Option[Int], pageToken: Option[String], serviceRegistryAc
   }
 
 def runLog(workflowId: String, request: WorkflowId => BuildMetadataJsonAction, serviceRegistryActor: ActorRef): Future[WesResponse] = {
-  val metadataJsonResponse = metadataBuilderActorRequest(workflowId, request, serviceRegistryActor)
 
-   WesResponseWorkflowMetadata(WesRunLog.fromCromwellMetadata())
+  // val metadataJsonResponse = metadataBuilderActorRequest(workflowId, request, serviceRegistryActor)
+
+//  metadataJsonResponse.map({
+//
+//  })
+//  def fromCromwellMetadata(response: Future[MetadataJsonResponse], workflowId: String): WesResponse = {
+//
+//    response match {
+//      case w: SuccessfulMetadataJsonResponse =>
+//        val runs = w.originalRequest.
+//
+//      case e: FailedMetadataJsonResponse =>
+//    }
+//  }
+//}
+//
+//
+//
+//  WesResponseWorkflowMetadata(WesRunLog.fromCromwellMetadata())
+  ???
 }
 
 }

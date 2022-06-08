@@ -8,8 +8,9 @@ import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowId
+import cromwell.services.SuccessfulMetadataJsonResponse
 import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, GetSingleWorkflowMetadataAction}
-import cromwell.webservice.routes.MetadataRouteSupport.metadataQueryRequest
+import cromwell.webservice.routes.MetadataRouteSupport.{metadataBuilderActorRequest, metadataQueryRequest}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -31,14 +32,8 @@ trait WesRunRoutes {
           concat(
             path(Segment) { workflowId =>
               get {
-                parameters((Symbol("includeKey").*, Symbol("excludeKey").*, Symbol("expandSubWorkflows").as[Boolean].?)) { (includeKeys, excludeKeys, expandSubWorkflowsOption) =>
-                  val includeKeysOption = NonEmptyList.fromList(includeKeys.toList)
-                  val excludeKeysOption = NonEmptyList.fromList(excludeKeys.toList)
-                  val expandSubWorkflows = expandSubWorkflowsOption.getOrElse(false)
-                  WesRunRoutes.completeCromwellResponse(WesRunRoutes.runLog(workflowId,
-                    (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, includeKeysOption, excludeKeysOption, expandSubWorkflows),
-                    serviceRegistryActor))
-                }
+                get {
+                  completeCromwellResponse(runLog(workflowId))
               }
             }
           )
@@ -76,26 +71,24 @@ def listRuns(pageSize: Option[Int], pageToken: Option[String], serviceRegistryAc
 
 def runLog(workflowId: String, request: WorkflowId => BuildMetadataJsonAction, serviceRegistryActor: ActorRef): Future[WesResponse] = {
 
-  // val metadataJsonResponse = metadataBuilderActorRequest(workflowId, request, serviceRegistryActor)
+   val metadataJsonResponse = metadataBuilderActorRequest(workflowId, request, serviceRegistryActor)
 
-//  metadataJsonResponse.map({
-//
-//  })
-//  def fromCromwellMetadata(response: Future[MetadataJsonResponse], workflowId: String): WesResponse = {
-//
-//    response match {
-//      case w: SuccessfulMetadataJsonResponse =>
-//        val runs = w.originalRequest.
-//
-//      case e: FailedMetadataJsonResponse =>
-//    }
-//  }
-//}
-//
-//
-//
-//  WesResponseWorkflowMetadata(WesRunLog.fromCromwellMetadata())
-  ???
+
+
+  def fromCromwellMetadata(response: Future[MetadataJsonResponse], workflowId: String): WesResponse = {
+
+    response match {
+      case w: SuccessfulMetadataJsonResponse =>
+        val runs = w.
+
+      case e: FailedMetadataJsonResponse =>
+    }
+  }
+}
+
+
+
+  WesResponseWorkflowMetadata(WesRunLog.fromCromwellMetadata())
 }
 
 }

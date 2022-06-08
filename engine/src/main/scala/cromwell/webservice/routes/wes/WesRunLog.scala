@@ -1,7 +1,7 @@
 package cromwell.webservice.routes.wes
 
 import cromwell.webservice.routes.wes.WesState.WesState
-import spray.json.JsObject
+import spray.json.{JsObject, JsonParser}
 
 
 final case class WesLog(name: Option[String],
@@ -38,34 +38,6 @@ final case class CromwellCallsMetadata(shardIndex: Option[Int],
                                        stderr: Option[String]
                                       )
 
-object CromwellMetadata {
-
-  def cromwellCallsMetadataEntryToLogEntry(taskName: String, callsMetadata: CromwellCallsMetadata): WesLog = {
-    val newTaskName = callsMetadata.shardIndex map {
-      case -1 => taskName
-      case notMinusOne => s"$taskName.$notMinusOne"
-    } getOrElse taskName
-
-    WesLog(
-      name = Option(newTaskName),
-      cmd = callsMetadata.commandLine.map(c => List(c)),
-      start_time = callsMetadata.start,
-      end_time = callsMetadata.end,
-      stdout = callsMetadata.stdout,
-      stderr = callsMetadata.stderr,
-      exit_code = callsMetadata.returnCode
-    )
-  }
-}
-
 object WesRunLog {
-//  def fromCromwellMetadata(response: Future[MetadataJsonResponse]): WesResponse = {
-//
-//    response match {
-//      case w: SuccessfulMetadataJsonResponse =>
-//        val runs = w.responseJson.results.toList.map(x => WesRunLog(x.run_id)
-//
-//      case e: FailedMetadataJsonResponse =>
-//    }
-//  }
+  def fromJson(json: String): WesRunLog = CromwellMetadata.fromJson(json).wesRunLog
 }

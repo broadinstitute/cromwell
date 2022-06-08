@@ -8,9 +8,10 @@ import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowId
-import cromwell.services.SuccessfulMetadataJsonResponse
+import cromwell.services.{FailedMetadataJsonResponse, MetadataJsonResponse, SuccessfulMetadataJsonResponse}
 import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, GetSingleWorkflowMetadataAction}
 import cromwell.webservice.routes.MetadataRouteSupport.{metadataBuilderActorRequest, metadataQueryRequest}
+import cromwell.webservice.routes.wes.CromwellMetadata.fromJson
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -75,20 +76,20 @@ def runLog(workflowId: String, request: WorkflowId => BuildMetadataJsonAction, s
 
 
 
-  def fromCromwellMetadata(response: Future[MetadataJsonResponse], workflowId: String): WesResponse = {
+  def fromCromwellMetadata(response: Future[MetadataJsonResponse]): WesRunLog = {
 
     response match {
       case w: SuccessfulMetadataJsonResponse =>
-        val runs = w.
+        val runs = w.responseJson.getFields().toString()
+        val runLog = fromJson(runs).wesRunLog
 
       case e: FailedMetadataJsonResponse =>
     }
   }
+
+  WesResponseWorkflowMetadata(fromCromwellMetadata(metadataJsonResponse))
 }
 
-
-
-  WesResponseWorkflowMetadata(WesRunLog.fromCromwellMetadata())
 }
 
 }

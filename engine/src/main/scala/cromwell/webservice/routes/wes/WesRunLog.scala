@@ -1,7 +1,7 @@
 package cromwell.webservice.routes.wes
 
 import cromwell.webservice.routes.wes.WesState.WesState
-import spray.json.{JsObject, JsonParser}
+import spray.json.JsObject
 
 
 final case class WesLog(name: Option[String],
@@ -28,15 +28,6 @@ final case class WesRunLog(run_id: String,
                            task_logs: Option[List[WesLog]],
                            outputs: Option[JsObject]
                           )
-
-final case class CromwellCallsMetadata(shardIndex: Option[Int],
-                                       commandLine: Option[String],
-                                       returnCode: Option[Int],
-                                       start: Option[String],
-                                       end: Option[String],
-                                       stdout: Option[String],
-                                       stderr: Option[String]
-                                      )
 
 object WesRunLog {
   def fromJson(json: String): WesRunLog = CromwellMetadata.fromJson(json).wesRunLog

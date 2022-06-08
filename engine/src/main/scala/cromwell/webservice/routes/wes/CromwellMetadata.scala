@@ -1,35 +1,23 @@
 package cromwell.webservice.routes.wes
 
-import WesState._
 import spray.json.{JsObject, JsonFormat, JsonParser}
 
-object CromwellMetadata {
-  import spray.json.DefaultJsonProtocol._
+final case class CromwellSubmittedFiles(workflow: Option[String],
+                                        workflowType: Option[String],
+                                        workflowTypeVersion: Option[String],
+                                        options: Option[String],
+                                        inputs: Option[String],
+                                        labels: Option[String]
+                                       )
 
-  implicit val cromwellMetadataFormat: JsonFormat[CromwellMetadata] = jsonFormat8(CromwellMetadata.apply)
-
-  def fromJson(json: String): CromwellMetadata = {
-    val jsonAst = JsonParser(json)
-    jsonAst.convertTo[CromwellMetadata]
-  }
-
-  def cromwellCallsMetadataEntryToLogEntry(taskName: String, callsMetadata: CromwellCallsMetadata): WesLog = {
-    val newTaskName = callsMetadata.shardIndex map {
-      case -1 => taskName
-      case notMinusOne => s"$taskName.$notMinusOne"
-    } getOrElse taskName
-
-    WesLog(
-      name = Option(newTaskName),
-      cmd = callsMetadata.commandLine.map(c => List(c)),
-      start_time = callsMetadata.start,
-      end_time = callsMetadata.end,
-      stdout = callsMetadata.stdout,
-      stderr = callsMetadata.stderr,
-      exit_code = callsMetadata.returnCode
-    )
-  }
-}
+final case class CromwellCallsMetadata(shardIndex: Option[Int],
+                                       commandLine: Option[String],
+                                       returnCode: Option[Int],
+                                       start: Option[String],
+                                       end: Option[String],
+                                       stdout: Option[String],
+                                       stderr: Option[String]
+                                      )
 
 final case class CromwellMetadata(workflowName: Option[String],
                                   id: String,
@@ -74,10 +62,40 @@ final case class CromwellMetadata(workflowName: Option[String],
     WesRunLog(
       run_id = id,
       request = workflowRequest,
-      state = WesState.fromCromwellStatus(status),
+      state = WesState.fromStatusString(Option(status)),
       run_log = Option(workflowLogData),
       task_logs = Option(taskLogs),
       outputs = outputs
+    )
+  }
+}
+
+object CromwellMetadata {
+  import spray.json.DefaultJsonProtocol._
+
+  implicit val cromwellCallsMetadataFormat: JsonFormat[CromwellCallsMetadata] = jsonFormat7(CromwellCallsMetadata.apply)
+  implicit val cromwellSubmittedFilesFormat: JsonFormat[CromwellSubmittedFiles] = jsonFormat6(CromwellSubmittedFiles.apply)
+  implicit val cromwellMetadataFormat: JsonFormat[CromwellMetadata] = jsonFormat8(CromwellMetadata.apply)
+
+  def fromJson(json: String): CromwellMetadata = {
+    val jsonAst = JsonParser(json)
+    jsonAst.convertTo[CromwellMetadata]
+  }
+
+  def cromwellCallsMetadataEntryToLogEntry(taskName: String, callsMetadata: CromwellCallsMetadata): WesLog = {
+    val newTaskName = callsMetadata.shardIndex map {
+      case -1 => taskName
+      case notMinusOne => s"$taskName.$notMinusOne"
+    } getOrElse taskName
+
+    WesLog(
+      name = Option(newTaskName),
+      cmd = callsMetadata.commandLine.map(c => List(c)),
+      start_time = callsMetadata.start,
+      end_time = callsMetadata.end,
+      stdout = callsMetadata.stdout,
+      stderr = callsMetadata.stderr,
+      exit_code = callsMetadata.returnCode
     )
   }
 }

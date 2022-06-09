@@ -63,7 +63,7 @@ object Dependencies {
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.6.1"
   private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
-  private val jacksonV = "2.13.2"
+  private val jacksonV = "2.13.3"
   private val janinoV = "3.1.6"
   private val jsr305V = "3.0.2"
   private val junitV = "4.13.2"
@@ -619,6 +619,14 @@ object Dependencies {
   Any dependencies that are removed may be also removed from this list.
   However, be careful about downgrading any of these dependencies.
   Older versions have known vulnerabilities, ex: CVE-2017-7525
+
+  === SECURITY UPGRADES ===
+
+  When upgrading dependencies to fix security issues, it is preferable to start with upgrading the
+  library that brings it in. Only fall back to overriding here when the latest library version still
+  has a vulnerable version of the dependency, or a major version upgrade is required and infeasible.
+  This algorithm makes it simpler to upgrade libraries in the future, because we don't have to
+  remember to remove the override.
    */
 
   val googleHttpClientDependencies = List(
@@ -703,6 +711,15 @@ object Dependencies {
     "org.asynchttpclient" % "async-http-client" % "2.10.5",
   )
 
+
+  private val nimbusdsOverrides = List(
+    "com.nimbusds" % "nimbus-jose-jwt" % "9.23",
+  )
+
+  private val bouncyCastleOverrides = List(
+    "org.bouncycastle" % "bcprov-jdk15on" % "1.70",
+  )
+
   /*
   If we use a version in one of our projects, that's the one we want all the libraries to use
   ...plus other groups of transitive dependencies shared across multiple projects
@@ -714,5 +731,7 @@ object Dependencies {
       rdf4jDependencyOverrides ++
       grpcDependencyOverrides ++
       scalaCollectionCompatOverrides ++
-      asyncHttpClientOverrides
+      asyncHttpClientOverrides ++
+      nimbusdsOverrides ++
+      bouncyCastleOverrides
 }

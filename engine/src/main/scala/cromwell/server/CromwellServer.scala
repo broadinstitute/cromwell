@@ -11,6 +11,7 @@ import cromwell.services.instrumentation.CromwellInstrumentationActor
 import cromwell.webservice.SwaggerService
 import cromwell.webservice.routes.CromwellApiService
 import cromwell.webservice.routes.wes.WesRouteSupport
+import cromwell.webservice.routes.wes.WesRunRoutes
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
@@ -36,6 +37,7 @@ class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Bool
     with CromwellApiService
     with CromwellInstrumentationActor
     with WesRouteSupport
+    with WesRunRoutes
     with SwaggerService
     with ActorLogging {
   implicit val actorSystem = context.system
@@ -51,7 +53,7 @@ class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Bool
     * cromwell.yaml is broken unless the swagger index.html is patched. Copy/paste the code from rawls or cromiam if
     * actual cromwell+swagger+oauth+/api support is needed.
     */
-  val apiRoutes: Route = pathPrefix("api")(concat(workflowRoutes, womtoolRoutes, wesRoutes))
+  val apiRoutes: Route = pathPrefix("api")(concat(workflowRoutes, womtoolRoutes, wesRoutes, runRoutes))
   val nonApiRoutes: Route = concat(engineRoutes, swaggerUiResourceRoute)
   val allRoutes: Route = concat(apiRoutes, nonApiRoutes)
 

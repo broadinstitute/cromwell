@@ -28,6 +28,7 @@ jobs:
         env:
           BROADBOT_GITHUB_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
         run: |
+          cd firecloud-develop
           JIRA_TICKET=${{ github.event.inputs.jira_ticket }}
           OLD_CROMWELL_V=${{ github.event.inputs.old_cromwell_version }}
           NEW_CROMWELL_V=${{ github.event.inputs.new_cromwell_version }}
@@ -35,7 +36,7 @@ jobs:
           TEMP=$(mktemp)
           git checkout -b "${NEW_BRANCH_NAME}"
           SED_STRING="s/${OLD_CROMWELL_V}/${NEW_CROMWELL_V}/g"
-          for i in firecloud-develop/base-configs/cromwell/cromwell.conf.ctmpl firecloud-develop/run-context/fiab/scripts/FiaB_images.env
+          for i in base-configs/cromwell/cromwell.conf.ctmpl run-context/fiab/scripts/FiaB_images.env
           do
             echo "Updating ${i}"
             sed "${SED_STRING}" ${i} > ${TEMP}

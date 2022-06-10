@@ -41,8 +41,6 @@ jobs:
             echo "Updating ${i}"
             sed "${SED_STRING}" ${i} > ${TEMP}
             mv ${TEMP} ${i}
-            echo "Updated content:"
-            cat ${i}
             git add ${i}
           done
 #          git commit -m "Updating Cromwell version to ${NEW_CROMWELL_V}"

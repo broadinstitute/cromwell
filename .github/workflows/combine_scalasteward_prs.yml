@@ -45,5 +45,7 @@ jobs:
             git add ${i}
           done
           echo "Pushing to firecloud-develop branch ${NEW_BRANCH_NAME}"
+          git config --global user.name "broadbot"
+          git config --global user.email "broadbot@broadinstitute.org"
           git commit -m "Updating Cromwell version to ${NEW_CROMWELL_V}"
           git push https://broadbot:$BROADBOT_GITHUB_TOKEN@github.com/broadinstitute/firecloud-develop.git ${NEW_BRANCH_NAME}

@@ -18,7 +18,7 @@ jobs:
     name: Create firecloud-develop PR
     runs-on: self-hosted # Faster machines; see https://github.com/broadinstitute/cromwell/settings/actions/runners
     steps:
-      - name: Clone DSP Scripts
+      - name: Clone firecloud-develop
         uses: actions/checkout@v2
         with:
           repository: broadinstitute/firecloud-develop

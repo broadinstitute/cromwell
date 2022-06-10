@@ -36,11 +36,13 @@ jobs:
           TEMP=$(mktemp)
           git checkout -b "${NEW_BRANCH_NAME}"
           SED_STRING="s/${OLD_CROMWELL_V}/${NEW_CROMWELL_V}/g"
-          for i in base-configs/cromwell/cromwell.conf.ctmpl run-context/fiab/scripts/FiaB_images.env
+          FILES=( "base-configs/cromwell/cromwell.conf.ctmpl" "run-context/fiab/scripts/FiaB_images.env" )
+          for i in "${FILES[@]}"
           do
             echo "Updating ${i}"
             sed "${SED_STRING}" ${i} > ${TEMP}
             mv ${TEMP} ${i}
             git add ${i}
           done
-#          git commit -m "Updating Cromwell version to ${NEW_CROMWELL_V}"
+          git commit -m "Updating Cromwell version to ${NEW_CROMWELL_V}"
+          git push https://broadbot:$BROADBOT_GITHUB_TOKEN@github.com/broadinstitute/firecloud-develop.git ${NEW_BRANCH_NAME}

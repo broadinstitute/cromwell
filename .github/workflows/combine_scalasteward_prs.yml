@@ -1,4 +1,4 @@
-name: make_dsp_jenkins_pr
+name: combine-scalasteward-prs
 
 on:
   workflow_dispatch:

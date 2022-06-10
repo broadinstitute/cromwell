@@ -3,42 +3,45 @@ name: combine-scalasteward-prs
 on:
   workflow_dispatch:
     inputs:
-      cromwell_version:
-        description: 'What version of Cromwell to use in the dsp-scripts udpate'
+      old_cromwell_version:
+        description: 'What version of Cromwell to update from'
+        required: true
+      new_cromwell_version:
+        description: 'What version of Cromwell to update to'
         required: true
       jira_ticket:
         description: 'The JIRA ticket to link the update PR to'
         required: true
 
 jobs:
-  make-dsp-jenkins-pr:
-    name: Create DSP Scripts PR
+  make-firecloud-develop-pr:
+    name: Create firecloud-develop PR
     runs-on: self-hosted # Faster machines; see https://github.com/broadinstitute/cromwell/settings/actions/runners
     steps:
       - name: Clone DSP Scripts
         uses: actions/checkout@v2
         with:
-          repository: broadinstitute/dsp-jenkins
+          repository: broadinstitute/firecloud-develop
           token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
-          path: dsp-scripts
-      - name: Determine old version
-        id:  determine_old_version
-        run: |
-          OLD_CROMWELL_V=$(cat dsp-scripts/src/main/resources/FirecloudAutomatedTesting.conf | grep -A1 cromwell | tail -n1 | sed 's/.*\"\(.*\)\"/\1/')
-          echo "Determined current Cromwell version in dsp-jenkins is: ${OLD_CROMWELL_V}"
-          echo ::set-output name=OLD_CROMWELL_V::${OLD_CROMWELL_V}
+          path: firecloud-develop
       - name: Update & push files
         env:
           BROADBOT_GITHUB_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
         run: |
           JIRA_TICKET=${{ github.event.inputs.jira_ticket }}
-          OLD_CROMWELL_V=${{ steps.determine_old_version.outputs.OLD_CROMWELL_V }}
-          NEW_CROMWELL_V=${{ github.event.inputs.cromwell_version }}
-          NEW_BRANCH_NAME="${JIRA_TICKET}_${NEW_CROMWELL_V}"
+          OLD_CROMWELL_V=${{ github.event.inputs.old_cromwell_version }}
+          NEW_CROMWELL_V=${{ github.event.inputs.new_cromwell_version }}
+          NEW_BRANCH_NAME="${JIRA_TICKET}_cromwell_${NEW_CROMWELL_V}"
           TEMP=$(mktemp)
           git checkout -b "${NEW_BRANCH_NAME}"
-          SED_STRING="s/    defaultImg = \"${OLD_CROMWELL_V}\"/    defaultImg = \"${NEW_CROMWELL_V}\"/"
-          sed "${SED_STRING}" dsp-scripts/src/main/resources/FirecloudAutomatedTesting.conf > ${TEMP}
-          mv ${TEMP} dsp-scripts/src/main/resources/FirecloudAutomatedTesting.conf
-          echo "Updated FirecloudAutomatedTesting.conf:"
-          cat dsp-scripts/src/main/resources/FirecloudAutomatedTesting.conf
+          SED_STRING="s/${OLD_CROMWELL_V}/${NEW_CROMWELL_V}/g"
+          for i in firecloud-develop/base-configs/cromwell/cromwell.conf.ctmpl firecloud-develop/run-context/fiab/scripts/FiaB_images.env
+          do
+            echo "Updating ${i}"
+            sed "${SED_STRING}" ${i} > ${TEMP}
+            mv ${TEMP} ${i}
+            echo "Updated content:"
+            cat ${i}
+            git add ${i}
+          done
+#          git commit -m "Updating Cromwell version to ${NEW_CROMWELL_V}"

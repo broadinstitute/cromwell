@@ -34,13 +34,11 @@ trait WesRunRoutes {
               WesRunRoutes.completeCromwellResponse(WesRunRoutes.listRuns(pageSize, pageToken, serviceRegistryActor))
             }
           }
-          concat(
-            path(Segment) { workflowId =>
-              get {
-                completeCromwellResponse(runLog(workflowId, (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, None, None, expandSubWorkflows = false), serviceRegistryActor))
-              }
+          path(Segment) { workflowId =>
+            get {
+              completeCromwellResponse(runLog(workflowId, (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, None, None, expandSubWorkflows = false), serviceRegistryActor))
             }
-          )
+          }
         }
       )
     }

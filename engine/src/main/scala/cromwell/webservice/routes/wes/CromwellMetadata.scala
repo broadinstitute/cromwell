@@ -36,8 +36,8 @@ final case class CromwellMetadata(workflowName: Option[String],
     val workflowEngineParams = submittedFiles.options.map(JsonParser(_).asJsObject)
 
     val workflowRequest = WesRunRequest(workflow_params = workflowParams,
-      workflow_type = submittedFiles.workflowType.getOrElse("Unable to find workflow type"),
-      workflow_type_version = submittedFiles.workflowTypeVersion.getOrElse("Unable to find workflow version"),
+      workflow_type = submittedFiles.workflowType.getOrElse("None supplied"),
+      workflow_type_version = submittedFiles.workflowTypeVersion.getOrElse("None supplied"),
       tags = workflowTags,
       workflow_engine_parameters = workflowEngineParams,
       workflow_url = None

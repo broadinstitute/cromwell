@@ -36,6 +36,7 @@ trait WesRunRoutes {
           }
           path(Segment) { workflowId =>
             get {
+              // this is what it was like in code found in the project… it perhaps isn’t ideal but doesn’t seem to hurt, so leaving it like this for now.
               completeCromwellResponse(runLog(workflowId, (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, None, None, expandSubWorkflows = false), serviceRegistryActor))
             }
           }
@@ -63,7 +64,7 @@ object WesRunRoutes {
   }
 
   def runLog(workflowId: String, request: WorkflowId => BuildMetadataJsonAction, serviceRegistryActor: ActorRef): Future[WesResponse] = {
-    val metadataJsonResponse: Future[MetadataJsonResponse] = metadataBuilderActorRequest(workflowId, request, serviceRegistryActor)
+    val metadataJsonResponse = metadataBuilderActorRequest(workflowId, request, serviceRegistryActor)
 
     metadataJsonResponse.map {
       case SuccessfulMetadataJsonResponse(_, responseJson) => WesResponseWorkflowMetadata(WesRunLog.fromJson(responseJson.toString()))

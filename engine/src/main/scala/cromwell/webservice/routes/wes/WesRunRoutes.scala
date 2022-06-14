@@ -10,7 +10,7 @@ import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowId
 import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, GetSingleWorkflowMetadataAction}
-import cromwell.services.{FailedMetadataJsonResponse, MetadataJsonResponse, SuccessfulMetadataJsonResponse}
+import cromwell.services.{FailedMetadataJsonResponse, SuccessfulMetadataJsonResponse}
 import cromwell.webservice.routes.MetadataRouteSupport.{metadataBuilderActorRequest, metadataQueryRequest}
 import cromwell.webservice.routes.wes.WesResponseJsonSupport.{WesResponseErrorFormat, WesResponseFormat}
 import cromwell.webservice.routes.wes.WesRunRoutes.{completeCromwellResponse, runLog}

@@ -186,7 +186,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
     WorkflowSubmitResponse(workflowId.toString, workflowState.toString)
   }
 
-  private def submitRequest(formData: Multipart.FormData, isSingleSubmission: Boolean): Route = {
+  def submitRequest(formData: Multipart.FormData, isSingleSubmission: Boolean): Route = {
 
     def getWorkflowState(workflowOnHold: Boolean): WorkflowState = {
       if (workflowOnHold)

@@ -1,7 +1,6 @@
 package cromwell.webservice.routes
 
 import java.util.UUID
-
 import akka.actor.{ActorRef, ActorRefFactory}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActorJsonFormatting.successfulResponseJsonFormatter
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
@@ -35,6 +34,8 @@ import cromwell.services._
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.WebServiceUtils
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
+import cromwell.webservice.routes.wes.WesState.fromStatusString
+import cromwell.webservice.routes.wes.{WesErrorResponse, WesResponseRunList, WesRunId, WesRunStatus}
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
@@ -186,7 +187,18 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
     WorkflowSubmitResponse(workflowId.toString, workflowState.toString)
   }
 
-  def submitRequest(formData: Multipart.FormData, isSingleSubmission: Boolean): Route = {
+  def submitRequest(formData: Multipart.FormData,
+                    isSingleSubmission: Boolean,
+                    successHandler: PartialFunction[MetadataQueryResponse, Route] = standardSuccessHandler,
+                    errorHandler: PartialFunction[Throwable, Route] = standardAbortErrorHandler
+                   ): Route = {
+
+    def standardSuccessHandler: PartialFunction[MetadataQueryResponse, Route] = {
+      case w: WorkflowQuerySuccess =>
+        val runs = w.response.results.toList.map(x => WesRunId(x.id))
+        WesResponseRunList(runs)
+      case f: WorkflowQueryFailure => WesErrorResponse(f.reason.getMessage, StatusCodes.BadRequest.intValue)
+    }
 
     def getWorkflowState(workflowOnHold: Boolean): WorkflowState = {
       if (workflowOnHold)

@@ -3,12 +3,12 @@ package cromwell.webservice.routes.wes
 import akka.http.scaladsl.model.{HttpEntity, MediaTypes, Multipart}
 import cromwell.webservice.PartialWorkflowSources._
 
-final case class WesSubmission(workflowParams: String,
-                               workflowType: String,
-                               workflowTypeVersion: String,
+final case class WesSubmission(workflowParams: Option[String],
+                               workflowType: Option[String],
+                               workflowTypeVersion: Option[String],
                                tags: Option[String],
                                workflowEngineParameters: Option[String],
-                               workflowUrl: String,
+                               workflowUrl: Option[String],
                                workflowAttachment: Iterable[String]
                               ) {
   val entity: Multipart.FormData = {
@@ -29,15 +29,15 @@ final case class WesSubmission(workflowParams: String,
      */
     val sourcePart = workflowAttachment.headOption map { a => Multipart.FormData.BodyPart(WorkflowSourceKey, HttpEntity(MediaTypes.`application/json`, a)) }
 
-    val urlPart = Multipart.FormData.BodyPart(WorkflowUrlKey, HttpEntity(MediaTypes.`application/json`, workflowUrl))
+    val urlPart = workflowUrl map { u => Multipart.FormData.BodyPart(WorkflowUrlKey, HttpEntity(MediaTypes.`application/json`, u)) }
 
-    val typePart = Multipart.FormData.BodyPart(WorkflowTypeKey, HttpEntity(MediaTypes.`application/json`, workflowType))
-    val typeVersionPart = Multipart.FormData.BodyPart(WorkflowTypeVersionKey, HttpEntity(MediaTypes.`application/json`, workflowTypeVersion))
-    val inputsPart = Multipart.FormData.BodyPart(WorkflowInputsKey, HttpEntity(MediaTypes.`application/json`, workflowParams))
+    val typePart = workflowType map { w => Multipart.FormData.BodyPart(WorkflowTypeKey, HttpEntity(MediaTypes.`application/json`, w)) }
+    val typeVersionPart = workflowTypeVersion map { v => Multipart.FormData.BodyPart(WorkflowTypeVersionKey, HttpEntity(MediaTypes.`application/json`, v)) }
+    val inputsPart = workflowParams map { p => Multipart.FormData.BodyPart(WorkflowInputsKey, HttpEntity(MediaTypes.`application/json`, p)) }
     val optionsPart = workflowEngineParameters map { o => Multipart.FormData.BodyPart(WorkflowOptionsKey, HttpEntity(MediaTypes.`application/json`, o)) }
     val labelsPart = tags map { t => Multipart.FormData.BodyPart(labelsKey, HttpEntity(MediaTypes.`application/json`, t)) }
 
-    val parts = List(sourcePart, Option(urlPart), Option(typePart), Option(typeVersionPart), Option(inputsPart), optionsPart, labelsPart).flatten
+    val parts = List(sourcePart, urlPart, typePart, typeVersionPart, inputsPart, optionsPart, labelsPart).flatten
 
     Multipart.FormData(parts: _*)
   }

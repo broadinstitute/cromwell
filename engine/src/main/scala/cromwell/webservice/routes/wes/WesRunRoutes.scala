@@ -58,12 +58,12 @@ object WesRunRoutes {
 
   def extractSubmission(): Directive1[WesSubmission] = {
     formFields((
-      "workflow_params",
-      "workflow_type",
-      "workflow_type_version",
+      "workflow_params".?,
+      "workflow_type".?,
+      "workflow_type_version".?,
       "tags".?,
       "workflow_engine_parameters".?,
-      "workflow_url",
+      "workflow_url".?,
       "workflow_attachment".as[String].*
     )).as(WesSubmission)
   }

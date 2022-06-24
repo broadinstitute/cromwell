@@ -33,7 +33,8 @@ trait BackendSpec extends ScalaFutures with Matchers with ScaledTimeSpans {
   def buildWorkflowDescriptor(workflowSource: WorkflowSource,
                               inputFileAsJson: Option[String],
                               options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
-                              runtime: String = ""): BackendWorkflowDescriptor = {
+                              runtime: String = "",
+                              labels: Labels = Labels.empty): BackendWorkflowDescriptor = {
     val wdlNamespace = WdlNamespaceWithWorkflow.load(workflowSource.replaceAll("RUNTIME", runtime),
       Seq.empty[Draft2ImportResolver]).get
     val executable = wdlNamespace.toWomExecutable(inputFileAsJson, NoIoFunctionSet, strictValidation = true) match {
@@ -46,7 +47,7 @@ trait BackendSpec extends ScalaFutures with Matchers with ScaledTimeSpans {
       executable.entryPoint,
       executable.resolvedExecutableInputs.flatMap({case (port, v) => v.select[WomValue] map { port -> _ }}),
       options,
-      Labels.empty,
+      labels,
       HogGroup("foo"),
       List.empty,
       None
@@ -56,9 +57,10 @@ trait BackendSpec extends ScalaFutures with Matchers with ScaledTimeSpans {
   def buildWdlWorkflowDescriptor(workflowSource: WorkflowSource,
                               inputFileAsJson: Option[String] = None,
                               options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
-                              runtime: String = ""): BackendWorkflowDescriptor = {
+                              runtime: String = "",
+                              labels: Labels = Labels.empty): BackendWorkflowDescriptor = {
 
-    buildWorkflowDescriptor(workflowSource, inputFileAsJson, options, runtime)
+    buildWorkflowDescriptor(workflowSource, inputFileAsJson, options, runtime, labels)
   }
 
   def fqnWdlMapToDeclarationMap(m: Map[String, WomValue]): Map[InputDefinition, WomValue] = {

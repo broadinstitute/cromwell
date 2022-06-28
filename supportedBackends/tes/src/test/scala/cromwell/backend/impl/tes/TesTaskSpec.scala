@@ -1,14 +1,24 @@
 package cromwell.backend.impl.tes
 
 import common.assertion.CromwellTimeoutSpec
-import cromwell.backend.BackendSpec
+import common.mock.MockSugar
+import cromwell.backend.{BackendSpec, TestConfig}
 import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.core.WorkflowOptions
+import cromwell.core.labels.Labels
+import cromwell.core.logging.JobLogger
+import cromwell.core.path.DefaultPathBuilder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import spray.json.{JsObject, JsString, JsValue}
+import wom.InstantiatedCommand
 
-class TesTaskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with BackendSpec {
+class TesTaskSpec
+  extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with BackendSpec
+    with MockSugar {
 
   val runtimeAttributes = new TesRuntimeAttributes(
     ContinueOnReturnCodeSet(Set(0)),
@@ -46,5 +56,36 @@ class TesTaskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
     TesTask.makeResources(runtimeAttributes, wd) shouldEqual
         Resources(None, None, None, Option(false), None, Option(Map.empty[String, Option[String]])
     )
+  }
+
+
+  it should "copy labels to tags" in {
+    val jobLogger = mock[JobLogger]
+    val emptyWorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
+    val workflowDescriptor = buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld,
+                                                        labels = Labels("foo" -> "bar"))
+    val jobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor,
+                                                            Map.empty,
+                                                            emptyWorkflowOptions,
+                                                            Set.empty)
+    val tesPaths = TesJobPaths(jobDescriptor.key,
+                               jobDescriptor.workflowDescriptor,
+                               TestConfig.emptyConfig)
+    val tesTask = TesTask(jobDescriptor,
+                          TestConfig.emptyBackendConfigDescriptor,
+                          jobLogger,
+                          tesPaths,
+                          runtimeAttributes,
+                          DefaultPathBuilder.build("").get,
+                          "",
+                          InstantiatedCommand("command"),
+                          "",
+                          Map.empty,
+                          "",
+                          OutputMode.ROOT)
+
+    val task = TesTask.makeTask(tesTask)
+
+    task.tags shouldBe Option(Map("foo" -> "bar"))
   }
 }

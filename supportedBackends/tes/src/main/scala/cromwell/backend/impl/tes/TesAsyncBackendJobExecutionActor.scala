@@ -132,7 +132,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   def createTaskMessage(): ErrorOr[Task] = {
-    val task = (commandScriptContents, outputMode).mapN({
+    val tesTask = (commandScriptContents, outputMode).mapN({
       case (contents, mode) => TesTask(
         jobDescriptor,
         configurationDescriptor,
@@ -148,19 +148,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         mode)
     })
 
-    task.map(task => Task(
-      id = None,
-      state = None,
-      name = Option(task.name),
-      description = Option(task.description),
-      inputs = Option(task.inputs),
-      outputs = Option(task.outputs),
-      resources = Option(task.resources),
-      executors = task.executors,
-      volumes = None,
-      tags = None,
-      logs = None
-    ))
+    tesTask.map(TesTask.makeTask)
   }
 
   def writeScriptFile(): Future[Unit] = {

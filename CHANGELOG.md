@@ -30,7 +30,7 @@ Newly implemented endpoints:
 
 Beginning in Cromwell 80 we will populate the `tags` field of tasks created by the TES backend 
 with the labels applied to the workflow at creation time.  No guarantee is made about labels 
-added while the workflow is running.
+added while the workflow is running. 
 
 ## 79 Release Notes
 

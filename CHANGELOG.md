@@ -26,6 +26,12 @@ Newly implemented endpoints:
 | POST | /api/ga4gh/wes/v1/runs | Submit workflow |
 | GET | /api/ga4gh/wes/v1/runs/{run_id} | Workflow details |
 
+### Workflow labels in TES tasks
+
+Beginning in Cromwell 80 we will populate the `tags` field of tasks created by the TES backend 
+with the labels applied to the workflow at creation time.  No guarantee is made about labels 
+added while the workflow is running.
+
 ## 79 Release Notes
 
 ### Last release with CWL support

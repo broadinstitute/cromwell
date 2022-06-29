@@ -26,6 +26,10 @@ Newly implemented endpoints:
 | POST | /api/ga4gh/wes/v1/runs | Submit workflow |
 | GET | /api/ga4gh/wes/v1/runs/{run_id} | Workflow details |
 
+### Batch Compute Service backend removed
+
+The BCS backend and OSS filesystem (both of which support Alibaba Cloud) have been removed.
+
 ## 79 Release Notes
 
 ### Last release with CWL support

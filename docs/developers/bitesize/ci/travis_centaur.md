@@ -7,7 +7,6 @@ Other backends run tests for any user.
 | Backend       | Read-only users | Write/Admin users |
 |---------------|:---------------:|:-----------------:|
 | AWS           |                 |        ✅         |
-| BCS           |                 |        ✅         |
 | Local         |       ✅        |        ✅         |
 | PAPI V2alpha1 |                 |        ✅         |
 | PAPI V2beta   |                 |        ✅         |
@@ -64,7 +63,6 @@ or `papi_v2beta_centaur_application.conf`
 | Backend | MySQL  | PostgreSQL  | MariaDB  |
 |---------|:------:|:-----------:|:--------:|
 | AWS     |   ✅   |             |          |
-| BCS     |   ✅   |             |          |
 | Local   |   ✅   |      ✅     |          |
 | PAPI V2 |   ✅   |             |    ⭕    |
 | SLURM   |   ✅   |             |          |

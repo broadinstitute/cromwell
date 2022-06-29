@@ -1,5 +1,13 @@
 # Cromwell Change Log
 
+## 81 Release Notes
+
+### Workflow labels in TES tasks
+
+Beginning in Cromwell 81 we will populate the `tags` field of tasks created by the TES backend
+with the labels applied to the workflow at creation time.  No guarantee is made about labels
+added while the workflow is running.
+
 ## 80 Release Notes
 
 ### Direct WES support in Cromwell

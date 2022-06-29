@@ -80,6 +80,7 @@ cromwell::private::set_variable_if_only_some_files_changed() {
 
 # Exports environment variables used for scripts.
 cromwell::private::create_build_variables() {
+    echo "Creating build variables"
     CROMWELL_BUILD_PROVIDER_TRAVIS="travis"
     CROMWELL_BUILD_PROVIDER_JENKINS="jenkins"
     CROMWELL_BUILD_PROVIDER_CIRCLE="circle"
@@ -94,6 +95,8 @@ cromwell::private::create_build_variables() {
     else
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_UNKNOWN}"
     fi
+
+    echo "CROMWELL_BUILD_PROVIDER is ${CROMWELL_BUILD_PROVIDER}"
 
     # simplified from https://stackoverflow.com/a/18434831/3320205
     CROMWELL_BUILD_OS_DARWIN="darwin";
@@ -124,6 +127,9 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_VAULT_EXECUTABLE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/vault"
     CROMWELL_BUILD_EXIT_FUNCTIONS="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell_build_exit_functions.$$"
 
+
+    echo "CROMWELL_BUILD_ROOT_DIRECTORY is ${CROMWELL_BUILD_ROOT_DIRECTORY}"
+
     if [[ -n "${VIRTUAL_ENV:+set}" ]]; then
         CROMWELL_BUILD_IS_VIRTUAL_ENV=true
     else
@@ -141,6 +147,9 @@ cromwell::private::create_build_variables() {
         CROMWELL_BUILD_IS_HOTFIX=false
     fi
 
+
+    echo "CROMWELL_BUILD_CURRENT_VERSION_NUMBER is ${CROMWELL_BUILD_CURRENT_VERSION_NUMBER}"
+
     if [[ "${CROMWELL_BUILD_IS_HOTFIX}" == "true" ]]; then
         CROMWELL_BUILD_PRIOR_VERSION_NUMBER=${CROMWELL_BUILD_CURRENT_VERSION_NUMBER}
     else
@@ -154,6 +163,9 @@ cromwell::private::create_build_variables() {
         CROMWELL_BUILD_GIT_HASH_SUFFIX="gUNKNOWN"
     fi
 
+
+    echo "CROMWELL_BUILD_GIT_HASH_SUFFIX is ${CROMWELL_BUILD_GIT_HASH_SUFFIX}"
+
     # Value of the `TRAVIS_BRANCH` variable depends on type of Travis build: if it is pull request build, the value
     # will be the name of the branch targeted by the pull request, and for push builds it will be the name of the
     # branch. So, in case of push builds `git diff` will always return empty result. This is why we only use this short
@@ -163,6 +175,7 @@ cromwell::private::create_build_variables() {
 
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+            echo "Building for Travis"
             CROMWELL_BUILD_IS_CI=true
             CROMWELL_BUILD_IS_SECURE="${TRAVIS_SECURE_ENV_VARS}"
 

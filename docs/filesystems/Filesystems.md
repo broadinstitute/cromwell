@@ -197,8 +197,6 @@ The filesystem configuration used will be the one in the `config` section of the
 
 -  Simple Storage Service (S3) - [Amazon Doc](https://aws.amazon.com/documentation/s3/)
 
--  Object Storage Service (OSS) - [Alibaba Cloud Doc](https://www.alibabacloud.com/product/oss)
-
 -  HTTP - support for `http` or `https` URLs for [workflow inputs only](http://cromwell.readthedocs.io/en/develop/filesystems/HTTP)
 
 - File Transfer Protocol (FTP) - [Cromwell Doc](FileTransferProtocol.md)

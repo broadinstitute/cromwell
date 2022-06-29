@@ -509,8 +509,6 @@ Congratulations for improving the reproducibility of your workflows! You might f
 
 - [Getting started with AWS Batch](AwsBatch101.md)
 - [Getting started on Google Pipelines API](PipelinesApi101.md)
-- [Getting started on Alibaba Cloud](BCSIntro/)
-
 
 [cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends/cromwell.examples.conf
 [cromwell-examples-folder]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends

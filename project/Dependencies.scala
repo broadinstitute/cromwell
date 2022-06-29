@@ -4,10 +4,6 @@ object Dependencies {
   private val akkaHttpCirceIntegrationV = "1.39.2"
   private val akkaHttpV = "10.1.15" // (CROM-6619)
   private val akkaV = "2.5.32" // scala-steward:off (CROM-6637)
-  private val aliyunBcsV = "6.2.4"
-  private val aliyunCoreV = "4.6.0"
-  private val aliyunCrV = "4.1.4"
-  private val aliyunOssV = "3.14.0"
   private val ammoniteOpsV = "2.4.1"
   private val apacheHttpClientV = "4.5.13"
   private val awsSdkV = "2.17.152"
@@ -322,24 +318,6 @@ object Dependencies {
       exclude("com.google.guava", "guava-jdk5")
   ) ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency
 
-  private val aliyunOssDependencies = List(
-    "com.aliyun.oss" % "aliyun-sdk-oss" % aliyunOssV
-      exclude("com.sun.activation", "jakarta.activation")
-  )
-
-  private val aliyunBatchComputeDependencies = List(
-    "com.aliyun" % "aliyun-java-sdk-batchcompute" % aliyunBcsV,
-    "com.aliyun" % "aliyun-java-sdk-core" % aliyunCoreV
-      exclude("com.sun.activation", "jakarta.activation")
-  )
-
-  private val aliyunCrDependencies = List(
-    "com.aliyun" % "aliyun-java-sdk-cr" % aliyunCrV,
-    "com.aliyun" % "aliyun-java-sdk-core" % aliyunCoreV
-      exclude("com.sun.activation", "jakarta.activation"),
-    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV
-  )
-
   private val dbmsDependencies = List(
     "org.hsqldb" % "hsqldb" % hsqldbV,
     "org.mariadb.jdbc" % "mariadb-java-client" % mariadbV,
@@ -419,10 +397,6 @@ object Dependencies {
 
   val httpFileSystemDependencies: List[ModuleID] = akkaHttpDependencies
 
-  val ossFileSystemDependencies: List[ModuleID] = googleCloudDependencies ++ aliyunOssDependencies ++ List(
-    "com.github.pathikrit" %% "better-files" % betterFilesV
-  )
-
   val womDependencies: List[ModuleID] = List(
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "io.spray" %% "spray-json" % sprayJsonV,
@@ -497,8 +471,6 @@ object Dependencies {
 
   val databaseMigrationDependencies: List[ModuleID] = liquibaseDependencies ++ dbmsDependencies
 
-  val dockerHashingDependencies: List[ModuleID] = http4sDependencies ++ circeDependencies ++ aliyunCrDependencies
-
   val cromwellApiClientDependencies: List[ModuleID] = List(
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "co.fs2" %% "fs2-io" % fs2V % Test,
@@ -544,8 +516,6 @@ object Dependencies {
     "co.fs2" %% "fs2-io" % fs2V
   ) ++ scalacheckDependencies
 
-  val bcsBackendDependencies: List[ModuleID] = commonDependencies ++ refinedTypeDependenciesList ++ aliyunBatchComputeDependencies
-
   val tesBackendDependencies: List[ModuleID] = akkaHttpDependencies
 
   val sfsBackendDependencies = List (
@@ -578,7 +548,6 @@ object Dependencies {
 
   val allProjectDependencies: List[ModuleID] =
     backendDependencies ++
-      bcsBackendDependencies ++
       centaurCwlRunnerDependencies ++
       centaurDependencies ++
       cloudSupportDependencies ++
@@ -589,7 +558,6 @@ object Dependencies {
       cwlDependencies ++
       databaseMigrationDependencies ++
       databaseSqlDependencies ++
-      dockerHashingDependencies ++
       draft2LanguageFactoryDependencies ++
       drsLocalizerDependencies ++
       engineDependencies ++
@@ -598,7 +566,6 @@ object Dependencies {
       implDrsDependencies ++
       implFtpDependencies ++
       languageFactoryDependencies ++
-      ossFileSystemDependencies ++
       perfDependencies ++
       serverDependencies ++
       sfsBackendDependencies ++

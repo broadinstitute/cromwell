@@ -190,8 +190,9 @@ cromwell::private::create_build_variables() {
                 # This works for both pull_request and push builds, unlike using 'git log HEAD' which
                 # gives a merge commit message on pull requests.
                 travis_commit_message="$(git log --reverse "${TRAVIS_COMMIT_RANGE}" | tail -n1 2>/dev/null || true)"
+                echo "travis_commit_message is ${travis_commit_message}"
             fi
-            echo "travis_commit_message is ${travis_commit_message}"
+
 
             if [[ -z "${travis_commit_message:-}" ]]; then
                 travis_commit_message="$(git log --format=%B --max-count=1 HEAD 2>/dev/null || true)"

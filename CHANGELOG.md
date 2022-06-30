@@ -8,6 +8,10 @@ Beginning in Cromwell 81 we will populate the `tags` field of tasks created by t
 with the labels applied to the workflow at creation time.  No guarantee is made about labels
 added while the workflow is running.
 
+### Batch Compute Service backend removed
+
+The BCS backend and OSS filesystem (both of which support Alibaba Cloud) have been removed.
+
 ## 80 Release Notes
 
 ### Direct WES support in Cromwell
@@ -33,10 +37,6 @@ Newly implemented endpoints:
 | GET | /api/ga4gh/wes/v1/runs | List workflows  |
 | POST | /api/ga4gh/wes/v1/runs | Submit workflow |
 | GET | /api/ga4gh/wes/v1/runs/{run_id} | Workflow details |
-
-### Batch Compute Service backend removed
-
-The BCS backend and OSS filesystem (both of which support Alibaba Cloud) have been removed.
 
 ## 79 Release Notes
 

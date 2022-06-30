@@ -198,7 +198,6 @@ Cromwell provides two methods to lookup a Docker hash from a Docker tag:
     |               |   Public  |  Private  | Public | Private | Public | Private | Public | Private |
     | Pipelines API |     X     |     X     |    X   |    X    |        |         |        |         |
     |   AWS Batch   |     X     |           |    X   |         |        |         |        |         |
-    |      BCS      |           |           |        |         |        |         |        |    X    |
     |     Other     |     X     |           |    X   |         |        |         |        |         |
 
     <!-- Pasted then regenerated at https://www.tablesgenerator.com/markdown_tables -->

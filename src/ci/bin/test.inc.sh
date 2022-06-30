@@ -208,9 +208,9 @@ cromwell::private::create_build_variables() {
             # This allows quick sanity checks before starting PRs *and* publishing after merges into develop.
             if [[ "${travis_force_tests}" == "true" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=true
-            elif [[ "${CROMWELL_BUILD_ONLY_DOCS_CHANGED}" == "true" ]] && \
-                [[ "${BUILD_TYPE}" != "checkPublish" ]]; then
-                CROMWELL_BUILD_RUN_TESTS=false
+#            elif [[ "${CROMWELL_BUILD_ONLY_DOCS_CHANGED}" == "true" ]] && \
+#                [[ "${BUILD_TYPE}" != "checkPublish" ]]; then
+#                CROMWELL_BUILD_RUN_TESTS=false
             elif [[ "${travis_minimal_tests}" == "true" ]] && \
                 [[ "${TRAVIS_EVENT_TYPE}" != "push" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false
@@ -294,9 +294,9 @@ cromwell::private::create_build_variables() {
             # This allows quick sanity checks before starting PRs *and* publishing after merges into develop.
             if [[ "${circle_force_tests}" == "true" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=true
-            elif [[ "${CROMWELL_BUILD_ONLY_DOCS_CHANGED}" == "true" ]] && \
-                [[ "${BUILD_TYPE}" != "checkPublish" ]]; then
-                CROMWELL_BUILD_RUN_TESTS=false
+#            elif [[ "${CROMWELL_BUILD_ONLY_DOCS_CHANGED}" == "true" ]] && \
+#                [[ "${BUILD_TYPE}" != "checkPublish" ]]; then
+#                CROMWELL_BUILD_RUN_TESTS=false
             elif [[ "${circle_minimal_tests}" == "true" ]] && \
                 [[ "${CROMWELL_BUILD_EVENT}" != "push" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false

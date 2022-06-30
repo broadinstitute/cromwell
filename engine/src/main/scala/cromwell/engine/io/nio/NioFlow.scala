@@ -14,6 +14,7 @@ import cromwell.engine.io.RetryableRequestSupport.{isInfinitelyRetryable, isRetr
 import cromwell.engine.io.{IoAttempts, IoCommandContext, IoCommandStalenessBackpressuring}
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPath
+import cromwell.filesystems.oss.OssPath
 import cromwell.filesystems.s3.S3Path
 import cromwell.util.TryWithResource._
 import net.ceedubs.ficus.Ficus._
@@ -164,6 +165,9 @@ class NioFlow(parallelism: Int,
       }
       case s3Path: S3Path => IO {
         FileHash(HashType.S3Etag, s3Path.eTag)
+      }
+      case ossPath: OssPath => IO {
+        FileHash(HashType.OssEtag, ossPath.eTag)
       }
       case path => getMd5FileHashForPath(path)
     }

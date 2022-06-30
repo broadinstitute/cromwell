@@ -96,7 +96,6 @@ cromwell::private::create_build_variables() {
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_UNKNOWN}"
     fi
 
-    echo "CROMWELL_BUILD_PROVIDER is ${CROMWELL_BUILD_PROVIDER}"
     # simplified from https://stackoverflow.com/a/18434831/3320205
     CROMWELL_BUILD_OS_DARWIN="darwin";
     CROMWELL_BUILD_OS_LINUX="linux";
@@ -137,7 +136,6 @@ cromwell::private::create_build_variables() {
         | awk -F \" '{print $2}' \
         )"
 
-    echo "CROMWELL_BUILD_CURRENT_VERSION_NUMBER is ${CROMWELL_BUILD_CURRENT_VERSION_NUMBER}"
     if git merge-base --is-ancestor "${CROMWELL_BUILD_CURRENT_VERSION_NUMBER}" HEAD 2>/dev/null; then
         CROMWELL_BUILD_IS_HOTFIX=true
     else
@@ -156,8 +154,6 @@ cromwell::private::create_build_variables() {
     else
         CROMWELL_BUILD_GIT_HASH_SUFFIX="gUNKNOWN"
     fi
-
-    echo "CROMWELL_BUILD_GIT_HASH_SUFFIX is ${CROMWELL_BUILD_GIT_HASH_SUFFIX}"
 
     # Value of the `TRAVIS_BRANCH` variable depends on type of Travis build: if it is pull request build, the value
     # will be the name of the branch targeted by the pull request, and for push builds it will be the name of the

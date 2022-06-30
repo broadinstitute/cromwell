@@ -40,9 +40,6 @@ filesystems {
   gcs {
     class = "cromwell.filesystems.gcs.GcsPathBuilderFactory"
   }
-  oss {
-    class = "cromwell.filesystems.oss.OssPathBuilderFactory"
-  }
   s3 {
     class = "cromwell.filesystems.s3.S3PathBuilderFactory"
   }

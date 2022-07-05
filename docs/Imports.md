@@ -10,7 +10,7 @@ There are two types of resources that are supported in imports: *http(s)* and *f
 
 ```wdl
 import "http://mywdlrepository/my.wdl" as http_import1
-import "https://github.com/broadinstitute/cromwell/blob/master/engine/src/main/resources/3step.wdl" as http_import2
+import "https://raw.githubusercontent.com/broadinstitute/cromwell/master/engine/src/main/resources/3step.wdl" as http_import2
 ```
 To use a file-based import resource, provide a ZIP bundle of your resources and then use a path relative to that ZIP in your import statement. For example:
 
@@ -30,7 +30,7 @@ Here's a complete example showing both http(s) and file-based imports workflow i
 
 _workflow.wdl_
 ```wdl
-import "https://github.com/broadinstitute/cromwell/blob/master/engine/src/main/resources/3step.wdl" as http_import
+import "https://raw.githubusercontent.com/broadinstitute/cromwell/master/engine/src/main/resources/3step.wdl" as http_import
 import "imports/imported.wdl" as provided_import
 
 workflow my_workflow {

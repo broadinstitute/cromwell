@@ -158,8 +158,10 @@ cromwell::private::create_build_variables() {
     # will be the name of the branch targeted by the pull request, and for push builds it will be the name of the
     # branch. So, in case of push builds `git diff` will always return empty result. This is why we only use this short
     # circuiting logic for pull request builds
-    cromwell::private::set_variable_if_only_some_files_changed "^mkdocs.yml|^docs/|^CHANGELOG.md" "CROMWELL_BUILD_ONLY_DOCS_CHANGED"
-    cromwell::private::set_variable_if_only_some_files_changed "^src/ci/bin/testMetadataComparisonPython.sh|^scripts/" "CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED"
+
+    # PR #6790 disabled the conditional that skips tests for documentation-only PRs, because
+    # those PRs (and only those PRs) were uniformly failing tests with a nondescript error.
+    # https://broadinstitute.slack.com/archives/GHYJZ2ZE0/p1656625952888149?thread_ts=1656620572.975059&cid=GHYJZ2ZE0
 
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
@@ -208,14 +210,8 @@ cromwell::private::create_build_variables() {
             # This allows quick sanity checks before starting PRs *and* publishing after merges into develop.
             if [[ "${travis_force_tests}" == "true" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=true
-            elif [[ "${CROMWELL_BUILD_ONLY_DOCS_CHANGED}" == "true" ]] && \
-                [[ "${BUILD_TYPE}" != "checkPublish" ]]; then
-                CROMWELL_BUILD_RUN_TESTS=false
             elif [[ "${travis_minimal_tests}" == "true" ]] && \
                 [[ "${TRAVIS_EVENT_TYPE}" != "push" ]]; then
-                CROMWELL_BUILD_RUN_TESTS=false
-            elif [[ "${CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED}" == "true" ]] && \
-                [[ "${BUILD_TYPE}" != "metadataComparisonPython" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false
             elif [[ "${TRAVIS_EVENT_TYPE}" == "push" ]] && \
                 [[ "${BUILD_TYPE}" != "sbt" ]]; then
@@ -294,14 +290,8 @@ cromwell::private::create_build_variables() {
             # This allows quick sanity checks before starting PRs *and* publishing after merges into develop.
             if [[ "${circle_force_tests}" == "true" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=true
-            elif [[ "${CROMWELL_BUILD_ONLY_DOCS_CHANGED}" == "true" ]] && \
-                [[ "${BUILD_TYPE}" != "checkPublish" ]]; then
-                CROMWELL_BUILD_RUN_TESTS=false
             elif [[ "${circle_minimal_tests}" == "true" ]] && \
                 [[ "${CROMWELL_BUILD_EVENT}" != "push" ]]; then
-                CROMWELL_BUILD_RUN_TESTS=false
-            elif [[ "${CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED}" == "true" ]] && \
-                [[ "${BUILD_TYPE}" != "metadataComparisonPython" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false
             elif [[ "${CROMWELL_BUILD_EVENT}" == "push" ]] && \
                 [[ "${BUILD_TYPE}" != "sbt" ]]; then

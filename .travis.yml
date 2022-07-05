@@ -23,9 +23,6 @@ env:
       BUILD_TYPE=centaurAws
       BUILD_MYSQL=5.7
     - >-
-      BUILD_TYPE=centaurBcs
-      BUILD_MYSQL=5.7
-    - >-
       BUILD_TYPE=centaurDummy
       BUILD_MYSQL=5.7
     - >-

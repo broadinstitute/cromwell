@@ -11,7 +11,6 @@ repository.
 ### Cloud Providers
 
  - [AWS](AWS.conf): Amazon Web Services ([documentation](https://cromwell.readthedocs.io/en/stable/tutorials/AwsBatch101/))
- - [BCS](BCS.conf) Alibaba Cloud Batch Compute (BCS) backend ([documentation](https://cromwell.readthedocs.io/en/stable/backends/BCS/))
  - [TES](TES.conf) is a backend that submits jobs to a server with protocol defined by GA4GH ([documentation](https://cromwell.readthedocs.io/en/stable/backends/TES/))
  - [PAPIv2](PAPIv2.conf): Google Pipelines API backend (version 2!) ([documentation](https://cromwell.readthedocs.io/en/stable/backends/Google/))
 

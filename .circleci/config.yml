@@ -89,10 +89,6 @@ workflows:
           build-type: "centaurAws"
           build-mysql: "5.7"
       - test:
-          name: testCentaurBcs
-          build-type: "centaurBcs"
-          build-mysql: "5.7"
-      - test:
           name: testCentaurDummy
           build-type: "centaurDummy"
           build-mysql: "5.7"

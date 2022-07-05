@@ -79,7 +79,11 @@ object Dependencies {
   private val mockitoV = "3.11.2"
   private val mockserverNettyV = "5.11.2"
   private val mouseV = "1.0.10"
-  private val mysqlV = "8.0.29"
+  /*
+  Newer version 8.0.29 fails `Control characters should work with metadata` Centaur tests, has charset changes mentioned in release notes
+  https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8-0-29.html#mysqld-8-0-29-charset
+   */
+  private val mysqlV = "8.0.28"
   private val nettyV = "4.1.72.Final"
   private val owlApiV = "5.1.19"
   private val postgresV = "42.3.3"
@@ -689,6 +693,10 @@ object Dependencies {
     "org.bouncycastle" % "bcprov-jdk15on" % "1.70",
   )
 
+  private val protobufJavaOverrides = List(
+    "com.google.protobuf" % "protobuf-java" % "3.21.2",
+  )
+
   /*
   If we use a version in one of our projects, that's the one we want all the libraries to use
   ...plus other groups of transitive dependencies shared across multiple projects
@@ -702,5 +710,6 @@ object Dependencies {
       scalaCollectionCompatOverrides ++
       asyncHttpClientOverrides ++
       nimbusdsOverrides ++
-      bouncyCastleOverrides
+      bouncyCastleOverrides ++
+      protobufJavaOverrides
 }

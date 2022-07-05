@@ -8,7 +8,7 @@ Beginning in Cromwell 81 we will populate the `tags` field of tasks created by t
 with the labels applied to the workflow at creation time.  No guarantee is made about labels
 added while the workflow is running.
 
-### Batch Compute Service backend removed
+### Alibaba BCS backend and OSS filesystem removed
 
 The BCS backend and OSS filesystem (both of which support Alibaba Cloud) have been removed.
 

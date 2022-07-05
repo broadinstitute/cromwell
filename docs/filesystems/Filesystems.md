@@ -53,7 +53,7 @@ It defines the filesystems that can be accessed by Cromwell.
 Those filesystems can be referenced by their name (`drs`, `gcs`, `s3`, `http` and `local`) in other parts of the configuration.
 
 **Note:**
-- **S3 filesystems are experimental.** 
+- **S3 filesystem is experimental.** 
 - **DRS filesystem has initial support only. Also, currently it works only with [GCS filesystem](../GoogleCloudStorage) in [PapiV2 backend](http://cromwell.readthedocs.io/en/develop/backends/Google).**
 
 

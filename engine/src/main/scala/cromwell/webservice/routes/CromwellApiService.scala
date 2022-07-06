@@ -1,12 +1,10 @@
 package cromwell.webservice.routes
 
-import java.util.UUID
 import akka.actor.{ActorRef, ActorRefFactory}
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActorJsonFormatting.successfulResponseJsonFormatter
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
-import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.ContentTypes._
+import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{ExceptionHandler, Route}
 import akka.pattern.{AskTimeoutException, ask}
@@ -23,21 +21,21 @@ import cromwell.engine.backend.BackendConfiguration
 import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{CachedCallNotFoundException, CallCacheDiffActorResponse, FailedCallCacheDiffResponse, SuccessfulCallCacheDiffResponse}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActorJsonFormatting.successfulResponseJsonFormatter
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheDiffActor, CallCacheDiffQueryParameter}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.NotInOnHoldStateException
+import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowStoreSubmitActorResponse}
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
 import cromwell.server.CromwellShutdown
+import cromwell.services._
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse}
 import cromwell.services.metadata.MetadataService._
-import cromwell.webservice._
-import cromwell.services._
-import cromwell.webservice.WorkflowJsonSupport._
-import cromwell.webservice.WebServiceUtils
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
-import cromwell.webservice.routes.wes.WesState.fromStatusString
-import cromwell.webservice.routes.wes.{WesErrorResponse, WesResponseRunList, WesRunId, WesRunStatus}
+import cromwell.webservice.WorkflowJsonSupport._
+import cromwell.webservice._
 import net.ceedubs.ficus.Ficus._
 
+import java.util.UUID
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.io.Source
@@ -187,18 +185,23 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
     WorkflowSubmitResponse(workflowId.toString, workflowState.toString)
   }
 
+  def standardSuccessHandler: PartialFunction[WorkflowStoreSubmitActorResponse, Route] = {
+    case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(workflowId, _) => complete(ToResponseMarshallable(WorkflowSubmitResponse(workflowId.toString, WorkflowSubmitted.toString)))
+    case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(workflowIds, _) => complete(workflowIds.toList.map(x => WorkflowSubmitResponse(x.toString, WorkflowSubmitted.toString)))
+    case WorkflowStoreSubmitActor.WorkflowSubmitFailed(throwable) => throwable.failRequest(StatusCodes.BadRequest)
+  }
+
+  def standardErrorHandler: PartialFunction[Throwable, Route] = {
+    case _: AskTimeoutException if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
+    case e: TimeoutException => e.failRequest(StatusCodes.ServiceUnavailable)
+    case e: Exception => e.errorRequest(StatusCodes.InternalServerError)
+  }
+
   def submitRequest(formData: Multipart.FormData,
                     isSingleSubmission: Boolean,
-                    successHandler: PartialFunction[MetadataQueryResponse, Route] = standardSuccessHandler,
-                    errorHandler: PartialFunction[Throwable, Route] = standardAbortErrorHandler
+                    successHandler: PartialFunction[WorkflowStoreSubmitActorResponse, Route] = standardSuccessHandler,
+                    errorHandler: PartialFunction[Throwable, Route] = standardErrorHandler
                    ): Route = {
-
-    def standardSuccessHandler: PartialFunction[MetadataQueryResponse, Route] = {
-      case w: WorkflowQuerySuccess =>
-        val runs = w.response.results.toList.map(x => WesRunId(x.id))
-        WesResponseRunList(runs)
-      case f: WorkflowQueryFailure => WesErrorResponse(f.reason.getMessage, StatusCodes.BadRequest.intValue)
-    }
 
     def getWorkflowState(workflowOnHold: Boolean): WorkflowState = {
       if (workflowOnHold)
@@ -208,19 +211,20 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
 
     def askSubmit(command: WorkflowStoreActor.WorkflowStoreActorSubmitCommand, warnings: Seq[String], workflowState: WorkflowState): Route = {
       // NOTE: Do not blindly copy the akka-http -to- ask-actor pattern below without knowing the pros and cons.
-      onComplete(workflowStoreActor.ask(command).mapTo[WorkflowStoreSubmitActor.WorkflowStoreSubmitActorResponse]) {
-        case Success(w) =>
-          w match {
-            case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(workflowId, _) =>
-              completeResponse(StatusCodes.Created, toResponse(workflowId, workflowState), warnings)
-            case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(workflowIds, _) =>
-              completeResponse(StatusCodes.Created, workflowIds.toList.map(toResponse(_, workflowState)), warnings)
-            case WorkflowStoreSubmitActor.WorkflowSubmitFailed(throwable) =>
-              throwable.failRequest(StatusCodes.BadRequest, warnings)
-          }
-        case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
-        case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
-        case Failure(e) => e.failRequest(StatusCodes.InternalServerError, warnings)
+      handleExceptions(ExceptionHandler(errorHandler)) {
+        onComplete(workflowStoreActor.ask(command).mapTo[WorkflowStoreSubmitActor.WorkflowStoreSubmitActorResponse]) {
+          case Success(x: WorkflowStoreSubmitActorResponse) => successHandler(x)
+          case Failure(e) => throw e
+          case Success(w) =>
+            w match {
+              case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(workflowId, _) =>
+                completeResponse(StatusCodes.Created, toResponse(workflowId, workflowState), warnings)
+              case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(workflowIds, _) =>
+                completeResponse(StatusCodes.Created, workflowIds.toList.map(toResponse(_, workflowState)), warnings)
+              case WorkflowStoreSubmitActor.WorkflowSubmitFailed(throwable) =>
+                throwable.failRequest(StatusCodes.BadRequest, warnings)
+            }
+        }
       }
     }
 

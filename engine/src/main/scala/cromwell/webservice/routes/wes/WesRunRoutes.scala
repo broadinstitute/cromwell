@@ -2,19 +2,23 @@ package cromwell.webservice.routes.wes
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.{StatusCode, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{Directive1, Route}
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
+import akka.pattern.AskTimeoutException
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowId
+import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
+// import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowStoreSubmitActorResponse
+import cromwell.server.CromwellShutdown
 import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, GetSingleWorkflowMetadataAction}
 import cromwell.services.{FailedMetadataJsonResponse, SuccessfulMetadataJsonResponse}
 import cromwell.webservice.routes.CromwellApiService
 import cromwell.webservice.routes.MetadataRouteSupport.{metadataBuilderActorRequest, metadataQueryRequest}
 import cromwell.webservice.routes.wes.WesResponseJsonSupport.{WesResponseErrorFormat, WesResponseFormat}
-import cromwell.webservice.routes.wes.WesRunRoutes.{completeCromwellResponse, extractSubmission, runLog}
+import cromwell.webservice.routes.wes.WesRunRoutes.{WesErrorHandler, completeCromwellResponse, extractSubmission, runLog}
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -37,7 +41,9 @@ trait WesRunRoutes extends CromwellApiService {
           }
             post {
               extractSubmission() { submission =>
-                submitRequest(submission.entity, isSingleSubmission = true)
+                submitRequest(submission.entity, isSingleSubmission = true,
+                  // successHandler = WesSuccessHandler,
+                  errorHandler = WesErrorHandler)
               }
             }
         },
@@ -56,6 +62,22 @@ object WesRunRoutes {
   implicit lazy val duration: FiniteDuration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
   implicit lazy val timeout: Timeout = duration
 
+//  def WesSuccessHandler: PartialFunction[WorkflowStoreSubmitActorResponse, Route] = {
+//    case response => complete(WesRunId(response.workflowId.toString))
+//  }
+
+  def WesErrorHandler: PartialFunction[Throwable, Route] = {
+    case e: IllegalStateException => respondWithWesError(e.getLocalizedMessage, StatusCodes.Forbidden)
+    case e: WorkflowNotFoundException => respondWithWesError(e.getLocalizedMessage, StatusCodes.NotFound)
+    case _: AskTimeoutException if CromwellShutdown.shutdownInProgress() => respondWithWesError("Cromwell service is shutting down", StatusCodes.InternalServerError)
+    case e: Exception => respondWithWesError(e.getLocalizedMessage, StatusCodes.InternalServerError)
+  }
+
+  private def respondWithWesError(errorMsg: String, status: StatusCode): Route = {
+    complete((status, WesErrorResponse(errorMsg, status.intValue)))
+  }
+
+
   def extractSubmission(): Directive1[WesSubmission] = {
     formFields((
       "workflow_params".?,
@@ -66,7 +88,8 @@ object WesRunRoutes {
       "workflow_url".?,
       "workflow_attachment".as[String].*
     )).as(WesSubmission)
-  }
+
+    }
 
   def completeCromwellResponse(future: => Future[WesResponse]): Route = {
     onComplete(future) {

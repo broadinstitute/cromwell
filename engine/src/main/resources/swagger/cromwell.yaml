@@ -846,7 +846,6 @@ paths:
               type: string
               format: binary
             description: ''
-
       responses:
         '200':
           description: Successful Request

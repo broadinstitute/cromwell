@@ -18,7 +18,7 @@ import cromwell.services.{FailedMetadataJsonResponse, SuccessfulMetadataJsonResp
 import cromwell.webservice.routes.CromwellApiService
 import cromwell.webservice.routes.MetadataRouteSupport.{metadataBuilderActorRequest, metadataQueryRequest}
 import cromwell.webservice.routes.wes.WesResponseJsonSupport.{WesResponseErrorFormat, WesResponseFormat}
-import cromwell.webservice.routes.wes.WesRunRoutes.{WesErrorHandler, completeCromwellResponse, extractSubmission, runLog}
+import cromwell.webservice.routes.wes.WesRunRoutes.{completeCromwellResponse, extractSubmission, runLog}
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -41,18 +41,20 @@ trait WesRunRoutes extends CromwellApiService {
           }
             post {
               extractSubmission() { submission =>
-                submitRequest(submission.entity, isSingleSubmission = true,
-                  // successHandler = WesSuccessHandler,
-                  errorHandler = WesErrorHandler)
+                submitRequest(submission.entity,
+                  isSingleSubmission = true,
+                  //successHandler = WesSuccessHandler,
+                  //errorHandler = WesErrorHandler
+                )
               }
             }
         },
-          path(Segment) { workflowId =>
-            get {
-              // this is what it was like in code found in the project… it perhaps isn’t ideal but doesn’t seem to hurt, so leaving it like this for now.
-              completeCromwellResponse(runLog(workflowId, (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, None, None, expandSubWorkflows = false), serviceRegistryActor))
-            }
-        }
+        path(Segment) { workflowId =>
+          get {
+            // this is what it was like in code found in the project… it perhaps isn’t ideal but doesn’t seem to hurt, so leaving it like this for now.
+            completeCromwellResponse(runLog(workflowId, (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, None, None, expandSubWorkflows = false), serviceRegistryActor))
+          }
+      }
       )
     }
 }

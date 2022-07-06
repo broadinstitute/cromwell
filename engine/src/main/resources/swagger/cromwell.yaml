@@ -840,12 +840,12 @@ paths:
             type: string
             format: binary
           in: formData
-          workflow_attachment:
-            type: array
-            items:
-              type: string
-              format: binary
-            description: ''
+#          workflow_attachment:
+#            type: array
+#            items:
+#              type: string
+#              format: binary
+#            description: ''
       responses:
         '200':
           description: Successful Request

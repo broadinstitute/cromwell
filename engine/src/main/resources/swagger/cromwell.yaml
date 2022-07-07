@@ -841,7 +841,7 @@ paths:
             format: binary
           in: formData
       responses:
-        '200':
+        '201':
           description: Successful Request
           schema:
             $ref: '#/definitions/RunId'

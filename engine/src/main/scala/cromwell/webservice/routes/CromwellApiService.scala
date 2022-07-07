@@ -186,7 +186,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
   }
 
   def standardSuccessHandler: PartialFunction[WorkflowStoreSubmitActorResponse, Route] = {
-    case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(workflowId, _) => complete(ToResponseMarshallable(WorkflowSubmitResponse(workflowId.toString, WorkflowSubmitted.toString)))
+    case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(workflowId, _) => complete(WorkflowSubmitResponse(workflowId.toString, WorkflowSubmitted.toString))
     case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(workflowIds, _) => complete(workflowIds.toList.map(x => WorkflowSubmitResponse(x.toString, WorkflowSubmitted.toString)))
     case WorkflowStoreSubmitActor.WorkflowSubmitFailed(throwable) => throwable.failRequest(StatusCodes.BadRequest)
   }

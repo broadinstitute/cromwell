@@ -1,7 +1,6 @@
 package cromwell.webservice.routes.wes
 
 import akka.actor.ActorRef
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.{StatusCode, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{Directive1, Route}
@@ -11,14 +10,14 @@ import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowId
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
-// import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowStoreSubmitActorResponse
+import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor
+import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowStoreSubmitActorResponse
 import cromwell.server.CromwellShutdown
 import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, GetSingleWorkflowMetadataAction}
 import cromwell.services.{FailedMetadataJsonResponse, SuccessfulMetadataJsonResponse}
 import cromwell.webservice.routes.CromwellApiService
 import cromwell.webservice.routes.MetadataRouteSupport.{metadataBuilderActorRequest, metadataQueryRequest}
-import cromwell.webservice.routes.wes.WesResponseJsonSupport.{WesResponseErrorFormat, WesResponseFormat}
-import cromwell.webservice.routes.wes.WesRunRoutes.{completeCromwellResponse, extractSubmission, runLog}
+import cromwell.webservice.routes.wes.WesRunRoutes.{WesErrorHandler, WesSuccessHandler, extractSubmission, completeCromwellResponse, runLog}
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -33,23 +32,22 @@ trait WesRunRoutes extends CromwellApiService {
   lazy val runRoutes: Route =
     pathPrefix("ga4gh" / "wes" / "v1") {
       concat(
-        pathPrefix("runs") {
+        path("runs") {
           get {
             parameters(("page_size".as[Int].?, "page_token".?)) { (pageSize, pageToken) =>
               WesRunRoutes.completeCromwellResponse(WesRunRoutes.listRuns(pageSize, pageToken, serviceRegistryActor))
             }
-          }
-            post {
-              extractSubmission() { submission =>
-                submitRequest(submission.entity,
-                  isSingleSubmission = true,
-                  //successHandler = WesSuccessHandler,
-                  //errorHandler = WesErrorHandler
-                )
-              }
+          } ~
+          post {
+            extractSubmission() { submission =>
+              submitRequest(submission.entity,
+                isSingleSubmission = true,
+                successHandler = WesSuccessHandler,
+                errorHandler = WesErrorHandler)
             }
+          }
         },
-        path(Segment) { workflowId =>
+        path("runs" / Segment) { workflowId =>
           get {
             // this is what it was like in code found in the project… it perhaps isn’t ideal but doesn’t seem to hurt, so leaving it like this for now.
             completeCromwellResponse(runLog(workflowId, (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, None, None, expandSubWorkflows = false), serviceRegistryActor))
@@ -63,10 +61,13 @@ object WesRunRoutes {
 
   implicit lazy val duration: FiniteDuration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
   implicit lazy val timeout: Timeout = duration
+  import WesResponseJsonSupport._
 
-//  def WesSuccessHandler: PartialFunction[WorkflowStoreSubmitActorResponse, Route] = {
-//    case response => complete(WesRunId(response.workflowId.toString))
-//  }
+  def WesSuccessHandler: PartialFunction[WorkflowStoreSubmitActorResponse, Route] = {
+    case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(workflowId, _) => complete(WesRunId(workflowId.toString))
+    case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(workflowIds, _) => complete(WesRunId(workflowIds.toList.head.toString))
+    case WorkflowStoreSubmitActor.WorkflowSubmitFailed(throwable) => respondWithWesError(throwable.getLocalizedMessage, StatusCodes.BadRequest)
+  }
 
   def WesErrorHandler: PartialFunction[Throwable, Route] = {
     case e: IllegalStateException => respondWithWesError(e.getLocalizedMessage, StatusCodes.Forbidden)
@@ -79,7 +80,6 @@ object WesRunRoutes {
     complete((status, WesErrorResponse(errorMsg, status.intValue)))
   }
 
-
   def extractSubmission(): Directive1[WesSubmission] = {
     formFields((
       "workflow_params".?,
@@ -90,7 +90,6 @@ object WesRunRoutes {
       "workflow_url".?,
       "workflow_attachment".as[String].*
     )).as(WesSubmission)
-
     }
 
   def completeCromwellResponse(future: => Future[WesResponse]): Route = {

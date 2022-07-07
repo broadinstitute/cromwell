@@ -1,6 +1,0 @@
-package cromwell.backend.impl.bcs.callcaching
-
-sealed trait BcsCacheHitDuplicationStrategy
-
-case object CopyCachedOutputs extends BcsCacheHitDuplicationStrategy
-case object UseOriginalCachedOutputs extends BcsCacheHitDuplicationStrategy

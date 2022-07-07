@@ -25,7 +25,6 @@ class DockerImageIdentifierSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
       ("index.docker.io:9999/ubuntu:170904",  Option("index.docker.io:9999"), None,             "ubuntu",    "170904"),
       ("localhost:5000/capture/transwf:170904", Option("localhost:5000"), Option("capture"),      "transwf",    "170904"),
       ("quay.io/biocontainers/platypus-variant:0.8.1.1--htslib1.5_0", Option("quay.io"), Option("biocontainers"), "platypus-variant", "0.8.1.1--htslib1.5_0"),
-      ("registry.cn-shanghai.aliyuncs.com/batchcompute/ubuntu:0.2", Option("registry.cn-shanghai.aliyuncs.com"), Option("batchcompute"), "ubuntu", "0.2"),
       // Very long tags with trailing spaces cause problems for the re engine
       ("someuser/someimage:supercalifragilisticexpialidociouseventhoughthesoundofitissomethingquiteatrociousifyousayitloudenoughyoullalwayssoundprecocious ",              None,         Some("someuser"),         "someimage",     "supercalifragilisticexpialidociouseventhoughthesoundofitissomethingquiteatrociousifyousayitloudenoughyoullalwayssoundprecocious")
     )

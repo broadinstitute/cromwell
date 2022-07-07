@@ -40,9 +40,6 @@ filesystems {
   gcs {
     class = "cromwell.filesystems.gcs.GcsPathBuilderFactory"
   }
-  oss {
-    class = "cromwell.filesystems.oss.OssPathBuilderFactory"
-  }
   s3 {
     class = "cromwell.filesystems.s3.S3PathBuilderFactory"
   }
@@ -53,10 +50,10 @@ filesystems {
 ```
 
 It defines the filesystems that can be accessed by Cromwell.
-Those filesystems can be referenced by their name (`drs`, `gcs`, `oss`, `s3`, `http` and `local`) in other parts of the configuration.
+Those filesystems can be referenced by their name (`drs`, `gcs`, `s3`, `http` and `local`) in other parts of the configuration.
 
 **Note:**
-- **OSS and S3 filesystems are experimental.** 
+- **S3 filesystem is experimental.** 
 - **DRS filesystem has initial support only. Also, currently it works only with [GCS filesystem](../GoogleCloudStorage) in [PapiV2 backend](http://cromwell.readthedocs.io/en/develop/backends/Google).**
 
 
@@ -196,8 +193,6 @@ The filesystem configuration used will be the one in the `config` section of the
 -  Google Cloud Storage (GCS) - [Cromwell Doc](GoogleCloudStorage.md) / [Google Doc](https://cloud.google.com/storage/)
 
 -  Simple Storage Service (S3) - [Amazon Doc](https://aws.amazon.com/documentation/s3/)
-
--  Object Storage Service (OSS) - [Alibaba Cloud Doc](https://www.alibabacloud.com/product/oss)
 
 -  HTTP - support for `http` or `https` URLs for [workflow inputs only](http://cromwell.readthedocs.io/en/develop/filesystems/HTTP)
 

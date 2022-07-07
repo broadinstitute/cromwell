@@ -123,7 +123,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       ).getOrElse(List.empty[WomFile].validNel)
        .getOrElse(List.empty)
     }
-    
+
     jobDescriptor.taskCall.callable.outputs
       .flatMap(evaluateFiles)
       .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
@@ -192,7 +192,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     }
 
   private val additionalGlobOutput = jobDescriptor.taskCall.callable.additionalGlob.toList.flatMap(handleGlobFile(_, womOutputs.size))
-  
+
   private lazy val cwdOutput = Output(
     name = Option("execution.dir.output"),
     description = Option(fullyQualifiedTaskName + "." + "execution.dir.output"),
@@ -255,6 +255,22 @@ object TesTask {
       preemptible = Option(runtimeAttributes.preemptible),
       zones = None,
       backend_parameters = Option(backendParameters)
+    )
+  }
+
+  def makeTask(tesTask: TesTask): Task = {
+    Task(
+      id = None,
+      state = None,
+      name = Option(tesTask.name),
+      description = Option(tesTask.description),
+      inputs = Option(tesTask.inputs),
+      outputs = Option(tesTask.outputs),
+      resources = Option(tesTask.resources),
+      executors = tesTask.executors,
+      volumes = None,
+      tags = Option(tesTask.jobDescriptor.workflowDescriptor.customLabels.asMap),
+      logs = None
     )
   }
 }

@@ -21,7 +21,6 @@ services:
         -Dsystem.max-workflow-launch-count=0
         -Dsystem.new-workflow-poll-rate=999999
         -Dservices.MetadataService.config.metadata-summary-refresh-interval=Inf
-      - CROMWELL_BUILD_BCS_CLUSTER_ID
       - CROMWELL_BUILD_CENTAUR_256_BITS_KEY
       - CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
       - CROMWELL_BUILD_CENTAUR_JDBC_URL
@@ -56,7 +55,6 @@ services:
         JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_CENTAUR_MANAGED_CONFIG}
         -Dwebservice.port=8000
         -Dsystem.cromwell_id=summarizer
-      - CROMWELL_BUILD_BCS_CLUSTER_ID
       - CROMWELL_BUILD_CENTAUR_256_BITS_KEY
       - CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
       - CROMWELL_BUILD_CENTAUR_JDBC_URL
@@ -99,7 +97,6 @@ services:
         -Dwebservice.port=${CROMWELL_BUILD_CENTAUR_MANAGED_PORT}
         -Dsystem.cromwell_id=frontend
         -Dservices.MetadataService.config.metadata-summary-refresh-interval=Inf
-      - CROMWELL_BUILD_BCS_CLUSTER_ID
       - CROMWELL_BUILD_CENTAUR_256_BITS_KEY
       - CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
       - CROMWELL_BUILD_CENTAUR_JDBC_URL

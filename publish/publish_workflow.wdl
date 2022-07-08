@@ -332,7 +332,7 @@ task draftGithubRelease {
         echo 'Extract the latest piece of the changelog corresponding to this release'
 
         # sed removes the last line
-        sed -n '/## ~{currentReleaseVersion}/,/## ~{changelogPreviousVersion}/p' CHANGELOG.md \
+        sed -n '/## ~{currentReleaseVersion}/,/## [0-9]/p' CHANGELOG.md \
         | sed '$d' \
         > changelog.txt
 

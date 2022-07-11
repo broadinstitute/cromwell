@@ -213,7 +213,6 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
       // NOTE: Do not blindly copy the akka-http -to- ask-actor pattern below without knowing the pros and cons.
       handleExceptions(ExceptionHandler(errorHandler)) {
         onComplete(workflowStoreActor.ask(command).mapTo[WorkflowStoreSubmitActor.WorkflowStoreSubmitActorResponse]) {
-          case Success(x: WorkflowStoreSubmitActorResponse) => successHandler(x)
           case Success(w) =>
             w match {
               case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(workflowId, _) =>
@@ -222,7 +221,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
                 completeResponse(StatusCodes.Created, workflowIds.toList.map(toResponse(_, workflowState)), warnings)
               case WorkflowStoreSubmitActor.WorkflowSubmitFailed(throwable) =>
                 throwable.failRequest(StatusCodes.BadRequest, warnings)
-              // case w: WorkflowStoreSubmitActorResponse => successHandler(w)
+              //case w: WorkflowStoreSubmitActorResponse => successHandler(w)
             }
           case Failure(e) => throw e
         }

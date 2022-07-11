@@ -186,7 +186,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
   }
 
   def standardSuccessHandler: PartialFunction[WorkflowStoreSubmitActorResponse, Route] = {
-    case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(workflowId, _) => complete(WorkflowSubmitResponse(workflowId.toString, WorkflowSubmitted.toString))
+    case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(workflowId, _) => completeResponse(StatusCodes.Created, WorkflowSubmitResponse(workflowId.toString, WorkflowSubmitted.toString), Seq.empty[String])
     case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(workflowIds, _) => complete(workflowIds.toList.map(x => WorkflowSubmitResponse(x.toString, WorkflowSubmitted.toString)))
     case WorkflowStoreSubmitActor.WorkflowSubmitFailed(throwable) => throwable.failRequest(StatusCodes.BadRequest)
   }
@@ -211,10 +211,8 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
 
     def askSubmit(command: WorkflowStoreActor.WorkflowStoreActorSubmitCommand, warnings: Seq[String], workflowState: WorkflowState): Route = {
       // NOTE: Do not blindly copy the akka-http -to- ask-actor pattern below without knowing the pros and cons.
-      handleExceptions(ExceptionHandler(errorHandler)) {
+      //handleExceptions(ExceptionHandler(errorHandler)) {
         onComplete(workflowStoreActor.ask(command).mapTo[WorkflowStoreSubmitActor.WorkflowStoreSubmitActorResponse]) {
-          case Success(x: WorkflowStoreSubmitActorResponse) => successHandler(x)
-          case Failure(e) => throw e
           case Success(w) =>
             w match {
               case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(workflowId, _) =>
@@ -223,9 +221,11 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
                 completeResponse(StatusCodes.Created, workflowIds.toList.map(toResponse(_, workflowState)), warnings)
               case WorkflowStoreSubmitActor.WorkflowSubmitFailed(throwable) =>
                 throwable.failRequest(StatusCodes.BadRequest, warnings)
+              // case w: WorkflowStoreSubmitActorResponse => successHandler(w)
             }
+          case Failure(e) => throw e
         }
-      }
+      //}
     }
 
     onComplete(materializeFormData(formData)) {

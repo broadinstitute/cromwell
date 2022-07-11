@@ -43,7 +43,8 @@ trait WesRunRoutes extends CromwellApiService {
               submitRequest(submission.entity,
                 isSingleSubmission = true,
                 successHandler = WesSuccessHandler,
-                errorHandler = WesErrorHandler)
+                errorHandler = WesErrorHandler
+              )
             }
           }
         },

@@ -40,6 +40,9 @@ import static java.lang.String.format;
 import static java.lang.Thread.currentThread;
 import static java.lang.Thread.sleep;
 import static org.lerch.s3fs.AmazonS3Factory.*;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
 
 /**
  *
@@ -82,7 +85,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
     private Cache cache = new Cache();
 
     private final Logger log = Logger.getLogger(this.getClass().getName());
-
+     
     @Override
     public String getScheme() {
         return "s3";
@@ -422,6 +425,12 @@ public class S3FileSystemProvider extends FileSystemProvider {
 
         final S3Path s3Source = toS3Path(source);
         final S3Path s3Target = toS3Path(target);
+        log.fine("Starting copy of "+source);
+        // get/set threshold for multipart uploads.
+        final Config conf = ConfigFactory.load();
+        Long threshold = conf.hasPath("engine.filesystems.s3.MultipartThreshold") ? conf.getMemorySize("engine.filesystems.s3.MultipartThreshold").toBytes() : 5L * 1024L * 1024L * 1024L; 
+        log.fine("MultiPart Threshold during S3 copy: "+threshold+ " bytes");
+
 
         final ImmutableSet<CopyOption> actualOptions = ImmutableSet.copyOf(options);
         verifySupportedOptions(EnumSet.of(StandardCopyOption.REPLACE_EXISTING), actualOptions);
@@ -429,15 +438,17 @@ public class S3FileSystemProvider extends FileSystemProvider {
         if (exists(s3Target) && !actualOptions.contains(StandardCopyOption.REPLACE_EXISTING)) {
             throw new FileAlreadyExistsException(format("target already exists: %s", target));
         }
-
         long objectSize = this.objectSize(s3Source);
-        long threshold = 5L * 1024L * 1024L * 1024L; //5GB
         if (objectSize >= threshold) {
             // large file, do a multipart copy
+            log.fine("Doing multipart copy for "+s3Source+" to "+s3Target);
             multiPartCopy(s3Source, objectSize, s3Target, options);
+            log.fine("MP copy finished for : "+source);
 
         } else {
             //do a normal copy
+            log.fine("Doing normal copy for "+s3Source+" to "+s3Target);
+
             String bucketNameOrigin = s3Source.getFileStore().name();
             String keySource = s3Source.getKey();
             String bucketNameTarget = s3Target.getFileStore().name();
@@ -451,6 +462,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
                             .destinationBucket(bucketNameTarget)
                             .destinationKey(keyTarget)
                             .build());
+            log.fine("Copy finished : "+source);
         }
     }
 
@@ -463,7 +475,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
      * @param options copy options
      */
     private void multiPartCopy(S3Path source, long objectSize, S3Path target, CopyOption... options) {
-        log.info(() -> "Attempting multipart copy as part of call cache hit: source = " + source + ", objectSize = " + objectSize + ", target = " + target + ", options = " + Arrays.deepToString(options));
+        log.fine(() -> "Attempting multipart copy as part of call cache hit: source = " + source + ", objectSize = " + objectSize + ", target = " + target + ", options = " + Arrays.deepToString(options));
 
         S3Client s3Client = target.getFileStore().getClient();
 
@@ -482,10 +494,13 @@ public class S3FileSystemProvider extends FileSystemProvider {
         List<CompletableFuture<UploadPartCopyResponse>> uploadFutures = new ArrayList<>();
 
         /* if you set this number to a larger value then ensure the HttpClient has sufficient
-           maxConnections (see org.lerch.s3fsAmazonS3Factory.getHttpClient)  */
-        int THREADS = 500;
+           maxConnections (see org.lerch.s3fsAmazonS3Factory.getHttpClient)  :
+             default value == 500   */
+        final Config conf = ConfigFactory.load();
+        // override max connections if set.
+        final int THREADS = conf.hasPath("engine.filesystems.s3.threads") ? Integer.parseInt(conf.getString("engine.filesystems.s3.threads")) : 500; 
 
-        log.info(() -> "Allocating work stealing pool with "+THREADS+" threads");
+        log.fine(() -> "Allocating work stealing pool with "+THREADS+" threads");
         final ExecutorService MULTIPART_OPERATION_EXECUTOR_SERVICE = Executors.newWorkStealingPool(THREADS);
 
 
@@ -535,7 +550,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
                 log.severe("Max Memory = "+runtime.maxMemory());
 
                 // clean up so we don't get zombie threads
-                log.info(() -> "Shutting down work stealing pool");
+                log.fine(() -> "Shutting down work stealing pool");
                 MULTIPART_OPERATION_EXECUTOR_SERVICE.shutdown();
 
                 log.throwing(S3FileSystemProvider.class.getName(), "multiPartCopy", e);
@@ -562,7 +577,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
                         .build())
                 .collect(Collectors.toList());
 
-        log.info(() -> "Shutting down work stealing pool");
+        log.fine(() -> "Shutting down work stealing pool");
         MULTIPART_OPERATION_EXECUTOR_SERVICE.shutdown();
 
         // build a request to complete the upload
@@ -579,7 +594,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
             // make a request to complete the multipart upload
             final CompleteMultipartUploadResponse completeMultipartUploadResponse = s3Client.completeMultipartUpload(completeMultipartUploadRequest);
 
-            log.info(() -> "Multipart copy complete with status code: "+completeMultipartUploadResponse.sdkHttpResponse().statusCode());
+            log.fine(() -> "Multipart copy complete with status code: "+completeMultipartUploadResponse.sdkHttpResponse().statusCode());
         } catch (AwsServiceException | SdkClientException e) {
             log.warning(() -> "An "+e.getClass().getName()+" with message "+e.getMessage()+
                     " occurred while completing the multipart upload. Will try again.");
@@ -590,7 +605,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
             }
 
             final CompleteMultipartUploadResponse completeMultipartUploadResponse = s3Client.completeMultipartUpload(completeMultipartUploadRequest);
-            log.info(() -> "Multipart copy complete with status code: "+completeMultipartUploadResponse.sdkHttpResponse().statusCode());
+            log.fine(() -> "Multipart copy complete with status code: "+completeMultipartUploadResponse.sdkHttpResponse().statusCode());
         }
     }
 

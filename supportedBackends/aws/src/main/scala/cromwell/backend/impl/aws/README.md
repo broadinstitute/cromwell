@@ -173,6 +173,29 @@ When providing the options.json file during workflow submission, jobs that were 
 
 Note: Retries of jobs using the `awsBatchRetryAttempts` counter do *not* increase memory allocation. 
 
+### Multipart copy settings
+
+Multipart copying is a technology to increase upload performance by splitting the file in parallel processes. The awscli client does this automatically for all files over 8Mb. If a file was uploaded using MultiPart uploads, this is reflected in the ETAG value by a trailing '-\d+', where '\d+' reflects the number of parts. 
+
+Cromwell uses a default threshold of 5Gb for multipart copying during cache-copy processes, and tries to create as much parts as possible (minimal size 5Mb, max parts 10K). Although the default settings are fine, this threshold can be adjusted to reflect ETAG-expectations in for examples upstream/downstream applications. If the treshold changes, the ETAGs will differ after copying the data. 
+
+s3 multipart specific options: `cromwell.config`:
+```
+// activate s3 as a supported filesystem
+engine {
+  filesystems {
+    s3 {
+        auth = "default",
+        enabled: true,
+        # at what size should we start using multipart uploads ?
+        MultipartThreshold = "4G",
+        # multipart copying threads : if you set this number to a larger value then ensure the HttpClient has sufficient
+        #   maxConnections (see org.lerch.s3fsAmazonS3Factory.getHttpClient). Default : 500
+        threads = 50
+    }
+  }
+}
+```
 
 
 AWS Batch

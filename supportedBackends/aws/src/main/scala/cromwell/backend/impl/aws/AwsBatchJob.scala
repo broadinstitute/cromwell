@@ -62,6 +62,8 @@ import java.security.MessageDigest
 import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 import scala.util.Try
+import com.typesafe.config.Config
+import com.typesafe.config.ConfigFactory
 
 /**
   *  The actual job for submission in AWS batch. `AwsBatchJob` is the primary interface to AWS Batch. It creates the
@@ -151,6 +153,11 @@ final case class AwsBatchJob(
       .toList
       .mkString("\n")
 
+    // get multipart threshold from config.
+    val conf : Config = ConfigFactory.load();
+    val mp_threshold : Long = if (conf.hasPath("engine.filesystems.s3.MultipartThreshold") ) conf.getMemorySize("engine.filesystems.s3.MultipartThreshold").toBytes() else 5L * 1024L * 1024L * 1024L; 
+    Log.info(s"MultiPart Threshold for delocalizing is $mp_threshold")
+
     // this goes at the start of the script after the #!
     val preamble =
       s"""
@@ -176,7 +183,7 @@ final case class AwsBatchJob(
          |    fi
          |    # copy  
          |    $awsCmd s3 cp --no-progress "$$s3_path" "$$destination"  ||
-         |        { echo "attempt $$i to copy $$s3_path failed" sleep $$((7 * "$$i")) && continue; }
+         |        { echo "attempt $$i to copy $$s3_path failed" && sleep $$((7 * "$$i")) && continue; }
          |    # check data integrity
          |    _check_data_integrity $$destination $$s3_path || 
          |       { echo "data content length difference detected in attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
@@ -186,10 +193,20 @@ final case class AwsBatchJob(
          |}
          |
          |function _s3_delocalize_with_retry() {
+         |  # input variables
          |  local local_path=$$1
          |  # destination must be the path to a file and not just the directory you want the file in
          |  local destination=$$2
          |
+         |  # get the multipart chunk size
+         |  chunk_size=$$(_get_multipart_chunk_size $$local_path)
+         |  echo "chunk size : $$chunk_size bytes"
+         |  local MP_THRESHOLD=${mp_threshold}
+         |  # then set them 
+         |  $awsCmd configure set default.s3.multipart_threshold $$MP_THRESHOLD
+         |  $awsCmd configure set default.s3.multipart_chunksize $$chunk_size
+         |
+         |  # try & validate upload 5 times
          |  for i in {1..6};
          |  do
          |    # if tries exceeded : abort
@@ -226,6 +243,18 @@ final case class AwsBatchJob(
          |  done
          |}
          |
+         |function _get_multipart_chunk_size() {
+         |  local file_path=$$1
+         |  # file size
+         |  file_size=$$(stat --printf="%s" $$file_path) 
+         |  # chunk_size : you can have at most 10K parts with at least one 5MB part
+         |  # this reflects the formula in s3-copy commands of cromwell (S3FileSystemProvider.java) 
+         |  #   => long partSize = Math.max((objectSize / 10000L) + 1, 5 * 1024 * 1024);
+         |  a=$$(( ( file_size / 10000) + 1 ))
+         |  b=$$(( 5 * 1024 * 1024 ))
+         |  chunk_size=$$(( a > b ? a : b ))
+         |  echo $$chunk_size
+         }
          |function _check_data_integrity() {
          |  local local_path=$$1
          |  local s3_path=$$2

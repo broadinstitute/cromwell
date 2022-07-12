@@ -66,6 +66,7 @@ class CromwellClient(scheme: String, interface: String, port: Int, log: LoggingA
       val cromwellRequest = httpRequest
         .copy(uri = httpRequest.uri.withAuthority(interface, port).withScheme(scheme))
         .withHeaders(headers)
+      println("Running forwardToCromwell and resolved the following URI: " + cromwellRequest.uri.toString())
       Http().singleRequest(cromwellRequest)
     } recoverWith {
       case e => Future.failed(CromwellConnectionFailure(e))

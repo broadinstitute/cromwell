@@ -55,10 +55,10 @@ public class S3ClientStore {
      * @return an S3 client appropriate for the region of the named bucket
      */
     protected S3Client generateClient (String bucketName, S3Client locationClient) {
-        logger.info("generating client for bucket: '{}'", bucketName);
+        logger.debug("generating client for bucket: '{}'", bucketName);
         S3Client bucketSpecificClient;
         try {
-            logger.info("determining bucket location with getBucketLocation");
+            logger.debug("determining bucket location with getBucketLocation");
             String bucketLocation = locationClient.getBucketLocation(builder -> builder.bucket(bucketName)).locationConstraintAsString();
 
             bucketSpecificClient = this.clientForRegion(bucketLocation);
@@ -93,7 +93,7 @@ public class S3ClientStore {
         // It may be useful to further cache clients for regions although at some point clients for buckets may need to be
         // specialized beyond just region end points.
         Region region = regionString.equals("") ? Region.US_EAST_1 : Region.of(regionString);
-        logger.info("bucket region is: '{}'", region.id());
+        logger.debug("bucket region is: '{}'", region.id());
         return S3Client.builder().region(region).build();
     }
 

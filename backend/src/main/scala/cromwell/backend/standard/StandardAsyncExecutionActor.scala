@@ -413,7 +413,7 @@ trait StandardAsyncExecutionActor
   def commandScriptContents: ErrorOr[String] = {
     val commandString = instantiatedCommand.commandString
     val commandStringAbbreviated = StringUtils.abbreviateMiddle(commandString, "...", abbreviateCommandLength)
-    jobLogger.info(s"`$commandStringAbbreviated`")
+    jobLogger.debug(s"`$commandStringAbbreviated`")
     tellMetadata(Map(CallMetadataKeys.CommandLine -> commandStringAbbreviated))
 
     val cwd = commandDirectory

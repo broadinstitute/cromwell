@@ -103,7 +103,7 @@ public abstract class AmazonS3Factory {
         ApacheHttpClient.Builder httpClientBuilder = ApacheHttpClient.builder();
         // override max connections if set in cromwell.config : engine.filesystems.
         final Config conf = ConfigFactory.load();
-        log.fine("trying to override some settings in httpclient.");
+        log.debug("trying to override some settings in httpclient.");
         if (conf.hasPath("akka.http.server.max-connections") ) {
             log.debug("Overriding maxconnections to "+conf.getString("akka.http.server.max-connections"));
             httpClientBuilder = httpClientBuilder.maxConnections(Integer.parseInt(conf.getString("akka.http.server.max-connections")));

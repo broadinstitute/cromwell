@@ -156,7 +156,7 @@ final case class AwsBatchJob(
     // get multipart threshold from config.
     val conf : Config = ConfigFactory.load();
     val mp_threshold : Long = if (conf.hasPath("engine.filesystems.s3.MultipartThreshold") ) conf.getMemorySize("engine.filesystems.s3.MultipartThreshold").toBytes() else 5L * 1024L * 1024L * 1024L; 
-    Log.info(s"MultiPart Threshold for delocalizing is $mp_threshold")
+    Log.debug(s"MultiPart Threshold for delocalizing is $mp_threshold")
 
     // this goes at the start of the script after the #!
     val preamble =

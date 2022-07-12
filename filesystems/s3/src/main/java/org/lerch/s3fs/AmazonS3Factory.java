@@ -14,7 +14,8 @@ import software.amazon.awssdk.services.s3.S3Configuration;
 
 import java.net.URI;
 import java.util.Properties;
-
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 /**
  * Factory base class to create a new AmazonS3 instance.
@@ -99,7 +100,20 @@ public abstract class AmazonS3Factory {
 
     protected SdkHttpClient getHttpClient(Properties props) {
         // TODO: custom http configuration based on properties
-        return ApacheHttpClient.builder().maxConnections(1024).build();
+        ApacheHttpClient.Builder httpClientBuilder = ApacheHttpClient.builder();
+        // override max connections if set in cromwell.config : engine.filesystems.
+        final Config conf = ConfigFactory.load();
+        log.fine("trying to override some settings in httpclient.");
+        if (conf.hasPath("akka.http.server.max-connections") ) {
+            log.debug("Overriding maxconnections to "+conf.getString("akka.http.server.max-connections"));
+            httpClientBuilder = httpClientBuilder.maxConnections(Integer.parseInt(conf.getString("akka.http.server.max-connections")));
+        }
+        else {
+            log.debug("MaxConnections not found in config. Using default value of 1024");
+            httpClientBuilder = httpClientBuilder.maxConnections(1024);
+        }
+        //return ApacheHttpClient.builder().maxConnections(1024).build();
+        return httpClientBuilder.build();
     }
 
     protected S3Configuration getServiceConfiguration(Properties props) {

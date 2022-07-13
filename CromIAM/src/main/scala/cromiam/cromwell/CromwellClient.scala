@@ -115,7 +115,8 @@ object CromwellClient {
 
   // Header that all clients will add before they send a request.
   // If we don't strip this header out and let Akka replace it automatically before forwarding
-  // requests to Cromwell, any host-based routing in front of Cromwell will fail.
+  // requests to Cromwell, any host-based routing in front of Cromwell will fail because the
+  // header will still contain CromIAM's host, not Cromwell's.
   // See: https://broadworkbench.atlassian.net/browse/DDO-2190
   val HostHeader = "Host"
 

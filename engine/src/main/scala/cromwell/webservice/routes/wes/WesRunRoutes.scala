@@ -15,9 +15,9 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowS
 import cromwell.server.CromwellShutdown
 import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, GetSingleWorkflowMetadataAction}
 import cromwell.services.{FailedMetadataJsonResponse, SuccessfulMetadataJsonResponse}
-import cromwell.webservice.routes.CromwellApiService
+import cromwell.webservice.routes.{CromwellApiService, WesCromwellRouteSupport}
 import cromwell.webservice.routes.MetadataRouteSupport.{metadataBuilderActorRequest, metadataQueryRequest}
-import cromwell.webservice.routes.wes.WesRunRoutes.{WesErrorHandler, WesSuccessHandler, extractSubmission, completeCromwellResponse, runLog}
+import cromwell.webservice.routes.wes.WesRunRoutes.{WesErrorHandler, WesSuccessHandler, completeCromwellResponse, extractSubmission, runLog}
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -25,7 +25,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success}
 
-trait WesRunRoutes extends CromwellApiService {
+trait WesRunRoutes extends WesCromwellRouteSupport {
 
   val serviceRegistryActor: ActorRef
 
@@ -40,7 +40,7 @@ trait WesRunRoutes extends CromwellApiService {
           } ~
           post {
             extractSubmission() { submission =>
-              submitRequest(submission.entity,
+              CromwellApiService.submitRequest(submission.entity,
                 isSingleSubmission = true,
                 successHandler = WesSuccessHandler,
                 errorHandler = WesErrorHandler
@@ -65,6 +65,7 @@ object WesRunRoutes {
   import WesResponseJsonSupport._
 
   def WesSuccessHandler: PartialFunction[WorkflowStoreSubmitActorResponse, Route] = {
+        // parameterize
     case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(workflowId, _) => complete(WesRunId(workflowId.toString))
     case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(workflowIds, _) => complete(WesRunId(workflowIds.toList.head.toString))
     case WorkflowStoreSubmitActor.WorkflowSubmitFailed(throwable) => respondWithWesError(throwable.getLocalizedMessage, StatusCodes.BadRequest)

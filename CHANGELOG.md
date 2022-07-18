@@ -1,5 +1,10 @@
 # Cromwell Change Log
 
+## 82 Release Notes
+
+ * Restored missing example configuration file
+ * Upgraded to latest version of the Google Cloud Storage NIO library (0.124.8)
+
 ## 81 Release Notes
 
 ### Workflow labels in TES tasks

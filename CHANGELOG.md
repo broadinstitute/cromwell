@@ -4,7 +4,7 @@
 
  * Restored missing example configuration file
  * Upgraded to latest version of the Google Cloud Storage NIO library (0.124.8)
- * Cromwell will now finitely retry the following Google Cloud Storage error.
+ * Cromwell will now finitely retry the following Google Cloud Storage I/O error.
    * Response code `400` bad request, message `User project specified in the request is invalid`
    * The default retry count is `5` and may be customized with `system.io.number-of-attempts`.
 

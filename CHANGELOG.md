@@ -4,6 +4,8 @@
 
  * Restored missing example configuration file
  * Upgraded to latest version of the Google Cloud Storage NIO library (0.124.8)
+ * Cromwell will now [retry](https://cromwell.readthedocs.io/en/stable/RuntimeAttributes/#maxretries) the following Google Cloud Storage error up to `maxRetries` times (default zero)
+   * Response code `400` bad request, message `User project specified in the request is invalid`
 
 ## 81 Release Notes
 

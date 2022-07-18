@@ -47,7 +47,8 @@ object RetryableRequestSupport {
 
   // Error messages not included in the list of built-in GCS retryable errors (com.google.cloud.storage.StorageException) but that we still want to retry
   private val AdditionalRetryableErrorMessages = List(
-    "Connection closed prematurely"
+    "Connection closed prematurely",
+    "User project specified in the request is invalid"
   ).map(_.toLowerCase)
 
   /**

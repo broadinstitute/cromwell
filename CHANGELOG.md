@@ -3,7 +3,7 @@
 ## 82 Release Notes
 
  * Restored missing example configuration file
- * Upgraded to latest version of googleCloudNioV
+ * Upgraded to latest version of googleCloudNioV (0.124.8)
 
 ## 81 Release Notes
 

@@ -26,7 +26,7 @@ Many users today run their WDL workflows in [Terra](https://app.terra.bio/), a m
 
 Users with specialized needs who wish to install and maintain their own Cromwell instances can [download](https://github.com/broadinstitute/cromwell/releases) a JAR or Docker image. The development team accepts reproducible bug reports from self-managed instances, but cannot feasibly provide direct support.
 
-[Cromwell's backends](https://cromwell.readthedocs.io/en/stable/backends/Backends/) receive development resources proportional to user demand. The team is actively developing for Google Cloud and Microsoft Azure. Maintenance of other backends is primarily community-based.
+[Cromwell's backends](https://cromwell.readthedocs.io/en/stable/backends/Backends/) receive development resources proportional to user demand. The team is actively developing for Google Cloud and Microsoft Azure (see [Cromwell on Azure](https://github.com/microsoft/CromwellOnAzure)). Maintenance of other backends is primarily community-based.
 
 Cromwell [supports](https://cromwell.readthedocs.io/en/stable/LanguageSupport/) the WDL workflow language. Cromwell version 80 and above no longer support CWL.
 

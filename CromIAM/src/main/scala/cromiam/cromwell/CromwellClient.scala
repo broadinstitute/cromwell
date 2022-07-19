@@ -62,7 +62,8 @@ class CromwellClient(scheme: String, interface: String, port: Int, log: LoggingA
 
   def forwardToCromwell(httpRequest: HttpRequest): FailureResponseOrT[HttpResponse] = {
     val future = {
-      val headers = httpRequest.headers.filterNot(_.name == TimeoutAccessHeader)
+      // See CromwellClient's companion object for info on these header modifications
+      val headers = httpRequest.headers.filterNot(header => header.name == TimeoutAccessHeader || header.name == HostHeader)
       val cromwellRequest = httpRequest
         .copy(uri = httpRequest.uri.withAuthority(interface, port).withScheme(scheme))
         .withHeaders(headers)
@@ -111,6 +112,13 @@ object CromwellClient {
   // HTTP header ‘Timeout-Access: <function1>’ is not allowed in requests
   // See: https://github.com/akka/akka-http/issues/64
   val TimeoutAccessHeader = "Timeout-Access"
+
+  // Header that all clients will add before they send a request.
+  // If we don't strip this header out and let Akka replace it automatically before forwarding
+  // requests to Cromwell, any host-based routing in front of Cromwell will fail because the
+  // header will still contain CromIAM's host, not Cromwell's.
+  // See: https://broadworkbench.atlassian.net/browse/DDO-2190
+  val HostHeader = "Host"
 
   final case class CromwellConnectionFailure(f: Throwable) extends Exception(s"Unable to connect to Cromwell (${f.getMessage})", f)
 

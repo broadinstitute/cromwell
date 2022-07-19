@@ -253,6 +253,7 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
       new StorageException(504, "message"),
       new StorageException(408, "message"),
       new StorageException(429, "message"),
+      new StorageException(400, "User project specified in the request is invalid"),
       BatchFailedException(new Exception),
       ChecksumFailedException("message"),
       new SocketException(),

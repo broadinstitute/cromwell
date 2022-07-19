@@ -22,7 +22,7 @@ will need to be on the Broad internal network or VPN to open the following links
 
 #### Announce your intentions
 
-Post a message in `#ftfy-private` letting people know that a publish is imminent in case there are PRs they want to get
+Post a message in `#dsp-batch-private` letting people know that a publish is imminent in case there are PRs they want to get
 wrapped up and merged to `develop` to go out in the forthcoming version of Cromwell.
 
 #### Get a Github token
@@ -61,7 +61,7 @@ Ensure you have at least 8GB; 4GB is not sufficient.
 
 #### Let people know the publish is underway
 
-Post another message in `#ftfy-private` that the release is underway, asking everyone to hold off merges to `develop` until
+Post another message in `#dsp-batch-private` that the release is underway, asking everyone to hold off merges to `develop` until
 the release is published.
 
 #### Run the `publish_workflow.wdl` Workflow
@@ -79,11 +79,12 @@ The workflow outputs its status to the console.
 
 #### Make sure it all went swimmingly
 
-* Check that the workflow succeeded
+* Check that the workflow succeeded. If it failed during Homebrew publishing in the final step, do not fear! The actual release probably still worked. 
 * Check that there's now a new Cromwell release listed [here](https://github.com/broadinstitute/cromwell/releases).
-* If publishing to Homebrew, check that there's a Homebrew PR for the new Cromwell version [here](https://github.com/Homebrew/homebrew-core/pulls) (and that it passes their CI)
+* If publishing to Homebrew, check that there's a Homebrew PR for the new Cromwell version [here](https://github.com/Homebrew/homebrew-core/pulls) (and that it passes their CI). 
+If the Homebrew publish step of the workflow failed, there will not be one, but typically someone on the Homebrew side takes care of creating one. Check back tomorrow.
 * Look [in Travis](https://app.travis-ci.com/github/broadinstitute/cromwell/branches) for the release tag build that will publish Docker images for the new version.
-* Let `#ftfy-private` know that it's okay to resume merges to `develop`.
+* Let `#dsp-batch-private` know that it's okay to resume merges to `develop`.
 * Announce release in `#dsp-batch`, set expectations about when the new version will be available in Terra.
 * It will take about an additional hour for the Docker image to build in Travis before its tag appears on the [Cromwell Docker Hub page](https://hub.docker.com/r/broadinstitute/cromwell/tags).
     * The relevant build is the one named `XX_hotfix` in [this list](https://app.travis-ci.com/github/broadinstitute/cromwell/builds).

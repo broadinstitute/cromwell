@@ -40,10 +40,8 @@ object Dependencies {
   // latest date via: https://github.com/googleapis/google-api-java-client-services/blob/main/clients/google-api-services-cloudkms/v1.metadata.json
   private val googleCloudKmsV = "v1-rev20220104-1.32.1"
   private val googleCloudMonitoringV = "3.2.5"
-  // BW-808 Pinning googleCloudNioV to this tried-and-true old version and quieting Scala Steward.
-  // 0.121.2 is the most recent version currently known to work.
-  private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
-  private val googleCloudStorageV = "2.1.10"
+  private val googleCloudNioV = "0.124.8"
+  private val googleCloudStorageV = "2.9.2"
   private val googleGaxGrpcV = "2.12.2"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-genomics
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"

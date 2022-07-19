@@ -21,7 +21,7 @@ echo $? > rc
 
 **Configuring**
 
-Configuring the TES backend is straightforward; one must only provide the TES API endpoint for the service. 
+Configuring the TES backend is straightforward; one must only provide the TES API endpoint for the service.
 
 ```hocon
 backend {
@@ -42,7 +42,7 @@ backend {
 
 **Supported File Systems**  
 
-Currently this backend only works with files on a Local or Shared File System. 
+Currently this backend only works with files on a Local or Shared File System.
 
 **Docker**
 
@@ -51,21 +51,24 @@ This backend supports the following optional [Runtime Attributes](../RuntimeAttr
 * `docker`: Docker image to use such as "Ubuntu".
 * `dockerWorkingDir`: defines the working directory in the container.
 
-**CPU, Memory and Disk** 
+**CPU, Memory and Disk**
 
 This backend supports CPU, memory and disk size configuration through the use of the following [Runtime Attributes](../RuntimeAttributes) and [Workflow Options](../wf_options/Overview/):  
 
-* `cpu` defines the amount of CPU to use. 
+* `cpu` defines the amount of CPU to use.
     * Type: Integer (ex: 4)
-* `memory` defines the amount of memory to use. 
+* `memory` defines the amount of memory to use.
     * Type: String (ex: "4 GB" or "4096 MB")
-* `disk` defines the amount of disk to use. 
+* `disk` defines the amount of disk to use.
     * Type: String (ex: "1 GB" or "1024 MB")
-* `preemptible` defines whether or not to use preemptible VMs. 
+* `preemptible` defines whether or not to use preemptible VMs.
     * Type: Boolean (ex: "true" or "false")
     * Integers are accepted and will be converted to boolean (true if > 0)
 
 If they are not set, the TES backend may use default values.
+
+**Azure**
+[Azure](Azure) is an implementation of Cromwell that uses the TES interface for orchestrating the tasks on Azure.
 
 **TESK**
 

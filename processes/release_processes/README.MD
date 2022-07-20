@@ -9,6 +9,9 @@ See our "updating the process" [process](../README.MD)!
 
 If you're the lucky "Release Rotation Engineer" this time, you should do the following four things:
 
+1. Create a Jira ticket for the release (look at previous release tickets if you're not sure how). In the Suggested 
+Release Notes field, add "Terra is now running Cromwell <version>" along with any other release notes relevant to Terra
+users.
 1. Check that all most recent executions of Cromwell's Jenkins tests have succeeded, and that all those executions were 
 against the most recent commit in "develop" branch. There are 2 groups of Jenkins tests which have to be checked (you 
 will need to be on the Broad internal network or VPN to open the following links):
@@ -48,7 +51,7 @@ Make or copy the following files into a temporary `release/` directory outside t
 {
   "publish_workflow.githubToken": "<<GITHUB TOKEN VALUE>>",
   "publish_workflow.majorRelease": true,
-  "publish_workflow.publishHomebrew": true,
+  "publish_workflow.publishHomebrew": false,
   "publish_workflow.publishDocker": "broadinstitute/cromwell-publish:latest",
   "publish_workflow.organization": "broadinstitute"
 }
@@ -79,16 +82,15 @@ The workflow outputs its status to the console.
 
 #### Make sure it all went swimmingly
 
-* Check that the workflow succeeded. If it failed during Homebrew publishing in the final step, do not fear! The actual release probably still worked. 
+* Check that the workflow succeeded. 
 * Check that there's now a new Cromwell release listed [here](https://github.com/broadinstitute/cromwell/releases).
-* If publishing to Homebrew, check that there's a Homebrew PR for the new Cromwell version [here](https://github.com/Homebrew/homebrew-core/pulls) (and that it passes their CI). 
-If the Homebrew publish step of the workflow failed, there will not be one, but typically someone on the Homebrew side takes care of creating one. Check back tomorrow.
 * Look [in Travis](https://app.travis-ci.com/github/broadinstitute/cromwell/branches) for the release tag build that will publish Docker images for the new version.
 * Let `#dsp-batch-private` know that it's okay to resume merges to `develop`.
 * Announce release in `#dsp-batch`, set expectations about when the new version will be available in Terra.
 * It will take about an additional hour for the Docker image to build in Travis before its tag appears on the [Cromwell Docker Hub page](https://hub.docker.com/r/broadinstitute/cromwell/tags).
     * The relevant build is the one named `XX_hotfix` in [this list](https://app.travis-ci.com/github/broadinstitute/cromwell/builds).
     * See the `cromwell::build::publish_artifacts()` function for details
+* **One business day later,** confirm that [the Homebrew package](https://formulae.brew.sh/formula/cromwell) has the latest version. If it doesn't, start investigation by looking at [Homebrew PR's](https://github.com/Homebrew/homebrew-core/pulls?q=is%3Apr+cromwell).
 
 ### How to Release Cromwell into Firecloud / Terra
 
@@ -109,6 +111,10 @@ CaaS is "Cromwell as a Service". It is used by a couple of Broad teams (Pipeline
 to let them know that the upgrade is about to happen is a good idea.
 
 Deploying to CaaS is detailed in the [Quick CaaS Deployment Guide](https://docs.google.com/document/d/1s0YC-oohJ7o-OGcgnH_-YBtIEKmLIPTRpG36yvWxUpE) 
+
+### How to be Sure You're Done
+
+Don't forget to confirm that [the Homebrew package](https://formulae.brew.sh/formula/cromwell) was updated!
 
 ## Bonus Processes
 

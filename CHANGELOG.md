@@ -8,7 +8,6 @@
    * Response code `400` bad request, message `User project specified in the request is invalid`
    * The default retry count is `5` and may be customized with `system.io.number-of-attempts`.
 
-
 ## 81 Release Notes
 
 ### Workflow labels in TES tasks

@@ -1,21 +1,26 @@
 package cromwell.webservice.routes
 
-import akka.actor.ActorRef
+
+import akka.actor.{ActorRef, ActorRefFactory}
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.{Multipart, StatusCodes}
-import akka.http.scaladsl.server.Directives.{handleExceptions, onComplete}
-import akka.http.scaladsl.server.{ExceptionHandler, Route}
-import akka.pattern.ask
+import akka.http.scaladsl.server.Directives.onComplete
+import akka.http.scaladsl.server.Route
+import akka.pattern.{AskTimeoutException, ask}
+import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import cats.data.NonEmptyList
-import net.ceedubs.ficus.Ficus._
 import com.typesafe.config.ConfigFactory
-import cromwell.core.{WorkflowOnHold, WorkflowState, WorkflowSubmitted}
+import cromwell.core.{WorkflowId, WorkflowOnHold, WorkflowState, WorkflowSubmitted, path => _}
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreSubmitActor}
-import cromwell.webservice.{PartialWorkflowSources, WebServiceUtils}
+import cromwell.server.CromwellShutdown
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
+import cromwell.webservice.WorkflowJsonSupport._
+import cromwell.webservice.{PartialWorkflowSources, WebServiceUtils, WorkflowSubmitResponse}
+import net.ceedubs.ficus.Ficus._
 
-import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.{ExecutionContext, TimeoutException}
 import scala.util.{Failure, Success}
 
 trait WesCromwellRouteSupport extends WebServiceUtils {
@@ -25,11 +30,15 @@ trait WesCromwellRouteSupport extends WebServiceUtils {
   implicit val duration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
   implicit val timeout: Timeout = duration
 
-  def submitRequest(formData: Multipart.FormData,
-                    isSingleSubmission: Boolean,
-                    //successHandler: PartialFunction[WorkflowStoreSubmitActorResponse, Route] = standardSuccessHandler,
-                    //errorHandler: PartialFunction[Throwable, Route] = standardErrorHandler
-                   ): Route = {
+  implicit def actorRefFactory: ActorRefFactory
+  implicit val materializer: ActorMaterializer
+  implicit val ec: ExecutionContext
+
+  def toResponse(workflowId: WorkflowId, workflowState: WorkflowState): WorkflowSubmitResponse = {
+    WorkflowSubmitResponse(workflowId.toString, workflowState.toString)
+  }
+
+  def submitRequest(formData: Multipart.FormData, isSingleSubmission: Boolean): Route = {
 
     def getWorkflowState(workflowOnHold: Boolean): WorkflowState = {
       if (workflowOnHold)
@@ -40,7 +49,6 @@ trait WesCromwellRouteSupport extends WebServiceUtils {
     def sendToWorkflowStore(command: WorkflowStoreActor.WorkflowStoreActorSubmitCommand, warnings: Seq[String], workflowState: WorkflowState): Route = {
       //sendToWorkflowStore
       // NOTE: Do not blindly copy the akka-http -to- ask-actor pattern below without knowing the pros and cons.
-      handleExceptions(ExceptionHandler(errorHandler)) {
         onComplete(workflowStoreActor.ask(command).mapTo[WorkflowStoreSubmitActor.WorkflowStoreSubmitActorResponse]) {
           case Success(w) =>
             w match {
@@ -51,9 +59,10 @@ trait WesCromwellRouteSupport extends WebServiceUtils {
               case WorkflowStoreSubmitActor.WorkflowSubmitFailed(throwable) =>
                 throwable.failRequest(StatusCodes.BadRequest, warnings)
             }
-          case Failure(e) => throw e
+          case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => CromwellApiService.serviceShuttingDownResponse
+          case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
+          case Failure(e) => e.failRequest(StatusCodes.InternalServerError, warnings)
         }
-      }
     }
 
     onComplete(materializeFormData(formData)) {
@@ -78,6 +87,4 @@ trait WesCromwellRouteSupport extends WebServiceUtils {
       case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
     }
   }
-}
-
 }

@@ -15,9 +15,9 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowS
 import cromwell.server.CromwellShutdown
 import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, GetSingleWorkflowMetadataAction}
 import cromwell.services.{FailedMetadataJsonResponse, SuccessfulMetadataJsonResponse}
-import cromwell.webservice.routes.{CromwellApiService, WesCromwellRouteSupport}
+import cromwell.webservice.routes.WesCromwellRouteSupport
 import cromwell.webservice.routes.MetadataRouteSupport.{metadataBuilderActorRequest, metadataQueryRequest}
-import cromwell.webservice.routes.wes.WesRunRoutes.{WesErrorHandler, WesSuccessHandler, completeCromwellResponse, extractSubmission, runLog}
+import cromwell.webservice.routes.wes.WesRunRoutes.{completeCromwellResponse, extractSubmission, runLog}
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -40,10 +40,8 @@ trait WesRunRoutes extends WesCromwellRouteSupport {
           } ~
           post {
             extractSubmission() { submission =>
-              CromwellApiService.submitRequest(submission.entity,
+              submitRequest(submission.entity,
                 isSingleSubmission = true,
-                successHandler = WesSuccessHandler,
-                errorHandler = WesErrorHandler
               )
             }
           }

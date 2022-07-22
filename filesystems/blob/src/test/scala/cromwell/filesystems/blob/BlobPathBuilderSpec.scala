@@ -1,13 +1,12 @@
 package cromwell.filesystems.blob
 
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 import com.azure.core.credential.AzureSasCredential
 import cromwell.filesystems.blob.BlobPathBuilder
-import java.nio.file.Files
-import org.scalatest.Ignore
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-@Ignore
+import java.nio.file.Files
+
 class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
 
   it should "parse a URI into a path" in {

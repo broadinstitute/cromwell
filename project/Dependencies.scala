@@ -185,9 +185,6 @@ object Dependencies {
   )
 
   val azureDependencies: List[ModuleID] = List(
-    "com.azure" % "azure-storage-blob" % azureStorageBlobV
-      exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
-      exclude("jakarta.activation", "jakarta.activation-api"),
     "com.azure" % "azure-storage-blob-nio" % azureStorageBlobNioV
       exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
       exclude("jakarta.activation", "jakarta.activation-api"),

@@ -232,7 +232,13 @@ object Dependencies {
     "org.codehaus.janino" % "janino" % janinoV,
     // Replace all log4j usage with slf4j
     // https://www.slf4j.org/legacy.html#log4j-over-slf4j
-    "org.slf4j" % "log4j-over-slf4j" % slf4jV
+    "org.slf4j" % "log4j-over-slf4j" % slf4jV,
+    // Replace all commons-logging usage with slf4j
+    // https://www.slf4j.org/legacy.html#jcl-over-slf4j
+    "org.slf4j" % "jcl-over-slf4j" % slf4jV,
+    // Enable runtime replacing of java.util.logging usage with slf4j
+    // https://www.slf4j.org/legacy.html#jul-to-slf4j
+    "org.slf4j" % "jul-to-slf4j" % slf4jV,
   ) ++ slf4jFacadeDependencies
 
   private val slickDependencies = List(
@@ -710,4 +716,12 @@ object Dependencies {
       nimbusdsOverrides ++
       bouncyCastleOverrides ++
       protobufJavaOverrides
+
+  /*
+  Libraries that should be globally excluded.
+   */
+  val cromwellExcludeDependencies: List[ExclusionRule] = List(
+    // Replaced with jcl-over-slf4j
+    ExclusionRule("commons-logging", "commons-logging"),
+  )
 }

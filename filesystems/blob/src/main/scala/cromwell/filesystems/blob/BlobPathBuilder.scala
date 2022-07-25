@@ -38,7 +38,7 @@ object BlobPathBuilder {
     *
     * In this example
     * storageAccountName -> appexternalstorage
-    * endpoint -> https://{storageAccountName}.{DnsZone}.blob.core.windows.net/
+    * endpoint -> https://{storageAccountName}.blob.core.windows.net/
     * container -> inputs
     * pathToFile -> test/testFile.wdl
     *

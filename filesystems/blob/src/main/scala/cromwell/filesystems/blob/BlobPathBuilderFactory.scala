@@ -14,10 +14,9 @@ final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Co
   override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[BlobPathBuilder] = {
     val sasToken: String = instanceConfig.getString("sasToken")
     val container: String = instanceConfig.getString("store")
-    val storageAccount: String = instanceConfig.getString("storageAccount")
-    val dnsZone: String = instanceConfig.getString("dnsZone")
+    val endpoint: String = instanceConfig.getString("storageAccount")
     Future {
-      new BlobPathBuilder(new AzureSasCredential(sasToken), container, storageAccount, dnsZone)
+      new BlobPathBuilder(new AzureSasCredential(sasToken), container, endpoint)
     }
   }
 }

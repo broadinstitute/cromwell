@@ -22,12 +22,9 @@ object BlobPathBuilder {
   case class ValidBlobPath(path: String) extends BlobPathValidation
   case class UnparsableBlobPath(errorMessage: Throwable) extends BlobPathValidation
 
-}
-
-class BlobPathBuilder(credential: AzureSasCredential, container: String, storageAccount: String, dnsZone: String = "") extends PathBuilder {
-
-  val fileSystemConfig: Map[String, Object] = Map((AzureFileSystem.AZURE_STORAGE_SAS_TOKEN_CREDENTIAL, credential),
-                                                  (AzureFileSystem.AZURE_STORAGE_FILE_STORES, container))
+  def invalidBlobPathMessage(container: String, endpoint: String) = s"Malformed Blob URL for this builder. Expecting a URL for a container $container and endpoint $endpoint"
+  def parseURI(string: String) = URI.create(UrlEscapers.urlFragmentEscaper().escape(string))
+  def parseStorageAccount(uri: URI) = uri.getHost().split("\\.").filter(!_.isEmpty()).headOption
 
   /**
     * Validates a that a path from a string is a valid BlobPath of the format:
@@ -35,8 +32,6 @@ class BlobPathBuilder(credential: AzureSasCredential, container: String, storage
     *
     * with an endpoint for a particular storage account given by:
     * https://{storageAccountName}.blob.core.windows.net/
-    *                               OR
-    * https://{storageAccountName}.{dnsZone}.blob.core.windows.net/
     *
     * For example, a path string we might expect to receive might look like:
     * https://appexternalstorage.blob.core.windows.net/inputs/test/testFile.wdl
@@ -49,31 +44,33 @@ class BlobPathBuilder(credential: AzureSasCredential, container: String, storage
     *
     * If the configured container and storage account do not match, the string is considered unparsable
     */
-  def validateBlobPath(string: String): BlobPathValidation = {
+  def validateBlobPath(string: String, container: String, endpoint: String): BlobPathValidation = {
     Try {
-      val uri = URI.create(UrlEscapers.urlFragmentEscaper().escape(string))
-      if ((uri.getPath().split("/").filter(!_.isEmpty()).head.equals(container))
-           && (uri.getHost().split("\\.").filter(!_.isEmpty()).head.equals(storageAccount))) {
+      val uri = parseURI(string)
+      val storageAccount = parseStorageAccount(parseURI(endpoint))
+      val hasContainer = uri.getPath().split("/").filter(!_.isEmpty()).headOption.contains(container)
+      def hasEndpoint = parseStorageAccount(uri).contains(storageAccount.get)
+      if (hasContainer && !storageAccount.isEmpty && hasEndpoint) {
         ValidBlobPath(uri.getPath.replaceFirst("/" + container, ""))
       } else {
-        throw new MalformedURLException("Malformed Blob URL for this builder. Expecting a URL for a container"
-            + container + " and storage account: " + storageAccount)
+        UnparsableBlobPath(new MalformedURLException(invalidBlobPathMessage(container, endpoint)))
       }
     } recover { case t => UnparsableBlobPath(t) } get
   }
+}
 
-  def endpointString = {
-    val dnsZoneDot = if (dnsZone.isEmpty()) "" else "."
-    "https://" + storageAccount + dnsZoneDot + dnsZone + ".blob.core.windows.net"
-  }
+class BlobPathBuilder(credential: AzureSasCredential, container: String, endpoint: String) extends PathBuilder {
+
+  val fileSystemConfig: Map[String, Object] = Map((AzureFileSystem.AZURE_STORAGE_SAS_TOKEN_CREDENTIAL, credential),
+                                                  (AzureFileSystem.AZURE_STORAGE_FILE_STORES, container))
 
   def build(string: String): Try[BlobPath] = {
-    validateBlobPath(string) match {
+    validateBlobPath(string, container, endpoint) match {
       case ValidBlobPath(path) =>
         Try {
-          val fileSystem = FileSystems.newFileSystem(new URI("azb://?endpoint=" + endpointString), fileSystemConfig.asJava)
+          val fileSystem = FileSystems.newFileSystem(new URI("azb://?endpoint=" + endpoint), fileSystemConfig.asJava)
           val blobStoragePath = fileSystem.getPath(path)
-          BlobPath(blobStoragePath, endpointString, container)
+          BlobPath(blobStoragePath, endpoint, container)
         }
       case UnparsableBlobPath(errorMessage: Throwable) => Failure(errorMessage)
     }
@@ -88,5 +85,5 @@ case class BlobPath private[blob](nioPath: NioPath, endpoint: String, container:
 
   override def pathAsString: String = List(endpoint, container, nioPath.toString()).mkString("/")
 
-  override def pathWithoutScheme: String = "/" + container + "/" + nioPath.toString()
+  override def pathWithoutScheme: String = parseURI(endpoint).getHost + "/" + container + "/" + nioPath.toString()
 }

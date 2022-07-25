@@ -2,7 +2,6 @@ package cromwell.filesystems.blob
 
 import com.azure.core.credential.AzureSasCredential
 import cromwell.filesystems.blob.BlobPathBuilder
-import org.scalatest.Ignore
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -12,7 +11,6 @@ object BlobPathBuilderSpec {
   def buildEndpoint(storageAccount: String) = s"https://$storageAccount.blob.core.windows.net"
 }
 
-@Ignore
 class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
 
   it should "parse a URI into a path" in {
@@ -48,7 +46,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
     }
   }
 
-  it should "build a blob path from a test string and read a file" in {
+  ignore should "build a blob path from a test string and read a file" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
     val endpointHost = BlobPathBuilder.parseURI(endpoint).getHost
     val store = "inputs"

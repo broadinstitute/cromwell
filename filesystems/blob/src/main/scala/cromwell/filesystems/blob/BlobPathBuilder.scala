@@ -30,7 +30,7 @@ object BlobPathBuilder {
     * Validates a that a path from a string is a valid BlobPath of the format:
     * {endpoint}/{containerName}/{pathToFile}
     *
-    * with an endpoint for a particular storage account given by:
+    * with an endpoint for a particular storage account typically given by:
     * https://{storageAccountName}.blob.core.windows.net/
     *
     * For example, a path string we might expect to receive might look like:

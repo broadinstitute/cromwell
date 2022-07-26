@@ -18,7 +18,7 @@ trait CallCachingDetritusEntryComponent {
 
     def detritusValue = column[Option[SerialClob]]("DETRITUS_VALUE")
 
-    def callCachingEntryId = column[Int]("CALL_CACHING_ENTRY_ID")
+    def callCachingEntryId = column[Long]("CALL_CACHING_ENTRY_ID")
 
     override def * = (detritusKey, detritusValue, callCachingEntryId.?, callCachingDetritusEntryId.?) <>
       (CallCachingDetritusEntry.tupled, CallCachingDetritusEntry.unapply)
@@ -37,7 +37,7 @@ trait CallCachingDetritusEntryComponent {
     callCachingDetritusEntries returning callCachingDetritusEntries.map(_.callCachingDetritusEntryId)
 
   val callCachingDetritusEntriesForCallCachingEntryId = Compiled(
-    (callCachingEntryId: Rep[Int]) => for {
+    (callCachingEntryId: Rep[Long]) => for {
       callCachingDetritusEntry <- callCachingDetritusEntries
       if callCachingDetritusEntry.callCachingEntryId === callCachingEntryId
     } yield callCachingDetritusEntry

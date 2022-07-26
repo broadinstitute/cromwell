@@ -6,6 +6,6 @@ case class CallCachingDetritusEntry
 (
   detritusKey: String,
   detritusValue: Option[SerialClob],
-  callCachingEntryId: Option[Int] = None,
+  callCachingEntryId: Option[Long] = None,
   callCachingDetritusEntryId: Option[Int] = None
 )

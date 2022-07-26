@@ -4,6 +4,6 @@ case class CallCachingAggregationEntry
 (
   baseAggregation: String,
   inputFilesAggregation: Option[String],
-  callCachingEntryId: Option[Int] = None,
+  callCachingEntryId: Option[Long] = None,
   callCachingAggregationEntryId: Option[Int] = None
 )

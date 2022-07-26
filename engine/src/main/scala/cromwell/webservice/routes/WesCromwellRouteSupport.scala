@@ -47,22 +47,21 @@ trait WesCromwellRouteSupport extends WebServiceUtils {
     }
 
     def sendToWorkflowStore(command: WorkflowStoreActor.WorkflowStoreActorSubmitCommand, warnings: Seq[String], workflowState: WorkflowState): Route = {
-      //sendToWorkflowStore
       // NOTE: Do not blindly copy the akka-http -to- ask-actor pattern below without knowing the pros and cons.
-        onComplete(workflowStoreActor.ask(command).mapTo[WorkflowStoreSubmitActor.WorkflowStoreSubmitActorResponse]) {
-          case Success(w) =>
-            w match {
-              case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(workflowId, _) =>
-                completeResponse(StatusCodes.Created, toResponse(workflowId, workflowState), warnings)
-              case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(workflowIds, _) =>
-                completeResponse(StatusCodes.Created, workflowIds.toList.map(toResponse(_, workflowState)), warnings)
-              case WorkflowStoreSubmitActor.WorkflowSubmitFailed(throwable) =>
-                throwable.failRequest(StatusCodes.BadRequest, warnings)
-            }
-          case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => CromwellApiService.serviceShuttingDownResponse
-          case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
-          case Failure(e) => e.failRequest(StatusCodes.InternalServerError, warnings)
-        }
+      onComplete(workflowStoreActor.ask(command).mapTo[WorkflowStoreSubmitActor.WorkflowStoreSubmitActorResponse]) {
+        case Success(w) =>
+          w match {
+            case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(workflowId, _) =>
+              completeResponse(StatusCodes.Created, toResponse(workflowId, workflowState), warnings)
+            case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(workflowIds, _) =>
+              completeResponse(StatusCodes.Created, workflowIds.toList.map(toResponse(_, workflowState)), warnings)
+            case WorkflowStoreSubmitActor.WorkflowSubmitFailed(throwable) =>
+              throwable.failRequest(StatusCodes.BadRequest, warnings)
+          }
+        case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => CromwellApiService.serviceShuttingDownResponse
+        case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
+        case Failure(e) => e.failRequest(StatusCodes.InternalServerError, warnings)
+      }
     }
 
     onComplete(materializeFormData(formData)) {

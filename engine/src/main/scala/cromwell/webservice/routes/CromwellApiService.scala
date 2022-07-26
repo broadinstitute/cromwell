@@ -1,13 +1,10 @@
 package cromwell.webservice.routes
 
-import java.util.UUID
-
 import akka.actor.{ActorRef, ActorRefFactory}
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActorJsonFormatting.successfulResponseJsonFormatter
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
-import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.ContentTypes._
+import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{ExceptionHandler, Route}
 import akka.pattern.{AskTimeoutException, ask}
@@ -23,35 +20,35 @@ import cromwell.engine.backend.BackendConfiguration
 import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{CachedCallNotFoundException, CallCacheDiffActorResponse, FailedCallCacheDiffResponse, SuccessfulCallCacheDiffResponse}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActorJsonFormatting.successfulResponseJsonFormatter
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheDiffActor, CallCacheDiffQueryParameter}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.NotInOnHoldStateException
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor}
 import cromwell.server.CromwellShutdown
+import cromwell.services._
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse}
 import cromwell.services.metadata.MetadataService._
-import cromwell.webservice._
-import cromwell.services._
-import cromwell.webservice.WorkflowJsonSupport._
-import cromwell.webservice.WebServiceUtils
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
+import cromwell.webservice.WorkflowJsonSupport._
+import cromwell.webservice._
+
+import java.util.UUID
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
 trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport with WomtoolRouteSupport with WebServiceUtils with WesCromwellRouteSupport {
+
   import CromwellApiService._
 
   implicit def actorRefFactory: ActorRefFactory
+
   implicit val materializer: ActorMaterializer
   implicit val ec: ExecutionContext
 
   val workflowStoreActor: ActorRef
   val workflowManagerActor: ActorRef
   val serviceRegistryActor: ActorRef
-
-  // Derive timeouts (implicit and not) from akka http's request timeout since there's no point in being higher than that
-//  implicit val duration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
-//  implicit val timeout: Timeout = duration
 
   val engineRoutes = concat(
     path("engine" / Segment / "stats") { _ =>
@@ -183,104 +180,93 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
       case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
     }
   }
-
-  //  def standardSuccessHandler: PartialFunction[WorkflowStoreSubmitActorResponse, Route] = {
-  //    case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(workflowId, _) => completeResponse(StatusCodes.Created, WorkflowSubmitResponse(workflowId.toString, WorkflowSubmitted.toString), Seq.empty[String])
-  //    case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(workflowIds, _) => completeResponse(StatusCodes.Created, workflowIds.toList.map(x => WorkflowSubmitResponse(x.toString, WorkflowSubmitted.toString)),  Seq.empty[String])
-  //    case WorkflowStoreSubmitActor.WorkflowSubmitFailed(throwable) => throwable.failRequest(StatusCodes.BadRequest)
-  //  }
-  //
-  //  def standardErrorHandler: PartialFunction[Throwable, Route] = {
-  //    case _: AskTimeoutException if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
-  //    case e: TimeoutException => e.failRequest(StatusCodes.ServiceUnavailable)
-  //    case e: Exception => e.errorRequest(StatusCodes.InternalServerError)
-  //  }
 }
 
-object CromwellApiService {
-  import spray.json._
+  object CromwellApiService {
 
-  /**
-    * Sends a request to abort the workflow. Provides configurable success & error handlers to allow
-    * for different API endpoints to provide different effects in the appropriate situations, e.g. HTTP codes
-    * and error messages
-    */
-  def abortWorkflow(possibleWorkflowId: String,
-                    workflowStoreActor: ActorRef,
-                    workflowManagerActor: ActorRef,
-                    successHandler: PartialFunction[SuccessfulAbortResponse, Route] = standardAbortSuccessHandler,
-                    errorHandler: PartialFunction[Throwable, Route] = standardAbortErrorHandler)
-                   (implicit timeout: Timeout): Route = {
-    handleExceptions(ExceptionHandler(errorHandler)) {
-      Try(WorkflowId.fromString(possibleWorkflowId)) match {
-        case Success(workflowId) =>
-          val response = workflowStoreActor.ask(WorkflowStoreActor.AbortWorkflowCommand(workflowId)).mapTo[AbortResponse]
-          onComplete(response) {
-            case Success(x: SuccessfulAbortResponse) => successHandler(x)
-            case Success(x: WorkflowAbortFailureResponse) => throw x.failure
-            case Failure(e) => throw e
-          }
-        case Failure(_) => throw InvalidWorkflowException(possibleWorkflowId)
+    import spray.json._
+
+    /**
+      * Sends a request to abort the workflow. Provides configurable success & error handlers to allow
+      * for different API endpoints to provide different effects in the appropriate situations, e.g. HTTP codes
+      * and error messages
+      */
+    def abortWorkflow(possibleWorkflowId: String,
+                      workflowStoreActor: ActorRef,
+                      workflowManagerActor: ActorRef,
+                      successHandler: PartialFunction[SuccessfulAbortResponse, Route] = standardAbortSuccessHandler,
+                      errorHandler: PartialFunction[Throwable, Route] = standardAbortErrorHandler)
+                     (implicit timeout: Timeout): Route = {
+      handleExceptions(ExceptionHandler(errorHandler)) {
+        Try(WorkflowId.fromString(possibleWorkflowId)) match {
+          case Success(workflowId) =>
+            val response = workflowStoreActor.ask(WorkflowStoreActor.AbortWorkflowCommand(workflowId)).mapTo[AbortResponse]
+            onComplete(response) {
+              case Success(x: SuccessfulAbortResponse) => successHandler(x)
+              case Success(x: WorkflowAbortFailureResponse) => throw x.failure
+              case Failure(e) => throw e
+            }
+          case Failure(_) => throw InvalidWorkflowException(possibleWorkflowId)
+        }
       }
     }
-  }
 
-  /**
-    * The abort success handler for typical cases, i.e. cromwell's API.
-    */
-  private def standardAbortSuccessHandler: PartialFunction[SuccessfulAbortResponse, Route] = {
-    case WorkflowAbortedResponse(id) => complete(ToResponseMarshallable(WorkflowAbortResponse(id.toString, WorkflowAborted.toString)))
-    case WorkflowAbortRequestedResponse(id) => complete(ToResponseMarshallable(WorkflowAbortResponse(id.toString, WorkflowAborting.toString)))
-  }
-
-  /**
-    * The abort error handler for typical cases, i.e. cromwell's API
-    */
-  private def standardAbortErrorHandler: PartialFunction[Throwable, Route] = {
-    case e: InvalidWorkflowException => e.failRequest(StatusCodes.BadRequest)
-    case e: WorkflowNotFoundException => e.errorRequest(StatusCodes.NotFound)
-    case _: AskTimeoutException if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
-    case e: TimeoutException => e.failRequest(StatusCodes.ServiceUnavailable)
-    case e: Exception => e.errorRequest(StatusCodes.InternalServerError)
-  }
-
-  def validateWorkflowIdInMetadata(possibleWorkflowId: String,
-                                   serviceRegistryActor: ActorRef)
-                                  (implicit timeout: Timeout, executor: ExecutionContext): Future[WorkflowId] = {
-    Try(WorkflowId.fromString(possibleWorkflowId)) match {
-      case Success(w) =>
-        serviceRegistryActor.ask(ValidateWorkflowIdInMetadata(w)).mapTo[WorkflowValidationResponse] flatMap {
-          case RecognizedWorkflowId => Future.successful(w)
-          case UnrecognizedWorkflowId => validateWorkflowIdInMetadataSummaries(possibleWorkflowId, serviceRegistryActor)
-          case FailedToCheckWorkflowId(t) => Future.failed(t)
-        }
-      case Failure(_) => Future.failed(InvalidWorkflowException(possibleWorkflowId))
+    /**
+      * The abort success handler for typical cases, i.e. cromwell's API.
+      */
+    private def standardAbortSuccessHandler: PartialFunction[SuccessfulAbortResponse, Route] = {
+      case WorkflowAbortedResponse(id) => complete(ToResponseMarshallable(WorkflowAbortResponse(id.toString, WorkflowAborted.toString)))
+      case WorkflowAbortRequestedResponse(id) => complete(ToResponseMarshallable(WorkflowAbortResponse(id.toString, WorkflowAborting.toString)))
     }
-  }
 
-  def validateWorkflowIdInMetadataSummaries(possibleWorkflowId: String,
-                                            serviceRegistryActor: ActorRef)
-                                           (implicit timeout: Timeout, executor: ExecutionContext): Future[WorkflowId] = {
-    Try(WorkflowId.fromString(possibleWorkflowId)) match {
-      case Success(w) =>
-        serviceRegistryActor.ask(ValidateWorkflowIdInMetadataSummaries(w)).mapTo[WorkflowValidationResponse] map {
-          case RecognizedWorkflowId => w
-          case UnrecognizedWorkflowId => throw UnrecognizedWorkflowException(w)
-          case FailedToCheckWorkflowId(t) => throw t
-        }
-      case Failure(_) => Future.failed(InvalidWorkflowException(possibleWorkflowId))
+    /**
+      * The abort error handler for typical cases, i.e. cromwell's API
+      */
+    private def standardAbortErrorHandler: PartialFunction[Throwable, Route] = {
+      case e: InvalidWorkflowException => e.failRequest(StatusCodes.BadRequest)
+      case e: WorkflowNotFoundException => e.errorRequest(StatusCodes.NotFound)
+      case _: AskTimeoutException if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
+      case e: TimeoutException => e.failRequest(StatusCodes.ServiceUnavailable)
+      case e: Exception => e.errorRequest(StatusCodes.InternalServerError)
     }
+
+    def validateWorkflowIdInMetadata(possibleWorkflowId: String,
+                                     serviceRegistryActor: ActorRef)
+                                    (implicit timeout: Timeout, executor: ExecutionContext): Future[WorkflowId] = {
+      Try(WorkflowId.fromString(possibleWorkflowId)) match {
+        case Success(w) =>
+          serviceRegistryActor.ask(ValidateWorkflowIdInMetadata(w)).mapTo[WorkflowValidationResponse] flatMap {
+            case RecognizedWorkflowId => Future.successful(w)
+            case UnrecognizedWorkflowId => validateWorkflowIdInMetadataSummaries(possibleWorkflowId, serviceRegistryActor)
+            case FailedToCheckWorkflowId(t) => Future.failed(t)
+          }
+        case Failure(_) => Future.failed(InvalidWorkflowException(possibleWorkflowId))
+      }
+    }
+
+    def validateWorkflowIdInMetadataSummaries(possibleWorkflowId: String,
+                                              serviceRegistryActor: ActorRef)
+                                             (implicit timeout: Timeout, executor: ExecutionContext): Future[WorkflowId] = {
+      Try(WorkflowId.fromString(possibleWorkflowId)) match {
+        case Success(w) =>
+          serviceRegistryActor.ask(ValidateWorkflowIdInMetadataSummaries(w)).mapTo[WorkflowValidationResponse] map {
+            case RecognizedWorkflowId => w
+            case UnrecognizedWorkflowId => throw UnrecognizedWorkflowException(w)
+            case FailedToCheckWorkflowId(t) => throw t
+          }
+        case Failure(_) => Future.failed(InvalidWorkflowException(possibleWorkflowId))
+      }
+    }
+
+    final case class BackendResponse(supportedBackends: List[String], defaultBackend: String)
+
+    final case class UnrecognizedWorkflowException(id: WorkflowId) extends Exception(s"Unrecognized workflow ID: $id")
+
+    final case class InvalidWorkflowException(possibleWorkflowId: String) extends Exception(s"Invalid workflow ID: '$possibleWorkflowId'.")
+
+    val cromwellVersion = VersionUtil.getVersion("cromwell-engine")
+    val swaggerUiVersion = VersionUtil.getVersion("swagger-ui", VersionUtil.sbtDependencyVersion("swaggerUi"))
+    val backendResponse = BackendResponse(BackendConfiguration.AllBackendEntries.map(_.name).sorted, BackendConfiguration.DefaultBackendEntry.name)
+    val versionResponse = JsObject(Map("cromwell" -> cromwellVersion.toJson))
+    val serviceShuttingDownResponse = new Exception("Cromwell service is shutting down.").failRequest(StatusCodes.ServiceUnavailable)
   }
-
-  final case class BackendResponse(supportedBackends: List[String], defaultBackend: String)
-
-  final case class UnrecognizedWorkflowException(id: WorkflowId) extends Exception(s"Unrecognized workflow ID: $id")
-
-  final case class InvalidWorkflowException(possibleWorkflowId: String) extends Exception(s"Invalid workflow ID: '$possibleWorkflowId'.")
-
-  val cromwellVersion = VersionUtil.getVersion("cromwell-engine")
-  val swaggerUiVersion = VersionUtil.getVersion("swagger-ui", VersionUtil.sbtDependencyVersion("swaggerUi"))
-  val backendResponse = BackendResponse(BackendConfiguration.AllBackendEntries.map(_.name).sorted, BackendConfiguration.DefaultBackendEntry.name)
-  val versionResponse = JsObject(Map("cromwell" -> cromwellVersion.toJson))
-  val serviceShuttingDownResponse = new Exception("Cromwell service is shutting down.").failRequest(StatusCodes.ServiceUnavailable)
-}

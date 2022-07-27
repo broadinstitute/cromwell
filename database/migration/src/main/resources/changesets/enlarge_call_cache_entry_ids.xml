@@ -117,7 +117,7 @@
 
     <!-- MariaDB's FK NotNull constraint does not survive the widening above and must be recreated explicitly. -->
     <!-- BEGIN Restoring FK NotNull constraint -->
-    <changeSet author="sshah" id="mariadb_not_null_constraint_call_caching_aggregation_entry_fk" dbms="mariadb">
+    <changeSet author="sshah" id="mariadb_not_null_constraint_call_caching_aggregation_entry_fk" dbms="mariadb,mysql">
         <addNotNullConstraint
                 tableName="CALL_CACHING_AGGREGATION_ENTRY"
                 columnName="CALL_CACHING_ENTRY_ID"

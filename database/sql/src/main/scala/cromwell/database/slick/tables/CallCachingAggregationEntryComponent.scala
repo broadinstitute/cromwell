@@ -10,7 +10,7 @@ trait CallCachingAggregationEntryComponent {
   import driver.api._
 
   class CallCachingAggregationEntries(tag: Tag) extends Table[CallCachingAggregationEntry](tag, "CALL_CACHING_AGGREGATION_ENTRY") {
-    def callCachingAggregationEntryId = column[Int]("CALL_CACHING_AGGREGATION_ENTRY_ID", O.PrimaryKey, O.AutoInc)
+    def callCachingAggregationEntryId = column[Long]("CALL_CACHING_AGGREGATION_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
     def baseAggregation = column[String]("BASE_AGGREGATION", O.Length(255))
 

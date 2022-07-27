@@ -7,5 +7,5 @@ case class CallCachingDetritusEntry
   detritusKey: String,
   detritusValue: Option[SerialClob],
   callCachingEntryId: Option[Long] = None,
-  callCachingDetritusEntryId: Option[Int] = None
+  callCachingDetritusEntryId: Option[Long] = None
 )

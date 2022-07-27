@@ -10,6 +10,7 @@ import cromwell.filesystems.blob.BlobPathBuilder._
 
 import java.net.MalformedURLException
 import java.net.URI
+import java.nio.file.FileSystemNotFoundException
 import java.nio.file.FileSystems
 import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
@@ -68,9 +69,16 @@ class BlobPathBuilder(credential: AzureSasCredential, container: String, endpoin
     validateBlobPath(string, container, endpoint) match {
       case ValidBlobPath(path) =>
         Try {
-          val fileSystem = FileSystems.newFileSystem(new URI("azb://?endpoint=" + endpoint), fileSystemConfig.asJava)
-          val blobStoragePath = fileSystem.getPath(path)
-          BlobPath(blobStoragePath, endpoint, container)
+          val fileSystem = Try {
+            FileSystems.getFileSystem(new URI("azb://?endpoint=" + endpoint))
+          } recover {
+            // If no filesystem already exists, this will create a new connection, with the provided configs
+            case _: FileSystemNotFoundException => FileSystems.newFileSystem(new URI("azb://?endpoint=" + endpoint), fileSystemConfig.asJava)
+          }
+
+          val blobStoragePath = fileSystem.map(_.getPath(path))
+          // If there is a remaining issue reaching the filesystem, this will rethrow the exception
+          blobStoragePath.map(BlobPath(_, endpoint, container)).get
         }
       case UnparsableBlobPath(errorMessage: Throwable) => Failure(errorMessage)
     }

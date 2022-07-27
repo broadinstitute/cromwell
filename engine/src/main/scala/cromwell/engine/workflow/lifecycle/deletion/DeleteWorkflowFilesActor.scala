@@ -206,7 +206,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   }
 
 
-  private def fetchCallCacheEntries(callCache: CallCache): Future[Set[Int]] = {
+  private def fetchCallCacheEntries(callCache: CallCache): Future[Set[Long]] = {
     val callCacheEntryIdsFuture = rootAndSubworkflowIds.map(x => callCache.callCacheEntryIdsForWorkflowId(x.toString)).map { f =>
       f.map { Success(_) }.recover { case t => Failure(t) }}
 
@@ -265,7 +265,7 @@ object DeleteWorkflowFilesActor {
   object StartWorkflowFilesDeletion extends DeleteWorkflowFilesActorMessage
   object DeleteFiles extends DeleteWorkflowFilesActorMessage
   object InvalidateCallCache extends DeleteWorkflowFilesActorMessage
-  case class RetrievedCallCacheIds(ids: Set[Int]) extends DeleteWorkflowFilesActorMessage
+  case class RetrievedCallCacheIds(ids: Set[Long]) extends DeleteWorkflowFilesActorMessage
   case class FailedRetrieveCallCacheIds(throwable: Throwable) extends DeleteWorkflowFilesActorMessage
 
   // Actor states
@@ -319,18 +319,18 @@ object DeleteWorkflowFilesActor {
     }
   }
 
-  case class WaitingForInvalidateCCResponsesData(commandsToWaitFor: Set[Int],
+  case class WaitingForInvalidateCCResponsesData(commandsToWaitFor: Set[Long],
                                                  deleteErrors: List[Throwable],
                                                  filesNotFound: List[Path],
                                                  callCacheInvalidationErrors: List[Throwable] = List.empty)
-    extends WaitingForResponseFromActorData[Int](commandsToWaitFor) with DeleteWorkflowFilesActorStateData {
+    extends WaitingForResponseFromActorData[Long](commandsToWaitFor) with DeleteWorkflowFilesActorStateData {
 
     override def assertionFailureMsg(expectedSize: Int, requiredSize: Int): String = {
       s"Found updated call cache entries set size as $expectedSize instead of $requiredSize. The updated set of call cache entries" +
         s" that DeleteWorkflowFilesActor has to wait for should be 1 less after a call cache entry is invalidated."
     }
 
-    override def setCommandsToWaitFor(updatedCommandsToWaitFor: Set[Int]): WaitingForResponseFromActorData[Int] = {
+    override def setCommandsToWaitFor(updatedCommandsToWaitFor: Set[Long]): WaitingForResponseFromActorData[Long] = {
       this.copy(commandsToWaitFor = updatedCommandsToWaitFor)
     }
   }

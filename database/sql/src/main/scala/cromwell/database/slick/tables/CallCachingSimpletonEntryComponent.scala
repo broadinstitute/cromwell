@@ -12,7 +12,7 @@ trait CallCachingSimpletonEntryComponent {
 
   class CallCachingSimpletonEntries(tag: Tag)
     extends Table[CallCachingSimpletonEntry](tag, "CALL_CACHING_SIMPLETON_ENTRY") {
-    def callCachingSimpletonEntryId = column[Int]("CALL_CACHING_SIMPLETON_ENTRY_ID", O.PrimaryKey, O.AutoInc)
+    def callCachingSimpletonEntryId = column[Long]("CALL_CACHING_SIMPLETON_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
     def simpletonKey = column[String]("SIMPLETON_KEY", O.Length(255))
 

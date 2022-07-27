@@ -158,7 +158,6 @@
                 baseTableName="CALL_CACHING_AGGREGATION_ENTRY"
                 referencedTableName="CALL_CACHING_ENTRY"
                 referencedColumnNames="CALL_CACHING_ENTRY_ID"
-                onDelete="CASCADE"
         />
     </changeSet>
 
@@ -169,7 +168,6 @@
                 baseTableName="CALL_CACHING_DETRITUS_ENTRY"
                 referencedTableName="CALL_CACHING_ENTRY"
                 referencedColumnNames="CALL_CACHING_ENTRY_ID"
-                onDelete="CASCADE"
         />
     </changeSet>
 
@@ -180,7 +178,6 @@
                 baseTableName="CALL_CACHING_HASH_ENTRY"
                 referencedTableName="CALL_CACHING_ENTRY"
                 referencedColumnNames="CALL_CACHING_ENTRY_ID"
-                onDelete="CASCADE"
         />
     </changeSet>
 
@@ -191,7 +188,6 @@
                 baseTableName="CALL_CACHING_SIMPLETON_ENTRY"
                 referencedTableName="CALL_CACHING_ENTRY"
                 referencedColumnNames="CALL_CACHING_ENTRY_ID"
-                onDelete="CASCADE"
         />
     </changeSet>
     <!-- END Restoring the FKs -->

@@ -8,5 +8,5 @@ case class CallCachingEntry
   jobAttempt: Option[Int],
   returnCode: Option[Int],
   allowResultReuse: Boolean,
-  callCachingEntryId: Option[Int] = None
+  callCachingEntryId: Option[Long] = None
 )

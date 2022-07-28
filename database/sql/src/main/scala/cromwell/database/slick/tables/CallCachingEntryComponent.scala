@@ -9,7 +9,7 @@ trait CallCachingEntryComponent {
   import driver.api._
 
   class CallCachingEntries(tag: Tag) extends Table[CallCachingEntry](tag, "CALL_CACHING_ENTRY") {
-    def callCachingEntryId = column[Int]("CALL_CACHING_ENTRY_ID", O.PrimaryKey, O.AutoInc)
+    def callCachingEntryId = column[Long]("CALL_CACHING_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
     def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID", O.Length(255))
 
@@ -36,14 +36,14 @@ trait CallCachingEntryComponent {
   val callCachingEntryIdsAutoInc = callCachingEntries returning callCachingEntries.map(_.callCachingEntryId)
 
   val callCachingEntriesForId = Compiled(
-    (callCachingEntryId: Rep[Int]) => for {
+    (callCachingEntryId: Rep[Long]) => for {
       callCachingEntry <- callCachingEntries
       if callCachingEntry.callCachingEntryId === callCachingEntryId
     } yield callCachingEntry
   )
 
   val allowResultReuseForCallCachingEntryId = Compiled(
-    (callCachingEntryId: Rep[Int]) => for {
+    (callCachingEntryId: Rep[Long]) => for {
       callCachingEntry <- callCachingEntries
       if callCachingEntry.callCachingEntryId === callCachingEntryId
     } yield callCachingEntry.allowResultReuse

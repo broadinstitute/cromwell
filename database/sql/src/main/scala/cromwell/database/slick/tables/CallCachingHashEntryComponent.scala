@@ -15,7 +15,7 @@ trait CallCachingHashEntryComponent {
 
     def hashValue = column[String]("HASH_VALUE", O.Length(255))
 
-    def callCachingEntryId = column[Int]("CALL_CACHING_ENTRY_ID")
+    def callCachingEntryId = column[Long]("CALL_CACHING_ENTRY_ID")
 
     override def * = (hashKey, hashValue, callCachingEntryId.?, callCachingHashEntryId.?) <>
       (CallCachingHashEntry.tupled, CallCachingHashEntry.unapply)
@@ -36,7 +36,7 @@ trait CallCachingHashEntryComponent {
     * Find all hashes for a CALL_CACHING_ENTRY_ID
     */
   val callCachingHashEntriesForCallCachingEntryId = Compiled(
-    (callCachingEntryId: Rep[Int]) => for {
+    (callCachingEntryId: Rep[Long]) => for {
       callCachingHashEntry <- callCachingHashEntries
       if callCachingHashEntry.callCachingEntryId === callCachingEntryId
     } yield callCachingHashEntry

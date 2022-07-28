@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <!-- BEGIN dropping FKs -->
+    <!-- Drop the foreign key constraint from CALL_CACHING_AGGREGATION_ENTRY to CALL_CACHING_ENTRY to allow for the latter's PK to be widened. -->
+    <changeSet author="sshah" id="drop_call_caching_aggregation_entry_call_caching_entry_id_fk" dbms="mysql,hsqldb,postgresql,mariadb">
+        <dropForeignKeyConstraint
+                baseTableName="CALL_CACHING_AGGREGATION_ENTRY"
+                constraintName="FK_CALL_CACHING_AGGREGATION_ENTRY_CALL_CACHING_ENTRY_ID"
+        />
+    </changeSet>
+
+    <!-- Drop the foreign key constraint from CALL_CACHING_DETRITUS_ENTRY to CALL_CACHING_ENTRY to allow for the latter's PK to be widened. -->
+    <changeSet author="sshah" id="drop_call_caching_detritus_entry_call_caching_entry_id_fk" dbms="mysql,hsqldb,postgresql,mariadb">
+        <dropForeignKeyConstraint
+                baseTableName="CALL_CACHING_DETRITUS_ENTRY"
+                constraintName="FK_CALL_CACHING_DETRITUS_ENTRY_CALL_CACHING_ENTRY_ID"
+        />
+    </changeSet>
+
+    <!-- Drop the foreign key constraint from CALL_CACHING_HASH_ENTRY to CALL_CACHING_ENTRY to allow for the latter's PK to be widened. -->
+    <changeSet author="sshah" id="drop_call_caching_hash_entry_call_caching_entry_id_fk" dbms="mysql,hsqldb,postgresql,mariadb">
+        <dropForeignKeyConstraint
+                baseTableName="CALL_CACHING_HASH_ENTRY"
+                constraintName="FK_CALL_CACHING_HASH_ENTRY_CALL_CACHING_ENTRY_ID"
+        />
+    </changeSet>
+
+    <!-- Drop the foreign key constraint from CALL_CACHING_SIMPLETON_ENTRY to CALL_CACHING_ENTRY to allow for the latter's PK to be widened. -->
+    <changeSet author="sshah" id="drop_call_caching_simpleton_entry_call_caching_entry_id_fk" dbms="mysql,hsqldb,postgresql,mariadb">
+        <dropForeignKeyConstraint
+                baseTableName="CALL_CACHING_SIMPLETON_ENTRY"
+                constraintName="FK_CALL_CACHING_SIMPLETON_ENTRY_CALL_CACHING_ENTRY_ID"
+        />
+    </changeSet>
+    <!-- END dropping FKs -->
+
+    <!-- BEGIN CALL_CACHING_ENTRY_ID PK widening -->
+    <!-- For HSQLDB and Postgres database there are 2 changesets: one for modifying the table column type, and another one for altering the autoincrementing sequence.
+         The other DBs can be refactored similarly with a single addAutoIncrement changeset. The start of autoincrement is set at 20,000,000,000. -->
+    <changeSet author="sshah" id="enlarge_call_cache_entry_id" dbms="hsqldb">
+        <modifyDataType
+                columnName="CALL_CACHING_ENTRY_ID"
+                tableName="CALL_CACHING_ENTRY"
+                newDataType="BIGINT"
+        />
+    </changeSet>
+
+    <changeSet author="sshah" id="reset_call_cache_entry_id_autoincrement" dbms="mysql,hsqldb,mariadb">
+        <addAutoIncrement
+                columnName="CALL_CACHING_ENTRY_ID"
+                columnDataType="BIGINT"
+                incrementBy="1"
+                startWith="20000000000"
+                tableName="CALL_CACHING_ENTRY"
+        />
+    </changeSet>
+
+    <changeSet author="sshah" id="postgresql_enlarge_call_cache_entry_id" dbms="postgresql">
+        <modifyDataType
+                columnName="CALL_CACHING_ENTRY_ID"
+                tableName="CALL_CACHING_ENTRY"
+                newDataType="BIGINT"
+        />
+    </changeSet>
+
+    <changeSet author="sshah" id="postgresql_enlarge_call_cache_entry_id_seq" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <!-- idempotency check (noop if the sequence is present and already consistent what the alter would do) -->
+            <sqlCheck expectedResult="0">
+                SELECT count(*)
+                FROM information_schema.sequences
+                WHERE sequence_name = 'CALL_CACHING_ENTRY_CALL_CACHING_ENTRY_ID_seq'
+                AND data_type = 'bigint';
+            </sqlCheck>
+        </preConditions>
+        <sql>ALTER SEQUENCE "CALL_CACHING_ENTRY_CALL_CACHING_ENTRY_ID_seq" as bigint RESTART WITH 20000000000;</sql>
+    </changeSet>
+    <!-- END CALL_CACHING_ENTRY PK widening -->
+
+    <!-- BEGIN widening FKs to match PK -->
+    <changeSet author="sshah" id="enlarge_call_caching_aggregation_entry_fk" dbms="mysql,hsqldb,postgresql,mariadb">
+        <modifyDataType
+                tableName="CALL_CACHING_AGGREGATION_ENTRY"
+                columnName="CALL_CACHING_ENTRY_ID"
+                newDataType="BIGINT"
+        />
+    </changeSet>
+
+    <changeSet author="sshah" id="enlarge_call_caching_detritus_entry_fk" dbms="mysql,hsqldb,postgresql,mariadb">
+        <modifyDataType
+                tableName="CALL_CACHING_DETRITUS_ENTRY"
+                columnName="CALL_CACHING_ENTRY_ID"
+                newDataType="BIGINT"
+        />
+    </changeSet>
+
+    <changeSet author="sshah" id="enlarge_call_caching_hash_entry_fk" dbms="mysql,hsqldb,postgresql,mariadb">
+        <modifyDataType
+                tableName="CALL_CACHING_HASH_ENTRY"
+                columnName="CALL_CACHING_ENTRY_ID"
+                newDataType="BIGINT"
+        />
+    </changeSet>
+
+    <changeSet author="sshah" id="enlarge_call_caching_simpleton_entry_fk" dbms="mysql,hsqldb,postgresql,mariadb">
+        <modifyDataType
+                tableName="CALL_CACHING_SIMPLETON_ENTRY"
+                columnName="CALL_CACHING_ENTRY_ID"
+                newDataType="BIGINT"
+        />
+    </changeSet>
+    <!-- END widening FKs to match PK -->
+
+    <!-- MariaDB's FK NotNull constraint does not survive the widening above and must be recreated explicitly. -->
+    <!-- BEGIN Restoring FK NotNull constraint -->
+    <changeSet author="sshah" id="mariadb_not_null_constraint_call_caching_aggregation_entry_fk" dbms="mariadb,mysql">
+        <addNotNullConstraint
+                tableName="CALL_CACHING_AGGREGATION_ENTRY"
+                columnName="CALL_CACHING_ENTRY_ID"
+                columnDataType="BIGINT"
+        />
+    </changeSet>
+
+    <changeSet author="sshah" id="mariadb_not_null_constraint_call_caching_detritus_entry_fk" dbms="mariadb">
+        <addNotNullConstraint
+                tableName="CALL_CACHING_DETRITUS_ENTRY"
+                columnName="CALL_CACHING_ENTRY_ID"
+                columnDataType="BIGINT"
+        />
+    </changeSet>
+
+    <changeSet author="sshah" id="mariadb_not_null_constraint_call_caching_hash_entry_fk" dbms="mariadb">
+        <addNotNullConstraint
+                tableName="CALL_CACHING_HASH_ENTRY"
+                columnName="CALL_CACHING_ENTRY_ID"
+                columnDataType="BIGINT"
+        />
+    </changeSet>
+
+    <changeSet author="sshah" id="mariadb_not_null_constraint_call_caching_simpleton_entry_fk" dbms="mariadb">
+        <addNotNullConstraint
+                tableName="CALL_CACHING_SIMPLETON_ENTRY"
+                columnName="CALL_CACHING_ENTRY_ID"
+                columnDataType="BIGINT"
+        />
+    </changeSet>
+    <!-- END Restoring FK NotNull constraint -->
+
+    <!-- BEGIN Restoring the FKs -->
+    <changeSet author="sshah" id="recreate_call_caching_aggregation_entry_call_caching_entry_id_fk" dbms="mysql,hsqldb,postgresql,mariadb">
+        <addForeignKeyConstraint
+                constraintName="FK_CALL_CACHING_AGGREGATION_ENTRY_CALL_CACHING_ENTRY_ID"
+                baseColumnNames="CALL_CACHING_ENTRY_ID"
+                baseTableName="CALL_CACHING_AGGREGATION_ENTRY"
+                referencedTableName="CALL_CACHING_ENTRY"
+                referencedColumnNames="CALL_CACHING_ENTRY_ID"
+        />
+    </changeSet>
+
+    <changeSet author="sshah" id="recreate_call_caching_detritus_entry_call_caching_entry_id_fk" dbms="mysql,hsqldb,postgresql,mariadb">
+        <addForeignKeyConstraint
+                constraintName="FK_CALL_CACHING_DETRITUS_ENTRY_CALL_CACHING_ENTRY_ID"
+                baseColumnNames="CALL_CACHING_ENTRY_ID"
+                baseTableName="CALL_CACHING_DETRITUS_ENTRY"
+                referencedTableName="CALL_CACHING_ENTRY"
+                referencedColumnNames="CALL_CACHING_ENTRY_ID"
+        />
+    </changeSet>
+
+    <changeSet author="sshah" id="recreate_call_caching_hash_entry_call_caching_entry_id_fk" dbms="mysql,hsqldb,postgresql,mariadb">
+        <addForeignKeyConstraint
+                constraintName="FK_CALL_CACHING_HASH_ENTRY_CALL_CACHING_ENTRY_ID"
+                baseColumnNames="CALL_CACHING_ENTRY_ID"
+                baseTableName="CALL_CACHING_HASH_ENTRY"
+                referencedTableName="CALL_CACHING_ENTRY"
+                referencedColumnNames="CALL_CACHING_ENTRY_ID"
+        />
+    </changeSet>
+
+    <changeSet author="sshah" id="recreate_call_caching_simpleton_entry_call_caching_entry_id_fk" dbms="mysql,hsqldb,postgresql,mariadb">
+        <addForeignKeyConstraint
+                constraintName="FK_CALL_CACHING_SIMPLETON_ENTRY_CALL_CACHING_ENTRY_ID"
+                baseColumnNames="CALL_CACHING_ENTRY_ID"
+                baseTableName="CALL_CACHING_SIMPLETON_ENTRY"
+                referencedTableName="CALL_CACHING_ENTRY"
+                referencedColumnNames="CALL_CACHING_ENTRY_ID"
+        />
+    </changeSet>
+    <!-- END Restoring the FKs -->
+
+</databaseChangeLog>

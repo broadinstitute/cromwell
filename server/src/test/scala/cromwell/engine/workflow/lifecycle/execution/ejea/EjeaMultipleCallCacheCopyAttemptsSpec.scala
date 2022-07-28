@@ -31,7 +31,7 @@ class EjeaMultipleCallCacheCopyAttemptsSpec
     // Arbitrary.
     // When we attempt the nth copy attempt, we'll say that the cache entry ID is 'n' plus this offset.
     // Just makes sure that we're treating the copy attempt and the hit ID as separate numbers.
-    def cacheEntryIdFromCopyAttempt(attempt: Int) = CallCachingEntryId(75 + attempt)
+    def cacheEntryIdFromCopyAttempt(attempt: Int) = CallCachingEntryId(75L + attempt.toLong)
 
     def ejhaSendsHitIdToEjeaAndEjeaReacts(copyAttemptNumber: Int) = {
       val callCachingEntryId = cacheEntryIdFromCopyAttempt(copyAttemptNumber)

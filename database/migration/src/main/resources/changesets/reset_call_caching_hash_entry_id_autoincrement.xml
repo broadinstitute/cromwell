@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <!-- BEGIN CALL_CACHING_HASH_ENTRY PK autoincrement reset -->
+    <!-- For Postgresql there is a different changeset for altering the autoincrementing sequence.
+         The other DBs can be refactored with a single addAutoIncrement changeset. The start of autoincrement is set at 20,000,000,000. -->
+    <changeSet author="sshah" id="reset_call_caching_hash_entry_id_autoincrement" dbms="mysql,hsqldb,mariadb">
+        <addAutoIncrement
+                columnName="CALL_CACHING_HASH_ENTRY_ID"
+                columnDataType="BIGINT"
+                incrementBy="1"
+                startWith="20000000000"
+                tableName="CALL_CACHING_HASH_ENTRY"
+        />
+    </changeSet>
+
+    <changeSet author="sshah" id="postgresql_reset_call_caching_hash_entry_id_autoincrement_seq" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <!-- idempotency check (noop if the sequence is present and already consistent what the alter would do) -->
+            <sqlCheck expectedResult="0">
+                SELECT count(*)
+                FROM information_schema.sequences
+                WHERE sequence_name = 'CALL_CACHING_HASH_ENTRY_CALL_CACHING_HASH_ENTRY_ID_seq';
+            </sqlCheck>
+        </preConditions>
+        <sql>ALTER SEQUENCE "CALL_CACHING_HASH_ENTRY_CALL_CACHING_HASH_ENTRY_ID_seq" RESTART WITH 20000000000;</sql>
+    </changeSet>
+    <!-- END CALL_CACHING_HASH_ENTRY PK autoincrement reset -->
+
+</databaseChangeLog>

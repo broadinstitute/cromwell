@@ -23,10 +23,10 @@
             <sqlCheck expectedResult="0">
                 SELECT count(*)
                 FROM information_schema.sequences
-                WHERE sequence_name = 'RESET_CALL_CACHING_HASH_ENTRY_CALL_CACHING_HASH_ENTRY_ID_seq';
+                WHERE sequence_name = 'CALL_CACHING_HASH_ENTRY_CALL_CACHING_HASH_ENTRY_ID_seq';
             </sqlCheck>
         </preConditions>
-        <sql>ALTER SEQUENCE "RESET_CALL_CACHING_HASH_ENTRY_CALL_CACHING_HASH_ENTRY_ID_seq" RESTART WITH 20000000000;</sql>
+        <sql>ALTER SEQUENCE "CALL_CACHING_HASH_ENTRY_CALL_CACHING_HASH_ENTRY_ID_seq" RESTART WITH 20000000000;</sql>
     </changeSet>
     <!-- END CALL_CACHING_HASH_ENTRY PK autoincrement reset -->
 

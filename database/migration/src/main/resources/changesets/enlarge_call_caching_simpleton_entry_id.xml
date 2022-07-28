@@ -39,11 +39,11 @@
             <sqlCheck expectedResult="0">
                 SELECT count(*)
                 FROM information_schema.sequences
-                WHERE sequence_name = 'CC_SIMPLETON_ENTRY_CC_SIMPLETON_ENTRY_ID_seq'
+                WHERE sequence_name = 'CALL_CACHING_SIMPLETON_ENTRY_CALL_CACHING_SIMPLETON_ENTRY_I_seq'
                 AND data_type = 'bigint';
             </sqlCheck>
         </preConditions>
-        <sql>ALTER SEQUENCE "CC_SIMPLETON_ENTRY_CC_SIMPLETON_ENTRY_ID_seq" as bigint RESTART WITH 20000000000;</sql>
+        <sql>ALTER SEQUENCE "CALL_CACHING_SIMPLETON_ENTRY_CALL_CACHING_SIMPLETON_ENTRY_I_seq" as bigint RESTART WITH 20000000000;</sql>
     </changeSet>
     <!-- END CALL_CACHING_SIMPLETON_ENTRY PK widening -->
 

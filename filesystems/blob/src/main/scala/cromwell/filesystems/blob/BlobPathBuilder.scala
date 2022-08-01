@@ -68,18 +68,16 @@ class BlobPathBuilder(credential: AzureSasCredential, container: String, endpoin
   def build(string: String): Try[BlobPath] = {
     validateBlobPath(string, container, endpoint) match {
       case ValidBlobPath(path) =>
-        Try {
-          val fileSystem = Try {
-            FileSystems.getFileSystem(new URI("azb://?endpoint=" + endpoint))
-          } recover {
-            // If no filesystem already exists, this will create a new connection, with the provided configs
-            case _: FileSystemNotFoundException => FileSystems.newFileSystem(new URI("azb://?endpoint=" + endpoint), fileSystemConfig.asJava)
-          }
-
-          val blobStoragePath = fileSystem.map(_.getPath(path))
-          // If there is a remaining issue reaching the filesystem, this will rethrow the exception
-          blobStoragePath.map(BlobPath(_, endpoint, container)).get
-        }
+          for {
+            fileSystem <- Try {
+              FileSystems.getFileSystem(new URI("azb://?endpoint=" + endpoint))
+            } recover {
+              // If no filesystem already exists, this will create a new connection, with the provided configs
+              case _: FileSystemNotFoundException => FileSystems.newFileSystem(new URI("azb://?endpoint=" + endpoint), fileSystemConfig.asJava)
+            }
+            nioPath <- Try {fileSystem.getPath(path)}
+            blobPath <- Try {BlobPath(nioPath, endpoint, container)}
+          } yield blobPath
       case UnparsableBlobPath(errorMessage: Throwable) => Failure(errorMessage)
     }
   }

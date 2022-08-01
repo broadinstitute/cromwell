@@ -67,16 +67,13 @@ class BlobPathBuilder(credential: AzureSasCredential, container: String, endpoin
 
   def build(string: String): Try[BlobPath] = {
     validateBlobPath(string, container, endpoint) match {
-      case ValidBlobPath(path) =>
-          for {
-            fileSystem <- Try {
-              FileSystems.getFileSystem(new URI("azb://?endpoint=" + endpoint))
-            } recover {
+      case ValidBlobPath(path) => for {
+            fileSystem <- Try(FileSystems.getFileSystem(new URI("azb://?endpoint=" + endpoint))) recover {
               // If no filesystem already exists, this will create a new connection, with the provided configs
               case _: FileSystemNotFoundException => FileSystems.newFileSystem(new URI("azb://?endpoint=" + endpoint), fileSystemConfig.asJava)
             }
-            nioPath <- Try {fileSystem.getPath(path)}
-            blobPath <- Try {BlobPath(nioPath, endpoint, container)}
+            nioPath <- Try(fileSystem.getPath(path))
+            blobPath = BlobPath(nioPath, endpoint, container)
           } yield blobPath
       case UnparsableBlobPath(errorMessage: Throwable) => Failure(errorMessage)
     }

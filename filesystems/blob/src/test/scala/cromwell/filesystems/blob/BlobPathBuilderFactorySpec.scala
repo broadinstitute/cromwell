@@ -14,14 +14,12 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers {
     val workspaceManagerURL = "https://test.ws.org"
     val instanceConfig = ConfigFactory.parseString(
       s"""
-      |filesystems.blob.instance {
-      |  sas-token = "$sasToken"
-      |  store = "$store"
-      |  endpoint = "$endpoint"
-      |  workspaceId = "$workspaceId"
-      |}
+      |sas-token = "$sasToken"
+      |store = "$store"
+      |endpoint = "$endpoint"
+      |workspace-id = "$workspaceId"
       """.stripMargin)
-    val globalConfig = ConfigFactory.parseString(s"""filesystems.blob.global.workspace-manager-url = "$workspaceManagerURL" """)
+    val globalConfig = ConfigFactory.parseString(s"""workspace-manager-url = "$workspaceManagerURL" """)
     val factory = BlobPathBuilderFactory(globalConfig, instanceConfig)
     factory.container should equal(store)
     factory.endpoint should equal(endpoint)

@@ -16,6 +16,7 @@ import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Try
+import java.nio.file.FileSystem
 
 object BlobPathBuilder {
 
@@ -65,13 +66,17 @@ class BlobPathBuilder(credential: AzureSasCredential, container: String, endpoin
   val fileSystemConfig: Map[String, Object] = Map((AzureFileSystem.AZURE_STORAGE_SAS_TOKEN_CREDENTIAL, credential),
                                                   (AzureFileSystem.AZURE_STORAGE_FILE_STORES, container))
 
+  def retrieveFilesystem(): Try[FileSystem] = {
+    Try(FileSystems.getFileSystem(new URI("azb://?endpoint=" + endpoint))) recover {
+      // If no filesystem already exists, this will create a new connection, with the provided configs
+      case _: FileSystemNotFoundException => FileSystems.newFileSystem(new URI("azb://?endpoint=" + endpoint), fileSystemConfig.asJava)
+    }
+  }
+
   def build(string: String): Try[BlobPath] = {
     validateBlobPath(string, container, endpoint) match {
       case ValidBlobPath(path) => for {
-            fileSystem <- Try(FileSystems.getFileSystem(new URI("azb://?endpoint=" + endpoint))) recover {
-              // If no filesystem already exists, this will create a new connection, with the provided configs
-              case _: FileSystemNotFoundException => FileSystems.newFileSystem(new URI("azb://?endpoint=" + endpoint), fileSystemConfig.asJava)
-            }
+            fileSystem <- retrieveFilesystem()
             nioPath <- Try(fileSystem.getPath(path))
             blobPath = BlobPath(nioPath, endpoint, container)
           } yield blobPath

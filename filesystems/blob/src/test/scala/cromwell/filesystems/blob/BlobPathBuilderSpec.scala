@@ -1,10 +1,17 @@
 package cromwell.filesystems.blob
 
 import com.azure.core.credential.AzureSasCredential
-import cromwell.filesystems.blob.BlobPathBuilder
+import com.azure.storage.common.StorageSharedKeyCredential
+import com.azure.storage.common.sas.AccountSasPermission
+import com.azure.storage.common.sas.AccountSasResourceType
+import com.azure.storage.common.sas.AccountSasService
+import com.azure.storage.common.sas.AccountSasSignatureValues
+import com.azure.storage.blob.BlobServiceClientBuilder
+
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.time.OffsetDateTime
 import java.nio.file.Files
 
 object BlobPathBuilderSpec {
@@ -47,17 +54,42 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
   }
 
   ignore should "build a blob path from a test string and read a file" in {
-    val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
-    val endpointHost = BlobPathBuilder.parseURI(endpoint).getHost
+    val storageAccountName = "coaexternalstorage"
+    val storageAccountKey = "<STORAGE ACCOUNT KEY GOES HERE>"
+    val keyCredential = new StorageSharedKeyCredential(storageAccountName, storageAccountKey)
+
+    val endpoint = BlobPathBuilderSpec.buildEndpoint(storageAccountName)
+    val blobServiceClient = new BlobServiceClientBuilder()
+      .credential(keyCredential)
+      .endpoint(endpoint)
+      .buildClient()
+    val accountSasPermission = new AccountSasPermission()
+      .setReadPermission(true)
+    val services = new AccountSasService()
+      .setBlobAccess(true)
+      .setFileAccess(true)
+      .setQueueAccess(true)
+      .setTableAccess(true)
+    val resourceTypes = new AccountSasResourceType()
+      .setObject(true)
+      .setService(true)
+      .setContainer(true)
+    val accountSasValues = new AccountSasSignatureValues(
+      OffsetDateTime.now.plusDays(1),
+      accountSasPermission,
+      services,
+      resourceTypes,
+    )
+
     val store = "inputs"
     val evalPath = "/test/inputFile.txt"
-    val sas = "{SAS TOKEN HERE}"
+    val sas = blobServiceClient.generateAccountSas(accountSasValues)
     val testString = endpoint + "/" + store + evalPath
     val blobPath: BlobPath = new BlobPathBuilder(new AzureSasCredential(sas), store, endpoint) build testString getOrElse fail()
     blobPath.container should equal(store)
     blobPath.endpoint should equal(endpoint)
     blobPath.pathAsString should equal(testString)
-    blobPath.pathWithoutScheme should equal(endpointHost + "/" + store + evalPath)
+    blobPath.pathWithoutScheme should equal(BlobPathBuilder.parseURI(endpoint).getHost + "/" + store + evalPath)
     val is = Files.newInputStream(blobPath.nioPath)
     val fileText = (is.readAllBytes.map(_.toChar)).mkString
     fileText should include ("This is my test file!!!! Did it work?")

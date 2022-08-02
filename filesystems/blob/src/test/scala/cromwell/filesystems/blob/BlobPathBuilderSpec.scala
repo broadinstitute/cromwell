@@ -57,8 +57,8 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
     val storageAccountName = "coaexternalstorage"
     val storageAccountKey = "<STORAGE ACCOUNT KEY GOES HERE>"
     val keyCredential = new StorageSharedKeyCredential(storageAccountName, storageAccountKey)
-
     val endpoint = BlobPathBuilderSpec.buildEndpoint(storageAccountName)
+
     val blobServiceClient = new BlobServiceClientBuilder()
       .credential(keyCredential)
       .endpoint(endpoint)
@@ -86,10 +86,12 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
     val sas = blobServiceClient.generateAccountSas(accountSasValues)
     val testString = endpoint + "/" + store + evalPath
     val blobPath: BlobPath = new BlobPathBuilder(new AzureSasCredential(sas), store, endpoint) build testString getOrElse fail()
+
     blobPath.container should equal(store)
     blobPath.endpoint should equal(endpoint)
     blobPath.pathAsString should equal(testString)
     blobPath.pathWithoutScheme should equal(BlobPathBuilder.parseURI(endpoint).getHost + "/" + store + evalPath)
+
     val is = Files.newInputStream(blobPath.nioPath)
     val fileText = (is.readAllBytes.map(_.toChar)).mkString
     fileText should include ("This is my test file!!!! Did it work?")

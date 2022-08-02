@@ -1494,6 +1494,9 @@ definitions:
         type: string
         format: date-time
         description: Workflow submission datetime
+      metadataArchiveStatus:
+        type: string
+        description: Status in metadata archives
       start:
         type: string
         format: date-time

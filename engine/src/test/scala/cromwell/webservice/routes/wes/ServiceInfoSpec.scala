@@ -3,8 +3,7 @@ package cromwell.webservice.routes.wes
 import akka.actor.Props
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.Timeout
-import cromwell.languages.config.CromwellLanguages
-import cromwell.languages.config.LanguageConfiguration
+import cromwell.languages.config.{CromwellLanguages, LanguageConfiguration}
 import cromwell.webservice.routes.CromwellApiService
 import cromwell.webservice.routes.CromwellApiServiceSpec.MockWorkflowStoreActor
 import org.scalatest.flatspec.AsyncFlatSpec

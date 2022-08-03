@@ -1,18 +1,26 @@
 package cromwell.filesystems.blob
 
 import com.azure.core.credential.AzureSasCredential
+import com.azure.core.management.profile.AzureProfile
+import com.azure.core.management.AzureEnvironment
+import com.azure.resourcemanager.AzureResourceManager
+
 import com.azure.storage.common.StorageSharedKeyCredential
 import com.azure.storage.common.sas.AccountSasPermission
 import com.azure.storage.common.sas.AccountSasResourceType
 import com.azure.storage.common.sas.AccountSasService
 import com.azure.storage.common.sas.AccountSasSignatureValues
 import com.azure.storage.blob.BlobServiceClientBuilder
+import com.azure.identity.DefaultAzureCredentialBuilder
+import com.azure.resourcemanager.storage.models.StorageAccount
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.time.OffsetDateTime
 import java.nio.file.Files
+
+import scala.jdk.CollectionConverters._
 
 object BlobPathBuilderSpec {
   def buildEndpoint(storageAccount: String) = s"https://$storageAccount.blob.core.windows.net"
@@ -55,14 +63,36 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
 
   ignore should "build a blob path from a test string and read a file" in {
     val storageAccountName = "coaexternalstorage"
-    val storageAccountKey = "<STORAGE ACCOUNT KEY GOES HERE>"
-    val keyCredential = new StorageSharedKeyCredential(storageAccountName, storageAccountKey)
-    val endpoint = BlobPathBuilderSpec.buildEndpoint(storageAccountName)
 
+    val profile = new AzureProfile(AzureEnvironment.AZURE)
+    val azureCredential = new DefaultAzureCredentialBuilder()
+      .authorityHost(profile.getEnvironment.getActiveDirectoryEndpoint)
+      .build
+    val azure = AzureResourceManager.authenticate(azureCredential, profile).withDefaultSubscription
+
+    // TODO: Can we get the storage account key without all this java-to-scala conversion?
+    val storageAccounts = azure.storageAccounts()
+    val storageAccount = storageAccounts
+      .list()
+      .asScala
+      .find(_.name == storageAccountName)
+      .asInstanceOf[Some[StorageAccount]]
+      .get
+    val storageAccountKeys = storageAccount.getKeys()
+      .asScala
+      .map(f => f.value)
+    val storageAccountKey = storageAccountKeys.head
+
+    val keyCredential = new StorageSharedKeyCredential(
+      storageAccountName,
+      storageAccountKey
+    )
+    val endpoint = BlobPathBuilderSpec.buildEndpoint(storageAccountName)
     val blobServiceClient = new BlobServiceClientBuilder()
       .credential(keyCredential)
       .endpoint(endpoint)
       .buildClient()
+
     val accountSasPermission = new AccountSasPermission()
       .setReadPermission(true)
     val services = new AccountSasService()

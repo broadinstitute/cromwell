@@ -25,7 +25,7 @@ class ServiceInfoSpec extends AsyncFlatSpec with ScalatestRouteTest with Matcher
 
   val expectedResponse = WesStatusInfoResponse(Map("CWL" -> Set("v1.0"), "WDL" -> Set("draft-2", "1.0", "biscayne")),
     List("1.0"),
-    Set("ftp", "s3", "drs", "gcs", "http", "blob"),
+    Set("ftp", "s3", "drs", "gcs", "http"),
     Map("Cromwell" -> CromwellApiService.cromwellVersion),
     List(),
     Map(WesState.Running -> 5, WesState.Queued -> 3, WesState.Canceling -> 2),

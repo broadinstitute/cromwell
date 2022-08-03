@@ -47,10 +47,10 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
   }
 
   ignore should "build a blob path from a test string and read a file" in {
-    val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
+    val endpoint = BlobPathBuilderSpec.buildEndpoint("teststorageaccount")
     val endpointHost = BlobPathBuilder.parseURI(endpoint).getHost
-    val store = "inputs"
-    val evalPath = "/test/inputFile.txt"
+    val store = "testContainer"
+    val evalPath = "/test/file.txt"
     val sas = "{SAS TOKEN HERE}"
     val testString = endpoint + "/" + store + evalPath
     val blobPath: BlobPath = new BlobPathBuilder(new AzureSasCredential(sas), store, endpoint) build testString getOrElse fail()

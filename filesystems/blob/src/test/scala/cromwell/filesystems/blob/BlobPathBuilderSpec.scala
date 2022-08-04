@@ -6,6 +6,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.nio.file.Files
+import scala.util.{Failure, Success, Try}
 
 object BlobPathBuilderSpec {
   def buildEndpoint(storageAccount: String) = s"https://$storageAccount.blob.core.windows.net"
@@ -46,20 +47,27 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
     }
   }
 
-  ignore should "build a blob path from a test string and read a file" in {
-    val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
-    val endpointHost = BlobPathBuilder.parseURI(endpoint).getHost
-    val store = "inputs"
-    val evalPath = "/test/inputFile.txt"
-    val sas = "{SAS TOKEN HERE}"
-    val testString = endpoint + "/" + store + evalPath
-    val blobPath: BlobPath = new BlobPathBuilder(new AzureSasCredential(sas), store, endpoint) build testString getOrElse fail()
-    blobPath.container should equal(store)
-    blobPath.endpoint should equal(endpoint)
-    blobPath.pathAsString should equal(testString)
-    blobPath.pathWithoutScheme should equal(endpointHost + "/" + store + evalPath)
-    val is = Files.newInputStream(blobPath.nioPath)
-    val fileText = (is.readAllBytes.map(_.toChar)).mkString
-    fileText should include ("This is my test file!!!! Did it work?")
+  it should "build a blob path from a test string and read a file" in {
+    val endpoint = "https://saf3d608c45a3ebef88c7c.blob.core.windows.net" //BlobPathBuilderSpec.buildEndpoint("saf3d608c45a3ebef88c7c")
+    val endpointHost = "saf3d608c45a3ebef88c7c" //BlobPathBuilder.parseURI(endpoint).getHost
+    val store = "sc-f3d608c4-0a0d-4f23-a248-5a3ebef88c7c"
+    val evalPath = "/test.txt"
+    val sas = "?sv=2021-06-08&srt=sco&spr=https&st=2022-08-03T20%3A48%3A48Z&se=2022-08-03T22%3A03%3A48Z&sr=c&sp=racwdl&sig=r59lmUcW%2BqBaugZA8lvjbr%2Fy2dvvn1hBNgGpYp%2FgQbg%3D"
+    val testString = "https://saf3d608c45a3ebef88c7c.blob.core.windows.net/sc-f3d608c4-0a0d-4f23-a248-5a3ebef88c7c/test.txt"
+    val blobPathTry: Try[BlobPath] = new BlobPathBuilder(new AzureSasCredential(sas), store, endpoint) build testString
+    blobPathTry match {
+      case Success(blobPath) => {
+        blobPath.container should equal(store)
+        blobPath.endpoint should equal(endpoint)
+        blobPath.pathAsString should equal(testString)
+        blobPath.pathWithoutScheme should equal(endpointHost + "/" + store + evalPath)
+        val is = Files.newInputStream(blobPath.nioPath)
+        val fileText = (is.readAllBytes.map(_.toChar)).mkString
+        fileText should include ("This is a file!")
+      }
+      case Failure(exception) => {
+        fail(exception)
+      }
+    }
   }
 }

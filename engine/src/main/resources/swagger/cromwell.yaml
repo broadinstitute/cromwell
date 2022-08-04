@@ -1478,7 +1478,6 @@ definitions:
     description: Result for an individual workflow returned by a workflow query
     required:
       - id
-      - name
       - status
     properties:
       id:

@@ -62,4 +62,15 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
     val fileText = (is.readAllBytes.map(_.toChar)).mkString
     fileText should include ("This is my test file!!!! Did it work?")
   }
+
+  ignore should "build duplicate blob paths in the same filesystem" in {
+    val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
+    val store = "inputs"
+    val evalPath = "/test/inputFile.txt"
+    val sas = "{SAS TOKEN HERE}"
+    val testString = endpoint + "/" + store + evalPath
+    val blobPath1: BlobPath = new BlobPathBuilder(new AzureSasCredential(sas), store, endpoint) build testString getOrElse fail()
+    val blobPath2: BlobPath = new BlobPathBuilder(new AzureSasCredential(sas), store, endpoint) build testString getOrElse fail()
+    blobPath1 should equal(blobPath2)
+  }
 }

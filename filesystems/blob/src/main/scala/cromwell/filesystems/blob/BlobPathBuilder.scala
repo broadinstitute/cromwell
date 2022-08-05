@@ -3,20 +3,14 @@ package cromwell.filesystems.blob
 import com.azure.core.credential.AzureSasCredential
 import com.azure.storage.blob.nio.AzureFileSystem
 import com.google.common.net.UrlEscapers
-import cromwell.core.path.NioPath
-import cromwell.core.path.Path
-import cromwell.core.path.PathBuilder
+import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.blob.BlobPathBuilder._
 
-import java.net.MalformedURLException
-import java.net.URI
-import java.nio.file.FileSystemNotFoundException
-import java.nio.file.FileSystems
+import java.net.{MalformedURLException, URI}
+import java.nio.file.{FileSystem, FileSystemNotFoundException, FileSystems}
 import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Try
-import java.nio.file.FileSystem
+import scala.util.{Failure, Try}
 
 object BlobPathBuilder {
 
@@ -66,17 +60,17 @@ class BlobPathBuilder(credential: AzureSasCredential, container: String, endpoin
   val fileSystemConfig: Map[String, Object] = Map((AzureFileSystem.AZURE_STORAGE_SAS_TOKEN_CREDENTIAL, credential),
                                                   (AzureFileSystem.AZURE_STORAGE_FILE_STORES, container))
 
-  def retrieveFilesystem(): Try[FileSystem] = {
-    Try(FileSystems.getFileSystem(new URI("azb://?endpoint=" + endpoint))) recover {
+  def retrieveFilesystem(uri: URI): Try[FileSystem] = {
+    Try(FileSystems.getFileSystem(uri)) recover {
       // If no filesystem already exists, this will create a new connection, with the provided configs
-      case _: FileSystemNotFoundException => FileSystems.newFileSystem(new URI("azb://?endpoint=" + endpoint), fileSystemConfig.asJava)
+      case _: FileSystemNotFoundException => FileSystems.newFileSystem(uri, fileSystemConfig.asJava)
     }
   }
 
   def build(string: String): Try[BlobPath] = {
     validateBlobPath(string, container, endpoint) match {
       case ValidBlobPath(path) => for {
-            fileSystem <- retrieveFilesystem()
+            fileSystem <- retrieveFilesystem(new URI("azb://?endpoint=" + endpoint))
             nioPath <- Try(fileSystem.getPath(path))
             blobPath = BlobPath(nioPath, endpoint, container)
           } yield blobPath

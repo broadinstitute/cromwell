@@ -61,7 +61,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
     }
   }
 
-  ignore should "build a blob path from a test string and read a file" in {
+  it should "build a blob path from a test string and read a file" in {
     val storageAccountName = "coaexternalstorage"
 
     val profile = new AzureProfile(AzureEnvironment.AZURE)
@@ -70,7 +70,6 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
       .build
     val azure = AzureResourceManager.authenticate(azureCredential, profile).withDefaultSubscription
 
-    // TODO: Can we get the storage account key without all this java-to-scala conversion?
     val storageAccounts = azure.storageAccounts()
     val storageAccount = storageAccounts
       .list()

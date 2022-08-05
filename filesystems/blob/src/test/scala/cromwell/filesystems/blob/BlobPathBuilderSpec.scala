@@ -12,7 +12,6 @@ import com.azure.storage.common.sas.AccountSasService
 import com.azure.storage.common.sas.AccountSasSignatureValues
 import com.azure.storage.blob.BlobServiceClientBuilder
 import com.azure.identity.DefaultAzureCredentialBuilder
-import com.azure.resourcemanager.storage.models.StorageAccount
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -61,7 +60,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
     }
   }
 
-  it should "build a blob path from a test string and read a file" in {
+  ignore should "build a blob path from a test string and read a file" in {
     val storageAccountName = "coaexternalstorage"
 
     val profile = new AzureProfile(AzureEnvironment.AZURE)
@@ -75,7 +74,6 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
       .list()
       .asScala
       .find(_.name == storageAccountName)
-      .asInstanceOf[Some[StorageAccount]]
 
     val storageAccountKeys = storageAccount match {
       case Some(value) => value.getKeys().asScala.map(_.value())

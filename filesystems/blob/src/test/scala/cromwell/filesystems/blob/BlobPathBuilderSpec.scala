@@ -77,11 +77,16 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
       .asScala
       .find(_.name == storageAccountName)
       .asInstanceOf[Some[StorageAccount]]
-      .get
-    val storageAccountKeys = storageAccount.getKeys()
-      .asScala
-      .map(f => f.value)
-    val storageAccountKey = storageAccountKeys.head
+
+    val storageAccountKeys = storageAccount match {
+      case Some(value) => value.getKeys().asScala.map(_.value())
+      case _ => fail("Storage Account not found")
+    }
+
+    val storageAccountKey = storageAccountKeys.headOption match {
+      case Some(value) => value
+      case _ => fail("Storage Account has no keys")
+    }
 
     val keyCredential = new StorageSharedKeyCredential(
       storageAccountName,
@@ -97,12 +102,8 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
       .setReadPermission(true)
     val services = new AccountSasService()
       .setBlobAccess(true)
-      .setFileAccess(true)
-      .setQueueAccess(true)
-      .setTableAccess(true)
     val resourceTypes = new AccountSasResourceType()
       .setObject(true)
-      .setService(true)
       .setContainer(true)
     val accountSasValues = new AccountSasSignatureValues(
       OffsetDateTime.now.plusDays(1),

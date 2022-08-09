@@ -1,25 +1,20 @@
 package cromwell.filesystems.blob
 
 import com.azure.core.credential.AzureSasCredential
-import com.azure.core.management.profile.AzureProfile
 import com.azure.core.management.AzureEnvironment
-import com.azure.resourcemanager.AzureResourceManager
-
-import com.azure.storage.common.StorageSharedKeyCredential
-import com.azure.storage.common.sas.AccountSasPermission
-import com.azure.storage.common.sas.AccountSasResourceType
-import com.azure.storage.common.sas.AccountSasService
-import com.azure.storage.common.sas.AccountSasSignatureValues
-import com.azure.storage.blob.BlobServiceClientBuilder
+import com.azure.core.management.profile.AzureProfile
 import com.azure.identity.DefaultAzureCredentialBuilder
-
+import com.azure.resourcemanager.AzureResourceManager
+import com.azure.storage.blob.BlobContainerClientBuilder
+import com.azure.storage.blob.sas.{BlobContainerSasPermission, BlobServiceSasSignatureValues}
+import com.azure.storage.common.StorageSharedKeyCredential
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.time.OffsetDateTime
 import java.nio.file.Files
-
+import java.time.OffsetDateTime
 import scala.jdk.CollectionConverters._
+import scala.util.{Failure, Success, Try}
 
 object BlobPathBuilderSpec {
   def buildEndpoint(storageAccount: String) = s"https://$storageAccount.blob.core.windows.net"
@@ -60,14 +55,13 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
     }
   }
 
-  ignore should "build a blob path from a test string and read a file" in {
+  it should "build a blob path from a test string and read a file" in {
     val storageAccountName = "coaexternalstorage"
-
     val profile = new AzureProfile(AzureEnvironment.AZURE)
     val azureCredential = new DefaultAzureCredentialBuilder()
       .authorityHost(profile.getEnvironment.getActiveDirectoryEndpoint)
       .build
-    val azure = AzureResourceManager.authenticate(azureCredential, profile).withDefaultSubscription
+    val azure = AzureResourceManager.authenticate(azureCredential, profile).withDefaultSubscription()
 
     val storageAccounts = azure.storageAccounts()
     val storageAccount = storageAccounts
@@ -90,38 +84,37 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
       storageAccountKey
     )
     val endpoint = BlobPathBuilderSpec.buildEndpoint(storageAccountName)
-    val blobServiceClient = new BlobServiceClientBuilder()
+    val store = "inputs"
+    val blobServiceClient = new BlobContainerClientBuilder()
       .credential(keyCredential)
       .endpoint(endpoint)
+      .containerName(store)
       .buildClient()
 
-    val accountSasPermission = new AccountSasPermission()
+    val blobContainerSasPermission = new BlobContainerSasPermission()
       .setReadPermission(true)
-    val services = new AccountSasService()
-      .setBlobAccess(true)
-    val resourceTypes = new AccountSasResourceType()
-      .setObject(true)
-      .setContainer(true)
-    val accountSasValues = new AccountSasSignatureValues(
+      .setCreatePermission(true)
+      .setListPermission(true)
+    val blobServiceSasValues = new BlobServiceSasSignatureValues(
       OffsetDateTime.now.plusDays(1),
-      accountSasPermission,
-      services,
-      resourceTypes,
+      blobContainerSasPermission
     )
-
-    val store = "inputs"
     val evalPath = "/test/inputFile.txt"
-    val sas = blobServiceClient.generateAccountSas(accountSasValues)
+    val sas = blobServiceClient.generateSas(blobServiceSasValues)
     val testString = endpoint + "/" + store + evalPath
-    val blobPath: BlobPath = new BlobPathBuilder(new AzureSasCredential(sas), store, endpoint) build testString getOrElse fail()
+    val blobPathTry: Try[BlobPath] = new BlobPathBuilder(new AzureSasCredential(sas), store, endpoint) build testString
 
-    blobPath.container should equal(store)
-    blobPath.endpoint should equal(endpoint)
-    blobPath.pathAsString should equal(testString)
-    blobPath.pathWithoutScheme should equal(BlobPathBuilder.parseURI(endpoint).getHost + "/" + store + evalPath)
-
-    val is = Files.newInputStream(blobPath.nioPath)
-    val fileText = (is.readAllBytes.map(_.toChar)).mkString
-    fileText should include ("This is my test file!!!! Did it work?")
+    blobPathTry match {
+      case Success(blobPath) => {
+        blobPath.container should equal(store)
+        blobPath.endpoint should equal(endpoint)
+        blobPath.pathAsString should equal(testString)
+        blobPath.pathWithoutScheme should equal(BlobPathBuilder.parseURI(endpoint).getHost + "/" + store + evalPath)
+        val is = Files.newInputStream(blobPath.nioPath)
+        val fileText = (is.readAllBytes.map(_.toChar)).mkString
+        fileText should include ("This is my test file!!!! Did it work?")
+      }
+      case Failure(errorMessage) => fail(errorMessage)
+    }
   }
 }

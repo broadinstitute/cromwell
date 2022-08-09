@@ -3,18 +3,14 @@ package cromwell.filesystems.blob
 import com.azure.core.credential.AzureSasCredential
 import com.azure.storage.blob.nio.AzureFileSystem
 import com.google.common.net.UrlEscapers
-import cromwell.core.path.NioPath
-import cromwell.core.path.Path
-import cromwell.core.path.PathBuilder
+import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.blob.BlobPathBuilder._
 
-import java.net.MalformedURLException
-import java.net.URI
+import java.net.{MalformedURLException, URI}
 import java.nio.file.FileSystems
 import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Try
+import scala.util.{Failure, Try}
 
 object BlobPathBuilder {
 
@@ -60,9 +56,10 @@ object BlobPathBuilder {
 }
 
 class BlobPathBuilder(credential: AzureSasCredential, container: String, endpoint: String) extends PathBuilder {
-
+  val bool: java.lang.Boolean = true;
   val fileSystemConfig: Map[String, Object] = Map((AzureFileSystem.AZURE_STORAGE_SAS_TOKEN_CREDENTIAL, credential),
-                                                  (AzureFileSystem.AZURE_STORAGE_FILE_STORES, container))
+                                                  (AzureFileSystem.AZURE_STORAGE_FILE_STORES, container),
+                                                  (AzureFileSystem.AZURE_STORAGE_SKIP_INITIAL_CONTAINER_CHECK, bool))
 
   def build(string: String): Try[BlobPath] = {
     validateBlobPath(string, container, endpoint) match {

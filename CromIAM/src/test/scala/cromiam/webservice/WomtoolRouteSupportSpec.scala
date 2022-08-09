@@ -11,6 +11,7 @@ import org.scalatest.matchers.should.Matchers
 class WomtoolRouteSupportSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with WomtoolRouteSupport with ScalatestRouteTest {
 
   override lazy val cromwellClient = new MockCromwellClient()
+  override lazy val samClient = new MockSamClient()
 
   behavior of "Womtool endpoint routes"
 
@@ -21,5 +22,4 @@ class WomtoolRouteSupportSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
       contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
-
 }

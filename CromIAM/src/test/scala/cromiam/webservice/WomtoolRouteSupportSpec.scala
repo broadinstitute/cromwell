@@ -22,4 +22,5 @@ class WomtoolRouteSupportSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
       contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
+
 }

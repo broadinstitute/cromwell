@@ -127,7 +127,6 @@ object Dependencies {
   private val workbenchGoogleV = "0.21-5c9c4f6" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/google/CHANGELOG.md
   private val workbenchModelV = "0.15-f9f0d4c" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/model/CHANGELOG.md
   private val workbenchUtilV = "0.6-65bba14" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/util/CHANGELOG.md
-  private val workbenchSamClientV = "0.1-61135c7"
 
   private val slf4jFacadeDependencies = List(
     "org.slf4j" % "slf4j-api" % slf4jV,
@@ -518,8 +517,7 @@ object Dependencies {
     "com.softwaremill.sttp" %% "async-http-client-backend-future" % sttpV,
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "org.broadinstitute.dsde.workbench" %% "workbench-model" % workbenchModelV,
-    "org.broadinstitute.dsde.workbench" %% "workbench-util" % workbenchUtilV,
-    "org.broadinstitute.dsde.workbench" % "sam-client_2.12" % workbenchSamClientV
+    "org.broadinstitute.dsde.workbench" %% "workbench-util" % workbenchUtilV
   ) ++ akkaHttpDependencies ++ swaggerUiDependencies ++ slf4jBindingDependencies
 
   val wes2cromwellDependencies: List[ModuleID] = coreDependencies ++ akkaHttpDependencies

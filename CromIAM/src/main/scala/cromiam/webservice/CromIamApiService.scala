@@ -25,7 +25,7 @@ import cromwell.services.ServiceRegistryActor
 
 import scala.concurrent.ExecutionContextExecutor
 
-trait SwaggerService extends SwaggerUiResourceHttpService with EnabledUserSupport {
+trait SwaggerService extends SwaggerUiResourceHttpService {
   override def swaggerServiceName = "cromiam"
 }
 

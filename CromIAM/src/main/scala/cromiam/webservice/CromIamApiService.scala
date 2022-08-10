@@ -25,7 +25,7 @@ import cromwell.services.ServiceRegistryActor
 
 import scala.concurrent.ExecutionContextExecutor
 
-trait SwaggerService extends SwaggerUiResourceHttpService {
+trait SwaggerService extends SwaggerUiResourceHttpService with EnabledUserSupport {
   override def swaggerServiceName = "cromiam"
 }
 
@@ -152,9 +152,7 @@ trait CromIamApiService extends RequestSupport
     get {
       extractUserAndRequest { (user, req) =>
         logUserAction(user, urlSuffix)
-        complete {
-          cromwellClient.forwardToCromwell(req).asHttpResponse
-        }
+        forwardIfUserEnabled(user, req, cromwellClient, samClient)
       }
     }
   }

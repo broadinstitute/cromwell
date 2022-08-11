@@ -65,10 +65,10 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
     val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
     val store = "inputs"
     val evalPath = "/test/inputFile.txt"
-    val sas = "{SAS TOKEN HERE}"
+    val blobTokenGenerator: BlobTokenGenerator = BlobTokenGenerator.createBlobTokenGenerator(store, endpoint)
     val testString = endpoint + "/" + store + evalPath
-    val blobPath1: BlobPath = new BlobPathBuilder(new AzureSasCredential(sas), store, endpoint) build testString getOrElse fail()
-    val blobPath2: BlobPath = new BlobPathBuilder(new AzureSasCredential(sas), store, endpoint) build testString getOrElse fail()
+    val blobPath1: BlobPath = new BlobPathBuilder(blobTokenGenerator, store, endpoint) build testString getOrElse fail()
+    val blobPath2: BlobPath = new BlobPathBuilder(blobTokenGenerator, store, endpoint) build testString getOrElse fail()
     blobPath1 should equal(blobPath2)
   }
 }

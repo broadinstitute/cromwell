@@ -141,6 +141,10 @@ class MockSamClient(checkSubmitWhitelist: Boolean = true)
     FailureResponseOrT.pure(!user.userId.value.equalsIgnoreCase(NotWhitelistedUser))
   }
 
+  override def isUserEnabledSam(user: User, cromIamRequest: HttpRequest): FailureResponseOrT[Boolean] = {
+    FailureResponseOrT.pure(true)
+  }
+
   override def requestAuth(authorizationRequest: CollectionAuthorizationRequest,
                            cromIamRequest: HttpRequest): FailureResponseOrT[Unit] = {
     authorizationRequest.user.userId.value match {

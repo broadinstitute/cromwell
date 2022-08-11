@@ -86,6 +86,7 @@ object Settings {
       Tags.limit(Tags.Test, 1)
     ),
     dependencyOverrides ++= cromwellDependencyOverrides,
+    excludeDependencies ++= cromwellExcludeDependencies,
     scalacOptions ++= baseSettings ++ warningSettings ++ consoleHostileSettings,
     // http://stackoverflow.com/questions/31488335/scaladoc-2-11-6-fails-on-throws-tag-with-unable-to-find-any-member-to-link#31497874
     Compile / doc / scalacOptions ++= baseSettings ++ List("-no-link-warnings"),

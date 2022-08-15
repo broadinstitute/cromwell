@@ -25,7 +25,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers {
     factory.container should equal(store)
     factory.endpoint should equal(endpoint)
     factory.sasToken should equal(sasToken)
-    factory.workspaceId should equal(workspaceId)
-    factory.workspaceManagerURL should equal(workspaceManagerURL)
+    factory.workspaceId should equal(Some(workspaceId))
+    factory.workspaceManagerURL should equal(Some(workspaceManagerURL))
   }
 }

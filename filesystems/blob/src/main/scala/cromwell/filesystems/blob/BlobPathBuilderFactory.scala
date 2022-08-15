@@ -27,7 +27,7 @@ final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Co
   val workspaceManagerURL: Option[String] = singletonConfig.config.as[Option[String]]("workspace-manager-url")
 
   val blobTokenGenerator: BlobTokenGenerator = BlobTokenGenerator.createBlobTokenGenerator(
-    container: String, endpoint: String, workspaceId: Option[String], workspaceManagerURL: Option[String])
+    container, endpoint, workspaceId, workspaceManagerURL)
 
   override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[BlobPathBuilder] = {
     Future {

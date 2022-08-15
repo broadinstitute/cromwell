@@ -142,7 +142,12 @@ class MockSamClient(checkSubmitWhitelist: Boolean = true)
   }
 
   override def isUserEnabledSam(user: User, cromIamRequest: HttpRequest): FailureResponseOrT[Boolean] = {
-    FailureResponseOrT.pure(true)
+    if (user.userId.value == "enabled@example.com" || user.userId.value == MockSamClient.AuthorizedUserCollectionStr)
+      FailureResponseOrT.pure(true)
+    else if (user.userId.value == "disabled@example.com")
+      FailureResponseOrT.pure(false)
+    else
+      throw new Exception("Misconfigured test")
   }
 
   override def requestAuth(authorizationRequest: CollectionAuthorizationRequest,

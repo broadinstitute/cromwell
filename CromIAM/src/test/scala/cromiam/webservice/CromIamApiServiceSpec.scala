@@ -4,7 +4,7 @@ import akka.event.NoLogging
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.headers.{Authorization, OAuth2BearerToken, RawHeader}
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpHeader}
-import akka.http.scaladsl.server.MissingHeaderRejection
+import akka.http.scaladsl.server.{AuthorizationFailedRejection, MissingHeaderRejection}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import com.typesafe.config.Config
 import common.assertion.CromwellTimeoutSpec
@@ -303,12 +303,45 @@ class CromIamApiServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
     }
   }
 
-  it should "reject request if it doesn't contain OIDC_CLAIM_user_id in header" in {
+  it should "reject request if it doesn't contain OIDC_CLAIM_user_id or token" in {
     Get(s"/api/workflows/$version/backends") ~> allRoutes ~> check {
       rejection shouldEqual MissingHeaderRejection("OIDC_CLAIM_user_id")
     }
   }
 
+  it should "return 403 when we request with a disabled user" in {
+    Get(
+      s"/api/workflows/$version/backends"
+    ).withHeaders(
+      List(Authorization(OAuth2BearerToken("my-token")), RawHeader("OIDC_CLAIM_user_id", "disabled@example.com"))
+    ) ~> allRoutes ~> check {
+      rejection shouldEqual AuthorizationFailedRejection
+    }
+  }
+
+  it should "reject request if it contains a token and no OIDC_CLAIM_user_id in header" in {
+    Get(
+      s"/api/workflows/$version/backends"
+    ).withHeaders(
+      List(Authorization(OAuth2BearerToken("my-token")))
+    ) ~> allRoutes ~> check {
+      rejection shouldEqual MissingHeaderRejection("OIDC_CLAIM_user_id")
+    }
+  }
+
+  ignore should "reject request if it is missing a token but has an OIDC_CLAIM_user_id in header" in {
+    Get(
+      s"/api/workflows/$version/backends"
+    ).withHeaders(
+      List(RawHeader("OIDC_CLAIM_user_id", "enabled@example.com"))
+    ) ~> allRoutes ~> check {
+      // Neither of these assertions pass
+      status shouldBe OK
+      // -> fails with `Request was rejected`
+      rejections.size shouldBe 1
+      // -> fails because no rejections recorded `0 was not equal to 1`
+    }
+  }
 
   behavior of "ReleaseHold endpoint"
   it should "return 200 for authorized user who has collection associated with root workflow" in {

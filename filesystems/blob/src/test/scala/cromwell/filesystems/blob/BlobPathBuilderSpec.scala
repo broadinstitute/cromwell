@@ -1,7 +1,7 @@
 package cromwell.filesystems.blob
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import java.nio.file.Files
+
 
 object BlobPathBuilderSpec {
   def buildEndpoint(storageAccount: String) = s"https://$storageAccount.blob.core.windows.net"
@@ -42,7 +42,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
     }
   }
 
-  ignore should "build a blob path from a test string and read a file" in {
+  it should "build a blob path from a test string and read a file" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
     val endpointHost = BlobPathBuilder.parseURI(endpoint).getHost
     val store = "inputs"
@@ -55,20 +55,23 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
     blobPath.endpoint should equal(endpoint)
     blobPath.pathAsString should equal(testString)
     blobPath.pathWithoutScheme should equal(endpointHost + "/" + store + evalPath)
-
-    val is = Files.newInputStream(blobPath.nioPath)
+    val is = blobPath.newInputStream()
     val fileText = (is.readAllBytes.map(_.toChar)).mkString
     fileText should include ("This is my test file!!!! Did it work?")
   }
 
-  ignore should "build duplicate blob paths in the same filesystem" in {
+  it should "build duplicate blob paths in the same filesystem" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
     val store = "inputs"
     val evalPath = "/test/inputFile.txt"
     val blobTokenGenerator: BlobTokenGenerator = BlobTokenGenerator.createBlobTokenGenerator(store, endpoint)
     val testString = endpoint + "/" + store + evalPath
     val blobPath1: BlobPath = new BlobPathBuilder(blobTokenGenerator, store, endpoint) build testString getOrElse fail()
+    blobPath1.nioPath.getFileSystem().close()
     val blobPath2: BlobPath = new BlobPathBuilder(blobTokenGenerator, store, endpoint) build testString getOrElse fail()
     blobPath1 should equal(blobPath2)
+    val is = blobPath1.newInputStream()
+    val fileText = (is.readAllBytes.map(_.toChar)).mkString
+    fileText should include ("This is my test file!!!! Did it work?")
   }
 }

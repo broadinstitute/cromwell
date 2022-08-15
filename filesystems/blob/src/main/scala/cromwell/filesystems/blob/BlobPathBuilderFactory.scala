@@ -1,6 +1,7 @@
 package cromwell.filesystems.blob
 
 import akka.actor.ActorSystem
+import com.azure.core.credential.AzureSasCredential
 import com.azure.core.management.AzureEnvironment
 import com.azure.core.management.profile.AzureProfile
 import com.azure.identity.DefaultAzureCredentialBuilder
@@ -14,8 +15,7 @@ import cromwell.core.path.PathBuilderFactory
 import net.ceedubs.ficus.Ficus._
 
 import java.time.OffsetDateTime
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters._
 
 final case class BlobFileSystemConfig(config: Config)
@@ -37,7 +37,7 @@ final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Co
 }
 
 sealed trait BlobTokenGenerator {
-  def getAccessToken: String
+  def getAccessToken: AzureSasCredential
 }
 
 object BlobTokenGenerator {
@@ -57,13 +57,13 @@ object BlobTokenGenerator {
 }
 
 case class WSMBlobTokenGenerator(container: String, endpoint: String, workspaceId: String, workspaceManagerURL: String) extends BlobTokenGenerator {
-  def getAccessToken: String = {
+  def getAccessToken: AzureSasCredential = {
     throw new NotImplementedError
   }
 }
 
 case class NativeBlobTokenGenerator(container: String, endpoint: String) extends BlobTokenGenerator {
-  def getAccessToken: String = {
+  def getAccessToken: AzureSasCredential = {
     val storageAccountName = BlobPathBuilder.parseStorageAccount(BlobPathBuilder.parseURI(endpoint)) match {
       case Some(storageAccountName) => storageAccountName
       case _ => throw new Exception("Storage account could not be parsed from endpoint")
@@ -73,7 +73,7 @@ case class NativeBlobTokenGenerator(container: String, endpoint: String) extends
     val azureCredential = new DefaultAzureCredentialBuilder()
       .authorityHost(profile.getEnvironment.getActiveDirectoryEndpoint)
       .build
-    val azure = AzureResourceManager.authenticate(azureCredential, profile).withDefaultSubscription
+    val azure = AzureResourceManager.authenticate(azureCredential, profile).withDefaultSubscription()
 
     val storageAccounts = azure.storageAccounts()
     val storageAccount = storageAccounts
@@ -110,6 +110,6 @@ case class NativeBlobTokenGenerator(container: String, endpoint: String) extends
       blobContainerSasPermission
     )
 
-    blobContainerClient.generateSas(blobServiceSasSignatureValues)
+    new AzureSasCredential(blobContainerClient.generateSas(blobServiceSasSignatureValues))
   }
 }

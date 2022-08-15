@@ -7,7 +7,7 @@ import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.blob.BlobPathBuilder._
 
 import java.net.{MalformedURLException, URI}
-import java.nio.file.{FileSystem, FileSystemNotFoundException, FileSystems}
+import java.nio.file._
 import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 import scala.util.{Failure, Try}
@@ -57,35 +57,43 @@ object BlobPathBuilder {
 
 class BlobPathBuilder(blobTokenGenerator: BlobTokenGenerator, container: String, endpoint: String) extends PathBuilder {
 
-  val credential: AzureSasCredential = new AzureSasCredential(blobTokenGenerator.getAccessToken)
-  val fileSystemConfig: Map[String, Object] = Map((AzureFileSystem.AZURE_STORAGE_SAS_TOKEN_CREDENTIAL, credential),
-                                                  (AzureFileSystem.AZURE_STORAGE_FILE_STORES, container),
-                                                  (AzureFileSystem.AZURE_STORAGE_SKIP_INITIAL_CONTAINER_CHECK, java.lang.Boolean.TRUE))
-
-  def retrieveFilesystem(uri: URI): Try[FileSystem] = {
-    Try(FileSystems.getFileSystem(uri)) recover {
-      // If no filesystem already exists, this will create a new connection, with the provided configs
-      case _: FileSystemNotFoundException => FileSystems.newFileSystem(uri, fileSystemConfig.asJava)
-    }
-  }
-
   def build(string: String): Try[BlobPath] = {
     validateBlobPath(string, container, endpoint) match {
-      case ValidBlobPath(path) => for {
-            fileSystem <- retrieveFilesystem(new URI("azb://?endpoint=" + endpoint))
-            nioPath <- Try(fileSystem.getPath(path))
-            blobPath = BlobPath(nioPath, endpoint, container)
-          } yield blobPath
+      case ValidBlobPath(path) => Try(BlobPath(path, endpoint, container, blobTokenGenerator))
       case UnparsableBlobPath(errorMessage: Throwable) => Failure(errorMessage)
     }
   }
-
   override def name: String = "Azure Blob Storage"
 }
 
-// Add args for container, storage account name
-case class BlobPath private[blob](nioPath: NioPath, endpoint: String, container: String) extends Path {
-  override protected def newPath(nioPath: NioPath): Path = BlobPath(nioPath, endpoint, container)
+object BlobPath {
+  def buildConfigMap(credential: AzureSasCredential, container: String): Map[String, Object] = {
+    Map((AzureFileSystem.AZURE_STORAGE_SAS_TOKEN_CREDENTIAL, credential),
+      (AzureFileSystem.AZURE_STORAGE_FILE_STORES, container),
+      (AzureFileSystem.AZURE_STORAGE_SKIP_INITIAL_CONTAINER_CHECK, java.lang.Boolean.TRUE))
+  }
+
+  def findNioPath(path: String, endpoint: String, container: String, blobTokenGenerator: BlobTokenGenerator): NioPath = (for {
+      fileSystem <- retrieveFilesystem(new URI("azb://?endpoint=" + endpoint), container, blobTokenGenerator)
+      nioPath <- Try(fileSystem.getPath(path))
+    } yield nioPath).get // Ideally we would unwrap this to a NioPath on success and on a access failure try to recover
+
+  def retrieveFilesystem(uri: URI, container: String, blobTokenGenerator: BlobTokenGenerator): Try[FileSystem] = {
+    Try(FileSystems.getFileSystem(uri)) recover {
+      // If no filesystem already exists, this will create a new connection, with the provided configs
+      case _: FileSystemNotFoundException => {
+        val fileSystemConfig = buildConfigMap(blobTokenGenerator.getAccessToken, container)
+        FileSystems.newFileSystem(uri, fileSystemConfig.asJava)
+      }
+    }
+  }
+}
+case class BlobPath private[blob](pathString: String, endpoint: String, container: String, blobTokenGenerator: BlobTokenGenerator) extends Path {
+  //var token = blobTokenGenerator.getAccessToken
+  //var expiry = token.getSignature.split("&").filter(_.startsWith("se")).headOption.map(_.replaceFirst("se=",""))
+  override def nioPath: NioPath = BlobPath.findNioPath(path = pathString, endpoint, container, blobTokenGenerator)
+
+  override protected def newPath(nioPath: NioPath): Path = BlobPath(pathString, endpoint, container, blobTokenGenerator)
 
   override def pathAsString: String = List(endpoint, container, nioPath.toString()).mkString("/")
 

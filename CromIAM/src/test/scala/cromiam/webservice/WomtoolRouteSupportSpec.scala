@@ -3,6 +3,7 @@ package cromiam.webservice
 import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.headers.{Authorization, OAuth2BearerToken, RawHeader}
+import akka.http.scaladsl.server.Route.seal
 import akka.http.scaladsl.server.{AuthorizationFailedRejection, MissingHeaderRejection}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import common.assertion.CromwellTimeoutSpec
@@ -49,17 +50,17 @@ class WomtoolRouteSupportSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
     }
   }
 
-  ignore should "reject with no auth token" in {
+  it should "return 404 when no auth token provided" in {
     Post(
       s"/api/womtool/v1/describe"
     ).withHeaders(
       List(RawHeader("OIDC_CLAIM_user_id", "enabled@example.com"))
-    ) ~> womtoolRoutes ~> check {
-      // Neither of these assertions pass
-      status shouldBe OK
-      // -> fails with `Request was rejected`
-      rejections.size shouldBe 1
-      // -> fails because no rejections recorded `0 was not equal to 1`
+      // "[An] explicit call on the Route.seal method is needed in test code, but in your application code it is not necessary."
+      // https://doc.akka.io/docs/akka-http/current/routing-dsl/testkit.html#testing-sealed-routes
+      // https://doc.akka.io/docs/akka-http/current/routing-dsl/routes.html#sealing-a-route
+    ) ~> seal(womtoolRoutes) ~> check {
+      responseAs[String] shouldEqual "The requested resource could not be found."
+      status shouldBe NotFound
     }
   }
 

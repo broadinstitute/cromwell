@@ -309,6 +309,21 @@ class CromIamApiServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
     }
   }
 
+  it should "reject request if it is missing a token but has an OIDC_CLAIM_user_id in header" in {
+    Get(
+      s"/api/workflows/$version/backends"
+    ).withHeaders(
+      List(RawHeader("OIDC_CLAIM_user_id", "enabled@example.com"))
+    ) ~> allRoutes ~> check {
+      // Uncomment me to prove the test fails:
+      // status shouldBe OK
+
+      // Route rejects with message `Request was rejected`
+      // but this assertion fails
+      rejections.size shouldBe 1
+    }
+  }
+
 
   behavior of "ReleaseHold endpoint"
   it should "return 200 for authorized user who has collection associated with root workflow" in {

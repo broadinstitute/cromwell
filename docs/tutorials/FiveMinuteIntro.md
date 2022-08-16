@@ -4,9 +4,9 @@
 
 * A Unix-based operating system (yes, that includes Mac!)
 * A Java 11 runtime environment 
-	* You can see what you have by running `$ java -version` on a terminal. 
-	* If not, you can download Java [here](https://adoptopenjdk.net/).
-	* You might need to update the `export JAVA_HOME` in your bash profile to point to your JAVA install location.
+    * You can see what you have by running `$ java -version` on a terminal. You're looking for a version that's at least `1.11` or higher.
+    * If not, consider installing via conda or brew [as explained here](https://github.com/broadinstitute/cromwell/blob/83/docs/Releases.md), or you can download Java [here](https://adoptopenjdk.net/).
+    * You might need to update the `export JAVA_HOME` in your bash profile to point to your JAVA install location.
 * A sense of adventure!
 
 ### Goals

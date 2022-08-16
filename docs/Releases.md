@@ -6,8 +6,9 @@ You are strongly encouraged to use the latest release of Cromwell whenever possi
 Cromwell is distributed as a conda package on [conda-forge](https://conda-forge.org/).
 These instructions need to be followed for [installing the miniconda distribution](https://docs.conda.io/en/latest/miniconda.html) and 
 [activating the conda-forge channel](https://conda-forge.org/#about). After this Cromwell can be installed in the 
-base environment with `conda install cromwell` or a separate environment for Cromwell can be created with 
-`conda create -n cromwell cromwell`. If you are using Cromwell for bioinformatics workflows, you might like to take
+base environment with `conda install -c conda-forge cromwell` or a separate environment for Cromwell can be created with 
+`conda create -n cromwell cromwell` (be sure to activate the conda-forge channel first). 
+If you are using Cromwell for bioinformatics workflows, you might like to take
 a look at [bioconda](http://bioconda.github.io)  as well. 
 The conda installation of Cromwell comes with a wrapper that locates the jar for you and allows for running Cromwell or Womtool with a 
 `cromwell run`, `womtool validate` or other command. Conda also installs the required Java dependency 

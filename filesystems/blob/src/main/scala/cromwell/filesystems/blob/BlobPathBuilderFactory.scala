@@ -20,7 +20,6 @@ import scala.jdk.CollectionConverters._
 
 final case class BlobFileSystemConfig(config: Config)
 final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Config, singletonConfig: BlobFileSystemConfig) extends PathBuilderFactory {
-  val sasToken: String = instanceConfig.as[String]("sas-token")
   val container: String = instanceConfig.as[String]("store")
   val endpoint: String = instanceConfig.as[String]("endpoint")
   val workspaceId: Option[String] = instanceConfig.as[Option[String]]("workspace-id")

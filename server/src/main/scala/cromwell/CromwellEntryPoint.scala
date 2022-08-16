@@ -16,6 +16,7 @@ import cromwell.CommandLineArguments.{ValidSubmission, WorkflowSourceOrUrl}
 import cromwell.CromwellApp._
 import cromwell.api.CromwellClient
 import cromwell.api.model.{Label, LabelsJsonFormatter, WorkflowSingleSubmission}
+import cromwell.core.logging.JavaLoggingBridge
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip, WorkflowSourceFilesWithoutImports}
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
@@ -166,6 +167,13 @@ object CromwellEntryPoint extends GracefulStopSupport {
     Make sure that the next time one uses the ConfigFactory that our updated system properties are loaded.
      */
     ConfigFactory.invalidateCaches()
+
+    /*
+    Replace java.util.logging with SLF4J.
+    https://www.slf4j.org/api/org/slf4j/bridge/SLF4JBridgeHandler.html
+     */
+    JavaLoggingBridge.init()
+
     ()
   }
 

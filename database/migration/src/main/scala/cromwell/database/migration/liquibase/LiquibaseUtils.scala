@@ -1,7 +1,5 @@
 package cromwell.database.migration.liquibase
 
-import java.sql.Connection
-
 import liquibase.changelog.{ChangeLogParameters, ChangeSet, DatabaseChangeLog}
 import liquibase.database.jvm.{HsqlConnection, JdbcConnection}
 import liquibase.database.{Database, DatabaseConnection, DatabaseFactory, ObjectQuotingStrategy}
@@ -10,12 +8,21 @@ import liquibase.diff.{DiffGeneratorFactory, DiffResult}
 import liquibase.parser.ChangeLogParserFactory
 import liquibase.resource.ClassLoaderResourceAccessor
 import liquibase.snapshot.{DatabaseSnapshot, SnapshotControl, SnapshotGeneratorFactory}
-import liquibase.{Contexts, LabelExpression, Liquibase}
+import liquibase.ui.LoggerUIService
+import liquibase.{Contexts, LabelExpression, Liquibase, Scope}
 import org.hsqldb.persist.HsqlDatabaseProperties
 
+import java.sql.Connection
 import scala.jdk.CollectionConverters._
 
 object LiquibaseUtils {
+
+  /*
+  Move liquibase calls to System.out.println to a logger.
+  Workaround for issue: https://github.com/liquibase/liquibase/issues/1741#issuecomment-853742652
+   */
+  Scope.enter(Map(Scope.Attr.ui.name -> new LoggerUIService().asInstanceOf[AnyRef]).asJava)
+
   // Paranoia: Create our own mutex. https://stackoverflow.com/questions/442564/avoid-synchronizedthis-in-java
   private val mutex = new Object
   private val DefaultContexts = new Contexts()

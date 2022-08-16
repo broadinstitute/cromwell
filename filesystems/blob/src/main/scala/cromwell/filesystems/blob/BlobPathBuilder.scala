@@ -55,10 +55,12 @@ object BlobPathBuilder {
   }
 }
 
-class BlobPathBuilder(credential: AzureSasCredential, container: String, endpoint: String) extends PathBuilder {
+class BlobPathBuilder(blobTokenGenerator: BlobTokenGenerator, container: String, endpoint: String) extends PathBuilder {
 
+  val credential: AzureSasCredential = new AzureSasCredential(blobTokenGenerator.getAccessToken)
   val fileSystemConfig: Map[String, Object] = Map((AzureFileSystem.AZURE_STORAGE_SAS_TOKEN_CREDENTIAL, credential),
-                                                  (AzureFileSystem.AZURE_STORAGE_FILE_STORES, container))
+                                                  (AzureFileSystem.AZURE_STORAGE_FILE_STORES, container),
+                                                  (AzureFileSystem.AZURE_STORAGE_SKIP_INITIAL_CONTAINER_CHECK, java.lang.Boolean.TRUE))
 
   def retrieveFilesystem(uri: URI): Try[FileSystem] = {
     Try(FileSystems.getFileSystem(uri)) recover {

@@ -98,7 +98,7 @@ class SamClient(scheme: String,
             info.enabled
           }
         case _ =>
-          log.info("Could not verify access with Sam for user {}, error was {} {}", user.userId, )
+          log.error("Could not verify access with Sam for user {}, error was {} {}", user.userId, )
           FailureResponseOrT.pure[IO, HttpResponse](false)
       }
     } yield userEnabled

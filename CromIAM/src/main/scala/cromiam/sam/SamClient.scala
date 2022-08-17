@@ -93,11 +93,14 @@ class SamClient(scheme: String,
       userEnabled <- response.status match {
         case StatusCodes.OK =>
           val unmarshal: IO[UserStatusInfo] = IO.fromFuture(IO(Unmarshal(response.entity).to[UserStatusInfo]))
-          FailureResponseOrT.right[HttpResponse](unmarshal).map(info => info.enabled)
+          FailureResponseOrT.right[HttpResponse](unmarshal).map { info =>
+            if (!info.enabled) log.info("Access denied for user {}", user.userId)
+            info.enabled
+          }
         case _ =>
+          log.info("Could not verify access with Sam for user {}, error was {} {}", user.userId, )
           FailureResponseOrT.pure[IO, HttpResponse](false)
       }
-      _ = if (!userEnabled) log.error("Access Denied for disabled user {}", user.userId)
     } yield userEnabled
   }
 

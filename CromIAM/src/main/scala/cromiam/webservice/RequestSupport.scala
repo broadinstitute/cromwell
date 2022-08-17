@@ -52,7 +52,7 @@ trait RequestSupport {
           }
         }
       case Failure(e) =>
-        val message = s"Unable to look up enablement status for user ${user.userId}: ${e.getMessage}"
+        val message = s"Unable to look up enablement status for user ${user.userId}: ${e.getMessage}. Please try again later."
         throw new RuntimeException(message, e)
     }
   }

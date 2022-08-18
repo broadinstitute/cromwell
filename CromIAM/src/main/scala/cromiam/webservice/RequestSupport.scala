@@ -33,7 +33,7 @@ trait RequestSupport {
     }
   }
 
-  def extractUserAndRequest: Directive[(User, HttpRequest)] = {
+  def extractUserAndStrictRequest: Directive[(User, HttpRequest)] = {
     for {
       user <- extractUser
       request <- extractStrictRequest

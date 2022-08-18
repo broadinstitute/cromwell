@@ -55,7 +55,7 @@ trait QuerySupport extends RequestSupport {
     * directive
     */
   private def preprocessQuery: Directive[(User, List[Collection], HttpRequest)] = {
-    extractUserAndRequest tflatMap { case (user, cromIamRequest) =>
+    extractUserAndStrictRequest tflatMap { case (user, cromIamRequest) =>
       log.info("Received query " + cromIamRequest.method.value + " request for user " + user.userId)
 
       onComplete(samClient.collectionsForUser(user, cromIamRequest).value.unsafeToFuture()) flatMap {

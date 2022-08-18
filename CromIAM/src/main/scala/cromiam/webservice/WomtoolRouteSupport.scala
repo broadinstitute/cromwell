@@ -12,7 +12,7 @@ trait WomtoolRouteSupport extends RequestSupport {
   val womtoolRoutes =
     path("api" / "womtool" / Segment / "describe") { _ =>
       post {
-        extractUserAndRequest { (user, req) =>
+        extractUserAndStrictRequest { (user, req) =>
           forwardIfUserEnabled(user, req, cromwellClient, samClient)
         }
       }

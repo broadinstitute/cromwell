@@ -180,7 +180,7 @@ class WesRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Mat
 
   behavior of "WES API /runs GET endpoint"
   it should "return results for a good query" in {
-    Get(s"/ga4gh/wes/v1/runs?status=Succeeded&id=${CromwellApiServiceSpec.ExistingWorkflowId}") ~>
+    Get(s"/ga4gh/wes/v1/runs") ~>
       wesRoutes ~>
       check {
         status should be(StatusCodes.OK)

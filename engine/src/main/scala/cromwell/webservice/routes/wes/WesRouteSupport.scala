@@ -2,9 +2,9 @@ package cromwell.webservice.routes.wes
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.model.{StatusCode, StatusCodes}
-import akka.http.scaladsl.server.Directives.{path, _}
-import akka.http.scaladsl.server.directives.RouteDirectives.complete
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{Directive1, Route}
+import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.pattern.{AskTimeoutException, ask}
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
@@ -13,8 +13,8 @@ import cromwell.core.abort.SuccessfulAbortResponse
 import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.server.CromwellShutdown
-import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, GetSingleWorkflowMetadataAction, GetStatus, MetadataServiceResponse, StatusLookupFailed}
 import cromwell.services.{FailedMetadataJsonResponse, SuccessfulMetadataJsonResponse}
+import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, GetSingleWorkflowMetadataAction, GetStatus, MetadataServiceResponse, StatusLookupFailed}
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
 import cromwell.webservice.routes.CromwellApiService.{UnrecognizedWorkflowException, validateWorkflowIdInMetadata}
 import cromwell.webservice.routes.MetadataRouteSupport.{metadataBuilderActorRequest, metadataQueryRequest}
@@ -23,16 +23,16 @@ import cromwell.webservice.routes.wes.WesRouteSupport._
 import cromwell.webservice.routes.{CromwellApiService, WesCromwellRouteSupport}
 import net.ceedubs.ficus.Ficus._
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success}
 
 
+
 trait WesRouteSupport extends HttpInstrumentation with WesCromwellRouteSupport {
+
   val serviceRegistryActor: ActorRef
   val workflowManagerActor: ActorRef
-  val workflowStoreActor: ActorRef
 
   implicit val ec: ExecutionContext
   implicit val timeout: Timeout
@@ -115,6 +115,8 @@ object WesRouteSupport {
 
   implicit lazy val duration: FiniteDuration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
   implicit lazy val timeout: Timeout = duration
+  import scala.concurrent.ExecutionContext.Implicits.global
+
 
   val NotFoundError = WesErrorResponse("The requested workflow run wasn't found", StatusCodes.NotFound.intValue)
 

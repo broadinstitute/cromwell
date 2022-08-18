@@ -193,14 +193,14 @@ class WesRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Mat
 
   behavior of "WES API /runs/{run_id} endpoint"
   it should "return valid metadata when supplied a run_id" in {
-    Get(s"/ga4gh/wes/v1/runs/${CromwellApiServiceSpec.MockServiceRegistryActor.wesWorkflowId}") ~>
+    Get(s"/ga4gh/wes/v1/runs/${CromwellApiServiceSpec.wesWorkflowId}") ~>
       wesRoutes ~>
       check {
         status should be(StatusCodes.OK)
         val result = responseAs[JsObject].fields("workflowLog").asJsObject()
         result.fields.keys should contain allOf("request", "run_id", "state")
         result.fields("state") should be(JsString("RUNNING"))
-        result.fields("run_id") should be(JsString(CromwellApiServiceSpec.MockServiceRegistryActor.wesWorkflowId.toString))
+        result.fields("run_id") should be(JsString(CromwellApiServiceSpec.wesWorkflowId.toString))
       }
   }
 }

@@ -1,7 +1,6 @@
 package cromwell.webservice.routes
 
 import java.time.OffsetDateTime
-
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.ContentTypes._
@@ -28,6 +27,7 @@ import cromwell.services.womtool.WomtoolServiceMessages.{DescribeFailure, Descri
 import cromwell.services.womtool.models.WorkflowDescription
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.WorkflowJsonSupport._
+import cromwell.webservice.routes.CromwellApiServiceSpec.MockServiceRegistryActor.wesWorkflowId
 import cromwell.webservice.{EngineStatsActor, FailureResponse}
 import mouse.boolean._
 import org.scalatest.flatspec.AsyncFlatSpec
@@ -529,6 +529,7 @@ object CromwellApiServiceSpec {
   val WorkflowIdExistingOnlyInSummaryTable = WorkflowId.fromString("f0000000-0000-0000-0000-000000000011")
   val ArchivedWorkflowId = WorkflowId.fromString("c4c6339c-2145-47fb-acc5-b5cb8d2809f5")
   val ArchivedAndDeletedWorkflowId = WorkflowId.fromString("abc1234d-2145-47fb-acc5-b5cb8d2809f5")
+  val wesWorkflowId = WorkflowId.randomId()
   val SummarizedWorkflowIds = Set(
     SummarizedWorkflowId,
     WorkflowIdExistingOnlyInSummaryTable,
@@ -545,7 +546,8 @@ object CromwellApiServiceSpec {
     FailedWorkflowId,
     SummarizedWorkflowId,
     ArchivedWorkflowId,
-    ArchivedAndDeletedWorkflowId
+    ArchivedAndDeletedWorkflowId,
+    wesWorkflowId
   )
 
   class MockApiService()(implicit val system: ActorSystem) extends CromwellApiService {
@@ -564,13 +566,21 @@ object CromwellApiServiceSpec {
       List(
         MetadataEvent(MetadataKey(workflowId, None, "testKey1a"), MetadataValue("myValue1a", MetadataString)),
         MetadataEvent(MetadataKey(workflowId, None, "testKey1b"), MetadataValue("myValue1b", MetadataString)),
-        MetadataEvent(MetadataKey(workflowId, None, "testKey2a"), MetadataValue("myValue2a", MetadataString))
+        MetadataEvent(MetadataKey(workflowId, None, "testKey2a"), MetadataValue("myValue2a", MetadataString)),
+      )
+    }
+    private def wesFullMetadataResponse(workflowId: WorkflowId) = {
+      List(
+        MetadataEvent(MetadataKey(workflowId, None, "status"), MetadataValue("Running", MetadataString)),
+        MetadataEvent(MetadataKey(workflowId, None, "submittedFiles:workflow"), MetadataValue("myValue2a", MetadataString)),
+
       )
     }
 
     def responseMetadataValues(workflowId: WorkflowId, withKeys: List[String], withoutKeys: List[String]): JsObject = {
       def keyFilter(keys: List[String])(m: MetadataEvent) = keys.exists(k => m.key.key.startsWith(k))
-      val events = fullMetadataResponse(workflowId)
+      val metadataEvents = if (workflowId == wesWorkflowId) wesFullMetadataResponse(workflowId) else fullMetadataResponse(workflowId)
+      val events = metadataEvents
         .filter(m => withKeys.isEmpty || keyFilter(withKeys)(m))
         .filter(m => withoutKeys.isEmpty || !keyFilter(withoutKeys)(m))
 

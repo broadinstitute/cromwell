@@ -37,7 +37,6 @@ class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Bool
     with CromwellApiService
     with CromwellInstrumentationActor
     with WesRouteSupport
-    with WesRunRoutes
     with SwaggerService
     with ActorLogging {
   implicit val actorSystem = context.system

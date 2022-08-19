@@ -36,11 +36,16 @@ import java.io.FileNotFoundException
 import akka.actor.ActorRef
 import akka.pattern.AskSupport
 import akka.util.Timeout
+
+import cats.implicits._
+
+import common.exception.MessageAggregation
 import common.collections.EnhancedCollections._
 import common.util.StringUtil._
 import common.validation.Validation._
+
 import cromwell.backend._
-import cromwell.backend.async.{ExecutionHandle, PendingExecutionHandle}
+import cromwell.backend.async._ //{ExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.aws.IntervalLimitedAwsJobSubmitActor.SubmitAwsJobRequest
 import cromwell.backend.impl.aws.OccasionalStatusPollingActor.{NotifyOfStatus, WhatsMyStatus}
 import cromwell.backend.impl.aws.RunStatus.{Initializing, TerminalRunStatus}
@@ -48,16 +53,21 @@ import cromwell.backend.impl.aws.io._
 import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
+import cromwell.backend.OutputEvaluator._
+
 import cromwell.core._
+import cromwell.core.path.Path
 import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder, PathFactory}
 import cromwell.core.io.{DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.retry.SimpleExponentialBackoff
+
 import cromwell.filesystems.s3.S3Path
 import cromwell.filesystems.s3.batch.S3BatchCommandBuilder
+
 import cromwell.services.keyvalue.KvClient
+
 import org.slf4j.{Logger, LoggerFactory}
 import software.amazon.awssdk.services.batch.BatchClient
-//import software.amazon.awssdk.services.batch.model.{BatchException, SubmitJobResponse}
 import software.amazon.awssdk.services.batch.model._
 
 import wom.callable.Callable.OutputDefinition
@@ -66,7 +76,7 @@ import wom.expression.NoIoFunctionSet
 import wom.types.{WomArrayType, WomSingleFileType}
 import wom.values._
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent._
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.control.NoStackTrace
@@ -540,7 +550,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       case NotifyOfStatus(_, _, Some(value)) =>
         Future.successful(value)
       case NotifyOfStatus(_, _, None) =>
-        jobLogger.info("Having to fall back to AWS query for status")
+        jobLogger.debug("Having to fall back to AWS query for status")
         Future.fromTry(job.status(jobId))
       case other =>
         val message =
@@ -569,8 +579,24 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       0
     ) // OrElse(throw new RuntimeException(s"Could not get job details for job '${job.jobId}'"))
     val nrAttempts = jobDetail.attempts.size
-    val lastattempt = jobDetail.attempts.get(nrAttempts - 1)
-    var containerRC = lastattempt.container.exitCode
+    // if job is terminated/cancelled before starting, there are no attempts.
+    val lastattempt =
+      try
+        jobDetail.attempts.get(nrAttempts - 1)
+      catch {
+        case _: Throwable => null
+      }
+    if (lastattempt == null) {
+      Log.info(s"No attempts were made for job '${job.jobId}'. no memory-related retry needed.")
+      false
+    }
+
+    var containerRC =
+      try
+        lastattempt.container.exitCode
+      catch {
+        case _: Throwable => null
+      }
     // if missing, set to failed.
     if (containerRC == null) {
       Log.debug(s"No RC found for job '${job.jobId}', most likely a spot kill")
@@ -671,4 +697,38 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         case _ => value
       }
     )
+
+  override def handleExecutionSuccess(runStatus: StandardAsyncRunState,
+                                      handle: StandardAsyncPendingExecutionHandle,
+                                      returnCode: Int
+  )(implicit ec: ExecutionContext): Future[ExecutionHandle] =
+    evaluateOutputs() map {
+      case ValidJobOutputs(outputs) =>
+        // Need to make sure the paths are up to date before sending the detritus back in the response
+        updateJobPaths()
+        // If instance is terminated while copying stdout/stderr : status is failed while jobs outputs are ok
+        //   => Retryable
+        if (runStatus.toString().equals("Failed")) {
+          jobLogger.warn("Got Failed RunStatus for success Execution")
+
+          val exception = new MessageAggregation {
+            override def exceptionContext: String = "Got Failed RunStatus for success Execution"
+            override def errorMessages: Traversable[String] = Array("Got Failed RunStatus for success Execution")
+          }
+          FailedNonRetryableExecutionHandle(exception, kvPairsToSave = None)
+        } else {
+          SuccessfulExecutionHandle(outputs, returnCode, jobPaths.detritusPaths, getTerminalEvents(runStatus))
+        }
+      case InvalidJobOutputs(errors) =>
+        val exception = new MessageAggregation {
+          override def exceptionContext: String = "Failed to evaluate job outputs"
+          override def errorMessages: Traversable[String] = errors.toList
+        }
+        FailedNonRetryableExecutionHandle(exception, kvPairsToSave = None)
+      case JobOutputsEvaluationException(exception: Exception) if retryEvaluateOutputsAggregated(exception) =>
+        // Return the execution handle in this case to retry the operation
+        handle
+      case JobOutputsEvaluationException(ex) => FailedNonRetryableExecutionHandle(ex, kvPairsToSave = None)
+    }
+
 }

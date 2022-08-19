@@ -439,7 +439,7 @@ class AwsBatchRetryAttemptsValidation(key: String) extends IntRuntimeAttributesV
 object UlimitsValidation extends RuntimeAttributesValidation[Vector[Map[String, String]]] {
   override def key: String = AwsBatchRuntimeAttributes.UlimitsKey
 
-  override def coercion: Traversable[WomType] =
+  override def coercion: Iterable[WomType] =
     Set(WomStringType, WomArrayType(WomMapType(WomStringType, WomStringType)))
 
   var accepted_keys = Set("name", "softLimit", "hardLimit")

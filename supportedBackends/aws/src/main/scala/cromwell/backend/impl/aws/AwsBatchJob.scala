@@ -141,9 +141,8 @@ final case class AwsBatchJob(
           s"_s3_localize_with_retry ${input.s3key} ${input.mount.mountPoint.pathAsString}/${input.local}"
             .replace(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
 
-        case input: AwsBatchFileInput =>
-          // here we don't need a copy command but the centaurTests expect us to verify the existence of the file
-          val filePath = s"${input.mount.mountPoint.pathAsString}/${input.local.pathAsString}"
+        case input: AwsBatchFileInput if input.s3key.startsWith("s3://") =>
+          s"_s3_localize_with_retry ${input.s3key} ${input.mount.mountPoint.pathAsString}/${input.local}"
             .replace(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
 
           s"test -e $filePath || echo 'input file: $filePath does not exist' && exit 1"
@@ -154,8 +153,11 @@ final case class AwsBatchJob(
       .mkString("\n")
 
     // get multipart threshold from config.
-    val conf : Config = ConfigFactory.load();
-    val mp_threshold : Long = if (conf.hasPath("engine.filesystems.s3.MultipartThreshold") ) conf.getMemorySize("engine.filesystems.s3.MultipartThreshold").toBytes() else 5L * 1024L * 1024L * 1024L; 
+    val conf: Config = ConfigFactory.load();
+    val mp_threshold: Long =
+      if (conf.hasPath("engine.filesystems.s3.MultipartThreshold"))
+        conf.getMemorySize("engine.filesystems.s3.MultipartThreshold").toBytes()
+      else 5L * 1024L * 1024L * 1024L;
     Log.debug(s"MultiPart Threshold for delocalizing is $mp_threshold")
 
     // this goes at the start of the script after the #!

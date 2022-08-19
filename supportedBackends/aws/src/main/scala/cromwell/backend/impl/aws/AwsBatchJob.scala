@@ -200,7 +200,6 @@ final case class AwsBatchJob(
          |
          |  # get the multipart chunk size
          |  chunk_size=$$(_get_multipart_chunk_size $$local_path)
-         |  echo "chunk size : $$chunk_size bytes"
          |  local MP_THRESHOLD=${mp_threshold}
          |  # then set them 
          |  $awsCmd configure set default.s3.multipart_threshold $$MP_THRESHOLD
@@ -389,7 +388,8 @@ final case class AwsBatchJob(
     // calls the client to submit the job
     def callClient(definitionArn: String, awsBatchAttributes: AwsBatchAttributes): Aws[F, SubmitJobResponse] = {
 
-      Log.info(s"Submitting taskId: $taskId, job definition : $definitionArn, script: $batch_script")
+      Log.debug(s"Submitting taskId: $taskId, job definition : $definitionArn, script: $batch_script")
+      Log.info(s"Submitting taskId: $taskId, script: $batch_script")
 
       val submit: F[SubmitJobResponse] =
         async.delay(

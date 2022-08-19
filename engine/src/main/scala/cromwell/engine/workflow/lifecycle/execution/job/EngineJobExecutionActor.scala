@@ -287,7 +287,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         )
       } else {
         log.info(s"BT-322 {} cache hit copying nomatch: could not find a suitable cache hit.", jobTag)
-        workflowLogger.info("Could not copy a suitable cache hit for {}. No copy attempts were made.", arg = jobTag)
+        workflowLogger.debug("Could not copy a suitable cache hit for {}. No copy attempts were made.", arg = jobTag)
       }
 
       runJob(data)

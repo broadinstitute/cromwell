@@ -56,7 +56,6 @@ import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExec
 import cromwell.backend.OutputEvaluator._
 
 import cromwell.core._
-import cromwell.core.path.Path
 import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder, PathFactory}
 import cromwell.core.io.{DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.retry.SimpleExponentialBackoff
@@ -713,7 +712,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
           val exception = new MessageAggregation {
             override def exceptionContext: String = "Got Failed RunStatus for success Execution"
-            override def errorMessages: Traversable[String] = Array("Got Failed RunStatus for success Execution")
+            override def errorMessages: Iterable[String] = Array("Got Failed RunStatus for success Execution")
           }
           FailedNonRetryableExecutionHandle(exception, kvPairsToSave = None)
         } else {
@@ -722,7 +721,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       case InvalidJobOutputs(errors) =>
         val exception = new MessageAggregation {
           override def exceptionContext: String = "Failed to evaluate job outputs"
-          override def errorMessages: Traversable[String] = errors.toList
+          override def errorMessages: Iterable[String] = errors.toList
         }
         FailedNonRetryableExecutionHandle(exception, kvPairsToSave = None)
       case JobOutputsEvaluationException(exception: Exception) if retryEvaluateOutputsAggregated(exception) =>

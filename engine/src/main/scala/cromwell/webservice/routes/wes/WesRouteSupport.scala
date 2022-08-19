@@ -79,22 +79,22 @@ trait WesRouteSupport extends HttpInstrumentation with WesCromwellRouteSupport {
                 completeCromwellResponse(runLog(workflowId, (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, None, None, expandSubWorkflows = false), serviceRegistryActor))
               }
             },
-              path("runs" / Segment / "status") { possibleWorkflowId =>
-                val response = validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor).flatMap(w => serviceRegistryActor.ask(GetStatus(w)).mapTo[MetadataServiceResponse])
-                // WES can also return a 401 or a 403 but that requires user auth knowledge which Cromwell doesn't currently have
-                onComplete(response) {
-                  case Success(SuccessfulMetadataJsonResponse(_, jsObject)) =>
-                    val wesState = WesState.fromCromwellStatusJson(jsObject)
-                    complete(WesRunStatus(possibleWorkflowId, wesState))
-                  case Success(r: StatusLookupFailed) => r.reason.errorRequest(StatusCodes.InternalServerError)
-                  case Success(m: MetadataServiceResponse) =>
-                    // This should never happen, but ....
-                    val error = new IllegalStateException("Unexpected response from Metadata service: " + m)
-                    error.errorRequest(StatusCodes.InternalServerError)
-                  case Failure(_: UnrecognizedWorkflowException) => complete(NotFoundError)
-                  case Failure(e) => complete(WesErrorResponse(e.getMessage, StatusCodes.InternalServerError.intValue))
-                }
-              },
+            path("runs" / Segment / "status") { possibleWorkflowId =>
+              val response = validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor).flatMap(w => serviceRegistryActor.ask(GetStatus(w)).mapTo[MetadataServiceResponse])
+              // WES can also return a 401 or a 403 but that requires user auth knowledge which Cromwell doesn't currently have
+              onComplete(response) {
+                case Success(SuccessfulMetadataJsonResponse(_, jsObject)) =>
+                  val wesState = WesState.fromCromwellStatusJson(jsObject)
+                  complete(WesRunStatus(possibleWorkflowId, wesState))
+                case Success(r: StatusLookupFailed) => r.reason.errorRequest(StatusCodes.InternalServerError)
+                case Success(m: MetadataServiceResponse) =>
+                  // This should never happen, but ....
+                  val error = new IllegalStateException("Unexpected response from Metadata service: " + m)
+                  error.errorRequest(StatusCodes.InternalServerError)
+                case Failure(_: UnrecognizedWorkflowException) => complete(NotFoundError)
+                case Failure(e) => complete(WesErrorResponse(e.getMessage, StatusCodes.InternalServerError.intValue))
+              }
+            },
             path("runs" / Segment / "cancel") { possibleWorkflowId =>
               post {
                 CromwellApiService.abortWorkflow(possibleWorkflowId,

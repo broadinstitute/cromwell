@@ -1,16 +1,18 @@
 package cromwell.filesystems.blob
 
 import com.azure.core.credential.AzureSasCredential
+import com.azure.storage.blob.models.BlobStorageException
 import com.azure.storage.blob.nio.AzureFileSystem
 import com.google.common.net.UrlEscapers
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.blob.BlobPathBuilder._
 
+import java.io.IOException
 import java.net.{MalformedURLException, URI}
 import java.nio.file._
 import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
-import scala.util.{Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 object BlobPathBuilder {
 
@@ -67,16 +69,34 @@ class BlobPathBuilder(blobTokenGenerator: BlobTokenGenerator, container: String,
 }
 
 object BlobPath {
+
+  def buildURI(endpoint: String) = new URI("azb://?endpoint=" + endpoint)
+
   def buildConfigMap(credential: AzureSasCredential, container: String): Map[String, Object] = {
     Map((AzureFileSystem.AZURE_STORAGE_SAS_TOKEN_CREDENTIAL, credential),
       (AzureFileSystem.AZURE_STORAGE_FILE_STORES, container),
       (AzureFileSystem.AZURE_STORAGE_SKIP_INITIAL_CONTAINER_CHECK, java.lang.Boolean.TRUE))
   }
 
-  def findNioPath(path: String, endpoint: String, container: String, blobTokenGenerator: BlobTokenGenerator): NioPath = (for {
-      fileSystem <- retrieveFilesystem(new URI("azb://?endpoint=" + endpoint), container, blobTokenGenerator)
-      nioPath <- Try(fileSystem.getPath(path))
-    } yield nioPath).get // Ideally we would unwrap this to a NioPath on success and on a access failure try to recover
+  def findNioPath(path: String, endpoint: String, container: String, blobTokenGenerator: BlobTokenGenerator, attempted: Boolean = false): NioPath = (for {
+    fileSystem <- retrieveFilesystem(buildURI(endpoint), container, blobTokenGenerator)
+    nioPath <- Try(retrieveFilePath(fileSystem, path))
+  } yield nioPath) match {
+    case Success(value) => value
+    case Failure(exception: IOException) => exception.getCause() match {
+      // Azure NIO library wraps blobStorageExceptions in IOExceptions.
+      case cause: BlobStorageException => {
+        // This exception indicated that the filesystem was opened successfully
+        closeFileSystem(buildURI(endpoint))
+        if (!attempted) {
+          // Try to open the filesystem again after closing it
+          findNioPath(path, endpoint, container, blobTokenGenerator, true)
+        } else throw cause
+      }
+      case _ => throw exception
+    }
+    case Failure(exception) => throw exception
+  } // Ideally we would unwrap this to a NioPath on success and on a access failure try to recover
 
   def retrieveFilesystem(uri: URI, container: String, blobTokenGenerator: BlobTokenGenerator): Try[FileSystem] = {
     Try(FileSystems.getFileSystem(uri)) recover {
@@ -86,6 +106,14 @@ object BlobPath {
         FileSystems.newFileSystem(uri, fileSystemConfig.asJava)
       }
     }
+  }
+
+  def closeFileSystem(uri: URI) = Try(FileSystems.getFileSystem(uri)).map(_.close)
+
+  def retrieveFilePath(fileSystem: FileSystem, path: String): NioPath = {
+    val blobPath = fileSystem.getPath(path)
+    fileSystem.provider().checkAccess(blobPath)
+    blobPath
   }
 }
 case class BlobPath private[blob](pathString: String, endpoint: String, container: String, blobTokenGenerator: BlobTokenGenerator) extends Path {

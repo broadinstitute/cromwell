@@ -76,6 +76,8 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
   implicit val cs = IO.contextShift(ec)
   implicit val timer = IO.timer(ec)
 
+  protected val authorizationScheme: AuthScheme = AuthScheme.Bearer
+
   /**
     * This is the main function. Given a docker context and an http client, retrieve information about the docker image.
     */
@@ -204,7 +206,7 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
     * Request to get the manifest, using the auth token if provided
     */
   private def manifestRequest(token: Option[String], imageId: DockerImageIdentifier): IO[Request[IO]] = {
-    val authorizationHeader = token.map(t => Authorization(Credentials.Token(AuthScheme.Bearer, t)))
+    val authorizationHeader = token.map(t => Authorization(Credentials.Token(authorizationScheme, t)))
     val request = Method.GET(
       buildManifestUri(imageId),
       List(

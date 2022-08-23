@@ -13,6 +13,10 @@ final case class WrongReturnCode(jobTag: String, returnCode: Int, stderrPath: Op
   override def getMessage = s"Job $jobTag exited with return code $returnCode which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details."
 }
 
+final case class UnExpectedStatus(jobTag: String, returnCode: Int, jobStatus: String, stderrPath: Option[Path]) extends KnownJobFailureException {
+  override def getMessage = s"Job $jobTag exited with success code '$returnCode' but failed status '$jobStatus'. Suspecting spot kill and retrying."
+}
+
 final case class ReturnCodeIsNotAnInt(jobTag: String, returnCode: String, stderrPath: Option[Path]) extends KnownJobFailureException {
   override def getMessage = {
     if (returnCode.isEmpty)

@@ -37,11 +37,16 @@ import java.io.FileNotFoundException
 import akka.actor.ActorRef
 import akka.pattern.AskSupport
 import akka.util.Timeout
+
+import cats.implicits._
+
+import common.exception.MessageAggregation
 import common.collections.EnhancedCollections._
 import common.util.StringUtil._
 import common.validation.Validation._
+
 import cromwell.backend._
-import cromwell.backend.async.{ExecutionHandle, PendingExecutionHandle}
+import cromwell.backend.async._ //{ExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.aws.IntervalLimitedAwsJobSubmitActor.SubmitAwsJobRequest
 import cromwell.backend.impl.aws.OccasionalStatusPollingActor.{NotifyOfStatus, WhatsMyStatus}
 import cromwell.backend.impl.aws.RunStatus.{Initializing, TerminalRunStatus}
@@ -49,22 +54,29 @@ import cromwell.backend.impl.aws.io._
 import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
+import cromwell.backend.OutputEvaluator._
+
 import cromwell.core._
 import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder, PathFactory}
 import cromwell.core.io.{DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.retry.SimpleExponentialBackoff
+
 import cromwell.filesystems.s3.S3Path
 import cromwell.filesystems.s3.batch.S3BatchCommandBuilder
+
 import cromwell.services.keyvalue.KvClient
+
 import org.slf4j.{Logger, LoggerFactory}
-import software.amazon.awssdk.services.batch.model.{BatchException, SubmitJobResponse}
+import software.amazon.awssdk.services.batch.BatchClient
+import software.amazon.awssdk.services.batch.model._
+
 import wom.callable.Callable.OutputDefinition
 import wom.core.FullyQualifiedName
 import wom.expression.NoIoFunctionSet
 import wom.types.{WomArrayType, WomSingleFileType}
 import wom.values._
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent._
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.control.NoStackTrace
@@ -123,9 +135,12 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override lazy val dockerImageUsed: Option[String] = Option(jobDockerImage)
 
+  // |cd ${jobPaths.script.parent.pathWithoutScheme}; ls | grep -v script | xargs rm -rf; cd -
+
   private lazy val execScript =
     s"""|#!$jobShell
-        |$jobShell ${jobPaths.script.pathWithoutScheme}
+        |find ${jobPaths.script.parent.pathWithoutScheme} -group root | grep -v script | xargs rm -vrf
+        |${jobPaths.script.pathWithoutScheme}
         |""".stripMargin
 
 
@@ -178,8 +193,16 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       generateAwsBatchOutputs(jobDescriptor),
       jobPaths, Seq.empty[AwsBatchParameter],
       configuration.awsConfig.region,
-      Option(configuration.awsAuth))
+      Option(configuration.awsAuth),
+      configuration.fsxMntPoint)
   }
+
+  // setup batch client to query job container info
+  lazy val batchClient: BatchClient = {
+    val builder = BatchClient.builder()
+    configureClient(builder, batchJob.optAwsAuthMode, batchJob.configRegion)
+  }
+
   /* Tries to abort the job in flight
    *
    * @param job A StandardAsyncJob object (has jobId value) to cancel
@@ -202,10 +225,18 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   private def inputsFromWomFiles(namePrefix: String,
                                     remotePathArray: Seq[WomFile],
                                     localPathArray: Seq[WomFile],
-                                    jobDescriptor: BackendJobDescriptor): Iterable[AwsBatchInput] = {
+                                    jobDescriptor: BackendJobDescriptor,
+                                    flag: Boolean): Iterable[AwsBatchInput] = {
+
     (remotePathArray zip localPathArray zipWithIndex) flatMap {
       case ((remotePath, localPath), index) =>
-        Seq(AwsBatchFileInput(s"$namePrefix-$index", remotePath.valueString, DefaultPathBuilder.get(localPath.valueString), workingDisk))
+        var localPathString = localPath.valueString
+        if (localPathString.startsWith("s3://")){
+          localPathString = localPathString.replace("s3://", "")
+        }else if (localPathString.startsWith("s3:/")) {
+          localPathString = localPathString.replace("s3:/", "")
+        }
+        Seq(AwsBatchFileInput(s"$namePrefix-$index", remotePath.valueString, DefaultPathBuilder.get(localPathString), workingDisk))
     }
   }
 
@@ -237,7 +268,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     val writeFunctionFiles = instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f) } toMap
 
     val writeFunctionInputs = writeFunctionFiles flatMap {
-      case (name, files) => inputsFromWomFiles(name, files.map(_.file), files.map(localizationPath), jobDescriptor)
+      case (name, files) => inputsFromWomFiles(name, files.map(_.file), files.map(localizationPath), jobDescriptor, false)
     }
 
     // Collect all WomFiles from inputs to the call.
@@ -257,7 +288,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     }
 
     val callInputInputs = callInputFiles flatMap {
-      case (name, files) => inputsFromWomFiles(name, files, files.map(relativeLocalizationPath), jobDescriptor)
+      case (name, files) => inputsFromWomFiles(name, files, files.map(relativeLocalizationPath), jobDescriptor, true)
     }
 
     val scriptInput: AwsBatchInput = AwsBatchFileInput(
@@ -281,9 +312,11 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     def getAbsolutePath(path: Path) = {
       configuration.fileSystem match {
         case AWSBatchStorageSystems.s3 => AwsBatchWorkingDisk.MountPoint.resolve(path)
-        case _ => DefaultPathBuilder.get(configuration.root).resolve(path)
+        // case _ => DefaultPathBuilder.get(configuration.root).resolve(path)
+        case _ => AwsBatchWorkingDisk.MountPoint.resolve(path)
       }
-  }
+    }
+
     val absolutePath = DefaultPathBuilder.get(path) match {
       case p if !p.isAbsolute => getAbsolutePath(p)
       case p => p
@@ -396,6 +429,20 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     case _ =>  jobPaths.callExecutionRoot
   }
 
+  override def scriptPreamble: String = {
+    configuration.fileSystem match {
+      case  AWSBatchStorageSystems.s3 => ""
+      case _ => ""
+    }
+  }
+
+  override def scriptClosure: String = {
+    configuration.fileSystem match {
+      case  AWSBatchStorageSystems.s3 => ""
+      case _ => s"exit $$(head -n 1 $rcPath)"
+    }
+  }
+
   override def globParentDirectory(womGlobFile: WomGlobFile): Path =
     configuration.fileSystem match {
       case  AWSBatchStorageSystems.s3 =>
@@ -472,7 +519,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       case NotifyOfStatus(_, _, Some(value)) =>
         Future.successful(value)
       case NotifyOfStatus(_, _, None) =>
-        jobLogger.info("Having to fall back to AWS query for status")
+        jobLogger.debug("Having to fall back to AWS query for status")
         Future.fromTry(job.status(jobId))
       case other =>
         val message = s"Programmer Error (please report this): Received an unexpected message from the OccasionalPollingActor: $other"
@@ -486,6 +533,69 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     } yield guaranteedAnswer
   }
 
+  // new OOM detection 
+  override def memoryRetryRC(job: StandardAsyncJob): Future[Boolean] = Future {
+      // STATUS LOGIC:
+      //   - success : container exit code is zero
+      //   - command failure: container exit code > 0, no statusReason in container
+      //   - OOM kill : container exit code > 0, statusReason contains "OutOfMemory"
+      //   - spot kill : no container exit code set. statusReason of ATTEMPT (not container) says "host EC2 (...) terminated"
+
+      Log.debug(s"Looking for memoryRetry in job '${job.jobId}'")
+      val describeJobsResponse = batchClient.describeJobs(DescribeJobsRequest.builder.jobs(job.jobId).build)
+      val jobDetail = describeJobsResponse.jobs.get(0) //OrElse(throw new RuntimeException(s"Could not get job details for job '${job.jobId}'"))
+      val nrAttempts = jobDetail.attempts.size
+      // if job is terminated/cancelled before starting, there are no attempts. 
+      val lastattempt = 
+          try {
+              jobDetail.attempts.get(nrAttempts-1)
+          } catch {
+              case _ : Throwable => null
+          }
+      if (lastattempt == null ) {
+        Log.info(s"No attempts were made for job '${job.jobId}'. no memory-related retry needed.")
+        false
+      }
+
+      var containerRC = 
+          try {
+              lastattempt.container.exitCode
+          } catch {
+              case _ : Throwable => null
+          }
+      // if missing, set to failed.
+      if (containerRC == null ) {
+          Log.debug(s"No RC found for job '${job.jobId}', most likely a spot kill")
+          containerRC = 1
+      }
+      // if not zero => get reason, else set retry to false.
+      containerRC.toString() match {
+        case "0" => 
+            Log.debug("container exit code was zero. job succeeded")
+            false
+        case _ => 
+            // failed job due to command errors (~ user errors) don't have a container exit reason.
+            val containerStatusReason:String = {
+               var lastReason =  lastattempt.container.reason
+               // cast null to empty-string to prevent nullpointer exception.
+               if (lastReason == null || lastReason.isEmpty) {
+                   lastReason = ""
+                   log.debug("No exit reason found for container.")
+               } else {
+                   Log.warn(s"Job failed with Container status reason : '${lastReason}'")
+               }
+               lastReason
+            }
+            // check the list of OOM-keys against the exit reason.
+            val RetryMemoryKeys = memoryRetryErrorKeys.toList.flatten
+            val retry = RetryMemoryKeys.exists(containerStatusReason.contains)
+            Log.debug(s"Retry job based on provided keys : '${retry}'")
+            retry
+      }
+        
+        
+    }
+ 
   // Despite being a "runtime" exception, BatchExceptions for 429 (too many requests) are *not* fatal:
   override def isFatal(throwable: Throwable): Boolean = throwable match {
     case be: BatchException => !be.getMessage.contains("Status Code: 429")
@@ -536,8 +646,9 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override def getTerminalEvents(runStatus: RunStatus): Seq[ExecutionEvent] = {
     runStatus match {
       case successStatus: RunStatus.Succeeded => successStatus.eventList
-      case unknown =>
-        throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
+      case unknown => {
+            throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
+      }
     }
   }
 
@@ -557,4 +668,38 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       }
     )
   }
+    
+  override def handleExecutionSuccess(runStatus: StandardAsyncRunState,
+                             handle: StandardAsyncPendingExecutionHandle,
+                             returnCode: Int)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+    evaluateOutputs() map {
+      case ValidJobOutputs(outputs) =>
+        // Need to make sure the paths are up to date before sending the detritus back in the response
+        updateJobPaths()
+        // If instance is terminated while copying stdout/stderr : status is failed while jobs outputs are ok
+        //   => Retryable 
+        if (runStatus.toString().equals("Failed")) {
+            jobLogger.warn("Got Failed RunStatus for success Execution")
+
+            val exception = new MessageAggregation {
+              override def exceptionContext: String = "Got Failed RunStatus for success Execution"
+              override def errorMessages: Iterable[String] = Array("Got Failed RunStatus for success Execution")
+            }
+            FailedNonRetryableExecutionHandle(exception, kvPairsToSave = None)
+        } else {
+            SuccessfulExecutionHandle(outputs, returnCode, jobPaths.detritusPaths, getTerminalEvents(runStatus))
+        }
+      case InvalidJobOutputs(errors) =>
+        val exception = new MessageAggregation {
+          override def exceptionContext: String = "Failed to evaluate job outputs"
+          override def errorMessages: Iterable[String] = errors.toList
+        }
+        FailedNonRetryableExecutionHandle(exception, kvPairsToSave = None)
+      case JobOutputsEvaluationException(exception: Exception) if retryEvaluateOutputsAggregated(exception) =>
+        // Return the execution handle in this case to retry the operation
+        handle
+      case JobOutputsEvaluationException(ex) => FailedNonRetryableExecutionHandle(ex, kvPairsToSave = None)
+    }
+  }
+
 }

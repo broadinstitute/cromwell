@@ -45,7 +45,6 @@ class AwsBatchConfiguration(val configurationDescriptor: BackendConfigurationDes
   val runtimeConfig = configurationDescriptor.backendRuntimeAttributesConfig
   val batchAttributes = AwsBatchAttributes.fromConfigs(awsConfig, configurationDescriptor.backendConfig)
   val awsAuth = batchAttributes.auth
-  val dockerCredentials = BackendDockerConfiguration.build(configurationDescriptor.backendConfig).dockerCredentials
   val fileSystem =
     configurationDescriptor.backendConfig.hasPath("filesystems.s3") match {
       case true =>  "s3"
@@ -53,9 +52,11 @@ class AwsBatchConfiguration(val configurationDescriptor: BackendConfigurationDes
   }
   val pathBuilderFactory = configurationDescriptor.backendConfig.hasPath("filesystems.s3") match {
     case true => S3PathBuilderFactory(configurationDescriptor.globalConfig, configurationDescriptor.backendConfig)
-    case false =>
-    PathBuilderFactory
+    case false => PathBuilderFactory
   }
+  val dockerCredentials = BackendDockerConfiguration.build(configurationDescriptor.backendConfig).dockerCredentials
+  val dockerToken: Option[String] = dockerCredentials map { _.token }
+  val fsxMntPoint = batchAttributes.fsxMntPoint
 }
 
 object AWSBatchStorageSystems {

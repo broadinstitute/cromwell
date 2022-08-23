@@ -109,17 +109,25 @@ object DockerCliFlow {
   /** Utility for converting the flow image id to the format output by the docker cli. */
   private def cliKeyFromImageId(context: DockerInfoContext): DockerCliKey = {
     val imageId = context.dockerImageID
-    (imageId.host, imageId.repository) match {
-      case (None, None) =>
-        // For docker hub images (host == None), and don't include "library".
-        val repository = imageId.image
-        val tag = imageId.reference
-        DockerCliKey(repository, tag)
-      case _ =>
-        // For all other images, include the host and repository.
-        val repository = s"${imageId.hostAsString}${imageId.nameWithDefaultRepository}"
-        val tag = imageId.reference
-        DockerCliKey(repository, tag)
+    // private aws ECR does not have library, check for ECR in docker host.
+    if ( imageId.hostAsString.matches(raw"\d+\.dkr\.ecr\..+\.amazonaws\.com/") ) {
+       val repository = s"${imageId.hostAsString}${imageId.image}"
+       val tag = imageId.reference
+       DockerCliKey(repository, tag)
+    } else {
+      (imageId.host, imageId.repository) match {
+        case (None, None) =>
+          // For docker hub images (host == None), and don't include "library".
+          val repository = imageId.image
+          val tag = imageId.reference
+          DockerCliKey(repository, tag)
+        case _ =>
+          // For all other images, include the host and repository.
+          val repository = s"${imageId.hostAsString}${imageId.nameWithDefaultRepository}"
+          val tag = imageId.reference
+          DockerCliKey(repository, tag)
+      
+       }
     }
   }
 }

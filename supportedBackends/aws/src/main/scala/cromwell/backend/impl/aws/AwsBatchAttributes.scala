@@ -57,7 +57,8 @@ case class AwsBatchAttributes(fileSystem: String,
                               executionBucket: String,
                               duplicationStrategy: AwsBatchCacheHitDuplicationStrategy,
                               submitAttempts: Int Refined Positive,
-                              createDefinitionAttempts: Int Refined Positive)
+                              createDefinitionAttempts: Int Refined Positive,
+                              fsxMntPoint: Option[List[String]])
 
 object AwsBatchAttributes {
   lazy val Logger = LoggerFactory.getLogger(this.getClass)
@@ -67,9 +68,18 @@ object AwsBatchAttributes {
     "root",
     "filesystems",
     "filesystems.local.auth",
+    "filesystems.local.fsx",
+    "filesystems.local.localization",
+    "filesystems.local.caching.hashing-strategy",
+    "filesystems.local.caching.duplication-strategy",
     "filesystems.s3.auth",
     "filesystems.s3.caching.duplication-strategy",
-    "filesystems.local.caching.duplication-strategy"
+    "auth",
+    "numCreateDefinitionAttempts",
+    "numSubmitAttempts",
+    "default-runtime-attributes.scriptBucketName",
+    "awsBatchRetryAttempts",
+    "ulimits"
   )
 
   private val deprecatedAwsBatchKeys: Map[String, String] = Map(
@@ -86,6 +96,13 @@ object AwsBatchAttributes {
     def warnDeprecated(keys: Set[String], deprecated: Map[String, String], context: String, logger: Logger) = {
       val deprecatedKeys = keys.intersect(deprecated.keySet)
       deprecatedKeys foreach { key => logger.warn(s"Found deprecated configuration key $key, replaced with ${deprecated.get(key)}") }
+    }
+
+    def parseFSx(config: List[String]): Option[List[String]] = {
+      config.isEmpty match {
+        case true => None
+        case false => Some(config)
+      }
     }
 
     warnDeprecated(configKeys, deprecatedAwsBatchKeys, context, Logger)
@@ -121,6 +138,12 @@ object AwsBatchAttributes {
             case other => throw new IllegalArgumentException(s"Unrecognized caching duplication strategy: $other. Supported strategies are copy and reference. See reference.conf for more details.")
           }
       }
+    
+    val fsxMntPoint: ErrorOr[Option[List[String]]] = validate {backendConfig.hasPath("filesystems.local.fsx") match {
+        case true => parseFSx(backendConfig.getStringList("filesystems.local.fsx").asScala.toList)
+        case false => None
+      }
+    }
 
     (
       fileSysStr,
@@ -128,7 +151,8 @@ object AwsBatchAttributes {
       executionBucket,
       duplicationStrategy,
       backendConfig.as[ErrorOr[Int Refined Positive]]("numSubmitAttempts"),
-      backendConfig.as[ErrorOr[Int Refined Positive]]("numCreateDefinitionAttempts")
+      backendConfig.as[ErrorOr[Int Refined Positive]]("numCreateDefinitionAttempts"),
+      fsxMntPoint
     ).tupled.map((AwsBatchAttributes.apply _).tupled) match {
       case Valid(r) => r
       case Invalid(f) =>

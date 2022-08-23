@@ -72,7 +72,7 @@ trait WesRouteSupport extends HttpInstrumentation with WesCromwellRouteSupport {
               } ~
                 post {
                   extractSubmission() { submission =>
-                    wesSubmitRequest(submission.entity,
+                    submitRequest(submission.entity,
                       isSingleSubmission = true)
                   }
                 }
@@ -83,22 +83,22 @@ trait WesRouteSupport extends HttpInstrumentation with WesCromwellRouteSupport {
                 completeCromwellResponse(runLog(workflowId, (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, None, None, expandSubWorkflows = false), serviceRegistryActor))
               }
             },
-              path("runs" / Segment / "status") { possibleWorkflowId =>
-                val response = validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor).flatMap(w => serviceRegistryActor.ask(GetStatus(w)).mapTo[MetadataServiceResponse])
-                // WES can also return a 401 or a 403 but that requires user auth knowledge which Cromwell doesn't currently have
-                onComplete(response) {
-                  case Success(SuccessfulMetadataJsonResponse(_, jsObject)) =>
-                    val wesState = WesState.fromCromwellStatusJson(jsObject)
-                    complete(WesRunStatus(possibleWorkflowId, wesState))
-                  case Success(r: StatusLookupFailed) => r.reason.errorRequest(StatusCodes.InternalServerError)
-                  case Success(m: MetadataServiceResponse) =>
-                    // This should never happen, but ....
-                    val error = new IllegalStateException("Unexpected response from Metadata service: " + m)
-                    error.errorRequest(StatusCodes.InternalServerError)
-                  case Failure(_: UnrecognizedWorkflowException) => complete(NotFoundError)
-                  case Failure(e) => complete(WesErrorResponse(e.getMessage, StatusCodes.InternalServerError.intValue))
-                }
-              },
+            path("runs" / Segment / "status") { possibleWorkflowId =>
+              val response = validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor).flatMap(w => serviceRegistryActor.ask(GetStatus(w)).mapTo[MetadataServiceResponse])
+              // WES can also return a 401 or a 403 but that requires user auth knowledge which Cromwell doesn't currently have
+              onComplete(response) {
+                case Success(SuccessfulMetadataJsonResponse(_, jsObject)) =>
+                  val wesState = WesState.fromCromwellStatusJson(jsObject)
+                  complete(WesRunStatus(possibleWorkflowId, wesState))
+                case Success(r: StatusLookupFailed) => r.reason.errorRequest(StatusCodes.InternalServerError)
+                case Success(m: MetadataServiceResponse) =>
+                  // This should never happen, but ....
+                  val error = new IllegalStateException("Unexpected response from Metadata service: " + m)
+                  error.errorRequest(StatusCodes.InternalServerError)
+                case Failure(_: UnrecognizedWorkflowException) => complete(NotFoundError)
+                case Failure(e) => complete(WesErrorResponse(e.getMessage, StatusCodes.InternalServerError.intValue))
+              }
+            },
             path("runs" / Segment / "cancel") { possibleWorkflowId =>
               post {
                 CromwellApiService.abortWorkflow(possibleWorkflowId,
@@ -112,58 +112,6 @@ trait WesRouteSupport extends HttpInstrumentation with WesCromwellRouteSupport {
         }
       )
     }
-
-  def toWesResponse(workflowId: WorkflowId, workflowState: WorkflowState):  WesRunStatus = {
-    WesRunStatus(workflowId.toString, WesState.fromCromwellStatus(workflowState))
-  }
-
-  def wesSubmitRequest(formData: Multipart.FormData, isSingleSubmission: Boolean): Route = {
-    def getWorkflowState(workflowOnHold: Boolean): WorkflowState = {
-      if (workflowOnHold)
-        WorkflowOnHold
-      else WorkflowSubmitted
-    }
-
-    def sendToWorkflowStore(command: WorkflowStoreActor.WorkflowStoreActorSubmitCommand, warnings: Seq[String], workflowState: WorkflowState): Route = {
-      // NOTE: Do not blindly copy the akka-http -to- ask-actor pattern below without knowing the pros and cons.
-      onComplete(workflowStoreActor.ask(command).mapTo[WorkflowStoreSubmitActor.WorkflowStoreSubmitActorResponse]) {
-        case Success(w) =>
-          w match {
-            case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(workflowId, _) =>
-              completeResponse(StatusCodes.Created, toWesResponse(workflowId, _), warnings)
-            case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(workflowIds, _) =>
-              completeResponse(StatusCodes.Created, workflowIds.toList.map(toWesResponse(_, workflowState)), warnings)
-            case WorkflowStoreSubmitActor.WorkflowSubmitFailed(throwable) =>
-              throwable.failRequest(StatusCodes.BadRequest, warnings)
-          }
-        case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => respondWithWesError("Cromwell service is shutting down", StatusCodes.InternalServerError)
-        case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
-        case Failure(e) => e.failRequest(StatusCodes.InternalServerError, warnings)
-      }
-    }
-
-    onComplete(materializeFormData(formData)) {
-      case Success(data) =>
-        PartialWorkflowSources.fromSubmitRoute(data, allowNoInputs = isSingleSubmission) match {
-          case Success(workflowSourceFiles) if isSingleSubmission && workflowSourceFiles.size == 1 =>
-            val warnings = workflowSourceFiles.flatMap(_.warnings)
-            sendToWorkflowStore(WorkflowStoreActor.SubmitWorkflow(workflowSourceFiles.head), warnings, getWorkflowState(workflowSourceFiles.head.workflowOnHold))
-          // Catches the case where someone has gone through the single submission endpoint w/ more than one workflow
-          case Success(workflowSourceFiles) if isSingleSubmission =>
-            val warnings = workflowSourceFiles.flatMap(_.warnings)
-            val e = new IllegalArgumentException("To submit more than one workflow at a time, use the batch endpoint.")
-            e.failRequest(StatusCodes.BadRequest, warnings)
-          case Success(workflowSourceFiles) =>
-            val warnings = workflowSourceFiles.flatMap(_.warnings)
-            sendToWorkflowStore(
-              WorkflowStoreActor.BatchSubmitWorkflows(NonEmptyList.fromListUnsafe(workflowSourceFiles.toList)),
-              warnings, getWorkflowState(workflowSourceFiles.head.workflowOnHold))
-          case Failure(t) => t.failRequest(StatusCodes.BadRequest)
-        }
-      case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
-      case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
-    }
-  }
 }
 
 

@@ -270,7 +270,7 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
     }
   }
 
-  private def getDigestFromResponse(response: Response[IO]): IO[DockerHashResult] = response match {
+  protected def getDigestFromResponse(response: Response[IO]): IO[DockerHashResult] = response match {
     case Status.Successful(r) => extractDigestFromHeaders(r.headers)
     case Status.Unauthorized(_) => IO.raiseError(new Unauthorized)
     case Status.NotFound(_) => IO.raiseError(new NotFound)

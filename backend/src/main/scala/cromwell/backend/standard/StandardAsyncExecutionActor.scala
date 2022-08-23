@@ -364,7 +364,7 @@ trait StandardAsyncExecutionActor
    * to re-do this before sending the response.
    */
   private var jobPathsUpdated: Boolean = false
-  private def updateJobPaths(): Unit = if (!jobPathsUpdated) {
+  def updateJobPaths(): Unit = if (!jobPathsUpdated) {
     // .get's are safe on stdout and stderr after falling back to default names above.
     jobPaths.standardPaths = StandardPaths(
       output = hostPathFromContainerPath(executionStdout),

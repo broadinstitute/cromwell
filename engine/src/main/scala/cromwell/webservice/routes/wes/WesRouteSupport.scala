@@ -1,21 +1,25 @@
 package cromwell.webservice.routes.wes
 
 import akka.actor.ActorRef
-import akka.http.scaladsl.model.{StatusCode, StatusCodes}
+import akka.http.scaladsl.model.{Multipart, StatusCode, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{Directive1, Route}
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.pattern.{AskTimeoutException, ask}
 import akka.util.Timeout
+import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
-import cromwell.core.WorkflowId
+import cromwell.core.{WorkflowId, WorkflowOnHold, WorkflowState, WorkflowSubmitted}
 import cromwell.core.abort.SuccessfulAbortResponse
 import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
+import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreSubmitActor}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowStoreSubmitActorResponse
 import cromwell.server.CromwellShutdown
 import cromwell.services.{FailedMetadataJsonResponse, SuccessfulMetadataJsonResponse}
 import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, GetSingleWorkflowMetadataAction, GetStatus, MetadataServiceResponse, StatusLookupFailed}
-import cromwell.webservice.WebServiceUtils.EnhancedThrowable
+import cromwell.webservice.PartialWorkflowSources
+import cromwell.webservice.WebServiceUtils.{EnhancedThrowable, completeResponse, materializeFormData}
 import cromwell.webservice.routes.CromwellApiService.{UnrecognizedWorkflowException, validateWorkflowIdInMetadata}
 import cromwell.webservice.routes.MetadataRouteSupport.{metadataBuilderActorRequest, metadataQueryRequest}
 import cromwell.webservice.routes.wes.WesResponseJsonSupport._
@@ -23,7 +27,7 @@ import cromwell.webservice.routes.wes.WesRouteSupport._
 import cromwell.webservice.routes.{CromwellApiService, WesCromwellRouteSupport}
 import net.ceedubs.ficus.Ficus._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success}
 
@@ -68,7 +72,7 @@ trait WesRouteSupport extends HttpInstrumentation with WesCromwellRouteSupport {
               } ~
                 post {
                   extractSubmission() { submission =>
-                    submitRequest(submission.entity,
+                    wesSubmitRequest(submission.entity,
                       isSingleSubmission = true)
                   }
                 }
@@ -108,7 +112,61 @@ trait WesRouteSupport extends HttpInstrumentation with WesCromwellRouteSupport {
         }
       )
     }
+
+  def toWesResponse(workflowId: WorkflowId, workflowState: WorkflowState):  WesRunStatus = {
+    WesRunStatus(workflowId.toString, WesState.fromCromwellStatus(workflowState))
+  }
+
+  def wesSubmitRequest(formData: Multipart.FormData, isSingleSubmission: Boolean): Route = {
+    def getWorkflowState(workflowOnHold: Boolean): WorkflowState = {
+      if (workflowOnHold)
+        WorkflowOnHold
+      else WorkflowSubmitted
+    }
+
+    def sendToWorkflowStore(command: WorkflowStoreActor.WorkflowStoreActorSubmitCommand, warnings: Seq[String], workflowState: WorkflowState): Route = {
+      // NOTE: Do not blindly copy the akka-http -to- ask-actor pattern below without knowing the pros and cons.
+      onComplete(workflowStoreActor.ask(command).mapTo[WorkflowStoreSubmitActor.WorkflowStoreSubmitActorResponse]) {
+        case Success(w) =>
+          w match {
+            case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(workflowId, _) =>
+              completeResponse(StatusCodes.Created, toWesResponse(workflowId, _), warnings)
+            case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(workflowIds, _) =>
+              completeResponse(StatusCodes.Created, workflowIds.toList.map(toWesResponse(_, workflowState)), warnings)
+            case WorkflowStoreSubmitActor.WorkflowSubmitFailed(throwable) =>
+              throwable.failRequest(StatusCodes.BadRequest, warnings)
+          }
+        case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => respondWithWesError("Cromwell service is shutting down", StatusCodes.InternalServerError)
+        case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
+        case Failure(e) => e.failRequest(StatusCodes.InternalServerError, warnings)
+      }
+    }
+
+    onComplete(materializeFormData(formData)) {
+      case Success(data) =>
+        PartialWorkflowSources.fromSubmitRoute(data, allowNoInputs = isSingleSubmission) match {
+          case Success(workflowSourceFiles) if isSingleSubmission && workflowSourceFiles.size == 1 =>
+            val warnings = workflowSourceFiles.flatMap(_.warnings)
+            sendToWorkflowStore(WorkflowStoreActor.SubmitWorkflow(workflowSourceFiles.head), warnings, getWorkflowState(workflowSourceFiles.head.workflowOnHold))
+          // Catches the case where someone has gone through the single submission endpoint w/ more than one workflow
+          case Success(workflowSourceFiles) if isSingleSubmission =>
+            val warnings = workflowSourceFiles.flatMap(_.warnings)
+            val e = new IllegalArgumentException("To submit more than one workflow at a time, use the batch endpoint.")
+            e.failRequest(StatusCodes.BadRequest, warnings)
+          case Success(workflowSourceFiles) =>
+            val warnings = workflowSourceFiles.flatMap(_.warnings)
+            sendToWorkflowStore(
+              WorkflowStoreActor.BatchSubmitWorkflows(NonEmptyList.fromListUnsafe(workflowSourceFiles.toList)),
+              warnings, getWorkflowState(workflowSourceFiles.head.workflowOnHold))
+          case Failure(t) => t.failRequest(StatusCodes.BadRequest)
+        }
+      case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
+      case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
+    }
+  }
 }
+
+
 
 object WesRouteSupport {
   import WesResponseJsonSupport._
@@ -116,7 +174,6 @@ object WesRouteSupport {
   implicit lazy val duration: FiniteDuration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
   implicit lazy val timeout: Timeout = duration
   import scala.concurrent.ExecutionContext.Implicits.global
-
 
   val NotFoundError = WesErrorResponse("The requested workflow run wasn't found", StatusCodes.NotFound.intValue)
 
@@ -169,5 +226,4 @@ object WesRouteSupport {
       case FailedMetadataJsonResponse(_, reason) => WesErrorResponse(reason.getMessage, StatusCodes.InternalServerError.intValue)
     }
   }
-
 }

@@ -2,20 +2,24 @@ package cromwell.webservice.routes
 
 
 import akka.actor.{ActorRef, ActorRefFactory}
+import akka.http.javadsl.server.Directives.handleExceptions
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.{Multipart, StatusCodes}
 import akka.http.scaladsl.server.Directives.onComplete
-import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.server.{ExceptionHandler, Route}
 import akka.pattern.{AskTimeoutException, ask}
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
+import cromwell.core.abort.SuccessfulAbortResponse
 import cromwell.core.{WorkflowId, WorkflowOnHold, WorkflowState, WorkflowSubmitted, path => _}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowStoreSubmitActorResponse, WorkflowSubmitFailed}
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreSubmitActor}
 import cromwell.server.CromwellShutdown
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
 import cromwell.webservice.WorkflowJsonSupport._
+import cromwell.webservice.routes.CromwellApiService.standardAbortSuccessHandler
 import cromwell.webservice.{PartialWorkflowSources, WebServiceUtils, WorkflowSubmitResponse}
 import net.ceedubs.ficus.Ficus._
 
@@ -31,6 +35,7 @@ trait WesCromwellRouteSupport extends WebServiceUtils {
   implicit val timeout: Timeout = duration
 
   implicit def actorRefFactory: ActorRefFactory
+
   implicit val materializer: ActorMaterializer
   implicit val ec: ExecutionContext
 

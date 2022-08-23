@@ -31,6 +31,7 @@ trait WesCromwellRouteSupport extends WebServiceUtils {
 
   val workflowStoreActor: ActorRef
 
+
   implicit val duration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
   implicit val timeout: Timeout = duration
 

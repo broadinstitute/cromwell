@@ -47,7 +47,7 @@ object BlobPathBuilder {
       val uri = parseURI(string)
       val storageAccount = parseStorageAccount(parseURI(endpoint))
       val hasContainer = uri.getPath().split("/").filter(!_.isEmpty()).headOption.contains(container)
-      def hasEndpoint = parseStorageAccount(uri).contains(storageAccount.get)
+      def hasEndpoint = storageAccount.map(parseStorageAccount(uri).contains(_)).getOrElse(false)
       if (hasContainer && !storageAccount.isEmpty && hasEndpoint) {
         ValidBlobPath(uri.getPath.replaceFirst("/" + container, ""))
       } else {
@@ -85,18 +85,21 @@ object BlobPath {
     case Success(value) => value
     case Failure(exception: IOException) => exception.getCause() match {
       // Azure NIO library wraps blobStorageExceptions in IOExceptions.
-      case cause: BlobStorageException => {
-        // This exception indicated that the filesystem was opened successfully
-        closeFileSystem(buildURI(endpoint))
-        if (!attempted) {
-          // Try to open the filesystem again after closing it
+      case cause: BlobStorageException => attempted match {
+        // If a restart of the filesystem was already attempted, throw the exception that the IO is wrapping
+        case true => throw cause
+        // This exception indicated that the filesystem was opened successfully, but something is wrong
+        // Try closing the filesystem, and opening with a fresh token
+        case false => {
+          work
+          closeFileSystem(buildURI(endpoint))
           findNioPath(path, endpoint, container, blobTokenGenerator, true)
-        } else throw cause
+        }
       }
       case _ => throw exception
     }
     case Failure(exception) => throw exception
-  } // Ideally we would unwrap this to a NioPath on success and on a access failure try to recover
+  }
 
   def retrieveFilesystem(uri: URI, container: String, blobTokenGenerator: BlobTokenGenerator): Try[FileSystem] = {
     Try(FileSystems.getFileSystem(uri)) recover {
@@ -121,7 +124,7 @@ case class BlobPath private[blob](pathString: String, endpoint: String, containe
   //var expiry = token.getSignature.split("&").filter(_.startsWith("se")).headOption.map(_.replaceFirst("se=",""))
   override def nioPath: NioPath = BlobPath.findNioPath(path = pathString, endpoint, container, blobTokenGenerator)
 
-  override protected def newPath(nioPath: NioPath): Path = BlobPath(pathString, endpoint, container, blobTokenGenerator)
+  override protected def newPath(nioPath: NioPath): Path = BlobPath(nioPath.toString(), endpoint, container, blobTokenGenerator)
 
   override def pathAsString: String = List(endpoint, container, nioPath.toString()).mkString("/")
 

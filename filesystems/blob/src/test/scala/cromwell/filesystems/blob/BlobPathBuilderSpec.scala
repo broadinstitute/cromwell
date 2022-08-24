@@ -42,7 +42,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
     }
   }
 
-  it should "build a blob path from a test string and read a file" in {
+  ignore should "build a blob path from a test string and read a file" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
     val endpointHost = BlobPathBuilder.parseURI(endpoint).getHost
     val store = "inputs"
@@ -60,7 +60,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
     fileText should include ("This is my test file!!!! Did it work?")
   }
 
-  it should "build duplicate blob paths in the same filesystem" in {
+  ignore should "build duplicate blob paths in the same filesystem" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
     val store = "inputs"
     val evalPath = "/test/inputFile.txt"

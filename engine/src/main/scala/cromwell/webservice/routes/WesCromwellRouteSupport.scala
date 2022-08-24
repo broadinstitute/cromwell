@@ -2,7 +2,6 @@ package cromwell.webservice.routes
 
 
 import akka.actor.{ActorRef, ActorRefFactory}
-import akka.http.javadsl.server.Directives.handleExceptions
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.{Multipart, StatusCodes}
 import akka.http.scaladsl.server.Directives.onComplete

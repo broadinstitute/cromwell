@@ -31,6 +31,7 @@ trait WesCromwellRouteSupport extends WebServiceUtils {
   implicit val timeout: Timeout = duration
 
   implicit def actorRefFactory: ActorRefFactory
+
   implicit val materializer: ActorMaterializer
   implicit val ec: ExecutionContext
 

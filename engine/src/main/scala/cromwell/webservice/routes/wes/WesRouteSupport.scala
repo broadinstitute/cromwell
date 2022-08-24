@@ -1,25 +1,21 @@
 package cromwell.webservice.routes.wes
 
 import akka.actor.ActorRef
-import akka.http.scaladsl.model.{Multipart, StatusCode, StatusCodes}
+import akka.http.scaladsl.model.{StatusCode, StatusCodes}
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.{Directive1, Route}
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
+import akka.http.scaladsl.server.{Directive1, Route}
 import akka.pattern.{AskTimeoutException, ask}
 import akka.util.Timeout
-import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
-import cromwell.core.{WorkflowId, WorkflowOnHold, WorkflowState, WorkflowSubmitted}
+import cromwell.core.WorkflowId
 import cromwell.core.abort.SuccessfulAbortResponse
 import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
-import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreSubmitActor}
-import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowStoreSubmitActorResponse
 import cromwell.server.CromwellShutdown
-import cromwell.services.{FailedMetadataJsonResponse, SuccessfulMetadataJsonResponse}
 import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, GetSingleWorkflowMetadataAction, GetStatus, MetadataServiceResponse, StatusLookupFailed}
-import cromwell.webservice.PartialWorkflowSources
-import cromwell.webservice.WebServiceUtils.{EnhancedThrowable, completeResponse, materializeFormData}
+import cromwell.services.{FailedMetadataJsonResponse, SuccessfulMetadataJsonResponse}
+import cromwell.webservice.WebServiceUtils.EnhancedThrowable
 import cromwell.webservice.routes.CromwellApiService.{UnrecognizedWorkflowException, validateWorkflowIdInMetadata}
 import cromwell.webservice.routes.MetadataRouteSupport.{metadataBuilderActorRequest, metadataQueryRequest}
 import cromwell.webservice.routes.wes.WesResponseJsonSupport._
@@ -27,8 +23,8 @@ import cromwell.webservice.routes.wes.WesRouteSupport._
 import cromwell.webservice.routes.{CromwellApiService, WesCromwellRouteSupport}
 import net.ceedubs.ficus.Ficus._
 
-import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 

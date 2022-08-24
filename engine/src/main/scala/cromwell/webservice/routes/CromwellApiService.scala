@@ -1,13 +1,10 @@
 package cromwell.webservice.routes
 
-import java.util.UUID
-
 import akka.actor.{ActorRef, ActorRefFactory}
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActorJsonFormatting.successfulResponseJsonFormatter
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
-import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.ContentTypes._
+import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{ExceptionHandler, Route}
 import akka.pattern.{AskTimeoutException, ask}
@@ -15,7 +12,6 @@ import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
-import com.typesafe.config.ConfigFactory
 import common.exception.AggregatedMessageException
 import common.util.VersionUtil
 import cromwell.core.abort._
@@ -24,20 +20,19 @@ import cromwell.engine.backend.BackendConfiguration
 import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{CachedCallNotFoundException, CallCacheDiffActorResponse, FailedCallCacheDiffResponse, SuccessfulCallCacheDiffResponse}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActorJsonFormatting.successfulResponseJsonFormatter
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheDiffActor, CallCacheDiffQueryParameter}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.NotInOnHoldStateException
-import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
+import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor}
 import cromwell.server.CromwellShutdown
+import cromwell.services._
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse}
 import cromwell.services.metadata.MetadataService._
-import cromwell.webservice._
-import cromwell.services._
-import cromwell.webservice.WorkflowJsonSupport._
-import cromwell.webservice.WebServiceUtils
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
-import net.ceedubs.ficus.Ficus._
+import cromwell.webservice.WorkflowJsonSupport._
+import cromwell.webservice._
 
-import scala.concurrent.duration._
+import java.util.UUID
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.io.Source
 import scala.util.{Failure, Success, Try}

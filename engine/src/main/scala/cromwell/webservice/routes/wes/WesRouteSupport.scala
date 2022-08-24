@@ -3,43 +3,45 @@ package cromwell.webservice.routes.wes
 import akka.actor.ActorRef
 import akka.http.scaladsl.model.{Multipart, StatusCode, StatusCodes}
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.{Directive1, Route}
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
+import akka.http.scaladsl.server.{Directive1, Route}
 import akka.pattern.{AskTimeoutException, ask}
+import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
-import cromwell.core.{WorkflowId, WorkflowOnHold, WorkflowState, WorkflowSubmitted}
 import cromwell.core.abort.SuccessfulAbortResponse
+import cromwell.core.{WorkflowId, WorkflowOnHold, WorkflowState, WorkflowSubmitted}
 import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreSubmitActor}
-import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowStoreSubmitActorResponse
 import cromwell.server.CromwellShutdown
-import cromwell.services.{FailedMetadataJsonResponse, SuccessfulMetadataJsonResponse}
 import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, GetSingleWorkflowMetadataAction, GetStatus, MetadataServiceResponse, StatusLookupFailed}
+import cromwell.services.{FailedMetadataJsonResponse, SuccessfulMetadataJsonResponse}
 import cromwell.webservice.PartialWorkflowSources
 import cromwell.webservice.WebServiceUtils.{EnhancedThrowable, completeResponse, materializeFormData}
+import cromwell.webservice.routes.CromwellApiService
 import cromwell.webservice.routes.CromwellApiService.{UnrecognizedWorkflowException, validateWorkflowIdInMetadata}
 import cromwell.webservice.routes.MetadataRouteSupport.{metadataBuilderActorRequest, metadataQueryRequest}
 import cromwell.webservice.routes.wes.WesResponseJsonSupport._
 import cromwell.webservice.routes.wes.WesRouteSupport._
-import cromwell.webservice.routes.{CromwellApiService, WesCromwellRouteSupport}
 import net.ceedubs.ficus.Ficus._
 
-import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.util.{Failure, Success}
 
 
 
-trait WesRouteSupport extends HttpInstrumentation with WesCromwellRouteSupport {
+trait WesRouteSupport extends HttpInstrumentation {
 
   val serviceRegistryActor: ActorRef
   val workflowManagerActor: ActorRef
+  val workflowStoreActor: ActorRef
 
   implicit val ec: ExecutionContext
   implicit val timeout: Timeout
+  implicit val materializer: ActorMaterializer
 
   /*
     Defines routes intended to sit alongside the primary Cromwell REST endpoints. For instance, we'll now have:
@@ -117,6 +119,10 @@ trait WesRouteSupport extends HttpInstrumentation with WesCromwellRouteSupport {
     WesRunStatus(workflowId.toString, WesState.fromCromwellStatus(workflowState))
   }
 
+  def toWesResponseId(workflowId: WorkflowId): WesRunId ={
+    WesRunId(workflowId.toString)
+  }
+
   def wesSubmitRequest(formData: Multipart.FormData, isSingleSubmission: Boolean): Route = {
     def getWorkflowState(workflowOnHold: Boolean): WorkflowState = {
       if (workflowOnHold)
@@ -130,7 +136,7 @@ trait WesRouteSupport extends HttpInstrumentation with WesCromwellRouteSupport {
         case Success(w) =>
           w match {
             case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(workflowId, _) =>
-              completeResponse(StatusCodes.Created, toWesResponse(workflowId, _), warnings)
+              completeResponse(StatusCodes.Created, toWesResponseId(workflowId), warnings)
             case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(workflowIds, _) =>
               completeResponse(StatusCodes.Created, workflowIds.toList.map(toWesResponse(_, workflowState)), warnings)
             case WorkflowStoreSubmitActor.WorkflowSubmitFailed(throwable) =>

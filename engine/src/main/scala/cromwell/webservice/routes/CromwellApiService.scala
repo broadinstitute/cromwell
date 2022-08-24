@@ -1,10 +1,13 @@
 package cromwell.webservice.routes
 
+import java.util.UUID
+
 import akka.actor.{ActorRef, ActorRefFactory}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActorJsonFormatting.successfulResponseJsonFormatter
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
-import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{ExceptionHandler, Route}
 import akka.pattern.{AskTimeoutException, ask}
@@ -12,6 +15,7 @@ import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
+import com.typesafe.config.ConfigFactory
 import common.exception.AggregatedMessageException
 import common.util.VersionUtil
 import cromwell.core.abort._
@@ -20,24 +24,25 @@ import cromwell.engine.backend.BackendConfiguration
 import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{CachedCallNotFoundException, CallCacheDiffActorResponse, FailedCallCacheDiffResponse, SuccessfulCallCacheDiffResponse}
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActorJsonFormatting.successfulResponseJsonFormatter
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheDiffActor, CallCacheDiffQueryParameter}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.NotInOnHoldStateException
-import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor}
+import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
 import cromwell.server.CromwellShutdown
-import cromwell.services._
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse}
 import cromwell.services.metadata.MetadataService._
-import cromwell.webservice.WebServiceUtils.EnhancedThrowable
-import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice._
+import cromwell.services._
+import cromwell.webservice.WorkflowJsonSupport._
+import cromwell.webservice.WebServiceUtils
+import cromwell.webservice.WebServiceUtils.EnhancedThrowable
+import net.ceedubs.ficus.Ficus._
 
-import java.util.UUID
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
-trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport with WomtoolRouteSupport with WebServiceUtils with WesCromwellRouteSupport {
+trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport with WomtoolRouteSupport with WebServiceUtils {
   import CromwellApiService._
 
   implicit def actorRefFactory: ActorRefFactory
@@ -47,6 +52,10 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
   val workflowStoreActor: ActorRef
   val workflowManagerActor: ActorRef
   val serviceRegistryActor: ActorRef
+
+  // Derive timeouts (implicit and not) from akka http's request timeout since there's no point in being higher than that
+  implicit val duration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
+  implicit val timeout: Timeout = duration
 
   val engineRoutes = concat(
     path("engine" / Segment / "stats") { _ =>
@@ -173,6 +182,58 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
     }
   }
 
+  private def toResponse(workflowId: WorkflowId, workflowState: WorkflowState): WorkflowSubmitResponse = {
+    WorkflowSubmitResponse(workflowId.toString, workflowState.toString)
+  }
+
+  private def submitRequest(formData: Multipart.FormData, isSingleSubmission: Boolean): Route = {
+
+    def getWorkflowState(workflowOnHold: Boolean): WorkflowState = {
+      if (workflowOnHold)
+        WorkflowOnHold
+      else WorkflowSubmitted
+    }
+
+    def askSubmit(command: WorkflowStoreActor.WorkflowStoreActorSubmitCommand, warnings: Seq[String], workflowState: WorkflowState): Route = {
+      // NOTE: Do not blindly copy the akka-http -to- ask-actor pattern below without knowing the pros and cons.
+      onComplete(workflowStoreActor.ask(command).mapTo[WorkflowStoreSubmitActor.WorkflowStoreSubmitActorResponse]) {
+        case Success(w) =>
+          w match {
+            case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(workflowId, _) =>
+              completeResponse(StatusCodes.Created, toResponse(workflowId, workflowState), warnings)
+            case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(workflowIds, _) =>
+              completeResponse(StatusCodes.Created, workflowIds.toList.map(toResponse(_, workflowState)), warnings)
+            case WorkflowStoreSubmitActor.WorkflowSubmitFailed(throwable) =>
+              throwable.failRequest(StatusCodes.BadRequest, warnings)
+          }
+        case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
+        case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
+        case Failure(e) => e.failRequest(StatusCodes.InternalServerError, warnings)
+      }
+    }
+
+    onComplete(materializeFormData(formData)) {
+      case Success(data) =>
+        PartialWorkflowSources.fromSubmitRoute(data, allowNoInputs = isSingleSubmission) match {
+          case Success(workflowSourceFiles) if isSingleSubmission && workflowSourceFiles.size == 1 =>
+            val warnings = workflowSourceFiles.flatMap(_.warnings)
+            askSubmit(WorkflowStoreActor.SubmitWorkflow(workflowSourceFiles.head), warnings, getWorkflowState(workflowSourceFiles.head.workflowOnHold))
+          // Catches the case where someone has gone through the single submission endpoint w/ more than one workflow
+          case Success(workflowSourceFiles) if isSingleSubmission =>
+            val warnings = workflowSourceFiles.flatMap(_.warnings)
+            val e = new IllegalArgumentException("To submit more than one workflow at a time, use the batch endpoint.")
+            e.failRequest(StatusCodes.BadRequest, warnings)
+          case Success(workflowSourceFiles) =>
+            val warnings = workflowSourceFiles.flatMap(_.warnings)
+            askSubmit(
+              WorkflowStoreActor.BatchSubmitWorkflows(NonEmptyList.fromListUnsafe(workflowSourceFiles.toList)),
+              warnings, getWorkflowState(workflowSourceFiles.head.workflowOnHold))
+          case Failure(t) => t.failRequest(StatusCodes.BadRequest)
+        }
+      case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
+      case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
+    }
+  }
 }
 
 object CromwellApiService {

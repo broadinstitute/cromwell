@@ -24,7 +24,7 @@ import cromwell.webservice.routes.CromwellApiService
 import cromwell.webservice.routes.CromwellApiService.{UnrecognizedWorkflowException, validateWorkflowIdInMetadata}
 import cromwell.webservice.routes.MetadataRouteSupport.{metadataBuilderActorRequest, metadataQueryRequest}
 import cromwell.webservice.routes.wes.WesResponseJsonSupport._
-import cromwell.webservice.routes.wes.WesRouteSupport._
+import cromwell.webservice.routes.wes.WesRouteSupport.{respondWithWesError, _}
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration.FiniteDuration
@@ -140,7 +140,7 @@ trait WesRouteSupport extends HttpInstrumentation {
             case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(workflowIds, _) =>
               completeResponse(StatusCodes.Created, workflowIds.toList.map(toWesResponse(_, workflowState)), warnings)
             case WorkflowStoreSubmitActor.WorkflowSubmitFailed(throwable) =>
-              throwable.failRequest(StatusCodes.BadRequest, warnings)
+              respondWithWesError(throwable.getLocalizedMessage, StatusCodes.BadRequest)
           }
         case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => respondWithWesError("Cromwell service is shutting down", StatusCodes.InternalServerError)
         case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
@@ -167,7 +167,7 @@ trait WesRouteSupport extends HttpInstrumentation {
           case Failure(t) => t.failRequest(StatusCodes.BadRequest)
         }
       case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
-      case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
+      case Failure(e) => respondWithWesError(e.getLocalizedMessage, StatusCodes.InternalServerError)
     }
   }
 }

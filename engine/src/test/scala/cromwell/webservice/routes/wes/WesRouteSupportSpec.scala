@@ -165,8 +165,7 @@ class WesRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Mat
       check {
         assertResult(
           s"""{
-             |  "id": "${CromwellApiServiceSpec.ExistingWorkflowId.toString}",
-             |  "status": "Submitted"
+             |  "run_id": "${CromwellApiServiceSpec.ExistingWorkflowId.toString}"
              |}""".stripMargin) {
           responseAs[String].parseJson.prettyPrint
         }

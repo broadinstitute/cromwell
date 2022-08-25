@@ -91,7 +91,6 @@ object BlobPath {
         // This exception indicated that the filesystem was opened successfully, but something is wrong
         // Try closing the filesystem, and opening with a fresh token
         case false => {
-          work
           closeFileSystem(buildURI(endpoint))
           findNioPath(path, endpoint, container, blobTokenGenerator, true)
         }

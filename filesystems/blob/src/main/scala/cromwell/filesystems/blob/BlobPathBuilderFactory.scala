@@ -79,7 +79,7 @@ case class FileSystemManager(container: String,
     Try(FileSystems.newFileSystem(uri, buildConfigMap(token, container).asJava))
   }
 
-  def closeFileSystem(uri: URI) = Try(FileSystems.getFileSystem(uri)).map(_.close)
+  def closeFileSystem(uri: URI): Try[Unit] = Try(FileSystems.getFileSystem(uri)).map(_.close)
 }
 
 sealed trait BlobTokenGenerator {

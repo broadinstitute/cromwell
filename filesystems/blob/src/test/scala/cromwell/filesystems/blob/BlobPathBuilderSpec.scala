@@ -26,7 +26,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
     val testString = BlobPathBuilderSpec.buildEndpoint("badStorageAccount") + container + evalPath
     BlobPathBuilder.validateBlobPath(testString, container, endpoint) match {
       case BlobPathBuilder.ValidBlobPath(path) => fail(s"Valid path: $path found when verifying mismatched storage account")
-      case BlobPathBuilder.UnparsableBlobPath(errorMessage) => errorMessage.getMessage() should equal(BlobPathBuilder.invalidBlobPathMessage(container, endpoint))
+      case BlobPathBuilder.UnparsableBlobPath(errorMessage) => errorMessage.getMessage should equal(BlobPathBuilder.invalidBlobPathMessage(container, endpoint))
     }
   }
 
@@ -37,7 +37,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
     val testString = endpoint + "badContainer" + evalPath
     BlobPathBuilder.validateBlobPath(testString, container, endpoint) match {
       case BlobPathBuilder.ValidBlobPath(path) => fail(s"Valid path: $path found when verifying mismatched container")
-      case BlobPathBuilder.UnparsableBlobPath(errorMessage) => errorMessage.getMessage() should equal(BlobPathBuilder.invalidBlobPathMessage(container, endpoint))
+      case BlobPathBuilder.UnparsableBlobPath(errorMessage) => errorMessage.getMessage should equal(BlobPathBuilder.invalidBlobPathMessage(container, endpoint))
     }
   }
 
@@ -57,7 +57,6 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
     val is = blobPath.newInputStream()
     val fileText = (is.readAllBytes.map(_.toChar)).mkString
     fileText should include ("This is my test file!!!! Did it work?")
-    blobPath.nioPath.getFileSystem().close()
   }
 
   ignore should "build duplicate blob paths in the same filesystem" in {
@@ -67,7 +66,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
     val fsm: FileSystemManager = FileSystemManager(store, endpoint, 10)
     val testString = endpoint + "/" + store + evalPath
     val blobPath1: BlobPath = new BlobPathBuilder(fsm, store, endpoint) build testString getOrElse fail()
-    blobPath1.nioPath.getFileSystem().close()
+    blobPath1.nioPath.getFileSystem.close()
     val blobPath2: BlobPath = new BlobPathBuilder(fsm, store, endpoint) build testString getOrElse fail()
     blobPath1 should equal(blobPath2)
     val is = blobPath1.newInputStream()

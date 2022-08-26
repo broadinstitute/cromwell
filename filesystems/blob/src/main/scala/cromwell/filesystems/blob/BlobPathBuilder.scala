@@ -18,8 +18,8 @@ object BlobPathBuilder {
   case class UnparsableBlobPath(errorMessage: Throwable) extends BlobPathValidation
 
   def invalidBlobPathMessage(container: String, endpoint: String) = s"Malformed Blob URL for this builder. Expecting a URL for a container $container and endpoint $endpoint"
-  def parseURI(string: String) = URI.create(UrlEscapers.urlFragmentEscaper().escape(string))
-  def parseStorageAccount(uri: URI) = uri.getHost().split("\\.").find(!_.isEmpty())
+  def parseURI(string: String): URI = URI.create(UrlEscapers.urlFragmentEscaper().escape(string))
+  def parseStorageAccount(uri: URI): Option[String] = uri.getHost.split("\\.").find(_.nonEmpty)
 
   /**
     * Validates a that a path from a string is a valid BlobPath of the format:
@@ -43,7 +43,7 @@ object BlobPathBuilder {
     Try {
       val uri = parseURI(string)
       val storageAccount = parseStorageAccount(parseURI(endpoint))
-      val hasContainer = uri.getPath().split("/").find(!_.isEmpty()).contains(container)
+      val hasContainer = uri.getPath.split("/").find(_.nonEmpty).contains(container)
       val hasEndpoint = storageAccount.exists(parseStorageAccount(uri).contains(_))
       if (hasContainer && storageAccount.isDefined && hasEndpoint) {
         ValidBlobPath(uri.getPath.replaceFirst("/" + container, ""))
@@ -88,5 +88,5 @@ case class TokenExpiration(token: AzureSasCredential, buffer: TemporalAmount) {
     instant = Instant.parse(expiryString)
   } yield instant
 
-  def hasTokenExpired = expiry.map(_.isAfter(Instant.now.plus(buffer))).getOrElse(false)
+  def hasTokenExpired: Boolean = expiry.exists(_.isAfter(Instant.now.plus(buffer)))
 }

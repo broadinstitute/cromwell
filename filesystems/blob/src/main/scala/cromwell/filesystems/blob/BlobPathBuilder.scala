@@ -1,18 +1,15 @@
 package cromwell.filesystems.blob
 
 import com.azure.core.credential.AzureSasCredential
-import com.azure.storage.blob.models.BlobStorageException
-import com.azure.storage.blob.nio.AzureFileSystem
 import com.google.common.net.UrlEscapers
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.blob.BlobPathBuilder._
 
-import java.io.IOException
 import java.net.{MalformedURLException, URI}
-import java.nio.file._
-import scala.jdk.CollectionConverters._
+import java.time.Instant
+import java.time.temporal.TemporalAmount
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Try}
 
 object BlobPathBuilder {
 
@@ -22,7 +19,7 @@ object BlobPathBuilder {
 
   def invalidBlobPathMessage(container: String, endpoint: String) = s"Malformed Blob URL for this builder. Expecting a URL for a container $container and endpoint $endpoint"
   def parseURI(string: String) = URI.create(UrlEscapers.urlFragmentEscaper().escape(string))
-  def parseStorageAccount(uri: URI) = uri.getHost().split("\\.").filter(!_.isEmpty()).headOption
+  def parseStorageAccount(uri: URI) = uri.getHost().split("\\.").find(!_.isEmpty())
 
   /**
     * Validates a that a path from a string is a valid BlobPath of the format:
@@ -46,9 +43,9 @@ object BlobPathBuilder {
     Try {
       val uri = parseURI(string)
       val storageAccount = parseStorageAccount(parseURI(endpoint))
-      val hasContainer = uri.getPath().split("/").filter(!_.isEmpty()).headOption.contains(container)
-      def hasEndpoint = storageAccount.map(parseStorageAccount(uri).contains(_)).getOrElse(false)
-      if (hasContainer && !storageAccount.isEmpty && hasEndpoint) {
+      val hasContainer = uri.getPath().split("/").find(!_.isEmpty()).contains(container)
+      val hasEndpoint = storageAccount.exists(parseStorageAccount(uri).contains(_))
+      if (hasContainer && storageAccount.isDefined && hasEndpoint) {
         ValidBlobPath(uri.getPath.replaceFirst("/" + container, ""))
       } else {
         UnparsableBlobPath(new MalformedURLException(invalidBlobPathMessage(container, endpoint)))
@@ -57,75 +54,39 @@ object BlobPathBuilder {
   }
 }
 
-class BlobPathBuilder(blobTokenGenerator: BlobTokenGenerator, container: String, endpoint: String) extends PathBuilder {
+class BlobPathBuilder(fsm: FileSystemManager, container: String, endpoint: String) extends PathBuilder {
 
   def build(string: String): Try[BlobPath] = {
     validateBlobPath(string, container, endpoint) match {
-      case ValidBlobPath(path) => Try(BlobPath(path, endpoint, container, blobTokenGenerator))
+      case ValidBlobPath(path) => Try(BlobPath(path, endpoint, container, fsm))
       case UnparsableBlobPath(errorMessage: Throwable) => Failure(errorMessage)
     }
   }
   override def name: String = "Azure Blob Storage"
 }
 
-object BlobPath {
-
-  def buildURI(endpoint: String) = new URI("azb://?endpoint=" + endpoint)
-
-  def buildConfigMap(credential: AzureSasCredential, container: String): Map[String, Object] = {
-    Map((AzureFileSystem.AZURE_STORAGE_SAS_TOKEN_CREDENTIAL, credential),
-      (AzureFileSystem.AZURE_STORAGE_FILE_STORES, container),
-      (AzureFileSystem.AZURE_STORAGE_SKIP_INITIAL_CONTAINER_CHECK, java.lang.Boolean.TRUE))
-  }
-
-  def findNioPath(path: String, endpoint: String, container: String, blobTokenGenerator: BlobTokenGenerator, attempted: Boolean = false): NioPath = (for {
-    fileSystem <- retrieveFilesystem(buildURI(endpoint), container, blobTokenGenerator)
-    nioPath <- Try(retrieveFilePath(fileSystem, path))
-  } yield nioPath) match {
-    case Success(value) => value
-    case Failure(exception: IOException) => exception.getCause() match {
-      // Azure NIO library wraps blobStorageExceptions in IOExceptions.
-      case cause: BlobStorageException => attempted match {
-        // If a restart of the filesystem was already attempted, throw the exception that the IO is wrapping
-        case true => throw cause
-        // This exception indicated that the filesystem was opened successfully, but something is wrong
-        // Try closing the filesystem, and opening with a fresh token
-        case false => {
-          closeFileSystem(buildURI(endpoint))
-          findNioPath(path, endpoint, container, blobTokenGenerator, true)
-        }
-      }
-      case _ => throw exception
-    }
-    case Failure(exception) => throw exception
-  }
-
-  def retrieveFilesystem(uri: URI, container: String, blobTokenGenerator: BlobTokenGenerator): Try[FileSystem] = {
-    Try(FileSystems.getFileSystem(uri)) recover {
-      // If no filesystem already exists, this will create a new connection, with the provided configs
-      case _: FileSystemNotFoundException => {
-        val fileSystemConfig = buildConfigMap(blobTokenGenerator.getAccessToken, container)
-        FileSystems.newFileSystem(uri, fileSystemConfig.asJava)
-      }
-    }
-  }
-
-  def closeFileSystem(uri: URI) = Try(FileSystems.getFileSystem(uri)).map(_.close)
-
-  def retrieveFilePath(fileSystem: FileSystem, path: String): NioPath = {
-    val blobPath = fileSystem.getPath(path)
-    fileSystem.provider().checkAccess(blobPath)
-    blobPath
-  }
-}
-case class BlobPath private[blob](pathString: String, endpoint: String, container: String, blobTokenGenerator: BlobTokenGenerator) extends Path {
+case class BlobPath private[blob](pathString: String, endpoint: String, container: String, fsm: FileSystemManager) extends Path {
   //var token = blobTokenGenerator.getAccessToken
   //var expiry = token.getSignature.split("&").filter(_.startsWith("se")).headOption.map(_.replaceFirst("se=",""))
-  override def nioPath: NioPath = BlobPath.findNioPath(path = pathString, endpoint, container, blobTokenGenerator)
+  override def nioPath: NioPath = findNioPath(path = pathString, endpoint, container)
 
-  override protected def newPath(nioPath: NioPath): Path = BlobPath(nioPath.toString(), endpoint, container, blobTokenGenerator)
+  override protected def newPath(nioPath: NioPath): Path = BlobPath(nioPath.toString, endpoint, container, fsm)
 
-  override def pathAsString: String = List(endpoint, container, nioPath.toString()).mkString("/")
+  override def pathAsString: String = List(endpoint, container, nioPath.toString).mkString("/")
 
-  override def pathWithoutScheme: String = parseURI(endpoint).getHost + "/" + container + "/" + nioPath.toString()
+  override def pathWithoutScheme: String = parseURI(endpoint).getHost + "/" + container + "/" + nioPath.toString
+
+  def findNioPath(path: String, endpoint: String, container: String): NioPath = (for {
+    fileSystem <- fsm.retrieveFilesystem()
+    nioPath = fileSystem.getPath(path)
+  } yield nioPath).get
+}
+
+case class TokenExpiration(token: AzureSasCredential, buffer: TemporalAmount) {
+  val expiry = for {
+    expiryString <- token.getSignature.split("&").find(_.startsWith("se")).map(_.replaceFirst("se=","")).map(_.replace("%3A", ":"))
+    instant = Instant.parse(expiryString)
+  } yield instant
+
+  def hasTokenExpired = expiry.map(_.isAfter(Instant.now.plus(buffer))).getOrElse(false)
 }

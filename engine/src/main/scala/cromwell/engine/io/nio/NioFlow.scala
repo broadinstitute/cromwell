@@ -2,6 +2,7 @@ package cromwell.engine.io.nio
 
 import akka.stream.scaladsl.Flow
 import cats.effect.{IO, Timer}
+import cats.implicits._
 
 import scala.util.Try
 import cloud.nio.spi.{ChecksumFailure, ChecksumResult, ChecksumSkipped, ChecksumSuccess, FileHash, HashType}
@@ -128,15 +129,22 @@ class NioFlow(parallelism: Int,
 
     def readFileAndChecksum: IO[String] = {
       for {
-        fileHash <- getHash(command.file)
+        fileHash <- getStoredHash(command.file)
         uncheckedValue <- readFile
-        checksumResult <- checkHash(uncheckedValue, fileHash)
+        checksumResult = fileHash match {
+          case Some(hash) => checkHash(uncheckedValue, hash)
+          // If there is no stored checksum, don't attempt to validate.
+          // If the missing checksum is itself an error condition, that
+          // should be detected by the code that gets the FileHash.
+          case None => ChecksumSkipped
+        }
         verifiedValue <- checksumResult match {
           case _: ChecksumSkipped => IO.pure(uncheckedValue)
           case _: ChecksumSuccess => IO.pure(uncheckedValue)
           case failure: ChecksumFailure => IO.raiseError(
             ChecksumFailedException(
-              s"Failed checksum for '${command.file}'. Expected '${fileHash.hashType}' hash of '${fileHash.hash}'. Calculated hash '${failure.calculatedHash}'"))
+              s"Failed checksum for '${command.file}'. Expected '${fileHash.map(_.hashType).getOrElse("<MISSING>")}' hash of '${fileHash.map(_.hash).getOrElse("<MISSING>")}'. Calculated hash '${failure.calculatedHash}'")
+          )
         }
       } yield verifiedValue
     }
@@ -153,19 +161,23 @@ class NioFlow(parallelism: Int,
   }
 
   private def hash(hash: IoHashCommand): IO[String] = {
-    getHash(hash.file).map(_.hash)
+    getStoredHash(hash.file).flatMap ( h => h match {
+      case Some(storedHash) => IO.pure(storedHash)
+      case None => generateMd5FileHashForPath(hash.file)
+    }).map(_.hash)
   }
 
-  private def getHash(file: Path): IO[FileHash] = {
+  private def getStoredHash(file: Path): IO[Option[FileHash]] = {
     file match {
-      case gcsPath: GcsPath => getFileHashForGcsPath(gcsPath)
+      case gcsPath: GcsPath => getFileHashForGcsPath(gcsPath).map(Option(_))
       case drsPath: DrsPath => IO {
+        // drsPath.getFileHash throws if it can't find a stored hash.
         drsPath.getFileHash
-      }
+      }.map(Option(_))
       case s3Path: S3Path => IO {
-        FileHash(HashType.S3Etag, s3Path.eTag)
+        Option(FileHash(HashType.S3Etag, s3Path.eTag))
       }
-      case path => getMd5FileHashForPath(path)
+      case _ => IO.pure(None)
     }
   }
 
@@ -201,7 +213,7 @@ class NioFlow(parallelism: Int,
     gcsPath.objectBlobId.map(id => FileHash(HashType.GcsCrc32c, gcsPath.cloudStorage.get(id).getCrc32c))
   }
 
-  private def getMd5FileHashForPath(path: Path): IO[FileHash] = delayedIoFromTry {
+  private def generateMd5FileHashForPath(path: Path): IO[FileHash] = delayedIoFromTry {
     tryWithResource(() => path.newInputStream) { inputStream =>
       FileHash(HashType.Md5, org.apache.commons.codec.digest.DigestUtils.md5Hex(inputStream))
     }

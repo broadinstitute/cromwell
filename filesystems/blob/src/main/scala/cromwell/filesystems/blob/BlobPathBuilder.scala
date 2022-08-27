@@ -1,13 +1,13 @@
 package cromwell.filesystems.blob
 
 import com.azure.core.credential.AzureSasCredential
-import com.azure.storage.blob.nio.AzureFileSystem
+import com.azure.storage.blob.nio.{AzureBlobFileAttributes, AzureFileSystem}
 import com.google.common.net.UrlEscapers
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.blob.BlobPathBuilder._
 
 import java.net.{MalformedURLException, URI}
-import java.nio.file.{FileSystem, FileSystemNotFoundException, FileSystems}
+import java.nio.file.{FileSystem, FileSystemNotFoundException, FileSystems, Files}
 import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 import scala.util.{Failure, Try}
@@ -90,4 +90,13 @@ case class BlobPath private[blob](nioPath: NioPath, endpoint: String, container:
   override def pathAsString: String = List(endpoint, container, nioPath.toString()).mkString("/")
 
   override def pathWithoutScheme: String = parseURI(endpoint).getHost + "/" + container + "/" + nioPath.toString()
+
+  def getMd5: Option[String] = {
+    val headers = Files.readAttributes(nioPath, classOf[AzureBlobFileAttributes]).blobHttpHeaders()
+    Option(headers.getContentMd5) match {
+      case None => None
+      case Some(arr) if arr.isEmpty => None
+      case Some(bytes) => Some(bytes.map("%02x".format(_)).mkString)
+    }
+  }
 }

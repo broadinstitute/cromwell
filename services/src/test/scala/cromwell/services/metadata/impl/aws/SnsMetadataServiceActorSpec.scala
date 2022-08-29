@@ -1,4 +1,4 @@
-package cromwell.services.metadata.impl.sns
+package cromwell.services.metadata.impl.aws
 
 import java.time.OffsetDateTime
 

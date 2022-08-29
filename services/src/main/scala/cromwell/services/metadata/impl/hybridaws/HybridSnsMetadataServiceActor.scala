@@ -29,7 +29,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-package cromwell.services.metadata.impl.sns
+package cromwell.services.metadata.impl.aws
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.typesafe.config.Config

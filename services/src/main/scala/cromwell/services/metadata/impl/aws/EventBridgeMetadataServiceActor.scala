@@ -29,7 +29,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-package cromwell.services.metadata.impl.sns
+package cromwell.services.metadata.impl.aws
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.typesafe.config.Config
@@ -39,8 +39,9 @@ import cromwell.services.metadata.MetadataEvent
 import cromwell.services.metadata.MetadataService.{MetadataWriteFailure, MetadataWriteSuccess, PutMetadataAction, PutMetadataActionAndRespond}
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProviderChain
 import software.amazon.awssdk.regions.Region
-import software.amazon.awssdk.services.sns.SnsClient
-import software.amazon.awssdk.services.sns.model.PublishRequest
+import software.amazon.awssdk.services.eventbridge.EventBridgeClient
+import software.amazon.awssdk.services.eventbridge.model.PutEventsRequest
+import software.amazon.awssdk.services.eventbridge.model.PutEventsRequestEntry
 import spray.json.enrichAny
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
@@ -48,41 +49,48 @@ import scala.util.{Failure, Success}
 
 
 /**
-  * An actor that publishes metadata events to AWS SNS
+  * An actor that publishes metadata events to AWS EventBridge
   * @param serviceConfig the source of service config information
   * @param globalConfig the source of global config information
   * @param serviceRegistryActor the actor for registering services
-  * @see cromwell.services.metadata.impl.sns.HybridSnsMetadataServiceActor
+  * @see cromwell.services.metadata.impl.aws.HybridEventBridgeMetadataServiceActor
   */
-class AwsSnsMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with ActorLogging {
+class AwsEventBridgeMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with ActorLogging {
   implicit val ec: ExecutionContextExecutor = context.dispatcher
 
-  //setup sns client
-  val topicArn: String = serviceConfig.getString("aws.topicArn")
+  //setup EB client
+  val busName: String = serviceConfig.getString("aws.busName")
 
   val awsConfig: AwsConfiguration = AwsConfiguration(globalConfig)
   val credentialsProviderChain: AwsCredentialsProviderChain =
     AwsCredentialsProviderChain.of(awsConfig.authsByName.values.map(_.provider()).toSeq :_*)
 
-  lazy val snsClient: SnsClient = SnsClient.builder()
+  lazy val eventBrClient : EventBridgeClient = EventBridgeClient.builder()
     .region(awsConfig.region.getOrElse(Region.US_EAST_1))
     .credentialsProvider(credentialsProviderChain)
-    .build()
+    .build();
 
   def publishMessages(events: Iterable[MetadataEvent]): Future[Unit] = {
-    import AwsSnsMetadataServiceActor.EnhancedMetadataEvents
+    import AwsEventBridgeMetadataServiceActor.EnhancedMetadataEvents
 
     val eventsJson = events.toJson
     //if there are no events then don't publish anything
     if( eventsJson.length < 1) { return Future(())}
-    log.debug("Publishing to " + topicArn + ": " + eventsJson)
+    log.debug(f"Publishing to $busName : $eventsJson")
+
+    val reqEntry = PutEventsRequestEntry.builder()
+      .eventBusName(busName)
+      .source("cromwell")
+      .detailType("cromwell-metadata-event")
+      .detail(eventsJson.mkString(","))
+      .build()
+
+    val eventsRequest = PutEventsRequest.builder()
+      .entries(reqEntry)
+      .build()
 
     Future {
-      snsClient.publish(PublishRequest.builder()
-        .message("[" + eventsJson.mkString(",") + "]")
-        .topicArn(topicArn)
-        .subject("cromwell-metadata-event")
-        .build())
+      eventBrClient.putEvents(eventsRequest)
       () //return unit
     }
   }
@@ -100,9 +108,9 @@ class AwsSnsMetadataServiceActor(serviceConfig: Config, globalConfig: Config, se
   }
 }
 
-object AwsSnsMetadataServiceActor {
+object AwsEventBridgeMetadataServiceActor {
   def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef): Props = {
-    Props(new AwsSnsMetadataServiceActor(serviceConfig, globalConfig, serviceRegistryActor)).withDispatcher(ServiceDispatcher)
+    Props(new AwsEventBridgeMetadataServiceActor(serviceConfig, globalConfig, serviceRegistryActor)).withDispatcher(ServiceDispatcher)
   }
 
   implicit class EnhancedMetadataEvents(val e: Iterable[MetadataEvent]) extends AnyVal {

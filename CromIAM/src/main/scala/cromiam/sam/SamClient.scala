@@ -81,9 +81,6 @@ class SamClient(scheme: String,
       headers = List[HttpHeader](user.authorization)
     )
 
-    case class UserStatusInfo(adminEnabled: Boolean, enabled: Boolean, userEmail: String, userSubjectId: String)
-    implicit val UserStatusInfoFormat: RootJsonFormat[UserStatusInfo] = jsonFormat4(UserStatusInfo)
-
     for {
       response <- instrumentRequest(
         () => Http().singleRequest(request).asFailureResponseOrT,
@@ -219,5 +216,9 @@ object SamClient {
   val SamDenialResponse = HttpResponse(status = StatusCodes.Forbidden, entity = new SamDenialException().getMessage)
 
   def SamRegisterCollectionExceptionResp(statusCode: StatusCode) = HttpResponse(status = statusCode, entity = SamRegisterCollectionException(statusCode).getMessage)
+
+  case class UserStatusInfo(adminEnabled: Boolean, enabled: Boolean, userEmail: String, userSubjectId: String)
+
+  implicit val UserStatusInfoFormat: RootJsonFormat[UserStatusInfo] = jsonFormat4(UserStatusInfo)
 
 }

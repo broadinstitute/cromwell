@@ -166,10 +166,12 @@ class NioFlow(parallelism: Int,
   }
 
   private def hash(hash: IoHashCommand): IO[String] = {
-    getStoredHash(hash.file).flatMap ( h => h match {
+    // If there is no hash accessible from the file storage system,
+    // we'll read the file and generate the hash ourselves.
+    getStoredHash(hash.file).flatMap {
       case Some(storedHash) => IO.pure(storedHash)
       case None => generateMd5FileHashForPath(hash.file)
-    }).map(_.hash)
+    }.map(_.hash)
   }
 
   private def getStoredHash(file: Path): IO[Option[FileHash]] = {
@@ -177,7 +179,8 @@ class NioFlow(parallelism: Int,
       case gcsPath: GcsPath => getFileHashForGcsPath(gcsPath).map(Option(_))
       case blobPath: BlobPath => getFileHashForBlobPath(blobPath)
       case drsPath: DrsPath => IO {
-        // drsPath.getFileHash throws if it can't find a stored hash.
+        // We assume all DRS files have a stored hash; this will throw
+        // if the file does not.
         drsPath.getFileHash
       }.map(Option(_))
       case s3Path: S3Path => IO {
@@ -220,7 +223,7 @@ class NioFlow(parallelism: Int,
   }
 
   private def getFileHashForBlobPath(blobPath: BlobPath): IO[Option[FileHash]] = delayedIoFromTry {
-    blobPath.getMd5.map(md5 => md5.map(FileHash(HashType.Md5, _)))
+    blobPath.md5HexString.map(md5 => md5.map(FileHash(HashType.Md5, _)))
   }
 
   private def generateMd5FileHashForPath(path: Path): IO[FileHash] = delayedIoFromTry {

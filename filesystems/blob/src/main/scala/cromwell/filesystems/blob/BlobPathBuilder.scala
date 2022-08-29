@@ -94,11 +94,13 @@ case class BlobPath private[blob](nioPath: NioPath, endpoint: String, container:
   def blobFileAttributes: Try[AzureBlobFileAttributes] =
     Try(Files.readAttributes(nioPath, classOf[AzureBlobFileAttributes]))
 
-  def getMd5: Try[Option[String]] = {
+  def md5HexString: Try[Option[String]] = {
     blobFileAttributes.map(h =>
       Option(h.blobHttpHeaders().getContentMd5) match {
         case None => None
         case Some(arr) if arr.isEmpty => None
+        // Convert the bytes to a hex-encoded string. Note that this value
+        // is rendered in base64 in the Azure web portal.
         case Some(bytes) => Option(bytes.map("%02x".format(_)).mkString)
       }
     )

@@ -4,11 +4,11 @@
 
 ### CromIAM enabled user checks
 
-For Cromwell instances utilizing the CromIAM identity and access management component, the following endpoints now verify that the calling user to be enabled.
+For Cromwell instances utilizing the optional CromIAM identity and access management component, the following endpoints now verify that the calling user is enabled before forwarding the request.
 * `/api/workflows/v1/backends`
 * `/api/womtool/v1/describe`
 
-This change makes the above endpoints consistent with the existing behavior of all the other endpoints in the `/api/` path. 
+This change makes the above endpoints consistent with the existing behavior of all the other endpoints in the `/api/` path of CromIAM. 
 
 ## 83 Release Notes
 

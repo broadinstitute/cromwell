@@ -131,12 +131,12 @@ class NioFlow(parallelism: Int,
       for {
         fileHash <- getStoredHash(command.file)
         uncheckedValue <- readFile
-        checksumResult = fileHash match {
+        checksumResult <- fileHash match {
           case Some(hash) => checkHash(uncheckedValue, hash)
           // If there is no stored checksum, don't attempt to validate.
           // If the missing checksum is itself an error condition, that
           // should be detected by the code that gets the FileHash.
-          case None => ChecksumSkipped
+          case None => IO.pure(ChecksumSkipped)
         }
         verifiedValue <- checksumResult match {
           case _: ChecksumSkipped => IO.pure(uncheckedValue)

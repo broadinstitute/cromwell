@@ -143,7 +143,11 @@ class NioFlow(parallelism: Int,
           case _: ChecksumSuccess => IO.pure(uncheckedValue)
           case failure: ChecksumFailure => IO.raiseError(
             ChecksumFailedException(
-              s"Failed checksum for '${command.file}'. Expected '${fileHash.map(_.hashType).getOrElse("<MISSING>")}' hash of '${fileHash.map(_.hash).getOrElse("<MISSING>")}'. Calculated hash '${failure.calculatedHash}'")
+              fileHash match {
+                case Some(hash) => s"Failed checksum for '${command.file}'. Expected '${hash.hashType}' hash of '${hash.hash}'. Calculated hash '${failure.calculatedHash}'"
+                case None => s"Failed checksum for '${command.file}'. Couldn't find stored file hash." // This should never happen
+              }
+            )
           )
         }
       } yield verifiedValue

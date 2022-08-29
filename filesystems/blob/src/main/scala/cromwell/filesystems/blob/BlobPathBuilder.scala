@@ -91,12 +91,12 @@ case class BlobPath private[blob](nioPath: NioPath, endpoint: String, container:
 
   override def pathWithoutScheme: String = parseURI(endpoint).getHost + "/" + container + "/" + nioPath.toString()
 
-  def getMd5: Option[String] = {
-    val headers = Files.readAttributes(nioPath, classOf[AzureBlobFileAttributes]).blobHttpHeaders()
-    Option(headers.getContentMd5) match {
-      case None => None
-      case Some(arr) if arr.isEmpty => None
-      case Some(bytes) => Some(bytes.map("%02x".format(_)).mkString)
-    }
+  def getMd5: Try[Option[String]] = {
+    Try(Files.readAttributes(nioPath, classOf[AzureBlobFileAttributes]).blobHttpHeaders())
+      .map(h => Option(h.getContentMd5) match {
+        case None => None
+        case Some(arr) if arr.isEmpty => None
+        case Some(bytes) => Option(bytes.map("%02x".format(_)).mkString)
+      })
   }
 }

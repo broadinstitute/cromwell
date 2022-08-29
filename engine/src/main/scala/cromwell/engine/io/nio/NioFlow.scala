@@ -2,7 +2,6 @@ package cromwell.engine.io.nio
 
 import akka.stream.scaladsl.Flow
 import cats.effect.{IO, Timer}
-import cats.implicits._
 
 import scala.util.Try
 import cloud.nio.spi.{ChecksumFailure, ChecksumResult, ChecksumSkipped, ChecksumSuccess, FileHash, HashType}
@@ -13,6 +12,7 @@ import cromwell.core.path.Path
 import cromwell.engine.io.IoActor._
 import cromwell.engine.io.RetryableRequestSupport.{isInfinitelyRetryable, isRetryable}
 import cromwell.engine.io.{IoAttempts, IoCommandContext, IoCommandStalenessBackpressuring}
+import cromwell.filesystems.blob.BlobPath
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.s3.S3Path
@@ -136,7 +136,7 @@ class NioFlow(parallelism: Int,
           // If there is no stored checksum, don't attempt to validate.
           // If the missing checksum is itself an error condition, that
           // should be detected by the code that gets the FileHash.
-          case None => IO.pure(ChecksumSkipped)
+          case None => IO.pure(ChecksumSkipped())
         }
         verifiedValue <- checksumResult match {
           case _: ChecksumSkipped => IO.pure(uncheckedValue)
@@ -150,7 +150,8 @@ class NioFlow(parallelism: Int,
     }
 
     val fileContentIo = command.file match {
-      case _: DrsPath => readFileAndChecksum
+      case _: DrsPath  => readFileAndChecksum
+      case _: BlobPath => readFileAndChecksum
       case _ => readFile
     }
     fileContentIo.map(_.replaceAll("\\r\\n", "\\\n"))
@@ -170,6 +171,7 @@ class NioFlow(parallelism: Int,
   private def getStoredHash(file: Path): IO[Option[FileHash]] = {
     file match {
       case gcsPath: GcsPath => getFileHashForGcsPath(gcsPath).map(Option(_))
+      case blobPath: BlobPath => getFileHashForBlobPath(blobPath)
       case drsPath: DrsPath => IO {
         // drsPath.getFileHash throws if it can't find a stored hash.
         drsPath.getFileHash
@@ -211,6 +213,10 @@ class NioFlow(parallelism: Int,
 
   private def getFileHashForGcsPath(gcsPath: GcsPath): IO[FileHash] = delayedIoFromTry {
     gcsPath.objectBlobId.map(id => FileHash(HashType.GcsCrc32c, gcsPath.cloudStorage.get(id).getCrc32c))
+  }
+
+  private def getFileHashForBlobPath(blobPath: BlobPath): IO[Option[FileHash]] = delayedIoFromTry {
+    blobPath.getMd5.map(md5 => md5.map(FileHash(HashType.Md5, _)))
   }
 
   private def generateMd5FileHashForPath(path: Path): IO[FileHash] = delayedIoFromTry {

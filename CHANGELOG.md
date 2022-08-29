@@ -1,5 +1,19 @@
 # Cromwell Change Log
 
+## 84 Release Notes
+
+### CromIAM enabled user checks
+
+For Cromwell instances utilizing the CromIAM identity and access management component, the following endpoints now verify that the calling user to be enabled.
+* `/api/workflows/v1/backends`
+* `/api/womtool/v1/describe`
+
+This change makes the above endpoints consistent with the existing behavior of all the other endpoints in the `/api/` path. 
+
+## 83 Release Notes
+
+* Changes the type of several primary key columns in call caching tables from int to bigint. The database migration may be lengthy if your database contains a large amount of call caching data.
+
 ## 82 Release Notes
 
  * Restored missing example configuration file

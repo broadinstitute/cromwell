@@ -146,25 +146,6 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     }
   }
 
-  // TODO working on this
-  ignore should "get hash from a BlobPath when stored hash does not exist" in {
-    val testPath = mock[BlobPath]
-    val hashString = "2d01d5d9c24034d54fe4fba0ede5182d" // echo "hello there" | md5sum
-    testPath.md5HexString returns Try(None)
-    testPath.newInputStream returns new ByteArrayInputStream("hello there".getBytes)
-
-    val context = DefaultCommandContext(hashCommand(testPath).get, replyTo)
-    val testSource = Source.single(context)
-
-    val stream = testSource.via(flow).toMat(readSink)(Keep.right)
-
-    stream.run() map {
-      case (success: IoSuccess[_], _) => assert(success.result.asInstanceOf[String] == hashString)
-      case (ack, _) =>
-        fail(s"read returned an unexpected message:\n$ack\n\n")
-    }
-  }
-
   it should "fail if DrsPath hash doesn't match checksum" in {
     val testPath = mock[DrsPath]
     when(testPath.limitFileContent(any[Option[Int]], any[Boolean])(any[ExecutionContext])).thenReturn("hello".getBytes)

@@ -81,7 +81,7 @@ trait CromIamApiService extends RequestSupport
 
   def abortRoute: Route = path("api" / "workflows" / Segment / Segment / Abort) { (_, workflowId) =>
     post {
-      extractUserAndRequest { (user, req) =>
+      extractUserAndStrictRequest { (user, req) =>
         logUserWorkflowAction(user, workflowId, Abort)
         complete {
           authorizeAbortThenForwardToCromwell(user, workflowId, req).asHttpResponse
@@ -93,7 +93,7 @@ trait CromIamApiService extends RequestSupport
   //noinspection MutatorLikeMethodIsParameterless
   def releaseHoldRoute: Route =  path("api" / "workflows" / Segment / Segment / ReleaseHold) { (_, workflowId) =>
     post {
-      extractUserAndRequest { (user, req) =>
+      extractUserAndStrictRequest { (user, req) =>
         logUserWorkflowAction(user, workflowId, ReleaseHold)
         complete {
           authorizeUpdateThenForwardToCromwell(user, workflowId, req).asHttpResponse
@@ -112,7 +112,7 @@ trait CromIamApiService extends RequestSupport
   def labelPatchRoute: Route = {
     path("api" / "workflows" / Segment / Segment / Labels) { (_, workflowId) =>
       patch {
-        extractUserAndRequest { (user, req) =>
+        extractUserAndStrictRequest { (user, req) =>
           entity(as[String]) { labels =>
             logUserWorkflowAction(user, workflowId, Labels)
             validateLabels(Option(labels)) { _ => // Not using the labels, just using this to verify they didn't specify labels we don't want them to
@@ -130,7 +130,7 @@ trait CromIamApiService extends RequestSupport
 
   def callCacheDiffRoute: Route = path("api" / "workflows" / Segment / "callcaching" / "diff") { _ =>
     get {
-      extractUserAndRequest { (user, req) =>
+      extractUserAndStrictRequest { (user, req) =>
         logUserAction(user, "call caching diff")
         parameterSeq { parameters =>
           val paramMap = parameters.toMap
@@ -150,11 +150,9 @@ trait CromIamApiService extends RequestSupport
     */
   private def workflowGetRoute(urlSuffix: String): Route = path("api" / "workflows" / Segment / urlSuffix) { _ =>
     get {
-      extractUserAndRequest { (user, req) =>
+      extractUserAndStrictRequest { (user, req) =>
         logUserAction(user, urlSuffix)
-        complete {
-          cromwellClient.forwardToCromwell(req).asHttpResponse
-        }
+        forwardIfUserEnabled(user, req, cromwellClient, samClient)
       }
     }
   }
@@ -166,7 +164,7 @@ trait CromIamApiService extends RequestSupport
 
   private def workflowRoute(urlSuffix: String, method: Directive0): Route = path("api" / "workflows" / Segment / Segment / urlSuffix) { (_, workflowId) =>
     method {
-      extractUserAndRequest { (user, req) =>
+      extractUserAndStrictRequest { (user, req) =>
         logUserWorkflowAction(user, workflowId, urlSuffix)
         complete {
           authorizeReadThenForwardToCromwell(user, List(workflowId), req).asHttpResponse

@@ -18,6 +18,7 @@ import cromiam.sam.SamResourceJsonSupport._
 import cromiam.server.status.StatusCheckedSubsystem
 import cromwell.api.model._
 import mouse.boolean._
+import spray.json.RootJsonFormat
 
 import scala.concurrent.ExecutionContextExecutor
 
@@ -71,6 +72,33 @@ class SamClient(scheme: String,
       }
       _ = if (!whitelisted) log.error("Submit Access Denied for user {}", user.userId)
     } yield whitelisted
+  }
+
+  def isUserEnabledSam(user: User, cromIamRequest: HttpRequest): FailureResponseOrT[Boolean] = {
+    val request = HttpRequest(
+      method = HttpMethods.GET,
+      uri = samUserStatusUri,
+      headers = List[HttpHeader](user.authorization)
+    )
+
+    for {
+      response <- instrumentRequest(
+        () => Http().singleRequest(request).asFailureResponseOrT,
+        cromIamRequest,
+        instrumentationPrefixForSam(getUserEnabledPrefix)
+      )
+      userEnabled <- response.status match {
+        case StatusCodes.OK =>
+          val unmarshal: IO[UserStatusInfo] = IO.fromFuture(IO(Unmarshal(response.entity).to[UserStatusInfo]))
+          FailureResponseOrT.right[HttpResponse](unmarshal).map { userInfo =>
+            if (!userInfo.enabled) log.info("Access denied for user {}", user.userId)
+            userInfo.enabled
+          }
+        case _ =>
+          log.error("Could not verify access with Sam for user {}, error was {} {}", user.userId, response.status, response.toString().take(100))
+          FailureResponseOrT.pure[IO, HttpResponse](false)
+      }
+    } yield userEnabled
   }
 
   def collectionsForUser(user: User, cromIamRequest: HttpRequest): FailureResponseOrT[List[Collection]] = {
@@ -170,6 +198,7 @@ class SamClient(scheme: String,
   private lazy val samBaseResourceUri = s"$samBaseUri/api/resource"
   private lazy val samBaseCollectionUri = s"$samBaseResourceUri/workflow-collection"
   private lazy val samSubmitWhitelistUri = s"$samBaseResourceUri/caas/submit/action/get_whitelist"
+  private lazy val samUserStatusUri = s"$samBaseUri/register/user/v2/self/info"
 
 }
 
@@ -187,5 +216,9 @@ object SamClient {
   val SamDenialResponse = HttpResponse(status = StatusCodes.Forbidden, entity = new SamDenialException().getMessage)
 
   def SamRegisterCollectionExceptionResp(statusCode: StatusCode) = HttpResponse(status = statusCode, entity = SamRegisterCollectionException(statusCode).getMessage)
+
+  case class UserStatusInfo(adminEnabled: Boolean, enabled: Boolean, userEmail: String, userSubjectId: String)
+
+  implicit val UserStatusInfoFormat: RootJsonFormat[UserStatusInfo] = jsonFormat4(UserStatusInfo)
 
 }

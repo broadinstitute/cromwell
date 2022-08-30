@@ -1,10 +1,6 @@
 package cromwell.filesystems.blob
-
-import com.azure.core.credential.AzureSasCredential
-import cromwell.filesystems.blob.BlobPathBuilder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
 import java.nio.file.Files
 
 object BlobPathBuilderSpec {
@@ -51,15 +47,28 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers{
     val endpointHost = BlobPathBuilder.parseURI(endpoint).getHost
     val store = "inputs"
     val evalPath = "/test/inputFile.txt"
-    val sas = "{SAS TOKEN HERE}"
+    val blobTokenGenerator: BlobTokenGenerator = BlobTokenGenerator.createBlobTokenGenerator(store, endpoint)
     val testString = endpoint + "/" + store + evalPath
-    val blobPath: BlobPath = new BlobPathBuilder(new AzureSasCredential(sas), store, endpoint) build testString getOrElse fail()
+    val blobPath: BlobPath = new BlobPathBuilder(blobTokenGenerator, store, endpoint) build testString getOrElse fail()
+
     blobPath.container should equal(store)
     blobPath.endpoint should equal(endpoint)
     blobPath.pathAsString should equal(testString)
     blobPath.pathWithoutScheme should equal(endpointHost + "/" + store + evalPath)
+
     val is = Files.newInputStream(blobPath.nioPath)
     val fileText = (is.readAllBytes.map(_.toChar)).mkString
     fileText should include ("This is my test file!!!! Did it work?")
+  }
+
+  ignore should "build duplicate blob paths in the same filesystem" in {
+    val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
+    val store = "inputs"
+    val evalPath = "/test/inputFile.txt"
+    val blobTokenGenerator: BlobTokenGenerator = BlobTokenGenerator.createBlobTokenGenerator(store, endpoint)
+    val testString = endpoint + "/" + store + evalPath
+    val blobPath1: BlobPath = new BlobPathBuilder(blobTokenGenerator, store, endpoint) build testString getOrElse fail()
+    val blobPath2: BlobPath = new BlobPathBuilder(blobTokenGenerator, store, endpoint) build testString getOrElse fail()
+    blobPath1 should equal(blobPath2)
   }
 }

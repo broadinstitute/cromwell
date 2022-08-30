@@ -6,7 +6,7 @@ object Dependencies {
   private val akkaV = "2.5.32" // scala-steward:off (CROM-6637)
   private val ammoniteOpsV = "2.4.1"
   private val apacheHttpClientV = "4.5.13"
-  private val awsSdkV = "2.17.152"
+  private val awsSdkV = "2.17.194"
   // We would like to use the BOM to manage Azure SDK versions, but SBT doesn't support it.
   // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
   // https://github.com/sbt/sbt/issues/4531
@@ -190,7 +190,9 @@ object Dependencies {
       exclude("jakarta.activation", "jakarta.activation-api"),
     "com.azure" % "azure-security-keyvault-secrets" % azureKeyVaultSdkV
       exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
-      exclude("jakarta.activation", "jakarta.activation-api")
+      exclude("jakarta.activation", "jakarta.activation-api"),
+    "com.azure" % "azure-core-management" % "1.7.0",
+    "com.azure.resourcemanager" % "azure-resourcemanager" % "2.17.0"
   )
 
   val implFtpDependencies = List(
@@ -236,7 +238,13 @@ object Dependencies {
     "org.codehaus.janino" % "janino" % janinoV,
     // Replace all log4j usage with slf4j
     // https://www.slf4j.org/legacy.html#log4j-over-slf4j
-    "org.slf4j" % "log4j-over-slf4j" % slf4jV
+    "org.slf4j" % "log4j-over-slf4j" % slf4jV,
+    // Replace all commons-logging usage with slf4j
+    // https://www.slf4j.org/legacy.html#jcl-over-slf4j
+    "org.slf4j" % "jcl-over-slf4j" % slf4jV,
+    // Enable runtime replacing of java.util.logging usage with slf4j
+    // https://www.slf4j.org/legacy.html#jul-to-slf4j
+    "org.slf4j" % "jul-to-slf4j" % slf4jV,
   ) ++ slf4jFacadeDependencies
 
   private val slickDependencies = List(
@@ -716,4 +724,12 @@ object Dependencies {
       nimbusdsOverrides ++
       bouncyCastleOverrides ++
       protobufJavaOverrides
+
+  /*
+  Libraries that should be globally excluded.
+   */
+  val cromwellExcludeDependencies: List[ExclusionRule] = List(
+    // Replaced with jcl-over-slf4j
+    ExclusionRule("commons-logging", "commons-logging"),
+  )
 }

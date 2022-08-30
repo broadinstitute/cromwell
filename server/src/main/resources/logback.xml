@@ -1,5 +1,15 @@
 <configuration>
 
+    <!-- Enhanced thread and date reporting. -->
+    <conversionRule
+            conversionWord="et"
+            converterClass="cromwell.core.logging.EnhancedThreadConverter"
+    />
+    <conversionRule
+            conversionWord="ed"
+            converterClass="cromwell.core.logging.EnhancedDateConverter"
+    />
+
     <!-- default properties for FILEROLLER need to be set upfront -->
 
     <if condition='property("FILEROLLER_DIR").equals("")'>
@@ -18,7 +28,7 @@
         <then>
             <appender name="STANDARD_APPENDER" class="ch.qos.logback.core.ConsoleAppender">
                 <encoder>
-                    <pattern>%date %X{sourceThread} %-5level - %msg%n</pattern>
+                    <pattern>%ed{yyyy-MM-dd HH:mm:ss,SSS} %et %-5level - %msg%n</pattern>
                 </encoder>
             </appender>
         </then>
@@ -68,7 +78,7 @@
 
                 </rollingPolicy>
                 <encoder>
-                    <pattern>%d{yyyy-MM-dd HH:mm:ss,SSS} [%thread] %-5level %logger{35} - %msg%n</pattern>
+                    <pattern>%ed{yyyy-MM-dd HH:mm:ss,SSS} [%et] %-5level %logger{35} - %msg%n</pattern>
                 </encoder>
             </appender>
         </then>

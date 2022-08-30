@@ -22,7 +22,6 @@ import org.scalatest.matchers.should.Matchers
 import common.mock.MockSugar
 import cromwell.filesystems.blob.BlobPath
 
-import java.io.ByteArrayInputStream
 import java.nio.file.NoSuchFileException
 import java.util.UUID
 import scala.concurrent.ExecutionContext

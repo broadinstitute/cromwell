@@ -197,6 +197,60 @@ engine {
 }
 ```
 
+### Metadata notifications
+
+Cromwell has a feature that allows it to send metadata notifications to you. These notifications are mostly state transitions (task start, task end, workflow succeeded, workflow failed, etc) but also task descriptions. 
+
+In the AWS backend those notifications can be send to **SNS Topic** or **EventBridge Bus** and you can use them to trigger some post run jobs. Below you can find information on how to setup it.
+
+#### AWS SNS
+
+1. Create an SNS topic, add the following to your `cromwell.conf` file and replace `topicArn` with the topic's ARN you just created:
+
+```
+services {
+    MetadataService {
+        class="cromwell.services.metadata.impl.aws.HybridSnsMetadataServiceActor"
+        config {
+            aws {
+                application-name = "cromwell"
+                auths = [{
+                    name = "default"
+                    scheme = "default"
+                }]
+                region = "us-east-1"
+                topicArn = "<topicARN>"
+            }
+        }
+    }
+}
+```
+2. Add `sns:Publish` IAM policy to your Cromwell server IAM role. 
+
+#### AWS EventBridge
+
+1. Create an EventBridge bus, add the following to your `cromwell.conf` file and replace `busName` with the name of the bus you just created:
+
+```
+services {
+    MetadataService {
+        class="cromwell.services.metadata.impl.aws.HybridEventBridgeMetadataServiceActor"
+        config {
+            aws {
+                application-name = "cromwell"
+                auths = [{
+                    name = "default"
+                    scheme = "default"
+                }]
+                region = "us-east-1"
+                busName = "<busName>"
+            }
+        }
+    }
+}
+```
+2. Add `events:PutEvents` IAM policy to your Cromwell server IAM role. 
+
 
 AWS Batch
 ---------

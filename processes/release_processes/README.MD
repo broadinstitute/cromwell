@@ -45,7 +45,8 @@ The release WDL uses a github token to perform actions on your behalf.
 Make or copy the following files into a temporary `release/` directory outside the Cromwell repository. This removes any chance of committing your token.
 
 * A copy of the workflow file to run (https://github.com/broadinstitute/cromwell/blob/develop/publish/publish_workflow.wdl)
-* An inputs json like this:
+* An inputs json like this one.
+  * `publishHomebrew` is `false` due to Homebrew taking on this part themselves. Homebrew remains an active distribution channel. 
 
 ```json
 {

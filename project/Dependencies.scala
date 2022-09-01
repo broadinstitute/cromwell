@@ -45,7 +45,7 @@ object Dependencies {
   private val googleCloudStorageV = "2.9.2"
   private val googleGaxGrpcV = "2.12.2"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-genomics
-  private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"
+  private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20220328-2.0.0"
   private val googleHttpClientApacheV = "2.1.2"
   private val googleHttpClientV = "1.38.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-lifesciences

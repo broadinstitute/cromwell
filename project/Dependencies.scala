@@ -67,7 +67,7 @@ object Dependencies {
   private val liquibaseV = "4.8.0"
   private val logbackV = "1.2.10"
   private val lz4JavaV = "1.8.0"
-  private val mariadbV = "2.7.4"
+  private val mariadbV = "2.7.6"
   /*
   The StatsD reporter for DropWizard's (Code Hale's) Metrics 3.x still works with Metrics 4.x.
   Still would be great to move to Prometheus / OpenCensus

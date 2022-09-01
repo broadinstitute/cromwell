@@ -11,7 +11,7 @@ object Dependencies {
   // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
   // https://github.com/sbt/sbt/issues/4531
   private val azureStorageBlobNioV = "12.0.0-beta.18"
-  private val azureIdentitySdkV = "1.4.2"
+  private val azureIdentitySdkV = "1.4.6"
   private val azureKeyVaultSdkV = "4.3.7"
   private val betterFilesV = "3.9.1"
   /*

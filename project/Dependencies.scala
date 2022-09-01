@@ -34,7 +34,7 @@ object Dependencies {
   private val configsV = "0.6.1"
   private val delightRhinoSandboxV = "0.0.15"
   private val diffsonSprayJsonV = "4.1.1"
-  private val ficusV = "1.5.1"
+  private val ficusV = "1.5.2"
   private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
   private val googleApiClientV = "1.33.2"
   private val googleCloudBigQueryV = "2.10.0"

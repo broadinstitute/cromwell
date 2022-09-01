@@ -36,7 +36,7 @@ object Dependencies {
   private val diffsonSprayJsonV = "4.1.1"
   private val ficusV = "1.5.1"
   private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
-  private val googleApiClientV = "1.33.2"
+  private val googleApiClientV = "1.33.4"
   private val googleCloudBigQueryV = "2.10.0"
   // latest date via: https://github.com/googleapis/google-api-java-client-services/blob/main/clients/google-api-services-cloudkms/v1.metadata.json
   private val googleCloudKmsV = "v1-rev20220104-1.32.1"

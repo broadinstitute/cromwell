@@ -102,7 +102,7 @@ object Dependencies {
   private val sentryLogbackV = "5.2.4"
   private val shapelessV = "2.3.7"
   private val simulacrumV = "1.0.1"
-  private val slf4jV = "1.7.32"
+  private val slf4jV = "1.7.36"
   private val slickCatsV = "0.10.4"
   /* If you're about to update our Slick version:
     * Consider checking whether the new Slick version passes tests with upserts enabled (eg KeyValueDatabaseSpec)

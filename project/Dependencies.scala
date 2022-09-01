@@ -72,7 +72,7 @@ object Dependencies {
   The StatsD reporter for DropWizard's (Code Hale's) Metrics 3.x still works with Metrics 4.x.
   Still would be great to move to Prometheus / OpenCensus
    */
-  private val metrics4ScalaV = "4.2.8"
+  private val metrics4ScalaV = "4.2.9"
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "3.0.0"
   private val mockitoV = "3.11.2"

@@ -12,7 +12,7 @@ object Dependencies {
   // https://github.com/sbt/sbt/issues/4531
   private val azureStorageBlobNioV = "12.0.0-beta.18"
   private val azureIdentitySdkV = "1.4.2"
-  private val azureKeyVaultSdkV = "4.3.7"
+  private val azureKeyVaultSdkV = "4.3.8"
   private val betterFilesV = "3.9.1"
   /*
   cats-effect, fs2, http4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.

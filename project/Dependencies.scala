@@ -192,7 +192,7 @@ object Dependencies {
       exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
       exclude("jakarta.activation", "jakarta.activation-api"),
     "com.azure" % "azure-core-management" % "1.7.0",
-    "com.azure.resourcemanager" % "azure-resourcemanager" % "2.17.0"
+    "com.azure.resourcemanager" % "azure-resourcemanager" % "2.18.0"
   )
 
   val implFtpDependencies = List(

@@ -88,7 +88,7 @@ object Dependencies {
   private val postgresV = "42.3.3"
   private val pprintV = "0.7.1"
   private val rdf4jV = "3.7.1"
-  private val refinedV = "0.9.28"
+  private val refinedV = "0.9.29"
   private val rhinoV = "1.7.13"
   private val scalaCollectionCompatV = "2.5.0"
   private val scalaGraphV = "1.13.1"

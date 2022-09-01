@@ -76,7 +76,7 @@ object Dependencies {
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "3.0.0"
   private val mockitoV = "3.11.2"
-  private val mockserverNettyV = "5.11.2"
+  private val mockserverNettyV = "5.14.0"
   private val mouseV = "1.0.10"
   /*
   Newer version 8.0.29 fails `Control characters should work with metadata` Centaur tests, has charset changes mentioned in release notes

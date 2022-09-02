@@ -25,23 +25,23 @@ object BlobPathBuilderFactorySpec {
 class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSugar {
   def generateTokenExpiration(minutes: Long) = Instant.now.plus(minutes, ChronoUnit.MINUTES)
   it should "parse configs for a functioning factory" in {
-    val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
-    val store = BlobContainerName("inputs")
-    val sasToken = "{SAS TOKEN HERE}"
+    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
+    val container = BlobContainerName("storageContainer")
     val workspaceId = WorkspaceId("mockWorkspaceId")
     val workspaceManagerURL = WorkspaceManagerURL("https://test.ws.org")
     val instanceConfig = ConfigFactory.parseString(
       s"""
-      |sas-token = "$sasToken"
-      |store = "$store"
+      |container = "$container"
       |endpoint = "$endpoint"
+      |expiry-buffer-minutes = "10"
       |workspace-id = "$workspaceId"
       """.stripMargin)
     val singletonConfig = ConfigFactory.parseString(s"""workspace-manager-url = "$workspaceManagerURL" """)
     val globalConfig = ConfigFactory.parseString("""""")
     val factory = BlobPathBuilderFactory(globalConfig, instanceConfig, new BlobFileSystemConfig(singletonConfig))
-    factory.container should equal(store)
+    factory.container should equal(container)
     factory.endpoint should equal(endpoint)
+    factory.expiryBufferMinutes should equal(10L)
     factory.workspaceId should contain(workspaceId)
     factory.workspaceManagerURL should contain(workspaceManagerURL)
   }
@@ -71,117 +71,118 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     expired shouldBe true
   }
 
+  it should "test that a filesystem gets closed correctly" in {
+    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
+    val azureUri = BlobFileSystemManager.uri(endpoint)
+    val fileSystems = mock[FileSystemAPI]
+    val fileSystem = mock[FileSystem]
+    when(fileSystems.getFileSystem(azureUri)).thenReturn(Try(fileSystem))
+    when(fileSystems.closeFileSystem(azureUri)).thenCallRealMethod()
+
+    fileSystems.closeFileSystem(azureUri)
+    verify(fileSystem, times(1)).close()
+  }
+
   it should "test retrieveFileSystem with expired filesystem" in {
-    val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
+    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
     val expiredToken = generateTokenExpiration(9L)
     val refreshedToken = generateTokenExpiration(69L)
     val sasToken = BlobPathBuilderFactorySpec.buildExampleSasToken(refreshedToken)
-    val store = BlobContainerName("inputs")
-    val configMap = BlobFileSystemManager.buildConfigMap(sasToken, store)
+    val container = BlobContainerName("storageContainer")
+    val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
     val azureUri = BlobFileSystemManager.uri(endpoint)
 
     val fileSystems = mock[FileSystemAPI]
-    val fileSystem = mock[FileSystem]
-    when(fileSystems.getFileSystem(azureUri)).thenReturn(Try(fileSystem))
-    when(fileSystems.newFileSystem(azureUri, configMap)).thenReturn(fileSystem)
     val blobTokenGenerator = mock[BlobTokenGenerator]
     when(blobTokenGenerator.generateAccessToken).thenReturn(Try(sasToken))
 
-    val fsm = BlobFileSystemManager(store, endpoint, 10L, blobTokenGenerator, fileSystems, Some(expiredToken))
-    fsm.getExpiry() should contain(expiredToken)
-    fsm.hasTokenExpired shouldBe true
+    val fsm = BlobFileSystemManager(container, endpoint, 10L, blobTokenGenerator, fileSystems, Some(expiredToken))
+    fsm.getExpiry should contain(expiredToken)
+    fsm.isTokenExpired shouldBe true
     fsm.retrieveFilesystem()
 
-    fsm.getExpiry().isDefined shouldBe true
-    fsm.getExpiry() should contain(refreshedToken)
-    fsm.hasTokenExpired shouldBe false
-    verify(fileSystems, times(1)).getFileSystem(azureUri)
+    fsm.getExpiry should contain(refreshedToken)
+    fsm.isTokenExpired shouldBe false
+    verify(fileSystems, never()).getFileSystem(azureUri)
     verify(fileSystems, times(1)).newFileSystem(azureUri, configMap)
-    verify(fileSystem, times(1)).close()
+    verify(fileSystems, times(1)).closeFileSystem(azureUri)
   }
 
   it should "test retrieveFileSystem with an unexpired fileSystem" in {
-    val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
+    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
     val initialToken = generateTokenExpiration(11L)
     val refreshedToken = generateTokenExpiration(71L)
     val sasToken = BlobPathBuilderFactorySpec.buildExampleSasToken(refreshedToken)
-    val store = BlobContainerName("inputs")
-    val configMap = BlobFileSystemManager.buildConfigMap(sasToken, store)
+    val container = BlobContainerName("storageContainer")
+    val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
     val azureUri = BlobFileSystemManager.uri(endpoint)
+    // Need a fake filesystem to supply the getFileSystem simulated try
+    val dummyFileSystem = null
 
     val fileSystems = mock[FileSystemAPI]
-    val fileSystem = mock[FileSystem]
-    when(fileSystems.getFileSystem(azureUri)).thenReturn(Try(fileSystem))
-    when(fileSystems.newFileSystem(azureUri, configMap)).thenReturn(fileSystem)
+    when(fileSystems.getFileSystem(azureUri)).thenReturn(Try(dummyFileSystem))
+
     val blobTokenGenerator = mock[BlobTokenGenerator]
     when(blobTokenGenerator.generateAccessToken).thenReturn(Try(sasToken))
 
-    val fsm = BlobFileSystemManager(store, endpoint, 10L, blobTokenGenerator, fileSystems, Some(initialToken))
-    fsm.getExpiry() should contain(initialToken)
-    fsm.hasTokenExpired shouldBe false
+    val fsm = BlobFileSystemManager(container, endpoint, 10L, blobTokenGenerator, fileSystems, Some(initialToken))
+    fsm.getExpiry should contain(initialToken)
+    fsm.isTokenExpired shouldBe false
     fsm.retrieveFilesystem()
 
-    fsm.getExpiry().isDefined shouldBe true
-    fsm.getExpiry() should contain(initialToken)
-    fsm.hasTokenExpired shouldBe false
+    fsm.getExpiry should contain(initialToken)
+    fsm.isTokenExpired shouldBe false
     verify(fileSystems, times(1)).getFileSystem(azureUri)
     verify(fileSystems, never()).newFileSystem(azureUri, configMap)
-    verify(fileSystem, never()).close()
+    verify(fileSystems, never()).closeFileSystem(azureUri)
   }
 
   it should "test retrieveFileSystem with an uninitialized filesystem" in {
-    val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
+    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
     val refreshedToken = generateTokenExpiration(71L)
     val sasToken = BlobPathBuilderFactorySpec.buildExampleSasToken(refreshedToken)
-    val store = BlobContainerName("inputs")
-    val configMap = BlobFileSystemManager.buildConfigMap(sasToken, store)
+    val container = BlobContainerName("storageContainer")
+    val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
     val azureUri = BlobFileSystemManager.uri(endpoint)
 
     val fileSystems = mock[FileSystemAPI]
-    val fileSystem = mock[FileSystem]
     when(fileSystems.getFileSystem(azureUri)).thenReturn(Failure(new FileSystemNotFoundException))
-    when(fileSystems.newFileSystem(azureUri, configMap)).thenReturn(fileSystem)
     val blobTokenGenerator = mock[BlobTokenGenerator]
     when(blobTokenGenerator.generateAccessToken).thenReturn(Try(sasToken))
 
-    val fsm = BlobFileSystemManager(store, endpoint, 10L, blobTokenGenerator, fileSystems)
-    fsm.getExpiry().isDefined shouldBe false
-    fsm.hasTokenExpired shouldBe false
+    val fsm = BlobFileSystemManager(container, endpoint, 10L, blobTokenGenerator, fileSystems, Some(refreshedToken))
+    fsm.getExpiry.isDefined shouldBe true
+    fsm.isTokenExpired shouldBe false
     fsm.retrieveFilesystem()
 
-    fsm.getExpiry().isDefined shouldBe true
-    fsm.getExpiry() should contain(refreshedToken)
-    fsm.hasTokenExpired shouldBe false
+    fsm.getExpiry should contain(refreshedToken)
+    fsm.isTokenExpired shouldBe false
     verify(fileSystems, times(1)).getFileSystem(azureUri)
     verify(fileSystems, times(1)).newFileSystem(azureUri, configMap)
-    verify(fileSystem, never()).close()
+    verify(fileSystems, never()).closeFileSystem(azureUri)
   }
 
   it should "test retrieveFileSystem with an unknown filesystem" in {
-    val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
+    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
     val refreshedToken = generateTokenExpiration(71L)
     val sasToken = BlobPathBuilderFactorySpec.buildExampleSasToken(refreshedToken)
-    val store = BlobContainerName("inputs")
-    val configMap = BlobFileSystemManager.buildConfigMap(sasToken, store)
+    val container = BlobContainerName("storageContainer")
+    val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
     val azureUri = BlobFileSystemManager.uri(endpoint)
 
     val fileSystems = mock[FileSystemAPI]
-    val fileSystem = mock[FileSystem]
-    when(fileSystems.getFileSystem(azureUri)).thenReturn(Try(fileSystem))
-    when(fileSystems.newFileSystem(azureUri, configMap)).thenReturn(fileSystem)
     val blobTokenGenerator = mock[BlobTokenGenerator]
     when(blobTokenGenerator.generateAccessToken).thenReturn(Try(sasToken))
 
-    val fsm = BlobFileSystemManager(store, endpoint, 10L, blobTokenGenerator, fileSystems)
-    fsm.getExpiry().isDefined shouldBe false
-    fsm.hasTokenExpired shouldBe false
+    val fsm = BlobFileSystemManager(container, endpoint, 10L, blobTokenGenerator, fileSystems)
+    fsm.getExpiry.isDefined shouldBe false
+    fsm.isTokenExpired shouldBe false
     fsm.retrieveFilesystem()
 
-    fsm.getExpiry().isDefined shouldBe true
-    fsm.getExpiry() should contain(refreshedToken)
-    fsm.hasTokenExpired shouldBe false
-    verify(fileSystems, times(1)).getFileSystem(azureUri)
+    fsm.getExpiry should contain(refreshedToken)
+    fsm.isTokenExpired shouldBe false
+    verify(fileSystems, never()).getFileSystem(azureUri)
     verify(fileSystems, times(1)).newFileSystem(azureUri, configMap)
-    verify(fileSystem, times(1)).close()
+    verify(fileSystems, times(1)).closeFileSystem(azureUri)
   }
 }

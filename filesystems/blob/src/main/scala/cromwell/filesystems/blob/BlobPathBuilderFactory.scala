@@ -26,7 +26,7 @@ import scala.util.{Failure, Success, Try}
 
 final case class BlobFileSystemConfig(config: Config)
 final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Config, singletonConfig: BlobFileSystemConfig) extends PathBuilderFactory {
-  val container: BlobContainerName = BlobContainerName(instanceConfig.as[String]("store"))
+  val container: BlobContainerName = BlobContainerName(instanceConfig.as[String]("container"))
   val endpoint: EndpointURL = EndpointURL(instanceConfig.as[String]("endpoint"))
   val workspaceId: Option[WorkspaceId] = instanceConfig.as[Option[String]]("workspace-id").map(WorkspaceId(_))
   val expiryBufferMinutes: Long = instanceConfig.as[Option[Long]]("expiry-buffer-minutes").getOrElse(10)
@@ -74,17 +74,17 @@ case class BlobFileSystemManager(container: BlobContainerName,
 
   def getExpiry: Option[Instant] = expiry
   def uri: URI = BlobFileSystemManager.uri(endpoint)
-  def hasTokenExpired: Boolean = expiry.exists(BlobFileSystemManager.hasTokenExpired(_, buffer))
+  def isTokenExpired: Boolean = expiry.exists(BlobFileSystemManager.hasTokenExpired(_, buffer))
   def retrieveFilesystem(): Try[FileSystem] = {
     synchronized {
-      (hasTokenExpired, expiry) match {
-        case (false, Some(_)) => fileSystemAPI.getFileSystem(uri) recoverWith {
+      (isTokenExpired, expiry) match {
+        case (false, Some(_)) => fileSystemAPI.getFileSystem(uri).recoverWith {
           // If no filesystem already exists, this will create a new connection, with the provided configs
           case _: FileSystemNotFoundException => blobTokenGenerator.generateAccessToken.flatMap(generateFilesystem(uri, container, _))
         }
         // If the token has expired, OR there is no token record, try to close the FS and regenerate
         case _ =>
-          closeFileSystem(uri)
+          fileSystemAPI.closeFileSystem(uri)
           blobTokenGenerator.generateAccessToken.flatMap(generateFilesystem(uri, container, _))
       }
     }
@@ -95,12 +95,12 @@ case class BlobFileSystemManager(container: BlobContainerName,
     Try(fileSystemAPI.newFileSystem(uri, BlobFileSystemManager.buildConfigMap(token, container)))
   }
 
-  private def closeFileSystem(uri: URI): Try[Unit] = fileSystemAPI.getFileSystem(uri).map(_.close)
 }
 
 case class FileSystemAPI() {
   def getFileSystem(uri: URI): Try[FileSystem] = Try(FileSystems.getFileSystem(uri))
   def newFileSystem(uri: URI, config: Map[String, Object]): FileSystem = FileSystems.newFileSystem(uri, config.asJava)
+  def closeFileSystem(uri: URI): Option[Unit] = getFileSystem(uri).toOption.map(_.close)
 }
 
 sealed trait BlobTokenGenerator {def generateAccessToken: Try[AzureSasCredential]}

@@ -59,7 +59,7 @@ object Dependencies {
   private val hsqldbV = "2.6.1"
   private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
   private val jacksonV = "2.13.3"
-  private val janinoV = "3.1.6"
+  private val janinoV = "3.1.7"
   private val jsr305V = "3.0.2"
   private val junitV = "4.13.2"
   private val kindProjectorV = "0.13.2"
@@ -72,24 +72,24 @@ object Dependencies {
   The StatsD reporter for DropWizard's (Code Hale's) Metrics 3.x still works with Metrics 4.x.
   Still would be great to move to Prometheus / OpenCensus
    */
-  private val metrics4ScalaV = "4.2.8"
+  private val metrics4ScalaV = "4.2.9"
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "3.0.0"
-  private val mockitoV = "3.11.2"
-  private val mockserverNettyV = "5.11.2"
-  private val mouseV = "1.0.10"
+  private val mockitoV = "3.12.4"
+  private val mockserverNettyV = "5.14.0"
+  private val mouseV = "1.0.11"
   /*
   Newer version 8.0.29 fails `Control characters should work with metadata` Centaur tests, has charset changes mentioned in release notes
   https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8-0-29.html#mysqld-8-0-29-charset
    */
-  private val mysqlV = "8.0.28"
+  private val mysqlV = "8.0.30"
   private val nettyV = "4.1.72.Final"
-  private val owlApiV = "5.1.19"
+  private val owlApiV = "5.1.20"
   private val postgresV = "42.3.3"
   private val pprintV = "0.7.1"
   private val rdf4jV = "3.7.1"
   private val refinedV = "0.9.28"
-  private val rhinoV = "1.7.13"
+  private val rhinoV = "1.7.14"
   private val scalaCollectionCompatV = "2.5.0"
   private val scalaGraphV = "1.13.1"
   private val scalaLoggingV = "3.9.4"
@@ -116,11 +116,11 @@ object Dependencies {
     * https://github.com/slick/slick/pull/2201
   */
   private val slickV = "3.4.0-M1"
-  private val snakeyamlV = "1.30"
+  private val snakeyamlV = "1.31"
   private val sprayJsonV = "1.3.6"
   private val sttpV = "1.7.2"
   private val swaggerParserV = "1.0.56"
-  private val swaggerUiV = "4.5.0"
+  private val swaggerUiV = "4.5.2"
   private val testContainersScalaV = "0.40.2"
   private val tikaV = "2.3.0"
   private val typesafeConfigV = "1.4.1"

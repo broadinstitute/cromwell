@@ -1,7 +1,7 @@
 package cromwell.filesystems.blob
+import common.mock.MockSugar
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import common.mock.MockSugar
 
 object BlobPathBuilderSpec {
   def buildEndpoint(storageAccount: String) = EndpointURL(s"https://$storageAccount.blob.core.windows.net")
@@ -42,14 +42,12 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     }
   }
 
-  // BlobPath methods
-
-  it should "build a blob path from a test string and read a file" in {
+  ignore should "build a blob path from a test string and read a file" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
     val endpointHost = BlobPathBuilder.parseURI(endpoint.value).getHost
     val store = BlobContainerName("inputs")
     val evalPath = "/test/inputFile.txt"
-    val blobTokenGenerator = mock[BlobTokenGenerator]
+    val blobTokenGenerator = NativeBlobTokenGenerator(store, endpoint)
     val fsm: BlobFileSystemManager = BlobFileSystemManager(store, endpoint, 10L, blobTokenGenerator)
     val testString = endpoint.value + "/" + store + evalPath
     val blobPath: BlobPath = new BlobPathBuilder(store, endpoint)(fsm) build testString getOrElse fail()
@@ -63,11 +61,11 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     fileText should include ("This is my test file!!!! Did it work?")
   }
 
-  it should "build duplicate blob paths in the same filesystem" in {
+  ignore should "build duplicate blob paths in the same filesystem" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
     val store = BlobContainerName("inputs")
     val evalPath = "/test/inputFile.txt"
-    val blobTokenGenerator = mock[BlobTokenGenerator]
+    val blobTokenGenerator = NativeBlobTokenGenerator(store, endpoint)
     val fsm: BlobFileSystemManager = BlobFileSystemManager(store, endpoint, 10, blobTokenGenerator)
     val testString = endpoint.value + "/" + store + evalPath
     val blobPath1: BlobPath = new BlobPathBuilder(store, endpoint)(fsm) build testString getOrElse fail()

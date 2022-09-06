@@ -130,7 +130,7 @@ case class NativeBlobTokenGenerator(container: BlobContainerName, endpoint: Endp
   private def azureCredentialBuilder = new DefaultAzureCredentialBuilder()
       .authorityHost(azureProfile.getEnvironment.getActiveDirectoryEndpoint)
       .build
-  private def azure = AzureResourceManager.authenticate(azureCredentialBuilder, azureProfile).withDefaultSubscription()
+  private def azure = AzureResourceManager.authenticate(azureCredentialBuilder, azureProfile).withSubscription("62b22893-6bc1-46d9-8a90-806bb3cce3c9")
 
   private def findAzureStorageAccount(name: StorageAccountName) = azure.storageAccounts.list.asScala.find(_.name.equals(name.value))
       .fold[Try[StorageAccount]](Failure(new Exception("Azure Storage Account not found")))(Success(_))

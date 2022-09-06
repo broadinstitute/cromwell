@@ -16,7 +16,7 @@ object BlobPathBuilder {
 
   def invalidBlobPathMessage(container: BlobContainerName, endpoint: EndpointURL) = s"Malformed Blob URL for this builder. Expecting a URL for a container $container and endpoint $endpoint"
   def parseURI(string: String): URI = URI.create(UrlEscapers.urlFragmentEscaper().escape(string))
-  def parseStorageAccount(uri: URI): Try[StorageAccountName] = uri.getHost.split("\\.").find(_.nonEmpty).map(StorageAccountName(_)).fold[Try[StorageAccountName]](Failure(new Exception("bad")))(Success(_))
+  def parseStorageAccount(uri: URI): Try[StorageAccountName] = uri.getHost.split("\\.").find(_.nonEmpty).map(StorageAccountName(_)).fold[Try[StorageAccountName]](Failure(new Exception("Could not parse storage account")))(Success(_))
 
   /**
     * Validates a that a path from a string is a valid BlobPath of the format:

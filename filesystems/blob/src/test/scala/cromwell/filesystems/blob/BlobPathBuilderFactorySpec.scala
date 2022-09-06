@@ -32,6 +32,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val instanceConfig = ConfigFactory.parseString(
       s"""
       |container = "$container"
+
       |endpoint = "$endpoint"
       |expiry-buffer-minutes = "10"
       |workspace-id = "$workspaceId"

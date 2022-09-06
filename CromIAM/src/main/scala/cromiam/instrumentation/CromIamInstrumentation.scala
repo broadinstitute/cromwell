@@ -20,6 +20,7 @@ trait CromIamInstrumentation extends CromwellInstrumentation {
 
   val samPrefix: NonEmptyList[String] = NonEmptyList.one("sam")
   val getWhitelistPrefix = NonEmptyList.one("get-whitelist")
+  val getUserEnabledPrefix = NonEmptyList.one("get-user-enabled")
   val userCollectionPrefix = NonEmptyList.one("user-collection")
   val authCollectionPrefix = NonEmptyList.one("auth-collection")
   val registerCollectionPrefix = NonEmptyList.one("register-collection")

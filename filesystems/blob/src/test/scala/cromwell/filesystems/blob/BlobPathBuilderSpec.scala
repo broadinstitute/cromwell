@@ -1,7 +1,10 @@
 package cromwell.filesystems.blob
 import common.mock.MockSugar
+import org.mockito.Mockito.when
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import scala.util.Try
+import scala.util.Failure
 
 object BlobPathBuilderSpec {
   def buildEndpoint(storageAccount: String) = EndpointURL(s"https://$storageAccount.blob.core.windows.net")
@@ -40,6 +43,18 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
       case BlobPathBuilder.ValidBlobPath(path) => fail(s"Valid path: $path found when verifying mismatched container")
       case BlobPathBuilder.UnparsableBlobPath(errorMessage) => errorMessage.getMessage should equal(BlobPathBuilder.invalidBlobPathMessage(container, endpoint))
     }
+  }
+
+  it should "provide a readable error when getting an illegal nioPath" in {
+    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
+    val container = BlobContainerName("container")
+    val evalPath = "/path/to/file"
+    val exception = new Exception("Failed to do the thing")
+    val fsm = mock[BlobFileSystemManager]
+    when(fsm.retrieveFilesystem()).thenReturn(Failure(exception))
+    val path = BlobPath(evalPath, endpoint, container)(fsm)
+    val testException = Try(path.nioPath).failed.toOption
+    testException should contain(exception)
   }
 
   ignore should "build a blob path from a test string and read a file" in {

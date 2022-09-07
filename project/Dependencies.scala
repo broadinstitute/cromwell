@@ -10,9 +10,9 @@ object Dependencies {
   // We would like to use the BOM to manage Azure SDK versions, but SBT doesn't support it.
   // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
   // https://github.com/sbt/sbt/issues/4531
-  private val azureStorageBlobNioV = "12.0.0-beta.18"
-  private val azureIdentitySdkV = "1.4.2"
-  private val azureKeyVaultSdkV = "4.3.7"
+  private val azureStorageBlobNioV = "12.0.0-beta.19"
+  private val azureIdentitySdkV = "1.4.6"
+  private val azureKeyVaultSdkV = "4.3.8"
   private val betterFilesV = "3.9.1"
   /*
   cats-effect, fs2, http4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
@@ -34,15 +34,15 @@ object Dependencies {
   private val configsV = "0.6.1"
   private val delightRhinoSandboxV = "0.0.15"
   private val diffsonSprayJsonV = "4.1.1"
-  private val ficusV = "1.5.1"
+  private val ficusV = "1.5.2"
   private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
-  private val googleApiClientV = "1.33.2"
-  private val googleCloudBigQueryV = "2.10.0"
+  private val googleApiClientV = "1.33.4"
+  private val googleCloudBigQueryV = "2.10.10"
   // latest date via: https://github.com/googleapis/google-api-java-client-services/blob/main/clients/google-api-services-cloudkms/v1.metadata.json
   private val googleCloudKmsV = "v1-rev20220104-1.32.1"
   private val googleCloudMonitoringV = "3.2.5"
-  private val googleCloudNioV = "0.124.8"
-  private val googleCloudStorageV = "2.9.2"
+  private val googleCloudNioV = "0.124.14"
+  private val googleCloudStorageV = "2.9.3"
   private val googleGaxGrpcV = "2.12.2"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-genomics
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"
@@ -50,16 +50,16 @@ object Dependencies {
   private val googleHttpClientV = "1.38.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-lifesciences
   private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20210813-1.32.1"
-  private val googleOauth2V = "1.5.3"
+  private val googleOauth2V = "1.10.0"
   private val googleOauthClientV = "1.33.1"
-  private val googleCloudResourceManagerV = "1.2.5"
-  private val grpcV = "1.45.0"
+  private val googleCloudResourceManagerV = "1.2.11"
+  private val grpcV = "1.45.1"
   private val guavaV = "31.0.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.6.1"
   private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
   private val jacksonV = "2.13.3"
-  private val janinoV = "3.1.7"
+  private val janinoV = "3.1.6"
   private val jsr305V = "3.0.2"
   private val junitV = "4.13.2"
   private val kindProjectorV = "0.13.2"
@@ -72,24 +72,24 @@ object Dependencies {
   The StatsD reporter for DropWizard's (Code Hale's) Metrics 3.x still works with Metrics 4.x.
   Still would be great to move to Prometheus / OpenCensus
    */
-  private val metrics4ScalaV = "4.2.9"
+  private val metrics4ScalaV = "4.2.8"
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "3.0.0"
   private val mockitoV = "3.12.4"
   private val mockserverNettyV = "5.14.0"
-  private val mouseV = "1.0.11"
+  private val mouseV = "1.0.10"
   /*
   Newer version 8.0.29 fails `Control characters should work with metadata` Centaur tests, has charset changes mentioned in release notes
   https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8-0-29.html#mysqld-8-0-29-charset
    */
-  private val mysqlV = "8.0.30"
+  private val mysqlV = "8.0.28"
   private val nettyV = "4.1.72.Final"
-  private val owlApiV = "5.1.20"
+  private val owlApiV = "5.1.19"
   private val postgresV = "42.3.3"
   private val pprintV = "0.7.1"
   private val rdf4jV = "3.7.1"
-  private val refinedV = "0.9.28"
-  private val rhinoV = "1.7.14"
+  private val refinedV = "0.9.29"
+  private val rhinoV = "1.7.13"
   private val scalaCollectionCompatV = "2.5.0"
   private val scalaGraphV = "1.13.1"
   private val scalaLoggingV = "3.9.4"
@@ -98,9 +98,9 @@ object Dependencies {
   private val scalameterV = "0.19"
   private val scalatestV = "3.2.10"
   private val scalatestScalacheckV = scalatestV + ".0"
-  private val scoptV = "4.0.1"
+  private val scoptV = "4.1.0"
   private val sentryLogbackV = "5.2.4"
-  private val shapelessV = "2.3.7"
+  private val shapelessV = "2.3.9"
   private val simulacrumV = "1.0.1"
   private val slf4jV = "1.7.32"
   private val slickCatsV = "0.10.4"
@@ -120,7 +120,7 @@ object Dependencies {
   private val sprayJsonV = "1.3.6"
   private val sttpV = "1.7.2"
   private val swaggerParserV = "1.0.56"
-  private val swaggerUiV = "4.5.2"
+  private val swaggerUiV = "4.5.0"
   private val testContainersScalaV = "0.40.2"
   private val tikaV = "2.3.0"
   private val typesafeConfigV = "1.4.1"
@@ -191,8 +191,8 @@ object Dependencies {
     "com.azure" % "azure-security-keyvault-secrets" % azureKeyVaultSdkV
       exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
       exclude("jakarta.activation", "jakarta.activation-api"),
-    "com.azure" % "azure-core-management" % "1.7.0",
-    "com.azure.resourcemanager" % "azure-resourcemanager" % "2.17.0"
+    "com.azure" % "azure-core-management" % "1.7.1",
+    "com.azure.resourcemanager" % "azure-resourcemanager" % "2.18.0"
   )
 
   val implFtpDependencies = List(

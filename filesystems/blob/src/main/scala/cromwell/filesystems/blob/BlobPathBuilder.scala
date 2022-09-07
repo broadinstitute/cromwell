@@ -74,8 +74,7 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
   private def findNioPath(path: String): NioPath = (for {
     fileSystem <- fsm.retrieveFilesystem()
     nioPath = fileSystem.getPath(path)
-  } yield nioPath) match {
-    case Success(value) => value
-    case Failure(exception) => throw exception
-  }
+  // This is purposefully an unprotected get because the NIO API needing an unwrapped path object.
+  // If an error occurs the api expects a thrown exception
+  } yield nioPath).get
 }

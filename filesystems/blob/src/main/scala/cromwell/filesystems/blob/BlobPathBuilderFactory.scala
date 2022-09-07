@@ -68,22 +68,23 @@ case class BlobFileSystemManager(container: BlobContainerName,
     expiryBufferMinutes: Long,
     blobTokenGenerator: BlobTokenGenerator,
     fileSystemAPI: FileSystemAPI = FileSystemAPI(),
-    initialExpiration: Option[Instant] = None) {
+    private val initialExpiration: Option[Instant] = None) {
   private var expiry: Option[Instant] = initialExpiration
   val buffer: Duration = Duration.of(expiryBufferMinutes, ChronoUnit.MINUTES)
 
   def getExpiry: Option[Instant] = expiry
   def uri: URI = BlobFileSystemManager.uri(endpoint)
   def isTokenExpired: Boolean = expiry.exists(BlobFileSystemManager.hasTokenExpired(_, buffer))
+  def shouldReopenFilesystem: Boolean = isTokenExpired || expiry.isEmpty
   def retrieveFilesystem(): Try[FileSystem] = {
     synchronized {
-      (isTokenExpired, expiry) match {
-        case (false, Some(_)) => fileSystemAPI.getFileSystem(uri).recoverWith {
+      shouldReopenFilesystem match {
+        case false => fileSystemAPI.getFileSystem(uri).recoverWith {
           // If no filesystem already exists, this will create a new connection, with the provided configs
           case _: FileSystemNotFoundException => blobTokenGenerator.generateAccessToken.flatMap(generateFilesystem(uri, container, _))
         }
         // If the token has expired, OR there is no token record, try to close the FS and regenerate
-        case _ =>
+        case true =>
           fileSystemAPI.closeFileSystem(uri)
           blobTokenGenerator.generateAccessToken.flatMap(generateFilesystem(uri, container, _))
       }
@@ -92,6 +93,7 @@ case class BlobFileSystemManager(container: BlobContainerName,
 
   private def generateFilesystem(uri: URI, container: BlobContainerName, token: AzureSasCredential): Try[FileSystem] = {
     expiry = BlobFileSystemManager.parseTokenExpiry(token)
+    if (expiry.isEmpty) return Failure(new Exception("Could not reopen filesystem, no expiration found"))
     Try(fileSystemAPI.newFileSystem(uri, BlobFileSystemManager.buildConfigMap(token, container)))
   }
 

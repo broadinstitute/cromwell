@@ -50,9 +50,9 @@ object Dependencies {
   private val googleHttpClientV = "1.38.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-lifesciences
   private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20210813-1.32.1"
-  private val googleOauth2V = "1.10.0"
+  private val googleOauth2V = "1.5.3"
   private val googleOauthClientV = "1.33.1"
-  private val googleCloudResourceManagerV = "1.2.11"
+  private val googleCloudResourceManagerV = "1.2.5"
   private val grpcV = "1.45.1"
   private val guavaV = "31.0.1-jre"
   private val heterodonV = "1.0.0-beta3"

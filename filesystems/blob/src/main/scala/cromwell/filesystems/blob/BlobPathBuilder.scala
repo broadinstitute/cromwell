@@ -15,8 +15,9 @@ object BlobPathBuilder {
   case class UnparsableBlobPath(errorMessage: Throwable) extends BlobPathValidation
 
   def invalidBlobPathMessage(container: BlobContainerName, endpoint: EndpointURL) = s"Malformed Blob URL for this builder. Expecting a URL for a container $container and endpoint $endpoint"
-  def parseURI(string: String): URI = URI.create(UrlEscapers.urlFragmentEscaper().escape(string))
-  def parseStorageAccount(uri: URI): Try[StorageAccountName] = uri.getHost.split("\\.").find(_.nonEmpty).map(StorageAccountName(_)).fold[Try[StorageAccountName]](Failure(new Exception("Could not parse storage account")))(Success(_))
+  def parseURI(string: String): Try[URI] = Try(URI.create(UrlEscapers.urlFragmentEscaper().escape(string)))
+  def parseStorageAccount(uri: URI): Try[StorageAccountName] = uri.getHost.split("\\.").find(_.nonEmpty).map(StorageAccountName(_))
+      .map(Success(_)).getOrElse(Failure(new Exception("Could not parse storage account")))
 
   /**
     * Validates a that a path from a string is a valid BlobPath of the format:
@@ -37,17 +38,19 @@ object BlobPathBuilder {
     * If the configured container and storage account do not match, the string is considered unparsable
     */
   def validateBlobPath(string: String, container: BlobContainerName, endpoint: EndpointURL): BlobPathValidation = {
-    Try {
-      val uri = parseURI(string)
-      val storageAccount = parseStorageAccount(parseURI(endpoint.value))
-      val hasContainer = uri.getPath.split("/").find(_.nonEmpty).contains(container.value)
-      val hasEndpoint = storageAccount.toOption.exists(parseStorageAccount(uri).toOption.contains(_))
-      if (hasContainer && storageAccount.isSuccess && hasEndpoint) {
-        ValidBlobPath(uri.getPath.replaceFirst("/" + container, ""))
+    (for { // For comprehension?
+      testUri <- parseURI(string)
+      endpointUri <- parseURI(endpoint.value)
+      testStorageAccount <- parseStorageAccount(testUri)
+      endpointStorageAccount <- parseStorageAccount(endpointUri)
+      hasContainer = testUri.getPath.split("/").find(_.nonEmpty).contains(container.value)
+      hasEndpoint = testStorageAccount.equals(endpointStorageAccount)
+      blobPathValidation = if (hasContainer && hasEndpoint) {
+        ValidBlobPath(testUri.getPath.replaceFirst("/" + container, ""))
       } else {
         UnparsableBlobPath(new MalformedURLException(invalidBlobPathMessage(container, endpoint)))
       }
-    } recover { case t => UnparsableBlobPath(t) } get
+    } yield blobPathValidation) recover { case t => UnparsableBlobPath(t) } get
   }
 }
 
@@ -69,7 +72,7 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
 
   override def pathAsString: String = List(endpoint, container, nioPath.toString).mkString("/")
 
-  override def pathWithoutScheme: String = parseURI(endpoint.value).getHost + "/" + container + "/" + nioPath.toString
+  override def pathWithoutScheme: String = parseURI(endpoint.value).map(_.getHost + "/" + container + "/" + nioPath.toString).get
 
   private def findNioPath(path: String): NioPath = (for {
     fileSystem <- fsm.retrieveFilesystem()

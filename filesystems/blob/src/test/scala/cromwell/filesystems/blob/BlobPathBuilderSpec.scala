@@ -3,8 +3,8 @@ import common.mock.MockSugar
 import org.mockito.Mockito.when
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import scala.util.Try
-import scala.util.Failure
+
+import scala.util.{Failure, Try}
 
 object BlobPathBuilderSpec {
   def buildEndpoint(storageAccount: String) = EndpointURL(s"https://$storageAccount.blob.core.windows.net")
@@ -59,7 +59,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
 
   ignore should "build a blob path from a test string and read a file" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
-    val endpointHost = BlobPathBuilder.parseURI(endpoint.value).getHost
+    val endpointHost = BlobPathBuilder.parseURI(endpoint.value).map(_.getHost).getOrElse(fail("Could not parse URI"))
     val store = BlobContainerName("inputs")
     val evalPath = "/test/inputFile.txt"
     val blobTokenGenerator = NativeBlobTokenGenerator(store, endpoint)

@@ -5,7 +5,6 @@ import com.azure.core.management.AzureEnvironment
 import com.azure.core.management.profile.AzureProfile
 import com.azure.identity.DefaultAzureCredentialBuilder
 import com.azure.resourcemanager.AzureResourceManager
-import com.azure.resourcemanager.storage.models.{StorageAccount, StorageAccountKey}
 import com.azure.storage.blob.nio.AzureFileSystem
 import com.azure.storage.blob.sas.{BlobContainerSasPermission, BlobServiceSasSignatureValues}
 import com.azure.storage.blob.{BlobContainerClient, BlobContainerClientBuilder}
@@ -17,6 +16,7 @@ import java.time.temporal.ChronoUnit
 import java.time.{Duration, Instant, OffsetDateTime}
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
+import com.azure.resourcemanager.storage.models.StorageAccountKey
 
 case class FileSystemAPI() {
   def getFileSystem(uri: URI): Try[FileSystem] = Try(FileSystems.getFileSystem(uri))
@@ -111,7 +111,7 @@ case class NativeBlobTokenGenerator(container: BlobContainerName, endpoint: Endp
   private def azure = subscription.map(authenticateWithSubscription(_)).getOrElse(authenticateWithDefaultSubscription)
 
   private def findAzureStorageAccount(name: StorageAccountName) = azure.storageAccounts.list.asScala.find(_.name.equals(name.value))
-      .fold[Try[StorageAccount]](Failure(new Exception("Azure Storage Account not found")))(Success(_))
+      .map(Success(_)).getOrElse(Failure(new Exception("Azure Storage Account not found")))
   private def buildBlobContainerClient(credential: StorageSharedKeyCredential, endpoint: EndpointURL, container: BlobContainerName): BlobContainerClient = {
     new BlobContainerClientBuilder()
         .credential(credential)
@@ -126,7 +126,8 @@ case class NativeBlobTokenGenerator(container: BlobContainerName, endpoint: Endp
 
 
   def generateAccessToken: Try[AzureSasCredential] = for {
-    configuredAccount <- BlobPathBuilder.parseStorageAccount(BlobPathBuilder.parseURI(endpoint.value))
+    uri <- BlobPathBuilder.parseURI(endpoint.value)
+    configuredAccount <- BlobPathBuilder.parseStorageAccount(uri)
     azureAccount <- findAzureStorageAccount(configuredAccount)
     keys = azureAccount.getKeys.asScala
     key <- keys.headOption.fold[Try[StorageAccountKey]](Failure(new Exception("Storage account has no keys")))(Success(_))

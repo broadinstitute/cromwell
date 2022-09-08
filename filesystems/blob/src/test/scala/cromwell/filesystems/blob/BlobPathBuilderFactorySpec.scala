@@ -118,7 +118,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
     val azureUri = BlobFileSystemManager.uri(endpoint)
     // Need a fake filesystem to supply the getFileSystem simulated try
-    val dummyFileSystem = null
+    val dummyFileSystem = mock[FileSystem]
 
     val fileSystems = mock[FileSystemAPI]
     when(fileSystems.getFileSystem(azureUri)).thenReturn(Try(dummyFileSystem))

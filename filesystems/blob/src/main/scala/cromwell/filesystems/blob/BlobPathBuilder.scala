@@ -38,19 +38,19 @@ object BlobPathBuilder {
     * If the configured container and storage account do not match, the string is considered unparsable
     */
   def validateBlobPath(string: String, container: BlobContainerName, endpoint: EndpointURL): BlobPathValidation = {
-    (for { // For comprehension?
+    val blobValidation = for {
       testUri <- parseURI(string)
       endpointUri <- parseURI(endpoint.value)
       testStorageAccount <- parseStorageAccount(testUri)
       endpointStorageAccount <- parseStorageAccount(endpointUri)
       hasContainer = testUri.getPath.split("/").find(_.nonEmpty).contains(container.value)
       hasEndpoint = testStorageAccount.equals(endpointStorageAccount)
-      blobPathValidation = if (hasContainer && hasEndpoint) {
-        ValidBlobPath(testUri.getPath.replaceFirst("/" + container, ""))
-      } else {
-        UnparsableBlobPath(new MalformedURLException(invalidBlobPathMessage(container, endpoint)))
+      blobPathValidation = (hasContainer && hasEndpoint) match {
+        case true => ValidBlobPath(testUri.getPath.replaceFirst("/" + container, ""))
+        case false => UnparsableBlobPath(new MalformedURLException(invalidBlobPathMessage(container, endpoint)))
       }
-    } yield blobPathValidation) recover { case t => UnparsableBlobPath(t) } get
+    } yield blobPathValidation
+    blobValidation recover { case t => UnparsableBlobPath(t) } get
   }
 }
 
@@ -72,6 +72,7 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
 
   override def pathAsString: String = List(endpoint, container, nioPath.toString).mkString("/")
 
+  //This is purposefully an unprotected get because if the endpoint cannot be parsed this should fail loudly rather than quietly
   override def pathWithoutScheme: String = parseURI(endpoint.value).map(_.getHost + "/" + container + "/" + nioPath.toString).get
 
   private def findNioPath(path: String): NioPath = (for {

@@ -41,8 +41,8 @@ object Dependencies {
   // latest date via: https://github.com/googleapis/google-api-java-client-services/blob/main/clients/google-api-services-cloudkms/v1.metadata.json
   private val googleCloudKmsV = "v1-rev20220104-1.32.1"
   private val googleCloudMonitoringV = "3.2.5"
-  private val googleCloudNioV = "0.124.14"
-  private val googleCloudStorageV = "2.9.3"
+  private val googleCloudNioV = "0.124.8"
+  private val googleCloudStorageV = "2.9.2"
   private val googleGaxGrpcV = "2.12.2"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-genomics
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"
@@ -53,7 +53,7 @@ object Dependencies {
   private val googleOauth2V = "1.5.3"
   private val googleOauthClientV = "1.33.1"
   private val googleCloudResourceManagerV = "1.2.5"
-  private val grpcV = "1.45.1"
+  private val grpcV = "1.45.0"
   private val guavaV = "31.0.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.6.1"

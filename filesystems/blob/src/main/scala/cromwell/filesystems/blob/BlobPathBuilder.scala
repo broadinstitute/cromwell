@@ -1,16 +1,14 @@
 package cromwell.filesystems.blob
 
-import com.azure.core.credential.AzureSasCredential
-import com.azure.storage.blob.nio.{AzureBlobFileAttributes, AzureFileSystem}
+import com.azure.storage.blob.nio.{AzureBlobFileAttributes}
 import com.google.common.net.UrlEscapers
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.blob.BlobPathBuilder._
 
 import java.net.{MalformedURLException, URI}
-import java.nio.file.{FileSystem, FileSystemNotFoundException, FileSystems, Files}
-import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
+import java.nio.file.Files
 
 object BlobPathBuilder {
 

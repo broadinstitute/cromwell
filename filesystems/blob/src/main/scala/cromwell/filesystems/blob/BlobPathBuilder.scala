@@ -1,10 +1,14 @@
 package cromwell.filesystems.blob
 
+import com.azure.core.credential.AzureSasCredential
+import com.azure.storage.blob.nio.{AzureBlobFileAttributes, AzureFileSystem}
 import com.google.common.net.UrlEscapers
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.blob.BlobPathBuilder._
 
 import java.net.{MalformedURLException, URI}
+import java.nio.file.{FileSystem, FileSystemNotFoundException, FileSystems, Files}
+import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -81,4 +85,19 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
   // This is purposefully an unprotected get because the NIO API needing an unwrapped path object.
   // If an error occurs the api expects a thrown exception
   } yield nioPath).get
+
+  def blobFileAttributes: Try[AzureBlobFileAttributes] =
+    Try(Files.readAttributes(nioPath, classOf[AzureBlobFileAttributes]))
+
+  def md5HexString: Try[Option[String]] = {
+    blobFileAttributes.map(h =>
+      Option(h.blobHttpHeaders().getContentMd5) match {
+        case None => None
+        case Some(arr) if arr.isEmpty => None
+        // Convert the bytes to a hex-encoded string. Note that this value
+        // is rendered in base64 in the Azure web portal.
+        case Some(bytes) => Option(bytes.map("%02x".format(_)).mkString)
+      }
+    )
+  }
 }

@@ -89,7 +89,7 @@ object Dependencies {
   private val pprintV = "0.7.1"
   private val rdf4jV = "3.7.1"
   private val refinedV = "0.9.28"
-  private val rhinoV = "1.7.14"
+  private val rhinoV = "1.7.13"
   private val scalaCollectionCompatV = "2.5.0"
   private val scalaGraphV = "1.13.1"
   private val scalaLoggingV = "3.9.4"

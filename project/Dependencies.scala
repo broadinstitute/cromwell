@@ -10,9 +10,9 @@ object Dependencies {
   // We would like to use the BOM to manage Azure SDK versions, but SBT doesn't support it.
   // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
   // https://github.com/sbt/sbt/issues/4531
-  private val azureStorageBlobNioV = "12.0.0-beta.18"
-  private val azureIdentitySdkV = "1.4.2"
-  private val azureKeyVaultSdkV = "4.3.7"
+  private val azureStorageBlobNioV = "12.0.0-beta.19"
+  private val azureIdentitySdkV = "1.4.6"
+  private val azureKeyVaultSdkV = "4.3.8"
   private val betterFilesV = "3.9.1"
   /*
   cats-effect, fs2, http4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
@@ -34,7 +34,7 @@ object Dependencies {
   private val configsV = "0.6.1"
   private val delightRhinoSandboxV = "0.0.15"
   private val diffsonSprayJsonV = "4.1.1"
-  private val ficusV = "1.5.1"
+  private val ficusV = "1.5.2"
   private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
   private val googleApiClientV = "1.33.2"
   private val googleCloudBigQueryV = "2.10.0"
@@ -75,8 +75,8 @@ object Dependencies {
   private val metrics4ScalaV = "4.2.8"
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "3.0.0"
-  private val mockitoV = "3.11.2"
-  private val mockserverNettyV = "5.11.2"
+  private val mockitoV = "3.12.4"
+  private val mockserverNettyV = "5.14.0"
   private val mouseV = "1.0.10"
   /*
   Newer version 8.0.29 fails `Control characters should work with metadata` Centaur tests, has charset changes mentioned in release notes
@@ -88,7 +88,7 @@ object Dependencies {
   private val postgresV = "42.3.3"
   private val pprintV = "0.7.1"
   private val rdf4jV = "3.7.1"
-  private val refinedV = "0.9.28"
+  private val refinedV = "0.9.29"
   private val rhinoV = "1.7.13"
   private val scalaCollectionCompatV = "2.5.0"
   private val scalaGraphV = "1.13.1"
@@ -98,9 +98,9 @@ object Dependencies {
   private val scalameterV = "0.19"
   private val scalatestV = "3.2.10"
   private val scalatestScalacheckV = scalatestV + ".0"
-  private val scoptV = "4.0.1"
+  private val scoptV = "4.1.0"
   private val sentryLogbackV = "5.2.4"
-  private val shapelessV = "2.3.7"
+  private val shapelessV = "2.3.9"
   private val simulacrumV = "1.0.1"
   private val slf4jV = "1.7.32"
   private val slickCatsV = "0.10.4"
@@ -191,8 +191,8 @@ object Dependencies {
     "com.azure" % "azure-security-keyvault-secrets" % azureKeyVaultSdkV
       exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
       exclude("jakarta.activation", "jakarta.activation-api"),
-    "com.azure" % "azure-core-management" % "1.7.0",
-    "com.azure.resourcemanager" % "azure-resourcemanager" % "2.17.0"
+    "com.azure" % "azure-core-management" % "1.7.1",
+    "com.azure.resourcemanager" % "azure-resourcemanager" % "2.18.0"
   )
 
   val implFtpDependencies = List(

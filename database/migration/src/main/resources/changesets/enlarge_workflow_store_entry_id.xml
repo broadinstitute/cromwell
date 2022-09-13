@@ -75,6 +75,7 @@
                 baseTableName="SUB_WORKFLOW_STORE_ENTRY"
                 referencedTableName="WORKFLOW_STORE_ENTRY"
                 referencedColumnNames="WORKFLOW_STORE_ENTRY_ID"
+                onDelete="CASCADE"
         />
     </changeSet>
 

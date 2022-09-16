@@ -9,7 +9,7 @@ trait DockerHashStoreEntryComponent {
   import driver.api._
 
   class DockerHashStoreEntries(tag: Tag) extends Table[DockerHashStoreEntry](tag, "DOCKER_HASH_STORE_ENTRY") {
-    def dockerHashStoreEntryId = column[Int]("DOCKER_HASH_STORE_ENTRY_ID", O.PrimaryKey, O.AutoInc)
+    def dockerHashStoreEntryId = column[Long]("DOCKER_HASH_STORE_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
     def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID", O.Length(255))
 

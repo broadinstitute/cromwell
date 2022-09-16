@@ -11,7 +11,7 @@ trait WorkflowStoreEntryComponent {
   import driver.api._
 
   class WorkflowStoreEntries(tag: Tag) extends Table[WorkflowStoreEntry](tag, "WORKFLOW_STORE_ENTRY") {
-    def workflowStoreEntryId = column[Int]("WORKFLOW_STORE_ENTRY_ID", O.PrimaryKey, O.AutoInc)
+    def workflowStoreEntryId = column[Long]("WORKFLOW_STORE_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
     def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID", O.Length(255))
 

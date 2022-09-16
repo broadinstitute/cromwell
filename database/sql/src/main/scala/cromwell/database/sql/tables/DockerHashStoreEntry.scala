@@ -6,5 +6,5 @@ case class DockerHashStoreEntry
   dockerTag: String,
   dockerHash: String,
   dockerSize: Option[Long],
-  dockerHashStoreEntryId: Option[Int] = None
+  dockerHashStoreEntryId: Option[Long] = None
 )

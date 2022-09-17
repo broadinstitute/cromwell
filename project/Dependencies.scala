@@ -20,7 +20,7 @@ object Dependencies {
   private val catsEffectV = "2.5.3" // scala-steward:off (CROM-6564)
   private val catsV = "2.7.0"
   private val circeConfigV = "0.8.0"
-  private val circeGenericExtrasV = "0.14.1"
+  private val circeGenericExtrasV = "0.14.2"
   private val circeOpticsV = "0.14.1"
   private val circeV = "0.14.1"
   private val circeYamlV = "0.14.1"

@@ -78,6 +78,7 @@ object Dependencies {
   private val mockitoV = "3.12.4"
   private val mockserverNettyV = "5.14.0"
   private val mouseV = "1.0.11"
+
   /*
   Newer version 8.0.29 fails `Control characters should work with metadata` Centaur tests, has charset changes mentioned in release notes
   https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8-0-29.html#mysqld-8-0-29-charset
@@ -90,6 +91,7 @@ object Dependencies {
   private val rdf4jV = "3.7.1"
   private val refinedV = "0.9.29"
   private val rhinoV = "1.7.14"
+
   private val scalaCollectionCompatV = "2.5.0"
   private val scalaGraphV = "1.13.1"
   private val scalaLoggingV = "3.9.4"

@@ -12,6 +12,7 @@ import cromwell.core.path.Path
 import cromwell.engine.io.IoActor._
 import cromwell.engine.io.RetryableRequestSupport.{isInfinitelyRetryable, isRetryable}
 import cromwell.engine.io.{IoAttempts, IoCommandContext, IoCommandStalenessBackpressuring}
+import cromwell.filesystems.blob.BlobPath
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.s3.S3Path
@@ -128,21 +129,33 @@ class NioFlow(parallelism: Int,
 
     def readFileAndChecksum: IO[String] = {
       for {
-        fileHash <- getHash(command.file)
+        fileHash <- getStoredHash(command.file)
         uncheckedValue <- readFile
-        checksumResult <- checkHash(uncheckedValue, fileHash)
+        checksumResult <- fileHash match {
+          case Some(hash) => checkHash(uncheckedValue, hash)
+          // If there is no stored checksum, don't attempt to validate.
+          // If the missing checksum is itself an error condition, that
+          // should be detected by the code that gets the FileHash.
+          case None => IO.pure(ChecksumSkipped())
+        }
         verifiedValue <- checksumResult match {
           case _: ChecksumSkipped => IO.pure(uncheckedValue)
           case _: ChecksumSuccess => IO.pure(uncheckedValue)
           case failure: ChecksumFailure => IO.raiseError(
             ChecksumFailedException(
-              s"Failed checksum for '${command.file}'. Expected '${fileHash.hashType}' hash of '${fileHash.hash}'. Calculated hash '${failure.calculatedHash}'"))
+              fileHash match {
+                case Some(hash) => s"Failed checksum for '${command.file}'. Expected '${hash.hashType}' hash of '${hash.hash}'. Calculated hash '${failure.calculatedHash}'"
+                case None => s"Failed checksum for '${command.file}'. Couldn't find stored file hash." // This should never happen
+              }
+            )
+          )
         }
       } yield verifiedValue
     }
 
     val fileContentIo = command.file match {
-      case _: DrsPath => readFileAndChecksum
+      case _: DrsPath  => readFileAndChecksum
+      case _: BlobPath => readFileAndChecksum
       case _ => readFile
     }
     fileContentIo.map(_.replaceAll("\\r\\n", "\\\n"))
@@ -153,19 +166,27 @@ class NioFlow(parallelism: Int,
   }
 
   private def hash(hash: IoHashCommand): IO[String] = {
-    getHash(hash.file).map(_.hash)
+    // If there is no hash accessible from the file storage system,
+    // we'll read the file and generate the hash ourselves.
+    getStoredHash(hash.file).flatMap {
+      case Some(storedHash) => IO.pure(storedHash)
+      case None => generateMd5FileHashForPath(hash.file)
+    }.map(_.hash)
   }
 
-  private def getHash(file: Path): IO[FileHash] = {
+  private def getStoredHash(file: Path): IO[Option[FileHash]] = {
     file match {
-      case gcsPath: GcsPath => getFileHashForGcsPath(gcsPath)
+      case gcsPath: GcsPath => getFileHashForGcsPath(gcsPath).map(Option(_))
+      case blobPath: BlobPath => getFileHashForBlobPath(blobPath)
       case drsPath: DrsPath => IO {
+        // We assume all DRS files have a stored hash; this will throw
+        // if the file does not.
         drsPath.getFileHash
-      }
+      }.map(Option(_))
       case s3Path: S3Path => IO {
-        FileHash(HashType.S3Etag, s3Path.eTag)
+        Option(FileHash(HashType.S3Etag, s3Path.eTag))
       }
-      case path => getMd5FileHashForPath(path)
+      case _ => IO.pure(None)
     }
   }
 
@@ -201,7 +222,11 @@ class NioFlow(parallelism: Int,
     gcsPath.objectBlobId.map(id => FileHash(HashType.GcsCrc32c, gcsPath.cloudStorage.get(id).getCrc32c))
   }
 
-  private def getMd5FileHashForPath(path: Path): IO[FileHash] = delayedIoFromTry {
+  private def getFileHashForBlobPath(blobPath: BlobPath): IO[Option[FileHash]] = delayedIoFromTry {
+    blobPath.md5HexString.map(md5 => md5.map(FileHash(HashType.Md5, _)))
+  }
+
+  private def generateMd5FileHashForPath(path: Path): IO[FileHash] = delayedIoFromTry {
     tryWithResource(() => path.newInputStream) { inputStream =>
       FileHash(HashType.Md5, org.apache.commons.codec.digest.DigestUtils.md5Hex(inputStream))
     }

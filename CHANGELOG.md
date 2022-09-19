@@ -1,5 +1,15 @@
 # Cromwell Change Log
 
+## 85 Release Notes
+
+### Migration of PKs to BIGINT
+
+The PK of below tables will be migrated from INT to BIGINT. Also, since `ROOT_WORKFLOW_ID` in `SUB_WORKFLOW_STORE_ENTRY` is a FK to `WORKFLOW_STORE_ENTRY_ID` in `WORKFLOW_STORE_ENTRY` 
+it is also being migrated from INT to BIGINT.
+* DOCKER_HASH_STORE_ENTRY
+* WORKFLOW_STORE_ENTRY
+* SUB_WORKFLOW_STORE_ENTRY
+
 ## 84 Release Notes
 
 ### CromIAM enabled user checks

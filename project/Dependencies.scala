@@ -37,7 +37,7 @@ object Dependencies {
   private val ficusV = "1.5.2"
   private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
   private val googleApiClientV = "1.33.4"
-  private val googleCloudBigQueryV = "2.10.10"
+  private val googleCloudBigQueryV = "2.16.1"
   // latest date via: https://github.com/googleapis/google-api-java-client-services/blob/main/clients/google-api-services-cloudkms/v1.metadata.json
   private val googleCloudKmsV = "v1-rev20220819-2.0.0"
   private val googleCloudMonitoringV = "3.2.9"

@@ -3,7 +3,6 @@ version 1.0
 task imitate_oom_error {
   command {
     printf "Exception in thread "main" java.lang.OutOfMemoryError: testing\n\tat Test.main(Test.java:1)\n" >&2
-    # As a simulation of an OOM condition, do not create the 'foo' file. Cromwell should still be able to delocalize important detritus.
     touch foo
     exit 137
   }
@@ -18,6 +17,6 @@ task imitate_oom_error {
   }
 }
 
-workflow retry_with_more_memory {
+workflow retry_with_more_memory_after_137 {
   call imitate_oom_error
 }

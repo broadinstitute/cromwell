@@ -18,7 +18,8 @@ case class AccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes
   def generateDownloadScript: ErrorOr[String] = {
     val signedUrl = accessUrl.url
     GetmChecksum(hashes, accessUrl).args map { checksumArgs =>
-      s"""mkdir -p $$(dirname '$downloadLoc') && rm -f '$downloadLoc' && getm $checksumArgs --filepath '$downloadLoc' '$signedUrl'"""
+      s"""mkdir -p $$(dirname '$downloadLoc') && rm -f '$downloadLoc' && curl '$signedUrl' --output '$downloadLoc'"""
+//      s"""mkdir -p $$(dirname '$downloadLoc') && rm -f '$downloadLoc' && getm $checksumArgs --filepath '$downloadLoc' '$signedUrl'"""
     }
   }
 

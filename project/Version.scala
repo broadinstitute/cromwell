@@ -1,7 +1,8 @@
 import Dependencies._
-import com.typesafe.sbt.SbtGit._
+import com.github.sbt.git.SbtGit._
 import sbt.Keys._
 import sbt._
+import com.github.sbt.git.SbtGit
 
 object Version {
   // Upcoming release, or current if we're on a master / hotfix branch

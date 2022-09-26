@@ -1,12 +1,11 @@
-import java.time.OffsetDateTime
-import java.time.format.DateTimeFormatter
-
-import io.github.swagger2markup.Swagger2MarkupConverter
 import io.github.swagger2markup.builder.Swagger2MarkupConfigBuilder
-import io.github.swagger2markup.markup.builder.MarkupLanguage
+import io.github.swagger2markup.{MarkupLanguage, Swagger2MarkupConverter}
 import org.apache.commons.lang3.{ClassUtils, StringUtils}
 import sbt.Keys._
 import sbt._
+
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 
 /**
   * Provides a task to generate the REST API markdown from the Swagger YAML.

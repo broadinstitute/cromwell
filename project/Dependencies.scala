@@ -2,7 +2,7 @@ import sbt._
 
 object Dependencies {
   private val akkaHttpCirceIntegrationV = "1.39.2"
-  private val akkaHttpV = "10.1.15" // (CROM-6619)
+  private val akkaHttpV = "10.2.9" // (CROM-6619)
   private val akkaV = "2.5.32" // scala-steward:off (CROM-6637)
   private val ammoniteOpsV = "2.4.1"
   private val apacheHttpClientV = "4.5.13"
@@ -65,7 +65,7 @@ object Dependencies {
   private val kindProjectorV = "0.13.2"
   private val kittensV = "2.3.2"
   private val liquibaseV = "4.8.0"
-  private val logbackV = "1.2.10"
+  private val logbackV = "1.2.11"
   private val lz4JavaV = "1.8.0"
   private val mariadbV = "2.7.4"
   /*
@@ -87,14 +87,14 @@ object Dependencies {
   private val nettyV = "4.1.72.Final"
   private val owlApiV = "5.1.19"
   private val postgresV = "42.3.3"
-  private val pprintV = "0.7.1"
+  private val pprintV = "0.7.3"
   private val rdf4jV = "3.7.1"
   private val refinedV = "0.9.29"
   private val rhinoV = "1.7.14"
 
   private val scalaCollectionCompatV = "2.5.0"
   private val scalaGraphV = "1.13.1"
-  private val scalaLoggingV = "3.9.4"
+  private val scalaLoggingV = "3.9.5"
   private val scalaPoolV = "0.4.3"
   private val scalacticV = "3.2.10"
   private val scalameterV = "0.19"
@@ -123,7 +123,7 @@ object Dependencies {
   private val sttpV = "1.7.2"
   private val swaggerParserV = "1.0.56"
   private val swaggerUiV = "4.5.0"
-  private val testContainersScalaV = "0.40.2"
+  private val testContainersScalaV = "0.40.10"
   private val tikaV = "2.3.0"
   private val typesafeConfigV = "1.4.1"
   private val workbenchGoogleV = "0.21-5c9c4f6" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/google/CHANGELOG.md

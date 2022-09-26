@@ -175,13 +175,13 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
 
   import mouse.all._
 
-  private def isDrsPath(p: Path): Boolean = p match {
-    case _: DrsPath => true
-    case _ => false
-  }
-
   private def generateDrsLocalizerManifest(inputs: List[PipelinesApiInput], cloudPath: Path): String = {
     // TODO: find a better way to filter the file inputs that reference DrsPaths (without a silly isDrsPath function)
+    def isDrsPath(p: Path): Boolean = p match {
+      case _: DrsPath => true
+      case _ => false
+    }
+
     val drsInputs = inputs.collect { case input: PipelinesApiFileInput if isDrsPath(input.cloudPath) => input }
     drsInputs.map(input => s"\"${input.cloudPath.pathAsString}\",\"${input.containerPath.pathAsString}\"").mkString("\n")
   }

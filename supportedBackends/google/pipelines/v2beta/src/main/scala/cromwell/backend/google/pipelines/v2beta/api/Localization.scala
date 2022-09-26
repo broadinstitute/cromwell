@@ -1,5 +1,6 @@
 package cromwell.backend.google.pipelines.v2beta.api
 
+import cloud.nio.impl.drs.DrsConfig
 import com.google.api.services.lifesciences.v2beta.model.{Action, Mount}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.google.pipelines.common.action.ActionCommands.localizeFile
@@ -11,6 +12,8 @@ import cromwell.backend.google.pipelines.v2beta.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2beta.ToParameter.ops._
 import cromwell.backend.google.pipelines.v2beta.api.ActionBuilder.{EnhancedAction, cloudSdkShellAction}
 import cromwell.core.path.Path
+
+import scala.jdk.CollectionConverters._
 
 
 trait Localization {
@@ -57,20 +60,14 @@ trait Localization {
   }
 
   private def drsAction(createPipelineParameters: CreatePipelineParameters, manifestPath: Path, mounts: List[Mount], labels: Map[String, String]) = {
-    lazy val config = ConfigFactory.load
-    import scala.jdk.CollectionConverters._
-
+    // TODO: Is this an acceptable way to read this config?
+    val config = ConfigFactory.load
+    val marthaConfig = config.getConfig("filesystems.drs.global.config.martha")
+    val drsConfig = DrsConfig.fromConfig(marthaConfig)
     val drsDockerImage = config.getString("drs.localization.docker-image")
+
     val drsCommand = List("-m", manifestPath.pathAsString)
-    // TODO: find a way to read this config without having a DrsPath on hand
-    val marthaEnv = Map(
-      "MARTHA_URL" -> "https://us-central1-broad-dsde-dev.cloudfunctions.net/martha_v3",
-      "MARTHA_NUM_RETRIES" -> "3",
-      "MARTHA_WAIT_INITIAL_SECONDS" -> "10",
-      "MARTHA_WAIT_MAXIMUM_SECONDS" -> "30",
-      "MARTHA_WAIT_MULTIPLIER" -> "1.5",
-      "MARTHA_WAIT_RANDOMIZATION_FACTOR" -> "0.1"
-    )
+    val marthaEnv = DrsConfig.toEnv(drsConfig)
     ActionBuilder
       .withImage(drsDockerImage)
       .withCommand(drsCommand: _*)

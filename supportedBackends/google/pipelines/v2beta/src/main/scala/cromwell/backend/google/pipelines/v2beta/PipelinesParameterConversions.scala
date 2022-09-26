@@ -1,6 +1,5 @@
 package cromwell.backend.google.pipelines.v2beta
 
-//import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, DrsConfig}
 import com.google.api.services.lifesciences.v2beta.model.{Action, Mount}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.google.pipelines.common.action.ActionCommands._

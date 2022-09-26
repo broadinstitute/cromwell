@@ -77,10 +77,15 @@ case class BlobFileSystemManager(
 
 sealed trait BlobTokenGenerator {def generateAccessToken: Try[AzureSasCredential]}
 object BlobTokenGenerator {
-  def createBlobTokenGenerator(container: BlobContainerName, endpoint: EndpointURL, subscription: Option[String]): BlobTokenGenerator = {
+  def createBlobTokenGenerator(container: BlobContainerName, endpoint: EndpointURL, subscription: Option[SubscriptionId]): BlobTokenGenerator = {
     createBlobTokenGenerator(container, endpoint, None, None, subscription)
   }
-  def createBlobTokenGenerator(container: BlobContainerName, endpoint: EndpointURL, workspaceId: Option[WorkspaceId], workspaceManagerURL: Option[WorkspaceManagerURL], subscription: Option[String]): BlobTokenGenerator = {
+  def createBlobTokenGenerator(container: BlobContainerName,
+                               endpoint: EndpointURL,
+                               workspaceId: Option[WorkspaceId],
+                               workspaceManagerURL: Option[WorkspaceManagerURL],
+                               subscription: Option[SubscriptionId]
+                              ): BlobTokenGenerator = {
      (container: BlobContainerName, endpoint: EndpointURL, workspaceId, workspaceManagerURL) match {
        case (container, endpoint, None, None) =>
          NativeBlobTokenGenerator(container, endpoint, subscription)
@@ -100,13 +105,13 @@ case class WSMBlobTokenGenerator(container: BlobContainerName, endpoint: Endpoin
   def generateAccessToken: Try[AzureSasCredential] = Failure(new NotImplementedError)
 }
 
-case class NativeBlobTokenGenerator(container: BlobContainerName, endpoint: EndpointURL, subscription: Option[String] = None) extends BlobTokenGenerator {
+case class NativeBlobTokenGenerator(container: BlobContainerName, endpoint: EndpointURL, subscription: Option[SubscriptionId] = None) extends BlobTokenGenerator {
 
   private val azureProfile = new AzureProfile(AzureEnvironment.AZURE)
   private def azureCredentialBuilder = new DefaultAzureCredentialBuilder()
       .authorityHost(azureProfile.getEnvironment.getActiveDirectoryEndpoint)
       .build
-  private def authenticateWithSubscription(sub: String) = AzureResourceManager.authenticate(azureCredentialBuilder, azureProfile).withSubscription(sub)
+  private def authenticateWithSubscription(sub: SubscriptionId) = AzureResourceManager.authenticate(azureCredentialBuilder, azureProfile).withSubscription(sub.value)
   private def authenticateWithDefaultSubscription = AzureResourceManager.authenticate(azureCredentialBuilder, azureProfile).withDefaultSubscription()
   private def azure = subscription.map(authenticateWithSubscription(_)).getOrElse(authenticateWithDefaultSubscription)
 

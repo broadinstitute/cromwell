@@ -123,6 +123,7 @@ case class NativeBlobTokenGenerator(container: BlobContainerName, endpoint: Endp
     .setReadPermission(true)
     .setCreatePermission(true)
     .setListPermission(true)
+    .setWritePermission(true)
 
 
   def generateAccessToken: Try[AzureSasCredential] = for {

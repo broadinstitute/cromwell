@@ -18,7 +18,7 @@ object PathBuilderFactory {
     val sortedFactories = factories.sortWith({
       case (_, DefaultPathBuilderFactory) => true
       case (DefaultPathBuilderFactory, _) => false
-      case (a, b) => factories.indexOf(a) < factories.indexOf(b)
+      case (a, b) => factories.indexOf(a) < factories.indexOf(b) // retains pre-existing order of `factories`
     })
     sortedFactories.traverse(_.withOptions(workflowOptions))
   }

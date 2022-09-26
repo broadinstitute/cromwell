@@ -27,7 +27,7 @@ object EngineFilesystems {
     ).to(collection.immutable.SortedMap)
   }
 
-  def configuredPathBuilderFactories: List[PathBuilderFactory] = pathBuilderFactories.values.toList
+  def configuredPathBuilderFactories: List[PathBuilderFactory] = pathBuilderFactories.values.toList.sorted(_.)
 
   def pathBuildersForWorkflow(workflowOptions: WorkflowOptions, factories: List[PathBuilderFactory])(implicit as: ActorSystem): Future[List[PathBuilder]] = {
     PathBuilderFactory.instantiatePathBuilders(factories, workflowOptions)

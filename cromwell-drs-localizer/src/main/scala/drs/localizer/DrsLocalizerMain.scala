@@ -2,6 +2,7 @@ package drs.localizer
 
 import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO, IOApp}
+import cats.implicits._
 import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDisposition}
 import cloud.nio.impl.drs.{AccessUrl, DrsConfig, DrsPathResolver, MarthaField}
 import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
@@ -10,8 +11,12 @@ import drs.localizer.CommandLineParser.AccessTokenStrategy.{Azure, Google}
 import drs.localizer.accesstokens.{AccessTokenStrategy, AzureB2CAccessTokenStrategy, GoogleAccessTokenStrategy}
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
+import org.apache.commons.csv.{CSVFormat, CSVParser}
 
+import java.io.File
+import java.nio.charset.Charset
 import scala.concurrent.duration._
+import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 
 object DrsLocalizerMain extends IOApp with StrictLogging {
@@ -51,8 +56,30 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
   }
 
   def runLocalizer(commandLineArguments: CommandLineArguments, accessTokenStrategy: AccessTokenStrategy): IO[ExitCode] = {
-    val drsObject = commandLineArguments.drsObject.get
-    val containerPath = commandLineArguments.containerPath.get
+    commandLineArguments.manifestPath match {
+      case Some(manifestPath) =>
+        val manifestFile = new File(manifestPath)
+        val csvParser = CSVParser.parse(manifestFile, Charset.defaultCharset(), CSVFormat.DEFAULT)
+        csvParser.asScala.map(record => {
+          val drsUri = record.get(0)
+          val localFilePath = record.get(1)
+          localizeFile(commandLineArguments, accessTokenStrategy, drsUri, localFilePath)
+        }).toList.sequence.map(_.fold(ExitCode.Success)(
+          // TODO: find a better way to collect/collapse exit codes
+          (status1, status2) => (status1, status2) match {
+            case (ExitCode.Error, _) => ExitCode.Error
+            case (_, ExitCode.Error) => ExitCode.Error
+            case _ => ExitCode.Success
+          }
+        ))
+      case None =>
+        val drsObject = commandLineArguments.drsObject.get
+        val containerPath = commandLineArguments.containerPath.get
+        localizeFile(commandLineArguments, accessTokenStrategy, drsObject, containerPath)
+    }
+  }
+
+  private def localizeFile(commandLineArguments: CommandLineArguments, accessTokenStrategy: AccessTokenStrategy, drsObject: String, containerPath: String) = {
     new DrsLocalizerMain(drsObject, containerPath, accessTokenStrategy, commandLineArguments.googleRequesterPaysProject).
       resolveAndDownloadWithRetries(downloadRetries = 3, checksumRetries = 1, defaultDownloaderFactory, Option(defaultBackoff)).map(_.exitCode)
   }

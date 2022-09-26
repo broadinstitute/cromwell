@@ -14,10 +14,11 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments](Usage) 
 
   head("cromwell-drs-localizer", localizerVersion)
 
-  arg[String]("drs-object-id").text("DRS object ID").required().
+  // TODO: make these required if a manifest is not provided
+  arg[String]("drs-object-id").text("DRS object ID").optional().
     action((s, c) =>
       c.copy(drsObject = Option(s)))
-  arg[String]("container-path").text("Container path").required().
+  arg[String]("container-path").text("Container path").optional().
     action((s, c) =>
       c.copy(containerPath = Option(s)))
   arg[String]("requester-pays-project").text("Requester pays project").optional().
@@ -35,6 +36,9 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments](Usage) 
   opt[String]('i', "identity-client-id").text("Azure identity client id").
     action((s, c) =>
       c.copy(azureIdentityClientId = Option(s)))
+  opt[String]('m', "manifest-path").text("File path of manifest").
+    action((s, c) =>
+      c.copy(manifestPath = Option(s)))
   checkConfig(c =>
     c.accessTokenStrategy match {
       case Some(Azure) if c.googleRequesterPaysProject.nonEmpty =>
@@ -77,4 +81,5 @@ case class CommandLineArguments(accessTokenStrategy: Option[String] = Option(Goo
                                 googleRequesterPaysProject: Option[String] = None,
                                 azureVaultName: Option[String] = None,
                                 azureSecretName: Option[String] = None,
-                                azureIdentityClientId: Option[String] = None)
+                                azureIdentityClientId: Option[String] = None,
+                                manifestPath: Option[String] = None)

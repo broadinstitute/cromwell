@@ -12,6 +12,7 @@ import cromwell.backend.google.pipelines.common.io.PipelinesApiWorkingDisk
 import cromwell.backend.google.pipelines.v2beta.PipelinesApiAsyncBackendJobExecutionActor._
 import cromwell.backend.standard.StandardAsyncExecutionActorParams
 import cromwell.core.path.{DefaultPathBuilder, Path}
+import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
 import org.apache.commons.codec.digest.DigestUtils
@@ -173,6 +174,22 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   }
 
   import mouse.all._
+
+  private def isDrsPath(p: Path): Boolean = p match {
+    case _: DrsPath => true
+    case _ => false
+  }
+
+  private def generateDrsLocalizerManifest(inputs: List[PipelinesApiInput], cloudPath: Path): String = {
+    // TODO: find a better way to filter the file inputs that reference DrsPaths (without a silly isDrsPath function)
+    val drsInputs = inputs.collect { case input: PipelinesApiFileInput if isDrsPath(input.cloudPath) => input }
+    drsInputs.map(input => s"\"${input.cloudPath.pathAsString}\",\"${input.containerPath.pathAsString}\"").mkString("\n")
+  }
+
+  override def uploadDrsLocalizationManifest(createPipelineParameters: CreatePipelineParameters, cloudPath: Path): Future[Unit] = {
+    val content = generateDrsLocalizerManifest(createPipelineParameters.inputOutputParameters.fileInputParameters, cloudPath)
+    asyncIo.writeAsync(cloudPath, content, Seq(CloudStorageOptions.withMimeType("text/plain")))
+  }
 
   private def generateGcsLocalizationScript(inputs: List[PipelinesApiInput],
                                             referenceInputsToMountedPathsOpt: Option[Map[PipelinesApiInput, String]])

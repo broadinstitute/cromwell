@@ -10,6 +10,11 @@ it is also being migrated from INT to BIGINT.
 * WORKFLOW_STORE_ENTRY
 * SUB_WORKFLOW_STORE_ENTRY
 
+### Improvement to "retry with more memory" behavior
+
+Cromwell will now retry a task with more memory after it fails with return code 137, provided all
+the other requirements for retrying with more memory are met.
+
 ## 84 Release Notes
 
 ### CromIAM enabled user checks

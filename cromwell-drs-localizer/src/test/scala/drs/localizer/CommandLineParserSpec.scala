@@ -29,11 +29,11 @@ class CommandLineParserSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
   }
 
   it should "fail to parse with only one argument" in {
-    parser.parse(Array("--container-path", "some arg"), CommandLineArguments()) shouldBe None
+    parser.parse(Array("some arg"), CommandLineArguments()) shouldBe None
   }
 
   it should "successfully parse with two arguments" in {
-    val args = parser.parse(Array("--drs-object-id", drsObject, "--container-path", containerPath), CommandLineArguments()).get
+    val args = parser.parse(Array(drsObject, containerPath), CommandLineArguments()).get
 
     args.drsObject.get shouldBe drsObject
     args.containerPath.get shouldBe containerPath
@@ -45,12 +45,13 @@ class CommandLineParserSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
     args.manifestPath shouldBe empty
   }
 
-  it should "successfully parse with three arguments" in {
-    val args = parser.parse(Array(
-      "--drs-object-id", drsObject,
-      "--container-path", containerPath,
-      "-r", requesterPaysProject
-    ), CommandLineArguments()).get
+  it should "fail to parse with three arguments" in {
+    val args = parser.parse(Array(drsObject, containerPath, "some other arg"), CommandLineArguments())
+    args shouldBe None
+  }
+
+  it should "successfully parse requester pays project" in {
+    val args = parser.parse(Array(drsObject, containerPath, "-r", requesterPaysProject), CommandLineArguments()).get
 
     args.drsObject.get shouldBe drsObject
     args.containerPath.get shouldBe containerPath
@@ -76,26 +77,20 @@ class CommandLineParserSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
   }
 
   it should "fail to parse with a manifest file and one single-file arg" in {
-    val args = parser.parse(Array(
-      "--drs-object-id", drsObject,
-      "--manifest-path", manifestPath
-    ), CommandLineArguments())
+    val args = parser.parse(Array(drsObject, "--manifest-path", manifestPath), CommandLineArguments())
     args shouldBe None
   }
 
   it should "fail to parse with a manifest file and two single-file args" in {
-    val args = parser.parse(Array(
-      "--drs-object-id", drsObject,
-      "--container-path", containerPath,
-      "--manifest-path", manifestPath), CommandLineArguments())
+    val args = parser.parse(Array(drsObject, containerPath, "--manifest-path", manifestPath), CommandLineArguments())
     args shouldBe None
   }
 
   it should "successfully parse an explicit Google access token stregy invocation" in {
     val args = parser.parse(Array(
       "--access-token-strategy", "google",
-      "--drs-object-id", drsObject,
-      "--container-path", containerPath,
+      drsObject,
+      containerPath,
       "--requester-pays-project", requesterPaysProject
     ), CommandLineArguments()).get
 
@@ -112,8 +107,7 @@ class CommandLineParserSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
   it should "fail to parse an Azure invocation missing vault name and secret name" in {
     val args = parser.parse(Array(
       "--access-token-strategy", AccessTokenStrategy.Azure,
-      "--drs-object-id", drsObject,
-      "--container-path", containerPath), CommandLineArguments())
+      drsObject, containerPath), CommandLineArguments())
 
     args shouldBe None
   }
@@ -122,8 +116,7 @@ class CommandLineParserSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
     val args = parser.parse(Array(
       "--access-token-strategy", AccessTokenStrategy.Azure,
       "--secret-name", azureSecretName,
-      "--drs-object-id", drsObject,
-      "--container-path", containerPath), CommandLineArguments())
+      drsObject, containerPath), CommandLineArguments())
 
     args shouldBe None
   }
@@ -132,8 +125,7 @@ class CommandLineParserSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
     val args = parser.parse(Array(
       "--access-token-strategy", AccessTokenStrategy.Azure,
       "--vault-name", azureVaultName,
-      "--drs-object-id", drsObject,
-      "--container-path", containerPath), CommandLineArguments())
+      drsObject, containerPath), CommandLineArguments())
 
     args shouldBe None
   }
@@ -143,8 +135,8 @@ class CommandLineParserSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
       "--access-token-strategy", AccessTokenStrategy.Azure,
       "--secret-name", azureSecretName,
       "--vault-name", azureVaultName,
-      "--drs-object-id", drsObject,
-      "--container-path", containerPath,
+      drsObject,
+      containerPath,
       "--requester-pays-project", requesterPaysProject), CommandLineArguments())
 
     args shouldBe None
@@ -155,8 +147,7 @@ class CommandLineParserSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
       "--access-token-strategy", AccessTokenStrategy.Azure,
       "--secret-name", azureSecretName,
       "--vault-name", azureVaultName,
-      "--drs-object-id", drsObject,
-      "--container-path", containerPath), CommandLineArguments()).get
+      drsObject, containerPath), CommandLineArguments()).get
 
     args.drsObject.get shouldBe drsObject
     args.containerPath.get shouldBe containerPath
@@ -174,8 +165,7 @@ class CommandLineParserSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
       "--vault-name", azureVaultName,
       "--secret-name", azureSecretName,
       "--identity-client-id", azureIdentityClientId,
-      "--drs-object-id", drsObject,
-      "--container-path", containerPath), CommandLineArguments()).get
+      drsObject, containerPath), CommandLineArguments()).get
 
     args.drsObject.get shouldBe drsObject
     args.containerPath.get shouldBe containerPath
@@ -188,7 +178,7 @@ class CommandLineParserSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
   }
 
   it should "fail to parse with an unrecognized access token strategy" in {
-    val args = parser.parse(Array("--access-token-strategy", "nebulous", "-d", drsObject, "-c", containerPath), CommandLineArguments())
+    val args = parser.parse(Array("--access-token-strategy", "nebulous", drsObject, containerPath), CommandLineArguments())
     args shouldBe None
   }
 }

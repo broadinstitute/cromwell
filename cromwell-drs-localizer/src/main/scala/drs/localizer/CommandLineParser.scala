@@ -14,10 +14,10 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments](Usage) 
 
   head("cromwell-drs-localizer", localizerVersion)
 
-  opt[String]('d', "drs-object-id").text("DRS object ID").
+  arg[String]("drs-object-id").text("DRS object ID").optional().
     action((s, c) =>
       c.copy(drsObject = Option(s)))
-  opt[String]('c',"container-path").text("Container path").
+  arg[String]("container-path").text("Container path").optional().
     action((s, c) =>
       c.copy(containerPath = Option(s)))
   opt[String]('m', "manifest-path").text("File path of manifest containing multiple files to localize").
@@ -76,12 +76,10 @@ object CommandLineParser {
 Usage:
 
     Can be run to localize a single file with DRS id and local container path provided in args:
-    java -jar /path/to/localizer.jar [options] -d drs://provider/object -c /local/path/to/file.txt
+    java -jar /path/to/localizer.jar [options] drs://provider/object /local/path/to/file.txt
 
     Can also be used to localize multiple files in one invocation with manifest file provided in args:
     java -jar /path/to/localizer.jar [options] -m /local/path/to/manifest/file
-
-    Note that the <requester pays project> optional argument is only valid with access token strategy 'Google'.
     """
 
 }

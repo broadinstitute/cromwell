@@ -180,7 +180,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
       case PipelinesApiFileInput(name, drsPath: DrsPath, relativeHostPath, mount) => {
         val drsPathStr = drsPath.pathAsString
         val containerPathStr = PipelinesApiFileInput(name, drsPath, relativeHostPath, mount).containerPath.pathAsString
-        s"\"$drsPathStr\",\"$containerPathStr\""
+        val requesterPaysProject = drsPath.requesterPaysProjectIdOption.getOrElse("")
+        s"\"$drsPathStr\",\"$containerPathStr\",\"$requesterPaysProject\""
       }
     }.mkString("\n")
   }

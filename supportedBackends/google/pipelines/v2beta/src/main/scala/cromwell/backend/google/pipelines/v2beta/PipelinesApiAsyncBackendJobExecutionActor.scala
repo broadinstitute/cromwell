@@ -177,8 +177,11 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
 
   private def generateDrsLocalizerManifest(inputs: List[PipelinesApiInput]): String = {
     inputs.collect {
-      case PipelinesApiFileInput(_, drsPath: DrsPath, _, _) =>
-        s"\"${drsPath.pathAsString}\",\"${drsPath.pathAsString}\""
+      case PipelinesApiFileInput(name, drsPath: DrsPath, relativeHostPath, mount) => {
+        val drsPathStr = drsPath.pathAsString
+        val containerPathStr = PipelinesApiFileInput(name, drsPath, relativeHostPath, mount).containerPath.pathAsString
+        s"\"$drsPathStr\",\"$containerPathStr\""
+      }
     }.mkString("\n")
   }
 

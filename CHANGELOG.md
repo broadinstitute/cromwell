@@ -15,6 +15,27 @@ it is also being migrated from INT to BIGINT.
 Cromwell will now retry a task with more memory after it fails with return code 137, provided all
 the other requirements for retrying with more memory are met.
 
+### Support for invoking `CromwellDRSLocalizer` with manifest file
+
+`CromwellDRSLocalizer` can now handle multiple file localizations in a single invocation. Users can provide a 
+manifest file containing multiple (DRS id, local container path) pairs in CSV format, and they will be localized in 
+sequence, with the program exiting if any fail.
+```
+java -jar /path/to/localizer.jar [options] -m /local/path/to/manifest/file.txt
+```
+
+**IMPORTANT NOTE:** The previous method of providing a single DRS id to localize is still available, 
+but all arguments must be passed with flags.
+
+This invocation in Cromwell 84:
+```
+java -jar /path/to/localizer.jar [options] drs://provider/object /local/path/to/file.txt requesterPaysProjectId
+```
+...needs to be written this way in Cromwell 85:
+```
+java -jar /path/to/localizer.jar [options] -d drs://provider/object -c /local/path/to/file.txt -r requesterPaysProjectId
+```
+
 ## 84 Release Notes
 
 ### CromIAM enabled user checks

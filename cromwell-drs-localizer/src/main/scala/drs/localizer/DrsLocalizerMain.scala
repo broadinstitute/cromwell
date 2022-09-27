@@ -60,18 +60,12 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
       case Some(manifestPath) =>
         val manifestFile = new File(manifestPath)
         val csvParser = CSVParser.parse(manifestFile, Charset.defaultCharset(), CSVFormat.DEFAULT)
-        csvParser.asScala.map(record => {
+        val exitCodes: IO[List[ExitCode]] = csvParser.asScala.map(record => {
           val drsUri = record.get(0)
           val localFilePath = record.get(1)
           localizeFile(commandLineArguments, accessTokenStrategy, drsUri, localFilePath)
-        }).toList.sequence.map(_.fold(ExitCode.Success)(
-          // TODO: find a better way to collect/collapse exit codes
-          (status1, status2) => (status1, status2) match {
-            case (ExitCode.Error, _) => ExitCode.Error
-            case (_, ExitCode.Error) => ExitCode.Error
-            case _ => ExitCode.Success
-          }
-        ))
+        }).toList.sequence
+        exitCodes.map(_.find(_ != ExitCode.Success).getOrElse(ExitCode.Success))
       case None =>
         val drsObject = commandLineArguments.drsObject.get
         val containerPath = commandLineArguments.containerPath.get

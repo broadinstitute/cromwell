@@ -44,7 +44,7 @@ trait Localization {
     val runGcsLocalizationScript = cloudSdkShellAction(
       s"/bin/bash $gcsLocalizationContainerPath")(mounts = mounts, labels = localizationLabel)
 
-    val runDrsLocalization = drsAction(createPipelineParameters, drsLocalizationManifestContainerPath, mounts, localizationLabel)
+    val runDrsLocalization = Localization.drsAction(drsLocalizationManifestContainerPath, mounts, localizationLabel)
 
     // Any "classic" PAPI v2 one-at-a-time localizations for non-GCS inputs.
     val singletonLocalizations = createPipelineParameters.inputOutputParameters.fileInputParameters.flatMap(_.toActions(mounts).toList)
@@ -58,8 +58,11 @@ trait Localization {
 
     ActionBuilder.annotateTimestampedActions("localization", Value.Localization)(localizations)
   }
+}
 
-  private def drsAction(createPipelineParameters: CreatePipelineParameters, manifestPath: Path, mounts: List[Mount], labels: Map[String, String]) = {
+object Localization {
+
+  def drsAction(manifestPath: Path, mounts: List[Mount], labels: Map[String, String]) = {
     // TODO: Is this an acceptable way to read this config?
     val config = ConfigFactory.load
     val marthaConfig = config.getConfig("filesystems.drs.global.config.martha")

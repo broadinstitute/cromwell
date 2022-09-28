@@ -6,12 +6,14 @@ import com.typesafe.config.ConfigFactory
 import cromwell.backend.google.pipelines.common.action.ActionCommands.localizeFile
 import cromwell.backend.google.pipelines.common.action.ActionLabels._
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
+import cromwell.backend.google.pipelines.common.PipelinesApiFileInput
 import cromwell.backend.google.pipelines.common.PipelinesApiJobPaths._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.v2beta.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2beta.ToParameter.ops._
 import cromwell.backend.google.pipelines.v2beta.api.ActionBuilder.{EnhancedAction, cloudSdkShellAction}
 import cromwell.core.path.Path
+import cromwell.filesystems.drs.DrsPath
 
 import scala.jdk.CollectionConverters._
 
@@ -44,7 +46,12 @@ trait Localization {
     val runGcsLocalizationScript = cloudSdkShellAction(
       s"/bin/bash $gcsLocalizationContainerPath")(mounts = mounts, labels = localizationLabel)
 
-    val runDrsLocalization = Localization.drsAction(drsLocalizationManifestContainerPath, mounts, localizationLabel)
+    // Requester pays project id is stored on each DrsPath, but will be the same for all DRS inputs to a
+    // particular workflow because it's determined by the Google project set in workflow options.
+    val requesterPaysProjectId: Option[String] = createPipelineParameters.inputOutputParameters.fileInputParameters.collect {
+      case PipelinesApiFileInput(_, drsPath: DrsPath, _, _) => drsPath.requesterPaysProjectIdOption
+    }.flatten.headOption
+    val runDrsLocalization = Localization.drsAction(drsLocalizationManifestContainerPath, mounts, localizationLabel, requesterPaysProjectId)
 
     // Any "classic" PAPI v2 one-at-a-time localizations for non-GCS inputs.
     val singletonLocalizations = createPipelineParameters.inputOutputParameters.fileInputParameters.flatMap(_.toActions(mounts).toList)
@@ -62,14 +69,20 @@ trait Localization {
 
 object Localization {
 
-  def drsAction(manifestPath: Path, mounts: List[Mount], labels: Map[String, String]) = {
-    // TODO: Is this an acceptable way to read this config?
+  def drsAction(manifestPath: Path,
+                mounts: List[Mount],
+                labels: Map[String, String],
+                requesterPaysProjectId: Option[String]
+               ): Action = {
     val config = ConfigFactory.load
     val marthaConfig = config.getConfig("filesystems.drs.global.config.martha")
     val drsConfig = DrsConfig.fromConfig(marthaConfig)
     val drsDockerImage = config.getString("drs.localization.docker-image")
 
-    val drsCommand = List("-m", manifestPath.pathAsString)
+    val manifestArg = List("-m", manifestPath.pathAsString)
+    val requesterPaysArg = requesterPaysProjectId.map(r => List("-r", r)).getOrElse(List.empty)
+    val drsCommand = manifestArg ++ requesterPaysArg
+
     val marthaEnv = DrsConfig.toEnv(drsConfig)
     ActionBuilder
       .withImage(drsDockerImage)

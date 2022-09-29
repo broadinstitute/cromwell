@@ -181,7 +181,10 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
 
   override def uploadDrsLocalizationManifest(createPipelineParameters: CreatePipelineParameters, cloudPath: Path): Future[Unit] = {
     val content = generateDrsLocalizerManifest(createPipelineParameters.inputOutputParameters.fileInputParameters)
-    asyncIo.writeAsync(cloudPath, content, Seq(CloudStorageOptions.withMimeType("text/plain")))
+    if (content.nonEmpty)
+      asyncIo.writeAsync(cloudPath, content, Seq(CloudStorageOptions.withMimeType("text/plain")))
+    else
+      Future.unit
   }
 
   private def generateGcsLocalizationScript(inputs: List[PipelinesApiInput],

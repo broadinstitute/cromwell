@@ -6,7 +6,7 @@ object Dependencies {
   private val akkaV = "2.5.32" // scala-steward:off (CROM-6637)
   private val ammoniteOpsV = "2.4.1"
   private val apacheHttpClientV = "4.5.13"
-  private val awsSdkV = "2.17.194"
+  private val awsSdkV = "2.17.265"
   // We would like to use the BOM to manage Azure SDK versions, but SBT doesn't support it.
   // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
   // https://github.com/sbt/sbt/issues/4531
@@ -43,7 +43,7 @@ object Dependencies {
   private val googleCloudMonitoringV = "3.2.5"
   private val googleCloudNioV = "0.124.8"
   private val googleCloudStorageV = "2.9.2"
-  private val googleGaxGrpcV = "2.12.2"
+  private val googleGaxGrpcV = "2.19.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-genomics
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"
   private val googleHttpClientApacheV = "2.1.2"
@@ -53,13 +53,13 @@ object Dependencies {
   private val googleOauth2V = "1.5.3"
   private val googleOauthClientV = "1.33.1"
   private val googleCloudResourceManagerV = "1.2.5"
-  private val grpcV = "1.45.0"
+  private val grpcV = "1.45.1"
   private val guavaV = "31.0.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.6.1"
   private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
   private val jacksonV = "2.13.3"
-  private val janinoV = "3.1.6"
+  private val janinoV = "3.1.7"
   private val jsr305V = "3.0.2"
   private val junitV = "4.13.2"
   private val kindProjectorV = "0.13.2"

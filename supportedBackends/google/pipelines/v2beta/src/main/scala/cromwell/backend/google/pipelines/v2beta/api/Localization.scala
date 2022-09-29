@@ -38,20 +38,25 @@ trait Localization {
       cloudPath = createPipelineParameters.cloudCallRoot / GcsDelocalizationScriptName,
       containerPath = gcsDelocalizationContainerPath))(mounts = mounts, labels = localizationLabel)
 
-    val drsLocalizationManifestContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(DrsLocalizationManifestName)
-    val localizeDrsLocalizationManifest = cloudSdkShellAction(localizeFile(
-      cloudPath = createPipelineParameters.cloudCallRoot / DrsLocalizationManifestName,
-      containerPath = drsLocalizationManifestContainerPath))(mounts = mounts, labels = localizationLabel)
-
     val runGcsLocalizationScript = cloudSdkShellAction(
       s"/bin/bash $gcsLocalizationContainerPath")(mounts = mounts, labels = localizationLabel)
 
-    // Requester pays project id is stored on each DrsPath, but will be the same for all DRS inputs to a
-    // particular workflow because it's determined by the Google project set in workflow options.
-    val requesterPaysProjectId: Option[String] = createPipelineParameters.inputOutputParameters.fileInputParameters.collect {
-      case PipelinesApiFileInput(_, drsPath: DrsPath, _, _) => drsPath.requesterPaysProjectIdOption
-    }.flatten.headOption
-    val runDrsLocalization = Localization.drsAction(drsLocalizationManifestContainerPath, mounts, localizationLabel, requesterPaysProjectId)
+    val drsInputs: List[DrsPath] = createPipelineParameters.inputOutputParameters.fileInputParameters.collect {
+      case PipelinesApiFileInput(_, drsPath: DrsPath, _, _) => drsPath
+    }
+
+    val drsLocalizationActions = if (drsInputs.nonEmpty) {
+      val drsLocalizationManifestContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(DrsLocalizationManifestName)
+      val localizeDrsLocalizationManifest = cloudSdkShellAction(localizeFile(
+        cloudPath = createPipelineParameters.cloudCallRoot / DrsLocalizationManifestName,
+        containerPath = drsLocalizationManifestContainerPath))(mounts = mounts, labels = localizationLabel)
+
+      // Requester pays project id is stored on each DrsPath, but will be the same for all DRS inputs to a
+      // particular workflow because it's determined by the Google project set in workflow options.
+      val requesterPaysProjectId: Option[String] = drsInputs.flatMap(_.requesterPaysProjectIdOption).headOption
+      val runDrsLocalization = Localization.drsAction(drsLocalizationManifestContainerPath, mounts, localizationLabel, requesterPaysProjectId)
+      List(localizeDrsLocalizationManifest, runDrsLocalization)
+    } else List[Action]()
 
     // Any "classic" PAPI v2 one-at-a-time localizations for non-GCS inputs.
     val singletonLocalizations = createPipelineParameters.inputOutputParameters.fileInputParameters.flatMap(_.toActions(mounts).toList)
@@ -59,7 +64,7 @@ trait Localization {
     val localizations =
       localizeGcsTransferLibrary ::
         localizeGcsLocalizationScript :: runGcsLocalizationScript ::
-        localizeDrsLocalizationManifest :: runDrsLocalization ::
+        drsLocalizationActions :::
         localizeGcsDelocalizationScript ::
         singletonLocalizations
 

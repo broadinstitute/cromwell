@@ -45,9 +45,16 @@ class CommandLineParserSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
     args.manifestPath shouldBe empty
   }
 
-  it should "fail to parse with three arguments" in {
-    val args = parser.parse(Array(drsObject, containerPath, "some other arg"), CommandLineArguments())
-    args shouldBe None
+  it should "successfully parse with three arguments" in {
+    val args = parser.parse(Array(drsObject, containerPath, requesterPaysProject), CommandLineArguments()).get
+    args.drsObject.get shouldBe drsObject
+    args.containerPath.get shouldBe containerPath
+    args.accessTokenStrategy.get shouldBe AccessTokenStrategy.Google
+    args.googleRequesterPaysProject.get shouldBe requesterPaysProject
+    args.azureVaultName shouldBe empty
+    args.azureSecretName shouldBe empty
+    args.azureIdentityClientId shouldBe empty
+    args.manifestPath shouldBe empty
   }
 
   it should "successfully parse requester pays project" in {
@@ -61,6 +68,23 @@ class CommandLineParserSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
     args.azureSecretName shouldBe empty
     args.azureIdentityClientId shouldBe empty
     args.manifestPath shouldBe empty
+  }
+
+  it should "successfully parse with three arguments and requester pays project" in {
+    val args = parser.parse(Array(drsObject, containerPath, requesterPaysProject, "-r", requesterPaysProject), CommandLineArguments()).get
+
+    args.drsObject.get shouldBe drsObject
+    args.containerPath.get shouldBe containerPath
+    args.accessTokenStrategy.get shouldBe AccessTokenStrategy.Google
+    args.googleRequesterPaysProject.get shouldBe requesterPaysProject
+    args.azureVaultName shouldBe empty
+    args.azureSecretName shouldBe empty
+    args.azureIdentityClientId shouldBe empty
+    args.manifestPath shouldBe empty
+  }
+
+  it should "fail if requester pays argument and flag specify different projects" in {
+    parser.parse(Array(drsObject, containerPath, requesterPaysProject, "-r", "boom!"), CommandLineArguments()) shouldBe None
   }
 
   it should "successfully parse args with a manifest file" in {

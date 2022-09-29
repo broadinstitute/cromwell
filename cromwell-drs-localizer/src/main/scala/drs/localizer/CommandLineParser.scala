@@ -20,12 +20,19 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments](Usage) 
   arg[String]("container-path").text("Container path").optional().
     action((s, c) =>
       c.copy(containerPath = Option(s)))
+  arg[String]("requester-pays-project").text(s"Requester pays project (only valid with '$Google' auth strategy)").optional().
+    action((s, c) =>
+      c.copy(googleRequesterPaysProject = Option(s)))
   opt[String]('m', "manifest-path").text("File path of manifest containing multiple files to localize").
     action((s, c) =>
       c.copy(manifestPath = Option(s)))
   opt[String]('r', "requester-pays-project").text(s"Requester pays project (only valid with '$Google' auth strategy)").optional().
-    action((s, c) =>
-      c.copy(googleRequesterPaysProject = Option(s)))
+    action((s, c) => {
+      c.copy(
+        googleRequesterPaysProject = Option(s),
+        googleRequesterPaysProjectConflict = c.googleRequesterPaysProject.exists(_ != s)
+      )
+    })
   opt[String]('t', "access-token-strategy").text(s"Access token strategy, must be one of '$Azure' or '$Google' (default '$Google')").
     action((s, c) =>
       c.copy(accessTokenStrategy = Option(s.toLowerCase())))
@@ -38,6 +45,11 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments](Usage) 
   opt[String]('i', "identity-client-id").text("Azure identity client id").
     action((s, c) =>
       c.copy(azureIdentityClientId = Option(s)))
+  checkConfig(c =>
+    if (c.googleRequesterPaysProjectConflict)
+      failure("Requester pays project differs between positional argument and option flag")
+    else success
+  )
   checkConfig(c =>
     c.accessTokenStrategy match {
       case Some(Azure) if c.googleRequesterPaysProject.nonEmpty =>
@@ -91,4 +103,5 @@ case class CommandLineArguments(accessTokenStrategy: Option[String] = Option(Goo
                                 azureVaultName: Option[String] = None,
                                 azureSecretName: Option[String] = None,
                                 azureIdentityClientId: Option[String] = None,
-                                manifestPath: Option[String] = None)
+                                manifestPath: Option[String] = None,
+                                googleRequesterPaysProjectConflict: Boolean = false)

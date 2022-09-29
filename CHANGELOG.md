@@ -25,18 +25,7 @@ java -jar /path/to/localizer.jar [options] -m /local/path/to/manifest/file.txt
 ```
 
 The previous method of passing in a single DRS file and container destination using positional arguments is still 
-supported, but see below note.
-
-**IMPORTANT NOTE:** The `requester-pays-project` must now be passed with a flag.
-
-This invocation in Cromwell 84:
-```
-java -jar /path/to/localizer.jar [options] drs://provider/object /local/path/to/file.txt requesterPaysProjectId
-```
-...needs to be written this way in Cromwell 85:
-```
-java -jar /path/to/localizer.jar [options] drs://provider/object /local/path/to/file.txt -r requesterPaysProjectId
-```
+supported.
 
 ## 84 Release Notes
 

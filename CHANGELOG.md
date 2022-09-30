@@ -27,6 +27,11 @@ java -jar /path/to/localizer.jar [options] -m /local/path/to/manifest/file.txt
 The previous method of passing in a single DRS file and container destination using positional arguments is still 
 supported.
 
+### Improvement to DRS localization in GCP papiv2beta backend
+
+All DRS inputs to a task are now localized in a single PAPI action, which should improve speed and resolve
+failures observed when attempting to localize a large number of DRS files.
+
 ## 84 Release Notes
 
 ### CromIAM enabled user checks

@@ -39,17 +39,17 @@ object Dependencies {
   private val googleApiClientV = "1.33.4"
   private val googleCloudBigQueryV = "2.10.10"
   // latest date via: https://github.com/googleapis/google-api-java-client-services/blob/main/clients/google-api-services-cloudkms/v1.metadata.json
-  private val googleCloudKmsV = "v1-rev20220819-2.0.0"
+  private val googleCloudKmsV = "v1-rev20220104-1.32.1"
   private val googleCloudMonitoringV = "3.2.9"
   private val googleCloudNioV = "0.124.14"
   private val googleCloudStorageV = "2.9.3"
   private val googleGaxGrpcV = "2.19.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-genomics
-  private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20220328-2.0.0"
+  private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"
   private val googleHttpClientApacheV = "2.1.2"
   private val googleHttpClientV = "1.38.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-lifesciences
-  private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20220401-2.0.0"
+  private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20210813-1.32.1"
   private val googleOauth2V = "1.10.0"
   private val googleOauthClientV = "1.33.3"
   private val googleCloudResourceManagerV = "1.2.11"

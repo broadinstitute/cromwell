@@ -56,8 +56,8 @@ object Dependencies {
   private val grpcV = "1.45.1"
   private val guavaV = "31.0.1-jre"
   private val heterodonV = "1.0.0-beta3"
-  private val hsqldbV = "2.6.1"
-  private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
+  private val hsqldbV = "2.7.0"
+  private val http4sV = "0.21.33"
   private val jacksonV = "2.13.3"
   private val janinoV = "3.1.7"
   private val jsr305V = "3.0.2"
@@ -67,12 +67,12 @@ object Dependencies {
   private val liquibaseV = "4.8.0"
   private val logbackV = "1.2.11"
   private val lz4JavaV = "1.8.0"
-  private val mariadbV = "2.7.4"
+  private val mariadbV = "2.7.6"
   /*
   The StatsD reporter for DropWizard's (Code Hale's) Metrics 3.x still works with Metrics 4.x.
   Still would be great to move to Prometheus / OpenCensus
    */
-  private val metrics4ScalaV = "4.2.8"
+  private val metrics4ScalaV = "4.2.9"
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "3.0.0"
   private val mockitoV = "3.12.4"
@@ -85,15 +85,15 @@ object Dependencies {
    */
   private val mysqlV = "8.0.28"
   private val nettyV = "4.1.72.Final"
-  private val owlApiV = "5.1.19"
-  private val postgresV = "42.3.3"
+  private val owlApiV = "5.1.20"
+  private val postgresV = "42.3.6"
   private val pprintV = "0.7.3"
   private val rdf4jV = "3.7.1"
   private val refinedV = "0.9.29"
   private val rhinoV = "1.7.14"
 
   private val scalaCollectionCompatV = "2.5.0"
-  private val scalaGraphV = "1.13.1"
+  private val scalaGraphV = "1.13.5"
   private val scalaLoggingV = "3.9.5"
   private val scalaPoolV = "0.4.3"
   private val scalacticV = "3.2.13"
@@ -104,7 +104,7 @@ object Dependencies {
   private val sentryLogbackV = "5.7.4"
   private val shapelessV = "2.3.9"
   private val simulacrumV = "1.0.1"
-  private val slf4jV = "1.7.32"
+  private val slf4jV = "1.7.36"
   private val slickCatsV = "0.10.4"
   /* If you're about to update our Slick version:
     * Consider checking whether the new Slick version passes tests with upserts enabled (eg KeyValueDatabaseSpec)
@@ -121,10 +121,10 @@ object Dependencies {
   private val snakeyamlV = "1.30"
   private val sprayJsonV = "1.3.6"
   private val sttpV = "1.7.2"
-  private val swaggerParserV = "1.0.56"
+  private val swaggerParserV = "1.0.61"
   private val swaggerUiV = "4.5.2"
   private val testContainersScalaV = "0.40.10"
-  private val tikaV = "2.3.0"
+  private val tikaV = "2.4.1"
   private val typesafeConfigV = "1.4.2"
   private val workbenchGoogleV = "0.21-5c9c4f6" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/google/CHANGELOG.md
   private val workbenchModelV = "0.15-f9f0d4c" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/model/CHANGELOG.md

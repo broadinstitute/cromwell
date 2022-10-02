@@ -15,17 +15,12 @@ object ActionUtils {
   val sshPortMappings: Map[String, Integer] = Map("22" -> Int.box(22))
 
   /***
-   * A cloud-sdk 404.0.0-alpine + jq image has a decompressed size of 825 MB.
+   * A cloud-sdk 404.0.0-alpine image has a decompressed size of 821 MB, round up to 1 GB.
    *
    * {{{
-   * % cat Dockerfile
-   * FROM gcr.io/google.com/cloudsdktool/cloud-sdk:404.0.0-alpine
-   * RUN apk update && apk upgrade && apk add --no-cache jq
-   * % docker build . --quiet --tag cloud_sdk_plus_jq
-   * sha256:8e6cc12a28ad1802253a593e6fdc5ec5b4cbf7d9b6445ca84f04547a81b40a92
-   * % docker images | head -2
-   * REPOSITORY                                  TAG                            IMAGE ID       CREATED          SIZE
-   * cloud_sdk_plus_jq                           latest                         8e6cc12a28ad   8 seconds ago    825MB
+   * % docker images | sed -n '1p;/404.0.0-alpine/p'
+   * REPOSITORY                                  TAG                            IMAGE ID       CREATED        SIZE
+   * gcr.io/google.com/cloudsdktool/cloud-sdk    404.0.0-alpine                 fa8e2b2e584f   4 days ago     821MB
    * }}}
    */
   val cromwellImagesSizeRoundedUpInGB = 1

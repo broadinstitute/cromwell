@@ -91,4 +91,17 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val fileText = (is.readAllBytes.map(_.toChar)).mkString
     fileText should include ("This is my test file!!!! Did it work?")
   }
+
+  ignore should "resolve a path without duplicating container name" in {
+    val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
+    val store = BlobContainerName("inputs")
+    val blobTokenGenerator = NativeBlobTokenGenerator(store, endpoint)
+    val fsm: BlobFileSystemManager = BlobFileSystemManager(store, endpoint, 10, blobTokenGenerator)
+
+    val rootString = List(endpoint.value, store.value, "cromwell-execution").mkString("/")
+    val blobRoot: BlobPath = new BlobPathBuilder(store, endpoint)(fsm) build rootString getOrElse fail()
+    blobRoot.toAbsolutePath.pathAsString should equal ("https://coaexternalstorage.blob.core.windows.net/inputs/cromwell-execution")
+    val otherFile = blobRoot.resolve("test/inputFile.txt")
+    otherFile.toAbsolutePath.pathAsString should equal ("https://coaexternalstorage.blob.core.windows.net/inputs/cromwell-execution/test/inputFile.txt")
+  }
 }

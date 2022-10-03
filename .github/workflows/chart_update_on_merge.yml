@@ -48,12 +48,12 @@ jobs:
       with:
         username: dsdejenkins
         password: ${{ secrets.DSDEJENKINS_PASSWORD }}
+    # Build & push `cromwell`, `womtool`, `cromiam`, and `cromwell-drs-localizer`
     - name: Build Cromwell Docker
       run: |
         set -e
         cd cromwell
-        sbt server/docker
-        docker push broadinstitute/cromwell:$CROMWELL_SNAP_VERSION
+        sbt dockerBuildAndPush
     - name: Edit & push chart
       env:
         BROADBOT_GITHUB_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}

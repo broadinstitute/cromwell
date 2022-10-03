@@ -40,12 +40,12 @@ object Publishing {
         // Tag looks like `85-443a6fc-SNAP`
         version.value
       } else {
-        if (Version.skipRelease) {
-          // Tag looks like `85-443a6fc`
-          version.value
-        } else {
+        if (Version.isRelease) {
           // Tags look like `85`, `85-443a6fc`
           s"$cromwellVersion,${version.value}"
+        } else {
+          // Tag looks like `85-443a6fc`
+          version.value
         }
       }
 

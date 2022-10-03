@@ -23,9 +23,9 @@ object Version {
     *
     * Has no effect when `isSnapshot` is `true`.
     *
-    * Default `false`.
+    * Default `true`.
     */
-  val skipRelease: Boolean = !sys.props.get("project.skipRelease").forall(_.toBoolean)
+  val isRelease: Boolean = sys.props.get("project.skipRelease").forall(_.toBoolean)
 
   // Adapted from SbtGit.versionWithGit
   def cromwellVersionWithGit: Seq[Setting[_]] =

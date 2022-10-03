@@ -49,6 +49,7 @@ object Publishing {
         }
       }
 
+      // Travis applies (as of 10/22) the `dev` and `develop` tags on merge to `develop`
       sys.env.getOrElse("CROMWELL_SBT_DOCKER_TAGS", versionsCsv).split(",")
     },
     docker / imageNames := dockerTags.value map { tag =>

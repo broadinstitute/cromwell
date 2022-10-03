@@ -36,7 +36,19 @@ object Publishing {
       ArrayBuffer(broadinstitute/cromwell:dev, broadinstitute/cromwell:develop)
     */
     dockerTags := {
-      val versionsCsv = if (Version.isSnapshot) version.value else s"$cromwellVersion,${version.value}"
+      val versionsCsv = if (Version.isSnapshot) {
+        // Tag looks like `85-443a6fc-SNAP`
+        version.value
+      } else {
+        if (Version.skipRelease) {
+          // Tag looks like `85-443a6fc`
+          version.value
+        } else {
+          // Tags look like `85`, `85-443a6fc`
+          s"$cromwellVersion,${version.value}"
+        }
+      }
+
       sys.env.getOrElse("CROMWELL_SBT_DOCKER_TAGS", versionsCsv).split(",")
     },
     docker / imageNames := dockerTags.value map { tag =>

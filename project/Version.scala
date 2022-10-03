@@ -25,7 +25,7 @@ object Version {
     *
     * Default `true`.
     */
-  val isRelease: Boolean = sys.props.get("project.skipRelease").forall(_.toBoolean)
+  val isRelease: Boolean = sys.props.get("project.isRelease").forall(_.toBoolean)
 
   // Adapted from SbtGit.versionWithGit
   def cromwellVersionWithGit: Seq[Setting[_]] =

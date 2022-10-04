@@ -13,8 +13,19 @@ object Version {
     *
     * The value is read in directly from the system property `project.isSnapshot` as there were confusing issues with
     * the multi-project and sbt.Keys#isSnapshot().
+    *
+    * Default `true`.
     */
-  val isSnapshot = sys.props.get("project.isSnapshot").forall(_.toBoolean)
+  val isSnapshot: Boolean = sys.props.get("project.isSnapshot").forall(_.toBoolean)
+
+  /**
+    * Returns `true` if this project should tag a release like `85` in addition to a hash like `85-443a6fc`.
+    *
+    * Has no effect when `isSnapshot` is `true`.
+    *
+    * Default `true`.
+    */
+  val isRelease: Boolean = sys.props.get("project.isRelease").forall(_.toBoolean)
 
   // Adapted from SbtGit.versionWithGit
   def cromwellVersionWithGit: Seq[Setting[_]] =

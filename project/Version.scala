@@ -19,7 +19,7 @@ object Version {
   val isSnapshot: Boolean = sys.props.get("project.isSnapshot").forall(_.toBoolean)
 
   /**
-    * Returns `true` if this project should NOT tag a release like `85` in addition to a hash like `85-443a6fc`.
+    * Returns `true` if this project should tag a release like `85` in addition to a hash like `85-443a6fc`.
     *
     * Has no effect when `isSnapshot` is `true`.
     *

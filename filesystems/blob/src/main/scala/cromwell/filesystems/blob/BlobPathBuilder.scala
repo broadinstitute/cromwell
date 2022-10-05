@@ -78,13 +78,19 @@ object BlobPath {
     val pathStr = nioPath.toString
     pathStr.substring(pathStr.indexOf(":")+1)
   }
+
+  def apply(nioPath: NioPath,
+            endpoint: EndpointURL,
+            container: BlobContainerName,
+            fsm: BlobFileSystemManager): BlobPath = {
+    BlobPath(nioPathString(nioPath), endpoint, container)(fsm)
+  }
 }
 
 case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, container: BlobContainerName)(private val fsm: BlobFileSystemManager) extends Path {
   override def nioPath: NioPath = findNioPath(pathString)
 
-  override protected def newPath(nioPath: NioPath): Path =
-    BlobPath(BlobPath.nioPathString(nioPath), endpoint, container)(fsm)
+  override protected def newPath(nioPath: NioPath): Path = BlobPath(nioPath, endpoint, container, fsm)
 
   override def pathAsString: String = List(endpoint, container, pathString.stripPrefix("/")).mkString("/")
 

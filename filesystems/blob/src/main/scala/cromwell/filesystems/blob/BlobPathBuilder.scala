@@ -67,19 +67,40 @@ class BlobPathBuilder(container: BlobContainerName, endpoint: EndpointURL)(priva
   override def name: String = "Azure Blob Storage"
 }
 
+object BlobPath {
+  // The Azure NIO library uses `{containerName}:` as the root of the path.
+  // This doesn't work well for our need to easily transfer back and forth
+  // to and from the blob URL format. This method removes anything up to and including
+  // the first colon, to create a path string useful for working with BlobPath.
+  // This is safe because the NIO library enforces no colons except to mark
+  // the root container name.
+  private def nioPathString(nioPath: NioPath): String = {
+    val pathStr = nioPath.toString
+    pathStr.substring(pathStr.indexOf(":")+1)
+  }
+
+  def apply(nioPath: NioPath,
+            endpoint: EndpointURL,
+            container: BlobContainerName,
+            fsm: BlobFileSystemManager): BlobPath = {
+    BlobPath(nioPathString(nioPath), endpoint, container)(fsm)
+  }
+}
+
 case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, container: BlobContainerName)(private val fsm: BlobFileSystemManager) extends Path {
   override def nioPath: NioPath = findNioPath(pathString)
 
-  override protected def newPath(nioPath: NioPath): Path = BlobPath(nioPath.toString, endpoint, container)(fsm)
+  override protected def newPath(nioPath: NioPath): Path = BlobPath(nioPath, endpoint, container, fsm)
 
-  override def pathAsString: String = List(endpoint, container, nioPath.toString).mkString("/")
+  override def pathAsString: String = List(endpoint, container, pathString.stripPrefix("/")).mkString("/")
 
   //This is purposefully an unprotected get because if the endpoint cannot be parsed this should fail loudly rather than quietly
-  override def pathWithoutScheme: String = parseURI(endpoint.value).map(_.getHost + "/" + container + "/" + nioPath.toString).get
+  override def pathWithoutScheme: String = parseURI(endpoint.value).map(u => List(u.getHost, container, pathString).mkString("/")).get
 
   private def findNioPath(path: String): NioPath = (for {
     fileSystem <- fsm.retrieveFilesystem()
-    nioPath = fileSystem.getPath(path)
+    // The Azure NIO library uses `{container}:` to represent the root of the path
+    nioPath = fileSystem.getPath(s"${container.value}:", path)
   // This is purposefully an unprotected get because the NIO API needing an unwrapped path object.
   // If an error occurs the api expects a thrown exception
   } yield nioPath).get

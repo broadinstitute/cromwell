@@ -118,7 +118,7 @@ object Dependencies {
     * https://github.com/slick/slick/pull/2201
   */
   private val slickV = "3.4.0-M1"
-  private val snakeyamlV = "1.30"
+  private val snakeyamlV = "1.33"
   private val sprayJsonV = "1.3.6"
   private val sttpV = "1.7.2"
   private val swaggerParserV = "1.0.56"

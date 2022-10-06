@@ -12,14 +12,19 @@ import cromwell.backend.google.pipelines.common.io.PipelinesApiWorkingDisk
 import cromwell.backend.google.pipelines.v2beta.PipelinesApiAsyncBackendJobExecutionActor._
 import cromwell.backend.standard.StandardAsyncExecutionActorParams
 import cromwell.core.path.{DefaultPathBuilder, Path}
+import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
 import org.apache.commons.codec.digest.DigestUtils
+import org.apache.commons.csv.{CSVFormat, CSVPrinter}
+import org.apache.commons.io.output.ByteArrayOutputStream
 import wom.core.FullyQualifiedName
 import wom.expression.FileEvaluation
 import wom.values.{GlobFunctions, WomFile, WomGlobFile, WomMaybeListedDirectory, WomMaybePopulatedFile, WomSingleFile, WomUnlistedDirectory}
 
-import java.io.FileNotFoundException
+import java.nio.charset.Charset
+
+import java.io.{FileNotFoundException, OutputStreamWriter}
 import scala.concurrent.Future
 import scala.io.Source
 import scala.language.postfixOps
@@ -173,6 +178,14 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   }
 
   import mouse.all._
+
+  override def uploadDrsLocalizationManifest(createPipelineParameters: CreatePipelineParameters, cloudPath: Path): Future[Unit] = {
+    val content = generateDrsLocalizerManifest(createPipelineParameters.inputOutputParameters.fileInputParameters)
+    if (content.nonEmpty)
+      asyncIo.writeAsync(cloudPath, content, Seq(CloudStorageOptions.withMimeType("text/plain")))
+    else
+      Future.unit
+  }
 
   private def generateGcsLocalizationScript(inputs: List[PipelinesApiInput],
                                             referenceInputsToMountedPathsOpt: Option[Map[PipelinesApiInput, String]])
@@ -395,5 +408,18 @@ object PipelinesApiAsyncBackendJobExecutionActor {
           throw new Exception(s"$pathTypeString path '$other' did not match the expected regex: ${regexToUse.pattern.toString}") with NoStackTrace
       }
     } combineAll
+  }
+
+  private [v2beta] def generateDrsLocalizerManifest(inputs: List[PipelinesApiInput]): String = {
+    val outputStream = new ByteArrayOutputStream()
+    val csvPrinter = new CSVPrinter(new OutputStreamWriter(outputStream), CSVFormat.DEFAULT)
+    val drsFileInputs = inputs collect {
+      case drsInput@PipelinesApiFileInput(_, drsPath: DrsPath, _, _) => (drsInput, drsPath)
+    }
+    drsFileInputs foreach { case (drsInput, drsPath) =>
+      csvPrinter.printRecord(drsPath.pathAsString, drsInput.containerPath.pathAsString)
+    }
+    csvPrinter.close(true)
+    outputStream.toString(Charset.defaultCharset())
   }
 }

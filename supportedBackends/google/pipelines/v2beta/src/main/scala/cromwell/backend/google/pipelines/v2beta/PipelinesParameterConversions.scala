@@ -1,6 +1,5 @@
 package cromwell.backend.google.pipelines.v2beta
 
-import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, DrsConfig}
 import com.google.api.services.lifesciences.v2beta.model.{Action, Mount}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.google.pipelines.common.action.ActionCommands._
@@ -27,25 +26,6 @@ trait PipelinesParameterConversions {
 
       val labels = ActionBuilder.parameterLabels(fileInput)
       fileInput.cloudPath match {
-        case drsPath: DrsPath =>
-
-          import scala.jdk.CollectionConverters._
-
-          val drsFileSystemProvider = drsPath.drsPath.getFileSystem.provider.asInstanceOf[DrsCloudNioFileSystemProvider]
-
-          val drsDockerImage = config.getString("drs.localization.docker-image")
-          // Note: Don't ShellPath.escape the paths as we are directly invoking the localizer and NOT launching a shell.
-          val drsCommand =
-            List(fileInput.cloudPath.pathAsString, fileInput.containerPath.pathAsString) ++
-              drsPath.requesterPaysProjectIdOption.toList
-          val marthaEnv = DrsConfig.toEnv(drsFileSystemProvider.drsConfig)
-          val localizationAction = ActionBuilder
-            .withImage(drsDockerImage)
-            .withCommand(drsCommand: _*)
-            .withMounts(mounts)
-            .setEnvironment(marthaEnv.asJava)
-            .withLabels(labels)
-          List(ActionBuilder.describeParameter(fileInput, labels), localizationAction)
         case sraPath: SraPath =>
           val sraConfig = config.getConfig("filesystems.sra")
 
@@ -77,6 +57,9 @@ trait PipelinesParameterConversions {
           List(ActionBuilder.describeParameter(fileInput, labels), localizationAction)
         case _: GcsPath =>
           // GCS paths will be localized with a separate localization script.
+          Nil
+        case _: DrsPath =>
+          // DRS paths will be localized with a single call to cromwell-drs-localizer with a manifest
           Nil
       }
     }

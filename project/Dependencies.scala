@@ -6,7 +6,7 @@ object Dependencies {
   private val akkaV = "2.5.32" // scala-steward:off (CROM-6637)
   private val ammoniteOpsV = "2.4.1"
   private val apacheHttpClientV = "4.5.13"
-  private val awsSdkV = "2.17.194"
+  private val awsSdkV = "2.17.265"
   // We would like to use the BOM to manage Azure SDK versions, but SBT doesn't support it.
   // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
   // https://github.com/sbt/sbt/issues/4531
@@ -43,7 +43,7 @@ object Dependencies {
   private val googleCloudMonitoringV = "3.2.5"
   private val googleCloudNioV = "0.124.8"
   private val googleCloudStorageV = "2.9.2"
-  private val googleGaxGrpcV = "2.12.2"
+  private val googleGaxGrpcV = "2.19.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-genomics
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"
   private val googleHttpClientApacheV = "2.1.2"
@@ -53,19 +53,19 @@ object Dependencies {
   private val googleOauth2V = "1.5.3"
   private val googleOauthClientV = "1.33.1"
   private val googleCloudResourceManagerV = "1.2.5"
-  private val grpcV = "1.45.0"
+  private val grpcV = "1.45.1"
   private val guavaV = "31.0.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.6.1"
   private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
   private val jacksonV = "2.13.3"
-  private val janinoV = "3.1.6"
+  private val janinoV = "3.1.7"
   private val jsr305V = "3.0.2"
   private val junitV = "4.13.2"
   private val kindProjectorV = "0.13.2"
   private val kittensV = "2.3.2"
   private val liquibaseV = "4.8.0"
-  private val logbackV = "1.2.10"
+  private val logbackV = "1.2.11"
   private val lz4JavaV = "1.8.0"
   private val mariadbV = "2.7.4"
   /*
@@ -87,21 +87,21 @@ object Dependencies {
   private val nettyV = "4.1.72.Final"
   private val owlApiV = "5.1.19"
   private val postgresV = "42.3.3"
-  private val pprintV = "0.7.1"
+  private val pprintV = "0.7.3"
   private val rdf4jV = "3.7.1"
   private val refinedV = "0.9.29"
   private val rhinoV = "1.7.14"
 
   private val scalaCollectionCompatV = "2.5.0"
   private val scalaGraphV = "1.13.1"
-  private val scalaLoggingV = "3.9.4"
+  private val scalaLoggingV = "3.9.5"
   private val scalaPoolV = "0.4.3"
-  private val scalacticV = "3.2.10"
-  private val scalameterV = "0.19"
+  private val scalacticV = "3.2.13"
+  private val scalameterV = "0.21"
   private val scalatestV = "3.2.10"
   private val scalatestScalacheckV = scalatestV + ".0"
   private val scoptV = "4.1.0"
-  private val sentryLogbackV = "5.2.4"
+  private val sentryLogbackV = "5.7.4"
   private val shapelessV = "2.3.9"
   private val simulacrumV = "1.0.1"
   private val slf4jV = "1.7.32"
@@ -122,10 +122,10 @@ object Dependencies {
   private val sprayJsonV = "1.3.6"
   private val sttpV = "1.7.2"
   private val swaggerParserV = "1.0.56"
-  private val swaggerUiV = "4.5.0"
-  private val testContainersScalaV = "0.40.2"
+  private val swaggerUiV = "4.5.2"
+  private val testContainersScalaV = "0.40.10"
   private val tikaV = "2.3.0"
-  private val typesafeConfigV = "1.4.1"
+  private val typesafeConfigV = "1.4.2"
   private val workbenchGoogleV = "0.21-5c9c4f6" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/google/CHANGELOG.md
   private val workbenchModelV = "0.15-f9f0d4c" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/model/CHANGELOG.md
   private val workbenchUtilV = "0.6-65bba14" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/util/CHANGELOG.md
@@ -564,6 +564,7 @@ object Dependencies {
     "com.iheart" %% "ficus" % ficusV,
     "com.softwaremill.sttp" %% "circe" % sttpV,
     "com.github.scopt" %% "scopt" % scoptV,
+    "org.apache.commons" % "commons-csv" % commonsCsvV,
   ) ++ circeDependencies ++ catsDependencies ++ slf4jBindingDependencies ++ languageFactoryDependencies ++ azureDependencies
 
   val allProjectDependencies: List[ModuleID] =

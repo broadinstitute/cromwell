@@ -10,6 +10,28 @@ it is also being migrated from INT to BIGINT.
 * WORKFLOW_STORE_ENTRY
 * SUB_WORKFLOW_STORE_ENTRY
 
+### Improvement to "retry with more memory" behavior
+
+Cromwell will now retry a task with more memory after it fails with return code 137, provided all
+the other requirements for retrying with more memory are met.
+
+### Support for invoking `CromwellDRSLocalizer` with manifest file
+
+`CromwellDRSLocalizer` can now handle multiple file localizations in a single invocation. Users can provide a 
+manifest file containing multiple (DRS id, local container path) pairs in CSV format, and they will be localized in 
+sequence, with the program exiting if any fail.
+```
+java -jar /path/to/localizer.jar [options] -m /local/path/to/manifest/file.txt
+```
+
+The previous method of passing in a single DRS file and container destination using positional arguments is still 
+supported.
+
+### Improvement to DRS localization in GCP papiv2beta backend
+
+All DRS inputs to a task are now localized in a single PAPI action, which should improve speed and resolve
+failures observed when attempting to localize a large number of DRS files.
+
 ## 84 Release Notes
 
 ### CromIAM enabled user checks

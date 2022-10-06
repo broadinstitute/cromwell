@@ -12,7 +12,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yaml.snakeyaml.constructor.Constructor
 import org.yaml.snakeyaml.error.YAMLException
 import org.yaml.snakeyaml.nodes.MappingNode
-import org.yaml.snakeyaml.{Yaml => SnakeYaml}
+import org.yaml.snakeyaml.{LoaderOptions, Yaml => SnakeYaml}
 
 import scala.jdk.CollectionConverters._
 
@@ -21,6 +21,7 @@ class SwaggerServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Swagg
   with TableDrivenPropertyChecks {
   def actorRefFactory = system
   override def oauthConfig: SwaggerOauthConfig = SwaggerOauthConfig("clientId", "realm", "appName")
+  val yamlLoaderOptions = new LoaderOptions
 
   behavior of "SwaggerService"
 
@@ -32,7 +33,7 @@ class SwaggerServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Swagg
         contentType should be(ContentTypes.`application/octet-stream`)
 
         val body = responseAs[String]
-        val yaml = new SnakeYaml(new UniqueKeyConstructor()).loadAs(body, classOf[java.util.Map[String, AnyRef]])
+        val yaml = new SnakeYaml(new UniqueKeyConstructor(new LoaderOptions)).loadAs(body, classOf[java.util.Map[String, AnyRef]])
 
         yaml.get("swagger") should be("2.0")
       }
@@ -109,7 +110,7 @@ class SwaggerServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Swagg
   * Adapted from:
   * https://bitbucket.org/asomov/snakeyaml/src/e9cd9f5e8d76c61eb983e29b3dc039c1fac9c393/src/test/java/org/yaml/snakeyaml/issues/issue139/UniqueKeyTest.java?fileviewer=file-view-default#UniqueKeyTest.java-43:62
   */
-class UniqueKeyConstructor extends Constructor {
+class UniqueKeyConstructor(val loaderOptions: LoaderOptions) extends Constructor(loaderOptions) {
 
   import java.util.{Map => JMap}
 

@@ -15,11 +15,7 @@ object PathBuilderFactory {
     // The DefaultPathBuilderFactory always needs to be last.
     // The reason is path builders are tried in order, and the default one is very generous in terms of paths it "thinks" it supports
     // For instance, it will return a Path for a gcs url even though it doesn't really support it
-    val sortedFactories = factories.sortWith({
-      case (_, DefaultPathBuilderFactory) => true
-      case (DefaultPathBuilderFactory, _) => false
-      case (a, b) => a.priority < b.priority
-    })
+    val sortedFactories = factories.sortBy(_.priority)
     sortedFactories.traverse(_.withOptions(workflowOptions))
   }
 }

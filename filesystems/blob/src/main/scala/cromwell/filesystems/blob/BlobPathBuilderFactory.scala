@@ -34,5 +34,5 @@ final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Co
     }
   }
 
-  override def priority = 1
+  override def priority = 100
 }

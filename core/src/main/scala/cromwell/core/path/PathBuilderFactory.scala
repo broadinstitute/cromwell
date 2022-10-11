@@ -18,7 +18,7 @@ object PathBuilderFactory {
     val sortedFactories = factories.sortWith({
       case (_, DefaultPathBuilderFactory) => true
       case (DefaultPathBuilderFactory, _) => false
-      case (a, b) => factories.indexOf(a) < factories.indexOf(b) // retains pre-existing order of `factories`
+      case (a, b) => a.priority < b.priority
     })
     sortedFactories.traverse(_.withOptions(workflowOptions))
   }
@@ -29,4 +29,11 @@ object PathBuilderFactory {
   */
 trait PathBuilderFactory {
   def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder]
+
+  /**
+    * Candidate filesystems are considered in a stable order, as some requests may match multiple filesystems.
+    * To customize this order, the priority of a filesystem may be adjusted. Lower number == higher priority.
+    * @return This filesystem's priority
+    */
+  def priority: Int = 1000
 }

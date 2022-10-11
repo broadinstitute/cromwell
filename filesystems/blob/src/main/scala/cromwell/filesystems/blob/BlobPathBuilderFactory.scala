@@ -33,4 +33,6 @@ final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Co
       new BlobPathBuilder(container, endpoint)(fsm)
     }
   }
+
+  override def priority = 1
 }

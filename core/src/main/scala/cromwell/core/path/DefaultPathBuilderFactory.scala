@@ -2,6 +2,7 @@ package cromwell.core.path
 
 import akka.actor.ActorSystem
 import cromwell.core.WorkflowOptions
+import cromwell.core.path.PathBuilderFactory.PriorityDefault
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -10,5 +11,5 @@ case object DefaultPathBuilderFactory extends PathBuilderFactory {
   val name = "local"
   val tuple = name -> this
 
-  override def priority: Int = 10000
+  override def priority: Int = PriorityDefault
 }

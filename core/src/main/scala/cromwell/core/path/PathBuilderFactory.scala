@@ -5,6 +5,7 @@ import cromwell.core.{Dispatcher, WorkflowOptions}
 import cats.syntax.traverse._
 import cats.instances.list._
 import cats.instances.future._
+import cromwell.core.path.PathBuilderFactory.PriorityStandard
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -18,6 +19,10 @@ object PathBuilderFactory {
     val sortedFactories = factories.sortBy(_.priority)
     sortedFactories.traverse(_.withOptions(workflowOptions))
   }
+
+  val PriorityBlob     = 100   // High priority to evaluate first, because blob files may inadvertently match other filesystems
+  val PriorityStandard = 1000
+  val PriorityDefault  = 10000 // "Default" is a fallback, evaluate last
 }
 
 /**
@@ -31,5 +36,5 @@ trait PathBuilderFactory {
     * To customize this order, the priority of a filesystem may be adjusted. Lower number == higher priority.
     * @return This filesystem's priority
     */
-  def priority: Int = 1000
+  def priority: Int = PriorityStandard
 }

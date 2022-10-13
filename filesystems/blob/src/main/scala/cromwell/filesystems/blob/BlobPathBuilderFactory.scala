@@ -4,6 +4,7 @@ import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.PathBuilderFactory
+import cromwell.core.path.PathBuilderFactory.PriorityBlob
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -34,5 +35,5 @@ final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Co
     }
   }
 
-  override def priority = 100
+  override def priority: Int = PriorityBlob
 }

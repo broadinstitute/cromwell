@@ -189,7 +189,7 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
   }
 
   private def toJobKeyValueRow(jobKeyValueEntry: JobKeyValueEntry): RowToInsert = {
-    RowToInsert of Map(
+    RowToInsert of Map[String, Any](
       "call_fully_qualified_name" -> jobKeyValueEntry.callFullyQualifiedName,
       "job_attempt" -> jobKeyValueEntry.jobAttempt,
       "job_index" -> jobKeyValueEntry.jobIndex,

@@ -11,7 +11,7 @@ import scala.util.{Failure, Success, Try}
 class ValidatingCachingConfigSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks {
 
     it should "run config tests" in {
-      val cases = Table(
+      val cases = Table[String, Any](
         ("config"                 , "exceptionMessage"                                                              ),
         ("enabled = not-a-boolean", "String: 1: enabled has type STRING rather than BOOLEAN"                        ),
         ("enabled = true"         , true                                                                            ),

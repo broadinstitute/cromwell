@@ -196,7 +196,7 @@ object AstTools {
           val pairType = womType.asInstanceOf[WomPairType]
           WomPair(subElements.head.womValue(pairType.leftType, wdlSyntaxErrorFormatter), subElements(1).womValue(pairType.rightType, wdlSyntaxErrorFormatter))
         } else {
-          throw new SyntaxError(s"Could not convert AST to a $womType (${Option(astNode).getOrElse("No AST").toString})")
+          throw new SyntaxError(s"Could not convert AST to a $womType (${Option(astNode).map(_.toString).getOrElse("No AST")})")
         }
       }
 
@@ -224,7 +224,7 @@ object AstTools {
         case a: Ast if a.getName == "TupleLiteral" => astTupleToValue(a)
         case a: Ast if a.getName == "MapLiteral" && womType.isInstanceOf[WomMapType] => astToMap(a)
         case a: Ast if a.getName == "ObjectLiteral" && womType == WomObjectType => astToObject(a)
-        case _ => throw new SyntaxError(s"Could not convert AST to a $womType (${Option(astNode).getOrElse("No AST").toString})")
+        case _ => throw new SyntaxError(s"Could not convert AST to a $womType (${Option(astNode).map(_.toString).getOrElse("No AST")})")
       }
     }
   }

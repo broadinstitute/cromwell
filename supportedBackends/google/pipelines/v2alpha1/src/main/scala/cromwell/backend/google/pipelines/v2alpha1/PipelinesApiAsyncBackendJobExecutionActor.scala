@@ -141,9 +141,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
       }
 
       val optional = Option(output) collectFirst { case o: PipelinesApiFileOutput if o.secondary || o.optional => "optional" } getOrElse "required"
-      val contentType = output.contentType.getOrElse("")
+      val contentType = output.contentType.map(_.toString).getOrElse("")
 
-      List(kind, output.cloudPath, output.containerPath, optional, contentType)
+      List(kind, output.cloudPath.toString, output.containerPath.toString, optional, contentType)
     } mkString("\"", "\"\n|  \"", "\"")
 
     val parallelCompositeUploadThreshold = jobDescriptor.workflowDescriptor.workflowOptions.getOrElse(

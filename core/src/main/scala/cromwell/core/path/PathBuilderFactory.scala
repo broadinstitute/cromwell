@@ -13,9 +13,6 @@ object PathBuilderFactory {
   // Given a list of factories, instantiates the corresponding path builders
   def instantiatePathBuilders(factories: List[PathBuilderFactory], workflowOptions: WorkflowOptions)(implicit as: ActorSystem): Future[List[PathBuilder]] = {
     implicit val ec: ExecutionContext = as.dispatchers.lookup(Dispatcher.IoDispatcher)
-    // The DefaultPathBuilderFactory always needs to be last.
-    // The reason is path builders are tried in order, and the default one is very generous in terms of paths it "thinks" it supports
-    // For instance, it will return a Path for a gcs url even though it doesn't really support it
     val sortedFactories = factories.sortBy(_.priority)
     sortedFactories.traverse(_.withOptions(workflowOptions))
   }

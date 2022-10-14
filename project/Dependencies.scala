@@ -42,7 +42,7 @@ object Dependencies {
   private val googleCloudKmsV = "v1-rev20220104-1.32.1"
   private val googleCloudMonitoringV = "3.2.5"
   private val googleCloudNioV = "0.124.8"
-  private val googleCloudStorageV = "2.9.2"
+  private val googleCloudStorageV = "2.9.3"
   private val googleGaxGrpcV = "2.19.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-genomics
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"

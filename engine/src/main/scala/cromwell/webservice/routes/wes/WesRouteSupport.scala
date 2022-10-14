@@ -228,7 +228,7 @@ object WesRouteSupport {
     val metadataJsonResponse = metadataBuilderActorRequest(workflowId, request, serviceRegistryActor)
 
     metadataJsonResponse.map {
-      case SuccessfulMetadataJsonResponse(_, responseJson) => WesResponseWorkflowMetadata(WesRunLog.fromJson(responseJson.toString()))
+      case SuccessfulMetadataJsonResponse(_, responseJson) => WesRunLog.fromJson(responseJson.toString())
       case FailedMetadataJsonResponse(_, reason) => WesErrorResponse(reason.getMessage, StatusCodes.InternalServerError.intValue)
     }
   }

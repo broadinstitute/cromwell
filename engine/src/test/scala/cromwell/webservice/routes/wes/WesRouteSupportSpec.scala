@@ -196,7 +196,7 @@ class WesRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Mat
       wesRoutes ~>
       check {
         status should be(StatusCodes.OK)
-        val result = responseAs[JsObject].fields("workflowLog").asJsObject()
+        val result = responseAs[JsObject]
         result.fields.keys should contain allOf("request", "run_id", "state")
         result.fields("state") should be(JsString("RUNNING"))
         result.fields("run_id") should be(JsString(CromwellApiServiceSpec.wesWorkflowId.toString))

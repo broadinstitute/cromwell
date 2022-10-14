@@ -21,5 +21,5 @@ case class WorkflowStoreEntry
   cromwellId: Option[String],
   heartbeatTimestamp: Option[Timestamp],
   hogGroup: Option[String],
-  workflowStoreEntryId: Option[Int] = None
+  workflowStoreEntryId: Option[Long] = None
 )

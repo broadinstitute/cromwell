@@ -10,7 +10,7 @@ import drs.localizer.CommandLineArguments
 case class AzureB2CAccessTokenStrategy(commandLineArguments: CommandLineArguments) extends AccessTokenStrategy {
   override def getAccessToken(): ErrorOr[String] = {
     commandLineArguments match {
-      case CommandLineArguments(_, _, _, _, Some(vault), Some(secret), clientId) =>
+      case CommandLineArguments(_, _, _, _, Some(vault), Some(secret), clientId, _, _) =>
         AzureKeyVaultClient(vault, clientId) flatMap { _.getSecret(secret) }
       case invalid => s"Invalid command line arguments: $invalid".invalidNel
     }

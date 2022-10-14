@@ -38,7 +38,7 @@ object YamlUtils {
             maxDepth: Int Refined NonNegative = defaultMaxDepth
            ): Either[ParsingFailure, Json] = {
     try {
-      val yamlConstructor = new SafeConstructor()
+      val yamlConstructor = new SafeConstructor(loaderOptions)
       val yamlComposer = new MaxDepthComposer(yaml, maxDepth)
       yamlConstructor.setComposer(yamlComposer)
       val parsed = yamlConstructor.getSingleData(classOf[AnyRef])
@@ -76,12 +76,14 @@ object YamlUtils {
   // org.yaml.snakeyaml.error.YAMLException: Number of aliases for non-scalar nodes exceeds the specified max=50
   // that comes from the SnakeYAML library.
   private val loaderOptions = new LoaderOptions()
+  loaderOptions.setAllowRecursiveKeys(true)
+  loaderOptions.setNestingDepthLimit(1000)
   loaderOptions.setMaxAliasesForCollections(Integer.MAX_VALUE)
 
   /** Extends SnakeYaml's Composer checking for a maximum depth before a StackOverflowError occurs. */
   private class MaxDepthComposer(yaml: String, maxDepth: Int Refined NonNegative)
     extends Composer(
-      new ParserImpl(new StreamReader(new StringReader(yaml))),
+      new ParserImpl(new StreamReader(new StringReader(yaml)), loaderOptions),
       new Resolver(),
       loaderOptions
     ) {

@@ -82,9 +82,9 @@ class DeserializationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
             "commands" -> List[String]("echo", "hello").asJava
           ).asJava
         ).asJava,
-        "resources" -> Map(
+        "resources" -> Map[String, Object](
           "projectId" -> "project",
-          "virtualMachine" -> Map(
+          "virtualMachine" -> Map[String, Any](
             "machineType" -> "custom-1-1024",
             "preemptible" -> false
           ).asJava
@@ -117,7 +117,7 @@ class DeserializationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
             "commands" -> List[String]("echo", "hello").asJava
           ).asJava
         ).asJava,
-        "resources" -> Map(
+        "resources" -> Map[String, Object](
           "projectId" -> "project",
           "virtualMachine" -> Map(
             "machineType" -> "custom-1-1024",

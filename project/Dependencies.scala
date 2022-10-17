@@ -89,7 +89,7 @@ object Dependencies {
   private val postgresV = "42.4.1"
   private val pprintV = "0.7.3"
   private val rdf4jV = "3.7.1"
-  private val refinedV = "0.9.29"
+  private val refinedV = "0.10.1"
   private val rhinoV = "1.7.14"
 
   private val scalaCollectionCompatV = "2.5.0"
@@ -480,7 +480,8 @@ object Dependencies {
   val coreDependencies: List[ModuleID] = List(
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
     "com.chuusai" %% "shapeless" % shapelessV,
-    "com.storm-enroute" %% "scalameter" % scalameterV % Test,
+    "com.storm-enroute" %% "scalameter" % scalameterV % Test
+      exclude("org.scala-lang.modules", "scala-xml_2.13"),
     "com.github.scopt" %% "scopt" % scoptV,
   ) ++ akkaStreamDependencies ++ configDependencies ++ catsDependencies ++ circeDependencies ++
     googleApiClientDependencies ++ statsDDependencies ++ betterFilesDependencies ++
@@ -509,7 +510,8 @@ object Dependencies {
     "com.storm-enroute" %% "scalameter" % scalameterV
       exclude("com.fasterxml.jackson.core", "jackson-databind")
       exclude("com.fasterxml.jackson.module", "jackson-module-scala")
-      exclude("org.scala-tools.testing", "test-interface"),
+      exclude("org.scala-tools.testing", "test-interface")
+      exclude("org.scala-lang.modules", "scala-xml_2.13"),
     "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV
   ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies ++

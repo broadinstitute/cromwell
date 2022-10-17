@@ -75,7 +75,7 @@ trait PipelinesApiJobCachingActorHelper extends StandardCachingActorHelper {
       .get(WorkflowOptionKeys.GoogleProject)
       .getOrElse(jesAttributes.project)
 
-    Map(
+    Map[String, Any](
       PipelinesApiMetadataKeys.GoogleProject -> googleProject,
       PipelinesApiMetadataKeys.ExecutionBucket -> initializationData.workflowPaths.executionRootString,
       PipelinesApiMetadataKeys.EndpointUrl -> jesAttributes.endpointUrl,

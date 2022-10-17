@@ -32,6 +32,11 @@ supported.
 All DRS inputs to a task are now localized in a single PAPI action, which should improve speed and resolve
 failures observed when attempting to localize a large number of DRS files.
 
+### Security Patching
+
+Updates to dependencies to fix security vulnerabilities.
+
+
 ## 84 Release Notes
 
 ### CromIAM enabled user checks

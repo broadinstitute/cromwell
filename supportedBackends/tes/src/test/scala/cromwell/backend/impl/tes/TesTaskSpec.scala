@@ -88,4 +88,28 @@ class TesTaskSpec
 
     task.tags shouldBe Option(Map("foo" -> "bar"))
   }
+
+  it should "apply the correct transformation to a blob path" in {
+    val orig = "https://coaexternalstorage.blob.core.windows.net/cromwell/mydir/myfile.txt"
+    TesTask.transformBlobString(orig) shouldBe "/coaexternalstorage/cromwell/mydir/myfile.txt"
+  }
+
+  it should "not transform a non-blob path" in {
+    val orig = "https://some-bogus-url.test/cromwell/mydir/myfile.txt"
+    TesTask.transformBlobString(orig) shouldBe orig
+  }
+
+  it should "transform inputs" in {
+    val baseInput = Input(
+      Option("name"),
+      Option("descr"),
+      Option("https://coaexternalstorage.blob.core.windows.net/cromwell/mydir/myfile.txt"),
+      "path",
+      Option("type"),
+      Option("content"),
+    )
+    val inputs = Option(Seq(baseInput))
+    val outcome = inputs.map(TesTask.transformInputs)
+    outcome.get.head.url.get shouldBe "/coaexternalstorage/cromwell/mydir/myfile.txt"
+  }
 }

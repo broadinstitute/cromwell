@@ -264,8 +264,8 @@ object TesTask {
       state = None,
       name = Option(tesTask.name),
       description = Option(tesTask.description),
-      inputs = Option(tesTask.inputs),
-      outputs = Option(tesTask.outputs),
+      inputs = Option(transformInputs(tesTask.inputs)),
+      outputs = Option(transformOutputs(tesTask.outputs)),
       resources = Option(tesTask.resources),
       executors = tesTask.executors,
       volumes = None,
@@ -273,6 +273,20 @@ object TesTask {
       logs = None
     )
   }
+
+  def transformInputs(inputs: Seq[Input]): Seq[Input] = inputs.map(i =>
+    i.copy(url=i.url.map(s => transformBlobString(s)))
+  )
+
+  def transformOutputs(outputs: Seq[Output]): Seq[Output] = outputs.map(i =>
+    i.copy(url=i.url.map(s => transformBlobString(s)))
+  )
+
+  val blobSegment = ".blob.core.windows.net"
+  def transformBlobString(s: String): String = if (s.contains(blobSegment)) {
+    s.replaceFirst("https:/", "").replaceFirst(blobSegment, "")
+  } else s
+
 }
 
 // Field requirements in classes below based off GA4GH schema

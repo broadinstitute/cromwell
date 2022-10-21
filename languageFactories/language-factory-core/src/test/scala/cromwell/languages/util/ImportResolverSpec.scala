@@ -1,7 +1,8 @@
 package cromwell.languages.util
 
-import java.nio.file.{Files, Paths}
+import com.softwaremill.sttp._
 
+import java.nio.file.{Files, Paths}
 import common.assertion.CromwellTimeoutSpec
 import common.assertion.ErrorOrAssertions._
 import cromwell.core.WorkflowId
@@ -41,13 +42,13 @@ class ImportResolverSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
   }
 
   it should "resolve a path from no initial root" in {
-    val resolver = HttpResolver()
+    val resolver = HttpResolver(None, Map.empty, None)
     val toResolve = resolver.pathToLookup("http://abc.com:8000/blah1/blah2.wdl")
     toResolve shouldBeValid "http://abc.com:8000/blah1/blah2.wdl"
   }
 
   it should "resolve a path and store the import in ResolvedImportRecord" in {
-    val resolver = HttpResolver()
+    val resolver = HttpResolver(None, Map.empty, None)
     val importUri = "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/hello/hello.wdl"
     val resolvedBundle = resolver.innerResolver(importUri, List(resolver))
 
@@ -57,10 +58,42 @@ class ImportResolverSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     }
   }
 
+  behavior of "HttpResolver with allowList"
+
+  val allowList = Option(List("my.favorite.wdls.com", "anotherwdlsite.org"))
+  val pathEnd = "bob/loblaw/blah/blah.wdl"
+
+  it should "allow any import when there is no allow list" in {
+    val resolver = HttpResolver(None, Map.empty, None)
+    resolver.isAllowed(uri"https://my.favorite.wdls.com/$pathEnd") shouldBe true
+    resolver.isAllowed(uri"http://some-garbage.whatever.eu/$pathEnd") shouldBe true
+    resolver.isAllowed(uri"localhost:8080/my/secrets") shouldBe true
+  }
+
+  it should "allow any import that's on the allow list" in {
+    val resolver = HttpResolver(None, Map.empty, allowList)
+    resolver.isAllowed(uri"https://my.favorite.wdls.com/$pathEnd") shouldBe true
+    resolver.isAllowed(uri"http://anotherwdlsite.org/$pathEnd") shouldBe true
+    resolver.isAllowed(uri"https://yetanotherwdlsite.org/$pathEnd") shouldBe false
+    resolver.isAllowed(uri"https://FOO.my.favorite.wdls.com/$pathEnd") shouldBe false
+    resolver.isAllowed(uri"https://wdls.com/$pathEnd") shouldBe false
+    resolver.isAllowed(uri"localhost:8080/my/secrets") shouldBe false
+  }
+
+  it should "allow nothing with an empty allow list" in {
+    val resolver = HttpResolver(None, Map.empty, Option(List.empty))
+    resolver.isAllowed(uri"https://my.favorite.wdls.com/$pathEnd") shouldBe false
+    resolver.isAllowed(uri"http://anotherwdlsite.org/$pathEnd") shouldBe false
+    resolver.isAllowed(uri"https://yetanotherwdlsite.org/$pathEnd") shouldBe false
+    resolver.isAllowed(uri"https://FOO.my.favorite.wdls.com/$pathEnd") shouldBe false
+    resolver.isAllowed(uri"https://wdls.com/$pathEnd") shouldBe false
+    resolver.isAllowed(uri"localhost:8080/my/secrets") shouldBe false
+  }
+
   behavior of "HttpResolver with a 'relativeTo' value"
 
-  val relativeHttpResolver = HttpResolver(relativeTo = Some("http://abc.com:8000/blah1/blah2/"))
-  val relativeToGithubHttpResolver = HttpResolver(relativeTo = Some(relativeToGithubRoot))
+  val relativeHttpResolver = HttpResolver(relativeTo = Some("http://abc.com:8000/blah1/blah2/"), Map.empty, None)
+  val relativeToGithubHttpResolver = HttpResolver(relativeTo = Some(relativeToGithubRoot), Map.empty, None)
 
   it should "resolve an absolute path from a different initial root" in {
     val pathToLookup = relativeHttpResolver.pathToLookup("http://def.org:8080/blah3.wdl")

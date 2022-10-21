@@ -187,7 +187,7 @@ object ImportResolver {
         else "Relative path".invalidNelCheck
     }
 
-    private def isAllowed(uri: Uri): Boolean = hostAllowlist match {
+    def isAllowed(uri: Uri): Boolean = hostAllowlist match {
       case Some(hosts) => hosts.contains(uri.host)
       case None => true
     }

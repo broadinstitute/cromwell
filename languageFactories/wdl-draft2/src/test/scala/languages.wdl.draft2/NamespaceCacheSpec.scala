@@ -61,7 +61,7 @@ class NamespaceCacheSpec extends AnyFlatSpec with CromwellTimeoutSpec with Befor
     )
 
     var lookupCount = 0
-    val countingResolver = new HttpResolver() {
+    val countingResolver = new HttpResolver(None, Map.empty, None) {
       override def pathToLookup(str: String): Checked[String] = {
         lookupCount = lookupCount + 1
         super.pathToLookup(str)

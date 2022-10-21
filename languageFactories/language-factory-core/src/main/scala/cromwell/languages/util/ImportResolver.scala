@@ -9,12 +9,14 @@ import cats.syntax.either._
 import cats.syntax.validated._
 import com.softwaremill.sttp._
 import com.softwaremill.sttp.asynchttpclient.cats.AsyncHttpClientCatsBackend
+import com.typesafe.config.ConfigFactory
 import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.ErrorOr._
 import common.validation.Checked._
 import common.validation.Validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}
+import net.ceedubs.ficus.Ficus._
 
 import java.nio.file.{Path => NioPath}
 import java.security.MessageDigest
@@ -157,7 +159,9 @@ object ImportResolver {
     }
   }
 
-  case class HttpResolver(relativeTo: Option[String] = None, headers: Map[String, String] = Map.empty) extends ImportResolver {
+  case class HttpResolver(relativeTo: Option[String],
+                          headers: Map[String, String],
+                          hostAllowlist: Option[List[String]]) extends ImportResolver {
     import HttpResolver._
 
     override def name: String = relativeTo match {
@@ -169,7 +173,7 @@ object ImportResolver {
     def newResolverList(newRoot: String): List[ImportResolver] = {
       val rootWithoutFilename = newRoot.split('/').init.mkString("", "/", "/")
       List(
-        HttpResolver(relativeTo = Some(canonicalize(rootWithoutFilename)), headers)
+        HttpResolver(relativeTo = Some(canonicalize(rootWithoutFilename)), headers, hostAllowlist)
       )
     }
 
@@ -183,23 +187,38 @@ object ImportResolver {
         else "Relative path".invalidNelCheck
     }
 
+    def isAllowed(uri: Uri): Boolean = hostAllowlist match {
+      case Some(hosts) => hosts.contains(uri.host)
+      case None => true
+    }
+
     override def innerResolver(str: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle] = {
-      pathToLookup(str) flatMap { toLookup =>
+      pathToLookup(str) flatMap { toLookup: WorkflowSource =>
         (Try {
-          implicit val sttpBackend = HttpResolver.sttpBackend()
-          val responseIO: IO[Response[String]] = sttp.get(uri"$toLookup").headers(headers).send()
+          val uri: Uri = uri"$toLookup"
 
-          // temporary situation to get functionality working before
-          // starting in on async-ifying the entire WdlNamespace flow
-          val result: Checked[String] = Await.result(responseIO.unsafeToFuture(), 15.seconds).body.leftMap { e => NonEmptyList(e.toString.trim, List.empty) }
-
-          result map {
-            ResolvedImportBundle(_, newResolverList(toLookup), ResolvedImportRecord(toLookup))
+          if (isAllowed(uri)) {
+            getUri(toLookup)
+          } else {
+            s"Disallowed domain in URI. ${uri.toString()}".invalidNelCheck
           }
         } match {
           case Success(result) => result
           case Failure(e) => s"HTTP resolver with headers had an unexpected error (${e.getMessage})".invalidNelCheck
         }).contextualizeErrors(s"download $toLookup")
+      }
+    }
+
+    private def getUri(toLookup: WorkflowSource): Either[NonEmptyList[WorkflowSource], ResolvedImportBundle] = {
+      implicit val sttpBackend = HttpResolver.sttpBackend()
+      val responseIO: IO[Response[WorkflowSource]] = sttp.get(uri"$toLookup").headers(headers).send()
+
+      // temporary situation to get functionality working before
+      // starting in on async-ifying the entire WdlNamespace flow
+      val result: Checked[WorkflowSource] = Await.result(responseIO.unsafeToFuture(), 15.seconds).body.leftMap { e => NonEmptyList(e.toString.trim, List.empty) }
+
+      result map {
+        ResolvedImportBundle(_, newResolverList(toLookup), ResolvedImportRecord(toLookup))
       }
     }
 
@@ -212,6 +231,18 @@ object ImportResolver {
 
     import common.util.IntrospectableLazy
     import common.util.IntrospectableLazy._
+
+    def apply(relativeTo: Option[String] = None,
+              headers: Map[String, String] = Map.empty): HttpResolver = {
+      val config = ConfigFactory.load().getConfig("languages.WDL.http-allow-list")
+      val allowListEnabled = config.as[Option[Boolean]]("enabled").getOrElse(false)
+      val allowList: Option[List[String]] =
+        if (allowListEnabled)
+          config.as[Option[List[String]]]("allowed-http-hosts")
+        else None
+
+      new HttpResolver(relativeTo, headers, allowList)
+    }
 
     val sttpBackend: IntrospectableLazy[SttpBackend[IO, Nothing]] = lazily {
       // 2.13 Beginning with sttp 1.6.x a `ContextShift` parameter is now required to construct an

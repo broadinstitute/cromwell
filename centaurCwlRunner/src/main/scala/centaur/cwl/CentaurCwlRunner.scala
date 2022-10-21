@@ -192,7 +192,7 @@ object CentaurCwlRunner extends StrictLogging {
 
     try {
       import CentaurCromwellClient.{blockingEc, system}
-      lazy val pathBuilder = Await.result(pathBuilderFactory.withOptions(WorkflowOptions.empty), Duration.Inf)
+      lazy val pathBuilder = ???
 
       testCase.testFunction.run.unsafeRunSync() match {
         case unexpected: SubmitHttpResponse =>

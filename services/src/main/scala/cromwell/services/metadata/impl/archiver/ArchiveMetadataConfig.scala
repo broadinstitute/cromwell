@@ -35,7 +35,7 @@ object ArchiveMetadataConfig {
     for {
       _ <- Try(archiveMetadataConfig.getConfig("filesystems.gcs")).toCheckedWithContext("parse archiver 'filesystems.gcs' field from config")
       pathBuilderFactories <- CromwellFileSystems.instance.factoriesFromConfig(archiveMetadataConfig)
-      pathBuilders <- Try(Await.result(PathBuilderFactory.instantiatePathBuilders(pathBuilderFactories.values.toList, WorkflowOptions.empty), 60.seconds))
+      pathBuilders <- Try(Await.result(PathBuilderFactory.instantiatePathBuilders(pathBuilderFactories.values.toList, WorkflowOptions.empty, null /* remove before flight */), 60.seconds))
         .toCheckedWithContext("construct archiver path builders from factories")
       bucket <- Try(archiveMetadataConfig.getString("bucket")).toCheckedWithContext("parse Carboniter 'bucket' field from config")
       backoffInterval <- Try(archiveMetadataConfig.getOrElse[FiniteDuration]("backoff-interval", defaultMaxInterval)).toChecked

@@ -1,6 +1,6 @@
 package cromwell.filesystems.blob
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import com.typesafe.config.Config
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.PathBuilderFactory
@@ -27,11 +27,10 @@ final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Co
 
   val blobTokenGenerator: BlobTokenGenerator = BlobTokenGenerator.createBlobTokenGenerator(
     container, endpoint, workspaceId, workspaceManagerURL, subscription)
-  val fsm: BlobFileSystemManager = BlobFileSystemManager(container, endpoint, expiryBufferMinutes, blobTokenGenerator)
 
-  override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[BlobPathBuilder] = {
+  override def withOptions(options: WorkflowOptions, serviceRegistryActor: ActorRef)(implicit as: ActorSystem, ec: ExecutionContext): Future[BlobPathBuilder] = {
     Future {
-      new BlobPathBuilder(container, endpoint)(fsm)
+      new BlobPathBuilder(container, endpoint)(BlobFileSystemManager(container, endpoint, expiryBufferMinutes, blobTokenGenerator, serviceRegistryActor))
     }
   }
 

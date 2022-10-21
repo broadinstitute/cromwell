@@ -1,6 +1,6 @@
 package cromwell.filesystems.ftp
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import cloud.nio.impl.ftp.{FtpAuthenticatedCredentials, FtpCloudNioFileSystemProvider}
 import com.typesafe.config.Config
 import cromwell.core.WorkflowOptions
@@ -30,7 +30,7 @@ class FtpPathBuilderFactory(globalConfig: Config, instanceConfig: Config, cromwe
   private [ftp] lazy val configFtpConfiguration = FtpInstanceConfiguration(instanceConfig)
   private lazy val defaultFtpProvider = new FtpCloudNioFileSystemProvider(instanceConfig, configFtpConfiguration.ftpCredentials, cromwellFtpFileSystems.ftpFileSystems)
 
-  override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext) = Future.successful {
+  override def withOptions(options: WorkflowOptions, serviceRegistryActor: ActorRef)(implicit as: ActorSystem, ec: ExecutionContext) = Future.successful {
     val provider = credentialsFromWorkflowOptions(options) match {
       case Some(overriddenCredentials) =>
         new FtpCloudNioFileSystemProvider(instanceConfig, overriddenCredentials, cromwellFtpFileSystems.ftpFileSystems)

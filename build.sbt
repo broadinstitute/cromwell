@@ -94,6 +94,7 @@ lazy val cloudSupport = project
 lazy val azureBlobFileSystem = (project in file("filesystems/blob"))
   .withLibrarySettings("cromwell-azure-blobFileSystem", blobFileSystemDependencies)
   .dependsOn(core)
+  .dependsOn(services)
   .dependsOn(core % "test->test")
   .dependsOn(common % "test->test")
 

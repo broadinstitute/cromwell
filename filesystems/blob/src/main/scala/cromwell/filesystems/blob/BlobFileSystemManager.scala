@@ -1,5 +1,6 @@
 package cromwell.filesystems.blob
 
+import akka.actor.ActorRef
 import com.azure.core.credential.AzureSasCredential
 import com.azure.core.management.AzureEnvironment
 import com.azure.core.management.profile.AzureProfile
@@ -17,6 +18,8 @@ import java.time.{Duration, Instant, OffsetDateTime}
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 import com.azure.resourcemanager.storage.models.StorageAccountKey
+import cromwell.services.ServiceRegistryActor
+import cromwell.services.instrumentation.CromwellInstrumentation
 
 case class FileSystemAPI() {
   def getFileSystem(uri: URI): Try[FileSystem] = Try(FileSystems.getFileSystem(uri))
@@ -44,7 +47,8 @@ case class BlobFileSystemManager(
     expiryBufferMinutes: Long,
     blobTokenGenerator: BlobTokenGenerator,
     fileSystemAPI: FileSystemAPI = FileSystemAPI(),
-    private val initialExpiration: Option[Instant] = None) {
+    serviceRegistryActor: ActorRef,
+    private val initialExpiration: Option[Instant] = None) extends CromwellInstrumentation {
   private var expiry: Option[Instant] = initialExpiration
   val buffer: Duration = Duration.of(expiryBufferMinutes, ChronoUnit.MINUTES)
 
@@ -57,11 +61,13 @@ case class BlobFileSystemManager(
       shouldReopenFilesystem match {
         case false => fileSystemAPI.getFileSystem(uri).recoverWith {
           // If no filesystem already exists, this will create a new connection, with the provided configs
+          //
           case _: FileSystemNotFoundException => blobTokenGenerator.generateAccessToken.flatMap(generateFilesystem(uri, container, _))
         }
         // If the token has expired, OR there is no token record, try to close the FS and regenerate
         case true =>
           fileSystemAPI.closeFileSystem(uri)
+          //
           blobTokenGenerator.generateAccessToken.flatMap(generateFilesystem(uri, container, _))
       }
     }

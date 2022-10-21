@@ -1,6 +1,6 @@
 package cromwell.core.path
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import cromwell.core.{Dispatcher, WorkflowOptions}
 import cats.syntax.traverse._
 import cats.instances.list._
@@ -11,10 +11,10 @@ import scala.concurrent.{ExecutionContext, Future}
 
 object PathBuilderFactory {
   // Given a list of factories, instantiates the corresponding path builders
-  def instantiatePathBuilders(factories: List[PathBuilderFactory], workflowOptions: WorkflowOptions)(implicit as: ActorSystem): Future[List[PathBuilder]] = {
+  def instantiatePathBuilders(factories: List[PathBuilderFactory], workflowOptions: WorkflowOptions, serviceRegistryActor: ActorRef)(implicit as: ActorSystem): Future[List[PathBuilder]] = {
     implicit val ec: ExecutionContext = as.dispatchers.lookup(Dispatcher.IoDispatcher)
     val sortedFactories = factories.sortBy(_.priority)
-    sortedFactories.traverse(_.withOptions(workflowOptions))
+    sortedFactories.traverse(_.withOptions(workflowOptions, serviceRegistryActor))
   }
 
   val PriorityBlob     = 100   // High priority to evaluate first, because blob files may inadvertently match other filesystems
@@ -26,7 +26,7 @@ object PathBuilderFactory {
   * Provide a method that can instantiate a path builder with the specified workflow options.
   */
 trait PathBuilderFactory {
-  def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder]
+  def withOptions(options: WorkflowOptions, serviceRegistryActor: ActorRef)(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder]
 
   /**
     * Candidate filesystems are considered in a stable order, as some requests may match multiple filesystems.

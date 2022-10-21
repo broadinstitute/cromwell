@@ -1,6 +1,6 @@
 package cromwell.engine
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import com.typesafe.config.{Config, ConfigFactory}
 import common.validation.Validation._
 import cromwell.core.WorkflowOptions
@@ -29,7 +29,7 @@ object EngineFilesystems {
 
   def configuredPathBuilderFactories: List[PathBuilderFactory] = pathBuilderFactories.values.toList
 
-  def pathBuildersForWorkflow(workflowOptions: WorkflowOptions, factories: List[PathBuilderFactory])(implicit as: ActorSystem): Future[List[PathBuilder]] = {
-    PathBuilderFactory.instantiatePathBuilders(factories, workflowOptions)
+  def pathBuildersForWorkflow(workflowOptions: WorkflowOptions, factories: List[PathBuilderFactory], serviceRegistryActor: ActorRef)(implicit as: ActorSystem): Future[List[PathBuilder]] = {
+    PathBuilderFactory.instantiatePathBuilders(factories, workflowOptions, serviceRegistryActor)
   }
 }

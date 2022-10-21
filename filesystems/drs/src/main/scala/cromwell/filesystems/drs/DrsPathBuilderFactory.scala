@@ -1,6 +1,6 @@
 package cromwell.filesystems.drs
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import cats.data.Validated.{Invalid, Valid}
 import cloud.nio.impl.drs.{AzureDrsCredentials, DrsCloudNioFileSystemProvider, GoogleDrsCredentials}
 import com.google.api.services.oauth2.Oauth2Scopes
@@ -29,7 +29,7 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
   private lazy val azureKeyVault = instanceConfig.as[Option[String]]("azure-keyvault-name")
   private lazy val azureSecretName = instanceConfig.as[Option[String]]("azure-token-secret")
 
-  override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder] = {
+  override def withOptions(options: WorkflowOptions, serviceRegistryActor: ActorRef)(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder] = {
     Future {
       val marthaScopes = List(
         // Profile and Email scopes are requirements for interacting with Martha

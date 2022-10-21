@@ -1,6 +1,6 @@
 package cromwell.filesystems.gcs
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import com.google.api.gax.retrying.RetrySettings
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
@@ -43,7 +43,7 @@ final case class GcsPathBuilderFactory(globalConfig: Config, instanceConfig: Con
       .build()
   }
 
-  def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[GcsPathBuilder] = {
+  def withOptions(options: WorkflowOptions, serviceRegistryActor: ActorRef)(implicit as: ActorSystem, ec: ExecutionContext): Future[GcsPathBuilder] = {
     GcsPathBuilder.fromAuthMode(
       authMode,
       applicationName,

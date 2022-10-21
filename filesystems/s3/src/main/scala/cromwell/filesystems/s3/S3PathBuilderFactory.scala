@@ -30,7 +30,7 @@
  */
 package cromwell.filesystems.s3
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
@@ -55,7 +55,7 @@ final case class S3PathBuilderFactory private(globalConfig: Config, instanceConf
   val authModeValidation: ErrorOr[AwsAuthMode] = conf.auth(authModeAsString)
   val authMode = authModeValidation.unsafe(s"Failed to get authentication mode for $authModeAsString")
 
-  def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[S3PathBuilder] = {
+  def withOptions(options: WorkflowOptions, serviceRegistryActor: ActorRef)(implicit as: ActorSystem, ec: ExecutionContext): Future[S3PathBuilder] = {
     S3PathBuilder.fromAuthMode(authMode, S3Storage.DefaultConfiguration,  options, conf.region)
   }
 

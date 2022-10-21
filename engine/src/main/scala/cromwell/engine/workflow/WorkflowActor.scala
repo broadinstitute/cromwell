@@ -508,7 +508,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
         val ec = context.system.dispatcher
         def bruteForcePathBuilders: Future[List[PathBuilder]] = {
           // Protect against path builders that may throw an exception instead of returning a failed future
-          Future(EngineFilesystems.pathBuildersForWorkflow(bruteForceWorkflowOptions, pathBuilderFactories)(system))(ec).flatten
+          Future(EngineFilesystems.pathBuildersForWorkflow(bruteForceWorkflowOptions, pathBuilderFactories, serviceRegistryActor)(system))(ec).flatten //
         }
 
         val (workflowOptions, pathBuilders) = stateData.workflowDescriptor match {

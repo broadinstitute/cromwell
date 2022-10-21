@@ -157,7 +157,9 @@ object ImportResolver {
     }
   }
 
-  case class HttpResolver(relativeTo: Option[String] = None, headers: Map[String, String] = Map.empty) extends ImportResolver {
+  case class HttpResolver(relativeTo: Option[String] = None,
+                          headers: Map[String, String] = Map.empty,
+                          hostAllowlist: Option[List[String]] = None) extends ImportResolver {
     import HttpResolver._
 
     override def name: String = relativeTo match {
@@ -169,7 +171,7 @@ object ImportResolver {
     def newResolverList(newRoot: String): List[ImportResolver] = {
       val rootWithoutFilename = newRoot.split('/').init.mkString("", "/", "/")
       List(
-        HttpResolver(relativeTo = Some(canonicalize(rootWithoutFilename)), headers)
+        HttpResolver(relativeTo = Some(canonicalize(rootWithoutFilename)), headers, hostAllowlist)
       )
     }
 
@@ -183,18 +185,29 @@ object ImportResolver {
         else "Relative path".invalidNelCheck
     }
 
+    private def isAllowed(uri: Uri): Boolean = hostAllowlist match {
+      case Some(hosts) => hosts.contains(uri.host)
+      case None => true
+    }
+
     override def innerResolver(str: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle] = {
-      pathToLookup(str) flatMap { toLookup =>
+      pathToLookup(str) flatMap { toLookup: WorkflowSource =>
         (Try {
-          implicit val sttpBackend = HttpResolver.sttpBackend()
-          val responseIO: IO[Response[String]] = sttp.get(uri"$toLookup").headers(headers).send()
+          val uri: Uri = uri"$toLookup"
 
-          // temporary situation to get functionality working before
-          // starting in on async-ifying the entire WdlNamespace flow
-          val result: Checked[String] = Await.result(responseIO.unsafeToFuture(), 15.seconds).body.leftMap { e => NonEmptyList(e.toString.trim, List.empty) }
+          if (isAllowed(uri)) {
+            implicit val sttpBackend = HttpResolver.sttpBackend()
+            val responseIO: IO[Response[String]] = sttp.get(uri"$toLookup").headers(headers).send()
 
-          result map {
-            ResolvedImportBundle(_, newResolverList(toLookup), ResolvedImportRecord(toLookup))
+            // temporary situation to get functionality working before
+            // starting in on async-ifying the entire WdlNamespace flow
+            val result: Checked[String] = Await.result(responseIO.unsafeToFuture(), 15.seconds).body.leftMap { e => NonEmptyList(e.toString.trim, List.empty) }
+
+            result map {
+              ResolvedImportBundle(_, newResolverList(toLookup), ResolvedImportRecord(toLookup))
+            }
+          } else {
+            s"Disallowed domain in URI. ${uri.toString()}".invalidNelCheck
           }
         } match {
           case Success(result) => result

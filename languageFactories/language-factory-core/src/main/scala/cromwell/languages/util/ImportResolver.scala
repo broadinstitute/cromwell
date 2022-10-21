@@ -196,16 +196,7 @@ object ImportResolver {
           val uri: Uri = uri"$toLookup"
 
           if (isAllowed(uri)) {
-            implicit val sttpBackend = HttpResolver.sttpBackend()
-            val responseIO: IO[Response[String]] = sttp.get(uri"$toLookup").headers(headers).send()
-
-            // temporary situation to get functionality working before
-            // starting in on async-ifying the entire WdlNamespace flow
-            val result: Checked[String] = Await.result(responseIO.unsafeToFuture(), 15.seconds).body.leftMap { e => NonEmptyList(e.toString.trim, List.empty) }
-
-            result map {
-              ResolvedImportBundle(_, newResolverList(toLookup), ResolvedImportRecord(toLookup))
-            }
+            getUri(toLookup)
           } else {
             s"Disallowed domain in URI. ${uri.toString()}".invalidNelCheck
           }
@@ -213,6 +204,19 @@ object ImportResolver {
           case Success(result) => result
           case Failure(e) => s"HTTP resolver with headers had an unexpected error (${e.getMessage})".invalidNelCheck
         }).contextualizeErrors(s"download $toLookup")
+      }
+    }
+
+    private def getUri(toLookup: WorkflowSource): Either[NonEmptyList[WorkflowSource], ResolvedImportBundle] = {
+      implicit val sttpBackend = HttpResolver.sttpBackend()
+      val responseIO: IO[Response[WorkflowSource]] = sttp.get(uri"$toLookup").headers(headers).send()
+
+      // temporary situation to get functionality working before
+      // starting in on async-ifying the entire WdlNamespace flow
+      val result: Checked[WorkflowSource] = Await.result(responseIO.unsafeToFuture(), 15.seconds).body.leftMap { e => NonEmptyList(e.toString.trim, List.empty) }
+
+      result map {
+        ResolvedImportBundle(_, newResolverList(toLookup), ResolvedImportRecord(toLookup))
       }
     }
 

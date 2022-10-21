@@ -9,12 +9,14 @@ import cats.syntax.either._
 import cats.syntax.validated._
 import com.softwaremill.sttp._
 import com.softwaremill.sttp.asynchttpclient.cats.AsyncHttpClientCatsBackend
+import com.typesafe.config.ConfigFactory
 import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.ErrorOr._
 import common.validation.Checked._
 import common.validation.Validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}
+import net.ceedubs.ficus.Ficus._
 
 import java.nio.file.{Path => NioPath}
 import java.security.MessageDigest
@@ -157,9 +159,9 @@ object ImportResolver {
     }
   }
 
-  case class HttpResolver(relativeTo: Option[String] = None,
-                          headers: Map[String, String] = Map.empty,
-                          hostAllowlist: Option[List[String]] = None) extends ImportResolver {
+  case class HttpResolver(relativeTo: Option[String],
+                          headers: Map[String, String],
+                          hostAllowlist: Option[List[String]]) extends ImportResolver {
     import HttpResolver._
 
     override def name: String = relativeTo match {
@@ -229,6 +231,18 @@ object ImportResolver {
 
     import common.util.IntrospectableLazy
     import common.util.IntrospectableLazy._
+
+    def apply(relativeTo: Option[String] = None,
+              headers: Map[String, String] = Map.empty): HttpResolver = {
+      val config = ConfigFactory.load().getConfig("languages.WDL.http-allow-list")
+      val allowListEnabled = config.as[Option[Boolean]]("enabled").getOrElse(false)
+      val allowList: Option[List[String]] =
+        if (allowListEnabled)
+          config.as[Option[List[String]]]("allowed-http-hosts")
+        else None
+
+      new HttpResolver(relativeTo, headers, allowList)
+    }
 
     val sttpBackend: IntrospectableLazy[SttpBackend[IO, Nothing]] = lazily {
       // 2.13 Beginning with sttp 1.6.x a `ContextShift` parameter is now required to construct an

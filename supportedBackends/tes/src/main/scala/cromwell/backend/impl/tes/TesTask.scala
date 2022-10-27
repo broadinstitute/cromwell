@@ -258,14 +258,16 @@ object TesTask {
     )
   }
 
-  def makeTask(tesTask: TesTask): Task = {
+  def makeTask(tesTask: TesTask, transformBlobToLocalPath: Boolean = false): Task = {
+    val inputs = if (transformBlobToLocalPath) transformInputs(tesTask.inputs) else tesTask.inputs
+    val outputs = if (transformBlobToLocalPath) transformOutputs(tesTask.outputs) else tesTask.outputs
     Task(
       id = None,
       state = None,
       name = Option(tesTask.name),
       description = Option(tesTask.description),
-      inputs = Option(transformInputs(tesTask.inputs)),
-      outputs = Option(transformOutputs(tesTask.outputs)),
+      inputs = Option(inputs),
+      outputs = Option(outputs),
       resources = Option(tesTask.resources),
       executors = tesTask.executors,
       volumes = None,

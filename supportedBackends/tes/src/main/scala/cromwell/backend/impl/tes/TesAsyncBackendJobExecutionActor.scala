@@ -80,6 +80,14 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   private val tesEndpoint = workflowDescriptor.workflowOptions.getOrElse("endpoint", tesConfiguration.endpointURL)
 
+  // Temporary support for configuring the format we use to send BlobPaths to TES.
+  // Added 10/2022 as a workaround for the CromwellOnAzure TES server expecting
+  // blob containers to be mounted via blobfuse rather than addressed natively.
+  private val transformBlobToLocalPaths: Boolean =
+    configurationDescriptor.backendConfig
+      .getAs[Boolean]("transform-blob-to-local-path")
+      .getOrElse(false)
+
   override lazy val jobTag: String = jobDescriptor.key.tag
 
   private val outputMode = validate {
@@ -148,7 +156,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         mode)
     })
 
-    tesTask.map(TesTask.makeTask)
+    tesTask.map(TesTask.makeTask(_, transformBlobToLocalPaths))
   }
 
   def writeScriptFile(): Future[Unit] = {

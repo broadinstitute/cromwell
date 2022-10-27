@@ -59,12 +59,12 @@ case class BlobFileSystemManager(
         case false => fileSystemAPI.getFileSystem(uri).recoverWith {
           // If no filesystem already exists, this will create a new connection, with the provided configs
           case _: FileSystemNotFoundException =>
-            logger.debug(s"Creating new blob filesystem for URI $uri")
+            logger.info(s"Creating new blob filesystem for URI $uri")
             blobTokenGenerator.generateAccessToken.flatMap(generateFilesystem(uri, container, _))
         }
         // If the token has expired, OR there is no token record, try to close the FS and regenerate
         case true =>
-          logger.debug(s"Closing & regenerating token for existing blob filesystem at URI $uri")
+          logger.info(s"Closing & regenerating token for existing blob filesystem at URI $uri")
           fileSystemAPI.closeFileSystem(uri)
           blobTokenGenerator.generateAccessToken.flatMap(generateFilesystem(uri, container, _))
       }

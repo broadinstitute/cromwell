@@ -50,7 +50,7 @@ import cromwell.client.JSON;
  * Available workflow types supported by a given instance of the service.
  */
 @ApiModel(description = "Available workflow types supported by a given instance of the service.")
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T15:48:40.234026Z[Etc/UTC]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T16:16:35.079925Z[Etc/UTC]")
 public class WorkflowTypeVersion {
   public static final String SERIALIZED_NAME_WORKFLOW_TYPE_VERSION = "workflow_type_version";
   @SerializedName(SERIALIZED_NAME_WORKFLOW_TYPE_VERSION)

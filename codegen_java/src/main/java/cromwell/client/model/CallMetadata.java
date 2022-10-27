@@ -50,7 +50,7 @@ import cromwell.client.JSON;
  * Call level metadata
  */
 @ApiModel(description = "Call level metadata")
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T15:48:40.234026Z[Etc/UTC]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T16:16:35.079925Z[Etc/UTC]")
 public class CallMetadata {
   public static final String SERIALIZED_NAME_INPUTS = "inputs";
   @SerializedName(SERIALIZED_NAME_INPUTS)
@@ -113,8 +113,8 @@ public class CallMetadata {
    * Mapping of input fully qualified names to stringified values
    * @return inputs
   **/
-  @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "Mapping of input fully qualified names to stringified values")
+  @javax.annotation.Nullable
+  @ApiModelProperty(value = "Mapping of input fully qualified names to stringified values")
 
   public Object getInputs() {
     return inputs;
@@ -136,8 +136,8 @@ public class CallMetadata {
    * Status in Cromwell execution terms.
    * @return executionStatus
   **/
-  @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "Status in Cromwell execution terms.")
+  @javax.annotation.Nullable
+  @ApiModelProperty(value = "Status in Cromwell execution terms.")
 
   public String getExecutionStatus() {
     return executionStatus;
@@ -498,8 +498,6 @@ public class CallMetadata {
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>();
-    openapiRequiredFields.add("inputs");
-    openapiRequiredFields.add("executionStatus");
   }
 
  /**
@@ -514,13 +512,6 @@ public class CallMetadata {
           return;
         } else { // has required fields
           throw new IllegalArgumentException(String.format("The required field(s) %s in CallMetadata is not found in the empty JSON string", CallMetadata.openapiRequiredFields.toString()));
-        }
-      }
-
-      // check to make sure all required properties/fields are present in the JSON string
-      for (String requiredField : CallMetadata.openapiRequiredFields) {
-        if (jsonObj.get(requiredField) == null) {
-          throw new IllegalArgumentException(String.format("The required field `%s` is not found in the JSON string: %s", requiredField, jsonObj.toString()));
         }
       }
       if ((jsonObj.get("executionStatus") != null && !jsonObj.get("executionStatus").isJsonNull()) && !jsonObj.get("executionStatus").isJsonPrimitive()) {

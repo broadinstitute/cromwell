@@ -1267,10 +1267,6 @@ components:
           $ref: '#/components/schemas/CallMetadata'
         failures:
           $ref: '#/components/schemas/FailureMessage'
-      required:
-      - id
-      - status
-      - submission
       type: object
     CallMetadata:
       description: Call level metadata
@@ -1332,9 +1328,6 @@ components:
           description: Paths to backend specific logs for this call
           properties: {}
           type: object
-      required:
-      - executionStatus
-      - inputs
       type: object
     FailureMessage:
       description: Failure messages

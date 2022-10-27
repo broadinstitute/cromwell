@@ -51,7 +51,7 @@ import cromwell.client.JSON;
  * Workflow and call level metadata
  */
 @ApiModel(description = "Workflow and call level metadata")
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T15:48:40.234026Z[Etc/UTC]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T16:16:35.079925Z[Etc/UTC]")
 public class WorkflowMetadataResponse {
   public static final String SERIALIZED_NAME_ID = "id";
   @SerializedName(SERIALIZED_NAME_ID)
@@ -102,8 +102,8 @@ public class WorkflowMetadataResponse {
    * The identifier of the workflow
    * @return id
   **/
-  @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "The identifier of the workflow")
+  @javax.annotation.Nullable
+  @ApiModelProperty(value = "The identifier of the workflow")
 
   public String getId() {
     return id;
@@ -125,8 +125,8 @@ public class WorkflowMetadataResponse {
    * The status of the workflow
    * @return status
   **/
-  @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "The status of the workflow")
+  @javax.annotation.Nullable
+  @ApiModelProperty(value = "The status of the workflow")
 
   public String getStatus() {
     return status;
@@ -148,8 +148,8 @@ public class WorkflowMetadataResponse {
    * Submission datetime of the workflow in ISO8601 format with milliseconds
    * @return submission
   **/
-  @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "Submission datetime of the workflow in ISO8601 format with milliseconds")
+  @javax.annotation.Nullable
+  @ApiModelProperty(value = "Submission datetime of the workflow in ISO8601 format with milliseconds")
 
   public OffsetDateTime getSubmission() {
     return submission;
@@ -409,9 +409,6 @@ public class WorkflowMetadataResponse {
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>();
-    openapiRequiredFields.add("id");
-    openapiRequiredFields.add("status");
-    openapiRequiredFields.add("submission");
   }
 
  /**
@@ -426,13 +423,6 @@ public class WorkflowMetadataResponse {
           return;
         } else { // has required fields
           throw new IllegalArgumentException(String.format("The required field(s) %s in WorkflowMetadataResponse is not found in the empty JSON string", WorkflowMetadataResponse.openapiRequiredFields.toString()));
-        }
-      }
-
-      // check to make sure all required properties/fields are present in the JSON string
-      for (String requiredField : WorkflowMetadataResponse.openapiRequiredFields) {
-        if (jsonObj.get(requiredField) == null) {
-          throw new IllegalArgumentException(String.format("The required field `%s` is not found in the JSON string: %s", requiredField, jsonObj.toString()));
         }
       }
       if ((jsonObj.get("id") != null && !jsonObj.get("id").isJsonNull()) && !jsonObj.get("id").isJsonPrimitive()) {

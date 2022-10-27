@@ -51,7 +51,7 @@ import cromwell.client.JSON;
  * The service will return a RunListResponse when receiving a successful RunListRequest.
  */
 @ApiModel(description = "The service will return a RunListResponse when receiving a successful RunListRequest.")
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T15:48:40.234026Z[Etc/UTC]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T16:16:35.079925Z[Etc/UTC]")
 public class RunListResponse {
   public static final String SERIALIZED_NAME_RUNS = "runs";
   @SerializedName(SERIALIZED_NAME_RUNS)

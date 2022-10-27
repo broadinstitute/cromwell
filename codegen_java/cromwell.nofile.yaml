@@ -1051,10 +1051,10 @@ definitions:
         example: Submitted
   WorkflowMetadataResponse:
     description: Workflow and call level metadata
-    required:
-      - id
-      - status
-      - submission
+#    required:
+#      - id
+#      - status
+#      - submission
     properties:
       id:
         type: string
@@ -1086,9 +1086,9 @@ definitions:
         $ref: '#/definitions/FailureMessage'
   CallMetadata:
     description: Call level metadata
-    required:
-      - inputs
-      - executionStatus
+#    required:
+#      - inputs
+#      - executionStatus
     properties:
       inputs:
         type: object

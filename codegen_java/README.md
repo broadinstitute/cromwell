@@ -2,7 +2,7 @@
 
 Cromwell Server REST API
 - API version: 30
-  - Build date: 2022-10-27T15:48:40.234026Z[Etc/UTC]
+  - Build date: 2022-10-27T16:16:35.079925Z[Etc/UTC]
 
 Describes the REST API provided by a Cromwell server
 

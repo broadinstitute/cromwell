@@ -1,3 +1,19 @@
+security:
+  - googleoauth:
+      - openid
+      - email
+      - profile
+
+securityDefinitions:
+  googleoauth:
+    type: oauth2
+    authorizationUrl: 'https://accounts.google.com/o/oauth2/auth'
+    flow: implicit
+    scopes:
+      openid: open id authorization
+      email: email authorization
+      profile: profile authorization
+
 #
 # After any edits to this file run `sbt generateRestApiDocs` and commit the generated changes to `docs/api/RESTAPI.md`.
 #
@@ -28,7 +44,7 @@ paths:
         - name: workflowSource
           description: The workflow source file to submit for execution. Either workflow source or workflow url is required.
           required: false
-          type: file
+          type: string
           in: formData
         - name: workflowUrl
           description: URL which points to the workflow. Either workflow source or workflow url is required.
@@ -43,32 +59,32 @@ paths:
         - name: workflowInputs
           description: JSON or YAML file containing the inputs as an object. For WDL workflows a skeleton file can be generated from WOMtool using the "inputs" subcommand. When multiple files are specified, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2. Similarly, an input key specified in workflowInputs_5 will override an identical input key in any other input file.
           required: false
-          type: file
+          type: string
           in: formData
         - name: workflowInputs_2
           description: A second JSON or YAML file containing inputs.
           required: false
-          type: file
+          type: string
           in: formData
         - name: workflowInputs_3
           description: A third JSON or YAML file containing inputs.
           required: false
-          type: file
+          type: string
           in: formData
         - name: workflowInputs_4
           description: A fourth JSON or YAML file containing inputs.
           required: false
-          type: file
+          type: string
           in: formData
         - name: workflowInputs_5
           description: A fifth JSON or YAML file containing inputs.
           required: false
-          type: file
+          type: string
           in: formData
         - name: workflowOptions
           description: JSON file containing configuration options for the execution of this workflow.
           required: false
-          type: file
+          type: string
           in: formData
         - $ref: '#/parameters/workflowTypeParam'
         - name: workflowRoot
@@ -80,12 +96,12 @@ paths:
         - name: labels
           description: JSON object of labels to apply to this workflow.
           required: false
-          type: file
+          type: string
           in: formData
         - name: workflowDependencies
           description: ZIP file containing workflow source files that are used to resolve local imports. This zip bundle will be unpacked in a sandbox accessible to this workflow.
           required: false
-          type: file
+          type: string
           in: formData
         - name: requestedWorkflowId
           description: An ID to ascribe to this workflow. Must be a JSON string in UUID-format. If not supplied a random ID will be generated for the workflow.
@@ -115,7 +131,7 @@ paths:
         - name: workflowSource
           description: The workflow source file to submit for execution. Either workflow source or workflow url is required.
           required: false
-          type: file
+          type: string
           in: formData
         - name: workflowUrl
           description: URL which points to the workflow. Either workflow source or workflow url is required.
@@ -130,24 +146,24 @@ paths:
         - name: workflowInputs
           description: JSON file containing the inputs as an array of objects. Every element of the array will correspond to a single workflow. For WDL workflows a skeleton file can be generated from WOMtool using the "inputs" subcommand. When multiple files are specified, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2. Similarly, an input key specified in workflowInputs_5 will override an identical input key in any other input file.
           required: true
-          type: file
+          type: string
           in: formData
         - name: workflowOptions
           description: JSON file containing configuration options for the execution of this workflow.
           required: false
-          type: file
+          type: string
           in: formData
         - $ref: '#/parameters/workflowTypeParam'
         - $ref: '#/parameters/workflowTypeVersionParam'
         - name: labels
           description: JSON object of labels to apply to this workflow.
           required: false
-          type: file
+          type: string
           in: formData
         - name: workflowDependencies
           description: ZIP file containing workflow source files that are used to resolve local imports. This zip bundle will be unpacked in a sandbox accessible to these workflows.
           required: false
-          type: file
+          type: string
           in: formData
         - name: requestedWorkflowId
           description: A set of IDs to ascribe to these workflows. Must be a JSON list of strings in UUID-format. Must have the same number of entries and be in the same order as the workflow inputs list. If not supplied, random ID will be generated for the workflows.
@@ -635,7 +651,7 @@ paths:
         - name: workflowSource
           description: The workflow source file to submit for execution. Either workflow source or workflow url is required.
           required: false
-          type: file
+          type: string
           in: formData
         - name: workflowUrl
           description: URL which points to the workflow. Either workflow source or workflow url is required.
@@ -645,7 +661,7 @@ paths:
         - name: workflowInputs
           description: JSON or YAML file containing the inputs as an object.
           required: false
-          type: file
+          type: string
           in: formData
         - $ref: '#/parameters/workflowTypeParam'
         - $ref: '#/parameters/workflowTypeVersionParam'
@@ -837,7 +853,7 @@ paths:
           required: false
           type: array
           items:
-            type: file
+            type: string
             format: binary
           in: formData
       responses:

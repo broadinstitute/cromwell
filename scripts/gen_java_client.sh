@@ -43,7 +43,8 @@ docker run --rm -v ${PWD}:/local openapitools/openapi-generator-cli generate \
   -o /local/codegen_java \
   --skip-validate-spec \
   --api-package ${BASE_PACKAGE}.api \
-  --model-package ${BASE_PACKAGE}.model
+  --model-package ${BASE_PACKAGE}.model \
+  --additional-properties=disallowAdditionalPropertiesIfNotPresent=false
 
 # 2. Remove the generator's build.sbt
 rm codegen_java/build.sbt

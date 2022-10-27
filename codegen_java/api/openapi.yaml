@@ -1,0 +1,2600 @@
+openapi: 3.0.1
+info:
+  description: Describes the REST API provided by a Cromwell server
+  license:
+    name: BSD
+    url: https://github.com/broadinstitute/cromwell/blob/develop/LICENSE.txt
+  title: Cromwell Server REST API
+  version: "30"
+servers:
+- url: /
+security:
+- googleoauth:
+  - openid
+  - email
+  - profile
+paths:
+  /api/workflows/{version}:
+    post:
+      description: Submits a workflow to Cromwell. Note that this endpoint can accept
+        an unlimited number of input files via workflowInputs_N but swagger needs
+        them to be explicitly defined so we have provided 5 as an example.
+      operationId: submit
+      parameters:
+      - description: Cromwell API Version
+        in: path
+        name: version
+        required: true
+        schema:
+          default: v1
+          type: string
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/submit_request'
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowIdAndStatus'
+          description: Successful Request
+        "400":
+          content: {}
+          description: Invalid submission request
+        "500":
+          content: {}
+          description: Internal Error
+      summary: Submit a workflow for execution
+      tags:
+      - Workflows
+      x-content-type: multipart/form-data
+      x-accepts: application/json
+  /api/workflows/{version}/batch:
+    post:
+      description: In instances where you want to run the same workflow multiple times
+        with varying inputs you may submit a workflow batch. This endpoint is fundamentally
+        the same as the standard submission endpoint with the exception that the inputs
+        JSON will be an array of objects instead of a single object.
+      operationId: submitBatch
+      parameters:
+      - description: Cromwell API Version
+        in: path
+        name: version
+        required: true
+        schema:
+          default: v1
+          type: string
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/submitBatch_request'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/WorkflowIdAndStatus'
+                type: array
+          description: Successful Request
+        "400":
+          content: {}
+          description: Malformed Workflow ID
+        "500":
+          content: {}
+          description: Internal Error
+      summary: Submit a batch of workflows for execution
+      tags:
+      - Workflows
+      x-content-type: multipart/form-data
+      x-accepts: application/json
+  /api/workflows/{version}/{id}/labels:
+    get:
+      operationId: labels
+      parameters:
+      - description: Cromwell API Version
+        in: path
+        name: version
+        required: true
+        schema:
+          default: v1
+          type: string
+      - description: A workflow ID
+        in: path
+        name: id
+        required: true
+        schema:
+          pattern: "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabelsResponse'
+          description: Successful Request
+        "400":
+          content: {}
+          description: Malformed Workflow ID
+        "404":
+          content: {}
+          description: Workflow ID Not Found
+        "500":
+          content: {}
+          description: Internal Error
+      summary: Retrieves the current labels for a workflow
+      tags:
+      - Workflows
+      x-accepts: application/json
+    patch:
+      description: "Update multiple labels for an existing workflow. When supplying\
+        \ a label with a key unique to the workflow submission, a new label key/value\
+        \ entry is appended to that workflow's metadata. When supplying a label with\
+        \ a key that is already associated to the workflow submission, the original\
+        \ label value is updated with the new value for that workflow's metadata."
+      operationId: updateLabels
+      parameters:
+      - description: Cromwell API Version
+        in: path
+        name: version
+        required: true
+        schema:
+          default: v1
+          type: string
+      - description: Workflow ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              type: object
+        description: "Custom labels submitted as JSON. Example: {\"key-1\":\"value-1\"\
+          ,\"key-2\":\"value-2\"}\n"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabelsResponse'
+          description: Successful Request
+        "400":
+          content: {}
+          description: Malformed Workflow ID
+        "403":
+          content: {}
+          description: Workflow in terminal status
+        "404":
+          content: {}
+          description: Workflow ID Not Found
+        "500":
+          content: {}
+          description: Internal Error
+      summary: Update labels for a workflow
+      tags:
+      - Workflows
+      x-codegen-request-body-name: labels
+      x-content-type: '*/*'
+      x-accepts: application/json
+  /api/workflows/{version}/{id}/abort:
+    post:
+      description: Request Cromwell to abort a running workflow. For instance this
+        might be necessary in cases where you have submitted a workflow with incorrect
+        inputs or no longer need the results. Cromwell will schedule a halt of all
+        currently running jobs from this workflow.
+      operationId: abort
+      parameters:
+      - description: Cromwell API Version
+        in: path
+        name: version
+        required: true
+        schema:
+          default: v1
+          type: string
+      - description: A workflow ID
+        in: path
+        name: id
+        required: true
+        schema:
+          pattern: "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowIdAndStatus'
+          description: Successful Request
+        "400":
+          content: {}
+          description: Malformed Workflow ID
+        "403":
+          content: {}
+          description: Workflow in terminal status
+        "404":
+          content: {}
+          description: Workflow ID Not Found
+        "500":
+          content: {}
+          description: Internal Error
+      summary: Abort a running workflow
+      tags:
+      - Workflows
+      x-accepts: application/json
+  /api/workflows/{version}/{id}/releaseHold:
+    post:
+      description: Request Cromwell to release the hold on a workflow. It will switch
+        the status of a workflow from 'On Hold' to 'Submitted' so it can be picked
+        for running. For instance this might be necessary in cases where you have
+        submitted a workflow with workflowOnHold = true.
+      operationId: releaseHold
+      parameters:
+      - description: Cromwell API Version
+        in: path
+        name: version
+        required: true
+        schema:
+          default: v1
+          type: string
+      - description: A workflow ID
+        in: path
+        name: id
+        required: true
+        schema:
+          pattern: "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowIdAndStatus'
+          description: Successful Request
+        "400":
+          content: {}
+          description: Malformed Workflow ID
+        "403":
+          content: {}
+          description: Workflow in terminal status
+        "404":
+          content: {}
+          description: Workflow ID Not Found
+        "500":
+          content: {}
+          description: Internal Error
+      summary: Switch a workflow from 'On Hold' to 'Submitted' status
+      tags:
+      - Workflows
+      x-accepts: application/json
+  /api/workflows/{version}/{id}/status:
+    get:
+      operationId: status
+      parameters:
+      - description: Cromwell API Version
+        in: path
+        name: version
+        required: true
+        schema:
+          default: v1
+          type: string
+      - description: A workflow ID
+        in: path
+        name: id
+        required: true
+        schema:
+          pattern: "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowIdAndStatus'
+          description: Successful Request
+        "400":
+          content: {}
+          description: Malformed Workflow ID
+        "404":
+          content: {}
+          description: Workflow ID Not Found
+        "500":
+          content: {}
+          description: Internal Error
+      summary: Retrieves the current state for a workflow
+      tags:
+      - Workflows
+      x-accepts: application/json
+  /api/workflows/{version}/{id}/outputs:
+    get:
+      description: Retrieve the outputs for the specified workflow. Cromwell will
+        return any outputs which currently exist even if a workflow has not successfully
+        completed.
+      operationId: outputs
+      parameters:
+      - description: Cromwell API Version
+        in: path
+        name: version
+        required: true
+        schema:
+          default: v1
+          type: string
+      - description: A workflow ID
+        in: path
+        name: id
+        required: true
+        schema:
+          pattern: "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowIdAndStatus'
+          description: Successful Request
+        "400":
+          content: {}
+          description: Malformed Workflow ID
+        "404":
+          content: {}
+          description: Workflow ID Not Found
+        "500":
+          content: {}
+          description: Internal Error
+      summary: Get the outputs for a workflow
+      tags:
+      - Workflows
+      x-accepts: application/json
+  /api/workflows/{version}/{id}/logs:
+    get:
+      description: "Returns paths to the standard out and standard error files that\
+        \ were generated during the execution of all calls in a workflow. A call has\
+        \ one or more standard out and standard error logs, depending on if the call\
+        \ was scattered or not. In the latter case, one log is provided for each instance\
+        \ of the call that has been run."
+      operationId: logs
+      parameters:
+      - description: Cromwell API Version
+        in: path
+        name: version
+        required: true
+        schema:
+          default: v1
+          type: string
+      - description: A workflow ID
+        in: path
+        name: id
+        required: true
+        schema:
+          pattern: "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowIdAndStatus'
+          description: Successful Request
+        "400":
+          content: {}
+          description: Malformed Workflow ID
+        "404":
+          content: {}
+          description: Workflow ID Not Found
+        "500":
+          content: {}
+          description: Internal Error
+      summary: Get the logs for a workflow
+      tags:
+      - Workflows
+      x-accepts: application/json
+  /api/workflows/{version}/query:
+    get:
+      description: Query for workflows which match various criteria. When a combination
+        of criteria are applied the endpoint will return
+      operationId: queryGet
+      parameters:
+      - description: Cromwell API Version
+        in: path
+        name: version
+        required: true
+        schema:
+          default: v1
+          type: string
+      - description: "Returns only workflows with an equal or later submission time.\
+          \ Can be specified at most once. If both submission time and start date\
+          \ are specified, submission time should be before or equal to start date.\n"
+        in: query
+        name: submission
+        schema:
+          format: date-time
+          type: string
+      - description: "Returns only workflows with an equal or later start datetime.\
+          \  Can be specified at most once. If both start and end date are specified,\
+          \ start date must be before or equal to end date.\n"
+        in: query
+        name: start
+        schema:
+          format: date-time
+          type: string
+      - description: "Returns only workflows with an equal or earlier end datetime.\
+          \  Can be specified at most once. If both start and end date are specified,\
+          \ start date must be before or equal to end date.\n"
+        in: query
+        name: end
+        schema:
+          format: date-time
+          type: string
+      - description: "Returns only workflows with the specified status.  If specified\
+          \ multiple times, returns workflows in any of the specified statuses.\n"
+        explode: true
+        in: query
+        name: status
+        schema:
+          enum:
+          - Submitted
+          - Running
+          - Aborting
+          - Failed
+          - Succeeded
+          - Aborted
+          items:
+            type: string
+          type: array
+        style: form
+      - description: "Returns only workflows with the specified name.  If specified\
+          \ multiple times, returns workflows with any of the specified names.\n"
+        explode: true
+        in: query
+        name: name
+        schema:
+          items:
+            type: string
+          type: array
+        style: form
+      - description: "Returns only workflows with the specified workflow id.  If specified\
+          \ multiple times, returns workflows with any of the specified workflow ids.\n"
+        explode: true
+        in: query
+        name: id
+        schema:
+          items:
+            type: string
+          type: array
+        style: form
+      - description: "Returns workflows with the specified label keys.  If specified\
+          \ multiple times, returns workflows with all of the specified label keys.\
+          \ Specify the label key and label value pair as separated with \"label-key:label-value\"\
+          \n"
+        explode: true
+        in: query
+        name: label
+        schema:
+          items:
+            type: string
+          type: array
+        style: form
+      - description: "Returns workflows with the specified label keys.  If specified\
+          \ multiple times, returns workflows with any of the specified label keys.\
+          \ Specify the label key and label value pair as separated with \"label-key:label-value\"\
+          \n"
+        explode: true
+        in: query
+        name: labelor
+        schema:
+          items:
+            type: string
+          type: array
+        style: form
+      - description: "Excludes workflows with the specified label.  If specified multiple\
+          \ times, excludes workflows with all of the specified label keys. Specify\
+          \ the label key and label value pair as separated with \"label-key:label-value\"\
+          \n"
+        explode: true
+        in: query
+        name: excludeLabelAnd
+        schema:
+          items:
+            type: string
+          type: array
+        style: form
+      - description: "Excludes workflows with the specified label.  If specified multiple\
+          \ times, excludes workflows with any of the specified label keys. Specify\
+          \ the label key and label value pair as separated with \"label-key:label-value\"\
+          \n"
+        explode: true
+        in: query
+        name: excludeLabelOr
+        schema:
+          items:
+            type: string
+          type: array
+        style: form
+      - description: |
+          Currently only 'labels' is a valid value here. Use it to include a list of labels with each result.
+        explode: true
+        in: query
+        name: additionalQueryResultFields
+        schema:
+          items:
+            type: string
+          type: array
+        style: form
+      - description: "Include subworkflows in results. By default, it is taken as\
+          \ true."
+        in: query
+        name: includeSubworkflows
+        schema:
+          format: boolean
+          type: boolean
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowQueryResponse'
+          description: Successful Request
+        "403":
+          content: {}
+          description: Workflow in terminal status
+        "404":
+          content: {}
+          description: Workflow ID Not Found
+        "500":
+          content: {}
+          description: Internal Error
+      summary: Get workflows matching some criteria
+      tags:
+      - Workflows
+      x-accepts: application/json
+    post:
+      description: "Query workflows by start dates, end dates, names, ids, labels,\
+        \ or statuses."
+      operationId: queryPost
+      parameters:
+      - description: Cromwell API Version
+        in: path
+        name: version
+        required: true
+        schema:
+          default: v1
+          type: string
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              items:
+                $ref: '#/components/schemas/WorkflowQueryParameter'
+              type: array
+        description: "Same query parameters as GET /query endpoint, submitted as a\
+          \ json list. Example: [{\"status\":\"Success\"},{\"status\":\"Failed\"}]\n"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowQueryResponse'
+          description: Successful Request
+        "400":
+          content: {}
+          description: Malformed Workflow ID
+        "500":
+          content: {}
+          description: Internal Error
+      summary: Get workflows matching some criteria
+      tags:
+      - Workflows
+      x-codegen-request-body-name: parameters
+      x-content-type: '*/*'
+      x-accepts: application/json
+  /api/workflows/{version}/{id}/timing:
+    get:
+      description: Returns a javascript file which will render a Gantt chart for the
+        requested workflow. The bars in the chart represent start and end times for
+        individual task invocations. This javascript is intended to be embedded into
+        another web page.
+      operationId: timing
+      parameters:
+      - description: Cromwell API Version
+        in: path
+        name: version
+        required: true
+        schema:
+          default: v1
+          type: string
+      - description: A workflow ID
+        in: path
+        name: id
+        required: true
+        schema:
+          pattern: "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowIdAndStatus'
+          description: Successful Request
+        "400":
+          content: {}
+          description: Malformed Workflow ID
+        "404":
+          content: {}
+          description: Workflow ID Not Found
+        "500":
+          content: {}
+          description: Internal Error
+      summary: Get a visual diagram of a running workflow
+      tags:
+      - Workflows
+      x-accepts: application/json
+  /api/workflows/{version}/{id}/metadata:
+    get:
+      operationId: metadata
+      parameters:
+      - description: Cromwell API Version
+        in: path
+        name: version
+        required: true
+        schema:
+          default: v1
+          type: string
+      - description: A workflow ID
+        in: path
+        name: id
+        required: true
+        schema:
+          pattern: "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+          type: string
+      - description: "When specified, filters metadata to only return fields with\
+          \ names which begins with this value. This key is used relative to the root\
+          \ of the response *and* relative to each call's metadata fields.\n"
+        explode: true
+        in: query
+        name: includeKey
+        schema:
+          items:
+            type: string
+          type: array
+        style: form
+      - description: "When specified, filters metadata to not return any field with\
+          \ a name which begins with this value. This key is used relative to the\
+          \ root of the response *and* relative to each call's metadata fields. Use\
+          \ 'calls' to filter out all call level metadata.\n"
+        explode: true
+        in: query
+        name: excludeKey
+        schema:
+          items:
+            type: string
+          type: array
+        style: form
+      - description: "When true, metadata for sub workflows will be fetched and inserted\
+          \ automatically in the metadata response.\n"
+        in: query
+        name: expandSubWorkflows
+        schema:
+          type: boolean
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowMetadataResponse'
+          description: Successful Request
+        "400":
+          content: {}
+          description: Malformed Workflow ID
+        "404":
+          content: {}
+          description: Workflow ID Not Found
+        "500":
+          content: {}
+          description: Internal Error
+      summary: Get workflow and call-level metadata for a specified workflow
+      tags:
+      - Workflows
+      x-accepts: application/json
+  /api/workflows/{version}/callcaching/diff:
+    get:
+      description: This endpoint returns the hash differences between 2 completed
+        (successfully or not) calls.
+      operationId: callCacheDiff
+      parameters:
+      - description: Cromwell API Version
+        in: path
+        name: version
+        required: true
+        schema:
+          default: v1
+          type: string
+      - description: Workflow Id of the first workflow
+        in: query
+        name: workflowA
+        required: true
+        schema:
+          type: string
+      - description: "Fully qualified name, including workflow name, of the first\
+          \ call."
+        in: query
+        name: callA
+        required: true
+        schema:
+          type: string
+      - description: Shard index for the first call for cases where the requested
+          call was part of a scatter.
+        in: query
+        name: indexA
+        schema:
+          type: integer
+      - description: Workflow Id of the second workflow
+        in: query
+        name: workflowB
+        required: true
+        schema:
+          type: string
+      - description: "Fully qualified name, including workflow name, of the second\
+          \ call"
+        in: query
+        name: callB
+        required: true
+        schema:
+          type: string
+      - description: Shard index for the second call for cases where the requested
+          call was part of a scatter.
+        in: query
+        name: indexB
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowIdAndStatus'
+          description: Successful Request
+        "400":
+          content: {}
+          description: Malformed Workflow ID
+        "404":
+          content: {}
+          description: No matching cache entry. Cromwell versions prior to 28 will
+            not have recorded information necessary for this endpoint and thus will
+            also appear to not exist.
+        "500":
+          content: {}
+          description: Internal Error
+      summary: Explain hashing differences for 2 calls
+      tags:
+      - Workflows
+      x-accepts: application/json
+  /api/workflows/{version}/backends:
+    get:
+      description: "Returns the backends supported by this Cromwell server, as well\
+        \ as the default backend."
+      operationId: backends
+      parameters:
+      - description: Cromwell API Version
+        in: path
+        name: version
+        required: true
+        schema:
+          default: v1
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackendResponse'
+          description: Successful Request
+      summary: List the supported backends
+      tags:
+      - Workflows
+      x-accepts: application/json
+  /api/womtool/{version}/describe:
+    post:
+      operationId: describe
+      parameters:
+      - description: Cromwell API Version
+        in: path
+        name: version
+        required: true
+        schema:
+          default: v1
+          type: string
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/describe_request'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowDescription'
+          description: Workflow description.
+      summary: "Machine-readable description of a workflow, including inputs and outputs"
+      tags:
+      - Womtool
+      x-content-type: multipart/form-data
+      x-accepts: application/json
+  /engine/{version}/version:
+    get:
+      operationId: engineVersion
+      parameters:
+      - description: Cromwell API Version
+        in: path
+        name: version
+        required: true
+        schema:
+          default: v1
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionResponse'
+          description: Successful Request
+      summary: Return the version of this Cromwell server
+      tags:
+      - Engine
+      x-accepts: application/json
+  /engine/{version}/status:
+    get:
+      operationId: engineStatus
+      parameters:
+      - description: Cromwell API Version
+        in: path
+        name: version
+        required: true
+        schema:
+          default: v1
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+          description: All subsystems report an "ok" status
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+          description: At least one subsystem does not have an "ok" status
+      summary: Return the current health status of any monitored subsystems
+      tags:
+      - Engine
+      x-accepts: application/json
+  /api/ga4gh/wes/v1/service-info:
+    get:
+      description: "May include information related (but not limited to) the workflow\
+        \ descriptor formats, versions supported, the WES API versions supported,\
+        \ and information about general service availability."
+      operationId: GetServiceInfo
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceInfo'
+          description: Successful Request
+        "500":
+          content: {}
+          description: Internal Error
+      summary: Get service info
+      tags:
+      - GA4GH Workflow Execution Service (WES) - Alpha preview
+      x-accepts: application/json
+  /api/ga4gh/wes/v1/runs:
+    get:
+      description: "Runs are listed from newest to oldest. When paging through the\
+        \ list, the client should not make assumptions about live updates, but should\
+        \ assume the contents of the list reflect the workflow list at the moment\
+        \ that the first page is requested. To monitor a specific workflow run, use\
+        \ GetRunStatus or GetRunLog."
+      operationId: ListRuns
+      parameters:
+      - description: "OPTIONAL The preferred number of workflow runs to return in\
+          \ a page. If not provided, the implementation should use a default page\
+          \ size. The implementation must not return more items than `page_size`,\
+          \ but it may return fewer.  Clients should not assume that if fewer than\
+          \ `page_size` items are returned that all items have been returned.  The\
+          \ availability of additional pages is indicated by the value of `next_page_token`\
+          \ in the response."
+        in: query
+        name: page_size
+        schema:
+          format: int64
+          type: integer
+      - description: "OPTIONAL Token to use to indicate where to start getting results.\
+          \ If unspecified, return the first page of results."
+        in: query
+        name: page_token
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunListResponse'
+          description: Successful Request
+        "400":
+          content: {}
+          description: Malformed Workflow ID
+        "401":
+          content: {}
+          description: Invalid submission request
+        "403":
+          content: {}
+          description: Workflow in terminal status
+        "500":
+          content: {}
+          description: Internal Error
+      summary: List runs
+      tags:
+      - GA4GH Workflow Execution Service (WES) - Alpha preview
+      x-accepts: application/json
+    post:
+      description: "This endpoint creates a new workflow run and returns a `RunId`\
+        \ to monitor its progress.\n\nThe `workflow_attachment` array may be used\
+        \ to upload files that are required to execute the workflow, including the\
+        \ primary workflow, tools imported by the workflow, other files referenced\
+        \ by the workflow, or files which are part of the input.  The implementation\
+        \ should stage these files to a temporary directory and execute the workflow\
+        \ from there. These parts must have a Content-Disposition header with a \"\
+        filename\" provided for each part.  Filenames may include subdirectories,\
+        \ but must not include references to parent directories with '..' -- implementations\
+        \ should guard against maliciously constructed filenames.\n\nThe `workflow_url`\
+        \ is either an absolute URL to a workflow file that is accessible by the WES\
+        \ endpoint, or a relative URL corresponding to one of the files attached using\
+        \ `workflow_attachment`.\n\nThe `workflow_params` JSON object specifies input\
+        \ parameters, such as input files.  The exact format of the JSON object depends\
+        \ on the conventions of the workflow language being used.  Input files should\
+        \ either be absolute URLs, or relative URLs corresponding to files uploaded\
+        \ using `workflow_attachment`.  The WES endpoint must understand and be able\
+        \ to access URLs supplied in the input.  This is implementation specific.\n\
+        \nThe `workflow_type` is the type of workflow language and must be \"CWL\"\
+        \ or \"WDL\" currently (or another alternative  supported by this WES instance).\n\
+        \nThe `workflow_type_version` is the version of the workflow language submitted\
+        \ and must be one supported by this WES instance.\n\nSee the `RunRequest`\
+        \ documentation for details about other fields."
+      operationId: RunWorkflow
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RunWorkflow_request'
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunId'
+          description: Successful Request
+        "400":
+          content: {}
+          description: Malformed Workflow ID
+        "401":
+          content: {}
+          description: Invalid submission request
+        "403":
+          content: {}
+          description: Workflow in terminal status
+        "500":
+          content: {}
+          description: Internal Error
+      summary: Run workflow
+      tags:
+      - GA4GH Workflow Execution Service (WES) - Alpha preview
+      x-content-type: multipart/form-data
+      x-accepts: application/json
+  /api/ga4gh/wes/v1/runs/{run_id}:
+    get:
+      deprecated: false
+      description: "This endpoint provides detailed information about a given workflow\
+        \ run. The returned result has information about the outputs produced by this\
+        \ workflow (if available), a log object which allows the stderr and stdout\
+        \ to be retrieved, a log array so stderr/stdout for individual tasks can be\
+        \ retrieved, and the overall state of the workflow run (e.g. RUNNING, see\
+        \ the State section)."
+      operationId: GetRunLog
+      parameters:
+      - in: path
+        name: run_id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunLog'
+          description: Successful Request
+        "401":
+          content: {}
+          description: Invalid submission request
+        "403":
+          content: {}
+          description: Workflow in terminal status
+        "404":
+          content: {}
+          description: Workflow ID Not Found
+        "500":
+          content: {}
+          description: Internal Error
+      summary: Get run log
+      tags:
+      - GA4GH Workflow Execution Service (WES) - Alpha preview
+      x-accepts: application/json
+  /api/ga4gh/wes/v1/runs/{run_id}/cancel:
+    post:
+      description: Cancel a running workflow.
+      operationId: CancelRun
+      parameters:
+      - description: Run ID
+        in: path
+        name: run_id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunId'
+          description: Successful Request
+        "401":
+          content: {}
+          description: Invalid submission request
+        "403":
+          content: {}
+          description: Workflow in terminal status
+        "404":
+          content: {}
+          description: Workflow ID Not Found
+        "500":
+          content: {}
+          description: Internal Error
+      summary: Cancel run
+      tags:
+      - GA4GH Workflow Execution Service (WES) - Alpha preview
+      x-accepts: application/json
+  /api/ga4gh/wes/v1/runs/{run_id}/status:
+    get:
+      description: "This provides an abbreviated (and likely fast depending on implementation)\
+        \ status of the running workflow, returning a simple result with the  overall\
+        \ state of the workflow run (e.g. RUNNING, see the State section)."
+      operationId: GetRunStatus
+      parameters:
+      - description: Run ID
+        in: path
+        name: run_id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunStatus'
+          description: Successful Request
+        "401":
+          content: {}
+          description: Invalid submission request
+        "403":
+          content: {}
+          description: Workflow in terminal status
+        "404":
+          content: {}
+          description: Workflow ID Not Found
+        "500":
+          content: {}
+          description: Internal Error
+      summary: Get run status
+      tags:
+      - GA4GH Workflow Execution Service (WES) - Alpha preview
+      x-accepts: application/json
+components:
+  parameters:
+    singleId:
+      description: A workflow ID
+      in: path
+      name: id
+      required: true
+      schema:
+        pattern: "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+        type: string
+    versionParam:
+      description: Cromwell API Version
+      in: path
+      name: version
+      required: true
+      schema:
+        default: v1
+        type: string
+  responses:
+    OkIdAndStatus:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/WorkflowIdAndStatus'
+      description: Successful Request
+    OK:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/WorkflowIdAndStatus'
+      description: Successful Request
+    InvalidSubmission:
+      content: {}
+      description: Invalid submission request
+    BadRequest:
+      content: {}
+      description: Malformed Workflow ID
+    Forbidden:
+      content: {}
+      description: Workflow in terminal status
+    NotFound:
+      content: {}
+      description: Workflow ID Not Found
+    ServerError:
+      content: {}
+      description: Internal Error
+  schemas:
+    formData_workflowTypeParam:
+      description: The workflow language for the file you submitted. Cromwell currently
+        supports WDL and CWL.
+      enum:
+      - WDL
+      - CWL
+      type: string
+    formData_workflowTypeVersionParam:
+      description: "The specification version for the workflow language being used.\
+        \ For WDL, Cromwell currently supports draft-2 and 1.0. For CWL, Cromwell\
+        \ currently supports v1.0."
+      enum:
+      - draft-2
+      - "1.0"
+      - v1.0
+      type: string
+    WorkflowSubmitResponse:
+      properties:
+        id:
+          description: The identifier of the workflow
+          example: 00001111-2222-3333-aaaa-bbbbccccdddd
+          type: string
+        status:
+          description: The status of the workflow
+          example: Submitted
+          type: string
+      required:
+      - id
+      - status
+      type: object
+    WorkflowIdAndStatus:
+      example:
+        id: 00001111-2222-3333-aaaa-bbbbccccdddd
+        status: Submitted
+      properties:
+        id:
+          description: The identifier of the workflow
+          example: 00001111-2222-3333-aaaa-bbbbccccdddd
+          type: string
+        status:
+          description: The status of the workflow
+          example: Submitted
+          type: string
+      required:
+      - id
+      - status
+      type: object
+    WorkflowMetadataResponse:
+      description: Workflow and call level metadata
+      example:
+        outputs: "{}"
+        failures:
+          failure: failure
+          timestamp: 2000-01-23T04:56:07.000+00:00
+        calls:
+          jobId: jobId
+          returnCode: 0
+          failures:
+            failure: failure
+            timestamp: 2000-01-23T04:56:07.000+00:00
+          stdout: stdout
+          inputs: "{}"
+          executionStatus: executionStatus
+          backendLogs: "{}"
+          backendStatus: backendStatus
+          start: 2000-01-23T04:56:07.000+00:00
+          backend: backend
+          end: 2000-01-23T04:56:07.000+00:00
+          stderr: stderr
+        inputs: "{}"
+        start: 2000-01-23T04:56:07.000+00:00
+        submission: 2000-01-23T04:56:07.000+00:00
+        end: 2000-01-23T04:56:07.000+00:00
+        id: id
+        status: status
+      properties:
+        id:
+          description: The identifier of the workflow
+          type: string
+        status:
+          description: The status of the workflow
+          type: string
+        submission:
+          description: Submission datetime of the workflow in ISO8601 format with
+            milliseconds
+          format: date-time
+          type: string
+        start:
+          description: Start datetime of the workflow in ISO8601 format with milliseconds
+          format: date-time
+          type: string
+        end:
+          description: End datetime of the workflow in ISO8601 format with milliseconds
+          format: date-time
+          type: string
+        inputs:
+          description: Map of input keys to input values
+          properties: {}
+          type: object
+        outputs:
+          description: Map of output keys to output values
+          properties: {}
+          type: object
+        calls:
+          $ref: '#/components/schemas/CallMetadata'
+        failures:
+          $ref: '#/components/schemas/FailureMessage'
+      required:
+      - id
+      - status
+      - submission
+      type: object
+    CallMetadata:
+      description: Call level metadata
+      example:
+        jobId: jobId
+        returnCode: 0
+        failures:
+          failure: failure
+          timestamp: 2000-01-23T04:56:07.000+00:00
+        stdout: stdout
+        inputs: "{}"
+        executionStatus: executionStatus
+        backendLogs: "{}"
+        backendStatus: backendStatus
+        start: 2000-01-23T04:56:07.000+00:00
+        backend: backend
+        end: 2000-01-23T04:56:07.000+00:00
+        stderr: stderr
+      properties:
+        inputs:
+          description: Mapping of input fully qualified names to stringified values
+          properties: {}
+          type: object
+        executionStatus:
+          description: Status in Cromwell execution terms.
+          type: string
+        backend:
+          description: "The type of backend on which the call executed (e.g. JES,\
+            \ SGE, Local)"
+          type: string
+        backendStatus:
+          description: Status in backend-specific terms.  Currently this will only
+            be defined for the JES backend.
+          type: string
+        start:
+          description: Start datetime of the call execution in ISO8601 format with
+            milliseconds
+          format: date-time
+          type: string
+        end:
+          description: End datetime of the call execution in ISO8601 format with milliseconds
+          format: date-time
+          type: string
+        jobId:
+          description: Backend-specific job ID
+          type: string
+        failures:
+          $ref: '#/components/schemas/FailureMessage'
+        returnCode:
+          description: Call execution return code
+          type: integer
+        stdout:
+          description: Path to the standard output file for this call
+          type: string
+        stderr:
+          description: Path to the standard error file for this call
+          type: string
+        backendLogs:
+          description: Paths to backend specific logs for this call
+          properties: {}
+          type: object
+      required:
+      - executionStatus
+      - inputs
+      type: object
+    FailureMessage:
+      description: Failure messages
+      example:
+        failure: failure
+        timestamp: 2000-01-23T04:56:07.000+00:00
+      properties:
+        failure:
+          description: The failure message
+          type: string
+        timestamp:
+          description: The time at which this failure occurred
+          format: date-time
+          type: string
+      required:
+      - failure
+      - timestamp
+      type: object
+    WorkflowDescription:
+      example:
+        valid: true
+        outputs:
+        - name: my_wf.string_output
+          valueType:
+            typeName: String
+          typeDisplayName: String
+        - name: my_wf.array_output
+          valueType:
+            typeName: Array
+            arrayType:
+              typeName: String
+          typeDisplayName: "Array[String]"
+        - name: my_wf.map_output
+          valueType:
+            typeName: Map
+            mapType:
+              keyType:
+                typeName: String
+              valueType:
+                typeName: Int
+          typeDisplayName: "Map[String, Int]"
+        - name: my_wf.object_output
+          valueType:
+            typeName: Object
+            objectFieldTypes:
+            - fieldName: int_field
+              fieldType:
+                typeName: Int
+            - fieldName: int_array_field
+              fieldType:
+                typeName: Array
+                arrayType:
+                  typeName: Int
+          typeDisplayName: Object
+        - name: my_wf.int_string_pair_output
+          valueType:
+            typeName: Pair
+            tupleTypes:
+            - typeName: Int
+            - typeName: String
+          typeDisplayName: "Pair[Int, String]"
+        parameterMeta: "{}"
+        importedDescriptorTypes:
+        - importedDescriptorTypes
+        - importedDescriptorTypes
+        submittedDescriptorType:
+          descriptorTypeVersion: "1.0"
+          descriptorType: WDL
+        inputs:
+        - name: my_wf.string_input
+          valueType:
+            typeName: String
+          optional: false
+          typeDisplayName: String
+        - name: my_wf.array_input
+          valueType:
+            typeName: Array
+            arrayType:
+              typeName: String
+          optional: false
+          typeDisplayName: "Array[String]"
+        - name: my_wf.optional_input
+          valueType:
+            typeName: Optional
+            optionalType:
+              typeName: String
+          optional: true
+          default: hello
+          typeDisplayName: String?
+        - name: my_wf.map_input
+          valueType:
+            typeName: Map
+            mapType:
+              keyType:
+                typeName: String
+              valueType:
+                typeName: Int
+          optional: false
+          typeDisplayName: "Map[String, Int]"
+        - name: my_wf.object_input
+          valueType:
+            typeName: Object
+            objectFieldTypes:
+            - fieldName: int_field
+              fieldType:
+                typeName: Int
+            - fieldName: int_array_field
+              fieldType:
+                typeName: Array
+                arrayType:
+                  typeName: Int
+          optional: false
+          typeDisplayName: Object
+        - name: my_wf.int_string_pair_input
+          valueType:
+            typeName: Pair
+            pairTypes:
+            - leftType:
+              - typeName: Int
+            - rightType:
+              - typeName: String
+          optional: false
+          typeDisplayName: "Pair[Int, String]"
+        meta: "{}"
+        name: name
+        validWorkflow: true
+        isRunnableWorkflow: true
+        errors:
+        - The 'errors' field will be filled if 'valid' is false
+        - We might also provide warnings to a 'valid' workflow here
+        - "Otherwise, 'errors' will be the empty array"
+      properties:
+        valid:
+          description: "Indicates that the workflow is valid and that the inputs,\
+            \ if provided, are compatible with the workflow."
+          type: boolean
+        errors:
+          description: The set of validation failure messages
+          example:
+          - The 'errors' field will be filled if 'valid' is false
+          - We might also provide warnings to a 'valid' workflow here
+          - "Otherwise, 'errors' will be the empty array"
+          items:
+            type: string
+          type: array
+        validWorkflow:
+          description: "Indicates whether the workflow file is valid by itself. If\
+            \ inputs are provided, they are not considered when calculating this field;\
+            \ if inputs are not provided, the value is identical to `valid`."
+          type: boolean
+        name:
+          description: "For a source file with one workflow and zero or more tasks,\
+            \ the name of the workflow. For a single task, the name of the task. For\
+            \ a source file with multiple tasks but no workflows, the empty string."
+          type: string
+        inputs:
+          description: A list of inputs for this tool
+          example:
+          - name: my_wf.string_input
+            valueType:
+              typeName: String
+            optional: false
+            typeDisplayName: String
+          - name: my_wf.array_input
+            valueType:
+              typeName: Array
+              arrayType:
+                typeName: String
+            optional: false
+            typeDisplayName: "Array[String]"
+          - name: my_wf.optional_input
+            valueType:
+              typeName: Optional
+              optionalType:
+                typeName: String
+            optional: true
+            default: hello
+            typeDisplayName: String?
+          - name: my_wf.map_input
+            valueType:
+              typeName: Map
+              mapType:
+                keyType:
+                  typeName: String
+                valueType:
+                  typeName: Int
+            optional: false
+            typeDisplayName: "Map[String, Int]"
+          - name: my_wf.object_input
+            valueType:
+              typeName: Object
+              objectFieldTypes:
+              - fieldName: int_field
+                fieldType:
+                  typeName: Int
+              - fieldName: int_array_field
+                fieldType:
+                  typeName: Array
+                  arrayType:
+                    typeName: Int
+            optional: false
+            typeDisplayName: Object
+          - name: my_wf.int_string_pair_input
+            valueType:
+              typeName: Pair
+              pairTypes:
+              - leftType:
+                - typeName: Int
+              - rightType:
+                - typeName: String
+            optional: false
+            typeDisplayName: "Pair[Int, String]"
+          items:
+            $ref: '#/components/schemas/ToolInputParameter'
+          type: array
+        outputs:
+          description: A list of outputs for this tool
+          example:
+          - name: my_wf.string_output
+            valueType:
+              typeName: String
+            typeDisplayName: String
+          - name: my_wf.array_output
+            valueType:
+              typeName: Array
+              arrayType:
+                typeName: String
+            typeDisplayName: "Array[String]"
+          - name: my_wf.map_output
+            valueType:
+              typeName: Map
+              mapType:
+                keyType:
+                  typeName: String
+                valueType:
+                  typeName: Int
+            typeDisplayName: "Map[String, Int]"
+          - name: my_wf.object_output
+            valueType:
+              typeName: Object
+              objectFieldTypes:
+              - fieldName: int_field
+                fieldType:
+                  typeName: Int
+              - fieldName: int_array_field
+                fieldType:
+                  typeName: Array
+                  arrayType:
+                    typeName: Int
+            typeDisplayName: Object
+          - name: my_wf.int_string_pair_output
+            valueType:
+              typeName: Pair
+              tupleTypes:
+              - typeName: Int
+              - typeName: String
+            typeDisplayName: "Pair[Int, String]"
+          items:
+            $ref: '#/components/schemas/ToolOutputParameter'
+          type: array
+        submittedDescriptorType:
+          $ref: '#/components/schemas/DescriptorTypeAndVersion'
+        isRunnableWorkflow:
+          description: Indicates whether this file can be run on its own (e.g. a WDL
+            workflow)
+          type: boolean
+        importedDescriptorTypes:
+          items:
+            description: TODO default missing array inner type to string
+            type: string
+          type: array
+        meta:
+          properties: {}
+          type: object
+        parameterMeta:
+          properties: {}
+          type: object
+      required:
+      - errors
+      - inputs
+      - isRunnableWorkflow
+      - name
+      - outputs
+      - submittedDescriptorType
+      - valid
+      - validWorkflow
+      type: object
+    ToolInputParameter:
+      description: An input parameter for a tool or workflow.
+      properties:
+        name:
+          description: The name of this input value (formatted as expected by the
+            tool)
+          type: string
+        valueType:
+          $ref: '#/components/schemas/ValueType'
+        optional:
+          description: Whether the tool allows this value to not be specified
+          type: boolean
+        default:
+          description: "The in-language expression used to evaluate a default value\
+            \ for this parameter, if none is supplied."
+          type: string
+        typeDisplayName:
+          description: An easy-to-read display name for the type of the input
+          type: string
+      required:
+      - default
+      - name
+      - optional
+      - typeDisplayName
+      - valueType
+      type: object
+    ToolOutputParameter:
+      description: An output parameter for a tool or workflow.
+      properties:
+        name:
+          description: The name of this input value (formatted as expected by the
+            tool)
+          type: string
+        valueType:
+          $ref: '#/components/schemas/ValueType'
+        typeDisplayName:
+          description: An easy-to-read display name for the type of the output
+          type: string
+      required:
+      - name
+      - typeDisplayName
+      - valueType
+      type: object
+    ValueType:
+      description: The type expected for a given value.
+      properties:
+        typeName:
+          description: The type of this value
+          enum:
+          - String
+          - File
+          - Directory
+          - Float
+          - Int
+          - Boolean
+          - Optional
+          - Array
+          - Tuple
+          - Map
+          - Object
+          - Pair
+          type: string
+        optionalType:
+          $ref: '#/components/schemas/ValueType'
+        arrayType:
+          $ref: '#/components/schemas/ValueType'
+        mapType:
+          $ref: '#/components/schemas/MapValueType'
+        tupleTypes:
+          items:
+            $ref: '#/components/schemas/ValueType'
+          type: array
+        objectFieldTypes:
+          items:
+            $ref: '#/components/schemas/ValueType_objectFieldTypes_inner'
+          type: array
+      type: object
+    MapValueType:
+      description: A type representing a map from one type to another.
+      properties:
+        keyType:
+          $ref: '#/components/schemas/ValueType'
+        valueType:
+          $ref: '#/components/schemas/ValueType'
+      required:
+      - keyType
+      - valueType
+      type: object
+    DescriptorTypeAndVersion:
+      description: A workflow descriptor file type and version.
+      example:
+        descriptorTypeVersion: "1.0"
+        descriptorType: WDL
+      properties:
+        descriptorType:
+          $ref: '#/components/schemas/DescriptorType'
+        descriptorTypeVersion:
+          example: "1.0"
+          type: string
+      required:
+      - descriptorType
+      - descriptorTypeVersion
+      type: object
+    DescriptorType:
+      description: "One from a list of descriptor type strings (e.g. CWL, WDL). Note\
+        \ that these files can also include associated Docker/container files and\
+        \ test parameters that further describe a version of a tool"
+      enum:
+      - CWL
+      - WDL
+      example: WDL
+      type: string
+    WorkflowQueryParameter:
+      description: Workflow query parameters
+      example:
+        excludeLabelAnd: excludeLabelAnd
+        start: 2000-01-23T04:56:07.000+00:00
+        name: name
+        pageSize: 6
+        submission: 2000-01-23T04:56:07.000+00:00
+        end: 2000-01-23T04:56:07.000+00:00
+        id: id
+        page: 0
+        excludeLabelOr: excludeLabelOr
+        includeSubworkflows: includeSubworkflows
+        status: Submitted
+      properties:
+        submission:
+          description: "Returns only workflows with an equal or later submission time.\
+            \ Can be specified at most once. If both submission time and start date\
+            \ are specified, submission time should be before or equal to start date.\n"
+          format: date-time
+          type: string
+        start:
+          description: "Returns only workflows with an equal or later start datetime.\
+            \  Can be specified at most once. If both start and end date are specified,\
+            \ start date must be before or equal to end date.\n"
+          format: date-time
+          type: string
+        end:
+          description: "Returns only workflows with an equal or earlier end datetime.\
+            \  Can be specified at most once. If both start and end date are specified,\
+            \ start date must be before or equal to end date.\n"
+          format: date-time
+          type: string
+        status:
+          description: "Returns only workflows with the specified status.  If specified\
+            \ multiple times, returns workflows in any of the specified statuses.\n"
+          enum:
+          - Submitted
+          - Running
+          - Aborting
+          - Failed
+          - Succeeded
+          - Aborted
+          type: string
+        name:
+          description: "Returns only workflows with the specified name.  If specified\
+            \ multiple times, returns workflows with any of the specified names.\n"
+          pattern: "^[a-zA-Z][a-zA-Z0-9_]*$"
+          type: string
+        id:
+          description: "Returns only workflows with the specified workflow id.  If\
+            \ specified multiple times, returns workflows with any of the specified\
+            \ workflow ids.\n"
+          pattern: "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+          type: string
+        excludeLabelAnd:
+          description: "Excludes workflows with the specified label.  If specified\
+            \ multiple times, excludes workflows with all of the specified label keys.\
+            \ Specify the label key and label value pair as separated with \"label-key:label-value\"\
+            \n"
+          format: array
+          pattern: "^([a-z][-a-z0-9]*[a-z0-9])?[:]([a-z][-a-z0-9]*[a-z0-9])?$"
+          type: string
+        excludeLabelOr:
+          description: "Excludes workflows with the specified label.  If specified\
+            \ multiple times, excludes workflows with any of the specified label keys.\
+            \ Specify the label key and label value pair as separated with \"label-key:label-value\"\
+            \n"
+          format: array
+          pattern: "^([a-z][-a-z0-9]*[a-z0-9])?[:]([a-z][-a-z0-9]*[a-z0-9])?$"
+          type: string
+        includeSubworkflows:
+          description: "Include subworkflows in results. By default, it is taken as\
+            \ true."
+          format: boolean
+          type: string
+        page:
+          description: "When pageSize is set, which page of results to return. If\
+            \ not set, the first page of 'pageSize' results will be returned."
+          type: integer
+        pageSize:
+          description: The number of results to return at a time
+          type: integer
+      type: object
+    WorkflowQueryResponse:
+      description: Response to a workflow query
+      example:
+        totalResultsCount: 0
+        results:
+        - metadataArchiveStatus: metadataArchiveStatus
+          name: name
+          start: 2000-01-23T04:56:07.000+00:00
+          submission: 2000-01-23T04:56:07.000+00:00
+          end: 2000-01-23T04:56:07.000+00:00
+          id: id
+          status: status
+        - metadataArchiveStatus: metadataArchiveStatus
+          name: name
+          start: 2000-01-23T04:56:07.000+00:00
+          submission: 2000-01-23T04:56:07.000+00:00
+          end: 2000-01-23T04:56:07.000+00:00
+          id: id
+          status: status
+      properties:
+        results:
+          items:
+            $ref: '#/components/schemas/WorkflowQueryResult'
+          type: array
+        totalResultsCount:
+          type: integer
+      required:
+      - results
+      - totalResultsCount
+      type: object
+    WorkflowQueryResult:
+      description: Result for an individual workflow returned by a workflow query
+      example:
+        metadataArchiveStatus: metadataArchiveStatus
+        name: name
+        start: 2000-01-23T04:56:07.000+00:00
+        submission: 2000-01-23T04:56:07.000+00:00
+        end: 2000-01-23T04:56:07.000+00:00
+        id: id
+        status: status
+      properties:
+        id:
+          description: Workflow ID
+          type: string
+        name:
+          description: Workflow name
+          type: string
+        status:
+          description: Workflow status
+          type: string
+        submission:
+          description: Workflow submission datetime
+          format: date-time
+          type: string
+        metadataArchiveStatus:
+          description: Status in metadata archives
+          type: string
+        start:
+          description: Workflow start datetime
+          format: date-time
+          type: string
+        end:
+          description: Workflow end datetime
+          format: date-time
+          type: string
+      required:
+      - id
+      - status
+      type: object
+    BackendResponse:
+      example:
+        defaultBackend: defaultBackend
+        supportedBackends:
+        - supportedBackends
+        - supportedBackends
+      properties:
+        supportedBackends:
+          description: The backends supported by this server
+          items:
+            type: string
+          type: array
+        defaultBackend:
+          description: The default backend of this server
+          type: string
+      required:
+      - defaultBackend
+      - supportedBackends
+      type: object
+    VersionResponse:
+      description: Returns the version of Cromwell
+      example:
+        cromwell: "30"
+      properties:
+        cromwell:
+          description: The version of the Cromwell Engine
+          example: "30"
+          type: string
+      type: object
+    StatusResponse:
+      description: Returns the status of monitored subsystems.
+      example:
+        serviceName:
+          messages:
+          - messages
+          - messages
+          ok: true
+      properties:
+        serviceName:
+          $ref: '#/components/schemas/StatusResponse_serviceName'
+      type: object
+    LabelsResponse:
+      example:
+        id: label-key-1
+        labels: label-value-1
+      properties:
+        id:
+          description: The identifier of the workflow
+          example: label-key-1
+          type: string
+        labels:
+          description: The labels which have been updated
+          example: label-value-1
+          type: string
+      required:
+      - id
+      - labels
+      type: object
+    DefaultWorkflowEngineParameter:
+      description: A message that allows one to describe default parameters for a
+        workflow engine.
+      properties:
+        name:
+          description: The name of the parameter
+          type: string
+        type:
+          description: "Describes the type of the parameter, e.g. float."
+          type: string
+        default_value:
+          description: The stringified version of the default parameter. e.g. "2.45".
+          type: string
+      title: DefaultWorkflowEngineParameter
+      type: object
+    Log:
+      description: Log and other info
+      example:
+        start_time: start_time
+        stdout: stdout
+        name: name
+        end_time: end_time
+        exit_code: 0
+        cmd:
+        - cmd
+        - cmd
+        stderr: stderr
+      properties:
+        name:
+          description: The task or workflow name
+          type: string
+        cmd:
+          description: The command line that was executed
+          items:
+            type: string
+          type: array
+        start_time:
+          description: "When the command started executing, in ISO 8601 format \"\
+            %Y-%m-%dT%H:%M:%SZ\""
+          type: string
+        end_time:
+          description: "When the command stopped executing (completed, failed, or\
+            \ cancelled), in ISO 8601 format \"%Y-%m-%dT%H:%M:%SZ\""
+          type: string
+        stdout:
+          description: "A URL to retrieve standard output logs of the workflow run\
+            \ or task.  This URL may change between status requests, or may not be\
+            \ available until the task or workflow has finished execution.  Should\
+            \ be available using the same credentials used to access the WES endpoint."
+          type: string
+        stderr:
+          description: "A URL to retrieve standard error logs of the workflow run\
+            \ or task.  This URL may change between status requests, or may not be\
+            \ available until the task or workflow has finished execution.  Should\
+            \ be available using the same credentials used to access the WES endpoint."
+          type: string
+        exit_code:
+          description: Exit code of the program
+          format: int32
+          type: integer
+      title: Log
+      type: object
+    ServiceInfo:
+      allOf:
+      - $ref: '#/components/schemas/Service'
+      - $ref: '#/components/schemas/ServiceInfo_allOf'
+      title: ServiceInfo
+    State:
+      description: "- UNKNOWN: The state of the task is unknown. This provides a safe\
+        \ default for messages where this field is missing, for example, so that a\
+        \ missing field does not accidentally imply that the state is QUEUED.\n\n\n\
+        \ - QUEUED: The task is queued.\n\n\n- INITIALIZING: The task has been assigned\
+        \ to a worker and is currently preparing to run. For example, the worker may\
+        \ be turning on, downloading input files, etc.\n\n- RUNNING: The task is running.\
+        \ Input files are downloaded and the first Executor has been started.\n\n\
+        - PAUSED: The task is paused. An implementation may have the ability to pause\
+        \ a task, but this is not required.\n\n\n - COMPLETE: The task has completed\
+        \ running. Executors have exited without error\nand output files have been\
+        \ successfully uploaded.\n\n\n - EXECUTOR_ERROR: The task encountered an error\
+        \ in one of the Executor processes. Generally,\nthis means that an Executor\
+        \ exited with a non-zero exit code.\n\n\n - SYSTEM_ERROR: The task was stopped\
+        \ due to a system error, but not from an Executor,\nfor example an upload\
+        \ failed due to network issues, the worker's ran out of disk space, etc.\n\
+        \n\n - CANCELED: The task was canceled by the user.\n\n\n  - CANCELING: The\
+        \ task was canceled by the user, and is in the process of stopping."
+      enum:
+      - UNKNOWN
+      - QUEUED
+      - INITIALIZING
+      - RUNNING
+      - PAUSED
+      - COMPLETE
+      - EXECUTOR_ERROR
+      - SYSTEM_ERROR
+      - CANCELED
+      - CANCELING
+      title: State
+      type: string
+    RunListResponse:
+      description: The service will return a RunListResponse when receiving a successful
+        RunListRequest.
+      example:
+        next_page_token: next_page_token
+        runs:
+        - run_id: run_id
+          state: null
+        - run_id: run_id
+          state: null
+      properties:
+        runs:
+          description: A list of workflow runs that the service has executed or is
+            executing. The list is filtered to only include runs that the caller has
+            permission to see.
+          items:
+            $ref: '#/components/schemas/RunStatus'
+          type: array
+        next_page_token:
+          description: A token which may be supplied as `page_token` in workflow run
+            list request to get the next page of results.  An empty string indicates
+            there are no more items to return.
+          type: string
+      title: RunListResponse
+      type: object
+    RunLog:
+      example:
+        outputs: "{}"
+        request:
+          workflow_engine_parameters:
+            key: workflow_engine_parameters
+          workflow_url: workflow_url
+          workflow_params: "{}"
+          workflow_type: workflow_type
+          workflow_type_version: workflow_type_version
+          tags:
+            key: tags
+        run_id: run_id
+        run_log:
+          start_time: start_time
+          stdout: stdout
+          name: name
+          end_time: end_time
+          exit_code: 0
+          cmd:
+          - cmd
+          - cmd
+          stderr: stderr
+        state: null
+        task_logs:
+        - start_time: start_time
+          stdout: stdout
+          name: name
+          end_time: end_time
+          exit_code: 0
+          cmd:
+          - cmd
+          - cmd
+          stderr: stderr
+        - start_time: start_time
+          stdout: stdout
+          name: name
+          end_time: end_time
+          exit_code: 0
+          cmd:
+          - cmd
+          - cmd
+          stderr: stderr
+      properties:
+        run_id:
+          description: workflow run ID
+          type: string
+        request:
+          $ref: '#/components/schemas/RunRequest'
+        state:
+          $ref: '#/components/schemas/State'
+        run_log:
+          $ref: '#/components/schemas/Log'
+        task_logs:
+          description: "The logs, and other key info like timing and exit code, for\
+            \ each step in the workflow run."
+          items:
+            $ref: '#/components/schemas/Log'
+          type: array
+        outputs:
+          description: The outputs from the workflow run.
+          properties: {}
+          type: object
+      title: RunLog
+      type: object
+    RunRequest:
+      description: "To execute a workflow, send a run request including all the details\
+        \ needed to begin downloading and executing a given workflow."
+      example:
+        workflow_engine_parameters:
+          key: workflow_engine_parameters
+        workflow_url: workflow_url
+        workflow_params: "{}"
+        workflow_type: workflow_type
+        workflow_type_version: workflow_type_version
+        tags:
+          key: tags
+      properties:
+        workflow_params:
+          description: "REQUIRED The workflow run parameterizations (JSON encoded),\
+            \ including input and output file locations"
+          properties: {}
+          type: object
+        workflow_type:
+          description: "REQUIRED The workflow descriptor type, must be \"CWL\" or\
+            \ \"WDL\" currently (or another alternative supported by this WES instance)"
+          type: string
+        workflow_type_version:
+          description: "REQUIRED The workflow descriptor type version, must be one\
+            \ supported by this WES instance"
+          type: string
+        tags:
+          additionalProperties:
+            type: string
+          type: object
+        workflow_engine_parameters:
+          additionalProperties:
+            type: string
+          type: object
+        workflow_url:
+          description: "REQUIRED The workflow CWL or WDL document. When `workflow_attachments`\
+            \ is used to attach files, the `workflow_url` may be a relative path to\
+            \ one of the attachments."
+          type: string
+      title: RunRequest
+      type: object
+    RunId:
+      example:
+        run_id: run_id
+      properties:
+        run_id:
+          description: workflow run ID
+          type: string
+      title: RunId
+      type: object
+    RunStatus:
+      description: "Small description of a workflow run, returned by server during\
+        \ listing"
+      example:
+        run_id: run_id
+        state: null
+      properties:
+        run_id:
+          type: string
+        state:
+          $ref: '#/components/schemas/State'
+      required:
+      - run_id
+      title: RunStatus
+      type: object
+    WorkflowTypeVersion:
+      description: Available workflow types supported by a given instance of the service.
+      properties:
+        workflow_type_version:
+          description: an array of one or more acceptable types for the `workflow_type`
+          items:
+            type: string
+          type: array
+      title: WorkflowTypeVersion
+      type: object
+    ServiceType:
+      description: Type of a GA4GH service
+      properties:
+        group:
+          description: "Namespace in reverse domain name format. Use `org.ga4gh` for\
+            \ implementations compliant with official GA4GH specifications. For services\
+            \ with custom APIs not standardized by GA4GH, or implementations diverging\
+            \ from official GA4GH specifications, use a different namespace (e.g.\
+            \ your organization's reverse domain name)."
+          example: org.ga4gh
+          type: string
+        artifact:
+          description: Name of the API or GA4GH specification implemented. Official
+            GA4GH types should be assigned as part of standards approval process.
+            Custom artifacts are supported.
+          example: beacon
+          type: string
+        version:
+          description: Version of the API or specification. GA4GH specifications use
+            semantic versioning.
+          example: 1.0.0
+          type: string
+      required:
+      - artifact
+      - group
+      - version
+      type: object
+    Service:
+      description: GA4GH service
+      properties:
+        id:
+          description: "Unique ID of this service. Reverse domain name notation is\
+            \ recommended, though not required. The identifier should attempt to be\
+            \ globally unique so it can be used in downstream aggregator services\
+            \ e.g. Service Registry."
+          example: org.ga4gh.myservice
+          type: string
+        name:
+          description: Name of this service. Should be human readable.
+          example: My project
+          type: string
+        type:
+          $ref: '#/components/schemas/ServiceType'
+        description:
+          description: Description of the service. Should be human readable and provide
+            information about the service.
+          example: This service provides...
+          type: string
+        organization:
+          $ref: '#/components/schemas/Service_organization'
+        contactUrl:
+          description: "URL of the contact for the provider of this service, e.g.\
+            \ a link to a contact form (RFC 3986 format), or an email (RFC 2368 format)."
+          example: mailto:support@example.com
+          format: uri
+          type: string
+        documentationUrl:
+          description: "URL of the documentation of this service (RFC 3986 format).\
+            \ This should help someone learn how to use your service, including any\
+            \ specifics required to access data, e.g. authentication."
+          example: https://docs.myservice.example.com
+          format: uri
+          type: string
+        createdAt:
+          description: Timestamp describing when the service was first deployed and
+            available (RFC 3339 format)
+          example: 2019-06-04T12:58:19Z
+          format: date-time
+          type: string
+        updatedAt:
+          description: Timestamp describing when the service was last updated (RFC
+            3339 format)
+          example: 2019-06-04T12:58:19Z
+          format: date-time
+          type: string
+        environment:
+          description: "Environment the service is running in. Use this to distinguish\
+            \ between production, development and testing/staging deployments. Suggested\
+            \ values are prod, test, dev, staging. However this is advised and not\
+            \ enforced."
+          example: test
+          type: string
+        version:
+          description: "Version of the service being described. Semantic versioning\
+            \ is recommended, but other identifiers, such as dates or commit hashes,\
+            \ are also allowed. The version should be changed whenever the service\
+            \ is updated."
+          example: 1.0.0
+          type: string
+      required:
+      - id
+      - name
+      - organization
+      - type
+      - version
+      type: object
+    submit_request:
+      properties:
+        workflowSource:
+          description: The workflow source file to submit for execution. Either workflow
+            source or workflow url is required.
+          type: string
+        workflowUrl:
+          description: URL which points to the workflow. Either workflow source or
+            workflow url is required.
+          type: string
+        workflowOnHold:
+          description: "Put workflow on hold upon submission. By default, it is taken\
+            \ as false."
+          type: boolean
+        workflowInputs:
+          description: "JSON or YAML file containing the inputs as an object. For\
+            \ WDL workflows a skeleton file can be generated from WOMtool using the\
+            \ \"inputs\" subcommand. When multiple files are specified, in case of\
+            \ key conflicts between multiple input JSON files, higher values of x\
+            \ in workflowInputs_x override lower values. For example, an input specified\
+            \ in workflowInputs_3 will override an input with the same name in workflowInputs\
+            \ or workflowInputs_2. Similarly, an input key specified in workflowInputs_5\
+            \ will override an identical input key in any other input file."
+          type: string
+        workflowInputs_2:
+          description: A second JSON or YAML file containing inputs.
+          type: string
+        workflowInputs_3:
+          description: A third JSON or YAML file containing inputs.
+          type: string
+        workflowInputs_4:
+          description: A fourth JSON or YAML file containing inputs.
+          type: string
+        workflowInputs_5:
+          description: A fifth JSON or YAML file containing inputs.
+          type: string
+        workflowOptions:
+          description: JSON file containing configuration options for the execution
+            of this workflow.
+          type: string
+        workflowType:
+          description: The workflow language for the file you submitted. Cromwell
+            currently supports WDL and CWL.
+          enum:
+          - WDL
+          - CWL
+          type: string
+        workflowRoot:
+          description: The root object to be run. Only necessary for CWL submissions
+            containing multiple objects (in an array).
+          type: string
+        workflowTypeVersion:
+          description: "The specification version for the workflow language being\
+            \ used. For WDL, Cromwell currently supports draft-2 and 1.0. For CWL,\
+            \ Cromwell currently supports v1.0."
+          enum:
+          - draft-2
+          - "1.0"
+          - v1.0
+          type: string
+        labels:
+          description: JSON object of labels to apply to this workflow.
+          type: string
+        workflowDependencies:
+          description: ZIP file containing workflow source files that are used to
+            resolve local imports. This zip bundle will be unpacked in a sandbox accessible
+            to this workflow.
+          type: string
+        requestedWorkflowId:
+          description: An ID to ascribe to this workflow. Must be a JSON string in
+            UUID-format. If not supplied a random ID will be generated for the workflow.
+          type: string
+    submitBatch_request:
+      properties:
+        workflowSource:
+          description: The workflow source file to submit for execution. Either workflow
+            source or workflow url is required.
+          type: string
+        workflowUrl:
+          description: URL which points to the workflow. Either workflow source or
+            workflow url is required.
+          type: string
+        workflowOnHold:
+          description: "Put workflow on hold upon submission. By default, it is taken\
+            \ as false."
+          type: boolean
+        workflowInputs:
+          description: "JSON file containing the inputs as an array of objects. Every\
+            \ element of the array will correspond to a single workflow. For WDL workflows\
+            \ a skeleton file can be generated from WOMtool using the \"inputs\" subcommand.\
+            \ When multiple files are specified, in case of key conflicts between\
+            \ multiple input JSON files, higher values of x in workflowInputs_x override\
+            \ lower values. For example, an input specified in workflowInputs_3 will\
+            \ override an input with the same name in workflowInputs or workflowInputs_2.\
+            \ Similarly, an input key specified in workflowInputs_5 will override\
+            \ an identical input key in any other input file."
+          type: string
+        workflowOptions:
+          description: JSON file containing configuration options for the execution
+            of this workflow.
+          type: string
+        workflowType:
+          description: The workflow language for the file you submitted. Cromwell
+            currently supports WDL and CWL.
+          enum:
+          - WDL
+          - CWL
+          type: string
+        workflowTypeVersion:
+          description: "The specification version for the workflow language being\
+            \ used. For WDL, Cromwell currently supports draft-2 and 1.0. For CWL,\
+            \ Cromwell currently supports v1.0."
+          enum:
+          - draft-2
+          - "1.0"
+          - v1.0
+          type: string
+        labels:
+          description: JSON object of labels to apply to this workflow.
+          type: string
+        workflowDependencies:
+          description: ZIP file containing workflow source files that are used to
+            resolve local imports. This zip bundle will be unpacked in a sandbox accessible
+            to these workflows.
+          type: string
+        requestedWorkflowId:
+          description: "A set of IDs to ascribe to these workflows. Must be a JSON\
+            \ list of strings in UUID-format. Must have the same number of entries\
+            \ and be in the same order as the workflow inputs list. If not supplied,\
+            \ random ID will be generated for the workflows."
+          type: string
+      required:
+      - workflowInputs
+    describe_request:
+      properties:
+        workflowSource:
+          description: The workflow source file to submit for execution. Either workflow
+            source or workflow url is required.
+          type: string
+        workflowUrl:
+          description: URL which points to the workflow. Either workflow source or
+            workflow url is required.
+          type: string
+        workflowInputs:
+          description: JSON or YAML file containing the inputs as an object.
+          type: string
+        workflowType:
+          description: The workflow language for the file you submitted. Cromwell
+            currently supports WDL and CWL.
+          enum:
+          - WDL
+          - CWL
+          type: string
+        workflowTypeVersion:
+          description: "The specification version for the workflow language being\
+            \ used. For WDL, Cromwell currently supports draft-2 and 1.0. For CWL,\
+            \ Cromwell currently supports v1.0."
+          enum:
+          - draft-2
+          - "1.0"
+          - v1.0
+          type: string
+    RunWorkflow_request:
+      properties:
+        workflow_params:
+          description: ""
+          type: string
+        workflow_type:
+          description: ""
+          type: string
+        workflow_type_version:
+          description: ""
+          type: string
+        tags:
+          description: ""
+          type: string
+        workflow_engine_parameters:
+          description: ""
+          type: string
+        workflow_url:
+          description: ""
+          type: string
+        workflow_attachment:
+          description: ""
+          items:
+            format: binary
+            type: string
+          type: array
+    ValueType_objectFieldTypes_inner:
+      properties:
+        fieldName:
+          type: string
+        fieldType:
+          $ref: '#/components/schemas/ValueType'
+      type: object
+    StatusResponse_serviceName:
+      example:
+        messages:
+        - messages
+        - messages
+        ok: true
+      properties:
+        ok:
+          type: boolean
+        messages:
+          items:
+            type: string
+          type: array
+      type: object
+    ServiceInfo_allOf:
+      properties:
+        workflow_type_versions:
+          additionalProperties:
+            $ref: '#/components/schemas/WorkflowTypeVersion'
+          type: object
+        supported_wes_versions:
+          description: The version(s) of the WES schema supported by this service
+          items:
+            type: string
+          type: array
+        supported_filesystem_protocols:
+          description: "The filesystem protocols supported by this service, currently\
+            \ these may include common protocols using the terms 'http', 'https',\
+            \ 'sftp', 's3', 'gs', 'file', or 'synapse', but others  are possible and\
+            \ the terms beyond these core protocols are currently not fixed.   This\
+            \ section reports those protocols (either common or not) supported by\
+            \ this WES service."
+          items:
+            type: string
+          type: array
+        workflow_engine_versions:
+          additionalProperties:
+            type: string
+          type: object
+        default_workflow_engine_parameters:
+          description: "Each workflow engine can present additional parameters that\
+            \ can be sent to the workflow engine. This message will list the default\
+            \ values, and their types for each workflow engine."
+          items:
+            $ref: '#/components/schemas/DefaultWorkflowEngineParameter'
+          type: array
+        system_state_counts:
+          additionalProperties:
+            format: int64
+            type: integer
+          type: object
+        auth_instructions_url:
+          description: A web page URL with human-readable instructions on how to get
+            an authorization token for use with a specific WES endpoint.
+          type: string
+        tags:
+          additionalProperties:
+            description: "A message containing useful information about the running\
+              \ service, including supported versions and default settings."
+            type: string
+          type: object
+      required:
+      - auth_instructions_url
+      - default_workflow_engine_parameters
+      - supported_filesystem_protocols
+      - supported_wes_versions
+      - system_state_counts
+      - tags
+      - workflow_engine_versions
+      - workflow_type_versions
+      type: object
+    Service_organization:
+      description: Organization providing the service
+      properties:
+        name:
+          description: Name of the organization responsible for the service
+          example: My organization
+          type: string
+        url:
+          description: URL of the website of the organization (RFC 3986 format)
+          example: https://example.com
+          format: uri
+          type: string
+      required:
+      - name
+      - url
+      type: object
+  securitySchemes:
+    googleoauth:
+      flows:
+        implicit:
+          authorizationUrl: https://accounts.google.com/o/oauth2/auth
+          scopes:
+            openid: open id authorization
+            email: email authorization
+            profile: profile authorization
+      type: oauth2
+x-original-swagger-version: "2.0"
+

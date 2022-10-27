@@ -49,7 +49,7 @@ import cromwell.client.JSON;
  * A workflow descriptor file type and version.
  */
 @ApiModel(description = "A workflow descriptor file type and version.")
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T16:16:35.079925Z[Etc/UTC]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T17:28:18.362480Z[Etc/UTC]")
 public class DescriptorTypeAndVersion {
   public static final String SERIALIZED_NAME_DESCRIPTOR_TYPE = "descriptorType";
   @SerializedName(SERIALIZED_NAME_DESCRIPTOR_TYPE)

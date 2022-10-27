@@ -1067,7 +1067,9 @@ definitions:
       calls:
         $ref: '#/definitions/CallMetadata'
       failures:
-        $ref: '#/definitions/FailureMessage'
+        type: array
+        items:
+          $ref: '#/definitions/FailureMessage'
   CallMetadata:
     description: Call level metadata
 #    required:
@@ -1113,17 +1115,18 @@ definitions:
         description: Paths to backend specific logs for this call
   FailureMessage:
     description: Failure messages
-    required:
-      - failure
-      - timestamp
+#    required:
+#      - failure
+#      - timestamp
     properties:
-      failure:
+      message:
         type: string
         description: The failure message
-      timestamp:
-        type: string
-        format: date-time
-        description: The time at which this failure occurred
+      causedBy:
+        $ref: '#/definitions/FailureMessage'
+#        type: object
+#        format: date-time
+#        description: The time at which this failure occurred
   WorkflowDescription:
     required:
       - valid

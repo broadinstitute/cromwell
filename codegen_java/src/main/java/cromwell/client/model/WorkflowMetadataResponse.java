@@ -26,6 +26,8 @@ import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.io.IOException;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -51,7 +53,7 @@ import cromwell.client.JSON;
  * Workflow and call level metadata
  */
 @ApiModel(description = "Workflow and call level metadata")
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T16:16:35.079925Z[Etc/UTC]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T17:28:18.362480Z[Etc/UTC]")
 public class WorkflowMetadataResponse {
   public static final String SERIALIZED_NAME_ID = "id";
   @SerializedName(SERIALIZED_NAME_ID)
@@ -87,7 +89,7 @@ public class WorkflowMetadataResponse {
 
   public static final String SERIALIZED_NAME_FAILURES = "failures";
   @SerializedName(SERIALIZED_NAME_FAILURES)
-  private FailureMessage failures;
+  private List<FailureMessage> failures = null;
 
   public WorkflowMetadataResponse() {
   }
@@ -276,9 +278,17 @@ public class WorkflowMetadataResponse {
   }
 
 
-  public WorkflowMetadataResponse failures(FailureMessage failures) {
+  public WorkflowMetadataResponse failures(List<FailureMessage> failures) {
     
     this.failures = failures;
+    return this;
+  }
+
+  public WorkflowMetadataResponse addFailuresItem(FailureMessage failuresItem) {
+    if (this.failures == null) {
+      this.failures = new ArrayList<>();
+    }
+    this.failures.add(failuresItem);
     return this;
   }
 
@@ -289,12 +299,12 @@ public class WorkflowMetadataResponse {
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
 
-  public FailureMessage getFailures() {
+  public List<FailureMessage> getFailures() {
     return failures;
   }
 
 
-  public void setFailures(FailureMessage failures) {
+  public void setFailures(List<FailureMessage> failures) {
     this.failures = failures;
   }
 
@@ -435,9 +445,17 @@ public class WorkflowMetadataResponse {
       if (jsonObj.get("calls") != null && !jsonObj.get("calls").isJsonNull()) {
         CallMetadata.validateJsonObject(jsonObj.getAsJsonObject("calls"));
       }
-      // validate the optional field `failures`
-      if (jsonObj.get("failures") != null && !jsonObj.get("failures").isJsonNull()) {
-        FailureMessage.validateJsonObject(jsonObj.getAsJsonObject("failures"));
+      JsonArray jsonArrayfailures = jsonObj.getAsJsonArray("failures");
+      if (jsonArrayfailures != null) {
+        // ensure the json data is an array
+        if (!jsonObj.get("failures").isJsonArray()) {
+          throw new IllegalArgumentException(String.format("Expected the field `failures` to be an array in the JSON string but got `%s`", jsonObj.get("failures").toString()));
+        }
+
+        // validate the optional field `failures` (array)
+        for (int i = 0; i < jsonArrayfailures.size(); i++) {
+          FailureMessage.validateJsonObject(jsonArrayfailures.get(i).getAsJsonObject());
+        };
       }
   }
 

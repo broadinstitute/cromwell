@@ -1212,7 +1212,9 @@ components:
       example:
         outputs: "{}"
         failures:
-          failure: failure
+        - failure: failure
+          timestamp: 2000-01-23T04:56:07.000+00:00
+        - failure: failure
           timestamp: 2000-01-23T04:56:07.000+00:00
         calls:
           jobId: jobId
@@ -1266,7 +1268,9 @@ components:
         calls:
           $ref: '#/components/schemas/CallMetadata'
         failures:
-          $ref: '#/components/schemas/FailureMessage'
+          items:
+            $ref: '#/components/schemas/FailureMessage'
+          type: array
       type: object
     CallMetadata:
       description: Call level metadata

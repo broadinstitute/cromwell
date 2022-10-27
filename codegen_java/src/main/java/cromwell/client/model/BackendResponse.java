@@ -49,7 +49,7 @@ import cromwell.client.JSON;
 /**
  * BackendResponse
  */
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T16:16:35.079925Z[Etc/UTC]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T17:28:18.362480Z[Etc/UTC]")
 public class BackendResponse {
   public static final String SERIALIZED_NAME_SUPPORTED_BACKENDS = "supportedBackends";
   @SerializedName(SERIALIZED_NAME_SUPPORTED_BACKENDS)

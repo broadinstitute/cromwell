@@ -16,7 +16,7 @@ Workflow and call level metadata
 |**inputs** | **Object** | Map of input keys to input values |  [optional] |
 |**outputs** | **Object** | Map of output keys to output values |  [optional] |
 |**calls** | [**CallMetadata**](CallMetadata.md) |  |  [optional] |
-|**failures** | [**FailureMessage**](FailureMessage.md) |  |  [optional] |
+|**failures** | [**List&lt;FailureMessage&gt;**](FailureMessage.md) |  |  [optional] |
 
 
 

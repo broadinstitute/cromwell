@@ -13,7 +13,7 @@
 
 package cromwell.client;
 
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T17:28:18.362480Z[Etc/UTC]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T17:48:17.553365Z[Etc/UTC]")
 public class Pair {
     private String name = "";
     private String value = "";

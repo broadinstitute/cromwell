@@ -52,7 +52,7 @@ import cromwell.client.JSON;
 /**
  * RunLog
  */
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T17:28:18.362480Z[Etc/UTC]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T17:48:17.553365Z[Etc/UTC]")
 public class RunLog {
   public static final String SERIALIZED_NAME_RUN_ID = "run_id";
   @SerializedName(SERIALIZED_NAME_RUN_ID)

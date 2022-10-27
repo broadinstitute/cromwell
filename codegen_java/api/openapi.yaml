@@ -1212,16 +1212,16 @@ components:
       example:
         outputs: "{}"
         failures:
-        - failure: failure
-          timestamp: 2000-01-23T04:56:07.000+00:00
-        - failure: failure
-          timestamp: 2000-01-23T04:56:07.000+00:00
+        - causedBy: null
+          message: message
+        - causedBy: null
+          message: message
         calls:
           jobId: jobId
           returnCode: 0
           failures:
-            failure: failure
-            timestamp: 2000-01-23T04:56:07.000+00:00
+            causedBy: null
+            message: message
           stdout: stdout
           inputs: "{}"
           executionStatus: executionStatus
@@ -1278,8 +1278,8 @@ components:
         jobId: jobId
         returnCode: 0
         failures:
-          failure: failure
-          timestamp: 2000-01-23T04:56:07.000+00:00
+          causedBy: null
+          message: message
         stdout: stdout
         inputs: "{}"
         executionStatus: executionStatus
@@ -1336,19 +1336,14 @@ components:
     FailureMessage:
       description: Failure messages
       example:
-        failure: failure
-        timestamp: 2000-01-23T04:56:07.000+00:00
+        causedBy: null
+        message: message
       properties:
-        failure:
+        message:
           description: The failure message
           type: string
-        timestamp:
-          description: The time at which this failure occurred
-          format: date-time
-          type: string
-      required:
-      - failure
-      - timestamp
+        causedBy:
+          $ref: '#/components/schemas/FailureMessage'
       type: object
     WorkflowDescription:
       example:

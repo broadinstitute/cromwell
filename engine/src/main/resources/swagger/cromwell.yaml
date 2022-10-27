@@ -1124,9 +1124,9 @@ definitions:
         description: The failure message
       causedBy:
         $ref: '#/definitions/FailureMessage'
-#        type: object
-#        format: date-time
-#        description: The time at which this failure occurred
+        type: object
+        format: date-time
+        description: The time at which this failure occurred
   WorkflowDescription:
     required:
       - valid

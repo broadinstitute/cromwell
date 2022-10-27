@@ -8,8 +8,8 @@ Failure messages
 
 | Name | Type | Description | Notes |
 |------------ | ------------- | ------------- | -------------|
-|**failure** | **String** | The failure message |  |
-|**timestamp** | **OffsetDateTime** | The time at which this failure occurred |  |
+|**message** | **String** | The failure message |  [optional] |
+|**causedBy** | [**FailureMessage**](FailureMessage.md) |  |  [optional] |
 
 
 

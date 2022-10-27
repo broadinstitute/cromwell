@@ -23,7 +23,6 @@ import com.google.gson.stream.JsonWriter;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.io.IOException;
-import java.time.OffsetDateTime;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -49,62 +48,62 @@ import cromwell.client.JSON;
  * Failure messages
  */
 @ApiModel(description = "Failure messages")
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T17:28:18.362480Z[Etc/UTC]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T17:48:17.553365Z[Etc/UTC]")
 public class FailureMessage {
-  public static final String SERIALIZED_NAME_FAILURE = "failure";
-  @SerializedName(SERIALIZED_NAME_FAILURE)
-  private String failure;
+  public static final String SERIALIZED_NAME_MESSAGE = "message";
+  @SerializedName(SERIALIZED_NAME_MESSAGE)
+  private String message;
 
-  public static final String SERIALIZED_NAME_TIMESTAMP = "timestamp";
-  @SerializedName(SERIALIZED_NAME_TIMESTAMP)
-  private OffsetDateTime timestamp;
+  public static final String SERIALIZED_NAME_CAUSED_BY = "causedBy";
+  @SerializedName(SERIALIZED_NAME_CAUSED_BY)
+  private FailureMessage causedBy;
 
   public FailureMessage() {
   }
 
-  public FailureMessage failure(String failure) {
+  public FailureMessage message(String message) {
     
-    this.failure = failure;
+    this.message = message;
     return this;
   }
 
    /**
    * The failure message
-   * @return failure
+   * @return message
   **/
-  @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "The failure message")
+  @javax.annotation.Nullable
+  @ApiModelProperty(value = "The failure message")
 
-  public String getFailure() {
-    return failure;
+  public String getMessage() {
+    return message;
   }
 
 
-  public void setFailure(String failure) {
-    this.failure = failure;
+  public void setMessage(String message) {
+    this.message = message;
   }
 
 
-  public FailureMessage timestamp(OffsetDateTime timestamp) {
+  public FailureMessage causedBy(FailureMessage causedBy) {
     
-    this.timestamp = timestamp;
+    this.causedBy = causedBy;
     return this;
   }
 
    /**
-   * The time at which this failure occurred
-   * @return timestamp
+   * Get causedBy
+   * @return causedBy
   **/
-  @javax.annotation.Nonnull
-  @ApiModelProperty(required = true, value = "The time at which this failure occurred")
+  @javax.annotation.Nullable
+  @ApiModelProperty(value = "")
 
-  public OffsetDateTime getTimestamp() {
-    return timestamp;
+  public FailureMessage getCausedBy() {
+    return causedBy;
   }
 
 
-  public void setTimestamp(OffsetDateTime timestamp) {
-    this.timestamp = timestamp;
+  public void setCausedBy(FailureMessage causedBy) {
+    this.causedBy = causedBy;
   }
 
   /**
@@ -153,22 +152,22 @@ public class FailureMessage {
       return false;
     }
     FailureMessage failureMessage = (FailureMessage) o;
-    return Objects.equals(this.failure, failureMessage.failure) &&
-        Objects.equals(this.timestamp, failureMessage.timestamp)&&
+    return Objects.equals(this.message, failureMessage.message) &&
+        Objects.equals(this.causedBy, failureMessage.causedBy)&&
         Objects.equals(this.additionalProperties, failureMessage.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(failure, timestamp, additionalProperties);
+    return Objects.hash(message, causedBy, additionalProperties);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("class FailureMessage {\n");
-    sb.append("    failure: ").append(toIndentedString(failure)).append("\n");
-    sb.append("    timestamp: ").append(toIndentedString(timestamp)).append("\n");
+    sb.append("    message: ").append(toIndentedString(message)).append("\n");
+    sb.append("    causedBy: ").append(toIndentedString(causedBy)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -192,13 +191,11 @@ public class FailureMessage {
   static {
     // a set of all properties/fields (JSON key names)
     openapiFields = new HashSet<String>();
-    openapiFields.add("failure");
-    openapiFields.add("timestamp");
+    openapiFields.add("message");
+    openapiFields.add("causedBy");
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>();
-    openapiRequiredFields.add("failure");
-    openapiRequiredFields.add("timestamp");
   }
 
  /**
@@ -215,15 +212,12 @@ public class FailureMessage {
           throw new IllegalArgumentException(String.format("The required field(s) %s in FailureMessage is not found in the empty JSON string", FailureMessage.openapiRequiredFields.toString()));
         }
       }
-
-      // check to make sure all required properties/fields are present in the JSON string
-      for (String requiredField : FailureMessage.openapiRequiredFields) {
-        if (jsonObj.get(requiredField) == null) {
-          throw new IllegalArgumentException(String.format("The required field `%s` is not found in the JSON string: %s", requiredField, jsonObj.toString()));
-        }
+      if ((jsonObj.get("message") != null && !jsonObj.get("message").isJsonNull()) && !jsonObj.get("message").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format("Expected the field `message` to be a primitive type in the JSON string but got `%s`", jsonObj.get("message").toString()));
       }
-      if ((jsonObj.get("failure") != null && !jsonObj.get("failure").isJsonNull()) && !jsonObj.get("failure").isJsonPrimitive()) {
-        throw new IllegalArgumentException(String.format("Expected the field `failure` to be a primitive type in the JSON string but got `%s`", jsonObj.get("failure").toString()));
+      // validate the optional field `causedBy`
+      if (jsonObj.get("causedBy") != null && !jsonObj.get("causedBy").isJsonNull()) {
+        FailureMessage.validateJsonObject(jsonObj.getAsJsonObject("causedBy"));
       }
   }
 

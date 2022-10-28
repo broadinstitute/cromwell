@@ -1212,15 +1212,25 @@ components:
       example:
         outputs: "{}"
         failures:
-        - causedBy: null
+        - causedBy:
+          - null
+          - null
           message: message
-        - causedBy: null
+        - causedBy:
+          - null
+          - null
           message: message
         calls:
           jobId: jobId
           returnCode: 0
           failures:
-            causedBy: null
+          - causedBy:
+            - null
+            - null
+            message: message
+          - causedBy:
+            - null
+            - null
             message: message
           stdout: stdout
           inputs: "{}"
@@ -1278,7 +1288,13 @@ components:
         jobId: jobId
         returnCode: 0
         failures:
-          causedBy: null
+        - causedBy:
+          - null
+          - null
+          message: message
+        - causedBy:
+          - null
+          - null
           message: message
         stdout: stdout
         inputs: "{}"
@@ -1318,7 +1334,9 @@ components:
           description: Backend-specific job ID
           type: string
         failures:
-          $ref: '#/components/schemas/FailureMessage'
+          items:
+            $ref: '#/components/schemas/FailureMessage'
+          type: array
         returnCode:
           description: Call execution return code
           type: integer
@@ -1336,14 +1354,18 @@ components:
     FailureMessage:
       description: Failure messages
       example:
-        causedBy: null
+        causedBy:
+        - null
+        - null
         message: message
       properties:
         message:
           description: The failure message
           type: string
         causedBy:
-          $ref: '#/components/schemas/FailureMessage'
+          items:
+            $ref: '#/components/schemas/FailureMessage'
+          type: array
       type: object
     WorkflowDescription:
       example:

@@ -50,7 +50,7 @@ import cromwell.client.JSON;
  * Log and other info
  */
 @ApiModel(description = "Log and other info")
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T17:48:17.553365Z[Etc/UTC]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T17:59:53.222573Z[Etc/UTC]")
 public class Log {
   public static final String SERIALIZED_NAME_NAME = "name";
   @SerializedName(SERIALIZED_NAME_NAME)

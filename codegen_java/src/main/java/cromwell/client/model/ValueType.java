@@ -52,7 +52,7 @@ import cromwell.client.JSON;
  * The type expected for a given value.
  */
 @ApiModel(description = "The type expected for a given value.")
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T17:48:17.553365Z[Etc/UTC]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T17:59:53.222573Z[Etc/UTC]")
 public class ValueType {
   /**
    * The type of this value

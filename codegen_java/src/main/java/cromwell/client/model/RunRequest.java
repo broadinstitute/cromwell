@@ -50,7 +50,7 @@ import cromwell.client.JSON;
  * To execute a workflow, send a run request including all the details needed to begin downloading and executing a given workflow.
  */
 @ApiModel(description = "To execute a workflow, send a run request including all the details needed to begin downloading and executing a given workflow.")
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T17:48:17.553365Z[Etc/UTC]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T17:59:53.222573Z[Etc/UTC]")
 public class RunRequest {
   public static final String SERIALIZED_NAME_WORKFLOW_PARAMS = "workflow_params";
   @SerializedName(SERIALIZED_NAME_WORKFLOW_PARAMS)

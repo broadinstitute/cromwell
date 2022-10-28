@@ -15,7 +15,7 @@ Call level metadata
 |**start** | **OffsetDateTime** | Start datetime of the call execution in ISO8601 format with milliseconds |  [optional] |
 |**end** | **OffsetDateTime** | End datetime of the call execution in ISO8601 format with milliseconds |  [optional] |
 |**jobId** | **String** | Backend-specific job ID |  [optional] |
-|**failures** | [**FailureMessage**](FailureMessage.md) |  |  [optional] |
+|**failures** | [**List&lt;FailureMessage&gt;**](FailureMessage.md) |  |  [optional] |
 |**returnCode** | **Integer** | Call execution return code |  [optional] |
 |**stdout** | **String** | Path to the standard output file for this call |  [optional] |
 |**stderr** | **String** | Path to the standard error file for this call |  [optional] |

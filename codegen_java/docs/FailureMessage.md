@@ -9,7 +9,7 @@ Failure messages
 | Name | Type | Description | Notes |
 |------------ | ------------- | ------------- | -------------|
 |**message** | **String** | The failure message |  [optional] |
-|**causedBy** | [**FailureMessage**](FailureMessage.md) |  |  [optional] |
+|**causedBy** | [**List&lt;FailureMessage&gt;**](FailureMessage.md) |  |  [optional] |
 
 
 

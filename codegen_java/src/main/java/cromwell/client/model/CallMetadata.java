@@ -25,6 +25,8 @@ import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.io.IOException;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -50,7 +52,7 @@ import cromwell.client.JSON;
  * Call level metadata
  */
 @ApiModel(description = "Call level metadata")
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T17:48:17.553365Z[Etc/UTC]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T17:59:53.222573Z[Etc/UTC]")
 public class CallMetadata {
   public static final String SERIALIZED_NAME_INPUTS = "inputs";
   @SerializedName(SERIALIZED_NAME_INPUTS)
@@ -82,7 +84,7 @@ public class CallMetadata {
 
   public static final String SERIALIZED_NAME_FAILURES = "failures";
   @SerializedName(SERIALIZED_NAME_FAILURES)
-  private FailureMessage failures;
+  private List<FailureMessage> failures = null;
 
   public static final String SERIALIZED_NAME_RETURN_CODE = "returnCode";
   @SerializedName(SERIALIZED_NAME_RETURN_CODE)
@@ -264,9 +266,17 @@ public class CallMetadata {
   }
 
 
-  public CallMetadata failures(FailureMessage failures) {
+  public CallMetadata failures(List<FailureMessage> failures) {
     
     this.failures = failures;
+    return this;
+  }
+
+  public CallMetadata addFailuresItem(FailureMessage failuresItem) {
+    if (this.failures == null) {
+      this.failures = new ArrayList<>();
+    }
+    this.failures.add(failuresItem);
     return this;
   }
 
@@ -277,12 +287,12 @@ public class CallMetadata {
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
 
-  public FailureMessage getFailures() {
+  public List<FailureMessage> getFailures() {
     return failures;
   }
 
 
-  public void setFailures(FailureMessage failures) {
+  public void setFailures(List<FailureMessage> failures) {
     this.failures = failures;
   }
 
@@ -526,9 +536,17 @@ public class CallMetadata {
       if ((jsonObj.get("jobId") != null && !jsonObj.get("jobId").isJsonNull()) && !jsonObj.get("jobId").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format("Expected the field `jobId` to be a primitive type in the JSON string but got `%s`", jsonObj.get("jobId").toString()));
       }
-      // validate the optional field `failures`
-      if (jsonObj.get("failures") != null && !jsonObj.get("failures").isJsonNull()) {
-        FailureMessage.validateJsonObject(jsonObj.getAsJsonObject("failures"));
+      JsonArray jsonArrayfailures = jsonObj.getAsJsonArray("failures");
+      if (jsonArrayfailures != null) {
+        // ensure the json data is an array
+        if (!jsonObj.get("failures").isJsonArray()) {
+          throw new IllegalArgumentException(String.format("Expected the field `failures` to be an array in the JSON string but got `%s`", jsonObj.get("failures").toString()));
+        }
+
+        // validate the optional field `failures` (array)
+        for (int i = 0; i < jsonArrayfailures.size(); i++) {
+          FailureMessage.validateJsonObject(jsonArrayfailures.get(i).getAsJsonObject());
+        };
       }
       if ((jsonObj.get("stdout") != null && !jsonObj.get("stdout").isJsonNull()) && !jsonObj.get("stdout").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format("Expected the field `stdout` to be a primitive type in the JSON string but got `%s`", jsonObj.get("stdout").toString()));

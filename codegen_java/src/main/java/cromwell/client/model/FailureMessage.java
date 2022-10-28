@@ -23,6 +23,8 @@ import com.google.gson.stream.JsonWriter;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -48,7 +50,7 @@ import cromwell.client.JSON;
  * Failure messages
  */
 @ApiModel(description = "Failure messages")
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T17:48:17.553365Z[Etc/UTC]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T17:59:53.222573Z[Etc/UTC]")
 public class FailureMessage {
   public static final String SERIALIZED_NAME_MESSAGE = "message";
   @SerializedName(SERIALIZED_NAME_MESSAGE)
@@ -56,7 +58,7 @@ public class FailureMessage {
 
   public static final String SERIALIZED_NAME_CAUSED_BY = "causedBy";
   @SerializedName(SERIALIZED_NAME_CAUSED_BY)
-  private FailureMessage causedBy;
+  private List<FailureMessage> causedBy = null;
 
   public FailureMessage() {
   }
@@ -84,9 +86,17 @@ public class FailureMessage {
   }
 
 
-  public FailureMessage causedBy(FailureMessage causedBy) {
+  public FailureMessage causedBy(List<FailureMessage> causedBy) {
     
     this.causedBy = causedBy;
+    return this;
+  }
+
+  public FailureMessage addCausedByItem(FailureMessage causedByItem) {
+    if (this.causedBy == null) {
+      this.causedBy = new ArrayList<>();
+    }
+    this.causedBy.add(causedByItem);
     return this;
   }
 
@@ -97,12 +107,12 @@ public class FailureMessage {
   @javax.annotation.Nullable
   @ApiModelProperty(value = "")
 
-  public FailureMessage getCausedBy() {
+  public List<FailureMessage> getCausedBy() {
     return causedBy;
   }
 
 
-  public void setCausedBy(FailureMessage causedBy) {
+  public void setCausedBy(List<FailureMessage> causedBy) {
     this.causedBy = causedBy;
   }
 
@@ -215,9 +225,17 @@ public class FailureMessage {
       if ((jsonObj.get("message") != null && !jsonObj.get("message").isJsonNull()) && !jsonObj.get("message").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format("Expected the field `message` to be a primitive type in the JSON string but got `%s`", jsonObj.get("message").toString()));
       }
-      // validate the optional field `causedBy`
-      if (jsonObj.get("causedBy") != null && !jsonObj.get("causedBy").isJsonNull()) {
-        FailureMessage.validateJsonObject(jsonObj.getAsJsonObject("causedBy"));
+      JsonArray jsonArraycausedBy = jsonObj.getAsJsonArray("causedBy");
+      if (jsonArraycausedBy != null) {
+        // ensure the json data is an array
+        if (!jsonObj.get("causedBy").isJsonArray()) {
+          throw new IllegalArgumentException(String.format("Expected the field `causedBy` to be an array in the JSON string but got `%s`", jsonObj.get("causedBy").toString()));
+        }
+
+        // validate the optional field `causedBy` (array)
+        for (int i = 0; i < jsonArraycausedBy.size(); i++) {
+          FailureMessage.validateJsonObject(jsonArraycausedBy.get(i).getAsJsonObject());
+        };
       }
   }
 

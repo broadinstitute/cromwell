@@ -48,7 +48,7 @@ import cromwell.client.JSON;
  * Returns the version of Cromwell
  */
 @ApiModel(description = "Returns the version of Cromwell")
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T17:48:17.553365Z[Etc/UTC]")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2022-10-27T17:59:53.222573Z[Etc/UTC]")
 public class VersionResponse {
   public static final String SERIALIZED_NAME_CROMWELL = "cromwell";
   @SerializedName(SERIALIZED_NAME_CROMWELL)

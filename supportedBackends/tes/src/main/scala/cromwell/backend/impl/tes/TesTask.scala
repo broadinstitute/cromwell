@@ -281,7 +281,7 @@ object TesTask {
   )
 
   def transformOutputs(outputs: Seq[Output]): Seq[Output] = outputs.map(i =>
-    i.copy(url=i.url.map(s => transformBlobString(s)))
+    i.copy(url=i.url.map(transformBlobString))
   )
 
   val blobSegment = ".blob.core.windows.net"

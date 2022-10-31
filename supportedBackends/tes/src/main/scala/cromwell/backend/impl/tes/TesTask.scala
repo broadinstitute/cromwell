@@ -277,7 +277,7 @@ object TesTask {
   }
 
   def transformInputs(inputs: Seq[Input]): Seq[Input] = inputs.map(i =>
-    i.copy(url=i.url.map(s => transformBlobString(s)))
+    i.copy(url=i.url.map(transformBlobString))
   )
 
   def transformOutputs(outputs: Seq[Output]): Seq[Output] = outputs.map(i =>

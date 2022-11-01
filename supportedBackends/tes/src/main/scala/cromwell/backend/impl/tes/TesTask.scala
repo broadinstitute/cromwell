@@ -258,14 +258,16 @@ object TesTask {
     )
   }
 
-  def makeTask(tesTask: TesTask): Task = {
+  def makeTask(tesTask: TesTask, transformBlobToLocalPath: Boolean = false): Task = {
+    val inputs = if (transformBlobToLocalPath) transformInputs(tesTask.inputs) else tesTask.inputs
+    val outputs = if (transformBlobToLocalPath) transformOutputs(tesTask.outputs) else tesTask.outputs
     Task(
       id = None,
       state = None,
       name = Option(tesTask.name),
       description = Option(tesTask.description),
-      inputs = Option(tesTask.inputs),
-      outputs = Option(tesTask.outputs),
+      inputs = Option(inputs),
+      outputs = Option(outputs),
       resources = Option(tesTask.resources),
       executors = tesTask.executors,
       volumes = None,
@@ -273,6 +275,20 @@ object TesTask {
       logs = None
     )
   }
+
+  def transformInputs(inputs: Seq[Input]): Seq[Input] = inputs.map(i =>
+    i.copy(url=i.url.map(transformBlobString))
+  )
+
+  def transformOutputs(outputs: Seq[Output]): Seq[Output] = outputs.map(i =>
+    i.copy(url=i.url.map(transformBlobString))
+  )
+
+  val blobSegment = ".blob.core.windows.net"
+  def transformBlobString(s: String): String = if (s.contains(blobSegment)) {
+    s.replaceFirst("https:/", "").replaceFirst(blobSegment, "")
+  } else s
+
 }
 
 // Field requirements in classes below based off GA4GH schema

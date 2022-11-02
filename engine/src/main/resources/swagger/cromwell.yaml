@@ -1262,12 +1262,6 @@ definitions:
       isRunnableWorkflow:
         description: Indicates whether this file can be run on its own (e.g. a WDL workflow)
         type: boolean
-      importedDescriptorTypes:
-        type: array
-      meta:
-        type: object
-      parameterMeta:
-        type: object
   ToolInputParameter:
     type: object
     description: >-

@@ -36,6 +36,24 @@ failures observed when attempting to localize a large number of DRS files.
 
 Updates to dependencies to fix security vulnerabilities.
 
+### Allow list for HTTP WDL resolution
+
+Administrators can now configure Cromwell with an allow list that limits the domains from which WDLs can be resolved and imported. 
+Default behavior is unchanged (Cromwell attempts to resolve WDL files from any URI). Example configuration:
+```
+languages {
+  WDL {
+    http-allow-list {
+      enabled: true
+      allowed-http-hosts: [
+        "my.wdl.repo.org",
+        "raw.githubusercontent.com"
+      ]
+    }
+  }
+}
+```
+
 
 ## 84 Release Notes
 

@@ -222,6 +222,14 @@ lazy val googlePipelinesV2Beta = (project in backendRoot / "google" / "pipelines
   .dependsOn(core % "test->test")
   .dependsOn(common % "test->test")
 
+lazy val googlePipelinesBatch = (project in backendRoot / "google" / "pipelines" / "batch")
+  .withLibrarySettings("cromwell-pipelines-batch-backend")
+  .dependsOn(googlePipelinesCommon)
+  .dependsOn(googlePipelinesCommon % "test->test")
+  .dependsOn(core % "test->test")
+  .dependsOn(common % "test->test")
+
+
 lazy val awsBackend = (project in backendRoot / "aws")
   .withLibrarySettings("cromwell-aws-backend")
   .dependsOn(backend)

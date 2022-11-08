@@ -197,6 +197,12 @@ object Dependencies {
     "com.azure.resourcemanager" % "azure-resourcemanager" % "2.18.0"
   )
 
+  val wsmDependencies: List[ModuleID] = List(
+    "bio.terra" % "workspace-manager-client" % "0.254.441-SNAPSHOT"
+      exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
+      exclude("jakarta.activation", "jakarta.activation-api")
+  )
+
   val implFtpDependencies = List(
     "commons-net" % "commons-net" % commonNetV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV,
@@ -407,7 +413,7 @@ object Dependencies {
     List("scalatest", "mysql", "mariadb", "postgresql")
       .map(name => "com.dimafeng" %% s"testcontainers-scala-$name" % testContainersScalaV % Test)
 
-  val blobFileSystemDependencies: List[ModuleID] = azureDependencies
+  val blobFileSystemDependencies: List[ModuleID] = azureDependencies ++ wsmDependencies
 
   val s3FileSystemDependencies: List[ModuleID] = junitDependencies
 

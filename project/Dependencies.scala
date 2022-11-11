@@ -48,6 +48,7 @@ object Dependencies {
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"
   private val googleHttpClientApacheV = "2.1.2"
   private val googleHttpClientV = "1.38.0"
+  private val googleCloudBatchV1 = "0.5.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-lifesciences
   private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20210813-1.32.1"
   private val googleOauth2V = "1.5.3"
@@ -297,6 +298,10 @@ object Dependencies {
       exclude("com.google.guava", "guava-jdk5")
   )
 
+  private val googleBatchv1 = List(
+    "com.google.cloud" % "google-cloud-batch" % googleCloudBatchV1
+  )
+
   /*
   Used instead of `"org.lerch" % "s3fs" % s3fsV exclude("org.slf4j", "jcl-over-slf4j")`
   org.lerch:s3fs:1.0.1 depends on a preview release of software.amazon.awssdk:s3.
@@ -332,7 +337,7 @@ object Dependencies {
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV,
     "com.google.apis" % "google-api-services-cloudkms" % googleCloudKmsV
       exclude("com.google.guava", "guava-jdk5")
-  ) ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency
+  ) ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency  ++googleBatchv1
 
   private val dbmsDependencies = List(
     "org.hsqldb" % "hsqldb" % hsqldbV,

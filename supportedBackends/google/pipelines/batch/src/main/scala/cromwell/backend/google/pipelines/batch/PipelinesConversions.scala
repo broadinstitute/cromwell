@@ -1,0 +1,3 @@
+package cromwell.backend.google.pipelines.batch
+
+object PipelinesConversions extends PipelinesParameterConversions with PipelinesUtilityConversions

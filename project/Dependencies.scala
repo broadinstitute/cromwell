@@ -337,7 +337,7 @@ object Dependencies {
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV,
     "com.google.apis" % "google-api-services-cloudkms" % googleCloudKmsV
       exclude("com.google.guava", "guava-jdk5")
-  ) ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency  ++googleBatchv1
+  ) ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency
 
   private val dbmsDependencies = List(
     "org.hsqldb" % "hsqldb" % hsqldbV,

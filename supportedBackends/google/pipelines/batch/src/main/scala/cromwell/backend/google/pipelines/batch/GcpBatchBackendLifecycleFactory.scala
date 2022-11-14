@@ -7,6 +7,13 @@ import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardLifecycle
 //import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardFinalizationActor, StandardFinalizationActorParams, StandardInitializationActor, StandardInitializationActorParams, StandardLifecycleActorFactory}
 //import cromwell.core.CallOutputs
 
+
+/**
+  * https://github.com/broadinstitute/cromwell/blob/develop/supportedBackends/aws/src/main/scala/cromwell/backend/impl/aws/AwsBatchAsyncBackendJobExecutionActor.scala
+  * https://github.com/Burwood/cromwell/blob/dspeck-11-14-2022/backend/src/main/scala/cromwell/backend/async/AsyncBackendJobExecutionActor.scala
+  */
+
+
 /**
   * Factory to create `Actor` objects to manage the lifecycle of a backend job on AWS Batch. This factory provides an
   * object from the `AwsBatchAsyncBackendJobExecutionActor` class to create and manage the job.
@@ -31,5 +38,5 @@ case class GcpBatchBackendLifecycleFactory(name: String,  configurationDescripto
     *
     * @return the asynchronous executor class.
     */
-  override def asyncExecutionActorClass: Class[_ <: StandardAsyncExecutionActor] = classOf[StandardAsyncExecutionActor]
+  override def asyncExecutionActorClass: Class[_ <: StandardAsyncExecutionActor] = classOf[GcpBatchAsyncBackendJobExecutionActor]
 }

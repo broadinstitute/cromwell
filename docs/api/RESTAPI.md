@@ -48,7 +48,7 @@ The `workflow_url` is either an absolute URL to a workflow file that is accessib
 
 The `workflow_params` JSON object specifies input parameters, such as input files.  The exact format of the JSON object depends on the conventions of the workflow language being used.  Input files should either be absolute URLs, or relative URLs corresponding to files uploaded using `workflow_attachment`.  The WES endpoint must understand and be able to access URLs supplied in the input.  This is implementation specific.
 
-The `workflow_type` is the type of workflow language and must be "CWL" or "WDL" currently (or another alternative  supported by this WES instance).
+The `workflow_type` is the type of workflow language and must be "WDL" currently (or another alternative supported by this WES instance).
 
 The `workflow_type_version` is the version of the workflow language submitted and must be one supported by this WES instance.
 
@@ -264,8 +264,8 @@ POST /api/womtool/{version}/describe
 |**Path**|**version**  <br>*required*|Cromwell API Version|string|`"v1"`|
 |**FormData**|**workflowInputs**  <br>*optional*|JSON or YAML file containing the inputs as an object.|file||
 |**FormData**|**workflowSource**  <br>*optional*|The workflow source file to submit for execution. Either workflow source or workflow url is required.|file||
-|**FormData**|**workflowType**  <br>*optional*|The workflow language for the file you submitted. Cromwell currently supports WDL and CWL.|enum (WDL, CWL)||
-|**FormData**|**workflowTypeVersion**  <br>*optional*|The specification version for the workflow language being used. For WDL, Cromwell currently supports draft-2 and 1.0. For CWL, Cromwell currently supports v1.0.|enum (draft-2, 1.0, v1.0)||
+|**FormData**|**workflowType**  <br>*optional*|The workflow language for the file you submitted. Cromwell currently supports WDL.|enum (WDL)||
+|**FormData**|**workflowTypeVersion**  <br>*optional*|The specification version for the workflow language being used. For WDL, Cromwell currently supports draft-2 and 1.0.|enum (draft-2, 1.0)||
 |**FormData**|**workflowUrl**  <br>*optional*|URL which points to the workflow. Either workflow source or workflow url is required.|string||
 
 
@@ -312,10 +312,9 @@ Submits a workflow to Cromwell. Note that this endpoint can accept an unlimited 
 |**FormData**|**workflowInputs_5**  <br>*optional*|A fifth JSON or YAML file containing inputs.|file||
 |**FormData**|**workflowOnHold**  <br>*optional*|Put workflow on hold upon submission. By default, it is taken as false.|boolean||
 |**FormData**|**workflowOptions**  <br>*optional*|JSON file containing configuration options for the execution of this workflow.|file||
-|**FormData**|**workflowRoot**  <br>*optional*|The root object to be run. Only necessary for CWL submissions containing multiple objects (in an array).|string||
 |**FormData**|**workflowSource**  <br>*optional*|The workflow source file to submit for execution. Either workflow source or workflow url is required.|file||
-|**FormData**|**workflowType**  <br>*optional*|The workflow language for the file you submitted. Cromwell currently supports WDL and CWL.|enum (WDL, CWL)||
-|**FormData**|**workflowTypeVersion**  <br>*optional*|The specification version for the workflow language being used. For WDL, Cromwell currently supports draft-2 and 1.0. For CWL, Cromwell currently supports v1.0.|enum (draft-2, 1.0, v1.0)||
+|**FormData**|**workflowType**  <br>*optional*|The workflow language for the file you submitted. Cromwell currently supports WDL.|enum (WDL)||
+|**FormData**|**workflowTypeVersion**  <br>*optional*|The specification version for the workflow language being used. For WDL, Cromwell currently supports draft-2 and 1.0.|enum (draft-2, 1.0)||
 |**FormData**|**workflowUrl**  <br>*optional*|URL which points to the workflow. Either workflow source or workflow url is required.|string||
 
 
@@ -391,8 +390,8 @@ In instances where you want to run the same workflow multiple times with varying
 |**FormData**|**workflowOnHold**  <br>*optional*|Put workflow on hold upon submission. By default, it is taken as false.|boolean||
 |**FormData**|**workflowOptions**  <br>*optional*|JSON file containing configuration options for the execution of this workflow.|file||
 |**FormData**|**workflowSource**  <br>*optional*|The workflow source file to submit for execution. Either workflow source or workflow url is required.|file||
-|**FormData**|**workflowType**  <br>*optional*|The workflow language for the file you submitted. Cromwell currently supports WDL and CWL.|enum (WDL, CWL)||
-|**FormData**|**workflowTypeVersion**  <br>*optional*|The specification version for the workflow language being used. For WDL, Cromwell currently supports draft-2 and 1.0. For CWL, Cromwell currently supports v1.0.|enum (draft-2, 1.0, v1.0)||
+|**FormData**|**workflowType**  <br>*optional*|The workflow language for the file you submitted. Cromwell currently supports WDL.|enum (WDL)||
+|**FormData**|**workflowTypeVersion**  <br>*optional*|The specification version for the workflow language being used. For WDL, Cromwell currently supports draft-2 and 1.0.|enum (draft-2, 1.0)||
 |**FormData**|**workflowUrl**  <br>*optional*|URL which points to the workflow. Either workflow source or workflow url is required.|string||
 
 
@@ -933,9 +932,9 @@ A message that allows one to describe default parameters for a workflow engine.
 
 <a name="descriptortype"></a>
 ### DescriptorType
-One from a list of descriptor type strings (e.g. CWL, WDL). Note that these files can also include associated Docker/container files and test parameters that further describe a version of a tool
+One from a list of descriptor type strings (e.g. WDL). Note that these files can also include associated Docker/container files and test parameters that further describe a version of a tool
 
-*Type* : enum (CWL, WDL)
+*Type* : enum (WDL)
 
 
 <a name="descriptortypeandversion"></a>
@@ -1038,9 +1037,9 @@ To execute a workflow, send a run request including all the details needed to be
 |**tags**  <br>*optional*||< string, string > map|
 |**workflow_engine_parameters**  <br>*optional*||< string, string > map|
 |**workflow_params**  <br>*optional*|REQUIRED The workflow run parameterizations (JSON encoded), including input and output file locations|object|
-|**workflow_type**  <br>*optional*|REQUIRED The workflow descriptor type, must be "CWL" or "WDL" currently (or another alternative supported by this WES instance)|string|
+|**workflow_type**  <br>*optional*|REQUIRED The workflow descriptor type, must be "WDL" currently (or another alternative supported by this WES instance)|string|
 |**workflow_type_version**  <br>*optional*|REQUIRED The workflow descriptor type version, must be one supported by this WES instance|string|
-|**workflow_url**  <br>*optional*|REQUIRED The workflow CWL or WDL document. When `workflow_attachments` is used to attach files, the `workflow_url` may be a relative path to one of the attachments.|string|
+|**workflow_url**  <br>*optional*|REQUIRED The workflow WDL document. When `workflow_attachments` is used to attach files, the `workflow_url` may be a relative path to one of the attachments.|string|
 
 
 <a name="runstatus"></a>

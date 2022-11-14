@@ -22,13 +22,6 @@ Cromwell also supports WDL version 1.0.
 
 As well as the changes to the WDL spec between draft-2 and 1.0, Cromwell also supports nested scatters and the [localization_optional](optimizations/FileLocalization.md) optimization in WDL 1.0.  
 
-
-### CWL 1.0
-
-Cromwell provides support for Common Workflow Language (CWL), beginning with the core spec, and most heavily used requirements.
-If you spot a CWL feature that Cromwell doesn't support, please notify us using an issue on our github page!
-
-
 ## Future Language Support
 
 ### WDL 'development'

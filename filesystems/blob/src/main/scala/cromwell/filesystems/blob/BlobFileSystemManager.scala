@@ -101,7 +101,13 @@ case class WSMBlobTokenGenerator(
   def generateAccessToken: Try[AzureSasCredential] = Try {
     val token = wsmClient.getControlledAzureResourceApi.createAzureStorageContainerSasToken(
       UUID.fromString(workspaceId.value),
-      null, null, null, null, null).getToken // TODO `null` not OK, save for WX-696
+      null,
+      null,
+      null,
+      null,
+      null
+    ).getToken // TODO `null` items may be required, investigate in WX-696
+
     new AzureSasCredential(token) // TODO Does `signature` actually mean token? save for WX-696
   }
 }

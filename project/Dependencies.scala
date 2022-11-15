@@ -201,6 +201,10 @@ object Dependencies {
     "bio.terra" % "workspace-manager-client" % "0.254.441-SNAPSHOT"
       exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
       exclude("jakarta.activation", "jakarta.activation-api")
+      exclude("jakarta.activation", "jakarta.activation")
+      exclude("jakarta.annotation", "jakarta.annotation-api")
+      exclude("com.sun.activation", "jakarta.activation")
+      exclude("org.glassfish.hk2.external", "jakarta.inject")
   )
 
   val implFtpDependencies = List(

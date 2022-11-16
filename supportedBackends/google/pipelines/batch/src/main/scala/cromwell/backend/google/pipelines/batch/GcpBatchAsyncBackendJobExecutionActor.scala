@@ -56,15 +56,15 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   val backendSingletonActor: ActorRef
 
   // Primary entry point for cromwell to run GCP Batch job
-  override def executeAsync(): Future[ExecutionHandle] = {
+  override def execute(): Future[ExecutionHandle] = {
 
 
     //val runId = backendSingletonActor ! runPipeline()
-    val runId = runPipeline()
-    //backendSingletonActor.notify()
-    //PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)
-    //ExecutionHandle
-    //val runId: StandardAsyncJob
+    //val runId = runPipeline()
+    runPipeline()
+    val runId = StandardAsyncJob(UUID.randomUUID().toString)  //temp to test
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, None, Map.empty)
+
     PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)
 
   }

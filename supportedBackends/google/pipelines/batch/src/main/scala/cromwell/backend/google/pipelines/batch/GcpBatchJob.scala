@@ -12,13 +12,14 @@ import cromwell.backend.BackendJobDescriptor
 import java.util.concurrent.TimeUnit
 //import scala.concurrent.Promise
 
-abstract final case class GcpBatchJob(jobDescriptor: BackendJobDescriptor)  {
+
+
+final case class GcpBatchJob(jobDescriptor: BackendJobDescriptor)  {
 
   val projectId = "batch-testing-350715"
   val region = "us-central1"
   val jobName = "hello-dan-container-1"
 
-  val gcpBatchApiActor: ActorRef
 
   val batchServiceClient = BatchServiceClient
     .create
@@ -110,3 +111,5 @@ abstract final case class GcpBatchJob(jobDescriptor: BackendJobDescriptor)  {
   }
 
 }
+
+

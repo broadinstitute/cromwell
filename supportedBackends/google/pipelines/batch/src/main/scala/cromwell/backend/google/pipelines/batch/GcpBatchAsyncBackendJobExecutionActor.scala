@@ -24,11 +24,12 @@ import akka.actor.ActorRef
 
 class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams) extends BackendJobLifecycleActor with StandardAsyncExecutionActor with GcpBatchRunCreationClient {
   /** The type of the run info when a job is started. */
-  override type StandardAsyncRunInfo = this.type
-  //override type StandardAsyncRunInfo = Run
+  //override type StandardAsyncRunInfo = this.type
+  override type StandardAsyncRunInfo = Run
 
   /** The type of the run status returned during each poll. */
-  //override type StandardAsyncRunState = this.type
+  override type StandardAsyncRunState = this.type
+  //override type StandardAsyncRunState = RunStatus
 
 
   //import GcpBatchAsyncBackendJobExecutionActor._
@@ -55,10 +56,11 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   val backendSingletonActor: ActorRef
 
   // Primary entry point for cromwell to run GCP Batch job
-  override def execute(): Future[ExecutionHandle] = {
+  override def executeAsync(): Future[ExecutionHandle] = {
 
 
-    val runId = backendSingletonActor ! runPipeline()
+    //val runId = backendSingletonActor ! runPipeline()
+    val runId = runPipeline()
     //backendSingletonActor.notify()
     //PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)
     //ExecutionHandle

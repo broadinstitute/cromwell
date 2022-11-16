@@ -1,7 +1,7 @@
 package cromwell.backend.google.pipelines.batch
 
-//import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
-import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams}
+import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
+//import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend.google.pipelines.common
 
@@ -20,7 +20,9 @@ import scala.concurrent.Future
 
 import akka.actor.ActorRef
 //import akka.actor.{Actor, ActorRef}
-//import cromwell.backend.google.pipelines.batch.GcpBatchRunCreationClient
+
+import java.util.UUID
+
 
 class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams) extends BackendJobLifecycleActor with StandardAsyncExecutionActor with GcpBatchRunCreationClient {
   /** The type of the run info when a job is started. */
@@ -56,16 +58,17 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   val backendSingletonActor: ActorRef
 
   // Primary entry point for cromwell to run GCP Batch job
-  override def execute(): Future[ExecutionHandle] = {
+  override def executeAsync(): Future[ExecutionHandle] = {
 
 
     //val runId = backendSingletonActor ! runPipeline()
     //val runId = runPipeline()
     runPipeline()
     val runId = StandardAsyncJob(UUID.randomUUID().toString)  //temp to test
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, None, Map.empty)
+    //val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, None, Map.empty)
 
     PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)
+    //ExecutionHandle[]
 
   }
 

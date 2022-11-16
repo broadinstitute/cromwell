@@ -1,28 +1,34 @@
 package cromwell.backend.google.pipelines.batch
 
 //import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
-import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
+import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams}
 import cromwell.core.retry.SimpleExponentialBackoff
+import cromwell.backend.google.pipelines.common
 
 import scala.concurrent.duration._
 import cromwell.backend._
 import cromwell.backend.async.PendingExecutionHandle
-import cromwell.backend.async.ExecutionHandle
 import cromwell.backend.google.pipelines.common.Run
+//import cromwell.backend.async.PendingExecutionHandle
+import cromwell.backend.async.ExecutionHandle
+//import cromwell.backend.google.pipelines.common.Run
 //import cromwell.core._
 
 import scala.concurrent.Future
 //import scala.concurrent.{Future, Promise}
-import cromwell.backend.async.ExecutionHandle
+//import cromwell.backend.async.ExecutionHandle
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.ActorRef
+//import akka.actor.{Actor, ActorRef}
 //import cromwell.backend.google.pipelines.batch.GcpBatchRunCreationClient
 
 class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams) extends BackendJobLifecycleActor with StandardAsyncExecutionActor with GcpBatchRunCreationClient {
   /** The type of the run info when a job is started. */
   override type StandardAsyncRunInfo = this.type
+  //override type StandardAsyncRunInfo = Run
+
   /** The type of the run status returned during each poll. */
-  override type StandardAsyncRunState = this.type
+  //override type StandardAsyncRunState = this.type
 
 
   //import GcpBatchAsyncBackendJobExecutionActor._
@@ -48,18 +54,17 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   //lazy val batchJob: GcpBatchJob = GcpBatchJob(jobDescriptor)
   val backendSingletonActor: ActorRef
 
-  val optionTest = Option["test"]
-
-
   // Primary entry point for cromwell to run GCP Batch job
   override def execute(): Future[ExecutionHandle] = {
 
-    val runPipelineResponse = backendSingletonActor ! runPipeline
+
+    val runId = backendSingletonActor ! runPipeline
     //backendSingletonActor.notify()
     //PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)
-    ExecutionHandle()
+    //ExecutionHandle
     //val runId: StandardAsyncJob
-    //PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)
+    yield runId
+    PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)
 
   }
 

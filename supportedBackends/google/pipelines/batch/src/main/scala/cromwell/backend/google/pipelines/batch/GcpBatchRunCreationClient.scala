@@ -2,12 +2,12 @@ package cromwell.backend.google.pipelines.batch
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import scala.concurrent.{Future, Promise}
-import scala.util.{Failure, Success, Try}
+import scala.util.{Success, Try}
+//import scala.util.{Failure, Success, Try}
 import cromwell.backend.standard.StandardAsyncJob
 //import cromwell.core.WorkflowId
 //import cromwell.core.logging.JobLogger
 
-import scala.util.{Failure, Success, Try}
 import cromwell.backend.BackendJobDescriptor
 //import cromwell.backend.async.ExecutionHandle
 
@@ -35,8 +35,7 @@ trait GcpBatchRunCreationClient {
   def runPipeline(): Future[StandardAsyncJob] = {
       runCreationClientPromise match {
         case Some(p) =>
-          p
-            .future
+          p.future
         case None =>
           gcpBatchApiActor ! batchJob.callClient
           val newPromise = Promise[StandardAsyncJob]()

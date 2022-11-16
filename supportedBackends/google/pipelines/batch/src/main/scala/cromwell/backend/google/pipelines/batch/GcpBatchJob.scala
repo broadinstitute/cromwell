@@ -9,7 +9,7 @@ import com.google.protobuf.Duration
 import com.google.cloud.batch.v1.Runnable.Container
 import cromwell.backend.BackendJobDescriptor
 
-//import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeUnit
 //import scala.concurrent.Promise
 
 abstract final case class GcpBatchJob(jobDescriptor: BackendJobDescriptor)  {
@@ -102,7 +102,9 @@ abstract final case class GcpBatchJob(jobDescriptor: BackendJobDescriptor)  {
       .setJobId(jobName)
       .build()
 
-    createJobRequest.getJobId
+    val result = batchServiceClient.createJobCallable.futureCall(createJobRequest).get(3, TimeUnit .MINUTES)
+
+    result.getName
 
 
   }

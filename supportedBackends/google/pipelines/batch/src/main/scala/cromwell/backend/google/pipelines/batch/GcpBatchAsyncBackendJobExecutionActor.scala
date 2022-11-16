@@ -58,12 +58,11 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override def execute(): Future[ExecutionHandle] = {
 
 
-    val runId = backendSingletonActor ! runPipeline
+    val runId = backendSingletonActor ! runPipeline()
     //backendSingletonActor.notify()
     //PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)
     //ExecutionHandle
     //val runId: StandardAsyncJob
-    yield runId
     PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)
 
   }

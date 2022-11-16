@@ -204,7 +204,8 @@ object Dependencies {
       exclude("jakarta.activation", "jakarta.activation")
       exclude("jakarta.annotation", "jakarta.annotation-api")
       exclude("com.sun.activation", "jakarta.activation")
-      exclude("org.glassfish.hk2.external", "jakarta.inject")
+      exclude("org.glassfish.hk2.external", "jakarta.inject"),
+    "org.glassfish.jersey.inject" % "jersey-hk2" % "2.32"
   )
 
   val implFtpDependencies = List(

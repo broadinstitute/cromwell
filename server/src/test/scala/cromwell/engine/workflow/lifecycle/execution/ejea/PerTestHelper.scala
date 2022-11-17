@@ -15,34 +15,35 @@ import cromwell.engine.workflow.mocks.{DeclarationMock, TaskMock, WdlWomExpressi
 import cromwell.services.CallCaching.CallCachingEntryId
 import cromwell.util.AkkaTestUtil._
 import cromwell.util.WomMocks
-import org.specs2.mock.Mockito
 import wom.callable.Callable.{OutputDefinition, OverridableInputDefinitionWithDefault}
+import wom.callable.CallableTaskDefinition
 import wom.expression.{IoFunctionSet, NoIoFunctionSet}
 import wom.graph.{CommandCallNode, WomIdentifier}
 import wom.types.{WomIntegerType, WomStringType}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
-import scala.util.Success
+import scala.util.{Success, Try}
 
-private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mockito with TaskMock with WdlWomExpressionMock with DeclarationMock {
+private[ejea] class PerTestHelper(implicit val system: ActorSystem)
+  extends TaskMock with WdlWomExpressionMock with DeclarationMock {
 
-  val workflowId = WorkflowId.randomId()
+  val workflowId: WorkflowId = WorkflowId.randomId()
   val workflowName = "wf"
   val taskName = "foobar"
   val jobFqn = s"$workflowName.$taskName"
-  val jobIndex = Some(1)
+  val jobIndex: Option[Int] = Option(1)
   val jobAttempt = 1
 
-  val task = WomMocks.mockTaskDefinition(taskName).copy(
+  val task: CallableTaskDefinition = WomMocks.mockTaskDefinition(taskName).copy(
     inputs = List(OverridableInputDefinitionWithDefault("inInt", WomIntegerType, mockIntExpression(543))),
     outputs = List(OutputDefinition("outString", WomStringType, mockStringExpression("hello")))
   )
 
   val call: CommandCallNode = WomMocks.mockTaskCall(WomIdentifier(taskName, jobFqn), task)
-  val jobDescriptorKey = BackendJobDescriptorKey(call, jobIndex, jobAttempt)
+  val jobDescriptorKey: BackendJobDescriptorKey = BackendJobDescriptorKey(call, jobIndex, jobAttempt)
 
-  val backendWorkflowDescriptor = BackendWorkflowDescriptor(id = workflowId,
+  val backendWorkflowDescriptor: BackendWorkflowDescriptor = BackendWorkflowDescriptor(id = workflowId,
     callable = null,
     knownValues = null,
     workflowOptions = WorkflowOptions.empty,
@@ -50,28 +51,37 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
     hogGroup = HogGroup("foo"),
     List.empty,
     None)
-  val backendJobDescriptor = BackendJobDescriptor(backendWorkflowDescriptor, jobDescriptorKey, runtimeAttributes = Map.empty, evaluatedTaskInputs = Map.empty, FloatingDockerTagWithoutHash("ubuntu:latest"), None, Map.empty)
+  val backendJobDescriptor: BackendJobDescriptor =
+    BackendJobDescriptor(
+      workflowDescriptor = backendWorkflowDescriptor,
+      key = jobDescriptorKey,
+      runtimeAttributes = Map.empty,
+      evaluatedTaskInputs = Map.empty,
+      maybeCallCachingEligible = FloatingDockerTagWithoutHash("ubuntu:latest"),
+      dockerSize = None,
+      prefetchedKvStoreEntries = Map.empty,
+    )
 
   var fetchCachedResultsActorCreations: ExpectOne[(CallCachingEntryId, Seq[OutputDefinition])] = NothingYet
   var jobHashingInitializations: ExpectOne[(BackendJobDescriptor, CallCachingActivity)] = NothingYet
   var invalidateCacheActorCreations: ExpectOne[CallCachingEntryId] = NothingYet
 
-  val deathwatch = TestProbe()
-  val bjeaProbe = TestProbe()
-  val bjeaProps = bjeaProbe.props
-  val replyToProbe = TestProbe()
-  val parentProbe = TestProbe()
-  val serviceRegistryProbe = TestProbe()
-  val ioActorProbe = TestProbe()
-  val jobStoreProbe = TestProbe()
-  val callCacheReadActorProbe = TestProbe()
-  val callCacheWriteActorProbe = TestProbe()
-  val dockerHashActorProbe = TestProbe()
-  val callCacheHitCopyingProbe = TestProbe()
-  val jobPreparationProbe = TestProbe()
-  val jobRestartCheckTokenDispenserProbe = TestProbe()
-  val jobExecutionTokenDispenserProbe = TestProbe()
-  val ejhaProbe = TestProbe()
+  val deathwatch: TestProbe = TestProbe()
+  val bjeaProbe: TestProbe = TestProbe()
+  val bjeaProps: Props = bjeaProbe.props
+  val replyToProbe: TestProbe = TestProbe()
+  val parentProbe: TestProbe = TestProbe()
+  val serviceRegistryProbe: TestProbe = TestProbe()
+  val ioActorProbe: TestProbe = TestProbe()
+  val jobStoreProbe: TestProbe = TestProbe()
+  val callCacheReadActorProbe: TestProbe = TestProbe()
+  val callCacheWriteActorProbe: TestProbe = TestProbe()
+  val dockerHashActorProbe: TestProbe = TestProbe()
+  val callCacheHitCopyingProbe: TestProbe = TestProbe()
+  val jobPreparationProbe: TestProbe = TestProbe()
+  val jobRestartCheckTokenDispenserProbe: TestProbe = TestProbe()
+  val jobExecutionTokenDispenserProbe: TestProbe = TestProbe()
+  val ejhaProbe: TestProbe = TestProbe()
 
   def buildFactory(backendConfigurationDescriptor: BackendConfigurationDescriptor): BackendLifecycleActorFactory = new BackendLifecycleActorFactory {
 
@@ -97,16 +107,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
 
     override def fileHashingActorProps:
     Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Option[ActorRef]) => Props] = {
-      Option(fileHashingActorInner(classOf[DefaultStandardFileHashingActor]))
-    }
-
-    def fileHashingActorInner(standardFileHashingActor: Class[_ <: StandardFileHashingActor])
-                             (jobDescriptor: BackendJobDescriptor,
-                              initializationDataOption: Option[BackendInitializationData],
-                              serviceRegistryActor: ActorRef,
-                              ioActor: ActorRef,
-                              fileHashCacheActor: Option[ActorRef]): Props = {
-      Props.empty
+      Option((_, _, _, _, _) => Props.empty)
     }
 
     // These two factory methods should never be called from EJEA or any of its descendants:
@@ -196,14 +197,21 @@ private[ejea] class MockEjea(helper: PerTestHelper,
   command = if (restarting) RecoverJobCommand else ExecuteJobCommand,
   callCachingParameters = callCachingParameters) {
 
-  implicit val system = context.system
-  override def makeFetchCachedResultsActor(cacheId: CallCachingEntryId) = helper.fetchCachedResultsActorCreations = helper.fetchCachedResultsActorCreations.foundOne((cacheId, null))
-  override def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity, callCachingEligible: CallCachingEligible) = {
+  implicit val system: ActorSystem = context.system
+  override def makeFetchCachedResultsActor(cacheId: CallCachingEntryId): Unit = {
+    helper.fetchCachedResultsActorCreations =
+      helper.fetchCachedResultsActorCreations.foundOne((cacheId, null))
+  }
+  override def initializeJobHashing(jobDescriptor: BackendJobDescriptor,
+                                    activity: CallCachingActivity,
+                                    callCachingEligible: CallCachingEligible): Try[ActorRef] = {
     helper.jobHashingInitializations = helper.jobHashingInitializations.foundOne((jobDescriptor, activity))
     Success(helper.ejhaProbe.ref)
   }
-  override def createBackendJobExecutionActor(data: ResponsePendingData) = helper.bjeaProbe.ref
+  override def createBackendJobExecutionActor(data: ResponsePendingData): ActorRef = helper.bjeaProbe.ref
   override def invalidateCacheHit(cacheId: CallCachingEntryId): Unit = { helper.invalidateCacheActorCreations = helper.invalidateCacheActorCreations.foundOne(cacheId) }
-  override def createJobPreparationActor(jobPrepProps: Props, name: String) = jobPreparationProbe.ref
-  override def onTimedTransition(from: EngineJobExecutionActorState, to: EngineJobExecutionActorState, duration: FiniteDuration) = {}
+  override def createJobPreparationActor(jobPrepProps: Props, name: String): ActorRef = jobPreparationProbe.ref
+  override def onTimedTransition(from: EngineJobExecutionActorState,
+                                 to: EngineJobExecutionActorState,
+                                 duration: FiniteDuration): Unit = {}
 }

@@ -22,28 +22,24 @@ Talk to us:
 
 ### Capabilities and roadmap
 
-A majority of Cromwell users today run their workflows in [Terra](https://app.terra.bio/), a fully-managed cloud-native bioinformatics computing platform. See [here](https://support.terra.bio/hc/en-us/articles/360036379771-Get-started-running-workflows) for a quick-start guide.
+Many users today run their WDL workflows in [Terra](https://app.terra.bio/), a managed cloud bioinformatics platform with built-in WDL support provided by Cromwell. See [here](https://support.terra.bio/hc/en-us/articles/360036379771-Get-started-running-workflows) for a quick-start guide.
 
 Users with specialized needs who wish to install and maintain their own Cromwell instances can [download](https://github.com/broadinstitute/cromwell/releases) a JAR or Docker image. The development team accepts reproducible bug reports from self-managed instances, but cannot feasibly provide direct support.
 
-[Cromwell's backends](https://cromwell.readthedocs.io/en/stable/backends/Backends/) receive development resources proportional to customer demand. The team is actively developing for Google Cloud and AWS. Maintenance of other backends is primarily community-based.
+[Cromwell's backends](https://cromwell.readthedocs.io/en/stable/backends/Backends/) receive development resources proportional to user demand. The team is actively developing for Google Cloud and Microsoft Azure (see [Cromwell on Azure](https://github.com/microsoft/CromwellOnAzure)). Maintenance of other backends is primarily community-based.
 
-Cromwell [supports](https://cromwell.readthedocs.io/en/stable/LanguageSupport/) the WDL and CWL workflow languages. The Cromwell team is actively developing WDL, while maintenance for CWL is primarily community-based.  
+Cromwell [supports](https://cromwell.readthedocs.io/en/stable/LanguageSupport/) the WDL workflow language. Cromwell version 80 and above no longer support CWL.
+
+CWL will be re-introduced at a later date in the [Terra platform](https://terra.bio/), using a solution other than Cromwell. See the blog post ["Terra’s roadmap to supporting more workflow languages"](https://terra.bio/terras-roadmap-to-supporting-more-workflow-languages/) for details.
 
 ### Security reports
 
 If you believe you have found a security issue please contact `infosec@broadinstitute.org`.
 
-### Issue tracking in JIRA
+### Issue tracking
 
-<!--
-AEN external issue filing tested 2020-12-08 with `oednichols@gmail.com` / `https://broadworkbench.atlassian.net/browse/CROM-6681`
--->
+Need to file an issue? Head over to [Github Issues](https://github.com/broadinstitute/cromwell/issues).
 
-Need to file an issue? Head over to [our JIRA](https://broadworkbench.atlassian.net/jira/software/c/projects/CROM/issues). You must create a free profile to view or create.
-
-[Issues in Github](https://github.com/broadinstitute/cromwell/issues) remain available for discussion among community members but are not actively monitored by the development team.
-
-![Cromwell JIRA](docs/img/cromwell_jira.png)
+If you previously filed an issue in JIRA, the link is [here](https://broadworkbench.atlassian.net/jira/software/c/projects/CROM/issues). New signups are no longer accepted.
 
 ![Jamie, the Cromwell pig](docs/jamie_the_cromwell_pig.png)

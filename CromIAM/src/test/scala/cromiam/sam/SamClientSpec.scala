@@ -15,11 +15,10 @@ import org.broadinstitute.dsde.workbench.model.WorkbenchUserId
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
 
 import scala.concurrent.ExecutionContextExecutor
 
-class SamClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfterAll with Mockito {
+class SamClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfterAll {
 
   implicit val actorSystem: ActorSystem = ActorSystem("SamClientSpec")
   implicit val ece: ExecutionContextExecutor = actorSystem.dispatcher
@@ -28,20 +27,20 @@ class SamClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfterAll w
   private val expectedErrorResponse =
     HttpResponse(StatusCodes.InternalServerError, entity = HttpEntity("expected error"))
 
-  val authorization = Authorization(OAuth2BearerToken("my-token"))
-  val authorizedUserWithCollection = User(WorkbenchUserId(MockSamClient.AuthorizedUserCollectionStr), authorization)
-  val unauthorizedUserWithNoCollection =
+  private val authorization = Authorization(OAuth2BearerToken("my-token"))
+  private val authorizedUserWithCollection = User(WorkbenchUserId(MockSamClient.AuthorizedUserCollectionStr), authorization)
+  private val unauthorizedUserWithNoCollection =
     User(WorkbenchUserId(MockSamClient.UnauthorizedUserCollectionStr), authorization)
-  val notWhitelistedUser = User(WorkbenchUserId(MockSamClient.NotWhitelistedUser), authorization)
+  private val notWhitelistedUser = User(WorkbenchUserId(MockSamClient.NotWhitelistedUser), authorization)
 
-  val authorizedCollection = Collection(MockSamClient.AuthorizedUserCollectionStr)
-  val unauthorizedCollection = Collection(MockSamClient.UnauthorizedUserCollectionStr)
-  val authorizedCollectionRequest =
+  private val authorizedCollection = Collection(MockSamClient.AuthorizedUserCollectionStr)
+  private val unauthorizedCollection = Collection(MockSamClient.UnauthorizedUserCollectionStr)
+  private val authorizedCollectionRequest =
     CollectionAuthorizationRequest(authorizedUserWithCollection, authorizedCollection, "add")
-  val unauthorizedCollectionRequest =
+  private val unauthorizedCollectionRequest =
     CollectionAuthorizationRequest(unauthorizedUserWithNoCollection, unauthorizedCollection, "add")
 
-  val emptyHttpRequest: HttpRequest = HttpRequest()
+  private val emptyHttpRequest: HttpRequest = HttpRequest()
 
   override protected def afterAll(): Unit = {
     actorSystem.terminate()

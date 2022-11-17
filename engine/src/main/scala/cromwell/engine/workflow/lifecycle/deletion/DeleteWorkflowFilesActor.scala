@@ -49,7 +49,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   when(Pending) {
     case Event(ioReceivable, _) if ioReceive.isDefinedAt(ioReceivable) =>
       ioReceive.apply(ioReceivable)
-      stay
+      stay()
     case Event(StartWorkflowFilesDeletion, NoData) =>
       val intermediateOutputs = gatherIntermediateOutputFiles(workflowAllOutputs, workflowFinalOutputs)
       if (intermediateOutputs.nonEmpty) {
@@ -65,7 +65,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   when(DeleteIntermediateFiles) {
     case Event(ioReceivable, _) if ioReceive.isDefinedAt(ioReceivable) =>
       ioReceive.apply(ioReceivable)
-      stay
+      stay()
     case Event(DeleteFiles, DeletingIntermediateFilesData(intermediateFiles)) =>
       // update deletion status in metadata
       val deletionInProgressEvent = metadataEventForDeletionStatus(InProgress)
@@ -90,7 +90,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   when(WaitingForIoResponses) {
     case Event(ioReceivable, _) if ioReceive.isDefinedAt(ioReceivable) =>
       ioReceive.apply(ioReceivable)
-      stay
+      stay()
     case Event(IoSuccess(command: IoDeleteCommand, _), data: WaitingForIoResponsesData) =>
       val (newData: WaitingForIoResponsesData, commandState) = data.commandComplete(command)
       commandState match {
@@ -127,7 +127,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   when(InvalidatingCallCache) {
     case Event(ioReceivable, _) if ioReceive.isDefinedAt(ioReceivable) =>
       ioReceive.apply(ioReceivable)
-      stay
+      stay()
     case Event(InvalidateCallCache, _) =>
       fetchCallCacheEntries(callCache) onComplete {
         case Failure(throwable) => self ! FailedRetrieveCallCacheIds(throwable)
@@ -154,7 +154,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   when(WaitingForInvalidateCCResponses) {
     case Event(ioReceivable, _) if ioReceive.isDefinedAt(ioReceivable) =>
       ioReceive.apply(ioReceivable)
-      stay
+      stay()
     case Event(CallCacheInvalidatedSuccess(cacheId, _), data: WaitingForInvalidateCCResponsesData) =>
       val (newData: WaitingForInvalidateCCResponsesData, invalidateState) = data.commandComplete(cacheId.id)
       invalidateState match {
@@ -173,7 +173,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   whenUnhandled {
     case Event(ioReceivable, _) if ioReceive.isDefinedAt(ioReceivable) =>
       ioReceive.apply(ioReceivable)
-      stay
+      stay()
     case Event(ShutdownCommand, _) => stopSelf()
     case other =>
       log.error(s"Programmer Error: Unexpected message to ${getClass.getSimpleName} ${self.path.name} in state $stateName with $stateData: ${other.toPrettyElidedString(1000)}")
@@ -206,7 +206,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   }
 
 
-  private def fetchCallCacheEntries(callCache: CallCache): Future[Set[Int]] = {
+  private def fetchCallCacheEntries(callCache: CallCache): Future[Set[Long]] = {
     val callCacheEntryIdsFuture = rootAndSubworkflowIds.map(x => callCache.callCacheEntryIdsForWorkflowId(x.toString)).map { f =>
       f.map { Success(_) }.recover { case t => Failure(t) }}
 
@@ -265,7 +265,7 @@ object DeleteWorkflowFilesActor {
   object StartWorkflowFilesDeletion extends DeleteWorkflowFilesActorMessage
   object DeleteFiles extends DeleteWorkflowFilesActorMessage
   object InvalidateCallCache extends DeleteWorkflowFilesActorMessage
-  case class RetrievedCallCacheIds(ids: Set[Int]) extends DeleteWorkflowFilesActorMessage
+  case class RetrievedCallCacheIds(ids: Set[Long]) extends DeleteWorkflowFilesActorMessage
   case class FailedRetrieveCallCacheIds(throwable: Throwable) extends DeleteWorkflowFilesActorMessage
 
   // Actor states
@@ -319,18 +319,18 @@ object DeleteWorkflowFilesActor {
     }
   }
 
-  case class WaitingForInvalidateCCResponsesData(commandsToWaitFor: Set[Int],
+  case class WaitingForInvalidateCCResponsesData(commandsToWaitFor: Set[Long],
                                                  deleteErrors: List[Throwable],
                                                  filesNotFound: List[Path],
                                                  callCacheInvalidationErrors: List[Throwable] = List.empty)
-    extends WaitingForResponseFromActorData[Int](commandsToWaitFor) with DeleteWorkflowFilesActorStateData {
+    extends WaitingForResponseFromActorData[Long](commandsToWaitFor) with DeleteWorkflowFilesActorStateData {
 
     override def assertionFailureMsg(expectedSize: Int, requiredSize: Int): String = {
       s"Found updated call cache entries set size as $expectedSize instead of $requiredSize. The updated set of call cache entries" +
         s" that DeleteWorkflowFilesActor has to wait for should be 1 less after a call cache entry is invalidated."
     }
 
-    override def setCommandsToWaitFor(updatedCommandsToWaitFor: Set[Int]): WaitingForResponseFromActorData[Int] = {
+    override def setCommandsToWaitFor(updatedCommandsToWaitFor: Set[Long]): WaitingForResponseFromActorData[Long] = {
       this.copy(commandsToWaitFor = updatedCommandsToWaitFor)
     }
   }

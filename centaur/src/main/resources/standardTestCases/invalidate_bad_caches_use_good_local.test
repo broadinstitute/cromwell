@@ -1,0 +1,19 @@
+name: invalidate_bad_caches_use_good_local
+testFormat: workflowsuccess
+backends: [Local]
+tags: [localdockertest]
+
+files {
+  workflow: invalidate_bad_caches/invalidate_bad_caches_use_good.wdl
+  inputs: invalidate_bad_caches/local.inputs
+}
+
+metadata {
+  "calls.invalidate_bad_caches.make_first_file.callCaching.result": "Cache Miss"
+  "calls.invalidate_bad_caches.make_first_file.callCaching.allowResultReuse": false
+  "calls.invalidate_bad_caches.make_second_file.callCaching.result": "Cache Hit: <<UUID>>:invalidate_bad_caches.make_first_file:-1"
+  "calls.invalidate_bad_caches.make_second_file.callCaching.allowResultReuse": true
+  "calls.invalidate_bad_caches.delete_file_local.callCaching.result": "Cache Miss"
+  "calls.invalidate_bad_caches.cache_third_file.callCaching.result": "Cache Hit: <<UUID>>:invalidate_bad_caches.make_second_file:-1"
+  "calls.invalidate_bad_caches.cache_third_file.callCaching.allowResultReuse": true
+}

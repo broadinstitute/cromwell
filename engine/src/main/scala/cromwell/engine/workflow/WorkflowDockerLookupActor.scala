@@ -66,19 +66,19 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
     case Event(DockerHashStoreLoadingSuccess(dockerHashEntries), data) =>
       loadCacheAndHandleHashRequests(dockerHashEntries, data)
     case Event(request: DockerInfoRequest, data) =>
-      stay using data.addHashRequest(request, sender())
+      stay() using data.addHashRequest(request, sender())
   }
 
   // This is the normal operational mode.
   when(Running) {
     // This tag has already been looked up and its hash is in the mappings cache.
     case Event(request: DockerInfoRequest, data) if data.mappings.contains(request.dockerImageID) =>
-      sender ! DockerInfoSuccessResponse(data.mappings(request.dockerImageID), request)
+      sender() ! DockerInfoSuccessResponse(data.mappings(request.dockerImageID), request)
       stay()
     // A request for the hash for this tag has already been made to the hashing actor.  Don't request the hash again,
     // just add this sender to the list of replyTos for when the hash arrives.
     case Event(request: DockerInfoRequest, data) if data.hashRequests.contains(request.dockerImageID) =>
-      stay using data.addHashRequest(request, sender())
+      stay() using data.addHashRequest(request, sender())
     // This tag has not (successfully) been looked up before, so look it up now.
     case Event(request: DockerInfoRequest, data) =>
       requestDockerHash(request, data)
@@ -172,7 +172,7 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
     sendDockerCommand(request)
     val replyTo = sender()
     val updatedData = data.copy(hashRequests = data.hashRequests + (request.dockerImageID -> NonEmptyList.of(RequestAndReplyTo(request, replyTo))))
-    stay using updatedData
+    stay() using updatedData
   }
 
   private def recordMappingAndRespond(response: DockerInfoSuccessResponse, data: WorkflowDockerLookupActorData): State = {
@@ -183,7 +183,7 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
       case None => fail(new Exception(s"Could not find the actors associated with $request. Available requests are ${data.hashRequests.keys.mkString(", ")}") with NoStackTrace)
     }
     val updatedData = data.copy(hashRequests = data.hashRequests - request.dockerImageID, mappings = data.mappings + (request.dockerImageID -> response.dockerInformation))
-    stay using updatedData
+    stay() using updatedData
   }
 
   private def respondToAllRequests(reason: Throwable,
@@ -225,7 +225,7 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
       case Some(requestAndReplyTos) =>
         requestAndReplyTos foreach { case RequestAndReplyTo(_, replyTo) => replyTo ! failureResponse }
         val updatedData = data.copy(hashRequests = data.hashRequests - request.dockerImageID)
-        stay using updatedData
+        stay() using updatedData
       case None =>
         log.debug(s"Unable to find requesters for failed lookup of Docker image '${request.dockerImageID}'. " +
           s"Most likely reason is that requesters have already been cleaned out earlier by the timeout.")

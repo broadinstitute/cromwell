@@ -3,23 +3,24 @@ package cloud.nio.impl.drs
 import cats.data.NonEmptyList
 import cats.effect.IO
 import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
+import cloud.nio.spi.{FileHash, HashType}
 import com.typesafe.config.ConfigFactory
 import common.assertion.CromwellTimeoutSpec
-import org.apache.commons.compress.utils.SeekableInMemoryByteChannel
 import org.apache.http.HttpVersion
 import org.apache.http.client.methods.{CloseableHttpResponse, HttpPost}
 import org.apache.http.impl.client.{CloseableHttpClient, HttpClientBuilder}
 import org.apache.http.message.BasicStatusLine
-import org.mockito.Mockito.verify
+import org.mockito.ArgumentMatchers._
+import org.mockito.Mockito._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
+import common.mock.MockSugar
 
 import java.nio.channels.ReadableByteChannel
 import java.time.{Instant, OffsetDateTime, ZoneOffset}
 import scala.concurrent.duration._
 
-class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matchers with Mockito {
+class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matchers with MockSugar {
   behavior of "DrsCloudNioFileProvider"
 
   it should "parse a config and create a working file system provider" in {
@@ -59,13 +60,13 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
   }
 
   it should "check existing drs objects" in {
-    val httpResponse = mock[CloseableHttpResponse].smart
+    val httpResponse = mock[CloseableHttpResponse]
     httpResponse.getStatusLine returns new BasicStatusLine(HttpVersion.HTTP_1_1, 200, "OK")
 
-    val httpClient = mock[CloseableHttpClient].smart
-    doReturn(httpResponse).when(httpClient).execute(anyObject[HttpPost])
+    val httpClient = mock[CloseableHttpClient]
+    httpClient.execute(any[HttpPost]) returns httpResponse
 
-    val httpClientBuilder = mock[HttpClientBuilder].smart
+    val httpClientBuilder = mock[HttpClientBuilder]
     httpClientBuilder.build() returns httpClient
 
     val fileSystemProvider = new MockDrsCloudNioFileSystemProvider(httpClientBuilder = Option(httpClientBuilder))
@@ -85,7 +86,7 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
       }
     }
 
-    val readChannel: ReadableByteChannel = new SeekableInMemoryByteChannel(Array.emptyByteArray)
+    val readChannel = mock[ReadableByteChannel]
     val drsReadInterpreter: DrsReadInterpreter = (_, marthaResponse) => {
       IO(
         (marthaResponse.gsUri, marthaResponse.googleServiceAccount) match {
@@ -111,7 +112,7 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
       }
     }
 
-    val readChannel: ReadableByteChannel = new SeekableInMemoryByteChannel(Array.emptyByteArray)
+    val readChannel = mock[ReadableByteChannel]
     val drsReadInterpreter: DrsReadInterpreter = (_, marthaResponse) => {
       IO(
         marthaResponse.accessUrl match {
@@ -140,7 +141,7 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
             size = Option(789L),
             timeCreated = Option(OffsetDateTime.ofInstant(instantCreated, ZoneOffset.UTC).toString),
             timeUpdated = Option(OffsetDateTime.ofInstant(instantUpdated, ZoneOffset.UTC).toString),
-            hashes = Option(Map("rot13" -> "gg0217869")),
+            hashes = Option(Map("md5" -> "gg0217869")),
           )
         )
       }
@@ -153,7 +154,7 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
     drsFileAttributes.creationTime().toMillis should be(123L)
     drsFileAttributes.lastModifiedTime().toMillis should be(456L)
     drsFileAttributes.size() should be(789L)
-    drsFileAttributes.fileHash should be(Option("gg0217869"))
+    drsFileAttributes.fileHash should be(Option(FileHash(HashType.Md5, "gg0217869")))
   }
 
   it should "throw exceptions for unsupported methods" in {

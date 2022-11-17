@@ -8,6 +8,7 @@ import common.transforms.CheckedAtoB
 import common.validation.ErrorOr._
 import wdl.model.draft3.elements._
 import wom.SourceFileLocation
+import wdl.model.draft3.elements.ExpressionElement._
 
 object AstToWorkflowDefinitionElement {
 
@@ -26,18 +27,56 @@ object AstToWorkflowDefinitionElement {
                               sourceLocation: Option[SourceFileLocation],
                               bodyElements: Vector[WorkflowBodyElement]) = {
 
-    val inputsSectionValidation: ErrorOr[Option[InputsSectionElement]] = validateSize(bodyElements.filterByType[InputsSectionElement], "inputs", 1)
-    val outputsSectionValidation: ErrorOr[Option[OutputsSectionElement]] = validateSize(bodyElements.filterByType[OutputsSectionElement], "outputs", 1)
+    val inputsSectionValidation: ErrorOr[Option[InputsSectionElement]] = for {
+      inputValidateElement <- validateSize(bodyElements.filterByType[InputsSectionElement], "inputs", 1): ErrorOr[Option[InputsSectionElement]]
+      _ <- checkDisallowedInputElement(inputValidateElement, StdoutElement, "stdout")
+      _ <- checkDisallowedInputElement(inputValidateElement, StderrElement, "stderr")
+    } yield inputValidateElement
+
+    val intermediateValueDeclarationStdoutCheck = checkDisallowedIntermediates(bodyElements.filterByType[IntermediateValueDeclarationElement], StdoutElement, "stdout")
+    val intermediateValueDeclarationStderrCheck = checkDisallowedIntermediates(bodyElements.filterByType[IntermediateValueDeclarationElement], StderrElement, "stderr")
+
+    val outputsSectionValidation: ErrorOr[Option[OutputsSectionElement]] = for {
+      outputValidateElement <- validateSize(bodyElements.filterByType[OutputsSectionElement], "outputs", 1): ErrorOr[Option[OutputsSectionElement]]
+      _ <- checkDisallowedOutputElement(outputValidateElement, StdoutElement, "stdout")
+      _ <- checkDisallowedOutputElement(outputValidateElement, StderrElement, "stderr")
+    } yield outputValidateElement
 
     val graphSections: Vector[WorkflowGraphElement] = bodyElements.filterByType[WorkflowGraphElement]
 
     val metaSectionValidation: ErrorOr[Option[MetaSectionElement]] = validateSize(bodyElements.filterByType[MetaSectionElement], "meta", 1)
     val parameterMetaSectionValidation: ErrorOr[Option[ParameterMetaSectionElement]] = validateSize(bodyElements.filterByType[ParameterMetaSectionElement], "parameterMeta", 1)
 
-    (inputsSectionValidation, outputsSectionValidation, metaSectionValidation, parameterMetaSectionValidation) mapN {
-      (validInputs, validOutputs, meta, parameterMeta) =>
+    (inputsSectionValidation, outputsSectionValidation, metaSectionValidation, parameterMetaSectionValidation, intermediateValueDeclarationStdoutCheck, intermediateValueDeclarationStderrCheck) mapN {
+      (validInputs, validOutputs, meta, parameterMeta, _, _) =>
       WorkflowDefinitionElement(name, validInputs, graphSections.toSet, validOutputs, meta, parameterMeta, sourceLocation)
     }
+  }
+
+  def checkDisallowedInputElement(inputSection: Option[InputsSectionElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Unit] = {
+    inputSection match {
+      case Some(section) =>
+        if (section.inputDeclarations.flatMap(_.expression).exists(_.isInstanceOf[expressionType.type])) {
+          s"Workflow cannot have $expressionName expression in input section at workflow-level.".invalidNel
+        } else ().validNel
+      case None => ().validNel
+    }
+  }
+
+  def checkDisallowedOutputElement(outputSection: Option[OutputsSectionElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Unit] = {
+    outputSection match {
+      case Some(section) =>
+        if (section.outputs.map(_.expression).exists(_.isInstanceOf[expressionType.type])) {
+          s"Workflow cannot have $expressionName expression in output section at workflow-level.".invalidNel
+        } else ().validNel
+      case None => ().validNel
+    }
+  }
+
+  def checkDisallowedIntermediates(intermediate: Vector[IntermediateValueDeclarationElement], expressionType: FunctionCallElement, expressionName: String): ErrorOr[Unit] = {
+    if (intermediate.map(_.expression).exists(_.isInstanceOf[expressionType.type])) {
+      s"Workflow cannot have $expressionName expression at intermediate declaration section at workflow-level.".invalidNel
+    } else ().validNel
   }
 
   private def validateSize[A](elements: Vector[A], sectionName: String, numExpected: Int): ErrorOr[Option[A]] = {
@@ -46,6 +85,7 @@ object AstToWorkflowDefinitionElement {
     } else {
       elements.headOption.validNel
     }
+
     sectionValidation
   }
 }

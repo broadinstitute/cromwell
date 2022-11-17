@@ -193,6 +193,7 @@ sealed trait DateTimeWorkflowQueryKey extends WorkflowQueryKey[Option[OffsetDate
           case Success(dt) => Option(dt).validNel[String]
           case _ => s"Value given for $displayName does not parse as a datetime: $v".invalidNel[Option[OffsetDateTime]]
         }
+      case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
     }
   }
   def displayName: String
@@ -219,6 +220,7 @@ sealed trait IntWorkflowQueryKey extends WorkflowQueryKey[Option[Int]] {
           case Success(intVal) => if (intVal > 0) Option(intVal).validNel else s"Integer value not greater than 0".invalidNel[Option[Int]]
           case _ => s"Value given for $displayName does not parse as a integer: $v".invalidNel[Option[Int]]
         }
+      case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
     }
   }
   def displayName: String
@@ -235,6 +237,7 @@ sealed trait BooleanWorkflowQueryKey extends WorkflowQueryKey[Boolean] {
           case _ => s"Value given for $displayName does not parse as a boolean: $v".invalidNel[Boolean]
         }
       }
+      case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
     }
   }
    def displayName: String

@@ -12,7 +12,7 @@ import scala.util.{Failure, Try}
 
 object RuntimeAttributesDefault {
 
-  def workflowOptionsDefault(options: WorkflowOptions, mapping: Map[String, Traversable[WomType]]):
+  def workflowOptionsDefault(options: WorkflowOptions, mapping: Map[String, Iterable[WomType]]):
   Try[Map[String, WomValue]] = {
     options.defaultRuntimeOptions flatMap { attrs =>
       TryUtil.sequenceMap(attrs collect {
@@ -32,7 +32,7 @@ object RuntimeAttributesDefault {
    */
   def withDefaults(attrs: EvaluatedRuntimeAttributes, defaultsList: List[EvaluatedRuntimeAttributes]): EvaluatedRuntimeAttributes = {
     defaultsList.foldLeft(attrs)((acc, default) => {
-      acc ++ default.filterKeys(!acc.keySet.contains(_))
+      acc ++ default.view.filterKeys(!acc.keySet.contains(_))
     })
   }
 

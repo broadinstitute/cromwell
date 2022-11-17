@@ -85,9 +85,9 @@ abstract class BatchActor[C](val flushRate: FiniteDuration,
 
   when(WaitingToProcess) {
     // On a regular event, only process if the batch size has been reached.
-    case Event(command, data) if commandToData(sender).isDefinedAt(command) =>
+    case Event(command, data) if commandToData(sender()).isDefinedAt(command) =>
       recentArrivalThreshold foreach { _ => mostRecentArrival = Option(OffsetDateTime.now()) }
-      processIfBatchSizeReached(data.enqueue(commandToData(sender)(command)))
+      processIfBatchSizeReached(data.enqueue(commandToData(sender())(command)))
     // On a scheduled process, always process
     case Event(ScheduledProcessAction, data) =>
       if (suitableIntervalSinceLastArrival()) {
@@ -104,17 +104,17 @@ abstract class BatchActor[C](val flushRate: FiniteDuration,
 
   when(Processing) {
     // Already processing, enqueue the command
-    case Event(command, data) if commandToData(sender).isDefinedAt(command) =>
-      stay() using data.enqueue(commandToData(sender)(command))
+    case Event(command, data) if commandToData(sender()).isDefinedAt(command) =>
+      stay() using data.enqueue(commandToData(sender())(command))
     // Already processing, can only do one at a time
-    case Event(ScheduledProcessAction, data) => 
+    case Event(ScheduledProcessAction, data) =>
       gossip(QueueWeight(data.weight))
       stay()
     // Process is complete and we're shutting down so process even if we're under the batch size.
     case Event(ProcessingComplete, data) if shuttingDown =>
       logger.info(s"{} Shutting down: processing ${data.weight} queued messages", self.path.name)
       processHead(data)
-    // Processing is complete, re-process only if needed    
+    // Processing is complete, re-process only if needed
     case Event(ProcessingComplete, data) if !shuttingDown =>
       processIfBatchSizeReached(data)
     case Event(ShutdownCommand, _) =>
@@ -150,7 +150,7 @@ abstract class BatchActor[C](val flushRate: FiniteDuration,
     }
 
     head.headOption match {
-      case Some(headOfHead) => 
+      case Some(headOfHead) =>
         processNonEmptyHead(NonEmptyVector(headOfHead, head.tail))
         goto(Processing) using newQueue
       case None =>

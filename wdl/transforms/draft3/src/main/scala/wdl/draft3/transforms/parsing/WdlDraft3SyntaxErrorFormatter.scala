@@ -1,6 +1,6 @@
 package wdl.draft3.transforms.parsing
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import wdl.draft3.parser.WdlParser._
 import wom.core.WorkflowSource
 

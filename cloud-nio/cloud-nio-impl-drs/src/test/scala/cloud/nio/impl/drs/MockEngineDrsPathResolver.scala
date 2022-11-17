@@ -6,8 +6,7 @@ import cats.syntax.validated._
 import com.google.cloud.NoCredentials
 import common.validation.ErrorOr.ErrorOr
 import org.apache.http.impl.client.HttpClientBuilder
-import org.specs2.mock.Mockito
-import org.specs2.mock.Mockito._
+import common.mock.MockSugar
 
 import scala.concurrent.duration.Duration
 
@@ -18,7 +17,7 @@ class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfi
   extends EngineDrsPathResolver(drsConfig, GoogleDrsCredentials(NoCredentials.getInstance, accessTokenAcceptableTTL)) {
 
   override protected lazy val httpClientBuilder: HttpClientBuilder =
-    httpClientBuilderOverride getOrElse Mockito.mock[HttpClientBuilder].smart
+    httpClientBuilderOverride getOrElse MockSugar.mock[HttpClientBuilder]
 
   private lazy val mockMarthaUri = drsConfig.marthaUrl
 

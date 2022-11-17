@@ -12,8 +12,8 @@ final class InMemoryKvServiceActor extends KeyValueServiceActor {
   var kvStore = Map.empty[ScopedKey, String]
 
   override def receive = {
-    case get: KvGet => respond(sender, get, doGet(get))
-    case put: KvPut => respond(sender, put, doPut(put))
+    case get: KvGet => respond(sender(), get, doGet(get))
+    case put: KvPut => respond(sender(), put, doPut(put))
   }
 
   def doGet(get: KvGet): Future[KvResponse] = kvStore.get(get.key) match {

@@ -229,7 +229,7 @@ object CallCacheDiffActor {
       def extractAttemptAndObject(value: JsValue): ErrorOr[(Int, JsObject)] = for {
         asObject <- value.mapToJsObject
         attempt <- asObject.fieldAsNumber("attempt")
-      } yield (attempt.value.intValue(), asObject)
+      } yield (attempt.value.intValue, asObject)
 
       def foldFunction(accumulator: ErrorOr[(Int, JsObject)], nextElement: JsValue): ErrorOr[(Int, JsObject)] = {
         (accumulator, extractAttemptAndObject(nextElement)) mapN { case ((previousHighestAttempt, previousJsObject), (nextAttempt, nextJsObject)) =>

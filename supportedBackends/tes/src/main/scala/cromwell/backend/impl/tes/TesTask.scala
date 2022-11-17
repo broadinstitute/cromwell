@@ -123,7 +123,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       ).getOrElse(List.empty[WomFile].validNel)
        .getOrElse(List.empty)
     }
-    
+
     jobDescriptor.taskCall.callable.outputs
       .flatMap(evaluateFiles)
       .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
@@ -192,7 +192,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     }
 
   private val additionalGlobOutput = jobDescriptor.taskCall.callable.additionalGlob.toList.flatMap(handleGlobFile(_, womOutputs.size))
-  
+
   private lazy val cwdOutput = Output(
     name = Option("execution.dir.output"),
     description = Option(fullyQualifiedTaskName + "." + "execution.dir.output"),
@@ -238,7 +238,7 @@ object TesTask {
         .workflowOptions
         .get(TesWorkflowOptionKeys.WorkflowExecutionIdentity)
         .toOption
-        .map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> _)
+        .map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option(_))
         .toMap
 
     val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
@@ -257,6 +257,38 @@ object TesTask {
       backend_parameters = Option(backendParameters)
     )
   }
+
+  def makeTask(tesTask: TesTask, transformBlobToLocalPath: Boolean = false): Task = {
+    val inputs = if (transformBlobToLocalPath) transformInputs(tesTask.inputs) else tesTask.inputs
+    val outputs = if (transformBlobToLocalPath) transformOutputs(tesTask.outputs) else tesTask.outputs
+    Task(
+      id = None,
+      state = None,
+      name = Option(tesTask.name),
+      description = Option(tesTask.description),
+      inputs = Option(inputs),
+      outputs = Option(outputs),
+      resources = Option(tesTask.resources),
+      executors = tesTask.executors,
+      volumes = None,
+      tags = Option(tesTask.jobDescriptor.workflowDescriptor.customLabels.asMap),
+      logs = None
+    )
+  }
+
+  def transformInputs(inputs: Seq[Input]): Seq[Input] = inputs.map(i =>
+    i.copy(url=i.url.map(transformBlobString))
+  )
+
+  def transformOutputs(outputs: Seq[Output]): Seq[Output] = outputs.map(i =>
+    i.copy(url=i.url.map(transformBlobString))
+  )
+
+  val blobSegment = ".blob.core.windows.net"
+  def transformBlobString(s: String): String = if (s.contains(blobSegment)) {
+    s.replaceFirst("https:/", "").replaceFirst(blobSegment, "")
+  } else s
+
 }
 
 // Field requirements in classes below based off GA4GH schema
@@ -298,7 +330,7 @@ final case class Resources(cpu_cores: Option[Int],
                            disk_gb: Option[Double],
                            preemptible: Option[Boolean],
                            zones: Option[Seq[String]],
-                           backend_parameters: Option[Map[String, String]])
+                           backend_parameters: Option[Map[String, Option[String]]])
 
 final case class OutputFileLog(url: String,
                                path: String,

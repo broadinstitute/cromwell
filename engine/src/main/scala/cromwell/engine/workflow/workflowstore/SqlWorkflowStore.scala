@@ -107,7 +107,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase, metadataSqlDa
       WorkflowStoreState.Submitted.toString,
       WorkflowStoreState.Running.toString,
       WorkflowStoreState.OnHold.toString,
-      excludedGroups: Set[String]
+      excludedGroups
     ) map {
       // .get on purpose here to fail the future if something went wrong
       _.toList.traverse(fromWorkflowStoreEntry).toTry.get

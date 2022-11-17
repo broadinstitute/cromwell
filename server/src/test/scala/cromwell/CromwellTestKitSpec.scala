@@ -168,7 +168,7 @@ object CromwellTestKitSpec {
   }
 
   def replaceVariables(value: String, workflowId: WorkflowId): String = {
-    val variables = Map("PWD" -> Cmds.pwd, "UUID" -> workflowId)
+    val variables = Map("PWD" -> Cmds.pwd.toString, "UUID" -> workflowId.toString)
     variables.foldLeft(value) {
       case (result, (variableName, variableValue)) => result.replace(s"<<$variableName>>", s"$variableValue")
     }
@@ -436,13 +436,14 @@ abstract class CromwellTestKitSpec extends TestKitSuite
         val valuesMap: Map[WomValue, WomValue] = map.fields.map { case (fieldName, fieldValue) => (WomString(fieldName), jsValueToWdlValue(fieldValue)) }
         if (valuesMap.isEmpty) WomMap(WomMapType(WomStringType, WomStringType), Map.empty)
         else WomMap(WomMapType(WomStringType, valuesMap.head._2.womType), valuesMap)
+      case oh => throw new RuntimeException(s"Programmer Error! Unexpected case match: $oh")
     }
   }
 }
 
 class AlwaysHappyJobStoreActor extends Actor {
   override def receive: Receive = {
-    case x: JobStoreWriterCommand => sender ! JobStoreWriteSuccess(x)
+    case x: JobStoreWriterCommand => sender() ! JobStoreWriteSuccess(x)
   }
 }
 
@@ -456,13 +457,13 @@ object AlwaysHappyJobStoreActor {
 
 class EmptyCallCacheReadActor extends Actor {
   override def receive: Receive = {
-    case _: CacheLookupRequest => sender ! CacheLookupNoHit
+    case _: CacheLookupRequest => sender() ! CacheLookupNoHit
   }
 }
 
 class EmptyCallCacheWriteActor extends Actor {
   override def receive: Receive = {
-    case SaveCallCacheHashes => sender ! CallCacheWriteSuccess
+    case SaveCallCacheHashes => sender() ! CallCacheWriteSuccess
   }
 }
 
@@ -476,7 +477,7 @@ object EmptyCallCacheWriteActor {
 
 class EmptyDockerHashActor extends Actor {
   override def receive: Receive = {
-    case request: DockerInfoRequest => sender ! DockerInfoSuccessResponse(DockerInformation(DockerHashResult("alg", "hash"), None), request)
+    case request: DockerInfoRequest => sender() ! DockerInfoSuccessResponse(DockerInformation(DockerHashResult("alg", "hash"), None), request)
   }
 }
 

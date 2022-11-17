@@ -1,7 +1,5 @@
 package cromwell.webservice.routes
 
-import java.time.OffsetDateTime
-
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.ContentTypes._
@@ -17,13 +15,13 @@ import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{WorkflowOnHoldToSubmittedFailure, WorkflowOnHoldToSubmittedSuccess}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
+import cromwell.services._
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse, SubsystemStatus}
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.metadata.MetadataArchiveStatus._
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
-import cromwell.services._
 import cromwell.services.womtool.WomtoolServiceMessages.{DescribeFailure, DescribeRequest, DescribeSuccess}
 import cromwell.services.womtool.models.WorkflowDescription
 import cromwell.util.SampleWdl.HelloWorld
@@ -34,6 +32,7 @@ import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import spray.json._
 
+import java.time.OffsetDateTime
 import scala.concurrent.duration._
 
 class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with Matchers {
@@ -529,6 +528,7 @@ object CromwellApiServiceSpec {
   val WorkflowIdExistingOnlyInSummaryTable = WorkflowId.fromString("f0000000-0000-0000-0000-000000000011")
   val ArchivedWorkflowId = WorkflowId.fromString("c4c6339c-2145-47fb-acc5-b5cb8d2809f5")
   val ArchivedAndDeletedWorkflowId = WorkflowId.fromString("abc1234d-2145-47fb-acc5-b5cb8d2809f5")
+  val wesWorkflowId = WorkflowId.randomId()
   val SummarizedWorkflowIds = Set(
     SummarizedWorkflowId,
     WorkflowIdExistingOnlyInSummaryTable,
@@ -545,7 +545,8 @@ object CromwellApiServiceSpec {
     FailedWorkflowId,
     SummarizedWorkflowId,
     ArchivedWorkflowId,
-    ArchivedAndDeletedWorkflowId
+    ArchivedAndDeletedWorkflowId,
+    wesWorkflowId
   )
 
   class MockApiService()(implicit val system: ActorSystem) extends CromwellApiService {
@@ -564,13 +565,21 @@ object CromwellApiServiceSpec {
       List(
         MetadataEvent(MetadataKey(workflowId, None, "testKey1a"), MetadataValue("myValue1a", MetadataString)),
         MetadataEvent(MetadataKey(workflowId, None, "testKey1b"), MetadataValue("myValue1b", MetadataString)),
-        MetadataEvent(MetadataKey(workflowId, None, "testKey2a"), MetadataValue("myValue2a", MetadataString))
+        MetadataEvent(MetadataKey(workflowId, None, "testKey2a"), MetadataValue("myValue2a", MetadataString)),
+      )
+    }
+    private def wesFullMetadataResponse(workflowId: WorkflowId) = {
+      List(
+        MetadataEvent(MetadataKey(workflowId, None, "status"), MetadataValue("Running", MetadataString)),
+        MetadataEvent(MetadataKey(workflowId, None, "submittedFiles:workflow"), MetadataValue("myValue2a", MetadataString)),
+
       )
     }
 
     def responseMetadataValues(workflowId: WorkflowId, withKeys: List[String], withoutKeys: List[String]): JsObject = {
       def keyFilter(keys: List[String])(m: MetadataEvent) = keys.exists(k => m.key.key.startsWith(k))
-      val events = fullMetadataResponse(workflowId)
+      val metadataEvents = if (workflowId == wesWorkflowId) wesFullMetadataResponse(workflowId) else fullMetadataResponse(workflowId)
+      val events = metadataEvents
         .filter(m => withKeys.isEmpty || keyFilter(withKeys)(m))
         .filter(m => withoutKeys.isEmpty || !keyFilter(withoutKeys)(m))
 
@@ -600,21 +609,21 @@ object CromwellApiServiceSpec {
 
         val response = WorkflowQuerySuccess(WorkflowQueryResponse(List(WorkflowQueryResult(ExistingWorkflowId.toString,
           None, Some(WorkflowSucceeded.toString), None, None, None, labels, Option("pid"), Option("rid"), Unarchived)), 1), None)
-        sender ! response
+        sender() ! response
       case ValidateWorkflowIdInMetadata(id) =>
-        if (RecognizedWorkflowIds.contains(id)) sender ! MetadataService.RecognizedWorkflowId
-        else sender ! MetadataService.UnrecognizedWorkflowId
+        if (RecognizedWorkflowIds.contains(id)) sender() ! MetadataService.RecognizedWorkflowId
+        else sender() ! MetadataService.UnrecognizedWorkflowId
       case ValidateWorkflowIdInMetadataSummaries(id) =>
-        if (SummarizedWorkflowIds.contains(id)) sender ! MetadataService.RecognizedWorkflowId
-        else sender ! MetadataService.UnrecognizedWorkflowId
+        if (SummarizedWorkflowIds.contains(id)) sender() ! MetadataService.RecognizedWorkflowId
+        else sender() ! MetadataService.UnrecognizedWorkflowId
       case FetchWorkflowMetadataArchiveStatusAndEndTime(id) =>
         id match {
-          case ArchivedAndDeletedWorkflowId => sender ! WorkflowMetadataArchivedStatusAndEndTime(ArchivedAndDeleted, Option(OffsetDateTime.now))
-          case ArchivedWorkflowId => sender ! WorkflowMetadataArchivedStatusAndEndTime(Archived, Option(OffsetDateTime.now))
-          case _ => sender ! WorkflowMetadataArchivedStatusAndEndTime(Unarchived, Option(OffsetDateTime.now))
+          case ArchivedAndDeletedWorkflowId => sender() ! WorkflowMetadataArchivedStatusAndEndTime(ArchivedAndDeleted, Option(OffsetDateTime.now))
+          case ArchivedWorkflowId => sender() ! WorkflowMetadataArchivedStatusAndEndTime(Archived, Option(OffsetDateTime.now))
+          case _ => sender() ! WorkflowMetadataArchivedStatusAndEndTime(Unarchived, Option(OffsetDateTime.now))
         }
       case GetCurrentStatus =>
-        sender ! StatusCheckResponse(
+        sender() ! StatusCheckResponse(
           ok = true,
           systems = Map(
             "Engine Database" -> SubsystemStatus(ok = true, messages = None)))
@@ -628,29 +637,30 @@ object CromwellApiServiceSpec {
           case FailedWorkflowId => WorkflowFailed
           case _ => WorkflowSubmitted
         }
-        sender ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.processStatusResponse(id, status))
+        sender() ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.processStatusResponse(id, status))
       case request @ GetLabels(id) =>
-        sender ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.processLabelsResponse(id, Map("key1" -> "label1", "key2" -> "label2")))
+        sender() ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.processLabelsResponse(id, Map("key1" -> "label1", "key2" -> "label2")))
       case request @ WorkflowOutputs(id) =>
         val event = Vector(MetadataEvent(MetadataKey(id, None, "outputs:test.hello.salutation"), MetadataValue("Hello foo!", MetadataString)))
-        sender ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.processOutputsResponse(id, event))
+        sender() ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.processOutputsResponse(id, event))
       case request @ GetLogs(id) =>
-        sender ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.workflowMetadataResponse(id, logsEvents(id), includeCallsIfEmpty = false, Map.empty))
+        sender() ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.workflowMetadataResponse(id, logsEvents(id), includeCallsIfEmpty = false, Map.empty))
       case request @ GetMetadataAction(MetadataQuery(id, _, _, withKeys, withoutKeys, _), _) =>
         val withKeysList = withKeys.map(_.toList).getOrElse(List.empty)
         val withoutKeysList = withoutKeys.map(_.toList).getOrElse(List.empty)
-        sender ! SuccessfulMetadataJsonResponse(request, responseMetadataValues(id, withKeysList, withoutKeysList))
+        sender() ! SuccessfulMetadataJsonResponse(request, responseMetadataValues(id, withKeysList, withoutKeysList))
       case PutMetadataActionAndRespond(events, _, _) =>
         events.head.key.workflowId match {
-          case CromwellApiServiceSpec.ExistingWorkflowId => sender ! MetadataWriteSuccess(events)
-          case CromwellApiServiceSpec.SummarizedWorkflowId => sender ! MetadataWriteSuccess(events)
-          case CromwellApiServiceSpec.AbortedWorkflowId => sender ! MetadataWriteFailure(new Exception("mock exception of db failure"), events)
+          case CromwellApiServiceSpec.ExistingWorkflowId => sender() ! MetadataWriteSuccess(events)
+          case CromwellApiServiceSpec.SummarizedWorkflowId => sender() ! MetadataWriteSuccess(events)
+          case CromwellApiServiceSpec.AbortedWorkflowId => sender() ! MetadataWriteFailure(new Exception("mock exception of db failure"), events)
           case WorkflowId(_) => throw new Exception("Something untoward happened, this situation is not believed to be possible at this time")
+          case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
         }
       case DescribeRequest(sourceFiles) =>
         sourceFiles.workflowSource match {
           case Some("fail to describe") =>
-            sender ! DescribeFailure("as requested, failing to describe")
+            sender() ! DescribeFailure("as requested, failing to describe")
           case Some("actor asplode") =>
             throw new Exception("asploding now!")
           case _ =>
@@ -663,7 +673,7 @@ object CromwellApiServiceSpec {
               s"[reading back DescribeRequest contents] version: ${sourceFiles.workflowTypeVersion}"
             )
 
-            sender ! DescribeSuccess(description = WorkflowDescription(valid = true, errors = readBack, validWorkflow = true))
+            sender() ! DescribeSuccess(description = WorkflowDescription(valid = true, errors = readBack, validWorkflow = true))
         }
       case _: InstrumentationServiceMessage => // Do nothing.
       case m => logger.error("Unexpected message received by MockServiceRegistryActor: {}", m)
@@ -673,22 +683,24 @@ object CromwellApiServiceSpec {
   class MockWorkflowStoreActor extends Actor {
     override def receive = {
       case command: WorkflowOnHoldToSubmittedCommand if command.id == ExistingWorkflowId =>
-        sender ! WorkflowOnHoldToSubmittedSuccess(command.id)
+        sender() ! WorkflowOnHoldToSubmittedSuccess(command.id)
       case command: WorkflowOnHoldToSubmittedCommand if command.id == UnrecognizedWorkflowId =>
-        sender ! WorkflowOnHoldToSubmittedFailure(command.id, new Exception("Cannot switch to submitted"))
-      case SubmitWorkflow(_) => sender ! WorkflowSubmittedToStore(ExistingWorkflowId, WorkflowSubmitted)
+        sender() ! WorkflowOnHoldToSubmittedFailure(command.id, new Exception("Cannot switch to submitted"))
+      case SubmitWorkflow(_) => sender() ! WorkflowSubmittedToStore(ExistingWorkflowId, WorkflowSubmitted)
       case BatchSubmitWorkflows(sources) =>
         val response = WorkflowsBatchSubmittedToStore(sources map { _ => ExistingWorkflowId }, WorkflowSubmitted)
-        sender ! response
+        sender() ! response
       case AbortWorkflowCommand(id) =>
         val message = id match {
           case AbortingWorkflowId => WorkflowAbortRequestedResponse(id)
           case OnHoldWorkflowId | SubmittedWorkflowId => WorkflowAbortedResponse(id)
           case UnrecognizedWorkflowId => WorkflowAbortFailureResponse(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
           case WorkflowId(_) => throw new Exception("Something untoward happened")
+          case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
         }
-        sender ! message
-      case GetWorkflowStoreStats => sender ! Map(WorkflowRunning -> 5, WorkflowSubmitted -> 3, WorkflowAborting -> 2)
+        sender() ! message
+      case GetWorkflowStoreStats => sender() ! Map(WorkflowRunning -> 5, WorkflowSubmitted -> 3, WorkflowAborting -> 2)
+      case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
     }
   }
 
@@ -696,11 +708,11 @@ object CromwellApiServiceSpec {
     override def receive: Receive = {
       case WorkflowManagerActor.EngineStatsCommand =>
         val response = EngineStatsActor.EngineStats(1, 23)
-        sender ! response
+        sender() ! response
       case unexpected =>
         val sndr = sender()
         log.error(s"Unexpected message {} from {}", unexpected, sndr)
-        sender ! s"Unexpected message received: $unexpected"
+        sender() ! s"Unexpected message received: $unexpected"
     }
   }
 }

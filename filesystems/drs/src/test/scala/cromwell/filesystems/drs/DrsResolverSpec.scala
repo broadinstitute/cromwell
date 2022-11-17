@@ -6,7 +6,7 @@ import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 
 class DrsResolverSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {

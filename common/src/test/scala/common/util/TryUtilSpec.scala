@@ -6,7 +6,6 @@ import common.util.TryUtil._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.compat.Platform.EOL
 import scala.util.{Failure, Success, Try}
 import org.scalatest.enablers.Emptiness._
 
@@ -16,14 +15,14 @@ class TryUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "TryUtil"
 
   it should "not stringify successes" in {
-    val result: Traversable[String] = stringifyFailures(Traversable(Success("success")))
+    val result: Iterable[String] = stringifyFailures(Iterable(Success("success")))
     result should be(empty)
   }
 
   it should "stringify failures" in {
-    val result: Traversable[String] = stringifyFailures(Traversable(Failure(new RuntimeException("failed"))))
+    val result: Iterable[String] = stringifyFailures(Iterable(Failure(new RuntimeException("failed"))))
     result should have size 1
-    result.head should startWith(s"java.lang.RuntimeException: failed$EOL")
+    result.head should startWith(s"java.lang.RuntimeException: failed${java.lang.System.lineSeparator()}")
   }
 
   it should "sequence successful seqs" in {

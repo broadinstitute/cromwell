@@ -2,7 +2,7 @@ include required(classpath("application.conf"))
 include "build_application.inc.conf"
 include "tesk_application_ftp.conf"
 
-{{with $cromwellTesk := vault (printf "secret/dsde/cromwell/common/cromwell-tesk")}}
+{{with $cromwellTesk := secret (printf "secret/dsde/cromwell/common/cromwell-tesk")}}
 backend {
   default = "TES"
   providers {

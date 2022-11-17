@@ -6,6 +6,13 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
 import cromiam.auth.User
 import org.broadinstitute.dsde.workbench.model.WorkbenchUserId
+import akka.http.scaladsl.model.HttpResponse
+import akka.http.scaladsl.server.Directives.{authorize, complete, onComplete}
+import akka.http.scaladsl.server.Route
+import cromiam.cromwell.CromwellClient
+import cromiam.sam.SamClient
+
+import scala.util.{Failure, Success}
 
 trait RequestSupport {
   def extractStrictRequest: Directive1[HttpRequest] = {
@@ -26,10 +33,27 @@ trait RequestSupport {
     }
   }
 
-  def extractUserAndRequest: Directive[(User, HttpRequest)] = {
+  def extractUserAndStrictRequest: Directive[(User, HttpRequest)] = {
     for {
       user <- extractUser
       request <- extractStrictRequest
     } yield (user, request)
+  }
+
+  def forwardIfUserEnabled(user: User, req: HttpRequest, cromwellClient: CromwellClient, samClient: SamClient): Route = {
+    import cromwell.api.model.EnhancedFailureResponseOrHttpResponseT
+
+    onComplete(samClient.isUserEnabledSam(user, req).value.unsafeToFuture()) {
+      case Success(Left(httpResponse: HttpResponse)) => complete(httpResponse)
+      case Success(Right(isEnabled: Boolean)) =>
+        authorize(isEnabled) {
+          complete {
+            cromwellClient.forwardToCromwell(req).asHttpResponse
+          }
+        }
+      case Failure(e) =>
+        val message = s"Unable to look up enablement status for user ${user.userId}: ${e.getMessage}. Please try again later."
+        throw new RuntimeException(message, e)
+    }
   }
 }

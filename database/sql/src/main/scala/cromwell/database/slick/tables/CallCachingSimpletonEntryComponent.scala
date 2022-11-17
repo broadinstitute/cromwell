@@ -12,7 +12,7 @@ trait CallCachingSimpletonEntryComponent {
 
   class CallCachingSimpletonEntries(tag: Tag)
     extends Table[CallCachingSimpletonEntry](tag, "CALL_CACHING_SIMPLETON_ENTRY") {
-    def callCachingSimpletonEntryId = column[Int]("CALL_CACHING_SIMPLETON_ENTRY_ID", O.PrimaryKey, O.AutoInc)
+    def callCachingSimpletonEntryId = column[Long]("CALL_CACHING_SIMPLETON_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
     def simpletonKey = column[String]("SIMPLETON_KEY", O.Length(255))
 
@@ -20,7 +20,7 @@ trait CallCachingSimpletonEntryComponent {
 
     def wdlType = column[String]("WDL_TYPE", O.Length(255))
 
-    def callCachingEntryId = column[Int]("CALL_CACHING_ENTRY_ID")
+    def callCachingEntryId = column[Long]("CALL_CACHING_ENTRY_ID")
 
     override def * = (simpletonKey, simpletonValue, wdlType, callCachingEntryId.?, callCachingSimpletonEntryId.?) <>
       (CallCachingSimpletonEntry.tupled, CallCachingSimpletonEntry.unapply)
@@ -41,7 +41,7 @@ trait CallCachingSimpletonEntryComponent {
     * Find all result simpletons which match a given CALL_CACHING_ENTRY_ID
     */
   val callCachingSimpletonEntriesForCallCachingEntryId = Compiled(
-    (callCachingEntryId: Rep[Int]) => for {
+    (callCachingEntryId: Rep[Long]) => for {
       callCachingSimpletonEntry <- callCachingSimpletonEntries
       if callCachingSimpletonEntry.callCachingEntryId === callCachingEntryId
     } yield callCachingSimpletonEntry

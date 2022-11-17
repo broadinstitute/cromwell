@@ -6,7 +6,7 @@ import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 
 class BackoffSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
@@ -54,14 +54,14 @@ class BackoffSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   it should "parse config" in {
     val config = ConfigFactory.parseMap(
-      Map(
+      Map[String, Any](
         "min" -> "5 seconds",
         "max" -> "30 seconds",
         "multiplier" -> 6D,
         "randomization-factor" -> 0D
       ).asJava
     )
-    
+
     val backoff = SimpleExponentialBackoff(config)
     backoff.googleBackoff.getCurrentIntervalMillis shouldBe 5.seconds.toMillis.toInt
     backoff.googleBackoff.getMaxIntervalMillis shouldBe 30.seconds.toMillis.toInt

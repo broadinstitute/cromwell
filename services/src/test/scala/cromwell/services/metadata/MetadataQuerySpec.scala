@@ -40,7 +40,7 @@ object MetadataQuerySpec {
   final class MetadataServiceActor_CustomizeRead(config: Config, serviceRegistryActor: ActorRef, readWorkerMaker: () => Props)
     extends MetadataServiceActor(MetadataServiceActorSpec.globalConfigToMetadataServiceConfig(config), config, serviceRegistryActor) {
 
-    override def readMetadataWorkerActorProps(): Props = readWorkerMaker.apply.withDispatcher(cromwell.core.Dispatcher.ServiceDispatcher)
+    override def readMetadataWorkerActorProps(): Props = readWorkerMaker.apply().withDispatcher(cromwell.core.Dispatcher.ServiceDispatcher)
   }
 
   object MetadataServiceActor_CustomizeRead {
@@ -53,7 +53,7 @@ object MetadataQuerySpec {
 
   final class CannedResponseReadMetadataWorker(cannedResponses: Map[BuildMetadataJsonAction, MetadataServiceResponse]) extends Actor {
     override def receive: Receive = {
-      case msg: BuildMetadataJsonAction => sender ! cannedResponses.getOrElse(msg, throw new Exception(s"Unexpected inbound message: $msg"))
+      case msg: BuildMetadataJsonAction => sender() ! cannedResponses.getOrElse(msg, throw new Exception(s"Unexpected inbound message: $msg"))
     }
   }
 }

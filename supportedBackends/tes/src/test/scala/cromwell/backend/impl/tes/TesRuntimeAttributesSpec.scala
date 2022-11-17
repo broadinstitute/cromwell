@@ -71,11 +71,34 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
-    "fail to validate an invalid preemptible entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "preemptible" -> WomString("yes"))
-      assertFailure(runtimeAttributes, "Expecting preemptible runtime attribute to be a Boolean or a String with values of 'true' or 'false'")
+    "convert a positive integer preemptible entry to true boolean" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "preemptible" -> WomInteger(3))
+      val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(preemptible = true)
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
-    
+
+    "convert a nonpositive integer preemptible entry to false boolean" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "preemptible" -> WomInteger(-1))
+      val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(preemptible = false)
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "convert a valid string preemptible entry to boolean" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "preemptible" -> WomString("true"))
+      val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(preemptible = true)
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "fail to validate an invalid string preemptible entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "preemptible" -> WomString("yes"))
+      assertFailure(runtimeAttributes, "Expecting preemptible runtime attribute to be an Integer, Boolean, or a String with values of 'true' or 'false'")
+    }
+
+    "fail to validate an invalid type preemptible entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "preemptible" -> WomFloat(3.14))
+      assertFailure(runtimeAttributes, "Expecting preemptible runtime attribute to be an Integer, Boolean, or a String with values of 'true' or 'false'")
+    }
+
     "validate a valid continueOnReturnCode entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomInteger(1))
       val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1)))
@@ -83,13 +106,13 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
     }
 
     "validate a valid continueOnReturnCode array entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomArray(WomArrayType(WomIntegerType), Array(WomInteger(1), WomInteger(2))))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomArray(WomArrayType(WomIntegerType), List(WomInteger(1), WomInteger(2))))
       val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2)))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "coerce then validate a valid continueOnReturnCode array entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomArray(WomArrayType(WomStringType), Array(WomString("1"), WomString("2"))))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomArray(WomArrayType(WomStringType), List(WomString("1"), WomString("2"))))
       val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2)))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
@@ -160,13 +183,26 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
 
     "turn unknown string attributes into backend parameters" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "foo" -> WomString("bar"))
-      val expectedRuntimeAttributes = expectedDefaults.copy(backendParameters = Map("foo" -> "bar"))
+      val expectedRuntimeAttributes = expectedDefaults.copy(backendParameters = Map("foo" -> Option("bar")))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes, tesConfig = mockTesConfigWithBackendParams)
     }
 
     "exclude unknown non-string attributes from backend parameters" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "foo" -> WomInteger(5), "bar" -> WomString("baz"))
-      val expectedRuntimeAttributes = expectedDefaults.copy(backendParameters = Map("bar" -> "baz"))
+      val expectedRuntimeAttributes = expectedDefaults.copy(backendParameters = Map("bar" -> Option("baz")))
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes, tesConfig = mockTesConfigWithBackendParams)
+    }
+
+
+    "turn populated optional unknown string attributes into backend parameters" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "foo" -> WomOptionalValue(WomString("bar")))
+      val expectedRuntimeAttributes = expectedDefaults.copy(backendParameters = Map("foo" -> Option("bar")))
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes, tesConfig = mockTesConfigWithBackendParams)
+    }
+
+    "turn unpopulated optional unknown string attributes into backend parameters" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "foo" -> WomOptionalValue.none(WomStringType))
+      val expectedRuntimeAttributes = expectedDefaults.copy(backendParameters = Map("foo" -> None))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes, tesConfig = mockTesConfigWithBackendParams)
     }
   }

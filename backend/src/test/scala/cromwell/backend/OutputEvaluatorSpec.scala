@@ -11,7 +11,6 @@ import cromwell.core.CallOutputs
 import cromwell.util.WomMocks
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
 import wom.callable.Callable.{InputDefinition, OutputDefinition, RequiredInputDefinition}
 import wom.expression.{FileEvaluation, IoFunctionSet, NoIoFunctionSet, WomExpression}
 import wom.graph.WomIdentifier
@@ -21,16 +20,16 @@ import wom.values.{WomInteger, WomValue}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor}
 
-class OutputEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito {
+class OutputEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "OutputEvaluator"
 
-  val FutureTimeout = 20.seconds
+  private val FutureTimeout = 20.seconds
   final implicit val blockingEc: ExecutionContextExecutor = ExecutionContext.fromExecutor(
     Executors.newCachedThreadPool()
   )
-  
+
   // Depends on an input
-  def o1Expression = new WomExpression {
+  private def o1Expression = new WomExpression {
     override def sourceString: String = "o1"
     override def inputs: Set[String] = Set("input")
     override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
@@ -41,7 +40,7 @@ class OutputEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
   }
 
   // Depends on a previous output
-  def o2Expression = new WomExpression {
+  private def o2Expression = new WomExpression {
     override def sourceString: String = "o2"
     override def inputs: Set[String] = Set("o1")
     override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
@@ -51,7 +50,7 @@ class OutputEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = throw new UnsupportedOperationException
   }
 
-  def invalidWomExpression1 = new WomExpression {
+  private def invalidWomExpression1 = new WomExpression {
     override def sourceString: String = "invalid1"
     override def inputs: Set[String] = Set.empty
     override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
@@ -65,7 +64,7 @@ class OutputEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     }
   }
 
-  def invalidWomExpression2 = new WomExpression {
+  private def invalidWomExpression2 = new WomExpression {
     override def sourceString: String = "invalid2"
     override def inputs: Set[String] = Set.empty
     override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
@@ -78,10 +77,10 @@ class OutputEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
       "Invalid expression 2".invalidNel
     }
   }
-  
+
   val exception = new Exception("Expression evaluation exception")
-  
-  def throwingWomExpression = new WomExpression {
+
+  private def throwingWomExpression = new WomExpression {
     override def sourceString: String = "throwing"
     override def inputs: Set[String] = Set.empty
     override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
@@ -98,17 +97,17 @@ class OutputEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
   val mockInputs: Map[InputDefinition, WomValue] = Map(
     RequiredInputDefinition("input", WomIntegerType) -> WomInteger(5)
   )
-  
+
   it should "evaluate valid jobs outputs" in {
     val mockOutputs = List (
       OutputDefinition("o1", WomIntegerType, o1Expression),
       OutputDefinition("o2", WomIntegerType, o2Expression)
     )
-    
+
     val call = WomMocks.mockTaskCall(WomIdentifier("call"), WomMocks.EmptyTaskDefinition.copy(outputs = mockOutputs))
     val key = BackendJobDescriptorKey(call, None, 1)
     val jobDescriptor = BackendJobDescriptor(null, key, null, mockInputs, null, None, null)
-    
+
     Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet), FutureTimeout) match {
       case ValidJobOutputs(outputs) => outputs shouldBe CallOutputs(Map(
         jobDescriptor.taskCall.outputPorts.find(_.name == "o1").get -> WomInteger(5),

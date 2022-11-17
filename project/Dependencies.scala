@@ -1,27 +1,24 @@
 import sbt._
 
 object Dependencies {
-  private val akkaHttpCirceIntegrationV = "1.38.2"
+  private val akkaHttpCirceIntegrationV = "1.39.2"
   private val akkaHttpV = "10.1.15" // (CROM-6619)
   private val akkaV = "2.5.32" // scala-steward:off (CROM-6637)
-  private val aliyunBcsV = "6.2.4"
-  private val aliyunCoreV = "4.5.25"
-  private val aliyunCrV = "4.1.2"
-  private val aliyunOssV = "3.13.1"
-  private val ammoniteOpsV = "2.4.0"
+  private val ammoniteOpsV = "2.4.1"
   private val apacheHttpClientV = "4.5.13"
-  private val awsSdkV = "2.17.50"
+  private val awsSdkV = "2.17.265"
   // We would like to use the BOM to manage Azure SDK versions, but SBT doesn't support it.
   // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
   // https://github.com/sbt/sbt/issues/4531
-  private val azureIdentitySdkV = "1.4.2"
-  private val azureKeyVaultSdkV = "4.3.4"
+  private val azureStorageBlobNioV = "12.0.0-beta.19"
+  private val azureIdentitySdkV = "1.4.6"
+  private val azureKeyVaultSdkV = "4.3.8"
   private val betterFilesV = "3.9.1"
   /*
   cats-effect, fs2, http4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
    */
   private val catsEffectV = "2.5.3" // scala-steward:off (CROM-6564)
-  private val catsV = "2.6.1"
+  private val catsV = "2.7.0"
   private val circeConfigV = "0.8.0"
   private val circeGenericExtrasV = "0.14.1"
   private val circeOpticsV = "0.14.1"
@@ -33,82 +30,79 @@ object Dependencies {
   private val commonsLang3V = "3.12.0"
   private val commonsMathV = "3.6.1"
   private val commonNetV = "3.8.0" // via: https://commons.apache.org/proper/commons-net/
-  private val commonsTextV = "1.9"
+  private val commonsTextV = "1.10.0"
   private val configsV = "0.6.1"
   private val delightRhinoSandboxV = "0.0.15"
   private val diffsonSprayJsonV = "4.1.1"
-  private val ficusV = "1.5.1"
-  // The "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV dependency is an implicit, version-specific
-  // runtime dependency of ScalaTest. They must be upgraded together, based on the ScalaTest version.
-  private val flexmarkV = "0.62.2" // scala-steward:off
+  private val ficusV = "1.5.2"
   private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
-  private val googleApiClientV = "1.32.1"
-  private val googleCloudBigQueryV = "2.1.13"
-  // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-cloudkms
-  private val googleCloudKmsV = "v1-rev20210820-1.32.1"
-  private val googleCloudMonitoringV = "3.0.6"
-  // BW-808 Pinning googleCloudNioV to this tried-and-true old version and quieting Scala Steward.
-  // 0.121.2 is the most recent version currently known to work.
-  private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
-  private val googleCloudStorageV = "2.1.6"
-  private val googleGaxGrpcV = "2.4.1"
+  private val googleApiClientV = "1.33.2"
+  private val googleCloudBigQueryV = "2.10.0"
+  // latest date via: https://github.com/googleapis/google-api-java-client-services/blob/main/clients/google-api-services-cloudkms/v1.metadata.json
+  private val googleCloudKmsV = "v1-rev20220104-1.32.1"
+  private val googleCloudMonitoringV = "3.2.5"
+  private val googleCloudNioV = "0.124.8"
+  private val googleCloudStorageV = "2.9.2"
+  private val googleGaxGrpcV = "2.19.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-genomics
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"
   private val googleHttpClientApacheV = "2.1.2"
   private val googleHttpClientV = "1.38.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-lifesciences
   private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20210813-1.32.1"
-  private val googleOauth2V = "1.1.0"
-  private val googleOauthClientV = "1.32.1"
-  private val googleCloudResourceManagerV = "1.1.2"
-  private val grpcV = "1.41.0"
+  private val googleOauth2V = "1.5.3"
+  private val googleOauthClientV = "1.33.1"
+  private val googleCloudResourceManagerV = "1.2.5"
+  private val grpcV = "1.45.1"
   private val guavaV = "31.0.1-jre"
   private val heterodonV = "1.0.0-beta3"
-  private val hsqldbV = "2.6.0"
+  private val hsqldbV = "2.6.1"
   private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
-  private val jacksonV = "2.13.0"
-  private val janinoV = "3.1.6"
+  private val jacksonV = "2.13.3"
+  private val janinoV = "3.1.7"
   private val jsr305V = "3.0.2"
-  private val kindProjectorV = "0.10.0"
+  private val junitV = "4.13.2"
+  private val kindProjectorV = "0.13.2"
   private val kittensV = "2.3.2"
-  private val liquibaseV = "4.6.1"
-  private val logbackV = "1.2.10"
+  private val liquibaseV = "4.8.0"
+  private val logbackV = "1.2.11"
   private val lz4JavaV = "1.8.0"
   private val mariadbV = "2.7.4"
   /*
   The StatsD reporter for DropWizard's (Code Hale's) Metrics 3.x still works with Metrics 4.x.
   Still would be great to move to Prometheus / OpenCensus
    */
-  private val metrics4ScalaV = "4.1.19"
+  private val metrics4ScalaV = "4.2.8"
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "3.0.0"
-  private val mockserverNettyV = "5.11.2"
-  private val mouseV = "1.0.5"
-  private val mysqlV = "8.0.26"
+  private val mockitoV = "3.12.4"
+  private val mockserverNettyV = "5.14.0"
+  private val mouseV = "1.0.11"
+
+  /*
+  Newer version 8.0.29 fails `Control characters should work with metadata` Centaur tests, has charset changes mentioned in release notes
+  https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8-0-29.html#mysqld-8-0-29-charset
+   */
+  private val mysqlV = "8.0.28"
   private val nettyV = "4.1.72.Final"
   private val owlApiV = "5.1.19"
-  private val paradiseV = "2.1.1"
-  private val pegdownV = "1.6.0"
-  private val postgresV = "42.2.24"
-  private val pprintV = "0.6.6"
+  private val postgresV = "42.4.1"
+  private val pprintV = "0.7.3"
   private val rdf4jV = "3.7.1"
-  private val refinedV = "0.9.27"
-  private val rhinoV = "1.7.13"
+  private val refinedV = "0.10.1"
+  private val rhinoV = "1.7.14"
+
   private val scalaCollectionCompatV = "2.5.0"
   private val scalaGraphV = "1.13.1"
-  private val scalaLoggingV = "3.9.4"
+  private val scalaLoggingV = "3.9.5"
   private val scalaPoolV = "0.4.3"
-  private val scalacheckV = "1.15.4"
-  private val scalacticV = "3.2.10"
-  private val scalameterV = "0.19"
-  private val scalamockV = "5.1.0"
-  // scalatestV and flexmarkV must be upgraded together. Check the ScalaTest release notes to
-  // find the version of FlexMark that corresponds to the new version of ScalaTest.
+  private val scalacticV = "3.2.13"
+  private val scalameterV = "0.21"
   private val scalatestV = "3.2.10"
-  private val scalatestPlusMockitoV = "1.0.0-M2"
-  private val scoptV = "4.0.1"
-  private val sentryLogbackV = "5.2.4"
-  private val shapelessV = "2.3.7"
+  private val scalatestScalacheckV = scalatestV + ".0"
+  private val scoptV = "4.1.0"
+  private val sentryLogbackV = "5.7.4"
+  private val shapelessV = "2.3.9"
   private val simulacrumV = "1.0.1"
   private val slf4jV = "1.7.32"
   private val slickCatsV = "0.10.4"
@@ -119,19 +113,21 @@ object Dependencies {
     * and manually uploaded to the Broad Institute artifactory at https://broadinstitute.jfrog.io/broadinstitute/.
     * Consider updating to the official newer Slick version once they fix issue #2076
     * Related Slick PR: https://github.com/slick/slick/pull/2101
+    *
+    * Update 2022-03-23: This #2201 PR cherry picks Greg's #2101 PR above and claims to fix the issue:
+    * https://github.com/slick/slick/pull/2201
   */
-  private val slickV = "3.3.2-2076hotfix" // scala-steward:off (CROM-6620)
-  private val snakeyamlV = "1.29"
-  private val specs2MockV = "4.12.12"
+  private val slickV = "3.4.0-M1"
+  private val snakeyamlV = "1.33"
   private val sprayJsonV = "1.3.6"
-  private val sttpV = "1.5.19" // scala-steward:off (CROM-6564)
+  private val sttpV = "1.7.2"
   private val swaggerParserV = "1.0.56"
-  private val swaggerUiV = "3.23.11" // scala-steward:off (CROM-6621)
-  private val testContainersScalaV = "0.39.8"
-  private val tikaV = "2.1.0"
-  private val typesafeConfigV = "1.4.1"
+  private val swaggerUiV = "4.5.2"
+  private val testContainersScalaV = "0.40.10"
+  private val tikaV = "2.3.0"
+  private val typesafeConfigV = "1.4.2"
   private val workbenchGoogleV = "0.21-5c9c4f6" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/google/CHANGELOG.md
-  private val workbenchModelV = "0.14-89d0d9e" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/model/CHANGELOG.md
+  private val workbenchModelV = "0.15-f9f0d4c" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/model/CHANGELOG.md
   private val workbenchUtilV = "0.6-65bba14" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/util/CHANGELOG.md
 
   private val slf4jFacadeDependencies = List(
@@ -188,19 +184,23 @@ object Dependencies {
   )
 
   val azureDependencies: List[ModuleID] = List(
+    "com.azure" % "azure-storage-blob-nio" % azureStorageBlobNioV
+      exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
+      exclude("jakarta.activation", "jakarta.activation-api"),
     "com.azure" % "azure-identity" % azureIdentitySdkV
       exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
       exclude("jakarta.activation", "jakarta.activation-api"),
     "com.azure" % "azure-security-keyvault-secrets" % azureKeyVaultSdkV
       exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
-      exclude("jakarta.activation", "jakarta.activation-api")
+      exclude("jakarta.activation", "jakarta.activation-api"),
+    "com.azure" % "azure-core-management" % "1.7.1",
+    "com.azure.resourcemanager" % "azure-resourcemanager" % "2.18.0"
   )
 
   val implFtpDependencies = List(
     "commons-net" % "commons-net" % commonNetV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV,
     "com.google.guava" % "guava" % guavaV,
-    "org.scalamock" %% "scalamock" % scalamockV % Test,
     "org.mockftpserver" % "MockFtpServer" % mockFtpServerV % Test
   )
 
@@ -240,7 +240,13 @@ object Dependencies {
     "org.codehaus.janino" % "janino" % janinoV,
     // Replace all log4j usage with slf4j
     // https://www.slf4j.org/legacy.html#log4j-over-slf4j
-    "org.slf4j" % "log4j-over-slf4j" % slf4jV
+    "org.slf4j" % "log4j-over-slf4j" % slf4jV,
+    // Replace all commons-logging usage with slf4j
+    // https://www.slf4j.org/legacy.html#jcl-over-slf4j
+    "org.slf4j" % "jcl-over-slf4j" % slf4jV,
+    // Enable runtime replacing of java.util.logging usage with slf4j
+    // https://www.slf4j.org/legacy.html#jul-to-slf4j
+    "org.slf4j" % "jul-to-slf4j" % slf4jV,
   ) ++ slf4jFacadeDependencies
 
   private val slickDependencies = List(
@@ -328,21 +334,6 @@ object Dependencies {
       exclude("com.google.guava", "guava-jdk5")
   ) ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency
 
-  private val aliyunOssDependencies = List(
-    "com.aliyun.oss" % "aliyun-sdk-oss" % aliyunOssV
-  )
-
-  private val aliyunBatchComputeDependencies = List(
-    "com.aliyun" % "aliyun-java-sdk-batchcompute" % aliyunBcsV,
-    "com.aliyun" % "aliyun-java-sdk-core" % aliyunCoreV
-  )
-
-  private val aliyunCrDependencies = List(
-    "com.aliyun" % "aliyun-java-sdk-cr" % aliyunCrV,
-    "com.aliyun" % "aliyun-java-sdk-core" % aliyunCoreV,
-    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV
-  )
-
   private val dbmsDependencies = List(
     "org.hsqldb" % "hsqldb" % hsqldbV,
     "org.mariadb.jdbc" % "mariadb-java-client" % mariadbV,
@@ -378,21 +369,58 @@ object Dependencies {
     "com.google.cloud" % "google-cloud-monitoring" % googleCloudMonitoringV
   )
 
+  /*
+  Generators are eventually coming to ScalaTest. Someday...
+    - https://youtu.be/lKtg-CDVDsI?t=562
+
+  For now use scalatestplus' scalacheck wrapper.
+
+  Tests that insist on using PropertyGenerators should actually use ScalaTest's wrapper. ScalaCheck tests no longer
+  run by default. See Testing.scala where only `ScalaTest` is specified in the `testFrameworks`.
+
+  See also (may be out of date):
+    - https://github.com/scalatest/scalatest/issues/1735
+    - https://www.scalatest.org/user_guide/generator_driven_property_checks
+    - https://www.scalatest.org/user_guide/writing_scalacheck_style_properties
+   */
+  private val scalacheckBaseV = "1.15"
+  private val scalacheckDependencies = List(
+    "org.scalatestplus" %% s"scalacheck-${scalacheckBaseV.replace(".", "-")}" % scalatestScalacheckV % Test,
+  )
+
+  /*
+  Note: `junitDependencies` only adds the dependency for JUnit tests to compile.
+
+  To actually _run_ the tests via SBT one would need the SBT to JUnit interface:
+    - https://github.com/sbt/junit-interface/
+
+  However, as of Aug 2021 there is only one S3 Java file using JUnit, and that code was copy-pasted from an
+  external GitHub repo. See `s3fsDependencies` for more information.
+
+  Also as of Aug 2021 Testing.scala only looks for and runs ScalaTest during regular testing.
+   */
+  private val junitDependencies = List(
+    "junit" % "junit" % junitV % Test
+  )
+
+  private val testDatabaseDependencies =
+    List("scalatest", "mysql", "mariadb", "postgresql")
+      .map(name => "com.dimafeng" %% s"testcontainers-scala-$name" % testContainersScalaV % Test)
+
+  val blobFileSystemDependencies: List[ModuleID] = azureDependencies
+
+  val s3FileSystemDependencies: List[ModuleID] = junitDependencies
+
   val gcsFileSystemDependencies: List[ModuleID] = akkaHttpDependencies
 
   val httpFileSystemDependencies: List[ModuleID] = akkaHttpDependencies
 
-  val ossFileSystemDependencies: List[ModuleID] = googleCloudDependencies ++ aliyunOssDependencies ++ List(
-    "com.github.pathikrit" %% "better-files" % betterFilesV
-  )
-
   val womDependencies: List[ModuleID] = List(
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "io.spray" %% "spray-json" % sprayJsonV,
-    "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
     "org.typelevel" %% "simulacrum" % simulacrumV,
     "commons-codec" % "commons-codec" % commonsCodecV
-  ) ++ circeDependencies ++ refinedTypeDependenciesList
+  ) ++ scalacheckDependencies ++ circeDependencies ++ refinedTypeDependenciesList
 
   val wdlDependencies: List[ModuleID] = List(
     "commons-io" % "commons-io" % commonsIoV,
@@ -436,11 +464,9 @@ object Dependencies {
     "com.lihaoyi" %% "ammonite-ops" % ammoniteOpsV,
     "org.broadinstitute" % "heterodon" % heterodonV classifier "single",
     "org.scalactic" %% "scalactic" % scalacticV,
-    "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
     "io.circe" %% "circe-optics" % circeOpticsV,
     "org.mozilla" % "rhino" % rhinoV,
     "org.javadelight" % "delight-rhino-sandbox" % delightRhinoSandboxV,
-    "org.scalamock" %% "scalamock" % scalamockV % Test,
     "commons-io" % "commons-io" % commonsIoV % Test
   ) ++ betterFilesDependencies ++ owlApiDependencies
 
@@ -454,9 +480,9 @@ object Dependencies {
   val coreDependencies: List[ModuleID] = List(
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
     "com.chuusai" %% "shapeless" % shapelessV,
-    "com.storm-enroute" %% "scalameter" % scalameterV % Test,
+    "com.storm-enroute" %% "scalameter" % scalameterV % Test
+      exclude("org.scala-lang.modules", "scala-xml_2.13"),
     "com.github.scopt" %% "scopt" % scoptV,
-    "org.scalamock" %% "scalamock" % scalamockV % Test
   ) ++ akkaStreamDependencies ++ configDependencies ++ catsDependencies ++ circeDependencies ++
     googleApiClientDependencies ++ statsDDependencies ++ betterFilesDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.
@@ -464,7 +490,7 @@ object Dependencies {
 
   val databaseMigrationDependencies: List[ModuleID] = liquibaseDependencies ++ dbmsDependencies
 
-  val dockerHashingDependencies: List[ModuleID] = http4sDependencies ++ circeDependencies ++ aliyunCrDependencies
+  val dockerHashingDependencies: List[ModuleID] = http4sDependencies ++ circeDependencies
 
   val cromwellApiClientDependencies: List[ModuleID] = List(
     "org.typelevel" %% "cats-effect" % catsEffectV,
@@ -484,15 +510,17 @@ object Dependencies {
     "com.storm-enroute" %% "scalameter" % scalameterV
       exclude("com.fasterxml.jackson.core", "jackson-databind")
       exclude("com.fasterxml.jackson.module", "jackson-module-scala")
-      exclude("org.scala-tools.testing", "test-interface"),
+      exclude("org.scala-tools.testing", "test-interface")
+      exclude("org.scala-lang.modules", "scala-xml_2.13"),
     "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV
-  ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies
+  ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies ++
+    testDatabaseDependencies
 
-  val servicesDependencies = List(
+  val servicesDependencies: List[ModuleID] = List(
     "com.google.api" % "gax-grpc" % googleGaxGrpcV,
     "org.apache.commons" % "commons-csv" % commonsCsvV,
-  )
+  ) ++ testDatabaseDependencies
 
   val serverDependencies: List[ModuleID] = slf4jBindingDependencies
 
@@ -506,12 +534,9 @@ object Dependencies {
 
   val wes2cromwellDependencies: List[ModuleID] = coreDependencies ++ akkaHttpDependencies
 
-  val backendDependencies = List(
-    "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
+  val backendDependencies: List[ModuleID] = List(
     "co.fs2" %% "fs2-io" % fs2V
-  )
-
-  val bcsBackendDependencies: List[ModuleID] = commonDependencies ++ refinedTypeDependenciesList ++ aliyunBatchComputeDependencies
+  ) ++ scalacheckDependencies
 
   val tesBackendDependencies: List[ModuleID] = akkaHttpDependencies
 
@@ -521,18 +546,12 @@ object Dependencies {
 
   val testDependencies: List[ModuleID] = List(
     "org.scalatest" %% "scalatest" % scalatestV,
-    "org.scalatestplus" %% "scalatestplus-mockito" % scalatestPlusMockitoV,
-    "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV,
-    "org.pegdown" % "pegdown" % pegdownV,
-    "org.specs2" %% "specs2-mock" % specs2MockV,
-    "com.dimafeng" %% "testcontainers-scala-scalatest" % testContainersScalaV,
-    "com.dimafeng" %% "testcontainers-scala-mysql" % testContainersScalaV,
-    "com.dimafeng" %% "testcontainers-scala-mariadb" % testContainersScalaV,
-    "com.dimafeng" %% "testcontainers-scala-postgresql" % testContainersScalaV
+    // Use mockito Java DSL directly instead of the numerous and often hard to keep updated Scala DSLs.
+    // See also scaladoc in common.mock.MockSugar and that trait's various usages.
+    "org.mockito" % "mockito-core" % mockitoV
   ) ++ slf4jBindingDependencies // During testing, add an slf4j binding for _all_ libraries.
 
-  val kindProjectorPlugin = "org.typelevel" %% "kind-projector" % kindProjectorV
-  val paradisePlugin = "org.scalamacros" % "paradise" % paradiseV cross CrossVersion.full
+  val kindProjectorPlugin = "org.typelevel" % "kind-projector" % kindProjectorV cross CrossVersion.full
 
   // Version of the swagger UI to write into config files
   val swaggerUiVersion: String = swaggerUiV
@@ -547,11 +566,11 @@ object Dependencies {
     "com.iheart" %% "ficus" % ficusV,
     "com.softwaremill.sttp" %% "circe" % sttpV,
     "com.github.scopt" %% "scopt" % scoptV,
+    "org.apache.commons" % "commons-csv" % commonsCsvV,
   ) ++ circeDependencies ++ catsDependencies ++ slf4jBindingDependencies ++ languageFactoryDependencies ++ azureDependencies
 
   val allProjectDependencies: List[ModuleID] =
     backendDependencies ++
-      bcsBackendDependencies ++
       centaurCwlRunnerDependencies ++
       centaurDependencies ++
       cloudSupportDependencies ++
@@ -562,7 +581,6 @@ object Dependencies {
       cwlDependencies ++
       databaseMigrationDependencies ++
       databaseSqlDependencies ++
-      dockerHashingDependencies ++
       draft2LanguageFactoryDependencies ++
       drsLocalizerDependencies ++
       engineDependencies ++
@@ -571,7 +589,6 @@ object Dependencies {
       implDrsDependencies ++
       implFtpDependencies ++
       languageFactoryDependencies ++
-      ossFileSystemDependencies ++
       perfDependencies ++
       serverDependencies ++
       sfsBackendDependencies ++
@@ -592,6 +609,14 @@ object Dependencies {
   Any dependencies that are removed may be also removed from this list.
   However, be careful about downgrading any of these dependencies.
   Older versions have known vulnerabilities, ex: CVE-2017-7525
+
+  === SECURITY UPGRADES ===
+
+  When upgrading dependencies to fix security issues, it is preferable to start with upgrading the
+  library that brings it in. Only fall back to overriding here when the latest library version still
+  has a vulnerable version of the dependency, or a major version upgrade is required and infeasible.
+  This algorithm makes it simpler to upgrade libraries in the future, because we don't have to
+  remember to remove the override.
    */
 
   val googleHttpClientDependencies = List(
@@ -676,6 +701,19 @@ object Dependencies {
     "org.asynchttpclient" % "async-http-client" % "2.10.5",
   )
 
+
+  private val nimbusdsOverrides = List(
+    "com.nimbusds" % "nimbus-jose-jwt" % "9.23",
+  )
+
+  private val bouncyCastleOverrides = List(
+    "org.bouncycastle" % "bcprov-jdk15on" % "1.70",
+  )
+
+  private val protobufJavaOverrides = List(
+    "com.google.protobuf" % "protobuf-java" % "3.21.2",
+  )
+
   /*
   If we use a version in one of our projects, that's the one we want all the libraries to use
   ...plus other groups of transitive dependencies shared across multiple projects
@@ -687,5 +725,16 @@ object Dependencies {
       rdf4jDependencyOverrides ++
       grpcDependencyOverrides ++
       scalaCollectionCompatOverrides ++
-      asyncHttpClientOverrides
+      asyncHttpClientOverrides ++
+      nimbusdsOverrides ++
+      bouncyCastleOverrides ++
+      protobufJavaOverrides
+
+  /*
+  Libraries that should be globally excluded.
+   */
+  val cromwellExcludeDependencies: List[ExclusionRule] = List(
+    // Replaced with jcl-over-slf4j
+    ExclusionRule("commons-logging", "commons-logging"),
+  )
 }

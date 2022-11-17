@@ -2,7 +2,7 @@
 
 Containers are encapsulated environments that include an operating system, libraries, and software. For example, if you have a host machine running Centos, you can run an isolated container with Ubuntu 18.04. At a high level, it's useful to think of a container as a program or binary.
  
-To promote reproducibility and portability, it's considered best practice to define containers for a WDL and CWL task to run in - this ensures that running the same task on a different system will run the exact same software. 
+To promote reproducibility and portability, it's considered best practice to define containers for a WDL task to run in - this ensures that running the same task on a different system will run the exact same software. 
 
 Docker images are the most common container format, but it is not advisable for certain systems to run Docker itself, and for this reason Cromwell can be configured to support a number of alternatives.
 
@@ -71,26 +71,6 @@ workflow hello {
 }
 ```
 
-Similarly in CWL, you can specify a [`DockerRequirement`](https://www.commonwl.org/v1.0/CommandLineTool.html#DockerRequirement) inside the requirements section:
-
-```cwl
-cwlVersion: v1.0
-class: CommandLineTool
-baseCommand: echo
-inputs:
-    name:
-        type: string
-        default: "World"
-        inputBinding:
-          prefix: "Hello, "
-outputs:
-    out: stdout
-
-requirements:
-    DockerRequirement:
-        dockerPull: "ubuntu:latest"
-``` 
-___
 ### Docker
 
 [Docker](https://www.docker.com) is a popular container technology that is natively supported by Cromwell and WDL.
@@ -509,8 +489,6 @@ Congratulations for improving the reproducibility of your workflows! You might f
 
 - [Getting started with AWS Batch](AwsBatch101.md)
 - [Getting started on Google Pipelines API](PipelinesApi101.md)
-- [Getting started on Alibaba Cloud](BCSIntro/)
-
 
 [cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends/cromwell.examples.conf
 [cromwell-examples-folder]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends

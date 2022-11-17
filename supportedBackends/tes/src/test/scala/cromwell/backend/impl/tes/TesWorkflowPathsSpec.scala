@@ -7,9 +7,10 @@ import cromwell.core.{JobKey, WorkflowId}
 import cromwell.util.WomMocks
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import wom.graph.WomIdentifier
+import wom.graph.{GraphNode, WomIdentifier}
+import common.mock.MockSugar
 
-class TesWorkflowPathsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with BackendSpec {
+class TesWorkflowPathsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with BackendSpec with MockSugar {
 
   "WorkflowPaths" should "provide correct paths for a workflow" in {
     val wd = buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld)
@@ -33,11 +34,11 @@ class TesWorkflowPathsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     val subWorkflowId = WorkflowId.randomId()
     subWd.callable returns subWorkflow
     subWd.id returns subWorkflowId
-    
+
     val call1 = WomMocks.mockTaskCall(WomIdentifier("call1"))
-    
+
     val jobKey = new JobKey {
-      override def node = call1
+      override def node: GraphNode = call1
       override def tag: String = "tag1"
       override def index: Option[Int] = Option(1)
       override def attempt: Int = 2
@@ -45,7 +46,7 @@ class TesWorkflowPathsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
     subWd.breadCrumbs returns List(BackendJobBreadCrumb(rootWorkflow, rootWorkflowId, jobKey))
     subWd.id returns subWorkflowId
-    
+
     val workflowPaths = TesWorkflowPaths(subWd, TesTestConfig.backendConfig)
     workflowPaths.workflowRoot.toString shouldBe File(s"local-cromwell-executions/rootWorkflow/$rootWorkflowId/call-call1/shard-1/attempt-2/subWorkflow/$subWorkflowId").pathAsString
     workflowPaths.dockerWorkflowRoot.toString shouldBe s"/cromwell-executions/rootWorkflow/$rootWorkflowId/call-call1/shard-1/attempt-2/subWorkflow/$subWorkflowId"

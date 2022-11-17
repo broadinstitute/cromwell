@@ -40,7 +40,7 @@ trait BackendLifecycleActor extends Actor {
   protected def performActionThenRespond(operation: => Future[BackendWorkflowLifecycleActorResponse],
                                          onFailure: Throwable => BackendWorkflowLifecycleActorResponse,
                                          andThen: => Unit = ()) = {
-    val respondTo: ActorRef = sender
+    val respondTo: ActorRef = sender()
     operation onComplete {
       case Success(r) =>
         respondTo ! r

@@ -36,24 +36,22 @@ import java.util.UUID
 import akka.actor.Props
 import akka.testkit._
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed, Initialize}
+import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed, InitializationSuccess, Initialize}
 import cromwell.backend.async.RuntimeAttributeValidationFailures
 import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
 import org.scalatest.flatspec.AnyFlatSpecLike
-// import cromwell.cloudsupport.aws.auth.AwsAuthModeSpec
 import cromwell.core.Dispatcher.BackendDispatcher
-import cromwell.core.Tags.PostWomTest
+import cromwell.core.Tags.IntegrationTest
 import cromwell.core.TestKitSuite
-// import cromwell.core.logging.LoggingTest._
+import cromwell.core.logging.LoggingTest._
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
 import spray.json._
 import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
 
 class AwsBatchInitializationActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
-  with ImplicitSender with Mockito {
+  with ImplicitSender {
   val Timeout: FiniteDuration = 30.second.dilated
 
   import BackendSpec._
@@ -85,14 +83,8 @@ class AwsBatchInitializationActorSpec extends TestKitSuite with AnyFlatSpecLike 
       |
       |  auths = [
       |    {
-      |      name = "application-default"
-      |      scheme = "application_default"
-      |    },
-      |    {
-      |      name = "user-via-refresh"
-      |      scheme = "refresh_token"
-      |      access-key = "secret_id"
-      |      secret-key = "secret_secret"
+      |      name = "default"
+      |      scheme = "default"
       |    }
       |  ]
       |}
@@ -103,11 +95,17 @@ class AwsBatchInitializationActorSpec extends TestKitSuite with AnyFlatSpecLike 
       |  // Base bucket for workflow executions
       |  root = "s3://my-cromwell-workflows-bucket"
       |
+      |  auth = default
+      |  numSubmitAttempts = 1
+      |  numCreateDefinitionAttempts = 1
+      |
       |  // Polling for completion backs-off gradually for slower-running jobs.
       |  // This is the maximum polling interval (in seconds):
       |  maximum-polling-interval = 600
       |
       |  default-runtime-attributes {
+      |     queueArn: "arn:aws:batch:us-east-1:12345:job-queue/example"
+      |     scriptBucketName: example
       |     cpu: 1
       |     failOnStderr: false
       |     # Allowed to be a boolean, or a list of Ints, or an Int
@@ -121,7 +119,7 @@ class AwsBatchInitializationActorSpec extends TestKitSuite with AnyFlatSpecLike 
       |  filesystems {
       |    s3 {
       |      // A reference to a potentially different auth for manipulating files via engine functions.
-      |      auth = "application-default"
+      |      auth = "default"
       |    }
       |  }
       |
@@ -187,28 +185,26 @@ class AwsBatchInitializationActorSpec extends TestKitSuite with AnyFlatSpecLike 
 
   behavior of "AwsBatchInitializationActor"
 
-  // it should "log a warning message when there are unsupported runtime attributes" taggedAs IntegrationTest in {
-  //   AwsAuthModeSpec.assumeHasApplicationDefaultCredentials()
-  //
-  //   within(Timeout) {
-  //     val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld,
-  //       runtime = """runtime { docker: "ubuntu/latest" test: true }""")
-  //     val backend = getAwsBatchBackend(workflowDescriptor, workflowDescriptor.callable.taskCallNodes,
-  //       defaultBackendConfig)
-  //     val eventPattern =
-  //       "Key/s [test] is/are not supported by backend. Unsupported attributes will not be part of job executions."
-  //     EventFilter.warning(pattern = escapePattern(eventPattern), occurrences = 1) intercept {
-  //       backend ! Initialize
-  //     }
-  //     expectMsgPF() {
-  //       case InitializationSuccess(_) => //Docker entry is present.
-  //       case InitializationFailed(failure) => fail(s"InitializationSuccess was expected but got $failure")
-  //     }
-  //   }
-  // }
+  it should "log a warning message when there are unsupported runtime attributes" taggedAs IntegrationTest in {
 
-  // Depends on https://github.com/broadinstitute/cromwell/issues/2606
-  it should "return InitializationFailed when docker runtime attribute key is not present" taggedAs PostWomTest ignore {
+    within(Timeout) {
+      val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld,
+        runtime = """runtime { docker: "ubuntu/latest" test: true }""")
+      val backend = getAwsBatchBackend(workflowDescriptor, workflowDescriptor.callable.taskCallNodes,
+        defaultBackendConfig)
+      val eventPattern =
+        "Key/s [test] is/are not supported by backend. Unsupported attributes will not be part of job executions."
+      EventFilter.warning(pattern = escapePattern(eventPattern), occurrences = 1) intercept {
+        backend ! Initialize
+      }
+      expectMsgPF() {
+        case InitializationSuccess(_) => //Docker entry is present.
+        case InitializationFailed(failure) => fail(s"InitializationSuccess was expected but got $failure")
+      }
+    }
+  }
+
+  it should "return InitializationFailed when docker runtime attribute key is not present" taggedAs IntegrationTest in {
     within(Timeout) {
       val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
       val backend = getAwsBatchBackend(workflowDescriptor, workflowDescriptor.callable.taskCallNodes,

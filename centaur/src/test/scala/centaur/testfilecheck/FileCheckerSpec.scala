@@ -1,41 +1,38 @@
 package centaur.testfilecheck
 
 import java.util
-
 import com.google.api.gax.paging.Page
 import com.google.cloud.storage.Storage.BlobListOption
 import com.google.cloud.storage.{Blob, Storage}
 import common.assertion.CromwellTimeoutSpec
 import org.mockito.Mockito._
-import org.specs2.matcher.ShouldMatchers
-import org.specs2.mock.Mockito
+import common.mock.MockSugar
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.{ListObjectsRequest, ListObjectsResponse, S3Object}
 import org.scalatest.flatspec.AnyFlatSpec
 
 
-class FileCheckerSpec extends AnyFlatSpec with CromwellTimeoutSpec with ShouldMatchers with Mockito {
+class FileCheckerSpec extends AnyFlatSpec with CromwellTimeoutSpec with MockSugar {
 
   import centaur.test.ObjectCounterInstances._
 
-  val s3PrefixRegex = "^s3:\\/\\/.*"
-  val gsPrefixRegex = "^gs:\\/\\/.*"
+  private val s3PrefixRegex = "^s3:\\/\\/.*"
+  private val gsPrefixRegex = "^gs:\\/\\/.*"
 
-  val amazonS3mock = mock[S3Client]
-  val testPath = "s3://my-cool-bucket/path/to/file"
-  val bucketName = "my-cool-bucket"
-  val dirName = "path/to/file"
-  val wrongBucketPrefix = "s3Bucket://my-not-so-cool-bucket/somelogs/empty"
-  val EmptyTestPath = ""
-  val gsPathType = "gs://"
-  val testGsPath = "gs://my-cool-bucket/path/to/file"
-  val objResponse = ListObjectsResponse.builder()
+  private val amazonS3mock = mock[S3Client]
+  private val testPath = "s3://my-cool-bucket/path/to/file"
+  private val bucketName = "my-cool-bucket"
+  private val dirName = "path/to/file"
+  private val wrongBucketPrefix = "s3Bucket://my-not-so-cool-bucket/somelogs/empty"
+  private val EmptyTestPath = ""
+  private val testGsPath = "gs://my-cool-bucket/path/to/file"
+  private val objResponse = ListObjectsResponse.builder()
     .contents(util.Arrays.asList(S3Object.builder()
       .build()))
     .build()
-  val objRequest = ListObjectsRequest.builder().bucket(bucketName).prefix(dirName).build()
-  val awsS3Path = awsS3ObjectCounter.parsePath(s3PrefixRegex)(testPath)
-  val gsPath = gcsObjectCounter.parsePath(gsPrefixRegex)(testGsPath)
+  private val objRequest = ListObjectsRequest.builder().bucket(bucketName).prefix(dirName).build()
+  private val awsS3Path = awsS3ObjectCounter.parsePath(s3PrefixRegex)(testPath)
+  private val gsPath = gcsObjectCounter.parsePath(gsPrefixRegex)(testGsPath)
 
 
   "parsePath" should "return a bucket and directories" in {
@@ -77,7 +74,7 @@ class FileCheckerSpec extends AnyFlatSpec with CromwellTimeoutSpec with ShouldMa
     val blob = null
     val blobbies = new util.ArrayList[Blob]()
     blobbies.add(blob)
-    when(pageMock.iterateAll).thenReturns(blobbies)
+    when(pageMock.iterateAll).thenReturn(blobbies)
     when(gcsMock.list(bucketName, BlobListOption.prefix(dirName))).thenReturn(pageMock)
     val actualObjectCounts = gcsObjectCounter.countObjectsAtPath(gcsMock)(gsPath)
     val expectedObjectCounts = 1
@@ -89,7 +86,7 @@ class FileCheckerSpec extends AnyFlatSpec with CromwellTimeoutSpec with ShouldMa
     val gcsMock = mock[Storage]
     val pageMock = mock[Page[Blob]]
     val blobbies = new util.ArrayList[Blob]()
-    when(pageMock.iterateAll).thenReturns(blobbies)
+    when(pageMock.iterateAll).thenReturn(blobbies)
     when(gcsMock.list(bucketName, BlobListOption.prefix(dirName))).thenReturn(pageMock)
     val actualObjectCounts = gcsObjectCounter.countObjectsAtPath(gcsMock)(gsPath)
     val expectedObjectCounts = 0

@@ -9,6 +9,9 @@ See our "updating the process" [process](../README.MD)!
 
 If you're the lucky "Release Rotation Engineer" this time, you should do the following four things:
 
+1. Create a Jira ticket for the release (look at previous release tickets if you're not sure how). In the Suggested 
+Release Notes field, add "Terra is now running Cromwell <version>" along with any other release notes relevant to Terra
+users.
 1. Check that all most recent executions of Cromwell's Jenkins tests have succeeded, and that all those executions were 
 against the most recent commit in "develop" branch. There are 2 groups of Jenkins tests which have to be checked (you 
 will need to be on the Broad internal network or VPN to open the following links):
@@ -22,7 +25,7 @@ will need to be on the Broad internal network or VPN to open the following links
 
 #### Announce your intentions
 
-Post a message in `#ftfy-private` letting people know that a publish is imminent in case there are PRs they want to get
+Post a message in `#dsp-batch-private` letting people know that a publish is imminent in case there are PRs they want to get
 wrapped up and merged to `develop` to go out in the forthcoming version of Cromwell.
 
 #### Get a Github token
@@ -33,21 +36,23 @@ The release WDL uses a github token to perform actions on your behalf.
   * the full set of `repo` permissions
   * the `workflow` permission
   * only the `read:org` permission (do not let this token administer your organizations!)
-  * only the `user:email` permission (do not let this token administer your organizations!)
-* Copy the token and save it to a file on your local machine. You'll use it in a second.
+  * only the `user:email` permission (do not let this token administer your user!)
+* When viewing the token in the [list-view of tokens](https://github.com/settings/tokens), its scopes string should read exactly `read:org, repo, user:email, workflow`
+* Copy the token and save it to a file on your local machine, for example `~/.github-token`. You'll use it in a second.
 
 #### Prepare a temporary `release` directory
 
-This is optional, but I find it useful. Make or copy the following files into some temporary `releases/` directory:
+Make or copy the following files into a temporary `release/` directory outside the Cromwell repository. This removes any chance of committing your token.
 
 * A copy of the workflow file to run (https://github.com/broadinstitute/cromwell/blob/develop/publish/publish_workflow.wdl)
-* An inputs json like this:
+* An inputs json like this one.
+  * `publishHomebrew` is `false` due to Homebrew taking on this part themselves. Homebrew remains an active distribution channel. 
 
 ```json
 {
   "publish_workflow.githubToken": "<<GITHUB TOKEN VALUE>>",
   "publish_workflow.majorRelease": true,
-  "publish_workflow.publishHomebrew": true,
+  "publish_workflow.publishHomebrew": false,
   "publish_workflow.publishDocker": "broadinstitute/cromwell-publish:latest",
   "publish_workflow.organization": "broadinstitute"
 }
@@ -60,27 +65,33 @@ Ensure you have at least 8GB; 4GB is not sufficient.
 
 #### Let people know the publish is underway
 
-Post another message in `#ftfy-private` that the release is underway, asking everyone to hold off merges to develop until
+Post another message in `#dsp-batch-private` that the release is underway, asking everyone to hold off merges to `develop` until
 the release is published.
 
 #### Run the `publish_workflow.wdl` Workflow
 
-Run Cromwell in server mode with a persistent backing database, using Docker containers. This allows call caching to happen if you need to restart for any reason. 
+Run Cromwell in server mode with a persistent backing database, using Docker containers. This allows call caching to happen if you need to restart for any reason.
 See instructions for using a Dockerized MySQL server and CI config [here](#cromwell-setup-for-publishing).
 
-Note that the publish workflow is quite resource intensive; it's a good idea to
-shut down other resource intensive apps before launching it to avoid painfully slow or failed executions.
+Note that the publish workflow is quite resource intensive; it's a good idea to shut down other resource intensive apps before launching it to avoid painfully slow or failed executions.
 
-Using the Swagger API, submit the workflow to Cromwell along with the inputs file.
+Make sure to plug in your laptop.
+
+Using the Swagger API at `http://localhost:8000`, submit the workflow to Cromwell along with the inputs file.
+
+The workflow outputs its status to the console.
 
 #### Make sure it all went swimmingly
 
-* Check that the workflow succeeded
+* Check that the workflow succeeded. 
 * Check that there's now a new Cromwell release listed [here](https://github.com/broadinstitute/cromwell/releases).
-* If publishing to Homebrew, check that there's a Homebrew PR for the new Cromwell version [here](https://github.com/Homebrew/homebrew-core/pulls) (and that it passes their CI)
 * Look [in Travis](https://app.travis-ci.com/github/broadinstitute/cromwell/branches) for the release tag build that will publish Docker images for the new version.
-* Let `#ftfy-private` know that it's okay to resume merges to `develop`.
+* Let `#dsp-batch-private` know that it's okay to resume merges to `develop`.
 * Announce release in `#dsp-batch`, set expectations about when the new version will be available in Terra.
+* It will take about an additional hour for the Docker image to build in Travis before its tag appears on the [Cromwell Docker Hub page](https://hub.docker.com/r/broadinstitute/cromwell/tags).
+    * The relevant build is the one named `XX_hotfix` in [this list](https://app.travis-ci.com/github/broadinstitute/cromwell/builds).
+    * See the `cromwell::build::publish_artifacts()` function for details
+* **One business day later,** confirm that [the Homebrew package](https://formulae.brew.sh/formula/cromwell) has the latest version. If it doesn't, start investigation by looking at [Homebrew PR's](https://github.com/Homebrew/homebrew-core/pulls?q=is%3Apr+cromwell).
 
 ### How to Release Cromwell into Firecloud / Terra
 
@@ -101,6 +112,10 @@ CaaS is "Cromwell as a Service". It is used by a couple of Broad teams (Pipeline
 to let them know that the upgrade is about to happen is a good idea.
 
 Deploying to CaaS is detailed in the [Quick CaaS Deployment Guide](https://docs.google.com/document/d/1s0YC-oohJ7o-OGcgnH_-YBtIEKmLIPTRpG36yvWxUpE) 
+
+### How to be Sure You're Done
+
+Don't forget to confirm that [the Homebrew package](https://formulae.brew.sh/formula/cromwell) was updated!
 
 ## Bonus Processes
 

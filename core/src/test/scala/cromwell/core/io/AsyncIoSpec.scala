@@ -9,22 +9,21 @@ import cromwell.core.TestKitSuite
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import org.scalatest.flatspec.AsyncFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.mockito.MockitoSugar
 
 import scala.util.{Failure, Try}
 import scala.util.control.NoStackTrace
 
-class AsyncIoSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with MockitoSugar {
+class AsyncIoSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers {
 
   behavior of "AsyncIoSpec"
-  
+
   implicit val ioCommandBuilder: DefaultIoCommandBuilder.type = DefaultIoCommandBuilder
-  
+
   it should "write asynchronously" in {
     val testActor = TestActorRef(new AsyncIoTestActor(simpleIoActor))
 
     val testPath = DefaultPathBuilder.createTempFile()
-    
+
     testActor.underlyingActor.asyncIo.writeAsync(testPath, "hello", Seq.empty) map { _ =>
       assert(testPath.contentAsString == "hello")
     }
@@ -74,7 +73,7 @@ class AsyncIoSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     }
 
     testPath.write("new text")
-    
+
     testActor.underlyingActor.asyncIo.copyAsync(testPath, testCopyPath) map { _ =>
       assert(testCopyPath.exists)
       assert(testCopyPath.contentAsString == "new text")

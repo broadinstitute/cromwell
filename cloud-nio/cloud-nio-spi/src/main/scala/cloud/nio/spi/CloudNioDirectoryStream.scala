@@ -2,7 +2,7 @@ package cloud.nio.spi
 
 import java.nio.file.{DirectoryStream, Path}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class CloudNioDirectoryStream(
   fileProvider: CloudNioFileProvider,
@@ -11,14 +11,14 @@ class CloudNioDirectoryStream(
   filter: DirectoryStream.Filter[_ >: Path]
 ) extends DirectoryStream[Path] {
 
-  override def iterator(): java.util.Iterator[Path] = pathStream().filterNot(_ == prefix).toIterator.asJava
+  override def iterator(): java.util.Iterator[Path] = pathStream().filterNot(_ == prefix).iterator.asJava
 
-  private[this] def pathStream(markerOption: Option[String] = None): Stream[Path] = {
+  private[this] def pathStream(markerOption: Option[String] = None): LazyList[Path] = {
     listNext(markerOption) match {
       case CloudNioFileList(keys, Some(marker)) =>
-        keys.toStream.map(toPath) ++ pathStream(Option(marker))
+        keys.to(LazyList).map(toPath) ++ pathStream(Option(marker))
       case CloudNioFileList(keys, None) =>
-        keys.toStream.map(toPath)
+        keys.to(LazyList).map(toPath)
     }
   }
 

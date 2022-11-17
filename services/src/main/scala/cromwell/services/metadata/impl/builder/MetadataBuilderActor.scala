@@ -106,7 +106,7 @@ object MetadataBuilderActor {
      *                                    1 -> Seq[Events],
      *                                    2 -> Seq[Events],
      *                                ...
-     *                             ),   
+     *                             ),
      *                ...
      *             ),
      *    ...
@@ -309,11 +309,11 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, metadataReadRow
     case Event(message, HasWorkData(target, _)) =>
       log.error(s"Received unexpected message $message in state $stateName with target: $target")
       self ! PoisonPill
-      stay
+      stay()
     case Event(message, MetadataBuilderActor.HasReceivedEventsData(target, _, _, _, _, _)) =>
       log.error(s"Received unexpected message $message in state $stateName with target: $target")
       self ! PoisonPill
-      stay
+      stay()
   }
 
   def processSubWorkflowMetadata(metadataResponse: MetadataJsonResponse, data: HasReceivedEventsData) = {

@@ -19,7 +19,6 @@ import cromwell.services.ServicesStore._
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -32,8 +31,7 @@ class WorkflowDockerLookupActorSpec
     with AnyFlatSpecLike
     with Matchers
     with ImplicitSender
-    with BeforeAndAfter
-    with Mockito {
+    with BeforeAndAfter {
 
   var workflowId: WorkflowId = _
   var dockerSendingActor: TestProbe = _

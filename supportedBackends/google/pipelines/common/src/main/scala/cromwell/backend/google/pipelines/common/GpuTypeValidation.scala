@@ -16,7 +16,7 @@ object GpuTypeValidation {
 class GpuTypeValidation extends RuntimeAttributesValidation[GpuType] {
   override def key = RuntimeAttributesKeys.GpuTypeKey
 
-  override def coercion: Traversable[WomType] = Set(WomStringType)
+  override def coercion: Iterable[WomType] = Set(WomStringType)
   override def validateValue: PartialFunction[WomValue, ErrorOr[GpuType]] = {
     case WomString(s) => GpuType(s).validNel
     case other => s"Invalid '$key': String value required but got ${other.womType.friendlyName}. See ${GpuType.MoreDetailsURL} for a list of options".invalidNel

@@ -13,8 +13,6 @@ Cromwell distribution:
     * Launch jobs on Google Compute Engine through the Google Genomics Pipelines API.
 * **[GA4GH TES](TES)** 
     * Launch jobs on servers that support the GA4GH Task Execution Schema (TES).
-* **[Alibaba Cloud](BCS)** 
-    * Launch jobs on Alibaba Cloud BatchCompute service.
 * **[AWS Batch (beta)](AWS.md)**
     * Use Job Queues on AWS Batch
 
@@ -58,7 +56,6 @@ The backend/filesystem pairings are as follows:
 
 * Local and HPC backend use the [Shared Local Filesystem](HPC/#filesystems).
 * Google backend uses the [Google Cloud Storage Filesystem](Google/#google-cloud-storage-filesystem).
-* Alibaba Cloud backend uses the OSS Storage FileSystem.
 
 Additional filesystems capabilities can be added depending on the backend.
 For instance, an HPC backend can be configured to work with files on Google Cloud Storage. See the [HPC documentation](HPC) for more details.

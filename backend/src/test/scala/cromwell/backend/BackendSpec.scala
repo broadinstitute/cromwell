@@ -11,7 +11,6 @@ import cromwell.core.{HogGroup, WorkflowId, WorkflowOptions}
 import org.scalatest.concurrent.{ScalaFutures, ScaledTimeSpans}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsValue}
 import wom.callable.Callable.{InputDefinition, RequiredInputDefinition}
 import wom.core.WorkflowSource
@@ -21,31 +20,34 @@ import wom.graph.{CommandCallNode, OptionalGraphInputNodeWithDefault}
 import wom.transforms.WomExecutableMaker.ops._
 import wom.values.WomValue
 
-trait BackendSpec extends ScalaFutures with Matchers with Mockito with ScaledTimeSpans {
+trait BackendSpec extends ScalaFutures with Matchers with ScaledTimeSpans {
 
-  implicit val defaultPatience = PatienceConfig(timeout = scaled(Span(10, Seconds)), interval = Span(500, Millis))
+  implicit val defaultPatience: PatienceConfig =
+    PatienceConfig(timeout = scaled(Span(10, Seconds)), interval = Span(500, Millis))
 
-  def testWorkflow(workflow: TestWorkflow, backend: BackendJobExecutionActor, inputs: Map[String, WomValue] = Map.empty) = {
+  def testWorkflow(workflow: TestWorkflow,
+                   backend: BackendJobExecutionActor): Unit = {
     executeJobAndAssertOutputs(backend, workflow.expectedResponse)
   }
 
   def buildWorkflowDescriptor(workflowSource: WorkflowSource,
                               inputFileAsJson: Option[String],
                               options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
-                              runtime: String = "") = {
+                              runtime: String = "",
+                              labels: Labels = Labels.empty): BackendWorkflowDescriptor = {
     val wdlNamespace = WdlNamespaceWithWorkflow.load(workflowSource.replaceAll("RUNTIME", runtime),
       Seq.empty[Draft2ImportResolver]).get
     val executable = wdlNamespace.toWomExecutable(inputFileAsJson, NoIoFunctionSet, strictValidation = true) match {
       case Left(errors) => fail(s"Fail to build wom executable: ${errors.toList.mkString(", ")}")
       case Right(e) => e
     }
-    
+
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),
       executable.entryPoint,
       executable.resolvedExecutableInputs.flatMap({case (port, v) => v.select[WomValue] map { port -> _ }}),
       options,
-      Labels.empty,
+      labels,
       HogGroup("foo"),
       List.empty,
       None
@@ -55,9 +57,10 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito with ScaledTim
   def buildWdlWorkflowDescriptor(workflowSource: WorkflowSource,
                               inputFileAsJson: Option[String] = None,
                               options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
-                              runtime: String = "") = {
-    
-    buildWorkflowDescriptor(workflowSource, inputFileAsJson, options, runtime)
+                              runtime: String = "",
+                              labels: Labels = Labels.empty): BackendWorkflowDescriptor = {
+
+    buildWorkflowDescriptor(workflowSource, inputFileAsJson, options, runtime, labels)
   }
 
   def fqnWdlMapToDeclarationMap(m: Map[String, WomValue]): Map[InputDefinition, WomValue] = {
@@ -70,7 +73,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito with ScaledTim
 
   def fqnMapToDeclarationMap(m: Map[OutputPort, WomValue]): Map[InputDefinition, WomValue] = {
     m map {
-      case (outputPort, womValue) => RequiredInputDefinition(outputPort.name, womValue.womType) -> womValue 
+      case (outputPort, womValue) => RequiredInputDefinition(outputPort.name, womValue.womType) -> womValue
     }
   }
 
@@ -80,7 +83,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito with ScaledTim
                                           runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition]): BackendJobDescriptor = {
     val call = workflowDescriptor.callable.graph.nodes.collectFirst({ case t: CommandCallNode => t}).get
     val jobKey = BackendJobDescriptorKey(call, None, 1)
-    
+
     val inputDeclarations: Map[InputDefinition, WomValue] = call.inputDefinitionMappings.map {
       case (inputDef, resolved) => inputDef ->
         resolved.select[WomValue].orElse(
@@ -131,7 +134,8 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito with ScaledTim
     BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, NoDocker, None, Map.empty)
   }
 
-  def assertResponse(executionResponse: BackendJobExecutionResponse, expectedResponse: BackendJobExecutionResponse) = {
+  def assertResponse(executionResponse: BackendJobExecutionResponse,
+                     expectedResponse: BackendJobExecutionResponse): Unit = {
     (executionResponse, expectedResponse) match {
       case (JobSucceededResponse(_, _, responseOutputs, _, _, _, _), JobSucceededResponse(_, _, expectedOutputs, _, _, _, _)) =>
         responseOutputs.outputs.size shouldBe expectedOutputs.outputs.size
@@ -148,6 +152,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito with ScaledTim
       case (response, expectation) =>
         fail(s"Execution response $response wasn't conform to expectation $expectation")
     }
+    ()
   }
 
   private def concatenateCauseMessages(t: Throwable): String = t match {
@@ -156,7 +161,8 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito with ScaledTim
     case other: Throwable => other.getMessage + concatenateCauseMessages(t.getCause)
   }
 
-  def executeJobAndAssertOutputs(backend: BackendJobExecutionActor, expectedResponse: BackendJobExecutionResponse) = {
+  def executeJobAndAssertOutputs(backend: BackendJobExecutionActor,
+                                 expectedResponse: BackendJobExecutionResponse): Unit = {
     whenReady(backend.execute) { executionResponse =>
       assertResponse(executionResponse, expectedResponse)
     }

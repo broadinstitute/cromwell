@@ -3,7 +3,7 @@ package centaur.reporting
 import cats.effect.IO
 import centaur.test.CentaurTestException
 import com.typesafe.scalalogging.StrictLogging
-import org.testcontainers.shaded.org.apache.commons.lang.exception.ExceptionUtils
+import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.ExecutionContext
 
@@ -32,7 +32,7 @@ class Slf4jReporter(override val params: ErrorReporterParams)
       }
 
       val message =
-        s"Test '${testEnvironment.name}' " +
+        s"Test '${testEnvironment.testCase.name}' " +
           s"failed on attempt ${testEnvironment.attempt + 1} " +
           s"of ${testEnvironment.retries + 1} " +
           errorMessage

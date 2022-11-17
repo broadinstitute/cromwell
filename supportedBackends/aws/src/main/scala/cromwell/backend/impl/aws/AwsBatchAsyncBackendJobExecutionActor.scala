@@ -163,7 +163,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
    */
 
   lazy val cmdScript = configuration.fileSystem match {
-     case AWSBatchStorageSystems.s3 => commandScriptContents.toEither.right.get
+     case AWSBatchStorageSystems.s3 => commandScriptContents.toEither.toOption.get
      case _ => execScript
   }
 
@@ -428,7 +428,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     for {
       //upload the command script
       _ <- uploadScriptFile()
-      completionPromise = Promise[SubmitJobResponse]
+      completionPromise = Promise[SubmitJobResponse]()
       //send a message to the Actor requesting a job submission
       _ = backendSingletonActor ! SubmitAwsJobRequest(batchJob, attributes, completionPromise)
       //the future response of the submit job request

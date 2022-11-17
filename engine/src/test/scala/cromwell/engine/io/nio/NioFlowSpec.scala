@@ -4,6 +4,7 @@ import akka.actor.ActorRef
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import cats.effect.IO
+import cloud.nio.spi.{FileHash, HashType}
 import com.google.cloud.storage.StorageException
 import cromwell.core.io.DefaultIoCommandBuilder._
 import cromwell.core.io._
@@ -12,20 +13,24 @@ import cromwell.core.{CromwellFatalExceptionMarker, TestKitSuite}
 import cromwell.engine.io.IoActor.DefaultCommandContext
 import cromwell.engine.io.IoAttempts.EnhancedCromwellIoException
 import cromwell.engine.io.IoCommandContext
+import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPath
+import org.mockito.ArgumentMatchers._
+import org.mockito.Mockito.{times, verify, when}
 import org.scalatest.flatspec.AsyncFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.mockito.MockitoSugar
-import org.specs2.mock.Mockito._
+import common.mock.MockSugar
+import cromwell.filesystems.blob.BlobPath
 
 import java.nio.file.NoSuchFileException
 import java.util.UUID
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.Failure
+import scala.util.{Failure, Success, Try}
 import scala.util.control.NoStackTrace
 
-class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with MockitoSugar {
+class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with MockSugar {
 
   behavior of "NioFlowSpec"
 
@@ -36,9 +41,9 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     parallelism = 1,
     onRetryCallback = NoopOnRetry,
     onBackpressure = NoopOnBackpressure,
-    numberOfAttempts = 5,
+    numberOfAttempts = 3,
     commandBackpressureStaleness = 5 seconds)(system.dispatcher).flow
-  
+
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   private val replyTo = mock[ActorRef]
   private val readSink = Sink.head[(IoAck[_], IoCommandContext[_])]
@@ -63,15 +68,16 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
   it should "read from a Nio Path" in {
     val testPath = DefaultPathBuilder.createTempFile()
     testPath.write("hello")
-    
-    val context = DefaultCommandContext(contentAsStringCommand(testPath, None, failOnOverflow = false).get, replyTo)
+
+    val context = DefaultCommandContext(contentAsStringCommand(testPath, None, failOnOverflow = true).get, replyTo)
     val testSource = Source.single(context)
 
     val stream = testSource.via(flow).toMat(readSink)(Keep.right)
-    
+
     stream.run() map {
       case (success: IoSuccess[_], _) => assert(success.result.asInstanceOf[String] == "hello")
-      case _ => fail("read returned an unexpected message")
+      case (ack, _) =>
+        fail(s"read returned an unexpected message:\n$ack\n\n")
     }
   }
 
@@ -89,7 +95,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
       case _ => fail("size returned an unexpected message")
     }
   }
-  
+
   it should "get hash from a Nio Path" in {
     val testPath = DefaultPathBuilder.createTempFile()
     testPath.write("hello")
@@ -107,7 +113,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
 
   it should "get hash from a GcsPath" in {
     val exception = new Exception("everything's fine, I am an expected blob failure") with NoStackTrace
-    val testPath = mock[GcsPath].smart
+    val testPath = mock[GcsPath]
     testPath.objectBlobId returns Failure(exception)
 
     val context = DefaultCommandContext(hashCommand(testPath).get, replyTo)
@@ -117,8 +123,88 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
 
     stream.run() map {
       case (IoFailure(_, EnhancedCromwellIoException(_, receivedException)), _) =>
-        receivedException should be(receivedException)
+        receivedException should be(exception)
       case unexpected => fail(s"hash returned an unexpected message: $unexpected")
+    }
+  }
+
+  it should "get hash from a BlobPath when stored hash exists" in {
+    val testPath = mock[BlobPath]
+    val hashString = "2d01d5d9c24034d54fe4fba0ede5182d" // echo "hello there" | md5sum
+    testPath.md5HexString returns Try(Option(hashString))
+
+    val context = DefaultCommandContext(hashCommand(testPath).get, replyTo)
+    val testSource = Source.single(context)
+
+    val stream = testSource.via(flow).toMat(readSink)(Keep.right)
+
+    stream.run() map {
+      case (success: IoSuccess[_], _) => assert(success.result.asInstanceOf[String] == hashString)
+      case (ack, _) =>
+        fail(s"read returned an unexpected message:\n$ack\n\n")
+    }
+  }
+
+  it should "fail if DrsPath hash doesn't match checksum" in {
+    val testPath = mock[DrsPath]
+    when(testPath.limitFileContent(any[Option[Int]], any[Boolean])(any[ExecutionContext])).thenReturn("hello".getBytes)
+    when(testPath.getFileHash).thenReturn(FileHash(HashType.Crc32c, "boom")) // correct Base64-encoded crc32c checksum is "9a71bb4c"
+
+    val context = DefaultCommandContext(contentAsStringCommand(testPath, Option(100), failOnOverflow = true).get, replyTo)
+    val testSource = Source.single(context)
+
+    val stream = testSource.via(flow).toMat(readSink)(Keep.right)
+
+    stream.run() map {
+      case (IoFailure(_, EnhancedCromwellIoException(_, receivedException)), _) =>
+        receivedException.getMessage should include ("Failed checksum")
+      case (ack, _) => fail(s"read returned an unexpected message:\n$ack\n\n")
+    }
+  }
+
+  it should "retry if DrsPath hash check fails, then succeed if the second check passes" in {
+    val testPath = mock[DrsPath]
+    when(testPath.limitFileContent(any[Option[Int]], any[Boolean])(any[ExecutionContext]))
+      .thenReturn("hola".getBytes)
+      .thenReturn("hello".getBytes)
+      .thenReturn("hello".getBytes)
+    when(testPath.getFileHash)
+      .thenReturn(FileHash(HashType.Crc32c, "9a71bb4c"))
+      .thenReturn(FileHash(HashType.Crc32c, "boom"))
+      .thenReturn(FileHash(HashType.Crc32c, "9a71bb4c"))
+
+    val context = DefaultCommandContext(contentAsStringCommand(testPath, Option(100), failOnOverflow = true).get, replyTo)
+    val testSource = Source.single(context)
+
+    val stream = testSource.via(flow).toMat(readSink)(Keep.right)
+
+    stream.run() map { result =>
+      verify(testPath, times(3)).limitFileContent(any[Option[Int]], any[Boolean])(any[ExecutionContext])
+      verify(testPath, times(3)).getFileHash
+      result match {
+        case (success: IoSuccess[_], _) => assert(success.result.asInstanceOf[String] == "hello")
+        case (ack, _) =>
+          fail(s"read returned an unexpected message:\n$ack\n\n")
+      }
+    }
+  }
+
+  it should "succeed if a BlobPath is missing a stored hash" in {
+    val testPath = mock[BlobPath]
+    when(testPath.limitFileContent(any[Option[Int]], any[Boolean])(any[ExecutionContext]))
+      .thenReturn("hello there".getBytes)
+    when(testPath.md5HexString)
+      .thenReturn(Success(None))
+
+    val context = DefaultCommandContext(contentAsStringCommand(testPath, Option(100), failOnOverflow = true).get, replyTo)
+    val testSource = Source.single(context)
+
+    val stream = testSource.via(flow).toMat(readSink)(Keep.right)
+
+    stream.run() map {
+      case (success: IoSuccess[_], _) => assert(success.result.asInstanceOf[String] == "hello there")
+      case (ack, _) =>
+        fail(s"read returned an unexpected message:\n$ack\n\n")
     }
   }
 
@@ -141,10 +227,10 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
   it should "copy Nio paths with" in {
     val testPath = DefaultPathBuilder.createTempFile()
     testPath.write("goodbye")
-    
+
     val testCopyPath = DefaultPathBuilder.createTempFile()
     testCopyPath.write("hello")
-    
+
     val context = DefaultCommandContext(copyCommand(testPath, testCopyPath).get, replyTo)
 
     val testSource = Source.single(context)
@@ -229,7 +315,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
         }
        }
     }.flow
-    
+
     val stream = testSource.via(customFlow).toMat(readSink)(Keep.right)
 
     stream.run() map {

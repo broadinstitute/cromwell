@@ -24,7 +24,7 @@ import net.ceedubs.ficus.Ficus._
 import org.slf4j.{Logger, LoggerFactory}
 
 import java.net.URL
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 import scala.util.matching.Regex
 import scala.util.{Failure, Success, Try}
@@ -194,7 +194,7 @@ object PipelinesApiConfigurationAttributes
     val pipelineTimeout: FiniteDuration = backendConfig.getOrElse("pipeline-timeout", 7.days)
 
     val logFlushPeriod: Option[FiniteDuration] = backendConfig.as[Option[FiniteDuration]]("log-flush-period") match {
-      case Some(duration) if duration.isFinite() => Option(duration)
+      case Some(duration) if duration.isFinite => Option(duration)
       // "Inf" disables upload
       case Some(_) => None
       // Defaults to 1 minute

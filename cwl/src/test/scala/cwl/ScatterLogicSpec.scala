@@ -5,7 +5,6 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.specs2.mock.Mockito
 import spray.json.DefaultJsonProtocol
 import wom.graph.ScatterNode.ScatterVariableAndValue
 import wom.graph.expression.PlainAnonymousExpressionNode
@@ -13,28 +12,29 @@ import wom.graph.{ScatterNode, ScatterVariableNode, WomIdentifier}
 import wom.types.{WomArrayType, WomStringType}
 import wom.values.{WomArray, WomString, WomValue}
 
-class ScatterLogicSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks with Mockito  with DefaultJsonProtocol with BeforeAndAfterEach {
+class ScatterLogicSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks
+  with DefaultJsonProtocol with BeforeAndAfterEach {
   private val expressionNode = PlainAnonymousExpressionNode(WomIdentifier("name"), null, WomStringType, Map.empty)
   private val arrayStringType = WomArrayType(WomStringType)
 
-  val emptyArray = ScatterVariableAndValue(
+  private val emptyArray = ScatterVariableAndValue(
     ScatterVariableNode(null, expressionNode, WomStringType),
     WomArray(arrayStringType, List.empty)
   )
-  val simpleArray2 = ScatterVariableAndValue(
+  private val simpleArray2 = ScatterVariableAndValue(
     ScatterVariableNode(null, expressionNode, WomStringType),
     WomArray(arrayStringType, List(WomString("a"), WomString("b")))
   )
-  val simpleArray3 = ScatterVariableAndValue(
+  private val simpleArray3 = ScatterVariableAndValue(
     ScatterVariableNode(null, expressionNode, WomStringType),
     WomArray(arrayStringType, List(WomString("a"), WomString("b"), WomString("c")))
   )
-  val simpleArray4 = ScatterVariableAndValue(
+  private val simpleArray4 = ScatterVariableAndValue(
     ScatterVariableNode(null, expressionNode, WomStringType),
     WomArray(arrayStringType, List(WomString("a"), WomString("b"), WomString("c"), WomString("d")))
   )
-  
-  override def beforeEach() = {
+
+  override def beforeEach(): Unit = {
     // The index length of the SVN is a mutable value, to avoid tests stepping on each others reset it to the default value
     // before each test
     emptyArray.scatterVariableNode.withRelativeIndexLength(1)
@@ -43,12 +43,12 @@ class ScatterLogicSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
     simpleArray4.scatterVariableNode.withRelativeIndexLength(1)
   }
 
-  val valueA = WomString("a")
-  val valueB = WomString("b")
-  val valueC = WomString("c")
-  val valueD = WomString("d")
-  
-  def validateScatterCombinations(list: List[ScatterNode.ScatterVariableAndValue],
+  private val valueA = WomString("a")
+  private val valueB = WomString("b")
+  private val valueC = WomString("c")
+  private val valueD = WomString("d")
+
+  private def validateScatterCombinations(list: List[ScatterNode.ScatterVariableAndValue],
                                   scatterSize: Int,
                                   expected: List[List[Int]]) = {
     // Go through all the variable nodes and feed all the shard numbers to the indexForShard function

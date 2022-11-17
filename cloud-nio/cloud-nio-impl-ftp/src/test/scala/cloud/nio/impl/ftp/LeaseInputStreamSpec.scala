@@ -6,19 +6,19 @@ import common.assertion.CromwellTimeoutSpec
 import org.apache.commons.net.ftp.FTPClient
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
+import common.mock.MockSugar
 import scala.concurrent.duration._
 
-class LeaseInputStreamSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito {
+class LeaseInputStreamSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with MockSugar {
 
   behavior of "LeaseInputStreamSpec"
 
   it should "complete the command and release the lease when closing the stream" in {
-    val is = new InputStream {
+    val is: InputStream = new InputStream {
       var counter = 1
       override def read() = 1
-      override def close() = counter = 0
-      override def available() = counter
+      override def close(): Unit = counter = 0
+      override def available(): Int = counter
     }
     val mockClient = mock[FTPClient]
     var completed: Boolean = false

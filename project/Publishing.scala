@@ -10,7 +10,7 @@ import sbtdocker.DockerPlugin.autoImport._
 import sbtdocker.Instruction
 
 import java.io.FileNotFoundException
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.sys.process._
 
 object Publishing {
@@ -36,7 +36,20 @@ object Publishing {
       ArrayBuffer(broadinstitute/cromwell:dev, broadinstitute/cromwell:develop)
     */
     dockerTags := {
-      val versionsCsv = if (Version.isSnapshot) version.value else s"$cromwellVersion,${version.value}"
+      val versionsCsv = if (Version.isSnapshot) {
+        // Tag looks like `85-443a6fc-SNAP`
+        version.value
+      } else {
+        if (Version.isRelease) {
+          // Tags look like `85`, `85-443a6fc`
+          s"$cromwellVersion,${version.value}"
+        } else {
+          // Tag looks like `85-443a6fc`
+          version.value
+        }
+      }
+
+      // Travis applies (as of 10/22) the `dev` and `develop` tags on merge to `develop`
       sys.env.getOrElse("CROMWELL_SBT_DOCKER_TAGS", versionsCsv).split(",")
     },
     docker / imageNames := dockerTags.value map { tag =>

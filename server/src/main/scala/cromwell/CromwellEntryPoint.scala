@@ -16,6 +16,7 @@ import cromwell.CommandLineArguments.{ValidSubmission, WorkflowSourceOrUrl}
 import cromwell.CromwellApp._
 import cromwell.api.CromwellClient
 import cromwell.api.model.{Label, LabelsJsonFormatter, WorkflowSingleSubmission}
+import cromwell.core.logging.JavaLoggingBridge
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip, WorkflowSourceFilesWithoutImports}
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
@@ -24,7 +25,7 @@ import cromwell.server.{CromwellServer, CromwellShutdown, CromwellSystem}
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.LoggerFactory
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, TimeoutException}
 import scala.language.postfixOps
@@ -166,6 +167,13 @@ object CromwellEntryPoint extends GracefulStopSupport {
     Make sure that the next time one uses the ConfigFactory that our updated system properties are loaded.
      */
     ConfigFactory.invalidateCaches()
+
+    /*
+    Replace java.util.logging with SLF4J.
+    https://www.slf4j.org/api/org/slf4j/bridge/SLF4JBridgeHandler.html
+     */
+    JavaLoggingBridge.init()
+
     ()
   }
 
@@ -268,7 +276,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
   def validOrFailSubmission[A](validation: ErrorOr[A]): A = {
     validation.valueOr(errors => throw new RuntimeException with MessageAggregation {
       override def exceptionContext: String = "ERROR: Unable to submit workflow to Cromwell:"
-      override def errorMessages: Traversable[String] = errors.toList
+      override def errorMessages: Iterable[String] = errors.toList
     })
   }
 

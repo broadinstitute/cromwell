@@ -19,7 +19,7 @@ trait IoActorRequester extends StrictLogging { this: Actor =>
   def requestIoActor(backoffInterval: FiniteDuration = 1.minute): Future[ActorRef] = _ioActorPromise match {
     case Some(promise) => promise.future
     case None =>
-      val newPromise = Promise[ActorRef]
+      val newPromise = Promise[ActorRef]()
       _ioActorPromise = Option(newPromise)
       requestIoActorInner(newPromise, backoffInterval)
       newPromise.future

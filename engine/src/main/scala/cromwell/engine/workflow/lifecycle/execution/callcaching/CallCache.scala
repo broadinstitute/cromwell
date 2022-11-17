@@ -77,13 +77,13 @@ class CallCache(database: CallCachingSqlDatabase) {
     database.hasMatchingCallCachingEntriesForBaseAggregation(baseAggregatedHash, ccpp)
   }
 
-  def callCachingHitForAggregatedHashes(aggregatedCallHashes: AggregatedCallHashes, prefixesHint: Option[CallCachePathPrefixes], hitNumber: Int)
+  def callCachingHitForAggregatedHashes(aggregatedCallHashes: AggregatedCallHashes, prefixesHint: Option[CallCachePathPrefixes], excludedIds: Set[CallCachingEntryId])
                                        (implicit ec: ExecutionContext): Future[Option[CallCachingEntryId]] = {
     database.findCacheHitForAggregation(
       baseAggregationHash = aggregatedCallHashes.baseAggregatedHash,
       inputFilesAggregationHash = aggregatedCallHashes.inputFilesAggregatedHash,
       callCachePathPrefixes = prefixesHint.map(_.prefixes),
-      hitNumber).map(_ map CallCachingEntryId.apply)
+      excludedIds.map(_.id)).map(_ map CallCachingEntryId.apply)
   }
 
   def fetchCachedResult(callCachingEntryId: CallCachingEntryId)(implicit ec: ExecutionContext): Future[Option[CallCachingJoin]] = {

@@ -369,7 +369,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     def handleWorkflowOutputsFailure(errors: NonEmptyList[String]) = {
       val exception = new MessageAggregation {
         override def exceptionContext: String = "Workflow output evaluation failed"
-        override def errorMessages: Traversable[String] = errors.toList
+        override def errorMessages: Iterable[String] = errors.toList
       }
       context.parent ! WorkflowExecutionFailedResponse(data.jobExecutionMap, exception)
       goto(WorkflowExecutionFailedState)
@@ -547,7 +547,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       .map({
         case (node, keys) =>
           val tag = node.fullyQualifiedName
-          val shardCount = keys.map(_.index).distinct.size
+          val shardCount = keys.map(_.index).toList.distinct.size
           if (shardCount == 1) tag
           else s"$tag ($shardCount shards)"
       })

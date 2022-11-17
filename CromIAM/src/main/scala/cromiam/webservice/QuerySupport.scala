@@ -1,6 +1,7 @@
 package cromiam.webservice
 
 import akka.event.LoggingAdapter
+import akka.http.scaladsl.model.Uri.Query
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
@@ -54,7 +55,7 @@ trait QuerySupport extends RequestSupport {
     * directive
     */
   private def preprocessQuery: Directive[(User, List[Collection], HttpRequest)] = {
-    extractUserAndRequest tflatMap { case (user, cromIamRequest) =>
+    extractUserAndStrictRequest tflatMap { case (user, cromIamRequest) =>
       log.info("Received query " + cromIamRequest.method.value + " request for user " + user.userId)
 
       onComplete(samClient.collectionsForUser(user, cromIamRequest).value.unsafeToFuture()) flatMap {
@@ -86,7 +87,7 @@ trait QuerySupport extends RequestSupport {
       // DO NOT REMOVE THE NEXT LINE WITHOUT READING THE SCALADOC ON ensureNoLabelOrs
       ensureNoLabelOrs(user, labelOrs)
 
-      val newQueryBuilder = query.newBuilder
+      val newQueryBuilder = Query.newBuilder
       newQueryBuilder ++= query
 
       val collectionLabels = userCollectionLabels(user, collections)

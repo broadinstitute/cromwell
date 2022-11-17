@@ -17,6 +17,12 @@ object WesState {
   case object Canceled extends WesState { override val name = "CANCELED"}
   case object Canceling extends WesState { override val name = "CANCELING"}
 
+  def fromStatusString(status: Option[String]): WesState = {
+    status match {
+      case Some(status) => fromCromwellStatus(WorkflowState.withName(status))
+      case None => Unknown
+    }
+  }
   def fromCromwellStatus(cromwellStatus: WorkflowState): WesState = {
     cromwellStatus match {
       case WorkflowOnHold => Paused

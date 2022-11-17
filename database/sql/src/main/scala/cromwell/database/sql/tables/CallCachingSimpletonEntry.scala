@@ -7,6 +7,6 @@ case class CallCachingSimpletonEntry
   simpletonKey: String,
   simpletonValue: Option[SerialClob],
   wdlType: String,
-  callCachingEntryId: Option[Int] = None,
-  callCachingSimpletonEntryId: Option[Int] = None
+  callCachingEntryId: Option[Long] = None,
+  callCachingSimpletonEntryId: Option[Long] = None
 )

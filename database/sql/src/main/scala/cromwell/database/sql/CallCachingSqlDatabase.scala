@@ -11,20 +11,20 @@ trait CallCachingSqlDatabase {
   def hasMatchingCallCachingEntriesForBaseAggregation(baseAggregationHash: String, callCachePathPrefixes: Option[List[String]])
                                                      (implicit ec: ExecutionContext): Future[Boolean]
 
-  def findCacheHitForAggregation(baseAggregationHash: String, inputFilesAggregationHash: Option[String], callCachePathPrefixes: Option[List[String]], hitNumber: Int)
-                                (implicit ec: ExecutionContext): Future[Option[Int]]
+  def findCacheHitForAggregation(baseAggregationHash: String, inputFilesAggregationHash: Option[String], callCachePathPrefixes: Option[List[String]], excludedIds: Set[Long])
+                                (implicit ec: ExecutionContext): Future[Option[Long]]
 
-  def queryResultsForCacheId(callCachingEntryId: Int)
+  def queryResultsForCacheId(callCachingEntryId: Long)
                             (implicit ec: ExecutionContext): Future[Option[CallCachingJoin]]
   
   def callCacheJoinForCall(workflowExecutionUuid: String, callFqn: String, index: Int)
                           (implicit ec: ExecutionContext): Future[Option[CallCachingJoin]]
 
-  def invalidateCall(callCachingEntryId: Int)
+  def invalidateCall(callCachingEntryId: Long)
                     (implicit ec: ExecutionContext): Future[Option[CallCachingEntry]]
 
   def invalidateCallCacheEntryIdsForWorkflowId(workflowExecutionUuid: String)
                                               (implicit ec: ExecutionContext): Future[Unit]
 
-  def callCacheEntryIdsForWorkflowId(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Seq[Int]]
+  def callCacheEntryIdsForWorkflowId(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Seq[Long]]
 }

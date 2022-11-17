@@ -31,7 +31,7 @@ trait SubmissionSupport extends RequestSupport {
   // FIXME - getting pathPrefix to shrink this keeps hosing up, there's gotta be some way to do this
   def submitRoute: Route = (path("api" / "workflows" / Segment) | path("api" / "workflows" / Segment / "batch")) { _ =>
     post {
-      extractUserAndRequest { (user, request) =>
+      extractUserAndStrictRequest { (user, request) =>
         log.info("Received submission request from user " + user.userId)
         onComplete(samClient.isSubmitWhitelisted(user, request).value.unsafeToFuture()) {
           case Success(Left(httpResponse)) => complete(httpResponse)
@@ -109,7 +109,7 @@ object SubmissionSupport {
   }
 
   def extractInputAux: Directive1[Map[String, String]] = {
-    formFieldMap.map(_.filterKeys(_.startsWith(WorkflowInputsAuxPrefix)))
+    formFieldMap.map(_.view.filterKeys(_.startsWith(WorkflowInputsAuxPrefix)).toMap)
   }
 
   // FIXME: Much like CromwellClient see if there are ways of unifying this a bit w/ the mothership

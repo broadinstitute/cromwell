@@ -80,8 +80,8 @@ task doMajorRelease {
         }
         FIN
 
-        java -jar server/target/scala-2.12/cromwell-~{releaseVersion}.jar run --inputs hello.inputs hello.wdl
-        java -jar womtool/target/scala-2.12/womtool-~{releaseVersion}.jar validate --inputs hello.inputs hello.wdl
+        java -jar server/target/scala-2.13/cromwell-~{releaseVersion}.jar run --inputs hello.inputs hello.wdl
+        java -jar womtool/target/scala-2.13/womtool-~{releaseVersion}.jar validate --inputs hello.inputs hello.wdl
 
         echo 'Create the hotfix branch'
         git checkout -b ~{releaseVersion}_hotfix
@@ -98,8 +98,8 @@ task doMajorRelease {
     >>>
 
     output {
-        File cromwellJar = "cromwell/server/target/scala-2.12/cromwell-~{releaseVersion}.jar"
-        File womtoolJar = "cromwell/womtool/target/scala-2.12/womtool-~{releaseVersion}.jar"
+        File cromwellJar = "cromwell/server/target/scala-2.13/cromwell-~{releaseVersion}.jar"
+        File womtoolJar = "cromwell/womtool/target/scala-2.13/womtool-~{releaseVersion}.jar"
     }
 
     runtime {
@@ -180,16 +180,16 @@ task doMinorRelease {
         }
         FIN
 
-        java -jar server/target/scala-2.12/cromwell-~{releaseVersion}.jar run --inputs hello.inputs hello.wdl
-        java -jar womtool/target/scala-2.12/womtool-~{releaseVersion}.jar validate --inputs hello.inputs hello.wdl
+        java -jar server/target/scala-2.13/cromwell-~{releaseVersion}.jar run --inputs hello.inputs hello.wdl
+        java -jar womtool/target/scala-2.13/womtool-~{releaseVersion}.jar validate --inputs hello.inputs hello.wdl
 
         echo 'Push the tags'
         git push origin ~{releaseVersion}
     >>>
 
     output {
-        File cromwellJar = "cromwell/server/target/scala-2.12/cromwell-~{releaseVersion}.jar"
-        File womtoolJar = "cromwell/womtool/target/scala-2.12/womtool-~{releaseVersion}.jar"
+        File cromwellJar = "cromwell/server/target/scala-2.13/cromwell-~{releaseVersion}.jar"
+        File womtoolJar = "cromwell/womtool/target/scala-2.13/womtool-~{releaseVersion}.jar"
     }
 
     runtime {
@@ -332,7 +332,7 @@ task draftGithubRelease {
         echo 'Extract the latest piece of the changelog corresponding to this release'
 
         # sed removes the last line
-        sed -n '/## ~{currentReleaseVersion}/,/## ~{changelogPreviousVersion}/p' CHANGELOG.md \
+        sed -n '/## ~{currentReleaseVersion}/,/## [0-9]/p' CHANGELOG.md \
         | sed '$d' \
         > changelog.txt
 

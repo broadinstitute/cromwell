@@ -143,7 +143,7 @@ object SelectiveTsvInstrumentationServiceActor {
 
       val header = (List("timestamp") ++ interestingFields).mkString("\t")
       val rows = stateHistory.map { case (timestamp, fieldMap) =>
-        (Vector(timestamp.toString) ++ interestingFields.map(f => fieldMap.getOrElse(f, 0))).mkString("\t")
+        (Vector(timestamp.toString) ++ interestingFields.map(f => fieldMap.getOrElse(f, 0).toString)).mkString("\t")
       }
       Vector(header) ++ rows
     }

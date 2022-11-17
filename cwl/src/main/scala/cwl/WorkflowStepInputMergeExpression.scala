@@ -66,6 +66,7 @@ final case class WorkflowStepInputMergeExpression(input: WorkflowStepInput,
         flattenedValidatedSourceValues.map(list => WomArray(list)).toValidated
 
       case (List(id), _, _) => lookupValue(id)
+      case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
     }
   }
 

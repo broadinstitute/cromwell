@@ -17,7 +17,7 @@ package object ast2wdlom {
   val wrapAst: CheckedAtoB[Ast, GenericAst] = CheckedAtoB.fromCheck { a => BiscayneGenericAst(a).validNelCheck }
   val wrapAstNode: CheckedAtoB[AstNode, GenericAstNode] = CheckedAtoB.fromCheck { a => BiscayneGenericAstNode(a).validNelCheck }
 
-  implicit val astNodeToStaticString: CheckedAtoB[GenericAstNode, StaticString] = AstNodeToStaticString.astNodeToStaticStringElement
+  implicit val astNodeToStaticString: CheckedAtoB[GenericAstNode, StaticString] = AstNodeToStaticString.astNodeToStaticStringElement()
 
   // meta sections
   implicit val astNodeToMetaKvPair: CheckedAtoB[GenericAstNode, MetaKvPair] = AstNodeToMetaKvPair.astNodeToMetaKvPair

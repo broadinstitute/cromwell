@@ -32,6 +32,7 @@ package cromwell.cloudsupport.aws.s3
 
 import com.typesafe.config.ConfigFactory
 import net.ceedubs.ficus.Ficus._
+import scala.annotation.nowarn
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
@@ -42,11 +43,13 @@ object S3Storage {
     val dualstackEnabled = ConfigFactory.load().as[Option[Boolean]]("s3.dual-stack").getOrElse(false)
     val pathStyleAccessEnabled = ConfigFactory.load().as[Option[Boolean]]("s3.path-style-access").getOrElse(false)
 
-    S3Configuration.builder
+    @nowarn("msg=method dualstackEnabled in trait Builder is deprecated")
+    val builder = S3Configuration.builder
       .accelerateModeEnabled(accelerateModeEnabled)
       .dualstackEnabled(dualstackEnabled)
       .pathStyleAccessEnabled(pathStyleAccessEnabled)
-      .build
+
+    builder.build
   }
 
   def s3Client(configuration: S3Configuration, provider: AwsCredentialsProvider, region: Option[Region]): S3Client = {
@@ -65,10 +68,12 @@ object S3Storage {
                       dualstackEnabled: Boolean = false,
                       pathStyleAccessEnabled: Boolean = false): S3Configuration = {
 
-    S3Configuration.builder
+    @nowarn("msg=method dualstackEnabled in trait Builder is deprecated")
+    val builder = S3Configuration.builder
       .accelerateModeEnabled(accelerateModeEnabled)
       .dualstackEnabled(dualstackEnabled)
       .pathStyleAccessEnabled(pathStyleAccessEnabled)
-      .build
+
+    builder.build()
   }
 }

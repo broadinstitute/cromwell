@@ -115,7 +115,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite
     val expectedOutputs: CallOutputs = WomMocks.mockOutputExpectations(
       Map(
         "localize.out" -> WomArray(WomArrayType(WomStringType),
-          Array(
+          List(
             WomString("content from json inputs"),
             WomString("content from call inputs")))
       )

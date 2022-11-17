@@ -6,7 +6,7 @@ import common.util.TryUtil
 import common.validation.ErrorOr.ErrorOr
 import spray.json._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -64,7 +64,7 @@ object WorkflowOptions {
   case object MemoryRetryMultiplier extends WorkflowOption("memory_retry_multiplier")
 
   private lazy val WorkflowOptionsConf = ConfigFactory.load.getConfig("workflow-options")
-  private lazy val EncryptedFields: Seq[String] = WorkflowOptionsConf.getStringList("encrypted-fields").asScala
+  private lazy val EncryptedFields: Seq[String] = WorkflowOptionsConf.getStringList("encrypted-fields").asScala.toList
   private lazy val EncryptionKey: String = WorkflowOptionsConf.getString("base64-encryption-key")
   private lazy val defaultRuntimeOptionKey: String = DefaultRuntimeOptions.name
   private lazy val validObjectKeys: Set[String] = Set(DefaultRuntimeOptions.name, "google_labels")

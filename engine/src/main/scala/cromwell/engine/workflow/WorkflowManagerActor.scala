@@ -16,6 +16,7 @@ import cromwell.engine.SubWorkflowStart
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
+import cromwell.engine.workflow.tokens.JobTokenDispenserActor.{FetchLimitedGroups, ReplyLimitedGroups}
 import cromwell.engine.workflow.workflowstore.{WorkflowHeartbeatConfig, WorkflowStoreActor, WorkflowStoreEngineActor}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
 import cromwell.webservice.EngineStatsActor
@@ -167,13 +168,20 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     /*
      Commands from clients
      */
-    case Event(RetrieveNewWorkflows, stateData) =>
+    case Event(RetrieveNewWorkflows, _) =>
       /*
         Cap the total number of workflows in flight, but also make sure we don't pull too many in at once.
         Determine the number of available workflow slots and request the smaller of that number and maxWorkflowsToLaunch.
        */
+      params.jobExecutionTokenDispenserActor ! FetchLimitedGroups
+      stay()
+    case Event(ReplyLimitedGroups(groups), stateData) =>
+      if (groups.nonEmpty)
+        log.info(s"Excluding groups from workflow launch: ${groups.mkString(", ")}")
+      else
+        log.debug("No groups excluded from workflow launch.")
       val maxNewWorkflows = maxWorkflowsToLaunch min (maxWorkflowsRunning - stateData.workflows.size - stateData.subWorkflows.size)
-      params.workflowStore ! WorkflowStoreActor.FetchRunnableWorkflows(maxNewWorkflows, excludedGroups = Set.empty)
+      params.workflowStore ! WorkflowStoreActor.FetchRunnableWorkflows(maxNewWorkflows, excludedGroups = groups)
       stay()
     case Event(WorkflowStoreEngineActor.NoNewWorkflowsToStart, _) =>
       log.debug("WorkflowStore provided no new workflows to start")
@@ -203,7 +211,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       data.idFromActor(workflowActor) foreach { workflowId =>
         params.jobStoreActor ! RegisterWorkflowCompleted(workflowId)
       }
-      stay using data.without(workflowActor)
+      stay() using data.without(workflowActor)
   }
 
   val scheduleNextNewWorkflowPollStateFunction: StateFunction = {
@@ -249,12 +257,12 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     case Event(SubWorkflowStart(actorRef), data) =>
       // Watch for this subworkflow to expire to remove it from the Set of running subworkflows.
       context.watch(actorRef)
-      stay using data.copy(subWorkflows = data.subWorkflows + actorRef)
+      stay() using data.copy(subWorkflows = data.subWorkflows + actorRef)
     case Event(Terminated(actorRef), data) =>
       // This is looking only for subworkflow actor terminations. If for some reason we see a termination for a
       // different type of actor this should be a noop since the ActorRef element being removed from the set of
       // subworkflows would not have been in the set in the first place.
-      stay using data.copy(subWorkflows = data.subWorkflows - actorRef)
+      stay() using data.copy(subWorkflows = data.subWorkflows - actorRef)
     // Uninteresting transition and current state notifications.
     case Event(Transition(_, _, _) | CurrentState(_, _), _) => stay()
     case Event(JobStoreWriteSuccess(_), _) => stay() // Snoozefest

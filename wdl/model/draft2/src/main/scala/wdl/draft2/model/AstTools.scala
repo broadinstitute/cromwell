@@ -11,7 +11,7 @@ import wom.core._
 import wom.types._
 import wom.values._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 
 object AstTools {
@@ -50,7 +50,7 @@ object AstTools {
       /*
         * Find all interpolations in the string terminal.
         * e.g: String a = "hello ${you}"
-        * We'll create an expression from "you" and remember the position in the string 
+        * We'll create an expression from "you" and remember the position in the string
         * "hello ${you}" at which we found "${you}".
        */
       val interpolatedExpressionAstNodesAndTheirMatchPosition = InterpolationTagPattern
@@ -196,7 +196,7 @@ object AstTools {
           val pairType = womType.asInstanceOf[WomPairType]
           WomPair(subElements.head.womValue(pairType.leftType, wdlSyntaxErrorFormatter), subElements(1).womValue(pairType.rightType, wdlSyntaxErrorFormatter))
         } else {
-          throw new SyntaxError(s"Could not convert AST to a $womType (${Option(astNode).getOrElse("No AST").toString})")
+          throw new SyntaxError(s"Could not convert AST to a $womType (${Option(astNode).map(_.toString).getOrElse("No AST")})")
         }
       }
 
@@ -224,7 +224,7 @@ object AstTools {
         case a: Ast if a.getName == "TupleLiteral" => astTupleToValue(a)
         case a: Ast if a.getName == "MapLiteral" && womType.isInstanceOf[WomMapType] => astToMap(a)
         case a: Ast if a.getName == "ObjectLiteral" && womType == WomObjectType => astToObject(a)
-        case _ => throw new SyntaxError(s"Could not convert AST to a $womType (${Option(astNode).getOrElse("No AST").toString})")
+        case _ => throw new SyntaxError(s"Could not convert AST to a $womType (${Option(astNode).map(_.toString).getOrElse("No AST")})")
       }
     }
   }
@@ -365,16 +365,16 @@ object AstTools {
     /* terminal is the "lefter" lhs
      * trail is how we arrived to identifier from the original ast
      * e.g #1 (in "pseudo ast code"):
-     * 
+     *
      * If MemberAccess is "a.b"
      * terminal will be Terminal("a")
      * trail will be Seq(
      *   MemberAccess(
      *     lhs: Terminal("a"),
      *     rhs: Terminal("b")
-     *   )  
+     *   )
      * )
-     * 
+     *
      * e.g #2:
      * If MemberAccess is "a.b.c"
      * terminal will be Terminal("a")
@@ -388,7 +388,7 @@ object AstTools {
      *     rhs: Terminal("b")
      *   )
      * )
-     * 
+     *
      * There also might be other types of nodes in trail than MemberAccess depending the expression.
      */
     expr.findTerminalsWithTrail("identifier").collect({

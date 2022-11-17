@@ -3,17 +3,18 @@ package cloud.nio.impl.ftp
 import java.net.URI
 import java.nio.channels.ReadableByteChannel
 import java.nio.file.FileAlreadyExistsException
-
 import cloud.nio.impl.ftp.FtpUtil.FtpIoException
 import cloud.nio.spi.{CloudNioRegularFileAttributes, CloudNioRetry}
 import com.typesafe.config.ConfigFactory
 import common.assertion.CromwellTimeoutSpec
+import common.mock.MockSugar
 import org.apache.commons.net.ftp.FTPReply
-import org.scalamock.scalatest.{MixedMockFactory, MockFactory}
+import org.mockito.Mockito._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class FtpCloudNioFileSystemProviderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with MockFactory with MixedMockFactory with MockFtpFileSystem {
+class FtpCloudNioFileSystemProviderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with MockSugar
+  with MockFtpFileSystem {
 
   behavior of "FtpCloudNioFileSystemProviderSpec"
 
@@ -42,30 +43,33 @@ class FtpCloudNioFileSystemProviderSpec extends AnyFlatSpec with CromwellTimeout
   }
 
   it should "pre compute the size before opening a read channel to avoid deadlocks" in {
-    val mockSizeFunction = mockFunction[Long]
-    val provider = new FtpCloudNioFileSystemProvider(ConfigFactory.empty(), FtpAnonymousCredentials, ftpFileSystems) {
+    val mockSizeFunction = mock[() => Long]
+    val provider: FtpCloudNioFileSystemProvider = new FtpCloudNioFileSystemProvider(
+      ConfigFactory.empty, FtpAnonymousCredentials, ftpFileSystems
+    ) {
 
-      override def fileProvider = new FtpCloudNioFileProvider(this) {
-        override def fileAttributes(cloudHost: String, cloudPath: String) =
+      override def fileProvider: FtpCloudNioFileProvider = new FtpCloudNioFileProvider(this) {
+        override def fileAttributes(cloudHost: String, cloudPath: String): Option[CloudNioRegularFileAttributes] =
           Option(
             new CloudNioRegularFileAttributes {
               override def fileHash = throw new UnsupportedOperationException()
               override def lastModifiedTime() = throw new UnsupportedOperationException()
-              override def size() = mockSizeFunction()
+              override def size(): Long = mockSizeFunction()
               override def fileKey() = throw new UnsupportedOperationException()
             }
           )
 
-        override def read(cloudHost: String, cloudPath: String, offset: Long) = {
+        override def read(cloudHost: String, cloudPath: String, offset: Long): ReadableByteChannel = {
           mock[ReadableByteChannel]
         }
       }
     }
 
     // This should only be called once, not every time we ask for the channel size
-    mockSizeFunction.expects().onCall(_ => 60).once()
+    when(mockSizeFunction.apply()).thenReturn(60)
     val cloudNioPath = provider.getPath(URI.create("ftp://host.com/my_file.txt"))
     val channel = provider.cloudNioReadChannel(new CloudNioRetry(ConfigFactory.empty()), cloudNioPath)
+    verify(mockSizeFunction).apply()
 
     channel.size() shouldBe 60L
     channel.size() shouldBe 60L
@@ -78,7 +82,7 @@ class FtpCloudNioFileSystemProviderSpec extends AnyFlatSpec with CromwellTimeout
     fakeUnixFileSystem.exists(directoryPath) shouldBe false
     mockProvider.createDirectory(newDirectory)
     fakeUnixFileSystem.exists(directoryPath) shouldBe true
-    
+
     // Now we should throw an exception because the directory exists
     a[FileAlreadyExistsException] shouldBe thrownBy(mockProvider.createDirectory(newDirectory))
   }

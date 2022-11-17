@@ -15,7 +15,7 @@ import eu.timepit.refined.refineMV
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration.DurationInt
 
 class PipelinesConversionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {

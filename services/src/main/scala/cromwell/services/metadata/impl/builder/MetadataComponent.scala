@@ -11,6 +11,7 @@ import spray.json._
 import scala.collection.immutable.TreeMap
 import scala.language.postfixOps
 import scala.util.{Random, Try}
+import java.time.Instant
 
 object MetadataComponent {
   implicit val MetadataComponentMonoid: Monoid[MetadataComponent] = new Monoid[MetadataComponent] {
@@ -51,12 +52,12 @@ object MetadataComponent {
   /* ******************************* */
   /* *** Metadata Events Parsing *** */
   /* ******************************* */
-  
+
   private val KeySeparator = MetadataKey.KeySeparator
   // Split on every unescaped KeySeparator
   val KeySplitter = s"(?<!\\\\)$KeySeparator"
   private val bracketMatcher = """\[(\d*)\]""".r
-  
+
   private def parseKeyChunk(chunk: String, innerValue: MetadataComponent): MetadataComponent = {
     chunk.indexOf('[') match {
       // If there's no bracket, it's an object. e.g.: "calls"
@@ -88,8 +89,12 @@ object MetadataComponent {
   }
 
   private def customOrdering(event: MetadataEvent): Option[Ordering[MetadataPrimitive]] = event match {
-    case MetadataEvent(MetadataKey(_, Some(_), key), _, _) if key == CallMetadataKeys.ExecutionStatus => Option(MetadataPrimitive.ExecutionStatusOrdering)
-    case MetadataEvent(MetadataKey(_, None, key), _, _) if key == WorkflowMetadataKeys.Status => Option(MetadataPrimitive.WorkflowStateOrdering)
+    case MetadataEvent(MetadataKey(_, Some(_), key), _, _)
+      if key == CallMetadataKeys.ExecutionStatus => Option(MetadataPrimitive.ExecutionStatusOrdering)
+    case MetadataEvent(MetadataKey(_, _, key), _, _)
+      if key == CallMetadataKeys.Start || key == CallMetadataKeys.End => Option(MetadataPrimitive.TimestampOrdering)
+    case MetadataEvent(MetadataKey(_, None, key), _, _)
+      if key == WorkflowMetadataKeys.Status => Option(MetadataPrimitive.WorkflowStateOrdering)
     case _ => None
   }
 
@@ -108,14 +113,14 @@ object MetadataComponent {
 
     fromMetadataKeyAndPrimitive(keyAndPrimitive._1, keyAndPrimitive._2)
   }
-  
+
   /** Sort events by timestamp, transform them into MetadataComponent, and merge them together. */
   def apply(events: Seq[MetadataEvent], subWorkflowMetadata: Map[String, JsValue] = Map.empty): MetadataComponent = {
     // The `List` has a `Foldable` instance defined in scope, and because the `List`'s elements have a `Monoid` instance
     // defined in scope, `combineAll` can derive a sane `TimestampedJsValue` value even if the `List` of events is empty.
     events.toList map toMetadataComponent(subWorkflowMetadata) combineAll
   }
-  
+
   def fromMetadataKeyAndPrimitive(metadataKey: String, innerComponent: MetadataComponent) = {
     metadataKey.split(KeySplitter).map(_.unescapeMeta).foldRight(innerComponent)(parseKeyChunk)
   }
@@ -125,7 +130,7 @@ sealed trait MetadataComponent
 case object MetadataEmptyComponent extends MetadataComponent
 case object MetadataNullComponent extends MetadataComponent
 
-// Metadata Object  
+// Metadata Object
 object MetadataObject {
   def empty = new MetadataObject(Map.empty)
   def apply(kvPair: (String, MetadataComponent)*) = {
@@ -146,11 +151,15 @@ case class MetadataList(v: Map[Int, MetadataComponent]) extends MetadataComponen
 object MetadataPrimitive {
   val ExecutionStatusOrdering: Ordering[MetadataPrimitive] = Ordering.by { primitive: MetadataPrimitive =>
     ExecutionStatus.withName(primitive.v.value)
-  }
+  }(ExecutionStatus.ExecutionStatusOrdering)
 
   val WorkflowStateOrdering: Ordering[MetadataPrimitive] = Ordering.by { primitive: MetadataPrimitive =>
     WorkflowState.withName(primitive.v.value)
   }
+
+  val TimestampOrdering: Ordering[MetadataPrimitive] = Ordering.by { primitive: MetadataPrimitive =>
+    Instant.parse(primitive.v.value)
+  }.reverse
 }
 case class MetadataPrimitive(v: MetadataValue, customOrdering: Option[Ordering[MetadataPrimitive]] = None) extends MetadataComponent
 

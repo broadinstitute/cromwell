@@ -4,11 +4,12 @@ import java.io.IOException
 
 import common.assertion.CromwellTimeoutSpec
 import org.apache.commons.net.ftp.FTPClient
+import org.mockito.ArgumentMatchers._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
+import common.mock.MockSugar
 
-class FtpCredentialsSpec extends AnyFlatSpec with Matchers with Mockito with CromwellTimeoutSpec {
+class FtpCredentialsSpec extends AnyFlatSpec with Matchers with MockSugar with CromwellTimeoutSpec {
 
   behavior of "FtpCredentialsSpec"
 
@@ -24,14 +25,14 @@ class FtpCredentialsSpec extends AnyFlatSpec with Matchers with Mockito with Cro
       loggedInWithAccount = true
       true
     })
-    
+
     FtpAuthenticatedCredentials("user", "password", None).login(client)
     loggedInWithoutAccount shouldBe true
     loggedInWithAccount shouldBe false
 
     // reset
     loggedInWithoutAccount= false
-    
+
     FtpAuthenticatedCredentials("user", "password", Option("account")).login(client)
     loggedInWithAccount shouldBe true
     loggedInWithoutAccount shouldBe false
@@ -42,10 +43,10 @@ class FtpCredentialsSpec extends AnyFlatSpec with Matchers with Mockito with Cro
     client.login(anyString, anyString).responds(_ => false)
 
     an[IOException] shouldBe thrownBy(FtpAuthenticatedCredentials("user", "password", None).login(client))
-    
+
     val noooo = new Exception("I can't login !")
     client.login(anyString, anyString).responds(_ => throw noooo)
-    
+
     val loginException = the[IOException] thrownBy FtpAuthenticatedCredentials("user", "password", None).login(client)
     loginException.getCause shouldBe noooo
   }

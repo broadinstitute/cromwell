@@ -2,16 +2,17 @@ package cromwell.engine.io
 
 import java.io.IOException
 import java.net.{SocketException, SocketTimeoutException}
-
 import com.google.cloud.storage.StorageException
 import cromwell.engine.io.gcs.GcsBatchFlow.BatchFailedException
+import cromwell.engine.io.nio.ChecksumFailedException
+
 import javax.net.ssl.SSLException
 
 object RetryableRequestSupport {
 
   /**
-    * Failures that are considered retryable.
-    * Retrying them should increase the "retry counter"
+    * Failures that are considered retryable. Retrying them increases the retry counter.
+    * The default count is `5` and may be customized with `system.io.number-of-attempts`.
     */
   def isRetryable(failure: Throwable): Boolean = failure match {
     case gcs: StorageException => gcs.isRetryable ||
@@ -21,6 +22,7 @@ object RetryableRequestSupport {
         AdditionalRetryableErrorMessages.contains(msg.toLowerCase))
     case _: SSLException => true
     case _: BatchFailedException => true
+    case _: ChecksumFailedException => true
     case _: SocketException => true
     case _: SocketTimeoutException => true
     case ioE: IOException if Option(ioE.getMessage).exists(_.contains("Error getting access token for service account")) => true
@@ -45,7 +47,9 @@ object RetryableRequestSupport {
 
   // Error messages not included in the list of built-in GCS retryable errors (com.google.cloud.storage.StorageException) but that we still want to retry
   private val AdditionalRetryableErrorMessages = List(
-    "Connection closed prematurely"
+    "Connection closed prematurely",
+    // This is a 400 "non-retryable" error that is nevertheless sporadic and succeeds on subsequent re-runs with identical parameters [BW-1320]
+    "User project specified in the request is invalid"
   ).map(_.toLowerCase)
 
   /**

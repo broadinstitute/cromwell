@@ -368,7 +368,7 @@ class RuntimeAttributesValidationSpec extends AnyWordSpecLike with CromwellTimeo
            |continueOnReturnCode = [0,1,2]
            |""".stripMargin))
 
-      ContinueOnReturnCodeValidation.configDefaultWdlValue(optinalBackendConfig).get shouldBe WomArray(WomArrayType(WomIntegerType), Array(WomInteger(0), WomInteger(1), WomInteger(2)))
+      ContinueOnReturnCodeValidation.configDefaultWdlValue(optinalBackendConfig).get shouldBe WomArray(WomArrayType(WomIntegerType), List(WomInteger(0), WomInteger(1), WomInteger(2)))
     }
 
     "return failure when tries to validate an invalid maxRetries entry" in {

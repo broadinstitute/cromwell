@@ -28,7 +28,7 @@ class SharedFileSystemExpressionFunctions(standardParams: StandardExpressionFunc
     this(DefaultStandardExpressionFunctionsParams(pathBuilders, callContext, ioActorProxy, ec))
   }
 
-  override def makeInputSpecificFunctions: IoFunctionSet = new SharedFileSystemExpressionFunctionsForInput(standardParams)
+  override def makeInputSpecificFunctions(): IoFunctionSet = new SharedFileSystemExpressionFunctionsForInput(standardParams)
 
   override def postMapping(path: Path) = {
     path match {
@@ -42,7 +42,7 @@ class SharedFileSystemExpressionFunctionsForInput(standardParams: StandardExpres
   extends SharedFileSystemExpressionFunctions(standardParams) {
 
   // override needed to prevent class self-reference
-  override def makeInputSpecificFunctions: IoFunctionSet = this
+  override def makeInputSpecificFunctions(): IoFunctionSet = this
 
   lazy val cromwellCwd: Path = DefaultPathBuilder.build(sys.props("user.dir")).get
 

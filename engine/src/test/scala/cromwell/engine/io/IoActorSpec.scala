@@ -12,6 +12,7 @@ import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.engine.io.IoActor.IoConfig
 import cromwell.engine.io.IoActorSpec.IoActorConfig
 import cromwell.engine.io.gcs.GcsBatchFlow.{BatchFailedException, GcsBatchFlowConfig}
+import cromwell.engine.io.nio.ChecksumFailedException
 import cromwell.engine.io.nio.NioFlow.NioFlowConfig
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -24,32 +25,32 @@ import scala.language.postfixOps
 
 class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with ImplicitSender {
   behavior of "IoActor"
-  
+
   implicit val ec: ExecutionContext = system.dispatcher
   implicit val materializer: ActorMaterializer = ActorMaterializer()
-  
+
   override def afterAll(): Unit = {
     materializer.shutdown()
     super.afterAll()
   }
-  
+
   it should "copy a file" in {
     val testActor = TestActorRef(
       factory = new IoActor(IoActorConfig, TestProbe("serviceRegistryActorCopy").ref, "cromwell test"),
       name = "testActorCopy",
     )
-    
+
     val src = DefaultPathBuilder.createTempFile()
     val dst: Path = src.parent.resolve(src.name + "-dst")
-    
+
     val copyCommand = DefaultIoCopyCommand(src, dst)
-    
+
     testActor ! copyCommand
     expectMsgPF(5 seconds) {
       case response: IoSuccess[_] => response.command.isInstanceOf[IoCopyCommand] shouldBe true
       case response: IoFailure[_] => fail("Expected an IoSuccess", response.failure)
     }
-    
+
     dst.toFile should exist
     src.delete()
     dst.delete()
@@ -107,7 +108,7 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
 
     testActor ! readCommand
     expectMsgPF(5 seconds) {
-      case response: IoSuccess[_] => 
+      case response: IoSuccess[_] =>
         response.command.isInstanceOf[IoContentAsStringCommand] shouldBe true
         response.result.asInstanceOf[String] shouldBe "hello"
       case response: IoFailure[_] => fail("Expected an IoSuccess", response.failure)
@@ -252,7 +253,9 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
       new StorageException(504, "message"),
       new StorageException(408, "message"),
       new StorageException(429, "message"),
+      new StorageException(400, "User project specified in the request is invalid"),
       BatchFailedException(new Exception),
+      ChecksumFailedException("message"),
       new SocketException(),
       new SocketTimeoutException(),
       new IOException("text Error getting access token for service account some other text"),
@@ -273,7 +276,9 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
       new IOException("Some other text. Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 504 Gateway Timeout"),
     )
 
-    retryables foreach { RetryableRequestSupport.isRetryable(_) shouldBe true }
+    retryables foreach { e => withClue(e) {
+      RetryableRequestSupport.isRetryable(e) shouldBe true }
+    }
   }
 
   it should "have correct non-retryable exceptions" in {

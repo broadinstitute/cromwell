@@ -10,13 +10,13 @@ trait CallCachingAggregationEntryComponent {
   import driver.api._
 
   class CallCachingAggregationEntries(tag: Tag) extends Table[CallCachingAggregationEntry](tag, "CALL_CACHING_AGGREGATION_ENTRY") {
-    def callCachingAggregationEntryId = column[Int]("CALL_CACHING_AGGREGATION_ENTRY_ID", O.PrimaryKey, O.AutoInc)
+    def callCachingAggregationEntryId = column[Long]("CALL_CACHING_AGGREGATION_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
     def baseAggregation = column[String]("BASE_AGGREGATION", O.Length(255))
 
     def inputFilesAggregation = column[Option[String]]("INPUT_FILES_AGGREGATION", O.Length(255))
 
-    def callCachingEntryId = column[Int]("CALL_CACHING_ENTRY_ID")
+    def callCachingEntryId = column[Long]("CALL_CACHING_ENTRY_ID")
 
     override def * = (baseAggregation, inputFilesAggregation, callCachingEntryId.?, callCachingAggregationEntryId.?) <>
       (CallCachingAggregationEntry.tupled, CallCachingAggregationEntry.unapply)
@@ -34,7 +34,7 @@ trait CallCachingAggregationEntryComponent {
     callCachingAggregationEntries.map(_.callCachingAggregationEntryId)
   
   val callCachingAggregationForCacheEntryId = Compiled(
-    (callCachingEntryId: Rep[Int]) => for {
+    (callCachingEntryId: Rep[Long]) => for {
       callCachingAggregationEntry <- callCachingAggregationEntries 
       if callCachingAggregationEntry.callCachingEntryId === callCachingEntryId
     } yield callCachingAggregationEntry
@@ -69,26 +69,26 @@ trait CallCachingAggregationEntryComponent {
         (detritusPath.substring(0, prefix3Length) === prefix3)} yield ()).exists
   )
 
-  def callCachingEntriesForAggregatedHashes(baseAggregation: Rep[String], inputFilesAggregation: Rep[Option[String]], number: Int) = {
+  def callCachingEntriesForAggregatedHashes(baseAggregation: Rep[String], inputFilesAggregation: Rep[Option[String]], excludedIds: Set[Long]) = {
     (for {
       callCachingEntry <- callCachingEntries
-      if callCachingEntry.allowResultReuse
+      if callCachingEntry.allowResultReuse && !(callCachingEntry.callCachingEntryId inSet excludedIds)
       callCachingAggregationEntry <- callCachingAggregationEntries
       if callCachingEntry.callCachingEntryId === callCachingAggregationEntry.callCachingEntryId
       if callCachingAggregationEntry.baseAggregation === baseAggregation
       if (callCachingAggregationEntry.inputFilesAggregation.isEmpty && inputFilesAggregation.isEmpty) ||
         (callCachingAggregationEntry.inputFilesAggregation === inputFilesAggregation)
-    } yield callCachingAggregationEntry.callCachingEntryId).drop(number - 1).take(1)
+    } yield callCachingAggregationEntry.callCachingEntryId).take(1)
   }
 
   def callCachingEntriesForAggregatedHashesWithPrefixes(baseAggregation: Rep[String], inputFilesAggregation: Rep[Option[String]],
                                                         prefix1: Rep[String], prefix1Length: Rep[Int],
                                                         prefix2: Rep[String], prefix2Length: Rep[Int],
                                                         prefix3: Rep[String], prefix3Length: Rep[Int],
-                                                        number: Int) = {
+                                                        excludedIds: Set[Long]) = {
     (for {
       callCachingEntry <- callCachingEntries
-      if callCachingEntry.allowResultReuse
+      if callCachingEntry.allowResultReuse && !(callCachingEntry.callCachingEntryId inSet excludedIds)
       callCachingAggregationEntry <- callCachingAggregationEntries
       if callCachingEntry.callCachingEntryId === callCachingAggregationEntry.callCachingEntryId
       if callCachingAggregationEntry.baseAggregation === baseAggregation
@@ -103,6 +103,6 @@ trait CallCachingAggregationEntryComponent {
       if (detritusPath.substring(0, prefix1Length) === prefix1) ||
         (detritusPath.substring(0, prefix2Length) === prefix2) ||
         (detritusPath.substring(0, prefix3Length) === prefix3)
-    } yield callCachingAggregationEntry.callCachingEntryId).drop(number - 1).take(1)
+    } yield callCachingAggregationEntry.callCachingEntryId).take(1)
   }
 }

@@ -39,7 +39,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
   private def performActionThenRespond(operation: => Future[BackendWorkflowLifecycleActorResponse],
                                        onFailure: (Throwable) => BackendWorkflowLifecycleActorResponse)
                                       (implicit ec: ExecutionContext) = {
-    val respondTo: ActorRef = sender
+    val respondTo: ActorRef = sender()
     operation onComplete {
       case Success(r) => respondTo ! r
       case Failure(t) => respondTo ! onFailure(t)
@@ -70,7 +70,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
     val copies = outputFilePaths map {
       case (srcPath, dstPath) => asyncIo.copyAsync(srcPath, dstPath)
     }
-    
+
     Future.sequence(copies)
   }
 
@@ -81,7 +81,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
       }
     }
   }
-  
+
   private def getOutputFilePaths(workflowOutputsPath: Path): List[(Path, Path)] = {
 
     val useRelativeOutputPaths: Boolean = workflowDescriptor.getWorkflowOption(UseRelativeOutputPaths).contains("true")
@@ -102,7 +102,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
     lazy val truncateRegex = ".*/call-[^/]*/(shard-[0-9]+/)?(cacheCopy/)?(attempt-[0-9]+/)?(execution/)?".r
     val outputFileDestinations = rootAndFiles flatMap {
       case (workflowRoot, outputs) =>
-        outputs map { output => 
+        outputs map { output =>
           val outputPath = PathFactory.buildPath(output, pathBuilders)
           outputPath -> {
             if (useRelativeOutputPaths) {

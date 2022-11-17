@@ -163,7 +163,7 @@ object WomtoolMain extends App with StrictLogging {
     }
   }
 
-  val termination = runWomtool(args)
+  val termination = runWomtool(args.toIndexedSeq)
   termination.stdout foreach Console.out.println
   termination.stderr foreach Console.err.println
 

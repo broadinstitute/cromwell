@@ -153,15 +153,6 @@ runtime {
 }
 ```
 
-
-#### CWL
-
-CWL splits the `cpu` requirement into `cpuMin` and `cpuMax`. If one of them is provided, `cpu` will inherit this value. If both of them are provided, `cpu` will take the value of `cpuMin`.
-If none is provided, `cpu` will default to its default value.
-
-Note: If provided, `cpuMin` and/or `cpuMax` will be available to the [HPC runtime attribute configuration](/tutorials/HPCIntro.md#specifying-the-runtime-attributes-for-your-hpc-tasks).
-
-
 ### `memory`
 *Default: "2G"*
 
@@ -179,12 +170,6 @@ runtime {
 ```
 
 Within the SFS backend, you can additionally specify `memory_mb` or `memory_gb` as runtime attributes within the configuration. More information can be found [here](https://cromwell.readthedocs.io/en/stable/tutorials/HPCIntro/#specifying-the-runtime-attributes-for-your-hpc-tasks).
-
-#### CWL
-
-CWL splits the `memory` requirement into `ramMin` and `ramMax`. If one of them is provided, `memory` will inherit this value. If both of them are provided, `memory` will take the value of `ramMin`. If none is provided, `memory` will default to its default value.
-
-Note: If provided, `ramMin` and/or `ramMax` will be available to the [HPC runtime attribute configuration](/tutorials/HPCIntro.md#specifying-the-runtime-attributes-for-your-hpc-tasks).
 
 
 ### `disks`

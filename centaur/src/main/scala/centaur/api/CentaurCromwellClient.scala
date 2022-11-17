@@ -38,7 +38,7 @@ object CentaurCromwellClient extends StrictLogging {
   final implicit val materializer: ActorMaterializer = ActorMaterializer(ActorMaterializerSettings(system))
   final val apiVersion = "v1"
   val cromwellClient = new CromwellClient(CentaurConfig.cromwellUrl, apiVersion)
-  
+
   val defaultMetadataArgs: Option[Map[String, List[String]]] =
     config.getAs[Map[String, List[String]]]("centaur.metadata-args")
 
@@ -56,6 +56,7 @@ object CentaurCromwellClient extends StrictLogging {
         submittedWorkflow =>
           for {
             _ <- IO(logger.info(s"Submitting ${workflow.testName} returned workflow id ${submittedWorkflow.id}"))
+            _ = workflow.submittedWorkflowTracker.add(submittedWorkflow)
           } yield submittedWorkflow
       )
     })
@@ -124,7 +125,7 @@ object CentaurCromwellClient extends StrictLogging {
   def archiveStatus(id: WorkflowId): IO[String] = {
     sendReceiveFutureCompletion(() => cromwellClient.query(id)).map(_.results.head.metadataArchiveStatus)
   }
-  
+
   implicit private val timer: Timer[IO] = IO.timer(blockingEc)
   implicit private val contextShift: ContextShift[IO] = IO.contextShift(blockingEc)
 

@@ -54,7 +54,7 @@ final case class WorkflowStoreActor private(
     case GetWorkflowStoreStats =>
       // Retrieve the workflow store stats, convert the WorkflowStoreStates to WorkflowStates
       val stats = workflowStore.stats.map(m => m.map(e => WorkflowState.withName(e._1.toString) -> e._2))
-      stats pipeTo sender
+      stats pipeTo sender()
       ()
   }
 }
@@ -79,7 +79,7 @@ object WorkflowStoreActor {
 
   final case object GetWorkflowStoreStats
 
-  case class WorkflowStoreWriteHeartbeatCommand(workflowId: WorkflowId, submissionTime: OffsetDateTime)
+  case class WorkflowStoreWriteHeartbeatCommand(workflowId: WorkflowId, submissionTime: OffsetDateTime, heartbeatTime: OffsetDateTime = OffsetDateTime.now())
 
   def props(
              workflowStoreDatabase: WorkflowStore,

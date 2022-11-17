@@ -101,7 +101,7 @@ case class WSMBlobTokenGenerator(
   def generateAccessToken: Try[AzureSasCredential] = Try {
     val token = wsmClient.getControlledAzureResourceApi.createAzureStorageContainerSasToken(
       UUID.fromString(workspaceId.value),
-      UUID.fromString(workspaceId.value), // TODO replace with the real resource id
+      UUID.fromString("00001111-2222-3333-aaaa-bbbbccccdddd"),
       null,
       null,
       null,

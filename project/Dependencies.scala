@@ -197,15 +197,29 @@ object Dependencies {
     "com.azure.resourcemanager" % "azure-resourcemanager" % "2.18.0"
   )
 
+  val jerseyVersion = "3.1.0"
+
   val wsmDependencies: List[ModuleID] = List(
-    "bio.terra" % "workspace-manager-client" % "0.254.452-SNAPSHOT"
+    "bio.terra" % "workspace-manager-client" % "0.254.459-SNAPSHOT"
       exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
       exclude("jakarta.activation", "jakarta.activation-api")
       exclude("jakarta.activation", "jakarta.activation")
       exclude("jakarta.annotation", "jakarta.annotation-api")
       exclude("com.sun.activation", "jakarta.activation")
-      exclude("org.glassfish.hk2.external", "jakarta.inject"),
-    "org.glassfish.jersey.inject" % "jersey-hk2" % "2.32"
+      exclude("org.glassfish.hk2.external", "jakarta.inject")
+      exclude("org.glassfish.jersey.core", "jersey-client")
+      exclude("org.glassfish.jersey.inject", "jersey-hk2")
+      exclude("org.glassfish.jersey.media", "jersey-media-json-jackson")
+      exclude("org.glassfish.jersey.media", "jersey-media-multipart")
+      exclude("javax.ws.rs", "javax.ws.rs-api")
+      exclude("com.fasterxml.jackson.datatype", "jackson-datatype-jsr310")
+      exclude("com.fasterxml.jackson.core", "jackson-databind"),
+    "org.glassfish.jersey.core" % "jersey-client" % jerseyVersion,
+    "org.glassfish.jersey.inject" % "jersey-hk2" % jerseyVersion,
+    "org.glassfish.jersey.media" % "jersey-media-json-jackson" % jerseyVersion,
+    "org.glassfish.jersey.media" % "jersey-media-multipart" % jerseyVersion,
+    "javax.ws.rs" % "javax.ws.rs-api" % "2.1.1",
+    "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % jacksonV
   )
 
   val implFtpDependencies = List(

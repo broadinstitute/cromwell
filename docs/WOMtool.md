@@ -59,9 +59,9 @@ graph <WDL file>
   otherwise. Note that graph currently DOES NOT WORK on
   version 1.0 workflows.
 
-womgraph <WDL or CWL file> [ancillary files]
+womgraph <WDL file> [ancillary files]
 
-  Reads a WDL or CWL file from the first argument and
+  Reads a WDL file from the first argument and
   converts it to a WOM representation then prints out a graph
   of the WOM produced.
   Any imported files can be supplied as subsequent arguments.

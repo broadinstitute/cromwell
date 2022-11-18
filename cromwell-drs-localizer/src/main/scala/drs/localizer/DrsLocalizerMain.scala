@@ -8,7 +8,7 @@ import cloud.nio.impl.drs.{AccessUrl, DrsConfig, DrsPathResolver, MarthaField}
 import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
 import com.typesafe.scalalogging.StrictLogging
 import drs.localizer.CommandLineParser.AccessTokenStrategy.{Azure, Google}
-import drs.localizer.accesstokens.{AccessTokenStrategy, AzureB2CAccessTokenStrategy, GoogleAccessTokenStrategy}
+import drs.localizer.accesstokens.{AccessTokenStrategy, AzureAccessTokenStrategy, GoogleAccessTokenStrategy}
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
 import org.apache.commons.csv.{CSVFormat, CSVParser}
@@ -29,7 +29,7 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     val localize: Option[IO[ExitCode]] = for {
       pa <- parsedArgs
       run <- pa.accessTokenStrategy.collect {
-        case Azure => runLocalizer(pa, AzureB2CAccessTokenStrategy(pa))
+        case Azure => runLocalizer(pa, AzureAccessTokenStrategy(pa))
         case Google => runLocalizer(pa, GoogleAccessTokenStrategy)
       }
     } yield run

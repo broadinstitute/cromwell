@@ -7,7 +7,7 @@ import common.validation.ErrorOr
 import common.validation.ErrorOr.{ErrorOr,ShortCircuitingFlatMap}
 import drs.localizer.CommandLineArguments
 
-case class AzureB2CAccessTokenStrategy(commandLineArguments: CommandLineArguments) extends AccessTokenStrategy {
+case class AzureAccessTokenStrategy(commandLineArguments: CommandLineArguments) extends AccessTokenStrategy {
   override def getAccessToken(): ErrorOr[String] = {
     commandLineArguments match {
       case CommandLineArguments(_, _, _, _, Some(vault), Some(secret), clientId, _, _) =>

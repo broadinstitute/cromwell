@@ -212,8 +212,6 @@ object Dependencies {
     "com.azure.resourcemanager" % "azure-resourcemanager" % "2.18.0"
   )
 
-  val jerseyVersion = "3.1.0"
-
   val wsmDependencies: List[ModuleID] = List(
     "bio.terra" % "workspace-manager-client" % "0.254.452-SNAPSHOT"
       exclude("com.sun.activation", "jakarta.activation"),

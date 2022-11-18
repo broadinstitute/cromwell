@@ -1,11 +1,10 @@
 package cloud.nio.impl.drs
 
 import cats.syntax.validated._
+import com.azure.core.credential.TokenRequestContext
 import com.azure.identity.DefaultAzureCredentialBuilder
-import com.azure.security.keyvault.secrets.{SecretClient, SecretClientBuilder}
 import com.google.auth.oauth2.{AccessToken, OAuth2Credentials}
 import com.typesafe.config.Config
-import common.validation.ErrorOr
 import common.validation.ErrorOr.ErrorOr
 import net.ceedubs.ficus.Ficus._
 
@@ -46,18 +45,12 @@ object GoogleDrsCredentials {
 
 case class AzureDrsCredentials(identityClientId: Option[String], vaultName: String, secretName: String) extends DrsCredentials {
 
-  lazy val secretClient: ErrorOr[SecretClient] = ErrorOr {
-    val defaultCreds = identityClientId.map(identityId =>
-      new DefaultAzureCredentialBuilder().managedIdentityClientId(identityId)
-    ).getOrElse(
-      new DefaultAzureCredentialBuilder()
-    ).build()
-
-    new SecretClientBuilder()
-      .vaultUrl(s"https://${vaultName}.vault.azure.net")
-      .credential(defaultCreds)
-      .buildClient()
+  def getAccessToken: ErrorOr[String] = {
+    val credentials = identityClientId.foldLeft(new DefaultAzureCredentialBuilder()) {
+      (builder, clientId) => builder.managedIdentityClientId(clientId)
+    }.build()
+    val tokenRequestContext = new TokenRequestContext()
+    tokenRequestContext.addScopes(".default")
+    credentials.getToken(tokenRequestContext).block().getToken.validNel
   }
-
-  def getAccessToken: ErrorOr[String] = secretClient.map(_.getSecret(secretName).getValue)
 }

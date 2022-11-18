@@ -4,6 +4,10 @@
 
 ### Setting up PAPIv2
 
+For now the easiest way to try PAPIv2 is to start with the sample configuration in
+[cromwell.examples.conf](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.example.backends/PAPIv2.conf)
+and adjust it to fit your needs.
+
 #### Permissions:
 
 Google recommends using a service account to authenticate to GCP.  

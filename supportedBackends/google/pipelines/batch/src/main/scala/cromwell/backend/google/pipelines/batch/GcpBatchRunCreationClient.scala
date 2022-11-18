@@ -14,11 +14,12 @@ import cromwell.backend.BackendJobDescriptor
 trait GcpBatchRunCreationClient {
   this: Actor with ActorLogging => private var runCreationClientPromise: Option[Promise[StandardAsyncJob]] = None
 
-  val gcpBatchApiActor: ActorRef
-  val requestFactory: GcpBatchBackendLifecycleFactory
+  def gcpBatchApiActor: ActorRef
+  //def requestFactory: GcpBatchBackendLifecycleFactory
 
   val jobDescriptor: BackendJobDescriptor
   lazy val batchJob: GcpBatchJob = GcpBatchJob(jobDescriptor)
+  //def batchJob: GcpBatchJob
 
   def runCreationClientReceive: Actor.Receive = {
     case job: StandardAsyncJob =>

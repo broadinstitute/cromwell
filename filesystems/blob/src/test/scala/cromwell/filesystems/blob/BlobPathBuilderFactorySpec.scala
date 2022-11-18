@@ -7,6 +7,7 @@ import org.mockito.Mockito._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.nio.channels.UnresolvedAddressException
 import java.nio.file.{FileSystem, FileSystemNotFoundException}
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -28,14 +29,11 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
     val container = BlobContainerName("storageContainer")
 
-
     // Use a real UUID to help along the hacky "unit" test below.
     //val workspaceId = WorkspaceId("mockWorkspaceId")
     val workspaceId = WorkspaceId("B0BAFE77-0000-0000-0000-000000000000")
 
-
-
-    val workspaceManagerURL = WorkspaceManagerURL("https://test.ws.org")
+    val workspaceManagerURL = WorkspaceManagerURL("https://wsm.example.com")
     val instanceConfig = ConfigFactory.parseString(
       s"""
       |container = "$container"
@@ -66,7 +64,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val sizeTry = pathBuilder.build(s"$endpoint/$container/inputs/test/testFile.wdl").map(_.size)
     val sizeFailure = sizeTry.failed.get
     sizeFailure shouldBe a[javax.ws.rs.ProcessingException]
-    sizeFailure.getMessage should include("unable to find valid certification path to requested target")
+    sizeFailure.getCause.getClass shouldBe classOf[UnresolvedAddressException]
     Await.result(system.terminate(), scala.concurrent.duration.Duration(10, "seconds"))
   }
 

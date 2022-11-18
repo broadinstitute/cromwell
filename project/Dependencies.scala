@@ -216,11 +216,6 @@ object Dependencies {
 
   val wsmDependencies: List[ModuleID] = List(
     "bio.terra" % "workspace-manager-client" % "0.254.452-SNAPSHOT"
-//      exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
-//      exclude("jakarta.activation", "jakarta.activation-api")
-//      exclude("jakarta.activation", "jakarta.activation")
-//      exclude("jakarta.annotation", "jakarta.annotation-api")
-//      exclude("org.glassfish.hk2.external", "jakarta.inject")
       exclude("com.sun.activation", "jakarta.activation"),
     /*
     1. WSM is looking for the rs-api under javax.*.

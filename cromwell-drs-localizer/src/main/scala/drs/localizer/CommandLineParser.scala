@@ -36,12 +36,6 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments](Usage) 
   opt[String]('t', "access-token-strategy").text(s"Access token strategy, must be one of '$Azure' or '$Google' (default '$Google')").
     action((s, c) =>
       c.copy(accessTokenStrategy = Option(s.toLowerCase())))
-  opt[String]('v', "vault-name").text("Azure vault name").
-    action((s, c) =>
-      c.copy(azureVaultName = Option(s)))
-  opt[String]('s', "secret-name").text("Azure secret name").
-    action((s, c) =>
-      c.copy(azureSecretName = Option(s)))
   opt[String]('i', "identity-client-id").text("Azure identity client id").
     action((s, c) =>
       c.copy(azureIdentityClientId = Option(s)))
@@ -54,11 +48,10 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments](Usage) 
     c.accessTokenStrategy match {
       case Some(Azure) if c.googleRequesterPaysProject.nonEmpty =>
         Left(s"Requester pays project is only valid with access token strategy '$Google'")
-      case Some(Azure) if List(c.azureVaultName, c.azureSecretName).exists(_.isEmpty) =>
-        Left(s"Both vault name and secret name must be specified for access token strategy $Azure")
+      case Some(Google) if c.azureIdentityClientId.nonEmpty =>
+        Left(s"Identity client id is only valid with access token strategy '$Azure'")
       case Some(Azure) => Right(())
-      case Some(Google) if List(c.azureSecretName, c.azureVaultName, c.azureIdentityClientId).forall(_.isEmpty) => Right(())
-      case Some(Google) => Left(s"One or more specified options are only valid with access token strategy '$Azure'")
+      case Some(Google) => Right(())
       case Some(huh) => Left(s"Unrecognized access token strategy '$huh'")
       case None => Left("Programmer error, access token strategy should not be None")
     }
@@ -100,8 +93,6 @@ case class CommandLineArguments(accessTokenStrategy: Option[String] = Option(Goo
                                 drsObject: Option[String] = None,
                                 containerPath: Option[String] = None,
                                 googleRequesterPaysProject: Option[String] = None,
-                                azureVaultName: Option[String] = None,
-                                azureSecretName: Option[String] = None,
                                 azureIdentityClientId: Option[String] = None,
                                 manifestPath: Option[String] = None,
                                 googleRequesterPaysProjectConflict: Boolean = false)

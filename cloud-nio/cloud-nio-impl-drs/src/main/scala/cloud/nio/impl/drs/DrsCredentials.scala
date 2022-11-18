@@ -43,7 +43,7 @@ object GoogleDrsCredentials {
     GoogleDrsCredentials(credentials, config.as[FiniteDuration]("access-token-acceptable-ttl"))
 }
 
-case class AzureDrsCredentials(identityClientId: Option[String], vaultName: String, secretName: String) extends DrsCredentials {
+case class AzureDrsCredentials(identityClientId: Option[String]) extends DrsCredentials {
 
   def getAccessToken: ErrorOr[String] = {
     val credentials = identityClientId.foldLeft(new DefaultAzureCredentialBuilder()) {

@@ -24,7 +24,7 @@ final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Co
   val workspaceId: Option[WorkspaceId] = instanceConfig.as[Option[String]]("workspace-id").map(WorkspaceId)
   val expiryBufferMinutes: Long = instanceConfig.as[Option[Long]]("expiry-buffer-minutes").getOrElse(10)
   val workspaceManagerURL: Option[WorkspaceManagerURL] = singletonConfig.config.as[Option[String]]("workspace-manager-url").map(WorkspaceManagerURL)
-  val b2cToken: Option[String] = Option("asdf") // instanceConfig.as[Option[String]]("b2cToken")
+  val b2cToken: Option[String] = instanceConfig.as[Option[String]]("b2cToken")
 
   val blobTokenGenerator: BlobTokenGenerator = (workspaceManagerURL, b2cToken, workspaceId) match {
     case (Some(url), Some(token), Some(workspaceId)) =>

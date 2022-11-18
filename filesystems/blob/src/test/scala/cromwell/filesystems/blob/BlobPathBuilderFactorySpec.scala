@@ -27,7 +27,14 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
   it should "parse configs for a functioning factory" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
     val container = BlobContainerName("storageContainer")
-    val workspaceId = WorkspaceId("mockWorkspaceId")
+
+
+    // Use a real UUID to help along the hacky "unit" test below.
+    //val workspaceId = WorkspaceId("mockWorkspaceId")
+    val workspaceId = WorkspaceId("B0BAFE77-0000-0000-0000-000000000000")
+
+
+
     val workspaceManagerURL = WorkspaceManagerURL("https://test.ws.org")
     val instanceConfig = ConfigFactory.parseString(
       s"""
@@ -45,6 +52,22 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     factory.expiryBufferMinutes should equal(10L)
     factory.workspaceId should contain(workspaceId)
     factory.workspaceManagerURL should contain(workspaceManagerURL)
+
+    // Hacky "unit" test to try and exercise this branch's WSM code and dependencies.
+    // Should probably be in a Spec that extends TestKitSuite which provides and cleans up an ActorSystem.
+    import akka.actor.ActorSystem
+    import cromwell.core.WorkflowOptions
+    import scala.concurrent.{Await, ExecutionContext}
+
+    implicit val system: ActorSystem = ActorSystem("BlobPathBuilderFactorySpec")
+    implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
+    val pathBuilder =
+      Await.result(factory.withOptions(WorkflowOptions.empty), scala.concurrent.duration.Duration(10, "seconds"))
+    val sizeTry = pathBuilder.build(s"$endpoint/$container/inputs/test/testFile.wdl").map(_.size)
+    val sizeFailure = sizeTry.failed.get
+    sizeFailure shouldBe a[javax.ws.rs.ProcessingException]
+    sizeFailure.getMessage should include("unable to find valid certification path to requested target")
+    Await.result(system.terminate(), scala.concurrent.duration.Duration(10, "seconds"))
   }
 
   it should "build an example sas token of the correct format" in {

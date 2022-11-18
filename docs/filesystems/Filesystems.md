@@ -150,11 +150,6 @@ engine {
 }
 ```
 
-#### Engine filesystems and CWL
-
-Note that CWL *always* needs to access file attributes from within the engine, so if you are using CWL, please make sure
-that **every filesystem you might use** is added to the `engine.filesystems` stanza.
-
 ### Backend Filesystems
 
 Similarly to the engine, you can also configure backend filesystems individually. Some backends might require the use of a specific filesystem.

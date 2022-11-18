@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Cromwell has only a finite amount of resources at its disposal. WDL and CWL workflows allow scattered tasks to be
+Cromwell has only a finite amount of resources at its disposal. WDL workflows allow scattered tasks to be
 run a huge number of times with very simple syntax.
 This makes it easy for a very small number of workflows to hog all of the resources of Cromwell, forcing all other 
 workflows (even a simple 'hello_world') to wait in line behind them. 

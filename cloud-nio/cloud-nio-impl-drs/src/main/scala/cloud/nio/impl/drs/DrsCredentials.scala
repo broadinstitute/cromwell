@@ -10,16 +10,15 @@ import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
 import net.ceedubs.ficus.Ficus._
 
-import java.time.{Duration => jDuration}
-import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
+import scala.jdk.DurationConverters._
 import scala.util.{Failure, Success, Try}
 
 /**
   * This trait allows us to abstract away different token attainment strategies
   * for different cloud environments.
   **/
-sealed trait DrsCredentials {
+trait DrsCredentials {
   def getAccessToken: ErrorOr[String]
 }
 
@@ -74,10 +73,14 @@ case object GoogleAppDefaultTokenStrategy extends DrsCredentials {
   }
 }
 
-
+/**
+  * Strategy for obtaining an access token in an environment with available Azure identity.
+  * If you need to disambiguate among multiple active user-assigned managed identities, pass
+  * in the client id of the identity that should be used.
+  */
 case class AzureDrsCredentials(identityClientId: Option[String]) extends DrsCredentials {
 
-  final val tokenAcquisitionTimeout = new jDuration(30, TimeUnit.SECONDS)
+  final val tokenAcquisitionTimeout = 30.seconds
 
   val azureProfile = new AzureProfile(AzureEnvironment.AZURE)
   val tokenScope = "https://management.azure.com/.default"
@@ -100,13 +103,11 @@ case class AzureDrsCredentials(identityClientId: Option[String]) extends DrsCred
     Try(
       credentials
         .getToken(tokenRequestContext)
-        .block(tokenAcquisitionTimeout)
+        .block(tokenAcquisitionTimeout.toJava)
     ) match {
+      case Success(null) => "null token value attempting to obtain access token".invalidNel
       case Success(token) => token.getToken.validNel
-      case Failure(error) =>
-        Option(error.getMessage)  // it's possible the message is null
-          .getOrElse(error.toString)
-          .invalidNel
+      case Failure(error) => s"Failed to refresh access token: ${error.getMessage}".invalidNel
     }
   }
 }

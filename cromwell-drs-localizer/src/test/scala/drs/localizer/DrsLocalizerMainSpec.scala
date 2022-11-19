@@ -7,7 +7,7 @@ import cloud.nio.impl.drs.DrsPathResolver.FatalRetryDisposition
 import cloud.nio.impl.drs.{AccessUrl, DrsConfig, MarthaField, MarthaResponse}
 import common.assertion.CromwellTimeoutSpec
 import drs.localizer.MockDrsLocalizerDrsPathResolver.{FakeAccessTokenStrategy, FakeHashes}
-import drs.localizer.accesstokens.AccessTokenStrategy
+import drs.localizer.accesstokens.DrsCredentials
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
 import org.scalatest.flatspec.AnyFlatSpec
@@ -341,5 +341,5 @@ class MockDrsLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
 
 object MockDrsLocalizerDrsPathResolver {
   val FakeHashes: Option[Map[String, String]] = Option(Map("md5" -> "abc123", "crc32c" -> "34fd67"))
-  val FakeAccessTokenStrategy: AccessTokenStrategy = () => "testing code: do not call me".invalidNel
+  val FakeAccessTokenStrategy: DrsCredentials = () => "testing code: do not call me".invalidNel
 }

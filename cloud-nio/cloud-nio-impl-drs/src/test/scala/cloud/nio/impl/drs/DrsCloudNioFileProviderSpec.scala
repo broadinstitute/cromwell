@@ -33,7 +33,7 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
     val fileSystemProvider = new MockDrsCloudNioFileSystemProvider(config = config)
     fileSystemProvider.drsConfig.marthaUrl should be("https://from.config")
     fileSystemProvider.drsCredentials match {
-      case GoogleDrsCredentials(_, ttl) => ttl should be(1.minute)
+      case GoogleOauthDrsCredentials(_, ttl) => ttl should be(1.minute)
       case error => fail(s"Expected GoogleDrsCredentials, found $error")
     }
     fileSystemProvider.fileProvider should be(a[DrsCloudNioFileProvider])

@@ -2,7 +2,7 @@ package cromwell.filesystems.drs
 
 import akka.actor.ActorSystem
 import cats.data.Validated.{Invalid, Valid}
-import cloud.nio.impl.drs.{AzureDrsCredentials, DrsCloudNioFileSystemProvider, GoogleDrsCredentials}
+import cloud.nio.impl.drs.{AzureDrsCredentials, DrsCloudNioFileSystemProvider, GoogleOauthDrsCredentials}
 import com.google.api.services.oauth2.Oauth2Scopes
 import com.typesafe.config.Config
 import cromwell.cloudsupport.gcp.GoogleConfiguration
@@ -39,7 +39,7 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
         case googleAuthScheme => googleConfiguration.auth(googleAuthScheme) match {
           case Valid(auth) => (
             Option(auth),
-            GoogleDrsCredentials(auth.credentials(options.get(_).get, marthaScopes), singletonConfig.config)
+            GoogleOauthDrsCredentials(auth.credentials(options.get(_).get, marthaScopes), singletonConfig.config)
           )
           case Invalid(error) => throw new RuntimeException(s"Error while instantiating DRS path builder factory. Errors: ${error.toString}")
         }

@@ -12,6 +12,7 @@ import cromwell.core.WorkflowOptions
 import cromwell.core.path.PathBuilderFactory
 import cromwell.core.path.PathBuilderFactory.PriorityBlob
 import net.ceedubs.ficus.Ficus._
+import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -20,6 +21,15 @@ import scala.util.{Failure, Success, Try}
 
 final case class BlobFileSystemConfig(config: Config)
 
+// WSM config is needed for accessing WSM-managed blob containers created in Terra workspaces.
+// If the identity executing Cromwell has native access to the blob container, this can be ignored.
+final case class WorkspaceManagerConfig(
+    url: WorkspaceManagerURL,
+    workspaceId: WorkspaceId,
+    containerResourceId: ContainerResourceId,
+    b2cToken: Option[String] // dev-only
+)
+
 final case class SubscriptionId(value: String) {override def toString: String = value}
 final case class BlobContainerName(value: String) {override def toString: String = value}
 final case class StorageAccountName(value: String) {override def toString: String = value}
@@ -27,24 +37,21 @@ final case class EndpointURL(value: String) {override def toString: String = val
 final case class WorkspaceId(value: String) {override def toString: String = value}
 final case class ContainerResourceId(value: String) {override def toString: String = value}
 final case class WorkspaceManagerURL(value: String) {override def toString: String = value}
+
 final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Config, singletonConfig: BlobFileSystemConfig) extends PathBuilderFactory {
   val subscription: Option[SubscriptionId] = instanceConfig.as[Option[String]]("subscription").map(SubscriptionId)
   val container: BlobContainerName = BlobContainerName(instanceConfig.as[String]("container"))
   val endpoint: EndpointURL = EndpointURL(instanceConfig.as[String]("endpoint"))
-  val workspaceId: Option[WorkspaceId] = instanceConfig.as[Option[String]]("workspace-id").map(WorkspaceId)
   val expiryBufferMinutes: Long = instanceConfig.as[Option[Long]]("expiry-buffer-minutes").getOrElse(10)
-  val workspaceManagerURL: Option[WorkspaceManagerURL] = singletonConfig.config.as[Option[String]]("workspace-manager-url").map(WorkspaceManagerURL)
-  val b2cToken: Option[String] = AzureCredentials(None).getAccessToken.toOption
-  val containerResourceId: Option[ContainerResourceId] = instanceConfig.as[Option[String]]("workspace-manager.container-resource-id").map(ContainerResourceId)
+  val workspaceManagerConfig: Option[WorkspaceManagerConfig] = instanceConfig.as[Option[WorkspaceManagerConfig]]("workspace-manager")
 
-  val blobTokenGenerator: BlobTokenGenerator = (workspaceManagerURL, b2cToken, workspaceId, containerResourceId) match {
-    case (Some(url), Some(token), Some(workspaceId), Some(containerResourceId)) =>
-      val wsmClient: WorkspaceManagerApiClientProvider = new HttpWorkspaceManagerClientProvider(url, token)
-      // parameterizing client instead of URL to make injecting mock client possible
-      BlobTokenGenerator.createBlobTokenGenerator(container, endpoint, workspaceId, containerResourceId, wsmClient)
-    case _ =>
-      BlobTokenGenerator.createBlobTokenGenerator(container, endpoint, subscription)
-  }
+  val blobTokenGenerator: BlobTokenGenerator = workspaceManagerConfig.map { wsmConfig =>
+    val wsmClient: WorkspaceManagerApiClientProvider = new HttpWorkspaceManagerClientProvider(wsmConfig.url, wsmConfig.b2cToken.get)
+    // parameterizing client instead of URL to make injecting mock client possible
+    BlobTokenGenerator.createBlobTokenGenerator(container, endpoint, wsmConfig.workspaceId, wsmConfig.containerResourceId, wsmClient)
+  }.getOrElse(
+    BlobTokenGenerator.createBlobTokenGenerator(container, endpoint, subscription)
+  )
 
   val fsm: BlobFileSystemManager = BlobFileSystemManager(container, endpoint, expiryBufferMinutes, blobTokenGenerator)
 

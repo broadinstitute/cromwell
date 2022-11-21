@@ -1,6 +1,7 @@
 package cromwell.filesystems.blob
 
 import com.azure.core.credential.AzureSasCredential
+import com.typesafe.config.ConfigException.WrongType
 import com.typesafe.config.ConfigFactory
 import common.mock.MockSugar
 import org.mockito.Mockito._
@@ -39,6 +40,55 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     factory.container should equal(container)
     factory.endpoint should equal(endpoint)
     factory.expiryBufferMinutes should equal(10L)
+  }
+
+  it should "parse configs for a functioning factory with WSM-mediated blob access" in {
+    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
+    val container = BlobContainerName("storageContainer")
+    val workspaceId = WorkspaceId("B0BAFE77-0000-0000-0000-000000000000")
+    val containerResourceId = WorkspaceId("F00B4R11-0000-0000-0000-000000000000")
+    val workspaceManagerURL = WorkspaceManagerURL("https://wsm.example.com")
+    val instanceConfig = ConfigFactory.parseString(
+      s"""
+         |container = "$container"
+         |endpoint = "$endpoint"
+         |expiry-buffer-minutes = "10"
+         |workspace-manager {
+         |  url = "$workspaceManagerURL"
+         |  workspace-id = "$workspaceId"
+         |  container-resource-id = "$containerResourceId"
+         |}
+         |
+      """.stripMargin)
+    val singletonConfig = ConfigFactory.parseString("""""")
+    val globalConfig = ConfigFactory.parseString("""""")
+    val factory = BlobPathBuilderFactory(globalConfig, instanceConfig, singletonConfig)
+    factory.workspaceManagerConfig.isDefined shouldBe true
+    factory.workspaceManagerConfig.get.url shouldBe workspaceManagerURL
+    factory.workspaceManagerConfig.get.workspaceId shouldBe workspaceId
+    factory.workspaceManagerConfig.get.containerResourceId shouldBe containerResourceId
+    factory.workspaceManagerConfig.get.b2cToken.isEmpty shouldBe true
+  }
+
+  it should "fail when partial WSM config is supplied" in {
+    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
+    val container = BlobContainerName("storageContainer")
+    val containerResourceId = WorkspaceId("F00B4R11-0000-0000-0000-000000000000")
+    val workspaceManagerURL = WorkspaceManagerURL("https://wsm.example.com")
+    val instanceConfig = ConfigFactory.parseString(
+      s"""
+         |container = "$container"
+         |endpoint = "$endpoint"
+         |expiry-buffer-minutes = "10"
+         |workspace-manager {
+         |  url = "$workspaceManagerURL"
+         |  container-resource-id = "$containerResourceId"
+         |}
+         |
+      """.stripMargin)
+    val singletonConfig = ConfigFactory.parseString("""""")
+    val globalConfig = ConfigFactory.parseString("""""")
+    assertThrows[WrongType](BlobPathBuilderFactory(globalConfig, instanceConfig, singletonConfig))
   }
 
   it should "build an example sas token of the correct format" in {

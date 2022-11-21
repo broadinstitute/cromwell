@@ -27,8 +27,8 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
   it should "parse configs for a functioning factory" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
     val container = BlobContainerName("storageContainer")
-    val workspaceId = WorkspaceId("mockWorkspaceId")
-    val workspaceManagerURL = WorkspaceManagerURL("https://test.ws.org")
+    val workspaceId = WorkspaceId("B0BAFE77-0000-0000-0000-000000000000")
+    val workspaceManagerURL = WorkspaceManagerURL("https://wsm.example.com")
     val instanceConfig = ConfigFactory.parseString(
       s"""
       |container = "$container"

@@ -24,9 +24,17 @@ final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Co
   val workspaceId: Option[WorkspaceId] = instanceConfig.as[Option[String]]("workspace-id").map(WorkspaceId)
   val expiryBufferMinutes: Long = instanceConfig.as[Option[Long]]("expiry-buffer-minutes").getOrElse(10)
   val workspaceManagerURL: Option[WorkspaceManagerURL] = singletonConfig.config.as[Option[String]]("workspace-manager-url").map(WorkspaceManagerURL)
+  val b2cToken: Option[String] = instanceConfig.as[Option[String]]("b2cToken")
 
-  val blobTokenGenerator: BlobTokenGenerator = BlobTokenGenerator.createBlobTokenGenerator(
-    container, endpoint, workspaceId, workspaceManagerURL, subscription)
+  val blobTokenGenerator: BlobTokenGenerator = (workspaceManagerURL, b2cToken, workspaceId) match {
+    case (Some(url), Some(token), Some(workspaceId)) =>
+      val wsmClient: WorkspaceManagerApiClientProvider = new HttpWorkspaceManagerClientProvider(url, token)
+      // parameterizing client instead of URL to make injecting mock client possible
+      BlobTokenGenerator.createBlobTokenGenerator(container, endpoint, workspaceId, wsmClient)
+    case _ =>
+      BlobTokenGenerator.createBlobTokenGenerator(container, endpoint, subscription)
+  }
+
   val fsm: BlobFileSystemManager = BlobFileSystemManager(container, endpoint, expiryBufferMinutes, blobTokenGenerator)
 
   override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[BlobPathBuilder] = {

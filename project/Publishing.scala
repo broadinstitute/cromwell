@@ -150,6 +150,10 @@ object Publishing {
     "Broad Artifactory" at
       "https://broadinstitute.jfrog.io/broadinstitute/libs-release/"
 
+  private val broadArtifactoryResolverSnap: Resolver =
+    "Broad Artifactory Snapshots" at
+      "https://broadinstitute.jfrog.io/broadinstitute/libs-snapshot-local/"
+
   // https://stackoverflow.com/questions/9819965/artifactory-snapshot-filename-handling
   private val buildTimestamp = System.currentTimeMillis() / 1000
 
@@ -159,6 +163,7 @@ object Publishing {
 
   val additionalResolvers = List(
     broadArtifactoryResolver,
+    broadArtifactoryResolverSnap,
     Resolver.sonatypeRepo("releases")
   )
 

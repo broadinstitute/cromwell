@@ -24,27 +24,21 @@ object BlobPathBuilderFactorySpec {
 }
 class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSugar {
   def generateTokenExpiration(minutes: Long) = Instant.now.plus(minutes, ChronoUnit.MINUTES)
-  it should "parse configs for a functioning factory" in {
+  it should "parse configs for a functioning factory with native blob access" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
     val container = BlobContainerName("storageContainer")
-    val workspaceId = WorkspaceId("B0BAFE77-0000-0000-0000-000000000000")
-    val workspaceManagerURL = WorkspaceManagerURL("https://wsm.example.com")
     val instanceConfig = ConfigFactory.parseString(
       s"""
       |container = "$container"
-
       |endpoint = "$endpoint"
       |expiry-buffer-minutes = "10"
-      |workspace-id = "$workspaceId"
       """.stripMargin)
-    val singletonConfig = ConfigFactory.parseString(s"""workspace-manager-url = "$workspaceManagerURL" """)
+    val singletonConfig = ConfigFactory.parseString("""""")
     val globalConfig = ConfigFactory.parseString("""""")
-    val factory = BlobPathBuilderFactory(globalConfig, instanceConfig, new BlobFileSystemConfig(singletonConfig))
+    val factory = BlobPathBuilderFactory(globalConfig, instanceConfig, singletonConfig)
     factory.container should equal(container)
     factory.endpoint should equal(endpoint)
     factory.expiryBufferMinutes should equal(10L)
-//    factory.workspaceId should contain(workspaceId)
-//    factory.workspaceManagerURL should contain(workspaceManagerURL)
   }
 
   it should "build an example sas token of the correct format" in {

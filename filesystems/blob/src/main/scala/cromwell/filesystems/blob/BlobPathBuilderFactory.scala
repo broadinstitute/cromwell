@@ -19,7 +19,6 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.DurationConverters._
 import scala.util.{Failure, Success, Try}
 
-final case class BlobFileSystemConfig(config: Config)
 
 // WSM config is needed for accessing WSM-managed blob containers created in Terra workspaces.
 // If the identity executing Cromwell has native access to the blob container, this can be ignored.
@@ -38,7 +37,7 @@ final case class WorkspaceId(value: String) {override def toString: String = val
 final case class ContainerResourceId(value: String) {override def toString: String = value}
 final case class WorkspaceManagerURL(value: String) {override def toString: String = value}
 
-final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Config, singletonConfig: BlobFileSystemConfig) extends PathBuilderFactory {
+final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Config, singletonConfig: Config) extends PathBuilderFactory {
   val subscription: Option[SubscriptionId] = instanceConfig.as[Option[String]]("subscription").map(SubscriptionId)
   val container: BlobContainerName = BlobContainerName(instanceConfig.as[String]("container"))
   val endpoint: EndpointURL = EndpointURL(instanceConfig.as[String]("endpoint"))

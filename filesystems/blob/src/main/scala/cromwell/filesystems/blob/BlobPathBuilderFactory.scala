@@ -32,10 +32,10 @@ final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Co
   val container: BlobContainerName = BlobContainerName(instanceConfig.as[String]("container"))
   val endpoint: EndpointURL = EndpointURL(instanceConfig.as[String]("endpoint"))
   val workspaceId: Option[WorkspaceId] = instanceConfig.as[Option[String]]("workspace-id").map(WorkspaceId)
-  val containerResourceId: Option[ContainerResourceId] = instanceConfig.as[Option[String]]("container-resource-id").map(ContainerResourceId)
   val expiryBufferMinutes: Long = instanceConfig.as[Option[Long]]("expiry-buffer-minutes").getOrElse(10)
   val workspaceManagerURL: Option[WorkspaceManagerURL] = singletonConfig.config.as[Option[String]]("workspace-manager-url").map(WorkspaceManagerURL)
   val b2cToken: Option[String] = AzureCredentials(None).getAccessToken.toOption
+  val containerResourceId: Option[ContainerResourceId] = instanceConfig.as[Option[String]]("workspace-manager.container-resource-id").map(ContainerResourceId)
 
   val blobTokenGenerator: BlobTokenGenerator = (workspaceManagerURL, b2cToken, workspaceId, containerResourceId) match {
     case (Some(url), Some(token), Some(workspaceId), Some(containerResourceId)) =>

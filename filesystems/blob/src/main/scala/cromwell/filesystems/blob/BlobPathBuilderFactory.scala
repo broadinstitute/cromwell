@@ -25,21 +25,23 @@ final case class BlobContainerName(value: String) {override def toString: String
 final case class StorageAccountName(value: String) {override def toString: String = value}
 final case class EndpointURL(value: String) {override def toString: String = value}
 final case class WorkspaceId(value: String) {override def toString: String = value}
+final case class ContainerResourceId(value: String) {override def toString: String = value}
 final case class WorkspaceManagerURL(value: String) {override def toString: String = value}
 final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Config, singletonConfig: BlobFileSystemConfig) extends PathBuilderFactory {
   val subscription: Option[SubscriptionId] = instanceConfig.as[Option[String]]("subscription").map(SubscriptionId)
   val container: BlobContainerName = BlobContainerName(instanceConfig.as[String]("container"))
   val endpoint: EndpointURL = EndpointURL(instanceConfig.as[String]("endpoint"))
   val workspaceId: Option[WorkspaceId] = instanceConfig.as[Option[String]]("workspace-id").map(WorkspaceId)
+  val containerResourceId: Option[ContainerResourceId] = instanceConfig.as[Option[String]]("container-resource-id").map(ContainerResourceId)
   val expiryBufferMinutes: Long = instanceConfig.as[Option[Long]]("expiry-buffer-minutes").getOrElse(10)
   val workspaceManagerURL: Option[WorkspaceManagerURL] = singletonConfig.config.as[Option[String]]("workspace-manager-url").map(WorkspaceManagerURL)
   val b2cToken: Option[String] = AzureCredentials(None).getAccessToken.toOption
 
-  val blobTokenGenerator: BlobTokenGenerator = (workspaceManagerURL, b2cToken, workspaceId) match {
-    case (Some(url), Some(token), Some(workspaceId)) =>
+  val blobTokenGenerator: BlobTokenGenerator = (workspaceManagerURL, b2cToken, workspaceId, containerResourceId) match {
+    case (Some(url), Some(token), Some(workspaceId), Some(containerResourceId)) =>
       val wsmClient: WorkspaceManagerApiClientProvider = new HttpWorkspaceManagerClientProvider(url, token)
       // parameterizing client instead of URL to make injecting mock client possible
-      BlobTokenGenerator.createBlobTokenGenerator(container, endpoint, workspaceId, wsmClient)
+      BlobTokenGenerator.createBlobTokenGenerator(container, endpoint, workspaceId, containerResourceId, wsmClient)
     case _ =>
       BlobTokenGenerator.createBlobTokenGenerator(container, endpoint, subscription)
   }

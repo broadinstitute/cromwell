@@ -57,7 +57,7 @@ final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Co
     else None
 
   val blobTokenGenerator: BlobTokenGenerator = workspaceManagerConfig.map { wsmConfig =>
-    val wsmClient: WorkspaceManagerApiClientProvider = new HttpWorkspaceManagerClientProvider(wsmConfig.url, wsmConfig.b2cToken.getOrElse(""))
+    val wsmClient: WorkspaceManagerApiClientProvider = new HttpWorkspaceManagerClientProvider(wsmConfig.url, wsmConfig.b2cToken)
     // parameterizing client instead of URL to make injecting mock client possible
     BlobTokenGenerator.createBlobTokenGenerator(container, endpoint, wsmConfig.workspaceId, wsmConfig.containerResourceId, wsmClient)
   }.getOrElse(

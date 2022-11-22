@@ -109,9 +109,9 @@ case class WSMBlobTokenGenerator(
       null,
       null,
       null
-    ).getToken // TODO `null` items may be required, investigate in WX-696
+    ).getToken
 
-    new AzureSasCredential(token) // TODO Does `signature` actually mean token? save for WX-696
+    new AzureSasCredential(token)
   }
 }
 

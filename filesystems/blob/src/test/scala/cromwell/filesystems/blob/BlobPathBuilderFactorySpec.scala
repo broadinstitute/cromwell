@@ -46,7 +46,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
     val container = BlobContainerName("storageContainer")
     val workspaceId = WorkspaceId("B0BAFE77-0000-0000-0000-000000000000")
-    val containerResourceId = WorkspaceId("F00B4R11-0000-0000-0000-000000000000")
+    val containerResourceId = ContainerResourceId("F00B4R11-0000-0000-0000-000000000000")
     val workspaceManagerURL = WorkspaceManagerURL("https://wsm.example.com")
     val instanceConfig = ConfigFactory.parseString(
       s"""

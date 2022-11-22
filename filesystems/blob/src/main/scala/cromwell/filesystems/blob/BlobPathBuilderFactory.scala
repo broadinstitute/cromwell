@@ -12,7 +12,6 @@ import cromwell.core.WorkflowOptions
 import cromwell.core.path.PathBuilderFactory
 import cromwell.core.path.PathBuilderFactory.PriorityBlob
 import net.ceedubs.ficus.Ficus._
-import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -29,6 +28,16 @@ final case class WorkspaceManagerConfig(
     b2cToken: Option[String] // dev-only
 )
 
+object WorkspaceManagerConfig {
+  def apply(wsmConfig: Config): WorkspaceManagerConfig =
+    WorkspaceManagerConfig(
+      WorkspaceManagerURL(wsmConfig.as[String]("url")),
+      WorkspaceId(wsmConfig.as[String]("workspace-id")),
+      ContainerResourceId(wsmConfig.as[String]("container-resource-id")),
+      wsmConfig.as[Option[String]]("b2cToken")
+    )
+}
+
 final case class SubscriptionId(value: String) {override def toString: String = value}
 final case class BlobContainerName(value: String) {override def toString: String = value}
 final case class StorageAccountName(value: String) {override def toString: String = value}
@@ -42,10 +51,13 @@ final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Co
   val container: BlobContainerName = BlobContainerName(instanceConfig.as[String]("container"))
   val endpoint: EndpointURL = EndpointURL(instanceConfig.as[String]("endpoint"))
   val expiryBufferMinutes: Long = instanceConfig.as[Option[Long]]("expiry-buffer-minutes").getOrElse(10)
-  val workspaceManagerConfig: Option[WorkspaceManagerConfig] = instanceConfig.as[Option[WorkspaceManagerConfig]]("workspace-manager")
+  val workspaceManagerConfig: Option[WorkspaceManagerConfig] =
+    if (instanceConfig.hasPath("workspace-manager"))
+      Option(WorkspaceManagerConfig(instanceConfig.getConfig("workspace-manager")))
+    else None
 
   val blobTokenGenerator: BlobTokenGenerator = workspaceManagerConfig.map { wsmConfig =>
-    val wsmClient: WorkspaceManagerApiClientProvider = new HttpWorkspaceManagerClientProvider(wsmConfig.url, wsmConfig.b2cToken.get)
+    val wsmClient: WorkspaceManagerApiClientProvider = new HttpWorkspaceManagerClientProvider(wsmConfig.url, wsmConfig.b2cToken.getOrElse(""))
     // parameterizing client instead of URL to make injecting mock client possible
     BlobTokenGenerator.createBlobTokenGenerator(container, endpoint, wsmConfig.workspaceId, wsmConfig.containerResourceId, wsmClient)
   }.getOrElse(

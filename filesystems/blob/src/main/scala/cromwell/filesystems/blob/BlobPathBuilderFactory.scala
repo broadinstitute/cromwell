@@ -46,7 +46,7 @@ final case class WorkspaceId(value: String) {override def toString: String = val
 final case class ContainerResourceId(value: String) {override def toString: String = value}
 final case class WorkspaceManagerURL(value: String) {override def toString: String = value}
 
-final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Config, singletonConfig: Config) extends PathBuilderFactory {
+final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Config) extends PathBuilderFactory {
   val subscription: Option[SubscriptionId] = instanceConfig.as[Option[String]]("subscription").map(SubscriptionId)
   val container: BlobContainerName = BlobContainerName(instanceConfig.as[String]("container"))
   val endpoint: EndpointURL = EndpointURL(instanceConfig.as[String]("endpoint"))

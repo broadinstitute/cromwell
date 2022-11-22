@@ -34,9 +34,8 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
       |endpoint = "$endpoint"
       |expiry-buffer-minutes = "10"
       """.stripMargin)
-    val singletonConfig = ConfigFactory.parseString("""""")
     val globalConfig = ConfigFactory.parseString("""""")
-    val factory = BlobPathBuilderFactory(globalConfig, instanceConfig, singletonConfig)
+    val factory = BlobPathBuilderFactory(globalConfig, instanceConfig)
     factory.container should equal(container)
     factory.endpoint should equal(endpoint)
     factory.expiryBufferMinutes should equal(10L)
@@ -60,9 +59,8 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
          |}
          |
       """.stripMargin)
-    val singletonConfig = ConfigFactory.parseString("""""")
     val globalConfig = ConfigFactory.parseString("""""")
-    val factory = BlobPathBuilderFactory(globalConfig, instanceConfig, singletonConfig)
+    val factory = BlobPathBuilderFactory(globalConfig, instanceConfig)
     factory.workspaceManagerConfig.isDefined shouldBe true
     factory.workspaceManagerConfig.get.url shouldBe workspaceManagerURL
     factory.workspaceManagerConfig.get.workspaceId shouldBe workspaceId
@@ -86,9 +84,8 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
          |}
          |
       """.stripMargin)
-    val singletonConfig = ConfigFactory.parseString("""""")
     val globalConfig = ConfigFactory.parseString("""""")
-    assertThrows[WrongType](BlobPathBuilderFactory(globalConfig, instanceConfig, singletonConfig))
+    assertThrows[WrongType](BlobPathBuilderFactory(globalConfig, instanceConfig))
   }
 
   it should "build an example sas token of the correct format" in {

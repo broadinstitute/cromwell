@@ -85,8 +85,8 @@ object BlobTokenGenerator {
   def createBlobTokenGenerator(container: BlobContainerName, endpoint: EndpointURL, subscription: Option[SubscriptionId]): BlobTokenGenerator = {
     NativeBlobTokenGenerator(container, endpoint, subscription)
   }
-  def createBlobTokenGenerator(container: BlobContainerName, endpoint: EndpointURL, workspaceId: WorkspaceId, containerResourceId: ContainerResourceId, workspaceManagerClient: WorkspaceManagerApiClientProvider): BlobTokenGenerator = {
-    WSMBlobTokenGenerator(container, endpoint, workspaceId, containerResourceId, workspaceManagerClient)
+  def createBlobTokenGenerator(container: BlobContainerName, endpoint: EndpointURL, workspaceId: WorkspaceId, containerResourceId: ContainerResourceId, workspaceManagerClient: WorkspaceManagerApiClientProvider, defaultB2cToken: Option[String]): BlobTokenGenerator = {
+    WSMBlobTokenGenerator(container, endpoint, workspaceId, containerResourceId, workspaceManagerClient, defaultB2cToken)
   }
 
 }
@@ -96,12 +96,18 @@ case class WSMBlobTokenGenerator(
   endpoint: EndpointURL,
   workspaceId: WorkspaceId,
   containerResourceId: ContainerResourceId,
-  wsmClient: WorkspaceManagerApiClientProvider) extends BlobTokenGenerator {
+  wsmClient: WorkspaceManagerApiClientProvider,
+  defaultB2cToken: Option[String]) extends BlobTokenGenerator {
 
   def generateAccessToken: Try[AzureSasCredential] = Try {
-    val controlledAzureResourceApi = AzureCredentials(None).getAccessToken
-        .map(wsmClient.getControlledAzureResourceApi(_))
-        .getOrElse(wsmClient.getControlledAzureResourceApi())
+    val controlledAzureResourceApi = (defaultB2cToken) match {
+      case (Some(defaultToken)) => wsmClient.getControlledAzureResourceApi(defaultToken)
+      case (None) => (AzureCredentials(None).getAccessToken.toOption) match {
+        case Some(localAzureCredential) => wsmClient.getControlledAzureResourceApi(localAzureCredential)
+        case None => wsmClient.getControlledAzureResourceApi()
+      }
+    }
+
     val token = controlledAzureResourceApi.createAzureStorageContainerSasToken(
       UUID.fromString(workspaceId.value),
       UUID.fromString(containerResourceId.value),

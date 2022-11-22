@@ -27,8 +27,9 @@ class HttpWorkspaceManagerClientProvider(baseWorkspaceManagerUrl: WorkspaceManag
   }
 
   def getControlledAzureResourceApi(token: String): ControlledAzureResourceApi = {
-    getApiClient.setAccessToken(token)
-    new ControlledAzureResourceApi(getApiClient)
+    val apiClient = getApiClient
+    apiClient.setAccessToken(token)
+    new ControlledAzureResourceApi(apiClient)
   }
 
   def getControlledAzureResourceApi(): ControlledAzureResourceApi = {

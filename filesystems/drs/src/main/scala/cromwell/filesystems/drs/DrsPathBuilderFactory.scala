@@ -2,13 +2,12 @@ package cromwell.filesystems.drs
 
 import akka.actor.ActorSystem
 import cats.data.Validated.{Invalid, Valid}
-import cloud.nio.impl.drs.{AzureDrsCredentials, DrsCloudNioFileSystemProvider, GoogleDrsCredentials}
+import cloud.nio.impl.drs.{AzureDrsCredentials, DrsCloudNioFileSystemProvider, GoogleOauthDrsCredentials}
 import com.google.api.services.oauth2.Oauth2Scopes
 import com.typesafe.config.Config
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{PathBuilder, PathBuilderFactory}
-import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -24,10 +23,8 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
   private lazy val googleConfiguration: GoogleConfiguration = GoogleConfiguration(globalConfig)
   private lazy val scheme = instanceConfig.getString("auth")
 
-  // For Azure support
+  // For Azure support - this should be the UAMI client id
   private val dataAccessIdentityKey = "data_access_identity"
-  private lazy val azureKeyVault = instanceConfig.as[Option[String]]("azure-keyvault-name")
-  private lazy val azureSecretName = instanceConfig.as[Option[String]]("azure-token-secret")
 
   override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder] = {
     Future {
@@ -37,13 +34,12 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
         Oauth2Scopes.USERINFO_PROFILE
       )
 
-      val (googleAuthMode, drsCredentials) = (scheme, azureKeyVault, azureSecretName) match {
-        case ("azure", Some(vaultName), Some(secretName)) => (None, AzureDrsCredentials(options.get(dataAccessIdentityKey).toOption, vaultName, secretName))
-        case ("azure", _, _) => throw new RuntimeException(s"Error while instantiating DRS path builder factory. Couldn't find azure-keyvault-name and azure-token-secret in config.")
-        case (googleAuthScheme, _, _) => googleConfiguration.auth(googleAuthScheme) match {
+      val (googleAuthMode, drsCredentials) = scheme match {
+        case "azure" => (None, AzureDrsCredentials(options.get(dataAccessIdentityKey).toOption))
+        case googleAuthScheme => googleConfiguration.auth(googleAuthScheme) match {
           case Valid(auth) => (
             Option(auth),
-            GoogleDrsCredentials(auth.credentials(options.get(_).get, marthaScopes), singletonConfig.config)
+            GoogleOauthDrsCredentials(auth.credentials(options.get(_).get, marthaScopes), singletonConfig.config)
           )
           case Invalid(error) => throw new RuntimeException(s"Error while instantiating DRS path builder factory. Errors: ${error.toString}")
         }

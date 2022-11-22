@@ -4,11 +4,10 @@ import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO, IOApp}
 import cats.implicits._
 import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDisposition}
-import cloud.nio.impl.drs.{AccessUrl, DrsConfig, DrsPathResolver, MarthaField}
+import cloud.nio.impl.drs._
 import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
 import com.typesafe.scalalogging.StrictLogging
 import drs.localizer.CommandLineParser.AccessTokenStrategy.{Azure, Google}
-import drs.localizer.accesstokens.{AccessTokenStrategy, AzureB2CAccessTokenStrategy, GoogleAccessTokenStrategy}
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
 import org.apache.commons.csv.{CSVFormat, CSVParser}
@@ -29,8 +28,8 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     val localize: Option[IO[ExitCode]] = for {
       pa <- parsedArgs
       run <- pa.accessTokenStrategy.collect {
-        case Azure => runLocalizer(pa, AzureB2CAccessTokenStrategy(pa))
-        case Google => runLocalizer(pa, GoogleAccessTokenStrategy)
+        case Azure => runLocalizer(pa, AzureDrsCredentials(pa.azureIdentityClientId))
+        case Google => runLocalizer(pa, GoogleAppDefaultTokenStrategy)
       }
     } yield run
 
@@ -55,7 +54,7 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     IO.pure(ExitCode.Error)
   }
 
-  def runLocalizer(commandLineArguments: CommandLineArguments, accessTokenStrategy: AccessTokenStrategy): IO[ExitCode] = {
+  def runLocalizer(commandLineArguments: CommandLineArguments, drsCredentials: DrsCredentials): IO[ExitCode] = {
     commandLineArguments.manifestPath match {
       case Some(manifestPath) =>
         val manifestFile = new File(manifestPath)
@@ -63,31 +62,31 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
         val exitCodes: IO[List[ExitCode]] = csvParser.asScala.map(record => {
           val drsObject = record.get(0)
           val containerPath = record.get(1)
-          localizeFile(commandLineArguments, accessTokenStrategy, drsObject, containerPath)
+          localizeFile(commandLineArguments, drsCredentials, drsObject, containerPath)
         }).toList.sequence
         exitCodes.map(_.find(_ != ExitCode.Success).getOrElse(ExitCode.Success))
       case None =>
         val drsObject = commandLineArguments.drsObject.get
         val containerPath = commandLineArguments.containerPath.get
-        localizeFile(commandLineArguments, accessTokenStrategy, drsObject, containerPath)
+        localizeFile(commandLineArguments, drsCredentials, drsObject, containerPath)
     }
   }
 
-  private def localizeFile(commandLineArguments: CommandLineArguments, accessTokenStrategy: AccessTokenStrategy, drsObject: String, containerPath: String) = {
-    new DrsLocalizerMain(drsObject, containerPath, accessTokenStrategy, commandLineArguments.googleRequesterPaysProject).
+  private def localizeFile(commandLineArguments: CommandLineArguments, drsCredentials: DrsCredentials, drsObject: String, containerPath: String) = {
+    new DrsLocalizerMain(drsObject, containerPath, drsCredentials, commandLineArguments.googleRequesterPaysProject).
       resolveAndDownloadWithRetries(downloadRetries = 3, checksumRetries = 1, defaultDownloaderFactory, Option(defaultBackoff)).map(_.exitCode)
   }
 }
 
 class DrsLocalizerMain(drsUrl: String,
                        downloadLoc: String,
-                       accessTokenStrategy: AccessTokenStrategy,
+                       drsCredentials: DrsCredentials,
                        requesterPaysProjectIdOption: Option[String]) extends StrictLogging {
 
   def getDrsPathResolver: IO[DrsLocalizerDrsPathResolver] = {
     IO {
       val drsConfig = DrsConfig.fromEnv(sys.env)
-      new DrsLocalizerDrsPathResolver(drsConfig, accessTokenStrategy)
+      new DrsLocalizerDrsPathResolver(drsConfig, drsCredentials)
     }
   }
 

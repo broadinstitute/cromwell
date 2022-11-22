@@ -4,10 +4,10 @@ import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO}
 import cats.syntax.validated._
 import cloud.nio.impl.drs.DrsPathResolver.FatalRetryDisposition
-import cloud.nio.impl.drs.{AccessUrl, DrsConfig, MarthaField, MarthaResponse}
+import cloud.nio.impl.drs.{AccessUrl, DrsConfig, DrsCredentials, MarthaField, MarthaResponse}
 import common.assertion.CromwellTimeoutSpec
+import common.validation.ErrorOr.ErrorOr
 import drs.localizer.MockDrsLocalizerDrsPathResolver.{FakeAccessTokenStrategy, FakeHashes}
-import drs.localizer.accesstokens.AccessTokenStrategy
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
 import org.scalatest.flatspec.AnyFlatSpec
@@ -341,5 +341,7 @@ class MockDrsLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
 
 object MockDrsLocalizerDrsPathResolver {
   val FakeHashes: Option[Map[String, String]] = Option(Map("md5" -> "abc123", "crc32c" -> "34fd67"))
-  val FakeAccessTokenStrategy: AccessTokenStrategy = () => "testing code: do not call me".invalidNel
+  val FakeAccessTokenStrategy: DrsCredentials = new DrsCredentials {
+    override def getAccessToken: ErrorOr[String] = "testing code: do not call me".invalidNel
+  }
 }

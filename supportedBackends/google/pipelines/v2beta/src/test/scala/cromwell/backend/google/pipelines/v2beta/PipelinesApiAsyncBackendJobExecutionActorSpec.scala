@@ -3,7 +3,7 @@ package cromwell.backend.google.pipelines.v2beta
 import java.nio.file.Paths
 import cats.data.NonEmptyList
 import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
-import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, GoogleDrsCredentials}
+import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, GoogleOauthDrsCredentials}
 import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
 import common.assertion.CromwellTimeoutSpec
@@ -68,7 +68,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Cro
         throw new UnsupportedOperationException("PipelinesApiAsyncBackendJobExecutionActorSpec doesn't need to use drs read interpreter.")
 
       DrsPathBuilder(
-        new DrsCloudNioFileSystemProvider(marthaConfig, GoogleDrsCredentials(fakeCredentials, 1.minutes), drsReadInterpreter),
+        new DrsCloudNioFileSystemProvider(marthaConfig, GoogleOauthDrsCredentials(fakeCredentials, 1.minutes), drsReadInterpreter),
         None,
       )
     }

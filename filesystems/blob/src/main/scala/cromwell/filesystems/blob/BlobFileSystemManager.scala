@@ -85,7 +85,7 @@ object BlobTokenGenerator {
   def createBlobTokenGenerator(container: BlobContainerName, endpoint: EndpointURL, subscription: Option[SubscriptionId]): BlobTokenGenerator = {
     NativeBlobTokenGenerator(container, endpoint, subscription)
   }
-  def createBlobTokenGenerator(container: BlobContainerName, endpoint: EndpointURL, workspaceId: WorkspaceId, containerResourceId: ContainerResourceId, workspaceManagerClient: WorkspaceManagerApiClientProvider): BlobTokenGenerator = {
+  def createBlobTokenGenerator(container: BlobContainerName, endpoint: EndpointURL, workspaceId: String, containerResourceId: String, workspaceManagerClient: WorkspaceManagerApiClientProvider): BlobTokenGenerator = {
     WSMBlobTokenGenerator(container, endpoint, workspaceId, containerResourceId, workspaceManagerClient)
   }
 
@@ -94,14 +94,17 @@ object BlobTokenGenerator {
 case class WSMBlobTokenGenerator(
   container: BlobContainerName,
   endpoint: EndpointURL,
-  workspaceId: WorkspaceId,
-  containerResourceId: ContainerResourceId,
+  workspaceId: String,
+  containerResourceId: String,
   wsmClient: WorkspaceManagerApiClientProvider) extends BlobTokenGenerator {
 
   def generateAccessToken: Try[AzureSasCredential] = Try {
-    val token = wsmClient.getControlledAzureResourceApi.createAzureStorageContainerSasToken(
-      UUID.fromString(workspaceId.value),
-      UUID.fromString(containerResourceId.value),
+    val controlledAzureResourceApi = AzureCredentials(None).getAccessToken
+        .map(wsmClient.getControlledAzureResourceApi(_))
+        .getOrElse(wsmClient.getControlledAzureResourceApi())
+    val token = controlledAzureResourceApi.createAzureStorageContainerSasToken(
+      UUID.fromString(workspaceId),
+      UUID.fromString(containerResourceId),
       null,
       null,
       null,

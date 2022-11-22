@@ -13,7 +13,8 @@ import bio.terra.workspace.client.ApiClient
 trait WorkspaceManagerApiClientProvider {
   def getApiClient: ApiClient
 
-  def getControlledAzureResourceApi: ControlledAzureResourceApi
+  def getControlledAzureResourceApi(token: String): ControlledAzureResourceApi
+  def getControlledAzureResourceApi(): ControlledAzureResourceApi
 
 }
 
@@ -22,11 +23,15 @@ class HttpWorkspaceManagerClientProvider(baseWorkspaceManagerUrl: WorkspaceManag
     val client: ApiClient = new ApiClient()
     client.setBasePath(baseWorkspaceManagerUrl.value)
     client.setAccessToken(token)
-
     client
   }
 
-  def getControlledAzureResourceApi: ControlledAzureResourceApi =
+  def getControlledAzureResourceApi(token: String): ControlledAzureResourceApi = {
+    getApiClient.setAccessToken(token)
     new ControlledAzureResourceApi(getApiClient)
+  }
 
+  def getControlledAzureResourceApi(): ControlledAzureResourceApi = {
+    new ControlledAzureResourceApi(getApiClient)
+  }
 }

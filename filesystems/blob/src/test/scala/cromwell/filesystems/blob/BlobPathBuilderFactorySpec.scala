@@ -28,14 +28,15 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
   it should "parse configs for a functioning factory with native blob access" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
     val container = BlobContainerName("storageContainer")
-    val instanceConfig = ConfigFactory.parseString(
+    val singletonConfig = ConfigFactory.parseString(
       s"""
       |container = "$container"
       |endpoint = "$endpoint"
       |expiry-buffer-minutes = "10"
       """.stripMargin)
     val globalConfig = ConfigFactory.parseString("""""")
-    val factory = BlobPathBuilderFactory(globalConfig, instanceConfig)
+    val instanceConfig = ConfigFactory.parseString("""""")
+    val factory = BlobPathBuilderFactory(globalConfig, instanceConfig, BlobFileSystemConfig(singletonConfig))
     factory.container should equal(container)
     factory.endpoint should equal(endpoint)
     factory.expiryBufferMinutes should equal(10L)
@@ -47,7 +48,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val workspaceId = WorkspaceId("B0BAFE77-0000-0000-0000-000000000000")
     val containerResourceId = ContainerResourceId("F00B4R11-0000-0000-0000-000000000000")
     val workspaceManagerURL = WorkspaceManagerURL("https://wsm.example.com")
-    val instanceConfig = ConfigFactory.parseString(
+    val singletonConfig = ConfigFactory.parseString(
       s"""
          |container = "$container"
          |endpoint = "$endpoint"
@@ -60,7 +61,8 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
          |
       """.stripMargin)
     val globalConfig = ConfigFactory.parseString("""""")
-    val factory = BlobPathBuilderFactory(globalConfig, instanceConfig)
+    val instanceConfig = ConfigFactory.parseString("""""")
+    val factory = BlobPathBuilderFactory(globalConfig, instanceConfig, BlobFileSystemConfig(singletonConfig))
     factory.workspaceManagerConfig.isDefined shouldBe true
     factory.workspaceManagerConfig.get.url shouldBe workspaceManagerURL
     factory.workspaceManagerConfig.get.workspaceId shouldBe workspaceId
@@ -73,7 +75,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val container = BlobContainerName("storageContainer")
     val containerResourceId = WorkspaceId("F00B4R11-0000-0000-0000-000000000000")
     val workspaceManagerURL = WorkspaceManagerURL("https://wsm.example.com")
-    val instanceConfig = ConfigFactory.parseString(
+    val singletonConfig = ConfigFactory.parseString(
       s"""
          |container = "$container"
          |endpoint = "$endpoint"
@@ -85,7 +87,8 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
          |
       """.stripMargin)
     val globalConfig = ConfigFactory.parseString("""""")
-    assertThrows[Missing](BlobPathBuilderFactory(globalConfig, instanceConfig))
+    val instanceConfig = ConfigFactory.parseString("""""")
+    assertThrows[Missing](BlobPathBuilderFactory(globalConfig, instanceConfig, BlobFileSystemConfig(singletonConfig)))
   }
 
   it should "build an example sas token of the correct format" in {

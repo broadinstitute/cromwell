@@ -42,15 +42,10 @@ case class CommandLineArguments(command: Option[Command] = None,
                                 metadataOutput: Option[Path] = None,
                                 host: URL = CommandLineArguments.DefaultCromwellHost
                                ) {
-  private lazy val isCwl = false
-
   def validateSubmission(logger: Logger): ErrorOr[ValidSubmission] = {
 
     def getWorkflowSourceFromPath(workflowPath: Path): ErrorOr[WorkflowSourceOrUrl] = {
-      (isCwl, imports) match {
-        case (true, None) => "Hasta la vista, CWL".invalidNel
-        case (true, Some(_)) | (false, _) => WorkflowSourceOrUrl(None, Option(workflowPath.pathAsString)).validNel
-      }
+      WorkflowSourceOrUrl(None, Option(workflowPath.pathAsString)).validNel
     }
 
     val workflowSourceAndUrl: ErrorOr[WorkflowSourceOrUrl] = DefaultPathBuilder.build(workflowSource.get) match {

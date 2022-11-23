@@ -18,11 +18,10 @@ trait WorkspaceManagerApiClientProvider {
 
 }
 
-class HttpWorkspaceManagerClientProvider(baseWorkspaceManagerUrl: WorkspaceManagerURL, token: Option[String]) extends WorkspaceManagerApiClientProvider {
+class HttpWorkspaceManagerClientProvider(baseWorkspaceManagerUrl: WorkspaceManagerURL) extends WorkspaceManagerApiClientProvider {
   def getApiClient: ApiClient = {
     val client: ApiClient = new ApiClient()
     client.setBasePath(baseWorkspaceManagerUrl.value)
-    token.map(client.setAccessToken(_))
     client
   }
 

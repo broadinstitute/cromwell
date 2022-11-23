@@ -147,7 +147,8 @@ object Dependencies {
     "generic",
     "shapes",
     "refined",
-    "literal"
+    "literal",
+    "optics"
   ).map(m => "io.circe" %% s"circe-$m" % circeV) :+ circeYamlDependency :+
   "io.circe" %% "circe-generic-extras" % circeGenericExtrasV :+
   "io.circe" %% "circe-config" % circeConfigV
@@ -493,51 +494,7 @@ object Dependencies {
     "org.mock-server" % "mockserver-netty" % mockserverNettyV % Test
   )
 
-  /*
-  The distro artifact contains the actual impl, but transitively includes OSGI bundles that conflict with assembly:
-  - https://github.com/owlcs/owlapi/wiki/Documentation/45d8f63d055f820c6ac2ca6c4679a2a7b705449b#howto
-  - https://github.com/owlcs/owlapi/issues/455
-  - https://github.com/owlcs/owlapi/issues/603
-
-  jcl-over-slf4j.jar is a replacement for commons-logging 1.1.1. Meanwhile our extensive transitive use of apache's
-  httpclient has been including commons-logging 1.2 for a while. Now the owl api dependency jcl-over-slf4j is
-  conflicting during assembly. As there have been no reported errors AFAIK with commons-logging leaving it in for now.
-  However as we use slf4j for cromwell log configuration the correct thing might actually be to exclude commons-logging
-  whenever importing httpclient and include jcl-over-slf4j. That way we can control all of our logging in one place.
-
-  - https://www.slf4j.org/legacy.html#jclOverSLF4J
-   */
-  val owlApiDependencies = List(
-    // This whole section (incl. javax->jakarta issues) is probably going to be removed when CWL support is removed
-    // For now, replace javax usage with jakarta.
-    "net.sourceforge.owlapi" % "owlapi-distribution" % owlApiV
-      exclude("javax.inject", "javax.inject")
-      exclude("javax.xml.bind", "jaxb-api")
-      exclude("org.apache.httpcomponents", "httpclient-osgi")
-      exclude("org.apache.httpcomponents", "httpcore-osgi")
-      exclude("org.slf4j", "jcl-over-slf4j"),
-    "org.glassfish.hk2.external" % "jakarta.inject" % jakartaInjectV,
-    "jakarta.xml.bind" % "jakarta.xml.bind-api" % jakartaXmlBindApiV,
-    "org.apache.httpcomponents" % "httpclient-cache" % apacheHttpClientV,
-    "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV
-  )
-
-  val cwlDependencies: List[ModuleID] = List(
-    "com.lihaoyi" %% "ammonite-ops" % ammoniteOpsV,
-    "org.broadinstitute" % "heterodon" % heterodonV classifier "single",
-    "org.scalactic" %% "scalactic" % scalacticV,
-    "io.circe" %% "circe-optics" % circeOpticsV,
-    "org.mozilla" % "rhino" % rhinoV,
-    "org.javadelight" % "delight-rhino-sandbox" % delightRhinoSandboxV,
-    "commons-io" % "commons-io" % commonsIoV % Test
-  ) ++ betterFilesDependencies ++ owlApiDependencies
-
   val womtoolDependencies: List[ModuleID] = catsDependencies ++ slf4jBindingDependencies
-
-  val centaurCwlRunnerDependencies: List[ModuleID] = List(
-    "com.github.scopt" %% "scopt" % scoptV,
-    "io.circe" %% "circe-optics" % circeOpticsV
-  ) ++ slf4jBindingDependencies
 
   val coreDependencies: List[ModuleID] = List(
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
@@ -661,14 +618,12 @@ object Dependencies {
 
   val allProjectDependencies: List[ModuleID] =
     backendDependencies ++
-      centaurCwlRunnerDependencies ++
       centaurDependencies ++
       cloudSupportDependencies ++
       commonDependencies ++
       coreDependencies ++
       cromiamDependencies ++
       cromwellApiClientDependencies ++
-      cwlDependencies ++
       databaseMigrationDependencies ++
       databaseSqlDependencies ++
       draft2LanguageFactoryDependencies ++

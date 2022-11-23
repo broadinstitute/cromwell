@@ -12,7 +12,6 @@ jobs:
         project:
         - cromiam
         - cromwell-drs-localizer
-        - perf
         - server
         - womtool
 

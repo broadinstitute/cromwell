@@ -1,7 +1,7 @@
 package cromwell.filesystems.blob
 
 import com.azure.core.credential.AzureSasCredential
-import com.typesafe.config.ConfigException.WrongType
+import com.typesafe.config.ConfigException.Missing
 import com.typesafe.config.ConfigFactory
 import common.mock.MockSugar
 import org.mockito.Mockito._
@@ -85,7 +85,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
          |
       """.stripMargin)
     val globalConfig = ConfigFactory.parseString("""""")
-    assertThrows[WrongType](BlobPathBuilderFactory(globalConfig, instanceConfig))
+    assertThrows[Missing](BlobPathBuilderFactory(globalConfig, instanceConfig))
   }
 
   it should "build an example sas token of the correct format" in {

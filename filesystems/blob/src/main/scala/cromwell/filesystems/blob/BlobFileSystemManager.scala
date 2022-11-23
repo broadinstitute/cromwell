@@ -1,5 +1,6 @@
 package cromwell.filesystems.blob
 
+import bio.terra.workspace.api.ControlledAzureResourceApi
 import com.azure.core.credential.AzureSasCredential
 import com.azure.core.management.AzureEnvironment
 import com.azure.core.management.profile.AzureProfile
@@ -99,25 +100,27 @@ case class WSMBlobTokenGenerator(
   wsmClient: WorkspaceManagerApiClientProvider,
   defaultB2cToken: Option[String]) extends BlobTokenGenerator {
 
-  def generateAccessToken: Try[AzureSasCredential] = Try {
-    val controlledAzureResourceApi = (defaultB2cToken) match {
-      case (Some(defaultToken)) => wsmClient.getControlledAzureResourceApi(defaultToken)
+  def generateAccessToken: Try[AzureSasCredential] = {
+    val controlledAzureResourceApi: Try[ControlledAzureResourceApi] = ((defaultB2cToken) match {
+      case (Some(defaultToken)) => Success(wsmClient.getControlledAzureResourceApi(defaultToken))
       case (None) => (AzureCredentials(None).getAccessToken.toOption) match {
-        case Some(localAzureCredential) => wsmClient.getControlledAzureResourceApi(localAzureCredential)
-        case None => wsmClient.getControlledAzureResourceApi()
+        case Some(localAzureCredential) => Success(wsmClient.getControlledAzureResourceApi(localAzureCredential))
+        case None => Failure(new RuntimeException("B2C token not found"))
       }
-    }
-
-    val token = controlledAzureResourceApi.createAzureStorageContainerSasToken(
-      UUID.fromString(workspaceId.value),
-      UUID.fromString(containerResourceId.value),
-      null,
-      null,
-      null,
-      null
-    ).getToken
-
-    new AzureSasCredential(token)
+    })
+    val token = controlledAzureResourceApi.flatMap((api: ControlledAzureResourceApi) => {
+      Try {
+        api.createAzureStorageContainerSasToken(
+        UUID.fromString(workspaceId.value),
+        UUID.fromString(containerResourceId.value),
+        null,
+        null,
+        null,
+        null
+        ).getToken
+      }
+    })
+    token.map(new AzureSasCredential(_))
   }
 }
 

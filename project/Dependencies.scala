@@ -579,8 +579,6 @@ object Dependencies {
     "jakarta.activation" % "jakarta.activation-api" % jakartaActivationV,
   ) ++ akkaHttpDependencies ++ swaggerUiDependencies ++ slf4jBindingDependencies
 
-  val wes2cromwellDependencies: List[ModuleID] = coreDependencies ++ akkaHttpDependencies
-
   val backendDependencies: List[ModuleID] = List(
     "co.fs2" %% "fs2-io" % fs2V
   ) ++ scalacheckDependencies
@@ -641,7 +639,6 @@ object Dependencies {
       spiUtilDependencies ++
       tesBackendDependencies ++
       wdlDependencies ++
-      wes2cromwellDependencies ++
       womDependencies ++
       womtoolDependencies
 

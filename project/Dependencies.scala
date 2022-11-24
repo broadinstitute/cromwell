@@ -186,7 +186,7 @@ object Dependencies {
      Globally use of jakarta instead of javax until Google does themselves.
      The javax.annotation exclusion is below in cromwellExcludeDependencies.
      */
-//    "jakarta.annotation" % "jakarta.annotation-api" % jakartaAnnotationV,
+    "jakarta.annotation" % "jakarta.annotation-api" % jakartaAnnotationV,
   )
 
   val spiDependencies: List[ModuleID] = List(
@@ -199,19 +199,19 @@ object Dependencies {
   )
 
   val azureDependencies: List[ModuleID] = List(
-    "com.azure" % "azure-storage-blob-nio" % azureStorageBlobNioV,
-//      exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
-//      exclude("jakarta.activation", "jakarta.activation-api"),
-    "com.azure" % "azure-identity" % azureIdentitySdkV,
-//      exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
-//      exclude("jakarta.activation", "jakarta.activation-api"),
+    "com.azure" % "azure-storage-blob-nio" % azureStorageBlobNioV
+      exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
+      exclude("jakarta.activation", "jakarta.activation-api"),
+    "com.azure" % "azure-identity" % azureIdentitySdkV
+      exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
+      exclude("jakarta.activation", "jakarta.activation-api"),
     "com.azure" % "azure-core-management" % "1.7.1",
     "com.azure.resourcemanager" % "azure-resourcemanager" % "2.18.0"
   )
 
   val wsmDependencies: List[ModuleID] = List(
-    "bio.terra" % "workspace-manager-client" % "0.254.452-SNAPSHOT",
-//      exclude("com.sun.activation", "jakarta.activation"),
+    "bio.terra" % "workspace-manager-client" % "0.254.452-SNAPSHOT"
+      exclude("com.sun.activation", "jakarta.activation"),
     /*
     1. WSM is looking for the rs-api under javax.*.
 

@@ -4,6 +4,7 @@ package cromwell.backend.google.pipelines.batch
 import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.backend.standard._
 
+
 class GcpBatchBackendLifecycleActorFactory(name: String, override val configurationDescriptor: BackendConfigurationDescriptor)
   extends StandardLifecycleActorFactory {
 

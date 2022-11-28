@@ -8,10 +8,10 @@ import cromwell.backend._
 import cromwell.backend.google.pipelines.common.Run
 import cromwell.backend.async.PendingExecutionHandle
 import cromwell.backend.async.ExecutionHandle
-
 import akka.actor.ActorRef
 
 import java.util.UUID
+import scala.concurrent.Future
 
 object GcpBatchAsyncBackendJobExecutionActor {
 
@@ -46,13 +46,15 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   // Primary entry point for cromwell to run GCP Batch job
   //override def executeAsync(): Future[ExecutionHandle] = {
-  override def execute(): ExecutionHandle = {
+  override def executeAsync(): Future[ExecutionHandle] = {
 
       runPipeline()
       val runId = StandardAsyncJob(UUID.randomUUID().toString)  //temp to test
 
       runId.toString
-      PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)
+
+      Future.successful(PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None))
+
       //ExecutionHandle[]
 
   }

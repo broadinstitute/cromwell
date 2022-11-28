@@ -1,25 +1,15 @@
 package cromwell.backend.google.pipelines.batch
 
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
-//import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams}
 import cromwell.core.retry.SimpleExponentialBackoff
-//import cromwell.backend.google.pipelines.common
 
 import scala.concurrent.duration._
 import cromwell.backend._
-//import cromwell.backend.async.PendingExecutionHandle
 import cromwell.backend.google.pipelines.common.Run
 import cromwell.backend.async.PendingExecutionHandle
 import cromwell.backend.async.ExecutionHandle
-//import cromwell.backend.google.pipelines.common.Run
-//import cromwell.core._
-
-//import scala.concurrent.Future
-//import scala.concurrent.{Future, Promise}
-//import cromwell.backend.async.ExecutionHandle
 
 import akka.actor.ActorRef
-//import akka.actor.{Actor, ActorRef}
 
 import java.util.UUID
 
@@ -37,8 +27,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   //override type StandardAsyncRunState = RunStatus
 
 
-  //import GcpBatchAsyncBackendJobExecutionActor._
-
   /** Should return true if the status contained in `thiz` is equivalent to `that`, delta any other data that might be carried around
     * in the state type.
     */
@@ -46,18 +34,11 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     .this.type)(that: GcpBatchAsyncBackendJobExecutionActor
     .this.type): Boolean = true
 
-  /**
-    * Returns true when a job is complete, either successfully or unsuccessfully.
-    *
-    * @param runStatus The run status.
-    * @return True if the job has completed.
-    */
   override def isTerminal(runStatus: GcpBatchAsyncBackendJobExecutionActor
     .this.type): Boolean = true
 
   override def dockerImageUsed: Option[String] = Option("test")
 
-  //override val requestFactory: GcpBatchBackendLifecycleFactory
 
   //lazy val batchJob: GcpBatchJob = GcpBatchJob(jobDescriptor)
   override val gcpBatchApiActor: ActorRef = standardParams.backendSingletonActorOption.getOrElse(
@@ -67,12 +48,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   //override def executeAsync(): Future[ExecutionHandle] = {
   override def execute(): ExecutionHandle = {
 
-
-      //val runId = backendSingletonActor ! runPipeline()
-      //val runId = runPipeline()
       runPipeline()
       val runId = StandardAsyncJob(UUID.randomUUID().toString)  //temp to test
-      //val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, None, Map.empty)
 
       runId.toString
       PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)
@@ -80,15 +57,10 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   }
 
-  //yield PendingExecutionHandle(jobDescriptor = jobDescriptor, previousState = None, job = StandardAsyncJob("id"))
-
-  //override def pollBackOff: SimpleExponentialBackoff = ???
 
   override lazy val pollBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(1
     .second, 5
     .minutes, 1.1)
-
-  //override def executeOrRecoverBackOff: SimpleExponentialBackoff = ???
 
   override lazy val executeOrRecoverBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(
     initialInterval = 3
@@ -97,5 +69,3 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
 
 }
-
-//case class PendingExecutionHandle(jobDescriptor: BackendJobDescriptor, previousState: None.type, job: StandardAsyncJob)

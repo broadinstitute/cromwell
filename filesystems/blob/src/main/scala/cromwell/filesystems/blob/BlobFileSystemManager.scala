@@ -109,7 +109,7 @@ case class WSMBlobTokenGenerator(container: BlobContainerName,
   def generateAccessToken: Try[AzureSasCredential] = {
     val controlledAzureResourceApi: Try[ControlledAzureResourceApi] = (overrideB2cToken) match {
       case Some(overrideToken) => Success(wsmClient.getControlledAzureResourceApi(overrideToken))
-      case None => AzureCredentials(None).getAccessToken.toOption match {
+      case None => AzureCredentials.getAccessToken(None).toOption match {
         case Some(localAzureCredential) => Success(wsmClient.getControlledAzureResourceApi(localAzureCredential))
         case None => Failure(new RuntimeException("B2C token not found"))
       }

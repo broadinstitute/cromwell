@@ -17,24 +17,24 @@ import scala.util.{Failure, Success, Try}
   * If you need to disambiguate among multiple active user-assigned managed identities, pass
   * in the client id of the identity that should be used.
   */
-case class AzureCredentials(identityClientId: Option[String]) {
+case object AzureCredentials {
 
   final val tokenAcquisitionTimeout = 5.seconds
 
   val azureProfile = new AzureProfile(AzureEnvironment.AZURE)
   val tokenScope = "https://management.azure.com/.default"
 
-  def tokenRequestContext: TokenRequestContext = {
+  private def tokenRequestContext: TokenRequestContext = {
     val trc = new TokenRequestContext()
     trc.addScopes(tokenScope)
     trc
   }
 
-  def defaultCredentialBuilder: DefaultAzureCredentialBuilder =
+  private def defaultCredentialBuilder: DefaultAzureCredentialBuilder =
     new DefaultAzureCredentialBuilder()
       .authorityHost(azureProfile.getEnvironment.getActiveDirectoryEndpoint)
 
-  def getAccessToken: ErrorOr[String] = {
+  def getAccessToken(identityClientId: Option[String]): ErrorOr[String] = {
     val credentials = identityClientId.foldLeft(defaultCredentialBuilder) {
       (builder, clientId) => builder.managedIdentityClientId(clientId)
     }.build()

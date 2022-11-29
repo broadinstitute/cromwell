@@ -12,13 +12,13 @@ import common.mock.MockSugar
 
 import scala.concurrent.duration._
 
-class MarthaHttpRequestRetryStrategySpec extends AnyFlatSpec with Matchers with MockSugar {
+class DrsResolverHttpRequestRetryStrategySpec extends AnyFlatSpec with Matchers with MockSugar {
 
   behavior of "MarthaHttpRequestRetryStrategy"
 
   it should "retry 500 errors a configured number of times" in {
     val drsConfig = MockDrsPaths.mockDrsConfig.copy(numRetries = 3)
-    val retryStrategy = new MarthaHttpRequestRetryStrategy(drsConfig)
+    val retryStrategy = new DrsResolverHttpRequestRetryStrategy(drsConfig)
     val http500Response = mock[CloseableHttpResponse]
     http500Response.getStatusLine returns new BasicStatusLine(HttpVersion.HTTP_1_1, 500, "Testing 500")
     val httpContext = mock[HttpContext]
@@ -35,7 +35,7 @@ class MarthaHttpRequestRetryStrategySpec extends AnyFlatSpec with Matchers with 
 
   it should "retry 500 errors even after a number of 408/429 errors" in {
     val drsConfig = MockDrsPaths.mockDrsConfig.copy(numRetries = 3)
-    val retryStrategy = new MarthaHttpRequestRetryStrategy(drsConfig)
+    val retryStrategy = new DrsResolverHttpRequestRetryStrategy(drsConfig)
     val http500Response = mock[CloseableHttpResponse]
     http500Response.getStatusLine returns new BasicStatusLine(HttpVersion.HTTP_1_1, 500, "Testing 500")
     val http408Response = mock[CloseableHttpResponse]
@@ -63,7 +63,7 @@ class MarthaHttpRequestRetryStrategySpec extends AnyFlatSpec with Matchers with 
 
   it should "not retry an HTTP 401" in {
     val drsConfig = MockDrsPaths.mockDrsConfig.copy(numRetries = 3)
-    val retryStrategy = new MarthaHttpRequestRetryStrategy(drsConfig)
+    val retryStrategy = new DrsResolverHttpRequestRetryStrategy(drsConfig)
     val http400Response = mock[CloseableHttpResponse]
     http400Response.getStatusLine returns new BasicStatusLine(HttpVersion.HTTP_1_1, 401, "Testing 401")
     val httpContext = mock[HttpContext]
@@ -73,7 +73,7 @@ class MarthaHttpRequestRetryStrategySpec extends AnyFlatSpec with Matchers with 
 
   it should "retry IO exceptions a configured number of times" in {
     val drsConfig = MockDrsPaths.mockDrsConfig.copy(numRetries = 3)
-    val retryStrategy = new MarthaHttpRequestRetryStrategy(drsConfig)
+    val retryStrategy = new DrsResolverHttpRequestRetryStrategy(drsConfig)
     val exception = mock[IOException]
     val httpContext = mock[HttpContext]
 
@@ -95,7 +95,7 @@ class MarthaHttpRequestRetryStrategySpec extends AnyFlatSpec with Matchers with 
         waitMaximum = 1.minute,
         waitRandomizationFactor = 0d,
       )
-    val retryStrategy = new MarthaHttpRequestRetryStrategy(drsConfig)
+    val retryStrategy = new DrsResolverHttpRequestRetryStrategy(drsConfig)
 
     retryStrategy.getRetryInterval should be(10000L)
     retryStrategy.getRetryInterval should be(20000L)

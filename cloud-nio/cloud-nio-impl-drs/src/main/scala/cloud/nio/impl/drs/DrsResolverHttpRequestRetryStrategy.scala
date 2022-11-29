@@ -7,7 +7,7 @@ import org.apache.http.HttpResponse
 import org.apache.http.client.{HttpRequestRetryHandler, ServiceUnavailableRetryStrategy}
 import org.apache.http.protocol.HttpContext
 
-class MarthaHttpRequestRetryStrategy(drsConfig: DrsConfig)
+class DrsResolverHttpRequestRetryStrategy(drsConfig: DrsConfig)
   extends ServiceUnavailableRetryStrategy with HttpRequestRetryHandler {
 
   // We can execute a total of one time, plus the number of retries

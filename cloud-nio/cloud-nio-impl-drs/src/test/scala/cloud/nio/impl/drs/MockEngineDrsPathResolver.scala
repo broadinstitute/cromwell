@@ -19,7 +19,7 @@ class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfi
   override protected lazy val httpClientBuilder: HttpClientBuilder =
     httpClientBuilderOverride getOrElse MockSugar.mock[HttpClientBuilder]
 
-  private lazy val mockMarthaUri = drsConfig.marthaUrl
+  private lazy val mockMarthaUri = drsConfig.drsResolverUrl
 
   private val hashesObj = Map(
     "md5" -> "336ea55913bc261b72875bd259753046",
@@ -28,7 +28,7 @@ class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfi
   )
 
   private val marthaObjWithGcsPath =
-    MarthaResponse(
+    DrsResolverResponse(
       size = Option(156018255),
       timeCreated = Option("2020-04-27T15:56:09.696Z"),
       timeUpdated = Option("2020-04-27T15:56:09.696Z"),
@@ -44,7 +44,7 @@ class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfi
 
   private val marthaObjWithNoGcsPath = marthaObjWithGcsPath.copy(gsUri = None)
 
-  override def resolveDrsThroughMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): IO[MarthaResponse] = {
+  override def resolveDrs(drsPath: String, fields: NonEmptyList[DrsResolverField.Value]): IO[DrsResolverResponse] = {
     drsPath match {
       case MockDrsPaths.drsPathResolvingGcsPath => IO(marthaObjWithGcsPath)
       case MockDrsPaths.drsPathWithNonPathChars => IO(marthaObjWithGcsPath)

@@ -10,8 +10,7 @@ class DrsCloudNioFileSystemProvider(rootConfig: Config,
                                     val drsCredentials: DrsCredentials,
                                     drsReadInterpreter: DrsReadInterpreter,
                                    ) extends CloudNioFileSystemProvider {
-
-  lazy val drsConfig: DrsConfig = DrsConfig.fromConfig(rootConfig.getConfig("martha"))
+  lazy val drsConfig: DrsConfig = DrsConfig.fromConfig(rootConfig.getConfig("resolver"))
 
   lazy val drsPathResolver: EngineDrsPathResolver =
     EngineDrsPathResolver(drsConfig, drsCredentials)

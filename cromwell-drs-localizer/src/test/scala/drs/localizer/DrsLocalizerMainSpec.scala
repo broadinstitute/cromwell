@@ -4,7 +4,7 @@ import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO}
 import cats.syntax.validated._
 import cloud.nio.impl.drs.DrsPathResolver.FatalRetryDisposition
-import cloud.nio.impl.drs.{AccessUrl, DrsConfig, DrsCredentials, MarthaField, MarthaResponse}
+import cloud.nio.impl.drs.{AccessUrl, DrsConfig, DrsCredentials, DrsResolverField, DrsResolverResponse}
 import common.assertion.CromwellTimeoutSpec
 import common.validation.ErrorOr.ErrorOr
 import drs.localizer.MockDrsLocalizerDrsPathResolver.{FakeAccessTokenStrategy, FakeHashes}
@@ -315,8 +315,8 @@ class MockDrsLocalizerMain(drsUrl: String,
 class MockDrsLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
   DrsLocalizerDrsPathResolver(drsConfig, FakeAccessTokenStrategy) {
 
-  override def resolveDrsThroughMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): IO[MarthaResponse] = {
-    val marthaResponse = MarthaResponse(
+  override def resolveDrs(drsPath: String, fields: NonEmptyList[DrsResolverField.Value]): IO[DrsResolverResponse] = {
+    val marthaResponse = DrsResolverResponse(
       size = Option(1234),
       hashes = FakeHashes
     )

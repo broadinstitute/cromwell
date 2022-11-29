@@ -31,7 +31,7 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
     )
 
     val fileSystemProvider = new MockDrsCloudNioFileSystemProvider(config = config)
-    fileSystemProvider.drsConfig.marthaUrl should be("https://from.config")
+    fileSystemProvider.drsConfig.drsResolverUrl should be("https://from.config")
     fileSystemProvider.drsCredentials match {
       case GoogleOauthDrsCredentials(_, ttl) => ttl should be(1.minute)
       case error => fail(s"Expected GoogleDrsCredentials, found $error")
@@ -79,10 +79,10 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
 
   it should "return a file provider that can read bytes from gcs" in {
     val drsPathResolver = new MockEngineDrsPathResolver() {
-      override def resolveDrsThroughMartha(drsPath: String,
-                                           fields: NonEmptyList[MarthaField.Value],
-                                          ): IO[MarthaResponse] = {
-        IO(MarthaResponse(gsUri = Option("gs://bucket/object/path")))
+      override def resolveDrs(drsPath: String,
+                              fields: NonEmptyList[DrsResolverField.Value],
+                                          ): IO[DrsResolverResponse] = {
+        IO(DrsResolverResponse(gsUri = Option("gs://bucket/object/path")))
       }
     }
 
@@ -105,10 +105,10 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
 
   it should "return a file provider that can read bytes from an access url" in {
     val drsPathResolver = new MockEngineDrsPathResolver() {
-      override def resolveDrsThroughMartha(drsPath: String,
-                                           fields: NonEmptyList[MarthaField.Value],
-                                          ): IO[MarthaResponse] = {
-        IO(MarthaResponse(accessUrl = Option(AccessUrl("https://host/object/path", None))))
+      override def resolveDrs(drsPath: String,
+                              fields: NonEmptyList[DrsResolverField.Value],
+                                          ): IO[DrsResolverResponse] = {
+        IO(DrsResolverResponse(accessUrl = Option(AccessUrl("https://host/object/path", None))))
       }
     }
 
@@ -131,13 +131,13 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
 
   it should "return a file provider that can return file attributes" in {
     val drsPathResolver = new MockEngineDrsPathResolver() {
-      override def resolveDrsThroughMartha(drsPath: String,
-                                           fields: NonEmptyList[MarthaField.Value],
-                                          ): IO[MarthaResponse] = {
+      override def resolveDrs(drsPath: String,
+                              fields: NonEmptyList[DrsResolverField.Value],
+                                          ): IO[DrsResolverResponse] = {
         val instantCreated = Instant.ofEpochMilli(123L)
         val instantUpdated = Instant.ofEpochMilli(456L)
         IO(
-          MarthaResponse(
+          DrsResolverResponse(
             size = Option(789L),
             timeCreated = Option(OffsetDateTime.ofInstant(instantCreated, ZoneOffset.UTC).toString),
             timeUpdated = Option(OffsetDateTime.ofInstant(instantUpdated, ZoneOffset.UTC).toString),

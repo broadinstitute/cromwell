@@ -17,7 +17,7 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
   private val md5HashValue = "336ea55913bc261b72875bd259753046"
   private val shaHashValue = "f76877f8e86ec3932fd2ae04239fbabb8c90199dab0019ae55fa42b31c314c44"
 
-  private val fullMarthaResponse = MarthaResponse(
+  private val fullMarthaResponse = DrsResolverResponse(
     size = Option(34905345),
     timeCreated = Option(OffsetDateTime.parse("2020-04-27T15:56:09.696Z").toString),
     timeUpdated = Option(OffsetDateTime.parse("2020-04-27T15:56:09.696Z").toString),
@@ -127,10 +127,10 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
 
   it should "successfully parse a failure" in {
     import io.circe.parser.decode
-    import cloud.nio.impl.drs.MarthaResponseSupport.marthaFailureResponseDecoder
+    import cloud.nio.impl.drs.DrsResolverResponseSupport.drsResolverFailureResponseDecoder
 
-    val maybeDecoded = decode[MarthaFailureResponse](failureResponseJson)
-    maybeDecoded map { decoded: MarthaFailureResponse =>
+    val maybeDecoded = decode[DrsResolverFailureResponse](failureResponseJson)
+    maybeDecoded map { decoded: DrsResolverFailureResponse =>
       decoded.response.text shouldBe "{\"msg\":\"User 'null' does not have required action: read_data\",\"status_code\":500}"
     }
   }
@@ -144,13 +144,13 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
   it should "construct an error message from a populated, well-formed failure response" in {
     val failureResponse = Option(failureResponseJson)
 
-    MarthaResponseSupport.errorMessageFromResponse(drsPathForDebugging, failureResponse, responseStatusLine, testMarthaUri) shouldBe {
+    DrsResolverResponseSupport.errorMessageFromResponse(drsPathForDebugging, failureResponse, responseStatusLine, testMarthaUri) shouldBe {
       "Could not access object 'drs://my_awesome_drs'. Status: 345, reason: 'test-reason', Martha location: 'www.martha_v3.com', message: '{\"msg\":\"User 'null' does not have required action: read_data\",\"status_code\":500}'"
     }
   }
 
   it should "construct an error message from an empty failure response" in {
-    MarthaResponseSupport.errorMessageFromResponse(drsPathForDebugging, None, responseStatusLine, testMarthaUri) shouldBe {
+    DrsResolverResponseSupport.errorMessageFromResponse(drsPathForDebugging, None, responseStatusLine, testMarthaUri) shouldBe {
       "Could not access object 'drs://my_awesome_drs'. Status: 345, reason: 'test-reason', Martha location: 'www.martha_v3.com', message: (empty response)"
     }
   }
@@ -160,7 +160,7 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
   it should "construct an error message from a malformed failure response" in {
     val unparsableFailureResponse = Option("something went horribly wrong")
 
-    MarthaResponseSupport.errorMessageFromResponse(drsPathForDebugging, unparsableFailureResponse, responseStatusLine, testMarthaUri) shouldBe {
+    DrsResolverResponseSupport.errorMessageFromResponse(drsPathForDebugging, unparsableFailureResponse, responseStatusLine, testMarthaUri) shouldBe {
       "Could not access object 'drs://my_awesome_drs'. Status: 345, reason: 'test-reason', Martha location: 'www.martha_v3.com', message: 'something went horribly wrong'"
     }
   }
@@ -168,7 +168,7 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
   it should "resolve an ISO-8601 date with timezone" in {
     val lastModifiedTimeIO = convertToFileTime(
       "drs://my_awesome_drs",
-      MarthaField.TimeUpdated,
+      DrsResolverField.TimeUpdated,
       fullMarthaResponse.timeUpdated,
     )
     lastModifiedTimeIO.unsafeRunSync() should
@@ -178,7 +178,7 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
   it should "resolve an ISO-8601 date without timezone" in {
     val lastModifiedTimeIO = convertToFileTime(
       "drs://my_awesome_drs",
-      MarthaField.TimeUpdated,
+      DrsResolverField.TimeUpdated,
       fullMarthaResponseNoTz.timeUpdated,
     )
     lastModifiedTimeIO.unsafeRunSync() should
@@ -188,7 +188,7 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
   it should "not resolve an date that does not contain a timeUpdated" in {
     val lastModifiedTimeIO = convertToFileTime(
       "drs://my_awesome_drs",
-      MarthaField.TimeUpdated,
+      DrsResolverField.TimeUpdated,
       fullMarthaResponseNoTime.timeUpdated,
     )
     lastModifiedTimeIO.unsafeRunSync() should be(None)
@@ -197,7 +197,7 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
   it should "not resolve an date that is not ISO-8601" in {
     val lastModifiedTimeIO = convertToFileTime(
       "drs://my_awesome_drs",
-      MarthaField.TimeUpdated,
+      DrsResolverField.TimeUpdated,
       fullMarthaResponseBadTz.timeUpdated,
     )
     the[RuntimeException] thrownBy lastModifiedTimeIO.unsafeRunSync() should have message

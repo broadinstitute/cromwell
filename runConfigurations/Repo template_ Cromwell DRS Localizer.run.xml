@@ -1,7 +1,7 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Repo template: Cromwell DRS Localizer" type="Application" factoryName="Application">
     <envs>
-      <env name="MARTHA_URL" value="https://us-central1-broad-dsde-dev.cloudfunctions.net/martha_v3" />
+      <env name="DRS_RESOLVER_URL" value="https://drshub.dsde-dev.broadinstitute.org/api/v4/drs/resolve'" />
     </envs>
     <option name="MAIN_CLASS_NAME" value="drs.localizer.DrsLocalizerMain" />
     <module name="cromwell-drs-localizer" />

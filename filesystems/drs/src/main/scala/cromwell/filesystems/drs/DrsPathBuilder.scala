@@ -60,7 +60,7 @@ case class DrsPathBuilder(fileSystemProvider: DrsCloudNioFileSystemProvider,
     val gcsPathOption = for {
       // Right now, only pre-resolving GCS. In the future, could pull others like FTP, HTTP, S3, SRA, etc.
       gsUriOption <- logAttempt(
-        "resolve the uri through Martha",
+        "resolve the uri through DRS Resolver",
         DrsResolver.getSimpleGsUri(pathAsString, fileSystemProvider.drsPathResolver).unsafeRunSync()
       )
       gcsUrlWithNoCreds <- gsUriOption

@@ -118,12 +118,12 @@ case class WSMBlobTokenGenerator(
     val token = controlledAzureResourceApi.flatMap((api: ControlledAzureResourceApi) => {
       Try {
         api.createAzureStorageContainerSasToken(
-        UUID.fromString(workspaceId.value),
-        UUID.fromString(containerResourceId.value),
-        null,
-        null,
-        null,
-        null
+          UUID.fromString(workspaceId.value),
+          UUID.fromString(containerResourceId.value),
+          null,
+          null,
+          null,
+          null
         ).getToken
       }
     })

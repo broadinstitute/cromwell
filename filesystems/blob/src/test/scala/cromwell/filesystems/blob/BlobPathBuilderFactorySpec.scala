@@ -48,6 +48,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val workspaceId = WorkspaceId("B0BAFE77-0000-0000-0000-000000000000")
     val containerResourceId = ContainerResourceId("F00B4R11-0000-0000-0000-000000000000")
     val workspaceManagerURL = WorkspaceManagerURL("https://wsm.example.com")
+    val b2cToken = "b0gus-t0ken"
     val singletonConfig = ConfigFactory.parseString(
       s"""
          |container = "$container"
@@ -57,6 +58,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
          |  url = "$workspaceManagerURL"
          |  workspace-id = "$workspaceId"
          |  container-resource-id = "$containerResourceId"
+         |  b2cToken = "$b2cToken"
          |}
          |
       """.stripMargin)
@@ -67,7 +69,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     factory.workspaceManagerConfig.get.url shouldBe workspaceManagerURL
     factory.workspaceManagerConfig.get.workspaceId shouldBe workspaceId
     factory.workspaceManagerConfig.get.containerResourceId shouldBe containerResourceId
-    factory.workspaceManagerConfig.get.b2cToken.isEmpty shouldBe true
+    factory.workspaceManagerConfig.get.b2cToken.contains(b2cToken) shouldBe true
   }
 
   it should "fail when partial WSM config is supplied" in {

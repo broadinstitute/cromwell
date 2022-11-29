@@ -107,13 +107,13 @@ case class WSMBlobTokenGenerator(container: BlobContainerName,
                                  overrideB2cToken: Option[String]) extends BlobTokenGenerator {
 
   def generateAccessToken: Try[AzureSasCredential] = {
-    val controlledAzureResourceApi: Try[ControlledAzureResourceApi] = ((overrideB2cToken) match {
-      case (Some(overrideToken)) => Success(wsmClient.getControlledAzureResourceApi(overrideToken))
-      case (None) => (AzureCredentials(None).getAccessToken.toOption) match {
+    val controlledAzureResourceApi: Try[ControlledAzureResourceApi] = (overrideB2cToken) match {
+      case Some(overrideToken) => Success(wsmClient.getControlledAzureResourceApi(overrideToken))
+      case None => AzureCredentials(None).getAccessToken.toOption match {
         case Some(localAzureCredential) => Success(wsmClient.getControlledAzureResourceApi(localAzureCredential))
         case None => Failure(new RuntimeException("B2C token not found"))
       }
-    })
+    }
     val token = controlledAzureResourceApi.flatMap((api: ControlledAzureResourceApi) => {
       Try {
         api.createAzureStorageContainerSasToken(

@@ -83,7 +83,7 @@ final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Co
   */
 case class AzureCredentials(identityClientId: Option[String]) {
 
-  final val tokenAcquisitionTimeout = 30.seconds
+  final val tokenAcquisitionTimeout = 5.seconds
 
   val azureProfile = new AzureProfile(AzureEnvironment.AZURE)
   val tokenScope = "https://management.azure.com/.default"

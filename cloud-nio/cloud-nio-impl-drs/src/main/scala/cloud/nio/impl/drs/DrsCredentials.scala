@@ -80,7 +80,7 @@ case object GoogleAppDefaultTokenStrategy extends DrsCredentials {
   */
 case class AzureDrsCredentials(identityClientId: Option[String]) extends DrsCredentials {
 
-  final val tokenAcquisitionTimeout = 30.seconds
+  final val tokenAcquisitionTimeout = 5.seconds
 
   val azureProfile = new AzureProfile(AzureEnvironment.AZURE)
   val tokenScope = "https://management.azure.com/.default"

@@ -1,6 +1,5 @@
 package cromwell.filesystems.blob
 
-import bio.terra.workspace.api.ControlledAzureResourceApi
 import com.azure.core.credential.AzureSasCredential
 import com.azure.core.management.AzureEnvironment
 import com.azure.core.management.profile.AzureProfile
@@ -11,6 +10,7 @@ import com.azure.storage.blob.nio.AzureFileSystem
 import com.azure.storage.blob.sas.{BlobContainerSasPermission, BlobServiceSasSignatureValues}
 import com.azure.storage.blob.{BlobContainerClient, BlobContainerClientBuilder}
 import com.azure.storage.common.StorageSharedKeyCredential
+import common.validation.Validation._
 import com.typesafe.scalalogging.LazyLogging
 
 import java.net.URI
@@ -103,30 +103,28 @@ case class WSMBlobTokenGenerator(container: BlobContainerName,
                                  endpoint: EndpointURL,
                                  workspaceId: WorkspaceId,
                                  containerResourceId: ContainerResourceId,
-                                 wsmClient: WorkspaceManagerApiClientProvider,
+                                 wsmClientProvider: WorkspaceManagerApiClientProvider,
                                  overrideB2cToken: Option[String]) extends BlobTokenGenerator {
 
   def generateAccessToken: Try[AzureSasCredential] = {
-    val controlledAzureResourceApi: Try[ControlledAzureResourceApi] = (overrideB2cToken) match {
-      case Some(overrideToken) => Success(wsmClient.getControlledAzureResourceApi(overrideToken))
-      case None => AzureCredentials.getAccessToken(None).toOption match {
-        case Some(localAzureCredential) => Success(wsmClient.getControlledAzureResourceApi(localAzureCredential))
-        case None => Failure(new RuntimeException("B2C token not found"))
-      }
+    val wsmAuthToken: Try[String] = overrideB2cToken match {
+      case Some(t) => Success(t)
+      case None => AzureCredentials.getAccessToken(None).toTry
     }
-    val token = controlledAzureResourceApi.flatMap((api: ControlledAzureResourceApi) => {
-      Try {
-        api.createAzureStorageContainerSasToken(
-        UUID.fromString(workspaceId.value),
-        UUID.fromString(containerResourceId.value),
-        null,
-        null,
-        null,
-        null
-        ).getToken
-      }
-    })
-    token.map(new AzureSasCredential(_))
+
+    for {
+      wsmAuth <- wsmAuthToken
+      wsmClient = wsmClientProvider.getControlledAzureResourceApi(wsmAuth)
+      sasToken <- Try(  // Java library throws
+        wsmClient.createAzureStorageContainerSasToken(
+          UUID.fromString(workspaceId.value),
+          UUID.fromString(containerResourceId.value),
+          null,
+          null,
+          null,
+          null
+        ).getToken)
+    } yield new AzureSasCredential(sasToken)
   }
 }
 

@@ -83,33 +83,32 @@ case class BlobFileSystemManager(
 
 sealed trait BlobTokenGenerator {def generateAccessToken: Try[AzureSasCredential]}
 object BlobTokenGenerator {
-  def createBlobTokenGenerator(container: BlobContainerName, endpoint: EndpointURL, subscription: Option[SubscriptionId]): BlobTokenGenerator = {
+  def createBlobTokenGenerator(container: BlobContainerName,
+                               endpoint: EndpointURL,
+                               subscription: Option[SubscriptionId]): BlobTokenGenerator = {
     NativeBlobTokenGenerator(container, endpoint, subscription)
   }
-  def createBlobTokenGenerator(
-      container: BlobContainerName, 
-      endpoint: EndpointURL, 
-      workspaceId: WorkspaceId, 
-      containerResourceId: ContainerResourceId, 
-      workspaceManagerClient: WorkspaceManagerApiClientProvider, 
-      defaultB2cToken: Option[String]
-  ): BlobTokenGenerator = {
-    WSMBlobTokenGenerator(container, endpoint, workspaceId, containerResourceId, workspaceManagerClient, defaultB2cToken)
+  def createBlobTokenGenerator(container: BlobContainerName,
+                               endpoint: EndpointURL,
+                               workspaceId: WorkspaceId,
+                               containerResourceId: ContainerResourceId,
+                               workspaceManagerClient: WorkspaceManagerApiClientProvider,
+                               overrideB2cToken: Option[String]): BlobTokenGenerator = {
+    WSMBlobTokenGenerator(container, endpoint, workspaceId, containerResourceId, workspaceManagerClient, overrideB2cToken)
   }
 
 }
 
-case class WSMBlobTokenGenerator(
-  container: BlobContainerName,
-  endpoint: EndpointURL,
-  workspaceId: WorkspaceId,
-  containerResourceId: ContainerResourceId,
-  wsmClient: WorkspaceManagerApiClientProvider,
-  defaultB2cToken: Option[String]) extends BlobTokenGenerator {
+case class WSMBlobTokenGenerator(container: BlobContainerName,
+                                 endpoint: EndpointURL,
+                                 workspaceId: WorkspaceId,
+                                 containerResourceId: ContainerResourceId,
+                                 wsmClient: WorkspaceManagerApiClientProvider,
+                                 overrideB2cToken: Option[String]) extends BlobTokenGenerator {
 
   def generateAccessToken: Try[AzureSasCredential] = {
-    val controlledAzureResourceApi: Try[ControlledAzureResourceApi] = ((defaultB2cToken) match {
-      case (Some(defaultToken)) => Success(wsmClient.getControlledAzureResourceApi(defaultToken))
+    val controlledAzureResourceApi: Try[ControlledAzureResourceApi] = ((overrideB2cToken) match {
+      case (Some(overrideToken)) => Success(wsmClient.getControlledAzureResourceApi(overrideToken))
       case (None) => (AzureCredentials(None).getAccessToken.toOption) match {
         case Some(localAzureCredential) => Success(wsmClient.getControlledAzureResourceApi(localAzureCredential))
         case None => Failure(new RuntimeException("B2C token not found"))

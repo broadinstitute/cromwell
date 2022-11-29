@@ -86,7 +86,14 @@ object BlobTokenGenerator {
   def createBlobTokenGenerator(container: BlobContainerName, endpoint: EndpointURL, subscription: Option[SubscriptionId]): BlobTokenGenerator = {
     NativeBlobTokenGenerator(container, endpoint, subscription)
   }
-  def createBlobTokenGenerator(container: BlobContainerName, endpoint: EndpointURL, workspaceId: WorkspaceId, containerResourceId: ContainerResourceId, workspaceManagerClient: WorkspaceManagerApiClientProvider, defaultB2cToken: Option[String]): BlobTokenGenerator = {
+  def createBlobTokenGenerator(
+      container: BlobContainerName, 
+      endpoint: EndpointURL, 
+      workspaceId: WorkspaceId, 
+      containerResourceId: ContainerResourceId, 
+      workspaceManagerClient: WorkspaceManagerApiClientProvider, 
+      defaultB2cToken: Option[String]
+  ): BlobTokenGenerator = {
     WSMBlobTokenGenerator(container, endpoint, workspaceId, containerResourceId, workspaceManagerClient, defaultB2cToken)
   }
 

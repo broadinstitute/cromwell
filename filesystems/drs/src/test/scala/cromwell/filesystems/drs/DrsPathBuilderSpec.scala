@@ -313,7 +313,7 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       isAbsolute = false,
     ),
 
-    // No spec says this is illegal... so pass it to Martha's various GCFs JIC
+    // No spec says this is illegal... so pass it to the DRS Resolver's various GCFs JIC
     GoodPath(
       description = "a bucketless path",
       path = s"drs://",

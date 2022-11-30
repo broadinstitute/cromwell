@@ -67,7 +67,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloaderFactory).unsafeRunSync() shouldBe expected
   }
 
-  it should "resolve to use the correct downloader for an access url when the Martha response also contains a gs url" in {
+  it should "resolve to use the correct downloader for an access url when the DRS Resolver response also contains a gs url" in {
     val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithAccessUrlAndGcsResolution, fakeDownloadLocation, None)
     val expected = AccessUrlDownloader(
       accessUrl = AccessUrl(url = "http://abc/def/ghi.bam", headers = None), downloadLoc = fakeDownloadLocation,

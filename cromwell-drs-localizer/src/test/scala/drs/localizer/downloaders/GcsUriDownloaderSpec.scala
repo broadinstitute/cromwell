@@ -11,7 +11,7 @@ class GcsUriDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
   val fakeDownloadLocation = "/root/foo/foo-123.bam"
   val fakeRequesterPaysId = "fake-billing-project"
 
-  it should "return correct download script for a drs url without Requester Pays ID and Google SA returned from Martha" in {
+  it should "return correct download script for a drs url without Requester Pays ID and Google SA returned from the DRS Resolver" in {
     val gcsUrl = "gs://foo/bar.bam"
     val downloader = new GcsUriDownloader(
       gcsUrl = gcsUrl,

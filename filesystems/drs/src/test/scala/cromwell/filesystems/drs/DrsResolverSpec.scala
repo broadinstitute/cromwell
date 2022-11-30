@@ -62,7 +62,7 @@ class DrsResolverSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
     } should have message s"Error while resolving DRS path: ${drsPath.pathAsString}. Error: UrlNotFoundException: No gs url associated with given DRS path."
   }
 
-  it should "throw Runtime Exception when Martha can't find the given DRS path " in {
+  it should "throw Runtime Exception when the DRS Resolver can't find the given DRS path " in {
     val drsPath = drsPathBuilder.build(MockDrsPaths.drsPathNotExistingInDrsResolver).get.asInstanceOf[DrsPath]
 
     the[RuntimeException] thrownBy {
@@ -70,6 +70,6 @@ class DrsResolverSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
     } should have message
       s"Error while resolving DRS path: ${drsPath.pathAsString}. " +
         s"Error: RuntimeException: Unexpected response resolving ${drsPath.pathAsString} " +
-        s"through Martha url https://drshub-url/drshub_v4. Error: 404 Not Found."
+        s"through DRS Resolver url https://drshub-url/drshub_v4. Error: 404 Not Found."
   }
 }

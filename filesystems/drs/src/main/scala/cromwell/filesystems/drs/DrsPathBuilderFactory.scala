@@ -78,4 +78,4 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
 
 case class UrlNotFoundException(scheme: String) extends Exception(s"No $scheme url associated with given DRS path.")
 
-case class MarthaResponseMissingKeyException(missingKey: String) extends Exception(s"The response from the DRS Resolver doesn't contain the key '$missingKey'.")
+case class DrsResolverResponseMissingKeyException(missingKey: String) extends Exception(s"The response from the DRS Resolver doesn't contain the key '$missingKey'.")

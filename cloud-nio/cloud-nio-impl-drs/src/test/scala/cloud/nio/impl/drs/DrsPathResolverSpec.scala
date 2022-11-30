@@ -139,7 +139,7 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
 
   val drsPathForDebugging = "drs://my_awesome_drs"
   val responseStatusLine = new BasicStatusLine(new ProtocolVersion("http", 1, 2) , 345, "test-reason")
-  val testDrsResolverUri = "www.drsdrshub.c4m"
+  val testDrsResolverUri = "www.drshub_v4.com"
 
   it should "construct an error message from a populated, well-formed failure response" in {
     val failureResponse = Option(failureResponseJson)

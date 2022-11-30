@@ -63,7 +63,7 @@ services {
   }
 }
 
-filesystems.drs.global.config.resolver.url = "https://drshub.dsde-dev.broadinstitute.org/api/v4/drs/resolve'"
+filesystems.drs.global.config.resolver.url = "https://drshub.dsde-dev.broadinstitute.org/api/v4/drs/resolve"
 
 drs {
   localization {

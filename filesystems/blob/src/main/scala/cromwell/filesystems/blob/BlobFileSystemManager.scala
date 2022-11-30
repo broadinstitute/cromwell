@@ -17,7 +17,6 @@ import java.net.URI
 import java.nio.file.{FileSystem, FileSystemNotFoundException, FileSystems}
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, Instant, OffsetDateTime}
-import java.util.UUID
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
@@ -117,8 +116,8 @@ case class WSMBlobTokenGenerator(container: BlobContainerName,
       wsmClient = wsmClientProvider.getControlledAzureResourceApi(wsmAuth)
       sasToken <- Try(  // Java library throws
         wsmClient.createAzureStorageContainerSasToken(
-          UUID.fromString(workspaceId.value),
-          UUID.fromString(containerResourceId.value),
+          workspaceId.value,
+          containerResourceId.value,
           null,
           null,
           null,
@@ -134,7 +133,7 @@ case class NativeBlobTokenGenerator(container: BlobContainerName, endpoint: Endp
   private def azureCredentialBuilder = new DefaultAzureCredentialBuilder()
       .authorityHost(azureProfile.getEnvironment.getActiveDirectoryEndpoint)
       .build
-  private def authenticateWithSubscription(sub: SubscriptionId) = AzureResourceManager.authenticate(azureCredentialBuilder, azureProfile).withSubscription(sub.value)
+  private def authenticateWithSubscription(sub: SubscriptionId) = AzureResourceManager.authenticate(azureCredentialBuilder, azureProfile).withSubscription(sub.toString)
   private def authenticateWithDefaultSubscription = AzureResourceManager.authenticate(azureCredentialBuilder, azureProfile).withDefaultSubscription()
   private def azure = subscription.map(authenticateWithSubscription(_)).getOrElse(authenticateWithDefaultSubscription)
 

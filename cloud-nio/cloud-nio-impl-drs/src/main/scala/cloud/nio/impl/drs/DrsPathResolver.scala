@@ -144,7 +144,7 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, retryInternally: Boolean = 
 }
 
 object DrsPathResolver {
-  final val ExtractUriErrorMsg = "No access URL nor GCS URI starting with 'gs://' found in DRS Resolver response!"
+  final val ExtractUriErrorMsg = "No access URL nor GCS URI starting with 'gs://' found in the DRS Resolver response!"
   sealed trait RetryDisposition
   // Should immediately fail the download attempt.
   trait FatalRetryDisposition extends RetryDisposition

@@ -34,7 +34,7 @@ object DrsReader {
           drsResolverResponse.googleServiceAccount,
         ))
       case (_, Some(_), _) =>
-        IO.raiseError(new RuntimeException("GCS URI found in DRS Resolver response, but no Google auth found!"))
+        IO.raiseError(new RuntimeException("GCS URI found in the DRS Resolver response, but no Google auth found!"))
       case _ =>
         IO.raiseError(new RuntimeException(DrsPathResolver.ExtractUriErrorMsg))
     }

@@ -44,7 +44,7 @@ class GcsUriDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     downloader.generateDownloadScript(gcsUrl = gcsUrl, saJsonPathOption = None) shouldBe expectedDownloadScript
   }
 
-  it should "inject Requester Pays flag & gcloud auth using SA returned from Martha" in {
+  it should "inject Requester Pays flag & gcloud auth using SA returned from the DRS Resolver" in {
     val gcsUrl = "gs://foo/bar.bam"
     val downloader = new GcsUriDownloader(
       gcsUrl = gcsUrl,
@@ -60,11 +60,11 @@ class GcsUriDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
       s"""set -euo pipefail
          |set +e
          |
-         |# Set gsutil to use the service account returned from Martha
+         |# Set gsutil to use the service account returned from the DRS Resolver
          |gcloud auth activate-service-account --key-file=${fakeSAJsonPath.toString} > gcloud_output.txt 2>&1
          |RC_GCLOUD=$$?
          |if [ "$$RC_GCLOUD" != "0" ]; then
-         |  echo "Failed to activate service account returned from Martha. File won't be downloaded. Error: $$(cat gcloud_output.txt)" >&2
+         |  echo "Failed to activate service account returned from the DRS Resolver. File won't be downloaded. Error: $$(cat gcloud_output.txt)" >&2
          |  exit "$$RC_GCLOUD"
          |else
          |  echo "Successfully activated service account; Will continue with download. $$(cat gcloud_output.txt)"

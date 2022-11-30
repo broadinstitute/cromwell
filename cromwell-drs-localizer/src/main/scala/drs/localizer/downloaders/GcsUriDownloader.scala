@@ -50,11 +50,11 @@ case class GcsUriDownloader(gcsUrl: String,
     def setServiceAccount(): String = {
       saJsonPathOption match {
         case Some(saJsonPath) =>
-          s"""# Set gsutil to use the service account returned from DRS Resolver
+          s"""# Set gsutil to use the service account returned from the DRS Resolver
              |gcloud auth activate-service-account --key-file=$saJsonPath > gcloud_output.txt 2>&1
              |RC_GCLOUD=$$?
              |if [ "$$RC_GCLOUD" != "0" ]; then
-             |  echo "Failed to activate service account returned from DRS Resolver. File won't be downloaded. Error: $$(cat gcloud_output.txt)" >&2
+             |  echo "Failed to activate service account returned from the DRS Resolver. File won't be downloaded. Error: $$(cat gcloud_output.txt)" >&2
              |  exit "$$RC_GCLOUD"
              |else
              |  echo "Successfully activated service account; Will continue with download. $$(cat gcloud_output.txt)"

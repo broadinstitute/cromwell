@@ -28,14 +28,16 @@ final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Co
   /**
    * This generator is responsible for producing a valid SAS token for use in accessing a Azure blob storage container
    * Two types of generators can be produced here:
-   * > Workspace Manager (WSM) mediated SAS token generator, which is selected when the wsmConfigs are present
+   * > Workspace Manager (WSM) mediated SAS token generator, used to create SAS tokens that allow access for
+   * blob containers mediated by the WSM, and is enabled when a WSM config is provided.
    *    OR
-   * > Native SAS token generator, which is the fallback and obtains a valid SAS token from your local environment.
+   * > Native SAS token generator, which obtains a valid SAS token from your local environment to reach blob containers
+   * your local azure identity has access to and is the default if a WSM config is not found.
    *
    * Both of these generators require an authentication token to authorize the generation of the SAS token.
-   * See BlobTokenGenerator for more information on how these generators work.
+   * See BlobSasTokenGenerator for more information on how these generators work.
    */
-  val blobTokenGenerator: BlobSasTokenGenerator = config.workspaceManagerConfig.map { wsmConfig =>
+  val blobSasTokenGenerator: BlobSasTokenGenerator = config.workspaceManagerConfig.map { wsmConfig =>
     val wsmClient: WorkspaceManagerApiClientProvider = new HttpWorkspaceManagerClientProvider(wsmConfig.url)
     // WSM-mediated mediated SAS token generator
     // parameterizing client instead of URL to make injecting mock client possible
@@ -45,7 +47,7 @@ final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Co
     BlobSasTokenGenerator.createBlobTokenGenerator(container, endpoint, subscription)
   )
 
-  val fsm: BlobFileSystemManager = BlobFileSystemManager(container, endpoint, expiryBufferMinutes, blobTokenGenerator)
+  val fsm: BlobFileSystemManager = BlobFileSystemManager(container, endpoint, expiryBufferMinutes, blobSasTokenGenerator)
 
   override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[BlobPathBuilder] = {
     Future {

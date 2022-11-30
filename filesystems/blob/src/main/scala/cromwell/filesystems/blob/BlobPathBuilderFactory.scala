@@ -25,12 +25,24 @@ final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Co
   private val subscription = config.subscriptionId
   private val expiryBufferMinutes = config.expiryBufferMinutes
 
-  val blobTokenGenerator: BlobTokenGenerator = config.workspaceManagerConfig.map { wsmConfig =>
+  /**
+   * This generator is responsible for producing a valid SAS token for use in accessing a Azure blob storage container
+   * Two types of generators can be produced here:
+   * > Workspace Manager (WSM) mediated SAS token generator, which is selected when the wsmConfigs are present
+   *    OR
+   * > Native SAS token generator, which is the fallback and obtains a valid SAS token from your local environment.
+   *
+   * Both of these generators require an authentication token to authorize the generation of the SAS token.
+   * See BlobTokenGenerator for more information on how these generators work.
+   */
+  val blobTokenGenerator: BlobSasTokenGenerator = config.workspaceManagerConfig.map { wsmConfig =>
     val wsmClient: WorkspaceManagerApiClientProvider = new HttpWorkspaceManagerClientProvider(wsmConfig.url)
+    // WSM-mediated mediated SAS token generator
     // parameterizing client instead of URL to make injecting mock client possible
-    BlobTokenGenerator.createBlobTokenGenerator(container, endpoint, wsmConfig.workspaceId, wsmConfig.containerResourceId, wsmClient, wsmConfig.b2cToken)
+    BlobSasTokenGenerator.createBlobTokenGenerator(container, endpoint, wsmConfig.workspaceId, wsmConfig.containerResourceId, wsmClient, wsmConfig.overrideWsmAuthToken)
   }.getOrElse(
-    BlobTokenGenerator.createBlobTokenGenerator(container, endpoint, subscription)
+    // Native SAS token generator
+    BlobSasTokenGenerator.createBlobTokenGenerator(container, endpoint, subscription)
   )
 
   val fsm: BlobFileSystemManager = BlobFileSystemManager(container, endpoint, expiryBufferMinutes, blobTokenGenerator)

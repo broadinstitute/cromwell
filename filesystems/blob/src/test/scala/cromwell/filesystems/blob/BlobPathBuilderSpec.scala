@@ -62,7 +62,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val endpointHost = BlobPathBuilder.parseURI(endpoint.value).map(_.getHost).getOrElse(fail("Could not parse URI"))
     val store = BlobContainerName("inputs")
     val evalPath = "/test/inputFile.txt"
-    val blobTokenGenerator = NativeBlobTokenGenerator(store, endpoint)
+    val blobTokenGenerator = NativeBlobSasTokenGenerator(store, endpoint)
     val fsm: BlobFileSystemManager = BlobFileSystemManager(store, endpoint, 10L, blobTokenGenerator)
     val testString = endpoint.value + "/" + store + evalPath
     val blobPath: BlobPath = new BlobPathBuilder(store, endpoint)(fsm) build testString getOrElse fail()
@@ -80,7 +80,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
     val store = BlobContainerName("inputs")
     val evalPath = "/test/inputFile.txt"
-    val blobTokenGenerator = NativeBlobTokenGenerator(store, endpoint)
+    val blobTokenGenerator = NativeBlobSasTokenGenerator(store, endpoint)
     val fsm: BlobFileSystemManager = BlobFileSystemManager(store, endpoint, 10, blobTokenGenerator)
     val testString = endpoint.value + "/" + store + evalPath
     val blobPath1: BlobPath = new BlobPathBuilder(store, endpoint)(fsm) build testString getOrElse fail()
@@ -95,7 +95,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
   ignore should "resolve a path without duplicating container name" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
     val store = BlobContainerName("inputs")
-    val blobTokenGenerator = NativeBlobTokenGenerator(store, endpoint)
+    val blobTokenGenerator = NativeBlobSasTokenGenerator(store, endpoint)
     val fsm: BlobFileSystemManager = BlobFileSystemManager(store, endpoint, 10, blobTokenGenerator)
 
     val rootString = s"${endpoint.value}/${store.value}/cromwell-execution"

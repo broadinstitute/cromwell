@@ -71,8 +71,8 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val azureUri = BlobFileSystemManager.uri(endpoint)
 
     val fileSystems = mock[FileSystemAPI]
-    val blobTokenGenerator = mock[BlobTokenGenerator]
-    when(blobTokenGenerator.generateAccessToken).thenReturn(Try(sasToken))
+    val blobTokenGenerator = mock[BlobSasTokenGenerator]
+    when(blobTokenGenerator.generateBlobSasToken).thenReturn(Try(sasToken))
 
     val fsm = BlobFileSystemManager(container, endpoint, 10L, blobTokenGenerator, fileSystems, Some(expiredToken))
     fsm.getExpiry should contain(expiredToken)
@@ -100,8 +100,8 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val fileSystems = mock[FileSystemAPI]
     when(fileSystems.getFileSystem(azureUri)).thenReturn(Try(dummyFileSystem))
 
-    val blobTokenGenerator = mock[BlobTokenGenerator]
-    when(blobTokenGenerator.generateAccessToken).thenReturn(Try(sasToken))
+    val blobTokenGenerator = mock[BlobSasTokenGenerator]
+    when(blobTokenGenerator.generateBlobSasToken).thenReturn(Try(sasToken))
 
     val fsm = BlobFileSystemManager(container, endpoint, 10L, blobTokenGenerator, fileSystems, Some(initialToken))
     fsm.getExpiry should contain(initialToken)
@@ -125,8 +125,8 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
 
     val fileSystems = mock[FileSystemAPI]
     when(fileSystems.getFileSystem(azureUri)).thenReturn(Failure(new FileSystemNotFoundException))
-    val blobTokenGenerator = mock[BlobTokenGenerator]
-    when(blobTokenGenerator.generateAccessToken).thenReturn(Try(sasToken))
+    val blobTokenGenerator = mock[BlobSasTokenGenerator]
+    when(blobTokenGenerator.generateBlobSasToken).thenReturn(Try(sasToken))
 
     val fsm = BlobFileSystemManager(container, endpoint, 10L, blobTokenGenerator, fileSystems, Some(refreshedToken))
     fsm.getExpiry.isDefined shouldBe true
@@ -149,8 +149,8 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val azureUri = BlobFileSystemManager.uri(endpoint)
 
     val fileSystems = mock[FileSystemAPI]
-    val blobTokenGenerator = mock[BlobTokenGenerator]
-    when(blobTokenGenerator.generateAccessToken).thenReturn(Try(sasToken))
+    val blobTokenGenerator = mock[BlobSasTokenGenerator]
+    when(blobTokenGenerator.generateBlobSasToken).thenReturn(Try(sasToken))
 
     val fsm = BlobFileSystemManager(container, endpoint, 10L, blobTokenGenerator, fileSystems)
     fsm.getExpiry.isDefined shouldBe false

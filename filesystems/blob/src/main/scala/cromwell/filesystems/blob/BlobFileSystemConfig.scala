@@ -13,7 +13,7 @@ import java.util.UUID
 final case class WorkspaceManagerConfig(url: WorkspaceManagerURL,
                                         workspaceId: WorkspaceId,
                                         containerResourceId: ContainerResourceId,
-                                        b2cToken: Option[String]) // dev-only
+                                        overrideWsmAuthToken: Option[String]) // dev-only
 
 final case class BlobFileSystemConfig(endpointURL: EndpointURL,
                                       blobContainerName: BlobContainerName,
@@ -39,9 +39,9 @@ object BlobFileSystemConfig {
         val wsmURL = parseString(wsmConf, "url").map(WorkspaceManagerURL)
         val workspaceId = parseUUID(wsmConf, "workspace-id").map(WorkspaceId)
         val containerResourceId = parseUUID(wsmConf, "container-resource-id").map(ContainerResourceId)
-        val b2cToken = parseStringOpt(wsmConf, "b2cToken")
+        val overrideWsmAuthToken = parseStringOpt(wsmConf, "b2cToken")
 
-        (wsmURL, workspaceId, containerResourceId, b2cToken)
+        (wsmURL, workspaceId, containerResourceId, overrideWsmAuthToken)
           .mapN(WorkspaceManagerConfig)
           .map(Option(_))
       }

@@ -52,7 +52,7 @@ class BlobFileSystemConfigSpec extends AnyFlatSpec with Matchers {
     config.workspaceManagerConfig.get.url shouldBe workspaceManagerURL
     config.workspaceManagerConfig.get.workspaceId shouldBe workspaceId
     config.workspaceManagerConfig.get.containerResourceId shouldBe containerResourceId
-    config.workspaceManagerConfig.get.b2cToken.contains(b2cToken) shouldBe true
+    config.workspaceManagerConfig.get.overrideWsmAuthToken.contains(b2cToken) shouldBe true
   }
 
   it should "fail when partial WSM config is supplied" in {

@@ -18,8 +18,8 @@ class DrsPathBuilderFactorySpec extends AnyFlatSpec with CromwellTimeoutSpec wit
          |    global {
          |      class = "cromwell.filesystems.drs.DrsFileSystemConfig"
          |      config {
-         |        martha {
-         |          url = "http://martha-url"
+         |        resolver {
+         |          url = "http://drshub-url"
          |        }
          |      }
          |    }

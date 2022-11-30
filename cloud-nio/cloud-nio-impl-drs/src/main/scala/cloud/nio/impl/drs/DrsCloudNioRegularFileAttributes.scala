@@ -71,7 +71,7 @@ object DrsCloudNioRegularFileAttributes {
             throwable =>
               IO.raiseError(
                 new RuntimeException(
-                  s"Error while parsing '$key' value from Drs Resolver to FileTime for DRS path $drsPath. " +
+                  s"Error while parsing '$key' value from DRS Resolver to FileTime for DRS path $drsPath. " +
                     s"Reason: ${ExceptionUtils.getMessage(throwable)}.",
                   throwable,
                 )

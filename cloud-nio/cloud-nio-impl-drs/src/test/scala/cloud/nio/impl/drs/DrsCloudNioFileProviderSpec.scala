@@ -25,7 +25,7 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
 
   it should "parse a config and create a working file system provider" in {
     val config = ConfigFactory.parseString(
-      """martha.url = "https://from.config"
+      """resolver.url = "https://from.config"
         |access-token-acceptable-ttl = 1 minute
         |""".stripMargin
     )
@@ -87,11 +87,11 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
     }
 
     val readChannel = mock[ReadableByteChannel]
-    val drsReadInterpreter: DrsReadInterpreter = (_, marthaResponse) => {
+    val drsReadInterpreter: DrsReadInterpreter = (_, drsResolverResponse) => {
       IO(
-        (marthaResponse.gsUri, marthaResponse.googleServiceAccount) match {
+        (drsResolverResponse.gsUri, drsResolverResponse.googleServiceAccount) match {
           case (Some("gs://bucket/object/path"), None) => readChannel
-          case _ => fail(s"Unexpected parameters passed: $marthaResponse")
+          case _ => fail(s"Unexpected parameters passed: $drsResolverResponse")
         }
       )
     }
@@ -113,11 +113,11 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
     }
 
     val readChannel = mock[ReadableByteChannel]
-    val drsReadInterpreter: DrsReadInterpreter = (_, marthaResponse) => {
+    val drsReadInterpreter: DrsReadInterpreter = (_, drsResolverResponse) => {
       IO(
-        marthaResponse.accessUrl match {
+        drsResolverResponse.accessUrl match {
           case Some(AccessUrl("https://host/object/path", None)) => readChannel
-          case _ => fail(s"Unexpected parameters passed: $marthaResponse")
+          case _ => fail(s"Unexpected parameters passed: $drsResolverResponse")
         }
       )
     }

@@ -316,22 +316,22 @@ class MockDrsLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
   DrsLocalizerDrsPathResolver(drsConfig, FakeAccessTokenStrategy) {
 
   override def resolveDrs(drsPath: String, fields: NonEmptyList[DrsResolverField.Value]): IO[DrsResolverResponse] = {
-    val marthaResponse = DrsResolverResponse(
+    val drsResolverResponse = DrsResolverResponse(
       size = Option(1234),
       hashes = FakeHashes
     )
 
     IO.pure(drsPath) map {
       case MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly =>
-        marthaResponse.copy(
+        drsResolverResponse.copy(
           gsUri = Option("gs://abc/foo-123/abc123"))
       case MockDrsPaths.fakeDrsUrlWithoutAnyResolution =>
-        marthaResponse
+        drsResolverResponse
       case MockDrsPaths.fakeDrsUrlWithAccessUrlResolutionOnly =>
-        marthaResponse.copy(
+        drsResolverResponse.copy(
           accessUrl = Option(AccessUrl(url = "http://abc/def/ghi.bam", headers = None)))
       case MockDrsPaths.fakeDrsUrlWithAccessUrlAndGcsResolution =>
-        marthaResponse.copy(
+        drsResolverResponse.copy(
           accessUrl = Option(AccessUrl(url = "http://abc/def/ghi.bam", headers = None)),
           gsUri = Option("gs://some/uri"))
       case e => throw new RuntimeException(s"Unexpected exception in DRS localization test code: $e")

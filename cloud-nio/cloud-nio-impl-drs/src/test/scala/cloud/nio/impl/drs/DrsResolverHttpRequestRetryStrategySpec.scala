@@ -14,7 +14,7 @@ import scala.concurrent.duration._
 
 class DrsResolverHttpRequestRetryStrategySpec extends AnyFlatSpec with Matchers with MockSugar {
 
-  behavior of "MarthaHttpRequestRetryStrategy"
+  behavior of "DrsResolverHttpRequestRetryStrategy"
 
   it should "retry 500 errors a configured number of times" in {
     val drsConfig = MockDrsPaths.mockDrsConfig.copy(numRetries = 3)

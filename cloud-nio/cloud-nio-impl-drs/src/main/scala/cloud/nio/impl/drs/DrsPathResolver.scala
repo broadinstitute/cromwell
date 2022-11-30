@@ -199,7 +199,6 @@ final case class DrsResolverResponse(size: Option[Long] = None,
                                      localizationPath: Option[String] = None
                                )
 
-// Adapted from https://github.com/broadinstitute/martha/blob/f31933a3a11e20d30698ec4b4dc1e0abbb31a8bc/common/helpers.js#L210-L218
 final case class DrsResolverFailureResponse(response: DrsResolverFailureResponsePayload)
 final case class DrsResolverFailureResponsePayload(text: String)
 

@@ -86,6 +86,7 @@ class DrsLocalizerMain(drsUrl: String,
   def getDrsPathResolver: IO[DrsLocalizerDrsPathResolver] = {
     IO {
       val drsConfig = DrsConfig.fromEnv(sys.env)
+      logger.info(s"Using ${drsConfig.drsResolverUrl} to resolve DRS Objects")
       new DrsLocalizerDrsPathResolver(drsConfig, drsCredentials)
     }
   }

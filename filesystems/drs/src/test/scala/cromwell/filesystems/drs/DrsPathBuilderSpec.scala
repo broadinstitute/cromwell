@@ -377,9 +377,9 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
   private val drsReadInterpreter: DrsReadInterpreter = (_, _) =>
     throw new UnsupportedOperationException("Currently DrsPathBuilderSpec doesn't need to use drs read interpreter.")
 
-  private val marthaConfig: Config = ConfigFactory.parseString(
-    """martha {
-      |   url = "http://martha-url"
+  private val drsResolverConfig: Config = ConfigFactory.parseString(
+    """resolver {
+      |   url = "http://drshub-url"
       |}
       |""".stripMargin
   )
@@ -387,7 +387,7 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
   private lazy val fakeCredentials = NoCredentials.getInstance
 
   private lazy val drsPathBuilder = DrsPathBuilder(
-    new DrsCloudNioFileSystemProvider(marthaConfig, GoogleOauthDrsCredentials(fakeCredentials, 1.minutes), drsReadInterpreter),
+    new DrsCloudNioFileSystemProvider(drsResolverConfig, GoogleOauthDrsCredentials(fakeCredentials, 1.minutes), drsReadInterpreter),
     None,
   )
 }

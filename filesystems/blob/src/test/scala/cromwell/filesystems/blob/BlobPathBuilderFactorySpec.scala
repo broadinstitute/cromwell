@@ -1,8 +1,6 @@
 package cromwell.filesystems.blob
 
 import com.azure.core.credential.AzureSasCredential
-import com.typesafe.config.ConfigException.Missing
-import com.typesafe.config.ConfigFactory
 import common.mock.MockSugar
 import org.mockito.Mockito._
 import org.scalatest.flatspec.AnyFlatSpec
@@ -25,73 +23,6 @@ object BlobPathBuilderFactorySpec {
 }
 class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSugar {
   def generateTokenExpiration(minutes: Long) = Instant.now.plus(minutes, ChronoUnit.MINUTES)
-  it should "parse configs for a functioning factory with native blob access" in {
-    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
-    val container = BlobContainerName("storageContainer")
-    val singletonConfig = ConfigFactory.parseString(
-      s"""
-      |container = "$container"
-      |endpoint = "$endpoint"
-      |expiry-buffer-minutes = "10"
-      """.stripMargin)
-    val globalConfig = ConfigFactory.parseString("""""")
-    val instanceConfig = ConfigFactory.parseString("""""")
-    val factory = BlobPathBuilderFactory(globalConfig, instanceConfig, BlobFileSystemConfig(singletonConfig))
-    factory.container should equal(container)
-    factory.endpoint should equal(endpoint)
-    factory.expiryBufferMinutes should equal(10L)
-  }
-
-  it should "parse configs for a functioning factory with WSM-mediated blob access" in {
-    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
-    val container = BlobContainerName("storageContainer")
-    val workspaceId = WorkspaceId("B0BAFE77-0000-0000-0000-000000000000")
-    val containerResourceId = ContainerResourceId("F00B4R11-0000-0000-0000-000000000000")
-    val workspaceManagerURL = WorkspaceManagerURL("https://wsm.example.com")
-    val b2cToken = "b0gus-t0ken"
-    val singletonConfig = ConfigFactory.parseString(
-      s"""
-         |container = "$container"
-         |endpoint = "$endpoint"
-         |expiry-buffer-minutes = "10"
-         |workspace-manager {
-         |  url = "$workspaceManagerURL"
-         |  workspace-id = "$workspaceId"
-         |  container-resource-id = "$containerResourceId"
-         |  b2cToken = "$b2cToken"
-         |}
-         |
-      """.stripMargin)
-    val globalConfig = ConfigFactory.parseString("""""")
-    val instanceConfig = ConfigFactory.parseString("""""")
-    val factory = BlobPathBuilderFactory(globalConfig, instanceConfig, BlobFileSystemConfig(singletonConfig))
-    factory.workspaceManagerConfig.isDefined shouldBe true
-    factory.workspaceManagerConfig.get.url shouldBe workspaceManagerURL
-    factory.workspaceManagerConfig.get.workspaceId shouldBe workspaceId
-    factory.workspaceManagerConfig.get.containerResourceId shouldBe containerResourceId
-    factory.workspaceManagerConfig.get.b2cToken.contains(b2cToken) shouldBe true
-  }
-
-  it should "fail when partial WSM config is supplied" in {
-    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
-    val container = BlobContainerName("storageContainer")
-    val containerResourceId = WorkspaceId("F00B4R11-0000-0000-0000-000000000000")
-    val workspaceManagerURL = WorkspaceManagerURL("https://wsm.example.com")
-    val singletonConfig = ConfigFactory.parseString(
-      s"""
-         |container = "$container"
-         |endpoint = "$endpoint"
-         |expiry-buffer-minutes = "10"
-         |workspace-manager {
-         |  url = "$workspaceManagerURL"
-         |  container-resource-id = "$containerResourceId"
-         |}
-         |
-      """.stripMargin)
-    val globalConfig = ConfigFactory.parseString("""""")
-    val instanceConfig = ConfigFactory.parseString("""""")
-    assertThrows[Missing](BlobPathBuilderFactory(globalConfig, instanceConfig, BlobFileSystemConfig(singletonConfig)))
-  }
 
   it should "build an example sas token of the correct format" in {
     val testToken = BlobPathBuilderFactorySpec.buildExampleSasToken(Instant.ofEpochMilli(1603794041000L))

@@ -286,6 +286,12 @@ lazy val cromiam = (project in file("CromIAM")) // TODO: git mv CromIAM to a can
   .dependsOn(services)
   .dependsOn(common % "test->test")
 
+lazy val wes2cromwell = project
+  .withExecutableSettings("wes2cromwell", wes2cromwellDependencies, buildDocker = false)
+  .dependsOn(common)
+  .dependsOn(cromiam)
+  .dependsOn(common % "test->test")
+
 lazy val languageFactoryRoot = Path("languageFactories")
 lazy val cloudNio = Path("cloud-nio")
 
@@ -332,6 +338,11 @@ lazy val `cloud-nio-impl-ftp` = (project in cloudNio / "cloud-nio-impl-ftp")
 lazy val `cloud-nio-impl-drs` = (project in cloudNio / "cloud-nio-impl-drs")
   .withLibrarySettings(libraryName = "cloud-nio-impl-drs", dependencies = implDrsDependencies)
   .dependsOn(`cloud-nio-util`)
+  .dependsOn(common)
+  .dependsOn(common % "test->test")
+
+lazy val perf = project
+  .withExecutableSettings("perf", dependencies = perfDependencies, pushDocker = false)
   .dependsOn(common)
   .dependsOn(common % "test->test")
 
@@ -385,6 +396,7 @@ lazy val root = (project in file("."))
   .aggregate(googlePipelinesV2Beta)
   .aggregate(httpFileSystem)
   .aggregate(languageFactoryCore)
+  .aggregate(perf)
   .aggregate(server)
   .aggregate(services)
   .aggregate(sfsBackend)
@@ -402,6 +414,7 @@ lazy val root = (project in file("."))
   .aggregate(wdlTransformsBiscayne)
   .aggregate(wdlTransformsDraft2)
   .aggregate(wdlTransformsDraft3)
+  .aggregate(wes2cromwell)
   .aggregate(wom)
   .aggregate(womtool)
   .withAggregateSettings()

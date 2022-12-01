@@ -85,7 +85,7 @@ case class BlobFileSystemManager(
 
 }
 
-sealed trait BlobSasTokenGenerator {def generateBlobSasToken: Try[AzureSasCredential]}
+sealed trait BlobSasTokenGenerator { def generateBlobSasToken: Try[AzureSasCredential] }
 object BlobSasTokenGenerator {
   /**
     * Native SAS token generator, uses the DefaultAzureCredentialBuilder in the local environment
@@ -134,11 +134,11 @@ object BlobSasTokenGenerator {
 }
 
 case class WSMBlobSasTokenGenerator(container: BlobContainerName,
-                                 endpoint: EndpointURL,
-                                 workspaceId: WorkspaceId,
-                                 containerResourceId: ContainerResourceId,
-                                 wsmClientProvider: WorkspaceManagerApiClientProvider,
-                                 overrideWsmAuthToken: Option[String]) extends BlobSasTokenGenerator {
+                                    endpoint: EndpointURL,
+                                    workspaceId: WorkspaceId,
+                                    containerResourceId: ContainerResourceId,
+                                    wsmClientProvider: WorkspaceManagerApiClientProvider,
+                                    overrideWsmAuthToken: Option[String]) extends BlobSasTokenGenerator {
 
   /**
     * Generate a BlobSasToken by using the available authorization information

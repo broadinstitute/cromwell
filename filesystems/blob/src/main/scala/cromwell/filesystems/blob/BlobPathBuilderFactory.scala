@@ -29,10 +29,10 @@ final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Co
    * This generator is responsible for producing a valid SAS token for use in accessing a Azure blob storage container
    * Two types of generators can be produced here:
    * > Workspace Manager (WSM) mediated SAS token generator, used to create SAS tokens that allow access for
-   * blob containers mediated by the WSM, and is enabled when a WSM config is provided.
+   * blob containers mediated by the WSM, and is enabled when a WSM config is provided. This is what is intended for use inside Terra
    *    OR
    * > Native SAS token generator, which obtains a valid SAS token from your local environment to reach blob containers
-   * your local azure identity has access to and is the default if a WSM config is not found.
+   * your local azure identity has access to and is the default if a WSM config is not found. This is intended for use outside of Terra
    *
    * Both of these generators require an authentication token to authorize the generation of the SAS token.
    * See BlobSasTokenGenerator for more information on how these generators work.

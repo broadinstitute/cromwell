@@ -54,6 +54,11 @@ languages {
 }
 ```
 
+### CWL implementation removed
+
+This release removes the `cwl` top-level artifact. Some nonfunctional references may remain, and will be addressed over time. 
+
+For more information, see the [Cromwell 79 release notes](https://github.com/broadinstitute/cromwell/releases/tag/79). 
 
 ## 84 Release Notes
 

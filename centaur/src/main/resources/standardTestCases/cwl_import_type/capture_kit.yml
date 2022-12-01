@@ -1,5 +1,0 @@
-- name: capture_kit
-  type: record
-  fields:
-    - name: bait
-      type: string

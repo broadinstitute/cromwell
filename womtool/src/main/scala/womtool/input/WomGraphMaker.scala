@@ -8,7 +8,6 @@ import common.validation.Validation._
 import cromwell.core.path.Path
 import cromwell.languages.LanguageFactory
 import cromwell.languages.util.ImportResolver._
-import languages.cwl.CwlV1_0LanguageFactory
 import languages.wdl.biscayne.WdlBiscayneLanguageFactory
 import languages.wdl.draft2.WdlDraft2LanguageFactory
 import languages.wdl.draft3.WdlDraft3LanguageFactory
@@ -32,8 +31,7 @@ object WomGraphMaker {
       val languageFactory =
         List(
           new WdlDraft3LanguageFactory(ConfigFactory.empty()),
-          new WdlBiscayneLanguageFactory(ConfigFactory.empty()),
-          new CwlV1_0LanguageFactory(ConfigFactory.empty()))
+          new WdlBiscayneLanguageFactory(ConfigFactory.empty()))
           .find(_.looksParsable(mainFileContents))
           .getOrElse(new WdlDraft2LanguageFactory(ConfigFactory.empty()))
 

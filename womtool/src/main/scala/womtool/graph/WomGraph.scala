@@ -10,8 +10,6 @@ import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.Validation._
 import common.collections.EnhancedCollections._
-import cwl.CwlDecoder
-import cwl.preprocessor.CwlPreProcessor
 import spray.json.{JsArray, JsBoolean, JsNull, JsNumber, JsObject, JsString, JsValue}
 import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
 import wdl.transforms.base.wdlom2wom.FileElementToWomBundleInputs
@@ -21,7 +19,6 @@ import wdl.draft3.transforms.parsing.fileToAst
 import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomBundleMakers._
 import wom.callable.WorkflowDefinition
 import wom.executable.WomBundle
-import wom.expression.NoIoFunctionSet
 import wom.graph._
 import wom.transforms.WomBundleMaker.ops._
 import wom.types._
@@ -161,8 +158,6 @@ class WomGraph(graphName: String, graph: Graph) {
 
 object WomGraph {
 
-  implicit val cwlPreProcessor = CwlPreProcessor.noLogging
-
   final case class WorkflowDigraph(workflowName: String, digraph: NodesAndLinks)
   final case class NodesAndLinks(nodes: Set[String], links: Set[String]) {
     def wrapNodes(f: Set[String] => String) = this.copy(Set(f(nodes)), links)
@@ -174,7 +169,7 @@ object WomGraph {
   }
 
   def fromFiles(mainFile: String) = {
-    val graph = if (mainFile.toLowerCase().endsWith("wdl")) womExecutableFromWdl(mainFile) else womExecutableFromCwl(mainFile)
+    val graph = womExecutableFromWdl(mainFile)
     new WomGraph("workflow", graph)
   }
 
@@ -201,21 +196,6 @@ object WomGraph {
       case Left(errors) =>
         val formattedErrors = errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())
         throw new Exception(s"Failed to create WOM: $formattedErrors")
-    }
-  }
-
-  private def womExecutableFromCwl(filePath: String): Graph = {
-    import cwl.AcceptAllRequirements
-    (for {
-      clt <- CwlDecoder.decodeCwlFile(File(filePath)).
-        value.
-        unsafeRunSync()
-      inputs = clt.requiredInputs
-      fakedInputs = JsObject(inputs map { i => i._1 -> fakeInput(i._2) })
-      wom <- clt.womExecutable(AcceptAllRequirements, Option(fakedInputs.prettyPrint), NoIoFunctionSet, strictValidation = false)
-    } yield wom) match {
-      case Right(womExecutable) => womExecutable.graph
-      case Left(e) => throw new Exception(s"Can't build WOM executable from CWL: ${e.toList.mkString("\n", "\n", "\n")}")
     }
   }
 

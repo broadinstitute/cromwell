@@ -1,10 +1,11 @@
 package cromwell.backend.google.pipelines.batch
 
+import com.typesafe.config.Config
 import cromwell.backend.BackendConfigurationDescriptor
 
 class GcpBatchConfiguration(val configurationDescriptor: BackendConfigurationDescriptor) {
 
-  val root = configurationDescriptor.backendConfig.getString("root")
-  val runtimeConfig = configurationDescriptor.backendRuntimeAttributesConfig
+  val root: String = configurationDescriptor.backendConfig.getString("root")
+  val runtimeConfig: Option[Config] = configurationDescriptor.backendRuntimeAttributesConfig
 
 }

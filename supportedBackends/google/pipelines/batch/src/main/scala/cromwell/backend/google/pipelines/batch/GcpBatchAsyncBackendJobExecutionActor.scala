@@ -9,6 +9,7 @@ import cromwell.backend.google.pipelines.common.Run
 import cromwell.backend.async.PendingExecutionHandle
 import cromwell.backend.async.ExecutionHandle
 import akka.actor.ActorRef
+import akka.stream.ActorMaterializer
 
 import java.util.UUID
 import scala.concurrent.Future
@@ -18,6 +19,11 @@ object GcpBatchAsyncBackendJobExecutionActor {
 }
 
 class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams) extends BackendJobLifecycleActor with StandardAsyncExecutionActor with GcpBatchRunCreationClient {
+
+  //testing actor creation.  may not be needed
+  implicit val actorSystem = context.system
+  implicit val materializer = ActorMaterializer()
+
   /** The type of the run info when a job is started. */
   //override type StandardAsyncRunInfo = this.type
   override type StandardAsyncRunInfo = Run
@@ -39,6 +45,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override def dockerImageUsed: Option[String] = Option("test")
 
+  val backendSingletonActor: ActorRef = standardParams.backendSingletonActorOption.getOrElse(throw new RuntimeException("GCP Batch actor cannot exist without its backend singleton 2"))
 
   //lazy val batchJob: GcpBatchJob = GcpBatchJob(jobDescriptor)
   override val gcpBatchApiActor: ActorRef = standardParams.backendSingletonActorOption.getOrElse(
@@ -48,17 +55,14 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   //override def executeAsync(): Future[ExecutionHandle] = {
   override def executeAsync(): Future[ExecutionHandle] = {
 
+      //backendSingletonActor ! runPipeline()
       runPipeline()
       val runId = StandardAsyncJob(UUID.randomUUID().toString)  //temp to test
-
-      runId.toString
 
       Future.successful(PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None))
 
       //ExecutionHandle[]
-
   }
-
 
   override lazy val pollBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(1
     .second, 5

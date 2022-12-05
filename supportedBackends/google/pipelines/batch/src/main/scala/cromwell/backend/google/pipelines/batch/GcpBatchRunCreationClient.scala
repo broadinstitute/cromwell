@@ -3,23 +3,18 @@ package cromwell.backend.google.pipelines.batch
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import scala.concurrent.{Future, Promise}
 import scala.util.{Success, Try}
-//import scala.util.{Failure, Success, Try}
 import cromwell.backend.standard.StandardAsyncJob
-//import cromwell.core.WorkflowId
-//import cromwell.core.logging.JobLogger
-
 import cromwell.backend.BackendJobDescriptor
-//import cromwell.backend.async.ExecutionHandle
 
 trait GcpBatchRunCreationClient {
-  this: Actor with ActorLogging => private var runCreationClientPromise: Option[Promise[StandardAsyncJob]] = None
+  //this: Actor with ActorLogging => private var runCreationClientPromise: Option[Promise[StandardAsyncJob]] = None
+  this: Actor with ActorLogging => private var runCreationClientPromise: Option[Promise[StandardAsyncJob]] =
 
   def gcpBatchApiActor: ActorRef
   //def requestFactory: GcpBatchBackendLifecycleFactory
 
   val jobDescriptor: BackendJobDescriptor
   lazy val batchJob: GcpBatchJob = GcpBatchJob(jobDescriptor)
-  //def batchJob: GcpBatchJob
 
   def runCreationClientReceive: Actor.Receive = {
     case job: StandardAsyncJob =>
@@ -38,6 +33,7 @@ trait GcpBatchRunCreationClient {
         case Some(p) =>
           p.future
         case None =>
+          println("GCP Batch None")
           gcpBatchApiActor ! batchJob.callClient
           val newPromise = Promise[StandardAsyncJob]()
           runCreationClientPromise = Option(newPromise)

@@ -65,13 +65,6 @@ object ContinuousIntegration {
   private val vaultToken: SettingKey[File] = settingKey[File]("File with the vault token")
 
   /**
-    * For "reasons" these projects are excluded from the root aggregation in build.sbt.
-    */
-  private val unaggregatedProjects = Map(
-    "cwlEncoder" -> "not sure what this is"
-  )
-
-  /**
     * Get the list of projects defined in build.sbt excluding the passed in root project.
     */
   private def getBuildSbtNames(rootProject: Project, state: State): Set[String] = {

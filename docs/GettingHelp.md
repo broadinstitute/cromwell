@@ -7,5 +7,5 @@ Please note that despite the `wdl` currently in its name, this is a forum that s
 **Website and User Guide**
 
 The [WDL website](https://software.broadinstitute.org/wdl/) is the best place to go for more information on WDL.
-In particular new users should check out the [user guide](https://software.broadinstitute.org/wdl/userguide/)
+In particular new users should check out the [openWDL WDL docs (wdl-docs)][(https://software.broadinstitute.org/wdl/userguide/](https://wdl-docs.readthedocs.io/en/stable/))
 which has many tutorials, examples and other bits to get you started.

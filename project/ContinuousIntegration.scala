@@ -67,9 +67,7 @@ object ContinuousIntegration {
   /**
     * For "reasons" these projects are excluded from the root aggregation in build.sbt.
     */
-  private val unaggregatedProjects = Map(
-    "cwlEncoder" -> "not sure what this is"
-  )
+  private val unaggregatedProjects = Map.empty
 
   /**
     * Get the list of projects defined in build.sbt excluding the passed in root project.

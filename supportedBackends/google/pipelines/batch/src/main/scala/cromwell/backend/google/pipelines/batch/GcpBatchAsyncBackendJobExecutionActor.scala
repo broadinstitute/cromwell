@@ -9,7 +9,10 @@ import cromwell.backend.google.pipelines.common.Run
 import cromwell.backend.async.PendingExecutionHandle
 import cromwell.backend.async.ExecutionHandle
 import akka.actor.ActorRef
-import akka.stream.ActorMaterializer
+//import akka.actor.{ActorRef, ActorSystem}
+//import akka.stream.ActorMaterializer
+
+import cromwell.services.instrumentation.CromwellInstrumentation
 
 import java.util.UUID
 import scala.concurrent.Future
@@ -18,11 +21,11 @@ object GcpBatchAsyncBackendJobExecutionActor {
 
 }
 
-class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams) extends BackendJobLifecycleActor with StandardAsyncExecutionActor with GcpBatchRunCreationClient {
+class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams) extends BackendJobLifecycleActor with StandardAsyncExecutionActor with CromwellInstrumentation {
 
   //testing actor creation.  may not be needed
-  implicit val actorSystem = context.system
-  implicit val materializer = ActorMaterializer()
+  //implicit val actorSystem = context.system
+  //implicit val materializer = ActorMaterializer()
 
   /** The type of the run info when a job is started. */
   //override type StandardAsyncRunInfo = this.type
@@ -45,18 +48,21 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override def dockerImageUsed: Option[String] = Option("test")
 
+
   val backendSingletonActor: ActorRef = standardParams.backendSingletonActorOption.getOrElse(throw new RuntimeException("GCP Batch actor cannot exist without its backend singleton 2"))
 
-  //lazy val batchJob: GcpBatchJob = GcpBatchJob(jobDescriptor)
-  override val gcpBatchApiActor: ActorRef = standardParams.backendSingletonActorOption.getOrElse(
-    throw new RuntimeException("Batch Backend actor cannot exist without the Batch backend singleton actor"))
+
+  //case class BatchRequest(projectId: String, region: String, jobName: String)
 
   // Primary entry point for cromwell to run GCP Batch job
-  //override def executeAsync(): Future[ExecutionHandle] = {
   override def executeAsync(): Future[ExecutionHandle] = {
 
       //backendSingletonActor ! runPipeline()
-      runPipeline()
+      //runPipeline()
+
+      val batchTest = BatchRequest(projectId="batch-testing-350715", region="us-central1", jobName="test3")
+
+      backendSingletonActor ! batchTest
       val runId = StandardAsyncJob(UUID.randomUUID().toString)  //temp to test
 
       Future.successful(PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None))
@@ -75,3 +81,5 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
 
 }
+
+case class BatchRequest(projectId: String, region: String, jobName: String)

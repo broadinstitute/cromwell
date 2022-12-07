@@ -7,10 +7,11 @@ import cromwell.backend.standard.StandardAsyncJob
 import cromwell.backend.BackendJobDescriptor
 
 trait GcpBatchRunCreationClient {
-  //this: Actor with ActorLogging => private var runCreationClientPromise: Option[Promise[StandardAsyncJob]] = None
-  this: Actor with ActorLogging => private var runCreationClientPromise: Option[Promise[StandardAsyncJob]] =
+  // set to none.  Review
+  this: Actor with ActorLogging => private var runCreationClientPromise: Option[Promise[StandardAsyncJob]] = None
 
-  def gcpBatchApiActor: ActorRef
+  val gcpBatchApiActor: ActorRef
+  //def gcpBatchApiActor: ActorRef
   //def requestFactory: GcpBatchBackendLifecycleFactory
 
   val jobDescriptor: BackendJobDescriptor
@@ -33,7 +34,6 @@ trait GcpBatchRunCreationClient {
         case Some(p) =>
           p.future
         case None =>
-          println("GCP Batch None")
           gcpBatchApiActor ! batchJob.callClient
           val newPromise = Promise[StandardAsyncJob]()
           runCreationClientPromise = Option(newPromise)

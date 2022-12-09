@@ -3,7 +3,7 @@ on: [pull_request]
 
 jobs:
   build-and-test:
-    name: Build and run SBT tests
+    name: SBT unit tests
     runs-on: self-hosted # Faster machines; see https://github.com/broadinstitute/cromwell/settings/actions/runners
     steps:
     - name: Clone Cromwell
@@ -15,7 +15,10 @@ jobs:
     - uses: olafurpg/setup-scala@v10
       with:
         java-version: adopt@1.11
-    - name: Build Cromwell Docker
+    - name: Prevent `git-secrets` breakage
+      run: |
+        ./minnie-kenny.sh --force
+    - name: Run tests
       run: |
         set -e
         cd cromwell

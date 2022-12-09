@@ -17,6 +17,7 @@ jobs:
         java-version: adopt@1.11
     - name: Prevent `git-secrets` breakage
       run: |
+        cd cromwell
         ./minnie-kenny.sh --force
     - name: Run tests
       run: |

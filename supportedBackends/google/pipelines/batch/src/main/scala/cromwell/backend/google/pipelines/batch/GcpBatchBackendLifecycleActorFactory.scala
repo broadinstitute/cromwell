@@ -11,7 +11,7 @@ class GcpBatchBackendLifecycleActorFactory(name: String, override val configurat
 
   override def name: String = "batch"
 
-  override def jobIdKey: String = "gcp_batch"
+  override def jobIdKey: String = "__gcp_batch"
 
   override def asyncExecutionActorClass: Class[_ <: StandardAsyncExecutionActor] =
     classOf[GcpBatchAsyncBackendJobExecutionActor]

@@ -3,7 +3,7 @@ package cromwell.backend.impl.tes
 import common.collections.EnhancedCollections._
 import common.util.StringUtil._
 import cromwell.backend.impl.tes.OutputMode.OutputMode
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendWorkflowDescriptor}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import wdl.draft2.model.FullyQualifiedName
@@ -12,6 +12,7 @@ import wom.InstantiatedCommand
 import wom.callable.Callable.OutputDefinition
 import wom.expression.NoIoFunctionSet
 import wom.values._
+import net.ceedubs.ficus.Ficus._
 
 import scala.language.postfixOps
 import scala.util.Try
@@ -32,6 +33,14 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   private val workflowDescriptor = jobDescriptor.workflowDescriptor
   private val workflowName = workflowDescriptor.callable.name
   private val fullyQualifiedTaskName = jobDescriptor.taskCall.fullyQualifiedName
+  private val workflowExecutionIdentityConfig: Option[String] =
+    configurationDescriptor.backendConfig
+      .getAs[String]("workflow_execution_identity")
+  private val workflowExecutionIdentifyRuntime: Option[String] =
+    workflowDescriptor
+      .workflowOptions
+      .get(TesWorkflowOptionKeys.WorkflowExecutionIdentity)
+      .toOption
   val name: String = fullyQualifiedTaskName
   val description: String = jobDescriptor.toString
 
@@ -212,7 +221,11 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     result
   }
 
-  val resources: Resources = TesTask.makeResources(runtimeAttributes, workflowDescriptor)
+  val resources: Resources = TesTask.resourcesFromWorkflowExecutionIdentity(
+    runtimeAttributes,
+    workflowExecutionIdentityConfig,
+    workflowExecutionIdentifyRuntime
+  )
 
   val executors = Seq(Executor(
     image = dockerImageUsed,
@@ -226,21 +239,26 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 }
 
 object TesTask {
+  // Helper to determine which source to use for a workflowExecutionIdentity
+  def resourcesFromWorkflowExecutionIdentity(runtimeAttributes: TesRuntimeAttributes,
+                                             configIdentity: Option[String],
+                                             runtimeIdentity: Option[String]): Resources = {
+    (configIdentity, runtimeIdentity) match {
+      case (Some(configId), _) => TesTask.makeResources(runtimeAttributes, Some(configId))
+      case (None, runtimeId) => TesTask.makeResources(runtimeAttributes, runtimeId)
+    }
+  }
   def makeResources(runtimeAttributes: TesRuntimeAttributes,
-                    workflowDescriptor: BackendWorkflowDescriptor): Resources = {
+                    workflowExecutionId: Option[String]): Resources = { // Change workflow descriptor to id key
 
     // This was added in BT-409 to let us pass information to an Azure
     // TES server about which user identity to run tasks as.
     // Note that we validate the type of WorkflowExecutionIdentity
     // in TesInitializationActor.
     val backendParameters = runtimeAttributes.backendParameters ++
-      workflowDescriptor
-        .workflowOptions
-        .get(TesWorkflowOptionKeys.WorkflowExecutionIdentity)
-        .toOption
+      workflowExecutionId
         .map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option(_))
         .toMap
-
     val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
       case Some(x) =>
         Option(x.to(MemoryUnit.GB).amount)

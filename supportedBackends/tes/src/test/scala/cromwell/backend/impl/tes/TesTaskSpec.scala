@@ -10,8 +10,9 @@ import cromwell.core.logging.JobLogger
 import cromwell.core.path.DefaultPathBuilder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import spray.json.{JsObject, JsString, JsValue}
 import wom.InstantiatedCommand
+import spray.json.JsObject
+import spray.json.JsValue
 
 class TesTaskSpec
   extends AnyFlatSpec
@@ -32,32 +33,42 @@ class TesTaskSpec
     Map.empty
   )
 
-  def workflowDescriptorWithIdentity(excIdentity: Option[String]) = {
-    val optionsMap: Map[String, JsValue] = excIdentity.map(i => TesWorkflowOptionKeys.WorkflowExecutionIdentity -> JsString(i)).toMap
-    buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld, None, WorkflowOptions(JsObject(optionsMap)))
-  }
-
   it should "create the correct resources when an identity is passed in WorkflowOptions" in {
-    val wd = workflowDescriptorWithIdentity(Option("abc123"))
-    TesTask.makeResources(runtimeAttributes, wd) shouldEqual
+    val wei = Option("abc123")
+    TesTask.makeResources(runtimeAttributes, wei) shouldEqual
         Resources(None, None, None, Option(false), None, Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option("abc123")))
     )
   }
 
   it should "create the correct resources when an empty identity is passed in WorkflowOptions" in {
-    val wd = workflowDescriptorWithIdentity(Option(""))
-    TesTask.makeResources(runtimeAttributes, wd) shouldEqual
+    val wei = Option("")
+    TesTask.makeResources(runtimeAttributes, wei) shouldEqual
         Resources(None, None, None, Option(false), None, Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option("")))
     )
   }
 
   it should "create the correct resources when no identity is passed in WorkflowOptions" in {
-    val wd = workflowDescriptorWithIdentity(None)
-    TesTask.makeResources(runtimeAttributes, wd) shouldEqual
+    val wei = None
+    TesTask.makeResources(runtimeAttributes, wei) shouldEqual
         Resources(None, None, None, Option(false), None, Option(Map.empty[String, Option[String]])
     )
   }
 
+  it should "create the correct resources when an identity is passed in via backend config" in {
+    val weic = Option("abc123")
+    val weir = Option("def456")
+    TesTask.resourcesFromWorkflowExecutionIdentity(runtimeAttributes, weic, weir) shouldEqual
+        Resources(None, None, None, Option(false), None, Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option("abc123")))
+    )
+  }
+
+  it should "create the correct resources when an identity is passed in via backend config" in {
+    val weic = None
+    val weir = Option("def456")
+    TesTask.resourcesFromWorkflowExecutionIdentity(runtimeAttributes, weic, weir) shouldEqual
+        Resources(None, None, None, Option(false), None, Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option("def456")))
+    )
+  }
 
   it should "copy labels to tags" in {
     val jobLogger = mock[JobLogger]

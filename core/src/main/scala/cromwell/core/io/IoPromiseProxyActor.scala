@@ -11,7 +11,7 @@ object IoPromiseProxyActor {
   case class IoCommandWithPromise[A](ioCommand: IoCommand[A], timeout: FiniteDuration = defaultTimeout) {
     val promise = Promise[A]()
 
-    override def hashCode(): Int = ioCommand.commandDescription.hashCode
+    override def hashCode(): Int = ioCommand.hashCode()
   }
   def props(ioActor: ActorRef) = Props(new IoPromiseProxyActor(ioActor))
 }

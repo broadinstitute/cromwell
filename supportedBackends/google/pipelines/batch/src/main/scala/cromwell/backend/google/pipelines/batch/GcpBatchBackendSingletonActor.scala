@@ -18,11 +18,13 @@ import java.util.concurrent.TimeUnit
 
 object GcpBatchBackendSingletonActor {
   def props(name: String) = Props(new GcpBatchBackendSingletonActor(name))
+
+  case class BatchRequest(projectId: String, region: String, jobName: String)
 }
 
 class GcpBatchBackendSingletonActor (name: String) extends Actor with ActorLogging {
 
-  case class BatchRequest(projectId: String, region: String, jobName: String)
+  import GcpBatchBackendSingletonActor._
 
   val WorkInterval = 100.millis
 

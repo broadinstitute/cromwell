@@ -20,6 +20,8 @@ import java.util.UUID
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
+import GcpBatchBackendSingletonActor._
+
 object GcpBatchAsyncBackendJobExecutionActor {
 
 }
@@ -125,4 +127,4 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override val gcpBatchActor: ActorRef = backendSingletonActor
 }
 
-case class BatchRequest(projectId: String, region: String, jobName: String)
+//case class BatchRequest(projectId: String, region: String, jobName: String)

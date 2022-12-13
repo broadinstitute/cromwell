@@ -28,20 +28,15 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   //import GcpBatchAsyncBackendJobExecutionActor._
 
+
+
   lazy val workflowId: WorkflowId = jobDescriptor.workflowDescriptor.id
 
-  //override lazy val workflowId: WorkflowId = jobDescriptor.workflowDescriptor.id
-
   /** The type of the run info when a job is started. */
-  //override type StandardAsyncRunInfo = this.type
-  //override type StandardAsyncRunInfo = String
   override type StandardAsyncRunInfo = Run
 
   /** The type of the run status returned during each poll. */
-  //override type StandardAsyncRunState = this.type
   override type StandardAsyncRunState = GcpBatchRunStatus
-  //override type StandardAsyncRunState = String
-  //override type StandardAsyncRunState = RunStatus
 
 
   /** Should return true if the status contained in `thiz` is equivalent to `that`, delta any other data that might be carried around
@@ -50,10 +45,10 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
 
-  //override def statusEquivalentTo(thiz: String)(that: String): Boolean = thiz == that
-
   override def dockerImageUsed: Option[String] = Option("test")
+
   //override def isTerminal(runStatus: String): Boolean = runStatus == "DummyDone"
+  override def isTerminal(runStatus: GcpBatchRunStatus): Boolean = ???
 
   //type GcpBatchPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, Run, StandardAsyncRunState]
 
@@ -113,14 +108,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
      super[GcpBatchStatusRequestClient].pollStatus(workflowId = workflowId, jobId = handle.pendingJob)
 
      }
-
-  /**
-    * Returns true when a job is complete, either successfully or unsuccessfully.
-    *
-    * @param runStatus The run status.
-    * @return True if the job has completed.
-    */
-  override def isTerminal(runStatus: GcpBatchRunStatus): Boolean = ???
 
   override val gcpBatchActor: ActorRef = backendSingletonActor
 }

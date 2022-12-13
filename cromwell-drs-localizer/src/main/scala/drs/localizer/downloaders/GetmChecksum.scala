@@ -50,7 +50,7 @@ case class Crc32c(override val rawValue: String) extends GetmChecksum {
     if (trimmed.matches("[A-Fa-f0-9]+")) {
       (trimmed |> decodeHex |> encodeBase64String).validNel
     } else
-      s"Invalid crc32c checksum value, expected hex string but got $rawValue".invalidNel
+      s"Invalid crc32c checksum value, expected hex string but got: $rawValue".invalidNel
   }
 
   override def getmAlgorithm: String = "gs_crc32c"

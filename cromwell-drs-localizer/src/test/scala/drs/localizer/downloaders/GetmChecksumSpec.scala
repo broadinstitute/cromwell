@@ -33,7 +33,8 @@ class GetmChecksumSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
       ("md5 hex", Md5("abcdef"), "--checksum-algorithm 'md5' --checksum abcdef".validNel),
       ("md5 base64", Md5("cR84lXY1y17c3q7/7riLEA=="), "--checksum-algorithm 'md5' --checksum 711f38957635cb5edcdeaeffeeb88b10".validNel),
       ("md5 gibberish", Md5("what is this???"), "Invalid md5 checksum value is neither hex nor base64: what is this???".invalidNel),
-      ("crc32c", Crc32c("012345"), "--checksum-algorithm 'gs_crc32c' --checksum 012345".validNel),
+      ("crc32c", Crc32c("012345"), "--checksum-algorithm 'gs_crc32c' --checksum ASNF".validNel),
+      ("crc32c gibberish", Crc32c("????"), "Invalid crc32c checksum value, expected hex string but got: ????".invalidNel),
       ("AWS ETag", AwsEtag("012345"), "--checksum-algorithm 's3_etag' --checksum 012345".validNel),
       // Escape checksum values constructed from unvalidated data returned by DRS servers.
       ("Unsupported", Unsupported("Robert'); DROP TABLE Students;\n --\\"), raw"--checksum-algorithm 'null' --checksum Robert\'\)\;\ DROP\ TABLE\ Students\;\ --\\".validNel),

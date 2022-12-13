@@ -2,17 +2,16 @@ package cromwell.backend.impl.tes
 
 import common.assertion.CromwellTimeoutSpec
 import common.mock.MockSugar
-import cromwell.backend.{BackendSpec, TestConfig}
 import cromwell.backend.validation.ContinueOnReturnCodeSet
+import cromwell.backend.{BackendSpec, TestConfig}
 import cromwell.core.WorkflowOptions
 import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.DefaultPathBuilder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import spray.json.{JsObject, JsValue}
 import wom.InstantiatedCommand
-import spray.json.JsObject
-import spray.json.JsValue
 
 class TesTaskSpec
   extends AnyFlatSpec
@@ -63,7 +62,7 @@ class TesTaskSpec
     )
   }
 
-  it should "create the correct resources when an identity is passed in via backend config" in {
+  it should "create the correct resources when no identity is passed in via backend config" in {
     val weic = None
     val weio = Option(WorkflowExecutionIdentityOption("def456"))
     val wei = TesTask.getPreferredWorkflowExecutionIdentity(weic, weio)

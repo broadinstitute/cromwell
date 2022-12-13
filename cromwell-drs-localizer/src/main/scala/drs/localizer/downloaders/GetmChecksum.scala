@@ -5,8 +5,8 @@ import cloud.nio.impl.drs.AccessUrl
 import common.validation.ErrorOr.ErrorOr
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import mouse.all.anySyntaxMouse
-import org.apache.commons.codec.binary.Base64.{decodeBase64, isBase64}
-import org.apache.commons.codec.binary.Hex.encodeHexString
+import org.apache.commons.codec.binary.Base64.{decodeBase64, encodeBase64String, isBase64}
+import org.apache.commons.codec.binary.Hex.{decodeHex, encodeHexString}
 import org.apache.commons.text.StringEscapeUtils
 
 
@@ -43,6 +43,16 @@ case class Md5(override val rawValue: String) extends GetmChecksum {
 }
 
 case class Crc32c(override val rawValue: String) extends GetmChecksum {
+  // The DRS spec says that all hash values should be hex strings,
+  // but getm expects crc32c values to be base64.
+  override def value: ErrorOr[String] = {
+    val trimmed = rawValue.trim
+    if (trimmed.matches("[A-Fa-f0-9]+")) {
+      (trimmed |> decodeHex |> encodeBase64String).validNel
+    } else
+      s"Invalid crc32c checksum value, expected hex string but got $rawValue".invalidNel
+  }
+
   override def getmAlgorithm: String = "gs_crc32c"
 }
 case class AwsEtag(override val rawValue: String) extends GetmChecksum {

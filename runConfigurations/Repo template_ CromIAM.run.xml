@@ -5,7 +5,6 @@
     <option name="PROGRAM_PARAMETERS" value="-D sam.interface=https://sam.dsde-dev.broadinstitute.org" />
     <method v="2">
       <option name="Make" enabled="true" />
-      <option name="BSP.BeforeRunTask" enabled="true" />
     </method>
   </configuration>
 </component>

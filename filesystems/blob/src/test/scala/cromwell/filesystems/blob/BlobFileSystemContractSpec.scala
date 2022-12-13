@@ -1,15 +1,13 @@
 package cromwell.filesystems.blob
 
-import au.com.dius.pact.consumer.PactTestExecutionContext
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-
-import pact4s.scalatest.RequestResponsePactForger
+import au.com.dius.pact.consumer.{ConsumerPactBuilder, PactTestExecutionContext}
 import au.com.dius.pact.core.model.RequestResponsePact
-import au.com.dius.pact.consumer.ConsumerPactBuilder
 import io.circe.Json
 import io.circe.syntax._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import pact4s.circe.implicits._
+import pact4s.scalatest.RequestResponsePactForger
 
 class BlobFileSystemContractSpec extends AnyFlatSpec with Matchers with RequestResponsePactForger {
 
@@ -22,6 +20,12 @@ class BlobFileSystemContractSpec extends AnyFlatSpec with Matchers with RequestR
     "./filesystems/blob/target/pacts"
   )
 
+  /**
+   * The following is an outline for what a RequestResponsePact might look like for requesting
+   * from WSM form the blob filesystem. To generate a pact file however tests must be written
+   * against this pact to validate that the agreement is met. These tests get run with other
+   * scala tests on build and if the tests pass when run a pact file will be generated locally
+   */
   override def pact: RequestResponsePact = ConsumerPactBuilder
       .consumer("cromwell-blob-filesystem-consumer")
       .hasPactWith("wsm-provider")
@@ -36,7 +40,7 @@ class BlobFileSystemContractSpec extends AnyFlatSpec with Matchers with RequestR
       .uponReceiving("Request to fetch SAS Token")
       .method("POST")
       .path(s"/api/workspaces/v1/${workspaceId}/resources/controlled/azure/storageContainer/${resourceId}/getSasToken")
-      .headers("Authorization" -> AzureCredentials.getAccessToken(None).toOption.get)
+      .headers("Authorization" -> "sampleToken")
       .willRespondWith()
       .status(200)
       .body(

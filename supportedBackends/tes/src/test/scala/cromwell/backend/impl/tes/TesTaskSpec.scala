@@ -55,17 +55,19 @@ class TesTaskSpec
   }
 
   it should "create the correct resources when an identity is passed in via backend config" in {
-    val weic = Option("abc123")
-    val weir = Option("def456")
-    TesTask.resourcesFromWorkflowExecutionIdentity(runtimeAttributes, weic, weir) shouldEqual
+    val weic = Option(WorkflowExecutionIdentityConfig("abc123"))
+    val weio = Option(WorkflowExecutionIdentityOption("def456"))
+    val wei = TesTask.getPreferredWorkflowExecutionIdentity(weic, weio)
+    TesTask.makeResources(runtimeAttributes, wei) shouldEqual
         Resources(None, None, None, Option(false), None, Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option("abc123")))
     )
   }
 
   it should "create the correct resources when an identity is passed in via backend config" in {
     val weic = None
-    val weir = Option("def456")
-    TesTask.resourcesFromWorkflowExecutionIdentity(runtimeAttributes, weic, weir) shouldEqual
+    val weio = Option(WorkflowExecutionIdentityOption("def456"))
+    val wei = TesTask.getPreferredWorkflowExecutionIdentity(weic, weio)
+    TesTask.makeResources(runtimeAttributes, wei) shouldEqual
         Resources(None, None, None, Option(false), None, Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option("def456")))
     )
   }

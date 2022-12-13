@@ -257,7 +257,7 @@ object TesTask {
     }
   }
   def makeResources(runtimeAttributes: TesRuntimeAttributes,
-                    workflowExecutionId: Option[String]): Resources = { // Change workflow descriptor to id key
+                    workflowExecutionId: Option[String]): Resources = {
 
     // This was added in BT-409 to let us pass information to an Azure
     // TES server about which user identity to run tasks as.

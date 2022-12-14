@@ -4,9 +4,8 @@ import cats.syntax.validated._
 import cloud.nio.impl.drs.AccessUrl
 import common.validation.ErrorOr.ErrorOr
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
-import mouse.all.anySyntaxMouse
-import org.apache.commons.codec.binary.Base64.{decodeBase64, encodeBase64String, isBase64}
-import org.apache.commons.codec.binary.Hex.{decodeHex, encodeHexString}
+import org.apache.commons.codec.binary.Base64.encodeBase64String
+import org.apache.commons.codec.binary.Hex.decodeHex
 import org.apache.commons.text.StringEscapeUtils
 
 
@@ -26,32 +25,17 @@ sealed trait GetmChecksum {
 }
 
 case class Md5(override val rawValue: String) extends GetmChecksum {
-  override def value: ErrorOr[String] = {
-    val trimmed = rawValue.trim
-    if (trimmed.matches("[A-Fa-f0-9]+"))
-      trimmed.validNel
-    // TDR currently returns a base64-encoded MD5 because that's what Azure seems to do. However,
-    // the DRS spec does not specify that any checksums should be base64-encoded, and `getm` also
-    // does not expect base64. This case handles the current behavior in the short term until
-    // https://broadworkbench.atlassian.net/browse/DR-2259 is done.
-    else if (isBase64(trimmed))
-      (trimmed |> decodeBase64 |> encodeHexString).validNel
-    else
-      s"Invalid md5 checksum value is neither hex nor base64: $rawValue".invalidNel
-  }
+  override def value: ErrorOr[String] = GetmChecksum.validateHex(rawValue)
   override def getmAlgorithm: String = "md5"
 }
 
 case class Crc32c(override val rawValue: String) extends GetmChecksum {
   // The DRS spec says that all hash values should be hex strings,
   // but getm expects crc32c values to be base64.
-  override def value: ErrorOr[String] = {
-    val trimmed = rawValue.trim
-    if (trimmed.matches("[A-Fa-f0-9]+")) {
-      (trimmed |> decodeHex |> encodeBase64String).validNel
-    } else
-      s"Invalid crc32c checksum value, expected hex string but got: $rawValue".invalidNel
-  }
+  override def value: ErrorOr[String] =
+    GetmChecksum.validateHex(rawValue)
+      .map(decodeHex)
+      .map(encodeBase64String)
 
   override def getmAlgorithm: String = "gs_crc32c"
 }
@@ -97,5 +81,13 @@ object GetmChecksum {
         }
       case _ => Null // None or an empty hashes map.
     }
+  }
+
+  def validateHex(s: String): ErrorOr[String] = {
+    val trimmed = s.trim
+    if (trimmed.matches("[A-Fa-f0-9]+"))
+      trimmed.validNel
+    else
+      s"Invalid checksum value, expected hex but got: $trimmed".invalidNel
   }
 }

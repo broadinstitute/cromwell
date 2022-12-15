@@ -80,20 +80,20 @@ object Localization {
                 requesterPaysProjectId: Option[String]
                ): Action = {
     val config = ConfigFactory.load
-    val marthaConfig = config.getConfig("filesystems.drs.global.config.martha")
-    val drsConfig = DrsConfig.fromConfig(marthaConfig)
+    val drsResolverConfig = config.getConfig("filesystems.drs.global.config.resolver")
+    val drsConfig = DrsConfig.fromConfig(drsResolverConfig)
     val drsDockerImage = config.getString("drs.localization.docker-image")
 
     val manifestArg = List("-m", manifestPath.pathAsString)
     val requesterPaysArg = requesterPaysProjectId.map(r => List("-r", r)).getOrElse(List.empty)
     val drsCommand = manifestArg ++ requesterPaysArg
 
-    val marthaEnv = DrsConfig.toEnv(drsConfig)
+    val drsResolverEnv = DrsConfig.toEnv(drsConfig)
     ActionBuilder
       .withImage(drsDockerImage)
       .withCommand(drsCommand: _*)
       .withMounts(mounts)
-      .setEnvironment(marthaEnv.asJava)
+      .setEnvironment(drsResolverEnv.asJava)
       .withLabels(labels)
   }
 }

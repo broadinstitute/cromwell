@@ -55,9 +55,9 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Cro
 
   it should "generate a CSV manifest for DRS inputs, ignoring non-DRS inputs" in {
     def makeDrsPathBuilder: DrsPathBuilder = {
-      val marthaConfig: Config = ConfigFactory.parseString(
-        """martha {
-          |   url = "http://martha-url"
+      val drsResolverConfig: Config = ConfigFactory.parseString(
+        """resolver {
+          |   url = "http://drshub-url"
           |}
           |""".stripMargin
       )
@@ -68,7 +68,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Cro
         throw new UnsupportedOperationException("PipelinesApiAsyncBackendJobExecutionActorSpec doesn't need to use drs read interpreter.")
 
       DrsPathBuilder(
-        new DrsCloudNioFileSystemProvider(marthaConfig, GoogleOauthDrsCredentials(fakeCredentials, 1.minutes), drsReadInterpreter),
+        new DrsCloudNioFileSystemProvider(drsResolverConfig, GoogleOauthDrsCredentials(fakeCredentials, 1.minutes), drsReadInterpreter),
         None,
       )
     }

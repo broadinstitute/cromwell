@@ -86,6 +86,7 @@ class DrsLocalizerMain(drsUrl: String,
   def getDrsPathResolver: IO[DrsLocalizerDrsPathResolver] = {
     IO {
       val drsConfig = DrsConfig.fromEnv(sys.env)
+      logger.info(s"Using ${drsConfig.drsResolverUrl} to resolve DRS Objects")
       new DrsLocalizerDrsPathResolver(drsConfig, drsCredentials)
     }
   }
@@ -141,17 +142,17 @@ class DrsLocalizerMain(drsUrl: String,
   }
 
   private [localizer] def resolve(downloaderFactory: DownloaderFactory): IO[Downloader] = {
-    val fields = NonEmptyList.of(MarthaField.GsUri, MarthaField.GoogleServiceAccount, MarthaField.AccessUrl, MarthaField.Hashes)
+    val fields = NonEmptyList.of(DrsResolverField.GsUri, DrsResolverField.GoogleServiceAccount, DrsResolverField.AccessUrl, DrsResolverField.Hashes)
     for {
       resolver <- getDrsPathResolver
-      marthaResponse <- resolver.resolveDrsThroughMartha(drsUrl, fields)
+      drsResolverResponse <- resolver.resolveDrs(drsUrl, fields)
 
-      // Currently Martha only supports resolving DRS paths to access URLs or GCS paths.
-      downloader <- (marthaResponse.accessUrl, marthaResponse.gsUri) match {
+      // Currently DRS Resolver only supports resolving DRS paths to access URLs or GCS paths.
+      downloader <- (drsResolverResponse.accessUrl, drsResolverResponse.gsUri) match {
         case (Some(accessUrl), _) =>
-          downloaderFactory.buildAccessUrlDownloader(accessUrl, downloadLoc, marthaResponse.hashes)
+          downloaderFactory.buildAccessUrlDownloader(accessUrl, downloadLoc, drsResolverResponse.hashes)
         case (_, Some(gcsPath)) =>
-          val serviceAccountJsonOption = marthaResponse.googleServiceAccount.map(_.data.spaces2)
+          val serviceAccountJsonOption = drsResolverResponse.googleServiceAccount.map(_.data.spaces2)
           downloaderFactory.buildGcsUriDownloader(
             gcsPath = gcsPath,
             serviceAccountJsonOption = serviceAccountJsonOption,

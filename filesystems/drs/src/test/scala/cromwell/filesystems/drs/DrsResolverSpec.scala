@@ -11,14 +11,14 @@ import scala.jdk.CollectionConverters._
 
 class DrsResolverSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
-  private val marthaConfig: Config = ConfigFactory.parseMap(
+  private val drsResolverConfig: Config = ConfigFactory.parseMap(
     Map(
-      "martha.url" -> "https://martha-url/martha_v3",
+      "resolver.url" -> "https://drshub-url/drshub_v4",
       "access-token-acceptable-ttl" -> "1 minute"
     ).asJava
   )
 
-  private val mockFileSystemProvider = new MockDrsCloudNioFileSystemProvider(config = marthaConfig)
+  private val mockFileSystemProvider = new MockDrsCloudNioFileSystemProvider(config = drsResolverConfig)
   private val drsPathBuilder = DrsPathBuilder(mockFileSystemProvider, None)
 
 
@@ -62,14 +62,14 @@ class DrsResolverSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
     } should have message s"Error while resolving DRS path: ${drsPath.pathAsString}. Error: UrlNotFoundException: No gs url associated with given DRS path."
   }
 
-  it should "throw Runtime Exception when Martha can't find the given DRS path " in {
-    val drsPath = drsPathBuilder.build(MockDrsPaths.drsPathNotExistingInMartha).get.asInstanceOf[DrsPath]
+  it should "throw Runtime Exception when the DRS Resolver can't find the given DRS path " in {
+    val drsPath = drsPathBuilder.build(MockDrsPaths.drsPathNotExistingInDrsResolver).get.asInstanceOf[DrsPath]
 
     the[RuntimeException] thrownBy {
       DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()
     } should have message
       s"Error while resolving DRS path: ${drsPath.pathAsString}. " +
         s"Error: RuntimeException: Unexpected response resolving ${drsPath.pathAsString} " +
-        s"through Martha url https://martha-url/martha_v3. Error: 404 Not Found."
+        s"through DRS Resolver url https://drshub-url/drshub_v4. Error: 404 Not Found."
   }
 }

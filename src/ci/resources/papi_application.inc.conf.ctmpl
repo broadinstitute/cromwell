@@ -63,7 +63,7 @@ services {
   }
 }
 
-filesystems.drs.global.config.martha.url = "https://us-central1-broad-dsde-dev.cloudfunctions.net/martha_v3"
+filesystems.drs.global.config.resolver.url = "https://drshub.dsde-dev.broadinstitute.org/api/v4/drs/resolve"
 
 drs {
   localization {

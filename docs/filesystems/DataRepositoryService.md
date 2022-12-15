@@ -6,12 +6,12 @@ The Cromwell configuration for DRS is as follows:
 
 ```hocon
 drs {
-    # A reference to a potentially different auth required to contact Martha service.
+    # A reference to a potentially different auth required to contact DRS Resolution service.
     auth = "application-default"
 }
 ```
 
-The `auth` field refers to the authentication schema that should be used to authenticate requests to Martha service.
+The `auth` field refers to the authentication schema that should be used to authenticate requests to DRS Resolution service.
 
 The `drs` section needs to be added to
 - `engine.filesystems` block

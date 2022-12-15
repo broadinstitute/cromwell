@@ -18,8 +18,8 @@ filesystems {
         # Class to instantiate and propagate to all factories. Takes a single typesafe config argument
         class = "cromwell.filesystems.drs.DrsFileSystemConfig"
         config {
-          martha {
-            url = "https://martha-url-here"
+          resolver {
+            url = "https://martha-url-here or https://drshub-url-here"
             # The number of times to retry failures connecting or HTTP 429 or HTTP 5XX responses, default 3.
             num-retries = 3
             # How long to wait between retrying HTTP 429 or HTTP 5XX responses, default 10 seconds.

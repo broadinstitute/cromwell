@@ -28,8 +28,8 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
 
   override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder] = {
     Future {
-      val marthaScopes = List(
-        // Profile and Email scopes are requirements for interacting with Martha
+      val drsResolverScopes = List(
+        // Profile and Email scopes are requirements for interacting with DRS Resolvers
         Oauth2Scopes.USERINFO_EMAIL,
         Oauth2Scopes.USERINFO_PROFILE
       )
@@ -39,7 +39,7 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
         case googleAuthScheme => googleConfiguration.auth(googleAuthScheme) match {
           case Valid(auth) => (
             Option(auth),
-            GoogleOauthDrsCredentials(auth.credentials(options.get(_).get, marthaScopes), singletonConfig.config)
+            GoogleOauthDrsCredentials(auth.credentials(options.get(_).get, drsResolverScopes), singletonConfig.config)
           )
           case Invalid(error) => throw new RuntimeException(s"Error while instantiating DRS path builder factory. Errors: ${error.toString}")
         }
@@ -50,7 +50,7 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
       val requesterPaysProjectIdOption = options.get("google_project").toOption
 
       /*
-      `override_preresolve_for_test` is a workflow option to override the default `martha.preresolve` specified in the
+      `override_preresolve_for_test` is a workflow option to override the default `resolver.preresolve` specified in the
       global config. This is only used for testing purposes.
        */
       val preResolve: Boolean =
@@ -60,7 +60,7 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
           .getOrElse(
             singletonConfig
               .config
-              .getBoolean("martha.preresolve")
+              .getBoolean("resolver.preresolve")
           )
 
       DrsPathBuilder(
@@ -78,4 +78,4 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
 
 case class UrlNotFoundException(scheme: String) extends Exception(s"No $scheme url associated with given DRS path.")
 
-case class MarthaResponseMissingKeyException(missingKey: String) extends Exception(s"The response from Martha doesn't contain the key '$missingKey'.")
+case class DrsResolverResponseMissingKeyException(missingKey: String) extends Exception(s"The response from the DRS Resolver doesn't contain the key '$missingKey'.")

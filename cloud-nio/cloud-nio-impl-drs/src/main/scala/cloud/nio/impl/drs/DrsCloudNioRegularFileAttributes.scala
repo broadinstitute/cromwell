@@ -61,7 +61,7 @@ object DrsCloudNioRegularFileAttributes {
       .map(FileTime.from)
   }
 
-  def convertToFileTime(drsPath: String, key: MarthaField.Value, timeInStringOption: Option[String]): IO[Option[FileTime]] = {
+  def convertToFileTime(drsPath: String, key: DrsResolverField.Value, timeInStringOption: Option[String]): IO[Option[FileTime]] = {
     timeInStringOption match {
       case None => IO.pure(None)
       case Some(timeInString) =>
@@ -71,7 +71,7 @@ object DrsCloudNioRegularFileAttributes {
             throwable =>
               IO.raiseError(
                 new RuntimeException(
-                  s"Error while parsing '$key' value from Martha to FileTime for DRS path $drsPath. " +
+                  s"Error while parsing '$key' value from DRS Resolver to FileTime for DRS path $drsPath. " +
                     s"Reason: ${ExceptionUtils.getMessage(throwable)}.",
                   throwable,
                 )

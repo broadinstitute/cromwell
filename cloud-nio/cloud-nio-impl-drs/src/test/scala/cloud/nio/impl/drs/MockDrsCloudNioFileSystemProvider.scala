@@ -31,7 +31,7 @@ class MockDrsCloudNioFileSystemProvider(config: Config = mockConfig,
 
 object MockDrsCloudNioFileSystemProvider {
   private lazy val mockConfig = ConfigFactory.parseString(
-    """martha.url = "https://mock.martha"
+    """resolver.url = "https://mock.drshub"
       |access-token-acceptable-ttl = 1 hour
       |""".stripMargin
   )

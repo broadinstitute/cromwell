@@ -595,7 +595,9 @@ object Dependencies {
     "org.scalatest" %% "scalatest" % scalatestV,
     // Use mockito Java DSL directly instead of the numerous and often hard to keep updated Scala DSLs.
     // See also scaladoc in common.mock.MockSugar and that trait's various usages.
-    "org.mockito" % "mockito-core" % mockitoV
+    "org.mockito" % "mockito-core" % mockitoV,
+    "io.github.jbwheatley" %% "pact4s-scalatest"  % "0.7.0",
+    "io.github.jbwheatley" %% "pact4s-circe" %  "0.7.0"
   ) ++ slf4jBindingDependencies // During testing, add an slf4j binding for _all_ libraries.
 
   val kindProjectorPlugin = "org.typelevel" % "kind-projector" % kindProjectorV cross CrossVersion.full

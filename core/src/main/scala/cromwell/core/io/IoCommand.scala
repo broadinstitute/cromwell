@@ -38,6 +38,12 @@ trait IoCommand[+T] {
 
   def commandDescription: String
 
+  /**
+    * IO commands side-effect and/or have exceptions. We don't want that when evaluating identity, e.g. to check presence in cache.
+    * @return Hash code based on the description, which captures file path & action
+    */
+  override def hashCode(): Int = commandDescription.hashCode
+
   def logIOMsgOverLimit(message: => String): Unit = {
     val millis: Long = java.time.Duration.between(creation, OffsetDateTime.now).toMillis
     if (millis > IoCommand.IOCommandWarnLimit.toMillis) {

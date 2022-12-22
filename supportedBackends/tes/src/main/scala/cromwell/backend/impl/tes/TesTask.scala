@@ -7,15 +7,16 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import net.ceedubs.ficus.Ficus._
+
+import scala.language.postfixOps
+import scala.util.Try
+
 import wdl.draft2.model.FullyQualifiedName
 import wdl4s.parser.MemoryUnit
 import wom.InstantiatedCommand
 import wom.callable.Callable.OutputDefinition
 import wom.expression.NoIoFunctionSet
 import wom.values._
-
-import scala.language.postfixOps
-import scala.util.Try
 
 final case class WorkflowExecutionIdentityConfig(value: String) {override def toString: String = value.toString}
 final case class WorkflowExecutionIdentityOption(value: String) {override def toString: String = value}
@@ -39,7 +40,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     configurationDescriptor.backendConfig
       .getAs[String]("workflow-execution-identity")
       .map(WorkflowExecutionIdentityConfig)
-  private val workflowExecutionIdentifyOption: Option[WorkflowExecutionIdentityOption] =
+  private val workflowExecutionIdentityOption: Option[WorkflowExecutionIdentityOption] =
     workflowDescriptor
       .workflowOptions
       .get(TesWorkflowOptionKeys.WorkflowExecutionIdentity)
@@ -227,7 +228,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   val preferedWorkflowExecutionIdentity = TesTask.getPreferredWorkflowExecutionIdentity(
       workflowExecutionIdentityConfig,
-      workflowExecutionIdentifyOption
+      workflowExecutionIdentityOption
   )
 
   val resources: Resources = TesTask.makeResources(
@@ -250,11 +251,7 @@ object TesTask {
   // Helper to determine which source to use for a workflowExecutionIdentity
   def getPreferredWorkflowExecutionIdentity(configIdentity: Option[WorkflowExecutionIdentityConfig],
                                            workflowOptionsIdentity: Option[WorkflowExecutionIdentityOption]): Option[String] = {
-    (configIdentity, workflowOptionsIdentity) match {
-      case (Some(configId), _) => Some(configId.value)
-      case (None, Some(workflowOptionsId)) => Some(workflowOptionsId.value)
-      case _ => None
-    }
+    configIdentity.map(_.value).orElse(workflowOptionsIdentity.map(_.value))
   }
   def makeResources(runtimeAttributes: TesRuntimeAttributes,
                     workflowExecutionId: Option[String]): Resources = {

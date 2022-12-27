@@ -2,7 +2,7 @@ package cromwell.backend.google.pipelines.batch
 
 import akka.actor.{Actor, ActorLogging, Props}
 
-import scala.concurrent.duration.DurationInt
+//import scala.concurrent.duration.DurationInt
 //import akka.actor.{Actor, ActorSystem, ActorLogging, Props}
 //import akka.actor.{Actor, ActorSystem, ActorLogging, ActorRef, Props}
 import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate}
@@ -26,17 +26,9 @@ class GcpBatchBackendSingletonActor (name: String) extends Actor with ActorLoggi
 
   import GcpBatchBackendSingletonActor._
 
-  val WorkInterval = 100.millis
-
-  //val actorSystem = ActorSystem("gcpBatch")
-  //val gcpBatchActor = actorSystem.actorOf(GcpBatchBackendSingletonActor.props("batch"))
-
   implicit val ec: ExecutionContext = context.dispatcher
 
   def receive: Receive = {
-
-    //https://github.com/broadinstitute/cromwell/blob/32d5d0cbf07e46f56d3d070f457eaff0138478d5/supportedBackends/aws/src/main/scala/cromwell/backend/impl/aws/AwsBatchSingletonActor.scala
-    //case statusQuery:
 
     case jobSubmission: BatchRequest =>
       val batchServiceClient = BatchServiceClient.create
@@ -56,9 +48,6 @@ class GcpBatchBackendSingletonActor (name: String) extends Actor with ActorLoggi
       log.error("Unknown message to GCP Batch Singleton Actor: {}. Dropping it.", other)
 
   }
-
- // val batchTest = BatchRequest(projectId="batch-testing-350715", region="us-central1", jobName="test3")
-  //gcpBatchActor ! batchTest
 
 }
 

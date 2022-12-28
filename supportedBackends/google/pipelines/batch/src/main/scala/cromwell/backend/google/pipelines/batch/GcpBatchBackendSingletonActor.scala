@@ -22,7 +22,7 @@ object GcpBatchBackendSingletonActor {
   case class BatchRequest(projectId: String, region: String, jobName: String)
 }
 
-class GcpBatchBackendSingletonActor (name: String) extends Actor with ActorLogging {
+final class GcpBatchBackendSingletonActor (name: String) extends Actor with ActorLogging {
 
   import GcpBatchBackendSingletonActor._
 
@@ -44,6 +44,8 @@ class GcpBatchBackendSingletonActor (name: String) extends Actor with ActorLoggi
       val result = batchServiceClient.createJobCallable.futureCall(createJobRequest).get(3, TimeUnit.MINUTES)
       println(result.getName)
 
+    case "state: QUEUED" =>
+      println("gcp batch queue")
     case other =>
       log.error("Unknown message to GCP Batch Singleton Actor: {}. Dropping it.", other)
 

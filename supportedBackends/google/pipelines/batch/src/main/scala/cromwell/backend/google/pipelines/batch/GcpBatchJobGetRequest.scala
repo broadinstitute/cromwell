@@ -22,7 +22,11 @@ class GcpBatchJobGetRequest {
 
     print(job.getName)
     println(job.getStatus)
-    job.getName
+    //job.getName
+    job.getStatus
+
+    GcpBatchRunStatus.Success()
+
   }
 
 

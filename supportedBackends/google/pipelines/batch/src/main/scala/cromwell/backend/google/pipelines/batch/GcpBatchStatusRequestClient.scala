@@ -1,9 +1,7 @@
 package cromwell.backend.google.pipelines.batch
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
-//import com.google.cloud.batch.v1.{BatchServiceClient, JobName}
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.PipelinesApiStatusQueryFailed
-//import cromwell.backend.google.pipelines.common.api.{PipelinesApiRequestManager, RunStatus}
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.WorkflowId
 
@@ -19,6 +17,8 @@ trait GcpBatchStatusRequestClient { this: Actor with ActorLogging =>
   val gcpBatchActor: ActorRef
   //val requestFactory: PipelinesApiRequestFactory
 
+
+
   def pollingActorClientReceive: Actor.Receive = {
     case r: GcpBatchRunStatus =>
       log.debug(s"Polled status received: $r")
@@ -27,6 +27,7 @@ trait GcpBatchStatusRequestClient { this: Actor with ActorLogging =>
     case PipelinesApiStatusQueryFailed(_, e) => // update for batch
       log.debug("GCP Batch poll failed!")
       completePromise(Failure(e))
+    //case other => println(f"poll receive test $other")
   }
 
   private def completePromise(runStatus: Try[GcpBatchRunStatus]) = {
@@ -39,8 +40,11 @@ trait GcpBatchStatusRequestClient { this: Actor with ActorLogging =>
     val test = new GcpBatchJobGetRequest
 
     pollingActorClientPromise match {
-      case Some(p) => p.future
+      case Some(p) =>
+        println(f"pollstatus pulling $p")
+        p.future
       case None =>
+        println("polling with gcp status request client")
         //gcpBatchActor ! GcpBatchSingleton
         gcpBatchActor ! test.GetJob(gcpBatchJobId)
 
@@ -49,10 +53,5 @@ trait GcpBatchStatusRequestClient { this: Actor with ActorLogging =>
         newPromise.future
     }
   }
-
-}
-
-object GcpBatchSingleton {
-
 
 }

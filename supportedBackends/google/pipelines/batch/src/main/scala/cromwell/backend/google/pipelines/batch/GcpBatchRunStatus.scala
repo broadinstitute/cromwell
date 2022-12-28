@@ -9,9 +9,18 @@ object GcpBatchRunStatus {
     //case object AwaitingCloudQuota extends RunStatus
     //case object Running extends GcpBatchRunStatus
 
-    case class Success(eventList: Seq[ExecutionEvent],
-                       machineType: Option[String],
-                       zone: Option[String])
+    sealed trait TerminalRunStatus extends GcpBatchRunStatus {
+      def eventList: Seq[ExecutionEvent]
+      def machineType: Option[String]
+      def zone: Option[String]
+      def instanceName: Option[String]
+
+
+    }
+
+    case class Success()//eventList: Seq[ExecutionEvent],
+                       //machineType: Option[String],
+                       //zone: Option[String])
                        //instanceName: Option[String]) extends TerminalRunStatus {
         override def toString = "Success"
 

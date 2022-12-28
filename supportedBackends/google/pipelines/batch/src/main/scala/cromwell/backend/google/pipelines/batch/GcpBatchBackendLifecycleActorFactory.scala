@@ -13,9 +13,13 @@ class GcpBatchBackendLifecycleActorFactory(name: String, override val configurat
 
   override def jobIdKey: String = "__gcp_batch"
 
+  //protected def requiredBackendSingletonActor(serviceRegistryActor: ActorRef): Props
+
   override def asyncExecutionActorClass: Class[_ <: StandardAsyncExecutionActor] =
     classOf[GcpBatchAsyncBackendJobExecutionActor]
 
+  override lazy val finalizationActorClassOption: Option[Class[_ <: StandardFinalizationActor]] =
+    Option(classOf[GcpBatchFinalizationActor])
 
   //override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = Option(Props(new GcpBatchBackendSingletonActor("batch")()))
 

@@ -12,24 +12,31 @@ class GcpBatchJobGetRequest {
     val batchServiceClient = BatchServiceClient
       .create()
 
-    val job = batchServiceClient
-      .getJob(JobName
-        .newBuilder()
-        .setProject(projectId)
-        .setLocation(region)
-        .setJob(jobName)
-        .build())
+    var status = "NA"
+    println(status)
+    while (status != "SUCCEEDED") {
+      val job = batchServiceClient
+        .getJob(JobName
+          .newBuilder()
+          .setProject(projectId)
+          .setLocation(region)
+          .setJob(jobName)
+          .build())
 
-    println(job
-      .getStatus
-      .getState
-      .toString)
 
-    job
-      .getStatus
-      .getState
-      .toString
-  }
+      println(job
+        .getStatus
+        .getState
+        .toString)
+
+      status = job
+        .getStatus
+        .getState
+        .toString
+      println(f"status in while $status")
+    }
+    }
+
 
 
 }

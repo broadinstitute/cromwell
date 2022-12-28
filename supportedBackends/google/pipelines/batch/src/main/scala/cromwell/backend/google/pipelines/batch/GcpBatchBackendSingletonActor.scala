@@ -9,6 +9,7 @@ import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolic
 import com.google.cloud.batch.v1.LogsPolicy.Destination
 import com.google.cloud.batch.v1.Runnable.Container
 import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, TaskGroup, TaskSpec}
+//import com.google.cloud.batch.v1.JobName
 import com.google.protobuf.Duration
 import scala.concurrent.ExecutionContext
 //import cromwell.core.Dispatcher.BackendDispatcher
@@ -20,6 +21,7 @@ object GcpBatchBackendSingletonActor {
   def props(name: String) = Props(new GcpBatchBackendSingletonActor(name))
 
   case class BatchRequest(projectId: String, region: String, jobName: String)
+  case class GcpBatchJobName(jobName: String)
 }
 
 final class GcpBatchBackendSingletonActor (name: String) extends Actor with ActorLogging {
@@ -43,6 +45,22 @@ final class GcpBatchBackendSingletonActor (name: String) extends Actor with Acto
       val createJobRequest = CreateJobRequest.newBuilder.setParent(parent).setJob(job).setJobId(jobSubmission.jobName).build()
       val result = batchServiceClient.createJobCallable.futureCall(createJobRequest).get(3, TimeUnit.MINUTES)
       println(result.getName)
+
+    //case jobQuery: GcpBatchJobName =>
+    //  val projectId = "batch-testing-350715"
+    //  val region = "us-central1"
+    //  val batchServiceClient = BatchServiceClient.create()
+    //  val job = batchServiceClient
+    //    .getJob(JobName
+    //     .newBuilder()
+    //      .setProject(projectId)
+    //      .setLocation(region)
+    //      .setJob(jobQuery.jobName)
+    //      .build())
+    //  println("singleton")
+    //  println(job
+    //    .getStatus
+    //    .getState.toString)
 
     case "QUEUED" =>
       println("gcp batch queue")

@@ -38,7 +38,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   // temporary until GCP Batch client can generate random job IDs
   val jobTemp = "job-" + java.util.UUID.randomUUID.toString
 
-  override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse super.receive
+  //override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse super.receive
 
   /** Should return true if the status contained in `thiz` is equivalent to `that`, delta any other data that might be carried around
     * in the state type.
@@ -68,11 +68,14 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override def executeAsync(): Future[ExecutionHandle] = {
 
     val batchTest = BatchRequest(projectId="batch-testing-350715", region="us-central1", jobName=jobTemp)
+    //val jobTest = GcpBatchJobName(jobName=jobTemp)
 
     for {
       _ <- uploadScriptFile()
       _ = backendSingletonActor ! batchTest
+      //_ = backendSingletonActor ! jobTest
       runId = StandardAsyncJob(UUID.randomUUID().toString)  //temp to test
+
 
     } yield PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)
 

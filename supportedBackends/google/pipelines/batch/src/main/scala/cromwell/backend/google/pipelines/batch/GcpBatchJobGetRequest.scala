@@ -20,13 +20,15 @@ class GcpBatchJobGetRequest {
         .setJob(jobName)
         .build())
 
-    print(job.getName)
-    println(job.getStatus)
-    //job.getName
-    job.getStatus
+    println(job
+      .getStatus
+      .getState
+      .toString)
 
-    GcpBatchRunStatus.Success()
-
+    job
+      .getStatus
+      .getState
+      .toString
   }
 
 

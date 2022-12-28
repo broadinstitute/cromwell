@@ -44,8 +44,9 @@ final class GcpBatchBackendSingletonActor (name: String) extends Actor with Acto
       val result = batchServiceClient.createJobCallable.futureCall(createJobRequest).get(3, TimeUnit.MINUTES)
       println(result.getName)
 
-    case "state: QUEUED" =>
+    case "QUEUED" =>
       println("gcp batch queue")
+
     case other =>
       log.error("Unknown message to GCP Batch Singleton Actor: {}. Dropping it.", other)
 

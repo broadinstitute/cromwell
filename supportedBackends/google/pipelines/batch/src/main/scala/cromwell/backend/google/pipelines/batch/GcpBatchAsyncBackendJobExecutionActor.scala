@@ -14,6 +14,7 @@ import java.util.UUID
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import GcpBatchBackendSingletonActor._
+//import akka.util.Timeout
 //import cromwell.backend.google.pipelines.common.api.RunStatus.TerminalRunStatus
 
 object GcpBatchAsyncBackendJobExecutionActor {
@@ -50,16 +51,35 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   val backendSingletonActor: ActorRef = standardParams.backendSingletonActorOption.getOrElse(throw new RuntimeException("GCP Batch actor cannot exist without its backend singleton 2"))
 
+  def uploadScriptFile(): Future[Unit] = {
+    commandScriptContents
+      .fold(
+        errors => Future
+          .failed(new RuntimeException(errors
+            .toList
+            .mkString(", "))),
+        asyncIo
+          .writeAsync(jobPaths
+            .script, _, Seq
+            .empty)
+      )
+  }
   // Primary entry point for cromwell to run GCP Batch job
   override def executeAsync(): Future[ExecutionHandle] = {
 
     val batchTest = BatchRequest(projectId="batch-testing-350715", region="us-central1", jobName=jobTemp)
 
-    backendSingletonActor ! batchTest
+    for {
+      _ <- uploadScriptFile()
+      _ = backendSingletonActor ! batchTest
+      runId = StandardAsyncJob(UUID.randomUUID().toString)  //temp to test
 
-    val runId = StandardAsyncJob(UUID.randomUUID().toString)  //temp to test
-    log.info(s"runId ${runId}")
-    Future.successful(PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None))
+    } yield PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)
+
+
+   // val runId = StandardAsyncJob(UUID.randomUUID().toString)  //temp to test
+    //log.info(s"runId ${runId}")
+    //Future.successful(PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None))
 
   }
 
@@ -77,15 +97,24 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
      val jobId = handle.pendingJob.jobId
      val _ = handle
        .runInfo match {
-       case Some(actualJob) => actualJob
+       case Some(actualJob) =>
+         actualJob
        case None =>
          throw new RuntimeException(
            s"pollStatusAsync called but job not available. This should not happen. Job Id $jobId"
          )
      }
 
+     //implicit val timeout: Timeout = Timeout(5.seconds)
 
-     super[GcpBatchStatusRequestClient].pollStatus(workflowId = workflowId, jobId = handle.pendingJob, gcpBatchJobId = jobTemp)
+     for {
+
+       answer <- super[GcpBatchStatusRequestClient].pollStatus(workflowId = workflowId, jobId = handle.pendingJob, gcpBatchJobId = jobTemp)
+
+     }
+       yield answer
+
+
 
      }
 
@@ -98,7 +127,10 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override def isDone(runStatus: GcpBatchRunStatus): Boolean = {
     runStatus match {
-      case _: GcpBatchRunStatus.Success => true
+      case _: GcpBatchRunStatus.Success =>
+        println("GCP job matched isDone")
+        true
+      case _ => throw new RuntimeException(s"Cromwell programmer blunder: isSuccess was called on an incomplete RunStatus ($runStatus).")
     }
   }
 

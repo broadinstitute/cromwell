@@ -34,7 +34,14 @@ class GcpBatchJobGetRequest {
         .getState
         .toString
       println(f"status in while $status")
+
     }
+
+    if (status == "SUCCEEDED") {
+      GcpBatchRunStatus
+        .Success(_)
+    }
+      else println("not succeeded")
     }
 
 

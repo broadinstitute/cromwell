@@ -3,7 +3,7 @@ package cromwell.backend.google.pipelines.batch
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
-import cromwell.core.WorkflowId
+import cromwell.core.{ExecutionEvent, WorkflowId}
 import cromwell.backend.async.PendingExecutionHandle
 import cromwell.backend.async.ExecutionHandle
 import akka.actor.ActorRef
@@ -14,6 +14,7 @@ import java.util.UUID
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import GcpBatchBackendSingletonActor._
+import cromwell.backend.google.pipelines.batch
 //import akka.util.Timeout
 //import cromwell.backend.google.pipelines.common.api.RunStatus.TerminalRunStatus
 
@@ -36,7 +37,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override type StandardAsyncRunState = GcpBatchRunStatus
 
   // temporary until GCP Batch client can generate random job IDs
-  val jobTemp = "job-" + java.util.UUID.randomUUID.toString
+  private val jobTemp = "job-" + java.util.UUID.randomUUID.toString
 
   //override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse super.receive
 
@@ -95,6 +96,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       .second, maxInterval = 20
       .second, multiplier = 1.1)
 
+  // https://github.com/broadinstitute/cromwell/blob/8485284a52adcf9163b5fd2a60e95bd0e1ce012e/supportedBackends/tes/src/main/scala/cromwell/backend/impl/tes/TesAsyncBackendJobExecutionActor.scala
    override def pollStatusAsync(handle: GcpBatchPendingExecutionHandle): Future[StandardAsyncRunState] = {
 
      val jobId = handle.pendingJob.jobId
@@ -117,8 +119,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
      }
        yield answer
 
-
-
      }
 
   override def isTerminal(runStatus: GcpBatchRunStatus): Boolean = {
@@ -134,6 +134,15 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         println("GCP job matched isDone")
         true
       case _ => throw new RuntimeException(s"Cromwell programmer blunder: isSuccess was called on an incomplete RunStatus ($runStatus).")
+    }
+  }
+
+  override def getTerminalEvents(runStatus: GcpBatchRunStatus): Seq[ExecutionEvent] = {
+    runStatus match {
+      case successStatus: batch.GcpBatchRunStatus.Success => successStatus
+        .eventList
+      case unknown =>
+        throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
     }
   }
 

@@ -71,15 +71,18 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     val batchTest = BatchRequest(projectId="batch-testing-350715", region="us-central1", jobName=jobTemp)
     //val jobTest = GcpBatchJobName(jobName=jobTemp)
 
-    for {
+    val runBatchResponse = for {
       _ <- uploadScriptFile()
+      //completionPromise = Promise[]
       _ = backendSingletonActor ! batchTest
       //_ = backendSingletonActor ! jobTest
       runId = StandardAsyncJob(UUID.randomUUID().toString)  //temp to test
 
 
     } //yield PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)
-    yield PendingExecutionHandle(jobDescriptor, runId, None, previousState = None)
+    yield runId
+
+    runBatchResponse map {runId => PendingExecutionHandle(jobDescriptor, runId, None, previousState = None)}
 
 
    // val runId = StandardAsyncJob(UUID.randomUUID().toString)  //temp to test
@@ -106,19 +109,35 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   // https://github.com/broadinstitute/cromwell/blob/8485284a52adcf9163b5fd2a60e95bd0e1ce012e/supportedBackends/tes/src/main/scala/cromwell/backend/impl/tes/TesAsyncBackendJobExecutionActor.scala
    override def pollStatusAsync(handle: GcpBatchPendingExecutionHandle): Future[StandardAsyncRunState] = {
 
-     super[GcpBatchStatusRequestClient].pollStatus(workflowId = workflowId, jobId = handle.pendingJob, gcpBatchJobId = jobTemp) map {
-       response =>
-         val state = response.toString
-         println(f"state in poll $state")
-         state match {
-           case s if s.contains("SUCCEEDED") => GcpBatchRunStatus.Complete
-           case _ =>
-             println("test match for running")
-             GcpBatchRunStatus.Running
-         }
+
+     val testPoll = new GcpBatchJobGetRequest
+     val result = testPoll.GetJob(jobTemp)
+     val temp = result.toString
+
+     result match {
+       case _ if temp
+         .contains("SUCCEEDED") => Future
+         .successful(GcpBatchRunStatus
+           .Complete)
+       case _ => Future
+         .successful(GcpBatchRunStatus
+           .Running)
      }
 
-     Future.successful(GcpBatchRunStatus.Complete)
+
+     //super[GcpBatchStatusRequestClient].pollStatus(workflowId = workflowId, jobId = handle.pendingJob, gcpBatchJobId = jobTemp) map {
+     //  response =>
+     //    val state = response.toString
+     //    println(f"state in poll $state")
+     //    state match {
+     //      case s if s.contains("SUCCEEDED") => GcpBatchRunStatus.Complete
+     //      case _ =>
+     //        println("test match for running")
+     //        GcpBatchRunStatus.Running
+     //    }
+     //}
+
+     //Future.successful(GcpBatchRunStatus.Complete) //temp to test successful complete
 
    }
 
@@ -141,10 +160,15 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override def isDone(runStatus: GcpBatchRunStatus): Boolean = {
     runStatus match {
-      case _: GcpBatchRunStatus =>
+      case _: GcpBatchRunStatus.Success =>
         println("GCP job matched isDone")
         true
-      case _ =>  false //throw new RuntimeException(s"Cromwell programmer blunder: isSuccess was called on an incomplete RunStatus ($runStatus).")
+      case _: GcpBatchRunStatus.Running =>
+        println("GCP batch job running")
+        false
+      case _ =>
+        println("did not match isDone")
+        false //throw new RuntimeException(s"Cromwell programmer blunder: isSuccess was called on an incomplete RunStatus ($runStatus).")
     }
   }
 
@@ -161,6 +185,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   //override val gcpBatchApiActor: ActorRef = backendSingletonActor //added to test polling
 }
+
 
 
 

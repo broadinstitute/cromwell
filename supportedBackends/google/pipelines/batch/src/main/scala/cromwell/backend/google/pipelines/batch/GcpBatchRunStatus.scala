@@ -7,7 +7,9 @@ sealed trait GcpBatchRunStatus
 object GcpBatchRunStatus {
     //case object Initializing extends GcpBatchRunStatus
     //case object AwaitingCloudQuota extends RunStatus
-    case object Running extends GcpBatchRunStatus
+    case object Running extends GcpBatchRunStatus {
+      def isTerminal = false
+    }
     case object Complete extends GcpBatchRunStatus {
       def isTerminal = true
     }
@@ -20,6 +22,10 @@ object GcpBatchRunStatus {
 
 
     }
+
+    case class Running()
+
+    case class Complete()
 
     case class Success(eventList: Seq[ExecutionEvent])
                        //machineType: Option[String],

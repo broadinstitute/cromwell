@@ -16,6 +16,8 @@ class GcpBatchJobGetRequest {
 
     var status = "NA"
     println(status)
+    Future.successful(GcpBatchRunStatus.Running)
+
     while (status != "SUCCEEDED") {
       val job = batchServiceClient
         .getJob(JobName
@@ -38,7 +40,8 @@ class GcpBatchJobGetRequest {
 
       //val testStatus = GcpBatchJobSuccess(jobName = jobName, result = status)
       //testStatus
-      Future.successful(GcpBatchRunStatus.Complete)
+      status
+      //Future.successful(GcpBatchRunStatus.Complete)
 
     }
     else println("not succeeded")

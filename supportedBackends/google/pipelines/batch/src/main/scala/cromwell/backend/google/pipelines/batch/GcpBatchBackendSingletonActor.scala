@@ -2,6 +2,9 @@ package cromwell.backend.google.pipelines.batch
 
 import akka.actor.{Actor, ActorLogging, Props}
 
+//import scala.concurrent.Future
+//import scala.util.Try
+
 //import scala.concurrent.duration.DurationInt
 //import akka.actor.{Actor, ActorSystem, ActorLogging, Props}
 //import akka.actor.{Actor, ActorSystem, ActorLogging, ActorRef, Props}
@@ -9,11 +12,10 @@ import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolic
 import com.google.cloud.batch.v1.LogsPolicy.Destination
 import com.google.cloud.batch.v1.Runnable.Container
 import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, TaskGroup, TaskSpec}
-//import com.google.cloud.batch.v1.JobName
+
 import com.google.protobuf.Duration
 import scala.concurrent.ExecutionContext
-//import cromwell.core.Dispatcher.BackendDispatcher
-//import cats.effect.{IO, Timer}
+
 
 import java.util.concurrent.TimeUnit
 
@@ -25,6 +27,8 @@ object GcpBatchBackendSingletonActor {
 
   case class GcpBatchJobSuccess(jobName: String, result: String)
 
+  case class testResult(result: String)
+
 }
 
 final class GcpBatchBackendSingletonActor (name: String) extends Actor with ActorLogging {
@@ -32,6 +36,15 @@ final class GcpBatchBackendSingletonActor (name: String) extends Actor with Acto
   import GcpBatchBackendSingletonActor._
 
   implicit val ec: ExecutionContext = context.dispatcher
+
+  //private var pollingActorClientPromise: Option[Promise[GcpBatchRunStatus]] = None
+  //private def completePromise(runStatus: Try[GcpBatchRunStatus]) = {
+  //  pollingActorClientPromise foreach {
+  //    _
+  //      .complete(runStatus)
+  //  }
+  //  pollingActorClientPromise = None
+  //}
 
   def receive: Receive = {
 
@@ -49,25 +62,19 @@ final class GcpBatchBackendSingletonActor (name: String) extends Actor with Acto
       val result = batchServiceClient.createJobCallable.futureCall(createJobRequest).get(3, TimeUnit.MINUTES)
       println(result.getName)
 
-    //case jobQuery: GcpBatchJobName =>
-    //  val projectId = "batch-testing-350715"
-    //  val region = "us-central1"
-    //  val batchServiceClient = BatchServiceClient.create()
-    //  val job = batchServiceClient
-    //    .getJob(JobName
-    //     .newBuilder()
-    //      .setProject(projectId)
-    //      .setLocation(region)
-    //      .setJob(jobQuery.jobName)
-    //      .build())
-    //  println("singleton")
-    //  println(job
-    //    .getStatus
-    //    .getState.toString)
 
     case tempResult: GcpBatchJobSuccess =>
       println(f"job finished $tempResult")
-      GcpBatchRunStatus.Complete
+      //val result = testResult(tempResult.result)
+      //sender() ! tempResult
+      val test = "SUCCEEDED"
+      sender() ! test
+      //return("succeeded)")
+      //Future.successful(GcpBatchRunStatus)
+      //completePromise(GcpBatchRunStatus.Complete)
+      //val test =  GcpBatchRunStatus.Complete
+      //test
+
 
     case "QUEUED" =>
       println("gcp batch queue")

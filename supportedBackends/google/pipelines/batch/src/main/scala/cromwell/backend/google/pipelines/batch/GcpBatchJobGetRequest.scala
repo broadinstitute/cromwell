@@ -1,7 +1,9 @@
 package cromwell.backend.google.pipelines.batch
 
 import com.google.cloud.batch.v1.{BatchServiceClient, JobName}
-import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.GcpBatchJobSuccess
+//import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.GcpBatchJobSuccess
+
+import scala.concurrent.Future
 
 class GcpBatchJobGetRequest {
 
@@ -10,8 +12,7 @@ class GcpBatchJobGetRequest {
     val projectId = "batch-testing-350715"
     val region = "us-central1"
 
-    val batchServiceClient = BatchServiceClient
-      .create()
+    val batchServiceClient = BatchServiceClient.create()
 
     var status = "NA"
     println(status)
@@ -25,29 +26,23 @@ class GcpBatchJobGetRequest {
           .build())
 
 
-      println(job
-        .getStatus
-        .getState
-        .toString)
+      println(job.getStatus.getState.toString)
 
-      status = job
-        .getStatus
-        .getState
-        .toString
+      status = job.getStatus.getState.toString
+
       println(f"status in while $status")
 
     }
 
     if (status == "SUCCEEDED") {
 
-      val testStatus = GcpBatchJobSuccess(jobName=jobName, result=status)
-      testStatus
-      //GcpBatchRunStatus
-      //  .Success(_)
-    }
-      else println("not succeeded")
-    }
+      //val testStatus = GcpBatchJobSuccess(jobName = jobName, result = status)
+      //testStatus
+      Future.successful(GcpBatchRunStatus.Complete)
 
+    }
+    else println("not succeeded")
+  }
 
 
 }

@@ -15,8 +15,6 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import GcpBatchBackendSingletonActor._
 import cromwell.backend.google.pipelines.batch
-//import akka.util.Timeout
-//import cromwell.backend.google.pipelines.common.api.RunStatus.TerminalRunStatus
 
 object GcpBatchAsyncBackendJobExecutionActor {
 
@@ -24,7 +22,7 @@ object GcpBatchAsyncBackendJobExecutionActor {
 
 }
 
-class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams) extends BackendJobLifecycleActor with StandardAsyncExecutionActor with AskSupport with GcpBatchRunCreationClient with GcpBatchStatusRequestClient with CromwellInstrumentation {
+class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams) extends BackendJobLifecycleActor with StandardAsyncExecutionActor with AskSupport with GcpBatchStatusRequestClient with CromwellInstrumentation {
 
   import GcpBatchAsyncBackendJobExecutionActor._
 
@@ -40,11 +38,13 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   private val jobTemp = "job-" + java.util.UUID.randomUUID.toString
 
   //override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse super.receive
+  //override def receive: Receive = pollingActorClientReceive orElse super.receive
 
   /** Should return true if the status contained in `thiz` is equivalent to `that`, delta any other data that might be carried around
     * in the state type.
     */
-  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
+  //def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
+  def statusEquivalentTo(thiz: GcpBatchRunStatus)(that: GcpBatchRunStatus): Boolean = thiz == that
 
   override def dockerImageUsed: Option[String] = Option("test")
 
@@ -78,7 +78,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       runId = StandardAsyncJob(UUID.randomUUID().toString)  //temp to test
 
 
-    } yield PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)
+    } //yield PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)
+    yield PendingExecutionHandle(jobDescriptor, runId, None, previousState = None)
 
 
    // val runId = StandardAsyncJob(UUID.randomUUID().toString)  //temp to test
@@ -105,27 +106,30 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   // https://github.com/broadinstitute/cromwell/blob/8485284a52adcf9163b5fd2a60e95bd0e1ce012e/supportedBackends/tes/src/main/scala/cromwell/backend/impl/tes/TesAsyncBackendJobExecutionActor.scala
    override def pollStatusAsync(handle: GcpBatchPendingExecutionHandle): Future[StandardAsyncRunState] = {
 
-     val jobId = handle.pendingJob.jobId
-     val _ = handle
-       .runInfo match {
-       case Some(actualJob) =>
-         actualJob
-       case None =>
-         throw new RuntimeException(
-           s"pollStatusAsync called but job not available. This should not happen. Job Id $jobId"
-         )
+     super[GcpBatchStatusRequestClient].pollStatus(workflowId = workflowId, jobId = handle.pendingJob, gcpBatchJobId = jobTemp) map {
+       response =>
+         val state = response.toString
+         println(f"state in poll $state")
+         state match {
+           case s if s.contains("SUCCEEDED") => GcpBatchRunStatus.Complete
+           case _ =>
+             println("test match for running")
+             GcpBatchRunStatus.Running
+         }
      }
 
-     //implicit val timeout: Timeout = Timeout(5.seconds)
+     Future.successful(GcpBatchRunStatus.Complete)
 
-     for {
+   }
 
-       answer <- super[GcpBatchStatusRequestClient].pollStatus(workflowId = workflowId, jobId = handle.pendingJob, gcpBatchJobId = jobTemp)
+     //for {
 
-     }
-       yield answer
+       //answer <- super[GcpBatchStatusRequestClient].pollStatus(workflowId = workflowId, jobId = handle.pendingJob, gcpBatchJobId = jobTemp)
 
-     }
+    // }
+    //   yield answer
+
+    // }
 
   override def isTerminal(runStatus: GcpBatchRunStatus): Boolean = {
     runStatus match {
@@ -137,10 +141,10 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override def isDone(runStatus: GcpBatchRunStatus): Boolean = {
     runStatus match {
-      case _: GcpBatchRunStatus.Success =>
+      case _: GcpBatchRunStatus =>
         println("GCP job matched isDone")
         true
-      case _ => throw new RuntimeException(s"Cromwell programmer blunder: isSuccess was called on an incomplete RunStatus ($runStatus).")
+      case _ =>  false //throw new RuntimeException(s"Cromwell programmer blunder: isSuccess was called on an incomplete RunStatus ($runStatus).")
     }
   }
 
@@ -155,6 +159,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override val gcpBatchActor: ActorRef = backendSingletonActor
 
-  override val gcpBatchApiActor: ActorRef = backendSingletonActor //added to test polling
+  //override val gcpBatchApiActor: ActorRef = backendSingletonActor //added to test polling
 }
+
+
 

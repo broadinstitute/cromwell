@@ -87,6 +87,12 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   }
 
+  override def reconnectAsync(jobId: StandardAsyncJob) = {
+
+    val handle = PendingExecutionHandle(jobDescriptor, jobId, Option(Run(jobId)), previousState = None)
+    Future.successful(handle)
+  }
+
   override lazy val pollBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(1
     .second, 5
     .minutes, 1.1)
@@ -127,6 +133,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       case _ => false
     }
   }
+
 
   override def isDone(runStatus: GcpBatchRunStatus): Boolean = {
     runStatus match {

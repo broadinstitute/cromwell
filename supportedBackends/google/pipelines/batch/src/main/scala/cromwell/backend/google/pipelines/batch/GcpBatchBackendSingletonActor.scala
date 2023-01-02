@@ -22,6 +22,9 @@ object GcpBatchBackendSingletonActor {
 
   case class BatchRequest(projectId: String, region: String, jobName: String)
   case class GcpBatchJobName(jobName: String)
+
+  case class GcpBatchJobSuccess(jobName: String, result: String)
+
 }
 
 final class GcpBatchBackendSingletonActor (name: String) extends Actor with ActorLogging {
@@ -61,6 +64,10 @@ final class GcpBatchBackendSingletonActor (name: String) extends Actor with Acto
     //  println(job
     //    .getStatus
     //    .getState.toString)
+
+    case tempResult: GcpBatchJobSuccess =>
+      println(f"job finished $tempResult")
+      GcpBatchRunStatus.Complete
 
     case "QUEUED" =>
       println("gcp batch queue")

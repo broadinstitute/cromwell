@@ -1,6 +1,7 @@
 package cromwell.backend.google.pipelines.batch
 
 import com.google.cloud.batch.v1.{BatchServiceClient, JobName}
+import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.GcpBatchJobSuccess
 
 class GcpBatchJobGetRequest {
 
@@ -38,8 +39,11 @@ class GcpBatchJobGetRequest {
     }
 
     if (status == "SUCCEEDED") {
-      GcpBatchRunStatus
-        .Success(_)
+
+      val testStatus = GcpBatchJobSuccess(jobName=jobName, result=status)
+      testStatus
+      //GcpBatchRunStatus
+      //  .Success(_)
     }
       else println("not succeeded")
     }

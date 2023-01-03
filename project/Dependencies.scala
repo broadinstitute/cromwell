@@ -298,7 +298,7 @@ object Dependencies {
       exclude("com.google.guava", "guava-jdk5")
   )
 
-  private val googleBatchv1 = List(
+  private val googleBatchv1Dependency = List(
     "com.google.cloud" % "google-cloud-batch" % googleCloudBatchV1
   )
 
@@ -337,7 +337,7 @@ object Dependencies {
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV,
     "com.google.apis" % "google-api-services-cloudkms" % googleCloudKmsV
       exclude("com.google.guava", "guava-jdk5")
-  ) ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency
+  ) ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency  ++googleBatchv1Dependency
 
   private val dbmsDependencies = List(
     "org.hsqldb" % "hsqldb" % hsqldbV,

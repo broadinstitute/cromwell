@@ -11,10 +11,10 @@ class TesConfiguration(val configurationDescriptor: BackendConfigurationDescript
   val useBackendParameters =
     configurationDescriptor
       .backendConfig
-      .as[Option[Boolean]](TesConfiguration.useBackendParamtersKey)
+      .as[Option[Boolean]](TesConfiguration.useBackendParametersKey)
       .getOrElse(false)
 }
 
 object TesConfiguration {
-  final val useBackendParamtersKey = "use_tes_11_preview_backend_parameters"
+  final val useBackendParametersKey = "use_tes_11_preview_backend_parameters"
 }

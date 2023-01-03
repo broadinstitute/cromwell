@@ -5,7 +5,7 @@ import cromwell.core.ExecutionEvent
 sealed trait GcpBatchRunStatus
 
 object GcpBatchRunStatus {
-    //case object Initializing extends GcpBatchRunStatus
+    case object Initializing extends GcpBatchRunStatus
     //case object AwaitingCloudQuota extends RunStatus
     case object Running extends GcpBatchRunStatus {
       def isTerminal = false
@@ -15,7 +15,7 @@ object GcpBatchRunStatus {
     }
 
     sealed trait TerminalRunStatus extends GcpBatchRunStatus {
-      def eventList: Seq[ExecutionEvent]
+      //def eventList: Seq[ExecutionEvent]
       //def machineType: Option[String]
       //def zone: Option[String]
       ///def instanceName: Option[String]
@@ -27,10 +27,12 @@ object GcpBatchRunStatus {
     case class Complete()
 
 
-    case class Success(eventList: Seq[ExecutionEvent]) extends TerminalRunStatus
-                       //machineType: Option[String],
-                       //zone: Option[String])
-                       //instanceName: Option[String]) extends TerminalRunStatus {
+    case class Success(eventList: Seq[ExecutionEvent]) extends TerminalRunStatus {
+
+        //machineType: Option[String],
+        //zone: Option[String])
+        //instanceName: Option[String]) extends TerminalRunStatus {
         override def toString = "Success"
+    }
 
 }

@@ -47,8 +47,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   /** Should return true if the status contained in `thiz` is equivalent to `that`, delta any other data that might be carried around
     * in the state type.
     */
-  //def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
-  def statusEquivalentTo(thiz: GcpBatchRunStatus)(that: GcpBatchRunStatus): Boolean = thiz == that
+  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
 
   override def dockerImageUsed: Option[String] = Option("test")
 

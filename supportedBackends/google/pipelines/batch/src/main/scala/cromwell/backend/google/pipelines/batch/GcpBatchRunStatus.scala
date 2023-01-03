@@ -16,10 +16,9 @@ object GcpBatchRunStatus {
 
     sealed trait TerminalRunStatus extends GcpBatchRunStatus {
       def eventList: Seq[ExecutionEvent]
-      def machineType: Option[String]
-      def zone: Option[String]
-      def instanceName: Option[String]
-
+      //def machineType: Option[String]
+      //def zone: Option[String]
+      ///def instanceName: Option[String]
 
     }
 
@@ -27,7 +26,8 @@ object GcpBatchRunStatus {
 
     case class Complete()
 
-    case class Success(eventList: Seq[ExecutionEvent])
+
+    case class Success(eventList: Seq[ExecutionEvent]) extends TerminalRunStatus
                        //machineType: Option[String],
                        //zone: Option[String])
                        //instanceName: Option[String]) extends TerminalRunStatus {

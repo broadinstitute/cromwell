@@ -16,8 +16,9 @@ import scala.concurrent.duration._
 import GcpBatchBackendSingletonActor._
 import cromwell.backend.google.pipelines.batch
 
-import scala.util.{Failure, Success, Try}
-import cromwell.core.ExecutionEvent
+import scala.util.Success
+//import scala.util.{Failure, Success, Try}
+//import cromwell.core.ExecutionEvent
 
 object GcpBatchAsyncBackendJobExecutionActor {
 
@@ -113,13 +114,19 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
    override def pollStatusAsync(handle: GcpBatchPendingExecutionHandle): Future[StandardAsyncRunState] = {
 
 
+     def Answer(quick: Any): Future[GcpBatchRunStatus] = quick match {
+
+     }
+
      val testPoll = new GcpBatchJobGetRequest
      val result = testPoll.GetJob(jobTemp)
      val temp = result.toString
 
      result match {
        case _ if temp.contains("SUCCEEDED") =>
-         //Future.successful(Success(Succeeded(eventList)))
+         val event = Seq[ExecutionEvent(_)
+         println(f"execution event is $event")
+         Future.successful(Success(GcpBatchRunStatus.Success(event)))
          Future.successful(GcpBatchRunStatus.Complete)
        case _ => Future.successful(GcpBatchRunStatus.Running)
      }

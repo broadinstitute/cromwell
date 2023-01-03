@@ -16,6 +16,9 @@ import scala.concurrent.duration._
 import GcpBatchBackendSingletonActor._
 import cromwell.backend.google.pipelines.batch
 
+import scala.util.{Failure, Success, Try}
+import cromwell.core.ExecutionEvent
+
 object GcpBatchAsyncBackendJobExecutionActor {
 
   type GcpBatchPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, Run, GcpBatchRunStatus]
@@ -115,27 +118,14 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
      val temp = result.toString
 
      result match {
-       case _ if temp
-         .contains("SUCCEEDED") => Future
-         .successful(GcpBatchRunStatus
-           .Complete)
-       case _ => Future
-         .successful(GcpBatchRunStatus
-           .Running)
+       case _ if temp.contains("SUCCEEDED") =>
+         //Future.successful(Success(Succeeded(eventList)))
+         Future.successful(GcpBatchRunStatus.Complete)
+       case _ => Future.successful(GcpBatchRunStatus.Running)
      }
 
 
-     //super[GcpBatchStatusRequestClient].pollStatus(workflowId = workflowId, jobId = handle.pendingJob, gcpBatchJobId = jobTemp) map {
-     //  response =>
-     //    val state = response.toString
-     //    println(f"state in poll $state")
-     //    state match {
-     //      case s if s.contains("SUCCEEDED") => GcpBatchRunStatus.Complete
-     //      case _ =>
-     //        println("test match for running")
-     //        GcpBatchRunStatus.Running
-     //    }
-     //}
+     //super[GcpBatchStatusRequestClient].pollStatus(workflowId = workflowId, jobId = handle.pendingJob, gcpBatchJobId = jobTemp)
 
      //Future.successful(GcpBatchRunStatus.Complete) //temp to test successful complete
 
@@ -160,7 +150,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override def isDone(runStatus: GcpBatchRunStatus): Boolean = {
     runStatus match {
-      case _: GcpBatchRunStatus.Success =>
+      case _: GcpBatchRunStatus.Complete =>
         println("GCP job matched isDone")
         true
       case _: GcpBatchRunStatus.Running =>

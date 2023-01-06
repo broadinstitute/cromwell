@@ -5,28 +5,16 @@ task check_if_localized_as_symlink {
     File broad_reference_file_input
     File nirvana_reference_file_input
   }
+  String broad_input_symlink = "broad_input_symlink.txt"
+  String nirvana_input_symlink = "nirvana_input_symlink.txt"
   command {
     # Print true if input is a symlink, otherwise print false.
-
-    OUT="broad_input_symlink.txt"
-    if test -h ~{broad_reference_file_input}
-    then
-      echo "true" > $OUT
-    else
-      echo "false" > $OUT
-    fi
-
-    OUT="nirvana_input_symlink.txt"
-    if test -h ~{nirvana_reference_file_input}
-    then
-      echo "true" > $OUT
-    else
-      echo "false" > $OUT
-    fi
+    if test -h ~{broad_reference_file_input}; then echo true; else echo false; fi > ~{broad_input_symlink}
+    if test -h ~{nirvana_reference_file_input}; then echo true; else echo false; fi > ~{nirvana_input_symlink}
   }
   output {
-    Boolean is_broad_input_symlink = read_boolean("broad_input_symlink.txt")
-    Boolean is_nirvana_input_symlink = read_boolean("nirvana_input_symlink.txt")
+    Boolean is_broad_input_symlink = read_boolean("~{broad_input_symlink}")
+    Boolean is_nirvana_input_symlink = read_boolean("~{nirvana_input_symlink}")
   }
   runtime {
     docker: "ubuntu:latest"

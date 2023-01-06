@@ -2,6 +2,9 @@ package cromwell.backend.google.pipelines.batch
 
 import akka.actor.{Actor, ActorLogging, Props}
 
+//import scala.concurrent.Promise
+//import scala.util.Try
+
 //import scala.concurrent.Future
 //import scala.util.Try
 
@@ -27,7 +30,6 @@ object GcpBatchBackendSingletonActor {
 
   case class GcpBatchJobSuccess(jobName: String, result: String)
 
-  case class testResult(result: String)
 
 }
 
@@ -37,14 +39,15 @@ final class GcpBatchBackendSingletonActor (name: String) extends Actor with Acto
 
   implicit val ec: ExecutionContext = context.dispatcher
 
-  //private var pollingActorClientPromise: Option[Promise[GcpBatchRunStatus]] = None
-  //private def completePromise(runStatus: Try[GcpBatchRunStatus]) = {
-  //  pollingActorClientPromise foreach {
-  //    _
-  //      .complete(runStatus)
-  //  }
-  //  pollingActorClientPromise = None
-  //}
+  /*
+  private var pollingActorClientPromise: Option[Promise[RunStatus]] = None
+  private def completePromise(runStatus: Try[RunStatus]) = {
+    pollingActorClientPromise foreach {
+      _
+        .complete(runStatus)
+    }
+    pollingActorClientPromise = None
+  }*/
 
   def receive: Receive = {
 
@@ -62,22 +65,6 @@ final class GcpBatchBackendSingletonActor (name: String) extends Actor with Acto
       val result = batchServiceClient.createJobCallable.futureCall(createJobRequest).get(3, TimeUnit.MINUTES)
       println(result.getName)
 
-
-    case tempResult: GcpBatchJobSuccess =>
-      println(f"job finished $tempResult")
-      //val result = testResult(tempResult.result)
-      //sender() ! tempResult
-      val test = "SUCCEEDED"
-      sender() ! test
-      //return("succeeded)")
-      //Future.successful(GcpBatchRunStatus)
-      //completePromise(GcpBatchRunStatus.Complete)
-      //val test =  GcpBatchRunStatus.Complete
-      //test
-
-
-    case "QUEUED" =>
-      println("gcp batch queue")
 
     case other =>
       log.error("Unknown message to GCP Batch Singleton Actor: {}. Dropping it.", other)

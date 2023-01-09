@@ -15,7 +15,7 @@ import java.util.UUID
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import GcpBatchBackendSingletonActor._
-import cromwell.backend.google.pipelines.batch.RunStatus.{Running, Succeeded, TempBatch, TerminalRunStatus}
+import cromwell.backend.google.pipelines.batch.RunStatus.{Running,Succeeded, TerminalRunStatus}
 
 //import scala.util.Success
 //import scala.util.{Failure, Success, Try}
@@ -119,22 +119,17 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
      temp match {
        case _ if temp.contains("SUCCEEDED") =>
-         //val event = Seq[ExecutionEvent(_)
-         //println(f"execution event is $event")
-         //Future.successful(Success(GcpBatchRunStatus.Success(event)))
-         //Future.successful(Succeeded)
-         //Future.successful(Complete)
-         //Future.successful(Success(Complete))
-         //Future.successful(TerminalRunStatus)
-         //Future.successful(Succeeded)
          val test = Succeeded()
          Future.successful(test)
 
        case _ =>
          //Future{Success(Running)}
-         Running
+         val runTest = Running
+         Future.successful(runTest)
          //Future.successful(Running)
-         Future.successful(TempBatch)
+         //val running = Running
+         //Future.successful(running)
+         //Future.successful(TempBatch)
      }
 
    }

@@ -53,14 +53,17 @@ object RunStatus {
         //def isTerminal=true
     }
 
-    case object TempBatch extends RunStatus {
-        //def isTerminal=false
-    }
+    case object Failed extends RunStatus
+
+    case object DeletionInProgress extends RunStatus
+
+    case object StateUnspecified extends RunStatus
+    case object Unrecognized extends RunStatus
+
     sealed trait TerminalRunStatus extends RunStatus {
       //def eventList: Seq[ExecutionEvent]
     }
 
-    case class TempBatch()
 
 
     //case class Succeeded(eventList: Seq[ExecutionEvent]) extends TerminalRunStatus {
@@ -70,7 +73,29 @@ object RunStatus {
         //zone: Option[String])
         //instanceName: Option[String]) extends TerminalRunStatus {
         override def toString = "Succeeded"
-        def isTerminal = true
+        //def isTerminal = true
     }
 
+    final case class Failed() extends TerminalRunStatus {
+        override def toString = "Failed"
+    }
+
+    final case class Cancelled() {
+        override def toString = "Cancelled"
+    }
+    final case class Preempted() {
+        override def toString = "Preempted"
+    }
+
+    final case class DeletionInProgress() {
+        override def toString = "Deletion in Progress"
+    }
+
+    final case class StateUnspecified() {
+        override def toString = "State Unspecified"
+    }
+
+    final case class Unrecognized() {
+        override def toString = "Unrecognized"
+    }
 }

@@ -22,7 +22,6 @@ final class GcpBatchJobGetRequest {
         .setJob(jobName)
         .build())
 
-    println(job.getStatus.getState.toString)
 
     //val status = job.getStatus.getState
     val jobResult = job

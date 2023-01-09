@@ -3,6 +3,7 @@ package cromwell.backend.google.pipelines.batch
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
+import cromwell.backend.google.pipelines.batch.RunStatus.{DeletionInProgress, Failed, StateUnspecified, Unrecognized}
 import cromwell.core.WorkflowId
 //import cromwell.core.{ExecutionEvent, WorkflowId}
 import cromwell.backend.async.PendingExecutionHandle
@@ -125,9 +126,21 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
        case JobStatus.State.SUCCEEDED =>
          log.info("job scheduled")
          Future.successful(Succeeded())
-       case _ =>
-         log.info("job status not matched")
-         Future.successful(Running)
+       case JobStatus.State.FAILED =>
+         log.info("job failed")
+         Future.successful(Failed)
+       case JobStatus.State.DELETION_IN_PROGRESS =>
+         log.info("deletion in progress")
+         Future.successful(DeletionInProgress)
+       case JobStatus.State.STATE_UNSPECIFIED =>
+         log.info("state unspecified")
+         Future.successful(StateUnspecified)
+       case JobStatus.State.UNRECOGNIZED =>
+         log.info("state unrecognized")
+         Future.successful(Unrecognized)
+       //case _ =>
+       //  log.info("job status not matched")
+       //  Future.successful(Running)
 
      }
 
@@ -153,19 +166,18 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     //runStatus.isTerminal
 
     runStatus match {
-      case _: RunStatus.Succeeded =>
-        val tempCompleteStatus = runStatus
-          .toString
-        println(f"isTerminal match Succeeded running with status $tempCompleteStatus")
+      case jobSucceeded: RunStatus.Succeeded =>
+        log.info("isTerminal match Succeeded running with status {}", jobSucceeded)
         true
+      case jobFailed: RunStatus.Failed =>
+        log.info("isTerminal match Failed with status {}", jobFailed)
+        false
       case _: TerminalRunStatus =>
         val tempTermStatus = runStatus.toString
         println(f"isTerminal match TerminalRunStatus running with status $tempTermStatus")
         true
-      case _ =>
-        val tempStatus = runStatus.toString
-        val tempStatusClass = runStatus.getClass
-        println(f"isTerminal match _ running with status $tempStatus with $tempStatusClass")
+      case other =>
+        println(f"isTerminal match _ running with status $other")
         false
     }
 

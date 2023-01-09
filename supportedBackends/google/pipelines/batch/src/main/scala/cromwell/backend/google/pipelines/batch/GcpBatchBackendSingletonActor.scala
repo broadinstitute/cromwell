@@ -26,10 +26,6 @@ object GcpBatchBackendSingletonActor {
   def props(name: String) = Props(new GcpBatchBackendSingletonActor(name))
 
   case class BatchRequest(projectId: String, region: String, jobName: String)
-  case class GcpBatchJobName(jobName: String)
-
-  case class GcpBatchJobSuccess(jobName: String, result: String)
-
 
 }
 
@@ -39,15 +35,6 @@ final class GcpBatchBackendSingletonActor (name: String) extends Actor with Acto
 
   implicit val ec: ExecutionContext = context.dispatcher
 
-  /*
-  private var pollingActorClientPromise: Option[Promise[RunStatus]] = None
-  private def completePromise(runStatus: Try[RunStatus]) = {
-    pollingActorClientPromise foreach {
-      _
-        .complete(runStatus)
-    }
-    pollingActorClientPromise = None
-  }*/
 
   def receive: Receive = {
 

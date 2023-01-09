@@ -24,19 +24,10 @@ final class GcpBatchJobGetRequest {
 
     println(job.getStatus.getState.toString)
 
-    val status = job.getStatus.getState
-    //status
-    //Future.successful(GcpBatchRunStatus.Running)
+    //val status = job.getStatus.getState
+    val jobResult = job
+    jobResult
 
-    //if (status == "SUCCEEDED") {
-
-      //val testStatus = GcpBatchJobSuccess(jobName = jobName, result = status)
-      //testStatus
-      status
-      //Future.successful(GcpBatchRunStatus.Complete)
-
-    //}
-    //else println(f"status is $status")
   }
 
 

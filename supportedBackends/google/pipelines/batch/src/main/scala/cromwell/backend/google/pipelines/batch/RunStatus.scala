@@ -1,13 +1,13 @@
 package cromwell.backend.google.pipelines.batch
 
-import cromwell.core.ExecutionEvent
-import com.google.cloud.batch.v1.JobStatus
-import scala.util.{Try, Success}
+//import cromwell.core.ExecutionEvent
+//import com.google.cloud.batch.v1.JobStatus
+//import scala.util.{Try, Success}
 
 sealed trait RunStatus {
     //import RunStatus._
 
-    def isTerminal: Boolean
+    //def isTerminal: Boolean
 
     /*
     def isRunningOrComplete = this match {
@@ -19,6 +19,7 @@ sealed trait RunStatus {
 
 object RunStatus {
 
+    /*
     def fromJobStatus(status: JobStatus.State,  eventList: Seq[ExecutionEvent] = Seq.empty): Try[RunStatus] = {
         status match {
             case JobStatus.State.QUEUED =>
@@ -40,18 +41,20 @@ object RunStatus {
         }
 
     }
+    */
+
     case object Initializing extends RunStatus {
-        def isTerminal=false
+        //def isTerminal=false
     }
     case object Running extends RunStatus {
-        def isTerminal=false
+        //def isTerminal=false
     }
     case object Succeeded extends RunStatus {
-        def isTerminal=true
+        //def isTerminal=true
     }
 
     case object TempBatch extends RunStatus {
-        def isTerminal=false
+        //def isTerminal=false
     }
     sealed trait TerminalRunStatus extends RunStatus {
       //def eventList: Seq[ExecutionEvent]

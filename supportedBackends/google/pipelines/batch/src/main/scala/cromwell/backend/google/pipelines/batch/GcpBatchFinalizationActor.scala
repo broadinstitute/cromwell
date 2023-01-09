@@ -21,6 +21,8 @@ case class GcpBatchFinalizationActorParams
 
 class GcpBatchFinalizationActor(val gcpBatchParams: GcpBatchFinalizationActorParams) extends StandardFinalizationActor(gcpBatchParams) with AsyncIoActorClient {
 
+  //lazy val jesConfiguration: GcpBatchConfiguration = pipelinesParams.jesConfiguration
+
   override lazy val ioCommandBuilder = GcsBatchCommandBuilder
   override def ioActor: ActorRef = gcpBatchParams.ioActor
 }

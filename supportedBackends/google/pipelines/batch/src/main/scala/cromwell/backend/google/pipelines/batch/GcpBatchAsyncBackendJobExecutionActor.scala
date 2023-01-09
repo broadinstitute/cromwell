@@ -17,6 +17,8 @@ import scala.concurrent.duration._
 import GcpBatchBackendSingletonActor._
 import cromwell.backend.google.pipelines.batch.RunStatus.{Running,Succeeded, TerminalRunStatus}
 
+import com.google.cloud.batch.v1.JobStatus
+
 //import scala.util.Success
 //import scala.util.{Failure, Success, Try}
 //import cromwell.core.ExecutionEvent
@@ -114,10 +116,30 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
      val testPoll = new GcpBatchJobGetRequest
      val result = testPoll.GetJob(jobTemp)
-     val temp = result.toString
-     RunStatus.fromJobStatus(status=result)
+     //val temp = result.toString //matches for string
+     //val batchRunStatus = RunStatus.fromJobStatus(status=result)
+     val jobStatus = result.getStatus.getState
 
-     temp match {
+     jobStatus match {
+       case JobStatus.State.QUEUED =>
+         log.info("job queued")
+         Future.successful(Running)
+       case JobStatus.State.SCHEDULED =>
+         log.info("job scheduled")
+         Future.successful(Running)
+       case JobStatus.State.RUNNING =>
+         log.info("job running")
+         Future.successful(Running)
+       case JobStatus.State.SUCCEEDED =>
+         log.info("job scheduled")
+         Future.successful(Succeeded())
+       case _ =>
+         log.info("job status not mached")
+         Future.successful(Running)
+
+     }
+
+       /*
        case _ if temp.contains("SUCCEEDED") =>
          val test = Succeeded()
          Future.successful(test)
@@ -131,13 +153,13 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
          //Future.successful(running)
          //Future.successful(TempBatch)
      }
+     */
 
    }
 
   override def isTerminal(runStatus: RunStatus): Boolean = {
-    runStatus.isTerminal
+    //runStatus.isTerminal
 
-    /*
     runStatus match {
       case _: RunStatus.Succeeded =>
         val tempCompleteStatus = runStatus
@@ -159,7 +181,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         println(f"isTerminal match _ running with status $tempStatus with $tempStatusClass")
         false
     }
-    */
+
   }
 
 

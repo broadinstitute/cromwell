@@ -3,7 +3,9 @@ package cromwell.backend.google.pipelines.batch
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
-import cromwell.core.{ExecutionEvent, WorkflowId}
+import cromwell.backend.google.pipelines.batch.RunStatus.{DeletionInProgress, Failed, StateUnspecified, Unrecognized}
+import cromwell.core.WorkflowId
+//import cromwell.core.{ExecutionEvent, WorkflowId}
 import cromwell.backend.async.PendingExecutionHandle
 import cromwell.backend.async.ExecutionHandle
 import akka.actor.ActorRef
@@ -14,15 +16,17 @@ import java.util.UUID
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import GcpBatchBackendSingletonActor._
-import cromwell.backend.google.pipelines.batch
+import cromwell.backend.google.pipelines.batch.RunStatus.{Running,Succeeded, TerminalRunStatus}
 
-import scala.util.Success
+import com.google.cloud.batch.v1.JobStatus
+
+//import scala.util.Success
 //import scala.util.{Failure, Success, Try}
 //import cromwell.core.ExecutionEvent
 
 object GcpBatchAsyncBackendJobExecutionActor {
 
-  type GcpBatchPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, Run, GcpBatchRunStatus]
+  type GcpBatchPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, Run, RunStatus]
 
 }
 
@@ -36,13 +40,12 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override type StandardAsyncRunInfo = Run
 
   /** The type of the run status returned during each poll. */
-  override type StandardAsyncRunState = GcpBatchRunStatus
+  override type StandardAsyncRunState = RunStatus
 
   // temporary until GCP Batch client can generate random job IDs
   private val jobTemp = "job-" + java.util.UUID.randomUUID.toString
 
   //override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse super.receive
-  //override def receive: Receive = pollingActorClientReceive orElse super.receive
 
   /** Should return true if the status contained in `thiz` is equivalent to `that`, delta any other data that might be carried around
     * in the state type.
@@ -72,31 +75,24 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override def executeAsync(): Future[ExecutionHandle] = {
 
     val batchTest = BatchRequest(projectId="batch-testing-350715", region="us-central1", jobName=jobTemp)
-    //val jobTest = GcpBatchJobName(jobName=jobTemp)
 
     val runBatchResponse = for {
       _ <- uploadScriptFile()
-      //completionPromise = Promise[]
       _ = backendSingletonActor ! batchTest
-      //_ = backendSingletonActor ! jobTest
       runId = StandardAsyncJob(UUID.randomUUID().toString)  //temp to test
 
 
     } //yield PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)
     yield runId
 
-    runBatchResponse map {runId => PendingExecutionHandle(jobDescriptor, runId, None, previousState = None)}
+    runBatchResponse map {runId => PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)}
 
-
-   // val runId = StandardAsyncJob(UUID.randomUUID().toString)  //temp to test
-    //log.info(s"runId ${runId}")
-    //Future.successful(PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None))
 
   }
 
-  override def reconnectAsync(jobId: StandardAsyncJob) = {
-
-    val handle = PendingExecutionHandle(jobDescriptor, jobId, Option(Run(jobId)), previousState = None)
+  override def reconnectAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = {
+    println("reconnect async runs")
+    val handle = PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState](jobDescriptor, jobId, Option(Run(jobId)), previousState = None)
     Future.successful(handle)
   }
 
@@ -109,77 +105,116 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       .second, maxInterval = 20
       .second, multiplier = 1.1)
 
-  // https://github.com/broadinstitute/cromwell/blob/8485284a52adcf9163b5fd2a60e95bd0e1ce012e/supportedBackends/tes/src/main/scala/cromwell/backend/impl/tes/TesAsyncBackendJobExecutionActor.scala
-   override def pollStatusAsync(handle: GcpBatchPendingExecutionHandle): Future[StandardAsyncRunState] = {
+  override def pollStatusAsync(handle: GcpBatchPendingExecutionHandle): Future[RunStatus] = {
 
+     val gcpBatchPoll = new GcpBatchJobGetRequest
+     val result = gcpBatchPoll.GetJob(jobTemp)
+     //val temp = result.toString //matches for string
+     //val batchRunStatus = RunStatus.fromJobStatus(status=result)
+     val jobStatus = result.getStatus.getState
 
-     def Answer(quick: Any): Future[GcpBatchRunStatus] = quick match {
+     jobStatus match {
+       case JobStatus.State.QUEUED =>
+         log.info("job queued")
+         Future.successful(Running)
+       case JobStatus.State.SCHEDULED =>
+         log.info("job scheduled")
+         Future.successful(Running)
+       case JobStatus.State.RUNNING =>
+         log.info("job running")
+         Future.successful(Running)
+       case JobStatus.State.SUCCEEDED =>
+         log.info("job scheduled")
+         Future.successful(Succeeded())
+       case JobStatus.State.FAILED =>
+         log.info("job failed")
+         Future.successful(Failed)
+       case JobStatus.State.DELETION_IN_PROGRESS =>
+         log.info("deletion in progress")
+         Future.successful(DeletionInProgress)
+       case JobStatus.State.STATE_UNSPECIFIED =>
+         log.info("state unspecified")
+         Future.successful(StateUnspecified)
+       case JobStatus.State.UNRECOGNIZED =>
+         log.info("state unrecognized")
+         Future.successful(Unrecognized)
+       //case _ =>
+       //  log.info("job status not matched")
+       //  Future.successful(Running)
 
      }
 
-     val testPoll = new GcpBatchJobGetRequest
-     val result = testPoll.GetJob(jobTemp)
-     val temp = result.toString
-
-     result match {
+       /*
        case _ if temp.contains("SUCCEEDED") =>
-         val event = Seq[ExecutionEvent(_)
-         println(f"execution event is $event")
-         Future.successful(Success(GcpBatchRunStatus.Success(event)))
-         Future.successful(GcpBatchRunStatus.Complete)
-       case _ => Future.successful(GcpBatchRunStatus.Running)
+         val test = Succeeded()
+         Future.successful(test)
+
+       case _ =>
+         //Future{Success(Running)}
+         val runTest = Running
+         Future.successful(runTest)
+         //Future.successful(Running)
+         //val running = Running
+         //Future.successful(running)
+         //Future.successful(TempBatch)
      }
-
-
-     //super[GcpBatchStatusRequestClient].pollStatus(workflowId = workflowId, jobId = handle.pendingJob, gcpBatchJobId = jobTemp)
-
-     //Future.successful(GcpBatchRunStatus.Complete) //temp to test successful complete
+     */
 
    }
 
-     //for {
+  override def isTerminal(runStatus: RunStatus): Boolean = {
+    //runStatus.isTerminal
 
-       //answer <- super[GcpBatchStatusRequestClient].pollStatus(workflowId = workflowId, jobId = handle.pendingJob, gcpBatchJobId = jobTemp)
-
-    // }
-    //   yield answer
-
-    // }
-
-  override def isTerminal(runStatus: GcpBatchRunStatus): Boolean = {
     runStatus match {
-      case _: GcpBatchRunStatus.TerminalRunStatus => true
-      case _ => false
+      case jobSucceeded: RunStatus.Succeeded =>
+        log.info("isTerminal match Succeeded running with status {}", jobSucceeded)
+        true
+      case jobFailed: RunStatus.Failed =>
+        log.info("isTerminal match Failed with status {}", jobFailed)
+        false
+      case _: TerminalRunStatus =>
+        val tempTermStatus = runStatus.toString
+        println(f"isTerminal match TerminalRunStatus running with status $tempTermStatus")
+        true
+      case other =>
+        println(f"isTerminal match _ running with status $other")
+        false
     }
+
   }
 
 
-  override def isDone(runStatus: GcpBatchRunStatus): Boolean = {
+  override def isDone(runStatus: RunStatus): Boolean = {
     runStatus match {
-      case _: GcpBatchRunStatus.Complete =>
+      case _: RunStatus.Succeeded =>
         println("GCP job matched isDone")
         true
-      case _: GcpBatchRunStatus.Running =>
-        println("GCP batch job running")
-        false
       case _ =>
         println("did not match isDone")
         false //throw new RuntimeException(s"Cromwell programmer blunder: isSuccess was called on an incomplete RunStatus ($runStatus).")
     }
   }
 
-  override def getTerminalEvents(runStatus: GcpBatchRunStatus): Seq[ExecutionEvent] = {
+  /*
+  override def getTerminalEvents(runStatus: RunStatus): Seq[ExecutionEvent] = {
     runStatus match {
-      case successStatus: batch.GcpBatchRunStatus.Success => successStatus
+      case successStatus: Succeeded => successStatus
         .eventList
       case unknown =>
         throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
     }
   }
+   */
+
+  override def getTerminalMetadata(runStatus: RunStatus): Map[String, Any] = {
+    runStatus match {
+      case _: TerminalRunStatus => Map()
+      case unknown => throw new RuntimeException(s"Attempt to get terminal metadata from non terminal status: $unknown")
+    }
+  }
 
   override val gcpBatchActor: ActorRef = backendSingletonActor
 
-  //override val gcpBatchApiActor: ActorRef = backendSingletonActor //added to test polling
 }
 
 

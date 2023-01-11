@@ -11,6 +11,7 @@ case class GcpBatchFinalizationActorParams
 (
   workflowDescriptor: BackendWorkflowDescriptor,
   ioActor: ActorRef,
+  batchConfiguration: GcpBatchConfiguration,
   calls: Set[CommandCallNode],
   jobExecutionMap: JobExecutionMap,
   workflowOutputs: CallOutputs
@@ -21,7 +22,7 @@ case class GcpBatchFinalizationActorParams
 
 class GcpBatchFinalizationActor(val gcpBatchParams: GcpBatchFinalizationActorParams) extends StandardFinalizationActor(gcpBatchParams) with AsyncIoActorClient {
 
-  //lazy val jesConfiguration: GcpBatchConfiguration = pipelinesParams.jesConfiguration
+  lazy val batchConfiguration: GcpBatchConfiguration = gcpBatchParams.batchConfiguration
 
   override lazy val ioCommandBuilder = GcsBatchCommandBuilder
   override def ioActor: ActorRef = gcpBatchParams.ioActor

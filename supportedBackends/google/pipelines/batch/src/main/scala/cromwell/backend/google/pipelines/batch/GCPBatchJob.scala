@@ -35,7 +35,6 @@ final case class GCPBatchJob(
       val parent = (String.format(parentPath, jobSubmission.projectId, jobSubmission.region))
       val createJobRequest = CreateJobRequest.newBuilder.setParent(parent).setJob(job).setJobId(jobSubmission.jobName).build()
       val result = batchServiceClient.createJobCallable.futureCall(createJobRequest).get(3, TimeUnit.MINUTES)
-      println("RESULT HERE: " + result.getName)
     } catch {
       case _: Throwable => println("OOPS")
     }

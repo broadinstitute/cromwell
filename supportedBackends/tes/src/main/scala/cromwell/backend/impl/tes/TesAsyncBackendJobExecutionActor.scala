@@ -1,5 +1,6 @@
 package cromwell.backend.impl.tes
 
+import common.exception.AggregatedMessageException
 import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
 import cats.syntax.apply._
@@ -28,24 +29,40 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
+private object TesTaskStatusType extends Enumeration {
+  type TesTaskStatusType = Value
+  val Running, Complete, Cancelled, FailedOrError = Value
+}
+
 sealed trait TesRunStatus {
+  var status: String = ""
   def isTerminal: Boolean
+  var sysLogs: Seq[String] = Seq.empty[String];
+
+  def setStatus(newStatus: String): Unit = { status = newStatus }
+  def setLogs(logs: Seq[String]): Unit = { sysLogs = logs }
+
+  override def toString: String = status
 }
 
 case object Running extends TesRunStatus {
   def isTerminal = false
+  status = Running.toString()
 }
 
 case object Complete extends TesRunStatus {
   def isTerminal = true
+  status = Complete.toString()
 }
 
 case object FailedOrError extends TesRunStatus {
   def isTerminal = true
+  status = FailedOrError.toString()
 }
 
 case object Cancelled extends TesRunStatus {
   def isTerminal = true
+  status = Cancelled.toString()
 }
 
 object TesAsyncBackendJobExecutionActor {
@@ -61,7 +78,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override type StandardAsyncRunState = TesRunStatus
 
-  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
+  override def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz.status == that.status
 
   override lazy val pollBackOff = SimpleExponentialBackoff(
     initialInterval = 1 seconds,
@@ -209,6 +226,15 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override def requestsAbortAndDiesImmediately: Boolean = false
 
   override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] = {
+    queryStatusAsync(handle).flatMap { status =>
+      status match {
+        case FailedOrError => addSystemLogsToStatusAsync(status, handle)
+        case _ => Future { status }
+      }
+    }
+  }
+
+  private def queryStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] = {
     makeRequest[MinimalTaskView](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=MINIMAL")) map {
       response =>
         val state = response.state
@@ -230,15 +256,29 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
+  private def addSystemLogsToStatusAsync(status: TesRunStatus, handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] = {
+    makeRequest[Task](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=FULL")) map { response =>
+      status.setStatus(response.state.getOrElse(status.status))
+      status.setLogs(response.logs.last(0).system_logs.getOrElse(Seq.empty[String]))
+      status
+    }
+  }
+
   override def customPollStatusFailure: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] = {
     case (oldHandle: StandardAsyncPendingExecutionHandle@unchecked, e: Exception) =>
       jobLogger.error(s"$tag TES Job ${oldHandle.pendingJob.jobId} has not been found, failing call")
       FailedNonRetryableExecutionHandle(e, kvPairsToSave = None)
   }
 
+  private def handleExecutionError(status: TesRunStatus, returnCode: Option[Int]): Future[ExecutionHandle] = {
+    val exception = new AggregatedMessageException(s"Task ${jobDescriptor.key.tag} failed for unknown reason: ${status.status}", status.sysLogs)
+    Future.successful(FailedNonRetryableExecutionHandle(exception, returnCode, None))
+  }
+
   override def handleExecutionFailure(status: StandardAsyncRunState, returnCode: Option[Int]) = {
     status match {
       case Cancelled => Future.successful(AbortedExecutionHandle)
+      case FailedOrError => handleExecutionError(status, returnCode)
       case _ => super.handleExecutionFailure(status, returnCode)
     }
   }

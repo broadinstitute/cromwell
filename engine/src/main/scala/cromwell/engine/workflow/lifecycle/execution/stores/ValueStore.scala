@@ -27,15 +27,10 @@ object ValueStore {
 case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
 
   override def toString: String = {
-    import io.circe.syntax._
-    import io.circe.Printer
+    import common.util.StringUtil.EnhancedToStringable
 
-    val values = store.valuesTriplet.map {
-      case (node, None, value) => node.name -> value.valueString
-      case (node, index, value) => s"${node.name}:${index.fromIndex}" -> value.valueString
-    }.toMap
-
-    values.asJson.printWith(Printer.spaces2.copy(dropNullValues = true, colonLeft = ""))
+    // ValueStores can be large and have been known to cause OOMs during unbounded stringification
+    store.valuesTriplet.toPrettyElidedString(limit = 1000)
   }
 
   final def add(values: Map[ValueKey, WomValue]): ValueStore = {

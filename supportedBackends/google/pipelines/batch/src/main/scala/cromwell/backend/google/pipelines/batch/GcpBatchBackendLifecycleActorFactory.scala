@@ -1,6 +1,10 @@
 package cromwell.backend.google.pipelines.batch
 
 import akka.actor.{ActorRef, Props}
+import cromwell.backend.{BackendInitializationData, BackendWorkflowDescriptor, JobExecutionMap}
+import cromwell.cloudsupport.gcp.GoogleConfiguration
+import cromwell.core.CallOutputs
+import wom.graph.CommandCallNode
 //import cromwell.backend.{BackendInitializationData, BackendJobDescriptor}
 import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.backend.standard._
@@ -12,8 +16,11 @@ class GcpBatchBackendLifecycleActorFactory(name: String, override val configurat
   override def name: String = "batch"
 
   override def jobIdKey: String = "__gcp_batch"
+  protected val googleConfig: GoogleConfiguration = GoogleConfiguration(configurationDescriptor.globalConfig)
 
   //protected def requiredBackendSingletonActor(serviceRegistryActor: ActorRef): Props
+
+  override lazy val initializationActorClass: Class[_ <: StandardInitializationActor] = classOf[GcpBatchInitializationActor]
 
   override def asyncExecutionActorClass: Class[_ <: StandardAsyncExecutionActor] =
     classOf[GcpBatchAsyncBackendJobExecutionActor]
@@ -22,6 +29,26 @@ class GcpBatchBackendLifecycleActorFactory(name: String, override val configurat
     Option(classOf[GcpBatchFinalizationActor])
 
   //override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = Option(Props(new GcpBatchBackendSingletonActor("batch")()))
+
+  val configuration = new GcpBatchConfiguration(configurationDescriptor, googleConfig)
+  override def workflowInitializationActorParams(
+                                                  workflowDescriptor: BackendWorkflowDescriptor,
+                                                  ioActor: ActorRef,
+                                                  calls: Set[CommandCallNode],
+                                                  serviceRegistryActor: ActorRef,
+                                                  restarting: Boolean): StandardInitializationActorParams = {
+    GcpBatchInitializationActorParams(workflowDescriptor, ioActor , calls, configuration, serviceRegistryActor, restarting)
+  }
+  override def workflowFinalizationActorParams(
+                                           workflowDescriptor: BackendWorkflowDescriptor,
+                                           ioActor: ActorRef,
+                                           calls: Set[CommandCallNode],
+                                           jobExecutionMap: JobExecutionMap,
+                                           workflowOutputs: CallOutputs,
+                                           initializationDataOption: Option[BackendInitializationData]): StandardFinalizationActorParams = {
+    GcpBatchFinalizationActorParams(workflowDescriptor, ioActor, configuration, calls, jobExecutionMap, workflowOutputs, initializationDataOption)
+  }
+
 
   override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = {
     Option(GcpBatchBackendSingletonActor.props("gcp-batch"))

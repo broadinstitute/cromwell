@@ -1,0 +1,6 @@
+{
+  "WGSDeepVariantCostOpt.input_ref": "exampleFASTA.fasta",
+  "WGSDeepVariantCostOpt.input_bam": "input.bam",
+  "WGSDeepVariantCostOpt.input_bam_index": "exampleBAM.bam.bai",
+  "WGSDeepVariantCostOpt.input_ref_index": "exampleFASTA.fasta.fai"
+}

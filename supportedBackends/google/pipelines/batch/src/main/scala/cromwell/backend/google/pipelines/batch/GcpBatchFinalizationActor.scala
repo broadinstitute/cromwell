@@ -14,10 +14,11 @@ case class GcpBatchFinalizationActorParams
   batchConfiguration: GcpBatchConfiguration,
   calls: Set[CommandCallNode],
   jobExecutionMap: JobExecutionMap,
-  workflowOutputs: CallOutputs
+  workflowOutputs: CallOutputs,
+  initializationDataOption: Option[BackendInitializationData]
 ) extends StandardFinalizationActorParams {
-  override def initializationDataOption: Option[BackendInitializationData] = ???
-  override def configurationDescriptor: BackendConfigurationDescriptor = ???
+  //override def initializationDataOption: Option[BackendInitializationData] = ???
+  override def configurationDescriptor: BackendConfigurationDescriptor = batchConfiguration.configurationDescriptor
 }
 
 class GcpBatchFinalizationActor(val gcpBatchParams: GcpBatchFinalizationActorParams) extends StandardFinalizationActor(gcpBatchParams) with AsyncIoActorClient {
@@ -26,4 +27,8 @@ class GcpBatchFinalizationActor(val gcpBatchParams: GcpBatchFinalizationActorPar
 
   override lazy val ioCommandBuilder = GcsBatchCommandBuilder
   override def ioActor: ActorRef = gcpBatchParams.ioActor
+}
+
+object GcpBatchFinalizationActor {
+
 }

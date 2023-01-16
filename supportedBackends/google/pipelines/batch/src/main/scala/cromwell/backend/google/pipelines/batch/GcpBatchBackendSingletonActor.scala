@@ -23,6 +23,7 @@ final class GcpBatchBackendSingletonActor (name: String) extends Actor with Acto
     case jobSubmission: BatchRequest =>
       val job = GcpBatchJob(jobSubmission, 2000, 200, "e2-standard-4", "gcr.io/google-containers/busybox")
       job.submitJob()
+      //result.getStatus
     case other =>
       log.error("Unknown message to GCP Batch Singleton Actor: {}. Dropping it.", other)
 

@@ -4,7 +4,7 @@ import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExec
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
 import cromwell.backend.google.pipelines.batch.RunStatus.{DeletionInProgress, Failed, StateUnspecified, Unrecognized}
-import cromwell.core.WorkflowId
+import cromwell.core.{ExecutionEvent, WorkflowId}
 //import cromwell.core.{ExecutionEvent, WorkflowId}
 import cromwell.backend.async.PendingExecutionHandle
 import cromwell.backend.async.ExecutionHandle
@@ -111,8 +111,11 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
      val result = gcpBatchPoll.GetJob(jobTemp)
      //val temp = result.toString //matches for string
      //val batchRunStatus = RunStatus.fromJobStatus(status=result)
+     //val eventList: Seq[ExecutionEvent] = Seq(ExecutionEvent.toString)
      val jobStatus = result.getStatus.getState
 
+
+    //https://github.com/broadinstitute/cromwell/blob/328a0fe0aa307ee981b00e4af6b397b61a9fbe9e/engine/src/main/scala/cromwell/engine/workflow/lifecycle/execution/SubWorkflowExecutionActor.scala
      jobStatus match {
        case JobStatus.State.QUEUED =>
          log.info("job queued")
@@ -125,7 +128,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
          Future.successful(Running)
        case JobStatus.State.SUCCEEDED =>
          log.info("job scheduled")
-         Future.successful(Succeeded())
+         Future.successful(Succeeded(List(ExecutionEvent("complete in GCP Batch")))) //update to more specific
        case JobStatus.State.FAILED =>
          log.info("job failed")
          Future.successful(Failed)
@@ -143,22 +146,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
        //  Future.successful(Running)
 
      }
-
-       /*
-       case _ if temp.contains("SUCCEEDED") =>
-         val test = Succeeded()
-         Future.successful(test)
-
-       case _ =>
-         //Future{Success(Running)}
-         val runTest = Running
-         Future.successful(runTest)
-         //Future.successful(Running)
-         //val running = Running
-         //Future.successful(running)
-         //Future.successful(TempBatch)
-     }
-     */
 
    }
 
@@ -187,15 +174,15 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override def isDone(runStatus: RunStatus): Boolean = {
     runStatus match {
       case _: RunStatus.Succeeded =>
-        println("GCP job matched isDone")
+        log.info("GCP job matched isDone")
         true
       case _ =>
-        println("did not match isDone")
+        log.info("did not match isDone")
         false //throw new RuntimeException(s"Cromwell programmer blunder: isSuccess was called on an incomplete RunStatus ($runStatus).")
     }
   }
 
-  /*
+
   override def getTerminalEvents(runStatus: RunStatus): Seq[ExecutionEvent] = {
     runStatus match {
       case successStatus: Succeeded => successStatus
@@ -204,7 +191,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
     }
   }
-   */
+
 
   override def getTerminalMetadata(runStatus: RunStatus): Map[String, Any] = {
     runStatus match {

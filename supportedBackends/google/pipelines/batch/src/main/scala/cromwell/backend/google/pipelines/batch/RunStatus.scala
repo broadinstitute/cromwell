@@ -1,5 +1,7 @@
 package cromwell.backend.google.pipelines.batch
 
+import cromwell.core.ExecutionEvent
+
 //import cromwell.core.ExecutionEvent
 //import com.google.cloud.batch.v1.JobStatus
 //import scala.util.{Try, Success}
@@ -61,14 +63,14 @@ object RunStatus {
     case object Unrecognized extends RunStatus
 
     sealed trait TerminalRunStatus extends RunStatus {
-      //def eventList: Seq[ExecutionEvent]
+      def eventList: Seq[ExecutionEvent]
     }
 
 
 
     //case class Succeeded(eventList: Seq[ExecutionEvent]) extends TerminalRunStatus {
 
-    case class Succeeded() extends TerminalRunStatus {
+    case class Succeeded(eventList: Seq[ExecutionEvent]) extends TerminalRunStatus {
         //machineType: Option[String],
         //zone: Option[String])
         //instanceName: Option[String]) extends TerminalRunStatus {
@@ -76,7 +78,7 @@ object RunStatus {
         //def isTerminal = true
     }
 
-    final case class Failed() extends TerminalRunStatus {
+    final case class Failed(eventList: Seq[ExecutionEvent]) extends TerminalRunStatus {
         override def toString = "Failed"
     }
 

@@ -10,6 +10,10 @@ on:
     branches:
       - travis_to_workflows_test
 
+env:
+  BUILD_TYPE: centaurAws
+  BUILD_MYSQL: 5.7
+
 jobs:
   check-bats-version:
     runs-on: ubuntu-latest
@@ -20,3 +24,4 @@ jobs:
           node-version: '14'
       - run: npm install -g bats
       - run: bats -v
+      - run: echo "Build Type: $BUILD_TYPE\n Build MySQL: $BUILD_MYSQL"

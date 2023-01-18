@@ -23,7 +23,7 @@ case class GcpBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor, 
   //private val workflowOptions: WorkflowOptions = workflowDescriptor.workflowOptions
 
 
-  override def toJobPaths(workflowPaths: GcpBatchWorkflowPaths, jobKey: BackendJobDescriptorKey): GcpBatchJobPaths = {
+  override def toJobPaths(workflowPaths: WorkflowPaths, jobKey: BackendJobDescriptorKey): GcpBatchJobPaths = {
     new GcpBatchJobPaths(workflowPaths.asInstanceOf[GcpBatchWorkflowPaths], jobKey)
   }
   //override protected def withDescriptor(workflowDescriptor: BackendWorkflowDescriptor): WorkflowPaths = this.copy(workflowDescriptor = workflowDescriptor)

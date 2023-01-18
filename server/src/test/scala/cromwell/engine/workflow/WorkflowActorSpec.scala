@@ -79,7 +79,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
 
   private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(ConfigFactory.load())
 
-  private def createWorkflowActor(state: WorkflowActorState, extraPathBuilderFactory: Option[PathBuilderFactory] = None, initializationMaxRetries: Int = 3) = {
+  private def createWorkflowActor(state: WorkflowActorState, extraPathBuilderFactory: Option[PathBuilderFactory] = None, initializationMaxRetries: Int = 3, initializationInterval: FiniteDuration = 10.millis) = {
     val actor = TestFSMRef(
       factory = new WorkflowActorWithTestAddons(
         finalizationProbe = finalizationProbe,
@@ -105,7 +105,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
         totalJobsByRootWf = initialJobCtByRootWf,
         extraPathBuilderFactory = extraPathBuilderFactory,
         initializationMaxRetries = initializationMaxRetries,
-        initializationInterval = 10.millis,
+        initializationInterval = initializationInterval,
         workflowInitializationActorProbe = initializationProbe,
         workflowExecutionActorProbe = executionProbe
       ),
@@ -161,8 +161,9 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
 
       executionProbe.expectMsg(ExecuteWorkflowCommand)
       actor.stateName should be(ExecutingWorkflowState)
-      // Tidy up:
+      // Tidy up (and satisfy the deathwatch):
       system.stop(actor)
+      deathwatch.expectTerminated(actor)
     }
 
     "run Finalization actor if Initialization is aborted" in {
@@ -173,6 +174,55 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       currentLifecycleActor.expectMsgPF(TimeoutDuration) {
         case EngineLifecycleActorAbortCommand => actor ! WorkflowInitializationAbortedResponse
       }
+      finalizationProbe.expectMsg(StartFinalizationCommand)
+      actor.stateName should be(FinalizingWorkflowState)
+      actor ! WorkflowFinalizationSucceededResponse
+      workflowManagerActorExpectsSingleWorkCompleteNotification(WorkflowAborted)
+      deathwatch.expectTerminated(actor)
+    }
+
+    "run Finalization actor if Initialization is aborted during a retry" in {
+      val actor = createWorkflowActor(InitializingWorkflowState)
+      deathwatch watch actor
+
+      // Set the stage with a few unfortunate retries:
+      actor ! WorkflowInitializationFailedResponse(Seq(new Exception("Initialization Failed (1)")))
+      initializationProbe.expectMsg(StartInitializationCommand)
+      actor ! WorkflowInitializationFailedResponse(Seq(new Exception("Initialization Failed (2)")))
+      initializationProbe.expectMsg(StartInitializationCommand)
+
+      actor ! AbortWorkflowCommand
+      eventually { actor.stateName should be(WorkflowAbortingState) }
+      // Because we failed a few times, the actor test's initial "currentLifecycleActor will have been replaced by this
+      // new initializationProbe:
+      initializationProbe.expectMsgPF(TimeoutDuration) {
+        case EngineLifecycleActorAbortCommand => actor ! WorkflowInitializationAbortedResponse
+      }
+
+      finalizationProbe.expectMsg(StartFinalizationCommand)
+      actor.stateName should be(FinalizingWorkflowState)
+      actor ! WorkflowFinalizationSucceededResponse
+      workflowManagerActorExpectsSingleWorkCompleteNotification(WorkflowAborted)
+      deathwatch.expectTerminated(actor)
+    }
+
+    "run Finalization actor if Initialization is aborted between retries" in {
+      val actor = createWorkflowActor(InitializingWorkflowState)
+      deathwatch watch actor
+
+      // Set the stage with a few unfortunate retries:
+      actor ! WorkflowInitializationFailedResponse(Seq(new Exception("Initialization Failed (1)")))
+      eventually { actor.stateData.currentLifecycleStateActor should be(None) }
+
+      actor ! AbortWorkflowCommand
+      // Because there are no active lifecycle actors, this actor should jump to Finalizing without
+      // needing any further input:
+      eventually { actor.stateName should be(FinalizingWorkflowState) }
+
+      // Expect the mailboxes for the initialization actor to be empty (and check "currentLifecycleActor" for good measure)
+      currentLifecycleActor.expectNoMessage(10.millis)
+      initializationProbe.expectNoMessage(10.millis)
+
       finalizationProbe.expectMsg(StartFinalizationCommand)
       actor.stateName should be(FinalizingWorkflowState)
       actor ! WorkflowFinalizationSucceededResponse

@@ -423,6 +423,10 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
     // Otherwise (success or abort), finalize the workflow without failures
     case Event(_: WorkflowInitializationResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, Map.empty, CallOutputs.empty, failures = None)
+
+    case Event(StartInitializing, _) =>
+      // An initialization trigger we no longer need to action. Ignore:
+      stay()
   }
 
   // In aborting state, we can receive initialization responses or execution responses.
@@ -439,6 +443,9 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       val failures = data.lastStateReached.failures.getOrElse(List.empty) ++ finalizationFailures
       goto(WorkflowFailedState) using data.copy(lastStateReached = StateCheckpoint(FinalizingWorkflowState, Option(failures)))
     case Event(AbortWorkflowCommand, _) => stay()
+    case Event(StartInitializing, _) =>
+      // An initialization trigger we no longer need to action. Ignore:
+      stay()
   }
 
   when(MetadataIntegrityValidationState) {
@@ -457,17 +464,18 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
   }
 
   def handleAbortCommand(data: WorkflowActorData, workflowDescriptor: EngineWorkflowDescriptor, exceptionCausedAbortOpt: Option[Throwable] = None) = {
+    val updatedData = data.copy(lastStateReached = StateCheckpoint(stateName, exceptionCausedAbortOpt.map(List(_))))
     data.currentLifecycleStateActor match {
       case Some(currentActor) =>
         currentActor ! EngineLifecycleActorAbortCommand
-        goto(WorkflowAbortingState) using data.copy(lastStateReached = StateCheckpoint(stateName, exceptionCausedAbortOpt.map(List(_))))
+        goto(WorkflowAbortingState) using updatedData
       case None =>
         if (stateName == InitializingWorkflowState) {
           workflowLogger.info(s"Received an abort command in state $stateName (while awaiting an initialization retry). Finalizing the workflow.")
         } else {
           workflowLogger.warn(s"Received an abort command in state $stateName but there's no lifecycle actor associated. This is an abnormal state, finalizing the workflow anyway.")
         }
-        finalizeWorkflow(data, workflowDescriptor, Map.empty, CallOutputs.empty, None)
+        finalizeWorkflow(updatedData, workflowDescriptor, Map.empty, CallOutputs.empty, failures = None, lastStateOverride = Option(WorkflowAbortingState))
     }
   }
 
@@ -675,11 +683,12 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
                                workflowFinalOutputs: CallOutputs,
                                failures: Option[List[Throwable]],
                                workflowAllOutputs: Set[WomValue] = Set.empty,
-                               rootAndSubworkflowIds: Set[WorkflowId] = Set.empty) = {
+                               rootAndSubworkflowIds: Set[WorkflowId] = Set.empty,
+                               lastStateOverride: Option[WorkflowActorState] = None) = {
     val finalizationActor = makeFinalizationActor(workflowDescriptor, jobExecutionMap, workflowFinalOutputs)
     finalizationActor ! StartFinalizationCommand
     goto(FinalizingWorkflowState) using data.copy(
-      lastStateReached = StateCheckpoint (stateName, failures),
+      lastStateReached = StateCheckpoint (lastStateOverride.getOrElse(stateName), failures),
       workflowFinalOutputs = workflowFinalOutputs.outputs.values.toSet,
       workflowAllOutputs = workflowAllOutputs,
       rootAndSubworkflowIds = rootAndSubworkflowIds

@@ -4,10 +4,9 @@ name: travis-to-github-test
 run-name: ${{ github.actor }} is testing out workflows.
 
 #What triggers the workflow to run.
-#Currently limited to git push on the travis branch. 
 on:
-  workflow_dispatcb:
-  push:
+  workflow_dispatch: #Manual trigger from GitHub UI
+  push: #On push to specified branches. 
     branches:
       - travis_to_workflows_test
 

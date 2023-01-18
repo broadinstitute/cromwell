@@ -262,6 +262,9 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
 
   protected val pathBuilderFactories: List[PathBuilderFactory] = EngineFilesystems.configuredPathBuilderFactories
 
+  protected val maxInitializationAttempts: Int = 10
+  protected val initializationRetryInterval: FiniteDuration = 30.seconds
+
   startWith(WorkflowUnstartedState, WorkflowActorData(initialStartableState))
 
   pushCurrentStateToMetadataService(workflowId, WorkflowUnstartedState.workflowState)
@@ -317,54 +320,39 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
   /* ************************** */
   /* ****** Initializing ****** */
   /* ************************** */
+  protected def createInitializationActor(workflowDescriptor: EngineWorkflowDescriptor, name: String): ActorRef = {
+    context.actorOf(
+      WorkflowInitializationActor.props(
+        workflowIdForLogging,
+        rootWorkflowIdForLogging,
+        workflowDescriptor,
+        ioActor,
+        serviceRegistryActor,
+        restarting
+      ),
+      name)
+  }
+
   when(InitializingWorkflowState) {
     case Event(StartInitializing, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _, _)) =>
-      val initializerActor = context.actorOf(
-        WorkflowInitializationActor.props(
-          workflowIdForLogging,
-          rootWorkflowIdForLogging,
-          workflowDescriptor,
-          ioActor,
-          serviceRegistryActor,
-          restarting
-        ),
-        name = s"WorkflowInitializationActor-$workflowId-${data.failedInitializationAttempts + 1}")
+      val initializerActor = createInitializationActor(workflowDescriptor, s"WorkflowInitializationActor-$workflowId-${data.failedInitializationAttempts + 1}")
       initializerActor ! StartInitializationCommand
       goto(InitializingWorkflowState) using data.copy(currentLifecycleStateActor = Option(initializerActor), workflowDescriptor = Option(workflowDescriptor))
     case Event(WorkflowInitializationSucceededResponse(initializationData), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _, _)) =>
-      val executionActor = context.actorOf(WorkflowExecutionActor.props(
-        workflowDescriptor,
-        ioActor = ioActor,
-        serviceRegistryActor = serviceRegistryActor,
-        jobStoreActor = jobStoreActor,
-        subWorkflowStoreActor = subWorkflowStoreActor,
-        callCacheReadActor = callCacheReadActor,
-        callCacheWriteActor = callCacheWriteActor,
-        workflowDockerLookupActor = workflowDockerLookupActor,
-        jobRestartCheckTokenDispenserActor = jobRestartCheckTokenDispenserActor,
-        jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
-        backendSingletonCollection,
-        initializationData,
-        startState = data.effectiveStartableState,
-        rootConfig = conf,
-        totalJobsByRootWf = totalJobsByRootWf,
-        fileHashCacheActor = fileHashCacheActorProps map context.system.actorOf,
-        blacklistCache = blacklistCache), name = s"WorkflowExecutionActor-$workflowId")
-
+      val dataWithInitializationData = data.copy(initializationData = initializationData)
+      val executionActor = createWorkflowExecutionActor(workflowDescriptor, dataWithInitializationData)
       executionActor ! ExecuteWorkflowCommand
-
       val nextState = data.effectiveStartableState match {
         case RestartableAborting => WorkflowAbortingState
         case _ => ExecutingWorkflowState
       }
-      goto(nextState) using data.copy(currentLifecycleStateActor = Option(executionActor), initializationData = initializationData)
+      goto(nextState) using dataWithInitializationData.copy(currentLifecycleStateActor = Option(executionActor))
     case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _, _)) =>
-      if (data.failedInitializationAttempts < 10) {
+      val failedInitializationAttempts = data.failedInitializationAttempts + 1
+      if (failedInitializationAttempts < maxInitializationAttempts) {
         workflowLogger.info(s"Initialization failed on attempt ${data.failedInitializationAttempts + 1}. Will retry in 30 seconds", CromwellAggregatedException(reason, "Initialization Failure"))
-        context.system.scheduler.scheduleOnce(30.seconds) { self ! StartInitializing}
-        // Make sure we don't leave the old actor lying around:
-        data.currentLifecycleStateActor.foreach(context.stop)
-        stay() using data.copy(currentLifecycleStateActor = None, failedInitializationAttempts = data.failedInitializationAttempts + 1)
+        context.system.scheduler.scheduleOnce(initializationRetryInterval) { self ! StartInitializing}
+        stay() using data.copy(currentLifecycleStateActor = None, failedInitializationAttempts = failedInitializationAttempts)
       } else {
         finalizeWorkflow(data, workflowDescriptor, Map.empty, CallOutputs.empty, Option(reason.toList))
       }
@@ -377,6 +365,27 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
   /* ********************* */
   /* ****** Running ****** */
   /* ********************* */
+
+  def createWorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor, data: WorkflowActorData): ActorRef = {
+    context.actorOf(WorkflowExecutionActor.props(
+      workflowDescriptor,
+      ioActor = ioActor,
+      serviceRegistryActor = serviceRegistryActor,
+      jobStoreActor = jobStoreActor,
+      subWorkflowStoreActor = subWorkflowStoreActor,
+      callCacheReadActor = callCacheReadActor,
+      callCacheWriteActor = callCacheWriteActor,
+      workflowDockerLookupActor = workflowDockerLookupActor,
+      jobRestartCheckTokenDispenserActor = jobRestartCheckTokenDispenserActor,
+      jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
+      backendSingletonCollection,
+      data.initializationData,
+      startState = data.effectiveStartableState,
+      rootConfig = conf,
+      totalJobsByRootWf = totalJobsByRootWf,
+      fileHashCacheActor = fileHashCacheActorProps map context.system.actorOf,
+      blacklistCache = blacklistCache), name = s"WorkflowExecutionActor-$workflowId")
+  }
 
   // Handles workflow completion events from the WEA and abort command
   val executionResponseHandler: StateFunction = {

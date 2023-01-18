@@ -24,4 +24,5 @@ jobs:
           node-version: '14'
       - run: npm install -g bats
       - run: bats -v
-      - run: echo "Build Type: $BUILD_TYPE\n Build MySQL: $BUILD_MYSQL"
+      - run: echo "Build Type $BUILD_TYPE"
+      - run: echo "Build MySQL $BUILD_MYSQL"

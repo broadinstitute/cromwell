@@ -182,14 +182,14 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
     }
 
     "run Finalization actor if Initialization is aborted during a retry" in {
-      val actor = createWorkflowActor(InitializingWorkflowState)
+      val actor = createWorkflowActor(InitializingWorkflowState, initializationInterval = 10.seconds)
       deathwatch watch actor
 
       // Set the stage with a few unfortunate retries:
       actor ! WorkflowInitializationFailedResponse(Seq(new Exception("Initialization Failed (1)")))
-      initializationProbe.expectMsg(StartInitializationCommand)
+      initializationProbe.expectMsg(20.seconds, StartInitializationCommand)
       actor ! WorkflowInitializationFailedResponse(Seq(new Exception("Initialization Failed (2)")))
-      initializationProbe.expectMsg(StartInitializationCommand)
+      initializationProbe.expectMsg(20.seconds, StartInitializationCommand)
 
       actor ! AbortWorkflowCommand
       eventually { actor.stateName should be(WorkflowAbortingState) }

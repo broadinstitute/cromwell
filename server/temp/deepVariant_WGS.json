@@ -1,6 +1,6 @@
 {
-  "WGSDeepVariantCostOpt.input_ref": "exampleFASTA.fasta",
-  "WGSDeepVariantCostOpt.input_bam": "input.bam",
-  "WGSDeepVariantCostOpt.input_bam_index": "exampleBAM.bam.bai",
-  "WGSDeepVariantCostOpt.input_ref_index": "exampleFASTA.fasta.fai"
+  "WGSDeepVariantCostOpt.input_ref": "gs://cromwell-29292/exampleFASTA.fasta",
+  "WGSDeepVariantCostOpt.input_bam": "gs://cromwell-29292/input.bam",
+  "WGSDeepVariantCostOpt.input_bam_index": "gs://cromwell-29292/exampleBAM.bam.bai",
+  "WGSDeepVariantCostOpt.input_ref_index": "gs://cromwell-29292/exampleFASTA.fasta.fai"
 }

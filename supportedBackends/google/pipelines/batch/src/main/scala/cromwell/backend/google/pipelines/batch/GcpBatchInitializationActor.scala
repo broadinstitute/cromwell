@@ -1,8 +1,10 @@
 package cromwell.backend.google.pipelines.batch
 
 import akka.actor.ActorRef
+//import cromwell.backend.google.pipelines.common.{PipelinesApiConfiguration, PipelinesApiInitializationActorParams, PipelinesApiRuntimeAttributes}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
-import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams}
+import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
+import cromwell.core.WorkflowOptions
 import cromwell.core.io.AsyncIoActorClient
 //import cromwell.core.io.{AsyncIoActorClient, IoCommandBuilder}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
@@ -20,10 +22,17 @@ case class GcpBatchInitializationActorParams
   override val configurationDescriptor: BackendConfigurationDescriptor = batchConfiguration.configurationDescriptor
 
 }
-class GcpBatchInitializationActor(gcpBatchParams: GcpBatchInitializationActorParams) extends StandardInitializationActor(gcpBatchParams) with AsyncIoActorClient {
-  override lazy val ioActor: ActorRef = gcpBatchParams.ioActor
+class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams) extends StandardInitializationActor(batchParams) with AsyncIoActorClient {
+  override lazy val ioActor: ActorRef = batchParams.ioActor
 
   override lazy val ioCommandBuilder: GcsBatchCommandBuilder.type = GcsBatchCommandBuilder
+  protected val batchConfiguration: GcpBatchConfiguration = batchParams.batchConfiguration
+
+  protected val workflowOptions: WorkflowOptions = workflowDescriptor.workflowOptions
+
+  override lazy val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
+    GcpBatchRuntimeAttributes
+      .runtimeAttributesBuilder(batchConfiguration)
 }
 
 object GcpBatchInitializationActor {

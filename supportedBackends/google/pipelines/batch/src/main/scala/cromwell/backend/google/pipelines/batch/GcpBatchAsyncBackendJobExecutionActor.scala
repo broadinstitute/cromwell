@@ -4,7 +4,9 @@ import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExec
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
 import cromwell.backend.google.pipelines.batch.RunStatus.{DeletionInProgress, Failed, StateUnspecified, Unrecognized}
+//import cromwell.backend.google.pipelines.common.WorkflowOptionKeys
 import cromwell.core.{ExecutionEvent, WorkflowId}
+//import wom.callable.RuntimeEnvironment
 //import cromwell.core.{ExecutionEvent, WorkflowId}
 import cromwell.backend.async.PendingExecutionHandle
 import cromwell.backend.async.ExecutionHandle
@@ -30,11 +32,12 @@ object GcpBatchAsyncBackendJobExecutionActor {
 
 }
 
-class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams) extends BackendJobLifecycleActor with StandardAsyncExecutionActor with AskSupport with GcpBatchStatusRequestClient with CromwellInstrumentation {
+class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams) extends BackendJobLifecycleActor with StandardAsyncExecutionActor with AskSupport with GcpBatchJobCachingActorHelper with GcpBatchStatusRequestClient with CromwellInstrumentation {
 
   import GcpBatchAsyncBackendJobExecutionActor._
 
   lazy val workflowId: WorkflowId = jobDescriptor.workflowDescriptor.id
+  //val requestFactory: PipelinesApiRequestFactory = initializationData.genomicsRequestFactory
 
   /** The type of the run info when a job is started. */
   override type StandardAsyncRunInfo = Run
@@ -80,18 +83,15 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       _ <- uploadScriptFile()
       _ = backendSingletonActor ! batchTest
       runId = StandardAsyncJob(UUID.randomUUID().toString)  //temp to test
-
-
-    } //yield PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)
+    }
     yield runId
 
     runBatchResponse map {runId => PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)}
 
-
   }
 
   override def reconnectAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = {
-    println("reconnect async runs")
+    log.info("reconnect async runs") // in for debugging remove later
     val handle = PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState](jobDescriptor, jobId, Option(Run(jobId)), previousState = None)
     Future.successful(handle)
   }
@@ -107,13 +107,13 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override def pollStatusAsync(handle: GcpBatchPendingExecutionHandle): Future[RunStatus] = {
 
+     //println(batchAttributes.project)
      val gcpBatchPoll = new GcpBatchJobGetRequest
      val result = gcpBatchPoll.GetJob(jobTemp)
      //val temp = result.toString //matches for string
      //val batchRunStatus = RunStatus.fromJobStatus(status=result)
      //val eventList: Seq[ExecutionEvent] = Seq(ExecutionEvent.toString)
      val jobStatus = result.getStatus.getState
-
 
     //https://github.com/broadinstitute/cromwell/blob/328a0fe0aa307ee981b00e4af6b397b61a9fbe9e/engine/src/main/scala/cromwell/engine/workflow/lifecycle/execution/SubWorkflowExecutionActor.scala
      jobStatus match {
@@ -146,7 +146,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
        //  Future.successful(Running)
 
      }
-
    }
 
   override def isTerminal(runStatus: RunStatus): Boolean = {
@@ -167,9 +166,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         println(f"isTerminal match _ running with status $other")
         false
     }
-
   }
-
 
   override def isDone(runStatus: RunStatus): Boolean = {
     runStatus match {
@@ -182,7 +179,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     }
   }
 
-
   override def getTerminalEvents(runStatus: RunStatus): Seq[ExecutionEvent] = {
     runStatus match {
       case successStatus: Succeeded => successStatus
@@ -192,7 +188,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     }
   }
 
-
   override def getTerminalMetadata(runStatus: RunStatus): Map[String, Any] = {
     runStatus match {
       case _: TerminalRunStatus => Map()
@@ -201,6 +196,18 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   }
 
   override val gcpBatchActor: ActorRef = backendSingletonActor
+
+
+
+  /*
+  override lazy val runtimeEnvironment: RuntimeEnvironment = {
+    RuntimeEnvironmentBuilder(jobDescriptor
+      .runtimeAttributes, PipelinesApiWorkingDisk
+      .MountPoint, PipelinesApiWorkingDisk
+      .MountPoint)(standardParams
+      .minimumRuntimeSettings)
+  }
+  */
 
 }
 

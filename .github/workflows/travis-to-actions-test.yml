@@ -10,12 +10,13 @@ on:
     branches:
       - travis_to_workflows_test
 
+#Global environment variables.
+env:
+  BUILD_TYPE: centaurAws
+  BUILD_MYSQL: 5.7
 
 jobs:
   check-bats-version:
-    env:
-      BUILD_TYPE: centaurAws
-      BUILD_MYSQL: 5.7
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

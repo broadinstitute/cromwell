@@ -55,7 +55,10 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     */
   def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
 
-  override def dockerImageUsed: Option[String] = Option("test")
+  //override def dockerImageUsed: Option[String] = Option("test")
+
+  private lazy val jobDockerImage = jobDescriptor.maybeCallCachingEligible.dockerHash.getOrElse(runtimeAttributes.dockerImage)
+  override def dockerImageUsed: Option[String] = Option(jobDockerImage)
 
   //type GcpBatchPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, Run, StandardAsyncRunState]
 
@@ -77,7 +80,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   // Primary entry point for cromwell to run GCP Batch job
   override def executeAsync(): Future[ExecutionHandle] = {
 
-    val batchTest = BatchRequest(projectId="batch-testing-350715", region="us-central1", jobName=jobTemp)
+    val batchTest = BatchRequest(projectId="batch-testing-350715", region="us-central1", jobName=jobTemp, dockerImage=jobDockerImage)
 
     val runBatchResponse = for {
       _ <- uploadScriptFile()

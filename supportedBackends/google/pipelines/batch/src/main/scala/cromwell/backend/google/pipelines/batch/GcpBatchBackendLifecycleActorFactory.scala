@@ -39,6 +39,8 @@ class GcpBatchBackendLifecycleActorFactory(name: String, override val configurat
     Option(classOf[GcpBatchFinalizationActor])
 
   //override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = Option(Props(new GcpBatchBackendSingletonActor("batch")()))
+  //protected def requiredBackendSingletonActor(serviceRegistryActor: ActorRef): Props
+  //override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = Option(requiredBackendSingletonActor(serviceRegistryActor))
 
   val batchConfiguration = new GcpBatchConfiguration(configurationDescriptor, googleConfig)
 
@@ -49,8 +51,8 @@ class GcpBatchBackendLifecycleActorFactory(name: String, override val configurat
                                                   ioActor: ActorRef,
                                                   calls: Set[CommandCallNode],
                                                   serviceRegistryActor: ActorRef,
-                                                  restarting: Boolean): StandardInitializationActorParams = {
-    GcpBatchInitializationActorParams(workflowDescriptor, ioActor , calls, batchConfiguration, serviceRegistryActor, restarting)
+                                                  restart: Boolean): StandardInitializationActorParams = {
+    GcpBatchInitializationActorParams(workflowDescriptor, ioActor , calls, batchConfiguration, serviceRegistryActor, restart)
   }
   /*
   override def workflowFinalizationActorParams(

@@ -22,6 +22,7 @@ final class GcpBatchJobGetRequest {
         .setJob(jobName)
         .build())
 
+    Thread.sleep(10000) // testing to see how it affects job polling and if job shows up
 
     //val status = job.getStatus.getState
     val jobResult = job

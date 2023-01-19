@@ -22,8 +22,7 @@ trait GcpBatchJobCachingActorHelper extends StandardCachingActorHelper {
   //lazy val batchAttributes: GcpBatchConfigurationAttributes = batchConfiguration.papiAttributes
 
   //lazy val configuration: GcpBatchConfiguration = initializationData.configuration
-  //lazy val runtimeAttributes: GcpBatchRuntimeAttributes = GcpBatchRuntimeAttributes(validatedRuntimeAttributes, configuration.runtimeConfig, configuration.fileSystem)
-  //lazy val runtimeAttributes = GcpBatchRuntimeAttributes(validatedRuntimeAttributes, pipelinesConfiguration.runtimeConfig,)
+
 
 
 

@@ -4,7 +4,7 @@ import cats.data.Validated._
 
 import java.net.URL
 //import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
-//import cats.data.{NonEmptyList, Validated}
+import cats.data.{NonEmptyList, Validated}
 import cats.implicits._
 import com.typesafe.config.{Config, ConfigValue}
 //import com.typesafe.scalalogging.StrictLogging
@@ -22,12 +22,13 @@ import cromwell.cloudsupport.gcp.GoogleConfiguration
 //import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
+import eu.timepit.refined.refineV
 //import eu.timepit.refined.{refineMV, refineV}
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.{Logger, LoggerFactory}
 
 //import java.net.URL
-//import scala.concurrent.duration._
+import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
 //import scala.util.matching.Regex
 //import scala.util.Try
@@ -44,9 +45,9 @@ case class GcpBatchConfigurationAttributes(project: String,
                                                maxPollingInterval: Int,
                                                qps: Int Refined Positive,
                                                cacheHitDuplicationStrategy: PipelinesCacheHitDuplicationStrategy,
-                                               //requestWorkers: Int Refined Positive,
-                                               //pipelineTimeout: FiniteDuration,
-                                               //logFlushPeriod: Option[FiniteDuration],
+                                               requestWorkers: Int Refined Positive,
+                                               pipelineTimeout: FiniteDuration,
+                                               logFlushPeriod: Option[FiniteDuration],
                                                //gcsTransferConfiguration: GcsTransferConfiguration,
                                                //virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
                                                //batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
@@ -195,17 +196,17 @@ object GcpBatchConfigurationAttributes {
       case "reference" => UseOriginalCachedOutputs
       case other => throw new IllegalArgumentException(s"Unrecognized caching duplication strategy: $other. Supported strategies are copy and reference. See reference.conf for more details.")
     }}
-    //val requestWorkers: ErrorOr[Int Refined Positive] = validatePositiveInt(backendConfig.as[Option[Int]]("request-workers").getOrElse(3), "request-workers")
+    val requestWorkers: ErrorOr[Int Refined Positive] = validatePositiveInt(backendConfig.as[Option[Int]]("request-workers").getOrElse(3), "request-workers")
 
-    //val pipelineTimeout: FiniteDuration = backendConfig.getOrElse("pipeline-timeout", 7.days)
+    val pipelineTimeout: FiniteDuration = backendConfig.getOrElse("pipeline-timeout", 7.days)
 
-    //val logFlushPeriod: Option[FiniteDuration] = backendConfig.as[Option[FiniteDuration]]("log-flush-period") match {
-    //  case Some(duration) if duration.isFinite => Option(duration)
-    //  // "Inf" disables upload
-    //  case Some(_) => None
-    //  // Defaults to 1 minute
-    //  case None => Option(1.minute)
-    //}
+    val logFlushPeriod: Option[FiniteDuration] = backendConfig.as[Option[FiniteDuration]]("log-flush-period") match {
+      case Some(duration) if duration.isFinite => Option(duration)
+      // "Inf" disables upload
+      case Some(_) => None
+      // Defaults to 1 minute
+      case None => Option(1.minute)
+    }
 
     //val parallelCompositeUploadThreshold = validateGsutilMemorySpecification(backendConfig, "genomics.parallel-composite-upload-threshold")
 
@@ -252,8 +253,8 @@ object GcpBatchConfigurationAttributes {
                                                        enableFuse: Boolean,
                                                        gcsName: String,
                                                        qps: Int Refined Positive,
-                                                       cacheHitDuplicationStrategy: PipelinesCacheHitDuplicationStrategy): ErrorOr[GcpBatchConfigurationAttributes] =
-                                                       //requestWorkers: Int Refined Positive,
+                                                       cacheHitDuplicationStrategy: PipelinesCacheHitDuplicationStrategy,
+                                                       requestWorkers: Int Refined Positive): ErrorOr[GcpBatchConfigurationAttributes] =
                                                        //gcsTransferConfiguration: GcsTransferConfiguration,
                                                        //virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration
                                                        //batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
@@ -278,10 +279,10 @@ object GcpBatchConfigurationAttributes {
             location = location,
             maxPollingInterval = maxPollingInterval,
             qps = qps,
-            cacheHitDuplicationStrategy = cacheHitDuplicationStrategy
-            //requestWorkers = requestWorkers,
-            //pipelineTimeout = pipelineTimeout,
-            //logFlushPeriod = logFlushPeriod,
+            cacheHitDuplicationStrategy = cacheHitDuplicationStrategy,
+            requestWorkers = requestWorkers,
+            pipelineTimeout = pipelineTimeout,
+            logFlushPeriod = logFlushPeriod
             //gcsTransferConfiguration = gcsTransferConfiguration,
             //virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration,
             //batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration,
@@ -301,7 +302,7 @@ object GcpBatchConfigurationAttributes {
       gcsFilesystemAuthName,
       qpsValidation,
       duplicationStrategy,
-      //requestWorkers,
+      requestWorkers,
       //gcsTransferConfiguration,
       //virtualPrivateCloudConfiguration,
       //batchRequestTimeoutConfigurationValidation,
@@ -399,14 +400,14 @@ object GcpBatchConfigurationAttributes {
       case Some(bad) => s"Invalid gsutil memory specification in Cromwell configuration at path '$configPath': '$bad'".invalidNel
     }
   }
-
+*/
   def validatePositiveInt(n: Int, configPath: String): Validated[NonEmptyList[String], Refined[Int, Positive]] = {
     refineV[Positive](n) match {
       case Left(_) => s"Value $n for $configPath is not strictly positive".invalidNel
       case Right(refined) => refined.validNel
     }
   }
-
+/*
   def readOptionalPositiveMillisecondsIntFromDuration(backendConfig: Config, configPath: String): ErrorOr[Option[Int Refined Positive]] = {
 
     def validate(n: FiniteDuration) = {

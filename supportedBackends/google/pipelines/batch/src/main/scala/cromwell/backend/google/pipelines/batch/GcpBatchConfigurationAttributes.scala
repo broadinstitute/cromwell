@@ -34,10 +34,10 @@ import scala.jdk.CollectionConverters._
 //import scala.util.{Failure, Success, Try}
 
 case class GcpBatchConfigurationAttributes(project: String,
-                                               //computeServiceAccount: String,
+                                               computeServiceAccount: String,
                                                //auths: GcpBatchAuths,
-                                               //restrictMetadataAccess: Boolean,
-                                               //enableFuse: Boolean,
+                                               restrictMetadataAccess: Boolean,
+                                               enableFuse: Boolean,
                                                //executionBucket: String,
                                                endpointUrl: URL,
                                                location: String,
@@ -184,10 +184,10 @@ object GcpBatchConfigurationAttributes {
     val endpointUrl: ErrorOr[URL] = validate { backendConfig.as[URL]("genomics.endpoint-url") }
     val location: ErrorOr[String] = validateGenomicsLocation(endpointUrl, backendConfig.as[Option[String]]("genomics.location"))
     //val maxPollingInterval: Int = backendConfig.as[Option[Int]]("maximum-polling-interval").getOrElse(600)
-    //val computeServiceAccount: String = backendConfig.as[Option[String]]("genomics.compute-service-account").getOrElse("default")
+    val computeServiceAccount: String = backendConfig.as[Option[String]]("genomics.compute-service-account").getOrElse("default")
     val genomicsAuthName: ErrorOr[String] = validate { backendConfig.as[String]("genomics.auth") }
-    //val genomicsRestrictMetadataAccess: ErrorOr[Boolean] = validate { backendConfig.as[Option[Boolean]]("genomics.restrict-metadata-access").getOrElse(false) }
-    //val genomicsEnableFuse: ErrorOr[Boolean] = validate { backendConfig.as[Option[Boolean]]("genomics.enable-fuse").getOrElse(false) }
+    val genomicsRestrictMetadataAccess: ErrorOr[Boolean] = validate { backendConfig.as[Option[Boolean]]("genomics.restrict-metadata-access").getOrElse(false) }
+    val genomicsEnableFuse: ErrorOr[Boolean] = validate { backendConfig.as[Option[Boolean]]("genomics.enable-fuse").getOrElse(false) }
     val gcsFilesystemAuthName: ErrorOr[String] = validate { backendConfig.as[String]("filesystems.gcs.auth") }
     //val qpsValidation = validateQps(backendConfig)
     //val duplicationStrategy = validate { backendConfig.as[Option[String]]("filesystems.gcs.caching.duplication-strategy").getOrElse("copy") match {
@@ -248,8 +248,8 @@ object GcpBatchConfigurationAttributes {
                                                        endpointUrl: URL,
                                                        genomicsName: String,
                                                        location: String,
-                                                       //restrictMetadata: Boolean,
-                                                       //enableFuse: Boolean,
+                                                       restrictMetadata: Boolean,
+                                                       enableFuse: Boolean,
                                                        gcsName: String): ErrorOr[GcpBatchConfigurationAttributes] =
                                                        //qps: Int Refined Positive,
                                                        //cacheHitDuplicationStrategy: PipelinesCacheHitDuplicationStrategy,
@@ -269,10 +269,10 @@ object GcpBatchConfigurationAttributes {
           //}
         GcpBatchConfigurationAttributes(
             project = project,
-            //computeServiceAccount = computeServiceAccount,
+            computeServiceAccount = computeServiceAccount,
             //auths = GcpBatchAuths(genomicsAuth, gcsAuth),
-            //restrictMetadataAccess = restrictMetadata,
-            //enableFuse = enableFuse,
+            restrictMetadataAccess = restrictMetadata,
+            enableFuse = enableFuse,
             //executionBucket = bucket,
             endpointUrl = endpointUrl,
             location = location,
@@ -296,8 +296,8 @@ object GcpBatchConfigurationAttributes {
       endpointUrl,
       genomicsAuthName,
       location,
-      //genomicsRestrictMetadataAccess,
-      //genomicsEnableFuse,
+      genomicsRestrictMetadataAccess,
+      genomicsEnableFuse,
       gcsFilesystemAuthName,
       //qpsValidation,
       //duplicationStrategy,

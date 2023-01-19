@@ -14,14 +14,14 @@ import common.validation.Validation._
 import cromwell.backend.CommonBackendConfigurationAttributes
 //import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{BatchRequestTimeoutConfiguration, GcsTransferConfiguration, VirtualPrivateCloudConfiguration}
 //import cromwell.backend.google.pipelines.batch.authentication.GcpBatchAuths
-//import cromwell.backend.google.pipelines.common.callcaching.{CopyCachedOutputs, PipelinesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
+import cromwell.backend.google.pipelines.common.callcaching.{CopyCachedOutputs, PipelinesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
 //import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 //import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 //import cromwell.filesystems.gcs.GcsPathBuilder
 //import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
-//import eu.timepit.refined.api.Refined
-//import eu.timepit.refined.numeric.Positive
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Positive
 //import eu.timepit.refined.{refineMV, refineV}
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.{Logger, LoggerFactory}
@@ -42,8 +42,8 @@ case class GcpBatchConfigurationAttributes(project: String,
                                                endpointUrl: URL,
                                                location: String,
                                                maxPollingInterval: Int,
-                                               //qps: Int Refined Positive,
-                                               //cacheHitDuplicationStrategy: PipelinesCacheHitDuplicationStrategy,
+                                               qps: Int Refined Positive,
+                                               cacheHitDuplicationStrategy: PipelinesCacheHitDuplicationStrategy,
                                                //requestWorkers: Int Refined Positive,
                                                //pipelineTimeout: FiniteDuration,
                                                //logFlushPeriod: Option[FiniteDuration],
@@ -72,7 +72,7 @@ object GcpBatchConfigurationAttributes {
 
   lazy val Logger: Logger = LoggerFactory.getLogger("BatchConfiguration")
 
-  //val BatchApiDefaultQps = 1000
+  val BatchApiDefaultQps = 1000
   //val DefaultGcsTransferAttempts: Refined[Int, Positive] = refineMV[Positive](3)
 
   val checkpointingIntervalKey = "checkpointing-interval"
@@ -189,12 +189,12 @@ object GcpBatchConfigurationAttributes {
     val genomicsRestrictMetadataAccess: ErrorOr[Boolean] = validate { backendConfig.as[Option[Boolean]]("genomics.restrict-metadata-access").getOrElse(false) }
     val genomicsEnableFuse: ErrorOr[Boolean] = validate { backendConfig.as[Option[Boolean]]("genomics.enable-fuse").getOrElse(false) }
     val gcsFilesystemAuthName: ErrorOr[String] = validate { backendConfig.as[String]("filesystems.gcs.auth") }
-    //val qpsValidation = validateQps(backendConfig)
-    //val duplicationStrategy = validate { backendConfig.as[Option[String]]("filesystems.gcs.caching.duplication-strategy").getOrElse("copy") match {
-    //  case "copy" => CopyCachedOutputs
-    //  case "reference" => UseOriginalCachedOutputs
-    //  case other => throw new IllegalArgumentException(s"Unrecognized caching duplication strategy: $other. Supported strategies are copy and reference. See reference.conf for more details.")
-    //}}
+    val qpsValidation = validateQps(backendConfig)
+    val duplicationStrategy = validate { backendConfig.as[Option[String]]("filesystems.gcs.caching.duplication-strategy").getOrElse("copy") match {
+      case "copy" => CopyCachedOutputs
+      case "reference" => UseOriginalCachedOutputs
+      case other => throw new IllegalArgumentException(s"Unrecognized caching duplication strategy: $other. Supported strategies are copy and reference. See reference.conf for more details.")
+    }}
     //val requestWorkers: ErrorOr[Int Refined Positive] = validatePositiveInt(backendConfig.as[Option[Int]]("request-workers").getOrElse(3), "request-workers")
 
     //val pipelineTimeout: FiniteDuration = backendConfig.getOrElse("pipeline-timeout", 7.days)
@@ -250,9 +250,9 @@ object GcpBatchConfigurationAttributes {
                                                        location: String,
                                                        restrictMetadata: Boolean,
                                                        enableFuse: Boolean,
-                                                       gcsName: String): ErrorOr[GcpBatchConfigurationAttributes] =
-                                                       //qps: Int Refined Positive,
-                                                       //cacheHitDuplicationStrategy: PipelinesCacheHitDuplicationStrategy,
+                                                       gcsName: String,
+                                                       qps: Int Refined Positive,
+                                                       cacheHitDuplicationStrategy: PipelinesCacheHitDuplicationStrategy): ErrorOr[GcpBatchConfigurationAttributes] =
                                                        //requestWorkers: Int Refined Positive,
                                                        //gcsTransferConfiguration: GcsTransferConfiguration,
                                                        //virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration
@@ -277,8 +277,8 @@ object GcpBatchConfigurationAttributes {
             endpointUrl = endpointUrl,
             location = location,
             maxPollingInterval = maxPollingInterval,
-            //qps = qps,
-            //cacheHitDuplicationStrategy = cacheHitDuplicationStrategy,
+            qps = qps,
+            cacheHitDuplicationStrategy = cacheHitDuplicationStrategy
             //requestWorkers = requestWorkers,
             //pipelineTimeout = pipelineTimeout,
             //logFlushPeriod = logFlushPeriod,
@@ -299,8 +299,8 @@ object GcpBatchConfigurationAttributes {
       genomicsRestrictMetadataAccess,
       genomicsEnableFuse,
       gcsFilesystemAuthName,
-      //qpsValidation,
-      //duplicationStrategy,
+      qpsValidation,
+      duplicationStrategy,
       //requestWorkers,
       //gcsTransferConfiguration,
       //virtualPrivateCloudConfiguration,
@@ -365,6 +365,7 @@ object GcpBatchConfigurationAttributes {
         }
     }
   }
+*/
 
   def validateQps(config: Config): ErrorOr[Int Refined Positive] = {
     import eu.timepit.refined._
@@ -377,7 +378,6 @@ object GcpBatchConfigurationAttributes {
       case Right(refined) => refined.validNel
     }
   }
-  */
 
   def validateGenomicsLocation(genomicsUrl: ErrorOr[URL], location: Option[String]): ErrorOr[String] = {
     genomicsUrl match {

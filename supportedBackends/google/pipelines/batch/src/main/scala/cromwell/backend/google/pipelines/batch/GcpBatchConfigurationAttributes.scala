@@ -41,7 +41,7 @@ case class GcpBatchConfigurationAttributes(project: String,
                                                executionBucket: String,
                                                endpointUrl: URL,
                                                location: String,
-                                               //maxPollingInterval: Int,
+                                               maxPollingInterval: Int,
                                                //qps: Int Refined Positive,
                                                //cacheHitDuplicationStrategy: PipelinesCacheHitDuplicationStrategy,
                                                //requestWorkers: Int Refined Positive,
@@ -183,7 +183,7 @@ object GcpBatchConfigurationAttributes {
     val executionBucket: ErrorOr[String] = validate { backendConfig.as[String]("root") }
     val endpointUrl: ErrorOr[URL] = validate { backendConfig.as[URL]("genomics.endpoint-url") }
     val location: ErrorOr[String] = validateGenomicsLocation(endpointUrl, backendConfig.as[Option[String]]("genomics.location"))
-    //val maxPollingInterval: Int = backendConfig.as[Option[Int]]("maximum-polling-interval").getOrElse(600)
+    val maxPollingInterval: Int = backendConfig.as[Option[Int]]("maximum-polling-interval").getOrElse(600)
     val computeServiceAccount: String = backendConfig.as[Option[String]]("genomics.compute-service-account").getOrElse("default")
     val genomicsAuthName: ErrorOr[String] = validate { backendConfig.as[String]("genomics.auth") }
     val genomicsRestrictMetadataAccess: ErrorOr[Boolean] = validate { backendConfig.as[Option[Boolean]]("genomics.restrict-metadata-access").getOrElse(false) }
@@ -276,7 +276,7 @@ object GcpBatchConfigurationAttributes {
             executionBucket = bucket,
             endpointUrl = endpointUrl,
             location = location,
-            //maxPollingInterval = maxPollingInterval,
+            maxPollingInterval = maxPollingInterval,
             //qps = qps,
             //cacheHitDuplicationStrategy = cacheHitDuplicationStrategy,
             //requestWorkers = requestWorkers,

@@ -262,8 +262,8 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
 
   protected val pathBuilderFactories: List[PathBuilderFactory] = EngineFilesystems.configuredPathBuilderFactories
 
-  protected val maxInitializationAttempts: Int = 10
-  protected val initializationRetryInterval: FiniteDuration = 30.seconds
+  protected val maxInitializationAttempts: Int = 16
+  protected val initializationRetryInterval: FiniteDuration = 1.minute
 
   startWith(WorkflowUnstartedState, WorkflowActorData(initialStartableState))
 

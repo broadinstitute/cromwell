@@ -350,7 +350,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
     case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _, _)) =>
       val failedInitializationAttempts = data.failedInitializationAttempts + 1
       if (failedInitializationAttempts < maxInitializationAttempts) {
-        workflowLogger.info(s"Initialization failed on attempt ${data.failedInitializationAttempts + 1}. Will retry in 30 seconds", CromwellAggregatedException(reason, "Initialization Failure"))
+        workflowLogger.info(s"Initialization failed on attempt $failedInitializationAttempts. Will retry up to $maxInitializationAttempts times. Next retry is in $initializationRetryInterval", CromwellAggregatedException(reason, "Initialization Failure"))
         context.system.scheduler.scheduleOnce(initializationRetryInterval) { self ! StartInitializing}
         stay() using data.copy(currentLifecycleStateActor = None, failedInitializationAttempts = failedInitializationAttempts)
       } else {

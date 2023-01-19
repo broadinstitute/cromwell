@@ -1,6 +1,9 @@
 package cromwell.backend.google.pipelines.batch
 
 import cats.data.Validated._
+
+import java.net.URL
+//import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 //import cats.data.{NonEmptyList, Validated}
 import cats.implicits._
 import com.typesafe.config.{Config, ConfigValue}
@@ -10,7 +13,7 @@ import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend.CommonBackendConfigurationAttributes
 //import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{BatchRequestTimeoutConfiguration, GcsTransferConfiguration, VirtualPrivateCloudConfiguration}
-import cromwell.backend.google.pipelines.batch.authentication.GcpBatchAuths
+//import cromwell.backend.google.pipelines.batch.authentication.GcpBatchAuths
 //import cromwell.backend.google.pipelines.common.callcaching.{CopyCachedOutputs, PipelinesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
 //import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
 import cromwell.cloudsupport.gcp.GoogleConfiguration
@@ -32,12 +35,12 @@ import scala.jdk.CollectionConverters._
 
 case class GcpBatchConfigurationAttributes(project: String,
                                                //computeServiceAccount: String,
-                                               auths: GcpBatchAuths
+                                               //auths: GcpBatchAuths,
                                                //restrictMetadataAccess: Boolean,
                                                //enableFuse: Boolean,
                                                //executionBucket: String,
-                                               //endpointUrl: URL,
-                                               //location: String,
+                                               endpointUrl: URL,
+                                               location: String,
                                                //maxPollingInterval: Int,
                                                //qps: Int Refined Positive,
                                                //cacheHitDuplicationStrategy: PipelinesCacheHitDuplicationStrategy,
@@ -67,7 +70,7 @@ object GcpBatchConfigurationAttributes {
   //final case class BatchRequestTimeoutConfiguration(readTimeoutMillis: Option[Int Refined Positive], connectTimeoutMillis: Option[Int Refined Positive])
 
 
-  lazy val Logger: Logger = LoggerFactory.getLogger("PipelinesApiConfiguration")
+  lazy val Logger: Logger = LoggerFactory.getLogger("BatchConfiguration")
 
   //val BatchApiDefaultQps = 1000
   //val DefaultGcsTransferAttempts: Refined[Int, Positive] = refineMV[Positive](3)
@@ -112,11 +115,11 @@ object GcpBatchConfigurationAttributes {
     "docker-image-cache-manifest-file",
     checkpointingIntervalKey
   )
-
+/*
   private val deprecatedJesKeys: Map[String, String] = Map(
     "genomics.default-zones" -> "default-runtime-attributes.zones"
   )
-
+*/
   def apply(googleConfig: GoogleConfiguration, backendConfig: Config, backendName: String): GcpBatchConfigurationAttributes = {
 
     /*
@@ -167,17 +170,19 @@ object GcpBatchConfigurationAttributes {
     val configKeys = backendConfig.entrySet().asScala.toSet map { entry: java.util.Map.Entry[String, ConfigValue] => entry.getKey }
     warnNotRecognized(configKeys, batchKeys, backendName, Logger)
 
+    /*
     def warnDeprecated(keys: Set[String], deprecated: Map[String, String], logger: Logger): Unit = {
       val deprecatedKeys = keys.intersect(deprecated.keySet)
       deprecatedKeys foreach { key => logger.warn(s"Found deprecated configuration key $key, replaced with ${deprecated.get(key)}") }
     }
 
     warnDeprecated(configKeys, deprecatedJesKeys, Logger)
+    */
 
     val project: ErrorOr[String] = validate { backendConfig.as[String]("project") }
     //val executionBucket: ErrorOr[String] = validate { backendConfig.as[String]("root") }
-    //val endpointUrl: ErrorOr[URL] = validate { backendConfig.as[URL]("genomics.endpoint-url") }
-    //val location: ErrorOr[String] = validateGenomicsLocation(endpointUrl, backendConfig.as[Option[String]]("genomics.location"))
+    val endpointUrl: ErrorOr[URL] = validate { backendConfig.as[URL]("genomics.endpoint-url") }
+    val location: ErrorOr[String] = validateGenomicsLocation(endpointUrl, backendConfig.as[Option[String]]("genomics.location"))
     //val maxPollingInterval: Int = backendConfig.as[Option[Int]]("maximum-polling-interval").getOrElse(600)
     //val computeServiceAccount: String = backendConfig.as[Option[String]]("genomics.compute-service-account").getOrElse("default")
     val genomicsAuthName: ErrorOr[String] = validate { backendConfig.as[String]("genomics.auth") }
@@ -238,11 +243,11 @@ object GcpBatchConfigurationAttributes {
 
     //val checkpointingInterval: FiniteDuration = backendConfig.getOrElse(checkpointingIntervalKey, 10.minutes)
 
-    def authGoogleConfigForPapiConfigurationAttributes(project: String,
+    def authGoogleConfigForBatchConfigurationAttributes(project: String,
                                                        //bucket: String,
-                                                       //endpointUrl: URL,
+                                                       endpointUrl: URL,
                                                        genomicsName: String,
-                                                       //location: String,
+                                                       location: String,
                                                        //restrictMetadata: Boolean,
                                                        //enableFuse: Boolean,
                                                        gcsName: String): ErrorOr[GcpBatchConfigurationAttributes] =
@@ -265,12 +270,12 @@ object GcpBatchConfigurationAttributes {
         GcpBatchConfigurationAttributes(
             project = project,
             //computeServiceAccount = computeServiceAccount,
-            auths = GcpBatchAuths(genomicsAuth, gcsAuth),
+            //auths = GcpBatchAuths(genomicsAuth, gcsAuth),
             //restrictMetadataAccess = restrictMetadata,
             //enableFuse = enableFuse,
             //executionBucket = bucket,
-            //endpointUrl = endpointUrl,
-            //location = location,
+            endpointUrl = endpointUrl,
+            location = location,
             //maxPollingInterval = maxPollingInterval,
             //qps = qps,
             //cacheHitDuplicationStrategy = cacheHitDuplicationStrategy,
@@ -288,9 +293,9 @@ object GcpBatchConfigurationAttributes {
 
     (project,
       //executionBucket,
-      //endpointUrl,
+      endpointUrl,
       genomicsAuthName,
-      //location,
+      location,
       //genomicsRestrictMetadataAccess,
       //genomicsEnableFuse,
       gcsFilesystemAuthName,
@@ -302,7 +307,7 @@ object GcpBatchConfigurationAttributes {
       //batchRequestTimeoutConfigurationValidation,
       //referenceDiskLocalizationManifestFiles,
       //dockerImageCacheManifestFile
-    ) flatMapN authGoogleConfigForPapiConfigurationAttributes match {
+    ) flatMapN authGoogleConfigForBatchConfigurationAttributes match {
       case Valid(r) => r
       case Invalid(f) =>
         throw new IllegalArgumentException with MessageAggregation {
@@ -372,6 +377,7 @@ object GcpBatchConfigurationAttributes {
       case Right(refined) => refined.validNel
     }
   }
+  */
 
   def validateGenomicsLocation(genomicsUrl: ErrorOr[URL], location: Option[String]): ErrorOr[String] = {
     genomicsUrl match {
@@ -383,6 +389,7 @@ object GcpBatchConfigurationAttributes {
       case _ => location.getOrElse("").validNel
     }
   }
+  /*
 
   def validateGsutilMemorySpecification(config: Config, configPath: String): ErrorOr[String] = {
     val entry = config.as[Option[String]](configPath)

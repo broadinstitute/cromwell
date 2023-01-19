@@ -38,7 +38,7 @@ case class GcpBatchConfigurationAttributes(project: String,
                                                //auths: GcpBatchAuths,
                                                restrictMetadataAccess: Boolean,
                                                enableFuse: Boolean,
-                                               //executionBucket: String,
+                                               executionBucket: String,
                                                endpointUrl: URL,
                                                location: String,
                                                //maxPollingInterval: Int,
@@ -180,7 +180,7 @@ object GcpBatchConfigurationAttributes {
     */
 
     val project: ErrorOr[String] = validate { backendConfig.as[String]("project") }
-    //val executionBucket: ErrorOr[String] = validate { backendConfig.as[String]("root") }
+    val executionBucket: ErrorOr[String] = validate { backendConfig.as[String]("root") }
     val endpointUrl: ErrorOr[URL] = validate { backendConfig.as[URL]("genomics.endpoint-url") }
     val location: ErrorOr[String] = validateGenomicsLocation(endpointUrl, backendConfig.as[Option[String]]("genomics.location"))
     //val maxPollingInterval: Int = backendConfig.as[Option[Int]]("maximum-polling-interval").getOrElse(600)
@@ -244,7 +244,7 @@ object GcpBatchConfigurationAttributes {
     //val checkpointingInterval: FiniteDuration = backendConfig.getOrElse(checkpointingIntervalKey, 10.minutes)
 
     def authGoogleConfigForBatchConfigurationAttributes(project: String,
-                                                       //bucket: String,
+                                                       bucket: String,
                                                        endpointUrl: URL,
                                                        genomicsName: String,
                                                        location: String,
@@ -273,7 +273,7 @@ object GcpBatchConfigurationAttributes {
             //auths = GcpBatchAuths(genomicsAuth, gcsAuth),
             restrictMetadataAccess = restrictMetadata,
             enableFuse = enableFuse,
-            //executionBucket = bucket,
+            executionBucket = bucket,
             endpointUrl = endpointUrl,
             location = location,
             //maxPollingInterval = maxPollingInterval,
@@ -292,7 +292,7 @@ object GcpBatchConfigurationAttributes {
 
 
     (project,
-      //executionBucket,
+      executionBucket,
       endpointUrl,
       genomicsAuthName,
       location,

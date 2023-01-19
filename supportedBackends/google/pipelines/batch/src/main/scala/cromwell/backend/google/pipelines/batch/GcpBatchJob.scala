@@ -11,9 +11,10 @@ import java.util.concurrent.TimeUnit
 final case class GcpBatchJob (
                              jobSubmission: BatchRequest,
                              cpu: Long,
+                             cpuPlatform: String,
                              memory: Long,
                              machineType: String,
-                             dockerImage: String,
+                             dockerImage: String
                             ) {
 
   // VALUES HERE
@@ -37,6 +38,7 @@ final case class GcpBatchJob (
     val instancePolicy = InstancePolicy
       .newBuilder
       .setMachineType(machineType)
+      .setMinCpuPlatform(cpuPlatform)
       .build
     instancePolicy
   }

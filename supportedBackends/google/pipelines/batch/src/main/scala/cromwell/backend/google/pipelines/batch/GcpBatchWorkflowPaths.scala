@@ -1,6 +1,6 @@
 package cromwell.backend.google.pipelines.batch
 
-import com.google.auth.Credentials
+//import com.google.auth.Credentials
 import com.typesafe.config.Config
 import cromwell.backend.io.WorkflowPaths
 //import cromwell.backend.io.{JobPaths, WorkflowPaths}
@@ -16,7 +16,8 @@ object GcpBatchWorkflowPaths {
   //private val AuthFilePathOptionKey = "auth_bucket"
   //private val GcsPrefix = "gs://"
 }
-case class GcpBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor, gcsCredentials: Credentials, gcpBatchConfiguration: GcpBatchConfiguration, override val pathBuilders: PathBuilders) extends WorkflowPaths {
+//case class GcpBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor, gcsCredentials: Credentials, gcpBatchConfiguration: GcpBatchConfiguration, override val pathBuilders: PathBuilders) extends WorkflowPaths {
+case class GcpBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor, gcpBatchConfiguration: GcpBatchConfiguration, override val pathBuilders: PathBuilders) extends WorkflowPaths {
 
   override lazy val executionRootString: String = workflowDescriptor.workflowOptions.getOrElse(GcpBatchWorkflowPaths.GcsRootOptionKey, gcpBatchConfiguration.root)
 

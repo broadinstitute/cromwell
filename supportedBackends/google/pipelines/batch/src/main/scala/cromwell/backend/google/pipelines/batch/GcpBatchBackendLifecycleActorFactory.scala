@@ -41,8 +41,6 @@ class GcpBatchBackendLifecycleActorFactory(name: String, override val configurat
   //override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = Option(Props(new GcpBatchBackendSingletonActor("batch")()))
 
   val batchConfiguration = new GcpBatchConfiguration(configurationDescriptor, googleConfig)
-  //val configuration = new PipelinesApiConfiguration(configurationDescriptor = configurationDescriptor, genomicsFactory = requestFactory, googleConfig = googleConfig, papiAttributes = papiAttributes)
-  //val jesConfiguration: PipelinesApiConfiguration
 
 
   override def workflowInitializationActorParams(

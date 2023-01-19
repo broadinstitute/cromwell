@@ -55,8 +55,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     */
   def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
 
-  //override def dockerImageUsed: Option[String] = Option("test")
-
   private lazy val jobDockerImage = jobDescriptor.maybeCallCachingEligible.dockerHash.getOrElse(runtimeAttributes.dockerImage)
   override def dockerImageUsed: Option[String] = Option(jobDockerImage)
 

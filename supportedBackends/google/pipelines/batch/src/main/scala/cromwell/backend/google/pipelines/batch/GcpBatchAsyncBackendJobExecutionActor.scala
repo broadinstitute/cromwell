@@ -78,9 +78,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   // Primary entry point for cromwell to run GCP Batch job
   override def executeAsync(): Future[ExecutionHandle] = {
 
-    val cpuPlatformTest = runtimeAttributes.cpuPlatform
+    //val cpuPlatformTest = runtimeAttributes.cpuPlatform
 
-    val batchTest = BatchRequest(projectId="batch-testing-350715", region="us-central1", jobName=jobTemp, dockerImage=jobDockerImage, cpuPlatform=cpuPlatformTest.getOrElse(""))
+    val batchTest = BatchRequest(projectId="batch-testing-350715", region="us-central1", jobName=jobTemp, runtimeAttributes)
 
     val runBatchResponse = for {
       _ <- uploadScriptFile()

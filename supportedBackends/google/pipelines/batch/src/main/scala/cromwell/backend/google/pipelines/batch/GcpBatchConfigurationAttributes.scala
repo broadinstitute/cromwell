@@ -13,12 +13,12 @@ import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend.CommonBackendConfigurationAttributes
 //import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{BatchRequestTimeoutConfiguration, GcsTransferConfiguration, VirtualPrivateCloudConfiguration}
-import cromwell.backend.google.pipelines.batch.GcpBatchConfigurationAttributes.GcsTransferConfiguration
+import cromwell.backend.google.pipelines.batch.GcpBatchConfigurationAttributes.{GcsTransferConfiguration, VirtualPrivateCloudConfiguration}
 //import cromwell.backend.google.pipelines.batch.authentication.GcpBatchAuths
 import cromwell.backend.google.pipelines.common.callcaching.{CopyCachedOutputs, PipelinesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
 //import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
 import cromwell.cloudsupport.gcp.GoogleConfiguration
-//import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
+import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 //import cromwell.filesystems.gcs.GcsPathBuilder
 //import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import eu.timepit.refined.api.Refined
@@ -50,8 +50,8 @@ case class GcpBatchConfigurationAttributes(project: String,
                                                requestWorkers: Int Refined Positive,
                                                pipelineTimeout: FiniteDuration,
                                                logFlushPeriod: Option[FiniteDuration],
-                                               gcsTransferConfiguration: GcsTransferConfiguration
-                                               //virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
+                                               gcsTransferConfiguration: GcsTransferConfiguration,
+                                               virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration
                                                //batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
                                                //referenceFileToDiskImageMappingOpt: Option[Map[String, PipelinesApiReferenceFilesDisk]],
                                                //dockerImageToCacheDiskImageMappingOpt: Option[Map[String, DockerImageCacheEntry]],
@@ -65,11 +65,11 @@ object GcpBatchConfigurationAttributes {
     */
   case class GcsTransferConfiguration(transferAttempts: Int Refined Positive, parallelCompositeUploadThreshold: String)
 
-  //final case class VirtualPrivateCloudLabels(network: String, subnetwork: Option[String], auth: GoogleAuthMode)
-  //final case class VirtualPrivateCloudLiterals(network: String, subnetwork: Option[String])
-  //final case class VirtualPrivateCloudConfiguration(labelsOption: Option[VirtualPrivateCloudLabels],
-  //                                                  literalsOption: Option[VirtualPrivateCloudLiterals],
-  //                                                 )
+  final case class VirtualPrivateCloudLabels(network: String, subnetwork: Option[String], auth: GoogleAuthMode)
+  final case class VirtualPrivateCloudLiterals(network: String, subnetwork: Option[String])
+  final case class VirtualPrivateCloudConfiguration(labelsOption: Option[VirtualPrivateCloudLabels],
+                                                    literalsOption: Option[VirtualPrivateCloudLiterals],
+                                                   )
   //final case class BatchRequestTimeoutConfiguration(readTimeoutMillis: Option[Int Refined Positive], connectTimeoutMillis: Option[Int Refined Positive])
 
 
@@ -125,7 +125,7 @@ object GcpBatchConfigurationAttributes {
 */
   def apply(googleConfig: GoogleConfiguration, backendConfig: Config, backendName: String): GcpBatchConfigurationAttributes = {
 
-    /*
+
     def vpcErrorMessage(missingKeys: List[String]) = s"Virtual Private Cloud configuration is invalid. Missing keys: `${missingKeys.mkString(",")}`.".invalidNel
 
     def validateVPCLabelsConfig(networkOption: Option[String],
@@ -168,7 +168,6 @@ object GcpBatchConfigurationAttributes {
         validateVPCLiteralsConfig(networkNameOption, subnetworkNameOption)
     (vpcLabelsValidation, vpcLiteralsValidation) mapN VirtualPrivateCloudConfiguration
       }
-    */
 
     val configKeys = backendConfig.entrySet().asScala.toSet map { entry: java.util.Map.Entry[String, ConfigValue] => entry.getKey }
     warnNotRecognized(configKeys, batchKeys, backendName, Logger)
@@ -219,19 +218,19 @@ object GcpBatchConfigurationAttributes {
     val gcsTransferConfiguration: ErrorOr[GcsTransferConfiguration] =
       (localizationAttempts, parallelCompositeUploadThreshold) mapN GcsTransferConfiguration.apply
 
-    //val vpcNetworkName: ErrorOr[Option[String]] = validate {
-    //  backendConfig.getAs[String]("virtual-private-cloud.network-name")
-    //}
-    //val vpcSubnetworkName: ErrorOr[Option[String]] = validate {
-    //  backendConfig.getAs[String]("virtual-private-cloud.subnetwork-name")
-    //}
-    //val vpcNetworkLabel: ErrorOr[Option[String]] = validate { backendConfig.getAs[String]("virtual-private-cloud.network-label-key") }
-    //val vpcSubnetworkLabel: ErrorOr[Option[String]] = validate { backendConfig.getAs[String]("virtual-private-cloud.subnetwork-label-key") }
-    //val vpcAuth: ErrorOr[Option[String]] = validate { backendConfig.getAs[String]("virtual-private-cloud.auth")}
+    val vpcNetworkName: ErrorOr[Option[String]] = validate {
+      backendConfig.getAs[String]("virtual-private-cloud.network-name")
+    }
+    val vpcSubnetworkName: ErrorOr[Option[String]] = validate {
+      backendConfig.getAs[String]("virtual-private-cloud.subnetwork-name")
+    }
+    val vpcNetworkLabel: ErrorOr[Option[String]] = validate { backendConfig.getAs[String]("virtual-private-cloud.network-label-key") }
+    val vpcSubnetworkLabel: ErrorOr[Option[String]] = validate { backendConfig.getAs[String]("virtual-private-cloud.subnetwork-label-key") }
+    val vpcAuth: ErrorOr[Option[String]] = validate { backendConfig.getAs[String]("virtual-private-cloud.auth")}
 
-    //val virtualPrivateCloudConfiguration: ErrorOr[VirtualPrivateCloudConfiguration] = {
-    //  (vpcNetworkName, vpcSubnetworkName, vpcNetworkLabel, vpcSubnetworkLabel, vpcAuth) flatMapN validateVPCConfig
-    //}
+    val virtualPrivateCloudConfiguration: ErrorOr[VirtualPrivateCloudConfiguration] = {
+      (vpcNetworkName, vpcSubnetworkName, vpcNetworkLabel, vpcSubnetworkLabel, vpcAuth) flatMapN validateVPCConfig
+    }
 
     //val batchRequestsReadTimeout = readOptionalPositiveMillisecondsIntFromDuration(backendConfig, "batch-requests.timeouts.read")
     //val batchRequestsConnectTimeout = readOptionalPositiveMillisecondsIntFromDuration(backendConfig, "batch-requests.timeouts.connect")
@@ -257,8 +256,8 @@ object GcpBatchConfigurationAttributes {
                                                        qps: Int Refined Positive,
                                                        cacheHitDuplicationStrategy: PipelinesCacheHitDuplicationStrategy,
                                                        requestWorkers: Int Refined Positive,
-                                                       gcsTransferConfiguration: GcsTransferConfiguration): ErrorOr[GcpBatchConfigurationAttributes] =
-                                                       //virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration
+                                                       gcsTransferConfiguration: GcsTransferConfiguration,
+                                                       virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration): ErrorOr[GcpBatchConfigurationAttributes] =
                                                        //batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
                                                        //referenceDiskLocalizationManifestFilesOpt: Option[List[ManifestFile]],
                                                        //dockerImageCacheManifestFileOpt: Option[ValidFullGcsPath]): ErrorOr[GcpBatchConfigurationAttributes] =
@@ -285,8 +284,8 @@ object GcpBatchConfigurationAttributes {
             requestWorkers = requestWorkers,
             pipelineTimeout = pipelineTimeout,
             logFlushPeriod = logFlushPeriod,
-            gcsTransferConfiguration = gcsTransferConfiguration
-            //virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration,
+            gcsTransferConfiguration = gcsTransferConfiguration,
+            virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration
             //batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration,
             //referenceFileToDiskImageMappingOpt = generatedReferenceFilesMappingOpt,
             //dockerImageToCacheDiskImageMappingOpt = dockerImageToCacheDiskImageMappingOpt,
@@ -305,8 +304,8 @@ object GcpBatchConfigurationAttributes {
       qpsValidation,
       duplicationStrategy,
       requestWorkers,
-      gcsTransferConfiguration
-      //virtualPrivateCloudConfiguration,
+      gcsTransferConfiguration,
+      virtualPrivateCloudConfiguration
       //batchRequestTimeoutConfigurationValidation,
       //referenceDiskLocalizationManifestFiles,
       //dockerImageCacheManifestFile

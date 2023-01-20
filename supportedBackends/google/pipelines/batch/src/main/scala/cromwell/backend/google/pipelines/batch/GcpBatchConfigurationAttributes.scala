@@ -13,7 +13,7 @@ import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend.CommonBackendConfigurationAttributes
 //import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{BatchRequestTimeoutConfiguration, GcsTransferConfiguration, VirtualPrivateCloudConfiguration}
-import cromwell.backend.google.pipelines.batch.GcpBatchConfigurationAttributes.{GcsTransferConfiguration, VirtualPrivateCloudConfiguration}
+import cromwell.backend.google.pipelines.batch.GcpBatchConfigurationAttributes.{BatchRequestTimeoutConfiguration, GcsTransferConfiguration, VirtualPrivateCloudConfiguration}
 //import cromwell.backend.google.pipelines.batch.authentication.GcpBatchAuths
 import cromwell.backend.google.pipelines.common.callcaching.{CopyCachedOutputs, PipelinesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
 //import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
@@ -33,7 +33,7 @@ import org.slf4j.{Logger, LoggerFactory}
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
 import scala.util.matching.Regex
-//import scala.util.Try
+import scala.util.Try
 //import scala.util.{Failure, Success, Try}
 
 case class GcpBatchConfigurationAttributes(project: String,
@@ -51,8 +51,8 @@ case class GcpBatchConfigurationAttributes(project: String,
                                                pipelineTimeout: FiniteDuration,
                                                logFlushPeriod: Option[FiniteDuration],
                                                gcsTransferConfiguration: GcsTransferConfiguration,
-                                               virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration
-                                               //batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
+                                               virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
+                                               batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration
                                                //referenceFileToDiskImageMappingOpt: Option[Map[String, PipelinesApiReferenceFilesDisk]],
                                                //dockerImageToCacheDiskImageMappingOpt: Option[Map[String, DockerImageCacheEntry]],
                                                //checkpointingInterval: FiniteDuration
@@ -70,7 +70,7 @@ object GcpBatchConfigurationAttributes {
   final case class VirtualPrivateCloudConfiguration(labelsOption: Option[VirtualPrivateCloudLabels],
                                                     literalsOption: Option[VirtualPrivateCloudLiterals],
                                                    )
-  //final case class BatchRequestTimeoutConfiguration(readTimeoutMillis: Option[Int Refined Positive], connectTimeoutMillis: Option[Int Refined Positive])
+  final case class BatchRequestTimeoutConfiguration(readTimeoutMillis: Option[Int Refined Positive], connectTimeoutMillis: Option[Int Refined Positive])
 
 
   lazy val Logger: Logger = LoggerFactory.getLogger("BatchConfiguration")
@@ -232,12 +232,12 @@ object GcpBatchConfigurationAttributes {
       (vpcNetworkName, vpcSubnetworkName, vpcNetworkLabel, vpcSubnetworkLabel, vpcAuth) flatMapN validateVPCConfig
     }
 
-    //val batchRequestsReadTimeout = readOptionalPositiveMillisecondsIntFromDuration(backendConfig, "batch-requests.timeouts.read")
-    //val batchRequestsConnectTimeout = readOptionalPositiveMillisecondsIntFromDuration(backendConfig, "batch-requests.timeouts.connect")
+    val batchRequestsReadTimeout = readOptionalPositiveMillisecondsIntFromDuration(backendConfig, "batch-requests.timeouts.read")
+    val batchRequestsConnectTimeout = readOptionalPositiveMillisecondsIntFromDuration(backendConfig, "batch-requests.timeouts.connect")
 
-    //val batchRequestTimeoutConfigurationValidation = (batchRequestsReadTimeout, batchRequestsConnectTimeout) mapN { (read, connect) =>
-    //  BatchRequestTimeoutConfiguration(readTimeoutMillis = read, connectTimeoutMillis = connect)
-    //}
+    val batchRequestTimeoutConfigurationValidation = (batchRequestsReadTimeout, batchRequestsConnectTimeout) mapN { (read, connect) =>
+      BatchRequestTimeoutConfiguration(readTimeoutMillis = read, connectTimeoutMillis = connect)
+    }
 
     //val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[ManifestFile]]] = validateReferenceDiskManifestConfigs(backendConfig, backendName)
 
@@ -257,8 +257,8 @@ object GcpBatchConfigurationAttributes {
                                                        cacheHitDuplicationStrategy: PipelinesCacheHitDuplicationStrategy,
                                                        requestWorkers: Int Refined Positive,
                                                        gcsTransferConfiguration: GcsTransferConfiguration,
-                                                       virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration): ErrorOr[GcpBatchConfigurationAttributes] =
-                                                       //batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
+                                                       virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
+                                                       batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration): ErrorOr[GcpBatchConfigurationAttributes] =
                                                        //referenceDiskLocalizationManifestFilesOpt: Option[List[ManifestFile]],
                                                        //dockerImageCacheManifestFileOpt: Option[ValidFullGcsPath]): ErrorOr[GcpBatchConfigurationAttributes] =
       (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
@@ -285,8 +285,8 @@ object GcpBatchConfigurationAttributes {
             pipelineTimeout = pipelineTimeout,
             logFlushPeriod = logFlushPeriod,
             gcsTransferConfiguration = gcsTransferConfiguration,
-            virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration
-            //batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration,
+            virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration,
+            batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration
             //referenceFileToDiskImageMappingOpt = generatedReferenceFilesMappingOpt,
             //dockerImageToCacheDiskImageMappingOpt = dockerImageToCacheDiskImageMappingOpt,
             //checkpointingInterval = checkpointingInterval
@@ -305,8 +305,8 @@ object GcpBatchConfigurationAttributes {
       duplicationStrategy,
       requestWorkers,
       gcsTransferConfiguration,
-      virtualPrivateCloudConfiguration
-      //batchRequestTimeoutConfigurationValidation,
+      virtualPrivateCloudConfiguration,
+      batchRequestTimeoutConfigurationValidation
       //referenceDiskLocalizationManifestFiles,
       //dockerImageCacheManifestFile
     ) flatMapN authGoogleConfigForBatchConfigurationAttributes match {
@@ -406,7 +406,7 @@ object GcpBatchConfigurationAttributes {
       case Right(refined) => refined.validNel
     }
   }
-/*
+
   def readOptionalPositiveMillisecondsIntFromDuration(backendConfig: Config, configPath: String): ErrorOr[Option[Int Refined Positive]] = {
 
     def validate(n: FiniteDuration) = {
@@ -425,7 +425,6 @@ object GcpBatchConfigurationAttributes {
       case None => None.validNel
     }
   }
-  */
   // Copy/port of gsutil's "_GenerateSuffixRegex"
   private [batch] lazy val GsutilHumanBytes: Regex = {
     val _EXP_STRINGS = List(

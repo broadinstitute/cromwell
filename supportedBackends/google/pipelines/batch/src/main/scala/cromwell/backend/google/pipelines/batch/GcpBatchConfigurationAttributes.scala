@@ -7,7 +7,7 @@ import java.net.URL
 import cats.data.{NonEmptyList, Validated}
 import cats.implicits._
 import com.typesafe.config.{Config, ConfigValue}
-//import com.typesafe.scalalogging.StrictLogging
+import com.typesafe.scalalogging.StrictLogging
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import common.validation.Validation._
@@ -17,6 +17,7 @@ import cromwell.backend.google.pipelines.batch.GcpBatchConfigurationAttributes.{
 //import cromwell.backend.google.pipelines.batch.authentication.GcpBatchAuths
 import cromwell.backend.google.pipelines.common.callcaching.{CopyCachedOutputs, PipelinesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
 //import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
+import cromwell.backend.google.pipelines.batch.io.GcpBatchReferenceFilesDisk
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 //import cromwell.filesystems.gcs.GcsPathBuilder
@@ -35,6 +36,7 @@ import scala.jdk.CollectionConverters._
 import scala.util.matching.Regex
 import scala.util.Try
 //import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 case class GcpBatchConfigurationAttributes(project: String,
                                                computeServiceAccount: String,
@@ -52,13 +54,13 @@ case class GcpBatchConfigurationAttributes(project: String,
                                                logFlushPeriod: Option[FiniteDuration],
                                                gcsTransferConfiguration: GcsTransferConfiguration,
                                                virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
-                                               batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration
-                                               //referenceFileToDiskImageMappingOpt: Option[Map[String, PipelinesApiReferenceFilesDisk]],
+                                               batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
+                                               referenceFileToDiskImageMappingOpt: Option[Map[String, GcpBatchReferenceFilesDisk]]
                                                //dockerImageToCacheDiskImageMappingOpt: Option[Map[String, DockerImageCacheEntry]],
                                                //checkpointingInterval: FiniteDuration
                                               )
 
-object GcpBatchConfigurationAttributes {
+object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOperations with StrictLogging {
 
   /**
     * param transferAttempts This is the number of attempts, not retries, hence it is positive.
@@ -118,11 +120,11 @@ object GcpBatchConfigurationAttributes {
     "docker-image-cache-manifest-file",
     checkpointingIntervalKey
   )
-/*
+
   private val deprecatedJesKeys: Map[String, String] = Map(
     "genomics.default-zones" -> "default-runtime-attributes.zones"
   )
-*/
+
   def apply(googleConfig: GoogleConfiguration, backendConfig: Config, backendName: String): GcpBatchConfigurationAttributes = {
 
 
@@ -172,14 +174,14 @@ object GcpBatchConfigurationAttributes {
     val configKeys = backendConfig.entrySet().asScala.toSet map { entry: java.util.Map.Entry[String, ConfigValue] => entry.getKey }
     warnNotRecognized(configKeys, batchKeys, backendName, Logger)
 
-    /*
+
     def warnDeprecated(keys: Set[String], deprecated: Map[String, String], logger: Logger): Unit = {
       val deprecatedKeys = keys.intersect(deprecated.keySet)
       deprecatedKeys foreach { key => logger.warn(s"Found deprecated configuration key $key, replaced with ${deprecated.get(key)}") }
     }
 
     warnDeprecated(configKeys, deprecatedJesKeys, Logger)
-    */
+
 
     val project: ErrorOr[String] = validate { backendConfig.as[String]("project") }
     val executionBucket: ErrorOr[String] = validate { backendConfig.as[String]("root") }
@@ -239,7 +241,7 @@ object GcpBatchConfigurationAttributes {
       BatchRequestTimeoutConfiguration(readTimeoutMillis = read, connectTimeoutMillis = connect)
     }
 
-    //val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[ManifestFile]]] = validateReferenceDiskManifestConfigs(backendConfig, backendName)
+    val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[ManifestFile]]] = validateReferenceDiskManifestConfigs(backendConfig, backendName)
 
     //val dockerImageCacheManifestFile: ErrorOr[Option[ValidFullGcsPath]] = validateGcsPathToDockerImageCacheManifestFile(backendConfig)
 
@@ -258,14 +260,14 @@ object GcpBatchConfigurationAttributes {
                                                        requestWorkers: Int Refined Positive,
                                                        gcsTransferConfiguration: GcsTransferConfiguration,
                                                        virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
-                                                       batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration): ErrorOr[GcpBatchConfigurationAttributes] =
-                                                       //referenceDiskLocalizationManifestFilesOpt: Option[List[ManifestFile]],
+                                                       batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
+                                                       referenceDiskLocalizationManifestFilesOpt: Option[List[ManifestFile]]): ErrorOr[GcpBatchConfigurationAttributes] =
                                                        //dockerImageCacheManifestFileOpt: Option[ValidFullGcsPath]): ErrorOr[GcpBatchConfigurationAttributes] =
       (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
         (genomicsAuth, gcsAuth) =>
-          //val generatedReferenceFilesMappingOpt = referenceDiskLocalizationManifestFilesOpt map {
-          //  generateReferenceFilesMapping(genomicsAuth, _)
-          //}
+          val generatedReferenceFilesMappingOpt = referenceDiskLocalizationManifestFilesOpt map {
+            generateReferenceFilesMapping(genomicsAuth, _)
+          }
           //val dockerImageToCacheDiskImageMappingOpt = dockerImageCacheManifestFileOpt map {
           //  generateDockerImageToDiskImageMapping(genomicsAuth, _)
           //}
@@ -286,8 +288,8 @@ object GcpBatchConfigurationAttributes {
             logFlushPeriod = logFlushPeriod,
             gcsTransferConfiguration = gcsTransferConfiguration,
             virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration,
-            batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration
-            //referenceFileToDiskImageMappingOpt = generatedReferenceFilesMappingOpt,
+            batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration,
+            referenceFileToDiskImageMappingOpt = generatedReferenceFilesMappingOpt
             //dockerImageToCacheDiskImageMappingOpt = dockerImageToCacheDiskImageMappingOpt,
             //checkpointingInterval = checkpointingInterval
           )}
@@ -306,8 +308,8 @@ object GcpBatchConfigurationAttributes {
       requestWorkers,
       gcsTransferConfiguration,
       virtualPrivateCloudConfiguration,
-      batchRequestTimeoutConfigurationValidation
-      //referenceDiskLocalizationManifestFiles,
+      batchRequestTimeoutConfigurationValidation,
+      referenceDiskLocalizationManifestFiles
       //dockerImageCacheManifestFile
     ) flatMapN authGoogleConfigForBatchConfigurationAttributes match {
       case Valid(r) => r
@@ -338,8 +340,7 @@ object GcpBatchConfigurationAttributes {
     * Validate that the entries corresponding to "reference-disk-localization-manifests" in the specified
     * backend are parseable as `ManifestFile`s.
   */
-  /*
-  private [common] def validateReferenceDiskManifestConfigs(backendConfig: Config, backendName: String): ErrorOr[Option[List[ManifestFile]]] = {
+  private [batch] def validateReferenceDiskManifestConfigs(backendConfig: Config, backendName: String): ErrorOr[Option[List[ManifestFile]]] = {
     Try(backendConfig.getAs[List[Config]]("reference-disk-localization-manifests")) match {
       case Failure(e) =>
         ("Error attempting to parse value for 'reference-disk-localization-manifests' as List[Config]: " +
@@ -367,7 +368,6 @@ object GcpBatchConfigurationAttributes {
         }
     }
   }
-*/
 
   def validateQps(config: Config): ErrorOr[Int Refined Positive] = {
     import eu.timepit.refined._

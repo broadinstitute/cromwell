@@ -13,6 +13,7 @@ import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend.CommonBackendConfigurationAttributes
 //import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{BatchRequestTimeoutConfiguration, GcsTransferConfiguration, VirtualPrivateCloudConfiguration}
+import cromwell.backend.google.pipelines.batch.GcpBatchConfigurationAttributes.GcsTransferConfiguration
 //import cromwell.backend.google.pipelines.batch.authentication.GcpBatchAuths
 import cromwell.backend.google.pipelines.common.callcaching.{CopyCachedOutputs, PipelinesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
 //import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
@@ -24,13 +25,14 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineV
 //import eu.timepit.refined.{refineMV, refineV}
+import eu.timepit.refined.refineMV
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.{Logger, LoggerFactory}
 
 //import java.net.URL
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
-//import scala.util.matching.Regex
+import scala.util.matching.Regex
 //import scala.util.Try
 //import scala.util.{Failure, Success, Try}
 
@@ -48,7 +50,7 @@ case class GcpBatchConfigurationAttributes(project: String,
                                                requestWorkers: Int Refined Positive,
                                                pipelineTimeout: FiniteDuration,
                                                logFlushPeriod: Option[FiniteDuration],
-                                               //gcsTransferConfiguration: GcsTransferConfiguration,
+                                               gcsTransferConfiguration: GcsTransferConfiguration
                                                //virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
                                                //batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
                                                //referenceFileToDiskImageMappingOpt: Option[Map[String, PipelinesApiReferenceFilesDisk]],
@@ -61,7 +63,7 @@ object GcpBatchConfigurationAttributes {
   /**
     * param transferAttempts This is the number of attempts, not retries, hence it is positive.
     */
-  //case class GcsTransferConfiguration(transferAttempts: Int Refined Positive, parallelCompositeUploadThreshold: String)
+  case class GcsTransferConfiguration(transferAttempts: Int Refined Positive, parallelCompositeUploadThreshold: String)
 
   //final case class VirtualPrivateCloudLabels(network: String, subnetwork: Option[String], auth: GoogleAuthMode)
   //final case class VirtualPrivateCloudLiterals(network: String, subnetwork: Option[String])
@@ -74,7 +76,7 @@ object GcpBatchConfigurationAttributes {
   lazy val Logger: Logger = LoggerFactory.getLogger("BatchConfiguration")
 
   val BatchApiDefaultQps = 1000
-  //val DefaultGcsTransferAttempts: Refined[Int, Positive] = refineMV[Positive](3)
+  val DefaultGcsTransferAttempts: Refined[Int, Positive] = refineMV[Positive](3)
 
   val checkpointingIntervalKey = "checkpointing-interval"
 
@@ -208,14 +210,14 @@ object GcpBatchConfigurationAttributes {
       case None => Option(1.minute)
     }
 
-    //val parallelCompositeUploadThreshold = validateGsutilMemorySpecification(backendConfig, "genomics.parallel-composite-upload-threshold")
+    val parallelCompositeUploadThreshold = validateGsutilMemorySpecification(backendConfig, "genomics.parallel-composite-upload-threshold")
 
-    //val localizationAttempts: ErrorOr[Int Refined Positive] = backendConfig.as[Option[Int]]("genomics.localization-attempts")
-    //  .map(attempts => validatePositiveInt(attempts, "genomics.localization-attempts"))
-    //  .getOrElse(DefaultGcsTransferAttempts.validNel)
+    val localizationAttempts: ErrorOr[Int Refined Positive] = backendConfig.as[Option[Int]]("genomics.localization-attempts")
+      .map(attempts => validatePositiveInt(attempts, "genomics.localization-attempts"))
+      .getOrElse(DefaultGcsTransferAttempts.validNel)
 
-    //val gcsTransferConfiguration: ErrorOr[GcsTransferConfiguration] =
-    //  (localizationAttempts, parallelCompositeUploadThreshold) mapN GcsTransferConfiguration.apply
+    val gcsTransferConfiguration: ErrorOr[GcsTransferConfiguration] =
+      (localizationAttempts, parallelCompositeUploadThreshold) mapN GcsTransferConfiguration.apply
 
     //val vpcNetworkName: ErrorOr[Option[String]] = validate {
     //  backendConfig.getAs[String]("virtual-private-cloud.network-name")
@@ -254,8 +256,8 @@ object GcpBatchConfigurationAttributes {
                                                        gcsName: String,
                                                        qps: Int Refined Positive,
                                                        cacheHitDuplicationStrategy: PipelinesCacheHitDuplicationStrategy,
-                                                       requestWorkers: Int Refined Positive): ErrorOr[GcpBatchConfigurationAttributes] =
-                                                       //gcsTransferConfiguration: GcsTransferConfiguration,
+                                                       requestWorkers: Int Refined Positive,
+                                                       gcsTransferConfiguration: GcsTransferConfiguration): ErrorOr[GcpBatchConfigurationAttributes] =
                                                        //virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration
                                                        //batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
                                                        //referenceDiskLocalizationManifestFilesOpt: Option[List[ManifestFile]],
@@ -282,8 +284,8 @@ object GcpBatchConfigurationAttributes {
             cacheHitDuplicationStrategy = cacheHitDuplicationStrategy,
             requestWorkers = requestWorkers,
             pipelineTimeout = pipelineTimeout,
-            logFlushPeriod = logFlushPeriod
-            //gcsTransferConfiguration = gcsTransferConfiguration,
+            logFlushPeriod = logFlushPeriod,
+            gcsTransferConfiguration = gcsTransferConfiguration
             //virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration,
             //batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration,
             //referenceFileToDiskImageMappingOpt = generatedReferenceFilesMappingOpt,
@@ -303,7 +305,7 @@ object GcpBatchConfigurationAttributes {
       qpsValidation,
       duplicationStrategy,
       requestWorkers,
-      //gcsTransferConfiguration,
+      gcsTransferConfiguration
       //virtualPrivateCloudConfiguration,
       //batchRequestTimeoutConfigurationValidation,
       //referenceDiskLocalizationManifestFiles,
@@ -390,7 +392,6 @@ object GcpBatchConfigurationAttributes {
       case _ => location.getOrElse("").validNel
     }
   }
-  /*
 
   def validateGsutilMemorySpecification(config: Config, configPath: String): ErrorOr[String] = {
     val entry = config.as[Option[String]](configPath)
@@ -400,7 +401,6 @@ object GcpBatchConfigurationAttributes {
       case Some(bad) => s"Invalid gsutil memory specification in Cromwell configuration at path '$configPath': '$bad'".invalidNel
     }
   }
-*/
   def validatePositiveInt(n: Int, configPath: String): Validated[NonEmptyList[String], Refined[Int, Positive]] = {
     refineV[Positive](n) match {
       case Left(_) => s"Value $n for $configPath is not strictly positive".invalidNel
@@ -426,8 +426,9 @@ object GcpBatchConfigurationAttributes {
       case None => None.validNel
     }
   }
+  */
   // Copy/port of gsutil's "_GenerateSuffixRegex"
-  private [common] lazy val GsutilHumanBytes: Regex = {
+  private [batch] lazy val GsutilHumanBytes: Regex = {
     val _EXP_STRINGS = List(
       List("B", "bit"),
       List("KiB", "Kibit", "K"),
@@ -444,8 +445,7 @@ object GcpBatchConfigurationAttributes {
     } yield name
 
     // Differs from the Python original in a couple of ways:
-    //
-    // * The Python original uses named groups which are not supported in Scala regexes.
+    //* The Python original uses named groups which are not supported in Scala regexes.
     //   (?P<num>\d*\.\d+|\d+)\s*(?P<suffix>%s)?
     //
     // * The Python original lowercases both the units and the human string before running the matcher.
@@ -453,5 +453,5 @@ object GcpBatchConfigurationAttributes {
     val orSuffixes = suffixes.mkString("|")
     "(?i)(\\d*\\.\\d+|\\d+)\\s*(%s)?".format(orSuffixes).r
   }
-  */
+
 }

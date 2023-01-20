@@ -1,6 +1,7 @@
 package cromwell.backend.google.pipelines.batch
 
 import akka.actor.{Actor, ActorLogging, Props}
+
 import scala.concurrent.ExecutionContext
 
 
@@ -8,8 +9,7 @@ import scala.concurrent.ExecutionContext
 object GcpBatchBackendSingletonActor {
   def props(name: String) = Props(new GcpBatchBackendSingletonActor(name))
 
-  case class BatchRequest(projectId: String, region: String, jobName: String, dockerImage: String, cpuPlatform: String)
-
+  case class BatchRequest(projectId: String, region: String, jobName: String, runtimeAttributes: GcpBatchRuntimeAttributes)
 }
 
 final class GcpBatchBackendSingletonActor (name: String) extends Actor with ActorLogging {
@@ -22,7 +22,7 @@ final class GcpBatchBackendSingletonActor (name: String) extends Actor with Acto
   def receive: Receive = {
     case jobSubmission: BatchRequest =>
       //val job = GcpBatchJob(jobSubmission, 2000, 200, "e2-standard-4", "gcr.io/google-containers/busybox")
-      val job = GcpBatchJob(jobSubmission, 2000, jobSubmission.cpuPlatform, 200, "e2-standard-4", jobSubmission.dockerImage)
+      val job = GcpBatchJob(jobSubmission,200,200, "e2-standard-4", jobSubmission.runtimeAttributes)
       job.submitJob()
       //result.getStatus
     case other =>

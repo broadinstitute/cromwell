@@ -1,4 +1,5 @@
-name: travis-to-github-test
+name: 'Build Cromwell Test'
+
 
 #This is what shows up in the github workflows page as the title. 
 run-name: ${{ github.actor }} is testing out workflows.
@@ -10,13 +11,16 @@ on:
     branches:
       - travis_to_workflows_test
 
+permissions: 
+  contents: read
+
 #Global environment variables.
 env:
   BUILD_TYPE: centaurAws
   BUILD_MYSQL: 5.7
 
 jobs:
-  check-bats-version:
+  check-bats-version: #Sanity check not related to Cromwell. Should always pass. 
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -27,3 +31,8 @@ jobs:
       - run: bats -v
       - run: echo "Build Type $BUILD_TYPE"
       - run: echo "Build MySQL $BUILD_MYSQL"
+  run-shell-script:
+    runs-on: ubuntu-latest
+    steps:
+      - run: src/ci/bin/test.sh
+  

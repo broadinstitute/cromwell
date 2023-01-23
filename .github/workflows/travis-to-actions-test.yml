@@ -34,5 +34,7 @@ jobs:
   run-shell-script:
     runs-on: ubuntu-latest
     steps:
+      - run: pwd
+      - run: bash -c 'echo $BASH_VERSION'
       - run: src/ci/bin/test.sh
   

@@ -36,5 +36,5 @@ jobs:
     steps:
       - run: pwd
       - run: bash -c 'echo $BASH_VERSION'
-      - run: src/ci/bin/test.sh
+      - run: ./src/ci/bin/test.sh
   

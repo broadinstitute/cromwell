@@ -177,7 +177,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   private def generateGcsLocalizationScript(inputs: List[PipelinesApiInput],
                                             referenceInputsToMountedPathsOpt: Option[Map[PipelinesApiInput, String]])
                                            (implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
-
     // Generate a mapping of reference inputs to their mounted paths and a section of the localization script to
     // "faux localize" these reference inputs with symlinks to their locations on mounted reference disks.
     import cromwell.backend.google.pipelines.common.action.ActionCommands._

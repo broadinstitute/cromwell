@@ -33,6 +33,11 @@ object ActionCommands {
     def escape: String = StringEscapeUtils.escapeXSI(path.pathAsString)
   }
 
+  implicit class ShellString(val string: String) extends AnyVal {
+    // The command String runs in Bourne shell so shell metacharacters in filenames must be escaped
+    def escape: String = StringEscapeUtils.escapeXSI(string)
+  }
+
   private def makeContentTypeFlag(contentType: Option[ContentType]) = contentType.map(ct => s"""-h "Content-Type: $ct"""").getOrElse("")
 
   def makeContainerDirectory(containerPath: Path) = s"mkdir -p ${containerPath.escape}"

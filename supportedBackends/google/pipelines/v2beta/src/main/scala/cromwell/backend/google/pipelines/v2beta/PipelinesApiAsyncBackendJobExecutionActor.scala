@@ -192,11 +192,12 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
                                            (implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
     // Generate a mapping of reference inputs to their mounted paths and a section of the localization script to
     // "faux localize" these reference inputs with symlinks to their locations on mounted reference disks.
+    import cromwell.backend.google.pipelines.common.action.ActionCommands._
     val referenceFilesLocalizationScript = {
       val symlinkCreationCommandsOpt = referenceInputsToMountedPathsOpt map { referenceInputsToMountedPaths =>
         referenceInputsToMountedPaths map {
           case (input, absolutePathOnRefDisk) =>
-            s"mkdir -p ${input.containerPath.parent.pathAsString} && ln -s $absolutePathOnRefDisk ${input.containerPath.pathAsString}"
+            s"mkdir -p ${input.containerPath.parent.pathAsString.escape} && ln -s ${absolutePathOnRefDisk.escape} ${input.containerPath.pathAsString.escape}"
         }
       }
 

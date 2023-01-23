@@ -41,4 +41,7 @@ jobs:
         repository: broadinstitute/cromwell
         token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
         path: cromwell
+    - uses: olafurpg/setup-scala@v10
+      with:
+        java-version: adopt@1.11
   

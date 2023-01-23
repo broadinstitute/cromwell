@@ -10,7 +10,7 @@ import com.google.cloud.batch.v1.LogsPolicy.Destination
 import com.google.common.collect.ImmutableMap
 
 import java.util.concurrent.TimeUnit
-import scala.util.Try
+//import scala.util.Try
 
 final case class GcpBatchJob (
                              jobSubmission: BatchRequest,
@@ -100,6 +100,7 @@ final case class GcpBatchJob (
         .addTaskGroups(taskGroup)
         .setAllocationPolicy(allocationPolicy)
         .putLabels("submitter", "cromwell") // label to signify job submitted by cromwell for larger tracking purposes within GCP batch
+        .putLabels("cromwell-workflow-id", jobSubmission.workflowId.toString) // label to make it easier to match Cromwell workflows with multiple GCP batch jobs
         .putLabels("env", "testing")
         .putLabels("type", "script")
         .setLogsPolicy(LogsPolicy

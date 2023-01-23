@@ -44,4 +44,12 @@ jobs:
     - uses: olafurpg/setup-scala@v10
       with:
         java-version: adopt@1.11
-  
+    - name: Run tests
+      run: |
+        set -e
+        cd cromwell
+        sbt \
+          -Dsbt.supershell=false \
+          -Dakka.test.timefactor=10 \
+          -Dbackend.providers.Local.config.filesystems.local.localization.0=copy \
+          test

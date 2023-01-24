@@ -59,7 +59,7 @@ trait GcpBatchDockerCacheMappingOperations {
       .map(_.diskImageName)
   }
 
-  private[common] def readDockerImageCacheManifestFileFromGCS(gcsClient: Storage, gcsPath: ValidFullGcsPath): IO[DockerImageCacheManifest] = {
+  private[batch] def readDockerImageCacheManifestFileFromGCS(gcsClient: Storage, gcsPath: ValidFullGcsPath): IO[DockerImageCacheManifest] = {
     val manifestFileBlobIo = IO { gcsClient.get(BlobId.of(gcsPath.bucket, gcsPath.path.substring(1))) }
     manifestFileBlobIo flatMap { manifestFileBlob =>
       val jsonStringIo = IO { manifestFileBlob.getContent().map(_.toChar).mkString }

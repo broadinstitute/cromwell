@@ -328,7 +328,7 @@ object GcpBatchConfigurationAttributes extends GcpBatchDockerCacheMappingOperati
     }
   }
 
-  private [common] def validateGcsPathToDockerImageCacheManifestFile(backendConfig: Config): ErrorOr[Option[ValidFullGcsPath]] = {
+  private [batch] def validateGcsPathToDockerImageCacheManifestFile(backendConfig: Config): ErrorOr[Option[ValidFullGcsPath]] = {
     backendConfig.getAs[String]("docker-image-cache-manifest-file") match {
       case Some(gcsPath) => validateSingleGcsPath(gcsPath).map(Option.apply)
       case None => None.validNel

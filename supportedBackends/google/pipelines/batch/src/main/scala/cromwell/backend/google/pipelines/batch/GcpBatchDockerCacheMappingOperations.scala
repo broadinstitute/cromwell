@@ -14,7 +14,7 @@ import scala.util.control.NoStackTrace
 case class DockerImageCacheEntry(dockerImageDigest: String, diskImageName: String)
 case class DockerImageCacheManifest(manifestFormatVersion: Int, dockerImageCacheMap: Map[String, DockerImageCacheEntry])
 
-trait PipelinesApiDockerCacheMappingOperations {
+trait GcpBatchDockerCacheMappingOperations {
 
   private val CURRENT_SUPPORTED_MANIFEST_FORMAT_VERSION = 2
   private class DockerImageManifestVersionError(message: String) extends RuntimeException(message) with NoStackTrace

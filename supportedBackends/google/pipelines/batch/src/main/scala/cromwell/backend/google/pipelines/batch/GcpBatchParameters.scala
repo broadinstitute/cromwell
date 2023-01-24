@@ -1,15 +1,15 @@
 package cromwell.backend.google.pipelines.batch
 
 import akka.http.scaladsl.model.ContentType
-import cromwell.backend.google.pipelines.common.io.PipelinesApiAttachedDisk
+import cromwell.backend.google.pipelines.batch.io.GcpBatchAttachedDisk
 import cromwell.core.path.Path
 
 import scala.concurrent.duration.FiniteDuration
 
-sealed trait PipelinesParameter {
+sealed trait BatchParameter {
   def name: String
 
-  def mount: PipelinesApiAttachedDisk
+  def mount: GcpBatchAttachedDisk
 
   /**
     * The Path where the input file resides.  The backend-specific localization
@@ -40,44 +40,44 @@ sealed trait PipelinesParameter {
     * True if this parameter represents a file; false if it represents a directory.
     */
   def isFileParameter: Boolean = this match {
-    case _: PipelinesApiFileInput => true
-    case _: PipelinesApiFileOutput => true
-    case _: PipelinesApiDirectoryInput => false
-    case _: PipelinesApiDirectoryOutput => false
+    case _: GcpBatchFileInput => true
+    case _: GcpBatchFileOutput => true
+    case _: GcpBatchDirectoryInput => false
+    case _: GcpBatchDirectoryOutput => false
   }
 }
 
-sealed trait PipelinesApiInput extends PipelinesParameter
-sealed trait PipelinesApiOutput extends PipelinesParameter {
+sealed trait GcpBatchInput extends BatchParameter
+sealed trait GcpBatchOutput extends BatchParameter {
   def contentType: Option[ContentType] = None
 }
 
-final case class PipelinesApiFileInput(name: String,
+final case class GcpBatchFileInput(name: String,
                                        cloudPath: Path,
                                        relativeHostPath: Path,
-                                       mount: PipelinesApiAttachedDisk) extends PipelinesApiInput
+                                       mount: GcpBatchAttachedDisk) extends GcpBatchInput
 
-final case class PipelinesApiDirectoryInput(name: String,
+final case class GcpBatchDirectoryInput(name: String,
                                             cloudPath: Path,
                                             relativeHostPath: Path,
-                                            mount: PipelinesApiAttachedDisk) extends PipelinesApiInput
+                                            mount: GcpBatchAttachedDisk) extends GcpBatchInput
 
-final case class PipelinesApiFileOutput(name: String,
+final case class GcpBatchFileOutput(name: String,
                                         cloudPath: Path,
                                         relativeHostPath: Path,
-                                        mount: PipelinesApiAttachedDisk,
+                                        mount: GcpBatchAttachedDisk,
                                         optional: Boolean,
                                         secondary: Boolean,
                                         uploadPeriod: Option[FiniteDuration] = None,
-                                        override val contentType: Option[ContentType] = None) extends PipelinesApiOutput
+                                        override val contentType: Option[ContentType] = None) extends GcpBatchOutput
 
-final case class PipelinesApiDirectoryOutput(name: String,
+final case class GcpBatchDirectoryOutput(name: String,
                                              cloudPath: Path,
                                              relativeHostPath: Path,
-                                             mount: PipelinesApiAttachedDisk,
+                                             mount: GcpBatchAttachedDisk,
                                              optional: Boolean,
                                              secondary: Boolean,
-                                             override val contentType: Option[ContentType] = None) extends PipelinesApiOutput
+                                             override val contentType: Option[ContentType] = None) extends GcpBatchOutput
 
 // TODO: Remove when support for V1 is stopped, this is only used to pass the extra_param auth file
-final case class PipelinesApiLiteralInput(name: String, value: String)
+final case class GcpBatchLiteralInput(name: String, value: String)

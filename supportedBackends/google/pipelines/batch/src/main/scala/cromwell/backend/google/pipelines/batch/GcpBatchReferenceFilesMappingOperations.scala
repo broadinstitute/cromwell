@@ -8,7 +8,7 @@ import com.google.cloud.storage.{BlobId, Storage, StorageOptions}
 import com.google.common.io.BaseEncoding
 import com.google.common.primitives.Longs
 import cromwell.backend.google.pipelines.common.errors.InvalidGcsPathsInManifestFileException
-import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
+import cromwell.backend.google.pipelines.batch.io.GcpBatchReferenceFilesDisk
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.filesystems.gcs.GcsPathBuilder.{InvalidFullGcsPath, ValidFullGcsPath}
 import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
@@ -19,7 +19,7 @@ import java.util
 case class ReferenceFile(path: String, crc32c: Long)
 case class ManifestFile(imageIdentifier: String, diskSizeGb: Int, files: List[ReferenceFile])
 
-trait PipelinesApiReferenceFilesMappingOperations {
+trait GcpBatchReferenceFilesMappingOperations {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
   /**
@@ -27,7 +27,7 @@ trait PipelinesApiReferenceFilesMappingOperations {
     * may take a significant amount of time.
    */
   def generateReferenceFilesMapping(auth: GoogleAuthMode,
-                                    referenceDiskLocalizationManifests: List[ManifestFile]): Map[String, PipelinesApiReferenceFilesDisk] = {
+                                    referenceDiskLocalizationManifests: List[ManifestFile]): Map[String, GcpBatchReferenceFilesDisk] = {
     val gcsClient = StorageOptions
       .newBuilder()
       .setCredentials(auth.credentials(Set(StorageScopes.DEVSTORAGE_READ_ONLY)))
@@ -41,8 +41,8 @@ trait PipelinesApiReferenceFilesMappingOperations {
     validReferenceFilesMapIO.unsafeRunSync()
   }
 
-  def getReferenceInputsToMountedPathMappings(referenceFileToDiskImageMapping: Map[String, PipelinesApiReferenceFilesDisk],
-                                              inputFiles: List[PipelinesApiInput]): Map[PipelinesApiInput, String] = {
+  def getReferenceInputsToMountedPathMappings(referenceFileToDiskImageMapping: Map[String, GcpBatchReferenceFilesDisk],
+                                              inputFiles: List[GcpBatchInput]): Map[GcpBatchInput, String] = {
     val gcsPathsToInputs = inputFiles.collect { case i if i.cloudPath.isInstanceOf[GcsPath] => (i.cloudPath.asInstanceOf[GcsPath].pathAsString, i) }.toMap
     referenceFileToDiskImageMapping.collect {
       case (path, disk) if gcsPathsToInputs.keySet.contains(s"gs://$path")  =>
@@ -50,8 +50,8 @@ trait PipelinesApiReferenceFilesMappingOperations {
     }
   }
 
-  def getReferenceDisksToMount(referenceFileToDiskImageMapping: Map[String, PipelinesApiReferenceFilesDisk],
-                               inputFilePaths: Set[String]): List[PipelinesApiReferenceFilesDisk] = {
+  def getReferenceDisksToMount(referenceFileToDiskImageMapping: Map[String, GcpBatchReferenceFilesDisk],
+                               inputFilePaths: Set[String]): List[GcpBatchReferenceFilesDisk] = {
     referenceFileToDiskImageMapping.view.filterKeys(key => inputFilePaths.contains(s"gs://$key")).values.toList.distinct
   }
 
@@ -98,8 +98,8 @@ trait PipelinesApiReferenceFilesMappingOperations {
     }
   }
 
-  private def getMapOfValidReferenceFilePathsToDisks(gcsClient: Storage, manifestFile: ManifestFile): IO[Map[String, PipelinesApiReferenceFilesDisk]] = {
-    val refDisk = PipelinesApiReferenceFilesDisk(manifestFile.imageIdentifier, manifestFile.diskSizeGb)
+  private def getMapOfValidReferenceFilePathsToDisks(gcsClient: Storage, manifestFile: ManifestFile): IO[Map[String, GcpBatchReferenceFilesDisk]] = {
+    val refDisk = GcpBatchReferenceFilesDisk(manifestFile.imageIdentifier, manifestFile.diskSizeGb)
     val allReferenceFilesFromManifestMap = manifestFile.files.map(refFile => (refFile, refDisk)).toMap
 
     val validReferenceFilesFromManifestMapIo =

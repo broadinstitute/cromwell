@@ -13,14 +13,14 @@ import wom.values._
 
 import scala.util.Try
 
-object PipelinesApiAttachedDisk {
-  def parse(s: String): Try[PipelinesApiAttachedDisk] = {
+object GcpBatchAttachedDisk {
+  def parse(s: String): Try[GcpBatchAttachedDisk] = {
 
     def sizeGbValidation(sizeGbString: String): ErrorOr[Int] = validateLong(sizeGbString).map(_.toInt)
     def diskTypeValidation(diskTypeString: String): ErrorOr[DiskType] = validateDiskType(diskTypeString)
 
-    val validation: ErrorOr[PipelinesApiAttachedDisk] = s match {
-      case WorkingDiskPattern(sizeGb, diskType) => (validateDiskType(diskType), sizeGbValidation(sizeGb)) mapN { PipelinesApiWorkingDisk.apply }
+    val validation: ErrorOr[GcpBatchAttachedDisk] = s match {
+      case WorkingDiskPattern(sizeGb, diskType) => (validateDiskType(diskType), sizeGbValidation(sizeGb)) mapN { GcpBatchWorkingDisk.apply }
       case MountedDiskPattern(mountPoint, sizeGb, diskType) => (sizeGbValidation(sizeGb), diskTypeValidation(diskType)) mapN { (s, dt) => PipelinesApiEmptyMountedDisk(dt, s, DefaultPathBuilder.get(mountPoint)) }
       case _ => s"Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE' but got: '$s'".invalidNel
     }
@@ -52,9 +52,9 @@ object PipelinesApiAttachedDisk {
     }
   }
   
-  implicit class EnhancedDisks(val disks: Seq[PipelinesApiAttachedDisk]) extends AnyVal {
-    def adjustWorkingDiskWithNewMin(minimum: MemorySize, onAdjustment: => Unit): Seq[PipelinesApiAttachedDisk] = disks map {
-      case disk: PipelinesApiWorkingDisk if disk == PipelinesApiWorkingDisk.Default && disk.sizeGb < minimum.to(MemoryUnit.GB).amount.toInt =>
+  implicit class EnhancedDisks(val disks: Seq[GcpBatchAttachedDisk]) extends AnyVal {
+    def adjustWorkingDiskWithNewMin(minimum: MemorySize, onAdjustment: => Unit): Seq[GcpBatchAttachedDisk] = disks map {
+      case disk: GcpBatchWorkingDisk if disk == GcpBatchWorkingDisk.Default && disk.sizeGb < minimum.to(MemoryUnit.GB).amount.toInt =>
         onAdjustment
         disk.copy(sizeGb = minimum.to(MemoryUnit.GB).amount.toInt)
       case other => other
@@ -62,31 +62,31 @@ object PipelinesApiAttachedDisk {
   }
 }
 
-trait PipelinesApiAttachedDisk {
+trait GcpBatchAttachedDisk {
   def name: String
   def diskType: DiskType
   def sizeGb: Int
   def mountPoint: Path
 }
 
-case class PipelinesApiEmptyMountedDisk(diskType: DiskType, sizeGb: Int, mountPoint: Path) extends PipelinesApiAttachedDisk {
+case class PipelinesApiEmptyMountedDisk(diskType: DiskType, sizeGb: Int, mountPoint: Path) extends GcpBatchAttachedDisk {
   val name = s"d-${mountPoint.pathAsString.md5Sum}"
   override def toString: String = s"$mountPoint $sizeGb ${diskType.diskTypeName}"
 }
 
-object PipelinesApiWorkingDisk {
+object GcpBatchWorkingDisk {
   val MountPoint: Path = DefaultPathBuilder.get("/cromwell_root")
   val Name = "local-disk"
-  val Default = PipelinesApiWorkingDisk(DiskType.SSD, 10)
+  val Default = GcpBatchWorkingDisk(DiskType.SSD, 10)
 }
 
-case class PipelinesApiWorkingDisk(diskType: DiskType, sizeGb: Int) extends PipelinesApiAttachedDisk {
-  val mountPoint: Path = PipelinesApiWorkingDisk.MountPoint
-  val name: String = PipelinesApiWorkingDisk.Name
+case class GcpBatchWorkingDisk(diskType: DiskType, sizeGb: Int) extends GcpBatchAttachedDisk {
+  val mountPoint: Path = GcpBatchWorkingDisk.MountPoint
+  val name: String = GcpBatchWorkingDisk.Name
   override def toString: String = s"$name $sizeGb ${diskType.diskTypeName}"
 }
 
-case class PipelinesApiReferenceFilesDisk(image: String, sizeGb: Int) extends PipelinesApiAttachedDisk {
+case class GcpBatchReferenceFilesDisk(image: String, sizeGb: Int) extends GcpBatchAttachedDisk {
   val mountPoint: Path = DefaultPathBuilder.get(s"/mnt/${image.md5Sum}")
   val name: String = s"d-${mountPoint.pathAsString.md5Sum}"
   val diskType: DiskType = DiskType.HDD

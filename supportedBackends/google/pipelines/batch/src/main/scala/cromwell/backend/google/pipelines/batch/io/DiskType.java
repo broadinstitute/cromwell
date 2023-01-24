@@ -1,4 +1,4 @@
-package cromwell.backend.google.pipelines.common.io;
+package cromwell.backend.google.pipelines.batch.io;
 
 public enum DiskType {
     LOCAL("LOCAL", "LOCAL_SSD"),

@@ -63,7 +63,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val store = BlobContainerName("inputs")
     val evalPath = "/test/inputFile.txt"
     val blobTokenGenerator = NativeBlobSasTokenGenerator(store, endpoint)
-    val fsm: BlobFileSystemManager = BlobFileSystemManager(store, endpoint, 10L, blobTokenGenerator)
+    val fsm: BlobFileSystemManager = new BlobFileSystemManager(store, endpoint, 10L, blobTokenGenerator)
     val testString = endpoint.value + "/" + store + evalPath
     val blobPath: BlobPath = new BlobPathBuilder(store, endpoint)(fsm) build testString getOrElse fail()
 
@@ -81,7 +81,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val store = BlobContainerName("inputs")
     val evalPath = "/test/inputFile.txt"
     val blobTokenGenerator = NativeBlobSasTokenGenerator(store, endpoint)
-    val fsm: BlobFileSystemManager = BlobFileSystemManager(store, endpoint, 10, blobTokenGenerator)
+    val fsm: BlobFileSystemManager = new BlobFileSystemManager(store, endpoint, 10, blobTokenGenerator)
     val testString = endpoint.value + "/" + store + evalPath
     val blobPath1: BlobPath = new BlobPathBuilder(store, endpoint)(fsm) build testString getOrElse fail()
     blobPath1.nioPath.getFileSystem.close()
@@ -96,7 +96,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
     val store = BlobContainerName("inputs")
     val blobTokenGenerator = NativeBlobSasTokenGenerator(store, endpoint)
-    val fsm: BlobFileSystemManager = BlobFileSystemManager(store, endpoint, 10, blobTokenGenerator)
+    val fsm: BlobFileSystemManager = new BlobFileSystemManager(store, endpoint, 10, blobTokenGenerator)
 
     val rootString = s"${endpoint.value}/${store.value}/cromwell-execution"
     val blobRoot: BlobPath = new BlobPathBuilder(store, endpoint)(fsm) build rootString getOrElse fail()

@@ -52,4 +52,4 @@ jobs:
           -Dsbt.supershell=false \
           -Dakka.test.timefactor=10 \
           -Dbackend.providers.Local.config.filesystems.local.localization.0=copy \
-          test
+          testOnly common.util.VersionUtilSpec

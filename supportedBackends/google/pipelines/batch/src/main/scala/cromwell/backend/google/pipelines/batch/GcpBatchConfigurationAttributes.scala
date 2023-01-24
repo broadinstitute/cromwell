@@ -20,8 +20,8 @@ import cromwell.backend.google.pipelines.common.callcaching.{CopyCachedOutputs, 
 import cromwell.backend.google.pipelines.batch.io.GcpBatchReferenceFilesDisk
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
-//import cromwell.filesystems.gcs.GcsPathBuilder
-//import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
+import cromwell.filesystems.gcs.GcsPathBuilder
+import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineV
@@ -55,12 +55,12 @@ case class GcpBatchConfigurationAttributes(project: String,
                                                gcsTransferConfiguration: GcsTransferConfiguration,
                                                virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
                                                batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
-                                               referenceFileToDiskImageMappingOpt: Option[Map[String, GcpBatchReferenceFilesDisk]]
-                                               //dockerImageToCacheDiskImageMappingOpt: Option[Map[String, DockerImageCacheEntry]],
-                                               //checkpointingInterval: FiniteDuration
+                                               referenceFileToDiskImageMappingOpt: Option[Map[String, GcpBatchReferenceFilesDisk]],
+                                               dockerImageToCacheDiskImageMappingOpt: Option[Map[String, DockerImageCacheEntry]],
+                                               checkpointingInterval: FiniteDuration
                                               )
 
-object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOperations with StrictLogging {
+object GcpBatchConfigurationAttributes extends GcpBatchDockerCacheMappingOperations with GcpBatchReferenceFilesMappingOperations with StrictLogging {
 
   /**
     * param transferAttempts This is the number of attempts, not retries, hence it is positive.
@@ -243,9 +243,9 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
 
     val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[ManifestFile]]] = validateReferenceDiskManifestConfigs(backendConfig, backendName)
 
-    //val dockerImageCacheManifestFile: ErrorOr[Option[ValidFullGcsPath]] = validateGcsPathToDockerImageCacheManifestFile(backendConfig)
+    val dockerImageCacheManifestFile: ErrorOr[Option[ValidFullGcsPath]] = validateGcsPathToDockerImageCacheManifestFile(backendConfig)
 
-    //val checkpointingInterval: FiniteDuration = backendConfig.getOrElse(checkpointingIntervalKey, 10.minutes)
+    val checkpointingInterval: FiniteDuration = backendConfig.getOrElse(checkpointingIntervalKey, 10.minutes)
 
     def authGoogleConfigForBatchConfigurationAttributes(project: String,
                                                        bucket: String,
@@ -261,16 +261,16 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
                                                        gcsTransferConfiguration: GcsTransferConfiguration,
                                                        virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
                                                        batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
-                                                       referenceDiskLocalizationManifestFilesOpt: Option[List[ManifestFile]]): ErrorOr[GcpBatchConfigurationAttributes] =
-                                                       //dockerImageCacheManifestFileOpt: Option[ValidFullGcsPath]): ErrorOr[GcpBatchConfigurationAttributes] =
+                                                       referenceDiskLocalizationManifestFilesOpt: Option[List[ManifestFile]],
+                                                       dockerImageCacheManifestFileOpt: Option[ValidFullGcsPath]): ErrorOr[GcpBatchConfigurationAttributes] =
       (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
         (genomicsAuth, gcsAuth) =>
           val generatedReferenceFilesMappingOpt = referenceDiskLocalizationManifestFilesOpt map {
             generateReferenceFilesMapping(genomicsAuth, _)
           }
-          //val dockerImageToCacheDiskImageMappingOpt = dockerImageCacheManifestFileOpt map {
-          //  generateDockerImageToDiskImageMapping(genomicsAuth, _)
-          //}
+          val dockerImageToCacheDiskImageMappingOpt = dockerImageCacheManifestFileOpt map {
+            generateDockerImageToDiskImageMapping(genomicsAuth, _)
+          }
         GcpBatchConfigurationAttributes(
             project = project,
             computeServiceAccount = computeServiceAccount,
@@ -289,9 +289,9 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
             gcsTransferConfiguration = gcsTransferConfiguration,
             virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration,
             batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration,
-            referenceFileToDiskImageMappingOpt = generatedReferenceFilesMappingOpt
-            //dockerImageToCacheDiskImageMappingOpt = dockerImageToCacheDiskImageMappingOpt,
-            //checkpointingInterval = checkpointingInterval
+            referenceFileToDiskImageMappingOpt = generatedReferenceFilesMappingOpt,
+            dockerImageToCacheDiskImageMappingOpt = dockerImageToCacheDiskImageMappingOpt,
+            checkpointingInterval = checkpointingInterval
           )}
 
 
@@ -309,8 +309,8 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
       gcsTransferConfiguration,
       virtualPrivateCloudConfiguration,
       batchRequestTimeoutConfigurationValidation,
-      referenceDiskLocalizationManifestFiles
-      //dockerImageCacheManifestFile
+      referenceDiskLocalizationManifestFiles,
+      dockerImageCacheManifestFile
     ) flatMapN authGoogleConfigForBatchConfigurationAttributes match {
       case Valid(r) => r
       case Invalid(f) =>
@@ -320,7 +320,7 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
         }
     }
   }
-  /*
+
   private def validateSingleGcsPath(gcsPath: String): ErrorOr[ValidFullGcsPath] = {
     GcsPathBuilder.validateGcsPath(gcsPath) match {
       case validPath: ValidFullGcsPath => validPath.validNel
@@ -334,7 +334,6 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
       case None => None.validNel
     }
   }
-   */
 
   /**
     * Validate that the entries corresponding to "reference-disk-localization-manifests" in the specified

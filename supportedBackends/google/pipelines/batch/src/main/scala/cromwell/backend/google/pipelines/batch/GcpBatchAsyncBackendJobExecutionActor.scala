@@ -18,7 +18,7 @@ import java.util.UUID
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import GcpBatchBackendSingletonActor._
-import cromwell.backend.google.pipelines.batch.RunStatus.{Running,Succeeded, TerminalRunStatus}
+import cromwell.backend.google.pipelines.batch.RunStatus.{Running, Succeeded, TerminalRunStatus}
 
 import com.google.cloud.batch.v1.JobStatus
 
@@ -55,12 +55,15 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     */
   def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
 
-  private lazy val jobDockerImage = jobDescriptor.maybeCallCachingEligible.dockerHash.getOrElse(runtimeAttributes.dockerImage)
+  private lazy val jobDockerImage = jobDescriptor.maybeCallCachingEligible.dockerHash
+                                                 .getOrElse(runtimeAttributes.dockerImage)
+
   override def dockerImageUsed: Option[String] = Option(jobDockerImage)
 
   //type GcpBatchPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, Run, StandardAsyncRunState]
 
-  val backendSingletonActor: ActorRef = standardParams.backendSingletonActorOption.getOrElse(throw new RuntimeException("GCP Batch actor cannot exist without its backend singleton 2"))
+  val backendSingletonActor: ActorRef = standardParams.backendSingletonActorOption
+                                                      .getOrElse(throw new RuntimeException("GCP Batch actor cannot exist without its backend singleton 2"))
 
   def uploadScriptFile(): Future[Unit] = {
     commandScriptContents
@@ -75,21 +78,22 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
             .empty)
       )
   }
+
   // Primary entry point for cromwell to run GCP Batch job
   override def executeAsync(): Future[ExecutionHandle] = {
 
-    val cpuPlatformTest = runtimeAttributes.cpuPlatform
+    //val cpuPlatformTest = runtimeAttributes.cpuPlatform
 
-    val batchTest = BatchRequest(projectId="batch-testing-350715", region="us-central1", jobName=jobTemp, dockerImage=jobDockerImage, cpuPlatform=cpuPlatformTest.getOrElse(""))
+    val batchTest = BatchRequest(workflowId, projectId = "batch-testing-350715", region = "us-central1", jobName = jobTemp, runtimeAttributes)
 
     val runBatchResponse = for {
       _ <- uploadScriptFile()
       _ = backendSingletonActor ! batchTest
-      runId = StandardAsyncJob(UUID.randomUUID().toString)  //temp to test
+      runId = StandardAsyncJob(UUID.randomUUID().toString) //temp to test
     }
     yield runId
 
-    runBatchResponse map {runId => PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)}
+    runBatchResponse map { runId => PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None) }
 
   }
 
@@ -110,46 +114,46 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override def pollStatusAsync(handle: GcpBatchPendingExecutionHandle): Future[RunStatus] = {
 
-     //println(batchAttributes.project)
-     val gcpBatchPoll = new GcpBatchJobGetRequest
-     val result = gcpBatchPoll.GetJob(jobTemp)
-     //val temp = result.toString //matches for string
-     //val batchRunStatus = RunStatus.fromJobStatus(status=result)
-     //val eventList: Seq[ExecutionEvent] = Seq(ExecutionEvent.toString)
-     val jobStatus = result.getStatus.getState
+    //println(batchAttributes.project)
+    val gcpBatchPoll = new GcpBatchJobGetRequest
+    val result = gcpBatchPoll.GetJob(jobTemp)
+    //val temp = result.toString //matches for string
+    //val batchRunStatus = RunStatus.fromJobStatus(status=result)
+    //val eventList: Seq[ExecutionEvent] = Seq(ExecutionEvent.toString)
+    val jobStatus = result.getStatus.getState
 
     //https://github.com/broadinstitute/cromwell/blob/328a0fe0aa307ee981b00e4af6b397b61a9fbe9e/engine/src/main/scala/cromwell/engine/workflow/lifecycle/execution/SubWorkflowExecutionActor.scala
-     jobStatus match {
-       case JobStatus.State.QUEUED =>
-         log.info("job queued")
-         Future.successful(Running)
-       case JobStatus.State.SCHEDULED =>
-         log.info("job scheduled")
-         Future.successful(Running)
-       case JobStatus.State.RUNNING =>
-         log.info("job running")
-         Future.successful(Running)
-       case JobStatus.State.SUCCEEDED =>
-         log.info("job scheduled")
-         Future.successful(Succeeded(List(ExecutionEvent("complete in GCP Batch")))) //update to more specific
-       case JobStatus.State.FAILED =>
-         log.info("job failed")
-         Future.successful(Failed)
-       case JobStatus.State.DELETION_IN_PROGRESS =>
-         log.info("deletion in progress")
-         Future.successful(DeletionInProgress)
-       case JobStatus.State.STATE_UNSPECIFIED =>
-         log.info("state unspecified")
-         Future.successful(StateUnspecified)
-       case JobStatus.State.UNRECOGNIZED =>
-         log.info("state unrecognized")
-         Future.successful(Unrecognized)
-       //case _ =>
-       //  log.info("job status not matched")
-       //  Future.successful(Running)
+    jobStatus match {
+      case JobStatus.State.QUEUED =>
+        log.info("job queued")
+        Future.successful(Running)
+      case JobStatus.State.SCHEDULED =>
+        log.info("job scheduled")
+        Future.successful(Running)
+      case JobStatus.State.RUNNING =>
+        log.info("job running")
+        Future.successful(Running)
+      case JobStatus.State.SUCCEEDED =>
+        log.info("job scheduled")
+        Future.successful(Succeeded(List(ExecutionEvent("complete in GCP Batch")))) //update to more specific
+      case JobStatus.State.FAILED =>
+        log.info("job failed")
+        Future.successful(Failed)
+      case JobStatus.State.DELETION_IN_PROGRESS =>
+        log.info("deletion in progress")
+        Future.successful(DeletionInProgress)
+      case JobStatus.State.STATE_UNSPECIFIED =>
+        log.info("state unspecified")
+        Future.successful(StateUnspecified)
+      case JobStatus.State.UNRECOGNIZED =>
+        log.info("state unrecognized")
+        Future.successful(Unrecognized)
+      //case _ =>
+      //  log.info("job status not matched")
+      //  Future.successful(Running)
 
-     }
-   }
+    }
+  }
 
   override def isTerminal(runStatus: RunStatus): Boolean = {
     //runStatus.isTerminal
@@ -199,8 +203,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   }
 
   override val gcpBatchActor: ActorRef = backendSingletonActor
-
-
 
   /*
   override lazy val runtimeEnvironment: RuntimeEnvironment = {

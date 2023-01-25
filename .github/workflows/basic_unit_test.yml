@@ -18,8 +18,9 @@ jobs:
   build-and-test:
     name: SBT VersionUtilSpec Unit Test
     runs-on: self-hosted # Faster machines; see https://github.com/broadinstitute/cromwell/settings/actions/runners
-    matrix:
-      project: [common, wom, engine]
+    strategy:
+      matrix:
+        project: [common, wom, engine]
     steps:
     - name: Clone Cromwell
       uses: actions/checkout@v3

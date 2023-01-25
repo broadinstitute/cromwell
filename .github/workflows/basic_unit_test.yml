@@ -19,8 +19,8 @@ jobs:
     name: SBT VersionUtilSpec Unit Test
     runs-on: self-hosted # Faster machines; see https://github.com/broadinstitute/cromwell/settings/actions/runners
     strategy:
+      fail-fast: false
       matrix:
-        continue-on-error: true
         project: [common, wom, engine]
     steps:
     - name: Clone Cromwell

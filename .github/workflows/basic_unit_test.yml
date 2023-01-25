@@ -28,8 +28,8 @@ jobs:
     - uses: olafurpg/setup-scala@v11
       with:
         java-version: adopt@1.11
-    - name: Run tests #Invoke SBT with an argument asking it to run a specific test.
+    - name: Run tests #Invoke SBT with an argument asking it to run a specific test in a specific sbt project. 
       run: |
         set -e
         cd cromwell
-        sbt "test:testOnly common.util.VersionUtilSpec"
+        sbt "common/testOnly common.util.VersionUtilSpec"

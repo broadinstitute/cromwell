@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   build-and-test:
-    name: SBT VersionUtilSpec testgig
+    name: SBT VersionUtilSpec Unit Test
     runs-on: self-hosted # Faster machines; see https://github.com/broadinstitute/cromwell/settings/actions/runners
     steps:
     - name: Clone Cromwell

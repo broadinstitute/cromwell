@@ -20,7 +20,7 @@ jobs:
     runs-on: self-hosted # Faster machines; see https://github.com/broadinstitute/cromwell/settings/actions/runners
     strategy:
       matrix:
-        fail-fast: false
+        continue-on-error: true
         project: [common, wom, engine]
     steps:
     - name: Clone Cromwell

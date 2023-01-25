@@ -1,0 +1,35 @@
+name: 'Basic Unit Test'
+
+#The goal of this Github Action is to verify that is is possible to compile cromwell (enough) to run a simple unit test.
+
+#This is what shows up in the github workflows page as the title. 
+run-name: ${{ github.actor }} running Basic Unit Test.
+
+#What will trigger the workflow to run. 
+on:
+  workflow_dispatch: #Manual trigger from GitHub UI
+  push:
+  pull_request: 
+
+permissions: 
+  contents: read
+
+jobs:
+  build-and-test:
+    name: SBT VersionUtilSpec Unit Test
+    runs-on: self-hosted # Faster machines; see https://github.com/broadinstitute/cromwell/settings/actions/runners
+    steps:
+    - name: Clone Cromwell
+      uses: actions/checkout@v3
+      with:
+        repository: broadinstitute/cromwell
+        token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+        path: cromwell
+    - uses: olafurpg/setup-scala@v11
+      with:
+        java-version: adopt@1.11
+    - name: Run tests #Invoke SBT with an argument asking it to run a specific test in a specific sbt project. 
+      run: |
+        set -e
+        cd cromwell
+        sbt "common/testOnly common.util.VersionUtilSpec"

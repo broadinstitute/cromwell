@@ -35,4 +35,4 @@ jobs:
       run: |
         set -e
         cd cromwell
-        sbt "${{ matrix.project }}/testOnly common.util.VersionUtilSpec"g
+        sbt "${{ matrix.project }}/test"

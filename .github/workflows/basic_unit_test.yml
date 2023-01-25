@@ -1,11 +1,11 @@
 name: 'Basic Unit Test'
 
-#The goal of this Github Action is to verify that 
+#The goal of this Github Action is to verify that is is possible to compile cromwell (enough) to run a simple unit test.
 
 #This is what shows up in the github workflows page as the title. 
 run-name: ${{ github.actor }} running Basic Unit Test.
 
-#What triggers the workflow to run.
+#What will trigger the workflow to run. 
 on:
   workflow_dispatch: #Manual trigger from GitHub UI
   push:

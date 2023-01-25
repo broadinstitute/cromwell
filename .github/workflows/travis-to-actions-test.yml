@@ -1,5 +1,7 @@
 name: 'Basic Unit Test'
 
+#The goal of this Github Action is to verify that 
+
 #This is what shows up in the github workflows page as the title. 
 run-name: ${{ github.actor }} running Basic Unit Test.
 
@@ -14,12 +16,12 @@ permissions:
 
 #Global environment variables.
 env:
-  BUILD_TYPE: centaurAws
-  BUILD_MYSQL: 5.7
+  #BUILD_TYPE: centaurAws
+  #BUILD_MYSQL: 5.7
 
 jobs:
   build-and-test:
-    name: SBT VersionUtilSpec test
+    name: SBT VersionUtilSpec testgig
     runs-on: self-hosted # Faster machines; see https://github.com/broadinstitute/cromwell/settings/actions/runners
     steps:
     - name: Clone Cromwell
@@ -28,7 +30,7 @@ jobs:
         repository: broadinstitute/cromwell
         token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
         path: cromwell
-    - uses: olafurpg/setup-scala@v10
+    - uses: olafurpg/setup-scala@v11
       with:
         java-version: adopt@1.11
     - name: Run tests

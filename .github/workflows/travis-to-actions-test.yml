@@ -14,11 +14,6 @@ on:
 permissions: 
   contents: read
 
-#Global environment variables.
-env:
-  #BUILD_TYPE: centaurAws
-  #BUILD_MYSQL: 5.7
-
 jobs:
   build-and-test:
     name: SBT VersionUtilSpec testgig
@@ -33,7 +28,7 @@ jobs:
     - uses: olafurpg/setup-scala@v11
       with:
         java-version: adopt@1.11
-    - name: Run tests
+    - name: Run tests #Invoke SBT with an argument asking it to run a specific test.
       run: |
         set -e
         cd cromwell

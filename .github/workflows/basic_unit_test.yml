@@ -21,6 +21,17 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - uses: coursier/cache-action@v6
+    - name: Git secrets setup
+      run: |
+        git clone https://github.com/awslabs/git-secrets.git ~/git-secrets
+        cd ~/git-secrets
+        git checkout ad82d68ee924906a0401dfd48de5057731a9bc84
+        sudo make install
+    - name: Secrets check
+      run: |
+        sudo ln -s "$(which echo)" /usr/local/bin/say
+        ./minnie-kenny.sh --force
+        git secrets --scan-history
     - name: Clone Cromwell
       uses: actions/checkout@v3
       with:

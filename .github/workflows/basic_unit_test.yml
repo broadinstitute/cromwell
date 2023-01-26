@@ -37,6 +37,7 @@ jobs:
         git secrets --scan-history
 
     - name: Clone Cromwell
+      uses: actions/checkout@v3
       with:
         repository: broadinstitute/cromwell
         token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}

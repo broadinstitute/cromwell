@@ -1,10 +1,10 @@
-name: 'Basic Unit Test'
+name: 'Cromwell unit tests'
 
 #This github action runs all of Cromwell's unit tests.
 #A matrix strategy is used so that each subproject can be unit tested in parallel with all other subprojects. 
 
 #This is what shows up in the github workflows page as the title. 
-run-name: ${{ github.actor }} running Cromwell sbt Unit Tests.
+run-name: ${{ github.actor }} running Cromwell sbt unit tests.
 
 #What will trigger the workflow to run. 
 on:
@@ -15,8 +15,9 @@ on:
 permissions: 
   contents: read
 
+#This job is spawned once for each subproject in the matrix below. Each iteration will set up a cache, git secrets, and java before running unit tests for that subproject.
 jobs:
-  build-and-test: #This job is spawned once for each subproject in the matrix below. Each iteration will set up a cache, git secrets, and java before running unit tests for that subproject.
+  build-and-test: 
     strategy:
       fail-fast: false #Disabling fail fast means that even if one job in the matrix fails, the others will still try to complete.
       matrix: #this array is the output of the command `sbt projects` from the cromwell root directory, minus a bunch of superflous formatting that sbt adds.
@@ -69,11 +70,12 @@ jobs:
         wom,
         womtool]
 
-    runs-on: ubuntu-latest #Note: This action is using a Github free runner, rather than a Broad self-hosted one. This is because the Broad ones don't have sbt installed by default.
+    #This action is using a Github free runner, rather than a Broad self-hosted one. This is because the Broad ones don't have sbt installed by default.
+    runs-on: ubuntu-latest
 
     steps:
 
-    #Allows this github action to use a cache to store stuff like Java and SBT files between runs.
+    #Allows this github action to use a cache to store stuff like Java and sbt files between runs.
     - uses: actions/checkout@v3
       name: Checkout Coursier Cache
     - uses: coursier/cache-action@v6  

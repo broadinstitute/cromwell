@@ -1,8 +1,9 @@
 package cromwell.backend.google.pipelines.batch
 
 import akka.actor.{ActorRef, Props}
-//import com.google.api.client.util.ExponentialBackOff
+import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.scalalogging.StrictLogging
+import cromwell.backend.google.pipelines.batch.GcpBatchBackendLifecycleActorFactory.robustBuildAttributes
 //import cromwell.backend.google.pipelines.common.PipelinesApiBackendLifecycleActorFactory.logger
 //import cromwell.backend.google.pipelines.common.{PipelinesApiConfigurationAttributes, PipelinesApiFinalizationActorParams, PipelinesApiInitializationActorParams}
 
@@ -18,15 +19,25 @@ import wom.graph.CommandCallNode
 //import cromwell.backend.{BackendInitializationData, BackendJobDescriptor}
 import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.backend.standard._
+//import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Try}
 
 
-class GcpBatchBackendLifecycleActorFactory(name: String, override val configurationDescriptor: BackendConfigurationDescriptor)
+class GcpBatchBackendLifecycleActorFactory(val name: String, override val configurationDescriptor: BackendConfigurationDescriptor)
   extends StandardLifecycleActorFactory {
 
-  override def name: String = "batch"
+  //override def name: String = "batch"
 
   override def jobIdKey: String = "__gcp_batch"
   protected val googleConfig: GoogleConfiguration = GoogleConfiguration(configurationDescriptor.globalConfig)
+
+  protected val batchAttributes: GcpBatchConfigurationAttributes = {
+    def defaultBuildAttributes() =
+      GcpBatchConfigurationAttributes(googleConfig, configurationDescriptor.backendConfig, name)
+
+    robustBuildAttributes(defaultBuildAttributes)
+  }
+print(batchAttributes.project + " LOOK HERE!")
 
 
   //protected def requiredBackendSingletonActor(serviceRegistryActor: ActorRef): Props
@@ -43,7 +54,7 @@ class GcpBatchBackendLifecycleActorFactory(name: String, override val configurat
   //protected def requiredBackendSingletonActor(serviceRegistryActor: ActorRef): Props
   //override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = Option(requiredBackendSingletonActor(serviceRegistryActor))
 
-  val batchConfiguration = new GcpBatchConfiguration(configurationDescriptor, googleConfig)
+  val batchConfiguration = new GcpBatchConfiguration(configurationDescriptor, googleConfig, batchAttributes)
 
 
   override def workflowInitializationActorParams(
@@ -79,6 +90,38 @@ class GcpBatchBackendLifecycleActorFactory(name: String, override val configurat
 }
 
 object GcpBatchBackendLifecycleActorFactory extends StrictLogging {
+  val preemptionCountKey = "PreemptionCount"
+  val unexpectedRetryCountKey = "UnexpectedRetryCount"
+
+  private [batch] def robustBuildAttributes(buildAttributes: () => GcpBatchConfigurationAttributes,
+                                             maxAttempts: Int = 3,
+                                             initialIntervalMillis: Int = 5000,
+                                             maxIntervalMillis: Int = 10000,
+                                             multiplier: Double = 1.5,
+                                             randomizationFactor: Double = 0.5): GcpBatchConfigurationAttributes = {
+    val backoff = new ExponentialBackOff.Builder()
+      .setInitialIntervalMillis(initialIntervalMillis)
+      .setMaxIntervalMillis(maxIntervalMillis)
+      .setMultiplier(multiplier)
+      .setRandomizationFactor(randomizationFactor)
+      .build()
+
+    // `attempt` is 1-based
+    def build(attempt: Int): Try[GcpBatchConfigurationAttributes] = {
+      Try {
+        buildAttributes()
+      } recoverWith {
+        // Try again if this was an Exception (as opposed to an Error) and we have not hit maxAttempts
+        case ex: Exception if attempt < maxAttempts =>
+          logger.warn(s"Failed to build PipelinesApiConfigurationAttributes on attempt $attempt of $maxAttempts, retrying.", ex)
+          Thread.sleep(backoff.nextBackOffMillis())
+          build(attempt + 1)
+        case e => Failure(new RuntimeException(s"Failed to build PipelinesApiConfigurationAttributes on attempt $attempt of $maxAttempts", e))
+      }
+    }
+    // This intentionally throws if the final result of `build` is a `Failure`.
+    build(attempt = 1).get
+  }
 
 
 }

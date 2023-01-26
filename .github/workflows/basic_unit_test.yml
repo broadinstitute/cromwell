@@ -33,3 +33,4 @@ jobs:
         set -e
         cd cromwell
         sbt "common/testOnly common.util.VersionUtilSpec"
+        

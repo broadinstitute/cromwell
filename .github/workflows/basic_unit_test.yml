@@ -16,7 +16,58 @@ permissions:
 
 jobs:
   build-and-test:
-    name: SBT VersionUtilSpec Unit Test
+    strategy:
+    matrix:
+      sbtSubProject: 
+        [awsBackend,
+        awsS3FileSystem,
+        azureBlobFileSystem,
+        backend,
+        centaur,
+        cloud-nio-impl-drs,
+        cloud-nio-impl-ftp,
+        cloud-nio-spi,
+        Cloud-nio-util,
+        cloudSupport,
+        common,
+        core,
+        cromiam,
+        cromwell-drs-localizer,
+        cromwellApiClient,
+        databaseMigration,
+        databaseSql,
+        dockerHashing,
+        drsFileSystem,
+        engine,
+        ftpFileSystem,
+        gcsFileSystem,
+        googlePipelinesCommon,
+        googlePipelinesV2Alpha1,
+        googlePipelinesV2Beta,
+        httpFileSystem,
+        languageFactoryCore,
+        perf,
+        server,
+        services,
+        sfsBackend,
+        sraFileSystem,
+        tesBackend,
+        wdlBiscayneLanguageFactory,
+        wdlDraft2LanguageFactory,
+        wdlDraft3LanguageFactory,
+        wdlModelBiscayne,
+        wdlModelDraft2,
+        wdlModelDraft3,
+        wdlNewBaseTransforms,
+        wdlSharedModel,
+        wdlSharedTransforms,
+        wdlTransformsBiscayne,
+        wdlTransformsDraft2,
+        wdlTransformsDraft3,
+        wes2cromwell,
+        wom,
+        womtool]
+    name: ${{ matrix.sbtSubProject }} Unit Tests
     runs-on: ubuntu-latest #Note: This action is using a Github free runner, rather than a Broad self-hosted one. This is because the Broad ones don't have sbt installed by default.
     steps:
     - uses: actions/checkout@v3
@@ -50,4 +101,4 @@ jobs:
     - name: Run tests #Invoke SBT with an argument asking it to run a specific test in a specific sbt project. 
       run: |
         set -e
-        sbt "services/testOnly *WriteMetadataActorSpec"
+        sbt "${{ matrix.sbtSubProject }}/test"

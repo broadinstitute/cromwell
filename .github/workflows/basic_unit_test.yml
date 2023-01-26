@@ -19,8 +19,8 @@ jobs:
     name: SBT VersionUtilSpec Unit Test
     runs-on: self-hosted # Faster machines; see https://github.com/broadinstitute/cromwell/settings/actions/runners
     steps:
-      - uses: actions/checkout@v3
-      - uses: coursier/cache-action@v6
+    - uses: actions/checkout@v3
+    - uses: coursier/cache-action@v6
     - name: Clone Cromwell
       uses: actions/checkout@v3
       with:

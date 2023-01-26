@@ -32,6 +32,7 @@ jobs:
       with:
         distribution: temurin
         java-version: 11
+        cache: sbt
     - name: Run tests #Invoke SBT with an argument asking it to run a specific test in a specific sbt project. 
       run: |
         set -e

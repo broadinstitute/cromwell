@@ -18,8 +18,7 @@ jobs:
   build-and-test:
     strategy:
     matrix:
-      sbtSubProject: 
-        [awsBackend,
+      sbtSubProject: [awsBackend,
         awsS3FileSystem,
         azureBlobFileSystem,
         backend,

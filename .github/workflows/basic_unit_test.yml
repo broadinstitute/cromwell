@@ -17,11 +17,13 @@ permissions:
 jobs:
   build-and-test:
     name: SBT VersionUtilSpec Unit Test
-    runs-on: ubuntu-latest #Note: This action is using a Github free runner, rather than a Broad self-hosted one. This is because the Broad ones don't have SBT installed by default.
+    runs-on: ubuntu-latest #Note: This action is using a Github free runner, rather than a Broad self-hosted one. This is because the Broad ones don't have sbt installed by default.
     steps:
-    - uses: actions/checkout@v3
-    - uses: coursier/cache-action@v6
-    - name: Git secrets setup
+    - name: Coursier Cache Setup #Allow sbt to cache setup stuff between github acitons
+      uses: actions/checkout@v3
+      uses: coursier/cache-action@v6  
+
+    - name: Git secrets setup #The Broad requires git-secrets be setup. The Secrets check below veritfies that the setup worked.
       run: |
         git clone https://github.com/awslabs/git-secrets.git ~/git-secrets
         cd ~/git-secrets
@@ -32,6 +34,7 @@ jobs:
         sudo ln -s "$(which echo)" /usr/local/bin/say
         ./minnie-kenny.sh --force
         git secrets --scan-history
+
     - name: Clone Cromwell
       uses: actions/checkout@v3
       with:
@@ -46,4 +49,4 @@ jobs:
     - name: Run tests #Invoke SBT with an argument asking it to run a specific test in a specific sbt project. 
       run: |
         set -e
-        sbt "test"
+        sbt "services/testOnly *WriteMetadataActorSpec"

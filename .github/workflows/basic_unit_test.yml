@@ -17,23 +17,24 @@ permissions:
 jobs:
   build-and-test:
     name: SBT VersionUtilSpec Unit Test
-    runs-on: self-hosted # Faster machines; see https://github.com/broadinstitute/cromwell/settings/actions/runners
-    strategy:
-      fail-fast: false
-      matrix:
-        project: [common, wom, engine]
+    runs-on: ubuntu-latest #Note: This action is using a Github free runner, rather than a Broad self-hosted one. This is because the Broad ones don't have SBT installed by default.
     steps:
+    - uses: actions/checkout@v3
+    - uses: coursier/cache-action@v6
     - name: Clone Cromwell
       uses: actions/checkout@v3
       with:
         repository: broadinstitute/cromwell
         token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
         path: cromwell
-    - uses: olafurpg/setup-scala@v11
+    - name: Setup JDK
+      uses: actions/setup-java@v3
       with:
-        java-version: adopt@1.11
+        distribution: temurin
+        java-version: 11
+        cache: sbt
     - name: Run tests #Invoke SBT with an argument asking it to run a specific test in a specific sbt project. 
       run: |
         set -e
         cd cromwell
-        sbt "${{ matrix.project }}/test"
+        sbt "common/testOnly common.util.VersionUtilSpec"

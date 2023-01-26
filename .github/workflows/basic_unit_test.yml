@@ -1,9 +1,10 @@
 name: 'Basic Unit Test'
 
-#The goal of this Github Action is to verify that is is possible to compile cromwell (enough) to run a simple unit test.
+#This github action runs all of Cromwell's unit tests.
+#A matrix strategy is used so that each subproject can be unit tested in parallel with all other subprojects. 
 
 #This is what shows up in the github workflows page as the title. 
-run-name: ${{ github.actor }} running Basic Unit Test.
+run-name: ${{ github.actor }} running Cromwell sbt Unit Tests.
 
 #What will trigger the workflow to run. 
 on:
@@ -15,10 +16,10 @@ permissions:
   contents: read
 
 jobs:
-  build-and-test:
+  build-and-test: #This job is spawned once for each subproject in the matrix below. Each iteration will set up a cache, git secrets, and java before running unit tests for that subproject.
     strategy:
-      fail-fast: false  
-      matrix:
+      fail-fast: false #Disabling fail fast means that even if one job in the matrix fails, the others will still try to complete.
+      matrix: #this array is the output of the command `sbt projects` from the cromwell root directory, minus a bunch of superflous formatting that sbt adds.
         sbtSubProject: [awsBackend,
         awsS3FileSystem,
         azureBlobFileSystem,
@@ -67,15 +68,19 @@ jobs:
         wes2cromwell,
         wom,
         womtool]
+
     runs-on: ubuntu-latest #Note: This action is using a Github free runner, rather than a Broad self-hosted one. This is because the Broad ones don't have sbt installed by default.
-    #name: ${{ matrix.sbtSubProject }} Unit Tests
+
     steps:
+
+    #Allows this github action to use a cache to store stuff like Java and SBT files between runs.
     - uses: actions/checkout@v3
       name: Checkout Coursier Cache
     - uses: coursier/cache-action@v6  
       name: Enable Coursier Cache
 
-    - name: Git secrets setup #The Broad requires git-secrets be setup. The Secrets check below veritfies that the setup worked.
+    #Cromwell requires git-secrets be setup. Here, we set up secrets and verify success with a script.
+    - name: Git secrets setup 
       run: |
         git clone https://github.com/awslabs/git-secrets.git ~/git-secrets
         cd ~/git-secrets
@@ -87,18 +92,23 @@ jobs:
         ./minnie-kenny.sh --force
         git secrets --scan-history
 
+    #Clone the cromwell repo to this VM.
     - name: Clone Cromwell
       uses: actions/checkout@v3
       with:
         repository: broadinstitute/cromwell
         token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+
+    #Install Java to this VM. This Java version and distribution is compatible with Cromwell.
     - name: Setup JDK
       uses: actions/setup-java@v3
       with:
         distribution: temurin
         java-version: 11
         cache: sbt
-    - name: Run tests #Invoke SBT with an argument asking it to run a specific test in a specific sbt project. 
+
+    #Invoke SBT on a specific subproject, asking it to run all unit tests contained within that subproject.
+    - name: Run tests 
       run: |
         set -e
         sbt "${{ matrix.sbtSubProject }}/test"

@@ -16,6 +16,7 @@ permissions:
 
 jobs:
   build-and-test:
+    runs-on: ubuntu-latest #Note: This action is using a Github free runner, rather than a Broad self-hosted one. This is because the Broad ones don't have sbt installed by default.
     strategy:
     matrix:
       sbtSubProject: [awsBackend,
@@ -66,8 +67,7 @@ jobs:
         wes2cromwell,
         wom,
         womtool]
-    name: ${{ matrix.sbtSubProject }} Unit Tests
-    runs-on: ubuntu-latest #Note: This action is using a Github free runner, rather than a Broad self-hosted one. This is because the Broad ones don't have sbt installed by default.
+    #name: ${{ matrix.sbtSubProject }} Unit Tests
     steps:
     - uses: actions/checkout@v3
       name: Checkout Coursier Cache

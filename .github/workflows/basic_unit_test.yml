@@ -37,7 +37,6 @@ jobs:
       with:
         repository: broadinstitute/cromwell
         token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
-        path: cromwell
     - name: Setup JDK
       uses: actions/setup-java@v3
       with:
@@ -47,5 +46,4 @@ jobs:
     - name: Run tests #Invoke SBT with an argument asking it to run a specific test in a specific sbt project. 
       run: |
         set -e
-        cd cromwell
         sbt "common/test"

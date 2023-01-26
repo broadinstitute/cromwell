@@ -46,4 +46,4 @@ jobs:
     - name: Run tests #Invoke SBT with an argument asking it to run a specific test in a specific sbt project. 
       run: |
         set -e
-        sbt "common/test"
+        sbt "test"

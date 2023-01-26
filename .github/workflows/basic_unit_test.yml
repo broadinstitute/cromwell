@@ -27,7 +27,7 @@ jobs:
         cloud-nio-impl-drs,
         cloud-nio-impl-ftp,
         cloud-nio-spi,
-        Cloud-nio-util,
+        cloud-nio-util,
         cloudSupport,
         common,
         core,

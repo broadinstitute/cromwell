@@ -37,9 +37,6 @@ class GcpBatchBackendLifecycleActorFactory(val name: String, override val config
 
     robustBuildAttributes(defaultBuildAttributes)
   }
-print(batchAttributes.project + " LOOK HERE!")
-
-
   //protected def requiredBackendSingletonActor(serviceRegistryActor: ActorRef): Props
 
   override lazy val initializationActorClass: Class[_ <: StandardInitializationActor] = classOf[GcpBatchInitializationActor]

@@ -17,7 +17,7 @@ permissions:
 jobs:
   build-and-test:
     name: SBT VersionUtilSpec Unit Test
-    runs-on: self-hosted # Faster machines; see https://github.com/broadinstitute/cromwell/settings/actions/runners
+    #runs-on: self-hosted # Faster machines; see https://github.com/broadinstitute/cromwell/settings/actions/runners
     steps:
     - uses: actions/checkout@v3
     - uses: coursier/cache-action@v6

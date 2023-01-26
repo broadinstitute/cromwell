@@ -20,8 +20,8 @@ jobs:
     runs-on: ubuntu-latest #Note: This action is using a Github free runner, rather than a Broad self-hosted one. This is because the Broad ones don't have sbt installed by default.
     steps:
     - name: Coursier Cache Setup #Allow sbt to cache setup stuff between github acitons
-      uses: actions/checkout@v3
-      uses: coursier/cache-action@v6  
+    - uses: actions/checkout@v3
+    - uses: coursier/cache-action@v6  
 
     - name: Git secrets setup #The Broad requires git-secrets be setup. The Secrets check below veritfies that the setup worked.
       run: |

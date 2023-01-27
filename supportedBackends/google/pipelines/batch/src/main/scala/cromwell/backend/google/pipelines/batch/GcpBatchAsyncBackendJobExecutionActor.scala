@@ -1,9 +1,14 @@
 package cromwell.backend.google.pipelines.batch
 
+import akka.util.Timeout
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
 import cromwell.backend.google.pipelines.batch.RunStatus.{DeletionInProgress, Failed, StateUnspecified, Unrecognized}
+
+//import scala.concurrent.Promise
+
+//import scala.util.control.NoStackTrace
 //import cromwell.backend.google.pipelines.common.WorkflowOptionKeys
 import cromwell.core.{ExecutionEvent, WorkflowId}
 //import wom.callable.RuntimeEnvironment
@@ -88,12 +93,15 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     val runBatchResponse = for {
       _ <- uploadScriptFile()
+      //completionPromise = Promise[]
       _ = backendSingletonActor ! batchTest
       runId = StandardAsyncJob(UUID.randomUUID().toString) //temp to test
+
     }
     yield runId
 
     runBatchResponse map { runId => PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None) }
+    //runBatchResponse map { runId => PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None) }
 
   }
 
@@ -103,23 +111,50 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     Future.successful(handle)
   }
 
-  override lazy val pollBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(1
+  override lazy val pollBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(5
     .second, 5
     .minutes, 1.1)
 
   override lazy val executeOrRecoverBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(
-    initialInterval = 3
-      .second, maxInterval = 20
-      .second, multiplier = 1.1)
+    initialInterval = 5
+      .seconds, maxInterval = 20
+      .seconds, multiplier = 1.1)
 
   override def pollStatusAsync(handle: GcpBatchPendingExecutionHandle): Future[RunStatus] = {
 
-    //println(batchAttributes.project)
+    //val jobId = handle.pendingJob.jobId
+
+    /*
+    val job = handle.runInfo match {
+      case Some(actualJob) => actualJob
+      case None =>
+        throw new RuntimeException(
+          s"pollStatusAsync called but job not available. This should not happen. Job Id $jobId"
+        )
+    }*/
+
+    implicit val timeout: Timeout = Timeout(5.seconds)
+    val result2: Future[Any] = backendSingletonActor ? BatchGetJob(jobTemp)
+    println(result2.toString)
+    println(result2.value)
+
+    /*
+    for {
+
+    } yield answer
+
+     */
+
     val gcpBatchPoll = new GcpBatchJobGetRequest
     val result = gcpBatchPoll.GetJob(jobTemp)
+
+
+    //val gcpBatchPoll = new GcpBatchJobGetRequest
+    //val result = gcpBatchPoll.GetJob(jobTemp)
     //val temp = result.toString //matches for string
     //val batchRunStatus = RunStatus.fromJobStatus(status=result)
     //val eventList: Seq[ExecutionEvent] = Seq(ExecutionEvent.toString)
+
     val jobStatus = result.getStatus.getState
 
     //https://github.com/broadinstitute/cromwell/blob/328a0fe0aa307ee981b00e4af6b397b61a9fbe9e/engine/src/main/scala/cromwell/engine/workflow/lifecycle/execution/SubWorkflowExecutionActor.scala

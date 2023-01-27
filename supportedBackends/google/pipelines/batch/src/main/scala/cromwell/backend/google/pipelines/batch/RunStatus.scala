@@ -2,9 +2,11 @@ package cromwell.backend.google.pipelines.batch
 
 import cromwell.core.ExecutionEvent
 
+//import scala.concurrent.Future
+
 //import cromwell.core.ExecutionEvent
-//import com.google.cloud.batch.v1.JobStatus
-//import scala.util.{Try, Success}
+import com.google.cloud.batch.v1.JobStatus
+import scala.util.{Try, Success}
 
 sealed trait RunStatus {
     //import RunStatus._
@@ -21,29 +23,29 @@ sealed trait RunStatus {
 
 object RunStatus {
 
-    /*
-    def fromJobStatus(status: JobStatus.State,  eventList: Seq[ExecutionEvent] = Seq.empty): Try[RunStatus] = {
-        status match {
-            case JobStatus.State.QUEUED =>
-                println("Job is queued")
-                Success(Running)
-            case JobStatus.State.SCHEDULED =>
-                println ("job scheduled")
-                Success(Running)
-            case JobStatus.State.RUNNING =>
-                println("job running")
-                Success(Running)
-            case JobStatus.State.SUCCEEDED =>
-                println("job succeeded")
-                //Success(Succeeded(eventList))
-                Success(Succeeded)
-            case _ =>
-                println("no matches in RunStatus")
-                Success(Running)
-        }
 
+    //def fromJobStatus(status: JobStatus.State,  eventList: Seq[ExecutionEvent] = Seq.empty): Try[RunStatus] = {
+    def fromJobStatus(status: JobStatus.State): Try[RunStatus] = {
+            status match {
+                case JobStatus.State.QUEUED =>
+                    println("Job is queued")
+                    Success(Running)
+                //Future.successful(Running)
+                case JobStatus.State.SCHEDULED =>
+                    println ("job scheduled")
+                    Success(Running)
+                case JobStatus.State.RUNNING =>
+                    println("job running")
+                    Success(Running)
+                case JobStatus.State.SUCCEEDED =>
+                    println("job succeeded")
+                    //Success(Succeeded(eventList))
+                    Success(Succeeded)
+                case _ =>
+                    println("no matches in RunStatus")
+                    Success(Running)
+            }
     }
-    */
 
     case object Initializing extends RunStatus {
         //def isTerminal=false
@@ -100,4 +102,5 @@ object RunStatus {
     final case class Unrecognized() {
         override def toString = "Unrecognized"
     }
+
 }

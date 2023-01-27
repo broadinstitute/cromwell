@@ -52,6 +52,9 @@ object TesRuntimeAttributes {
   private def preemptibleValidation(runtimeConfig: Option[Config]) = PreemptibleValidation.default(runtimeConfig)
 
   def runtimeAttributesBuilder(backendRuntimeConfig: Option[Config]): StandardValidatedRuntimeAttributesBuilder =
+    // !! NOTE !! If new validated attributes are added to TesRuntimeAttributes, be sure to include
+    // their validations here so that they will be handled correctly with backendParameters.
+    // Location 2 of 2
     StandardValidatedRuntimeAttributesBuilder.default(backendRuntimeConfig).withValidation(
       cpuValidation(backendRuntimeConfig),
       memoryValidation(backendRuntimeConfig),
@@ -127,6 +130,7 @@ object TesRuntimeAttributes {
 
     // !! NOTE !! If new validated attributes are added to TesRuntimeAttributes, be sure to include
     // their validations here so that they will be handled correctly with backendParameters.
+    // Location 1 of 2
     val validations = Set(
       dockerValidation,
       dockerWorkingDirValidation,

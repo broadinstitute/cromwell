@@ -6,6 +6,8 @@ import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
 import cromwell.backend.google.pipelines.batch.RunStatus.{DeletionInProgress, Failed, StateUnspecified, Unrecognized}
 
+import scala.concurrent.Promise
+
 //import scala.concurrent.Promise
 
 //import scala.util.control.NoStackTrace
@@ -93,8 +95,10 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     val runBatchResponse = for {
       _ <- uploadScriptFile()
-      //completionPromise = Promise[]
-      _ = backendSingletonActor ! batchTest
+      completionPromise = Promise[JobStatus]
+      //_ = backendSingletonActor ! batchTest
+      _ = backendSingletonActor ! BatchRequest(workflowId, projectId = "batch-testing-350715", region = "us-central1", jobName = jobTemp, runtimeAttributes, completionPromise)
+      submitJobResponse <- completionPromise.future
       runId = StandardAsyncJob(UUID.randomUUID().toString) //temp to test
 
     }
@@ -137,6 +141,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     val result2: Future[Any] = backendSingletonActor ? BatchGetJob(jobTemp)
     println(result2.toString)
     println(result2.value)
+
+
 
     /*
     for {

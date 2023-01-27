@@ -1,16 +1,20 @@
 package cromwell.backend.google.pipelines.batch
 
 import akka.actor.{Actor, ActorLogging, Props}
+//import akka.stream.impl.StreamSubscriptionTimeoutSupport.CancelingSubscriber.onComplete
+//import akka.stream.impl.VirtualProcessor.Inert.subscriber.onComplete
+import com.google.cloud.batch.v1.JobStatus
 import cromwell.core.WorkflowId
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Promise}
 
 
 
 object GcpBatchBackendSingletonActor {
   def props(name: String) = Props(new GcpBatchBackendSingletonActor(name))
 
-  case class BatchRequest(workflowId: WorkflowId, projectId: String, region: String, jobName: String, runtimeAttributes: GcpBatchRuntimeAttributes)
+  case class BatchRequest(workflowId: WorkflowId, projectId: String, region: String, jobName: String, runtimeAttributes: GcpBatchRuntimeAttributes, completionPromise: Promise[JobStatus])
   case class BatchGetJob(jobId: String)
 }
 
@@ -24,7 +28,9 @@ final class GcpBatchBackendSingletonActor (name: String) extends Actor with Acto
     case jobSubmission: BatchRequest =>
       //val job = GcpBatchJob(jobSubmission, 2000, 200, "e2-standard-4", "gcr.io/google-containers/busybox")
       val job = GcpBatchJob(jobSubmission,200,200, "e2-standard-4", jobSubmission.runtimeAttributes)
-      job.submitJob()
+      job.submitJob() onComplete {
+
+      }
       //result.getStatus
     case jobStatus: BatchGetJob =>
       println("matched job status")

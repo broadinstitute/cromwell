@@ -14,7 +14,7 @@ import common.validation.Validation._
 import cromwell.backend.CommonBackendConfigurationAttributes
 //import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{BatchRequestTimeoutConfiguration, GcsTransferConfiguration, VirtualPrivateCloudConfiguration}
 import cromwell.backend.google.pipelines.batch.GcpBatchConfigurationAttributes.{BatchRequestTimeoutConfiguration, GcsTransferConfiguration, VirtualPrivateCloudConfiguration}
-//import cromwell.backend.google.pipelines.batch.authentication.GcpBatchAuths
+import cromwell.backend.google.pipelines.batch.authentication.GcpBatchAuths
 import cromwell.backend.google.pipelines.common.callcaching.{CopyCachedOutputs, PipelinesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
 //import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
 import cromwell.backend.google.pipelines.batch.io.GcpBatchReferenceFilesDisk
@@ -40,7 +40,7 @@ import scala.util.{Failure, Success}
 
 case class GcpBatchConfigurationAttributes(project: String,
                                                computeServiceAccount: String,
-                                               //auths: GcpBatchAuths,
+                                               auths: GcpBatchAuths,
                                                restrictMetadataAccess: Boolean,
                                                enableFuse: Boolean,
                                                executionBucket: String,
@@ -274,7 +274,7 @@ object GcpBatchConfigurationAttributes extends GcpBatchDockerCacheMappingOperati
         GcpBatchConfigurationAttributes(
             project = project,
             computeServiceAccount = computeServiceAccount,
-            //auths = GcpBatchAuths(genomicsAuth, gcsAuth),
+            auths = GcpBatchAuths(genomicsAuth, gcsAuth),
             restrictMetadataAccess = restrictMetadata,
             enableFuse = enableFuse,
             executionBucket = bucket,

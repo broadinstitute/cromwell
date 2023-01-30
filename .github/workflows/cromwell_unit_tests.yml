@@ -17,15 +17,6 @@ permissions:
 
 #This job is spawned once for each subproject in the matrix below. Each iteration will set up a cache, git secrets, and java before running unit tests for that subproject.
 jobs:
-  generate-sbt-project-array:
-
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Do the thing
-      run: |
-       output=$(sbt projects | sed -e "s/^\[info\]\s:*\([-_A-Za-z0-9]*\)$/\1/g" | grep -v "^\[info\].*" | tr '\n', ',' | sed 's/^/[/' | sed 's/.$/]\n/')
-       echo $output
   build-and-test: 
     strategy:
       fail-fast: false #Disabling fail fast means that even if one job in the matrix fails, the others will still try to complete.
@@ -119,6 +110,12 @@ jobs:
         cache: sbt
 
     #Invoke SBT on a specific subproject, asking it to run all unit tests contained within that subproject.
+
+    - name: Do the thing
+      run: |
+       output=$(sbt projects | sed -e "s/^\[info\]\s:*\([-_A-Za-z0-9]*\)$/\1/g" | grep -v "^\[info\].*" | tr '\n', ',' | sed 's/^/[/' | sed 's/.$/]\n/')
+       echo $output
+
     - name: Run tests 
       run: |
         set -e

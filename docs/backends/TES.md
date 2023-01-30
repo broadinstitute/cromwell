@@ -78,7 +78,7 @@ If they are not set, the TES backend may use default values.
 | `/some/mnt 25 SSD`                    | ❌        |                 | Custom mount points not supported | 
 | `local-disk 25 HDD, /some/mnt 50 SSD` | ❌        |                 | Multiple disks are not supported  | 
             
-Note: if both `disk` and `disks` attributes are specified, the TES backend will automatically use the value in `disk` and not attempt to translate `disks`.
+> Note: if both `disk` and `disks` attributes are specified, the TES backend will automatically use the value in `disk` and not attempt to translate `disks`.
 
 ### Azure
 [Azure](Azure) is an implementation of Cromwell that uses the TES interface for orchestrating the tasks on Azure.

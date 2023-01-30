@@ -29,7 +29,6 @@ object TesRuntimeAttributes {
 
   val DockerWorkingDirKey = "dockerWorkingDir"
   val DiskSizeKey = "disk"
-  val DiskSizeCompatKey = "disks"
   val PreemptibleKey = "preemptible"
 
   private def cpuValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Int Refined Positive] = CpuValidation.optional

@@ -110,7 +110,7 @@ jobs:
         cache: sbt
 
     - name: Do the thing
-       run: |
+      run: |
        echo "SBT_PROJECTS=$(sbt projects | sed -e "s/^\[info\]\s:*\([-_A-Za-z0-9]*\)$/\1/g" | grep -v "^\[info\].*" | tr '\n', ',' | sed 's/^/[/' | sed 's/.$/]\n/')" >> $GITHUB_ENV
 
     - name: Test the thing

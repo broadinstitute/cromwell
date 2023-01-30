@@ -18,8 +18,11 @@ permissions:
 #This job is spawned once for each subproject in the matrix below. Each iteration will set up a cache, git secrets, and java before running unit tests for that subproject.
 jobs:
   generate-sbt-project-array:
+
     runs-on: ubuntu-latest
+
     steps:
+    
       - name: build-array
       id: step_one
       run: |

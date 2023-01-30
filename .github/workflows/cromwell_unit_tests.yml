@@ -21,7 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       -id: build-array
-       run: output=$(sbt projects | sed -e "s/^\[info\]\s:*\([-_A-Za-z0-9]*\)$/\1/g" | grep -v "^\[info\].*" | tr '\n', ',' | sed 's/^/[/' | sed 's/.$/]\n/')
+       run: | 
+       output=$(sbt projects | sed -e "s/^\[info\]\s:*\([-_A-Za-z0-9]*\)$/\1/g" | grep -v "^\[info\].*" | tr '\n', ',' | sed 's/^/[/' | sed 's/.$/]\n/')
   build-and-test: 
     strategy:
       fail-fast: false #Disabling fail fast means that even if one job in the matrix fails, the others will still try to complete.

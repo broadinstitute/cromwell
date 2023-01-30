@@ -111,10 +111,11 @@ jobs:
 
     - name: Do the thing
       run: |
-       echo "SBT_PROJECTS=$(sbt projects| sed -e "s/^\[info\][[:blank:]]*\([-_A-Za-z0-9]*\)$/\1/g" grep -v "^\[info\].*" | tr '\n', ',' | sed 's/^/[/' | sed 's/.$/]\n/')" >> $GITHUB_ENV
+       echo "SBT_PROJECTS=$(sbt projects| sed -e "s/^\[info\]\s*\([-_A-Za-z0-9]*\)$/\1/g" grep -v "^\[info\].*" | tr '\n', ',' | sed 's/^/[/' | sed 's/.$/]\n/')" >> $GITHUB_ENV
 
     - name: Test the thing
-      run: echo ${{ env.SBT_PROJECTS }}
+      run: |
+        echo ${{ env.SBT_PROJECTS }}
 
     #Invoke SBT on a specific subproject, asking it to run all unit tests contained within that subproject.
     - name: Run tests 

@@ -44,7 +44,7 @@ Cromwell recognizes certain runtime attributes and has the ability to format the
 
 > **Note 1**
 > 
-> Partial support. See [TES documentation](../docs/backends/TES.md) for details. 
+> Partial support. See [TES documentation](/backends/TES) for details. 
  
 > **Note 2**
 >
@@ -52,7 +52,7 @@ Cromwell recognizes certain runtime attributes and has the ability to format the
 
 > **Note 3**
 > 
-> The HPC [Shared Filesystem backend](../docs/backends/HPC.md) (SFS) is fully configurable and any number of attributes can be exposed. Cromwell recognizes some of these attributes (`cpu`, `memory` and `docker`) and parses them into the attribute listed in the table which can be used within the HPC backend configuration.
+> The HPC [Shared Filesystem backend](/backends/HPC#shared-filesystem) (SFS) is fully configurable and any number of attributes can be exposed. Cromwell recognizes some of these attributes (`cpu`, `memory` and `docker`) and parses them into the attribute listed in the table which can be used within the HPC backend configuration.
 
 
 ### Google Cloud Specific Attributes

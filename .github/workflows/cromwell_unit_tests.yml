@@ -19,6 +19,7 @@ jobs:
   generate-subproject-matrix: #This job will invoke SBT to get a list of all subprojects in Cromwell. Later, this list will be used to teach each subproject in parallel.
     name: Get sbt subprojects
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v3 # required first to checkout the repo
       - uses: ./.github/set_up_cromwell_action

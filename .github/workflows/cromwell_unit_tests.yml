@@ -19,25 +19,24 @@ jobs:
   generate-subproject-matrix: #This job will invoke SBT to get a list of all subprojects in Cromwell. Later, this list will be used to teach each subproject in parallel.
     name: Get sbt subprojects
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v3 # required first to checkout the repo
-      - uses: ./.github/set_up_cromwell_action
-        with:
-          cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+    - uses: actions/checkout@v3 # required first to checkout the repo
+    - uses: ./.github/set_up_cromwell_action
+      with:
+        cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
 
       #Parse the sbt-generated list of projects into a YAML array. Note that we strip
       #invisible color codes out of the `sbt projects` output.
-      - name: Do the thing
-        run: |
-          echo "SBT_PROJECTS=$(sbt projects | sed 's/\x1b\[[0-9;]*m//g' | sed -e 's/^\[info\]\s*\([-_A-Za-z0-9]*\)$/\1/g' | grep -v '^\[info\].*' | tr '\n', ',' | sed 's/^/[/' | sed 's/.$/]\n/')" >> $GITHUB_ENV
+    - name: Do the thing
+      run: |
+        echo "SBT_PROJECTS=$(sbt projects | sed 's/\x1b\[[0-9;]*m//g' | sed -e 's/^\[info\]\s*\([-_A-Za-z0-9]*\)$/\1/g' | grep -v '^\[info\].*' | tr '\n', ',' | sed 's/^/[/' | sed 's/.$/]\n/')" >> $GITHUB_ENV
 
-      - name: Test the thing
-        run: |
-          echo ${{ env.SBT_PROJECTS }}
+    - name: Test the thing
+        un: |
+        echo ${{ env.SBT_PROJECTS }}
 
-      outputs:
-        subproject-matrix: ${{ env.SBT_PROJECTS }}
+    outputs:
+      subproject-matrix: ${{ env.SBT_PROJECTS }}
 
   build-and-test: 
     needs: generate-subproject-matrix
@@ -60,8 +59,6 @@ jobs:
     - name: Do the thing
       run: |
         echo "SBT_PROJECTS=$(sbt projects | sed 's/\x1b\[[0-9;]*m//g' | sed -e 's/^\[info\]\s*\([-_A-Za-z0-9]*\)$/\1/g' | grep -v '^\[info\].*' | tr '\n', ',' | sed 's/^/[/' | sed 's/.$/]\n/')" >> $GITHUB_ENV
-
-
 
     #Invoke SBT on a specific subproject, asking it to run all unit tests contained within that subproject.
     - name: Run tests

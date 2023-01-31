@@ -32,13 +32,7 @@ object GcpBatchAsyncBackendJobExecutionActor {
 
 }
 
-class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
-  extends BackendJobLifecycleActor
-    with StandardAsyncExecutionActor
-    with AskSupport
-    with GcpBatchJobCachingActorHelper
-    with GcpBatchStatusRequestClient
-    with CromwellInstrumentation {
+class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams) extends BackendJobLifecycleActor with StandardAsyncExecutionActor with AskSupport with GcpBatchJobCachingActorHelper with GcpBatchStatusRequestClient with CromwellInstrumentation {
 
   import GcpBatchAsyncBackendJobExecutionActor._
 
@@ -89,6 +83,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override def executeAsync(): Future[ExecutionHandle] = {
 
     //val cpuPlatformTest = runtimeAttributes.cpuPlatform
+
     val batchTest = BatchRequest(workflowId, projectId = "batch-testing-350715", region = "us-central1", jobName = jobTemp, runtimeAttributes)
 
     val runBatchResponse = for {

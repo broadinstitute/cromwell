@@ -1,4 +1,8 @@
 name: 'Set Up Cromwell Steps'
+description: Specific steps that will set up git secrets, java, sbt, and Cromwell on the local machine. 
+inputs:
+  cromwell_repo_token:
+    required: true
 #This is a series of steps that will setup Java/sbt/Cromwell on the local runner.
 #These steps are meant to be re-used and  invoked by other Github Action Workflows that wish to have cromwell up-and-running before they do their thing. 
 
@@ -32,7 +36,7 @@ runs:
         uses: actions/checkout@v3
         with:
           repository: broadinstitute/cromwell
-          token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+          token: ${{ inputs.cromwell_repo_token }}
 
       #Install Java to this VM. This Java version and distribution is compatible with Cromwell.
       - name: Setup JDK

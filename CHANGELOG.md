@@ -60,6 +60,12 @@ This release removes the `cwl` top-level artifact. Some nonfunctional references
 
 For more information, see the [Cromwell 79 release notes](https://github.com/broadinstitute/cromwell/releases/tag/79). 
 
+### TES backend supports `disks` attribute
+
+Cromwell now attempts to translate `disks` attributes [written for GCP](https://cromwell.readthedocs.io/en/stable/RuntimeAttributes/#disks) into valid `disk` attributes for TES.
+
+For information on supported conversions, refer to the [TES documentation](https://cromwell.readthedocs.io/en/stable/backends/TES/).
+
 ## 84 Release Notes
 
 ### CromIAM enabled user checks

@@ -70,7 +70,7 @@ jobs:
         womtool]
 
     #This action is using a Github free runner, rather than a Broad self-hosted one.
-    #This is because the Broad ones don't have sbt installed by default.
+    This is because the Broad ones don't have sbt installed by default.
     runs-on: ubuntu-latest
 
     steps:

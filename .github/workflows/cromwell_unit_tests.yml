@@ -74,9 +74,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    	- uses: actions/checkout@v3 # required first to checkout the repo
-	    - uses: ./.github/set_up_cromwell_action
-
+    - uses: actions/checkout@v3 # required first to checkout the repo
+    - uses: ./.github/set_up_cromwell_action
     #Parse the sbt-generated list of projects into a YAML array. Note that we strip
     #invisible color codes out of the `sbt projects` output.
     - name: Do the thing

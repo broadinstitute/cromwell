@@ -19,7 +19,7 @@ jobs:
   build-and-test: 
     strategy:
       fail-fast: false #Disabling fail fast means that even if one job in the matrix fails, the others will still try to complete.
-      matrix: #this array is the output of the command `sbt projects` from the cromwell root directory, minus a bunch of superflous formatting that sbt adds.
+      matrix: #this array is the output of the command `sbt projects` from the cromwell root directory (minus lots of formatting)
         sbtSubProject: [awsBackend,
         awsS3FileSystem,
         azureBlobFileSystem,
@@ -69,7 +69,8 @@ jobs:
         wom,
         womtool]
 
-    #This action is using a Github free runner, rather than a Broad self-hosted one. This is because the Broad ones don't have sbt installed by default.
+    #This action is using a Github free runner, rather than a Broad self-hosted one.
+    #This is because the Broad ones don't have sbt installed by default.
     runs-on: ubuntu-latest
 
     steps:

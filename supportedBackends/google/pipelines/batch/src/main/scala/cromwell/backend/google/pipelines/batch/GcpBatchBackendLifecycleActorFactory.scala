@@ -76,7 +76,6 @@ class GcpBatchBackendLifecycleActorFactory(val name: String, override val config
     //GcpBatchInitializationActorParams(workflowDescriptor, ioActor, calls, batchConfiguration, jobExecutionMap, workflowOutputs, initializationDataOption)
   }
 
-
   override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = {
     Option(GcpBatchBackendSingletonActor.props("gcp-batch"))
   }

@@ -1,7 +1,6 @@
 name: 'Cromwell unit tests'
 
 #This github action runs all of Cromwell's unit tests.
-#A matrix strategy is used so that each subproject can be unit tested in parallel with all other subprojects. 
 
 #This is what shows up in the github workflows page as the title. 
 run-name: ${{ github.actor }} running Cromwell sbt unit tests.
@@ -26,7 +25,7 @@ jobs:
       with:
         cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
   
-    #Invoke SBT on a specific subproject, asking it to run all unit tests contained within that subproject.
+    #Invoke SBT to run all unit tests for Cromwell. 
     - name: Run tests
       run: |
         set -e

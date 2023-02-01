@@ -35,6 +35,7 @@ object ActionBuilder {
     /**
       * Useful for any externally provided images that _might_ have entrypoints already set. This is a workaround for
       * the issue detailed in BA-6406. See underlying google issue in that ticket for more info.
+      * Zardoz
       */
     def withEntrypointCommand(command: String*): Action = {
       action

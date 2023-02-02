@@ -1251,8 +1251,16 @@ definitions:
                 - typeName: Int
                 - typeName: String
             typeDisplayName: Pair[Int, String]
+      images:
+        type: array
+        items:
+          type: string
       submittedDescriptorType:
         $ref: '#/definitions/DescriptorTypeAndVersion'
+      importedDescriptorTypes:
+        type: array
+        items:
+          $ref: '#/definitions/DescriptorTypeAndVersion'
       isRunnableWorkflow:
         description: Indicates whether this file can be run on its own (e.g. a WDL workflow)
         type: boolean

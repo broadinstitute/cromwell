@@ -1,0 +1,34 @@
+name: 'Centaur Integration Tests'
+
+#This github action runs all of Cromwell's unit tests.
+
+#This is what shows up in the github workflows page as the title. 
+run-name: ${{ github.actor }} running Centaur Integration Tests.
+
+#What will trigger the workflow to run. 
+on:
+  workflow_dispatch: #Manual trigger from GitHub UI
+  push:
+
+permissions: 
+  contents: read
+
+jobs:
+  build-and-test: 
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3 # checkout the cromwell repo
+    - uses: ./.github/set_up_cromwell_action #Exectute this reusable github action. It will set up java/sbt/git-secrets/cromwell.
+      with:
+        cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+  
+    #Invoke SBT to build a cromwell jar
+    - name: Compile Cromwell
+      run: |
+        sbt assembly
+
+    #The name of the cromwell jar depends on its version number. Find the path to the jar we'd like to test
+    - name: Find Cromwell Jar
+      run: |
+        echo find server/target/scala-2.13/*.jar

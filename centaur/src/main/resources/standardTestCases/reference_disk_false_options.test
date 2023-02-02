@@ -11,6 +11,6 @@ files {
 metadata {
   workflowName: wf_reference_disk_test
   status: Succeeded
-  "outputs.wf_reference_disk_test.is_broad_input_file_a_symlink": false
-  "outputs.wf_reference_disk_test.is_nirvana_input_file_a_symlink": false
+  "outputs.wf_reference_disk_test.is_broad_input_file_a_valid_symlink": false
+  "outputs.wf_reference_disk_test.is_nirvana_input_file_a_valid_symlink": false
 }

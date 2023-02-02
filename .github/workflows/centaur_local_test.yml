@@ -13,49 +13,17 @@ on:
 permissions: 
   contents: read
 
-jobs:
-  build-and-test: 
-    runs-on: ubuntu-latest
+env:
+  VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
 
+jobs:
+  centaur-tests: 
+    env:
+      BUILD_NAME: centaurPapiUpgradePapiV2alpha1
+      BUILD_TYPE: centaurPapiUpgradePapiV2alpha1
+      BUILD_MYSQL: 5.7
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
     steps:
     - uses: actions/checkout@v3 # checkout the cromwell repo
-    - uses: ./.github/set_up_cromwell_action #Exectute this reusable github action. It will set up java/sbt/git-secrets/cromwell.
-      with:
-        cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
-  
-    #Invoke SBT to build a cromwell jar
-    #- name: Compile Cromwell
-    #  run: |
-    #    sbt assembly
-
-    #Start the database that cromwell depends on
-    #- name: Launch Docker MySQL Database
-    #  run: |
-    #    ./processes/release_processes/scripts/start_publish_mysql_docker.sh
-
-    #The name of the cromwell jar depends on its version number. Find the path to the jar we'd like to test
-    - name: Run Integration Test
-      run: |
-        echo "${CROMWELL_BUILD_PROVIDER}"
-        echo "${CROMWELL_BUILD_HOME_DIRECTORY}"
-        exec "./src/ci/bin/test.sh"
-      env:
-        CROMWELL_BUILD_PROVIDER: GITHUB_ACTIONS
-        CROMWELL_BUILD_HOME_DIRECTORY: "."
-        CROMWELL_BUILD_ROOT_DIRECTORY: "."
-        CROMWELL_BUILD_LOG_DIRECTORY: "target/ci/logs"
-        CROMWELL_BUILD_CROMWELL_LOG: "target/ci/logs/cromwell.log"
-        CROMWELL_BUILD_DOCKER_DIRECTORY: "src/ci/docker-compose"
-        CROMWELL_BUILD_SCRIPTS_DIRECTORY: "src/ci/bin"
-        CROMWELL_BUILD_RESOURCES_SOURCES: "src/ci/resources"
-        CROMWELL_BUILD_RESOURCES_DIRECTORY: "target/ci/resources"
-        CROMWELL_BUILD_GIT_SECRETS_DIRECTORY: "target/ci/resources/git-secrets"
-        CROMWELL_BUILD_GIT_SECRETS_COMMIT: "ad82d68ee924906a0401dfd48de5057731a9bc84"
-        CROMWELL_BUILD_WAIT_FOR_IT_FILENAME: "wait-for-it.sh"
-        CROMWELL_BUILD_WAIT_FOR_IT_BRANCH: "db049716e42767d39961e95dd9696103dca813f1"
-        CROMWELL_BUILD_WAIT_FOR_IT_URL: "https://raw.githubusercontent.com/vishnubob/wait-for-it/${CROMWELL_BUILD_WAIT_FOR_IT_BRANCH}/${CROMWELL_BUILD_WAIT_FOR_IT_FILENAME}"
-        CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT: "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_WAIT_FOR_IT_FILENAME}"
-        CROMWELL_BUILD_VAULT_ZIP: "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/vault.zip"
-        CROMWELL_BUILD_VAULT_EXECUTABLE: "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/vault"
-        CROMWELL_BUILD_EXIT_FUNCTIONS: "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell_build_exit_functions.$$"
-
+    - run: src/ci/bin/test.sh

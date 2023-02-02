@@ -29,6 +29,6 @@ jobs:
         sbt assembly
 
     #The name of the cromwell jar depends on its version number. Find the path to the jar we'd like to test
-    - name: Find Cromwell Jar
+    - name: Launch Cromwell jar
       run: |
-        echo find server/target/scala-2.13/*.jar
+        java -jar "$(server/target/scala-2.13/*.jar -print -quit)" server

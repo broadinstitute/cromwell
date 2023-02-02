@@ -36,7 +36,7 @@ jobs:
     #The name of the cromwell jar depends on its version number. Find the path to the jar we'd like to test
     - name: Run Integration Test
       run: |
-        exec "${CROMWELL_BUILD_SCRIPTS_DIRECTORY}/testCentaurLocal.sh"
+        exec "./src/ci/bin/testCentaurLocal.sh"
       env:
         CROMWELL_BUILD_PROVIDER: GITHUB_ACTIONS
         CROMWELL_BUILD_HOME_DIRECTORY: "$(pwd)"

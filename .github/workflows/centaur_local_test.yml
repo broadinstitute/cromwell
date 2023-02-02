@@ -31,4 +31,4 @@ jobs:
     #The name of the cromwell jar depends on its version number. Find the path to the jar we'd like to test
     - name: Launch Cromwell jar
       run: |
-        java -jar "$(server/target/scala-2.13/*.jar -print -quit)" server
+        java -jar "$(find server/target/scala-2.13/*.jar -print -quit)" server

@@ -24,9 +24,9 @@ jobs:
         cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
   
     #Invoke SBT to build a cromwell jar
-    - name: Compile Cromwell
-      run: |
-        sbt assembly
+    #- name: Compile Cromwell
+    #  run: |
+    #    sbt assembly
 
     #Start the database that cromwell depends on
     #- name: Launch Docker MySQL Database

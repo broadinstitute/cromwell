@@ -36,14 +36,16 @@ jobs:
     #The name of the cromwell jar depends on its version number. Find the path to the jar we'd like to test
     - name: Run Integration Test
       run: |
+        echo "${CROMWELL_BUILD_PROVIDER}"
+        echo "${CROMWELL_BUILD_HOME_DIRECTORY}"
         exec "./src/ci/bin/test.sh"
       env:
         CROMWELL_BUILD_PROVIDER: GITHUB_ACTIONS
         CROMWELL_BUILD_HOME_DIRECTORY: "."
         CROMWELL_BUILD_ROOT_DIRECTORY: "."
         CROMWELL_BUILD_LOG_DIRECTORY: "target/ci/logs"
-        CROMWELL_BUILD_CROMWELL_LOG: "${CROMWELL_BUILD_LOG_DIRECTORY}/cromwell.log"
-        CROMWELL_BUILD_DOCKER_DIRECTORY: "${CROMWELL_BUILD_ROOT_DIRECTORY}/src/ci/docker-compose"
+        CROMWELL_BUILD_CROMWELL_LOG: "target/ci/logs/cromwell.log"
+        CROMWELL_BUILD_DOCKER_DIRECTORY: "src/ci/docker-compose"
         CROMWELL_BUILD_SCRIPTS_DIRECTORY: "src/ci/bin"
         CROMWELL_BUILD_RESOURCES_SOURCES: "src/ci/resources"
         CROMWELL_BUILD_RESOURCES_DIRECTORY: "target/ci/resources"

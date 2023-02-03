@@ -23,6 +23,9 @@ jobs:
     timeout-minutes: 120
     steps:
     - uses: actions/checkout@v3 # checkout the cromwell repo
+    - uses: ./.github/set_up_cromwell_action #Exectute this reusable github action. It will set up java/sbt/git-secrets/cromwell.
+      with:
+        cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
     - name: Run Centaur Test
       run: |
         set -e

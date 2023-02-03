@@ -29,4 +29,4 @@ jobs:
         echo Running test.sh
         echo $BUILD_NAME
         echo $BUILD_TYPE
-        ls
+        ./src/ci/bin/testSingleWorkflowRunner.sh

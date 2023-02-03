@@ -25,7 +25,7 @@ jobs:
     - uses: actions/checkout@v3 # checkout the cromwell repo
     - name: Run Centaur Test
       run: |
+        set -e
         echo Running test.sh
         echo $BUILD_NAME
         echo $BUILD_TYPE
-        ./src/ci/bin/test.sh

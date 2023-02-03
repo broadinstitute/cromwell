@@ -24,7 +24,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3 # checkout the cromwell repo
     - run: |
-      echo Running test.sh
-      echo $BUILD_NAME
-      echo $BUILD_TYPE
-      ./src/ci/bin/test.sh
+    echo Running test.sh
+    echo $BUILD_NAME
+    echo $BUILD_TYPE
+    ./src/ci/bin/test.sh

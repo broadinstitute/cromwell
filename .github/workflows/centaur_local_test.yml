@@ -13,9 +13,6 @@ on:
 permissions: 
   contents: read
 
-env:
-  VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
-
 jobs:
   centaur-tests: 
     env:

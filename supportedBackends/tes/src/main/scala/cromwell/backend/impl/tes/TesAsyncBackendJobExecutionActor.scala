@@ -31,32 +31,29 @@ import scala.util.{Failure, Success}
 
 sealed trait TesRunStatus {
   def isTerminal: Boolean
-  def sysLogs: Seq[String]
+  def sysLogs: Seq[String] = Seq.empty[String]
 }
 
 case object Running extends TesRunStatus {
   def isTerminal = false
-  def sysLogs = Seq.empty[String]
 }
 
 case object Complete extends TesRunStatus {
   def isTerminal = true
-  def sysLogs = Seq.empty[String]
 }
 
-case class Error(sysLogs: Seq[String]) extends TesRunStatus {
+case class Error(override val sysLogs: Seq[String] = Seq.empty[String]) extends TesRunStatus {
   def isTerminal = true
   override def toString = "SYSTEM_ERROR"
 }
 
-case class Failed(sysLogs: Seq[String]) extends TesRunStatus {
+case class Failed(override val sysLogs: Seq[String] = Seq.empty[String]) extends TesRunStatus {
   def isTerminal = true
   override def toString = "EXECUTOR_ERROR"
 }
 
 case object Cancelled extends TesRunStatus {
   def isTerminal = true
-  def sysLogs = Seq.empty[String]
 }
 
 object TesAsyncBackendJobExecutionActor {
@@ -231,8 +228,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     for {
       status <- queryStatusAsync(handle)
       errorLog <- status match {
-          case Error(_) => getErrorLogs(handle)
-          case Failed(_) => getErrorLogs(handle)
+          case Error(_) | Failed(_) => getErrorLogs(handle)
           case _ => Future.successful(Seq.empty[String])
       }
       statusWithLog = status match {
@@ -257,12 +253,12 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
             Cancelled
 
           case s if s.contains("EXECUTOR_ERROR") =>
-            jobLogger.info(s"TES reported an error for Job ${handle.pendingJob.jobId}: '$s'")
-            Failed(Seq.empty[String])
+            jobLogger.info(s"TES reported a failure for Job ${handle.pendingJob.jobId}: '$s'")
+            Failed()
 
           case s if s.contains("SYSTEM_ERROR") =>
             jobLogger.info(s"TES reported an error for Job ${handle.pendingJob.jobId}: '$s'")
-            Error(Seq.empty[String])
+            Error()
 
           case _ => Running
         }
@@ -289,8 +285,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override def handleExecutionFailure(status: StandardAsyncRunState, returnCode: Option[Int]) = {
     status match {
       case Cancelled => Future.successful(AbortedExecutionHandle)
-      case Error(_) => handleExecutionError(status, returnCode)
-      case Failed(_) => handleExecutionError(status, returnCode)
+      case Error(_) | Failed(_) => handleExecutionError(status, returnCode)
       case _ => super.handleExecutionFailure(status, returnCode)
     }
   }

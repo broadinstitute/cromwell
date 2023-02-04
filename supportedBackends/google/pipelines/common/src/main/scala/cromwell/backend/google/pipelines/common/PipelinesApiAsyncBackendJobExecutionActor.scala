@@ -452,7 +452,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
         val inputFilePaths = inputOutputParameters.jobInputParameters.map(_.cloudPath.pathAsString).toSet
         val referenceDisksToMount =
-          jesAttributes.referenceFileToDiskImageMappingOpt.map(getReferenceDisksToMount(_, inputFilePaths))
+          if (useReferenceDisks)
+            jesAttributes.referenceFileToDiskImageMappingOpt.map(getReferenceDisksToMount(_, inputFilePaths))
+          else None
 
         val workflowOptions = workflowDescriptor.workflowOptions
 

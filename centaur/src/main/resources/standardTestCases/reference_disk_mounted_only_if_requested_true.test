@@ -1,0 +1,14 @@
+name: reference_disk_mounted_only_if_requested_true
+testFormat: workflowsuccess
+backends: [Papiv2-Reference-Disk-Localization]
+
+files {
+  workflow: reference_disk/reference_disk_mounted_only_if_requested.wdl
+  options: reference_disk/reference_disk_test_true.options.json
+}
+
+metadata {
+  workflowName: ReferenceDiskMountedOnlyIfRequested
+  status: Succeeded
+  "outputs.ReferenceDiskMountedOnlyIfRequested.disk_mounted": true
+}

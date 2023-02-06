@@ -5,10 +5,13 @@ set -o errexit -o nounset -o pipefail +x
 # shellcheck source=/dev/null
 source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
+echo "about to set up common environment"
 cromwell::build::setup_common_environment
 
+echo "about to assemble jars"
 cromwell::build::assemble_jars
 
+echo "running java command"
 # Test 1: basic hello world
 java \
     -jar "${CROMWELL_BUILD_CROMWELL_JAR}" \

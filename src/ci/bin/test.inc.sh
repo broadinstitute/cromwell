@@ -85,7 +85,7 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_PROVIDER_CIRCLE="circle"
     CROMWELL_BUILD_PROVIDER_GITHUB="github"
     CROMWELL_BUILD_PROVIDER_UNKNOWN="unknown"
-    echo setting environment variables
+    echo "setting environment variables"
 
     if [[ "${TRAVIS-false}" == "true" ]]; then
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_TRAVIS}"
@@ -307,7 +307,7 @@ cromwell::private::create_build_variables() {
         "${CROMWELL_BUILD_PROVIDER_GITHUB}")
             CROMWELL_BUILD_IS_CI=true
             CROMWELL_BUILD_IS_SECURE=true
-            echo githubSpecific
+            echo "githubSpecific"
 
             CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
             CROMWELL_BUILD_BRANCH="test-build-branch-string"
@@ -1455,6 +1455,21 @@ cromwell::build::setup_common_environment() {
             cromwell::private::login_docker
             cromwell::private::install_adoptopenjdk
             cromwell::private::setup_pyenv_python_latest
+            cromwell::private::start_docker_databases
+            ;;
+        "${CROMWELL_BUILD_PROVIDER_GITHUB}")
+            cromwell::private::stop_travis_defaults
+            # Try to login to vault, and if successful then use vault creds to login to docker.
+            # For those committers with vault access this avoids pull rate limits reported in BT-143.
+            cromwell::private::install_vault
+            cromwell::private::login_vault
+            cromwell::private::login_docker
+            cromwell::private::install_adoptopenjdk
+            cromwell::private::install_sbt_launcher
+            cromwell::private::install_docker_compose
+            cromwell::private::delete_boto_config
+            cromwell::private::delete_sbt_boot
+            cromwell::private::upgrade_pip
             cromwell::private::start_docker_databases
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}"|\

@@ -83,7 +83,9 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_PROVIDER_TRAVIS="travis"
     CROMWELL_BUILD_PROVIDER_JENKINS="jenkins"
     CROMWELL_BUILD_PROVIDER_CIRCLE="circle"
+    CROMWELL_BUILD_PROVIDER_GITHUB="github"
     CROMWELL_BUILD_PROVIDER_UNKNOWN="unknown"
+    echo setting environment variables
 
     if [[ "${TRAVIS-false}" == "true" ]]; then
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_TRAVIS}"
@@ -91,6 +93,8 @@ cromwell::private::create_build_variables() {
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_JENKINS}"
     elif [[ "${CIRCLECI-false}" == "true" ]]; then
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_CIRCLE}"
+    elif [[ "${GITHUB_ACTIONS-false}" == "true" ]]; then
+        CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_GITHUB}"
     else
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_UNKNOWN}"
     fi
@@ -299,6 +303,22 @@ cromwell::private::create_build_variables() {
             else
                 CROMWELL_BUILD_RUN_TESTS=true
             fi
+            ;;
+        "${CROMWELL_BUILD_PROVIDER_GITHUB}")
+            CROMWELL_BUILD_IS_CI=true
+            CROMWELL_BUILD_IS_SECURE=true
+            echo githubSpecific
+
+            CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
+            CROMWELL_BUILD_BRANCH="test-build-branch-string"
+            CROMWELL_BUILD_EVENT="test-build-event-string"
+            CROMWELL_BUILD_TAG="test-build-tag-string"
+            CROMWELL_BUILD_NUMBER="test-build-number-string"
+            CROMWELL_BUILD_URL="www.testBuildURL.com"
+            CROMWELL_BUILD_GIT_USER_EMAIL="testGitEmail"
+            CROMWELL_BUILD_GIT_USER_NAME="testGitUsername"
+            CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
+            CROMWELL_BUILD_GENERATE_COVERAGE=true
             ;;
         *)
             CROMWELL_BUILD_IS_CI=false

@@ -319,6 +319,7 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_GIT_USER_NAME="testGitUsername"
             CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
             CROMWELL_BUILD_GENERATE_COVERAGE=true
+            CROMWELL_BUILD_RUN_TESTS=true
             ;;
         *)
             CROMWELL_BUILD_IS_CI=false

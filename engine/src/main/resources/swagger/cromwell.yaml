@@ -1263,24 +1263,8 @@ definitions:
           $ref: '#/definitions/DescriptorTypeAndVersion'
       meta:
         type: object
-        required:
-          - metaKeyType
-          - metaValueType
-        properties:
-          metaKeyType:
-            type: string
-          metaValueType:
-            type: object
       parameterMeta:
         type: object
-        required:
-          - metaKeyType
-          - metaValueType
-        properties:
-          metaKeyType:
-            type: string
-          metaValueType:
-            type: object
       isRunnableWorkflow:
         description: Indicates whether this file can be run on its own (e.g. a WDL workflow)
         type: boolean

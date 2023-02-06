@@ -16,8 +16,8 @@ permissions:
 jobs:
   centaur-tests: 
     env:
-      BUILD_NAME: centaurPapiUpgradePapiV2alpha1
-      BUILD_TYPE: centaurPapiUpgradePapiV2alpha1
+      BUILD_NAME: singleWorkflowRunner
+      BUILD_TYPE: singleWorkflowRunner
       BUILD_MYSQL: 5.7
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -32,4 +32,4 @@ jobs:
         echo Running test.sh
         echo $BUILD_NAME
         echo $BUILD_TYPE
-        ./src/ci/bin/testSingleWorkflowRunner.sh
+        ./src/ci/bin/test.sh

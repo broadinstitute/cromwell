@@ -898,6 +898,7 @@ cromwell::private::install_vault() {
         --output "${CROMWELL_BUILD_VAULT_ZIP}" \
         "https://releases.hashicorp.com/vault/1.6.3/vault_1.6.3_${CROMWELL_BUILD_OS}_amd64.zip"
     unzip "${CROMWELL_BUILD_VAULT_ZIP}" -d "$(dirname "${CROMWELL_BUILD_VAULT_EXECUTABLE}")"
+    echo "Installed Vault"
 }
 
 cromwell::private::install_git_secrets() {

@@ -1457,7 +1457,7 @@ cromwell::build::setup_common_environment() {
             cromwell::private::setup_pyenv_python_latest
             cromwell::private::start_docker_databases
             ;;
-        "${CROMWELL_BUILD_PROVIDER_GITHUB}")
+        "${CROMWELL_BUILD_PROVIDER_GITHUBg}")
             cromwell::private::stop_travis_defaults
             # Try to login to vault, and if successful then use vault creds to login to docker.
             # For those committers with vault access this avoids pull rate limits reported in BT-143.
@@ -1479,6 +1479,7 @@ cromwell::build::setup_common_environment() {
 
     cromwell::private::setup_secure_resources
     cromwell::private::start_build_heartbeat
+    echo "end of setup common environment"
 }
 
 

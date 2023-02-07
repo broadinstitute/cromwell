@@ -29,6 +29,8 @@ object DockerRegistryV2Abstract {
   val DigestHeaderName = CaseInsensitiveString("Docker-Content-Digest")
   val DockerManifestV2MediaType = "application/vnd.docker.distribution.manifest.v2+json"
   val DockerManifestListV2MediaType = "application/vnd.docker.distribution.manifest.list.v2+json"
+  // See https://github.com/opencontainers/image-spec/blob/main/image-index.md
+  // This is the media type that current images of Ubuntu use, https://github.com/docker-library/official-images/pull/13950
   val OCIIndexV1MediaType = "application/vnd.oci.image.index.v1+json"
 
   // If one of those fails it means someone changed one of the strings above to an invalid one.
@@ -39,10 +41,10 @@ object DockerRegistryV2Abstract {
   val AcceptDockerManifestV2Header = Accept.parse(DockerManifestV2MediaType)
     .unsafe("Cannot parse invalid manifest v2 Accept header. Please report this error.")
 
-  val OCIIdexV1MediaRange = MediaRange.parse(OCIIndexV1MediaType)
-    .unsafe("Cannot parse invalid oci index v1 content type. Please report this error.")
+  val OCIIndexV1MediaRange = MediaRange.parse(OCIIndexV1MediaType)
+    .unsafe("Cannot parse invalid OCI index v1 content type. Please report this error.")
   val AcceptOCIIndexV1Header = Accept.parse(OCIIndexV1MediaType)
-    .unsafe("Cannot parse invalid oci index v1 Accept header. Please report this error.")
+    .unsafe("Cannot parse invalid OCI index v1 Accept header. Please report this error.")
 
   implicit val entityManifestDecoder = jsonEntityDecoder[DockerManifest](DockerManifestV2MediaRange)
   implicit val entityManifestListDecoder = jsonEntityDecoder[DockerManifestList](DockerManifestListV2MediaRange)
@@ -127,11 +129,11 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
     * @return docker info response
     */
   protected def getDockerResponse(token: Option[String], dockerInfoContext: DockerInfoContext)(implicit client: Client[IO]): IO[DockerInfoSuccessResponse] = {
-    val requestV2 = manifestRequest(token, dockerInfoContext.dockerImageID, AcceptDockerManifestV2Header)
-    def requestV1 = manifestRequest(token, dockerInfoContext.dockerImageID, AcceptOCIIndexV1Header)
-    def tryOCIManifest(err: Throwable) = executeRequest(requestV1, handleManifestResponse(dockerInfoContext, token))
+    val requestDockerManifest = manifestRequest(token, dockerInfoContext.dockerImageID, AcceptDockerManifestV2Header)
+    lazy val requestOCIManifest = manifestRequest(token, dockerInfoContext.dockerImageID, AcceptOCIIndexV1Header)
+    def tryOCIManifest(err: Throwable) = executeRequest(requestOCIManifest, handleManifestResponse(dockerInfoContext, token))
     // Try to execute a request using the Docker Manifest format, and if that fails, try using the newer OCI manifest format
-    executeRequest(requestV2, handleManifestResponse(dockerInfoContext, token))
+    executeRequest(requestDockerManifest, handleManifestResponse(dockerInfoContext, token))
       .handleErrorWith(tryOCIManifest)
   }
 

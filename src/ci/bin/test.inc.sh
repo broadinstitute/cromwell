@@ -1084,8 +1084,10 @@ cromwell::private::login_vault() {
                     write -field=token \
                     auth/approle/login role_id="${VAULT_ROLE_ID}" secret_id="${VAULT_SECRET_ID}"
             )"
+            echo "Trying to login to vault"
         else
             vault_token="${VAULT_TOKEN:-}"
+            echo "Using Env Vault Token"
         fi
 
         if [[ -n "${vault_token}" ]]; then
@@ -1095,6 +1097,7 @@ cromwell::private::login_vault() {
                 login "${vault_token}" < /dev/null > /dev/null \
                 && echo vault login success \
                 || true
+            echo "Vault login"
         fi
     fi
 }

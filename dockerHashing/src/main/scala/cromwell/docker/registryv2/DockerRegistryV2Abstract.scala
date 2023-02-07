@@ -27,25 +27,25 @@ object DockerRegistryV2Abstract {
   }
 
   val DigestHeaderName = CaseInsensitiveString("Docker-Content-Digest")
-  val ManifestDockerV2MediaType = "application/vnd.docker.distribution.manifest.v2+json"
-  val ManifestDockerListV2MediaType = "application/vnd.docker.distribution.manifest.list.v2+json"
-  val ManifestOCIIndexV1MediaType = "application/vnd.oci.image.index.v1+json"
+  val DockerManifestV2MediaType = "application/vnd.docker.distribution.manifest.v2+json"
+  val DockerManifestListV2MediaType = "application/vnd.docker.distribution.manifest.list.v2+json"
+  val OCIIndexV1MediaType = "application/vnd.oci.image.index.v1+json"
 
   // If one of those fails it means someone changed one of the strings above to an invalid one.
-  val ManifestV2MediaRange = MediaRange.parse(ManifestDockerV2MediaType)
+  val DockerManifestV2MediaRange = MediaRange.parse(DockerManifestV2MediaType)
     .unsafe("Cannot parse invalid manifest v2 content type. Please report this error.")
-  val ManifestListV2MediaRange = MediaRange.parse(ManifestDockerListV2MediaType)
+  val DockerManifestListV2MediaRange = MediaRange.parse(DockerManifestListV2MediaType)
     .unsafe("Cannot parse invalid manifest list v2 content type. Please report this error.")
-  val AcceptManifestV2Header = Accept.parse(ManifestDockerV2MediaType)
+  val AcceptDockerManifestV2Header = Accept.parse(DockerManifestV2MediaType)
     .unsafe("Cannot parse invalid manifest v2 Accept header. Please report this error.")
 
-  val OCIManifestV1MediaRange = MediaRange.parse(ManifestOCIIndexV1MediaType)
-    .unsafe("Cannot parse invalid oci manifest v1 content type. Please report this error.")
-  val AcceptOCIManifestV1Header = Accept.parse(ManifestOCIIndexV1MediaType)
-    .unsafe("Cannot parse invalid oci manifest v1 Accept header. Please report this error.")
+  val OCIIdexV1MediaRange = MediaRange.parse(OCIIndexV1MediaType)
+    .unsafe("Cannot parse invalid oci index v1 content type. Please report this error.")
+  val AcceptOCIIndexV1Header = Accept.parse(OCIIndexV1MediaType)
+    .unsafe("Cannot parse invalid oci index v1 Accept header. Please report this error.")
 
-  implicit val entityManifestDecoder = jsonEntityDecoder[DockerManifest](ManifestV2MediaRange)
-  implicit val entityManifestListDecoder = jsonEntityDecoder[DockerManifestList](ManifestListV2MediaRange)
+  implicit val entityManifestDecoder = jsonEntityDecoder[DockerManifest](DockerManifestV2MediaRange)
+  implicit val entityManifestListDecoder = jsonEntityDecoder[DockerManifestList](DockerManifestListV2MediaRange)
   implicit val entityTokenDecoder = jsonOf[IO, DockerAccessToken]
 
   /**
@@ -127,8 +127,8 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
     * @return docker info response
     */
   protected def getDockerResponse(token: Option[String], dockerInfoContext: DockerInfoContext)(implicit client: Client[IO]): IO[DockerInfoSuccessResponse] = {
-    val requestV2 = manifestRequest(token, dockerInfoContext.dockerImageID, AcceptManifestV2Header)
-    def requestV1 = manifestRequest(token, dockerInfoContext.dockerImageID, AcceptOCIManifestV1Header)
+    val requestV2 = manifestRequest(token, dockerInfoContext.dockerImageID, AcceptDockerManifestV2Header)
+    def requestV1 = manifestRequest(token, dockerInfoContext.dockerImageID, AcceptOCIIndexV1Header)
     def tryOCIManifest(err: Throwable) = executeRequest(requestV1, handleManifestResponse(dockerInfoContext, token))
     executeRequest(requestV2, handleManifestResponse(dockerInfoContext, token))
       .handleErrorWith(tryOCIManifest)
@@ -253,9 +253,9 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
     * If that assumption turns out to be incorrect, a smarter decision may need to be made to choose the manifest to lookup.
     */
   private def parseManifest(dockerImageIdentifier: DockerImageIdentifier, token: Option[String])(response: Response[IO])(implicit client: Client[IO]): IO[Option[DockerManifest]] = response match {
-    case Status.Successful(r) if r.headers.exists(_.value.equalsIgnoreCase(ManifestDockerV2MediaType)) =>
+    case Status.Successful(r) if r.headers.exists(_.value.equalsIgnoreCase(DockerManifestV2MediaType)) =>
       r.as[DockerManifest].map(Option.apply)
-    case Status.Successful(r) if r.headers.exists(_.value.equalsIgnoreCase(ManifestDockerListV2MediaType)) =>
+    case Status.Successful(r) if r.headers.exists(_.value.equalsIgnoreCase(DockerManifestListV2MediaType)) =>
       r.as[DockerManifestList].flatMap({ dockerManifestList =>
         obtainManifestFromList(dockerManifestList, dockerImageIdentifier, token)
       })
@@ -269,7 +269,7 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
       .map(_.digest)
       .map(dockerImageIdentifier.swapReference) match {
       case Some(identifierWithNewHash) =>
-        val request = manifestRequest(token, identifierWithNewHash, AcceptManifestV2Header)
+        val request = manifestRequest(token, identifierWithNewHash, AcceptDockerManifestV2Header)
         executeRequest(request, parseManifest(dockerImageIdentifier, token))
       case None =>
         logger.error(s"The manifest list for ${dockerImageIdentifier.fullName} was empty. Cannot proceed to obtain the size of image")

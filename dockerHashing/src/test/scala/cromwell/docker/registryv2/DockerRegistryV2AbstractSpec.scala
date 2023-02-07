@@ -20,7 +20,7 @@ class DockerRegistryV2AbstractSpec extends AnyFlatSpec with CromwellTimeoutSpec 
       override protected def buildTokenRequestHeaders(dockerInfoContext: DockerInfoActor.DockerInfoContext) = List.empty
     }
 
-    val mediaType = MediaType.parse(DockerRegistryV2Abstract.ManifestDockerV2MediaType).toOption.get
+    val mediaType = MediaType.parse(DockerRegistryV2Abstract.DockerManifestV2MediaType).toOption.get
     val contentType: Header = `Content-Type`(mediaType)
 
     val mockClient = Client({ _: Request[IO] =>

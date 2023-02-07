@@ -470,6 +470,7 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_WAIT_FOR_IT_FILENAME
     export CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT
     export CROMWELL_BUILD_WAIT_FOR_IT_URL
+    echo "end creating build varaibles"
 }
 
 cromwell::private::echo_build_variables() {

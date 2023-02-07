@@ -127,8 +127,11 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
     * @return docker info response
     */
   protected def getDockerResponse(token: Option[String], dockerInfoContext: DockerInfoContext)(implicit client: Client[IO]): IO[DockerInfoSuccessResponse] = {
-    val request = manifestRequest(token, dockerInfoContext.dockerImageID)
-    executeRequest(request, handleManifestResponse(dockerInfoContext, token))
+    val requestV2 = manifestRequest(token, dockerInfoContext.dockerImageID, AcceptManifestV2Header)
+    def requestV1 = manifestRequest(token, dockerInfoContext.dockerImageID, AcceptOCIManifestV1Header)
+    def tryOCIManifest(err: Throwable) = executeRequest(requestV1, handleManifestResponse(dockerInfoContext, token))
+    executeRequest(requestV2, handleManifestResponse(dockerInfoContext, token))
+      .handleErrorWith(tryOCIManifest)
   }
 
   /**
@@ -209,12 +212,12 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
   /**
     * Request to get the manifest, using the auth token if provided
     */
-  private def manifestRequest(token: Option[String], imageId: DockerImageIdentifier): IO[Request[IO]] = {
+  private def manifestRequest(token: Option[String], imageId: DockerImageIdentifier, manifestHeader: Accept): IO[Request[IO]] = {
     val authorizationHeader = token.map(t => Authorization(Credentials.Token(AuthScheme.Bearer, t)))
     val request = Method.GET(
       buildManifestUri(imageId),
       List(
-        Option(AcceptManifestV2Header),
+        Option(manifestHeader),
         authorizationHeader
       ).flatten: _*
     )
@@ -266,7 +269,7 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
       .map(_.digest)
       .map(dockerImageIdentifier.swapReference) match {
       case Some(identifierWithNewHash) =>
-        val request = manifestRequest(token, identifierWithNewHash)
+        val request = manifestRequest(token, identifierWithNewHash, AcceptManifestV2Header)
         executeRequest(request, parseManifest(dockerImageIdentifier, token))
       case None =>
         logger.error(s"The manifest list for ${dockerImageIdentifier.fullName} was empty. Cannot proceed to obtain the size of image")

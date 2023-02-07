@@ -1,3 +1,5 @@
 {
-  "wf_reference_disk_test.check_if_localized_as_symlink.reference_file_input": "gs://gcp-public-data--broad-references/hg19/v0/Homo_sapiens_assembly19.tile_db_header.vcf"
+  "wf_reference_disk_test.broad_reference_file_input": "gs://gcp-public-data--broad-references/hg19/v0/Homo_sapiens_assembly19.fasta.fai",
+  "wf_reference_disk_test.nirvana_reference_file_input": "gs://broad-public-datasets/gvs/vat-annotations/Nirvana/3.18.1/SupplementaryAnnotation/GRCh38/phyloP_hg38.npd.idx",
+  "wf_reference_disk_test.nirvana_reference_file_metachar_input": "gs://broad-public-datasets/gvs/vat-annotations/Nirvana/3.18.1/SupplementaryAnnotation/GRCh38/1000_Genomes_Project_(SV)_Phase_3_v5a.nsi"
 }

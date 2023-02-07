@@ -10,6 +10,7 @@ import com.azure.storage.blob.nio.AzureFileSystem
 import com.azure.storage.blob.sas.{BlobContainerSasPermission, BlobServiceSasSignatureValues}
 import com.azure.storage.blob.{BlobContainerClient, BlobContainerClientBuilder}
 import com.azure.storage.common.StorageSharedKeyCredential
+import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import common.validation.Validation._
 
@@ -20,6 +21,8 @@ import java.time.{Duration, Instant, OffsetDateTime}
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
+// We encapsulate this functionality here so that we can easily mock it out, to allow for testing without
+// actually connecting to Blob storage.
 case class FileSystemAPI() {
   def getFileSystem(uri: URI): Try[FileSystem] = Try(FileSystems.getFileSystem(uri))
   def newFileSystem(uri: URI, config: Map[String, Object]): FileSystem = FileSystems.newFileSystem(uri, config.asJava)
@@ -45,15 +48,27 @@ object BlobFileSystemManager {
   def hasTokenExpired(tokenExpiry: Instant, buffer: Duration): Boolean = Instant.now.plus(buffer).isAfter(tokenExpiry)
   def uri(endpoint: EndpointURL) = new URI("azb://?endpoint=" + endpoint)
 }
-case class BlobFileSystemManager(
-    container: BlobContainerName,
-    endpoint: EndpointURL,
-    expiryBufferMinutes: Long,
-    blobTokenGenerator: BlobSasTokenGenerator,
-    fileSystemAPI: FileSystemAPI = FileSystemAPI(),
-    private val initialExpiration: Option[Instant] = None) extends LazyLogging {
-  private var expiry: Option[Instant] = initialExpiration
+
+class BlobFileSystemManager(val container: BlobContainerName,
+                            val endpoint: EndpointURL,
+                            val expiryBufferMinutes: Long,
+                            val blobTokenGenerator: BlobSasTokenGenerator,
+                            val fileSystemAPI: FileSystemAPI = FileSystemAPI(),
+                            private val initialExpiration: Option[Instant] = None) extends LazyLogging {
+
+  def this(config: BlobFileSystemConfig) = {
+    this(
+      config.blobContainerName,
+      config.endpointURL,
+      config.expiryBufferMinutes,
+      BlobSasTokenGenerator.createBlobTokenGeneratorFromConfig(config)
+    )
+  }
+
+  def this(rawConfig: Config) = this(BlobFileSystemConfig(rawConfig))
+
   val buffer: Duration = Duration.of(expiryBufferMinutes, ChronoUnit.MINUTES)
+  private var expiry: Option[Instant] = initialExpiration
 
   def getExpiry: Option[Instant] = expiry
   def uri: URI = BlobFileSystemManager.uri(endpoint)
@@ -87,6 +102,44 @@ case class BlobFileSystemManager(
 
 sealed trait BlobSasTokenGenerator { def generateBlobSasToken: Try[AzureSasCredential] }
 object BlobSasTokenGenerator {
+
+  /**
+    * Creates the correct BlobSasTokenGenerator based on config inputs. This generator is responsible for producing
+    * a valid SAS token for use in accessing a Azure blob storage container.
+    * Two types of generators can be produced here:
+    * > Workspace Manager (WSM) mediated SAS token generator, used to create SAS tokens that allow access for
+    * blob containers mediated by the WSM, and is enabled when a WSM config is provided. This is what is intended
+    * for use inside Terra
+    *    OR
+    * > Native SAS token generator, which obtains a valid SAS token from your local environment to reach blob containers
+    * your local azure identity has access to and is the default if a WSM config is not found. This is intended for
+    * use outside of Terra
+    *
+    * Both of these generators require an authentication token to authorize the generation of the SAS token.
+    * See BlobSasTokenGenerator for more information on how these generators work.
+    *
+    * @param config A BlobFileSystemConfig object
+    * @return An appropriate BlobSasTokenGenerator
+    */
+  def createBlobTokenGeneratorFromConfig(config: BlobFileSystemConfig): BlobSasTokenGenerator =
+    config.workspaceManagerConfig.map { wsmConfig =>
+      val wsmClient: WorkspaceManagerApiClientProvider = new HttpWorkspaceManagerClientProvider(wsmConfig.url)
+
+      // WSM-mediated mediated SAS token generator
+      // parameterizing client instead of URL to make injecting mock client possible
+      BlobSasTokenGenerator.createBlobTokenGenerator(
+        config.blobContainerName,
+        config.endpointURL,
+        wsmConfig.workspaceId,
+        wsmConfig.containerResourceId,
+        wsmClient,
+        wsmConfig.overrideWsmAuthToken
+      )
+    }.getOrElse(
+      // Native SAS token generator
+      BlobSasTokenGenerator.createBlobTokenGenerator(config.blobContainerName, config.endpointURL, config.subscriptionId)
+    )
+
   /**
     * Native SAS token generator, uses the DefaultAzureCredentialBuilder in the local environment
     * to produce a SAS token.

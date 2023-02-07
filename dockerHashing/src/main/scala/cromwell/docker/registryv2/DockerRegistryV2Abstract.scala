@@ -130,6 +130,7 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
     val requestV2 = manifestRequest(token, dockerInfoContext.dockerImageID, AcceptDockerManifestV2Header)
     def requestV1 = manifestRequest(token, dockerInfoContext.dockerImageID, AcceptOCIIndexV1Header)
     def tryOCIManifest(err: Throwable) = executeRequest(requestV1, handleManifestResponse(dockerInfoContext, token))
+    // Try to execute a request using the Docker Manifest format, and if that fails, try using the newer OCI manifest format
     executeRequest(requestV2, handleManifestResponse(dockerInfoContext, token))
       .handleErrorWith(tryOCIManifest)
   }

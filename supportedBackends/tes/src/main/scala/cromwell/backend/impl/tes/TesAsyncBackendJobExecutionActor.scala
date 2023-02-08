@@ -233,7 +233,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       }
       statusWithLog = status match {
         case Error(_) => Error(errorLog)
-        case Failed(_) => Error(errorLog)
+        case Failed(_) => Failed(errorLog)
         case _ => status
       }
     } yield statusWithLog

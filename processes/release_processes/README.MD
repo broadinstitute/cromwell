@@ -140,13 +140,15 @@ This generates the client library and runs the generated tests as well.  A succe
 [success] Total time: 4 s, completed Jun 26, 2019 3:01:19 PM
 ```
 
-To publish to artifactory, first obtain the artifactory username and credentials.  Then run
+To publish to artifactory, first obtain the artifactory username and credentials. Credentials are located in Vault at path `secret/dsde/cromwell/common/cromwell-artifactory`. Then run
 
 ```
 export ARTIFACTORY_USERNAME=<the-username>
 export ARTIFACTORY_PASSWORD=<the-password>
 ./scripts/publish-client.sh
 ```
+
+A SNAP version of the client library will be published in jFrog at [this path](https://broadinstitute.jfrog.io/ui/repos/tree/General/libs-release-local/org/broadinstitute/cromwell).
 
 ## Cromwell setup for publishing
 

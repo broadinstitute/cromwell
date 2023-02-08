@@ -27,12 +27,13 @@ object ValueStore {
 case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
 
   override def toString: String = {
+    import common.util.StringUtil.EnhancedToStringable
     import io.circe.syntax._
     import io.circe.Printer
 
     val values = store.valuesTriplet.map {
-      case (node, None, value) => node.name -> value.valueString
-      case (node, index, value) => s"${node.name}:${index.fromIndex}" -> value.valueString
+      case (node, None, value) => node.name -> value.toPrettyElidedString(limit = 100)
+      case (node, index, value) => s"${node.name}:${index.fromIndex}" -> value.toPrettyElidedString(limit = 100)
     }.toMap
 
     values.asJson.printWith(Printer.spaces2.copy(dropNullValues = true, colonLeft = ""))

@@ -160,6 +160,54 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
       assertFailure(runtimeAttributes, "Expecting disk runtime attribute to be an Integer or String with format '8 GB'")
     }
 
+    "parse an HDD definition" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomString("local-disk 10 HDD"))
+      val expectedRuntimeAttributes = expectedDefaults.copy(disk = Option(MemorySize.parse("10 GB").get))
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "parse an SSD definition" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomString("local-disk 10 SSD"))
+      val expectedRuntimeAttributes = expectedDefaults.copy(disk = Option(MemorySize.parse("10 GB").get))
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "refuse multiple `local-disk` instances" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomString("local-disk 10 SSD, local-disk 20 SSD"))
+      assertFailure(runtimeAttributes, "Expecting exactly one disk definition on this backend, found multiple")
+    }
+
+    "refuse custom mount points" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomString("/some/mnt 20 SSD"))
+      assertFailure(runtimeAttributes, "Disks with custom mount points are not supported by this backend")
+    }
+
+    "refuse custom AND multiple mount points" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomString("/mnt/tmp 10 LOCAL, local-disk 20 HDD"))
+      assertFailure(runtimeAttributes, "Disks with custom mount points are not supported by this backend")
+    }
+
+    "not accept a single comma" ignore {
+      // Surprisingly, the PAPI code we call under the covers validates `,` and give the user a default disk.
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomString(","))
+      assertFailure(runtimeAttributes, "Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE' but got: ','")
+    }
+
+    "not accept empty string" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomString(""))
+      assertFailure(runtimeAttributes, "Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE' but got: ''")
+    }
+
+    "not accept `banana`" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomString("banana"))
+      assertFailure(runtimeAttributes, "Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE' but got: 'banana'")
+    }
+
+    "not accept a random number (chosen by fair dice roll)" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomInteger(4))
+      assertFailure(runtimeAttributes, "Expecting disks runtime attribute to be a comma separated String or Array[String]")
+    }
+
     "validate a valid dockerWorkingDir entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "dockerWorkingDir" -> WomString("/tmp"))
       val expectedRuntimeAttributes = expectedDefaults.copy(dockerWorkingDir = Option("/tmp"))

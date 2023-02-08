@@ -3,9 +3,10 @@
 ### Prerequisites:
 
 * A Unix-based operating system (yes, that includes Mac!)
-* A Java 8 runtime environment 
-	* You can see what you have by running `$ java -version` on a terminal. You're looking for a version that's at least `1.8` or higher.
-	* If not, you can download Java [here](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html).
+* A Java 11 runtime environment 
+	* You can see what you have by running `$ java -version` on a terminal. 
+	* If not, you can download Java [here](https://adoptopenjdk.net/).
+	* You might need to update the `export JAVA_HOME` in your bash profile to point to your JAVA install location.
 * A sense of adventure!
 
 ### Goals
@@ -41,14 +42,17 @@ This bit is easy, you're just going to copy and paste something from the interne
 Open your favorite editor. Paste in the following content and save it as `myWorkflow.wdl` in your new `cromwell` directory:
 
 ```wdl
+# Example workflow
+# Declare WDL version 1.0 if working in Terra
+version 1.0
 workflow myWorkflow {
 	call myTask
 }
 
 task myTask {
-	command {
+	command <<<
 		echo "hello world"
-	}
+	>>>
 	output {
 		String out = read_string(stdout())
 	}

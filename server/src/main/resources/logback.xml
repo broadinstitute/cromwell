@@ -106,4 +106,7 @@
     <logger name="HikariPool" level="ERROR"/>
     <logger name="com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel" level="ERROR"/>
     <logger name="org.semanticweb.owlapi.utilities.Injector" level="ERROR"/>
+
+    <!-- Guilty of logging ERROR under non-erroneous conditions -->
+    <logger name="com.azure.storage.blob.nio" level="OFF"/>
 </configuration>

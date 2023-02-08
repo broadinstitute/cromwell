@@ -74,7 +74,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val blobTokenGenerator = mock[BlobSasTokenGenerator]
     when(blobTokenGenerator.generateBlobSasToken).thenReturn(Try(sasToken))
 
-    val fsm = BlobFileSystemManager(container, endpoint, 10L, blobTokenGenerator, fileSystems, Some(expiredToken))
+    val fsm = new BlobFileSystemManager(container, endpoint, 10L, blobTokenGenerator, fileSystems, Some(expiredToken))
     fsm.getExpiry should contain(expiredToken)
     fsm.isTokenExpired shouldBe true
     fsm.retrieveFilesystem()
@@ -103,7 +103,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val blobTokenGenerator = mock[BlobSasTokenGenerator]
     when(blobTokenGenerator.generateBlobSasToken).thenReturn(Try(sasToken))
 
-    val fsm = BlobFileSystemManager(container, endpoint, 10L, blobTokenGenerator, fileSystems, Some(initialToken))
+    val fsm = new BlobFileSystemManager(container, endpoint, 10L, blobTokenGenerator, fileSystems, Some(initialToken))
     fsm.getExpiry should contain(initialToken)
     fsm.isTokenExpired shouldBe false
     fsm.retrieveFilesystem()
@@ -128,7 +128,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val blobTokenGenerator = mock[BlobSasTokenGenerator]
     when(blobTokenGenerator.generateBlobSasToken).thenReturn(Try(sasToken))
 
-    val fsm = BlobFileSystemManager(container, endpoint, 10L, blobTokenGenerator, fileSystems, Some(refreshedToken))
+    val fsm = new BlobFileSystemManager(container, endpoint, 10L, blobTokenGenerator, fileSystems, Some(refreshedToken))
     fsm.getExpiry.isDefined shouldBe true
     fsm.isTokenExpired shouldBe false
     fsm.retrieveFilesystem()
@@ -152,7 +152,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val blobTokenGenerator = mock[BlobSasTokenGenerator]
     when(blobTokenGenerator.generateBlobSasToken).thenReturn(Try(sasToken))
 
-    val fsm = BlobFileSystemManager(container, endpoint, 10L, blobTokenGenerator, fileSystems)
+    val fsm = new BlobFileSystemManager(container, endpoint, 10L, blobTokenGenerator, fileSystems)
     fsm.getExpiry.isDefined shouldBe false
     fsm.isTokenExpired shouldBe false
     fsm.retrieveFilesystem()

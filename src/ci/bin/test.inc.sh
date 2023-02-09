@@ -1474,7 +1474,7 @@ cromwell::build::setup_common_environment() {
             cromwell::private::login_vault
             cromwell::private::login_docker
             #cromwell::private::install_adoptopenjdk
-            cromwell::private::install_sbt_launcher
+            #cromwell::private::install_sbt_launcher
             cromwell::private::install_docker_compose
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot

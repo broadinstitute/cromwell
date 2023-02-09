@@ -835,6 +835,7 @@ cromwell::private::install_adoptopenjdk() {
             grep UBUNTU_CODENAME /etc/os-release | cut -d = -f 2
         ) main" |
         sudo tee /etc/apt/sources.list.d/adoptopenjdk.list
+    lsb_release -a
     echo "before update"
     sudo apt-get update
     echo "before get install"

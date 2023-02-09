@@ -1,16 +1,16 @@
 package cromwell.backend.google.pipelines.batch
 import com.google.api.gax.rpc.{FixedHeaderProvider, HeaderProvider}
 import com.google.cloud.batch.v1.BatchServiceSettings
-import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, ProvisioningModel}
+import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy}
 import com.google.cloud.batch.v1.Runnable.Container
 import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, TaskGroup, TaskSpec}
-import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.{BatchGetJob, BatchRequest}
+import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.BatchRequest
 import com.google.protobuf.Duration
 import com.google.cloud.batch.v1.LogsPolicy.Destination
 import com.google.common.collect.ImmutableMap
 
 import java.util.concurrent.TimeUnit
-import scala.util.Try
+//import scala.util.Try
 
 final case class GcpBatchJob (
                              jobSubmission: BatchRequest,
@@ -27,7 +27,6 @@ final case class GcpBatchJob (
   val retryCount = 2
   val durationInSeconds: Long = 3600
   val taskCount: Long = 1
-
 
   // set user agent
   val user_agent_header = "user-agent"
@@ -58,7 +57,6 @@ final case class GcpBatchJob (
       .newBuilder
       .setMachineType(machineType)
       .setMinCpuPlatform(cpuPlatform)
-      .setProvisioningModel(ProvisioningModel.SPOT)
       .build
     instancePolicy
   }
@@ -124,11 +122,10 @@ final case class GcpBatchJob (
         .get(3, TimeUnit
           .MINUTES)
       println("job submitted")
-      println(f"job get UID is $result.getUid")
 
-      val name = result.getName.replaceAll("projects/batch-testing-350715/locations/us-central1/jobs/","")
-      BatchGetJob(name)
-      ()
+      println(result.getName)
+
+
 
     }
     catch  {
@@ -137,15 +134,15 @@ final case class GcpBatchJob (
 
   }
 
-
+  /*
   def jobGetRequest(jobId: String) = {
     val gcpBatchPoll = new GcpBatchJobGetRequest
     val jobDetail = gcpBatchPoll.GetJob(jobId)
-    jobDetail
 
   }
   def status(jobId: String): Try[RunStatus] = for {
-    statusResult <- Try(jobGetRequest(jobId))
-    runStatus <- RunStatus.fromJobStatus(statusResult.getStatus.getState)
-  } yield runStatus
+    statusResult <- Try(jobGetRequest(jobId).toString)
+    //runStatus <- RunStatus.fro
+  }
+  */
 }

@@ -4,9 +4,9 @@ import akka.util.Timeout
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
-import cromwell.backend.google.pipelines.batch.RunStatus.{DeletionInProgress, Failed, StateUnspecified, Unrecognized}
+//import cromwell.backend.google.pipelines.batch.RunStatus.{DeletionInProgress, Failed, StateUnspecified, Unrecognized}
 
-import scala.concurrent.Promise
+//import scala.concurrent.Promise
 
 //import scala.concurrent.Promise
 
@@ -27,7 +27,7 @@ import scala.concurrent.duration._
 import GcpBatchBackendSingletonActor._
 import cromwell.backend.google.pipelines.batch.RunStatus.{Running, Succeeded, TerminalRunStatus}
 
-import com.google.cloud.batch.v1.JobStatus
+//import com.google.cloud.batch.v1.JobStatus
 
 //import scala.util.Success
 //import scala.util.{Failure, Success, Try}
@@ -91,14 +91,14 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     //val cpuPlatformTest = runtimeAttributes.cpuPlatform
 
-    val batchTest = BatchRequest(workflowId, projectId = "batch-testing-350715", region = "us-central1", jobName = jobTemp, runtimeAttributes)
+    //val batchTest = BatchRequest(workflowId, projectId = "batch-testing-350715", region = "us-central1", jobName = jobTemp, runtimeAttributes)
 
     val runBatchResponse = for {
       _ <- uploadScriptFile()
-      completionPromise = Promise[JobStatus]
+      //completionPromise = Promise[JobStatus]
       //_ = backendSingletonActor ! batchTest
-      _ = backendSingletonActor ! BatchRequest(workflowId, projectId = "batch-testing-350715", region = "us-central1", jobName = jobTemp, runtimeAttributes, completionPromise)
-      submitJobResponse <- completionPromise.future
+      _ = backendSingletonActor ! BatchRequest(workflowId, projectId = "batch-testing-350715", region = "us-central1", jobName = jobTemp, runtimeAttributes)
+      //submitJobResponse <- completionPromise.future
       runId = StandardAsyncJob(UUID.randomUUID().toString) //temp to test
 
     }
@@ -137,6 +137,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         )
     }*/
 
+    println("started polling")
     implicit val timeout: Timeout = Timeout(5.seconds)
     val result2: Future[Any] = backendSingletonActor ? BatchGetJob(jobTemp)
     println(result2.toString)
@@ -151,9 +152,12 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
      */
 
+    Future.successful(Running) //temp to keep running
+
+    /*
     val gcpBatchPoll = new GcpBatchJobGetRequest
     val result = gcpBatchPoll.GetJob(jobTemp)
-
+    */
 
     //val gcpBatchPoll = new GcpBatchJobGetRequest
     //val result = gcpBatchPoll.GetJob(jobTemp)
@@ -161,6 +165,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     //val batchRunStatus = RunStatus.fromJobStatus(status=result)
     //val eventList: Seq[ExecutionEvent] = Seq(ExecutionEvent.toString)
 
+    /*
     val jobStatus = result.getStatus.getState
 
     //https://github.com/broadinstitute/cromwell/blob/328a0fe0aa307ee981b00e4af6b397b61a9fbe9e/engine/src/main/scala/cromwell/engine/workflow/lifecycle/execution/SubWorkflowExecutionActor.scala
@@ -194,6 +199,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       //  Future.successful(Running)
 
     }
+
+     */
   }
 
   override def isTerminal(runStatus: RunStatus): Boolean = {
@@ -208,10 +215,10 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         false
       case _: TerminalRunStatus =>
         val tempTermStatus = runStatus.toString
-        println(f"isTerminal match TerminalRunStatus running with status $tempTermStatus")
+        log.info(f"isTerminal match TerminalRunStatus running with status $tempTermStatus")
         true
       case other =>
-        println(f"isTerminal match _ running with status $other")
+        log.info(f"isTerminal match _ running with status $other")
         false
     }
   }

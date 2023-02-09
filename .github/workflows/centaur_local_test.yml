@@ -19,7 +19,6 @@ jobs:
       BUILD_NAME: singleWorkflowRunner
       BUILD_TYPE: singleWorkflowRunner
       BUILD_MYSQL: 5.7
-      VAULT_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
       VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID_CI }}
       VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID_CI }}
     runs-on: ubuntu-latest

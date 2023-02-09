@@ -10,10 +10,10 @@ runs:
   using: "composite" # <-- this allows these steps to be used by other workflows.
   steps:
       #Allows this github action to use a cache to store stuff like Java and sbt files between runs.
-      #- uses: actions/checkout@v3
-      #  name: Checkout Coursier Cache
-      #- uses: coursier/cache-action@v6  
-      #  name: Enable Coursier Cache
+      - uses: actions/checkout@v3
+        name: Checkout Coursier Cache
+      - uses: coursier/cache-action@v6  
+        name: Enable Coursier Cache
 
       #Cromwell requires git-secrets be setup. Here, we set up secrets and verify success with a script.
       - name: Git secrets setup 
@@ -38,7 +38,7 @@ runs:
           repository: broadinstitute/cromwell
           token: ${{ inputs.cromwell_repo_token }}
 
-      Install Java to this VM. This Java version and distribution is compatible with Cromwell.
+      #Install Java to this VM. This Java version and distribution is compatible with Cromwell.
       - name: Setup JDK
         uses: actions/setup-java@v3
         with:

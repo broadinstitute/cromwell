@@ -14,10 +14,14 @@ permissions:
   contents: read
 
 jobs:
-  centaur-tests: 
+  centaur-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [centaurPapiV2beta, testSingleWorkflowRunner, centaurLocal]
     env:
-      BUILD_NAME: centaurPapiV2beta
-      BUILD_TYPE: centaurPapiV2beta
+      BUILD_NAME: ${{ matrix.build_type }}
+      BUILD_TYPE: ${{ matrix.build_type }}
       BUILD_MYSQL: 5.7
       VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID_CI }}
       VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID_CI }}
@@ -32,6 +36,4 @@ jobs:
       run: |
         set -e
         echo Running test.sh
-        echo $BUILD_NAME
-        echo $BUILD_TYPE
         ./src/ci/bin/test.sh

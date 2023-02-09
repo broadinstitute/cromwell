@@ -39,9 +39,9 @@ runs:
           token: ${{ inputs.cromwell_repo_token }}
 
       #Install Java to this VM. This Java version and distribution is compatible with Cromwell.
-      - name: Setup JDK
-        uses: actions/setup-java@v3
-        with:
-          distribution: temurin
-          java-version: 11
+      #- name: Setup JDK
+      #  uses: actions/setup-java@v3
+      #  with:
+      #    distribution: temurin
+      #    java-version: 11
 

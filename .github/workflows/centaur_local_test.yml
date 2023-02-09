@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build_type: [centaurPapiV2beta, testSingleWorkflowRunner, centaurLocal]
+        build_type: [centaurPapiV2beta, singleWorkflowRunner, centaurLocal]
     env:
       BUILD_NAME: ${{ matrix.build_type }}
       BUILD_TYPE: ${{ matrix.build_type }}

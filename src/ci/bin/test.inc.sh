@@ -835,8 +835,11 @@ cromwell::private::install_adoptopenjdk() {
             grep UBUNTU_CODENAME /etc/os-release | cut -d = -f 2
         ) main" |
         sudo tee /etc/apt/sources.list.d/adoptopenjdk.list
+    echo "before update"
     sudo apt-get update
+    echo "before get install"
     sudo apt-get install -y adoptopenjdk-11-hotspot
+    echo "before alternatives"
     sudo update-java-alternatives --set adoptopenjdk-11-hotspot-amd64
 }
 

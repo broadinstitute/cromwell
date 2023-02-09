@@ -1473,8 +1473,8 @@ cromwell::build::setup_common_environment() {
             cromwell::private::install_vault
             cromwell::private::login_vault
             cromwell::private::login_docker
-            #cromwell::private::install_adoptopenjdk
-            #cromwell::private::install_sbt_launcher
+            #Note: Unlike with other CI providers, we are using Github Actions to install Java and sbt for us.
+            #This is automatically handled in the set_up_cromwell Github Action, which can be found in [cromwell root]/.github/set_up_cromwell_aciton.
             cromwell::private::install_docker_compose
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot

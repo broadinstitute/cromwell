@@ -17,7 +17,8 @@ jobs:
   centaur-tests:
     strategy:
       fail-fast: false #disabling fail-fast means that even if one test fails, the others will still try to complete.
-      #Each entry below is a single integration test that lives in /src/ci/bin/.
+      #Each entry below is a single integration test that lives in /src/ci/bin/. 
+      #Each will be launched on its own runner so they can occur in parallel.
       matrix:
         include:
           - build_type: centaurPapiV2beta

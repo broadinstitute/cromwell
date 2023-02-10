@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - build_type: centaurPapiV2Beta
+          - build_type: centaurPapiV2beta
             build_mysql: 5.7
           - build_type: dbms
           - build_type: centaurTes

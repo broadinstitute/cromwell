@@ -47,7 +47,7 @@ jobs:
             build_mariadb: 10.3
     env:
       BUILD_NAME: ${{ matrix.build_type }}
-      BUILD_TYPE: ${{ matrix.build_type }}
+      BUILD_TYPE: ${{ matrix.build_type }} #intentionally duplicated variable
       BUILD_MYSQL: ${{ matrix.build_mysql }}
       BUILD_POSTGRESQL: ${{ matrix.build_postgresql }}
       BUILD_MATRIADB: ${{ matrix.build_mariadb }}

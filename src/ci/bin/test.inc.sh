@@ -306,8 +306,6 @@ cromwell::private::create_build_variables() {
         "${CROMWELL_BUILD_PROVIDER_GITHUB}")
             CROMWELL_BUILD_IS_CI=true
             CROMWELL_BUILD_IS_SECURE=true
-            echo "githubSpecific"
-
             CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
             CROMWELL_BUILD_BRANCH="${GITHUB_REF_NAME}"
             CROMWELL_BUILD_EVENT="${GITHUB_EVENT_NAME}"
@@ -469,7 +467,6 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_WAIT_FOR_IT_FILENAME
     export CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT
     export CROMWELL_BUILD_WAIT_FOR_IT_URL
-    echo "end creating build varaibles"
 }
 
 cromwell::private::echo_build_variables() {
@@ -834,12 +831,8 @@ cromwell::private::install_adoptopenjdk() {
             grep UBUNTU_CODENAME /etc/os-release | cut -d = -f 2
         ) main" |
         sudo tee /etc/apt/sources.list.d/adoptopenjdk.list
-    lsb_release -a
-    echo "before update"
     sudo apt-get update
-    echo "before get install"
     sudo apt-get install -y adoptopenjdk-11-hotspot
-    echo "before alternatives"
     sudo update-java-alternatives --set adoptopenjdk-11-hotspot-amd64
 }
 
@@ -901,7 +894,6 @@ cromwell::private::install_vault() {
         --output "${CROMWELL_BUILD_VAULT_ZIP}" \
         "https://releases.hashicorp.com/vault/1.6.3/vault_1.6.3_${CROMWELL_BUILD_OS}_amd64.zip"
     unzip "${CROMWELL_BUILD_VAULT_ZIP}" -d "$(dirname "${CROMWELL_BUILD_VAULT_EXECUTABLE}")"
-    echo "Installed Vault"
 }
 
 cromwell::private::install_git_secrets() {
@@ -1087,10 +1079,8 @@ cromwell::private::login_vault() {
                     write -field=token \
                     auth/approle/login role_id="${VAULT_ROLE_ID}" secret_id="${VAULT_SECRET_ID}"
             )"
-            echo "Trying to login to vault"
         else
             vault_token="${VAULT_TOKEN:-}"
-            echo "Using Env Vault Token"
         fi
 
         if [[ -n "${vault_token}" ]]; then
@@ -1100,7 +1090,6 @@ cromwell::private::login_vault() {
                 login "${vault_token}" < /dev/null > /dev/null \
                 && echo vault login success \
                 || true
-            echo "Vault login"
         fi
     fi
 }
@@ -1473,7 +1462,8 @@ cromwell::build::setup_common_environment() {
             cromwell::private::login_vault
             cromwell::private::login_docker
             #Note: Unlike with other CI providers, we are using Github Actions to install Java and sbt for us.
-            #This is automatically handled in the set_up_cromwell Github Action, which can be found in [cromwell root]/.github/set_up_cromwell_aciton.
+            #This is automatically handled in the set_up_cromwell Github Action, which can be found in
+            #[cromwell root]/.github/set_up_cromwell_aciton.
             cromwell::private::install_docker_compose
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot
@@ -1487,7 +1477,6 @@ cromwell::build::setup_common_environment() {
 
     cromwell::private::setup_secure_resources
     cromwell::private::start_build_heartbeat
-    echo "end of setup common environment"
 }
 
 

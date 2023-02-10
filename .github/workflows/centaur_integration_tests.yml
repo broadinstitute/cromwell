@@ -8,7 +8,7 @@ run-name: ${{ github.actor }} running Centaur Integration Tests.
 #What will trigger the workflow to run. 
 on:
   workflow_dispatch: #Manual trigger from GitHub UI
-  push:
+  push: #git push
 
 permissions: 
   contents: read
@@ -16,7 +16,8 @@ permissions:
 jobs:
   centaur-tests:
     strategy:
-      fail-fast: false
+      fail-fast: false #disabling fail-fast means that even if one tests fail, the others will still try to complete.
+      #Each entry below is a single integration test that lives in /src/ci/bin/.
       matrix:
         include:
           - build_type: centaurPapiV2beta
@@ -55,9 +56,11 @@ jobs:
     timeout-minutes: 120
     steps:
     - uses: actions/checkout@v3 # checkout the cromwell repo
-    - uses: ./.github/set_up_cromwell_action #Exectute this reusable github action. It will set up java/sbt/git-secrets/cromwell.
+    - uses: ./.github/set_up_cromwell_action #This github action will set up git-secrets, caching, java, and sbt.
       with:
         cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+    #This script bascially just looks up another script to exececute, assuming that the other script's filename is
+    #src/ci/bin/test${BUILD_TYPE}.sh
     - name: Run Centaur Test
       run: |
         set -e

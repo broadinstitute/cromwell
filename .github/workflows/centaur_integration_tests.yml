@@ -20,10 +20,10 @@ jobs:
       matrix:
         include:
           - build_type: centaurPapiV2Beta
-          build_mysql: 5.7
+            build_mysql: 5.7
           - build_type: dbms
           - build_type: centaurTes
-          build_mysql: 5.7
+            build_mysql: 5.7
     env:
       BUILD_NAME: ${{ matrix.build_type }}
       BUILD_TYPE: ${{ matrix.build_type }}

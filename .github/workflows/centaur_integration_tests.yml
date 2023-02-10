@@ -18,11 +18,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build_type: [centaurPapiV2beta, singleWorkflowRunner, centaurLocal]
+        include:
+          -build_type: centaurPapiV2Beta
+            build_mysql: 5.7
+          -build_type: dbms
+          -build_type: centaurTes
+            build_mysql: 5.7
     env:
       BUILD_NAME: ${{ matrix.build_type }}
       BUILD_TYPE: ${{ matrix.build_type }}
-      BUILD_MYSQL: 5.7
+      BUILD_MYSQL: matrix.build_mysql
       VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID_CI }}
       VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID_CI }}
     runs-on: ubuntu-latest

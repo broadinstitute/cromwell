@@ -30,12 +30,25 @@ jobs:
           - build_type: centaurLocal
             build_postgresql: 11.3
           - build_type: checkPublish
-
+          - build_type: centaurAws
+            build_mysql: 5.7
+          - build_type: centaurDummy
+            build_mysql: 5.7
+          - build_type: centaurHoricromtalPapiV2beta
+            build_mysql: 5.7
+          - build_type: centaurSlurm
+            build_mysql: 5.7
+          - build_type: horicromtalDeadlock
+          - build_type: singleWorkflowRunner
+          - build_type: referenceDiskManifestBuilderApp
+          - build_type: centaurLocal
+            build_mariadb: 10.3
     env:
       BUILD_NAME: ${{ matrix.build_type }}
       BUILD_TYPE: ${{ matrix.build_type }}
       BUILD_MYSQL: ${{ matrix.build_mysql }}
       BUILD_POSTGRESQL: ${{ matrix.build_postgresql }}
+      BUILD_MATRIADB: ${{ matrix.build_mariadb }}
       VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID_CI }}
       VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID_CI }}
     runs-on: ubuntu-latest

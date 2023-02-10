@@ -85,7 +85,6 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_PROVIDER_CIRCLE="circle"
     CROMWELL_BUILD_PROVIDER_GITHUB="github"
     CROMWELL_BUILD_PROVIDER_UNKNOWN="unknown"
-    echo "setting environment variables"
 
     if [[ "${TRAVIS-false}" == "true" ]]; then
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_TRAVIS}"
@@ -310,13 +309,13 @@ cromwell::private::create_build_variables() {
             echo "githubSpecific"
 
             CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
-            CROMWELL_BUILD_BRANCH="test-build-branch-string"
-            CROMWELL_BUILD_EVENT="test-build-event-string"
-            CROMWELL_BUILD_TAG="test-build-tag-string"
-            CROMWELL_BUILD_NUMBER="test-build-number-string"
-            CROMWELL_BUILD_URL="www.testBuildURL.com"
-            CROMWELL_BUILD_GIT_USER_EMAIL="testGitEmail"
-            CROMWELL_BUILD_GIT_USER_NAME="testGitUsername"
+            CROMWELL_BUILD_BRANCH="${GITHUB_REF_NAME}"
+            CROMWELL_BUILD_EVENT="${GITHUB_EVENT_NAME}"
+            CROMWELL_BUILD_TAG=""
+            CROMWELL_BUILD_NUMBER="${GITHUB_RUN_ID}"
+            CROMWELL_BUILD_URL="${$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID}"
+            CROMWELL_BUILD_GIT_USER_EMAIL=""
+            CROMWELL_BUILD_GIT_USER_NAME="${GITHUB_ACTOR}"
             CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
             CROMWELL_BUILD_GENERATE_COVERAGE=true
             CROMWELL_BUILD_RUN_TESTS=true

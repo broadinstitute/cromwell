@@ -16,7 +16,6 @@ permissions:
 jobs:
   centaur-tests:
     strategy:
-      fail-fast: false
       matrix:
         include:
           -build_type: centaurPapiV2Beta

@@ -24,6 +24,16 @@ sealed trait RunStatus {
 object RunStatus {
 
 
+    def testJobStatus(status: String): Try[RunStatus] ={
+        //print(status)
+          status match{
+              case "test" =>  Success(Running)
+              case _ => Success(Running)
+          }
+
+
+    }
+
     //def fromJobStatus(status: JobStatus.State,  eventList: Seq[ExecutionEvent] = Seq.empty): Try[RunStatus] = {
     def fromJobStatus(status: JobStatus.State): Try[RunStatus] = {
             status match {

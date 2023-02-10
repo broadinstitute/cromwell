@@ -4,6 +4,10 @@ import akka.util.Timeout
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
+
+import scala.concurrent.Promise
+import scala.util.Try
+import scala.util.control.NoStackTrace
 //import cromwell.backend.google.pipelines.batch.RunStatus.{DeletionInProgress, Failed, StateUnspecified, Unrecognized}
 
 //import scala.concurrent.Promise
@@ -138,10 +142,37 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     }*/
 
     println("started polling")
+
+    val completionPromise = Promise[Try[Unit]]()
+
     implicit val timeout: Timeout = Timeout(5.seconds)
-    val result2: Future[Any] = backendSingletonActor ? BatchGetJob(jobTemp)
-    println(result2.toString)
-    println(result2.value)
+    //val result2: Future[Any] = backendSingletonActor ? BatchGetJob(completionPromise, jobTemp)
+
+    val gcpBatchPoll = new GcpBatchJobGetRequest
+
+
+    val job = new GcpBatchJob()
+
+    def testPoll(quick: Any): Future[RunStatus] = quick match {
+      //case GcpBatchJob(_, _, Some(value)) =>
+      //  Future.successful(value)
+      case BatchGetJob(_) =>
+        //Future.fromTry(gcpBatchPoll.GetJob(jobTemp))
+        Future.fromTry(job.status(jobTemp))
+      case other =>
+        val message = "programmer error matched other in poll status async"
+        Future.failed(new Exception(message) with NoStackTrace)
+    }
+    for {
+      quickAnswer <- backendSingletonActor ? BatchGetJob(jobTemp)
+      answer <- testPoll(quickAnswer)
+    } yield answer
+
+
+
+
+    //println(result2.toString)
+    //println(result2.value)
 
 
 
@@ -152,7 +183,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
      */
 
-    Future.successful(Running) //temp to keep running
+    //Future.successful(Running) //temp to keep running
 
     /*
     val gcpBatchPoll = new GcpBatchJobGetRequest

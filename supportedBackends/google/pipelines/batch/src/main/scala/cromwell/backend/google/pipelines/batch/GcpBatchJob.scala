@@ -10,7 +10,7 @@ import com.google.cloud.batch.v1.LogsPolicy.Destination
 import com.google.common.collect.ImmutableMap
 
 import java.util.concurrent.TimeUnit
-//import scala.util.Try
+import scala.util.Try
 
 final case class GcpBatchJob (
                              jobSubmission: BatchRequest,
@@ -134,7 +134,7 @@ final case class GcpBatchJob (
 
   }
 
-  /*
+
   def jobGetRequest(jobId: String) = {
     val gcpBatchPoll = new GcpBatchJobGetRequest
     val jobDetail = gcpBatchPoll.GetJob(jobId)
@@ -142,7 +142,8 @@ final case class GcpBatchJob (
   }
   def status(jobId: String): Try[RunStatus] = for {
     statusResult <- Try(jobGetRequest(jobId).toString)
-    //runStatus <- RunStatus.fro
-  }
-  */
+    //runStatus <- RunStatus.fromJobStatus(jobId)
+    runStatus <- RunStatus.testJobStatus(jobId)
+  } yield runStatus
+
 }

@@ -1,9 +1,11 @@
 package cromwell.backend.google.pipelines.batch
 
 //import cats.instances.unit
-//import com.google.api.core.ApiFuture
-import com.google.cloud.batch.v1.{BatchServiceClient, GetJobRequest, JobName}
-//import com.google.cloud.batch.v1.{BatchServiceClient, GetJobRequest, Job, JobName}
+import com.google.api.core.ApiFuture
+
+import scala.concurrent.Promise
+//import com.google.cloud.batch.v1.{BatchServiceClient, GetJobRequest, JobName}
+import com.google.cloud.batch.v1.{BatchServiceClient, GetJobRequest, Job, JobName}
 
 //import scala.concurrent.Await
 //import scala.concurrent.duration.DurationInt
@@ -14,7 +16,7 @@ import com.google.cloud.batch.v1.{BatchServiceClient, GetJobRequest, JobName}
 //import scala.concurrent.duration.Duration
 //import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.GcpBatchJobSuccess
 
-//import scala.concurrent.Future
+import scala.concurrent.Future
 
 class GcpBatchJobGetRequest {
 
@@ -25,6 +27,7 @@ class GcpBatchJobGetRequest {
     val region = "us-central1"
     //val jobName2 = "job-8aadb81a-a888-4c91-af7e-6a15aa1b1797"
 
+    /*
     val batchServiceClient = BatchServiceClient.create
 
     val request = GetJobRequest.newBuilder.setName(JobName.of(projectId, region, jobName).toString()).build
@@ -32,8 +35,8 @@ class GcpBatchJobGetRequest {
     //print(response.getStatus.getState)
     print(response.getStatus.toString)
     batchServiceClient.close()
-
-    response
+    */
+    //response
 
 
     /*
@@ -48,11 +51,12 @@ class GcpBatchJobGetRequest {
             .build())
         */
 
-    /*
-    val request = GetJobRequest.newBuilder.setName(JobName.of(projectId, region, jobName2).toString())
+
+    val batchServiceClient = BatchServiceClient.create
+    val request = GetJobRequest.newBuilder.setName(JobName.of(projectId, region, jobName).toString())
                                .build
     println(request.toString)
-    val future: ApiFuture[Job] = batchServiceClient2.getJobCallable.futureCall(request)
+    val future: ApiFuture[Job] = batchServiceClient.getJobCallable.futureCall(request)
     println(future.get())
     //Await.ready(future.get, Duration.Inf)
     //future.get
@@ -60,7 +64,7 @@ class GcpBatchJobGetRequest {
     val response = future.get()
     println(response)
     response.getStatus.getState
-    batchServiceClient2.close()
+    batchServiceClient.close()
     response
    */
 

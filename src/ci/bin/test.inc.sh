@@ -1459,7 +1459,6 @@ cromwell::build::setup_common_environment() {
             cromwell::private::start_docker_databases
             ;;
         "${CROMWELL_BUILD_PROVIDER_GITHUB}")
-            cromwell::private::stop_travis_defaults
             # Try to login to vault, and if successful then use vault creds to login to docker.
             # For those committers with vault access this avoids pull rate limits reported in BT-143.
             cromwell::private::install_vault

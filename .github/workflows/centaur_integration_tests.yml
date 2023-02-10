@@ -1,9 +1,9 @@
 name: 'Centaur Integration Tests'
 
-#This github action runs all of Cromwell's unit tests.
+#This github action runs all of Cromwell's integration tests.
 
 #This is what shows up in the github workflows page as the title. 
-run-name: ${{ github.actor }} running Centaur Integration Tests.
+run-name: ${{ github.actor }} Centaur Testing.
 
 #What will trigger the workflow to run. 
 on:
@@ -16,7 +16,7 @@ permissions:
 jobs:
   centaur-tests:
     strategy:
-      fail-fast: false #disabling fail-fast means that even if one tests fail, the others will still try to complete.
+      fail-fast: false #disabling fail-fast means that even if one test fails, the others will still try to complete.
       #Each entry below is a single integration test that lives in /src/ci/bin/.
       matrix:
         include:
@@ -59,8 +59,8 @@ jobs:
     - uses: ./.github/set_up_cromwell_action #This github action will set up git-secrets, caching, java, and sbt.
       with:
         cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
-    #This script bascially just looks up another script to exececute, assuming that the other script's filename is
-    #src/ci/bin/test${BUILD_TYPE}.sh
+    #This script bascially just looks up another script to run, assuming that the other script's filename is:
+    #src/ci/bin/test${BUILD_TYPE}.sh. The first letter of the BUILD_TYPE is automatically capitalized when looking for the filename.
     - name: Run Centaur Test
       run: |
         set -e

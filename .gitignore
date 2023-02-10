@@ -17,7 +17,7 @@ tags
 target
 /site
 
-#from running tests
+#from running integration tests locally
 actual.json
 console_output.txt
 expected.json

@@ -484,6 +484,10 @@ cromwell::private::echo_build_variables() {
     echo "CROMWELL_BUILD_PROVIDER='${CROMWELL_BUILD_PROVIDER}'"
     echo "CROMWELL_BUILD_OS='${CROMWELL_BUILD_OS}'"
     echo "CROMWELL_BUILD_URL='${CROMWELL_BUILD_URL}'"
+    echo "CROMWELL_BUILD_URL='${BUILD_POSTGRESQL}'"
+    echo "CROMWELL_BUILD_URL='${BUILD_MATRIADB}'"
+    echo "CROMWELL_BUILD_URL='${BUILD_MYSQL}'"
+
 }
 
 # Create environment variables used by the DatabaseTestKit and cromwell::private::create_centaur_variables()

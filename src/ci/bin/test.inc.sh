@@ -484,9 +484,6 @@ cromwell::private::echo_build_variables() {
     echo "CROMWELL_BUILD_PROVIDER='${CROMWELL_BUILD_PROVIDER}'"
     echo "CROMWELL_BUILD_OS='${CROMWELL_BUILD_OS}'"
     echo "CROMWELL_BUILD_URL='${CROMWELL_BUILD_URL}'"
-    echo "BUILD_POSTGRESQL='${BUILD_POSTGRESQL}'"
-    echo "BUILD_MATRIADB='${BUILD_MATRIADB}'"
-    echo "BUILD_MYSQL='${BUILD_MYSQL}'"
 }
 
 # Create environment variables used by the DatabaseTestKit and cromwell::private::create_centaur_variables()
@@ -497,7 +494,8 @@ cromwell::private::create_database_variables() {
 
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
-        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
+        "${CROMWELL_BUILD_PROVIDER_CIRCLE}"|\
+        "${CROMWELL_BUILD_PROVIDER_GITHUB}")
             CROMWELL_BUILD_MARIADB_HOSTNAME="localhost"
             CROMWELL_BUILD_MARIADB_PORT="23306"
             CROMWELL_BUILD_MARIADB_DOCKER_TAG="${BUILD_MARIADB-}"

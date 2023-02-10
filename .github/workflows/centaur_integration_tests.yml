@@ -27,7 +27,7 @@ jobs:
     env:
       BUILD_NAME: ${{ matrix.build_type }}
       BUILD_TYPE: ${{ matrix.build_type }}
-      BUILD_MYSQL: matrix.build_mysql
+      BUILD_MYSQL: ${{ matrix.build_mysql }}
       VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID_CI }}
       VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID_CI }}
     runs-on: ubuntu-latest

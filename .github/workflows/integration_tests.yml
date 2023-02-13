@@ -23,21 +23,30 @@ jobs:
         include:
           - build_type: centaurPapiV2beta
             build_mysql: 5.7
+            friendly_name: Centaur Papi V2 Beta with MySQL 5.7
           - build_type: dbms
           - build_type: centaurTes
             build_mysql: 5.7
+            friendly_name: Centaur Tes with MySQL 5.7
           - build_type: centaurLocal
             build_mysql: 5.7
+            friendly_name: Centaur Local with MySQL 5.7
           - build_type: checkPublish
+            friendly_name: Check Publish
           - build_type: centaurAws
             build_mysql: 5.7
+            friendly_name: Centaur AWS with MySQL 5.7
           - build_type: centaurDummy
             build_mysql: 5.7
+            friendly_name: Centaur Dummy with MySQL 5.7
           - build_type: centaurHoricromtalPapiV2beta
             build_mysql: 5.7
+            friendly_name: Centaur Horicromtal PapiV2 Beta with MySQL 5.7
           - build_type: horicromtalDeadlock
+            friendly_name: Horicromtal Deadlock
           - build_type: singleWorkflowRunner
-    name: ${{ matrix.build_type }}
+            friendly_name: Single Workflow Runner
+    name: ${{ matrix.friendly_name }}
     env:
       BUILD_NAME: ${{ matrix.build_type }}
       BUILD_TYPE: ${{ matrix.build_type }} #intentionally duplicated variable

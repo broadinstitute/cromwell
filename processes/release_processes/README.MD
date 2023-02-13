@@ -26,7 +26,7 @@ will need to be on the Broad internal network or VPN to open the following links
 
 #### Announce your intentions
 
-Post a message in `#dsp-batch-private` letting people know that a publish is imminent in case there are PRs they want to get
+Post a message in `#dsp-workflows-private` letting people know that a publish is imminent in case there are PRs they want to get
 wrapped up and merged to `develop` to go out in the forthcoming version of Cromwell.
 
 #### Get a Github token

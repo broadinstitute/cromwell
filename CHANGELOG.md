@@ -61,8 +61,7 @@ For more information, see the [Cromwell 79 release notes](https://github.com/bro
 
 ### TES Improvments
 
-* Surface TES System Logs to Cromwell when TES backend returns task error status
-Tes system errors are are now reported in Cromwell execution logs when the TES backend returns a task error.
+* Tes system errors are are now reported in Cromwell execution logs when the TES backend returns a task error.
 
 * Cromwell now attempts to translate `disks` attributes [written for GCP](https://cromwell.readthedocs.io/en/stable/RuntimeAttributes/#disks) into valid `disk` attributes for TES. For information on supported conversions, refer to the [TES documentation](https://cromwell.readthedocs.io/en/stable/backends/TES/).
 

@@ -37,7 +37,7 @@ jobs:
             build_mysql: 5.7
           - build_type: horicromtalDeadlock
           - build_type: singleWorkflowRunner
-      name: ${{ matrix.build_type }}
+    name: ${{ matrix.build_type }}
     env:
       BUILD_NAME: ${{ matrix.build_type }}
       BUILD_TYPE: ${{ matrix.build_type }} #intentionally duplicated variable

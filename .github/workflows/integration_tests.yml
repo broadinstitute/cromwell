@@ -23,7 +23,6 @@ jobs:
         include:
           - build_type: centaurPapiV2beta
             build_mysql: 5.7
-            name: does this name work?
           - build_type: dbms
           - build_type: centaurTes
             build_mysql: 5.7

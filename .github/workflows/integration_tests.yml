@@ -19,12 +19,14 @@ jobs:
       fail-fast: false #disabling fail-fast means that even if one test fails, the others will still try to complete.
       #Each entry below is a single integration test that lives in /src/ci/bin/. 
       #Each will be launched on its own runner so they can occur in parallel.
+      #Friendly names are displayed on the Github UI and aren't used anywhere else.
       matrix:
         include:
           - build_type: centaurPapiV2beta
             build_mysql: 5.7
             friendly_name: Centaur Papi V2 Beta with MySQL 5.7
           - build_type: dbms
+            friendly_name: DBMS
           - build_type: centaurTes
             build_mysql: 5.7
             friendly_name: Centaur Tes with MySQL 5.7

@@ -29,7 +29,7 @@ jobs:
             friendly_name: DBMS
           - build_type: centaurTes
             build_mysql: 5.7
-            friendly_name: Centaur Tes with MySQL 5.7
+            friendly_name: Centaur TES with MySQL 5.7
           - build_type: centaurLocal
             build_mysql: 5.7
             friendly_name: Centaur Local with MySQL 5.7
@@ -54,7 +54,7 @@ jobs:
       BUILD_TYPE: ${{ matrix.build_type }} #intentionally duplicated variable
       BUILD_MYSQL: ${{ matrix.build_mysql }}
       BUILD_POSTGRESQL: ${{ matrix.build_postgresql }}
-      BUILD_MATRIADB: ${{ matrix.build_mariadb }}
+      BUILD_MARIADB: ${{ matrix.build_mariadb }}
       VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID_CI }}
       VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID_CI }}
     runs-on: ubuntu-latest

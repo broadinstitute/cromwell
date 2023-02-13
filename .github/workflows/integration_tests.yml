@@ -1,9 +1,9 @@
-name: 'Centaur Integration Tests'
+name: 'Integration Tests'
 
 #This github action runs all of Cromwell's integration tests.
 
 #This is what shows up in the github workflows page as the title. 
-run-name: ${{ github.actor }} Centaur Testing.
+run-name: ${{ github.actor }} Integration Testing.
 
 #What will trigger the workflow to run. 
 on:
@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 jobs:
-  centaur-tests:
+  integration-tests:
     strategy:
       fail-fast: false #disabling fail-fast means that even if one test fails, the others will still try to complete.
       #Each entry below is a single integration test that lives in /src/ci/bin/. 
@@ -23,6 +23,7 @@ jobs:
         include:
           - build_type: centaurPapiV2beta
             build_mysql: 5.7
+            name: does this name work?
           - build_type: dbms
           - build_type: centaurTes
             build_mysql: 5.7
@@ -54,7 +55,7 @@ jobs:
         cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
     #This script bascially just looks up another script to run, assuming that the other script's filename is:
     #src/ci/bin/test${BUILD_TYPE}.sh. The first letter of the BUILD_TYPE is automatically capitalized when looking.
-    - name: Run Centaur Test
+    - name: Run Integration Test
       run: |
         set -e
         echo Running test.sh

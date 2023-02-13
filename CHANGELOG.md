@@ -2,26 +2,6 @@
 
 ## 85 Release Notes
 
-### Surface TES System Logs to Cromwell when TES backend returns task error status
-
-Tes system errors are are now reported in Cromwell execution logs when the TES backend returns a task error.
-
-### Only mount reference disks if requested
-
-Reference disks are only mounted if configured in the workflow options.
-
-### Support falling back to OCI Manifest Format
-
-Recent docker images of Ubuntu use a new manifest format, this change ensures that these newer image versions can be pulled without issue.
-
-###  Trim down ValueStore logging to prevent OOMs
-
-ValueStore logging has been reduced, to limit memory usage.
-
-### Add support for DRShub
-
-DRS URL resolution is now performed through the service DRSHub, with Martha as a fallback.
-
 ### Migration of PKs to BIGINT
 
 The PK of below tables will be migrated from INT to BIGINT. Also, since `ROOT_WORKFLOW_ID` in `SUB_WORKFLOW_STORE_ENTRY` is a FK to `WORKFLOW_STORE_ENTRY_ID` in `WORKFLOW_STORE_ENTRY`
@@ -35,7 +15,9 @@ it is also being migrated from INT to BIGINT.
 Cromwell will now retry a task with more memory after it fails with return code 137, provided all
 the other requirements for retrying with more memory are met.
 
-### Support for invoking `CromwellDRSLocalizer` with manifest file
+### DRS Improvements
+
+#### Support for invoking `CromwellDRSLocalizer` with manifest file
 
 `CromwellDRSLocalizer` can now handle multiple file localizations in a single invocation. Users can provide a
 manifest file containing multiple (DRS id, local container path) pairs in CSV format, and they will be localized in
@@ -47,14 +29,11 @@ java -jar /path/to/localizer.jar [options] -m /local/path/to/manifest/file.txt
 The previous method of passing in a single DRS file and container destination using positional arguments is still
 supported.
 
-### Improvement to DRS localization in GCP papiv2beta backend
+#### Improvement to DRS localization in GCP papiv2beta backend
 
 All DRS inputs to a task are now localized in a single PAPI action, which should improve speed and resolve
 failures observed when attempting to localize a large number of DRS files.
 
-### Security Patching
-
-Updates to dependencies to fix security vulnerabilities.
 
 ### Allow list for HTTP WDL resolution
 
@@ -80,11 +59,25 @@ This release removes the `cwl` top-level artifact. Some nonfunctional references
 
 For more information, see the [Cromwell 79 release notes](https://github.com/broadinstitute/cromwell/releases/tag/79).
 
-### TES backend supports `disks` attribute
+### TES Improvments
 
-Cromwell now attempts to translate `disks` attributes [written for GCP](https://cromwell.readthedocs.io/en/stable/RuntimeAttributes/#disks) into valid `disk` attributes for TES.
+* Surface TES System Logs to Cromwell when TES backend returns task error status
+Tes system errors are are now reported in Cromwell execution logs when the TES backend returns a task error.
 
-For information on supported conversions, refer to the [TES documentation](https://cromwell.readthedocs.io/en/stable/backends/TES/).
+* Cromwell now attempts to translate `disks` attributes [written for GCP](https://cromwell.readthedocs.io/en/stable/RuntimeAttributes/#disks) into valid `disk` attributes for TES. For information on supported conversions, refer to the [TES documentation](https://cromwell.readthedocs.io/en/stable/backends/TES/).
+
+### Bug Fixes
+
+* Reference disks are only mounted if configured in the workflow options.
+
+* Recent docker images of Ubuntu use a new manifest format, ensure that these newer image versions can be pulled from Docker Registry without issue.
+
+* When converting ValueStore objects to strings for logging, we truncate long values to limit memory usage.
+
+
+### Security Patching
+
+Updates to dependencies to fix security vulnerabilities.
 
 ## 84 Release Notes
 

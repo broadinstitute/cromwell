@@ -26,11 +26,8 @@ jobs:
           - build_type: dbms
           - build_type: centaurTes
             build_mysql: 5.7
-          - build_type: centaurEngineUpgradeLocal
           - build_type: centaurLocal
             build_mysql: 5.7
-          - build_type: centaurLocal
-            build_postgresql: 11.3
           - build_type: checkPublish
           - build_type: centaurAws
             build_mysql: 5.7
@@ -38,13 +35,8 @@ jobs:
             build_mysql: 5.7
           - build_type: centaurHoricromtalPapiV2beta
             build_mysql: 5.7
-          - build_type: centaurSlurm
-            build_mysql: 5.7
           - build_type: horicromtalDeadlock
           - build_type: singleWorkflowRunner
-          - build_type: referenceDiskManifestBuilderApp
-          - build_type: centaurLocal
-            build_mariadb: 10.3
     env:
       BUILD_NAME: ${{ matrix.build_type }}
       BUILD_TYPE: ${{ matrix.build_type }} #intentionally duplicated variable

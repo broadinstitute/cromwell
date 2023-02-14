@@ -48,6 +48,12 @@ jobs:
             friendly_name: Horicromtal Deadlock
           - build_type: singleWorkflowRunner
             friendly_name: Single Workflow Runner
+          - build_type: centaurLocal
+            build_mariadb: 10.3
+            friendly_name: Centaur Local with MariaDB 10.3
+          - build_type: centaurLocal
+            build_postgresql: 11.3
+            friendly_name: Centaur Local with PostgreSQL 11.3
     name: ${{ matrix.friendly_name }}
     env:
       BUILD_NAME: ${{ matrix.build_type }}

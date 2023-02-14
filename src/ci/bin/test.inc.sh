@@ -957,6 +957,7 @@ cromwell::private::start_docker_mysql() {
 
 cromwell::private::start_docker_mariadb() {
     echo "----STARTING DOCKER MARIADB------"
+    echo "${CROMWELL_BUILD_DATABASE_USERNAME}"
     if cromwell::private::is_xtrace_enabled; then
         cromwell::private::exec_silent_function cromwell::private::start_docker_mariadb "$@"
 

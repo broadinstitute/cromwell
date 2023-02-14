@@ -933,6 +933,7 @@ cromwell::private::start_docker() {
 }
 
 cromwell::private::start_docker_mysql() {
+    echo "----STARTING DOCKER MYSQL------"
     if cromwell::private::is_xtrace_enabled; then
         cromwell::private::exec_silent_function cromwell::private::start_docker_mysql "$@"
 
@@ -955,6 +956,7 @@ cromwell::private::start_docker_mysql() {
 }
 
 cromwell::private::start_docker_mariadb() {
+    echo "----STARTING DOCKER MARIADB------"
     if cromwell::private::is_xtrace_enabled; then
         cromwell::private::exec_silent_function cromwell::private::start_docker_mariadb "$@"
 
@@ -977,6 +979,7 @@ cromwell::private::start_docker_mariadb() {
 }
 
 cromwell::private::start_docker_postgresql() {
+    echo "----STARTING DOCKER POSTGRE------"
     if cromwell::private::is_xtrace_enabled; then
         cromwell::private::exec_silent_function cromwell::private::start_docker_postgresql "$@"
 

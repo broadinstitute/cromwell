@@ -126,7 +126,6 @@ final case class GcpBatchJob (
       println(result.getName)
 
 
-
     }
     catch  {
       case _: Throwable => println("Job failed")
@@ -137,11 +136,11 @@ final case class GcpBatchJob (
 
   def jobGetRequest(jobId: String) = {
     val gcpBatchPoll = new GcpBatchJobGetRequest
-    val jobDetail = gcpBatchPoll.GetJob(jobId)
+    gcpBatchPoll.GetJob(jobId)
 
   }
   def status(jobId: String): Try[RunStatus] = for {
-    statusResult <- Try(jobGetRequest(jobId).toString)
+    _ <- Try(jobGetRequest(jobId).toString)
     //runStatus <- RunStatus.fromJobStatus(jobId)
     runStatus <- RunStatus.testJobStatus(jobId)
   } yield runStatus

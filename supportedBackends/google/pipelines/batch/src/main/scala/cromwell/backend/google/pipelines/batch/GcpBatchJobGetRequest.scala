@@ -3,7 +3,8 @@ package cromwell.backend.google.pipelines.batch
 //import cats.instances.unit
 import com.google.api.core.ApiFuture
 
-import scala.concurrent.Promise
+//import scala.concurrent.Promise
+import scala.util.Try
 //import com.google.cloud.batch.v1.{BatchServiceClient, GetJobRequest, JobName}
 import com.google.cloud.batch.v1.{BatchServiceClient, GetJobRequest, Job, JobName}
 
@@ -16,7 +17,7 @@ import com.google.cloud.batch.v1.{BatchServiceClient, GetJobRequest, Job, JobNam
 //import scala.concurrent.duration.Duration
 //import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.GcpBatchJobSuccess
 
-import scala.concurrent.Future
+//import scala.concurrent.Future
 
 class GcpBatchJobGetRequest {
 
@@ -66,7 +67,6 @@ class GcpBatchJobGetRequest {
     response.getStatus.getState
     batchServiceClient.close()
     response
-   */
 
     /*
     Await.result(future, 1.second) match {
@@ -87,6 +87,18 @@ class GcpBatchJobGetRequest {
     //jobResult
 
   }
+
+  def jobGetRequest(jobId: String) = {
+    val gcpBatchPoll = new GcpBatchJobGetRequest
+    gcpBatchPoll.GetJob(jobId)
+    //jobDetail
+  }
+
+  def status(jobId: String): Try[RunStatus] = for {
+    _ <- Try(jobGetRequest(jobId).toString)
+    //runStatus <- RunStatus.fromJobStatus(jobId)
+    runStatus <- RunStatus.testJobStatus(jobId)
+  } yield runStatus
 
 
 }

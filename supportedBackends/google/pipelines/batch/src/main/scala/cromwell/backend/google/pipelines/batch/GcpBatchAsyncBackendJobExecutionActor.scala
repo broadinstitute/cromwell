@@ -5,8 +5,8 @@ import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExec
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
 
-import scala.concurrent.Promise
-import scala.util.Try
+//import scala.concurrent.Promise
+//import scala.util.Try
 import scala.util.control.NoStackTrace
 //import cromwell.backend.google.pipelines.batch.RunStatus.{DeletionInProgress, Failed, StateUnspecified, Unrecognized}
 
@@ -29,7 +29,8 @@ import java.util.UUID
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import GcpBatchBackendSingletonActor._
-import cromwell.backend.google.pipelines.batch.RunStatus.{Running, Succeeded, TerminalRunStatus}
+import cromwell.backend.google.pipelines.batch.RunStatus.{Succeeded, TerminalRunStatus}
+//import cromwell.backend.google.pipelines.batch.RunStatus.{Running, Succeeded, TerminalRunStatus}
 
 //import com.google.cloud.batch.v1.JobStatus
 
@@ -143,23 +144,20 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     println("started polling")
 
-    val completionPromise = Promise[Try[Unit]]()
+    //val completionPromise = Promise[Try[Unit]]()
 
     implicit val timeout: Timeout = Timeout(5.seconds)
     //val result2: Future[Any] = backendSingletonActor ? BatchGetJob(completionPromise, jobTemp)
 
-    val gcpBatchPoll = new GcpBatchJobGetRequest
-
-
-    val job = new GcpBatchJob()
 
     def testPoll(quick: Any): Future[RunStatus] = quick match {
       //case GcpBatchJob(_, _, Some(value)) =>
       //  Future.successful(value)
       case BatchGetJob(_) =>
         //Future.fromTry(gcpBatchPoll.GetJob(jobTemp))
-        Future.fromTry(job.status(jobTemp))
-      case other =>
+        val gcpBatchPoll = new GcpBatchJobGetRequest
+        Future.fromTry(gcpBatchPoll.status(jobTemp))
+      case _ =>
         val message = "programmer error matched other in poll status async"
         Future.failed(new Exception(message) with NoStackTrace)
     }
@@ -168,20 +166,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       answer <- testPoll(quickAnswer)
     } yield answer
 
-
-
-
-    //println(result2.toString)
-    //println(result2.value)
-
-
-
-    /*
-    for {
-
-    } yield answer
-
-     */
 
     //Future.successful(Running) //temp to keep running
 
@@ -194,7 +178,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     //val result = gcpBatchPoll.GetJob(jobTemp)
     //val temp = result.toString //matches for string
     //val batchRunStatus = RunStatus.fromJobStatus(status=result)
-    //val eventList: Seq[ExecutionEvent] = Seq(ExecutionEvent.toString)
 
     /*
     val jobStatus = result.getStatus.getState

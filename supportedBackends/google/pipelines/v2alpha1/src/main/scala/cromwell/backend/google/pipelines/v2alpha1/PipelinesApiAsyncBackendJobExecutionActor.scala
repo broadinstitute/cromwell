@@ -141,9 +141,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
       }
 
       val optional = Option(output) collectFirst { case o: PipelinesApiFileOutput if o.secondary || o.optional => "optional" } getOrElse "required"
-      val contentType = output.contentType.getOrElse("")
+      val contentType = output.contentType.map(_.toString).getOrElse("")
 
-      List(kind, output.cloudPath, output.containerPath, optional, contentType)
+      List(kind, output.cloudPath.toString, output.containerPath.toString, optional, contentType)
     } mkString("\"", "\"\n|  \"", "\"")
 
     val parallelCompositeUploadThreshold = jobDescriptor.workflowDescriptor.workflowOptions.getOrElse(
@@ -179,11 +179,12 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
                                            (implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
     // Generate a mapping of reference inputs to their mounted paths and a section of the localization script to
     // "faux localize" these reference inputs with symlinks to their locations on mounted reference disks.
+    import cromwell.backend.google.pipelines.common.action.ActionUtils.shellEscaped
     val referenceFilesLocalizationScript = {
       val symlinkCreationCommandsOpt = referenceInputsToMountedPathsOpt map { referenceInputsToMountedPaths =>
         referenceInputsToMountedPaths map {
           case (input, absolutePathOnRefDisk) =>
-            s"mkdir -p ${input.containerPath.parent.pathAsString} && ln -s $absolutePathOnRefDisk ${input.containerPath.pathAsString}"
+            s"mkdir -p ${shellEscaped(input.containerPath.parent.pathAsString)} && ln -s ${shellEscaped(absolutePathOnRefDisk)} ${shellEscaped(input.containerPath.pathAsString)}"
         }
       }
 

@@ -2,8 +2,7 @@ package cromwell.webservice.routes.wes
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import cromwell.webservice.routes.wes.WesState.WesState
-import spray.json.{DefaultJsonProtocol, RootJsonFormat}
-import cromwell.webservice.routes.wes.WesRunLog
+import spray.json.{DefaultJsonProtocol, JsObject, RootJsonFormat}
 
 sealed trait WesResponse extends Product with Serializable
 final case class WesErrorResponse(msg: String, status_code: Int) extends WesResponse
@@ -11,6 +10,18 @@ final case class WesRunId(run_id: String) extends WesResponse
 final case class WesRunStatus(run_id: String, state: WesState) extends WesResponse
 final case class WesResponseRunList(runs: List[WesRunStatus]) extends WesResponse
 final case class WesResponseWorkflowMetadata(workflowLog: WesRunLog) extends WesResponse
+
+final case class WesRunLog(run_id: String,
+                           request: WesRunRequest,
+                           state: WesState,
+                           run_log: Option[WesLog],
+                           task_logs: Option[List[WesLog]],
+                           outputs: Option[JsObject]
+                          ) extends WesResponse
+
+object WesRunLog {
+  def fromJson(json: String): WesRunLog = CromwellMetadata.fromJson(json).wesRunLog
+}
 
 
 final case class WesStatusInfoResponse(workflow_type_version: Map[String, Iterable[String]],
@@ -48,6 +59,7 @@ object WesResponseJsonSupport extends SprayJsonSupport with DefaultJsonProtocol 
         case i: WesStatusInfoResponse => i.toJson
         case l: WesResponseRunList => l.toJson
         case m: WesResponseWorkflowMetadata => m.toJson
+        case w: WesRunLog => w.toJson
       }
     }
 

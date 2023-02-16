@@ -126,7 +126,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
             ComputeScopes.COMPUTE,
             StorageScopes.DEVSTORAGE_FULL_CONTROL,
             GoogleCloudScopes.KmsScope,
-            // Profile and Email scopes are requirements for interacting with Martha
+            // Profile and Email scopes are requirements for interacting with DRS Resolver
             Oauth2Scopes.USERINFO_EMAIL,
             Oauth2Scopes.USERINFO_PROFILE,
             // Monitoring scope as POC

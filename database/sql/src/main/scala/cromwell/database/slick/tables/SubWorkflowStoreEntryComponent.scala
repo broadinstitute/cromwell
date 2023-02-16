@@ -10,9 +10,9 @@ trait SubWorkflowStoreEntryComponent {
   import driver.api._
 
   class SubWorkflowStoreEntries(tag: Tag) extends Table[SubWorkflowStoreEntry](tag, "SUB_WORKFLOW_STORE_ENTRY") {
-    def subWorkflowStoreEntryId = column[Int]("SUB_WORKFLOW_STORE_ENTRY_ID", O.PrimaryKey, O.AutoInc)
+    def subWorkflowStoreEntryId = column[Long]("SUB_WORKFLOW_STORE_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
-    def rootWorkflowId = column[Int]("ROOT_WORKFLOW_ID")
+    def rootWorkflowId = column[Long]("ROOT_WORKFLOW_ID")
     
     def parentWorkflowExecutionUuid = column[String]("PARENT_WORKFLOW_EXECUTION_UUID", O.Length(255))
 
@@ -40,7 +40,7 @@ trait SubWorkflowStoreEntryComponent {
   val subWorkflowStoreEntryIdsAutoInc = subWorkflowStoreEntries returning subWorkflowStoreEntries.map(_.subWorkflowStoreEntryId)
 
   val subWorkflowStoreEntriesForRootWorkflowId = Compiled(
-    (rootWorkflowId: Rep[Int]) => for {
+    (rootWorkflowId: Rep[Long]) => for {
       subWorkflowStoreEntry <- subWorkflowStoreEntries
       if subWorkflowStoreEntry.rootWorkflowId === rootWorkflowId
     } yield subWorkflowStoreEntry

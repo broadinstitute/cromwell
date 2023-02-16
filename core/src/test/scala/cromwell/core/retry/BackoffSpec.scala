@@ -54,7 +54,7 @@ class BackoffSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   it should "parse config" in {
     val config = ConfigFactory.parseMap(
-      Map(
+      Map[String, Any](
         "min" -> "5 seconds",
         "max" -> "30 seconds",
         "multiplier" -> 6D,

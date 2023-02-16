@@ -1,5 +1,6 @@
 package cromwell.backend.impl.tes
 
+import common.exception.AggregatedMessageException
 import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
 import cats.syntax.apply._
@@ -30,6 +31,7 @@ import scala.util.{Failure, Success}
 
 sealed trait TesRunStatus {
   def isTerminal: Boolean
+  def sysLogs: Seq[String] = Seq.empty[String]
 }
 
 case object Running extends TesRunStatus {
@@ -40,8 +42,14 @@ case object Complete extends TesRunStatus {
   def isTerminal = true
 }
 
-case object FailedOrError extends TesRunStatus {
+case class Error(override val sysLogs: Seq[String] = Seq.empty[String]) extends TesRunStatus {
   def isTerminal = true
+  override def toString = "SYSTEM_ERROR"
+}
+
+case class Failed(override val sysLogs: Seq[String] = Seq.empty[String]) extends TesRunStatus {
+  def isTerminal = true
+  override def toString = "EXECUTOR_ERROR"
 }
 
 case object Cancelled extends TesRunStatus {
@@ -79,6 +87,14 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override lazy val dockerImageUsed: Option[String] = Option(realDockerImageUsed)
 
   private val tesEndpoint = workflowDescriptor.workflowOptions.getOrElse("endpoint", tesConfiguration.endpointURL)
+
+  // Temporary support for configuring the format we use to send BlobPaths to TES.
+  // Added 10/2022 as a workaround for the CromwellOnAzure TES server expecting
+  // blob containers to be mounted via blobfuse rather than addressed natively.
+  private val transformBlobToLocalPaths: Boolean =
+    configurationDescriptor.backendConfig
+      .getAs[Boolean]("transform-blob-to-local-path")
+      .getOrElse(false)
 
   override lazy val jobTag: String = jobDescriptor.key.tag
 
@@ -148,7 +164,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         mode)
     })
 
-    tesTask.map(TesTask.makeTask)
+    tesTask.map(TesTask.makeTask(_, transformBlobToLocalPaths))
   }
 
   def writeScriptFile(): Future[Unit] = {
@@ -209,6 +225,21 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override def requestsAbortAndDiesImmediately: Boolean = false
 
   override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] = {
+    for {
+      status <- queryStatusAsync(handle)
+      errorLog <- status match {
+          case Error(_) | Failed(_) => getErrorLogs(handle)
+          case _ => Future.successful(Seq.empty[String])
+      }
+      statusWithLog = status match {
+        case Error(_) => Error(errorLog)
+        case Failed(_) => Failed(errorLog)
+        case _ => status
+      }
+    } yield statusWithLog
+  }
+
+  private def queryStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] = {
     makeRequest[MinimalTaskView](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=MINIMAL")) map {
       response =>
         val state = response.state
@@ -221,12 +252,22 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
             jobLogger.info(s"Job ${handle.pendingJob.jobId} was canceled")
             Cancelled
 
-          case s if s.contains("ERROR") =>
+          case s if s.contains("EXECUTOR_ERROR") =>
+            jobLogger.info(s"TES reported a failure for Job ${handle.pendingJob.jobId}: '$s'")
+            Failed()
+
+          case s if s.contains("SYSTEM_ERROR") =>
             jobLogger.info(s"TES reported an error for Job ${handle.pendingJob.jobId}: '$s'")
-            FailedOrError
+            Error()
 
           case _ => Running
         }
+    }
+  }
+
+  private def getErrorLogs(handle: StandardAsyncPendingExecutionHandle): Future[Seq[String]] = {
+    makeRequest[Task](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=FULL")) map { response =>
+      response.logs.flatMap(_.lastOption).flatMap(_.system_logs).getOrElse(Seq.empty[String])
     }
   }
 
@@ -236,9 +277,15 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       FailedNonRetryableExecutionHandle(e, kvPairsToSave = None)
   }
 
+  private def handleExecutionError(status: TesRunStatus, returnCode: Option[Int]): Future[ExecutionHandle] = {
+    val exception = new AggregatedMessageException(s"Task ${jobDescriptor.key.tag} failed for unknown reason: ${status.toString()}", status.sysLogs)
+    Future.successful(FailedNonRetryableExecutionHandle(exception, returnCode, None))
+  }
+
   override def handleExecutionFailure(status: StandardAsyncRunState, returnCode: Option[Int]) = {
     status match {
       case Cancelled => Future.successful(AbortedExecutionHandle)
+      case Error(_) | Failed(_) => handleExecutionError(status, returnCode)
       case _ => super.handleExecutionFailure(status, returnCode)
     }
   }

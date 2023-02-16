@@ -1,10 +1,9 @@
 package drs.localizer
 
-import cloud.nio.impl.drs.{DrsConfig, DrsPathResolver}
+import cloud.nio.impl.drs.{DrsConfig, DrsCredentials, DrsPathResolver}
 import common.validation.ErrorOr.ErrorOr
-import drs.localizer.accesstokens.AccessTokenStrategy
 
 
-class DrsLocalizerDrsPathResolver(drsConfig: DrsConfig, accessTokenStrategy: AccessTokenStrategy) extends DrsPathResolver(drsConfig) {
-  override def getAccessToken: ErrorOr[String] = accessTokenStrategy.getAccessToken()
+class DrsLocalizerDrsPathResolver(drsConfig: DrsConfig, drsCredentials: DrsCredentials) extends DrsPathResolver(drsConfig) {
+  override def getAccessToken: ErrorOr[String] = drsCredentials.getAccessToken
 }

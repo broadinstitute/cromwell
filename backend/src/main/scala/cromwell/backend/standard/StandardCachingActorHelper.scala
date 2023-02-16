@@ -78,7 +78,7 @@ trait StandardCachingActorHelper extends JobCachingActorHelper {
 
     val fileMetadata = jobPaths.metadataPaths
 
-    runtimeAttributesMetadata ++ fileMetadata ++ nonStandardMetadata
+    nonStandardMetadata ++ runtimeAttributesMetadata ++ fileMetadata
   }
 
   /**

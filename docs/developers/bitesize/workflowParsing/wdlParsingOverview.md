@@ -31,7 +31,7 @@ You can think of WDL parsing in Cromwell in terms of the following major steps:
         * Including custom type references, variable references, task calls, subworkflow calls 
 * **WOM Bundle**:
     * A set of tasks, workflows and custom types, and the fully qualified names by which they can be referenced.
-    * In Cromwell's WOM format (the WOM format is the ultimate destination for _all_ languages, including WDL and CWL)
+    * In Cromwell's WOM format (the WOM format is the ultimate destination for _all_ languages, including WDL)
 * **Validated WOM Namespace**:
     * The conjunction of a WOM bundle with an input set.
-    * The entry point workflow (or sometimes task, in CWL) is known.
+    * The entry point workflow is known.

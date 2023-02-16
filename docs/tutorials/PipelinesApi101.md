@@ -2,22 +2,11 @@
 
 ## Pipelines API v2
 
-### Basic Information
-
-Initial support for Google [Pipelines API version 2](https://cloud.google.com/genomics/reference/rest/) was added in Cromwell 32.
-Expect feature parity with v1 except:
-
-* PAPI v2 private Docker support is equivalent to that in PAPI v1 but the configuration differs, please see [Docker configuration](http://cromwell.readthedocs.io/en/develop/filesystems/Google#Docker) for more details.
-* The "refresh token" authentication mode is **NOT** supported on PAPI V2.
-
-In addition, the following changes are to be expected:
-
-* Error messages for failed jobs might differ from V1
-* The Pipelines API log file content might differ from V1
-
 ### Setting up PAPIv2
 
-For now the easiest way to try PAPIv2 is to migrate an existing set up from PAPIv1 (see below). After that, copy the PAPIv2 sample configuration in [cromwell.examples.conf](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.example.backends/PAPIv2.conf) in place of the PAPIv1 backend.
+For now the easiest way to try PAPIv2 is to start with the sample configuration in
+[cromwell.examples.conf](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.example.backends/PAPIv2.conf)
+and adjust it to fit your needs.
 
 #### Permissions:
 
@@ -48,12 +37,6 @@ gsutil acl ch -u "$EMAIL":W gs://"$RANDOM_BUCKET_NAME"
 # create a file that represents your service account.  KEEP THIS A SECRET.
 gcloud iam service-accounts keys create sa.json --iam-account "$EMAIL"
 ```
-
-## Pipelines API v1
-
-### Deprecation warning
-
-Please note that Google intends to deprecate PAPIv1 in the near future (circa mid 2019 or perhaps earlier). 
 
 ### Prerequisites
 

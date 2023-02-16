@@ -74,12 +74,6 @@ lazy val wdlTransformsBiscayne = (project in wdlTransformsRoot / "biscayne")
   .dependsOn(common % "test->test")
   .dependsOn(wom % "test->test")
 
-lazy val cwl = project
-  .withLibrarySettings("cromwell-cwl", cwlDependencies)
-  .dependsOn(wom)
-  .dependsOn(wom % "test->test")
-  .dependsOn(common % "test->test")
-
 lazy val core = project
   .withLibrarySettings("cromwell-core", coreDependencies)
   .dependsOn(wom)
@@ -183,7 +177,6 @@ lazy val services = project
   .dependsOn(wdlDraft2LanguageFactory % "test->test") // because the WaaS tests init language config with all languages
   .dependsOn(wdlDraft3LanguageFactory % "test->test")
   .dependsOn(wdlBiscayneLanguageFactory % "test->test")
-  .dependsOn(cwlV1_0LanguageFactory % "test->test")
   .dependsOn(core % "test->test")
   .dependsOn(ftpFileSystem % "test->test")
   .dependsOn(common % "test->test")
@@ -245,6 +238,9 @@ lazy val tesBackend = (project in backendRoot / "tes")
   .dependsOn(sfsBackend)
   .dependsOn(ftpFileSystem)
   .dependsOn(drsFileSystem)
+  .dependsOn(azureBlobFileSystem)
+  // TES backend provides a compatibility layer to run WDLs with PAPI runtime attributes [WX-769]
+  .dependsOn(googlePipelinesCommon)
   .dependsOn(backend % "test->test")
   .dependsOn(common % "test->test")
 
@@ -263,7 +259,6 @@ lazy val engine = project
   .dependsOn(azureBlobFileSystem % "test->test")
   .dependsOn(`cloud-nio-spi`)
   .dependsOn(languageFactoryCore)
-  .dependsOn(cwlV1_0LanguageFactory % "test->test")
   .dependsOn(wdlDraft2LanguageFactory % "test->test")
   .dependsOn(wdlDraft3LanguageFactory % "test->test")
   .dependsOn(wdlBiscayneLanguageFactory % "test->test")
@@ -278,20 +273,11 @@ lazy val engine = project
 
 // Executables
 
-lazy val centaurCwlRunner = project
-  .withExecutableSettings("centaur-cwl-runner", centaurCwlRunnerDependencies, buildDocker = false)
-  .dependsOn(cwl)
-  .dependsOn(centaur)
-  .dependsOn(gcsFileSystem)
-  .dependsOn(ftpFileSystem)
-  .dependsOn(common % "test->test")
-
 lazy val womtool = project
   .withExecutableSettings("womtool", womtoolDependencies)
   .dependsOn(wdlDraft2LanguageFactory)
   .dependsOn(wdlDraft3LanguageFactory)
   .dependsOn(wdlBiscayneLanguageFactory)
-  .dependsOn(cwlV1_0LanguageFactory)
   .dependsOn(wom % "test->test")
   .dependsOn(common % "test->test")
 
@@ -337,12 +323,6 @@ lazy val wdlBiscayneLanguageFactory = (project in languageFactoryRoot / "wdl-bis
   .dependsOn(wdlTransformsBiscayne)
   .dependsOn(common % "test->test")
 
-lazy val cwlV1_0LanguageFactory = (project in languageFactoryRoot / "cwl-v1-0")
-  .withLibrarySettings("cwl-v1-0")
-  .dependsOn(languageFactoryCore)
-  .dependsOn(cwl)
-  .dependsOn(common % "test->test")
-
 lazy val `cloud-nio-spi` = (project in cloudNio / "cloud-nio-spi")
   .withLibrarySettings(libraryName = "cloud-nio-spi", dependencies = spiDependencies)
   .dependsOn(common % "test->test")
@@ -385,7 +365,6 @@ lazy val server = project
   .dependsOn(wdlDraft2LanguageFactory)
   .dependsOn(wdlDraft3LanguageFactory)
   .dependsOn(wdlBiscayneLanguageFactory)
-  .dependsOn(cwlV1_0LanguageFactory)
   .dependsOn(engine % "test->test")
   .dependsOn(common % "test->test")
 
@@ -402,14 +381,11 @@ lazy val root = (project in file("."))
   .aggregate(azureBlobFileSystem)
   .aggregate(backend)
   .aggregate(centaur)
-  .aggregate(centaurCwlRunner)
   .aggregate(cloudSupport)
   .aggregate(common)
   .aggregate(core)
   .aggregate(cromiam)
   .aggregate(cromwellApiClient)
-  .aggregate(cwl)
-  .aggregate(cwlV1_0LanguageFactory)
   .aggregate(databaseMigration)
   .aggregate(databaseSql)
   .aggregate(dockerHashing)

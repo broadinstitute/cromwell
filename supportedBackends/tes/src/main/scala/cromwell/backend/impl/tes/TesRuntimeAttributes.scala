@@ -3,10 +3,13 @@ package cromwell.backend.impl.tes
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
+import cromwell.backend.google.pipelines.common.DisksValidation
+import cromwell.backend.google.pipelines.common.io.{PipelinesApiAttachedDisk, PipelinesApiEmptyMountedDisk, PipelinesApiWorkingDisk}
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
+import wdl4s.parser.MemoryUnit
 import wom.RuntimeAttributesKeys
 import wom.format.MemorySize
 import wom.types.{WomIntegerType, WomStringType}
@@ -36,6 +39,9 @@ object TesRuntimeAttributes {
 
   private def diskSizeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[MemorySize] = MemoryValidation.optional(DiskSizeKey)
 
+  private def diskSizeCompatValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Seq[PipelinesApiAttachedDisk]] =
+    DisksValidation.optional
+
   private def memoryValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[MemorySize] = MemoryValidation.optional(RuntimeAttributesKeys.MemoryKey)
 
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
@@ -45,10 +51,14 @@ object TesRuntimeAttributes {
   private def preemptibleValidation(runtimeConfig: Option[Config]) = PreemptibleValidation.default(runtimeConfig)
 
   def runtimeAttributesBuilder(backendRuntimeConfig: Option[Config]): StandardValidatedRuntimeAttributesBuilder =
+    // !! NOTE !! If new validated attributes are added to TesRuntimeAttributes, be sure to include
+    // their validations here so that they will be handled correctly with backendParameters.
+    // Location 2 of 2
     StandardValidatedRuntimeAttributesBuilder.default(backendRuntimeConfig).withValidation(
       cpuValidation(backendRuntimeConfig),
       memoryValidation(backendRuntimeConfig),
       diskSizeValidation(backendRuntimeConfig),
+      diskSizeCompatValidation(backendRuntimeConfig),
       dockerValidation,
       dockerWorkingDirValidation,
       preemptibleValidation(backendRuntimeConfig),
@@ -71,13 +81,45 @@ object TesRuntimeAttributes {
       Map.empty
   }
 
+  private def detectDiskFormat(backendRuntimeConfig: Option[Config], validatedRuntimeAttributes: ValidatedRuntimeAttributes): Option[MemorySize] = {
+
+    def adaptPapiDisks(disks: Seq[PipelinesApiAttachedDisk]): MemorySize = {
+      disks match {
+        case disk :: Nil if disk.isInstanceOf[PipelinesApiWorkingDisk] =>
+            MemorySize(disk.sizeGb.toDouble, MemoryUnit.GB)
+        case _ :: _ =>
+          // When a user specifies only a custom disk, we add the default disk in the background, so we technically have multiple disks.
+          // But we don't want to confuse the user with `multiple disks` message when they only put one.
+          if (disks.exists(_.isInstanceOf[PipelinesApiEmptyMountedDisk]))
+            throw new IllegalArgumentException("Disks with custom mount points are not supported by this backend")
+          else
+            // Multiple `local-disk` is not legal, but possible and should be detected
+            throw new IllegalArgumentException("Expecting exactly one disk definition on this backend, found multiple")
+      }
+    }
+
+    val maybeTesDisk: Option[MemorySize] =
+      RuntimeAttributesValidation.extractOption(diskSizeValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+    val maybePapiDisk: Option[Seq[PipelinesApiAttachedDisk]] =
+      RuntimeAttributesValidation.extractOption(diskSizeCompatValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+
+    (maybeTesDisk, maybePapiDisk) match {
+      case (Some(tesDisk: MemorySize), _) =>
+        Option(tesDisk) // If WDLs are in circulation with both `disk` and `disks`, pick the one intended for this backend
+      case (None, Some(papiDisks: Seq[PipelinesApiAttachedDisk])) =>
+        Option(adaptPapiDisks(papiDisks))
+      case _ =>
+        None
+    }
+  }
+
   def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, rawRuntimeAttributes: Map[String, WomValue], config: TesConfiguration): TesRuntimeAttributes = {
     val backendRuntimeConfig = config.runtimeConfig
     val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
     val dockerWorkingDir: Option[String] = RuntimeAttributesValidation.extractOption(dockerWorkingDirValidation.key, validatedRuntimeAttributes)
     val cpu: Option[Int Refined Positive] = RuntimeAttributesValidation.extractOption(cpuValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
     val memory: Option[MemorySize] = RuntimeAttributesValidation.extractOption(memoryValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
-    val disk: Option[MemorySize] = RuntimeAttributesValidation.extractOption(diskSizeValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+    val disk: Option[MemorySize] = detectDiskFormat(backendRuntimeConfig, validatedRuntimeAttributes)
     val failOnStderr: Boolean =
       RuntimeAttributesValidation.extract(failOnStderrValidation(backendRuntimeConfig), validatedRuntimeAttributes)
     val continueOnReturnCode: ContinueOnReturnCode =
@@ -87,12 +129,14 @@ object TesRuntimeAttributes {
 
     // !! NOTE !! If new validated attributes are added to TesRuntimeAttributes, be sure to include
     // their validations here so that they will be handled correctly with backendParameters.
+    // Location 1 of 2
     val validations = Set(
       dockerValidation,
       dockerWorkingDirValidation,
       cpuValidation(backendRuntimeConfig),
       memoryValidation(backendRuntimeConfig),
       diskSizeValidation(backendRuntimeConfig),
+      diskSizeCompatValidation(backendRuntimeConfig),
       failOnStderrValidation(backendRuntimeConfig),
       continueOnReturnCodeValidation(backendRuntimeConfig),
       preemptibleValidation(backendRuntimeConfig)

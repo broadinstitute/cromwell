@@ -1,11 +1,11 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Repo template: Cromwell DRS Localizer" type="Application" factoryName="Application">
     <envs>
-      <env name="MARTHA_URL" value="https://us-central1-broad-dsde-dev.cloudfunctions.net/martha_v3" />
+      <env name="DRS_RESOLVER_URL" value="https://drshub.dsde-dev.broadinstitute.org/api/v4/drs/resolve" />
     </envs>
     <option name="MAIN_CLASS_NAME" value="drs.localizer.DrsLocalizerMain" />
     <module name="cromwell-drs-localizer" />
-    <option name="PROGRAM_PARAMETERS" value="--access-token-strategy azure drs://jade.datarepo-dev.broadinstitute.org/v1_f3c32ddd-20eb-4033-9716-46866521a3a4_8d651e95-38ce-4bc8-a8a4-8a4cd9513db1 $USER_HOME$/Downloads/NA12878_PLUMBING_wgs.g.vcf.gz.tbi --vault-name vault --secret-name secret --identity-client-id identity" />
+    <option name="PROGRAM_PARAMETERS" value="--access-token-strategy azure drs://jade.datarepo-dev.broadinstitute.org/v1_f3c32ddd-20eb-4033-9716-46866521a3a4_8d651e95-38ce-4bc8-a8a4-8a4cd9513db1 $USER_HOME$/Downloads/NA12878_PLUMBING_wgs.g.vcf.gz.tbi --identity-client-id identity" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>

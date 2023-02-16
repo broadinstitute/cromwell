@@ -452,7 +452,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
         val inputFilePaths = inputOutputParameters.jobInputParameters.map(_.cloudPath.pathAsString).toSet
         val referenceDisksToMount =
-          jesAttributes.referenceFileToDiskImageMappingOpt.map(getReferenceDisksToMount(_, inputFilePaths))
+          if (useReferenceDisks)
+            jesAttributes.referenceFileToDiskImageMappingOpt.map(getReferenceDisksToMount(_, inputFilePaths))
+          else None
 
         val workflowOptions = workflowDescriptor.workflowOptions
 
@@ -541,6 +543,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     if (forceAbort) tryAbort(jobForResumption)
     Future.successful(PendingExecutionHandle(jobDescriptor, jobForResumption, Option(Run(jobForResumption)), previousState = None))
   }
+
+  protected def uploadDrsLocalizationManifest(createPipelineParameters: CreatePipelineParameters, cloudPath: Path): Future[Unit] = Future.successful(())
 
   protected def uploadGcsTransferLibrary(createPipelineParameters: CreatePipelineParameters, cloudPath: Path, gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = Future.successful(())
 
@@ -639,6 +643,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       customLabels <- Future.fromTry(GoogleLabels.fromWorkflowOptions(workflowDescriptor.workflowOptions))
       jesParameters <- generateInputOutputParameters
       createParameters = createPipelineParameters(jesParameters, customLabels)
+      drsLocalizationManifestCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.DrsLocalizationManifestName
+      _ <- uploadDrsLocalizationManifest(createParameters, drsLocalizationManifestCloudPath)
       gcsTransferConfiguration = initializationData.papiConfiguration.papiAttributes.gcsTransferConfiguration
       gcsTransferLibraryCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsTransferLibraryName
       transferLibraryContainerPath = createParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)

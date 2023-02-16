@@ -1,7 +1,7 @@
 package cromwell.filesystems.drs
 
 import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
-import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, GoogleDrsCredentials}
+import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, GoogleOauthDrsCredentials}
 import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.TestKitSuite
@@ -313,7 +313,7 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       isAbsolute = false,
     ),
 
-    // No spec says this is illegal... so pass it to Martha's various GCFs JIC
+    // No spec says this is illegal... so pass it to the DRS Resolver's various GCFs JIC
     GoodPath(
       description = "a bucketless path",
       path = s"drs://",
@@ -377,9 +377,9 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
   private val drsReadInterpreter: DrsReadInterpreter = (_, _) =>
     throw new UnsupportedOperationException("Currently DrsPathBuilderSpec doesn't need to use drs read interpreter.")
 
-  private val marthaConfig: Config = ConfigFactory.parseString(
-    """martha {
-      |   url = "http://martha-url"
+  private val drsResolverConfig: Config = ConfigFactory.parseString(
+    """resolver {
+      |   url = "http://drshub-url"
       |}
       |""".stripMargin
   )
@@ -387,7 +387,7 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
   private lazy val fakeCredentials = NoCredentials.getInstance
 
   private lazy val drsPathBuilder = DrsPathBuilder(
-    new DrsCloudNioFileSystemProvider(marthaConfig, GoogleDrsCredentials(fakeCredentials, 1.minutes), drsReadInterpreter),
+    new DrsCloudNioFileSystemProvider(drsResolverConfig, GoogleOauthDrsCredentials(fakeCredentials, 1.minutes), drsReadInterpreter),
     None,
   )
 }

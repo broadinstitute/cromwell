@@ -48,7 +48,7 @@ class RootWorkflowFileHashCacheActor private[callcaching](override val ioActor: 
           // hash to become available.
           cache.put(key, FileHashValueRequested(requesters = requester :: requesters))
         case FileHashSuccess(value) =>
-          sender() ! Tuple2(hashCommand.fileHashContext, IoSuccess(requester.ioCommand, value))
+          sender() ! Tuple2[Any, Any](hashCommand.fileHashContext, IoSuccess(requester.ioCommand, value))
         case FileHashFailure(error) =>
           sender() ! Tuple2(hashCommand.fileHashContext, IoFailure(requester.ioCommand, new IOException(error)))
       }

@@ -3,9 +3,14 @@ package cromwell.backend.impl.tes
 import common.collections.EnhancedCollections._
 import common.util.StringUtil._
 import cromwell.backend.impl.tes.OutputMode.OutputMode
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendWorkflowDescriptor}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
+import net.ceedubs.ficus.Ficus._
+
+import scala.language.postfixOps
+import scala.util.Try
+
 import wdl.draft2.model.FullyQualifiedName
 import wdl4s.parser.MemoryUnit
 import wom.InstantiatedCommand
@@ -13,9 +18,8 @@ import wom.callable.Callable.OutputDefinition
 import wom.expression.NoIoFunctionSet
 import wom.values._
 
-import scala.language.postfixOps
-import scala.util.Try
-
+final case class WorkflowExecutionIdentityConfig(value: String) {override def toString: String = value.toString}
+final case class WorkflowExecutionIdentityOption(value: String) {override def toString: String = value}
 final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          configurationDescriptor: BackendConfigurationDescriptor,
                          jobLogger: JobLogger,
@@ -32,6 +36,16 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   private val workflowDescriptor = jobDescriptor.workflowDescriptor
   private val workflowName = workflowDescriptor.callable.name
   private val fullyQualifiedTaskName = jobDescriptor.taskCall.fullyQualifiedName
+  private val workflowExecutionIdentityConfig: Option[WorkflowExecutionIdentityConfig] =
+    configurationDescriptor.backendConfig
+      .getAs[String]("workflow-execution-identity")
+      .map(WorkflowExecutionIdentityConfig)
+  private val workflowExecutionIdentityOption: Option[WorkflowExecutionIdentityOption] =
+    workflowDescriptor
+      .workflowOptions
+      .get(TesWorkflowOptionKeys.WorkflowExecutionIdentity)
+      .toOption
+      .map(WorkflowExecutionIdentityOption)
   val name: String = fullyQualifiedTaskName
   val description: String = jobDescriptor.toString
 
@@ -212,7 +226,15 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     result
   }
 
-  val resources: Resources = TesTask.makeResources(runtimeAttributes, workflowDescriptor)
+  val preferedWorkflowExecutionIdentity = TesTask.getPreferredWorkflowExecutionIdentity(
+      workflowExecutionIdentityConfig,
+      workflowExecutionIdentityOption
+  )
+
+  val resources: Resources = TesTask.makeResources(
+    runtimeAttributes,
+    preferedWorkflowExecutionIdentity
+  )
 
   val executors = Seq(Executor(
     image = dockerImageUsed,
@@ -226,21 +248,22 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 }
 
 object TesTask {
+  // Helper to determine which source to use for a workflowExecutionIdentity
+  def getPreferredWorkflowExecutionIdentity(configIdentity: Option[WorkflowExecutionIdentityConfig],
+                                           workflowOptionsIdentity: Option[WorkflowExecutionIdentityOption]): Option[String] = {
+    configIdentity.map(_.value).orElse(workflowOptionsIdentity.map(_.value))
+  }
   def makeResources(runtimeAttributes: TesRuntimeAttributes,
-                    workflowDescriptor: BackendWorkflowDescriptor): Resources = {
+                    workflowExecutionId: Option[String]): Resources = {
 
     // This was added in BT-409 to let us pass information to an Azure
     // TES server about which user identity to run tasks as.
     // Note that we validate the type of WorkflowExecutionIdentity
     // in TesInitializationActor.
     val backendParameters = runtimeAttributes.backendParameters ++
-      workflowDescriptor
-        .workflowOptions
-        .get(TesWorkflowOptionKeys.WorkflowExecutionIdentity)
-        .toOption
+      workflowExecutionId
         .map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option(_))
         .toMap
-
     val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
       case Some(x) =>
         Option(x.to(MemoryUnit.GB).amount)
@@ -258,14 +281,16 @@ object TesTask {
     )
   }
 
-  def makeTask(tesTask: TesTask): Task = {
+  def makeTask(tesTask: TesTask, transformBlobToLocalPath: Boolean = false): Task = {
+    val inputs = if (transformBlobToLocalPath) transformInputs(tesTask.inputs) else tesTask.inputs
+    val outputs = if (transformBlobToLocalPath) transformOutputs(tesTask.outputs) else tesTask.outputs
     Task(
       id = None,
       state = None,
       name = Option(tesTask.name),
       description = Option(tesTask.description),
-      inputs = Option(tesTask.inputs),
-      outputs = Option(tesTask.outputs),
+      inputs = Option(inputs),
+      outputs = Option(outputs),
       resources = Option(tesTask.resources),
       executors = tesTask.executors,
       volumes = None,
@@ -273,6 +298,20 @@ object TesTask {
       logs = None
     )
   }
+
+  def transformInputs(inputs: Seq[Input]): Seq[Input] = inputs.map(i =>
+    i.copy(url=i.url.map(transformBlobString))
+  )
+
+  def transformOutputs(outputs: Seq[Output]): Seq[Output] = outputs.map(i =>
+    i.copy(url=i.url.map(transformBlobString))
+  )
+
+  val blobSegment = ".blob.core.windows.net"
+  def transformBlobString(s: String): String = if (s.contains(blobSegment)) {
+    s.replaceFirst("https:/", "").replaceFirst(blobSegment, "")
+  } else s
+
 }
 
 // Field requirements in classes below based off GA4GH schema

@@ -2,16 +2,20 @@ package drs.localizer
 
 import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO, IOApp}
+import cats.implicits._
 import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDisposition}
-import cloud.nio.impl.drs.{AccessUrl, DrsConfig, DrsPathResolver, MarthaField}
+import cloud.nio.impl.drs._
 import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
 import com.typesafe.scalalogging.StrictLogging
 import drs.localizer.CommandLineParser.AccessTokenStrategy.{Azure, Google}
-import drs.localizer.accesstokens.{AccessTokenStrategy, AzureB2CAccessTokenStrategy, GoogleAccessTokenStrategy}
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
+import org.apache.commons.csv.{CSVFormat, CSVParser}
 
+import java.io.File
+import java.nio.charset.Charset
 import scala.concurrent.duration._
+import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 
 object DrsLocalizerMain extends IOApp with StrictLogging {
@@ -24,8 +28,8 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     val localize: Option[IO[ExitCode]] = for {
       pa <- parsedArgs
       run <- pa.accessTokenStrategy.collect {
-        case Azure => runLocalizer(pa, AzureB2CAccessTokenStrategy(pa))
-        case Google => runLocalizer(pa, GoogleAccessTokenStrategy)
+        case Azure => runLocalizer(pa, AzureDrsCredentials(pa.azureIdentityClientId))
+        case Google => runLocalizer(pa, GoogleAppDefaultTokenStrategy)
       }
     } yield run
 
@@ -50,23 +54,40 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     IO.pure(ExitCode.Error)
   }
 
-  def runLocalizer(commandLineArguments: CommandLineArguments, accessTokenStrategy: AccessTokenStrategy): IO[ExitCode] = {
-    val drsObject = commandLineArguments.drsObject.get
-    val containerPath = commandLineArguments.containerPath.get
-    new DrsLocalizerMain(drsObject, containerPath, accessTokenStrategy, commandLineArguments.googleRequesterPaysProject).
+  def runLocalizer(commandLineArguments: CommandLineArguments, drsCredentials: DrsCredentials): IO[ExitCode] = {
+    commandLineArguments.manifestPath match {
+      case Some(manifestPath) =>
+        val manifestFile = new File(manifestPath)
+        val csvParser = CSVParser.parse(manifestFile, Charset.defaultCharset(), CSVFormat.DEFAULT)
+        val exitCodes: IO[List[ExitCode]] = csvParser.asScala.map(record => {
+          val drsObject = record.get(0)
+          val containerPath = record.get(1)
+          localizeFile(commandLineArguments, drsCredentials, drsObject, containerPath)
+        }).toList.sequence
+        exitCodes.map(_.find(_ != ExitCode.Success).getOrElse(ExitCode.Success))
+      case None =>
+        val drsObject = commandLineArguments.drsObject.get
+        val containerPath = commandLineArguments.containerPath.get
+        localizeFile(commandLineArguments, drsCredentials, drsObject, containerPath)
+    }
+  }
+
+  private def localizeFile(commandLineArguments: CommandLineArguments, drsCredentials: DrsCredentials, drsObject: String, containerPath: String) = {
+    new DrsLocalizerMain(drsObject, containerPath, drsCredentials, commandLineArguments.googleRequesterPaysProject).
       resolveAndDownloadWithRetries(downloadRetries = 3, checksumRetries = 1, defaultDownloaderFactory, Option(defaultBackoff)).map(_.exitCode)
   }
 }
 
 class DrsLocalizerMain(drsUrl: String,
                        downloadLoc: String,
-                       accessTokenStrategy: AccessTokenStrategy,
+                       drsCredentials: DrsCredentials,
                        requesterPaysProjectIdOption: Option[String]) extends StrictLogging {
 
   def getDrsPathResolver: IO[DrsLocalizerDrsPathResolver] = {
     IO {
       val drsConfig = DrsConfig.fromEnv(sys.env)
-      new DrsLocalizerDrsPathResolver(drsConfig, accessTokenStrategy)
+      logger.info(s"Using ${drsConfig.drsResolverUrl} to resolve DRS Objects")
+      new DrsLocalizerDrsPathResolver(drsConfig, drsCredentials)
     }
   }
 
@@ -121,17 +142,17 @@ class DrsLocalizerMain(drsUrl: String,
   }
 
   private [localizer] def resolve(downloaderFactory: DownloaderFactory): IO[Downloader] = {
-    val fields = NonEmptyList.of(MarthaField.GsUri, MarthaField.GoogleServiceAccount, MarthaField.AccessUrl, MarthaField.Hashes)
+    val fields = NonEmptyList.of(DrsResolverField.GsUri, DrsResolverField.GoogleServiceAccount, DrsResolverField.AccessUrl, DrsResolverField.Hashes)
     for {
       resolver <- getDrsPathResolver
-      marthaResponse <- resolver.resolveDrsThroughMartha(drsUrl, fields)
+      drsResolverResponse <- resolver.resolveDrs(drsUrl, fields)
 
-      // Currently Martha only supports resolving DRS paths to access URLs or GCS paths.
-      downloader <- (marthaResponse.accessUrl, marthaResponse.gsUri) match {
+      // Currently DRS Resolver only supports resolving DRS paths to access URLs or GCS paths.
+      downloader <- (drsResolverResponse.accessUrl, drsResolverResponse.gsUri) match {
         case (Some(accessUrl), _) =>
-          downloaderFactory.buildAccessUrlDownloader(accessUrl, downloadLoc, marthaResponse.hashes)
+          downloaderFactory.buildAccessUrlDownloader(accessUrl, downloadLoc, drsResolverResponse.hashes)
         case (_, Some(gcsPath)) =>
-          val serviceAccountJsonOption = marthaResponse.googleServiceAccount.map(_.data.spaces2)
+          val serviceAccountJsonOption = drsResolverResponse.googleServiceAccount.map(_.data.spaces2)
           downloaderFactory.buildGcsUriDownloader(
             gcsPath = gcsPath,
             serviceAccountJsonOption = serviceAccountJsonOption,

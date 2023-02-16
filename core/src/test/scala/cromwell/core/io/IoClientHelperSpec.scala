@@ -27,7 +27,7 @@ class IoClientHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
     val testActor = TestActorRef(new IoClientHelperTestActor(ioActorProbe.ref, delegateProbe.ref, backoff, noResponseTimeout))
 
     val command = DefaultIoSizeCommand(mock[Path])
-    val response = IoSuccess(command, 5)
+    val response = IoSuccess(command, 5L)
 
     // Send the command
     testActor.underlyingActor.sendMessage(command)
@@ -58,7 +58,7 @@ class IoClientHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
 
     val commandContext = "context"
     val command = DefaultIoSizeCommand(mock[Path])
-    val response = IoSuccess(command, 5)
+    val response = IoSuccess(command, 5L)
 
     // Send the command
     testActor.underlyingActor.sendMessageWithContext(commandContext, command)

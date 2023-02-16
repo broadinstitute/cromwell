@@ -71,11 +71,6 @@ paths:
           type: file
           in: formData
         - $ref: '#/parameters/workflowTypeParam'
-        - name: workflowRoot
-          description: The root object to be run. Only necessary for CWL submissions containing multiple objects (in an array).
-          required: false
-          type: string
-          in: formData
         - $ref: '#/parameters/workflowTypeVersionParam'
         - name: labels
           description: JSON object of labels to apply to this workflow.
@@ -607,7 +602,7 @@ paths:
         '400':
           $ref: '#/responses/BadRequest'
         '404':
-           description: No matching cache entry. Cromwell versions prior to 28 will not have recorded information necessary for this endpoint and thus will also appear to not exist.
+          description: No matching cache entry. Cromwell versions prior to 28 will not have recorded information necessary for this endpoint and thus will also appear to not exist.
         '500':
           $ref: '#/responses/ServerError'
   '/api/workflows/{version}/backends':
@@ -788,9 +783,8 @@ paths:
         implementation specific.
         
         
-        The `workflow_type` is the type of workflow language and must be "CWL"
-        or "WDL" currently (or another alternative  supported by this WES
-        instance).
+        The `workflow_type` is the type of workflow language and must be "WDL"
+        currently (or another alternative supported by this WES instance).
         
         
         The `workflow_type_version` is the version of the workflow language
@@ -988,16 +982,16 @@ parameters:
   workflowTypeParam:
     name: workflowType
     type: string
-    description: The workflow language for the file you submitted. Cromwell currently supports WDL and CWL.
-    enum: [WDL, CWL]
+    description: The workflow language for the file you submitted. Cromwell currently supports WDL.
+    enum: [WDL]
     required: false
     in: formData
   workflowTypeVersionParam:
     name: workflowTypeVersion
-    description: The specification version for the workflow language being used. For WDL, Cromwell currently supports draft-2 and 1.0. For CWL, Cromwell currently supports v1.0.
+    description: The specification version for the workflow language being used. For WDL, Cromwell currently supports draft-2 and 1.0.
     required: false
     type: string
-    enum: ["draft-2", "1.0", "v1.0"]
+    enum: ["draft-2", "1.0"]
     in: formData
   versionParam:
     name: version
@@ -1035,10 +1029,6 @@ definitions:
         example: Submitted
   WorkflowMetadataResponse:
     description: Workflow and call level metadata
-    required:
-      - id
-      - status
-      - submission
     properties:
       id:
         type: string
@@ -1067,12 +1057,11 @@ definitions:
       calls:
         $ref: '#/definitions/CallMetadata'
       failures:
-        $ref: '#/definitions/FailureMessage'
+        type: array
+        items:
+          $ref: '#/definitions/FailureMessage'
   CallMetadata:
     description: Call level metadata
-    required:
-      - inputs
-      - executionStatus
     properties:
       inputs:
         type: object
@@ -1098,7 +1087,9 @@ definitions:
         type: string
         description: Backend-specific job ID
       failures:
-        $ref: '#/definitions/FailureMessage'
+        type: array
+        items:
+          $ref: '#/definitions/FailureMessage'
       returnCode:
         type: integer
         description: Call execution return code
@@ -1113,17 +1104,14 @@ definitions:
         description: Paths to backend specific logs for this call
   FailureMessage:
     description: Failure messages
-    required:
-      - failure
-      - timestamp
     properties:
-      failure:
+      message:
         type: string
         description: The failure message
-      timestamp:
-        type: string
-        format: date-time
-        description: The time at which this failure occurred
+      causedBy:
+        type: array
+        items:
+          $ref: '#/definitions/FailureMessage'
   WorkflowDescription:
     required:
       - valid
@@ -1212,9 +1200,9 @@ definitions:
               typeName: Pair
               pairTypes:
                 - leftType:
-                  -  typeName: Int
+                    -  typeName: Int
                 - rightType:
-                  -  typeName: String
+                    -  typeName: String
             optional: false
             default: null
             typeDisplayName: Pair[Int, String]
@@ -1263,8 +1251,20 @@ definitions:
                 - typeName: Int
                 - typeName: String
             typeDisplayName: Pair[Int, String]
+      images:
+        type: array
+        items:
+          type: string
       submittedDescriptorType:
         $ref: '#/definitions/DescriptorTypeAndVersion'
+      importedDescriptorTypes:
+        type: array
+        items:
+          $ref: '#/definitions/DescriptorTypeAndVersion'
+      meta:
+        type: object
+      parameterMeta:
+        type: object
       isRunnableWorkflow:
         description: Indicates whether this file can be run on its own (e.g. a WDL workflow)
         type: boolean
@@ -1380,12 +1380,11 @@ definitions:
   DescriptorType:
     type: string
     description: >-
-      One from a list of descriptor type strings (e.g. CWL, WDL).
+      One from a list of descriptor type strings (e.g. WDL).
       Note that these files can also include associated Docker/container files
       and test parameters that further describe a version of a tool
     example: "WDL"
     enum:
-      - CWL
       - WDL
   WorkflowQueryParameter:
     description: Workflow query parameters
@@ -1784,7 +1783,7 @@ definitions:
         type: string
         description: >-
           REQUIRED
-          The workflow descriptor type, must be "CWL" or "WDL" currently (or
+          The workflow descriptor type, must be "WDL" currently (or
           another alternative supported by this WES instance)
       workflow_type_version:
         type: string
@@ -1804,7 +1803,7 @@ definitions:
         type: string
         description: >-
           REQUIRED
-          The workflow CWL or WDL document. When `workflow_attachments` is
+          The workflow WDL document. When `workflow_attachments` is
           used to attach files, the `workflow_url` may be a relative path to
           one of the attachments.
     description: >-
@@ -1959,4 +1958,3 @@ definitions:
           are also allowed. The version should be changed whenever the service
           is updated.
         example: 1.0.0
-

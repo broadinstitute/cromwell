@@ -25,15 +25,15 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
 
   it should "parse a config and create a working file system provider" in {
     val config = ConfigFactory.parseString(
-      """martha.url = "https://from.config"
+      """resolver.url = "https://from.config"
         |access-token-acceptable-ttl = 1 minute
         |""".stripMargin
     )
 
     val fileSystemProvider = new MockDrsCloudNioFileSystemProvider(config = config)
-    fileSystemProvider.drsConfig.marthaUrl should be("https://from.config")
+    fileSystemProvider.drsConfig.drsResolverUrl should be("https://from.config")
     fileSystemProvider.drsCredentials match {
-      case GoogleDrsCredentials(_, ttl) => ttl should be(1.minute)
+      case GoogleOauthDrsCredentials(_, ttl) => ttl should be(1.minute)
       case error => fail(s"Expected GoogleDrsCredentials, found $error")
     }
     fileSystemProvider.fileProvider should be(a[DrsCloudNioFileProvider])
@@ -79,19 +79,19 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
 
   it should "return a file provider that can read bytes from gcs" in {
     val drsPathResolver = new MockEngineDrsPathResolver() {
-      override def resolveDrsThroughMartha(drsPath: String,
-                                           fields: NonEmptyList[MarthaField.Value],
-                                          ): IO[MarthaResponse] = {
-        IO(MarthaResponse(gsUri = Option("gs://bucket/object/path")))
+      override def resolveDrs(drsPath: String,
+                              fields: NonEmptyList[DrsResolverField.Value],
+                                          ): IO[DrsResolverResponse] = {
+        IO(DrsResolverResponse(gsUri = Option("gs://bucket/object/path")))
       }
     }
 
     val readChannel = mock[ReadableByteChannel]
-    val drsReadInterpreter: DrsReadInterpreter = (_, marthaResponse) => {
+    val drsReadInterpreter: DrsReadInterpreter = (_, drsResolverResponse) => {
       IO(
-        (marthaResponse.gsUri, marthaResponse.googleServiceAccount) match {
+        (drsResolverResponse.gsUri, drsResolverResponse.googleServiceAccount) match {
           case (Some("gs://bucket/object/path"), None) => readChannel
-          case _ => fail(s"Unexpected parameters passed: $marthaResponse")
+          case _ => fail(s"Unexpected parameters passed: $drsResolverResponse")
         }
       )
     }
@@ -105,19 +105,19 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
 
   it should "return a file provider that can read bytes from an access url" in {
     val drsPathResolver = new MockEngineDrsPathResolver() {
-      override def resolveDrsThroughMartha(drsPath: String,
-                                           fields: NonEmptyList[MarthaField.Value],
-                                          ): IO[MarthaResponse] = {
-        IO(MarthaResponse(accessUrl = Option(AccessUrl("https://host/object/path", None))))
+      override def resolveDrs(drsPath: String,
+                              fields: NonEmptyList[DrsResolverField.Value],
+                                          ): IO[DrsResolverResponse] = {
+        IO(DrsResolverResponse(accessUrl = Option(AccessUrl("https://host/object/path", None))))
       }
     }
 
     val readChannel = mock[ReadableByteChannel]
-    val drsReadInterpreter: DrsReadInterpreter = (_, marthaResponse) => {
+    val drsReadInterpreter: DrsReadInterpreter = (_, drsResolverResponse) => {
       IO(
-        marthaResponse.accessUrl match {
+        drsResolverResponse.accessUrl match {
           case Some(AccessUrl("https://host/object/path", None)) => readChannel
-          case _ => fail(s"Unexpected parameters passed: $marthaResponse")
+          case _ => fail(s"Unexpected parameters passed: $drsResolverResponse")
         }
       )
     }
@@ -131,13 +131,13 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
 
   it should "return a file provider that can return file attributes" in {
     val drsPathResolver = new MockEngineDrsPathResolver() {
-      override def resolveDrsThroughMartha(drsPath: String,
-                                           fields: NonEmptyList[MarthaField.Value],
-                                          ): IO[MarthaResponse] = {
+      override def resolveDrs(drsPath: String,
+                              fields: NonEmptyList[DrsResolverField.Value],
+                                          ): IO[DrsResolverResponse] = {
         val instantCreated = Instant.ofEpochMilli(123L)
         val instantUpdated = Instant.ofEpochMilli(456L)
         IO(
-          MarthaResponse(
+          DrsResolverResponse(
             size = Option(789L),
             timeCreated = Option(OffsetDateTime.ofInstant(instantCreated, ZoneOffset.UTC).toString),
             timeUpdated = Option(OffsetDateTime.ofInstant(instantUpdated, ZoneOffset.UTC).toString),

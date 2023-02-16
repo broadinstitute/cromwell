@@ -10,6 +10,7 @@ import wom.values._
 
 import scala.runtime.ScalaRunTime
 import scala.util.Random
+import scala.util.matching.Regex
 
 
 class WomTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
@@ -32,7 +33,7 @@ class WomTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     WomSingleFileType.stableName shouldEqual "File"
   }
 
-  val rawValuesCoercedToType = Table(
+  val rawValuesCoercedToType = Table[Any, WomType, Any, Regex](
     (
       "Raw Value",
       "WomType",
@@ -43,33 +44,33 @@ class WomTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
       WomString("hello"),
       WomIntegerType,
       classOf[NumberFormatException],
-      "For input string: \"hello\""
+      "For input string: \"hello\"".r
     ),
     (
       WomInteger(0),
       WomBooleanType,
       classOf[IllegalArgumentException],
-      """No coercion defined from wom value\(s\) '0' of type 'Int' to 'Boolean'."""
+      """No coercion defined from wom value\(s\) '0' of type 'Int' to 'Boolean'.""".r
     ),
     (
       0,
       WomBooleanType,
       classOf[IllegalArgumentException],
-      "No coercion defined from '0' of type 'java.lang.Integer' to 'Boolean'."
+      "No coercion defined from '0' of type 'java.lang.Integer' to 'Boolean'.".r
     ),
     (
       Array(0, 1, 2, 3, 4),
       WomBooleanType,
       classOf[IllegalArgumentException],
-      """No coercion defined from 'Array\(0, 1, 2\)' of type 'int\[\]' to 'Boolean'."""
+      """No coercion defined from 'Array\(0, 1, 2\)' of type 'int\[\]' to 'Boolean'.""".r
     ),
     (
       new AnyRef {},
       WomBooleanType,
       classOf[IllegalArgumentException],
-      "No coercion defined from" +
+      ("No coercion defined from" +
         """ 'wom.types.WomTypeSpec\$\$anon\$(.*)@.*' of type""" +
-        """ 'wom.types.WomTypeSpec\$\$anon\$\1' to 'Boolean'."""
+        """ 'wom.types.WomTypeSpec\$\$anon\$\1' to 'Boolean'.""").r
     ),
     (
       WomArray(WomArrayType(WomOptionalType(WomIntegerType)), Seq(
@@ -81,19 +82,19 @@ class WomTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
       ),
       WomOptionalType(WomMaybeEmptyArrayType(WomIntegerType)),
       classOf[IllegalArgumentException],
-      """No coercion defined from wom value\(s\) '\[0, 1, 2\]' of type 'Array\[Int\?\]' to 'Array\[Int\]\?'."""
+      """No coercion defined from wom value\(s\) '\[0, 1, 2\]' of type 'Array\[Int\?\]' to 'Array\[Int\]\?'.""".r
     ),
     (
       WomArray(WomArrayType(WomOptionalType(WomIntegerType)), Seq(WomOptionalValue.none(WomIntegerType))),
       WomOptionalType(WomMaybeEmptyArrayType(WomIntegerType)),
       classOf[IllegalArgumentException],
-      """No coercion defined from wom value\(s\) '\[null\]' of type 'Array\[Int\?\]' to 'Array\[Int\]\?'."""
+      """No coercion defined from wom value\(s\) '\[null\]' of type 'Array\[Int\?\]' to 'Array\[Int\]\?'.""".r
     ),
     (
       WomOptionalValue.none(WomArrayType(WomIntegerType)),
       WomMaybeEmptyArrayType(WomOptionalType(WomIntegerType)),
       classOf[IllegalArgumentException],
-      """No coercion defined from wom value\(s\) 'null' of type 'Array\[Int\]\?' to 'Array\[Int\?\]'."""
+      """No coercion defined from wom value\(s\) 'null' of type 'Array\[Int\]\?' to 'Array\[Int\?\]'.""".r
     )
   )
 

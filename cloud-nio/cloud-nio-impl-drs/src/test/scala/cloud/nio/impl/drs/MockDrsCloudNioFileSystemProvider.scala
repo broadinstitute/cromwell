@@ -17,7 +17,7 @@ class MockDrsCloudNioFileSystemProvider(config: Config = mockConfig,
                                           ),
                                         mockResolver: Option[EngineDrsPathResolver] = None,
                                        )
-  extends DrsCloudNioFileSystemProvider(config, GoogleDrsCredentials(NoCredentials.getInstance, config), drsReadInterpreter) {
+  extends DrsCloudNioFileSystemProvider(config, GoogleOauthDrsCredentials(NoCredentials.getInstance, config), drsReadInterpreter) {
 
   override lazy val drsPathResolver: EngineDrsPathResolver = {
     mockResolver getOrElse
@@ -31,7 +31,7 @@ class MockDrsCloudNioFileSystemProvider(config: Config = mockConfig,
 
 object MockDrsCloudNioFileSystemProvider {
   private lazy val mockConfig = ConfigFactory.parseString(
-    """martha.url = "https://mock.martha"
+    """resolver.url = "https://mock.drshub"
       |access-token-acceptable-ttl = 1 hour
       |""".stripMargin
   )

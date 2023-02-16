@@ -2,13 +2,12 @@ package cromwell.filesystems.drs
 
 import akka.actor.ActorSystem
 import cats.data.Validated.{Invalid, Valid}
-import cloud.nio.impl.drs.{AzureDrsCredentials, DrsCloudNioFileSystemProvider, GoogleDrsCredentials}
+import cloud.nio.impl.drs.{AzureDrsCredentials, DrsCloudNioFileSystemProvider, GoogleOauthDrsCredentials}
 import com.google.api.services.oauth2.Oauth2Scopes
 import com.typesafe.config.Config
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{PathBuilder, PathBuilderFactory}
-import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -24,26 +23,23 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
   private lazy val googleConfiguration: GoogleConfiguration = GoogleConfiguration(globalConfig)
   private lazy val scheme = instanceConfig.getString("auth")
 
-  // For Azure support
+  // For Azure support - this should be the UAMI client id
   private val dataAccessIdentityKey = "data_access_identity"
-  private lazy val azureKeyVault = instanceConfig.as[Option[String]]("azure-keyvault-name")
-  private lazy val azureSecretName = instanceConfig.as[Option[String]]("azure-token-secret")
 
   override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder] = {
     Future {
-      val marthaScopes = List(
-        // Profile and Email scopes are requirements for interacting with Martha
+      val drsResolverScopes = List(
+        // Profile and Email scopes are requirements for interacting with DRS Resolvers
         Oauth2Scopes.USERINFO_EMAIL,
         Oauth2Scopes.USERINFO_PROFILE
       )
 
-      val (googleAuthMode, drsCredentials) = (scheme, azureKeyVault, azureSecretName) match {
-        case ("azure", Some(vaultName), Some(secretName)) => (None, AzureDrsCredentials(options.get(dataAccessIdentityKey).toOption, vaultName, secretName))
-        case ("azure", _, _) => throw new RuntimeException(s"Error while instantiating DRS path builder factory. Couldn't find azure-keyvault-name and azure-token-secret in config.")
-        case (googleAuthScheme, _, _) => googleConfiguration.auth(googleAuthScheme) match {
+      val (googleAuthMode, drsCredentials) = scheme match {
+        case "azure" => (None, AzureDrsCredentials(options.get(dataAccessIdentityKey).toOption))
+        case googleAuthScheme => googleConfiguration.auth(googleAuthScheme) match {
           case Valid(auth) => (
             Option(auth),
-            GoogleDrsCredentials(auth.credentials(options.get(_).get, marthaScopes), singletonConfig.config)
+            GoogleOauthDrsCredentials(auth.credentials(options.get(_).get, drsResolverScopes), singletonConfig.config)
           )
           case Invalid(error) => throw new RuntimeException(s"Error while instantiating DRS path builder factory. Errors: ${error.toString}")
         }
@@ -54,7 +50,7 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
       val requesterPaysProjectIdOption = options.get("google_project").toOption
 
       /*
-      `override_preresolve_for_test` is a workflow option to override the default `martha.preresolve` specified in the
+      `override_preresolve_for_test` is a workflow option to override the default `resolver.preresolve` specified in the
       global config. This is only used for testing purposes.
        */
       val preResolve: Boolean =
@@ -64,7 +60,7 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
           .getOrElse(
             singletonConfig
               .config
-              .getBoolean("martha.preresolve")
+              .getBoolean("resolver.preresolve")
           )
 
       DrsPathBuilder(
@@ -82,4 +78,4 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
 
 case class UrlNotFoundException(scheme: String) extends Exception(s"No $scheme url associated with given DRS path.")
 
-case class MarthaResponseMissingKeyException(missingKey: String) extends Exception(s"The response from Martha doesn't contain the key '$missingKey'.")
+case class DrsResolverResponseMissingKeyException(missingKey: String) extends Exception(s"The response from the DRS Resolver doesn't contain the key '$missingKey'.")

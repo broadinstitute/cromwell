@@ -3,9 +3,9 @@ package cloud.nio.impl.drs
 import scala.concurrent.duration._
 
 object MockDrsPaths {
-  val marthaUrl = "http://mock.martha"
+  val drsResolverUrl = "http://mock.drshub"
 
-  val mockDrsConfig: DrsConfig = DrsConfig(MockDrsPaths.marthaUrl, 1, 1.seconds, 1.seconds, 1d, 0d)
+  val mockDrsConfig: DrsConfig = DrsConfig(MockDrsPaths.drsResolverUrl, 1, 1.seconds, 1.seconds, 1d, 0d)
 
   val mockToken = "mock.token"
 
@@ -35,5 +35,5 @@ object MockDrsPaths {
 
   val drsPathResolvingToNoGcsPath = s"$drsPathPrefix/226686cf-22c9-4472-9f79-7a0b0044f253"
 
-  val drsPathNotExistingInMartha = s"$drsPathPrefix/5e21b8c3-8eda-48d5-9a04-2b32e1571765"
+  val drsPathNotExistingInDrsResolver = s"$drsPathPrefix/5e21b8c3-8eda-48d5-9a04-2b32e1571765"
 }

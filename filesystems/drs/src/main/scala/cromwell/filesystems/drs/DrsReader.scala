@@ -1,8 +1,8 @@
 package cromwell.filesystems.drs
 
 import cats.effect.IO
-import cloud.nio.impl.drs.MarthaResponseSupport.getGcsBucketAndName
-import cloud.nio.impl.drs.{AccessUrl, DrsPathResolver, MarthaResponse, SADataObject}
+import cloud.nio.impl.drs.DrsResolverResponseSupport.getGcsBucketAndName
+import cloud.nio.impl.drs.{AccessUrl, DrsPathResolver, DrsResolverResponse, SADataObject}
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.oauth2.OAuth2Credentials
 import com.google.cloud.storage.Storage.BlobGetOption
@@ -21,8 +21,8 @@ object DrsReader {
              options: WorkflowOptions,
              requesterPaysProjectIdOption: Option[String],
              drsPathResolver: DrsPathResolver,
-             marthaResponse: MarthaResponse): IO[DrsReader] = {
-    (marthaResponse.accessUrl, marthaResponse.gsUri, googleAuthMode) match {
+             drsResolverResponse: DrsResolverResponse): IO[DrsReader] = {
+    (drsResolverResponse.accessUrl, drsResolverResponse.gsUri, googleAuthMode) match {
       case (Some(accessUrl), _, _) =>
         IO.pure(AccessUrlReader(drsPathResolver, accessUrl))
       case (_, Some(gcsPath), Some(authMode)) =>
@@ -31,10 +31,10 @@ object DrsReader {
           options,
           requesterPaysProjectIdOption,
           gcsPath,
-          marthaResponse.googleServiceAccount,
+          drsResolverResponse.googleServiceAccount,
         ))
       case (_, Some(_), _) =>
-        IO.raiseError(new RuntimeException("GCS URI found in Martha response, but no Google auth found!"))
+        IO.raiseError(new RuntimeException("GCS URI found in the DRS Resolver response, but no Google auth found!"))
       case _ =>
         IO.raiseError(new RuntimeException(DrsPathResolver.ExtractUriErrorMsg))
     }
@@ -44,9 +44,9 @@ object DrsReader {
                       options: WorkflowOptions,
                       requesterPaysProjectIdOption: Option[String])
                      (drsPathResolver: DrsPathResolver,
-                      marthaResponse: MarthaResponse): IO[ReadableByteChannel] = {
+                      drsResolverResponse: DrsResolverResponse): IO[ReadableByteChannel] = {
     for {
-      reader <- reader(googleAuthMode, options, requesterPaysProjectIdOption, drsPathResolver, marthaResponse)
+      reader <- reader(googleAuthMode, options, requesterPaysProjectIdOption, drsPathResolver, drsResolverResponse)
       channel <- reader.read()
     } yield channel
   }
@@ -69,7 +69,7 @@ case class GcsReader(googleAuthMode: GoogleAuthMode,
     val credentialsIo = googleServiceAccount match {
       case Some(googleSA) =>
         IO(
-          UserServiceAccountMode("martha_service_account").credentials(
+          UserServiceAccountMode("drs_resolver_service_account").credentials(
             Map(GoogleAuthMode.UserServiceAccountKey -> googleSA.data.noSpaces),
             readScopes,
           )

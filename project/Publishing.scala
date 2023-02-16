@@ -36,7 +36,20 @@ object Publishing {
       ArrayBuffer(broadinstitute/cromwell:dev, broadinstitute/cromwell:develop)
     */
     dockerTags := {
-      val versionsCsv = if (Version.isSnapshot) version.value else s"$cromwellVersion,${version.value}"
+      val versionsCsv = if (Version.isSnapshot) {
+        // Tag looks like `85-443a6fc-SNAP`
+        version.value
+      } else {
+        if (Version.isRelease) {
+          // Tags look like `85`, `85-443a6fc`
+          s"$cromwellVersion,${version.value}"
+        } else {
+          // Tag looks like `85-443a6fc`
+          version.value
+        }
+      }
+
+      // Travis applies (as of 10/22) the `dev` and `develop` tags on merge to `develop`
       sys.env.getOrElse("CROMWELL_SBT_DOCKER_TAGS", versionsCsv).split(",")
     },
     docker / imageNames := dockerTags.value map { tag =>
@@ -137,6 +150,10 @@ object Publishing {
     "Broad Artifactory" at
       "https://broadinstitute.jfrog.io/broadinstitute/libs-release/"
 
+  private val broadArtifactoryResolverSnap: Resolver =
+    "Broad Artifactory Snapshots" at
+      "https://broadinstitute.jfrog.io/broadinstitute/libs-snapshot-local/"
+
   // https://stackoverflow.com/questions/9819965/artifactory-snapshot-filename-handling
   private val buildTimestamp = System.currentTimeMillis() / 1000
 
@@ -146,6 +163,7 @@ object Publishing {
 
   val additionalResolvers = List(
     broadArtifactoryResolver,
+    broadArtifactoryResolverSnap,
     Resolver.sonatypeRepo("releases")
   )
 

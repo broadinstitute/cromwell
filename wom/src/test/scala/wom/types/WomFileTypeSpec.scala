@@ -65,7 +65,7 @@ class WomFileTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
     }
   }
 
-  lazy val failedCoercionTests = Table(
+  lazy val failedCoercionTests = Table[String, WomType, Any, String](
     ("description", "womFileType", "value", "expected"),
 
     ("a double to a dir", WomUnlistedDirectoryType, 6.28318,

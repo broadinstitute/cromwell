@@ -2,30 +2,31 @@
 
 ## How to update these processes
 
-Have a better idea about how the deployment processes should work? 
+Have a better idea about how the deployment processes should work?
 See our "updating the process" [process](../README.MD)!
 
 ## Core Process: How to Publish and Release Cromwell
 
-If you're the lucky "Release Rotation Engineer" this time, you should do the following four things:
+Cromwell versions are updated on a weekly cadence automatically. For more information see [here](https://support.terra.bio/hc/en-us/articles/9512163608731-Faster-Cromwell-updates-in-Terra-)
 
-1. Create a Jira ticket for the release (look at previous release tickets if you're not sure how). In the Suggested 
+Manually cutting a numeric release is expected to continue being done on a cadence of every ~6 months. If you're the lucky "Release Rotation Engineer" this time, you should do the following four things:
+
+1. Create a Jira ticket for the release (look at previous release tickets if you're not sure how). In the Suggested
 Release Notes field, add "Terra is now running Cromwell <version>" along with any other release notes relevant to Terra
 users.
-1. Check that all most recent executions of Cromwell's Jenkins tests have succeeded, and that all those executions were 
-against the most recent commit in "develop" branch. There are 2 groups of Jenkins tests which have to be checked (you 
+1. Check that all most recent executions of Cromwell's Jenkins tests have succeeded, and that all those executions were
+against the most recent commit in "develop" branch. There are 2 groups of Jenkins tests which have to be checked (you
 will need to be on the Broad internal network or VPN to open the following links):
     1. Tests for various backends supported by Cromwell. Log into Jenkins [here](https://fc-jenkins.dsp-techops.broadinstitute.org), check the tests [here](https://fc-jenkins.dsp-techops.broadinstitute.org/job/cromwell-cron-parent/).
     1. Tests for Cromwell in Terra environment. Log into Jenkins [here](https://fc-jenkins.dsp-techops.broadinstitute.org), check the tests [here](https://fc-jenkins.dsp-techops.broadinstitute.org/view/Batch/).
-1. [Run the publish script to create a new version of Cromwell](#how-to-publish-a-new-cromwell-version)  
-1. [Run through the "How to Release Cromwell into Firecloud/Terra" process](#how-to-release-cromwell-into-firecloud--terra)  
-1. [Run through the "How to Deploy Cromwell in CaaS prod" process](#how-to-deploy-cromwell-in-caas-staging-and-caas-prod)  
+1. [Run the publish script to create a new version of Cromwell](#how-to-publish-a-new-cromwell-version)
+1. [Run through the "How to Deploy Cromwell in CaaS prod" process](#how-to-deploy-cromwell-in-caas-staging-and-caas-prod)
 
 ### How to publish a new Cromwell version
 
 #### Announce your intentions
 
-Post a message in `#dsp-batch-private` letting people know that a publish is imminent in case there are PRs they want to get
+Post a message in `#dsp-workflows-private` letting people know that a publish is imminent in case there are PRs they want to get
 wrapped up and merged to `develop` to go out in the forthcoming version of Cromwell.
 
 #### Get a Github token
@@ -45,7 +46,8 @@ The release WDL uses a github token to perform actions on your behalf.
 Make or copy the following files into a temporary `release/` directory outside the Cromwell repository. This removes any chance of committing your token.
 
 * A copy of the workflow file to run (https://github.com/broadinstitute/cromwell/blob/develop/publish/publish_workflow.wdl)
-* An inputs json like this:
+* An inputs json like this one.
+  * `publishHomebrew` is `false` due to Homebrew taking on this part themselves. Homebrew remains an active distribution channel.
 
 ```json
 {
@@ -82,7 +84,7 @@ The workflow outputs its status to the console.
 
 #### Make sure it all went swimmingly
 
-* Check that the workflow succeeded. 
+* Check that the workflow succeeded.
 * Check that there's now a new Cromwell release listed [here](https://github.com/broadinstitute/cromwell/releases).
 * Look [in Travis](https://app.travis-ci.com/github/broadinstitute/cromwell/branches) for the release tag build that will publish Docker images for the new version.
 * Let `#dsp-batch-private` know that it's okay to resume merges to `develop`.
@@ -92,17 +94,6 @@ The workflow outputs its status to the console.
     * See the `cromwell::build::publish_artifacts()` function for details
 * **One business day later,** confirm that [the Homebrew package](https://formulae.brew.sh/formula/cromwell) has the latest version. If it doesn't, start investigation by looking at [Homebrew PR's](https://github.com/Homebrew/homebrew-core/pulls?q=is%3Apr+cromwell).
 
-### How to Release Cromwell into Firecloud / Terra
-
-**Note:** If the Cromwell CHANGELOG indicates that the upgrade might take some time (e.g., because of a database migration), checking in with the release engineer
-and user support/comms to let them know that the upgrade may involve downtime is also required. You may need to help draft an impact statement and co-ordinate timing
-the deploy to make sure user impact in minimized.
-
-**Note:** How to accomplish some of these steps might be non-obvious to you (e.g., generating the release notes).
-If so, refer to the additional details in the [full document](https://docs.google.com/document/d/1EEzwemE8IedCplIwL506fiqXr0262Pz4G0x6Cr6V-5E). 
-
-![firecloud-develop](firecloud-develop.dot.png) 
-
 ### How to Deploy Cromwell in CaaS staging and CaaS prod
 
 CaaS is "Cromwell as a Service". It is used by a couple of Broad teams (Pipelines and Epigenomics), though the long-term plan is for those teams to migrate to using Terra.
@@ -110,7 +101,7 @@ CaaS is "Cromwell as a Service". It is used by a couple of Broad teams (Pipeline
 **Note:** If the Cromwell CHANGELOG indicates that the upgrade might take some time (e.g., because of a database migration), checking in with the CaaS users
 to let them know that the upgrade is about to happen is a good idea.
 
-Deploying to CaaS is detailed in the [Quick CaaS Deployment Guide](https://docs.google.com/document/d/1s0YC-oohJ7o-OGcgnH_-YBtIEKmLIPTRpG36yvWxUpE) 
+Deploying to CaaS is detailed in the [Quick CaaS Deployment Guide](https://docs.google.com/document/d/1s0YC-oohJ7o-OGcgnH_-YBtIEKmLIPTRpG36yvWxUpE)
 
 ### How to be Sure You're Done
 
@@ -139,7 +130,7 @@ This generates the client library and runs the generated tests as well.  A succe
 [success] Total time: 4 s, completed Jun 26, 2019 3:01:19 PM
 ```
 
-To publish to artifactory, first obtain the artifactory username and credentials.  Then run
+To publish to artifactory, first obtain the artifactory username and credentials. Credentials are located in Vault at path `secret/dsde/cromwell/common/cromwell-artifactory`. Then run
 
 ```
 export ARTIFACTORY_USERNAME=<the-username>
@@ -147,8 +138,10 @@ export ARTIFACTORY_PASSWORD=<the-password>
 ./scripts/publish-client.sh
 ```
 
+A SNAP version of the client library will be published in jFrog at [this path](https://broadinstitute.jfrog.io/ui/repos/tree/General/libs-release-local/org/broadinstitute/cromwell).
+
 ## Cromwell setup for publishing
 
 One can run a publishing-friendly Cromwell using a containerized MySQL server and config files
-from Cromwell's CI. See the `start_publish_mysql_docker.sh` and `start_publish_cromwell.sh` 
+from Cromwell's CI. See the `start_publish_mysql_docker.sh` and `start_publish_cromwell.sh`
 scripts under `release_processes/scripts`.

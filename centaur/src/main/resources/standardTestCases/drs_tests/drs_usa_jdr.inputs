@@ -1,5 +1,5 @@
 {
-    # Martha does not return service accounts for JDR paths. Therefore they shouldn't need to be localized using the
+    # DRSHub does not return service accounts for JDR paths. Therefore they shouldn't need to be localized using the
     # Cromwell custom DOS/DRS localizer.
     #
     # However, the first file1 was generated before JDR stared saving file names at the end of the gsUri.

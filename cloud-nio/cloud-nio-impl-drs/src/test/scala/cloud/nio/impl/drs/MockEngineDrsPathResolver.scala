@@ -14,12 +14,12 @@ class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfi
                                 httpClientBuilderOverride: Option[HttpClientBuilder] = None,
                                 accessTokenAcceptableTTL: Duration = Duration.Inf,
                                )
-  extends EngineDrsPathResolver(drsConfig, GoogleDrsCredentials(NoCredentials.getInstance, accessTokenAcceptableTTL)) {
+  extends EngineDrsPathResolver(drsConfig, GoogleOauthDrsCredentials(NoCredentials.getInstance, accessTokenAcceptableTTL)) {
 
   override protected lazy val httpClientBuilder: HttpClientBuilder =
     httpClientBuilderOverride getOrElse MockSugar.mock[HttpClientBuilder]
 
-  private lazy val mockMarthaUri = drsConfig.marthaUrl
+  private lazy val mockDrsResolverUri = drsConfig.drsResolverUrl
 
   private val hashesObj = Map(
     "md5" -> "336ea55913bc261b72875bd259753046",
@@ -27,8 +27,8 @@ class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfi
     "crc32c" -> "8a366443"
   )
 
-  private val marthaObjWithGcsPath =
-    MarthaResponse(
+  private val drsResolverObjWithGcsPath =
+    DrsResolverResponse(
       size = Option(156018255),
       timeCreated = Option("2020-04-27T15:56:09.696Z"),
       timeUpdated = Option("2020-04-27T15:56:09.696Z"),
@@ -36,27 +36,27 @@ class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfi
       hashes = Option(hashesObj)
     )
 
-  private val marthaObjWithFileName = marthaObjWithGcsPath.copy(fileName = Option("file.txt"))
+  private val drsResolverObjWithFileName = drsResolverObjWithGcsPath.copy(fileName = Option("file.txt"))
 
-  private val marthaObjWithLocalizationPath = marthaObjWithGcsPath.copy(localizationPath = Option("/dir/subdir/file.txt"))
+  private val drsResolverObjWithLocalizationPath = drsResolverObjWithGcsPath.copy(localizationPath = Option("/dir/subdir/file.txt"))
 
-  private val marthaObjWithAllThePaths = marthaObjWithLocalizationPath.copy(fileName = marthaObjWithFileName.fileName)
+  private val drsResolverObjWithAllThePaths = drsResolverObjWithLocalizationPath.copy(fileName = drsResolverObjWithFileName.fileName)
 
-  private val marthaObjWithNoGcsPath = marthaObjWithGcsPath.copy(gsUri = None)
+  private val drsResolverObjWithNoGcsPath = drsResolverObjWithGcsPath.copy(gsUri = None)
 
-  override def resolveDrsThroughMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): IO[MarthaResponse] = {
+  override def resolveDrs(drsPath: String, fields: NonEmptyList[DrsResolverField.Value]): IO[DrsResolverResponse] = {
     drsPath match {
-      case MockDrsPaths.drsPathResolvingGcsPath => IO(marthaObjWithGcsPath)
-      case MockDrsPaths.drsPathWithNonPathChars => IO(marthaObjWithGcsPath)
-      case MockDrsPaths.drsPathResolvingWithFileName => IO(marthaObjWithFileName)
-      case MockDrsPaths.drsPathResolvingWithLocalizationPath => IO.pure(marthaObjWithLocalizationPath)
-      case MockDrsPaths.drsPathResolvingWithAllThePaths => IO.pure(marthaObjWithAllThePaths)
-      case MockDrsPaths.drsPathResolvingToNoGcsPath => IO(marthaObjWithNoGcsPath)
-      case MockDrsPaths.drsPathNotExistingInMartha =>
+      case MockDrsPaths.drsPathResolvingGcsPath => IO(drsResolverObjWithGcsPath)
+      case MockDrsPaths.drsPathWithNonPathChars => IO(drsResolverObjWithGcsPath)
+      case MockDrsPaths.drsPathResolvingWithFileName => IO(drsResolverObjWithFileName)
+      case MockDrsPaths.drsPathResolvingWithLocalizationPath => IO.pure(drsResolverObjWithLocalizationPath)
+      case MockDrsPaths.drsPathResolvingWithAllThePaths => IO.pure(drsResolverObjWithAllThePaths)
+      case MockDrsPaths.drsPathResolvingToNoGcsPath => IO(drsResolverObjWithNoGcsPath)
+      case MockDrsPaths.`drsPathNotExistingInDrsResolver` =>
         IO.raiseError(
           new RuntimeException(
-            s"Unexpected response resolving ${MockDrsPaths.drsPathNotExistingInMartha} " +
-              s"through Martha url $mockMarthaUri. Error: 404 Not Found."
+            s"Unexpected response resolving ${MockDrsPaths.drsPathNotExistingInDrsResolver} " +
+              s"through DRS Resolver url $mockDrsResolverUri. Error: 404 Not Found."
           )
         )
     }

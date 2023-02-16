@@ -79,7 +79,6 @@ nav:
     - Integration tests: developers/Centaur.md
     - Security: developers/Security.md
     - Contribute to docs: developers/Contribute.md
-    - CWL Parsing: developers/CwlParsing.md
     - Bitesize Design Docs:
         - Workflow Parsing & Graph Construction:
             - What is WOM?: developers/bitesize/workflowParsing/whatIsWom.md
@@ -87,7 +86,6 @@ nav:
                 - Overview: developers/bitesize/workflowParsing/wdlParsingOverview.md
                 - From WDL to WDLOM: developers/bitesize/workflowParsing/wdlToWdlom.md
                 - Adding new WDL Engine Functions: developers/bitesize/workflowParsing/engineFunctionAddition.md
-            - From CWL Source to WOM: developers/bitesize/workflowParsing/cwlParsingOverview.md
         - Cromwell Actor System:
             - High level view: developers/bitesize/majorActorSystem/5000FtActorSystem.md
             - Workflow Execution:

@@ -4,10 +4,10 @@ import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO}
 import cats.syntax.validated._
 import cloud.nio.impl.drs.DrsPathResolver.FatalRetryDisposition
-import cloud.nio.impl.drs.{AccessUrl, DrsConfig, MarthaField, MarthaResponse}
+import cloud.nio.impl.drs.{AccessUrl, DrsConfig, DrsCredentials, DrsResolverField, DrsResolverResponse}
 import common.assertion.CromwellTimeoutSpec
+import common.validation.ErrorOr.ErrorOr
 import drs.localizer.MockDrsLocalizerDrsPathResolver.{FakeAccessTokenStrategy, FakeHashes}
-import drs.localizer.accesstokens.AccessTokenStrategy
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
 import org.scalatest.flatspec.AnyFlatSpec
@@ -49,12 +49,12 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloaderFactory).unsafeRunSync() shouldBe expected
   }
 
-  it should "fail and throw error if Martha response does not have gs:// url" in {
+  it should "fail and throw error if the DRS Resolver response does not have gs:// url" in {
     val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithoutAnyResolution, fakeDownloadLocation, None)
 
     the[RuntimeException] thrownBy {
       mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloaderFactory).unsafeRunSync()
-    } should have message "No access URL nor GCS URI starting with 'gs://' found in Martha response!"
+    } should have message "No access URL nor GCS URI starting with 'gs://' found in the DRS Resolver response!"
   }
 
   it should "resolve to use the correct downloader for an access url" in {
@@ -67,7 +67,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloaderFactory).unsafeRunSync() shouldBe expected
   }
 
-  it should "resolve to use the correct downloader for an access url when the Martha response also contains a gs url" in {
+  it should "resolve to use the correct downloader for an access url when the DRS Resolver response also contains a gs url" in {
     val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithAccessUrlAndGcsResolution, fakeDownloadLocation, None)
     val expected = AccessUrlDownloader(
       accessUrl = AccessUrl(url = "http://abc/def/ghi.bam", headers = None), downloadLoc = fakeDownloadLocation,
@@ -315,23 +315,23 @@ class MockDrsLocalizerMain(drsUrl: String,
 class MockDrsLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
   DrsLocalizerDrsPathResolver(drsConfig, FakeAccessTokenStrategy) {
 
-  override def resolveDrsThroughMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): IO[MarthaResponse] = {
-    val marthaResponse = MarthaResponse(
+  override def resolveDrs(drsPath: String, fields: NonEmptyList[DrsResolverField.Value]): IO[DrsResolverResponse] = {
+    val drsResolverResponse = DrsResolverResponse(
       size = Option(1234),
       hashes = FakeHashes
     )
 
     IO.pure(drsPath) map {
       case MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly =>
-        marthaResponse.copy(
+        drsResolverResponse.copy(
           gsUri = Option("gs://abc/foo-123/abc123"))
       case MockDrsPaths.fakeDrsUrlWithoutAnyResolution =>
-        marthaResponse
+        drsResolverResponse
       case MockDrsPaths.fakeDrsUrlWithAccessUrlResolutionOnly =>
-        marthaResponse.copy(
+        drsResolverResponse.copy(
           accessUrl = Option(AccessUrl(url = "http://abc/def/ghi.bam", headers = None)))
       case MockDrsPaths.fakeDrsUrlWithAccessUrlAndGcsResolution =>
-        marthaResponse.copy(
+        drsResolverResponse.copy(
           accessUrl = Option(AccessUrl(url = "http://abc/def/ghi.bam", headers = None)),
           gsUri = Option("gs://some/uri"))
       case e => throw new RuntimeException(s"Unexpected exception in DRS localization test code: $e")
@@ -341,5 +341,7 @@ class MockDrsLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
 
 object MockDrsLocalizerDrsPathResolver {
   val FakeHashes: Option[Map[String, String]] = Option(Map("md5" -> "abc123", "crc32c" -> "34fd67"))
-  val FakeAccessTokenStrategy: AccessTokenStrategy = () => "testing code: do not call me".invalidNel
+  val FakeAccessTokenStrategy: DrsCredentials = new DrsCredentials {
+    override def getAccessToken: ErrorOr[String] = "testing code: do not call me".invalidNel
+  }
 }

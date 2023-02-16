@@ -4,6 +4,7 @@ BASE_PACKAGE="cromwell.client"
 
 ORIGINAL_API_YAML=engine/src/main/resources/swagger/cromwell.yaml
 API_YAML=codegen_java/cromwell.nofile.yaml
+OPENAPI_DOCKER="openapitools/openapi-generator-cli@sha256:ddd1b01cbe8f494c6612c548e91f983938164ab713a4d18d099a1fc4a77c651d"
 
 # Cromwell doesn't specify the OAuth configuration in its swagger, and
 # without it the client doesn't support authentication.
@@ -37,7 +38,7 @@ cat $ORIGINAL_API_YAML | sed s/type:\ file/type:\ string/g >> $API_YAML
 # generator's build.sbt with ours.
 # 1. Hide our build.sbt
 mv codegen_java/build.sbt codegen_java/build.sbt.bak
-docker run --rm -v ${PWD}:/local openapitools/openapi-generator-cli generate \
+docker run --rm -v ${PWD}:/local ${OPENAPI_DOCKER} generate \
   -i /local/$API_YAML \
   -g java \
   -o /local/codegen_java \

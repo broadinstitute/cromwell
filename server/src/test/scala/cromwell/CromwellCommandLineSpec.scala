@@ -95,32 +95,6 @@ class CromwellCommandLineSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
     validation.get.workflowUrl shouldBe Option(url)
   }
 
-  it should "run single when supplying cwl workflow" in {
-    val source = raw"""{"cwlVersion":"v1.0","class":"CommandLineTool","requirements":[{"class":"InlineJavascriptRequirement"}],"hints":[{"dockerPull":"debian:stretch-slim","class":"DockerRequirement"}],"inputs":[],"baseCommand":["touch","z","y","x","w","c","b","a"],"outputs":[{"type":"string","outputBinding":{"glob":"?","outputEval":"$${ return self.sort(function(a,b) { return a.location > b.location ? 1 : (a.location < b.location ? -1 : 0) }).map(f => f.basename).join(\" \") }\n""""
-    val command = parser.parse(Array("run", "server/src/test/resources/cwl_glob_sort.cwl", "--type", "CWL"), CommandLineArguments()).get
-
-    command.command shouldBe Some(Run)
-    command.workflowSource.get shouldBe "server/src/test/resources/cwl_glob_sort.cwl"
-
-    val validation = Try(CromwellEntryPoint.validateRunArguments(command))
-    validation.isSuccess shouldBe true
-    validation.get.workflowSource.get should include(source)
-    validation.get.workflowUrl shouldBe None
-  }
-
-  it should "run single when supplying cwl workflow using url" in {
-    val url = "https://path_to_url"
-    val command = parser.parse(Array("run", url, "--type", "CWL"), CommandLineArguments()).get
-
-    command.command shouldBe Some(Run)
-    command.workflowSource.get shouldBe url
-
-    val validation = Try(CromwellEntryPoint.validateRunArguments(command))
-    validation.isSuccess shouldBe true
-    validation.get.workflowSource shouldBe None
-    validation.get.workflowUrl shouldBe Option(url)
-  }
-
   it should "run single when supplying wdl and inputs and options" in {
     val optionsLast = parser.parse(Array("run", "3step.wdl", "--inputs", "3step.inputs", "--options", "3step.options"), CommandLineArguments()).get
     optionsLast.command shouldBe Some(Run)

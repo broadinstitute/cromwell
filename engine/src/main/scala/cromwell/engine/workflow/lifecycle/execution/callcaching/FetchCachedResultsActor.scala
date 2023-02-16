@@ -37,7 +37,7 @@ class FetchCachedResultsActor(cacheResultId: CallCachingEntryId, replyTo: ActorR
 
         val sourceCacheDetails = Seq(result.callCachingEntry.workflowExecutionUuid,
           result.callCachingEntry.callFullyQualifiedName,
-          result.callCachingEntry.jobIndex).mkString(":")
+          result.callCachingEntry.jobIndex.toString).mkString(":")
 
         CachedOutputLookupSucceeded(simpletons, jobDetritusFiles.toMap,
           result.callCachingEntry.returnCode,

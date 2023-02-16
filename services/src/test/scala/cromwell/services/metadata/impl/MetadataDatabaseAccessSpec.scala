@@ -287,7 +287,7 @@ class MetadataDatabaseAccessSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
         }
         // Filter by workflow id within random Ids
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(
-          (randomIds :+ workflow1Id).map(id => WorkflowQueryKey.Id.name -> id.toString))) map { case (response, _) =>
+          (randomIds :+ workflow1Id.toString).map(id => WorkflowQueryKey.Id.name -> id))) map { case (response, _) =>
           val resultsById = response.results groupBy {
             _.name
           }

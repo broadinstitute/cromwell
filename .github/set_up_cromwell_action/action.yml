@@ -1,0 +1,47 @@
+#This is a series of steps that will setup Java/sbt/Cromwell on the local runner.
+#These steps are meant to be re-used and invoked by other Github Action Workflows
+name: 'Set Up Cromwell Steps'
+description: Specific steps that will set up git secrets, java, sbt, and Cromwell on the local machine. 
+inputs:
+  cromwell_repo_token: #As an input to this action, you are required to pass in a token that can be used to authenticate while checking out Cromwell.
+    required: true
+
+runs:
+  using: "composite" # <-- this allows these steps to be used by other workflows.
+  steps:
+      #Allows this github action to use a cache to store stuff like Java and sbt files between runs.
+      - uses: actions/checkout@v3
+        name: Checkout Coursier Cache
+      - uses: coursier/cache-action@v6  
+        name: Enable Coursier Cache
+
+      #Cromwell requires git-secrets be setup. Here, we set up secrets and verify success with a script.
+      - name: Git secrets setup 
+        run: |
+          git clone https://github.com/awslabs/git-secrets.git ~/git-secrets
+          cd ~/git-secrets
+          git checkout ad82d68ee924906a0401dfd48de5057731a9bc84
+          sudo make install
+        shell: bash
+
+      - name: Secrets check
+        run: |
+          sudo ln -s "$(which echo)" /usr/local/bin/say
+          ./minnie-kenny.sh --force
+          git secrets --scan-history
+        shell: bash
+
+      #Clone the cromwell repo to this VM.
+      - name: Clone Cromwell
+        uses: actions/checkout@v3
+        with:
+          repository: broadinstitute/cromwell
+          token: ${{ inputs.cromwell_repo_token }}
+
+      #Install Java to this VM. This Java version and distribution is compatible with Cromwell.
+      - name: Setup JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 11
+

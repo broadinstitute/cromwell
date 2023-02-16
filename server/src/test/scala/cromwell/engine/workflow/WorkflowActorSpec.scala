@@ -2,7 +2,6 @@ package cromwell.engine.workflow
 
 import java.time.OffsetDateTime
 import java.util.concurrent.atomic.AtomicInteger
-
 import akka.actor.{Actor, ActorRef, ActorSystem, Kill, Props}
 import akka.testkit.{EventFilter, TestActorRef, TestFSMRef, TestProbe}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -15,10 +14,10 @@ import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowActorWorkComplete
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{WorkflowExecutionAbortedResponse, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{ExecuteWorkflowCommand, WorkflowExecutionAbortedResponse, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
 import cromwell.engine.workflow.lifecycle.finalization.CopyWorkflowLogsActor
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationSucceededResponse}
-import cromwell.engine.workflow.lifecycle.initialization.WorkflowInitializationActor.{WorkflowInitializationAbortedResponse, WorkflowInitializationFailedResponse}
+import cromwell.engine.workflow.lifecycle.initialization.WorkflowInitializationActor.{StartInitializationCommand, WorkflowInitializationAbortedResponse, WorkflowInitializationFailedResponse, WorkflowInitializationSucceededResponse}
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor.MaterializeWorkflowDescriptorFailureResponse
 import cromwell.engine.workflow.workflowstore.{StartableState, Submitted, WorkflowHeartbeatConfig, WorkflowToStart}
 import cromwell.engine.{EngineFilesystems, EngineWorkflowDescriptor}
@@ -60,6 +59,8 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
     createMaterializedEngineWorkflowDescriptor(WorkflowId.randomId(), workflowSources = workflowSources)
   val supervisorProbe: TestProbe = TestProbe("supervisorProbe")
   val deathwatch: TestProbe = TestProbe("deathwatch")
+  val initializationProbe: TestProbe = TestProbe("initializationProbe")
+  val executionProbe: TestProbe = TestProbe("executionProbe")
   val finalizationProbe: TestProbe = TestProbe("finalizationProbe")
   var copyWorkflowLogsProbe: TestProbe = _
   val AwaitAlmostNothing: FiniteDuration = 100.milliseconds
@@ -78,7 +79,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
 
   private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(ConfigFactory.load())
 
-  private def createWorkflowActor(state: WorkflowActorState, extraPathBuilderFactory: Option[PathBuilderFactory] = None) = {
+  private def createWorkflowActor(state: WorkflowActorState, extraPathBuilderFactory: Option[PathBuilderFactory] = None, initializationMaxRetries: Int = 3, initializationInterval: FiniteDuration = 10.millis) = {
     val actor = TestFSMRef(
       factory = new WorkflowActorWithTestAddons(
         finalizationProbe = finalizationProbe,
@@ -102,7 +103,11 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
         workflowStoreActor = system.actorOf(Props.empty, s"workflowStoreActor-$currentWorkflowId"),
         workflowHeartbeatConfig = workflowHeartbeatConfig,
         totalJobsByRootWf = initialJobCtByRootWf,
-        extraPathBuilderFactory = extraPathBuilderFactory
+        extraPathBuilderFactory = extraPathBuilderFactory,
+        initializationMaxRetries = initializationMaxRetries,
+        initializationInterval = initializationInterval,
+        workflowInitializationActorProbe = initializationProbe,
+        workflowExecutionActorProbe = executionProbe
       ),
       supervisor = supervisorProbe.ref,
       name = s"workflowActor-$currentWorkflowId",
@@ -124,15 +129,40 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
 
   "WorkflowActor" should {
 
-    "run Finalization actor if Initialization fails" in {
-      val actor = createWorkflowActor(InitializingWorkflowState)
+    "run Finalization actor if Initialization repeatedly fails" in {
+      val actor = createWorkflowActor(InitializingWorkflowState, initializationMaxRetries = 3)
       deathwatch watch actor
-      actor ! WorkflowInitializationFailedResponse(Seq(new Exception("Materialization Failed")))
+
+      // Expect the WorkflowActor to retry up to three times:
+      actor ! WorkflowInitializationFailedResponse(Seq(new Exception("Initialization Failed (1)")))
+      initializationProbe.expectMsg(StartInitializationCommand)
+      actor ! WorkflowInitializationFailedResponse(Seq(new Exception("Initialization Failed (2)")))
+      initializationProbe.expectMsg(StartInitializationCommand)
+      actor ! WorkflowInitializationFailedResponse(Seq(new Exception("Initialization Failed (3)")))
+
       finalizationProbe.expectMsg(StartFinalizationCommand)
       actor.stateName should be(FinalizingWorkflowState)
       actor ! WorkflowFinalizationSucceededResponse
       supervisorProbe.expectMsgPF(TimeoutDuration) { case x: WorkflowFailedResponse => x.workflowId should be(currentWorkflowId) }
       workflowManagerActorExpectsSingleWorkCompleteNotification(WorkflowFailed)
+      deathwatch.expectTerminated(actor)
+    }
+
+    "begin execution if Initialization eventually succeeds" in {
+      val actor = createWorkflowActor(InitializingWorkflowState, initializationMaxRetries = 3)
+      deathwatch watch actor
+
+      // Expect the WorkflowActor to retry up to three times:
+      actor ! WorkflowInitializationFailedResponse(Seq(new Exception("Initialization Failed (1)")))
+      initializationProbe.expectMsg(StartInitializationCommand)
+      actor ! WorkflowInitializationFailedResponse(Seq(new Exception("Initialization Failed (2)")))
+      initializationProbe.expectMsg(StartInitializationCommand)
+      actor ! WorkflowInitializationSucceededResponse(AllBackendInitializationData(Map.empty))
+
+      executionProbe.expectMsg(ExecuteWorkflowCommand)
+      actor.stateName should be(ExecutingWorkflowState)
+      // Tidy up (and satisfy the deathwatch):
+      system.stop(actor)
       deathwatch.expectTerminated(actor)
     }
 
@@ -144,6 +174,56 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       currentLifecycleActor.expectMsgPF(TimeoutDuration) {
         case EngineLifecycleActorAbortCommand => actor ! WorkflowInitializationAbortedResponse
       }
+      finalizationProbe.expectMsg(StartFinalizationCommand)
+      actor.stateName should be(FinalizingWorkflowState)
+      actor ! WorkflowFinalizationSucceededResponse
+      workflowManagerActorExpectsSingleWorkCompleteNotification(WorkflowAborted)
+      deathwatch.expectTerminated(actor)
+    }
+
+    "run Finalization actor if Initialization is aborted during a retry" in {
+      val actor = createWorkflowActor(InitializingWorkflowState, initializationInterval = 1.second)
+      deathwatch watch actor
+
+      // Set the stage with a few unfortunate retries:
+      actor ! WorkflowInitializationFailedResponse(Seq(new Exception("Initialization Failed (1)")))
+      initializationProbe.expectMsg(StartInitializationCommand)
+      actor ! WorkflowInitializationFailedResponse(Seq(new Exception("Initialization Failed (2)")))
+      initializationProbe.expectMsg(StartInitializationCommand)
+
+      actor ! AbortWorkflowCommand
+      eventually { actor.stateName should be(WorkflowAbortingState) }
+      // Because we failed a few times, the actor test's initial "currentLifecycleActor will have been replaced by this
+      // new initializationProbe:
+      initializationProbe.expectMsgPF(TimeoutDuration) {
+        case EngineLifecycleActorAbortCommand => actor ! WorkflowInitializationAbortedResponse
+      }
+
+      finalizationProbe.expectMsg(StartFinalizationCommand)
+      actor.stateName should be(FinalizingWorkflowState)
+      actor ! WorkflowFinalizationSucceededResponse
+      workflowManagerActorExpectsSingleWorkCompleteNotification(WorkflowAborted)
+      deathwatch.expectTerminated(actor)
+    }
+
+    "run Finalization actor if Initialization is aborted between retries" in {
+      // Set the interval long so that we can guarantee the "between retries" part
+      val actor = createWorkflowActor(InitializingWorkflowState, initializationInterval = 10.seconds)
+      deathwatch watch actor
+
+      // Set the stage with a few unfortunate retries:
+      actor ! WorkflowInitializationFailedResponse(Seq(new Exception("Initialization Failed (1)")))
+      eventually { actor.stateData.currentLifecycleStateActor should be(None) }
+
+      actor ! AbortWorkflowCommand
+      // Because there are no active lifecycle actors, this actor should jump to Finalizing without
+      // needing any further input:
+      eventually { actor.stateName should be(FinalizingWorkflowState) }
+
+      // Expect the mailboxes for the initialization actor to be empty (and check "currentLifecycleActor" for good measure)
+      currentLifecycleActor.expectNoMessage(10.millis)
+      initializationProbe.expectNoMessage(10.millis)
+
       finalizationProbe.expectMsg(StartFinalizationCommand)
       actor.stateName should be(FinalizingWorkflowState)
       actor ! WorkflowFinalizationSucceededResponse
@@ -283,7 +363,11 @@ class WorkflowActorWithTestAddons(val finalizationProbe: TestProbe,
                                   workflowStoreActor: ActorRef,
                                   workflowHeartbeatConfig: WorkflowHeartbeatConfig,
                                   totalJobsByRootWf: AtomicInteger,
-                                  extraPathBuilderFactory: Option[PathBuilderFactory]) extends WorkflowActor(
+                                  extraPathBuilderFactory: Option[PathBuilderFactory],
+                                  initializationMaxRetries: Int,
+                                  initializationInterval: FiniteDuration,
+                                  workflowInitializationActorProbe: TestProbe,
+                                  workflowExecutionActorProbe: TestProbe) extends WorkflowActor(
   workflowToStart = WorkflowToStart(id = workflowId,
     submissionTime = OffsetDateTime.now,
     state = startState,
@@ -309,6 +393,12 @@ class WorkflowActorWithTestAddons(val finalizationProbe: TestProbe,
   totalJobsByRootWf = totalJobsByRootWf,
   fileHashCacheActorProps = None,
   blacklistCache = None) {
+
+  override def createInitializationActor(workflowDescriptor: EngineWorkflowDescriptor, name: String): ActorRef = workflowInitializationActorProbe.ref
+  override def createWorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor, data: WorkflowActorData): ActorRef = workflowExecutionActorProbe.ref
+
+  override val initializationRetryInterval: FiniteDuration = initializationInterval
+  override val maxInitializationAttempts: Int = initializationMaxRetries
 
   override val pathBuilderFactories: List[PathBuilderFactory] = extraPathBuilderFactory match {
     case Some(pbf) => EngineFilesystems.configuredPathBuilderFactories :+ pbf

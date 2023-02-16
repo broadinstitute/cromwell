@@ -38,12 +38,12 @@ trait PipelinesParameterConversions {
           val drsCommand =
             List(fileInput.cloudPath.pathAsString, fileInput.containerPath.pathAsString) ++
               drsPath.requesterPaysProjectIdOption.toList
-          val marthaEnv = DrsConfig.toEnv(drsFileSystemProvider.drsConfig)
+          val drsResolverEnv = DrsConfig.toEnv(drsFileSystemProvider.drsConfig)
           val localizationAction = ActionBuilder
             .withImage(drsDockerImage)
             .withCommand(drsCommand: _*)
             .withMounts(mounts)
-            .setEnvironment(marthaEnv.asJava)
+            .setEnvironment(drsResolverEnv.asJava)
             .withLabels(labels)
           List(ActionBuilder.describeParameter(fileInput, labels), localizationAction)
         case sraPath: SraPath =>

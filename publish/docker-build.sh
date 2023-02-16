@@ -6,8 +6,10 @@ set -euo pipefail
 
 export DOCKER_CLI_EXPERIMENTAL=enabled
 
-docker buildx create --use --name multi-arch-builder26
+docker buildx rm cromwell-multi-arch-builder || true
+docker buildx create --use --name cromwell-multi-arch-builder
 
 build_root="$( dirname "${BASH_SOURCE[0]}" )"
-docker buildx build "${build_root}" --platform linux/amd64,linux/arm64 -t broadinstitute/cromwell-publish:ubuntu-test --push
-#docker push broadinstitute/cromwell-publish
+docker buildx build "${build_root}" --platform linux/amd64,linux/arm64 -t broadinstitute/cromwell-publish:ubuntu-nobrew --push
+
+docker buildx rm cromwell-multi-arch-builder

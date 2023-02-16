@@ -2,7 +2,7 @@
 
 # Installs required dependencies inside the docker image used for publishing cromwell
 
-set -eou pipefail
+set -eo pipefail # SDKMAN relies on testing/setting unbound variables so no `u`
 
 apt-get update
 apt-get install \
@@ -11,31 +11,23 @@ apt-get install \
     git \
     gnupg \
     wget \
+    ca-certificates \
+    unzip \
+    zip \
     -y --no-install-recommends
 
-# setup install for adoptopenjdk
-# https://adoptopenjdk.net/installation.html#linux-pkg-deb
-wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | apt-key add -
-echo "deb https://adoptopenjdk.jfrog.io/adoptopenjdk/deb $(
-        grep UBUNTU_CODENAME /etc/os-release | cut -d = -f 2
-    ) main" |
-    tee /etc/apt/sources.list.d/adoptopenjdk.list
+# Recommended by SBT
+# https://www.scala-sbt.org/1.x/docs/Installing-sbt-on-Linux.html#Installing+from+SDKMAN
+curl -s "https://get.sdkman.io" | bash
+source "$HOME/.sdkman/bin/sdkman-init.sh"
+sdk version
+sdk install java $(sdk list java | grep -o "\b11\.[0-9]*\.[0-9]*\-tem" | head -1) # latest `11` build of Temurin
+java -version
+sdk install sbt
 
 # Install jq 1.6 to ensure --rawfile is supported
 curl -L https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 -o /usr/bin/jq
 chmod +x /usr/bin/jq
-
-apt-get update
-apt-get install \
-    adoptopenjdk-11-hotspot \
-    -y --no-install-recommends
-
-# sbt launcher non-deb package installation instructions adapted from
-# - https://github.com/sbt/sbt/releases/tag/v1.4.9
-# - https://github.com/broadinstitute/scala-baseimage/pull/4/files
-curl --location --fail --silent --show-error "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.tgz" |
-    tar zxf - -C /usr/share
-update-alternatives --install /usr/bin/sbt sbt /usr/share/sbt/bin/sbt 1
 
 # Update sbt launcher
 sbt -Dsbt.supershell=false -Dsbt.rootdir=true sbtVersion

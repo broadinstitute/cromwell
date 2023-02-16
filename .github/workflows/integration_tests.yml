@@ -48,6 +48,20 @@ jobs:
             friendly_name: Horicromtal Deadlock
           - build_type: singleWorkflowRunner
             friendly_name: Single Workflow Runner
+          - build_type: centaurLocal
+            build_mariadb: 10.3
+            friendly_name: Centaur Local with MariaDB 10.3
+          - build_type: centaurLocal
+            build_postgresql: 11.3
+            friendly_name: Centaur Local with PostgreSQL 11.3
+          - build_type: centaurEngineUpgradeLocal
+            build_mysql: 5.7
+            friendly_name: Centaur Engine Upgrade Local with MySQL 5.7
+          - build_type: centaurSlurm
+            build_mysql: 5.7
+            friendly_name: Centaur Slurm with MySQL 5.7
+          - build_type: referenceDiskManifestBuilderApp
+            friendly_name: Reference Disk Manifest Builder App
     name: ${{ matrix.friendly_name }}
     env:
       BUILD_NAME: ${{ matrix.build_type }}

@@ -633,7 +633,7 @@ workflow publish_workflow {
         String organization
         Boolean majorRelease = true
         Boolean publishHomebrew = true
-        String publishDocker = "broadinstitute/cromwell-publish:latest"
+        String publishDocker = "broadinstitute/cromwell-publish:ubuntu-nobrew"
     }
 
     parameter_meta {

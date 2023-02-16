@@ -2,10 +2,10 @@
 
 # Installs required dependencies inside the docker image used for publishing cromwell
 
-set -eo pipefail # SDKMAN relies on testing/setting unbound variables so no `u`
+set -eou pipefail
 
-apt-get update
-apt-get install \
+apt update
+apt install \
     apt-transport-https \
     curl \
     git \
@@ -16,18 +16,22 @@ apt-get install \
     zip \
     -y --no-install-recommends
 
-# Recommended by SBT
-# https://www.scala-sbt.org/1.x/docs/Installing-sbt-on-Linux.html#Installing+from+SDKMAN
-curl -s "https://get.sdkman.io" | bash
-source "$HOME/.sdkman/bin/sdkman-init.sh"
-sdk version
-sdk install java $(sdk list java | grep -o "\b11\.[0-9]*\.[0-9]*\-tem" | head -1) # latest `11` build of Temurin
-java -version
-sdk install sbt
+mkdir -p /etc/apt/keyrings
+wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | tee /etc/apt/keyrings/adoptium.asc
+echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list
+apt update
+apt install -y temurin-11-jdk
 
 # Install jq 1.6 to ensure --rawfile is supported
 curl -L https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 -o /usr/bin/jq
 chmod +x /usr/bin/jq
+
+# sbt launcher non-deb package installation instructions adapted from
+# - https://github.com/sbt/sbt/releases/tag/v1.4.9
+# - https://github.com/broadinstitute/scala-baseimage/pull/4/files
+curl --location --fail --silent --show-error "https://github.com/sbt/sbt/releases/download/v1.8.2/sbt-1.8.2.tgz" |
+    tar zxf - -C /usr/share
+update-alternatives --install /usr/bin/sbt sbt /usr/share/sbt/bin/sbt 1
 
 # Update sbt launcher
 sbt -Dsbt.supershell=false -Dsbt.rootdir=true sbtVersion

@@ -53,7 +53,7 @@ Make or copy the following files into a temporary `release/` directory outside t
   "publish_workflow.githubToken": "<<GITHUB TOKEN VALUE>>",
   "publish_workflow.majorRelease": true,
   "publish_workflow.publishHomebrew": false,
-  "publish_workflow.publishDocker": "broadinstitute/cromwell-publish:latest",
+  "publish_workflow.publishDocker": "broadinstitute/cromwell-publish:ubuntu-nobrew",
   "publish_workflow.organization": "broadinstitute"
 }
 ```

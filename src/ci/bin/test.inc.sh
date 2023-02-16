@@ -652,22 +652,26 @@ cromwell::private::create_centaur_variables() {
     # Pick **one** of the databases to run Centaur against
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
-        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
+        "${CROMWELL_BUILD_PROVIDER_CIRCLE}"|\
+        "${CROMWELL_BUILD_PROVIDER_GITHUB}")
 
             if [[ -n "${CROMWELL_BUILD_MYSQL_DOCKER_TAG:+set}" ]]; then
                 CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.MySQLProfile$"
                 CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="com.mysql.cj.jdbc.Driver"
                 CROMWELL_BUILD_CENTAUR_JDBC_URL="${mysql_jdbc_url}"
+                echo "Setting up mySQL url"
 
             elif [[ -n "${CROMWELL_BUILD_MARIADB_DOCKER_TAG:+set}" ]]; then
                 CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.MySQLProfile$"
                 CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="org.mariadb.jdbc.Driver"
                 CROMWELL_BUILD_CENTAUR_JDBC_URL="${mariadb_jdbc_url}"
+                echo "Setting up mariaDB url"
 
             elif [[ -n "${CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG:+set}" ]]; then
                 CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.PostgresProfile$"
                 CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="org.postgresql.Driver"
                 CROMWELL_BUILD_CENTAUR_JDBC_URL="${postgresql_jdbc_url}"
+                echo "Setting up postgres URL"
 
             else
                 echo "Error: Unable to determine which RDBMS to use for Centaur." >&2

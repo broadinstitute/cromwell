@@ -76,8 +76,8 @@ jobs:
         cd cromwhelm
         git checkout main
         ls -la
-        sed -i "s/appVersion.*/appVersion: \"$CROMWELL_VERSION\"/" cromwell-helm/Chart.yaml
-        sed -i "s/image: broadinstitute\/cromwell.*/image: broadinstitute\/cromwell:$CROMWELL_VERSION/" cromwell-helm/templates/cromwell.yaml
+        sed -i "s|image: broadinstitute/cromwell:.*|image: broadinstitute/cromwell:$CROMWELL_VERSION|" terra-batch-libchart/values.yaml
+
         git diff
         git config --global user.name "broadbot"
         git config --global user.email "broadbot@broadinstitute.org"

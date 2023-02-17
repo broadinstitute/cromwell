@@ -1,9 +1,8 @@
 package cromwell.backend.google.pipelines.batch
 import com.google.api.gax.rpc.{FixedHeaderProvider, HeaderProvider}
-import com.google.cloud.batch.v1.BatchServiceSettings
+import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, GetJobRequest, Job, JobName, LogsPolicy, Runnable, TaskGroup, TaskSpec}
 import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy}
 import com.google.cloud.batch.v1.Runnable.Container
-import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, TaskGroup, TaskSpec}
 import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.BatchRequest
 import com.google.protobuf.Duration
 import com.google.cloud.batch.v1.LogsPolicy.Destination
@@ -124,6 +123,18 @@ final case class GcpBatchJob (
       println("job submitted")
 
       println(result.getName)
+
+      var status = "NA"
+
+      while (status != "SUCCEEDED") {
+        val request = GetJobRequest.newBuilder.setName(JobName.of(jobSubmission.projectId, jobSubmission.region, jobSubmission.jobName).toString()).build
+        val job = batchServiceClient.getJob(request)
+
+        status = job.getStatus.getState.toString
+
+        println(f"status in while $status")
+
+      }
 
 
     }

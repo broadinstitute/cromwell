@@ -1,12 +1,13 @@
 package cromwell.backend.google.pipelines.batch
 
 //import cats.instances.unit
-import com.google.api.core.ApiFuture
+//import com.google.api.core.ApiFuture
+import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.BatchGetJob
 
 //import scala.concurrent.Promise
 import scala.util.Try
-//import com.google.cloud.batch.v1.{BatchServiceClient, GetJobRequest, JobName}
-import com.google.cloud.batch.v1.{BatchServiceClient, GetJobRequest, Job, JobName}
+import com.google.cloud.batch.v1.{BatchServiceClient, GetJobRequest, JobName}
+//import com.google.cloud.batch.v1.{BatchServiceClient, GetJobRequest, Job, JobName}
 
 //import scala.concurrent.Await
 //import scala.concurrent.duration.DurationInt
@@ -28,15 +29,28 @@ class GcpBatchJobGetRequest {
     val region = "us-central1"
     //val jobName2 = "job-8aadb81a-a888-4c91-af7e-6a15aa1b1797"
 
-    /*
+    var status = "NA"
+    println(status)
+
     val batchServiceClient = BatchServiceClient.create
 
-    val request = GetJobRequest.newBuilder.setName(JobName.of(projectId, region, jobName).toString()).build
-    val response = batchServiceClient.getJob(request)
+    while (status != "SUCCEEDED") {
+      val request = GetJobRequest.newBuilder.setName(JobName.of(projectId, region, jobName).toString()).build
+      val job = batchServiceClient.getJob(request)
+
+      status = job.getStatus.getState.toString
+
+      println(f"status in while $status")
+
+    }
+
+
+
+
     //print(response.getStatus.getState)
-    print(response.getStatus.toString)
+    //print(response.getStatus.toString)
     batchServiceClient.close()
-    */
+
     //response
 
 
@@ -53,20 +67,22 @@ class GcpBatchJobGetRequest {
         */
 
 
+    /*
     val batchServiceClient = BatchServiceClient.create
     val request = GetJobRequest.newBuilder.setName(JobName.of(projectId, region, jobName).toString())
                                .build
     println(request.toString)
     val future: ApiFuture[Job] = batchServiceClient.getJobCallable.futureCall(request)
-    println(future.get())
     //Await.ready(future.get, Duration.Inf)
     //future.get
 
     val response = future.get()
-    println(response)
-    response.getStatus.getState
+    //println(response)
+    //response.getStatus.getState
     batchServiceClient.close()
-    response
+    //println(response.getStatus.getState)
+    */
+    BatchGetJob(jobName)
 
     /*
     Await.result(future, 1.second) match {

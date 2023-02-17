@@ -43,12 +43,12 @@ object Dependencies {
   private val googleCloudMonitoringV = "3.2.5"
   private val googleCloudNioV = "0.124.8"
   private val googleCloudStorageV = "2.17.2"
-  private val googleGaxGrpcV = "2.22.0"
+  private val googleGaxGrpcV = "2.23.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-genomics
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"
   private val googleHttpClientApacheV = "2.1.2"
   private val googleHttpClientV = "1.42.3"
-  private val googleCloudBatchV1 = "0.10.0"
+  private val googleCloudBatchV1 = "0.11.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-lifesciences
   private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20210813-1.32.1"
   private val googleOauth2V = "1.5.3"
@@ -329,7 +329,7 @@ object Dependencies {
     "io.grpc" % "grpc-core" % grpcV,
     "com.google.guava" % "guava" % guavaV,
     "com.google.cloud" % "google-cloud-nio" % googleCloudNioV
-      exclude("com.google.api.grpc", "grpc-google-common-protos")
+      //exclude("com.google.api.grpc", "grpc-google-common-protos")
       exclude("com.google.cloud.datastore", "datastore-v1-protos")
       exclude("org.apache.httpcomponents", "httpclient"),
     "org.broadinstitute.dsde.workbench" %% "workbench-google" % workbenchGoogleV

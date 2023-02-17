@@ -1,13 +1,13 @@
 package cromwell.backend.google.pipelines.batch
 
-import akka.util.Timeout
+//import akka.util.Timeout
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
 
 //import scala.concurrent.Promise
 //import scala.util.Try
-import scala.util.control.NoStackTrace
+//import scala.util.control.NoStackTrace
 //import cromwell.backend.google.pipelines.batch.RunStatus.{DeletionInProgress, Failed, StateUnspecified, Unrecognized}
 
 //import scala.concurrent.Promise
@@ -61,6 +61,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   private val jobTemp = "job-" + java.util.UUID.randomUUID.toString
 
   //override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse super.receive
+  override def receive: Receive = pollingActorClientReceive orElse super.receive
 
   /** Should return true if the status contained in `thiz` is equivalent to `that`, delta any other data that might be carried around
     * in the state type.
@@ -144,12 +145,19 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     println("started polling")
 
+    println(handle.pendingJob)
+
+    println(handle.runInfo)
+
     //val completionPromise = Promise[Try[Unit]]()
 
-    implicit val timeout: Timeout = Timeout(5.seconds)
+    super[GcpBatchStatusRequestClient].pollStatus(workflowId, handle.pendingJob, jobTemp)
+
+    //implicit val timeout: Timeout = Timeout(5.seconds)
     //val result2: Future[Any] = backendSingletonActor ? BatchGetJob(completionPromise, jobTemp)
 
 
+    /*
     def testPoll(quick: Any): Future[RunStatus] = quick match {
       //case GcpBatchJob(_, _, Some(value)) =>
       //  Future.successful(value)
@@ -165,7 +173,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       quickAnswer <- backendSingletonActor ? BatchGetJob(jobTemp)
       answer <- testPoll(quickAnswer)
     } yield answer
-
+    */
 
     //Future.successful(Running) //temp to keep running
 

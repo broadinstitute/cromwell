@@ -10,6 +10,6 @@ docker buildx rm cromwell-multi-arch-builder || true
 docker buildx create --use --name cromwell-multi-arch-builder
 
 build_root="$( dirname "${BASH_SOURCE[0]}" )"
-docker buildx build "${build_root}" --platform linux/amd64,linux/arm64 -t broadinstitute/cromwell-publish:ubuntu-nobrew --push
+docker buildx build "${build_root}" --platform linux/amd64,linux/arm64 -t broadinstitute/cromwell-publish:latest --push
 
 docker buildx rm cromwell-multi-arch-builder

@@ -9,6 +9,7 @@ run-name: ${{ github.actor }} Integration Testing.
 on:
   workflow_dispatch: #Manual trigger from GitHub UI
   push: #git push
+  merge_group:
 
 permissions: 
   contents: read

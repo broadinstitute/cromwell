@@ -2,7 +2,7 @@ package cromwell.backend.google.pipelines.batch
 
 //import cats.instances.unit
 //import com.google.api.core.ApiFuture
-import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.BatchGetJob
+//import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.BatchGetJob
 
 //import scala.concurrent.Promise
 import scala.util.Try
@@ -25,31 +25,24 @@ class GcpBatchJobGetRequest {
   def GetJob(jobName: String) = {
 
     val projectId = "batch-testing-350715"
-    //val projectId = "cloud-native-hpc"
     val region = "us-central1"
-    //val jobName2 = "job-8aadb81a-a888-4c91-af7e-6a15aa1b1797"
-
-    var status = "NA"
-    println(status)
 
     val batchServiceClient = BatchServiceClient.create
 
-    while (status != "SUCCEEDED") {
-      val request = GetJobRequest.newBuilder.setName(JobName.of(projectId, region, jobName).toString()).build
-      val job = batchServiceClient.getJob(request)
 
-      status = job.getStatus.getState.toString
+    val request = GetJobRequest.newBuilder.setName(JobName.of(projectId, region, jobName).toString()).build
+    val job = batchServiceClient.getJob(request)
 
-      println(f"status in while $status")
+    batchServiceClient.close()
+    job
 
-    }
 
 
 
 
     //print(response.getStatus.getState)
     //print(response.getStatus.toString)
-    batchServiceClient.close()
+    //batchServiceClient.close()
 
     //response
 
@@ -82,7 +75,7 @@ class GcpBatchJobGetRequest {
     batchServiceClient.close()
     //println(response.getStatus.getState)
     */
-    BatchGetJob(jobName)
+    //BatchGetJob(jobName)
 
     /*
     Await.result(future, 1.second) match {

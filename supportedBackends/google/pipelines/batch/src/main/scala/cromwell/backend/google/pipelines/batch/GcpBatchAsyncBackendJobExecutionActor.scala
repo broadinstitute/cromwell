@@ -5,10 +5,14 @@ import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExec
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
 
+import java.lang.Thread.sleep
+import scala.concurrent.Await
+//import scala.util.{Failure, Success}
+
 //import scala.concurrent.Promise
 //import scala.util.Try
 //import scala.util.control.NoStackTrace
-//import cromwell.backend.google.pipelines.batch.RunStatus.{DeletionInProgress, Failed, StateUnspecified, Unrecognized}
+import cromwell.backend.google.pipelines.batch.RunStatus.{DeletionInProgress, Failed, StateUnspecified, Unrecognized}
 
 //import scala.concurrent.Promise
 
@@ -29,10 +33,10 @@ import java.util.UUID
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import GcpBatchBackendSingletonActor._
-import cromwell.backend.google.pipelines.batch.RunStatus.{Succeeded, TerminalRunStatus}
-//import cromwell.backend.google.pipelines.batch.RunStatus.{Running, Succeeded, TerminalRunStatus}
+//import cromwell.backend.google.pipelines.batch.RunStatus.{Succeeded, TerminalRunStatus}
+import cromwell.backend.google.pipelines.batch.RunStatus.{Running, Succeeded, TerminalRunStatus}
 
-//import com.google.cloud.batch.v1.JobStatus
+import com.google.cloud.batch.v1.JobStatus
 
 //import scala.util.Success
 //import scala.util.{Failure, Success, Try}
@@ -111,7 +115,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     yield runId
 
     runBatchResponse map { runId => PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None) }
-    //runBatchResponse map { runId => PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None) }
 
   }
 
@@ -145,13 +148,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     println("started polling")
 
-    println(handle.pendingJob)
-
-    println(handle.runInfo)
-
-    //val completionPromise = Promise[Try[Unit]]()
-
-    super[GcpBatchStatusRequestClient].pollStatus(workflowId, handle.pendingJob, jobTemp)
+    //super[GcpBatchStatusRequestClient].pollStatus(workflowId, handle.pendingJob, jobTemp)
 
     //implicit val timeout: Timeout = Timeout(5.seconds)
     //val result2: Future[Any] = backendSingletonActor ? BatchGetJob(completionPromise, jobTemp)
@@ -177,21 +174,26 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     //Future.successful(Running) //temp to keep running
 
-    /*
-    val gcpBatchPoll = new GcpBatchJobGetRequest
-    val result = gcpBatchPoll.GetJob(jobTemp)
-    */
 
-    //val gcpBatchPoll = new GcpBatchJobGetRequest
-    //val result = gcpBatchPoll.GetJob(jobTemp)
-    //val temp = result.toString //matches for string
-    //val batchRunStatus = RunStatus.fromJobStatus(status=result)
+    sleep(60000)
+    println("sleep 60 seconds")
 
-    /*
-    val jobStatus = result.getStatus.getState
+    val f = Future {
+      val gcpBatchPoll = new GcpBatchJobGetRequest
+      val result = gcpBatchPoll.GetJob(jobTemp)
+      //val jobStatus = result.getStatus.getState
+      result.getStatus.getState
+    }
 
-    //https://github.com/broadinstitute/cromwell/blob/328a0fe0aa307ee981b00e4af6b397b61a9fbe9e/engine/src/main/scala/cromwell/engine/workflow/lifecycle/execution/SubWorkflowExecutionActor.scala
-    jobStatus match {
+    //val resultFuture = for {
+    //
+    //}
+
+    val resultFuture = Await.result(f, 30.second)
+    println(resultFuture)
+
+
+    resultFuture match {
       case JobStatus.State.QUEUED =>
         log.info("job queued")
         Future.successful(Running)
@@ -216,13 +218,19 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       case JobStatus.State.UNRECOGNIZED =>
         log.info("state unrecognized")
         Future.successful(Unrecognized)
-      //case _ =>
-      //  log.info("job status not matched")
-      //  Future.successful(Running)
+      case _ =>
+        log.info("job status not matched")
+        Future.successful(Running)
 
     }
 
-     */
+
+
+
+
+    //https://github.com/broadinstitute/cromwell/blob/328a0fe0aa307ee981b00e4af6b397b61a9fbe9e/engine/src/main/scala/cromwell/engine/workflow/lifecycle/execution/SubWorkflowExecutionActor.scala
+
+
   }
 
   override def isTerminal(runStatus: RunStatus): Boolean = {

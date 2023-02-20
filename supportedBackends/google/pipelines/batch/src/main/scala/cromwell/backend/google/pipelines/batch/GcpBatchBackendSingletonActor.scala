@@ -17,6 +17,7 @@ object GcpBatchBackendSingletonActor {
 
   case class BatchRequest(workflowId: WorkflowId, projectId: String, region: String, jobName: String, runtimeAttributes: GcpBatchRuntimeAttributes)
   case class BatchGetJob(jobId: String)
+  case class BatchJobAsk(test: String)
 }
 
 final class GcpBatchBackendSingletonActor (name: String) extends Actor with ActorLogging {
@@ -30,6 +31,7 @@ final class GcpBatchBackendSingletonActor (name: String) extends Actor with Acto
       //val job = GcpBatchJob(jobSubmission, 2000, 200, "e2-standard-4", "gcr.io/google-containers/busybox")
       val job = GcpBatchJob(jobSubmission,200,200, "e2-standard-4", jobSubmission.runtimeAttributes)
       job.submitJob()
+      sender() ! job
       //result.getStatus
     case jobStatus: BatchGetJob =>
       println("matched job status")
@@ -37,6 +39,9 @@ final class GcpBatchBackendSingletonActor (name: String) extends Actor with Acto
       val gcpBatchPoll = new GcpBatchJobGetRequest
       gcpBatchPoll.GetJob(jobStatus.jobId)
       ()
+    case _: BatchJobAsk =>
+      println("matched job ask")
+      sender() ! "ask"
     case other =>
       log.error("Unknown message to GCP Batch Singleton Actor: {}. Dropping it.", other)
 

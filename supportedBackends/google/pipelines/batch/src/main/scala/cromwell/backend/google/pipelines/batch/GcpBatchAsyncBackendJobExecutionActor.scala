@@ -1,11 +1,11 @@
 package cromwell.backend.google.pipelines.batch
 
-//import akka.util.Timeout
+import akka.util.Timeout
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
 
-import java.lang.Thread.sleep
+//import java.lang.Thread.sleep
 import scala.concurrent.Await
 //import scala.util.{Failure, Success}
 
@@ -29,7 +29,7 @@ import akka.actor.ActorRef
 import akka.pattern.AskSupport
 import cromwell.services.instrumentation.CromwellInstrumentation
 
-import java.util.UUID
+//import java.util.UUID
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import GcpBatchBackendSingletonActor._
@@ -103,13 +103,15 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     //val batchTest = BatchRequest(workflowId, projectId = "batch-testing-350715", region = "us-central1", jobName = jobTemp, runtimeAttributes)
 
+
     val runBatchResponse = for {
       _ <- uploadScriptFile()
       //completionPromise = Promise[JobStatus]
       //_ = backendSingletonActor ! batchTest
       _ = backendSingletonActor ! BatchRequest(workflowId, projectId = "batch-testing-350715", region = "us-central1", jobName = jobTemp, runtimeAttributes)
       //submitJobResponse <- completionPromise.future
-      runId = StandardAsyncJob(UUID.randomUUID().toString) //temp to test
+      //runId = StandardAsyncJob(UUID.randomUUID().toString) //temp to test
+      runId = StandardAsyncJob(jobTemp) //temp to test
 
     }
     yield runId
@@ -135,24 +137,28 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override def pollStatusAsync(handle: GcpBatchPendingExecutionHandle): Future[RunStatus] = {
 
-    //val jobId = handle.pendingJob.jobId
+    val jobId = handle.pendingJob.jobId
 
-    /*
+
     val job = handle.runInfo match {
       case Some(actualJob) => actualJob
       case None =>
         throw new RuntimeException(
           s"pollStatusAsync called but job not available. This should not happen. Job Id $jobId"
         )
-    }*/
+    }
+
+    println(f"job id is $jobId")
+    println(f"job is $job")
 
     println("started polling")
 
     //super[GcpBatchStatusRequestClient].pollStatus(workflowId, handle.pendingJob, jobTemp)
 
-    //implicit val timeout: Timeout = Timeout(5.seconds)
-    //val result2: Future[Any] = backendSingletonActor ? BatchGetJob(completionPromise, jobTemp)
-
+    implicit val timeout: Timeout = Timeout(90.seconds)
+    val futureResult = backendSingletonActor ? BatchGetJob(jobId)
+    val result = Await.result(futureResult, timeout.duration).asInstanceOf[String]
+    println(result)
 
     /*
     def testPoll(quick: Any): Future[RunStatus] = quick match {
@@ -175,19 +181,17 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     //Future.successful(Running) //temp to keep running
 
 
-    sleep(60000)
-    println("sleep 60 seconds")
+    //sleep(60000)
+    //println("sleep 60 seconds")
+
 
     val f = Future {
       val gcpBatchPoll = new GcpBatchJobGetRequest
-      val result = gcpBatchPoll.GetJob(jobTemp)
+      val result = gcpBatchPoll.GetJob(jobId)
       //val jobStatus = result.getStatus.getState
       result.getStatus.getState
     }
 
-    //val resultFuture = for {
-    //
-    //}
 
     val resultFuture = Await.result(f, 30.second)
     println(resultFuture)

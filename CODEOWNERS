@@ -2,4 +2,4 @@
 # the repo. Unless a later match takes precedence,
 # @DataBiosphere/terra-batch-analysis-code-owners will be requested for
 # review when someone opens a pull request.
-* @DataBiosphere/terra-batch-analysis-code-owners
+* @broadinstitute/dsp-batch

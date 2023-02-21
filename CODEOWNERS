@@ -1,5 +1,5 @@
 # These owners will be the default owners for everything in
 # the repo. Unless a later match takes precedence,
-# @DataBiosphere/terra-batch-analysis-code-owners will be requested for
+# @broadinstitute/dsp-batch will be requested for
 # review when someone opens a pull request.
 * @broadinstitute/dsp-batch

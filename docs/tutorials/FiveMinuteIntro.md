@@ -4,7 +4,7 @@
 
 * A Unix-based operating system (yes, that includes Mac!)
 * A Java 11 runtime environment 
-    * You can see what you have by running `$ java -version` on a terminal. You're looking for a version that's at least `1.11` or higher.
+    * You can see what you have by running `$ java -version` on a terminal.
     * If not, consider installing via conda or brew [as explained here](../Releases.md).
     * We recommend [SDKMAN](https://sdkman.io/install) to install the latest 11 build of [Temurin](https://adoptium.net/temurin/releases/?version=11)
       * `sdk install java 11.0.16-tem` as of the time of this writing

@@ -17,6 +17,12 @@ tags
 target
 /site
 
+#from running integration tests locally
+actual.json
+console_output.txt
+expected.json
+run_mode_metadata.json
+
 # custom config
 cromwell-executions
 cromwell-test-executions

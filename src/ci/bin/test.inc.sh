@@ -83,6 +83,7 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_PROVIDER_TRAVIS="travis"
     CROMWELL_BUILD_PROVIDER_JENKINS="jenkins"
     CROMWELL_BUILD_PROVIDER_CIRCLE="circle"
+    CROMWELL_BUILD_PROVIDER_GITHUB="github"
     CROMWELL_BUILD_PROVIDER_UNKNOWN="unknown"
 
     if [[ "${TRAVIS-false}" == "true" ]]; then
@@ -91,6 +92,8 @@ cromwell::private::create_build_variables() {
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_JENKINS}"
     elif [[ "${CIRCLECI-false}" == "true" ]]; then
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_CIRCLE}"
+    elif [[ "${GITHUB_ACTIONS-false}" == "true" ]]; then
+        CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_GITHUB}"
     else
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_UNKNOWN}"
     fi
@@ -300,6 +303,21 @@ cromwell::private::create_build_variables() {
                 CROMWELL_BUILD_RUN_TESTS=true
             fi
             ;;
+        "${CROMWELL_BUILD_PROVIDER_GITHUB}")
+            CROMWELL_BUILD_IS_CI=true
+            CROMWELL_BUILD_IS_SECURE=true
+            CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
+            CROMWELL_BUILD_BRANCH="${GITHUB_REF_NAME}"
+            CROMWELL_BUILD_EVENT="${GITHUB_EVENT_NAME}"
+            CROMWELL_BUILD_TAG=""
+            CROMWELL_BUILD_NUMBER="${GITHUB_RUN_ID}"
+            CROMWELL_BUILD_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            CROMWELL_BUILD_GIT_USER_EMAIL=""
+            CROMWELL_BUILD_GIT_USER_NAME="${GITHUB_ACTOR}"
+            CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
+            CROMWELL_BUILD_GENERATE_COVERAGE=true
+            CROMWELL_BUILD_RUN_TESTS=true
+            ;;
         *)
             CROMWELL_BUILD_IS_CI=false
             CROMWELL_BUILD_IS_SECURE=true
@@ -476,7 +494,8 @@ cromwell::private::create_database_variables() {
 
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
-        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
+        "${CROMWELL_BUILD_PROVIDER_CIRCLE}"|\
+        "${CROMWELL_BUILD_PROVIDER_GITHUB}")
             CROMWELL_BUILD_MARIADB_HOSTNAME="localhost"
             CROMWELL_BUILD_MARIADB_PORT="23306"
             CROMWELL_BUILD_MARIADB_DOCKER_TAG="${BUILD_MARIADB-}"
@@ -633,7 +652,8 @@ cromwell::private::create_centaur_variables() {
     # Pick **one** of the databases to run Centaur against
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
-        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
+        "${CROMWELL_BUILD_PROVIDER_CIRCLE}"|\
+        "${CROMWELL_BUILD_PROVIDER_GITHUB}")
 
             if [[ -n "${CROMWELL_BUILD_MYSQL_DOCKER_TAG:+set}" ]]; then
                 CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.MySQLProfile$"
@@ -1434,6 +1454,21 @@ cromwell::build::setup_common_environment() {
             cromwell::private::login_docker
             cromwell::private::install_adoptopenjdk
             cromwell::private::setup_pyenv_python_latest
+            cromwell::private::start_docker_databases
+            ;;
+        "${CROMWELL_BUILD_PROVIDER_GITHUB}")
+            # Try to login to vault, and if successful then use vault creds to login to docker.
+            # For those committers with vault access this avoids pull rate limits reported in BT-143.
+            cromwell::private::install_vault
+            cromwell::private::login_vault
+            cromwell::private::login_docker
+            #Note: Unlike with other CI providers, we are using Github Actions to install Java and sbt for us.
+            #This is automatically handled in the set_up_cromwell Github Action, which can be found in
+            #[cromwell root]/.github/set_up_cromwell_aciton.
+            cromwell::private::install_docker_compose
+            cromwell::private::delete_boto_config
+            cromwell::private::delete_sbt_boot
+            cromwell::private::upgrade_pip
             cromwell::private::start_docker_databases
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}"|\

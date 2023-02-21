@@ -155,9 +155,14 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     //super[GcpBatchStatusRequestClient].pollStatus(workflowId, handle.pendingJob, jobTemp)
 
+    //https://learning.oreilly.com/library/view/scala-cookbook/9781449340292/ch13s11.html
+
     implicit val timeout: Timeout = Timeout(90.seconds)
-    val futureResult = backendSingletonActor ? BatchGetJob(jobId)
+    //val futureResult = backendSingletonActor ? BatchGetJob(jobId)
+    val futureResult = backendSingletonActor ? BatchJobAsk(jobId)
+    println("after ask before result")
     val result = Await.result(futureResult, timeout.duration).asInstanceOf[String]
+    println("after ask result")
     println(result)
 
     /*
@@ -193,7 +198,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     }
 
 
-    val resultFuture = Await.result(f, 30.second)
+    val resultFuture = Await.result(f, 5.second)
     println(resultFuture)
 
 

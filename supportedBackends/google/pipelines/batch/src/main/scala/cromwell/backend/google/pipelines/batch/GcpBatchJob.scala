@@ -117,8 +117,8 @@ final case class GcpBatchJob (
       val result = batchServiceClient
         .createJobCallable
         .futureCall(createJobRequest)
-        .get(3, TimeUnit
-          .MINUTES)
+        .get(5, TimeUnit
+          .SECONDS)
       println("job submitted")
 
       batchServiceClient.close()

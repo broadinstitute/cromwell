@@ -26,12 +26,15 @@ final class GcpBatchBackendSingletonActor (name: String) extends Actor with Acto
 
   implicit val ec: ExecutionContext = context.dispatcher
 
+
+  //var jobTemp
+
   override def receive: Receive = {
     case jobSubmission: BatchRequest =>
       //val job = GcpBatchJob(jobSubmission, 2000, 200, "e2-standard-4", "gcr.io/google-containers/busybox")
       val job = GcpBatchJob(jobSubmission,200,200, "e2-standard-4", jobSubmission.runtimeAttributes)
       job.submitJob()
-      sender() ! job
+      //sender() ! job
       //result.getStatus
     case jobStatus: BatchGetJob =>
       println("matched job status")

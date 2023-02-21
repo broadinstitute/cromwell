@@ -139,7 +139,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     val jobId = handle.pendingJob.jobId
 
-
     val job = handle.runInfo match {
       case Some(actualJob) => actualJob
       case None =>
@@ -148,22 +147,15 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         )
     }
 
-    println(f"job id is $jobId")
-    println(f"job is $job")
-
-    println("started polling")
+    log.info(s"started polling for ${job} with jobId ${jobId}")
 
     //super[GcpBatchStatusRequestClient].pollStatus(workflowId, handle.pendingJob, jobTemp)
 
-    //https://learning.oreilly.com/library/view/scala-cookbook/9781449340292/ch13s11.html
-
-    implicit val timeout: Timeout = Timeout(90.seconds)
+    implicit val timeout: Timeout = Timeout(60.seconds)
     //val futureResult = backendSingletonActor ? BatchGetJob(jobId)
     val futureResult = backendSingletonActor ? BatchJobAsk(jobId)
-    println("after ask before result")
     val result = Await.result(futureResult, timeout.duration).asInstanceOf[String]
-    println("after ask result")
-    println(result)
+    log.info(result)
 
     /*
     def testPoll(quick: Any): Future[RunStatus] = quick match {
@@ -197,10 +189,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       result.getStatus.getState
     }
 
-
     val resultFuture = Await.result(f, 5.second)
-    println(resultFuture)
-
 
     resultFuture match {
       case JobStatus.State.QUEUED =>

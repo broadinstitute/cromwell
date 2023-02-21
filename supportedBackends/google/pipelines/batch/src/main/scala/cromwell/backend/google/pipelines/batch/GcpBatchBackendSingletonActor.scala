@@ -44,7 +44,7 @@ final class GcpBatchBackendSingletonActor (name: String) extends Actor with Acto
       ()
     case _: BatchJobAsk =>
       println("matched job ask")
-      sender() ! "ask"
+      sender() ! "Singelton Actor ready!"
     case other =>
       log.error("Unknown message to GCP Batch Singleton Actor: {}. Dropping it.", other)
 

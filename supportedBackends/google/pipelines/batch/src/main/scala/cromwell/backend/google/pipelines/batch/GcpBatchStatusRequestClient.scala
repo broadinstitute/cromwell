@@ -49,7 +49,7 @@ trait GcpBatchStatusRequestClient { this: Actor with ActorLogging =>
         //gcpBatchActor ! GcpBatchSingleton
         gcpBatchActor ! test.GetJob(gcpBatchJobId)
 
-        //println(GcpBatchRunStatus)
+        println(RunStatus)
         val newPromise = Promise[RunStatus]()
         pollingActorClientPromise = Option(newPromise)
         newPromise.future

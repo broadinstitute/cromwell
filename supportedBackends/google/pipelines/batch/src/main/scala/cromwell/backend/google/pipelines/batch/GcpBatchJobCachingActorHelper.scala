@@ -10,7 +10,8 @@ trait GcpBatchJobCachingActorHelper extends StandardCachingActorHelper {
     backendInitializationDataAs[GcpBackendInitializationData]
   }
   lazy val batchConfiguration: GcpBatchConfiguration = initializationData.gcpBatchConfiguration
-  lazy val runtimeAttributes: GcpBatchRuntimeAttributes = GcpBatchRuntimeAttributes(
+
+  lazy val runtimeAttributes = GcpBatchRuntimeAttributes(
     validatedRuntimeAttributes,
     batchConfiguration
       .runtimeConfig
@@ -18,7 +19,7 @@ trait GcpBatchJobCachingActorHelper extends StandardCachingActorHelper {
 
   //lazy val workingDisk: PipelinesApiAttachedDisk = runtimeAttributes.disks.find(_.name == PipelinesApiWorkingDisk.Name).get
 
-  lazy val batchAttributes: GcpBatchConfigurationAttributes = batchConfiguration.batchAttributes
+  //lazy val batchAttributes: GcpBatchConfigurationAttributes = batchConfiguration.papiAttributes
 
   //lazy val configuration: GcpBatchConfiguration = initializationData.configuration
 

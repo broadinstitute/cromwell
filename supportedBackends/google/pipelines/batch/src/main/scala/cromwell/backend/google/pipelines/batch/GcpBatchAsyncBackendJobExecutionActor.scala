@@ -1,23 +1,39 @@
 package cromwell.backend.google.pipelines.batch
 
+import akka.util.Timeout
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
+
+//import java.lang.Thread.sleep
+import scala.concurrent.Await
+//import scala.util.{Failure, Success}
+
+//import scala.concurrent.Promise
+//import scala.util.Try
+//import scala.util.control.NoStackTrace
 import cromwell.backend.google.pipelines.batch.RunStatus.{DeletionInProgress, Failed, StateUnspecified, Unrecognized}
+
+//import scala.concurrent.Promise
+
+//import scala.concurrent.Promise
+
+//import scala.util.control.NoStackTrace
 //import cromwell.backend.google.pipelines.common.WorkflowOptionKeys
 import cromwell.core.{ExecutionEvent, WorkflowId}
 //import wom.callable.RuntimeEnvironment
-//import cromwell.core.{ExecutionEvent, WorkflowId}
+//import cromwell.core.{ExecutionEvent, WorkkflowId}
 import cromwell.backend.async.PendingExecutionHandle
 import cromwell.backend.async.ExecutionHandle
 import akka.actor.ActorRef
 import akka.pattern.AskSupport
 import cromwell.services.instrumentation.CromwellInstrumentation
 
-import java.util.UUID
+//import java.util.UUID
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import GcpBatchBackendSingletonActor._
+//import cromwell.backend.google.pipelines.batch.RunStatus.{Succeeded, TerminalRunStatus}
 import cromwell.backend.google.pipelines.batch.RunStatus.{Running, Succeeded, TerminalRunStatus}
 
 import com.google.cloud.batch.v1.JobStatus
@@ -57,6 +73,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   private val jobTemp = "job-" + java.util.UUID.randomUUID.toString
 
   //override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse super.receive
+  override def receive: Receive = pollingActorClientReceive orElse super.receive
 
   /** Should return true if the status contained in `thiz` is equivalent to `that`, delta any other data that might be carried around
     * in the state type.
@@ -91,12 +108,19 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override def executeAsync(): Future[ExecutionHandle] = {
 
     //val cpuPlatformTest = runtimeAttributes.cpuPlatform
-    val batchTest = BatchRequest(workflowId, projectId = "batch-testing-350715", region = "us-central1", jobName = jobTemp, runtimeAttributes, gcpBatchCommand)
+
+    //val batchTest = BatchRequest(workflowId, projectId = "batch-testing-350715", region = "us-central1", jobName = jobTemp, runtimeAttributes, gcpBatchCommand)
+
 
     val runBatchResponse = for {
       _ <- uploadScriptFile()
-      _ = backendSingletonActor ! batchTest
-      runId = StandardAsyncJob(UUID.randomUUID().toString) //temp to test
+      //completionPromise = Promise[JobStatus]
+      //_ = backendSingletonActor ! batchTest
+      _ = backendSingletonActor ! BatchRequest(workflowId, projectId = "batch-testing-350715", region = "us-central1", jobName = jobTemp, runtimeAttributes)
+      //submitJobResponse <- completionPromise.future
+      //runId = StandardAsyncJob(UUID.randomUUID().toString) //temp to test
+      runId = StandardAsyncJob(jobTemp) //temp to test
+
     }
     yield runId
 
@@ -110,27 +134,72 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     Future.successful(handle)
   }
 
-  override lazy val pollBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(1
+  override lazy val pollBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(5
     .second, 5
     .minutes, 1.1)
 
   override lazy val executeOrRecoverBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(
-    initialInterval = 3
-      .second, maxInterval = 20
-      .second, multiplier = 1.1)
+    initialInterval = 5
+      .seconds, maxInterval = 20
+      .seconds, multiplier = 1.1)
 
   override def pollStatusAsync(handle: GcpBatchPendingExecutionHandle): Future[RunStatus] = {
 
-    //println(batchAttributes.project)
-    val gcpBatchPoll = new GcpBatchJobGetRequest
-    val result = gcpBatchPoll.GetJob(jobTemp)
-    //val temp = result.toString //matches for string
-    //val batchRunStatus = RunStatus.fromJobStatus(status=result)
-    //val eventList: Seq[ExecutionEvent] = Seq(ExecutionEvent.toString)
-    val jobStatus = result.getStatus.getState
+    val jobId = handle.pendingJob.jobId
 
-    //https://github.com/broadinstitute/cromwell/blob/328a0fe0aa307ee981b00e4af6b397b61a9fbe9e/engine/src/main/scala/cromwell/engine/workflow/lifecycle/execution/SubWorkflowExecutionActor.scala
-    jobStatus match {
+    val job = handle.runInfo match {
+      case Some(actualJob) => actualJob
+      case None =>
+        throw new RuntimeException(
+          s"pollStatusAsync called but job not available. This should not happen. Job Id $jobId"
+        )
+    }
+
+    log.info(s"started polling for ${job} with jobId ${jobId}")
+
+    //super[GcpBatchStatusRequestClient].pollStatus(workflowId, handle.pendingJob, jobTemp)
+
+    implicit val timeout: Timeout = Timeout(60.seconds)
+    //val futureResult = backendSingletonActor ? BatchGetJob(jobId)
+    val futureResult = backendSingletonActor ? BatchJobAsk(jobId)
+    val result = Await.result(futureResult, timeout.duration).asInstanceOf[String]
+    log.info(result)
+
+    /*
+    def testPoll(quick: Any): Future[RunStatus] = quick match {
+      //case GcpBatchJob(_, _, Some(value)) =>
+      //  Future.successful(value)
+      case BatchGetJob(_) =>
+        //Future.fromTry(gcpBatchPoll.GetJob(jobTemp))
+        val gcpBatchPoll = new GcpBatchJobGetRequest
+        Future.fromTry(gcpBatchPoll.status(jobTemp))
+      case _ =>
+        val message = "programmer error matched other in poll status async"
+        Future.failed(new Exception(message) with NoStackTrace)
+    }
+    for {
+      quickAnswer <- backendSingletonActor ? BatchGetJob(jobTemp)
+      answer <- testPoll(quickAnswer)
+    } yield answer
+    */
+
+    //Future.successful(Running) //temp to keep running
+
+
+    //sleep(60000)
+    //println("sleep 60 seconds")
+
+
+    val f = Future {
+      val gcpBatchPoll = new GcpBatchJobGetRequest
+      val result = gcpBatchPoll.GetJob(jobId)
+      //val jobStatus = result.getStatus.getState
+      result.getStatus.getState
+    }
+
+    val resultFuture = Await.result(f, 5.second)
+
+    resultFuture match {
       case JobStatus.State.QUEUED =>
         log.info("job queued")
         Future.successful(Running)
@@ -155,11 +224,19 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       case JobStatus.State.UNRECOGNIZED =>
         log.info("state unrecognized")
         Future.successful(Unrecognized)
-      //case _ =>
-      //  log.info("job status not matched")
-      //  Future.successful(Running)
+      case _ =>
+        log.info("job status not matched")
+        Future.successful(Running)
 
     }
+
+
+
+
+
+    //https://github.com/broadinstitute/cromwell/blob/328a0fe0aa307ee981b00e4af6b397b61a9fbe9e/engine/src/main/scala/cromwell/engine/workflow/lifecycle/execution/SubWorkflowExecutionActor.scala
+
+
   }
 
   override def isTerminal(runStatus: RunStatus): Boolean = {
@@ -174,10 +251,10 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         false
       case _: TerminalRunStatus =>
         val tempTermStatus = runStatus.toString
-        println(f"isTerminal match TerminalRunStatus running with status $tempTermStatus")
+        log.info(f"isTerminal match TerminalRunStatus running with status $tempTermStatus")
         true
       case other =>
-        println(f"isTerminal match _ running with status $other")
+        log.info(f"isTerminal match _ running with status $other")
         false
     }
   }

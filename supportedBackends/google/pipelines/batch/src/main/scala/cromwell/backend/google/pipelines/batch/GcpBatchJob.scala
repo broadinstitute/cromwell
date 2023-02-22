@@ -19,7 +19,7 @@ final case class GcpBatchJob (
                              memory: Long,
                              machineType: String,
                              //dockerImage: String,
-                             runtimeAttributes: GcpBatchRuntimeAttributes,
+                             runtimeAttributes: GcpBatchRuntimeAttributes
                             ) {
 
   // VALUES HERE

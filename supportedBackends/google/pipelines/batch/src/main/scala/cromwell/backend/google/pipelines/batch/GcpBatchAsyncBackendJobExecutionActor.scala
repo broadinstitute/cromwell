@@ -52,6 +52,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   import GcpBatchAsyncBackendJobExecutionActor._
 
+  lazy val gcpBatchCommand: String = jobDescriptor.taskCall.callable.commandTemplateString(Map.empty)
+
   lazy val workflowId: WorkflowId = jobDescriptor.workflowDescriptor.id
   //val requestFactory: PipelinesApiRequestFactory = initializationData.genomicsRequestFactory
 
@@ -101,8 +103,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     //val cpuPlatformTest = runtimeAttributes.cpuPlatform
 
-    //val batchTest = BatchRequest(workflowId, projectId = "batch-testing-350715", region = "us-central1", jobName = jobTemp, runtimeAttributes)
-
+    //val batchTest = BatchRequest(workflowId, projectId = "batch-testing-350715", region = "us-central1", jobName = jobTemp, runtimeAttributes, gcpBatchCommand)
 
     val runBatchResponse = for {
       _ <- uploadScriptFile()

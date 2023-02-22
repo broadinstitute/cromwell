@@ -27,6 +27,7 @@ final case class GcpBatchJob (
   val retryCount = 2
   val durationInSeconds: Long = 3600
   val taskCount: Long = 1
+  val gcpBatchCommand: String = jobSubmission.gcpBatchCommand
 
   // set user agent
   val user_agent_header = "user-agent"
@@ -43,12 +44,11 @@ final case class GcpBatchJob (
     .format("projects/%s/locations/%s", jobSubmission
       .projectId, jobSubmission
       .region))
-
   private val cpuPlatform =  runtimeAttributes.cpuPlatform.getOrElse("")
 
   println(cpuPlatform)
   private def createRunnable(dockerImage: String, entryPoint: String): Runnable = {
-    val runnable = Runnable.newBuilder.setContainer((Container.newBuilder.setImageUri(dockerImage).setEntrypoint(entryPoint).addCommands("-c").addCommands("echo Hello World!").build)).build
+    val runnable = Runnable.newBuilder.setContainer((Container.newBuilder.setImageUri(dockerImage).setEntrypoint(entryPoint).addCommands("-c").addCommands(gcpBatchCommand).build)).build
     runnable
   }
 

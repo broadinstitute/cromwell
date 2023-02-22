@@ -10,7 +10,7 @@ import scala.concurrent.ExecutionContext
 object GcpBatchBackendSingletonActor {
   def props(name: String) = Props(new GcpBatchBackendSingletonActor(name))
 
-  case class BatchRequest(workflowId: WorkflowId, projectId: String, region: String, jobName: String, runtimeAttributes: GcpBatchRuntimeAttributes)
+  case class BatchRequest(workflowId: WorkflowId, projectId: String, region: String, jobName: String, runtimeAttributes: GcpBatchRuntimeAttributes, gcpBatchCommand: String)
 }
 
 final class GcpBatchBackendSingletonActor (name: String) extends Actor with ActorLogging {

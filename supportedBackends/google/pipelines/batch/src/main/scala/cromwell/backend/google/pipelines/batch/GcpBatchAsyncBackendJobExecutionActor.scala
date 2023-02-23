@@ -116,7 +116,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       _ <- uploadScriptFile()
       //completionPromise = Promise[JobStatus]
       //_ = backendSingletonActor ! batchTest
-      _ = backendSingletonActor ! BatchRequest(workflowId, projectId = "batch-testing-350715", region = "us-central1", jobName = jobTemp, runtimeAttributes)
+      _ = backendSingletonActor ! BatchRequest(workflowId, projectId = "batch-testing-350715", region = "us-central1", jobName = jobTemp, runtimeAttributes, gcpBatchCommand)
       //submitJobResponse <- completionPromise.future
       //runId = StandardAsyncJob(UUID.randomUUID().toString) //temp to test
       runId = StandardAsyncJob(jobTemp) //temp to test

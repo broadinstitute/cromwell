@@ -111,7 +111,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     //val batchTest = BatchRequest(workflowId, projectId = "batch-testing-350715", region = "us-central1", jobName = jobTemp, runtimeAttributes, gcpBatchCommand)
 
-
     val runBatchResponse = for {
       _ <- uploadScriptFile()
       //completionPromise = Promise[JobStatus]

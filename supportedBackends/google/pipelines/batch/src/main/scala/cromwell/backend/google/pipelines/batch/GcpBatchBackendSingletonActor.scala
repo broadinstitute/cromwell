@@ -18,6 +18,7 @@ object GcpBatchBackendSingletonActor {
   case class BatchRequest(workflowId: WorkflowId, projectId: String, region: String, jobName: String, runtimeAttributes: GcpBatchRuntimeAttributes, gcpBatchCommand: String)
   case class BatchGetJob(jobId: String)
   case class BatchJobAsk(test: String)
+
 }
 
 final class GcpBatchBackendSingletonActor (name: String) extends Actor with ActorLogging {

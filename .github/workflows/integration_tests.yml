@@ -87,3 +87,4 @@ jobs:
     #The line "shell: 'script -q ..." is a hack to get the Github Action Runner to cooperate as if it had a TTY.
     #The issue and solution are described here: https://github.com/actions/runner/issues/241#issuecomment-842566950
     #Currenty, its only needed for the ReferenceDiskManifestBuilderApp test, which uses some fancy colors in its output, which may cause this issue.
+    #See WX-938. 

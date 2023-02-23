@@ -15,7 +15,7 @@ public class CromwellRefdiskManifestCreatorAppTest {
 
   @Test
   public void testManifestCreation() throws InterruptedException, IOException {
-    System.out.println("Hello from testManifestCreation!")
+    System.out.println("Hello from testManifestCreation!");
     int nThreads = 1;
     String imageName = "testImageName";
     String dirToScan = "src/test/resources/test-directory";

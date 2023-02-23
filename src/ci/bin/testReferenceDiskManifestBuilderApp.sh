@@ -10,9 +10,7 @@ source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
 cromwell::build::setup_common_environment
 
-export COMPOSE_INTERACTIVE_NO_CLI=1
-
-docker run -it --rm \
+docker run -it -t --rm \
            -v "${CROMWELL_BUILD_ROOT_DIRECTORY}/CromwellRefdiskManifestCreator:/CromwellRefdiskManifestCreator" \
            maven:3.6.3-openjdk-11 /bin/bash -c "
 cd /CromwellRefdiskManifestCreator

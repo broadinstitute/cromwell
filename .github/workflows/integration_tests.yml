@@ -79,7 +79,7 @@ jobs:
     #This script bascially just looks up another script to run, assuming that the other script's filename is:
     #src/ci/bin/test${BUILD_TYPE}.sh. The first letter of the BUILD_TYPE is automatically capitalized when looking.
     - name: Run Integration Test
-      shell: 'script -q -e -c "bash {0}"'
+      shell: 'script -q -e -c "bash --noprofile --norc -eo pipefail {0}"'
       run: |
         set -e
         echo Running test.sh

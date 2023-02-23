@@ -22,7 +22,7 @@ import cromwell.backend.google.pipelines.batch.RunStatus.{DeletionInProgress, Fa
 //import cromwell.backend.google.pipelines.common.WorkflowOptionKeys
 import cromwell.core.{ExecutionEvent, WorkflowId}
 //import wom.callable.RuntimeEnvironment
-//import cromwell.core.{ExecutionEvent, WorkflowId}
+//import cromwell.core.{ExecutionEvent, WorkkflowId}
 import cromwell.backend.async.PendingExecutionHandle
 import cromwell.backend.async.ExecutionHandle
 import akka.actor.ActorRef
@@ -48,7 +48,13 @@ object GcpBatchAsyncBackendJobExecutionActor {
 
 }
 
-class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams) extends BackendJobLifecycleActor with StandardAsyncExecutionActor with AskSupport with GcpBatchJobCachingActorHelper with GcpBatchStatusRequestClient with CromwellInstrumentation {
+class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
+  extends BackendJobLifecycleActor
+    with StandardAsyncExecutionActor
+    with AskSupport
+    with GcpBatchJobCachingActorHelper
+    with GcpBatchStatusRequestClient
+    with CromwellInstrumentation {
 
   import GcpBatchAsyncBackendJobExecutionActor._
 
@@ -109,7 +115,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       _ <- uploadScriptFile()
       //completionPromise = Promise[JobStatus]
       //_ = backendSingletonActor ! batchTest
-      _ = backendSingletonActor ! BatchRequest(workflowId, projectId = "batch-testing-350715", region = "us-central1", jobName = jobTemp, runtimeAttributes)
+      _ = backendSingletonActor ! BatchRequest(workflowId, projectId = "batch-testing-350715", region = "us-central1", jobName = jobTemp, runtimeAttributes, gcpBatchCommand)
       //submitJobResponse <- completionPromise.future
       //runId = StandardAsyncJob(UUID.randomUUID().toString) //temp to test
       runId = StandardAsyncJob(jobTemp) //temp to test

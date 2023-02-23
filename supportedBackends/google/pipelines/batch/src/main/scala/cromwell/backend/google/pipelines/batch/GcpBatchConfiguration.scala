@@ -12,10 +12,10 @@ import spray.json._
 //import scala.concurrent.duration.FiniteDuration
 
 class GcpBatchConfiguration(val configurationDescriptor: BackendConfigurationDescriptor,
-                                //val batchFactory: GcpBatchFactoryInterface,
-                                val googleConfig: GoogleConfiguration,
-                                //val batchAttributes: GcpBatchConfigurationAttributes
-                            ) extends DefaultJsonProtocol {
+                            //val batchFactory: GcpBatchFactoryInterface,
+                            val googleConfig: GoogleConfiguration,
+                            //val batchAttributes: GcpBatchConfigurationAttributes
+                           ) extends DefaultJsonProtocol {
 
   //val batchAuths: GcpBatchAuths = batchAttributes.auths
   val root: String = configurationDescriptor.backendConfig.getString("root")

@@ -52,5 +52,3 @@ final class GcpBatchBackendSingletonActor (name: String) extends Actor with Acto
   }
 
 }
-
-

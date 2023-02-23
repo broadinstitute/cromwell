@@ -1,9 +1,13 @@
 package cromwell.backend.google.pipelines.batch
 
 import akka.util.Timeout
+import com.google.api.gax.rpc.NotFoundException
+//import com.google.cloud.batch.v1.Job
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
+
+import java.util.concurrent.ExecutionException
 
 //import java.lang.Thread.sleep
 import scala.concurrent.Await
@@ -188,46 +192,66 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     //sleep(60000)
     //println("sleep 60 seconds")
 
-
+    /*
     val f = Future {
       val gcpBatchPoll = new GcpBatchJobGetRequest
       val result = gcpBatchPoll.GetJob(jobId)
       //val jobStatus = result.getStatus.getState
       result.getStatus.getState
+    }*/
+
+    try {
+      val gcpBatchPoll = new GcpBatchJobGetRequest
+      val result = gcpBatchPoll.GetJob(jobId)
+      //result.getStatus.getState
+
+      //val result2 = result
+
+      result match {
+        case JobStatus.State.QUEUED =>
+          log.info("job queued")
+          Future.successful(Running)
+        case JobStatus.State.SCHEDULED =>
+          log.info("job scheduled")
+          Future.successful(Running)
+        case JobStatus.State.RUNNING =>
+          log.info("job running")
+          Future.successful(Running)
+        case JobStatus.State.SUCCEEDED =>
+          log.info("job scheduled")
+          Future.successful(Succeeded(List(ExecutionEvent("complete in GCP Batch")))) //update to more specific
+        case JobStatus.State.FAILED =>
+          log.info("job failed")
+          Future.successful(Failed)
+        case JobStatus.State.DELETION_IN_PROGRESS =>
+          log.info("deletion in progress")
+          Future.successful(DeletionInProgress)
+        case JobStatus.State.STATE_UNSPECIFIED =>
+          log.info("state unspecified")
+          Future.successful(StateUnspecified)
+        case JobStatus.State.UNRECOGNIZED =>
+          log.info("state unrecognized")
+          Future.successful(Unrecognized)
+        case _ =>
+          log.info("job status not matched")
+          Future.successful(Running)
+
+      }
+    }
+    catch {
+      case nfe: NotFoundException => //added to account for job not found errors because polling async happens before job is submitted
+        nfe.printStackTrace()
+        Future.successful(Running)
+      case ee: ExecutionException => //added to account for job not found errors because polling async happens before job is submitted
+        ee.printStackTrace()
+        Future.successful(Running)
+    } finally {
+      println("finally block")
     }
 
-    val resultFuture = Await.result(f, 5.second)
+    //val resultFuture = Await.result(f, 5.second)
 
-    resultFuture match {
-      case JobStatus.State.QUEUED =>
-        log.info("job queued")
-        Future.successful(Running)
-      case JobStatus.State.SCHEDULED =>
-        log.info("job scheduled")
-        Future.successful(Running)
-      case JobStatus.State.RUNNING =>
-        log.info("job running")
-        Future.successful(Running)
-      case JobStatus.State.SUCCEEDED =>
-        log.info("job scheduled")
-        Future.successful(Succeeded(List(ExecutionEvent("complete in GCP Batch")))) //update to more specific
-      case JobStatus.State.FAILED =>
-        log.info("job failed")
-        Future.successful(Failed)
-      case JobStatus.State.DELETION_IN_PROGRESS =>
-        log.info("deletion in progress")
-        Future.successful(DeletionInProgress)
-      case JobStatus.State.STATE_UNSPECIFIED =>
-        log.info("state unspecified")
-        Future.successful(StateUnspecified)
-      case JobStatus.State.UNRECOGNIZED =>
-        log.info("state unrecognized")
-        Future.successful(Unrecognized)
-      case _ =>
-        log.info("job status not matched")
-        Future.successful(Running)
 
-    }
 
 
 

@@ -8,6 +8,10 @@ package cromwell.backend.google.pipelines.batch
 import scala.util.Try
 import com.google.cloud.batch.v1.{BatchServiceClient, GetJobRequest, JobName}
 //import com.google.cloud.batch.v1.{BatchServiceClient, GetJobRequest, Job, JobName}
+//import com.google.api.gax.rpc.NotFoundException
+
+//import java.util.concurrent.ExecutionException
+//import com.google.cloud.batch.v1.{BatchServiceClient, GetJobRequest, Job, JobName}
 
 //import scala.concurrent.Await
 //import scala.concurrent.duration.DurationInt
@@ -29,15 +33,11 @@ class GcpBatchJobGetRequest {
 
     val batchServiceClient = BatchServiceClient.create
 
-
     val request = GetJobRequest.newBuilder.setName(JobName.of(projectId, region, jobName).toString()).build
     val job = batchServiceClient.getJob(request)
 
     batchServiceClient.close()
-    job
-
-
-
+    job.getStatus.getState
 
 
     //print(response.getStatus.getState)

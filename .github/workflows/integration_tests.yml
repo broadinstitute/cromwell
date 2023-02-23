@@ -79,8 +79,11 @@ jobs:
     #This script bascially just looks up another script to run, assuming that the other script's filename is:
     #src/ci/bin/test${BUILD_TYPE}.sh. The first letter of the BUILD_TYPE is automatically capitalized when looking.
     - name: Run Integration Test
-      shell: 'script -q -e -c "bash --noprofile --norc -eo pipefail {0}"'
+      shell: 'script -q -e -c "bash --noprofile --norc -eo pipefail {0}"' #See comment below
       run: |
         set -e
         echo Running test.sh
         ./src/ci/bin/test.sh
+    #The line "shell: 'script -q ..." is a hack to get the Github Action Runner to cooperate as if it had a TTY.
+    #The issue and solution are described here: https://github.com/actions/runner/issues/241#issuecomment-842566950
+    #Currenty, its only needed for the ReferenceDiskManifestBuilderApp test, which uses some fancy colors in its output, which may cause this issue.

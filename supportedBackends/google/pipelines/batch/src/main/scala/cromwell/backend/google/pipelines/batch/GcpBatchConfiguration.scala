@@ -14,7 +14,7 @@ import spray.json._
 class GcpBatchConfiguration(val configurationDescriptor: BackendConfigurationDescriptor,
                             //val batchFactory: GcpBatchFactoryInterface,
                             val googleConfig: GoogleConfiguration,
-                            //val batchAttributes: GcpBatchConfigurationAttributes
+                            val batchAttributes: GcpBatchConfigurationAttributes
                            ) extends DefaultJsonProtocol {
 
   //val batchAuths: GcpBatchAuths = batchAttributes.auths
@@ -35,4 +35,5 @@ class GcpBatchConfiguration(val configurationDescriptor: BackendConfigurationDes
 
   val jobShell: String = configurationDescriptor.backendConfig.as[Option[String]]("job-shell").getOrElse(
     configurationDescriptor.globalConfig.getOrElse("system.job-shell", "/bin/bash"))
+
 }

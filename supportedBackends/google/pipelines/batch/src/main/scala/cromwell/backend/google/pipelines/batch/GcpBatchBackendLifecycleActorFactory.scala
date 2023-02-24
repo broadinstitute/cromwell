@@ -1,6 +1,7 @@
 package cromwell.backend.google.pipelines.batch
 
 import akka.actor.{ActorRef, Props}
+import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.backend.{BackendInitializationData, JobExecutionMap}
@@ -8,7 +9,10 @@ import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.CallOutputs
 import wom.graph.CommandCallNode
 import cromwell.backend.BackendConfigurationDescriptor
+import cromwell.backend.google.pipelines.batch.GcpBatchBackendLifecycleActorFactory.robustBuildAttributes
 import cromwell.backend.standard._
+
+import scala.util.{Failure, Try}
 
 
 class GcpBatchBackendLifecycleActorFactory(name: String, override val configurationDescriptor: BackendConfigurationDescriptor)
@@ -28,8 +32,14 @@ class GcpBatchBackendLifecycleActorFactory(name: String, override val configurat
     Option(classOf[GcpBatchFinalizationActor])
 
 
-  val batchConfiguration = new GcpBatchConfiguration(configurationDescriptor, googleConfig)
 
+  protected val batchAttributes: GcpBatchConfigurationAttributes = {
+    def defaultBuildAttributes()=
+      GcpBatchConfigurationAttributes(googleConfig, configurationDescriptor.backendConfig, "batchConfig")
+    robustBuildAttributes(defaultBuildAttributes)
+  }
+
+  val batchConfiguration = new GcpBatchConfiguration(configurationDescriptor, googleConfig, batchAttributes)
 
   override def workflowInitializationActorParams(
 
@@ -62,6 +72,37 @@ class GcpBatchBackendLifecycleActorFactory(name: String, override val configurat
 }
 
 object GcpBatchBackendLifecycleActorFactory extends StrictLogging {
+
+  private def robustBuildAttributes(buildAttributes: () => GcpBatchConfigurationAttributes,
+                                            maxAttempts: Int = 3,
+                                            initialIntervalMillis: Int = 5000,
+                                            maxIntervalMillis: Int = 10000,
+                                            multiplier: Double = 1.5,
+                                            randomizationFactor: Double = 0.5): GcpBatchConfigurationAttributes = {
+    val backoff = new ExponentialBackOff.Builder()
+      .setInitialIntervalMillis(initialIntervalMillis)
+      .setMaxIntervalMillis(maxIntervalMillis)
+      .setMultiplier(multiplier)
+      .setRandomizationFactor(randomizationFactor)
+      .build()
+
+    // `attempt` is 1-based
+    def build(attempt: Int): Try[GcpBatchConfigurationAttributes] = {
+      Try {
+        buildAttributes()
+      } recoverWith {
+        // Try again if this was an Exception (as opposed to an Error) and we have not hit maxAttempts
+        case ex: Exception if attempt < maxAttempts =>
+          logger
+            .warn(s"Failed to build GcpBatchConfigurationAttributes on attempt $attempt of $maxAttempts, retrying.", ex)
+          Thread.sleep(backoff.nextBackOffMillis())
+          build(attempt + 1)
+        case e => Failure(new RuntimeException(s"Failed to build GcpBatchConfigurationAttributes on attempt $attempt of $maxAttempts", e))
+      }
+    }
+    // This intentionally throws if the final result of `build` is a `Failure`.
+    build(attempt = 1).get
+  }
 
 
 }

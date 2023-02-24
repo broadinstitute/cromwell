@@ -5,6 +5,7 @@ import com.google.api.gax.rpc.NotFoundException
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
+
 import java.util.concurrent.ExecutionException
 import scala.concurrent.Await
 import cromwell.core.{ExecutionEvent, WorkflowId}
@@ -13,10 +14,14 @@ import cromwell.backend.async.ExecutionHandle
 import akka.actor.ActorRef
 import akka.pattern.AskSupport
 import cromwell.services.instrumentation.CromwellInstrumentation
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import GcpBatchBackendSingletonActor._
 import cromwell.backend.google.pipelines.batch.RunStatus.{Running, Succeeded, TerminalRunStatus}
+import cromwell.backend.google.pipelines.common.WorkflowOptionKeys
+import cromwell.core.io.IoCommandBuilder
+import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 
 object GcpBatchAsyncBackendJobExecutionActor {
 
@@ -33,6 +38,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     with CromwellInstrumentation {
 
   import GcpBatchAsyncBackendJobExecutionActor._
+
+  override lazy val ioCommandBuilder: IoCommandBuilder = GcsBatchCommandBuilder
 
   lazy val gcpBatchCommand: String = jobDescriptor.taskCall.callable.commandTemplateString(Map.empty)
 
@@ -59,6 +66,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                                  .getOrElse(runtimeAttributes.dockerImage)
 
   override def dockerImageUsed: Option[String] = Option(jobDockerImage)
+  //private var hasDockerCredentials: Boolean = false
 
   //type GcpBatchPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, Run, StandardAsyncRunState]
 
@@ -121,7 +129,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         )
     }
 
-    log.info(s"started polling for ${job} with jobId ${jobId}")
+    log.info(s"started polling for $job with jobId $jobId")
 
     //super[GcpBatchStatusRequestClient].pollStatus(workflowId, handle.pendingJob, jobTemp)
 
@@ -196,6 +204,12 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   }
 
   override val gcpBatchActor: ActorRef = backendSingletonActor
+
+  protected def googleProject(descriptor: BackendWorkflowDescriptor): String = {
+    descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.GoogleProject, batchAttributes.project)
+  }
+
+  println(batchAttributes.project)
 
 }
 

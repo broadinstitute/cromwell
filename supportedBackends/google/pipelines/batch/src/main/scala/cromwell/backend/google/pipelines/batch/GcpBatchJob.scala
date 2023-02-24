@@ -1,16 +1,15 @@
 package cromwell.backend.google.pipelines.batch
 import com.google.api.gax.rpc.{FixedHeaderProvider, HeaderProvider}
 import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, TaskGroup, TaskSpec}
-//import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, GetJobRequest, Job, JobName, LogsPolicy, Runnable, TaskGroup, TaskSpec}
 import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy}
 import com.google.cloud.batch.v1.Runnable.Container
 import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.BatchRequest
 import com.google.protobuf.Duration
 import com.google.cloud.batch.v1.LogsPolicy.Destination
 import com.google.common.collect.ImmutableMap
-
 import java.util.concurrent.TimeUnit
-import scala.util.Try
+import org.slf4j.{Logger, LoggerFactory}
+
 
 final case class GcpBatchJob (
                              jobSubmission: BatchRequest,
@@ -20,6 +19,8 @@ final case class GcpBatchJob (
                              machineType: String,
                              runtimeAttributes: GcpBatchRuntimeAttributes
                             ) {
+
+  val log: Logger = LoggerFactory.getLogger(RunStatus.toString)
 
   // VALUES HERE
   val entryPoint = "/bin/sh"
@@ -45,7 +46,8 @@ final case class GcpBatchJob (
       .region))
   private val cpuPlatform =  runtimeAttributes.cpuPlatform.getOrElse("")
 
-  println(cpuPlatform)
+  log.info(cpuPlatform)
+
   private def createRunnable(dockerImage: String, entryPoint: String): Runnable = {
     val runnable = Runnable.newBuilder.setContainer((Container.newBuilder.setImageUri(dockerImage).setEntrypoint(entryPoint).addCommands("-c").addCommands(gcpBatchCommand).build)).build
     runnable
@@ -119,30 +121,15 @@ final case class GcpBatchJob (
         .futureCall(createJobRequest)
         .get(5, TimeUnit
           .SECONDS)
-      println("job submitted")
-
+      log.info("job submitted")
       batchServiceClient.close()
-
-      println(result.getName)
-
+      log.info(result.getName)
 
     }
     catch  {
-      case _: Throwable => println("Job failed")
+      case _: Throwable => log.info("Job failed")
     }
 
   }
-
-
-  def jobGetRequest(jobId: String) = {
-    val gcpBatchPoll = new GcpBatchJobGetRequest
-    gcpBatchPoll.GetJob(jobId)
-
-  }
-  def status(jobId: String): Try[RunStatus] = for {
-    _ <- Try(jobGetRequest(jobId).toString)
-    //runStatus <- RunStatus.fromJobStatus(jobId)
-    runStatus <- RunStatus.testJobStatus(jobId)
-  } yield runStatus
 
 }

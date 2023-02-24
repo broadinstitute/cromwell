@@ -1,12 +1,10 @@
 package cromwell.backend.google.pipelines.batch
 
+import org.slf4j.{Logger, LoggerFactory}
 import cromwell.core.ExecutionEvent
-
-//import scala.concurrent.Future
-
-//import cromwell.core.ExecutionEvent
+import scala.concurrent.Future
 import com.google.cloud.batch.v1.JobStatus
-import scala.util.{Try, Success}
+
 
 sealed trait RunStatus {
     //import RunStatus._
@@ -23,37 +21,40 @@ sealed trait RunStatus {
 
 object RunStatus {
 
+    val log: Logger = LoggerFactory.getLogger(RunStatus.toString)
 
-    def testJobStatus(status: String): Try[RunStatus] ={
-        //print(status)
-          status match{
-              case "test" =>  Success(Running)
-              case _ => Success(Running)
-          }
-
-
-    }
 
     //def fromJobStatus(status: JobStatus.State,  eventList: Seq[ExecutionEvent] = Seq.empty): Try[RunStatus] = {
-    def fromJobStatus(status: JobStatus.State): Try[RunStatus] = {
+    def fromJobStatus(status: JobStatus.State): Future[RunStatus] = {
             status match {
                 case JobStatus.State.QUEUED =>
-                    println("Job is queued")
-                    Success(Running)
-                //Future.successful(Running)
+                    log.info("job queued")
+                    Future.successful(Running)
                 case JobStatus.State.SCHEDULED =>
-                    println ("job scheduled")
-                    Success(Running)
+                    log.info("job scheduled")
+                    Future.successful(Running)
                 case JobStatus.State.RUNNING =>
-                    println("job running")
-                    Success(Running)
+                    log.info("job running")
+                    Future.successful(Running)
                 case JobStatus.State.SUCCEEDED =>
-                    println("job succeeded")
-                    //Success(Succeeded(eventList))
-                    Success(Succeeded)
+                    log.info("job scheduled")
+                    Future
+                      .successful(Succeeded(List(ExecutionEvent("complete in GCP Batch")))) //update to more specific
+                case JobStatus.State.FAILED =>
+                    log.info("job failed")
+                    Future.successful(Failed)
+                case JobStatus.State.DELETION_IN_PROGRESS =>
+                    log.info("deletion in progress")
+                    Future.successful(DeletionInProgress)
+                case JobStatus.State.STATE_UNSPECIFIED =>
+                    log.info("state unspecified")
+                    Future.successful(StateUnspecified)
+                case JobStatus.State.UNRECOGNIZED =>
+                    log.info("state unrecognized")
+                    Future.successful(Unrecognized)
                 case _ =>
-                    println("no matches in RunStatus")
-                    Success(Running)
+                    log.info("job status not matched")
+                    Future.successful(Running)
             }
     }
 

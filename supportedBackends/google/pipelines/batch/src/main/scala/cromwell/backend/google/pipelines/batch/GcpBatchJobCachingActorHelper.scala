@@ -24,6 +24,4 @@ trait GcpBatchJobCachingActorHelper extends StandardCachingActorHelper {
   //lazy val configuration: GcpBatchConfiguration = initializationData.configuration
 
 
-
-
 }

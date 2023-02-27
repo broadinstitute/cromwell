@@ -1,12 +1,16 @@
 package cromwell.backend.google.pipelines.batch
 
 //import com.google.auth.Credentials
+//import com.google.api.gax.retrying.RetrySettings
+//import com.google.auth.Credentials
 import com.typesafe.config.Config
 import cromwell.backend.google.pipelines.batch.GcpBatchWorkflowPaths.callCachePathPrefixFromExecutionRoot
 import cromwell.backend.google.pipelines.common.WorkflowOptionKeys
 import cromwell.backend.io.WorkflowPaths
+//import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.Path
+//import cromwell.filesystems.gcs.GcsPathBuilder
 
 //import cromwell.core.WorkflowOptions
 
@@ -38,7 +42,8 @@ case class GcpBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
 
   private val workflowOptions: WorkflowOptions = workflowDescriptor.workflowOptions
 
-  val monitoringScriptPath: Option[Path] = workflowOptions.get(WorkflowOptionKeys.MonitoringScript)
+
+    val monitoringScriptPath: Option[Path] = workflowOptions.get(WorkflowOptionKeys.MonitoringScript)
                                                           .toOption map { path =>
     // Fail here if the path exists but can't be built
     getPath(path).get

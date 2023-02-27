@@ -9,15 +9,8 @@ import cromwell.backend.io.WorkflowPaths
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.filesystems.gcs.GcsPathBuilder
 import scala.language.postfixOps
-//import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.Path
-//import cromwell.filesystems.gcs.GcsPathBuilder
-
-//import cromwell.core.WorkflowOptions
-
-//import scala.concurrent.ExecutionContext
-//import cromwell.backend.io.{JobPaths, WorkflowPaths}
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.path.PathFactory.PathBuilders
 

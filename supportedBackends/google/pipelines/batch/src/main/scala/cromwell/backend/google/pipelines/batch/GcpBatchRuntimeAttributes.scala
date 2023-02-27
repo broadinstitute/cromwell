@@ -7,10 +7,7 @@ import cromwell.backend.google.pipelines.batch.io.{GcpBatchAttachedDisk, GcpBatc
 import wdl4s.parser.MemoryUnit
 import wom.types.{WomArrayType, WomStringType, WomType}
 import wom.values.{WomArray, WomValue}
-//import cromwell.backend.google.pipelines.batch.GpuResource.GpuType
 import cromwell.backend.google.pipelines.common.ZonesValidation
-//import cromwell.backend.google.pipelines.common.{GpuTypeValidation, GpuValidation, ZonesValidation}
-//import cromwell.backend.google.pipelines.common.{GpuTypeValidation, GpuValidation, ZonesValidation}
 import cromwell.backend.validation.BooleanRuntimeAttributesValidation
 import wom.values.{WomBoolean, WomInteger, WomString}
 import cromwell.backend.validation.{DockerValidation, StringRuntimeAttributesValidation, ValidatedRuntimeAttributes}
@@ -19,7 +16,6 @@ import cromwell.backend.validation.{OptionalRuntimeAttributesValidation, Runtime
 import eu.timepit.refined.api.Refined
 import cromwell.backend.validation._
 import eu.timepit.refined.numeric.Positive
-//import eu.timepit.refined.refineMV
 import wom.RuntimeAttributesKeys
 import wom.format.MemorySize
 /*

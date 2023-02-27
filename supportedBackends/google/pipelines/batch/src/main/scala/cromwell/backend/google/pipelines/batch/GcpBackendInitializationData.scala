@@ -1,6 +1,6 @@
 package cromwell.backend.google.pipelines.batch
 
-//import com.google.auth.Credentials
+
 import cromwell.backend.google.pipelines.common.PipelinesApiExpressionFunctions
 import cromwell.backend.standard.{StandardInitializationData, StandardValidatedRuntimeAttributesBuilder}
 

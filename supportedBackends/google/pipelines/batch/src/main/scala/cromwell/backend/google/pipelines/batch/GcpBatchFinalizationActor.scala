@@ -2,7 +2,6 @@ package cromwell.backend.google.pipelines.batch
 
 import akka.actor.ActorRef
 import cromwell.backend._
-//import cromwell.backend.google.pipelines.common.{PipelinesApiConfiguration, PipelinesApiFinalizationActorParams}
 import cromwell.backend.standard.{StandardFinalizationActor, StandardFinalizationActorParams}
 import cromwell.core.CallOutputs
 import cromwell.core.io.AsyncIoActorClient

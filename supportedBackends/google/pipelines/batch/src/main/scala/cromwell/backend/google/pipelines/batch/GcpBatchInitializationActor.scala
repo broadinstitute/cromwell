@@ -2,21 +2,12 @@ package cromwell.backend.google.pipelines.batch
 
 import akka.actor.ActorRef
 import com.google.api.services.lifesciences.v2beta.CloudLifeSciencesScopes
-//import cromwell.backend.io.WorkflowPaths
-//import cromwell.backend.wfs.WorkflowPathBuilder.workflowPaths
 import cromwell.core.WorkflowOptions
-//import cromwell.core.{Dispatcher, WorkflowOptions}
-
 import scala.concurrent.Future
 import com.google.auth.Credentials
-
-//import scala.concurrent.Future
-//import cromwell.backend.google.pipelines.common.{PipelinesApiConfiguration, PipelinesApiInitializationActorParams, PipelinesApiRuntimeAttributes}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
 import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
-//import cromwell.core.WorkflowOptions
 import cromwell.core.io.AsyncIoActorClient
-//import cromwell.core.io.{AsyncIoActorClient, IoCommandBuilder}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import wom.graph.CommandCallNode
 import com.google.api.services.storage.StorageScopes

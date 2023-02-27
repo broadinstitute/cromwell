@@ -1,9 +1,8 @@
 package cromwell.backend.google.pipelines.batch
-//import com.typesafe.config.Config
+
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.backend.io.JobPaths
-//import cromwell.core.path.Path
-//import cromwell.services.metadata.CallMetadataKeys
+
 object GcpBatchJobPaths {
 
 }

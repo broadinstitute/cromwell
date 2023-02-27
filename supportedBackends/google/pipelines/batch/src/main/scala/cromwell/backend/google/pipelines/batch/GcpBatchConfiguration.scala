@@ -1,19 +1,13 @@
 package cromwell.backend.google.pipelines.batch
 
-//import com.typesafe.config.Config
 import com.typesafe.config.Config
 import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.backend.google.pipelines.batch.authentication.GcpBatchAuths
 import cromwell.cloudsupport.gcp.GoogleConfiguration
-
 import scala.concurrent.duration.FiniteDuration
-
-//import scala.concurrent.duration.FiniteDuration
-//import cromwell.backend.google.pipelines.batch.authentication.GcpBatchAuths
 import net.ceedubs.ficus.Ficus._
 import spray.json._
 
-//import scala.concurrent.duration.FiniteDuration
 
 class GcpBatchConfiguration(val configurationDescriptor: BackendConfigurationDescriptor,
                             //val batchFactory: GcpBatchFactoryInterface,

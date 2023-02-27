@@ -5,7 +5,6 @@ import com.google.api.gax.rpc.NotFoundException
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
-
 import java.util.concurrent.ExecutionException
 import scala.concurrent.Await
 import cromwell.core.{ExecutionEvent, WorkflowId}
@@ -14,7 +13,6 @@ import cromwell.backend.async.ExecutionHandle
 import akka.actor.ActorRef
 import akka.pattern.AskSupport
 import cromwell.services.instrumentation.CromwellInstrumentation
-
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import GcpBatchBackendSingletonActor._
@@ -24,7 +22,6 @@ import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
-//import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
 import wom.values.WomFile
 
 import scala.util.Success

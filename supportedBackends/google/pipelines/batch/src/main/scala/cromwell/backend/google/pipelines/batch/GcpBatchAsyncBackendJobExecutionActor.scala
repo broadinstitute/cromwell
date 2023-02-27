@@ -21,7 +21,13 @@ import GcpBatchBackendSingletonActor._
 import cromwell.backend.google.pipelines.batch.RunStatus.{Running, Succeeded, TerminalRunStatus}
 import cromwell.backend.google.pipelines.common.WorkflowOptionKeys
 import cromwell.core.io.IoCommandBuilder
+import cromwell.core.path.DefaultPathBuilder
+import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
+//import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
+import wom.values.WomFile
+
+import scala.util.Success
 
 object GcpBatchAsyncBackendJobExecutionActor {
 
@@ -73,19 +79,47 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   val backendSingletonActor: ActorRef = standardParams.backendSingletonActorOption
                                                       .getOrElse(throw new RuntimeException("GCP Batch actor cannot exist without its backend singleton 2"))
 
-  def uploadScriptFile(): Future[Unit] = {
-    commandScriptContents
-      .fold(
-        errors => Future
-          .failed(new RuntimeException(errors
-            .toList
-            .mkString(", "))),
-        asyncIo
-          .writeAsync(jobPaths
-            .script, _, Seq
-            .empty)
-      )
+
+  /**
+    * Turns WomFiles into relative paths.  These paths are relative to the working disk.
+    *
+    * relativeLocalizationPath("foo/bar.txt") -> "foo/bar.txt"
+    * relativeLocalizationPath("gs://some/bucket/foo.txt") -> "some/bucket/foo.txt"
+    */
+  override protected def relativeLocalizationPath(file: WomFile): WomFile = {
+    file.mapFile(value =>
+      getPath(value) match {
+        case Success(drsPath: DrsPath) => DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()
+        case Success(path) => path.pathWithoutScheme
+        case _ => value
+      }
+    )
   }
+
+  override protected def fileName(file: WomFile): WomFile = {
+    file.mapFile(value =>
+      getPath(value) match {
+        case Success(drsPath: DrsPath) => DefaultPathBuilder
+          .get(DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()).name
+        case Success(path) => path.name
+        case _ => value
+      }
+    )
+  }
+
+  def uploadScriptFile(): Future[Unit] = {
+  commandScriptContents
+    .fold(
+      errors => Future
+        .failed(new RuntimeException(errors
+          .toList
+          .mkString(", "))),
+      asyncIo
+        .writeAsync(jobPaths
+          .script, _, Seq
+          .empty)
+    )
+}
 
   // Primary entry point for cromwell to run GCP Batch job
   override def executeAsync(): Future[ExecutionHandle] = {

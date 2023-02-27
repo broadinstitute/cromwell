@@ -1,12 +1,14 @@
 package cromwell.backend.google.pipelines.batch
 
-//import com.google.auth.Credentials
-//import com.google.api.gax.retrying.RetrySettings
-//import com.google.auth.Credentials
+import com.google.api.gax.retrying.RetrySettings
+import com.google.auth.Credentials
 import com.typesafe.config.Config
 import cromwell.backend.google.pipelines.batch.GcpBatchWorkflowPaths.callCachePathPrefixFromExecutionRoot
 import cromwell.backend.google.pipelines.common.WorkflowOptionKeys
 import cromwell.backend.io.WorkflowPaths
+import cromwell.cloudsupport.gcp.gcs.GcsStorage
+import cromwell.filesystems.gcs.GcsPathBuilder
+import scala.language.postfixOps
 //import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.Path
@@ -17,15 +19,12 @@ import cromwell.core.path.Path
 //import scala.concurrent.ExecutionContext
 //import cromwell.backend.io.{JobPaths, WorkflowPaths}
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
-//import cromwell.backend.google.pipelines.common.PipelinesApiWorkflowPaths
-//import cromwell.backend.io.WorkflowPaths
-//import cromwell.core.WorkflowOptions
 import cromwell.core.path.PathFactory.PathBuilders
 
 
 object GcpBatchWorkflowPaths {
   private val GcsRootOptionKey = "gcp_batch_gcs_root"
-  //private val AuthFilePathOptionKey = "auth_bucket"
+  private val AuthFilePathOptionKey = "auth_bucket"
   private val GcsPrefix = "gs://"
 
   private def callCachePathPrefixFromExecutionRoot(executionRoot: String): String = {
@@ -34,6 +33,8 @@ object GcpBatchWorkflowPaths {
   }
 }
 case class GcpBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
+                                 gcsCredentials: Credentials,
+                                 genomicsCredentials: Credentials,
                                  gcpBatchConfiguration: GcpBatchConfiguration,
                                  override val pathBuilders: PathBuilders) extends WorkflowPaths {
 
@@ -42,8 +43,35 @@ case class GcpBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
 
   private val workflowOptions: WorkflowOptions = workflowDescriptor.workflowOptions
 
+  val gcsAuthFilePath: Path = {
+    // The default auth file bucket is always at the root of the root workflow
+    val defaultBucket = executionRoot.resolve(workflowDescriptor.rootWorkflow.name)
+                                     .resolve(workflowDescriptor.rootWorkflowId.toString)
+    val bucket = workflowDescriptor.workflowOptions
+                                   .get(GcpBatchWorkflowPaths.AuthFilePathOptionKey) getOrElse defaultBucket
+      .pathAsString
 
-    val monitoringScriptPath: Option[Path] = workflowOptions.get(WorkflowOptionKeys.MonitoringScript)
+    /*
+     * This is an "exception". The filesystem used here is built from genomicsAuth
+     * unlike everywhere else where the filesystem used is built from gcsFileSystemAuth
+     */
+    val pathBuilderWithGenomicsAuth = GcsPathBuilder.fromCredentials(
+      genomicsCredentials,
+      gcpBatchConfiguration.googleConfig.applicationName,
+      RetrySettings.newBuilder().build(),
+      GcsStorage.DefaultCloudStorageConfiguration,
+      workflowOptions,
+      Option(gcpBatchConfiguration.batchAttributes.project)
+    )
+
+    val authBucket = pathBuilderWithGenomicsAuth.build(bucket) recover {
+      case ex => throw new Exception(s"Invalid gcs auth_bucket path $bucket", ex)
+    } get
+
+    authBucket.resolve(s"${workflowDescriptor.rootWorkflowId}_auth.json")
+  }
+
+  val monitoringScriptPath: Option[Path] = workflowOptions.get(WorkflowOptionKeys.MonitoringScript)
                                                           .toOption map { path =>
     // Fail here if the path exists but can't be built
     getPath(path).get
@@ -52,7 +80,7 @@ case class GcpBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
     new GcpBatchJobPaths(workflowPaths.asInstanceOf[GcpBatchWorkflowPaths], jobKey)
   }
   override protected def withDescriptor(workflowDescriptor: BackendWorkflowDescriptor): WorkflowPaths = this.copy(workflowDescriptor = workflowDescriptor)
-  def config: Config = gcpBatchConfiguration.configurationDescriptor.backendConfig
+  override def config: Config = gcpBatchConfiguration.configurationDescriptor.backendConfig
 }
 
 

@@ -1,8 +1,12 @@
 package cromwell.backend.google.pipelines.batch
 
 //import com.typesafe.config.Config
+import com.typesafe.config.Config
 import cromwell.backend.BackendConfigurationDescriptor
+import cromwell.backend.google.pipelines.batch.authentication.GcpBatchAuths
 import cromwell.cloudsupport.gcp.GoogleConfiguration
+
+import scala.concurrent.duration.FiniteDuration
 
 //import scala.concurrent.duration.FiniteDuration
 //import cromwell.backend.google.pipelines.batch.authentication.GcpBatchAuths
@@ -17,11 +21,11 @@ class GcpBatchConfiguration(val configurationDescriptor: BackendConfigurationDes
                             val batchAttributes: GcpBatchConfigurationAttributes
                            ) extends DefaultJsonProtocol {
 
-  //val batchAuths: GcpBatchAuths = batchAttributes.auths
+  val batchAuths: GcpBatchAuths = batchAttributes.auths
   val root: String = configurationDescriptor.backendConfig.getString("root")
-  //val pipelineTimeout: FiniteDuration = batchAttributes.pipelineTimeout
-  //val runtimeConfig: Option[Config] = configurationDescriptor.backendRuntimeAttributesConfig
-  val runtimeConfig = configurationDescriptor.backendRuntimeAttributesConfig
+  val pipelineTimeout: FiniteDuration = batchAttributes.pipelineTimeout
+  val runtimeConfig: Option[Config] = configurationDescriptor.backendRuntimeAttributesConfig
+  //val runtimeConfig = configurationDescriptor.backendRuntimeAttributesConfig
 
   //val dockerCredentials: Option[PipelinesApiDockerCredentials] = {
   //  BackendDockerConfiguration.build(configurationDescriptor.backendConfig).dockerCredentials map { creds =>

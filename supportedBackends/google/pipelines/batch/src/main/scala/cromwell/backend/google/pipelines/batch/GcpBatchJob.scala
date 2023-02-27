@@ -23,20 +23,20 @@ final case class GcpBatchJob (
   val log: Logger = LoggerFactory.getLogger(RunStatus.toString)
 
   // VALUES HERE
-  val entryPoint = "/bin/sh"
-  val retryCount = 2
-  val durationInSeconds: Long = 3600
-  val taskCount: Long = 1
-  val gcpBatchCommand: String = jobSubmission.gcpBatchCommand
+  private val entryPoint = "/bin/sh"
+  private val retryCount = 2
+  private val durationInSeconds: Long = 3600
+  private val taskCount: Long = 1
+  private val gcpBatchCommand: String = jobSubmission.gcpBatchCommand
 
   // set user agent
-  val user_agent_header = "user-agent"
-  val customUserAgentValue = "cromwell"
-  lazy val headerProvider: HeaderProvider = FixedHeaderProvider
+  private val user_agent_header = "user-agent"
+  private val customUserAgentValue = "cromwell"
+  private lazy val headerProvider: HeaderProvider = FixedHeaderProvider
     .create(ImmutableMap
       .of(user_agent_header, customUserAgentValue))
 
-  lazy val batchSettings = BatchServiceSettings.newBuilder.setHeaderProvider(headerProvider).build
+  private lazy val batchSettings = BatchServiceSettings.newBuilder.setHeaderProvider(headerProvider).build
 
   lazy val batchServiceClient = BatchServiceClient.create(batchSettings)
 

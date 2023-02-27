@@ -11,7 +11,7 @@ class GcpBatchJobGetRequest {
 
     val batchServiceClient = BatchServiceClient.create
 
-    val request = GetJobRequest.newBuilder.setName(JobName.of(projectId, region, jobName).toString()).build
+    val request = GetJobRequest.newBuilder.setName(JobName.of(projectId, region, jobName).toString).build
     val job = batchServiceClient.getJob(request)
 
     batchServiceClient.close()

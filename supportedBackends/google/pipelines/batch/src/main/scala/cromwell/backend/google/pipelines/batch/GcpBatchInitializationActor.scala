@@ -12,7 +12,7 @@ import scala.concurrent.Future
 
 //import scala.concurrent.Future
 //import cromwell.backend.google.pipelines.common.{PipelinesApiConfiguration, PipelinesApiInitializationActorParams, PipelinesApiRuntimeAttributes}
-import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
 import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
 //import cromwell.core.WorkflowOptions
 import cromwell.core.io.AsyncIoActorClient
@@ -33,12 +33,11 @@ case class GcpBatchInitializationActorParams
 
 }
 class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams) extends StandardInitializationActor(batchParams) with AsyncIoActorClient {
+
   override lazy val ioActor: ActorRef = batchParams.ioActor
-
-  override lazy val ioCommandBuilder: GcsBatchCommandBuilder.type = GcsBatchCommandBuilder
   protected val gcpBatchConfiguration: GcpBatchConfiguration = batchParams.batchConfiguration
-
   protected val workflowOptions: WorkflowOptions = workflowDescriptor.workflowOptions
+
 
   //private lazy val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
 
@@ -61,14 +60,6 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
       workflowDescriptor, gcpBatchConfiguration, validatedPathBuilders)
 
 
-/*
-  override lazy val initializationData: GcpBackendInitializationData = GcpBackendInitializationData(
-    workflowPaths = GcpBatchWorkflowPaths,
-    runtimeAttributesBuilder = runtimeAttributesBuilder,
-    gcpBatchConfiguration = gcpBatchConfiguration
-  )
-  */
-
   override lazy val initializationData: Future[GcpBackendInitializationData] = for {
     batchWorkflowPaths <- workflowPaths
   } yield GcpBackendInitializationData(
@@ -77,6 +68,16 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
     gcpBatchConfiguration = gcpBatchConfiguration
   )
   //add in gcs credentials if necessary
+
+  override def beforeAll(): Future[Option[BackendInitializationData]] = {
+    for {
+      paths <- workflowPaths
+      _ = publishWorkflowRoot(paths.workflowRoot.pathAsString)
+      data <- initializationData
+    } yield Option(data)
+  }
+
+  override lazy val ioCommandBuilder: GcsBatchCommandBuilder.type = GcsBatchCommandBuilder
 
 }
 

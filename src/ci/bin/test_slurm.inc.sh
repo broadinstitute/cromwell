@@ -39,7 +39,9 @@ cromwell::build::slurm::setup_slurm_environment() {
 ClusterName=localhost
 ControlMachine=localhost
 NodeName=localhost
-PartitionName=localpartition Nodes=localhost Default=YES
+PartitionName=localpartition
+Nodes=localhost
+Default=YES
 ProctrackType=proctrack/pgid
 ReturnToService=1
 SelectType=select/cons_res

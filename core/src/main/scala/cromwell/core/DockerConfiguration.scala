@@ -31,10 +31,12 @@ object DockerConfiguration {
     val sizeCompressionFactor = validate { dockerHashLookupConfig.as[Double]("size-compression-factor") }
     val maxTimeBetweenRetries = validate { dockerHashLookupConfig.as[FiniteDuration]("max-time-between-retries") }
     val maxRetries = validate { dockerHashLookupConfig.as[Int]("max-retries") }
-
-    val dockerConfiguration = (enabled,
+    // illusional (2020-12-21) re: mcovarr: https://github.com/broadinstitute/cromwell/pull/5545#discussion_r445043533
+    // Cromwell may use the Docker request to get the docker image size for adjusting boot disk size on the Google backend.
+    val performRegistryLookupIfDigestIsProvided = validate { dockerHashLookupConfig.as[Boolean]("perform-registry-lookup-if-digest-is-provided")}    val dockerConfiguration = (enabled,
       cacheEntryTtl, cacheSize, method,
-      sizeCompressionFactor, maxTimeBetweenRetries, maxRetries) mapN DockerConfiguration.apply
+      sizeCompressionFactor, maxTimeBetweenRetries, maxRetries,
+      performRegistryLookupIfDigestIsProvided ) mapN DockerConfiguration.apply
 
     dockerConfiguration match {
       case Valid(conf) => conf
@@ -50,7 +52,8 @@ case class DockerConfiguration(
                                 method: DockerHashLookupMethod,
                                 sizeCompressionFactor: Double,
                                 maxTimeBetweenRetries: FiniteDuration,
-                                maxRetries: Int
+                                maxRetries: Int,
+                                performRegistryLookupIfDigestIsProvided: Boolean
                               )
 
 sealed trait DockerHashLookupMethod

@@ -23,8 +23,10 @@ import cromwell.core.path.DefaultPathBuilder
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import wom.values.WomFile
-
 import scala.util.Success
+import cromwell.filesystems.gcs.GcsPath
+import cromwell.filesystems.http.HttpPath
+import cromwell.filesystems.sra.SraPath
 
 object GcpBatchAsyncBackendJobExecutionActor {
 
@@ -196,7 +198,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         true
       case jobFailed: RunStatus.Failed =>
         log.info("isTerminal match Failed with status {}", jobFailed)
-        false
+        true
       case _: TerminalRunStatus =>
         val tempTermStatus = runStatus.toString
         log.info(f"isTerminal match TerminalRunStatus running with status $tempTermStatus")
@@ -210,7 +212,10 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override def isDone(runStatus: RunStatus): Boolean = {
     runStatus match {
       case _: RunStatus.Succeeded =>
-        log.info("GCP job matched isDone")
+        log.info("GCP batch job succeeded matched isDone")
+        true
+      case _: RunStatus.Failed =>
+        log.info("GCP Job failed and matched isDone")
         true
       case _ =>
         log.info("did not match isDone")
@@ -241,6 +246,51 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   }
 
   println(batchAttributes.project)
+
+  override def cloudResolveWomFile(womFile: WomFile): WomFile = {
+    womFile.mapFile { value =>
+      getPath(value) match {
+        case Success(drsPath: DrsPath) => DrsResolver.getSimpleGsUri(drsPath).unsafeRunSync().getOrElse(value)
+        case Success(path) => path.pathAsString
+        case _ => value
+      }
+    }
+  }
+
+  override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
+    womFile.mapFile { value =>
+      (getPath(value), asAdHocFile(womFile)) match {
+        case (Success(gcsPath: GcsPath), Some(adHocFile)) =>
+          // Ad hoc files will be placed directly at the root ("/cromwell_root/ad_hoc_file.txt") unlike other input files
+          // for which the full path is being propagated ("/cromwell_root/path/to/input_file.txt")
+          workingDisk.mountPoint.resolve(adHocFile.alternativeName.getOrElse(gcsPath.name)).pathAsString
+        case (Success(path@(_: GcsPath | _: HttpPath)), _) =>
+          workingDisk.mountPoint.resolve(path.pathWithoutScheme).pathAsString
+        case (Success(drsPath: DrsPath), _) =>
+          val filePath = DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()
+          workingDisk.mountPoint.resolve(filePath).pathAsString
+        case (Success(sraPath: SraPath), _) =>
+          workingDisk.mountPoint.resolve(s"sra-${sraPath.accession}/${sraPath.pathWithoutScheme}").pathAsString
+        case _ => value
+      }
+    }
+  }
+
+  override def mapCommandLineJobInputWomFile(womFile: WomFile): WomFile = {
+    womFile.mapFile(value =>
+      getPath(value) match {
+        case Success(gcsPath: GcsPath) => workingDisk.mountPoint.resolve(gcsPath.pathWithoutScheme).pathAsString
+        case Success(drsPath: DrsPath) =>
+          val filePath = DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()
+          workingDisk.mountPoint.resolve(filePath).pathAsString
+        case _ => value
+      }
+    )
+  }
+
+
+
+
 
 }
 

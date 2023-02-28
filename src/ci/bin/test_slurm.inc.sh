@@ -29,6 +29,9 @@ cromwell::build::slurm::setup_slurm_environment() {
     sudo mkdir -p /var/run/slurm-llnl
     sudo mkdir -p /var/run/munge
     sudo mkdir -p /var/spool/slurmd
+    chmod 755 /etc
+    chmod 755 /etc/slurm
+    chmod 644 /etc/slurm/slurm.conf
 
     # A mash of configure-until-it-runs. Feel free to PR suggestions/fixes
     # https://slurm.schedmd.com/tutorials.html

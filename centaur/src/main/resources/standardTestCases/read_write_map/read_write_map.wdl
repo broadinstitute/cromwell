@@ -26,10 +26,29 @@ task read_map {
   }
 }
 
+task assert_write_map_terminal_newline {
+  Map[String, String] file_to_name
+  command <<<
+    # https://stackoverflow.com/a/25749716/21269164
+    file_ends_with_newline() {
+      [[ $(tail -c1 "$1" | wc -l) -gt 0 ]]
+    }
+
+    if ! file_ends_with_newline ${write_map(file_to_name)}
+    echo >&2 "write_map() should write a file whose last character is a newline"
+    exit 1
+    fi
+  >>>
+  runtime {
+    docker: "python:3.5.0"
+  }
+}
+
 workflow wf {
   Map[String, String] map = {"f1": "alice", "f2": "bob", "f3": "chuck"}
   call write_map {input: file_to_name = map}
   call read_map
+  call assert_write_map_terminal_newline {input: file_name_to_map = map}
   output {
      Map[String, Int] out = read_map.out_map
      String contents = write_map.contents

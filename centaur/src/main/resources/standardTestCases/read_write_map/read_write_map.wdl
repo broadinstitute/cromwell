@@ -35,8 +35,9 @@ task assert_write_map_terminal_newline {
     }
 
     if ! file_ends_with_newline ${write_map(file_to_name)}
-    echo >&2 "write_map() should write a file whose last character is a newline"
-    exit 1
+    then
+      echo >&2 "Error: write_map() should write a file whose last character is a newline"
+      exit 1
     fi
   >>>
   runtime {
@@ -48,7 +49,7 @@ workflow wf {
   Map[String, String] map = {"f1": "alice", "f2": "bob", "f3": "chuck"}
   call write_map {input: file_to_name = map}
   call read_map
-  call assert_write_map_terminal_newline {input: file_name_to_map = map}
+  call assert_write_map_terminal_newline {input: file_to_name = map}
   output {
      Map[String, Int] out = read_map.out_map
      String contents = write_map.contents

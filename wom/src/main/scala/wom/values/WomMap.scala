@@ -70,7 +70,7 @@ final case class WomMap private(womType: WomMapType, value: Map[WomValue, WomVal
   def tsvSerialize: Try[String] = {
     (womType.keyType, womType.valueType) match {
       case (_: WomPrimitiveType, _: WomPrimitiveType) =>
-        Success(value.map({case (k, v) => s"${k.valueString}\t${v.valueString}"}).mkString("\n"))
+        Success(value.map({case (k, v) => s"${k.valueString}\t${v.valueString}"}).mkString(start="", sep="\n", end="\n"))
       case _ =>
         Failure(new UnsupportedOperationException("Can only TSV serialize a Map[Primitive, Primitive]"))
     }

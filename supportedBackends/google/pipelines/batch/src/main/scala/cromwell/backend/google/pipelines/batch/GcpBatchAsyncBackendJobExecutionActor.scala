@@ -106,6 +106,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     )
   }
 
+
   def uploadScriptFile(): Future[Unit] = {
   commandScriptContents
     .fold(
@@ -122,6 +123,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   // Primary entry point for cromwell to run GCP Batch job
   override def executeAsync(): Future[ExecutionHandle] = {
+
+    println(batchAttributes.virtualPrivateCloudConfiguration)
 
     val runBatchResponse = for {
       _ <- uploadScriptFile()
@@ -167,7 +170,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     //super[GcpBatchStatusRequestClient].pollStatus(workflowId, handle.pendingJob, jobTemp)
 
     //temporary. Added to resolve issue with poll async starter before job submitted.
-    implicit val timeout: Timeout = Timeout(60.seconds)
+    implicit val timeout: Timeout = Timeout(60.seconds) //had to set to high amount for some reason.  Otherwise would not finish with low value
     val futureResult = backendSingletonActor ? BatchJobAsk(jobId)
     val result = Await.result(futureResult, timeout.duration).asInstanceOf[String]
     log.info(result)

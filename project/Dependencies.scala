@@ -5,7 +5,7 @@ object Dependencies {
   private val akkaHttpV = "10.1.15" // (CROM-6619)
   private val akkaV = "2.5.32" // scala-steward:off (CROM-6637)
   private val ammoniteOpsV = "2.4.1"
-  private val apacheHttpClientV = "4.5.13"
+  private val apacheHttpClientV = "4.5.14"
   private val awsSdkV = "2.17.265"
   // We would like to use the BOM to manage Azure SDK versions, but SBT doesn't support it.
   // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom

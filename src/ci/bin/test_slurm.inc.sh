@@ -29,10 +29,6 @@ cromwell::build::slurm::setup_slurm_environment() {
     sudo mkdir -p /var/run/slurm-llnl
     sudo mkdir -p /var/run/munge
     sudo mkdir -p /var/spool/slurmd
-    echo "Changing Permissions Here"
-    echo $SLURM_CONF
-    sudo chmod 760 /etc/slurm
-    sudo chmod 760 /etc/slurm/slurm.conf
     echo "This"
     ls
     echo "etc"

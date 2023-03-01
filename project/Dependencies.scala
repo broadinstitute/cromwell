@@ -63,7 +63,7 @@ object Dependencies {
   private val jakartaInjectV = "2.6.1"
   private val jakartaXmlBindApiV = "2.3.2"
   private val janinoV = "3.1.7"
-  private val jerseyV = "2.32" // Use a jersey compatible with WSM. See notes in wsmDependencies below.
+  private val jerseyV = "2.39" // Use a jersey compatible with WSM. See notes in wsmDependencies below.
   private val jsr305V = "3.0.2"
   private val junitV = "4.13.2"
   private val kindProjectorV = "0.13.2"

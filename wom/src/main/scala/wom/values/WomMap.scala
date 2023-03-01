@@ -69,8 +69,14 @@ final case class WomMap private(womType: WomMapType, value: Map[WomValue, WomVal
 
   def tsvSerialize: Try[String] = {
     (womType.keyType, womType.valueType) match {
+      case (_: WomPrimitiveType, _: WomPrimitiveType) if value.isEmpty =>
+        // WDL 1.1 spec on `write_map()` https://github.com/openwdl/wdl/blob/main/versions/1.1/SPEC.md#file-write_mapmapstring-string
+        // Earlier versions of the spec are not as opinionated on `write_map()` behavior.
+        // "If the Map is empty, an empty file is written."
+        Success("")
       case (_: WomPrimitiveType, _: WomPrimitiveType) =>
-        Success(value.map({case (k, v) => s"${k.valueString}\t${v.valueString}"}).mkString("\n"))
+        // "All lines are terminated by the newline (\n) character."
+        Success(value.map({case (k, v) => s"${k.valueString}\t${v.valueString}"}).mkString(start="", sep="\n", end="\n"))
       case _ =>
         Failure(new UnsupportedOperationException("Can only TSV serialize a Map[Primitive, Primitive]"))
     }

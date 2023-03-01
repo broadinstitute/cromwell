@@ -79,7 +79,7 @@ object Dependencies {
   private val metrics4ScalaV = "4.2.8"
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "3.0.0"
-  private val mockitoV = "3.12.4"
+  private val mockitoV = "5.1.1"
   private val mockserverNettyV = "5.14.0"
   private val mouseV = "1.0.11"
 

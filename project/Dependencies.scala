@@ -90,7 +90,7 @@ object Dependencies {
   private val mysqlV = "8.0.28"
   private val nettyV = "4.1.72.Final"
   private val owlApiV = "5.1.19"
-  private val postgresV = "42.4.1"
+  private val postgresV = "42.4.3"
   private val pprintV = "0.7.3"
   private val rdf4jV = "3.7.1"
   private val refinedV = "0.10.1"

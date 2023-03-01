@@ -40,7 +40,7 @@ object Dependencies {
   // latest date via: https://github.com/googleapis/google-api-java-client-services/blob/main/clients/google-api-services-cloudkms/v1.metadata.json
   private val googleCloudKmsV = "v1-rev20220104-1.32.1"
   private val googleCloudMonitoringV = "3.2.5"
-  private val googleCloudNioV = "0.124.8"
+  private val googleCloudNioV = "0.124.21"
   private val googleCloudStorageV = "2.9.2"
   private val googleGaxGrpcV = "2.19.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-genomics

@@ -28,7 +28,7 @@ object Dependencies {
   private val commonsIoV = "2.11.0" // via: https://commons.apache.org/proper/commons-io/
   private val commonsLang3V = "3.12.0"
   private val commonsMathV = "3.6.1"
-  private val commonNetV = "3.8.0" // via: https://commons.apache.org/proper/commons-net/
+  private val commonNetV = "3.9.0" // via: https://commons.apache.org/proper/commons-net/
   private val commonsTextV = "1.10.0"
   private val configsV = "0.6.1"
   private val delightRhinoSandboxV = "0.0.15"

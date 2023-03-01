@@ -1,0 +1,15 @@
+name: azure_blob_storage_read
+testFormat: workflowsuccess
+backends: [Local]
+tags: ["blob", "azure"]
+retryTestFailures: false
+
+files {
+  workflow: azure_blob_storage_read/azure_blob_storage_read.wdl
+  inputs: azure_blob_storage_read/azure_blob_storage_read.inputs
+}
+
+metadata {
+  status: Succeeded
+  "outputs.azure_blob_storage_read.s1": "This is my test file! Did it work??"
+}

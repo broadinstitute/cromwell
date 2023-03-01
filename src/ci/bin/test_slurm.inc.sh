@@ -30,8 +30,15 @@ cromwell::build::slurm::setup_slurm_environment() {
     sudo mkdir -p /var/run/munge
     sudo mkdir -p /var/spool/slurmd
     echo "Changing Permissions Here"
+    echo $SLURM_CONF
     sudo chmod 760 /etc/slurm
     sudo chmod 760 /etc/slurm/slurm.conf
+    echo "This"
+    ls
+    echo "etc"
+    ls /etc
+    echo "slurm"
+    ls /etc/slurm
 
     # A mash of configure-until-it-runs. Feel free to PR suggestions/fixes
     # https://slurm.schedmd.com/tutorials.html

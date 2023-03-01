@@ -210,7 +210,7 @@ object Dependencies {
   )
 
   val wsmDependencies: List[ModuleID] = List(
-    "bio.terra" % "workspace-manager-client" % "0.254.452-SNAPSHOT"
+    "bio.terra" % "workspace-manager-client" % "0.254.586-SNAPSHOT"
       exclude("com.sun.activation", "jakarta.activation"),
     /*
     1. WSM is looking for the rs-api under javax.*.

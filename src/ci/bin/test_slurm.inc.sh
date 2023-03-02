@@ -22,17 +22,14 @@ cromwell::build::slurm::setup_slurm_environment() {
     sudo apt-get update
 
     # Try the Lawrence Livermore National Laboratory (LLNL) version first
-    sudo apt-get install -y slurm-llnl || sudo apt-get install -y slurm-wlm
+    #sudo apt-get install -y slurm-llnl || sudo apt-get install -y slurm-wlm
+    sudo apt-get install -y slurm-wlm
 
     # Create various directories used by slurm
     sudo mkdir -p /etc/slurm-llnl
     sudo mkdir -p /var/run/slurm-llnl
     sudo mkdir -p /var/run/munge
     sudo mkdir -p /var/spool/slurmd
-    echo "etc"
-    ls /etc
-    echo "slurm"
-    ls /etc/slurm
 
     # A mash of configure-until-it-runs. Feel free to PR suggestions/fixes
     # https://slurm.schedmd.com/tutorials.html

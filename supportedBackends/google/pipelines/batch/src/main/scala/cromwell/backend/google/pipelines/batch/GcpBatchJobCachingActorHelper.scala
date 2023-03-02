@@ -1,5 +1,6 @@
 package cromwell.backend.google.pipelines.batch
 
+import cromwell.backend.google.pipelines.batch.io.{GcpBatchAttachedDisk, GcpBatchWorkingDisk}
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.Path
@@ -20,7 +21,7 @@ trait GcpBatchJobCachingActorHelper extends StandardCachingActorHelper {
       .runtimeConfig
   )
 
-  //lazy val workingDisk: PipelinesApiAttachedDisk = runtimeAttributes.disks.find(_.name == PipelinesApiWorkingDisk.Name).get
+  lazy val workingDisk: GcpBatchAttachedDisk = runtimeAttributes.disks.find(_.name == GcpBatchWorkingDisk.Name).get
 
   lazy val callRootPath: Path = gcpBatchCallPaths.callExecutionRoot
   lazy val returnCodeFilename: String = gcpBatchCallPaths.returnCodeFilename

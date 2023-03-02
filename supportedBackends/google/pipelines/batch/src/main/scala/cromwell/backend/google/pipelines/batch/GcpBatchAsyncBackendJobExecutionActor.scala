@@ -5,7 +5,6 @@ import com.google.api.gax.rpc.NotFoundException
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
-
 import java.util.concurrent.ExecutionException
 import scala.concurrent.Await
 import cromwell.core.{ExecutionEvent, WorkflowId}
@@ -14,14 +13,20 @@ import cromwell.backend.async.ExecutionHandle
 import akka.actor.ActorRef
 import akka.pattern.AskSupport
 import cromwell.services.instrumentation.CromwellInstrumentation
-
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import GcpBatchBackendSingletonActor._
 import cromwell.backend.google.pipelines.batch.RunStatus.{Running, Succeeded, TerminalRunStatus}
 import cromwell.backend.google.pipelines.common.WorkflowOptionKeys
 import cromwell.core.io.IoCommandBuilder
+import cromwell.core.path.DefaultPathBuilder
+import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
+import wom.values.WomFile
+import scala.util.Success
+import cromwell.filesystems.gcs.GcsPath
+import cromwell.filesystems.http.HttpPath
+import cromwell.filesystems.sra.SraPath
 
 object GcpBatchAsyncBackendJobExecutionActor {
 
@@ -73,22 +78,53 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   val backendSingletonActor: ActorRef = standardParams.backendSingletonActorOption
                                                       .getOrElse(throw new RuntimeException("GCP Batch actor cannot exist without its backend singleton 2"))
 
-  def uploadScriptFile(): Future[Unit] = {
-    commandScriptContents
-      .fold(
-        errors => Future
-          .failed(new RuntimeException(errors
-            .toList
-            .mkString(", "))),
-        asyncIo
-          .writeAsync(jobPaths
-            .script, _, Seq
-            .empty)
-      )
+
+  /**
+    * Turns WomFiles into relative paths.  These paths are relative to the working disk.
+    *
+    * relativeLocalizationPath("foo/bar.txt") -> "foo/bar.txt"
+    * relativeLocalizationPath("gs://some/bucket/foo.txt") -> "some/bucket/foo.txt"
+    */
+  override protected def relativeLocalizationPath(file: WomFile): WomFile = {
+    file.mapFile(value =>
+      getPath(value) match {
+        case Success(drsPath: DrsPath) => DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()
+        case Success(path) => path.pathWithoutScheme
+        case _ => value
+      }
+    )
   }
+
+  override protected def fileName(file: WomFile): WomFile = {
+    file.mapFile(value =>
+      getPath(value) match {
+        case Success(drsPath: DrsPath) => DefaultPathBuilder
+          .get(DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()).name
+        case Success(path) => path.name
+        case _ => value
+      }
+    )
+  }
+
+
+  def uploadScriptFile(): Future[Unit] = {
+  commandScriptContents
+    .fold(
+      errors => Future
+        .failed(new RuntimeException(errors
+          .toList
+          .mkString(", "))),
+      asyncIo
+        .writeAsync(jobPaths
+          .script, _, Seq
+          .empty)
+    )
+}
 
   // Primary entry point for cromwell to run GCP Batch job
   override def executeAsync(): Future[ExecutionHandle] = {
+
+    println(batchAttributes.virtualPrivateCloudConfiguration)
 
     val runBatchResponse = for {
       _ <- uploadScriptFile()
@@ -134,7 +170,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     //super[GcpBatchStatusRequestClient].pollStatus(workflowId, handle.pendingJob, jobTemp)
 
     //temporary. Added to resolve issue with poll async starter before job submitted.
-    implicit val timeout: Timeout = Timeout(60.seconds)
+    implicit val timeout: Timeout = Timeout(60.seconds) //had to set to high amount for some reason.  Otherwise would not finish with low value
     val futureResult = backendSingletonActor ? BatchJobAsk(jobId)
     val result = Await.result(futureResult, timeout.duration).asInstanceOf[String]
     log.info(result)
@@ -165,7 +201,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         true
       case jobFailed: RunStatus.Failed =>
         log.info("isTerminal match Failed with status {}", jobFailed)
-        false
+        true
       case _: TerminalRunStatus =>
         val tempTermStatus = runStatus.toString
         log.info(f"isTerminal match TerminalRunStatus running with status $tempTermStatus")
@@ -179,7 +215,10 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override def isDone(runStatus: RunStatus): Boolean = {
     runStatus match {
       case _: RunStatus.Succeeded =>
-        log.info("GCP job matched isDone")
+        log.info("GCP batch job succeeded matched isDone")
+        true
+      case _: RunStatus.Failed =>
+        log.info("GCP Job failed and matched isDone")
         true
       case _ =>
         log.info("did not match isDone")
@@ -210,6 +249,51 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   }
 
   println(batchAttributes.project)
+
+  override def cloudResolveWomFile(womFile: WomFile): WomFile = {
+    womFile.mapFile { value =>
+      getPath(value) match {
+        case Success(drsPath: DrsPath) => DrsResolver.getSimpleGsUri(drsPath).unsafeRunSync().getOrElse(value)
+        case Success(path) => path.pathAsString
+        case _ => value
+      }
+    }
+  }
+
+  override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
+    womFile.mapFile { value =>
+      (getPath(value), asAdHocFile(womFile)) match {
+        case (Success(gcsPath: GcsPath), Some(adHocFile)) =>
+          // Ad hoc files will be placed directly at the root ("/cromwell_root/ad_hoc_file.txt") unlike other input files
+          // for which the full path is being propagated ("/cromwell_root/path/to/input_file.txt")
+          workingDisk.mountPoint.resolve(adHocFile.alternativeName.getOrElse(gcsPath.name)).pathAsString
+        case (Success(path@(_: GcsPath | _: HttpPath)), _) =>
+          workingDisk.mountPoint.resolve(path.pathWithoutScheme).pathAsString
+        case (Success(drsPath: DrsPath), _) =>
+          val filePath = DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()
+          workingDisk.mountPoint.resolve(filePath).pathAsString
+        case (Success(sraPath: SraPath), _) =>
+          workingDisk.mountPoint.resolve(s"sra-${sraPath.accession}/${sraPath.pathWithoutScheme}").pathAsString
+        case _ => value
+      }
+    }
+  }
+
+  override def mapCommandLineJobInputWomFile(womFile: WomFile): WomFile = {
+    womFile.mapFile(value =>
+      getPath(value) match {
+        case Success(gcsPath: GcsPath) => workingDisk.mountPoint.resolve(gcsPath.pathWithoutScheme).pathAsString
+        case Success(drsPath: DrsPath) =>
+          val filePath = DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()
+          workingDisk.mountPoint.resolve(filePath).pathAsString
+        case _ => value
+      }
+    )
+  }
+
+
+
+
 
 }
 

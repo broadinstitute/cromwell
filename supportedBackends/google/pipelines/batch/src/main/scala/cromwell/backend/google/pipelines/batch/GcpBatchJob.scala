@@ -2,6 +2,7 @@ package cromwell.backend.google.pipelines.batch
 import com.google.api.gax.rpc.{FixedHeaderProvider, HeaderProvider}
 import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, TaskGroup, TaskSpec}
 import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy}
+//import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy}
 import com.google.cloud.batch.v1.Runnable.Container
 import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.BatchRequest
 import com.google.protobuf.Duration
@@ -14,7 +15,6 @@ import org.slf4j.{Logger, LoggerFactory}
 final case class GcpBatchJob (
                              jobSubmission: BatchRequest,
                              cpu: Long,
-                             //cpuPlatform: String,
                              memory: Long,
                              machineType: String,
                              runtimeAttributes: GcpBatchRuntimeAttributes
@@ -45,6 +45,13 @@ final case class GcpBatchJob (
       .projectId, jobSubmission
       .region))
   private val cpuPlatform =  runtimeAttributes.cpuPlatform.getOrElse("")
+  //private val bootDiskSize = runtimeAttributes.bootDiskSize
+ // private val noAddress = runtimeAttributes.noAddress
+  private val zones = "zones/" + runtimeAttributes.zones.mkString(",")
+  println(zones)
+
+  private val preemption = runtimeAttributes.preemptible
+  println(preemption)
 
   log.info(cpuPlatform)
 
@@ -53,48 +60,89 @@ final case class GcpBatchJob (
     runnable
   }
 
+  private def createComputeResource(cpu: Long, memory: Long) = {
+    ComputeResource
+      .newBuilder
+      .setCpuMilli(cpu)
+      .setMemoryMib(memory)
+      .build
+  }
+
   private def createInstancePolicy = {
     val instancePolicy = InstancePolicy
       .newBuilder
       .setMachineType(machineType)
-      .setMinCpuPlatform(cpuPlatform)
+      //.setMinCpuPlatform(cpuPlatform)
       .build
     instancePolicy
+  }
+
+
+  /*
+  private def createNetworkInterface(noAddress: Boolean) = {
+    NetworkInterface
+      .newBuilder
+      .setNoExternalIpAddress(noAddress)
+      .setNetwork("projects/batch-testing-350715/global/networks/default")
+      .setSubnetwork("regions/us-central1/subnetworks/default")
+      .build
+  }
+  */
+
+  /*
+  private def createNetworkPolicy(networkInterface: NetworkInterface) = {
+    NetworkPolicy
+      .newBuilder
+      .addNetworkInterfaces(0, networkInterface)
+      .build()
+  }
+  */
+
+  private def createTaskSpec(runnable: Runnable, computeResource: ComputeResource, retryCount: Int, durationInSeconds: Long) = {
+    TaskSpec
+      .newBuilder
+      .addRunnables(runnable)
+      .setComputeResource(computeResource)
+      .setMaxRetryCount(retryCount)
+      .setMaxRunDuration(Duration
+        .newBuilder
+        .setSeconds(durationInSeconds)
+        .build)
+  }
+
+  private def createTaskGroup(taskCount: Long, task: TaskSpec.Builder): TaskGroup = {
+    TaskGroup
+      .newBuilder
+      .setTaskCount(taskCount)
+      .setTaskSpec(task)
+      .build
+
+  }
+
+  private def createAllocationPolicy(locationPolicy: LocationPolicy,  instancePolicy: InstancePolicy) = {
+    AllocationPolicy
+      .newBuilder
+      .setLocation(locationPolicy)
+      //.setNetwork(networkPolicy)
+      .addInstances(InstancePolicyOrTemplate
+        .newBuilder
+        .setPolicy(instancePolicy)
+        .build)
+      .build
   }
 
   def submitJob(): Unit = {
 
     try {
       val runnable = createRunnable(dockerImage = runtimeAttributes.dockerImage, entryPoint = entryPoint)
-      val computeResource = ComputeResource
-        .newBuilder
-        .setCpuMilli(cpu)
-        .setMemoryMib(memory)
-        .build
-      val task = TaskSpec
-        .newBuilder
-        .addRunnables(runnable)
-        .setComputeResource(computeResource)
-        .setMaxRetryCount(retryCount)
-        .setMaxRunDuration(Duration
-          .newBuilder
-          .setSeconds(durationInSeconds)
-          .build)
-      val taskGroup = TaskGroup
-        .newBuilder
-        .setTaskCount(taskCount)
-        .setTaskSpec(task)
-        .build
+      //val networkInterface = createNetworkInterface(noAddress)
+      //val networkPolicy = createNetworkPolicy(networkInterface)
+      val computeResource = createComputeResource(cpu, memory)
+      val taskSpec = createTaskSpec(runnable, computeResource, retryCount, durationInSeconds)
+      val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
       val instancePolicy = createInstancePolicy
-      val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations("regions/us-south1")
-      val allocationPolicy = AllocationPolicy
-        .newBuilder
-        .setLocation(locationPolicy)
-        .addInstances(InstancePolicyOrTemplate
-          .newBuilder
-          .setPolicy(instancePolicy)
-          .build)
-        .build
+      val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
+      val allocationPolicy = createAllocationPolicy(locationPolicy, instancePolicy)
       val job = Job
         .newBuilder
         .addTaskGroups(taskGroup)
@@ -127,7 +175,7 @@ final case class GcpBatchJob (
 
     }
     catch  {
-      case _: Throwable => log.info("Job failed")
+      case e: Throwable => log.info(s"Job failed with ${e}")
     }
 
   }

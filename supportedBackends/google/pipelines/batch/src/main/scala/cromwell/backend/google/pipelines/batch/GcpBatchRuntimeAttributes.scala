@@ -1,10 +1,13 @@
 package cromwell.backend.google.pipelines.batch
 
+import cats.implicits.{catsSyntaxValidatedId, toTraverseOps}
 import com.typesafe.config.Config
-//import cromwell.backend.google.pipelines.batch.GpuResource.GpuType
+import common.validation.ErrorOr.ErrorOr
+import cromwell.backend.google.pipelines.batch.io.{GcpBatchAttachedDisk, GcpBatchWorkingDisk}
+import wdl4s.parser.MemoryUnit
+import wom.types.{WomArrayType, WomStringType, WomType}
+import wom.values.{WomArray, WomValue}
 import cromwell.backend.google.pipelines.common.ZonesValidation
-//import cromwell.backend.google.pipelines.common.{GpuTypeValidation, GpuValidation, ZonesValidation}
-//import cromwell.backend.google.pipelines.common.{GpuTypeValidation, GpuValidation, ZonesValidation}
 import cromwell.backend.validation.BooleanRuntimeAttributesValidation
 import wom.values.{WomBoolean, WomInteger, WomString}
 import cromwell.backend.validation.{DockerValidation, StringRuntimeAttributesValidation, ValidatedRuntimeAttributes}
@@ -13,7 +16,6 @@ import cromwell.backend.validation.{OptionalRuntimeAttributesValidation, Runtime
 import eu.timepit.refined.api.Refined
 import cromwell.backend.validation._
 import eu.timepit.refined.numeric.Positive
-//import eu.timepit.refined.refineMV
 import wom.RuntimeAttributesKeys
 import wom.format.MemorySize
 /*
@@ -42,6 +44,7 @@ final case class GcpBatchRuntimeAttributes(
                                       preemptible: Int,
                                       bootDiskSize: Int,
                                       memory: MemorySize,
+                                      disks: Seq[GcpBatchAttachedDisk],
                                       dockerImage: String,
                                       failOnStderr: Boolean,
                                       noAddress: Boolean,
@@ -65,6 +68,8 @@ object GcpBatchRuntimeAttributes {
   private val noAddressValidationInstance = new BooleanRuntimeAttributesValidation(NoAddressKey)
   private val NoAddressDefaultValue = WomBoolean(false)
 
+  val DisksKey = "disks"
+  private val DisksDefaultValue = WomString(s"${GcpBatchWorkingDisk.Name} 10 SSD")
 
   val CpuPlatformKey = "cpuPlatform"
   private val cpuPlatformValidationInstance = new StringRuntimeAttributesValidation(CpuPlatformKey)
@@ -104,6 +109,10 @@ object GcpBatchRuntimeAttributes {
 
 
   private def failOnStderrValidation(runtimeConfig: Option[Config]) = FailOnStderrValidation.default(runtimeConfig)
+
+  private def disksValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Seq[GcpBatchAttachedDisk]] = DisksValidation
+    .withDefault(DisksValidation.configDefaultWomValue(runtimeConfig) getOrElse DisksDefaultValue)
+
   private def zonesValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Vector[String]] = ZonesValidation
     .withDefault(ZonesValidation
       .configDefaultWomValue(runtimeConfig) getOrElse ZonesDefaultValue)
@@ -135,6 +144,18 @@ object GcpBatchRuntimeAttributes {
   private def useDockerImageCacheValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Boolean] =
     useDockerImageCacheValidationInstance
 
+  private val outDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] = {
+    InformationValidation.optional(RuntimeAttributesKeys.OutDirMinKey, MemoryUnit.MB, allowZero = true)
+  }
+
+  private val tmpDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] = {
+    InformationValidation.optional(RuntimeAttributesKeys.TmpDirMinKey, MemoryUnit.MB, allowZero = true)
+  }
+
+  private val inputDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] = {
+    InformationValidation.optional(RuntimeAttributesKeys.DnaNexusInputDirMinKey, MemoryUnit.MB, allowZero = true)
+  }
+
   def runtimeAttributesBuilder(batchConfiguration: GcpBatchConfiguration): StandardValidatedRuntimeAttributesBuilder = {
     val runtimeConfig = batchConfiguration.runtimeConfig
     StandardValidatedRuntimeAttributesBuilder.default(runtimeConfig).withValidation(
@@ -145,6 +166,7 @@ object GcpBatchRuntimeAttributes {
       cpuPlatformValidation(runtimeConfig),
       cpuMinValidation(runtimeConfig),
       //gpuMinValidation(runtimeConfig),
+      disksValidation(runtimeConfig),
       noAddressValidation(runtimeConfig),
       zonesValidation(runtimeConfig),
       preemptibleValidation(runtimeConfig),
@@ -184,7 +206,22 @@ object GcpBatchRuntimeAttributes {
     val preemptible: Int = RuntimeAttributesValidation.extract(preemptibleValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val bootDiskSize: Int = RuntimeAttributesValidation.extract(bootDiskSizeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val memory: MemorySize = RuntimeAttributesValidation.extract(memoryValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val disks: Seq[GcpBatchAttachedDisk] = RuntimeAttributesValidation.extract(disksValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val useDockerImageCache: Option[Boolean] = RuntimeAttributesValidation.extractOption(useDockerImageCacheValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
+
+    val outDirMin: Option[MemorySize] = RuntimeAttributesValidation
+      .extractOption(outDirMinValidation.key, validatedRuntimeAttributes)
+    val tmpDirMin: Option[MemorySize] = RuntimeAttributesValidation
+      .extractOption(tmpDirMinValidation.key, validatedRuntimeAttributes)
+    val inputDirMin: Option[MemorySize] = RuntimeAttributesValidation
+      .extractOption(inputDirMinValidation.key, validatedRuntimeAttributes)
+
+
+    val totalExecutionDiskSizeBytes = List(inputDirMin.map(_.bytes), outDirMin.map(_.bytes), tmpDirMin.map(_.bytes))
+      .flatten.fold(MemorySize(0, MemoryUnit.Bytes).bytes)(_ + _)
+    val totalExecutionDiskSize = MemorySize(totalExecutionDiskSizeBytes, MemoryUnit.Bytes)
+
+    val adjustedDisks = disks.adjustWorkingDiskWithNewMin(totalExecutionDiskSize, ())
 
     new GcpBatchRuntimeAttributes(
       cpu,
@@ -194,6 +231,7 @@ object GcpBatchRuntimeAttributes {
       preemptible,
       bootDiskSize,
       memory,
+      adjustedDisks,
       docker,
       failOnStderr,
       noAddress,
@@ -202,4 +240,39 @@ object GcpBatchRuntimeAttributes {
   }
 
 
+}
+
+object DisksValidation extends RuntimeAttributesValidation[Seq[GcpBatchAttachedDisk]] {
+  override def key: String = GcpBatchRuntimeAttributes.DisksKey
+
+  override def coercion: Iterable[WomType] = Set(WomStringType, WomArrayType(WomStringType))
+
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[Seq[GcpBatchAttachedDisk]]] = {
+    case WomString(value) => validateLocalDisks(value.split(",\\s*").toSeq)
+    case WomArray(womType, values) if womType.memberType == WomStringType =>
+      validateLocalDisks(values.map(_.valueString))
+  }
+
+  private def validateLocalDisks(disks: Seq[String]): ErrorOr[Seq[GcpBatchAttachedDisk]] = {
+    val diskNels: ErrorOr[Seq[GcpBatchAttachedDisk]] = disks.toList.traverse[ErrorOr, GcpBatchAttachedDisk](validateLocalDisk)
+    val defaulted: ErrorOr[Seq[GcpBatchAttachedDisk]] = addDefault(diskNels)
+    defaulted
+  }
+
+  private def validateLocalDisk(disk: String): ErrorOr[GcpBatchAttachedDisk] = {
+    GcpBatchAttachedDisk.parse(disk) match {
+      case scala.util.Success(attachedDisk) => attachedDisk.validNel
+      case scala.util.Failure(ex) => ex.getMessage.invalidNel
+    }
+  }
+
+  private def addDefault(disksNel: ErrorOr[Seq[GcpBatchAttachedDisk]]): ErrorOr[Seq[GcpBatchAttachedDisk]] = {
+    disksNel map {
+      case disks if disks.exists(_.name == GcpBatchWorkingDisk.Name) => disks
+      case disks => disks :+ GcpBatchWorkingDisk.Default
+    }
+  }
+
+  override protected def missingValueMessage: String =
+    s"Expecting $key runtime attribute to be a comma separated String or Array[String]"
 }

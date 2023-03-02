@@ -3,7 +3,6 @@ package cromwell.backend.google.pipelines.batch
 import cats.data.Validated._
 
 import java.net.URL
-//import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cats.data.{NonEmptyList, Validated}
 import cats.implicits._
 import com.typesafe.config.{Config, ConfigValue}
@@ -12,11 +11,9 @@ import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend.CommonBackendConfigurationAttributes
-//import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{BatchRequestTimeoutConfiguration, GcsTransferConfiguration, VirtualPrivateCloudConfiguration}
 import cromwell.backend.google.pipelines.batch.GcpBatchConfigurationAttributes.{BatchRequestTimeoutConfiguration, GcsTransferConfiguration, VirtualPrivateCloudConfiguration}
 import cromwell.backend.google.pipelines.batch.authentication.GcpBatchAuths
 import cromwell.backend.google.pipelines.common.callcaching.{CopyCachedOutputs, PipelinesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
-//import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
 import cromwell.backend.google.pipelines.batch.io.GcpBatchReferenceFilesDisk
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
@@ -25,17 +22,13 @@ import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineV
-//import eu.timepit.refined.{refineMV, refineV}
 import eu.timepit.refined.refineMV
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.{Logger, LoggerFactory}
-
-//import java.net.URL
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
 import scala.util.Try
 import scala.util.matching.Regex
-//import scala.util.{Failure, Success, Try}
 import scala.util.{Failure, Success}
 
 case class GcpBatchConfigurationAttributes(project: String,

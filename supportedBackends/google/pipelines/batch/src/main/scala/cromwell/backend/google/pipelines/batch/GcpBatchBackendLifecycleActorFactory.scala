@@ -11,7 +11,6 @@ import wom.graph.CommandCallNode
 import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.backend.google.pipelines.batch.GcpBatchBackendLifecycleActorFactory.robustBuildAttributes
 import cromwell.backend.standard._
-
 import scala.util.{Failure, Try}
 
 

@@ -22,9 +22,11 @@ cromwell::build::slurm::setup_slurm_environment() {
     sudo apt-get update
 
     sudo apt-get install -y slurm-wlm
-    #As an alternative to 'slurm-wlm', you may also try 'slurm-llnl'.
-    #If you use 'slurm-llnl', change the below tee path to '/etc/slurm-llnl/slurm.conf'
-    #For reasons that are unclear, slurm-llnl doesn't work in Github Actions, and slurm-wlm doesn't work in Travis.  
+    # As an alternative to 'slurm-wlm', you may also try 'slurm-llnl'.
+    # If you use 'slurm-llnl', change the below tee path to '/etc/slurm-llnl/slurm.conf'
+    # For reasons that are unclear, slurm-llnl doesn't work in Github Actions, and slurm-wlm doesn't work in Travis.
+    # We transitioned from slurm-llnl to slurm-wlm when moving from Travis to Github Actions.
+    # See the PR associated with ticket WX-888.  
 
     # Create various directories used by slurm
     sudo mkdir -p /var/run/munge

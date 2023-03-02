@@ -106,7 +106,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     )
   }
 
-
   def uploadScriptFile(): Future[Unit] = {
   commandScriptContents
     .fold(
@@ -124,11 +123,18 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   // Primary entry point for cromwell to run GCP Batch job
   override def executeAsync(): Future[ExecutionHandle] = {
 
+    //println(jobDescriptor.taskCall.sourceLocation)
+    //println(jobDescriptor.localInputs)
     println(batchAttributes.virtualPrivateCloudConfiguration)
+    println(batchAttributes.executionBucket)
+
+    val file = jobDescriptor.localInputs
+    println(file.get("test"))
+    val gcpBatchParameters = CreateGcpBatchParameters(jobDescriptor = jobDescriptor, runtimeAttributes = runtimeAttributes, dockerImage = jobDockerImage, projectId = batchAttributes.project)
 
     val runBatchResponse = for {
       _ <- uploadScriptFile()
-      _ = backendSingletonActor ! BatchRequest(workflowId, projectId = "batch-testing-350715", region = "us-central1", jobName = jobTemp, runtimeAttributes, gcpBatchCommand)
+      _ = backendSingletonActor ! GcpBatchRequest(workflowId,  region = "us-central1", jobName = jobTemp, gcpBatchCommand, gcpBatchParameters)
       runId = StandardAsyncJob(jobTemp)
 
     }

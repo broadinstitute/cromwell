@@ -21,13 +21,14 @@ cromwell::build::slurm::setup_slurm_environment() {
     # https://slurm.schedmd.com/
     sudo apt-get update
 
-    # Try the Lawrence Livermore National Laboratory (LLNL) version first
-    #sudo apt-get install -y slurm-llnl || sudo apt-get install -y slurm-wlm
     sudo apt-get install -y slurm-wlm
+    #As an alternative to 'slurm-wlm', you may also try 'slurm-llnl'.
+    #If you use 'slurm-llnl', change the below tee path to '/etc/slurm-llnl/slurm.conf'
+    #For reasons that are unclear, slurm-llnl doesn't work in Github Actions, and slurm-wlm doesn't work in Travis.  
 
     # Create various directories used by slurm
-    sudo mkdir -p /etc/slurm-llnl
-    sudo mkdir -p /var/run/slurm-llnl
+    #sudo mkdir -p /etc/slurm-llnl
+    #sudo mkdir -p /var/run/slurm-llnl
     sudo mkdir -p /var/run/munge
     sudo mkdir -p /var/spool/slurmd
 

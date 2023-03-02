@@ -30,7 +30,7 @@ cromwell::build::slurm::setup_slurm_environment() {
     sudo mkdir -p /var/run/munge
     sudo mkdir -p /var/spool/slurmd
 
-    # A mash of configure-until-it-runs. Feel free to PR suggestions/fixes
+    # A mash of configure-until-it-runs. Feel free to PR suggestions/fixes.
     # https://slurm.schedmd.com/tutorials.html
     # https://slurm.schedmd.com/configurator.html
     # https://slurm.schedmd.com/slurm.conf.html

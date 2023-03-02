@@ -27,8 +27,6 @@ cromwell::build::slurm::setup_slurm_environment() {
     #For reasons that are unclear, slurm-llnl doesn't work in Github Actions, and slurm-wlm doesn't work in Travis.  
 
     # Create various directories used by slurm
-    #sudo mkdir -p /etc/slurm-llnl
-    #sudo mkdir -p /var/run/slurm-llnl
     sudo mkdir -p /var/run/munge
     sudo mkdir -p /var/spool/slurmd
 
@@ -37,7 +35,6 @@ cromwell::build::slurm::setup_slurm_environment() {
     # https://slurm.schedmd.com/configurator.html
     # https://slurm.schedmd.com/slurm.conf.html
     # https://slurm.schedmd.com/quickstart_admin.html
-    #cat <<SLURM_CONF | sudo tee /etc/slurm-llnl/slurm.conf >/dev/null
     cat <<SLURM_CONF | sudo tee /etc/slurm/slurm.conf >/dev/null
 ClusterName=localhost
 ControlMachine=localhost

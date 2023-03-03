@@ -48,9 +48,6 @@ env:
       BUILD_TYPE=centaurPapiV2beta
       BUILD_MYSQL=5.7
     - >-
-      BUILD_TYPE=centaurSlurm
-      BUILD_MYSQL=5.7
-    - >-
       BUILD_TYPE=centaurTes
       BUILD_MYSQL=5.7
     - >-

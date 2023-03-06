@@ -1228,18 +1228,6 @@ cromwell::private::generate_code_coverage() {
     bash <(curl -s https://codecov.io/bash) > /dev/null || true
 }
 
-cromwell::private::publish_artifacts_only() {
-    sbt 'set ThisBuild / assembly / logLevel := Level.Warn' -Dsbt.supershell=false --warn "$@" publish
-}
-
-cromwell::private::publish_artifacts_and_docker() {
-    sbt 'set ThisBuild / assembly / logLevel := Level.Warn' -Dsbt.supershell=false --warn "$@" publish dockerBuildAndPush
-}
-
-cromwell::private::publish_artifacts_check() {
-    sbt -Dsbt.supershell=false --warn verifyArtifactoryCredentialsExist
-}
-
 cromwell::private::start_build_heartbeat() {
     # Sleep one minute between printouts, but don't zombie forever
     for ((i=0; i < "${CROMWELL_BUILD_HEARTBEAT_MINUTES}"; i++)); do
@@ -1609,25 +1597,6 @@ cromwell::build::run_conformance() {
 cromwell::build::generate_code_coverage() {
     if [[ "${CROMWELL_BUILD_GENERATE_COVERAGE}" == "true" ]]; then
         cromwell::private::generate_code_coverage
-    fi
-}
-
-cromwell::build::check_published_artifacts() {
-    if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]] && \
-        [[ "${CROMWELL_BUILD_TYPE}" == "sbt" ]] && \
-        [[ "${CROMWELL_BUILD_SBT_INCLUDE}" == "" ]] && \
-        [[ "${CROMWELL_BUILD_EVENT}" == "push" ]]; then
-
-        if [[ "${CROMWELL_BUILD_BRANCH}" == "develop" ]] || \
-            [[ "${CROMWELL_BUILD_BRANCH}" =~ ^[0-9\.]+_hotfix$ ]] || \
-            [[ -n "${CROMWELL_BUILD_TAG:+set}" ]]; then
-            # If cromwell::build::publish_artifacts is going to be publishing later check now that it will work
-            sbt \
-                -Dsbt.supershell=false \
-                --error \
-                errorIfAlreadyPublished
-        fi
-
     fi
 }
 

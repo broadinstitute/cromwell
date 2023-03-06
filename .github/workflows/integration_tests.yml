@@ -60,6 +60,9 @@ jobs:
             friendly_name: Centaur Engine Upgrade Local with MySQL 5.7
           - build_type: referenceDiskManifestBuilderApp
             friendly_name: Reference Disk Manifest Builder App
+          - build_type: centaurSlurm
+            build_mysql: 5.7
+            friendly_name: "Centaur Slurm with MySQL 5.7"
     name: ${{ matrix.friendly_name }}
     env:
       BUILD_NAME: ${{ matrix.build_type }}

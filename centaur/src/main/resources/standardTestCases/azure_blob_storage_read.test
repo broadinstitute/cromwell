@@ -7,6 +7,7 @@ retryTestFailures: false
 files {
   workflow: azure_blob_storage_read/azure_blob_storage_read.wdl
   inputs: azure_blob_storage_read/azure_blob_storage_read.inputs
+  options: azure_blob_storage_read/azure_blob_storage_read.options
 }
 
 metadata {

@@ -1,0 +1,3 @@
+{
+  "final_workflow_log_dir": "https://centaurtesting.blob.core.windows.net/test-blob/test-cromwell-workflow-logs"
+}

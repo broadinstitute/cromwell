@@ -104,7 +104,7 @@ object Testing {
     // Don't execute benchmarks in parallel
     CromwellBenchmarkTest / parallelExecution := false,
     // Until we move away from Travis do not execute ANY tests in parallel (see also Settings.sharedSettings)
-    Test / parallelExecution := false,
+    Test / parallelExecution := true,
     // Since parallelExecution is off do not buffer test results
     Test / logBuffered := false,
     // Make sure no secrets are committed to git

@@ -5,6 +5,7 @@ import com.google.api.gax.rpc.NotFoundException
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
+
 import java.util.concurrent.ExecutionException
 import scala.concurrent.Await
 import cromwell.core.{ExecutionEvent, WorkflowId}
@@ -13,6 +14,7 @@ import cromwell.backend.async.ExecutionHandle
 import akka.actor.ActorRef
 import akka.pattern.AskSupport
 import cromwell.services.instrumentation.CromwellInstrumentation
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import GcpBatchBackendSingletonActor._
@@ -23,6 +25,7 @@ import cromwell.core.path.DefaultPathBuilder
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import wom.values.WomFile
+
 import scala.util.Success
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.http.HttpPath
@@ -125,16 +128,17 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     //println(jobDescriptor.taskCall.sourceLocation)
     //println(jobDescriptor.localInputs)
-    println(batchAttributes.virtualPrivateCloudConfiguration)
-    println(batchAttributes.executionBucket)
+    println(batchAttributes.virtualPrivateCloudConfiguration.literalsOption)
+    batchAttributes.virtualPrivateCloudConfiguration.toString
+    batchAttributes.virtualPrivateCloudConfiguration.literalsOption.getOrElse("")
 
     val file = jobDescriptor.localInputs
     println(file.get("test"))
-    val gcpBatchParameters = CreateGcpBatchParameters(jobDescriptor = jobDescriptor, runtimeAttributes = runtimeAttributes, dockerImage = jobDockerImage, projectId = batchAttributes.project)
+    val gcpBatchParameters = CreateGcpBatchParameters(jobDescriptor = jobDescriptor, runtimeAttributes = runtimeAttributes, dockerImage = jobDockerImage, projectId = batchAttributes.project, region = batchAttributes.location)
 
     val runBatchResponse = for {
       _ <- uploadScriptFile()
-      _ = backendSingletonActor ! GcpBatchRequest(workflowId,  region = "us-central1", jobName = jobTemp, gcpBatchCommand, gcpBatchParameters)
+      _ = backendSingletonActor ! GcpBatchRequest(workflowId, jobName = jobTemp, gcpBatchCommand, gcpBatchParameters)
       runId = StandardAsyncJob(jobTemp)
 
     }
@@ -183,7 +187,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     try {
       val gcpBatchPoll = new GcpBatchJobGetRequest
-      val result = gcpBatchPoll.GetJob(jobId)
+      val result = gcpBatchPoll.GetJob(jobId, batchAttributes.project, batchAttributes.location)
       RunStatus.fromJobStatus(result)
 
     }
@@ -254,7 +258,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.GoogleProject, batchAttributes.project)
   }
 
-  println(batchAttributes.project)
+  protected def fuseEnabled(descriptor: BackendWorkflowDescriptor): Boolean = {
+    descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.EnableFuse).toOption.getOrElse(batchAttributes.enableFuse)
+  }
 
   override def cloudResolveWomFile(womFile: WomFile): WomFile = {
     womFile.mapFile { value =>
@@ -296,6 +302,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       }
     )
   }
+
 
 
 

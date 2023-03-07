@@ -1,6 +1,8 @@
 package cromwell.backend.google.pipelines.batch
 
 import cromwell.backend.google.pipelines.batch.io.{GcpBatchAttachedDisk, GcpBatchWorkingDisk}
+//import cromwell.backend.google.pipelines.common.WorkflowOptionKeys
+//import cromwell.backend.google.pipelines.common.PipelinesApiMetadataKeys
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.Path
@@ -32,7 +34,28 @@ trait GcpBatchJobCachingActorHelper extends StandardCachingActorHelper {
 
   lazy val batchAttributes: GcpBatchConfigurationAttributes = batchConfiguration.batchAttributes
 
+
   //lazy val configuration: GcpBatchConfiguration = initializationData.configuration
 
+  /*
+  def preemptible: Boolean
+  override protected def nonStandardMetadata: Map[String, Any] = {
+
+    val googleProject = initializationData
+      .workflowPaths
+      .workflowDescriptor
+      .workflowOptions
+      .get(WorkflowOptionKeys.GoogleProject)
+      .getOrElse(batchAttributes.project)
+
+    Map[String, Any](
+      PipelinesApiMetadataKeys.GoogleProject -> googleProject,
+      PipelinesApiMetadataKeys.ExecutionBucket -> initializationData.workflowPaths.executionRootString,
+      PipelinesApiMetadataKeys.EndpointUrl -> batchAttributes.endpointUrl,
+      "preemptible" -> preemptible
+    )
+
+  }
+  */
 
 }

@@ -6,4 +6,5 @@ case class CreateGcpBatchParameters(jobDescriptor: BackendJobDescriptor,
                                     runtimeAttributes: GcpBatchRuntimeAttributes,
                                     dockerImage: String,
                                     projectId: String,
+                                    region: String
                                    )

@@ -4,10 +4,7 @@ import com.google.cloud.batch.v1.{BatchServiceClient, GetJobRequest, JobName}
 
 class GcpBatchJobGetRequest {
 
-  def GetJob(jobName: String) = {
-
-    val projectId = "batch-testing-350715"
-    val region = "us-central1"
+  def GetJob(jobName: String, projectId: String, region: String) = {
 
     val batchServiceClient = BatchServiceClient.create
 

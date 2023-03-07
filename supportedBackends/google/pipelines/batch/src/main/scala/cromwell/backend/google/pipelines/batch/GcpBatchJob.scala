@@ -5,7 +5,6 @@ import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolic
 import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.GcpBatchRequest
 //import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy}
 import com.google.cloud.batch.v1.Runnable.Container
-//import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.BatchRequest
 import com.google.protobuf.Duration
 import com.google.cloud.batch.v1.LogsPolicy.Destination
 import com.google.common.collect.ImmutableMap
@@ -24,7 +23,7 @@ final case class GcpBatchJob (
 
   // VALUES HERE
   private val entryPoint = "/bin/sh"
-  private val retryCount = 2
+  private val retryCount = jobSubmission.gcpBatchParameters.runtimeAttributes.preemptible
   private val durationInSeconds: Long = 3600
   private val taskCount: Long = 1
   private val gcpBatchCommand: String = jobSubmission.gcpBatchCommand
@@ -42,7 +41,7 @@ final case class GcpBatchJob (
 
   lazy val parent = (String
     .format("projects/%s/locations/%s", jobSubmission.gcpBatchParameters
-      .projectId, jobSubmission
+      .projectId, jobSubmission.gcpBatchParameters
       .region))
   private val cpuPlatform =  jobSubmission.gcpBatchParameters.runtimeAttributes.cpuPlatform.getOrElse("")
   //private val bootDiskSize = runtimeAttributes.bootDiskSize
@@ -53,11 +52,11 @@ final case class GcpBatchJob (
   // parse preemption value and set value for Spot. Spot is replacement for preemptible
   private val preemption = jobSubmission.gcpBatchParameters.runtimeAttributes.preemptible
   println(preemption)
-  private def spotMatch(preemption: Int): ProvisioningModel = preemption match {
+  private def spotMatch(preemption: Int): ProvisioningModel = preemption compare 0 match {
     case 0 => ProvisioningModel.STANDARD
     case 1 => ProvisioningModel.SPOT
   }
-  val spotModel = spotMatch(preemption)
+  private val spotModel = spotMatch(preemption)
 
   log.info(cpuPlatform)
 

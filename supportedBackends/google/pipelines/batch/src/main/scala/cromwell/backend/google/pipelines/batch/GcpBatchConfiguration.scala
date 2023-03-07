@@ -19,6 +19,7 @@ class GcpBatchConfiguration(val configurationDescriptor: BackendConfigurationDes
   val root: String = configurationDescriptor.backendConfig.getString("root")
   val pipelineTimeout: FiniteDuration = batchAttributes.pipelineTimeout
   val runtimeConfig: Option[Config] = configurationDescriptor.backendRuntimeAttributesConfig
+
   //val runtimeConfig = configurationDescriptor.backendRuntimeAttributesConfig
 
   //val dockerCredentials: Option[PipelinesApiDockerCredentials] = {

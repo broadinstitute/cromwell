@@ -43,7 +43,7 @@ docker run --rm -v ${PWD}:/local ${OPENAPI_DOCKER} generate \
   -i /local/$API_YAML \
   -g java \
   -o /local/codegen_java \
-  --http-user-agent "cromwell-java-client-${CROMWELL_HASH}" \
+  --http-user-agent "Cromwell-Java-Client/${CROMWELL_HASH}" \
   --skip-validate-spec \
   --api-package ${BASE_PACKAGE}.api \
   --model-package ${BASE_PACKAGE}.model

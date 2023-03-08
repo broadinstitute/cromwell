@@ -1,10 +1,10 @@
 package cromwell.backend.google.pipelines.batch
 import com.google.api.gax.rpc.{FixedHeaderProvider, HeaderProvider}
 import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, TaskGroup, TaskSpec}
-import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy}
+import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, ProvisioningModel}
+import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.GcpBatchRequest
 //import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy}
 import com.google.cloud.batch.v1.Runnable.Container
-import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.BatchRequest
 import com.google.protobuf.Duration
 import com.google.cloud.batch.v1.LogsPolicy.Destination
 import com.google.common.collect.ImmutableMap
@@ -13,18 +13,17 @@ import org.slf4j.{Logger, LoggerFactory}
 
 
 final case class GcpBatchJob (
-                             jobSubmission: BatchRequest,
+                             jobSubmission: GcpBatchRequest,
                              cpu: Long,
                              memory: Long,
-                             machineType: String,
-                             runtimeAttributes: GcpBatchRuntimeAttributes
+                             machineType: String
                             ) {
 
   val log: Logger = LoggerFactory.getLogger(RunStatus.toString)
 
   // VALUES HERE
   private val entryPoint = "/bin/sh"
-  private val retryCount = 2
+  private val retryCount = jobSubmission.gcpBatchParameters.runtimeAttributes.preemptible
   private val durationInSeconds: Long = 3600
   private val taskCount: Long = 1
   private val gcpBatchCommand: String = jobSubmission.gcpBatchCommand
@@ -41,19 +40,27 @@ final case class GcpBatchJob (
   lazy val batchServiceClient = BatchServiceClient.create(batchSettings)
 
   lazy val parent = (String
-    .format("projects/%s/locations/%s", jobSubmission
-      .projectId, jobSubmission
+    .format("projects/%s/locations/%s", jobSubmission.gcpBatchParameters
+      .projectId, jobSubmission.gcpBatchParameters
       .region))
-  private val cpuPlatform =  runtimeAttributes.cpuPlatform.getOrElse("")
+  private val cpuPlatform =  jobSubmission.gcpBatchParameters.runtimeAttributes.cpuPlatform.getOrElse("")
   //private val bootDiskSize = runtimeAttributes.bootDiskSize
  // private val noAddress = runtimeAttributes.noAddress
-  private val zones = "zones/" + runtimeAttributes.zones.mkString(",")
+  private val zones = "zones/" + jobSubmission.gcpBatchParameters.runtimeAttributes.zones.mkString(",")
   println(zones)
 
-  private val preemption = runtimeAttributes.preemptible
+  // parse preemption value and set value for Spot. Spot is replacement for preemptible
+  private val preemption = jobSubmission.gcpBatchParameters.runtimeAttributes.preemptible
   println(preemption)
+  private def spotMatch(preemption: Int): ProvisioningModel = preemption compare 0 match {
+    case 0 => ProvisioningModel.STANDARD
+    case 1 => ProvisioningModel.SPOT
+  }
+  private val spotModel = spotMatch(preemption)
 
   log.info(cpuPlatform)
+
+  //println(jobDescriptor.taskCall.sourceLocation)
 
   private def createRunnable(dockerImage: String, entryPoint: String): Runnable = {
     val runnable = Runnable.newBuilder.setContainer((Container.newBuilder.setImageUri(dockerImage).setEntrypoint(entryPoint).addCommands("-c").addCommands(gcpBatchCommand).build)).build
@@ -68,10 +75,11 @@ final case class GcpBatchJob (
       .build
   }
 
-  private def createInstancePolicy = {
+  private def createInstancePolicy(spotModel: ProvisioningModel) = {
     val instancePolicy = InstancePolicy
       .newBuilder
       .setMachineType(machineType)
+      .setProvisioningModel(spotModel)
       //.setMinCpuPlatform(cpuPlatform)
       .build
     instancePolicy
@@ -134,13 +142,13 @@ final case class GcpBatchJob (
   def submitJob(): Unit = {
 
     try {
-      val runnable = createRunnable(dockerImage = runtimeAttributes.dockerImage, entryPoint = entryPoint)
+      val runnable = createRunnable(dockerImage = jobSubmission.gcpBatchParameters.runtimeAttributes.dockerImage, entryPoint = entryPoint)
       //val networkInterface = createNetworkInterface(noAddress)
       //val networkPolicy = createNetworkPolicy(networkInterface)
       val computeResource = createComputeResource(cpu, memory)
       val taskSpec = createTaskSpec(runnable, computeResource, retryCount, durationInSeconds)
       val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
-      val instancePolicy = createInstancePolicy
+      val instancePolicy = createInstancePolicy(spotModel)
       val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
       val allocationPolicy = createAllocationPolicy(locationPolicy, instancePolicy)
       val job = Job

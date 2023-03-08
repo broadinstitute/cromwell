@@ -7,8 +7,8 @@ import scala.concurrent.ExecutionContext
 object GcpBatchBackendSingletonActor {
   def props(name: String) = Props(new GcpBatchBackendSingletonActor(name))
 
-  case class BatchRequest(workflowId: WorkflowId, projectId: String, region: String, jobName: String, runtimeAttributes: GcpBatchRuntimeAttributes, gcpBatchCommand: String)
-  case class BatchGetJob(jobId: String)
+  case class GcpBatchRequest(workflowId: WorkflowId, jobName: String, gcpBatchCommand: String, gcpBatchParameters: CreateGcpBatchParameters)
+  case class BatchGetJob(jobId: String, projectId: String, region: String)
   case class BatchJobAsk(test: String)
 
 }
@@ -20,14 +20,14 @@ final class GcpBatchBackendSingletonActor (name: String) extends Actor with Acto
   implicit val ec: ExecutionContext = context.dispatcher
 
   override def receive: Receive = {
-    case jobSubmission: BatchRequest =>
-      val job = GcpBatchJob(jobSubmission,200,200, "e2-standard-4", jobSubmission.runtimeAttributes)
+    case jobSubmission: GcpBatchRequest =>
+      val job = GcpBatchJob(jobSubmission,200,200, "e2-standard-4")
       job.submitJob()
     case jobStatus: BatchGetJob =>
       log.info("matched job status")
       log.info(jobStatus.jobId)
       val gcpBatchPoll = new GcpBatchJobGetRequest
-      gcpBatchPoll.GetJob(jobStatus.jobId)
+      gcpBatchPoll.GetJob(jobStatus.jobId, jobStatus.projectId, jobStatus.region)
       ()
     case _: BatchJobAsk =>
       log.info("matched job ask")

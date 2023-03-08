@@ -37,7 +37,7 @@ trait GcpBatchStatusRequestClient { this: Actor with ActorLogging =>
     pollingActorClientPromise = None
   }
 
-  def pollStatus(workflowId: WorkflowId, jobId: StandardAsyncJob, gcpBatchJobId: String): Future[RunStatus] = {
+  def pollStatus(workflowId: WorkflowId, jobId: StandardAsyncJob, gcpBatchJobId: String, projectId: String, region: String): Future[RunStatus] = {
 
     val test = new GcpBatchJobGetRequest
 
@@ -47,7 +47,7 @@ trait GcpBatchStatusRequestClient { this: Actor with ActorLogging =>
       case None =>
         println("polling with gcp status request client")
         //gcpBatchActor ! GcpBatchSingleton
-        gcpBatchActor ! test.GetJob(gcpBatchJobId)
+        gcpBatchActor ! test.GetJob(gcpBatchJobId, projectId, region)
 
         println(RunStatus)
         val newPromise = Promise[RunStatus]()

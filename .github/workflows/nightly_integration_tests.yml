@@ -1,0 +1,27 @@
+name: 'Nightly Integration Tests'
+
+#This github action runs all of Cromwell's integration tests nightly.
+
+#This is what shows up in the github workflows page as the title. 
+run-name: Nightly ${{ github.actor }} Integration Testing.
+
+#What will trigger the workflow to run. 
+on:
+  schedule:
+    - cron: '0 0 * * 1-5'
+    
+permissions: 
+  contents: read
+
+jobs:
+  integration-tests:
+    uses: broadinstitute/cromwell/.github/workflows/integration_tests.yml
+
+steps:
+  - uses: ravsamhq/notify-slack-action@v2
+    if: always()
+    with:
+      status: ${{ job.status }}
+      notify_when: "failure"
+    env: 
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

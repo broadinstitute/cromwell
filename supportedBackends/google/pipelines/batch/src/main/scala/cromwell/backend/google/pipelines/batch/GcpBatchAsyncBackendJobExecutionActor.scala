@@ -126,11 +126,11 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     //println(jobDescriptor.taskCall.sourceLocation)
     //println(jobDescriptor.localInputs)
-    val vpcNetworkName: String = batchAttributes.virtualPrivateCloudConfiguration.labelsOption.map { vpcNetworks =>
+    val vpcNetwork: String = batchAttributes.virtualPrivateCloudConfiguration.labelsOption.map { vpcNetworks =>
       vpcNetworks.network
     }.getOrElse("defaultNetwork")
 
-    val vpcSubnetworkName: String = batchAttributes.virtualPrivateCloudConfiguration.labelsOption.map { vpcNetworks =>
+    val vpcSubnetwork: String = batchAttributes.virtualPrivateCloudConfiguration.labelsOption.map { vpcNetworks =>
       vpcNetworks.subnetwork.getOrElse("default")
     }.getOrElse("default")
 
@@ -140,7 +140,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     val runBatchResponse = for {
       _ <- uploadScriptFile()
-      _ = backendSingletonActor ! GcpBatchRequest(workflowId, jobName = jobTemp, gcpBatchCommand, gcpBatchParameters)
+      _ = backendSingletonActor ! GcpBatchRequest(workflowId, jobName = jobTemp, gcpBatchCommand, vpcNetwork, vpcSubnetwork, gcpBatchParameters)
       runId = StandardAsyncJob(jobTemp)
 
     }

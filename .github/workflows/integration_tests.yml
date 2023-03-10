@@ -7,6 +7,8 @@ run-name: ${{ github.actor }} Integration Testing.
 
 #What will trigger the workflow to run. 
 on:
+  schedule:
+    - cron: '0 0 * * 1-5'
   workflow_dispatch: #Manual trigger from GitHub UI
   push: #git push
   merge_group:

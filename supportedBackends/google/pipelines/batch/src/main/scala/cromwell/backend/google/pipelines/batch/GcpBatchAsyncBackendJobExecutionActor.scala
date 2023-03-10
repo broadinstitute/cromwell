@@ -46,7 +46,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     with CromwellInstrumentation {
 
   import GcpBatchAsyncBackendJobExecutionActor._
-
   override lazy val ioCommandBuilder: IoCommandBuilder = GcsBatchCommandBuilder
 
   lazy val gcpBatchCommand: String = jobDescriptor.taskCall.callable.commandTemplateString(Map.empty)

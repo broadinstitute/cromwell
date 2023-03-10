@@ -1,0 +1,94 @@
+name: 'Integration Tests'
+
+#This github action runs all of Cromwell's integration tests.
+
+#This is what shows up in the github workflows page as the title. 
+run-name: ${{ github.actor }} Integration Testing.
+
+#What will trigger the workflow to run. 
+on:
+  workflow_dispatch: #Manual trigger from GitHub UI
+  push: #git push
+  merge_group:
+
+permissions: 
+  contents: read
+
+jobs:
+  integration-tests:
+    strategy:
+      fail-fast: false #disabling fail-fast means that even if one test fails, the others will still try to complete.
+      #Each entry below is a single integration test that lives in /src/ci/bin/. 
+      #Each will be launched on its own runner so they can occur in parallel.
+      #Friendly names are displayed on the Github UI and aren't used anywhere else.
+      matrix:
+        include:
+          - build_type: centaurPapiV2beta
+            build_mysql: 5.7
+            friendly_name: Centaur Papi V2 Beta with MySQL 5.7
+          - build_type: dbms
+            friendly_name: DBMS
+          - build_type: centaurTes
+            build_mysql: 5.7
+            friendly_name: Centaur TES with MySQL 5.7
+          - build_type: centaurLocal
+            build_mysql: 5.7
+            friendly_name: Centaur Local with MySQL 5.7
+          - build_type: checkPublish
+            friendly_name: Check Publish
+          - build_type: centaurAws
+            build_mysql: 5.7
+            friendly_name: Centaur AWS with MySQL 5.7
+          - build_type: centaurDummy
+            build_mysql: 5.7
+            friendly_name: Centaur Dummy with MySQL 5.7
+          - build_type: centaurHoricromtalPapiV2beta
+            build_mysql: 5.7
+            friendly_name: Centaur Horicromtal PapiV2 Beta with MySQL 5.7
+          - build_type: horicromtalDeadlock
+            friendly_name: Horicromtal Deadlock
+          - build_type: singleWorkflowRunner
+            friendly_name: Single Workflow Runner
+          - build_type: centaurLocal
+            build_mariadb: 10.3
+            friendly_name: Centaur Local with MariaDB 10.3
+          - build_type: centaurLocal
+            build_postgresql: 11.3
+            friendly_name: Centaur Local with PostgreSQL 11.3
+          - build_type: centaurEngineUpgradeLocal
+            build_mysql: 5.7
+            friendly_name: Centaur Engine Upgrade Local with MySQL 5.7
+          - build_type: referenceDiskManifestBuilderApp
+            friendly_name: Reference Disk Manifest Builder App
+          - build_type: centaurSlurm
+            build_mysql: 5.7
+            friendly_name: "Centaur Slurm with MySQL 5.7"
+    name: ${{ matrix.friendly_name }}
+    env:
+      BUILD_NAME: ${{ matrix.build_type }}
+      BUILD_TYPE: ${{ matrix.build_type }} #intentionally duplicated variable
+      BUILD_MYSQL: ${{ matrix.build_mysql }}
+      BUILD_POSTGRESQL: ${{ matrix.build_postgresql }}
+      BUILD_MARIADB: ${{ matrix.build_mariadb }}
+      VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID_CI }}
+      VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID_CI }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+    - uses: actions/checkout@v3 # checkout the cromwell repo
+    - uses: ./.github/set_up_cromwell_action #This github action will set up git-secrets, caching, java, and sbt.
+      with:
+        cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+    #This script bascially just looks up another script to run, assuming that the other script's filename is:
+    #src/ci/bin/test${BUILD_TYPE}.sh. The first letter of the BUILD_TYPE is automatically capitalized when looking.
+    - name: Run Integration Test
+      shell: 'script -q -e -c "bash --noprofile --norc -eo pipefail {0}"' #See comment below
+      run: |
+        set -e
+        echo Running test.sh
+        ./src/ci/bin/test.sh
+    #The "shell: ..."" line is a way to force the Github Action Runner to use a bash shell that thinks it has a TTY.
+    #The issue and solution are described here: https://github.com/actions/runner/issues/241#issuecomment-842566950
+    #This is only needed for ReferenceDiskManifestBuilderApp test. 
+    #This test uses fancy colors in the output, which likely causes the problem.
+    #See WX-938. 

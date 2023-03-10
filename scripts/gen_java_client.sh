@@ -5,6 +5,7 @@ BASE_PACKAGE="cromwell.client"
 ORIGINAL_API_YAML=engine/src/main/resources/swagger/cromwell.yaml
 API_YAML=codegen_java/cromwell.nofile.yaml
 OPENAPI_DOCKER="openapitools/openapi-generator-cli@sha256:ddd1b01cbe8f494c6612c548e91f983938164ab713a4d18d099a1fc4a77c651d"
+CROMWELL_HASH=$(git rev-parse --short=7 HEAD)
 
 # Cromwell doesn't specify the OAuth configuration in its swagger, and
 # without it the client doesn't support authentication.
@@ -42,6 +43,7 @@ docker run --rm -v ${PWD}:/local ${OPENAPI_DOCKER} generate \
   -i /local/$API_YAML \
   -g java \
   -o /local/codegen_java \
+  --http-user-agent "Cromwell-Java-Client/${CROMWELL_HASH}" \
   --skip-validate-spec \
   --api-package ${BASE_PACKAGE}.api \
   --model-package ${BASE_PACKAGE}.model

@@ -83,6 +83,7 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_PROVIDER_TRAVIS="travis"
     CROMWELL_BUILD_PROVIDER_JENKINS="jenkins"
     CROMWELL_BUILD_PROVIDER_CIRCLE="circle"
+    CROMWELL_BUILD_PROVIDER_GITHUB="github"
     CROMWELL_BUILD_PROVIDER_UNKNOWN="unknown"
 
     if [[ "${TRAVIS-false}" == "true" ]]; then
@@ -91,6 +92,8 @@ cromwell::private::create_build_variables() {
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_JENKINS}"
     elif [[ "${CIRCLECI-false}" == "true" ]]; then
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_CIRCLE}"
+    elif [[ "${GITHUB_ACTIONS-false}" == "true" ]]; then
+        CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_GITHUB}"
     else
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_UNKNOWN}"
     fi
@@ -300,6 +303,21 @@ cromwell::private::create_build_variables() {
                 CROMWELL_BUILD_RUN_TESTS=true
             fi
             ;;
+        "${CROMWELL_BUILD_PROVIDER_GITHUB}")
+            CROMWELL_BUILD_IS_CI=true
+            CROMWELL_BUILD_IS_SECURE=true
+            CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
+            CROMWELL_BUILD_BRANCH="${GITHUB_REF_NAME}"
+            CROMWELL_BUILD_EVENT="${GITHUB_EVENT_NAME}"
+            CROMWELL_BUILD_TAG=""
+            CROMWELL_BUILD_NUMBER="${GITHUB_RUN_ID}"
+            CROMWELL_BUILD_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            CROMWELL_BUILD_GIT_USER_EMAIL=""
+            CROMWELL_BUILD_GIT_USER_NAME="${GITHUB_ACTOR}"
+            CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
+            CROMWELL_BUILD_GENERATE_COVERAGE=true
+            CROMWELL_BUILD_RUN_TESTS=true
+            ;;
         *)
             CROMWELL_BUILD_IS_CI=false
             CROMWELL_BUILD_IS_SECURE=true
@@ -476,7 +494,8 @@ cromwell::private::create_database_variables() {
 
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
-        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
+        "${CROMWELL_BUILD_PROVIDER_CIRCLE}"|\
+        "${CROMWELL_BUILD_PROVIDER_GITHUB}")
             CROMWELL_BUILD_MARIADB_HOSTNAME="localhost"
             CROMWELL_BUILD_MARIADB_PORT="23306"
             CROMWELL_BUILD_MARIADB_DOCKER_TAG="${BUILD_MARIADB-}"
@@ -633,7 +652,8 @@ cromwell::private::create_centaur_variables() {
     # Pick **one** of the databases to run Centaur against
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
-        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
+        "${CROMWELL_BUILD_PROVIDER_CIRCLE}"|\
+        "${CROMWELL_BUILD_PROVIDER_GITHUB}")
 
             if [[ -n "${CROMWELL_BUILD_MYSQL_DOCKER_TAG:+set}" ]]; then
                 CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.MySQLProfile$"
@@ -1208,45 +1228,6 @@ cromwell::private::generate_code_coverage() {
     bash <(curl -s https://codecov.io/bash) > /dev/null || true
 }
 
-cromwell::private::publish_artifacts_only() {
-    sbt 'set ThisBuild / assembly / logLevel := Level.Warn' -Dsbt.supershell=false --warn "$@" publish
-}
-
-cromwell::private::publish_artifacts_and_docker() {
-    sbt 'set ThisBuild / assembly / logLevel := Level.Warn' -Dsbt.supershell=false --warn "$@" publish dockerBuildAndPush
-}
-
-cromwell::private::publish_artifacts_check() {
-    sbt -Dsbt.supershell=false --warn verifyArtifactoryCredentialsExist
-}
-
-# Some CI environments want to know when new docker images are published. They do not currently poll dockerhub but do
-# poll github. To help those environments, signal that a new set of docker images has been published to dockerhub by
-# updating a well known branch in github.
-cromwell::private::push_publish_complete() {
-    local github_private_deploy_key="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/github_private_deploy_key"
-    local git_repo="git@github.com:broadinstitute/cromwell.git"
-    local git_publish_branch="${CROMWELL_BUILD_BRANCH}_publish_complete"
-    local git_publish_remote="publish_complete"
-    local git_publish_message="publish complete [skip ci]"
-
-    # Loosely adapted from https://github.com/broadinstitute/workbench-libs/blob/435a932/scripts/version_update.sh
-    mkdir publish_complete
-    pushd publish_complete > /dev/null
-
-    git init
-    git config core.sshCommand "ssh -i ${github_private_deploy_key} -F /dev/null"
-    git config user.email "${CROMWELL_BUILD_GIT_USER_EMAIL}"
-    git config user.name "${CROMWELL_BUILD_GIT_USER_NAME}"
-
-    git remote add "${git_publish_remote}" "${git_repo}"
-    git checkout -b "${git_publish_branch}"
-    git commit --allow-empty -m "${git_publish_message}"
-    git push -f "${git_publish_remote}" "${git_publish_branch}"
-
-    popd > /dev/null
-}
-
 cromwell::private::start_build_heartbeat() {
     # Sleep one minute between printouts, but don't zombie forever
     for ((i=0; i < "${CROMWELL_BUILD_HEARTBEAT_MINUTES}"; i++)); do
@@ -1436,6 +1417,21 @@ cromwell::build::setup_common_environment() {
             cromwell::private::setup_pyenv_python_latest
             cromwell::private::start_docker_databases
             ;;
+        "${CROMWELL_BUILD_PROVIDER_GITHUB}")
+            # Try to login to vault, and if successful then use vault creds to login to docker.
+            # For those committers with vault access this avoids pull rate limits reported in BT-143.
+            cromwell::private::install_vault
+            cromwell::private::login_vault
+            cromwell::private::login_docker
+            #Note: Unlike with other CI providers, we are using Github Actions to install Java and sbt for us.
+            #This is automatically handled in the set_up_cromwell Github Action, which can be found in
+            #[cromwell root]/.github/set_up_cromwell_aciton.
+            cromwell::private::install_docker_compose
+            cromwell::private::delete_boto_config
+            cromwell::private::delete_sbt_boot
+            cromwell::private::upgrade_pip
+            cromwell::private::start_docker_databases
+            ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}"|\
         *)
             ;;
@@ -1601,56 +1597,6 @@ cromwell::build::run_conformance() {
 cromwell::build::generate_code_coverage() {
     if [[ "${CROMWELL_BUILD_GENERATE_COVERAGE}" == "true" ]]; then
         cromwell::private::generate_code_coverage
-    fi
-}
-
-cromwell::build::check_published_artifacts() {
-    if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]] && \
-        [[ "${CROMWELL_BUILD_TYPE}" == "sbt" ]] && \
-        [[ "${CROMWELL_BUILD_SBT_INCLUDE}" == "" ]] && \
-        [[ "${CROMWELL_BUILD_EVENT}" == "push" ]]; then
-
-        if [[ "${CROMWELL_BUILD_BRANCH}" == "develop" ]] || \
-            [[ "${CROMWELL_BUILD_BRANCH}" =~ ^[0-9\.]+_hotfix$ ]] || \
-            [[ -n "${CROMWELL_BUILD_TAG:+set}" ]]; then
-            # If cromwell::build::publish_artifacts is going to be publishing later check now that it will work
-            sbt \
-                -Dsbt.supershell=false \
-                --error \
-                errorIfAlreadyPublished
-        fi
-
-    fi
-}
-
-cromwell::build::publish_artifacts() {
-    if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]] && \
-        [[ "${CROMWELL_BUILD_TYPE}" == "sbt" ]] && \
-        [[ "${CROMWELL_BUILD_SBT_INCLUDE}" == "" ]] && \
-        [[ "${CROMWELL_BUILD_EVENT}" == "push" ]]; then
-
-        if [[ "${CROMWELL_BUILD_BRANCH}" == "develop" ]]; then
-            # Publish images for both the "cromwell develop branch" and the "cromwell dev environment".
-            CROMWELL_SBT_DOCKER_TAGS=develop,dev \
-                cromwell::private::publish_artifacts_and_docker \
-                -Dproject.isSnapshot=true
-            cromwell::private::push_publish_complete
-
-        elif [[ "${CROMWELL_BUILD_BRANCH}" =~ ^[0-9\.]+_hotfix$ ]]; then
-            # Docker tags float. "30" is the latest hotfix. Those dockers are published here on each hotfix commit.
-            cromwell::private::publish_artifacts_and_docker -Dproject.isSnapshot=false
-
-        elif [[ -n "${CROMWELL_BUILD_TAG:+set}" ]]; then
-            # Artifact tags are static. Once "30" is set that is only "30" forever. Those artifacts are published here.
-            cromwell::private::publish_artifacts_only \
-                -Dproject.version="${CROMWELL_BUILD_TAG}" \
-                -Dproject.isSnapshot=false
-
-        elif [[ "${CROMWELL_BUILD_IS_SECURE}" == "true" ]]; then
-            cromwell::private::publish_artifacts_check
-
-        fi
-
     fi
 }
 

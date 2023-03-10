@@ -13,6 +13,6 @@ cromwell::build::assemble_jars
 
 cromwell::build::run_centaur \
     -p 2 \
-    -e azure_blob_storage_read \
+    -i azure_blob_storage_read \
 
 cromwell::build::generate_code_coverage

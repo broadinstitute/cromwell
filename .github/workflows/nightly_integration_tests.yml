@@ -17,6 +17,7 @@ permissions:
 jobs:
   integration-tests:
     steps:
+    - uses: actions/checkout@v3
     - uses: broadinstitute/cromwell/.github/workflows/integration_tests.yml
       with:
         target-branch: 'develop'

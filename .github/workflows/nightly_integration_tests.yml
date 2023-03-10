@@ -16,11 +16,10 @@ permissions:
 
 jobs:
   integration-tests:
-    steps:
-    - uses: actions/checkout@v3
-    - uses: broadinstitute/cromwell/.github/workflows/integration_tests.yml
+    uses: broadinstitute/cromwell/.github/workflows/integration_tests.yml@fd10d3a5b5474c39ff9d101cca6ea887bafc2068
       with:
         target-branch: 'develop'
+    steps:
     - uses: ravsamhq/notify-slack-action@v2
       if: always()
       with:

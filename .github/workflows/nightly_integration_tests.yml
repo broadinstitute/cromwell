@@ -7,6 +7,7 @@ run-name: Nightly ${{ github.actor }} Integration Testing.
 
 #What will trigger the workflow to run. 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 0 * * 1-5'
     
@@ -15,13 +16,15 @@ permissions:
 
 jobs:
   integration-tests:
-    uses: broadinstitute/cromwell/.github/workflows/integration_tests.yml
+    steps:
+    - uses: broadinstitute/cromwell/.github/workflows/integration_tests.yml
+      with:
+        target-branch: 'develop'
+    - uses: ravsamhq/notify-slack-action@v2
+      if: always()
+      with:
+        status: ${{ job.status }}
+        notify_when: "failure"
+      env: 
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
-steps:
-  - uses: ravsamhq/notify-slack-action@v2
-    if: always()
-    with:
-      status: ${{ job.status }}
-      notify_when: "failure"
-    env: 
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

@@ -76,7 +76,7 @@ jobs:
       VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID_CI }}
       VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID_CI }}
       AZURE_CLIENT_ID: ${{ secrets.VAULT_AZURE_CENTAUR_CLIENT_ID }}
-      AZURE_PASSWORD: ${{ secrets.VAULT_AZURE_CENTAUR_CLIENT_SECRET }}
+      AZURE_CLIENT_SECRET: ${{ secrets.VAULT_AZURE_CENTAUR_CLIENT_SECRET }}
       AZURE_TENANT_ID: ${{ secrets.VAULT_AZURE_CENTAUR_TENANT_ID }}
     runs-on: ubuntu-latest
     timeout-minutes: 120

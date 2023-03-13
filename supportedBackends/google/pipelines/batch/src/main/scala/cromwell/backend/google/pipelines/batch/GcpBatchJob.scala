@@ -27,8 +27,8 @@ final case class GcpBatchJob (
   private val durationInSeconds: Long = 3600
   private val taskCount: Long = 1
   private val gcpBatchCommand: String = jobSubmission.gcpBatchCommand
-  private val vpcNetwork: String = jobSubmission.vpcNetwork
-  private val vpcSubnetwork: String = jobSubmission.vpcSubnetwork
+//  private val vpcNetwork: String = jobSubmission.vpcNetwork
+//  private val vpcSubnetwork: String = jobSubmission.vpcSubnetwork
 
   // set user agent
   private val user_agent_header = "user-agent"

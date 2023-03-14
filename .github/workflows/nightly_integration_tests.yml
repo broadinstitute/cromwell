@@ -14,17 +14,11 @@ on:
 permissions: 
   contents: read
 
+# Use if as arg to only send slack notifications on nightly
 jobs:
   integration-tests:
     steps:
     - uses: broadinstitute/cromwell/.github/workflows/integration_tests.yml@fd10d3a5b5474c39ff9d101cca6ea887bafc2068
       with:
         target-branch: 'develop'
-    - uses: ravsamhq/notify-slack-action@v2
-      if: always()
-      with:
-        status: ${{ job.status }}
-        notify_when: "failure"
-      env: 
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
+        slack-alert: 'true'

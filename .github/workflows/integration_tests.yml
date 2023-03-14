@@ -10,6 +10,10 @@ inputs:
   target-branch:
     description: 'The branch to run integration tests against'
     required: 'false'
+  slack-alert: 
+    description: 'A flag to enable slack alerts. True if this should alert via slack'
+    required: 'true'
+    default: 'false'
 
 #What will trigger the workflow to run. 
 on:
@@ -96,6 +100,14 @@ jobs:
         set -e
         echo Running test.sh
         ./src/ci/bin/test.sh
+    - uses: ravsamhq/notify-slack-action@v2
+      if: ${{ slack-alert }}
+      with:
+        status: ${{ job.status }}
+        notify_when: "failure"
+      env: 
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
     #The "shell: ..."" line is a way to force the Github Action Runner to use a bash shell that thinks it has a TTY.
     #The issue and solution are described here: https://github.com/actions/runner/issues/241#issuecomment-842566950
     #This is only needed for ReferenceDiskManifestBuilderApp test. 

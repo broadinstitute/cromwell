@@ -231,11 +231,8 @@ case class NativeBlobSasTokenGenerator(container: BlobContainerName, endpoint: E
   private def authenticateWithDefaultSubscription = AzureResourceManager.authenticate(azureCredentialBuilder, azureProfile).withDefaultSubscription()
   private def azure = subscription.map(authenticateWithSubscription(_)).getOrElse(authenticateWithDefaultSubscription)
 
-private def printList(args: TraversableOnce[_]): Unit = {
-  args.foreach(println)
-}
   private def findAzureStorageAccount(name: StorageAccountName) = azure.storageAccounts.list.asScala.find(_.name.equals(name.value))
-      .map(Success(_)).getOrElse(Failure(new Exception("Azure Storage Account not found " + printList(azure.storageAccounts.list.toString))))
+      .map(Success(_)).getOrElse(Failure(new Exception("Azure Storage Account not found " + printList(azure.storageAccounts.list.mkString(" ")))))
   private def buildBlobContainerClient(credential: StorageSharedKeyCredential, endpoint: EndpointURL, container: BlobContainerName): BlobContainerClient = {
     new BlobContainerClientBuilder()
         .credential(credential)

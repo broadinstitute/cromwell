@@ -12,14 +12,15 @@ on:
   workflow_call:
     inputs:
       target-branch:
-        type: 'string'
+        type: string
         description: 'The branch to run integration tests against'
         required: 'false'
       slack-alert:
-        type: 'boolean' 
+        type: boolean 
         description: 'A flag to enable slack alerts. True if this should alert via slack'
         required: 'true'
         default: 'false'
+      
   workflow_dispatch: #Manual trigger from GitHub UI
   push: #git push
   merge_group:

@@ -8,9 +8,11 @@ run-name: ${{ github.actor }} Integration Testing.
 #Inputs parameters for this workflow
 inputs:
   target-branch:
+    type: 'string'
     description: 'The branch to run integration tests against'
     required: 'false'
-  slack-alert: 
+  slack-alert:
+    type: 'boolean' 
     description: 'A flag to enable slack alerts. True if this should alert via slack'
     required: 'true'
     default: 'false'
@@ -88,7 +90,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3 # checkout the cromwell repo
       with: 
-        ref: ${{target-branch}}
+        ref: ${{ target-branch }}
     - uses: ./.github/set_up_cromwell_action #This github action will set up git-secrets, caching, java, and sbt.
       with:
         cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}

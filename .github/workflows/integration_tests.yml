@@ -20,6 +20,18 @@ on:
         required: 'true'
         default: 'false'
         type: boolean
+    secrets:
+      VAULT_ROLE_ID_CI:
+        required: 'true'
+        default: 
+      VAULT_SECRET_ID_CI:
+        required: 'true'
+      BROADBOT_GITHUB_TOKEN:
+        required: 'true'
+      SLACK_WEBHOOK_URL:
+        required: 'false'
+        
+      
       
   workflow_dispatch: #Manual trigger from GitHub UI
   push: #git push

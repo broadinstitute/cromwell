@@ -232,7 +232,7 @@ case class NativeBlobSasTokenGenerator(container: BlobContainerName, endpoint: E
   private def azure = subscription.map(authenticateWithSubscription(_)).getOrElse(authenticateWithDefaultSubscription)
 
   private def findAzureStorageAccount(name: StorageAccountName) = azure.storageAccounts.list.asScala.find(_.name.equals(name.value))
-      .map(Success(_)).getOrElse(Failure(new Exception("Azure Storage Account not found " + azure.storageAccounts.list.mkString(" "))))
+      .map(Success(_)).getOrElse(Failure(new Exception("Azure Storage Account not found " + azure.storageAccounts.list.asScala.mkString(" "))))
   private def buildBlobContainerClient(credential: StorageSharedKeyCredential, endpoint: EndpointURL, container: BlobContainerName): BlobContainerClient = {
     new BlobContainerClientBuilder()
         .credential(credential)
@@ -254,11 +254,7 @@ case class NativeBlobSasTokenGenerator(container: BlobContainerName, endpoint: E
     */
   def generateBlobSasToken: Try[AzureSasCredential] = for {
     uri <- BlobPathBuilder.parseURI(endpoint.value)
-    println("URI:")
-    println(uri)
     configuredAccount <- BlobPathBuilder.parseStorageAccount(uri)
-    println("Configured account:")
-    println(configuredAccount)
     azureAccount <- findAzureStorageAccount(configuredAccount)
     keys = azureAccount.getKeys.asScala
     key <- keys.headOption.fold[Try[StorageAccountKey]](Failure(new Exception("Storage account has no keys")))(Success(_))

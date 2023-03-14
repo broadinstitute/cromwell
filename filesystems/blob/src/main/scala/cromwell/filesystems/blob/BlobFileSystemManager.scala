@@ -232,7 +232,7 @@ case class NativeBlobSasTokenGenerator(container: BlobContainerName, endpoint: E
   private def azure = subscription.map(authenticateWithSubscription(_)).getOrElse(authenticateWithDefaultSubscription)
 
   private def findAzureStorageAccount(name: StorageAccountName) = azure.storageAccounts.list.asScala.find(_.name.equals(name.value))
-      .map(Success(_)).getOrElse(Failure(new Exception("Azure Storage Account not found " + azure.storageAccounts.list.asScala.map(b => println(b.toString())))))
+      .map(Success(_)).getOrElse(Failure(new Exception("Azure Storage Account not found " + azure.storageAccounts.list.asScala.isEmpty)))
   private def buildBlobContainerClient(credential: StorageSharedKeyCredential, endpoint: EndpointURL, container: BlobContainerName): BlobContainerClient = {
     new BlobContainerClientBuilder()
         .credential(credential)

@@ -254,7 +254,11 @@ case class NativeBlobSasTokenGenerator(container: BlobContainerName, endpoint: E
     */
   def generateBlobSasToken: Try[AzureSasCredential] = for {
     uri <- BlobPathBuilder.parseURI(endpoint.value)
+    println("URI:")
+    println(uri)
     configuredAccount <- BlobPathBuilder.parseStorageAccount(uri)
+    println("Configured account:")
+    println(configuredAccount)
     azureAccount <- findAzureStorageAccount(configuredAccount)
     keys = azureAccount.getKeys.asScala
     key <- keys.headOption.fold[Try[StorageAccountKey]](Failure(new Exception("Storage account has no keys")))(Success(_))

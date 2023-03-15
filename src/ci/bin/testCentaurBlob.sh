@@ -5,12 +5,15 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=/dev/null
 source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
+#NB: This function ensures that the correct .conf file is being used by cromwell (among other things).
+#Blob storage requires a configuration file tailored for Azure.
 cromwell::build::setup_common_environment
 
 cromwell::build::setup_centaur_environment
 
 cromwell::build::assemble_jars
 
+#Run only the azure_blob_storage_read test
 cromwell::build::run_centaur \
     -p 2 \
     -i azure_blob_storage_read \

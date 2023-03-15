@@ -22,6 +22,7 @@ actual.json
 console_output.txt
 expected.json
 run_mode_metadata.json
+https:/**
 
 # custom config
 cromwell-executions

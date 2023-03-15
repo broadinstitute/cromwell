@@ -598,6 +598,7 @@ cromwell::private::create_centaur_variables() {
     CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE_NEW_WORKFLOWS="papiUpgradeNewWorkflows"
     CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL_ENGINE_UPGRADE="horicromtalEngineUpgrade"
     CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL="horicromtal"
+    CROMWELL_BUILD_CENTAUR_TYPE_AZURE_BLOB="azureBlob"
 
     case "${CROMWELL_BUILD_TYPE}" in
         centaurEngineUpgrade*)
@@ -614,6 +615,9 @@ cromwell::private::create_centaur_variables() {
             ;;
         centaurHoricromtal*)
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL}"
+            ;;
+        centaurBlob*)
+            CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_AZURE_BLOB}"
             ;;
         *)
             # Only set the type if Jenkins, etc. has not already set the centaur type

@@ -13,9 +13,6 @@ cromwell::build::setup_centaur_environment
 
 cromwell::build::assemble_jars
 
-#Run only the azure_blob_storage_read test
-cromwell::build::run_centaur \
-    -p 2 \
-    -i azure_blob_storage_read \
+cromwell::build::run_centaur
 
 cromwell::build::generate_code_coverage

@@ -1,6 +1,5 @@
-name: 'Nightly Integration Tests'
-
 #This github action runs all of Cromwell's integration tests nightly.
+name: 'Nightly Integration Tests'
 
 #This is what shows up in the github workflows page as the title.
 run-name: Nightly ${{ github.actor }} Integration Testing.

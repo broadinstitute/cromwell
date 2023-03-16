@@ -20,5 +20,5 @@ jobs:
     uses: broadinstitute/cromwell/.github/workflows/integration_tests.yml@a3c229401306477a9f2047cc2063efbffbfa7002
     with:
       target-branch: 'develop'
-      slack-alert: true
+      slack-alert: 'true'
     secrets: inherit

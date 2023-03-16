@@ -113,7 +113,7 @@ jobs:
       if: inputs.slack-alert
       with:
         status: ${{ job.status }}
-        notify_when: "failure,success"
+        notify_when: "failure"
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     #The "shell: ..."" line is a way to force the Github Action Runner to use a bash shell that thinks it has a TTY.

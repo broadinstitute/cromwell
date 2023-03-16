@@ -108,6 +108,7 @@ jobs:
       run: |
         set -e
         echo Running test.sh
+        exit 1
         ./src/ci/bin/test.sh
     - uses: ravsamhq/notify-slack-action@v2
       if: inputs.slack-alert

@@ -1,17 +1,4 @@
-## Travis builds by user access
-
-For infrastructures that require secured credentials, cloud backend tests only run for developers with write access to the broadinstitute/cromwell GitHub. Secure tests are skipped for all other users.
-
-Other backends run tests for any user.
-
-| Backend       | Read-only users | Write/Admin users |
-|---------------|:---------------:|:-----------------:|
-| AWS           |                 |        ✅         |
-| Local         |       ✅        |        ✅         |
-| PAPI V2alpha1 |                 |        ✅         |
-| PAPI V2beta   |                 |        ✅         |
-| SLURM         |       ✅        |        ✅         |
-| TES           |       ✅        |        ✅         |
+## Centaur Test Types
 
 ## Upgrade / Horicromtal / etc.
 
@@ -20,8 +7,9 @@ Other backends run tests for any user.
 | Engine Upgrade                | `(backend)_application.conf`                                     | `centaur_application.conf`*                            |
 | Horicromtal                   | `papi_[v2beta or v2alpha1]_horicromtal_application.conf`**       | `centaur_application_`<br>`horicromtal.conf`           |
 | Horicromtal<br>Engine Upgrade | `papi_v2beta_application.conf`**                                 | `centaur_application_`<br>`horicromtal_no_assert.conf` |
-| Papi Upgrade                  | `papi_v1_v2alpha1_upgrade_application.conf`**                    | `centaur_application.conf`*                            |
+| PAPI Upgrade                  | `papi_v1_v2alpha1_upgrade_application.conf`**                    | `centaur_application.conf`*                            |
 | Papi Upgrade<br>New Workflows | `(backend)_application.conf`                                     | `centaur_application.conf`*                            |
+| Azure Blob                    | `centaur_blob_test.conf`**                                       | `centaur_application.conf`*                            |
 | WDL Upgrade                   | `(backend)_application.conf`                                     | `centaur_application.conf`*                            |
 | (other)                       | `(backend)_application.conf`                                     | `centaur_application.conf`*                            |
 
@@ -32,6 +20,7 @@ Other backends run tests for any user.
 | Horicromtal<br>Engine Upgrade | `EngineUpgradeTestCaseSpec` | `engineUpgradeTestCases`***         |
 | PAPI Upgrade                  | `PapiUpgradeTestCaseSpec`   | `papiUpgradeTestCases`              |
 | PAPI Upgrade<br>New Workflows | `CentaurTestSuite`          | `papiUpgradeNewWorkflowsTestCases`  |
+| Azure Blob                    | `CentaurTestSuite      `    | `azureBlobTestCases`                |
 | WDL Upgrade                   | `WdlUpgradeTestCaseSpec`    | `standardTestCases`****             |
 | (other)                       | `CentaurTestSuite`          | `standardTestCases`                 |
 

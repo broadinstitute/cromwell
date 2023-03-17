@@ -205,7 +205,7 @@ object Dependencies {
     "com.azure" % "azure-identity" % azureIdentitySdkV
       exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
       exclude("jakarta.activation", "jakarta.activation-api"),
-    "com.azure" % "azure-core-management" % "1.10.2",
+    "com.azure" % "azure-core-management" % "1.7.1",
     "com.azure.resourcemanager" % "azure-resourcemanager" % "2.18.0"
   )
 

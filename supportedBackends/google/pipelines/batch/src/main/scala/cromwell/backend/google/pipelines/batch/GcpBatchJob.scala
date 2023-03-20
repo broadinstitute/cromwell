@@ -2,7 +2,7 @@ package cromwell.backend.google.pipelines.batch
 import com.google.api.gax.rpc.{FixedHeaderProvider, HeaderProvider}
 //import com.google.cloud.batch.v1.AllocationPolicy._
 import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, TaskGroup, TaskSpec}
-import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, ProvisioningModel}
+import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy, ProvisioningModel}
 import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.GcpBatchRequest
 //import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy}
 import com.google.cloud.batch.v1.Runnable.Container
@@ -28,8 +28,11 @@ final case class GcpBatchJob (
   private val durationInSeconds: Long = 3600
   private val taskCount: Long = 1
   private val gcpBatchCommand: String = jobSubmission.gcpBatchCommand
-  //private val vpcNetwork: String = jobSubmission.vpcNetwork
-  //private val vpcSubnetwork: String = jobSubmission.vpcSubnetwork
+
+  private val vpcNetwork: String = jobSubmission.vpcNetwork
+  private val vpcSubnetwork: String = jobSubmission.vpcSubnetwork
+  private lazy val gcpBootDiskSizeMb = (jobSubmission.gcpBatchParameters.runtimeAttributes.bootDiskSize * 1000).toLong
+
 
   // set user agent
   private val user_agent_header = "user-agent"
@@ -84,11 +87,12 @@ final case class GcpBatchJob (
     runnable
   }
 
-  private def createComputeResource(cpu: Long, memory: Long) = {
+  private def createComputeResource(cpu: Long, memory: Long, bootDiskSizeMb: Long) = {
     ComputeResource
       .newBuilder
       .setCpuMilli(cpu)
       .setMemoryMib(memory)
+      .setBootDiskMib(bootDiskSizeMb)
       .build
   }
 
@@ -104,25 +108,27 @@ final case class GcpBatchJob (
   }
 
 
-  /*
+
   private def createNetworkInterface(noAddress: Boolean) = {
     NetworkInterface
       .newBuilder
       .setNoExternalIpAddress(noAddress)
-      .setNetwork("projects/batch-testing-350715/global/networks/default")
-      .setSubnetwork("regions/us-central1/subnetworks/default")
+      .setNetwork(vpcNetwork)
+      .setSubnetwork(vpcSubnetwork)
       .build
   }
-  */
+    //.setNetwork("projects/batch-testing-350715/global/networks/default")
+    //.setSubnetwork("regions/us-central1/subnetworks/default")
 
-  /*
-  private def createNetworkPolicy(networkInterface: NetworkInterface) = {
+
+
+  private def createNetworkPolicy(networkInterface: NetworkInterface): NetworkPolicy = {
     NetworkPolicy
       .newBuilder
       .addNetworkInterfaces(0, networkInterface)
       .build()
   }
-  */
+
 
   private def createTaskSpec(runnable: Runnable, computeResource: ComputeResource, retryCount: Int, durationInSeconds: Long) = {
     TaskSpec
@@ -145,11 +151,11 @@ final case class GcpBatchJob (
 
   }
 
-  private def createAllocationPolicy(locationPolicy: LocationPolicy,  instancePolicy: InstancePolicy) = {
+  private def createAllocationPolicy(locationPolicy: LocationPolicy,  instancePolicy: InstancePolicy, networkPolicy: NetworkPolicy) = {
     AllocationPolicy
       .newBuilder
       .setLocation(locationPolicy)
-      //.setNetwork(networkPolicy)
+      .setNetwork(networkPolicy)
       .addInstances(InstancePolicyOrTemplate
         .newBuilder
         .setPolicy(instancePolicy)
@@ -161,15 +167,19 @@ final case class GcpBatchJob (
 
     try {
       val runnable = createRunnable(dockerImage = jobSubmission.gcpBatchParameters.runtimeAttributes.dockerImage, entryPoint = entryPoint)
-      //val networkInterface = createNetworkInterface(noAddress)
-      //val networkPolicy = createNetworkPolicy(networkInterface)
-      val computeResource = createComputeResource(cpuCores, memTemp)
+
+      val networkInterface = createNetworkInterface(false)
+      val networkPolicy = createNetworkPolicy(networkInterface)
+      val computeResource = createComputeResource(cpu, memory, gcpBootDiskSizeMb)
+
       val taskSpec = createTaskSpec(runnable, computeResource, retryCount, durationInSeconds)
       val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
       val instancePolicy = createInstancePolicy(spotModel)
       val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
+
       //val gpuConfig = Accelerator.newBuilder.setType("nvidia-tesla-t4").setCount(1)
       val allocationPolicy = createAllocationPolicy(locationPolicy, instancePolicy)
+
       val job = Job
         .newBuilder
         .addTaskGroups(taskGroup)

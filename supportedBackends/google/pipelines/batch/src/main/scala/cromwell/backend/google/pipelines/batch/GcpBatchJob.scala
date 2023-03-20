@@ -1,6 +1,6 @@
 package cromwell.backend.google.pipelines.batch
 import com.google.api.gax.rpc.{FixedHeaderProvider, HeaderProvider}
-//import com.google.cloud.batch.v1.AllocationPolicy._
+import com.google.cloud.batch.v1.AllocationPolicy._
 import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, TaskGroup, TaskSpec}
 import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, ProvisioningModel}
 import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.GcpBatchRequest
@@ -11,6 +11,7 @@ import com.google.cloud.batch.v1.LogsPolicy.Destination
 import com.google.common.collect.ImmutableMap
 import java.util.concurrent.TimeUnit
 import org.slf4j.{Logger, LoggerFactory}
+import scala.jdk.CollectionConverters._
 
 
 final case class GcpBatchJob (
@@ -30,6 +31,26 @@ final case class GcpBatchJob (
   private val gcpBatchCommand: String = jobSubmission.gcpBatchCommand
   //private val vpcNetwork: String = jobSubmission.vpcNetwork
   //private val vpcSubnetwork: String = jobSubmission.vpcSubnetwork
+
+
+
+  def toAccelerator(gpuResource: GpuResource): Accelerator.Builder = Accelerator.newBuilder.setCount(gpuResource.gpuCount.value.toLong).setType(gpuResource.gpuType.toString)
+  //def toAccelerator(gpuResource: GpuResource): Accelerator = new Accelerator().setCount(gpuResource.gpuCount.value.toLong).setType(gpuResource.gpuType.toString)
+
+  val accelerators = jobSubmission.gcpBatchParameters.runtimeAttributes
+    .gpuResource.map(toAccelerator).toList.asJava
+
+  val gpuType = jobSubmission.gcpBatchParameters.runtimeAttributes
+    .gpuResource.map{ gpuType => gpuType.gpuType}
+
+  val gpuCount = jobSubmission.gcpBatchParameters.runtimeAttributes
+    .gpuResource.map{ gpuCount => gpuCount.gpuCount.toString}
+  
+  println(f"gputype ${gpuType}")
+  println(f"gpuCount ${gpuCount}")
+
+
+  //val gpuConfig = Accelerator.newBuilder.setType(accelerators.get(0).toString).setCount(accelerators.get(1).toString.toLong)
 
   // set user agent
   private val user_agent_header = "user-agent"
@@ -52,8 +73,8 @@ final case class GcpBatchJob (
   //convert to millicores for Batch
   private val cpuCores = cpu.toString.toLong * 1000
   private val cpuPlatform =  jobSubmission.gcpBatchParameters.runtimeAttributes.cpuPlatform.getOrElse("")
-  private val gpuModel =  jobSubmission.gcpBatchParameters.runtimeAttributes.gpuResource.getOrElse("")
-  println(gpuModel)
+  //private val gpuModel =  jobSubmission.gcpBatchParameters.runtimeAttributes.gpuResource.getOrElse("")
+  //println(gpuModel)
 
   //private val memory = jobSubmission.gcpBatchParameters.runtimeAttributes.memory
   //private val memoryConvert = memory.toString.toLong
@@ -98,6 +119,7 @@ final case class GcpBatchJob (
       .setMachineType(machineType)
       .setProvisioningModel(spotModel)
       //.addAccelerators(gpuConfig)
+      //.addAccelerators(accelerators)
       //.setMinCpuPlatform(cpuPlatform)
       .build
     instancePolicy

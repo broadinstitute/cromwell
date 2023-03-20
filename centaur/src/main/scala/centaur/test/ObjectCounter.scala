@@ -38,6 +38,8 @@ object ObjectCounterInstances {
       storage.list(g.bucket, BlobListOption.prefix(g.directory)).iterateAll.asScala
     listObjectsAtPath(_).size
   }
+
+  //implicit val blobObjectCounter: ObjectCounter[]
 }
 
 object ObjectCounterSyntax {

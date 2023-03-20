@@ -464,6 +464,13 @@ object Dependencies {
 
   val blobFileSystemDependencies: List[ModuleID] = azureDependencies ++ wsmDependencies
 
+  val centaurDependencies: List[ModuleID] = List(
+    "org.apache.commons" % "commons-math3" % commonsMathV,
+    "com.github.kxbmap" %% "configs" % configsV,
+    "com.google.cloud" % "google-cloud-bigquery" % googleCloudBigQueryV % IntegrationTest,
+    "org.gnieh" %% "diffson-spray-json" % diffsonSprayJsonV
+  ) ++ circeDependencies ++ slf4jBindingDependencies ++ cloudSupportDependencies ++ http4sDependencies ++ blobFileSystemDependencies
+
   val s3FileSystemDependencies: List[ModuleID] = junitDependencies
 
   val gcsFileSystemDependencies: List[ModuleID] = akkaHttpDependencies
@@ -517,13 +524,6 @@ object Dependencies {
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "co.fs2" %% "fs2-io" % fs2V % Test,
   ) ++ akkaHttpDependencies ++ betterFilesDependencies ++ catsDependencies
-
-  val centaurDependencies: List[ModuleID] = List(
-    "org.apache.commons" % "commons-math3" % commonsMathV,
-    "com.github.kxbmap" %% "configs" % configsV,
-    "com.google.cloud" % "google-cloud-bigquery" % googleCloudBigQueryV % IntegrationTest,
-    "org.gnieh" %% "diffson-spray-json" % diffsonSprayJsonV
-  ) ++ circeDependencies ++ slf4jBindingDependencies ++ cloudSupportDependencies ++ http4sDependencies
 
   val engineDependencies: List[ModuleID] = List(
     "commons-codec" % "commons-codec" % commonsCodecV,

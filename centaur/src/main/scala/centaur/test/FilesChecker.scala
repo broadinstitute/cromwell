@@ -41,3 +41,7 @@ object AWSFilesChecker extends FilesChecker {
 
   override def countObjectsAtPath: String => Int = s3Client.countObjects(s3PrefixRegex)
 }
+
+object BlobFilesChecker extends FilesChecker {
+  override def countObjectsAtPath: String => Int = (theThing : String) => theThing.length
+}

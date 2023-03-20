@@ -1,5 +1,6 @@
 package cromwell.backend.google.pipelines.batch
 import com.google.api.gax.rpc.{FixedHeaderProvider, HeaderProvider}
+//import com.google.cloud.batch.v1.AllocationPolicy._
 import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, TaskGroup, TaskSpec}
 import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, ProvisioningModel}
 import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.GcpBatchRequest
@@ -27,8 +28,8 @@ final case class GcpBatchJob (
   private val durationInSeconds: Long = 3600
   private val taskCount: Long = 1
   private val gcpBatchCommand: String = jobSubmission.gcpBatchCommand
-  private val vpcNetwork: String = jobSubmission.vpcNetwork
-  private val vpcSubnetwork: String = jobSubmission.vpcSubnetwork
+  //private val vpcNetwork: String = jobSubmission.vpcNetwork
+  //private val vpcSubnetwork: String = jobSubmission.vpcSubnetwork
 
   // set user agent
   private val user_agent_header = "user-agent"
@@ -51,10 +52,12 @@ final case class GcpBatchJob (
   //convert to millicores for Batch
   private val cpuCores = cpu.toString.toLong * 1000
   private val cpuPlatform =  jobSubmission.gcpBatchParameters.runtimeAttributes.cpuPlatform.getOrElse("")
+  private val gpuModel =  jobSubmission.gcpBatchParameters.runtimeAttributes.gpuResource.getOrElse("")
+  println(gpuModel)
 
-  private val memory = jobSubmission.gcpBatchParameters.runtimeAttributes.memory
-  private val memoryConvert = memory.toString.toLong
-  println(memoryConvert)
+  //private val memory = jobSubmission.gcpBatchParameters.runtimeAttributes.memory
+  //private val memoryConvert = memory.toString.toLong
+  //println(memoryConvert)
 
   val memTemp: Long = 400
 
@@ -94,6 +97,7 @@ final case class GcpBatchJob (
       .newBuilder
       .setMachineType(machineType)
       .setProvisioningModel(spotModel)
+      //.addAccelerators(gpuConfig)
       //.setMinCpuPlatform(cpuPlatform)
       .build
     instancePolicy
@@ -164,6 +168,7 @@ final case class GcpBatchJob (
       val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
       val instancePolicy = createInstancePolicy(spotModel)
       val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
+      //val gpuConfig = Accelerator.newBuilder.setType("nvidia-tesla-t4").setCount(1)
       val allocationPolicy = createAllocationPolicy(locationPolicy, instancePolicy)
       val job = Job
         .newBuilder

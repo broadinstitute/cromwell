@@ -21,7 +21,7 @@ final class GcpBatchBackendSingletonActor (name: String) extends Actor with Acto
 
   override def receive: Receive = {
     case jobSubmission: GcpBatchRequest =>
-      val job = GcpBatchJob(jobSubmission,200,200, "e2-standard-4")
+      val job = GcpBatchJob(jobSubmission,"e2-standard-4")
       job.submitJob()
     case jobStatus: BatchGetJob =>
       log.info("matched job status")

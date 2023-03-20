@@ -57,6 +57,9 @@ class AwsBatchConfiguration(val configurationDescriptor: BackendConfigurationDes
   val dockerCredentials = BackendDockerConfiguration.build(configurationDescriptor.backendConfig).dockerCredentials
   val dockerToken: Option[String] = dockerCredentials map { _.token }
   val fsxMntPoint = batchAttributes.fsxMntPoint
+  val efsMntPoint = batchAttributes.efsMntPoint
+  val efsMakeMD5 = batchAttributes.efsMakeMD5
+  val efsDelocalize = batchAttributes.efsDelocalize
 }
 
 object AWSBatchStorageSystems {

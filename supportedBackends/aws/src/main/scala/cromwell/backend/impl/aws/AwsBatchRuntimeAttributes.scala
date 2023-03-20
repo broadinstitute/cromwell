@@ -44,8 +44,11 @@ import wom.RuntimeAttributesKeys
 import wom.format.MemorySize
 import wom.types._
 import wom.values._
+import com.typesafe.config.{ConfigException, ConfigValueFactory}
+import cromwell.backend.impl.aws.UlimitsValidation.{AwsBatchefsDelocalizeValidation, AwsBatchefsMakeMD5Validation}
 
 import scala.util.matching.Regex
+import org.slf4j.{Logger, LoggerFactory}
 
 /**
  * Attributes that are provided to the job at runtime
@@ -62,6 +65,8 @@ import scala.util.matching.Regex
  * @param fileSystem the filesystem type, default is "s3"
  * @param awsBatchRetryAttempts number of attempts that AWS Batch will retry the task if it fails
  * @param ulimits ulimit values to be passed to the container
+ * @param efsDelocalize should we delocalize efs files to s3
+ * @param efsMakeMD5 should we make a sibling md5 file as part of the job 
  */
 case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      zones: Vector[String],
@@ -75,16 +80,21 @@ case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      scriptS3BucketName: String,
                                      awsBatchRetryAttempts: Int,
                                      ulimits: Vector[Map[String, String]],
+                                     efsDelocalize: Boolean,
+                                     efsMakeMD5: Boolean,
                                      fileSystem: String = "s3"
 )
 
 object AwsBatchRuntimeAttributes {
-
+  val Log: Logger = LoggerFactory.getLogger(this.getClass)
   val QueueArnKey = "queueArn"
 
   val scriptS3BucketKey = "scriptBucketName"
 
   val awsBatchRetryAttemptsKey = "awsBatchRetryAttempts"
+
+  val awsBatchefsDelocalizeKey = "efsDelocalize"
+  val awsBatchefsMakeMD5Key = "efsMakeMD5"
 
   val ZonesKey = "zones"
   private val ZonesDefaultValue = WomString("us-east-1a")
@@ -152,13 +162,58 @@ object AwsBatchRuntimeAttributes {
         .getOrElse(WomInteger(0))
     )
 
+  private def awsBatchefsDelocalizeValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
+    AwsBatchefsDelocalizeValidation(awsBatchefsDelocalizeKey).withDefault(
+      AwsBatchefsDelocalizeValidation(awsBatchefsDelocalizeKey)
+        .configDefaultWomValue(runtimeConfig)
+        .getOrElse(WomBoolean(false))
+    )
+
+  private def awsBatchefsMakeMD5Validation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
+    AwsBatchefsMakeMD5Validation(awsBatchefsMakeMD5Key).withDefault(
+      AwsBatchefsMakeMD5Validation(awsBatchefsMakeMD5Key)
+        .configDefaultWomValue(runtimeConfig)
+        .getOrElse(WomBoolean(false))
+    )
+
   private def ulimitsValidation(
     runtimeConfig: Option[Config]
   ): RuntimeAttributesValidation[Vector[Map[String, String]]] =
     UlimitsValidation.withDefault(UlimitsValidation.configDefaultWomValue(runtimeConfig) getOrElse UlimitsDefaultValue)
 
+  // routine that aggregates disks from default-runtime-attributes and efs.
+  def aggregateDisksInRuntimeConfig(configuration: AwsBatchConfiguration): Option[Config] = {
+    // get the runtime attributes out of full config
+    val rtc: Config = configuration.runtimeConfig match {
+      case Some(x) => x
+      case None =>
+        Log.error("aws-batch default runtime attributes not found.")
+        throw new RuntimeException(
+          "Default runtime attributes not found in config. This should always be present for AWS ! "
+        )
+    }
+    // efs disk configs is set (can be None) in configuration
+    val efs_disks = configuration.efsMntPoint.getOrElse("")
+    // TODO : fsx ?
+    // additional disks optionally set as runtime attributes
+    val rtc_disks =
+      try
+        rtc
+          .getAnyRef(AwsBatchRuntimeAttributes.DisksKey)
+          .asInstanceOf[String] // just to prevent complaints about var/val
+      catch {
+        case _: ConfigException.Missing =>
+          ""
+      }
+    // combine
+    val disks = s"${efs_disks},${rtc_disks}".split(",").toSet.mkString(",")
+    val runtimeConfig = Some(rtc.withValue(AwsBatchRuntimeAttributes.DisksKey, ConfigValueFactory.fromAnyRef(disks)))
+    return runtimeConfig
+  }
+
   def runtimeAttributesBuilder(configuration: AwsBatchConfiguration): StandardValidatedRuntimeAttributesBuilder = {
-    val runtimeConfig = configuration.runtimeConfig
+    val runtimeConfig = aggregateDisksInRuntimeConfig(configuration)
+
     def validationsS3backend = StandardValidatedRuntimeAttributesBuilder
       .default(runtimeConfig)
       .withValidation(
@@ -171,7 +226,9 @@ object AwsBatchRuntimeAttributes {
         queueArnValidation(runtimeConfig),
         scriptS3BucketNameValidation(runtimeConfig),
         awsBatchRetryAttemptsValidation(runtimeConfig),
-        ulimitsValidation(runtimeConfig)
+        ulimitsValidation(runtimeConfig),
+        awsBatchefsDelocalizeValidation(runtimeConfig),
+        awsBatchefsMakeMD5Validation(runtimeConfig)
       )
     def validationsLocalBackend = StandardValidatedRuntimeAttributesBuilder
       .default(runtimeConfig)
@@ -182,7 +239,11 @@ object AwsBatchRuntimeAttributes {
         memoryValidation(runtimeConfig),
         noAddressValidation(runtimeConfig),
         dockerValidation,
-        queueArnValidation(runtimeConfig)
+        queueArnValidation(runtimeConfig),
+        awsBatchRetryAttemptsValidation(runtimeConfig),
+        ulimitsValidation(runtimeConfig),
+        awsBatchefsDelocalizeValidation(runtimeConfig),
+        awsBatchefsMakeMD5Validation(runtimeConfig)
       )
 
     configuration.fileSystem match {
@@ -227,6 +288,12 @@ object AwsBatchRuntimeAttributes {
     )
     val ulimits: Vector[Map[String, String]] =
       RuntimeAttributesValidation.extract(ulimitsValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val efsDelocalize: Boolean = RuntimeAttributesValidation.extract(
+      awsBatchefsDelocalizeValidation(runtimeAttrsConfig),
+      validatedRuntimeAttributes
+    )
+    val efsMakeMD5: Boolean =
+      RuntimeAttributesValidation.extract(awsBatchefsMakeMD5Validation(runtimeAttrsConfig), validatedRuntimeAttributes)
 
     new AwsBatchRuntimeAttributes(
       cpu,
@@ -241,6 +308,8 @@ object AwsBatchRuntimeAttributes {
       scriptS3BucketName,
       awsBatchRetryAttempts,
       ulimits,
+      efsDelocalize,
+      efsMakeMD5,
       fileSystem
     )
   }
@@ -434,6 +503,24 @@ class AwsBatchRetryAttemptsValidation(key: String) extends IntRuntimeAttributesV
   }
 
   override protected def missingValueMessage: String = s"Expecting $key runtime attribute to be an Integer"
+}
+
+object AwsBatchefsDelocalizeValidation {
+  def apply(key: String): AwsBatchefsDelocalizeValidation = new AwsBatchefsDelocalizeValidation(key)
+}
+
+class AwsBatchefsDelocalizeValidation(key: String) extends BooleanRuntimeAttributesValidation(key) {
+
+  override protected def missingValueMessage: String = s"Expecting $key runtime attribute to be an Boolean"
+}
+
+object AwsBatchefsMakeMD5Validation {
+  def apply(key: String): AwsBatchefsMakeMD5Validation = new AwsBatchefsMakeMD5Validation(key)
+}
+
+class AwsBatchefsMakeMD5Validation(key: String) extends BooleanRuntimeAttributesValidation(key) {
+
+  override protected def missingValueMessage: String = s"Expecting $key runtime attribute to be an Boolean"
 }
 
 object UlimitsValidation extends RuntimeAttributesValidation[Vector[Map[String, String]]] {

@@ -252,6 +252,152 @@ services {
 2. Add `events:PutEvents` IAM policy to your Cromwell server IAM role. 
 
 
+#### AWS EFS
+
+Cromwell EC2 instances can be equipped with a shared elastic filesystem, termed EFS. Using this filesystem for intermediate data bypasses the need to pass these files around between the cromwell jobs and S3. 
+
+1.  Setup an EFS filesystem: 
+
+Following the [GenomicsWorkFlows](https://docs.opendata.aws/genomics-workflows/orchestration/cromwell/cromwell-overview.html) deployment stack and selecting "Create EFS", you will end up with an EFS filesystem accessible within the provided subnets. It is mounted by default in EC2 workers under /mnt/efs. This is specified in the launch templates USER_DATA if you want to change this. 
+
+Next, it is recommended to change the EFS setup (in console : select EFS service, then the "SharedDataGenomics" volume, edit). Change performance settings to Enhanced/Elastic, because the bursting throughput is usually insufficient. Optionally set the lifecycle to archive infrequently accessed data and reduce costs. 
+
+2. Set Cromwell Configuration
+
+The following directives need to be added to the cromwell configuration:
+
+```
+backend {
+    providers {
+        AWSBatch {
+            config{
+                default-runtime-attributes {
+                    // keep you other settings as they are (queueArn etc)
+
+                    // DEFAULT EFS CONFIG
+                    // delocalize output files under /mnt/efs to the cromwell tmp bucket
+                    efsDelocalize = false
+                    // make md5 sums of output files under /mnt/efs as part of the job 
+                    efsMakeMD5 = false
+                }
+                filesystems {
+                    s3 {
+                        // your s3 settings should remain as they are
+                    }
+                    // add the local directive
+                    local {
+                        // the mountpoint of the EFS volume within the HOST (specified in EC2 launch template)
+                        efs = "/mnt/efs"
+                    }
+
+                }
+            }
+        }
+    }
+}
+
+```
+
+Now, Cromwell is able to correctly handle output files both located in the cromwell working directory (delocalized to S3), and on the EFS volume (kept, and optionally delocalized).
+
+3. Current limitations:
+
+- To read an task output file in wdl using eg read_tsv(), it must be set to output type 'String' OR 'efsDelocalize' must be enabled for the job.
+- Call caching is not yet possible when using input files located on EFS.  Cromwell does not crash but issues errors and skips callcaching for that task. 
+- There is no unique temp/scratch folder generated per workflow ID. Data collision prevention is left to the user. 
+- Cleanup must be done manually
+
+4. Example Workflow
+
+The following workflow highlights the following features: 
+ 
+ - take input data from an s3 bucket. 
+ - keep intermediate data on efs
+ - delocalize output from efs volume 
+ - read a file on efs in the main wdl cromwell process.
+
+ 
+```
+version 1.0
+workflow TestEFS {
+    input {
+        # input file for WF is located on S3
+        File s3_file = 's3://aws-quickstart/quickstart-aws-vpc/templates/aws-vpc.template.yaml'
+        # set an input parameter holding the working dir on EFS
+        String efs_wd = "/mnt/efs/MyProject"
+    }
+    # task one : create a file on efs.
+    call task_one {input:
+        infile = s3_file,
+        wd = efs_wd    
+    }
+    # read the outfile straight in a wdl structure
+    Array[Array[String]] myOutString_info = read_tsv(task_one.outfile)
+
+    # task two : reuse the file on the wd and delocalize to s3
+    call task_two {input:
+        wd = efs_wd,
+        infile = task_one.outfile
+    }
+    Array[Array[String]] myOutFile_info = read_tsv(task_two.outfile)
+
+    ## outputs
+    output{
+        Array[Array[String]] wf_out_info_returned_as_string = myOutString_info
+        Array[Array[String]] wf_out_info_returned_as_file = myOutFile_info
+        String wf_out_file = task_two.outfile
+    }
+}
+
+task task_one {
+    input {
+	    File infile
+        String wd
+    }
+    command {
+        # mk the wd:
+        mkdir -p ~{wd}
+        # mv the infile to wd
+        mv ~{infile} ~{wd}/
+        # generate an outfile for output Testing
+        ls -alh ~{wd} > ~{wd}/MyOutFile
+    }
+     runtime {
+        docker: "ubuntu:22.04"
+        cpu : "1"
+        memory: "500M" 
+     }
+     output {
+        # to read a file in cromwell/wdl : pass it back as a string or delocalize (see task_two)
+        String outfile = '~{wd}/MyOutFile'
+     }
+}
+
+task task_two {
+    input {
+        String wd
+        File infile
+    }
+    command {
+        # put something new in the file:
+        ls -alh /tmp > ~{infile}
+        
+    }
+     runtime {
+        docker: "ubuntu:22.04"
+        cpu : "1"
+        memory: "500M" 
+        efsDelocalize: true
+     }
+     output {
+        File outfile = "~{infile}"
+     }
+}
+```
+
+
+
+
 AWS Batch
 ---------
 

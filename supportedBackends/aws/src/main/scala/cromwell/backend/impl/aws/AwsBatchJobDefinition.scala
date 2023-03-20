@@ -159,11 +159,13 @@ trait AwsBatchJobDefinitionBuilder {
                   volumes: List[Volume],
                   mountPoints: List[MountPoint],
                   env: Seq[KeyValuePair],
-                  ulimits: List[Ulimit]
+                  ulimits: List[Ulimit],
+                  efsDelocalize: Boolean,
+                  efsMakeMD5: Boolean
     ): String =
-      s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints
+      s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints.map(_.toString).mkString(",")}:${env
           .map(_.toString)
-          .mkString(",")}:${env.map(_.toString).mkString(",")}:${ulimits.map(_.toString).mkString(",")}"
+          .mkString(",")}:${ulimits.map(_.toString).mkString(",")}:${efsDelocalize.toString}:${efsMakeMD5.toString}"
 
     val environment = List.empty[KeyValuePair]
     val cmdName = context.runtimeAttributes.fileSystem match {
@@ -174,13 +176,18 @@ trait AwsBatchJobDefinitionBuilder {
     val volumes = buildVolumes(context.runtimeAttributes.disks, context.fsxMntPoint)
     val mountPoints = buildMountPoints(context.runtimeAttributes.disks, context.fsxMntPoint)
     val ulimits = buildUlimits(context.runtimeAttributes.ulimits)
+    val efsDelocalize = context.runtimeAttributes.efsDelocalize
+    val efsMakeMD5 = context.runtimeAttributes.efsMakeMD5
+
     val containerPropsName = buildName(
       context.runtimeAttributes.dockerImage,
       packedCommand.mkString(","),
       volumes,
       mountPoints,
       environment,
-      ulimits
+      ulimits,
+      efsDelocalize,
+      efsMakeMD5
     )
 
     (ContainerProperties
@@ -221,10 +228,9 @@ trait AwsBatchJobDefinitionBuilder {
     val lim = 20480
     val packedCommand = mainCommand.length() match {
       case len if len <= lim => mainCommand
-      case len if len > lim => {
+      case len if len > lim =>
         rc += "gzipdata" // This is hard coded in our agent and must be the first item
         gzip(mainCommand)
-      }
     }
     rc += shell
     rc += options
@@ -268,16 +274,20 @@ case class StandardAwsBatchJobDefinitionBuilder private (containerProperties: Co
 
 object AwsBatchJobDefinitionContext
 
-case class AwsBatchJobDefinitionContext(runtimeAttributes: AwsBatchRuntimeAttributes,
-                                        commandText: String,
-                                        dockerRcPath: String,
-                                        dockerStdoutPath: String,
-                                        dockerStderrPath: String,
-                                        jobDescriptor: BackendJobDescriptor,
-                                        jobPaths: JobPaths,
-                                        inputs: Set[AwsBatchInput],
-                                        outputs: Set[AwsBatchFileOutput],
-                                        fsxMntPoint: Option[List[String]]
+case class AwsBatchJobDefinitionContext(
+  runtimeAttributes: AwsBatchRuntimeAttributes,
+  commandText: String,
+  dockerRcPath: String,
+  dockerStdoutPath: String,
+  dockerStderrPath: String,
+  jobDescriptor: BackendJobDescriptor,
+  jobPaths: JobPaths,
+  inputs: Set[AwsBatchInput],
+  outputs: Set[AwsBatchFileOutput],
+  fsxMntPoint: Option[List[String]],
+  efsMntPoint: Option[String],
+  efsMakeMD5: Option[Boolean],
+  efsDelocalize: Option[Boolean]
 ) {
 
   override def toString: String =
@@ -292,5 +302,8 @@ case class AwsBatchJobDefinitionContext(runtimeAttributes: AwsBatchRuntimeAttrib
       .append("inputs", inputs)
       .append("outputs", outputs)
       .append("fsxMntPoint", fsxMntPoint)
+      .append("efsMntPoint", efsMntPoint)
+      .append("efsMakeMD5", efsMakeMD5)
+      .append("efsDelocalize", efsDelocalize)
       .build
 }

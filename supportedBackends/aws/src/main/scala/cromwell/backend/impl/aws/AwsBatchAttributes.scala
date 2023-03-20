@@ -62,7 +62,10 @@ case class AwsBatchAttributes(fileSystem: String,
                               duplicationStrategy: AwsBatchCacheHitDuplicationStrategy,
                               submitAttempts: Int Refined Positive,
                               createDefinitionAttempts: Int Refined Positive,
-                              fsxMntPoint: Option[List[String]]
+                              fsxMntPoint: Option[List[String]],
+                              efsMntPoint: Option[String],
+                              efsMakeMD5: Option[Boolean],
+                              efsDelocalize: Option[Boolean]
 )
 
 object AwsBatchAttributes {
@@ -74,17 +77,24 @@ object AwsBatchAttributes {
     "filesystems",
     "filesystems.local.auth",
     "filesystems.local.fsx",
+    "filesystems.local.efs",
     "filesystems.local.localization",
     "filesystems.local.caching.hashing-strategy",
     "filesystems.local.caching.duplication-strategy",
+    "filesystems.local.caching.check-sibling-md5",
     "filesystems.s3.auth",
     "filesystems.s3.caching.duplication-strategy",
     "auth",
     "numCreateDefinitionAttempts",
     "numSubmitAttempts",
     "default-runtime-attributes.scriptBucketName",
+    // "default-runtime-attributes.efsMountPoint",
+    // "default-runtime-attributes.efsMakeMD5",
+    // "default-runtime-attributes.efsDelocalize",
     "awsBatchRetryAttempts",
-    "ulimits"
+    "ulimits",
+    "efsDelocalize",
+    "efsMakeMD5"
   )
 
   private val deprecatedAwsBatchKeys: Map[String, String] = Map(
@@ -108,6 +118,12 @@ object AwsBatchAttributes {
     }
 
     def parseFSx(config: List[String]): Option[List[String]] =
+      config.isEmpty match {
+        case true => None
+        case false => Some(config)
+      }
+
+    def parseEFS(config: String): Option[String] =
       config.isEmpty match {
         case true => None
         case false => Some(config)
@@ -155,6 +171,27 @@ object AwsBatchAttributes {
       }
     }
 
+    // EFS settings:
+    val efsMntPoint: ErrorOr[Option[String]] = validate {
+      backendConfig.hasPath("filesystems.local.efs") match {
+        case true => parseEFS(backendConfig.getString("filesystems.local.efs"))
+        case false => None
+      }
+    }
+    val efsMakeMD5: ErrorOr[Option[Boolean]] = validate {
+      backendConfig.hasPath("default-runtime-attributes.efsMakeMD5") match {
+        case true => Some(backendConfig.getBoolean("default-runtime-attributes.efsMakeMD5"))
+        case false => None
+      }
+    }
+    // if set for job : use that; else from defaults; else None
+    val efsDelocalize: ErrorOr[Option[Boolean]] = validate {
+      backendConfig.hasPath("default-runtime-attributes.efsDelocalize") match {
+        case true => Some(backendConfig.getBoolean("default-runtime-attributes.efsDelocalize"))
+        case false => None
+      }
+    }
+
     (
       fileSysStr,
       filesystemAuthMode,
@@ -162,7 +199,10 @@ object AwsBatchAttributes {
       duplicationStrategy,
       backendConfig.as[ErrorOr[Int Refined Positive]]("numSubmitAttempts"),
       backendConfig.as[ErrorOr[Int Refined Positive]]("numCreateDefinitionAttempts"),
-      fsxMntPoint
+      fsxMntPoint,
+      efsMntPoint,
+      efsMakeMD5,
+      efsDelocalize
     ).tupled.map((AwsBatchAttributes.apply _).tupled) match {
       case Valid(r) => r
       case Invalid(f) =>

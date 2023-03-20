@@ -50,6 +50,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   lazy val gcpBatchCommand: String = jobDescriptor.taskCall.callable.commandTemplateString(Map.empty)
   lazy val workflowId: WorkflowId = jobDescriptor.workflowDescriptor.id
+  //lazy val gcpBootDiskSizeGb = runtimeAttributes.bootDiskSize
+  //println(f"$gcpBootDiskSizeGb LOOOOOOOOOOOK")
+
 
   /** The type of the run info when a job is started. */
   override type StandardAsyncRunInfo = Run
@@ -128,11 +131,11 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     //println(jobDescriptor.localInputs)
     val vpcNetwork: String = batchAttributes.virtualPrivateCloudConfiguration.labelsOption.map { vpcNetworks =>
       vpcNetworks.network
-    }.getOrElse("defaultNetwork")
+    }.getOrElse(s"projects/${batchAttributes.project}/global/networks/default")
 
     val vpcSubnetwork: String = batchAttributes.virtualPrivateCloudConfiguration.labelsOption.map { vpcNetworks =>
       vpcNetworks.subnetwork.getOrElse("default")
-    }.getOrElse("default")
+    }.getOrElse(s"projects/${batchAttributes.project}/regions/${batchAttributes.location}/subnetworks/default")
 
     val file = jobDescriptor.localInputs
     println(file.get("test"))

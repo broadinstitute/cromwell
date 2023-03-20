@@ -14,8 +14,8 @@ import org.slf4j.{Logger, LoggerFactory}
 
 final case class GcpBatchJob (
                              jobSubmission: GcpBatchRequest,
-                             cpu: Long,
-                             memory: Long,
+                             //cpu: Long,
+                             //memory: Long,
                              machineType: String
                             ) {
 
@@ -45,7 +45,19 @@ final case class GcpBatchJob (
     .format("projects/%s/locations/%s", jobSubmission.gcpBatchParameters
       .projectId, jobSubmission.gcpBatchParameters
       .region))
+
+  private val cpu = jobSubmission.gcpBatchParameters.runtimeAttributes.cpu
+
+  //convert to millicores for Batch
+  private val cpuCores = cpu.toString.toLong * 1000
   private val cpuPlatform =  jobSubmission.gcpBatchParameters.runtimeAttributes.cpuPlatform.getOrElse("")
+
+  private val memory = jobSubmission.gcpBatchParameters.runtimeAttributes.memory
+  private val memoryConvert = memory.toString.toLong
+  println(memoryConvert)
+
+  val memTemp: Long = 400
+
   //private val bootDiskSize = runtimeAttributes.bootDiskSize
  // private val noAddress = runtimeAttributes.noAddress
   private val zones = "zones/" + jobSubmission.gcpBatchParameters.runtimeAttributes.zones.mkString(",")
@@ -147,7 +159,7 @@ final case class GcpBatchJob (
       val runnable = createRunnable(dockerImage = jobSubmission.gcpBatchParameters.runtimeAttributes.dockerImage, entryPoint = entryPoint)
       //val networkInterface = createNetworkInterface(noAddress)
       //val networkPolicy = createNetworkPolicy(networkInterface)
-      val computeResource = createComputeResource(cpu, memory)
+      val computeResource = createComputeResource(cpuCores, memTemp)
       val taskSpec = createTaskSpec(runnable, computeResource, retryCount, durationInSeconds)
       val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
       val instancePolicy = createInstancePolicy(spotModel)

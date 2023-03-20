@@ -2,23 +2,43 @@ name: 'Integration Tests'
 
 #This github action runs all of Cromwell's integration tests.
 
-#This is what shows up in the github workflows page as the title. 
+#This is what shows up in the github workflows page as the title.
 run-name: ${{ github.actor }} Integration Testing.
 
-#What will trigger the workflow to run. 
+#What will trigger the workflow to run.
 on:
+  workflow_call:
+    inputs:
+      target-branch:
+        description: 'The branch to run integration tests against'
+        required: false
+        type: string
+      slack-alert:
+        description: 'A flag to enable slack alerts. True if this should alert via slack'
+        required: true
+        default: false
+        type: boolean
+    secrets:
+      VAULT_ROLE_ID_CI:
+        required: true
+      VAULT_SECRET_ID_CI:
+        required: true
+      BROADBOT_GITHUB_TOKEN:
+        required: true
+      SLACK_WEBHOOK_URL:
+        required: false
   workflow_dispatch: #Manual trigger from GitHub UI
   push: #git push
   merge_group:
 
-permissions: 
+permissions:
   contents: read
 
 jobs:
   integration-tests:
     strategy:
       fail-fast: false #disabling fail-fast means that even if one test fails, the others will still try to complete.
-      #Each entry below is a single integration test that lives in /src/ci/bin/. 
+      #Each entry below is a single integration test that lives in /src/ci/bin/.
       #Each will be launched on its own runner so they can occur in parallel.
       #Friendly names are displayed on the Github UI and aren't used anywhere else.
       matrix:
@@ -76,6 +96,8 @@ jobs:
     timeout-minutes: 120
     steps:
     - uses: actions/checkout@v3 # checkout the cromwell repo
+      with:
+        ref: ${{ inputs.target-branch }}
     - uses: ./.github/set_up_cromwell_action #This github action will set up git-secrets, caching, java, and sbt.
       with:
         cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
@@ -87,8 +109,15 @@ jobs:
         set -e
         echo Running test.sh
         ./src/ci/bin/test.sh
+    - uses: ravsamhq/notify-slack-action@v2
+      if: inputs.slack-alert
+      with:
+        status: ${{ job.status }}
+        notify_when: "failure"
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     #The "shell: ..."" line is a way to force the Github Action Runner to use a bash shell that thinks it has a TTY.
     #The issue and solution are described here: https://github.com/actions/runner/issues/241#issuecomment-842566950
-    #This is only needed for ReferenceDiskManifestBuilderApp test. 
+    #This is only needed for ReferenceDiskManifestBuilderApp test.
     #This test uses fancy colors in the output, which likely causes the problem.
-    #See WX-938. 
+    #See WX-938.

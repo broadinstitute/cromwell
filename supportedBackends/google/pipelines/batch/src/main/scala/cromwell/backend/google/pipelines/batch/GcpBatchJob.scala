@@ -28,6 +28,7 @@ final case class GcpBatchJob (
   private val durationInSeconds: Long = 3600
   private val taskCount: Long = 1
   private val gcpBatchCommand: String = jobSubmission.gcpBatchCommand
+
   private val vpcNetwork: String = jobSubmission.vpcNetwork
   private val vpcSubnetwork: String = jobSubmission.vpcSubnetwork
   private lazy val gcpBootDiskSizeMb = (jobSubmission.gcpBatchParameters.runtimeAttributes.bootDiskSize * 1000).toLong
@@ -165,6 +166,7 @@ final case class GcpBatchJob (
 
     try {
       val runnable = createRunnable(dockerImage = jobSubmission.gcpBatchParameters.runtimeAttributes.dockerImage, entryPoint = entryPoint)
+
       val networkInterface = createNetworkInterface(false)
       val networkPolicy = createNetworkPolicy(networkInterface)
       val computeResource = createComputeResource(cpuCores, memTemp, gcpBootDiskSizeMb)

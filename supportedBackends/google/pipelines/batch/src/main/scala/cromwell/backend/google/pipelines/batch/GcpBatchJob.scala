@@ -34,8 +34,6 @@ final case class GcpBatchJob (
   private val vpcSubnetwork: String = jobSubmission.vpcSubnetwork
   private lazy val gcpBootDiskSizeMb = (jobSubmission.gcpBatchParameters.runtimeAttributes.bootDiskSize * 1000).toLong
 
-
-
   //def toAccelerator(gpuResource: GpuResource): Accelerator.Builder = Accelerator.newBuilder.setCount(gpuResource.gpuCount.value.toLong).setType(gpuResource.gpuType.toString)
   //def toAccelerator(gpuResource: GpuResource): Accelerator = new Accelerator().setCount(gpuResource.gpuCount.value.toLong).setType(gpuResource.gpuType.toString)
 
@@ -48,7 +46,6 @@ final case class GcpBatchJob (
   val gpuCount = jobSubmission.gcpBatchParameters.runtimeAttributes
     .gpuResource.map{ gpuCount => gpuCount.gpuCount.toString}
 
-  
   println(f"gputype ${gpuType}")
   println(f"gpuCount ${gpuCount}")
 

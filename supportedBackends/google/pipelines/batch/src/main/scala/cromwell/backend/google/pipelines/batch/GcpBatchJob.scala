@@ -11,6 +11,7 @@ import com.google.cloud.batch.v1.LogsPolicy.Destination
 import com.google.common.collect.ImmutableMap
 import java.util.concurrent.TimeUnit
 import org.slf4j.{Logger, LoggerFactory}
+import scala.jdk.CollectionConverters._
 
 
 final case class GcpBatchJob (
@@ -18,7 +19,7 @@ final case class GcpBatchJob (
                              //cpu: Long,
                              //memory: Long,
                              machineType: String
-                            ) {
+                            ) extends BatchUtilityConversions{
 
   val log: Logger = LoggerFactory.getLogger(RunStatus.toString)
 
@@ -32,6 +33,27 @@ final case class GcpBatchJob (
   private val vpcNetwork: String = jobSubmission.vpcNetwork
   private val vpcSubnetwork: String = jobSubmission.vpcSubnetwork
   private lazy val gcpBootDiskSizeMb = (jobSubmission.gcpBatchParameters.runtimeAttributes.bootDiskSize * 1000).toLong
+
+
+
+  //def toAccelerator(gpuResource: GpuResource): Accelerator.Builder = Accelerator.newBuilder.setCount(gpuResource.gpuCount.value.toLong).setType(gpuResource.gpuType.toString)
+  //def toAccelerator(gpuResource: GpuResource): Accelerator = new Accelerator().setCount(gpuResource.gpuCount.value.toLong).setType(gpuResource.gpuType.toString)
+
+  val accelerators = jobSubmission.gcpBatchParameters.runtimeAttributes
+    .gpuResource.map(toAccelerator).toList.asJava
+
+  val gpuType = jobSubmission.gcpBatchParameters.runtimeAttributes
+    .gpuResource.map{ gpuType => gpuType.gpuType}
+
+  val gpuCount = jobSubmission.gcpBatchParameters.runtimeAttributes
+    .gpuResource.map{ gpuCount => gpuCount.gpuCount.toString}
+
+  
+  println(f"gputype ${gpuType}")
+  println(f"gpuCount ${gpuCount}")
+
+
+  //val gpuConfig = Accelerator.newBuilder.setType(accelerators.get(0).toString).setCount(accelerators.get(1).toString.toLong)
 
   // set user agent
   private val user_agent_header = "user-agent"
@@ -49,13 +71,14 @@ final case class GcpBatchJob (
       .projectId, jobSubmission.gcpBatchParameters
       .region))
 
-  private val cpu = jobSubmission.gcpBatchParameters.runtimeAttributes.cpu
-
   //convert to millicores for Batch
-  private val cpuCores = cpu.toString.toLong * 1000
+  private val cpu = jobSubmission.gcpBatchParameters.runtimeAttributes.cpu
+  val cpuCores = toCpuCores(cpu.toString.toLong)
+
   private val cpuPlatform =  jobSubmission.gcpBatchParameters.runtimeAttributes.cpuPlatform.getOrElse("")
-  private val gpuModel =  jobSubmission.gcpBatchParameters.runtimeAttributes.gpuResource.getOrElse("")
-  println(gpuModel)
+  println(cpuPlatform)
+  //private val gpuModel =  jobSubmission.gcpBatchParameters.runtimeAttributes.gpuResource.getOrElse("")
+  //println(gpuModel)
 
   //private val memory = jobSubmission.gcpBatchParameters.runtimeAttributes.memory
   //private val memoryConvert = memory.toString.toLong
@@ -69,17 +92,8 @@ final case class GcpBatchJob (
   println(zones)
 
   // parse preemption value and set value for Spot. Spot is replacement for preemptible
-  private val preemption = jobSubmission.gcpBatchParameters.runtimeAttributes.preemptible
-  println(preemption)
-  private def spotMatch(preemption: Int): ProvisioningModel = preemption compare 0 match {
-    case 0 => ProvisioningModel.STANDARD
-    case 1 => ProvisioningModel.SPOT
-  }
-  private val spotModel = spotMatch(preemption)
+  val spotModel = toProvisioningModel(jobSubmission.gcpBatchParameters.runtimeAttributes.preemptible)
 
-  log.info(cpuPlatform)
-
-  //println(jobDescriptor.taskCall.sourceLocation)
 
   private def createRunnable(dockerImage: String, entryPoint: String): Runnable = {
     val runnable = Runnable.newBuilder.setContainer((Container.newBuilder.setImageUri(dockerImage).setEntrypoint(entryPoint).addCommands("-c").addCommands(gcpBatchCommand).build)).build
@@ -100,7 +114,9 @@ final case class GcpBatchJob (
       .newBuilder
       .setMachineType(machineType)
       .setProvisioningModel(spotModel)
-      //.addAccelerators(gpuConfig)
+      //.addAccelerators(accelerators)
+      //.addAcceleratorsBuilder(accelerators)
+      //.setAccelerators(accelerators)
       //.setMinCpuPlatform(cpuPlatform)
       .build
     instancePolicy

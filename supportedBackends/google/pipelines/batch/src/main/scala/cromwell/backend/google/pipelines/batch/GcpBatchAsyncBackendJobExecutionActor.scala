@@ -5,6 +5,8 @@ import com.google.api.gax.rpc.NotFoundException
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
+import cats.data.Validated.{Valid}
+
 
 import java.util.concurrent.ExecutionException
 import scala.concurrent.Await
@@ -18,6 +20,8 @@ import cromwell.services.instrumentation.CromwellInstrumentation
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import GcpBatchBackendSingletonActor._
+import cats.data.NonEmptyList
+import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.google.pipelines.batch.RunStatus.{Running, Succeeded, TerminalRunStatus}
 import cromwell.backend.google.pipelines.common.WorkflowOptionKeys
 import cromwell.core.io.IoCommandBuilder
@@ -32,6 +36,7 @@ import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.sra.SraPath
 
 object GcpBatchAsyncBackendJobExecutionActor {
+  val JesOperationIdKey = "__jes_operation_id"
 
   type GcpBatchPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, Run, RunStatus]
 
@@ -72,6 +77,15 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                                  .getOrElse(runtimeAttributes.dockerImage)
 
   override def dockerImageUsed: Option[String] = Option(jobDockerImage)
+
+  // Need to add previousRetryReasons and preemptible in order to get preemptible to work in the tests
+  protected val previousRetryReasons: ErrorOr[PreviousRetryReasons] = PreviousRetryReasons.tryApply(jobDescriptor.prefetchedKvStoreEntries, jobDescriptor.key.attempt)
+
+
+   lazy val preemptible: Boolean = previousRetryReasons match {
+    case Valid(PreviousRetryReasons(p, _)) => p < maxPreemption
+    case _ => false
+  }
   //private var hasDockerCredentials: Boolean = false
 
   //type GcpBatchPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, Run, StandardAsyncRunState]
@@ -164,6 +178,28 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     initialInterval = 5
       .seconds, maxInterval = 20
       .seconds, multiplier = 1.1)
+
+  protected def sendIncrementMetricsForReferenceFiles(referenceInputFilesOpt: Option[Set[GcpBatchInput]]): Unit = {
+    referenceInputFilesOpt match {
+      case Some(referenceInputFiles) =>
+        referenceInputFiles.foreach { referenceInputFile =>
+          increment(NonEmptyList.of("referencefiles", referenceInputFile.relativeHostPath.pathAsString))
+        }
+      case _ =>
+      // do nothing - reference disks feature is either not configured in Cromwell or disabled in workflow options
+    }
+  }
+
+  protected def sendIncrementMetricsForDockerImageCache(dockerImageCacheDiskOpt: Option[String],
+                                                        dockerImageAsSpecifiedByUser: String,
+                                                        isDockerImageCacheUsageRequested: Boolean): Unit = {
+    (isDockerImageCacheUsageRequested, dockerImageCacheDiskOpt) match {
+      case (true, None) => increment(NonEmptyList("docker", List("image", "cache", "image_not_in_cache", dockerImageAsSpecifiedByUser)))
+      case (true, Some(_)) => increment(NonEmptyList("docker", List("image", "cache", "used_image_from_cache", dockerImageAsSpecifiedByUser)))
+      case (false, Some(_)) => increment(NonEmptyList("docker", List("image", "cache", "cached_image_not_used", dockerImageAsSpecifiedByUser)))
+      case _ => // docker image cache not requested and image is not in cache anyway - do nothing
+    }
+  }
 
   override def pollStatusAsync(handle: GcpBatchPendingExecutionHandle): Future[RunStatus] = {
 

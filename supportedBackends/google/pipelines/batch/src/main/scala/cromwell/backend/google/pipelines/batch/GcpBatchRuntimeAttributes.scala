@@ -8,7 +8,10 @@ import wdl4s.parser.MemoryUnit
 import wom.types.{WomArrayType, WomStringType, WomType}
 import wom.values.{WomArray, WomValue}
 import cromwell.backend.google.pipelines.common.ZonesValidation
+//import cromwell.backend.google.pipelines.batch.GpuValidation
+//import cromwell.backend.google.pipelines.batch.GpuTypeValidation
 import cromwell.backend.validation.BooleanRuntimeAttributesValidation
+import cromwell.backend.google.pipelines.batch.GpuResource.GpuType
 import wom.values.{WomBoolean, WomInteger, WomString}
 import cromwell.backend.validation.{DockerValidation, StringRuntimeAttributesValidation, ValidatedRuntimeAttributes}
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
@@ -18,12 +21,14 @@ import cromwell.backend.validation._
 import eu.timepit.refined.numeric.Positive
 import wom.RuntimeAttributesKeys
 import wom.format.MemorySize
-/*
+import eu.timepit.refined._
+
 object GpuResource {
   val DefaultNvidiaDriverVersion = "418.87.00"
   final case class GpuType(name: String) {
     override def toString: String = name
   }
+
   object GpuType {
     val NVIDIATeslaP100 = GpuType("nvidia-tesla-p100")
     val NVIDIATeslaK80 = GpuType("nvidia-tesla-k80")
@@ -32,14 +37,14 @@ object GpuResource {
     val DefaultGpuCount: Int Refined Positive = refineMV[Positive](1)
     val MoreDetailsURL = "https://cloud.google.com/compute/docs/gpus/"
   }
-}*/
+}
 
-//final case class GpuResource(gpuType: GpuType, gpuCount: Int Refined Positive, nvidiaDriverVersion: String = GpuResource.DefaultNvidiaDriverVersion)
+final case class GpuResource(gpuType: GpuType, gpuCount: Int Refined Positive, nvidiaDriverVersion: String = GpuResource.DefaultNvidiaDriverVersion)
 
 final case class GcpBatchRuntimeAttributes(
                                       cpu: Int Refined Positive,
                                       cpuPlatform: Option[String],
-                                      //gpuResource: Option[GpuResource],
+                                      gpuResource: Option[GpuResource],
                                       zones: Vector[String],
                                       preemptible: Int,
                                       bootDiskSize: Int,
@@ -47,6 +52,7 @@ final case class GcpBatchRuntimeAttributes(
                                       disks: Seq[GcpBatchAttachedDisk],
                                       dockerImage: String,
                                       failOnStderr: Boolean,
+                                      continueOnReturnCode: ContinueOnReturnCode,
                                       noAddress: Boolean,
                                       useDockerImageCache: Option[Boolean],
                                       checkpointFilename: Option[String])
@@ -97,18 +103,18 @@ object GcpBatchRuntimeAttributes {
       .configDefaultWomValue(runtimeConfig) getOrElse CpuValidation
       .defaultMin)
   private def cpuPlatformValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] = cpuPlatformValidationInstance
-  //private def gpuTypeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[GpuType] = GpuTypeValidation.optional
+  private def gpuTypeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[GpuType] = GpuTypeValidation.optional
 
   val GpuDriverVersionKey = "nvidiaDriverVersion"
-  //private def gpuDriverValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] = new StringRuntimeAttributesValidation(GpuDriverVersionKey).optional
-  //private def gpuCountValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Int Refined Positive] = GpuValidation.optional
-  //private def gpuMinValidation(runtimeConfig: Option[Config]):OptionalRuntimeAttributesValidation[Int Refined Positive] = GpuValidation.optionalMin
+  private def gpuDriverValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] = new StringRuntimeAttributesValidation(GpuDriverVersionKey).optional
+  private def gpuCountValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Int Refined Positive] = GpuValidation.optional
+  private def gpuMinValidation(runtimeConfig: Option[Config]):OptionalRuntimeAttributesValidation[Int Refined Positive] = GpuValidation.optionalMin
 
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
 
-
-
   private def failOnStderrValidation(runtimeConfig: Option[Config]) = FailOnStderrValidation.default(runtimeConfig)
+
+  private def continueOnReturnCodeValidation(runtimeConfig: Option[Config]) = ContinueOnReturnCodeValidation.default(runtimeConfig)
 
   private def disksValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Seq[GcpBatchAttachedDisk]] = DisksValidation
     .withDefault(DisksValidation.configDefaultWomValue(runtimeConfig) getOrElse DisksDefaultValue)
@@ -159,13 +165,13 @@ object GcpBatchRuntimeAttributes {
   def runtimeAttributesBuilder(batchConfiguration: GcpBatchConfiguration): StandardValidatedRuntimeAttributesBuilder = {
     val runtimeConfig = batchConfiguration.runtimeConfig
     StandardValidatedRuntimeAttributesBuilder.default(runtimeConfig).withValidation(
-      //gpuCountValidation(runtimeConfig),
-      //gpuTypeValidation(runtimeConfig),
-      //gpuDriverValidation(runtimeConfig),
+      gpuCountValidation(runtimeConfig),
+      gpuTypeValidation(runtimeConfig),
+      gpuDriverValidation(runtimeConfig),
       cpuValidation(runtimeConfig),
       cpuPlatformValidation(runtimeConfig),
       cpuMinValidation(runtimeConfig),
-      //gpuMinValidation(runtimeConfig),
+      gpuMinValidation(runtimeConfig),
       disksValidation(runtimeConfig),
       noAddressValidation(runtimeConfig),
       zonesValidation(runtimeConfig),
@@ -175,7 +181,10 @@ object GcpBatchRuntimeAttributes {
       bootDiskSizeValidation(runtimeConfig),
       useDockerImageCacheValidation(runtimeConfig),
       checkpointFileValidationInstance,
-      dockerValidation
+      dockerValidation,
+      outDirMinValidation,
+      tmpDirMinValidation,
+      inputDirMinValidation
     )
   }
 
@@ -184,23 +193,26 @@ object GcpBatchRuntimeAttributes {
     val cpuPlatform: Option[String] = RuntimeAttributesValidation.extractOption(cpuPlatformValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
     val checkpointFileName: Option[String] = RuntimeAttributesValidation.extractOption(checkpointFileValidationInstance.key, validatedRuntimeAttributes)
 
-    // GPU
-    //lazy val gpuType: Option[GpuType] = RuntimeAttributesValidation
-    //  .extractOption(gpuTypeValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
-    //lazy val gpuCount: Option[Int Refined Positive] = RuntimeAttributesValidation
-      //.extractOption(gpuCountValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
-    //lazy val gpuDriver: Option[String] = RuntimeAttributesValidation
-      //.extractOption(gpuDriverValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
+    //GPU
 
-    //val gpuResource: Option[GpuResource] = if (gpuType.isDefined || gpuCount.isDefined || gpuDriver.isDefined) {
-    //  Option(GpuResource(gpuType.getOrElse(GpuType.DefaultGpuType), gpuCount
-    //    .getOrElse(GpuType.DefaultGpuCount), gpuDriver.getOrElse(GpuResource.DefaultNvidiaDriverVersion)))
-    //} else {
-    //  None
-    //}
+    lazy val gpuType: Option[GpuType] = RuntimeAttributesValidation
+      .extractOption(gpuTypeValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
+    lazy val gpuCount: Option[Int Refined Positive] = RuntimeAttributesValidation
+      .extractOption(gpuCountValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
+    lazy val gpuDriver: Option[String] = RuntimeAttributesValidation
+      .extractOption(gpuDriverValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
+
+    val gpuResource: Option[GpuResource] = if (gpuType.isDefined || gpuCount.isDefined || gpuDriver.isDefined) {
+      Option(GpuResource(gpuType.getOrElse(GpuType.DefaultGpuType), gpuCount
+        .getOrElse(GpuType.DefaultGpuCount), gpuDriver.getOrElse(GpuResource.DefaultNvidiaDriverVersion)))
+    } else {
+      None
+    }
+
 
     val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
     val failOnStderr: Boolean = RuntimeAttributesValidation.extract(failOnStderrValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val continueOnReturnCode: ContinueOnReturnCode = RuntimeAttributesValidation.extract(continueOnReturnCodeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val noAddress: Boolean = RuntimeAttributesValidation.extract(noAddressValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val zones: Vector[String] = RuntimeAttributesValidation.extract(ZonesValidation, validatedRuntimeAttributes)
     val preemptible: Int = RuntimeAttributesValidation.extract(preemptibleValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
@@ -226,7 +238,7 @@ object GcpBatchRuntimeAttributes {
     new GcpBatchRuntimeAttributes(
       cpu,
       cpuPlatform,
-      //gpuResource,
+      gpuResource,
       zones,
       preemptible,
       bootDiskSize,
@@ -234,6 +246,7 @@ object GcpBatchRuntimeAttributes {
       adjustedDisks,
       docker,
       failOnStderr,
+      continueOnReturnCode,
       noAddress,
       useDockerImageCache,
       checkpointFileName)

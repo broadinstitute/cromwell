@@ -10,6 +10,7 @@ task myTask {
 
     runtime {
       docker: "debian:latest"
+      bootDiskSizeGb: 50
     }
     output {
         String out = read_string(stdout())

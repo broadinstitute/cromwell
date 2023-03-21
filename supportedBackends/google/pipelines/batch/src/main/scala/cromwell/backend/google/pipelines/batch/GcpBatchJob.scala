@@ -90,7 +90,6 @@ final case class GcpBatchJob (
       .build
   }
 
-  //private def createInstancePolicy(spotModel: ProvisioningModel) = {
   private def createInstancePolicy(spotModel: ProvisioningModel) = {
 
       val instancePolicy = InstancePolicy
@@ -100,7 +99,6 @@ final case class GcpBatchJob (
         //.setMinCpuPlatform(cpuPlatform)
         .build
       instancePolicy
-    }
   }
 
   /*
@@ -116,7 +114,7 @@ final case class GcpBatchJob (
         .build
       instancePolicy
     }
-*/
+  */
 
   private def createNetworkInterface(noAddress: Boolean) = {
     NetworkInterface

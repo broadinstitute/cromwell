@@ -1,6 +1,6 @@
 package cromwell.backend.google.pipelines.batch
 import com.google.api.gax.rpc.{FixedHeaderProvider, HeaderProvider}
-import com.google.cloud.batch.v1.AllocationPolicy._
+//import com.google.cloud.batch.v1.AllocationPolicy._
 import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, TaskGroup, TaskSpec}
 import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, ProvisioningModel}
 import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.GcpBatchRequest
@@ -19,7 +19,7 @@ final case class GcpBatchJob (
                              //cpu: Long,
                              //memory: Long,
                              machineType: String
-                            ) {
+                            ) extends BatchUtilityConversions{
 
   val log: Logger = LoggerFactory.getLogger(RunStatus.toString)
 
@@ -34,7 +34,7 @@ final case class GcpBatchJob (
 
 
 
-  def toAccelerator(gpuResource: GpuResource): Accelerator.Builder = Accelerator.newBuilder.setCount(gpuResource.gpuCount.value.toLong).setType(gpuResource.gpuType.toString)
+  //def toAccelerator(gpuResource: GpuResource): Accelerator.Builder = Accelerator.newBuilder.setCount(gpuResource.gpuCount.value.toLong).setType(gpuResource.gpuType.toString)
   //def toAccelerator(gpuResource: GpuResource): Accelerator = new Accelerator().setCount(gpuResource.gpuCount.value.toLong).setType(gpuResource.gpuType.toString)
 
   val accelerators = jobSubmission.gcpBatchParameters.runtimeAttributes
@@ -45,6 +45,7 @@ final case class GcpBatchJob (
 
   val gpuCount = jobSubmission.gcpBatchParameters.runtimeAttributes
     .gpuResource.map{ gpuCount => gpuCount.gpuCount.toString}
+
   
   println(f"gputype ${gpuType}")
   println(f"gpuCount ${gpuCount}")
@@ -68,11 +69,12 @@ final case class GcpBatchJob (
       .projectId, jobSubmission.gcpBatchParameters
       .region))
 
-  private val cpu = jobSubmission.gcpBatchParameters.runtimeAttributes.cpu
-
   //convert to millicores for Batch
-  private val cpuCores = cpu.toString.toLong * 1000
+  private val cpu = jobSubmission.gcpBatchParameters.runtimeAttributes.cpu
+  val cpuCores = toCpuCores(cpu.toString.toLong)
+
   private val cpuPlatform =  jobSubmission.gcpBatchParameters.runtimeAttributes.cpuPlatform.getOrElse("")
+  println(cpuPlatform)
   //private val gpuModel =  jobSubmission.gcpBatchParameters.runtimeAttributes.gpuResource.getOrElse("")
   //println(gpuModel)
 
@@ -88,17 +90,8 @@ final case class GcpBatchJob (
   println(zones)
 
   // parse preemption value and set value for Spot. Spot is replacement for preemptible
-  private val preemption = jobSubmission.gcpBatchParameters.runtimeAttributes.preemptible
-  println(preemption)
-  private def spotMatch(preemption: Int): ProvisioningModel = preemption compare 0 match {
-    case 0 => ProvisioningModel.STANDARD
-    case 1 => ProvisioningModel.SPOT
-  }
-  private val spotModel = spotMatch(preemption)
+  val spotModel = toProvisioningModel(jobSubmission.gcpBatchParameters.runtimeAttributes.preemptible)
 
-  log.info(cpuPlatform)
-
-  //println(jobDescriptor.taskCall.sourceLocation)
 
   private def createRunnable(dockerImage: String, entryPoint: String): Runnable = {
     val runnable = Runnable.newBuilder.setContainer((Container.newBuilder.setImageUri(dockerImage).setEntrypoint(entryPoint).addCommands("-c").addCommands(gcpBatchCommand).build)).build
@@ -118,8 +111,9 @@ final case class GcpBatchJob (
       .newBuilder
       .setMachineType(machineType)
       .setProvisioningModel(spotModel)
-      //.addAccelerators(gpuConfig)
       //.addAccelerators(accelerators)
+      //.addAcceleratorsBuilder(accelerators)
+      //.setAccelerators(accelerators)
       //.setMinCpuPlatform(cpuPlatform)
       .build
     instancePolicy

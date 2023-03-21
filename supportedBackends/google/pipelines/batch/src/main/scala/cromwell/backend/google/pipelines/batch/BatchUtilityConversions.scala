@@ -4,11 +4,18 @@ import com.google.cloud.batch.v1.AllocationPolicy.{Accelerator, ProvisioningMode
 
 trait BatchUtilityConversions {
 
+
+  // construct zones string
+  def toZonesPath(zones: Vector[String]): String = {
+    "zones/" + zones.mkString(",")
+  }
+
+  // convert cpu cores to millicores that Batch expects
   def toCpuCores(cpu: Long): Long = {
     cpu * 1000
   }
 
-  //set Standard or Spot instances
+  // set Standard or Spot instances
   def toProvisioningModel(preemption: Int): ProvisioningModel = preemption compare 0 match {
     case 0 => ProvisioningModel.STANDARD
     case 1 => ProvisioningModel.SPOT

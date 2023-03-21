@@ -43,5 +43,11 @@ object AWSFilesChecker extends FilesChecker {
 }
 
 object BlobFilesChecker extends FilesChecker {
-  override def countObjectsAtPath: String => Int = (theThing : String) => theThing.length
+
+  import ObjectCounterInstances.blobObjectCounter
+  import ObjectCounterSyntax._
+  private lazy val sasCredential = Operations.blobSasToken.get
+
+  private val azurePrefixRange = "someGnarlyLookinRegex"
+  override def countObjectsAtPath: String => Int = ObjectCounterSyntax(sasCredential).countObjects(azurePrefixRange)
 }

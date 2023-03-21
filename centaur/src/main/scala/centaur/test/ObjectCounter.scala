@@ -1,7 +1,9 @@
 package centaur.test
 
+import com.azure.core.credential.AzureSasCredential
 import com.google.cloud.storage.Storage.BlobListOption
 import com.google.cloud.storage.{Blob, Storage}
+import cromwell.core.actor.BatchActor.logger
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest
 
@@ -39,7 +41,12 @@ object ObjectCounterInstances {
     listObjectsAtPath(_).size
   }
 
-  //implicit val blobObjectCounter: ObjectCounter[]
+  implicit val blobObjectCounter: ObjectCounter[AzureSasCredential] = (sasCredential : AzureSasCredential) => {
+    logger.warn("Constructing blob object counter...")
+    logger.warn(sasCredential.toString.length.toString())
+    val pathToInt: Path => Int = path => {path.toString.length}
+    pathToInt(_)
+  }
 }
 
 object ObjectCounterSyntax {

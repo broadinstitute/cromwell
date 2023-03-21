@@ -34,7 +34,6 @@ final case class GcpBatchJob (
   private lazy val gcpBootDiskSizeMb = (jobSubmission.gcpBatchParameters.runtimeAttributes.bootDiskSize * 1000).toLong
 
 
-
   // set user agent to cromwell so requests can be differentiated on batch
   private val user_agent_header = "user-agent"
   private val customUserAgentValue = "cromwell"

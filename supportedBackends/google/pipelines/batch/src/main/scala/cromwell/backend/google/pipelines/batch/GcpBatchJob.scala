@@ -1,5 +1,6 @@
 package cromwell.backend.google.pipelines.batch
 import com.google.api.gax.rpc.{FixedHeaderProvider, HeaderProvider}
+//import com.google.cloud.batch.v1.AllocationPolicy.Accelerator
 //import com.google.cloud.batch.v1.AllocationPolicy._
 import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, TaskGroup, TaskSpec}
 import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy, ProvisioningModel}
@@ -11,13 +12,11 @@ import com.google.cloud.batch.v1.LogsPolicy.Destination
 import com.google.common.collect.ImmutableMap
 import java.util.concurrent.TimeUnit
 import org.slf4j.{Logger, LoggerFactory}
-import scala.jdk.CollectionConverters._
+//import scala.jdk.CollectionConverters._
 
 
 final case class GcpBatchJob (
                              jobSubmission: GcpBatchRequest,
-                             //cpu: Long,
-                             //memory: Long,
                              machineType: String
                             ) extends BatchUtilityConversions{
 
@@ -36,26 +35,7 @@ final case class GcpBatchJob (
 
 
 
-  //def toAccelerator(gpuResource: GpuResource): Accelerator.Builder = Accelerator.newBuilder.setCount(gpuResource.gpuCount.value.toLong).setType(gpuResource.gpuType.toString)
-  //def toAccelerator(gpuResource: GpuResource): Accelerator = new Accelerator().setCount(gpuResource.gpuCount.value.toLong).setType(gpuResource.gpuType.toString)
-
-  val accelerators = jobSubmission.gcpBatchParameters.runtimeAttributes
-    .gpuResource.map(toAccelerator).toList.asJava
-
-  val gpuType = jobSubmission.gcpBatchParameters.runtimeAttributes
-    .gpuResource.map{ gpuType => gpuType.gpuType}
-
-  val gpuCount = jobSubmission.gcpBatchParameters.runtimeAttributes
-    .gpuResource.map{ gpuCount => gpuCount.gpuCount.toString}
-
-  
-  println(f"gputype ${gpuType}")
-  println(f"gpuCount ${gpuCount}")
-
-
-  //val gpuConfig = Accelerator.newBuilder.setType(accelerators.get(0).toString).setCount(accelerators.get(1).toString.toLong)
-
-  // set user agent
+  // set user agent to cromwell so requests can be differentiated on batch
   private val user_agent_header = "user-agent"
   private val customUserAgentValue = "cromwell"
   private lazy val headerProvider: HeaderProvider = FixedHeaderProvider
@@ -66,33 +46,35 @@ final case class GcpBatchJob (
 
   lazy val batchServiceClient = BatchServiceClient.create(batchSettings)
 
-  lazy val parent = (String
-    .format("projects/%s/locations/%s", jobSubmission.gcpBatchParameters
-      .projectId, jobSubmission.gcpBatchParameters
-      .region))
+  // set parent for metadata storage of job information
+  lazy val parent = s"projects/${jobSubmission.gcpBatchParameters.projectId}/locations/${jobSubmission.gcpBatchParameters.region}"
 
-  //convert to millicores for Batch
+  // make zones path
+  private val zones = toZonesPath(jobSubmission.gcpBatchParameters.runtimeAttributes.zones)
+
+  // convert to millicores for Batch
   private val cpu = jobSubmission.gcpBatchParameters.runtimeAttributes.cpu
-  val cpuCores = toCpuCores(cpu.toString.toLong)
+  private val cpuCores = toCpuCores(cpu.toString.toLong)
 
   private val cpuPlatform =  jobSubmission.gcpBatchParameters.runtimeAttributes.cpuPlatform.getOrElse("")
   println(cpuPlatform)
-  //private val gpuModel =  jobSubmission.gcpBatchParameters.runtimeAttributes.gpuResource.getOrElse("")
-  //println(gpuModel)
 
-  //private val memory = jobSubmission.gcpBatchParameters.runtimeAttributes.memory
+
+  private val memory = jobSubmission.gcpBatchParameters.runtimeAttributes.memory
+  println(memory)
   //private val memoryConvert = memory.toString.toLong
   //println(memoryConvert)
-
   val memTemp: Long = 400
 
   //private val bootDiskSize = runtimeAttributes.bootDiskSize
  // private val noAddress = runtimeAttributes.noAddress
-  private val zones = "zones/" + jobSubmission.gcpBatchParameters.runtimeAttributes.zones.mkString(",")
-  println(zones)
 
   // parse preemption value and set value for Spot. Spot is replacement for preemptible
   val spotModel = toProvisioningModel(jobSubmission.gcpBatchParameters.runtimeAttributes.preemptible)
+
+  // Set GPU accelerators
+  //private val accelerators = jobSubmission.gcpBatchParameters.runtimeAttributes
+  //  .gpuResource.map(toAccelerator)
 
 
   private def createRunnable(dockerImage: String, entryPoint: String): Runnable = {
@@ -109,20 +91,33 @@ final case class GcpBatchJob (
       .build
   }
 
+  //private def createInstancePolicy(spotModel: ProvisioningModel) = {
   private def createInstancePolicy(spotModel: ProvisioningModel) = {
-    val instancePolicy = InstancePolicy
-      .newBuilder
-      .setMachineType(machineType)
-      .setProvisioningModel(spotModel)
-      //.addAccelerators(accelerators)
-      //.addAcceleratorsBuilder(accelerators)
-      //.setAccelerators(accelerators)
-      //.setMinCpuPlatform(cpuPlatform)
-      .build
-    instancePolicy
+
+      val instancePolicy = InstancePolicy
+        .newBuilder
+        .setMachineType(machineType)
+        .setProvisioningModel(spotModel)
+        //.setMinCpuPlatform(cpuPlatform)
+        .build
+      instancePolicy
+    }
   }
 
+  /*
+    private def createInstancePolicyGpu(spotModel: ProvisioningModel, accelerators: Option[Accelerator.Builder]) = {
 
+      val gpuAccelerators = accelerators.getOrElse(Accelerator.newBuilder.setCount(0).setType(""))
+      val instancePolicy = InstancePolicy
+        .newBuilder
+        .setMachineType(machineType)
+        .setProvisioningModel(spotModel)
+        .addAccelerators(gpuAccelerators)
+        //.setMinCpuPlatform(cpuPlatform)
+        .build
+      instancePolicy
+    }
+*/
 
   private def createNetworkInterface(noAddress: Boolean) = {
     NetworkInterface
@@ -190,7 +185,6 @@ final case class GcpBatchJob (
       val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
       val instancePolicy = createInstancePolicy(spotModel)
       val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
-      //val gpuConfig = Accelerator.newBuilder.setType("nvidia-tesla-t4").setCount(1)
       val allocationPolicy = createAllocationPolicy(locationPolicy, instancePolicy, networkPolicy)
       val job = Job
         .newBuilder

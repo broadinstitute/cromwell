@@ -60,15 +60,9 @@ final case class GcpBatchJob (
   private val cpuPlatform =  jobSubmission.gcpBatchParameters.runtimeAttributes.cpuPlatform.getOrElse("")
   println(cpuPlatform)
 
-  private val memory = jobSubmission.gcpBatchParameters.runtimeAttributes.memory
-  println(memory)
+  // convert memory to MiB for Batch
+  private val memory = toMemMib(jobSubmission.gcpBatchParameters.runtimeAttributes.memory)
 
-  val memoryEndsWith = memory.toString.endsWith(("GB"))
-
-  println(memoryEndsWith)
-  //private val memoryConvert = memory.toString.toLong
-  //println(memoryConvert)
-  val memTemp: Long = 400
 
   //private val bootDiskSize = runtimeAttributes.bootDiskSize
  // private val noAddress = runtimeAttributes.noAddress
@@ -180,7 +174,7 @@ final case class GcpBatchJob (
 
       val networkInterface = createNetworkInterface(false)
       val networkPolicy = createNetworkPolicy(networkInterface)
-      val computeResource = createComputeResource(cpuCores, memTemp, gcpBootDiskSizeMb)
+      val computeResource = createComputeResource(cpuCores, memory, gcpBootDiskSizeMb)
       val taskSpec = createTaskSpec(runnable, computeResource, retryCount, durationInSeconds)
       val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
       val instancePolicy = createInstancePolicy(spotModel, accelerators)

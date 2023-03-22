@@ -2,7 +2,7 @@ package cromwell.backend.google.pipelines.batch
 import com.google.api.gax.rpc.{FixedHeaderProvider, HeaderProvider}
 import com.google.cloud.batch.v1.AllocationPolicy.Accelerator
 //import com.google.cloud.batch.v1.AllocationPolicy._
-import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, TaskGroup, TaskSpec}
+import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, ServiceAccount, TaskGroup, TaskSpec}
 import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy, ProvisioningModel}
 import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.GcpBatchRequest
 //import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy}
@@ -35,6 +35,7 @@ final case class GcpBatchJob (
   private val vpcSubnetwork: String = toVpcSubnetwork(batchAttributes)
   private val gcpBootDiskSizeMb = toBootDiskSizeMb(runtimeAttributes)
 
+  println(s"sa string is ${batchAttributes.auths.genomics.toString}")
 
   // set user agent to cromwell so requests can be differentiated on batch
   private val user_agent_header = "user-agent"
@@ -47,8 +48,13 @@ final case class GcpBatchJob (
 
   lazy val batchServiceClient = BatchServiceClient.create(batchSettings)
 
+  val sa = batchAttributes.computeServiceAccount
+
+  println(s"compute sa is ${sa}")
+
   // set parent for metadata storage of job information
   lazy val parent = s"projects/${jobSubmission.gcpBatchParameters.projectId}/locations/${jobSubmission.gcpBatchParameters.region}"
+  val gcpSa = ServiceAccount.newBuilder.setEmail("test-batch-1@batch-testing-350715.iam.gserviceaccount.com").build
 
   // make zones path
   private val zones = toZonesPath(jobSubmission.gcpBatchParameters.runtimeAttributes.zones)
@@ -65,7 +71,7 @@ final case class GcpBatchJob (
 
 
   //private val bootDiskSize = runtimeAttributes.bootDiskSize
- // private val noAddress = runtimeAttributes.noAddress
+ private val noAddress = runtimeAttributes.noAddress
 
   // parse preemption value and set value for Spot. Spot is replacement for preemptible
   val spotModel = toProvisioningModel(jobSubmission.gcpBatchParameters.runtimeAttributes.preemptible)
@@ -155,11 +161,12 @@ final case class GcpBatchJob (
 
   }
 
-  private def createAllocationPolicy(locationPolicy: LocationPolicy,  instancePolicy: InstancePolicy, networkPolicy: NetworkPolicy) = {
+  private def createAllocationPolicy(locationPolicy: LocationPolicy,  instancePolicy: InstancePolicy, networkPolicy: NetworkPolicy, serviceAccount: ServiceAccount) = {
     AllocationPolicy
       .newBuilder
       .setLocation(locationPolicy)
       .setNetwork(networkPolicy)
+      .setServiceAccount(serviceAccount)
       .addInstances(InstancePolicyOrTemplate
         .newBuilder
         .setPolicy(instancePolicy)
@@ -172,14 +179,14 @@ final case class GcpBatchJob (
     try {
       val runnable = createRunnable(dockerImage = jobSubmission.gcpBatchParameters.runtimeAttributes.dockerImage, entryPoint = entryPoint)
 
-      val networkInterface = createNetworkInterface(false)
+      val networkInterface = createNetworkInterface(noAddress)
       val networkPolicy = createNetworkPolicy(networkInterface)
       val computeResource = createComputeResource(cpuCores, memory, gcpBootDiskSizeMb)
       val taskSpec = createTaskSpec(runnable, computeResource, retryCount, durationInSeconds)
       val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
       val instancePolicy = createInstancePolicy(spotModel, accelerators)
       val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
-      val allocationPolicy = createAllocationPolicy(locationPolicy, instancePolicy.build, networkPolicy)
+      val allocationPolicy = createAllocationPolicy(locationPolicy, instancePolicy.build, networkPolicy, gcpSa)
       val job = Job
         .newBuilder
         .addTaskGroups(taskGroup)

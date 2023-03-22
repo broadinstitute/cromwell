@@ -22,16 +22,18 @@ final case class GcpBatchJob (
 
   val log: Logger = LoggerFactory.getLogger(RunStatus.toString)
 
+  private val batchAttributes = jobSubmission.gcpBatchParameters.batchAttributes
+  private val runtimeAttributes = jobSubmission.gcpBatchParameters.runtimeAttributes
+
   // VALUES HERE
   private val entryPoint = "/bin/sh"
   private val retryCount = jobSubmission.gcpBatchParameters.runtimeAttributes.preemptible
   private val durationInSeconds: Long = 3600
   private val taskCount: Long = 1
   private val gcpBatchCommand: String = jobSubmission.gcpBatchCommand
-
-  private val vpcNetwork: String = jobSubmission.vpcNetwork
-  private val vpcSubnetwork: String = jobSubmission.vpcSubnetwork
-  private lazy val gcpBootDiskSizeMb = (jobSubmission.gcpBatchParameters.runtimeAttributes.bootDiskSize * 1000).toLong
+  private val vpcNetwork: String = toVpcNetwork(batchAttributes)
+  private val vpcSubnetwork: String = toVpcSubnetwork(batchAttributes)
+  private val gcpBootDiskSizeMb = toBootDiskSizeMb(runtimeAttributes)
 
 
   // set user agent to cromwell so requests can be differentiated on batch

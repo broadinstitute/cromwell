@@ -17,5 +17,5 @@ metadata {
 
 fileSystemCheck: "blob"
 outputExpectations: {
-    "my://azure/blob/path.txt": 1
+   "https://centaurtesting.blob.core.windows.net/test-blob/test-cromwell-workflow-logs" : 1
 }

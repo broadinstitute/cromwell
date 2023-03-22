@@ -27,7 +27,7 @@ object AzureConfiguration {
     override val exceptionContext = "Azure configuration"
   }
 
-  def apply(config: Config): AzureSasCredential = {
+  def apply(config: Config): BlobContainerClient = {
     val azureSubscription = config.getString("subscription")
     val blobContainer = config.getString("container")
     val azureEndpoint = config.getString("endpoint")
@@ -64,6 +64,7 @@ object AzureConfiguration {
       .setListPermission(true)
       .setWritePermission(true)
 
+    /*
     /**
       * Generate a BlobSasToken by using the local environment azure identity
       * This will use a default subscription if one is not provided.
@@ -84,6 +85,22 @@ object AzureConfiguration {
     } yield asc
 
     generateBlobSasToken.get //Todo
+    */
+
+    def generateBlobContainerClient: Try[BlobContainerClient] = for {
+      uri <- parseURI(azureEndpoint)
+      configuredAccount <- parseStorageAccount(uri)
+      azureAccount <- findAzureStorageAccount(configuredAccount)
+      keys = azureAccount.getKeys.asScala
+      key <- keys.headOption.fold[Try[StorageAccountKey]](Failure(new Exception("Storage account has no keys")))(Success(_))
+      first = key.value
+      sskc = new StorageSharedKeyCredential(configuredAccount, first)
+      bcc = buildBlobContainerClient(sskc, azureEndpoint, blobContainer)
+      bsssv = new BlobServiceSasSignatureValues(OffsetDateTime.now.plusDays(1), bcsp)
+      asc = new AzureSasCredential(bcc.generateSas(bsssv))
+    } yield bcc
+
+    generateBlobContainerClient.get
   }
 
 }

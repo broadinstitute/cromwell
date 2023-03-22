@@ -1,6 +1,6 @@
 package centaur.test
 
-import com.azure.core.credential.AzureSasCredential
+import com.azure.storage.blob.BlobContainerClient
 import com.google.cloud.storage.Storage.BlobListOption
 import com.google.cloud.storage.{Blob, Storage}
 import cromwell.core.actor.BatchActor.logger
@@ -14,6 +14,8 @@ trait ObjectCounter[A] {
   def parsePath(regex: String): String => Path = { fullPath =>
     logger.info("Path:")
     logger.info(fullPath)
+    logger.info("Regex:")
+    logger.info(regex)
     if (fullPath.matches(regex)) {
       val prefixLength = 5
       val bucketAndDashes = fullPath.drop(prefixLength).split("/", 2)
@@ -43,9 +45,13 @@ object ObjectCounterInstances {
     listObjectsAtPath(_).size
   }
 
-  implicit val blobObjectCounter: ObjectCounter[AzureSasCredential] = (sasCredential : AzureSasCredential) => {
+  implicit val blobObjectCounter: ObjectCounter[BlobContainerClient] = (containerClient : BlobContainerClient) => {
     logger.warn("Constructing blob object counter...")
-    val pathToInt: Path => Int = path => {path.toString.length}
+
+    val pathToInt: Path => Int = path => {
+      containerClient.listBlobsByHierarchy("test-cromwell-workflow-logs").forEach(item => logger.info(item.toString))
+      containerClient.listBlobs().asScala.size
+    }
     pathToInt(_)
   }
 }

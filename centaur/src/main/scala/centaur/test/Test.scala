@@ -10,7 +10,7 @@ import centaur.test.metadata.WorkflowFlatMetadata
 import centaur.test.metadata.WorkflowFlatMetadata._
 import centaur.test.submit.SubmitHttpResponse
 import centaur.test.workflow.Workflow
-import com.azure.core.credential.AzureSasCredential
+import com.azure.storage.blob.BlobContainerClient
 import com.google.api.services.genomics.v2alpha1.{Genomics, GenomicsScopes}
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
@@ -153,7 +153,8 @@ object Operations extends StrictLogging {
   }
 
   lazy val azureConfig: Config = CentaurConfig.conf.getConfig("azure")
-  lazy val blobSasToken : AzureSasCredential = AzureConfiguration.apply(azureConfig)
+  lazy val blobContainerClient: BlobContainerClient = AzureConfiguration.apply(azureConfig)
+
 
   def submitWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = {
     new Test[SubmittedWorkflow] {

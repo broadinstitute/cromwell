@@ -1,7 +1,6 @@
 package cromwell.cloudsupport.azure
 
 import com.typesafe.config.{Config}
-import org.slf4j.LoggerFactory
 import common.exception.MessageAggregation
 import com.azure.core.credential.AzureSasCredential
 import com.azure.core.management.AzureEnvironment
@@ -24,18 +23,14 @@ final case class AzureConfiguration private (subscription: String, endpoint: Str
 }
 
 object AzureConfiguration {
-
-  private val log = LoggerFactory.getLogger("AzureConfiguration")
-
   final case class AzureConfigurationException(errorMessages: List[String]) extends MessageAggregation {
     override val exceptionContext = "Azure configuration"
   }
 
-  def apply(config: Config): Try[AzureSasCredential] = {
-    val azureConfig = config.getConfig("azure")
-    val azureSubscription = azureConfig.getString("subscription")
-    val blobContainer = azureConfig.getString("container")
-    val azureEndpoint = azureConfig.getString("endpoint")
+  def apply(config: Config): AzureSasCredential = {
+    val azureSubscription = config.getString("subscription")
+    val blobContainer = config.getString("container")
+    val azureEndpoint = config.getString("endpoint")
 
     def parseURI(string: String): Try[URI] = Try(URI.create(UrlEscapers.urlFragmentEscaper().escape(string)))
 
@@ -50,7 +45,7 @@ object AzureConfiguration {
 
     def authenticateWithSubscription(sub: String) = AzureResourceManager.authenticate(azureCredentialBuilder, azureProfile).withSubscription(sub)
 
-    def azure = {log.debug("Authenticating with Azure Subscription"); authenticateWithSubscription(azureSubscription)}
+    def azure = authenticateWithSubscription(azureSubscription)
 
     def findAzureStorageAccount(storageAccountName: String) = azure.storageAccounts.list.asScala.find(_.name.equals(storageAccountName))
       .map(Success(_)).getOrElse(Failure(new Exception("Azure Storage Account not found")))
@@ -88,7 +83,7 @@ object AzureConfiguration {
       asc = new AzureSasCredential(bcc.generateSas(bsssv))
     } yield asc
 
-    return generateBlobSasToken
+    generateBlobSasToken.get //Todo
   }
 
 }

@@ -46,7 +46,7 @@ object BlobFilesChecker extends FilesChecker {
 
   import ObjectCounterInstances.blobObjectCounter
   import ObjectCounterSyntax._
-  private lazy val sasCredential = Operations.blobSasToken.get
+  private lazy val sasCredential = Operations.blobSasToken
 
   private val azurePrefixRange = "someGnarlyLookinRegex"
   override def countObjectsAtPath: String => Int = ObjectCounterSyntax(sasCredential).countObjects(azurePrefixRange)

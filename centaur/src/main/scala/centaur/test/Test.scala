@@ -152,8 +152,8 @@ object Operations extends StrictLogging {
       .build()
   }
 
-  lazy val blobConf: Config = CentaurConfig.conf.getConfig("blob")
-  lazy val blobSasToken : Try[AzureSasCredential] = AzureConfiguration.apply(blobConf)
+  lazy val azureConfig: Config = CentaurConfig.conf.getConfig("azure")
+  lazy val blobSasToken : AzureSasCredential = AzureConfiguration.apply(azureConfig)
 
   def submitWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = {
     new Test[SubmittedWorkflow] {

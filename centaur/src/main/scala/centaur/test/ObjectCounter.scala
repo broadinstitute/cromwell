@@ -12,6 +12,8 @@ import scala.language.implicitConversions
 
 trait ObjectCounter[A] {
   def parsePath(regex: String): String => Path = { fullPath =>
+    logger.info("Path:")
+    logger.info(fullPath)
     if (fullPath.matches(regex)) {
       val prefixLength = 5
       val bucketAndDashes = fullPath.drop(prefixLength).split("/", 2)
@@ -43,7 +45,6 @@ object ObjectCounterInstances {
 
   implicit val blobObjectCounter: ObjectCounter[AzureSasCredential] = (sasCredential : AzureSasCredential) => {
     logger.warn("Constructing blob object counter...")
-    logger.warn(sasCredential.toString.length.toString())
     val pathToInt: Path => Int = path => {path.toString.length}
     pathToInt(_)
   }

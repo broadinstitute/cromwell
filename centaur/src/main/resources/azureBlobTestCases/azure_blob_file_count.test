@@ -12,5 +12,10 @@ files {
 
 metadata {
   status: Succeeded
-  "outputs.azure_blob_file_count.s1": "This is my test file for counting things. Hello!"
+  "outputs.azure_blob_file_count.s1": "This is my test file! Did it work??"
+}
+
+fileSystemCheck: "blob"
+outputExpectations: {
+    "my://azure/blob/path.txt": 1
 }

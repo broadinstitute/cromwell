@@ -12,10 +12,6 @@ import scala.language.implicitConversions
 
 trait ObjectCounter[A] {
   def parsePath(regex: String): String => Path = { fullPath =>
-    logger.info("Path:")
-    logger.info(fullPath)
-    logger.info("Regex:")
-    logger.info(regex)
     if (fullPath.matches(regex)) {
       val prefixLength = 5
       val bucketAndDashes = fullPath.drop(prefixLength).split("/", 2)
@@ -46,11 +42,11 @@ object ObjectCounterInstances {
   }
 
   implicit val blobObjectCounter: ObjectCounter[BlobContainerClient] = (containerClient : BlobContainerClient) => {
-    logger.warn("Constructing blob object counter...")
-
     val pathToInt: Path => Int = path => {
-      containerClient.listBlobsByHierarchy("test-cromwell-workflow-logs").forEach(item => logger.info(item.toString))
-      containerClient.listBlobs().asScala.size
+      logger.info("Counting number of files at path: " + path.toString)
+      val blobsInFolder =  containerClient.listBlobsByHierarchy("test-cromwell-workflow-logs")
+      blobsInFolder.forEach(item => logger.info(item.toString))
+      blobsInFolder.asScala.size
     }
     pathToInt(_)
   }

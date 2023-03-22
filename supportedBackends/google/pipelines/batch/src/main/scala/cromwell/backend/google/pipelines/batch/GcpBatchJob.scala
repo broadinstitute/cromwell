@@ -1,6 +1,6 @@
 package cromwell.backend.google.pipelines.batch
 import com.google.api.gax.rpc.{FixedHeaderProvider, HeaderProvider}
-//import com.google.cloud.batch.v1.AllocationPolicy.Accelerator
+import com.google.cloud.batch.v1.AllocationPolicy.Accelerator
 //import com.google.cloud.batch.v1.AllocationPolicy._
 import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, TaskGroup, TaskSpec}
 import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy, ProvisioningModel}
@@ -58,9 +58,12 @@ final case class GcpBatchJob (
   private val cpuPlatform =  jobSubmission.gcpBatchParameters.runtimeAttributes.cpuPlatform.getOrElse("")
   println(cpuPlatform)
 
-
   private val memory = jobSubmission.gcpBatchParameters.runtimeAttributes.memory
   println(memory)
+
+  val memoryEndsWith = memory.toString.endsWith(("GB"))
+
+  println(memoryEndsWith)
   //private val memoryConvert = memory.toString.toLong
   //println(memoryConvert)
   val memTemp: Long = 400
@@ -72,9 +75,8 @@ final case class GcpBatchJob (
   val spotModel = toProvisioningModel(jobSubmission.gcpBatchParameters.runtimeAttributes.preemptible)
 
   // Set GPU accelerators
-  //private val accelerators = jobSubmission.gcpBatchParameters.runtimeAttributes
-  //  .gpuResource.map(toAccelerator)
-
+  private val accelerators = jobSubmission.gcpBatchParameters.runtimeAttributes
+    .gpuResource.map(toAccelerator)
 
   private def createRunnable(dockerImage: String, entryPoint: String): Runnable = {
     val runnable = Runnable.newBuilder.setContainer((Container.newBuilder.setImageUri(dockerImage).setEntrypoint(entryPoint).addCommands("-c").addCommands(gcpBatchCommand).build)).build
@@ -90,31 +92,30 @@ final case class GcpBatchJob (
       .build
   }
 
-  private def createInstancePolicy(spotModel: ProvisioningModel) = {
+
+  private def createInstancePolicy(spotModel: ProvisioningModel, accelerators: Option[Accelerator.Builder]) = {
+
+      //set GPU count to 0 if not included in workflow
+      val gpuAccelerators = accelerators.getOrElse(Accelerator.newBuilder.setCount(0).setType(""))
 
       val instancePolicy = InstancePolicy
         .newBuilder
         .setMachineType(machineType)
         .setProvisioningModel(spotModel)
         //.setMinCpuPlatform(cpuPlatform)
-        .build
-      instancePolicy
+        .buildPartial()
+
+      //add GPUs if GPU count is greater than 1
+      if(gpuAccelerators.getCount >= 1){
+        val instancePolicyGpu = instancePolicy.toBuilder
+        instancePolicyGpu.addAccelerators(gpuAccelerators).build
+        instancePolicyGpu
+      } else {
+        instancePolicy.toBuilder
+      }
+
   }
 
-  /*
-    private def createInstancePolicyGpu(spotModel: ProvisioningModel, accelerators: Option[Accelerator.Builder]) = {
-
-      val gpuAccelerators = accelerators.getOrElse(Accelerator.newBuilder.setCount(0).setType(""))
-      val instancePolicy = InstancePolicy
-        .newBuilder
-        .setMachineType(machineType)
-        .setProvisioningModel(spotModel)
-        .addAccelerators(gpuAccelerators)
-        //.setMinCpuPlatform(cpuPlatform)
-        .build
-      instancePolicy
-    }
-  */
 
   private def createNetworkInterface(noAddress: Boolean) = {
     NetworkInterface
@@ -180,9 +181,9 @@ final case class GcpBatchJob (
       val computeResource = createComputeResource(cpuCores, memTemp, gcpBootDiskSizeMb)
       val taskSpec = createTaskSpec(runnable, computeResource, retryCount, durationInSeconds)
       val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
-      val instancePolicy = createInstancePolicy(spotModel)
+      val instancePolicy = createInstancePolicy(spotModel, accelerators)
       val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
-      val allocationPolicy = createAllocationPolicy(locationPolicy, instancePolicy, networkPolicy)
+      val allocationPolicy = createAllocationPolicy(locationPolicy, instancePolicy.build, networkPolicy)
       val job = Job
         .newBuilder
         .addTaskGroups(taskGroup)

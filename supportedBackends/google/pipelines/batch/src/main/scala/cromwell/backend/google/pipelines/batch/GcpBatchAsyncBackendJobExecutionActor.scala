@@ -141,23 +141,13 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   // Primary entry point for cromwell to run GCP Batch job
   override def executeAsync(): Future[ExecutionHandle] = {
 
-    //println(jobDescriptor.taskCall.sourceLocation)
-    //println(jobDescriptor.localInputs)
-    val vpcNetwork: String = batchAttributes.virtualPrivateCloudConfiguration.labelsOption.map { vpcNetworks =>
-      vpcNetworks.network
-    }.getOrElse(s"projects/${batchAttributes.project}/global/networks/default")
-
-    val vpcSubnetwork: String = batchAttributes.virtualPrivateCloudConfiguration.labelsOption.map { vpcNetworks =>
-      vpcNetworks.subnetwork.getOrElse("default")
-    }.getOrElse(s"projects/${batchAttributes.project}/regions/${batchAttributes.location}/subnetworks/default")
-
     val file = jobDescriptor.localInputs
     println(file.get("test"))
-    val gcpBatchParameters = CreateGcpBatchParameters(jobDescriptor = jobDescriptor, runtimeAttributes = runtimeAttributes, dockerImage = jobDockerImage, projectId = batchAttributes.project, region = batchAttributes.location)
+    val gcpBatchParameters = CreateGcpBatchParameters(jobDescriptor = jobDescriptor, runtimeAttributes = runtimeAttributes, batchAttributes = batchAttributes, dockerImage = jobDockerImage, projectId = batchAttributes.project, region = batchAttributes.location)
 
     val runBatchResponse = for {
       _ <- uploadScriptFile()
-      _ = backendSingletonActor ! GcpBatchRequest(workflowId, jobName = jobTemp, gcpBatchCommand, vpcNetwork, vpcSubnetwork, gcpBatchParameters)
+      _ = backendSingletonActor ! GcpBatchRequest(workflowId, jobName = jobTemp, gcpBatchCommand, gcpBatchParameters)
       runId = StandardAsyncJob(jobTemp)
 
     }

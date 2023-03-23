@@ -32,7 +32,7 @@ final case class GcpBatchJob (
   private val taskCount: Long = 1
   private val gcpBatchCommand: String = jobSubmission.gcpBatchCommand
   private val vpcNetwork: String = toVpcNetwork(batchAttributes)
-  private val vpcSubnetwork: String = toVpcSubnetwork(batchAttributes)
+  private val vpcSubnetwork: String = toVpcSubnetwork(batchAttributes, runtimeAttributes)
   private val gcpBootDiskSizeMb = toBootDiskSizeMb(runtimeAttributes)
 
   // set user agent to cromwell so requests can be differentiated on batch
@@ -52,8 +52,6 @@ final case class GcpBatchJob (
 
   // make zones path
   private val zones = toZonesPath(runtimeAttributes.zones)
-
-  println(s"zones ${runtimeAttributes.zones}")
 
   // convert to millicores for Batch
   private val cpu = runtimeAttributes.cpu
@@ -124,10 +122,6 @@ final case class GcpBatchJob (
       .setSubnetwork(vpcSubnetwork)
       .build
   }
-    //.setNetwork("projects/batch-testing-350715/global/networks/default")
-    //.setSubnetwork("regions/us-central1/subnetworks/default")
-
-
 
   private def createNetworkPolicy(networkInterface: NetworkInterface): NetworkPolicy = {
     NetworkPolicy

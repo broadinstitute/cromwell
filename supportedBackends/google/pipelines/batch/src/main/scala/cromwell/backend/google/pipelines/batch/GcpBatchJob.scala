@@ -48,10 +48,12 @@ final case class GcpBatchJob (
 
   // set parent for metadata storage of job information
   lazy val parent = s"projects/${jobSubmission.gcpBatchParameters.projectId}/locations/${jobSubmission.gcpBatchParameters.region}"
-  val gcpSa = ServiceAccount.newBuilder.setEmail(sa).build
+  val gcpSa = ServiceAccount.newBuilder.setEmail(batchAttributes.computeServiceAccount).build
 
   // make zones path
   private val zones = toZonesPath(runtimeAttributes.zones)
+
+  println(s"zones ${runtimeAttributes.zones}")
 
   // convert to millicores for Batch
   private val cpu = runtimeAttributes.cpu

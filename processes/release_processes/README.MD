@@ -86,12 +86,8 @@ The workflow outputs its status to the console.
 
 * Check that the workflow succeeded.
 * Check that there's now a new Cromwell release listed [here](https://github.com/broadinstitute/cromwell/releases).
-* Look [in Travis](https://app.travis-ci.com/github/broadinstitute/cromwell/branches) for the release tag build that will publish Docker images for the new version.
-* Let `#dsp-batch-private` know that it's okay to resume merges to `develop`.
+* Let `#dsp-workflows-private` know that it's okay to resume merges to `develop`.
 * Announce release in `#dsp-batch`, set expectations about when the new version will be available in Terra.
-* It will take about an additional hour for the Docker image to build in Travis before its tag appears on the [Cromwell Docker Hub page](https://hub.docker.com/r/broadinstitute/cromwell/tags).
-    * The relevant build is the one named `XX_hotfix` in [this list](https://app.travis-ci.com/github/broadinstitute/cromwell/builds).
-    * See the `cromwell::build::publish_artifacts()` function for details
 * **One business day later,** confirm that [the Homebrew package](https://formulae.brew.sh/formula/cromwell) has the latest version. If it doesn't, start investigation by looking at [Homebrew PR's](https://github.com/Homebrew/homebrew-core/pulls?q=is%3Apr+cromwell).
 
 ### How to Deploy Cromwell in CaaS staging and CaaS prod

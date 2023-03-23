@@ -1,4 +1,3 @@
-[![Build Status](https://travis-ci.com/broadinstitute/cromwell.svg?branch=develop)](https://travis-ci.com/broadinstitute/cromwell?branch=develop)
 [![codecov](https://codecov.io/gh/broadinstitute/cromwell/branch/develop/graph/badge.svg)](https://codecov.io/gh/broadinstitute/cromwell)
 
 ## Welcome to Cromwell

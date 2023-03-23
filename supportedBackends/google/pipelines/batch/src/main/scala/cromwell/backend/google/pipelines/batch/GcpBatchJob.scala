@@ -35,8 +35,6 @@ final case class GcpBatchJob (
   private val vpcSubnetwork: String = toVpcSubnetwork(batchAttributes)
   private val gcpBootDiskSizeMb = toBootDiskSizeMb(runtimeAttributes)
 
-  println(s"sa string is ${batchAttributes.auths.genomics.toString}")
-
   // set user agent to cromwell so requests can be differentiated on batch
   private val user_agent_header = "user-agent"
   private val customUserAgentValue = "cromwell"
@@ -48,37 +46,35 @@ final case class GcpBatchJob (
 
   lazy val batchServiceClient = BatchServiceClient.create(batchSettings)
 
-  val sa = batchAttributes.computeServiceAccount
-
-  println(s"compute sa is ${sa}")
-
   // set parent for metadata storage of job information
   lazy val parent = s"projects/${jobSubmission.gcpBatchParameters.projectId}/locations/${jobSubmission.gcpBatchParameters.region}"
-  val gcpSa = ServiceAccount.newBuilder.setEmail("test-batch-1@batch-testing-350715.iam.gserviceaccount.com").build
+  val gcpSa = ServiceAccount.newBuilder.setEmail(sa).build
 
   // make zones path
-  private val zones = toZonesPath(jobSubmission.gcpBatchParameters.runtimeAttributes.zones)
+  private val zones = toZonesPath(runtimeAttributes.zones)
 
   // convert to millicores for Batch
-  private val cpu = jobSubmission.gcpBatchParameters.runtimeAttributes.cpu
+  private val cpu = runtimeAttributes.cpu
   private val cpuCores = toCpuCores(cpu.toString.toLong)
 
-  private val cpuPlatform =  jobSubmission.gcpBatchParameters.runtimeAttributes.cpuPlatform.getOrElse("")
+  private val cpuPlatform =  runtimeAttributes.cpuPlatform.getOrElse("")
   println(cpuPlatform)
 
   // convert memory to MiB for Batch
-  private val memory = toMemMib(jobSubmission.gcpBatchParameters.runtimeAttributes.memory)
-
+  private val memory = toMemMib(runtimeAttributes.memory)
 
   //private val bootDiskSize = runtimeAttributes.bootDiskSize
- private val noAddress = runtimeAttributes.noAddress
+  private val noAddress = runtimeAttributes.noAddress
 
   // parse preemption value and set value for Spot. Spot is replacement for preemptible
-  val spotModel = toProvisioningModel(jobSubmission.gcpBatchParameters.runtimeAttributes.preemptible)
+  val spotModel = toProvisioningModel(runtimeAttributes.preemptible)
 
   // Set GPU accelerators
-  private val accelerators = jobSubmission.gcpBatchParameters.runtimeAttributes
+  private val accelerators = runtimeAttributes
     .gpuResource.map(toAccelerator)
+
+  // Parse Service Account
+  val sa = batchAttributes.computeServiceAccount
 
   private def createRunnable(dockerImage: String, entryPoint: String): Runnable = {
     val runnable = Runnable.newBuilder.setContainer((Container.newBuilder.setImageUri(dockerImage).setEntrypoint(entryPoint).addCommands("-c").addCommands(gcpBatchCommand).build)).build
@@ -93,7 +89,6 @@ final case class GcpBatchJob (
       .setBootDiskMib(bootDiskSizeMb)
       .build
   }
-
 
   private def createInstancePolicy(spotModel: ProvisioningModel, accelerators: Option[Accelerator.Builder]) = {
 

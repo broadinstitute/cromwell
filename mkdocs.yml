@@ -102,7 +102,6 @@ nav:
         - Horizontal Cromwell ("Horicromtal"): developers/bitesize/horicromtal.md
         - General Topics:
             - Simpletons: developers/bitesize/general/simpletons.md
-        - Continuous Integration (CI) / Continuous Delivery (CD): developers/bitesize/ci/CICD.md
 
 theme: readthedocs
 

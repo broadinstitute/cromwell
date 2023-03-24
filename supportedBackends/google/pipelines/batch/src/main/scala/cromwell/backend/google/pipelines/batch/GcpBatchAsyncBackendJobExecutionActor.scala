@@ -2,15 +2,21 @@ package cromwell.backend.google.pipelines.batch
 
 import akka.util.Timeout
 import akka.http.scaladsl.model.{ContentType, ContentTypes}
+//import cats.syntax.validated._
 import com.google.api.gax.rpc.NotFoundException
+import common.util.StringUtil._
+//import common.validation.ErrorOr._
+import common.validation.Validation._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
 import cromwell.core._
+import cromwell.backend.google.pipelines.batch.io._
 import cats.data.Validated.Valid
-import common.validation.Validation._
+//import common.validation.Validation._
 import cromwell.backend.google.pipelines.batch.GcpBatchRequestFactory._
-import cromwell.backend.google.pipelines.common.monitoring.{CheckpointingConfiguration, MonitoringImage}
+import cromwell.backend.google.pipelines.common.monitoring.CheckpointingConfiguration
+//import cromwell.backend.google.pipelines.common.monitoring.{CheckpointingConfiguration, MonitoringImage}
 import java.util.concurrent.ExecutionException
 import scala.concurrent.Await
 import cromwell.core.{ExecutionEvent, WorkflowId}
@@ -45,6 +51,8 @@ import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.sra.SraPath
 
 import wom.format.MemorySize
+import wom.expression.{FileEvaluation, NoIoFunctionSet}
+import wom.callable.Callable.OutputDefinition
 import wdl4s.parser.MemoryUnit
 
 import scala.language.postfixOps
@@ -335,7 +343,45 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     }
   }
 
+  protected def relativePathAndAttachedDisk(path: String, disks: Seq[GcpBatchAttachedDisk]): (Path, GcpBatchAttachedDisk) = {
+    val absolutePath = DefaultPathBuilder.get(path) match {
+      case p if !p.isAbsolute => GcpBatchWorkingDisk.MountPoint.resolve(p)
+      case p => p
+    }
+
+    disks.find(d => absolutePath.startsWith(d.mountPoint)) match {
+      case Some(disk) => (disk.mountPoint.relativize(absolutePath), disk)
+      case None =>
+        throw new Exception(s"Absolute path $path doesn't appear to be under any mount points: ${disks.map(_.toString).mkString(", ")}")
+    }
+  }
+
+  protected def makeSafeReferenceName(referenceName: String): String = {
+    if (referenceName.length <= 127) referenceName else referenceName.md5Sum
+  }
+
+  protected def generateGlobFileOutputs(womFile: WomGlobFile): List[GcpBatchOutput] = {
+    val globName = GlobFunctions.globName(womFile.value)
+    val globDirectory = globName + "/"
+    val globListFile = globName + ".list"
+    val gcsGlobDirectoryDestinationPath = callRootPath.resolve(globDirectory)
+    val gcsGlobListFileDestinationPath = callRootPath.resolve(globListFile)
+
+    val (_, globDirectoryDisk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
+
+    // We need both the glob directory and the glob list:
+    List(
+      // The glob directory:
+      GcpBatchFileOutput(makeSafeReferenceName(globDirectory), gcsGlobDirectoryDestinationPath, DefaultPathBuilder.get(globDirectory + "*"), globDirectoryDisk,
+        optional = false, secondary = false),
+      // The glob list file:
+      GcpBatchFileOutput(makeSafeReferenceName(globListFile), gcsGlobListFileDestinationPath, DefaultPathBuilder.get(globListFile), globDirectoryDisk,
+        optional = false, secondary = false)
+    )
+  }
+
   lazy val batchMonitoringParamName: String = GcpBatchJobPaths.BatchMonitoringKey
+  lazy val localMonitoringLogPath: Path = DefaultPathBuilder.get(gcpBatchCallPaths.batchMonitoringLogFilename)
   lazy val localMonitoringScriptPath: Path = DefaultPathBuilder.get(gcpBatchCallPaths.batchMonitoringScriptFilename)
 
   lazy val monitoringScript: Option[GcpBatchFileInput] = {
@@ -344,10 +390,99 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     }
   }
 
+  private def generateInputs(jobDescriptor: BackendJobDescriptor): Set[GcpBatchInput] = {
+    // We need to tell PAPI about files that were created as part of command instantiation (these need to be defined
+    // as inputs that will be localized down to the VM). Make up 'names' for these files that are just the short
+    // md5's of their paths.
+    val writeFunctionFiles = instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f) } toMap
+
+    val writeFunctionInputs = writeFunctionFiles flatMap {
+      case (name, files) => gcpBatchInputsFromWomFiles(name, files.map(_.file), files.map(localizationPath), jobDescriptor)
+    }
+
+    val callInputInputs = callInputFiles flatMap {
+      case (name, files) => gcpBatchInputsFromWomFiles(name, files, files.map(relativeLocalizationPath), jobDescriptor)
+    }
+
+    (writeFunctionInputs ++ callInputInputs).toSet
+  }
+
+  protected def generateUnlistedDirectoryOutputs(womFile: WomUnlistedDirectory, fileEvaluation: FileEvaluation): List[GcpBatchOutput] = {
+    val directoryPath = womFile.value.ensureSlashed
+    val directoryListFile = womFile.value.ensureUnslashed + ".list"
+    val gcsDirDestinationPath = callRootPath.resolve(directoryPath)
+    val gcsListDestinationPath = callRootPath.resolve(directoryListFile)
+
+    val (_, directoryDisk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
+
+    // We need both the collection directory and the collection list:
+    List(
+      // The collection directory:
+      GcpBatchFileOutput(
+        makeSafeReferenceName(directoryListFile),
+        gcsListDestinationPath,
+        DefaultPathBuilder.get(directoryListFile),
+        directoryDisk,
+        fileEvaluation.optional,
+        fileEvaluation.secondary
+      ),
+      // The collection list file:
+      GcpBatchFileOutput(
+        makeSafeReferenceName(directoryPath),
+        gcsDirDestinationPath,
+        DefaultPathBuilder.get(directoryPath + "*"),
+        directoryDisk,
+        fileEvaluation.optional,
+        fileEvaluation.secondary
+      )
+    )
+  }
+
+  protected def generateSingleFileOutputs(womFile: WomSingleFile, fileEvaluation: FileEvaluation): List[GcpBatchFileOutput] = {
+    val destination = callRootPath.resolve(womFile.value.stripPrefix("/"))
+    val (relpath, disk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
+    val jesFileOutput = GcpBatchFileOutput(makeSafeReferenceName(womFile.value), destination, relpath, disk, fileEvaluation.optional, fileEvaluation.secondary)
+    List(jesFileOutput)
+  }
+
+  protected def generateOutputs(jobDescriptor: BackendJobDescriptor): Set[GcpBatchOutput] = {
+    import cats.syntax.validated._
+    def evaluateFiles(output: OutputDefinition): List[FileEvaluation] = {
+      Try(
+        output.expression.evaluateFiles(jobDescriptor.localInputs, NoIoFunctionSet, output.womType).map(_.toList)
+      ).getOrElse(List.empty[FileEvaluation].validNel)
+        .getOrElse(List.empty)
+    }
+
+    def relativeFileEvaluation(evaluation: FileEvaluation): FileEvaluation = {
+      evaluation.copy(file = relativeLocalizationPath(evaluation.file))
+    }
+
+    val womFileOutputs = jobDescriptor.taskCall.callable.outputs.flatMap(evaluateFiles) map relativeFileEvaluation
+
+    val outputs: Seq[GcpBatchOutput] = womFileOutputs.distinct flatMap { fileEvaluation =>
+      fileEvaluation.file.flattenFiles flatMap {
+        case unlistedDirectory: WomUnlistedDirectory => generateUnlistedDirectoryOutputs(unlistedDirectory, fileEvaluation)
+        case singleFile: WomSingleFile => generateSingleFileOutputs(singleFile, fileEvaluation)
+        case globFile: WomGlobFile => generateGlobFileOutputs(globFile) // Assumes optional = false for globs.
+      }
+    }
+
+    val additionalGlobOutput = jobDescriptor.taskCall.callable.additionalGlob.toList.flatMap(generateGlobFileOutputs).toSet
+
+    outputs.toSet ++ additionalGlobOutput
+  }
   protected def uploadGcsTransferLibrary(createPipelineParameters: CreatePipelineParameters, cloudPath: Path, gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = Future.successful(())
 
 
   private lazy val standardPaths = jobPaths.standardPaths
+
+  lazy val monitoringOutput: Option[GcpBatchFileOutput] = monitoringScript map { _ =>
+    GcpBatchFileOutput(s"$batchMonitoringParamName-out",
+      gcpBatchCallPaths.batchMonitoringLogPath, localMonitoringLogPath, workingDisk, optional = false, secondary = false,
+      contentType = plainTextContentType)
+  }
+
 
   // Primary entry point for cromwell to run GCP Batch job
   override def executeAsync(): Future[ExecutionHandle] = {

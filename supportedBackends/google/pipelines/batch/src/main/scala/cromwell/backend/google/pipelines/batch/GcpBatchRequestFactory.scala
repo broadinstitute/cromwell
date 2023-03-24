@@ -7,7 +7,8 @@ import cromwell.backend.google.pipelines.batch.io.GcpBatchAttachedDisk
 import cromwell.backend.google.pipelines.batch.GcpBatchConfigurationAttributes.VirtualPrivateCloudConfiguration
 
 import scala.concurrent.duration._
-import cromwell.backend.google.pipelines.common.monitoring.{CheckpointingConfiguration, MonitoringImage}
+import cromwell.backend.google.pipelines.common.monitoring.CheckpointingConfiguration
+//import cromwell.backend.google.pipelines.common.monitoring.{CheckpointingConfiguration, MonitoringImage}
 import cromwell.backend.google.pipelines.common._ //remove later because from common
 
 trait GcpBatchRequestFactory {
@@ -24,21 +25,21 @@ object GcpBatchRequestFactory {
    * Input parameters that are not strictly needed by the user's command but are Cromwell byproducts.
    */
   case class DetritusInputParameters(
-                                      executionScriptInputParameter: PipelinesApiFileInput,
-                                      monitoringScriptInputParameter: Option[PipelinesApiFileInput]
+                                      executionScriptInputParameter: GcpBatchFileInput,
+                                      monitoringScriptInputParameter: Option[GcpBatchFileInput]
                                     ) {
-    def all: List[PipelinesApiFileInput] = List(executionScriptInputParameter) ++ monitoringScriptInputParameter
+    def all: List[GcpBatchFileInput] = List(executionScriptInputParameter) ++ monitoringScriptInputParameter
   }
 
   /**
    * Output parameters that are not produced by the user's command but are Cromwell byproducts.
    */
   case class DetritusOutputParameters(
-                                       monitoringScriptOutputParameter: Option[PipelinesApiFileOutput],
-                                       rcFileOutputParameter: PipelinesApiFileOutput,
-                                       memoryRetryRCFileOutputParameter: PipelinesApiFileOutput
+                                       monitoringScriptOutputParameter: Option[GcpBatchFileOutput],
+                                       rcFileOutputParameter: GcpBatchFileOutput,
+                                       memoryRetryRCFileOutputParameter: GcpBatchFileOutput
                                      ) {
-    def all: List[PipelinesApiFileOutput] = memoryRetryRCFileOutputParameter :: List(rcFileOutputParameter) ++ monitoringScriptOutputParameter
+    def all: List[GcpBatchFileOutput] = memoryRetryRCFileOutputParameter :: List(rcFileOutputParameter) ++ monitoringScriptOutputParameter
   }
 
   /**
@@ -48,13 +49,13 @@ object GcpBatchRequestFactory {
    */
   case class InputOutputParameters(
                                     detritusInputParameters: DetritusInputParameters,
-                                    jobInputParameters: List[PipelinesApiInput],
-                                    jobOutputParameters: List[PipelinesApiOutput],
+                                    jobInputParameters: List[GcpBatchInput],
+                                    jobOutputParameters: List[GcpBatchOutput],
                                     detritusOutputParameters: DetritusOutputParameters,
                                     literalInputParameters: List[PipelinesApiLiteralInput]
                                   ) {
-    lazy val fileInputParameters: List[PipelinesApiInput] = jobInputParameters ++ detritusInputParameters.all
-    lazy val fileOutputParameters: List[PipelinesApiOutput] = detritusOutputParameters.all ++ jobOutputParameters
+    lazy val fileInputParameters: List[GcpBatchInput] = jobInputParameters ++ detritusInputParameters.all
+    lazy val fileOutputParameters: List[GcpBatchOutput] = detritusOutputParameters.all ++ jobOutputParameters
   }
 
   case class CreatePipelineDockerKeyAndToken(key: String, encryptedToken: String)

@@ -14,3 +14,11 @@ metadata {
   status: Succeeded
   "outputs.azure_blob_storage_read.s1": "This is my test file! Did it work??"
 }
+
+# az:// is the root of the container specified in reference.conf.
+# Here, we verify that exactly one log was written.
+
+fileSystemCheck: "blob"
+outputExpectations: {
+   "az://test-cromwell-workflow-logs/workflow.<<UUID>>.log" : 1
+}

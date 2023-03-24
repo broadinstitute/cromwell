@@ -3,7 +3,6 @@ package centaur.test
 import com.azure.storage.blob.BlobContainerClient
 import com.google.cloud.storage.Storage.BlobListOption
 import com.google.cloud.storage.{Blob, Storage}
-import cromwell.core.actor.BatchActor.logger
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest
 
@@ -51,9 +50,8 @@ object ObjectCounterInstances {
       }
       val fullPath = pathToBlobPath(providedPath)
       val blobsInFolder =  containerClient.listBlobsByHierarchy(fullPath)
-      val filesInFolder = blobsInFolder.asScala.filter(item => !item.isPrefix) //if something "isPrefix", it's a directory. Otherwise, its a file.
-      filesInFolder.map(item => logger.info(item.getName))
-      filesInFolder.count(item => !item.isPrefix)
+      //if something "isPrefix", it's a directory. Otherwise, its a file. We just want to count files.
+      blobsInFolder.asScala.filter(item => !item.isPrefix).size
     }
     pathToInt(_)
   }

@@ -2,8 +2,8 @@ package cromwell.backend.google.pipelines.batch
 import com.google.api.gax.rpc.{FixedHeaderProvider, HeaderProvider}
 import com.google.cloud.batch.v1.AllocationPolicy.Accelerator
 //import com.google.cloud.batch.v1.AllocationPolicy._
-import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, TaskGroup, TaskSpec}
-import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy, ProvisioningModel}
+import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, TaskGroup, TaskSpec, Volume}
+import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy, ProvisioningModel, Disk, AttachedDisk}
 import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.GcpBatchRequest
 //import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy}
 import com.google.cloud.batch.v1.Runnable.Container
@@ -89,15 +89,16 @@ final case class GcpBatchJob (
   }
 
 
-  private def createInstancePolicy(spotModel: ProvisioningModel, accelerators: Option[Accelerator.Builder]) = {
+  private def createInstancePolicy(spotModel: ProvisioningModel, accelerators: Option[Accelerator.Builder], attachedDisk: AttachedDisk) = {
 
       //set GPU count to 0 if not included in workflow
       val gpuAccelerators = accelerators.getOrElse(Accelerator.newBuilder.setCount(0).setType(""))
-
+      println(attachedDisk.getDeviceName)
       val instancePolicy = InstancePolicy
         .newBuilder
         .setMachineType(machineType)
         .setProvisioningModel(spotModel)
+        //.addDisks(attachedDisk)
         //.setMinCpuPlatform(cpuPlatform)
         .buildPartial()
 
@@ -130,15 +131,41 @@ final case class GcpBatchJob (
     NetworkPolicy
       .newBuilder
       .addNetworkInterfaces(0, networkInterface)
-      .build()
+      .build
+  }
+
+  private def createNewVolume(attachedDisk: AttachedDisk): Volume = {
+    Volume
+      .newBuilder
+      .setDeviceName(attachedDisk.getDeviceName)
+      .setMountPath(f"/mnt/disks/${attachedDisk.getDeviceName}")
+      .addMountOptions("async,rw")
+      .build
+  }
+
+  private def createNewDisk(): Disk.Builder = {
+    Disk.newBuilder
+      .setSizeGb(10)
+      .setType("pd-ssd")
+
+  }
+
+  private def createNewAttachedDisk(disk: Disk.Builder, name: String): AttachedDisk = {
+    AttachedDisk
+      .newBuilder
+      .setDeviceName(name)
+      .setNewDisk(disk)
+      .build
   }
 
 
-  private def createTaskSpec(runnable: Runnable, computeResource: ComputeResource, retryCount: Int, durationInSeconds: Long) = {
+  private def createTaskSpec(runnable: Runnable, computeResource: ComputeResource, retryCount: Int, durationInSeconds: Long, volume: Volume) = {
+    println(volume.getDeviceName)
     TaskSpec
       .newBuilder
       .addRunnables(runnable)
       .setComputeResource(computeResource)
+      //.addVolumes(volume)
       .setMaxRetryCount(retryCount)
       .setMaxRunDuration(Duration
         .newBuilder
@@ -174,10 +201,13 @@ final case class GcpBatchJob (
 
       val networkInterface = createNetworkInterface(false)
       val networkPolicy = createNetworkPolicy(networkInterface)
+      val newDisk = createNewDisk()
+      val newAttachedDisk = createNewAttachedDisk(newDisk, "Disk1")
+      val newVolume = createNewVolume(newAttachedDisk)
       val computeResource = createComputeResource(cpuCores, memory, gcpBootDiskSizeMb)
-      val taskSpec = createTaskSpec(runnable, computeResource, retryCount, durationInSeconds)
+      val taskSpec = createTaskSpec(runnable, computeResource, retryCount, durationInSeconds, newVolume)
       val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
-      val instancePolicy = createInstancePolicy(spotModel, accelerators)
+      val instancePolicy = createInstancePolicy(spotModel, accelerators, newAttachedDisk)
       val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
       val allocationPolicy = createAllocationPolicy(locationPolicy, instancePolicy.build, networkPolicy)
       val job = Job

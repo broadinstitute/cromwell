@@ -65,10 +65,13 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
 
   override lazy val initializationData: Future[GcpBackendInitializationData] = for {
     batchWorkflowPaths <- workflowPaths
+    //vpcNetworkAndSubnetworkProjectLabels <- vpcNetworkAndSubnetworkProjectLabelsFuture()
   } yield GcpBackendInitializationData(
     workflowPaths = batchWorkflowPaths,
     runtimeAttributesBuilder = runtimeAttributesBuilder,
-    gcpBatchConfiguration = gcpBatchConfiguration
+    gcpBatchConfiguration = gcpBatchConfiguration,
+    privateDockerEncryptionKeyName = privateDockerEncryptionKeyName,
+    privateDockerEncryptedToken = privateDockerEncryptedToken
   )
   //add in gcs credentials if necessary
 

@@ -74,7 +74,7 @@ object GcpBatchRequestFactory {
                                       preemptible: Boolean,
                                       pipelineTimeout: FiniteDuration,
                                       jobShell: String,
-                                      //privateDockerKeyAndEncryptedToken: Option[CreatePipelineDockerKeyAndToken],
+                                      privateDockerKeyAndEncryptedToken: Option[CreatePipelineDockerKeyAndToken],
                                       womOutputRuntimeExtractor: Option[WomOutputRuntimeExtractor],
                                       adjustedSizeDisks: Seq[GcpBatchAttachedDisk],
                                       virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,

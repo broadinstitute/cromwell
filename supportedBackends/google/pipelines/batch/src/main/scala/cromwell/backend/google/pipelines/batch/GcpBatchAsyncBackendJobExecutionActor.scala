@@ -260,7 +260,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           )
         } getOrElse runtimeAttributes.disks
 
-        val inputFilePaths = inputOutputParameters.jobInputParameters.map(_.cloudPath.pathAsString).toSet
+        //val inputFilePaths = inputOutputParameters.jobInputParameters.map(_.cloudPath.pathAsString).toSet
         /*
         val referenceDisksToMount =
           batchAttributes.referenceFileToDiskImageMappingOpt.map(getReferenceDisksToMount(_, inputFilePaths))
@@ -323,7 +323,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           preemptible = preemptible,
           pipelineTimeout = batchConfiguration.pipelineTimeout,
           jobShell = batchConfiguration.jobShell,
-          //privateDockerKeyAndEncryptedToken = dockerKeyAndToken,
+          privateDockerKeyAndEncryptedToken = dockerKeyAndToken,
           womOutputRuntimeExtractor = jobDescriptor.workflowDescriptor.outputRuntimeExtractor,
           adjustedSizeDisks = adjustedSizeDisks,
           virtualPrivateCloudConfiguration = batchAttributes.virtualPrivateCloudConfiguration,
@@ -475,7 +475,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   protected def uploadGcsTransferLibrary(createPipelineParameters: CreatePipelineParameters, cloudPath: Path, gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = Future.successful(())
 
 
-  private lazy val standardPaths = jobPaths.standardPaths
+  //private lazy val standardPaths = jobPaths.standardPaths
 
   lazy val monitoringOutput: Option[GcpBatchFileOutput] = monitoringScript map { _ =>
     GcpBatchFileOutput(s"$batchMonitoringParamName-out",
@@ -546,6 +546,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       _ <- uploadGcsTransferLibrary(createParameters, gcsTransferLibraryCloudPath, gcsTransferConfiguration)
       gcsLocalizationScriptCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.GcsLocalizationScriptName
       gcsDelocalizationScriptCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.GcsDelocalizationScriptName
+      //transferLibraryContainerPath = createParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
+      _ <- uploadGcsTransferLibrary(createParameters, gcsTransferLibraryCloudPath, gcsTransferConfiguration)
       _ = backendSingletonActor ! GcpBatchRequest(workflowId, jobName = jobTemp, gcpBatchCommand, gcpBatchParameters)
       runId = StandardAsyncJob(jobTemp)
 

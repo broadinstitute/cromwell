@@ -38,7 +38,7 @@ Ask the questions:
   
 ### Run CI against the PR
 
-- Opening a PR tiggers CI to run automatically. However, if the PR was not opened by a trusted contributor, it will wait in a Github Actions queue until a trusted contributor explicitly allows CI tests run.
+- Opening a PR triggers CI to run automatically. However, if the PR was not opened by a trusted contributor, it will wait in a Github Actions queue until a trusted contributor explicitly allows CI tests run.
 
 ### Cycle through Review and CI
 

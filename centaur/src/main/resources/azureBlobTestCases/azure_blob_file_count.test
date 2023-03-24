@@ -15,7 +15,8 @@ metadata {
   "outputs.azure_blob_file_count.s1": "This is my test file! Did it work??"
 }
 
+#az:// is the root of the container specified in the centaur reference.conf
 fileSystemCheck: "blob"
 outputExpectations: {
-   "https://centaurtesting.blob.core.windows.net/test-blob/test-cromwell-workflow-logs" : 1
+   "az://" : 2
 }

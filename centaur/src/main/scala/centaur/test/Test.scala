@@ -155,7 +155,6 @@ object Operations extends StrictLogging {
   lazy val azureConfig: Config = CentaurConfig.conf.getConfig("azure")
   lazy val blobContainerClient: BlobContainerClient = AzureConfiguration.apply(azureConfig)
 
-
   def submitWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = {
     new Test[SubmittedWorkflow] {
       override def run: IO[SubmittedWorkflow] = for {

@@ -46,8 +46,10 @@ object BlobFilesChecker extends FilesChecker {
 
   import ObjectCounterInstances.blobObjectCounter
   import ObjectCounterSyntax._
+  //If this client is successfully initialized, it will already be authenticated & ready to go.
   private lazy val containerClient = Operations.blobContainerClient
 
-  private val azurePrefixRange = "^https:\\/\\/.*"
+  //Expect azure blob paths to begin with "az://". This will be replaced by the endpoint and container specified in reference.conf.
+  private val azurePrefixRange = "^az:\\/\\/.*"
   override def countObjectsAtPath: String => Int = ObjectCounterSyntax(containerClient).countObjects(azurePrefixRange)
 }

@@ -157,6 +157,7 @@ final case class GcpBatchJob (
       .newBuilder
       .setLocation(locationPolicy)
       .setNetwork(networkPolicy)
+      .putLabels("cromwell-workflow-id", jobSubmission.workflowId.toString)
       .setServiceAccount(serviceAccount)
       .addInstances(InstancePolicyOrTemplate
         .newBuilder
@@ -184,8 +185,6 @@ final case class GcpBatchJob (
         .setAllocationPolicy(allocationPolicy)
         .putLabels("submitter", "cromwell") // label to signify job submitted by cromwell for larger tracking purposes within GCP batch
         .putLabels("cromwell-workflow-id", jobSubmission.workflowId.toString) // label to make it easier to match Cromwell workflows with multiple GCP batch jobs
-        .putLabels("env", "testing")
-        .putLabels("type", "script")
         .setLogsPolicy(LogsPolicy
           .newBuilder
           .setDestination(Destination

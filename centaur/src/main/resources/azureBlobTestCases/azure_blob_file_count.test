@@ -16,6 +16,7 @@ metadata {
 }
 
 #az:// is the root of the container specified in the centaur reference.conf
+
 fileSystemCheck: "blob"
 outputExpectations: {
    "az://" : 2

@@ -42,11 +42,14 @@ object ObjectCounterInstances {
   }
 
   implicit val blobObjectCounter: ObjectCounter[BlobContainerClient] = (containerClient : BlobContainerClient) => {
-    val pathToInt: Path => Int = parsedPath => {
-      //Due to our path parsing strategy being somewhat GCP focused,
-      //the path to the (sub)directory of an azure blob container is the concatenation of path.bucket and path.directory.
-      val fullPath = if(parsedPath.bucket.isEmpty) "" else parsedPath.bucket + "/" + parsedPath.directory
-      logger.info(fullPath)
+    val pathToInt: Path => Int = providedPath => {
+      //Our path parsing is somewhat GCP centric. Convert to a blob path starting from the container root.
+      def pathToBlobPath(parsedPath : Path) : String =  {
+        if(parsedPath.bucket.isEmpty) return ""
+        if(parsedPath.directory.isEmpty) return parsedPath.bucket
+        return parsedPath.bucket + "/" + parsedPath.directory
+      }
+      val fullPath = pathToBlobPath(providedPath)
       val blobsInFolder =  containerClient.listBlobsByHierarchy(fullPath)
       val filesInFolder = blobsInFolder.asScala.filter(item => !item.isPrefix) //if something "isPrefix", it's a directory. Otherwise, its a file.
       filesInFolder.map(item => logger.info(item.getName))

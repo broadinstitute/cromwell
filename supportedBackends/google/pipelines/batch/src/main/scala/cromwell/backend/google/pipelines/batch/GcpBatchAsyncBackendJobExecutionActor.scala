@@ -46,7 +46,7 @@ import cromwell.backend.io.DirectoryFunctions
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
 import cromwell.core.path.Path
 
-import scala.util.{Success, Try}
+import scala.util.{Failure, Success, Try}
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.sra.SraPath
@@ -75,6 +75,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     with AskSupport
     with GcpBatchJobCachingActorHelper
     with GcpBatchStatusRequestClient
+    with GcpBatchReferenceFilesMappingOperations
     with CromwellInstrumentation {
 
   import GcpBatchAsyncBackendJobExecutionActor._
@@ -110,6 +111,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                                  .getOrElse(runtimeAttributes.dockerImage)
 
   override def dockerImageUsed: Option[String] = Option(jobDockerImage)
+  //private var hasDockerCredentials: Boolean = false
 
   // Need to add previousRetryReasons and preemptible in order to get preemptible to work in the tests
   protected val previousRetryReasons: ErrorOr[PreviousRetryReasons] = PreviousRetryReasons.tryApply(jobDescriptor.prefetchedKvStoreEntries, jobDescriptor.key.attempt)
@@ -229,6 +231,40 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           .empty)
     )
   }
+
+  protected val useReferenceDisks: Boolean = {
+    val optionName = WorkflowOptions.UseReferenceDisks.name
+    workflowDescriptor.workflowOptions.getBoolean(optionName) match {
+      case Success(value) => value
+      case Failure(OptionNotFoundException(_)) => false
+      case Failure(f) =>
+        // Should not happen, this case should have been screened for and fast-failed during workflow materialization.
+        log.error(f, s"Programmer error: unexpected failure attempting to read value for workflow option '$optionName' as a Boolean")
+        false
+    }
+  }
+
+
+  def getReferenceInputsToMountedPathsOpt(createPipelinesParameters: CreatePipelineParameters): Option[Map[GcpBatchInput, String]] = {
+    if (useReferenceDisks) {
+      batchAttributes
+        .referenceFileToDiskImageMappingOpt
+        .map(getReferenceInputsToMountedPathMappings(_, createPipelinesParameters.inputOutputParameters.fileInputParameters))
+    } else {
+      None
+    }
+  }
+
+  protected def uploadGcsLocalizationScript(createPipelineParameters: CreatePipelineParameters,
+                                            cloudPath: Path,
+                                            transferLibraryContainerPath: Path,
+                                            gcsTransferConfiguration: GcsTransferConfiguration,
+                                            referenceInputsToMountedPathsOpt: Option[Map[GcpBatchInput, String]]): Future[Unit] = Future.successful(())
+
+  protected def uploadGcsDelocalizationScript(createPipelineParameters: CreatePipelineParameters,
+                                              cloudPath: Path,
+                                              transferLibraryContainerPath: Path,
+                                              gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = Future.successful(())
 
 
   private def createPipelineParameters(inputOutputParameters: InputOutputParameters,
@@ -473,6 +509,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     outputs.toSet ++ additionalGlobOutput
   }
+
+  protected def uploadDrsLocalizationManifest(createPipelineParameters: CreatePipelineParameters, cloudPath: Path): Future[Unit] = Future.successful(())
+
   protected def uploadGcsTransferLibrary(createPipelineParameters: CreatePipelineParameters, cloudPath: Path, gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = Future.successful(())
 
 
@@ -544,16 +583,19 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       jesParameters <- generateInputOutputParameters
       createParameters = createPipelineParameters(jesParameters)
       drsLocalizationManifestCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.DrsLocalizationManifestName
-      // _ <- uploadDrsLocalizationManifest(createParameters, drsLocalizationManifestCloudPath)
+      _ <- uploadDrsLocalizationManifest(createParameters, drsLocalizationManifestCloudPath)
       gcsTransferConfiguration = initializationData.gcpBatchConfiguration.batchAttributes.gcsTransferConfiguration
       gcsTransferLibraryCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.GcsTransferLibraryName
       transferLibraryContainerPath = createParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
       _ <- uploadGcsTransferLibrary(createParameters, gcsTransferLibraryCloudPath, gcsTransferConfiguration)
       gcsLocalizationScriptCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.GcsLocalizationScriptName
+      referenceInputsToMountedPathsOpt = getReferenceInputsToMountedPathsOpt(createParameters)
+      _ <- uploadGcsLocalizationScript(createParameters, gcsLocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration, referenceInputsToMountedPathsOpt)
       gcsDelocalizationScriptCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.GcsDelocalizationScriptName
-      transferLibraryContainerPath = createParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
+      _ <- uploadGcsDelocalizationScript(createParameters, gcsDelocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration)
+      //_ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
       _ <- uploadGcsTransferLibrary(createParameters, gcsTransferLibraryCloudPath, gcsTransferConfiguration)
-      _ = backendSingletonActor ! GcpBatchRequest(workflowId, jobName = jobTemp, gcpBatchCommand, gcpBatchParameters)
+      _ = backendSingletonActor ! GcpBatchRequest(workflowId, createParameters, jobName = jobTemp, gcpBatchCommand, gcpBatchParameters)
       runId = StandardAsyncJob(jobTemp)
 
     }

@@ -12,6 +12,7 @@ import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
 import cromwell.core._
 import cromwell.backend.google.pipelines.batch.io._
+import cromwell.backend.google.pipelines.batch.GcpBatchJobPaths.GcsTransferLibraryName
 import cats.data.Validated.Valid
 //import common.validation.Validation._
 import cromwell.backend.google.pipelines.batch.GcpBatchRequestFactory._
@@ -537,16 +538,20 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     val gcpBatchParameters = CreateGcpBatchParameters(jobDescriptor = jobDescriptor, runtimeAttributes = runtimeAttributes, batchAttributes = batchAttributes, dockerImage = jobDockerImage, projectId = batchAttributes.project, region = batchAttributes.location)
 
     val runBatchResponse = for {
+      //_ <- evaluateRuntimeAttributes
       _ <- uploadScriptFile()
       customLabels <- Future.fromTry(GoogleLabels.fromWorkflowOptions(workflowDescriptor.workflowOptions))
       jesParameters <- generateInputOutputParameters
       createParameters = createPipelineParameters(jesParameters)
+      drsLocalizationManifestCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.DrsLocalizationManifestName
+      // _ <- uploadDrsLocalizationManifest(createParameters, drsLocalizationManifestCloudPath)
       gcsTransferConfiguration = initializationData.gcpBatchConfiguration.batchAttributes.gcsTransferConfiguration
       gcsTransferLibraryCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.GcsTransferLibraryName
+      transferLibraryContainerPath = createParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
       _ <- uploadGcsTransferLibrary(createParameters, gcsTransferLibraryCloudPath, gcsTransferConfiguration)
       gcsLocalizationScriptCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.GcsLocalizationScriptName
       gcsDelocalizationScriptCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.GcsDelocalizationScriptName
-      //transferLibraryContainerPath = createParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
+      transferLibraryContainerPath = createParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
       _ <- uploadGcsTransferLibrary(createParameters, gcsTransferLibraryCloudPath, gcsTransferConfiguration)
       _ = backendSingletonActor ! GcpBatchRequest(workflowId, jobName = jobTemp, gcpBatchCommand, gcpBatchParameters)
       runId = StandardAsyncJob(jobTemp)

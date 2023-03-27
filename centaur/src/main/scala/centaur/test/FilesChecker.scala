@@ -43,7 +43,6 @@ object AWSFilesChecker extends FilesChecker {
 }
 
 object BlobFilesChecker extends FilesChecker {
-
   import ObjectCounterInstances.blobObjectCounter
   import ObjectCounterSyntax._
 

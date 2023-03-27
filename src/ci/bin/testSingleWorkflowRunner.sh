@@ -68,11 +68,10 @@ cmp <(jq -cS . actual.json) <(jq -cS . expected.json)
 popd > /dev/null
 
 # Test 3: program should exit with error in case if validation of command line arguments failed
-set +e
-java -jar "${CROMWELL_BUILD_CROMWELL_JAR}" run nonexistent.wdl &
+java -jar "${CROMWELL_BUILD_CROMWELL_JAR}" run nonexistent.wdl \
+2>&1 | tee console_output.txt
 pid=$!
 sleep 10
-set -e
 if kill -0 $pid > /dev/null 2>&1; then
   echo "ERROR: Process still exists"
   kill $pid

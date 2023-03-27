@@ -11,6 +11,12 @@ trait BatchUtilityConversions {
     "zones/" + zones.mkString(",")
   }
 
+  // creates batch run time location from zones entered in runtime.  This is needed if network not defined by user to place on right network.
+  def toBatchRunLocation(zones: Vector[String]): String = {
+    val parts = zones.mkString(",").split("-")
+    parts(0) + "-" + parts(1)
+  }
+
   // convert cpu cores to millicores that Batch expects
   def toCpuCores(cpu: Long): Long = {
     cpu * 1000
@@ -34,10 +40,13 @@ trait BatchUtilityConversions {
       }.getOrElse(s"projects/${batchAttributes.project}/global/networks/default")
     }
 
-  def toVpcSubnetwork(batchAttributes: GcpBatchConfigurationAttributes): String = {
+  def toVpcSubnetwork(batchAttributes: GcpBatchConfigurationAttributes, runtimeAttributes: GcpBatchRuntimeAttributes): String = {
+
+    val batchRunLocation = toBatchRunLocation(runtimeAttributes.zones)
+
     batchAttributes.virtualPrivateCloudConfiguration.labelsOption.map { vpcNetworks =>
       vpcNetworks.subnetwork.getOrElse("default")
-    }.getOrElse(s"projects/${batchAttributes.project}/regions/${batchAttributes.location}/subnetworks/default")
+    }.getOrElse(s"projects/${batchAttributes.project}/regions/${batchRunLocation}/subnetworks/default")
   }
 
   def toBootDiskSizeMb(runtimeAttributes: GcpBatchRuntimeAttributes): Long = {

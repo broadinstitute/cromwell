@@ -67,8 +67,11 @@ import org.apache.commons.csv.{CSVFormat, CSVPrinter}
 
 import cromwell.backend.google.pipelines.common.GoogleLabels
 import scala.util.control.NoStackTrace
-import java.io.OutputStreamWriter
-//import java.io.{FileNotFoundException, OutputStreamWriter}
+//import java.io.OutputStreamWriter
+import java.io.{FileNotFoundException, OutputStreamWriter}
+
+import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
+import cromwell.filesystems.gcs.GcsPathBuilder
 
 import java.nio.charset.Charset
 
@@ -185,20 +188,10 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                                       .getOrElse(throw new RuntimeException("GCP Batch actor cannot exist without its backend singleton 2"))
 
 
-  /*
+
   /**
    * Takes two arrays of remote and local WOM File paths and generates the necessary `PipelinesApiInput`s.
    */
-  protected def gcpBatchInputsFromWomFiles(jesNamePrefix: String,
-                                           remotePathArray: Seq[WomFile],
-                                           localPathArray: Seq[WomFile],
-                                           jobDescriptor: BackendJobDescriptor): Iterable[GcpBatchInput] = {
-    (remotePathArray zip localPathArray zipWithIndex) flatMap {
-      case ((remotePath, localPath), index) =>
-        Seq(GcpBatchFileInput(s"$jesNamePrefix-$index", getPath(remotePath.valueString).get, DefaultPathBuilder.get(localPath.valueString), workingDisk))
-    }
-  }*/
-
   protected def  gcpBatchInputsFromWomFiles(inputName: String,
                                                         remotePathArray: Seq[WomFile],
                                                         localPathArray: Seq[WomFile],
@@ -736,6 +729,15 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     List(directoryOutput)
   }
 
+  /*
+  private def maybePopulatedFileToPipelinesParameters(inputName: String, maybePopulatedFile: WomMaybePopulatedFile, localPath: String) = {
+    val secondaryFiles = maybePopulatedFile.secondaryFiles.flatMap({ secondaryFile =>
+      pipelinesApiInputsFromWomFiles(secondaryFile.valueString, List(secondaryFile), List(relativeLocalizationPath(secondaryFile)), jobDescriptor)
+    })
+
+    Seq(GcpBatchFileInput(inputName, getPath(maybePopulatedFile.valueString).get, DefaultPathBuilder.get(localPath), workingDisk)) ++ secondaryFiles
+  }*/
+
   private def maybeListedDirectoryToPipelinesParameters(inputName: String, womMaybeListedDirectory: WomMaybeListedDirectory, localPath: String) = womMaybeListedDirectory match {
     // If there is a path, simply localize as a directory
     case WomMaybeListedDirectory(Some(path), _, _, _) =>
@@ -880,7 +882,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       gcsDelocalizationScriptCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.GcsDelocalizationScriptName
       _ <- uploadGcsDelocalizationScript(createParameters, gcsDelocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration)
       //_ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
-      _ <- uploadGcsTransferLibrary(createParameters, gcsTransferLibraryCloudPath, gcsTransferConfiguration)
+      //_ <- uploadGcsTransferLibrary(createParameters, gcsTransferLibraryCloudPath, gcsTransferConfiguration)
       _ = backendSingletonActor ! GcpBatchRequest(workflowId, createParameters, jobName = jobTemp, gcpBatchCommand, gcpBatchParameters)
       runId = StandardAsyncJob(jobTemp)
 
@@ -1081,6 +1083,49 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         case _ => value
       }
     )
+  }
+
+  def womFileToGcsPath(jesOutputs: Set[GcpBatchOutput])(womFile: WomFile): WomFile = {
+    womFile mapFile { path =>
+      jesOutputs collectFirst {
+        case jesOutput if jesOutput.name == makeSafeReferenceName(path) =>
+          val pathAsString = jesOutput.cloudPath.pathAsString
+          if (jesOutput.isFileParameter && !jesOutput.cloudPath.exists) {
+            // This is not an error if the path represents a `File?` optional output (the PAPI delocalization script
+            // should have failed if this file output was not optional but missing). Throw to produce the correct "empty
+            // optional" value for a missing optional file output.
+            throw new FileNotFoundException(s"GCS output file not found: $pathAsString")
+          }
+          pathAsString
+      } getOrElse {
+        GcsPathBuilder.validateGcsPath(path) match {
+          case _: ValidFullGcsPath => path
+
+          /*
+            * Strip the prefixes in RuntimeOutputMapping.prefixFilters from the path, one at a time.
+            * For instance
+            * file:///cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt will progressively become
+            *
+            * /cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
+            * bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
+            * call-A/file.txt
+            *
+            * This code is called as part of a path mapper that will be applied to the WOMified cwl.output.json.
+            * The cwl.output.json when it's being read by Cromwell from the bucket still contains local paths
+            * (as they were created by the cwl tool).
+            * In order to keep things working we need to map those local paths to where they were actually delocalized,
+            * which is determined in cromwell.backend.google.pipelines.v2beta.api.Delocalization.
+            */
+          case _ => (callRootPath /
+            RuntimeOutputMapping
+              .prefixFilters(workflowPaths.workflowRoot)
+              .foldLeft(path)({
+                case (newPath, prefix) => newPath.stripPrefix(prefix)
+              })
+            ).pathAsString
+        }
+      }
+    }
   }
 
 

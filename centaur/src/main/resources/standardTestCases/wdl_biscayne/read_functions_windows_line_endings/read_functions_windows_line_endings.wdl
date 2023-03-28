@@ -1,4 +1,4 @@
-version development
+version development-1.1
 
 struct JsonObj {
     String field1

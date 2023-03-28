@@ -1,20 +1,21 @@
-package wdl.transforms.biscayne
+package wdl.transforms.cascades
 
 import cats.instances.either._
 import better.files.File
 import common.transforms.CheckedAtoB
 import common.validation.Checked._
-import wdl.biscayne.parser.WdlParser.{Ast, AstNode}
+import wdl.cascades.parser.WdlParser.{Ast, AstNode}
 import wdl.model.draft3.elements.ExpressionElement.KvPair
 import wdl.model.draft3.elements._
 import wdl.transforms.base.ast2wdlom._
-import wdl.transforms.biscayne.parsing.fileToAst
+import wdl.transforms.cascades.parsing.fileToAst
 import wom.callable.MetaKvPair
+import wom.types.WomUnlistedDirectoryType
 
 package object ast2wdlom {
 
-  val wrapAst: CheckedAtoB[Ast, GenericAst] = CheckedAtoB.fromCheck { a => BiscayneGenericAst(a).validNelCheck }
-  val wrapAstNode: CheckedAtoB[AstNode, GenericAstNode] = CheckedAtoB.fromCheck { a => BiscayneGenericAstNode(a).validNelCheck }
+  val wrapAst: CheckedAtoB[Ast, GenericAst] = CheckedAtoB.fromCheck { a => cascadesGenericAst(a).validNelCheck }
+  val wrapAstNode: CheckedAtoB[AstNode, GenericAstNode] = CheckedAtoB.fromCheck { a => cascadesGenericAstNode(a).validNelCheck }
 
   implicit val astNodeToStaticString: CheckedAtoB[GenericAstNode, StaticString] = AstNodeToStaticString.astNodeToStaticStringElement()
 
@@ -23,10 +24,10 @@ package object ast2wdlom {
   implicit val astNodeToMetaSectionElement: CheckedAtoB[GenericAstNode, MetaSectionElement] = astNodeToAst andThen AstToMetaSectionElement.astToMetaSectionElement
   implicit val astNodeToParameterMetaSectionElement: CheckedAtoB[GenericAstNode, ParameterMetaSectionElement] = astNodeToAst andThen AstToParameterMetaSectionElement.astToParameterMetaSectionElement
 
-  implicit val astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement] = AstNodeToExpressionElement.astNodeToExpressionElement(customEngineFunctionMakers = AstToNewExpressionElements.newBiscayneEngineFunctionMakers)
+  implicit val astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement] = AstNodeToExpressionElement.astNodeToExpressionElement(customEngineFunctionMakers = AstToNewExpressionElements.newcascadesEngineFunctionMakers)
   implicit val astNodeToKvPair: CheckedAtoB[GenericAstNode, KvPair] = AstNodeToKvPair.astNodeToKvPair(astNodeToExpressionElement)
 
-  implicit val astNodeToTypeElement: CheckedAtoB[GenericAstNode, TypeElement] = AstNodeToTypeElement.astNodeToTypeElement(Map.empty)
+  implicit val astNodeToTypeElement: CheckedAtoB[GenericAstNode, TypeElement] = AstNodeToTypeElement.astNodeToTypeElement(Map("Directory" -> WomUnlistedDirectoryType))
   implicit val astToStructElement: CheckedAtoB[GenericAst, StructElement] = AstToStructElement.astToStructElement
   implicit val astNodeToImportElement: CheckedAtoB[GenericAstNode, ImportElement] = astNodeToAst andThen AstToImportElement.astToImportElement
 

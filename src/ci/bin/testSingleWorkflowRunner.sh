@@ -69,8 +69,7 @@ popd > /dev/null
 
 echo "::remove-matcher owner=setup-java::"
 # Test 3: program should exit with error in case if validation of command line arguments failed
-java -jar "${CROMWELL_BUILD_CROMWELL_JAR}" run nonexistent.wdl \
-2>&1
+java -jar "${CROMWELL_BUILD_CROMWELL_JAR}" run nonexistent.wdl &
 pid=$!
 sleep 10
 if kill -0 $pid > /dev/null 2>&1; then

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -o errexit -o nounset -o pipefail
+set -o errexit -o nounset -o pipefail +x
 # import in shellcheck / CI / IntelliJ compatible ways
 # shellcheck source=/dev/null
 source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
@@ -68,6 +68,7 @@ cmp <(jq -cS . actual.json) <(jq -cS . expected.json)
 popd > /dev/null
 
 # Test 3: program should exit with error in case if validation of command line arguments failed
+# Redirect stderr for the expected cromwell crash so we don't agitate CI.
 exec 3>&2
 exec 2> /dev/null
 java -jar "${CROMWELL_BUILD_CROMWELL_JAR}" run nonexistent.wdl &

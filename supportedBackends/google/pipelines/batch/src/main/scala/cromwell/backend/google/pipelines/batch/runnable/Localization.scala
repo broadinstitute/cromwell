@@ -2,13 +2,17 @@ package cromwell.backend.google.pipelines.batch.runnable
 
 import cloud.nio.impl.drs.DrsConfig
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.google.pipelines.batch.GcpBatchRequestFactory.CreatePipelineParameters
+import com.google.cloud.batch.v1.{Runnable, Volume}
+
+import cromwell.backend.google.pipelines.batch.runnable.RunnableCommands.localizeFile
+import cromwell.backend.google.pipelines.common.action.ActionLabels._
 import cromwell.backend.google.pipelines.batch.GcpBatchConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.batch.GcpBatchFileInput
 import cromwell.backend.google.pipelines.batch.GcpBatchJobPaths._
-import cromwell.backend.google.pipelines.batch.runnable.RunnableBuilder._
+import cromwell.backend.google.pipelines.batch.GcpBatchRequestFactory.CreatePipelineParameters
+import cromwell.backend.google.pipelines.batch.BatchParameterConversions._
+import cromwell.backend.google.pipelines.batch.runnable.RunnableBuilder.{EnhancedRunnable, cloudSdkShellAction}
 import cromwell.backend.google.pipelines.batch.runnable.RunnableCommands._
-import cromwell.backend.google.pipelines.common.action.ActionLabels._
 
 
 import cromwell.core.path.Path
@@ -19,27 +23,27 @@ import scala.jdk.CollectionConverters._
 trait Localization {
 
 
-  def localizeActions(createPipelineParameters: CreatePipelineParameters, mounts: List[Mount])
+  def localizeActions(createPipelineParameters: CreatePipelineParameters, volumes: List[Volume])
                      (implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Runnable] = {
     val localizationLabel = Map(Key.Tag -> Value.Localization)
 
     val gcsTransferLibraryContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
     val localizeGcsTransferLibrary = cloudSdkShellAction(localizeFile(
       cloudPath = createPipelineParameters.cloudCallRoot / GcsTransferLibraryName,
-      containerPath = gcsTransferLibraryContainerPath))(mounts = mounts, labels = localizationLabel)
+      containerPath = gcsTransferLibraryContainerPath))(volumes = volumes, labels = localizationLabel)
 
     val gcsLocalizationContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(GcsLocalizationScriptName)
     val localizeGcsLocalizationScript = cloudSdkShellAction(localizeFile(
       cloudPath = createPipelineParameters.cloudCallRoot / GcsLocalizationScriptName,
-      containerPath = gcsLocalizationContainerPath))(mounts = mounts, labels = localizationLabel)
+      containerPath = gcsLocalizationContainerPath))(volumes = volumes, labels = localizationLabel)
 
     val gcsDelocalizationContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(GcsDelocalizationScriptName)
     val localizeGcsDelocalizationScript = cloudSdkShellAction(localizeFile(
       cloudPath = createPipelineParameters.cloudCallRoot / GcsDelocalizationScriptName,
-      containerPath = gcsDelocalizationContainerPath))(mounts = mounts, labels = localizationLabel)
+      containerPath = gcsDelocalizationContainerPath))(volumes = volumes, labels = localizationLabel)
 
     val runGcsLocalizationScript = cloudSdkShellAction(
-      s"/bin/bash $gcsLocalizationContainerPath")(mounts = mounts, labels = localizationLabel)
+      s"/bin/bash $gcsLocalizationContainerPath")(volumes = volumes, labels = localizationLabel)
 
     val drsInputs: List[DrsPath] = createPipelineParameters.inputOutputParameters.fileInputParameters.collect {
       case GcpBatchFileInput(_, drsPath: DrsPath, _, _) => drsPath
@@ -49,17 +53,17 @@ trait Localization {
       val drsLocalizationManifestContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(DrsLocalizationManifestName)
       val localizeDrsLocalizationManifest = cloudSdkShellAction(localizeFile(
         cloudPath = createPipelineParameters.cloudCallRoot / DrsLocalizationManifestName,
-        containerPath = drsLocalizationManifestContainerPath))(mounts = mounts, labels = localizationLabel)
+        containerPath = drsLocalizationManifestContainerPath))(volumes = volumes, labels = localizationLabel)
 
       // Requester pays project id is stored on each DrsPath, but will be the same for all DRS inputs to a
       // particular workflow because it's determined by the Google project set in workflow options.
       val requesterPaysProjectId: Option[String] = drsInputs.flatMap(_.requesterPaysProjectIdOption).headOption
-      val runDrsLocalization = Localization.drsAction(drsLocalizationManifestContainerPath, mounts, localizationLabel, requesterPaysProjectId)
+      val runDrsLocalization = Localization.drsAction(drsLocalizationManifestContainerPath, volumes, localizationLabel, requesterPaysProjectId)
       List(localizeDrsLocalizationManifest, runDrsLocalization)
     } else List[Runnable]()
 
     // Any "classic" PAPI v2 one-at-a-time localizations for non-GCS inputs.
-    val singletonLocalizations = createPipelineParameters.inputOutputParameters.fileInputParameters.flatMap(_.toActions(mounts).toList)
+    val singletonLocalizations = createPipelineParameters.inputOutputParameters.fileInputParameters.flatMap(_.toRunnables(volumes).toList)
 
     val localizations =
       localizeGcsTransferLibrary ::
@@ -75,10 +79,10 @@ trait Localization {
 object Localization {
 
   def drsAction(manifestPath: Path,
-                mounts: List[Mount],
+                volumes: List[Volume],
                 labels: Map[String, String],
                 requesterPaysProjectId: Option[String]
-               ): Action = {
+               ): Runnable = {
     val config = ConfigFactory.load
     val marthaConfig = config.getConfig("filesystems.drs.global.config.martha")
     val drsConfig = DrsConfig.fromConfig(marthaConfig)
@@ -89,10 +93,10 @@ object Localization {
     val drsCommand = manifestArg ++ requesterPaysArg
 
     val marthaEnv = DrsConfig.toEnv(drsConfig)
-    ActionBuilder
+    RunnableBuilder
       .withImage(drsDockerImage)
       .withCommand(drsCommand: _*)
-      .withMounts(mounts)
+      .withMounts(volumes)
       .setEnvironment(marthaEnv.asJava)
       .withLabels(labels)
   }

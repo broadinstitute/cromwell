@@ -13,7 +13,7 @@ import cromwell.backend.google.pipelines.batch.GcpBatchConfigurationAttributes.G
 import cromwell.backend.google.pipelines.common.action.ActionUtils._
 
 import cromwell.filesystems.gcs.RequesterPaysErrors._
-import mouse.all._
+
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.text.StringEscapeUtils
 

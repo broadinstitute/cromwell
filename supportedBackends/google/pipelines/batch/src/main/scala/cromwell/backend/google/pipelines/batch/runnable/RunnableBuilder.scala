@@ -1,14 +1,17 @@
 package cromwell.backend.google.pipelines.batch.runnable
 
 
-import com.google.cloud.batch.v1.Runnable
+import com.google.cloud.batch.v1.{Runnable, Volume}
 import com.google.cloud.batch.v1.Runnable.Container
 import scala.concurrent.duration._
 import cromwell.backend.google.pipelines.common.action.ActionCommands
 import cromwell.backend.google.pipelines.common.action.ActionUtils._
 import cromwell.backend.google.pipelines.common.action.ActionLabels._
+
 import mouse.all._
+
 import scala.jdk.CollectionConverters._
+import scala.concurrent.duration._
 
 /**
  * Utility singleton to create high level batch runnables.
@@ -19,6 +22,7 @@ object RunnableBuilder {
   implicit class EnhancedRunnable(val runnable: Runnable) extends AnyVal {
 
 
+    /*
     def withEntrypointCommand(command: String*): Runnable = {
       Runnable
         .newBuilder
@@ -32,13 +36,23 @@ object RunnableBuilder {
               .orNull
           )
         )
-    }
-
+    }*/
 
     //def withRunInBackground(runInBackground: Boolean): Runnable = runnable.setBackground(runInBackground)
     def withAlwaysRun(alwaysRun: Boolean): Runnable = runnable.withAlwaysRun(alwaysRun=true)
 
+    def scalaLabels: Map[String, String] = {
+      val list = for {
+        keyValueList <- Option(runnable.getLabels).toList
+        keyValue <- keyValueList.asScala
+      } yield keyValue
+      list.toMap
+    }
+
   }
+
+
+
 
   def cloudSdkAction: Runnable = Runnable
     .newBuilder
@@ -52,7 +66,34 @@ object RunnableBuilder {
       ))
     .build
 
-  def cloudSdkShellAction(shellCommand: String)(mounts: List[Mount] = List.empty,
+  def withImage(image: String): Runnable.Builder = new Runnable()
+    .toBuilder
+    .setContainer(Container.newBuilder.setImageUri(image))
+
+  def userRunnable(docker: String,
+                 scriptContainerPath: String,
+                   volumes: List[Volume],
+                 jobShell: String)
+                 //privateDockerKeyAndToken: Option[CreatePipelineDockerKeyAndToken],
+                 //fuseEnabled: Boolean)
+  : Runnable.Builder = {
+
+    //val dockerImageIdentifier = DockerImageIdentifier.fromString(docker)
+
+    /*
+    val secret = for {
+      imageId <- dockerImageIdentifier.toOption
+      if DockerHub.isValidDockerHubHost(imageId.host) // This token only works for Docker Hub and not other repositories.
+      keyAndToken <- privateDockerKeyAndToken
+      s = new Secret().setKeyName(keyAndToken.key).setCipherText(keyAndToken.encryptedToken)
+    } yield s
+    */
+
+
+    new Runnable().toBuilder.setContainer(Container.newBuilder.setImageUri(docker).addCommands(scriptContainerPath).setEntrypoint(jobShell))
+  }
+
+  def cloudSdkShellAction(shellCommand: String)(volumes: List[Volume] = List.empty,
                                                 labels: Map[String, String] = Map.empty,
                                                 timeout: Duration = Duration.Inf): Runnable =
     cloudSdkAction
@@ -64,6 +105,16 @@ object RunnableBuilder {
       .withMounts(mounts)
       .withLabels(labels)
       .withTimeout(timeout)
+
+
+
+  /** Creates an Action that logs the docker command for the passed in action. */
+  def describeDocker(description: String, runnable: Runnable): Runnable = {
+    RunnableBuilder.logTimestampedAction(
+      s"Running $description: ${RunnableBuilder.toDockerRun(runnable)}",
+      runnable.scalaLabels
+    )
+  }
 
   def timestampedMessage(message: String): String =
     s"""printf '%s %s\\n' "$$(date -u '+%Y/%m/%d %H:%M:%S')" ${shellEscaped(message)}"""
@@ -89,5 +140,16 @@ object RunnableBuilder {
     val done = List(logTimestampedAction(s"Done $description.", labels).withAlwaysRun(isAlwaysRun))
     starting ++ actions ++ done
   }
+
+  /** Converts an Action to a `docker run ...` command runnable in the shell. */
+  private[api] def toDockerRun(runnable: Runnable): String = {
+    val commandArgs: String = Option(runnable.getCommands) match {
+      case Some(commands) =>
+        commands.asScala map {
+          case command if Option(command).isDefined => s" ${shellEscaped(command)}"
+          case _ => ""
+        } mkString ""
+      case None => ""
+    }
 
 }

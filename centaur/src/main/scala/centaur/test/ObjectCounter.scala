@@ -46,8 +46,8 @@ object ObjectCounterInstances {
       def pathToBlobPath(parsedPath : Path) : String = {
         (Option(parsedPath.bucket), Option(parsedPath.directory)) match {
           case (None, _) => ""
-          case (Some(parsedPath.bucket), None) => parsedPath.bucket
-          case (Some(parsedPath.bucket), Some(parsedPath.directory)) => parsedPath.bucket + "/" + parsedPath.directory
+          case (Some(_), None) => parsedPath.bucket
+          case (Some(_), Some(_)) => parsedPath.bucket + "/" + parsedPath.directory
         }
       }
 

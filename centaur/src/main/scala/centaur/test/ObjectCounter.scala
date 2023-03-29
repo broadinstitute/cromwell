@@ -43,11 +43,14 @@ object ObjectCounterInstances {
   implicit val blobObjectCounter: ObjectCounter[BlobContainerClient] = (containerClient : BlobContainerClient) => {
     val pathToInt: Path => Int = providedPath => {
       //Our path parsing is somewhat GCP centric. Convert to a blob path starting from the container root.
-      def pathToBlobPath(parsedPath : Path) : String =  {
-        if(parsedPath.bucket.isEmpty) return ""
-        if(parsedPath.directory.isEmpty) return parsedPath.bucket
-        return parsedPath.bucket + "/" + parsedPath.directory
+      def pathToBlobPath(parsedPath : Path) : String = {
+        (Option(parsedPath.bucket), Option(parsedPath.directory)) match {
+          case (None, _) => ""
+          case (Some(parsedPath.bucket), None) => parsedPath.bucket
+          case (Some(parsedPath.bucket), Some(parsedPath.directory)) => parsedPath.bucket + "/" + parsedPath.directory
+        }
       }
+
       val fullPath = pathToBlobPath(providedPath)
       val blobsInFolder =  containerClient.listBlobsByHierarchy(fullPath)
       //if something "isPrefix", it's a directory. Otherwise, its a file. We just want to count files.

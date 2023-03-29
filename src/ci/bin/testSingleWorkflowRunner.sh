@@ -68,8 +68,12 @@ cmp <(jq -cS . actual.json) <(jq -cS . expected.json)
 popd > /dev/null
 
 # Test 3: program should exit with error in case if validation of command line arguments failed
+# Redirect stderr for the expected cromwell crash so we don't agitate CI.
+exec 3>&2
+exec 2> /dev/null
 java -jar "${CROMWELL_BUILD_CROMWELL_JAR}" run nonexistent.wdl &
 pid=$!
+exec 2>&3
 sleep 10
 if kill -0 $pid > /dev/null 2>&1; then
   echo "ERROR: Process still exists"

@@ -53,7 +53,7 @@ object Merging {
           val oldStrategy = (assembly / assemblyMergeStrategy).value
           oldStrategy(x)
       }
-    case "asm-license.txt" | "module-info.class" | "overview.html" | "cobertura.properties" =>
+    case "asm-license.txt" | "module-info.class" | "overview.html" | "cobertura.properties" | "grammar.hgr" | "CHANGELOG.txt" =>
       MergeStrategy.discard
     // inspired by https://github.com/ergoplatform/explorer-backend/blob/7364ecfdeabeb691f0f25525e577d6c48240c672/build.sbt#L14-L15
     case other if other.contains("scala/annotation/nowarn.class")  => MergeStrategy.discard

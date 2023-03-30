@@ -1,9 +1,10 @@
 package cromwell.backend.google.pipelines.batch
 
 import cromwell.backend.google.pipelines.batch.io.{GcpBatchAttachedDisk, GcpBatchWorkingDisk}
+import cromwell.backend.standard.StandardCachingActorHelper
+import cromwell.core.labels.Labels
 //import cromwell.backend.google.pipelines.common.WorkflowOptionKeys
 //import cromwell.backend.google.pipelines.common.PipelinesApiMetadataKeys
-import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.Path
 
@@ -37,6 +38,27 @@ trait GcpBatchJobCachingActorHelper extends StandardCachingActorHelper {
 
   lazy val batchAttributes: GcpBatchConfigurationAttributes = batchConfiguration.batchAttributes
 
+  lazy val defaultLabels: Labels = {
+    val workflow = jobDescriptor.workflowDescriptor
+    val call = jobDescriptor.taskCall
+    val subWorkflow = workflow.callable
+    val subWorkflowLabels = if (!subWorkflow.equals(workflow.rootWorkflow))
+      Labels("cromwell-sub-workflow-name" -> subWorkflow.name)
+    else
+      Labels.empty
+
+    val alias = call.localName
+    val aliasLabels = if (!alias.equals(call.callable.name))
+      Labels("wdl-call-alias" -> alias)
+    else
+      Labels.empty
+
+    Labels(
+      "cromwell-workflow-id" -> s"cromwell-${workflow.rootWorkflowId}",
+      "wdl-task-name" -> call.callable.name
+    ) ++ subWorkflowLabels ++ aliasLabels
+  }
+
 
   //lazy val configuration: GcpBatchConfiguration = initializationData.configuration
 
@@ -60,5 +82,10 @@ trait GcpBatchJobCachingActorHelper extends StandardCachingActorHelper {
 
   }
   */
+
+  lazy val originalLabels: Labels = defaultLabels
+
+  lazy val backendLabels: Seq[GcpLabel] = GcpLabels.safeLabels(originalLabels.asTuple: _*)
+
 
 }

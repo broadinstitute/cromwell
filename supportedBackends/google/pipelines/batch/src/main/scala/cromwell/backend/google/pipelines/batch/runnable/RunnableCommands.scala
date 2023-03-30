@@ -1,8 +1,8 @@
 package cromwell.backend.google.pipelines.batch.runnable
 
-import java.util.UUID
-import akka.http.scaladsl.model.ContentType
-import common.util.StringUtil._
+//import java.util.UUID
+//import akka.http.scaladsl.model.ContentType
+//import common.util.StringUtil._
 
 import scala.concurrent.duration._
 import mouse.all._
@@ -14,11 +14,11 @@ import cromwell.backend.google.pipelines.common.action.ActionUtils._
 
 import cromwell.filesystems.gcs.RequesterPaysErrors._
 
-import org.apache.commons.codec.binary.Base64
-import org.apache.commons.text.StringEscapeUtils
+//import org.apache.commons.codec.binary.Base64
+//import org.apache.commons.text.StringEscapeUtils
 
-import java.nio.charset.StandardCharsets
-import scala.concurrent.duration._
+//import java.nio.charset.StandardCharsets
+//import scala.concurrent.duration._
 
 object RunnableCommands {
   implicit val waitBetweenRetries: FiniteDuration = 5.seconds

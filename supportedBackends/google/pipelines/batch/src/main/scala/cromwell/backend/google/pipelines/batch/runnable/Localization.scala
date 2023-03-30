@@ -1,28 +1,28 @@
 package cromwell.backend.google.pipelines.batch.runnable
 
-import cloud.nio.impl.drs.DrsConfig
-import com.typesafe.config.ConfigFactory
-import com.google.cloud.batch.v1.{Runnable, Volume}
+//import cloud.nio.impl.drs.DrsConfig
+//import com.typesafe.config.ConfigFactory
+//import com.google.cloud.batch.v1.{Runnable, Volume}
 
-import cromwell.backend.google.pipelines.batch.runnable.RunnableCommands.localizeFile
-import cromwell.backend.google.pipelines.common.action.ActionLabels._
-import cromwell.backend.google.pipelines.batch.GcpBatchConfigurationAttributes.GcsTransferConfiguration
-import cromwell.backend.google.pipelines.batch.GcpBatchFileInput
-import cromwell.backend.google.pipelines.batch.GcpBatchJobPaths._
-import cromwell.backend.google.pipelines.batch.GcpBatchRequestFactory.CreatePipelineParameters
-import cromwell.backend.google.pipelines.batch.BatchParameterConversions._
-import cromwell.backend.google.pipelines.batch.runnable.RunnableBuilder.{EnhancedRunnable, cloudSdkShellAction}
-import cromwell.backend.google.pipelines.batch.runnable.RunnableCommands._
+//import cromwell.backend.google.pipelines.batch.runnable.RunnableCommands.localizeFile
+//import cromwell.backend.google.pipelines.common.action.ActionLabels._
+//import cromwell.backend.google.pipelines.batch.GcpBatchConfigurationAttributes.GcsTransferConfiguration
+//import cromwell.backend.google.pipelines.batch.GcpBatchFileInput
+//import cromwell.backend.google.pipelines.batch.GcpBatchJobPaths._
+//import cromwell.backend.google.pipelines.batch.GcpBatchRequestFactory.CreatePipelineParameters
+//import cromwell.backend.google.pipelines.batch.BatchParameterConversions._
+//import cromwell.backend.google.pipelines.batch.runnable.RunnableBuilder.{EnhancedRunnable, cloudSdkShellAction}
+//import cromwell.backend.google.pipelines.batch.runnable.RunnableCommands._
 
 
-import cromwell.core.path.Path
-import cromwell.filesystems.drs.DrsPath
-import scala.jdk.CollectionConverters._
+//import cromwell.core.path.Path
+//import cromwell.filesystems.drs.DrsPath
+//import scala.jdk.CollectionConverters._
 
 
 trait Localization {
 
-
+  /*
   def localizeActions(createPipelineParameters: CreatePipelineParameters, volumes: List[Volume])
                      (implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Runnable] = {
     val localizationLabel = Map(Key.Tag -> Value.Localization)
@@ -63,21 +63,26 @@ trait Localization {
     } else List[Runnable]()
 
     // Any "classic" PAPI v2 one-at-a-time localizations for non-GCS inputs.
-    val singletonLocalizations = createPipelineParameters.inputOutputParameters.fileInputParameters.flatMap(_.toRunnables(volumes).toList)
+    //val singletonLocalizations = createPipelineParameters.inputOutputParameters.fileInputParameters.flatMap(_.toRunnables(volumes).toList)
 
-    val localizations =
-      localizeGcsTransferLibrary ::
-        localizeGcsLocalizationScript :: runGcsLocalizationScript ::
-        drsLocalizationActions :::
-        localizeGcsDelocalizationScript ::
-        singletonLocalizations
+    val localizations = {
+      List (localizeGcsTransferLibrary, localizeGcsLocalizationScript, runGcsLocalizationScript) ++ drsLocalizationActions ++ List (localizeGcsDelocalizationScript)
+    }
+    //runGcsLocalizationScript
+        //drsLocalizationActions ::
+        //localizeGcsDelocalizationScript
+        //singletonLocalizations
 
     RunnableBuilder.annotateTimestampedActions("localization", Value.Localization)(localizations)
   }
+  */
 
 }
+
+
 object Localization {
 
+  /*
   def drsAction(manifestPath: Path,
                 volumes: List[Volume],
                 labels: Map[String, String],
@@ -93,6 +98,9 @@ object Localization {
     val drsCommand = manifestArg ++ requesterPaysArg
 
     val marthaEnv = DrsConfig.toEnv(drsConfig)
+
+    */
+    /*
     RunnableBuilder
       .withImage(drsDockerImage)
       .withCommand(drsCommand: _*)
@@ -100,4 +108,8 @@ object Localization {
       .setEnvironment(marthaEnv.asJava)
       .withLabels(labels)
   }
+  */
+
+  //}
+
 }

@@ -3,6 +3,7 @@ package cromwell.backend.google.pipelines.batch
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.path.Path
 import wom.runtime.WomOutputRuntimeExtractor
+//import cromwell.backend.google.pipelines.batch.GcpLabel
 import cromwell.backend.google.pipelines.batch.io.GcpBatchAttachedDisk
 import cromwell.backend.google.pipelines.batch.GcpBatchConfigurationAttributes.VirtualPrivateCloudConfiguration
 
@@ -70,7 +71,7 @@ object GcpBatchRequestFactory {
                                       inputOutputParameters: InputOutputParameters,
                                       projectId: String,
                                       computeServiceAccount: String,
-                                      //googleLabels: Seq[GoogleLabel],
+                                      googleLabels: Seq[GcpLabel],
                                       preemptible: Boolean,
                                       pipelineTimeout: FiniteDuration,
                                       jobShell: String,

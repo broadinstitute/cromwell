@@ -65,7 +65,6 @@ import mouse.all._
 import org.apache.commons.io.output.ByteArrayOutputStream
 import org.apache.commons.csv.{CSVFormat, CSVPrinter}
 
-import cromwell.backend.google.pipelines.common.GoogleLabels
 import scala.util.control.NoStackTrace
 //import java.io.OutputStreamWriter
 import java.io.{FileNotFoundException, OutputStreamWriter}
@@ -543,7 +542,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
 
   private def createPipelineParameters(inputOutputParameters: InputOutputParameters,
-                                       //customLabels: Seq[GoogleLabel],
+                                       customLabels: Seq[GcpLabel],
                                       ): CreatePipelineParameters = {
     standardParams.backendInitializationDataOption match {
       case Some(data: GcpBackendInitializationData) =>
@@ -631,7 +630,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           inputOutputParameters = inputOutputParameters,
           projectId = googleProject(jobDescriptor.workflowDescriptor),
           computeServiceAccount = computeServiceAccount(jobDescriptor.workflowDescriptor),
-          //googleLabels = backendLabels ++ customLabels,
+          googleLabels = backendLabels ++ customLabels,
           preemptible = preemptible,
           pipelineTimeout = batchConfiguration.pipelineTimeout,
           jobShell = batchConfiguration.jobShell,
@@ -867,9 +866,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     val runBatchResponse = for {
       //_ <- evaluateRuntimeAttributes
       _ <- uploadScriptFile()
-      customLabels <- Future.fromTry(GoogleLabels.fromWorkflowOptions(workflowDescriptor.workflowOptions))
+      customLabels <- Future.fromTry(GcpLabels.fromWorkflowOptions(workflowDescriptor.workflowOptions))
       jesParameters <- generateInputOutputParameters
-      createParameters = createPipelineParameters(jesParameters)
+      createParameters = createPipelineParameters(jesParameters, customLabels)
       drsLocalizationManifestCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.DrsLocalizationManifestName
       _ <- uploadDrsLocalizationManifest(createParameters, drsLocalizationManifestCloudPath)
       gcsTransferConfiguration = initializationData.gcpBatchConfiguration.batchAttributes.gcsTransferConfiguration
@@ -1127,9 +1126,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       }
     }
   }
-
-
-
 
 
 

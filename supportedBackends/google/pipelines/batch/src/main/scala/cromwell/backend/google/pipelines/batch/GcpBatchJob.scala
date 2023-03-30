@@ -84,6 +84,7 @@ final case class GcpBatchJob (
 
   private def createRunnable(dockerImage: String, entryPoint: String, command: String): Runnable = {
     val runnable = Runnable.newBuilder.setContainer((Container.newBuilder.setImageUri(dockerImage).setEntrypoint(entryPoint).addCommands("-c").addCommands(command).build)).build
+
     runnable
   }
 

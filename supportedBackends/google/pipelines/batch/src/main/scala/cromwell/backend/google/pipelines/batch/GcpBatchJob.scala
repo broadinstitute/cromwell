@@ -42,6 +42,8 @@ final case class GcpBatchJob (
     .create(ImmutableMap
       .of(user_agent_header, customUserAgentValue))
 
+  private val cloudSdkImage = "gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine"
+
   private lazy val batchSettings = BatchServiceSettings.newBuilder.setHeaderProvider(headerProvider).build
 
   lazy val batchServiceClient = BatchServiceClient.create(batchSettings)
@@ -66,6 +68,10 @@ final case class GcpBatchJob (
   //private val bootDiskSize = runtimeAttributes.bootDiskSize
   private val noAddress = runtimeAttributes.noAddress
 
+  println(f"command script container path ${jobSubmission.createParameters.commandScriptContainerPath}")
+  println(f"cloud workflow root ${jobSubmission.createParameters.cloudWorkflowRoot}")
+  println(f"all parameters ${jobSubmission.createParameters.allParameters}")
+
   // parse preemption value and set value for Spot. Spot is replacement for preemptible
   val spotModel = toProvisioningModel(runtimeAttributes.preemptible)
 
@@ -76,8 +82,9 @@ final case class GcpBatchJob (
   // Parse Service Account
   val sa = batchAttributes.computeServiceAccount
 
-  private def createRunnable(dockerImage: String, entryPoint: String): Runnable = {
-    val runnable = Runnable.newBuilder.setContainer((Container.newBuilder.setImageUri(dockerImage).setEntrypoint(entryPoint).addCommands("-c").addCommands(gcpBatchCommand).build)).build
+  private def createRunnable(dockerImage: String, entryPoint: String, command: String): Runnable = {
+    val runnable = Runnable.newBuilder.setContainer((Container.newBuilder.setImageUri(dockerImage).setEntrypoint(entryPoint).addCommands("-c").addCommands(command).build)).build
+
     runnable
   }
 
@@ -131,9 +138,10 @@ final case class GcpBatchJob (
   }
 
 
-  private def createTaskSpec(runnable: Runnable, computeResource: ComputeResource, retryCount: Int, durationInSeconds: Long) = {
+  private def createTaskSpec(runnableLocalization: Runnable, runnable: Runnable, computeResource: ComputeResource, retryCount: Int, durationInSeconds: Long) = {
     TaskSpec
       .newBuilder
+      .addRunnables(runnableLocalization)
       .addRunnables(runnable)
       .setComputeResource(computeResource)
       .setMaxRetryCount(retryCount)
@@ -157,6 +165,7 @@ final case class GcpBatchJob (
       .newBuilder
       .setLocation(locationPolicy)
       .setNetwork(networkPolicy)
+      .putLabels("cromwell-workflow-id", jobSubmission.workflowId.toString)
       .setServiceAccount(serviceAccount)
       .addInstances(InstancePolicyOrTemplate
         .newBuilder
@@ -168,12 +177,15 @@ final case class GcpBatchJob (
   def submitJob(): Unit = {
 
     try {
-      val runnable = createRunnable(dockerImage = jobSubmission.gcpBatchParameters.runtimeAttributes.dockerImage, entryPoint = entryPoint)
+      //val image = gcsTransferLibraryContainerPath
+      //val gcsTransferLibraryContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
+      val runnableLocalization = createRunnable(dockerImage = cloudSdkImage, entryPoint = entryPoint, command = "hello")
+      val runnable = createRunnable(dockerImage = jobSubmission.gcpBatchParameters.runtimeAttributes.dockerImage, entryPoint = entryPoint, command = gcpBatchCommand)
 
       val networkInterface = createNetworkInterface(noAddress)
       val networkPolicy = createNetworkPolicy(networkInterface)
       val computeResource = createComputeResource(cpuCores, memory, gcpBootDiskSizeMb)
-      val taskSpec = createTaskSpec(runnable, computeResource, retryCount, durationInSeconds)
+      val taskSpec = createTaskSpec(runnable, runnableLocalization, computeResource, retryCount, durationInSeconds)
       val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
       val instancePolicy = createInstancePolicy(spotModel, accelerators)
       val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
@@ -184,8 +196,6 @@ final case class GcpBatchJob (
         .setAllocationPolicy(allocationPolicy)
         .putLabels("submitter", "cromwell") // label to signify job submitted by cromwell for larger tracking purposes within GCP batch
         .putLabels("cromwell-workflow-id", jobSubmission.workflowId.toString) // label to make it easier to match Cromwell workflows with multiple GCP batch jobs
-        .putLabels("env", "testing")
-        .putLabels("type", "script")
         .setLogsPolicy(LogsPolicy
           .newBuilder
           .setDestination(Destination

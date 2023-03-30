@@ -13,7 +13,7 @@ import spray.json.{JsObject, JsString}
 import scala.util.{Failure, Success, Try}
 import scala.util.control.NoStackTrace
 
-final case class GoogleLabel(key: String, value: String)
+final case class GcpLabel(key: String, value: String)
 
 object GcpLabels {
 
@@ -67,23 +67,23 @@ object GcpLabels {
   }
 
 
-  def safeLabels(values: (String, String)*): Seq[GoogleLabel] = {
-    def safeGoogleLabel(kvp: (String, String)): GoogleLabel = {
-      GoogleLabel(safeGoogleName(kvp._1), safeGoogleName(kvp._2, emptyAllowed = true))
+  def safeLabels(values: (String, String)*): Seq[GcpLabel] = {
+    def safeGoogleLabel(kvp: (String, String)): GcpLabel = {
+      GcpLabel(safeGoogleName(kvp._1), safeGoogleName(kvp._2, emptyAllowed = true))
     }
     values.map(safeGoogleLabel)
   }
 
-  def validateLabel(key: String, value: String): ErrorOr[GoogleLabel] = {
-    (validateLabelRegex(key), validateLabelRegex(value)).mapN { (validKey, validValue) => GoogleLabel(validKey, validValue)  }
+  def validateLabel(key: String, value: String): ErrorOr[GcpLabel] = {
+    (validateLabelRegex(key), validateLabelRegex(value)).mapN { (validKey, validValue) => GcpLabel(validKey, validValue)  }
   }
 
-  def fromWorkflowOptions(workflowOptions: WorkflowOptions): Try[Seq[GoogleLabel]] = {
+  def fromWorkflowOptions(workflowOptions: WorkflowOptions): Try[Seq[GcpLabel]] = {
 
-    def extractGoogleLabelsFromJsObject(jsObject: JsObject): Try[Seq[GoogleLabel]] = {
+    def extractGoogleLabelsFromJsObject(jsObject: JsObject): Try[Seq[GcpLabel]] = {
       val asErrorOr = jsObject.fields.toList.traverse {
         case (key: String, value: JsString) => GcpLabels.validateLabel(key, value.value)
-        case (key, other) => s"Bad label value type for '$key'. Expected simple string but got $other".invalidNel : ErrorOr[GoogleLabel]
+        case (key, other) => s"Bad label value type for '$key'. Expected simple string but got $other".invalidNel : ErrorOr[GcpLabel]
       }
 
       asErrorOr match {

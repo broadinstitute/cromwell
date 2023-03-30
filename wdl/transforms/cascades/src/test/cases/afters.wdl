@@ -1,4 +1,4 @@
-version development-1.1
+version development
 
 workflow afters {
   call foo { input: i = 5 }

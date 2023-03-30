@@ -1,4 +1,4 @@
-version development-1.1
+version development
 
 task in_n_out {
   input {

@@ -21,7 +21,6 @@ import cromwell.backend.google.pipelines.batch.GcpBatchRequestFactory._
 import cromwell.backend.google.pipelines.common.monitoring.CheckpointingConfiguration
 //import cromwell.backend.google.pipelines.common.monitoring.{CheckpointingConfiguration, MonitoringImage}
 import java.util.concurrent.ExecutionException
-import scala.concurrent.Await
 import cromwell.core.{ExecutionEvent, WorkflowId}
 import cromwell.backend.async.PendingExecutionHandle
 import cromwell.backend.async.ExecutionHandle
@@ -930,42 +929,40 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   }
 
   override def pollStatusAsync(handle: GcpBatchPendingExecutionHandle): Future[RunStatus] = {
-
     val jobId = handle.pendingJob.jobId
-
-    val job = handle.runInfo match {
-      case Some(actualJob) => actualJob
+    val jobF = handle.runInfo match {
+      case Some(actualJob) => Future.successful(actualJob)
       case None =>
-        throw new RuntimeException(
-          s"pollStatusAsync called but job not available. This should not happen. Job Id $jobId"
-        )
+        Future.failed {
+          new RuntimeException(
+            s"pollStatusAsync called but job not available. This should not happen. Job Id $jobId"
+          )
+        }
     }
 
-    log.info(s"started polling for $job with jobId $jobId")
-
-    //super[GcpBatchStatusRequestClient].pollStatus(workflowId, handle.pendingJob, jobTemp)
-
-    //temporary. Added to resolve issue with poll async starter before job submitted.
     implicit val timeout: Timeout = Timeout(60.seconds) //had to set to high amount for some reason.  Otherwise would not finish with low value
-    val futureResult = backendSingletonActor ? BatchJobAsk(jobId)
-    val result = Await.result(futureResult, timeout.duration).asInstanceOf[String]
-    log.info(result)
+    for {
+      job <- jobF
+      _ = log.info(s"started polling for $job with jobId $jobId")
+      //super[GcpBatchStatusRequestClient].pollStatus(workflowId, handle.pendingJob, jobTemp)
+      //temporary. Added to resolve issue with poll async starter before job submitted.
+      result <- (backendSingletonActor ? BatchJobAsk(jobId)).mapTo[String]
+      _ = log.info(result)
 
-    try {
-      val gcpBatchPoll = new GcpBatchJobGetRequest
-      val result = gcpBatchPoll.GetJob(jobId, batchAttributes.project, batchAttributes.location)
-      RunStatus.fromJobStatus(result)
-
-    }
-    catch {
-      case nfe: NotFoundException => //added to account for job not found errors because polling async happens before job is submitted
-        nfe.printStackTrace()
-        Future.successful(Running)
-      case ee: ExecutionException => //added to account for job not found errors because polling async happens before job is submitted
-        ee.printStackTrace()
-        Future.successful(Running)
-    }
-
+      status <- try {
+        val gcpBatchPoll = new GcpBatchJobGetRequest
+        val result = gcpBatchPoll.GetJob(jobId, batchAttributes.project, batchAttributes.location)
+        RunStatus.fromJobStatus(result)
+      }
+      catch {
+        case nfe: NotFoundException => //added to account for job not found errors because polling async happens before job is submitted
+          nfe.printStackTrace()
+          Future.successful(Running)
+        case ee: ExecutionException => //added to account for job not found errors because polling async happens before job is submitted
+          ee.printStackTrace()
+          Future.successful(Running)
+      }
+    } yield status
   }
 
   override def isTerminal(runStatus: RunStatus): Boolean = {

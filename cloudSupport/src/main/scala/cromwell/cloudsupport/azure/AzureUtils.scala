@@ -36,7 +36,12 @@ object AzureUtils {
 
     def authenticateWithDefaultSubscription = AzureResourceManager.authenticate(azureCredentialBuilder, azureProfile).withDefaultSubscription()
 
-    def azure = if (subscription.isDefined) authenticateWithSubscription(subscription.get) else authenticateWithDefaultSubscription
+    val subscriptionString = subscription match {
+      case None => ""
+      case Some(subscription) => subscription
+    }
+
+    def azure = if (subscription.isDefined) authenticateWithSubscription(subscriptionString) else authenticateWithDefaultSubscription
 
     def findAzureStorageAccount(storageAccountName: String) = azure.storageAccounts.list.asScala.find(_.name.equals(storageAccountName))
       .map(Success(_)).getOrElse(Failure(new Exception("Azure Storage Account not found.")))

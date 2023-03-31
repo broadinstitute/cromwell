@@ -1,13 +1,25 @@
 package cromwell.backend.google.pipelines.batch
 
 import akka.util.Timeout
+import akka.http.scaladsl.model.{ContentType, ContentTypes}
+//import cats.syntax.validated._
+import cats.implicits._
 import com.google.api.gax.rpc.NotFoundException
+import com.google.cloud.storage.contrib.nio.CloudStorageOptions
+import common.util.StringUtil._
+//import common.validation.ErrorOr._
+//import common.validation.Validation._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.backend._
-import cats.data.Validated.{Valid}
-
-
+import cromwell.core._
+import cromwell.backend.google.pipelines.batch.io._
+import cromwell.backend.google.pipelines.batch.GcpBatchJobPaths.GcsTransferLibraryName
+import cats.data.Validated.Valid
+//import common.validation.Validation._
+import cromwell.backend.google.pipelines.batch.GcpBatchRequestFactory._
+import cromwell.backend.google.pipelines.common.monitoring.CheckpointingConfiguration
+//import cromwell.backend.google.pipelines.common.monitoring.{CheckpointingConfiguration, MonitoringImage}
 import java.util.concurrent.ExecutionException
 import scala.concurrent.Await
 import cromwell.core.{ExecutionEvent, WorkflowId}
@@ -16,7 +28,7 @@ import cromwell.backend.async.ExecutionHandle
 import akka.actor.ActorRef
 import akka.pattern.AskSupport
 import cromwell.services.instrumentation.CromwellInstrumentation
-
+import cromwell.backend.google.pipelines.batch.GcpBatchConfigurationAttributes.GcsTransferConfiguration
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import GcpBatchBackendSingletonActor._
@@ -29,16 +41,90 @@ import cromwell.core.path.DefaultPathBuilder
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import wom.values.WomFile
+//import wom.types.{WomArrayType, WomSingleFileType}
+import wom.values._
+import wom.core.FullyQualifiedName
+//import cromwell.backend.io.DirectoryFunctions
+import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
+import cromwell.core.path.Path
 
-import scala.util.Success
+import scala.util.{Failure, Success, Try}
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.sra.SraPath
 
+import wom.format.MemorySize
+import wom.expression.{FileEvaluation, NoIoFunctionSet}
+import wom.callable.Callable.OutputDefinition
+import wdl4s.parser.MemoryUnit
+
+import scala.language.postfixOps
+import scala.io.Source
+import org.apache.commons.codec.digest.DigestUtils
+import mouse.all._
+import org.apache.commons.io.output.ByteArrayOutputStream
+import org.apache.commons.csv.{CSVFormat, CSVPrinter}
+
+import scala.util.control.NoStackTrace
+//import java.io.OutputStreamWriter
+import java.io.{FileNotFoundException, OutputStreamWriter}
+
+import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
+import cromwell.filesystems.gcs.GcsPathBuilder
+
+import java.nio.charset.Charset
+
 object GcpBatchAsyncBackendJobExecutionActor {
+
+  // GCS path regexes comments:
+  // - The (?s) option at the start makes '.' expression to match any symbol, including '\n'
+  // - All valid GCS paths start with gs://
+  // - Bucket names:
+  //  - The bucket name is matched inside a set of '()'s so it can be used later.
+  //  - The bucket name must start with a letter or number (https://cloud.google.com/storage/docs/naming)
+  //  - Then, anything that is not a '/' is part of the bucket name
+  // - Allow zero or more subdirectories, with (/[^/]+)*
+  // - Then, for files:
+  //  - There must be at least one '/', followed by some content in the file name.
+  // - Or, then, for directories:
+  //  - If we got this far, we already have a valid directory path. Allow it to optionally end with a `/` character.
+  private val gcsFilePathMatcher = "(?s)^gs://([a-zA-Z0-9][^/]+)(/[^/]+)*/[^/]+$".r
+  private val gcsDirectoryPathMatcher = "(?s)^gs://([a-zA-Z0-9][^/]+)(/[^/]+)*/?$".r
+
+
   val JesOperationIdKey = "__jes_operation_id"
 
   type GcpBatchPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, Run, RunStatus]
+
+  val plainTextContentType: Option[ContentType.WithCharset] = Option(ContentTypes.`text/plain(UTF-8)`)
+
+  private[batch] def groupParametersByGcsBucket[T <: BatchParameter](parameters: List[T]): Map[String, NonEmptyList[T]] = {
+    parameters.map { param =>
+      def pathTypeString = if (param.isFileParameter) "File" else "Directory"
+
+      val regexToUse = if (param.isFileParameter) gcsFilePathMatcher else gcsDirectoryPathMatcher
+
+      param.cloudPath.pathAsString match {
+        case regexToUse(bucket) => Map(bucket -> NonEmptyList.of(param))
+        case regexToUse(bucket, _) => Map(bucket -> NonEmptyList.of(param))
+        case other =>
+          throw new Exception(s"$pathTypeString path '$other' did not match the expected regex: ${regexToUse.pattern.toString}") with NoStackTrace
+      }
+    } combineAll
+  }
+
+  private[batch] def generateDrsLocalizerManifest(inputs: List[GcpBatchInput]): String = {
+    val outputStream = new ByteArrayOutputStream()
+    val csvPrinter = new CSVPrinter(new OutputStreamWriter(outputStream), CSVFormat.DEFAULT)
+    val drsFileInputs = inputs collect {
+      case drsInput@GcpBatchFileInput(_, drsPath: DrsPath, _, _) => (drsInput, drsPath)
+    }
+    drsFileInputs foreach { case (drsInput, drsPath) =>
+      csvPrinter.printRecord(drsPath.pathAsString, drsInput.containerPath.pathAsString)
+    }
+    csvPrinter.close(true)
+    outputStream.toString(Charset.defaultCharset())
+  }
 
 }
 
@@ -48,6 +134,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     with AskSupport
     with GcpBatchJobCachingActorHelper
     with GcpBatchStatusRequestClient
+    with GcpBatchReferenceFilesMappingOperations
     with CromwellInstrumentation {
 
   import GcpBatchAsyncBackendJobExecutionActor._
@@ -57,7 +144,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   lazy val workflowId: WorkflowId = jobDescriptor.workflowDescriptor.id
   //lazy val gcpBootDiskSizeGb = runtimeAttributes.bootDiskSize
   //println(f"$gcpBootDiskSizeGb LOOOOOOOOOOOK")
-
 
   /** The type of the run info when a job is started. */
   override type StandardAsyncRunInfo = Run
@@ -76,16 +162,20 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     */
   def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
 
+  protected lazy val cmdInput: GcpBatchFileInput =
+    GcpBatchFileInput(GcpBatchJobPaths.BatchExecParamName, gcpBatchCallPaths.script, DefaultPathBuilder.get(gcpBatchCallPaths.scriptFilename), workingDisk)
+
   private lazy val jobDockerImage = jobDescriptor.maybeCallCachingEligible.dockerHash
                                                  .getOrElse(runtimeAttributes.dockerImage)
 
   override def dockerImageUsed: Option[String] = Option(jobDockerImage)
+  //private var hasDockerCredentials: Boolean = false
 
   // Need to add previousRetryReasons and preemptible in order to get preemptible to work in the tests
   protected val previousRetryReasons: ErrorOr[PreviousRetryReasons] = PreviousRetryReasons.tryApply(jobDescriptor.prefetchedKvStoreEntries, jobDescriptor.key.attempt)
 
 
-   lazy val preemptible: Boolean = previousRetryReasons match {
+  lazy val preemptible: Boolean = previousRetryReasons match {
     case Valid(PreviousRetryReasons(p, _)) => p < maxPreemption
     case _ => false
   }
@@ -95,6 +185,35 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   val backendSingletonActor: ActorRef = standardParams.backendSingletonActorOption
                                                       .getOrElse(throw new RuntimeException("GCP Batch actor cannot exist without its backend singleton 2"))
+
+
+
+  /**
+   * Takes two arrays of remote and local WOM File paths and generates the necessary `PipelinesApiInput`s.
+   */
+  protected def  gcpBatchInputsFromWomFiles(inputName: String,
+                                                        remotePathArray: Seq[WomFile],
+                                                        localPathArray: Seq[WomFile],
+                                                        jobDescriptor: BackendJobDescriptor): Iterable[GcpBatchInput] = {
+    (remotePathArray zip localPathArray) flatMap {
+      case (remotePath: WomMaybeListedDirectory, localPath) =>
+        maybeListedDirectoryToPipelinesParameters(inputName, remotePath, localPath.valueString)
+      case (remotePath: WomUnlistedDirectory, localPath) =>
+        Seq(GcpBatchDirectoryInput(inputName, getPath(remotePath.valueString).get, DefaultPathBuilder.get(localPath.valueString), workingDisk))
+      case (remotePath: WomMaybePopulatedFile, localPath) =>
+        maybePopulatedFileToPipelinesParameters(inputName, remotePath, localPath.valueString)
+      case (remotePath, localPath) =>
+        Seq(GcpBatchFileInput(inputName, getPath(remotePath.valueString).get, DefaultPathBuilder.get(localPath.valueString), workingDisk))
+    }
+  }
+
+  private def maybePopulatedFileToPipelinesParameters(inputName: String, maybePopulatedFile: WomMaybePopulatedFile, localPath: String) = {
+    val secondaryFiles = maybePopulatedFile.secondaryFiles.flatMap({ secondaryFile =>
+      gcpBatchInputsFromWomFiles(secondaryFile.valueString, List(secondaryFile), List(relativeLocalizationPath(secondaryFile)), jobDescriptor)
+    })
+
+    Seq(GcpBatchFileInput(inputName, getPath(maybePopulatedFile.valueString).get, DefaultPathBuilder.get(localPath), workingDisk)) ++ secondaryFiles
+  }
 
 
   /**
@@ -113,6 +232,10 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     )
   }
 
+  lazy val localMonitoringImageScriptPath: Path =
+    DefaultPathBuilder.get(gcpBatchCallPaths.batchMonitoringImageScriptFilename)
+
+
   override protected def fileName(file: WomFile): WomFile = {
     file.mapFile(value =>
       getPath(value) match {
@@ -123,6 +246,170 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       }
     )
   }
+
+  override lazy val inputsToNotLocalize: Set[WomFile] = {
+    val localizeOptional = jobDescriptor.findInputFilesByParameterMeta {
+      case MetaValueElementObject(values) => values.get("localization_optional").contains(MetaValueElementBoolean(true))
+      case _ => false
+    }
+    val localizeSkipped = localizeOptional.filter(canSkipLocalize)
+    val localizeMapped = localizeSkipped.map(cloudResolveWomFile)
+    localizeSkipped ++ localizeMapped
+  }
+
+  private def canSkipLocalize(womFile: WomFile): Boolean = {
+    var canSkipLocalize = true
+    womFile.mapFile { value =>
+      getPath(value) match {
+        case Success(drsPath: DrsPath) =>
+          val gsUriOption = DrsResolver.getSimpleGsUri(drsPath).unsafeRunSync()
+          if (gsUriOption.isEmpty) {
+            canSkipLocalize = false
+          }
+        case _ => /* ignore */
+      }
+      value
+    }
+    canSkipLocalize
+  }
+
+  // The original implementation recursively finds all non directory files, in V2 we can keep directory as is
+  protected lazy val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.localInputs map {
+    case (key, womFile) =>
+      key -> womFile.collectAsSeq({
+        case womFile: WomFile if !inputsToNotLocalize.contains(womFile) => womFile
+      })
+  }
+
+  private lazy val gcsTransferLibrary =
+    Source.fromInputStream(Thread.currentThread.getContextClassLoader.getResourceAsStream("gcs_transfer.sh")).mkString
+
+
+  private def gcsLocalizationTransferBundle[T <: GcpBatchInput](gcsTransferConfiguration: GcsTransferConfiguration)(bucket: String, inputs: NonEmptyList[T]): String = {
+    val project = inputs.head.cloudPath.asInstanceOf[GcsPath].projectId
+    val maxAttempts = gcsTransferConfiguration.transferAttempts
+
+    // Split files and directories out so files can possibly benefit from a `gsutil -m cp -I ...` optimization
+    // on a per-container-parent-directory basis.
+    val (files, directories) = inputs.toList partition {
+      _.isInstanceOf[GcpBatchFileInput]
+    }
+
+    // Files with different names between cloud and container are not eligible for bulk copying.
+    val (filesWithSameNames, filesWithDifferentNames) = files partition { f =>
+      f.cloudPath.asInstanceOf[GcsPath].nioPath.getFileName.toString == f.containerPath.getFileName.toString
+    }
+
+    val filesByContainerParentDirectory = filesWithSameNames.groupBy(_.containerPath.parent.toString)
+    // Deduplicate any inputs since parallel localization can't deal with this.
+    val uniqueFilesByContainerParentDirectory = filesByContainerParentDirectory map { case (p, fs) => p -> fs.toSet }
+
+    val filesWithSameNamesTransferBundles: List[String] = uniqueFilesByContainerParentDirectory.toList map { case (containerParent, filesWithSameParent) =>
+      val arrayIdentifier = s"files_to_localize_" + DigestUtils.md5Hex(bucket + containerParent)
+      val entries = filesWithSameParent.map(_.cloudPath) mkString("\"", "\"\n|  \"", "\"")
+
+      s"""
+         |# Localize files from source bucket '$bucket' to container parent directory '$containerParent'.
+         |$arrayIdentifier=(
+         |  "$project"   # project to use if requester pays
+         |  "$maxAttempts" # max transfer attempts
+         |  "${containerParent.ensureSlashed}" # container parent directory
+         |  $entries
+         |)
+         |
+         |localize_files "$${$arrayIdentifier[@]}"
+       """.stripMargin
+    }
+
+    val filesWithDifferentNamesTransferBundles = filesWithDifferentNames map { f =>
+      val arrayIdentifier = s"singleton_file_to_localize_" + DigestUtils.md5Hex(f.cloudPath.pathAsString + f.containerPath.pathAsString)
+      s"""
+         |# Localize singleton file '${f.cloudPath.pathAsString}' to '${f.containerPath.pathAsString}'.
+         |$arrayIdentifier=(
+         |  "$project"
+         |  "$maxAttempts"
+         |  "${f.cloudPath}"
+         |  "${f.containerPath}"
+         |)
+         |
+         |localize_singleton_file "$${$arrayIdentifier[@]}"
+       """.stripMargin
+    }
+
+    // Only write a transfer bundle for directories if there are directories to be localized. Emptiness isn't a concern
+    // for files since there is always at least the command script to be localized.
+    val directoryTransferBundle = if (directories.isEmpty) "" else {
+      val entries = directories flatMap { i => List(i.cloudPath, i.containerPath) } mkString("\"", "\"\n|  \"", "\"")
+
+      val arrayIdentifier = s"directories_to_localize_" + DigestUtils.md5Hex(bucket)
+
+      s"""
+         |# Directories from source bucket '$bucket'.
+         |$arrayIdentifier=(
+         |  "$project"    # project to use if requester pays
+         |  "$maxAttempts" # max transfer attempts
+         |  $entries
+         |)
+         |
+         |localize_directories "$${$arrayIdentifier[@]}"
+       """.stripMargin
+    }
+
+    (directoryTransferBundle :: (filesWithSameNamesTransferBundles ++ filesWithDifferentNamesTransferBundles)) mkString "\n\n"
+  }
+
+  private def gcsDelocalizationTransferBundle[T <: GcpBatchOutput](transferConfiguration: GcsTransferConfiguration)(bucket: String, outputs: NonEmptyList[T]): String = {
+    val project = outputs.head.cloudPath.asInstanceOf[GcsPath].projectId
+    val maxAttempts = transferConfiguration.transferAttempts
+
+    val transferItems = outputs.toList.flatMap { output =>
+      val kind = output match {
+        case o: GcpBatchFileOutput if o.secondary => "file_or_directory" // if secondary the type is unknown
+        case _: GcpBatchFileOutput => "file" // a primary file
+        case _: GcpBatchDirectoryOutput => "directory" // a primary directory
+      }
+
+      val optional = Option(output) collectFirst { case o: GcpBatchFileOutput if o.secondary || o.optional => "optional" } getOrElse "required"
+      val contentType = output.contentType.map(_.toString).getOrElse("")
+
+      List(kind, output.cloudPath.toString, output.containerPath.toString, optional, contentType)
+    } mkString("\"", "\"\n|  \"", "\"")
+
+    val parallelCompositeUploadThreshold = jobDescriptor.workflowDescriptor.workflowOptions.getOrElse(
+      "parallel_composite_upload_threshold", transferConfiguration.parallelCompositeUploadThreshold)
+
+    // Use a digest as bucket names can contain characters that are not legal in bash identifiers.
+    val arrayIdentifier = s"delocalize_" + DigestUtils.md5Hex(bucket)
+    s"""
+       |# $bucket
+       |$arrayIdentifier=(
+       |  "$project"       # project
+       |  "$maxAttempts"   # max attempts
+       |  "$parallelCompositeUploadThreshold" # parallel composite upload threshold, will not be used for directory types
+       |  $transferItems
+       |)
+       |
+       |delocalize "$${$arrayIdentifier[@]}"
+      """.stripMargin
+  }
+
+  private def bracketTransfersWithMessages(activity: String)(transferBody: String): String = {
+    List(
+      s"timestamped_message '$activity script execution started...'",
+      transferBody,
+      s"timestamped_message '$activity script execution complete.'"
+    ) mkString "\n"
+  }
+
+  def uploadDrsLocalizationManifest(createPipelineParameters: CreatePipelineParameters, cloudPath: Path): Future[Unit] = {
+    val content = generateDrsLocalizerManifest(createPipelineParameters.inputOutputParameters.fileInputParameters)
+    if (content.nonEmpty)
+      asyncIo.writeAsync(cloudPath, content, Seq(CloudStorageOptions.withMimeType("text/plain")))
+    else
+      Future.unit
+  }
+
+
 
   def uploadScriptFile(): Future[Unit] = {
   commandScriptContents
@@ -136,18 +423,466 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           .script, _, Seq
           .empty)
     )
-}
+  }
+
+  protected val useReferenceDisks: Boolean = {
+    val optionName = WorkflowOptions.UseReferenceDisks.name
+    workflowDescriptor.workflowOptions.getBoolean(optionName) match {
+      case Success(value) => value
+      case Failure(OptionNotFoundException(_)) => false
+      case Failure(f) =>
+        // Should not happen, this case should have been screened for and fast-failed during workflow materialization.
+        log.error(f, s"Programmer error: unexpected failure attempting to read value for workflow option '$optionName' as a Boolean")
+        false
+    }
+  }
+
+
+  def getReferenceInputsToMountedPathsOpt(createPipelinesParameters: CreatePipelineParameters): Option[Map[GcpBatchInput, String]] = {
+    if (useReferenceDisks) {
+      batchAttributes
+        .referenceFileToDiskImageMappingOpt
+        .map(getReferenceInputsToMountedPathMappings(_, createPipelinesParameters.inputOutputParameters.fileInputParameters))
+    } else {
+      None
+    }
+  }
+
+
+
+  private def generateGcsLocalizationScript(inputs: List[GcpBatchInput],
+                                            referenceInputsToMountedPathsOpt: Option[Map[GcpBatchInput, String]])
+                                           (implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
+    // Generate a mapping of reference inputs to their mounted paths and a section of the localization script to
+    // "faux localize" these reference inputs with symlinks to their locations on mounted reference disks.
+    val referenceFilesLocalizationScript = {
+      val symlinkCreationCommandsOpt = referenceInputsToMountedPathsOpt map { referenceInputsToMountedPaths =>
+        referenceInputsToMountedPaths map {
+          case (input, absolutePathOnRefDisk) =>
+            s"mkdir -p ${input.containerPath.parent.pathAsString} && ln -s $absolutePathOnRefDisk ${input.containerPath.pathAsString}"
+        }
+      }
+
+      if (symlinkCreationCommandsOpt.exists(_.nonEmpty)) {
+        s"""
+           |# Faux-localizing reference files (if any) by creating symbolic links to the files located on the mounted reference disk
+           |${symlinkCreationCommandsOpt.get.mkString("\n")}
+           |""".stripMargin
+      } else {
+        "\n# No reference disks mounted / no symbolic links created since no matching reference files found in the inputs to this call.\n"
+      }
+    }
+
+    val maybeReferenceFilesLocalizationScript =
+      if (useReferenceDisks) {
+        referenceFilesLocalizationScript
+      } else {
+        "\n# No reference disks mounted since not requested in workflow options.\n"
+      }
+
+    val regularFilesLocalizationScript = {
+      val regularFiles = referenceInputsToMountedPathsOpt.map(maybeReferenceInputsToMountedPaths =>
+        inputs diff maybeReferenceInputsToMountedPaths.keySet.toList
+      ).getOrElse(inputs)
+      if (regularFiles.nonEmpty) {
+        val bundleFunction = (gcsLocalizationTransferBundle(gcsTransferConfiguration) _).tupled
+        generateGcsTransferScript(regularFiles, bundleFunction)
+      } else {
+        ""
+      }
+    }
+
+    val combinedLocalizationScript =
+      s"""
+         |$maybeReferenceFilesLocalizationScript
+         |
+         |$regularFilesLocalizationScript
+         |""".stripMargin
+
+    combinedLocalizationScript |> bracketTransfersWithMessages("Localization")
+  }
+
+  private def generateGcsDelocalizationScript(outputs: List[GcpBatchOutput])(implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
+    val bundleFunction = (gcsDelocalizationTransferBundle(gcsTransferConfiguration) _).tupled
+    generateGcsTransferScript(outputs, bundleFunction) |> bracketTransfersWithMessages("Delocalization")
+  }
+
+  private def generateGcsTransferScript[T <: BatchParameter](items: List[T], bundleFunction: ((String, NonEmptyList[T])) => String): String = {
+    val gcsItems = items collect { case i if i.cloudPath.isInstanceOf[GcsPath] => i }
+    groupParametersByGcsBucket(gcsItems) map bundleFunction mkString "\n"
+  }
+
+  def uploadGcsLocalizationScript(createPipelineParameters: CreatePipelineParameters,
+                                           cloudPath: Path,
+                                           transferLibraryContainerPath: Path,
+                                           gcsTransferConfiguration: GcsTransferConfiguration,
+                                           referenceInputsToMountedPathsOpt: Option[Map[GcpBatchInput, String]]): Future[Unit] = {
+    val content = generateGcsLocalizationScript(createPipelineParameters.inputOutputParameters.fileInputParameters, referenceInputsToMountedPathsOpt)(gcsTransferConfiguration)
+    asyncIo.writeAsync(cloudPath, s"source '$transferLibraryContainerPath'\n\n" + content, Seq(CloudStorageOptions.withMimeType("text/plain")))
+  }
+
+  def uploadGcsDelocalizationScript(createPipelineParameters: CreatePipelineParameters,
+                                             cloudPath: Path,
+                                             transferLibraryContainerPath: Path,
+                                             gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = {
+    val content = generateGcsDelocalizationScript(createPipelineParameters.inputOutputParameters.fileOutputParameters)(gcsTransferConfiguration)
+    asyncIo.writeAsync(cloudPath, s"source '$transferLibraryContainerPath'\n\n" + content, Seq(CloudStorageOptions.withMimeType("text/plain")))
+  }
+
+
+
+  /*
+  protected def uploadGcsDelocalizationScript(createPipelineParameters: CreatePipelineParameters,
+                                              cloudPath: Path,
+                                              transferLibraryContainerPath: Path,
+                                              gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = Future.successful(())
+
+  */
+
+
+
+  private def createPipelineParameters(inputOutputParameters: InputOutputParameters,
+                                       customLabels: Seq[GcpLabel],
+                                      ): CreatePipelineParameters = {
+    standardParams.backendInitializationDataOption match {
+      case Some(data: GcpBackendInitializationData) =>
+        val dockerKeyAndToken: Option[CreatePipelineDockerKeyAndToken] = for {
+          key <- data.privateDockerEncryptionKeyName
+          token <- data.privateDockerEncryptedToken
+        } yield CreatePipelineDockerKeyAndToken(key, token)
+
+        /*
+           * Right now this doesn't cost anything, because sizeOption returns the size if it was previously already fetched
+           * for some reason (expression evaluation for instance), but otherwise does not retrieve it and returns None.
+           * In CWL-land we tend to be aggressive in pre-fetching the size in order to be able to evaluate JS expressions,
+           * but less in WDL as we can get it last minute and on demand because size is a WDL function, whereas in CWL
+           * we don't inspect the JS to know if size is called and therefore always pre-fetch it.
+           *
+           * We could decide to call withSize before in which case we would retrieve the size for all files and have
+           * a guaranteed more accurate total size, but there might be performance impacts ?
+           */
+        val inputFileSize = Option(callInputFiles.values.flatMap(_.flatMap(_.sizeOption)).sum)
+
+        // Attempt to adjust the disk size by taking into account the size of input files
+        val adjustedSizeDisks = inputFileSize.map(size => MemorySize.apply(size.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB)) map { inputFileSizeInformation =>
+          runtimeAttributes.disks.adjustWorkingDiskWithNewMin(
+            inputFileSizeInformation,
+            jobLogger.info(s"Adjusted working disk size to ${inputFileSizeInformation.amount} GB to account for input files")
+          )
+        } getOrElse runtimeAttributes.disks
+
+        //val inputFilePaths = inputOutputParameters.jobInputParameters.map(_.cloudPath.pathAsString).toSet
+        /*
+        val referenceDisksToMount =
+          batchAttributes.referenceFileToDiskImageMappingOpt.map(getReferenceDisksToMount(_, inputFilePaths))
+
+        */
+
+        val workflowOptions = workflowDescriptor.workflowOptions
+
+
+        /*
+        val monitoringImage =
+          new MonitoringImage(
+            jobDescriptor = jobDescriptor,
+            workflowOptions = workflowOptions,
+            workflowPaths = workflowPaths,
+            commandDirectory = commandDirectory,
+            workingDisk = workingDisk,
+            localMonitoringImageScriptPath = localMonitoringImageScriptPath,
+          )
+
+        */
+
+        val checkpointingConfiguration =
+          new CheckpointingConfiguration(
+            jobDescriptor = jobDescriptor,
+            workflowPaths = workflowPaths,
+            commandDirectory = commandDirectory,
+            batchConfiguration.batchAttributes.checkpointingInterval
+          )
+
+        val enableSshAccess = workflowOptions.getBoolean(WorkflowOptionKeys.EnableSSHAccess).toOption.contains(true)
+
+        /*
+        val dockerImageCacheDiskOpt =
+          getDockerCacheDiskImageForAJob(
+            dockerImageToCacheDiskImageMappingOpt = jesAttributes.dockerImageToCacheDiskImageMappingOpt,
+            dockerImageAsSpecifiedByUser = runtimeAttributes.dockerImage,
+            dockerImageWithDigest = jobDockerImage,
+            jobLogger = jobLogger
+          )
+
+        */
+
+        // if the `memory_retry_multiplier` is not present in the workflow options there is no need to check whether or
+        // not the `stderr` file contained memory retry error keys
+        val retryWithMoreMemoryKeys: Option[List[String]] = memoryRetryFactor.flatMap(_ => memoryRetryErrorKeys)
+
+        CreatePipelineParameters(
+          jobDescriptor = jobDescriptor,
+          runtimeAttributes = runtimeAttributes,
+          dockerImage = jobDockerImage,
+          cloudWorkflowRoot = workflowPaths.workflowRoot,
+          cloudCallRoot = callRootPath,
+          commandScriptContainerPath = cmdInput.containerPath,
+          logGcsPath = gcpBatchLogPath,
+          inputOutputParameters = inputOutputParameters,
+          projectId = googleProject(jobDescriptor.workflowDescriptor),
+          computeServiceAccount = computeServiceAccount(jobDescriptor.workflowDescriptor),
+          googleLabels = backendLabels ++ customLabels,
+          preemptible = preemptible,
+          pipelineTimeout = batchConfiguration.pipelineTimeout,
+          jobShell = batchConfiguration.jobShell,
+          privateDockerKeyAndEncryptedToken = dockerKeyAndToken,
+          womOutputRuntimeExtractor = jobDescriptor.workflowDescriptor.outputRuntimeExtractor,
+          adjustedSizeDisks = adjustedSizeDisks,
+          virtualPrivateCloudConfiguration = batchAttributes.virtualPrivateCloudConfiguration,
+          retryWithMoreMemoryKeys = retryWithMoreMemoryKeys,
+          fuseEnabled = fuseEnabled(jobDescriptor.workflowDescriptor),
+          //referenceDisksForLocalizationOpt = referenceDisksToMount,
+          //monitoringImage = monitoringImage,
+          checkpointingConfiguration,
+          enableSshAccess = enableSshAccess,
+          //vpcNetworkAndSubnetworkProjectLabels = data.vpcNetworkAndSubnetworkProjectLabels,
+          //dockerImageCacheDiskOpt = isDockerImageCacheUsageRequested.option(dockerImageCacheDiskOpt).flatten
+        )
+      case Some(other) =>
+        throw new RuntimeException(s"Unexpected initialization data: $other")
+      case None =>
+        throw new RuntimeException("No pipelines API backend initialization data found?")
+    }
+  }
+
+  protected def relativePathAndAttachedDisk(path: String, disks: Seq[GcpBatchAttachedDisk]): (Path, GcpBatchAttachedDisk) = {
+    val absolutePath = DefaultPathBuilder.get(path) match {
+      case p if !p.isAbsolute => GcpBatchWorkingDisk.MountPoint.resolve(p)
+      case p => p
+    }
+
+    disks.find(d => absolutePath.startsWith(d.mountPoint)) match {
+      case Some(disk) => (disk.mountPoint.relativize(absolutePath), disk)
+      case None =>
+        throw new Exception(s"Absolute path $path doesn't appear to be under any mount points: ${disks.map(_.toString).mkString(", ")}")
+    }
+  }
+
+  protected def makeSafeReferenceName(referenceName: String): String = {
+    if (referenceName.length <= 127) referenceName else referenceName.md5Sum
+  }
+
+  // batch betav2
+  // De-localize the glob directory as a GcpBatchDirectoryOutput instead of using * pattern match
+  protected def generateGlobFileOutputs(womFile: WomGlobFile): List[GcpBatchOutput] = {
+    val globName = GlobFunctions.globName(womFile.value)
+    val globDirectory = globName + "/"
+    val globListFile = globName + ".list"
+    val gcsGlobDirectoryDestinationPath = callRootPath.resolve(globDirectory)
+    val gcsGlobListFileDestinationPath = callRootPath.resolve(globListFile)
+
+    val (_, globDirectoryDisk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
+
+    // We need both the glob directory and the glob list:
+    List(
+      // The glob directory:
+      GcpBatchFileOutput(makeSafeReferenceName(globDirectory), gcsGlobDirectoryDestinationPath, DefaultPathBuilder.get(globDirectory + "*"), globDirectoryDisk,
+        optional = false, secondary = false),
+      // The glob list file:
+      GcpBatchFileOutput(makeSafeReferenceName(globListFile), gcsGlobListFileDestinationPath, DefaultPathBuilder.get(globListFile), globDirectoryDisk,
+        optional = false, secondary = false)
+    )
+  }
+
+  lazy val batchMonitoringParamName: String = GcpBatchJobPaths.BatchMonitoringKey
+  lazy val localMonitoringLogPath: Path = DefaultPathBuilder.get(gcpBatchCallPaths.batchMonitoringLogFilename)
+  lazy val localMonitoringScriptPath: Path = DefaultPathBuilder.get(gcpBatchCallPaths.batchMonitoringScriptFilename)
+
+  lazy val monitoringScript: Option[GcpBatchFileInput] = {
+    gcpBatchCallPaths.workflowPaths.monitoringScriptPath map { path =>
+      GcpBatchFileInput(s"$batchMonitoringParamName-in", path, localMonitoringScriptPath, workingDisk)
+    }
+  }
+
+  private def generateInputs(jobDescriptor: BackendJobDescriptor): Set[GcpBatchInput] = {
+    // We need to tell PAPI about files that were created as part of command instantiation (these need to be defined
+    // as inputs that will be localized down to the VM). Make up 'names' for these files that are just the short
+    // md5's of their paths.
+    val writeFunctionFiles = instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f) } toMap
+
+    val writeFunctionInputs = writeFunctionFiles flatMap {
+      case (name, files) => gcpBatchInputsFromWomFiles(name, files.map(_.file), files.map(localizationPath), jobDescriptor)
+    }
+
+    val callInputInputs = callInputFiles flatMap {
+      case (name, files) => gcpBatchInputsFromWomFiles(name, files, files.map(relativeLocalizationPath), jobDescriptor)
+    }
+
+    (writeFunctionInputs ++ callInputInputs).toSet
+  }
+
+  // Simply create a PipelinesApiDirectoryOutput in v2 instead of globbing
+  protected def generateUnlistedDirectoryOutputs(unlistedDirectory: WomUnlistedDirectory, fileEvaluation: FileEvaluation): List[GcpBatchOutput] = {
+    val destination = callRootPath.resolve(unlistedDirectory.value.stripPrefix("/"))
+    val (relpath, disk) = relativePathAndAttachedDisk(unlistedDirectory.value, runtimeAttributes.disks)
+    val directoryOutput = GcpBatchDirectoryOutput(makeSafeReferenceName(unlistedDirectory.value), destination, relpath, disk, fileEvaluation.optional, fileEvaluation.secondary)
+    List(directoryOutput)
+  }
+
+  /*
+  private def maybePopulatedFileToPipelinesParameters(inputName: String, maybePopulatedFile: WomMaybePopulatedFile, localPath: String) = {
+    val secondaryFiles = maybePopulatedFile.secondaryFiles.flatMap({ secondaryFile =>
+      pipelinesApiInputsFromWomFiles(secondaryFile.valueString, List(secondaryFile), List(relativeLocalizationPath(secondaryFile)), jobDescriptor)
+    })
+
+    Seq(GcpBatchFileInput(inputName, getPath(maybePopulatedFile.valueString).get, DefaultPathBuilder.get(localPath), workingDisk)) ++ secondaryFiles
+  }*/
+
+  private def maybeListedDirectoryToPipelinesParameters(inputName: String, womMaybeListedDirectory: WomMaybeListedDirectory, localPath: String) = womMaybeListedDirectory match {
+    // If there is a path, simply localize as a directory
+    case WomMaybeListedDirectory(Some(path), _, _, _) =>
+      List(GcpBatchDirectoryInput(inputName, getPath(path).get, DefaultPathBuilder.get(localPath), workingDisk))
+
+    // If there is a listing, recurse and call pipelinesApiInputsFromWomFiles on all the listed files
+    case WomMaybeListedDirectory(_, Some(listing), _, _) if listing.nonEmpty =>
+      listing.flatMap({
+        case womFile: WomFile if isAdHocFile(womFile) =>
+          gcpBatchInputsFromWomFiles(makeSafeReferenceName(womFile.valueString), List(womFile), List(fileName(womFile)), jobDescriptor)
+        case womFile: WomFile =>
+          gcpBatchInputsFromWomFiles(makeSafeReferenceName(womFile.valueString), List(womFile), List(relativeLocalizationPath(womFile)), jobDescriptor)
+      })
+    case _ => List.empty
+  }
+
+  // betav2
+  def generateSingleFileOutputs(womFile: WomSingleFile, fileEvaluation: FileEvaluation): List[GcpBatchFileOutput] = {
+    val (relpath, disk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
+    // If the file is on a custom mount point, resolve it so that the full mount path will show up in the cloud path
+    // For the default one (cromwell_root), the expectation is that it does not appear
+    val mountedPath = if (!disk.mountPoint.isSamePathAs(GcpBatchWorkingDisk.Default.mountPoint)) disk.mountPoint.resolve(relpath) else relpath
+    // Normalize the local path (to get rid of ".." and "."). Also strip any potential leading / so that it gets appended to the call root
+    val normalizedPath = mountedPath.normalize().pathAsString.stripPrefix("/")
+    val destination = callRootPath.resolve(normalizedPath)
+    val jesFileOutput = GcpBatchFileOutput(makeSafeReferenceName(womFile.value), destination, relpath, disk, fileEvaluation.optional, fileEvaluation.secondary)
+    List(jesFileOutput)
+  }
+
+  protected def generateOutputs(jobDescriptor: BackendJobDescriptor): Set[GcpBatchOutput] = {
+    def evaluateFiles(output: OutputDefinition): List[FileEvaluation] = {
+      Try(
+        output.expression.evaluateFiles(jobDescriptor.localInputs, NoIoFunctionSet, output.womType).map(_.toList)
+      ).getOrElse(List.empty[FileEvaluation].validNel)
+        .getOrElse(List.empty)
+    }
+
+    def relativeFileEvaluation(evaluation: FileEvaluation): FileEvaluation = {
+      evaluation.copy(file = relativeLocalizationPath(evaluation.file))
+    }
+
+    val womFileOutputs = jobDescriptor.taskCall.callable.outputs.flatMap(evaluateFiles) map relativeFileEvaluation
+
+    val outputs: Seq[GcpBatchOutput] = womFileOutputs.distinct flatMap { fileEvaluation =>
+      fileEvaluation.file.flattenFiles flatMap {
+        case unlistedDirectory: WomUnlistedDirectory => generateUnlistedDirectoryOutputs(unlistedDirectory, fileEvaluation)
+        case singleFile: WomSingleFile => generateSingleFileOutputs(singleFile, fileEvaluation)
+        case globFile: WomGlobFile => generateGlobFileOutputs(globFile) // Assumes optional = false for globs.
+      }
+    }
+
+    val additionalGlobOutput = jobDescriptor.taskCall.callable.additionalGlob.toList.flatMap(generateGlobFileOutputs).toSet
+
+    outputs.toSet ++ additionalGlobOutput
+  }
+
+  protected def uploadGcsTransferLibrary(createPipelineParameters: CreatePipelineParameters,
+                                                  cloudPath: Path,
+                                                  gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = {
+
+    asyncIo.writeAsync(cloudPath, gcsTransferLibrary, Seq(CloudStorageOptions.withMimeType("text/plain")))
+  }
+
+
+
+  //private lazy val standardPaths = jobPaths.standardPaths
+
+  lazy val monitoringOutput: Option[GcpBatchFileOutput] = monitoringScript map { _ =>
+    GcpBatchFileOutput(s"$batchMonitoringParamName-out",
+      gcpBatchCallPaths.batchMonitoringLogPath, localMonitoringLogPath, workingDisk, optional = false, secondary = false,
+      contentType = plainTextContentType)
+  }
+
 
   // Primary entry point for cromwell to run GCP Batch job
   override def executeAsync(): Future[ExecutionHandle] = {
 
+    def generateInputOutputParameters: Future[InputOutputParameters] = Future.fromTry(Try {
+      val rcFileOutput = GcpBatchFileOutput(returnCodeFilename, returnCodeGcsPath, DefaultPathBuilder.get(returnCodeFilename), workingDisk, optional = false, secondary = false,
+        contentType = plainTextContentType)
+
+      val memoryRetryRCFileOutput = GcpBatchFileOutput(
+        memoryRetryRCFilename,
+        memoryRetryRCGcsPath,
+        DefaultPathBuilder.get(memoryRetryRCFilename),
+        workingDisk,
+        optional = true,
+        secondary = false,
+        contentType = plainTextContentType
+      )
+
+      case class StandardStream(name: String, f: StandardPaths => Path) {
+        val filename: String = f(gcpBatchCallPaths.standardPaths).name
+      }
+
+      val standardStreams = List(
+        StandardStream("stdout", _.output),
+        StandardStream("stderr", _.error)
+      ) map { s =>
+        GcpBatchFileOutput(s.name, returnCodeGcsPath.sibling(s.filename), DefaultPathBuilder.get(s.filename),
+          workingDisk, optional = false, secondary = false, uploadPeriod = batchAttributes.logFlushPeriod, contentType = plainTextContentType)
+      }
+
+      InputOutputParameters(
+        DetritusInputParameters(
+          executionScriptInputParameter = cmdInput,
+          monitoringScriptInputParameter = monitoringScript
+        ),
+        generateInputs(jobDescriptor).toList,
+        standardStreams ++ generateOutputs(jobDescriptor).toList,
+        DetritusOutputParameters(
+          monitoringScriptOutputParameter = monitoringOutput,
+          rcFileOutputParameter = rcFileOutput,
+          memoryRetryRCFileOutputParameter = memoryRetryRCFileOutput
+        ),
+        List.empty
+      )
+
+    })
+
+
+    println(jobDescriptor.fullyQualifiedInputs)
     val file = jobDescriptor.localInputs
     println(file.get("test"))
     val gcpBatchParameters = CreateGcpBatchParameters(jobDescriptor = jobDescriptor, runtimeAttributes = runtimeAttributes, batchAttributes = batchAttributes, dockerImage = jobDockerImage, projectId = batchAttributes.project, region = batchAttributes.location)
 
     val runBatchResponse = for {
+      //_ <- evaluateRuntimeAttributes
       _ <- uploadScriptFile()
-      _ = backendSingletonActor ! GcpBatchRequest(workflowId, jobName = jobTemp, gcpBatchCommand, gcpBatchParameters)
+      customLabels <- Future.fromTry(GcpLabels.fromWorkflowOptions(workflowDescriptor.workflowOptions))
+      jesParameters <- generateInputOutputParameters
+      createParameters = createPipelineParameters(jesParameters, customLabels)
+      drsLocalizationManifestCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.DrsLocalizationManifestName
+      _ <- uploadDrsLocalizationManifest(createParameters, drsLocalizationManifestCloudPath)
+      gcsTransferConfiguration = initializationData.gcpBatchConfiguration.batchAttributes.gcsTransferConfiguration
+      gcsTransferLibraryCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.GcsTransferLibraryName
+      transferLibraryContainerPath = createParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
+      _ <- uploadGcsTransferLibrary(createParameters, gcsTransferLibraryCloudPath, gcsTransferConfiguration)
+      gcsLocalizationScriptCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.GcsLocalizationScriptName
+      referenceInputsToMountedPathsOpt = getReferenceInputsToMountedPathsOpt(createParameters)
+      _ <- uploadGcsLocalizationScript(createParameters, gcsLocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration, referenceInputsToMountedPathsOpt)
+      gcsDelocalizationScriptCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.GcsDelocalizationScriptName
+      _ <- uploadGcsDelocalizationScript(createParameters, gcsDelocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration)
+      //_ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
+      //_ <- uploadGcsTransferLibrary(createParameters, gcsTransferLibraryCloudPath, gcsTransferConfiguration)
+      _ = backendSingletonActor ! GcpBatchRequest(workflowId, createParameters, jobName = jobTemp, gcpBatchCommand, gcpBatchParameters)
       runId = StandardAsyncJob(jobTemp)
 
     }
@@ -285,12 +1020,27 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override val gcpBatchActor: ActorRef = backendSingletonActor
 
+  /*
+  override def globParentDirectory(womGlobFile: WomGlobFile): Path = {
+    val (_, disk) = relativePathAndAttachedDisk(womGlobFile.value, runtimeAttributes.disks)
+    disk.mountPoint
+  }
+   */
+
   protected def googleProject(descriptor: BackendWorkflowDescriptor): String = {
     descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.GoogleProject, batchAttributes.project)
   }
 
+  protected def computeServiceAccount(descriptor: BackendWorkflowDescriptor): String = {
+    descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.GoogleComputeServiceAccount, batchAttributes.computeServiceAccount)
+  }
+
   protected def fuseEnabled(descriptor: BackendWorkflowDescriptor): Boolean = {
     descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.EnableFuse).toOption.getOrElse(batchAttributes.enableFuse)
+  }
+
+  protected def useDockerImageCache(descriptor: BackendWorkflowDescriptor): Boolean = {
+    descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.UseDockerImageCache).getOrElse(false)
   }
 
   override def cloudResolveWomFile(womFile: WomFile): WomFile = {
@@ -334,8 +1084,48 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     )
   }
 
+  def womFileToGcsPath(jesOutputs: Set[GcpBatchOutput])(womFile: WomFile): WomFile = {
+    womFile mapFile { path =>
+      jesOutputs collectFirst {
+        case jesOutput if jesOutput.name == makeSafeReferenceName(path) =>
+          val pathAsString = jesOutput.cloudPath.pathAsString
+          if (jesOutput.isFileParameter && !jesOutput.cloudPath.exists) {
+            // This is not an error if the path represents a `File?` optional output (the PAPI delocalization script
+            // should have failed if this file output was not optional but missing). Throw to produce the correct "empty
+            // optional" value for a missing optional file output.
+            throw new FileNotFoundException(s"GCS output file not found: $pathAsString")
+          }
+          pathAsString
+      } getOrElse {
+        GcsPathBuilder.validateGcsPath(path) match {
+          case _: ValidFullGcsPath => path
 
-
+          /*
+            * Strip the prefixes in RuntimeOutputMapping.prefixFilters from the path, one at a time.
+            * For instance
+            * file:///cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt will progressively become
+            *
+            * /cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
+            * bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
+            * call-A/file.txt
+            *
+            * This code is called as part of a path mapper that will be applied to the WOMified cwl.output.json.
+            * The cwl.output.json when it's being read by Cromwell from the bucket still contains local paths
+            * (as they were created by the cwl tool).
+            * In order to keep things working we need to map those local paths to where they were actually delocalized,
+            * which is determined in cromwell.backend.google.pipelines.v2beta.api.Delocalization.
+            */
+          case _ => (callRootPath /
+            RuntimeOutputMapping
+              .prefixFilters(workflowPaths.workflowRoot)
+              .foldLeft(path)({
+                case (newPath, prefix) => newPath.stripPrefix(prefix)
+              })
+            ).pathAsString
+        }
+      }
+    }
+  }
 
 
 

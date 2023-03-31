@@ -3,11 +3,12 @@ package cromwell.backend.google.pipelines.batch
 import akka.actor.{Actor, ActorLogging, Props}
 import cromwell.core.WorkflowId
 import scala.concurrent.ExecutionContext
+import cromwell.backend.google.pipelines.batch.GcpBatchRequestFactory.CreatePipelineParameters
 
 object GcpBatchBackendSingletonActor {
   def props(name: String) = Props(new GcpBatchBackendSingletonActor(name))
 
-  case class GcpBatchRequest(workflowId: WorkflowId, jobName: String, gcpBatchCommand: String, gcpBatchParameters: CreateGcpBatchParameters)
+  case class GcpBatchRequest(workflowId: WorkflowId, createParameters: CreatePipelineParameters,jobName: String, gcpBatchCommand: String, gcpBatchParameters: CreateGcpBatchParameters)
   case class BatchGetJob(jobId: String, projectId: String, region: String)
   case class BatchJobAsk(test: String)
 

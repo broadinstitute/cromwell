@@ -9,7 +9,7 @@ case class GcpBackendInitializationData(
                                          override val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder,
                                          gcpBatchConfiguration: GcpBatchConfiguration,
                                          //gcsCredentials: Credentials,
-                                         //privateDockerEncryptionKeyName: Option[String],
-                                         //privateDockerEncryptedToken: Option[String],
+                                         privateDockerEncryptionKeyName: Option[String],
+                                         privateDockerEncryptedToken: Option[String],
 
                                        ) extends StandardInitializationData(workflowPaths, runtimeAttributesBuilder, classOf[PipelinesApiExpressionFunctions] )

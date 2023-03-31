@@ -90,6 +90,7 @@ lazy val azureBlobFileSystem = (project in file("filesystems/blob"))
   .dependsOn(core)
   .dependsOn(core % "test->test")
   .dependsOn(common % "test->test")
+  .dependsOn(cloudSupport)
 
 lazy val awsS3FileSystem = (project in file("filesystems/s3"))
   .withLibrarySettings("cromwell-aws-s3filesystem", s3FileSystemDependencies)

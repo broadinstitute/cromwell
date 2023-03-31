@@ -24,7 +24,7 @@ import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
 import cromwell.api.model.{CallCacheDiff, Failed, HashDifference, SubmittedWorkflow, Succeeded, TerminalStatus, WaasDescription, WorkflowId, WorkflowMetadata, WorkflowStatus}
 import cromwell.cloudsupport.aws.AwsConfiguration
-import cromwell.cloudsupport.azure.AzureConfiguration
+import cromwell.cloudsupport.azure.{AzureUtils}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import io.circe.parser._
@@ -153,7 +153,11 @@ object Operations extends StrictLogging {
   }
 
   lazy val azureConfig: Config = CentaurConfig.conf.getConfig("azure")
-  lazy val blobContainerClient: BlobContainerClient = AzureConfiguration.apply(azureConfig)
+  val azureSubscription = azureConfig.getString("subscription")
+  val blobContainer = azureConfig.getString("container")
+  val azureEndpoint = azureConfig.getString("endpoint")
+  //NB: Centaur will throw an exception if it isn't able to authenticate with Azure blob storage via the local environment.
+  lazy val blobContainerClient: BlobContainerClient = AzureUtils.buildContainerClientFromLocalEnvironment(blobContainer, azureEndpoint, Option(azureSubscription)).get
 
   def submitWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = {
     new Test[SubmittedWorkflow] {

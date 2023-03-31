@@ -1,35 +1,28 @@
 package cromwell.cloudsupport.azure
 
-import com.typesafe.config.{Config}
-import com.azure.core.credential.AzureSasCredential
 import com.azure.core.management.AzureEnvironment
 import com.azure.core.management.profile.AzureProfile
 import com.azure.identity.DefaultAzureCredentialBuilder
 import com.azure.resourcemanager.AzureResourceManager
 import com.azure.resourcemanager.storage.models.StorageAccountKey
-import com.azure.storage.blob.sas.{BlobContainerSasPermission, BlobServiceSasSignatureValues}
 import com.azure.storage.blob.{BlobContainerClient, BlobContainerClientBuilder}
 import com.azure.storage.common.StorageSharedKeyCredential
 import com.google.common.net.UrlEscapers
 
 import java.net.URI
-import java.time.OffsetDateTime
 import scala.jdk.CollectionConverters.IterableHasAsScala
 import scala.util.{Failure, Success, Try}
 
-final case class AzureConfiguration private (subscription: String, endpoint: String, container: String) {
-
-}
-
-object AzureConfiguration {
-
-  def apply(config: Config): BlobContainerClient = {
-    val azureSubscription = config.getString("subscription")
-    val blobContainer = config.getString("container")
-    val azureEndpoint = config.getString("endpoint")
-
+object AzureUtils {
+  /**
+    * Generates a BlobContainerClient that can interact with the specified container. Authenticates using the local azure client running on the same machine.
+    * @param blobContainer     Name of the blob container. Looks something like "my-blob-container".
+    * @param azureEndpoint     Azure endpoint of the container. Looks something like https://somedomain.blob.core.windows.net.
+    * @param azureSubscription Azure subscription. A globally unique identifier. If not provided, a default subscription will be used.
+    * @return A blob container client capable of interacting with the specified container.
+    */
+  def buildContainerClientFromLocalEnvironment(blobContainer: String, azureEndpoint: String, subscription : Option[String]): Try[BlobContainerClient] = {
     def parseURI(string: String): Try[URI] = Try(URI.create(UrlEscapers.urlFragmentEscaper().escape(string)))
-
     def parseStorageAccount(uri: URI): Try[String] = uri.getHost.split("\\.").find(_.nonEmpty)
       .map(Success(_)).getOrElse(Failure(new Exception("Could not parse storage account")))
 
@@ -41,7 +34,9 @@ object AzureConfiguration {
 
     def authenticateWithSubscription(sub: String) = AzureResourceManager.authenticate(azureCredentialBuilder, azureProfile).withSubscription(sub)
 
-    def azure = authenticateWithSubscription(azureSubscription)
+    def authenticateWithDefaultSubscription = AzureResourceManager.authenticate(azureCredentialBuilder, azureProfile).withDefaultSubscription()
+
+    def azure = subscription.map(authenticateWithSubscription(_)).getOrElse(authenticateWithDefaultSubscription)
 
     def findAzureStorageAccount(storageAccountName: String) = azure.storageAccounts.list.asScala.find(_.name.equals(storageAccountName))
       .map(Success(_)).getOrElse(Failure(new Exception("Azure Storage Account not found.")))
@@ -54,12 +49,6 @@ object AzureConfiguration {
         .buildClient()
     }
 
-    val bcsp = new BlobContainerSasPermission()
-      .setReadPermission(true)
-      .setCreatePermission(true)
-      .setListPermission(true)
-      .setWritePermission(true)
-
     def generateBlobContainerClient: Try[BlobContainerClient] = for {
       uri <- parseURI(azureEndpoint)
       configuredAccount <- parseStorageAccount(uri)
@@ -69,13 +58,8 @@ object AzureConfiguration {
       first = key.value
       sskc = new StorageSharedKeyCredential(configuredAccount, first)
       bcc = buildBlobContainerClient(sskc, azureEndpoint, blobContainer)
-      bsssv = new BlobServiceSasSignatureValues(OffsetDateTime.now.plusDays(1), bcsp)
-      asc = new AzureSasCredential(bcc.generateSas(bsssv))
     } yield bcc
 
-    if (generateBlobContainerClient.isFailure) {
-      throw new Exception("Failed to generate Blob Container Client.")
-    }
-    generateBlobContainerClient.get
+    generateBlobContainerClient
   }
 }

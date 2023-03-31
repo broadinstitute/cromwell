@@ -1,6 +1,8 @@
 package cromwell.backend.google.pipelines.batch
 
-import com.google.cloud.batch.v1.AllocationPolicy.{Accelerator, ProvisioningModel}
+import com.google.cloud.batch.v1.AllocationPolicy.{Accelerator, ProvisioningModel, Disk, AttachedDisk}
+import com.google.cloud.batch.v1.Volume
+import cromwell.backend.google.pipelines.batch.io.{DiskType, GcpBatchAttachedDisk, GcpBatchReferenceFilesDisk}
 import wom.format.MemorySize
 
 trait BatchUtilityConversions {
@@ -27,6 +29,52 @@ trait BatchUtilityConversions {
     case 1 => ProvisioningModel.SPOT
   }
 
+  def toDisks(disks: Seq[GcpBatchAttachedDisk]): List[AttachedDisk] = disks.map(toDisk).toList
+
+  def toMount(disk: GcpBatchAttachedDisk): Volume = {
+    val volume = Volume
+      .newBuilder
+      .setDeviceName(disk.name)
+      .setMountPath(disk.mountPoint.pathAsString)
+
+
+    disk match {
+      case _: GcpBatchReferenceFilesDisk =>
+        volume
+        .addMountOptions("async, rw")
+          .build
+      case _ =>
+        volume
+          .build
+    }
+  }
+
+  def toDisk(disk: GcpBatchAttachedDisk): AttachedDisk = {
+    val googleDisk = Disk
+      .newBuilder
+      .setSizeGb(disk.sizeGb.toLong)
+      .setType(toBatchDiskType(disk.diskType))
+      .build
+
+    val googleAttachedDisk = AttachedDisk
+      .newBuilder
+      .setDeviceName(disk.name)
+      .setNewDisk(googleDisk)
+      .build
+    googleAttachedDisk
+    //disk match {
+    //  case refDisk: GcpBatchReferenceFilesDisk =>
+    //    googleDisk.setSourceImage(refDisk.image)
+    //  case _ =>
+    //    googleDisk
+    //}
+  }
+
+  private def toBatchDiskType(diskType: DiskType) = diskType match {
+    case DiskType.HDD => "pd-standard"
+    case DiskType.SSD => "pd-ssd"
+    case DiskType.LOCAL => "local-ssd"
+  }
 
   def toVpcNetwork(batchAttributes: GcpBatchConfigurationAttributes): String = {
     batchAttributes.virtualPrivateCloudConfiguration.labelsOption.map { vpcNetworks =>
@@ -40,8 +88,8 @@ trait BatchUtilityConversions {
     }.getOrElse(s"projects/${batchAttributes.project}/regions/${batchAttributes.location}/subnetworks/default")
   }
 
-  def toBootDiskSizeMb(runtimeAttributes: GcpBatchRuntimeAttributes): Long = {
-    (runtimeAttributes.bootDiskSize * 1000).toLong
+  def convertGbToMib(runtimeAttributes: GcpBatchRuntimeAttributes): Long = {
+    (runtimeAttributes.bootDiskSize * 953.7).toLong
   }
 
 

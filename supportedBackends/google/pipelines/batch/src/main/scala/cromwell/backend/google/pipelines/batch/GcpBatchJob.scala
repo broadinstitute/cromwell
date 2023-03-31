@@ -1,4 +1,5 @@
-package cromwell.backend.google.pipelines.batch
+package cromwell.backend.google.pipelines
+package batch
 import com.google.api.gax.rpc.{FixedHeaderProvider, HeaderProvider}
 import com.google.cloud.batch.v1.AllocationPolicy.Accelerator
 //import com.google.cloud.batch.v1.AllocationPolicy._
@@ -11,8 +12,10 @@ import com.google.protobuf.Duration
 import com.google.cloud.batch.v1.LogsPolicy.Destination
 import com.google.common.collect.ImmutableMap
 import java.util.concurrent.TimeUnit
+//import scala.collection.JavaConverters._
+import java.lang.Iterable
 import org.slf4j.{Logger, LoggerFactory}
-//import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters._
 
 
 final case class GcpBatchJob (
@@ -31,11 +34,10 @@ final case class GcpBatchJob (
   private val durationInSeconds: Long = 3600
   private val taskCount: Long = 1
   private val gcpBatchCommand: String = jobSubmission.gcpBatchCommand
+  println(runtimeAttributes.disks.toString + " DISKS!!!")
   private val vpcNetwork: String = toVpcNetwork(batchAttributes)
   private val vpcSubnetwork: String = toVpcSubnetwork(batchAttributes)
-  private val gcpBootDiskSizeMb = toBootDiskSizeMb(runtimeAttributes)
-
-
+  private val gcpBootDiskSizeMb = convertGbToMib(runtimeAttributes)
   // set user agent to cromwell so requests can be differentiated on batch
   private val user_agent_header = "user-agent"
   private val customUserAgentValue = "cromwell"
@@ -63,10 +65,6 @@ final case class GcpBatchJob (
   // convert memory to MiB for Batch
   private val memory = toMemMib(jobSubmission.gcpBatchParameters.runtimeAttributes.memory)
 
-
-  //private val bootDiskSize = runtimeAttributes.bootDiskSize
- // private val noAddress = runtimeAttributes.noAddress
-
   // parse preemption value and set value for Spot. Spot is replacement for preemptible
   val spotModel = toProvisioningModel(jobSubmission.gcpBatchParameters.runtimeAttributes.preemptible)
 
@@ -89,17 +87,17 @@ final case class GcpBatchJob (
   }
 
 
-  private def createInstancePolicy(spotModel: ProvisioningModel, accelerators: Option[Accelerator.Builder], attachedDisk: AttachedDisk) = {
+  private def createInstancePolicy(spotModel: ProvisioningModel, accelerators: Option[Accelerator.Builder], attachedDisk: Seq[AttachedDisk]) = {
 
-      //set GPU count to 0 if not included in workflow
+    val attachedDiskIterable: Iterable[AttachedDisk] = attachedDisk.asJava
+    //set GPU count to 0 if not included in workflow
       val gpuAccelerators = accelerators.getOrElse(Accelerator.newBuilder.setCount(0).setType(""))
-      println(attachedDisk.getDeviceName)
       val instancePolicy = InstancePolicy
         .newBuilder
         .setMachineType(machineType)
         .setProvisioningModel(spotModel)
-        //.addDisks(attachedDisk)
-        //.setMinCpuPlatform(cpuPlatform)
+        .addAllDisks(attachedDiskIterable)
+        .setMinCpuPlatform(cpuPlatform)
         .buildPartial()
 
       //add GPUs if GPU count is greater than 1
@@ -143,11 +141,10 @@ final case class GcpBatchJob (
       .build
   }
 
-  private def createNewDisk(): Disk.Builder = {
+  private def createNewDiskBuilder(diskSize: Int, diskType: String): Disk.Builder = {
     Disk.newBuilder
-      .setSizeGb(10)
-      .setType("pd-ssd")
-
+      .setSizeGb(diskSize.toLong)
+      .setType(diskType)
   }
 
   private def createNewAttachedDisk(disk: Disk.Builder, name: String): AttachedDisk = {
@@ -165,7 +162,7 @@ final case class GcpBatchJob (
       .newBuilder
       .addRunnables(runnable)
       .setComputeResource(computeResource)
-      //.addVolumes(volume)
+      .addVolumes(volume)
       .setMaxRetryCount(retryCount)
       .setMaxRunDuration(Duration
         .newBuilder
@@ -191,7 +188,6 @@ final case class GcpBatchJob (
         .newBuilder
         .setPolicy(instancePolicy)
         .build)
-      .build
   }
 
   def submitJob(): Unit = {
@@ -201,13 +197,14 @@ final case class GcpBatchJob (
 
       val networkInterface = createNetworkInterface(false)
       val networkPolicy = createNetworkPolicy(networkInterface)
-      val newDisk = createNewDisk()
+      val newDisk = createNewDiskBuilder(50, "pd-ssd")
       val newAttachedDisk = createNewAttachedDisk(newDisk, "Disk1")
+      val attachedDisks:Seq[AttachedDisk] = Seq(newAttachedDisk)
       val newVolume = createNewVolume(newAttachedDisk)
       val computeResource = createComputeResource(cpuCores, memory, gcpBootDiskSizeMb)
       val taskSpec = createTaskSpec(runnable, computeResource, retryCount, durationInSeconds, newVolume)
       val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
-      val instancePolicy = createInstancePolicy(spotModel, accelerators, newAttachedDisk)
+      val instancePolicy = createInstancePolicy(spotModel, accelerators, attachedDisks)
       val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
       val allocationPolicy = createAllocationPolicy(locationPolicy, instancePolicy.build, networkPolicy)
       val job = Job

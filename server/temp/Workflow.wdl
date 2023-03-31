@@ -12,7 +12,7 @@ task myTask {
 
     runtime {
       docker: "ubuntu:latest"
-      bootDiskSizeGb: 50
+      bootDiskSizeGb: 38.1469
     }
     output {
         String out = read_string(stdout())

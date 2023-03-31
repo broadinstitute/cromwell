@@ -18,7 +18,7 @@ object AzureUtils {
     * Generates a BlobContainerClient that can interact with the specified container. Authenticates using the local azure client running on the same machine.
     * @param blobContainer     Name of the blob container. Looks something like "my-blob-container".
     * @param azureEndpoint     Azure endpoint of the container. Looks something like https://somedomain.blob.core.windows.net.
-    * @param azureSubscription Azure subscription. A globally unique identifier. If not provided, a default subscription will be used.
+    * @param subscription      Azure subscription. A globally unique identifier. If not provided, a default subscription will be used.
     * @return A blob container client capable of interacting with the specified container.
     */
   def buildContainerClientFromLocalEnvironment(blobContainer: String, azureEndpoint: String, subscription : Option[String]): Try[BlobContainerClient] = {
@@ -36,7 +36,7 @@ object AzureUtils {
 
     def authenticateWithDefaultSubscription = AzureResourceManager.authenticate(azureCredentialBuilder, azureProfile).withDefaultSubscription()
 
-    def azure = subscription.map(authenticateWithSubscription(_)).getOrElse(authenticateWithDefaultSubscription)
+    def azure = if (subscription.isDefined) authenticateWithSubscription(subscription.toString) else authenticateWithDefaultSubscription
 
     def findAzureStorageAccount(storageAccountName: String) = azure.storageAccounts.list.asScala.find(_.name.equals(storageAccountName))
       .map(Success(_)).getOrElse(Failure(new Exception("Azure Storage Account not found.")))

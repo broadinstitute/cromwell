@@ -217,7 +217,7 @@ case class WSMBlobSasTokenGenerator(container: BlobContainerName,
 }
 
 case class NativeBlobSasTokenGenerator(container: BlobContainerName, endpoint: EndpointURL, subscription: Option[SubscriptionId] = None) extends BlobSasTokenGenerator {
-  private val azureSubscription : Option[String] = if (subscription.isEmpty) None else Option[String](subscription.toString)
+  private val azureSubscription : Option[String] = subscription.map(_ =>toString)
 
   private val bcsp = new BlobContainerSasPermission()
     .setReadPermission(true)

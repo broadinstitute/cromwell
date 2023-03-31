@@ -3,7 +3,7 @@ package batch
 import com.google.api.gax.rpc.{FixedHeaderProvider, HeaderProvider}
 import com.google.cloud.batch.v1.AllocationPolicy.Accelerator
 //import com.google.cloud.batch.v1.AllocationPolicy._
-import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, TaskGroup, TaskSpec, Volume}
+import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, ServiceAccount, TaskGroup, TaskSpec, Volume}
 import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy, ProvisioningModel, Disk, AttachedDisk}
 import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.GcpBatchRequest
 //import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy}
@@ -36,6 +36,9 @@ final case class GcpBatchJob (
   private val gcpBatchCommand: String = jobSubmission.gcpBatchCommand
   println(runtimeAttributes.disks.toString + " DISKS!!!")
   private val vpcNetwork: String = toVpcNetwork(batchAttributes)
+  private val vpcSubnetwork: String = toVpcSubnetwork(batchAttributes, runtimeAttributes)
+  private val gcpBootDiskSizeMb = toBootDiskSizeMb(runtimeAttributes)
+
   private val vpcSubnetwork: String = toVpcSubnetwork(batchAttributes)
   private val gcpBootDiskSizeMb = convertGbToMib(runtimeAttributes)
   // set user agent to cromwell so requests can be differentiated on batch
@@ -51,26 +54,33 @@ final case class GcpBatchJob (
 
   // set parent for metadata storage of job information
   lazy val parent = s"projects/${jobSubmission.gcpBatchParameters.projectId}/locations/${jobSubmission.gcpBatchParameters.region}"
+  val gcpSa = ServiceAccount.newBuilder.setEmail(batchAttributes.computeServiceAccount).build
 
   // make zones path
-  private val zones = toZonesPath(jobSubmission.gcpBatchParameters.runtimeAttributes.zones)
+  private val zones = toZonesPath(runtimeAttributes.zones)
 
   // convert to millicores for Batch
-  private val cpu = jobSubmission.gcpBatchParameters.runtimeAttributes.cpu
+  private val cpu = runtimeAttributes.cpu
   private val cpuCores = toCpuCores(cpu.toString.toLong)
 
-  private val cpuPlatform =  jobSubmission.gcpBatchParameters.runtimeAttributes.cpuPlatform.getOrElse("")
+  private val cpuPlatform =  runtimeAttributes.cpuPlatform.getOrElse("")
   println(cpuPlatform)
 
   // convert memory to MiB for Batch
-  private val memory = toMemMib(jobSubmission.gcpBatchParameters.runtimeAttributes.memory)
+  private val memory = toMemMib(runtimeAttributes.memory)
+
+  //private val bootDiskSize = runtimeAttributes.bootDiskSize
+  private val noAddress = runtimeAttributes.noAddress
 
   // parse preemption value and set value for Spot. Spot is replacement for preemptible
-  val spotModel = toProvisioningModel(jobSubmission.gcpBatchParameters.runtimeAttributes.preemptible)
+  val spotModel = toProvisioningModel(runtimeAttributes.preemptible)
 
   // Set GPU accelerators
-  private val accelerators = jobSubmission.gcpBatchParameters.runtimeAttributes
+  private val accelerators = runtimeAttributes
     .gpuResource.map(toAccelerator)
+
+  // Parse Service Account
+  val sa = batchAttributes.computeServiceAccount
 
   private def createRunnable(dockerImage: String, entryPoint: String): Runnable = {
     val runnable = Runnable.newBuilder.setContainer((Container.newBuilder.setImageUri(dockerImage).setEntrypoint(entryPoint).addCommands("-c").addCommands(gcpBatchCommand).build)).build
@@ -86,8 +96,7 @@ final case class GcpBatchJob (
       .build
   }
 
-
-  private def createInstancePolicy(spotModel: ProvisioningModel, accelerators: Option[Accelerator.Builder], attachedDisk: Seq[AttachedDisk]) = {
+  private def createInstancePolicy(spotModel: ProvisioningModel, accelerators: Option[Accelerator.Builder], attachedDisk: AttachedDisk) = {
 
     val attachedDiskIterable: Iterable[AttachedDisk] = attachedDisk.asJava
     //set GPU count to 0 if not included in workflow
@@ -120,10 +129,6 @@ final case class GcpBatchJob (
       .setSubnetwork(vpcSubnetwork)
       .build
   }
-    //.setNetwork("projects/batch-testing-350715/global/networks/default")
-    //.setSubnetwork("regions/us-central1/subnetworks/default")
-
-
 
   private def createNetworkPolicy(networkInterface: NetworkInterface): NetworkPolicy = {
     NetworkPolicy
@@ -179,15 +184,17 @@ final case class GcpBatchJob (
 
   }
 
-  private def createAllocationPolicy(locationPolicy: LocationPolicy,  instancePolicy: InstancePolicy, networkPolicy: NetworkPolicy) = {
+  private def createAllocationPolicy(locationPolicy: LocationPolicy,  instancePolicy: InstancePolicy, networkPolicy: NetworkPolicy, serviceAccount: ServiceAccount) = {
     AllocationPolicy
       .newBuilder
       .setLocation(locationPolicy)
       .setNetwork(networkPolicy)
+      .setServiceAccount(serviceAccount)
       .addInstances(InstancePolicyOrTemplate
         .newBuilder
         .setPolicy(instancePolicy)
         .build)
+      .build
   }
 
   def submitJob(): Unit = {
@@ -195,7 +202,7 @@ final case class GcpBatchJob (
     try {
       val runnable = createRunnable(dockerImage = jobSubmission.gcpBatchParameters.runtimeAttributes.dockerImage, entryPoint = entryPoint)
 
-      val networkInterface = createNetworkInterface(false)
+      val networkInterface = createNetworkInterface(noAddress)
       val networkPolicy = createNetworkPolicy(networkInterface)
       val newDisk = createNewDiskBuilder(50, "pd-ssd")
       val newAttachedDisk = createNewAttachedDisk(newDisk, "Disk1")

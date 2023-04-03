@@ -13,9 +13,9 @@ import com.google.cloud.batch.v1.LogsPolicy.Destination
 import com.google.common.collect.ImmutableMap
 import java.util.concurrent.TimeUnit
 //import scala.collection.JavaConverters._
-import java.lang.Iterable
+//import java.lang.Iterable
 import org.slf4j.{Logger, LoggerFactory}
-import scala.jdk.CollectionConverters._
+import collection.mutable
 
 
 final case class GcpBatchJob (

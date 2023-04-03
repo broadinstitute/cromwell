@@ -1,4 +1,4 @@
-name: directory_type_local
+name: directory_type_local_denied
 testFormat: workflowfailure
 tags: [localdockertest, "wdl_biscayne"]
 backends: [Local, LocalNoDocker]

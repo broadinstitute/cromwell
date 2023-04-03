@@ -5,7 +5,7 @@ backends: [Local, LocalNoDocker]
 
 files {
   workflow: wdl_biscayne/biscayne_prohibits_directory/directory_type.wdl
-  inputs: biscayne/biscayne_prohibits_directory/directory_type_local_inputs.json
+  inputs: wdl_biscayne/biscayne_prohibits_directory/directory_type_local_inputs.json
 }
 
 metadata {

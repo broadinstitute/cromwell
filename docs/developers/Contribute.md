@@ -8,13 +8,6 @@ First off, here are useful links:
 * Source on Github: [github.com/broadinstitute/cromwell](https://github.com/broadinstitute/cromwell/tree/develop/docs)
 * Builds on ReadTheDocs: [readthedocs.org/projects/cromwell](https://readthedocs.org/projects/cromwell/builds/)
 * How to build and view the documentation locally: [mkdocs.readthedocs.io](https://mkdocs.readthedocs.io/en/stable/#installation)
-* Public Google Docs - Table of Contents:  [drive.google.com/open?id=1myTVzWx5HG720nPBUAF9vE8XTacrzCW70RpgsjMnchM](https://drive.google.com/open?id=1myTVzWx5HG720nPBUAF9vE8XTacrzCW70RpgsjMnchM)
-
-### "needs docs"
-
-There are plenty of areas of the Cromwell documentation that need to be updated, improved, or added. Within the Cromwell repo on Github there are many issues labeled as ["needs docs"](https://github.com/broadinstitute/cromwell/issues?q=is%3Aopen+is%3Aissue+label%3A%22needs+docs%22), so feel free to start there. 
-
-If you would like to request additional documentation, you can create a [Github issue in the Cromwell repo](https://github.com/broadinstitute/cromwell/issues/new).
 
 ### Writing Tips
 

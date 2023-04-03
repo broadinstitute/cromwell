@@ -102,8 +102,6 @@ nav:
         - Horizontal Cromwell ("Horicromtal"): developers/bitesize/horicromtal.md
         - General Topics:
             - Simpletons: developers/bitesize/general/simpletons.md
-        - Continuous Integration (CI) / Continuous Delivery (CD): developers/bitesize/ci/CICD.md
-        - Travis Centaur: developers/bitesize/ci/travis_centaur.md
 
 theme: readthedocs
 
@@ -112,5 +110,5 @@ extra_css:
 extra_javascript:
     - js/extra.js
 
-copyright: Copyright &copy; 2019 <a href="https://broadinstitute.org">Broad Institute</a>
+copyright: Copyright &copy; 2023 <a href="https://broadinstitute.org">Broad Institute</a>
 # google_analytics: ['identifierID', 'URL.org']

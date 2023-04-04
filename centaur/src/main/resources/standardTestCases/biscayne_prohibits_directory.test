@@ -10,6 +10,5 @@ files {
 
 metadata {
   workflowName: directory_type
-  "outputs.directory_type.out.0": "foo text"
-  "outputs.directory_type.out.1": "foo text2"
+  status: Failed
 }

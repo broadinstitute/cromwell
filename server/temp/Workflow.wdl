@@ -3,7 +3,6 @@ workflow myWorkflow {
 }
 
 task myTask {
-
     command {
         echo "hello world"
     }

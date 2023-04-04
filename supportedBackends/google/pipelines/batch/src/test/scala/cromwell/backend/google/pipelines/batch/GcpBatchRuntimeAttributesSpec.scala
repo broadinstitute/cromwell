@@ -5,11 +5,9 @@ import cats.data.NonEmptyList
 import cromwell.backend.RuntimeAttributeDefinition
 import cromwell.backend.google.pipelines.batch.{GcpBatchConfiguration, GcpBatchRuntimeAttributes, GcpBatchTestConfig}
 import cromwell.backend.google.pipelines.batch.GcpBatchTestConfig.{batchAttributes, googleConfiguration, _}
-import cromwell.backend.validation.ContinueOnReturnCodeSet
 //import cromwell.backend.google.pipelines.batch.io.{DiskType, GcpBatchAttachedDisk}
 //import cromwell.backend.google.pipelines.batch.io.{DiskType, GcpBatchAttachedDisk, PipelinesApiWorkingDisk}
 //import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
-import cromwell.backend.google.pipelines.batch.io.{DiskType, GcpBatchWorkingDisk}
 import cromwell.core.WorkflowOptions
 import eu.timepit.refined.refineMV
 import org.scalatest.TestSuite
@@ -238,15 +236,12 @@ trait GcpBatchRuntimeAttributesSpecsMixin {
   val expectedDefaults = new GcpBatchRuntimeAttributes(
     refineMV(1),
     None,
-    None,
     Vector("us-central1-b", "us-central1-a"),
     0,
     10,
     MemorySize(2, MemoryUnit.GB),
-    Vector(GcpBatchWorkingDisk(DiskType.SSD, 10)),
     "ubuntu:latest",
     false,
-    ContinueOnReturnCodeSet(Set(0)),
     false,
     None,
     None

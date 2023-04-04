@@ -537,7 +537,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   */
 
 
-
+// TAG DISK
   private def createPipelineParameters(inputOutputParameters: InputOutputParameters,
                                        customLabels: Seq[GcpLabel],
                                       ): CreatePipelineParameters = {
@@ -568,12 +568,10 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           )
         } getOrElse runtimeAttributes.disks
 
-        //val inputFilePaths = inputOutputParameters.jobInputParameters.map(_.cloudPath.pathAsString).toSet
-        /*
+        val inputFilePaths = inputOutputParameters.jobInputParameters.map(_.cloudPath.pathAsString).toSet
+
         val referenceDisksToMount =
           batchAttributes.referenceFileToDiskImageMappingOpt.map(getReferenceDisksToMount(_, inputFilePaths))
-
-        */
 
         val workflowOptions = workflowDescriptor.workflowOptions
 
@@ -637,7 +635,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           virtualPrivateCloudConfiguration = batchAttributes.virtualPrivateCloudConfiguration,
           retryWithMoreMemoryKeys = retryWithMoreMemoryKeys,
           fuseEnabled = fuseEnabled(jobDescriptor.workflowDescriptor),
-          //referenceDisksForLocalizationOpt = referenceDisksToMount,
+          referenceDisksForLocalizationOpt = referenceDisksToMount,
           //monitoringImage = monitoringImage,
           checkpointingConfiguration,
           enableSshAccess = enableSshAccess,

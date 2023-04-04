@@ -67,11 +67,8 @@ object GcpBatchAttachedDisk {
 
 trait GcpBatchAttachedDisk {
   def name: String
-
   def diskType: DiskType
-
   def sizeGb: Int
-
   def mountPoint: Path
 }
 

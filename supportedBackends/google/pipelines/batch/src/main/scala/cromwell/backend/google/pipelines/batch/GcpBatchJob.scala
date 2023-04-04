@@ -1,4 +1,5 @@
-package cromwell.backend.google.pipelines.batch
+package cromwell.backend.google.pipelines
+package batch
 
 import com.google.api.gax.rpc.{FixedHeaderProvider, HeaderProvider}
 import com.google.cloud.batch.v1.AllocationPolicy.Accelerator
@@ -6,12 +7,21 @@ import com.google.cloud.batch.v1.AllocationPolicy.Accelerator
 import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy, ProvisioningModel}
 import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, ServiceAccount, TaskGroup, TaskSpec}
 //import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy}
+import com.google.api.gax.rpc.{FixedHeaderProvider, HeaderProvider}
+import com.google.cloud.batch.v1.AllocationPolicy.Accelerator
+import cromwell.backend.google.pipelines.batch.io.GcpBatchAttachedDisk
+import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, ServiceAccount, TaskGroup, TaskSpec, Volume}
+import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy, ProvisioningModel, AttachedDisk}
+import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.GcpBatchRequest
+import com.google.cloud.batch.v1.Runnable.Container
+import com.google.protobuf.Duration
 import com.google.cloud.batch.v1.LogsPolicy.Destination
 import com.google.cloud.batch.v1.Runnable.Container
 import com.google.common.collect.ImmutableMap
 import com.google.protobuf.Duration
+import java.util.concurrent.TimeUnit
+import scala.jdk.CollectionConverters._
 import org.slf4j.{Logger, LoggerFactory}
-//import scala.jdk.CollectionConverters._
 
 
 final case class GcpBatchJob (
@@ -23,6 +33,7 @@ final case class GcpBatchJob (
 
   private val batchAttributes = jobSubmission.gcpBatchParameters.batchAttributes
   private val runtimeAttributes = jobSubmission.gcpBatchParameters.runtimeAttributes
+  private val createParameters = jobSubmission.createParameters
 
   // VALUES HERE
   private val entryPoint = "/bin/sh"
@@ -32,8 +43,8 @@ final case class GcpBatchJob (
   private val gcpBatchCommand: String = jobSubmission.gcpBatchCommand
   private val vpcNetwork: String = toVpcNetwork(batchAttributes)
   private val vpcSubnetwork: String = toVpcSubnetwork(batchAttributes, runtimeAttributes)
-  private val gcpBootDiskSizeMb = toBootDiskSizeMb(runtimeAttributes)
-
+  private val allDisksToBeMounted: Seq[GcpBatchAttachedDisk] = createParameters.adjustedSizeDisks ++ createParameters.referenceDisksForLocalizationOpt.getOrElse(List.empty)
+  private val gcpBootDiskSizeMb = convertGbToMib(runtimeAttributes)
   // set user agent to cromwell so requests can be differentiated on batch
   private val user_agent_header = "user-agent"
   private val customUserAgentValue = "cromwell"
@@ -63,7 +74,6 @@ final case class GcpBatchJob (
   // convert memory to MiB for Batch
   private val memory = toMemMib(runtimeAttributes.memory)
 
-  //private val bootDiskSize = runtimeAttributes.bootDiskSize
   private val noAddress = runtimeAttributes.noAddress
 
   println(f"command script container path ${jobSubmission.createParameters.commandScriptContainerPath}")
@@ -95,16 +105,17 @@ final case class GcpBatchJob (
       .build
   }
 
-  private def createInstancePolicy(spotModel: ProvisioningModel, accelerators: Option[Accelerator.Builder]) = {
+  private def createInstancePolicy(spotModel: ProvisioningModel, accelerators: Option[Accelerator.Builder], attachedDisks: List[AttachedDisk]) = {
 
-      //set GPU count to 0 if not included in workflow
+    //val attachedDiskIterable: Iterable[AttachedDisk] = attachedDisk.asJava
+    //set GPU count to 0 if not included in workflow
       val gpuAccelerators = accelerators.getOrElse(Accelerator.newBuilder.setCount(0).setType(""))
-
       val instancePolicy = InstancePolicy
         .newBuilder
         .setMachineType(machineType)
         .setProvisioningModel(spotModel)
-        //.setMinCpuPlatform(cpuPlatform)
+        .addAllDisks(attachedDisks.asJava)
+        .setMinCpuPlatform(cpuPlatform)
         .buildPartial()
 
       //add GPUs if GPU count is greater than 1
@@ -132,15 +143,15 @@ final case class GcpBatchJob (
     NetworkPolicy
       .newBuilder
       .addNetworkInterfaces(0, networkInterface)
-      .build()
+      .build
   }
 
-
-  private def createTaskSpec(runnable: Runnable, computeResource: ComputeResource, retryCount: Int, durationInSeconds: Long) = {
+  private def createTaskSpec(runnable: Runnable, computeResource: ComputeResource, retryCount: Int, durationInSeconds: Long, volumes: List[Volume]) = {
     TaskSpec
       .newBuilder
       .addRunnables(runnable)
       .setComputeResource(computeResource)
+      .addAllVolumes(volumes.asJava)
       .setMaxRetryCount(retryCount)
       .setMaxRunDuration(Duration
         .newBuilder
@@ -171,48 +182,46 @@ final case class GcpBatchJob (
       .build
   }
 
-  def submitJob(): Job = {
-    //val image = gcsTransferLibraryContainerPath
-    //val gcsTransferLibraryContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
-    val runnable = createRunnable(dockerImage = jobSubmission.gcpBatchParameters.runtimeAttributes.dockerImage, entryPoint = entryPoint, command = gcpBatchCommand)
+def submitJob(): Job = {
+  //val image = gcsTransferLibraryContainerPath
+  //val gcsTransferLibraryContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
+  val runnable = createRunnable(dockerImage = jobSubmission.gcpBatchParameters.runtimeAttributes.dockerImage, entryPoint = entryPoint, command = gcpBatchCommand)
 
-    val networkInterface = createNetworkInterface(noAddress)
-    val networkPolicy = createNetworkPolicy(networkInterface)
-    val computeResource = createComputeResource(cpuCores, memory, gcpBootDiskSizeMb)
-    val taskSpec = createTaskSpec(runnable, computeResource, retryCount, durationInSeconds)
-    val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
-    val instancePolicy = createInstancePolicy(spotModel, accelerators)
-    val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
-    val allocationPolicy = createAllocationPolicy(locationPolicy, instancePolicy.build, networkPolicy, gcpSa)
-    val job = Job
+  val networkInterface = createNetworkInterface(noAddress)
+  val networkPolicy = createNetworkPolicy(networkInterface)
+  val allDisks = toDisks(allDisksToBeMounted)
+  val allVolumes = toVolumes(allDisksToBeMounted)
+  val computeResource = createComputeResource(cpuCores, memory, gcpBootDiskSizeMb)
+  val taskSpec = createTaskSpec(runnable, computeResource, retryCount, durationInSeconds, allVolumes)
+  val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
+  val instancePolicy = createInstancePolicy(spotModel, accelerators, allDisks)
+  val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
+  val allocationPolicy = createAllocationPolicy(locationPolicy, instancePolicy.build, networkPolicy, gcpSa)
+  val job = Job
+    .newBuilder
+    .addTaskGroups(taskGroup)
+    .setAllocationPolicy(allocationPolicy)
+    .putLabels("submitter", "cromwell") // label to signify job submitted by cromwell for larger tracking purposes within GCP batch
+    .putLabels("cromwell-workflow-id", jobSubmission.workflowId.toString) // label to make it easier to match Cromwell workflows with multiple GCP batch jobs
+    .setLogsPolicy(LogsPolicy
       .newBuilder
-      .addTaskGroups(taskGroup)
-      .setAllocationPolicy(allocationPolicy)
-      .putLabels("submitter", "cromwell") // label to signify job submitted by cromwell for larger tracking purposes within GCP batch
-      .putLabels("cromwell-workflow-id", jobSubmission.workflowId.toString) // label to make it easier to match Cromwell workflows with multiple GCP batch jobs
-      .setLogsPolicy(LogsPolicy
-        .newBuilder
-        .setDestination(Destination
-          .CLOUD_LOGGING)
-        .build)
+      .setDestination(Destination
+        .CLOUD_LOGGING)
+      .build)
 
-    val createJobRequest = CreateJobRequest
-      .newBuilder
-      .setParent(parent)
-      .setJob(job)
-      .setJobId(jobSubmission.jobName)
-      .build()
+  val createJobRequest = CreateJobRequest
+    .newBuilder
+    .setParent(parent)
+    .setJob(job)
+    .setJobId(jobSubmission
+      .jobName)
+    .build()
+  val result = batchServiceClient
+    .createJobCallable
+    .call(createJobRequest)
 
-    // TODO: Alex - Don't do blocking calls, consider using a Future instead
-    val result = batchServiceClient
-      .createJobCallable
-      .call(createJobRequest)
-
-    log.info("job submitted")
-    batchServiceClient.close()
-    log.info(result.getName)
-
-    result.getUid
-    result
-  }
+  log.info("job submitted")
+  batchServiceClient.close()
+  log.info(result.getName)
+  result
 }

@@ -3,9 +3,6 @@ workflow myWorkflow {
 }
 
 task myTask {
-    input {
-        String name
-    }
     command {
         echo "hello world"
     }

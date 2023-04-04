@@ -1,10 +1,8 @@
 package cromwell.backend.google.pipelines.batch
 
-import org.slf4j.{Logger, LoggerFactory}
-import cromwell.core.ExecutionEvent
-import scala.concurrent.Future
 import com.google.cloud.batch.v1.JobStatus
-
+import cromwell.core.ExecutionEvent
+import org.slf4j.{Logger, LoggerFactory}
 
 sealed trait RunStatus {
     //import RunStatus._
@@ -25,37 +23,34 @@ object RunStatus {
 
 
     //def fromJobStatus(status: JobStatus.State,  eventList: Seq[ExecutionEvent] = Seq.empty): Try[RunStatus] = {
-    def fromJobStatus(status: JobStatus.State): Future[RunStatus] = {
-            status match {
-                case JobStatus.State.QUEUED =>
-                    log.info("job queued")
-                    Future.successful(Running)
-                case JobStatus.State.SCHEDULED =>
-                    log.info("job scheduled")
-                    Future.successful(Running)
-                case JobStatus.State.RUNNING =>
-                    log.info("job running")
-                    Future.successful(Running)
-                case JobStatus.State.SUCCEEDED =>
-                    log.info("job scheduled")
-                    Future
-                      .successful(Succeeded(List(ExecutionEvent("complete in GCP Batch")))) //update to more specific
-                case JobStatus.State.FAILED =>
-                    log.info("job failed")
-                    Future.successful(Failed)
-                case JobStatus.State.DELETION_IN_PROGRESS =>
-                    log.info("deletion in progress")
-                    Future.successful(DeletionInProgress)
-                case JobStatus.State.STATE_UNSPECIFIED =>
-                    log.info("state unspecified")
-                    Future.successful(StateUnspecified)
-                case JobStatus.State.UNRECOGNIZED =>
-                    log.info("state unrecognized")
-                    Future.successful(Unrecognized)
-                case _ =>
-                    log.info("job status not matched")
-                    Future.successful(Running)
-            }
+    def fromJobStatus(status: JobStatus.State): RunStatus = status match {
+        case JobStatus.State.QUEUED =>
+            log.info("job queued")
+            Running
+        case JobStatus.State.SCHEDULED =>
+            log.info("job scheduled")
+            Running
+        case JobStatus.State.RUNNING =>
+            log.info("job running")
+            Running
+        case JobStatus.State.SUCCEEDED =>
+            log.info("job scheduled")
+            Succeeded(List(ExecutionEvent("complete in GCP Batch"))) //update to more specific
+        case JobStatus.State.FAILED =>
+            log.info("job failed")
+            Failed
+        case JobStatus.State.DELETION_IN_PROGRESS =>
+            log.info("deletion in progress")
+            DeletionInProgress
+        case JobStatus.State.STATE_UNSPECIFIED =>
+            log.info("state unspecified")
+            StateUnspecified
+        case JobStatus.State.UNRECOGNIZED =>
+            log.info("state unrecognized")
+            Unrecognized
+        case _ =>
+            log.info("job status not matched")
+            Running
     }
 
     case object Initializing extends RunStatus {

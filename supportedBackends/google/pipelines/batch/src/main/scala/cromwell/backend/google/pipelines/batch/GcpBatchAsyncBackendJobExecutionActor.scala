@@ -1,76 +1,72 @@
 package cromwell.backend.google.pipelines.batch
 
-import akka.util.Timeout
 import akka.http.scaladsl.model.{ContentType, ContentTypes}
+import akka.pattern.AskTimeoutException
+import akka.util.Timeout
+import com.google.api.gax.rpc.NotFoundException
 //import cats.syntax.validated._
 import cats.implicits._
-import com.google.api.gax.rpc.NotFoundException
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import common.util.StringUtil._
 //import common.validation.ErrorOr._
 //import common.validation.Validation._
-import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
-import cromwell.core.retry.SimpleExponentialBackoff
-import cromwell.backend._
-import cromwell.core._
-import cromwell.backend.google.pipelines.batch.io._
-import cromwell.backend.google.pipelines.batch.GcpBatchJobPaths.GcsTransferLibraryName
 import cats.data.Validated.Valid
+import cromwell.backend._
+import cromwell.backend.google.pipelines.batch.GcpBatchJobPaths.GcsTransferLibraryName
+import cromwell.backend.google.pipelines.batch.io._
+import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
+import cromwell.core._
+import cromwell.core.retry.SimpleExponentialBackoff
 //import common.validation.Validation._
 import cromwell.backend.google.pipelines.batch.GcpBatchRequestFactory._
 import cromwell.backend.google.pipelines.common.monitoring.CheckpointingConfiguration
 //import cromwell.backend.google.pipelines.common.monitoring.{CheckpointingConfiguration, MonitoringImage}
-import java.util.concurrent.ExecutionException
-import cromwell.core.{ExecutionEvent, WorkflowId}
-import cromwell.backend.async.PendingExecutionHandle
-import cromwell.backend.async.ExecutionHandle
 import akka.actor.ActorRef
 import akka.pattern.AskSupport
-import cromwell.services.instrumentation.CromwellInstrumentation
-import cromwell.backend.google.pipelines.batch.GcpBatchConfigurationAttributes.GcsTransferConfiguration
-import scala.concurrent.Future
-import scala.concurrent.duration._
-import GcpBatchBackendSingletonActor._
 import cats.data.NonEmptyList
 import common.validation.ErrorOr.ErrorOr
-import cromwell.backend.google.pipelines.batch.RunStatus.{Running, Succeeded, TerminalRunStatus}
+import cromwell.backend.async.{ExecutionHandle, PendingExecutionHandle}
+import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor._
+import cromwell.backend.google.pipelines.batch.GcpBatchConfigurationAttributes.GcsTransferConfiguration
+import cromwell.backend.google.pipelines.batch.RunStatus.{Succeeded, TerminalRunStatus}
 import cromwell.backend.google.pipelines.common.WorkflowOptionKeys
 import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.DefaultPathBuilder
+import cromwell.core.{ExecutionEvent, WorkflowId}
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
+import cromwell.services.instrumentation.CromwellInstrumentation
 import wom.values.WomFile
-//import wom.types.{WomArrayType, WomSingleFileType}
-import wom.values._
-import wom.core.FullyQualifiedName
-//import cromwell.backend.io.DirectoryFunctions
-import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
-import cromwell.core.path.Path
 
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.Future
+import scala.concurrent.duration._
+//import wom.types.{WomArrayType, WomSingleFileType}
+import wom.core.FullyQualifiedName
+import wom.values._
+//import cromwell.backend.io.DirectoryFunctions
+import cromwell.core.path.Path
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.sra.SraPath
-
-import wom.format.MemorySize
-import wom.expression.{FileEvaluation, NoIoFunctionSet}
-import wom.callable.Callable.OutputDefinition
-import wdl4s.parser.MemoryUnit
-
-import scala.language.postfixOps
-import scala.io.Source
-import org.apache.commons.codec.digest.DigestUtils
 import mouse.all._
-import org.apache.commons.io.output.ByteArrayOutputStream
+import org.apache.commons.codec.digest.DigestUtils
 import org.apache.commons.csv.{CSVFormat, CSVPrinter}
+import org.apache.commons.io.output.ByteArrayOutputStream
+import wdl4s.parser.MemoryUnit
+import wom.callable.Callable.OutputDefinition
+import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
+import wom.expression.{FileEvaluation, NoIoFunctionSet}
+import wom.format.MemorySize
 
+import scala.io.Source
+import scala.language.postfixOps
 import scala.util.control.NoStackTrace
+import scala.util.{Failure, Success, Try}
 //import java.io.OutputStreamWriter
-import java.io.{FileNotFoundException, OutputStreamWriter}
-
-import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import cromwell.filesystems.gcs.GcsPathBuilder
+import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 
+import java.io.{FileNotFoundException, OutputStreamWriter}
 import java.nio.charset.Charset
 
 object GcpBatchAsyncBackendJobExecutionActor {
@@ -132,7 +128,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     with StandardAsyncExecutionActor
     with AskSupport
     with GcpBatchJobCachingActorHelper
-    with GcpBatchStatusRequestClient
     with GcpBatchReferenceFilesMappingOperations
     with CromwellInstrumentation {
 
@@ -862,7 +857,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     println(file.get("test"))
     val gcpBatchParameters = CreateGcpBatchParameters(jobDescriptor = jobDescriptor, runtimeAttributes = runtimeAttributes, batchAttributes = batchAttributes, dockerImage = jobDockerImage, projectId = batchAttributes.project, region = batchAttributes.location)
 
-    val runBatchResponse = for {
+    for {
       //_ <- evaluateRuntimeAttributes
       _ <- uploadScriptFile()
       customLabels <- Future.fromTry(GcpLabels.fromWorkflowOptions(workflowDescriptor.workflowOptions))
@@ -881,14 +876,24 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       _ <- uploadGcsDelocalizationScript(createParameters, gcsDelocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration)
       //_ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
       //_ <- uploadGcsTransferLibrary(createParameters, gcsTransferLibraryCloudPath, gcsTransferConfiguration)
-      _ = backendSingletonActor ! GcpBatchRequest(workflowId, createParameters, jobName = jobTemp, gcpBatchCommand, gcpBatchParameters)
-      runId = StandardAsyncJob(jobTemp)
+      timeout = Timeout(60.seconds) // TODO: Alex - reconsider whether this is necessary, we could wait asynchronously for the job to get submitted
+      request = GcpBatchRequest(workflowId, createParameters, jobName = jobTemp, gcpBatchCommand, gcpBatchParameters)
+      response <- ask(backendSingletonActor, GcpBatchBackendSingletonActor.Action.SubmitJob(request))(timeout).map {
+        case Event.JobSubmitted(job) =>
+          log.info(s"Job (${request.jobName}) submitted to GCP, workflowId = ${request.workflowId}, id = ${job.getUid}")
+          StandardAsyncJob(job.getUid)
 
-    }
-    yield runId
+        case Event.ActionFailed(cause) =>
+          val error = s"Failed to submit job (${request.jobName}) to GCP, workflowId = ${request.workflowId}"
+          log.error(cause, error)
+          throw new RuntimeException(error, cause) // TODO: Alex, is this the right way to propagate the error?
 
-    runBatchResponse map { runId => PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None) }
-
+        case cause: AskTimeoutException =>
+          val error = s"Failed to submit job (${request.jobName}) to GCP due to a timeout, workflowId = ${request.workflowId}"
+          log.error(cause, error)
+          throw new RuntimeException(error, cause) // TODO: Alex, is this the right way to propagate the error?
+      }
+    } yield PendingExecutionHandle(jobDescriptor, response, Option(Run(response)), previousState = None)
   }
 
   override def reconnectAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = {
@@ -928,6 +933,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     }
   }
 
+
+  // TODO: Alex - This is the only API we care about right now
   override def pollStatusAsync(handle: GcpBatchPendingExecutionHandle): Future[RunStatus] = {
     val jobId = handle.pendingJob.jobId
     val jobF = handle.runInfo match {
@@ -944,23 +951,19 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     for {
       job <- jobF
       _ = log.info(s"started polling for $job with jobId $jobId")
-      //super[GcpBatchStatusRequestClient].pollStatus(workflowId, handle.pendingJob, jobTemp)
-      //temporary. Added to resolve issue with poll async starter before job submitted.
-      result <- (backendSingletonActor ? BatchJobAsk(jobId)).mapTo[String]
-      _ = log.info(result)
 
-      status <- try {
-        val gcpBatchPoll = new GcpBatchJobGetRequest
-        val result = gcpBatchPoll.GetJob(jobId, batchAttributes.project, batchAttributes.location)
-        RunStatus.fromJobStatus(result)
-      }
-      catch {
-        case nfe: NotFoundException => //added to account for job not found errors because polling async happens before job is submitted
+      status <- ask(backendSingletonActor, GcpBatchBackendSingletonActor.Action.QueryJobStatus(jobId=jobId, projectId = batchAttributes.project, region = batchAttributes.location)).map {
+        case GcpBatchBackendSingletonActor.Event.JobStatusRetrieved(job) => RunStatus.fromJobStatus(job.getStatus.getState)
+        // added to account for job not found errors because polling async happens before job is submitted
+        case GcpBatchBackendSingletonActor.Event.ActionFailed(nfe: NotFoundException) =>
+          // TODO: Alex - This must not be necessary
           nfe.printStackTrace()
-          Future.successful(Running)
-        case ee: ExecutionException => //added to account for job not found errors because polling async happens before job is submitted
-          ee.printStackTrace()
-          Future.successful(Running)
+          RunStatus.Running
+
+        case cause: AskTimeoutException =>
+          val msg = "Failed to retrieve job status due to a timeout"
+          log.error(cause, msg)
+          throw new RuntimeException(msg, cause) // TODO: Alex, is this the right way to propagate the error?
       }
     } yield status
   }
@@ -1014,8 +1017,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       case unknown => throw new RuntimeException(s"Attempt to get terminal metadata from non terminal status: $unknown")
     }
   }
-
-  override val gcpBatchActor: ActorRef = backendSingletonActor
 
   /*
   override def globParentDirectory(womGlobFile: WomGlobFile): Path = {

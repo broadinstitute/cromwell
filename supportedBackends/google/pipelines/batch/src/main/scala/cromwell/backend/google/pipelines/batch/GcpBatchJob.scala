@@ -1,16 +1,15 @@
 package cromwell.backend.google.pipelines.batch
+
 import com.google.api.gax.rpc.{FixedHeaderProvider, HeaderProvider}
 import com.google.cloud.batch.v1.AllocationPolicy.Accelerator
 //import com.google.cloud.batch.v1.AllocationPolicy._
-import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, ServiceAccount, TaskGroup, TaskSpec}
 import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy, ProvisioningModel}
-import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.GcpBatchRequest
+import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, ServiceAccount, TaskGroup, TaskSpec}
 //import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy}
-import com.google.cloud.batch.v1.Runnable.Container
-import com.google.protobuf.Duration
 import com.google.cloud.batch.v1.LogsPolicy.Destination
+import com.google.cloud.batch.v1.Runnable.Container
 import com.google.common.collect.ImmutableMap
-import java.util.concurrent.TimeUnit
+import com.google.protobuf.Duration
 import org.slf4j.{Logger, LoggerFactory}
 //import scala.jdk.CollectionConverters._
 
@@ -46,6 +45,7 @@ final case class GcpBatchJob (
 
   private lazy val batchSettings = BatchServiceSettings.newBuilder.setHeaderProvider(headerProvider).build
 
+  // TODO: Alex - Consider creating this client once, close it once this is not required
   lazy val batchServiceClient = BatchServiceClient.create(batchSettings)
 
   // set parent for metadata storage of job information
@@ -174,55 +174,49 @@ final case class GcpBatchJob (
       .build
   }
 
-  def submitJob(): Unit = {
+  def submitJob(): Job = {
+    //val image = gcsTransferLibraryContainerPath
+    //val gcsTransferLibraryContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
+    val runnableLocalization = createRunnable(dockerImage = cloudSdkImage, entryPoint = entryPoint, command = "hello")
+    val runnable = createRunnable(dockerImage = jobSubmission.gcpBatchParameters.runtimeAttributes.dockerImage, entryPoint = entryPoint, command = gcpBatchCommand)
 
-    try {
-      //val image = gcsTransferLibraryContainerPath
-      //val gcsTransferLibraryContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
-      val runnableLocalization = createRunnable(dockerImage = cloudSdkImage, entryPoint = entryPoint, command = "hello")
-      val runnable = createRunnable(dockerImage = jobSubmission.gcpBatchParameters.runtimeAttributes.dockerImage, entryPoint = entryPoint, command = gcpBatchCommand)
-
-      val networkInterface = createNetworkInterface(noAddress)
-      val networkPolicy = createNetworkPolicy(networkInterface)
-      val computeResource = createComputeResource(cpuCores, memory, gcpBootDiskSizeMb)
-      val taskSpec = createTaskSpec(runnable, runnableLocalization, computeResource, retryCount, durationInSeconds)
-      val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
-      val instancePolicy = createInstancePolicy(spotModel, accelerators)
-      val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
-      val allocationPolicy = createAllocationPolicy(locationPolicy, instancePolicy.build, networkPolicy, gcpSa)
-      val job = Job
+    val networkInterface = createNetworkInterface(noAddress)
+    val networkPolicy = createNetworkPolicy(networkInterface)
+    val computeResource = createComputeResource(cpuCores, memory, gcpBootDiskSizeMb)
+    val taskSpec = createTaskSpec(runnable, runnableLocalization, computeResource, retryCount, durationInSeconds)
+    val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
+    val instancePolicy = createInstancePolicy(spotModel, accelerators)
+    val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
+    val allocationPolicy = createAllocationPolicy(locationPolicy, instancePolicy.build, networkPolicy, gcpSa)
+    val job = Job
+      .newBuilder
+      .addTaskGroups(taskGroup)
+      .setAllocationPolicy(allocationPolicy)
+      .putLabels("submitter", "cromwell") // label to signify job submitted by cromwell for larger tracking purposes within GCP batch
+      .putLabels("cromwell-workflow-id", jobSubmission.workflowId.toString) // label to make it easier to match Cromwell workflows with multiple GCP batch jobs
+      .setLogsPolicy(LogsPolicy
         .newBuilder
-        .addTaskGroups(taskGroup)
-        .setAllocationPolicy(allocationPolicy)
-        .putLabels("submitter", "cromwell") // label to signify job submitted by cromwell for larger tracking purposes within GCP batch
-        .putLabels("cromwell-workflow-id", jobSubmission.workflowId.toString) // label to make it easier to match Cromwell workflows with multiple GCP batch jobs
-        .setLogsPolicy(LogsPolicy
-          .newBuilder
-          .setDestination(Destination
-            .CLOUD_LOGGING)
-          .build)
+        .setDestination(Destination
+          .CLOUD_LOGGING)
+        .build)
 
-      val createJobRequest = CreateJobRequest
-        .newBuilder
-        .setParent(parent)
-        .setJob(job)
-        .setJobId(jobSubmission
-          .jobName)
-        .build()
-      val result = batchServiceClient
-        .createJobCallable
-        .futureCall(createJobRequest)
-        .get(5, TimeUnit
-          .SECONDS)
-      log.info("job submitted")
-      batchServiceClient.close()
-      log.info(result.getName)
+    val createJobRequest = CreateJobRequest
+      .newBuilder
+      .setParent(parent)
+      .setJob(job)
+      .setJobId(jobSubmission.jobName)
+      .build()
 
-    }
-    catch  {
-      case e: Throwable => log.info(s"Job failed with ${e}")
-    }
+    // TODO: Alex - Don't do blocking calls, consider using a Future instead
+    val result = batchServiceClient
+      .createJobCallable
+      .call(createJobRequest)
 
+    log.info("job submitted")
+    batchServiceClient.close()
+    log.info(result.getName)
+
+    result.getUid
+    result
   }
-
 }

@@ -6,12 +6,12 @@ object Dependencies {
   private val akkaV = "2.5.32" // scala-steward:off (CROM-6637)
   private val ammoniteOpsV = "2.4.1"
   private val apacheHttpClientV = "4.5.13"
-  private val awsSdkV = "2.17.265"
+  private val awsSdkV = "2.20.38"
   // We would like to use the BOM to manage Azure SDK versions, but SBT doesn't support it.
   // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
   // https://github.com/sbt/sbt/issues/4531
   private val azureStorageBlobNioV = "12.0.0-beta.19"
-  private val azureIdentitySdkV = "1.4.6"
+  private val azureIdentitySdkV = "1.9.0-beta.2"
   private val betterFilesV = "3.9.1"
   /*
   cats-effect, fs2, http4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.

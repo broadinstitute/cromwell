@@ -49,6 +49,10 @@ jobs:
         username: dsdejenkins
         password: ${{ secrets.DSDEJENKINS_PASSWORD }}
     # Build & push `cromwell`, `womtool`, `cromiam`, and `cromwell-drs-localizer`
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v2
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
     - name: Build Cromwell Docker
       run: |
         set -e

@@ -41,8 +41,6 @@ final case class GcpBatchJob (
     .create(ImmutableMap
       .of(user_agent_header, customUserAgentValue))
 
-  private val cloudSdkImage = "gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine"
-
   private lazy val batchSettings = BatchServiceSettings.newBuilder.setHeaderProvider(headerProvider).build
 
   // TODO: Alex - Consider creating this client once, close it once this is not required
@@ -138,10 +136,9 @@ final case class GcpBatchJob (
   }
 
 
-  private def createTaskSpec(runnableLocalization: Runnable, runnable: Runnable, computeResource: ComputeResource, retryCount: Int, durationInSeconds: Long) = {
+  private def createTaskSpec(runnable: Runnable, computeResource: ComputeResource, retryCount: Int, durationInSeconds: Long) = {
     TaskSpec
       .newBuilder
-      .addRunnables(runnableLocalization)
       .addRunnables(runnable)
       .setComputeResource(computeResource)
       .setMaxRetryCount(retryCount)
@@ -177,13 +174,12 @@ final case class GcpBatchJob (
   def submitJob(): Job = {
     //val image = gcsTransferLibraryContainerPath
     //val gcsTransferLibraryContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
-    val runnableLocalization = createRunnable(dockerImage = cloudSdkImage, entryPoint = entryPoint, command = "hello")
     val runnable = createRunnable(dockerImage = jobSubmission.gcpBatchParameters.runtimeAttributes.dockerImage, entryPoint = entryPoint, command = gcpBatchCommand)
 
     val networkInterface = createNetworkInterface(noAddress)
     val networkPolicy = createNetworkPolicy(networkInterface)
     val computeResource = createComputeResource(cpuCores, memory, gcpBootDiskSizeMb)
-    val taskSpec = createTaskSpec(runnable, runnableLocalization, computeResource, retryCount, durationInSeconds)
+    val taskSpec = createTaskSpec(runnable, computeResource, retryCount, durationInSeconds)
     val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
     val instancePolicy = createInstancePolicy(spotModel, accelerators)
     val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build

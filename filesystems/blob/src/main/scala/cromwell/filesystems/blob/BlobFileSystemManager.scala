@@ -217,10 +217,6 @@ case class WSMBlobSasTokenGenerator(container: BlobContainerName,
 }
 
 case class NativeBlobSasTokenGenerator(container: BlobContainerName, endpoint: EndpointURL, subscription: Option[SubscriptionId] = None) extends BlobSasTokenGenerator {
-  private val azureSubscription : Option[String] = subscription match {
-    case Some(x) => Option(x.toString)
-    case None => None
-  }
   private val bcsp = new BlobContainerSasPermission()
     .setReadPermission(true)
     .setCreatePermission(true)
@@ -234,7 +230,7 @@ case class NativeBlobSasTokenGenerator(container: BlobContainerName, endpoint: E
     * @return an AzureSasCredential for accessing a blob container
     */
   def generateBlobSasToken: Try[AzureSasCredential] = for {
-    bcc <- AzureUtils.buildContainerClientFromLocalEnvironment(container.toString, endpoint.toString, azureSubscription)
+    bcc <- AzureUtils.buildContainerClientFromLocalEnvironment(container.toString, endpoint.toString, subscription.map(_.toString))
     bsssv = new BlobServiceSasSignatureValues(OffsetDateTime.now.plusDays(1), bcsp)
     asc = new AzureSasCredential(bcc.generateSas(bsssv))
   } yield asc

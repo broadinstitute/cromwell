@@ -54,7 +54,7 @@ object ObjectCounterInstances {
       val fullPath = pathToBlobPath(providedPath)
       val blobsInFolder =  containerClient.listBlobsByHierarchy(fullPath)
       //if something "isPrefix", it's a directory. Otherwise, its a file. We just want to count files.
-      blobsInFolder.asScala.filter(item => !item.isPrefix).size
+      blobsInFolder.asScala.count(!_.isPrefix)
     }
     pathToInt(_)
   }

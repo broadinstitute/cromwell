@@ -2,6 +2,7 @@ package cromwell.backend.google.pipelines.batch
 
 import akka.actor.{Actor, ActorLogging, Props}
 import com.google.cloud.batch.v1.{BatchServiceClient, GetJobRequest, JobName}
+import cromwell.backend.BackendSingletonActorAbortWorkflow
 import cromwell.core.Dispatcher.BackendDispatcher
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -14,7 +15,7 @@ object GcpBatchBackendSingletonActor {
   sealed trait Action extends Product with Serializable
   object Action {
     final case class SubmitJob(request: GcpBatchRequest) extends Action
-    final case class QueryJobStatus(jobId: String, projectId: String, region: String) extends Action
+    final case class QueryJobStatus(jobName: JobName) extends Action
   }
 
   // This is the only type of messages produced from this actor while reacting to received messages
@@ -22,7 +23,7 @@ object GcpBatchBackendSingletonActor {
   object Event {
     final case class JobSubmitted(job: com.google.cloud.batch.v1.Job) extends Event
     final case class JobStatusRetrieved(job: com.google.cloud.batch.v1.Job) extends Event
-    final case class ActionFailed(cause: Throwable) extends Event
+    final case class ActionFailed(jobName: String, cause: Throwable) extends Event
   }
 
 }
@@ -33,6 +34,17 @@ final class GcpBatchBackendSingletonActor (name: String) extends Actor with Acto
   import GcpBatchBackendSingletonActor._
 
   implicit val ec: ExecutionContext = context.dispatcher
+
+  private def queryStatus(name: JobName) = {
+    val request = GetJobRequest.newBuilder.setName(name.toString).build
+    // TODO: Alex - Consider creating this client only once in the app lifecycle
+    val batchServiceClient = BatchServiceClient.create
+    try {
+      batchServiceClient.getJob(request)
+    } finally  {
+      batchServiceClient.close()
+    }
+  }
 
   // TODO: Alex - Find the usefulness for the actor because we are not holding any mutable state in it
   override def receive: Receive = {
@@ -46,39 +58,35 @@ final class GcpBatchBackendSingletonActor (name: String) extends Actor with Acto
       }.onComplete {
         case Failure(exception) =>
           log.error(exception, s"Failed to submit job (${request.jobName}) to GCP, workflowId = ${request.workflowId}")
-          replyTo ! Event.ActionFailed(exception)
+          replyTo ! Event.ActionFailed(request.jobName, exception)
 
         case Success(job) =>
           log.info(s"Job (${request.jobName}) submitted to GCP, workflowId = ${request.workflowId}, id = ${job.getUid}")
           replyTo ! Event.JobSubmitted(job)
       }
 
-    case Action.QueryJobStatus(jobId, projectId, region) =>
+    case Action.QueryJobStatus(jobName) =>
       val replyTo = sender()
-      val jobName = JobName.of(projectId, region, jobId)
 
-      // TODO: Alex - Consider creating this client only once in the app lifecycle
-      val batchServiceClient = BatchServiceClient.create
-      val resultF = Future {
-        val request = GetJobRequest.newBuilder.setName(jobName.toString).build
-        batchServiceClient.getJob(request)
-      }
-
-      // close client
-      resultF.onComplete(_ => batchServiceClient.close())
-      resultF.onComplete {
+      Future {
+        queryStatus(jobName)
+      }.onComplete {
         case Success(job) =>
           log.info(s"Job status ($jobName) retrieved from GCP, state = ${job.getStatus.getState}")
           replyTo ! Event.JobStatusRetrieved(job)
 
         case Failure(exception) =>
           log.error(exception,  s"Failed to query job status ($jobName) from GCP")
-          replyTo ! Event.ActionFailed(exception)
+          replyTo ! Event.ActionFailed(jobName.toString ,exception)
       }
+
+    // Cromwell sends this message
+    case BackendSingletonActorAbortWorkflow(workflowId) =>
+      // TODO: Alex - how do we handle this?
+      log.info(s"Cromwell requested to abort workflow $workflowId")
 
     case other =>
       log.error("Unknown message to GCP Batch Singleton Actor: {}. Dropping it.", other)
 
   }
-
 }

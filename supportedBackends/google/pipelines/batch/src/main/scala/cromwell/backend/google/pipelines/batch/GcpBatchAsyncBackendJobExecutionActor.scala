@@ -4,6 +4,11 @@ import akka.http.scaladsl.model.{ContentType, ContentTypes}
 import akka.pattern.AskTimeoutException
 import akka.util.Timeout
 import com.google.api.gax.rpc.NotFoundException
+import com.google.cloud.batch.v1.JobName
+import cromwell.backend.async.AbortedExecutionHandle
+import cromwell.backend.google.pipelines.common.api.clients.PipelinesApiRunCreationClient.JobAbortedException
+
+import scala.util.control.NonFatal
 //import cats.syntax.validated._
 import cats.implicits._
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
@@ -26,7 +31,6 @@ import akka.pattern.AskSupport
 import cats.data.NonEmptyList
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.async.{ExecutionHandle, PendingExecutionHandle}
-import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor._
 import cromwell.backend.google.pipelines.batch.GcpBatchConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.batch.RunStatus.{Succeeded, TerminalRunStatus}
 import cromwell.backend.google.pipelines.common.WorkflowOptionKeys
@@ -126,6 +130,7 @@ object GcpBatchAsyncBackendJobExecutionActor {
 class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends BackendJobLifecycleActor
     with StandardAsyncExecutionActor
+    with BatchApiRunCreationClient
     with AskSupport
     with GcpBatchJobCachingActorHelper
     with GcpBatchReferenceFilesMappingOperations
@@ -145,11 +150,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   /** The type of the run status returned during each poll. */
   override type StandardAsyncRunState = RunStatus
 
-  // temporary until GCP Batch client can generate random job IDs
-  private val jobTemp = "job-" + java.util.UUID.randomUUID.toString
+  override def receive: Receive = runCreationClientReceive orElse kvClientReceive orElse super.receive
+//  override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse abortActorClientReceive orElse kvClientReceive orElse super.receive
 
-  //override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse super.receive
-  //override def receive: Receive = pollingActorClientReceive orElse super.receive
 
   /** Should return true if the status contained in `thiz` is equivalent to `that`, delta any other data that might be carried around
     * in the state type.
@@ -857,7 +860,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     println(file.get("test"))
     val gcpBatchParameters = CreateGcpBatchParameters(jobDescriptor = jobDescriptor, runtimeAttributes = runtimeAttributes, batchAttributes = batchAttributes, dockerImage = jobDockerImage, projectId = batchAttributes.project, region = batchAttributes.location)
 
-    for {
+    val runPipelineResponse = for {
       //_ <- evaluateRuntimeAttributes
       _ <- uploadScriptFile()
       customLabels <- Future.fromTry(GcpLabels.fromWorkflowOptions(workflowDescriptor.workflowOptions))
@@ -876,24 +879,19 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       _ <- uploadGcsDelocalizationScript(createParameters, gcsDelocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration)
       //_ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
       //_ <- uploadGcsTransferLibrary(createParameters, gcsTransferLibraryCloudPath, gcsTransferConfiguration)
-      timeout = Timeout(60.seconds) // TODO: Alex - reconsider whether this is necessary, we could wait asynchronously for the job to get submitted
-      request = GcpBatchRequest(workflowId, createParameters, jobName = jobTemp, gcpBatchCommand, gcpBatchParameters)
-      response <- ask(backendSingletonActor, GcpBatchBackendSingletonActor.Action.SubmitJob(request))(timeout).map {
-        case Event.JobSubmitted(job) =>
-          log.info(s"Job (${request.jobName}) submitted to GCP, workflowId = ${request.workflowId}, id = ${job.getUid}")
-          StandardAsyncJob(job.getUid)
+      jobName = "job-" + java.util.UUID.randomUUID.toString
+      request = GcpBatchRequest(workflowId, createParameters, jobName = jobName, gcpBatchCommand, gcpBatchParameters)
+      response <- runPipeline(request = request, backendSingletonActor = backendSingletonActor)
+    } yield response
 
-        case Event.ActionFailed(cause) =>
-          val error = s"Failed to submit job (${request.jobName}) to GCP, workflowId = ${request.workflowId}"
-          log.error(cause, error)
-          throw new RuntimeException(error, cause) // TODO: Alex, is this the right way to propagate the error?
-
-        case cause: AskTimeoutException =>
-          val error = s"Failed to submit job (${request.jobName}) to GCP due to a timeout, workflowId = ${request.workflowId}"
-          log.error(cause, error)
-          throw new RuntimeException(error, cause) // TODO: Alex, is this the right way to propagate the error?
-      }
-    } yield PendingExecutionHandle(jobDescriptor, response, Option(Run(response)), previousState = None)
+    // TODO: Handle when the job gets aborted before it starts being processed
+    runPipelineResponse.map { runId =>
+      PendingExecutionHandle(
+        jobDescriptor = jobDescriptor,
+        pendingJob = runId,
+        runInfo = Option(Run(runId)),
+        previousState = None)
+    }
   }
 
   override def reconnectAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = {
@@ -936,32 +934,34 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   // TODO: Alex - This is the only API we care about right now
   override def pollStatusAsync(handle: GcpBatchPendingExecutionHandle): Future[RunStatus] = {
-    val jobId = handle.pendingJob.jobId
-    val jobF = handle.runInfo match {
-      case Some(actualJob) => Future.successful(actualJob)
-      case None =>
-        Future.failed {
-          new RuntimeException(
-            s"pollStatusAsync called but job not available. This should not happen. Job Id $jobId"
-          )
-        }
-    }
+    // yes, we use the whole jobName as the id
+    val jobNameStr = handle.pendingJob.jobId
 
     implicit val timeout: Timeout = Timeout(60.seconds) //had to set to high amount for some reason.  Otherwise would not finish with low value
     for {
-      job <- jobF
-      _ = log.info(s"started polling for $job with jobId $jobId")
-
-      status <- ask(backendSingletonActor, GcpBatchBackendSingletonActor.Action.QueryJobStatus(jobId=jobId, projectId = batchAttributes.project, region = batchAttributes.location)).map {
+      _ <- Future.unit // trick to get into a future context
+      _ = log.info(s"started polling for $jobNameStr")
+      jobName = JobName.parse(jobNameStr)
+      status <- ask(backendSingletonActor, GcpBatchBackendSingletonActor.Action.QueryJobStatus(jobName)).map {
         case GcpBatchBackendSingletonActor.Event.JobStatusRetrieved(job) => RunStatus.fromJobStatus(job.getStatus.getState)
         // added to account for job not found errors because polling async happens before job is submitted
-        case GcpBatchBackendSingletonActor.Event.ActionFailed(nfe: NotFoundException) =>
+        case GcpBatchBackendSingletonActor.Event.ActionFailed(_, nfe: NotFoundException) =>
           // TODO: Alex - This must not be necessary
           nfe.printStackTrace()
           RunStatus.Running
 
         case cause: AskTimeoutException =>
           val msg = "Failed to retrieve job status due to a timeout"
+          log.error(cause, msg)
+          throw new RuntimeException(msg, cause) // TODO: Alex, is this the right way to propagate the error?
+
+        case msg =>
+          val error = s"Failed to retrieve job ($jobNameStr) from GCP due to an unknown response: $msg"
+          log.info(error)
+          throw new RuntimeException(error) // TODO: Alex, is this the right way to propagate the error?
+      }.recover {
+        case NonFatal(cause) =>
+          val msg = "Failed to retrieve job status due to an unknown error"
           log.error(cause, msg)
           throw new RuntimeException(msg, cause) // TODO: Alex, is this the right way to propagate the error?
       }

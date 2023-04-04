@@ -7,21 +7,16 @@ import com.google.cloud.batch.v1.AllocationPolicy.Accelerator
 import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy, ProvisioningModel}
 import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, ServiceAccount, TaskGroup, TaskSpec}
 //import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy}
-import com.google.api.gax.rpc.{FixedHeaderProvider, HeaderProvider}
-import com.google.cloud.batch.v1.AllocationPolicy.Accelerator
-import cromwell.backend.google.pipelines.batch.io.GcpBatchAttachedDisk
-import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, ServiceAccount, TaskGroup, TaskSpec, Volume}
-import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy, ProvisioningModel, AttachedDisk}
-import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.GcpBatchRequest
-import com.google.cloud.batch.v1.Runnable.Container
-import com.google.protobuf.Duration
+import com.google.cloud.batch.v1.AllocationPolicy.AttachedDisk
 import com.google.cloud.batch.v1.LogsPolicy.Destination
 import com.google.cloud.batch.v1.Runnable.Container
+import com.google.cloud.batch.v1.Volume
 import com.google.common.collect.ImmutableMap
 import com.google.protobuf.Duration
-import java.util.concurrent.TimeUnit
-import scala.jdk.CollectionConverters._
+import cromwell.backend.google.pipelines.batch.io.GcpBatchAttachedDisk
 import org.slf4j.{Logger, LoggerFactory}
+
+import scala.jdk.CollectionConverters._
 
 
 final case class GcpBatchJob (
@@ -182,46 +177,47 @@ final case class GcpBatchJob (
       .build
   }
 
-def submitJob(): Job = {
-  //val image = gcsTransferLibraryContainerPath
-  //val gcsTransferLibraryContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
-  val runnable = createRunnable(dockerImage = jobSubmission.gcpBatchParameters.runtimeAttributes.dockerImage, entryPoint = entryPoint, command = gcpBatchCommand)
+  def submitJob(): Job = {
+    //val image = gcsTransferLibraryContainerPath
+    //val gcsTransferLibraryContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
+    val runnable = createRunnable(dockerImage = jobSubmission.gcpBatchParameters.runtimeAttributes.dockerImage, entryPoint = entryPoint, command = gcpBatchCommand)
 
-  val networkInterface = createNetworkInterface(noAddress)
-  val networkPolicy = createNetworkPolicy(networkInterface)
-  val allDisks = toDisks(allDisksToBeMounted)
-  val allVolumes = toVolumes(allDisksToBeMounted)
-  val computeResource = createComputeResource(cpuCores, memory, gcpBootDiskSizeMb)
-  val taskSpec = createTaskSpec(runnable, computeResource, retryCount, durationInSeconds, allVolumes)
-  val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
-  val instancePolicy = createInstancePolicy(spotModel, accelerators, allDisks)
-  val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
-  val allocationPolicy = createAllocationPolicy(locationPolicy, instancePolicy.build, networkPolicy, gcpSa)
-  val job = Job
-    .newBuilder
-    .addTaskGroups(taskGroup)
-    .setAllocationPolicy(allocationPolicy)
-    .putLabels("submitter", "cromwell") // label to signify job submitted by cromwell for larger tracking purposes within GCP batch
-    .putLabels("cromwell-workflow-id", jobSubmission.workflowId.toString) // label to make it easier to match Cromwell workflows with multiple GCP batch jobs
-    .setLogsPolicy(LogsPolicy
+    val networkInterface = createNetworkInterface(noAddress)
+    val networkPolicy = createNetworkPolicy(networkInterface)
+    val allDisks = toDisks(allDisksToBeMounted)
+    val allVolumes = toVolumes(allDisksToBeMounted)
+    val computeResource = createComputeResource(cpuCores, memory, gcpBootDiskSizeMb)
+    val taskSpec = createTaskSpec(runnable, computeResource, retryCount, durationInSeconds, allVolumes)
+    val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
+    val instancePolicy = createInstancePolicy(spotModel, accelerators, allDisks)
+    val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
+    val allocationPolicy = createAllocationPolicy(locationPolicy, instancePolicy.build, networkPolicy, gcpSa)
+    val job = Job
       .newBuilder
-      .setDestination(Destination
-        .CLOUD_LOGGING)
-      .build)
+      .addTaskGroups(taskGroup)
+      .setAllocationPolicy(allocationPolicy)
+      .putLabels("submitter", "cromwell") // label to signify job submitted by cromwell for larger tracking purposes within GCP batch
+      .putLabels("cromwell-workflow-id", jobSubmission.workflowId.toString) // label to make it easier to match Cromwell workflows with multiple GCP batch jobs
+      .setLogsPolicy(LogsPolicy
+        .newBuilder
+        .setDestination(Destination
+          .CLOUD_LOGGING)
+        .build)
 
-  val createJobRequest = CreateJobRequest
-    .newBuilder
-    .setParent(parent)
-    .setJob(job)
-    .setJobId(jobSubmission
-      .jobName)
-    .build()
-  val result = batchServiceClient
-    .createJobCallable
-    .call(createJobRequest)
+    val createJobRequest = CreateJobRequest
+      .newBuilder
+      .setParent(parent)
+      .setJob(job)
+      .setJobId(jobSubmission
+        .jobName)
+      .build()
+    val result = batchServiceClient
+      .createJobCallable
+      .call(createJobRequest)
 
-  log.info("job submitted")
-  batchServiceClient.close()
-  log.info(result.getName)
-  result
+    log.info("job submitted")
+    batchServiceClient.close()
+    log.info(result.getName)
+    result
+  }
 }

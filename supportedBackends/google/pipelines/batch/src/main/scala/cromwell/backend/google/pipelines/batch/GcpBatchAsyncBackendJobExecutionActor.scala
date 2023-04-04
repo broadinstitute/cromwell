@@ -5,8 +5,6 @@ import akka.pattern.AskTimeoutException
 import akka.util.Timeout
 import com.google.api.gax.rpc.NotFoundException
 import com.google.cloud.batch.v1.JobName
-import cromwell.backend.async.AbortedExecutionHandle
-import cromwell.backend.google.pipelines.common.api.clients.PipelinesApiRunCreationClient.JobAbortedException
 
 import scala.util.control.NonFatal
 //import cats.syntax.validated._

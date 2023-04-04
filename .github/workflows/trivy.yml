@@ -46,7 +46,7 @@ jobs:
 
           # export image name from the log
           image=$(grep 'Tagging image' build.log | awk '{print $NF}')
-          echo "{image}=${image}" >> $GITHUB_OUTPUT
+          echo "image=${image}" >> $GITHUB_OUTPUT
 
       # scan the image
       - uses: broadinstitute/dsp-appsec-trivy-action@v1

@@ -2,20 +2,17 @@ package cromwell.backend.google.pipelines
 package batch
 import com.google.api.gax.rpc.{FixedHeaderProvider, HeaderProvider}
 import com.google.cloud.batch.v1.AllocationPolicy.Accelerator
-//import com.google.cloud.batch.v1.AllocationPolicy._
+import cromwell.backend.google.pipelines.batch.io.GcpBatchAttachedDisk
 import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, ServiceAccount, TaskGroup, TaskSpec, Volume}
-import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy, ProvisioningModel, Disk, AttachedDisk}
+import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy, ProvisioningModel, AttachedDisk}
 import cromwell.backend.google.pipelines.batch.GcpBatchBackendSingletonActor.GcpBatchRequest
-//import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy}
 import com.google.cloud.batch.v1.Runnable.Container
 import com.google.protobuf.Duration
 import com.google.cloud.batch.v1.LogsPolicy.Destination
 import com.google.common.collect.ImmutableMap
 import java.util.concurrent.TimeUnit
-//import scala.collection.JavaConverters._
-//import java.lang.Iterable
+import scala.jdk.CollectionConverters._
 import org.slf4j.{Logger, LoggerFactory}
-import collection.mutable
 
 
 final case class GcpBatchJob (
@@ -27,6 +24,7 @@ final case class GcpBatchJob (
 
   private val batchAttributes = jobSubmission.gcpBatchParameters.batchAttributes
   private val runtimeAttributes = jobSubmission.gcpBatchParameters.runtimeAttributes
+  private val createParameters = jobSubmission.createParameters
 
   // VALUES HERE
   private val entryPoint = "/bin/sh"
@@ -34,12 +32,9 @@ final case class GcpBatchJob (
   private val durationInSeconds: Long = 3600
   private val taskCount: Long = 1
   private val gcpBatchCommand: String = jobSubmission.gcpBatchCommand
-  println(runtimeAttributes.disks.toString + " DISKS!!!")
   private val vpcNetwork: String = toVpcNetwork(batchAttributes)
   private val vpcSubnetwork: String = toVpcSubnetwork(batchAttributes, runtimeAttributes)
-  private val gcpBootDiskSizeMb = toBootDiskSizeMb(runtimeAttributes)
-
-  private val vpcSubnetwork: String = toVpcSubnetwork(batchAttributes)
+  private val allDisksToBeMounted: Seq[GcpBatchAttachedDisk] = createParameters.adjustedSizeDisks ++ createParameters.referenceDisksForLocalizationOpt.getOrElse(List.empty)
   private val gcpBootDiskSizeMb = convertGbToMib(runtimeAttributes)
   // set user agent to cromwell so requests can be differentiated on batch
   private val user_agent_header = "user-agent"
@@ -71,7 +66,6 @@ final case class GcpBatchJob (
   // convert memory to MiB for Batch
   private val memory = toMemMib(runtimeAttributes.memory)
 
-  //private val bootDiskSize = runtimeAttributes.bootDiskSize
   private val noAddress = runtimeAttributes.noAddress
 
   println(f"command script container path ${jobSubmission.createParameters.commandScriptContainerPath}")
@@ -103,16 +97,16 @@ final case class GcpBatchJob (
       .build
   }
 
-  private def createInstancePolicy(spotModel: ProvisioningModel, accelerators: Option[Accelerator.Builder], attachedDisk: AttachedDisk) = {
+  private def createInstancePolicy(spotModel: ProvisioningModel, accelerators: Option[Accelerator.Builder], attachedDisks: List[AttachedDisk]) = {
 
-    val attachedDiskIterable: Iterable[AttachedDisk] = attachedDisk.asJava
+    //val attachedDiskIterable: Iterable[AttachedDisk] = attachedDisk.asJava
     //set GPU count to 0 if not included in workflow
       val gpuAccelerators = accelerators.getOrElse(Accelerator.newBuilder.setCount(0).setType(""))
       val instancePolicy = InstancePolicy
         .newBuilder
         .setMachineType(machineType)
         .setProvisioningModel(spotModel)
-        .addAllDisks(attachedDiskIterable)
+        .addAllDisks(attachedDisks.asJava)
         .setMinCpuPlatform(cpuPlatform)
         .buildPartial()
 
@@ -143,37 +137,12 @@ final case class GcpBatchJob (
       .addNetworkInterfaces(0, networkInterface)
       .build
   }
-
-  private def createNewVolume(attachedDisk: AttachedDisk): Volume = {
-    Volume
-      .newBuilder
-      .setDeviceName(attachedDisk.getDeviceName)
-      .setMountPath(f"/mnt/disks/${attachedDisk.getDeviceName}")
-      .addMountOptions("async,rw")
-      .build
-  }
-
-  private def createNewDiskBuilder(diskSize: Int, diskType: String): Disk.Builder = {
-    Disk.newBuilder
-      .setSizeGb(diskSize.toLong)
-      .setType(diskType)
-  }
-
-  private def createNewAttachedDisk(disk: Disk.Builder, name: String): AttachedDisk = {
-    AttachedDisk
-      .newBuilder
-      .setDeviceName(name)
-      .setNewDisk(disk)
-      .build
-  }
-
-  private def createTaskSpec(runnableLocalization: Runnable, runnable: Runnable, computeResource: ComputeResource, retryCount: Int, durationInSeconds: Long, volume: Volume) = {
+  private def createTaskSpec(runnable: Runnable, computeResource: ComputeResource, retryCount: Int, durationInSeconds: Long, volumes: List[Volume]) = {
     TaskSpec
       .newBuilder
-      .addRunnables(runnableLocalization)
       .addRunnables(runnable)
       .setComputeResource(computeResource)
-      .addVolumes(volume)
+      .addAllVolumes(volumes.asJava)
       .setMaxRetryCount(retryCount)
       .setMaxRunDuration(Duration
         .newBuilder
@@ -209,22 +178,18 @@ final case class GcpBatchJob (
     try {
       //val image = gcsTransferLibraryContainerPath
       //val gcsTransferLibraryContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
-      val runnableLocalization = createRunnable(dockerImage = cloudSdkImage, entryPoint = entryPoint, command = "hello")
       val runnable = createRunnable(dockerImage = jobSubmission.gcpBatchParameters.runtimeAttributes.dockerImage, entryPoint = entryPoint, command = gcpBatchCommand)
 
       val networkInterface = createNetworkInterface(noAddress)
       val networkPolicy = createNetworkPolicy(networkInterface)
-      val newDisk = createNewDiskBuilder(50, "pd-ssd")
-      val newAttachedDisk = createNewAttachedDisk(newDisk, "Disk1")
-      val attachedDisks:Seq[AttachedDisk] = Seq(newAttachedDisk)
-      val newVolume = createNewVolume(newAttachedDisk)
+      val allDisks = toDisks(allDisksToBeMounted)
+      val allVolumes = toVolumes(allDisksToBeMounted)
       val computeResource = createComputeResource(cpuCores, memory, gcpBootDiskSizeMb)
-      val taskSpec = createTaskSpec(runnable, computeResource, retryCount, durationInSeconds, newVolume)
-      val taskSpec = createTaskSpec(runnable, runnableLocalization, computeResource, retryCount, durationInSeconds)
+      val taskSpec = createTaskSpec(runnable, computeResource, retryCount, durationInSeconds, allVolumes)
       val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
-      val instancePolicy = createInstancePolicy(spotModel, accelerators, attachedDisks)
+      val instancePolicy = createInstancePolicy(spotModel, accelerators, allDisks)
       val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
-      val allocationPolicy = createAllocationPolicy(locationPolicy, instancePolicy.build, networkPolicy)
+      val allocationPolicy = createAllocationPolicy(locationPolicy, instancePolicy.build, networkPolicy, gcpSa)
       val job = Job
         .newBuilder
         .addTaskGroups(taskGroup)

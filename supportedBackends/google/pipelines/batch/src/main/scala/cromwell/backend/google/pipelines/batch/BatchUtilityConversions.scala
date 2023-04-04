@@ -13,6 +13,12 @@ trait BatchUtilityConversions {
     "zones/" + zones.mkString(",")
   }
 
+  // creates batch run time location from zones entered in runtime.  This is needed if network not defined by user to place on right network.
+  def toBatchRunLocation(zones: Vector[String]): String = {
+    val parts = zones.mkString(",").split("-")
+    parts(0) + "-" + parts(1)
+  }
+
   // convert cpu cores to millicores that Batch expects
   def toCpuCores(cpu: Long): Long = {
     cpu * 1000
@@ -31,7 +37,9 @@ trait BatchUtilityConversions {
 
   def toDisks(disks: Seq[GcpBatchAttachedDisk]): List[AttachedDisk] = disks.map(toDisk).toList
 
-  def toMount(disk: GcpBatchAttachedDisk): Volume = {
+  def toVolumes(disks: Seq[GcpBatchAttachedDisk]): List[Volume] = disks.map(toVolume).toList
+
+  def toVolume(disk: GcpBatchAttachedDisk): Volume = {
     val volume = Volume
       .newBuilder
       .setDeviceName(disk.name)
@@ -41,7 +49,7 @@ trait BatchUtilityConversions {
     disk match {
       case _: GcpBatchReferenceFilesDisk =>
         volume
-        .addMountOptions("async, rw")
+          .addMountOptions("async, rw")
           .build
       case _ =>
         volume
@@ -49,26 +57,28 @@ trait BatchUtilityConversions {
     }
   }
 
-  def toDisk(disk: GcpBatchAttachedDisk): AttachedDisk = {
-    val googleDisk = Disk
-      .newBuilder
-      .setSizeGb(disk.sizeGb.toLong)
-      .setType(toBatchDiskType(disk.diskType))
-      .build
+  private def toDisk(disk: GcpBatchAttachedDisk): AttachedDisk = {
+      val googleDisk = Disk
+        .newBuilder
+        .setSizeGb(disk.sizeGb.toLong)
+        .setType(toBatchDiskType(disk.diskType))
+        .build
 
-    val googleAttachedDisk = AttachedDisk
-      .newBuilder
-      .setDeviceName(disk.name)
-      .setNewDisk(googleDisk)
-      .build
-    googleAttachedDisk
-    //disk match {
-    //  case refDisk: GcpBatchReferenceFilesDisk =>
-    //    googleDisk.setSourceImage(refDisk.image)
-    //  case _ =>
-    //    googleDisk
-    //}
-  }
+      val googleAttachedDisk = AttachedDisk
+        .newBuilder
+        .setDeviceName(disk.name)
+        .setNewDisk(googleDisk)
+        .build
+      googleAttachedDisk
+    }
+
+  //disk match {
+  //  case refDisk: GcpBatchReferenceFilesDisk =>
+  //    googleDisk.setSourceImage(refDisk.image)
+  //  case _ =>
+  //    googleDisk
+  //}
+
 
   private def toBatchDiskType(diskType: DiskType) = diskType match {
     case DiskType.HDD => "pd-standard"
@@ -78,14 +88,17 @@ trait BatchUtilityConversions {
 
   def toVpcNetwork(batchAttributes: GcpBatchConfigurationAttributes): String = {
     batchAttributes.virtualPrivateCloudConfiguration.labelsOption.map { vpcNetworks =>
-        vpcNetworks.network
-      }.getOrElse(s"projects/${batchAttributes.project}/global/networks/default")
-    }
+      vpcNetworks.network
+    }.getOrElse(s"projects/${batchAttributes.project}/global/networks/default")
+  }
 
-  def toVpcSubnetwork(batchAttributes: GcpBatchConfigurationAttributes): String = {
+  def toVpcSubnetwork(batchAttributes: GcpBatchConfigurationAttributes, runtimeAttributes: GcpBatchRuntimeAttributes): String = {
+
+    val batchRunLocation = toBatchRunLocation(runtimeAttributes.zones)
+
     batchAttributes.virtualPrivateCloudConfiguration.labelsOption.map { vpcNetworks =>
       vpcNetworks.subnetwork.getOrElse("default")
-    }.getOrElse(s"projects/${batchAttributes.project}/regions/${batchAttributes.location}/subnetworks/default")
+    }.getOrElse(s"projects/${batchAttributes.project}/regions/${batchRunLocation}/subnetworks/default")
   }
 
   def convertGbToMib(runtimeAttributes: GcpBatchRuntimeAttributes): Long = {

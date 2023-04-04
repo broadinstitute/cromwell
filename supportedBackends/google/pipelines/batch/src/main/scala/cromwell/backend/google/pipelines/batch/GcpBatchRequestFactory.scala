@@ -81,7 +81,7 @@ object GcpBatchRequestFactory {
                                       virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
                                       retryWithMoreMemoryKeys: Option[List[String]],
                                       fuseEnabled: Boolean,
-                                      //referenceDisksForLocalizationOpt: Option[List[GcpBatchAttachedDisk]],
+                                      referenceDisksForLocalizationOpt: Option[List[GcpBatchAttachedDisk]],
                                       //monitoringImage: MonitoringImage,
                                       checkpointingConfiguration: CheckpointingConfiguration,
                                       enableSshAccess: Boolean,

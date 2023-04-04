@@ -3,16 +3,13 @@ workflow myWorkflow {
 }
 
 task myTask {
-    input {
-        String name
-    }
     command {
         echo "hello world"
     }
 
     runtime {
       docker: "ubuntu:latest"
-      bootDiskSizeGb: 38.1469
+      bootDiskSizeGb: 50
     }
     output {
         String out = read_string(stdout())

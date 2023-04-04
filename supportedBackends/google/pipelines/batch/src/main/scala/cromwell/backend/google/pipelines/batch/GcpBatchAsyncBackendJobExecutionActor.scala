@@ -1,12 +1,7 @@
 package cromwell.backend.google.pipelines.batch
 
 import akka.http.scaladsl.model.{ContentType, ContentTypes}
-import akka.pattern.AskTimeoutException
-import akka.util.Timeout
-import com.google.api.gax.rpc.NotFoundException
 import com.google.cloud.batch.v1.JobName
-
-import scala.util.control.NonFatal
 //import cats.syntax.validated._
 import cats.implicits._
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
@@ -129,6 +124,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   extends BackendJobLifecycleActor
     with StandardAsyncExecutionActor
     with BatchApiRunCreationClient
+    with BatchApiFetchJobClient
     with AskSupport
     with GcpBatchJobCachingActorHelper
     with GcpBatchReferenceFilesMappingOperations
@@ -148,9 +144,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   /** The type of the run status returned during each poll. */
   override type StandardAsyncRunState = RunStatus
 
-  override def receive: Receive = runCreationClientReceive orElse kvClientReceive orElse super.receive
-//  override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse abortActorClientReceive orElse kvClientReceive orElse super.receive
-
+  override def receive: Receive = runCreationClientReceive orElse pollingActorClientReceive orElse kvClientReceive orElse super.receive
 
   /** Should return true if the status contained in `thiz` is equivalent to `that`, delta any other data that might be carried around
     * in the state type.
@@ -927,41 +921,16 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     }
   }
 
-
-  // TODO: Alex - This is the only API we care about right now
   override def pollStatusAsync(handle: GcpBatchPendingExecutionHandle): Future[RunStatus] = {
     // yes, we use the whole jobName as the id
     val jobNameStr = handle.pendingJob.jobId
 
-    implicit val timeout: Timeout = Timeout(60.seconds) //had to set to high amount for some reason.  Otherwise would not finish with low value
     for {
       _ <- Future.unit // trick to get into a future context
       _ = log.info(s"started polling for $jobNameStr")
       jobName = JobName.parse(jobNameStr)
-      status <- ask(backendSingletonActor, GcpBatchBackendSingletonActor.Action.QueryJobStatus(jobName)).map {
-        case GcpBatchBackendSingletonActor.Event.JobStatusRetrieved(job) => RunStatus.fromJobStatus(job.getStatus.getState)
-        // added to account for job not found errors because polling async happens before job is submitted
-        case GcpBatchBackendSingletonActor.Event.ActionFailed(_, nfe: NotFoundException) =>
-          // TODO: Alex - This must not be necessary
-          nfe.printStackTrace()
-          RunStatus.Running
-
-        case cause: AskTimeoutException =>
-          val msg = "Failed to retrieve job status due to a timeout"
-          log.error(cause, msg)
-          throw new RuntimeException(msg, cause) // TODO: Alex, is this the right way to propagate the error?
-
-        case msg =>
-          val error = s"Failed to retrieve job ($jobNameStr) from GCP due to an unknown response: $msg"
-          log.info(error)
-          throw new RuntimeException(error) // TODO: Alex, is this the right way to propagate the error?
-      }.recover {
-        case NonFatal(cause) =>
-          val msg = "Failed to retrieve job status due to an unknown error"
-          log.error(cause, msg)
-          throw new RuntimeException(msg, cause) // TODO: Alex, is this the right way to propagate the error?
-      }
-    } yield status
+      job <- fetchJob(jobName, backendSingletonActor)
+    } yield RunStatus.fromJobStatus(job.getStatus.getState)
   }
 
   override def isTerminal(runStatus: RunStatus): Boolean = {

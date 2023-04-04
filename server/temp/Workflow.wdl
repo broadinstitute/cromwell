@@ -3,9 +3,7 @@ workflow myWorkflow {
 }
 
 task myTask {
-    input {
-        String name
-    }
+
     command {
         echo "hello world"
     }
@@ -14,7 +12,5 @@ task myTask {
       docker: "ubuntu:latest"
       bootDiskSizeGb: 50
     }
-    output {
-        String out = read_string(stdout())
-    }
+
 }

@@ -1,18 +1,12 @@
 package cromwell.filesystems.blob
 
 import com.azure.core.credential.AzureSasCredential
-import com.azure.core.management.AzureEnvironment
-import com.azure.core.management.profile.AzureProfile
-import com.azure.identity.DefaultAzureCredentialBuilder
-import com.azure.resourcemanager.AzureResourceManager
-import com.azure.resourcemanager.storage.models.StorageAccountKey
 import com.azure.storage.blob.nio.AzureFileSystem
 import com.azure.storage.blob.sas.{BlobContainerSasPermission, BlobServiceSasSignatureValues}
-import com.azure.storage.blob.{BlobContainerClient, BlobContainerClientBuilder}
-import com.azure.storage.common.StorageSharedKeyCredential
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import common.validation.Validation._
+import cromwell.cloudsupport.azure.AzureUtils
 
 import java.net.URI
 import java.nio.file.{FileSystem, FileSystemNotFoundException, FileSystems}
@@ -223,22 +217,6 @@ case class WSMBlobSasTokenGenerator(container: BlobContainerName,
 }
 
 case class NativeBlobSasTokenGenerator(container: BlobContainerName, endpoint: EndpointURL, subscription: Option[SubscriptionId] = None) extends BlobSasTokenGenerator {
-  private val azureProfile = new AzureProfile(AzureEnvironment.AZURE)
-  private def azureCredentialBuilder = new DefaultAzureCredentialBuilder()
-      .authorityHost(azureProfile.getEnvironment.getActiveDirectoryEndpoint)
-      .build
-  private def authenticateWithSubscription(sub: SubscriptionId) = AzureResourceManager.authenticate(azureCredentialBuilder, azureProfile).withSubscription(sub.toString)
-  private def authenticateWithDefaultSubscription = AzureResourceManager.authenticate(azureCredentialBuilder, azureProfile).withDefaultSubscription()
-  private def azure = subscription.map(authenticateWithSubscription(_)).getOrElse(authenticateWithDefaultSubscription)
-  private def findAzureStorageAccount(name: StorageAccountName) = azure.storageAccounts.list.asScala.find(_.name.equals(name.value))
-      .map(Success(_)).getOrElse(Failure(new Exception("Azure Storage Account not found")))
-  private def buildBlobContainerClient(credential: StorageSharedKeyCredential, endpoint: EndpointURL, container: BlobContainerName): BlobContainerClient = {
-    new BlobContainerClientBuilder()
-        .credential(credential)
-        .endpoint(endpoint.value)
-        .containerName(container.value)
-        .buildClient()
-  }
   private val bcsp = new BlobContainerSasPermission()
     .setReadPermission(true)
     .setCreatePermission(true)
@@ -252,14 +230,7 @@ case class NativeBlobSasTokenGenerator(container: BlobContainerName, endpoint: E
     * @return an AzureSasCredential for accessing a blob container
     */
   def generateBlobSasToken: Try[AzureSasCredential] = for {
-    uri <- BlobPathBuilder.parseURI(endpoint.value)
-    configuredAccount <- BlobPathBuilder.parseStorageAccount(uri)
-    azureAccount <- findAzureStorageAccount(configuredAccount)
-    keys = azureAccount.getKeys.asScala
-    key <- keys.headOption.fold[Try[StorageAccountKey]](Failure(new Exception("Storage account has no keys")))(Success(_))
-    first = key.value
-    sskc = new StorageSharedKeyCredential(configuredAccount.value, first)
-    bcc = buildBlobContainerClient(sskc, endpoint, container)
+    bcc <- AzureUtils.buildContainerClientFromLocalEnvironment(container.toString, endpoint.toString, subscription.map(_.toString))
     bsssv = new BlobServiceSasSignatureValues(OffsetDateTime.now.plusDays(1), bcsp)
     asc = new AzureSasCredential(bcc.generateSas(bsssv))
   } yield asc

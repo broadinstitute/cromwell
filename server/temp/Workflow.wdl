@@ -11,7 +11,5 @@ task myTask {
       docker: "ubuntu:latest"
       bootDiskSizeGb: 50
     }
-    output {
-        String out = read_string(stdout())
-    }
+
 }

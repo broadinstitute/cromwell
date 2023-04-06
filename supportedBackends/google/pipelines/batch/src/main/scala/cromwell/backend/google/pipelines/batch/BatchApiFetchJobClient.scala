@@ -1,0 +1,46 @@
+package cromwell.backend.google.pipelines.batch
+
+import akka.actor.{Actor, ActorLogging, ActorRef}
+import com.google.cloud.batch.v1.{Job, JobName}
+
+import scala.concurrent.{Future, Promise}
+import scala.util.{Failure, Success, Try}
+
+
+/**
+  * Allows fetching a job
+  */
+trait BatchApiFetchJobClient { this: Actor with ActorLogging =>
+
+  private var pollingActorClientPromise: Option[Promise[Job]] = None
+
+  // handles messages produced from GcpBatchBackendSingletonActor
+  def pollingActorClientReceive: Actor.Receive = {
+    case GcpBatchBackendSingletonActor.Event.JobStatusRetrieved(job) =>
+      log.info(s"Job retrieved from GCP: ${job.getName}: ${job.getStatus}")
+      completePromise(Success(job))
+
+    case GcpBatchBackendSingletonActor.Event.ActionFailed(jobName, cause) =>
+      val msg = s"Failed to query job ($jobName) from GCP"
+      log.error(cause, msg)
+      completePromise(Failure(cause))
+  }
+
+  private def completePromise(result: Try[Job]): Unit = {
+    pollingActorClientPromise foreach { _.complete(result) }
+    pollingActorClientPromise = None
+  }
+
+  def fetchJob(jobName: JobName, backendSingletonActor: ActorRef): Future[Job] = {
+    pollingActorClientPromise match {
+      case Some(p) => p.future
+      case None =>
+        // TODO: Alex - I believe we can skip the singleton actor and query the job directly
+        backendSingletonActor ! GcpBatchBackendSingletonActor.Action.QueryJobStatus(jobName)
+
+        val newPromise = Promise[Job]()
+        pollingActorClientPromise = Option(newPromise)
+        newPromise.future
+    }
+  }
+}

@@ -1,0 +1,64 @@
+#This workflow will verify that a Cromwell App, as deployed by Leo in a Terra environment, can complete a workflow.
+#This is borrowing heavily from https://github.com/broadinstitute/terra-helmfile/blob/master/.github/workflows/smoke_test_bee.yaml
+name: deploy-test-gcp-app
+
+on:
+  workflow_dispatch:
+  push:
+  merge_group:
+
+jobs:
+  create-bee-workflow:
+    strategy:
+      matrix:
+        terra-env: [ dev, prod ] # what versions of apps do we use to emulate types of environments
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - name: dispatch to terra-github-workflows
+        uses: aurelien-baudet/workflow-dispatch@93e95b157d791ae7f42aef8f8a0d3d723eba1c31 #commit sha for v2.1.1
+        with:
+          workflow: bee-create
+          repo: broadinstitute/terra-github-workflows
+          ref: refs/heads/main
+          token: ${{ secrets.BROADBOT_TOKEN}} # github token for access to kick off a job in the private repo
+          # manually recalculate b/c env context is broken https://github.com/actions/runner/issues/480
+          inputs: '{ "bee-name": "${{ github.event.repository.name }}-${{ github.run_id }}-${{ matrix.terra-env }}", "version-template": "${{ matrix.terra-env }}" }'
+
+  #TODO: Everything
+  test-cromwell-job:
+    strategy:
+      matrix:
+        terra-env: [ dev, prod ] # what versions of apps do we use to emulate types of environments
+        testing-env: [ qa ] # what env resources to use, e.g. SA keys
+    needs: [create-bee-workflow]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - name: say-hello
+        run: echo "Hello World"
+
+  destroy-bee-workflow:
+    strategy:
+      matrix:
+        terra-env: [ dev, prod ] # what versions of apps do we use to emulate types of environments
+    runs-on: ubuntu-latest
+    needs: [test-cromwell-job]
+    if: always() # always run to confirm bee is destroyed
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - name: dispatch to terra-github-workflows
+        uses: aurelien-baudet/workflow-dispatch@93e95b157d791ae7f42aef8f8a0d3d723eba1c31 #commit sha for v2.1.1
+        with:
+          workflow: bee-destroy
+          repo: broadinstitute/terra-github-workflows
+          ref: refs/heads/main
+          token: ${{ secrets.BROADBOT_TOKEN}} # github token for access to kick off a job in the private repo
+          # manually recalculate b/c env context is broken https://github.com/actions/runner/issues/480
+          inputs: '{ "bee-name": "${{ github.event.repository.name }}-${{ github.run_id }}-${{ matrix.terra-env }}" }'

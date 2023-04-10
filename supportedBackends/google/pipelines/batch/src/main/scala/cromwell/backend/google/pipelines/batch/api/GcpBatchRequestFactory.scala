@@ -1,30 +1,31 @@
-package cromwell.backend.google.pipelines.batch
+package cromwell.backend.google.pipelines.batch.api
 
+import com.google.cloud.batch.v1.{CreateJobRequest, GetJobRequest, JobName}
 import cromwell.backend.BackendJobDescriptor
+import cromwell.backend.google.pipelines.batch.GcpBatchConfigurationAttributes.VirtualPrivateCloudConfiguration
+import cromwell.backend.google.pipelines.batch.io.GcpBatchAttachedDisk
+import cromwell.backend.google.pipelines.batch._
+import cromwell.backend.google.pipelines.common.PipelinesApiLiteralInput
+import cromwell.backend.google.pipelines.common.monitoring.CheckpointingConfiguration
 import cromwell.core.path.Path
 import wom.runtime.WomOutputRuntimeExtractor
-//import cromwell.backend.google.pipelines.batch.GcpLabel
-import cromwell.backend.google.pipelines.batch.io.GcpBatchAttachedDisk
-import cromwell.backend.google.pipelines.batch.GcpBatchConfigurationAttributes.VirtualPrivateCloudConfiguration
 
-import scala.concurrent.duration._
-import cromwell.backend.google.pipelines.common.monitoring.CheckpointingConfiguration
-//import cromwell.backend.google.pipelines.common.monitoring.{CheckpointingConfiguration, MonitoringImage}
-import cromwell.backend.google.pipelines.common._ //remove later because from common
+import scala.concurrent.duration.FiniteDuration
 
 trait GcpBatchRequestFactory {
+  def submitRequest(machineType: String, data: GcpBatchRequest): CreateJobRequest
+
+  def queryRequest(jobName: JobName): GetJobRequest
 
 }
-
-
 
 object GcpBatchRequestFactory {
 
   type MountsToEnv = List[String] => Map[String, String]
 
   /**
-   * Input parameters that are not strictly needed by the user's command but are Cromwell byproducts.
-   */
+    * Input parameters that are not strictly needed by the user's command but are Cromwell byproducts.
+    */
   case class DetritusInputParameters(
                                       executionScriptInputParameter: GcpBatchFileInput,
                                       monitoringScriptInputParameter: Option[GcpBatchFileInput]
@@ -33,8 +34,8 @@ object GcpBatchRequestFactory {
   }
 
   /**
-   * Output parameters that are not produced by the user's command but are Cromwell byproducts.
-   */
+    * Output parameters that are not produced by the user's command but are Cromwell byproducts.
+    */
   case class DetritusOutputParameters(
                                        monitoringScriptOutputParameter: Option[GcpBatchFileOutput],
                                        rcFileOutputParameter: GcpBatchFileOutput,
@@ -44,10 +45,10 @@ object GcpBatchRequestFactory {
   }
 
   /**
-   * Bundle containing all input and output parameters to a PAPI job
-   * Detrituses and actual inputs / outputs to the job are separated for more clarity and to leave open the possibility
-   * to treat them differently.
-   */
+    * Bundle containing all input and output parameters to a PAPI job
+    * Detrituses and actual inputs / outputs to the job are separated for more clarity and to leave open the possibility
+    * to treat them differently.
+    */
   case class InputOutputParameters(
                                     detritusInputParameters: DetritusInputParameters,
                                     jobInputParameters: List[GcpBatchInput],

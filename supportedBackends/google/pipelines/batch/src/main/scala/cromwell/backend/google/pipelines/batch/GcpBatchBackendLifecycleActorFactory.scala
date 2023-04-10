@@ -3,21 +3,18 @@ package cromwell.backend.google.pipelines.batch
 import akka.actor.{ActorRef, Props}
 import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.scalalogging.StrictLogging
-import cromwell.backend.BackendWorkflowDescriptor
-import cromwell.backend.{BackendInitializationData, JobExecutionMap}
+import cromwell.backend.google.pipelines.batch.GcpBatchBackendLifecycleActorFactory.robustBuildAttributes
+import cromwell.backend.google.pipelines.batch.api.GcpBatchRequestFactoryImpl
+import cromwell.backend.standard._
+import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, JobExecutionMap}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.CallOutputs
 import wom.graph.CommandCallNode
-import cromwell.backend.BackendConfigurationDescriptor
-import cromwell.backend.google.pipelines.batch.GcpBatchBackendLifecycleActorFactory.robustBuildAttributes
-import cromwell.backend.standard._
+
 import scala.util.{Failure, Try}
 
-
-class GcpBatchBackendLifecycleActorFactory(name: String, override val configurationDescriptor: BackendConfigurationDescriptor)
+class GcpBatchBackendLifecycleActorFactory(override val name: String, override val configurationDescriptor: BackendConfigurationDescriptor)
   extends StandardLifecycleActorFactory {
-
-  override def name: String = "batch"
 
   override def jobIdKey: String = "__gcp_batch"
   protected val googleConfig: GoogleConfiguration = GoogleConfiguration(configurationDescriptor.globalConfig)
@@ -62,12 +59,10 @@ class GcpBatchBackendLifecycleActorFactory(name: String, override val configurat
   }
 
   override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = {
-    Option(GcpBatchBackendSingletonActor.props("gcp-batch"))
+    val requestHandler = new GcpBatchApiRequestHandler
+    val requestFactory = new GcpBatchRequestFactoryImpl
+    Option(GcpBatchBackendSingletonActor.props(requestFactory)(requestHandler))
   }
-
-  //override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = super
-  //  .backendSingletonActorProps(serviceRegistryActor)
-
 }
 
 object GcpBatchBackendLifecycleActorFactory extends StrictLogging {
@@ -105,6 +100,4 @@ object GcpBatchBackendLifecycleActorFactory extends StrictLogging {
     // This intentionally throws if the final result of `build` is a `Failure`.
     build(attempt = 1).get
   }
-
-
 }

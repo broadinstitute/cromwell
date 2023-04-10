@@ -88,6 +88,7 @@ object GcpBatchRequestFactory {
                                       enableSshAccess: Boolean,
                                       //vpcNetworkAndSubnetworkProjectLabels: Option[VpcAndSubnetworkProjectLabelValues],
                                       //dockerImageCacheDiskOpt: Option[String]
+                                      gcpBatchCommand: String // TODO: Alex - verify whether we actually need this
                                      ) {
     def literalInputs = inputOutputParameters.literalInputParameters
 

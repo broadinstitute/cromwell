@@ -2,15 +2,16 @@ package cromwell.backend.google.pipelines.batch.api
 
 import com.google.cloud.batch.v1.AllocationPolicy.Accelerator
 import com.google.cloud.batch.v1.{GetJobRequest, JobName}
+import cromwell.backend.google.pipelines.batch.runnable.UserRunnable
 import cromwell.backend.google.pipelines.batch.{BatchUtilityConversions, GcpBatchRequest, RunStatus}
 import cromwell.core.WorkflowId
+
 //import com.google.cloud.batch.v1.AllocationPolicy._
 import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy, ProvisioningModel}
 import com.google.cloud.batch.v1.{AllocationPolicy, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, ServiceAccount, TaskGroup, TaskSpec}
 //import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy}
 import com.google.cloud.batch.v1.AllocationPolicy.AttachedDisk
 import com.google.cloud.batch.v1.LogsPolicy.Destination
-import com.google.cloud.batch.v1.Runnable.Container
 import com.google.cloud.batch.v1.Volume
 import com.google.protobuf.Duration
 import cromwell.backend.google.pipelines.batch.io.GcpBatchAttachedDisk
@@ -18,21 +19,14 @@ import org.slf4j.{Logger, LoggerFactory}
 
 import scala.jdk.CollectionConverters._
 
-class GcpBatchRequestFactoryImpl extends GcpBatchRequestFactory with BatchUtilityConversions {
+class GcpBatchRequestFactoryImpl extends GcpBatchRequestFactory with BatchUtilityConversions with UserRunnable {
   override def queryRequest(jobName: JobName): GetJobRequest = GetJobRequest.newBuilder.setName(jobName.toString).build
 
   val log: Logger = LoggerFactory.getLogger(RunStatus.toString)
 
   // VALUES HERE
-  private val entryPoint = "/bin/sh"
   private val durationInSeconds: Long = 3600
   private val taskCount: Long = 1
-
-  private def createRunnable(dockerImage: String, entryPoint: String, command: String): Runnable = {
-    val runnable = Runnable.newBuilder.setContainer((Container.newBuilder.setImageUri(dockerImage).setEntrypoint(entryPoint).addCommands("-c").addCommands(command).build)).build
-
-    runnable
-  }
 
   private def createComputeResource(cpu: Long, memory: Long, bootDiskSizeMb: Long) = {
     ComputeResource
@@ -84,10 +78,10 @@ class GcpBatchRequestFactoryImpl extends GcpBatchRequestFactory with BatchUtilit
       .build
   }
 
-  private def createTaskSpec(runnable: Runnable, computeResource: ComputeResource, retryCount: Int, durationInSeconds: Long, volumes: List[Volume]) = {
+  private def createTaskSpec(runnables: List[Runnable], computeResource: ComputeResource, retryCount: Int, durationInSeconds: Long, volumes: List[Volume]) = {
     TaskSpec
       .newBuilder
-      .addRunnables(runnable)
+      .addAllRunnables(runnables.asJava)
       .setComputeResource(computeResource)
       .addAllVolumes(volumes.asJava)
       .setMaxRetryCount(retryCount)
@@ -125,7 +119,6 @@ class GcpBatchRequestFactoryImpl extends GcpBatchRequestFactory with BatchUtilit
     val runtimeAttributes = data.gcpBatchParameters.runtimeAttributes
     val createParameters = data.createParameters
     val retryCount = data.gcpBatchParameters.runtimeAttributes.preemptible
-    val gcpBatchCommand: String = data.gcpBatchCommand
     val vpcNetwork: String = toVpcNetwork(batchAttributes)
     val vpcSubnetwork: String = toVpcSubnetwork(batchAttributes, runtimeAttributes)
     val allDisksToBeMounted: Seq[GcpBatchAttachedDisk] = createParameters.adjustedSizeDisks ++ createParameters.referenceDisksForLocalizationOpt.getOrElse(List.empty)
@@ -164,14 +157,15 @@ class GcpBatchRequestFactoryImpl extends GcpBatchRequestFactory with BatchUtilit
 
     //val image = gcsTransferLibraryContainerPath
     //val gcsTransferLibraryContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
-    val runnable = createRunnable(dockerImage = data.gcpBatchParameters.runtimeAttributes.dockerImage, entryPoint = entryPoint, command = gcpBatchCommand)
 
     val networkInterface = createNetworkInterface(vpcNetwork = vpcNetwork, vpcSubnetwork = vpcSubnetwork, noAddress = noAddress)
     val networkPolicy = createNetworkPolicy(networkInterface)
     val allDisks = toDisks(allDisksToBeMounted)
     val allVolumes = toVolumes(allDisksToBeMounted)
+    val userRunnable = userRunnables(data.createParameters, allVolumes)
+
     val computeResource = createComputeResource(cpuCores, memory, gcpBootDiskSizeMb)
-    val taskSpec = createTaskSpec(runnable, computeResource, retryCount, durationInSeconds, allVolumes)
+    val taskSpec = createTaskSpec(userRunnable, computeResource, retryCount, durationInSeconds, allVolumes)
     val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
     val instancePolicy = createInstancePolicy(machineType = machineType, cpuPlatform = cpuPlatform, spotModel, accelerators, allDisks)
     val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
@@ -184,8 +178,7 @@ class GcpBatchRequestFactoryImpl extends GcpBatchRequestFactory with BatchUtilit
       .putLabels("cromwell-workflow-id", data.workflowId.toString) // label to make it easier to match Cromwell workflows with multiple GCP batch jobs
       .setLogsPolicy(LogsPolicy
         .newBuilder
-        .setDestination(Destination
-          .CLOUD_LOGGING)
+        .setDestination(Destination.CLOUD_LOGGING)
         .build)
 
     CreateJobRequest

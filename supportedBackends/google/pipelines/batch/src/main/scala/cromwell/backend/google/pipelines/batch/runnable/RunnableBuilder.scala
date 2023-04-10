@@ -11,6 +11,19 @@ import scala.jdk.CollectionConverters._
  */
 object RunnableBuilder {
 
+  implicit class EnhancedRunnableBuilder(val builder: Runnable.Builder) extends AnyVal {
+    def withEntrypointCommand(command: String*): Runnable.Builder = {
+      builder
+        .setContainer(
+          builder.getContainerBuilder
+            .setEntrypoint(command.headOption.orNull)
+            .addAllCommands(
+              command.drop(1).asJava
+            )
+        )
+    }
+  }
+
   implicit class EnhancedRunnable(val runnable: Runnable) extends AnyVal {
 
     def withCommand(commands: List[String]): Runnable.Builder = {
@@ -18,19 +31,7 @@ object RunnableBuilder {
         .setContainer(Container.newBuilder.addAllCommands(commands.asJava))
     }
 
-//    def withEntrypointCommand(command: String*): Runnable = {
-//      runnable.toBuilder
-//        .setContainer(
-//          Container.newBuilder
-//            .setEntrypoint(command.headOption.orNull)
-//            .setCommands(
-//              Option(command.drop(1))
-//                .filter(_.nonEmpty)
-//                .map(_.asJava)
-//                .orNull
-//            )
-//        )
-//    }
+
 
     //def withRunInBackground(runInBackground: Boolean): Runnable = runnable.setBackground(runInBackground)
 
@@ -53,10 +54,7 @@ object RunnableBuilder {
       .setContainer(Container.newBuilder.setImageUri(image))
   }
 
-//  private def cloudSdkContainerBuilder: Container.Builder = Container.newBuilder.setImageUri(CloudSdkImage)
-//  private def cloudSdkAction: Runnable.Builder = Runnable.newBuilder
-//    .setContainer(Container.newBuilder.setImageUri(CloudSdkImage))
-
+  private def cloudSdkContainerBuilder: Container.Builder = Container.newBuilder.setImageUri(CloudSdkImage)
 
   //privateDockerKeyAndToken: Option[CreatePipelineDockerKeyAndToken],
   //fuseEnabled: Boolean)
@@ -79,55 +77,41 @@ object RunnableBuilder {
       .addCommands("-c") // TODO: Verify whether this is still required
       .addCommands(scriptContainerPath)
     Runnable.newBuilder().setContainer(container)
+    //.withLabels(labels)
+    //.withTimeout(timeout)
   }
 
 
-//  def cloudSdkShellAction(shellCommand: String)(volumes: Volume,
-//                                                labels: Map[String, String] = Map.empty,
-//                                                timeout: Duration = Duration.Inf): Runnable.Builder = {
-//    //withVolumes(volumes)
-//    cloudSdkAction.setContainer()
-//      .getContainerBuilder
-//      .setContainer(Container.newBuilder.addVolumes(volumes))
-//      //.withEntrypointCommand(
-//      //  "/bin/sh",
-//      //  "-c",
-//      //  if (shellCommand.contains("\n")) shellCommand |> ActionCommands.multiLineCommand else shellCommand
-//      //)
-//      //.withVolumes(volumes)
-//  }
-  //.withLabels(labels)
-      //.withTimeout(timeout)
-
-
   //  Needs label support
-  // Creates an Action that logs the docker command for the passed in action.
-//  def describeDocker(description: String, runnable: Runnable): Runnable = {
-//    logTimestampedAction(
-//      s"Running $description: ${RunnableBuilder.toDockerRun(runnable)}",
-//      runnable.scalaLabels
-//    )
-//  }
+  // Creates a Runnable that logs the docker command for the passed in action.
+  def describeDocker(description: String, runnable: Runnable): Runnable = {
+    logTimestampedAction(
+      s"Running $description: ${RunnableBuilder.toDockerRun(runnable)}",
+      Map.empty
+    ).build()
+  }
 
-  def timestampedMessage(message: String): String =
+  private def timestampedMessage(message: String): String =
     s"""printf '%s %s\\n' "$$(date -u '+%Y/%m/%d %H:%M:%S')" ${shellEscaped(message)}"""
 
-//  private def logTimestampedAction(message: String,
-//                                   actionLabels: Map[String, String]): Runnable.Builder = {
-//    // Uses the cloudSdk image as that image will be used for other operations as well.
-//    cloudSdkShellAction(
-//      timestampedMessage(message)
-//    )(
-//      labels = actionLabels collect {
-//        case (key, value) if key == Key.Tag => Key.Logging -> value
-//        case (key, value) => key -> value
-//      },
-//      timeout = 300.seconds
-//    )
-//  }
+  private def logTimestampedAction(message: String,
+                                   actionLabels: Map[String, String]): Runnable.Builder = {
+    // Uses the cloudSdk image as that image will be used for other operations as well.
+    cloudSdkShellAction(
+      timestampedMessage(message)
+    )
+  }
 
+  private def cloudSdkShellAction(shellCommand: String): Runnable.Builder = {
+    Runnable.newBuilder.setContainer(cloudSdkContainerBuilder)
+      .withEntrypointCommand(
+        "/bin/sh",
+        "-c",
+        shellCommand
+      )
+  }
 
-//  def annotateTimestampedActions(description: String, loggingLabelValue: String, isAlwaysRun: Boolean = false)
+  //  def annotateTimestampedActions(description: String, loggingLabelValue: String, isAlwaysRun: Boolean = false)
 //                                (actions: List[Runnable]): List[Runnable] = {
 //    val labels = Map(Key.Logging -> loggingLabelValue)
 //    val starting = List(logTimestampedAction(s"Starting $description.", labels).buildPartial.withAlwaysRun(isAlwaysRun))
@@ -135,13 +119,13 @@ object RunnableBuilder {
 //    starting ++ actions ++ done
 //  }
 
-  // Converts an Action to a `docker run ...` command runnable in the shell.
-//  private[runnable] def toDockerRun(runnable: Runnable): String = {
-//    runnable.getContainer
-//      .getCommandsList
-//      .asScala
-//      .toList
-//      .map { cmd => shellEscaped(cmd) }
-//      .mkString("") // TODO: Verify this format is correct
-//  }
+  // Converts an Runnable to a `docker run ...` command runnable in the shell.
+  private[runnable] def toDockerRun(runnable: Runnable): String = {
+    runnable.getContainer
+      .getCommandsList
+      .asScala
+      .toList
+      .map { cmd => shellEscaped(cmd) }
+      .mkString(" ")
+  }
 }

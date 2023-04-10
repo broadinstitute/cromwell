@@ -38,28 +38,14 @@ Ask the questions:
   
 ### Run CI against the PR
 
-Note: inspired by the community answer [here](https://github.community/t5/How-to-use-Git-and-GitHub/Checkout-a-branch-from-a-fork/td-p/77).
-
-- Problem: our CI will only run against branches of the `broadinstitute/cromwell` repo submitted by team members.
-- To turn a community contribution into a PR that travis will run against:
-  - Run the `scripts/make_pr_clone_branch.sh` script, providing the github PR number of the external PR as the command line argument
-    - Eg: `scripts/make_pr_clone_branch.sh 5333` to make a PR clone branch for PR #5333.  
-  - Push the branch to github
-    - Note: The final `git push` command may not work as-is, depending on your ~/.gitconfig value of `push.default`. If it doesn't work then one of the following solutions may work:
-      - Setting `git`'s `push.default` config value to be '`current`'.
-      - Using `git push --set-upstream origin 5070_pr_clone` instead
-      - Using `git push origin HEAD` instead
-  - Create a new PR for the clone branch. Indicate that it only exists to test a community contribution. 
-    - Example title: `[PR 5333 Clone] PR for CI only`
-- If you need to re-sync the clone PR against changes on the remote branch, the same script will *update* your local reference allowing you to force-push changes to the same github branch!  
+- Opening a PR triggers CI to run automatically. However, if the PR was not opened by a trusted contributor, it will wait in a Github Actions queue until a trusted contributor explicitly allows CI tests run.
 
 ### Cycle through Review and CI
 
 - If the community contributor makes changes following your reviews or the CI results:
   - Glance at the changes to make sure they still seem reasonable.
   - Make any additional comments
-  - Re-fetch the remote reference: `git fetch -f origin refs/pull/860/head:938_pr_clone`
-  - Push the changes back up to github to re-trigger the CI on your clone PR.
+  - Rerun CI.
   
 ### Merge the PR
 

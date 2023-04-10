@@ -41,3 +41,14 @@ object AWSFilesChecker extends FilesChecker {
 
   override def countObjectsAtPath: String => Int = s3Client.countObjects(s3PrefixRegex)
 }
+
+object BlobFilesChecker extends FilesChecker {
+  import ObjectCounterInstances.blobObjectCounter
+  import ObjectCounterSyntax._
+
+  private lazy val containerClient = Operations.blobContainerClient
+
+  // The root of the endpoint + container specified in reference.conf will be substituted for az://
+  private val azurePrefixRange = "^az:\\/\\/.*"
+  override def countObjectsAtPath: String => Int = ObjectCounterSyntax(containerClient).countObjects(azurePrefixRange)
+}

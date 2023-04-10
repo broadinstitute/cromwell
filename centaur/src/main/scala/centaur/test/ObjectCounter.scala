@@ -1,5 +1,6 @@
 package centaur.test
 
+import com.azure.storage.blob.BlobContainerClient
 import com.google.cloud.storage.Storage.BlobListOption
 import com.google.cloud.storage.{Blob, Storage}
 import software.amazon.awssdk.services.s3.S3Client
@@ -37,6 +38,25 @@ object ObjectCounterInstances {
     val listObjectsAtPath: Path => Iterable[Blob] = g =>
       storage.list(g.bucket, BlobListOption.prefix(g.directory)).iterateAll.asScala
     listObjectsAtPath(_).size
+  }
+
+  implicit val blobObjectCounter: ObjectCounter[BlobContainerClient] = (containerClient : BlobContainerClient) => {
+    val pathToInt: Path => Int = providedPath => {
+      //Our path parsing is somewhat GCP centric. Convert to a blob path starting from the container root.
+      def pathToBlobPath(parsedPath : Path) : String = {
+        (Option(parsedPath.bucket), Option(parsedPath.directory)) match {
+          case (None, _) => ""
+          case (Some(_), None) => parsedPath.bucket
+          case (Some(_), Some(_)) => parsedPath.bucket + "/" + parsedPath.directory
+        }
+      }
+
+      val fullPath = pathToBlobPath(providedPath)
+      val blobsInFolder =  containerClient.listBlobsByHierarchy(fullPath)
+      //if something "isPrefix", it's a directory. Otherwise, its a file. We just want to count files.
+      blobsInFolder.asScala.count(!_.isPrefix)
+    }
+    pathToInt(_)
   }
 }
 

@@ -6,7 +6,6 @@ import com.google.cloud.batch.v1.{Job, JobName}
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
 
-
 /**
   * Allows fetching a job
   */
@@ -35,8 +34,7 @@ trait BatchApiFetchJobClient { this: Actor with ActorLogging =>
     pollingActorClientPromise match {
       case Some(p) => p.future
       case None =>
-        // TODO: Alex - I believe we can skip the singleton actor and query the job directly
-        backendSingletonActor ! GcpBatchBackendSingletonActor.Action.QueryJobStatus(jobName)
+        backendSingletonActor ! GcpBatchBackendSingletonActor.Action.QueryJob(jobName)
 
         val newPromise = Promise[Job]()
         pollingActorClientPromise = Option(newPromise)

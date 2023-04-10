@@ -16,7 +16,7 @@ import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExec
 import cromwell.core._
 import cromwell.core.retry.SimpleExponentialBackoff
 //import common.validation.Validation._
-import cromwell.backend.google.pipelines.batch.GcpBatchRequestFactory._
+import cromwell.backend.google.pipelines.batch.api.GcpBatchRequestFactory._
 import cromwell.backend.google.pipelines.common.monitoring.CheckpointingConfiguration
 //import cromwell.backend.google.pipelines.common.monitoring.{CheckpointingConfiguration, MonitoringImage}
 import akka.actor.ActorRef

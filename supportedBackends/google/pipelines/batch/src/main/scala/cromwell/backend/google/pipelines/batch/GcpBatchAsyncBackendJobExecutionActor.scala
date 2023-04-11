@@ -633,6 +633,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           enableSshAccess = enableSshAccess,
           //vpcNetworkAndSubnetworkProjectLabels = data.vpcNetworkAndSubnetworkProjectLabels,
           //dockerImageCacheDiskOpt = isDockerImageCacheUsageRequested.option(dockerImageCacheDiskOpt).flatten
+          gcpBatchCommand = gcpBatchCommand
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")
@@ -848,7 +849,13 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     println(jobDescriptor.fullyQualifiedInputs)
     val file = jobDescriptor.localInputs
     println(file.get("test"))
-    val gcpBatchParameters = CreateGcpBatchParameters(jobDescriptor = jobDescriptor, runtimeAttributes = runtimeAttributes, batchAttributes = batchAttributes, dockerImage = jobDockerImage, projectId = batchAttributes.project, region = batchAttributes.location)
+
+    val gcpBatchParameters = CreateGcpBatchParameters(
+      jobDescriptor = jobDescriptor,
+      runtimeAttributes = runtimeAttributes,
+      batchAttributes = batchAttributes,
+      projectId = batchAttributes.project,
+      region = batchAttributes.location)
 
     val runPipelineResponse = for {
       //_ <- evaluateRuntimeAttributes

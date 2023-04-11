@@ -38,7 +38,7 @@ trait GlobFunctions extends IoFunctionSet with AsyncIoFunctions {
     import GlobFunctions._
     val globPatternName = globName(pattern)
     val listFilePath = callContext.root.resolve(s"${globName(pattern)}.list")
-    asyncIo.readLinesAsync(listFilePath.toRealPath()) map { lines =>
+    asyncIo.readLinesAsync(listFilePath.toAbsolutePath) map { lines =>
       lines.toList map { fileName =>
         (callContext.root /  globPatternName  / fileName).pathAsString
       }

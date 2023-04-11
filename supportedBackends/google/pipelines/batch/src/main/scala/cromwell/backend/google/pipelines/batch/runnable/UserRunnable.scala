@@ -1,18 +1,17 @@
 package cromwell.backend.google.pipelines.batch.runnable
 
-import com.google.cloud.batch.v1.{Runnable, Volume}
+import com.google.cloud.batch.v1.Runnable
 import cromwell.backend.google.pipelines.batch.api.GcpBatchRequestFactory.CreatePipelineParameters
 
 trait UserRunnable {
 
   // add in mounts?
-  def userRunnables(createPipelineParameters: CreatePipelineParameters, volumes: List[Volume]): List[Runnable] = {
+  def userRunnables(createPipelineParameters: CreatePipelineParameters): List[Runnable] = {
     val userRunnable = RunnableBuilder.userRunnable(
       docker = createPipelineParameters.dockerImage,
       // TODO: Alex - This used to be createPipelineParameters.commandScriptContainerPath.pathAsString which is /cromwell_root/script
       // I'm not sure if such a script will include the value from gcpBatchCommand
-      scriptContainerPath = createPipelineParameters.gcpBatchCommand,
-      volumes = volumes,
+      command = createPipelineParameters.gcpBatchCommand,
       jobShell = createPipelineParameters.jobShell,
       // not necessary for now
       //createPipelineParameters.privateDockerKeyAndEncryptedToken,

@@ -2,7 +2,7 @@ package cromwell.backend.google.pipelines.batch.api
 
 import com.google.cloud.batch.v1.AllocationPolicy.Accelerator
 import com.google.cloud.batch.v1.{GetJobRequest, JobName}
-import cromwell.backend.google.pipelines.batch.runnable.UserRunnable
+import cromwell.backend.google.pipelines.batch.runnable.{ContainerSetup, RunnableUtils, UserRunnable}
 import cromwell.backend.google.pipelines.batch.{BatchUtilityConversions, GcpBatchRequest, RunStatus}
 import cromwell.core.WorkflowId
 
@@ -19,7 +19,7 @@ import org.slf4j.{Logger, LoggerFactory}
 
 import scala.jdk.CollectionConverters._
 
-class GcpBatchRequestFactoryImpl extends GcpBatchRequestFactory with BatchUtilityConversions with UserRunnable {
+class GcpBatchRequestFactoryImpl extends GcpBatchRequestFactory with BatchUtilityConversions with UserRunnable with ContainerSetup {
   override def queryRequest(jobName: JobName): GetJobRequest = GetJobRequest.newBuilder.setName(jobName.toString).build
 
   val log: Logger = LoggerFactory.getLogger(RunStatus.toString)
@@ -162,10 +162,34 @@ class GcpBatchRequestFactoryImpl extends GcpBatchRequestFactory with BatchUtilit
     val networkPolicy = createNetworkPolicy(networkInterface)
     val allDisks = toDisks(allDisksToBeMounted)
     val allVolumes = toVolumes(allDisksToBeMounted)
-    val userRunnable = userRunnables(data.createParameters, allVolumes)
+
+    val containerSetup: List[Runnable] = containerSetupRunnables(allVolumes)
+    val localization: List[Runnable] = List.empty //localizeActions(createPipelineParameters, mounts)
+    val userRunnable: List[Runnable] = userRunnables(data.createParameters)
+    val memoryRetryRunnable: List[Runnable] = List.empty //checkForMemoryRetryActions(createPipelineParameters, mounts)
+    val deLocalization: List[Runnable] = List.empty //deLocalizeActions(createPipelineParameters, mounts)
+    val monitoringSetup: List[Runnable] = List.empty //monitoringSetupActions(createPipelineParameters, mounts)
+    val monitoringShutdown: List[Runnable] = List.empty //monitoringShutdownActions(createPipelineParameters)
+    val checkpointingStart: List[Runnable] = List.empty //checkpointingSetupActions(createPipelineParameters, mounts)
+    val checkpointingShutdown: List[Runnable] = List.empty //checkpointingShutdownActions(createPipelineParameters)
+    val sshAccess: List[Runnable] = List.empty //sshAccessActions(createPipelineParameters, mounts)
+
+    val sortedRunnables: List[Runnable] = RunnableUtils.sortRunnables(
+      containerSetup = containerSetup,
+        localization = localization,
+        userRunnable = userRunnable,
+        memoryRetryRunnable = memoryRetryRunnable,
+        deLocalization = deLocalization,
+        monitoringSetup = monitoringSetup,
+        monitoringShutdown = monitoringShutdown,
+        checkpointingStart = checkpointingStart,
+        checkpointingShutdown = checkpointingShutdown,
+        sshAccess = sshAccess,
+        isBackground = _.getBackground,
+      )
 
     val computeResource = createComputeResource(cpuCores, memory, gcpBootDiskSizeMb)
-    val taskSpec = createTaskSpec(userRunnable, computeResource, retryCount, durationInSeconds, allVolumes)
+    val taskSpec = createTaskSpec(sortedRunnables, computeResource, retryCount, durationInSeconds, allVolumes)
     val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
     val instancePolicy = createInstancePolicy(machineType = machineType, cpuPlatform = cpuPlatform, spotModel, accelerators, allDisks)
     val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build

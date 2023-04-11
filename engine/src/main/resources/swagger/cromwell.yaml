@@ -1444,8 +1444,9 @@ definitions:
           Returns only workflows with the specified workflow id.  If specified multiple times,
           returns workflows with any of the specified workflow ids.
       excludeLabelAnd:
-        type: string
-        format: array
+        type: array
+        items:
+          type: string
         pattern: ^([a-z][-a-z0-9]*[a-z0-9])?[:]([a-z][-a-z0-9]*[a-z0-9])?$
         description: >
           Excludes workflows with the specified label.  If specified multiple times,
@@ -1453,8 +1454,9 @@ definitions:
           and label value pair as separated with
           "label-key:label-value"
       excludeLabelOr:
-        type: string
-        format: array
+        type: array
+        items:
+          type: string
         pattern: ^([a-z][-a-z0-9]*[a-z0-9])?[:]([a-z][-a-z0-9]*[a-z0-9])?$
         description: >
           Excludes workflows with the specified label.  If specified multiple times,

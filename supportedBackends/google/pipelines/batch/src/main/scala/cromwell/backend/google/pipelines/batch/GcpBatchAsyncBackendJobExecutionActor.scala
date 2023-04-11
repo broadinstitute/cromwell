@@ -25,7 +25,7 @@ import cats.data.NonEmptyList
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.async.{ExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.google.pipelines.batch.GcpBatchConfigurationAttributes.GcsTransferConfiguration
-import cromwell.backend.google.pipelines.batch.RunStatus.{Succeeded, TerminalRunStatus}
+import cromwell.backend.google.pipelines.batch.RunStatus.TerminalRunStatus
 import cromwell.backend.google.pipelines.common.WorkflowOptionKeys
 import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.DefaultPathBuilder
@@ -976,8 +976,10 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override def getTerminalEvents(runStatus: RunStatus): Seq[ExecutionEvent] = {
     runStatus match {
-      case successStatus: Succeeded => successStatus
-        .eventList
+      case t: RunStatus.TerminalRunStatus =>
+        log.warning(s"Tried to get terminal events on a terminal status without events: $runStatus")
+        t.eventList
+
       case unknown =>
         throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
     }

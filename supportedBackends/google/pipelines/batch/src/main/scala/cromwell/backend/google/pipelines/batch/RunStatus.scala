@@ -19,7 +19,7 @@ sealed trait RunStatus {
 
 object RunStatus {
 
-    val log: Logger = LoggerFactory.getLogger(RunStatus.toString)
+    private val log: Logger = LoggerFactory.getLogger(RunStatus.toString)
 
 
     //def fromJobStatus(status: JobStatus.State,  eventList: Seq[ExecutionEvent] = Seq.empty): Try[RunStatus] = {
@@ -53,28 +53,30 @@ object RunStatus {
             Running
     }
 
+    sealed trait TerminalRunStatus extends RunStatus {
+        def eventList: Seq[ExecutionEvent]
+    }
+
     case object Initializing extends RunStatus {
         //def isTerminal=false
     }
     case object Running extends RunStatus {
         //def isTerminal=false
     }
-    case object Succeeded extends RunStatus {
+    case object Succeeded extends TerminalRunStatus {
+        override def eventList: Seq[ExecutionEvent] = List.empty
         //def isTerminal=true
     }
 
-    case object Failed extends RunStatus
+    case object Failed extends TerminalRunStatus {
+
+        override def eventList: Seq[ExecutionEvent] = List.empty
+    }
 
     case object DeletionInProgress extends RunStatus
 
     case object StateUnspecified extends RunStatus
     case object Unrecognized extends RunStatus
-
-    sealed trait TerminalRunStatus extends RunStatus {
-      def eventList: Seq[ExecutionEvent]
-    }
-
-
 
     //case class Succeeded(eventList: Seq[ExecutionEvent]) extends TerminalRunStatus {
 

@@ -46,7 +46,7 @@ class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
   it should "evaluate an 'as_pairs' expression correctly" in {
     // Repeat this a few times ensure we aren't occasionally reordering by accident:
     10 times {
-      val str = """ as_pairs( { 1: "one", 2: "two", 3: three } ) """
+      val str = """ as_pairs( { 1: "one", 2: "two", 3: "three" } ) """
       val expr = fromString[ExpressionElement](str, parser.parse_e)
 
       val inputs = Map("three" -> WomString("three"))

@@ -13,6 +13,7 @@ object Dependencies {
   private val azureStorageBlobNioV = "12.0.0-beta.19"
   private val azureIdentitySdkV = "1.9.0-beta.2"
   private val betterFilesV = "3.9.1"
+  private val jsonSmartV = "2.4.10"
   /*
   cats-effect, fs2, http4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
    */
@@ -204,10 +205,12 @@ object Dependencies {
       exclude("jakarta.activation", "jakarta.activation-api"),
     "com.azure" % "azure-identity" % azureIdentitySdkV
       exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
-      exclude("jakarta.activation", "jakarta.activation-api"),
+      exclude("jakarta.activation", "jakarta.activation-api")
+      exclude("net.minidev", "json-smart"),
     "com.azure" % "azure-core-management" % "1.7.1",
     "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % jacksonV,
-    "com.azure.resourcemanager" % "azure-resourcemanager" % "2.18.0"
+    "com.azure.resourcemanager" % "azure-resourcemanager" % "2.18.0",
+    "net.minidev" % "json-smart" % jsonSmartV
   )
 
   val wsmDependencies: List[ModuleID] = List(

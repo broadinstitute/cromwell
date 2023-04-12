@@ -10,6 +10,7 @@ import centaur.test.metadata.WorkflowFlatMetadata
 import centaur.test.metadata.WorkflowFlatMetadata._
 import centaur.test.submit.SubmitHttpResponse
 import centaur.test.workflow.Workflow
+import com.azure.storage.blob.BlobContainerClient
 import com.google.api.services.genomics.v2alpha1.{Genomics, GenomicsScopes}
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
@@ -23,6 +24,7 @@ import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
 import cromwell.api.model.{CallCacheDiff, Failed, HashDifference, SubmittedWorkflow, Succeeded, TerminalStatus, WaasDescription, WorkflowId, WorkflowMetadata, WorkflowStatus}
 import cromwell.cloudsupport.aws.AwsConfiguration
+import cromwell.cloudsupport.azure.{AzureUtils}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import io.circe.parser._
@@ -149,6 +151,13 @@ object Operations extends StrictLogging {
       .credentialsProvider(StaticCredentialsProvider.create(basicAWSCredentials))
       .build()
   }
+
+  lazy val azureConfig: Config = CentaurConfig.conf.getConfig("azure")
+  val azureSubscription = azureConfig.getString("subscription")
+  val blobContainer = azureConfig.getString("container")
+  val azureEndpoint = azureConfig.getString("endpoint")
+  //NB: Centaur will throw an exception if it isn't able to authenticate with Azure blob storage via the local environment.
+  lazy val blobContainerClient: BlobContainerClient = AzureUtils.buildContainerClientFromLocalEnvironment(blobContainer, azureEndpoint, Option(azureSubscription)).get
 
   def submitWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = {
     new Test[SubmittedWorkflow] {

@@ -206,6 +206,7 @@ object Dependencies {
       exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
       exclude("jakarta.activation", "jakarta.activation-api"),
     "com.azure" % "azure-core-management" % "1.7.1",
+    "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % jacksonV,
     "com.azure.resourcemanager" % "azure-resourcemanager" % "2.18.0"
   )
 
@@ -409,7 +410,7 @@ object Dependencies {
     "com.lihaoyi" %% "pprint" % pprintV,
   ) ++ catsDependencies ++ configDependencies ++ slf4jFacadeDependencies ++ refinedTypeDependenciesList
 
-  val cloudSupportDependencies: List[ModuleID] = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies ++ awsCloudDependencies
+  val cloudSupportDependencies: List[ModuleID] = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies ++ awsCloudDependencies ++ azureDependencies
 
   val databaseSqlDependencies: List[ModuleID] = List(
     "commons-io" % "commons-io" % commonsIoV,

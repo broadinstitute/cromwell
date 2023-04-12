@@ -25,7 +25,7 @@ import cats.data.NonEmptyList
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.async.{ExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.google.pipelines.batch.GcpBatchConfigurationAttributes.GcsTransferConfiguration
-import cromwell.backend.google.pipelines.batch.RunStatus.{Succeeded, TerminalRunStatus}
+import cromwell.backend.google.pipelines.batch.RunStatus.TerminalRunStatus
 import cromwell.backend.google.pipelines.common.WorkflowOptionKeys
 import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.DefaultPathBuilder
@@ -633,6 +633,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           enableSshAccess = enableSshAccess,
           //vpcNetworkAndSubnetworkProjectLabels = data.vpcNetworkAndSubnetworkProjectLabels,
           //dockerImageCacheDiskOpt = isDockerImageCacheUsageRequested.option(dockerImageCacheDiskOpt).flatten
+          gcpBatchCommand = gcpBatchCommand
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")
@@ -848,7 +849,13 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     println(jobDescriptor.fullyQualifiedInputs)
     val file = jobDescriptor.localInputs
     println(file.get("test"))
-    val gcpBatchParameters = CreateGcpBatchParameters(jobDescriptor = jobDescriptor, runtimeAttributes = runtimeAttributes, batchAttributes = batchAttributes, dockerImage = jobDockerImage, projectId = batchAttributes.project, region = batchAttributes.location)
+
+    val gcpBatchParameters = CreateGcpBatchParameters(
+      jobDescriptor = jobDescriptor,
+      runtimeAttributes = runtimeAttributes,
+      batchAttributes = batchAttributes,
+      projectId = batchAttributes.project,
+      region = batchAttributes.location)
 
     val runPipelineResponse = for {
       //_ <- evaluateRuntimeAttributes
@@ -969,8 +976,10 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override def getTerminalEvents(runStatus: RunStatus): Seq[ExecutionEvent] = {
     runStatus match {
-      case successStatus: Succeeded => successStatus
-        .eventList
+      case t: RunStatus.TerminalRunStatus =>
+        log.warning(s"Tried to get terminal events on a terminal status without events: $runStatus")
+        t.eventList
+
       case unknown =>
         throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
     }

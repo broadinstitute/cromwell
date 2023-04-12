@@ -10,7 +10,7 @@ task myTask {
     runtime {
       docker: "debian:latest"
       bootDiskSizeGb: 100
-      disks: "/mnt/my_mnt 50 SSD, /mnt/my_mnt2 100 HDD"
+      disks: "/var/log 50 SSD"
     }
     output {
         String out = read_string(stdout())

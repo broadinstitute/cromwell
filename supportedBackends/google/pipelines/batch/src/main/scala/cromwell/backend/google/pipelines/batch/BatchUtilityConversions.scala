@@ -2,7 +2,7 @@ package cromwell.backend.google.pipelines.batch
 
 import com.google.cloud.batch.v1.AllocationPolicy.{Accelerator, ProvisioningModel, Disk, AttachedDisk}
 import com.google.cloud.batch.v1.Volume
-import cromwell.backend.google.pipelines.batch.io.{DiskType, GcpBatchAttachedDisk, GcpBatchReferenceFilesDisk}
+import cromwell.backend.google.pipelines.batch.io.{DiskType, GcpBatchAttachedDisk}
 import wom.format.MemorySize
 
 trait BatchUtilityConversions {
@@ -44,7 +44,7 @@ trait BatchUtilityConversions {
       .newBuilder
       .setDeviceName(disk.name)
       .setMountPath(disk.mountPoint.pathAsString)
-
+      .addMountOptions("relatime,rw")
 
     disk match {
       case _: GcpBatchReferenceFilesDisk =>
@@ -55,6 +55,7 @@ trait BatchUtilityConversions {
         volume
           .build
     }
+
   }
 
   private def toDisk(disk: GcpBatchAttachedDisk): AttachedDisk = {
@@ -64,12 +65,11 @@ trait BatchUtilityConversions {
         .setType(toBatchDiskType(disk.diskType))
         .build
 
-      val googleAttachedDisk = AttachedDisk
+      AttachedDisk
         .newBuilder
         .setDeviceName(disk.name)
         .setNewDisk(googleDisk)
         .build
-      googleAttachedDisk
     }
 
   //disk match {

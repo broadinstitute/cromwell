@@ -2,7 +2,7 @@ package cromwell.backend.google.pipelines.batch
 
 import com.google.cloud.batch.v1.AllocationPolicy.{Accelerator, ProvisioningModel, Disk, AttachedDisk}
 import com.google.cloud.batch.v1.Volume
-import cromwell.backend.google.pipelines.batch.io.{DiskType, GcpBatchAttachedDisk}
+import cromwell.backend.google.pipelines.batch.io.{DiskType, GcpBatchAttachedDisk, GcpBatchReferenceFilesDisk}
 import wom.format.MemorySize
 
 trait BatchUtilityConversions {
@@ -59,25 +59,25 @@ trait BatchUtilityConversions {
   }
 
   private def toDisk(disk: GcpBatchAttachedDisk): AttachedDisk = {
-      val googleDisk = Disk
-        .newBuilder
-        .setSizeGb(disk.sizeGb.toLong)
-        .setType(toBatchDiskType(disk.diskType))
-        .build
+    println(disk.name + " DIS NAME!!!")
+    val googleDisk = Disk
+      .newBuilder
+      .setSizeGb(disk.sizeGb.toLong)
+      .setType(toBatchDiskType(disk.diskType))
 
-      AttachedDisk
-        .newBuilder
-        .setDeviceName(disk.name)
-        .setNewDisk(googleDisk)
-        .build
+    disk match {
+      case refDisk: GcpBatchReferenceFilesDisk =>
+        googleDisk.setImage(refDisk.image)
+        googleDisk.build
+      case _ =>
+        googleDisk.build
     }
-
-  //disk match {
-  //  case refDisk: GcpBatchReferenceFilesDisk =>
-  //    googleDisk.setSourceImage(refDisk.image)
-  //  case _ =>
-  //    googleDisk
-  //}
+    AttachedDisk
+      .newBuilder
+      .setDeviceName(disk.name)
+      .setNewDisk(googleDisk)
+      .build
+  }
 
 
   private def toBatchDiskType(diskType: DiskType) = diskType match {

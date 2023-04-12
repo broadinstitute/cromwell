@@ -79,7 +79,7 @@ case class PipelinesApiEmptyMountedDisk(diskType: DiskType, sizeGb: Int, mountPo
 }
 
 object GcpBatchWorkingDisk {
-  val MountPoint: Path = DefaultPathBuilder.get("/cromwell_root")
+  val MountPoint: Path = DefaultPathBuilder.get("/mnt/disks/cromwell_root")
   val Name = "local-disk"
   val Default = GcpBatchWorkingDisk(DiskType.SSD, 10)
 }

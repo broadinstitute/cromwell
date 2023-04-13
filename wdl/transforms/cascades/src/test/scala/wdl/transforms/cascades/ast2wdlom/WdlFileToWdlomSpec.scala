@@ -61,17 +61,17 @@ object WdlFileToWdlomSpec {
           name = "no_input_no_output",
           inputsSection = None,
           graphElements = Set(
-            CallElement("no_inputs", Some("noi1"), Vector.empty, None, Some(SourceFileLocation(4))),
-            CallElement("no_inputs", None, Vector.empty, None, Some(SourceFileLocation(6))),
-            CallElement("no_inputs", Some("noi2"), Vector.empty, None, Some(SourceFileLocation(8))),
-            CallElement("no_inputs", Some("noi3"), Vector.empty, None, Some(SourceFileLocation(10))),
-            CallElement("no_inputs", Some("noi4"), Vector.empty, None, Some(SourceFileLocation(14))),
-            CallElement("no_inputs", Some("noi5"), Vector.empty, None, Some(SourceFileLocation(18)))
+            CallElement("no_inputs", Some("noi1"), Vector.empty, None, Some(SourceFileLocation(7))),
+            CallElement("no_inputs", Some("noi5"), Vector.empty, None, Some(SourceFileLocation(21))),
+            CallElement("no_inputs", Some("noi2"), Vector.empty, None, Some(SourceFileLocation(11))),
+            CallElement("no_inputs", Some("noi3"), Vector.empty, None, Some(SourceFileLocation(13))),
+            CallElement("no_inputs", Some("noi4"), Vector.empty, None, Some(SourceFileLocation(17))),
+            CallElement("no_inputs", None, Vector.empty, None, Some(SourceFileLocation(9)))
           ),
           outputsSection = None,
           metaSection = None,
           parameterMetaSection = None,
-          sourceLocation = Some(SourceFileLocation(3)))
+          sourceLocation = Some(SourceFileLocation(6)))
         ),
         tasks = Vector(
           TaskDefinitionElement(
@@ -79,11 +79,11 @@ object WdlFileToWdlomSpec {
             inputsSection = None,
             declarations = Vector.empty,
             outputsSection = None,
-            commandSection = CommandSectionElement(Vector(CommandSectionLine(Vector(StringCommandPartElement("echo Hello World "))))),
+            commandSection = CommandSectionElement(List(CommandSectionLine(Vector(StringCommandPartElement("echo Hello World "))))),
             runtimeSection = None,
             metaSection = None,
             parameterMetaSection = None,
-            sourceLocation = Some(SourceFileLocation(24))
+            sourceLocation = Some(SourceFileLocation(27))
           )
         )
       ),

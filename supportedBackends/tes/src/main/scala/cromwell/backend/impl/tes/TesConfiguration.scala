@@ -38,7 +38,7 @@ object TesConfiguration {
   final val useBackendParametersKey = "use_tes_11_preview_backend_parameters"
 
   final val defaultPollBackoff = SimpleExponentialBackoff(
-    initialInterval = 1 seconds,
+    initialInterval = 10 seconds,
     maxInterval = 5 minutes,
     multiplier = 1.1
   )

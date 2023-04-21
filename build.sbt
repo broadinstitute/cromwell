@@ -354,6 +354,10 @@ lazy val `cromwell-drs-localizer` = project
   .dependsOn(common)
   .dependsOn(`cloud-nio-impl-drs` % "test->test")
 
+lazy val pact4s = project.in(file("pact4s"))
+  .settings(pact4sSettings)
+  .dependsOn(services)
+
 lazy val server = project
   .withExecutableSettings("cromwell", serverDependencies)
   .dependsOn(engine)
@@ -419,4 +423,5 @@ lazy val root = (project in file("."))
   .aggregate(wes2cromwell)
   .aggregate(wom)
   .aggregate(womtool)
+  .aggregate(pact4s)
   .withAggregateSettings()

@@ -8,4 +8,4 @@ addDependencyTreePlugin
   * Force the version scheme for scala-xml to not use semantic versioning to anticipate a binary incompatibility
   * This currently was already happening for some build servers, but bloop seems to struggle with this.
   */
-libraryDependencySchemes += "org.scala-lang.modules" % "scala-xml_2.12" % VersionScheme.Always
+libraryDependencySchemes += "org.scala-lang.modules" % "scala-xml_2.13" % VersionScheme.Always

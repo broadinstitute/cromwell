@@ -1,0 +1,3 @@
+{   "BamstatsWorkflow.mem_gb": "10",
+  "BamstatsWorkflow.bam_input": "gs://cromwell-29292/input.bam"
+}

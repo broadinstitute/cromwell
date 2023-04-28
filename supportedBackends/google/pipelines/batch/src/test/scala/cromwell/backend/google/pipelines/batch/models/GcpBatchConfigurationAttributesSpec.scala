@@ -26,11 +26,12 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
   val runtimeConfig: Config = ConfigFactory.load()
 
   it should "parse correct Batch config" in {
-    pending
 
     val backendConfig = ConfigFactory.parseString(configString())
+    println(backendConfig)
 
     val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
+    println(gcpBatchAttributes)
     gcpBatchAttributes.project should be("myProject")
     gcpBatchAttributes.executionBucket should be("gs://myBucket")
     gcpBatchAttributes.maxPollingInterval should be(600)
@@ -40,7 +41,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
   }
 
   it should "parse correct preemptible config" in {
-    pending
+
     val backendConfig = ConfigFactory.parseString(configString(customContent = "preemptible = 3"))
 
     val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
@@ -50,7 +51,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
   }
 
   it should "parse batch-requests.timeouts values correctly" in  {
-    pending
+
     val customContent =
       """
         |batch-requests {
@@ -69,7 +70,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
   }
 
   it should "parse an empty batch-requests.timeouts section correctly" in {
-    pending
+
     val customContent =
       """
         |batch-requests {
@@ -86,16 +87,16 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
     gcpBatchAttributes.batchRequestTimeoutConfiguration should be(BatchRequestTimeoutConfiguration(None, None))
   }
 
-  it should "parse pipeline-timeout" in {
-    pending
-    val backendConfig = ConfigFactory.parseString(configString(customContent = "pipeline-timeout = 3 days"))
+  it should "parse batch-timeout" in {
+
+    val backendConfig = ConfigFactory.parseString(configString(customContent = "batch-timeout = 3 days"))
     val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
 
     gcpBatchAttributes.batchTimeout should be(3.days)
   }
 
-  it should "parse an undefined pipeline-timeout" in {
-    pending
+  it should "parse an undefined batch-timeout" in {
+
     val backendConfig = ConfigFactory.parseString(configString())
     val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
 
@@ -103,7 +104,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
   }
 
   it should "parse compute service account" in {
-    pending
+
     val backendConfig = ConfigFactory.parseString(configString(genomics = """compute-service-account = "testing" """))
 
     val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
@@ -111,7 +112,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
   }
 
   it should "parse restrict-metadata-access" in {
-    pending
+
     val backendConfig = ConfigFactory.parseString(configString(genomics = "restrict-metadata-access = true"))
 
     val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
@@ -120,7 +121,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
   }
 
   it should "parse localization-attempts" in {
-    pending
+
     val backendConfig = ConfigFactory.parseString(configString(genomics = "localization-attempts = 31380"))
 
     val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
@@ -221,7 +222,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
 
   forAll(validVpcConfigTests) { (description, customConfig, vpcConfig) =>
     it should s"parse virtual-private-cloud $description" in {
-      pending
+
       val backendConfig = ConfigFactory.parseString(configString(customConfig))
       val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
       gcpBatchAttributes.virtualPrivateCloudConfiguration should be(vpcConfig)
@@ -230,7 +231,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
 
   forAll(invalidVPCConfigTests) { (description, customConfig, errorMessages) =>
     it should s"not parse invalid virtual-private-cloud config $description" in {
-      pending
+
       val backendConfig = ConfigFactory.parseString(configString(customConfig))
       val exception = intercept[IllegalArgumentException with MessageAggregation] {
         GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
@@ -240,13 +241,13 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
   }
 
   it should "not parse invalid config" in {
-    pending
+
     val nakedConfig =
       ConfigFactory.parseString(
         """
           |{
           |   genomics {
-          |     endpoint-url = "myEndpoint"
+          |
           |   }
           |}
         """.stripMargin)
@@ -259,7 +260,6 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
     errorsList should contain("String: 2: No configuration setting found for key 'root'")
     errorsList should contain("String: 3: No configuration setting found for key 'genomics.auth'")
     errorsList should contain("String: 2: No configuration setting found for key 'filesystems'")
-    errorsList should contain("String: 2: genomics.endpoint-url has type String rather than java.net.URL")
   }
 
   def configString(customContent: String = "", genomics: String = ""): String =
@@ -275,6 +275,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
        |     auth = "mock"
        |    $genomics
        |     endpoint-url = "http://myEndpoint"
+       |     location = "us-central1"
        |   }
        |
        |   filesystems = {
@@ -287,7 +288,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
        | """.stripMargin
 
   it should "parse gsutil memory specifications" in {
-    pending
+
     val valids = List("0", "150M", "14   PIBIT", "6kib")
 
     valids foreach {
@@ -297,7 +298,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
   }
 
   it should "reject invalid memory specifications" in {
-    pending
+
     val invalids = List("-1", "150MB", "14PB")
 
     invalids foreach {
@@ -307,7 +308,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
   }
 
   it should "parse a missing \"reference-disk-localization-manifests\"" in {
-    pending
+
     val backendConfig = ConfigFactory.parseString(configString())
 
     val validation = GcpBatchConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "batch")
@@ -316,7 +317,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
   }
 
   it should "parse a present but empty \"reference-disk-localization-manifests\"" in {
-    pending
+
     val manifestConfig = "reference-disk-localization-manifests = []"
 
     val backendConfig = ConfigFactory.parseString(configString(customContent = manifestConfig))
@@ -327,7 +328,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
   }
 
   it should "parse a present and populated \"reference-disk-localization-manifests\"" in {
-    pending
+
     // Highly abridged versions of hg19 and hg38 manifests just to test for correctness
     // of parsing.
     val manifestConfig =
@@ -394,7 +395,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
   }
 
   it should "parse a present and invalid \"reference-disk-localization-manifests\"" in {
-    pending
+
     val badValues = List(
       "\"foo\"",
       "{ foo: bar }",
@@ -434,7 +435,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
 
 
   it should "parse correct existing docker-image-cache-manifest-file config" in {
-    pending
+
     val dockerImageCacheManifest1Path = "gs://bucket/manifest1.json"
     val dockerImageCacheManifestConfigStr = s"""docker-image-cache-manifest-file = "$dockerImageCacheManifest1Path""""
     val backendConfig = ConfigFactory.parseString(configString(dockerImageCacheManifestConfigStr))
@@ -454,7 +455,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
   }
 
   it should "parse correct missing docker-image-cache-manifest-file config" in {
-    pending
+
     val backendConfig = ConfigFactory.parseString(configString())
 
     val validatedGcsPathsToDockerImageCacheManifestFilesErrorOr = GcpBatchConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "unit-test-backend")

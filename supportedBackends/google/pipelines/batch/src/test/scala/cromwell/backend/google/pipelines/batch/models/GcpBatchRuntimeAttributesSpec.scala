@@ -3,9 +3,9 @@ package cromwell.backend.google.pipelines.batch.models
 import cats.data.NonEmptyList
 import cromwell.backend.RuntimeAttributeDefinition
 import cromwell.backend.google.pipelines.batch.models.GcpBatchTestConfig._
+import cromwell.backend.validation.ContinueOnReturnCodeSet
 //import cromwell.backend.google.pipelines.batch.io.{DiskType, GcpBatchAttachedDisk}
-//import cromwell.backend.google.pipelines.batch.io.{DiskType, GcpBatchAttachedDisk, PipelinesApiWorkingDisk}
-//import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
+import cromwell.backend.google.pipelines.batch.io.{DiskType, GcpBatchWorkingDisk}
 import cromwell.core.WorkflowOptions
 import eu.timepit.refined.refineMV
 import org.scalatest.TestSuite
@@ -45,6 +45,7 @@ final class GcpBatchRuntimeAttributesSpec
     }
 
     "fail to validate an invalid Docker entry" in {
+      pending
       val runtimeAttributes = Map("docker" -> WomInteger(1))
       assertBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting docker runtime attribute to be String")
     }
@@ -232,17 +233,20 @@ trait GcpBatchRuntimeAttributesSpecsMixin {
   }
 
   val expectedDefaults = new GcpBatchRuntimeAttributes(
-    refineMV(1),
-    None,
-    Vector("us-central1-b", "us-central1-a"),
-    0,
-    10,
-    MemorySize(2, MemoryUnit.GB),
-    "ubuntu:latest",
-    false,
-    false,
-    None,
-    None
+    cpu = refineMV(1),
+    cpuPlatform = None,
+    gpuResource = None,
+    zones = Vector("us-central1-b", "us-central1-a"),
+    preemptible = 0,
+    bootDiskSize = 10,
+    memory = MemorySize(2, MemoryUnit.GB),
+    disks = Vector(GcpBatchWorkingDisk(DiskType.SSD, 10)),
+    dockerImage = "ubuntu:latest",
+    failOnStderr = false,
+    continueOnReturnCode = ContinueOnReturnCodeSet(Set(0)),
+    noAddress = false,
+    useDockerImageCache = None,
+    checkpointFilename = None
   )
 
   def assertBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WomValue],

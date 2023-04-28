@@ -601,8 +601,6 @@ object Dependencies {
     // Use mockito Java DSL directly instead of the numerous and often hard to keep updated Scala DSLs.
     // See also scaladoc in common.mock.MockSugar and that trait's various usages.
     "org.mockito" % "mockito-core" % mockitoV,
-    "io.github.jbwheatley" %% "pact4s-scalatest"  % pact4sV,
-    "io.github.jbwheatley" %% "pact4s-circe" %  pact4sV,
   ) ++ slf4jBindingDependencies // During testing, add an slf4j binding for _all_ libraries.
 
   val kindProjectorPlugin = "org.typelevel" % "kind-projector" % kindProjectorV cross CrossVersion.full
@@ -798,6 +796,8 @@ object Dependencies {
      The jakarta.annotation inclusion is above in googleApiClientDependencies.
      */
     ExclusionRule("javax.annotation", "javax.annotation-api"),
+    ExclusionRule("javax.activation"),
+    ExclusionRule("javax.inject", "javax.inject"),
   )
 
   val http4sDsl = "org.http4s" %% "http4s-dsl" % http4sV
@@ -814,6 +814,6 @@ object Dependencies {
     http4sDsl,
     http4sEmberServer,
     http4sCirce,
-    scalaTest
+    scalaTest,
   )
 }

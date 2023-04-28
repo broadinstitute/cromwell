@@ -5,11 +5,6 @@ import org.broadinstitute.dsde.workbench.model.WorkbenchEmail
 import org.http4s.Credentials.Token
 import org.http4s.{AuthScheme, Credentials}
 import pact4s.algebras.PactBodyJsonEncoder
-
-case object InvalidCredentials extends Exception
-
-case object UserAlreadyExists extends Exception
-
 case object UnknownError extends Exception
 
 object AuthHelper {

@@ -29,19 +29,19 @@ $ git clone https://github.com/broadinstitute/cromwell.git
 $ cd cromwell
 ```
 
-If you are already using OpenJDK 17, run the following command. 
+If you are already using OpenJDK 11, run the following command. 
 ```
 $ sbt "project pact4s" clean test  
 ```
 
-Otherwise, you can run the command inside a docker container with OpenJDK 17 installed. 
+Otherwise, you can run the command inside a docker container with OpenJDK 11 installed. 
 This is especially useful when automating contract tests in a GitHub Action runner which does not guarantee the correct OpenJDK version.
 ```
 docker run --rm -v $PWD:/working \
                 -v jar-cache:/root/.ivy \
                 -v jar-cache:/root/.ivy2 \
                 -w /working \
-                sbtscala/scala-sbt:openjdk-11.0.14.1_1.5.5_2.13.9 \
+                sbtscala/scala-sbt:openjdk-11.0.16_1.8.1_2.13.10 \
                 sbt "project pact4s" clean test
 ```
 

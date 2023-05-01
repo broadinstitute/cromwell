@@ -1,6 +1,7 @@
-package cromwell.backend.google.pipelines.batch
+package cromwell.backend.google.pipelines.batch.actors
 
-import cromwell.backend.google.pipelines.batch.models.GcpBatchConfigurationAttributes
+import cromwell.backend.google.pipelines.batch.GcpBatchBackendLifecycleActorFactory;
+import cromwell.backend.google.pipelines.batch.models.GcpBatchConfigurationAttributes;
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineV
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -10,10 +11,10 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
+
 class GcpBatchBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with Matchers with TableDrivenPropertyChecks {
 
   "GcpBatchBackendLifecycleActorFactory" should "robustly build configuration attributes" in {
-    pending
 
     val attributes = new GcpBatchConfigurationAttributes(
       project = "project",
@@ -36,8 +37,7 @@ class GcpBatchBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with Matc
       dockerImageToCacheDiskImageMappingOpt = None,
       checkpointingInterval = 1 second)
 
-    // TODO: Does robustBuildAttributes need to be a private method?
-//    GcpBatchBackendLifecycleActorFactory.robustBuildAttributes(() => attributes) shouldBe attributes
+    GcpBatchBackendLifecycleActorFactory.robustBuildAttributes(() => attributes) shouldBe attributes
   }
 
   {
@@ -52,11 +52,12 @@ class GcpBatchBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with Matc
     )
     forAll(fails) { (attempts, description, function) =>
       it should s"$description: make $attempts attribute creation attempts before giving up" in {
-        val e = the [RuntimeException] thrownBy {
-//          GcpBatchBackendLifecycleActorFactory.robustBuildAttributes(function, initialIntervalMillis = 1, maxIntervalMillis = 5)
+        val e = the[RuntimeException] thrownBy {
+          GcpBatchBackendLifecycleActorFactory.robustBuildAttributes(function, initialIntervalMillis = 1, maxIntervalMillis = 5)
         }
         e.getMessage should startWith(s"Failed to build GcpBatchConfigurationAttributes on attempt $attempts of 3")
       }
     }
   }
+
 }

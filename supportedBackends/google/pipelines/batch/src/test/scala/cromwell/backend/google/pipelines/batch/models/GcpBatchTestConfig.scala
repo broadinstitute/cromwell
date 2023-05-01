@@ -20,7 +20,6 @@ object GcpBatchTestConfig {
       |
       |genomics {
       |  auth = "application-default"
-      |  endpoint-url = "https://lifesciences.googleapis.com/"
       |  location = "us-central1"
       |}
       |
@@ -60,7 +59,7 @@ object GcpBatchTestConfig {
       |}
       |""".stripMargin
 
-  private val PapiGlobalConfigString =
+  private val BatchGlobalConfigString =
     s"""
        |google {
        |  application-name = "cromwell"
@@ -84,10 +83,10 @@ object GcpBatchTestConfig {
        |}
        |
        |backend {
-       |  default = "JES"
+       |  default = "batch"
        |  providers {
-       |    JES {
-       |      actor-factory = "cromwell.backend.google.pipelines.common.PipelinesApiBackendLifecycleActorFactory"
+       |    batch {
+       |      actor-factory = "cromwell.backend.google.pipelines.batch.GcpBatchBackendLifecycleActorFactory"
        |      config {
        |      $BatchBackendConfigString
        |      }
@@ -98,7 +97,7 @@ object GcpBatchTestConfig {
        |""".stripMargin
 
   val BatchBackendConfig: Config = ConfigFactory.parseString(BatchBackendConfigString)
-  val BatchGlobalConfig: Config = ConfigFactory.parseString(PapiGlobalConfigString)
+  val BatchGlobalConfig: Config = ConfigFactory.parseString(BatchGlobalConfigString)
   val BatchBackendNoDefaultConfig: Config = ConfigFactory.parseString(NoDefaultsConfigString)
   val BatchBackendConfigurationDescriptor: BackendConfigurationDescriptor = {
     new BackendConfigurationDescriptor(BatchBackendConfig, BatchGlobalConfig) {

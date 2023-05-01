@@ -36,7 +36,6 @@ object Dependencies {
   private val diffsonSprayJsonV = "4.1.1"
   private val ficusV = "1.5.2"
   private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
-  //private val googleApiClientV = "1.33.2"
   private val googleApiClientV = "2.1.4"
   private val googleCloudBigQueryV = "2.10.0"
   // latest date via: https://github.com/googleapis/google-api-java-client-services/blob/main/clients/google-api-services-cloudkms/v1.metadata.json
@@ -176,8 +175,10 @@ object Dependencies {
     // The exclusions prevent guava from colliding at assembly time.
     "com.google.guava" % "guava" % guavaV,
     "com.google.api-client" % "google-api-client-java6" % googleApiClientV,
+      // TODO: review adding back in
       // exclude("com.google.guava", "guava-jdk5"),
     "com.google.api-client" % "google-api-client-jackson2" % googleApiClientV,
+      // TODO: review adding back in
       // exclude("com.google.guava", "guava-jdk5"),
     "com.google.cloud" % "google-cloud-resourcemanager" % googleCloudResourceManagerV,
     /*

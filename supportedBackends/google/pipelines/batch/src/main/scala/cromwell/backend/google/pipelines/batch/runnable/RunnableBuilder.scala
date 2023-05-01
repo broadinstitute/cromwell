@@ -5,6 +5,8 @@ import com.google.cloud.batch.v1.{Runnable, Volume}
 import cromwell.backend.google.pipelines.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.batch.models.{BatchParameter, GcpBatchInput, GcpBatchOutput}
 import cromwell.core.path.Path
+//import cromwell.docker.DockerImageIdentifier
+//import cromwell.docker.registryv2.flows.dockerhub.DockerHub
 import mouse.all.anySyntaxMouse
 
 import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
@@ -147,15 +149,10 @@ object RunnableBuilder {
   def userRunnable(docker: String,
                    scriptContainerPath: String,
                    jobShell: String,
+                   //privateDockerKeyAndToken: Option[CreatePipelineDockerKeyAndToken],
                    volumes: List[Volume]): Runnable.Builder = {
 
-//    val dockerImageIdentifier = DockerImageIdentifier.fromString(docker)
-//    val secret = for {
-//      imageId <- dockerImageIdentifier.toOption
-//      if DockerHub.isValidDockerHubHost(imageId.host) // This token only works for Docker Hub and not other repositories.
-//      keyAndToken <- privateDockerKeyAndToken
-//      s = new Secret().setKeyName(keyAndToken.key).setCipherText(keyAndToken.encryptedToken)
-//    } yield s
+    //val dockerImageIdentifier = DockerImageIdentifier.fromString(docker)
 
     val container = Container.newBuilder
       .setImageUri(docker)

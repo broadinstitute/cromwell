@@ -72,7 +72,7 @@ object GcpBatchBackendLifecycleActorFactory extends StrictLogging {
   val unexpectedRetryCountKey = "UnexpectedRetryCount"
 
 
-  private def robustBuildAttributes(buildAttributes: () => GcpBatchConfigurationAttributes,
+  private [batch] def robustBuildAttributes(buildAttributes: () => GcpBatchConfigurationAttributes,
                                             maxAttempts: Int = 3,
                                             initialIntervalMillis: Int = 5000,
                                             maxIntervalMillis: Int = 10000,

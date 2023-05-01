@@ -18,9 +18,9 @@ class GcpBatchJobPathsSpec extends TestKitSuite with AnyFlatSpecLike with Matche
 
   import BackendSpec._
 
-  behavior of "JesCallPaths"
+  behavior of "GcpBatchCallPaths"
 
-  it should "map the correct filenames" in (pending) {
+  it should "map the correct filenames" in {
     val workflowDescriptor = buildWdlWorkflowDescriptor(
       SampleWdl.HelloWorld.workflowSource(),
       inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.safeMapValues(JsString.apply)).compactPrint)
@@ -35,10 +35,10 @@ class GcpBatchJobPathsSpec extends TestKitSuite with AnyFlatSpecLike with Matche
     callPaths.returnCodeFilename should be("rc")
     callPaths.stderr.getFileName.pathAsString should be("gs://my-cromwell-workflows-bucket/stderr")
     callPaths.stdout.getFileName.pathAsString should be("gs://my-cromwell-workflows-bucket/stdout")
-    callPaths.jesLogFilename should be("hello.log")
+    callPaths.batchLogFilename should be("hello.log")
   }
 
-  it should "map the correct paths" in (pending) {
+  it should "map the correct paths" in {
     val workflowDescriptor = buildWdlWorkflowDescriptor(
       SampleWdl.HelloWorld.workflowSource(),
       inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.safeMapValues(JsString.apply)).compactPrint)
@@ -56,12 +56,12 @@ class GcpBatchJobPathsSpec extends TestKitSuite with AnyFlatSpecLike with Matche
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/stdout")
     callPaths.stderr.pathAsString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/stderr")
-    callPaths.jesLogPath.pathAsString should
+    callPaths.batchLogPath.pathAsString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello.log")
   }
 
   it should "map the correct call context" in {
-    pending
+
     val workflowDescriptor = buildWdlWorkflowDescriptor(
       SampleWdl.HelloWorld.workflowSource(),
       inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.safeMapValues(JsString.apply)).compactPrint)

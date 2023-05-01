@@ -104,7 +104,7 @@ object Dependencies {
   private val scalaPoolV = "0.4.3"
   private val scalacticV = "3.2.13"
   private val scalameterV = "0.21"
-  private val scalatestV = "3.2.10"
+  private val scalatestV = "3.2.15"
   private val scalatestScalacheckV = scalatestV + ".0"
   private val scoptV = "4.1.0"
   private val sentryLogbackV = "5.7.4"
@@ -443,7 +443,7 @@ object Dependencies {
     - https://www.scalatest.org/user_guide/generator_driven_property_checks
     - https://www.scalatest.org/user_guide/writing_scalacheck_style_properties
    */
-  private val scalacheckBaseV = "1.15"
+  private val scalacheckBaseV = "1.17"
   private val scalacheckDependencies = List(
     "org.scalatestplus" %% s"scalacheck-${scalacheckBaseV.replace(".", "-")}" % scalatestScalacheckV % Test,
   )
@@ -797,7 +797,6 @@ object Dependencies {
      */
     ExclusionRule("javax.annotation", "javax.annotation-api"),
     ExclusionRule("javax.activation"),
-    ExclusionRule("javax.inject", "javax.inject"),
   )
 
   val http4sDsl = "org.http4s" %% "http4s-dsl" % http4sV

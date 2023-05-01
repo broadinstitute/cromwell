@@ -1,4 +1,4 @@
-package cromwell.filesystems.blob
+package org.broadinstitute.dsde.workbench.cromwell.consumer
 
 import au.com.dius.pact.consumer.{ConsumerPactBuilder, PactTestExecutionContext}
 import au.com.dius.pact.core.model.RequestResponsePact

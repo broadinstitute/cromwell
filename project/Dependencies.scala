@@ -36,24 +36,25 @@ object Dependencies {
   private val diffsonSprayJsonV = "4.1.1"
   private val ficusV = "1.5.2"
   private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
-  private val googleApiClientV = "1.33.2"
+  private val googleApiClientV = "2.1.4"
   private val googleCloudBigQueryV = "2.10.0"
   // latest date via: https://github.com/googleapis/google-api-java-client-services/blob/main/clients/google-api-services-cloudkms/v1.metadata.json
   private val googleCloudKmsV = "v1-rev20220104-1.32.1"
   private val googleCloudMonitoringV = "3.2.5"
   private val googleCloudNioV = "0.124.8"
-  private val googleCloudStorageV = "2.9.2"
-  private val googleGaxGrpcV = "2.19.0"
+  private val googleCloudStorageV = "2.17.2"
+  private val googleGaxGrpcV = "2.25.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-genomics
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"
   private val googleHttpClientApacheV = "2.1.2"
-  private val googleHttpClientV = "1.38.0"
+  private val googleHttpClientV = "1.42.3"
+  private val googleCloudBatchV1 = "0.11.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-lifesciences
-  private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20210813-1.32.1"
+  private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20220916-2.0.0"
   private val googleOauth2V = "1.5.3"
   private val googleOauthClientV = "1.33.1"
-  private val googleCloudResourceManagerV = "1.2.5"
-  private val grpcV = "1.45.1"
+  private val googleCloudResourceManagerV = "1.17.0"
+  private val grpcV = "1.54.1"
   private val guavaV = "31.0.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.6.1"
@@ -173,10 +174,12 @@ object Dependencies {
     "com.fasterxml.jackson.core" % "jackson-core" % jacksonV,
     // The exclusions prevent guava from colliding at assembly time.
     "com.google.guava" % "guava" % guavaV,
-    "com.google.api-client" % "google-api-client-java6" % googleApiClientV
-      exclude("com.google.guava", "guava-jdk5"),
-    "com.google.api-client" % "google-api-client-jackson2" % googleApiClientV
-      exclude("com.google.guava", "guava-jdk5"),
+    "com.google.api-client" % "google-api-client-java6" % googleApiClientV,
+      // TODO: review adding back in
+      // exclude("com.google.guava", "guava-jdk5"),
+    "com.google.api-client" % "google-api-client-jackson2" % googleApiClientV,
+      // TODO: review adding back in
+      // exclude("com.google.guava", "guava-jdk5"),
     "com.google.cloud" % "google-cloud-resourcemanager" % googleCloudResourceManagerV,
     /*
     The google-cloud-java dependencies have similar issues with using an older javax.* vs. jakarta.* as guice.
@@ -347,6 +350,12 @@ object Dependencies {
       exclude("com.google.guava", "guava-jdk5")
   )
 
+  private val googleBatchv1Dependency = List(
+    "com.google.cloud" % "google-cloud-batch" % googleCloudBatchV1,
+    "com.google.api.grpc" % "proto-google-cloud-batch-v1" % "0.11.0",
+    "com.google.api.grpc" % "proto-google-cloud-resourcemanager-v3" % "1.17.0"
+  )
+
   /*
   Used instead of `"org.lerch" % "s3fs" % s3fsV exclude("org.slf4j", "jcl-over-slf4j")`
   org.lerch:s3fs:1.0.1 depends on a preview release of software.amazon.awssdk:s3.
@@ -381,7 +390,7 @@ object Dependencies {
      Force use of jakarta instead of javax until Google does themselves.
      */
     "com.google.cloud" % "google-cloud-nio" % googleCloudNioV
-      exclude("com.google.api.grpc", "grpc-google-common-protos")
+      //exclude("com.google.api.grpc", "grpc-google-common-protos")
       exclude("com.google.cloud.datastore", "datastore-v1-protos")
       exclude("javax.inject", "javax.inject")
       exclude("org.apache.httpcomponents", "httpclient"),
@@ -391,7 +400,7 @@ object Dependencies {
     "com.google.apis" % "google-api-services-cloudkms" % googleCloudKmsV
       exclude("com.google.guava", "guava-jdk5"),
     "org.glassfish.hk2.external" % "jakarta.inject" % jakartaInjectV,
-  ) ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency
+  ) ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency ++ googleBatchv1Dependency
 
   private val dbmsDependencies = List(
     "org.hsqldb" % "hsqldb" % hsqldbV,

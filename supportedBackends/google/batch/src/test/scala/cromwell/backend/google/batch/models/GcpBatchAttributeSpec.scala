@@ -1,7 +1,7 @@
 package cromwell.backend.google.batch.models
 
 import cromwell.backend.google.batch.models.GpuResource.GpuType
-import cromwell.backend.google.batch.models.GcpBatchTestConfig.gcpBatchConfiguration
+import cromwell.backend.google.batch.models.GcpBatchTestConfig.batchConfiguration
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import wom.values.{WomFloat, WomInteger, WomSingleFile, WomString, WomValue}
@@ -36,7 +36,7 @@ class GcpBatchGpuAttributesSpec
           "docker" -> WomString("ubuntu:latest")
         ) ++ validGpuType.map(t => "gpuType" -> t) ++ validGpuCount.map(c => "gpuCount" -> c)
 
-        val actualRuntimeAttributes = toBatchRuntimeAttributes(runtimeAttributes, emptyWorkflowOptions, gcpBatchConfiguration)
+        val actualRuntimeAttributes = toBatchRuntimeAttributes(runtimeAttributes, emptyWorkflowOptions, batchConfiguration)
 
         expectedGpuTypeValue match {
           case Some(v) => actualRuntimeAttributes.gpuResource.exists(_.gpuType == v)

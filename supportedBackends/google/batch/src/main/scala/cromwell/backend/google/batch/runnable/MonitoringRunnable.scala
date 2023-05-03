@@ -1,11 +1,11 @@
 package cromwell.backend.google.batch.runnable
 
 import com.google.cloud.batch.v1.{Runnable, Volume}
-import cromwell.backend.google.batch.api.GcpBatchRequestFactory.CreateBatchJobParameters
+import cromwell.backend.google.batch.api.GcpBatchRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
 
 trait MonitoringRunnable {
-  def monitoringSetupRunnables(createParameters: CreateBatchJobParameters,
+  def monitoringSetupRunnables(createParameters: CreatePipelineParameters,
                                volumes: List[Volume]
                             )(implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Runnable] = {
 
@@ -33,13 +33,13 @@ trait MonitoringRunnable {
 
           val monitoringImage = image
           val monitoringImageCommand = createParameters.monitoringImage.monitoringImageCommand
-          val monitoringImageEnvironment = createParameters.monitoringImage.monitoringImageEnvironment
+//          val monitoringImageEnvironment = createParameters.monitoringImage.monitoringImageEnvironment
 
           val monitoringRunnable = RunnableBuilder.backgroundRunnable(
             monitoringImage,
             monitoringImageCommand,
-            monitoringImageEnvironment(volumes.map(_.getMountPath)),
             volumes
+//            monitoringImageEnvironment(mounts.map(_.getPath)),
           )
 
           val describeMonitoringRunnable = RunnableBuilder.describeDocker("monitoring runnable", monitoringRunnable)
@@ -52,7 +52,7 @@ trait MonitoringRunnable {
     (monitoringImageScriptRunnables ++ monitoringImageRunnables).map(_.build)
   }
 
-  def monitoringShutdownRunnables(createParameters: CreateBatchJobParameters): List[Runnable] = {
+  def monitoringShutdownRunnables(createParameters: CreatePipelineParameters): List[Runnable] = {
     createParameters.monitoringImage.monitoringImageOption match {
       case Some(_) =>
         val terminationRunnable = RunnableBuilder.terminateBackgroundRunnablesRunnable()

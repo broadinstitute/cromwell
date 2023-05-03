@@ -20,6 +20,7 @@ object RunnableUtils {
    */
   val cromwellImagesSizeRoundedUpInGB = 1
 
+  // TODO: Avoid loading the global config because Cromwell already loaded it
   private val config = ConfigFactory.load().getConfig("google")
 
   /**
@@ -32,8 +33,8 @@ object RunnableUtils {
     * When updating this value, also consider updating the CromwellImagesSizeRoundedUpInGB below.
     */
   val CloudSdkImage: String =
-    //config.getOrElse("cloud-sdk-image-url", "gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine")
-    config.getOrElse("cloud-sdk-image-url", "gcr.io/google.com/cloudsdktool/cloud-sdk:434.0.0-alpine")
+    config.getOrElse("cloud-sdk-image-url", "gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine")
+
   /*
    * At the moment, cloud-sdk (584MB for 354.0.0-alpine) and stedolan/jq (182MB) decompressed ~= 0.8 GB
    */
@@ -53,6 +54,18 @@ object RunnableUtils {
     StringEscapeUtils.escapeXSI(str)
   }
 
+  /**
+    * Define a shared PID namespace for background runnable containers and their termination controller.
+    * The value is "monitoring" for historical (first usage) reasons.
+    */
+  val backgroundRunnablePidNamespace = "monitoring"
+
+  /**
+    * monitoringTerminationRunnable is needed to gracefully terminate monitoring runnable,
+    * because PAPIv2 currently sends SIGKILL to terminate background runnables.
+    *
+    * A fixed timeout is used to avoid hunting for monitoring PID.
+    */
   private val backgroundRunnableTerminationGraceTime = 10
 
   val terminateAllBackgroundRunnablesCommand: String = s"kill -TERM -1 && sleep $backgroundRunnableTerminationGraceTime || true"

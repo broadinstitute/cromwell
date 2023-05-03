@@ -3,7 +3,6 @@ package cromwell.backend.google.batch.monitoring
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.google.batch.io.GcpBatchAttachedDisk
 import cromwell.backend.google.batch.runnable.WorkflowOptionKeys
-import cromwell.backend.google.batch.api.GcpBatchRequestFactory.MountsToEnv
 import cromwell.backend.io.WorkflowPaths
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{Path, PathFactory}
@@ -43,5 +42,5 @@ final class MonitoringImage(jobDescriptor: BackendJobDescriptor,
       case None => Nil
     }
 
-  val monitoringImageEnvironment: MountsToEnv = Env.monitoringImageEnvironment(jobDescriptor)
+//  val monitoringImageEnvironment: MountsToEnv = Env.monitoringImageEnvironment(jobDescriptor)
 }

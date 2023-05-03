@@ -17,7 +17,7 @@ import scala.concurrent.ExecutionContext
 import scala.language.postfixOps
 
 object GcpBatchWorkflowPaths {
-  val GcsRootOptionKey = "gcp_batch_gcs_root"
+  private val GcsRootOptionKey = "gcp_batch_gcs_root"
   private val AuthFilePathOptionKey = "auth_bucket"
   private val GcsPrefix = "gs://"
 
@@ -31,6 +31,7 @@ case class GcpBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
                                  genomicsCredentials: Credentials,
                                  gcpBatchConfiguration: GcpBatchConfiguration,
                                  override val pathBuilders: PathBuilders,
+                                // TODO: validate still needed in batch?
                                  // This allows for the adjustment of the standard stream file names in PAPI v1 to match the
                                  // combined controller + job standard output and error files. PAPI v1 controls the periodic
                                  // delocalization of these files so the metadata Cromwell publishes for these files needs

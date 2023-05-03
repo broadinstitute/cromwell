@@ -3,13 +3,11 @@ package cromwell.backend.google.batch
 import akka.actor.{ActorRef, Props}
 import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.scalalogging.StrictLogging
-import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory.{preemptionCountKey, robustBuildAttributes, unexpectedRetryCountKey}
+import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory.robustBuildAttributes
 import cromwell.backend.google.batch.actors._
 import cromwell.backend.google.batch.api.{GcpBatchApiRequestHandler, GcpBatchRequestFactoryImpl}
 import cromwell.backend.google.batch.models.{GcpBatchConfiguration, GcpBatchConfigurationAttributes}
-import cromwell.backend.google.batch.callcaching.{BatchBackendCacheHitCopyingActor, BatchBackendFileHashingActor}
 import cromwell.backend.standard._
-import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardFileHashingActor}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, JobExecutionMap}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.CallOutputs
@@ -19,8 +17,6 @@ import scala.util.{Failure, Try}
 
 class GcpBatchBackendLifecycleActorFactory(override val name: String, override val configurationDescriptor: BackendConfigurationDescriptor)
   extends StandardLifecycleActorFactory {
-
-  override val requestedKeyValueStoreKeys: Seq[String] = Seq(preemptionCountKey, unexpectedRetryCountKey)
 
   override def jobIdKey: String = "__gcp_batch"
   protected val googleConfig: GoogleConfiguration = GoogleConfiguration(configurationDescriptor.globalConfig)
@@ -63,12 +59,6 @@ class GcpBatchBackendLifecycleActorFactory(override val name: String, override v
                                            initializationDataOption: Option[BackendInitializationData]): StandardFinalizationActorParams = {
     GcpBatchFinalizationActorParams(workflowDescriptor, ioActor, batchConfiguration, calls, jobExecutionMap, workflowOutputs, initializationDataOption)
   }
-
-  override lazy val cacheHitCopyingActorClassOption: Option[Class[_ <: StandardCacheHitCopyingActor]] = {
-    Option(classOf[BatchBackendCacheHitCopyingActor])
-  }
-
-  override lazy val fileHashingActorClassOption: Option[Class[_ <: StandardFileHashingActor]] = Option(classOf[BatchBackendFileHashingActor])
 
   override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = {
     val requestHandler = new GcpBatchApiRequestHandler

@@ -2,7 +2,7 @@ package cromwell.backend.google.batch.runnable
 
 import com.google.cloud.batch.v1.{Runnable, Volume}
 import common.util.StringUtil._
-import cromwell.backend.google.batch.api.GcpBatchRequestFactory.CreateBatchJobParameters
+import cromwell.backend.google.batch.api.GcpBatchRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.batch.models.GcpBatchJobPaths.GcsDelocalizationScriptName
 import cromwell.backend.google.batch.util.GcpBatchParameterConversions._
@@ -34,9 +34,11 @@ trait Delocalization {
 
     RunnableBuilder
       .withImage(womOutputRuntimeExtractor.dockerImage.getOrElse(CloudSdkImage))
-      .withCommand(commands: _*)
+      .withCommand(commands: _*) // TODO: Both calls likely need to be together
       .withEntrypointCommand("/bin/bash")
-      .withLabels(Map(Key.Tag -> Value.Delocalization))
+      // Saves us some time if something else fails before we get to run this runnable
+//      .withDisableImagePrefetch(true)
+//      .withLabels(Map(Key.Tag -> Value.Delocalization))
   }
 
   private def delocalizeRuntimeOutputsScript(fofnPath: String, workflowRoot: Path, cloudCallRoot: Path)(implicit gcsTransferConfiguration: GcsTransferConfiguration) = {
@@ -73,12 +75,13 @@ trait Delocalization {
   private def delocalizeRuntimeOutputsRunnable(cloudCallRoot: Path, inputFile: String, workflowRoot: Path, volumes: List[Volume])(implicit gcsTransferConfiguration: GcsTransferConfiguration): Runnable.Builder = {
     val command = multiLineCommand(delocalizeRuntimeOutputsScript(inputFile, workflowRoot, cloudCallRoot))
     RunnableBuilder.cloudSdkShellRunnable(command)(volumes = volumes, labels = Map(Key.Tag -> Value.Delocalization), flags = List.empty)
+//      .withDisableImagePrefetch(true)
   }
 
-  def deLocalizeRunnables(createParameters: CreateBatchJobParameters,
+  def deLocalizeRunnables(createPipelineParameters: CreatePipelineParameters,
                           volumes: List[Volume])(implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Runnable] = {
-    val cloudCallRoot = createParameters.cloudCallRoot
-    val callExecutionContainerRoot = createParameters.commandScriptContainerPath.parent
+    val cloudCallRoot = createPipelineParameters.cloudCallRoot
+    val callExecutionContainerRoot = createPipelineParameters.commandScriptContainerPath.parent
 
     /*
      * Ideally temporaryFofnForRuntimeOutputFiles should be somewhere else than the execution directory (we could mount anther directory)
@@ -87,21 +90,21 @@ trait Delocalization {
     val temporaryFofnDirectoryForRuntimeOutputFiles = callExecutionContainerRoot.pathAsString.ensureSlashed + UUID.randomUUID().toString.split("-")(0)
     val temporaryFofnForRuntimeOutputFiles = temporaryFofnDirectoryForRuntimeOutputFiles + "/runtime_output_files.txt"
 
-    val runtimeExtractionRunnables = createParameters.womOutputRuntimeExtractor.toList flatMap { extractor =>
+    val runtimeExtractionRunnables = createPipelineParameters.womOutputRuntimeExtractor.toList flatMap { extractor =>
       List (
         runtimeOutputExtractorRunnable(callExecutionContainerRoot.pathAsString, temporaryFofnForRuntimeOutputFiles, extractor),
-        delocalizeRuntimeOutputsRunnable(cloudCallRoot, temporaryFofnForRuntimeOutputFiles, createParameters.cloudWorkflowRoot, volumes)
+        delocalizeRuntimeOutputsRunnable(cloudCallRoot, temporaryFofnForRuntimeOutputFiles, createPipelineParameters.cloudWorkflowRoot, volumes)
       )
     }
 
-    val gcsDelocalizationContainerPath = createParameters.commandScriptContainerPath.sibling(GcsDelocalizationScriptName)
+    val gcsDelocalizationContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(GcsDelocalizationScriptName)
 
     val delocalizationLabel = Map(Key.Tag -> Value.Delocalization)
     val runGcsDelocalizationScript = cloudSdkShellRunnable(
       s"/bin/bash $gcsDelocalizationContainerPath")(volumes = volumes, labels = delocalizationLabel, flags = List.empty)
 
     val annotatedRunnables: List[Runnable.Builder] = runGcsDelocalizationScript ::
-      createParameters.outputParameters.flatMap(_.toRunnables(volumes)) ++
+      createPipelineParameters.outputParameters.flatMap(_.toRunnables(volumes)) ++
         runtimeExtractionRunnables
 
     // NOTE: papiv2 delocalizes logs from /google but such logs are not available on batch

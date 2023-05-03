@@ -61,9 +61,9 @@ object GcpBatchRequestFactory {
     lazy val fileOutputParameters: List[GcpBatchOutput] = detritusOutputParameters.all ++ jobOutputParameters
   }
 
-  case class CreateBatchDockerKeyAndToken(key: String, encryptedToken: String)
+  case class CreatePipelineDockerKeyAndToken(key: String, encryptedToken: String)
 
-  case class CreateBatchJobParameters(jobDescriptor: BackendJobDescriptor,
+  case class CreatePipelineParameters(jobDescriptor: BackendJobDescriptor,
                                       runtimeAttributes: GcpBatchRuntimeAttributes,
                                       dockerImage: String,
                                       cloudWorkflowRoot: Path,
@@ -75,9 +75,9 @@ object GcpBatchRequestFactory {
                                       computeServiceAccount: String,
                                       googleLabels: Seq[GcpLabel],
                                       preemptible: Boolean,
-                                      batchTimeout: FiniteDuration,
+                                      pipelineTimeout: FiniteDuration,
                                       jobShell: String,
-                                      privateDockerKeyAndEncryptedToken: Option[CreateBatchDockerKeyAndToken],
+                                      privateDockerKeyAndEncryptedToken: Option[CreatePipelineDockerKeyAndToken],
                                       womOutputRuntimeExtractor: Option[WomOutputRuntimeExtractor],
                                       adjustedSizeDisks: Seq[GcpBatchAttachedDisk],
                                       virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
@@ -88,7 +88,7 @@ object GcpBatchRequestFactory {
                                       checkpointingConfiguration: CheckpointingConfiguration,
                                       enableSshAccess: Boolean,
                                       vpcNetworkAndSubnetworkProjectLabels: Option[VpcAndSubnetworkProjectLabelValues],
-                                      dockerhubCredentials: (String, String)
+                                      //dockerImageCacheDiskOpt: Option[String]
                                      ) {
     def literalInputs = inputOutputParameters.literalInputParameters
 

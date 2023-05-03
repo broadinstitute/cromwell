@@ -11,15 +11,7 @@ object Dependencies {
   // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
   // https://github.com/sbt/sbt/issues/4531
   private val azureStorageBlobNioV = "12.0.0-beta.19"
-  private val azureIdentitySdkV = "1.9.1"
-  private val azureIdentityExtensionsV = "1.1.4"
-  private val azureCoreManagementV = "1.7.1"
-  // We are using the older AppInsights 2 because we want to use the
-  // logback appender to send logs. AppInsights 3 does not have a standalone
-  // appender, and its auto-hoovering of logs didn't meet our needs.
-  // (Specifically, the side-by-side root logger and workflow logger resulted in
-  // duplicate messages in AI. See WX-1122.)
-  private val azureAppInsightsLogbackV = "2.6.4"
+  private val azureIdentitySdkV = "1.9.0-beta.2"
   private val betterFilesV = "3.9.1"
   private val jsonSmartV = "2.4.10"
   /*
@@ -45,9 +37,9 @@ object Dependencies {
   private val ficusV = "1.5.2"
   private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
   private val googleApiClientV = "2.1.4"
-  private val googleCloudBigQueryV = "2.25.0"
+  private val googleCloudBigQueryV = "2.10.0"
   // latest date via: https://github.com/googleapis/google-api-java-client-services/blob/main/clients/google-api-services-cloudkms/v1.metadata.json
-  private val googleCloudKmsV = "v1-rev20230421-2.0.0"
+  private val googleCloudKmsV = "v1-rev20220104-1.32.1"
   private val googleCloudMonitoringV = "3.2.5"
   private val googleCloudNioV = "0.124.8"
   private val googleCloudStorageV = "2.17.2"
@@ -56,6 +48,7 @@ object Dependencies {
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"
   private val googleHttpClientApacheV = "2.1.2"
   private val googleHttpClientV = "1.42.3"
+  private val googleCloudBatchV1 = "0.11.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-lifesciences
   private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20220916-2.0.0"
   private val googleOauth2V = "1.5.3"
@@ -99,7 +92,6 @@ object Dependencies {
   private val mysqlV = "8.0.28"
   private val nettyV = "4.1.72.Final"
   private val owlApiV = "5.1.19"
-  private val pact4sV = "0.9.0"
   private val postgresV = "42.4.1"
   private val pprintV = "0.7.3"
   private val rdf4jV = "3.7.1"
@@ -112,7 +104,7 @@ object Dependencies {
   private val scalaPoolV = "0.4.3"
   private val scalacticV = "3.2.13"
   private val scalameterV = "0.21"
-  private val scalatestV = "3.2.15"
+  private val scalatestV = "3.2.10"
   private val scalatestScalacheckV = scalatestV + ".0"
   private val scoptV = "4.1.0"
   private val sentryLogbackV = "5.7.4"
@@ -182,10 +174,12 @@ object Dependencies {
     "com.fasterxml.jackson.core" % "jackson-core" % jacksonV,
     // The exclusions prevent guava from colliding at assembly time.
     "com.google.guava" % "guava" % guavaV,
-    "com.google.api-client" % "google-api-client-java6" % googleApiClientV
-      exclude("com.google.guava", "guava-jdk5"),
-    "com.google.api-client" % "google-api-client-jackson2" % googleApiClientV
-      exclude("com.google.guava", "guava-jdk5"),
+    "com.google.api-client" % "google-api-client-java6" % googleApiClientV,
+      // TODO: review adding back in
+      // exclude("com.google.guava", "guava-jdk5"),
+    "com.google.api-client" % "google-api-client-jackson2" % googleApiClientV,
+      // TODO: review adding back in
+      // exclude("com.google.guava", "guava-jdk5"),
     "com.google.cloud" % "google-cloud-resourcemanager" % googleCloudResourceManagerV,
     /*
     The google-cloud-java dependencies have similar issues with using an older javax.* vs. jakarta.* as guice.
@@ -216,12 +210,10 @@ object Dependencies {
       exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
       exclude("jakarta.activation", "jakarta.activation-api")
       exclude("net.minidev", "json-smart"),
-    "com.azure" % "azure-identity-extensions" % azureIdentityExtensionsV,
-    "com.azure" % "azure-core-management" % azureCoreManagementV,
+    "com.azure" % "azure-core-management" % "1.7.1",
     "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % jacksonV,
     "com.azure.resourcemanager" % "azure-resourcemanager" % "2.18.0",
-    "net.minidev" % "json-smart" % jsonSmartV,
-    "com.microsoft.azure" % "applicationinsights-logging-logback" % azureAppInsightsLogbackV,
+    "net.minidev" % "json-smart" % jsonSmartV
   )
 
   val wsmDependencies: List[ModuleID] = List(
@@ -358,6 +350,12 @@ object Dependencies {
       exclude("com.google.guava", "guava-jdk5")
   )
 
+  private val googleBatchv1Dependency = List(
+    "com.google.cloud" % "google-cloud-batch" % googleCloudBatchV1,
+    "com.google.api.grpc" % "proto-google-cloud-batch-v1" % "0.11.0",
+    "com.google.api.grpc" % "proto-google-cloud-resourcemanager-v3" % "1.17.0"
+  )
+
   /*
   Used instead of `"org.lerch" % "s3fs" % s3fsV exclude("org.slf4j", "jcl-over-slf4j")`
   org.lerch:s3fs:1.0.1 depends on a preview release of software.amazon.awssdk:s3.
@@ -392,7 +390,7 @@ object Dependencies {
      Force use of jakarta instead of javax until Google does themselves.
      */
     "com.google.cloud" % "google-cloud-nio" % googleCloudNioV
-      exclude("com.google.api.grpc", "grpc-google-common-protos")
+      //exclude("com.google.api.grpc", "grpc-google-common-protos")
       exclude("com.google.cloud.datastore", "datastore-v1-protos")
       exclude("javax.inject", "javax.inject")
       exclude("org.apache.httpcomponents", "httpclient"),
@@ -402,7 +400,7 @@ object Dependencies {
     "com.google.apis" % "google-api-services-cloudkms" % googleCloudKmsV
       exclude("com.google.guava", "guava-jdk5"),
     "org.glassfish.hk2.external" % "jakarta.inject" % jakartaInjectV,
-  ) ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency
+  ) ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency ++ googleBatchv1Dependency
 
   private val dbmsDependencies = List(
     "org.hsqldb" % "hsqldb" % hsqldbV,
@@ -453,7 +451,7 @@ object Dependencies {
     - https://www.scalatest.org/user_guide/generator_driven_property_checks
     - https://www.scalatest.org/user_guide/writing_scalacheck_style_properties
    */
-  private val scalacheckBaseV = "1.17"
+  private val scalacheckBaseV = "1.15"
   private val scalacheckDependencies = List(
     "org.scalatestplus" %% s"scalacheck-${scalacheckBaseV.replace(".", "-")}" % scalatestScalacheckV % Test,
   )
@@ -605,12 +603,14 @@ object Dependencies {
   val sfsBackendDependencies = List (
     "org.lz4" % "lz4-java" % lz4JavaV
   )
-  val scalaTest = "org.scalatest" %% "scalatest" % scalatestV
+
   val testDependencies: List[ModuleID] = List(
-    scalaTest,
+    "org.scalatest" %% "scalatest" % scalatestV,
     // Use mockito Java DSL directly instead of the numerous and often hard to keep updated Scala DSLs.
     // See also scaladoc in common.mock.MockSugar and that trait's various usages.
     "org.mockito" % "mockito-core" % mockitoV,
+    "io.github.jbwheatley" %% "pact4s-scalatest"  % "0.7.0",
+    "io.github.jbwheatley" %% "pact4s-circe" %  "0.7.0"
   ) ++ slf4jBindingDependencies // During testing, add an slf4j binding for _all_ libraries.
 
   val kindProjectorPlugin = "org.typelevel" % "kind-projector" % kindProjectorV cross CrossVersion.full
@@ -806,23 +806,5 @@ object Dependencies {
      The jakarta.annotation inclusion is above in googleApiClientDependencies.
      */
     ExclusionRule("javax.annotation", "javax.annotation-api"),
-    ExclusionRule("javax.activation"),
-  )
-
-  val http4sDsl = "org.http4s" %% "http4s-dsl" % http4sV
-  val http4sEmberClient = "org.http4s" %% "http4s-ember-client" % http4sV
-  val http4sEmberServer = "org.http4s" %% "http4s-ember-server" % http4sV
-  val http4sCirce = "org.http4s" %% "http4s-circe" % http4sV
-  val pact4sScalaTest = "io.github.jbwheatley" %% "pact4s-scalatest" % pact4sV % Test
-  val pact4sCirce = "io.github.jbwheatley" %% "pact4s-circe" % pact4sV
-
-  val pact4sDependencies = Seq(
-    pact4sScalaTest,
-    pact4sCirce,
-    http4sEmberClient,
-    http4sDsl,
-    http4sEmberServer,
-    http4sCirce,
-    scalaTest,
   )
 }

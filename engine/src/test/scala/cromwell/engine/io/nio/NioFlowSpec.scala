@@ -21,6 +21,7 @@ import org.scalatest.flatspec.AsyncFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import common.mock.MockSugar
 import cromwell.filesystems.blob.BlobPath
+import cromwell.filesystems.http.HttpPathBuilder
 
 import java.nio.file.NoSuchFileException
 import java.util.UUID
@@ -93,6 +94,34 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     stream.run() map {
       case (success: IoSuccess[_], _) => assert(success.result.asInstanceOf[Long] == 5)
       case _ => fail("size returned an unexpected message")
+    }
+  }
+
+  it should "fail with an UnknownHost error when trying to get size for a bogus HTTP path" in {
+    val httpPath = new HttpPathBuilder().build("http://ex000mple.c0m/bogus/url/fake.html").get
+
+    val context = DefaultCommandContext(sizeCommand(httpPath).get, replyTo)
+    val testSource = Source.single(context)
+
+    val stream = testSource.via(flow).toMat(readSink)(Keep.right)
+    stream.run() map {
+      case (IoFailure(_, EnhancedCromwellIoException(_, receivedException)), _) =>
+        receivedException.getMessage should include ("UnknownHost")
+      case (ack, _) => fail(s"size should have failed with UnknownHost but didn't:\n$ack\n\n")
+    }
+  }
+
+  it should "fail when trying to get size for a bogus HTTP path" in {
+    val httpPath = new HttpPathBuilder().build("http://google.com/bogus/je8934hufe832489uihewuihf").get
+
+    val context = DefaultCommandContext(sizeCommand(httpPath).get, replyTo)
+    val testSource = Source.single(context)
+
+    val stream = testSource.via(flow).toMat(readSink)(Keep.right)
+    stream.run() map {
+      case (IoFailure(_, EnhancedCromwellIoException(_, receivedException)), _) =>
+        receivedException.getMessage should include ("Couldn't fetch size")
+      case (ack, _) => fail(s"size should have failed but didn't:\n$ack\n\n")
     }
   }
 

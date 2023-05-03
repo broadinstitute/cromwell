@@ -3,7 +3,7 @@ import java.nio.file.Paths
 
 import akka.actor.{ActorContext, ActorSystem}
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.HttpRequest
+import akka.http.scaladsl.model.{HttpMethods, HttpRequest}
 import akka.stream.scaladsl.{FileIO, Keep}
 import akka.stream.{ActorAttributes, ActorMaterializer}
 import cromwell.core.Dispatcher
@@ -53,4 +53,12 @@ case class HttpPath(nioPath: NioPath) extends Path {
   override def pathAsString: String = nioPath.toString.replaceFirst("/", "//")
 
   override def pathWithoutScheme: String = pathAsString.replaceFirst("http[s]?://", "")
+
+  def fetchSize(implicit executionContext: ExecutionContext, actorSystem: ActorSystem): Future[Long] = {
+    Http().singleRequest(HttpRequest(uri = pathAsString, method = HttpMethods.HEAD)).map { response =>
+      response.discardEntityBytes()
+      response.entity.contentLengthOption.getOrElse(0L)
+    }
+  }
+
 }

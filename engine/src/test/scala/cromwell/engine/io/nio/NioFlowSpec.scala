@@ -42,7 +42,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     onRetryCallback = NoopOnRetry,
     onBackpressure = NoopOnBackpressure,
     numberOfAttempts = 3,
-    commandBackpressureStaleness = 5 seconds)(system.dispatcher).flow
+    commandBackpressureStaleness = 5 seconds)(system).flow
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   private val replyTo = mock[ActorRef]
@@ -304,7 +304,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
       onRetryCallback = NoopOnRetry,
       onBackpressure = NoopOnBackpressure,
       numberOfAttempts = 3,
-      commandBackpressureStaleness = 5 seconds)(system.dispatcher) {
+      commandBackpressureStaleness = 5 seconds)(system) {
 
       private var tries = 0
       override def handleSingleCommand(ioSingleCommand: IoCommand[_]): IO[IoSuccess[_]] = {

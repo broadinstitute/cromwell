@@ -1,5 +1,11 @@
 # Cromwell Change Log
 
+## 86 Release Notes
+
+### HTTPFilesystem Improvements
+
+ * WDL `size` engine function now works for HTTP files. 
+
 ## 85 Release Notes
 
 ### Migration of PKs to BIGINT

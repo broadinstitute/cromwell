@@ -1,12 +1,11 @@
 package org.broadinstitute.dsde.workbench.cromwell.consumer
 
+import au.com.dius.pact.consumer.dsl.LambdaDsl.newJsonBody
 import au.com.dius.pact.consumer.dsl._
 import au.com.dius.pact.consumer.{ConsumerPactBuilder, PactTestExecutionContext}
 import au.com.dius.pact.core.model.RequestResponsePact
 import cats.effect.IO
-import org.broadinstitute.dsde.workbench.cromwell.consumer.AuthHelper._
 import org.broadinstitute.dsde.workbench.cromwell.consumer.PactHelper._
-import org.broadinstitute.dsde.workbench.model.WorkbenchEmail
 import org.http4s.Uri
 import org.http4s.blaze.client.BlazeClientBuilder
 import org.http4s.client.Client
@@ -28,30 +27,82 @@ class DrsHubClientSpec extends AnyFlatSpec with Matchers with RequestResponsePac
       "./target/pacts"
     )
 
-  // Uncomment this so that mock server will run on specific port (e.g. 9003) instead of dynamically generated port.
-  // override val mockProviderConfig: MockProviderConfig = MockProviderConfig.httpConfig("localhost", 9003)
 
-  // --- End of fixtures section
+  val drsResourceResponsePlaceholder: ResourceMetadata = ResourceMetadata(
+    "application/octet-stream",
+    123L,
+    "2021-03-04T20:00:00.000Z",
+    "2021-03-04T20:00:00.000Z",
+    Option("fc-secure-1234567890"),
+    Option("my-file.bam"),
+    Option("gs://fc-secure-1234567890/my-file.bam"),
+    Option(Map("data" -> Map("tokenUri" -> "https://oauth2.googleapis.com/token"))),
+    Option("my-file.bam"),
+    Option(AccessUrl("https://example.com/my-file.bam", Map("Header" -> "Example"))),
+    Map("md5" -> "a2317edbd2eb6cf6b0ee49cb81e3a556", "sha1" -> "223d91aad564676ac4c54b313f68c912a1cb992e"),
+    Option("/path/inputs/my-file.bam"),
+    Option("bond-provider")
+  )
 
-  // ---- Dsl for specifying pacts between consumer and provider
-  // Lambda Dsl: required for generating matching rules.
-  // Favored over old-style Pact Dsl using PactDslJsonBody.
-  // This rule expects DrsHub to respond with
-  // 1. ok status
-  // 2. ok statuses matching the given subsystem states
+  val resourceMetadataResponseDsl: DslPart = newJsonBody { o =>
+    o.stringType("contentType", "application/octet-stream")
+      o.numberType("size", 123L)
+      o.stringType("timeCreated", "2021-03-04T20:00:00.000Z")
+      o.stringType("timeUpdated", "2021-03-04T20:00:00.000Z")
+      o.stringType("bucket", "fc-secure-1234567890")
+      o.stringType("name", "my-file.bam")
+      o.stringType("gsUri", "gs://fc-secure-1234567890/my-file.bam")
+      o.`object`("googleServiceAccount",
+        s => {
+          s.`object`( "data", d => {
+            d.eachKeyLike("tokenUri", PactDslJsonRootValue.stringType("https://oauth2.googleapis.com/token"))
+            ()
+          })
+          ()
+        }
+      )
+      o.stringType("fileName", "my-file.bam")
+      o.`object`("accessUrl" , { a =>
+        a.stringType("url", "https://example.com/my-file.bam")
+          a.`object`("headers", { h =>
+            h.stringType("Header", "Example")
+            ()
+          })
+        ()
+      })
+      o.`object`("hashes", { o =>
+        o.stringType("md5", "a2317edbd2eb6cf6b0ee49cb81e3a556")
+        o.stringType("sha1", "223d91aad564676ac4c54b313f68c912a1cb992e")
+        ()
+      })
+      o.stringType("localizationPath", "/path/inputs/my-file.bam")
+      o.stringType("bondProvider", "bond-provider")
+    ()
+  }.build
+
   val consumerPactBuilder: ConsumerPactBuilder = ConsumerPactBuilder
     .consumer("cromwell-consumer")
 
   val pactProvider: PactDslWithProvider = consumerPactBuilder
     .hasPactWith("drshub-provider")
 
-  // stateParams provides the desired subsystem states
-  // for drshub provider to generate the expected response
   var pactDslResponse: PactDslResponse = buildInteraction(
     pactProvider,
+    state = "resolve Drs url",
+    stateParams = Map[String, String]("state" -> "example"),
+    uponReceiving = "Request to resolve drs url",
+    method = "GET",
+    path = "/api/v4/drs/resolve",
+    requestHeaders = Seq("Accept" -> "application/json"),
+    status = 200,
+    responseHeaders = Seq("Content-type" -> "application/json"),
+    resourceMetadataResponseDsl
+  )
+
+  pactDslResponse = buildInteraction(
+    pactDslResponse,
     state = "Drshub is ok",
-    stateParams = Map(),
-    uponReceiving = "Request to get Drshub ok status",
+    uponReceiving = "Request for drshub api status",
     method = "GET",
     path = "/status",
     requestHeaders = Seq("Accept" -> "application/json"),
@@ -61,16 +112,24 @@ class DrsHubClientSpec extends AnyFlatSpec with Matchers with RequestResponsePac
 
   override val pact: RequestResponsePact = pactDslResponse.toPact
 
-  val client: Client[IO] =
+  val client: Client[IO] = {
     BlazeClientBuilder[IO](ExecutionContext.global).resource.allocated.unsafeRunSync()._1
+  }
 
   /*
   we should use these tests to ensure that our client class correctly handles responses from the provider - i.e. decoding, error mapping, validation
    */
   it should "get DrsHub ok status" in {
-    new DrsHubClientImpl[IO](client, Uri.unsafeFromString(mockServer.getUrl), mockAuthToken(WorkbenchEmail("")))
+    new DrsHubClientImpl[IO](client, Uri.unsafeFromString(mockServer.getUrl))
       .fetchSystemStatus()
       .attempt
       .unsafeRunSync() shouldBe Right(true)
+  }
+
+  it should "resolve drs object" in {
+    new DrsHubClientImpl[IO](client, Uri.unsafeFromString(mockServer.getUrl))
+      .resolveDrsObject("drs://drs.example.com/1234567890")
+      .attempt
+      .unsafeRunSync() shouldBe Right(drsResourceResponsePlaceholder)
   }
 }

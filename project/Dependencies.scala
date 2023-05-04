@@ -39,7 +39,7 @@ object Dependencies {
   private val googleApiClientV = "2.1.4"
   private val googleCloudBigQueryV = "2.25.0"
   // latest date via: https://github.com/googleapis/google-api-java-client-services/blob/main/clients/google-api-services-cloudkms/v1.metadata.json
-  private val googleCloudKmsV = "2.19.0"
+  private val googleCloudKmsV = "v1-rev20230421-2.0.0"
   private val googleCloudMonitoringV = "3.2.5"
   private val googleCloudNioV = "0.124.8"
   private val googleCloudStorageV = "2.17.2"

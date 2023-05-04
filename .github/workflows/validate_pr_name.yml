@@ -1,4 +1,4 @@
-# A github action to validate the name of a pull request begins with a Jira tag:
+# A github action to validate the name of a pull request contains a Jira tag:
 
 name: Validate PR name
 
@@ -17,8 +17,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const title = context.payload.pull_request.title;
-            const regex = /^[A-Z]+-\d+/;
+            const regex = /[A-Z]+-\d+/;
             if (!regex.test(title)) {
-              core.setFailed("PR title must begin with a Jira tag");
+              core.setFailed("PR title must contain a Jira tag");
             }
-

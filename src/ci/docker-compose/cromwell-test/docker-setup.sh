@@ -87,3 +87,4 @@ update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 python3 get-pip.py
 pip3 install --upgrade --force-reinstall pyopenssl
+pip3 install --force-reinstall -v "requests<2.2.29"

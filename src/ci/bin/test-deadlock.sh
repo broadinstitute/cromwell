@@ -2,10 +2,7 @@
 
 set -euo pipefail
 
-pip3 install docker-py
-# Workaround for issue described https://github.com/docker/docker-py/issues/3113. 
-# This is a temporary fix until the next release of docker-py
-pip3 install --force-reinstall -v "requests<2.2.29"
+pip3 install docker
 
 cromwell_hosts_file="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell_hosts.txt"
 

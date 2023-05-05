@@ -3,6 +3,7 @@
 set -euo pipefail
 
 pip3 install docker-py
+pip3 install --force-reinstall -v "requests<2.2.29"
 
 cromwell_hosts_file="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell_hosts.txt"
 

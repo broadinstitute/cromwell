@@ -144,7 +144,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         jobShell,
         mode)
     })
-
+    jobLogger.info(s"Submitting task, will poll starting each ${pollBackOff.googleBackoff.getInitialIntervalMillis} millis")
     tesTask.map(TesTask.makeTask)
   }
 

@@ -17,7 +17,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const title = context.payload.pull_request.title;
-            const regex = /[A-Z]+-\d+/;
+            const regex = /[A-Z][A-Z]+-\d+/;
             if (!regex.test(title)) {
               core.setFailed("PR title must contain a Jira tag");
             }

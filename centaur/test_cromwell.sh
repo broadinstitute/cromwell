@@ -30,14 +30,14 @@ Arguments:
     -i    If supplied, will include tests with this tag
     -e    If supplied, will exclude tests with this tag
     -s    If supplied, will run only the specified suite
-    -p    If supplied, number of tests to be run in parallel. 16 is the default
+    -p    If supplied, number of tests to be run in parallel. 32 is the default
     -d    If supplied, will run the tests in this directory instead of the standard tests
 "
 
 INITIAL_DIR=$(pwd)
 RUN_DIR=$(pwd)
 LOG_DIR="${RUN_DIR}"/logs
-TEST_THREAD_COUNT=64
+TEST_THREAD_COUNT=32
 CENTAUR_SBT_COVERAGE=false
 CROMWELL_TIMEOUT=10s
 SUITE=""

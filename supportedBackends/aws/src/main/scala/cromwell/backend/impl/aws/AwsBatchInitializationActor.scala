@@ -51,6 +51,7 @@ import wom.graph.CommandCallNode
 import org.apache.commons.codec.binary.Base64
 import spray.json.{JsObject, JsString}
 import org.slf4j.{Logger, LoggerFactory}
+import cromwell.backend.impl.aws.io.AwsBatchWorkflowPaths
 
 import scala.concurrent.Future
 import scala.jdk.CollectionConverters._

@@ -30,10 +30,13 @@
  */
 package cromwell.backend.impl.aws.callcaching
 
-import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import common.util.TryUtil
 import cromwell.backend.BackendInitializationData
-import cromwell.backend.impl.aws.{AwsBatchBackendInitializationData, AWSBatchStorageSystems}
+import cromwell.backend.impl.aws.{
+  AwsBatchBackendInitializationData,
+  AwsBatchJobCachingActorHelper,
+  AWSBatchStorageSystems
+}
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardCacheHitCopyingActorParams}
 import cromwell.core.CallOutputs
@@ -47,7 +50,8 @@ import scala.language.postfixOps
 import scala.util.Try
 
 class AwsBatchBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams)
-    extends StandardCacheHitCopyingActor(standardParams) {
+    extends StandardCacheHitCopyingActor(standardParams)
+    with AwsBatchJobCachingActorHelper {
   private val batchAttributes = BackendInitializationData
     .as[AwsBatchBackendInitializationData](standardParams.backendInitializationDataOption)
     .configuration
@@ -75,6 +79,7 @@ class AwsBatchBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyin
       case (_, _) => super.processSimpletons(womValueSimpletons, sourceCallRootPath)
     }
 
+  // detritus files : job script, stdout, stderr and RC files.
   override def processDetritus(
     sourceJobDetritusFiles: Map[String, String]
   ): Try[(Map[String, Path], Set[IoCommand[_]])] =
@@ -118,7 +123,7 @@ class AwsBatchBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyin
               .writeCommand(
                 path = jobPaths.forCallCacheCopyAttempts.callExecutionRoot / "call_caching_placeholder.txt",
                 content = content,
-                options = Seq(CloudStorageOptions.withMimeType("text/plain"))
+                options = Seq()
               )
               .get
           )

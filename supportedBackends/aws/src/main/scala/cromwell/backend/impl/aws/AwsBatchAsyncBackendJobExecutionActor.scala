@@ -33,6 +33,7 @@ package cromwell.backend.impl.aws
 
 import java.net.SocketTimeoutException
 import java.io.FileNotFoundException
+import java.nio.file.Paths
 import akka.actor.ActorRef
 import akka.pattern.AskSupport
 import akka.util.Timeout
@@ -45,11 +46,12 @@ import common.util.StringUtil._
 import common.validation.Validation._
 
 import cromwell.backend._
-import cromwell.backend.async._ //{ExecutionHandle, PendingExecutionHandle}
+import cromwell.backend.async._
 import cromwell.backend.impl.aws.IntervalLimitedAwsJobSubmitActor.SubmitAwsJobRequest
 import cromwell.backend.impl.aws.OccasionalStatusPollingActor.{NotifyOfStatus, WhatsMyStatus}
 import cromwell.backend.impl.aws.RunStatus.{Initializing, TerminalRunStatus}
 import cromwell.backend.impl.aws.io._
+
 import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
@@ -182,6 +184,10 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
    * commandScriptContents here
    */
 
+  /* part of the full commandScriptContents is overriden here, in the context of mixed S3/EFS support with globbing.
+      we'll see how much we need...
+   */
+
   lazy val cmdScript = configuration.fileSystem match {
     case AWSBatchStorageSystems.s3 => commandScriptContents.toEither.toOption.get
     case _ => execScript
@@ -266,12 +272,17 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override protected def relativeLocalizationPath(file: WomFile): WomFile =
     file.mapFile(value =>
       getPath(value) match {
-        case Success(path) =>
+        // for s3 paths :
+        case Success(path: S3Path) =>
           configuration.fileSystem match {
-            case AWSBatchStorageSystems.s3 => path.pathWithoutScheme
-            case _ => path.toString
+            case AWSBatchStorageSystems.s3 =>
+              path.pathWithoutScheme
+            case _ =>
+              path.toString
           }
-        case _ => value
+        // non-s3 paths
+        case _ =>
+          value
       }
     )
 
@@ -306,7 +317,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     val callInputInputs = callInputFiles flatMap { case (name, files) =>
       inputsFromWomFiles(name, files, files.map(relativeLocalizationPath), jobDescriptor, true)
     }
-
+    // this is a list : AwsBatchInput(name_in_wf, origin_such_as_s3, target_in_docker_relative, target_in_docker_disk[name mount] )
     val scriptInput: AwsBatchInput = AwsBatchFileInput(
       "script",
       jobPaths.script.pathAsString,
@@ -328,18 +339,13 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     def getAbsolutePath(path: Path) =
       configuration.fileSystem match {
         case AWSBatchStorageSystems.s3 => AwsBatchWorkingDisk.MountPoint.resolve(path)
-        // case _ => DefaultPathBuilder.get(configuration.root).resolve(path)
-        case _ =>
-          Log.info("non-s3 path detected")
-          Log.info(path.toString)
-          AwsBatchWorkingDisk.MountPoint.resolve(path)
+        case _ => AwsBatchWorkingDisk.MountPoint.resolve(path)
       }
 
     val absolutePath = DefaultPathBuilder.get(path) match {
       case p if !p.isAbsolute => getAbsolutePath(p)
       case p => p
     }
-
     disks.find(d => absolutePath.startsWith(d.mountPoint)) match {
       case Some(disk) => (disk.mountPoint.relativize(absolutePath), disk)
       case None =>
@@ -368,8 +374,6 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         .getOrElse(List.empty)
 
     val womFileOutputs = jobDescriptor.taskCall.callable.outputs.flatMap(evaluateFiles) map relativeLocalizationPath
-    Log.debug("WomFileOutputs:")
-    Log.debug(womFileOutputs.toString())
     val outputs: Seq[AwsBatchFileOutput] = womFileOutputs.distinct flatMap {
       _.flattenFiles flatMap {
         case unlistedDirectory: WomUnlistedDirectory => generateUnlistedDirectoryOutputs(unlistedDirectory)
@@ -390,7 +394,6 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     val directoryListFile = womFile.value.ensureUnslashed + ".list"
     val dirDestinationPath = callRootPath.resolve(directoryPath).pathAsString
     val listDestinationPath = callRootPath.resolve(directoryListFile).pathAsString
-
     val (_, directoryDisk) = relativePathAndVolume(womFile.value, runtimeAttributes.disks)
 
     // We need both the collection directory and the collection list:
@@ -414,6 +417,8 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   // used by generateAwsBatchOutputs, could potentially move this def within that function
   private def generateAwsBatchSingleFileOutputs(womFile: WomSingleFile): List[AwsBatchFileOutput] = {
+    // rewrite this to create more flexibility
+    //
     val destination = configuration.fileSystem match {
       case AWSBatchStorageSystems.s3 => callRootPath.resolve(womFile.value.stripPrefix("/")).pathAsString
       case _ =>
@@ -424,32 +429,87 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     }
     val (relpath, disk) = relativePathAndVolume(womFile.value, runtimeAttributes.disks)
-    val output = AwsBatchFileOutput(makeSafeAwsBatchReferenceName(womFile.value), destination, relpath, disk)
+
+    val output =
+      if (
+        configuration.efsMntPoint.isDefined &&
+        configuration.efsMntPoint.getOrElse("").equals(disk.toString.split(" ")(1)) &&
+        !runtimeAttributes.efsDelocalize
+      ) {
+        AwsBatchFileOutput(makeSafeAwsBatchReferenceName(womFile.value),
+                           makeSafeAwsBatchReferenceName(womFile.value),
+                           relpath,
+                           disk
+        )
+      } else {
+        AwsBatchFileOutput(makeSafeAwsBatchReferenceName(womFile.value), destination, relpath, disk)
+      }
     List(output)
   }
 
-  // used by generateAwsBatchOutputs, could potentially move this def within that function
-  private def generateAwsBatchGlobFileOutputs(womFile: WomGlobFile): List[AwsBatchFileOutput] = {
-    val globName = GlobFunctions.globName(womFile.value)
-    val globDirectory = globName + "/"
-    val globListFile = globName + ".list"
-    val globDirectoryDestinationPath = callRootPath.resolve(globDirectory).pathAsString
-    val globListFileDestinationPath = callRootPath.resolve(globListFile).pathAsString
+  // get a unique glob name locations & paths.
+  //  1. globName :md5 hash of local PATH and WF_ID
+  //  2. globbedDir : local path of the directory being globbed.
+  //  3. volume on which the globbed data is located (eg root, efs, ...)
+  //  4. target path for delocalization for globDir
+  //  5. target path for delocalization for globList
+  private def generateGlobPaths(womFile: WomGlobFile): (String, String, AwsBatchVolume, String, String) = {
+    // add workflow id to hash for better conflict prevention
+    val wfid = standardParams.jobDescriptor.toString.split(":")(0)
+    val globName = GlobFunctions.globName(s"${womFile.value}-${wfid}")
+    val globbedDir = Paths.get(womFile.value).getParent.toString
+    // generalize folder and list file
+    val globDirectory = DefaultPathBuilder.get(globbedDir + "/." + globName + "/")
+    val globListFile = DefaultPathBuilder.get(globbedDir + "/." + globName + ".list")
 
+    // locate the disk where the globbed data resides
     val (_, globDirectoryDisk) = relativePathAndVolume(womFile.value, runtimeAttributes.disks)
 
+    val (globDirectoryDestinationPath, globListFileDestinationPath) =
+      if (
+        configuration.efsMntPoint.isDefined &&
+        configuration.efsMntPoint.getOrElse("").equals(globDirectoryDisk.toString.split(" ")(1)) &&
+        !runtimeAttributes.efsDelocalize
+      ) {
+        (globDirectory, globListFile)
+      } else {
+        (callRootPath.resolve(globDirectory).pathAsString, callRootPath.resolve(globListFile).pathAsString)
+      }
+    // return results
+    return (
+      globName,
+      globbedDir,
+      globDirectoryDisk,
+      globDirectoryDestinationPath.toString,
+      globListFileDestinationPath.toString
+    )
+
+  }
+  // used by generateAwsBatchOutputs, could potentially move this def within that function
+  private def generateAwsBatchGlobFileOutputs(womFile: WomGlobFile): List[AwsBatchFileOutput] = {
+
+    val (globName, globbedDir, globDirectoryDisk, globDirectoryDestinationPath, globListFileDestinationPath) =
+      generateGlobPaths(womFile)
+    val (relpathDir, _) = relativePathAndVolume(
+      DefaultPathBuilder.get(globbedDir + "/." + globName + "/" + "*").toString,
+      runtimeAttributes.disks
+    )
+    val (relpathList, _) = relativePathAndVolume(
+      DefaultPathBuilder.get(globbedDir + "/." + globName + ".list").toString,
+      runtimeAttributes.disks
+    )
     // We need both the glob directory and the glob list:
     List(
-      // The glob directory:
-      AwsBatchFileOutput(makeSafeAwsBatchReferenceName(globDirectory),
+      // The glob directory:.
+      AwsBatchFileOutput(DefaultPathBuilder.get(globbedDir.toString + "/." + globName + "/" + "*").toString,
                          globDirectoryDestinationPath,
-                         DefaultPathBuilder.get(globDirectory + "*"),
+                         relpathDir,
                          globDirectoryDisk
       ),
       // The glob list file:
-      AwsBatchFileOutput(makeSafeAwsBatchReferenceName(globListFile),
+      AwsBatchFileOutput(DefaultPathBuilder.get(globbedDir.toString + "/." + globName + ".list").toString,
                          globListFileDestinationPath,
-                         DefaultPathBuilder.get(globListFile),
+                         relpathList,
                          globDirectoryDisk
       )
     )
@@ -862,4 +922,56 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       case JobOutputsEvaluationException(ex) => FailedNonRetryableExecutionHandle(ex, kvPairsToSave = None)
     }
 
+  // overrides for globbing
+  /**
+    * Returns the shell scripting for linking a glob results file.
+    *
+    * @param globFile The glob.
+    * @return The shell scripting.
+    */
+  override def globScript(globFile: WomGlobFile): String = {
+
+    val (globName, globbedDir, _, _, _) = generateGlobPaths(globFile)
+    val controlFileName = "cromwell_glob_control_file"
+    val absoluteGlobValue = commandDirectory.resolve(globFile.value).pathAsString
+    val globDirectory = globbedDir + "/." + globName + "/"
+    val globList = globbedDir + "/." + globName + ".list"
+    val globLinkCommand: String = (if (configuration.globLinkCommand.isDefined) {
+                                     "( " + configuration.globLinkCommand.getOrElse("").toString + " )"
+
+                                   } else {
+                                     "( ln -L GLOB_PATTERN GLOB_DIRECTORY 2> /dev/null ) || ( ln GLOB_PATTERN GLOB_DIRECTORY )"
+                                   }).toString
+      .replaceAll("GLOB_PATTERN", absoluteGlobValue)
+      .replaceAll("GLOB_DIRECTORY", globDirectory)
+    // if on EFS : remove the globbing dir first, to remove leftover links from previous globs.
+    val mkDirCmd: String =
+      if (configuration.efsMntPoint.isDefined && globDirectory.startsWith(configuration.efsMntPoint.getOrElse(""))) {
+        jobLogger.warn("Globbing on EFS has risks.")
+        jobLogger.warn(s"The globbing target (${globbedDir}/.${globName}/) will be overwritten when existing!")
+        jobLogger.warn("Consider keeping globbed outputs in the cromwell-root folder")
+        s"rm -Rf $globDirectory $globList && mkdir"
+      } else {
+        "mkdir"
+      }
+
+    val controlFileContent =
+      """This file is used by Cromwell to allow for globs that would not match any file.
+        |By its presence it works around the limitation of some backends that do not allow empty globs.
+        |Regardless of the outcome of the glob, this file will not be part of the final list of globbed files.
+      """.stripMargin
+
+    s"""|# make the directory which will keep the matching files
+        |$mkDirCmd $globDirectory
+        |
+        |# create the glob control file that will allow for the globbing to succeed even if there is 0 match
+        |echo "${controlFileContent.trim}" > $globDirectory/$controlFileName
+        |
+        |# hardlink or symlink all the files into the glob directory
+        |$globLinkCommand
+        |
+        |# list all the files (except the control file) that match the glob into a file called glob-[md5 of glob].list
+        |ls -1 $globDirectory | grep -v $controlFileName > $globList
+        |""".stripMargin
+  }
 }

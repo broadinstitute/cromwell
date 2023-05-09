@@ -32,7 +32,7 @@
 package cromwell.backend.impl.aws
 
 import akka.actor.Actor
-import cromwell.backend.impl.aws.io.{AwsBatchVolume, AwsBatchWorkingDisk}
+import cromwell.backend.impl.aws.io.{AwsBatchVolume, AwsBatchWorkingDisk,AwsBatchJobPaths}
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.Path

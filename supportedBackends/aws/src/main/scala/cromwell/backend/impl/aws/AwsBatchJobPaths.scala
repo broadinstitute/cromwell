@@ -29,10 +29,13 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-package cromwell.backend.impl.aws
+package cromwell.backend.impl.aws.io
 
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.backend.io.JobPaths
+import cromwell.core.path.Path
+import cromwell.core.JobKey
+
 
 object AwsBatchJobPaths {
   val AwsBatchLogPathKey = "cromwellLog"
@@ -63,4 +66,19 @@ final case class AwsBatchJobPaths(override val workflowPaths: AwsBatchWorkflowPa
   override def defaultStderrFilename: String = s"$logBasename-stderr.log"
 
   override def forCallCacheCopyAttempts: JobPaths = this.copy(isCallCacheCopyAttempt = true)
+  override lazy val callRoot = callPathBuilder(workflowPaths.workflowRoot, jobKey, isCallCacheCopyAttempt)
+
+  def callPathBuilder(root: Path, jobKey: JobKey, isCallCacheCopyAttempt: Boolean) = {
+    val callName = jobKey.node.localName
+    val call = s"${JobPaths.CallPrefix}-${callName}"
+    val shard = jobKey.index map { s => s"${JobPaths.ShardPrefix}-$s" } getOrElse ""
+
+    val retryOrCallCache =
+      if (isCallCacheCopyAttempt) JobPaths.CacheCopyPrefix
+      else if (jobKey.attempt > 1) s"${JobPaths.AttemptPrefix}-${jobKey.attempt}"
+      else ""
+
+    List(call, shard, retryOrCallCache).foldLeft(root)((path, dir) => path.resolve(dir))
+    
+  }  
 }

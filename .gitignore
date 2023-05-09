@@ -1,5 +1,6 @@
 # common scala config
 *~
+.metals/
 .DS_Store
 .artifactory
 .bsp
@@ -65,5 +66,5 @@ gha-creds-*.json
 # jenv
 .java-version
 
-# metals
-.metals/
+.scalafmt.conf
+.vscode/

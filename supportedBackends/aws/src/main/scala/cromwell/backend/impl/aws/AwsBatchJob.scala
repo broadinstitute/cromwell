@@ -314,6 +314,7 @@ final case class AwsBatchJob(
       .map {
         case output: AwsBatchFileOutput if output.local.pathAsString.contains("*") => "" // filter out globs
         case output: AwsBatchFileOutput if output.name.endsWith(".list") && output.name.contains("glob-") =>
+          Log.debug("Globbing : check for EFS settings.")
           val s3GlobOutDirectory = output.s3key.replace(".list", "")
           val globDirectory = output.name.replace(".list", "")
           /*
@@ -321,10 +322,57 @@ final case class AwsBatchJob(
            * if it doesn't exist then 'touch' it so that it can be copied otherwise later steps will get upset
            * about the missing file
            */
-          s"""
-             |touch ${output.name}
-             |_s3_delocalize_with_retry ${output.name} ${output.s3key}
-             |if [ -e $globDirectory ]; then _s3_delocalize_with_retry $globDirectory $s3GlobOutDirectory ; fi""".stripMargin
+          if (efsMntPoint.isDefined && output.mount.mountPoint.pathAsString == efsMntPoint.get) {
+            Log.debug(
+              "EFS glob output file detected: " + output.s3key + s" / ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}"
+            )
+            val test_cmd = if (efsDelocalize.isDefined && efsDelocalize.getOrElse(false)) {
+              Log.debug("delocalization on EFS is enabled")
+              s"""
+                 |touch ${output.name}
+                 |_s3_delocalize_with_retry ${output.name} ${output.s3key}
+                 |if [ -e $globDirectory ]; then _s3_delocalize_with_retry $globDirectory $s3GlobOutDirectory ; fi
+                 |""".stripMargin
+            } else {
+
+              // check file for existence
+              s"""
+                        |# test the glob list
+                        |test -e ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} || (echo 'output file: ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} does not exist' && exit 1)
+                        |# test individual files.
+                        |for F in $$(cat ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}); do
+                        |   test -e "${globDirectory}/$$F" || (echo 'globbed file: "${globDirectory}/$$F" does not exist' && exit 1)
+                        |done
+                        |"""
+            }
+            // need to make md5sum?
+            val md5_cmd = if (efsMakeMD5.isDefined && efsMakeMD5.getOrElse(false)) {
+              Log.debug("Add cmd to create MD5 sibling.")
+              // this does NOT regenerate the md5 in case the file is overwritten !
+              s"""
+                 |if [[ ! -f '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' ]] ; then 
+                 |   # the glob list
+                 |   md5sum '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}' > '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' || (echo 'Could not generate ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' && exit 1 ); 
+                 |   # globbed files, using specified number of cpus for parallel processing.
+                 |   cat ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} | xargs -I% -P${runtimeAttributes.cpu.##.toString} bash -c "md5sum ${globDirectory}/% > ${globDirectory}/%.md5"
+                 |fi
+                 |""".stripMargin
+            } else {
+              Log.debug("MD5 not enabled: " + efsMakeMD5.get.toString())
+              ""
+            }
+            // return combined result
+            s"""
+               |${test_cmd}
+               |${md5_cmd}
+               | """.stripMargin
+          } else {
+            // default delocalization command.
+            s"""
+               |touch ${output.name}
+               |_s3_delocalize_with_retry ${output.name} ${output.s3key}
+               |if [ -e $globDirectory ]; then _s3_delocalize_with_retry $globDirectory $s3GlobOutDirectory ; fi""".stripMargin
+          }
 
         // files on /cromwell/ working dir must be delocalized
         case output: AwsBatchFileOutput
@@ -332,7 +380,7 @@ final case class AwsBatchJob(
               "s3://"
             ) && output.mount.mountPoint.pathAsString == AwsBatchWorkingDisk.MountPoint.pathAsString =>
           // output is on working disk mount
-          Log.info("output Data on working disk mount" + output.local.pathAsString)
+          Log.debug("output Data on working disk mount" + output.local.pathAsString)
           s"""_s3_delocalize_with_retry $workDir/${output.local.pathAsString} ${output.s3key}""".stripMargin
 
         // file(name (full path), s3key (delocalized path), local (file basename), mount (disk details))

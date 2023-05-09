@@ -33,6 +33,7 @@ package cromwell.backend.impl.aws
 
 import cromwell.backend.standard.{StandardInitializationData, StandardValidatedRuntimeAttributesBuilder}
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
+import cromwell.backend.impl.aws.io.AwsBatchWorkflowPaths
 
 case class AwsBatchBackendInitializationData(
   override val workflowPaths: AwsBatchWorkflowPaths,

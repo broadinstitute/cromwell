@@ -31,15 +31,9 @@
 package cromwell.filesystems.s3.batch
 
 import cromwell.core.callcaching.FileHashStrategy
+import cromwell.core.io.DefaultIoCommand.DefaultIoHashCommand
 import cromwell.core.io.IoCommand.IOMetricsCallback
-import cromwell.core.io.{
-  IoCommandBuilder,
-  IoContentAsStringCommand,
-  IoIsDirectoryCommand,
-  IoReadLinesCommand,
-  IoWriteCommand,
-  PartialIoCommandBuilder
-}
+import cromwell.core.io._
 import cromwell.core.path.BetterFileMethods.OpenOptions
 import cromwell.core.path.Path
 import cromwell.filesystems.s3.S3Path
@@ -86,9 +80,9 @@ private case object PartialS3BatchCommandBuilder extends PartialIoCommandBuilder
     case (src: S3Path, dest: S3Path) => Try(S3BatchCopyCommand(src, dest))
   }
 
-  override def hashCommand: PartialFunction[(Path, FileHashStrategy, IOMetricsCallback), Try[S3BatchHashCommand]] = {
-    case (path: S3Path, s, _) =>
-      Try(S3BatchHashCommand(path, s))
+  override def hashCommand: PartialFunction[(Path, FileHashStrategy, IOMetricsCallback), Try[IoHashCommand]] = {
+    case (path: S3Path, s, _) => Try(S3BatchHashCommand(path, s).asInstanceOf[IoHashCommand])
+    case (local_path: Path, s, _) => Try(DefaultIoHashCommand(local_path, s))
   }
 
   override def touchCommand: PartialFunction[Path, Try[S3BatchTouchCommand]] = { case path: S3Path =>

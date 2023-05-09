@@ -1,0 +1,10 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Repo template: Batch" type="Application" factoryName="Application">
+    <option name="ALTERNATIVE_JRE_PATH" value="temurin-11" />
+    <option name="MAIN_CLASS_NAME" value="cromwell.CromwellApp" />
+    <module name="cromwell" />
+    <option name="PROGRAM_PARAMETERS" value="run $USER_HOME$/DevOps/cromwell_workflows/Workflow_multitask.wdl" />
+    <option name="VM_PARAMETERS" value="-Dconfig.file=$USER_HOME$/DevOps/cromwell_workflows/batch-jjennings.conf" />
+    <method v="2" />
+  </configuration>
+</component>

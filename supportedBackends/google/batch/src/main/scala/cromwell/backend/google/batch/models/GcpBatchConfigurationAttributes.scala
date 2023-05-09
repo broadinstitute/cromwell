@@ -17,7 +17,7 @@ import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.{Bat
 import cromwell.backend.google.batch.util.{DockerImageCacheEntry, GcpBatchDockerCacheMappingOperations, GcpBatchReferenceFilesMappingOperations}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
-import cromwell.core.DockerCredentials
+//import cromwell.core.DockerCredentials
 import cromwell.filesystems.gcs.GcsPathBuilder
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import eu.timepit.refined.api.Refined
@@ -32,6 +32,7 @@ import scala.util.matching.Regex
 import scala.util.{Failure, Success, Try}
 
 case class GcpBatchConfigurationAttributes(project: String,
+                                           dockerCredentials: String,
                                            computeServiceAccount: String,
                                            auths: GcpBatchAuths,
                                            restrictMetadataAccess: Boolean,
@@ -47,7 +48,6 @@ case class GcpBatchConfigurationAttributes(project: String,
                                            gcsTransferConfiguration: GcsTransferConfiguration,
                                            virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
                                            batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
-                                           dockerCredentials: Option[Map[String, String]],
                                            referenceFileToDiskImageMappingOpt: Option[Map[String, GcpBatchReferenceFilesDisk]],
                                            dockerImageToCacheDiskImageMappingOpt: Option[Map[String, DockerImageCacheEntry]],
                                            checkpointingInterval: FiniteDuration,
@@ -186,13 +186,14 @@ object GcpBatchConfigurationAttributes extends GcpBatchDockerCacheMappingOperati
     val executionBucket: ErrorOr[String] = validate {
       backendConfig.as[String]("root")
     }
-    val dockerUser: String = backendConfig.as[Option[String]]("docker-user").getOrElse("")
-    val dockerToken: String = backendConfig.as[Option[String]]("docker-token").getOrElse("")
+//    val dockerUser: String = backendConfig.as[Option[String]]("docker-user").getOrElse("")
+//    val dockerToken: String = backendConfig.as[Option[String]]("docker-token").getOrElse("")
 
-    val dockerCredentials: Option[Map[String, String]] = (dockerUser, dockerToken) match {
-      case ("", "") => None
-      case (user, token) => Some(Map("docker-user" -> user, "docker-token" -> token))
-    }
+//    val dockerCredentials: Option[Map[String, String]] = (dockerUser, dockerToken) match {
+//      case ("", "") => None
+//      case (user, token) => Some(Map("docker-user" -> user, "docker-token" -> token))
+//    }
+    val dockerCredentials: String = "password"
 
     val location: ErrorOr[String] = validate {
       backendConfig.as[String]("genomics.location")
@@ -274,6 +275,7 @@ object GcpBatchConfigurationAttributes extends GcpBatchDockerCacheMappingOperati
     val checkpointingInterval: FiniteDuration = backendConfig.getOrElse(checkpointingIntervalKey, 10.minutes)
 
     def authGoogleConfigForBatchConfigurationAttributes(project: String,
+                                                        dockerCredentials: String,
                                                         bucket: String,
                                                         genomicsName: String,
                                                         location: String,
@@ -286,7 +288,6 @@ object GcpBatchConfigurationAttributes extends GcpBatchDockerCacheMappingOperati
                                                         gcsTransferConfiguration: GcsTransferConfiguration,
                                                         virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
                                                         batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
-                                                        dockerCredentials: Option[Map[String, String]],
                                                         referenceDiskLocalizationManifestFilesOpt: Option[List[ManifestFile]],
                                                         dockerImageCacheManifestFileOpt: Option[ValidFullGcsPath]): ErrorOr[GcpBatchConfigurationAttributes] =
       (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
@@ -299,6 +300,7 @@ object GcpBatchConfigurationAttributes extends GcpBatchDockerCacheMappingOperati
           }
           models.GcpBatchConfigurationAttributes(
             project = project,
+            dockerCredentials = dockerCredentials,
             computeServiceAccount = computeServiceAccount,
             auths = GcpBatchAuths(genomicsAuth, gcsAuth),
             restrictMetadataAccess = restrictMetadata,
@@ -314,7 +316,6 @@ object GcpBatchConfigurationAttributes extends GcpBatchDockerCacheMappingOperati
             gcsTransferConfiguration = gcsTransferConfiguration,
             virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration,
             batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration,
-            dockerCredentials = dockerCredentials,
             referenceFileToDiskImageMappingOpt = generatedReferenceFilesMappingOpt,
             dockerImageToCacheDiskImageMappingOpt = dockerImageToCacheDiskImageMappingOpt,
             checkpointingInterval = checkpointingInterval
@@ -323,6 +324,7 @@ object GcpBatchConfigurationAttributes extends GcpBatchDockerCacheMappingOperati
 
 
     (project,
+      dockerCredentials,
       executionBucket,
       genomicsAuthName,
       location,
@@ -335,7 +337,6 @@ object GcpBatchConfigurationAttributes extends GcpBatchDockerCacheMappingOperati
       gcsTransferConfiguration,
       virtualPrivateCloudConfiguration,
       batchRequestTimeoutConfigurationValidation,
-      dockerCredentials,
       referenceDiskLocalizationManifestFiles,
       dockerImageCacheManifestFile
     ) flatMapN authGoogleConfigForBatchConfigurationAttributes match {

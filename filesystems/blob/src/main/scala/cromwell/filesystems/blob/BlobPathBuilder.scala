@@ -75,8 +75,22 @@ object BlobPath {
   // This is safe because the NIO library enforces no colons except to mark
   // the root container name.
   private def nioPathString(nioPath: NioPath): String = {
-    val pathStr = nioPath.toString
+    val pathStr = fixitfixit(nioPath.toString)
     pathStr.substring(pathStr.indexOf(":")+1)
+  }
+
+  // Convert
+  // http:/SA.blob.core.windows.net/CONTAINER/cromwell-execution/file.txt (note single slash after https)
+  // to
+  // CONTAINER:/cromwell-execution/file.txt
+  // Temporary hack to work around bad http blob path parsing by NIO library
+  val brokenPathRegex = "https:/([a-z0-9]+).blob.core.windows.net/([-a-zA-Z0-9]+)/(.*)".r
+  def fixitfixit(nioString: String): String = {
+    nioString match {
+      case brokenPathRegex(_, containerName, pathInContainer) =>
+        s"${containerName}:/${pathInContainer}"
+      case _ => nioString
+    }
   }
 
   def apply(nioPath: NioPath,

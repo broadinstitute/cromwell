@@ -144,7 +144,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         jobShell,
         mode)
     })
-    
+
     tesTask.map(TesTask.makeTask)
   }
 

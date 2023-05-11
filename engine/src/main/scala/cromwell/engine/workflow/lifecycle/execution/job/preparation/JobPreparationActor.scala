@@ -149,8 +149,14 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
 
       // Even if the docker image has a hash, we need to (try to) find out the size, so send a request
       case Success(dockerImageId: DockerImageIdentifierWithHash) =>
-        sendDockerRequest(dockerImageId)
-
+        // If there's a digest and:
+        if (DockerConfiguration.instance.performRegistryLookupIfDigestIsProvided) {
+          // performRegistryLookupIfDigestIsProvided is true (default), look up the container
+          sendDockerRequest(dockerImageId)
+        } else {
+          // performRegistryLookupIfDigestIsProvided is false, we'll skip looking up the container
+          lookupKvsOrBuildDescriptorAndStop(inputs, attributes, DockerWithHash(dockerImageId.fullName), None)
+        }
       case Failure(failure) => sendFailureAndStop(failure)
 
       case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")

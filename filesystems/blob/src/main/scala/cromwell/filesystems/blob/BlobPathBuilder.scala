@@ -1,14 +1,14 @@
 package cromwell.filesystems.blob
 
-import com.azure.storage.blob.nio.{AzureBlobFileAttributes}
+import com.azure.storage.blob.nio.AzureBlobFileAttributes
 import com.google.common.net.UrlEscapers
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.blob.BlobPathBuilder._
 
 import java.net.{MalformedURLException, URI}
+import java.nio.file.{Files, LinkOption}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import java.nio.file.Files
 
 object BlobPathBuilder {
 
@@ -119,4 +119,6 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
       }
     )
   }
+
+  override def getSymlinkSafePath(options: LinkOption*): Path  = toAbsolutePath
 }

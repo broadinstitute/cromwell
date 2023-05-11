@@ -25,8 +25,6 @@ import wom.values.WomFile
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.Future
-import scala.concurrent.duration._
-import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 sealed trait TesRunStatus {
@@ -71,30 +69,13 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
 
-  override lazy val pollBackOff = SimpleExponentialBackoff(
-    initialInterval = 1 seconds,
-    maxInterval = 5 minutes,
-    multiplier = 1.1
-  )
-
-  override lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(
-    initialInterval = 3 seconds,
-    maxInterval = 30 seconds,
-    multiplier = 1.1
-  )
+  override lazy val pollBackOff: SimpleExponentialBackoff = tesConfiguration.pollBackoff
+  override lazy val executeOrRecoverBackOff: SimpleExponentialBackoff = tesConfiguration.executeOrRecoverBackoff
 
   private lazy val realDockerImageUsed: String = jobDescriptor.maybeCallCachingEligible.dockerHash.getOrElse(runtimeAttributes.dockerImage)
   override lazy val dockerImageUsed: Option[String] = Option(realDockerImageUsed)
 
   private val tesEndpoint = workflowDescriptor.workflowOptions.getOrElse("endpoint", tesConfiguration.endpointURL)
-
-  // Temporary support for configuring the format we use to send BlobPaths to TES.
-  // Added 10/2022 as a workaround for the CromwellOnAzure TES server expecting
-  // blob containers to be mounted via blobfuse rather than addressed natively.
-  private val transformBlobToLocalPaths: Boolean =
-    configurationDescriptor.backendConfig
-      .getAs[Boolean]("transform-blob-to-local-path")
-      .getOrElse(false)
 
   override lazy val jobTag: String = jobDescriptor.key.tag
 
@@ -164,7 +145,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         mode)
     })
 
-    tesTask.map(TesTask.makeTask(_, transformBlobToLocalPaths))
+    tesTask.map(TesTask.makeTask)
   }
 
   def writeScriptFile(): Future[Unit] = {

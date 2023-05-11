@@ -1353,6 +1353,16 @@ definitions:
               type: string
             fieldType:
               $ref: '#/definitions/ValueType'
+      nonEmpty:
+        type: boolean
+        description: Boolean representation of the contents in an array.
+      pairType:
+        type: object
+        properties:
+          leftType:
+            $ref: '#/definitions/ValueType'
+          rightType:
+            $ref: '#/definitions/ValueType'
   MapValueType:
     type: object
     description: A type representing a map from one type to another.

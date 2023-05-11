@@ -1,3 +1,0 @@
-{{with $cromwellGithub := secret (printf "secret/dsde/cromwell/common/cromwell-github")}}
-{{$cromwellGithub.Data.private_deploy_key}}
-{{end}}

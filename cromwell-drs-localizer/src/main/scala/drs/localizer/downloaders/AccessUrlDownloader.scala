@@ -76,11 +76,23 @@ case class AccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes
               case s if s / 100 == 4 =>
                 FatalDownloadFailure(ExitCode(rc))
               case s if s / 100 == 5 =>
+                logger.info("Recognized Retryable Download. stderr:")
+                logger.info(getmResult.stderr)
+                logger.info("Recognized Retryable Download. getmResult:")
+                logger.info(getmResult.toString)
                 RecognizedRetryableDownloadFailure(ExitCode(rc))
               case _ =>
+                logger.info("Unrecognized Retryable Download. stderr:")
+                logger.info(getmResult.stderr)
+                logger.info("Unrecognized Retryable Download. getmResult:")
+                logger.info(getmResult.toString)
                 UnrecognizedRetryableDownloadFailure(ExitCode(rc))
             }
           case _ =>
+            logger.info("Unrecognized Retryable Download. stderr:")
+            logger.info(getmResult.stderr)
+            logger.info("Unrecognized Retryable Download. getmResult:")
+            logger.info(getmResult.toString)
             UnrecognizedRetryableDownloadFailure(ExitCode(rc))
         }
     }

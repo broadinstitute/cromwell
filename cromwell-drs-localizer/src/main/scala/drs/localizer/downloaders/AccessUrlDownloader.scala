@@ -61,6 +61,10 @@ case class AccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes
           case ChecksumFailureMessage() =>
             ChecksumFailure
           case _ =>
+            logger.info("Unrecognized Retryable Download. stderr:")
+            logger.info(getmResult.stderr)
+            logger.info("Unrecognized Retryable Download. getmResult:")
+            logger.info(getmResult.toString)
             UnrecognizedRetryableDownloadFailure(ExitCode(0))
         }
       case GetmResult(rc, stderr) =>

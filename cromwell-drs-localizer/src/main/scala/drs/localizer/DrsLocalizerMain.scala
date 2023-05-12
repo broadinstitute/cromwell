@@ -116,6 +116,8 @@ class DrsLocalizerMain(drsUrl: String,
         case _ if downloadAttempt < downloadRetries =>
           backoff foreach { b => Thread.sleep(b.backoffMillis) }
           logger.warn(s"Attempting retry $downloadAttempt of $downloadRetries download retries to download $drsUrl", t)
+          logger.info("maybeRetryForDownloadFailure:")
+          logger.info(t.getMessage)
           resolveAndDownloadWithRetries(downloadRetries, checksumRetries, downloaderFactory, backoff map { _.next }, downloadAttempt + 1, checksumAttempt)
         case _ =>
           IO.raiseError(new RuntimeException(s"Exhausted $downloadRetries download retries to resolve, download and checksum $drsUrl", t))

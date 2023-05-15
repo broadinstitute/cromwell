@@ -68,36 +68,30 @@ class BlobPathBuilder(container: BlobContainerName, endpoint: EndpointURL)(priva
 }
 
 object BlobPath {
-  // The Azure NIO library uses `{containerName}:` as the root of the path.
-  // This doesn't work well for our need to easily transfer back and forth
-  // to and from the blob URL format. This method removes anything up to and including
-  // the first colon, to create a path string useful for working with BlobPath.
-  // This is safe because the NIO library enforces no colons except to mark
-  // the root container name.
-  private def nioPathString(nioPath: NioPath): String = {
-    val pathStr = fixitfixit(nioPath.toString)
-    pathStr.substring(pathStr.indexOf(":")+1)
-  }
-
-  // Convert
-  // http:/SA.blob.core.windows.net/CONTAINER/cromwell-execution/file.txt (note single slash after https)
-  // to
-  // CONTAINER:/cromwell-execution/file.txt
-  // Temporary hack to work around bad http blob path parsing by NIO library
-  val brokenPathRegex = "https:/([a-z0-9]+).blob.core.windows.net/([-a-zA-Z0-9]+)/(.*)".r
-  def fixitfixit(nioString: String): String = {
-    nioString match {
+  // The Azure NIO library uses `{containerName}:` as the root of the path (treating the blob container within
+  // the storage account similarly to a drive within a computer). This doesn't work well for our need to easily
+  // transfer back and forth to and from the blob URL format. It also causes the library to garble full http://
+  // paths that it receives (it interprets `http` as the container name); it transforms them to http:/<remainder of path>
+  //
+  // We transform these library-generated paths in two steps:
+  // 1) If the path starts with http:/ (single slash!) transform it to the containerName:<path inside container>
+  //    format the library expects
+  // 2) If the path looks like <container>:<path>, strip off the <container>: to leave the absolute path inside the container.
+  private val brokenPathRegex = "https:/([a-z0-9]+).blob.core.windows.net/([-a-zA-Z0-9]+)/(.*)".r
+  def cleanedNioPathString(nioString: String): String = {
+    val pathStr = nioString match {
       case brokenPathRegex(_, containerName, pathInContainer) =>
         s"${containerName}:/${pathInContainer}"
       case _ => nioString
     }
+    pathStr.substring(pathStr.indexOf(":")+1)
   }
 
   def apply(nioPath: NioPath,
             endpoint: EndpointURL,
             container: BlobContainerName,
             fsm: BlobFileSystemManager): BlobPath = {
-    BlobPath(nioPathString(nioPath), endpoint, container)(fsm)
+    BlobPath(cleanedNioPathString(nioPath.toString), endpoint, container)(fsm)
   }
 }
 
@@ -109,7 +103,7 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
   override def pathAsString: String = List(endpoint, container, pathString.stripPrefix("/")).mkString("/")
 
   //This is purposefully an unprotected get because if the endpoint cannot be parsed this should fail loudly rather than quietly
-  override def pathWithoutScheme: String = parseURI(endpoint.value).map(u => List(u.getHost, container, pathString).mkString("/")).get
+  override def pathWithoutScheme: String = parseURI(endpoint.value).map(u => List(u.getHost, container, pathString.stripPrefix("/")).mkString("/")).get
 
   private def findNioPath(path: String): NioPath = (for {
     fileSystem <- fsm.retrieveFilesystem()

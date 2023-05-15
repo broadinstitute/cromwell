@@ -37,7 +37,7 @@ Arguments:
 INITIAL_DIR=$(pwd)
 RUN_DIR=$(pwd)
 LOG_DIR="${RUN_DIR}"/logs
-TEST_THREAD_COUNT=16
+TEST_THREAD_COUNT=16  # Note that most users of this script override this value
 CENTAUR_SBT_COVERAGE=false
 CROMWELL_TIMEOUT=10s
 SUITE=""

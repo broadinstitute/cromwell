@@ -129,7 +129,9 @@ object Settings {
                          | && /usr/local/gcloud/google-cloud-sdk/install.sh""".stripMargin),
       // instructions to install `getm`. Pin to version 0.0.4 as the behaviors of future versions with respect to
       // messages or exit codes may change.
-      Instructions.Run("pip3 install getm==0.0.4")
+      Instructions.Run("pip3 install getm==0.0.4"),
+      Instructions.Run("pip3 uninstall urllib3"),
+      Instructions.Run("pip3 install urllib3==1.26.15")
     )
   )
 

@@ -22,8 +22,6 @@ cromwell::build::run_centaur \
     -e relative_output_paths \
     -e relative_output_paths_colliding \
     -e standard_output_paths_colliding_prevented \
-    -e papi_v2alpha1_gcsa \
-    -e drs_usa_jdr \
-    -e drs_usa_jdr_preresolve
+    -e papi_v2alpha1_gcsa
 
 cromwell::build::generate_code_coverage

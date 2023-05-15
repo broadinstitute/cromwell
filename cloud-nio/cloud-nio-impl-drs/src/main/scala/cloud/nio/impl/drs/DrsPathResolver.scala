@@ -85,8 +85,6 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, retryInternally: Boolean = 
   }
 
   private def executeDrsResolverRequest(httpPost: HttpPost): Resource[IO, HttpResponse]= {
-    var test = 1
-    test +=2
     for {
       httpClient <- Resource.fromAutoCloseable(IO(httpClientBuilder.build()))
       httpResponse <- Resource.fromAutoCloseable(IO(httpClient.execute(httpPost)))

@@ -32,6 +32,15 @@ class TesConfiguration(val configurationDescriptor: BackendConfigurationDescript
       .map(SimpleExponentialBackoff(_))
       .getOrElse(TesConfiguration.defaultExecOrRecoverBackoff)
 
+  // Used for testing only. Include a bearer token for authenticating with the TES server
+  final val bearerPrefix: String = "Bearer "
+  val token: Option[String] = {
+    configurationDescriptor.backendConfig.as[Option[String]]("bearer-token").map { t =>
+      if (!t.startsWith(bearerPrefix))
+        s"${bearerPrefix}${t}"
+      else t
+    }
+  }
 }
 
 object TesConfiguration {

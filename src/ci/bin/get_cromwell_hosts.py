@@ -1,9 +1,9 @@
 # Based on https://stackoverflow.com/a/39895650
 from __future__ import print_function
-from docker import Client
+from docker import APIClient
 import os
 
-cli = Client(base_url='unix://var/run/docker.sock')
+cli = APIClient(base_url='unix://var/run/docker.sock')
 
 our_hostname = os.environ.get("HOSTNAME")
 

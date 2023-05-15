@@ -57,10 +57,15 @@ case class HttpPath(nioPath: NioPath) extends Path {
   def fetchSize(implicit executionContext: ExecutionContext, actorSystem: ActorSystem): Future[Long] = {
     Http().singleRequest(HttpRequest(uri = pathAsString, method = HttpMethods.HEAD)).map { response =>
       response.discardEntityBytes()
-      val length = response.entity.contentLengthOption.getOrElse(0L)
-      if (length == 0L)
-        throw new RuntimeException(s"Couldn't fetch size for $pathAsString, missing Content-Length header or path doesn't exist.")
-      length
+      val length = if (response.status.isSuccess())
+        response.entity.contentLengthOption
+      else
+        None
+      length.getOrElse(
+        throw new RuntimeException(
+          s"Couldn't fetch size for $pathAsString, missing Content-Length header or path doesn't exist (HTTP ${response.status.toString()})."
+        )
+      )
     }
   }
 

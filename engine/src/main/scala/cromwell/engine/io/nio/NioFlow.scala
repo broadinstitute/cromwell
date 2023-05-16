@@ -24,8 +24,8 @@ import net.ceedubs.ficus.readers.ValueReader
 
 import java.io._
 import java.nio.charset.StandardCharsets
-import scala.concurrent.{Await, ExecutionContext}
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.FiniteDuration
 
 
 /**
@@ -40,6 +40,7 @@ class NioFlow(parallelism: Int,
 
   implicit private val ec: ExecutionContext = system.dispatcher
   implicit private val timer: Timer[IO] = IO.timer(ec)
+  implicit private val contextShift: ContextShift[IO] = IO.contextShift(ec)
 
   override def maxStaleness: FiniteDuration = commandBackpressureStaleness
 
@@ -166,7 +167,7 @@ class NioFlow(parallelism: Int,
 
   private def size(size: IoSizeCommand) =
     size.file match {
-      case httpPath: HttpPath => IO(Await.result(httpPath.fetchSize, Duration("5 seconds")))
+      case httpPath: HttpPath => IO.fromFuture(IO(httpPath.fetchSize))
       case nioPath => IO(nioPath.size)
     }
 

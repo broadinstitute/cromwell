@@ -11,7 +11,7 @@ import wdl.transforms.cascades.Ast2WdlomSpec._
 import wdl.transforms.cascades.ast2wdlom._
 
 class CascadesExpressionValueConsumersSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
-  behavior of "WDL Biscayne's expressionValueConsumer"
+  behavior of "WDL Cascades' expressionValueConsumer"
 
   it should "return nothing from static integer addition" in {
     val str = "3 + 3"

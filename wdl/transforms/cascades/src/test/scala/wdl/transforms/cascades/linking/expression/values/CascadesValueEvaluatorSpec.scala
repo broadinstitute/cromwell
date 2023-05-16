@@ -16,7 +16,7 @@ import wom.values.{WomArray, WomInteger, WomMap, WomOptionalValue, WomPair, WomS
 
 class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
-  behavior of "biscayne value evaluator"
+  behavior of "cascades value evaluator"
 
   // The "did we bring in the base transforms" sanity check:
   it should "return a static integer from static integer addition" in {
@@ -46,7 +46,7 @@ class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
   it should "evaluate an 'as_pairs' expression correctly" in {
     // Repeat this a few times ensure we aren't occasionally reordering by accident:
     10 times {
-      val str = """ as_pairs( { 1: "one", 2: "two", 3: "three" } ) """
+      val str = """ as_pairs( { 1: "one", 2: "two", 3: three } ) """
       val expr = fromString[ExpressionElement](str, parser.parse_e)
 
       val inputs = Map("three" -> WomString("three"))

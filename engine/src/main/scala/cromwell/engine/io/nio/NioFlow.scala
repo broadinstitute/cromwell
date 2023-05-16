@@ -167,7 +167,7 @@ class NioFlow(parallelism: Int,
   private def size(size: IoSizeCommand) =
     size.file match {
       case httpPath: HttpPath => IO(Await.result(httpPath.fetchSize, Duration("5 seconds")))
-      case nioPath => IO.pure(nioPath.size)
+      case nioPath => IO(nioPath.size)
     }
 
   private def hash(hash: IoHashCommand): IO[String] = {

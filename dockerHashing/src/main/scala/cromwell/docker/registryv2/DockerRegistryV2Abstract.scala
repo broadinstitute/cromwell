@@ -139,7 +139,7 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
     val requestDockerManifest = manifestRequest(token, dockerInfoContext.dockerImageID, AcceptDockerManifestV2Header)
     lazy val requestOCIManifest = manifestRequest(token, dockerInfoContext.dockerImageID, AcceptOCIIndexV1Header)
     def tryOCIManifest(err: Throwable) = {
-      logger.info("Manifest request failed for docker manifest V2, falling back to OCI manifest", err)
+      logger.info(s"Manifest request failed for docker manifest V2, falling back to OCI manifest. Image: ${dockerInfoContext.dockerImageID}", err)
       executeRequest(requestOCIManifest, handleManifestResponse(dockerInfoContext, token))
     }
     // Try to execute a request using the Docker Manifest format, and if that fails, try using the newer OCI manifest format

@@ -2,7 +2,7 @@ package cromwell.engine.io.nio
 
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Flow
-import cats.effect.{ContextShift, IO, Timer}
+import cats.effect._
 
 import scala.util.Try
 import cloud.nio.spi.{ChecksumFailure, ChecksumResult, ChecksumSkipped, ChecksumSuccess, FileHash, HashType}
@@ -24,8 +24,8 @@ import net.ceedubs.ficus.readers.ValueReader
 
 import java.io._
 import java.nio.charset.StandardCharsets
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 
 /**
@@ -40,7 +40,6 @@ class NioFlow(parallelism: Int,
 
   implicit private val ec: ExecutionContext = system.dispatcher
   implicit private val timer: Timer[IO] = IO.timer(ec)
-  implicit private val contextShift: ContextShift[IO] = IO.contextShift(ec)
 
   override def maxStaleness: FiniteDuration = commandBackpressureStaleness
 
@@ -167,7 +166,7 @@ class NioFlow(parallelism: Int,
 
   private def size(size: IoSizeCommand) =
     size.file match {
-      case httpPath: HttpPath => IO.fromFuture(IO(httpPath.fetchSize))
+      case httpPath: HttpPath => IO(Await.result(httpPath.fetchSize, Duration("5 seconds")))
       case nioPath => IO.pure(nioPath.size)
     }
 

@@ -75,10 +75,17 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     )
   }
 
-  it should "clean the NIO path string when it's an in-container absolute path'" in {
+  it should "clean the NIO path string when it's an in-container absolute path" in {
     testBlobNioStringCleaning(
       "/workspace-services/cbas/terra-app-4628d0e1/test_all_engine_functions/4bb6a0a2-3b07/call-run_read_string/execution/stdout",
       "/workspace-services/cbas/terra-app-4628d0e1/test_all_engine_functions/4bb6a0a2-3b07/call-run_read_string/execution/stdout"
+    )
+  }
+
+  it should "clean the NIO path string when it's the root directory only" in {
+    testBlobNioStringCleaning(
+      "sc-ebda3e:",
+      ""
     )
   }
 

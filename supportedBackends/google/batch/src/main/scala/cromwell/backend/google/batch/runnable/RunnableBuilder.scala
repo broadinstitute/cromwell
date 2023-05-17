@@ -150,7 +150,8 @@ object RunnableBuilder {
                    scriptContainerPath: String,
                    jobShell: String,
                    //privateDockerKeyAndToken: Option[CreatePipelineDockerKeyAndToken],
-                   volumes: List[Volume]): Runnable.Builder = {
+                   volumes: List[Volume],
+                   dockerhubCredentials: (String, String)): Runnable.Builder = {
 
     //val dockerImageIdentifier = DockerImageIdentifier.fromString(docker)
 

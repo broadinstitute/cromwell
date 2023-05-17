@@ -3,6 +3,8 @@ package cromwell.backend.google.batch.runnable
 import com.google.cloud.batch.v1.{Runnable, Volume}
 import cromwell.backend.google.batch.api.GcpBatchRequestFactory.CreatePipelineParameters
 
+import scala.language.postfixOps
+
 trait UserRunnable {
 
   def userRunnables(createPipelineParameters: CreatePipelineParameters, volumes: List[Volume]): List[Runnable] = {
@@ -10,7 +12,8 @@ trait UserRunnable {
       docker = createPipelineParameters.dockerImage,
       scriptContainerPath = createPipelineParameters.commandScriptContainerPath.pathAsString,
       jobShell = createPipelineParameters.jobShell,
-      volumes = volumes
+      volumes = volumes,
+      dockerhubCredentials = createPipelineParameters.dockerhubCredentials
       // not necessary for now
       //createPipelineParameters.privateDockerKeyAndEncryptedToken,
       //createPipelineParameters.fuseEnabled

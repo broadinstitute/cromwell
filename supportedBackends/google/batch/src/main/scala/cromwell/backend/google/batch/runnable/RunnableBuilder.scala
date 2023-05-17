@@ -194,6 +194,8 @@ object RunnableBuilder {
     )(volumes, flags, labels).withTimeout(timeout = 300.seconds)
   }
 
+  def cloudSdkRunnable: Runnable.Builder = Runnable.newBuilder.setContainer(cloudSdkContainerBuilder)
+
   // TODO: Use labels
   def cloudSdkShellRunnable(shellCommand: String)(
     volumes: List[Volume],
@@ -282,7 +284,7 @@ object RunnableBuilder {
       case None => ""
     }
 
-    val entrypointArg: String = Option(runnable.getContainerBuilder.getEntrypoint) match {
+    val entrypointArg: String = Option(runnable.getContainerBuilder.getEntrypoint).filter(_.nonEmpty) match {
       case Some(entrypoint) => s" --entrypoint=${shellEscaped(entrypoint)}"
       case None => ""
     }

@@ -21,7 +21,7 @@ final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Co
 
   override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[BlobPathBuilder] = {
     Future {
-      new BlobPathBuilder(fsm.container, fsm.endpoint)(fsm)
+      new BlobPathBuilder()(fsm)
     }
   }
 

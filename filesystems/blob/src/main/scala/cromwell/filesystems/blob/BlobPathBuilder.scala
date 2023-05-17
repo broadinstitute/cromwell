@@ -13,10 +13,11 @@ import scala.util.{Failure, Success, Try}
 object BlobPathBuilder {
 
   sealed trait BlobPathValidation
-  case class ValidBlobPath(path: String) extends BlobPathValidation
+  case class ValidBlobPath(path: String, container: BlobContainerName, endpoint: EndpointURL) extends BlobPathValidation
   case class UnparsableBlobPath(errorMessage: Throwable) extends BlobPathValidation
 
-  def invalidBlobPathMessage(container: BlobContainerName, endpoint: EndpointURL) = s"Malformed Blob URL for this builder. Expecting a URL for a container $container and endpoint $endpoint"
+  def invalidBlobHostMessage(endpoint: EndpointURL) = s"Malformed Blob URL for this builder: The endpoint $endpoint doesn't contain the expected host string '{SA}.blob.core.windows.net/'"
+  def invalidBlobContainerMessage(endpoint: EndpointURL) = s"Malformed Blob URL for this builder: Could not parse container"
   def parseURI(string: String): Try[URI] = Try(URI.create(UrlEscapers.urlFragmentEscaper().escape(string)))
   def parseStorageAccount(uri: URI): Try[StorageAccountName] = uri.getHost.split("\\.").find(_.nonEmpty).map(StorageAccountName(_))
       .map(Success(_)).getOrElse(Failure(new Exception("Could not parse storage account")))
@@ -39,28 +40,31 @@ object BlobPathBuilder {
     *
     * If the configured container and storage account do not match, the string is considered unparsable
     */
-  def validateBlobPath(string: String, container: BlobContainerName, endpoint: EndpointURL): BlobPathValidation = {
+  def validateBlobPath(string: String): BlobPathValidation = {
     val blobValidation = for {
       testUri <- parseURI(string)
-      endpointUri <- parseURI(endpoint.value)
+      testEndpoint = EndpointURL(testUri.getScheme + "://" + testUri.getHost())
       testStorageAccount <- parseStorageAccount(testUri)
-      endpointStorageAccount <- parseStorageAccount(endpointUri)
-      hasContainer = testUri.getPath.split("/").find(_.nonEmpty).contains(container.value)
-      hasEndpoint = testStorageAccount.equals(endpointStorageAccount)
-      blobPathValidation = (hasContainer && hasEndpoint) match {
-        case true => ValidBlobPath(testUri.getPath.replaceFirst("/" + container, ""))
-        case false => UnparsableBlobPath(new MalformedURLException(invalidBlobPathMessage(container, endpoint)))
+      testContainer = testUri.getPath.split("/").find(_.nonEmpty)
+      isBlobHost = testUri.getHost().contains(".blob.core.windows.net") && testUri.getScheme().contains("https")
+      blobPathValidation = (isBlobHost, testContainer) match {
+        case (true, Some(container)) => ValidBlobPath(
+            testUri.getPath.replaceFirst("/" + container, ""),
+            BlobContainerName(container),
+            testEndpoint)
+        case (false, _) => UnparsableBlobPath(new MalformedURLException(invalidBlobHostMessage(testEndpoint)))
+        case (true, None) => UnparsableBlobPath(new MalformedURLException(invalidBlobContainerMessage(testEndpoint)))
       }
     } yield blobPathValidation
     blobValidation recover { case t => UnparsableBlobPath(t) } get
   }
 }
 
-class BlobPathBuilder(container: BlobContainerName, endpoint: EndpointURL)(private val fsm: BlobFileSystemManager) extends PathBuilder {
+class BlobPathBuilder()(private val fsm: BlobFileSystemManager) extends PathBuilder {
 
   def build(string: String): Try[BlobPath] = {
-    validateBlobPath(string, container, endpoint) match {
-      case ValidBlobPath(path) => Try(BlobPath(path, endpoint, container)(fsm))
+    validateBlobPath(string) match {
+      case ValidBlobPath(path, container, endpoint) => Try(BlobPath(path, endpoint, container)(fsm))
       case UnparsableBlobPath(errorMessage: Throwable) => Failure(errorMessage)
     }
   }

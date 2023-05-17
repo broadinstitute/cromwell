@@ -13,35 +13,30 @@ object BlobPathBuilderSpec {
 class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
   // ValidateBlobPath
   it should "parse a URI into a path" in {
-    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
-    val container = BlobContainerName("container")
+    val endpointInput = BlobPathBuilderSpec.buildEndpoint("storageAccount")
+    val containerInput = BlobContainerName("container")
     val evalPath = "/path/to/file"
-    val testString = endpoint.value + "/" + container + evalPath
-    BlobPathBuilder.validateBlobPath(testString, container, endpoint) match {
-      case BlobPathBuilder.ValidBlobPath(path) => path should equal(evalPath)
+    val testString = endpointInput.value + "/" + containerInput + evalPath
+    BlobPathBuilder.validateBlobPath(testString) match {
+      case BlobPathBuilder.ValidBlobPath(path, container, endpoint) => {
+        path should equal(evalPath)
+        container should equal(containerInput)
+        endpoint should equal(endpointInput)
+      }
       case BlobPathBuilder.UnparsableBlobPath(errorMessage) => fail(errorMessage)
     }
   }
 
-  it should "bad storage account fails causes URI to fail parse into a path" in {
-    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
-    val container = BlobContainerName("container")
+  it should "fail to parse an invalid URI into a path" in {
+    val endpointInput = EndpointURL("https://storageAccount.bad.host")
+    val containerInput = BlobContainerName("container")
     val evalPath = "/path/to/file"
-    val testString = BlobPathBuilderSpec.buildEndpoint("badStorageAccount").value + container.value + evalPath
-    BlobPathBuilder.validateBlobPath(testString, container, endpoint) match {
-      case BlobPathBuilder.ValidBlobPath(path) => fail(s"Valid path: $path found when verifying mismatched storage account")
-      case BlobPathBuilder.UnparsableBlobPath(errorMessage) => errorMessage.getMessage should equal(BlobPathBuilder.invalidBlobPathMessage(container, endpoint))
-    }
-  }
-
-  it should "bad container fails causes URI to fail parse into a path" in {
-    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
-    val container = BlobContainerName("container")
-    val evalPath = "/path/to/file"
-    val testString = endpoint.value + "badContainer" + evalPath
-    BlobPathBuilder.validateBlobPath(testString, container, endpoint) match {
-      case BlobPathBuilder.ValidBlobPath(path) => fail(s"Valid path: $path found when verifying mismatched container")
-      case BlobPathBuilder.UnparsableBlobPath(errorMessage) => errorMessage.getMessage should equal(BlobPathBuilder.invalidBlobPathMessage(container, endpoint))
+    val testString = endpointInput.value + "/"+ containerInput + evalPath
+    BlobPathBuilder.validateBlobPath(testString) match {
+      case BlobPathBuilder.ValidBlobPath(_, _, _) => fail("Invalid blob path found as valid")
+      case BlobPathBuilder.UnparsableBlobPath(errorMessage) => {
+        errorMessage.getMessage() should equal(BlobPathBuilder.invalidBlobHostMessage(endpointInput))
+      }
     }
   }
 
@@ -65,7 +60,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val blobTokenGenerator = NativeBlobSasTokenGenerator(store, endpoint)
     val fsm: BlobFileSystemManager = new BlobFileSystemManager(store, endpoint, 10L, blobTokenGenerator)
     val testString = endpoint.value + "/" + store + evalPath
-    val blobPath: BlobPath = new BlobPathBuilder(store, endpoint)(fsm) build testString getOrElse fail()
+    val blobPath: BlobPath = new BlobPathBuilder()(fsm) build testString getOrElse fail()
 
     blobPath.container should equal(store)
     blobPath.endpoint should equal(endpoint)
@@ -83,9 +78,9 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val blobTokenGenerator = NativeBlobSasTokenGenerator(store, endpoint)
     val fsm: BlobFileSystemManager = new BlobFileSystemManager(store, endpoint, 10, blobTokenGenerator)
     val testString = endpoint.value + "/" + store + evalPath
-    val blobPath1: BlobPath = new BlobPathBuilder(store, endpoint)(fsm) build testString getOrElse fail()
+    val blobPath1: BlobPath = new BlobPathBuilder()(fsm) build testString getOrElse fail()
     blobPath1.nioPath.getFileSystem.close()
-    val blobPath2: BlobPath = new BlobPathBuilder(store, endpoint)(fsm) build testString getOrElse fail()
+    val blobPath2: BlobPath = new BlobPathBuilder()(fsm) build testString getOrElse fail()
     blobPath1 should equal(blobPath2)
     val is = blobPath1.newInputStream()
     val fileText = (is.readAllBytes.map(_.toChar)).mkString
@@ -99,7 +94,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val fsm: BlobFileSystemManager = new BlobFileSystemManager(store, endpoint, 10, blobTokenGenerator)
 
     val rootString = s"${endpoint.value}/${store.value}/cromwell-execution"
-    val blobRoot: BlobPath = new BlobPathBuilder(store, endpoint)(fsm) build rootString getOrElse fail()
+    val blobRoot: BlobPath = new BlobPathBuilder()(fsm) build rootString getOrElse fail()
     blobRoot.toAbsolutePath.pathAsString should equal ("https://coaexternalstorage.blob.core.windows.net/inputs/cromwell-execution")
     val otherFile = blobRoot.resolve("test/inputFile.txt")
     otherFile.toAbsolutePath.pathAsString should equal ("https://coaexternalstorage.blob.core.windows.net/inputs/cromwell-execution/test/inputFile.txt")

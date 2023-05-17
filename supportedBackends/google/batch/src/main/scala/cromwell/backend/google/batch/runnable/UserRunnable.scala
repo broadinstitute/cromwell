@@ -3,7 +3,6 @@ package cromwell.backend.google.batch.runnable
 import com.google.cloud.batch.v1.{Runnable, Volume}
 import cromwell.backend.google.batch.api.GcpBatchRequestFactory.CreatePipelineParameters
 
-import scala.language.postfixOps
 
 trait UserRunnable {
 

@@ -159,6 +159,8 @@ object RunnableBuilder {
       .setImageUri(docker)
       .setEntrypoint(jobShell)
       .addCommands(scriptContainerPath)
+      .setUsername(dockerhubCredentials._1)
+      .setPassword(dockerhubCredentials._2)
     Runnable.newBuilder()
       .setContainer(container)
       .withVolumes(volumes)

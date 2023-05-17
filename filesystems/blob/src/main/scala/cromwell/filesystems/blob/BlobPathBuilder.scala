@@ -102,7 +102,7 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
   override def pathWithoutScheme: String = parseURI(endpoint.value).map(u => List(u.getHost, container, pathString).mkString("/")).get
 
   private def findNioPath(path: String): NioPath = (for {
-    fileSystem <- fsm.retrieveFilesystem()
+    fileSystem <- fsm.retrieveFilesystem(endpoint, container)
     // The Azure NIO library uses `{container}:` to represent the root of the path
     nioPath = fileSystem.getPath(s"${container.value}:", path)
   // This is purposefully an unprotected get because the NIO API needing an unwrapped path object.

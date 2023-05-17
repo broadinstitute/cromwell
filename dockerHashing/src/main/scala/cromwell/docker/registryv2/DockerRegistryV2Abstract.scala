@@ -70,14 +70,14 @@ object DockerRegistryV2Abstract {
   }
 
   // Placeholder exceptions that can be carried through IO before being converted to a DockerInfoFailedResponse
-  private class Unauthorized(message: String, responseBody: String) extends Exception {
-    override def getMessage(): String = message + " " + responseBody
+  private class Unauthorized(message: String) extends Exception {
+    override def getMessage(): String = message
   }
-  private class NotFound(message: String, responseBody: String) extends Exception {
-    override def getMessage(): String = message + " " + responseBody
+  private class NotFound(message: String) extends Exception {
+    override def getMessage(): String = message
   }
-  private class UnknownError(message: String, responseBody: String) extends Exception {
-    override def getMessage(): String = message + " " + responseBody
+  private class UnknownError(message: String) extends Exception {
+    override def getMessage(): String = message
   }
 }
 
@@ -292,9 +292,9 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
 
   private def getDigestFromResponse(response: Response[IO]): IO[DockerHashResult] = response match {
     case Status.Successful(r) => extractDigestFromHeaders(r.headers)
-    case Status.Unauthorized(r) => r.as[String].flatMap(body => IO.raiseError(new Unauthorized(r.status.toString, body)))
-    case Status.NotFound(r) => r.as[String].flatMap(body => IO.raiseError(new NotFound(r.status.toString, body)))
-    case failed => failed.as[String].flatMap(body => IO.raiseError(new UnknownError(failed.status.toString, s"Failed to get manifest: $body"))
+    case Status.Unauthorized(r) => r.as[String].flatMap(body => IO.raiseError(new Unauthorized(r.status.toString + " " + body)))
+    case Status.NotFound(r) => r.as[String].flatMap(body => IO.raiseError(new NotFound(r.status.toString + " " + body)))
+    case failed => failed.as[String].flatMap(body => IO.raiseError(new UnknownError(failed.status.toString + " " + body))
     )
   }
 

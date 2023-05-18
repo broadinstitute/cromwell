@@ -1,0 +1,145 @@
+name: Consumer contract tests
+# The purpose of this workflow is to run a suite of Cromwell contract tests against mock service provider(s) using Pact framework.
+#
+# More details about Contract Testing can be found in our handbook
+#
+# https://broadworkbench.atlassian.net/wiki/spaces/IRT/pages/2660368406/Getting+Started+with+Pact+Contract+Testing
+#
+# This workflow involves Cromwell as a consumer, and ANY provider (e.g. Sam) Cromwell consumes.
+# Each party owns a set of tests (aka contract tests).
+#
+#   Consumer contract tests (aka consumer tests) runs on a mock provider service and does not require a real provider service.
+#   Provider contract tests (aka provider verification tests) runs independently of any consumer.
+#
+# Specifically:
+#   Cromwell runs consumer tests against mock service. Upon success, publish consumer pacts to
+#   Pact Broker https://pact-broker.dsp-eng-tools.broadinstitute.org/.
+#
+#   Pact Broker is the source of truth to forge contractual obligations between consumer and provider.
+#
+#   This workflow meets the criteria of Pact Broker *Platinum* as described in https://docs.pact.io/pact_nirvana/step_6.
+#   The can-i-deploy job has been added to this workflow to support *Platinum* and gate the code for promotion to default branch.
+#
+#   This is how it works.
+#
+#     Consumer makes a change that results in a new pact published to Pact Broker.
+#     Pact Broker notifies provider(s) of the changed pact and trigger corresponding verification workflows.
+#     Provider downloads relevant versions of consumer pacts from Pact Broker and kicks off verification tests against the consumer pacts.
+#     Provider updates Pact Broker with verification status.
+#     Consumer kicks off can-i-deploy on process to determine if changes can be promoted and used for deployment.
+#
+# NOTE: The publish-contracts workflow will use the latest commit of the branch that triggers this workflow to publish the unique consumer contract version to Pact Broker.
+
+on:
+  pull_request:
+    branches:
+      - develop
+    paths-ignore:
+      - 'README.md'
+  push:
+    branches:
+      - develop
+    paths-ignore:
+      - 'README.md'
+  merge_group:
+    branches:
+      - develop
+
+jobs:
+  init-github-context:
+    runs-on: ubuntu-latest
+    outputs:
+      repo-branch: ${{ steps.extract-branch.outputs.repo-branch }}
+      repo-version: ${{ steps.extract-branch.outputs.repo-version }}
+      fork: ${{ steps.extract-branch.outputs.fork }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Obtain branch properties
+        id: extract-branch
+        run: |
+          FORK=false
+          GITHUB_EVENT_NAME=${{ github.event_name }}
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            GITHUB_REF=${{ github.ref }}
+            GITHUB_SHA=${{ github.sha }}
+          elif [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            FORK=${{ github.event.pull_request.head.repo.fork }}
+            GITHUB_REF=refs/heads/${{ github.head_ref }}
+            GITHUB_SHA=${{ github.event.pull_request.head.sha }}
+          elif [[ "$GITHUB_EVENT_NAME" == "merge_group" ]]; then
+            GITHUB_REF=refs/heads/${{ github.head_ref }}
+          else
+            echo "Failed to extract branch information"
+            exit 1
+          fi
+          echo "repo-branch=${GITHUB_REF/refs\/heads\//""}" >> $GITHUB_OUTPUT
+          echo "repo-version=${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          echo "fork=${FORK}" >> $GITHUB_OUTPUT
+
+      - name: Is PR triggered by forked repo?
+        if: ${{ steps.extract-branch.outputs.fork == 'true' }}
+        run: |
+          echo "PR was triggered by forked repo"
+
+      - name: Echo repo and branch information
+        run: |
+          echo "repo-owner=${{ github.repository_owner }}"
+          echo "repo-name=${{ github.event.repository.name }}"
+          echo "repo-branch=${{ steps.extract-branch.outputs.repo-branch }}"
+          echo "repo-version=${{ steps.extract-branch.outputs.repo-version }}"
+
+  cromwell-consumer-contract-tests:
+    runs-on: ubuntu-latest
+    needs: [init-github-context]
+    outputs:
+      pact-b64: ${{ steps.encode-pact.outputs.pact-b64 }}
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run consumer tests
+        run: |
+          docker run --rm -v $PWD:/working \
+                          -v jar-cache:/root/.ivy \
+                          -v jar-cache:/root/.ivy2 \
+                          -w /working \
+                          sbtscala/scala-sbt:openjdk-17.0.2_1.7.2_2.13.10 \
+                          sbt "project pact4s" clean test
+
+      - name: Output consumer contract as non-breaking base64 string
+        id: encode-pact
+        run: |
+          cd pact4s
+          NON_BREAKING_B64=$(cat target/pacts/cromwell-consumer-sam-provider.json | base64 -w 0)
+          echo "pact-b64=${NON_BREAKING_B64}" >> $GITHUB_OUTPUT
+
+  # Prevent untrusted sources from using PRs to publish contracts
+  # since access to secrets is not allowed.
+  publish-contracts:
+    runs-on: ubuntu-latest
+    if: ${{ needs.init-github-context.outputs.fork == 'false' }}
+    needs: [init-github-context, cromwell-consumer-contract-tests]
+    steps:
+      - name: Dispatch to terra-github-workflows
+        uses: broadinstitute/workflow-dispatch@v3
+        with:
+          workflow: .github/workflows/publish-contracts.yaml
+          repo: broadinstitute/terra-github-workflows
+          ref: refs/heads/main
+          token: ${{ secrets.BROADBOT_TOKEN }} # github token for access to kick off a job in the private repo
+          inputs: '{ "pact-b64": "${{ needs.cromwell-consumer-contract-tests.outputs.pact-b64 }}", "repo-owner": "${{ github.repository_owner }}", "repo-name": "${{ github.event.repository.name }}", "repo-branch": "${{ needs.init-github-context.outputs.repo-branch }}" }'
+
+  can-i-deploy:
+    runs-on: ubuntu-latest
+    if: ${{ needs.init-github-context.outputs.fork == 'false' && false}} # Disabling this step for now until there is a webhook setup
+    needs: [ init-github-context, publish-contracts ]
+    steps:
+      - name: Dispatch to terra-github-workflows
+        uses: broadinstitute/workflow-dispatch@v3
+        with:
+          workflow: .github/workflows/can-i-deploy.yaml
+          repo: broadinstitute/terra-github-workflows
+          ref: refs/heads/main
+          token: ${{ secrets.BROADBOT_TOKEN }} # github token for access to kick off a job in the private repo
+          inputs: '{ "pacticipant": "cromwell-consumer", "version": "${{ needs.init-github-context.outputs.repo-version }}" }'

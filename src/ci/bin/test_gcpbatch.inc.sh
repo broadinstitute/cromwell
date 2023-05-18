@@ -5,7 +5,7 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=/dev/null
 source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
-# A set of common Gcp Batch functions for use in other scripts.
+# A set of common Papi functions for use in other scripts.
 #
 # Functions:
 #
@@ -110,6 +110,7 @@ cromwell::build::batch::setup_batch_centaur_environment() {
         cromwell::private::batch::setup_batch_gcr
     fi
     cromwell::private::batch::setup_batch_service_account
+    cromwell::private::batch::setup_batch_endpoint_url
 }
 
 cromwell::build::batch::setup_batch_conformance_environment() {

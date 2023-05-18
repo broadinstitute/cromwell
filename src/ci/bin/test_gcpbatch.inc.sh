@@ -110,7 +110,6 @@ cromwell::build::batch::setup_batch_centaur_environment() {
         cromwell::private::batch::setup_batch_gcr
     fi
     cromwell::private::batch::setup_batch_service_account
-    cromwell::private::batch::setup_batch_endpoint_url
 }
 
 cromwell::build::batch::setup_batch_conformance_environment() {

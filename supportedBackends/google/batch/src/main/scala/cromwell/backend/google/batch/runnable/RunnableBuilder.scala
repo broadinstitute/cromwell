@@ -144,23 +144,26 @@ object RunnableBuilder {
     )
   }
 
-  //privateDockerKeyAndToken: Option[CreatePipelineDockerKeyAndToken],
-  //fuseEnabled: Boolean)
   def userRunnable(docker: String,
                    scriptContainerPath: String,
                    jobShell: String,
-                   //privateDockerKeyAndToken: Option[CreatePipelineDockerKeyAndToken],
                    volumes: List[Volume],
                    dockerhubCredentials: (String, String)): Runnable.Builder = {
 
-    //val dockerImageIdentifier = DockerImageIdentifier.fromString(docker)
-
-    val container = Container.newBuilder
-      .setImageUri(docker)
-      .setEntrypoint(jobShell)
-      .addCommands(scriptContainerPath)
-      .setUsername(dockerhubCredentials._1)
-      .setPassword(dockerhubCredentials._2)
+    val container = (dockerhubCredentials._1, dockerhubCredentials._2) match {
+      case (username, password) if username.nonEmpty && password.nonEmpty =>
+        Container.newBuilder
+          .setImageUri(docker)
+          .setEntrypoint(jobShell)
+          .addCommands(scriptContainerPath)
+          .setUsername(username)
+          .setPassword(password)
+      case _ =>
+        Container.newBuilder
+          .setImageUri(docker)
+          .setEntrypoint(jobShell)
+          .addCommands(scriptContainerPath)
+    }
     Runnable.newBuilder()
       .setContainer(container)
       .withVolumes(volumes)

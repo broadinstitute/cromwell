@@ -565,12 +565,10 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           batchAttributes.referenceFileToDiskImageMappingOpt.map(getReferenceDisksToMount(_, inputFilePaths))
 
         val dockerhubCredentials: (String, String) = {
-//          val dockerhubCredentials = batchAttributes.dockerhubToken
-          val credentials = new String(Base64.getDecoder.decode(batchAttributes.dockerhubToken), "UTF-8").split(":", 2) match {
+          new String(Base64.getDecoder.decode(batchAttributes.dockerhubToken), "UTF-8").split(":", 2) match {
             case Array(username, password) => (username, password)
             case _ => ("", "")
           }
-          credentials
         }
 
         val workflowOptions = workflowDescriptor.workflowOptions

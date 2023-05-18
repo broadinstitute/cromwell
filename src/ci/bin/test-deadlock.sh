@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-pip3 install docker-py
+pip3 install docker
 
 cromwell_hosts_file="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell_hosts.txt"
 

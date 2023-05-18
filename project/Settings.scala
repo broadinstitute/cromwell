@@ -129,6 +129,9 @@ object Settings {
                          | && /usr/local/gcloud/google-cloud-sdk/install.sh""".stripMargin),
       // instructions to install `getm`. Pin to version 0.0.4 as the behaviors of future versions with respect to
       // messages or exit codes may change.
+      Instructions.Run("pip3 install google-crc32c"),
+      Instructions.Run("pip3 install jsonschema"),
+      Instructions.Run("pip3 install requests==2.29.0"),
       Instructions.Run("pip3 install -i https://test.pypi.org/simple/ getm==0.0.5")
     )
   )

@@ -27,56 +27,81 @@ class DrsHubClientSpec extends AnyFlatSpec with Matchers with RequestResponsePac
       "./target/pacts"
     )
 
+  private val requestFields = List(
+      "bucket",
+      "accessUrl",
+      "googleServiceAccount",
+      "fileName",
+      "hashes",
+      "localizationPath",
+      "bondProvider",
+      "name",
+      "size",
+      "timeCreated",
+      "timeUpdated",
+      "gsUri",
+      "contentType",
+  )
+
+  val filesize = 123L
+  val timeCreated = "2021-03-04T20:00:00.000Z"
+  val bucket = "fc-secure-1234567890"
+  val filename = "my-file.bam"
+  val bondProvider = "anvil"
+  val fileHash = "a2317edbd2eb6cf6b0ee49cb81e3a556"
+  val accessUrl = f"gs://${bucket}/${filename}"
+
 
   val drsResourceResponsePlaceholder: ResourceMetadata = ResourceMetadata(
     "application/octet-stream",
-    123L,
-    "2021-03-04T20:00:00.000Z",
-    "2021-03-04T20:00:00.000Z",
-    Option("fc-secure-1234567890"),
-    Option("my-file.bam"),
-    Option("gs://fc-secure-1234567890/my-file.bam"),
-    Option(Map("data" -> Map("tokenUri" -> "https://oauth2.googleapis.com/token"))),
-    Option("my-file.bam"),
-    Option(AccessUrl("https://example.com/my-file.bam", Map("Header" -> "Example"))),
-    Map("md5" -> "a2317edbd2eb6cf6b0ee49cb81e3a556", "sha1" -> "223d91aad564676ac4c54b313f68c912a1cb992e"),
-    Option("/path/inputs/my-file.bam"),
-    Option("bond-provider")
+    filesize,
+    timeCreated,
+    timeCreated,
+    None,
+    None,
+    None,
+    None,
+    None,
+    Option(AccessUrl(accessUrl, List("Header", "Example"))),
+    Map("md5" -> fileHash),
+    None,
+    Option(bondProvider)
   )
 
   val resourceMetadataResponseDsl: DslPart = newJsonBody { o =>
     o.stringType("contentType", "application/octet-stream")
-      o.numberType("size", 123L)
-      o.stringType("timeCreated", "2021-03-04T20:00:00.000Z")
-      o.stringType("timeUpdated", "2021-03-04T20:00:00.000Z")
-      o.stringType("bucket", "fc-secure-1234567890")
-      o.stringType("name", "my-file.bam")
-      o.stringType("gsUri", "gs://fc-secure-1234567890/my-file.bam")
-      o.`object`("googleServiceAccount",
-        s => {
-          s.`object`( "data", d => {
-            d.eachKeyLike("tokenUri", PactDslJsonRootValue.stringType("https://oauth2.googleapis.com/token"))
-            ()
-          })
-          ()
-        }
-      )
-      o.stringType("fileName", "my-file.bam")
+      o.numberType("size", filesize)
+      o.stringType("timeCreated", timeCreated)
+      o.stringType("timeUpdated", timeCreated)
+      o.nullValue("gsUri")
+      o.nullValue("googleServiceAccount")
+      o.nullValue("fileName")
       o.`object`("accessUrl" , { a =>
-        a.stringType("url", "https://example.com/my-file.bam")
-          a.`object`("headers", { h =>
-            h.stringType("Header", "Example")
+        a.stringType("url", accessUrl)
+          a.`array`("headers", { h =>
+            h.stringType("Header")
+            h.stringType("Example")
             ()
           })
         ()
       })
       o.`object`("hashes", { o =>
-        o.stringType("md5", "a2317edbd2eb6cf6b0ee49cb81e3a556")
-        o.stringType("sha1", "223d91aad564676ac4c54b313f68c912a1cb992e")
+        o.stringType("md5", fileHash)
         ()
       })
-      o.stringType("localizationPath", "/path/inputs/my-file.bam")
-      o.stringType("bondProvider", "bond-provider")
+      o.nullValue("localizationPath")
+      o.stringType("bondProvider", bondProvider)
+    ()
+  }.build
+
+  val fileId = "1234567890"
+
+  val resourceRequestDsl = newJsonBody { o =>
+    o.stringType("url", f"drs://test.theanvil.io/${fileId}")
+    o.array("fields", { a =>
+      requestFields.map(a.stringType)
+      ()
+    })
     ()
   }.build
 
@@ -89,14 +114,24 @@ class DrsHubClientSpec extends AnyFlatSpec with Matchers with RequestResponsePac
   var pactDslResponse: PactDslResponse = buildInteraction(
     pactProvider,
     state = "resolve Drs url",
-    stateParams = Map[String, String]("state" -> "example"),
+    stateParams = Map[String, String](
+      "fileId" -> fileId,
+      "bucket" -> bucket,
+      "filename" -> filename,
+      "bondProvider" -> bondProvider,
+      "fileHash" -> fileHash,
+      "accessUrl" -> accessUrl,
+      "fileSize" -> filesize.toString,
+      "timeCreated" -> timeCreated
+    ),
     uponReceiving = "Request to resolve drs url",
-    method = "GET",
+    method = "POST",
     path = "/api/v4/drs/resolve",
-    requestHeaders = Seq("Accept" -> "application/json"),
+    requestHeaders = Seq("Content-type" -> "application/json"),
+    requestBody = resourceRequestDsl,
     status = 200,
-    responseHeaders = Seq("Content-type" -> "application/json"),
-    resourceMetadataResponseDsl
+    responseHeaders = Seq(),
+    responsBody = resourceMetadataResponseDsl
   )
 
   pactDslResponse = buildInteraction(
@@ -105,9 +140,9 @@ class DrsHubClientSpec extends AnyFlatSpec with Matchers with RequestResponsePac
     uponReceiving = "Request for drshub api status",
     method = "GET",
     path = "/status",
-    requestHeaders = Seq("Accept" -> "application/json"),
+    requestHeaders = Seq(),
     status = 200,
-    responseHeaders = Seq("Content-type" -> "application/json")
+    responseHeaders = Seq()
   )
 
   override val pact: RequestResponsePact = pactDslResponse.toPact
@@ -128,7 +163,7 @@ class DrsHubClientSpec extends AnyFlatSpec with Matchers with RequestResponsePac
 
   it should "resolve drs object" in {
     new DrsHubClientImpl[IO](client, Uri.unsafeFromString(mockServer.getUrl))
-      .resolveDrsObject("drs://drs.example.com/1234567890")
+      .resolveDrsObject("drs://drs.example.com/1234567890", requestFields)
       .attempt
       .unsafeRunSync() shouldBe Right(drsResourceResponsePlaceholder)
   }

@@ -9,6 +9,7 @@ import cats.data.Validated._
 import cats.effect.{ContextShift, IO}
 import cats.syntax.apply._
 import cats.syntax.validated._
+import com.microsoft.applicationinsights.attach.ApplicationInsights
 import com.typesafe.config.{Config, ConfigFactory}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
@@ -49,6 +50,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
     * Run Cromwell in server mode.
     */
   def runServer(): Unit = {
+
     initLogging(Server)
 
     val system = buildCromwellSystem()
@@ -140,8 +142,15 @@ object CromwellEntryPoint extends GracefulStopSupport {
     *
     * Also copies variables from config/system/environment/defaults over to the system properties.
     * Fixes issue where users are trying to specify Java properties as environment variables.
+    *
+    * Also also enables Azure log handling when appropriate
     */
   private def initLogging(command: Command): Unit = {
+
+    // Will enable instrumentation and logs if we're running on Azure.
+    // This is controlled via an env var called APPLICATIONINSIGHTS_CONNECTION_STRING
+    ApplicationInsights.attach()
+
     val logbackSetting = command match {
       case Server => "STANDARD"
       case Submit => "PRETTY"

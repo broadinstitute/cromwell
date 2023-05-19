@@ -19,7 +19,7 @@ trait Localization {
   import RunnableLabels._
 
   def localizeRunnables(createPipelineParameters: CreatePipelineParameters, volumes: List[Volume])
-                      (implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Runnable] = {
+                       (implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Runnable] = {
     val localizationLabel = Map(Key.Tag -> Value.Localization)
 
     val gcsTransferLibraryContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
@@ -76,29 +76,28 @@ trait Localization {
 object Localization {
 
   // TODO: Avoid loading the global config because Cromwell already loaded it
-  //private lazy val config = ConfigFactory.load
+  private lazy val config = ConfigFactory.load
 
   def drsRunnable(manifestPath: Path,
-                labels: Map[String, String],
-                requesterPaysProjectId: Option[String]
-               ): Runnable.Builder = {
+                  labels: Map[String, String],
+                  requesterPaysProjectId: Option[String]
+                 ): Runnable.Builder = {
     import RunnableBuilder.EnhancedRunnableBuilder
 
-    val config = ConfigFactory.load
-    //val drsResolverConfig = config.getConfig("filesystems.drs.global.config.resolver")
-    //val drsConfig = DrsConfig.fromConfig(drsResolverConfig)
+    //    val drsResolverConfig = config.getConfig("filesystems.drs.global.config.resolver")
+    //    val drsConfig = DrsConfig.fromConfig(drsResolverConfig)
     val drsDockerImage = config.getString("drs.localization.docker-image")
 
     val manifestArg = List("-m", manifestPath.pathAsString)
     val requesterPaysArg = requesterPaysProjectId.map(r => List("-r", r)).getOrElse(List.empty)
     val drsCommand = manifestArg ++ requesterPaysArg
 
-    //val drsResolverEnv = DrsConfig.toEnv(drsConfig)
+    //    val drsResolverEnv = DrsConfig.toEnv(drsConfig)
 
     RunnableBuilder
       .withImage(drsDockerImage)
       .withCommand(drsCommand: _*)
-      //.setEnvironment(drsResolverEnv.asJava)
-//      .withLabels(labels)
+    //.setEnvironment(drsResolverEnv.asJava)
+    //      .withLabels(labels)
   }
 }

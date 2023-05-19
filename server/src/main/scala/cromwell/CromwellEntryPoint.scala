@@ -46,6 +46,11 @@ object CromwellEntryPoint extends GracefulStopSupport {
   private val dnsCacheTtl = config.getOrElse("system.dns-cache-ttl", 3 minutes)
   java.security.Security.setProperty("networkaddress.cache.ttl", dnsCacheTtl.toSeconds.toString)
 
+  // The presence of this env var tells us that the user is trying to send instrumentation data and
+  // logs to Azure Application Insights. If it's present, we'll attach the ApplicationInsights agent.
+  // To configure the behavior of this agent, see server/src/main/resources/applicationinsights.json
+  private lazy val useAzureInstrumentation = sys.env.contains("APPLICATIONINSIGHTS_CONNECTION_STRING")
+
   /**
     * Run Cromwell in server mode.
     */
@@ -146,9 +151,11 @@ object CromwellEntryPoint extends GracefulStopSupport {
     */
   private def initLogging(command: Command): Unit = {
 
-    // Will enable instrumentation and logs if we're running on Azure.
-    // This is controlled via an env var called APPLICATIONINSIGHTS_CONNECTION_STRING
-    ApplicationInsights.attach()
+    // Enable Azure instrumentation and log-slurping if desired. Running ApplicationInsights.attach()
+    // without checking for the presence of the relevant env var doesn't cause any failures, but does
+    // print an error that would be confusing for non-Azure users.
+    if (useAzureInstrumentation)
+      ApplicationInsights.attach()
 
     val logbackSetting = command match {
       case Server => "STANDARD"

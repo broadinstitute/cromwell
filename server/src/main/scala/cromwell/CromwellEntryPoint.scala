@@ -50,7 +50,6 @@ object CromwellEntryPoint extends GracefulStopSupport {
     * Run Cromwell in server mode.
     */
   def runServer(): Unit = {
-
     initLogging(Server)
 
     val system = buildCromwellSystem()

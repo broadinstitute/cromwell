@@ -34,6 +34,7 @@ case class GcpBatchConfigurationAttributes(project: String,
                                            computeServiceAccount: String,
                                            auths: GcpBatchAuths,
                                            restrictMetadataAccess: Boolean,
+                                           dockerhubToken: String,
                                            enableFuse: Boolean,
                                            executionBucket: String,
                                            location: String,
@@ -196,6 +197,11 @@ object GcpBatchConfigurationAttributes extends GcpBatchDockerCacheMappingOperati
     val genomicsEnableFuse: ErrorOr[Boolean] = validate {
       backendConfig.as[Option[Boolean]]("genomics.enable-fuse").getOrElse(false)
     }
+
+    val dockerhubToken: ErrorOr[String] = validate {
+      backendConfig.as[Option[String]]("dockerhub.token").getOrElse("")
+    }
+
     val gcsFilesystemAuthName: ErrorOr[String] = validate {
       backendConfig.as[String]("filesystems.gcs.auth")
     }
@@ -266,6 +272,7 @@ object GcpBatchConfigurationAttributes extends GcpBatchDockerCacheMappingOperati
                                                         genomicsName: String,
                                                         location: String,
                                                         restrictMetadata: Boolean,
+                                                        dockerhubToken: String,
                                                         enableFuse: Boolean,
                                                         gcsName: String,
                                                         qps: Int Refined Positive,
@@ -289,6 +296,7 @@ object GcpBatchConfigurationAttributes extends GcpBatchDockerCacheMappingOperati
             computeServiceAccount = computeServiceAccount,
             auths = GcpBatchAuths(genomicsAuth, gcsAuth),
             restrictMetadataAccess = restrictMetadata,
+            dockerhubToken = dockerhubToken,
             enableFuse = enableFuse,
             executionBucket = bucket,
             location = location,
@@ -313,6 +321,7 @@ object GcpBatchConfigurationAttributes extends GcpBatchDockerCacheMappingOperati
       genomicsAuthName,
       location,
       genomicsRestrictMetadataAccess,
+      dockerhubToken,
       genomicsEnableFuse,
       gcsFilesystemAuthName,
       qpsValidation,

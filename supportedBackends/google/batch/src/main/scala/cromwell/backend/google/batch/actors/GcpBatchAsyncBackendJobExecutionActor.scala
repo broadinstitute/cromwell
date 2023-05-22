@@ -54,6 +54,7 @@ import wom.values._
 import java.io.OutputStreamWriter
 //import java.io.{FileNotFoundException, OutputStreamWriter}
 import java.nio.charset.Charset
+import java.util.Base64
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.io.Source
@@ -591,6 +592,13 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         val referenceDisksToMount =
           batchAttributes.referenceFileToDiskImageMappingOpt.map(getReferenceDisksToMount(_, inputFilePaths))
 
+        val dockerhubCredentials: (String, String) = {
+          new String(Base64.getDecoder.decode(batchAttributes.dockerhubToken), "UTF-8").split(":", 2) match {
+            case Array(username, password) => (username, password)
+            case _ => ("", "")
+          }
+        }
+
         val workflowOptions = workflowDescriptor.workflowOptions
 
         val monitoringImage = new MonitoringImage(
@@ -653,6 +661,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           checkpointingConfiguration,
           enableSshAccess = enableSshAccess,
           vpcNetworkAndSubnetworkProjectLabels = data.vpcNetworkAndSubnetworkProjectLabels,
+          dockerhubCredentials = dockerhubCredentials
           //dockerImageCacheDiskOpt = isDockerImageCacheUsageRequested.option(dockerImageCacheDiskOpt).flatten
         )
       case Some(other) =>

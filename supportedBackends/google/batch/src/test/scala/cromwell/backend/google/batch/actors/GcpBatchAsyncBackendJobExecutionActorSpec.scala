@@ -263,7 +263,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
     val promise = Promise[BackendJobExecutionResponse]()
     val jobDescriptor =  buildPreemptibleJobDescriptor(preemptible, previousPreemptions, previousUnexpectedRetries)
 
-    // TODO: Use this to check the new KV entries are there!  From PAPI
+    // TODO: Use this to check the new KV entries are there!
     //val kvProbe = TestProbe("kvProbe")
 
     val backend = executionActor(jobDescriptor, promise, statusPoller.ref, expectPreemptible)

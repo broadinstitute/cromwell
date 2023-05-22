@@ -17,7 +17,7 @@ import scala.concurrent.ExecutionContext
 import scala.language.postfixOps
 
 object GcpBatchWorkflowPaths {
-  private val GcsRootOptionKey = "gcp_batch_gcs_root"
+  val GcsRootOptionKey = "gcp_batch_gcs_root"
   private val AuthFilePathOptionKey = "auth_bucket"
   private val GcsPrefix = "gs://"
 

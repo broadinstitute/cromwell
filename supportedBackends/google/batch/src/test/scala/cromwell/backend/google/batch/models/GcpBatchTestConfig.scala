@@ -49,7 +49,6 @@ object GcpBatchTestConfig {
       |
       |genomics {
       |  auth = "application-default"
-      |  endpoint-url = "https://genomics.googleapis.com/"
       |}
       |
       |filesystems {
@@ -111,5 +110,5 @@ object GcpBatchTestConfig {
   val googleConfiguration: GoogleConfiguration = GoogleConfiguration(BatchGlobalConfig)
   val batchAttributes: GcpBatchConfigurationAttributes =
     GcpBatchConfigurationAttributes(googleConfiguration, BatchBackendConfig, "batch")
-  val batchConfiguration = new GcpBatchConfiguration(BatchBackendConfigurationDescriptor, googleConfiguration,batchAttributes)
+  val gcpBatchConfiguration = new GcpBatchConfiguration(BatchBackendConfigurationDescriptor, googleConfiguration,batchAttributes)
 }

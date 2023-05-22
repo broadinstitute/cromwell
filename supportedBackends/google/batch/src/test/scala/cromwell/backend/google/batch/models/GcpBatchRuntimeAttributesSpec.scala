@@ -253,7 +253,7 @@ trait GcpBatchRuntimeAttributesSpecsMixin {
                                                      expectedRuntimeAttributes: GcpBatchRuntimeAttributes,
                                                      workflowOptions: WorkflowOptions = emptyWorkflowOptions,
                                                      defaultZones: NonEmptyList[String] = defaultZones,
-                                                     batchConfiguration: GcpBatchConfiguration = batchConfiguration): Unit = {
+                                                     batchConfiguration: GcpBatchConfiguration = gcpBatchConfiguration): Unit = {
     try {
       val actualRuntimeAttributes = toBatchRuntimeAttributes(runtimeAttributes, workflowOptions, batchConfiguration)
       assert(actualRuntimeAttributes == expectedRuntimeAttributes)
@@ -266,7 +266,7 @@ trait GcpBatchRuntimeAttributesSpecsMixin {
   def assertBatchRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WomValue],
                                                  exMsgs: List[String],
                                                  workflowOptions: WorkflowOptions): Unit = {
-    Try(toBatchRuntimeAttributes(runtimeAttributes, workflowOptions, batchConfiguration)) match {
+    Try(toBatchRuntimeAttributes(runtimeAttributes, workflowOptions, gcpBatchConfiguration)) match {
       case Success(oops) =>
         fail(s"Expected error containing strings: ${exMsgs.map(s => s"'$s'").mkString(", ")} but instead got Success($oops)")
       case Failure(ex) => exMsgs foreach { exMsg => assert(ex.getMessage.contains(exMsg)) }
@@ -294,5 +294,5 @@ trait GcpBatchRuntimeAttributesSpecsMixin {
   val defaultZones: NonEmptyList[String] = NonEmptyList.of("us-central1-b", "us-central1-a")
   val noDefaultsBatchConfiguration = new GcpBatchConfiguration(GcpBatchTestConfig.NoDefaultsConfigurationDescriptor, googleConfiguration, batchAttributes)
   val staticRuntimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
-    GcpBatchRuntimeAttributes.runtimeAttributesBuilder(GcpBatchTestConfig.batchConfiguration).definitions.toSet
+    GcpBatchRuntimeAttributes.runtimeAttributesBuilder(GcpBatchTestConfig.gcpBatchConfiguration).definitions.toSet
 }

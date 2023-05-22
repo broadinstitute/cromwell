@@ -4,7 +4,7 @@
 
 ### Basic Information
 
-Batch is a fully managed service that lets you schedule, queue, and execute batch processing workloads on Google Cloud resources. 
+Google Cloud Batch is a fully managed service that lets you schedule, queue, and execute batch processing workloads on Google Cloud resources. 
 Batch provisions resources and manages capacity on your behalf, allowing your batch workloads to run at scale.
 
 ### Setting up Batch

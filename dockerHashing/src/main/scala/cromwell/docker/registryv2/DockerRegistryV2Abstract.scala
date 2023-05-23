@@ -70,8 +70,9 @@ object DockerRegistryV2Abstract {
   }
 
   // Placeholder exceptions that can be carried through IO before being converted to a DockerInfoFailedResponse
-  private class Unauthorized() extends Exception
-  private class NotFound() extends Exception
+  private class Unauthorized(message: String) extends Exception(message)
+  private class NotFound(message: String) extends Exception(message)
+  private class UnknownError(message: String) extends Exception(message)
 }
 
 /**
@@ -131,7 +132,10 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
   protected def getDockerResponse(token: Option[String], dockerInfoContext: DockerInfoContext)(implicit client: Client[IO]): IO[DockerInfoSuccessResponse] = {
     val requestDockerManifest = manifestRequest(token, dockerInfoContext.dockerImageID, AcceptDockerManifestV2Header)
     lazy val requestOCIManifest = manifestRequest(token, dockerInfoContext.dockerImageID, AcceptOCIIndexV1Header)
-    def tryOCIManifest(err: Throwable) = executeRequest(requestOCIManifest, handleManifestResponse(dockerInfoContext, token))
+    def tryOCIManifest(err: Throwable) = {
+      logger.info(s"Manifest request failed for docker manifest V2, falling back to OCI manifest. Image: ${dockerInfoContext.dockerImageID}", err)
+      executeRequest(requestOCIManifest, handleManifestResponse(dockerInfoContext, token))
+    }
     // Try to execute a request using the Docker Manifest format, and if that fails, try using the newer OCI manifest format
     executeRequest(requestDockerManifest, handleManifestResponse(dockerInfoContext, token))
       .handleErrorWith(tryOCIManifest)
@@ -282,9 +286,9 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
 
   private def getDigestFromResponse(response: Response[IO]): IO[DockerHashResult] = response match {
     case Status.Successful(r) => extractDigestFromHeaders(r.headers)
-    case Status.Unauthorized(_) => IO.raiseError(new Unauthorized)
-    case Status.NotFound(_) => IO.raiseError(new NotFound)
-    case failed => failed.as[String].flatMap(body => IO.raiseError(new Exception(s"Failed to get manifest: $body"))
+    case Status.Unauthorized(r) => r.as[String].flatMap(body => IO.raiseError(new Unauthorized(r.status.toString + " " + body)))
+    case Status.NotFound(r) => r.as[String].flatMap(body => IO.raiseError(new NotFound(r.status.toString + " " + body)))
+    case failed => failed.as[String].flatMap(body => IO.raiseError(new UnknownError(failed.status.toString + " " + body))
     )
   }
 

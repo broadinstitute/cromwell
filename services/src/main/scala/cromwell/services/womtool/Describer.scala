@@ -1,7 +1,9 @@
 package cromwell.services.womtool
 
 import cats.data.Validated.{Invalid, Valid}
-import cromwell.core.WorkflowSourceFilesCollection
+import cats.syntax.traverse._
+import common.validation.ErrorOr.ErrorOr
+import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.languages.util.ImportResolver.HttpResolver
 import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil}
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
@@ -14,9 +16,22 @@ import wom.expression.NoIoFunctionSet
 object Describer {
 
   def describeWorkflow(wsfc: WorkflowSourceFilesCollection): DescribeResult = {
+    val zipResolverErrorOr: ErrorOr[Option[ImportResolver.ImportResolver]] =
+      wsfc.importsZipFileOption.map(ImportResolver.zippedImportResolver(_, WorkflowId.randomId())).sequence
 
-    val initialResolvers = List(HttpResolver(None, Map.empty))
+    val initialResolversErrorOr: ErrorOr[List[ImportResolver.ImportResolver]] =
+      zipResolverErrorOr map { zipResolverOption =>
+        zipResolverOption.toList ++ List(HttpResolver(None, Map.empty))
+      }
 
+    initialResolversErrorOr match {
+      case Valid(initialResolvers) => describeWorkflow(wsfc, initialResolvers)
+      case Invalid(errors) => DescribeFailure(errors.toList.mkString(", "))
+    }
+  }
+
+  def describeWorkflow(wsfc: WorkflowSourceFilesCollection,
+                       initialResolvers: List[ImportResolver.ImportResolver]): DescribeResult = {
     // The HTTP resolver is used to pull down workflows submitted by URL
     LanguageFactoryUtil.findWorkflowSource(wsfc.workflowSource, wsfc.workflowUrl, initialResolvers) match {
       case Right((workflowSource: WorkflowSource, importResolvers: List[ImportResolver.ImportResolver])) =>

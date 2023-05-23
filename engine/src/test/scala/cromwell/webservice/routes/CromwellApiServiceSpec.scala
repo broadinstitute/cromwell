@@ -670,7 +670,12 @@ object CromwellApiServiceSpec {
               s"[reading back DescribeRequest contents] workflow url: ${sourceFiles.workflowUrl}",
               s"[reading back DescribeRequest contents] inputs: ${sourceFiles.inputsJson}",
               s"[reading back DescribeRequest contents] type: ${sourceFiles.workflowType}",
-              s"[reading back DescribeRequest contents] version: ${sourceFiles.workflowTypeVersion}"
+              s"[reading back DescribeRequest contents] version: ${sourceFiles.workflowTypeVersion}",
+              s"[reading back DescribeRequest contents] dependencies: ${
+                sourceFiles.importsZipFileOption.map(bytes =>
+                  bytes.map(b => "0x%02X".format(b)).mkString("[", ", ", "]")
+                )
+              }",
             )
 
             sender() ! DescribeSuccess(description = WorkflowDescription(valid = true, errors = readBack, validWorkflow = true))

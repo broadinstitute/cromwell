@@ -1,5 +1,15 @@
 # Cromwell Change Log
 
+## 86 Release Notes
+
+### `/describe` endpoint support for `workflowDependencies`
+
+Previously it was not possible to describe a `workflowSource` that required `workflowDependencies` as the `/describe`
+endpoint did not allow specifying the additional zip file.
+
+Now the endpoint will allow the user to upload the `workflowDependencies` zip file, will validate the top level
+workflow plus the dependencies, then return the appropriate response including the defined workflow inputs and outputs.
+
 ## 85 Release Notes
 
 ### Migration of PKs to BIGINT

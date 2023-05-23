@@ -1,0 +1,33 @@
+{
+  "valid" : true,
+  "errors" : [
+  ],
+  "validWorkflow" : true,
+  "name" : "relative_imports",
+  "inputs" : [
+  ],
+  "outputs" : [
+    {
+      "name" : "result",
+      "valueType" : {
+        "typeName" : "Int"
+      },
+      "typeDisplayName" : "Int"
+    }
+  ],
+  "images" : [
+  ],
+  "submittedDescriptorType" : {
+    "descriptorType" : "WDL",
+    "descriptorTypeVersion" : "Biscayne"
+  },
+  "importedDescriptorTypes" : [
+  ],
+  "meta" : {
+
+  },
+  "parameterMeta" : {
+
+  },
+  "isRunnableWorkflow" : true
+}

@@ -45,6 +45,7 @@ trait WomtoolRouteSupport extends WebServiceUtils {
     val workflowInputs = data.get("workflowInputs").map(_.utf8String)
     val workflowType = data.get("workflowType").map(_.utf8String)
     val workflowVersion = data.get("workflowTypeVersion").map(_.utf8String)
+    val workflowDependencies = data.get("workflowDependencies").map(_.toArray)
 
     val wsfc = WorkflowSourceFilesCollection(
       workflowSource,
@@ -55,7 +56,7 @@ trait WomtoolRouteSupport extends WebServiceUtils {
       workflowInputs.getOrElse(""),
       workflowOptions = WorkflowOptions.empty,
       labelsJson = "",
-      importsFile = None,
+      importsFile = workflowDependencies,
       workflowOnHold = false,
       warnings = Seq.empty,
       requestedWorkflowId = None

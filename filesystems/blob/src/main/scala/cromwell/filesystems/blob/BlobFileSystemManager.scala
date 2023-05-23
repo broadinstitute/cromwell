@@ -48,6 +48,8 @@ class BlobFileSystemManager(val expiryBufferMinutes: Long,
                             val fileSystemAPI: FileSystemAPI = FileSystemAPI(),
                             private val initialExpiration: Option[Instant] = None) extends LazyLogging {
 
+  var lastOpenContainer: Option[String] = None;
+
   def this(config: BlobFileSystemConfig) = {
     this(
       config.expiryBufferMinutes,
@@ -62,20 +64,20 @@ class BlobFileSystemManager(val expiryBufferMinutes: Long,
 
   def getExpiry: Option[Instant] = expiry
   def isTokenExpired: Boolean = expiry.exists(BlobFileSystemManager.hasTokenExpired(_, buffer))
-  def shouldReopenFilesystem: Boolean = isTokenExpired || expiry.isEmpty
+  def shouldReopenFilesystem(container: BlobContainerName): Boolean = isTokenExpired || expiry.isEmpty || !lastOpenContainer.contains(container.value)
   def retrieveFilesystem(endpoint: EndpointURL, container: BlobContainerName): Try[FileSystem] = {
     val uri: URI = BlobFileSystemManager.uri(endpoint)
     synchronized {
-      shouldReopenFilesystem match {
+      shouldReopenFilesystem(container) match {
         case false => fileSystemAPI.getFileSystem(uri).recoverWith {
           // If no filesystem already exists, this will create a new connection, with the provided configs
           case _: FileSystemNotFoundException =>
-            logger.info(s"Creating new blob filesystem for URI $uri")
+            logger.info(s"Creating new blob filesystem for URI $uri and container $container")
             blobTokenGenerator.generateBlobSasToken(endpoint, container).flatMap(generateFilesystem(uri, container, _))
         }
         // If the token has expired, OR there is no token record, try to close the FS and regenerate
         case true =>
-          logger.info(s"Closing & regenerating token for existing blob filesystem at URI $uri")
+          logger.info(s"Closing & regenerating token for existing blob filesystem at URI $uri and container $container")
           fileSystemAPI.closeFileSystem(uri)
           blobTokenGenerator.generateBlobSasToken(endpoint, container).flatMap(generateFilesystem(uri, container, _))
       }

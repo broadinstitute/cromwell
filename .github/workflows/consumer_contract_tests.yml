@@ -127,7 +127,7 @@ jobs:
           workflow: .github/workflows/publish-contracts.yaml
           repo: broadinstitute/terra-github-workflows
           ref: refs/heads/main
-          token: ${{ secrets.BROADBOT_TOKEN }} # github token for access to kick off a job in the private repo
+          token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # github token for access to kick off a job in the private repo
           inputs: '{ "pact-b64": "${{ needs.cromwell-consumer-contract-tests.outputs.pact-b64 }}", "repo-owner": "${{ github.repository_owner }}", "repo-name": "${{ github.event.repository.name }}", "repo-branch": "${{ needs.init-github-context.outputs.repo-branch }}" }'
 
   can-i-deploy:
@@ -141,5 +141,5 @@ jobs:
           workflow: .github/workflows/can-i-deploy.yaml
           repo: broadinstitute/terra-github-workflows
           ref: refs/heads/main
-          token: ${{ secrets.BROADBOT_TOKEN }} # github token for access to kick off a job in the private repo
+          token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # github token for access to kick off a job in the private repo
           inputs: '{ "pacticipant": "cromwell-consumer", "version": "${{ needs.init-github-context.outputs.repo-version }}" }'

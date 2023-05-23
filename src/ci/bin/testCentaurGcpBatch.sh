@@ -18,6 +18,7 @@ cromwell::build::assemble_jars
 
 cromwell::build::run_centaur \
     -p 100 \
+    -i hello \
     -e localdockertest \
     -e relative_output_paths \
     -e relative_output_paths_colliding \

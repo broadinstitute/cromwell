@@ -111,7 +111,7 @@ jobs:
         id: encode-pact
         run: |
           cd pact4s
-          NON_BREAKING_B64=$(cat target/pacts/cromwell-consumer-sam-provider.json | base64 -w 0)
+          NON_BREAKING_B64=$(cat target/pacts/cromwell-consumer-drshub-provider.json | base64 -w 0)
           echo "pact-b64=${NON_BREAKING_B64}" >> $GITHUB_OUTPUT
 
   # Prevent untrusted sources from using PRs to publish contracts

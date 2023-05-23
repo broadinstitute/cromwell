@@ -249,6 +249,7 @@ lazy val engine = project
   .dependsOn(backend)
   .dependsOn(gcsFileSystem)
   .dependsOn(drsFileSystem)
+  .dependsOn(httpFileSystem)
   .dependsOn(sraFileSystem)
   .dependsOn(awsS3FileSystem)
   .dependsOn(azureBlobFileSystem)

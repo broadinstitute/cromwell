@@ -1,12 +1,14 @@
 package cromwell.backend.impl.tes
 
 import common.exception.AggregatedMessageException
+
 import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
 import cats.syntax.apply._
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.Marshal
+import akka.http.scaladsl.model.HttpHeader.ParsingResult.Ok
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
@@ -295,9 +297,18 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
+  // Headers that should be included with all requests to the TES server
+  private def requestHeaders: List[HttpHeader] =
+    tesConfiguration.token.flatMap { t =>
+      HttpHeader.parse("Authorization", t) match {
+        case Ok(header, _) => Some(header)
+        case _ => None
+      }
+    }.toList
+
   private def makeRequest[A](request: HttpRequest)(implicit um: Unmarshaller[ResponseEntity, A]): Future[A] = {
     for {
-      response <- withRetry(() => Http().singleRequest(request))
+      response <- withRetry(() => Http().singleRequest(request.withHeaders(requestHeaders)))
       data <- if (response.status.isFailure()) {
         response.entity.dataBytes.runFold(ByteString(""))(_ ++ _).map(_.utf8String) flatMap { errorBody =>
           Future.failed(new RuntimeException(s"Failed TES request: Code ${response.status.intValue()}, Body = $errorBody"))

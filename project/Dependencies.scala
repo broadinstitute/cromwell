@@ -91,7 +91,6 @@ object Dependencies {
   private val mysqlV = "8.0.28"
   private val nettyV = "4.1.72.Final"
   private val owlApiV = "5.1.19"
-  private val pact4sV = "0.9.0"
   private val postgresV = "42.4.1"
   private val pprintV = "0.7.3"
   private val rdf4jV = "3.7.1"
@@ -104,7 +103,7 @@ object Dependencies {
   private val scalaPoolV = "0.4.3"
   private val scalacticV = "3.2.13"
   private val scalameterV = "0.21"
-  private val scalatestV = "3.2.15"
+  private val scalatestV = "3.2.10"
   private val scalatestScalacheckV = scalatestV + ".0"
   private val scoptV = "4.1.0"
   private val sentryLogbackV = "5.7.4"
@@ -443,7 +442,7 @@ object Dependencies {
     - https://www.scalatest.org/user_guide/generator_driven_property_checks
     - https://www.scalatest.org/user_guide/writing_scalacheck_style_properties
    */
-  private val scalacheckBaseV = "1.17"
+  private val scalacheckBaseV = "1.15"
   private val scalacheckDependencies = List(
     "org.scalatestplus" %% s"scalacheck-${scalacheckBaseV.replace(".", "-")}" % scalatestScalacheckV % Test,
   )
@@ -595,12 +594,14 @@ object Dependencies {
   val sfsBackendDependencies = List (
     "org.lz4" % "lz4-java" % lz4JavaV
   )
-  val scalaTest = "org.scalatest" %% "scalatest" % scalatestV
+
   val testDependencies: List[ModuleID] = List(
-    scalaTest,
+    "org.scalatest" %% "scalatest" % scalatestV,
     // Use mockito Java DSL directly instead of the numerous and often hard to keep updated Scala DSLs.
     // See also scaladoc in common.mock.MockSugar and that trait's various usages.
     "org.mockito" % "mockito-core" % mockitoV,
+    "io.github.jbwheatley" %% "pact4s-scalatest"  % "0.7.0",
+    "io.github.jbwheatley" %% "pact4s-circe" %  "0.7.0"
   ) ++ slf4jBindingDependencies // During testing, add an slf4j binding for _all_ libraries.
 
   val kindProjectorPlugin = "org.typelevel" % "kind-projector" % kindProjectorV cross CrossVersion.full
@@ -796,23 +797,5 @@ object Dependencies {
      The jakarta.annotation inclusion is above in googleApiClientDependencies.
      */
     ExclusionRule("javax.annotation", "javax.annotation-api"),
-    ExclusionRule("javax.activation"),
-  )
-
-  val http4sDsl = "org.http4s" %% "http4s-dsl" % http4sV
-  val http4sEmberClient = "org.http4s" %% "http4s-ember-client" % http4sV
-  val http4sEmberServer = "org.http4s" %% "http4s-ember-server" % http4sV
-  val http4sCirce = "org.http4s" %% "http4s-circe" % http4sV
-  val pact4sScalaTest = "io.github.jbwheatley" %% "pact4s-scalatest" % pact4sV % Test
-  val pact4sCirce = "io.github.jbwheatley" %% "pact4s-circe" % pact4sV
-
-  val pact4sDependencies = Seq(
-    pact4sScalaTest,
-    pact4sCirce,
-    http4sEmberClient,
-    http4sDsl,
-    http4sEmberServer,
-    http4sCirce,
-    scalaTest,
   )
 }

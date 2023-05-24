@@ -1,0 +1,14 @@
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d [%thread] %-5level  %logger{35} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <logger name="io.github.jbwheatley.pact4s.Pact4sLogger" level="INFO" />
+    <logger name="au.com.dius.pact.consumer" level="DEBUG"/>
+    <logger name="au.com.dius.pact.provider" level="DEBUG"/>
+
+    <root level="INFO">
+        <appender-ref ref="STDOUT" />
+    </root>
+</configuration>

@@ -1,4 +1,4 @@
-version development
+version development-1.1
 
 workflow use_nones {
   input {

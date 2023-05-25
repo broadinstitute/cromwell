@@ -310,6 +310,41 @@ trait MetadataEntryComponent {
     }).headOption
   }
 
+  def failedJobsMetadataWithWorkflowId(rootWorkflowId: String) = {
+    val getMetadataEntryResult = GetResult[MetadataEntry](r => {
+      val serialClobOption = r.nextClobOption().map(clob => new SerialClob(clob))
+      MetadataEntry(r.<<, r.<<, r.<<, r.<<, r.<<, serialClobOption, r.<<, r.<<, r.<<)
+    })
+
+    sql"""
+      SELECT me.*
+      FROM METADATA_ENTRY me
+        INNER JOIN (
+          SELECT DISTINCT CALL_FQN, MAX(COALESCE(JOB_SCATTER_INDEX, 0)) as maxScatter,
+          MAX(COALESCE(JOB_SCATTER_INDEX, 0) as maxRetry
+          FROM METADATA_ENTRY me
+          INNER JOIN WORKFLOW_METADATA_SUMMARY_ENTRY wmse
+          ON wmse.WORKFLOW_EXECUTION_UUID = me.WORKFLOW_EXECUTION_UUID
+          WHERE (wmse.ROOT_WORKFLOW_EXECUTION_UUID = ${rootWorkflowId} OR wmse.WORKFLOW_EXECUTION_UUID = ${rootWorkflowId})
+          AND (me.METADATA_KEY IN ('executionStatus', 'backendStatus') AND METADATA_VALUE = 'Failed')
+          AND CALL_FQN is not null
+          GROUP BY CALL_FQN
+      ) targetCalls
+      ON me.CALL_FQN = targetCalls.CALL_FQN
+      LEFT JOIN (
+        SELECT DISTINCT CALL_FQN
+        FROM METADATA_ENTRY me
+        INNER JOIN WORKFLOW_METADATA_SUMMARY_ENTRY wmse
+        ON wmse.WORKFLOW_EXECUTION_UUID = me.WORKFLOW_EXECUTION_UUID
+        AND me.METADATA_KEY = 'subWorkflowId'
+        GROUP BY CALL_FQN
+      ) avoidedCalls
+      ON me.CALL_FQN = avoidedCalls.CALL_FQN
+      WHERE COALESCE(me.JOB_SCATTER_INDEX,0) = targetCalls.max OR COALESCE(me.JOB_RETRY_ATTEMPT, 0) = targetCalls.maxRetry
+      AND avoidedCalls.CALL_FQN IS NULL
+    """.as(getMetadataEntryResult)
+  }
+
   private[this] def metadataEntryHasMetadataKeysLike(metadataEntry: MetadataEntries,
                                                      metadataKeysToFilterFor: List[String],
                                                      metadataKeysToFilterOut: List[String]): Rep[Boolean] = {

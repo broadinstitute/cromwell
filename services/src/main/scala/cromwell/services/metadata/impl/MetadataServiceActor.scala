@@ -9,9 +9,10 @@ import common.exception.AggregatedMessageException
 import common.validation.Validation._
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.{LoadConfig, WorkflowId}
+import cromwell.database.sql.tables.MetadataEntry
 import cromwell.services.MetadataServicesStore
 import cromwell.services.instrumentation.CromwellInstrumentation
-import cromwell.services.metadata.MetadataArchiveStatus
+import cromwell.services.metadata.{MetadataArchiveStatus, MetadataEvent, MetadataJobKey, MetadataType, MetadataValue}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.impl.MetadataDatabaseAccess.WorkflowArchiveStatusAndEndTimestamp
 import cromwell.services.metadata.impl.MetadataStatisticsRecorder.MetadataStatisticsRecorderSettings
@@ -23,6 +24,7 @@ import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import net.ceedubs.ficus.Ficus._
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
@@ -191,6 +193,17 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     }
   }
 
+  private def fetchFailedJobsMetadataWithWorkflowId(possibleWorkflowId: WorkflowId): Unit = {
+    val futureResult: Future[Vector[MetadataEntry]] = getFailedJobsMetadataWithWorkflowId(possibleWorkflowId);
+    futureResult onComplete {
+      case Success(v) => {
+        Metadatavvnebkhikthndfdvlrtrvbcdtjjnlgfkktnfjgcneufg
+
+      }
+      case Failure(e) => log.error(e, s"Error fetching failed tasks for workflow ID $possibleWorkflowId")
+    }
+  }
+
   def summarizerReceive: Receive = {
     case RefreshSummary => summaryActor foreach { _ ! SummarizeMetadata(metadataSummaryRefreshLimit, sender()) }
     case MetadataSummarySuccess => scheduleSummary()
@@ -208,6 +221,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     case listen: Listen => writeActor forward listen
     case v: ValidateWorkflowIdInMetadata => validateWorkflowIdInMetadata(v.possibleWorkflowId, sender())
     case v: ValidateWorkflowIdInMetadataSummaries => validateWorkflowIdInMetadataSummaries(v.possibleWorkflowId, sender())
+    case f: FetchFailedJobsMetadataWithWorkflowId => fetchFailedJobsMetadataWithWorkflowId(f.workflowId)
     case g: FetchWorkflowMetadataArchiveStatusAndEndTime => fetchWorkflowMetadataArchiveStatusAndEndTime(g.workflowId, sender())
     case action: BuildMetadataJsonAction => readActor forward action
     case streamAction: GetMetadataStreamAction => readActor forward streamAction

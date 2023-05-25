@@ -515,4 +515,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   override def getMetadataTableSizeInformation()(implicit ec: ExecutionContext): Future[Option[InformationSchemaEntry]] = {
     runAction(dataAccess.metadataTableSizeInformation())
   }
+
+  override def getFailedJobsMetadataWithWorkflowId(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Vector[MetadataEntry]] = {
+    runAction(dataAccess.failedJobsMetadataWithWorkflowId(rootWorkflowId))
+  }
 }

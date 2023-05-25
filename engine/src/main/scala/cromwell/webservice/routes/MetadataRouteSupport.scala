@@ -85,6 +85,17 @@ trait MetadataRouteSupport extends HttpInstrumentation {
         }
       }
     },
+    encodeResponse {
+      path("workflows" / Segment / Segment / "metadata" / "failed-jobs") { (_, possibleWorkflowId) =>
+        instrumentRequest {
+          failedJobsMetadataLookup(
+            possibleWorkflowId,
+            (w: WorkflowId) => GetFailedJobsMetadataAction(w),
+            serviceRegistryActor
+          )
+        }
+      }
+    },
     path("workflows" / Segment / Segment / "labels") { (_, possibleWorkflowId) =>
       concat(
         get {
@@ -152,6 +163,14 @@ object MetadataRouteSupport {
                      serviceRegistryActor: ActorRef)
                     (implicit timeout: Timeout,
                      ec: ExecutionContext): Route = {
+    completeMetadataBuilderResponse(metadataBuilderActorRequest(possibleWorkflowId, request, serviceRegistryActor))
+  }
+
+  def failedJobsMetadataLookup(possibleWorkflowId: String,
+                               request: WorkflowId => FetchFailedJobsMetadataWithWorkflowId,
+                               serviceRegistryActor: ActorRef)
+                              (implicit timeout: Timeout,
+                               ec: ExecutionContext): Route = {
     completeMetadataBuilderResponse(metadataBuilderActorRequest(possibleWorkflowId, request, serviceRegistryActor))
   }
 

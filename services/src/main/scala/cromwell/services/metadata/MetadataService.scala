@@ -117,6 +117,7 @@ object MetadataService {
   final case class GetLogs(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonWithOverridableSourceAction
   case object RefreshSummary extends MetadataServiceAction
   case object SendMetadataTableSizeMetrics extends MetadataServiceAction
+
   trait ValidationCallback {
     def onMalformed(possibleWorkflowId: String): Unit
     def onRecognized(workflowId: WorkflowId): Unit
@@ -127,6 +128,8 @@ object MetadataService {
   final case class ValidateWorkflowIdInMetadata(possibleWorkflowId: WorkflowId) extends MetadataServiceAction
   final case class ValidateWorkflowIdInMetadataSummaries(possibleWorkflowId: WorkflowId) extends MetadataServiceAction
   final case class FetchWorkflowMetadataArchiveStatusAndEndTime(workflowId: WorkflowId) extends MetadataServiceAction
+
+  final case class FetchFailedJobsMetadataWithWorkflowId(workflowId: WorkflowId) extends MetadataServiceAction
 
   /**
     * Responses

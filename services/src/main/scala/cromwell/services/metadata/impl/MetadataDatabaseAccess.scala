@@ -1,7 +1,6 @@
 package cromwell.services.metadata.impl
 
 import java.time.OffsetDateTime
-
 import cats.Semigroup
 import cats.data.NonEmptyList
 import cats.instances.future._
@@ -22,7 +21,7 @@ import slick.basic.DatabasePublisher
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
+import scala.util.{Try}
 
 object MetadataDatabaseAccess {
 
@@ -114,21 +113,42 @@ trait MetadataDatabaseAccess {
       labelMetadataKey = WorkflowMetadataKeys.Labels)
   }
 
+  private def transformMetadataToMetadataEvent(entry: MetadataEntry, workflowId: WorkflowId) = {
+    val metadataJobKey: Option[MetadataJobKey] = for {
+      callFqn <- entry.callFullyQualifiedName
+      attempt <- entry.jobAttempt
+    } yield MetadataJobKey(callFqn, entry.jobIndex, attempt)
+
+    val key = MetadataKey(workflowId, metadataJobKey, entry.metadataKey)
+    val value = entry.metadataValueType.map(mType =>
+      MetadataValue(entry.metadataValue.toRawString, MetadataType.fromString(mType))
+    )
+
+    MetadataEvent(key, value, entry.metadataTimestamp.toSystemOffsetDateTime)
+  }
+
   private def metadataToMetadataEvents(workflowId: WorkflowId)(metadata: Seq[MetadataEntry]): Seq[MetadataEvent] = {
     metadata map { m =>
-      // If callFullyQualifiedName is non-null then attempt will also be non-null and there is a MetadataJobKey.
-      val metadataJobKey: Option[MetadataJobKey] = for {
-        callFqn <- m.callFullyQualifiedName
-        attempt <- m.jobAttempt
-      } yield MetadataJobKey(callFqn, m.jobIndex, attempt)
-
-      val key = MetadataKey(workflowId, metadataJobKey, m.metadataKey)
-      val value = m.metadataValueType.map(mType =>
-        MetadataValue(m.metadataValue.toRawString, MetadataType.fromString(mType))
-      )
-
-      MetadataEvent(key, value, m.metadataTimestamp.toSystemOffsetDateTime)
+//      // If callFullyQualifiedName is non-null then attempt will also be non-null and there is a MetadataJobKey.
+//      val metadataJobKey: Option[MetadataJobKey] = for {
+//        callFqn <- m.callFullyQualifiedName
+//        attempt <- m.jobAttempt
+//      } yield MetadataJobKey(callFqn, m.jobIndex, attempt)
+//
+//      val key = MetadataKey(workflowId, metadataJobKey, m.metadataKey)
+//      val value = m.metadataValueType.map(mType =>
+//        MetadataValue(m.metadataValue.toRawString, MetadataType.fromString(mType))
+//      )
+//
+//      MetadataEvent(key, value, m.metadataTimestamp.toSystemOffsetDateTime)
+      transformMetadataToMetadataEvent(m, workflowId)
     }
+  }
+
+  def metadataToMetadataEvents(metadata: Seq[MetadataEntry]): Seq[MetadataEvent] = {
+    metadata.map { m => {
+      transformMetadataToMetadataEvent(m, WorkflowId.fromString(m.workflowExecutionUuid))
+    }}
   }
 
   def getMetadataReadRowCount(query: MetadataQuery, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
@@ -382,4 +402,7 @@ trait MetadataDatabaseAccess {
     metadataDatabaseInterface.countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowEndTimestampThreshold.toSystemTimestamp)
 
   def getMetadataTableSizeInformation()(implicit ec: ExecutionContext): Future[Option[InformationSchemaEntry]] = metadataDatabaseInterface.getMetadataTableSizeInformation()
+
+  def getFailedJobsMetadataWithWorkflowId(rootWorkflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Vector[MetadataEntry]] =
+    metadataDatabaseInterface.getFailedJobsMetadataWithWorkflowId(rootWorkflowId.toString)
 }

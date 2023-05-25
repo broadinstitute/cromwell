@@ -22,6 +22,7 @@ import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExec
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.retry.Retry._
+import cromwell.filesystems.blob.BlobPath
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import wom.values.WomFile
 import net.ceedubs.ficus.Ficus._
@@ -115,12 +116,33 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           tesJobPaths.containerExec(commandDirectory, path.name)
         case Success(path: Path) if path.startsWith(tesJobPaths.callRoot) =>
           tesJobPaths.callDockerRoot.resolve(path.name).pathAsString
+        case Success(path: BlobPath) if path.startsWith(tesJobPaths.workflowPaths.workflowRoot) =>
+          // Blob paths can get really long, which causes problems for some tools. If this input file
+          // lives in the workflow execution directory, strip off that prefix from the path we're
+          // generating inside `inputs/` to keep the total path length under control.
+          // In Terra on Azure, this saves us 200+ characters.
+          tesJobPaths.callInputsDockerRoot.resolve(
+            blobPathWithoutPrefix(path, tesJobPaths.workflowPaths.workflowRoot)
+          ).pathAsString
+        case Success(path: BlobPath) if path.startsWith(tesJobPaths.workflowPaths.executionRoot) =>
+          // See comment above... if this file is in the execution root, strip that off.
+          // In Terra on Azure, this saves us 160+ characters.
+          tesJobPaths.callInputsDockerRoot.resolve(
+            blobPathWithoutPrefix(path, tesJobPaths.workflowPaths.executionRoot)
+          ).pathAsString
         case Success(path: Path) =>
           tesJobPaths.callInputsDockerRoot.resolve(path.pathWithoutScheme.stripPrefix("/")).pathAsString
         case _ =>
           value
       }
     )
+  }
+
+  private def blobPathWithoutPrefix(blobPath: BlobPath, prefix: Path): String = {
+    prefix.relativize(blobPath)match {
+      case b: BlobPath => b.pathString // path inside the container
+      case p: Path => p.pathAsString   // full path
+    }
   }
 
   override lazy val commandDirectory: Path = {

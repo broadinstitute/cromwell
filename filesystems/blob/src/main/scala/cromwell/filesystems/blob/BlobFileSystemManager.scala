@@ -72,13 +72,15 @@ class BlobFileSystemManager(val expiryBufferMinutes: Long,
         case false => fileSystemAPI.getFileSystem(uri).recoverWith {
           // If no filesystem already exists, this will create a new connection, with the provided configs
           case _: FileSystemNotFoundException =>
-            logger.info(s"Creating new blob filesystem for URI $uri and container $container")
+            logger.info(s"Creating new blob filesystem for URI $uri and container $container, and last container $lastOpenContainer")
+            lastOpenContainer = Some(container.value)
             blobTokenGenerator.generateBlobSasToken(endpoint, container).flatMap(generateFilesystem(uri, container, _))
         }
         // If the token has expired, OR there is no token record, try to close the FS and regenerate
         case true =>
-          logger.info(s"Closing & regenerating token for existing blob filesystem at URI $uri and container $container")
+          logger.info(s"Closing & regenerating token for existing blob filesystem at URI $uri and container $container, and last container $lastOpenContainer")
           fileSystemAPI.closeFileSystem(uri)
+          lastOpenContainer = Some(container.value)
           blobTokenGenerator.generateBlobSasToken(endpoint, container).flatMap(generateFilesystem(uri, container, _))
       }
     }

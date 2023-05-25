@@ -1,10 +1,10 @@
 name: directory_type_output_papi
 testFormat: workflowsuccess
-tags: ["wdl_biscayne"]
+tags: ["wdl_cascades"]
 backends: [Papi]
 
 files {
-  workflow: wdl_biscayne/directory_type_output/directory_type_output.wdl
+  workflow: wdl_cascades/directory_type_output/directory_type_output.wdl
 }
 
 metadata {

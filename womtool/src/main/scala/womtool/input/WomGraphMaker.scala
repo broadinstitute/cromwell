@@ -1,7 +1,6 @@
 package womtool.input
 
 import java.nio.file.{Files, Paths}
-
 import com.typesafe.config.ConfigFactory
 import common.Checked
 import common.validation.Validation._
@@ -9,6 +8,7 @@ import cromwell.core.path.Path
 import cromwell.languages.LanguageFactory
 import cromwell.languages.util.ImportResolver._
 import languages.wdl.biscayne.WdlBiscayneLanguageFactory
+import languages.wdl.cascades.WdlCascadesLanguageFactory
 import languages.wdl.draft2.WdlDraft2LanguageFactory
 import languages.wdl.draft3.WdlDraft3LanguageFactory
 import wom.ResolvedImportRecord
@@ -31,7 +31,8 @@ object WomGraphMaker {
       val languageFactory =
         List(
           new WdlDraft3LanguageFactory(ConfigFactory.empty()),
-          new WdlBiscayneLanguageFactory(ConfigFactory.empty()))
+          new WdlBiscayneLanguageFactory(ConfigFactory.empty()),
+          new WdlCascadesLanguageFactory(ConfigFactory.empty()))
           .find(_.looksParsable(mainFileContents))
           .getOrElse(new WdlDraft2LanguageFactory(ConfigFactory.empty()))
 

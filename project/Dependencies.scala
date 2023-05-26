@@ -12,6 +12,7 @@ object Dependencies {
   // https://github.com/sbt/sbt/issues/4531
   private val azureStorageBlobNioV = "12.0.0-beta.19"
   private val azureIdentitySdkV = "1.9.0-beta.2"
+  private val azureAppInsightsV = "3.4.12"
   private val betterFilesV = "3.9.1"
   private val jsonSmartV = "2.4.10"
   /*
@@ -210,7 +211,8 @@ object Dependencies {
     "com.azure" % "azure-core-management" % "1.7.1",
     "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % jacksonV,
     "com.azure.resourcemanager" % "azure-resourcemanager" % "2.18.0",
-    "net.minidev" % "json-smart" % jsonSmartV
+    "net.minidev" % "json-smart" % jsonSmartV,
+    "com.microsoft.azure" % "applicationinsights-runtime-attach" % azureAppInsightsV,
   )
 
   val wsmDependencies: List[ModuleID] = List(

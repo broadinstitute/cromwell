@@ -1,4 +1,4 @@
-name: 'Docker Release Test'
+name: 'Docker Build Test'
 
 # This test verifies that we can successfully build the same docker images that we release.
 # Includes `cromwell`, `womtool`, `cromiam`, and `cromwell-drs-localizer`
@@ -29,6 +29,7 @@ jobs:
         with:
           java-version: adopt@1.11
       # The following invocation should be as similar as possible to the one in chart_update_on_merge.yml
+      # To state the obvious: This test should not publish anything. It should simply verify that the build completes.
       - name: Build Cromwell Docker
         run: |
           set -e

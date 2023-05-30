@@ -1,15 +1,14 @@
 name: 'Docker Release Test'
 
-# This test verifies that we can build the release docker images that we release.
+# This test verifies that we can successfully build the same docker images that we release.
 # Includes `cromwell`, `womtool`, `cromiam`, and `cromwell-drs-localizer`
 # See chart_update_on_merge.yml for the actual release workflow.
 
-#This is what shows up in the github workflows page as the title.
 run-name: ${{ github.actor }} Docker Build Test
 
 on:
-  workflow_dispatch: #Manual trigger from GitHub UI
-  push: #git push
+  workflow_dispatch:
+  push:
   merge_group:
 
 permissions:
@@ -29,6 +28,7 @@ jobs:
       - uses: olafurpg/setup-scala@v10
         with:
           java-version: adopt@1.11
+      # The following invocation should be as similar as possible to the one in chart_update_on_merge.yml
       - name: Build Cromwell Docker
         run: |
           set -e

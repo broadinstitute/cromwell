@@ -1,0 +1,35 @@
+name: 'Docker Release Test'
+
+# This test verifies that we can build the release docker images that we release.
+# Includes `cromwell`, `womtool`, `cromiam`, and `cromwell-drs-localizer`
+# See chart_update_on_merge.yml for the actual release workflow.
+
+#This is what shows up in the github workflows page as the title.
+run-name: ${{ github.actor }} Docker Build Test
+
+on:
+  workflow_dispatch: #Manual trigger from GitHub UI
+  push: #git push
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  sbt-build:
+    name: sbt docker build
+    steps:
+      - name: Clone Cromwell
+        uses: actions/checkout@v2
+        with:
+          repository: broadinstitute/cromwell
+          token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+          path: cromwell
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: adopt@1.11
+      - name: Build Cromwell Docker
+        run: |
+          set -e
+          cd cromwell
+          sbt -Dproject.isSnapshot=false -Dproject.isRelease=false docker

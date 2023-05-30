@@ -12,6 +12,7 @@ import java.net.URI
 import java.nio.file.{FileSystem, FileSystemNotFoundException, FileSystems}
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, Instant, OffsetDateTime}
+import java.util.concurrent.ConcurrentHashMap
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
@@ -40,6 +41,7 @@ object BlobFileSystemManager {
       (AzureFileSystem.AZURE_STORAGE_SKIP_INITIAL_CONTAINER_CHECK, java.lang.Boolean.TRUE))
   }
   def hasTokenExpired(tokenExpiry: Instant, buffer: Duration): Boolean = Instant.now.plus(buffer).isAfter(tokenExpiry)
+  def isSasValid(sas: AzureSasCredential, buffer: Duration): Boolean = parseTokenExpiry(sas).map(hasTokenExpired(_, buffer)).getOrElse(false)
   def uri(endpoint: EndpointURL) = new URI("azb://?endpoint=" + endpoint)
 }
 
@@ -169,15 +171,20 @@ object BlobSasTokenGenerator {
                                containerResourceId: ContainerResourceId,
                                workspaceManagerClient: WorkspaceManagerApiClientProvider,
                                overrideWsmAuthToken: Option[String]): BlobSasTokenGenerator = {
-    WSMBlobSasTokenGenerator(workspaceId, containerResourceId, workspaceManagerClient, overrideWsmAuthToken)
+    new WSMBlobSasTokenGenerator(workspaceId, containerResourceId, workspaceManagerClient, overrideWsmAuthToken)
   }
 
 }
+sealed trait SasCacheAvailable;
+case class Available(sas: AzureSasCredential) extends SasCacheAvailable;
+case class Unavailable() extends SasCacheAvailable;
 
-case class WSMBlobSasTokenGenerator(workspaceId: WorkspaceId,
+class WSMBlobSasTokenGenerator(workspaceId: WorkspaceId,
                                     containerResourceId: ContainerResourceId,
                                     wsmClientProvider: WorkspaceManagerApiClientProvider,
                                     overrideWsmAuthToken: Option[String]) extends BlobSasTokenGenerator {
+
+  var cachedSasTokens: ConcurrentHashMap[BlobContainerName, SasCacheAvailable] = new ConcurrentHashMap[BlobContainerName, SasCacheAvailable];
 
   /**
     * Generate a BlobSasToken by using the available authorization information
@@ -191,20 +198,26 @@ case class WSMBlobSasTokenGenerator(workspaceId: WorkspaceId,
       case Some(t) => Success(t)
       case None => AzureCredentials.getAccessToken(None).toTry
     }
-
-    for {
-      wsmAuth <- wsmAuthToken
-      wsmClient = wsmClientProvider.getControlledAzureResourceApi(wsmAuth)
-      sasToken <- Try(  // Java library throws
-        wsmClient.createAzureStorageContainerSasToken(
-          workspaceId.value,
-          containerResourceId.value,
-          null,
-          null,
-          null,
-          null
-        ).getToken)
-    } yield new AzureSasCredential(sasToken)
+     cachedSasTokens.getOrDefault(container, Unavailable()) match {
+      case Available(sas) if BlobFileSystemManager.isSasValid(sas, Duration.ofMinutes(1)) => Success(sas)
+      case _ => {
+        for {
+          wsmAuth <- wsmAuthToken
+          wsmClient = wsmClientProvider.getControlledAzureResourceApi(wsmAuth)
+          sasToken <- Try(  // Java library throws
+            wsmClient.createAzureStorageContainerSasToken(
+              workspaceId.value,
+              containerResourceId.value,
+              null,
+              null,
+              null,
+              null
+            ).getToken)
+          azureSasToken = new AzureSasCredential(sasToken)
+          _ = cachedSasTokens.put(container, Available(azureSasToken))
+        } yield azureSasToken
+      }
+    }
   }
 }
 

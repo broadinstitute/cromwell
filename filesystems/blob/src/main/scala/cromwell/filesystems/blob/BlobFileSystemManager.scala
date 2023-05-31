@@ -48,9 +48,10 @@ object BlobFileSystemManager {
 class BlobFileSystemManager(val expiryBufferMinutes: Long,
                             val blobTokenGenerator: BlobSasTokenGenerator,
                             val fileSystemAPI: FileSystemAPI = FileSystemAPI(),
-                            private val initialExpiration: Option[Instant] = None) extends LazyLogging {
+                            private val initialExpiration: Option[Instant] = None,
+                            private val initialOpenContainer: Option[String] = None) extends LazyLogging {
 
-  var lastOpenContainer: Option[String] = None;
+  var lastOpenContainer: Option[String] = initialOpenContainer;
 
   def this(config: BlobFileSystemConfig) = {
     this(
@@ -200,6 +201,7 @@ class WSMBlobSasTokenGenerator(workspaceId: WorkspaceId,
     }
      cachedSasTokens.getOrDefault(container, Unavailable()) match {
       case Available(sas) if BlobFileSystemManager.isSasValid(sas, Duration.ofMinutes(1)) => Success(sas)
+      // If unavailable or expired refresh SAS cache entry
       case _ => {
         for {
           wsmAuth <- wsmAuthToken

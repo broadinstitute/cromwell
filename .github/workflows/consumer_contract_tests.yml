@@ -125,7 +125,7 @@ jobs:
 
   can-i-deploy:
     runs-on: ubuntu-latest
-    if: ${{ needs.init-github-context.outputs.fork == 'false'}} # Disabling this step for now until there is a webhook setup
+    if: ${{ needs.init-github-context.outputs.fork == 'false'}}
     needs: [ init-github-context, publish-contracts ]
     steps:
       - name: Dispatch to terra-github-workflows

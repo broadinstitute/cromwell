@@ -32,8 +32,6 @@ name: Consumer contract tests
 
 on:
   pull_request:
-    branches:
-      - develop
     paths-ignore:
       - 'README.md'
   push:
@@ -132,7 +130,7 @@ jobs:
 
   can-i-deploy:
     runs-on: ubuntu-latest
-    if: ${{ needs.init-github-context.outputs.fork == 'false' && false}} # Disabling this step for now until there is a webhook setup
+    if: ${{ needs.init-github-context.outputs.fork == 'false'}} # Disabling this step for now until there is a webhook setup
     needs: [ init-github-context, publish-contracts ]
     steps:
       - name: Dispatch to terra-github-workflows

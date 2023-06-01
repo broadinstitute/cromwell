@@ -17,7 +17,7 @@ permissions:
 jobs:
   sbt-build:
     name: sbt docker build
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Clone Cromwell
         uses: actions/checkout@v2

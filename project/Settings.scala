@@ -100,7 +100,6 @@ object Settings {
 
   val pact4sSettings = sharedSettings ++ List(
     libraryDependencies ++= pact4sDependencies,
-
     /**
       * Invoking pact tests from root project (sbt "project pact" test)
       * will launch tests in a separate JVM context that ensures contracts
@@ -108,7 +107,6 @@ object Settings {
       * will be written to the root folder.
       */
     Test / fork := true
-
   ) ++ assemblySettings
 
   lazy val pact4s = project.in(file("pact4s"))

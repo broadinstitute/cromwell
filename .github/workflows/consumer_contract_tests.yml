@@ -35,8 +35,6 @@ on:
     paths-ignore:
       - 'README.md'
   push:
-    branches:
-      - develop
     paths-ignore:
       - 'README.md'
   merge_group:
@@ -54,16 +52,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Obtain branch properties
+      - name: Extract branch
         id: extract-branch
         run: |
-          FORK=false
           GITHUB_EVENT_NAME=${{ github.event_name }}
           if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
             GITHUB_REF=${{ github.ref }}
             GITHUB_SHA=${{ github.sha }}
           elif [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-            FORK=${{ github.event.pull_request.head.repo.fork }}
             GITHUB_REF=refs/heads/${{ github.head_ref }}
             GITHUB_SHA=${{ github.event.pull_request.head.sha }}
           elif [[ "$GITHUB_EVENT_NAME" == "merge_group" ]]; then
@@ -72,9 +68,8 @@ jobs:
             echo "Failed to extract branch information"
             exit 1
           fi
-          echo "repo-branch=${GITHUB_REF/refs\/heads\//""}" >> $GITHUB_OUTPUT
-          echo "repo-version=${GITHUB_SHA}" >> $GITHUB_OUTPUT
-          echo "fork=${FORK}" >> $GITHUB_OUTPUT
+          echo "CURRENT_BRANCH=${GITHUB_REF/refs\/heads\//""}" >> $GITHUB_ENV
+          echo "CURRENT_SHA=$GITHUB_SHA" >> $GITHUB_ENV
 
       - name: Is PR triggered by forked repo?
         if: ${{ steps.extract-branch.outputs.fork == 'true' }}

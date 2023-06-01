@@ -69,10 +69,11 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val container = BlobContainerName("storageContainer")
     val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
     val azureUri = BlobFileSystemManager.uri(endpoint)
+    val buffer = Duration.ofMinutes(10L)
 
     val fileSystems = mock[FileSystemAPI]
     val blobTokenGenerator = mock[BlobSasTokenGenerator]
-    when(blobTokenGenerator.generateBlobSasToken(endpoint, container)).thenReturn(Try(sasToken))
+    when(blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)).thenReturn(Try(sasToken))
 
     val fsm = new BlobFileSystemManager(10L, blobTokenGenerator, fileSystems, Some(expiredToken))
     fsm.getExpiry should contain(expiredToken)
@@ -94,6 +95,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val container = BlobContainerName("storageContainer")
     val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
     val azureUri = BlobFileSystemManager.uri(endpoint)
+    val buffer = Duration.ofMinutes(10L)
     // Need a fake filesystem to supply the getFileSystem simulated try
     val dummyFileSystem = mock[FileSystem]
 
@@ -101,7 +103,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     when(fileSystems.getFileSystem(azureUri)).thenReturn(Try(dummyFileSystem))
 
     val blobTokenGenerator = mock[BlobSasTokenGenerator]
-    when(blobTokenGenerator.generateBlobSasToken(endpoint, container)).thenReturn(Try(sasToken))
+    when(blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)).thenReturn(Try(sasToken))
 
     val fsm = new BlobFileSystemManager(10L, blobTokenGenerator, fileSystems, Some(initialToken), Some(container.value))
     fsm.getExpiry should contain(initialToken)
@@ -122,11 +124,12 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val container = BlobContainerName("storageContainer")
     val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
     val azureUri = BlobFileSystemManager.uri(endpoint)
+    val buffer = Duration.ofMinutes(10L)
 
     val fileSystems = mock[FileSystemAPI]
     when(fileSystems.getFileSystem(azureUri)).thenReturn(Failure(new FileSystemNotFoundException))
     val blobTokenGenerator = mock[BlobSasTokenGenerator]
-    when(blobTokenGenerator.generateBlobSasToken(endpoint, container)).thenReturn(Try(sasToken))
+    when(blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)).thenReturn(Try(sasToken))
 
     val fsm = new BlobFileSystemManager(10L, blobTokenGenerator, fileSystems, Some(refreshedToken), Some(container.value))
     fsm.getExpiry.isDefined shouldBe true
@@ -147,10 +150,11 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val container = BlobContainerName("storageContainer")
     val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
     val azureUri = BlobFileSystemManager.uri(endpoint)
+    val buffer = Duration.ofMinutes(10L)
 
     val fileSystems = mock[FileSystemAPI]
     val blobTokenGenerator = mock[BlobSasTokenGenerator]
-    when(blobTokenGenerator.generateBlobSasToken(endpoint, container)).thenReturn(Try(sasToken))
+    when(blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)).thenReturn(Try(sasToken))
 
     val fsm = new BlobFileSystemManager(10L, blobTokenGenerator, fileSystems)
     fsm.getExpiry.isDefined shouldBe false
@@ -172,6 +176,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val container = BlobContainerName("storageContainer")
     val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
     val azureUri = BlobFileSystemManager.uri(endpoint)
+    val buffer = Duration.ofMinutes(10L)
     // Need a fake filesystem to supply the getFileSystem simulated try
     val dummyFileSystem = mock[FileSystem]
 
@@ -179,7 +184,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     when(fileSystems.getFileSystem(azureUri)).thenReturn(Try(dummyFileSystem))
 
     val blobTokenGenerator = mock[BlobSasTokenGenerator]
-    when(blobTokenGenerator.generateBlobSasToken(endpoint, container)).thenReturn(Try(sasToken))
+    when(blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)).thenReturn(Try(sasToken))
 
     val fsm = new BlobFileSystemManager(10L, blobTokenGenerator, fileSystems, Some(initialToken), Some("oldStorageContainer"))
     fsm.getExpiry should contain(initialToken)

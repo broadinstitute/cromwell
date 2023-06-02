@@ -41,7 +41,7 @@ object BlobFileSystemManager {
       (AzureFileSystem.AZURE_STORAGE_SKIP_INITIAL_CONTAINER_CHECK, java.lang.Boolean.TRUE))
   }
   def hasTokenExpired(tokenExpiry: Instant, buffer: Duration): Boolean = Instant.now.plus(buffer).isAfter(tokenExpiry)
-  def isSasValid(sas: AzureSasCredential, buffer: Duration): Boolean = parseTokenExpiry(sas).map(hasTokenExpired(_, buffer)).getOrElse(false)
+  def isSasValid(sas: AzureSasCredential, buffer: Duration): Boolean = parseTokenExpiry(sas).map(!hasTokenExpired(_, buffer)).getOrElse(false)
   def uri(endpoint: EndpointURL) = new URI("azb://?endpoint=" + endpoint)
 }
 
@@ -190,7 +190,10 @@ class WSMBlobSasTokenGenerator(workspaceId: WorkspaceId,
                                     buffer: Duration) extends BlobSasTokenGenerator {
 
   var cachedSasTokens: ConcurrentHashMap[(EndpointURL, BlobContainerName), SasCacheAvailable] = new ConcurrentHashMap[(EndpointURL, BlobContainerName), SasCacheAvailable];
-
+  def getAvailableCachedSasToken(endpoint: EndpointURL, container: BlobContainerName) = cachedSasTokens.getOrDefault((endpoint, container), Unavailable())
+  def putAvailableCachedSasToken(endpoint: EndpointURL, container: BlobContainerName, sas: AzureSasCredential) = {
+    cachedSasTokens.put((endpoint, container), Available(sas))
+  }
   /**
     * Fetch a BlobSasToken from a cache or fall back to using the available authorization information
     * If an overrideWsmAuthToken is provided, use this in the wsmClient request
@@ -199,17 +202,22 @@ class WSMBlobSasTokenGenerator(workspaceId: WorkspaceId,
     * @return an AzureSasCredential for accessing a blob container
     */
   def findBlobSasToken(endpoint: EndpointURL, container: BlobContainerName, buffer: Duration): Try[AzureSasCredential] = {
-     cachedSasTokens.getOrDefault((endpoint, container), Unavailable()) match {
+     getAvailableCachedSasToken(endpoint, container) match {
       case Available(sas) if BlobFileSystemManager.isSasValid(sas, buffer) => Success(sas)
       // If unavailable or expired refresh SAS cache entry
-      case _ => generateBlobSasToken(endpoint, container)
+      case _ => {
+        val azureSasTokenTry: Try[AzureSasCredential] = generateBlobSasToken(endpoint, container)
+        azureSasTokenTry.toOption.foreach(_ => this.putAvailableCachedSasToken(endpoint, container, _))
+        azureSasTokenTry
+      }
     }
   }
+
   /**
-    * Helper for requesting new SAS token from WSM client for a specified endpoint and container
+    * Requests new SAS token from WSM client for a specified endpoint and container
     * @return
     */
-  private def generateBlobSasToken(endpoint: EndpointURL, container: BlobContainerName): Try[AzureSasCredential] = {
+  def generateBlobSasToken(endpoint: EndpointURL, container: BlobContainerName): Try[AzureSasCredential] = {
     val wsmAuthToken: Try[String] = overrideWsmAuthToken match {
       case Some(t) => Success(t)
       case None => AzureCredentials.getAccessToken(None).toTry
@@ -227,7 +235,6 @@ class WSMBlobSasTokenGenerator(workspaceId: WorkspaceId,
           null
         ).getToken)
       azureSasToken = new AzureSasCredential(sasToken)
-      _ = cachedSasTokens.put((endpoint, container), Available(azureSasToken))
     } yield azureSasToken
   }
 }

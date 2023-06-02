@@ -1,7 +1,7 @@
 package cromwell.engine.io
 
 import akka.NotUsed
-import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props, Timers}
 import akka.dispatch.ControlMessage
 import akka.stream._
 import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Partition, Sink, Source, SourceQueueWithComplete}
@@ -40,6 +40,7 @@ final class IoActor(ioConfig: IoConfig,
                     applicationName: String)(implicit val materializer: ActorMaterializer)
   extends Actor with ActorLogging with StreamActorHelper[IoCommandContext[_]] with IoInstrumentation with Timers {
   implicit val ec: ExecutionContext = context.dispatcher
+  implicit val system: ActorSystem = context.system
 
   // IntelliJ disapproves of mutable state in Actors, but this should be safe as long as access occurs only in
   // the `receive` method. Alternatively IntelliJ does suggest a `become` workaround we might try in the future.

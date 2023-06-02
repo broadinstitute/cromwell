@@ -1,0 +1,37 @@
+name: 'Docker Build Test'
+
+# This test verifies that we can successfully build the same docker images that we release.
+# Includes `cromwell`, `womtool`, `cromiam`, and `cromwell-drs-localizer`
+# See chart_update_on_merge.yml for the actual release workflow.
+
+run-name: ${{ github.actor }} Docker Build Test
+
+on:
+  workflow_dispatch:
+  push:
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  sbt-build:
+    name: sbt docker build
+    runs-on: self-hosted
+    steps:
+      - name: Clone Cromwell
+        uses: actions/checkout@v2
+        with:
+          repository: broadinstitute/cromwell
+          token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+          path: cromwell
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: adopt@1.11
+      # The following invocation should be as similar as possible to the one in chart_update_on_merge.yml
+      # To state the obvious: This test should not publish anything. It should simply verify that the build completes.
+      - name: Build Cromwell Docker
+        run: |
+          set -e
+          cd cromwell
+          sbt -Dproject.isSnapshot=false -Dproject.isRelease=false docker

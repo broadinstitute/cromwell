@@ -40,6 +40,20 @@ backend {
 }
 ```
 
+Cromwell uses an exponential backoff strategy to control the rate of requests sent to the TES server. 
+Users can override the default settings for this behavior in config, see `cromwell.example.backends/TES.conf` 
+for full expected format.
+
+For example, to force a constant polling rate rather than exponential backoff:
+```hocon
+backend.providers.TES.config.poll-backoff {
+  min: "1 minute"
+  max: "1 minute"
+  multiplier: 1
+  randomization-factor: 0
+}
+```
+
 ### Supported File Systems
 
 Currently this backend only works with files on a Local or Shared File System.

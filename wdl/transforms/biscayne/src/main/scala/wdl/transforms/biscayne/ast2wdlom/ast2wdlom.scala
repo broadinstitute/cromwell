@@ -10,7 +10,6 @@ import wdl.model.draft3.elements._
 import wdl.transforms.base.ast2wdlom._
 import wdl.transforms.biscayne.parsing.fileToAst
 import wom.callable.MetaKvPair
-import wom.types.WomUnlistedDirectoryType
 
 package object ast2wdlom {
 
@@ -27,7 +26,7 @@ package object ast2wdlom {
   implicit val astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement] = AstNodeToExpressionElement.astNodeToExpressionElement(customEngineFunctionMakers = AstToNewExpressionElements.newBiscayneEngineFunctionMakers)
   implicit val astNodeToKvPair: CheckedAtoB[GenericAstNode, KvPair] = AstNodeToKvPair.astNodeToKvPair(astNodeToExpressionElement)
 
-  implicit val astNodeToTypeElement: CheckedAtoB[GenericAstNode, TypeElement] = AstNodeToTypeElement.astNodeToTypeElement(Map("Directory" -> WomUnlistedDirectoryType))
+  implicit val astNodeToTypeElement: CheckedAtoB[GenericAstNode, TypeElement] = AstNodeToTypeElement.astNodeToTypeElement(Map.empty)
   implicit val astToStructElement: CheckedAtoB[GenericAst, StructElement] = AstToStructElement.astToStructElement
   implicit val astNodeToImportElement: CheckedAtoB[GenericAstNode, ImportElement] = astNodeToAst andThen AstToImportElement.astToImportElement
 

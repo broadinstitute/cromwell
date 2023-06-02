@@ -1,0 +1,13 @@
+name: directory_type_local_denied
+testFormat: workflowfailure
+tags: [localdockertest, "wdl_biscayne"]
+backends: [Local, LocalNoDocker]
+
+files {
+  workflow: wdl_biscayne/biscayne_prohibits_directory/directory_type.wdl
+  inputs: wdl_biscayne/biscayne_prohibits_directory/directory_type_local_inputs.json
+}
+
+metadata {
+  status: Failed
+}

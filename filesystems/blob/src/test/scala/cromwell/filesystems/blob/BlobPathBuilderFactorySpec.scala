@@ -10,7 +10,7 @@ import java.nio.file.{FileSystem, FileSystemNotFoundException}
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, Instant, ZoneId}
-import scala.util.{Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 
 object BlobPathBuilderFactorySpec {
@@ -196,5 +196,67 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     verify(fileSystems, never()).getFileSystem(azureUri)
     verify(fileSystems, times(1)).newFileSystem(azureUri, configMap)
     verify(fileSystems, times(1)).closeFileSystem(azureUri)
+  }
+
+  it should "test use cached SAS token rather than requesting a new one" in {
+    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
+    val container = BlobContainerName("storageContainer")
+    val initialToken = generateTokenExpiration(12L)
+    val refreshedToken = generateTokenExpiration(72L)
+    val buffer = Duration.ofMinutes(10L)
+    val sasTokenOld = BlobPathBuilderFactorySpec.buildExampleSasToken(initialToken)
+    val sasTokenNew = BlobPathBuilderFactorySpec.buildExampleSasToken(refreshedToken)
+    val blobTokenGenerator = mock[WSMBlobSasTokenGenerator]
+    when(blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)).thenCallRealMethod()
+    when(blobTokenGenerator.generateBlobSasToken(endpoint, container)).thenReturn(Try(sasTokenNew))
+    when(blobTokenGenerator.getAvailableCachedSasToken(endpoint, container)).thenReturn(Available(sasTokenOld))
+    when(blobTokenGenerator.putAvailableCachedSasToken(endpoint, container, sasTokenNew)).thenCallRealMethod()
+    val sas: Try[AzureSasCredential] = blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)
+    BlobFileSystemManager.isSasValid(sasTokenOld, buffer) shouldBe(true)
+    BlobFileSystemManager.isSasValid(sasTokenNew, buffer) shouldBe(true)
+    verify(blobTokenGenerator, never()).generateBlobSasToken(endpoint, container)
+    verify(blobTokenGenerator, never()).putAvailableCachedSasToken(endpoint, container, sasTokenNew)
+    verify(blobTokenGenerator, times(1)).getAvailableCachedSasToken(endpoint, container)
+    sas shouldBe Success(sasTokenOld)
+  }
+
+  it should "test requesting SAS token when cached one has expired" in {
+    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
+    val container = BlobContainerName("storageContainer")
+    val initialToken = generateTokenExpiration(9L)
+    val refreshedToken = generateTokenExpiration(69L)
+    val buffer = Duration.ofMinutes(10L)
+    val sasTokenOld = BlobPathBuilderFactorySpec.buildExampleSasToken(initialToken)
+    val sasTokenNew = BlobPathBuilderFactorySpec.buildExampleSasToken(refreshedToken)
+    val blobTokenGenerator = mock[WSMBlobSasTokenGenerator]
+    when(blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)).thenCallRealMethod()
+    when(blobTokenGenerator.generateBlobSasToken(endpoint, container)).thenReturn(Success(sasTokenNew))
+    when(blobTokenGenerator.getAvailableCachedSasToken(endpoint, container)).thenReturn(Available(sasTokenOld))
+    when(blobTokenGenerator.putAvailableCachedSasToken(endpoint, container, sasTokenNew)).thenCallRealMethod()
+    val sas: Try[AzureSasCredential] = blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)
+    BlobFileSystemManager.isSasValid(sasTokenOld, buffer) shouldBe(false)
+    BlobFileSystemManager.isSasValid(sasTokenNew, buffer) shouldBe(true)
+    verify(blobTokenGenerator, times(1)).generateBlobSasToken(endpoint, container)
+    verify(blobTokenGenerator, times(1)).putAvailableCachedSasToken(endpoint, container, sasTokenNew)
+    verify(blobTokenGenerator, times(1)).getAvailableCachedSasToken(endpoint, container)
+    sas shouldBe Success(sasTokenNew)
+  }
+
+  it should "test requesting SAS token when no cached value is available" in {
+    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
+    val container = BlobContainerName("storageContainer")
+    val refreshedToken = generateTokenExpiration(69L)
+    val buffer = Duration.ofMinutes(10L)
+    val sasTokenNew = BlobPathBuilderFactorySpec.buildExampleSasToken(refreshedToken)
+    val blobTokenGenerator = mock[WSMBlobSasTokenGenerator]
+    when(blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)).thenCallRealMethod()
+    when(blobTokenGenerator.generateBlobSasToken(endpoint, container)).thenReturn(Success(sasTokenNew))
+    when(blobTokenGenerator.getAvailableCachedSasToken(endpoint, container)).thenReturn(Unavailable())
+    when(blobTokenGenerator.putAvailableCachedSasToken(endpoint, container, sasTokenNew)).thenReturn(Available(sasTokenNew))
+    val sas: Try[AzureSasCredential] = blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)
+    verify(blobTokenGenerator, times(1)).generateBlobSasToken(endpoint, container)
+    verify(blobTokenGenerator, times(1)).putAvailableCachedSasToken(endpoint, container, sasTokenNew)
+    verify(blobTokenGenerator, times(1)).getAvailableCachedSasToken(endpoint, container)
+    sas shouldBe Success(sasTokenNew)
   }
 }

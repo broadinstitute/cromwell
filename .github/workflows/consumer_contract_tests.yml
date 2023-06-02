@@ -116,7 +116,7 @@ jobs:
   # since access to secrets is not allowed.
   publish-contracts:
     runs-on: ubuntu-latest
-    if: ${{ needs.init-github-context.outputs.fork == 'false' }}
+    if: ${{ needs.init-github-context.outputs.fork == 'false' ||  needs.init-github-context.outputs.fork == ''}}
     needs: [init-github-context, cromwell-consumer-contract-tests]
     steps:
       - name: Dispatch to terra-github-workflows
@@ -130,7 +130,7 @@ jobs:
 
   can-i-deploy:
     runs-on: ubuntu-latest
-    if: ${{ needs.init-github-context.outputs.fork == 'false'}}
+    if: ${{ needs.init-github-context.outputs.fork == 'false' ||  needs.init-github-context.outputs.fork == ''}}
     needs: [ init-github-context, publish-contracts ]
     steps:
       - name: Dispatch to terra-github-workflows

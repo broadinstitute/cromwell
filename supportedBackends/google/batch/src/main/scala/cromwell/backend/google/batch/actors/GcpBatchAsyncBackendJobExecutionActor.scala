@@ -1015,6 +1015,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     }
   }
 
+  override lazy val startMetadataKeyValues: Map[String, Any] = super[GcpBatchJobCachingActorHelper].startMetadataKeyValues
+
+  // TODO: review sending machine and nstance type
   override def getTerminalMetadata(runStatus: RunStatus): Map[String, Any] = {
     runStatus match {
       case _: TerminalRunStatus => Map()

@@ -122,7 +122,7 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
       .setLocation(locationPolicy)
       .setNetwork(networkPolicy)
       .putLabels("cromwell-workflow-id", toLabel(data.workflowId.toString)) //label for workflow from WDL
-      .putLabels("wdl-task-name", toLabel(data.gcpBatchParameters.jobDescriptor.taskCall.callable.name)) //label for task from WDL
+      //.putLabels("wdl-task-name", toLabel(data.gcpBatchParameters.jobDescriptor.taskCall.callable.name)) //label for task from WDL
       .putLabels("goog-batch-worker", "true")
       .setServiceAccount(serviceAccount)
       .addInstances(InstancePolicyOrTemplate
@@ -218,8 +218,8 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
       .setAllocationPolicy(allocationPolicy)
       .putLabels("submitter", "cromwell") // label to signify job submitted by cromwell for larger tracking purposes within GCP batch
       .putLabels("goog-batch-worker", "true")
-      .putLabels("cromwell-workflow-id", toLabel(data.workflowId.toString)) // label to make it easier to match Cromwell workflows with multiple GCP batch jobs
-      .putLabels("wdl-task-name", toLabel(data.gcpBatchParameters.jobDescriptor.taskCall.callable.name)) //label for task from WDL
+      //.putLabels("cromwell-workflow-id", toLabel(data.workflowId.toString)) // label to make it easier to match Cromwell workflows with multiple GCP batch jobs
+      //.putLabels("wdl-task-name", toLabel(data.gcpBatchParameters.jobDescriptor.taskCall.callable.name)) //label for task from WDL
       .setLogsPolicy(LogsPolicy
         .newBuilder
         .setDestination(Destination.CLOUD_LOGGING)

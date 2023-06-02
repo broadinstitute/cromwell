@@ -52,4 +52,14 @@ class LooksParseableSpec extends AnyFlatSpec with Matchers {
     LanguageFactoryUtil.simpleLooksParseable(List("version 1.0"), List("#"))(source) shouldBe true
   }
 
+  it should "reject Chris's idea of a version declaration" in {
+
+    val source =
+      """
+        |# Thank goodness this WDL is not version 1.1!
+        |""".stripMargin
+
+    LanguageFactoryUtil.simpleLooksParseable(List("version 1.0"), List("#"))(source) shouldBe false
+  }
+
 }

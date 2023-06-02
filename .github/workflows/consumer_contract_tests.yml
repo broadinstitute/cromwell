@@ -70,6 +70,9 @@ jobs:
           fi
           echo "CURRENT_BRANCH=${GITHUB_REF/refs\/heads\//""}" >> $GITHUB_ENV
           echo "CURRENT_SHA=$GITHUB_SHA" >> $GITHUB_ENV
+          echo "repo-branch=${GITHUB_REF/refs\/heads\//""}" >> $GITHUB_OUTPUT
+          echo "repo-version=${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          echo "fork=${FORK}" >> $GITHUB_OUTPUT
 
       - name: Is PR triggered by forked repo?
         if: ${{ steps.extract-branch.outputs.fork == 'true' }}

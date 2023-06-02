@@ -70,6 +70,7 @@ jobs:
           fi
           echo "CURRENT_BRANCH=${GITHUB_REF/refs\/heads\//""}" >> $GITHUB_ENV
           echo "CURRENT_SHA=$GITHUB_SHA" >> $GITHUB_ENV
+          
           echo "repo-branch=${GITHUB_REF/refs\/heads\//""}" >> $GITHUB_OUTPUT
           echo "repo-version=${GITHUB_SHA}" >> $GITHUB_OUTPUT
           echo "fork=${FORK}" >> $GITHUB_OUTPUT
@@ -85,6 +86,7 @@ jobs:
           echo "repo-name=${{ github.event.repository.name }}"
           echo "repo-branch=${{ steps.extract-branch.outputs.repo-branch }}"
           echo "repo-version=${{ steps.extract-branch.outputs.repo-version }}"
+          echo "fork=${{ steps.extract-branch.outputs.fork }}"
 
   cromwell-consumer-contract-tests:
     runs-on: ubuntu-latest

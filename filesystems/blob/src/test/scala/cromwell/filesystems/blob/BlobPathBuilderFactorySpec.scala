@@ -232,7 +232,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     when(blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)).thenCallRealMethod()
     when(blobTokenGenerator.generateBlobSasToken(endpoint, container)).thenReturn(Success(sasTokenNew))
     when(blobTokenGenerator.getAvailableCachedSasToken(endpoint, container)).thenReturn(Available(sasTokenOld))
-    when(blobTokenGenerator.putAvailableCachedSasToken(endpoint, container, sasTokenNew)).thenCallRealMethod()
+    when(blobTokenGenerator.putAvailableCachedSasToken(endpoint, container, sasTokenNew)).thenReturn(Available(sasTokenNew))
     val sas: Try[AzureSasCredential] = blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)
     BlobFileSystemManager.isSasValid(sasTokenOld, buffer) shouldBe(false)
     BlobFileSystemManager.isSasValid(sasTokenNew, buffer) shouldBe(true)

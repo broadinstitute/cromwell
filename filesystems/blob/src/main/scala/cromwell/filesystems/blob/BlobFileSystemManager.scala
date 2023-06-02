@@ -207,7 +207,11 @@ class WSMBlobSasTokenGenerator(workspaceId: WorkspaceId,
       // If unavailable or expired refresh SAS cache entry
       case _ => {
         val azureSasTokenTry: Try[AzureSasCredential] = generateBlobSasToken(endpoint, container)
-        azureSasTokenTry.toOption.foreach(_ => this.putAvailableCachedSasToken(endpoint, container, _))
+        // This is an explicit match instead of a forEach for mock functionality
+        azureSasTokenTry match {
+          case Success(value) => putAvailableCachedSasToken(endpoint, container, value);
+          case _ => ();
+        }
         azureSasTokenTry
       }
     }

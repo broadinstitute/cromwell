@@ -1,6 +1,7 @@
 # This is really just a plain call caching test but it's useful for direct comparison to the other prefix hint tests.
 name: call_cache_hit_prefixes_no_hint
 testFormat: runtwiceexpectingcallcaching
+tags: [batchexclude]
 
 files {
   workflow: call_cache_hit_prefixes/call_cache_hit_prefixes.wdl

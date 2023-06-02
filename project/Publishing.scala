@@ -111,7 +111,6 @@ object Publishing {
       }
     },
     docker / buildOptions := BuildOptions(
-      cache = false,
       removeIntermediateContainers = BuildOptions.Remove.Always,
       platforms = List("linux/amd64", "linux/arm64")
     ),

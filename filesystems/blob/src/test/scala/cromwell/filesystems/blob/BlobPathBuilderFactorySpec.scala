@@ -237,7 +237,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     BlobFileSystemManager.isSasValid(sasTokenOld, buffer) shouldBe(false)
     BlobFileSystemManager.isSasValid(sasTokenNew, buffer) shouldBe(true)
     verify(blobTokenGenerator, times(1)).generateBlobSasToken(endpoint, container)
-    verify(blobTokenGenerator, times(1)).putAvailableCachedSasToken(endpoint, container, sasTokenNew)
+    verify(blobTokenGenerator, times(1)).putAvailableCachedSasToken(endpoint, container, WSMBlobSasTokenGenerator.test)
     verify(blobTokenGenerator, times(1)).getAvailableCachedSasToken(endpoint, container)
     sas shouldBe Success(sasTokenNew)
   }

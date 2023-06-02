@@ -183,6 +183,10 @@ sealed trait SasCacheAvailable;
 case class Available(sas: AzureSasCredential) extends SasCacheAvailable;
 case class Unavailable() extends SasCacheAvailable;
 
+
+object WSMBlobSasTokenGenerator {
+  lazy val test = new AzureSasCredential("asdf")
+}
 class WSMBlobSasTokenGenerator(workspaceId: WorkspaceId,
                                     containerResourceId: ContainerResourceId,
                                     wsmClientProvider: WorkspaceManagerApiClientProvider,
@@ -207,7 +211,7 @@ class WSMBlobSasTokenGenerator(workspaceId: WorkspaceId,
       // If unavailable or expired refresh SAS cache entry
       case _ => {
         val azureSasTokenTry: Try[AzureSasCredential] = generateBlobSasToken(endpoint, container)
-        azureSasTokenTry.toOption.foreach(_ => this.putAvailableCachedSasToken(endpoint, container, _))
+        azureSasTokenTry.toOption.foreach(_ => putAvailableCachedSasToken(endpoint, container, WSMBlobSasTokenGenerator.test))
         azureSasTokenTry
       }
     }

@@ -146,4 +146,26 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val otherFile = blobRoot.resolve("test/inputFile.txt")
     otherFile.toAbsolutePath.pathAsString should equal ("https://coaexternalstorage.blob.core.windows.net/inputs/cromwell-execution/test/inputFile.txt")
   }
+
+  ignore should "correctly remove a prefix from the blob path" in {
+    val builder = makeBlobPathBuilder(endpoint, store)
+    val rootString = s"${endpoint.value}/${store.value}/cromwell-execution/"
+    val execDirString = s"${endpoint.value}/${store.value}/cromwell-execution/abc123/myworkflow/task1/def4356/execution/"
+    val fileString = s"${endpoint.value}/${store.value}/cromwell-execution/abc123/myworkflow/task1/def4356/execution/stdout"
+    val blobRoot: BlobPath = builder build rootString getOrElse fail()
+    val execDir: BlobPath = builder build execDirString getOrElse fail()
+    val blobFile: BlobPath = builder build fileString getOrElse fail()
+    blobFile.pathStringWithoutPrefix(blobRoot) should equal ("abc123/myworkflow/task1/def4356/execution/stdout")
+    blobFile.pathStringWithoutPrefix(execDir) should equal ("stdout")
+    blobFile.pathStringWithoutPrefix(blobFile) should equal ("")
+  }
+
+  ignore should "not change a path if it doesn't start with a prefix" in {
+    val builder = makeBlobPathBuilder(endpoint, store)
+    val otherRootString = s"${endpoint.value}/${store.value}/foobar/"
+    val fileString = s"${endpoint.value}/${store.value}/cromwell-execution/abc123/myworkflow/task1/def4356/execution/stdout"
+    val otherBlobRoot: BlobPath = builder build otherRootString getOrElse fail()
+    val blobFile: BlobPath = builder build fileString getOrElse fail()
+    blobFile.pathStringWithoutPrefix(otherBlobRoot) should equal ("/cromwell-execution/abc123/myworkflow/task1/def4356/execution/stdout")
+  }
 }

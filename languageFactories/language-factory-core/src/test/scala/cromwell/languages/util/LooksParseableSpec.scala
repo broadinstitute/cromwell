@@ -52,6 +52,22 @@ class LooksParseableSpec extends AnyFlatSpec with Matchers {
     LanguageFactoryUtil.simpleLooksParseable(List("version 1.0"), List("#"))(source) shouldBe true
   }
 
+  // This test technically contradicts the spec [0] but there is better hope of receiving a useful
+  // error if we try & fail to parse as 1.0, than if we fall back to the server default, `draft-2`
+  // > From draft-3 forward, the first line of all WDL files must be a version statement
+  // [0] https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#versioning
+  it should "work with `version 1.0` surrounded by comments" in {
+
+    val source =
+      """
+        |# My WDL does a cool thing
+        |version 1.0
+        |# Here we go...
+        |""".stripMargin
+
+    LanguageFactoryUtil.simpleLooksParseable(List("version 1.0"), List("#"))(source) shouldBe true
+  }
+
   it should "reject Chris's idea of a version declaration" in {
 
     val source =

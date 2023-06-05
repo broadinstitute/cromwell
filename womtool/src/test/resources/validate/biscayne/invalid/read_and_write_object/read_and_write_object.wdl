@@ -1,4 +1,4 @@
-version development
+version development-1.1
 
 workflow read_and_write_object {
   File foo = write_object( { "a": "b" } )

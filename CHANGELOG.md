@@ -1,5 +1,16 @@
 # Cromwell Change Log
 
+## 86 Release Notes
+
+### HTTPFilesystem Improvements
+
+WDL `size` engine function now works for HTTP files. 
+
+### Azure Instrumentation Support
+Cromwell can now send logs and process information to Azure Application Insights. To enable, set environment 
+variable `APPLICATIONINSIGHTS_CONNECTION_STRING` to your connection string. [See here for information.](https://learn.microsoft.com/en-us/azure/azure-monitor/app/sdk-connection-string)
+
+
 ## 85 Release Notes
 
 ### Migration of PKs to BIGINT

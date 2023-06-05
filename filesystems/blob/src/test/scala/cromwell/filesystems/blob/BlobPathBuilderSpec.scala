@@ -4,6 +4,7 @@ import org.mockito.Mockito.when
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.util.UUID
 import scala.util.{Failure, Try}
 
 object BlobPathBuilderSpec {
@@ -52,12 +53,59 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     testException should contain(exception)
   }
 
+  private def testBlobNioStringCleaning(input: String, expected: String) =
+    BlobPath.cleanedNioPathString(input) shouldBe expected
+
+  it should "clean the NIO path string when it has a garbled http protocol" in {
+    testBlobNioStringCleaning(
+      "https:/lz43.blob.core.windows.net/sc-ebda3e/workspace-services/cbas/terra-app-4628d0e1/test_all_engine_functions/4bb6a0a2-3b07/call-run_read_string/execution/stdout",
+      "/workspace-services/cbas/terra-app-4628d0e1/test_all_engine_functions/4bb6a0a2-3b07/call-run_read_string/execution/stdout"
+    )
+  }
+
+  it should "clean the NIO path string when it has a container name with colon prefix" in {
+    testBlobNioStringCleaning(
+      "sc-ebda3e:/workspace-services/cbas/terra-app-4628d0e1/test_all_engine_functions/4bb6a0a2-3b07/call-run_read_string/execution/stdout",
+      "/workspace-services/cbas/terra-app-4628d0e1/test_all_engine_functions/4bb6a0a2-3b07/call-run_read_string/execution/stdout"
+    )
+  }
+
+  it should "clean the NIO path string when it's an in-container absolute path" in {
+    testBlobNioStringCleaning(
+      "/workspace-services/cbas/terra-app-4628d0e1/test_all_engine_functions/4bb6a0a2-3b07/call-run_read_string/execution/stdout",
+      "/workspace-services/cbas/terra-app-4628d0e1/test_all_engine_functions/4bb6a0a2-3b07/call-run_read_string/execution/stdout"
+    )
+  }
+
+  it should "clean the NIO path string when it's the root directory only" in {
+    testBlobNioStringCleaning(
+      "sc-ebda3e:",
+      ""
+    )
+  }
+
+  //// The below tests are IGNORED because they depend on Azure auth information being present in the environment ////
+  val subscriptionId = SubscriptionId(UUID.fromString("62b22893-6bc1-46d9-8a90-806bb3cce3c9"))
+
+  ignore should "resolve an absolute path string correctly to a path" in {
+    val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
+    val store = BlobContainerName("inputs")
+    val blobTokenGenerator = NativeBlobSasTokenGenerator(store, endpoint, Some(subscriptionId))
+    val fsm: BlobFileSystemManager = new BlobFileSystemManager(store, endpoint, 10, blobTokenGenerator)
+
+    val rootString = s"${endpoint.value}/${store.value}/cromwell-execution"
+    val blobRoot: BlobPath = new BlobPathBuilder(store, endpoint)(fsm) build rootString getOrElse fail()
+    blobRoot.toAbsolutePath.pathAsString should equal ("https://coaexternalstorage.blob.core.windows.net/inputs/cromwell-execution")
+    val otherFile = blobRoot.resolve("https://coaexternalstorage.blob.core.windows.net/inputs/cromwell-execution/test/inputFile.txt")
+    otherFile.toAbsolutePath.pathAsString should equal ("https://coaexternalstorage.blob.core.windows.net/inputs/cromwell-execution/test/inputFile.txt")
+  }
+
   ignore should "build a blob path from a test string and read a file" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
     val endpointHost = BlobPathBuilder.parseURI(endpoint.value).map(_.getHost).getOrElse(fail("Could not parse URI"))
     val store = BlobContainerName("inputs")
     val evalPath = "/test/inputFile.txt"
-    val blobTokenGenerator = NativeBlobSasTokenGenerator()
+    val blobTokenGenerator = NativeBlobSasTokenGenerator(Some(subscriptionId))
     val fsm: BlobFileSystemManager = new BlobFileSystemManager(10L, blobTokenGenerator)
     val testString = endpoint.value + "/" + store + evalPath
     val blobPath: BlobPath = new BlobPathBuilder()(fsm) build testString getOrElse fail()
@@ -75,8 +123,8 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
     val store = BlobContainerName("inputs")
     val evalPath = "/test/inputFile.txt"
-    val blobTokenGenerator = NativeBlobSasTokenGenerator()
-    val fsm: BlobFileSystemManager = new BlobFileSystemManager(10, blobTokenGenerator)
+    val blobTokenGenerator = NativeBlobSasTokenGenerator(Some(subscriptionId))
+    val fsm: BlobFileSystemManager = new BlobFileSystemManager(10L, blobTokenGenerator)
     val testString = endpoint.value + "/" + store + evalPath
     val blobPath1: BlobPath = new BlobPathBuilder()(fsm) build testString getOrElse fail()
     blobPath1.nioPath.getFileSystem.close()
@@ -90,9 +138,8 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
   ignore should "resolve a path without duplicating container name" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
     val store = BlobContainerName("inputs")
-    val blobTokenGenerator = NativeBlobSasTokenGenerator()
+    val blobTokenGenerator = NativeBlobSasTokenGenerator(Some(subscriptionId))
     val fsm: BlobFileSystemManager = new BlobFileSystemManager(10, blobTokenGenerator)
-
     val rootString = s"${endpoint.value}/${store.value}/cromwell-execution"
     val blobRoot: BlobPath = new BlobPathBuilder()(fsm) build rootString getOrElse fail()
     blobRoot.toAbsolutePath.pathAsString should equal ("https://coaexternalstorage.blob.core.windows.net/inputs/cromwell-execution")

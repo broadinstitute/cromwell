@@ -90,11 +90,11 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
   ignore should "resolve an absolute path string correctly to a path" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
     val store = BlobContainerName("inputs")
-    val blobTokenGenerator = NativeBlobSasTokenGenerator(store, endpoint, Some(subscriptionId))
-    val fsm: BlobFileSystemManager = new BlobFileSystemManager(store, endpoint, 10, blobTokenGenerator)
+    val blobTokenGenerator = NativeBlobSasTokenGenerator(Some(subscriptionId))
+    val fsm: BlobFileSystemManager = new BlobFileSystemManager(10, blobTokenGenerator)
 
     val rootString = s"${endpoint.value}/${store.value}/cromwell-execution"
-    val blobRoot: BlobPath = new BlobPathBuilder(store, endpoint)(fsm) build rootString getOrElse fail()
+    val blobRoot: BlobPath = new BlobPathBuilder()(fsm) build rootString getOrElse fail()
     blobRoot.toAbsolutePath.pathAsString should equal ("https://coaexternalstorage.blob.core.windows.net/inputs/cromwell-execution")
     val otherFile = blobRoot.resolve("https://coaexternalstorage.blob.core.windows.net/inputs/cromwell-execution/test/inputFile.txt")
     otherFile.toAbsolutePath.pathAsString should equal ("https://coaexternalstorage.blob.core.windows.net/inputs/cromwell-execution/test/inputFile.txt")

@@ -219,7 +219,8 @@ class WSMBlobSasTokenGenerator(workspaceId: WorkspaceId,
 
   /**
     * Requests new SAS token from WSM client for a specified endpoint and container
-    * @return
+    *
+    * @return a new AzureSasCredential for accessing a blob container
     */
   def generateBlobSasToken(endpoint: EndpointURL, container: BlobContainerName): Try[AzureSasCredential] = {
     val wsmAuthToken: Try[String] = overrideWsmAuthToken match {

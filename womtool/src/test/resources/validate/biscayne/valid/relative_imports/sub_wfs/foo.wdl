@@ -1,4 +1,4 @@
-version development
+version development-1.1
 
 import "../structs/my_struct.wdl"
 import "tasks/add5.wdl" as a5

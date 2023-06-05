@@ -122,13 +122,13 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           // generating inside `inputs/` to keep the total path length under control.
           // In Terra on Azure, this saves us 200+ characters.
           tesJobPaths.callInputsDockerRoot.resolve(
-            blobPathWithoutPrefix(path, tesJobPaths.workflowPaths.workflowRoot)
+            path.pathStringWithoutPrefix(tesJobPaths.workflowPaths.workflowRoot)
           ).pathAsString
         case Success(path: BlobPath) if path.startsWith(tesJobPaths.workflowPaths.executionRoot) =>
           // See comment above... if this file is in the execution root, strip that off.
           // In Terra on Azure, this saves us 160+ characters.
           tesJobPaths.callInputsDockerRoot.resolve(
-            blobPathWithoutPrefix(path, tesJobPaths.workflowPaths.executionRoot)
+            path.pathStringWithoutPrefix(tesJobPaths.workflowPaths.executionRoot)
           ).pathAsString
         case Success(path: Path) =>
           tesJobPaths.callInputsDockerRoot.resolve(path.pathWithoutScheme.stripPrefix("/")).pathAsString
@@ -136,13 +136,6 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           value
       }
     )
-  }
-
-  private def blobPathWithoutPrefix(blobPath: BlobPath, prefix: Path): String = {
-    prefix.relativize(blobPath)match {
-      case b: BlobPath => b.pathString // path inside the container
-      case p: Path => p.pathAsString   // full path
-    }
   }
 
   override lazy val commandDirectory: Path = {

@@ -94,7 +94,7 @@ object LanguageFactoryUtil {
     }
 
     val firstCodeLine = fileWithoutInitialWhitespace.headOption.map(_.dropWhile(_.isWhitespace))
-    firstCodeLine.exists { line => startsWithOptions.contains(line) }
+    firstCodeLine.exists { line => startsWithOptions.contains(line.trim) }
   }
 
   def chooseFactory(workflowSource: WorkflowSource, wsfc: WorkflowSourceFilesCollection): ErrorOr[LanguageFactory] = {

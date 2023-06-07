@@ -3,7 +3,7 @@ package cromwell.backend.google.batch
 import akka.actor.{ActorRef, Props}
 import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.scalalogging.StrictLogging
-import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory.robustBuildAttributes
+import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory.{preemptionCountKey, robustBuildAttributes, unexpectedRetryCountKey}
 import cromwell.backend.google.batch.actors._
 import cromwell.backend.google.batch.api.{GcpBatchApiRequestHandler, GcpBatchRequestFactoryImpl}
 import cromwell.backend.google.batch.models.{GcpBatchConfiguration, GcpBatchConfigurationAttributes}
@@ -19,6 +19,8 @@ import scala.util.{Failure, Try}
 
 class GcpBatchBackendLifecycleActorFactory(override val name: String, override val configurationDescriptor: BackendConfigurationDescriptor)
   extends StandardLifecycleActorFactory {
+
+  override val requestedKeyValueStoreKeys: Seq[String] = Seq(preemptionCountKey, unexpectedRetryCountKey)
 
   override def jobIdKey: String = "__gcp_batch"
   protected val googleConfig: GoogleConfiguration = GoogleConfiguration(configurationDescriptor.globalConfig)

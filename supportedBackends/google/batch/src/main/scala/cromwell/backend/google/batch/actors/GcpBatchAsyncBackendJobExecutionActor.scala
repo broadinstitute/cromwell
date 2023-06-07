@@ -21,8 +21,12 @@ import cromwell.backend.google.batch.models._
 import cromwell.backend.google.batch.monitoring.{BatchInstrumentation, CheckpointingConfiguration, MonitoringImage}
 import cromwell.backend.google.batch.runnable.WorkflowOptionKeys
 import cromwell.backend.google.batch.util.{GcpBatchReferenceFilesMappingOperations, RuntimeOutputMapping}
-import cromwell.backend.io.DirectoryFunctions
-import wom.types.{WomArrayType, WomSingleFileType}
+//import cromwell.backend.io.DirectoryFunctions
+//import wom.types.{WomArrayType, WomSingleFileType}
+import cromwell.filesystems.gcs.GcsPathBuilder
+import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
+import java.io.FileNotFoundException
+
 //import cromwell.backend.google.batch.util.GcpBatchReferenceFilesMappingOperations
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
@@ -30,10 +34,10 @@ import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
-import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
+//import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
-//import cromwell.filesystems.gcs.GcsPath
-import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
+import cromwell.filesystems.gcs.GcsPath
+//import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
 import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.sra.SraPath
 import cromwell.services.instrumentation.CromwellInstrumentation
@@ -59,7 +63,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.io.Source
 import scala.language.postfixOps
-import scala.util.control.NoStackTrace
+//import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success, Try}
 
 object GcpBatchAsyncBackendJobExecutionActor {
@@ -96,7 +100,7 @@ object GcpBatchAsyncBackendJobExecutionActor {
         case regexToUse(bucket) => Map(bucket -> NonEmptyList.of(param))
         case regexToUse(bucket, _) => Map(bucket -> NonEmptyList.of(param))
         case other =>
-          throw new Exception(s"$pathTypeString path '$other' did not match the expected regex: ${regexToUse.pattern.toString}") with NoStackTrace
+          throw new Exception(s"$pathTypeString path '$other' did not match the expected regex: ${regexToUse.pattern.toString}") // with NoStackTrace
       }
     } combineAll
   }
@@ -182,21 +186,21 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                            remotePathArray: Seq[WomFile],
                                            localPathArray: Seq[WomFile],
                                            jobDescriptor: BackendJobDescriptor): Iterable[GcpBatchInput] = {
-    (remotePathArray zip localPathArray zipWithIndex) flatMap {
-      case ((remotePath, localPath), index) =>
-        Seq(GcpBatchFileInput(s"$inputName-$index", getPath(remotePath.valueString).get, DefaultPathBuilder.get(localPath.valueString), workingDisk))
-    }
+    //(remotePathArray zip localPathArray zipWithIndex) flatMap {
+    //  case ((remotePath, localPath), index) =>
+    //    Seq(GcpBatchFileInput(s"$inputName-$index", getPath(remotePath.valueString).get, DefaultPathBuilder.get(localPath.valueString), workingDisk))
+    //}
     // NOTE: This causes the tests to fail
-    //    (remotePathArray zip localPathArray) flatMap {
-    //      case (remotePath: WomMaybeListedDirectory, localPath) =>
-    //        maybeListedDirectoryToPipelinesParameters(inputName, remotePath, localPath.valueString)
-    //      case (remotePath: WomUnlistedDirectory, localPath) =>
-    //        Seq(GcpBatchDirectoryInput(inputName, getPath(remotePath.valueString).get, DefaultPathBuilder.get(localPath.valueString), workingDisk))
-    //      case (remotePath: WomMaybePopulatedFile, localPath) =>
-    //        maybePopulatedFileToPipelinesParameters(inputName, remotePath, localPath.valueString)
-    //      case (remotePath, localPath) =>
-    //        Seq(GcpBatchFileInput(inputName, getPath(remotePath.valueString).get, DefaultPathBuilder.get(localPath.valueString), workingDisk))
-    //    }
+        (remotePathArray zip localPathArray) flatMap {
+          case (remotePath: WomMaybeListedDirectory, localPath) =>
+            maybeListedDirectoryToPipelinesParameters(inputName, remotePath, localPath.valueString)
+          case (remotePath: WomUnlistedDirectory, localPath) =>
+            Seq(GcpBatchDirectoryInput(inputName, getPath(remotePath.valueString).get, DefaultPathBuilder.get(localPath.valueString), workingDisk))
+          case (remotePath: WomMaybePopulatedFile, localPath) =>
+            maybePopulatedFileToPipelinesParameters(inputName, remotePath, localPath.valueString)
+          case (remotePath, localPath) =>
+            Seq(GcpBatchFileInput(inputName, getPath(remotePath.valueString).get, DefaultPathBuilder.get(localPath.valueString), workingDisk))
+        }
   }
 
   def maybePopulatedFileToPipelinesParameters(inputName: String, maybePopulatedFile: WomMaybePopulatedFile, localPath: String) = {
@@ -267,29 +271,14 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   // The original implementation recursively finds all non directory files, in V2 we can keep directory as is
   protected lazy val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = {
-    jobDescriptor.fullyQualifiedInputs map {
-      case (key, womFile) =>
-        import common.validation.Validation._
 
-        val arrays: Seq[WomArray] = womFile collectAsSeq {
-          case womFile: WomFile if !inputsToNotLocalize.contains(womFile) =>
-            val files: List[WomSingleFile] = DirectoryFunctions
-              .listWomSingleFiles(womFile, gcpBatchCallPaths.workflowPaths)
-              .toTry(s"Error getting single files for $womFile").get
-            WomArray(WomArrayType(WomSingleFileType), files)
-        }
-
-        key -> arrays.flatMap(_.value).collect {
-          case womFile: WomFile => womFile
-        }
-    }
     // NOTE: This causes the tests to fail
-    //    jobDescriptor.localInputs map {
-    //      case (key, womFile) =>
-    //        key -> womFile.collectAsSeq({
-    //          case womFile: WomFile if !inputsToNotLocalize.contains(womFile) => womFile
-    //        })
-    //    }
+      jobDescriptor.localInputs map {
+        case (key, womFile) =>
+          key -> womFile.collectAsSeq({
+            case womFile: WomFile if !inputsToNotLocalize.contains(womFile) => womFile
+          })
+      }
   }
 
   private lazy val gcsTransferLibrary =
@@ -431,8 +420,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
             .mkString(", "))),
         asyncIo
           .writeAsync(jobPaths
-            .script, _, Seq
-            .empty)
+            .script, _, Seq(CloudStorageOptions.withMimeType("text/plain")))
       )
   }
 
@@ -736,7 +724,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     (writeFunctionInputs ++ callInputInputs).toSet
   }
 
-  // Simply create a PipelinesApiDirectoryOutput in v2 instead of globbing
+  // Simply create a GcpBatchDirectoryOutput instead of globbing
   protected def generateUnlistedDirectoryOutputs(unlistedDirectory: WomUnlistedDirectory, fileEvaluation: FileEvaluation): List[GcpBatchOutput] = {
     val destination = callRootPath.resolve(unlistedDirectory.value.stripPrefix("/"))
     val (relpath, disk) = relativePathAndAttachedDisk(unlistedDirectory.value, runtimeAttributes.disks)
@@ -890,6 +878,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       _ <- uploadScriptFile()
       customLabels <- Future.fromTry(GcpLabel.fromWorkflowOptions(workflowDescriptor.workflowOptions))
       batchParameters <- generateInputOutputParameters
+      _ = batchParameters.jobOutputParameters.foreach(x => println(s"ZZZ InputOutputParameters - $x"))
       createParameters = createPipelineParameters(batchParameters, customLabels)
       drsLocalizationManifestCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.DrsLocalizationManifestName
       _ <- uploadDrsLocalizationManifest(createParameters, drsLocalizationManifestCloudPath)
@@ -1017,7 +1006,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override lazy val startMetadataKeyValues: Map[String, Any] = super[GcpBatchJobCachingActorHelper].startMetadataKeyValues
 
-  // TODO: review sending machine and nstance type
+  // TODO: review sending machine and Instance type
   override def getTerminalMetadata(runStatus: RunStatus): Map[String, Any] = {
     runStatus match {
       case _: TerminalRunStatus => Map()
@@ -1026,12 +1015,11 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   }
 
   //TODO: determine if needed
-  /*
   override def globParentDirectory(womGlobFile: WomGlobFile): Path = {
     val (_, disk) = relativePathAndAttachedDisk(womGlobFile.value, runtimeAttributes.disks)
     disk.mountPoint
   }
-   */
+
 
   protected def googleProject(descriptor: BackendWorkflowDescriptor): String = {
     descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.GoogleProject, batchAttributes.project)
@@ -1096,12 +1084,12 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         case batchOutput if batchOutput.name == makeSafeReferenceName(path) =>
           val pathAsString = batchOutput.cloudPath.pathAsString
           // NOTE: This validation isn't done by pipelines and it is causing the tests to fail because it seems to invoke GCS
-          //          if (batchOutput.isFileParameter && !batchOutput.cloudPath.exists) {
+                    if (batchOutput.isFileParameter && !batchOutput.cloudPath.exists) {
           //            // This is not an error if the path represents a `File?` optional output (the PAPI delocalization script
           //            // should have failed if this file output was not optional but missing). Throw to produce the correct "empty
           //            // optional" value for a missing optional file output.
-          //            throw new FileNotFoundException(s"GCS output file not found: $pathAsString")
-          //          }
+                      throw new FileNotFoundException(s"GCS output file not found: $pathAsString")
+                    }
           pathAsString
       } getOrElse {
         GcsPathBuilder.validateGcsPath(path) match {

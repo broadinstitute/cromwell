@@ -105,7 +105,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val blobTokenGenerator = mock[BlobSasTokenGenerator]
     when(blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)).thenReturn(Try(sasToken))
 
-    val fsm = new BlobFileSystemManager(10L, blobTokenGenerator, fileSystems, Some(initialToken), Some(container.value))
+    val fsm = new BlobFileSystemManager(10L, blobTokenGenerator, fileSystems, Some(initialToken), Some((endpoint, container)))
     fsm.getExpiry should contain(initialToken)
     fsm.isTokenExpired shouldBe false
     fsm.retrieveFilesystem(endpoint, container)
@@ -131,7 +131,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val blobTokenGenerator = mock[BlobSasTokenGenerator]
     when(blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)).thenReturn(Try(sasToken))
 
-    val fsm = new BlobFileSystemManager(10L, blobTokenGenerator, fileSystems, Some(refreshedToken), Some(container.value))
+    val fsm = new BlobFileSystemManager(10L, blobTokenGenerator, fileSystems, Some(refreshedToken), Some((endpoint, container)))
     fsm.getExpiry.isDefined shouldBe true
     fsm.isTokenExpired shouldBe false
     fsm.retrieveFilesystem(endpoint, container)
@@ -186,7 +186,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val blobTokenGenerator = mock[BlobSasTokenGenerator]
     when(blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)).thenReturn(Try(sasToken))
 
-    val fsm = new BlobFileSystemManager(10L, blobTokenGenerator, fileSystems, Some(initialToken), Some("oldStorageContainer"))
+    val fsm = new BlobFileSystemManager(10L, blobTokenGenerator, fileSystems, Some(initialToken), Some((endpoint, BlobContainerName("oldStorageContainer"))))
     fsm.getExpiry should contain(initialToken)
     fsm.isTokenExpired shouldBe false
     fsm.retrieveFilesystem(endpoint, container)
@@ -209,7 +209,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val blobTokenGenerator = mock[WSMBlobSasTokenGenerator]
     when(blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)).thenCallRealMethod()
     when(blobTokenGenerator.generateBlobSasToken(endpoint, container)).thenReturn(Try(sasTokenNew))
-    when(blobTokenGenerator.getAvailableCachedSasToken(endpoint, container)).thenReturn(Available(sasTokenOld))
+    when(blobTokenGenerator.getAvailableCachedSasToken(endpoint, container)).thenReturn(Some(sasTokenOld))
     when(blobTokenGenerator.putAvailableCachedSasToken(endpoint, container, sasTokenNew)).thenCallRealMethod()
     val sas: Try[AzureSasCredential] = blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)
     BlobFileSystemManager.isSasValid(sasTokenOld, buffer) shouldBe(true)
@@ -231,8 +231,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val blobTokenGenerator = mock[WSMBlobSasTokenGenerator]
     when(blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)).thenCallRealMethod()
     when(blobTokenGenerator.generateBlobSasToken(endpoint, container)).thenReturn(Success(sasTokenNew))
-    when(blobTokenGenerator.getAvailableCachedSasToken(endpoint, container)).thenReturn(Available(sasTokenOld))
-    when(blobTokenGenerator.putAvailableCachedSasToken(endpoint, container, sasTokenNew)).thenReturn(Available(sasTokenNew))
+    when(blobTokenGenerator.getAvailableCachedSasToken(endpoint, container)).thenReturn(Some(sasTokenOld))
     val sas: Try[AzureSasCredential] = blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)
     BlobFileSystemManager.isSasValid(sasTokenOld, buffer) shouldBe(false)
     BlobFileSystemManager.isSasValid(sasTokenNew, buffer) shouldBe(true)
@@ -251,8 +250,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val blobTokenGenerator = mock[WSMBlobSasTokenGenerator]
     when(blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)).thenCallRealMethod()
     when(blobTokenGenerator.generateBlobSasToken(endpoint, container)).thenReturn(Success(sasTokenNew))
-    when(blobTokenGenerator.getAvailableCachedSasToken(endpoint, container)).thenReturn(Unavailable())
-    when(blobTokenGenerator.putAvailableCachedSasToken(endpoint, container, sasTokenNew)).thenReturn(Available(sasTokenNew))
+    when(blobTokenGenerator.getAvailableCachedSasToken(endpoint, container)).thenReturn(None)
     val sas: Try[AzureSasCredential] = blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)
     verify(blobTokenGenerator, times(1)).generateBlobSasToken(endpoint, container)
     verify(blobTokenGenerator, times(1)).putAvailableCachedSasToken(endpoint, container, sasTokenNew)

@@ -90,9 +90,9 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
   private val store: BlobContainerName = BlobContainerName("inputs")
 
   def makeBlobPathBuilder(blobEndpoint: EndpointURL, container: BlobContainerName): BlobPathBuilder = {
-    val blobTokenGenerator = NativeBlobSasTokenGenerator(container, blobEndpoint, Some(subscriptionId))
-    val fsm = new BlobFileSystemManager(container, blobEndpoint, 10, blobTokenGenerator)
-    new BlobPathBuilder(store, endpoint)(fsm)
+    val blobTokenGenerator = NativeBlobSasTokenGenerator(Some(subscriptionId))
+    val fsm = new BlobFileSystemManager(10, blobTokenGenerator)
+    new BlobPathBuilder()(fsm)
   }
 
   ignore should "resolve an absolute path string correctly to a path" in {

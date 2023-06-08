@@ -132,5 +132,19 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
     )
   }
 
+  /**
+    * Return the pathString of this BlobPath, with the given prefix removed if this path shares that
+    * prefix.
+    */
+  def pathStringWithoutPrefix(prefix: Path): String = {
+    if (this.startsWith(prefix)) {
+      prefix.relativize(this) match {
+        case b: BlobPath => b.pathString // path inside the blob container
+        case p: Path => p.pathAsString // full path
+      }
+    }
+    else pathString
+  }
+
   override def getSymlinkSafePath(options: LinkOption*): Path  = toAbsolutePath
 }

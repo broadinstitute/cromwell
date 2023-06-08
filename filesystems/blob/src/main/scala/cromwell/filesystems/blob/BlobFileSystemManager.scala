@@ -225,7 +225,7 @@ class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClientProvi
       wsmAzureResourceClient = wsmClientProvider.getControlledAzureResourceApi(wsmAuth)
       sa <- endpoint.storageAccountName
       ids <- getWorkspaceAndContainerResourceId(sa, container, wsmAuth)
-      azureSasToken <- wsmAzureResourceClient.createAzureStorageContainerSasToken(ids._1, ids._1)
+      azureSasToken <- wsmAzureResourceClient.createAzureStorageContainerSasToken(ids._1, ids._2)
     } yield azureSasToken
   }
 

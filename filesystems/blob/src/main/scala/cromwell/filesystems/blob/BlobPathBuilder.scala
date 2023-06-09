@@ -11,6 +11,7 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object BlobPathBuilder {
+  val HOSTNAME_SUFFIX = ".blob.core.windows.net"
 
   sealed trait BlobPathValidation
   case class ValidBlobPath(path: String, container: BlobContainerName, endpoint: EndpointURL) extends BlobPathValidation
@@ -38,7 +39,7 @@ object BlobPathBuilder {
     * container -> inputs
     * pathToFile -> test/testFile.wdl
     *
-    * If the configured container and storage account do not match, the string is considered unparsable
+    * If the storage account name or container name are unable to be parsed, the path is considered invalid
     */
   def validateBlobPath(string: String): BlobPathValidation = {
     val blobValidation = for {
@@ -46,7 +47,7 @@ object BlobPathBuilder {
       testEndpoint = EndpointURL(testUri.getScheme + "://" + testUri.getHost())
       testStorageAccount <- parseStorageAccount(testUri)
       testContainer = testUri.getPath.split("/").find(_.nonEmpty)
-      isBlobHost = testUri.getHost().contains(".blob.core.windows.net") && testUri.getScheme().contains("https")
+      isBlobHost = testUri.getHost().contains(HOSTNAME_SUFFIX) && testUri.getScheme().contains("https")
       blobPathValidation = (isBlobHost, testContainer) match {
         case (true, Some(container)) => ValidBlobPath(
             testUri.getPath.replaceFirst("/" + container, ""),

@@ -4,8 +4,8 @@ import java.io.{BufferedInputStream, BufferedReader, ByteArrayOutputStream, IOEx
 import java.nio.file.{FileAlreadyExistsException, Files}
 import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
 import java.util.zip.GZIPOutputStream
-
 import better.files.File.OpenOptions
+import cromwell.core.path.BetterFileMethods.CopyOptions
 import cromwell.util.TryWithResource.tryWithResource
 
 import scala.jdk.CollectionConverters._
@@ -45,6 +45,8 @@ trait EvenBetterPathMethods {
     setPermissions(PosixFilePermissions.fromString(permissions).asScala.toSet)
     this
   }
+
+  def defaultCopyOptions(overwrite: Boolean): CopyOptions = CopyOptions(overwrite)
 
   // betterFile.symbolicLink calls Files.readSymbolicLink, but then implicitly converts the java.nio.Path returned to a better.File
   // which calls toAbsolutePath. Consequently, if the path was relative, the current directory is used to make it absolute.

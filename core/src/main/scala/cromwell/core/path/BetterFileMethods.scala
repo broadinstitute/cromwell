@@ -439,7 +439,7 @@ trait BetterFileMethods {
   }
 
   final def copyTo(destination: Path, overwrite: Boolean = false): destination.type = {
-    betterFile.copyTo(destination.betterFile, overwrite)(copyOptions = CopyOptions(overwrite = overwrite))
+    betterFile.copyTo(destination.betterFile, overwrite)(copyOptions = destination.defaultCopyOptions(overwrite))
     destination
   }
 

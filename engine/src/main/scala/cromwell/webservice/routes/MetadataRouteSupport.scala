@@ -70,6 +70,17 @@ trait MetadataRouteSupport extends HttpInstrumentation {
       }
     },
     encodeResponse {
+      path("workflows" / Segment / Segment / "metadata" / "failed-jobs") { (_, possibleWorkflowId) =>
+        instrumentRequest {
+          failedJobsMetadataLookup(
+            possibleWorkflowId,
+            (w: WorkflowId) => FetchFailedJobsMetadataWithWorkflowId(w),
+            serviceRegistryActor
+          )
+        }
+      }
+    },
+    encodeResponse {
       path("workflows" / Segment / Segment / "metadata") { (_, possibleWorkflowId) =>
         instrumentRequest {
           parameters((Symbol("includeKey").*, Symbol("excludeKey").*, Symbol("expandSubWorkflows").as[Boolean].?)) { (includeKeys, excludeKeys, expandSubWorkflowsOption) =>
@@ -82,17 +93,6 @@ trait MetadataRouteSupport extends HttpInstrumentation {
               (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, includeKeysOption, excludeKeysOption, expandSubWorkflows),
               serviceRegistryActor)
           }
-        }
-      }
-    },
-    encodeResponse {
-      path("workflows" / Segment / Segment / "metadata" / "failed-jobs") { (_, possibleWorkflowId) =>
-        instrumentRequest {
-          failedJobsMetadataLookup(
-            possibleWorkflowId,
-            (w: WorkflowId) => FetchFailedJobsMetadataWithWorkflowId(w),
-            serviceRegistryActor
-          )
         }
       }
     },

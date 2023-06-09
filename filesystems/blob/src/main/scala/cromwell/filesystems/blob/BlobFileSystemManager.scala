@@ -37,13 +37,11 @@ object BlobFileSystemManager {
   } yield instant
 
   def buildConfigMap(credential: AzureSasCredential, container: BlobContainerName): Map[String, Object] = {
-    val cred : Map[String, Object] = Map((AzureFileSystem.AZURE_STORAGE_SAS_TOKEN_CREDENTIAL, credential))
-    cred ++ buildConfigMap(container)
-  }
-  def buildConfigMap(container: BlobContainerName): Map[String, Object] = {
-    Map((AzureFileSystem.AZURE_STORAGE_FILE_STORES, container.value),
+    Map((AzureFileSystem.AZURE_STORAGE_SAS_TOKEN_CREDENTIAL, credential),
+      (AzureFileSystem.AZURE_STORAGE_FILE_STORES, container.value),
       (AzureFileSystem.AZURE_STORAGE_SKIP_INITIAL_CONTAINER_CHECK, java.lang.Boolean.TRUE))
   }
+
   def hasTokenExpired(tokenExpiry: Instant, buffer: Duration): Boolean = Instant.now.plus(buffer).isAfter(tokenExpiry)
   def isSasValid(sas: AzureSasCredential, buffer: Duration): Boolean = parseTokenExpiry(sas).map(!hasTokenExpired(_, buffer)).getOrElse(false)
   def uri(endpoint: EndpointURL) = new URI("azb://?endpoint=" + endpoint)
@@ -105,7 +103,8 @@ class BlobFileSystemManager(val expiryBufferMinutes: Long,
         if (expiry.isEmpty) return Failure(new Exception("Could not reopen filesystem, no expiration found"))
         Try(fileSystemAPI.newFileSystem(uri, BlobFileSystemManager.buildConfigMap(sas, container)))
       }
-      case Failure(_) => Try(fileSystemAPI.newFileSystem(uri, BlobFileSystemManager.buildConfigMap(container)))
+      // Despite being public, an AzureSasCredential is expected by the NIO API
+      case Failure(_) => Try(fileSystemAPI.newFileSystem(uri, BlobFileSystemManager.buildConfigMap(new AzureSasCredential("pretty-please") , container)))
     }
   }
 

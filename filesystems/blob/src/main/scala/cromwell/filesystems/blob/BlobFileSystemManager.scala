@@ -37,8 +37,11 @@ object BlobFileSystemManager {
   } yield instant
 
   def buildConfigMap(credential: AzureSasCredential, container: BlobContainerName): Map[String, Object] = {
-    Map((AzureFileSystem.AZURE_STORAGE_SAS_TOKEN_CREDENTIAL, credential),
-      (AzureFileSystem.AZURE_STORAGE_FILE_STORES, container.value),
+    val cred : Map[String, Object] = Map((AzureFileSystem.AZURE_STORAGE_SAS_TOKEN_CREDENTIAL, credential))
+    cred ++ buildConfigMap(container)
+  }
+  def buildConfigMap(container: BlobContainerName): Map[String, Object] = {
+    Map((AzureFileSystem.AZURE_STORAGE_FILE_STORES, container.value),
       (AzureFileSystem.AZURE_STORAGE_SKIP_INITIAL_CONTAINER_CHECK, java.lang.Boolean.TRUE))
   }
   def hasTokenExpired(tokenExpiry: Instant, buffer: Duration): Boolean = Instant.now.plus(buffer).isAfter(tokenExpiry)
@@ -81,22 +84,29 @@ class BlobFileSystemManager(val expiryBufferMinutes: Long,
           case _: FileSystemNotFoundException =>
             logger.info(s"Creating new blob filesystem for URI $uri and container $container, and last container $lastOpenContainer")
             lastOpenContainer = Some((endpoint, container))
-            blobTokenGenerator.findBlobSasToken(endpoint, container, buffer).flatMap(generateFilesystem(uri, container, _))
+            val sas = blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)
+            generateFilesystem(uri, container, sas)
         }
         // If the token has expired, OR there is no token record, try to close the FS and regenerate
         case true =>
           logger.info(s"Closing & regenerating token for existing blob filesystem at URI $uri and container $container, and last container $lastOpenContainer")
           fileSystemAPI.closeFileSystem(uri)
           lastOpenContainer = Some((endpoint, container))
-          blobTokenGenerator.findBlobSasToken(endpoint, container, buffer).flatMap(generateFilesystem(uri, container, _))
+          val sas = blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)
+          generateFilesystem(uri, container, sas)
       }
     }
   }
 
-  private def generateFilesystem(uri: URI, container: BlobContainerName, token: AzureSasCredential): Try[FileSystem] = {
-    expiry = BlobFileSystemManager.parseTokenExpiry(token)
-    if (expiry.isEmpty) return Failure(new Exception("Could not reopen filesystem, no expiration found"))
-    Try(fileSystemAPI.newFileSystem(uri, BlobFileSystemManager.buildConfigMap(token, container)))
+  private def generateFilesystem(uri: URI, container: BlobContainerName, token: Try[AzureSasCredential]): Try[FileSystem] = {
+    token match {
+      case Success(sas) => {
+        expiry = BlobFileSystemManager.parseTokenExpiry(sas)
+        if (expiry.isEmpty) return Failure(new Exception("Could not reopen filesystem, no expiration found"))
+        Try(fileSystemAPI.newFileSystem(uri, BlobFileSystemManager.buildConfigMap(sas, container)))
+      }
+      case Failure(_) => Try(fileSystemAPI.newFileSystem(uri, BlobFileSystemManager.buildConfigMap(container)))
+    }
   }
 
 }

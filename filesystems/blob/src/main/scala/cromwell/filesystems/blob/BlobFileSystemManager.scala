@@ -52,7 +52,7 @@ class BlobFileSystemManager(val expiryBufferMinutes: Long,
                             private val initialExpiration: Option[Instant] = None,
                             private val initialOpenContainer: Option[(EndpointURL, BlobContainerName)] = None) extends LazyLogging {
 
-  var lastOpenContainer: Option[(EndpointURL, BlobContainerName)] = initialOpenContainer;
+  var lastOpenContainer: Option[(EndpointURL, BlobContainerName)] = initialOpenContainer
 
   def this(config: BlobFileSystemConfig) = {
     this(

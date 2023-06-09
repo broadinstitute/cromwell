@@ -90,7 +90,7 @@ trait MetadataRouteSupport extends HttpInstrumentation {
         instrumentRequest {
           failedJobsMetadataLookup(
             possibleWorkflowId,
-            (w: WorkflowId) => GetFailedJobsMetadataAction(w),
+            (w: WorkflowId) => FetchFailedJobsMetadataWithWorkflowId(w),
             serviceRegistryActor
           )
         }

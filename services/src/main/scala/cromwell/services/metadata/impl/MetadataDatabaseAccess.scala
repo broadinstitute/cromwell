@@ -129,18 +129,6 @@ trait MetadataDatabaseAccess {
 
   private def metadataToMetadataEvents(workflowId: WorkflowId)(metadata: Seq[MetadataEntry]): Seq[MetadataEvent] = {
     metadata map { m =>
-//      // If callFullyQualifiedName is non-null then attempt will also be non-null and there is a MetadataJobKey.
-//      val metadataJobKey: Option[MetadataJobKey] = for {
-//        callFqn <- m.callFullyQualifiedName
-//        attempt <- m.jobAttempt
-//      } yield MetadataJobKey(callFqn, m.jobIndex, attempt)
-//
-//      val key = MetadataKey(workflowId, metadataJobKey, m.metadataKey)
-//      val value = m.metadataValueType.map(mType =>
-//        MetadataValue(m.metadataValue.toRawString, MetadataType.fromString(mType))
-//      )
-//
-//      MetadataEvent(key, value, m.metadataTimestamp.toSystemOffsetDateTime)
       transformMetadataToMetadataEvent(m, workflowId)
     }
   }

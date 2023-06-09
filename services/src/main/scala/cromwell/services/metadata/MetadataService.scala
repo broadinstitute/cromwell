@@ -129,7 +129,7 @@ object MetadataService {
   final case class ValidateWorkflowIdInMetadataSummaries(possibleWorkflowId: WorkflowId) extends MetadataServiceAction
   final case class FetchWorkflowMetadataArchiveStatusAndEndTime(workflowId: WorkflowId) extends MetadataServiceAction
 
-  final case class FetchFailedJobsMetadataWithWorkflowId(workflowId: WorkflowId) extends MetadataServiceAction
+  final case class FetchFailedJobsMetadataWithWorkflowId(workflowId: WorkflowId) extends BuildMetadataJsonAction
 
   /**
     * Responses

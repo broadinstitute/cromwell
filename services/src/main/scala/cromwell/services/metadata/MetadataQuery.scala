@@ -7,7 +7,6 @@ import cromwell.core.labels.Labels
 import org.slf4j.{Logger, LoggerFactory}
 import wom.values._
 import common.util.TimeUtil._
-import cromwell.database.sql.tables.MetadataEntry
 
 case class MetadataJobKey(callFqn: String, index: Option[Int], attempt: Int)
 

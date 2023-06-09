@@ -12,7 +12,7 @@ import cromwell.core.{LoadConfig, WorkflowId}
 import cromwell.database.sql.tables.MetadataEntry
 import cromwell.services.MetadataServicesStore
 import cromwell.services.instrumentation.CromwellInstrumentation
-import cromwell.services.metadata.{MetadataArchiveStatus, MetadataEvent, MetadataJobKey, MetadataType, MetadataValue}
+import cromwell.services.metadata.{MetadataArchiveStatus}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.impl.MetadataDatabaseAccess.WorkflowArchiveStatusAndEndTimestamp
 import cromwell.services.metadata.impl.MetadataStatisticsRecorder.MetadataStatisticsRecorderSettings
@@ -197,8 +197,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     val futureResult: Future[Vector[MetadataEntry]] = getFailedJobsMetadataWithWorkflowId(possibleWorkflowId);
     futureResult onComplete {
       case Success(v) => {
-        Metadatavvnebkhikthndfdvlrtrvbcdtjjnlgfkktnfjgcneufg
-
+        metadataToMetadataEvents(v)
       }
       case Failure(e) => log.error(e, s"Error fetching failed tasks for workflow ID $possibleWorkflowId")
     }

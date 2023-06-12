@@ -7,6 +7,10 @@ import cromwell.backend.google.batch.api.GcpBatchRequestFactory.CreatePipelinePa
 trait UserRunnable {
 
   def userRunnables(createPipelineParameters: CreatePipelineParameters, volumes: List[Volume]): List[Runnable] = {
+
+    println(f"job shell ${createPipelineParameters.jobShell}")
+    println(f"script container path ${createPipelineParameters.commandScriptContainerPath}")
+
     val userRunnable = RunnableBuilder.userRunnable(
       docker = createPipelineParameters.dockerImage,
       scriptContainerPath = createPipelineParameters.commandScriptContainerPath.pathAsString,

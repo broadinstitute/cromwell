@@ -7,28 +7,10 @@ run-name: ${{ github.actor }} Integration Testing.
 
 #What will trigger the workflow to run.
 on:
-  workflow_call:
-    inputs:
-      target-branch:
-        description: 'The branch to run integration tests against'
-        required: false
-        type: string
-      slack-alert:
-        description: 'A flag to enable slack alerts. True if this should alert via slack'
-        required: true
-        default: false
-        type: boolean
-    secrets:
-      VAULT_ROLE_ID_CI:
-        required: true
-      VAULT_SECRET_ID_CI:
-        required: true
-      BROADBOT_GITHUB_TOKEN:
-        required: true
-      SLACK_WEBHOOK_URL:
-        required: false
   workflow_dispatch: #Manual trigger from GitHub UI
   push: #git push
+  schedule:
+    - cron: '0 0 * * 1-5'
   merge_group:
 
 permissions:
@@ -119,8 +101,7 @@ jobs:
       if: github.ref == 'refs/heads/WX-1154'
       with:
         status: ${{ job.status }}
-        notify_when: 'success'
-        icon_success: ":party_parrot:"
+        notify_when: 'failure'
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     #The "shell: ..."" line is a way to force the Github Action Runner to use a bash shell that thinks it has a TTY.

@@ -120,6 +120,7 @@ jobs:
       with:
         status: ${{ job.status }}
         notify_when: 'success'
+        icon_success: ":party_parrot:"
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     #The "shell: ..."" line is a way to force the Github Action Runner to use a bash shell that thinks it has a TTY.

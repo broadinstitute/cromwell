@@ -1,5 +1,6 @@
 name: volatile_disables_cache
 testFormat: runtwiceexpectingnocallcaching
+tags: [batchexclude]
 
 files {
   workflow: volatile_disables_cache/volatile_disables_cache.wdl

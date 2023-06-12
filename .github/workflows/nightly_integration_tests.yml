@@ -17,7 +17,7 @@ permissions:
 # Use if as arg to only send slack notifications on nightly
 jobs:
   integration-tests:
-    uses: broadinstitute/cromwell/.github/workflows/integration_tests.yml@develop
+    uses: broadinstitute/cromwell/.github/workflows/integration_tests.yml@WX-1154
     with:
       target-branch: 'develop'
       slack-alert: true

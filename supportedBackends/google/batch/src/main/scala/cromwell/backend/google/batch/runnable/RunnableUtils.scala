@@ -33,8 +33,8 @@ object RunnableUtils {
     * When updating this value, also consider updating the CromwellImagesSizeRoundedUpInGB below.
     */
   val CloudSdkImage: String =
-    config.getOrElse("cloud-sdk-image-url", "gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine")
-
+    //config.getOrElse("cloud-sdk-image-url", "gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine")
+    config.getOrElse("cloud-sdk-image-url", "gcr.io/google.com/cloudsdktool/cloud-sdk:434.0.0-alpine")
   /*
    * At the moment, cloud-sdk (584MB for 354.0.0-alpine) and stedolan/jq (182MB) decompressed ~= 0.8 GB
    */

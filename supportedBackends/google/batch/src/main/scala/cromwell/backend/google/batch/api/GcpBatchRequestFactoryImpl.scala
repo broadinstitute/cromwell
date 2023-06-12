@@ -225,6 +225,10 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
         .setDestination(Destination.CLOUD_LOGGING)
         .build)
 
+    println(f"job shell ${data.createParameters.jobShell}")
+    println(f"script container path ${data.createParameters.commandScriptContainerPath}")
+    println(f"labels ${data.createParameters.googleLabels}")
+
     CreateJobRequest
       .newBuilder
       .setParent(parent)

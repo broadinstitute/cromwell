@@ -93,6 +93,7 @@ object GcpBatchAsyncBackendJobExecutionActor {
   private[batch] def groupParametersByGcsBucket[T <: BatchParameter](parameters: List[T]): Map[String, NonEmptyList[T]] = {
     parameters.map { param =>
       def pathTypeString = if (param.isFileParameter) "File" else "Directory"
+      println(f"ZZZZ pathtypeString is ${pathTypeString}")
 
       val regexToUse = if (param.isFileParameter) gcsFilePathMatcher else gcsDirectoryPathMatcher
 
@@ -100,6 +101,7 @@ object GcpBatchAsyncBackendJobExecutionActor {
         case regexToUse(bucket) => Map(bucket -> NonEmptyList.of(param))
         case regexToUse(bucket, _) => Map(bucket -> NonEmptyList.of(param))
         case other =>
+          //Map(other -> NonEmptyList.of(param))
           throw new Exception(s"$pathTypeString path '$other' did not match the expected regex: ${regexToUse.pattern.toString}") // with NoStackTrace
       }
     } combineAll
@@ -877,8 +879,12 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       _ <- evaluateRuntimeAttributes
       _ <- uploadScriptFile()
       customLabels <- Future.fromTry(GcpLabel.fromWorkflowOptions(workflowDescriptor.workflowOptions))
+      _ = customLabels.foreach(x => println(s"ZZZ Custom Labels - $x"))
       batchParameters <- generateInputOutputParameters
-      _ = batchParameters.jobOutputParameters.foreach(x => println(s"ZZZ InputOutputParameters - $x"))
+      _ = batchParameters.fileInputParameters.foreach(x => println(s"ZZZ File InputParameters - $x"))
+      _ = batchParameters.jobInputParameters.foreach(x => println(s"ZZZ InputParameters - $x"))
+      _ = batchParameters.fileOutputParameters.foreach(x => println(s"ZZZ File OutputParameters - $x"))
+      _ = batchParameters.jobOutputParameters.foreach(x => println(s"ZZZ OutputParameters - $x"))
       createParameters = createPipelineParameters(batchParameters, customLabels)
       drsLocalizationManifestCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.DrsLocalizationManifestName
       _ <- uploadDrsLocalizationManifest(createParameters, drsLocalizationManifestCloudPath)
@@ -898,10 +904,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       response <- runPipeline(request = request, backendSingletonActor = backendSingletonActor)
       _ = sendGoogleLabelsToMetadata(customLabels)
       _ = sendIncrementMetricsForReferenceFiles(referenceInputsToMountedPathsOpt.map(_.keySet))
-      //_ = sendIncrementMetricsForDockerImageCache(
-      //dockerImageCacheDiskOpt = createParameters.dockerImageCacheDiskOpt,
-      //dockerImageAsSpecifiedByUser = runtimeAttributes.dockerImage,
-      //isDockerImageCacheUsageRequested = isDockerImageCacheUsageRequested
 
     } yield response
 

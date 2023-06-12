@@ -1,5 +1,6 @@
 name: globbingBehavior
 testFormat: workflowsuccess
+tags: [batchexclude]
 
 files {
   workflow: globbingBehavior/globbingBehavior.wdl

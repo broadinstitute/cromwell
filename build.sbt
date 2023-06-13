@@ -252,6 +252,7 @@ lazy val tesBackend = (project in backendRoot / "tes")
   .dependsOn(sfsBackend)
   .dependsOn(ftpFileSystem)
   .dependsOn(drsFileSystem)
+  .dependsOn(azureBlobFileSystem)
   // TES backend provides a compatibility layer to run WDLs with PAPI runtime attributes [WX-769]
   .dependsOn(googlePipelinesCommon)
   .dependsOn(backend % "test->test")

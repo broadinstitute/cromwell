@@ -18,7 +18,7 @@ cromwell::build::papi::setup_papi_centaur_environment
 cromwell::build::assemble_jars
 
 cromwell::build::run_centaur \
-    -p 200 \
+    -p 100 \
     -s "centaur.EngineUpgradeTestCaseSpec" \
     -e localdockertest \
 

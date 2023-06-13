@@ -20,7 +20,6 @@ cromwell::build::assemble_jars
 cromwell::build::build_cromwell_docker
 
 cromwell::build::run_centaur \
-    -p 100 \
     -s "centaur.EngineUpgradeTestCaseSpec" \
     -e localdockertest
 

@@ -2,33 +2,15 @@ name: 'Integration Tests'
 
 #This github action runs all of Cromwell's integration tests.
 
-#This is what shows up in the github workflows page as the title.
-run-name: ${{ github.actor }} Integration Testing.
+# This is what shows up in the github workflows page as the title. Using github ternary syntax & format() function.
+run-name: ${{ github.event_name == 'schedule' && 'Nightly Integration Testing' || format('{0} Integration Testing', github.actor) }}
 
 #What will trigger the workflow to run.
 on:
-  workflow_call:
-    inputs:
-      target-branch:
-        description: 'The branch to run integration tests against'
-        required: false
-        type: string
-      slack-alert:
-        description: 'A flag to enable slack alerts. True if this should alert via slack'
-        required: true
-        default: false
-        type: boolean
-    secrets:
-      VAULT_ROLE_ID_CI:
-        required: true
-      VAULT_SECRET_ID_CI:
-        required: true
-      BROADBOT_GITHUB_TOKEN:
-        required: true
-      SLACK_WEBHOOK_URL:
-        required: false
   workflow_dispatch: #Manual trigger from GitHub UI
-  push: #git push
+  push:
+  schedule:
+    - cron: '0 0 * * 1-5'
   merge_group:
 
 permissions:
@@ -115,8 +97,10 @@ jobs:
         set -e
         echo Running test.sh
         ./src/ci/bin/test.sh
+    # always() is some github magic that forces the following step to run, even when the previous fails.
+    # Without it, the if statement won't be evaluated on a test failure.
     - uses: ravsamhq/notify-slack-action@v2
-      if: inputs.slack-alert
+      if: always() && github.ref == 'refs/heads/develop' #only report on failures against develop.
       with:
         status: ${{ job.status }}
         notify_when: "failure"

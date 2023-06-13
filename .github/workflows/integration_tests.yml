@@ -3,12 +3,12 @@ name: 'Integration Tests'
 #This github action runs all of Cromwell's integration tests.
 
 # This is what shows up in the github workflows page as the title. Using github ternary syntax.
-run-name: ${{ github.event_name == 'schedule' && 'Nightly Integration Testing' || '${{ github.actor }} Integration Testing' }}
+run-name: ${{ github.event_name == 'schedule' && 'Nightly Integration Testing' || ${{ github.actor }} Integration Testing }}
 
 #What will trigger the workflow to run.
 on:
   workflow_dispatch: #Manual trigger from GitHub UI
-  push: #git push
+  push:
   schedule:
     - cron: '0 0 * * 1-5'
   merge_group:
@@ -100,7 +100,7 @@ jobs:
     #always() is some github magic that forces the following step to run, even when the previous fails.
     #Without it, the if: statement won't even be evaluated.
     - uses: ravsamhq/notify-slack-action@v2
-      if: always() && github.ref == 'refs/heads/WX-1154' #always() forces this step to run, even when the previous fails.
+      if: always() && github.ref == 'refs/heads/develop' #only report on failures against develop.
       with:
         status: ${{ job.status }}
         notify_when: 'failure'

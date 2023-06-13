@@ -3,7 +3,7 @@ name: 'Integration Tests'
 #This github action runs all of Cromwell's integration tests.
 
 #This is what shows up in the github workflows page as the title.
-run-name: ${{ github.actor }} Integration Testing.
+run-name: ${{ github.event_name == 'push' && 'Nightly Integration Testing' || '${{ github.actor }} Integration Testing' }}
 
 #What will trigger the workflow to run.
 on:

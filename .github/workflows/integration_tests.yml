@@ -98,7 +98,7 @@ jobs:
         echo Running test.sh
         ./src/ci/bin/test.sh
     - uses: ravsamhq/notify-slack-action@v2
-      if: github.ref == 'refs/heads/WX-1154'
+      if: always() && github.ref == 'refs/heads/WX-1154'
       with:
         status: ${{ job.status }}
         notify_when: 'failure'

@@ -75,7 +75,40 @@ class QueryTimeoutSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
       case MariadbDatabasePlatform =>
         Option((
           "select sleep(10);",
-          _ => RegexErrorMessage("""(\(conn=\d+\) )?Query execution was interrupted \(max_statement_time exceeded\)""".r)
+          (metadataGenerator: MetadataGenerator) => {
+            val metadata = metadataGenerator()
+            (metadata.databaseMajorVersion, metadata.databaseMinorVersion) match {
+              /*
+              The docs say "If SLEEP() is interrupted, it returns 1."
+
+              - https://mariadb.com/kb/en/sleep/
+
+              Something changed in 10.3.26/10.4.16/10.5.7 that on a timeout started returning sqlState 70100 instead of
+              a `1`. That triggers this line of code in the driver:
+              - https://github.com/mariadb-corporation/mariadb-connector-j/blob/2.7.0/src/main/java/org/mariadb/jdbc/internal/util/exceptions/ExceptionFactory.java#L46-L48
+
+              Skimming the change logs I can't quickly figure out what changed down in 10.3.26:
+              - https://mariadb.com/kb/en/mariadb-10326-changelog/
+
+              Note: 10.3.26/10.4.16/10.5.7 are all based on 10.2.35, but 10.2.35 is fine at the moment.
+
+              If you find yourself here trying to return an IntErrorMessage(1) again for some new `latest`, you can also
+              try reverting this commit to simplify the code. It's possible this is just a temporary bug introduced into
+              10.3.X and the behavior will go back to prior behavior in 10.3.27 or some other future version.
+
+              Also found this old discussion, but I wasn't able to fully understand it and determine what to expect:
+              - https://jira.mariadb.org/browse/MDEV-10529?focusedCommentId=85479&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-85479
+
+              Either way, we just need to make sure the sleep was interrupted and don't care if it was via an exception
+              or returning `1`.
+               */
+              case (major, minor) if (major >= 10 && minor >= 3) || major >= 11 =>
+                RegexErrorMessage(
+                    """(\(conn=\d+\) )?Query execution was interrupted \(max_statement_time exceeded\)""".r
+                )
+              case _ => IntErrorMessage(1)
+            }
+          }
         ))
       case MysqlDatabasePlatform =>
         Option((

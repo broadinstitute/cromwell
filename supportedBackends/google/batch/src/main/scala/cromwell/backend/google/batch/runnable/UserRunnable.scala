@@ -14,7 +14,8 @@ trait UserRunnable {
     val userRunnable = RunnableBuilder.userRunnable(
       docker = createPipelineParameters.dockerImage,
       scriptContainerPath = createPipelineParameters.commandScriptContainerPath.pathAsString,
-      jobShell = createPipelineParameters.jobShell,
+      //jobShell = createPipelineParameters.jobShell,
+      jobShell = "/bin/bash",
       volumes = volumes,
       dockerhubCredentials = createPipelineParameters.dockerhubCredentials
       // not necessary for now

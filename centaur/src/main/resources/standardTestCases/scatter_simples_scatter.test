@@ -1,6 +1,5 @@
 name: scatter
 testFormat: workflowsuccess
-tags: [batchexclude]
 
 files {
   workflow: scatter_simples/scatter.wdl

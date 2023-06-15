@@ -12,6 +12,11 @@ object Dependencies {
   // https://github.com/sbt/sbt/issues/4531
   private val azureStorageBlobNioV = "12.0.0-beta.19"
   private val azureIdentitySdkV = "1.9.0-beta.2"
+  // We are using the older AppInsights 2 because we want to use the
+  // logback appender to send logs. AppInsights 3 does not have a standalone
+  // appender, and its auto-hoovering of logs didn't meet our needs.
+  // (Specifically, the side-by-side root logger and workflow logger resulted in
+  // duplicate messages in AI. See WX-1122.)
   private val azureAppInsightsLogbackV = "2.6.4"
   private val betterFilesV = "3.9.1"
   private val jsonSmartV = "2.4.10"

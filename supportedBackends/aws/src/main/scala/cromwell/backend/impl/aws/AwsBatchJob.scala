@@ -267,7 +267,8 @@ final case class AwsBatchJob(
          |  b=$$(( 5 * 1024 * 1024 ))
          |  chunk_size=$$(( a > b ? a : b ))
          |  echo $$chunk_size
-         }
+         |}
+         |
          |function _check_data_integrity() {
          |  local local_path=$$1
          |  local s3_path=$$2
@@ -284,7 +285,7 @@ final case class AwsBatchJob(
          |  s3_content_length=$$($awsCmd s3api head-object --bucket "$$bucket" --key "$$key" --query 'ContentLength') || 
          |        { echo "Attempt to get head of object failed for $$s3_path." && return 1 ; }
          |  # local
-         |  local_content_length=$$(LC_ALL=C ls -dn -- "$$local_path" | awk '{print $$5; exit}' ) || 
+         |  local_content_length=$$(LC_ALL=C ls -dnL -- "$$local_path" | awk '{print $$5; exit}' ) || 
          |        { echo "Attempt to get local content length failed for $$_local_path." && return 1; }   
          |  # compare
          |  if [[ "$$s3_content_length" -eq "$$local_content_length" ]]; then
@@ -312,10 +313,12 @@ final case class AwsBatchJob(
     // generate a series of s3 commands to delocalize artifacts from the container to storage at the end of the task
     val outputCopyCommand = outputs
       .map {
+        // local is relative path, no mountpoint disk in front.
         case output: AwsBatchFileOutput if output.local.pathAsString.contains("*") => "" // filter out globs
-        case output: AwsBatchFileOutput if output.name.endsWith(".list") && output.name.contains("glob-") =>
-          Log.debug("Globbing : check for EFS settings.")
+        case output: AwsBatchFileOutput if output.s3key.endsWith(".list") && output.s3key.contains("glob-") =>
+          Log.debug("Globbing  : check for EFS settings.")
           val s3GlobOutDirectory = output.s3key.replace(".list", "")
+          // glob paths are not generated with 127 char limit, using generateGlobPaths(). name can be used safely
           val globDirectory = output.name.replace(".list", "")
           /*
            * Need to process this list and de-localize each file if the list file actually exists
@@ -328,9 +331,10 @@ final case class AwsBatchJob(
             )
             val test_cmd = if (efsDelocalize.isDefined && efsDelocalize.getOrElse(false)) {
               Log.debug("delocalization on EFS is enabled")
+              Log.debug(s"Delocalizing $globDirectory to $s3GlobOutDirectory\n")
               s"""
-                 |touch ${output.name}
-                 |_s3_delocalize_with_retry ${output.name} ${output.s3key}
+                 |touch ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}
+                 |_s3_delocalize_with_retry ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} ${output.s3key}
                  |if [ -e $globDirectory ]; then _s3_delocalize_with_retry $globDirectory $s3GlobOutDirectory ; fi
                  |""".stripMargin
             } else {
@@ -368,6 +372,7 @@ final case class AwsBatchJob(
                | """.stripMargin
           } else {
             // default delocalization command.
+            Log.debug(s"Delocalize from ${output.name} to ${output.s3key}\n")
             s"""
                |touch ${output.name}
                |_s3_delocalize_with_retry ${output.name} ${output.s3key}

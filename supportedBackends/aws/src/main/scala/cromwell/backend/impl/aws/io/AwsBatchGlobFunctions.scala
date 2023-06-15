@@ -71,6 +71,8 @@ trait AwsBatchGlobFunctions extends GlobFunctions {
     //  - according to those values : write the pattern as s3:// or as local path. 
     //  - get the wf id from the config settings.
 
+    // this function reads in the globfile and locates globbed files : "local" or NIO access is needed to the files. 
+
     // for now : hard coded as local at mount point /mnt/efs.
     val wfid_regex = ".{8}-.{4}-.{4}-.{4}-.{12}".r
     val wfid = callContext.root.toString.split("/").toList.filter(element => wfid_regex.pattern.matcher(element).matches()).lastOption.getOrElse("")
@@ -79,7 +81,7 @@ trait AwsBatchGlobFunctions extends GlobFunctions {
     val listFilePath = if (pattern.startsWith("/mnt/efs/")) {
         DefaultPathBuilder.get(globbedDir + "/." + globPatternName + ".list")
     } else {
-        callContext.root.resolve(s"${globPatternName}.list")
+        callContext.root.resolve(s"${globbedDir}/.${globPatternName}.list".stripPrefix("/"))
     }
     asyncIo.readLinesAsync(listFilePath.toRealPath()) map { lines =>
       lines.toList map { fileName =>
@@ -87,7 +89,7 @@ trait AwsBatchGlobFunctions extends GlobFunctions {
         if (pattern.startsWith("/mnt/efs/")) {
             s"${globbedDir}/.${globPatternName}/${fileName}"
         } else {
-            s"${callContext.root}/${globPatternName}/${fileName}"
+            callContext.root.resolve(s"${globbedDir}/.${globPatternName}/${fileName}".stripPrefix("/")).pathAsString
         }
       }
     }

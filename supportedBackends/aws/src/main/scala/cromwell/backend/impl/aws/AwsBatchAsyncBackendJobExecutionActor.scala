@@ -436,12 +436,10 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         configuration.efsMntPoint.getOrElse("").equals(disk.toString.split(" ")(1)) &&
         !runtimeAttributes.efsDelocalize
       ) {
-        AwsBatchFileOutput(makeSafeAwsBatchReferenceName(womFile.value),
-                           makeSafeAwsBatchReferenceName(womFile.value),
-                           relpath,
-                           disk
-        )
+        // name: String, s3key: String, local: Path, mount: AwsBatchVolume
+        AwsBatchFileOutput(makeSafeAwsBatchReferenceName(womFile.value), womFile.value, relpath, disk)
       } else {
+        // if efs is not enabled, OR efs delocalization IS enabled, keep the s3 path as destination.
         AwsBatchFileOutput(makeSafeAwsBatchReferenceName(womFile.value), destination, relpath, disk)
       }
     List(output)
@@ -473,7 +471,10 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       ) {
         (globDirectory, globListFile)
       } else {
-        (callRootPath.resolve(globDirectory).pathAsString, callRootPath.resolve(globListFile).pathAsString)
+        // cannot resolve absolute paths : strip the leading '/'
+        (callRootPath.resolve(globDirectory.toString.stripPrefix("/")).pathAsString,
+         callRootPath.resolve(globListFile.toString.stripPrefix("/")).pathAsString
+        )
       }
     // return results
     return (

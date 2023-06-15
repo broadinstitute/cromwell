@@ -30,30 +30,14 @@ object RunnableBuilder {
       */
     def withCommand(command: String*): Runnable.Builder = {
       val container = builder.getContainerBuilder.addAllCommands(command.toList.asJava)
-      println("ZZZZ with command")
-      println(command.toList.asJava.toString)
       builder.setContainer(container)
     }
 
     def withEntrypointCommand(command: String*): Runnable.Builder = {
-
-      println(f"entrypoint command ${command}")
-
-      val cmdTemp = Option(command.drop(1))
-        .filter(_.nonEmpty)
-        .map(_.asJava)
-        .orNull
-
-      println(f"ZZZZ from lfs ${cmdTemp}")
-
-      val cmdTemp2 = command.filter(_.nonEmpty)
-      println(f"ZZZZ from lfs non_empty ${cmdTemp2}")
-
       builder
         .setContainer(
           builder.getContainerBuilder
             .setEntrypoint(command.headOption.orNull)
-            //.setCommands(cmdTemp)
             .addAllCommands(
               command.drop(1).asJava
             )

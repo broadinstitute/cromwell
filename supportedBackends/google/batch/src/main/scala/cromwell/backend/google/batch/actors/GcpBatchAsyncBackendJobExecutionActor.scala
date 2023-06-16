@@ -21,23 +21,17 @@ import cromwell.backend.google.batch.models._
 import cromwell.backend.google.batch.monitoring.{BatchInstrumentation, CheckpointingConfiguration, MonitoringImage}
 import cromwell.backend.google.batch.runnable.WorkflowOptionKeys
 import cromwell.backend.google.batch.util.{GcpBatchReferenceFilesMappingOperations, RuntimeOutputMapping}
-//import cromwell.backend.io.DirectoryFunctions
-//import wom.types.{WomArrayType, WomSingleFileType}
 import cromwell.filesystems.gcs.GcsPathBuilder
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import java.io.FileNotFoundException
-
-//import cromwell.backend.google.batch.util.GcpBatchReferenceFilesMappingOperations
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
 import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
-//import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.filesystems.gcs.GcsPath
-//import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
 import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.sra.SraPath
 import cromwell.services.instrumentation.CromwellInstrumentation
@@ -54,16 +48,13 @@ import wom.core.FullyQualifiedName
 import wom.expression.{FileEvaluation, NoIoFunctionSet}
 import wom.format.MemorySize
 import wom.values._
-
 import java.io.OutputStreamWriter
-//import java.io.{FileNotFoundException, OutputStreamWriter}
 import java.nio.charset.Charset
 import java.util.Base64
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.io.Source
 import scala.language.postfixOps
-//import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success, Try}
 
 object GcpBatchAsyncBackendJobExecutionActor {
@@ -93,9 +84,9 @@ object GcpBatchAsyncBackendJobExecutionActor {
   private[batch] def groupParametersByGcsBucket[T <: BatchParameter](parameters: List[T]): Map[String, NonEmptyList[T]] = {
     parameters.map { param =>
       def pathTypeString = if (param.isFileParameter) "File" else "Directory"
-      println(f"ZZZZ pathtypeString is ${pathTypeString}")
 
       val regexToUse = if (param.isFileParameter) gcsFilePathMatcher else gcsDirectoryPathMatcher
+
 
       param.cloudPath.pathAsString match {
         case regexToUse(bucket) => Map(bucket -> NonEmptyList.of(param))
@@ -536,16 +527,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   }
 
 
-
-  /*
-  protected def uploadGcsDelocalizationScript(createPipelineParameters: CreatePipelineParameters,
-                                              cloudPath: Path,
-                                              transferLibraryContainerPath: Path,
-                                              gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = Future.successful(())
-
-  */
-
-
   // TAG DISK
   private def createPipelineParameters(inputOutputParameters: InputOutputParameters,
                                        customLabels: Seq[GcpLabel],
@@ -691,11 +672,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     // We need both the glob directory and the glob list:
     List(
       // The glob directory:
-      GcpBatchFileOutput(makeSafeReferenceName(globDirectory), gcsGlobDirectoryDestinationPath, DefaultPathBuilder.get(globDirectory + "*"), globDirectoryDisk,
-        optional = false, secondary = false),
+      GcpBatchDirectoryOutput(makeSafeReferenceName(globDirectory), gcsGlobDirectoryDestinationPath, DefaultPathBuilder.get(globDirectory), globDirectoryDisk, optional = false, secondary = false),
       // The glob list file:
-      GcpBatchFileOutput(makeSafeReferenceName(globListFile), gcsGlobListFileDestinationPath, DefaultPathBuilder.get(globListFile), globDirectoryDisk,
-        optional = false, secondary = false)
+      GcpBatchFileOutput(makeSafeReferenceName(globListFile), gcsGlobListFileDestinationPath, DefaultPathBuilder.get(globListFile), globDirectoryDisk, optional = false, secondary = false)
     )
   }
 
@@ -733,15 +712,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     val directoryOutput = GcpBatchDirectoryOutput(makeSafeReferenceName(unlistedDirectory.value), destination, relpath, disk, fileEvaluation.optional, fileEvaluation.secondary)
     List(directoryOutput)
   }
-
-  /*
-  private def maybePopulatedFileToPipelinesParameters(inputName: String, maybePopulatedFile: WomMaybePopulatedFile, localPath: String) = {
-    val secondaryFiles = maybePopulatedFile.secondaryFiles.flatMap({ secondaryFile =>
-      pipelinesApiInputsFromWomFiles(secondaryFile.valueString, List(secondaryFile), List(relativeLocalizationPath(secondaryFile)), jobDescriptor)
-    })
-
-    Seq(GcpBatchFileInput(inputName, getPath(maybePopulatedFile.valueString).get, DefaultPathBuilder.get(localPath), workingDisk)) ++ secondaryFiles
-  }*/
 
   def maybeListedDirectoryToPipelinesParameters(inputName: String, womMaybeListedDirectory: WomMaybeListedDirectory, localPath: String) = womMaybeListedDirectory match {
     // If there is a path, simply localize as a directory
@@ -805,9 +775,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     asyncIo.writeAsync(cloudPath, gcsTransferLibrary, Seq(CloudStorageOptions.withMimeType("text/plain")))
   }
 
-
-
-  //private lazy val standardPaths = jobPaths.standardPaths
 
   lazy val monitoringOutput: Option[GcpBatchFileOutput] = monitoringScript map { _ =>
     GcpBatchFileOutput(s"$batchMonitoringParamName-out",
@@ -988,7 +955,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         true
       case _: RunStatus.UnsuccessfulRunStatus =>
         log.info("GCP batch job unsuccessful matched isDone")
-        true
+        false
       case _ =>
         log.info(s"did not match isDone: $runStatus")
         throw new RuntimeException(s"Cromwell programmer blunder: isDone was called on an incomplete RunStatus ($runStatus).")
@@ -1086,12 +1053,12 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         case batchOutput if batchOutput.name == makeSafeReferenceName(path) =>
           val pathAsString = batchOutput.cloudPath.pathAsString
           // NOTE: This validation isn't done by pipelines and it is causing the tests to fail because it seems to invoke GCS
-                    if (batchOutput.isFileParameter && !batchOutput.cloudPath.exists) {
-          //            // This is not an error if the path represents a `File?` optional output (the PAPI delocalization script
-          //            // should have failed if this file output was not optional but missing). Throw to produce the correct "empty
-          //            // optional" value for a missing optional file output.
-                      throw new FileNotFoundException(s"GCS output file not found: $pathAsString")
-                    }
+          if (batchOutput.isFileParameter && !batchOutput.cloudPath.exists) {
+            // This is not an error if the path represents a `File?` optional output (the Batch delocalization script
+            // should have failed if this file output was not optional but missing). Throw to produce the correct "empty
+            // optional" value for a missing optional file output.
+            throw new FileNotFoundException(s"GCS output file not found: $pathAsString")
+          }
           pathAsString
       } getOrElse {
         GcsPathBuilder.validateGcsPath(path) match {

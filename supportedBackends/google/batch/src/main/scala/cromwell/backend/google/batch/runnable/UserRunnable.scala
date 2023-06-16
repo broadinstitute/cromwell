@@ -14,6 +14,7 @@ trait UserRunnable {
     val userRunnable = RunnableBuilder.userRunnable(
       docker = createPipelineParameters.dockerImage,
       scriptContainerPath = createPipelineParameters.commandScriptContainerPath.pathAsString,
+      // TODO: determine path for shell and scatter
       //jobShell = createPipelineParameters.jobShell,
       jobShell = "/bin/bash",
       volumes = volumes,

@@ -221,6 +221,12 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
+    "validate a valid efs disks entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("my-stuff"), "disks" -> WomString("efs:data /data fs-123abc ENABLED"))
+      val expectedRuntimeAttributes = expectedDefaults.copy(disks = Seq(AwsBatchVolume.parse("efs:data /data fs-123abc ENABLED").get))
+      assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
     "fail to validate an invalid disks entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("my-stuff"), "disks" -> WomInteger(10))
       assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting disks runtime attribute to be a comma separated String or Array[String]")

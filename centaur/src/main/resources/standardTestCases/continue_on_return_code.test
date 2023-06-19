@@ -1,5 +1,6 @@
 name: continue_on_return_code
 testFormat: workflowsuccess
+tags: [batchexclude]
 
 files {
   workflow: continue_on_return_code/continue_on_return_code.wdl

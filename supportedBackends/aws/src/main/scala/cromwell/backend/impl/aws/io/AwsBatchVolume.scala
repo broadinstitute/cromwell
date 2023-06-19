@@ -135,6 +135,10 @@ case class AwsBatchWorkingDisk() extends AwsBatchVolume {
 
 case class AwsBatchEFSDisk(name: String, mountPoint: Path, fileSystemId: String, encryption: String) extends AwsBatchVolume {
   val fsType = "efs"
-  override val efsVolumeConfiguration = EFSVolumeConfiguration.builder.fileSystemId(fileSystemId).transitEncryption(encryption).build()
+  override val efsVolumeConfiguration = EFSVolumeConfiguration
+  .builder
+  .fileSystemId(fileSystemId)
+  .transitEncryption(encryption)
+  .build()
   override def toString: String = s"$name $mountPoint efs-volume"
 }

@@ -46,12 +46,9 @@ object RunnableBuilder {
 
     def withFlags(flags: List[RunnableFlag]): Runnable.Builder = {
       flags.foldLeft(builder) {
-//        case (acc, RunnableFlag.Unspecified) =>
         case (acc, RunnableFlag.IgnoreExitStatus) => acc // TODO: How do we handle this?
         case (acc, RunnableFlag.RunInBackground) => acc.setBackground(true)
         case (acc, RunnableFlag.AlwaysRun) => acc.setAlwaysRun(true)
-//        case (acc, RunnableFlag.PublishExposedPorts) =>
-//        case (acc, RunnableFlag.DisableImagePrefetch) =>
       }
     }
 
@@ -112,16 +109,12 @@ object RunnableBuilder {
   def backgroundRunnable(image: String,
                          command: List[String],
                          volumes: List[Volume]
-//                       environment: Map[String, String],
                       ): Runnable.Builder = {
     withImage(image)
       .withEntrypointCommand(command: _*)
       .withRunInBackground(true)
       .withVolumes(volumes)
       .withFlags(List(RunnableFlag.RunInBackground, RunnableFlag.IgnoreExitStatus))
-//      .setEnvironment(environment.asJava)
-//      .withLabels(Map(Key.Tag -> Value.Monitoring))
-//      .setPidNamespace(backgroundActionPidNamespace)
   }
 
 
@@ -131,7 +124,6 @@ object RunnableBuilder {
       flags = List(RunnableFlag.AlwaysRun),
       labels = Map(Key.Tag -> Value.Monitoring)
     )
-//      .setPidNamespace(backgroundActionPidNamespace)
   }
 
   def gcsFileDeletionRunnable(cloudPath: String, volumes: List[Volume]): Runnable.Builder = {
@@ -167,8 +159,6 @@ object RunnableBuilder {
     Runnable.newBuilder()
       .setContainer(container)
       .withVolumes(volumes)
-    //.withLabels(labels)
-    //.withFlags(if (fuseEnabled) List(RunnableFlag.EnableFuse) else List.empty)
   }
 
   def checkForMemoryRetryRunnable(retryLookupKeys: List[String], volumes: List[Volume]): Runnable.Builder = {
@@ -179,7 +169,6 @@ object RunnableBuilder {
     )
   }
 
-  //  Needs label support
   // Creates a Runnable that logs the docker command for the passed in runnable.
   def describeDocker(description: String, runnable: Runnable.Builder): Runnable.Builder = {
     logTimestampedRunnable(
@@ -202,7 +191,6 @@ object RunnableBuilder {
 
   def cloudSdkRunnable: Runnable.Builder = Runnable.newBuilder.setContainer(cloudSdkContainerBuilder)
 
-  // TODO: Use labels
   def cloudSdkShellRunnable(shellCommand: String)(
     volumes: List[Volume],
     flags: List[RunnableFlag],
@@ -295,16 +283,6 @@ object RunnableBuilder {
       case None => ""
     }
 
-//    val environmentArgs: String = Option(runnable.getEnvironment) match {
-//      case Some(environment) =>
-//        environment.asScala map {
-//          case (key, value) if Option(key).isDefined && Option(value).isDefined => s" -e ${shellEscaped(s"$key:$value")}"
-//          case (key, _) if Option(key).isDefined => s" -e ${shellEscaped(key)}"
-//          case _ => ""
-//        } mkString ""
-//      case None => ""
-//    }
-
     val imageArg: String = Option(runnable.getContainerBuilder.getImageUri) match {
       case None => " <no docker image specified>"
       case Some(imageUri) => s" ${shellEscaped(imageUri)}"
@@ -319,43 +297,8 @@ object RunnableBuilder {
         } mkString ""
     }
 
-//    val nameArg: String = Option(runnable.getContainerBuilder.getName) match {
-//      case None => ""
-//      case Some(name) => s" --name ${shellEscaped(name)}"
-//    }
-
-//    val pidNamespaceArg: String = Option(action.getPidNamespace) match {
-//      case Some(pidNamespace) => s" --pid=${shellEscaped(pidNamespace)}"
-//      case None => ""
-//    }
-
-//    val portMappingArgs: String = Option(runnable.getContainerBuilder.getPortMappings) match {
-//      case Some(portMappings) =>
-//        portMappings.asScala map {
-//          case (key, value) if Option(key).isDefined => s" -p ${shellEscaped(s"$key:$value")}"
-//          case (_, value) => s" -p $value"
-//        } mkString ""
-//      case None => ""
-//    }
-
-//    val flagsArgs: String = Option(action.getFlags) match {
-//      case Some(flags) =>
-//        flags.asScala map { arg =>
-//          ActionFlag.values.find(_.toString == arg) match {
-//            case Some(ActionFlag.PublishExposedPorts) => " -P"
-//            case _ => ""
-//          }
-//        } mkString ""
-//      case None => ""
-//    }
-
     List("docker run",
-//      nameArg,
       mountArgs,
-//      environmentArgs,
-//      pidNamespaceArg,
-//      flagsArgs,
-//      portMappingArgs,
       entrypointArg,
       imageArg,
       commandArgs,

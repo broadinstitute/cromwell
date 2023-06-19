@@ -1,11 +1,11 @@
 package cromwell.backend.google.batch.runnable
 
 import com.google.cloud.batch.v1.{Runnable, Volume}
-import cromwell.backend.google.batch.api.GcpBatchRequestFactory.CreatePipelineParameters
+import cromwell.backend.google.batch.api.GcpBatchRequestFactory.CreateBatchJobParameters
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
 
 trait MonitoringRunnable {
-  def monitoringSetupRunnables(createParameters: CreatePipelineParameters,
+  def monitoringSetupRunnables(createParameters: CreateBatchJobParameters,
                                volumes: List[Volume]
                             )(implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Runnable] = {
 
@@ -52,7 +52,7 @@ trait MonitoringRunnable {
     (monitoringImageScriptRunnables ++ monitoringImageRunnables).map(_.build)
   }
 
-  def monitoringShutdownRunnables(createParameters: CreatePipelineParameters): List[Runnable] = {
+  def monitoringShutdownRunnables(createParameters: CreateBatchJobParameters): List[Runnable] = {
     createParameters.monitoringImage.monitoringImageOption match {
       case Some(_) =>
         val terminationRunnable = RunnableBuilder.terminateBackgroundRunnablesRunnable()

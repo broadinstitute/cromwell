@@ -1,27 +1,24 @@
 package cromwell.backend.google.batch.runnable
 
 import com.google.cloud.batch.v1.{Runnable, Volume}
-import cromwell.backend.google.batch.api.GcpBatchRequestFactory.CreatePipelineParameters
+import cromwell.backend.google.batch.api.GcpBatchRequestFactory.CreateBatchJobParameters
 
 
 trait UserRunnable {
 
-  def userRunnables(createPipelineParameters: CreatePipelineParameters, volumes: List[Volume]): List[Runnable] = {
+  def userRunnables(createParameters: CreateBatchJobParameters, volumes: List[Volume]): List[Runnable] = {
 
-    println(f"job shell ${createPipelineParameters.jobShell}")
-    println(f"script container path ${createPipelineParameters.commandScriptContainerPath}")
+    println(f"job shell ${createParameters.jobShell}")
+    println(f"script container path ${createParameters.commandScriptContainerPath}")
 
     val userRunnable = RunnableBuilder.userRunnable(
-      docker = createPipelineParameters.dockerImage,
-      scriptContainerPath = createPipelineParameters.commandScriptContainerPath.pathAsString,
+      docker = createParameters.dockerImage,
+      scriptContainerPath = createParameters.commandScriptContainerPath.pathAsString,
       // TODO: determine path for shell and scatter
       //jobShell = createPipelineParameters.jobShell,
       jobShell = "/bin/bash",
       volumes = volumes,
-      dockerhubCredentials = createPipelineParameters.dockerhubCredentials
-      // not necessary for now
-      //createPipelineParameters.privateDockerKeyAndEncryptedToken,
-      //createPipelineParameters.fuseEnabled
+      dockerhubCredentials = createParameters.dockerhubCredentials
     )
 
     val describeRunnable = RunnableBuilder.describeDocker("user runnable", userRunnable)

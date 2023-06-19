@@ -61,9 +61,9 @@ object GcpBatchRequestFactory {
     lazy val fileOutputParameters: List[GcpBatchOutput] = detritusOutputParameters.all ++ jobOutputParameters
   }
 
-  case class CreatePipelineDockerKeyAndToken(key: String, encryptedToken: String)
+  case class CreateBatchDockerKeyAndToken(key: String, encryptedToken: String)
 
-  case class CreatePipelineParameters(jobDescriptor: BackendJobDescriptor,
+  case class CreateBatchJobParameters(jobDescriptor: BackendJobDescriptor,
                                       runtimeAttributes: GcpBatchRuntimeAttributes,
                                       dockerImage: String,
                                       cloudWorkflowRoot: Path,
@@ -75,9 +75,9 @@ object GcpBatchRequestFactory {
                                       computeServiceAccount: String,
                                       googleLabels: Seq[GcpLabel],
                                       preemptible: Boolean,
-                                      pipelineTimeout: FiniteDuration,
+                                      batchTimeout: FiniteDuration,
                                       jobShell: String,
-                                      privateDockerKeyAndEncryptedToken: Option[CreatePipelineDockerKeyAndToken],
+                                      privateDockerKeyAndEncryptedToken: Option[CreateBatchDockerKeyAndToken],
                                       womOutputRuntimeExtractor: Option[WomOutputRuntimeExtractor],
                                       adjustedSizeDisks: Seq[GcpBatchAttachedDisk],
                                       virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
@@ -89,7 +89,6 @@ object GcpBatchRequestFactory {
                                       enableSshAccess: Boolean,
                                       vpcNetworkAndSubnetworkProjectLabels: Option[VpcAndSubnetworkProjectLabelValues],
                                       dockerhubCredentials: (String, String)
-                                      //dockerImageCacheDiskOpt: Option[String]
                                      ) {
     def literalInputs = inputOutputParameters.literalInputParameters
 

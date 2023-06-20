@@ -24,7 +24,7 @@ import cromwell.backend.google.batch.util.{GcpBatchReferenceFilesMappingOperatio
 import cromwell.filesystems.gcs.GcsPathBuilder
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import java.io.FileNotFoundException
-import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
+import cromwell.backend.standard.{StandardAdHocValue, StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
 import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -37,13 +37,14 @@ import cromwell.filesystems.sra.SraPath
 import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.metadata.CallMetadataKeys
 import mouse.all._
+import shapeless.Coproduct
 import org.apache.commons.codec.digest.DigestUtils
 import org.apache.commons.csv.{CSVFormat, CSVPrinter}
 import org.apache.commons.io.output.ByteArrayOutputStream
 import wdl4s.parser.MemoryUnit
 import wom.callable.Callable.OutputDefinition
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
-import wom.callable.RuntimeEnvironment
+import wom.callable.{AdHocValue, RuntimeEnvironment}
 import wom.core.FullyQualifiedName
 import wom.expression.{FileEvaluation, NoIoFunctionSet}
 import wom.format.MemorySize
@@ -956,6 +957,11 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     }
   }
 
+  override def mapOutputWomFile(womFile: WomFile): WomFile = {
+    womFileToGcsPath(generateOutputs(jobDescriptor))(womFile)
+  }
+
+
   override def globParentDirectory(womGlobFile: WomGlobFile): Path = {
     val (_, disk) = relativePathAndAttachedDisk(womGlobFile.value, runtimeAttributes.disks)
     disk.mountPoint
@@ -1061,6 +1067,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       }
     }
   }
+
+  // No need for Cromwell-performed localization in the PAPI backend, ad hoc values are localized directly from GCS to the VM by PAPI.
+  override lazy val localizeAdHocValues: List[AdHocValue] => ErrorOr[List[StandardAdHocValue]] = _.map(Coproduct[StandardAdHocValue](_)).validNel
 }
 
 

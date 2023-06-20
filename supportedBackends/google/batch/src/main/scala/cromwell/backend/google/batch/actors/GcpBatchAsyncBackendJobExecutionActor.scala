@@ -663,6 +663,17 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     }
   }
 
+  private val DockerMonitoringLogPath: Path = GcpBatchWorkingDisk.MountPoint.resolve(gcpBatchCallPaths.batchMonitoringLogFilename)
+  private val DockerMonitoringScriptPath: Path = GcpBatchWorkingDisk.MountPoint.resolve(gcpBatchCallPaths.batchMonitoringScriptFilename)
+
+  override def scriptPreamble: String = {
+    if (monitoringOutput.isDefined) {
+      s"""|touch $DockerMonitoringLogPath
+          |chmod u+x $DockerMonitoringScriptPath
+          |$DockerMonitoringScriptPath > $DockerMonitoringLogPath &""".stripMargin
+    } else ""
+  }
+
   private[actors] def generateInputs(jobDescriptor: BackendJobDescriptor): Set[GcpBatchInput] = {
     // We need to tell PAPI about files that were created as part of command instantiation (these need to be defined
     // as inputs that will be localized down to the VM). Make up 'names' for these files that are just the short

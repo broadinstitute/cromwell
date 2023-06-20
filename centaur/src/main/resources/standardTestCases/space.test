@@ -1,6 +1,5 @@
 name: space
 testFormat: workflowsuccess
-tags: [batchexclude]
 
 files {
   workflow: space/space.wdl

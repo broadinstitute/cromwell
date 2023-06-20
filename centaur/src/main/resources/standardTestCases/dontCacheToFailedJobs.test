@@ -1,6 +1,5 @@
 name: dont_cache_to_failed_jobs
 testFormat: runfailingtwiceexpectingnocallcaching
-tags: [batchexclude]
 
 files {
   workflow: dont_cache_to_failed_jobs/dont_cache_to_failed_jobs.wdl

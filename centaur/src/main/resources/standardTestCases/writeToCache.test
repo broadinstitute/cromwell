@@ -1,6 +1,5 @@
 name: writeToCache
 testFormat: workflowsuccess
-tags: [batchexclude]
 
 files {
   workflow: writeToCache/writeToCache.wdl

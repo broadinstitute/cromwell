@@ -37,7 +37,8 @@ object RunnableBuilder {
       builder
         .setContainer(
           builder.getContainerBuilder
-            .setEntrypoint(command.headOption.orNull)
+            //.setEntrypoint(command.headOption.orNull)
+            .setEntrypoint(command.headOption.getOrElse(""))
             .addAllCommands(
               command.drop(1).asJava
             )

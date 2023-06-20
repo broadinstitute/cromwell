@@ -1,7 +1,6 @@
 name: biscayne_http_relative_imports
 testFormat: workflowsuccess
 tags: ["wdl_biscayne"]
-tags: [batchexclude]
 
 files {
   workflow: wdl_biscayne/biscayne_http_relative_imports/biscayne_http_relative_imports.wdl

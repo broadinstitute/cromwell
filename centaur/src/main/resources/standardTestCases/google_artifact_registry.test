@@ -1,6 +1,5 @@
 name: google_artifact_registry
 testFormat: runtwiceexpectingcallcaching
-tags: [batchexclude]
 
 files {
   workflow: google_artifact_registry/google_artifact_registry.wdl

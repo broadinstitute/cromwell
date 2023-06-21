@@ -1,5 +1,4 @@
 package cromwell.backend.impl.tes
-
 import common.collections.EnhancedCollections._
 import common.util.StringUtil._
 import cromwell.backend.impl.tes.OutputMode.OutputMode
@@ -71,6 +70,11 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     path = tesPaths.callExecutionDockerRoot.resolve("script").toString,
     `type` = Option("FILE")
   )
+
+  // TES accepts a key/value pair in its backend parameters that specifies
+  // the directory to use for files related to this task.
+  private val tesTaskPathPrefix = ("internal_path_prefix",
+    Option(tesPaths.callExecutionRoot.resolve("tes_data").pathAsString))
 
   private def writeFunctionFiles: Map[FullyQualifiedName, Seq[WomFile]] =
     instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f.file) } toMap
@@ -233,7 +237,8 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   val resources: Resources = TesTask.makeResources(
     runtimeAttributes,
-    preferedWorkflowExecutionIdentity
+    preferedWorkflowExecutionIdentity,
+    Map(tesTaskPathPrefix)
   )
 
   val executors = Seq(Executor(
@@ -254,7 +259,7 @@ object TesTask {
     configIdentity.map(_.value).orElse(workflowOptionsIdentity.map(_.value))
   }
   def makeResources(runtimeAttributes: TesRuntimeAttributes,
-                    workflowExecutionId: Option[String]): Resources = {
+                    workflowExecutionId: Option[String], additionalBackendParams: Map[String, Option[String]]): Resources = {
 
     // This was added in BT-409 to let us pass information to an Azure
     // TES server about which user identity to run tasks as.
@@ -263,7 +268,8 @@ object TesTask {
     val backendParameters = runtimeAttributes.backendParameters ++
       workflowExecutionId
         .map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option(_))
-        .toMap
+        .toMap ++
+      additionalBackendParams
     val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
       case Some(x) =>
         Option(x.to(MemoryUnit.GB).amount)

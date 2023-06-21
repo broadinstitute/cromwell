@@ -94,11 +94,14 @@
         </filter>
     </appender>
 
+    <appender name="AppInsightsAppender" class="com.microsoft.applicationinsights.logback.ApplicationInsightsAppender" />
+
     <root level="${LOG_LEVEL}">
         <appender-ref ref="STANDARD_APPENDER" />
         <appender-ref ref="PRETTY_APPENDER" />
         <appender-ref ref="FILEROLLER_APPENDER" />
         <appender-ref ref="Sentry" />
+        <appender-ref ref="AppInsightsAppender" />
     </root>
 
     <logger name="liquibase" level="WARN"/>

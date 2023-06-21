@@ -9,7 +9,6 @@ import cats.data.Validated._
 import cats.effect.{ContextShift, IO}
 import cats.syntax.apply._
 import cats.syntax.validated._
-import com.microsoft.applicationinsights.attach.ApplicationInsights
 import com.typesafe.config.{Config, ConfigFactory}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
@@ -45,11 +44,6 @@ object CromwellEntryPoint extends GracefulStopSupport {
   // 3 minute DNS TTL down from JVM default of infinite [BA-6454]
   private val dnsCacheTtl = config.getOrElse("system.dns-cache-ttl", 3 minutes)
   java.security.Security.setProperty("networkaddress.cache.ttl", dnsCacheTtl.toSeconds.toString)
-
-  // The presence of this env var tells us that the user is trying to send instrumentation data and
-  // logs to Azure Application Insights. If it's present, we'll attach the ApplicationInsights agent.
-  // To configure the behavior of this agent, see server/src/main/resources/applicationinsights.json
-  private lazy val useAzureInstrumentation = sys.env.contains("APPLICATIONINSIGHTS_CONNECTION_STRING")
 
   /**
     * Run Cromwell in server mode.
@@ -150,12 +144,6 @@ object CromwellEntryPoint extends GracefulStopSupport {
     * Also also enables Azure log handling when appropriate
     */
   private def initLogging(command: Command): Unit = {
-
-    // Enable Azure instrumentation and log-slurping if desired. Running ApplicationInsights.attach()
-    // without checking for the presence of the relevant env var doesn't cause any failures, but does
-    // print an error that would be confusing for non-Azure users.
-    if (useAzureInstrumentation)
-      ApplicationInsights.attach()
 
     val logbackSetting = command match {
       case Server => "STANDARD"

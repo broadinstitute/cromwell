@@ -59,29 +59,6 @@ trait GcpBatchJobCachingActorHelper extends StandardCachingActorHelper {
   }
 
 
-  //lazy val configuration: GcpBatchConfiguration = initializationData.configuration
-
-  /*
-  def preemptible: Boolean
-  override protected def nonStandardMetadata: Map[String, Any] = {
-
-    val googleProject = initializationData
-      .workflowPaths
-      .workflowDescriptor
-      .workflowOptions
-      .get(WorkflowOptionKeys.GoogleProject)
-      .getOrElse(batchAttributes.project)
-
-    Map[String, Any](
-      PipelinesApiMetadataKeys.GoogleProject -> googleProject,
-      PipelinesApiMetadataKeys.ExecutionBucket -> initializationData.workflowPaths.executionRootString,
-      PipelinesApiMetadataKeys.EndpointUrl -> batchAttributes.endpointUrl,
-      "preemptible" -> preemptible
-    )
-
-  }
-  */
-
   lazy val originalLabels: Labels = defaultLabels
 
   lazy val backendLabels: Seq[GcpLabel] = GcpLabel.safeLabels(originalLabels.asTuple: _*)

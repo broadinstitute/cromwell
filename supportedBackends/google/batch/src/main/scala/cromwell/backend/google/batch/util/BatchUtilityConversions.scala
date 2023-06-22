@@ -3,7 +3,7 @@ package cromwell.backend.google.batch.util
 import com.google.cloud.batch.v1.AllocationPolicy.{Accelerator, AttachedDisk, Disk, ProvisioningModel}
 import com.google.cloud.batch.v1.Volume
 import cromwell.backend.google.batch.io.{DiskType, GcpBatchAttachedDisk, GcpBatchReferenceFilesDisk}
-import cromwell.backend.google.batch.models.{GcpBatchConfigurationAttributes, GcpBatchRuntimeAttributes, GpuResource}
+import cromwell.backend.google.batch.models.{GcpBatchRuntimeAttributes, GpuResource}
 import wom.format.MemorySize
 
 trait BatchUtilityConversions {
@@ -90,21 +90,6 @@ trait BatchUtilityConversions {
     case DiskType.HDD => "pd-standard"
     case DiskType.SSD => "pd-ssd"
     case DiskType.LOCAL => "local-ssd"
-  }
-
-  def toVpcNetwork(batchAttributes: GcpBatchConfigurationAttributes): String = {
-    batchAttributes.virtualPrivateCloudConfiguration.literalsOption.map { vpcNetworks =>
-      vpcNetworks.network
-    }.getOrElse(s"projects/${batchAttributes.project}/global/networks/default")
-  }
-
-  def toVpcSubnetwork(batchAttributes: GcpBatchConfigurationAttributes, runtimeAttributes: GcpBatchRuntimeAttributes): String = {
-
-    val batchRunLocation = toBatchRunLocation(runtimeAttributes.zones)
-
-    batchAttributes.virtualPrivateCloudConfiguration.labelsOption.map { vpcNetworks =>
-      vpcNetworks.subnetwork.getOrElse("default")
-    }.getOrElse(s"projects/${batchAttributes.project}/regions/${batchRunLocation}/subnetworks/default")
   }
 
   def convertGbToMib(runtimeAttributes: GcpBatchRuntimeAttributes): Long = {

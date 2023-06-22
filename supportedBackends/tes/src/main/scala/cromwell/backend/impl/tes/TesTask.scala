@@ -73,8 +73,8 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   // TES accepts a key/value pair in its backend parameters that specifies
   // the directory to use for files related to this task.
-  private val tesTaskPathPrefix = ("internal_path_prefix",
-    Option(tesPaths.callExecutionRoot.resolve("tes_data").pathAsString))
+  val tesTaskPathPrefix : (String, Option[String]) = ("internal_path_prefix",
+    Option(tesPaths.callExecutionRoot.resolve("tes_task").pathAsString))
 
   private def writeFunctionFiles: Map[FullyQualifiedName, Seq[WomFile]] =
     instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f.file) } toMap

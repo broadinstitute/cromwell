@@ -1,14 +1,14 @@
 package cromwell.backend.google.batch.util
 
 import com.google.cloud.batch.v1.{Runnable, Volume}
-import com.typesafe.config.ConfigFactory
+//import com.typesafe.config.ConfigFactory
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.batch.models._
 import cromwell.backend.google.batch.runnable._
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.http.HttpPath
-import cromwell.filesystems.sra.SraPath
+//import cromwell.filesystems.sra.SraPath
 import simulacrum.typeclass
 
 @typeclass trait ToParameter[A <: BatchParameter] {
@@ -21,7 +21,7 @@ trait GcpBatchParameterConversions {
   import RunnableLabels._
 
   // TODO: It is ideal to not load this again, Cromwell already loaded the config
-  private lazy val config = ConfigFactory.load
+  //private lazy val config = ConfigFactory.load
 
   implicit val fileInputToParameter: ToParameter[GcpBatchFileInput] = new ToParameter[GcpBatchFileInput] {
     override def toRunnables(fileInput: GcpBatchFileInput, volumes: List[Volume])
@@ -29,33 +29,6 @@ trait GcpBatchParameterConversions {
 
       val labels = RunnableBuilder.parameterLabels(fileInput)
       fileInput.cloudPath match {
-        case sraPath: SraPath =>
-          val sraConfig = config.getConfig("filesystems.sra")
-
-          def getString(key: String): Option[String] = {
-            if (sraConfig.hasPath(key)) {
-              Some(sraConfig.getString(key))
-            } else {
-              None
-            }
-          }
-
-          val image = getString("docker-image") getOrElse "fusera/fusera:alpine"
-          val (createNgc, ngcArgs) = getString("ngc") match {
-            case Some(ngc) => (s"echo $ngc | base64 -d > /tmp/sra.ngc", "-n /tmp/sra.ngc")
-            case None => ("", "")
-          }
-          // TODO: Verify whether this is the correct mount path, /cromwell_root caused issues and we moved the path
-          //       to /media/mnt/cromwell_root in another place.
-          val mountpoint = s"/cromwell_root/sra-${sraPath.accession}"
-          val runFusera = s"fusera mount $ngcArgs -a ${sraPath.accession} $mountpoint"
-          val localizationRunnables = RunnableBuilder
-            .withImage(image)
-            .withEntrypointCommand("/bin/sh", "-c", s"$createNgc; mkdir $mountpoint; $runFusera")
-            .withRunInBackground(true)
-//            .withEnableFuse(true)
-          List(RunnableBuilder.describeParameter(fileInput, volumes, labels), localizationRunnables)
-
         case _: HttpPath =>
           val command = s"curl --silent --create-dirs --output ${fileInput.containerPath} ${fileInput.cloudPath}"
           val localizationRunnables = RunnableBuilder.cloudSdkShellRunnable(command)(volumes = volumes, labels = labels, flags = List.empty)

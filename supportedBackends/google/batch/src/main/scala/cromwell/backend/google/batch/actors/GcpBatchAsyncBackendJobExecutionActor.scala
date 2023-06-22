@@ -91,7 +91,6 @@ object GcpBatchAsyncBackendJobExecutionActor {
         case regexToUse(bucket) => Map(bucket -> NonEmptyList.of(param))
         case regexToUse(bucket, _) => Map(bucket -> NonEmptyList.of(param))
         case other =>
-          //Map(other -> NonEmptyList.of(param))
           throw new Exception(s"$pathTypeString path '$other' did not match the expected regex: ${regexToUse.pattern.toString}")  with NoStackTrace
       }
     } combineAll
@@ -151,9 +150,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override def dockerImageUsed: Option[String] = Option(jobDockerImage)
 
-  // TODO: why mutable state?
   //noinspection ActorMutableStateInspection
-  //  private var hasDockerCredentials: Boolean = false
 
   // Need to add previousRetryReasons and preemptible in order to get preemptible to work in the tests
   protected val previousRetryReasons: ErrorOr[PreviousRetryReasons] = PreviousRetryReasons.tryApply(jobDescriptor.prefetchedKvStoreEntries, jobDescriptor.key.attempt)

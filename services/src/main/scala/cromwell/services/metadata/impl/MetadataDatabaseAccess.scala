@@ -127,16 +127,10 @@ trait MetadataDatabaseAccess {
     MetadataEvent(key, value, entry.metadataTimestamp.toSystemOffsetDateTime)
   }
 
-  private def metadataToMetadataEvents(workflowId: WorkflowId)(metadata: Seq[MetadataEntry]): Seq[MetadataEvent] = {
+  def metadataToMetadataEvents(workflowId: WorkflowId)(metadata: Seq[MetadataEntry]): Seq[MetadataEvent] = {
     metadata map { m =>
       transformMetadataToMetadataEvent(m, workflowId)
     }
-  }
-
-  def metadataToMetadataEvents(metadata: Seq[MetadataEntry]): Seq[MetadataEvent] = {
-    metadata.map { m => {
-      transformMetadataToMetadataEvent(m, WorkflowId.fromString(m.workflowExecutionUuid))
-    }}
   }
 
   def getMetadataReadRowCount(query: MetadataQuery, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {

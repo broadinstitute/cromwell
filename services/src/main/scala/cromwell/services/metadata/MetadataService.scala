@@ -129,7 +129,7 @@ object MetadataService {
   final case class ValidateWorkflowIdInMetadataSummaries(possibleWorkflowId: WorkflowId) extends MetadataServiceAction
   final case class FetchWorkflowMetadataArchiveStatusAndEndTime(workflowId: WorkflowId) extends MetadataServiceAction
 
-  final case class FetchFailedJobsMetadataWithWorkflowId(workflowId: WorkflowId) extends BuildMetadataJsonAction
+  final case class FetchFailedJobsMetadataWithWorkflowId(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
 
   /**
     * Responses
@@ -143,8 +143,10 @@ object MetadataService {
   final case class MetadataLookupStreamFailed(id: WorkflowId, reason: Throwable) extends MetadataServiceResponse
   final case class MetadataLookupFailedTooLargeResponse(query: MetadataQuery, metadataSizeRows: Int) extends MetadataServiceResponse
   final case class MetadataLookupFailedTimeoutResponse(query: MetadataQuery) extends MetadataServiceResponse
-
+  final case class FetchFailedTasksTimeoutResponse(workflowId: WorkflowId) extends MetadataServiceResponse
   final case class MetadataLookupResponse(query: MetadataQuery, eventList: Seq[MetadataEvent]) extends MetadataServiceResponse
+  final case class FetchFailedJobsMetadataLookupResponse(events: Seq[MetadataEvent]) extends MetadataServiceResponse
+  final case class FetchFailedJobsMetadataLookupFailed(workflowId: WorkflowId, reason: Throwable) extends MetadataServiceFailure
   final case class MetadataServiceKeyLookupFailed(query: MetadataQuery, reason: Throwable) extends MetadataServiceFailure
 
   final case class StatusLookupResponse(workflowId: WorkflowId, status: WorkflowState) extends MetadataServiceResponse

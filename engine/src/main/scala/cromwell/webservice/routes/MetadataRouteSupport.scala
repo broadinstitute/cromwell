@@ -72,7 +72,7 @@ trait MetadataRouteSupport extends HttpInstrumentation {
     encodeResponse {
       path("workflows" / Segment / Segment / "metadata" / "failed-jobs") { (_, possibleWorkflowId) =>
         instrumentRequest {
-          failedJobsMetadataLookup(
+          metadataLookup(
             possibleWorkflowId,
             (w: WorkflowId) => FetchFailedJobsMetadataWithWorkflowId(w),
             serviceRegistryActor
@@ -166,14 +166,6 @@ object MetadataRouteSupport {
     completeMetadataBuilderResponse(metadataBuilderActorRequest(possibleWorkflowId, request, serviceRegistryActor))
   }
 
-  def failedJobsMetadataLookup(possibleWorkflowId: String,
-                               request: WorkflowId => FetchFailedJobsMetadataWithWorkflowId,
-                               serviceRegistryActor: ActorRef)
-                              (implicit timeout: Timeout,
-                               ec: ExecutionContext): Route = {
-    completeMetadataBuilderResponse(metadataBuilderActorRequest(possibleWorkflowId, request, serviceRegistryActor))
-  }
-
   def queryMetadata(parameters: Seq[(String, String)],
                     serviceRegistryActor: ActorRef)(implicit timeout: Timeout): Route = {
     completeMetadataQueryResponse(metadataQueryRequest(parameters, serviceRegistryActor))
@@ -231,8 +223,7 @@ object MetadataRouteSupport {
   }
 
   def completeMetadataBuilderResponse(response: Future[MetadataJsonResponse]): Route = {
-    onComplete(response) {
-      case Success(r: SuccessfulMetadataJsonResponse) => complete(r.responseJson)
+    onComplete(response) { case Success(r: SuccessfulMetadataJsonResponse) => complete(r.responseJson)
       case Success(r: FailedMetadataJsonResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)
       case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
       case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)

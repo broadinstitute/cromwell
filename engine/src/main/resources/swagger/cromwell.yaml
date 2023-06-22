@@ -501,7 +501,7 @@ paths:
         - $ref: '#/parameters/singleId'
       tags:
         - Workflows
-      responses:
+      response:
         '200':
           $ref: '#/responses/OkIdAndStatus'
         '400':

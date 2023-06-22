@@ -122,8 +122,8 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
       .setLocation(locationPolicy)
       .setNetwork(networkPolicy)
       .putLabels("cromwell-workflow-id", toLabel(data.workflowId.toString)) //label for workflow from WDL
-      //.putLabels("wdl-task-name", toLabel(data.gcpBatchParameters.jobDescriptor.taskCall.callable.name)) //label for task from WDL
       .putLabels("goog-batch-worker", "true")
+      .putAllLabels((data.createParameters.googleLabels.map(label => label.key -> label.value).toMap.asJava))
       .setServiceAccount(serviceAccount)
       .addInstances(InstancePolicyOrTemplate
         .newBuilder
@@ -172,9 +172,6 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
 
     // Set GPU accelerators
     val accelerators = runtimeAttributes.gpuResource.map(toAccelerator)
-    
-    //val image = gcsTransferLibraryContainerPath
-    //val gcsTransferLibraryContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
 
     val networkInterface = createNetwork(data = data)
     val networkPolicy = createNetworkPolicy(networkInterface.build())
@@ -218,8 +215,7 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
       .setAllocationPolicy(allocationPolicy)
       .putLabels("submitter", "cromwell") // label to signify job submitted by cromwell for larger tracking purposes within GCP batch
       .putLabels("goog-batch-worker", "true")
-      //.putLabels("cromwell-workflow-id", toLabel(data.workflowId.toString)) // label to make it easier to match Cromwell workflows with multiple GCP batch jobs
-      //.putLabels("wdl-task-name", toLabel(data.gcpBatchParameters.jobDescriptor.taskCall.callable.name)) //label for task from WDL
+      .putAllLabels((data.createParameters.googleLabels.map(label => label.key -> label.value).toMap.asJava))
       .setLogsPolicy(LogsPolicy
         .newBuilder
         .setDestination(Destination.CLOUD_LOGGING)

@@ -60,8 +60,6 @@ class GcpBatchConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
       |  // A reference to an auth defined in the `google` stanza at the top.  This auth is used to create
       |  // Pipelines and manipulate auth JSONs.
       |     auth = "application-default"
-      |     // Endpoint for APIs, no reason to change this unless directed by Google.
-      |     // endpoint-url = "https://genomics.googleapis.com/"
       |     location = "us-central1"
       |  }
       |

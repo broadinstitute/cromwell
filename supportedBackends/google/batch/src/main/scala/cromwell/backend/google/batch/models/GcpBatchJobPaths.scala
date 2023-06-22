@@ -39,10 +39,5 @@ case class GcpBatchJobPaths(override val workflowPaths: GcpBatchWorkflowPaths, j
   val batchMonitoringScriptFilename: String = s"${GcpBatchJobPaths.BatchMonitoringKey}.sh"
   val batchMonitoringImageScriptFilename: String = s"${GcpBatchJobPaths.BatchMonitoringImageKey}.sh"
 
-
-  //override val returnCodeFilename: String = s"$batchLogBasename-rc.txt"
-  //override def defaultStdoutFilename: String = s"$batchLogBasename-stdout.log"
-  //override def defaultStderrFilename: String = s"$batchLogBasename-stderr.log"
-
   override def forCallCacheCopyAttempts: JobPaths = this.copy(isCallCacheCopyAttempt = true)
 }

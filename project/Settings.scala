@@ -130,7 +130,7 @@ object Settings {
       Instructions.Env("PATH", "$PATH:/usr/local/gcloud/google-cloud-sdk/bin"),
       // instructions to install `crcmod`
       Instructions.Run("apt-get -y update"),
-      Instructions.Run("apt-get -y install python3.8"),
+      Instructions.Run("apt-get -y install python3.11"),
       Instructions.Run("apt -y install python3-pip"),
       Instructions.Run("apt-get -y install gcc python3-dev python3-setuptools"),
       Instructions.Run("pip3 uninstall crcmod"),

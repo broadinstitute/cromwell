@@ -1,7 +1,0 @@
-{
-  "instrumentation": {
-    "jdbc": {
-      "enabled": false
-    }
-  }
-}

@@ -1,6 +1,7 @@
 package cromwell.services.metadata.impl
 
 import java.time.OffsetDateTime
+
 import cats.Semigroup
 import cats.data.NonEmptyList
 import cats.instances.future._
@@ -21,7 +22,7 @@ import slick.basic.DatabasePublisher
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Try}
+import scala.util.Try
 
 object MetadataDatabaseAccess {
 

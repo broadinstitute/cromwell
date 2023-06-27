@@ -8,4 +8,5 @@ files {
 metadata {
   workflowName: emoji_in_stderr
   status: Succeeded
+  "emoji_in_stderr.makeAnEmoji.executionStatus": "Done"
 }

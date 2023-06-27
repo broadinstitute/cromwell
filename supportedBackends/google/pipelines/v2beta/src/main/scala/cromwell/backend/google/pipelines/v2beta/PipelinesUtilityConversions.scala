@@ -63,13 +63,14 @@ trait PipelinesUtilityConversions {
     // See WX-1137. ContainerStoppedEvent descriptions contain the stderr, which may include 4-byte unicode
     // characters (typically emoji). Some databases have trouble storing these; replace them with the standard
     // "unknown character" unicode symbol.
-    val name = Option(event.getContainerStopped) match {
-      case Some(_) => cleanUtf8mb4(event.getDescription)
-      case _ => event.getDescription
-    }
+    // Temporarily comment out for test
+//    val name = Option(event.getContainerStopped) match {
+//      case Some(_) => cleanUtf8mb4(event.getDescription)
+//      case _ => event.getDescription
+//    }
 
     ExecutionEvent(
-      name = name,
+      name = event.getDescription,
       offsetDateTime = OffsetDateTime.parse(event.getTimestamp),
       grouping = groupingFromAction.orElse(groupingFromPull)
     )

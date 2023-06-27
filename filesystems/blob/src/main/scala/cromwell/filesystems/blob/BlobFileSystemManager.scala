@@ -5,7 +5,6 @@ import com.azure.storage.blob.nio.AzureFileSystem
 import com.azure.storage.blob.sas.{BlobContainerSasPermission, BlobServiceSasSignatureValues}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
-import common.validation.Validation._
 import cromwell.cloudsupport.azure.AzureUtils
 
 import java.net.URI
@@ -16,6 +15,8 @@ import java.util.UUID
 import scala.collection.concurrent.TrieMap
 import scala.jdk.CollectionConverters._
 import scala.util._
+
+import common.validation.Validation._
 
 // We encapsulate this functionality here so that we can easily mock it out, to allow for testing without
 // actually connecting to Blob storage.
@@ -71,8 +72,14 @@ class BlobFileSystemManager(val expiryBufferMinutes: Long,
   def isTokenExpired: Boolean = expiry.exists(BlobFileSystemManager.hasTokenExpired(_, buffer))
   def shouldReopenFilesystem(endpoint: EndpointURL, container: BlobContainerName): Boolean = {
     isTokenExpired || expiry.isEmpty || !lastOpenContainer.contains((endpoint, container))
-
   }
+
+  private def authorizeNewFilesystem(endpoint : EndpointURL, container : BlobContainerName, uri : URI) : Try[FileSystem] = {
+    lastOpenContainer = Some((endpoint, container))
+    val sas = blobTokenGenerator.findBlobSasToken(endpoint, container)
+    generateFilesystem(uri, container, sas)
+  }
+
   def retrieveFilesystem(endpoint: EndpointURL, container: BlobContainerName): Try[FileSystem] = {
     val uri: URI = BlobFileSystemManager.uri(endpoint)
     synchronized {
@@ -81,17 +88,13 @@ class BlobFileSystemManager(val expiryBufferMinutes: Long,
           // If no filesystem already exists, this will create a new connection, with the provided configs
           case _: FileSystemNotFoundException =>
             logger.info(s"Creating new blob filesystem for URI $uri and container $container, and last container $lastOpenContainer")
-            lastOpenContainer = Some((endpoint, container))
-            val sas = blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)
-            generateFilesystem(uri, container, sas)
+            authorizeNewFilesystem(endpoint, container, uri)
         }
         // If the token has expired, OR there is no token record, try to close the FS and regenerate
         case true =>
           logger.info(s"Closing & regenerating token for existing blob filesystem at URI $uri and container $container, and last container $lastOpenContainer")
           fileSystemAPI.closeFileSystem(uri)
-          lastOpenContainer = Some((endpoint, container))
-          val sas = blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)
-          generateFilesystem(uri, container, sas)
+          authorizeNewFilesystem(endpoint, container, uri)
       }
     }
   }
@@ -110,7 +113,7 @@ class BlobFileSystemManager(val expiryBufferMinutes: Long,
 
 }
 
-sealed trait BlobSasTokenGenerator { def findBlobSasToken(endpoint: EndpointURL, container: BlobContainerName, buffer: Duration): Try[AzureSasCredential] }
+sealed trait BlobSasTokenGenerator { def findBlobSasToken(endpoint: EndpointURL, container: BlobContainerName): Try[AzureSasCredential] }
 object BlobSasTokenGenerator {
 
   /**
@@ -189,7 +192,7 @@ object BlobSasTokenGenerator {
 
 class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClientProvider,
                                     overrideWsmAuthToken: Option[String],
-                                    buffer: Duration) extends BlobSasTokenGenerator {
+                                    buffer: Duration = Duration.ZERO) extends BlobSasTokenGenerator {
 
   var cachedSasTokens : TrieMap[(EndpointURL, BlobContainerName), AzureSasCredential] = new TrieMap();
   def getAvailableCachedSasToken(endpoint: EndpointURL, container: BlobContainerName) = cachedSasTokens.get((endpoint, container))
@@ -204,7 +207,7 @@ class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClientProvi
     *
     * @return an AzureSasCredential for accessing a blob container
     */
-  def findBlobSasToken(endpoint: EndpointURL, container: BlobContainerName, buffer: Duration): Try[AzureSasCredential] = {
+  def findBlobSasToken(endpoint: EndpointURL, container: BlobContainerName): Try[AzureSasCredential] = {
      getAvailableCachedSasToken(endpoint, container) match {
       case Some(sas) if BlobFileSystemManager.isSasValid(sas, buffer) => Success(sas)
       // If unavailable or expired refresh SAS cache entry
@@ -266,7 +269,7 @@ case class NativeBlobSasTokenGenerator(subscription: Option[SubscriptionId] = No
     *
     * @return an AzureSasCredential for accessing a blob container
     */
-  def findBlobSasToken(endpoint: EndpointURL, container: BlobContainerName, buffer: Duration = Duration.ZERO): Try[AzureSasCredential] = for {
+  def findBlobSasToken(endpoint: EndpointURL, container: BlobContainerName): Try[AzureSasCredential] = for {
     bcc <- AzureUtils.buildContainerClientFromLocalEnvironment(container.toString, endpoint.toString, subscription.map(_.toString))
     bsssv = new BlobServiceSasSignatureValues(OffsetDateTime.now.plusDays(1), bcsp)
     asc = new AzureSasCredential(bcc.generateSas(bsssv))

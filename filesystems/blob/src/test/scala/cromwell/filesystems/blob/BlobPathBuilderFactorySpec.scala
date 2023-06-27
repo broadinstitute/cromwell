@@ -248,10 +248,10 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val buffer = Duration.ofMinutes(10L)
     val sasTokenNew = BlobPathBuilderFactorySpec.buildExampleSasToken(refreshedToken)
     val blobTokenGenerator = mock[WSMBlobSasTokenGenerator]
-    when(blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)).thenCallRealMethod()
+    when(blobTokenGenerator.findBlobSasToken(endpoint, container)).thenCallRealMethod()
     when(blobTokenGenerator.generateBlobSasToken(endpoint, container)).thenReturn(Success(sasTokenNew))
     when(blobTokenGenerator.getAvailableCachedSasToken(endpoint, container)).thenReturn(None)
-    val sas: Try[AzureSasCredential] = blobTokenGenerator.findBlobSasToken(endpoint, container, buffer)
+    val sas: Try[AzureSasCredential] = blobTokenGenerator.findBlobSasToken(endpoint, container)
     verify(blobTokenGenerator, times(1)).generateBlobSasToken(endpoint, container)
     verify(blobTokenGenerator, times(1)).putAvailableCachedSasToken(endpoint, container, sasTokenNew)
     verify(blobTokenGenerator, times(1)).getAvailableCachedSasToken(endpoint, container)

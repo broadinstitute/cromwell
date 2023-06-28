@@ -20,8 +20,6 @@ trait GcpBatchParameterConversions {
   import RunnableCommands._
   import RunnableLabels._
 
-  // TODO: It is ideal to not load this again, Cromwell already loaded the config
-  //private lazy val config = ConfigFactory.load
 
   implicit val fileInputToParameter: ToParameter[GcpBatchFileInput] = new ToParameter[GcpBatchFileInput] {
     override def toRunnables(fileInput: GcpBatchFileInput, volumes: List[Volume])

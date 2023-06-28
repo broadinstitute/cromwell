@@ -10,6 +10,7 @@ trait CheckpointingRunnable {
     val result = createParameters.runtimeAttributes.checkpointFilename.map { checkpointFilename =>
       val checkpointingImage = RunnableUtils.CloudSdkImage
       val checkpointingCommand = createParameters.checkpointingConfiguration.checkpointingCommand(checkpointFilename, RunnableCommands.multiLineBinBashCommand)
+      val checkpointingEnvironment = Map.empty[String, String]
 
       // Initial sync from cloud:
       val initialCheckpointSyncRunnable = RunnableBuilder.cloudSdkShellRunnable(
@@ -21,6 +22,7 @@ trait CheckpointingRunnable {
       val backgroundCheckpointingRunnable = RunnableBuilder.backgroundRunnable(
         image = checkpointingImage,
         command = checkpointingCommand,
+        environment = checkpointingEnvironment,
         volumes = volumes
       )
       val describeBackgroundCheckpointingRunnable = RunnableBuilder.describeDocker("begin checkpointing background runnable", backgroundCheckpointingRunnable)

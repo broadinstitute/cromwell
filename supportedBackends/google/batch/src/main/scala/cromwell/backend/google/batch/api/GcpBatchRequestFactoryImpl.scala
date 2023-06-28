@@ -6,7 +6,6 @@ import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsT
 import cromwell.backend.google.batch.models.GcpBatchRequest
 import cromwell.backend.google.batch.runnable._
 import cromwell.backend.google.batch.util.BatchUtilityConversions
-//import com.google.cloud.batch.v1.AllocationPolicy._
 import com.google.cloud.batch.v1.AllocationPolicy.{AttachedDisk, InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy, ProvisioningModel}
 import com.google.cloud.batch.v1.LogsPolicy.Destination
 import com.google.cloud.batch.v1.{AllocationPolicy, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, ServiceAccount, TaskGroup, TaskSpec, Volume}
@@ -63,8 +62,6 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
   }
 
   private def createInstancePolicy(cpuPlatform: String, spotModel: ProvisioningModel, accelerators: Option[Accelerator.Builder], attachedDisks: List[AttachedDisk]) = {
-
-    //val attachedDiskIterable: Iterable[AttachedDisk] = attachedDisk.asJava
 
     //set GPU count to 0 if not included in workflow
     val gpuAccelerators = accelerators.getOrElse(Accelerator.newBuilder.setCount(0).setType(""))

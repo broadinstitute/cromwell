@@ -12,7 +12,7 @@ object RunnableLabels {
   }
   object Value {
     val ContainerSetup = "ContainerSetup"
-    val UserAction = "UserAction"
+    val UserRunnable = "UserRunnable"
     val Localization = "Localization"
     val Delocalization = "Delocalization"
     val Monitoring = "Monitoring"

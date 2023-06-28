@@ -4,9 +4,8 @@ import com.google.cloud.batch.v1.Runnable.Container
 import com.google.cloud.batch.v1.{Runnable, Volume}
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.batch.models.{BatchParameter, GcpBatchInput, GcpBatchOutput}
+//import cromwell.backend.google.batch.runnable.RunnableLabels._
 import cromwell.core.path.Path
-//import cromwell.docker.DockerImageIdentifier
-//import cromwell.docker.registryv2.flows.dockerhub.DockerHub
 import mouse.all.anySyntaxMouse
 
 import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
@@ -37,8 +36,7 @@ object RunnableBuilder {
       builder
         .setContainer(
           builder.getContainerBuilder
-            //.setEntrypoint(command.headOption.orNull)
-            .setEntrypoint(command.headOption.getOrElse(""))
+            .setEntrypoint(command.headOption.getOrElse(""))  //set to blank string instead of null because batch does not support null
             .addAllCommands(
               command.drop(1).asJava
             )
@@ -68,6 +66,8 @@ object RunnableBuilder {
       )
     }
 
+    def withLabels(labels: Map[String, String]): Runnable.Builder = builder.putAllLabels(labels.asJava)
+
     def withTimeout(timeout: Duration): Runnable.Builder = timeout match {
       case _: FiniteDuration =>
         builder.setTimeout(
@@ -82,13 +82,13 @@ object RunnableBuilder {
     def withRunInBackground(runInBackground: Boolean): Runnable.Builder = builder.setBackground(runInBackground)
 
     //  Runnable has labels in alpha.  Batch team adding to V1
-//    def scalaLabels: Map[String, String] = {
-//      val list = for {
-//        keyValueList <- Option(runnable.getLabels).toList
-//        keyValue <- keyValueList.asScala
-//      } yield keyValue
-//      list.toMap
-//    }
+    //def scalaLabels: Map[String, String] = {
+    //  val list = for {
+    //    keyValueList <- Option(runnable.getLabels).toList
+    //    keyValue <- keyValueList.asScala
+    //  } yield keyValue
+    //  list.toMap
+    //}
   }
 
   def withImage(image: String): Runnable.Builder = {
@@ -116,6 +116,7 @@ object RunnableBuilder {
       .withRunInBackground(true)
       .withVolumes(volumes)
       .withFlags(List(RunnableFlag.RunInBackground, RunnableFlag.IgnoreExitStatus))
+      .withLabels(Map(Key.Tag -> Value.Monitoring))
   }
 
 
@@ -160,6 +161,7 @@ object RunnableBuilder {
     Runnable.newBuilder()
       .setContainer(container)
       .withVolumes(volumes)
+      .putLabels(Key.Tag, Value.UserRunnable)
   }
 
   def checkForMemoryRetryRunnable(retryLookupKeys: List[String], volumes: List[Volume]): Runnable.Builder = {
@@ -200,6 +202,7 @@ object RunnableBuilder {
 
     Runnable.newBuilder.setContainer(cloudSdkContainerBuilder)
       .withVolumes(volumes)
+      .withLabels(labels)
       .withEntrypointCommand(
         "/bin/sh",
         "-c",

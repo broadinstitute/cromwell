@@ -208,7 +208,7 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     }
 
     it should "fetch failed tasks from a failed workflow" taggedAs DbmsTest in {
-//      ensure that db is in a blank state to avoid side effects from any previous unit tests
+//    ensure that db is in a blank state to avoid side effects from any previous unit tests
       database.runTestTransaction(database.dataAccess.workflowMetadataSummaryEntries.schema.truncate)
       database.runTestTransaction(database.dataAccess.metadataEntries.schema.truncate)
 
@@ -258,14 +258,14 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
             entry.metadataKey should not be("subWorkflowId")
             entry.callFullyQualifiedName.getOrElse("") match {
               case "failedWorkflowCall" => {
-                entry.jobIndex should equal(1)
-                entry.jobAttempt should equal(1)
-                entry.metadataKey should equal("executionStatus")
+                entry.jobIndex should be(1)
+                entry.jobAttempt should be(1)
+                entry.metadataKey should be("executionStatus")
               }
               case "failedSubWorkflowCall" => {
-                entry.jobIndex should equal(1)
-                entry.jobAttempt should equal(1)
-                entry.metadataKey should be ("backendStatus")
+                entry.jobIndex should be(1)
+                entry.jobAttempt should be(1)
+                entry.metadataKey should be("backendStatus")
               }
               case _ => fail(s"Entry ${entry.callFullyQualifiedName} | Index: ${entry.jobIndex} | Attempt: ${entry.jobAttempt} should not be in result set")
             }

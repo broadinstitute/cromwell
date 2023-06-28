@@ -33,13 +33,13 @@ trait MonitoringRunnable {
 
           val monitoringImage = image
           val monitoringImageCommand = createParameters.monitoringImage.monitoringImageCommand
-//          val monitoringImageEnvironment = createParameters.monitoringImage.monitoringImageEnvironment
+          val monitoringImageEnvironment = createParameters.monitoringImage.monitoringImageEnvironment
 
           val monitoringRunnable = RunnableBuilder.backgroundRunnable(
             monitoringImage,
             monitoringImageCommand,
+            monitoringImageEnvironment(volumes.map(_.getMountPath)),
             volumes
-//            monitoringImageEnvironment(mounts.map(_.getPath)),
           )
 
           val describeMonitoringRunnable = RunnableBuilder.describeDocker("monitoring runnable", monitoringRunnable)

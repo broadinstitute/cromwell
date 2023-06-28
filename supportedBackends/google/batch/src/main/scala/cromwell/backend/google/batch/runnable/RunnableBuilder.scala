@@ -1,7 +1,7 @@
 package cromwell.backend.google.batch.runnable
 
 import com.google.cloud.batch.v1.Runnable.Container
-import com.google.cloud.batch.v1.{Runnable, Volume}
+import com.google.cloud.batch.v1.{Environment,Runnable, Volume}
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.batch.models.{BatchParameter, GcpBatchInput, GcpBatchOutput}
 //import cromwell.backend.google.batch.runnable.RunnableLabels._
@@ -45,20 +45,23 @@ object RunnableBuilder {
 
     def withFlags(flags: List[RunnableFlag]): Runnable.Builder = {
       flags.foldLeft(builder) {
-        case (acc, RunnableFlag.IgnoreExitStatus) => acc // TODO: How do we handle this?
+        case (acc, RunnableFlag.IgnoreExitStatus) => acc.setIgnoreExitStatus(true)
         case (acc, RunnableFlag.RunInBackground) => acc.setBackground(true)
         case (acc, RunnableFlag.AlwaysRun) => acc.setAlwaysRun(true)
       }
     }
 
+    def withEnvironment(environment: Map[String, String]): Runnable.Builder = {
+      val env = Environment.newBuilder.putAllVariables(environment.asJava)
+      builder.setEnvironment(env)
+    }
+
+
     def withVolumes(volumes: List[Volume]): Runnable.Builder = {
       val formattedVolumes = volumes.map { volume =>
         val mountPath = volume.getMountPath
-        // TODO: Enable mount options once we know how to test different cases, for now, we keep this disabled
-        //       In theory, the commented code should be enough.
-//        val mountOptions = Option(volume.getMountOptionsList).map(_.asScala.toList).getOrElse(List.empty)
-//        s"$mountPath:$mountPath:${mountOptions.mkString(",")}"
-        s"$mountPath:$mountPath"
+        val mountOptions = Option(volume.getMountOptionsList).map(_.asScala.toList).getOrElse(List.empty)
+        s"$mountPath:$mountPath:${mountOptions.mkString(",")}"
       }
 
       builder.setContainer(
@@ -109,12 +112,14 @@ object RunnableBuilder {
 
   def backgroundRunnable(image: String,
                          command: List[String],
+                         environment: Map[String, String],
                          volumes: List[Volume]
                       ): Runnable.Builder = {
     withImage(image)
       .withEntrypointCommand(command: _*)
       .withRunInBackground(true)
       .withVolumes(volumes)
+      .withEnvironment(environment)
       .withFlags(List(RunnableFlag.RunInBackground, RunnableFlag.IgnoreExitStatus))
       .withLabels(Map(Key.Tag -> Value.Monitoring))
   }

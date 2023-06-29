@@ -219,7 +219,6 @@ object Dependencies {
     "org.junit.jupiter" % "junit-jupiter-api" % "5.9.3",
     "io.projectreactor" % "reactor-test" % "3.4.29",
     "cglib" % "cglib-nodep" % "3.2.7",
-    "org.slf4j" % "slf4j-simple" % slf4jV,
     "com.azure" % "azure-core-http-okhttp" % "1.11.10",
     "org.mockito" % "mockito-core" % "4.11.0",
     "com.github.sbt" % "junit-interface" % "0.13.2" % Test // For running junit tests associated with this library

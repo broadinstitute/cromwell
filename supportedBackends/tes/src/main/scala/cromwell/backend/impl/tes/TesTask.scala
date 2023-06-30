@@ -70,12 +70,6 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     path = tesPaths.callExecutionDockerRoot.resolve("script").toString,
     `type` = Option("FILE")
   )
-
-  // TES accepts a key/value pair in its backend parameters that specifies
-  // the directory to use for files related to this task.
-  val tesTaskPathPrefix : (String, Option[String]) = ("internal_path_prefix",
-    Option(tesPaths.callExecutionRoot.resolve("tes_task").pathAsString))
-
   private def writeFunctionFiles: Map[FullyQualifiedName, Seq[WomFile]] =
     instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f.file) } toMap
 
@@ -235,10 +229,12 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       workflowExecutionIdentityOption
   )
 
+  val internalPathPrefix = ("internal_path_prefix", Option(tesPaths.tesTaskRoot.pathAsString))
+
   val resources: Resources = TesTask.makeResources(
     runtimeAttributes,
     preferedWorkflowExecutionIdentity,
-    Map(tesTaskPathPrefix)
+    Map(internalPathPrefix)
   )
 
   val executors = Seq(Executor(

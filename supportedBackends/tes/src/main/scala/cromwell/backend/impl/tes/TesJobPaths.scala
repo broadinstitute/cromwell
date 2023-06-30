@@ -28,6 +28,10 @@ case class TesJobPaths private[tes] (override val workflowPaths: TesWorkflowPath
   val callInputsDockerRoot = callDockerRoot.resolve("inputs")
   val callInputsRoot = callRoot.resolve("inputs")
 
+  // TES accepts a key/value pair in its backend parameters that specifies
+  // the directory to use for files related to this task. It expects "internal_path_prefix" to be the key.
+  val tesTaskRoot = callExecutionRoot.resolve("tes_task")
+
   // Given an output path, return a path localized to the storage file system
   def storageOutput(path: String): String = {
     callExecutionRoot.resolve(path).toString

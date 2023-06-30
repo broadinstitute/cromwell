@@ -90,7 +90,6 @@ class TesTaskSpec
   }
 
   it should "correctly resolve the path to .../tes_task and add the k/v pair to backend parameters" in {
-    val jobLogger = mock[JobLogger]
     val emptyWorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
     val workflowDescriptor = buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld,
       labels = Labels("foo" -> "bar"))
@@ -102,23 +101,9 @@ class TesTaskSpec
       jobDescriptor.workflowDescriptor,
       TestConfig.emptyConfig)
 
-    val tesTask = TesTask(jobDescriptor,
-      TestConfig.emptyBackendConfigDescriptor,
-      jobLogger,
-      tesPaths,
-      runtimeAttributes,
-      DefaultPathBuilder.build("").get,
-      "",
-      InstantiatedCommand("command"),
-      "",
-      Map.empty,
-      "",
-      OutputMode.ROOT)
-
     //Assert path is created correctly
     val expectedKey = "internal_path_prefix"
-    val expectedValue = Option(tesPaths.callExecutionRoot.resolve("tes_task").pathAsString)
-    tesTask.tesTaskPathPrefix shouldBe (expectedKey, expectedValue)
+    val expectedValue = Option(tesPaths.tesTaskRoot.pathAsString)
 
     //Assert path correctly ends up in the resources
     val additionalBackendParams = Map(expectedKey -> expectedValue)

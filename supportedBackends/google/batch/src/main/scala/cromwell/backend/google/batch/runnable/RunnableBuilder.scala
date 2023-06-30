@@ -84,14 +84,13 @@ object RunnableBuilder {
 
     def withRunInBackground(runInBackground: Boolean): Runnable.Builder = builder.setBackground(runInBackground)
 
-    //  Runnable has labels in alpha.  Batch team adding to V1
-    //def scalaLabels: Map[String, String] = {
-    //  val list = for {
-    //    keyValueList <- Option(runnable.getLabels).toList
-    //    keyValue <- keyValueList.asScala
-    //  } yield keyValue
-    //  list.toMap
-    //}
+    def scalaLabels: Map[String, String] = {
+      val list = for {
+        keyValueList <- Option(builder.getLabelsMap).toList
+        keyValue <- keyValueList.asScala
+      } yield keyValue
+      list.toMap
+    }
   }
 
   def withImage(image: String): Runnable.Builder = {
@@ -183,18 +182,21 @@ object RunnableBuilder {
       s"Running $description: ${toDockerRun(runnable)}",
       List.empty,
       List.empty,
-      Map.empty
+      runnable.scalaLabels
     )
   }
 
   private def timestampedMessage(message: String): String =
     s"""printf '%s %s\\n' "$$(date -u '+%Y/%m/%d %H:%M:%S')" ${shellEscaped(message)}"""
 
-  private def logTimestampedRunnable(message: String, volumes: List[Volume], flags: List[RunnableFlag], labels: Map[String, String]): Runnable.Builder = {
+  private def logTimestampedRunnable(message: String, volumes: List[Volume], flags: List[RunnableFlag], runnableLabels: Map[String, String]): Runnable.Builder = {
     // Uses the cloudSdk image as that image will be used for other operations as well.
     cloudSdkShellRunnable(
       timestampedMessage(message)
-    )(volumes, flags, labels).withTimeout(timeout = 300.seconds)
+    )(volumes, flags, labels = runnableLabels collect {
+      case (key, value) if key == Key.Tag => Key.Logging -> value
+      case (key, value) => key -> value
+    }).withTimeout(timeout = 300.seconds)
   }
 
   def cloudSdkRunnable: Runnable.Builder = Runnable.newBuilder.setContainer(cloudSdkContainerBuilder)

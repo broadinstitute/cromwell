@@ -27,7 +27,6 @@ class GcpBatchJobPathsSpec extends TestKitSuite with AnyFlatSpecLike with Matche
     )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
 
-    // TODO: review if the method defaultStandardStreamNameToFileNameMetadataMapper is required in the initialization actor
     val workflowPaths = GcpBatchWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), gcpBatchConfiguration, pathBuilders(), GcpBatchInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper)
 
     val callPaths = GcpBatchJobPaths(workflowPaths, jobDescriptorKey)
@@ -45,7 +44,6 @@ class GcpBatchJobPathsSpec extends TestKitSuite with AnyFlatSpecLike with Matche
     )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
 
-    // TODO: review if the method defaultStandardStreamNameToFileNameMetadataMapper is required in the initialization actor
     val workflowPaths = GcpBatchWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), gcpBatchConfiguration, pathBuilders(), GcpBatchInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper)
 
     val callPaths = GcpBatchJobPaths(workflowPaths, jobDescriptorKey)
@@ -68,7 +66,6 @@ class GcpBatchJobPathsSpec extends TestKitSuite with AnyFlatSpecLike with Matche
     )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
 
-    // TODO: review if the method defaultStandardStreamNameToFileNameMetadataMapper is required in the initialization actor
     val workflowPaths = GcpBatchWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), gcpBatchConfiguration, pathBuilders(), GcpBatchInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper)
 
     val callPaths = GcpBatchJobPaths(workflowPaths, jobDescriptorKey)

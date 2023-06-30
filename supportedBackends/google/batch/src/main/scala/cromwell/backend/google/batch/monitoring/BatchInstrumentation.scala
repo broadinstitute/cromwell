@@ -17,7 +17,6 @@ object BatchInstrumentation {
   private val BatchAbortFailedKey = BatchAbortKey.concatNel(FailureKey)
 }
 
-// TODO: We could propagate details about the failed requests like lifesciences backend does (e.g. response code)
 trait BatchInstrumentation extends CromwellInstrumentation {
   import BatchInstrumentation._
 

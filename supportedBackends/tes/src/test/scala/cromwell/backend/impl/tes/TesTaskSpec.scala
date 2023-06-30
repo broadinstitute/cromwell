@@ -101,7 +101,6 @@ class TesTaskSpec
       jobDescriptor.workflowDescriptor,
       TestConfig.emptyConfig)
 
-    //Assert path is created correctly
     val expectedKey = "internal_path_prefix"
     val expectedValue = Option(tesPaths.tesTaskRoot.pathAsString)
 

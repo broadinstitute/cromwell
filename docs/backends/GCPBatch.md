@@ -1,10 +1,10 @@
 **Google Cloud Backend**
 
-[//]: # (TODO: Ask if this description is okay for Batch)
-Google Batch is a fully managed service that lets you schedule, queue, and execute batch processing workloads on Google Cloud resources. Batch provisions resources and manages capacity on your behalf, allowing your batch workloads to run at scale.
+[//]:
+Google Cloud Batch is a fully managed service that lets you schedule, queue, and execute batch processing workloads on Google Cloud resources. Batch provisions resources and manages capacity on your behalf, allowing your batch workloads to run at scale.
 
 This section offers detailed configuration instructions for using Cromwell with the Batch API in all supported
-authentication modes. Before reading futher in this section please see the
+authentication modes. Before reading further in this section please see the
 [Getting started on Google Batch API](../tutorials/Batch101) for instructions common to all authentication modes
 and detailed instructions for the application default authentication scheme in particular.
 The instructions below assume you have created a Google Cloud Storage bucket and a Google project enabled for the appropriate APIs.
@@ -45,8 +45,8 @@ google {
 ```
 
 These authentication schemes can be referenced by name within other portions of the configuration file.  For example, both
-the `batch` and `filesystems.gcs` sections within a Google configuration block must reference an auth defined in this block.
-The auth for the `batch` section governs the interactions with Google itself, while `filesystems.gcs` governs the localization
+the `GCPBATCH` and `filesystems.gcs` sections within a Google configuration block must reference an auth defined in this block.
+The auth for the `GCPBATCH` section governs the interactions with Google itself, while `filesystems.gcs` governs the localization
 of data into and out of GCE VMs.
 
 **Application Default Credentials**
@@ -84,7 +84,7 @@ Creating the account will cause the JSON file to be downloaded.  The structure o
 Most importantly, the value of the `client_email` field should go into the `service-account-id` field in the configuration (see below).  The
 `private_key` portion needs to be pulled into its own file (e.g. `my-key.pem`).  The `\n`s in the string need to be converted to newline characters.
 
-While technically not part of Service Account authentication mode, one can also override the default service account that the compute VM is started with via the configuration option `batch.config.batch.compute-service-account` or through the workflow options parameter `google_compute_service_account`.  The service account you provide must have been granted Service Account Actor role to Cromwell's primary service account. As this only affects Google Batch API and not GCS, it's important that this service account, and the service account specified in `batch.config.batch.auth` can both read/write the location specified by `batch.config.root`
+While technically not part of Service Account authentication mode, one can also override the default service account that the compute VM is started with via the configuration option `GCPBATCH.config.genomics.compute-service-account` or through the workflow options parameter `google_compute_service_account`.  The service account you provide must have been granted Service Account Actor role to Cromwell's primary service account. As this only affects Google Batch API and not GCS, it's important that this service account, and the service account specified in `GCPBATCH.config.genomics.auth` can both read/write the location specified by `GCPBATCH.config.root`
 
 **User Service Account**
 
@@ -122,9 +122,9 @@ For Batch
 [//]: # (5-4-23: Leave alone for now)
 ```
 backend {
-  default = batch
+  default = GCPBATCH
   providers {
-    batch {
+    GCPBATCH {
       actor-factory = "cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory"
       config {
         dockerhub {
@@ -200,7 +200,7 @@ workflows using the Google backend.
 Google sets a default pipeline timeout of 7 days, after which the pipeline will abort. Setting `batch-timeout` overrides this limit to a maximum of 30 days.
 
 ```hocon
-backend.providers.batch.config {
+backend.providers.GCPBATCH.config {
     batch-timeout: 14 days
 }
 ```
@@ -234,7 +234,7 @@ backend {
   ...
   providers {
     ...
-    batch {
+    GCPBATCH {
       actor-factory = "cromwell.backend.google.batch.GcpBatchLifecycleActorFactory"
       config {
         ...
@@ -272,7 +272,7 @@ backend {
   ...
   providers {
     ...
-    batch {
+    GCPBATCH {
       actor-factory = "cromwell.backend.google.batch.GcpBatchLifecycleActorFactory"
       config {
         ...
@@ -332,7 +332,7 @@ backend {
   ...
   providers {
     ...
-    batch {
+    GCPBATCH {
       actor-factory = "cromwell.backend.google.batch.GcpBatchLifecycleActorFactory"
       config {
         ...
@@ -420,7 +420,7 @@ backend {
   ...
   providers {
     ...
-    batch {
+    GCPBATCH {
       actor-factory = "cromwell.backend.google.batch.GcpBatchLifecycleActorFactory"
       config {
         ...

@@ -1,6 +1,6 @@
 package cromwell.backend.google.batch.runnable
 
-//import cloud.nio.impl.drs.DrsConfig
+import cloud.nio.impl.drs.DrsConfig
 import com.google.cloud.batch.v1.{Runnable, Volume}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.google.batch.api.GcpBatchRequestFactory.CreateBatchJobParameters
@@ -10,7 +10,6 @@ import cromwell.backend.google.batch.util.GcpBatchParameterConversions._
 import cromwell.backend.google.batch.util.ToParameter.ops._
 import cromwell.core.path.Path
 import cromwell.filesystems.drs.DrsPath
-//import scala.jdk.CollectionConverters._
 
 trait Localization {
   import GcpBatchJobPaths._
@@ -75,7 +74,6 @@ trait Localization {
 
 object Localization {
 
-  // TODO: Avoid loading the global config because Cromwell already loaded it
   private lazy val config = ConfigFactory.load
 
   def drsRunnable(manifestPath: Path,
@@ -84,20 +82,20 @@ object Localization {
                  ): Runnable.Builder = {
     import RunnableBuilder.EnhancedRunnableBuilder
 
-    //    val drsResolverConfig = config.getConfig("filesystems.drs.global.config.resolver")
-    //    val drsConfig = DrsConfig.fromConfig(drsResolverConfig)
+    val drsResolverConfig = config.getConfig("filesystems.drs.global.config.resolver")
+    val drsConfig = DrsConfig.fromConfig(drsResolverConfig)
     val drsDockerImage = config.getString("drs.localization.docker-image")
 
     val manifestArg = List("-m", manifestPath.pathAsString)
     val requesterPaysArg = requesterPaysProjectId.map(r => List("-r", r)).getOrElse(List.empty)
     val drsCommand = manifestArg ++ requesterPaysArg
 
-    //    val drsResolverEnv = DrsConfig.toEnv(drsConfig)
+    val drsResolverEnv = DrsConfig.toEnv(drsConfig)
 
     RunnableBuilder
       .withImage(drsDockerImage)
       .withCommand(drsCommand: _*)
-    //.setEnvironment(drsResolverEnv.asJava)
-    //      .withLabels(labels)
+      .withEnvironment(drsResolverEnv)
+      .withLabels(labels)
   }
 }

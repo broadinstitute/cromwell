@@ -34,11 +34,9 @@ trait Delocalization {
 
     RunnableBuilder
       .withImage(womOutputRuntimeExtractor.dockerImage.getOrElse(CloudSdkImage))
-      .withCommand(commands: _*) // TODO: Both calls likely need to be together
+      .withCommand(commands: _*)
       .withEntrypointCommand("/bin/bash")
-      // Saves us some time if something else fails before we get to run this runnable
-//      .withDisableImagePrefetch(true)
-//      .withLabels(Map(Key.Tag -> Value.Delocalization))
+      .withLabels(Map(Key.Tag -> Value.Delocalization))
   }
 
   private def delocalizeRuntimeOutputsScript(fofnPath: String, workflowRoot: Path, cloudCallRoot: Path)(implicit gcsTransferConfiguration: GcsTransferConfiguration) = {
@@ -75,7 +73,6 @@ trait Delocalization {
   private def delocalizeRuntimeOutputsRunnable(cloudCallRoot: Path, inputFile: String, workflowRoot: Path, volumes: List[Volume])(implicit gcsTransferConfiguration: GcsTransferConfiguration): Runnable.Builder = {
     val command = multiLineCommand(delocalizeRuntimeOutputsScript(inputFile, workflowRoot, cloudCallRoot))
     RunnableBuilder.cloudSdkShellRunnable(command)(volumes = volumes, labels = Map(Key.Tag -> Value.Delocalization), flags = List.empty)
-//      .withDisableImagePrefetch(true)
   }
 
   def deLocalizeRunnables(createParameters: CreateBatchJobParameters,

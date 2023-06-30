@@ -5,7 +5,7 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=/dev/null
 source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
-# A set of common Papi functions for use in other scripts.
+# A set of common Gcp Batch functions for use in other scripts.
 #
 # Functions:
 #

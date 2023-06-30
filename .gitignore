@@ -55,4 +55,3 @@ tesk_application.conf
 **/venv/
 exome_germline_single_sample_v1.3/
 **/*.pyc
-applicationinsights.log

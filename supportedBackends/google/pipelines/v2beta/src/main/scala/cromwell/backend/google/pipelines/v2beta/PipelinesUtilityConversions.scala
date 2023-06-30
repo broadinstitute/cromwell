@@ -60,8 +60,16 @@ trait PipelinesUtilityConversions {
       Option(event.getDescription) collect { case d if d.startsWith(s"$k pulling") => "Pulling" + d.substring(s"$k pulling".length)}
     } headOption
 
+    // See WX-1137. ContainerStoppedEvent descriptions contain the stderr, which may include 4-byte unicode
+    // characters (typically emoji). Some databases have trouble storing these; replace them with the standard
+    // "unknown character" unicode symbol.
+    val name = Option(event.getContainerStopped) match {
+      case Some(_) => cleanUtf8mb4(event.getDescription)
+      case _ => event.getDescription
+    }
+
     ExecutionEvent(
-      name = event.getDescription,
+      name = name,
       offsetDateTime = OffsetDateTime.parse(event.getTimestamp),
       grouping = groupingFromAction.orElse(groupingFromPull)
     )
@@ -90,5 +98,11 @@ object PipelinesUtilityConversions {
         None
       }
     }
+  }
+
+  lazy val utf8mb4Regex = "[\\x{10000}-\\x{FFFFF}]"
+  lazy val utf8mb3Replacement = "\uFFFD"  // This is the standard char for replacing invalid/unknown unicode chars
+  def cleanUtf8mb4(in: String): String = {
+    in.replaceAll(utf8mb4Regex, utf8mb3Replacement)
   }
 }

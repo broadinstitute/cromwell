@@ -102,7 +102,7 @@ class QueryTimeoutSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
               Either way, we just need to make sure the sleep was interrupted and don't care if it was via an exception
               or returning `1`.
                */
-              case (major, minor) if major >= 10 && minor >= 3 =>
+              case (major, minor) if (major >= 10 && minor >= 3) || major >= 11 =>
                 RegexErrorMessage(
                     """(\(conn=\d+\) )?Query execution was interrupted \(max_statement_time exceeded\)""".r
                 )

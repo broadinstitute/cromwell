@@ -14,6 +14,7 @@ import cromwell.core.actor.StreamIntegration.{BackPressure, StreamContext}
 import cromwell.core.{Dispatcher, DockerConfiguration}
 import cromwell.docker.DockerInfoActor._
 import cromwell.docker.registryv2.DockerRegistryV2Abstract
+import cromwell.docker.registryv2.flows.azure.AzureContainerRegistry
 import cromwell.docker.registryv2.flows.dockerhub.DockerHubRegistry
 import cromwell.docker.registryv2.flows.google.GoogleRegistry
 import cromwell.docker.registryv2.flows.quay.QuayRegistry
@@ -232,6 +233,7 @@ object DockerInfoActor {
 
     // To add a new registry, simply add it to that list
     List(
+      ("azure", { c: DockerRegistryConfig => new AzureContainerRegistry(c) }),
       ("dockerhub", { c: DockerRegistryConfig => new DockerHubRegistry(c) }),
       ("google", { c: DockerRegistryConfig => new GoogleRegistry(c) }),
       ("quay", { c: DockerRegistryConfig => new QuayRegistry(c) })

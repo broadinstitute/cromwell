@@ -52,8 +52,8 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val failedChildWorkflowId = "9ff3d855-0585-48e4-b3a1-189101f611e5"
     val successfulChildWorkflowId = "73886096-2e06-48f6-ba42-f365dbf23de5"
 
-    val failedStatusMetadataValue = Option(new SerialClob("Failed".toCharArray))
-    val doneStatusMetadataValue = Option(new SerialClob("Done".toCharArray))
+    val failedStatusMetadataValue = Option(new SerialClob("Failed".toCharArray()))
+    val doneStatusMetadataValue = Option(new SerialClob("Done".toCharArray()))
 
     it should "set up the test data" taggedAs DbmsTest in {
       database.runTestTransaction(
@@ -215,13 +215,13 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
           MetadataEntry(failedParentWorkflowId, Option("failedWorkflowCall"), Option(0), Option(1), "executionStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry(failedParentWorkflowId, Option("failedWorkflowCall"), Option(1), Option(0), "executionStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry(failedParentWorkflowId, Option("failedWorkflowCall"), Option(1), Option(1), "executionStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
-          MetadataEntry(failedParentWorkflowId, Option("successfulWorkflowCall"), Option(0), Option(0), "executionStatus", doneStatusMetadataValue, Option("string"), OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(failedParentWorkflowId, Option("successfulWorkflowCall"), Option(0), Option(0), "executionStatus", doneStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry(failedParentWorkflowId, Option("successfulSubWorkflowCall"), Option(0), Option(0), "subWorkflowId", Option(new SerialClob(failedChildWorkflowId.toCharArray)), Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
 
           //Failed child workflow calls (successful calls and previous failed attempts/shards are mixed in for negative checks)
           MetadataEntry(failedChildWorkflowId, Option("failedSubWorkflowCall"), Option(0), Option(0), "executionStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry(failedChildWorkflowId, Option("failedSubWorkflowCall"), Option(1), Option(1), "backendStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
-          MetadataEntry(failedChildWorkflowId, Option("successfulSubWorkflowCall"), Option(0), Option(0), "executionStatus", doneStatusMetadataValue, Option("string"), OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(failedChildWorkflowId, Option("successfulSubWorkflowCall"), Option(0), Option(0), "executionStatus", doneStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
 
           //Successful parent workflow call (negative check)
           MetadataEntry(successfulParentWorkflowId, Option("successfulWorkflowCall"), Option(0), Option(0), "executionStatus", doneStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
@@ -244,10 +244,12 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
 
       val futureEntries: Future[Seq[MetadataEntry]] = database.getFailedJobsMetadataWithWorkflowId(failedParentWorkflowId)
       val targetIds: Map[String, Boolean] = Map(failedParentWorkflowId -> true, failedChildWorkflowId -> true)
+      var entriesFound = false
 
       whenReady(futureEntries) {
         entries =>
           entries.foreach(entry => {
+            entriesFound = true
             val idFound: Boolean = targetIds.getOrElse(entry.workflowExecutionUuid, false)
             idFound should equal(true)
             val metadataValueClob = entry.metadataValue.get
@@ -261,14 +263,15 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
                 entry.metadataKey should be("executionStatus")
               }
               case "failedSubWorkflowCall" => {
-                entry.jobIndex should be(1)
-                entry.jobAttempt should be(1)
+                entry.jobIndex.get should be(1)
+                entry.jobAttempt.get should be(1)
                 entry.metadataKey should be("backendStatus")
               }
               case _ => fail(s"Entry ${entry.callFullyQualifiedName.getOrElse("N/A")} | Index: ${entry.jobIndex.get} | Attempt: ${entry.jobAttempt.get} should not be in result set")
             }
           })
       }
+      entriesFound should be(true)
     }
 
     it should "clean up & close the database" taggedAs DbmsTest in {

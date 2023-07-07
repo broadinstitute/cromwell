@@ -518,6 +518,6 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
 
   override def getFailedJobsMetadataWithWorkflowId(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Vector[MetadataEntry]] = {
     val isPostgres = databaseConfig.getValue("db.driver").toString.toLowerCase().contains("postgres")
-    runAction(dataAccess.failedJobsMetadataWithWorkflowId(rootWorkflowId, isPostgres))
+    runLobAction(dataAccess.failedJobsMetadataWithWorkflowId(rootWorkflowId, isPostgres))
   }
 }

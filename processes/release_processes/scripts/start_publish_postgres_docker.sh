@@ -1,11 +1,12 @@
 # This script will launch a Postgres 11.3 container with parameters matching the expectations of Cromwell's CI configuration
 # You can run cromwell locally using this container as its DB.
-# Your intelliJ repo template/cromwell config should probably be providing the following environment variables:
+# Your intelliJ repo template or cromwell config should provide the following environment variables:
 # CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="org.postgresql.Driver"
 # CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.PostgresProfile$"
 # CROMWELL_BUILD_CENTAUR_JDBC_URL="jdbc:postgresql://localhost:5432/cromwell_test?reWriteBatchedInserts=true"
 
 set -euo pipefail
+
 docker run \
     --name=cromwell_postgres_test_db \
     --env POSTGRES_USER=cromwell \

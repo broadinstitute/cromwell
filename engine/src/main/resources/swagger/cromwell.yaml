@@ -522,6 +522,8 @@ paths:
       responses:
         '200':
           description: Successful request
+          schema:
+            $ref: '#/definitions/WorkflowMetadataResponse'
         '400':
           $ref: '#/responses/BadRequest'
         '404':

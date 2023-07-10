@@ -1,7 +1,8 @@
 package cromwell.engine.io.nio
 
+import akka.actor.ActorSystem
 import akka.stream.scaladsl.Flow
-import cats.effect.{IO, Timer}
+import cats.effect._
 
 import scala.util.Try
 import cloud.nio.spi.{ChecksumFailure, ChecksumResult, ChecksumSkipped, ChecksumSuccess, FileHash, HashType}
@@ -15,6 +16,7 @@ import cromwell.engine.io.{IoAttempts, IoCommandContext, IoCommandStalenessBackp
 import cromwell.filesystems.blob.BlobPath
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPath
+import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.s3.S3Path
 import cromwell.util.TryWithResource._
 import net.ceedubs.ficus.Ficus._
@@ -34,9 +36,11 @@ class NioFlow(parallelism: Int,
               onBackpressure: Option[Double] => Unit,
               numberOfAttempts: Int,
               commandBackpressureStaleness: FiniteDuration
-              )(implicit ec: ExecutionContext) extends IoCommandStalenessBackpressuring {
+              )(implicit system: ActorSystem) extends IoCommandStalenessBackpressuring {
 
+  implicit private val ec: ExecutionContext = system.dispatcher
   implicit private val timer: Timer[IO] = IO.timer(ec)
+  implicit private val contextShift: ContextShift[IO] = IO.contextShift(ec)
 
   override def maxStaleness: FiniteDuration = commandBackpressureStaleness
 
@@ -161,9 +165,11 @@ class NioFlow(parallelism: Int,
     fileContentIo.map(_.replaceAll("\\r\\n", "\\\n"))
   }
 
-  private def size(size: IoSizeCommand) = IO {
-    size.file.size
-  }
+  private def size(size: IoSizeCommand) =
+    size.file match {
+      case httpPath: HttpPath => IO.fromFuture(IO(httpPath.fetchSize))
+      case nioPath => IO(nioPath.size)
+    }
 
   private def hash(hash: IoHashCommand): IO[String] = {
     // If there is no hash accessible from the file storage system,

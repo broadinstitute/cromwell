@@ -1,4 +1,4 @@
-version development
+version development-1.1
 
 workflow no_input_no_output {
   call no_inputs as noi1

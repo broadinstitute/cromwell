@@ -1,12 +1,14 @@
 package cromwell.backend.impl.tes
 
 import common.exception.AggregatedMessageException
+
 import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
 import cats.syntax.apply._
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.Marshal
+import akka.http.scaladsl.model.HttpHeader.ParsingResult.Ok
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
@@ -20,6 +22,7 @@ import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExec
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.retry.Retry._
+import cromwell.filesystems.blob.BlobPath
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import wom.values.WomFile
 import net.ceedubs.ficus.Ficus._
@@ -113,6 +116,20 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           tesJobPaths.containerExec(commandDirectory, path.name)
         case Success(path: Path) if path.startsWith(tesJobPaths.callRoot) =>
           tesJobPaths.callDockerRoot.resolve(path.name).pathAsString
+        case Success(path: BlobPath) if path.startsWith(tesJobPaths.workflowPaths.workflowRoot) =>
+          // Blob paths can get really long, which causes problems for some tools. If this input file
+          // lives in the workflow execution directory, strip off that prefix from the path we're
+          // generating inside `inputs/` to keep the total path length under control.
+          // In Terra on Azure, this saves us 200+ characters.
+          tesJobPaths.callInputsDockerRoot.resolve(
+            path.pathStringWithoutPrefix(tesJobPaths.workflowPaths.workflowRoot)
+          ).pathAsString
+        case Success(path: BlobPath) if path.startsWith(tesJobPaths.workflowPaths.executionRoot) =>
+          // See comment above... if this file is in the execution root, strip that off.
+          // In Terra on Azure, this saves us 160+ characters.
+          tesJobPaths.callInputsDockerRoot.resolve(
+            path.pathStringWithoutPrefix(tesJobPaths.workflowPaths.executionRoot)
+          ).pathAsString
         case Success(path: Path) =>
           tesJobPaths.callInputsDockerRoot.resolve(path.pathWithoutScheme.stripPrefix("/")).pathAsString
         case _ =>
@@ -295,9 +312,18 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
+  // Headers that should be included with all requests to the TES server
+  private def requestHeaders: List[HttpHeader] =
+    tesConfiguration.token.flatMap { t =>
+      HttpHeader.parse("Authorization", t) match {
+        case Ok(header, _) => Some(header)
+        case _ => None
+      }
+    }.toList
+
   private def makeRequest[A](request: HttpRequest)(implicit um: Unmarshaller[ResponseEntity, A]): Future[A] = {
     for {
-      response <- withRetry(() => Http().singleRequest(request))
+      response <- withRetry(() => Http().singleRequest(request.withHeaders(requestHeaders)))
       data <- if (response.status.isFailure()) {
         response.entity.dataBytes.runFold(ByteString(""))(_ ++ _).map(_.utf8String) flatMap { errorBody =>
           Future.failed(new RuntimeException(s"Failed TES request: Code ${response.status.intValue()}, Body = $errorBody"))

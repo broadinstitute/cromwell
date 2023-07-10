@@ -98,6 +98,21 @@ object Settings {
     )
   )
 
+  val pact4sSettings = sharedSettings ++ List(
+    libraryDependencies ++= pact4sDependencies,
+
+    /**
+      * Invoking pact tests from root project (sbt "project pact" test)
+      * will launch tests in a separate JVM context that ensures contracts
+      * are written to the pact/target/pacts folder. Otherwise, contracts
+      * will be written to the root folder.
+      */
+    Test / fork := true
+  ) ++ assemblySettings
+
+  lazy val pact4s = project.in(file("pact4s"))
+    .settings(pact4sSettings)
+
   /*
       Docker instructions to install Google Cloud SDK image in docker image. It also installs `crcmod` which
       is needed while downloading large files using `gsutil`.
@@ -115,7 +130,7 @@ object Settings {
       Instructions.Env("PATH", "$PATH:/usr/local/gcloud/google-cloud-sdk/bin"),
       // instructions to install `crcmod`
       Instructions.Run("apt-get -y update"),
-      Instructions.Run("apt-get -y install python3.8"),
+      Instructions.Run("apt-get -y install python3.11"),
       Instructions.Run("apt -y install python3-pip"),
       Instructions.Run("apt-get -y install gcc python3-dev python3-setuptools"),
       Instructions.Run("pip3 uninstall crcmod"),
@@ -127,9 +142,9 @@ object Settings {
       Instructions.Run("""mkdir -p /usr/local/gcloud \
                          | && tar -C /usr/local/gcloud -xvf /tmp/google-cloud-sdk.tar.gz \
                          | && /usr/local/gcloud/google-cloud-sdk/install.sh""".stripMargin),
-      // instructions to install `getm`. Pin to version 0.0.4 as the behaviors of future versions with respect to
+      // instructions to install `getm`. Pin to version 0.0.5 as the behaviors of future versions with respect to
       // messages or exit codes may change.
-      Instructions.Run("pip3 install getm==0.0.4")
+      Instructions.Run("pip3 install getm==0.0.5")
     )
   )
 

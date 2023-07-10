@@ -36,6 +36,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
                              events: Seq[MetadataEvent],
                              expectedRes: String,
                              metadataBuilderActorName: String,
+                             failedTasks: Boolean = false
                             ): Future[Assertion] = {
     val mockReadMetadataWorkerActor = TestProbe("mockReadMetadataWorkerActor")
     def readMetadataWorkerMaker = () => mockReadMetadataWorkerActor.props
@@ -45,12 +46,16 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       props = MetadataBuilderActor.props(readMetadataWorkerMaker, 1000000),
       name = metadataBuilderActorName,
     )
+
     val response = mba.ask(action).mapTo[MetadataJsonResponse]
     mockReadMetadataWorkerActor.expectMsg(defaultTimeout, action)
-    mockReadMetadataWorkerActor.reply(MetadataLookupResponse(queryReply, events))
+    mockReadMetadataWorkerActor.reply(
+      if(failedTasks) FetchFailedJobsMetadataLookupResponse(events) else MetadataLookupResponse(queryReply, events)
+    )
     response map { r => r shouldBe a [SuccessfulMetadataJsonResponse] }
     response.mapTo[SuccessfulMetadataJsonResponse] map { b => b.responseJson shouldBe expectedRes.parseJson}
   }
+
 
   def assertMetadataFailureResponse(action: MetadataServiceAction,
                                     metadataServiceResponse: MetadataServiceResponse,
@@ -95,6 +100,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     // We'll use a Query instead of a SingleWorkflowMetadataGet, so we expect the WorkflowID this time:
     val expectedRes =
       s"""{
+        |"${workflowA}": {
         |  "calls": {
         |    "callB": [{
         |      "attempt": 1,
@@ -123,8 +129,8 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
         |      "shardIndex": -1
         |    }]
         |  },
-        |  "NOT_CHECKED": "NOT_CHECKED",
-        |  "id": "$workflowA"
+        |  "NOT_CHECKED": "NOT_CHECKED"
+        | }
       |}""".stripMargin
 
     val mdQuery = MetadataQuery(workflowA, None, None, None, None, expandSubWorkflows = false)
@@ -134,7 +140,8 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       queryReply = mdQuery,
       events = workflowAEvents,
       expectedRes = expectedRes,
-      metadataBuilderActorName = "mba-scope-tree",
+      metadataBuilderActorName = "mba-failed-tasks-tree",
+      true
     )
   }
 
@@ -162,6 +169,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
                                  eventMaker: WorkflowId => (String, MetadataValue, OffsetDateTime) => MetadataEvent =
                                  makeEvent,
                                  metadataBuilderActorName: String,
+                                 isFailedTaskFetch: Boolean = false
                                 ): Future[Assertion] = {
 
     val events = eventList map { e => (e._1, MetadataValue(e._2), e._3) } map Function.tupled(eventMaker(workflow))
@@ -170,6 +178,87 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     val mdQuery = MetadataQuery(workflow, None, None, None, None, expandSubWorkflows = false)
     val queryAction = GetSingleWorkflowMetadataAction(workflow, None, None, expandSubWorkflows = false)
     assertMetadataResponse(queryAction, mdQuery, events, expectedRes, metadataBuilderActorName)
+  }
+
+//  def assertFailedTaskListStructure(eventList: List[MetadataEvent],
+//                                    expectedJson: String,
+//                                    workflow: WorkflowId = WorkflowId.randomId(),
+//                                    eventMaker: WorkflowId => (String, MetadataValue, OffsetDateTime) => MetadataEvent = makeEvent,
+//                                    metadataBuilderActorName: String,
+//                                   ): Future[Assertion] = {
+//    val events = eventList map { e => (e._1, MetadataValue(e._2), e._3) } map Function.tupled(eventMaker(workflow))
+//    val expectedRes = s"""{ "calls": {}, $expectedJson, "id":"$workflow" }"""
+//
+//    val mdQuery = MetadataQuery(workflow, None, None, None, None, expandSubWorkflows = false)
+//    val queryAction = FetchFailedJobsMetadataWithWorkflowId(workflow)
+//    //change below, this endpoint doesn't use mdQuery
+//    assertMetadataResponse(queryAction, mdQuery, events, expectedRes, metadataBuilderActorName)
+//  }
+
+  it should "build the call list for failed tasks when prompted" in {
+
+    def makeEvent(workflow: WorkflowId, key: Option[MetadataJobKey]) = {
+      MetadataEvent(MetadataKey(workflow, key, "NOT_CHECKED"), MetadataValue("NOT_CHECKED"))
+    }
+
+    val workflowA = WorkflowId.randomId()
+
+    val workflowACalls = List(
+      Option(MetadataJobKey("callB", Option(1), 3)),
+      Option(MetadataJobKey("callB", None, 1)),
+      Option(MetadataJobKey("callB", Option(1), 2)),
+      Option(MetadataJobKey("callA", None, 1)),
+      Option(MetadataJobKey("callB", Option(1), 1)),
+      Option(MetadataJobKey("callB", Option(0), 1)),
+      None
+    )
+    val workflowAEvents = workflowACalls map {
+      makeEvent(workflowA, _)
+    }
+
+    val expectedRes =
+      s"""{
+         |  "calls": {
+         |    "callB": [{
+         |      "attempt": 1,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": -1
+         |    }, {
+         |      "attempt": 1,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": 0
+         |    }, {
+         |      "attempt": 1,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": 1
+         |    }, {
+         |      "attempt": 2,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": 1
+         |    }, {
+         |      "attempt": 3,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": 1
+         |    }],
+         |    "callA": [{
+         |      "attempt": 1,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": -1
+         |    }]
+         |  },
+         |  "NOT_CHECKED": "NOT_CHECKED",
+         |  "id": "$workflowA"
+         |}""".stripMargin
+
+    val mdQuery = MetadataQuery(workflowA, None, None, None, None, expandSubWorkflows = false)
+    val queryAction = GetMetadataAction(mdQuery)
+    assertMetadataResponse(
+      action = queryAction,
+      queryReply = mdQuery,
+      events = workflowAEvents,
+      expectedRes = expectedRes,
+      metadataBuilderActorName = "mba-failed-tasks-tree",
+    )
   }
 
   it should "assume the event list is ordered and keep last event if 2 events have same key" in {

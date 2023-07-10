@@ -180,21 +180,6 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     assertMetadataResponse(queryAction, mdQuery, events, expectedRes, metadataBuilderActorName)
   }
 
-//  def assertFailedTaskListStructure(eventList: List[MetadataEvent],
-//                                    expectedJson: String,
-//                                    workflow: WorkflowId = WorkflowId.randomId(),
-//                                    eventMaker: WorkflowId => (String, MetadataValue, OffsetDateTime) => MetadataEvent = makeEvent,
-//                                    metadataBuilderActorName: String,
-//                                   ): Future[Assertion] = {
-//    val events = eventList map { e => (e._1, MetadataValue(e._2), e._3) } map Function.tupled(eventMaker(workflow))
-//    val expectedRes = s"""{ "calls": {}, $expectedJson, "id":"$workflow" }"""
-//
-//    val mdQuery = MetadataQuery(workflow, None, None, None, None, expandSubWorkflows = false)
-//    val queryAction = FetchFailedJobsMetadataWithWorkflowId(workflow)
-//    //change below, this endpoint doesn't use mdQuery
-//    assertMetadataResponse(queryAction, mdQuery, events, expectedRes, metadataBuilderActorName)
-//  }
-
   it should "build the call list for failed tasks when prompted" in {
 
     def makeEvent(workflow: WorkflowId, key: Option[MetadataJobKey]) = {
@@ -257,7 +242,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       queryReply = mdQuery,
       events = workflowAEvents,
       expectedRes = expectedRes,
-      metadataBuilderActorName = "mba-failed-tasks-tree",
+      metadataBuilderActorName = "mba-failed-tasks",
     )
   }
 

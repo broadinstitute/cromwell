@@ -11,7 +11,9 @@ object Dependencies {
   // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
   // https://github.com/sbt/sbt/issues/4531
   private val azureStorageBlobNioV = "12.0.0-beta.19"
-  private val azureIdentitySdkV = "1.9.0-beta.2"
+  private val azureIdentitySdkV = "1.9.1"
+  private val azureIdentityExtensionsV = "1.1.4"
+  private val azureCoreManagementV = "1.7.1"
   private val azureAppInsightsV = "3.4.12"
   private val betterFilesV = "3.9.1"
   private val jsonSmartV = "2.4.10"
@@ -93,6 +95,7 @@ object Dependencies {
   private val mysqlV = "8.0.28"
   private val nettyV = "4.1.72.Final"
   private val owlApiV = "5.1.19"
+  private val pact4sV = "0.9.0"
   private val postgresV = "42.4.1"
   private val pprintV = "0.7.3"
   private val rdf4jV = "3.7.1"
@@ -211,7 +214,8 @@ object Dependencies {
       exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
       exclude("jakarta.activation", "jakarta.activation-api")
       exclude("net.minidev", "json-smart"),
-    "com.azure" % "azure-core-management" % "1.7.1",
+    "com.azure" % "azure-identity-extensions" % azureIdentityExtensionsV,
+    "com.azure" % "azure-core-management" % azureCoreManagementV,
     "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % jacksonV,
     "com.azure.resourcemanager" % "azure-resourcemanager" % "2.18.0",
     "net.minidev" % "json-smart" % jsonSmartV,
@@ -602,6 +606,7 @@ object Dependencies {
 
   val tesBackendDependencies: List[ModuleID] = akkaHttpDependencies
 
+  val scalaTest = "org.scalatest" %% "scalatest" % scalatestV
   val sfsBackendDependencies = List (
     "org.lz4" % "lz4-java" % lz4JavaV
   )
@@ -808,5 +813,22 @@ object Dependencies {
      The jakarta.annotation inclusion is above in googleApiClientDependencies.
      */
     ExclusionRule("javax.annotation", "javax.annotation-api"),
+  )
+
+  val http4sDsl = "org.http4s" %% "http4s-dsl" % http4sV
+  val http4sEmberClient = "org.http4s" %% "http4s-ember-client" % http4sV
+  val http4sEmberServer = "org.http4s" %% "http4s-ember-server" % http4sV
+  val http4sCirce = "org.http4s" %% "http4s-circe" % http4sV
+  val pact4sScalaTest = "io.github.jbwheatley" %% "pact4s-scalatest" % pact4sV % Test
+  val pact4sCirce = "io.github.jbwheatley" %% "pact4s-circe" % pact4sV
+
+  val pact4sDependencies = Seq(
+    pact4sScalaTest,
+    pact4sCirce,
+    http4sEmberClient,
+    http4sDsl,
+    http4sEmberServer,
+    http4sCirce,
+    scalaTest,
   )
 }

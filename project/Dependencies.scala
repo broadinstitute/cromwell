@@ -11,7 +11,9 @@ object Dependencies {
   // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
   // https://github.com/sbt/sbt/issues/4531
   private val azureStorageBlobNioV = "12.0.0-beta.19"
-  private val azureIdentitySdkV = "1.9.0-beta.2"
+  private val azureIdentitySdkV = "1.9.1"
+  private val azureIdentityExtensionsV = "1.1.4"
+  private val azureCoreManagementV = "1.7.1"
   // We are using the older AppInsights 2 because we want to use the
   // logback appender to send logs. AppInsights 3 does not have a standalone
   // appender, and its auto-hoovering of logs didn't meet our needs.
@@ -214,7 +216,8 @@ object Dependencies {
       exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
       exclude("jakarta.activation", "jakarta.activation-api")
       exclude("net.minidev", "json-smart"),
-    "com.azure" % "azure-core-management" % "1.7.1",
+    "com.azure" % "azure-identity-extensions" % azureIdentityExtensionsV,
+    "com.azure" % "azure-core-management" % azureCoreManagementV,
     "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % jacksonV,
     "com.azure.resourcemanager" % "azure-resourcemanager" % "2.18.0",
     "net.minidev" % "json-smart" % jsonSmartV,

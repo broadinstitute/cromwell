@@ -6,9 +6,9 @@
 
 WDL `size` engine function now works for HTTP files. 
 
-### Azure ApplicationInsights Logging Support
-Cromwell can now send logs to Azure Application Insights. To enable, set environment 
-variable `APPLICATIONINSIGHTS_INSTRUMENTATIONKEY` to your account's key. [See here for information.](https://learn.microsoft.com/en-us/azure/azure-monitor/app/sdk-connection-string)
+### Azure Instrumentation Support
+Cromwell can now send logs and process information to Azure Application Insights. To enable, set environment 
+variable `APPLICATIONINSIGHTS_CONNECTION_STRING` to your connection string. [See here for information.](https://learn.microsoft.com/en-us/azure/azure-monitor/app/sdk-connection-string)
 
 
 ## 85 Release Notes

@@ -12,7 +12,12 @@ object Dependencies {
   // https://github.com/sbt/sbt/issues/4531
   private val azureStorageBlobNioV = "12.0.0-beta.19"
   private val azureIdentitySdkV = "1.9.0-beta.2"
-  private val azureAppInsightsV = "3.4.12"
+  // We are using the older AppInsights 2 because we want to use the
+  // logback appender to send logs. AppInsights 3 does not have a standalone
+  // appender, and its auto-hoovering of logs didn't meet our needs.
+  // (Specifically, the side-by-side root logger and workflow logger resulted in
+  // duplicate messages in AI. See WX-1122.)
+  private val azureAppInsightsLogbackV = "2.6.4"
   private val betterFilesV = "3.9.1"
   private val jsonSmartV = "2.4.10"
   /*
@@ -93,6 +98,7 @@ object Dependencies {
   private val mysqlV = "8.0.28"
   private val nettyV = "4.1.72.Final"
   private val owlApiV = "5.1.19"
+  private val pact4sV = "0.9.0"
   private val postgresV = "42.4.1"
   private val pprintV = "0.7.3"
   private val rdf4jV = "3.7.1"
@@ -215,7 +221,7 @@ object Dependencies {
     "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % jacksonV,
     "com.azure.resourcemanager" % "azure-resourcemanager" % "2.18.0",
     "net.minidev" % "json-smart" % jsonSmartV,
-    "com.microsoft.azure" % "applicationinsights-runtime-attach" % azureAppInsightsV,
+    "com.microsoft.azure" % "applicationinsights-logging-logback" % azureAppInsightsLogbackV
   )
 
   val wsmDependencies: List[ModuleID] = List(
@@ -606,6 +612,7 @@ object Dependencies {
     "org.lz4" % "lz4-java" % lz4JavaV
   )
 
+  val scalaTest = "org.scalatest" %% "scalatest" % scalatestV
   val testDependencies: List[ModuleID] = List(
     "org.scalatest" %% "scalatest" % scalatestV,
     // Use mockito Java DSL directly instead of the numerous and often hard to keep updated Scala DSLs.
@@ -808,5 +815,23 @@ object Dependencies {
      The jakarta.annotation inclusion is above in googleApiClientDependencies.
      */
     ExclusionRule("javax.annotation", "javax.annotation-api"),
+    ExclusionRule("javax.activation"),
+  )
+
+  val http4sDsl = "org.http4s" %% "http4s-dsl" % http4sV
+  val http4sEmberClient = "org.http4s" %% "http4s-ember-client" % http4sV
+  val http4sEmberServer = "org.http4s" %% "http4s-ember-server" % http4sV
+  val http4sCirce = "org.http4s" %% "http4s-circe" % http4sV
+  val pact4sScalaTest = "io.github.jbwheatley" %% "pact4s-scalatest" % pact4sV % Test
+  val pact4sCirce = "io.github.jbwheatley" %% "pact4s-circe" % pact4sV
+
+  val pact4sDependencies = Seq(
+    pact4sScalaTest,
+    pact4sCirce,
+    http4sEmberClient,
+    http4sDsl,
+    http4sEmberServer,
+    http4sCirce,
+    scalaTest,
   )
 }

@@ -32,7 +32,7 @@ object AzureUtils {
       .authorityHost(azureProfile.getEnvironment.getActiveDirectoryEndpoint)
       .build
 
-    def authenticateWithSubscription(sub: String) = AzureResourceManager.authenticate(azureCredentialBuilder, azureProfile).withTenantId("/tenants/fad90753-2022-4456-9b0a-c7e5b934e408").withSubscription(sub)
+    def authenticateWithSubscription(sub: String) = AzureResourceManager.authenticate(azureCredentialBuilder, azureProfile).withSubscription(sub)
 
     def authenticateWithDefaultSubscription = AzureResourceManager.authenticate(azureCredentialBuilder, azureProfile).withDefaultSubscription()
 

@@ -223,7 +223,7 @@ object Dependencies {
     "cglib" % "cglib-nodep" % "3.2.7",
     "com.azure" % "azure-core-http-okhttp" % "1.11.10",
     "org.mockito" % "mockito-core" % "4.11.0",
-    "com.github.sbt" % "junit-interface" % "0.13.2" % Test // For running junit tests associated with this library
+    "com.github.sbt" % "junit-interface" % "0.13.2"
   )
 
   val azureDependencies: List[ModuleID] = List(

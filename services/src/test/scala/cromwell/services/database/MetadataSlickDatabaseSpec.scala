@@ -243,15 +243,26 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
       ).futureValue(Timeout(10.seconds))
 
       val futureEntries: Future[Seq[MetadataEntry]] = database.getFailedJobsMetadataWithWorkflowId(failedParentWorkflowId)
-      val targetIds: Map[String, Boolean] = Map(failedParentWorkflowId -> true, failedChildWorkflowId -> true)
       var entriesFound = false
+
+      val recordCount = Map(
+        failedParentWorkflowId -> scala.collection.mutable.Map(
+          "expected" -> 1,
+          "actual" -> 0
+        ),
+        failedChildWorkflowId -> scala.collection.mutable.Map(
+          "expected" -> 1,
+          "actual" -> 0
+        )
+      )
 
       whenReady(futureEntries) {
         entries =>
           entries.foreach(entry => {
             entriesFound = true
-            val idFound: Boolean = targetIds.getOrElse(entry.workflowExecutionUuid, false)
-            idFound should equal(true)
+            val workflowId = entry.workflowExecutionUuid
+            recordCount.getOrElse(workflowId, None) should not be(None)
+            recordCount(workflowId)("actual") += 1
             val metadataValueClob = entry.metadataValue.get
             val metadataValueString = metadataValueClob.getSubString(1, metadataValueClob.length().toInt)
             metadataValueString should be("Failed")
@@ -272,6 +283,9 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
           })
       }
       entriesFound should be(true)
+      recordCount.foreach(record => {
+        record._2("actual") should be(record._2("expected"))
+      })
     }
 
     it should "clean up & close the database" taggedAs DbmsTest in {

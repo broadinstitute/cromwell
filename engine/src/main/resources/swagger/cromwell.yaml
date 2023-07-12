@@ -513,7 +513,7 @@ paths:
   '/api/workflows/{version}/{id}/metadata/failed-jobs':
     get:
       operationId: failed-jobs
-      summary: Get call-level metadata of failed tasks for a specified workflow
+      summary: Get call-level metadata of failed tasks for a specified root workflow
       parameters:
         - $ref: '#/parameters/versionParam'
         - $ref: '#/parameters/singleId'

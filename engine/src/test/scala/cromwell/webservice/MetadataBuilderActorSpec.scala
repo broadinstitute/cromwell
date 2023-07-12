@@ -100,38 +100,37 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     // We'll use a Query instead of a SingleWorkflowMetadataGet, so we expect the WorkflowID this time:
     val expectedRes =
       s"""{
-        |"${workflowA}": {
-        |  "calls": {
-        |    "callB": [{
-        |      "attempt": 1,
-        |      "NOT_CHECKED": "NOT_CHECKED",
-        |      "shardIndex": -1
-        |    }, {
-        |      "attempt": 1,
-        |      "NOT_CHECKED": "NOT_CHECKED",
-        |      "shardIndex": 0
-        |    }, {
-        |      "attempt": 1,
-        |      "NOT_CHECKED": "NOT_CHECKED",
-        |      "shardIndex": 1
-        |    }, {
-        |      "attempt": 2,
-        |      "NOT_CHECKED": "NOT_CHECKED",
-        |      "shardIndex": 1
-        |    }, {
-        |      "attempt": 3,
-        |      "NOT_CHECKED": "NOT_CHECKED",
-        |      "shardIndex": 1
-        |    }],
-        |    "callA": [{
-        |      "attempt": 1,
-        |      "NOT_CHECKED": "NOT_CHECKED",
-        |      "shardIndex": -1
-        |    }]
-        |  },
-        |  "NOT_CHECKED": "NOT_CHECKED"
-        | }
-      |}""".stripMargin
+         |  "calls": {
+         |    "callB": [{
+         |      "attempt": 1,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": -1
+         |    }, {
+         |      "attempt": 1,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": 0
+         |    }, {
+         |      "attempt": 1,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": 1
+         |    }, {
+         |      "attempt": 2,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": 1
+         |    }, {
+         |      "attempt": 3,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": 1
+         |    }],
+         |    "callA": [{
+         |      "attempt": 1,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": -1
+         |    }]
+         |  },
+         |  "NOT_CHECKED": "NOT_CHECKED",
+         |  "id": "$workflowA"
+         |}""".stripMargin
 
     val mdQuery = MetadataQuery(workflowA, None, None, None, None, expandSubWorkflows = false)
     val queryAction = GetMetadataAction(mdQuery)
@@ -140,8 +139,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       queryReply = mdQuery,
       events = workflowAEvents,
       expectedRes = expectedRes,
-      metadataBuilderActorName = "mba-failed-tasks-tree",
-      true
+      metadataBuilderActorName = "mba-scope-tree"
     )
   }
 
@@ -203,6 +201,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
 
     val expectedRes =
       s"""{
+         |"${workflowA}": {
          |  "calls": {
          |    "callB": [{
          |      "attempt": 1,
@@ -231,8 +230,8 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
          |      "shardIndex": -1
          |    }]
          |  },
-         |  "NOT_CHECKED": "NOT_CHECKED",
-         |  "id": "$workflowA"
+         |  "NOT_CHECKED": "NOT_CHECKED"
+         | }
          |}""".stripMargin
 
     val mdQuery = MetadataQuery(workflowA, None, None, None, None, expandSubWorkflows = false)
@@ -242,6 +241,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       queryReply = mdQuery,
       events = workflowAEvents,
       expectedRes = expectedRes,
+      failedTasks = true,
       metadataBuilderActorName = "mba-failed-tasks",
     )
   }

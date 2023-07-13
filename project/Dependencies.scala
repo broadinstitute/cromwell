@@ -10,8 +10,9 @@ object Dependencies {
   // We would like to use the BOM to manage Azure SDK versions, but SBT doesn't support it.
   // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
   // https://github.com/sbt/sbt/issues/4531
-  private val azureStorageBlobNioV = "12.0.0-beta.19"
-  private val azureIdentitySdkV = "1.9.0-beta.2"
+  private val azureIdentitySdkV = "1.9.1"
+  private val azureIdentityExtensionsV = "1.1.4"
+  private val azureCoreManagementV = "1.7.1"
   // We are using the older AppInsights 2 because we want to use the
   // logback appender to send logs. AppInsights 3 does not have a standalone
   // appender, and its auto-hoovering of logs didn't meet our needs.
@@ -206,20 +207,37 @@ object Dependencies {
     "org.typelevel" %% "cats-effect" % catsEffectV,
   )
 
+  /*
+   Due to complications with the public preview Nio filesystem for azure,
+  we include this FS implementation locally and include its dependencies
+   */
+  val azureBlobNioDependencies = List(
+    "com.azure" % "azure-core" % "1.40.0",
+    "com.azure" % "azure-storage-blob" % "12.23.0-beta.1",
+    "com.azure" % "azure-storage-common" % "12.22.0-beta.1",
+    "com.azure" % "azure-core-test" % "1.18.0",
+    "org.junit.jupiter" % "junit-jupiter-params" % "5.9.3",
+    "org.junit.jupiter" % "junit-jupiter-engine" % "5.9.3",
+    "org.junit.jupiter" % "junit-jupiter-api" % "5.9.3",
+    "io.projectreactor" % "reactor-test" % "3.4.29",
+    "cglib" % "cglib-nodep" % "3.2.7",
+    "com.azure" % "azure-core-http-okhttp" % "1.11.10",
+    "org.mockito" % "mockito-core" % "4.11.0",
+    "com.github.sbt" % "junit-interface" % "0.13.2"
+  )
+
   val azureDependencies: List[ModuleID] = List(
-    "com.azure" % "azure-storage-blob-nio" % azureStorageBlobNioV
-      exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
-      exclude("jakarta.activation", "jakarta.activation-api"),
     "com.azure" % "azure-identity" % azureIdentitySdkV
       exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
       exclude("jakarta.activation", "jakarta.activation-api")
       exclude("net.minidev", "json-smart"),
-    "com.azure" % "azure-core-management" % "1.7.1",
+    "com.azure" % "azure-identity-extensions" % azureIdentityExtensionsV,
+    "com.azure" % "azure-core-management" % azureCoreManagementV,
     "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % jacksonV,
     "com.azure.resourcemanager" % "azure-resourcemanager" % "2.18.0",
     "net.minidev" % "json-smart" % jsonSmartV,
     "com.microsoft.azure" % "applicationinsights-logging-logback" % azureAppInsightsLogbackV,
-  )
+  ) ++ azureBlobNioDependencies
 
   val wsmDependencies: List[ModuleID] = List(
     "bio.terra" % "workspace-manager-client" % "0.254.452-SNAPSHOT"

@@ -51,7 +51,8 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
 
   it should "test that a filesystem gets closed correctly" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
-    val azureUri = BlobFileSystemManager.uri(endpoint)
+    val container = BlobContainerName("test")
+    val azureUri = BlobFileSystemManager.uri(endpoint, container)
     val fileSystems = mock[FileSystemAPI]
     val fileSystem = mock[FileSystem]
     when(fileSystems.getFileSystem(azureUri)).thenReturn(Try(fileSystem))
@@ -68,7 +69,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val sasToken = BlobPathBuilderFactorySpec.buildExampleSasToken(refreshedToken)
     val container = BlobContainerName("storageContainer")
     val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
-    val azureUri = BlobFileSystemManager.uri(endpoint)
+    val azureUri = BlobFileSystemManager.uri(endpoint, container)
 
     val fileSystems = mock[FileSystemAPI]
     val blobTokenGenerator = mock[BlobSasTokenGenerator]
@@ -93,7 +94,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val sasToken = BlobPathBuilderFactorySpec.buildExampleSasToken(refreshedToken)
     val container = BlobContainerName("storageContainer")
     val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
-    val azureUri = BlobFileSystemManager.uri(endpoint)
+    val azureUri = BlobFileSystemManager.uri(endpoint,container)
     // Need a fake filesystem to supply the getFileSystem simulated try
     val dummyFileSystem = mock[FileSystem]
 
@@ -121,7 +122,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val sasToken = BlobPathBuilderFactorySpec.buildExampleSasToken(refreshedToken)
     val container = BlobContainerName("storageContainer")
     val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
-    val azureUri = BlobFileSystemManager.uri(endpoint)
+    val azureUri = BlobFileSystemManager.uri(endpoint, container)
 
     val fileSystems = mock[FileSystemAPI]
     when(fileSystems.getFileSystem(azureUri)).thenReturn(Failure(new FileSystemNotFoundException))
@@ -146,7 +147,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val sasToken = BlobPathBuilderFactorySpec.buildExampleSasToken(refreshedToken)
     val container = BlobContainerName("storageContainer")
     val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
-    val azureUri = BlobFileSystemManager.uri(endpoint)
+    val azureUri = BlobFileSystemManager.uri(endpoint, container)
 
     val fileSystems = mock[FileSystemAPI]
     val blobTokenGenerator = mock[BlobSasTokenGenerator]

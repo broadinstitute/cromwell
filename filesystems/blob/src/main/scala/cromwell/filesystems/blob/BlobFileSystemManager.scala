@@ -9,7 +9,7 @@ import common.validation.Validation._
 import cromwell.cloudsupport.azure.AzureUtils
 
 import java.net.URI
-import java.nio.file.{FileSystem, FileSystemNotFoundException, FileSystems}
+import java.nio.file._
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, Instant, OffsetDateTime}
 import scala.jdk.CollectionConverters._
@@ -40,7 +40,7 @@ object BlobFileSystemManager {
       (AzureFileSystem.AZURE_STORAGE_SKIP_INITIAL_CONTAINER_CHECK, java.lang.Boolean.TRUE))
   }
   def hasTokenExpired(tokenExpiry: Instant, buffer: Duration): Boolean = Instant.now.plus(buffer).isAfter(tokenExpiry)
-  def uri(endpoint: EndpointURL) = new URI("azb://?endpoint=" + endpoint)
+  def uri(endpoint: EndpointURL, container: BlobContainerName) = new URI("azb://?endpoint=" + endpoint + "/" + container.value)
 }
 
 class BlobFileSystemManager(val container: BlobContainerName,
@@ -65,7 +65,7 @@ class BlobFileSystemManager(val container: BlobContainerName,
   private var expiry: Option[Instant] = initialExpiration
 
   def getExpiry: Option[Instant] = expiry
-  def uri: URI = BlobFileSystemManager.uri(endpoint)
+  def uri: URI = BlobFileSystemManager.uri(endpoint, container)
   def isTokenExpired: Boolean = expiry.exists(BlobFileSystemManager.hasTokenExpired(_, buffer))
   def shouldReopenFilesystem: Boolean = isTokenExpired || expiry.isEmpty
   def retrieveFilesystem(): Try[FileSystem] = {

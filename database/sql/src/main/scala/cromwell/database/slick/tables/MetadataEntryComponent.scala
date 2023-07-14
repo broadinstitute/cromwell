@@ -323,10 +323,6 @@ trait MetadataEntryComponent {
       if(isPostgres) "obj.data" else "METADATA_VALUE"
     }
 
-    def dbTargetCallsGroupByStatement(isPostgres: Boolean, callFqn: String): String = {
-      s"GROUP BY ${callFqn}" + (if(isPostgres) ", obj.data" else "")
-    }
-
     def targetCallsSelectStatement(callFqn: String, scatterIndex: String, retryAttempt: String): String = {
       s"SELECT ${callFqn}, MAX(COALESCE(${scatterIndex}, 0)) as maxScatter, MAX(COALESCE(${retryAttempt}, 0)) AS maxRetry"
     }
@@ -357,11 +353,9 @@ trait MetadataEntryComponent {
         FROM #${metadataEntry} me
         INNER JOIN #${wmse} wmse
         ON wmse.#${workflowUuid} = me.#${workflowUuid}
-        #${pgObjectInnerJoinStatement(isPostgres, metadataValue)}
         WHERE (wmse.#${rootUuid} = $rootWorkflowId OR wmse.#${workflowUuid} = $rootWorkflowId)
-        AND (me.#${metadataKey} in ('executionStatus', 'backendStatus') AND #${dbMetadataValueColCheckName(isPostgres)} = 'Failed')
         AND #${callFqn} IS NOT NULL
-        #${dbTargetCallsGroupByStatement(isPostgres, callFqn)}
+        GROUP BY #${callFqn}
       ) AS targetCalls
       ON me.#${callFqn} = targetCalls.#${callFqn}
       LEFT JOIN (
@@ -376,9 +370,13 @@ trait MetadataEntryComponent {
       ON me.#${callFqn} = avoidedCalls.#${callFqn}
       INNER JOIN #${wmse} wmse
       ON wmse.#${workflowUuid} = me.#${workflowUuid}
+      #${pgObjectInnerJoinStatement(isPostgres, metadataValue)}
       WHERE avoidedCalls.#${callFqn} IS NULL
-      AND COALESCE(me.#${scatterIndex}, 0) = targetCalls.maxScatter
-      AND COALESCE(me.#${retryAttempt}, 0) = targetCalls.maxRetry
+      AND (me.#${metadataKey} in ('executionStatus', 'backendStatus') AND #${dbMetadataValueColCheckName(isPostgres)} = 'Failed')
+      AND (
+        (COALESCE(me.#${retryAttempt}, 0) = targetCalls.maxRetry AND me.#${scatterIndex} IS NULL)
+        OR (COALESCE(me.#${retryAttempt}, 0) = targetCalls.maxRetry AND me.#${scatterIndex} = targetCalls.maxScatter)
+       )
       GROUP BY #${resultSetColumnNames}
       HAVING me.#${workflowUuid} IN (
         SELECT DISTINCT wmse.#${workflowUuid}

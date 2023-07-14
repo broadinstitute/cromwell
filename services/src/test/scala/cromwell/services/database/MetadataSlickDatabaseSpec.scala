@@ -218,10 +218,34 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
           MetadataEntry(failedParentWorkflowId, Option("successfulWorkflowCall"), Option(0), Option(0), "executionStatus", doneStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry(failedParentWorkflowId, Option("successfulSubWorkflowCall"), Option(0), Option(0), "subWorkflowId", Option(new SerialClob(failedChildWorkflowId.toCharArray)), Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
 
-          //Failed child workflow calls (successful calls and previous failed attempts/shards are mixed in for negative checks)
-          MetadataEntry(failedChildWorkflowId, Option("failedSubWorkflowCall"), Option(0), Option(0), "executionStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
-          MetadataEntry(failedChildWorkflowId, Option("failedSubWorkflowCall"), Option(1), Option(1), "backendStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
+          //child workflow calls (successful calls and previous failed attempts/shards are mixed in for negative checks)
+          //notFailedSubWorkflowCall should not be returned since it succeeded on the last attempt and has no scatters
+          MetadataEntry(failedChildWorkflowId, Option("notActuallyFailedSubWorkflowCall"), None, Option(1), "executionStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(failedChildWorkflowId, Option("notActuallyFailedSubWorkflowCall"), None, Option(2), "backendStatus", doneStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry(failedChildWorkflowId, Option("successfulSubWorkflowCall"), Option(0), Option(0), "executionStatus", doneStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
+
+          //Failed child workflow calls (successful calls and previous failed attempts/shards are mixed in for negative checks)
+          //failedSubWorkflowCall2 should be returned since it never succeeded
+          MetadataEntry(failedChildWorkflowId, Option("failedSubWorkflowCall"), None, Option(1), "executionStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(failedChildWorkflowId, Option("failedSubWorkflowCall"), None, Option(2), "backendStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(failedChildWorkflowId, Option("successfulSubWorkflowCall2"), Option(0), Option(0), "executionStatus", doneStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
+
+          //Third set of child workflow calls, similar to above however this set consists of retries and scatters
+          //It's safe to assume that if one scatter fails then they all fail, so pull the last scatter on the last attempt
+          //failedSubWorkflowCall2 should return since the scatters failed on the last attempt
+          MetadataEntry(failedChildWorkflowId, Option("failedSubWorkflowCall2"), Option(1), Option(1), "executionStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(failedChildWorkflowId, Option("failedSubWorkflowCall2"), Option(2), Option(1), "backendStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(failedChildWorkflowId, Option("failedSubWorkflowCall2"), Option(1), Option(2), "backendStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(failedChildWorkflowId, Option("failedSubWorkflowCall2"), Option(2), Option(2), "executionStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(failedChildWorkflowId, Option("successfulSubWorkflowCall3"), Option(0), Option(0), "executionStatus", doneStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
+
+          //Fourth set of child workflow calls
+          //This set should not return anything since the scatters succeeded on the last attempt
+          MetadataEntry(failedChildWorkflowId, Option("notActuallySubWorkflowCall2"), Option(1), Option(1), "executionStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(failedChildWorkflowId, Option("notActuallySubWorkflowCall2"), Option(2), Option(1), "backendStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(failedChildWorkflowId, Option("notActuallySubWorkflowCall2"), Option(1), Option(2), "executionStatus", doneStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(failedChildWorkflowId, Option("notActuallySubWorkflowCall2"), Option(2), Option(2), "backendStatus", doneStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(failedChildWorkflowId, Option("successfulSubWorkflowCall4"), Option(0), Option(0), "executionStatus", doneStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
 
           //Successful parent workflow call (negative check)
           MetadataEntry(successfulParentWorkflowId, Option("successfulWorkflowCall"), Option(0), Option(0), "executionStatus", doneStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
@@ -251,12 +275,12 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
           "actual" -> 0
         ),
         failedChildWorkflowId -> scala.collection.mutable.Map(
-          "expected" -> 1,
+          "expected" -> 2,
           "actual" -> 0
         )
       )
 
-      whenReady(futureEntries) {
+      whenReady(futureEntries, timeout(scaled(5 seconds))) {
         entries =>
           entries.foreach(entry => {
             entriesFound = true
@@ -274,18 +298,23 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
                 entry.metadataKey should be("executionStatus")
               }
               case "failedSubWorkflowCall" => {
-                entry.jobIndex.get should be(1)
-                entry.jobAttempt.get should be(1)
+                entry.jobIndex should be(None)
+                entry.jobAttempt.get should be(2)
                 entry.metadataKey should be("backendStatus")
+              }
+              case "failedSubWorkflowCall2" => {
+                entry.jobIndex.get should be(2)
+                entry.jobAttempt.get should be(2)
+                entry.metadataKey should be("executionStatus")
               }
               case _ => fail(s"Entry ${entry.callFullyQualifiedName.getOrElse("N/A")} | Index: ${entry.jobIndex.get} | Attempt: ${entry.jobAttempt.get} should not be in result set")
             }
           })
+          entriesFound should be(true)
+          recordCount.foreach(record => {
+            record._2("actual") should be(record._2("expected"))
+          })
       }
-      entriesFound should be(true)
-      recordCount.foreach(record => {
-        record._2("actual") should be(record._2("expected"))
-      })
     }
 
     it should "clean up & close the database" taggedAs DbmsTest in {

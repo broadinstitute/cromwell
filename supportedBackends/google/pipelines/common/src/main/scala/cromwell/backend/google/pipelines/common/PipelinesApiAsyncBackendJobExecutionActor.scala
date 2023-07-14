@@ -642,6 +642,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       _ <- uploadScriptFile
       customLabels <- Future.fromTry(GoogleLabels.fromWorkflowOptions(workflowDescriptor.workflowOptions))
       jesParameters <- generateInputOutputParameters
+      _ = jesParameters.jobOutputParameters.foreach(x => println(s"ZZZ InputOutputParameters - $x"))
       createParameters = createPipelineParameters(jesParameters, customLabels)
       drsLocalizationManifestCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.DrsLocalizationManifestName
       _ <- uploadDrsLocalizationManifest(createParameters, drsLocalizationManifestCloudPath)

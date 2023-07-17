@@ -1,13 +1,12 @@
 package cromwell.services.metadata.impl
 
 import java.sql.SQLTimeoutException
-
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.{WorkflowId, WorkflowSubmitted}
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService._
-import cromwell.services.metadata.{MetadataQuery, WorkflowQueryParameters}
+import cromwell.services.metadata.{MetadataEvent, MetadataQuery, WorkflowQueryParameters}
 
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
@@ -27,6 +26,9 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
   implicit val ec = context.dispatcher
 
   def receive = {
+    case FetchFailedJobsMetadataWithWorkflowId(w: WorkflowId) => {
+      evaluateRespondAndStop(sender(), getFailedJobs(w))
+    }
     case GetMetadataAction(query: MetadataQuery, checkTotalMetadataRowNumberBeforeQuerying: Boolean) =>
       evaluateRespondAndStop(sender(), getMetadata(query, checkTotalMetadataRowNumberBeforeQuerying))
     case GetMetadataStreamAction(workflowId) =>
@@ -83,6 +85,16 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
       case _: SQLTimeoutException => MetadataLookupFailedTimeoutResponse(query)
       case t => MetadataServiceKeyLookupFailed(query, t)
     }
+
+  private def getFailedJobs(workflowId: WorkflowId): Future[MetadataServiceResponse] = {
+   val futureEvents: Future[Seq[MetadataEvent]] = getFailedJobsMetadataWithWorkflowId(workflowId) map metadataToMetadataEvents(workflowId)
+    futureEvents map {
+      m => FetchFailedJobsMetadataLookupResponse(m)
+    } recover {
+      case _: SQLTimeoutException => FetchFailedTasksTimeoutResponse(workflowId)
+      case t => FetchFailedJobsMetadataLookupFailed(workflowId, t)
+    }
+  }
 
   private def getStatus(id: WorkflowId): Future[MetadataServiceResponse] = {
 

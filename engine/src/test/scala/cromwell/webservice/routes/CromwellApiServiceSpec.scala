@@ -568,6 +568,7 @@ object CromwellApiServiceSpec {
         MetadataEvent(MetadataKey(workflowId, None, "testKey2a"), MetadataValue("myValue2a", MetadataString)),
       )
     }
+
     private def wesFullMetadataResponse(workflowId: WorkflowId) = {
       List(
         MetadataEvent(MetadataKey(workflowId, None, "status"), MetadataValue("Running", MetadataString)),
@@ -575,6 +576,7 @@ object CromwellApiServiceSpec {
 
       )
     }
+
 
     def responseMetadataValues(workflowId: WorkflowId, withKeys: List[String], withoutKeys: List[String]): JsObject = {
       def keyFilter(keys: List[String])(m: MetadataEvent) = keys.exists(k => m.key.key.startsWith(k))
@@ -645,6 +647,8 @@ object CromwellApiServiceSpec {
         sender() ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.processOutputsResponse(id, event))
       case request @ GetLogs(id) =>
         sender() ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.workflowMetadataResponse(id, logsEvents(id), includeCallsIfEmpty = false, Map.empty))
+      case request @ FetchFailedJobsMetadataWithWorkflowId(id) =>
+        sender() ! SuccessfulMetadataJsonResponse(request, responseMetadataValues(id, List.empty, List.empty))
       case request @ GetMetadataAction(MetadataQuery(id, _, _, withKeys, withoutKeys, _), _) =>
         val withKeysList = withKeys.map(_.toList).getOrElse(List.empty)
         val withoutKeysList = withoutKeys.map(_.toList).getOrElse(List.empty)

@@ -70,6 +70,17 @@ trait MetadataRouteSupport extends HttpInstrumentation {
       }
     },
     encodeResponse {
+      path("workflows" / Segment / Segment / "metadata" / "failed-jobs") { (_, possibleWorkflowId) =>
+        instrumentRequest {
+          metadataLookup(
+            possibleWorkflowId,
+            (w: WorkflowId) => FetchFailedJobsMetadataWithWorkflowId(w),
+            serviceRegistryActor
+          )
+        }
+      }
+    },
+    encodeResponse {
       path("workflows" / Segment / Segment / "metadata") { (_, possibleWorkflowId) =>
         instrumentRequest {
           parameters((Symbol("includeKey").*, Symbol("excludeKey").*, Symbol("expandSubWorkflows").as[Boolean].?)) { (includeKeys, excludeKeys, expandSubWorkflowsOption) =>
@@ -212,8 +223,7 @@ object MetadataRouteSupport {
   }
 
   def completeMetadataBuilderResponse(response: Future[MetadataJsonResponse]): Route = {
-    onComplete(response) {
-      case Success(r: SuccessfulMetadataJsonResponse) => complete(r.responseJson)
+    onComplete(response) { case Success(r: SuccessfulMetadataJsonResponse) => complete(r.responseJson)
       case Success(r: FailedMetadataJsonResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)
       case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
       case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)

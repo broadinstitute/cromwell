@@ -114,7 +114,7 @@ trait MetadataDatabaseAccess {
       labelMetadataKey = WorkflowMetadataKeys.Labels)
   }
 
-  private def metadataToMetadataEvents(workflowId: WorkflowId)(metadata: Seq[MetadataEntry]): Seq[MetadataEvent] = {
+  def metadataToMetadataEvents(workflowId: WorkflowId)(metadata: Seq[MetadataEntry]): Seq[MetadataEvent] = {
     metadata map { m =>
       // If callFullyQualifiedName is non-null then attempt will also be non-null and there is a MetadataJobKey.
       val metadataJobKey: Option[MetadataJobKey] = for {
@@ -382,4 +382,7 @@ trait MetadataDatabaseAccess {
     metadataDatabaseInterface.countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowEndTimestampThreshold.toSystemTimestamp)
 
   def getMetadataTableSizeInformation()(implicit ec: ExecutionContext): Future[Option[InformationSchemaEntry]] = metadataDatabaseInterface.getMetadataTableSizeInformation()
+
+  def getFailedJobsMetadataWithWorkflowId(rootWorkflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Vector[MetadataEntry]] =
+    metadataDatabaseInterface.getFailedJobsMetadataWithWorkflowId(rootWorkflowId.toString)
 }

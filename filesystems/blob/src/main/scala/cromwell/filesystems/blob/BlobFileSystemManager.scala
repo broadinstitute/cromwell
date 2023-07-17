@@ -12,14 +12,15 @@ import java.net.URI
 import java.nio.file._
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, Instant, OffsetDateTime}
+import java.util.UUID
 import scala.jdk.CollectionConverters._
-import scala.util.{Failure, Success, Try}
+import scala.util.{Success, Try}
 
 // We encapsulate this functionality here so that we can easily mock it out, to allow for testing without
 // actually connecting to Blob storage.
 case class FileSystemAPI() {
-  def getFileSystem(uri: URI): Try[FileSystem] = Try(FileSystems.getFileSystem(uri))
-  def newFileSystem(uri: URI, config: Map[String, Object]): FileSystem = FileSystems.newFileSystem(uri, config.asJava)
+  def getFileSystem(uri: URI): Try[AzureFileSystem] = Try( FileSystems.getFileSystem(uri).asInstanceOf[AzureFileSystem])
+  def newFileSystem(uri: URI, config: Map[String, Object]): AzureFileSystem = FileSystems.newFileSystem(uri, config.asJava).asInstanceOf[AzureFileSystem]
   def closeFileSystem(uri: URI): Option[Unit] = getFileSystem(uri).toOption.map(_.close)
 }
 /**
@@ -43,17 +44,12 @@ object BlobFileSystemManager {
   def uri(endpoint: EndpointURL, container: BlobContainerName) = new URI("azb://?endpoint=" + endpoint + "/" + container.value)
 }
 
-class BlobFileSystemManager(val container: BlobContainerName,
-                            val endpoint: EndpointURL,
-                            val expiryBufferMinutes: Long,
+class BlobFileSystemManager(val expiryBufferMinutes: Long,
                             val blobTokenGenerator: BlobSasTokenGenerator,
-                            val fileSystemAPI: FileSystemAPI = FileSystemAPI(),
-                            private val initialExpiration: Option[Instant] = None) extends LazyLogging {
+                            val fileSystemAPI: FileSystemAPI = FileSystemAPI()) extends LazyLogging {
 
   def this(config: BlobFileSystemConfig) = {
     this(
-      config.blobContainerName,
-      config.endpointURL,
       config.expiryBufferMinutes,
       BlobSasTokenGenerator.createBlobTokenGeneratorFromConfig(config)
     )
@@ -61,40 +57,36 @@ class BlobFileSystemManager(val container: BlobContainerName,
 
   def this(rawConfig: Config) = this(BlobFileSystemConfig(rawConfig))
 
-  val buffer: Duration = Duration.of(expiryBufferMinutes, ChronoUnit.MINUTES)
-  private var expiry: Option[Instant] = initialExpiration
+  def buffer: Duration = Duration.of(expiryBufferMinutes, ChronoUnit.MINUTES)
 
-  def getExpiry: Option[Instant] = expiry
-  def uri: URI = BlobFileSystemManager.uri(endpoint, container)
-  def isTokenExpired: Boolean = expiry.exists(BlobFileSystemManager.hasTokenExpired(_, buffer))
-  def shouldReopenFilesystem: Boolean = isTokenExpired || expiry.isEmpty
-  def retrieveFilesystem(): Try[FileSystem] = {
+  def retrieveFilesystem(endpoint: EndpointURL, container: BlobContainerName): Try[FileSystem] = {
+    val uri = BlobFileSystemManager.uri(endpoint, container)
     synchronized {
-      shouldReopenFilesystem match {
-        case false => fileSystemAPI.getFileSystem(uri).recoverWith {
-          // If no filesystem already exists, this will create a new connection, with the provided configs
-          case _: FileSystemNotFoundException =>
-            logger.info(s"Creating new blob filesystem for URI $uri")
-            blobTokenGenerator.generateBlobSasToken.flatMap(generateFilesystem(uri, container, _))
+      fileSystemAPI.getFileSystem(uri).recoverWith {
+        // If no filesystem already exists, this will create a new connection, with the provided configs
+        case _: FileSystemNotFoundException => {
+          logger.info(s"Creating new blob filesystem for URI $uri")
+          generateFilesystem(uri, container, endpoint)
         }
-        // If the token has expired, OR there is no token record, try to close the FS and regenerate
-        case true =>
+      }.filter(!_.isExpired(buffer)).recoverWith {
+        case _ => {
           logger.info(s"Closing & regenerating token for existing blob filesystem at URI $uri")
           fileSystemAPI.closeFileSystem(uri)
-          blobTokenGenerator.generateBlobSasToken.flatMap(generateFilesystem(uri, container, _))
+          generateFilesystem(uri, container, endpoint)
+        }
       }
     }
   }
 
-  private def generateFilesystem(uri: URI, container: BlobContainerName, token: AzureSasCredential): Try[FileSystem] = {
-    expiry = BlobFileSystemManager.parseTokenExpiry(token)
-    if (expiry.isEmpty) return Failure(new Exception("Could not reopen filesystem, no expiration found"))
-    Try(fileSystemAPI.newFileSystem(uri, BlobFileSystemManager.buildConfigMap(token, container)))
+  private def generateFilesystem(uri: URI, container: BlobContainerName, endpoint: EndpointURL): Try[AzureFileSystem] = {
+    blobTokenGenerator.generateBlobSasToken(endpoint, container)
+      .flatMap((token: AzureSasCredential) => {
+        Try(fileSystemAPI.newFileSystem(uri, BlobFileSystemManager.buildConfigMap(token, container)))
+      })
   }
-
 }
 
-sealed trait BlobSasTokenGenerator { def generateBlobSasToken: Try[AzureSasCredential] }
+sealed trait BlobSasTokenGenerator { def generateBlobSasToken(endpoint: EndpointURL, container: BlobContainerName): Try[AzureSasCredential] }
 object BlobSasTokenGenerator {
 
   /**
@@ -122,16 +114,12 @@ object BlobSasTokenGenerator {
       // WSM-mediated mediated SAS token generator
       // parameterizing client instead of URL to make injecting mock client possible
       BlobSasTokenGenerator.createBlobTokenGenerator(
-        config.blobContainerName,
-        config.endpointURL,
-        wsmConfig.workspaceId,
-        wsmConfig.containerResourceId,
         wsmClient,
         wsmConfig.overrideWsmAuthToken
       )
     }.getOrElse(
       // Native SAS token generator
-      BlobSasTokenGenerator.createBlobTokenGenerator(config.blobContainerName, config.endpointURL, config.subscriptionId)
+      BlobSasTokenGenerator.createBlobTokenGenerator(config.subscriptionId)
     )
 
   /**
@@ -146,10 +134,8 @@ object BlobSasTokenGenerator {
     * @return A NativeBlobTokenGenerator, able to produce a valid SAS token for accessing the provided blob
     * container and endpoint locally
     */
-  def createBlobTokenGenerator(container: BlobContainerName,
-                               endpoint: EndpointURL,
-                               subscription: Option[SubscriptionId]): BlobSasTokenGenerator = {
-    NativeBlobSasTokenGenerator(container, endpoint, subscription)
+  def createBlobTokenGenerator(subscription: Option[SubscriptionId]): BlobSasTokenGenerator = {
+    NativeBlobSasTokenGenerator(subscription)
   }
 
   /**
@@ -157,11 +143,6 @@ object BlobSasTokenGenerator {
     * to request a SAS token from the WSM to access the given blob container. If an overrideWsmAuthToken
     * is provided this is used instead.
     *
-    * @param container The BlobContainerName of the blob container to be accessed by the generated SAS token
-    * @param endpoint The EndpointURL containing the storage account of the blob container to be accessed by
-    * this SAS token
-    * @param workspaceId The WorkspaceId of the account to authenticate against
-    * @param containerResourceId The ContainterResourceId of the blob container as WSM knows it
     * @param workspaceManagerClient The client for making requests against WSM
     * @param overrideWsmAuthToken An optional WsmAuthToken used for authenticating against the WSM for a valid
     * SAS token to access the given container and endpoint. This is a dev only option that is only intended
@@ -169,22 +150,14 @@ object BlobSasTokenGenerator {
     * @return A WSMBlobTokenGenerator, able to produce a valid SAS token for accessing the provided blob
     * container and endpoint that is managed by WSM
     */
-  def createBlobTokenGenerator(container: BlobContainerName,
-                               endpoint: EndpointURL,
-                               workspaceId: WorkspaceId,
-                               containerResourceId: ContainerResourceId,
-                               workspaceManagerClient: WorkspaceManagerApiClientProvider,
+  def createBlobTokenGenerator(workspaceManagerClient: WorkspaceManagerApiClientProvider,
                                overrideWsmAuthToken: Option[String]): BlobSasTokenGenerator = {
-    WSMBlobSasTokenGenerator(container, endpoint, workspaceId, containerResourceId, workspaceManagerClient, overrideWsmAuthToken)
+    WSMBlobSasTokenGenerator(workspaceManagerClient, overrideWsmAuthToken)
   }
 
 }
 
-case class WSMBlobSasTokenGenerator(container: BlobContainerName,
-                                    endpoint: EndpointURL,
-                                    workspaceId: WorkspaceId,
-                                    containerResourceId: ContainerResourceId,
-                                    wsmClientProvider: WorkspaceManagerApiClientProvider,
+case class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClientProvider,
                                     overrideWsmAuthToken: Option[String]) extends BlobSasTokenGenerator {
 
   /**
@@ -194,7 +167,7 @@ case class WSMBlobSasTokenGenerator(container: BlobContainerName,
     *
     * @return an AzureSasCredential for accessing a blob container
     */
-  def generateBlobSasToken: Try[AzureSasCredential] = {
+  def generateBlobSasToken(endpoint: EndpointURL, container: BlobContainerName): Try[AzureSasCredential] = {
     val wsmAuthToken: Try[String] = overrideWsmAuthToken match {
       case Some(t) => Success(t)
       case None => AzureCredentials.getAccessToken(None).toTry
@@ -202,21 +175,23 @@ case class WSMBlobSasTokenGenerator(container: BlobContainerName,
 
     for {
       wsmAuth <- wsmAuthToken
-      wsmClient = wsmClientProvider.getControlledAzureResourceApi(wsmAuth)
-      sasToken <- Try(  // Java library throws
-        wsmClient.createAzureStorageContainerSasToken(
-          workspaceId.value,
-          containerResourceId.value,
-          null,
-          null,
-          null,
-          null
-        ).getToken)
-    } yield new AzureSasCredential(sasToken)
+      wsmAzureResourceClient = wsmClientProvider.getControlledAzureResourceApi(wsmAuth)
+      sa <- endpoint.storageAccountName
+      ids <- getWorkspaceAndContainerResourceId(sa, container, wsmAuth)
+      azureSasToken <- wsmAzureResourceClient.createAzureStorageContainerSasToken(ids._1, ids._2)
+    } yield azureSasToken
+  }
+
+ def getWorkspaceAndContainerResourceId(storageAccountName: StorageAccountName, container: BlobContainerName, wsmAuth : String): Try[(UUID, UUID)] = {
+    val wsmResourceClient = wsmClientProvider.getResourceApi(wsmAuth)
+    for {
+      workspaceId <- container.workspaceId
+      resourceId <- wsmResourceClient.findContainerResourceId(workspaceId, container)
+    } yield (workspaceId, resourceId)
   }
 }
 
-case class NativeBlobSasTokenGenerator(container: BlobContainerName, endpoint: EndpointURL, subscription: Option[SubscriptionId] = None) extends BlobSasTokenGenerator {
+case class NativeBlobSasTokenGenerator(subscription: Option[SubscriptionId] = None) extends BlobSasTokenGenerator {
   private val bcsp = new BlobContainerSasPermission()
     .setReadPermission(true)
     .setCreatePermission(true)
@@ -229,7 +204,7 @@ case class NativeBlobSasTokenGenerator(container: BlobContainerName, endpoint: E
     *
     * @return an AzureSasCredential for accessing a blob container
     */
-  def generateBlobSasToken: Try[AzureSasCredential] = for {
+  def generateBlobSasToken(endpoint: EndpointURL, container: BlobContainerName): Try[AzureSasCredential] = for {
     bcc <- AzureUtils.buildContainerClientFromLocalEnvironment(container.toString, endpoint.toString, subscription.map(_.toString))
     bsssv = new BlobServiceSasSignatureValues(OffsetDateTime.now.plusDays(1), bcsp)
     asc = new AzureSasCredential(bcc.generateSas(bsssv))

@@ -18,31 +18,13 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val container = BlobContainerName("container")
     val evalPath = "/path/to/file"
     val testString = endpoint.value + "/" + container + evalPath
-    BlobPathBuilder.validateBlobPath(testString, container, endpoint) match {
-      case BlobPathBuilder.ValidBlobPath(path) => path should equal(evalPath)
+    BlobPathBuilder.validateBlobPath(testString) match {
+      case BlobPathBuilder.ValidBlobPath(path, parsedContainer, parsedEndpoint) => {
+        path should equal(evalPath)
+        parsedContainer should equal(container)
+        parsedEndpoint should equal(endpoint)
+      }
       case BlobPathBuilder.UnparsableBlobPath(errorMessage) => fail(errorMessage)
-    }
-  }
-
-  it should "bad storage account fails causes URI to fail parse into a path" in {
-    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
-    val container = BlobContainerName("container")
-    val evalPath = "/path/to/file"
-    val testString = BlobPathBuilderSpec.buildEndpoint("badStorageAccount").value + container.value + evalPath
-    BlobPathBuilder.validateBlobPath(testString, container, endpoint) match {
-      case BlobPathBuilder.ValidBlobPath(path) => fail(s"Valid path: $path found when verifying mismatched storage account")
-      case BlobPathBuilder.UnparsableBlobPath(errorMessage) => errorMessage.getMessage should equal(BlobPathBuilder.invalidBlobPathMessage(container, endpoint))
-    }
-  }
-
-  it should "bad container fails causes URI to fail parse into a path" in {
-    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
-    val container = BlobContainerName("container")
-    val evalPath = "/path/to/file"
-    val testString = endpoint.value + "badContainer" + evalPath
-    BlobPathBuilder.validateBlobPath(testString, container, endpoint) match {
-      case BlobPathBuilder.ValidBlobPath(path) => fail(s"Valid path: $path found when verifying mismatched container")
-      case BlobPathBuilder.UnparsableBlobPath(errorMessage) => errorMessage.getMessage should equal(BlobPathBuilder.invalidBlobPathMessage(container, endpoint))
     }
   }
 
@@ -52,7 +34,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val evalPath = "/path/to/file"
     val exception = new Exception("Failed to do the thing")
     val fsm = mock[BlobFileSystemManager]
-    when(fsm.retrieveFilesystem()).thenReturn(Failure(exception))
+    when(fsm.retrieveFilesystem(endpoint, container)).thenReturn(Failure(exception))
     val path = BlobPath(evalPath, endpoint, container)(fsm)
     val testException = Try(path.nioPath).failed.toOption
     testException should contain(exception)
@@ -95,9 +77,9 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
   private val store: BlobContainerName = BlobContainerName("inputs")
 
   def makeBlobPathBuilder(blobEndpoint: EndpointURL, container: BlobContainerName): BlobPathBuilder = {
-    val blobTokenGenerator = NativeBlobSasTokenGenerator(container, blobEndpoint, Some(subscriptionId))
-    val fsm = new BlobFileSystemManager(container, blobEndpoint, 10, blobTokenGenerator)
-    new BlobPathBuilder(store, endpoint)(fsm)
+    val blobTokenGenerator = NativeBlobSasTokenGenerator(Some(subscriptionId))
+    val fsm = new BlobFileSystemManager(10, blobTokenGenerator)
+    new BlobPathBuilder()(fsm)
   }
 
   it should "resolve an absolute path string correctly to a path" in {

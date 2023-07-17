@@ -14,11 +14,16 @@ import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.attribute.UserPrincipalLookupService;
 import java.nio.file.spi.FileSystemProvider;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
@@ -162,6 +167,7 @@ public final class AzureFileSystem extends FileSystem {
     private final Map<String, FileStore> fileStores;
     private FileStore defaultFileStore;
     private boolean closed;
+    private Instant expiry;
 
     AzureFileSystem(AzureFileSystemProvider parentFileSystemProvider, String endpoint, Map<String, ?> config)
             throws IOException {
@@ -397,6 +403,7 @@ public final class AzureFileSystem extends FileSystem {
             builder.credential((StorageSharedKeyCredential) config.get(AZURE_STORAGE_SHARED_KEY_CREDENTIAL));
         } else if (config.containsKey(AZURE_STORAGE_SAS_TOKEN_CREDENTIAL)) {
             builder.credential((AzureSasCredential) config.get(AZURE_STORAGE_SAS_TOKEN_CREDENTIAL));
+            this.setExpiryFromSAS((AzureSasCredential) config.get(AZURE_STORAGE_SAS_TOKEN_CREDENTIAL));
         } else {
             throw LoggingUtility.logError(LOGGER, new IllegalArgumentException(String.format("No credentials were "
                     + "provided. Please specify one of the following when constructing an AzureFileSystem: %s, %s.",
@@ -488,5 +495,25 @@ public final class AzureFileSystem extends FileSystem {
 
     Integer getMaxConcurrencyPerRequest() {
         return this.maxConcurrencyPerRequest;
+    }
+
+    public Optional<Instant> getExpiry() {
+        return Optional.ofNullable(expiry);
+    }
+
+    private void setExpiryFromSAS(AzureSasCredential token) {
+        List<String> strings = Arrays.asList(token.getSignature().split("&"));
+        Optional<String> expiryString = strings.stream()
+            .filter(s -> s.startsWith("se"))
+            .findFirst()
+            .map(s -> s.replaceFirst("se=",""))
+            .map(s -> s.replace("%3A", ":"));
+        this.expiry = expiryString.map(es -> Instant.parse(es)).orElse(null);
+    }
+
+    public boolean isExpired(Duration buffer) {
+        return Optional.ofNullable(this.expiry)
+            .map(e -> Instant.now().plus(buffer).isAfter(e))
+            .orElse(true);
     }
 }

@@ -1,7 +1,14 @@
 package cromwell.filesystems.blob
 
-import bio.terra.workspace.api.ControlledAzureResourceApi
+import bio.terra.workspace.api._
 import bio.terra.workspace.client.ApiClient
+import com.azure.core.credential.AzureSasCredential
+
+import java.util.UUID
+import scala.util.Try
+import scala.jdk.CollectionConverters._
+import bio.terra.workspace.model.ResourceType
+import bio.terra.workspace.model.StewardshipType
 
 /**
   * Represents a way to get a client for interacting with workspace manager controlled resources.
@@ -12,7 +19,8 @@ import bio.terra.workspace.client.ApiClient
   * For testing, create an anonymous subclass as in `org.broadinstitute.dsde.rawls.dataaccess.workspacemanager.HttpWorkspaceManagerDAOSpec`
   */
 trait WorkspaceManagerApiClientProvider {
-  def getControlledAzureResourceApi(token: String): ControlledAzureResourceApi
+  def getControlledAzureResourceApi(token: String): WsmControlledAzureResourceApi
+  def getResourceApi(token: String): WsmResourceApi
 }
 
 class HttpWorkspaceManagerClientProvider(baseWorkspaceManagerUrl: WorkspaceManagerURL) extends WorkspaceManagerApiClientProvider {
@@ -22,9 +30,40 @@ class HttpWorkspaceManagerClientProvider(baseWorkspaceManagerUrl: WorkspaceManag
     client
   }
 
-  def getControlledAzureResourceApi(token: String): ControlledAzureResourceApi = {
+  def getResourceApi(token: String): WsmResourceApi = {
     val apiClient = getApiClient
     apiClient.setAccessToken(token)
-    new ControlledAzureResourceApi(apiClient)
+    WsmResourceApi(new ResourceApi(apiClient))
+  }
+
+  def getControlledAzureResourceApi(token: String): WsmControlledAzureResourceApi = {
+    val apiClient = getApiClient
+    apiClient.setAccessToken(token)
+    WsmControlledAzureResourceApi(new ControlledAzureResourceApi(apiClient))
+  }
+}
+
+case class WsmResourceApi(resourcesApi : ResourceApi) {
+  def findContainerResourceId(workspaceId : UUID, container: BlobContainerName): Try[UUID] = {
+    for {
+      workspaceResources <- Try(resourcesApi.enumerateResources(workspaceId, 0, 1, ResourceType.AZURE_STORAGE_CONTAINER, StewardshipType.CONTROLLED).getResources())
+      workspaceStorageContainerOption = workspaceResources.asScala.find(r => r.getMetadata().getName() == container.value)
+      workspaceStorageContainer <- workspaceStorageContainerOption.toRight(new Exception("No storage container found for this workspace")).toTry
+      resourceId = workspaceStorageContainer.getMetadata().getResourceId()
+    } yield resourceId
+  }
+}
+case class WsmControlledAzureResourceApi(controlledAzureResourceApi : ControlledAzureResourceApi) {
+  def createAzureStorageContainerSasToken(workspaceId: UUID, resourceId: UUID): Try[AzureSasCredential] = {
+    for {
+      sas <- Try(controlledAzureResourceApi.createAzureStorageContainerSasToken(
+        workspaceId,
+        resourceId,
+        null,
+        null,
+        null,
+        null
+      ).getToken)
+    } yield new AzureSasCredential(sas)
   }
 }

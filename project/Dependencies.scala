@@ -13,7 +13,12 @@ object Dependencies {
   private val azureIdentitySdkV = "1.9.1"
   private val azureIdentityExtensionsV = "1.1.4"
   private val azureCoreManagementV = "1.7.1"
-  private val azureAppInsightsV = "3.4.12"
+  // We are using the older AppInsights 2 because we want to use the
+  // logback appender to send logs. AppInsights 3 does not have a standalone
+  // appender, and its auto-hoovering of logs didn't meet our needs.
+  // (Specifically, the side-by-side root logger and workflow logger resulted in
+  // duplicate messages in AI. See WX-1122.)
+  private val azureAppInsightsLogbackV = "2.6.4"
   private val betterFilesV = "3.9.1"
   private val jsonSmartV = "2.4.10"
   /*
@@ -107,7 +112,7 @@ object Dependencies {
   private val scalaPoolV = "0.4.3"
   private val scalacticV = "3.2.13"
   private val scalameterV = "0.21"
-  private val scalatestV = "3.2.10"
+  private val scalatestV = "3.2.15"
   private val scalatestScalacheckV = scalatestV + ".0"
   private val scoptV = "4.1.0"
   private val sentryLogbackV = "5.7.4"
@@ -472,7 +477,7 @@ object Dependencies {
     - https://www.scalatest.org/user_guide/generator_driven_property_checks
     - https://www.scalatest.org/user_guide/writing_scalacheck_style_properties
    */
-  private val scalacheckBaseV = "1.15"
+  private val scalacheckBaseV = "1.17"
   private val scalacheckDependencies = List(
     "org.scalatestplus" %% s"scalacheck-${scalacheckBaseV.replace(".", "-")}" % scalatestScalacheckV % Test,
   )
@@ -621,18 +626,16 @@ object Dependencies {
 
   val tesBackendDependencies: List[ModuleID] = akkaHttpDependencies
 
-  val scalaTest = "org.scalatest" %% "scalatest" % scalatestV
   val sfsBackendDependencies = List (
     "org.lz4" % "lz4-java" % lz4JavaV
   )
-
+  val scalaTest = "org.scalatest" %% "scalatest" % scalatestV
+  
   val testDependencies: List[ModuleID] = List(
     "org.scalatest" %% "scalatest" % scalatestV,
     // Use mockito Java DSL directly instead of the numerous and often hard to keep updated Scala DSLs.
     // See also scaladoc in common.mock.MockSugar and that trait's various usages.
-    "org.mockito" % "mockito-core" % mockitoV,
-    "io.github.jbwheatley" %% "pact4s-scalatest"  % "0.7.0",
-    "io.github.jbwheatley" %% "pact4s-circe" %  "0.7.0"
+    "org.mockito" % "mockito-core" % mockitoV
   ) ++ slf4jBindingDependencies // During testing, add an slf4j binding for _all_ libraries.
 
   val kindProjectorPlugin = "org.typelevel" % "kind-projector" % kindProjectorV cross CrossVersion.full
@@ -828,6 +831,7 @@ object Dependencies {
      The jakarta.annotation inclusion is above in googleApiClientDependencies.
      */
     ExclusionRule("javax.annotation", "javax.annotation-api"),
+    ExclusionRule("javax.activation"),
   )
 
   val http4sDsl = "org.http4s" %% "http4s-dsl" % http4sV

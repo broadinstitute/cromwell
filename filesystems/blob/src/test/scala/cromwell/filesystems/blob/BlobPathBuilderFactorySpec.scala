@@ -11,6 +11,7 @@ import java.nio.file.FileSystemNotFoundException
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, Instant, ZoneId}
+import java.util.UUID
 import scala.util.{Failure, Success, Try}
 
 
@@ -51,12 +52,12 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     verify(fileSystem, times(1)).close()
   }
 
-  it should "test retrieveFileSystem with expired filesystem" in {
+  it should "test retrieveFileSystem with expired Terra filesystem" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
     //val expiredToken = generateTokenExpiration(9L)
     val refreshedToken = generateTokenExpiration(69L)
     val sasToken = BlobPathBuilderFactorySpec.buildExampleSasToken(refreshedToken)
-    val container = BlobContainerName("storageContainer")
+    val container = BlobContainerName("sc-" + UUID.randomUUID().toString())
     val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
     val azureUri = BlobFileSystemManager.combinedEnpointContainerUri(endpoint, container)
 
@@ -77,12 +78,12 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     verify(fileSystems, times(1)).closeFileSystem(azureUri)
   }
 
-  it should "test retrieveFileSystem with an unexpired fileSystem" in {
+  it should "test retrieveFileSystem with an unexpired Terra fileSystem" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
     //val initialToken = generateTokenExpiration(11L)
     val refreshedToken = generateTokenExpiration(71L)
     val sasToken = BlobPathBuilderFactorySpec.buildExampleSasToken(refreshedToken)
-    val container = BlobContainerName("storageContainer")
+    val container = BlobContainerName("sc-" + UUID.randomUUID().toString())
     val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
     val azureUri = BlobFileSystemManager.combinedEnpointContainerUri(endpoint,container)
 
@@ -104,11 +105,85 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     verify(fileSystems, never()).closeFileSystem(azureUri)
   }
 
-  it should "test retrieveFileSystem with an uninitialized filesystem" in {
+  it should "test retrieveFileSystem with an uninitialized Terra filesystem" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
     val refreshedToken = generateTokenExpiration(71L)
     val sasToken = BlobPathBuilderFactorySpec.buildExampleSasToken(refreshedToken)
-    val container = BlobContainerName("storageContainer")
+    val container = BlobContainerName("sc-" + UUID.randomUUID().toString())
+    val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
+    val azureUri = BlobFileSystemManager.combinedEnpointContainerUri(endpoint, container)
+
+    //Mocking this final class requires the plugin Mock Maker Inline plugin, configured here
+    //at filesystems/blob/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker
+    val azureFileSystem = mock[AzureFileSystem]
+    when(azureFileSystem.isExpired(Duration.ofMinutes(10L))).thenReturn(false)
+    val fileSystems = mock[FileSystemAPI]
+    when(fileSystems.getFileSystem(azureUri)).thenReturn(Failure(new FileSystemNotFoundException))
+    when(fileSystems.newFileSystem(azureUri, configMap)).thenReturn(azureFileSystem)
+    val blobTokenGenerator = mock[BlobSasTokenGenerator]
+    when(blobTokenGenerator.generateBlobSasToken(endpoint, container)).thenReturn(Try(sasToken))
+
+    val fsm = new BlobFileSystemManager(0L, blobTokenGenerator, fileSystems)
+    fsm.retrieveFilesystem(endpoint, container)
+
+    verify(fileSystems, times(1)).getFileSystem(azureUri)
+    verify(fileSystems, times(1)).newFileSystem(azureUri, configMap)
+    verify(fileSystems, never()).closeFileSystem(azureUri)
+  }
+
+  it should "test retrieveFileSystem with expired non-Terra filesystem" in {
+    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
+    val sasToken = BlobFileSystemManager.PLACEHOLDER_TOKEN
+    val container = BlobContainerName("sc-" + UUID.randomUUID().toString())
+    val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
+    val azureUri = BlobFileSystemManager.combinedEnpointContainerUri(endpoint, container)
+
+    //Mocking this final class requires the plugin Mock Maker Inline plugin, configured here
+    //at filesystems/blob/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker
+    val azureFileSystem = mock[AzureFileSystem]
+    when(azureFileSystem.isExpired(Duration.ofMinutes(10L))).thenReturn(true)
+    val fileSystems = mock[FileSystemAPI]
+    when(fileSystems.getFileSystem(azureUri)).thenReturn(Success(azureFileSystem))
+    val blobTokenGenerator = mock[BlobSasTokenGenerator]
+    when(blobTokenGenerator.generateBlobSasToken(endpoint, container)).thenReturn(Try(sasToken))
+
+    val fsm = new BlobFileSystemManager(10L, blobTokenGenerator, fileSystems)
+    fsm.retrieveFilesystem(endpoint, container)
+
+    verify(fileSystems, times(1)).getFileSystem(azureUri)
+    verify(fileSystems, times(1)).newFileSystem(azureUri, configMap)
+    verify(fileSystems, times(1)).closeFileSystem(azureUri)
+  }
+
+  it should "test retrieveFileSystem with an unexpired non-Terra fileSystem" in {
+    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
+    val sasToken = BlobFileSystemManager.PLACEHOLDER_TOKEN
+    val container = BlobContainerName("sc-" + UUID.randomUUID().toString())
+    val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
+    val azureUri = BlobFileSystemManager.combinedEnpointContainerUri(endpoint,container)
+
+    //Mocking this final class requires the plugin Mock Maker Inline plugin, configured here
+    //at filesystems/blob/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker
+    val azureFileSystem = mock[AzureFileSystem]
+    when(azureFileSystem.isExpired(Duration.ofMinutes(10L))).thenReturn(false)
+    val fileSystems = mock[FileSystemAPI]
+    when(fileSystems.getFileSystem(azureUri)).thenReturn(Try(azureFileSystem))
+
+    val blobTokenGenerator = mock[BlobSasTokenGenerator]
+    when(blobTokenGenerator.generateBlobSasToken(endpoint, container)).thenReturn(Try(sasToken))
+
+    val fsm = new BlobFileSystemManager(10L, blobTokenGenerator, fileSystems)
+    fsm.retrieveFilesystem(endpoint, container)
+
+    verify(fileSystems, times(1)).getFileSystem(azureUri)
+    verify(fileSystems, never()).newFileSystem(azureUri, configMap)
+    verify(fileSystems, never()).closeFileSystem(azureUri)
+  }
+
+  it should "test retrieveFileSystem with an uninitialized non-Terra filesystem" in {
+    val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
+    val sasToken = BlobFileSystemManager.PLACEHOLDER_TOKEN
+    val container = BlobContainerName("sc-" + UUID.randomUUID().toString())
     val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
     val azureUri = BlobFileSystemManager.combinedEnpointContainerUri(endpoint, container)
 

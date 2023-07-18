@@ -36,10 +36,14 @@ object BlobFileSystemManager {
     instant = Instant.parse(expiryString)
   } yield instant
 
-  def buildConfigMap(keyValue: (String, AzureSasCredential), container: BlobContainerName): Map[String, Object] = {
-    Map((keyValue._1, keyValue._2),
-      (AzureFileSystem.AZURE_STORAGE_FILE_STORES, container.value),
-      (AzureFileSystem.AZURE_STORAGE_SKIP_INITIAL_CONTAINER_CHECK, java.lang.Boolean.TRUE))
+  def buildConfigMap(credential: AzureSasCredential, container: BlobContainerName): Map[String, Object] = {
+    val sasTuple = if (credential == PLACEHOLDER_TOKEN) {
+      (AzureFileSystem.AZURE_STORAGE_PUBLIC_ACCESS_CREDENTIAL, PLACEHOLDER_TOKEN)
+    } else {
+      (AzureFileSystem.AZURE_STORAGE_SAS_TOKEN_CREDENTIAL, credential)
+    }
+    Map(sasTuple, (AzureFileSystem.AZURE_STORAGE_FILE_STORES, container.value),
+        (AzureFileSystem.AZURE_STORAGE_SKIP_INITIAL_CONTAINER_CHECK, java.lang.Boolean.TRUE))
   }
   def combinedEnpointContainerUri(endpoint: EndpointURL, container: BlobContainerName) = new URI("azb://?endpoint=" + endpoint + "/" + container.value)
 
@@ -83,29 +87,10 @@ class BlobFileSystemManager(val expiryBufferMinutes: Long,
   }
 
   private def generateFilesystem(uri: URI, container: BlobContainerName, endpoint: EndpointURL): Try[AzureFileSystem] = {
-    // There are three cases here
-    // 1. Authorizing and opening a Terra filesystem
-    // 2. Accessing a public filesystem (including ones outside of Terra)
-    // 3. Failing to interact with a private non-Terra filesystem
-
-    // This is handled by determining if the container name represents a Terra container,
-    // and attempting to get a SAS.
-    // If we cannot get a SAS we will return a Failure with the error
-    // Lastly if the filesystem is outside of Terra try as if the filesystem is public,
-    // and if unable to access it this way, we also return a failure with the error
-    val token = container.workspaceId match {
-      // This is a Terra blob container, we can try to get a SAS
-      case Success(_) =>
-        blobTokenGenerator.generateBlobSasToken(endpoint, container)
-          .map((AzureFileSystem.AZURE_STORAGE_SAS_TOKEN_CREDENTIAL, _))
-      // This is not a Terra blob container, if we can access it, it will be publicly accessible
-      // The blob client requires we supply a token, but it doesn't need to be a valid one since its unused
-      case Failure(_) =>
-       Try(BlobFileSystemManager.PLACEHOLDER_TOKEN)
-         .map((AzureFileSystem.AZURE_STORAGE_PUBLIC_ACCESS_CREDENTIAL, _))
-    }
-    // Try to use whatever token we found and open the filesystem.
-    token.flatMap((credentialKeyValue : (String, AzureSasCredential)) => Try(fileSystemAPI.newFileSystem(uri, BlobFileSystemManager.buildConfigMap(credentialKeyValue, container))))
+    blobTokenGenerator.generateBlobSasToken(endpoint, container)
+      .flatMap((token: AzureSasCredential) => {
+        Try(fileSystemAPI.newFileSystem(uri, BlobFileSystemManager.buildConfigMap(token, container)))
+      })
   }
 }
 
@@ -195,13 +180,18 @@ case class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClient
       case Some(t) => Success(t)
       case None => AzureCredentials.getAccessToken(None).toTry
     }
-
-    for {
-      wsmAuth <- wsmAuthToken
-      wsmAzureResourceClient = wsmClientProvider.getControlledAzureResourceApi(wsmAuth)
-      ids <- getWorkspaceAndContainerResourceId(container, wsmAuth)
-      azureSasToken <- wsmAzureResourceClient.createAzureStorageContainerSasToken(ids._1, ids._2)
-    } yield azureSasToken
+    container.workspaceId match {
+      // If this is a Terra workspace, request a token from WSM
+      case Success(_) => for {
+        wsmAuth <- wsmAuthToken
+        wsmAzureResourceClient = wsmClientProvider.getControlledAzureResourceApi(wsmAuth)
+        ids <- getWorkspaceAndContainerResourceId(container, wsmAuth)
+        azureSasToken <- wsmAzureResourceClient.createAzureStorageContainerSasToken(ids._1, ids._2)
+      } yield azureSasToken
+      // Otherwise assume that the container is public and use a placeholder
+      // SAS token to bypass the BlobClient authentication requirement
+      case Failure(_) => Try(BlobFileSystemManager.PLACEHOLDER_TOKEN)
+    }
   }
 
  def getWorkspaceAndContainerResourceId(container: BlobContainerName, wsmAuth : String): Try[(UUID, UUID)] = {

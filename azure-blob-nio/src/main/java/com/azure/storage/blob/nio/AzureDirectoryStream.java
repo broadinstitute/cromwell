@@ -3,12 +3,6 @@
 
 package com.azure.storage.blob.nio;
 
-import com.azure.core.util.logging.ClientLogger;
-import com.azure.storage.blob.BlobContainerClient;
-import com.azure.storage.blob.models.BlobItem;
-import com.azure.storage.blob.models.BlobListDetails;
-import com.azure.storage.blob.models.ListBlobsOptions;
-
 import java.io.IOException;
 import java.nio.file.DirectoryIteratorException;
 import java.nio.file.DirectoryStream;
@@ -17,6 +11,12 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Set;
+
+import com.azure.core.util.logging.ClientLogger;
+import com.azure.storage.blob.BlobContainerClient;
+import com.azure.storage.blob.models.BlobItem;
+import com.azure.storage.blob.models.BlobListDetails;
+import com.azure.storage.blob.models.ListBlobsOptions;
 
 /**
  * A type for iterating over the contents of a directory.
@@ -88,7 +88,7 @@ public final class AzureDirectoryStream implements DirectoryStream<Path> {
             if (path.isRoot()) {
                 String containerName = path.toString().substring(0, path.toString().length() - 1);
                 AzureFileSystem afs = ((AzureFileSystem) path.getFileSystem());
-                containerClient = ((AzureFileStore) afs.getFileStore(containerName)).getContainerClient();
+                containerClient = ((AzureFileStore) afs.getFileStore()).getContainerClient();
             } else {
                 AzureResource azureResource = new AzureResource(path);
                 listOptions.setPrefix(azureResource.getBlobClient().getBlobName() + AzureFileSystem.PATH_SEPARATOR);

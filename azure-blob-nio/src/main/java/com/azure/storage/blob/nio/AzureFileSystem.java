@@ -26,7 +26,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.PatternSyntaxException;
-import java.util.stream.Collectors;
 
 import com.azure.core.credential.AzureSasCredential;
 import com.azure.core.http.HttpClient;
@@ -169,7 +168,6 @@ public final class AzureFileSystem extends FileSystem {
     private final Long putBlobThreshold;
     private final Integer maxConcurrencyPerRequest;
     private final Integer downloadResumeRetries;
-    private final Map<String, FileStore> fileStores;
     private FileStore defaultFileStore;
     private boolean closed;
     private Instant expiry;
@@ -192,7 +190,7 @@ public final class AzureFileSystem extends FileSystem {
             this.downloadResumeRetries = (Integer) config.get(AZURE_STORAGE_DOWNLOAD_RESUME_RETRIES);
 
             // Initialize and ensure access to FileStores.
-            this.fileStores = this.initializeFileStores(config);
+            this.defaultFileStore = this.initializeFileStore(config);
         } catch (RuntimeException e) {
             throw LoggingUtility.logError(LOGGER, new IllegalArgumentException("There was an error parsing the "
                 + "configurations map. Please ensure all fields are set to a legal value of the correct type.", e));
@@ -293,9 +291,7 @@ public final class AzureFileSystem extends FileSystem {
         If the file system was set to use all containers in the account, the account will be re-queried and the
         list may grow or shrink if containers were added or deleted.
          */
-        return fileStores.keySet().stream()
-            .map(name -> this.getPath(name + AzurePath.ROOT_DIR_SUFFIX))
-            .collect(Collectors.toList());
+        return Arrays.asList(this.getPath(defaultFileStore.name() + AzurePath.ROOT_DIR_SUFFIX));
     }
 
     /**
@@ -315,7 +311,7 @@ public final class AzureFileSystem extends FileSystem {
         If the file system was set to use all containers in the account, the account will be re-queried and the
         list may grow or shrink if containers were added or deleted.
          */
-        return this.fileStores.values();
+        return Arrays.asList(defaultFileStore);
     }
 
     /**
@@ -447,23 +443,20 @@ public final class AzureFileSystem extends FileSystem {
         return builder.buildClient();
     }
 
-    private Map<String, FileStore> initializeFileStores(Map<String, ?> config) throws IOException {
-        String fileStoreNames = (String) config.get(AZURE_STORAGE_FILE_STORES);
-        if (CoreUtils.isNullOrEmpty(fileStoreNames)) {
+    private FileStore initializeFileStore(Map<String, ?> config) throws IOException {
+        String fileStoreName = (String) config.get(AZURE_STORAGE_FILE_STORES);
+        if (CoreUtils.isNullOrEmpty(fileStoreName)) {
             throw LoggingUtility.logError(LOGGER, new IllegalArgumentException("The list of FileStores cannot be "
                 + "null."));
         }
 
         Boolean skipConnectionCheck = (Boolean) config.get(AZURE_STORAGE_SKIP_INITIAL_CONTAINER_CHECK);
         Map<String, FileStore> fileStores = new HashMap<>();
-        for (String fileStoreName : fileStoreNames.split(",")) {
-            FileStore fs = new AzureFileStore(this, fileStoreName, skipConnectionCheck);
-            if (this.defaultFileStore == null) {
-                this.defaultFileStore = fs;
-            }
-            fileStores.put(fileStoreName, fs);
+        FileStore fs = new AzureFileStore(this, fileStoreName, skipConnectionCheck);
+        if (this.defaultFileStore == null) {
+            this.defaultFileStore = fs;
         }
-        return fileStores;
+        return this.defaultFileStore;
     }
 
     @Override
@@ -487,12 +480,11 @@ public final class AzureFileSystem extends FileSystem {
         return this.getPath(this.defaultFileStore.name() + AzurePath.ROOT_DIR_SUFFIX);
     }
 
-    FileStore getFileStore(String name) throws IOException {
-        FileStore store = this.fileStores.get(name);
-        if (store == null) {
-            throw LoggingUtility.logError(LOGGER, new IOException("Invalid file store: " + name));
+    FileStore getFileStore() throws IOException {
+        if (this.defaultFileStore == null) {
+            throw LoggingUtility.logError(LOGGER, new IOException("FileStore not initialized"));
         }
-        return store;
+        return defaultFileStore;
     }
 
     Long getBlockSize() {

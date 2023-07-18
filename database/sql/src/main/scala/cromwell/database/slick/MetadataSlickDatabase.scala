@@ -515,4 +515,9 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   override def getMetadataTableSizeInformation()(implicit ec: ExecutionContext): Future[Option[InformationSchemaEntry]] = {
     runAction(dataAccess.metadataTableSizeInformation())
   }
+
+  override def getFailedJobsMetadataWithWorkflowId(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Vector[MetadataEntry]] = {
+    val isPostgres = databaseConfig.getValue("db.driver").toString.toLowerCase().contains("postgres")
+    runLobAction(dataAccess.failedJobsMetadataWithWorkflowId(rootWorkflowId, isPostgres))
+  }
 }

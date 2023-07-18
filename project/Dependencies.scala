@@ -182,12 +182,10 @@ object Dependencies {
     "com.fasterxml.jackson.core" % "jackson-core" % jacksonV,
     // The exclusions prevent guava from colliding at assembly time.
     "com.google.guava" % "guava" % guavaV,
-    "com.google.api-client" % "google-api-client-java6" % googleApiClientV,
-      // TODO: review adding back in
-      // exclude("com.google.guava", "guava-jdk5"),
-    "com.google.api-client" % "google-api-client-jackson2" % googleApiClientV,
-      // TODO: review adding back in
-      // exclude("com.google.guava", "guava-jdk5"),
+    "com.google.api-client" % "google-api-client-java6" % googleApiClientV
+       exclude("com.google.guava", "guava-jdk5"),
+    "com.google.api-client" % "google-api-client-jackson2" % googleApiClientV
+       exclude("com.google.guava", "guava-jdk5"),
     "com.google.cloud" % "google-cloud-resourcemanager" % googleCloudResourceManagerV,
     /*
     The google-cloud-java dependencies have similar issues with using an older javax.* vs. jakarta.* as guice.
@@ -416,7 +414,7 @@ object Dependencies {
      Force use of jakarta instead of javax until Google does themselves.
      */
     "com.google.cloud" % "google-cloud-nio" % googleCloudNioV
-      //exclude("com.google.api.grpc", "grpc-google-common-protos")
+      exclude("com.google.api.grpc", "grpc-google-common-protos")
       exclude("com.google.cloud.datastore", "datastore-v1-protos")
       exclude("javax.inject", "javax.inject")
       exclude("org.apache.httpcomponents", "httpclient"),

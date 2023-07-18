@@ -127,12 +127,13 @@ object Settings {
    */
   val installLocalizerSettings: List[Setting[Seq[Instruction]]] = List(
     dockerCustomSettings := List(
+      Instructions.From("ubuntu:latest"),
       Instructions.Env("PATH", "$PATH:/usr/local/gcloud/google-cloud-sdk/bin"),
       // instructions to install `crcmod`
       Instructions.Run("apt-get -y update"),
       Instructions.Run("apt-get -y install python3.11"),
-      Instructions.Run("apt -y install python3-pip"),
-      Instructions.Run("apt-get -y install gcc python3-dev python3-setuptools"),
+      Instructions.Run("apt-get -y install python3-pip"),
+      Instructions.Run("apt-get -y install curl gcc python3-dev python3-setuptools"),
       Instructions.Run("pip3 uninstall crcmod"),
       Instructions.Run("pip3 install --no-cache-dir -U crcmod"),
       Instructions.Run("update-alternatives --install /usr/bin/python python /usr/bin/python3 1"),

@@ -452,10 +452,7 @@ public final class AzureFileSystem extends FileSystem {
 
         Boolean skipConnectionCheck = (Boolean) config.get(AZURE_STORAGE_SKIP_INITIAL_CONTAINER_CHECK);
         Map<String, FileStore> fileStores = new HashMap<>();
-        FileStore fs = new AzureFileStore(this, fileStoreName, skipConnectionCheck);
-        if (this.defaultFileStore == null) {
-            this.defaultFileStore = fs;
-        }
+        this.defaultFileStore = new AzureFileStore(this, fileStoreName, skipConnectionCheck);
         return this.defaultFileStore;
     }
 

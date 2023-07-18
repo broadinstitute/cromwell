@@ -183,9 +183,9 @@ object Dependencies {
     // The exclusions prevent guava from colliding at assembly time.
     "com.google.guava" % "guava" % guavaV,
     "com.google.api-client" % "google-api-client-java6" % googleApiClientV
-       exclude("com.google.guava", "guava-jdk5"),
+      exclude("com.google.guava", "guava-jdk5"),
     "com.google.api-client" % "google-api-client-jackson2" % googleApiClientV
-       exclude("com.google.guava", "guava-jdk5"),
+      exclude("com.google.guava", "guava-jdk5"),
     "com.google.cloud" % "google-cloud-resourcemanager" % googleCloudResourceManagerV,
     /*
     The google-cloud-java dependencies have similar issues with using an older javax.* vs. jakarta.* as guice.

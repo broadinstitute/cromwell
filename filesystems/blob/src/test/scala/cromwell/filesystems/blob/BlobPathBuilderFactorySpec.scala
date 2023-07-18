@@ -38,22 +38,10 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     expiry should contain(expiryTime)
   }
 
-  it should "verify an unexpired token will be processed as unexpired" in {
-    val expiryTime = generateTokenExpiration(11L)
-    val expired = BlobFileSystemManager.hasTokenExpired(expiryTime, Duration.ofMinutes(10L))
-    expired shouldBe false
-  }
-
-  it should "test an expired token will be processed as expired" in {
-    val expiryTime = generateTokenExpiration(9L)
-    val expired = BlobFileSystemManager.hasTokenExpired(expiryTime, Duration.ofMinutes(10L))
-    expired shouldBe true
-  }
-
   it should "test that a filesystem gets closed correctly" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
     val container = BlobContainerName("test")
-    val azureUri = BlobFileSystemManager.uri(endpoint, container)
+    val azureUri = BlobFileSystemManager.combinedEnpointContainerUri(endpoint, container)
     val fileSystems = mock[FileSystemAPI]
     val fileSystem = mock[AzureFileSystem]
     when(fileSystems.getFileSystem(azureUri)).thenReturn(Try(fileSystem))
@@ -70,7 +58,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val sasToken = BlobPathBuilderFactorySpec.buildExampleSasToken(refreshedToken)
     val container = BlobContainerName("storageContainer")
     val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
-    val azureUri = BlobFileSystemManager.uri(endpoint, container)
+    val azureUri = BlobFileSystemManager.combinedEnpointContainerUri(endpoint, container)
 
     //Mocking this final class requires the plugin Mock Maker Inline plugin, configured here
     //at filesystems/blob/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker
@@ -96,7 +84,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val sasToken = BlobPathBuilderFactorySpec.buildExampleSasToken(refreshedToken)
     val container = BlobContainerName("storageContainer")
     val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
-    val azureUri = BlobFileSystemManager.uri(endpoint,container)
+    val azureUri = BlobFileSystemManager.combinedEnpointContainerUri(endpoint,container)
 
     //Mocking this final class requires the plugin Mock Maker Inline plugin, configured here
     //at filesystems/blob/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker
@@ -122,7 +110,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val sasToken = BlobPathBuilderFactorySpec.buildExampleSasToken(refreshedToken)
     val container = BlobContainerName("storageContainer")
     val configMap = BlobFileSystemManager.buildConfigMap(sasToken, container)
-    val azureUri = BlobFileSystemManager.uri(endpoint, container)
+    val azureUri = BlobFileSystemManager.combinedEnpointContainerUri(endpoint, container)
 
     //Mocking this final class requires the plugin Mock Maker Inline plugin, configured here
     //at filesystems/blob/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker

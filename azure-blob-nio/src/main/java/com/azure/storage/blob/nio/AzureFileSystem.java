@@ -73,6 +73,11 @@ public final class AzureFileSystem extends FileSystem {
     public static final String AZURE_STORAGE_SAS_TOKEN_CREDENTIAL = "AzureStorageSasTokenCredential";
 
     /**
+     * Expected type: String
+     */
+    public static final String AZURE_STORAGE_PUBLIC_ACCESS_CREDENTIAL = "AzureStoragePublicAccessCredential";
+
+    /**
      * Expected type: com.azure.core.http.policy.HttpLogLevelDetail
      */
     public static final String AZURE_STORAGE_HTTP_LOG_DETAIL_LEVEL = "AzureStorageHttpLogDetailLevel";
@@ -404,6 +409,11 @@ public final class AzureFileSystem extends FileSystem {
         } else if (config.containsKey(AZURE_STORAGE_SAS_TOKEN_CREDENTIAL)) {
             builder.credential((AzureSasCredential) config.get(AZURE_STORAGE_SAS_TOKEN_CREDENTIAL));
             this.setExpiryFromSAS((AzureSasCredential) config.get(AZURE_STORAGE_SAS_TOKEN_CREDENTIAL));
+        } else if (config.containsKey(AZURE_STORAGE_PUBLIC_ACCESS_CREDENTIAL)) {
+            // The Blob Service Client Builder requires at least one kind of authentication to make requests
+            // For public files however, this is unnecessary. This key-value pair is to denote the case
+            // explicitly when we supply a placeholder SAS credential to bypass this requirement.
+            builder.credential((AzureSasCredential) config.get(AZURE_STORAGE_PUBLIC_ACCESS_CREDENTIAL));
         } else {
             throw LoggingUtility.logError(LOGGER, new IllegalArgumentException(String.format("No credentials were "
                     + "provided. Please specify one of the following when constructing an AzureFileSystem: %s, %s.",

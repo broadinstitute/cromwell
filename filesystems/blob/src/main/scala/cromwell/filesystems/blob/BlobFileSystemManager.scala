@@ -5,7 +5,6 @@ import com.azure.storage.blob.nio.AzureFileSystem
 import com.azure.storage.blob.sas.{BlobContainerSasPermission, BlobServiceSasSignatureValues}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
-import common.validation.Validation._
 import cromwell.cloudsupport.azure.AzureUtils
 
 import java.net.URI
@@ -14,7 +13,9 @@ import java.time.temporal.ChronoUnit
 import java.time.{Duration, Instant, OffsetDateTime}
 import java.util.UUID
 import scala.jdk.CollectionConverters._
-import scala.util.{Success, Try}
+import scala.util.{Failure, Success, Try}
+
+import common.validation.Validation._
 
 // We encapsulate this functionality here so that we can easily mock it out, to allow for testing without
 // actually connecting to Blob storage.
@@ -35,13 +36,14 @@ object BlobFileSystemManager {
     instant = Instant.parse(expiryString)
   } yield instant
 
-  def buildConfigMap(credential: AzureSasCredential, container: BlobContainerName): Map[String, Object] = {
-    Map((AzureFileSystem.AZURE_STORAGE_SAS_TOKEN_CREDENTIAL, credential),
+  def buildConfigMap(keyValue: (String, AzureSasCredential), container: BlobContainerName): Map[String, Object] = {
+    Map((keyValue._1, keyValue._2),
       (AzureFileSystem.AZURE_STORAGE_FILE_STORES, container.value),
       (AzureFileSystem.AZURE_STORAGE_SKIP_INITIAL_CONTAINER_CHECK, java.lang.Boolean.TRUE))
   }
-  def hasTokenExpired(tokenExpiry: Instant, buffer: Duration): Boolean = Instant.now.plus(buffer).isAfter(tokenExpiry)
-  def uri(endpoint: EndpointURL, container: BlobContainerName) = new URI("azb://?endpoint=" + endpoint + "/" + container.value)
+  def combinedEnpointContainerUri(endpoint: EndpointURL, container: BlobContainerName) = new URI("azb://?endpoint=" + endpoint + "/" + container.value)
+
+  val PLACEHOLDER_TOKEN = new AzureSasCredential("this-is-a-public-sas")
 }
 
 class BlobFileSystemManager(val expiryBufferMinutes: Long,
@@ -57,19 +59,21 @@ class BlobFileSystemManager(val expiryBufferMinutes: Long,
 
   def this(rawConfig: Config) = this(BlobFileSystemConfig(rawConfig))
 
-  def buffer: Duration = Duration.of(expiryBufferMinutes, ChronoUnit.MINUTES)
+  val buffer: Duration = Duration.of(expiryBufferMinutes, ChronoUnit.MINUTES)
 
   def retrieveFilesystem(endpoint: EndpointURL, container: BlobContainerName): Try[FileSystem] = {
-    val uri = BlobFileSystemManager.uri(endpoint, container)
+    val uri = BlobFileSystemManager.combinedEnpointContainerUri(endpoint, container)
     synchronized {
-      fileSystemAPI.getFileSystem(uri).recoverWith {
+      fileSystemAPI.getFileSystem(uri).filter(!_.isExpired(buffer)).recoverWith {
         // If no filesystem already exists, this will create a new connection, with the provided configs
         case _: FileSystemNotFoundException => {
           logger.info(s"Creating new blob filesystem for URI $uri")
           generateFilesystem(uri, container, endpoint)
         }
-      }.filter(!_.isExpired(buffer)).recoverWith {
-        case _ => {
+        case _ : NoSuchElementException => {
+          // When the filesystem expires, the above filter results in a
+          // NoSuchElementException. If expired, close the filesystem,
+          // regenerate a new SAS token, and reopen the filesystem with the fresh token
           logger.info(s"Closing & regenerating token for existing blob filesystem at URI $uri")
           fileSystemAPI.closeFileSystem(uri)
           generateFilesystem(uri, container, endpoint)
@@ -79,10 +83,29 @@ class BlobFileSystemManager(val expiryBufferMinutes: Long,
   }
 
   private def generateFilesystem(uri: URI, container: BlobContainerName, endpoint: EndpointURL): Try[AzureFileSystem] = {
-    blobTokenGenerator.generateBlobSasToken(endpoint, container)
-      .flatMap((token: AzureSasCredential) => {
-        Try(fileSystemAPI.newFileSystem(uri, BlobFileSystemManager.buildConfigMap(token, container)))
-      })
+    // There are three cases here
+    // 1. Authorizing and opening a Terra filesystem
+    // 2. Accessing a public filesystem (including ones outside of Terra)
+    // 3. Failing to interact with a private non-Terra filesystem
+
+    // This is handled by determining if the container name represents a Terra container,
+    // and attempting to get a SAS.
+    // If we cannot get a SAS we will return a Failure with the error
+    // Lastly if the filesystem is outside of Terra try as if the filesystem is public,
+    // and if unable to access it this way, we also return a failure with the error
+    val token = container.workspaceId match {
+      // This is a Terra blob container, we can try to get a SAS
+      case Success(_) =>
+        blobTokenGenerator.generateBlobSasToken(endpoint, container)
+          .map((AzureFileSystem.AZURE_STORAGE_SAS_TOKEN_CREDENTIAL, _))
+      // This is not a Terra blob container, if we can access it, it will be publicly accessible
+      // The blob client requires we supply a token, but it doesn't need to be a valid one since its unused
+      case Failure(_) =>
+       Try(BlobFileSystemManager.PLACEHOLDER_TOKEN)
+         .map((AzureFileSystem.AZURE_STORAGE_PUBLIC_ACCESS_CREDENTIAL, _))
+    }
+    // Try to use whatever token we found and open the filesystem.
+    token.flatMap((credentialKeyValue : (String, AzureSasCredential)) => Try(fileSystemAPI.newFileSystem(uri, BlobFileSystemManager.buildConfigMap(credentialKeyValue, container))))
   }
 }
 
@@ -176,13 +199,12 @@ case class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClient
     for {
       wsmAuth <- wsmAuthToken
       wsmAzureResourceClient = wsmClientProvider.getControlledAzureResourceApi(wsmAuth)
-      sa <- endpoint.storageAccountName
-      ids <- getWorkspaceAndContainerResourceId(sa, container, wsmAuth)
+      ids <- getWorkspaceAndContainerResourceId(container, wsmAuth)
       azureSasToken <- wsmAzureResourceClient.createAzureStorageContainerSasToken(ids._1, ids._2)
     } yield azureSasToken
   }
 
- def getWorkspaceAndContainerResourceId(storageAccountName: StorageAccountName, container: BlobContainerName, wsmAuth : String): Try[(UUID, UUID)] = {
+ def getWorkspaceAndContainerResourceId(container: BlobContainerName, wsmAuth : String): Try[(UUID, UUID)] = {
     val wsmResourceClient = wsmClientProvider.getResourceApi(wsmAuth)
     for {
       workspaceId <- container.workspaceId

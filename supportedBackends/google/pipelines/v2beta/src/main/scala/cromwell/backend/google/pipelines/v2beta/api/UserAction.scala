@@ -6,8 +6,6 @@ import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.C
 trait UserAction {
   def userActions(createPipelineParameters: CreatePipelineParameters, mounts: List[Mount]): List[Action] = {
 
-    println(f"job shell ${createPipelineParameters.jobShell}")
-
     val jobShell = "/bin/sh"
     
     val userAction = ActionBuilder.userAction(

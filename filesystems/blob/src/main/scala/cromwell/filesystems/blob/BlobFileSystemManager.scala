@@ -1,5 +1,6 @@
 package cromwell.filesystems.blob
 
+import bio.terra.workspace.client.ApiException
 import com.azure.core.credential.AzureSasCredential
 import com.azure.storage.blob.nio.AzureFileSystem
 import com.azure.storage.blob.sas.{BlobContainerSasPermission, BlobServiceSasSignatureValues}
@@ -191,24 +192,31 @@ case class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClient
     }
     container.workspaceId match {
       // If this is a Terra workspace, request a token from WSM
-      case Success(_) => for {
-        wsmAuth <- wsmAuthToken
-        wsmAzureResourceClient = wsmClientProvider.getControlledAzureResourceApi(wsmAuth)
-        ids <- getWorkspaceAndContainerResourceId(container, wsmAuth)
-        azureSasToken <- wsmAzureResourceClient.createAzureStorageContainerSasToken(ids._1, ids._2)
-      } yield azureSasToken
+      case Success(workspaceId) => {
+        val wsmSasToken = for {
+          wsmAuth <- wsmAuthToken
+          wsmAzureResourceClient = wsmClientProvider.getControlledAzureResourceApi(wsmAuth)
+          resourceId <- getContainerResourceId(workspaceId, container, wsmAuth)
+          sasToken <- wsmAzureResourceClient.createAzureStorageContainerSasToken(workspaceId, resourceId)
+        } yield sasToken
+        wsmSasToken match {
+          case Success(value) => Success(value)
+          // If the storage account was still not found in WSM, this may be a public filesystem
+          case Failure(exception: ApiException) if exception.getCode == 404 => Try(BlobFileSystemManager.PLACEHOLDER_TOKEN)
+          case Failure(exception) => Failure(exception)
+        }
+      }
       // Otherwise assume that the container is public and use a placeholder
       // SAS token to bypass the BlobClient authentication requirement
       case Failure(_) => Try(BlobFileSystemManager.PLACEHOLDER_TOKEN)
     }
   }
 
- def getWorkspaceAndContainerResourceId(container: BlobContainerName, wsmAuth : String): Try[(UUID, UUID)] = {
+ def getContainerResourceId(workspaceId: UUID, container: BlobContainerName, wsmAuth : String): Try[UUID] = {
     val wsmResourceClient = wsmClientProvider.getResourceApi(wsmAuth)
     for {
-      workspaceId <- container.workspaceId
       resourceId <- wsmResourceClient.findContainerResourceId(workspaceId, container)
-    } yield (workspaceId, resourceId)
+    } yield resourceId
   }
 }
 

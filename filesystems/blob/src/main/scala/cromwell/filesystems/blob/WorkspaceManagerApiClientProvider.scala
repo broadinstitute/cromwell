@@ -2,13 +2,12 @@ package cromwell.filesystems.blob
 
 import bio.terra.workspace.api._
 import bio.terra.workspace.client.ApiClient
+import bio.terra.workspace.model.{ResourceType, StewardshipType}
 import com.azure.core.credential.AzureSasCredential
 
 import java.util.UUID
-import scala.util.Try
 import scala.jdk.CollectionConverters._
-import bio.terra.workspace.model.ResourceType
-import bio.terra.workspace.model.StewardshipType
+import scala.util.Try
 
 /**
   * Represents a way to get a client for interacting with workspace manager controlled resources.

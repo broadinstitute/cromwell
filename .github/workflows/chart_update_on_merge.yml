@@ -16,7 +16,7 @@ jobs:
       run: |
         JIRA_ID=$(echo '${{ github.event.head_commit.message }}' | grep -Eo '\[?[A-Z][A-Z]+-[0-9]+\]?')
         [[ -z "$JIRA_ID" ]] && { echo "No Jira ID found in $1" ; exit 1; }
-        echo {name}={JIRA_ID} >> $GITHUB_OUTPUT
+        echo "JIRA_ID=$JIRA_ID" >> $GITHUB_OUTPUT
     - name: Clone Cromwell
       uses: actions/checkout@v2
       with:

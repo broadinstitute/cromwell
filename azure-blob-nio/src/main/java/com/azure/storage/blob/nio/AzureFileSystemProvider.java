@@ -47,6 +47,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import com.azure.core.util.CoreUtils;
 import com.azure.core.util.logging.ClientLogger;
@@ -760,9 +761,16 @@ public final class AzureFileSystemProvider extends FileSystemProvider {
         customer scenarios and how many virtual directories they copy, it could be better to check the directory status
         first and then do a copy or createDir, which would always be two requests for all resource types.
          */
+
         try {
+            /*
+            Format the url by appending the SAS token as a param, otherwise the copy request will fail.
+            AzureFileSystem has been updated to handle url transformation via createSASAuthorizedURL()
+            */
+            AzureFileSystem afs = (AzureFileSystem) sourceRes.getPath().getFileSystem();
+            String sasAppendedSourceUrl = afs.createSASAppendedURL(sourceRes.getBlobClient().getBlobUrl());
             SyncPoller<BlobCopyInfo, Void> pollResponse =
-                destinationRes.getBlobClient().beginCopy(sourceRes.getBlobClient().getBlobUrl(), null, null, null,
+                destinationRes.getBlobClient().beginCopy(sasAppendedSourceUrl, null, null, null,
                     null, requestConditions, null);
             pollResponse.waitForCompletion(Duration.ofSeconds(COPY_TIMEOUT_SECONDS));
         } catch (BlobStorageException e) {

@@ -39,11 +39,9 @@ object BlobFileSystemManager {
   def buildConfigMap(credential: AzureSasCredential, container: BlobContainerName): Map[String, Object] = {
     // Special handling is done here to provide a special key value pair if the placeholder token is provided
     // This is due to the BlobClient requiring an auth token even for public blob paths.
-    val sasTuple = if (credential == PLACEHOLDER_TOKEN) {
-      (AzureFileSystem.AZURE_STORAGE_PUBLIC_ACCESS_CREDENTIAL, PLACEHOLDER_TOKEN)
-    } else {
-      (AzureFileSystem.AZURE_STORAGE_SAS_TOKEN_CREDENTIAL, credential)
-    }
+    val sasTuple = if (credential == PLACEHOLDER_TOKEN) (AzureFileSystem.AZURE_STORAGE_PUBLIC_ACCESS_CREDENTIAL, PLACEHOLDER_TOKEN)
+    else (AzureFileSystem.AZURE_STORAGE_SAS_TOKEN_CREDENTIAL, credential)
+
     Map(sasTuple, (AzureFileSystem.AZURE_STORAGE_FILE_STORES, container.value),
         (AzureFileSystem.AZURE_STORAGE_SKIP_INITIAL_CONTAINER_CHECK, java.lang.Boolean.TRUE))
   }
@@ -132,10 +130,7 @@ object BlobSasTokenGenerator {
 
       // WSM-mediated mediated SAS token generator
       // parameterizing client instead of URL to make injecting mock client possible
-      BlobSasTokenGenerator.createBlobTokenGenerator(
-        wsmClient,
-        wsmConfig.overrideWsmAuthToken
-      )
+      BlobSasTokenGenerator.createBlobTokenGenerator(wsmClient, wsmConfig.overrideWsmAuthToken)
     }.getOrElse(
       // Native SAS token generator
       BlobSasTokenGenerator.createBlobTokenGenerator(config.subscriptionId)
@@ -193,17 +188,14 @@ case class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClient
     container.workspaceId match {
       // If this is a Terra workspace, request a token from WSM
       case Success(workspaceId) => {
-        val wsmSasToken = for {
+        (for {
           wsmAuth <- wsmAuthToken
           wsmAzureResourceClient = wsmClientProvider.getControlledAzureResourceApi(wsmAuth)
           resourceId <- getContainerResourceId(workspaceId, container, wsmAuth)
           sasToken <- wsmAzureResourceClient.createAzureStorageContainerSasToken(workspaceId, resourceId)
-        } yield sasToken
-        wsmSasToken match {
-          case Success(value) => Success(value)
+        } yield sasToken).recoverWith {
           // If the storage account was still not found in WSM, this may be a public filesystem
-          case Failure(exception: ApiException) if exception.getCode == 404 => Try(BlobFileSystemManager.PLACEHOLDER_TOKEN)
-          case Failure(exception) => Failure(exception)
+          case exception: ApiException if exception.getCode == 404 => Try(BlobFileSystemManager.PLACEHOLDER_TOKEN)
         }
       }
       // Otherwise assume that the container is public and use a placeholder
@@ -214,9 +206,7 @@ case class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClient
 
  def getContainerResourceId(workspaceId: UUID, container: BlobContainerName, wsmAuth : String): Try[UUID] = {
     val wsmResourceClient = wsmClientProvider.getResourceApi(wsmAuth)
-    for {
-      resourceId <- wsmResourceClient.findContainerResourceId(workspaceId, container)
-    } yield resourceId
+    wsmResourceClient.findContainerResourceId(workspaceId, container)
   }
 }
 

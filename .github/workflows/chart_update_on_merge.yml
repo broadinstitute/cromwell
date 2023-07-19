@@ -9,7 +9,7 @@ jobs:
   chart-update:
     name: Cromwhelm Chart Auto Updater
     if: github.event.pull_request.merged == true
-    runs-on: self-hosted # Faster machines; see https://github.com/broadinstitute/cromwell/settings/actions/runners
+    runs-on: ubuntu-latest
     steps:
     - name: Clone Cromwell
       uses: actions/checkout@v2

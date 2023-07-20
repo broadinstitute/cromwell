@@ -29,7 +29,6 @@ object AzureUtils {
     val azureProfile = new AzureProfile(AzureEnvironment.AZURE)
 
     def azureCredentialBuilder = new DefaultAzureCredentialBuilder()
-      .tenantId("fad90753-2022-4456-9b0a-c7e5b934e408")
       .authorityHost(azureProfile.getEnvironment.getActiveDirectoryEndpoint)
       .build
 

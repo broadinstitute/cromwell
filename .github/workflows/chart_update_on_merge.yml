@@ -1,20 +1,22 @@
 name: chart-update-on-merge
 
 on:
+  workflow_dispatch:
   push:
-  pull_request:
-    types:
-      - closed
+#  pull_request:
+#    types:
+#      - closed
 
 jobs:
   chart-update:
     name: Cromwhelm Chart Auto Updater
-    if: github.event.pull_request.merged == true
+#    if: github.event.pull_request.merged == true
     runs-on: self-hosted # Faster machines; see https://github.com/broadinstitute/cromwell/settings/actions/runners
     steps:
     - name: Fetch Jira ID from the commit message
       id: fetch-jira-id
       run: |
+        echo '${{ github.event.head_commit.message }}'
         JIRA_ID=$(echo '${{ github.event.head_commit.message }}' | grep -Eo '\[?[A-Z][A-Z]+-[0-9]+\]?')
         [[ -z "$JIRA_ID" ]] && { echo "No Jira ID found in $1" ; exit 1; }
         echo "JIRA_ID=$JIRA_ID" >> $GITHUB_OUTPUT

@@ -10,7 +10,7 @@ on:
 jobs:
   chart-update:
     name: Cromwhelm Chart Auto Updater
-#    if: github.event.pull_request.merged == true
+#    if: github.event.pull_request.merged == true 
     runs-on: ubuntu:latest # Faster machines; see https://github.com/broadinstitute/cromwell/settings/actions/runners
     steps:
     - name: Fetch Jira ID from the commit message

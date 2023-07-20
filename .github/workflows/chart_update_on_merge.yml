@@ -88,5 +88,5 @@ jobs:
         git diff
         git config --global user.name "broadbot"
         git config --global user.email "broadbot@broadinstitute.org"
-        git commit -am "${{ steps.fetch-jira-id.outputs.JIRA_ID }}: Auto update Cromwell to $HELM_NEW_TAG"
+        git commit -am "${{ steps.fetch-jira-id.outputs.JIRA_ID }}: Auto update to Cromwell $CROMWELL_VERSION"
         git push https://broadbot:$BROADBOT_GITHUB_TOKEN@github.com/broadinstitute/cromwhelm.git main

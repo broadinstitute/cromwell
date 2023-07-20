@@ -11,15 +11,18 @@ import drs.localizer.CommandLineParser.AccessTokenStrategy.{Azure, Google}
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
 import org.apache.commons.csv.{CSVFormat, CSVParser}
-import java.io.File
+
+import java.io.{File, IOException}
 import java.nio.charset.Charset
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 import spray.json._
 import DefaultJsonProtocol._
-import java.nio.file.{Paths, Files}
+
+import java.nio.file.{Files, Paths}
 import java.nio.charset.StandardCharsets
+import scala.util.{Failure, Success, Try}
 
 object DrsLocalizerMain extends IOApp with StrictLogging {
 
@@ -80,16 +83,26 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
       resolveAndDownloadWithRetries(downloadRetries = 3, checksumRetries = 1, defaultDownloaderFactory, Option(defaultBackoff)).map(_.exitCode)
   }
 
-  private def localizeManifest(csvManifestPath : String) = {
-    // The DRS localizer is provided a manifest in CSV format.
-    // The getm downloader expects a JSON manifest.
-    // Here, we convert the CSV into a JSON and save it to a new file.
-    val csvManifestFile = new File(csvManifestPath)
-    val csvParser = CSVParser.parse(csvManifestFile, Charset.defaultCharset(), CSVFormat.DEFAULT)
-    val scalaMap = csvParser.asScala.map(record => (record.get(0), record.get(1))).toMap
-    val jsonString = scalaMap.toJson.toString
-    Files.write(Paths.get("manifest.json"), jsonString.getBytes(StandardCharsets.UTF_8))
+
+  // The DRS localizer is provided a manifest in CSV format.
+  private def loadCSVAsJson(csvManifestPath : String) : Try[JsValue] = {
+    val scalaMap : Try[Map[String, String]] = for {
+      openFile <- Try(new File(csvManifestPath))
+      csvParser <- Try(CSVParser.parse(openFile, Charset.defaultCharset(), CSVFormat.DEFAULT))
+      map <- Try(csvParser.getRecords.asScala.map(record => (record.get(0), record.get(1))).toMap)
+      if !map.isEmpty
+    } yield map
+    Try(scalaMap.get.toJson)
   }
+
+  private def writeJsonManifest(destinationPath : String, jsonData : JsValue): Try[String] = {
+    Try(Files.write(Paths.get(destinationPath), jsonData.toString().getBytes(StandardCharsets.UTF_8)).toString)
+  }
+  //getm 
+  private def generateJsonPathForManifest(csvPath : String) : String = {
+    csvPath.substring(0, csvPath.lastIndexOf('.')) + "_manifest.json"
+  }
+
 }
 
 class DrsLocalizerMain(drsUrl: String,

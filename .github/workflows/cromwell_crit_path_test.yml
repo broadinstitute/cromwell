@@ -1,0 +1,6 @@
+name: cromwell-crit-path-test
+on:
+  schedule:
+    - cron: '0 0 * * 1'
+env:
+  BEE_NAME: cromwell-crit-path-test

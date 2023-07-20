@@ -1,6 +1,7 @@
 name: chart-update-on-merge
 
 on:
+  push:
   pull_request:
     types:
       - closed

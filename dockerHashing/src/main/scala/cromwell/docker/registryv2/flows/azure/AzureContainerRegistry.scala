@@ -2,37 +2,43 @@ package cromwell.docker.registryv2.flows.azure
 
 import cats.effect.IO
 import com.typesafe.scalalogging.LazyLogging
+import cromwell.cloudsupport.azure.AzureCredentials
 import cromwell.docker.DockerInfoActor.DockerInfoContext
 import cromwell.docker.{DockerImageIdentifier, DockerRegistryConfig}
 import cromwell.docker.registryv2.DockerRegistryV2Abstract
-import org.http4s.{Header, Request}
+import org.http4s.{Header, Request, Response, Status}
+import common.validation.Validation._
+import io.circe.generic.semiauto.deriveDecoder
+import org.http4s.circe.jsonOf
+import org.http4s.client.Client
+import org.http4s.circe._
+import io.circe.Decoder
+import io.circe.generic.auto._
+import org.http4s._
+import org.http4s.circe._
+import org.http4s.client.Client
+import org.http4s.client.dsl.io._
+import org.http4s.headers._
+import org.http4s.util.CaseInsensitiveString
 
 
 class AzureContainerRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstract(config) with LazyLogging {
+
   /**
     * (e.g registry-1.docker.io)
     */
-  override protected def registryHostName(dockerImageIdentifier: DockerImageIdentifier): String = 
-    dockerImageIdentifier.host match {
-      case Some(h) => h
-      case None => "marketplace.azurecr.io"
-    }
-  // terradevacrpublic.azurecr.io/terra-azure-relay-listeners:9eb4762
-  // mcr.microsoft.com/oss/nginx/nginx:stable
+  override protected def registryHostName(dockerImageIdentifier: DockerImageIdentifier): String =
+    dockerImageIdentifier.hostAsString
 
   override def accepts(dockerImageIdentifier: DockerImageIdentifier): Boolean =
     dockerImageIdentifier.hostAsString.contains("azurecr.io") 
 
+  override protected def authorizationServerHostName(dockerImageIdentifier: DockerImageIdentifier): String =
+    dockerImageIdentifier.hostAsString
 
   /**
-    * (e.g auth.docker.io)
+    * In Azure, service name does not exist at the registry level, it varies per repo, e.g. `terrabatchdev.azurecr.io`
     */
-  override protected def authorizationServerHostName(dockerImageIdentifier: DockerImageIdentifier): String =
-    dockerImageIdentifier.host match {
-      case Some(h) => h
-      case None => ???
-    }
-
   override def serviceName: Option[String] =
     throw new Exception("ACR service name is host of user-defined registry, must derive from `DockerImageIdentifier`")
   
@@ -40,12 +46,77 @@ class AzureContainerRegistry(config: DockerRegistryConfig) extends DockerRegistr
     * Builds the list of headers for the token request
     */
   override protected def buildTokenRequestHeaders(dockerInfoContext: DockerInfoContext): List[Header] = {
+    List(contentTypeHeader)
+  }
+
+  private val contentTypeHeader: Header = {
     import org.http4s.headers.`Content-Type`
     import org.http4s.MediaType
 
-    List(`Content-Type`(MediaType.application.`x-www-form-urlencoded`))
+    `Content-Type`(MediaType.application.`x-www-form-urlencoded`)
+  }
+  
+  private def getRefreshToken(authServerHostname: String, defaultAccessToken: String): IO[Request[IO]] = {
+    import org.http4s.Uri.{Authority, Scheme}
+    import org.http4s.client.dsl.io._
+    import org.http4s._
+
+    val uri = Uri.apply(
+      scheme = Option(Scheme.https),
+      authority = Option(Authority(host = Uri.RegName(authServerHostname))),
+      path = "/oauth2/exchange",
+      query = Query.empty
+    )
+
+    org.http4s.Method.POST(
+      UrlForm(
+        "scope" -> "repository:postgres:pull",
+        "service" -> authServerHostname,
+        "access_token" -> defaultAccessToken,
+        "grant_type" -> "access_token"
+      ),
+      uri,
+      List(contentTypeHeader): _* 
+    )
+  }
+  
+  private def getDockerAccessToken(hostname: String, refreshToken: String): IO[Request[IO]] = {
+    import org.http4s.Uri.{Authority, Scheme}
+    import org.http4s.client.dsl.io._
+    import org.http4s._
+
+    val uri = Uri.apply(
+      scheme = Option(Scheme.https),
+      authority = Option(Authority(host = Uri.RegName(hostname))),
+      path = "/oauth2/token",
+      query = Query.empty
+    )
+
+    org.http4s.Method.POST(
+      UrlForm(
+        "scope" -> "repository:postgres:pull",
+        "service" -> hostname,
+        "refresh_token" -> refreshToken,
+        "grant_type" -> "refresh_token"
+      ),
+      uri,
+      List(contentTypeHeader): _* // http4s adds `Content-Length` which ACR does not like (400 response) 
+    )
   }
 
+  override protected def getToken(dockerInfoContext: DockerInfoContext)(implicit client: Client[IO]): IO[Option[String]] = {
+    val hostname = authorizationServerHostName(dockerInfoContext.dockerImageID)
+    val defaultAccessToken = AzureCredentials.getAccessToken(None).toTry.get // AAD token suitable for get-refresh-token request
+
+    (for {
+      refreshToken <- executeRequest(getRefreshToken(defaultAccessToken, hostname), parseRefreshToken)
+      dockerToken <- executeRequest(getDockerAccessToken(refreshToken, hostname), parseAccessToken)
+    } yield dockerToken).map(Option.apply)
+  }
+
+//  override protected def getDockerResponse(token: Option[String], dockerInfoContext: DockerInfoContext)(implicit client: Client[IO]): IO[DockerInfoActor.DockerInfoSuccessResponse] = {
+    
+//  }
   /*
   Unlike other repositories, Azure reserves `GET /oauth2/token` for Basic Authentication [0]
   In order to use Oauth we must `POST /oauth2/token` [1]
@@ -53,34 +124,55 @@ class AzureContainerRegistry(config: DockerRegistryConfig) extends DockerRegistr
   [0] https://github.com/Azure/acr/blob/main/docs/Token-BasicAuth.md#using-the-token-api
   [1] https://github.com/Azure/acr/blob/main/docs/AAD-OAuth.md#calling-post-oauth2token-to-get-an-acr-access-token 
    */
-  override protected def buildTokenRequest(dockerInfoContext: DockerInfoContext): IO[Request[IO]] = {
-    import org.http4s.Uri.{Authority, Scheme}
-    import org.http4s.client.dsl.io._
-    import org.http4s._
+//  override protected def buildTokenRequest(dockerInfoContext: DockerInfoContext): IO[Request[IO]] = {
+//    import org.http4s.Uri.{Authority, Scheme}
+//    import org.http4s.client.dsl.io._
+//    import org.http4s._
     
-    val uri = Uri.apply(
-      scheme = Option(Scheme.https),
-      authority = Option(Authority(host = Uri.RegName(authorizationServerHostName(dockerInfoContext.dockerImageID)))),
-      path = "/oauth2/token",
-      query = Query.empty
-    )
+//    val hostname = authorizationServerHostName(dockerInfoContext.dockerImageID)
+    
+//    val uri = Uri.apply(
+//      scheme = Option(Scheme.https),
+//      authority = Option(Authority(host = Uri.RegName(hostname))),
+//      path = "/oauth2/token",
+//      query = Query.empty
+//    )
 
+//    val defaultAccessToken = AzureCredentials.getAccessToken(None).toTry.get // AAD token suitable for get-refresh-token request
+
+//    for {
+//      refreshToken <- executeRequest(getRefreshToken(defaultAccessToken, hostname))
+//      dockerToken <- getDockerAccessToken(refreshToken, hostname)
+//    } yield dockerToken
+    
     // val entityBody: EntityBody[F] = EntityEncoder[F, ResourceMetadataRequest].toEntity(body).body
-    val request = org.http4s.Method.POST(
-      UrlForm(
-        "scope" -> "repository:postgres:pull",
-        "service" -> dockerInfoContext.dockerImageID.hostAsString,
-        "refresh_token" -> "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IkNPQVU6UERZSDo0SVJYOjM2SEI6TFYzUDpWNFBGOko0NzQ6SzNOSjpPS1JCOlRZQUo6NEc0Szo1Q1NEIn0.eyJqdGkiOiJiNDk4YzJkMS0yMTUwLTQ2NGMtYWQxMy1lN2VkMjNlZjczYzUiLCJzdWIiOiJhbmljaG9sc0BhenVyZS5kZXYuZW52cy10ZXJyYS5iaW8iLCJuYmYiOjE2ODg1OTE3NTQsImV4cCI6MTY4ODYwMzQ1NCwiaWF0IjoxNjg4NTkxNzU0LCJpc3MiOiJBenVyZSBDb250YWluZXIgUmVnaXN0cnkiLCJhdWQiOiJ0ZXJyYWJhdGNoZGV2LmF6dXJlY3IuaW8iLCJ2ZXJzaW9uIjoiMS4wIiwicmlkIjoiYzc0NGM4ZTQwNDNjNDY3N2IxNjQ4NmIxNGU5NTQ4ZDMiLCJncmFudF90eXBlIjoicmVmcmVzaF90b2tlbiIsImFwcGlkIjoiMDRiMDc3OTUtOGRkYi00NjFhLWJiZWUtMDJmOWUxYmY3YjQ2IiwidGVuYW50IjoiZmFkOTA3NTMtMjAyMi00NDU2LTliMGEtYzdlNWI5MzRlNDA4IiwicGVybWlzc2lvbnMiOnsiQWN0aW9ucyI6WyJyZWFkIiwid3JpdGUiLCJkZWxldGUiLCJkZWxldGVkL3JlYWQiLCJkZWxldGVkL3Jlc3RvcmUvYWN0aW9uIl0sIk5vdEFjdGlvbnMiOm51bGx9LCJyb2xlcyI6W119.xRRDFEp3arUC_clpJlgz4D_wqcZK7F9fcDjXMzwbLOFxGkJwW4R4e_lNWL2dDFh-lbBJ95fwywnpbYRyFK3S-csKNCMJe2btACNmX6KVxxM8Ei-bA6AxyBY6OIus94yb3HYJY1a-F5ihA-H4GavyZlkDbMeMc4OIXj90zTrkY-nJHFs0gG8tHWsCfsARRKUsKXpe8Takf8WGyXF9Wy5clhrr3eSlooyl_n4HxJbMa___5tsJG6P_S2A3pMuEYZ4AeB1_4RgPTGxrFc9NFCQ_v2-btdDTAYqhamHKbzlQu7GmvQg9qRUlhYXEcXy8hk9T3pcmzHyluqOcFmyMMMYPgQ",
-        "grant_type" -> "refresh_token"
-      ),
-      uri,
-      buildTokenRequestHeaders(dockerInfoContext): _*, // http4s adds `Content-Length` which ACR does not like (400 response) 
-    )
-    request
+//    val request = org.http4s.Method.POST(
+//      UrlForm(
+//        "scope" -> "repository:postgres:pull",
+//        "service" -> dockerInfoContext.dockerImageID.hostAsString,
+//        "refresh_token" -> "asdf",
+//        "grant_type" -> "refresh_token"
+//      ),
+//      uri,
+//      buildTokenRequestHeaders(dockerInfoContext): _* // http4s adds `Content-Length` which ACR does not like (400 response) 
+//    )
+    
+    
+//  }
+
+  implicit val refreshTokenDecoder: EntityDecoder[IO, AcrRefreshToken] = jsonOf[IO, AcrRefreshToken]
+  implicit val accessTokenDecoder: EntityDecoder[IO, AcrAccessToken] = jsonOf[IO, AcrAccessToken]
+
+  private def parseRefreshToken(response: Response[IO]): IO[String] = response match {
+    case Status.Successful(r) => r.as[AcrRefreshToken].map(_.refresh_token)
+    case r =>
+      r.as[String].flatMap(b => IO.raiseError(new Exception(s"Request failed with status ${r.status.code} and body $b")))
   }
 
-  /*
-  In Azure, service name does not exist at the registry level, it varies per repo: `terrabatchdev.azurecr.io`
-   */
-//  override def serviceName(: Option[String] = None
+  private def parseAccessToken(response: Response[IO]): IO[String] = response match {
+    case Status.Successful(r) => r.as[AcrAccessToken].map(_.access_token)
+    case r =>
+      r.as[String].flatMap(b => IO.raiseError(new Exception(s"Request failed with status ${r.status.code} and body $b")))
+  }
+
 }

@@ -1,4 +1,4 @@
-package cromwell.filesystems.blob
+package cromwell.cloudsupport.azure
 
 import cats.implicits.catsSyntaxValidatedId
 import com.azure.core.credential.TokenRequestContext
@@ -9,7 +9,6 @@ import common.validation.ErrorOr.ErrorOr
 
 import scala.concurrent.duration._
 import scala.jdk.DurationConverters._
-
 import scala.util.{Failure, Success, Try}
 
 /**

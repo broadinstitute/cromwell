@@ -107,7 +107,7 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
   }
 
   // Execute a request. No retries because they're expected to already be handled by the client
-  private def executeRequest[A](request: IO[Request[IO]], handler: Response[IO] => IO[A])(implicit client: Client[IO]): IO[A] = {
+  protected def executeRequest[A](request: IO[Request[IO]], handler: Response[IO] => IO[A])(implicit client: Client[IO]): IO[A] = {
     request.flatMap(client.run(_).use[IO, A](handler))
   }
 

@@ -83,26 +83,44 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
       resolveAndDownloadWithRetries(downloadRetries = 3, checksumRetries = 1, defaultDownloaderFactory, Option(defaultBackoff)).map(_.exitCode)
   }
 
-
-  // The DRS localizer is provided a manifest in CSV format.
-  private def loadCSVAsJson(csvManifestPath : String) : Try[JsValue] = {
-    val scalaMap : Try[Map[String, String]] = for {
+  // Overall plan for bulk DRS downloads:
+  // 1) Open the CSV provided to Cromwell Drs Localizer as a map of DRS URI -> Destination Filepath
+  // 2) Resolve each DRS URI in the map. This will yield two maps, because a drs URI can resolve to either
+  // a gs:// URI or an https:// uri, each of which require different downloaders.
+  // 3a) Invoke the GcsUriDownloader (and its underlying gsutil) to download all gs:// URIs in parallel.
+  // 3b) Invoke the AccessUrlDownloader (and its underlying getm) to download all https:// URIs in parallel.
+  //     - getm requires a --manifest argument, which is a .json file that is a map of https:// URI to destination filepath
+  // 4) Report success or failure as granularly as is reasonably possible.
+  private def loadCSVAsMap(csvManifestPath : String) : Try[Map[String, String]] = {
+    for {
       openFile <- Try(new File(csvManifestPath))
       csvParser <- Try(CSVParser.parse(openFile, Charset.defaultCharset(), CSVFormat.DEFAULT))
       map <- Try(csvParser.getRecords.asScala.map(record => (record.get(0), record.get(1))).toMap)
-      if !map.isEmpty
+      if !map.isEmpty //An empty map should be considered an error - we're expecting at least one k/v pair in the manifest.
     } yield map
-    Try(scalaMap.get.toJson)
   }
 
+  private def resolveURIs(drsUrlToDownloadLocationMap : Map[String,String]) : Try[Map[String, String]] = {
+    val accessUrlToDownloadLocationMap = drsUrlToDownloadLocationMap.map((drsUrl, downloadLocation) => resolve)
+  }
+
+  //Write string to file. Returns the filepath that the string was written to.
   private def writeJsonManifest(destinationPath : String, jsonData : JsValue): Try[String] = {
     Try(Files.write(Paths.get(destinationPath), jsonData.toString().getBytes(StandardCharsets.UTF_8)).toString)
   }
-  //getm 
+  // We're going to write a JSON version of the CSV manifest we're provided.
+  // Save the new manifest to wherever the CSV is saved, but replace .csv with _manifest.json.
   private def generateJsonPathForManifest(csvPath : String) : String = {
     csvPath.substring(0, csvPath.lastIndexOf('.')) + "_manifest.json"
   }
 
+  // The getm tool can read in a JSON manifest and download all files in parallel.
+  // Here, we invoke it with the provided manifest file.
+  // The manifest file should have 1 or more key value pairs, where each key is a drs URI
+  // and each value is a destination path for where that file should be localized to.
+  private def downloadInParallel(jsonManifestPath : String) : IO[ExitCode] = {
+
+  }
 }
 
 class DrsLocalizerMain(drsUrl: String,
@@ -190,4 +208,14 @@ class DrsLocalizerMain(drsUrl: String,
       }
     } yield downloader
   }
+
+  //TODO: use this fn to resolve drs URIs, split the responses into gs:// and https:// groups, and invoke new downloaders for each of those groups.
+  private[localizer] def resolveDrsUrl(drsUrl: String): IO[DrsResolverResponse] = {
+    val fields = NonEmptyList.of(DrsResolverField.GsUri, DrsResolverField.GoogleServiceAccount, DrsResolverField.AccessUrl, DrsResolverField.Hashes)
+    for {
+      resolver <- getDrsPathResolver
+      drsResolverResponse <- resolver.resolveDrs(drsUrl, fields)
+    } yield drsResolverResponse
+  }
+
 }

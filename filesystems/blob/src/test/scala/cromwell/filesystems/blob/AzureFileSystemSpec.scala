@@ -4,7 +4,7 @@ import cromwell.filesystems.blob._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.nio.file.spi.FileSystemProvider
+import java.nio.file.FileSystems
 import java.time.Instant
 import scala.compat.java8.OptionConverters._
 import scala.jdk.CollectionConverters._
@@ -14,14 +14,12 @@ class AzureFileSystemSpec extends AnyFlatSpec with Matchers {
   val container = BlobContainerName("testConainer")
   val exampleSas = BlobPathBuilderFactorySpec.buildExampleSasToken(now)
   val exampleConfig = BlobFileSystemManager.buildConfigMap(exampleSas, container)
-  val exampleEndpoint = BlobPathBuilderSpec.buildEndpoint("testStorageAccount")
-  val fileSystemProvider = FileSystemProvider.installedProviders().asScala.find(p => p.getScheme() == "azb")
+  val exampleStorageEndpoint = BlobPathBuilderSpec.buildEndpoint("testStorageAccount")
+  val exampleCombinedEndpoint = BlobFileSystemManager.combinedEnpointContainerUri(exampleStorageEndpoint, container)
+
   it should "parse an expiration from a sas token" in {
-  //  fileSystemProvider.nonEmpty shouldBe(true)
-    FileSystemProvider.installedProviders().asScala.map(_.getScheme) shouldBe List("azb")
-    val fs = fileSystemProvider.map(p => new AzureFileSystem(p.asInstanceOf[AzureFileSystemProvider], exampleEndpoint.value, exampleConfig.asJava))
-    fs.nonEmpty shouldBe(true)
-    fs.flatMap(_.getExpiry().asScala) shouldBe(Some(now))
-    fs.map(_.getFileStore().name()) shouldBe(Some(container.value))
+    val fs = FileSystems.newFileSystem(exampleCombinedEndpoint, exampleConfig.asJava).asInstanceOf[AzureFileSystem]
+    fs.getExpiry.asScala shouldBe Some(now)
+    fs.getFileStore.name() shouldBe container.value
   }
 }

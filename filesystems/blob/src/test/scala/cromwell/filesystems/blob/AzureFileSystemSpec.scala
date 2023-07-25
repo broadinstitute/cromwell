@@ -1,6 +1,6 @@
-package com.azure.storage.blob.nio;
+package cromwell.filesystems.blob
 
-import cromwell.filesystems.blob._
+import com.azure.storage.blob.nio.AzureFileSystem
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -20,6 +20,6 @@ class AzureFileSystemSpec extends AnyFlatSpec with Matchers {
   it should "parse an expiration from a sas token" in {
     val fs = FileSystems.newFileSystem(exampleCombinedEndpoint, exampleConfig.asJava).asInstanceOf[AzureFileSystem]
     fs.getExpiry.asScala shouldBe Some(now)
-    fs.getFileStore.name() shouldBe container.value
+    fs.getFileStores.asScala.map(_.name()).exists(_ == container.value) shouldBe true
   }
 }

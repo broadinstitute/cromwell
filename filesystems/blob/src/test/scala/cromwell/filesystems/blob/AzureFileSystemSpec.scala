@@ -17,7 +17,7 @@ class AzureFileSystemSpec extends AnyFlatSpec with Matchers {
   val exampleEndpoint = BlobPathBuilderSpec.buildEndpoint("testStorageAccount")
   val fileSystemProvider = FileSystemProvider.installedProviders().asScala.find(p => p.getScheme() == "azb")
   it should "parse an expiration from a sas token" in {
-    fileSystemProvider.nonEmpty shouldBe(true)
+  //  fileSystemProvider.nonEmpty shouldBe(true)
     FileSystemProvider.installedProviders().asScala.map(_.getScheme) shouldBe List("azb")
     val fs = fileSystemProvider.map(p => new AzureFileSystem(p.asInstanceOf[AzureFileSystemProvider], exampleEndpoint.value, exampleConfig.asJava))
     fs.nonEmpty shouldBe(true)

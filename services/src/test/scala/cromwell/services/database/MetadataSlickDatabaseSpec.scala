@@ -47,6 +47,8 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val subSubWorkflowCountableId = "subsubworkflow id: countable stuff"
 
     val failedParentWorkflowId = "bbf4c25b-282b-4a18-a914-441f9684b69e"
+    val ignoredFailedParentWorkflowId = "ccccc-ddddd-3333-42242"
+    val ignoredFailedChildWorkflowId = "eeeeeee-ggggggg-33333-22222"
     val successfulParentWorkflowId = "4c1cf43d-1fbd-47af-944c-c63216f293ae"
 
     val failedChildWorkflowId = "9ff3d855-0585-48e4-b3a1-189101f611e5"
@@ -54,6 +56,7 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
 
     val failedStatusMetadataValue = Option(new SerialClob("Failed".toCharArray()))
     val doneStatusMetadataValue = Option(new SerialClob("Done".toCharArray()))
+    val stdErrValue = Option(new SerialClob("test value".toCharArray()))
 
     it should "set up the test data" taggedAs DbmsTest in {
       database.runTestTransaction(
@@ -215,19 +218,26 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
           MetadataEntry(failedParentWorkflowId, Option("failedWorkflowCall"), Option(0), Option(1), "executionStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry(failedParentWorkflowId, Option("failedWorkflowCall"), Option(1), Option(0), "executionStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry(failedParentWorkflowId, Option("failedWorkflowCall"), Option(1), Option(1), "executionStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(failedParentWorkflowId, Option("failedWorkflowCall"), Option(1), Option(1), "stderr", stdErrValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry(failedParentWorkflowId, Option("successfulWorkflowCall"), Option(0), Option(0), "executionStatus", doneStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry(failedParentWorkflowId, Option("successfulSubWorkflowCall"), Option(0), Option(0), "subWorkflowId", Option(new SerialClob(failedChildWorkflowId.toCharArray)), Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
+
+          //ignored failed workflow calls. These should not be fetched since it's not part of the target workflow tree
+          MetadataEntry(ignoredFailedParentWorkflowId, Option("failedWorkflowCall"), Option(0), Option(0), "executionStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(ignoredFailedChildWorkflowId, Option("failedSubWorkflowCall"), None, Option(1), "executionStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
 
           //child workflow calls (successful calls and previous failed attempts/shards are mixed in for negative checks)
           //notFailedSubWorkflowCall should not be returned since it succeeded on the last attempt and has no scatters
           MetadataEntry(failedChildWorkflowId, Option("notActuallyFailedSubWorkflowCall"), None, Option(1), "executionStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry(failedChildWorkflowId, Option("notActuallyFailedSubWorkflowCall"), None, Option(2), "backendStatus", doneStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(failedChildWorkflowId, Option("notActuallyFailedSubWorkflowCall"), None, Option(2), "stderr", stdErrValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry(failedChildWorkflowId, Option("successfulSubWorkflowCall"), Option(0), Option(0), "executionStatus", doneStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
 
           //Failed child workflow calls (successful calls and previous failed attempts/shards are mixed in for negative checks)
-          //failedSubWorkflowCall2 should be returned since it never succeeded
+          //failedSubWorkflowCall should be returned since it never succeeded
           MetadataEntry(failedChildWorkflowId, Option("failedSubWorkflowCall"), None, Option(1), "executionStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry(failedChildWorkflowId, Option("failedSubWorkflowCall"), None, Option(2), "backendStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(failedChildWorkflowId, Option("failedSubWorkflowCall"), None, Option(2), "stderr", stdErrValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry(failedChildWorkflowId, Option("successfulSubWorkflowCall2"), Option(0), Option(0), "executionStatus", doneStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
 
           //Third set of child workflow calls, similar to above however this set consists of retries and scatters
@@ -237,6 +247,7 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
           MetadataEntry(failedChildWorkflowId, Option("failedSubWorkflowCall2"), Option(2), Option(1), "backendStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry(failedChildWorkflowId, Option("failedSubWorkflowCall2"), Option(1), Option(2), "backendStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry(failedChildWorkflowId, Option("failedSubWorkflowCall2"), Option(2), Option(2), "executionStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(failedChildWorkflowId, Option("failedSubWorkflowCall2"), Option(2), Option(2), "stderr", stdErrValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry(failedChildWorkflowId, Option("successfulSubWorkflowCall3"), Option(0), Option(0), "executionStatus", doneStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
 
           //Fourth set of child workflow calls
@@ -245,6 +256,7 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
           MetadataEntry(failedChildWorkflowId, Option("notActuallySubWorkflowCall2"), Option(2), Option(1), "backendStatus", failedStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry(failedChildWorkflowId, Option("notActuallySubWorkflowCall2"), Option(1), Option(2), "executionStatus", doneStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry(failedChildWorkflowId, Option("notActuallySubWorkflowCall2"), Option(2), Option(2), "backendStatus", doneStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(failedChildWorkflowId, Option("notActuallySubWorkflowCall2"), Option(2), Option(2), "stderr", stdErrValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry(failedChildWorkflowId, Option("successfulSubWorkflowCall4"), Option(0), Option(0), "executionStatus", doneStatusMetadataValue, Option("String"), OffsetDateTime.now().toSystemTimestamp, None),
 
           //Successful parent workflow call (negative check)
@@ -271,11 +283,11 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
 
       val recordCount = Map(
         failedParentWorkflowId -> scala.collection.mutable.Map(
-          "expected" -> 1,
+          "expected" -> 2,
           "actual" -> 0
         ),
         failedChildWorkflowId -> scala.collection.mutable.Map(
-          "expected" -> 2,
+          "expected" -> 4,
           "actual" -> 0
         )
       )
@@ -289,23 +301,39 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
             recordCount(workflowId)("actual") += 1
             val metadataValueClob = entry.metadataValue.get
             val metadataValueString = metadataValueClob.getSubString(1, metadataValueClob.length().toInt)
-            metadataValueString should be("Failed")
+
+            entry.metadataKey match {
+              case "stderr" => {
+                metadataValueString should be("test value")
+              }
+              case "backendStatus" => {
+                metadataValueString should be("Failed")
+              }
+              case "executionStatus" => {
+                metadataValueString should be("Failed")
+              }
+              case _ => fail(s"Unexpected key ${entry.metadataKey} was included in result set")
+            }
+
             entry.metadataKey should not be("subWorkflowId")
             entry.callFullyQualifiedName.getOrElse("") match {
               case "failedWorkflowCall" => {
                 entry.jobIndex.get should be(1)
                 entry.jobAttempt.get should be(1)
-                entry.metadataKey should be("executionStatus")
+                val isValidKey = List("executionStatus", "stderr").contains(entry.metadataKey)
+                isValidKey should be(true)
               }
               case "failedSubWorkflowCall" => {
                 entry.jobIndex should be(None)
                 entry.jobAttempt.get should be(2)
-                entry.metadataKey should be("backendStatus")
+                val isValidKey = List("backendStatus", "stderr").contains(entry.metadataKey)
+                isValidKey should be(true)
               }
               case "failedSubWorkflowCall2" => {
                 entry.jobIndex.get should be(2)
                 entry.jobAttempt.get should be(2)
-                entry.metadataKey should be("executionStatus")
+                val isValidKey = List("executionStatus", "stderr").contains(entry.metadataKey)
+                isValidKey should be(true)
               }
               case _ => fail(s"Entry ${entry.callFullyQualifiedName.getOrElse("N/A")} | Index: ${entry.jobIndex.get} | Attempt: ${entry.jobAttempt.get} should not be in result set")
             }

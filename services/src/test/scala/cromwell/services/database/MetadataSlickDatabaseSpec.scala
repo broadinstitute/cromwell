@@ -274,7 +274,9 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
           WorkflowMetadataSummaryEntry(failedParentWorkflowId, Option("failedParentWorkflow"), Option("Failed"), Option(now), Option(now), Option(now), None, None, None, None),
           WorkflowMetadataSummaryEntry(failedChildWorkflowId, Option("failedChildWorkflow"), Option("Failed"), Option(now), Option(now), Option(now), Option(failedParentWorkflowId), Option(failedParentWorkflowId), None, None),
           WorkflowMetadataSummaryEntry(successfulParentWorkflowId, Option("successfulParentWorkflow"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None, None, None),
-          WorkflowMetadataSummaryEntry(successfulChildWorkflowId, Option("successfulChildWorkflow"), Option("Succeeded"), Option(now), Option(now), Option(now), Option(successfulParentWorkflowId), Option(successfulParentWorkflowId), None, None)
+          WorkflowMetadataSummaryEntry(successfulChildWorkflowId, Option("successfulChildWorkflow"), Option("Succeeded"), Option(now), Option(now), Option(now), Option(successfulParentWorkflowId), Option(successfulParentWorkflowId), None, None),
+          WorkflowMetadataSummaryEntry(ignoredFailedParentWorkflowId, Option("ignoredFailedParentWorkflow"), Option("Failed"), Option(now), Option(now), Option(now), Option(ignoredFailedParentWorkflowId), Option(ignoredFailedParentWorkflowId), None, None),
+          WorkflowMetadataSummaryEntry(ignoredFailedChildWorkflowId, Option("ignoredFailedChildWorkflow"), Option("Failed"), Option(now), Option(now), Option(now), Option(ignoredFailedChildWorkflowId), Option(ignoredFailedChildWorkflowId), None, None)
         )
       ).futureValue(Timeout(10.seconds))
 

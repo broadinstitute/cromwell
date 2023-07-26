@@ -78,7 +78,7 @@ cromwell::private::papi::gcr_image_delete() {
     local docker_image_name
     docker_image_name="${1:?gcr_image_delete called without a docker_image_name}"
     shift
-    gcloud container images delete "${docker_image_name}" --force-delete-tags --quiet
+    gcloud container images delete "${docker_image_name}-papi" --force-delete-tags --quiet
 }
 
 cromwell::private::papi::setup_papi_gcr() {
@@ -89,7 +89,7 @@ cromwell::private::papi::setup_papi_gcr() {
     elif command -v docker; then
         # Upload images built from this commit
         gcloud auth configure-docker --quiet
-        CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="gcr.io/${CROMWELL_BUILD_PAPI_PROJECT_ID}/cromwell-drs-localizer:${CROMWELL_BUILD_DOCKER_TAG}"
+        CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="gcr.io/${CROMWELL_BUILD_PAPI_PROJECT_ID}/cromwell-drs-localizer:${CROMWELL_BUILD_DOCKER_TAG}-papi"
         cromwell::private::papi::gcr_image_push cromwell-drs-localizer "${CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS}"
         export CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
     else

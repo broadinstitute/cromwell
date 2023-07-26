@@ -78,7 +78,7 @@ cromwell::private::batch::gcr_image_delete() {
     local docker_image_name
     docker_image_name="${1:?gcr_image_delete called without a docker_image_name}"
     shift
-    gcloud container images delete "${docker_image_name}" --force-delete-tags --quiet
+    gcloud container images delete "${docker_image_name}-batch" --force-delete-tags --quiet
 }
 
 cromwell::private::batch::setup_batch_gcr() {
@@ -89,7 +89,7 @@ cromwell::private::batch::setup_batch_gcr() {
     elif command -v docker; then
         # Upload images built from this commit
         gcloud auth configure-docker --quiet
-        CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS="gcr.io/${CROMWELL_BUILD_BATCH_PROJECT_ID}/cromwell-drs-localizer:${CROMWELL_BUILD_DOCKER_TAG}"
+        CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS="gcr.io/${CROMWELL_BUILD_BATCH_PROJECT_ID}/cromwell-drs-localizer:${CROMWELL_BUILD_DOCKER_TAG}-batch"
         cromwell::private::batch::gcr_image_push cromwell-drs-localizer "${CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS}"
         export CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS
     else

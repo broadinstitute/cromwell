@@ -41,8 +41,7 @@ cromwell::private::batch::setup_batch_gcloud() {
     cromwell::build::add_exit_function cromwell::private::batch::teardown_batch_gcloud
 
     gcloud auth activate-service-account --key-file="${CROMWELL_BUILD_BATCH_AUTH_JSON}"
-    export GOOGLE_APPLICATION_DEFAULT_CREDENTIALS="${CROMWELL_BUILD_BATCH_AUTH_JSON}"
-    printenv
+    export GOOGLE_APPLICATION_CREDENTIALS="${CROMWELL_BUILD_BATCH_AUTH_JSON}"
     gcloud config set account "${CROMWELL_BUILD_BATCH_CLIENT_EMAIL}"
     gcloud config set project "${CROMWELL_BUILD_BATCH_PROJECT_ID}"
 }

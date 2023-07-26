@@ -78,7 +78,7 @@ cromwell::private::papi::gcr_image_delete() {
     local docker_image_name
     docker_image_name="${1:?gcr_image_delete called without a docker_image_name}"
     shift
-    gcloud container images delete "${docker_image_name}-papi" --force-delete-tags --quiet
+    gcloud container images delete "${docker_image_name}" --force-delete-tags --quiet
 }
 
 cromwell::private::papi::setup_papi_gcr() {

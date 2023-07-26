@@ -173,7 +173,7 @@ object RunnableBuilder {
       volumes = volumes,
       flags = List(RunnableFlag.AlwaysRun),
       labels = Map(Key.Tag -> Value.RetryWithMoreMemory)
-    )
+    ).withAlwaysRun(true)
   }
 
   // Creates a Runnable that logs the docker command for the passed in runnable.
@@ -301,10 +301,10 @@ object RunnableBuilder {
 
     val mountArgs: String = Option(runnable.getContainerBuilder.getVolumesList) match {
       case None => ""
-      case Some(mounts) =>
-        mounts.asScala map {
-          case mount if Option(mount).isEmpty => ""
-          case mount => s" -v ${shellEscaped(mount)}"
+      case Some(volumes) =>
+        volumes.asScala map {
+          case volume if Option(volume).isEmpty => ""
+          case volume => s" -v ${shellEscaped(volume).replaceAll(":r[o|w]", "")}"
         } mkString ""
     }
 

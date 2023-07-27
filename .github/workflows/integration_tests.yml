@@ -24,10 +24,11 @@ jobs:
       #Each will be launched on its own runner so they can occur in parallel.
       #Friendly names are displayed on the Github UI and aren't used anywhere else.
       matrix:
-        include:
+        exclude:
           - build_type: centaurGcpBatch
             build_mysql: 5.7
             friendly_name: Centaur GCP Batch with MySQL 5.7
+        include:
           - build_type: centaurPapiV2beta
             build_mysql: 5.7
             friendly_name: Centaur Papi V2 Beta with MySQL 5.7

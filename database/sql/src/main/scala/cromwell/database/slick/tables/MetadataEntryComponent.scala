@@ -323,12 +323,16 @@ trait MetadataEntryComponent {
       if(isPostgres) "obj.data" else "METADATA_VALUE"
     }
 
-    def targetCallsSelectStatement(callFqn: String, scatterIndex: String, retryAttempt: String): String = {
-      s"SELECT ${callFqn}, MAX(COALESCE(${scatterIndex}, 0)) as maxScatter, MAX(COALESCE(${retryAttempt}, 0)) AS maxRetry"
+    def attemptAndIndexSelectStatement(callFqn: String, scatterIndex: String, retryAttempt: String, variablePrefix: String): String = {
+      s"SELECT ${callFqn}, MAX(COALESCE(${scatterIndex}, 0)) as ${variablePrefix}Scatter, MAX(COALESCE(${retryAttempt}, 0)) AS ${variablePrefix}Retry"
     }
 
     def pgObjectInnerJoinStatement(isPostgres: Boolean, metadataValColName: String): String = {
       if(isPostgres) s"INNER JOIN pg_largeobject obj ON me.${metadataValColName} = cast(obj.loid as text)" else ""
+    }
+
+    def failedTaskGroupByClause(metadataValue: String, callFqn: String): String = {
+      return s"GROUP BY ${callFqn}, ${metadataValue}"
     }
 
     val workflowUuid = dbIdentifierWrapper("WORKFLOW_EXECUTION_UUID", isPostgres)
@@ -345,19 +349,32 @@ trait MetadataEntryComponent {
     val wmse = dbIdentifierWrapper("WORKFLOW_METADATA_SUMMARY_ENTRY", isPostgres)
     val resultSetColumnNames = s"me.${workflowUuid}, me.${callFqn}, me.${scatterIndex}, me.${retryAttempt}, me.${metadataKey}, me.${metadataValue}, me.${metadataValueType}, me.${metadataTimestamp}, me.${metadataJournalId}"
 
-    val query = sql"""
+    val query =
+      sql"""
       SELECT #${resultSetColumnNames}
       FROM #${metadataEntry} me
       INNER JOIN (
-        #${targetCallsSelectStatement(callFqn, scatterIndex, retryAttempt)}
+       #${attemptAndIndexSelectStatement(callFqn, scatterIndex, retryAttempt, "failed")}
+        FROM #${metadataEntry} me
+        INNER JOIN #${wmse} wmse
+        ON wmse.#${workflowUuid} = me.#${workflowUuid}
+        #${pgObjectInnerJoinStatement(isPostgres, metadataValue)}
+        WHERE (wmse.#${rootUuid} = $rootWorkflowId OR wmse.#${workflowUuid} = $rootWorkflowId)
+        AND (me.#${metadataKey} in ('executionStatus', 'backendStatus') AND #${dbMetadataValueColCheckName(isPostgres)} = 'Failed')
+        #${failedTaskGroupByClause(dbMetadataValueColCheckName(isPostgres), callFqn)}
+        HAVING #${dbMetadataValueColCheckName(isPostgres)} = 'Failed'
+      ) AS failedCalls
+      ON me.#${callFqn} = failedCalls.#${callFqn}
+      INNER JOIN (
+        #${attemptAndIndexSelectStatement(callFqn, scatterIndex, retryAttempt, "max")}
         FROM #${metadataEntry} me
         INNER JOIN #${wmse} wmse
         ON wmse.#${workflowUuid} = me.#${workflowUuid}
         WHERE (wmse.#${rootUuid} = $rootWorkflowId OR wmse.#${workflowUuid} = $rootWorkflowId)
         AND #${callFqn} IS NOT NULL
         GROUP BY #${callFqn}
-      ) AS targetCalls
-      ON me.#${callFqn} = targetCalls.#${callFqn}
+      ) maxCalls
+      ON me.#${callFqn} = maxCalls.#${callFqn}
       LEFT JOIN (
         SELECT DISTINCT #${callFqn}
         FROM #${metadataEntry} me
@@ -370,13 +387,11 @@ trait MetadataEntryComponent {
       ON me.#${callFqn} = avoidedCalls.#${callFqn}
       INNER JOIN #${wmse} wmse
       ON wmse.#${workflowUuid} = me.#${workflowUuid}
-      #${pgObjectInnerJoinStatement(isPostgres, metadataValue)}
       WHERE avoidedCalls.#${callFqn} IS NULL
-      AND (me.#${metadataKey} in ('executionStatus', 'backendStatus') AND #${dbMetadataValueColCheckName(isPostgres)} = 'Failed')
-      AND (
-        (COALESCE(me.#${retryAttempt}, 0) = targetCalls.maxRetry AND me.#${scatterIndex} IS NULL)
-        OR (COALESCE(me.#${retryAttempt}, 0) = targetCalls.maxRetry AND me.#${scatterIndex} = targetCalls.maxScatter)
-       )
+      AND COALESCE(me.#${scatterIndex}, 0) = maxCalls.maxScatter
+      AND COALESCE(me.#${retryAttempt}, 0) = maxCalls.maxRetry
+      AND failedCalls.failedScatter = maxCalls.maxScatter
+      AND failedCalls.failedRetry = maxCalls.maxRetry
       GROUP BY #${resultSetColumnNames}
       HAVING me.#${workflowUuid} IN (
         SELECT DISTINCT wmse.#${workflowUuid}

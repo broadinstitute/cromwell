@@ -61,7 +61,7 @@ task localize_jdr_drs_with_usa {
     }
 
     runtime {
-        docker: "ubuntu"
+        docker: "ubuntu:latest"
         backend: "papi-v2-usa"
     }
 }
@@ -88,7 +88,7 @@ task skip_localize_jdr_drs_with_usa {
     }
 
     runtime {
-        docker: "ubuntu"
+        docker: "ubuntu:latest"
         backend: "papi-v2-usa"
     }
 }
@@ -109,7 +109,7 @@ task read_drs_with_usa {
     }
 
     runtime {
-        docker: "ubuntu"
+        docker: "ubuntu:latest"
         backend: "papi-v2-usa"
     }
 }

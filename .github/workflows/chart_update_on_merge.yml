@@ -9,8 +9,14 @@ jobs:
   chart-update:
     name: Cromwhelm Chart Auto Updater
     if: github.event.pull_request.merged == true
-    runs-on: self-hosted # Faster machines; see https://github.com/broadinstitute/cromwell/settings/actions/runners
+    runs-on: ubuntu-latest
     steps:
+    - name: Fetch Jira ID from the commit message
+      id: fetch-jira-id
+      run: |
+        JIRA_ID=$(echo '${{ github.event.pull_request.title }}' | grep -Eo '\[?[A-Z][A-Z]+-[0-9]+\]?')
+        [[ -z "$JIRA_ID" ]] && { echo "No Jira ID found in $1" ; exit 1; }
+        echo "JIRA_ID=$JIRA_ID" >> $GITHUB_OUTPUT
     - name: Clone Cromwell
       uses: actions/checkout@v2
       with:
@@ -82,5 +88,5 @@ jobs:
         git diff
         git config --global user.name "broadbot"
         git config --global user.email "broadbot@broadinstitute.org"
-        git commit -am "Auto update to Cromwell $CROMWELL_VERSION"
+        git commit -am "${{ steps.fetch-jira-id.outputs.JIRA_ID }}: Auto update to Cromwell $CROMWELL_VERSION"
         git push https://broadbot:$BROADBOT_GITHUB_TOKEN@github.com/broadinstitute/cromwhelm.git main

@@ -75,7 +75,7 @@ jobs:
         repository: broadinstitute/terra-helmfile
         event-type: update-service
         client-payload: '{"service": "cromiam", "version": "${{ env.CROMWELL_VERSION }}", "dev_only": false}'
-    - name: Edit & push chart
+    - name: Edit & push cromwhelm chart
       env:
         BROADBOT_GITHUB_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
       run: |
@@ -90,3 +90,46 @@ jobs:
         git config --global user.email "broadbot@broadinstitute.org"
         git commit -am "${{ steps.fetch-jira-id.outputs.JIRA_ID }}: Auto update to Cromwell $CROMWELL_VERSION"
         git push https://broadbot:$BROADBOT_GITHUB_TOKEN@github.com/broadinstitute/cromwhelm.git main
+        cd -
+
+    - name: Clone terra-helmfile
+      uses: actions/checkout@v3
+      with:
+        repository: broadinstitute/terra-helmfile
+        token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
+        path: terra-helmfile
+
+    - name: Update workflows-app in terra-helmfile
+      run: |
+        set -e
+        cd terra-helmfile
+        sed -i "s|image: broadinstitute/cromwell:.*|image: broadinstitute/cromwell:$CROMWELL_VERSION|" charts/workflows-app/values.yaml
+        cd -
+
+    - name: Update cromwell-runner-app in terra-helmfile
+      run: |
+        set -e
+        cd terra-helmfile
+        sed -i "s|image: broadinstitute/cromwell:.*|image: broadinstitute/cromwell:$CROMWELL_VERSION|" charts/cromwell-runner-app/values.yaml
+        cd -
+        
+
+    - name: Make PR in terra-helmfile
+      env:
+        BROADBOT_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+      run: |
+        set -e
+        JIRA_ID=${{ steps.fetch-jira-id.outputs.JIRA_ID }}
+        if [[ $JIRA_ID == "missing" ]]; then
+          echo "JIRA_ID missing, PR to terra-helmfile will not be created"
+          exit 0;
+        fi
+        cd terra-helmfile
+        git checkout -b ${JIRA_ID}-cbas-update-${HELM_NEW_TAG}
+        git config --global user.name "broadbot"
+        git config --global user.email "broadbot@broadinstitute.org"
+        git commit -am "${JIRA_ID}: Auto update CBAS to $HELM_NEW_TAG in workflows-app"
+        git push -u origin ${JIRA_ID}-cbas-update-${HELM_NEW_TAG}
+        gh pr create --title "${JIRA_ID}: auto update CBAS version to $HELM_NEW_TAG in workflows-app" --body "${JIRA_ID} helm chart update" --label "automerge"
+        cd -

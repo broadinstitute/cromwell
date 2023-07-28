@@ -24,6 +24,7 @@ jobs:
       #Each will be launched on its own runner so they can occur in parallel.
       #Friendly names are displayed on the Github UI and aren't used anywhere else.
       matrix:
+        # Batch test fixes to land later
         exclude:
           - build_type: centaurGcpBatch
             build_mysql: 5.7

@@ -9,6 +9,7 @@
 
 name: long_cmd
 testFormat: workflowsuccess
+tags: [batchexclude]
 
 files {
   workflow: long_cmd/long_cmd.wdl

@@ -129,7 +129,7 @@ jobs:
         git checkout -b ${JIRA_ID}-cromwell-update-$CROMWELL_VERSION
         git config --global user.name "broadbot"
         git config --global user.email "broadbot@broadinstitute.org"
-        git commit -am "${JIRA_ID}: Auto update Cromwell to $CROMWELL_VERSION in workflows-app"
+        git commit -am "${JIRA_ID}: Auto update Cromwell to $CROMWELL_VERSION in workflows-app and cromwell-runner-app"
         git push -u origin ${JIRA_ID}-cromwell-update-$CROMWELL_VERSION
-        gh pr create --title "${JIRA_ID}: auto update Cromwell version to $CROMWELL_VERSION in workflows-app" --body "${JIRA_ID} helm chart update" --label "automerge"
+        gh pr create --title "${JIRA_ID}: auto update Cromwell version to $CROMWELL_VERSION in workflows-app and cromwell-runner-app" --body "${JIRA_ID} helm chart update" --label "automerge"
         cd -

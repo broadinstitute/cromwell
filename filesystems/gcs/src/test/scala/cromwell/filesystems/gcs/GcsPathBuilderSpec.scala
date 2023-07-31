@@ -323,7 +323,7 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       val storageOptionsField = cloudFilesystemProvider.getClass.getDeclaredField("storageOptions")
       storageOptionsField.setAccessible(true)
       val storageOptions = storageOptionsField.get(cloudFilesystemProvider)
-      val credentialsField = storageOptions.getClass.getSuperclass.getDeclaredField("credentials")
+      val credentialsField = storageOptions.getClass.getSuperclass.getSuperclass.getDeclaredField("credentials")
       credentialsField.setAccessible(true)
       credentialsField.get(storageOptions).asInstanceOf[Credentials]
     }

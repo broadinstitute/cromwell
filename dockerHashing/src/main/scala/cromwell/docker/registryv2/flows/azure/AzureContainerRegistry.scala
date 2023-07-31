@@ -8,18 +8,18 @@ import cromwell.docker.{DockerImageIdentifier, DockerRegistryConfig}
 import cromwell.docker.registryv2.DockerRegistryV2Abstract
 import org.http4s.{Header, Request, Response, Status}
 import common.validation.Validation._
-import io.circe.generic.semiauto.deriveDecoder
+//import io.circe.generic.semiauto.deriveDecoder
 import org.http4s.circe.jsonOf
 import org.http4s.client.Client
-import org.http4s.circe._
-import io.circe.Decoder
+//import org.http4s.circe._
+//import io.circe.Decoder
 import io.circe.generic.auto._
 import org.http4s._
-import org.http4s.circe._
-import org.http4s.client.Client
-import org.http4s.client.dsl.io._
-import org.http4s.headers._
-import org.http4s.util.CaseInsensitiveString
+//import org.http4s.circe._
+//import org.http4s.client.Client
+//import org.http4s.client.dsl.io._
+//import org.http4s.headers._
+//import org.http4s.util.CaseInsensitiveString
 
 
 class AzureContainerRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstract(config) with LazyLogging {

@@ -310,6 +310,99 @@ trait MetadataEntryComponent {
     }).headOption
   }
 
+  def failedJobsMetadataWithWorkflowId(rootWorkflowId: String, isPostgres: Boolean) = {
+    val getMetadataEntryResult = GetResult(r => {
+      MetadataEntry(r.<<, r.<<, r.<<, r.<<, r.<<, r.nextClobOption().map(clob => new SerialClob(clob)), r.<<, r.<<, r.<<)
+    })
+
+    def dbIdentifierWrapper(identifier: String, isPostgres: Boolean) = {
+      if(isPostgres) s"${'"'}$identifier${'"'}" else identifier
+    }
+
+    def dbMetadataValueColCheckName(isPostgres: Boolean): String = {
+      if(isPostgres) "obj.data" else "METADATA_VALUE"
+    }
+
+    def attemptAndIndexSelectStatement(callFqn: String, scatterIndex: String, retryAttempt: String, variablePrefix: String): String = {
+      s"SELECT ${callFqn}, MAX(COALESCE(${scatterIndex}, 0)) as ${variablePrefix}Scatter, MAX(COALESCE(${retryAttempt}, 0)) AS ${variablePrefix}Retry"
+    }
+
+    def pgObjectInnerJoinStatement(isPostgres: Boolean, metadataValColName: String): String = {
+      if(isPostgres) s"INNER JOIN pg_largeobject obj ON me.${metadataValColName} = cast(obj.loid as text)" else ""
+    }
+
+    def failedTaskGroupByClause(metadataValue: String, callFqn: String): String = {
+      return s"GROUP BY ${callFqn}, ${metadataValue}"
+    }
+
+    val workflowUuid = dbIdentifierWrapper("WORKFLOW_EXECUTION_UUID", isPostgres)
+    val callFqn = dbIdentifierWrapper("CALL_FQN", isPostgres)
+    val scatterIndex = dbIdentifierWrapper("JOB_SCATTER_INDEX", isPostgres)
+    val retryAttempt = dbIdentifierWrapper("JOB_RETRY_ATTEMPT", isPostgres)
+    val metadataKey = dbIdentifierWrapper("METADATA_KEY", isPostgres)
+    val metadataValueType = dbIdentifierWrapper("METADATA_VALUE_TYPE", isPostgres)
+    val metadataTimestamp = dbIdentifierWrapper("METADATA_TIMESTAMP", isPostgres)
+    val metadataJournalId = dbIdentifierWrapper("METADATA_JOURNAL_ID", isPostgres)
+    val rootUuid = dbIdentifierWrapper("ROOT_WORKFLOW_EXECUTION_UUID", isPostgres)
+    val metadataValue = dbIdentifierWrapper("METADATA_VALUE", isPostgres)
+    val metadataEntry = dbIdentifierWrapper("METADATA_ENTRY", isPostgres)
+    val wmse = dbIdentifierWrapper("WORKFLOW_METADATA_SUMMARY_ENTRY", isPostgres)
+    val resultSetColumnNames = s"me.${workflowUuid}, me.${callFqn}, me.${scatterIndex}, me.${retryAttempt}, me.${metadataKey}, me.${metadataValue}, me.${metadataValueType}, me.${metadataTimestamp}, me.${metadataJournalId}"
+
+    val query =
+      sql"""
+      SELECT #${resultSetColumnNames}
+      FROM #${metadataEntry} me
+      INNER JOIN (
+       #${attemptAndIndexSelectStatement(callFqn, scatterIndex, retryAttempt, "failed")}
+        FROM #${metadataEntry} me
+        INNER JOIN #${wmse} wmse
+        ON wmse.#${workflowUuid} = me.#${workflowUuid}
+        #${pgObjectInnerJoinStatement(isPostgres, metadataValue)}
+        WHERE (wmse.#${rootUuid} = $rootWorkflowId OR wmse.#${workflowUuid} = $rootWorkflowId)
+        AND (me.#${metadataKey} in ('executionStatus', 'backendStatus') AND #${dbMetadataValueColCheckName(isPostgres)} = 'Failed')
+        #${failedTaskGroupByClause(dbMetadataValueColCheckName(isPostgres), callFqn)}
+        HAVING #${dbMetadataValueColCheckName(isPostgres)} = 'Failed'
+      ) AS failedCalls
+      ON me.#${callFqn} = failedCalls.#${callFqn}
+      INNER JOIN (
+        #${attemptAndIndexSelectStatement(callFqn, scatterIndex, retryAttempt, "max")}
+        FROM #${metadataEntry} me
+        INNER JOIN #${wmse} wmse
+        ON wmse.#${workflowUuid} = me.#${workflowUuid}
+        WHERE (wmse.#${rootUuid} = $rootWorkflowId OR wmse.#${workflowUuid} = $rootWorkflowId)
+        AND #${callFqn} IS NOT NULL
+        GROUP BY #${callFqn}
+      ) maxCalls
+      ON me.#${callFqn} = maxCalls.#${callFqn}
+      LEFT JOIN (
+        SELECT DISTINCT #${callFqn}
+        FROM #${metadataEntry} me
+        INNER JOIN #${wmse} wmse
+        ON wmse.#${workflowUuid} = me.#${workflowUuid}
+        WHERE (wmse.#${rootUuid} = $rootWorkflowId OR wmse.#${workflowUuid} = $rootWorkflowId)
+        AND me.#${metadataKey} = 'subWorkflowId'
+        GROUP BY #${callFqn}
+      ) AS avoidedCalls
+      ON me.#${callFqn} = avoidedCalls.#${callFqn}
+      INNER JOIN #${wmse} wmse
+      ON wmse.#${workflowUuid} = me.#${workflowUuid}
+      WHERE avoidedCalls.#${callFqn} IS NULL
+      AND COALESCE(me.#${scatterIndex}, 0) = maxCalls.maxScatter
+      AND COALESCE(me.#${retryAttempt}, 0) = maxCalls.maxRetry
+      AND failedCalls.failedScatter = maxCalls.maxScatter
+      AND failedCalls.failedRetry = maxCalls.maxRetry
+      GROUP BY #${resultSetColumnNames}
+      HAVING me.#${workflowUuid} IN (
+        SELECT DISTINCT wmse.#${workflowUuid}
+        FROM #${wmse} wmse
+        WHERE wmse.#${rootUuid} = $rootWorkflowId OR wmse.#${workflowUuid} = $rootWorkflowId
+      )
+    """
+
+    query.as(getMetadataEntryResult)
+  }
+
   private[this] def metadataEntryHasMetadataKeysLike(metadataEntry: MetadataEntries,
                                                      metadataKeysToFilterFor: List[String],
                                                      metadataKeysToFilterOut: List[String]): Rep[Boolean] = {

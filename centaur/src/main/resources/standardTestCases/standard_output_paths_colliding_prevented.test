@@ -1,5 +1,6 @@
 name: standard_output_paths_colliding_prevented
 testFormat: workflowsuccess
+tags: [batchexclude]
 
 files {
   workflow: standard_output_paths_colliding_prevented/workflow_output_paths_colliding.wdl

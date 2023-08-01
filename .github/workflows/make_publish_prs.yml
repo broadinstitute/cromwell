@@ -16,7 +16,7 @@ on:
 jobs:
   make-firecloud-develop-pr:
     name: Create firecloud-develop PR
-    runs-on: self-hosted # Faster machines; see https://github.com/broadinstitute/cromwell/settings/actions/runners
+    runs-on: ubuntu-latest
     steps:
       - name: Clone firecloud-develop
         uses: actions/checkout@v2
@@ -70,4 +70,3 @@ jobs:
                 'It updates cromwell from version ${{ github.event.inputs.old_cromwell_version }} to ${{ github.event.inputs.new_cromwell_version }}.'
               ].join('\n')
             });
-

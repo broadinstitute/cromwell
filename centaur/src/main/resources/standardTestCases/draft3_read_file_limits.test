@@ -2,6 +2,7 @@ name: draft3_read_file_limits
 testFormat: workflowfailure
 workflowType: WDL
 workflowTypeVersion: 1.0
+tags: [batchexclude]
 
 files {
   workflow: wdl_draft3/read_file_limits/read_file_limits.wdl

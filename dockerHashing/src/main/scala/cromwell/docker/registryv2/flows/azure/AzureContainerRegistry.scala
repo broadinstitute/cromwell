@@ -8,18 +8,11 @@ import cromwell.docker.{DockerImageIdentifier, DockerRegistryConfig}
 import cromwell.docker.registryv2.DockerRegistryV2Abstract
 import org.http4s.{Header, Request, Response, Status}
 import common.validation.Validation._
-//import io.circe.generic.semiauto.deriveDecoder
+import cromwell.docker.registryv2.flows.azure.AzureContainerRegistry.domain
 import org.http4s.circe.jsonOf
 import org.http4s.client.Client
-//import org.http4s.circe._
-//import io.circe.Decoder
 import io.circe.generic.auto._
 import org.http4s._
-//import org.http4s.circe._
-//import org.http4s.client.Client
-//import org.http4s.client.dsl.io._
-//import org.http4s.headers._
-//import org.http4s.util.CaseInsensitiveString
 
 
 class AzureContainerRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstract(config) with LazyLogging {
@@ -28,13 +21,13 @@ class AzureContainerRegistry(config: DockerRegistryConfig) extends DockerRegistr
     * (e.g registry-1.docker.io)
     */
   override protected def registryHostName(dockerImageIdentifier: DockerImageIdentifier): String =
-    dockerImageIdentifier.hostAsString
+    dockerImageIdentifier.host.getOrElse("")
 
   override def accepts(dockerImageIdentifier: DockerImageIdentifier): Boolean =
-    dockerImageIdentifier.hostAsString.contains("azurecr.io") 
+    dockerImageIdentifier.hostAsString.contains(domain) 
 
   override protected def authorizationServerHostName(dockerImageIdentifier: DockerImageIdentifier): String =
-    dockerImageIdentifier.hostAsString
+    dockerImageIdentifier.host.getOrElse("")
 
   /**
     * In Azure, service name does not exist at the registry level, it varies per repo, e.g. `terrabatchdev.azurecr.io`
@@ -79,7 +72,14 @@ class AzureContainerRegistry(config: DockerRegistryConfig) extends DockerRegistr
       List(contentTypeHeader): _* 
     )
   }
+
+  /*
+  Unlike other repositories, Azure reserves `GET /oauth2/token` for Basic Authentication [0]
+  In order to use Oauth we must `POST /oauth2/token` [1]
   
+  [0] https://github.com/Azure/acr/blob/main/docs/Token-BasicAuth.md#using-the-token-api
+  [1] https://github.com/Azure/acr/blob/main/docs/AAD-OAuth.md#calling-post-oauth2token-to-get-an-acr-access-token 
+   */
   private def getDockerAccessToken(hostname: String, refreshToken: String): IO[Request[IO]] = {
     import org.http4s.Uri.{Authority, Scheme}
     import org.http4s.client.dsl.io._
@@ -109,56 +109,10 @@ class AzureContainerRegistry(config: DockerRegistryConfig) extends DockerRegistr
     val defaultAccessToken = AzureCredentials.getAccessToken(None).toTry.get // AAD token suitable for get-refresh-token request
 
     (for {
-      refreshToken <- executeRequest(getRefreshToken(defaultAccessToken, hostname), parseRefreshToken)
-      dockerToken <- executeRequest(getDockerAccessToken(refreshToken, hostname), parseAccessToken)
+      refreshToken <- executeRequest(getRefreshToken(hostname, defaultAccessToken), parseRefreshToken)
+      dockerToken <- executeRequest(getDockerAccessToken(hostname, refreshToken), parseAccessToken)
     } yield dockerToken).map(Option.apply)
   }
-
-//  override protected def getDockerResponse(token: Option[String], dockerInfoContext: DockerInfoContext)(implicit client: Client[IO]): IO[DockerInfoActor.DockerInfoSuccessResponse] = {
-    
-//  }
-  /*
-  Unlike other repositories, Azure reserves `GET /oauth2/token` for Basic Authentication [0]
-  In order to use Oauth we must `POST /oauth2/token` [1]
-  
-  [0] https://github.com/Azure/acr/blob/main/docs/Token-BasicAuth.md#using-the-token-api
-  [1] https://github.com/Azure/acr/blob/main/docs/AAD-OAuth.md#calling-post-oauth2token-to-get-an-acr-access-token 
-   */
-//  override protected def buildTokenRequest(dockerInfoContext: DockerInfoContext): IO[Request[IO]] = {
-//    import org.http4s.Uri.{Authority, Scheme}
-//    import org.http4s.client.dsl.io._
-//    import org.http4s._
-    
-//    val hostname = authorizationServerHostName(dockerInfoContext.dockerImageID)
-    
-//    val uri = Uri.apply(
-//      scheme = Option(Scheme.https),
-//      authority = Option(Authority(host = Uri.RegName(hostname))),
-//      path = "/oauth2/token",
-//      query = Query.empty
-//    )
-
-//    val defaultAccessToken = AzureCredentials.getAccessToken(None).toTry.get // AAD token suitable for get-refresh-token request
-
-//    for {
-//      refreshToken <- executeRequest(getRefreshToken(defaultAccessToken, hostname))
-//      dockerToken <- getDockerAccessToken(refreshToken, hostname)
-//    } yield dockerToken
-    
-    // val entityBody: EntityBody[F] = EntityEncoder[F, ResourceMetadataRequest].toEntity(body).body
-//    val request = org.http4s.Method.POST(
-//      UrlForm(
-//        "scope" -> "repository:postgres:pull",
-//        "service" -> dockerInfoContext.dockerImageID.hostAsString,
-//        "refresh_token" -> "asdf",
-//        "grant_type" -> "refresh_token"
-//      ),
-//      uri,
-//      buildTokenRequestHeaders(dockerInfoContext): _* // http4s adds `Content-Length` which ACR does not like (400 response) 
-//    )
-    
-    
-//  }
 
   implicit val refreshTokenDecoder: EntityDecoder[IO, AcrRefreshToken] = jsonOf[IO, AcrRefreshToken]
   implicit val accessTokenDecoder: EntityDecoder[IO, AcrAccessToken] = jsonOf[IO, AcrAccessToken]
@@ -175,4 +129,10 @@ class AzureContainerRegistry(config: DockerRegistryConfig) extends DockerRegistr
       r.as[String].flatMap(b => IO.raiseError(new Exception(s"Request failed with status ${r.status.code} and body $b")))
   }
 
+}
+
+object AzureContainerRegistry {
+  
+  def domain: String = "azurecr.io"
+  
 }

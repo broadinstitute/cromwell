@@ -1,13 +1,14 @@
 package cromwell.docker.registryv2.flows.azure
 
+import cats.data.Validated.{Invalid, Valid}
 import cats.effect.IO
 import com.typesafe.scalalogging.LazyLogging
+import common.validation.ErrorOr.ErrorOr
 import cromwell.cloudsupport.azure.AzureCredentials
 import cromwell.docker.DockerInfoActor.DockerInfoContext
 import cromwell.docker.{DockerImageIdentifier, DockerRegistryConfig}
 import cromwell.docker.registryv2.DockerRegistryV2Abstract
 import org.http4s.{Header, Request, Response, Status}
-import common.validation.Validation._
 import cromwell.docker.registryv2.flows.azure.AzureContainerRegistry.domain
 import org.http4s.circe.jsonOf
 import org.http4s.client.Client
@@ -63,7 +64,6 @@ class AzureContainerRegistry(config: DockerRegistryConfig) extends DockerRegistr
 
     org.http4s.Method.POST(
       UrlForm(
-        "scope" -> "repository:postgres:pull",
         "service" -> authServerHostname,
         "access_token" -> defaultAccessToken,
         "grant_type" -> "access_token"
@@ -80,7 +80,7 @@ class AzureContainerRegistry(config: DockerRegistryConfig) extends DockerRegistr
   [0] https://github.com/Azure/acr/blob/main/docs/Token-BasicAuth.md#using-the-token-api
   [1] https://github.com/Azure/acr/blob/main/docs/AAD-OAuth.md#calling-post-oauth2token-to-get-an-acr-access-token 
    */
-  private def getDockerAccessToken(hostname: String, refreshToken: String): IO[Request[IO]] = {
+  private def getDockerAccessToken(hostname: String, repository: String, refreshToken: String): IO[Request[IO]] = {
     import org.http4s.Uri.{Authority, Scheme}
     import org.http4s.client.dsl.io._
     import org.http4s._
@@ -94,7 +94,9 @@ class AzureContainerRegistry(config: DockerRegistryConfig) extends DockerRegistr
 
     org.http4s.Method.POST(
       UrlForm(
-        "scope" -> "repository:postgres:pull",
+        // Tricky behavior - invalid `repository` values return a 200 with a valid-looking token.
+        // However, the token will cause 401s on all subsequent requests.
+        "scope" -> s"repository:$repository:pull",
         "service" -> hostname,
         "refresh_token" -> refreshToken,
         "grant_type" -> "refresh_token"
@@ -106,12 +108,21 @@ class AzureContainerRegistry(config: DockerRegistryConfig) extends DockerRegistr
 
   override protected def getToken(dockerInfoContext: DockerInfoContext)(implicit client: Client[IO]): IO[Option[String]] = {
     val hostname = authorizationServerHostName(dockerInfoContext.dockerImageID)
-    val defaultAccessToken = AzureCredentials.getAccessToken(None).toTry.get // AAD token suitable for get-refresh-token request
+    val maybeAadAccessToken: ErrorOr[String] = AzureCredentials.getAccessToken(None) // AAD token suitable for get-refresh-token request
+    val repository = dockerInfoContext.dockerImageID.image // ACR uses what we think of image name, as the repository 
 
-    (for {
-      refreshToken <- executeRequest(getRefreshToken(hostname, defaultAccessToken), parseRefreshToken)
-      dockerToken <- executeRequest(getDockerAccessToken(hostname, refreshToken), parseAccessToken)
-    } yield dockerToken).map(Option.apply)
+    // Top-level flow: AAD access token -> refresh token -> ACR access token
+    maybeAadAccessToken match {
+      case Valid(accessToken) =>
+        (for {
+          refreshToken <- executeRequest(getRefreshToken(hostname, accessToken), parseRefreshToken)
+          dockerToken <- executeRequest(getDockerAccessToken(hostname, repository, refreshToken), parseAccessToken)
+        } yield dockerToken).map(Option.apply)
+      case Invalid(errors) =>
+        IO.raiseError(
+          new Exception(s"Could not obtain AAD token to exchange for ACR refresh token. Error(s): ${errors}")
+        )
+    }
   }
 
   implicit val refreshTokenDecoder: EntityDecoder[IO, AcrRefreshToken] = jsonOf[IO, AcrRefreshToken]

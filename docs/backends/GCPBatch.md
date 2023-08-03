@@ -3,9 +3,9 @@
 [//]:
 Google Cloud Batch is a fully managed service that lets you schedule, queue, and execute batch processing workloads on Google Cloud resources. Batch provisions resources and manages capacity on your behalf, allowing your batch workloads to run at scale.
 
-This section offers detailed configuration instructions for using Cromwell with the Batch API in all supported
+This section offers detailed configuration instructions for using Cromwell with the Google Cloud Batch API in all supported
 authentication modes. Before reading further in this section please see the
-[Getting started on Google Batch API](../tutorials/Batch101) for instructions common to all authentication modes
+[Getting started on Google Cloud Batch API](../tutorials/Batch101) for instructions common to all authentication modes
 and detailed instructions for the application default authentication scheme in particular.
 The instructions below assume you have created a Google Cloud Storage bucket and a Google project enabled for the appropriate APIs.
 
@@ -90,7 +90,6 @@ While technically not part of Service Account authentication mode, one can also 
 
 A [JSON key file for the service account](../wf_options/Google.md) must be passed in via the `user_service_account_json` field in the [Workflow Options](../wf_options/Google.md) when submitting the job. Omitting this field will cause the workflow to fail. The JSON should be passed as a string and will need to have no newlines and all instances of `"` and `\n` escaped. 
 
-[//]: # (TODO: is jes_gcs_root the correct workflow option?)
 In the likely event that this service account does not have access to Cromwell's default google project the `google_project` workflow option must be set. In the similarly likely case that this service account can not access Cromwell's default google bucket, the `jes_gcs_root` workflow option should be set appropriately.
 
 For information on the interaction of `user_service_account_json` with private Docker images please see the `Docker` section below.  
@@ -118,8 +117,6 @@ are public there is no need to add this configuration.
 
 For Batch
 
-[//]: # (TODO: Is this the correct way to configure Docker for batch?)
-[//]: # (5-4-23: Leave alone for now)
 ```
 backend {
   default = GCPBATCH
@@ -129,8 +126,6 @@ backend {
       config {
         dockerhub {
           token = "base64-encoded-docker-hub-username:password"
-          key-name = "name/of/the/kms/key/used/for/encrypting/and/decrypting/the/docker/hub/token"
-          auth = "reference-to-the-auth-cromwell-should-use-for-kms-encryption"
         }
       }
     }
@@ -140,15 +135,8 @@ backend {
 
 `token` is the standard base64-encoded username:password for the appropriate Docker Hub account.
 
-`key-name` is the name of the Google KMS key Cromwell should use for encrypting the Docker `token` before including it
-in the PAPI job execution request. This `key-name` will also be included in the PAPI job execution
-request and will be used by Batch to decrypt the Docker token used by `docker login` to enable access to the private Docker image.
- 
-`auth` is a reference to the name of an authorization in the `auths` block of Cromwell's `google` config.
-Cromwell will use this authorization for encrypting the Google KMS key.
-
-The equivalents of `key-name`, `token` and `auth` can also be specified in workflow options which take
-precedence over values specified in configuration. The corresponding workflow options are named `docker_credentials_key_name`,
+The equivalents of `token` can also be specified in workflow options which take
+precedence over values specified in configuration. The corresponding workflow options are named
 `docker_credentials_token`, and `user_service_account_json`. While the config value `auth` refers to an auth defined in the 
 `google.auths` stanza elsewhere in Cromwell's
 configuration, `user_service_account_json` is expected to be a literal escaped Google service account auth JSON.
@@ -161,7 +149,6 @@ Example Batch workflow options for private Docker configuration:
 
 ```
 {
-  "docker_credentials_key_name": "name/of/the/kms/key/used/for/encrypting/and/decrypting/the/docker/hub/token",
   "docker_credentials_token": "base64_username:password",
   "user_service_account_json": "<properly escaped user service account JSON file>"
 }
@@ -306,7 +293,6 @@ network labels, and then fall back to running on the default network.
 
 ### Custom Google Cloud SDK container
 
-[//]: # (TODO: need to test this section as well)
 Cromwell can't use Google's container registry if VPC Perimeter is used in project.
 Own repository can be used by adding `cloud-sdk-image-url` reference to used container:
 
@@ -319,8 +305,6 @@ google {
 ```
 
 ### Parallel Composite Uploads 
-
-[//]: # (TODO: Need to test parallel composite uploads)
 
 Cromwell can be configured to use GCS parallel composite uploads which can greatly improve delocalization performance. This feature
 is turned off by default but can be enabled backend-wide by specifying a `gsutil`-compatible memory specification for the key
@@ -394,19 +378,17 @@ outputs. Calls which are executed and not cached will always honor the parallel 
 their execution.
 
 
-### Migration from Google Cloud Genomics v2alpha1 to Google Cloud Life Sciences v2beta
+### Migration from Google Cloud Life Sciences v2beta to Google Cloud Batch
 
 1. If you currently run your workflows using Cloud Genomics v2beta and would like to switch to Google Batch, you will need to do a few changes to your configuration file: `actor-factory` value should be changed 
 from `cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory` to `cromwell.backend.google.batch.GcpBatchLifecycleActorFactory`.
 
 2. You will need to remove the parameter `genomics.endpoint-url` and generate a new config file.
 
-3. Google Batch is now available in a variety of regions. Please see the [Batch Locations](https://cloud.google.com/batch/docs/locations) for a list of supported regions
+3. Google Cloud Batch is now available in a variety of regions. Please see the [Batch Locations](https://cloud.google.com/batch/docs/locations) for a list of supported regions
 
 
 ### Reference Disk Support
-
-[//]: # (TODO: follow up later)
 
 Cromwell 55 and later support mounting reference disks from prebuilt GCP disk images as an alternative to localizing large
 input reference files on Batch. Please note the configuration of reference disk manifests has changed starting with

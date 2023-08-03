@@ -19,6 +19,8 @@ import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 import spray.json._
 import DefaultJsonProtocol._
+import drs.localizer.DrsLocalizerMain.{downloadInParallel, generateJsonPathForManifest, loadCSVAsMap, writeJsonManifest}
+import drs.localizer.URIType.{GCS, URIType}
 
 import java.nio.file.{Files, Paths}
 import java.nio.charset.StandardCharsets
@@ -123,6 +125,11 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
   }
 }
 
+object URIType extends Enumeration {
+  type URIType = Value
+  val GCS, HTTPS = Value
+}
+
 class DrsLocalizerMain(drsUrl: String,
                        downloadLoc: String,
                        drsCredentials: DrsCredentials,
@@ -210,12 +217,52 @@ class DrsLocalizerMain(drsUrl: String,
   }
 
   //TODO: use this fn to resolve drs URIs, split the responses into gs:// and https:// groups, and invoke new downloaders for each of those groups.
-  private[localizer] def resolveDrsUrl(drsUrl: String): IO[DrsResolverResponse] = {
+  private[localizer] def resolveDrsUrl(resolverObject: IO[DrsLocalizerDrsPathResolver], drsUrlToResolve: String): IO[DrsResolverResponse] = {
     val fields = NonEmptyList.of(DrsResolverField.GsUri, DrsResolverField.GoogleServiceAccount, DrsResolverField.AccessUrl, DrsResolverField.Hashes)
     for {
-      resolver <- getDrsPathResolver
-      drsResolverResponse <- resolver.resolveDrs(drsUrl, fields)
+      resolver <- resolverObject
+      drsResolverResponse <- resolver.resolveDrs(drsUrlToResolve, fields)
     } yield drsResolverResponse
   }
 
+  private[localizer] def toUriType(drsResponse: DrsResolverResponse) : Try[URIType] = {
+    (drsResponse.accessUrl, drsResponse.gsUri) match {
+      case (Some(accessUrl), _) =>
+        Try(URIType.HTTPS)
+      case (_, Some(gcsPath)) =>
+        Try(URIType.GCS)
+      case _ =>
+        Failure(new RuntimeException(DrsPathResolver.ExtractUriErrorMsg))
+    }
+  }
+
+  private[localizer] def bulkResolve(): Unit = {
+    // Load path resolver once from config
+    val resolver = getDrsPathResolver
+
+    // resolve all the URIs once.
+    val resolvedUris : Try[Map[DrsResolverResponse, String]] = for {
+      drsUriToDownloadLocationMap : Map[String, String] <- loadCSVAsMap("path/to/manifest")
+      resolvedUriToDownloadLocationMap : Map[DrsResolverResponse, String] = drsUriToDownloadLocationMap.map(value => (resolveDrsUrl(resolver, value._1), value._2))
+    } yield resolvedUriToDownloadLocationMap
+
+    // find the GCS ones and download them
+    for {
+      drsResponses <- resolvedUris
+      gcsUris <- drsResponses.filter(drsResponse => toUriType(drsResponse) == URIType.GCS)
+    }
+
+      //find the HTTPS ones and download them
+    for {
+      drsResponses <- resolvedUris
+      httpsUris = drsResponses.filter(drsResponse => toUriType(drsResponse._1) == URIType.HTTPS)
+      uriToDownloadLocation = httpsUris.map(drsResponseToDownloadLoc => (drsResponseToDownloadLoc._1.accessUrl.get.toString, drsResponseToDownloadLoc._2))
+      jsonString <- uriToDownloadLocation.toJson
+      pathOfJsonFile <- writeJsonManifest(generateJsonPathForManifest("path/to/manifest"), jsonString)
+      downloadSuccess <- downloadInParallel(pathOfJsonFile)
+    }
+
+  }
+
 }
+

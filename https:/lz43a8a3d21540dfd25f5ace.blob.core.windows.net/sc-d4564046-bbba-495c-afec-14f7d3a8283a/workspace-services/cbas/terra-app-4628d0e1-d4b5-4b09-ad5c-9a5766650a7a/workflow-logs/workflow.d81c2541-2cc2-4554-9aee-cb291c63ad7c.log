@@ -1,0 +1,670 @@
+2023-07-27 11:41:05,061 INFO  - MaterializeWorkflowDescriptorActor [UUID(d81c2541)]: Parsing workflow as WDL draft-2
+2023-07-27 11:41:05,559 INFO  - MaterializeWorkflowDescriptorActor [UUID(d81c2541)]: Call-to-Backend assignments: wf_hello.hello -> TES
+2023-07-27 11:41:07,007 INFO  - WorkflowActor-d81c2541-2cc2-4554-9aee-cb291c63ad7c [UUID(d81c2541)]: Initialization failed on attempt 1. Will retry up to 16 times. Next retry is in 1 minute
+cromwell.core.CromwellAggregatedException: Initialization Failure:
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head><script src="https://us.jsagent.tcell.insight.rapid7.com/tcellagent.min.js" tcellappid="FCNonprod-NaVu9" tcellapikey="AQQBBAFLGLOxL7VE9IF9ESlLvCxD5Ykr_7xkQKq_rgn_P58IWjOhOzIh6p3aI4pTWaprlUw" tcellbaseurl="https://us.agent.tcell.insight.rapid7.com/api/v1"></script>
+<title>401 Unauthorized</title>
+</head><body>
+<h1>Unauthorized</h1>
+<p>This server could not verify that you
+are authorized to access the document
+requested.  Either you supplied the wrong
+credentials (e.g., bad password), or your
+browser doesn't understand how to supply
+the credentials required.</p>
+</body></html>
+
+	at cromwell.engine.workflow.WorkflowActor$$anonfun$3.applyOrElse(WorkflowActor.scala:353)
+	at cromwell.engine.workflow.WorkflowActor$$anonfun$3.applyOrElse(WorkflowActor.scala:336)
+	at scala.runtime.AbstractPartialFunction.apply(AbstractPartialFunction.scala:35)
+	at akka.actor.FSM.processEvent(FSM.scala:707)
+	at akka.actor.FSM.processEvent$(FSM.scala:704)
+	at cromwell.engine.workflow.WorkflowActor.akka$actor$LoggingFSM$$super$processEvent(WorkflowActor.scala:222)
+	at akka.actor.LoggingFSM.processEvent(FSM.scala:847)
+	at akka.actor.LoggingFSM.processEvent$(FSM.scala:829)
+	at cromwell.engine.workflow.WorkflowActor.processEvent(WorkflowActor.scala:222)
+	at akka.actor.FSM.akka$actor$FSM$$processMsg(FSM.scala:701)
+	at akka.actor.FSM$$anonfun$receive$1.applyOrElse(FSM.scala:695)
+	at akka.actor.Actor.aroundReceive(Actor.scala:539)
+	at akka.actor.Actor.aroundReceive$(Actor.scala:537)
+	at cromwell.engine.workflow.WorkflowActor.akka$actor$Timers$$super$aroundReceive(WorkflowActor.scala:222)
+	at akka.actor.Timers.aroundReceive(Timers.scala:55)
+	at akka.actor.Timers.aroundReceive$(Timers.scala:40)
+	at cromwell.engine.workflow.WorkflowActor.aroundReceive(WorkflowActor.scala:222)
+	at akka.actor.ActorCell.receiveMessage(ActorCell.scala:614)
+	at akka.actor.ActorCell.invoke(ActorCell.scala:583)
+	at akka.dispatch.Mailbox.processMailbox(Mailbox.scala:268)
+	at akka.dispatch.Mailbox.run(Mailbox.scala:229)
+	at akka.dispatch.Mailbox.exec(Mailbox.scala:241)
+	at akka.dispatch.forkjoin.ForkJoinTask.doExec(ForkJoinTask.java:260)
+	at akka.dispatch.forkjoin.ForkJoinPool$WorkQueue.runTask(ForkJoinPool.java:1339)
+	at akka.dispatch.forkjoin.ForkJoinPool.runWorker(ForkJoinPool.java:1979)
+	at akka.dispatch.forkjoin.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:107)
+	Suppressed: bio.terra.workspace.client.ApiException: <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head><script src="https://us.jsagent.tcell.insight.rapid7.com/tcellagent.min.js" tcellappid="FCNonprod-NaVu9" tcellapikey="AQQBBAFLGLOxL7VE9IF9ESlLvCxD5Ykr_7xkQKq_rgn_P58IWjOhOzIh6p3aI4pTWaprlUw" tcellbaseurl="https://us.agent.tcell.insight.rapid7.com/api/v1"></script>
+<title>401 Unauthorized</title>
+</head><body>
+<h1>Unauthorized</h1>
+<p>This server could not verify that you
+are authorized to access the document
+requested.  Either you supplied the wrong
+credentials (e.g., bad password), or your
+browser doesn't understand how to supply
+the credentials required.</p>
+</body></html>
+
+		at bio.terra.workspace.client.ApiClient.invokeAPI(ApiClient.java:752)
+		at bio.terra.workspace.api.ControlledAzureResourceApi.createAzureStorageContainerSasToken(ControlledAzureResourceApi.java:434)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.$anonfun$generateBlobSasToken$3(BlobFileSystemManager.scala:213)
+		at scala.util.Try$.apply(Try.scala:210)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.$anonfun$generateBlobSasToken$2(BlobFileSystemManager.scala:214)
+		at scala.util.Success.flatMap(Try.scala:258)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.generateBlobSasToken(BlobFileSystemManager.scala:204)
+		at cromwell.filesystems.blob.BlobFileSystemManager.retrieveFilesystem(BlobFileSystemManager.scala:84)
+		at cromwell.filesystems.blob.BlobPath.findNioPath(BlobPathBuilder.scala:109)
+		at cromwell.filesystems.blob.BlobPath.nioPath(BlobPathBuilder.scala:99)
+		at cromwell.core.path.Path.nioPathPrivate(PathBuilder.scala:135)
+		at cromwell.core.path.Path.nioPathPrivate$(PathBuilder.scala:135)
+		at cromwell.filesystems.blob.BlobPath.nioPathPrivate(BlobPathBuilder.scala:98)
+		at cromwell.core.path.NioPathMethods.toAbsolutePath(NioPathMethods.scala:31)
+		at cromwell.core.path.NioPathMethods.toAbsolutePath$(NioPathMethods.scala:31)
+		at cromwell.filesystems.blob.BlobPath.toAbsolutePath(BlobPathBuilder.scala:98)
+		at cromwell.backend.io.WorkflowPaths.executionRoot(WorkflowPaths.scala:35)
+		at cromwell.backend.io.WorkflowPaths.executionRoot$(WorkflowPaths.scala:35)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.executionRoot$lzycompute(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.executionRoot(TesWorkflowPaths.scala:9)
+		at cromwell.backend.io.WorkflowPaths.workflowRoot(WorkflowPaths.scala:46)
+		at cromwell.backend.io.WorkflowPaths.workflowRoot$(WorkflowPaths.scala:46)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.workflowRoot$lzycompute(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.workflowRoot(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesInitializationActor.$anonfun$beforeAll$1(TesInitializationActor.scala:91)
+		at scala.concurrent.impl.Promise$Transformation.run(Promise.scala:467)
+		at akka.dispatch.TaskInvocation.run(AbstractDispatcher.scala:41)
+		at akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask.exec(ForkJoinExecutorConfigurator.scala:49)
+		... 4 common frames omitted
+2023-07-27 11:42:56,106 INFO  - MaterializeWorkflowDescriptorActor [UUID(d81c2541)]: Parsing workflow as WDL draft-2
+2023-07-27 11:42:56,535 INFO  - MaterializeWorkflowDescriptorActor [UUID(d81c2541)]: Call-to-Backend assignments: wf_hello.hello -> TES
+2023-07-27 11:42:57,853 INFO  - WorkflowActor-d81c2541-2cc2-4554-9aee-cb291c63ad7c [UUID(d81c2541)]: Initialization failed on attempt 1. Will retry up to 16 times. Next retry is in 1 minute
+cromwell.core.CromwellAggregatedException: Initialization Failure:
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head><script src="https://us.jsagent.tcell.insight.rapid7.com/tcellagent.min.js" tcellappid="FCNonprod-NaVu9" tcellapikey="AQQBBAFLGLOxL7VE9IF9ESlLvCxD5Ykr_7xkQKq_rgn_P58IWjOhOzIh6p3aI4pTWaprlUw" tcellbaseurl="https://us.agent.tcell.insight.rapid7.com/api/v1"></script>
+<title>401 Unauthorized</title>
+</head><body>
+<h1>Unauthorized</h1>
+<p>This server could not verify that you
+are authorized to access the document
+requested.  Either you supplied the wrong
+credentials (e.g., bad password), or your
+browser doesn't understand how to supply
+the credentials required.</p>
+</body></html>
+
+	at cromwell.engine.workflow.WorkflowActor$$anonfun$3.applyOrElse(WorkflowActor.scala:353)
+	at cromwell.engine.workflow.WorkflowActor$$anonfun$3.applyOrElse(WorkflowActor.scala:336)
+	at scala.runtime.AbstractPartialFunction.apply(AbstractPartialFunction.scala:35)
+	at akka.actor.FSM.processEvent(FSM.scala:707)
+	at akka.actor.FSM.processEvent$(FSM.scala:704)
+	at cromwell.engine.workflow.WorkflowActor.akka$actor$LoggingFSM$$super$processEvent(WorkflowActor.scala:222)
+	at akka.actor.LoggingFSM.processEvent(FSM.scala:847)
+	at akka.actor.LoggingFSM.processEvent$(FSM.scala:829)
+	at cromwell.engine.workflow.WorkflowActor.processEvent(WorkflowActor.scala:222)
+	at akka.actor.FSM.akka$actor$FSM$$processMsg(FSM.scala:701)
+	at akka.actor.FSM$$anonfun$receive$1.applyOrElse(FSM.scala:695)
+	at akka.actor.Actor.aroundReceive(Actor.scala:539)
+	at akka.actor.Actor.aroundReceive$(Actor.scala:537)
+	at cromwell.engine.workflow.WorkflowActor.akka$actor$Timers$$super$aroundReceive(WorkflowActor.scala:222)
+	at akka.actor.Timers.aroundReceive(Timers.scala:55)
+	at akka.actor.Timers.aroundReceive$(Timers.scala:40)
+	at cromwell.engine.workflow.WorkflowActor.aroundReceive(WorkflowActor.scala:222)
+	at akka.actor.ActorCell.receiveMessage(ActorCell.scala:614)
+	at akka.actor.ActorCell.invoke(ActorCell.scala:583)
+	at akka.dispatch.Mailbox.processMailbox(Mailbox.scala:268)
+	at akka.dispatch.Mailbox.run(Mailbox.scala:229)
+	at akka.dispatch.Mailbox.exec(Mailbox.scala:241)
+	at akka.dispatch.forkjoin.ForkJoinTask.doExec(ForkJoinTask.java:260)
+	at akka.dispatch.forkjoin.ForkJoinPool$WorkQueue.runTask(ForkJoinPool.java:1339)
+	at akka.dispatch.forkjoin.ForkJoinPool.runWorker(ForkJoinPool.java:1979)
+	at akka.dispatch.forkjoin.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:107)
+	Suppressed: bio.terra.workspace.client.ApiException: <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head><script src="https://us.jsagent.tcell.insight.rapid7.com/tcellagent.min.js" tcellappid="FCNonprod-NaVu9" tcellapikey="AQQBBAFLGLOxL7VE9IF9ESlLvCxD5Ykr_7xkQKq_rgn_P58IWjOhOzIh6p3aI4pTWaprlUw" tcellbaseurl="https://us.agent.tcell.insight.rapid7.com/api/v1"></script>
+<title>401 Unauthorized</title>
+</head><body>
+<h1>Unauthorized</h1>
+<p>This server could not verify that you
+are authorized to access the document
+requested.  Either you supplied the wrong
+credentials (e.g., bad password), or your
+browser doesn't understand how to supply
+the credentials required.</p>
+</body></html>
+
+		at bio.terra.workspace.client.ApiClient.invokeAPI(ApiClient.java:752)
+		at bio.terra.workspace.api.ControlledAzureResourceApi.createAzureStorageContainerSasToken(ControlledAzureResourceApi.java:434)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.$anonfun$generateBlobSasToken$3(BlobFileSystemManager.scala:213)
+		at scala.util.Try$.apply(Try.scala:210)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.$anonfun$generateBlobSasToken$2(BlobFileSystemManager.scala:214)
+		at scala.util.Success.flatMap(Try.scala:258)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.generateBlobSasToken(BlobFileSystemManager.scala:204)
+		at cromwell.filesystems.blob.BlobFileSystemManager.retrieveFilesystem(BlobFileSystemManager.scala:84)
+		at cromwell.filesystems.blob.BlobPath.findNioPath(BlobPathBuilder.scala:109)
+		at cromwell.filesystems.blob.BlobPath.nioPath(BlobPathBuilder.scala:99)
+		at cromwell.core.path.Path.nioPathPrivate(PathBuilder.scala:135)
+		at cromwell.core.path.Path.nioPathPrivate$(PathBuilder.scala:135)
+		at cromwell.filesystems.blob.BlobPath.nioPathPrivate(BlobPathBuilder.scala:98)
+		at cromwell.core.path.NioPathMethods.toAbsolutePath(NioPathMethods.scala:31)
+		at cromwell.core.path.NioPathMethods.toAbsolutePath$(NioPathMethods.scala:31)
+		at cromwell.filesystems.blob.BlobPath.toAbsolutePath(BlobPathBuilder.scala:98)
+		at cromwell.backend.io.WorkflowPaths.executionRoot(WorkflowPaths.scala:35)
+		at cromwell.backend.io.WorkflowPaths.executionRoot$(WorkflowPaths.scala:35)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.executionRoot$lzycompute(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.executionRoot(TesWorkflowPaths.scala:9)
+		at cromwell.backend.io.WorkflowPaths.workflowRoot(WorkflowPaths.scala:46)
+		at cromwell.backend.io.WorkflowPaths.workflowRoot$(WorkflowPaths.scala:46)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.workflowRoot$lzycompute(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.workflowRoot(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesInitializationActor.$anonfun$beforeAll$1(TesInitializationActor.scala:91)
+		at scala.concurrent.impl.Promise$Transformation.run(Promise.scala:467)
+		at akka.dispatch.TaskInvocation.run(AbstractDispatcher.scala:41)
+		at akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask.exec(ForkJoinExecutorConfigurator.scala:49)
+		... 4 common frames omitted
+2023-07-27 11:45:39,659 INFO  - MaterializeWorkflowDescriptorActor [UUID(d81c2541)]: Parsing workflow as WDL draft-2
+2023-07-27 11:45:40,103 INFO  - MaterializeWorkflowDescriptorActor [UUID(d81c2541)]: Call-to-Backend assignments: wf_hello.hello -> TES
+2023-07-27 11:45:41,493 INFO  - WorkflowActor-d81c2541-2cc2-4554-9aee-cb291c63ad7c [UUID(d81c2541)]: Initialization failed on attempt 1. Will retry up to 16 times. Next retry is in 1 minute
+cromwell.core.CromwellAggregatedException: Initialization Failure:
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head><script src="https://us.jsagent.tcell.insight.rapid7.com/tcellagent.min.js" tcellappid="FCNonprod-NaVu9" tcellapikey="AQQBBAFLGLOxL7VE9IF9ESlLvCxD5Ykr_7xkQKq_rgn_P58IWjOhOzIh6p3aI4pTWaprlUw" tcellbaseurl="https://us.agent.tcell.insight.rapid7.com/api/v1"></script>
+<title>401 Unauthorized</title>
+</head><body>
+<h1>Unauthorized</h1>
+<p>This server could not verify that you
+are authorized to access the document
+requested.  Either you supplied the wrong
+credentials (e.g., bad password), or your
+browser doesn't understand how to supply
+the credentials required.</p>
+</body></html>
+
+	at cromwell.engine.workflow.WorkflowActor$$anonfun$3.applyOrElse(WorkflowActor.scala:353)
+	at cromwell.engine.workflow.WorkflowActor$$anonfun$3.applyOrElse(WorkflowActor.scala:336)
+	at scala.runtime.AbstractPartialFunction.apply(AbstractPartialFunction.scala:35)
+	at akka.actor.FSM.processEvent(FSM.scala:707)
+	at akka.actor.FSM.processEvent$(FSM.scala:704)
+	at cromwell.engine.workflow.WorkflowActor.akka$actor$LoggingFSM$$super$processEvent(WorkflowActor.scala:222)
+	at akka.actor.LoggingFSM.processEvent(FSM.scala:847)
+	at akka.actor.LoggingFSM.processEvent$(FSM.scala:829)
+	at cromwell.engine.workflow.WorkflowActor.processEvent(WorkflowActor.scala:222)
+	at akka.actor.FSM.akka$actor$FSM$$processMsg(FSM.scala:701)
+	at akka.actor.FSM$$anonfun$receive$1.applyOrElse(FSM.scala:695)
+	at akka.actor.Actor.aroundReceive(Actor.scala:539)
+	at akka.actor.Actor.aroundReceive$(Actor.scala:537)
+	at cromwell.engine.workflow.WorkflowActor.akka$actor$Timers$$super$aroundReceive(WorkflowActor.scala:222)
+	at akka.actor.Timers.aroundReceive(Timers.scala:55)
+	at akka.actor.Timers.aroundReceive$(Timers.scala:40)
+	at cromwell.engine.workflow.WorkflowActor.aroundReceive(WorkflowActor.scala:222)
+	at akka.actor.ActorCell.receiveMessage(ActorCell.scala:614)
+	at akka.actor.ActorCell.invoke(ActorCell.scala:583)
+	at akka.dispatch.Mailbox.processMailbox(Mailbox.scala:268)
+	at akka.dispatch.Mailbox.run(Mailbox.scala:229)
+	at akka.dispatch.Mailbox.exec(Mailbox.scala:241)
+	at akka.dispatch.forkjoin.ForkJoinTask.doExec(ForkJoinTask.java:260)
+	at akka.dispatch.forkjoin.ForkJoinPool$WorkQueue.runTask(ForkJoinPool.java:1339)
+	at akka.dispatch.forkjoin.ForkJoinPool.runWorker(ForkJoinPool.java:1979)
+	at akka.dispatch.forkjoin.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:107)
+	Suppressed: bio.terra.workspace.client.ApiException: <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head><script src="https://us.jsagent.tcell.insight.rapid7.com/tcellagent.min.js" tcellappid="FCNonprod-NaVu9" tcellapikey="AQQBBAFLGLOxL7VE9IF9ESlLvCxD5Ykr_7xkQKq_rgn_P58IWjOhOzIh6p3aI4pTWaprlUw" tcellbaseurl="https://us.agent.tcell.insight.rapid7.com/api/v1"></script>
+<title>401 Unauthorized</title>
+</head><body>
+<h1>Unauthorized</h1>
+<p>This server could not verify that you
+are authorized to access the document
+requested.  Either you supplied the wrong
+credentials (e.g., bad password), or your
+browser doesn't understand how to supply
+the credentials required.</p>
+</body></html>
+
+		at bio.terra.workspace.client.ApiClient.invokeAPI(ApiClient.java:752)
+		at bio.terra.workspace.api.ControlledAzureResourceApi.createAzureStorageContainerSasToken(ControlledAzureResourceApi.java:434)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.$anonfun$generateBlobSasToken$3(BlobFileSystemManager.scala:213)
+		at scala.util.Try$.apply(Try.scala:210)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.$anonfun$generateBlobSasToken$2(BlobFileSystemManager.scala:214)
+		at scala.util.Success.flatMap(Try.scala:258)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.generateBlobSasToken(BlobFileSystemManager.scala:204)
+		at cromwell.filesystems.blob.BlobFileSystemManager.retrieveFilesystem(BlobFileSystemManager.scala:84)
+		at cromwell.filesystems.blob.BlobPath.findNioPath(BlobPathBuilder.scala:109)
+		at cromwell.filesystems.blob.BlobPath.nioPath(BlobPathBuilder.scala:99)
+		at cromwell.core.path.Path.nioPathPrivate(PathBuilder.scala:135)
+		at cromwell.core.path.Path.nioPathPrivate$(PathBuilder.scala:135)
+		at cromwell.filesystems.blob.BlobPath.nioPathPrivate(BlobPathBuilder.scala:98)
+		at cromwell.core.path.NioPathMethods.toAbsolutePath(NioPathMethods.scala:31)
+		at cromwell.core.path.NioPathMethods.toAbsolutePath$(NioPathMethods.scala:31)
+		at cromwell.filesystems.blob.BlobPath.toAbsolutePath(BlobPathBuilder.scala:98)
+		at cromwell.backend.io.WorkflowPaths.executionRoot(WorkflowPaths.scala:35)
+		at cromwell.backend.io.WorkflowPaths.executionRoot$(WorkflowPaths.scala:35)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.executionRoot$lzycompute(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.executionRoot(TesWorkflowPaths.scala:9)
+		at cromwell.backend.io.WorkflowPaths.workflowRoot(WorkflowPaths.scala:46)
+		at cromwell.backend.io.WorkflowPaths.workflowRoot$(WorkflowPaths.scala:46)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.workflowRoot$lzycompute(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.workflowRoot(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesInitializationActor.$anonfun$beforeAll$1(TesInitializationActor.scala:91)
+		at scala.concurrent.impl.Promise$Transformation.run(Promise.scala:467)
+		at akka.dispatch.TaskInvocation.run(AbstractDispatcher.scala:41)
+		at akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask.exec(ForkJoinExecutorConfigurator.scala:49)
+		... 4 common frames omitted
+2023-07-27 11:46:41,908 INFO  - WorkflowActor-d81c2541-2cc2-4554-9aee-cb291c63ad7c [UUID(d81c2541)]: Initialization failed on attempt 2. Will retry up to 16 times. Next retry is in 1 minute
+cromwell.core.CromwellAggregatedException: Initialization Failure:
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head><script src="https://us.jsagent.tcell.insight.rapid7.com/tcellagent.min.js" tcellappid="FCNonprod-NaVu9" tcellapikey="AQQBBAFLGLOxL7VE9IF9ESlLvCxD5Ykr_7xkQKq_rgn_P58IWjOhOzIh6p3aI4pTWaprlUw" tcellbaseurl="https://us.agent.tcell.insight.rapid7.com/api/v1"></script>
+<title>401 Unauthorized</title>
+</head><body>
+<h1>Unauthorized</h1>
+<p>This server could not verify that you
+are authorized to access the document
+requested.  Either you supplied the wrong
+credentials (e.g., bad password), or your
+browser doesn't understand how to supply
+the credentials required.</p>
+</body></html>
+
+	at cromwell.engine.workflow.WorkflowActor$$anonfun$3.applyOrElse(WorkflowActor.scala:353)
+	at cromwell.engine.workflow.WorkflowActor$$anonfun$3.applyOrElse(WorkflowActor.scala:336)
+	at scala.runtime.AbstractPartialFunction.apply(AbstractPartialFunction.scala:35)
+	at akka.actor.FSM.processEvent(FSM.scala:707)
+	at akka.actor.FSM.processEvent$(FSM.scala:704)
+	at cromwell.engine.workflow.WorkflowActor.akka$actor$LoggingFSM$$super$processEvent(WorkflowActor.scala:222)
+	at akka.actor.LoggingFSM.processEvent(FSM.scala:847)
+	at akka.actor.LoggingFSM.processEvent$(FSM.scala:829)
+	at cromwell.engine.workflow.WorkflowActor.processEvent(WorkflowActor.scala:222)
+	at akka.actor.FSM.akka$actor$FSM$$processMsg(FSM.scala:701)
+	at akka.actor.FSM$$anonfun$receive$1.applyOrElse(FSM.scala:695)
+	at akka.actor.Actor.aroundReceive(Actor.scala:539)
+	at akka.actor.Actor.aroundReceive$(Actor.scala:537)
+	at cromwell.engine.workflow.WorkflowActor.akka$actor$Timers$$super$aroundReceive(WorkflowActor.scala:222)
+	at akka.actor.Timers.aroundReceive(Timers.scala:55)
+	at akka.actor.Timers.aroundReceive$(Timers.scala:40)
+	at cromwell.engine.workflow.WorkflowActor.aroundReceive(WorkflowActor.scala:222)
+	at akka.actor.ActorCell.receiveMessage(ActorCell.scala:614)
+	at akka.actor.ActorCell.invoke(ActorCell.scala:583)
+	at akka.dispatch.Mailbox.processMailbox(Mailbox.scala:268)
+	at akka.dispatch.Mailbox.run(Mailbox.scala:229)
+	at akka.dispatch.Mailbox.exec(Mailbox.scala:241)
+	at akka.dispatch.forkjoin.ForkJoinTask.doExec(ForkJoinTask.java:260)
+	at akka.dispatch.forkjoin.ForkJoinPool$WorkQueue.runTask(ForkJoinPool.java:1339)
+	at akka.dispatch.forkjoin.ForkJoinPool.runWorker(ForkJoinPool.java:1979)
+	at akka.dispatch.forkjoin.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:107)
+	Suppressed: bio.terra.workspace.client.ApiException: <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head><script src="https://us.jsagent.tcell.insight.rapid7.com/tcellagent.min.js" tcellappid="FCNonprod-NaVu9" tcellapikey="AQQBBAFLGLOxL7VE9IF9ESlLvCxD5Ykr_7xkQKq_rgn_P58IWjOhOzIh6p3aI4pTWaprlUw" tcellbaseurl="https://us.agent.tcell.insight.rapid7.com/api/v1"></script>
+<title>401 Unauthorized</title>
+</head><body>
+<h1>Unauthorized</h1>
+<p>This server could not verify that you
+are authorized to access the document
+requested.  Either you supplied the wrong
+credentials (e.g., bad password), or your
+browser doesn't understand how to supply
+the credentials required.</p>
+</body></html>
+
+		at bio.terra.workspace.client.ApiClient.invokeAPI(ApiClient.java:752)
+		at bio.terra.workspace.api.ControlledAzureResourceApi.createAzureStorageContainerSasToken(ControlledAzureResourceApi.java:434)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.$anonfun$generateBlobSasToken$3(BlobFileSystemManager.scala:213)
+		at scala.util.Try$.apply(Try.scala:210)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.$anonfun$generateBlobSasToken$2(BlobFileSystemManager.scala:214)
+		at scala.util.Success.flatMap(Try.scala:258)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.generateBlobSasToken(BlobFileSystemManager.scala:204)
+		at cromwell.filesystems.blob.BlobFileSystemManager.retrieveFilesystem(BlobFileSystemManager.scala:84)
+		at cromwell.filesystems.blob.BlobPath.findNioPath(BlobPathBuilder.scala:109)
+		at cromwell.filesystems.blob.BlobPath.nioPath(BlobPathBuilder.scala:99)
+		at cromwell.core.path.Path.nioPathPrivate(PathBuilder.scala:135)
+		at cromwell.core.path.Path.nioPathPrivate$(PathBuilder.scala:135)
+		at cromwell.filesystems.blob.BlobPath.nioPathPrivate(BlobPathBuilder.scala:98)
+		at cromwell.core.path.NioPathMethods.toAbsolutePath(NioPathMethods.scala:31)
+		at cromwell.core.path.NioPathMethods.toAbsolutePath$(NioPathMethods.scala:31)
+		at cromwell.filesystems.blob.BlobPath.toAbsolutePath(BlobPathBuilder.scala:98)
+		at cromwell.backend.io.WorkflowPaths.executionRoot(WorkflowPaths.scala:35)
+		at cromwell.backend.io.WorkflowPaths.executionRoot$(WorkflowPaths.scala:35)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.executionRoot$lzycompute(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.executionRoot(TesWorkflowPaths.scala:9)
+		at cromwell.backend.io.WorkflowPaths.workflowRoot(WorkflowPaths.scala:46)
+		at cromwell.backend.io.WorkflowPaths.workflowRoot$(WorkflowPaths.scala:46)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.workflowRoot$lzycompute(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.workflowRoot(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesInitializationActor.$anonfun$beforeAll$1(TesInitializationActor.scala:91)
+		at scala.concurrent.impl.Promise$Transformation.run(Promise.scala:467)
+		at akka.dispatch.TaskInvocation.run(AbstractDispatcher.scala:41)
+		at akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask.exec(ForkJoinExecutorConfigurator.scala:49)
+		... 4 common frames omitted
+2023-07-27 11:47:42,407 INFO  - WorkflowActor-d81c2541-2cc2-4554-9aee-cb291c63ad7c [UUID(d81c2541)]: Initialization failed on attempt 3. Will retry up to 16 times. Next retry is in 1 minute
+cromwell.core.CromwellAggregatedException: Initialization Failure:
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head><script src="https://us.jsagent.tcell.insight.rapid7.com/tcellagent.min.js" tcellappid="FCNonprod-NaVu9" tcellapikey="AQQBBAFLGLOxL7VE9IF9ESlLvCxD5Ykr_7xkQKq_rgn_P58IWjOhOzIh6p3aI4pTWaprlUw" tcellbaseurl="https://us.agent.tcell.insight.rapid7.com/api/v1"></script>
+<title>401 Unauthorized</title>
+</head><body>
+<h1>Unauthorized</h1>
+<p>This server could not verify that you
+are authorized to access the document
+requested.  Either you supplied the wrong
+credentials (e.g., bad password), or your
+browser doesn't understand how to supply
+the credentials required.</p>
+</body></html>
+
+	at cromwell.engine.workflow.WorkflowActor$$anonfun$3.applyOrElse(WorkflowActor.scala:353)
+	at cromwell.engine.workflow.WorkflowActor$$anonfun$3.applyOrElse(WorkflowActor.scala:336)
+	at scala.runtime.AbstractPartialFunction.apply(AbstractPartialFunction.scala:35)
+	at akka.actor.FSM.processEvent(FSM.scala:707)
+	at akka.actor.FSM.processEvent$(FSM.scala:704)
+	at cromwell.engine.workflow.WorkflowActor.akka$actor$LoggingFSM$$super$processEvent(WorkflowActor.scala:222)
+	at akka.actor.LoggingFSM.processEvent(FSM.scala:847)
+	at akka.actor.LoggingFSM.processEvent$(FSM.scala:829)
+	at cromwell.engine.workflow.WorkflowActor.processEvent(WorkflowActor.scala:222)
+	at akka.actor.FSM.akka$actor$FSM$$processMsg(FSM.scala:701)
+	at akka.actor.FSM$$anonfun$receive$1.applyOrElse(FSM.scala:695)
+	at akka.actor.Actor.aroundReceive(Actor.scala:539)
+	at akka.actor.Actor.aroundReceive$(Actor.scala:537)
+	at cromwell.engine.workflow.WorkflowActor.akka$actor$Timers$$super$aroundReceive(WorkflowActor.scala:222)
+	at akka.actor.Timers.aroundReceive(Timers.scala:55)
+	at akka.actor.Timers.aroundReceive$(Timers.scala:40)
+	at cromwell.engine.workflow.WorkflowActor.aroundReceive(WorkflowActor.scala:222)
+	at akka.actor.ActorCell.receiveMessage(ActorCell.scala:614)
+	at akka.actor.ActorCell.invoke(ActorCell.scala:583)
+	at akka.dispatch.Mailbox.processMailbox(Mailbox.scala:268)
+	at akka.dispatch.Mailbox.run(Mailbox.scala:229)
+	at akka.dispatch.Mailbox.exec(Mailbox.scala:241)
+	at akka.dispatch.forkjoin.ForkJoinTask.doExec(ForkJoinTask.java:260)
+	at akka.dispatch.forkjoin.ForkJoinPool$WorkQueue.runTask(ForkJoinPool.java:1339)
+	at akka.dispatch.forkjoin.ForkJoinPool.runWorker(ForkJoinPool.java:1979)
+	at akka.dispatch.forkjoin.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:107)
+	Suppressed: bio.terra.workspace.client.ApiException: <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head><script src="https://us.jsagent.tcell.insight.rapid7.com/tcellagent.min.js" tcellappid="FCNonprod-NaVu9" tcellapikey="AQQBBAFLGLOxL7VE9IF9ESlLvCxD5Ykr_7xkQKq_rgn_P58IWjOhOzIh6p3aI4pTWaprlUw" tcellbaseurl="https://us.agent.tcell.insight.rapid7.com/api/v1"></script>
+<title>401 Unauthorized</title>
+</head><body>
+<h1>Unauthorized</h1>
+<p>This server could not verify that you
+are authorized to access the document
+requested.  Either you supplied the wrong
+credentials (e.g., bad password), or your
+browser doesn't understand how to supply
+the credentials required.</p>
+</body></html>
+
+		at bio.terra.workspace.client.ApiClient.invokeAPI(ApiClient.java:752)
+		at bio.terra.workspace.api.ControlledAzureResourceApi.createAzureStorageContainerSasToken(ControlledAzureResourceApi.java:434)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.$anonfun$generateBlobSasToken$3(BlobFileSystemManager.scala:213)
+		at scala.util.Try$.apply(Try.scala:210)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.$anonfun$generateBlobSasToken$2(BlobFileSystemManager.scala:214)
+		at scala.util.Success.flatMap(Try.scala:258)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.generateBlobSasToken(BlobFileSystemManager.scala:204)
+		at cromwell.filesystems.blob.BlobFileSystemManager.retrieveFilesystem(BlobFileSystemManager.scala:84)
+		at cromwell.filesystems.blob.BlobPath.findNioPath(BlobPathBuilder.scala:109)
+		at cromwell.filesystems.blob.BlobPath.nioPath(BlobPathBuilder.scala:99)
+		at cromwell.core.path.Path.nioPathPrivate(PathBuilder.scala:135)
+		at cromwell.core.path.Path.nioPathPrivate$(PathBuilder.scala:135)
+		at cromwell.filesystems.blob.BlobPath.nioPathPrivate(BlobPathBuilder.scala:98)
+		at cromwell.core.path.NioPathMethods.toAbsolutePath(NioPathMethods.scala:31)
+		at cromwell.core.path.NioPathMethods.toAbsolutePath$(NioPathMethods.scala:31)
+		at cromwell.filesystems.blob.BlobPath.toAbsolutePath(BlobPathBuilder.scala:98)
+		at cromwell.backend.io.WorkflowPaths.executionRoot(WorkflowPaths.scala:35)
+		at cromwell.backend.io.WorkflowPaths.executionRoot$(WorkflowPaths.scala:35)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.executionRoot$lzycompute(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.executionRoot(TesWorkflowPaths.scala:9)
+		at cromwell.backend.io.WorkflowPaths.workflowRoot(WorkflowPaths.scala:46)
+		at cromwell.backend.io.WorkflowPaths.workflowRoot$(WorkflowPaths.scala:46)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.workflowRoot$lzycompute(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.workflowRoot(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesInitializationActor.$anonfun$beforeAll$1(TesInitializationActor.scala:91)
+		at scala.concurrent.impl.Promise$Transformation.run(Promise.scala:467)
+		at akka.dispatch.TaskInvocation.run(AbstractDispatcher.scala:41)
+		at akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask.exec(ForkJoinExecutorConfigurator.scala:49)
+		... 4 common frames omitted
+2023-07-27 11:48:42,874 INFO  - WorkflowActor-d81c2541-2cc2-4554-9aee-cb291c63ad7c [UUID(d81c2541)]: Initialization failed on attempt 4. Will retry up to 16 times. Next retry is in 1 minute
+cromwell.core.CromwellAggregatedException: Initialization Failure:
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head><script src="https://us.jsagent.tcell.insight.rapid7.com/tcellagent.min.js" tcellappid="FCNonprod-NaVu9" tcellapikey="AQQBBAFLGLOxL7VE9IF9ESlLvCxD5Ykr_7xkQKq_rgn_P58IWjOhOzIh6p3aI4pTWaprlUw" tcellbaseurl="https://us.agent.tcell.insight.rapid7.com/api/v1"></script>
+<title>401 Unauthorized</title>
+</head><body>
+<h1>Unauthorized</h1>
+<p>This server could not verify that you
+are authorized to access the document
+requested.  Either you supplied the wrong
+credentials (e.g., bad password), or your
+browser doesn't understand how to supply
+the credentials required.</p>
+</body></html>
+
+	at cromwell.engine.workflow.WorkflowActor$$anonfun$3.applyOrElse(WorkflowActor.scala:353)
+	at cromwell.engine.workflow.WorkflowActor$$anonfun$3.applyOrElse(WorkflowActor.scala:336)
+	at scala.runtime.AbstractPartialFunction.apply(AbstractPartialFunction.scala:35)
+	at akka.actor.FSM.processEvent(FSM.scala:707)
+	at akka.actor.FSM.processEvent$(FSM.scala:704)
+	at cromwell.engine.workflow.WorkflowActor.akka$actor$LoggingFSM$$super$processEvent(WorkflowActor.scala:222)
+	at akka.actor.LoggingFSM.processEvent(FSM.scala:847)
+	at akka.actor.LoggingFSM.processEvent$(FSM.scala:829)
+	at cromwell.engine.workflow.WorkflowActor.processEvent(WorkflowActor.scala:222)
+	at akka.actor.FSM.akka$actor$FSM$$processMsg(FSM.scala:701)
+	at akka.actor.FSM$$anonfun$receive$1.applyOrElse(FSM.scala:695)
+	at akka.actor.Actor.aroundReceive(Actor.scala:539)
+	at akka.actor.Actor.aroundReceive$(Actor.scala:537)
+	at cromwell.engine.workflow.WorkflowActor.akka$actor$Timers$$super$aroundReceive(WorkflowActor.scala:222)
+	at akka.actor.Timers.aroundReceive(Timers.scala:55)
+	at akka.actor.Timers.aroundReceive$(Timers.scala:40)
+	at cromwell.engine.workflow.WorkflowActor.aroundReceive(WorkflowActor.scala:222)
+	at akka.actor.ActorCell.receiveMessage(ActorCell.scala:614)
+	at akka.actor.ActorCell.invoke(ActorCell.scala:583)
+	at akka.dispatch.Mailbox.processMailbox(Mailbox.scala:268)
+	at akka.dispatch.Mailbox.run(Mailbox.scala:229)
+	at akka.dispatch.Mailbox.exec(Mailbox.scala:241)
+	at akka.dispatch.forkjoin.ForkJoinTask.doExec(ForkJoinTask.java:260)
+	at akka.dispatch.forkjoin.ForkJoinPool$WorkQueue.runTask(ForkJoinPool.java:1339)
+	at akka.dispatch.forkjoin.ForkJoinPool.runWorker(ForkJoinPool.java:1979)
+	at akka.dispatch.forkjoin.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:107)
+	Suppressed: bio.terra.workspace.client.ApiException: <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head><script src="https://us.jsagent.tcell.insight.rapid7.com/tcellagent.min.js" tcellappid="FCNonprod-NaVu9" tcellapikey="AQQBBAFLGLOxL7VE9IF9ESlLvCxD5Ykr_7xkQKq_rgn_P58IWjOhOzIh6p3aI4pTWaprlUw" tcellbaseurl="https://us.agent.tcell.insight.rapid7.com/api/v1"></script>
+<title>401 Unauthorized</title>
+</head><body>
+<h1>Unauthorized</h1>
+<p>This server could not verify that you
+are authorized to access the document
+requested.  Either you supplied the wrong
+credentials (e.g., bad password), or your
+browser doesn't understand how to supply
+the credentials required.</p>
+</body></html>
+
+		at bio.terra.workspace.client.ApiClient.invokeAPI(ApiClient.java:752)
+		at bio.terra.workspace.api.ControlledAzureResourceApi.createAzureStorageContainerSasToken(ControlledAzureResourceApi.java:434)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.$anonfun$generateBlobSasToken$3(BlobFileSystemManager.scala:213)
+		at scala.util.Try$.apply(Try.scala:210)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.$anonfun$generateBlobSasToken$2(BlobFileSystemManager.scala:214)
+		at scala.util.Success.flatMap(Try.scala:258)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.generateBlobSasToken(BlobFileSystemManager.scala:204)
+		at cromwell.filesystems.blob.BlobFileSystemManager.retrieveFilesystem(BlobFileSystemManager.scala:84)
+		at cromwell.filesystems.blob.BlobPath.findNioPath(BlobPathBuilder.scala:109)
+		at cromwell.filesystems.blob.BlobPath.nioPath(BlobPathBuilder.scala:99)
+		at cromwell.core.path.Path.nioPathPrivate(PathBuilder.scala:135)
+		at cromwell.core.path.Path.nioPathPrivate$(PathBuilder.scala:135)
+		at cromwell.filesystems.blob.BlobPath.nioPathPrivate(BlobPathBuilder.scala:98)
+		at cromwell.core.path.NioPathMethods.toAbsolutePath(NioPathMethods.scala:31)
+		at cromwell.core.path.NioPathMethods.toAbsolutePath$(NioPathMethods.scala:31)
+		at cromwell.filesystems.blob.BlobPath.toAbsolutePath(BlobPathBuilder.scala:98)
+		at cromwell.backend.io.WorkflowPaths.executionRoot(WorkflowPaths.scala:35)
+		at cromwell.backend.io.WorkflowPaths.executionRoot$(WorkflowPaths.scala:35)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.executionRoot$lzycompute(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.executionRoot(TesWorkflowPaths.scala:9)
+		at cromwell.backend.io.WorkflowPaths.workflowRoot(WorkflowPaths.scala:46)
+		at cromwell.backend.io.WorkflowPaths.workflowRoot$(WorkflowPaths.scala:46)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.workflowRoot$lzycompute(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.workflowRoot(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesInitializationActor.$anonfun$beforeAll$1(TesInitializationActor.scala:91)
+		at scala.concurrent.impl.Promise$Transformation.run(Promise.scala:467)
+		at akka.dispatch.TaskInvocation.run(AbstractDispatcher.scala:41)
+		at akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask.exec(ForkJoinExecutorConfigurator.scala:49)
+		... 4 common frames omitted
+2023-07-27 11:49:43,277 INFO  - WorkflowActor-d81c2541-2cc2-4554-9aee-cb291c63ad7c [UUID(d81c2541)]: Initialization failed on attempt 5. Will retry up to 16 times. Next retry is in 1 minute
+cromwell.core.CromwellAggregatedException: Initialization Failure:
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head><script src="https://us.jsagent.tcell.insight.rapid7.com/tcellagent.min.js" tcellappid="FCNonprod-NaVu9" tcellapikey="AQQBBAFLGLOxL7VE9IF9ESlLvCxD5Ykr_7xkQKq_rgn_P58IWjOhOzIh6p3aI4pTWaprlUw" tcellbaseurl="https://us.agent.tcell.insight.rapid7.com/api/v1"></script>
+<title>401 Unauthorized</title>
+</head><body>
+<h1>Unauthorized</h1>
+<p>This server could not verify that you
+are authorized to access the document
+requested.  Either you supplied the wrong
+credentials (e.g., bad password), or your
+browser doesn't understand how to supply
+the credentials required.</p>
+</body></html>
+
+	at cromwell.engine.workflow.WorkflowActor$$anonfun$3.applyOrElse(WorkflowActor.scala:353)
+	at cromwell.engine.workflow.WorkflowActor$$anonfun$3.applyOrElse(WorkflowActor.scala:336)
+	at scala.runtime.AbstractPartialFunction.apply(AbstractPartialFunction.scala:35)
+	at akka.actor.FSM.processEvent(FSM.scala:707)
+	at akka.actor.FSM.processEvent$(FSM.scala:704)
+	at cromwell.engine.workflow.WorkflowActor.akka$actor$LoggingFSM$$super$processEvent(WorkflowActor.scala:222)
+	at akka.actor.LoggingFSM.processEvent(FSM.scala:847)
+	at akka.actor.LoggingFSM.processEvent$(FSM.scala:829)
+	at cromwell.engine.workflow.WorkflowActor.processEvent(WorkflowActor.scala:222)
+	at akka.actor.FSM.akka$actor$FSM$$processMsg(FSM.scala:701)
+	at akka.actor.FSM$$anonfun$receive$1.applyOrElse(FSM.scala:695)
+	at akka.actor.Actor.aroundReceive(Actor.scala:539)
+	at akka.actor.Actor.aroundReceive$(Actor.scala:537)
+	at cromwell.engine.workflow.WorkflowActor.akka$actor$Timers$$super$aroundReceive(WorkflowActor.scala:222)
+	at akka.actor.Timers.aroundReceive(Timers.scala:55)
+	at akka.actor.Timers.aroundReceive$(Timers.scala:40)
+	at cromwell.engine.workflow.WorkflowActor.aroundReceive(WorkflowActor.scala:222)
+	at akka.actor.ActorCell.receiveMessage(ActorCell.scala:614)
+	at akka.actor.ActorCell.invoke(ActorCell.scala:583)
+	at akka.dispatch.Mailbox.processMailbox(Mailbox.scala:268)
+	at akka.dispatch.Mailbox.run(Mailbox.scala:229)
+	at akka.dispatch.Mailbox.exec(Mailbox.scala:241)
+	at akka.dispatch.forkjoin.ForkJoinTask.doExec(ForkJoinTask.java:260)
+	at akka.dispatch.forkjoin.ForkJoinPool$WorkQueue.runTask(ForkJoinPool.java:1339)
+	at akka.dispatch.forkjoin.ForkJoinPool.runWorker(ForkJoinPool.java:1979)
+	at akka.dispatch.forkjoin.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:107)
+	Suppressed: bio.terra.workspace.client.ApiException: <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head><script src="https://us.jsagent.tcell.insight.rapid7.com/tcellagent.min.js" tcellappid="FCNonprod-NaVu9" tcellapikey="AQQBBAFLGLOxL7VE9IF9ESlLvCxD5Ykr_7xkQKq_rgn_P58IWjOhOzIh6p3aI4pTWaprlUw" tcellbaseurl="https://us.agent.tcell.insight.rapid7.com/api/v1"></script>
+<title>401 Unauthorized</title>
+</head><body>
+<h1>Unauthorized</h1>
+<p>This server could not verify that you
+are authorized to access the document
+requested.  Either you supplied the wrong
+credentials (e.g., bad password), or your
+browser doesn't understand how to supply
+the credentials required.</p>
+</body></html>
+
+		at bio.terra.workspace.client.ApiClient.invokeAPI(ApiClient.java:752)
+		at bio.terra.workspace.api.ControlledAzureResourceApi.createAzureStorageContainerSasToken(ControlledAzureResourceApi.java:434)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.$anonfun$generateBlobSasToken$3(BlobFileSystemManager.scala:213)
+		at scala.util.Try$.apply(Try.scala:210)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.$anonfun$generateBlobSasToken$2(BlobFileSystemManager.scala:214)
+		at scala.util.Success.flatMap(Try.scala:258)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.generateBlobSasToken(BlobFileSystemManager.scala:204)
+		at cromwell.filesystems.blob.BlobFileSystemManager.retrieveFilesystem(BlobFileSystemManager.scala:84)
+		at cromwell.filesystems.blob.BlobPath.findNioPath(BlobPathBuilder.scala:109)
+		at cromwell.filesystems.blob.BlobPath.nioPath(BlobPathBuilder.scala:99)
+		at cromwell.core.path.Path.nioPathPrivate(PathBuilder.scala:135)
+		at cromwell.core.path.Path.nioPathPrivate$(PathBuilder.scala:135)
+		at cromwell.filesystems.blob.BlobPath.nioPathPrivate(BlobPathBuilder.scala:98)
+		at cromwell.core.path.NioPathMethods.toAbsolutePath(NioPathMethods.scala:31)
+		at cromwell.core.path.NioPathMethods.toAbsolutePath$(NioPathMethods.scala:31)
+		at cromwell.filesystems.blob.BlobPath.toAbsolutePath(BlobPathBuilder.scala:98)
+		at cromwell.backend.io.WorkflowPaths.executionRoot(WorkflowPaths.scala:35)
+		at cromwell.backend.io.WorkflowPaths.executionRoot$(WorkflowPaths.scala:35)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.executionRoot$lzycompute(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.executionRoot(TesWorkflowPaths.scala:9)
+		at cromwell.backend.io.WorkflowPaths.workflowRoot(WorkflowPaths.scala:46)
+		at cromwell.backend.io.WorkflowPaths.workflowRoot$(WorkflowPaths.scala:46)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.workflowRoot$lzycompute(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.workflowRoot(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesInitializationActor.$anonfun$beforeAll$1(TesInitializationActor.scala:91)
+		at scala.concurrent.impl.Promise$Transformation.run(Promise.scala:467)
+		at akka.dispatch.TaskInvocation.run(AbstractDispatcher.scala:41)
+		at akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask.exec(ForkJoinExecutorConfigurator.scala:49)
+		... 4 common frames omitted
+2023-07-27 11:50:43,751 INFO  - WorkflowActor-d81c2541-2cc2-4554-9aee-cb291c63ad7c [UUID(d81c2541)]: Initialization failed on attempt 6. Will retry up to 16 times. Next retry is in 1 minute
+cromwell.core.CromwellAggregatedException: Initialization Failure:
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head><script src="https://us.jsagent.tcell.insight.rapid7.com/tcellagent.min.js" tcellappid="FCNonprod-NaVu9" tcellapikey="AQQBBAFLGLOxL7VE9IF9ESlLvCxD5Ykr_7xkQKq_rgn_P58IWjOhOzIh6p3aI4pTWaprlUw" tcellbaseurl="https://us.agent.tcell.insight.rapid7.com/api/v1"></script>
+<title>401 Unauthorized</title>
+</head><body>
+<h1>Unauthorized</h1>
+<p>This server could not verify that you
+are authorized to access the document
+requested.  Either you supplied the wrong
+credentials (e.g., bad password), or your
+browser doesn't understand how to supply
+the credentials required.</p>
+</body></html>
+
+	at cromwell.engine.workflow.WorkflowActor$$anonfun$3.applyOrElse(WorkflowActor.scala:353)
+	at cromwell.engine.workflow.WorkflowActor$$anonfun$3.applyOrElse(WorkflowActor.scala:336)
+	at scala.runtime.AbstractPartialFunction.apply(AbstractPartialFunction.scala:35)
+	at akka.actor.FSM.processEvent(FSM.scala:707)
+	at akka.actor.FSM.processEvent$(FSM.scala:704)
+	at cromwell.engine.workflow.WorkflowActor.akka$actor$LoggingFSM$$super$processEvent(WorkflowActor.scala:222)
+	at akka.actor.LoggingFSM.processEvent(FSM.scala:847)
+	at akka.actor.LoggingFSM.processEvent$(FSM.scala:829)
+	at cromwell.engine.workflow.WorkflowActor.processEvent(WorkflowActor.scala:222)
+	at akka.actor.FSM.akka$actor$FSM$$processMsg(FSM.scala:701)
+	at akka.actor.FSM$$anonfun$receive$1.applyOrElse(FSM.scala:695)
+	at akka.actor.Actor.aroundReceive(Actor.scala:539)
+	at akka.actor.Actor.aroundReceive$(Actor.scala:537)
+	at cromwell.engine.workflow.WorkflowActor.akka$actor$Timers$$super$aroundReceive(WorkflowActor.scala:222)
+	at akka.actor.Timers.aroundReceive(Timers.scala:55)
+	at akka.actor.Timers.aroundReceive$(Timers.scala:40)
+	at cromwell.engine.workflow.WorkflowActor.aroundReceive(WorkflowActor.scala:222)
+	at akka.actor.ActorCell.receiveMessage(ActorCell.scala:614)
+	at akka.actor.ActorCell.invoke(ActorCell.scala:583)
+	at akka.dispatch.Mailbox.processMailbox(Mailbox.scala:268)
+	at akka.dispatch.Mailbox.run(Mailbox.scala:229)
+	at akka.dispatch.Mailbox.exec(Mailbox.scala:241)
+	at akka.dispatch.forkjoin.ForkJoinTask.doExec(ForkJoinTask.java:260)
+	at akka.dispatch.forkjoin.ForkJoinPool$WorkQueue.runTask(ForkJoinPool.java:1339)
+	at akka.dispatch.forkjoin.ForkJoinPool.runWorker(ForkJoinPool.java:1979)
+	at akka.dispatch.forkjoin.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:107)
+	Suppressed: bio.terra.workspace.client.ApiException: <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head><script src="https://us.jsagent.tcell.insight.rapid7.com/tcellagent.min.js" tcellappid="FCNonprod-NaVu9" tcellapikey="AQQBBAFLGLOxL7VE9IF9ESlLvCxD5Ykr_7xkQKq_rgn_P58IWjOhOzIh6p3aI4pTWaprlUw" tcellbaseurl="https://us.agent.tcell.insight.rapid7.com/api/v1"></script>
+<title>401 Unauthorized</title>
+</head><body>
+<h1>Unauthorized</h1>
+<p>This server could not verify that you
+are authorized to access the document
+requested.  Either you supplied the wrong
+credentials (e.g., bad password), or your
+browser doesn't understand how to supply
+the credentials required.</p>
+</body></html>
+
+		at bio.terra.workspace.client.ApiClient.invokeAPI(ApiClient.java:752)
+		at bio.terra.workspace.api.ControlledAzureResourceApi.createAzureStorageContainerSasToken(ControlledAzureResourceApi.java:434)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.$anonfun$generateBlobSasToken$3(BlobFileSystemManager.scala:213)
+		at scala.util.Try$.apply(Try.scala:210)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.$anonfun$generateBlobSasToken$2(BlobFileSystemManager.scala:214)
+		at scala.util.Success.flatMap(Try.scala:258)
+		at cromwell.filesystems.blob.WSMBlobSasTokenGenerator.generateBlobSasToken(BlobFileSystemManager.scala:204)
+		at cromwell.filesystems.blob.BlobFileSystemManager.retrieveFilesystem(BlobFileSystemManager.scala:84)
+		at cromwell.filesystems.blob.BlobPath.findNioPath(BlobPathBuilder.scala:109)
+		at cromwell.filesystems.blob.BlobPath.nioPath(BlobPathBuilder.scala:99)
+		at cromwell.core.path.Path.nioPathPrivate(PathBuilder.scala:135)
+		at cromwell.core.path.Path.nioPathPrivate$(PathBuilder.scala:135)
+		at cromwell.filesystems.blob.BlobPath.nioPathPrivate(BlobPathBuilder.scala:98)
+		at cromwell.core.path.NioPathMethods.toAbsolutePath(NioPathMethods.scala:31)
+		at cromwell.core.path.NioPathMethods.toAbsolutePath$(NioPathMethods.scala:31)
+		at cromwell.filesystems.blob.BlobPath.toAbsolutePath(BlobPathBuilder.scala:98)
+		at cromwell.backend.io.WorkflowPaths.executionRoot(WorkflowPaths.scala:35)
+		at cromwell.backend.io.WorkflowPaths.executionRoot$(WorkflowPaths.scala:35)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.executionRoot$lzycompute(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.executionRoot(TesWorkflowPaths.scala:9)
+		at cromwell.backend.io.WorkflowPaths.workflowRoot(WorkflowPaths.scala:46)
+		at cromwell.backend.io.WorkflowPaths.workflowRoot$(WorkflowPaths.scala:46)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.workflowRoot$lzycompute(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesWorkflowPaths.workflowRoot(TesWorkflowPaths.scala:9)
+		at cromwell.backend.impl.tes.TesInitializationActor.$anonfun$beforeAll$1(TesInitializationActor.scala:91)
+		at scala.concurrent.impl.Promise$Transformation.run(Promise.scala:467)
+		at akka.dispatch.TaskInvocation.run(AbstractDispatcher.scala:41)
+		at akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask.exec(ForkJoinExecutorConfigurator.scala:49)
+		... 4 common frames omitted

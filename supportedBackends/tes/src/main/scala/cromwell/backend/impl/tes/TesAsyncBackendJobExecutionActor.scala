@@ -161,8 +161,9 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         jobShell,
         mode)
     })
-
-    tesTask.map(TesTask.makeTask)
+    val testask = tesTask.map(TesTask.makeTask)
+    jobLogger.info(testask.toString)
+    testask
   }
 
   def writeScriptFile(): Future[Unit] = {

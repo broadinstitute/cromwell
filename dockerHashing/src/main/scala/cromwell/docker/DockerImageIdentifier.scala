@@ -19,9 +19,9 @@ sealed trait DockerImageIdentifier {
   lazy val nameWithDefaultRepository = {
     // In ACR, the repository is part of the registry domain instead of the path
     // e.g. `terrabatchdev.azurecr.io`
-    if (host.exists(_.contains(AzureContainerRegistry.domain))) {
+    if (host.exists(_.contains(AzureContainerRegistry.domain)))
       image
-    } else
+    else
       repository.getOrElse("library") + s"/$image"
   }
   lazy val hostAsString = host map { h => s"$h/" } getOrElse ""

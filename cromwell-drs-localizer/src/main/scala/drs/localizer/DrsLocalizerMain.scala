@@ -19,7 +19,6 @@ import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 import spray.json._
 import DefaultJsonProtocol._
-import drs.localizer.DrsLocalizerMain.{downloadInParallel, generateJsonPathForManifest, loadCSVAsMap, writeJsonManifest}
 import drs.localizer.URIType.{GCS, URIType}
 
 import java.nio.file.{Files, Paths}
@@ -55,6 +54,10 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
 
     override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] =
       IO.pure(GcsUriDownloader(gcsPath, serviceAccountJsonOption, downloadLoc, requesterPaysProjectOption))
+
+    override def buildBulkAccessUrlDownloader(urlToDownloadDestinationMap: Map[AccessUrl, String], hashes: Hashes): IO[Downloader] = {
+      IO.pure(BulkAccessUrlDownloader(urlToDownloadDestinationMap, hashes))
+    }
   }
 
   private def printUsage: IO[ExitCode] = {
@@ -79,6 +82,82 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
         localizeFile(commandLineArguments, drsCredentials, drsObject, containerPath)
     }
   }
+
+  def getDrsPathResolver(drsCredentials: DrsCredentials): IO[DrsLocalizerDrsPathResolver] = {
+    IO {
+      val drsConfig = DrsConfig.fromEnv(sys.env)
+      logger.info(s"Using ${drsConfig.drsResolverUrl} to resolve DRS Objects")
+      new DrsLocalizerDrsPathResolver(drsConfig, drsCredentials)
+    }
+  }
+
+  private[localizer] def toUriType(drsResponse: DrsResolverResponse): Try[URIType] = {
+    (drsResponse.accessUrl, drsResponse.gsUri) match {
+      case (Some(accessUrl), _) =>
+        Try(URIType.HTTPS)
+      case (_, Some(gcsPath)) =>
+        Try(URIType.GCS)
+      case _ =>
+        Failure(new RuntimeException(DrsPathResolver.ExtractUriErrorMsg))
+    }
+  }
+  def runLocalizer(commandLineArguments: CommandLineArguments, drsCredentials: DrsCredentials, dummy : Boolean): IO[ExitCode] = {
+    commandLineArguments.manifestPath match {
+      case Some(manifestPath) => {
+          val resolvedUris: Try[Map[DrsResolverResponse, String]] = for {
+            resolver: IO[DrsLocalizerDrsPathResolver] <- getDrsPathResolver(drsCredentials)
+            resolvedDrsUris: Try[Map[DrsResolverResponse, String]] <- resolveCSVManifest(manifestPath, resolver)
+            if !resolvedDrsUris.isEmpty
+          } yield resolvedDrsUris
+
+          if(resolvedUris.isFailure) {
+              return IO(ExitCode.Error) //Could not resolve DRS urls. Fail before attempting to download anything
+            }
+
+          val accessUrls = resolvedUris.get.filter(drsResponse => toUriType(drsResponse._1) == URIType.HTTPS)
+          val googleUrls = resolvedUris.get.filter(drsResponse => toUriType(drsResponse._1) == URIType.GCS)
+
+          val bulkAccessResult : IO[ExitCode] = bulkDownloadResolvedAccessUrls(accessUrls, drsCredentials)
+          val googleResult : List[IO[DownloadResult]] = bulkDownloadResolvedGoogleUrls(googleUrls, commandLineArguments.googleRequesterPaysProject)
+
+          //TODO: return an appropriate exit code
+        }
+      case None =>
+        val drsObject = commandLineArguments.drsObject.get
+        val containerPath = commandLineArguments.containerPath.get
+        localizeFile(commandLineArguments, drsCredentials, drsObject, containerPath)
+    }
+  }
+
+  def bulkDownloadResolvedAccessUrls(resolvedUrlToOutputDestination : Map[DrsResolverResponse, String], drsCredentials: DrsCredentials): IO[ExitCode] = {
+    //TODO: invoke new bulk getm downloader
+  }
+
+  def bulkDownloadResolvedGoogleUrls(resolvedUrlToOutputDestination : Map[DrsResolverResponse, String], googleRequesterPaysProject : Option[String]) : List[IO[DownloadResult]] = {
+    resolvedUrlToOutputDestination.map(pair => {
+      val drsResponse : DrsResolverResponse = pair._1
+      val containerPath : String = pair._2
+      val serviceAccountJsonOption = drsResponse.googleServiceAccount.map(_.data.spaces2)
+      val downloader = defaultDownloaderFactory.buildGcsUriDownloader(
+        gcsPath = drsResponse.gsUri.getOrElse("MISSING_GOOGLE_URI"),
+        serviceAccountJsonOption = serviceAccountJsonOption,
+        downloadLoc = containerPath,
+        requesterPaysProjectOption = googleRequesterPaysProject)
+      downloader.flatMap(_.download)
+    }).toList
+  }
+
+  def resolveDrsUrl(resolverObject: DrsLocalizerDrsPathResolver, drsUrlToResolve: String): IO[DrsResolverResponse] = {
+    val fields = NonEmptyList.of(DrsResolverField.GsUri, DrsResolverField.GoogleServiceAccount, DrsResolverField.AccessUrl, DrsResolverField.Hashes)
+    resolverObject.resolveDrs(drsUrlToResolve, fields)
+  }
+  // resolve all the URIs once.
+  def resolveCSVManifest(csvManifestPath: String, resolver: DrsLocalizerDrsPathResolver) : Try[Map[DrsResolverResponse, String]] = {
+      for {
+        drsUriToDownloadLocationMap: Map[String, String] <- loadCSVAsMap(csvManifestPath)
+        resolvedUriToDownloadLocationMap: Map[DrsResolverResponse, String] = drsUriToDownloadLocationMap.map(value => (resolveDrsUrl(resolver, value._1), value._2))
+      } yield resolvedUriToDownloadLocationMap
+    }
 
   private def localizeFile(commandLineArguments: CommandLineArguments, drsCredentials: DrsCredentials, drsObject: String, containerPath: String) = {
     new DrsLocalizerMain(drsObject, containerPath, drsCredentials, commandLineArguments.googleRequesterPaysProject).
@@ -112,13 +191,6 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     csvPath.substring(0, csvPath.lastIndexOf('.')) + "_manifest.json"
   }
 
-  // The getm tool can read in a JSON manifest and download all files in parallel.
-  // Here, we invoke it with the provided manifest file.
-  // The manifest file should have 1 or more key value pairs, where each key is a drs URI
-  // and each value is a destination path for where that file should be localized to.
-  private def downloadInParallel(jsonManifestPath : String) : IO[ExitCode] = {
-
-  }
 }
 
 object URIType extends Enumeration {
@@ -211,49 +283,5 @@ class DrsLocalizerMain(drsUrl: String,
       }
     } yield downloader
   }
-
-  //TODO: use this fn to resolve drs URIs, split the responses into gs:// and https:// groups, and invoke new downloaders for each of those groups.
-  private[localizer] def resolveDrsUrl(resolverObject: IO[DrsLocalizerDrsPathResolver], drsUrlToResolve: String): IO[DrsResolverResponse] = {
-    val fields = NonEmptyList.of(DrsResolverField.GsUri, DrsResolverField.GoogleServiceAccount, DrsResolverField.AccessUrl, DrsResolverField.Hashes)
-    for {
-      resolver <- resolverObject
-      drsResolverResponse <- resolver.resolveDrs(drsUrlToResolve, fields)
-    } yield drsResolverResponse
-  }
-
-  private[localizer] def toUriType(drsResponse: DrsResolverResponse) : Try[URIType] = {
-    (drsResponse.accessUrl, drsResponse.gsUri) match {
-      case (Some(accessUrl), _) =>
-        Try(URIType.HTTPS)
-      case (_, Some(gcsPath)) =>
-        Try(URIType.GCS)
-      case _ =>
-        Failure(new RuntimeException(DrsPathResolver.ExtractUriErrorMsg))
-    }
-  }
-
-  private[localizer] def bulkResolve(): Unit = {
-    // Load path resolver once from config
-    val resolver = getDrsPathResolver
-
-    // resolve all the URIs once.
-    val resolvedUris : Try[Map[DrsResolverResponse, String]] = for {
-      drsUriToDownloadLocationMap : Map[String, String] <- loadCSVAsMap("path/to/manifest")
-      resolvedUriToDownloadLocationMap : Map[DrsResolverResponse, String] = drsUriToDownloadLocationMap.map(value => (resolveDrsUrl(resolver, value._1), value._2))
-    } yield resolvedUriToDownloadLocationMap
-
-    // find the GCS ones and download them
-      //find the HTTPS ones and download them
-    val exitCode: IO[ExitCode] = for {
-      drsResponses <- resolvedUris
-      httpsUris = drsResponses.filter(drsResponse => toUriType(drsResponse._1) == URIType.HTTPS)
-      uriToDownloadLocation = httpsUris.map(drsResponseToDownloadLoc => (drsResponseToDownloadLoc._1.accessUrl.get.toString, drsResponseToDownloadLoc._2))
-      jsonString <- uriToDownloadLocation.toJson
-      pathOfJsonFile <- writeJsonManifest(generateJsonPathForManifest("path/to/manifest"), jsonString)
-      downloadSuccess <- downloadInParallel(pathOfJsonFile)
-    } yield downloadSuccess
-
-  }
-
 }
 

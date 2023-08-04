@@ -76,14 +76,14 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
   private val endpoint: EndpointURL = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
   private val store: BlobContainerName = BlobContainerName("inputs")
 
-  def makeBlobPathBuilder(blobEndpoint: EndpointURL, container: BlobContainerName): BlobPathBuilder = {
+  def makeBlobPathBuilder: BlobPathBuilder = {
     val blobTokenGenerator = NativeBlobSasTokenGenerator(Some(subscriptionId))
     val fsm = new BlobFileSystemManager(10, blobTokenGenerator)
     new BlobPathBuilder()(fsm)
   }
 
   ignore should "resolve an absolute path string correctly to a path" in {
-    val builder = makeBlobPathBuilder(endpoint, store)
+    val builder = makeBlobPathBuilder
     val rootString = s"${endpoint.value}/${store.value}/cromwell-execution"
     val blobRoot: BlobPath = builder build rootString getOrElse fail()
     blobRoot.toAbsolutePath.pathAsString should equal ("https://coaexternalstorage.blob.core.windows.net/inputs/cromwell-execution")
@@ -92,7 +92,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
   }
 
   ignore should "build a blob path from a test string and read a file" in {
-    val builder = makeBlobPathBuilder(endpoint, store)
+    val builder = makeBlobPathBuilder
     val endpointHost = BlobPathBuilder.parseURI(endpoint.value).map(_.getHost).getOrElse(fail("Could not parse URI"))
     val evalPath = "/test/inputFile.txt"
     val testString = endpoint.value + "/" + store + evalPath
@@ -108,7 +108,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
   }
 
   ignore should "build duplicate blob paths in the same filesystem" in {
-    val builder = makeBlobPathBuilder(endpoint, store)
+    val builder = makeBlobPathBuilder
     val evalPath = "/test/inputFile.txt"
     val testString = endpoint.value + "/" + store + evalPath
     val blobPath1: BlobPath = builder build testString getOrElse fail()
@@ -121,7 +121,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
   }
 
   ignore should "resolve a path without duplicating container name" in {
-    val builder = makeBlobPathBuilder(endpoint, store)
+    val builder = makeBlobPathBuilder
     val rootString = s"${endpoint.value}/${store.value}/cromwell-execution"
     val blobRoot: BlobPath = builder build rootString getOrElse fail()
     blobRoot.toAbsolutePath.pathAsString should equal ("https://coaexternalstorage.blob.core.windows.net/inputs/cromwell-execution")
@@ -130,7 +130,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
   }
 
   ignore should "correctly remove a prefix from the blob path" in {
-    val builder = makeBlobPathBuilder(endpoint, store)
+    val builder = makeBlobPathBuilder
     val rootString = s"${endpoint.value}/${store.value}/cromwell-execution/"
     val execDirString = s"${endpoint.value}/${store.value}/cromwell-execution/abc123/myworkflow/task1/def4356/execution/"
     val fileString = s"${endpoint.value}/${store.value}/cromwell-execution/abc123/myworkflow/task1/def4356/execution/stdout"
@@ -143,7 +143,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
   }
 
   ignore should "not change a path if it doesn't start with a prefix" in {
-    val builder = makeBlobPathBuilder(endpoint, store)
+    val builder = makeBlobPathBuilder
     val otherRootString = s"${endpoint.value}/${store.value}/foobar/"
     val fileString = s"${endpoint.value}/${store.value}/cromwell-execution/abc123/myworkflow/task1/def4356/execution/stdout"
     val otherBlobRoot: BlobPath = builder build otherRootString getOrElse fail()

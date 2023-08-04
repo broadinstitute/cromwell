@@ -102,10 +102,6 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     } yield map
   }
 
-  private def resolveURIs(drsUrlToDownloadLocationMap : Map[String,String]) : Try[Map[String, String]] = {
-    val accessUrlToDownloadLocationMap = drsUrlToDownloadLocationMap.map((drsUrl, downloadLocation) => resolve)
-  }
-
   //Write string to file. Returns the filepath that the string was written to.
   private def writeJsonManifest(destinationPath : String, jsonData : JsValue): Try[String] = {
     Try(Files.write(Paths.get(destinationPath), jsonData.toString().getBytes(StandardCharsets.UTF_8)).toString)
@@ -247,20 +243,15 @@ class DrsLocalizerMain(drsUrl: String,
     } yield resolvedUriToDownloadLocationMap
 
     // find the GCS ones and download them
-    for {
-      drsResponses <- resolvedUris
-      gcsUris <- drsResponses.filter(drsResponse => toUriType(drsResponse) == URIType.GCS)
-    }
-
       //find the HTTPS ones and download them
-    for {
+    val exitCode: IO[ExitCode] = for {
       drsResponses <- resolvedUris
       httpsUris = drsResponses.filter(drsResponse => toUriType(drsResponse._1) == URIType.HTTPS)
       uriToDownloadLocation = httpsUris.map(drsResponseToDownloadLoc => (drsResponseToDownloadLoc._1.accessUrl.get.toString, drsResponseToDownloadLoc._2))
       jsonString <- uriToDownloadLocation.toJson
       pathOfJsonFile <- writeJsonManifest(generateJsonPathForManifest("path/to/manifest"), jsonString)
       downloadSuccess <- downloadInParallel(pathOfJsonFile)
-    }
+    } yield downloadSuccess
 
   }
 

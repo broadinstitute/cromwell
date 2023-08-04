@@ -112,7 +112,7 @@ task mytask {
 }
 ```
 
-In order for a private image to be used the appropriate Docker configuration must be provided. If the Docker images being used
+In order for a private image to be used, Docker Hub credentials must be provided. If the Docker images being used
 are public there is no need to add this configuration.
 
 For Batch
@@ -134,34 +134,6 @@ backend {
 ```
 
 `token` is the standard base64-encoded username:password for the appropriate Docker Hub account.
-
-The equivalents of `token` can also be specified in workflow options which take
-precedence over values specified in configuration. The corresponding workflow options are named
-`docker_credentials_token`, and `user_service_account_json`. While the config value `auth` refers to an auth defined in the 
-`google.auths` stanza elsewhere in Cromwell's
-configuration, `user_service_account_json` is expected to be a literal escaped Google service account auth JSON.
-See the `User Service Account` section above for more information on using user service accounts.
-If the key, token or auth value is provided in workflow options then the corresponding private Docker configuration value
-is not required, and vice versa. Also note that for the `user_service_account_json` workflow option to work an auth of type `user_service_account`
-must be defined in Cromwell's `google.auths` stanza; more details in the `User Service Account` section above.
-
-Example Batch workflow options for private Docker configuration:
-
-```
-{
-  "docker_credentials_token": "base64_username:password",
-  "user_service_account_json": "<properly escaped user service account JSON file>"
-}
-```
-
-Important
-
-If any of the three private Docker configuration values of key name, auth, or Docker token are missing, Batch will not perform a `docker login`.
-If the Docker image to be pulled is not public the `docker pull` will fail which will cause the overall job to fail.
-
-If using any of these private Docker workflow options it is advisable to add
-them to the `workflow-options.encrypted-fields` list in Cromwell configuration.
-
 
 **Monitoring**
 

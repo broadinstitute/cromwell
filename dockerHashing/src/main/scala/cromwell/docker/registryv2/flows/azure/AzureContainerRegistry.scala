@@ -102,7 +102,7 @@ class AzureContainerRegistry(config: DockerRegistryConfig) extends DockerRegistr
         "grant_type" -> "refresh_token"
       ),
       uri,
-      List(contentTypeHeader): _* // http4s adds `Content-Length` which ACR does not like (400 response) 
+      List(contentTypeHeader): _* 
     )
   }
 

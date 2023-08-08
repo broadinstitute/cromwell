@@ -1,14 +1,14 @@
 package cloud.nio.impl.drs
 
 import java.io.IOException
-
 import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.http.HttpResponse
 import org.apache.http.client.{HttpRequestRetryHandler, ServiceUnavailableRetryStrategy}
 import org.apache.http.protocol.HttpContext
 
 class DrsResolverHttpRequestRetryStrategy(drsConfig: DrsConfig)
-  extends ServiceUnavailableRetryStrategy with HttpRequestRetryHandler {
+  extends ServiceUnavailableRetryStrategy with HttpRequestRetryHandler with LazyLogging {
 
   // We can execute a total of one time, plus the number of retries
   private val executionMax: Int = drsConfig.numRetries + 1
@@ -23,6 +23,7 @@ class DrsResolverHttpRequestRetryStrategy(drsConfig: DrsConfig)
 
   /** Returns true if an IOException should be immediately retried. */
   override def retryRequest(exception: IOException, executionCount: Int, context: HttpContext): Boolean = {
+    logger.warn(s"Request failed $executionCount times with an exception: ${exception.getClass.getName}", exception)
     retryRequest(executionCount)
   }
 

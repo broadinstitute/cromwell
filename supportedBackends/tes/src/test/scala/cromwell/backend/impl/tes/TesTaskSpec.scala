@@ -31,40 +31,40 @@ class TesTaskSpec
     false,
     Map.empty
   )
-  val internalPathPrefix = ("internal_path_prefix", Option("mock/path/to/tes/task"))
-  val additionalBackendParams = Map(internalPathPrefix)
+  val internalPathPrefix = Option("mock/path/to/tes/task")
+  val expectedTuple = "internal_path_prefix" -> internalPathPrefix
 
   it should "create the correct resources when an identity is passed in WorkflowOptions" in {
     val wei = Option("abc123")
-    TesTask.makeResources(runtimeAttributes, wei, additionalBackendParams) shouldEqual
+    TesTask.makeResources(runtimeAttributes, wei, internalPathPrefix) shouldEqual
         Resources(None, None, None, Option(false), None,
           Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option("abc123"),
-            internalPathPrefix))
+            expectedTuple))
     )
   }
 
   it should "create the correct resources when an empty identity is passed in WorkflowOptions" in {
     val wei = Option("")
-    TesTask.makeResources(runtimeAttributes, wei, additionalBackendParams) shouldEqual
+    TesTask.makeResources(runtimeAttributes, wei, internalPathPrefix) shouldEqual
       Resources(None, None, None, Option(false), None,
         Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option(""),
-          internalPathPrefix))
+          expectedTuple))
     )
   }
 
   it should "create the correct resources when no identity is passed in WorkflowOptions" in {
     val wei = None
-    TesTask.makeResources(runtimeAttributes, wei, additionalBackendParams) shouldEqual
-      Resources(None, None, None, Option(false), None, Option(Map(internalPathPrefix)))
+    TesTask.makeResources(runtimeAttributes, wei, internalPathPrefix) shouldEqual
+      Resources(None, None, None, Option(false), None, Option(Map(expectedTuple)))
   }
 
   it should "create the correct resources when an identity is passed in via backend config" in {
     val weic = Option(WorkflowExecutionIdentityConfig("abc123"))
     val weio = Option(WorkflowExecutionIdentityOption("def456"))
     val wei = TesTask.getPreferredWorkflowExecutionIdentity(weic, weio)
-    TesTask.makeResources(runtimeAttributes, wei, additionalBackendParams) shouldEqual
+    TesTask.makeResources(runtimeAttributes, wei, internalPathPrefix) shouldEqual
         Resources(None, None, None, Option(false), None, Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option("abc123"),
-          internalPathPrefix))
+          expectedTuple))
     )
   }
 
@@ -72,21 +72,20 @@ class TesTaskSpec
     val weic = None
     val weio = Option(WorkflowExecutionIdentityOption("def456"))
     val wei = TesTask.getPreferredWorkflowExecutionIdentity(weic, weio)
-    TesTask.makeResources(runtimeAttributes, wei, additionalBackendParams) shouldEqual
+    TesTask.makeResources(runtimeAttributes, wei, internalPathPrefix) shouldEqual
         Resources(None, None, None, Option(false), None, Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option("def456"),
-          internalPathPrefix))
+          expectedTuple))
     )
   }
 
   it should "correctly set the internal path prefix when provided as a backend parameter" in {
     val wei = Option("abc123")
-    val internalPathPrefix = ("internal_path_prefix", Option("mock/path/to/tes/task"))
-    val additionalBackendParams = Map(internalPathPrefix)
-    TesTask.makeResources(runtimeAttributes, wei, additionalBackendParams) shouldEqual
+    val internalPathPrefix = Option("mock/path/to/tes/task")
+    TesTask.makeResources(runtimeAttributes, wei, internalPathPrefix) shouldEqual
       Resources(None, None, None, Option(false), None,
         Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option("abc123"),
-          internalPathPrefix))
-      )
+          "internal_path_prefix" -> internalPathPrefix)
+      ))
   }
 
   it should "correctly resolve the path to .../tes_task and add the k/v pair to backend parameters" in {
@@ -105,9 +104,8 @@ class TesTaskSpec
     val expectedValue = Option(tesPaths.tesTaskRoot.pathAsString)
 
     //Assert path correctly ends up in the resources
-    val additionalBackendParams = Map(expectedKey -> expectedValue)
     val wei = Option("abc123")
-    TesTask.makeResources(runtimeAttributes, wei, additionalBackendParams) shouldEqual
+    TesTask.makeResources(runtimeAttributes, wei, expectedValue) shouldEqual
       Resources(None, None, None, Option(false), None,
         Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option("abc123"),
           expectedKey -> expectedValue))

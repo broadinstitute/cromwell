@@ -229,14 +229,6 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       workflowExecutionIdentityOption
   )
 
-  val internalPathPrefix = ("internal_path_prefix", Option(tesPaths.tesTaskRoot.pathAsString))
-
-  val resources: Resources = TesTask.makeResources(
-    runtimeAttributes,
-    preferedWorkflowExecutionIdentity,
-    Map(internalPathPrefix)
-  )
-
   val executors = Seq(Executor(
     image = dockerImageUsed,
     command = Seq(jobShell, commandScript.path),
@@ -246,6 +238,12 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     stdin = None,
     env = None
   ))
+
+  val resources: Resources = TesTask.makeResources(
+    runtimeAttributes,
+    preferedWorkflowExecutionIdentity,
+    Option(tesPaths.tesTaskRoot.pathAsString)
+  )
 }
 
 object TesTask {
@@ -255,17 +253,22 @@ object TesTask {
     configIdentity.map(_.value).orElse(workflowOptionsIdentity.map(_.value))
   }
   def makeResources(runtimeAttributes: TesRuntimeAttributes,
-                    workflowExecutionId: Option[String], additionalBackendParams: Map[String, Option[String]]): Resources = {
-
-    // This was added in BT-409 to let us pass information to an Azure
-    // TES server about which user identity to run tasks as.
-    // Note that we validate the type of WorkflowExecutionIdentity
-    // in TesInitializationActor.
-    val backendParameters = runtimeAttributes.backendParameters ++
+                    workflowExecutionId: Option[String], internalPathPrefix: Option[String]): Resources = {
+    /*
+     * workflowExecutionId: This was added in BT-409 to let us pass information to an Azure
+     * TES server about which user identity to run tasks as.
+     * Note that we validate the type of WorkflowExecutionIdentity in TesInitializationActor.
+     *
+     * internalPathPrefix: Added in WX-1156 to support the azure TES implementation. Specifies
+     * a working directory that the TES task can use.
+     */
+    val backendParameters : Map[String, Option[String]] = runtimeAttributes.backendParameters ++
       workflowExecutionId
         .map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option(_))
         .toMap ++
-      additionalBackendParams
+      internalPathPrefix
+        .map(TesWorkflowOptionKeys.InternalPathPrefix -> Option(_))
+        .toMap
     val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
       case Some(x) =>
         Option(x.to(MemoryUnit.GB).amount)

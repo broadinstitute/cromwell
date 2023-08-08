@@ -28,9 +28,14 @@ case class TesJobPaths private[tes] (override val workflowPaths: TesWorkflowPath
   val callInputsDockerRoot = callDockerRoot.resolve("inputs")
   val callInputsRoot = callRoot.resolve("inputs")
 
-  // This is the root directory that TES will use for files related to this task.
-  // We must specify it in the backend parameters sent to TES using "internal_path_prefix" as the key.
-  val tesTaskRoot = callExecutionRoot.resolve("tes_task")
+  /*
+   * tesTaskRoot: This is the root directory that TES will use for files related to this task.
+   * We provide it to TES as a k/v pair where the key is "internal_path_prefix" (specified in TesWorkflowOptionKeys.scala)
+   * and the value is a blob path.
+   * This is not a standard TES feature, but rather related to the Azure TES implementation that Terra uses.
+   * While passing it outside of terra won't do any harm, we could consider making this optional and/or configurable.
+   */
+  val tesTaskRoot : Path = callExecutionRoot.resolve("tes_task")
 
   // Given an output path, return a path localized to the storage file system
   def storageOutput(path: String): String = {

@@ -3,9 +3,9 @@
 [//]:
 Google Cloud Batch is a fully managed service that lets you schedule, queue, and execute batch processing workloads on Google Cloud resources. Batch provisions resources and manages capacity on your behalf, allowing your batch workloads to run at scale.
 
-This section offers detailed configuration instructions for using Cromwell with the Google Cloud Batch API in all supported
+This section offers detailed configuration instructions for using Cromwell with the Google Cloud Batch in all supported
 authentication modes. Before reading further in this section please see the
-[Getting started on Google Cloud Batch API](../tutorials/Batch101) for instructions common to all authentication modes
+[Getting started on Google Cloud Batch](../tutorials/Batch101) for instructions common to all authentication modes
 and detailed instructions for the application default authentication scheme in particular.
 The instructions below assume you have created a Google Cloud Storage bucket and a Google project enabled for the appropriate APIs.
 
@@ -166,7 +166,7 @@ backend.providers.GCPBATCH.config {
 
 #### Google Labels
 
-Every call run on the Batch API backend is given certain labels by default, so that Google resources can be queried by these labels later. 
+Every call run on the GCP Batch backend is given certain labels by default, so that Google resources can be queried by these labels later. 
 The current default label set automatically applied is:
 
 | Key | Value | Example | Notes |
@@ -176,7 +176,7 @@ The current default label set automatically applied is:
 | wdl-task-name | The name of the WDL task | my-task | |
 | wdl-call-alias | The alias of the WDL call that created this job | my-task-1 | Only present if the task was called with an alias. |
 
-Any custom labels provided as '`google_labels`' in the [workflow options](../wf_options/Google) are also applied to Google resources by the Batch API.
+Any custom labels provided as '`google_labels`' in the [workflow options](../wf_options/Google) are also applied to Google resources by GCP Batch.
 
 ### Virtual Private Network
 
@@ -216,12 +216,12 @@ configuration key, which is `vpc-network` here, as the name of private network a
 If the network name is not present in the config Cromwell will fall back to trying to run jobs on the default network.
 
 If the `network-name` or `subnetwork-name` values contain the string `${projectId}` then that value will be replaced
-by Cromwell with the name of the project running the Batch API.
+by Cromwell with the name of the project running GCP Batch.
 
 If the `network-name` does not contain a `/` then it will be prefixed with `projects/${projectId}/global/networks/`.
 
-Cromwell will then pass the network and subnetwork values to the Batch API. See the documentation for the
-[Batch API](https://cloud.google.com/batch/docs/networking-overview)
+Cromwell will then pass the network and subnetwork values to GCP Batch. See the documentation for
+[GCP Batch](https://cloud.google.com/batch/docs/networking-overview)
 for more information on the various formats accepted for `network` and `subnetwork`.
 
 #### Virtual Private Network via Labels
@@ -352,7 +352,7 @@ their execution.
 
 ### Migration from Google Cloud Life Sciences v2beta to Google Cloud Batch
 
-1. If you currently run your workflows using Cloud Genomics v2beta and would like to switch to Google Batch, you will need to do a few changes to your configuration file: `actor-factory` value should be changed 
+1. If you currently run your workflows using Cloud Genomics v2beta and would like to switch to Google Cloud Batch, you will need to do a few changes to your configuration file: `actor-factory` value should be changed 
 from `cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory` to `cromwell.backend.google.batch.GcpBatchLifecycleActorFactory`.
 
 2. You will need to remove the parameter `genomics.endpoint-url` and generate a new config file.

@@ -10,6 +10,7 @@ import common.validation.ErrorOr.ErrorOr
 import drs.localizer.downloaders.AccessUrlDownloader._
 
 import scala.sys.process.{Process, ProcessLogger}
+import scala.util.Try
 import scala.util.matching.Regex
 
 case class GetmResult(returnCode: Int, stderr: String)
@@ -20,6 +21,32 @@ case class AccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes
     GetmChecksum(hashes, accessUrl).args map { checksumArgs =>
       s"""mkdir -p $$(dirname '$downloadLoc') && rm -f '$downloadLoc' && getm $checksumArgs --filepath '$downloadLoc' '$signedUrl'"""
     }
+  }
+
+  def toJsonString(accessUrl: String, filepath : String, checksum : ErrorOr[String], checksumAlgorithm : String): String = {
+    //todo: use flatmap
+    if (checksum.isValid) {
+      return s"""{
+                | "url" : "$accessUrl"
+                | "filepath" : "$filepath"
+                | "checksum" : "$checksum"
+                | "checksum-algorithm" : "$checksumAlgorithm"
+                | }
+                |""".stripMargin
+    }
+
+    s"""{
+         | "url" : "$accessUrl"
+         | "filepath" : "$filepath"
+         | }
+         |""".stripMargin
+  }
+  def generateJsonManifest(accessUrlToDownloadDest : Map[AccessUrl, String]) : Try[String] = {
+    var jsonString : String = "[\n"
+    for (pair <- accessUrlToDownloadDest)
+      jsonString ++ toJsonString(pair._1.url, pair._2, GetmChecksum(hashes, pair._1).escapedChecksum, GetmChecksum(hashes, pair._1).getmAlgorithm)
+
+    jsonString ++ "]"
   }
 
   def runGetm: IO[GetmResult] = {

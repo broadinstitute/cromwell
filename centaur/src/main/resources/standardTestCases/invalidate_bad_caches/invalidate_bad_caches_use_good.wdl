@@ -19,6 +19,7 @@ task delete_file_in_gcs {
     String file_path
     command {
         gsutil rm ${file_path}
+        sleep 120 # allow GCS eventual consistency
     }
     runtime {
         # google/cloud-sdk:354.0.0-slim

@@ -107,7 +107,7 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
   }
 
   // Execute a request. No retries because they're expected to already be handled by the client
-  private def executeRequest[A](request: IO[Request[IO]], handler: Response[IO] => IO[A])(implicit client: Client[IO]): IO[A] = {
+  protected def executeRequest[A](request: IO[Request[IO]], handler: Response[IO] => IO[A])(implicit client: Client[IO]): IO[A] = {
     request.flatMap(client.run(_).use[IO, A](handler))
   }
 
@@ -188,7 +188,7 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
   /**
     * Builds the token request
     */
-  private def buildTokenRequest(dockerInfoContext: DockerInfoContext): IO[Request[IO]] = {
+  protected def buildTokenRequest(dockerInfoContext: DockerInfoContext): IO[Request[IO]] = {
     val request = Method.GET(
       buildTokenRequestUri(dockerInfoContext.dockerImageID),
       buildTokenRequestHeaders(dockerInfoContext): _*
@@ -220,7 +220,7 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
     * Request to get the manifest, using the auth token if provided
     */
   private def manifestRequest(token: Option[String], imageId: DockerImageIdentifier, manifestHeader: Accept): IO[Request[IO]] = {
-    val authorizationHeader = token.map(t => Authorization(Credentials.Token(AuthScheme.Bearer, t)))
+    val authorizationHeader: Option[Authorization] = token.map(t => Authorization(Credentials.Token(AuthScheme.Bearer, t)))
     val request = Method.GET(
       buildManifestUri(imageId),
       List(

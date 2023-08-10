@@ -2,6 +2,7 @@ package cromwell.docker
 
 import cromwell.core.Tags.IntegrationTest
 import cromwell.docker.DockerInfoActor._
+import cromwell.docker.registryv2.flows.azure.AzureContainerRegistry
 import cromwell.docker.registryv2.flows.dockerhub.DockerHubRegistry
 import cromwell.docker.registryv2.flows.google.GoogleRegistry
 import cromwell.docker.registryv2.flows.quay.QuayRegistry
@@ -18,7 +19,8 @@ class DockerInfoActorSpec extends DockerRegistrySpec with AnyFlatSpecLike with M
   override protected lazy val registryFlows = List(
     new DockerHubRegistry(DockerRegistryConfig.default),
     new GoogleRegistry(DockerRegistryConfig.default),
-    new QuayRegistry(DockerRegistryConfig.default)
+    new QuayRegistry(DockerRegistryConfig.default),
+    new AzureContainerRegistry(DockerRegistryConfig.default)
   )
 
   it should "retrieve a public docker hash" taggedAs IntegrationTest in {
@@ -45,6 +47,16 @@ class DockerInfoActorSpec extends DockerRegistrySpec with AnyFlatSpecLike with M
     dockerActor ! makeRequest("us-central1-docker.pkg.dev/broad-dsde-cromwell-dev/bt-335/ubuntu:bt-335")
 
     expectMsgPF(5 second) {
+      case DockerInfoSuccessResponse(DockerInformation(DockerHashResult(alg, hash), _), _) =>
+        alg shouldBe "sha256"
+        hash should not be empty
+    }
+  }
+
+  it should "retrieve a private docker hash on acr" taggedAs IntegrationTest in {
+    dockerActor ! makeRequest("terrabatchdev.azurecr.io/postgres:latest")
+
+    expectMsgPF(15 second) {
       case DockerInfoSuccessResponse(DockerInformation(DockerHashResult(alg, hash), _), _) =>
         alg shouldBe "sha256"
         hash should not be empty

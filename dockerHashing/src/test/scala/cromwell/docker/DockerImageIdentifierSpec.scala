@@ -18,6 +18,7 @@ class DockerImageIdentifierSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
       ("broad/cromwell/submarine",                None,               Option("broad/cromwell"), "submarine",  "latest"),
       ("gcr.io/google/slim",              Option("gcr.io"),         Option("google"),         "slim",     "latest"),
       ("us-central1-docker.pkg.dev/google/slim", Option("us-central1-docker.pkg.dev"), Option("google"), "slim", "latest"),
+      ("terrabatchdev.azurecr.io/postgres",      Option("terrabatchdev.azurecr.io"),         None,     "postgres", "latest"),
       // With tags
       ("ubuntu:latest",                           None,               None,                   "ubuntu",     "latest"),
       ("ubuntu:1235-SNAP",                        None,               None,                   "ubuntu",     "1235-SNAP"),
@@ -25,6 +26,7 @@ class DockerImageIdentifierSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
       ("index.docker.io:9999/ubuntu:170904",  Option("index.docker.io:9999"), None,             "ubuntu",    "170904"),
       ("localhost:5000/capture/transwf:170904", Option("localhost:5000"), Option("capture"),      "transwf",    "170904"),
       ("quay.io/biocontainers/platypus-variant:0.8.1.1--htslib1.5_0", Option("quay.io"), Option("biocontainers"), "platypus-variant", "0.8.1.1--htslib1.5_0"),
+      ("terrabatchdev.azurecr.io/postgres:latest", Option("terrabatchdev.azurecr.io"), None, "postgres", "latest"),
       // Very long tags with trailing spaces cause problems for the re engine
       ("someuser/someimage:supercalifragilisticexpialidociouseventhoughthesoundofitissomethingquiteatrociousifyousayitloudenoughyoullalwayssoundprecocious ",              None,         Some("someuser"),         "someimage",     "supercalifragilisticexpialidociouseventhoughthesoundofitissomethingquiteatrociousifyousayitloudenoughyoullalwayssoundprecocious")
     )

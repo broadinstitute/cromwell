@@ -16,7 +16,7 @@ import mouse.boolean._
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.http.client.methods.{HttpGet, HttpPost}
 import org.apache.http.entity.{ContentType, StringEntity}
-import org.apache.http.impl.client.{CloseableHttpClient, HttpClientBuilder}
+import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
 import org.apache.http.util.EntityUtils
 import org.apache.http.{HttpResponse, HttpStatus, StatusLine}
@@ -27,16 +27,23 @@ import scala.util.Try
 
 abstract class DrsPathResolver(drsConfig: DrsConfig, retryInternally: Boolean = true) {
 
-  protected lazy val httpClient: CloseableHttpClient = {
+  protected lazy val httpClientBuilder: HttpClientBuilder = {
+    val connectionManager: PoolingHttpClientConnectionManager = {
+      val connManager = new PoolingHttpClientConnectionManager()
+      connManager.setMaxTotal(50)
+      connManager.setDefaultMaxPerRoute(50)
+      connManager
+    }
     val clientBuilder = HttpClientBuilder.create()
     if (retryInternally) {
       val retryHandler = new DrsResolverHttpRequestRetryStrategy(drsConfig)
       clientBuilder
         .setRetryHandler(retryHandler)
         .setServiceUnavailableRetryStrategy(retryHandler)
+
     }
     clientBuilder.setConnectionManager(connectionManager)
-    clientBuilder.build()
+    clientBuilder
   }
 
   def getAccessToken: ErrorOr[String]
@@ -88,7 +95,7 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, retryInternally: Boolean = 
 
   private def executeDrsResolverRequest(httpPost: HttpPost): Resource[IO, HttpResponse]= {
     for {
-      httpClient <- Resource.fromAutoCloseable(IO(httpClient))
+      httpClient <- Resource.fromAutoCloseable(IO(httpClientBuilder.build()))
       httpResponse <- Resource.fromAutoCloseable(IO(httpClient.execute(httpPost)))
     } yield httpResponse
   }
@@ -114,7 +121,7 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, retryInternally: Boolean = 
       accessUrl.headers.getOrElse(Map.empty).toList foreach {
         case (name, value) => httpGet.addHeader(name, value)
       }
-      val client = httpClient
+      val client = httpClientBuilder.build()
       val response = client.execute(httpGet)
       val inner = Channels.newChannel(response.getEntity.getContent)
       /*
@@ -242,12 +249,5 @@ object DrsResolverResponseSupport {
         // No entity in HTTP response
         baseMessage + "(empty response)"
     }
-  }
-
-  lazy val connectionManager: PoolingHttpClientConnectionManager = {
-    val connManager = new PoolingHttpClientConnectionManager()
-    connManager.setMaxTotal(10_000)
-    connManager.setDefaultMaxPerRoute(10_000)
-    connManager
   }
 }

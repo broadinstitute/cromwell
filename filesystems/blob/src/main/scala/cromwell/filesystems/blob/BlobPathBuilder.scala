@@ -7,6 +7,7 @@ import cromwell.filesystems.blob.BlobPathBuilder._
 
 import java.net.{MalformedURLException, URI}
 import java.nio.file.{Files, LinkOption}
+import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -78,6 +79,17 @@ object BlobPath {
   //    format the library expects
   // 2) If the path looks like <container>:<path>, strip off the <container>: to leave the absolute path inside the container.
   private val brokenPathRegex = "https:/([a-z0-9]+).blob.core.windows.net/([-a-zA-Z0-9]+)/(.*)".r
+
+  // Blob files larger than 5 GB upload in parallel parts [0][1] and do not get a native `CONTENT-MD5` property.
+  // Instead, some uploaders such as TES [2] may optionally calculate the MD5 themselves and store it under this key in metadata.
+  // N.B. most if not virtually all large files in the wild will NOT have this key populated because they were not created by TES. [3]
+  //
+  // [0] https://learn.microsoft.com/en-us/azure/storage/blobs/scalability-targets
+  // [1] https://learn.microsoft.com/en-us/rest/api/storageservices/version-2019-12-12
+  // [2] https://github.com/microsoft/ga4gh-tes/pull/236
+  // [3] As of 2023-08 there are zero search engine results for `md5_hashlist_root_hash` and the only sure-thing client is TES
+  private val largeBlobFileMetadataKey = "md5_hashlist_root_hash"
+
   def cleanedNioPathString(nioString: String): String = {
     val pathStr = nioString match {
       case brokenPathRegex(_, containerName, pathInContainer) =>
@@ -116,16 +128,24 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
   def blobFileAttributes: Try[AzureBlobFileAttributes] =
     Try(Files.readAttributes(nioPath, classOf[AzureBlobFileAttributes]))
 
+  def blobFileMetadata: Option[Map[String, String]] = blobFileAttributes.map(_.metadata().asScala.toMap).toOption
+
   def md5HexString: Try[Option[String]] = {
-    blobFileAttributes.map(h =>
-      Option(h.blobHttpHeaders().getContentMd5) match {
-        case None => None
-        case Some(arr) if arr.isEmpty => None
-        // Convert the bytes to a hex-encoded string. Note that this value
-        // is rendered in base64 in the Azure web portal.
-        case Some(bytes) => Option(bytes.map("%02x".format(_)).mkString)
+    // Convert the bytes to a hex-encoded string. Note that the value
+    // is rendered in base64 in the Azure web portal.
+    def hexString(bytes: Array[Byte]): String = bytes.map("%02x".format(_)).mkString
+    def md5FromMetadata: Option[String] = blobFileMetadata.flatMap(_.get(BlobPath.largeBlobFileMetadataKey))
+    
+    blobFileAttributes.map { attr: AzureBlobFileAttributes =>
+      (Option(attr.blobHttpHeaders().getContentMd5), md5FromMetadata) match {
+        case (None, None) => None
+        case (None, Some(metadataMd5)) => Option(hexString(metadataMd5.getBytes))
+        case (Some(headerMd5Bytes), None) if headerMd5Bytes.isEmpty => None
+        // (Some, Some) could happen if an uploader redundantly populates an md5 for a small file.
+        // Doesn't seem like an erroneous condition so just choose the native one.
+        case (Some(headerMd5Bytes), _) => Option(hexString(headerMd5Bytes))
       }
-    )
+    }
   }
 
   /**

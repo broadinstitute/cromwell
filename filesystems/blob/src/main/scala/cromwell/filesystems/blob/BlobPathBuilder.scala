@@ -139,7 +139,7 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
     // Convert the bytes to a hex-encoded string. Note that the value
     // is rendered in base64 in the Azure web portal.
     def hexString(bytes: Array[Byte]): String = bytes.map("%02x".format(_)).mkString
-    
+
     blobFileAttributes.map { attr: AzureBlobFileAttributes =>
       (Option(attr.blobHttpHeaders().getContentMd5), md5FromMetadata) match {
         case (None, None) => None

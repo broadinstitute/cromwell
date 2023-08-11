@@ -128,13 +128,17 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
   def blobFileAttributes: Try[AzureBlobFileAttributes] =
     Try(Files.readAttributes(nioPath, classOf[AzureBlobFileAttributes]))
 
-  def blobFileMetadata: Option[Map[String, String]] = blobFileAttributes.map(_.metadata().asScala.toMap).toOption
+  def blobFileMetadata: Try[Option[Map[String, String]]] = blobFileAttributes.map { attrs =>
+    // `metadata()` has a documented `null` case
+    Option(attrs.metadata()).map(_.asScala.toMap)
+  }
 
   def md5HexString: Try[Option[String]] = {
+    def md5FromMetadata: Option[String] = blobFileMetadata.map(_.get(BlobPath.largeBlobFileMetadataKey)).toOption
+
     // Convert the bytes to a hex-encoded string. Note that the value
     // is rendered in base64 in the Azure web portal.
     def hexString(bytes: Array[Byte]): String = bytes.map("%02x".format(_)).mkString
-    def md5FromMetadata: Option[String] = blobFileMetadata.flatMap(_.get(BlobPath.largeBlobFileMetadataKey))
     
     blobFileAttributes.map { attr: AzureBlobFileAttributes =>
       (Option(attr.blobHttpHeaders().getContentMd5), md5FromMetadata) match {

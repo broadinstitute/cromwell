@@ -28,6 +28,12 @@ import scala.util.Try
 abstract class DrsPathResolver(drsConfig: DrsConfig, retryInternally: Boolean = true) {
 
   protected lazy val httpClient: CloseableHttpClient = {
+    val connectionManager: PoolingHttpClientConnectionManager = {
+      val connManager = new PoolingHttpClientConnectionManager()
+      connManager.setMaxTotal(10_000)
+      connManager.setDefaultMaxPerRoute(10_000)
+      connManager
+    }
     val clientBuilder = HttpClientBuilder.create()
     if (retryInternally) {
       val retryHandler = new DrsResolverHttpRequestRetryStrategy(drsConfig)
@@ -242,12 +248,5 @@ object DrsResolverResponseSupport {
         // No entity in HTTP response
         baseMessage + "(empty response)"
     }
-  }
-
-  lazy val connectionManager: PoolingHttpClientConnectionManager = {
-    val connManager = new PoolingHttpClientConnectionManager()
-    connManager.setMaxTotal(10_000)
-    connManager.setDefaultMaxPerRoute(10_000)
-    connManager
   }
 }

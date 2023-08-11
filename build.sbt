@@ -165,6 +165,7 @@ lazy val databaseMigration = (project in file("database/migration"))
 
 lazy val dockerHashing = project
   .withLibrarySettings("cromwell-docker-hashing", dockerHashingDependencies)
+  .dependsOn(cloudSupport)
   .dependsOn(core)
   .dependsOn(core % "test->test")
   .dependsOn(common % "test->test")

@@ -16,7 +16,7 @@ class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfi
                                )
   extends EngineDrsPathResolver(drsConfig, GoogleOauthDrsCredentials(NoCredentials.getInstance, accessTokenAcceptableTTL)) {
 
-  override protected lazy val httpClientBuilder: HttpClientBuilder =
+  override protected lazy val httpClient: HttpClientBuilder =
     httpClientBuilderOverride getOrElse MockSugar.mock[HttpClientBuilder]
 
   private lazy val mockDrsResolverUri = drsConfig.drsResolverUrl

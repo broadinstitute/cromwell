@@ -17,6 +17,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.http.client.methods.{HttpGet, HttpPost}
 import org.apache.http.entity.{ContentType, StringEntity}
 import org.apache.http.impl.client.HttpClientBuilder
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
 import org.apache.http.util.EntityUtils
 import org.apache.http.{HttpResponse, HttpStatus, StatusLine}
 
@@ -33,6 +34,7 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, retryInternally: Boolean = 
       clientBuilder
         .setRetryHandler(retryHandler)
         .setServiceUnavailableRetryStrategy(retryHandler)
+        .setConnectionManager(connectionManager)
     }
     clientBuilder
   }
@@ -240,5 +242,12 @@ object DrsResolverResponseSupport {
         // No entity in HTTP response
         baseMessage + "(empty response)"
     }
+  }
+
+  lazy val connectionManager: PoolingHttpClientConnectionManager = {
+    val connManager = new PoolingHttpClientConnectionManager()
+    connManager.setMaxTotal(10_000)
+    connManager.setDefaultMaxPerRoute(10_000)
+    connManager
   }
 }

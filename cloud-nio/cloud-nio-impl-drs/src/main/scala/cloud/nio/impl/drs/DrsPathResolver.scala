@@ -36,12 +36,8 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, retryInternally: Boolean = 
         .setServiceUnavailableRetryStrategy(retryHandler)
 
     }
-    clientBuilder.setConnectionManager({
-      val connManager = new PoolingHttpClientConnectionManager()
-      connManager.setMaxTotal(50)
-      connManager.setDefaultMaxPerRoute(50)
-      connManager
-    })
+    clientBuilder.setConnectionManager(connectionManager)
+    clientBuilder.setConnectionManagerShared(true)
     clientBuilder
   }
 
@@ -248,5 +244,12 @@ object DrsResolverResponseSupport {
         // No entity in HTTP response
         baseMessage + "(empty response)"
     }
+  }
+
+  lazy val connectionManager = {
+    val connManager = new PoolingHttpClientConnectionManager()
+    connManager.setMaxTotal(250)
+    connManager.setDefaultMaxPerRoute(250)
+    connManager
   }
 }

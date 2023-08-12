@@ -28,12 +28,6 @@ import scala.util.Try
 abstract class DrsPathResolver(drsConfig: DrsConfig, retryInternally: Boolean = true) {
 
   protected lazy val httpClientBuilder: HttpClientBuilder = {
-    val connectionManager: PoolingHttpClientConnectionManager = {
-      val connManager = new PoolingHttpClientConnectionManager()
-      connManager.setMaxTotal(50)
-      connManager.setDefaultMaxPerRoute(50)
-      connManager
-    }
     val clientBuilder = HttpClientBuilder.create()
     if (retryInternally) {
       val retryHandler = new DrsResolverHttpRequestRetryStrategy(drsConfig)
@@ -42,7 +36,12 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, retryInternally: Boolean = 
         .setServiceUnavailableRetryStrategy(retryHandler)
 
     }
-    clientBuilder.setConnectionManager(connectionManager)
+    clientBuilder.setConnectionManager({
+      val connManager = new PoolingHttpClientConnectionManager()
+      connManager.setMaxTotal(50)
+      connManager.setDefaultMaxPerRoute(50)
+      connManager
+    })
     clientBuilder
   }
 

@@ -134,7 +134,11 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
   }
 
   def md5HexString: Try[Option[String]] = {
-    def md5FromMetadata: Option[String] = blobFileMetadata.map(_.get(BlobPath.largeBlobFileMetadataKey)).toOption
+    def md5FromMetadata: Option[String] = (blobFileMetadata map { maybeMetadataMap: Option[Map[String, String]] =>
+      maybeMetadataMap flatMap { metadataMap: Map[String, String] =>
+        metadataMap.get(BlobPath.largeBlobFileMetadataKey)
+      }
+    }).toOption.flatten
 
     // Convert the bytes to a hex-encoded string. Note that the value
     // is rendered in base64 in the Azure web portal.

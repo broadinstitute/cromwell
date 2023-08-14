@@ -45,7 +45,7 @@ class HttpWorkspaceManagerClientProvider(baseWorkspaceManagerUrl: WorkspaceManag
 case class WsmResourceApi(resourcesApi : ResourceApi) {
   def findContainerResourceId(workspaceId : UUID, container: BlobContainerName): Try[UUID] = {
     for {
-      workspaceResources <- Try(resourcesApi.enumerateResources(workspaceId, 0, 1, ResourceType.AZURE_STORAGE_CONTAINER, StewardshipType.CONTROLLED).getResources())
+      workspaceResources <- Try(resourcesApi.enumerateResources(workspaceId, 0, 10, ResourceType.AZURE_STORAGE_CONTAINER, StewardshipType.CONTROLLED).getResources())
       workspaceStorageContainerOption = workspaceResources.asScala.find(r => r.getMetadata().getName() == container.value)
       workspaceStorageContainer <- workspaceStorageContainerOption.toRight(new Exception("No storage container found for this workspace")).toTry
       resourceId = workspaceStorageContainer.getMetadata().getResourceId()

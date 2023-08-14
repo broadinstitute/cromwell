@@ -1,0 +1,312 @@
+# Workflow action that will run Cromwell e2e test against a Azure based BEE
+# For now it'll only test that a simple workflow is run
+
+#Ned to create a billing project in Azure first before being able to run the test
+
+name: 'Azure e2e - Run Workflow'
+description: e2e test that performs critical path/user journey tests against Cromwell on Azure
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch of Cromwell to run tests on'
+        required: true
+        default: 'develop'
+        type: string
+      delete-bee:
+        description: 'Delete created bee after running tests'
+        required: true
+        default: true
+        type: boolean
+      # Replace user data with seeded data provided by devOps (once available)
+      owner-subject:
+        description: 'Owner (used for creating tmp billing project)'
+        required: true
+        default: 'hermione.owner@quality.firecloud.org'
+        type: string
+      non-owner-subject:
+        description: 'Student (non-owner used for e2e testing)'
+        required: true
+        default: 'harry.potter@quality.firecloud.org'
+        type: string
+      service-account:
+        description: 'Email address or unique identifier of the Google Cloud service account for which to generate credentials'
+        required: true
+        default: 'firecloud-qa@broad-dsde-qa.iam.gserviceaccount.com'
+        type: string
+      access-token-scopes:
+        description: 'List of OAuth 2.0 access scopes to be included in the generated token'
+        required: true
+        default: 'profile, email, openid'
+        type: string
+      tenant-id:
+        description: 'Azure tenant ID. The default tenant is DSP Terra Dev'
+        required: true
+        default: 'fad90753-2022-4456-9b0a-c7e5b934e408'
+        type: string
+      subscription-id:
+        description: 'Azure subscription ID'
+        required: true
+        # Update this with the static variable provided by devOps (once it's available)
+        default: 'f557c728-871d-408c-a28b-eb6b2141a087. #The default subscription is 8201558-dsp-azure-testing'
+        type: string
+      mrg-id:
+        # Update this with the static variable devOps provides (when available)
+        description: 'Azure Managed Resource Group name. The default is staticTestingMrg within subscription 8201558-dsp-azure-testing.'
+        required: true
+        default: 'staticTestingMrg'
+        type: string
+      landing-zone-id:
+        description: 'Landing Zone ID. An existing LZID tag within a given MRG.'
+        required: true
+        # NOTE: LZs are deleted and recreated after a couple of days, need to figure out a way to get this dynamically
+        # Might not be an issue. DevOps is working on getting static Landing Zones up and running
+        # Update this with the static value from devOps (once available)
+        default: 'f41c1a97-179b-4a18-9615-5214d79ba600'
+        type: string
+
+env:
+  BEE_NAME: '${{ github.event.repository.name }}-${{ github.run_id }}-${{ github.run_attempt}}-dev'
+  TOKEN: '${{ secrets.BROADBOT_TOKEN }}' # github token for access to kick off a job in the private repo
+
+jobs:
+  init-github-context:
+    runs-on: ubuntu-latest
+    outputs:
+      branch: ${{ steps.extract-inputs.outputs.branch }}
+      delete-bee: ${{ steps.extract-inputs.outputs.delete-bee }}
+    steps:
+##       NOTE: below was included in the rawls template but seems redundant due to defined values up on top
+##       Remove if it ends up being unecessary
+#      - name: Get inputs or use defaults
+#        id: extract-inputs
+#        run: |
+#          echo "branch=${{ inputs.branch || 'develop' }}" >> "$GITHUB_OUTPUT"
+#          echo "delete-bee=${{ inputs.delete-bee || false }}" >> "$GITHUB_OUTPUT"
+
+  # rawls-build-tag-publish-job:
+  #   runs-on: ubuntu-latest
+  #   needs: [init-github-context]
+  #   permissions:
+  #     contents: 'read'
+  #     id-token: 'write'
+  #   outputs:
+  #     custom-version-json: ${{ steps.render-rawls-version.outputs.custom-version-json }}
+  #   steps:
+  #     - uses: 'actions/checkout@v3'
+  #       with:
+  #         ref: ${{ needs.init-github-context.outputs.branch }}
+
+  #     - name: Bump the tag to a new version
+  #       uses: databiosphere/github-actions/actions/bumper@bumper-0.2.0
+  #       id: tag
+  #       env:
+  #         DEFAULT_BUMP: patch
+  #         GITHUB_TOKEN: ${{ env.TOKEN }}
+  #         RELEASE_BRANCHES: main
+  #         WITH_V: true
+
+  #     - name: dispatch build to terra-github-workflows
+  #       uses: broadinstitute/workflow-dispatch@v3
+  #       with:
+  #         workflow: rawls-build
+  #         repo: broadinstitute/terra-github-workflows
+  #         ref: refs/heads/main
+  #         token: ${{ env.TOKEN }}
+  #         inputs: '{ "repository": "${{ github.event.repository.full_name }}", "ref": "refs/heads/${{ needs.init-github-context.outputs.branch }}", "rawls-release-tag": "${{ steps.tag.outputs.tag }}" }'
+
+  #     - name: Render Rawls version
+  #       id: render-rawls-version
+  #       env:
+  #         GITHUB_CONTEXT: ${{ toJSON(github) }}
+  #       run: |
+  #         echo "$GITHUB_CONTEXT"
+  #         echo "custom-version-json={\\\"rawls\\\":{\\\"appVersion\\\":\\\"${{ steps.tag.outputs.tag }}\\\"}}" >> $GITHUB_OUTPUT
+
+  # NOTE: Commenting out for now, want to confirm that env variables are being set in test
+#  create-bee-workflow:
+#    runs-on: ubuntu-latest
+#    permissions:
+#      contents: 'read'
+#      id-token: 'write'
+#    steps:
+#      # If we're running nightly tests then it should be fine to just reference env variant
+#      # - name: Echo Rawls version
+#      #   run: |
+#      #     echo '${{ needs.rawls-build-tag-publish-job.outputs.custom-version-json }}'
+#
+#      - name: dispatch to terra-github-workflows
+#        uses: broadinstitute/workflow-dispatch@v3
+#        with:
+#          workflow: bee-create
+#          repo: broadinstitute/terra-github-workflows
+#          ref: refs/heads/main
+#          token: ${{ env.TOKEN }}
+#          # inputs: '{ "bee-name": "${{ env.BEE_NAME }}", "bee-template-name": "rawls-e2e-azure-tests", "version-template": "dev", "custom-version-json": "${{ needs.rawls-build-tag-publish-job.outputs.custom-version-json }}" }'
+#
+#          # NOTE: Which env to use? Prod is reflective of current user environment, but dev is more likely to be up to date
+#          inputs: '{ "bee-name": "${{ env.BEE_NAME }}", "bee-template-name": "cromwell-e2e-azure-tests", "version-template": "prod" }'
+
+  # This job provisions useful parameters for e2e tests, including access tokens.
+  # Please note: access tokens are for use in the same workflow, they cannot be dispatched to remote workflows.
+#  az-e2e-params-gen:
+#    runs-on: ubuntu-latest
+#    permissions:
+#      contents: 'read'
+#      id-token: 'write'
+#    outputs:
+#      owner-access-token: ${{ steps.owner_auth.outputs.access_token }}
+#      non-owner-access-token: ${{ steps.non_owner_auth.outputs.access_token }}
+#      project-name: ${{ steps.gen.outputs.project_name }}
+#    steps:
+##        NOTE:Below action was part of Rawls template
+##        Not sure if this is the right place to put it, need to confirm
+#      - uses: 'actions/checkout@v3'
+#
+#      - name: Generate OAuth2 2.0 access token for owner
+#        id: 'owner_auth'
+#        uses: google-github-actions/auth@v1
+#        with:
+#          token_format: 'access_token'
+#          workload_identity_provider: 'projects/1038484894585/locations/global/workloadIdentityPools/github-wi-pool/providers/github-wi-provider'
+#          service_account: ${{ inputs.service-account }}
+#          access_token_scopes: ${{ inputs.access-token-scopes }}
+#          access_token_subject: ${{ inputs.owner-subject }}
+#          export_environment_variables: false
+#
+#      - name: Generate OAuth2 2.0 access token for non-owner
+#        id: 'non_owner_auth'
+#        uses: google-github-actions/auth@v1
+#        with:
+#          token_format: 'access_token'
+#          workload_identity_provider: 'projects/1038484894585/locations/global/workloadIdentityPools/github-wi-pool/providers/github-wi-provider'
+#          service_account: ${{ inputs.service-account }}
+#          access_token_scopes: ${{ inputs.access-token-scopes }}
+#          access_token_subject: ${{ inputs.non-owner-subject }}
+#          export_environment_variables: false
+
+#      NOTE: Need this as well, just commenting out until env pipeline is confirmed
+#      - name: Generate a random billing project name
+#        id: 'gen'
+#        run: |
+#          project_name=$(echo "tmp-billing-project-$(uuidgen)" | cut -c -30)
+#          echo "project_name=${project_name}" >> $GITHUB_OUTPUT
+
+  # NOTE: Ivan is currently building out a workflow to handle this
+  # Should I wait or move forward with my own implementation?
+  # attach-landing-zone-to-bee-workflow:
+  #   runs-on: ubuntu-latest
+  #   needs: [az-e2e-params-gen, create-bee-workflow]
+  #   permissions:
+  #     contents: 'read'
+  #     id-token: 'write'
+  #   steps:
+  #     - name: Verify token generation
+  #       run: |
+  #         echo ${{ needs.az-e2e-params-gen.outputs.owner-access-token }}
+
+  #     - name: dispatch to terra-github-workflows
+  #       uses: broadinstitute/workflow-dispatch@v3
+  #       with:
+  #         workflow: attach-landing-zone-to-bee.yaml
+  #         repo: broadinstitute/terra-github-workflows
+  #         ref: refs/heads/cromwell-az-e2e-test
+  #         token: ${{ env.TOKEN }}
+  #         inputs: '{ "bee-name": "${{ env.BEE_NAME }}", "billing-project": "${{ needs.az-e2e-params-gen.outputs.project-name }}", "tenant-id": "${{ inputs.tenant-id }}", "subscription-id": "${{ inputs.subscription-id }}", "mrg-id": "${{ inputs.mrg-id }}", "landing-zone-id": "${{ inputs.landing-zone-id }}", "billing-project-creator": "${{ inputs.owner-subject }}", "service-account": "${{ inputs.service-account }}" }'
+
+  # Below is an example of how rawls is set up to run their e2e tests
+  # Use this as a workflow reference to setup Cromwell e2e tests
+  # rawls-swat-e2e-test-job:
+  #   runs-on: ubuntu-latest
+  #   needs: [az-e2e-params-gen, attach-landing-zone-to-bee-workflow, create-bee-workflow, init-github-context]
+  #   permissions:
+  #     contents: 'read'
+  #     id-token: 'write'
+  #   steps:
+  #     - name: Configure the user subjects for the test
+  #       run: |
+  #         echo "USER_SUBJECTS='{\"owner\": \"hermione.owner@quality.firecloud.org\", \"users\": [\"harry.potter@quality.firecloud.org\"]}'" >> $GITHUB_ENV
+
+  #     - name: dispatch to terra-github-workflows
+  #       env:
+  #         rawls_test_command: "testOnly -- -l ProdTest -l NotebooksCanaryTest -n org.broadinstitute.dsde.test.api.WorkspacesAzureTest"
+  #       uses: broadinstitute/workflow-dispatch@v3
+  #       with:
+  #         workflow: .github/workflows/rawls-swat-tests.yaml
+  #         repo: broadinstitute/terra-github-workflows
+  #         ref: refs/heads/iv-az-e2e-1
+  #         token: ${{ env.TOKEN }}
+  #         inputs: |
+  #           bee-name=${{ env.BEE_NAME }}
+  #           ENV=qa
+  #           ref=refs/heads/${{ needs.init-github-context.outputs.branch }}
+  #           test-group-name=workspaces_azure
+  #           test-command=${{ env.rawls_test_command }}
+  #           java-version=17
+  #           billing-project=${{ needs.az-e2e-params-gen.outputs.project-name }}
+  #           e2e=true
+  #           service-account=${{ inputs.service-account }}
+  #           user-subjects=${{ env.USER_SUBJECTS }}
+
+  run-cromwell-az-e2e:
+    runs-on: ubuntu-latest
+# Disabling below for now until I can confirm that env variables flow into test
+#    needs: [az-e2e-params-gen, init-github-context]
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - uses: actions/checkout@v3 # checkout the cromwell repo
+        with:
+        ref: ${{ inputs.target-branch }}
+      - uses: ./.github/set_up_cromwell_action #This github action will set up git-secrets, caching, java, and sbt.
+        with:
+        cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+      # NOTE: below was template for rawls, may not need it for Cromwell
+#     - name: Configure the users for the test
+#       run: |
+#         echo "USER_SUBJECTS='{\"owner\": \"hermione.owner@quality.firecloud.org\", \"users\": [\"harry.potter@quality.firecloud.org\"]}'" >> $GITHUB_ENV
+      - name: Run e2e test
+        env:
+          OWNER: ${{inputs.owner-subject}}
+        run: |
+          sbt "testOnly *AzureRunWorkflowSpec"
+
+  # NOTE: Commenting out for now, need to confirm env variable access first before testing this
+#  delete-billing-project-v2-from-bee-workflow:
+#    runs-on: ubuntu-latest
+#    needs: [az-e2e-params-gen, cromwell-e2e-test-job]
+#    if: false
+#    steps:
+#      - name: dispatch to terra-github-workflows
+#        uses: broadinstitute/workflow-dispatch@v3
+#        with:
+#          workflow: .github/workflows/delete-billing-project-v2-from-bee.yaml
+#          repo: broadinstitute/terra-github-workflows
+#          ref: refs/heads/iv-az-e2e-1
+#          token: ${{ env.TOKEN }}
+#          inputs: '{ "bee-name": "${{ env.BEE_NAME }}", "billing-project": "${{ needs.az-e2e-params-gen.outputs.project-name }}", "billing-project-owner": "${{ inputs.owner-subject }}", "service-account": "${{ inputs.service-account }}" }'
+
+  # NOTE: disabling for now, need to confirm that test can run and get env variables first
+#  destroy-bee-workflow:
+#    runs-on: ubuntu-latest
+#    needs: [cromwell-e2e-test-job, delete-billing-project-v2-from-bee-workflow, init-github-context]
+#    if: ${{ needs.init-github-context.outputs.delete-bee }} # always run to confirm bee is destroyed unless explicitly requested not to
+#    permissions:
+#      contents: 'read'
+#      id-token: 'write'
+#    steps:
+#      - name: dispatch to terra-github-workflows
+#        uses: broadinstitute/workflow-dispatch@v3
+#        with:
+#          workflow: bee-destroy
+#          repo: broadinstitute/terra-github-workflows
+#          ref: refs/heads/main
+#          token: ${{ env.TOKEN }}
+#          inputs: '{ "bee-name": "${{ env.BEE_NAME }}" }'
+#
+
+
+    
+
+

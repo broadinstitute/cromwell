@@ -6,7 +6,8 @@
 name: 'Azure e2e - Run Workflow'
 description: e2e test that performs critical path/user journey tests against Cromwell on Azure
 on:
-  workflow_dispatch:
+  # NOTE: swap out with workflow_dispatch once I'm working on bee implementation
+  push:
     inputs:
       branch:
         description: 'Branch of Cromwell to run tests on'

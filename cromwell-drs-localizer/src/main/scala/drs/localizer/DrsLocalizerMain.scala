@@ -65,6 +65,7 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     IO.pure(ExitCode.Error)
   }
 
+  /*
   def runLocalizer(commandLineArguments: CommandLineArguments, drsCredentials: DrsCredentials): IO[ExitCode] = {
     commandLineArguments.manifestPath match {
       case Some(manifestPath) =>
@@ -82,6 +83,7 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
         localizeFile(commandLineArguments, drsCredentials, drsObject, containerPath)
     }
   }
+  */
 
   def getDrsPathResolver(drsCredentials: DrsCredentials): IO[DrsLocalizerDrsPathResolver] = {
     IO {
@@ -101,7 +103,7 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
         Failure(new RuntimeException(DrsPathResolver.ExtractUriErrorMsg))
     }
   }
-  def runLocalizer(commandLineArguments: CommandLineArguments, drsCredentials: DrsCredentials, dummy : Boolean): IO[ExitCode] = {
+  def runLocalizer(commandLineArguments: CommandLineArguments, drsCredentials: DrsCredentials): IO[ExitCode] = {
     commandLineArguments.manifestPath match {
       case Some(manifestPath) => {
           val resolvedUris: Try[Map[DrsResolverResponse, String]] = for {
@@ -112,7 +114,7 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
 
           if(resolvedUris.isFailure) {
               return IO(ExitCode.Error) //Could not resolve DRS urls. Fail before attempting to download anything
-            }
+          }
 
           val accessUrls = resolvedUris.get.filter(drsResponse => toUriType(drsResponse._1) == URIType.HTTPS)
           val googleUrls = resolvedUris.get.filter(drsResponse => toUriType(drsResponse._1) == URIType.GCS)
@@ -180,17 +182,6 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
       if !map.isEmpty //An empty map should be considered an error - we're expecting at least one k/v pair in the manifest.
     } yield map
   }
-
-  //Write string to file. Returns the filepath that the string was written to.
-  private def writeJsonManifest(destinationPath : String, jsonData : JsValue): Try[String] = {
-    Try(Files.write(Paths.get(destinationPath), jsonData.toString().getBytes(StandardCharsets.UTF_8)).toString)
-  }
-  // We're going to write a JSON version of the CSV manifest we're provided.
-  // Save the new manifest to wherever the CSV is saved, but replace .csv with _manifest.json.
-  private def generateJsonPathForManifest(csvPath : String) : String = {
-    csvPath.substring(0, csvPath.lastIndexOf('.')) + "_manifest.json"
-  }
-
 }
 
 object URIType extends Enumeration {

@@ -1,6 +1,7 @@
 package cloud.nio.impl.drs
 
 import java.io.IOException
+
 import org.apache.http.HttpVersion
 import org.apache.http.client.methods.CloseableHttpResponse
 import org.apache.http.message.BasicStatusLine
@@ -73,7 +74,7 @@ class DrsResolverHttpRequestRetryStrategySpec extends AnyFlatSpec with Matchers 
   it should "retry IO exceptions a configured number of times" in {
     val drsConfig = MockDrsPaths.mockDrsConfig.copy(numRetries = 3)
     val retryStrategy = new DrsResolverHttpRequestRetryStrategy(drsConfig)
-    val exception = new IOException("A test exception")
+    val exception = mock[IOException]
     val httpContext = mock[HttpContext]
 
     // initial failure

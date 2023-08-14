@@ -262,12 +262,13 @@ object TesTask {
      * internalPathPrefix: Added in WX-1156 to support the azure TES implementation. Specifies
      * a working directory that the TES task can use.
      */
+    val internalPathPrefixKey = "internal_path_prefix"
     val backendParameters : Map[String, Option[String]] = runtimeAttributes.backendParameters ++
       workflowExecutionId
         .map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option(_))
         .toMap ++
       internalPathPrefix
-        .map(TesWorkflowOptionKeys.InternalPathPrefix -> Option(_))
+        .map(internalPathPrefixKey -> Option(_))
         .toMap
     val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
       case Some(x) =>

@@ -147,7 +147,7 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
     blobFileAttributes.map { attr: AzureBlobFileAttributes =>
       (Option(attr.blobHttpHeaders().getContentMd5), md5FromMetadata) match {
         case (None, None) => None
-        case (None, Some(metadataMd5)) => Option(hexString(metadataMd5.getBytes))
+        case (None, Some(metadataMd5)) => Option(metadataMd5)
         case (Some(headerMd5Bytes), None) if headerMd5Bytes.isEmpty => None
         // (Some, Some) could happen if an uploader redundantly populates an md5 for a small file.
         // Doesn't seem like an erroneous condition so just choose the native one.

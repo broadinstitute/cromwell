@@ -100,6 +100,30 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     new BlobPathBuilder(store, endpoint)(fsm)
   }
 
+  it should "read md5 from small files <5g" in {
+    val builder = makeBlobPathBuilder(endpoint, store)
+    val evalPath = "/test/inputFile.txt"
+    val testString = endpoint.value + "/" + store + evalPath
+    val blobPath1: BlobPath = builder build testString getOrElse fail()
+    blobPath1.md5HexString.toOption.get should equal(Some("967f0f086992f1a8b48f0a533f80290b"))
+  }
+
+  it should "read md5 from large files >5g" in {
+    val builder = makeBlobPathBuilder(endpoint, store)
+    val evalPath = "/test/Rocky-9.2-aarch64-dvd.iso"
+    val testString = endpoint.value + "/" + store + evalPath
+    val blobPath1: BlobPath = builder build testString getOrElse fail()
+    blobPath1.md5HexString.toOption.get should equal(Some("13cb09331d2d12c0f476f81c672a4319"))
+  }
+
+  it should "choose the native md5 over the metadata md5 for files that have both" in {
+    val builder = makeBlobPathBuilder(endpoint, store)
+    val evalPath = "/test/redundant_md5_test.txt"
+    val testString = endpoint.value + "/" + store + evalPath
+    val blobPath1: BlobPath = builder build testString getOrElse fail()
+    blobPath1.md5HexString.toOption.get should equal(Some("9e5ceec07c8730b593a3a4b4ae324475"))
+  }
+
   ignore should "resolve an absolute path string correctly to a path" in {
     val builder = makeBlobPathBuilder(endpoint, store)
     val rootString = s"${endpoint.value}/${store.value}/cromwell-execution"

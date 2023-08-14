@@ -17,9 +17,9 @@ final case class DrsConfig(drsResolverUrl: String,
 object DrsConfig {
   // If you update these values also update Filesystems.md!
   private val DefaultNumRetries = 3
-  private val DefaultWaitInitial = 60 seconds
-  private val DefaultWaitMaximum = 120 seconds
-  private val DefaultWaitMultiplier = 1.5d
+  private val DefaultWaitInitial = 30 seconds
+  private val DefaultWaitMaximum = 60 seconds
+  private val DefaultWaitMultiplier = 1.25d
   private val DefaultWaitRandomizationFactor = 0.1
 
   private val EnvDrsResolverUrl = "DRS_RESOLVER_URL"

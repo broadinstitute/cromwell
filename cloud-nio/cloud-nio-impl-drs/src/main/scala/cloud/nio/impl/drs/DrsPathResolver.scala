@@ -249,6 +249,8 @@ object DrsResolverResponseSupport {
   lazy val connectionManager = {
     val connManager = new PoolingHttpClientConnectionManager()
     connManager.setMaxTotal(250)
+    // Since the HttpClient is always talking to DRSHub,
+    // make the max connections per route the same as max total connections
     connManager.setDefaultMaxPerRoute(250)
     connManager
   }

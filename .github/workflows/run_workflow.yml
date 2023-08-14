@@ -70,12 +70,12 @@ env:
   TOKEN: '${{ secrets.BROADBOT_TOKEN }}' # github token for access to kick off a job in the private repo
 
 jobs:
-  init-github-context:
-    runs-on: ubuntu-latest
-    outputs:
-      branch: ${{ steps.extract-inputs.outputs.branch }}
-      delete-bee: ${{ steps.extract-inputs.outputs.delete-bee }}
-    steps:
+#  init-github-context:
+#    runs-on: ubuntu-latest
+#    outputs:
+#      branch: ${{ steps.extract-inputs.outputs.branch }}
+#      delete-bee: ${{ steps.extract-inputs.outputs.delete-bee }}
+#    steps:
 ##       NOTE: below was included in the rawls template but seems redundant due to defined values up on top
 ##       Remove if it ends up being unecessary
 #      - name: Get inputs or use defaults

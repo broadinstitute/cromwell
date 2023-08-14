@@ -25,17 +25,14 @@ import java.nio.ByteBuffer
 import java.nio.channels.{Channels, ReadableByteChannel}
 import scala.util.Try
 
-abstract class DrsPathResolver(drsConfig: DrsConfig, retryInternally: Boolean = true) {
+abstract class DrsPathResolver(drsConfig: DrsConfig) {
 
   protected lazy val httpClientBuilder: HttpClientBuilder = {
     val clientBuilder = HttpClientBuilder.create()
-    if (retryInternally) {
-      val retryHandler = new DrsResolverHttpRequestRetryStrategy(drsConfig)
-      clientBuilder
-        .setRetryHandler(retryHandler)
-        .setServiceUnavailableRetryStrategy(retryHandler)
-
-    }
+    val retryHandler = new DrsResolverHttpRequestRetryStrategy(drsConfig)
+    clientBuilder
+      .setRetryHandler(retryHandler)
+      .setServiceUnavailableRetryStrategy(retryHandler)
     clientBuilder.setConnectionManager(connectionManager)
     clientBuilder.setConnectionManagerShared(true)
     clientBuilder

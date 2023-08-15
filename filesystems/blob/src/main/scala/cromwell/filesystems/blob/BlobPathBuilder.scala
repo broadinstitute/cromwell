@@ -81,14 +81,17 @@ object BlobPath {
   private val brokenPathRegex = "https:/([a-z0-9]+).blob.core.windows.net/([-a-zA-Z0-9]+)/(.*)".r
 
   // Blob files larger than 5 GB upload in parallel parts [0][1] and do not get a native `CONTENT-MD5` property.
-  // Instead, some uploaders such as TES [2] may optionally calculate the MD5 themselves and store it under this key in metadata.
-  // N.B. most if not virtually all large files in the wild will NOT have this key populated because they were not created by TES. [3]
+  // Instead, some uploaders such as TES [2] calculate the md5 themselves and store it under this key in metadata.
+  // They do this for all files they touch, regardless of size, and the root/metadata property is authoritative over native.
+  //
+  // N.B. most if not virtually all large files in the wild will NOT have this key populated because they were not created
+  // by TES or its associated upload utility [4].
   //
   // [0] https://learn.microsoft.com/en-us/azure/storage/blobs/scalability-targets
   // [1] https://learn.microsoft.com/en-us/rest/api/storageservices/version-2019-12-12
-  // [2] https://github.com/microsoft/ga4gh-tes/pull/236
-  // [3] As of 2023-08 there are zero search engine results for `md5_hashlist_root_hash` and the only sure-thing client is TES
-  private val largeBlobFileMetadataKey = "md5_hashlist_root_hash"
+  // [2] https://github.com/microsoft/ga4gh-tes/blob/03feb746bb961b72fa91266a56db845e3b31be27/src/Tes.Runner/Transfer/BlobBlockApiHttpUtils.cs#L25
+  // [4] https://github.com/microsoft/ga4gh-tes/blob/main/src/Tes.RunnerCLI/scripts/roothash.sh
+  private val largeBlobFileMetadataKey = "md5_4mib_hashlist_root_hash"
 
   def cleanedNioPathString(nioString: String): String = {
     val pathStr = nioString match {
@@ -146,12 +149,17 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
 
     blobFileAttributes.map { attr: AzureBlobFileAttributes =>
       (Option(attr.blobHttpHeaders().getContentMd5), md5FromMetadata) match {
-        case (None, None) => None
-        case (None, Some(metadataMd5)) => Option(metadataMd5)
-        case (Some(headerMd5Bytes), None) if headerMd5Bytes.isEmpty => None
-        // (Some, Some) could happen if an uploader redundantly populates an md5 for a small file.
-        // Doesn't seem like an erroneous condition so just choose the native one.
-        case (Some(headerMd5Bytes), _) => Option(hexString(headerMd5Bytes))
+        case (None, None) =>
+          None
+        // (Some, Some) will happen for all <5 GB files uploaded by TES. Per Microsoft 2023-08-15 the
+        // root/metadata algorithm emits different values than the native algorithm and we should
+        // always choose metadata for consistency with larger files that only have that one.
+        case (_, Some(metadataMd5)) =>
+          Option(metadataMd5)
+        case (Some(headerMd5Bytes), None) if headerMd5Bytes.isEmpty =>
+          None
+        case (Some(headerMd5Bytes), None) =>
+          Option(hexString(headerMd5Bytes))
       }
     }
   }

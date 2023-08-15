@@ -104,11 +104,12 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     }
   }
   def runLocalizer(commandLineArguments: CommandLineArguments, drsCredentials: DrsCredentials): IO[ExitCode] = {
+    //todo: just fail here if this can't be gotten
+    val resolver = getDrsPathResolver(drsCredentials).unsafeRunSync()
     commandLineArguments.manifestPath match {
       case Some(manifestPath) => {
           val resolvedUris: Try[Map[DrsResolverResponse, String]] = for {
-            resolver: IO[DrsLocalizerDrsPathResolver] <- getDrsPathResolver(drsCredentials)
-            resolvedDrsUris: Try[Map[DrsResolverResponse, String]] <- resolveCSVManifest(manifestPath, resolver)
+            resolvedDrsUris: Map[DrsResolverResponse, String] <- resolveCSVManifest(manifestPath, resolver)
             if !resolvedDrsUris.isEmpty
           } yield resolvedDrsUris
 
@@ -122,7 +123,7 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
           val bulkAccessResult : IO[ExitCode] = bulkDownloadResolvedAccessUrls(accessUrls, drsCredentials)
           val googleResult : List[IO[DownloadResult]] = bulkDownloadResolvedGoogleUrls(googleUrls, commandLineArguments.googleRequesterPaysProject)
 
-          //TODO: return an appropriate exit code
+        IO(ExitCode.Success)
         }
       case None =>
         val drsObject = commandLineArguments.drsObject.get
@@ -133,6 +134,7 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
 
   def bulkDownloadResolvedAccessUrls(resolvedUrlToOutputDestination : Map[DrsResolverResponse, String], drsCredentials: DrsCredentials): IO[ExitCode] = {
     //TODO: invoke new bulk getm downloader
+    return IO{ExitCode(0)}
   }
 
   def bulkDownloadResolvedGoogleUrls(resolvedUrlToOutputDestination : Map[DrsResolverResponse, String], googleRequesterPaysProject : Option[String]) : List[IO[DownloadResult]] = {

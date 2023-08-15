@@ -1,0 +1,7 @@
+package cromwell.backend.google.batch.callcaching
+
+sealed trait BatchCacheHitDuplicationStrategy
+
+case object CopyCachedOutputs extends BatchCacheHitDuplicationStrategy
+case object UseOriginalCachedOutputs extends BatchCacheHitDuplicationStrategy
+

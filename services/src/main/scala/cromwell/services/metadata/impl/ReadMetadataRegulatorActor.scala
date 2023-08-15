@@ -1,12 +1,11 @@
 package cromwell.services.metadata.impl
 
 import java.util.UUID
-
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.services.MetadataJsonResponse
 import cromwell.services.metadata.MetadataService
-import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, BuildWorkflowMetadataJsonAction, GetMetadataStreamAction, MetadataLookupStreamSuccess, MetadataQueryResponse, MetadataServiceAction, MetadataServiceResponse, RootAndSubworkflowLabelsLookupResponse}
+import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, BuildWorkflowMetadataJsonAction, FetchFailedJobsMetadataWithWorkflowId, GetMetadataStreamAction, MetadataLookupStreamSuccess, MetadataQueryResponse, MetadataServiceAction, MetadataServiceResponse, RootAndSubworkflowLabelsLookupResponse}
 import cromwell.services.metadata.impl.ReadMetadataRegulatorActor.PropsMaker
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
 
@@ -28,11 +27,18 @@ class ReadMetadataRegulatorActor(metadataBuilderActorProps: PropsMaker, readMeta
     // This indirection via 'MetadataReadAction' lets the compiler make sure we cover all cases in the sealed trait:
     case action: BuildMetadataJsonAction =>
       action match {
+        case fetchFailedJobsMetadataAction: FetchFailedJobsMetadataWithWorkflowId =>
+          val currentRequesters = apiRequests.getOrElse(fetchFailedJobsMetadataAction, Set.empty)
+          apiRequests.put(fetchFailedJobsMetadataAction, currentRequesters + sender())
+          if (currentRequesters.isEmpty) {
+            val builderActor = context.actorOf(metadataBuilderActorProps().withDispatcher(ApiDispatcher), MetadataBuilderActor.uniqueActorName(fetchFailedJobsMetadataAction.workflowId.toString))
+            builderRequests.put(builderActor, fetchFailedJobsMetadataAction)
+            builderActor ! fetchFailedJobsMetadataAction
+          }
         case singleWorkflowAction: BuildWorkflowMetadataJsonAction =>
           val currentRequesters = apiRequests.getOrElse(singleWorkflowAction, Set.empty)
           apiRequests.put(singleWorkflowAction, currentRequesters + sender())
           if (currentRequesters.isEmpty) {
-
             val builderActor = context.actorOf(metadataBuilderActorProps().withDispatcher(ApiDispatcher), MetadataBuilderActor.uniqueActorName(singleWorkflowAction.workflowId.toString))
             builderRequests.put(builderActor, singleWorkflowAction)
             builderActor ! singleWorkflowAction

@@ -7,7 +7,7 @@ import com.azure.storage.blob.sas.{BlobContainerSasPermission, BlobServiceSasSig
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import common.validation.Validation._
-import cromwell.cloudsupport.azure.AzureUtils
+import cromwell.cloudsupport.azure.{AzureCredentials, AzureUtils}
 
 import java.net.URI
 import java.nio.file._

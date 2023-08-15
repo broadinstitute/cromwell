@@ -107,7 +107,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val builder = makeBlobPathBuilder(centaurEndpoint, centaurContainer)
     val evalPath = "/Rocky-9.2-aarch64-dvd.iso"
     val testString = centaurEndpoint.value + "/" + centaurContainer + evalPath
-    val blobPath1: BlobPath = builder build testString getOrElse fail()
+    val blobPath1: BlobPath = (builder build testString).get
     blobPath1.md5HexString.toOption.get should equal(Some("13cb09331d2d12c0f476f81c672a4319"))
   }
 
@@ -115,7 +115,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val builder = makeBlobPathBuilder(centaurEndpoint, centaurContainer)
     val evalPath = "/redundant_md5_test.txt"
     val testString = centaurEndpoint.value + "/" + centaurContainer + evalPath
-    val blobPath1: BlobPath = builder build testString getOrElse fail()
+    val blobPath1: BlobPath = (builder build testString).get
     blobPath1.md5HexString.toOption.get should equal(Some("021c7cc715ec82292bb9b925f9ca44d3"))
   }
 

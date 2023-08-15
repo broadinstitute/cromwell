@@ -26,53 +26,6 @@ case class AccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes
     }
   }
 
-  def generateBulkDownloadScript: ErrorOr[String] = {
-    val manifestPath = generateJsonManifest()
-  }
-
-  def toJsonString(accessUrl: String, filepath : String, checksum : ErrorOr[String], checksumAlgorithm : String): String = {
-    //NB: trailing comma is being removed in generateJsonManifest
-    if (checksum.isValid) {
-      return s"""{
-                | "url" : "$accessUrl"
-                | "filepath" : "$filepath"
-                | "checksum" : "$checksum"
-                | "checksum-algorithm" : "$checksumAlgorithm"
-                | },
-                |""".stripMargin
-    }
-
-    s"""{
-         | "url" : "$accessUrl"
-         | "filepath" : "$filepath"
-         | },
-         |""".stripMargin
-  }
-  def generateJsonManifest(accessUrlToDownloadDest : Map[AccessUrl, String]) : Try[Path] = {
-    //write a json file that looks like:
-    // [
-    //  {
-    //     "url" : "www.123.com"
-    //     "filepath" : "path/to/where/123/should/be/downloaded"
-    //     "checksum" : "sdfjndsfjkfsdjsdfkjsdf"
-    //     "checksum-algorithm" : "md5"
-    //  },
-    //  {
-    //     "url" : "www.567.com"
-    //     "filepath" : "path/to/where/567/should/be/downloaded"
-    //     "checksum" : "asdasdasfsdfsdfasdsdfasd"
-    //     "checksum-algorithm" : "md5"
-    //  }
-    // ]
-    var jsonString : String = "[\n"
-    for ( (accessUrl -> downloadDestination) <- accessUrlToDownloadDest) {
-      jsonString += toJsonString(accessUrl.url, downloadDestination, GetmChecksum(hashes, accessUrl).escapedChecksum, GetmChecksum(hashes, accessUrl).getmAlgorithm)
-    }
-    jsonString = jsonString.substring(0, jsonString.lastIndexOf(",")) //remove trailing comma from array elements
-    jsonString += "]"
-    Try(Files.write(Paths.get("getm-manifest.json"), jsonString.getBytes(StandardCharsets.UTF_8)))
-  }
-
   def runGetm: IO[GetmResult] = {
     generateDownloadScript match {
       case Invalid(errors) =>

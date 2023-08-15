@@ -13,15 +13,13 @@ sealed trait GetmChecksum {
   def getmAlgorithm: String
   def rawValue: String
   def value: ErrorOr[String] = rawValue.validNel
-  def escapedChecksum : ErrorOr[String] = {
-    value map { v => StringEscapeUtils.escapeXSI(v)}
-  }
   def args: ErrorOr[String] = {
     // The value for `--checksum-algorithm` is constrained by the algorithm names in the `sealed` hierarchy of
     // `GetmChecksum`, but the value for `--checksum` is largely a function of data returned by the DRS server.
     // Shell escape this to avoid injection.
-    value map { _ =>
-      s"--checksum-algorithm '$getmAlgorithm' --checksum $escapedChecksum"
+    value map { v =>
+      val escapedValue = StringEscapeUtils.escapeXSI(v)
+      s"--checksum-algorithm '$getmAlgorithm' --checksum $escapedValue"
     }
   }
 }

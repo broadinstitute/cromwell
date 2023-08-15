@@ -3,9 +3,6 @@ package drs.localizer.downloaders
 import cats.data.Validated.{Invalid, Valid}
 import cats.effect.{ExitCode, IO}
 import cloud.nio.impl.drs.AccessUrl
-
-import java.nio.file.{Files, Path, Paths}
-import java.nio.charset.StandardCharsets
 import com.typesafe.scalalogging.StrictLogging
 import common.exception.AggregatedMessageException
 import common.util.StringUtil._
@@ -13,7 +10,6 @@ import common.validation.ErrorOr.ErrorOr
 import drs.localizer.downloaders.AccessUrlDownloader._
 
 import scala.sys.process.{Process, ProcessLogger}
-import scala.util.Try
 import scala.util.matching.Regex
 
 case class GetmResult(returnCode: Int, stderr: String)

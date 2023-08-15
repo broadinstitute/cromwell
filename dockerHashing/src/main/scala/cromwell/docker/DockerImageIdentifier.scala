@@ -1,5 +1,7 @@
 package cromwell.docker
 
+import cromwell.docker.registryv2.flows.azure.AzureContainerRegistry
+
 import scala.util.{Failure, Success, Try}
 
 sealed trait DockerImageIdentifier {
@@ -14,7 +16,14 @@ sealed trait DockerImageIdentifier {
   lazy val name = repository map { r => s"$r/$image" } getOrElse image
   // The name of the image with a repository prefix if a repository was specified, or with a default repository prefix of
   // "library" if no repository was specified.
-  lazy val nameWithDefaultRepository = repository.getOrElse("library") + s"/$image"
+  lazy val nameWithDefaultRepository = {
+    // In ACR, the repository is part of the registry domain instead of the path
+    // e.g. `terrabatchdev.azurecr.io`
+    if (host.exists(_.contains(AzureContainerRegistry.domain)))
+      image
+    else
+      repository.getOrElse("library") + s"/$image"
+  }
   lazy val hostAsString = host map { h => s"$h/" } getOrElse ""
   // The full name of this image, including a repository prefix only if a repository was explicitly specified.
   lazy val fullName = s"$hostAsString$name:$reference"

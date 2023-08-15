@@ -55,6 +55,7 @@ object Dependencies {
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"
   private val googleHttpClientApacheV = "2.1.2"
   private val googleHttpClientV = "1.42.3"
+  private val googleCloudBatchV1 = "0.18.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-lifesciences
   private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20220916-2.0.0"
   private val googleOauth2V = "1.5.3"
@@ -373,6 +374,12 @@ object Dependencies {
       exclude("com.google.guava", "guava-jdk5")
   )
 
+  private val googleBatchv1Dependency = List(
+    "com.google.cloud" % "google-cloud-batch" % googleCloudBatchV1,
+    "com.google.api.grpc" % "proto-google-cloud-batch-v1" % googleCloudBatchV1,
+    "com.google.api.grpc" % "proto-google-cloud-resourcemanager-v3" % "1.17.0"
+  )
+
   /*
   Used instead of `"org.lerch" % "s3fs" % s3fsV exclude("org.slf4j", "jcl-over-slf4j")`
   org.lerch:s3fs:1.0.1 depends on a preview release of software.amazon.awssdk:s3.
@@ -417,7 +424,7 @@ object Dependencies {
     "com.google.apis" % "google-api-services-cloudkms" % googleCloudKmsV
       exclude("com.google.guava", "guava-jdk5"),
     "org.glassfish.hk2.external" % "jakarta.inject" % jakartaInjectV,
-  ) ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency
+  ) ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency ++ googleBatchv1Dependency
 
   private val dbmsDependencies = List(
     "org.hsqldb" % "hsqldb" % hsqldbV,
@@ -621,11 +628,12 @@ object Dependencies {
     "org.lz4" % "lz4-java" % lz4JavaV
   )
   val scalaTest = "org.scalatest" %% "scalatest" % scalatestV
+  
   val testDependencies: List[ModuleID] = List(
-    scalaTest,
+    "org.scalatest" %% "scalatest" % scalatestV,
     // Use mockito Java DSL directly instead of the numerous and often hard to keep updated Scala DSLs.
     // See also scaladoc in common.mock.MockSugar and that trait's various usages.
-    "org.mockito" % "mockito-core" % mockitoV,
+    "org.mockito" % "mockito-core" % mockitoV
   ) ++ slf4jBindingDependencies // During testing, add an slf4j binding for _all_ libraries.
 
   val kindProjectorPlugin = "org.typelevel" % "kind-projector" % kindProjectorV cross CrossVersion.full

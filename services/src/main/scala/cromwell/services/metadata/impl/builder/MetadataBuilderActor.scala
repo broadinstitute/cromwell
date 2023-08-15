@@ -278,12 +278,18 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, metadataReadRow
       allDone()
     case Event(MetadataLookupResponse(query, metadata), HasWorkData(target, originalRequest)) =>
       processMetadataResponse(query, metadata, target, originalRequest)
+    case Event(FetchFailedJobsMetadataLookupResponse(metadata), HasWorkData(target, originalRequest)) =>
+      processFailedJobsMetadataResponse(metadata, target, originalRequest)
     case Event(MetadataLookupFailedTooLargeResponse(query, metadataSizeRows), HasWorkData(target, originalRequest)) =>
       val metadataTooLargeNumberOfRowsException = new MetadataTooLargeNumberOfRowsException(query.workflowId, metadataSizeRows, metadataReadRowNumberSafetyThreshold)
       target ! FailedMetadataJsonResponse(originalRequest, metadataTooLargeNumberOfRowsException)
       allDone()
     case Event(MetadataLookupFailedTimeoutResponse(query), HasWorkData(target, originalRequest)) =>
       val metadataTooLargeTimeoutException = new MetadataTooLargeTimeoutException(query.workflowId)
+      target ! FailedMetadataJsonResponse(originalRequest, metadataTooLargeTimeoutException)
+      allDone()
+    case Event(FetchFailedTasksTimeoutResponse(workflowId), HasWorkData(target, originalRequest)) =>
+      val metadataTooLargeTimeoutException = new MetadataTooLargeTimeoutException(workflowId)
       target ! FailedMetadataJsonResponse(originalRequest, metadataTooLargeTimeoutException)
       allDone()
     case Event(failure: MetadataServiceFailure, HasWorkData(target, originalRequest)) =>
@@ -370,5 +376,12 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, metadataReadRow
     } else {
       buildAndStop(query, eventsList, Map.empty, target, originalRequest)
     }
+  }
+
+  def processFailedJobsMetadataResponse(eventsList: Seq[MetadataEvent], target: ActorRef, originalRequest: BuildMetadataJsonAction) = {
+    val groupedEvents = groupEvents(eventsList)
+    val res = MetadataBuilderActor.parse(groupedEvents, Map.empty)
+    target ! SuccessfulMetadataJsonResponse(originalRequest, res)
+    allDone()
   }
 }

@@ -100,6 +100,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val evalPath = "/testRead.txt"
     val testString = centaurEndpoint.value + "/" + centaurContainer + evalPath
     val blobPath1: BlobPath = (builder build testString).get
+    blobPath1.md5HexString.get.get should equal(Some("31ae06882d06a20e01ba1ac961ce576c"))
     blobPath1.md5HexString.toOption.get should equal(Some("31ae06882d06a20e01ba1ac961ce576c"))
   }
 

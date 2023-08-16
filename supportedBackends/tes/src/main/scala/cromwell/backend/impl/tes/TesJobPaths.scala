@@ -20,9 +20,8 @@ case class TesJobPaths private[tes] (override val workflowPaths: TesWorkflowPath
 
   import JobPaths._
 
-  val executionDirectoryName = "execution"
   override lazy val callExecutionRoot = {
-    callRoot.resolve(executionDirectoryName)
+    callRoot.resolve("execution")
   }
   val callDockerRoot = callPathBuilder(workflowPaths.dockerWorkflowRoot, jobKey, isCallCacheCopyAttempt)
   val callExecutionDockerRoot = callDockerRoot.resolve("execution")
@@ -31,12 +30,12 @@ case class TesJobPaths private[tes] (override val workflowPaths: TesWorkflowPath
 
   /*
    * tesTaskRoot: This is the root directory that TES will use for files related to this task.
-   * We provide it to TES as a k/v pair where the key is "internal_path_prefix" (specified in TesWorkflowOptionKeys.scala)
-   * and the value is a blob path.
+   * TES expects a path relative to the root of the storage container.
+   * We provide it to TES as a k/v pair where the key is "internal_path_prefix" and the value is the relative path string.
    * This is not a standard TES feature, but rather related to the Azure TES implementation that Terra uses.
    * While passing it outside of terra won't do any harm, we could consider making this optional and/or configurable.
    */
-  val tesTaskRoot : Path = callRoot./(executionDirectoryName + "/tes_task")
+  val tesTaskRoot : Path = callRoot./("execution")./("tes_task")
 
   // Given an output path, return a path localized to the storage file system
   def storageOutput(path: String): String = {

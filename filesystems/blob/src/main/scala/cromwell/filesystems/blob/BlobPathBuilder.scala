@@ -142,5 +142,13 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
     else pathString
   }
 
+  /**
+    * Returns the path relative to the container root.
+    * For example, https://{storageAccountName}.blob.core.windows.net/{containerid}/path/to/my/file
+    * will be returned as path/to/my/file.
+    * @return Path string relative to the container root.
+    */
+  def pathWithoutContainer : String = pathString
+  
   override def getSymlinkSafePath(options: LinkOption*): Path  = toAbsolutePath
 }

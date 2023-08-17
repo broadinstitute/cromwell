@@ -242,7 +242,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   val resources: Resources = TesTask.makeResources(
     runtimeAttributes,
     preferedWorkflowExecutionIdentity,
-    Option(tesPaths.tesTaskRoot.pathAsString)
+    Option(tesPaths.tesTaskRoot)
   )
 }
 

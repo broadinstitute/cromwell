@@ -89,40 +89,11 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     )
   }
 
-  // The following tests are NOT ignored because they use the `centaurtesting` account injected into CI
-  // You may have to
+  // The following tests use the `centaurtesting` account injected into CI. They depend on access to the
+  // container specified below. You may need to log in to az cli locally to get them to pass.
   private val subscriptionId: SubscriptionId = SubscriptionId(UUID.fromString("62b22893-6bc1-46d9-8a90-806bb3cce3c9"))
-  private val centaurEndpoint: EndpointURL = BlobPathBuilderSpec.buildEndpoint("centaurtesting")
-  private val centaurContainer: BlobContainerName = BlobContainerName("test-blob")
-
-  it should "read md5 from small files <5g" in {
-    val builder = makeBlobPathBuilder(centaurEndpoint, centaurContainer)
-    val evalPath = "/testRead.txt"
-    val testString = centaurEndpoint.value + "/" + centaurContainer + evalPath
-    val blobPath1: BlobPath = (builder build testString).get
-    blobPath1.md5HexString.get.get should equal(Some("31ae06882d06a20e01ba1ac961ce576c"))
-    blobPath1.md5HexString.toOption.get should equal(Some("31ae06882d06a20e01ba1ac961ce576c"))
-  }
-
-  it should "read md5 from large files >5g" in {
-    val builder = makeBlobPathBuilder(centaurEndpoint, centaurContainer)
-    val evalPath = "/Rocky-9.2-aarch64-dvd.iso"
-    val testString = centaurEndpoint.value + "/" + centaurContainer + evalPath
-    val blobPath1: BlobPath = (builder build testString).get
-    blobPath1.md5HexString.toOption.get should equal(Some("13cb09331d2d12c0f476f81c672a4319"))
-  }
-
-  it should "choose the root/metadata md5 over the native md5 for files that have both" in {
-    val builder = makeBlobPathBuilder(centaurEndpoint, centaurContainer)
-    val evalPath = "/redundant_md5_test.txt"
-    val testString = centaurEndpoint.value + "/" + centaurContainer + evalPath
-    val blobPath1: BlobPath = (builder build testString).get
-    blobPath1.md5HexString.toOption.get should equal(Some("021c7cc715ec82292bb9b925f9ca44d3"))
-  }
-
-  //// The below tests are IGNORED because they depend on Azure auth information being present in the environment ////
-  private val endpoint: EndpointURL = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
-  private val container: BlobContainerName = BlobContainerName("inputs")
+  private val endpoint: EndpointURL = BlobPathBuilderSpec.buildEndpoint("centaurtesting")
+  private val container: BlobContainerName = BlobContainerName("test-blob")
 
   def makeBlobPathBuilder(blobEndpoint: EndpointURL,
                           container: BlobContainerName): BlobPathBuilder = {
@@ -131,16 +102,41 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     new BlobPathBuilder(container, blobEndpoint)(fsm)
   }
 
-  ignore should "resolve an absolute path string correctly to a path" in {
+  it should "read md5 from small files <5g" in {
+    val builder = makeBlobPathBuilder(endpoint, container)
+    val evalPath = "/testRead.txt"
+    val testString = endpoint.value + "/" + container + evalPath
+    val blobPath1: BlobPath = (builder build testString).get
+    blobPath1.md5HexString.get.get should equal(Some("31ae06882d06a20e01ba1ac961ce576c"))
+    blobPath1.md5HexString.toOption.get should equal(Some("31ae06882d06a20e01ba1ac961ce576c"))
+  }
+
+  it should "read md5 from large files >5g" in {
+    val builder = makeBlobPathBuilder(endpoint, container)
+    val evalPath = "/Rocky-9.2-aarch64-dvd.iso"
+    val testString = endpoint.value + "/" + container + evalPath
+    val blobPath1: BlobPath = (builder build testString).get
+    blobPath1.md5HexString.toOption.get should equal(Some("13cb09331d2d12c0f476f81c672a4319"))
+  }
+
+  it should "choose the root/metadata md5 over the native md5 for files that have both" in {
+    val builder = makeBlobPathBuilder(endpoint, container)
+    val evalPath = "/redundant_md5_test.txt"
+    val testString = endpoint.value + "/" + container + evalPath
+    val blobPath1: BlobPath = (builder build testString).get
+    blobPath1.md5HexString.toOption.get should equal(Some("021c7cc715ec82292bb9b925f9ca44d3"))
+  }
+
+  it should "resolve an absolute path string correctly to a path" in {
     val builder = makeBlobPathBuilder(endpoint, container)
     val rootString = s"${endpoint.value}/${container.value}/cromwell-execution"
     val blobRoot: BlobPath = builder build rootString getOrElse fail()
-    blobRoot.toAbsolutePath.pathAsString should equal ("https://coaexternalstorage.blob.core.windows.net/inputs/cromwell-execution")
-    val otherFile = blobRoot.resolve("https://coaexternalstorage.blob.core.windows.net/inputs/cromwell-execution/test/inputFile.txt")
-    otherFile.toAbsolutePath.pathAsString should equal ("https://coaexternalstorage.blob.core.windows.net/inputs/cromwell-execution/test/inputFile.txt")
+    blobRoot.toAbsolutePath.pathAsString should equal ("https://centaurtesting.blob.core.windows.net/test-blob/cromwell-execution")
+    val otherFile = blobRoot.resolve("https://centaurtesting.blob.core.windows.net/test-blob/cromwell-execution/test/inputFile.txt")
+    otherFile.toAbsolutePath.pathAsString should equal ("https://centaurtesting.blob.core.windows.net/test-blob/cromwell-execution/test/inputFile.txt")
   }
 
-  ignore should "build a blob path from a test string and read a file" in {
+  it should "build a blob path from a test string and read a file" in {
     val builder = makeBlobPathBuilder(endpoint, container)
     val endpointHost = BlobPathBuilder.parseURI(endpoint.value).map(_.getHost).getOrElse(fail("Could not parse URI"))
     val evalPath = "/test/inputFile.txt"
@@ -156,7 +152,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     fileText should include ("This is my test file!!!! Did it work?")
   }
 
-  ignore should "build duplicate blob paths in the same filesystem" in {
+  it should "build duplicate blob paths in the same filesystem" in {
     val builder = makeBlobPathBuilder(endpoint, container)
     val evalPath = "/test/inputFile.txt"
     val testString = endpoint.value + "/" + container + evalPath
@@ -169,16 +165,16 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     fileText should include ("This is my test file!!!! Did it work?")
   }
 
-  ignore should "resolve a path without duplicating container name" in {
+  it should "resolve a path without duplicating container name" in {
     val builder = makeBlobPathBuilder(endpoint, container)
     val rootString = s"${endpoint.value}/${container.value}/cromwell-execution"
     val blobRoot: BlobPath = builder build rootString getOrElse fail()
-    blobRoot.toAbsolutePath.pathAsString should equal ("https://coaexternalstorage.blob.core.windows.net/inputs/cromwell-execution")
+    blobRoot.toAbsolutePath.pathAsString should equal ("https://centaurtesting.blob.core.windows.net/test-blob/cromwell-execution")
     val otherFile = blobRoot.resolve("test/inputFile.txt")
-    otherFile.toAbsolutePath.pathAsString should equal ("https://coaexternalstorage.blob.core.windows.net/inputs/cromwell-execution/test/inputFile.txt")
+    otherFile.toAbsolutePath.pathAsString should equal ("https://centaurtesting.blob.core.windows.net/test-blob/cromwell-execution/test/inputFile.txt")
   }
 
-  ignore should "correctly remove a prefix from the blob path" in {
+  it should "correctly remove a prefix from the blob path" in {
     val builder = makeBlobPathBuilder(endpoint, container)
     val rootString = s"${endpoint.value}/${container.value}/cromwell-execution/"
     val execDirString = s"${endpoint.value}/${container.value}/cromwell-execution/abc123/myworkflow/task1/def4356/execution/"
@@ -191,7 +187,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     blobFile.pathStringWithoutPrefix(blobFile) should equal ("")
   }
 
-  ignore should "not change a path if it doesn't start with a prefix" in {
+  it should "not change a path if it doesn't start with a prefix" in {
     val builder = makeBlobPathBuilder(endpoint, container)
     val otherRootString = s"${endpoint.value}/${container.value}/foobar/"
     val fileString = s"${endpoint.value}/${container.value}/cromwell-execution/abc123/myworkflow/task1/def4356/execution/stdout"

@@ -90,7 +90,6 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
   }
 
   // The following tests are NOT ignored because they use the `centaurtesting` account injected into CI
-  // You may have to
   private val subscriptionId: SubscriptionId = SubscriptionId(UUID.fromString("62b22893-6bc1-46d9-8a90-806bb3cce3c9"))
   private val centaurEndpoint: EndpointURL = BlobPathBuilderSpec.buildEndpoint("centaurtesting")
   private val centaurContainer: BlobContainerName = BlobContainerName("test-blob")

@@ -149,5 +149,6 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
     * @return Path string relative to the container root.
     */
   def pathWithoutContainer : String = pathString
+  
   override def getSymlinkSafePath(options: LinkOption*): Path  = toAbsolutePath
 }

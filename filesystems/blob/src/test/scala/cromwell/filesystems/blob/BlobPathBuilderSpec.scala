@@ -100,8 +100,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val evalPath = "/testRead.txt"
     val testString = centaurEndpoint.value + "/" + centaurContainer + evalPath
     val blobPath1: BlobPath = (builder build testString).get
-    blobPath1.md5HexString.get.get should equal(Some("31ae06882d06a20e01ba1ac961ce576c"))
-    blobPath1.md5HexString.toOption.get should equal(Some("31ae06882d06a20e01ba1ac961ce576c"))
+    blobPath1.md5HexString.get should equal(Option("31ae06882d06a20e01ba1ac961ce576c"))
   }
 
   it should "read md5 from large files >5g" in {
@@ -109,7 +108,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val evalPath = "/Rocky-9.2-aarch64-dvd.iso"
     val testString = centaurEndpoint.value + "/" + centaurContainer + evalPath
     val blobPath1: BlobPath = (builder build testString).get
-    blobPath1.md5HexString.toOption.get should equal(Some("13cb09331d2d12c0f476f81c672a4319"))
+    blobPath1.md5HexString.get should equal(Option("13cb09331d2d12c0f476f81c672a4319"))
   }
 
   it should "choose the root/metadata md5 over the native md5 for files that have both" in {
@@ -117,7 +116,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val evalPath = "/redundant_md5_test.txt"
     val testString = centaurEndpoint.value + "/" + centaurContainer + evalPath
     val blobPath1: BlobPath = (builder build testString).get
-    blobPath1.md5HexString.toOption.get should equal(Some("021c7cc715ec82292bb9b925f9ca44d3"))
+    blobPath1.md5HexString.get should equal(Option("021c7cc715ec82292bb9b925f9ca44d3"))
   }
 
   //// The below tests are IGNORED because they depend on Azure auth information being present in the environment ////

@@ -1,7 +1,7 @@
 package cromwell.filesystems.blob
 
 import com.azure.core.credential.AzureSasCredential
-import com.azure.storage.blob.nio.AzureFileSystem
+import com.azure.storage.blob.nio.{AzureFileSystem, AzureFileSystemProvider}
 import com.azure.storage.blob.sas.{BlobContainerSasPermission, BlobServiceSasSignatureValues}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
@@ -19,7 +19,7 @@ import scala.util.{Failure, Success, Try}
 // actually connecting to Blob storage.
 case class FileSystemAPI() {
   def getFileSystem(uri: URI): Try[FileSystem] = Try(FileSystems.getFileSystem(uri))
-  def newFileSystem(uri: URI, config: Map[String, Object]): FileSystem = FileSystems.newFileSystem(uri, config.asJava)
+  def newFileSystem(uri: URI, config: Map[String, Object]): FileSystem = new AzureFileSystemProvider().newFileSystem(uri, config.asJava)
   def closeFileSystem(uri: URI): Option[Unit] = getFileSystem(uri).toOption.map(_.close)
 }
 /**

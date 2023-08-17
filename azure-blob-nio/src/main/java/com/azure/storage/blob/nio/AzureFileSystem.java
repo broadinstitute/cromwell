@@ -162,7 +162,7 @@ public final class AzureFileSystem extends FileSystem {
     private final Map<String, FileStore> fileStores;
     private FileStore defaultFileStore;
     private boolean closed;
-    private String currentActiveSasToken;
+    private AzureSasCredential currentActiveSasCredential;
 
     AzureFileSystem(AzureFileSystemProvider parentFileSystemProvider, String endpoint, Map<String, ?> config)
             throws IOException {
@@ -180,7 +180,7 @@ public final class AzureFileSystem extends FileSystem {
             this.putBlobThreshold = (Long) config.get(AZURE_STORAGE_PUT_BLOB_THRESHOLD);
             this.maxConcurrencyPerRequest = (Integer) config.get(AZURE_STORAGE_MAX_CONCURRENCY_PER_REQUEST);
             this.downloadResumeRetries = (Integer) config.get(AZURE_STORAGE_DOWNLOAD_RESUME_RETRIES);
-            this.currentActiveSasToken = config.get(AZURE_STORAGE_SAS_TOKEN_CREDENTIAL).toString();
+            this.currentActiveSasCredential = (AzureSasCredential) config.get(AZURE_STORAGE_SAS_TOKEN_CREDENTIAL);
 
             // Initialize and ensure access to FileStores.
             this.fileStores = this.initializeFileStores(config);
@@ -493,9 +493,9 @@ public final class AzureFileSystem extends FileSystem {
     }
 
     public String createSASAppendedURL(String url) throws IllegalStateException {
-        if(Objects.isNull(currentActiveSasToken) || currentActiveSasToken.isEmpty()) {
-            throw new IllegalStateException("No current active SAS token present");
+        if(Objects.isNull(currentActiveSasCredential)) {
+            throw new IllegalStateException("No current active SAS credential present");
         }
-        return url + "?" + currentActiveSasToken;
+        return url + "?" + currentActiveSasCredential.getSignature();
     }
 }

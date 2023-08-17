@@ -696,16 +696,23 @@ public final class AzureFileSystemProvider extends FileSystemProvider {
         // Remove accepted options as we find them. Anything left we don't support.
         boolean replaceExisting = false;
         List<CopyOption> optionsList = new ArrayList<>(Arrays.asList(copyOptions));
-        if (!optionsList.contains(StandardCopyOption.COPY_ATTRIBUTES)) {
-            throw LoggingUtility.logError(ClientLoggerHolder.LOGGER, new UnsupportedOperationException(
-                "StandardCopyOption.COPY_ATTRIBUTES must be specified as the service will always copy "
-                    + "file attributes."));
+//        NOTE: We're going to assume COPY_ATTRIBUTES as a default copy option (but can still be provided and handled safely)
+//        REPLACE_EXISTING must still be provided if you want to replace existing file
+
+//        if (!optionsList.contains(StandardCopyOption.COPY_ATTRIBUTES)) {
+//            throw LoggingUtility.logError(ClientLoggerHolder.LOGGER, new UnsupportedOperationException(
+//                "StandardCopyOption.COPY_ATTRIBUTES must be specified as the service will always copy "
+//                    + "file attributes."));
+//        }
+        if(optionsList.contains(StandardCopyOption.COPY_ATTRIBUTES)) {
+            optionsList.remove(StandardCopyOption.COPY_ATTRIBUTES);
         }
-        optionsList.remove(StandardCopyOption.COPY_ATTRIBUTES);
+
         if (optionsList.contains(StandardCopyOption.REPLACE_EXISTING)) {
             replaceExisting = true;
             optionsList.remove(StandardCopyOption.REPLACE_EXISTING);
         }
+
         if (!optionsList.isEmpty()) {
             throw LoggingUtility.logError(ClientLoggerHolder.LOGGER,
                 new UnsupportedOperationException("Unsupported copy option found. Only "

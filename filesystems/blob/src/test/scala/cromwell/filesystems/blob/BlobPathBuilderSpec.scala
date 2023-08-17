@@ -107,8 +107,7 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val evalPath = "/testRead.txt"
     val testString = endpoint.value + "/" + container + evalPath
     val blobPath1: BlobPath = (builder build testString).get
-    blobPath1.md5HexString.get.get should equal(Some("31ae06882d06a20e01ba1ac961ce576c"))
-    blobPath1.md5HexString.toOption.get should equal(Some("31ae06882d06a20e01ba1ac961ce576c"))
+    blobPath1.md5HexString.get should equal(Option("31ae06882d06a20e01ba1ac961ce576c"))
   }
 
   it should "read md5 from large files >5g" in {

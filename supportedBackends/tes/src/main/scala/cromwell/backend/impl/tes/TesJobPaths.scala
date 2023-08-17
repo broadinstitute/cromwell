@@ -36,7 +36,7 @@ case class TesJobPaths private[tes] (override val workflowPaths: TesWorkflowPath
    * This is not a standard TES feature, but rather related to the Azure TES implementation that Terra uses.
    * While passing it outside of terra won't do any harm, we could consider making this optional and/or configurable.
    */
-  private val taskFullPath = callRoot./("execution")./("tes_task")
+  private val taskFullPath = callRoot./("tes_task")
   val tesTaskRoot : String = taskFullPath match {
     case blob: BlobPath => blob.pathWithoutContainer
     case anyOtherPath: Path => anyOtherPath.pathAsString

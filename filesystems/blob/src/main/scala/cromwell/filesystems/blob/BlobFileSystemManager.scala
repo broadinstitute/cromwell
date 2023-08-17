@@ -9,7 +9,7 @@ import common.validation.Validation._
 import cromwell.cloudsupport.azure.{AzureCredentials, AzureUtils}
 
 import java.net.URI
-import java.nio.file.{FileSystem, FileSystemNotFoundException, FileSystems}
+import java.nio.file.{FileSystem, FileSystemNotFoundException}
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, Instant, OffsetDateTime}
 import scala.jdk.CollectionConverters._
@@ -18,8 +18,11 @@ import scala.util.{Failure, Success, Try}
 // We encapsulate this functionality here so that we can easily mock it out, to allow for testing without
 // actually connecting to Blob storage.
 case class FileSystemAPI() {
-  def getFileSystem(uri: URI): Try[FileSystem] = Try(FileSystems.getFileSystem(uri))
-  def newFileSystem(uri: URI, config: Map[String, Object]): FileSystem = new AzureFileSystemProvider().newFileSystem(uri, config.asJava)
+
+  private lazy val provider: AzureFileSystemProvider = new AzureFileSystemProvider()
+
+  def getFileSystem(uri: URI): Try[FileSystem] = Try(provider.getFileSystem(uri))
+  def newFileSystem(uri: URI, config: Map[String, Object]): FileSystem = provider.newFileSystem(uri, config.asJava)
   def closeFileSystem(uri: URI): Option[Unit] = getFileSystem(uri).toOption.map(_.close)
 }
 /**

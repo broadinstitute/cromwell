@@ -141,7 +141,7 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
       maybeMetadataMap flatMap { metadataMap: Map[String, String] =>
         metadataMap.get(BlobPath.largeBlobFileMetadataKey)
       }
-    }).toOption.flatten
+    }).get
 
     // Convert the bytes to a hex-encoded string. Note that the value
     // is rendered in base64 in the Azure web portal.
@@ -150,6 +150,7 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
     blobFileAttributes.map { attr: AzureBlobFileAttributes =>
       (Option(attr.blobHttpHeaders().getContentMd5), md5FromMetadata) match {
         case (None, None) =>
+          println("None, None")
           None
         // (Some, Some) will happen for all <5 GB files uploaded by TES. Per Microsoft 2023-08-15 the
         // root/metadata algorithm emits different values than the native algorithm and we should
@@ -157,6 +158,7 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
         case (_, Some(metadataMd5)) =>
           Option(metadataMd5)
         case (Some(headerMd5Bytes), None) if headerMd5Bytes.isEmpty =>
+          println("Empty None")
           None
         case (Some(headerMd5Bytes), None) =>
           Option(hexString(headerMd5Bytes))

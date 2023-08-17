@@ -118,6 +118,14 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     blobPath1.md5HexString.get should equal(Option("021c7cc715ec82292bb9b925f9ca44d3"))
   }
 
+  it should "gracefully return `None` when neither hash is found" in {
+    val builder = makeBlobPathBuilder(centaurEndpoint, centaurContainer)
+    val evalPath = "/no_md5_test.txt"
+    val testString = centaurEndpoint.value + "/" + centaurContainer + evalPath
+    val blobPath1: BlobPath = (builder build testString).get
+    blobPath1.md5HexString.get should equal(None)
+  }
+
   //// The below tests are IGNORED because they depend on Azure auth information being present in the environment ////
   private val endpoint: EndpointURL = BlobPathBuilderSpec.buildEndpoint("coaexternalstorage")
   private val container: BlobContainerName = BlobContainerName("inputs")

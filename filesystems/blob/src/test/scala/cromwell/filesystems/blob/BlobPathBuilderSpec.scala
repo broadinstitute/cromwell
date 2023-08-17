@@ -126,6 +126,14 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     blobPath1.md5HexString.toOption.get should equal(Some("021c7cc715ec82292bb9b925f9ca44d3"))
   }
 
+  it should "gracefully return `None` when neither hash is found" in {
+    val builder = makeBlobPathBuilder(endpoint, container)
+    val evalPath = "/no_md5_test.txt"
+    val testString = endpoint.value + "/" + container + evalPath
+    val blobPath1: BlobPath = (builder build testString).get
+    blobPath1.md5HexString.get should equal(None)
+  }
+
   it should "resolve an absolute path string correctly to a path" in {
     val builder = makeBlobPathBuilder(endpoint, container)
     val rootString = s"${endpoint.value}/${container.value}/cromwell-execution"

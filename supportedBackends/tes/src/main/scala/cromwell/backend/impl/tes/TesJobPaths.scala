@@ -4,6 +4,7 @@ import com.typesafe.config.Config
 import cromwell.backend.io.{JobPaths, WorkflowPaths}
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.path._
+import cromwell.filesystems.blob.BlobPath
 
 object TesJobPaths {
   def apply(jobKey: BackendJobDescriptorKey,
@@ -35,7 +36,10 @@ case class TesJobPaths private[tes] (override val workflowPaths: TesWorkflowPath
    * This is not a standard TES feature, but rather related to the Azure TES implementation that Terra uses.
    * While passing it outside of terra won't do any harm, we could consider making this optional and/or configurable.
    */
-  val tesTaskRoot : Path = callRoot./("execution")./("tes_task")
+  val tesTaskRoot : String = callRoot match {
+    case blob: BlobPath => blob.pathWithoutContainer
+    case anyOtherPath: Path => anyOtherPath.pathAsString
+  }
 
   // Given an output path, return a path localized to the storage file system
   def storageOutput(path: String): String = {

@@ -9,6 +9,7 @@ import net.ceedubs.ficus.Ficus._
 
 import scala.language.postfixOps
 import scala.util.Try
+
 import wdl.draft2.model.FullyQualifiedName
 import wdl4s.parser.MemoryUnit
 import wom.InstantiatedCommand

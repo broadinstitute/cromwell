@@ -9,11 +9,12 @@ import net.ceedubs.ficus.Ficus._
 
 import scala.language.postfixOps
 import scala.util.Try
-
 import wdl.draft2.model.FullyQualifiedName
 import wdl4s.parser.MemoryUnit
 import wom.InstantiatedCommand
 import wom.callable.Callable.OutputDefinition
+import wom.callable.MetaValueElement
+import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
 import wom.expression.NoIoFunctionSet
 import wom.values._
 
@@ -79,6 +80,14 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       _.collectAsSeq { case w: WomFile => w }
     }
 
+  private def streamable(file: WomFile) = {
+    jobDescriptor.findInputFilesByParameterMeta {
+      case MetaValueElementObject(values: Map[FullyQualifiedName, MetaValueElement]) =>
+        values.get("localization_optional").contains(MetaValueElementBoolean(true))
+      case _ => false
+    }.contains(file)
+  }
+
   lazy val inputs: Seq[Input] = {
     val result = (callInputFiles ++ writeFunctionFiles).flatMap {
       case (fullyQualifiedName, files) => files.flatMap(_.flattenFiles).zipWithIndex.map {
@@ -94,7 +103,8 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
             url = Option(f.value),
             path = mapCommandLineWomFile(f).value,
             `type` = Option(inputType),
-            content = None
+            content = None,
+            streamable = Option(streamable(f))
           )
       }
     }.toList ++ Seq(commandScript)
@@ -330,7 +340,8 @@ final case class Input(name: Option[String],
                        url: Option[String],
                        path: String,
                        `type`: Option[String],
-                       content: Option[String])
+                       content: Option[String],
+                       streamable: Option[Boolean] = Option(false))
 
 final case class Output(name: Option[String],
                         description: Option[String],
@@ -361,4 +372,3 @@ final case class ExecutorLog(start_time: Option[String],
                              stdout: Option[String],
                              stderr: Option[String],
                              exit_code: Option[Int])
-

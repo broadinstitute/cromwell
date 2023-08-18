@@ -8,7 +8,7 @@ final case class CancelTaskResponse()
 
 object TesResponseJsonFormatter extends DefaultJsonProtocol {
   implicit val resourcesFormat = jsonFormat6(Resources)
-  implicit val inputFormat = jsonFormat6(Input)
+  implicit val inputFormat = jsonFormat7(Input)
   implicit val outputFormat = jsonFormat5(Output)
   implicit val executorFormat = jsonFormat7(Executor)
   implicit val executorLogFormat = jsonFormat5(ExecutorLog)

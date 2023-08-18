@@ -2,7 +2,7 @@ package cromwell.filesystems.blob
 
 import bio.terra.workspace.client.ApiException
 import com.azure.core.credential.AzureSasCredential
-import com.azure.storage.blob.nio.{AzureFileSystem, AzureFileSystemProvider, _}
+import com.azure.storage.blob.nio.{AzureFileSystem, AzureFileSystemProvider}
 import com.azure.storage.blob.sas.{BlobContainerSasPermission, BlobServiceSasSignatureValues}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
@@ -20,9 +20,9 @@ import scala.util.{Failure, Success, Try}
 
 // We encapsulate this functionality here so that we can easily mock it out, to allow for testing without
 // actually connecting to Blob storage.
-case class FileSystemAPI(private val provider: FileSystemProvider = new AzureFileSystemProvider()) {
+case class AzureFileSystemAPI(private val provider: FileSystemProvider = new AzureFileSystemProvider()) {
   def getFileSystem(uri: URI): Try[AzureFileSystem] = Try(provider.getFileSystem(uri).asInstanceOf[AzureFileSystem])
-  def newFileSystem(uri: URI, config: Map[String, Object]): FileSystem = provider.newFileSystem(uri, config.asJava)
+  def newFileSystem(uri: URI, config: Map[String, Object]): Try[AzureFileSystem] = Try(provider.newFileSystem(uri, config.asJava).asInstanceOf[AzureFileSystem])
   def closeFileSystem(uri: URI): Option[Unit] = getFileSystem(uri).toOption.map(_.close)
 }
 /**
@@ -53,7 +53,7 @@ object BlobFileSystemManager {
 
 class BlobFileSystemManager(val expiryBufferMinutes: Long,
                             val blobTokenGenerator: BlobSasTokenGenerator,
-                            val fileSystemAPI: FileSystemAPI = FileSystemAPI()) extends LazyLogging {
+                            val fileSystemAPI: AzureFileSystemAPI = AzureFileSystemAPI()) extends LazyLogging {
 
   def this(config: BlobFileSystemConfig) = {
     this(
@@ -99,11 +99,8 @@ class BlobFileSystemManager(val expiryBufferMinutes: Long,
   private def generateFilesystem(uri: URI, container: BlobContainerName, endpoint: EndpointURL): Try[AzureFileSystem] = {
     blobTokenGenerator.generateBlobSasToken(endpoint, container)
       .flatMap((token: AzureSasCredential) => {
-        Try(fileSystemAPI.newFileSystem(uri, BlobFileSystemManager.buildConfigMap(token, container)))
-      }) match {
-      case azureFilesystem : Try[AzureFileSystem] => azureFilesystem
-      case _ => Failure[AzureFileSystem](new FileSystemNotFoundException("Generated filesystem was not an azure filesystem"))
-    }
+        fileSystemAPI.newFileSystem(uri, BlobFileSystemManager.buildConfigMap(token, container))
+      })
   }
 }
 

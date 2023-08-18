@@ -43,7 +43,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
     val container = BlobContainerName("test")
     val azureUri = BlobFileSystemManager.combinedEnpointContainerUri(endpoint, container)
-    val fileSystems = mock[FileSystemAPI]
+    val fileSystems = mock[AzureFileSystemAPI]
     val fileSystem = mock[AzureFileSystem]
     when(fileSystems.getFileSystem(azureUri)).thenReturn(Try(fileSystem))
     when(fileSystems.closeFileSystem(azureUri)).thenCallRealMethod()
@@ -65,7 +65,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     //at filesystems/blob/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker
     val azureFileSystem = mock[AzureFileSystem]
     when(azureFileSystem.isExpired(Duration.ofMinutes(10L))).thenReturn(true)
-    val fileSystems = mock[FileSystemAPI]
+    val fileSystems = mock[AzureFileSystemAPI]
     when(fileSystems.getFileSystem(azureUri)).thenReturn(Success(azureFileSystem))
     val blobTokenGenerator = mock[BlobSasTokenGenerator]
     when(blobTokenGenerator.generateBlobSasToken(endpoint, container)).thenReturn(Try(sasToken))
@@ -91,7 +91,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     //at filesystems/blob/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker
     val azureFileSystem = mock[AzureFileSystem]
     when(azureFileSystem.isExpired(Duration.ofMinutes(10L))).thenReturn(false)
-    val fileSystems = mock[FileSystemAPI]
+    val fileSystems = mock[AzureFileSystemAPI]
     when(fileSystems.getFileSystem(azureUri)).thenReturn(Try(azureFileSystem))
 
     val blobTokenGenerator = mock[BlobSasTokenGenerator]
@@ -117,7 +117,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     //at filesystems/blob/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker
     val azureFileSystem = mock[AzureFileSystem]
     when(azureFileSystem.isExpired(Duration.ofMinutes(10L))).thenReturn(false)
-    val fileSystems = mock[FileSystemAPI]
+    val fileSystems = mock[AzureFileSystemAPI]
     when(fileSystems.getFileSystem(azureUri)).thenReturn(Failure(new FileSystemNotFoundException))
     when(fileSystems.newFileSystem(azureUri, configMap)).thenReturn(azureFileSystem)
     val blobTokenGenerator = mock[BlobSasTokenGenerator]
@@ -142,7 +142,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     //at filesystems/blob/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker
     val azureFileSystem = mock[AzureFileSystem]
     when(azureFileSystem.isExpired(Duration.ofMinutes(10L))).thenReturn(true)
-    val fileSystems = mock[FileSystemAPI]
+    val fileSystems = mock[AzureFileSystemAPI]
     when(fileSystems.getFileSystem(azureUri)).thenReturn(Success(azureFileSystem))
     val blobTokenGenerator = mock[BlobSasTokenGenerator]
     when(blobTokenGenerator.generateBlobSasToken(endpoint, container)).thenReturn(Try(sasToken))
@@ -166,7 +166,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     //at filesystems/blob/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker
     val azureFileSystem = mock[AzureFileSystem]
     when(azureFileSystem.isExpired(Duration.ofMinutes(10L))).thenReturn(false)
-    val fileSystems = mock[FileSystemAPI]
+    val fileSystems = mock[AzureFileSystemAPI]
     when(fileSystems.getFileSystem(azureUri)).thenReturn(Try(azureFileSystem))
 
     val blobTokenGenerator = mock[BlobSasTokenGenerator]
@@ -191,7 +191,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     //at filesystems/blob/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker
     val azureFileSystem = mock[AzureFileSystem]
     when(azureFileSystem.isExpired(Duration.ofMinutes(10L))).thenReturn(false)
-    val fileSystems = mock[FileSystemAPI]
+    val fileSystems = mock[AzureFileSystemAPI]
     when(fileSystems.getFileSystem(azureUri)).thenReturn(Failure(new FileSystemNotFoundException))
     when(fileSystems.newFileSystem(azureUri, configMap)).thenReturn(azureFileSystem)
     val blobTokenGenerator = mock[BlobSasTokenGenerator]

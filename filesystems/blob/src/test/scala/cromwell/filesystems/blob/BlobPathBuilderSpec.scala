@@ -77,17 +77,6 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
   private val endpoint: EndpointURL = BlobPathBuilderSpec.buildEndpoint("centaurtesting")
   private val container: BlobContainerName = BlobContainerName("test-blob")
 
-<<<<<<< HEAD
-  def makeBlobPathBuilder: BlobPathBuilder = {
-    val blobTokenGenerator = NativeBlobSasTokenGenerator(Some(subscriptionId))
-    val fsm = new BlobFileSystemManager(10, blobTokenGenerator)
-    new BlobPathBuilder()(fsm)
-  }
-
-  ignore should "resolve an absolute path string correctly to a path" in {
-    val builder = makeBlobPathBuilder
-    val rootString = s"${endpoint.value}/${store.value}/cromwell-execution"
-=======
   def makeBlobPathBuilder(blobEndpoint: EndpointURL,
                           container: BlobContainerName): BlobPathBuilder = {
     val blobTokenGenerator = NativeBlobSasTokenGenerator(container, blobEndpoint, Some(subscriptionId))
@@ -130,20 +119,14 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
   it should "resolve an absolute path string correctly to a path" in {
     val builder = makeBlobPathBuilder(endpoint, container)
     val rootString = s"${endpoint.value}/${container.value}/cromwell-execution"
->>>>>>> develop
     val blobRoot: BlobPath = builder build rootString getOrElse fail()
     blobRoot.toAbsolutePath.pathAsString should equal ("https://centaurtesting.blob.core.windows.net/test-blob/cromwell-execution")
     val otherFile = blobRoot.resolve("https://centaurtesting.blob.core.windows.net/test-blob/cromwell-execution/test/inputFile.txt")
     otherFile.toAbsolutePath.pathAsString should equal ("https://centaurtesting.blob.core.windows.net/test-blob/cromwell-execution/test/inputFile.txt")
   }
 
-<<<<<<< HEAD
-  ignore should "build a blob path from a test string and read a file" in {
-    val builder = makeBlobPathBuilder
-=======
   it should "build a blob path from a test string and read a file" in {
     val builder = makeBlobPathBuilder(endpoint, container)
->>>>>>> develop
     val endpointHost = BlobPathBuilder.parseURI(endpoint.value).map(_.getHost).getOrElse(fail("Could not parse URI"))
     val evalPath = "/test/inputFile.txt"
     val testString = endpoint.value + "/" + container + evalPath
@@ -158,13 +141,8 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     fileText should include ("This is my test file!!!! Did it work?")
   }
 
-<<<<<<< HEAD
-  ignore should "build duplicate blob paths in the same filesystem" in {
-    val builder = makeBlobPathBuilder
-=======
   it should "build duplicate blob paths in the same filesystem" in {
     val builder = makeBlobPathBuilder(endpoint, container)
->>>>>>> develop
     val evalPath = "/test/inputFile.txt"
     val testString = endpoint.value + "/" + container + evalPath
     val blobPath1: BlobPath = builder build testString getOrElse fail()
@@ -176,34 +154,20 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     fileText should include ("This is my test file!!!! Did it work?")
   }
 
-<<<<<<< HEAD
-  ignore should "resolve a path without duplicating container name" in {
-    val builder = makeBlobPathBuilder
-    val rootString = s"${endpoint.value}/${store.value}/cromwell-execution"
-=======
   it should "resolve a path without duplicating container name" in {
     val builder = makeBlobPathBuilder(endpoint, container)
     val rootString = s"${endpoint.value}/${container.value}/cromwell-execution"
->>>>>>> develop
     val blobRoot: BlobPath = builder build rootString getOrElse fail()
     blobRoot.toAbsolutePath.pathAsString should equal ("https://centaurtesting.blob.core.windows.net/test-blob/cromwell-execution")
     val otherFile = blobRoot.resolve("test/inputFile.txt")
     otherFile.toAbsolutePath.pathAsString should equal ("https://centaurtesting.blob.core.windows.net/test-blob/cromwell-execution/test/inputFile.txt")
   }
 
-<<<<<<< HEAD
-  ignore should "correctly remove a prefix from the blob path" in {
-    val builder = makeBlobPathBuilder
-    val rootString = s"${endpoint.value}/${store.value}/cromwell-execution/"
-    val execDirString = s"${endpoint.value}/${store.value}/cromwell-execution/abc123/myworkflow/task1/def4356/execution/"
-    val fileString = s"${endpoint.value}/${store.value}/cromwell-execution/abc123/myworkflow/task1/def4356/execution/stdout"
-=======
   it should "correctly remove a prefix from the blob path" in {
     val builder = makeBlobPathBuilder(endpoint, container)
     val rootString = s"${endpoint.value}/${container.value}/cromwell-execution/"
     val execDirString = s"${endpoint.value}/${container.value}/cromwell-execution/abc123/myworkflow/task1/def4356/execution/"
     val fileString = s"${endpoint.value}/${container.value}/cromwell-execution/abc123/myworkflow/task1/def4356/execution/stdout"
->>>>>>> develop
     val blobRoot: BlobPath = builder build rootString getOrElse fail()
     val execDir: BlobPath = builder build execDirString getOrElse fail()
     val blobFile: BlobPath = builder build fileString getOrElse fail()

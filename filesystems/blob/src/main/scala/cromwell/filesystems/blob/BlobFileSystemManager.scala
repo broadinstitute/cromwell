@@ -2,7 +2,7 @@ package cromwell.filesystems.blob
 
 import bio.terra.workspace.client.ApiException
 import com.azure.core.credential.AzureSasCredential
-import com.azure.storage.blob.nio.{AzureFileSystem, AzureFileSystemProvider}
+import com.azure.storage.blob.nio.{AzureFileSystem, AzureFileSystemProvider, _}
 import com.azure.storage.blob.sas.{BlobContainerSasPermission, BlobServiceSasSignatureValues}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
@@ -11,6 +11,7 @@ import cromwell.cloudsupport.azure.{AzureCredentials, AzureUtils}
 
 import java.net.URI
 import java.nio.file._
+import java.nio.file.spi.FileSystemProvider
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, Instant, OffsetDateTime}
 import java.util.UUID
@@ -20,7 +21,7 @@ import scala.util.{Failure, Success, Try}
 // We encapsulate this functionality here so that we can easily mock it out, to allow for testing without
 // actually connecting to Blob storage.
 case class FileSystemAPI(private val provider: FileSystemProvider = new AzureFileSystemProvider()) {
-  def getFileSystem(uri: URI): Try[FileSystem] = Try(provider.getFileSystem(uri))
+  def getFileSystem(uri: URI): Try[FileSystem] = Try(provider.getFileSystem(uri).asInstanceOf[AzureFileSystem])
   def newFileSystem(uri: URI, config: Map[String, Object]): FileSystem = provider.newFileSystem(uri, config.asJava)
   def closeFileSystem(uri: URI): Option[Unit] = getFileSystem(uri).toOption.map(_.close)
 }
@@ -99,7 +100,10 @@ class BlobFileSystemManager(val expiryBufferMinutes: Long,
     blobTokenGenerator.generateBlobSasToken(endpoint, container)
       .flatMap((token: AzureSasCredential) => {
         Try(fileSystemAPI.newFileSystem(uri, BlobFileSystemManager.buildConfigMap(token, container)))
-      })
+      }) match {
+      case azureFilesystem : Try[AzureFileSystem] => azureFilesystem
+      case _ => Failure[AzureFileSystem](new FileSystemNotFoundException("Generated filesystem was not an azure filesystem"))
+    }
   }
 }
 

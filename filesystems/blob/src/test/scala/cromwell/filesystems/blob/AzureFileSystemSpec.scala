@@ -20,7 +20,7 @@ class AzureFileSystemSpec extends AnyFlatSpec with Matchers {
 
   // This test is passing locally but not in CI, because it can't find a filesystem provider with the azb scheme.
   // Some sort of build issue?
-  ignore should "parse an expiration from a sas token" in {
+  it should "parse an expiration from a sas token" in {
     val fs = FileSystems.newFileSystem(exampleCombinedEndpoint, exampleConfig.asJava).asInstanceOf[AzureFileSystem]
     fs.getExpiry.asScala shouldBe Some(now)
     fs.getFileStores.asScala.map(_.name()).exists(_ == container.value) shouldBe true

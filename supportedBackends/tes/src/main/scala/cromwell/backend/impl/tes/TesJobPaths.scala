@@ -4,6 +4,7 @@ import com.typesafe.config.Config
 import cromwell.backend.io.{JobPaths, WorkflowPaths}
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.path._
+import cromwell.filesystems.blob.BlobPath
 
 object TesJobPaths {
   def apply(jobKey: BackendJobDescriptorKey,
@@ -30,12 +31,16 @@ case class TesJobPaths private[tes] (override val workflowPaths: TesWorkflowPath
 
   /*
    * tesTaskRoot: This is the root directory that TES will use for files related to this task.
-   * We provide it to TES as a k/v pair where the key is "internal_path_prefix" (specified in TesWorkflowOptionKeys.scala)
-   * and the value is a blob path.
+   * TES expects a path relative to the root of the storage container.
+   * We provide it to TES as a k/v pair where the key is "internal_path_prefix" and the value is the relative path string.
    * This is not a standard TES feature, but rather related to the Azure TES implementation that Terra uses.
    * While passing it outside of terra won't do any harm, we could consider making this optional and/or configurable.
    */
-  val tesTaskRoot : Path = callExecutionRoot.resolve("tes_task")
+  private val taskFullPath = callRoot./("tes_task")
+  val tesTaskRoot : String = taskFullPath match {
+    case blob: BlobPath => blob.pathWithoutContainer
+    case anyOtherPath: Path => anyOtherPath.pathAsString
+  }
 
   // Given an output path, return a path localized to the storage file system
   def storageOutput(path: String): String = {

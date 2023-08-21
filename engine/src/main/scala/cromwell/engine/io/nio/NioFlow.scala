@@ -183,7 +183,8 @@ class NioFlow(parallelism: Int,
   private def getStoredHash(file: Path): IO[Option[FileHash]] = {
     file match {
       case gcsPath: GcsPath => getFileHashForGcsPath(gcsPath).map(Option(_))
-      case blobPath: BlobPath => getFileHashForBlobPath(blobPath)
+      // Temporarily disable since our hashing algorithm doesn't match the stored hash
+      case blobPath: BlobPath => IO.pure(None) //getFileHashForBlobPath(blobPath)
       case drsPath: DrsPath => IO {
         // We assume all DRS files have a stored hash; this will throw
         // if the file does not.

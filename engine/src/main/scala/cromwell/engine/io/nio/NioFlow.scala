@@ -159,7 +159,9 @@ class NioFlow(parallelism: Int,
 
     val fileContentIo = command.file match {
       case _: DrsPath  => readFileAndChecksum
-      case _: BlobPath => readFileAndChecksum
+      // Temporarily disable since our hashing algorithm doesn't match the stored hash
+      // https://broadworkbench.atlassian.net/browse/WX-1257
+      case _: BlobPath => readFile//readFileAndChecksum
       case _ => readFile
     }
     fileContentIo.map(_.replaceAll("\\r\\n", "\\\n"))
@@ -183,9 +185,7 @@ class NioFlow(parallelism: Int,
   private def getStoredHash(file: Path): IO[Option[FileHash]] = {
     file match {
       case gcsPath: GcsPath => getFileHashForGcsPath(gcsPath).map(Option(_))
-      // Temporarily disable since our hashing algorithm doesn't match the stored hash
-      // https://broadworkbench.atlassian.net/browse/WX-1257
-      case _: BlobPath => IO.pure(None) //getFileHashForBlobPath(blobPath)
+      case blobPath: BlobPath => getFileHashForBlobPath(blobPath)
       case drsPath: DrsPath => IO {
         // We assume all DRS files have a stored hash; this will throw
         // if the file does not.
@@ -231,9 +231,9 @@ class NioFlow(parallelism: Int,
   }
 
   // Restore with https://broadworkbench.atlassian.net/browse/WX-1257
-//  private def getFileHashForBlobPath(blobPath: BlobPath): IO[Option[FileHash]] = delayedIoFromTry {
-//    blobPath.md5HexString.map(md5 => md5.map(FileHash(HashType.Md5, _)))
-//  }
+  private def getFileHashForBlobPath(blobPath: BlobPath): IO[Option[FileHash]] = delayedIoFromTry {
+    blobPath.md5HexString.map(md5 => md5.map(FileHash(HashType.Md5, _)))
+  }
 
   private def generateMd5FileHashForPath(path: Path): IO[FileHash] = delayedIoFromTry {
     tryWithResource(() => path.newInputStream) { inputStream =>

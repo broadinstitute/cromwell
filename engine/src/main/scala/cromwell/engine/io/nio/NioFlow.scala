@@ -230,7 +230,6 @@ class NioFlow(parallelism: Int,
     gcsPath.objectBlobId.map(id => FileHash(HashType.GcsCrc32c, gcsPath.cloudStorage.get(id).getCrc32c))
   }
 
-  // Restore with https://broadworkbench.atlassian.net/browse/WX-1257
   private def getFileHashForBlobPath(blobPath: BlobPath): IO[Option[FileHash]] = delayedIoFromTry {
     blobPath.md5HexString.map(md5 => md5.map(FileHash(HashType.Md5, _)))
   }

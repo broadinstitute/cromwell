@@ -101,7 +101,7 @@ class TesTaskSpec
       TestConfig.emptyConfig)
 
     val expectedKey = "internal_path_prefix"
-    val expectedValue = Option(tesPaths.tesTaskRoot.pathAsString)
+    val expectedValue = Option(tesPaths.tesTaskRoot)
 
     //Assert path correctly ends up in the resources
     val wei = Option("abc123")

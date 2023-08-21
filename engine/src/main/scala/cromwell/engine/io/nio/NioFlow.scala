@@ -184,6 +184,7 @@ class NioFlow(parallelism: Int,
     file match {
       case gcsPath: GcsPath => getFileHashForGcsPath(gcsPath).map(Option(_))
       // Temporarily disable since our hashing algorithm doesn't match the stored hash
+      // https://broadworkbench.atlassian.net/browse/WX-1257
       case blobPath: BlobPath => IO.pure(None) //getFileHashForBlobPath(blobPath)
       case drsPath: DrsPath => IO {
         // We assume all DRS files have a stored hash; this will throw

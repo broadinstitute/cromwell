@@ -16,9 +16,6 @@ class AzureFileSystemSpec extends AnyFlatSpec with Matchers {
   val exampleStorageEndpoint = BlobPathBuilderSpec.buildEndpoint("testStorageAccount")
   val exampleCombinedEndpoint = BlobFileSystemManager.combinedEnpointContainerUri(exampleStorageEndpoint, container)
 
-
-  // This test is passing locally but not in CI, because it can't find a filesystem provider with the azb scheme.
-  // Some sort of build issue?
   it should "parse an expiration from a sas token" in {
     val provider = new AzureFileSystemProvider()
     val filesystem : AzureFileSystem = provider.newFileSystem(exampleCombinedEndpoint, exampleConfig.asJava).asInstanceOf[AzureFileSystem]

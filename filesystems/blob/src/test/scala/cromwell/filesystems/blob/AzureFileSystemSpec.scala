@@ -1,10 +1,9 @@
 package cromwell.filesystems.blob
 
-import com.azure.storage.blob.nio.AzureFileSystem
+import com.azure.storage.blob.nio.{AzureFileSystem, AzureFileSystemProvider}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.nio.file.FileSystems
 import java.time.Instant
 import scala.compat.java8.OptionConverters._
 import scala.jdk.CollectionConverters._
@@ -21,8 +20,9 @@ class AzureFileSystemSpec extends AnyFlatSpec with Matchers {
   // This test is passing locally but not in CI, because it can't find a filesystem provider with the azb scheme.
   // Some sort of build issue?
   it should "parse an expiration from a sas token" in {
-    val fs = FileSystems.newFileSystem(exampleCombinedEndpoint, exampleConfig.asJava).asInstanceOf[AzureFileSystem]
-    fs.getExpiry.asScala shouldBe Some(now)
-    fs.getFileStores.asScala.map(_.name()).exists(_ == container.value) shouldBe true
+    val provider = new AzureFileSystemProvider()
+    val filesystem : AzureFileSystem = provider.newFileSystem(exampleCombinedEndpoint, exampleConfig.asJava).asInstanceOf[AzureFileSystem]
+    filesystem.getExpiry.asScala shouldBe Some(now)
+    filesystem.getFileStores.asScala.map(_.name()).exists(_ == container.value) shouldBe true
   }
 }

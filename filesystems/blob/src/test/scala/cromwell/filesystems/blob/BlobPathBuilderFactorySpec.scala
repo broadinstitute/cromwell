@@ -119,7 +119,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     when(azureFileSystem.isExpired(Duration.ofMinutes(10L))).thenReturn(false)
     val fileSystems = mock[AzureFileSystemAPI]
     when(fileSystems.getFileSystem(azureUri)).thenReturn(Failure(new FileSystemNotFoundException))
-    when(fileSystems.newFileSystem(azureUri, configMap).get).thenReturn(azureFileSystem)
+    when(fileSystems.newFileSystem(azureUri, configMap)).thenReturn(Try(azureFileSystem))
     val blobTokenGenerator = mock[BlobSasTokenGenerator]
     when(blobTokenGenerator.generateBlobSasToken(endpoint, container)).thenReturn(Try(sasToken))
 
@@ -193,7 +193,7 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     when(azureFileSystem.isExpired(Duration.ofMinutes(10L))).thenReturn(false)
     val fileSystems = mock[AzureFileSystemAPI]
     when(fileSystems.getFileSystem(azureUri)).thenReturn(Failure(new FileSystemNotFoundException))
-    when(fileSystems.newFileSystem(azureUri, configMap).get).thenReturn(azureFileSystem)
+    when(fileSystems.newFileSystem(azureUri, configMap)).thenReturn(Try(azureFileSystem))
     val blobTokenGenerator = mock[BlobSasTokenGenerator]
     when(blobTokenGenerator.generateBlobSasToken(endpoint, container)).thenReturn(Try(sasToken))
 

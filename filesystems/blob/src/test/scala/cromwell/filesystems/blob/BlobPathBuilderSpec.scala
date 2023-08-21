@@ -79,9 +79,9 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
 
   def makeBlobPathBuilder(blobEndpoint: EndpointURL,
                           container: BlobContainerName): BlobPathBuilder = {
-    val blobTokenGenerator = NativeBlobSasTokenGenerator(container, blobEndpoint, Some(subscriptionId))
-    val fsm = new BlobFileSystemManager(container, blobEndpoint, 10, blobTokenGenerator)
-    new BlobPathBuilder(container, blobEndpoint)(fsm)
+    val blobTokenGenerator = NativeBlobSasTokenGenerator(Some(subscriptionId))
+    val fsm = new BlobFileSystemManager(10, blobTokenGenerator)
+    new BlobPathBuilder()(fsm)
   }
 
   it should "read md5 from small files <5g" in {

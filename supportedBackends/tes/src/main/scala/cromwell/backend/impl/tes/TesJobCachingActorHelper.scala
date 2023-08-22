@@ -19,6 +19,6 @@ trait TesJobCachingActorHelper extends StandardCachingActorHelper {
   lazy val tesConfiguration: TesConfiguration = initializationData.tesConfiguration
 
   lazy val runtimeAttributes = TesRuntimeAttributes(validatedRuntimeAttributes, jobDescriptor.runtimeAttributes, tesConfiguration)
-  override protected def nonStandardMetadata: Map[String, Any] = super.nonStandardMetadata ++ tesJobPaths.getAzureLogPathsForMetadata
+  override protected def nonStandardMetadata: Map[String, Any] = super.nonStandardMetadata ++ tesJobPaths.azureLogPathsForMetadata
 
 }

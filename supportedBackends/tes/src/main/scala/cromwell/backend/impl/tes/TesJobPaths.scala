@@ -45,7 +45,7 @@ case class TesJobPaths private[tes] (override val workflowPaths: TesWorkflowPath
 
   // Like above: Nothing should rely on these files existing, since only the Azure TES implementation will actually create them.
   // Used to send the Azure TES log paths to the frontend.
-  def getAzureLogPathsForMetadata : Map[String, Any] = Map(
+  val azureLogPathsForMetadata : Map[String, Any] = Map(
     "tes_stdout" -> taskFullPath./("stdout.txt").pathAsString,
     "tes_stderr" -> taskFullPath./("stderr.txt").pathAsString
   )

@@ -159,7 +159,9 @@ class NioFlow(parallelism: Int,
 
     val fileContentIo = command.file match {
       case _: DrsPath  => readFileAndChecksum
-      case _: BlobPath => readFileAndChecksum
+      // Temporarily disable since our hashing algorithm doesn't match the stored hash
+      // https://broadworkbench.atlassian.net/browse/WX-1257
+      case _: BlobPath => readFile//readFileAndChecksum
       case _ => readFile
     }
     fileContentIo.map(_.replaceAll("\\r\\n", "\\\n"))

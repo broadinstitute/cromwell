@@ -500,10 +500,11 @@ public final class AzureFileSystem extends FileSystem {
     }
 
     public String createSASAppendedURL(String url) throws IllegalStateException {
-        if(Objects.isNull(currentActiveSasCredential)) {
+        if (Objects.isNull(currentActiveSasCredential)) {
             throw new IllegalStateException("No current active SAS credential present");
         }
         return url + "?" + currentActiveSasCredential.getSignature();
+    }
 
     public Optional<Instant> getExpiry() {
         return Optional.ofNullable(expiry);

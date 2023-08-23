@@ -247,7 +247,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     stdout = Option(tesPaths.containerOutput(containerWorkDir, "stdout")),
     stderr = Option(tesPaths.containerOutput(containerWorkDir, "stderr")),
     stdin = None,
-    env = None
+    env = Option(Map("AZURE_STORAGE_SAS_TOKEN" -> "It's a secret"))
   ))
 
   val resources: Resources = TesTask.makeResources(

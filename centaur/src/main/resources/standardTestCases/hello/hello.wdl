@@ -1,13 +1,12 @@
 task hello {
-  String addressee
   command {
-    echo "Hello ${addressee}!"
+    echo "Hello DRAGEN!"
   }
   output {
     String salutation = read_string(stdout())
   }
   runtime {
-    docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+    docker: "dragenpublicwestus.azurecr.io/dragen-xrt/el7/x86_64:3.7.8m"
   }
 }
 

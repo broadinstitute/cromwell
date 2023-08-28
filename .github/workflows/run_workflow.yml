@@ -1,10 +1,6 @@
-# Workflow action that will run Cromwell e2e test against a Azure based BEE
-# For now it'll only test that a simple workflow is run
-
-#Ned to create a billing project in Azure first before being able to run the test
-
 name: 'Azure e2e - Run Workflow'
 on:
+  push:
   workflow_dispatch:
     branches:
       - WX-983

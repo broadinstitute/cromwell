@@ -1,0 +1,26 @@
+name: azure_blob_call_cache
+testFormat: runtwiceexpectingcallcaching
+backends: [Local]
+tags: ["blob", "azure"]
+retryTestFailures: false
+
+files {
+  workflow: azure_blob_call_cache/azure_blob_call_cache.wdl
+  inputs: azure_blob_call_cache/azure_blob_call_cache.inputs
+  options: azure_blob_call_cache/azure_blob_call_cache.options
+}
+
+metadata {
+  worfklowName: azure_blob_call_cache
+  status: Succeeded
+  "outputs.azure_blob_call_cache.s1": "We are not doing any real work here."
+  "calls.azure_blob_call_cache.blob_and_acr_exercise.callCaching.result": "Cache Hit: <<CACHE_HIT_UUID>>:azure_blob_call_cache.blob_and_acr_exercise:-1"
+}
+
+# az:// is the root of the container specified in reference.conf.
+# Here, we verify that exactly one log was written.
+
+fileSystemCheck: "blob"
+outputExpectations: {
+   "az://test-cromwell-workflow-logs/workflow.<<UUID>>.log" : 1
+}

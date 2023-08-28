@@ -1,0 +1,5 @@
+{
+  "azure_blob_call_cache.file1": "https://centaurtesting.blob.core.windows.net/test-blob/testRead.txt",
+  "azure_blob_call_cache.file1": "https://centaurtesting.blob.core.windows.net/test-blob/Rocky-9.2-aarch64-dvd.iso",
+  "azure_blob_call_cache.file1": "https://centaurtesting.blob.core.windows.net/test-blob/redundant_md5_test.txt"
+}

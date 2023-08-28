@@ -26,11 +26,11 @@ task blob_and_acr_exercise {
   }
 
   command {
-	echo "We are not doing any real work here."
+    echo "We are not doing any real work here."
   }
 
   output {
-	String out = read_string(stdout())
+    String out = read_string(stdout())
   }
 
   runtime {

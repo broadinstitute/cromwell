@@ -7,6 +7,8 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
 import akka.util.ByteString
+import com.typesafe.config.Config
+import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.BackendLifecycleActor.BackendWorkflowLifecycleActorResponse
 import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationFailed, FinalizationSuccess, Finalize}
 import cromwell.core.Dispatcher.IoDispatcher
@@ -15,13 +17,47 @@ import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{CallOutputs, WorkflowId, WorkflowState}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackJsonSupport._
+import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.duration.DurationInt
+import scala.util.Try
 //import cromwell.services.ServiceRegistryActor
 
 import java.net.URI
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
+
+
+case class WorkflowCallbackConfig(enabled: Boolean,
+                                  uri: Option[URI], // May be overridden by workflow options
+                                  retryBackoff: Option[SimpleExponentialBackoff]
+                                  // TODO auth
+  )
+
+object WorkflowCallbackConfig extends LazyLogging {
+  def apply(config: Config): WorkflowCallbackConfig = {
+    val backoff = config.as[Option[Config]]("request-backoff").map(SimpleExponentialBackoff(_))
+    val uri = config.as[Option[String]]("endpoint").flatMap(createAndValidateUri)
+
+    WorkflowCallbackConfig(
+      config.getBoolean("enabled"),
+      uri = uri,
+      retryBackoff = backoff
+    )
+  }
+
+  def createAndValidateUri(uriString: String): Option[URI] = {
+    // TODO validate
+    Try(new URI(uriString)) match {
+      case Success(uri) => Option(uri)
+      case Failure(err) =>
+        logger.warn(s"Failed to parse provided workflow callback URI (${uriString}): $err")
+        None
+    }
+  }
+}
+
 
 /**
   * The WorkflowCallbackActor is responsible for sending a message on workflow completion to a configured endpoint.
@@ -35,7 +71,7 @@ object WorkflowCallbackActor {
             workflowOutputs: CallOutputs,
             lastWorkflowState: WorkflowState,
             callbackUri: URI,
-            retryBackoff: SimpleExponentialBackoff
+            retryBackoff: Option[SimpleExponentialBackoff] = None
            ) = Props(
     new WorkflowCallbackActor(
       workflowId,
@@ -54,7 +90,7 @@ class WorkflowCallbackActor(workflowId: WorkflowId,
                             workflowOutputs: CallOutputs,
                             lastWorkflowState: WorkflowState,
                             callbackUri: URI,
-                            retryBackoff: SimpleExponentialBackoff)
+                            retryBackoff: Option[SimpleExponentialBackoff])
   extends Actor with ActorLogging {
 
   implicit val ec: ExecutionContextExecutor = context.dispatcher
@@ -63,6 +99,9 @@ class WorkflowCallbackActor(workflowId: WorkflowId,
   lazy private val callbackMessage = CallbackMessage(
     workflowId.toString, lastWorkflowState.toString, workflowOutputs.outputs.map(entry => (entry._1.name, entry._2))
   )
+
+  private lazy val defaultRetryBackoff = SimpleExponentialBackoff(2.seconds, 30.seconds, 1.1)
+  private lazy val backoffWithDefault = retryBackoff.getOrElse(defaultRetryBackoff)
 
   override def receive = LoggingReceive {
     case Finalize => performActionThenRespond(
@@ -87,7 +126,9 @@ class WorkflowCallbackActor(workflowId: WorkflowId,
       entity <- Marshal(callbackMessage).to[RequestEntity]
       request = HttpRequest(method = HttpMethods.POST, uri = callbackUri.toString, entity = entity)
       // TODO add logging for retries
-      response <- withRetry(() => Http().singleRequest(request.withHeaders(headers)), backoff = retryBackoff)
+      // TODO retries aren't working?
+      // TODO don't fall over if there's a response body
+      response <- withRetry(() => Http().singleRequest(request.withHeaders(headers)), backoff = backoffWithDefault)
       result <- if (response.status.isFailure()) {
         response.entity.dataBytes.runFold(ByteString(""))(_ ++ _).map(_.utf8String) flatMap { errorBody =>
           Future.failed(

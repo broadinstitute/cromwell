@@ -46,14 +46,16 @@ object WorkflowFinalizationActor {
             jobExecutionMap: JobExecutionMap,
             workflowOutputs: CallOutputs,
             initializationData: AllBackendInitializationData,
-            copyWorkflowOutputsActor: Option[Props]): Props = {
+            copyWorkflowOutputsActor: Option[Props],
+            workflowCallbackActorProps: Option[Props]): Props = {
     Props(new WorkflowFinalizationActor(
       workflowDescriptor,
       ioActor,
       jobExecutionMap,
       workflowOutputs,
       initializationData,
-      copyWorkflowOutputsActor
+      copyWorkflowOutputsActor,
+      workflowCallbackActorProps
     )).withDispatcher(EngineDispatcher)
   }
 }
@@ -63,7 +65,8 @@ case class WorkflowFinalizationActor(workflowDescriptor: EngineWorkflowDescripto
                                      jobExecutionMap: JobExecutionMap,
                                      workflowOutputs: CallOutputs,
                                      initializationData: AllBackendInitializationData,
-                                     copyWorkflowOutputsActorProps: Option[Props])
+                                     copyWorkflowOutputsActorProps: Option[Props],
+                                     workflowCallbackActorProps: Option[Props])
   extends WorkflowLifecycleActor[WorkflowFinalizationActorState] {
 
   override lazy val workflowIdForLogging = workflowDescriptor.possiblyNotRootWorkflowId
@@ -99,12 +102,22 @@ case class WorkflowFinalizationActor(workflowDescriptor: EngineWorkflowDescripto
         } yield actor
       }
 
-      val engineFinalizationActor = Try { copyWorkflowOutputsActorProps.map(context.actorOf(_, "CopyWorkflowOutputsActor")).toList }
+      val engineFinalizationActors = Try {
+        List(
+          (copyWorkflowOutputsActorProps, "CopyWorkflowOutputsActor"),
+          (workflowCallbackActorProps, "WorkflowCallbackActor")
+        ).flatMap { engineActor =>
+          engineActor match {
+            case (Some(props), actorName) => Some(context.actorOf(props, actorName))
+            case _ => None
+          }
+        }
+      }
 
       val allActors = for {
         backendFinalizationActorsFromTry <- backendFinalizationActors
-        engineFinalizationActorFromTry <- engineFinalizationActor
-      } yield backendFinalizationActorsFromTry.toList ++ engineFinalizationActorFromTry
+        engineFinalizationActorsFromTry <- engineFinalizationActors
+      } yield backendFinalizationActorsFromTry.toList ++ engineFinalizationActorsFromTry
 
       allActors match {
         case Failure(ex) =>

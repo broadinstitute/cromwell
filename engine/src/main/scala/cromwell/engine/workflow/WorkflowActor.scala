@@ -1,7 +1,6 @@
 package cromwell.engine.workflow
 
 import java.util.concurrent.atomic.AtomicInteger
-
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import com.typesafe.config.Config
@@ -24,7 +23,7 @@ import cromwell.engine.workflow.lifecycle.deletion.DeleteWorkflowFilesActor.{Del
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationFailedResponse, WorkflowFinalizationSucceededResponse}
-import cromwell.engine.workflow.lifecycle.finalization.{CopyWorkflowLogsActor, CopyWorkflowOutputsActor, WorkflowFinalizationActor}
+import cromwell.engine.workflow.lifecycle.finalization.{CopyWorkflowLogsActor, CopyWorkflowOutputsActor, WorkflowCallbackActor, WorkflowCallbackConfig, WorkflowFinalizationActor}
 import cromwell.engine.workflow.lifecycle.initialization.WorkflowInitializationActor
 import cromwell.engine.workflow.lifecycle.initialization.WorkflowInitializationActor.{StartInitializationCommand, WorkflowInitializationFailedResponse, WorkflowInitializationResponse, WorkflowInitializationSucceededResponse}
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor
@@ -256,6 +255,8 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
   private val startTime = System.currentTimeMillis()
 
   private val deleteWorkflowFiles = conf.getBoolean("system.delete-workflow-files")
+
+  private val workflowCallbackConfig = WorkflowCallbackConfig(conf.getConfig("workflow-state-callback"))
 
   private val workflowDockerLookupActor = context.actorOf(
     WorkflowDockerLookupActor.props(workflowId, dockerHashActor, initialStartableState.restarted), s"WorkflowDockerLookupActor-$workflowId")
@@ -664,13 +665,35 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       case _ => Option(CopyWorkflowOutputsActor.props(workflowIdForLogging, ioActor, workflowDescriptor, workflowOutputs, stateData.initializationData))
     }
 
+    val workflowCallbackActorProps = if (workflowCallbackConfig.enabled) {
+      // TODO do we need to check whether this is the root workflow?
+      workflowDescriptor
+        .getWorkflowOption(WorkflowOptions.WorkflowCallbackUri)
+        .flatMap(WorkflowCallbackConfig.createAndValidateUri)
+        .orElse(workflowCallbackConfig.uri)
+        .map(
+          WorkflowCallbackActor.props(
+            rootWorkflowIdForLogging,
+            workflowDescriptor,
+            workflowOutputs,
+            stateName.workflowState,
+            _,
+            workflowCallbackConfig.retryBackoff
+          )
+        )
+    }
+    else {
+      None
+    }
+
     context.actorOf(WorkflowFinalizationActor.props(
       workflowDescriptor = workflowDescriptor,
       ioActor = ioActor,
       jobExecutionMap = jobExecutionMap,
       workflowOutputs = workflowOutputs,
       initializationData = stateData.initializationData,
-      copyWorkflowOutputsActor = copyWorkflowOutputsActorProps
+      copyWorkflowOutputsActor = copyWorkflowOutputsActorProps,
+      workflowCallbackActorProps = workflowCallbackActorProps
     ), name = s"WorkflowFinalizationActor")
   }
 

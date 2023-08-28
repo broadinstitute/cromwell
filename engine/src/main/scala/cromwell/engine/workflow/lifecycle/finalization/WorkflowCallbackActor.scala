@@ -100,7 +100,7 @@ class WorkflowCallbackActor(workflowId: WorkflowId,
     workflowId.toString, lastWorkflowState.toString, workflowOutputs.outputs.map(entry => (entry._1.name, entry._2))
   )
 
-  private lazy val defaultRetryBackoff = SimpleExponentialBackoff(2.seconds, 30.seconds, 1.1)
+  private lazy val defaultRetryBackoff = SimpleExponentialBackoff(3.seconds, 5.minutes, 1.1)
   private lazy val backoffWithDefault = retryBackoff.getOrElse(defaultRetryBackoff)
 
   override def receive = LoggingReceive {
@@ -125,22 +125,31 @@ class WorkflowCallbackActor(workflowId: WorkflowId,
     for {
       entity <- Marshal(callbackMessage).to[RequestEntity]
       request = HttpRequest(method = HttpMethods.POST, uri = callbackUri.toString, entity = entity)
-      // TODO add logging for retries
-      // TODO retries aren't working?
-      // TODO don't fall over if there's a response body
-      response <- withRetry(() => Http().singleRequest(request.withHeaders(headers)), backoff = backoffWithDefault)
-      result <- if (response.status.isFailure()) {
-        response.entity.dataBytes.runFold(ByteString(""))(_ ++ _).map(_.utf8String) flatMap { errorBody =>
-          Future.failed(
-            new RuntimeException(s"Permanently failed to send callback for workflow state $lastWorkflowState to $callbackUri : $errorBody")
-          )
-        }
-      } else {
+      response <- withRetry(
+        () => sendRequestOrFail(request.withHeaders(headers)),
+        backoff = backoffWithDefault,
+        onRetry = err => log.warning(s"Will retry after failure to send workflow callback for workflow $workflowId in state $lastWorkflowState to $callbackUri : $err")
+      )
+      result <- {
+        response.entity.discardBytes()
         log.info(s"Successfully sent callback for workflow state $lastWorkflowState to $callbackUri")
         // TODO send metadata
         Future.unit
       }
+
     } yield result
   }
+
+  def sendRequestOrFail(request: HttpRequest): Future[HttpResponse] =
+    Http().singleRequest(request).flatMap(response =>
+      if (response.status.isFailure()) {
+        response.entity.dataBytes.runFold(ByteString(""))(_ ++ _).map(_.utf8String) flatMap { errorBody =>
+          Future.failed(
+            new RuntimeException(errorBody)
+          )
+        }
+      } else Future.successful(response)
+    )
+
 }
 

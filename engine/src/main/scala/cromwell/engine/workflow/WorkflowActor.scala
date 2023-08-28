@@ -666,7 +666,6 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
     }
 
     val workflowCallbackActorProps = if (workflowCallbackConfig.enabled) {
-      // TODO do we need to check whether this is the root workflow?
       workflowDescriptor
         .getWorkflowOption(WorkflowOptions.WorkflowCallbackUri)
         .flatMap(WorkflowCallbackConfig.createAndValidateUri)

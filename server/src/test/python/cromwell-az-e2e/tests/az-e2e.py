@@ -132,7 +132,7 @@ def get_completed_workflow(app_url, workflow_ids, max_retries=4):
                 # Reset current count to 0 for next retry
                 # Decrement max_retries by 1
                 # Wait 5 minutes before checking workflow statuses again
-                print(f"There are still workflows in progress: [{workflow_ids.join(', ')}]")
+                print(f"These workflows have yet to return a completed status: [{workflow_ids.join(', ')}]")
                 max_retries -= 1
                 current_running_workflow_count = 0
                 time.sleep(60 * 5)

@@ -6,6 +6,8 @@
 name: 'Azure e2e - Run Workflow'
 on:
   workflow_dispatch:
+    branches:
+      - WX-983
     inputs:
       target-branch:
         description: 'Branch of Cromwell to run tests on'

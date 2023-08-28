@@ -23,6 +23,9 @@ console_output.txt
 expected.json
 run_mode_metadata.json
 
+#bloop files
+/.bloop
+
 # custom config
 cromwell-executions
 cromwell-test-executions

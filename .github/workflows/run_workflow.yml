@@ -11,7 +11,7 @@ on:
         default: 'develop'
         type: string
       # Replace user data with seeded data provided by devOps (once available)
-      user-subject:
+      owner-subject:
         description: 'User who will be submitting workflow'
         required: true
         default: 'hermione.owner@quality.firecloud.org'
@@ -72,6 +72,7 @@ jobs:
 
   create-bee-workflow:
     runs-on: ubuntu-latest
+    needs: [init-github-context, az-e2e-params-gen]
     permissions:
       contents: 'read'
       id-token: 'write'
@@ -176,7 +177,7 @@ jobs:
           repo: broadinstitute/terra-github-workflows
           ref: refs/heads/iv-az-e2e-1
           token: ${{ env.TOKEN }}
-          inputs: '{ "bee-name": "${{ env.BEE_NAME }}", "billing-project": "${{ needs.az-e2e-params-gen.outputs.project-name }}", "billing-project-owner": "${{ inputs.user-subject }}", "service-account": "${{ inputs.service-account }}" }'
+          inputs: '{ "bee-name": "${{ env.BEE_NAME }}", "billing-project": "${{ needs.az-e2e-params-gen.outputs.project-name }}", "billing-project-owner": "${{ inputs.owner-subject }}", "service-account": "${{ inputs.service-account }}" }'
 
   destroy-bee-workflow:
     runs-on: ubuntu-latest

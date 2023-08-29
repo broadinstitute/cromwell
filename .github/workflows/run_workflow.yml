@@ -9,7 +9,7 @@ on:
         type: string
       # Replace user data with seeded data provided by devOps (once available)
       owner-subject:
-        description: 'User who will be submitting workflow'
+        description: 'Owner of billing project'
         required: true
         default: 'hermione.owner@quality.firecloud.org'
         type: string
@@ -23,36 +23,11 @@ on:
         required: true
         default: 'profile, email, openid'
         type: string
-      tenant-id:
-        description: 'Azure tenant ID. The default tenant is DSP Terra Dev'
-        required: true
-        # Swap with devOps provided tenant ID when available
-        default: 'fad90753-2022-4456-9b0a-c7e5b934e408'
-        type: string
-      subscription-id:
-        description: 'Azure subscription ID'
-        required: true
-        # Update this with the static variable provided by devOps (once it's available)
-        default: 'f557c728-871d-408c-a28b-eb6b2141a087'
-        type: string
-      mrg-id:
-        # Update this with the static variable devOps provides (when available)
-        description: 'Azure Managed Resource Group name. The default is staticTestingMrg within subscription 8201558-dsp-azure-testing.'
-        required: true
-        default: 'staticTestingMrg'
-        type: string
-      landing-zone-id:
-        description: 'Landing Zone ID. An existing LZID tag within a given MRG.'
-        required: true
-        # NOTE: LZs are deleted and recreated after a couple of days, need to figure out a way to get this dynamically
-        # Might not be an issue. DevOps is working on getting static Landing Zones up and running
-        # Update this with the static value from devOps (once available)
-        default: 'f41c1a97-179b-4a18-9615-5214d79ba600'
-        type: string
 
 env:
   BEE_NAME: '${{ github.event.repository.name }}-${{ github.run_id }}-${{ github.run_attempt}}-dev'
   TOKEN: '${{ secrets.BROADBOT_GITHUB_TOKEN }}' # github token for access to kick off a job in the private repo
+  RUN_NAME_SUFFIX: '${{ github.event.repository.name }}-${{ github.run_id }}-${{ github.run_attempt }}'
 
 jobs:
   init-github-context:
@@ -108,16 +83,12 @@ jobs:
           access_token_scopes: ${{ inputs.access-token-scopes }}
           access_token_subject: ${{ inputs.owner-subject }}
           export_environment_variables: false
-
-#      UPDATE: may not need this either if DevOps provides a static billing project, landing zone, and resource group.
       - name: Generate a random billing project name
         id: 'gen'
         run: |
           project_name=$(echo "tmp-billing-project-$(uuidgen)" | cut -c -30)
           echo "project_name=${project_name}" >> $GITHUB_OUTPUT
 
-#   NOTE: Ivan is currently building out a workflow to handle this
-#   Should I wait or move forward with my own implementation?
   attach-landing-zone-to-bee-workflow:
     runs-on: ubuntu-latest
     needs: [az-e2e-params-gen, create-bee-workflow]
@@ -133,9 +104,14 @@ jobs:
         with:
           workflow: attach-landing-zone-to-bee.yaml
           repo: broadinstitute/terra-github-workflows
+          ref: refs/heads/iv-az-e2e-1
           token: ${{ env.TOKEN }}
-#           NOTE: Replace these values with devOps' static values
-          inputs: '{ "bee-name": "${{ env.BEE_NAME }}", "billing-project": "${{ needs.az-e2e-params-gen.outputs.project-name }}", "tenant-id": "${{ inputs.tenant-id }}", "subscription-id": "${{ inputs.subscription-id }}", "mrg-id": "${{ inputs.mrg-id }}", "landing-zone-id": "${{ inputs.landing-zone-id }}", "billing-project-creator": "${{ inputs.owner-subject }}", "service-account": "${{ inputs.service-account }}" }'
+          inputs: '{ 
+            "bee-name": "${{ env.BEE_NAME }}",
+            "run-name": "attach-landing-zone-to-bee-${{env.RUN_NAME_SUFFIX}}"
+            "billing-project": "${{ needs.az-e2e-params-gen.outputs.project-name }}",  
+            "billing-project-creator": "${{ inputs.owner-subject }}", 
+            "service-account": "${{ inputs.service-account }}" }'
 
   run-cromwell-az-e2e:
     runs-on: ubuntu-latest

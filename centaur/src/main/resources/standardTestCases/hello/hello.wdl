@@ -6,7 +6,7 @@ task hello {
     String salutation = read_string(stdout())
   }
   runtime {
-    docker: "dragenpublicwestus.azurecr.io/dragen-xrt/el7/x86_64:3.7.8m"
+    docker: "whatever38fj.azurecr.io/f00:v6.456"
   }
 }
 

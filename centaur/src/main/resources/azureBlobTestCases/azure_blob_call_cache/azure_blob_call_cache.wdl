@@ -34,6 +34,6 @@ task blob_and_acr_exercise {
   }
 
   runtime {
-    docker: "postgres:latest"
+    docker: "gcr.io/cloud-marketplace/google/postgresql"
   }
 }

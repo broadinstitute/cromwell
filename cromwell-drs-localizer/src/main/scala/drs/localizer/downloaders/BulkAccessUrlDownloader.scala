@@ -1,56 +1,31 @@
 package drs.localizer.downloaders
 
-import cats.data.Validated.{Invalid, Valid}
 import cats.effect.{ExitCode, IO}
 import cloud.nio.impl.drs.AccessUrl
 import com.typesafe.scalalogging.StrictLogging
-import common.exception.AggregatedMessageException
-import common.util.StringUtil._
 import common.validation.ErrorOr.ErrorOr
 import drs.localizer.downloaders.AccessUrlDownloader._
 
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path, Paths}
 import scala.sys.process.{Process, ProcessLogger}
 import scala.util.Try
 import scala.util.matching.Regex
 
 case class GetmResult(returnCode: Int, stderr: String)
 
-case class BulkAccessUrlDownloader(urlToDownlaodLocation : Map[AccessUrl, String], hashes: Hashes) extends Downloader with StrictLogging {
+case class BulkAccessUrlDownloader(urlToDownloadLocation : Map[AccessUrl, String]) extends Downloader with StrictLogging {
 
-  def generateJsonManifest : Try[String] = {
-    //TODO: Make a JSON file with the structure:
-    //[
-    //  {
-    //      "url" : accessUrl,
-    //       "filepath" : containerPath,
-    //      "checksum" : "not sure what goes here",
-    //      "checksum-algorithm" : GetmChecksum(hashes, accessUrl)
-    //  },
-    //  {
-    //      "url" : accessUrl,
-    //      "filepath": containerPath,
-    //      "checksum" : "not sure what goes here",
-    //    "checksum-algorithm": GetmChecksum(hashes, accessUrl)
-    //  }
-    //]
-
+  private def generateBulkDownloadScript: Try[String] = {
+    val manifestPath = generateJsonManifest(urlToDownloadLocation)
+    val downloadLoc = "getmDL"
+    val checksumArgs = "pleaseCompile"
+    generateJsonManifest(urlToDownloadLocation).map(mainfestPath =>  s"""mkdir -p $$(dirname '$downloadLoc') && rm -f '$downloadLoc' && getm $checksumArgs --manifest $manifestPath'""")
   }
 
-  def generateDownloadScript: ErrorOr[String] = {
-    val signedUrl = accessUrl.url
-    GetmChecksum(hashes, accessUrl).args map { checksumArgs =>
-      s"""mkdir -p $$(dirname '$downloadLoc') && rm -f '$downloadLoc' && getm $checksumArgs --filepath '$downloadLoc' '$signedUrl'"""
-    }
-  }
-
-  def generateBulkDownloadScript: ErrorOr[String] = {
-    val manifestPath = generateJsonManifest()
-  }
-
-  def toJsonString(accessUrl: String, filepath: String, checksum: ErrorOr[String], checksumAlgorithm: String): String = {
+  private def toJsonString(accessUrl: String, filepath: String, checksum: ErrorOr[String], checksumAlgorithm: String): String = {
     //NB: trailing comma is being removed in generateJsonManifest
     if (checksum.isValid) {
-      return
         s"""{
            | "url" : "$accessUrl"
            | "filepath" : "$filepath"
@@ -58,16 +33,16 @@ case class BulkAccessUrlDownloader(urlToDownlaodLocation : Map[AccessUrl, String
            | "checksum-algorithm" : "$checksumAlgorithm"
            | },
            |""".stripMargin
+    } else {
+      s"""{
+         | "url" : "$accessUrl"
+         | "filepath" : "$filepath"
+         | },
+         |""".stripMargin
     }
-
-    s"""{
-       | "url" : "$accessUrl"
-       | "filepath" : "$filepath"
-       | },
-       |""".stripMargin
   }
 
-  def generateJsonManifest(accessUrlToDownloadDest: Map[AccessUrl, String]): Try[Path] = {
+  private def generateJsonManifest(accessUrlToDownloadDest: Map[AccessUrl, String]): Try[Path] = {
     //write a json file that looks like:
     // [
     //  {
@@ -85,7 +60,8 @@ case class BulkAccessUrlDownloader(urlToDownlaodLocation : Map[AccessUrl, String
     // ]
     var jsonString: String = "[\n"
     for ((accessUrl -> downloadDestination) <- accessUrlToDownloadDest) {
-      jsonString += toJsonString(accessUrl.url, downloadDestination, GetmChecksum(hashes, accessUrl).escapedChecksum, GetmChecksum(hashes, accessUrl).getmAlgorithm)
+      val hashes : Option[Map[String,String]] = Option(Map("" -> ""))
+      jsonString += toJsonString(accessUrl.url, downloadDestination, GetmChecksum(hashes, accessUrl).value, GetmChecksum(hashes, accessUrl).getmAlgorithm)
     }
     jsonString = jsonString.substring(0, jsonString.lastIndexOf(",")) //remove trailing comma from array elements
     jsonString += "]"
@@ -93,31 +69,19 @@ case class BulkAccessUrlDownloader(urlToDownlaodLocation : Map[AccessUrl, String
   }
 
   def runGetm: IO[GetmResult] = {
-    generateDownloadScript match {
-      case Invalid(errors) =>
-        IO.raiseError(AggregatedMessageException("Error generating access URL download script", errors.toList))
-      case Valid(script) => IO {
-        val copyCommand = Seq("bash", "-c", script)
-        val copyProcess = Process(copyCommand)
-
-        val stderr = new StringBuilder()
-        val errorCapture: String => Unit = { s => stderr.append(s); () }
-
-        // As of `getm` version 0.0.4 the contents of stdout do not appear to be interesting (only a progress bar
-        // with no option to suppress it), so ignore stdout for now. If stdout becomes interesting in future versions
-        // of `getm` it can be captured just like stderr is being captured here.
-        val returnCode = copyProcess ! ProcessLogger(_ => (), errorCapture)
-
-        GetmResult(returnCode, stderr.toString().trim())
-      }
-    }
+    val script = generateBulkDownloadScript
+    val copyCommand : Seq[String] = Seq("bash", "-c", script.get)
+    val copyProcess = Process(copyCommand)
+    val stderr = new StringBuilder()
+    val errorCapture: String => Unit = { s => stderr.append(s); () }
+    val returnCode = copyProcess ! ProcessLogger(_ => (), errorCapture)
+    IO(GetmResult(returnCode, stderr.toString().trim()))
   }
 
   override def download: IO[DownloadResult] = {
     // We don't want to log the unmasked signed URL here. On a PAPI backend this log will end up under the user's
     // workspace bucket, but that bucket may have visibility different than the data referenced by the signed URL.
-    val masked = accessUrl.url.maskSensitiveUri
-    logger.info(s"Attempting to download data to '$downloadLoc' from access URL '$masked'.")
+    logger.info(s"Attempting to download data")
 
     runGetm map toDownloadResult
   }

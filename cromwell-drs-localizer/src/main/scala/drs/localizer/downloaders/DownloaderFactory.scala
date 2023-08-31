@@ -7,7 +7,7 @@ import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 trait DownloaderFactory {
   def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader]
 
-  def buildBulkAccessUrlDownloader(urlToDownloadDestinationMap : Map[AccessUrl, String], hashes: Hashes) : IO[Downloader]
+  def buildBulkAccessUrlDownloader(urlToDownloadDestinationMap : Map[AccessUrl, String]) : IO[Downloader]
 
   def buildGcsUriDownloader(gcsPath: String,
                             serviceAccountJsonOption: Option[String],

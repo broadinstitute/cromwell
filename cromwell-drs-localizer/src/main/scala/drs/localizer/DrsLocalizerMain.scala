@@ -2,7 +2,6 @@ package drs.localizer
 
 import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO, IOApp}
-import cats.implicits._
 import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDisposition}
 import cloud.nio.impl.drs._
 import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
@@ -12,18 +11,14 @@ import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
 import org.apache.commons.csv.{CSVFormat, CSVParser}
 
-import java.io.{File, IOException}
+import java.io.{File}
 import java.nio.charset.Charset
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
-import spray.json._
-import DefaultJsonProtocol._
-import drs.localizer.URIType.{GCS, URIType}
+import drs.localizer.URIType.{URIType}
 
-import java.nio.file.{Files, Paths}
-import java.nio.charset.StandardCharsets
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Try}
 
 object DrsLocalizerMain extends IOApp with StrictLogging {
 
@@ -49,14 +44,15 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     initialInterval = 10 seconds, maxInterval = 60 seconds, multiplier = 2)
 
   val defaultDownloaderFactory: DownloaderFactory = new DownloaderFactory {
-    override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader] =
-      IO.pure(AccessUrlDownloader(accessUrl, downloadLoc, hashes))
-
+    override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader] = {
+      val downloader = AccessUrlDownloader(accessUrl, downloadLoc, hashes)
+      IO.pure(downloader)
+    }
     override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] =
       IO.pure(GcsUriDownloader(gcsPath, serviceAccountJsonOption, downloadLoc, requesterPaysProjectOption))
 
-    override def buildBulkAccessUrlDownloader(urlToDownloadDestinationMap: Map[AccessUrl, String], hashes: Hashes): IO[Downloader] = {
-      IO.pure(BulkAccessUrlDownloader(urlToDownloadDestinationMap, hashes))
+    override def buildBulkAccessUrlDownloader(urlToDownloadDestinationMap: Map[AccessUrl, String]): IO[Downloader] = {
+      IO.pure(BulkAccessUrlDownloader(urlToDownloadDestinationMap))
     }
   }
 
@@ -95,9 +91,9 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
 
   private[localizer] def toUriType(drsResponse: DrsResolverResponse): Try[URIType] = {
     (drsResponse.accessUrl, drsResponse.gsUri) match {
-      case (Some(accessUrl), _) =>
+      case (Some(_), _) =>
         Try(URIType.HTTPS)
-      case (_, Some(gcsPath)) =>
+      case (_, Some(_)) =>
         Try(URIType.GCS)
       case _ =>
         Failure(new RuntimeException(DrsPathResolver.ExtractUriErrorMsg))
@@ -123,7 +119,12 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
           val bulkAccessResult : IO[ExitCode] = bulkDownloadResolvedAccessUrls(accessUrls, drsCredentials)
           val googleResult : List[IO[DownloadResult]] = bulkDownloadResolvedGoogleUrls(googleUrls, commandLineArguments.googleRequesterPaysProject)
 
-        IO(ExitCode.Success)
+        if(bulkAccessResult.equals(true) && googleResult.equals(true)) {
+          IO(ExitCode.Success)
+        } else {
+          IO(ExitCode.Error)
+        }
+
         }
       case None =>
         val drsObject = commandLineArguments.drsObject.get
@@ -133,8 +134,10 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
   }
 
   def bulkDownloadResolvedAccessUrls(resolvedUrlToOutputDestination : Map[DrsResolverResponse, String], drsCredentials: DrsCredentials): IO[ExitCode] = {
-    //TODO: invoke new bulk getm downloader
-    return IO{ExitCode(0)}
+    val accessUrlMap = resolvedUrlToOutputDestination.map( pair => pair._1.accessUrl.get -> pair._2)
+    val downloader = defaultDownloaderFactory.buildBulkAccessUrlDownloader(accessUrlMap)
+    downloader.flatMap(_.download)
+    IO(ExitCode.Success) //tood
   }
 
   def bulkDownloadResolvedGoogleUrls(resolvedUrlToOutputDestination : Map[DrsResolverResponse, String], googleRequesterPaysProject : Option[String]) : List[IO[DownloadResult]] = {
@@ -157,10 +160,9 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
   }
   // resolve all the URIs once.
   def resolveCSVManifest(csvManifestPath: String, resolver: DrsLocalizerDrsPathResolver) : Try[Map[DrsResolverResponse, String]] = {
-      for {
-        drsUriToDownloadLocationMap: Map[String, String] <- loadCSVAsMap(csvManifestPath)
-        resolvedUriToDownloadLocationMap: Map[DrsResolverResponse, String] = drsUriToDownloadLocationMap.map(value => (resolveDrsUrl(resolver, value._1), value._2))
-      } yield resolvedUriToDownloadLocationMap
+    val drsUriToDownloadLocationMap: Map[String, String] = loadCSVAsMap(csvManifestPath).get
+    val resolvedUriToDownloadLocationMap: Map[DrsResolverResponse, String] = drsUriToDownloadLocationMap.map(value => (resolveDrsUrl(resolver, value._1).unsafeRunSync(), value._2))
+    Try(resolvedUriToDownloadLocationMap)
     }
 
   private def localizeFile(commandLineArguments: CommandLineArguments, drsCredentials: DrsCredentials, drsObject: String, containerPath: String) = {

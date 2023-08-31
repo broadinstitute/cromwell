@@ -10,7 +10,7 @@ import akka.util.ByteString
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.BackendLifecycleActor.BackendWorkflowLifecycleActorResponse
-import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationFailed, FinalizationSuccess, Finalize}
+import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationSuccess, Finalize}
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.retry.Retry.withRetry
 import cromwell.core.retry.SimpleExponentialBackoff
@@ -22,9 +22,11 @@ import net.ceedubs.ficus.Ficus._
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.DurationInt
 import scala.util.Try
-//import cromwell.services.ServiceRegistryActor
+import cromwell.services.metadata.MetadataService.PutMetadataAction
+import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 
 import java.net.URI
+import java.time.Instant
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
@@ -66,7 +68,7 @@ object WorkflowCallbackConfig extends LazyLogging {
   */
 object WorkflowCallbackActor {
   def props(workflowId: WorkflowId,
-           // serviceRegistryActor: ServiceRegistryActor,
+            serviceRegistryActor: ActorRef,
             workflowDescriptor: EngineWorkflowDescriptor,
             workflowOutputs: CallOutputs,
             lastWorkflowState: WorkflowState,
@@ -75,7 +77,7 @@ object WorkflowCallbackActor {
            ) = Props(
     new WorkflowCallbackActor(
       workflowId,
-      /*serviceRegistryActor,*/
+      serviceRegistryActor,
       workflowDescriptor,
       workflowOutputs,
       lastWorkflowState,
@@ -85,7 +87,7 @@ object WorkflowCallbackActor {
 }
 
 class WorkflowCallbackActor(workflowId: WorkflowId,
-                            //serviceRegistryActor: ServiceRegistryActor,
+                            serviceRegistryActor: ActorRef,
                             val workflowDescriptor: EngineWorkflowDescriptor,
                             workflowOutputs: CallOutputs,
                             lastWorkflowState: WorkflowState,
@@ -103,20 +105,26 @@ class WorkflowCallbackActor(workflowId: WorkflowId,
   private lazy val defaultRetryBackoff = SimpleExponentialBackoff(3.seconds, 5.minutes, 1.1)
   private lazy val backoffWithDefault = retryBackoff.getOrElse(defaultRetryBackoff)
 
-  override def receive = LoggingReceive {
+  override def receive: Actor.Receive = LoggingReceive {
     case Finalize => performActionThenRespond(
       performCallback().map( _ => FinalizationSuccess),
-      FinalizationFailed
+      _ => FinalizationSuccess // Don't fail the workflow when this step fails
     )
   }
 
   private def performActionThenRespond(operation: => Future[BackendWorkflowLifecycleActorResponse],
                                        onFailure: (Throwable) => BackendWorkflowLifecycleActorResponse)
-                                      (implicit ec: ExecutionContext) = {
+                                      (implicit ec: ExecutionContext): Unit = {
     val respondTo: ActorRef = sender()
     operation onComplete {
-      case Success(r) => respondTo ! r
-      case Failure(t) => respondTo ! onFailure(t)
+      case Success(r) =>
+        log.info(s"Successfully sent callback for workflow for workflow $workflowId in state $lastWorkflowState to $callbackUri")
+        sendMetadata(successful = true)
+        respondTo ! r
+      case Failure(t) =>
+        log.warning(s"Permanently failed to send callback for workflow $workflowId in state $lastWorkflowState to $callbackUri: ${t.getMessage}")
+        sendMetadata(successful = false)
+        respondTo ! onFailure(t)
     }
   }
 
@@ -132,11 +140,8 @@ class WorkflowCallbackActor(workflowId: WorkflowId,
       )
       result <- {
         response.entity.discardBytes()
-        log.info(s"Successfully sent callback for workflow state $lastWorkflowState to $callbackUri")
-        // TODO send metadata
         Future.unit
       }
-
     } yield result
   }
 
@@ -150,6 +155,24 @@ class WorkflowCallbackActor(workflowId: WorkflowId,
         }
       } else Future.successful(response)
     )
+
+  def sendMetadata(successful: Boolean): Unit = {
+    val events = List(
+      MetadataEvent(
+        MetadataKey(workflowId, None, "workflowCallback", "successful"),
+        MetadataValue(successful)
+      ),
+      MetadataEvent(
+        MetadataKey(workflowId, None, "workflowCallback", "url"),
+        MetadataValue(callbackUri.toString)
+      ),
+      MetadataEvent(
+        MetadataKey(workflowId, None, "workflowCallback", "timestamp"),
+        MetadataValue(Instant.now())
+      )
+    )
+    serviceRegistryActor ! PutMetadataAction(events)
+  }
 
 }
 

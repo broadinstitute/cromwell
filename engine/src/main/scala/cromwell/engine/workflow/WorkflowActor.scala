@@ -673,6 +673,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
         .map(
           WorkflowCallbackActor.props(
             rootWorkflowIdForLogging,
+            serviceRegistryActor,
             workflowDescriptor,
             workflowOutputs,
             stateName.workflowState,

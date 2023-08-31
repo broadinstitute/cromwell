@@ -34,6 +34,6 @@ task blob_and_acr_exercise {
   }
 
   runtime {
-    docker: "terrabatchdev.azurecr.io/postgres:latest"
+    docker: "postgres:latest"
   }
 }

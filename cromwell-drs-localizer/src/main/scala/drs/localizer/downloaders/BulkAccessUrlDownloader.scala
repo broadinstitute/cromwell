@@ -10,34 +10,31 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
 import scala.sys.process.{Process, ProcessLogger}
 import scala.util.Try
-import scala.util.matching.Regex
-
-case class GetmResult(returnCode: Int, stderr: String)
 
 case class BulkAccessUrlDownloader(urlToDownloadLocation : Map[AccessUrl, String]) extends Downloader with StrictLogging {
 
   private def generateBulkDownloadScript: Try[String] = {
-    val manifestPath = generateJsonManifest(urlToDownloadLocation)
+    val manifestPath = generateJsonManifest(urlToDownloadLocation).get
     val downloadLoc = "getmDL"
-    val checksumArgs = "pleaseCompile"
-    generateJsonManifest(urlToDownloadLocation).map(mainfestPath =>  s"""mkdir -p $$(dirname '$downloadLoc') && rm -f '$downloadLoc' && getm $checksumArgs --manifest $manifestPath'""")
+    //val checksumArgs = "pleaseCompile"
+    generateJsonManifest(urlToDownloadLocation).map(_ =>  s"""mkdir -p $$(dirname '$downloadLoc') && rm -f '$downloadLoc' && getm --manifest '$manifestPath'""")
   }
 
   private def toJsonString(accessUrl: String, filepath: String, checksum: ErrorOr[String], checksumAlgorithm: String): String = {
     //NB: trailing comma is being removed in generateJsonManifest
     if (checksum.isValid) {
-        s"""{
-           | "url" : "$accessUrl"
-           | "filepath" : "$filepath"
-           | "checksum" : "$checksum"
-           | "checksum-algorithm" : "$checksumAlgorithm"
-           | },
+        s"""  {
+           |    "url" : "$accessUrl",
+           |    "filepath" : "$filepath",
+           |    "checksum" : "$checksum",
+           |    "checksum-algorithm" : "$checksumAlgorithm"
+           |  },
            |""".stripMargin
     } else {
-      s"""{
-         | "url" : "$accessUrl"
-         | "filepath" : "$filepath"
-         | },
+      s"""  {
+         |    "url" : "$accessUrl",
+         |    "filepath" : "$filepath"
+         |  },
          |""".stripMargin
     }
   }
@@ -46,15 +43,15 @@ case class BulkAccessUrlDownloader(urlToDownloadLocation : Map[AccessUrl, String
     //write a json file that looks like:
     // [
     //  {
-    //     "url" : "www.123.com"
-    //     "filepath" : "path/to/where/123/should/be/downloaded"
-    //     "checksum" : "sdfjndsfjkfsdjsdfkjsdf"
+    //     "url" : "www.123.com",
+    //     "filepath" : "path/to/where/123/should/be/downloaded",
+    //     "checksum" : "sdfjndsfjkfsdjsdfkjsdf",
     //     "checksum-algorithm" : "md5"
     //  },
     //  {
     //     "url" : "www.567.com"
-    //     "filepath" : "path/to/where/567/should/be/downloaded"
-    //     "checksum" : "asdasdasfsdfsdfasdsdfasd"
+    //     "filepath" : "path/to/where/567/should/be/downloaded",
+    //     "checksum" : "asdasdasfsdfsdfasdsdfasd",
     //     "checksum-algorithm" : "md5"
     //  }
     // ]
@@ -64,17 +61,19 @@ case class BulkAccessUrlDownloader(urlToDownloadLocation : Map[AccessUrl, String
       jsonString += toJsonString(accessUrl.url, downloadDestination, GetmChecksum(hashes, accessUrl).value, GetmChecksum(hashes, accessUrl).getmAlgorithm)
     }
     jsonString = jsonString.substring(0, jsonString.lastIndexOf(",")) //remove trailing comma from array elements
-    jsonString += "]"
+    jsonString += "\n]"
     Try(Files.write(Paths.get("getm-manifest.json"), jsonString.getBytes(StandardCharsets.UTF_8)))
   }
 
   def runGetm: IO[GetmResult] = {
     val script = generateBulkDownloadScript
     val copyCommand : Seq[String] = Seq("bash", "-c", script.get)
+    logger.info(script.get)
     val copyProcess = Process(copyCommand)
     val stderr = new StringBuilder()
     val errorCapture: String => Unit = { s => stderr.append(s); () }
     val returnCode = copyProcess ! ProcessLogger(_ => (), errorCapture)
+    logger.info(stderr.toString().trim())
     IO(GetmResult(returnCode, stderr.toString().trim()))
   }
 
@@ -115,11 +114,4 @@ case class BulkAccessUrlDownloader(urlToDownloadLocation : Map[AccessUrl, String
         }
     }
   }
-}
-
-object AccessUrlDownloader {
-  type Hashes = Option[Map[String, String]]
-
-  val ChecksumFailureMessage: Regex = raw""".*AssertionError: Checksum failed!.*""".r
-  val HttpStatusMessage: Regex = raw"""ERROR:getm\.cli.*"status_code":\s*(\d+).*""".r
 }

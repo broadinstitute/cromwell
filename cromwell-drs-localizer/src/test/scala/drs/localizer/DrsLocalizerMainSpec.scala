@@ -99,6 +99,11 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         // This test path should never ask for the GCS downloader
         throw new RuntimeException("test failure")
       }
+
+      override def buildBulkAccessUrlDownloader(urlToDownloadLocation: Map[AccessUrl, String]): IO[Downloader] = {
+        // This test path should never ask for the GCS downloader
+        throw new RuntimeException("test failure")
+      }
     }
 
     drsLocalizer.resolveAndDownloadWithRetries(
@@ -131,6 +136,11 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
       }
 
       override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] = {
+        // This test path should never ask for the GCS downloader
+        throw new RuntimeException("test failure")
+      }
+
+      override def buildBulkAccessUrlDownloader(urlToDownloadLocation : Map[AccessUrl, String]): IO[Downloader] = {
         // This test path should never ask for the GCS downloader
         throw new RuntimeException("test failure")
       }
@@ -172,6 +182,11 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         // This test path should never ask for the GCS downloader
         throw new RuntimeException("test failure")
       }
+
+      override def buildBulkAccessUrlDownloader(urlToDownloadLocation: Map[AccessUrl, String]): IO[Downloader] = {
+        // This test path should never ask for the GCS downloader
+        throw new RuntimeException("test failure")
+      }
     }
 
     assertThrows[Throwable] {
@@ -208,6 +223,11 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
       override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] = {
         gcsUriDownloader
       }
+
+      override def buildBulkAccessUrlDownloader(urlToDownloadLocation: Map[AccessUrl, String]): IO[Downloader] = {
+        // This test path should never ask for the GCS downloader
+        throw new RuntimeException("test failure")
+      }
     }
 
     drsLocalizer.resolveAndDownloadWithRetries(
@@ -240,6 +260,11 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
       override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] = {
         gcsUriDownloader
+      }
+
+      override def buildBulkAccessUrlDownloader(urlToDownloadLocation: Map[AccessUrl, String]): IO[Downloader] = {
+        // This test path should never ask for the GCS downloader
+        throw new RuntimeException("test failure")
       }
     }
 
@@ -274,6 +299,11 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
       override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] = {
         // This test path should never ask for the GCS URI downloader.
+        throw new RuntimeException("test failure")
+      }
+
+      override def buildBulkAccessUrlDownloader(urlToDownloadLocation: Map[AccessUrl, String]): IO[Downloader] = {
+        // This test path should never ask for the GCS downloader
         throw new RuntimeException("test failure")
       }
     }

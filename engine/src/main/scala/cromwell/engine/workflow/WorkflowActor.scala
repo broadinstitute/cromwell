@@ -678,7 +678,8 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
             workflowOutputs,
             stateName.workflowState,
             _,
-            workflowCallbackConfig.retryBackoff
+            workflowCallbackConfig.retryBackoff,
+            workflowCallbackConfig.authMethod
           )
         )
     }

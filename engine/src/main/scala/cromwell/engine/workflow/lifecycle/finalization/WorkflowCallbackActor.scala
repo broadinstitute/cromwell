@@ -6,16 +6,22 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers.RawHeader
 import akka.util.ByteString
+import cats.data.Validated.{Invalid, Valid}
+import cats.implicits.toTraverseOps
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
+import common.validation.ErrorOr
 import cromwell.backend.BackendLifecycleActor.BackendWorkflowLifecycleActorResponse
 import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationSuccess, Finalize}
+import cromwell.cloudsupport.azure.AzureCredentials
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.retry.Retry.withRetry
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{CallOutputs, WorkflowId, WorkflowState}
 import cromwell.engine.EngineWorkflowDescriptor
+import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackConfig.AuthMethod
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackJsonSupport._
 import net.ceedubs.ficus.Ficus._
 
@@ -33,19 +39,36 @@ import scala.util.{Failure, Success}
 
 case class WorkflowCallbackConfig(enabled: Boolean,
                                   uri: Option[URI], // May be overridden by workflow options
-                                  retryBackoff: Option[SimpleExponentialBackoff]
-                                  // TODO auth
+                                  retryBackoff: Option[SimpleExponentialBackoff],
+                                  authMethod: Option[WorkflowCallbackConfig.AuthMethod]
   )
 
 object WorkflowCallbackConfig extends LazyLogging {
+  sealed trait AuthMethod { def getAccessToken:  ErrorOr.ErrorOr[String]  }
+  case object AzureAuth extends AuthMethod {
+    override def getAccessToken: ErrorOr.ErrorOr[String] = AzureCredentials.getAccessToken()
+  }
+  // TODO
+//  case class GoogleAuth(mode: GoogleAuthMode) extends AuthMethod {
+//    override def getAccessToken: String = ???
+//  }
+
   def apply(config: Config): WorkflowCallbackConfig = {
     val backoff = config.as[Option[Config]]("request-backoff").map(SimpleExponentialBackoff(_))
     val uri = config.as[Option[String]]("endpoint").flatMap(createAndValidateUri)
 
+    val authMethod = if (config.hasPath("auth.azure")) {
+      Option(AzureAuth)
+    // TODO
+    // } else if (config.hasPath("auth.google")) {
+    //   ???
+    } else None
+
     WorkflowCallbackConfig(
       config.getBoolean("enabled"),
       uri = uri,
-      retryBackoff = backoff
+      retryBackoff = backoff,
+      authMethod = authMethod
     )
   }
 
@@ -73,7 +96,8 @@ object WorkflowCallbackActor {
             workflowOutputs: CallOutputs,
             lastWorkflowState: WorkflowState,
             callbackUri: URI,
-            retryBackoff: Option[SimpleExponentialBackoff] = None
+            retryBackoff: Option[SimpleExponentialBackoff] = None,
+            authMethod: Option[WorkflowCallbackConfig.AuthMethod] = None
            ) = Props(
     new WorkflowCallbackActor(
       workflowId,
@@ -82,7 +106,8 @@ object WorkflowCallbackActor {
       workflowOutputs,
       lastWorkflowState,
       callbackUri,
-      retryBackoff)
+      retryBackoff,
+      authMethod)
   ).withDispatcher(IoDispatcher)
 }
 
@@ -92,7 +117,8 @@ class WorkflowCallbackActor(workflowId: WorkflowId,
                             workflowOutputs: CallOutputs,
                             lastWorkflowState: WorkflowState,
                             callbackUri: URI,
-                            retryBackoff: Option[SimpleExponentialBackoff])
+                            retryBackoff: Option[SimpleExponentialBackoff],
+                            authMethod: Option[AuthMethod])
   extends Actor with ActorLogging {
 
   implicit val ec: ExecutionContextExecutor = context.dispatcher
@@ -128,13 +154,22 @@ class WorkflowCallbackActor(workflowId: WorkflowId,
     }
   }
 
-  def performCallback(): Future[Unit] = {
-    val headers = List[HttpHeader]()  // TODO add auth
+  private def makeHeaders: Future[List[HttpHeader]] = {
+    authMethod.toList.map(_.getAccessToken).map {
+      case Valid(header) => Future.successful(header)
+      case Invalid(err) => Future.failed(new RuntimeException(err.toString)) // TODO better error
+    }
+      .map(t => t.map(RawHeader("Authorization", _)))
+      .traverse(identity)
+  }
+
+  private def performCallback(): Future[Unit] = {
     for {
       entity <- Marshal(callbackMessage).to[RequestEntity]
-      request = HttpRequest(method = HttpMethods.POST, uri = callbackUri.toString, entity = entity)
+      headers <- makeHeaders
+      request = HttpRequest(method = HttpMethods.POST, uri = callbackUri.toString, entity = entity).withHeaders(headers)
       response <- withRetry(
-        () => sendRequestOrFail(request.withHeaders(headers)),
+        () => sendRequestOrFail(request),
         backoff = backoffWithDefault,
         onRetry = err => log.warning(s"Will retry after failure to send workflow callback for workflow $workflowId in state $lastWorkflowState to $callbackUri : $err")
       )
@@ -145,7 +180,7 @@ class WorkflowCallbackActor(workflowId: WorkflowId,
     } yield result
   }
 
-  def sendRequestOrFail(request: HttpRequest): Future[HttpResponse] =
+  private def sendRequestOrFail(request: HttpRequest): Future[HttpResponse] =
     Http().singleRequest(request).flatMap(response =>
       if (response.status.isFailure()) {
         response.entity.dataBytes.runFold(ByteString(""))(_ ++ _).map(_.utf8String) flatMap { errorBody =>
@@ -156,7 +191,7 @@ class WorkflowCallbackActor(workflowId: WorkflowId,
       } else Future.successful(response)
     )
 
-  def sendMetadata(successful: Boolean): Unit = {
+  private def sendMetadata(successful: Boolean): Unit = {
     val events = List(
       MetadataEvent(
         MetadataKey(workflowId, None, "workflowCallback", "successful"),

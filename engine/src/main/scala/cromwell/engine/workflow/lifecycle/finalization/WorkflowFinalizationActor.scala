@@ -46,16 +46,14 @@ object WorkflowFinalizationActor {
             jobExecutionMap: JobExecutionMap,
             workflowOutputs: CallOutputs,
             initializationData: AllBackendInitializationData,
-            copyWorkflowOutputsActor: Option[Props],
-            workflowCallbackActorProps: Option[Props]): Props = {
+            copyWorkflowOutputsActor: Option[Props]): Props = {
     Props(new WorkflowFinalizationActor(
       workflowDescriptor,
       ioActor,
       jobExecutionMap,
       workflowOutputs,
       initializationData,
-      copyWorkflowOutputsActor,
-      workflowCallbackActorProps
+      copyWorkflowOutputsActor
     )).withDispatcher(EngineDispatcher)
   }
 }
@@ -65,8 +63,7 @@ case class WorkflowFinalizationActor(workflowDescriptor: EngineWorkflowDescripto
                                      jobExecutionMap: JobExecutionMap,
                                      workflowOutputs: CallOutputs,
                                      initializationData: AllBackendInitializationData,
-                                     copyWorkflowOutputsActorProps: Option[Props],
-                                     workflowCallbackActorProps: Option[Props])
+                                     copyWorkflowOutputsActorProps: Option[Props])
   extends WorkflowLifecycleActor[WorkflowFinalizationActorState] {
 
   override lazy val workflowIdForLogging = workflowDescriptor.possiblyNotRootWorkflowId
@@ -102,22 +99,12 @@ case class WorkflowFinalizationActor(workflowDescriptor: EngineWorkflowDescripto
         } yield actor
       }
 
-      val engineFinalizationActors = Try {
-        List(
-          (copyWorkflowOutputsActorProps, "CopyWorkflowOutputsActor"),
-          (workflowCallbackActorProps, "WorkflowCallbackActor")
-        ).flatMap { engineActor =>
-          engineActor match {
-            case (Some(props), actorName) => Some(context.actorOf(props, actorName))
-            case _ => None
-          }
-        }
-      }
+      val engineFinalizationActor = Try { copyWorkflowOutputsActorProps.map(context.actorOf(_, "CopyWorkflowOutputsActor")).toList }
 
       val allActors = for {
         backendFinalizationActorsFromTry <- backendFinalizationActors
-        engineFinalizationActorsFromTry <- engineFinalizationActors
-      } yield backendFinalizationActorsFromTry.toList ++ engineFinalizationActorsFromTry
+        engineFinalizationActorFromTry <- engineFinalizationActor
+      } yield backendFinalizationActorsFromTry.toList ++ engineFinalizationActorFromTry
 
       allActors match {
         case Failure(ex) =>

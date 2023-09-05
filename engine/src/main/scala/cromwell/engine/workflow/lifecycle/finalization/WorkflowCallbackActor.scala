@@ -38,8 +38,8 @@ import scala.util.{Failure, Success}
 case class WorkflowCallbackConfig(enabled: Boolean,
                                   defaultUri: Option[URI], // May be overridden by workflow options
                                   retryBackoff: Option[SimpleExponentialBackoff],
-                                  authMethod: Option[WorkflowCallbackConfig.AuthMethod]
-  )
+                                  maxRetries: Option[Int],
+                                  authMethod: Option[WorkflowCallbackConfig.AuthMethod])
 
 object WorkflowCallbackConfig extends LazyLogging {
   sealed trait AuthMethod { def getAccessToken:  ErrorOr.ErrorOr[String]  }
@@ -47,25 +47,25 @@ object WorkflowCallbackConfig extends LazyLogging {
     override def getAccessToken: ErrorOr.ErrorOr[String] = AzureCredentials.getAccessToken()
   }
   // TODO
-//  case class GoogleAuth(mode: GoogleAuthMode) extends AuthMethod {
-//    override def getAccessToken: String = ???
-//  }
+  //  case class GoogleAuth(mode: GoogleAuthMode) extends AuthMethod {
+  //    override def getAccessToken: String = ???
+  //  }
 
   def apply(config: Config): WorkflowCallbackConfig = {
     val backoff = config.as[Option[Config]]("request-backoff").map(SimpleExponentialBackoff(_))
+    val maxRetries = config.as[Option[Int]]("max-retries")
     val uri = config.as[Option[String]]("endpoint").flatMap(createAndValidateUri)
 
+    // TODO add google auth
     val authMethod = if (config.hasPath("auth.azure")) {
       Option(AzureAuth)
-    // TODO
-    // } else if (config.hasPath("auth.google")) {
-    //   ???
     } else None
 
     WorkflowCallbackConfig(
       config.getBoolean("enabled"),
       defaultUri = uri,
       retryBackoff = backoff,
+      maxRetries = maxRetries,
       authMethod = authMethod
     )
   }
@@ -97,12 +97,14 @@ object WorkflowCallbackActor {
   def props(serviceRegistryActor: ActorRef,
             defaultCallbackUri: Option[URI],
             retryBackoff: Option[SimpleExponentialBackoff] = None,
+            maxRetries: Option[Int] = None,
             authMethod: Option[WorkflowCallbackConfig.AuthMethod] = None
            ) = Props(
     new WorkflowCallbackActor(
       serviceRegistryActor,
       defaultCallbackUri,
       retryBackoff,
+      maxRetries,
       authMethod)
   ).withDispatcher(IoDispatcher)
 }
@@ -110,6 +112,7 @@ object WorkflowCallbackActor {
 class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
                             defaultCallbackUri: Option[URI],
                             retryBackoff: Option[SimpleExponentialBackoff],
+                            maxRetries: Option[Int],
                             authMethod: Option[AuthMethod])
   extends Actor with ActorLogging {
 
@@ -117,7 +120,10 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
   implicit val system: ActorSystem = context.system
 
   private lazy val defaultRetryBackoff = SimpleExponentialBackoff(3.seconds, 5.minutes, 1.1)
+  private lazy val defaultMaxRetries = 10
+
   private lazy val backoffWithDefault = retryBackoff.getOrElse(defaultRetryBackoff)
+  private lazy val maxRetriesWithDefault = maxRetries.getOrElse(defaultMaxRetries)
 
   override def receive: Actor.Receive = LoggingReceive {
     case PerformCallbackCommand(workflowId, uri, terminalState, outputs) =>
@@ -159,6 +165,7 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
       response <- withRetry(
         () => sendRequestOrFail(request),
         backoff = backoffWithDefault,
+        maxRetries = Option(maxRetriesWithDefault),
         onRetry = err => log.warning(s"Will retry after failure to send workflow callback for workflow $workflowId in state $terminalState to $defaultCallbackUri : $err")
       )
       result <- {
@@ -173,7 +180,7 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
       if (response.status.isFailure()) {
         response.entity.dataBytes.runFold(ByteString(""))(_ ++ _).map(_.utf8String) flatMap { errorBody =>
           Future.failed(
-            new RuntimeException(errorBody)
+            new RuntimeException(s"HTTP ${response.status.value}: $errorBody")
           )
         }
       } else Future.successful(response)

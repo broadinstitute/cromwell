@@ -126,7 +126,13 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
 
   lazy val workflowCallbackActor: Option[ActorRef] = {
     if (workflowCallbackConfig.enabled) {
-      val props = WorkflowCallbackActor.props(serviceRegistryActor, workflowCallbackConfig.defaultUri, workflowCallbackConfig.retryBackoff, workflowCallbackConfig.authMethod)
+      val props = WorkflowCallbackActor.props(
+        serviceRegistryActor,
+        workflowCallbackConfig.defaultUri,
+        workflowCallbackConfig.retryBackoff,
+        workflowCallbackConfig.maxRetries,
+        workflowCallbackConfig.authMethod
+      )
       Option(context.actorOf(props, "WorkflowCallbackActor"))
     } else None
   }

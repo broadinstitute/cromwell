@@ -148,7 +148,7 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
       case Valid(header) => Future.successful(header)
       case Invalid(err) => Future.failed(new RuntimeException(err.toString)) // TODO better error
     }
-      .map(t => t.map(RawHeader("Authorization", _)))
+      .map(t => t.map(t => RawHeader("Authorization", s"Bearer $t")))
       .traverse(identity)
   }
 

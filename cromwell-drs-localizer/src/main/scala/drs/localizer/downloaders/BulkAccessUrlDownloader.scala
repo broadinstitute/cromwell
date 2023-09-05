@@ -39,7 +39,7 @@ case class BulkAccessUrlDownloader(urlToDownloadLocation : Map[AccessUrl, String
     }
   }
 
-  private def generateJsonManifest(accessUrlToDownloadDest: Map[AccessUrl, String]): Try[Path] = {
+  def generateJsonManifest(accessUrlToDownloadDest: Map[AccessUrl, String]): Try[Path] = {
     //write a json file that looks like:
     // [
     //  {

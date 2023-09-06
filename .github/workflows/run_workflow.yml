@@ -18,11 +18,6 @@ on:
         required: true
         default: 'firecloud-qa@broad-dsde-qa.iam.gserviceaccount.com'
         type: string
-      access-token-scopes:
-        description: 'List of OAuth 2.0 access scopes to be included in the generated token'
-        required: true
-        default: 'profile, email, openid'
-        type: string
 
 env:
   BEE_NAME: '${{ github.event.repository.name }}-${{ github.run_id }}-${{ github.run_attempt}}-dev'
@@ -61,7 +56,7 @@ jobs:
           token_format: 'access_token'
           workload_identity_provider: 'projects/1038484894585/locations/global/workloadIdentityPools/github-wi-pool/providers/github-wi-provider'
           service_account: ${{ inputs.service-account }}
-          access_token_scopes: ${{ inputs.access-token-scopes }}
+          access_token_scopes: 'profile, email, openid'
           access_token_subject: ${{ inputs.owner-subject }}
           export_environment_variables: false
       - name: Generate a random billing project name
@@ -77,7 +72,6 @@ jobs:
       contents: 'read'
       id-token: 'write'
     steps:
-      # If we're running nightly tests then it should be fine to just reference env template
       - name: Dispatch to terra-github-workflows
         uses: broadinstitute/workflow-dispatch@v3
         with:
@@ -85,9 +79,8 @@ jobs:
           repo: broadinstitute/terra-github-workflows
           ref: refs/heads/main
           token: ${{ env.TOKEN }}
-          # NOTE: Which env to use? Prod is reflective of current user environment, but dev is more likely to be up-to-date
-          # NOTE: Should try "provision-only": true and see what happens
-          inputs: '{ "bee-name": "${{ env.BEE_NAME }}", "version-template": "dev" }'
+          # NOTE: Opting to use "prod" instead of custom tag since I specifically want to test against the current prod state
+          inputs: '{ "bee-name": "${{ env.BEE_NAME }}", "version-template": "prod" }'
 
   attach-landing-zone-to-bee-workflow:
     runs-on: ubuntu-latest
@@ -97,7 +90,7 @@ jobs:
       id-token: 'write'
     steps:
       - name: Verify token generation
-        run: |
+        run: 
           echo "::add-mask::${{ needs.az-e2e-params-gen.outputs.owner-access-token }}"
       - name: dispatch to terra-github-workflows
         uses: broadinstitute/workflow-dispatch@v3
@@ -122,12 +115,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3 # checkout the cromwell repo
         with:
+        #NOTE: replace with target-branch before merge
 #        ref: ${{ inputs.target-branch }}
-        #NOTE: replace below with inputs value as part of final cleanup
           ref: refs/heads/WX-983
-      - uses: ./.github/set_up_cromwell_action #This github action will set up git-secrets, caching, java, and sbt.
-        with:
-          cromwell_repo_token: ${{ env.TOKEN }}
       - name: Install poetry
         uses: snok/install-poetry@v1     
       - name: Run e2e test
@@ -135,6 +125,7 @@ jobs:
           OWNER: ${{inputs.owner-subject}}
           BEE_NAME: ${{env.BEE_NAME}}
           BILLING_PROJECT_NAME: ${{needs.az-e2e-params-gen.outputs.project-name}}
+          BEARER_TOKEN: ${{needs.az-e2e-params-gen.outputs.owner-access-token}}
         run: |
           poetry run python ../../server/src/test/python/cromwell-az-e2e/tests/az-e2e.py
 
@@ -163,7 +154,7 @@ jobs:
       - name: dispatch to terra-github-workflows
         uses: broadinstitute/workflow-dispatch@v3
         with:
-          workflow: bee-destroy
+          workflow: bee-destroy.yaml
           repo: broadinstitute/terra-github-workflows
           ref: refs/heads/main
           token: ${{ env.TOKEN }}

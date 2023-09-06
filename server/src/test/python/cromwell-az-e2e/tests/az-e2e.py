@@ -6,7 +6,7 @@ import string
 import uuid
 import time
 
-azure_token = os.environ['AZURE_TOKEN']
+bearer_token = os.environ['BEARER_TOKEN']
 bee_name = os.environ['BEE_NAME']
 billing_project_name = os.environ['BILLING_PROJECT_NAME']
 number_of_workspaces = 1
@@ -30,7 +30,7 @@ def create_workspace():
    
    create_workspace_response = requests.post(url=rawls_api_call, 
                                              json=request_body, 
-                                             headers={"Authorization": f"Bearer {azure_token}"}
+                                             headers={"Authorization": f"Bearer {bearer_token}"}
    ).json()
 
    create_workspace_data = json.loads(json.dumps(create_workspace_response))
@@ -43,7 +43,7 @@ def create_workspace():
    } 
         
    response = requests.post(url=activate_cbas_request, json=cbas_request_body, 
-                            headers={"Authorization": f"Bearer {azure_token}"})
+                            headers={"Authorization": f"Bearer {bearer_token}"})
    # will return 202 or error
    handle_failed_request(response, "Error activating CBAS", 202)
    
@@ -55,7 +55,7 @@ def get_app_url(workspaceId, app):
     """"Get url for wds/cbas."""
     uri = f"{leo_url}/api/apps/v2/{workspaceId}?includeDeleted=false"
 
-    headers = {"Authorization": azure_token,
+    headers = {"Authorization": bearer_token,
                "accept": "application/json"}
 
     response = requests.get(uri, headers=headers)
@@ -89,7 +89,7 @@ def get_app_url(workspaceId, app):
 def submit_workflow_to_cromwell(app_url, workflow_test_name):
     workflow_endpoint = f'{app_url}/cromwell/api/workflows/v1'
     file_source = '../workflow_files'
-    headers = {"Authorization": azure_token,
+    headers = {"Authorization": bearer_token,
               "accept": "application/json",
               "Content-Type": "multipart/form-data"}
     files = {'workflowSource': open(f'{file_source}/hello.wdl', 'rb'),
@@ -106,7 +106,7 @@ def submit_workflow_to_cromwell(app_url, workflow_test_name):
 
 def get_workflow_information(app_url, workflow_id):
     workflow_endpoint = f'{app_url}/cromwell/api/workflows/v1/{workflow_id}/metadata'
-    headers = {"Authorization": azure_token,
+    headers = {"Authorization": bearer_token,
               "accept": "application/json"}
     response = requests.get(workflow_endpoint, headers=headers)
     handle_failed_request(response, f"Error fetching workflow metadata for {workflow_id}")
@@ -139,6 +139,10 @@ def get_completed_workflow(app_url, workflow_ids, max_retries=4):
 
 # This chunk of code only executes one workflow
 # Would like to modify this down the road to execute and store references for multiple workflows
+
+# Added an sleep here to give the workspace time to provision
+# Not sure if I actually need this though, will remove if I find out its unecessary
+time.sleep(60 * 20)
 workspace_id = create_workspace()
 app_url = get_app_url(workspace_id, 'cromwell')
 workflow_response = submit_workflow_to_cromwell(app_url, "Run Workflow Test")

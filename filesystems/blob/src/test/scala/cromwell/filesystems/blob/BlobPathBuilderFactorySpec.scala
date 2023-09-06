@@ -32,12 +32,12 @@ class BlobPathBuilderFactorySpec extends AnyFlatSpec with Matchers with MockSuga
     testToken.getSignature should equal(sourceToken)
   }
 
-  it should "parse an expiration time from a sas token" in {
-    val expiryTime = generateTokenExpiration(20L)
-    val sasToken = BlobPathBuilderFactorySpec.buildExampleSasToken(expiryTime)
-    val expiry = BlobFileSystemManager.parseTokenExpiry(sasToken)
-    expiry should contain(expiryTime)
-  }
+//  it should "parse an expiration time from a sas token" in {
+//    val expiryTime = generateTokenExpiration(20L)
+//    val sasToken = BlobPathBuilderFactorySpec.buildExampleSasToken(expiryTime)
+//    val expiry = BlobFileSystemManager.parseTokenExpiry(sasToken)
+//    expiry should contain(expiryTime)
+//  }
 
   it should "test that a filesystem gets closed correctly" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")

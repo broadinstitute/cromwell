@@ -1,5 +1,5 @@
 package drs.localizer.downloaders
-
+/*
 import cats.effect.ExitCode
 import cats.syntax.validated._
 import cloud.nio.impl.drs.AccessUrl
@@ -7,7 +7,7 @@ import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks._
-
+//TODO: Migrate to Bulk Tests
 class AccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   it should "return the correct download script for a url-only access URL, no requester pays" in {
     val fakeDownloadLocation = "/root/foo/foo-123.bam"
@@ -57,3 +57,4 @@ class AccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
     }
   }
 }
+*/

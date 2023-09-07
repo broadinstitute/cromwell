@@ -2,25 +2,24 @@ package drs.localizer
 
 import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO, IOApp}
-import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDisposition}
+import cats.implicits.toTraverseOps
 import cloud.nio.impl.drs._
 import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
 import com.typesafe.scalalogging.StrictLogging
 import drs.localizer.CommandLineParser.AccessTokenStrategy.{Azure, Google}
-import drs.localizer.downloaders.AccessUrlDownloader
-import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
 import org.apache.commons.csv.{CSVFormat, CSVParser}
 
-import java.io.{File}
+import java.io.File
 import java.nio.charset.Charset
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
-import drs.localizer.URIType.{URIType}
+import drs.localizer.URIType.URIType
 
 import scala.util.{Failure, Try}
-
+case class UnresolvedDrsUrl(drsUrl: String, downloadDestinationPath: String)
+case class ResolvedDrsUrlPendingDownload(drsResponse: DrsResolverResponse, downloadDestinationPath: String, uriType: URIType)
 object DrsLocalizerMain extends IOApp with StrictLogging {
 
   override def run(args: List[String]): IO[ExitCode] = {
@@ -45,14 +44,11 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     initialInterval = 10 seconds, maxInterval = 60 seconds, multiplier = 2)
 
   val defaultDownloaderFactory: DownloaderFactory = new DownloaderFactory {
-    override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader] =
-      IO.pure(AccessUrlDownloader(accessUrl, downloadLoc, hashes))
-
     override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] =
       IO.pure(GcsUriDownloader(gcsPath, serviceAccountJsonOption, downloadLoc, requesterPaysProjectOption))
 
-    override def buildBulkAccessUrlDownloader(urlToDownloadDestinationMap: Map[AccessUrl, String]): IO[Downloader] = {
-      IO.pure(BulkAccessUrlDownloader(urlToDownloadDestinationMap))
+    override def buildBulkAccessUrlDownloader(urlsToDownload: List[ResolvedDrsUrlPendingDownload]): IO[Downloader] = {
+      IO.pure(BulkAccessUrlDownloader(urlsToDownload))
     }
   }
 
@@ -69,129 +65,115 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     }
   }
 
-  private[localizer] def toUriType(drsResponse: DrsResolverResponse): Try[URIType] = {
-    (drsResponse.accessUrl, drsResponse.gsUri) match {
-      case (Some(_), _) =>
-        Try(URIType.HTTPS)
+  private[localizer] def toUriType(accessUrl: Option[AccessUrl], gsUri : Option[String]): URIType = {
+    (accessUrl, gsUri) match {
       case (_, Some(_)) =>
-        Try(URIType.GCS)
-      case _ =>
-        Failure(new RuntimeException(DrsPathResolver.ExtractUriErrorMsg))
+        URIType.GCS
+      case (Some(_), _) =>
+        URIType.HTTPS
+      case (_,_) =>
+        URIType.UNKNOWN
     }
   }
   def runLocalizer(commandLineArguments: CommandLineArguments, drsCredentials: DrsCredentials): IO[ExitCode] = {
-    //todo: just fail here if this can't be gotten
-    val resolver = getDrsPathResolver(drsCredentials).unsafeRunSync()
-    commandLineArguments.manifestPath match {
-      case Some(manifestPath) => {
-          val resolvedUris: Try[Map[DrsResolverResponse, String]] = for {
-            resolvedDrsUris: Map[DrsResolverResponse, String] <- resolveCSVManifest(manifestPath, resolver)
-            if !resolvedDrsUris.isEmpty
-          } yield resolvedDrsUris
+    IO {
+      // Get a single resolver to resolve URLs with
+      val resolver = getDrsPathResolver(drsCredentials).unsafeRunSync()
 
-          if(resolvedUris.isFailure) {
-              return IO(ExitCode.Error) //Could not resolve DRS urls. Fail before attempting to download anything
-          }
+      val exitCode : ExitCode = commandLineArguments.manifestPath match {
+        case Some(manifestPath) => {
+          val unresolvedUris: IO[List[UnresolvedDrsUrl]] = loadCSVManifest(manifestPath)
+          val resolvedUris: IO[List[ResolvedDrsUrlPendingDownload]] = unresolvedUris.flatMap(uris => uris.map(toResolve => resolveDrsUrl(resolver, toResolve)).traverse(identity))
 
-          val accessUrls = resolvedUris.get.filter(drsResponse => toUriType(drsResponse._1) == Try(URIType.HTTPS))
-          val googleUrls = resolvedUris.get.filter(drsResponse => toUriType(drsResponse._1) == Try(URIType.GCS))
+          // Resolve all the URLs, sorting them into buckets by their required downloader type
+          val resolvedUrisByType: Map[URIType, List[ResolvedDrsUrlPendingDownload]] = resolvedUris.map { resolvedList =>
+            Map(
+              URIType.GCS -> resolvedList.filter(resolvedUri => resolvedUri.uriType == URIType.GCS),
+              URIType.HTTPS -> resolvedList.filter(resolvedUri => resolvedUri.uriType == URIType.HTTPS),
+              URIType.UNKNOWN -> resolvedList.filter(resolvedUri => resolvedUri.uriType == URIType.UNKNOWN)
+            )
+          }.unsafeRunSync()
 
-          val bulkAccessResult : IO[ExitCode] = bulkDownloadResolvedAccessUrls(accessUrls, drsCredentials)
-          val googleResult : List[IO[DownloadResult]] = bulkDownloadResolvedGoogleUrls(googleUrls, commandLineArguments.googleRequesterPaysProject)
+          val googleDownload : IO[List[DownloadResult]] = resolvedUrisByType.get(URIType.GCS).map(googleUris => bulkDownloadResolvedGoogleUrls(googleUris, commandLineArguments.googleRequesterPaysProject)).getOrElse(List())
+          val bulkAccessDownload : IO[DownloadResult] = resolvedUrisByType.get(URIType.HTTPS).map(resolvedUris => bulkDownloadResolvedAccessUrls(resolvedUris)).getOrElse(IO(DownloadSuccess))
+          resolvedUrisByType.get(URIType.UNKNOWN).map(_ => logger.error("Unrecognized URI format returned from resolver"))
 
-        if(bulkAccessResult.equals(true) && googleResult.equals(true)) {
-          IO(ExitCode.Success)
-        } else {
-          IO(ExitCode.Error)
+          val bulkAccessResult = bulkAccessDownload.unsafeRunSync()
+          val googleResults = googleDownload.unsafeRunSync()
+          yield if (googleResults.find(res => res != DownloadSuccess).isEmpty && bulkAccessResult.exitCode == ExitCode.Success) ExitCode.Success else ExitCode.Error
         }
-
-        }
-      case None =>
-        val drsObject = commandLineArguments.drsObject.get
-        val containerPath = commandLineArguments.containerPath.get
-        val resolvedURI = resolveDrsUrl(resolver, drsObject)
-        val map : Map[DrsResolverResponse, String] = Map((resolvedURI.unsafeRunSync() -> containerPath))
-        bulkDownloadResolvedAccessUrls(map, drsCredentials)
-        localizeFile(commandLineArguments, drsCredentials, drsObject, containerPath)
+        case None =>
+          val drsObject = commandLineArguments.drsObject.get
+          val containerPath = commandLineArguments.containerPath.get
+          val resolvedURI = resolveDrsUrl(resolver, drsObject)
+          val map: Map[DrsResolverResponse, String] = Map((resolvedURI.unsafeRunSync() -> containerPath))
+          bulkDownloadResolvedAccessUrls(map, drsCredentials)
+        //TODO: Also handle the Google download case here.
+      }
     }
   }
 
-  private def bulkDownloadResolvedAccessUrls(resolvedUrlToOutputDestination : Map[DrsResolverResponse, String], drsCredentials: DrsCredentials): IO[ExitCode] = {
-    val accessUrlMap = resolvedUrlToOutputDestination.map( pair => pair._1.accessUrl.get -> pair._2)
-    val downloader = defaultDownloaderFactory.buildBulkAccessUrlDownloader(accessUrlMap)
-    val unwrappedDownloader = downloader.unsafeRunSync()
-    val downloadResult = unwrappedDownloader.download
-    downloadResult.toString()
-    downloader.flatMap(_.download)
-    IO(ExitCode.Success) //tood
+  private def bulkDownloadResolvedAccessUrls(resolvedUrls : List[ResolvedDrsUrlPendingDownload]): IO[DownloadResult] = {
+    IO[DownloadResult] {
+      if(resolvedUrls.isEmpty) return IO(DownloadSuccess)
+      val downloader = defaultDownloaderFactory.buildBulkAccessUrlDownloader(resolvedUrls).unsafeRunSync()
+      downloader.download.unsafeRunSync()
+    }
   }
 
-  def bulkDownloadResolvedGoogleUrls(resolvedUrlToOutputDestination : Map[DrsResolverResponse, String], googleRequesterPaysProject : Option[String]) : List[IO[DownloadResult]] = {
-    resolvedUrlToOutputDestination.map(pair => {
-      val drsResponse : DrsResolverResponse = pair._1
-      val containerPath : String = pair._2
-      val serviceAccountJsonOption = drsResponse.googleServiceAccount.map(_.data.spaces2)
+  def bulkDownloadResolvedGoogleUrls(resolvedUrls : List[ResolvedDrsUrlPendingDownload], googleRequesterPaysProject : Option[String]) : IO[List[DownloadResult]] = {
+    resolvedUrls.map(url => {
+      val serviceAccountJsonOption = url.drsResponse.googleServiceAccount.map(_.data.spaces2)
       val downloader = defaultDownloaderFactory.buildGcsUriDownloader(
-        gcsPath = drsResponse.gsUri.getOrElse("MISSING_GOOGLE_URI"),
+        gcsPath = url.drsResponse.gsUri.getOrElse("MISSING_GOOGLE_URI"),
         serviceAccountJsonOption = serviceAccountJsonOption,
-        downloadLoc = containerPath,
+        downloadLoc = url.downloadDestinationPath,
         requesterPaysProjectOption = googleRequesterPaysProject)
       downloader.flatMap(_.download)
-    }).toList
+    }).traverse(identity)
   }
 
-  def resolveDrsUrl(resolverObject: DrsLocalizerDrsPathResolver, drsUrlToResolve: String): IO[DrsResolverResponse] = {
-    val fields = NonEmptyList.of(DrsResolverField.GsUri, DrsResolverField.GoogleServiceAccount, DrsResolverField.AccessUrl, DrsResolverField.Hashes)
-    resolverObject.resolveDrs(drsUrlToResolve, fields)
+  //NB: This method calls a synchronous HTTP request
+  def resolveDrsUrl(resolverObject: DrsLocalizerDrsPathResolver, drsUrlToResolve: UnresolvedDrsUrl): IO[ResolvedDrsUrlPendingDownload] = {
+    IO {
+      val fields = NonEmptyList.of(DrsResolverField.GsUri, DrsResolverField.GoogleServiceAccount, DrsResolverField.AccessUrl, DrsResolverField.Hashes)
+      //Insert retry logic here.
+      val drsResponse = resolverObject.resolveDrs(drsUrlToResolve.drsUrl, fields).unsafeRunSync()
+      ResolvedDrsUrlPendingDownload(drsResponse, drsUrlToResolve.downloadDestinationPath, toUriType(drsResponse.accessUrl, drsResponse.gsUri))
+    }
   }
   // resolve all the URIs once.
   def resolveCSVManifest(csvManifestPath: String, resolver: DrsLocalizerDrsPathResolver) : Try[Map[DrsResolverResponse, String]] = {
-    val drsUriToDownloadLocationMap: Map[String, String] = loadCSVAsMap(csvManifestPath).get
-    val resolvedUriToDownloadLocationMap: Map[DrsResolverResponse, String] = drsUriToDownloadLocationMap.map(value => (resolveDrsUrl(resolver, value._1).unsafeRunSync(), value._2))
+    val drsUriToDownloadLocationMap: Try[Map[String, String]] = loadCSVAsMap(csvManifestPath)
+    if (drsUriToDownloadLocationMap.isFailure) return Failure[Map[DrsResolverResponse, String]](new RuntimeException("Could not parse CSV manifest"))
+    val resolvedUriToDownloadLocationMap: Map[DrsResolverResponse, String] = drsUriToDownloadLocationMap.get.map(value => (resolveDrsUrl(resolver, value._1).unsafeRunSync(), value._2))
     Try(resolvedUriToDownloadLocationMap)
-    }
-
-  private def localizeFile(commandLineArguments: CommandLineArguments, drsCredentials: DrsCredentials, drsObject: String, containerPath: String) = {
-    new DrsLocalizerMain(drsObject, containerPath, drsCredentials, commandLineArguments.googleRequesterPaysProject).
-      resolveAndDownloadWithRetries(downloadRetries = 3, checksumRetries = 1, defaultDownloaderFactory, Option(defaultBackoff)).map(_.exitCode)
   }
 
-  // Overall plan for bulk DRS downloads:
-  // 1) Open the CSV provided to Cromwell Drs Localizer as a map of DRS URI -> Destination Filepath
-  // 2) Resolve each DRS URI in the map. This will yield two maps, because a drs URI can resolve to either
-  // a gs:// URI or an https:// uri, each of which require different downloaders.
-  // 3a) Invoke the GcsUriDownloader (and its underlying gsutil) to download all gs:// URIs in parallel.
-  // 3b) Invoke the AccessUrlDownloader (and its underlying getm) to download all https:// URIs in parallel.
-  //     - getm requires a --manifest argument, which is a .json file that is a map of https:// URI to destination filepath
-  // 4) Report success or failure as granularly as is reasonably possible.
-  private def loadCSVAsMap(csvManifestPath : String) : Try[Map[String, String]] = {
-    for {
-      openFile <- Try(new File(csvManifestPath))
-      csvParser <- Try(CSVParser.parse(openFile, Charset.defaultCharset(), CSVFormat.DEFAULT))
-      map <- Try(csvParser.getRecords.asScala.map(record => (record.get(0), record.get(1))).toMap)
-      if !map.isEmpty //An empty map should be considered an error - we're expecting at least one k/v pair in the manifest.
-    } yield map
+  /**
+    * Helper function to read a CSV file as a map from drs URL to requested download destination
+    * @param csvManifestPath Path to a CSV file where each row is something like: drs://asdf.ghj, path/to/my/directory
+    */
+  private def loadCSVManifest(csvManifestPath : String) : IO[List[UnresolvedDrsUrl]] = {
+    IO {
+      val openFile = new File(csvManifestPath)
+      val csvParser = CSVParser.parse(openFile, Charset.defaultCharset(), CSVFormat.DEFAULT)
+      val list = csvParser.getRecords.asScala.map(record => UnresolvedDrsUrl(record.get(0), record.get(1))).toList
+      list
+    }
   }
 }
 
 object URIType extends Enumeration {
   type URIType = Value
-  val GCS, HTTPS = Value
+  val GCS, HTTPS, UNKNOWN = Value
 }
 
 class DrsLocalizerMain(drsUrl: String,
                        downloadLoc: String,
                        drsCredentials: DrsCredentials,
                        requesterPaysProjectIdOption: Option[String]) extends StrictLogging {
-
-  def getDrsPathResolver: IO[DrsLocalizerDrsPathResolver] = {
-    IO {
-      val drsConfig = DrsConfig.fromEnv(sys.env)
-      logger.info(s"Using ${drsConfig.drsResolverUrl} to resolve DRS Objects")
-      new DrsLocalizerDrsPathResolver(drsConfig, drsCredentials)
-    }
-  }
-
+  /*
   def resolveAndDownloadWithRetries(downloadRetries: Int,
                                     checksumRetries: Int,
                                     downloaderFactory: DownloaderFactory,
@@ -209,7 +191,8 @@ class DrsLocalizerMain(drsUrl: String,
         IO.raiseError(new RuntimeException(s"Exhausted $checksumRetries checksum retries to resolve, download and checksum $drsUrl", t))
       }
     }
-
+*/
+    /*
     def maybeRetryForDownloadFailure(t: Throwable): IO[DownloadResult] = {
       t match {
         case _: FatalRetryDisposition =>
@@ -222,7 +205,8 @@ class DrsLocalizerMain(drsUrl: String,
           IO.raiseError(new RuntimeException(s"Exhausted $downloadRetries download retries to resolve, download and checksum $drsUrl", t))
       }
     }
-
+*/
+      /*
     resolveAndDownload(downloaderFactory).redeemWith({
       maybeRetryForDownloadFailure
     },
@@ -235,34 +219,11 @@ class DrsLocalizerMain(drsUrl: String,
       case ChecksumFailure =>
         maybeRetryForChecksumFailure(new RuntimeException(s"Checksum failure for $drsUrl on checksum retry attempt $checksumAttempt of $checksumRetries"))
       case o => IO.pure(o)
-    })
-  }
+    }*
 
-  private [localizer] def resolveAndDownload(downloaderFactory: DownloaderFactory): IO[DownloadResult] = {
-    resolve(downloaderFactory) flatMap { _.download }
-  }
 
-  private [localizer] def resolve(downloaderFactory: DownloaderFactory): IO[Downloader] = {
-    val fields = NonEmptyList.of(DrsResolverField.GsUri, DrsResolverField.GoogleServiceAccount, DrsResolverField.AccessUrl, DrsResolverField.Hashes)
-    for {
-      resolver <- getDrsPathResolver
-      drsResolverResponse <- resolver.resolveDrs(drsUrl, fields)
-
-      // Currently DRS Resolver only supports resolving DRS paths to access URLs or GCS paths.
-      downloader <- (drsResolverResponse.accessUrl, drsResolverResponse.gsUri) match {
-        case (Some(accessUrl), _) =>
-          downloaderFactory.buildAccessUrlDownloader(accessUrl, downloadLoc, drsResolverResponse.hashes)
-        case (_, Some(gcsPath)) =>
-          val serviceAccountJsonOption = drsResolverResponse.googleServiceAccount.map(_.data.spaces2)
-          downloaderFactory.buildGcsUriDownloader(
-            gcsPath = gcsPath,
-            serviceAccountJsonOption = serviceAccountJsonOption,
-            downloadLoc = downloadLoc,
-            requesterPaysProjectOption = requesterPaysProjectIdOption)
-        case _ =>
-          IO.raiseError(new RuntimeException(DrsPathResolver.ExtractUriErrorMsg))
-      }
-    } yield downloader
+    IO.raiseError(new RuntimeException(s"Exhausted $downloadRetries download retries to resolve, download and checksum $drsUrl", t))
   }
+         */
 }
 

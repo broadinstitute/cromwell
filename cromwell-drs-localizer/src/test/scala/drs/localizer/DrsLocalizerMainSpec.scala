@@ -8,7 +8,7 @@ import cloud.nio.impl.drs.{AccessUrl, DrsConfig, DrsCredentials, DrsResolverFiel
 import common.assertion.CromwellTimeoutSpec
 import common.validation.ErrorOr.ErrorOr
 import drs.localizer.MockDrsLocalizerDrsPathResolver.{FakeAccessTokenStrategy, FakeHashes}
-import drs.localizer.downloaders.AccessUrlDownloader.Hashes
+import drs.localizer.downloaders.BulkAccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -91,10 +91,6 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     })
 
     val downloaderFactory = new DownloaderFactory {
-      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader] = {
-        accessUrlDownloader
-      }
-
       override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] = {
         // This test path should never ask for the GCS downloader
         throw new RuntimeException("test failure")

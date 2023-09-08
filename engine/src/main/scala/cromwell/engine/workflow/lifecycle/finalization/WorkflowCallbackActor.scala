@@ -7,6 +7,7 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
+import akka.routing.Broadcast
 import akka.util.ByteString
 import cats.data.Validated.{Invalid, Valid}
 import cats.implicits.toTraverseOps
@@ -28,6 +29,7 @@ import scala.concurrent.duration.DurationInt
 import scala.util.Try
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 import java.net.URI
 import java.time.Instant
@@ -143,6 +145,7 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
             sendMetadata(workflowId, successful = false, uri)
         }
       }.getOrElse(())
+    case Broadcast(ShutdownCommand) | ShutdownCommand => context stop self
     case other => log.warning(s"WorkflowCallbackActor received an unexpected message: $other")
   }
 

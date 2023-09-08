@@ -39,21 +39,27 @@ case class BulkAccessUrlDownloader(resolvedUrls : List[ResolvedDrsUrl]) extends 
     * @return Filepath of a getm-manifest.json that Getm can use to download multiple files in parallel.
     */
   def generateJsonManifest(resolvedUrls : List[ResolvedDrsUrl]): IO[Path] = {
-
     def toJsonString(drsResponse: DrsResolverResponse, destinationFilepath: String): String = {
       //NB: trailing comma is being removed in generateJsonManifest
       val accessUrl: AccessUrl = drsResponse.accessUrl.getOrElse(AccessUrl("missing", None))
-      val checksum = GetmChecksum(drsResponse.hashes, accessUrl)
-      val checksumAlgorithm = checksum.getmAlgorithm
-      s"""  {
-         |    "url" : "$accessUrl",
-         |    "filepath" : "$destinationFilepath",
-         |    "checksum" : "$checksum",
-         |    "checksum-algorithm" : "$checksumAlgorithm"
-         |  },
-         |""".stripMargin
+      drsResponse.hashes.map(_ => {
+        val checksum = GetmChecksum(drsResponse.hashes, accessUrl)
+        val checksumAlgorithm = checksum.getmAlgorithm
+        s"""  {
+           |    "url" : "$accessUrl",
+           |    "filepath" : "$destinationFilepath",
+           |    "checksum" : "$checksum",
+           |    "checksum-algorithm" : "$checksumAlgorithm"
+           |  },
+           |""".stripMargin
+      }).getOrElse(
+        s"""  {
+           |    "url" : "$accessUrl",
+           |    "filepath" : "$destinationFilepath"
+           |  },
+           |""".stripMargin
+      )
     }
-
     IO {
       var jsonString: String = "[\n"
       for (resolvedUrl <- resolvedUrls) {

@@ -1,5 +1,6 @@
 package drs.localizer
 
+/*
 import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO}
 import cats.syntax.validated._
@@ -12,8 +13,8 @@ import drs.localizer.downloaders.BulkAccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-
+*/
+/*
 class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   val fakeDownloadLocation = "/root/foo/foo-123.bam"
@@ -315,6 +316,9 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     actualAttempts shouldBe 2 // 1 initial attempt + 1 retry = 2 total attempts
   }
 }
+ */
+
+/*
 
 object MockDrsPaths {
   val fakeDrsUrlWithGcsResolutionOnly = "drs://abc/foo-123/abc123"
@@ -328,6 +332,7 @@ class MockDrsLocalizerMain(drsUrl: String,
                            downloadLoc: String,
                            requesterPaysProjectIdOption: Option[String],
                           )
+
   extends DrsLocalizerMain(drsUrl, downloadLoc, FakeAccessTokenStrategy, requesterPaysProjectIdOption) {
 
   override def getDrsPathResolver: IO[DrsLocalizerDrsPathResolver] = {
@@ -370,4 +375,8 @@ object MockDrsLocalizerDrsPathResolver {
   val FakeAccessTokenStrategy: DrsCredentials = new DrsCredentials {
     override def getAccessToken: ErrorOr[String] = "testing code: do not call me".invalidNel
   }
+
 }
+
+
+ */

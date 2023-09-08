@@ -8,7 +8,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
 import scala.sys.process.{Process, ProcessLogger}
 import scala.util.matching.Regex
-import drs.localizer.ResolvedDrsUrlPendingDownload
+import drs.localizer.ResolvedDrsUrl
 case class GetmResult(returnCode: Int, stderr: String)
 
 /**
@@ -17,7 +17,7 @@ case class GetmResult(returnCode: Int, stderr: String)
   * to invoke the Getm tool, which is expected to already be installed in the local environment.
   * @param resolvedUrls
   */
-case class BulkAccessUrlDownloader(resolvedUrls : List[ResolvedDrsUrlPendingDownload]) extends Downloader with StrictLogging {
+case class BulkAccessUrlDownloader(resolvedUrls : List[ResolvedDrsUrl]) extends Downloader with StrictLogging {
   /**
     * Write a json manifest to disk that looks like:
     * // [
@@ -38,11 +38,11 @@ case class BulkAccessUrlDownloader(resolvedUrls : List[ResolvedDrsUrlPendingDown
     * @param resolvedUrls
     * @return Filepath of a getm-manifest.json that Getm can use to download multiple files in parallel.
     */
-  def generateJsonManifest(resolvedUrls : List[ResolvedDrsUrlPendingDownload]): IO[Path] = {
+  def generateJsonManifest(resolvedUrls : List[ResolvedDrsUrl]): IO[Path] = {
 
     def toJsonString(drsResponse: DrsResolverResponse, destinationFilepath: String): String = {
       //NB: trailing comma is being removed in generateJsonManifest
-      val accessUrl: AccessUrl = drsResponse.accessUrl.getOrElse("missing_url")
+      val accessUrl: AccessUrl = drsResponse.accessUrl.getOrElse(AccessUrl("missing", None))
       val checksum = GetmChecksum(drsResponse.hashes, accessUrl)
       val checksumAlgorithm = checksum.getmAlgorithm
       s"""  {

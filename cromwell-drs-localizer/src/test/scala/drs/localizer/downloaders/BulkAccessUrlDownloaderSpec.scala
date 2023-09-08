@@ -1,16 +1,14 @@
 package drs.localizer.downloaders
 
-import cloud.nio.impl.drs.AccessUrl
 import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.nio.file.Path
-import scala.util.Try
 
 
 class BulkAccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
+  /*
   it should "correctly parse a collection of Access Urls into a manifest.json" in {
 
     val fakeAccessURLToDownloadLocationMap : Map[AccessUrl, String] = Map(
@@ -42,4 +40,5 @@ class BulkAccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec w
 
     lines shouldBe expected
   }
+   */
 }

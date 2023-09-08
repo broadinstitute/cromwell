@@ -98,14 +98,16 @@ object WorkflowCallbackActor {
             defaultCallbackUri: Option[URI],
             retryBackoff: Option[SimpleExponentialBackoff] = None,
             maxRetries: Option[Int] = None,
-            authMethod: Option[WorkflowCallbackConfig.AuthMethod] = None
+            authMethod: Option[WorkflowCallbackConfig.AuthMethod] = None,
+            httpClient: CallbackHttpHandler = CallbackHttpHandlerImpl
            ) = Props(
     new WorkflowCallbackActor(
       serviceRegistryActor,
       defaultCallbackUri,
       retryBackoff,
       maxRetries,
-      authMethod)
+      authMethod,
+      httpClient)
   ).withDispatcher(IoDispatcher)
 }
 
@@ -113,7 +115,8 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
                             defaultCallbackUri: Option[URI],
                             retryBackoff: Option[SimpleExponentialBackoff],
                             maxRetries: Option[Int],
-                            authMethod: Option[AuthMethod])
+                            authMethod: Option[AuthMethod],
+                            httpClient: CallbackHttpHandler)
   extends Actor with ActorLogging {
 
   implicit val ec: ExecutionContextExecutor = context.dispatcher
@@ -134,10 +137,10 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
         performCallback(workflowId, uri, terminalState, outputs) onComplete {
           case Success(_) =>
             log.info(s"Successfully sent callback for workflow for workflow $workflowId in state $terminalState to $uri")
-            sendMetadata(workflowId, successful = true)
+            sendMetadata(workflowId, successful = true, uri)
           case Failure(t) =>
             log.warning(s"Permanently failed to send callback for workflow $workflowId in state $terminalState to $uri: ${t.getMessage}")
-            sendMetadata(workflowId, successful = false)
+            sendMetadata(workflowId, successful = false, uri)
         }
       }.getOrElse(())
     case other => log.warning(s"WorkflowCallbackActor received an unexpected message: $other")
@@ -176,7 +179,7 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
   }
 
   private def sendRequestOrFail(request: HttpRequest): Future[HttpResponse] =
-    Http().singleRequest(request).flatMap(response =>
+    httpClient.sendRequest(request).flatMap(response =>
       if (response.status.isFailure()) {
         response.entity.dataBytes.runFold(ByteString(""))(_ ++ _).map(_.utf8String) flatMap { errorBody =>
           Future.failed(
@@ -186,7 +189,7 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
       } else Future.successful(response)
     )
 
-  private def sendMetadata(workflowId: WorkflowId, successful: Boolean): Unit = {
+  private def sendMetadata(workflowId: WorkflowId, successful: Boolean, uri: URI): Unit = {
     val events = List(
       MetadataEvent(
         MetadataKey(workflowId, None, "workflowCallback", "successful"),
@@ -194,7 +197,7 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
       ),
       MetadataEvent(
         MetadataKey(workflowId, None, "workflowCallback", "url"),
-        MetadataValue(defaultCallbackUri.toString)
+        MetadataValue(uri.toString)
       ),
       MetadataEvent(
         MetadataKey(workflowId, None, "workflowCallback", "timestamp"),
@@ -206,3 +209,13 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
 
 }
 
+// Wrap the http call in a trait so it can be easily mocked for testing
+trait CallbackHttpHandler {
+  def sendRequest(httpRequest: HttpRequest)(implicit actorSystem: ActorSystem): Future[HttpResponse]
+}
+
+object CallbackHttpHandlerImpl extends CallbackHttpHandler {
+  override def sendRequest(httpRequest: HttpRequest)(implicit actorSystem: ActorSystem): Future[HttpResponse] = {
+    Http().singleRequest(httpRequest)
+  }
+}

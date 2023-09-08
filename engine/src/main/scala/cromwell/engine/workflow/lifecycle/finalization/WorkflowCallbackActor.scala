@@ -131,10 +131,10 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
   private lazy val maxRetriesWithDefault = maxRetries.getOrElse(defaultMaxRetries)
 
   override def receive: Actor.Receive = LoggingReceive {
-    case PerformCallbackCommand(workflowId, uri, terminalState, outputs) =>
+    case PerformCallbackCommand(workflowId, requestedCallbackUri, terminalState, outputs) =>
       // If no uri was provided to us here, fall back to the one in config. If there isn't
       // one there, do not perform a callback.
-      val callbackUri: Option[URI] = uri.map(WorkflowCallbackConfig.createAndValidateUri).getOrElse(defaultCallbackUri)
+      val callbackUri: Option[URI] = requestedCallbackUri.map(WorkflowCallbackConfig.createAndValidateUri).getOrElse(defaultCallbackUri)
       callbackUri.map { uri =>
         performCallback(workflowId, uri, terminalState, outputs) onComplete {
           case Success(_) =>

@@ -342,7 +342,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
 
       workflowCallbackProbe.expectNoMessage(AwaitAlmostNothing)
       actor ! WorkflowFinalizationSucceededResponse
-      workflowCallbackProbe.expectMsg(WorkflowCallbackActor.PerformCallbackCommand(currentWorkflowId, Some(mockUri), WorkflowFailed, CallOutputs.empty))
+      workflowCallbackProbe.expectMsg(WorkflowCallbackActor.PerformCallbackCommand(currentWorkflowId, Some(mockUri), WorkflowSucceeded, CallOutputs.empty))
       deathwatch.expectTerminated(actor)
     }
   }

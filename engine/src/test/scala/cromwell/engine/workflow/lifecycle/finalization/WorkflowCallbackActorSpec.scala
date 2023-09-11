@@ -63,7 +63,8 @@ class WorkflowCallbackActorSpec
     val expectedPostBody = CallbackMessage(
       workflowId.toString,
       WorkflowSucceeded.toString,
-      Option(basicOutputs.outputs.map(entry => (entry._1.name, entry._2)))
+      Option(basicOutputs.outputs.map(entry => (entry._1.name, entry._2))),
+      None
     )
     val expectedRequest = Post(mockUri.toString, expectedPostBody)
     val (expectedResultMetadata, expectedUriMetadata, expectedTimestampMetadata) = metadataEvents(workflowId, true)
@@ -79,7 +80,7 @@ class WorkflowCallbackActorSpec
 
     // Do the thing
     val cmd = PerformCallbackCommand(
-      workflowId = workflowId, uri = None, terminalState = WorkflowSucceeded, workflowOutputs = basicOutputs
+      workflowId = workflowId, uri = None, terminalState = WorkflowSucceeded, workflowOutputs = basicOutputs, List.empty
     )
     workflowCallbackActor ! cmd
 
@@ -112,7 +113,8 @@ class WorkflowCallbackActorSpec
     val expectedPostBody = CallbackMessage(
       workflowId.toString,
       WorkflowSucceeded.toString,
-      Option(basicOutputs.outputs.map(entry => (entry._1.name, entry._2)))
+      Option(basicOutputs.outputs.map(entry => (entry._1.name, entry._2))),
+      None
     )
     val expectedRequest = Post(mockUri.toString, expectedPostBody)
 
@@ -129,7 +131,7 @@ class WorkflowCallbackActorSpec
 
     // Do the thing
     val cmd = PerformCallbackCommand(
-      workflowId = workflowId, uri = None, terminalState = WorkflowSucceeded, workflowOutputs = basicOutputs
+      workflowId = workflowId, uri = None, terminalState = WorkflowSucceeded, workflowOutputs = basicOutputs, List.empty
     )
     workflowCallbackActor ! cmd
 
@@ -159,10 +161,12 @@ class WorkflowCallbackActorSpec
     val workflowId = WorkflowId.randomId()
     val mockHttpClient = mock[CallbackHttpHandler]
 
+    val errorMsg = "Something bad happened :("
     val expectedPostBody = CallbackMessage(
       workflowId.toString,
       WorkflowFailed.toString,
-      None
+      None,
+      Option(List(errorMsg))
     )
     val expectedRequest = Post(mockUri.toString, expectedPostBody)
 
@@ -181,7 +185,11 @@ class WorkflowCallbackActorSpec
 
     // Do the thing
     val cmd = PerformCallbackCommand(
-      workflowId = workflowId, uri = Option(mockUri.toString), terminalState = WorkflowFailed, workflowOutputs = basicOutputs
+      workflowId = workflowId,
+      uri = Option(mockUri.toString),
+      terminalState = WorkflowFailed,
+      workflowOutputs = basicOutputs,
+      List(errorMsg)
     )
     workflowCallbackActor ! cmd
 
@@ -220,7 +228,7 @@ class WorkflowCallbackActorSpec
 
     // Do the thing
     val cmd = PerformCallbackCommand(
-      workflowId = workflowId, uri = None, terminalState = WorkflowSucceeded, workflowOutputs = basicOutputs
+      workflowId = workflowId, uri = None, terminalState = WorkflowSucceeded, workflowOutputs = basicOutputs, List.empty
     )
     workflowCallbackActor ! cmd
 
@@ -234,7 +242,7 @@ class WorkflowCallbackActorSpec
     deathWatch.expectTerminated(workflowCallbackActor, msgWait)
   }
 
-  it should "no nothing when given a bogus URI" in {
+  it should "do nothing when given a bogus URI" in {
     // Setup
     val workflowId = WorkflowId.randomId()
     val mockHttpClient = mock[CallbackHttpHandler]
@@ -251,7 +259,8 @@ class WorkflowCallbackActorSpec
       workflowId = workflowId,
       uri = Option("this is not a very good URI, is it"),
       terminalState = WorkflowSucceeded,
-      workflowOutputs = basicOutputs
+      workflowOutputs = basicOutputs,
+      List.empty
     )
     workflowCallbackActor ! cmd
 

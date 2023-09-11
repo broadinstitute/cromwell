@@ -522,7 +522,13 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       goto(MetadataIntegrityValidationState) using data.copy(lastStateReached = data.lastStateReached.copy(state = stateName))
     case Event(PerformWorkflowCallback(uri, workflowState), data) =>
       workflowCallbackActor.foreach { wca =>
-        wca ! PerformCallbackCommand(workflowId, uri, workflowState, data.workflowFinalOutputs.getOrElse(CallOutputs.empty))
+        wca ! PerformCallbackCommand(
+          workflowId,
+          uri,
+          workflowState,
+          data.workflowFinalOutputs.getOrElse(CallOutputs.empty),
+          data.lastStateReached.failures.toList.flatMap(_.map(_.getMessage))
+        )
       }
       stay()
   }

@@ -339,10 +339,11 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
     "send a workflow callback message" in {
       val actor = createWorkflowActor(FinalizingWorkflowState, workflowCallbackActor = Option(workflowCallbackProbe.ref))
       deathwatch watch actor
+      val msg = WorkflowCallbackActor.PerformCallbackCommand(currentWorkflowId, Some(mockUri), WorkflowSucceeded, CallOutputs.empty, List.empty)
 
       workflowCallbackProbe.expectNoMessage(AwaitAlmostNothing)
       actor ! WorkflowFinalizationSucceededResponse
-      workflowCallbackProbe.expectMsg(WorkflowCallbackActor.PerformCallbackCommand(currentWorkflowId, Some(mockUri), WorkflowSucceeded, CallOutputs.empty))
+      workflowCallbackProbe.expectMsg(msg)
       deathwatch.expectTerminated(actor)
     }
   }

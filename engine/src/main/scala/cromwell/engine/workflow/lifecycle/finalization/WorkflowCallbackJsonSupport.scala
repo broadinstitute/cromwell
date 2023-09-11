@@ -4,8 +4,11 @@ import cromwell.util.JsonFormatting.WomValueJsonFormatter.WomValueJsonFormat
 import spray.json.DefaultJsonProtocol
 import wom.values.WomValue
 
-final case class CallbackMessage(workflowId: String, state: String, outputs: Option[Map[String, WomValue]])
+final case class CallbackMessage(workflowId: String,
+                                 state: String,
+                                 outputs: Option[Map[String, WomValue]],
+                                 failures: Option[List[String]])
 
 object WorkflowCallbackJsonSupport extends DefaultJsonProtocol {
-  implicit val callbackMessageFormat = jsonFormat3(CallbackMessage)
+  implicit val callbackMessageFormat = jsonFormat4(CallbackMessage)
 }

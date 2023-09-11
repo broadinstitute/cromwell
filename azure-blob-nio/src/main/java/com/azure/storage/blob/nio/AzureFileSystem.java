@@ -170,6 +170,8 @@ public final class AzureFileSystem extends FileSystem {
     private final Integer downloadResumeRetries;
     private FileStore defaultFileStore;
     private boolean closed;
+
+    private AzureSasCredential currentActiveSasCredential;
     private Instant expiry;
 
     AzureFileSystem(AzureFileSystemProvider parentFileSystemProvider, String endpoint, Map<String, ?> config)
@@ -188,6 +190,7 @@ public final class AzureFileSystem extends FileSystem {
             this.putBlobThreshold = (Long) config.get(AZURE_STORAGE_PUT_BLOB_THRESHOLD);
             this.maxConcurrencyPerRequest = (Integer) config.get(AZURE_STORAGE_MAX_CONCURRENCY_PER_REQUEST);
             this.downloadResumeRetries = (Integer) config.get(AZURE_STORAGE_DOWNLOAD_RESUME_RETRIES);
+            this.currentActiveSasCredential = (AzureSasCredential) config.get(AZURE_STORAGE_SAS_TOKEN_CREDENTIAL);
 
             // Initialize and ensure access to FileStores.
             this.defaultFileStore = this.initializeFileStore(config);
@@ -496,6 +499,13 @@ public final class AzureFileSystem extends FileSystem {
         return this.maxConcurrencyPerRequest;
     }
 
+    public String createSASAppendedURL(String url) throws IllegalStateException {
+        if (Objects.isNull(currentActiveSasCredential)) {
+            throw new IllegalStateException("No current active SAS credential present");
+        }
+        return url + "?" + currentActiveSasCredential.getSignature();
+    }
+
     public Optional<Instant> getExpiry() {
         return Optional.ofNullable(expiry);
     }
@@ -514,5 +524,6 @@ public final class AzureFileSystem extends FileSystem {
         return Optional.ofNullable(this.expiry)
             .map(e -> Instant.now().plus(buffer).isAfter(e))
             .orElse(true);
+
     }
 }

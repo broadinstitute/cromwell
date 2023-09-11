@@ -140,7 +140,7 @@ class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
               s"${unknown.drsResponse.accessUrl.getOrElse(unknown.drsResponse.gsUri.getOrElse("missing_url"))}"))
         IO{
           val accessResults = bulkDownloadAccessUrls(accessUrls, downloaderFactory)
-          val googleResults = bulkDownloadGoogleUrls(accessUrls, downloaderFactory)
+          val googleResults = bulkDownloadGoogleUrls(googleUrls, downloaderFactory)
           List(accessResults, googleResults).find(result => result != DownloadSuccess).getOrElse(DownloadSuccess)
         }
       }

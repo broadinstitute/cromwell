@@ -64,7 +64,7 @@ def get_app_url(workspaceId, app):
     if status_code != 200:
         return response.text
     print("Successfully retrieved details.")
-    response = json.loads(response.text)
+    response = response.json()
 
     app_url = ""
     app_type = "CROMWELL" if app != 'wds' else app.upper()
@@ -101,8 +101,8 @@ def submit_workflow_to_cromwell(app_url, workflow_test_name):
             }
     response = requests.post(workflow_endpoint, headers=headers, files=files)
     handle_failed_request(response, f"Error submitting workflow to Cromwell for {workflow_test_name}")
-    print(response.text)
-    return json.loads(response.text)
+    print(response.json()) # NOTE: remove after testing
+    return response.json()
 
 def get_workflow_information(app_url, workflow_id):
     workflow_endpoint = f'{app_url}/cromwell/api/workflows/v1/{workflow_id}/metadata'
@@ -110,7 +110,8 @@ def get_workflow_information(app_url, workflow_id):
               "accept": "application/json"}
     response = requests.get(workflow_endpoint, headers=headers)
     handle_failed_request(response, f"Error fetching workflow metadata for {workflow_id}")
-    return json.loads(response.text)
+    print(response.json()) # NOTE: remove after testing
+    return response.json()
 
 def get_completed_workflow(app_url, workflow_ids, max_retries=4):
     target_statuses = ['Succeeded', 'Failed']
@@ -139,15 +140,12 @@ def get_completed_workflow(app_url, workflow_ids, max_retries=4):
 
 # This chunk of code only executes one workflow
 # Would like to modify this down the road to execute and store references for multiple workflows
-
-# Added an sleep here to give the workspace time to provision
-# Not sure if I actually need this though, will remove if I find out its unecessary
-time.sleep(60 * 20)
 workspace_id = create_workspace()
+time.sleep(60 * 20) # Added an sleep here to give the workspace time to provision
 app_url = get_app_url(workspace_id, 'cromwell')
 workflow_response = submit_workflow_to_cromwell(app_url, "Run Workflow Test")
 #Giving workflow 10 minutes to complete
-#Will need to update this when swapping out hello wdl with fetch_sra_to_bam (30 min?)
+#Will need to update this when swapping out hello wdl with fetch_sra_to_bam (20 min?)
 time.sleep(60 * 10)
 
 # This chunk of code supports checking one or more workflows

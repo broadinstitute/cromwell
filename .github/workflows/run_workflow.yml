@@ -80,7 +80,8 @@ jobs:
           ref: refs/heads/main
           token: ${{ env.TOKEN }}
           # NOTE: Opting to use "prod" instead of custom tag since I specifically want to test against the current prod state
-          inputs: '{ "bee-name": "${{ env.BEE_NAME }}", "version-template": "prod" }'
+          # NOTE: For testing purposes I'm using dev
+          inputs: '{ "bee-name": "${{ env.BEE_NAME }}", "version-template": "dev" }'
 
   attach-landing-zone-to-bee-workflow:
     runs-on: ubuntu-latest
@@ -97,14 +98,14 @@ jobs:
         with:
           workflow: attach-landing-zone-to-bee.yaml
           repo: broadinstitute/terra-github-workflows
-          ref: refs/heads/iv-az-e2e-1
+          ref: refs/heads/main
           token: ${{ env.TOKEN }}
           inputs: '{ 
             "bee-name": "${{ env.BEE_NAME }}",
             "run-name": "attach-landing-zone-to-bee-${{env.RUN_NAME_SUFFIX}}"
             "billing-project": "${{ needs.az-e2e-params-gen.outputs.project-name }}",  
             "billing-project-creator": "${{ inputs.owner-subject }}", 
-            "service-account": "${{ inputs.service-account }}" }'
+            "service-account": "${{ inputs.service-account }}"}'
 
   run-cromwell-az-e2e:
     runs-on: ubuntu-latest
@@ -139,7 +140,7 @@ jobs:
         with:
           workflow: .github/workflows/delete-billing-project-v2-from-bee.yaml
           repo: broadinstitute/terra-github-workflows
-          ref: refs/heads/iv-az-e2e-1
+          ref: refs/heads/main
           token: ${{ env.TOKEN }}
           inputs: '{ "bee-name": "${{ env.BEE_NAME }}", "billing-project": "${{ steps.az-e2e-params-gen.outputs.project-name }}", "billing-project-owner": "${{ inputs.owner-subject }}", "service-account": "${{ inputs.service-account }}" }'
 

@@ -46,7 +46,7 @@ case class BulkAccessUrlDownloader(resolvedUrls : List[ResolvedDrsUrl]) extends 
         val checksum = GetmChecksum(drsResponse.hashes, accessUrl)
         val checksumAlgorithm = checksum.getmAlgorithm
         s"""  {
-           |    "url" : "$accessUrl",
+           |    "url" : "${accessUrl.url}",
            |    "filepath" : "$destinationFilepath",
            |    "checksum" : "$checksum",
            |    "checksum-algorithm" : "$checksumAlgorithm"
@@ -54,7 +54,7 @@ case class BulkAccessUrlDownloader(resolvedUrls : List[ResolvedDrsUrl]) extends 
            |""".stripMargin
       }).getOrElse(
         s"""  {
-           |    "url" : "$accessUrl",
+           |    "url" : "${accessUrl.url}",
            |    "filepath" : "$destinationFilepath"
            |  },
            |""".stripMargin
@@ -65,18 +65,24 @@ case class BulkAccessUrlDownloader(resolvedUrls : List[ResolvedDrsUrl]) extends 
       for (resolvedUrl <- resolvedUrls) {
         jsonString += toJsonString(resolvedUrl.drsResponse, resolvedUrl.downloadDestinationPath)
       }
-      jsonString = jsonString.substring(0, jsonString.lastIndexOf(",")) //remove trailing comma from array elements
+      if(jsonString.contains(',')) {
+        //remove trailing comma from array elements, but don't crash on empty list.
+        jsonString = jsonString.substring(0, jsonString.lastIndexOf(","))
+      }
       jsonString += "\n]"
       Files.write(Paths.get("getm-manifest.json"), jsonString.getBytes(StandardCharsets.UTF_8))
     }
   }
 
+  def generateGetmCommand(pathToMainfestJson : Path) : String = {
+    s"""getm --manifest ${pathToMainfestJson.toString}"""
+  }
   def runGetm: IO[GetmResult] = {
     generateJsonManifest(resolvedUrls).flatMap{ manifestPath =>
       //val script = s"""mkdir -p $$(dirname '$downloadLoc') && rm -f '$downloadLoc' && getm --manifest '$manifestPath'""" //TODO: Check if getm will automatically create directories, or if we need to do it for each file.
       // also consider deleting files already there to make retires a little simpler?
-      val manifestPathString = manifestPath.toString
-      val script = s"""getm --manifest '$manifestPathString'"""
+
+      val script = generateGetmCommand(manifestPath)
       val copyCommand : Seq[String] = Seq("bash", "-c", script)
       logger.info(script)
       val copyProcess = Process(copyCommand)

@@ -4,14 +4,9 @@ import cats.effect.IO
 import cloud.nio.impl.drs.{AccessUrl, DrsResolverResponse}
 import common.assertion.CromwellTimeoutSpec
 import drs.localizer.{ResolvedDrsUrl, URIType}
-//import drs.localizer.URIType.URIType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-
 import java.nio.file.Path
-
-
 
 class BulkAccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   val ex1 = ResolvedDrsUrl(DrsResolverResponse(accessUrl = Option(AccessUrl("https://my.fake/url123", None))), "path/to/local/download/dest", URIType.HTTPS)

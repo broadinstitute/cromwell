@@ -10,7 +10,6 @@ import scala.sys.process.{Process, ProcessLogger}
 import scala.util.matching.Regex
 import drs.localizer.ResolvedDrsUrl
 case class GetmResult(returnCode: Int, stderr: String)
-
 /**
   * Getm is a python tool that is used to download resolved DRS uris quickly and in parallel.
   * This class builds a getm-manifest.json file that it uses for input, and builds/executes a shell command
@@ -80,9 +79,6 @@ case class BulkAccessUrlDownloader(resolvedUrls : List[ResolvedDrsUrl]) extends 
   }
   def runGetm: IO[GetmResult] = {
     generateJsonManifest(resolvedUrls).flatMap{ manifestPath =>
-      //val script = s"""mkdir -p $$(dirname '$downloadLoc') && rm -f '$downloadLoc' && getm --manifest '$manifestPath'""" //TODO: Check if getm will automatically create directories, or if we need to do it for each file.
-      // also consider deleting files already there to make retires a little simpler?
-
       val script = generateGetmCommand(manifestPath)
       val copyCommand : Seq[String] = Seq("bash", "-c", script)
       logger.info(script)

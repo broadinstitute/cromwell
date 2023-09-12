@@ -396,6 +396,7 @@ lazy val `cromwell-drs-localizer` = project
   .dependsOn(`cloud-nio-impl-drs`)
   .dependsOn(common)
   .dependsOn(`cloud-nio-impl-drs` % "test->test")
+  .dependsOn(core)
 
 lazy val pact4s = project.in(file("pact4s"))
   .settings(pact4sSettings)

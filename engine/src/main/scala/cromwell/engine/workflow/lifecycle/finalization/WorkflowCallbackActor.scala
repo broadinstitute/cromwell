@@ -153,7 +153,7 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
   }
 
   private def performCallback(workflowId: WorkflowId, callbackUri: URI, terminalState: WorkflowState, outputs: CallOutputs, failures: List[String]): Future[Unit] = {
-    // Only send outputs if the workflow succeeded
+    // Only send outputs if the workflow succeeded, only send an error message if it failed.
     val callbackPostBody = terminalState match {
       case WorkflowSucceeded => CallbackMessage(workflowId.toString, terminalState.toString, Option(outputs.outputs.map(entry => (entry._1.name, entry._2))), None)
       case WorkflowFailed => CallbackMessage(workflowId.toString, terminalState.toString, None, Option(failures))
@@ -170,6 +170,8 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
         onRetry = err => log.warning(s"Will retry after failure to send workflow callback for workflow $workflowId in state $terminalState to $callbackUri : $err")
       )
       result <- {
+        // Akka will get upset if we have a response body and leave it totally unread.
+        // Since there's nothing here we want to read, we need to deliberately discard it.
         response.entity.discardBytes()
         Future.unit
       }

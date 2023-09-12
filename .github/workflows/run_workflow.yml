@@ -39,27 +39,14 @@ jobs:
 
   # This job provisions useful parameters for e2e tests, including access tokens.
   # Please note: access tokens are for use in the same workflow, they cannot be dispatched to remote workflows.
-  az-e2e-params-gen:
+  params-gen:
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'
       id-token: 'write'
     outputs:
-      owner-access-token: ${{ steps.owner_auth.outputs.access_token }}
       project-name: ${{ steps.gen.outputs.project_name }}
     steps:
-      - uses: 'actions/checkout@v3'
-      - name: Generate OAuth2 2.0 access token for owner
-        id: 'owner_auth'
-        uses: google-github-actions/auth@v1
-        with:
-          token_format: 'access_token'
-          workload_identity_provider: 'projects/1038484894585/locations/global/workloadIdentityPools/github-wi-pool/providers/github-wi-provider'
-          service_account: ${{ inputs.service-account }}
-          access_token_scopes: 'profile, email, openid'
-          access_token_subject: ${{ inputs.owner-subject }}
-          export_environment_variables: false
-          create_credentials_file: false
       - name: Generate a random billing project name
         id: 'gen'
         run: |
@@ -68,7 +55,7 @@ jobs:
   
   create-bee-workflow:
     runs-on: ubuntu-latest
-    needs: [init-github-context, az-e2e-params-gen]
+    needs: [init-github-context, params-gen]
     permissions:
       contents: 'read'
       id-token: 'write'
@@ -83,40 +70,45 @@ jobs:
           # NOTE: Opting to use "prod" instead of custom tag since I specifically want to test against the current prod state
           # NOTE: For testing purposes I'm using dev
           inputs: '{ "bee-name": "${{ env.BEE_NAME }}", "version-template": "dev" }'
-
-  attach-landing-zone-to-bee-workflow:
+  
+  create-and-attach-billing-project-to-landing-zone-workflow:
     runs-on: ubuntu-latest
-    needs: [az-e2e-params-gen, create-bee-workflow]
-    if: ${{ needs.az-e2e-params-gen.outputs.owner-access-token != '' }}
-    permissions:
-      contents: 'read'
-      id-token: 'write'
+    needs: [create-bee-workflow, params-gen]
     steps:
-      - name: Verify token generation
-        run: 
-          echo "::add-mask::${{ needs.az-e2e-params-gen.outputs.owner-access-token }}"
       - name: dispatch to terra-github-workflows
         uses: broadinstitute/workflow-dispatch@v3
         with:
-          workflow: attach-landing-zone-to-bee.yaml
+          workflow: attach-billing-project-to-landing-zone.yaml
           repo: broadinstitute/terra-github-workflows
           ref: refs/heads/main
           token: ${{ env.BROADBOT_TOKEN }}
-          inputs: '{ 
+          inputs: '{
+            "run-name": "attach-billing-project-to-landing-zone-${{ env.RUN_NAME_SUFFIX }}",
             "bee-name": "${{ env.BEE_NAME }}",
-            "run-name": "attach-landing-zone-to-bee-${{env.RUN_NAME_SUFFIX}}",
-            "billing-project": "${{ needs.az-e2e-params-gen.outputs.project-name }}",  
-            "billing-project-creator": "${{ inputs.owner-subject }}", 
-            "service-account": "${{ inputs.service-account }}"}'
+            "billing-project": "${{ needs.params-gen.outputs.project-name }}",
+            "billing-project-creator": "${{ inputs.owner-subject }}",
+            "service-account": "${{inputs.service-account}}" }'
 
   run-cromwell-az-e2e:
     runs-on: ubuntu-latest
-    needs: [az-e2e-params-gen, attach-landing-zone-to-bee-workflow]
+    needs: [params-gen, create-and-attach-billing-project-to-landing-zone-workflow]
     permissions:
       contents: 'read'
       id-token: 'write'
     steps:
-      - uses: actions/checkout@v3 # checkout the cromwell repo
+      - uses: 'actions/checkout@v3'
+      - name: Generate OAuth2 2.0 access token for owner
+        id: 'owner_auth'
+        uses: google-github-actions/auth@v1
+        with:
+          token_format: 'access_token'
+          workload_identity_provider: 'projects/1038484894585/locations/global/workloadIdentityPools/github-wi-pool/providers/github-wi-provider'
+          service_account: ${{ inputs.service-account }}
+          access_token_scopes: 'profile, email, openid'
+          access_token_subject: ${{ inputs.owner-subject }}
+          export_environment_variables: false
+          create_credentials_file: false
+      - uses: actions/checkout@v3
         with:
         #NOTE: replace with target-branch before merge
 #        ref: ${{ inputs.target-branch }}
@@ -127,14 +119,14 @@ jobs:
         env:
           OWNER: ${{inputs.owner-subject}}
           BEE_NAME: ${{env.BEE_NAME}}
-          BILLING_PROJECT_NAME: ${{needs.az-e2e-params-gen.outputs.project-name}}
-          BEARER_TOKEN: ${{needs.az-e2e-params-gen.outputs.owner-access-token}}
+          BILLING_PROJECT_NAME: ${{needs.params-gen.outputs.project-name}}
+          BEARER_TOKEN: ${{ steps.owner_auth.outputs.access_token }}
         run: |
           poetry run python ../../server/src/test/python/cromwell-az-e2e/tests/az-e2e.py
 
   delete-billing-project-v2-from-bee-workflow:
     runs-on: ubuntu-latest
-    needs: [run-cromwell-az-e2e, attach-landing-zone-to-bee-workflow]
+    needs: [run-cromwell-az-e2e, create-and-attach-billing-project-to-landing-zone-workflow, params-gen]
     if: ${{(needs.run-cromwell-az-e2e.result == 'success' || needs.run-cromwell-az-e2e.result == 'failure' || needs.run-cromwell-az-e2e.result == 'cancelled' || needs.run-cromwell-az-e2e.result == 'skipped') && needs.attach-landing-zone-to-bee-workflow.result == 'success'}}
     steps:
       - name: dispatch to terra-github-workflows
@@ -144,7 +136,13 @@ jobs:
           repo: broadinstitute/terra-github-workflows
           ref: refs/heads/main
           token: ${{ env.BROADBOT_TOKEN }}
-          inputs: '{ "bee-name": "${{ env.BEE_NAME }}", "billing-project": "${{ steps.az-e2e-params-gen.outputs.project-name }}", "billing-project-owner": "${{ inputs.owner-subject }}", "service-account": "${{ inputs.service-account }}" }'
+          inputs: '{ 
+            "run-name": "delete-billing-project-v2-from-bee-${{ env.RUN_NAME_SUFFIX }}",
+            "bee-name": "${{ env.BEE_NAME }}", 
+            "billing-project": "${{ needs.params-gen.outputs.project-name }}", 
+            "billing-project-owner": "${{ inputs.owner-subject }}", 
+            "service-account": "${{ inputs.service-account }}" 
+            "silent-on-failure": "false" }'
 
   destroy-bee-workflow:
     runs-on: ubuntu-latest
@@ -164,3 +162,4 @@ jobs:
           ref: refs/heads/main
           token: ${{ env.BROADBOT_TOKEN }}
           inputs: '{ "bee-name": "${{ env.BEE_NAME }}" }'
+          wait-for-completion: true

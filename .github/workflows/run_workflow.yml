@@ -21,7 +21,7 @@ on:
 
 env:
   BEE_NAME: '${{ github.event.repository.name }}-${{ github.run_id }}-${{ github.run_attempt}}-dev'
-  TOKEN: '${{ secrets.BROADBOT_GITHUB_TOKEN }}' # github token for access to kick off a job in the private repo
+  BROADBOT_TOKEN: '${{ secrets.BROADBOT_GITHUB_TOKEN }}' # github token for access to kick off a job in the private repo
   RUN_NAME_SUFFIX: '${{ github.event.repository.name }}-${{ github.run_id }}-${{ github.run_attempt }}'
 
 jobs:
@@ -59,6 +59,7 @@ jobs:
           access_token_scopes: 'profile, email, openid'
           access_token_subject: ${{ inputs.owner-subject }}
           export_environment_variables: false
+          create_credentials_file: false
       - name: Generate a random billing project name
         id: 'gen'
         run: |
@@ -78,7 +79,7 @@ jobs:
           workflow: bee-create
           repo: broadinstitute/terra-github-workflows
           ref: refs/heads/main
-          token: ${{ env.TOKEN }}
+          token: ${{ env.BROADBOT_TOKEN }}
           # NOTE: Opting to use "prod" instead of custom tag since I specifically want to test against the current prod state
           # NOTE: For testing purposes I'm using dev
           inputs: '{ "bee-name": "${{ env.BEE_NAME }}", "version-template": "dev" }'
@@ -99,10 +100,10 @@ jobs:
           workflow: attach-landing-zone-to-bee.yaml
           repo: broadinstitute/terra-github-workflows
           ref: refs/heads/main
-          token: ${{ env.TOKEN }}
+          token: ${{ env.BROADBOT_TOKEN }}
           inputs: '{ 
             "bee-name": "${{ env.BEE_NAME }}",
-            "run-name": "attach-landing-zone-to-bee-${{env.RUN_NAME_SUFFIX}}"
+            "run-name": "attach-landing-zone-to-bee-${{env.RUN_NAME_SUFFIX}}",
             "billing-project": "${{ needs.az-e2e-params-gen.outputs.project-name }}",  
             "billing-project-creator": "${{ inputs.owner-subject }}", 
             "service-account": "${{ inputs.service-account }}"}'
@@ -141,11 +142,13 @@ jobs:
           workflow: .github/workflows/delete-billing-project-v2-from-bee.yaml
           repo: broadinstitute/terra-github-workflows
           ref: refs/heads/main
-          token: ${{ env.TOKEN }}
+          token: ${{ env.BROADBOT_TOKEN }}
           inputs: '{ "bee-name": "${{ env.BEE_NAME }}", "billing-project": "${{ steps.az-e2e-params-gen.outputs.project-name }}", "billing-project-owner": "${{ inputs.owner-subject }}", "service-account": "${{ inputs.service-account }}" }'
 
   destroy-bee-workflow:
     runs-on: ubuntu-latest
+    # QUESTION: Can a billing project be deleted if the bee is deleted?
+    # QUESTION: Can a billing project be deleted if the bee is still tied to it?
     needs: [create-bee-workflow, delete-billing-project-v2-from-bee-workflow]
     if: ${{needs.create-bee-workflow.result == 'success'}}
     permissions:
@@ -158,5 +161,5 @@ jobs:
           workflow: bee-destroy.yaml
           repo: broadinstitute/terra-github-workflows
           ref: refs/heads/main
-          token: ${{ env.TOKEN }}
+          token: ${{ env.BROADBOT_TOKEN }}
           inputs: '{ "bee-name": "${{ env.BEE_NAME }}" }'

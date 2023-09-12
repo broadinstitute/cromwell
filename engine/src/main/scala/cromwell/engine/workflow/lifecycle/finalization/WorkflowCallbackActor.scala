@@ -48,17 +48,12 @@ object WorkflowCallbackConfig extends LazyLogging {
   case object AzureAuth extends AuthMethod {
     override def getAccessToken: ErrorOr.ErrorOr[String] = AzureCredentials.getAccessToken()
   }
-  // TODO
-  //  case class GoogleAuth(mode: GoogleAuthMode) extends AuthMethod {
-  //    override def getAccessToken: String = ???
-  //  }
 
   def apply(config: Config): WorkflowCallbackConfig = {
     val backoff = config.as[Option[Config]]("request-backoff").map(SimpleExponentialBackoff(_))
     val maxRetries = config.as[Option[Int]]("max-retries")
     val uri = config.as[Option[String]]("endpoint").flatMap(createAndValidateUri)
 
-    // TODO add google auth
     val authMethod = if (config.hasPath("auth.azure")) {
       Option(AzureAuth)
     } else None
@@ -73,7 +68,6 @@ object WorkflowCallbackConfig extends LazyLogging {
   }
 
   def createAndValidateUri(uriString: String): Option[URI] = {
-    // TODO validate
     Try(new URI(uriString)) match {
       case Success(uri) => Option(uri)
       case Failure(err) =>
@@ -82,7 +76,6 @@ object WorkflowCallbackConfig extends LazyLogging {
     }
   }
 }
-
 
 /**
   * The WorkflowCallbackActor is responsible for sending a message on workflow completion to a configured endpoint.
@@ -153,7 +146,7 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
   private def makeHeaders: Future[List[HttpHeader]] = {
     authMethod.toList.map(_.getAccessToken).map {
       case Valid(header) => Future.successful(header)
-      case Invalid(err) => Future.failed(new RuntimeException(err.toString)) // TODO better error
+      case Invalid(err) => Future.failed(new RuntimeException(err.toString))
     }
       .map(t => t.map(t => RawHeader("Authorization", s"Bearer $t")))
       .traverse(identity)

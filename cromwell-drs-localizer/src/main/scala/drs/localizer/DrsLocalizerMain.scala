@@ -7,7 +7,7 @@ import cloud.nio.impl.drs._
 import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
 import com.typesafe.scalalogging.StrictLogging
 import drs.localizer.CommandLineParser.AccessTokenStrategy.{Azure, Google}
-import drs.localizer.DrsLocalizerMain.toUriType
+import drs.localizer.DrsLocalizerMain.toValidatedUriType
 import drs.localizer.downloaders._
 import org.apache.commons.csv.{CSVFormat, CSVParser}
 
@@ -84,27 +84,50 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     }
     }
 
-  def toUriType(accessUrl: Option[AccessUrl], gsUri: Option[String]): URIType = {
+  /**
+    * Helper function to decide which downloader to use based on data from the DRS response.
+    * Throws a runtime exception if the DRS response is invalid.
+    */
+  def toValidatedUriType(accessUrl: Option[AccessUrl], gsUri: Option[String]): URIType = {
+    // if both are provided, prefer using access urls
     (accessUrl, gsUri) match {
-      case (_, Some(_)) =>
-        URIType.GCS
       case (Some(_), _) =>
-        URIType.HTTPS
+        if(!accessUrl.get.url.startsWith("https://")) { throw new RuntimeException("Resolved Access URL does not start with https://")}
+        URIType.ACCESS
+      case (_, Some(_)) =>
+        if(!gsUri.get.startsWith("gs://")) { throw new RuntimeException("Resolved Google URL does not start with gs://")}
+        URIType.GCS
       case (_, _) =>
-        URIType.UNKNOWN
+        throw new RuntimeException("DRS response did not contain any URLs")
     }
   }
   }
 
 object URIType extends Enumeration {
   type URIType = Value
-  val GCS, HTTPS, UNKNOWN = Value
+  val GCS, ACCESS, UNKNOWN = Value
 }
 
 class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
                        downloaderFactory: DownloaderFactory,
                        drsCredentials: DrsCredentials,
                        requesterPaysProjectIdOption: Option[String]) extends StrictLogging {
+
+  /**
+    * This will:
+    *   - resolve all URLS
+    *   - build downloader(s) for them
+    *   - Invoke the downloaders to localize the files.
+    * @return DownloadSuccess if all downloads succeed. An error otherwise.
+    */
+  def resolveAndDownload(): IO[DownloadResult] = {
+    IO {
+      val downloaders: List[Downloader] = buildDownloaders().unsafeRunSync()
+      val results: List[DownloadResult] = downloaders.map(downloader => downloader.download.unsafeRunSync())
+      results.find(res => res != DownloadSuccess).getOrElse(DownloadSuccess)
+    }
+  }
+
   def getDrsPathResolver: IO[DrsLocalizerDrsPathResolver] = {
     IO {
       val drsConfig = DrsConfig.fromEnv(sys.env)
@@ -113,6 +136,21 @@ class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
     }
   }
 
+  /**
+    * Runs a synchronous HTTP request to resolve the provided DRS URL with the provided resolver.
+    */
+  def resolveSingleUrl(resolverObject: DrsLocalizerDrsPathResolver, drsUrlToResolve: UnresolvedDrsUrl): IO[ResolvedDrsUrl] = {
+    IO {
+      val fields = NonEmptyList.of(DrsResolverField.GsUri, DrsResolverField.GoogleServiceAccount, DrsResolverField.AccessUrl, DrsResolverField.Hashes)
+      //Insert retry logic here.
+      val drsResponse = resolverObject.resolveDrs(drsUrlToResolve.drsUrl, fields).unsafeRunSync()
+      ResolvedDrsUrl(drsResponse, drsUrlToResolve.downloadDestinationPath, toValidatedUriType(drsResponse.accessUrl, drsResponse.gsUri))
+    }
+  }
+
+  /**
+    * Runs synchronous HTTP requests to resolve all the DRS urls.
+    */
   def resolveUrls(unresolvedUrls: IO[List[UnresolvedDrsUrl]]) : IO[List[ResolvedDrsUrl]] = {
     unresolvedUrls.flatMap{unresolvedList =>
       getDrsPathResolver.flatMap{resolver =>
@@ -123,32 +161,16 @@ class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
     }
   }
 
-  def resolveSingleUrl(resolverObject: DrsLocalizerDrsPathResolver, drsUrlToResolve: UnresolvedDrsUrl): IO[ResolvedDrsUrl] = {
-    IO {
-      val fields = NonEmptyList.of(DrsResolverField.GsUri, DrsResolverField.GoogleServiceAccount, DrsResolverField.AccessUrl, DrsResolverField.Hashes)
-      //Insert retry logic here.
-      val drsResponse = resolverObject.resolveDrs(drsUrlToResolve.drsUrl, fields).unsafeRunSync()
-      ResolvedDrsUrl(drsResponse, drsUrlToResolve.downloadDestinationPath, toUriType(drsResponse.accessUrl, drsResponse.gsUri))
-    }
-  }
-
-
-
-  def resolveAndDownload() : IO[DownloadResult] = {
-    IO {
-      val downloaders: List[Downloader] = buildDownloaders().unsafeRunSync()
-      val results: List[DownloadResult] = downloaders.map(downloader => downloader.download.unsafeRunSync())
-      results.find(res => res!= DownloadSuccess).getOrElse(DownloadSuccess)
-    }
-  }
+  /**
+    * After resolving all of the URLs, this sorts them into an "Access" or "GCS" bucket.
+    * All access URLS will be downloaded as a batch with a single bulk downloader.
+    * All google URLs will be downloaded individually in their own google downloader.
+    * @return List of all downloaders required to fulfill the request.
+    */
   def buildDownloaders() : IO[List[Downloader]] = {
     resolveUrls(toResolveAndDownload).flatMap { pendingDownloads =>
-      val accessUrls = pendingDownloads.filter(url => url.uriType == URIType.HTTPS)
+      val accessUrls = pendingDownloads.filter(url => url.uriType == URIType.ACCESS)
       val googleUrls = pendingDownloads.filter(url => url.uriType == URIType.GCS)
-      pendingDownloads.filter(url => url.uriType == URIType.UNKNOWN).map(
-        unknown => logger.error(
-          s"Url is not an https:// or  gs:// URL: " +
-            s"${unknown.drsResponse.accessUrl.getOrElse(unknown.drsResponse.gsUri.getOrElse("missing_url"))}"))
       val bulkDownloader: Option[List[IO[Downloader]]] = if(accessUrls.isEmpty) None else Option(List(buildBulkAccessUrlDownloader(accessUrls)))
       val googleDownloaders: Option[List[IO[Downloader]]] = if(googleUrls.isEmpty) None else  Option(buildGoogleDownloaders(googleUrls))
       val combined: List[IO[Downloader]] = googleDownloaders.map(list => list).getOrElse(List()) ++ bulkDownloader.map(list => list).getOrElse(List())

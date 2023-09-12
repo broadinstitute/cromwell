@@ -9,9 +9,9 @@ import org.scalatest.matchers.should.Matchers
 import java.nio.file.Path
 
 class BulkAccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
-  val ex1 = ResolvedDrsUrl(DrsResolverResponse(accessUrl = Option(AccessUrl("https://my.fake/url123", None))), "path/to/local/download/dest", URIType.HTTPS)
-  val ex2 = ResolvedDrsUrl(DrsResolverResponse(accessUrl = Option(AccessUrl("https://my.fake/url1234", None))), "path/to/local/download/dest2", URIType.HTTPS)
-  val ex3 = ResolvedDrsUrl(DrsResolverResponse(accessUrl = Option(AccessUrl("https://my.fake/url1235", None))), "path/to/local/download/dest3", URIType.HTTPS)
+  val ex1 = ResolvedDrsUrl(DrsResolverResponse(accessUrl = Option(AccessUrl("https://my.fake/url123", None))), "path/to/local/download/dest", URIType.ACCESS)
+  val ex2 = ResolvedDrsUrl(DrsResolverResponse(accessUrl = Option(AccessUrl("https://my.fake/url1234", None))), "path/to/local/download/dest2", URIType.ACCESS)
+  val ex3 = ResolvedDrsUrl(DrsResolverResponse(accessUrl = Option(AccessUrl("https://my.fake/url1235", None))), "path/to/local/download/dest3", URIType.ACCESS)
   val emptyList : List[ResolvedDrsUrl] = List()
   val oneElement: List[ResolvedDrsUrl] = List(ex1)
   val threeElements: List[ResolvedDrsUrl] = List(ex1, ex2, ex3)

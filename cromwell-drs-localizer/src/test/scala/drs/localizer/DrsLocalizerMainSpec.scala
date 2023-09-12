@@ -108,11 +108,10 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     val downloaders: List[Downloader] = mockdrsLocalizer.buildDownloaders().unsafeRunSync()
     downloaders.length shouldBe 1
 
-    val correct = downloaders.head match {
-      case _: BulkAccessUrlDownloader => true
-      case _ => false
-    }
-    correct shouldBe true
+    val expected = BulkAccessUrlDownloader(
+      List(fakeAccessUrls.head._2)
+    )
+    expected shouldEqual downloaders.head
   }
 
   it should "build correct downloader(s) for multiple google URLs" in {
@@ -159,8 +158,12 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
       case _: BulkAccessUrlDownloader => true
       case _ => false
     })
-    // We expect one GCS downloader for each GCS uri provided
+    // We expect one total Bulk downloader for all access URIs to share
     countBulkDownloaders shouldBe 1
+    val expected = BulkAccessUrlDownloader(
+      fakeAccessUrls.map(pair => pair._2).toList
+    )
+    expected shouldEqual downloaders.head
   }
 
   it should "build 1 bulk downloader and 5 google downloaders for a mix of URLs" in {
@@ -198,45 +201,46 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     downloader shouldBe expected
   }
 
-    it should "run successfully with all 3 arguments" in {
-      val unresolved = fakeGoogleUrls.head._1
-      val mockDrsLocalizer = new MockDrsLocalizerMain(IO(List(unresolved)), DrsLocalizerMain.defaultDownloaderFactory, FakeAccessTokenStrategy, Option(fakeRequesterPaysId))
-      val expected = GcsUriDownloader(
-        gcsUrl = fakeGoogleUrls.get(unresolved).get.drsResponse.gsUri.get,
-        serviceAccountJson = None,
-        downloadLoc = unresolved.downloadDestinationPath,
-        requesterPaysProjectIdOption = Option(fakeRequesterPaysId))
-      val downloader: Downloader = mockDrsLocalizer.buildDownloaders().unsafeRunSync().head
-      downloader shouldBe expected
-    }
+  it should "run successfully with all 3 arguments" in {
+    val unresolved = fakeGoogleUrls.head._1
+    val mockDrsLocalizer = new MockDrsLocalizerMain(IO(List(unresolved)), DrsLocalizerMain.defaultDownloaderFactory, FakeAccessTokenStrategy, Option(fakeRequesterPaysId))
+    val expected = GcsUriDownloader(
+      gcsUrl = fakeGoogleUrls.get(unresolved).get.drsResponse.gsUri.get,
+      serviceAccountJson = None,
+      downloadLoc = unresolved.downloadDestinationPath,
+      requesterPaysProjectIdOption = Option(fakeRequesterPaysId))
+    val downloader: Downloader = mockDrsLocalizer.buildDownloaders().unsafeRunSync().head
+    downloader shouldBe expected
+  }
+
+  it should "successfully identify uri types, preferring access" in {
+    val exampleAccessResponse = DrsResolverResponse(accessUrl = Option(AccessUrl("https://something.com", FakeHashes)))
+    val exampleGoogleResponse = DrsResolverResponse(gsUri = Option("gs://something"))
+    val exampleMixedResponse = DrsResolverResponse(accessUrl = Option(AccessUrl("https://something.com", FakeHashes)), gsUri = Option("gs://something"))
+    DrsLocalizerMain.toValidatedUriType(exampleAccessResponse.accessUrl, exampleAccessResponse.gsUri) shouldBe URIType.ACCESS
+    DrsLocalizerMain.toValidatedUriType(exampleGoogleResponse.accessUrl, exampleGoogleResponse.gsUri) shouldBe URIType.GCS
+    DrsLocalizerMain.toValidatedUriType(exampleMixedResponse.accessUrl, exampleMixedResponse.gsUri) shouldBe URIType.ACCESS
+  }
+
+  it should "throw an exception if the DRS Resolver response is invalid" in {
+    val badAccessResponse = DrsResolverResponse(accessUrl = Option(AccessUrl("hQQps://something.com", FakeHashes)))
+    val badGoogleResponse = DrsResolverResponse(gsUri = Option("gQQs://something"))
+    val emptyResponse = DrsResolverResponse()
+
+    the[RuntimeException] thrownBy {
+      DrsLocalizerMain.toValidatedUriType(badAccessResponse.accessUrl, badAccessResponse.gsUri)
+    } should have message "Resolved Access URL does not start with https://"
+
+    the[RuntimeException] thrownBy {
+      DrsLocalizerMain.toValidatedUriType(badGoogleResponse.accessUrl, badGoogleResponse.gsUri)
+    } should have message "Resolved Google URL does not start with gs://"
+
+    the[RuntimeException] thrownBy {
+      DrsLocalizerMain.toValidatedUriType(emptyResponse.accessUrl, emptyResponse.gsUri)
+    } should have message "DRS response did not contain any URLs"
+  }
+
 /*
-    it should "fail and throw error if the DRS Resolver response does not have gs:// url" in {
-      val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithoutAnyResolution, fakeDownloadLocation, None)
-
-      the[RuntimeException] thrownBy {
-        mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloaderFactory).unsafeRunSync()
-      } should have message "No access URL nor GCS URI starting with 'gs://' found in the DRS Resolver response!"
-    }
-
-    it should "resolve to use the correct downloader for an access url" in {
-      val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithAccessUrlResolutionOnly, fakeDownloadLocation, None)
-      val expected = AccessUrlDownloader(
-        accessUrl = AccessUrl(url = "http://abc/def/ghi.bam", headers = None),
-        downloadLoc = fakeDownloadLocation,
-        hashes = FakeHashes
-      )
-      mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloaderFactory).unsafeRunSync() shouldBe expected
-    }
-
-    it should "resolve to use the correct downloader for an access url when the DRS Resolver response also contains a gs url" in {
-      val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithAccessUrlAndGcsResolution, fakeDownloadLocation, None)
-      val expected = AccessUrlDownloader(
-        accessUrl = AccessUrl(url = "http://abc/def/ghi.bam", headers = None), downloadLoc = fakeDownloadLocation,
-        hashes = FakeHashes
-      )
-      mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloaderFactory).unsafeRunSync() shouldBe expected
-    }
-
     it should "not retry on access URL download success" in {
       var actualAttempts = 0
 
@@ -397,11 +401,6 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
       })
 
       val downloaderFactory = new DownloaderFactory {
-        override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader] = {
-          // This test path should never ask for the access URL downloader
-          throw new RuntimeException("test failure")
-        }
-
         override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] = {
           gcsUriDownloader
         }
@@ -431,10 +430,6 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
           super.resolveAndDownload(downloaderFactory)
         }
       }
-      val accessUrlDownloader = IO.pure(new Downloader {
-        override def download: IO[DownloadResult] =
-          IO.pure(ChecksumFailure)
-      })
 
       val downloaderFactory = new DownloaderFactory {
         override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] = {
@@ -455,7 +450,6 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
           downloaderFactory = downloaderFactory,
           backoff = None).unsafeRunSync()
       }
-
       actualAttempts shouldBe 2 // 1 initial attempt + 1 retry = 2 total attempts
     }
     */
@@ -476,11 +470,11 @@ object MockDrsPaths {
   )
 
   val fakeAccessUrls: Map[UnresolvedDrsUrl, ResolvedDrsUrl] = Map(
-    (UnresolvedDrsUrl("drs://abc/foo-123/access/0", "/path/to/access/local0"), ResolvedDrsUrl(DrsResolverResponse(accessUrl = Option(AccessUrl("https://abc/foo-123/access/0", FakeHashes))), "/path/to/access/local0", URIType.HTTPS)),
-    (UnresolvedDrsUrl("drs://abc/foo-123/access/1", "/path/to/access/local1"), ResolvedDrsUrl(DrsResolverResponse(accessUrl = Option(AccessUrl("https://abc/foo-123/access/1", FakeHashes))), "/path/to/access/local1", URIType.HTTPS)),
-    (UnresolvedDrsUrl("drs://abc/foo-123/access/2", "/path/to/access/local2"), ResolvedDrsUrl(DrsResolverResponse(accessUrl = Option(AccessUrl("https://abc/foo-123/access/2", FakeHashes))), "/path/to/access/local2", URIType.HTTPS)),
-    (UnresolvedDrsUrl("drs://abc/foo-123/access/3", "/path/to/access/local3"), ResolvedDrsUrl(DrsResolverResponse(accessUrl = Option(AccessUrl("https://abc/foo-123/access/3", FakeHashes))), "/path/to/access/local3", URIType.HTTPS)),
-    (UnresolvedDrsUrl("drs://abc/foo-123/access/4", "/path/to/access/local4"), ResolvedDrsUrl(DrsResolverResponse(accessUrl = Option(AccessUrl("https://abc/foo-123/access/4", FakeHashes))), "/path/to/access/local4", URIType.HTTPS))
+    (UnresolvedDrsUrl("drs://abc/foo-123/access/0", "/path/to/access/local0"), ResolvedDrsUrl(DrsResolverResponse(accessUrl = Option(AccessUrl("https://abc/foo-123/access/0", FakeHashes))), "/path/to/access/local0", URIType.ACCESS)),
+    (UnresolvedDrsUrl("drs://abc/foo-123/access/1", "/path/to/access/local1"), ResolvedDrsUrl(DrsResolverResponse(accessUrl = Option(AccessUrl("https://abc/foo-123/access/1", FakeHashes))), "/path/to/access/local1", URIType.ACCESS)),
+    (UnresolvedDrsUrl("drs://abc/foo-123/access/2", "/path/to/access/local2"), ResolvedDrsUrl(DrsResolverResponse(accessUrl = Option(AccessUrl("https://abc/foo-123/access/2", FakeHashes))), "/path/to/access/local2", URIType.ACCESS)),
+    (UnresolvedDrsUrl("drs://abc/foo-123/access/3", "/path/to/access/local3"), ResolvedDrsUrl(DrsResolverResponse(accessUrl = Option(AccessUrl("https://abc/foo-123/access/3", FakeHashes))), "/path/to/access/local3", URIType.ACCESS)),
+    (UnresolvedDrsUrl("drs://abc/foo-123/access/4", "/path/to/access/local4"), ResolvedDrsUrl(DrsResolverResponse(accessUrl = Option(AccessUrl("https://abc/foo-123/access/4", FakeHashes))), "/path/to/access/local4", URIType.ACCESS))
   )
 }
 
@@ -507,7 +501,6 @@ class MockDrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
     }
   }
 }
-
 
 class MockDrsLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
   DrsLocalizerDrsPathResolver(drsConfig, FakeAccessTokenStrategy) {

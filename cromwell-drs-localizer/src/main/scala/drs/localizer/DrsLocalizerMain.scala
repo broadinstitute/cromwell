@@ -7,6 +7,7 @@ import cloud.nio.impl.drs._
 import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
 import com.typesafe.scalalogging.StrictLogging
 import drs.localizer.CommandLineParser.AccessTokenStrategy.{Azure, Google}
+import drs.localizer.DrsLocalizerMain.toUriType
 import drs.localizer.downloaders._
 import org.apache.commons.csv.{CSVFormat, CSVParser}
 
@@ -55,6 +56,21 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     IO.pure(ExitCode.Error)
   }
 
+  /**
+    * Helper function to read a CSV file as a map from drs URL to requested download destination
+    *
+    * @param csvManifestPath Path to a CSV file where each row is something like: drs://asdf.ghj, path/to/my/directory
+    */
+  def loadCSVManifest(csvManifestPath: String): IO[List[UnresolvedDrsUrl]] = {
+    IO {
+      val openFile = new File(csvManifestPath)
+      val csvParser = CSVParser.parse(openFile, Charset.defaultCharset(), CSVFormat.DEFAULT)
+      val list = csvParser.getRecords.asScala.map(record => UnresolvedDrsUrl(record.get(0), record.get(1))).toList
+      list
+    }
+  }
+
+
   def runLocalizer(commandLineArguments: CommandLineArguments, drsCredentials: DrsCredentials) : IO[ExitCode] = {
     val urlList : IO[List[UnresolvedDrsUrl]] = commandLineArguments.manifestPath match {
       case Some(manifestPath) =>
@@ -63,26 +79,22 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
         IO.pure(List(UnresolvedDrsUrl(commandLineArguments.drsObject.get, commandLineArguments.containerPath.get)))
       }
     IO{
-      val main = new DrsLocalizerMain(urlList, drsCredentials, commandLineArguments.googleRequesterPaysProject)
-      main.resolveAndDownload(defaultDownloaderFactory).unsafeRunSync().exitCode
+      val main = new DrsLocalizerMain(urlList, defaultDownloaderFactory, drsCredentials, commandLineArguments.googleRequesterPaysProject)
+      main.resolveAndDownload().unsafeRunSync().exitCode
     }
     }
-  }
 
-/**
-  * Helper function to read a CSV file as a map from drs URL to requested download destination
-  *
-  * @param csvManifestPath Path to a CSV file where each row is something like: drs://asdf.ghj, path/to/my/directory
-  */
-def loadCSVManifest(csvManifestPath: String): IO[List[UnresolvedDrsUrl]] = {
-  IO {
-    val openFile = new File(csvManifestPath)
-    val csvParser = CSVParser.parse(openFile, Charset.defaultCharset(), CSVFormat.DEFAULT)
-    val list = csvParser.getRecords.asScala.map(record => UnresolvedDrsUrl(record.get(0), record.get(1))).toList
-    list
+  def toUriType(accessUrl: Option[AccessUrl], gsUri: Option[String]): URIType = {
+    (accessUrl, gsUri) match {
+      case (_, Some(_)) =>
+        URIType.GCS
+      case (Some(_), _) =>
+        URIType.HTTPS
+      case (_, _) =>
+        URIType.UNKNOWN
+    }
   }
-
-}
+  }
 
 object URIType extends Enumeration {
   type URIType = Value
@@ -90,6 +102,7 @@ object URIType extends Enumeration {
 }
 
 class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
+                       downloaderFactory: DownloaderFactory,
                        drsCredentials: DrsCredentials,
                        requesterPaysProjectIdOption: Option[String]) extends StrictLogging {
   def getDrsPathResolver: IO[DrsLocalizerDrsPathResolver] = {
@@ -119,48 +132,43 @@ class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
     }
   }
 
-  private[localizer] def toUriType(accessUrl: Option[AccessUrl], gsUri: Option[String]): URIType = {
-    (accessUrl, gsUri) match {
-      case (_, Some(_)) =>
-        URIType.GCS
-      case (Some(_), _) =>
-        URIType.HTTPS
-      case (_, _) =>
-        URIType.UNKNOWN
+
+
+  def resolveAndDownload() : IO[DownloadResult] = {
+    IO {
+      val downloaders: List[Downloader] = buildDownloaders().unsafeRunSync()
+      val results: List[DownloadResult] = downloaders.map(downloader => downloader.download.unsafeRunSync())
+      results.find(res => res!= DownloadSuccess).getOrElse(DownloadSuccess)
+    }
+  }
+  def buildDownloaders() : IO[List[Downloader]] = {
+    resolveUrls(toResolveAndDownload).flatMap { pendingDownloads =>
+      val accessUrls = pendingDownloads.filter(url => url.uriType == URIType.HTTPS)
+      val googleUrls = pendingDownloads.filter(url => url.uriType == URIType.GCS)
+      pendingDownloads.filter(url => url.uriType == URIType.UNKNOWN).map(
+        unknown => logger.error(
+          s"Url is not an https:// or  gs:// URL: " +
+            s"${unknown.drsResponse.accessUrl.getOrElse(unknown.drsResponse.gsUri.getOrElse("missing_url"))}"))
+      val bulkDownloader: Option[List[IO[Downloader]]] = if(accessUrls.isEmpty) None else Option(List(buildBulkAccessUrlDownloader(accessUrls)))
+      val googleDownloaders: Option[List[IO[Downloader]]] = if(googleUrls.isEmpty) None else  Option(buildGoogleDownloaders(googleUrls))
+      val combined: List[IO[Downloader]] = googleDownloaders.map(list => list).getOrElse(List()) ++ bulkDownloader.map(list => list).getOrElse(List())
+      combined.traverse(identity)
     }
   }
 
-  def resolveAndDownload(downloaderFactory: DownloaderFactory) : IO[DownloadResult] = {
-      resolveUrls(toResolveAndDownload).flatMap { pendingDownloads =>
-        val accessUrls = pendingDownloads.filter(url => url.uriType == URIType.HTTPS)
-        val googleUrls = pendingDownloads.filter(url => url.uriType == URIType.GCS)
-        pendingDownloads.filter(url => url.uriType == URIType.UNKNOWN).map(
-          unknown => logger.error(
-            s"Url is not an https:// or  gs:// URL: " +
-              s"${unknown.drsResponse.accessUrl.getOrElse(unknown.drsResponse.gsUri.getOrElse("missing_url"))}"))
-        IO{
-          val accessResults = bulkDownloadAccessUrls(accessUrls, downloaderFactory)
-          val googleResults = bulkDownloadGoogleUrls(googleUrls, downloaderFactory)
-          List(accessResults, googleResults).find(result => result != DownloadSuccess).getOrElse(DownloadSuccess)
-        }
-      }
-  }
-
-  def bulkDownloadGoogleUrls(resolvedUrls: List[ResolvedDrsUrl], downloaderFactory: DownloaderFactory) = {
-    val downloadResults = resolvedUrls.map{url =>
+  def buildGoogleDownloaders(resolvedGoogleUrls: List[ResolvedDrsUrl]) : List[IO[Downloader]] = {
+    resolvedGoogleUrls.map{url=>
       downloaderFactory.buildGcsUriDownloader(
         gcsPath = url.drsResponse.gsUri.get,
         serviceAccountJsonOption = url.drsResponse.googleServiceAccount.map(_.data.spaces2),
         downloadLoc = url.downloadDestinationPath,
-        requesterPaysProjectOption = requesterPaysProjectIdOption).flatMap(_.download).unsafeRunSync()
+        requesterPaysProjectOption = requesterPaysProjectIdOption)
     }
-    downloadResults.find(res => res != DownloadSuccess).getOrElse(DownloadSuccess)
+  }
+  def buildBulkAccessUrlDownloader(resolvedUrls: List[ResolvedDrsUrl]) : IO[Downloader] = {
+    downloaderFactory.buildBulkAccessUrlDownloader(resolvedUrls)
   }
 
-  def bulkDownloadAccessUrls(resolvedUrls: List[ResolvedDrsUrl], downloaderFactory: DownloaderFactory) : DownloadResult = {
-    if (resolvedUrls.isEmpty) return DownloadSuccess
-    downloaderFactory.buildBulkAccessUrlDownloader(resolvedUrls).unsafeRunSync().download.unsafeRunSync()
-  }
 
   /*
   def resolveAndDownloadWithRetries(downloadRetries: Int,

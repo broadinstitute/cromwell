@@ -32,10 +32,6 @@ case class AzureFileSystemAPI(private val provider: FileSystemProvider = new Azu
   * See BlobSasTokenGenerator for more information on how a SAS token is generated
   */
 object BlobFileSystemManager {
-//  def parseTokenExpiry(token: AzureSasCredential): Option[Instant] = for {
-//    expiryString <- token.getSignature.split("&").find(_.startsWith("se")).map(_.replaceFirst("se=","")).map(_.replace("%3A", ":"))
-//    instant = Instant.parse(expiryString)
-//  } yield instant
 
   def buildConfigMap(credential: AzureSasCredential, container: BlobContainerName): Map[String, Object] = {
     // Special handling is done here to provide a special key value pair if the placeholder token is provided

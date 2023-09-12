@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet author="sshah" id="change_table_owner_for_workflows_app_cromwell" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <!-- check that ? role is not null and exists in the roles table -->
+            <sqlCheck expectedResult="1">
+                SELECT count(*)
+                FROM pg_roles
+                where 'cromwellmetadata_wada5g' is NOT NULL AND rolname = 'cromwellmetadata_wada5g';
+            </sqlCheck>
+            <!-- check that table ownership update hasn't already happened -->
+            <sqlCheck expectedResult="0">
+                SELECT count(*)
+                FROM pg_roles
+                WHERE tableowner = 'cromwellmetadata_wada5g';
+            </sqlCheck>
+        </preConditions>
+        <sql>REASSIGN OWNED BY CURRENT_USER TO cromwellmetadata_wada5g;</sql>
+    </changeSet>
+
+</databaseChangeLog>

@@ -90,6 +90,7 @@
     <include file="changesets/enlarge_docker_hash_store_entry_id.xml" relativeToChangelogFile="true" />
     <include file="changesets/enlarge_workflow_store_entry_id.xml" relativeToChangelogFile="true" />
     <include file="changesets/enlarge_sub_workflow_store_entry_id.xml" relativeToChangelogFile="true" />
+    <include file="changesets/change_table_owner_for_workflows_app_cromwell.xml" relativeToChangelogFile="true" />
     <!-- REMINDER!
       Before appending here, did you remember to include the 'objectQuotingStrategy="QUOTE_ALL_OBJECTS"' line in your changeset/xyz.xml...?
     -->

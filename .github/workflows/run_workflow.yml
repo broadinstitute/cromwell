@@ -87,6 +87,7 @@ jobs:
   attach-landing-zone-to-bee-workflow:
     runs-on: ubuntu-latest
     needs: [az-e2e-params-gen, create-bee-workflow]
+    if: ${{ needs.az-e2e-params-gen.outputs.owner-access-token != '' }}
     permissions:
       contents: 'read'
       id-token: 'write'

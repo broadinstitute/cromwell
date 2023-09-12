@@ -43,8 +43,8 @@ case class BulkAccessUrlDownloader(resolvedUrls : List[ResolvedDrsUrl]) extends 
       //NB: trailing comma is being removed in generateJsonManifest
       val accessUrl: AccessUrl = drsResponse.accessUrl.getOrElse(AccessUrl("missing", None))
       drsResponse.hashes.map(_ => {
-        val checksum = GetmChecksum(drsResponse.hashes, accessUrl)
-        val checksumAlgorithm = checksum.getmAlgorithm
+        val checksum = GetmChecksum(drsResponse.hashes, accessUrl).value.getOrElse("error_calculating_checksum")
+        val checksumAlgorithm = GetmChecksum(drsResponse.hashes, accessUrl).getmAlgorithm
         s"""  {
            |    "url" : "${accessUrl.url}",
            |    "filepath" : "$destinationFilepath",
@@ -70,6 +70,7 @@ case class BulkAccessUrlDownloader(resolvedUrls : List[ResolvedDrsUrl]) extends 
         jsonString = jsonString.substring(0, jsonString.lastIndexOf(","))
       }
       jsonString += "\n]"
+      logger.info(jsonString)
       Files.write(Paths.get("getm-manifest.json"), jsonString.getBytes(StandardCharsets.UTF_8))
     }
   }

@@ -13,7 +13,8 @@ variable `APPLICATIONINSIGHTS_INSTRUMENTATIONKEY` to your account's key. [See he
 ### Workflow Completion Callback
 
 Cromwell can be configured to send a POST request to a specified URL when a workflow completes. The request body
-includes the workflow id, terminal state, and (if workflow succeeded) final outputs. 
+includes the workflow id, terminal state, and (if workflow succeeded) final outputs or (if workflow failed) error message.
+See `WorkflowCallback` in [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/) for more information.
 
 ## 85 Release Notes
 

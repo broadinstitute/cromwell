@@ -15,7 +15,7 @@
             <!-- check that table ownership update hasn't already happened -->
             <sqlCheck expectedResult="0">
                 SELECT count(*)
-                FROM pg_roles
+                FROM pg_tables
                 WHERE tableowner = 'cromwellmetadata_wada5g';
             </sqlCheck>
         </preConditions>

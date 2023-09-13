@@ -10,17 +10,12 @@ import drs.localizer.CommandLineParser.AccessTokenStrategy.{Azure, Google}
 import drs.localizer.DrsLocalizerMain.toValidatedUriType
 import drs.localizer.downloaders._
 import org.apache.commons.csv.{CSVFormat, CSVParser}
-import cromwell.core.retry.Retry.withRetry
-import cromwell.core.retry.SimpleExponentialBackoff
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
 import java.io.File
 import java.nio.charset.Charset
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 import drs.localizer.URIType.URIType
-
-import scala.concurrent.Future
 case class UnresolvedDrsUrl(drsUrl: String, downloadDestinationPath: String)
 case class ResolvedDrsUrl(drsResponse: DrsResolverResponse, downloadDestinationPath: String, uriType: URIType)
 object DrsLocalizerMain extends IOApp with StrictLogging {
@@ -70,6 +65,7 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
       val openFile = new File(csvManifestPath)
       val csvParser = CSVParser.parse(openFile, Charset.defaultCharset(), CSVFormat.DEFAULT)
       val list = csvParser.getRecords.asScala.map(record => UnresolvedDrsUrl(record.get(0), record.get(1))).toList
+      csvParser.close()
       list
     }
   }
@@ -82,10 +78,8 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
       case None =>
         IO.pure(List(UnresolvedDrsUrl(commandLineArguments.drsObject.get, commandLineArguments.containerPath.get)))
       }
-    IO{
-      val main = new DrsLocalizerMain(urlList, defaultDownloaderFactory, drsCredentials, commandLineArguments.googleRequesterPaysProject)
-      main.resolveAndDownload().unsafeRunSync().exitCode
-    }
+    val main = new DrsLocalizerMain(urlList, defaultDownloaderFactory, drsCredentials, commandLineArguments.googleRequesterPaysProject)
+    main.resolveAndDownload().map(_.exitCode)
     }
 
   /**
@@ -141,31 +135,13 @@ class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
   }
 
   /**
-    * Helper method used to retry failed HTTP requests.
-    * @param resolverObject
-    * @param drsUrlToResolve
-    * @return
-    */
-  def resolveDrsUrlOrFail(resolverObject: DrsLocalizerDrsPathResolver, drsUrlToResolve: UnresolvedDrsUrl) : Future[ResolvedDrsUrl] = {
-    val fields = NonEmptyList.of(DrsResolverField.GsUri, DrsResolverField.GoogleServiceAccount, DrsResolverField.AccessUrl, DrsResolverField.Hashes)
-    val drsResponse = resolverObject.resolveDrs(drsUrlToResolve.drsUrl, fields).unsafeRunSync()
-    if(drsResponse.accessUrl.isEmpty && drsResponse.gsUri.isEmpty){
-      Future.failed(new RuntimeException("Response from DRS did not return a valid URL."))
-    } else {
-      Future.successful(ResolvedDrsUrl(drsResponse, drsUrlToResolve.downloadDestinationPath, toValidatedUriType(drsResponse.accessUrl, drsResponse.gsUri)))
-    }
-  }
-
-  /**
     * Runs a synchronous HTTP request to resolve the provided DRS URL with the provided resolver.
     */
   def resolveSingleUrl(resolverObject: DrsLocalizerDrsPathResolver, drsUrlToResolve: UnresolvedDrsUrl): IO[ResolvedDrsUrl] = {
-    IO {
-      withRetry(
-        () => resolveDrsUrlOrFail(resolverObject, drsUrlToResolve),
-        maxRetries = Option(5)
-      )
-    }
+    //TODO: Add some retry logic here.
+    val fields = NonEmptyList.of(DrsResolverField.GsUri, DrsResolverField.GoogleServiceAccount, DrsResolverField.AccessUrl, DrsResolverField.Hashes)
+    val drsResponse = resolverObject.resolveDrs(drsUrlToResolve.drsUrl, fields)
+    drsResponse.map(resp => ResolvedDrsUrl(resp, drsUrlToResolve.downloadDestinationPath, toValidatedUriType(resp.accessUrl, resp.gsUri)))
   }
 
   /**

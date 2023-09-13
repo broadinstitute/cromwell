@@ -3,6 +3,7 @@ package drs.localizer
 import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO, IOApp}
 import cats.implicits.toTraverseOps
+import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDisposition}
 import cloud.nio.impl.drs._
 import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
 import com.typesafe.scalalogging.StrictLogging
@@ -16,6 +17,7 @@ import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 import drs.localizer.URIType.URIType
+
 case class UnresolvedDrsUrl(drsUrl: String, downloadDestinationPath: String)
 case class ResolvedDrsUrl(drsResponse: DrsResolverResponse, downloadDestinationPath: String, uriType: URIType)
 object DrsLocalizerMain extends IOApp with StrictLogging {
@@ -63,19 +65,26 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     IO {
       val openFile = new File(csvManifestPath)
       val csvParser = CSVParser.parse(openFile, Charset.defaultCharset(), CSVFormat.DEFAULT)
-      val list = csvParser.getRecords.asScala.map(record => UnresolvedDrsUrl(record.get(0), record.get(1))).toList
-      csvParser.close()
-      list
+      try{
+        csvParser.getRecords.asScala.map(record => UnresolvedDrsUrl(record.get(0), record.get(1))).toList
+      } finally {
+        csvParser.close()
+      }
     }
   }
 
   def runLocalizer(commandLineArguments: CommandLineArguments, drsCredentials: DrsCredentials) : IO[ExitCode] = {
-    val urlList : IO[List[UnresolvedDrsUrl]] = commandLineArguments.manifestPath match {
-      case Some(manifestPath) =>
+    val urlList = (commandLineArguments.manifestPath, commandLineArguments.drsObject, commandLineArguments.containerPath) match {
+      case (Some(manifestPath), _, _) => {
         loadCSVManifest(manifestPath)
-      case None =>
-        IO.pure(List(UnresolvedDrsUrl(commandLineArguments.drsObject.get, commandLineArguments.containerPath.get)))
       }
+      case (_, Some(drsObject), Some(containerPath)) => {
+        IO.pure(List(UnresolvedDrsUrl(drsObject, containerPath)))
+      }
+      case(_,_,_) => {
+        throw new RuntimeException("Illegal command line arguments supplied to drs localizer.")
+      }
+    }
     val main = new DrsLocalizerMain(urlList, defaultDownloaderFactory, drsCredentials, commandLineArguments.googleRequesterPaysProject)
     main.resolveAndDownload().map(_.exitCode)
     }
@@ -134,41 +143,18 @@ class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
   }
 
   /**
-    * Runs a synchronous HTTP request to resolve the provided DRS URL with the provided resolver.
-    */
-  def resolveSingleUrl(resolverObject: DrsLocalizerDrsPathResolver, drsUrlToResolve: UnresolvedDrsUrl): IO[ResolvedDrsUrl] = {
-    //TODO: Add some retry logic here.
-    val fields = NonEmptyList.of(DrsResolverField.GsUri, DrsResolverField.GoogleServiceAccount, DrsResolverField.AccessUrl, DrsResolverField.Hashes)
-    val drsResponse = resolverObject.resolveDrs(drsUrlToResolve.drsUrl, fields)
-    drsResponse.map(resp => ResolvedDrsUrl(resp, drsUrlToResolve.downloadDestinationPath, toValidatedUriType(resp.accessUrl, resp.gsUri)))
-  }
-
-  /**
-    * Runs synchronous HTTP requests to resolve all the DRS urls.
-    */
-  def resolveUrls(unresolvedUrls: IO[List[UnresolvedDrsUrl]]) : IO[List[ResolvedDrsUrl]] = {
-    unresolvedUrls.flatMap{unresolvedList =>
-      getDrsPathResolver.flatMap{resolver =>
-        unresolvedList.map{unresolvedUrl =>
-          resolveSingleUrl(resolver, unresolvedUrl)
-        }.traverse(identity)
-      }
-    }
-  }
-
-  /**
     * After resolving all of the URLs, this sorts them into an "Access" or "GCS" bucket.
     * All access URLS will be downloaded as a batch with a single bulk downloader.
     * All google URLs will be downloaded individually in their own google downloader.
     * @return List of all downloaders required to fulfill the request.
     */
   def buildDownloaders() : IO[List[Downloader]] = {
-    resolveUrls(toResolveAndDownload).flatMap { pendingDownloads =>
+    resolveUrls(toResolveAndDownload).map { pendingDownloads =>
       val accessUrls = pendingDownloads.filter(url => url.uriType == URIType.ACCESS)
       val googleUrls = pendingDownloads.filter(url => url.uriType == URIType.GCS)
-      val bulkDownloader: Option[List[Downloader]] = if (accessUrls.isEmpty) None else Option(List(buildBulkAccessUrlDownloader(accessUrls)))
-      val googleDownloaders: Option[List[Downloader]] = if (googleUrls.isEmpty) None else Option(buildGoogleDownloaders(googleUrls))
-      IO.pure(googleDownloaders.map(list => list).getOrElse(List()) ++ bulkDownloader.map(list => list).getOrElse(List()))
+      val bulkDownloader: List[Downloader] = if (accessUrls.isEmpty) List() else List(buildBulkAccessUrlDownloader(accessUrls))
+      val googleDownloaders: List[Downloader] = if (googleUrls.isEmpty) List() else buildGoogleDownloaders(googleUrls)
+      bulkDownloader ++ googleDownloaders
     }
   }
 
@@ -185,8 +171,60 @@ class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
     downloaderFactory.buildBulkAccessUrlDownloader(resolvedUrls)
   }
 
+  /**
+    * Runs a synchronous HTTP request to resolve the provided DRS URL with the provided resolver.
+    */
+  def resolveSingleUrl(resolverObject: DrsLocalizerDrsPathResolver, drsUrlToResolve: UnresolvedDrsUrl): IO[ResolvedDrsUrl] = {
+    val fields = NonEmptyList.of(DrsResolverField.GsUri, DrsResolverField.GoogleServiceAccount, DrsResolverField.AccessUrl, DrsResolverField.Hashes)
+    val drsResponse = resolverObject.resolveDrs(drsUrlToResolve.drsUrl, fields)
+    drsResponse.map(resp => ResolvedDrsUrl(resp, drsUrlToResolve.downloadDestinationPath, toValidatedUriType(resp.accessUrl, resp.gsUri)))
+  }
 
-  /*
+
+  val defaultBackoff: CloudNioBackoff = CloudNioSimpleExponentialBackoff(
+    initialInterval = 10 seconds, maxInterval = 60 seconds, multiplier = 2)
+
+  /**
+    * Runs synchronous HTTP requests to resolve all the DRS urls.
+    */
+  def resolveUrls(unresolvedUrls: IO[List[UnresolvedDrsUrl]]): IO[List[ResolvedDrsUrl]] = {
+    unresolvedUrls.flatMap { unresolvedList =>
+      getDrsPathResolver.flatMap { resolver =>
+        unresolvedList.map { unresolvedUrl =>
+          resolveWithRetries(resolver, unresolvedUrl, 5, Option(defaultBackoff))
+        }.traverse(identity)
+      }
+    }
+  }
+
+  def resolveWithRetries(resolverObject: DrsLocalizerDrsPathResolver,
+                         drsUrlToResolve: UnresolvedDrsUrl,
+                         resolutionRetries: Int,
+                         backoff: Option[CloudNioBackoff],
+                        resolutionAttempt: Int = 0) : IO[ResolvedDrsUrl] = {
+
+    def maybeRetryForResolutionFailure(t: Throwable): IO[ResolvedDrsUrl] = {
+      if (resolutionAttempt < resolutionRetries) {
+        backoff foreach { b => Thread.sleep(b.backoffMillis) }
+        logger.warn(s"Attempting retry $resolutionAttempt of $resolutionRetries drs resolution retries to resolve ${drsUrlToResolve.drsUrl}", t)
+        resolveWithRetries(resolverObject, drsUrlToResolve, resolutionRetries, backoff map { _.next }, resolutionAttempt+1)
+      } else {
+        IO.raiseError(new RuntimeException(s"Exhausted $resolutionRetries resolution retries to resolve $drsUrlToResolve.drsUrl", t))
+      }
+    }
+
+    resolveSingleUrl(resolverObject, drsUrlToResolve).redeemWith(
+      recover = maybeRetryForResolutionFailure,
+      bind = {
+      case f: FatalRetryDisposition =>
+        IO.raiseError(new RuntimeException(s"Fatal error resolving DRS URL: $f"))
+      case _: RegularRetryDisposition =>
+        resolveWithRetries(resolverObject, drsUrlToResolve, resolutionRetries, backoff, resolutionAttempt+1)
+      case o => IO.pure(o)
+    })
+  }
+
+/*
   def resolveAndDownloadWithRetries(downloadRetries: Int,
                                     checksumRetries: Int,
                                     downloaderFactory: DownloaderFactory,
@@ -204,8 +242,7 @@ class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
         IO.raiseError(new RuntimeException(s"Exhausted $checksumRetries checksum retries to resolve, download and checksum $drsUrl", t))
       }
     }
-*/
-    /*
+
     def maybeRetryForDownloadFailure(t: Throwable): IO[DownloadResult] = {
       t match {
         case _: FatalRetryDisposition =>
@@ -218,8 +255,7 @@ class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
           IO.raiseError(new RuntimeException(s"Exhausted $downloadRetries download retries to resolve, download and checksum $drsUrl", t))
       }
     }
-*/
-      /*
+
     resolveAndDownload(downloaderFactory).redeemWith({
       maybeRetryForDownloadFailure
     },
@@ -232,11 +268,11 @@ class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
       case ChecksumFailure =>
         maybeRetryForChecksumFailure(new RuntimeException(s"Checksum failure for $drsUrl on checksum retry attempt $checksumAttempt of $checksumRetries"))
       case o => IO.pure(o)
-    }*
-
+    }
 
     IO.raiseError(new RuntimeException(s"Exhausted $downloadRetries download retries to resolve, download and checksum $drsUrl", t))
   }
-         */
+
+ */
 }
 

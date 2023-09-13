@@ -56,8 +56,7 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
   }
 
   /**
-    * Helper function to read a CSV file as a map from drs URL to requested download destination
-    *
+    * Helper function to read a CSV file as pairs of drsURL -> local download destination.
     * @param csvManifestPath Path to a CSV file where each row is something like: drs://asdf.ghj, path/to/my/directory
     */
   def loadCSVManifest(csvManifestPath: String): IO[List[UnresolvedDrsUrl]] = {
@@ -69,7 +68,6 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
       list
     }
   }
-
 
   def runLocalizer(commandLineArguments: CommandLineArguments, drsCredentials: DrsCredentials) : IO[ExitCode] = {
     val urlList : IO[List[UnresolvedDrsUrl]] = commandLineArguments.manifestPath match {

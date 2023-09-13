@@ -42,11 +42,11 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     initialInterval = 10 seconds, maxInterval = 60 seconds, multiplier = 2)
 
   val defaultDownloaderFactory: DownloaderFactory = new DownloaderFactory {
-    override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] =
-      IO.pure(GcsUriDownloader(gcsPath, serviceAccountJsonOption, downloadLoc, requesterPaysProjectOption))
+    override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): Downloader =
+      GcsUriDownloader(gcsPath, serviceAccountJsonOption, downloadLoc, requesterPaysProjectOption)
 
-    override def buildBulkAccessUrlDownloader(urlsToDownload: List[ResolvedDrsUrl]): IO[Downloader] = {
-      IO.pure(BulkAccessUrlDownloader(urlsToDownload))
+    override def buildBulkAccessUrlDownloader(urlsToDownload: List[ResolvedDrsUrl]): Downloader = {
+      BulkAccessUrlDownloader(urlsToDownload)
     }
   }
 
@@ -119,10 +119,11 @@ class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
     * @return DownloadSuccess if all downloads succeed. An error otherwise.
     */
   def resolveAndDownload(): IO[DownloadResult] = {
-    IO {
-      val downloaders: List[Downloader] = buildDownloaders().unsafeRunSync()
-      val results: List[DownloadResult] = downloaders.map(downloader => downloader.download.unsafeRunSync())
-      results.find(res => res != DownloadSuccess).getOrElse(DownloadSuccess)
+    val downloadResults = buildDownloaders().flatMap { downloaderList =>
+      downloaderList.map(downloader => downloader.download).traverse(identity)
+    }
+    downloadResults.map{list =>
+      list.find(result => result != DownloadSuccess).getOrElse(DownloadSuccess)
     }
   }
 
@@ -167,14 +168,13 @@ class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
     resolveUrls(toResolveAndDownload).flatMap { pendingDownloads =>
       val accessUrls = pendingDownloads.filter(url => url.uriType == URIType.ACCESS)
       val googleUrls = pendingDownloads.filter(url => url.uriType == URIType.GCS)
-      val bulkDownloader: Option[List[IO[Downloader]]] = if(accessUrls.isEmpty) None else Option(List(buildBulkAccessUrlDownloader(accessUrls)))
-      val googleDownloaders: Option[List[IO[Downloader]]] = if(googleUrls.isEmpty) None else  Option(buildGoogleDownloaders(googleUrls))
-      val combined: List[IO[Downloader]] = googleDownloaders.map(list => list).getOrElse(List()) ++ bulkDownloader.map(list => list).getOrElse(List())
-      combined.traverse(identity)
+      val bulkDownloader: Option[List[Downloader]] = if (accessUrls.isEmpty) None else Option(List(buildBulkAccessUrlDownloader(accessUrls)))
+      val googleDownloaders: Option[List[Downloader]] = if (googleUrls.isEmpty) None else Option(buildGoogleDownloaders(googleUrls))
+      IO.pure(googleDownloaders.map(list => list).getOrElse(List()) ++ bulkDownloader.map(list => list).getOrElse(List()))
     }
   }
 
-  def buildGoogleDownloaders(resolvedGoogleUrls: List[ResolvedDrsUrl]) : List[IO[Downloader]] = {
+  def buildGoogleDownloaders(resolvedGoogleUrls: List[ResolvedDrsUrl]) : List[Downloader] = {
     resolvedGoogleUrls.map{url=>
       downloaderFactory.buildGcsUriDownloader(
         gcsPath = url.drsResponse.gsUri.get,
@@ -183,7 +183,7 @@ class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
         requesterPaysProjectOption = requesterPaysProjectIdOption)
     }
   }
-  def buildBulkAccessUrlDownloader(resolvedUrls: List[ResolvedDrsUrl]) : IO[Downloader] = {
+  def buildBulkAccessUrlDownloader(resolvedUrls: List[ResolvedDrsUrl]) : Downloader = {
     downloaderFactory.buildBulkAccessUrlDownloader(resolvedUrls)
   }
 

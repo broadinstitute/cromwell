@@ -54,12 +54,12 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
   it should "tolerate no URLs being provided" in {
     val mockDownloadFactory = new DownloaderFactory {
-      override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] = {
+      override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): Downloader = {
         // This test path should never ask for the Google downloader
         throw new RuntimeException("test failure111")
       }
 
-      override def buildBulkAccessUrlDownloader(urlsToDownload: List[ResolvedDrsUrl]): IO[Downloader] = {
+      override def buildBulkAccessUrlDownloader(urlsToDownload: List[ResolvedDrsUrl]): Downloader = {
         // This test path should never ask for the Bulk downloader
         throw new RuntimeException("test failure111")
       }
@@ -71,18 +71,18 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
   it should "build correct downloader(s) for a single google URL" in {
     val mockDownloadFactory = new DownloaderFactory {
-      override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] = {
-        IO(GcsUriDownloader(gcsPath, serviceAccountJsonOption, downloadLoc, requesterPaysProjectOption))
+      override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): Downloader = {
+        GcsUriDownloader(gcsPath, serviceAccountJsonOption, downloadLoc, requesterPaysProjectOption)
       }
 
-      override def buildBulkAccessUrlDownloader(urlsToDownload: List[ResolvedDrsUrl]): IO[Downloader] = {
+      override def buildBulkAccessUrlDownloader(urlsToDownload: List[ResolvedDrsUrl]): Downloader = {
         // This test path should never ask for the Bulk downloader
         throw new RuntimeException("test failure111")
       }
     }
 
     val mockdrsLocalizer = new MockDrsLocalizerMain(IO(List(fakeGoogleUrls.head._1)), mockDownloadFactory,FakeAccessTokenStrategy, Option(fakeRequesterPaysId))
-    val downloaders :List[Downloader] = mockdrsLocalizer.buildDownloaders().unsafeRunSync()
+    val downloaders: List[Downloader] = mockdrsLocalizer.buildDownloaders().unsafeRunSync()
     downloaders.length shouldBe 1
 
     val correct = downloaders.head match {
@@ -94,13 +94,13 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
   it should "build correct downloader(s) for a single access URL" in {
     val mockDownloadFactory = new DownloaderFactory {
-      override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] = {
+      override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): Downloader = {
         // This test path should never ask for the GCS downloader
         throw new RuntimeException("test failure")
       }
 
-      override def buildBulkAccessUrlDownloader(urlsToDownload: List[ResolvedDrsUrl]): IO[Downloader] = {
-        IO(BulkAccessUrlDownloader(urlsToDownload))
+      override def buildBulkAccessUrlDownloader(urlsToDownload: List[ResolvedDrsUrl]): Downloader = {
+        BulkAccessUrlDownloader(urlsToDownload)
       }
     }
 
@@ -116,11 +116,11 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
   it should "build correct downloader(s) for multiple google URLs" in {
     val mockDownloadFactory = new DownloaderFactory {
-      override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] = {
-        IO(GcsUriDownloader(gcsPath, serviceAccountJsonOption, downloadLoc, requesterPaysProjectOption))
+      override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): Downloader = {
+        GcsUriDownloader(gcsPath, serviceAccountJsonOption, downloadLoc, requesterPaysProjectOption)
       }
 
-      override def buildBulkAccessUrlDownloader(urlsToDownload: List[ResolvedDrsUrl]): IO[Downloader] = {
+      override def buildBulkAccessUrlDownloader(urlsToDownload: List[ResolvedDrsUrl]): Downloader = {
         // This test path should never ask for the GCS downloader
         throw new RuntimeException("test failure")
       }
@@ -140,13 +140,13 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
   it should "build a single bulk downloader for multiple access URLs" in {
     val mockDownloadFactory = new DownloaderFactory {
-      override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] = {
+      override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): Downloader = {
         // This test path should never ask for the GCS downloader
         throw new RuntimeException("test failure")
       }
 
-      override def buildBulkAccessUrlDownloader(urlsToDownload: List[ResolvedDrsUrl]): IO[Downloader] = {
-        IO(BulkAccessUrlDownloader(urlsToDownload))
+      override def buildBulkAccessUrlDownloader(urlsToDownload: List[ResolvedDrsUrl]): Downloader = {
+        BulkAccessUrlDownloader(urlsToDownload)
       }
     }
     val unresolvedUrls: List[UnresolvedDrsUrl] = fakeAccessUrls.map(pair => pair._1).toList

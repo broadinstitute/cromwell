@@ -4,24 +4,29 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <property  name="newDatabaseOwnerRole" value="hello_world"/>
+    <!-- The 'sharedCromwellDbRole' will be set via JAVA_OPTS in Cromwell helm chart in terra-helmfile. -->
+    <property  name="sharedCromwellDbRole" value=""/>
 
+    <!--
+        This changeset will be only applied to the shared Cromwell database in the WORKFLOWS app.
+        For all the other Cromwell servers this should be a no-op.
+     -->
     <changeSet author="sshah" id="change_table_owner_for_workflows_app_cromwell" dbms="postgresql">
         <preConditions onFail="MARK_RAN">
-            <!-- check that 'newDatabaseOwnerRole' role is not null and exists in the roles table -->
+            <!-- check that 'sharedCromwellDbRole' role is not null and exists in the roles table -->
             <sqlCheck expectedResult="1">
                 SELECT count(*)
                 FROM pg_roles
-                where '${newDatabaseOwnerRole}' is NOT NULL AND rolname = '${newDatabaseOwnerRole}';
+                where '${sharedCromwellDbRole}' is NOT NULL AND rolname = '${sharedCromwellDbRole}';
             </sqlCheck>
             <!-- check that table ownership update hasn't already happened -->
             <sqlCheck expectedResult="0">
                 SELECT count(*)
                 FROM pg_tables
-                WHERE tableowner = '${newDatabaseOwnerRole}';
+                WHERE tableowner = '${sharedCromwellDbRole}';
             </sqlCheck>
         </preConditions>
-        <sql>REASSIGN OWNED BY CURRENT_USER TO ${newDatabaseOwnerRole};</sql>
+        <sql>REASSIGN OWNED BY CURRENT_USER TO ${sharedCromwellDbRole};</sql>
     </changeSet>
 
 </databaseChangeLog>

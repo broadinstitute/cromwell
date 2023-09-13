@@ -8,7 +8,8 @@
     <property  name="sharedCromwellDbRole" value=""/>
 
     <!--
-        This changeset will be only applied to the shared Cromwell database in the WORKFLOWS app.
+        This changeset will be only applied when 'sharedCromwellDbRole' property is set and the role exists
+        in the database. Currently, it is only set for the shared Cromwell service in the WORKFLOWS app.
         For all the other Cromwell servers this should be a no-op.
      -->
     <changeSet author="sshah" id="change_table_owner_for_workflows_app_cromwell" dbms="postgresql">

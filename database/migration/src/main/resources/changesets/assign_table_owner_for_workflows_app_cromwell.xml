@@ -12,7 +12,7 @@
         Currently, it is only set for the shared Cromwell service in the WORKFLOWS app.
         For all the other Cromwell servers this should be a no-op.
      -->
-    <changeSet author="sshah" id="change_table_owner_for_workflows_app_cromwell" dbms="postgresql">
+    <changeSet author="sshah" id="assign_table_owner_for_workflows_app_cromwell" dbms="postgresql">
         <preConditions onFail="MARK_RAN">
             <!-- check that 'sharedCromwellDbRole' role is set -->
             <not>
@@ -23,7 +23,7 @@
                 </sqlCheck>
             </not>
         </preConditions>
-        <sql>REASSIGN OWNED BY CURRENT_USER TO ${sharedCromwellDbRole};</sql>
+        <sql>SET ROLE TO ${sharedCromwellDbRole};</sql>
     </changeSet>
 
 </databaseChangeLog>

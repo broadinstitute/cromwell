@@ -4,28 +4,24 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <!-- The 'sharedCromwellDbRole' will be set via JAVA_OPTS in Cromwell helm chart in terra-helmfile. -->
+    <!-- The 'sharedCromwellDbRole' can be set via JAVA_OPTS if desired (eg -DsharedCromwellDbRole=...). -->
     <property  name="sharedCromwellDbRole" value=""/>
 
     <!--
-        This changeset will be only applied when 'sharedCromwellDbRole' property is set and the role exists
-        in the database. Currently, it is only set for the shared Cromwell service in the WORKFLOWS app.
+        This changeset will be only applied when 'sharedCromwellDbRole' property is set.
+        Currently, it is only set for the shared Cromwell service in the WORKFLOWS app.
         For all the other Cromwell servers this should be a no-op.
      -->
     <changeSet author="sshah" id="change_table_owner_for_workflows_app_cromwell" dbms="postgresql">
         <preConditions onFail="MARK_RAN">
-            <!-- check that 'sharedCromwellDbRole' role is not null and exists in the roles table -->
-            <sqlCheck expectedResult="1">
-                SELECT count(*)
-                FROM pg_roles
-                where '${sharedCromwellDbRole}' is NOT NULL AND rolname = '${sharedCromwellDbRole}';
-            </sqlCheck>
-            <!-- check that table ownership update hasn't already happened -->
-            <sqlCheck expectedResult="0">
-                SELECT count(*)
-                FROM pg_tables
-                WHERE tableowner = '${sharedCromwellDbRole}';
-            </sqlCheck>
+            <!-- check that 'sharedCromwellDbRole' role is set -->
+            <not>
+                <sqlCheck expectedResult="0">
+                    SELECT count(*)
+                    FROM pg_roles
+                    where '${sharedCromwellDbRole}' != '';
+                </sqlCheck>
+            </not>
         </preConditions>
         <sql>REASSIGN OWNED BY CURRENT_USER TO ${sharedCromwellDbRole};</sql>
     </changeSet>

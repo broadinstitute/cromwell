@@ -17,6 +17,8 @@ case class GetmResult(returnCode: Int, stderr: String)
   * @param resolvedUrls
   */
 case class BulkAccessUrlDownloader(resolvedUrls : List[ResolvedDrsUrl]) extends Downloader with StrictLogging {
+
+  val getmManifestPath: Path = Paths.get("getm-manifest.json")
   /**
     * Write a json manifest to disk that looks like:
     * // [
@@ -70,8 +72,12 @@ case class BulkAccessUrlDownloader(resolvedUrls : List[ResolvedDrsUrl]) extends 
       }
       jsonString += "\n]"
       logger.info(jsonString)
-      Files.write(Paths.get("getm-manifest.json"), jsonString.getBytes(StandardCharsets.UTF_8))
+      Files.write(getmManifestPath, jsonString.getBytes(StandardCharsets.UTF_8))
     }
+  }
+
+  def deleteJsonManifest() = {
+    Files.deleteIfExists(getmManifestPath)
   }
 
   def generateGetmCommand(pathToMainfestJson : Path) : String = {
@@ -86,6 +92,7 @@ case class BulkAccessUrlDownloader(resolvedUrls : List[ResolvedDrsUrl]) extends 
       val stderr = new StringBuilder()
       val errorCapture: String => Unit = { s => stderr.append(s); () }
       val returnCode = copyProcess ! ProcessLogger(_ => (), errorCapture)
+      deleteJsonManifest()
       logger.info(stderr.toString().trim())
       IO(GetmResult(returnCode, stderr.toString().trim()))
     }

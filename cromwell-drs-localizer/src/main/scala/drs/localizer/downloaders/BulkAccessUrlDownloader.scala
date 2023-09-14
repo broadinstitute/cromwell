@@ -71,7 +71,6 @@ case class BulkAccessUrlDownloader(resolvedUrls : List[ResolvedDrsUrl]) extends 
         jsonString = jsonString.substring(0, jsonString.lastIndexOf(","))
       }
       jsonString += "\n]"
-      logger.info(jsonString)
       Files.write(getmManifestPath, jsonString.getBytes(StandardCharsets.UTF_8))
     }
   }

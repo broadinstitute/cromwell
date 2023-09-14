@@ -55,7 +55,6 @@ object AwsBatchVolume {
   val LocalDiskPattern: Regex = raw"""^\s*local-disk\s*$$""".r
 
   def parse(s: String): Try[AwsBatchVolume] = {
-
     val validation: ErrorOr[AwsBatchVolume] = s match {
       case LocalDiskPattern() =>
         Valid(AwsBatchWorkingDisk())
@@ -68,8 +67,9 @@ object AwsBatchVolume {
         Valid(AwsBatchEmptyMountedDisk(DefaultPathBuilder.get(mountPoint), fsType))
       case _ =>
         s"Disk strings should be of the format 'local-disk' or '/mount/point' but got: '$s'".invalidNel
-    }
 
+    }
+    
     Try(validation match {
       case Valid(localDisk) => localDisk
       case Invalid(nels) =>

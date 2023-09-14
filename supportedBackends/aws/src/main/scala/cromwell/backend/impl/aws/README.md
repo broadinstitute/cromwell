@@ -29,6 +29,21 @@ defined.
 This infrastructure and all the associated configuration still exists; however,
 it is moved out of the Cromwell configuration.
 
+Deployment
+----------
+
+Deployment of the cromwell/AWS environment can be performed using the three cloudformation stacks:
+
+1. VPC : setup of the networks
+2. Resources : setup of the compute environment, job queues and storage solutions
+3. Cromwell : setup of an EC2 instance and RDS, hosting the cromwell server and submission tools. 
+
+Along the way, all necessary IAM rols are generated. 
+
+The full documentation is available [here](DEPLOY.md)
+
+
+
 Features
 ---------------------
 ### Docker Hub Authentication
@@ -42,7 +57,7 @@ Docker Hub authentication for AWS Backend enable users to access and use private
 dockerhub { token = "<enconded-string-from-point-2>" }
 ```
 
-Stack must be deployed through https://github.com/aws-samples/aws-genomics-workflows.
+
 
 ### `awsBatchRetryAttempts`
 
@@ -154,11 +169,9 @@ backend {
 }
 
 // set the keys for Out-Of-Memory killing. 
-// system.io.memory-retry-error-keys
-system{
-    io{
-        memory-retry-error-keys = ["OutOfMemory","Killed"]
-    }
+// system.memory-retry-error-keys
+system {
+    memory-retry-error-keys = ["OutOfMemory","Killed"]
 }
 ```
 
@@ -166,6 +179,14 @@ Workflow specific runtime options : `workflow_options.json`:
 ```
 {
     "memory_retry_multiplier" : 1.5
+}
+```
+
+Or specify it in the cromwell config as : 
+
+```
+workflow-options {
+    memory-retry-multiplier = 1.5
 }
 ```
 
@@ -340,8 +361,8 @@ The following workflow highlights the following features:
 version 1.0
 workflow TestEFS {
     input {
-        # input file for WF is located on S3
-        File s3_file = 's3://aws-quickstart/quickstart-aws-vpc/templates/aws-vpc.template.yaml'
+        # input file for WF is located on a public S3
+        File s3_file = 's3://cromwell-aws-cloudformation-templates/root-templates/aws-vpc.template.yaml'
         # set an input parameter holding the working dir on EFS
         String efs_wd = "/mnt/efs/MyTestProject"
     }

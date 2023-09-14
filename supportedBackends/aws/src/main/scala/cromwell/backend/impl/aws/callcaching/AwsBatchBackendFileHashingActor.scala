@@ -63,14 +63,19 @@ class AwsBatchBackendFileHashingActor(standardParams: StandardFileHashingActorPa
   override def customHashStrategy(fileRequest: SingleFileHashRequest): Option[Try[String]] = {
     val file = DefaultPathBuilder.get(fileRequest.file.valueString)
     if (aws_config.efsMntPoint.isDefined && file.toString.startsWith(aws_config.efsMntPoint.getOrElse("--")) && aws_config.checkSiblingMd5.getOrElse(false)) {
-            // check existence of the sibling file
             val md5 = file.sibling(s"${file.toString}.md5")
-            if (md5.exists) {
+            // check existance of the file : 
+            if (!file.exists) {
+                // if missing, cache hit is invalid; return invalid md5
+                Some("File Missing").map(str => Try(str))
+            }
+            // check existence of the sibling file
+            else if (md5.exists) {
                 // read the file.
                 val md5_value: Option[String] = Some(md5.contentAsString.split("\\s+")(0))
                 md5_value.map(str => Try(str))
             } else {
-                // No sibling found, fall back to default.
+                // File present, but no sibling found, fall back to default.
                 None
             }
             

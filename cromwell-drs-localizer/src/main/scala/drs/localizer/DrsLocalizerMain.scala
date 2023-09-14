@@ -223,56 +223,5 @@ class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
       case o => IO.pure(o)
     })
   }
-
-/*
-  def resolveAndDownloadWithRetries(downloadRetries: Int,
-                                    checksumRetries: Int,
-                                    downloaderFactory: DownloaderFactory,
-                                    backoff: Option[CloudNioBackoff],
-                                    downloadAttempt: Int = 0,
-                                    checksumAttempt: Int = 0): IO[DownloadResult] = {
-
-    def maybeRetryForChecksumFailure(t: Throwable): IO[DownloadResult] = {
-      if (checksumAttempt < checksumRetries) {
-        backoff foreach { b => Thread.sleep(b.backoffMillis) }
-        logger.warn(s"Attempting retry $checksumAttempt of $checksumRetries checksum retries to download $drsUrl", t)
-        // In the event of a checksum failure reset the download attempt to zero.
-        resolveAndDownloadWithRetries(downloadRetries, checksumRetries, downloaderFactory, backoff map { _.next }, 0, checksumAttempt + 1)
-      } else {
-        IO.raiseError(new RuntimeException(s"Exhausted $checksumRetries checksum retries to resolve, download and checksum $drsUrl", t))
-      }
-    }
-
-    def maybeRetryForDownloadFailure(t: Throwable): IO[DownloadResult] = {
-      t match {
-        case _: FatalRetryDisposition =>
-          IO.raiseError(t)
-        case _ if downloadAttempt < downloadRetries =>
-          backoff foreach { b => Thread.sleep(b.backoffMillis) }
-          logger.warn(s"Attempting retry $downloadAttempt of $downloadRetries download retries to download $drsUrl", t)
-          resolveAndDownloadWithRetries(downloadRetries, checksumRetries, downloaderFactory, backoff map { _.next }, downloadAttempt + 1, checksumAttempt)
-        case _ =>
-          IO.raiseError(new RuntimeException(s"Exhausted $downloadRetries download retries to resolve, download and checksum $drsUrl", t))
-      }
-    }
-
-    resolveAndDownload(downloaderFactory).redeemWith({
-      maybeRetryForDownloadFailure
-    },
-    {
-      case f: FatalDownloadFailure =>
-        IO.raiseError(new RuntimeException(s"Fatal error downloading DRS object: $f"))
-      case r: RetryableDownloadFailure =>
-        maybeRetryForDownloadFailure(
-          new RuntimeException(s"Retryable download error: $r for $drsUrl on retry attempt $downloadAttempt of $downloadRetries") with RegularRetryDisposition)
-      case ChecksumFailure =>
-        maybeRetryForChecksumFailure(new RuntimeException(s"Checksum failure for $drsUrl on checksum retry attempt $checksumAttempt of $checksumRetries"))
-      case o => IO.pure(o)
-    }
-
-    IO.raiseError(new RuntimeException(s"Exhausted $downloadRetries download retries to resolve, download and checksum $drsUrl", t))
-  }
-
- */
 }
 

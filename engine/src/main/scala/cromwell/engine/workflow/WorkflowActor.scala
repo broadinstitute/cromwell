@@ -551,9 +551,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
 
       /*
        * The submitted workflow options have been previously validated by the CromwellApiHandler. These are
-       * being recreated so that in case MaterializeWorkflowDescriptor fails, the workflow logs can still
-       * be copied by accessing the workflow options outside of the EngineWorkflowDescriptor. Used for both
-       * copying workflow log and sending workflow callback.
+       * being recreated so that even if the MaterializeWorkflowDescriptor fails, the workflow options can still be accessed outside of the EngineWorkflowDescriptor. Used for both copying workflow log and sending workflow callbacks.
        */
       def bruteForceWorkflowOptions: WorkflowOptions = sources.workflowOptions
 

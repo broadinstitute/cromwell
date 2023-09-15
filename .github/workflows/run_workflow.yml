@@ -139,7 +139,7 @@ jobs:
             "bee-name": "${{ env.BEE_NAME }}", 
             "billing-project": "${{ needs.params-gen.outputs.project-name }}", 
             "billing-project-owner": "${{ inputs.owner-subject }}", 
-            "service-account": "${{ inputs.service-account }}" 
+            "service-account": "${{ inputs.service-account }}", 
             "silent-on-failure": "false" }'
 
   destroy-bee-workflow:

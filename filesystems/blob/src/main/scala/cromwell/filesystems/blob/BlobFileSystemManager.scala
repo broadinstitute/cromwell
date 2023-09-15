@@ -13,7 +13,7 @@ import java.net.URI
 import java.nio.file._
 import java.nio.file.spi.FileSystemProvider
 import java.time.temporal.ChronoUnit
-import java.time.{Duration, Instant, OffsetDateTime}
+import java.time.{Duration, OffsetDateTime}
 import java.util.UUID
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
@@ -32,10 +32,6 @@ case class AzureFileSystemAPI(private val provider: FileSystemProvider = new Azu
   * See BlobSasTokenGenerator for more information on how a SAS token is generated
   */
 object BlobFileSystemManager {
-  def parseTokenExpiry(token: AzureSasCredential): Option[Instant] = for {
-    expiryString <- token.getSignature.split("&").find(_.startsWith("se")).map(_.replaceFirst("se=","")).map(_.replace("%3A", ":"))
-    instant = Instant.parse(expiryString)
-  } yield instant
 
   def buildConfigMap(credential: AzureSasCredential, container: BlobContainerName): Map[String, Object] = {
     // Special handling is done here to provide a special key value pair if the placeholder token is provided
@@ -226,9 +222,12 @@ case class NativeBlobSasTokenGenerator(subscription: Option[SubscriptionId] = No
     *
     * @return an AzureSasCredential for accessing a blob container
     */
-  def generateBlobSasToken(endpoint: EndpointURL, container: BlobContainerName): Try[AzureSasCredential] = for {
-    bcc <- AzureUtils.buildContainerClientFromLocalEnvironment(container.toString, endpoint.toString, subscription.map(_.toString))
-    bsssv = new BlobServiceSasSignatureValues(OffsetDateTime.now.plusDays(1), bcsp)
-    asc = new AzureSasCredential(bcc.generateSas(bsssv))
-  } yield asc
+  def generateBlobSasToken(endpoint: EndpointURL, container: BlobContainerName): Try[AzureSasCredential] = {
+    val c = AzureUtils.buildContainerClientFromLocalEnvironment(container.toString, endpoint.toString, subscription.map(_.toString))
+
+    c.map { bcc =>
+        val bsssv = new BlobServiceSasSignatureValues(OffsetDateTime.now.plusDays(1), bcsp)
+        new AzureSasCredential(bcc.generateSas(bsssv))
+      }.orElse(Try(BlobFileSystemManager.PLACEHOLDER_TOKEN))
+  }
 }

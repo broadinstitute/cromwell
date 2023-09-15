@@ -8,9 +8,10 @@ import cloud.nio.impl.drs._
 import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
 import com.typesafe.scalalogging.StrictLogging
 import drs.localizer.CommandLineParser.AccessTokenStrategy.{Azure, Google}
-import drs.localizer.DrsLocalizerMain.toValidatedUriType
+import drs.localizer.DrsLocalizerMain.{defaultNumRetries, toValidatedUriType}
 import drs.localizer.downloaders._
 import org.apache.commons.csv.{CSVFormat, CSVParser}
+
 import java.io.File
 import java.nio.charset.Charset
 import scala.concurrent.duration._
@@ -40,8 +41,10 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
 
   def buildParser(): scopt.OptionParser[CommandLineArguments] = new CommandLineParser()
 
+  // Default retry parameters for resolving a DRS url
+  val defaultNumRetries: Int = 5
   val defaultBackoff: CloudNioBackoff = CloudNioSimpleExponentialBackoff(
-    initialInterval = 10 seconds, maxInterval = 60 seconds, multiplier = 2)
+    initialInterval = 1 seconds, maxInterval = 60 seconds, multiplier = 2)
 
   val defaultDownloaderFactory: DownloaderFactory = new DownloaderFactory {
     override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): Downloader =
@@ -191,7 +194,7 @@ class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
     unresolvedUrls.flatMap { unresolvedList =>
       getDrsPathResolver.flatMap { resolver =>
         unresolvedList.map { unresolvedUrl =>
-          resolveWithRetries(resolver, unresolvedUrl, 5, Option(defaultBackoff))
+          resolveWithRetries(resolver, unresolvedUrl, defaultNumRetries, Option(defaultBackoff))
         }.traverse(identity)
       }
     }

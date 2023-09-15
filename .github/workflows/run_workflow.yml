@@ -125,7 +125,7 @@ jobs:
   delete-billing-project-v2-from-bee-workflow:
     runs-on: ubuntu-latest
     needs: [run-cromwell-az-e2e, create-and-attach-billing-project-to-landing-zone-workflow, params-gen]
-    if: always() && ${{needs.create-and-attach-billing-project-to-landing-zone-workflow.result == 'success'}}
+    if: always()
     steps:
       - name: dispatch to terra-github-workflows
         uses: broadinstitute/workflow-dispatch@v3
@@ -147,7 +147,7 @@ jobs:
     # QUESTION: Can a billing project be deleted if the bee is deleted?
     # QUESTION: Can a billing project be deleted if the bee is still tied to it?
     needs: [create-bee-workflow, delete-billing-project-v2-from-bee-workflow]
-    if: always() && ${{needs.create-bee-workflow.result == 'success'}}
+    if: always()
     permissions:
       contents: 'read'
       id-token: 'write'

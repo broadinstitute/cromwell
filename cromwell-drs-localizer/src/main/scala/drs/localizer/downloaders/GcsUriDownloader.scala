@@ -14,10 +14,12 @@ case class GcsUriDownloader(gcsUrl: String,
                             downloadLoc: String,
                             requesterPaysProjectIdOption: Option[String]) extends Downloader with StrictLogging {
 
+  val defaultNumRetries: Int = 5
   val defaultBackoff: CloudNioBackoff = CloudNioSimpleExponentialBackoff(
-    initialInterval = 10 seconds, maxInterval = 60 seconds, multiplier = 2)
+    initialInterval = 1 seconds, maxInterval = 60 seconds, multiplier = 2)
+
   override def download: IO[DownloadResult] = {
-    downloadWithRetries(5, Option(defaultBackoff))
+    downloadWithRetries(defaultNumRetries, Option(defaultBackoff))
   }
 
   def runDownloadCommand: IO[DownloadResult] = {

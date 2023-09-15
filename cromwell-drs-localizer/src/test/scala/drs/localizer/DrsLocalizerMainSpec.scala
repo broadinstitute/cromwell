@@ -4,12 +4,10 @@ import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO}
 import cats.syntax.validated._
 import drs.localizer.MockDrsPaths.{fakeAccessUrls, fakeDrsUrlWithGcsResolutionOnly, fakeGoogleUrls}
-//import cloud.nio.impl.drs.DrsPathResolver.FatalRetryDisposition
 import cloud.nio.impl.drs.{AccessUrl, DrsConfig, DrsCredentials, DrsResolverField, DrsResolverResponse}
 import common.assertion.CromwellTimeoutSpec
 import common.validation.ErrorOr.ErrorOr
 import drs.localizer.MockDrsLocalizerDrsPathResolver.{FakeAccessTokenStrategy, FakeHashes}
-//import drs.localizer.downloaders.BulkAccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

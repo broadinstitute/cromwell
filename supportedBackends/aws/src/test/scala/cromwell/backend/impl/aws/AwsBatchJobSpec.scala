@@ -112,7 +112,9 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       continueOnReturnCode = ContinueOnReturnCodeFlag(false),
       noAddress = false,
       scriptS3BucketName = "script-bucket",
-      fileSystem = "s3")
+      fileSystem = "s3",
+      logsGroup = "/aws/batch/job",
+      resourceTags = Map("tag" -> "value"))
 
   private def generateBasicJob: AwsBatchJob = {
     val job = AwsBatchJob(null, runtimeAttributes, "commandLine", script,

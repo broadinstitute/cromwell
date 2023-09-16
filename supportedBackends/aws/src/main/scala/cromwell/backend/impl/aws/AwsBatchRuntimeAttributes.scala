@@ -61,7 +61,8 @@ import scala.util.matching.Regex
  * @param noAddress is there no address
  * @param scriptS3BucketName the s3 bucket where the execution command or script will be written and, from there, fetched into the container and executed
  * @param fileSystem the filesystem type, default is "s3"
- * @param logsGroup the log group
+ * @param logsGroup the CloudWatch log group name to write logs to
+ * @param resourceTags a map of tags to add to the AWS Batch job submission
  */
 case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      zones: Vector[String],

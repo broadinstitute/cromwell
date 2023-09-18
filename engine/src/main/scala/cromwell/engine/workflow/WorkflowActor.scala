@@ -52,7 +52,6 @@ object WorkflowActor {
   final case class AbortWorkflowWithExceptionCommand(exception: Throwable) extends WorkflowActorCommand
   case object SendWorkflowHeartbeatCommand extends WorkflowActorCommand
   case object AwaitMetadataIntegrity
-  case class PerformWorkflowCallback(uri: Option[String], workflowState: WorkflowState)
 
   case class WorkflowFailedResponse(workflowId: WorkflowId, inState: WorkflowActorState, reasons: Seq[Throwable])
 
@@ -520,17 +519,6 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       stay()
     case Event(AwaitMetadataIntegrity, data) =>
       goto(MetadataIntegrityValidationState) using data.copy(lastStateReached = data.lastStateReached.copy(state = stateName))
-    case Event(PerformWorkflowCallback(uri, workflowState), data) =>
-      workflowCallbackActor.foreach { wca =>
-        wca ! PerformCallbackCommand(
-          workflowId,
-          uri,
-          workflowState,
-          data.workflowFinalOutputs.getOrElse(CallOutputs.empty),
-          data.lastStateReached.failures.toList.flatMap(_.map(_.getMessage))
-        )
-      }
-      stay()
   }
 
   onTransition {
@@ -551,7 +539,8 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
 
       /*
        * The submitted workflow options have been previously validated by the CromwellApiHandler. These are
-       * being recreated so that even if the MaterializeWorkflowDescriptor fails, the workflow options can still be accessed outside of the EngineWorkflowDescriptor. Used for both copying workflow log and sending workflow callbacks.
+       * being recreated so that even if the MaterializeWorkflowDescriptor fails, the workflow options can still be
+       * accessed outside of the EngineWorkflowDescriptor. Used for both copying workflow log and sending workflow callbacks.
        */
       def bruteForceWorkflowOptions: WorkflowOptions = sources.workflowOptions
 
@@ -582,8 +571,16 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       }
 
       // Attempt to perform workflow completion callback
-      val callbackUri = workflowOptions.get(WorkflowOptions.WorkflowCallbackUri).toOption
-      self ! PerformWorkflowCallback(callbackUri, terminalState.workflowState)
+      workflowCallbackActor.foreach { wca =>
+        val callbackUri = workflowOptions.get(WorkflowOptions.WorkflowCallbackUri).toOption
+        wca ! PerformCallbackCommand(
+          workflowId,
+          callbackUri,
+          terminalState.workflowState,
+          stateData.workflowFinalOutputs.getOrElse(CallOutputs.empty),
+          nextStateData.lastStateReached.failures.toList.flatMap(_.map(_.getMessage))
+        )
+      }
 
       // We can't transition from within another transition function, but we can instruct ourselves to with a message:
       self ! AwaitMetadataIntegrity

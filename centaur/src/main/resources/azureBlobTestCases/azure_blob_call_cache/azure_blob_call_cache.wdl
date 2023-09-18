@@ -34,6 +34,6 @@ task blob_and_acr_exercise {
   }
 
   runtime {
-    docker: "dragenpublicwestus.azurecr.io/dragen-xrt/el7/x86_64:3.7.8m"
+    docker: "aednichols/public-mirror:warp-tools-wx-1263"
   }
 }

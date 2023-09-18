@@ -8,7 +8,7 @@ import akka.testkit.TestProbe
 import common.mock.MockSugar
 import cromwell.core.retry.SimpleExponentialBackoff
 import org.mockito.Mockito._
-import cromwell.core.{TestKitSuite, WorkflowFailed, WorkflowId, WorkflowSucceeded}
+import cromwell.core.{CallOutputs, TestKitSuite, WorkflowFailed, WorkflowId, WorkflowSucceeded}
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackActor.PerformCallbackCommand
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackJsonSupport._
 import cromwell.services.metadata.MetadataService.PutMetadataAction
@@ -63,8 +63,8 @@ class WorkflowCallbackActorSpec
     val expectedPostBody = CallbackMessage(
       workflowId.toString,
       WorkflowSucceeded.toString,
-      Option(basicOutputs.outputs.map(entry => (entry._1.name, entry._2))),
-      None
+      basicOutputs.outputs.map(entry => (entry._1.name, entry._2)),
+      List.empty
     )
     val expectedRequest = Post(mockUri.toString, expectedPostBody)
     val (expectedResultMetadata, expectedUriMetadata, expectedTimestampMetadata) = metadataEvents(workflowId, true)
@@ -113,8 +113,8 @@ class WorkflowCallbackActorSpec
     val expectedPostBody = CallbackMessage(
       workflowId.toString,
       WorkflowSucceeded.toString,
-      Option(basicOutputs.outputs.map(entry => (entry._1.name, entry._2))),
-      None
+      basicOutputs.outputs.map(entry => (entry._1.name, entry._2)),
+      List.empty
     )
     val expectedRequest = Post(mockUri.toString, expectedPostBody)
 
@@ -165,8 +165,8 @@ class WorkflowCallbackActorSpec
     val expectedPostBody = CallbackMessage(
       workflowId.toString,
       WorkflowFailed.toString,
-      None,
-      Option(List(errorMsg))
+      Map.empty,
+      List(errorMsg)
     )
     val expectedRequest = Post(mockUri.toString, expectedPostBody)
 
@@ -188,7 +188,7 @@ class WorkflowCallbackActorSpec
       workflowId = workflowId,
       uri = Option(mockUri.toString),
       terminalState = WorkflowFailed,
-      workflowOutputs = basicOutputs,
+      workflowOutputs = CallOutputs.empty,
       List(errorMsg)
     )
     workflowCallbackActor ! cmd

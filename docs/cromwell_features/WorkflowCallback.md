@@ -51,5 +51,5 @@ Below is an example of a callback request body.
 
  * `workflowId`: The UUID of the workflow
  * `state`: The terminal state of the workflow. The list of possible values is: `Succeeded`, `Failed`, `Aborted`
- * `outputs`: The final outputs of the workflow, as would be returned from the `api/workflows/{version}/{id}/outputs` endpoint. This field will ONLY be included when the workflow was successful.
- * `failures`: A list of strings describing the workflow's failures. This field will ONLY be included if the workflow failed.
+ * `outputs`: The final outputs of the workflow, as would be returned from the `api/workflows/{version}/{id}/outputs` endpoint. Expected to be empty when the workflow is not successful..
+ * `failures`: A list of strings describing the workflow's failures. Expected to be empty if the workflow did not fail.

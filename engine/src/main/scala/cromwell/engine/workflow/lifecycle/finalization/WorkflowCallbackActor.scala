@@ -18,7 +18,7 @@ import cromwell.cloudsupport.azure.AzureCredentials
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.retry.Retry.withRetry
 import cromwell.core.retry.SimpleExponentialBackoff
-import cromwell.core.{CallOutputs, WorkflowFailed, WorkflowId, WorkflowState, WorkflowSucceeded}
+import cromwell.core.{CallOutputs, WorkflowId, WorkflowState}
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackActor.PerformCallbackCommand
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackConfig.AuthMethod
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackJsonSupport._
@@ -153,12 +153,7 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
   }
 
   private def performCallback(workflowId: WorkflowId, callbackUri: URI, terminalState: WorkflowState, outputs: CallOutputs, failures: List[String]): Future[Unit] = {
-    // Only send outputs if the workflow succeeded, only send an error message if it failed.
-    val callbackPostBody = terminalState match {
-      case WorkflowSucceeded => CallbackMessage(workflowId.toString, terminalState.toString, Option(outputs.outputs.map(entry => (entry._1.name, entry._2))), None)
-      case WorkflowFailed => CallbackMessage(workflowId.toString, terminalState.toString, None, Option(failures))
-      case _ => CallbackMessage(workflowId.toString, terminalState.toString, None, None)
-    }
+    val callbackPostBody = CallbackMessage(workflowId.toString, terminalState.toString, outputs.outputs.map(entry => (entry._1.name, entry._2)), failures)
     for {
       entity <- Marshal(callbackPostBody).to[RequestEntity]
       headers <- makeHeaders

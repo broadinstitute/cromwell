@@ -6,8 +6,8 @@ import wom.values.WomValue
 
 final case class CallbackMessage(workflowId: String,
                                  state: String,
-                                 outputs: Option[Map[String, WomValue]],
-                                 failures: Option[List[String]])
+                                 outputs: Map[String, WomValue],
+                                 failures: List[String])
 
 object WorkflowCallbackJsonSupport extends DefaultJsonProtocol {
   implicit val callbackMessageFormat = jsonFormat4(CallbackMessage)

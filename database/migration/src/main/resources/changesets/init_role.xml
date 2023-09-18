@@ -8,11 +8,10 @@
     <property  name="sharedCromwellDbRole" value=""/>
 
     <!--
-        This changeset will be only applied when 'sharedCromwellDbRole' property is set.
-        Currently, it is only set for the shared Cromwell service in the WORKFLOWS app.
-        For all the other Cromwell servers this should be a no-op.
+        This changeset will be applied whenever the 'sharedCromwellDbRole' property is set.
+        It runs every time to ensure the role is set correctly before any other changesets.
      -->
-    <changeSet author="sshah" id="assign_table_owner_for_workflows_app_cromwell" dbms="postgresql">
+    <changeSet runAlways="true" author="sshah" id="init_role" dbms="postgresql">
         <preConditions onFail="MARK_RAN">
             <!-- check that 'sharedCromwellDbRole' role is set -->
             <not>

@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <include file="changesets/assign_table_owner_for_workflows_app_cromwell.xml" relativeToChangelogFile="true" />
+    <include file="changesets/init_role.xml" relativeToChangelogFile="true" />
     <include file="changesets/db_schema.xml" relativeToChangelogFile="true" />
     <include file="changesets/symbol_iteration_null.xml" relativeToChangelogFile="true" />
     <include file="changesets/wdl_and_inputs.xml" relativeToChangelogFile="true" />

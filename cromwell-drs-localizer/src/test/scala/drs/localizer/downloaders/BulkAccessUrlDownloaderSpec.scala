@@ -20,22 +20,17 @@ class BulkAccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec w
   val threeElements: List[ResolvedDrsUrl] = List(ex1, ex2, ex3)
 
   it should "correctly parse a collection of Access Urls into a manifest.json" in {
-    val expected: String =
-      s"""|[
-          |  {
-          |    "url" : "https://my.fake/url123",
-          |    "filepath" : "path/to/local/download/dest"
-          |  },
-          |  {
-          |    "url" : "https://my.fake/url1234",
-          |    "filepath" : "path/to/local/download/dest2"
-          |  },
-          |  {
-          |    "url" : "https://my.fake/url1235",
-          |    "filepath" : "path/to/local/download/dest3"
-          |  }
-          |]""".stripMargin
-
+    val expected =
+      """[{
+        |  "url": "https://my.fake/url123",
+        |  "filepath": "path/to/local/download/dest"
+        |}, {
+        |  "url": "https://my.fake/url1234",
+        |  "filepath": "path/to/local/download/dest2"
+        |}, {
+        |  "url": "https://my.fake/url1235",
+        |  "filepath": "path/to/local/download/dest3"
+        |}]""".stripMargin
     val downloader = BulkAccessUrlDownloader(threeElements)
 
     val filepath: IO[Path] = downloader.generateJsonManifest(threeElements)

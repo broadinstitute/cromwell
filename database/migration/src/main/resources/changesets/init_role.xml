@@ -13,12 +13,12 @@
      -->
     <changeSet runAlways="true" author="sshah" id="init_role" dbms="postgresql">
         <preConditions onFail="MARK_RAN">
-            <!-- check that 'sharedCromwellDbRole' role is set -->
+            <!-- check that 'sharedCromwellDbRole' role is set, and matches something in the pg_roles table -->
             <not>
-                <sqlCheck expectedResult="0">
-                    SELECT count(*)
+                <sqlCheck expectedResult="1">
+                    SELECT count(1)
                     FROM pg_roles
-                    where '${sharedCromwellDbRole}' != '';
+                    where '${sharedCromwellDbRole}' != '' and pg_roles.rolname = '${sharedCromwellDbRole}';
                 </sqlCheck>
             </not>
         </preConditions>

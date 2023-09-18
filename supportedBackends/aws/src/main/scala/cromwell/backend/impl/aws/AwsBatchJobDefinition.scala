@@ -43,8 +43,6 @@ import org.apache.commons.lang3.builder.{ToStringBuilder, ToStringStyle}
 import org.slf4j.{Logger, LoggerFactory}
 import wdl4s.parser.MemoryUnit
 
-import scala.jdk.javaapi.CollectionConverters.asJava
-
 
 /**
   * Responsible for the creation of the job definition.
@@ -152,9 +150,11 @@ trait AwsBatchJobDefinitionBuilder {
     val mountPoints = buildMountPoints( context.runtimeAttributes.disks)
     val logConfiguration = LogConfiguration.builder()
       .logDriver("awslogs")
-      .options(asJava(Map(
-        "awslogs-group" -> context.runtimeAttributes.logsGroup
-      )))
+      .options(
+        Map(
+          "awslogs-group" -> context.runtimeAttributes.logsGroup
+        ).asJava
+      )
       .build()
     val jobDefinitionName = buildName(
       context.runtimeAttributes.dockerImage,

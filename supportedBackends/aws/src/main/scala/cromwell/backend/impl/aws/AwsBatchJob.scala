@@ -54,7 +54,6 @@ import wdl4s.parser.MemoryUnit
 import java.security.MessageDigest
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
-import scala.jdk.javaapi.CollectionConverters.asJava
 import scala.util.{Random, Try}
 
 /**
@@ -275,7 +274,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                 )
                 .build()
             )
-            .tags(asJava(runtimeAttributes.resourceTags))
+            .tags(runtimeAttributes.resourceTags.asJava)
             .jobQueue(runtimeAttributes.queueArn)
             .jobDefinition(definitionArn)
             .build

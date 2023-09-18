@@ -120,7 +120,7 @@ jobs:
           BILLING_PROJECT_NAME: ${{needs.params-gen.outputs.project-name}}
           BEARER_TOKEN: ${{ steps.owner_auth.outputs.access_token }}
         run: |
-          poetry run python ../../server/src/test/python/cromwell-az-e2e/tests/az-e2e.py
+          poetry run python server/src/test/python/cromwell-az-e2e/tests/az-e2e.py
 
   delete-billing-project-v2-from-bee-workflow:
     runs-on: ubuntu-latest

@@ -5,7 +5,7 @@
     </envs>
     <option name="MAIN_CLASS_NAME" value="drs.localizer.DrsLocalizerMain" />
     <module name="cromwell-drs-localizer" />
-    <option name="PROGRAM_PARAMETERS" value="--access-token-strategy azure drs://jade.datarepo-dev.broadinstitute.org/v1_f3c32ddd-20eb-4033-9716-46866521a3a4_8d651e95-38ce-4bc8-a8a4-8a4cd9513db1 $USER_HOME$/Downloads/NA12878_PLUMBING_wgs.g.vcf.gz.tbi --identity-client-id identity" />
+    <option name="PROGRAM_PARAMETERS" value="--access-token-strategy google drs://drs.anv0:v1_e2151834-13cd-4156-9ea2-168a1b7abf60_0761203d-d2a1-448e-8f71-9f81d80ddd9d $USER_HOME$/Downloads/test/plumbing" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>

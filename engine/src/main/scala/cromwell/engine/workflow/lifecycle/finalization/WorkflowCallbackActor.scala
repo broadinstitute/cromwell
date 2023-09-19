@@ -167,8 +167,7 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
       result <- {
         // Akka will get upset if we have a response body and leave it totally unread.
         // Since there's nothing here we want to read, we need to deliberately discard it.
-        response.entity.discardBytes()
-        Future.unit
+        response.entity.discardBytes().future
       }
     } yield result
   }

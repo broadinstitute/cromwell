@@ -73,6 +73,7 @@ class WorkflowCallbackActorSpec
 
     val props = WorkflowCallbackActor.props(
       serviceRegistryActor.ref,
+      None,
       Option(mockUri),
       httpClient = mockHttpClient
     )
@@ -124,6 +125,7 @@ class WorkflowCallbackActorSpec
 
     val props = WorkflowCallbackActor.props(
       serviceRegistryActor.ref,
+      None,
       Option(mockUri),
       httpClient = mockHttpClient
     )
@@ -177,6 +179,7 @@ class WorkflowCallbackActorSpec
     val props = WorkflowCallbackActor.props(
       serviceRegistryActor.ref,
       None,
+      None,
       retryBackoff = Option(SimpleExponentialBackoff(500.millis, 1.minute, 1.1)),
       maxRetries = Option(5),
       httpClient = mockHttpClient
@@ -222,6 +225,7 @@ class WorkflowCallbackActorSpec
     val props = WorkflowCallbackActor.props(
       serviceRegistryActor.ref,
       None,
+      None,
       httpClient = mockHttpClient
     )
     val workflowCallbackActor = system.actorOf(props, "testWorkflowCallbackActorNoUri")
@@ -249,6 +253,7 @@ class WorkflowCallbackActorSpec
 
     val props = WorkflowCallbackActor.props(
       serviceRegistryActor.ref,
+      None,
       None,
       httpClient = mockHttpClient
     )

@@ -1,5 +1,6 @@
 package cromwell.engine.workflow.lifecycle.finalization
 
+import akka.Done
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
 import akka.event.LoggingReceive
 import akka.http.scaladsl.Http
@@ -24,7 +25,7 @@ import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackConfig.Au
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackJsonSupport._
 import net.ceedubs.ficus.Ficus._
 
-import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.DurationInt
 import scala.util.Try
 import cromwell.services.metadata.MetadataService.PutMetadataAction
@@ -33,11 +34,12 @@ import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 import java.net.URI
 import java.time.Instant
-import scala.concurrent.Future
+import java.util.concurrent.Executors
 import scala.util.{Failure, Success}
 
 
 case class WorkflowCallbackConfig(enabled: Boolean,
+                                  numThreads: Option[Int],
                                   defaultUri: Option[URI], // May be overridden by workflow options
                                   retryBackoff: Option[SimpleExponentialBackoff],
                                   maxRetries: Option[Int],
@@ -50,6 +52,7 @@ object WorkflowCallbackConfig extends LazyLogging {
   }
 
   def apply(config: Config): WorkflowCallbackConfig = {
+    val numThreads = config.as[Option[Int]]("num-threads")
     val backoff = config.as[Option[Config]]("request-backoff").map(SimpleExponentialBackoff(_))
     val maxRetries = config.as[Option[Int]]("max-retries")
     val uri = config.as[Option[String]]("endpoint").flatMap(createAndValidateUri)
@@ -60,6 +63,7 @@ object WorkflowCallbackConfig extends LazyLogging {
 
     WorkflowCallbackConfig(
       config.getBoolean("enabled"),
+      numThreads = numThreads,
       defaultUri = uri,
       retryBackoff = backoff,
       maxRetries = maxRetries,
@@ -91,6 +95,7 @@ object WorkflowCallbackActor {
                                           failureMessage: List[String])
 
   def props(serviceRegistryActor: ActorRef,
+            numThreads: Option[Int],
             defaultCallbackUri: Option[URI],
             retryBackoff: Option[SimpleExponentialBackoff] = None,
             maxRetries: Option[Int] = None,
@@ -99,6 +104,7 @@ object WorkflowCallbackActor {
            ) = Props(
     new WorkflowCallbackActor(
       serviceRegistryActor,
+      numThreads,
       defaultCallbackUri,
       retryBackoff,
       maxRetries,
@@ -108,6 +114,7 @@ object WorkflowCallbackActor {
 }
 
 class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
+                            numThreads: Option[Int],
                             defaultCallbackUri: Option[URI],
                             retryBackoff: Option[SimpleExponentialBackoff],
                             maxRetries: Option[Int],
@@ -115,12 +122,19 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
                             httpClient: CallbackHttpHandler)
   extends Actor with ActorLogging {
 
-  implicit val ec: ExecutionContextExecutor = context.dispatcher
+  // Create a dedicated thread pool for this actor so its damage is limited if we end up with
+  // too many threads all taking a long time to do callbacks. If we're frequently saturating
+  // this thread pool, consider refactoring this actor to maintain a queue of callbacks and
+  // handle them one at a time, as opposed to starting a thread to perform each as soon as its
+  // received.
+  implicit val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(numThreadsWithDefault))
   implicit val system: ActorSystem = context.system
 
+  private lazy val defaultNumThreads = 5
   private lazy val defaultRetryBackoff = SimpleExponentialBackoff(3.seconds, 5.minutes, 1.1)
   private lazy val defaultMaxRetries = 10
 
+  private lazy val numThreadsWithDefault = numThreads.getOrElse(defaultNumThreads)
   private lazy val backoffWithDefault = retryBackoff.getOrElse(defaultRetryBackoff)
   private lazy val maxRetriesWithDefault = maxRetries.getOrElse(defaultMaxRetries)
 
@@ -152,7 +166,7 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
       .traverse(identity)
   }
 
-  private def performCallback(workflowId: WorkflowId, callbackUri: URI, terminalState: WorkflowState, outputs: CallOutputs, failures: List[String]): Future[Unit] = {
+  private def performCallback(workflowId: WorkflowId, callbackUri: URI, terminalState: WorkflowState, outputs: CallOutputs, failures: List[String]): Future[Done] = {
     val callbackPostBody = CallbackMessage(workflowId.toString, terminalState.toString, outputs.outputs.map(entry => (entry._1.name, entry._2)), failures)
     for {
       entity <- Marshal(callbackPostBody).to[RequestEntity]
@@ -164,11 +178,10 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
         maxRetries = Option(maxRetriesWithDefault),
         onRetry = err => log.warning(s"Will retry after failure to send workflow callback for workflow $workflowId in state $terminalState to $callbackUri : $err")
       )
-      result <- {
+      result <-
         // Akka will get upset if we have a response body and leave it totally unread.
         // Since there's nothing here we want to read, we need to deliberately discard it.
         response.entity.discardBytes().future
-      }
     } yield result
   }
 

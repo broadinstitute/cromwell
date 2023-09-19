@@ -128,11 +128,7 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
     if (workflowCallbackConfig.enabled) {
       val props = WorkflowCallbackActor.props(
         serviceRegistryActor,
-        workflowCallbackConfig.numThreads,
-        workflowCallbackConfig.defaultUri,
-        workflowCallbackConfig.retryBackoff,
-        workflowCallbackConfig.maxRetries,
-        workflowCallbackConfig.authMethod
+        workflowCallbackConfig
       )
       Option(context.actorOf(props, "WorkflowCallbackActor"))
     } else None

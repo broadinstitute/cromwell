@@ -35,6 +35,7 @@ class WorkflowCallbackActorSpec
   private val serviceRegistryActor = TestProbe("testServiceRegistryActor")
   private val deathWatch = TestProbe("deathWatch")
   private val mockUri = new URI("http://example.com")
+  private val basicConfig = WorkflowCallbackConfig.empty.copy(enabled = true)
   private val basicOutputs = WomMocks.mockOutputExpectations(List("foo" -> WomString("bar")).toMap)
 
   private val httpSuccess = Future.successful(HttpResponse.apply(StatusCodes.OK))
@@ -73,8 +74,7 @@ class WorkflowCallbackActorSpec
 
     val props = WorkflowCallbackActor.props(
       serviceRegistryActor.ref,
-      None,
-      Option(mockUri),
+      basicConfig.copy(defaultUri = Option(mockUri)),
       httpClient = mockHttpClient
     )
     val workflowCallbackActor = system.actorOf(props, "testWorkflowCallbackActorSuccess")
@@ -125,8 +125,7 @@ class WorkflowCallbackActorSpec
 
     val props = WorkflowCallbackActor.props(
       serviceRegistryActor.ref,
-      None,
-      Option(mockUri),
+      basicConfig.copy(defaultUri = Option(mockUri)),
       httpClient = mockHttpClient
     )
     val workflowCallbackActor = system.actorOf(props, "testWorkflowCallbackActorFailThenSuccees")
@@ -178,10 +177,10 @@ class WorkflowCallbackActorSpec
 
     val props = WorkflowCallbackActor.props(
       serviceRegistryActor.ref,
-      None,
-      None,
-      retryBackoff = Option(SimpleExponentialBackoff(500.millis, 1.minute, 1.1)),
-      maxRetries = Option(5),
+      basicConfig.copy(
+        retryBackoff = SimpleExponentialBackoff(500.millis, 1.minute, 1.1),
+        maxRetries = 5,
+      ),
       httpClient = mockHttpClient
     )
     val workflowCallbackActor = system.actorOf(props, "testWorkflowCallbackActorFail")
@@ -224,8 +223,7 @@ class WorkflowCallbackActorSpec
 
     val props = WorkflowCallbackActor.props(
       serviceRegistryActor.ref,
-      None,
-      None,
+      basicConfig,
       httpClient = mockHttpClient
     )
     val workflowCallbackActor = system.actorOf(props, "testWorkflowCallbackActorNoUri")
@@ -253,8 +251,7 @@ class WorkflowCallbackActorSpec
 
     val props = WorkflowCallbackActor.props(
       serviceRegistryActor.ref,
-      None,
-      None,
+      basicConfig,
       httpClient = mockHttpClient
     )
     val workflowCallbackActor = system.actorOf(props, "testWorkflowCallbackActorBogusUri")

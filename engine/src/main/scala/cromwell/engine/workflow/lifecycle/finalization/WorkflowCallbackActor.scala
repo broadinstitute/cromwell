@@ -21,7 +21,6 @@ import cromwell.core.retry.Retry.withRetry
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{CallOutputs, WorkflowId, WorkflowState}
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackActor.PerformCallbackCommand
-import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackConfig.AuthMethod
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackJsonSupport._
 import net.ceedubs.ficus.Ficus._
 
@@ -39,10 +38,10 @@ import scala.util.{Failure, Success}
 
 
 case class WorkflowCallbackConfig(enabled: Boolean,
-                                  numThreads: Option[Int],
+                                  numThreads: Int,
+                                  retryBackoff: SimpleExponentialBackoff,
+                                  maxRetries: Int,
                                   defaultUri: Option[URI], // May be overridden by workflow options
-                                  retryBackoff: Option[SimpleExponentialBackoff],
-                                  maxRetries: Option[Int],
                                   authMethod: Option[WorkflowCallbackConfig.AuthMethod])
 
 object WorkflowCallbackConfig extends LazyLogging {
@@ -51,10 +50,19 @@ object WorkflowCallbackConfig extends LazyLogging {
     override def getAccessToken: ErrorOr.ErrorOr[String] = AzureCredentials.getAccessToken()
   }
 
+  private lazy val defaultNumThreads = 5
+  private lazy val defaultRetryBackoff = SimpleExponentialBackoff(3.seconds, 5.minutes, 1.1)
+  private lazy val defaultMaxRetries = 10
+
+  def empty: WorkflowCallbackConfig = WorkflowCallbackConfig(
+    false, defaultNumThreads, defaultRetryBackoff, defaultMaxRetries, None, None
+  )
+
   def apply(config: Config): WorkflowCallbackConfig = {
-    val numThreads = config.as[Option[Int]]("num-threads")
-    val backoff = config.as[Option[Config]]("request-backoff").map(SimpleExponentialBackoff(_))
-    val maxRetries = config.as[Option[Int]]("max-retries")
+    val enabled = config.as[Boolean]("enabled")
+    val numThreads = config.as[Option[Int]]("num-threads").getOrElse(defaultNumThreads)
+    val backoff = config.as[Option[Config]]("request-backoff").map(SimpleExponentialBackoff(_)).getOrElse(defaultRetryBackoff)
+    val maxRetries = config.as[Option[Int]]("max-retries").getOrElse(defaultMaxRetries)
     val uri = config.as[Option[String]]("endpoint").flatMap(createAndValidateUri)
 
     val authMethod = if (config.hasPath("auth.azure")) {
@@ -62,11 +70,11 @@ object WorkflowCallbackConfig extends LazyLogging {
     } else None
 
     WorkflowCallbackConfig(
-      config.getBoolean("enabled"),
+      enabled = enabled,
       numThreads = numThreads,
-      defaultUri = uri,
       retryBackoff = backoff,
       maxRetries = maxRetries,
+      defaultUri = uri,
       authMethod = authMethod
     )
   }
@@ -95,30 +103,18 @@ object WorkflowCallbackActor {
                                           failureMessage: List[String])
 
   def props(serviceRegistryActor: ActorRef,
-            numThreads: Option[Int],
-            defaultCallbackUri: Option[URI],
-            retryBackoff: Option[SimpleExponentialBackoff] = None,
-            maxRetries: Option[Int] = None,
-            authMethod: Option[WorkflowCallbackConfig.AuthMethod] = None,
+            callbackConfig: WorkflowCallbackConfig,
             httpClient: CallbackHttpHandler = CallbackHttpHandlerImpl
            ) = Props(
     new WorkflowCallbackActor(
       serviceRegistryActor,
-      numThreads,
-      defaultCallbackUri,
-      retryBackoff,
-      maxRetries,
-      authMethod,
+      callbackConfig,
       httpClient)
   ).withDispatcher(IoDispatcher)
 }
 
 class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
-                            numThreads: Option[Int],
-                            defaultCallbackUri: Option[URI],
-                            retryBackoff: Option[SimpleExponentialBackoff],
-                            maxRetries: Option[Int],
-                            authMethod: Option[AuthMethod],
+                            config: WorkflowCallbackConfig,
                             httpClient: CallbackHttpHandler)
   extends Actor with ActorLogging {
 
@@ -127,22 +123,14 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
   // this thread pool, consider refactoring this actor to maintain a queue of callbacks and
   // handle them one at a time, as opposed to starting a thread to perform each as soon as its
   // received.
-  implicit val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(numThreadsWithDefault))
+  implicit val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(config.numThreads))
   implicit val system: ActorSystem = context.system
-
-  private lazy val defaultNumThreads = 5
-  private lazy val defaultRetryBackoff = SimpleExponentialBackoff(3.seconds, 5.minutes, 1.1)
-  private lazy val defaultMaxRetries = 10
-
-  private lazy val numThreadsWithDefault = numThreads.getOrElse(defaultNumThreads)
-  private lazy val backoffWithDefault = retryBackoff.getOrElse(defaultRetryBackoff)
-  private lazy val maxRetriesWithDefault = maxRetries.getOrElse(defaultMaxRetries)
 
   override def receive: Actor.Receive = LoggingReceive {
     case PerformCallbackCommand(workflowId, requestedCallbackUri, terminalState, outputs, failures) =>
       // If no uri was provided to us here, fall back to the one in config. If there isn't
       // one there, do not perform a callback.
-      val callbackUri: Option[URI] = requestedCallbackUri.map(WorkflowCallbackConfig.createAndValidateUri).getOrElse(defaultCallbackUri)
+      val callbackUri: Option[URI] = requestedCallbackUri.map(WorkflowCallbackConfig.createAndValidateUri).getOrElse(config.defaultUri)
       callbackUri.map { uri =>
         performCallback(workflowId, uri, terminalState, outputs, failures) onComplete {
           case Success(_) =>
@@ -158,7 +146,7 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
   }
 
   private def makeHeaders: Future[List[HttpHeader]] = {
-    authMethod.toList.map(_.getAccessToken).map {
+    config.authMethod.toList.map(_.getAccessToken).map {
       case Valid(header) => Future.successful(header)
       case Invalid(err) => Future.failed(new RuntimeException(err.toString))
     }
@@ -174,8 +162,8 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
       request = HttpRequest(method = HttpMethods.POST, uri = callbackUri.toString, entity = entity).withHeaders(headers)
       response <- withRetry(
         () => sendRequestOrFail(request),
-        backoff = backoffWithDefault,
-        maxRetries = Option(maxRetriesWithDefault),
+        backoff = config.retryBackoff,
+        maxRetries = Option(config.maxRetries),
         onRetry = err => log.warning(s"Will retry after failure to send workflow callback for workflow $workflowId in state $terminalState to $callbackUri : $err")
       )
       result <-

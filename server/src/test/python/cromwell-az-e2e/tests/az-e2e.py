@@ -87,14 +87,16 @@ def get_app_url(workspaceId, app):
     return app_url
 
 def submit_workflow_to_cromwell(app_url, workflow_test_name):
+    absolute_file_path = os.path.dirname(__file__)
+    workflow_source_path = os.path.join(absolute_file_path, '../workflow_files/hello.wdl')
+    workflow_inputs_path = os.path.join(absolute_file_path, '../workflow_files/hello.inputs')
     workflow_endpoint = f'{app_url}/cromwell/api/workflows/v1'
-    file_source = '../workflow_files'
     headers = {"Authorization": bearer_token,
               "accept": "application/json",
               "Content-Type": "multipart/form-data"}
-    files = {'workflowSource': open(f'{file_source}/hello.wdl', 'rb'),
+    files = {'workflowSource': open(workflow_source_path, 'rb'),
             'workflowInputs': ('hello.inputs', 
-                               open(f'{file_source}/hello.inputs', 'rb'), 
+                               open(workflow_inputs_path, 'rb'), 
                                'application/json'),
             'workflowType': 'WDL',
             'workflowTypeVersion': '1.0',
@@ -138,18 +140,19 @@ def get_completed_workflow(app_url, workflow_ids, max_retries=4):
                 current_running_workflow_count = 0
                 time.sleep(60 * 5)
 
-# This chunk of code only executes one workflow
-# Would like to modify this down the road to execute and store references for multiple workflows
-workspace_id = create_workspace()
-time.sleep(60 * 20) # Added an sleep here to give the workspace time to provision
-app_url = get_app_url(workspace_id, 'cromwell')
-workflow_response = submit_workflow_to_cromwell(app_url, "Run Workflow Test")
-#Giving workflow 10 minutes to complete
-#Will need to update this when swapping out hello wdl with fetch_sra_to_bam (20 min?)
-time.sleep(60 * 10)
+def start():
+    # This chunk of code only executes one workflow
+    # Would like to modify this down the road to execute and store references for multiple workflows
+    workspace_id = create_workspace()
+    time.sleep(60 * 20) # Added an sleep here to give the workspace time to provision
+    app_url = get_app_url(workspace_id, 'cromwell')
+    workflow_response = submit_workflow_to_cromwell(app_url, "Run Workflow Test")
+    #Giving workflow 10 minutes to complete
+    #Will need to update this when swapping out hello wdl with fetch_sra_to_bam (20 min?)
+    time.sleep(60 * 10)
 
-# This chunk of code supports checking one or more workflows
-# Probably won't require too much modification if we want to run additional submission tests
-workflow_ids = [workflow_response['id']]
-get_completed_workflow(app_url, workflow_ids)
-print("Workflow submission and completion successful")
+    # This chunk of code supports checking one or more workflows
+    # Probably won't require too much modification if we want to run additional submission tests
+    workflow_ids = [workflow_response['id']]
+    get_completed_workflow(app_url, workflow_ids)
+    print("Workflow submission and completion successful")

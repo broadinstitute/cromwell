@@ -112,8 +112,16 @@ jobs:
         with:
           #NOTE: replace with ${{inputs.target-branch}} before merge
           ref: refs/heads/WX-983
+      - name: Set up python
+        id: setup-python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
       - name: Install poetry
-        uses: snok/install-poetry@v1     
+        uses: snok/install-poetry@v1
+      - name: Install dependencies
+        run: |
+          poetry install --no-interaction     
       - name: Run e2e test
         env:
           BEE_NAME: ${{env.BEE_NAME}}

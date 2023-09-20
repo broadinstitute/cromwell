@@ -9,7 +9,7 @@
 
     <!--
         This changeset will be applied whenever the 'sharedCromwellDbRole' property is set.
-        It runs every time to ensure the role is set correctly before any other changesets.
+        It runs every time to ensure the role is set correctly after all other changesets.
      -->
     <changeSet runAlways="true" author="sshah" id="set_table_role" dbms="postgresql">
         <preConditions onFail="MARK_RAN">

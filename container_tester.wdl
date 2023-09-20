@@ -33,6 +33,6 @@ task container_tester_task {
   }
 
   runtime {
-    docker: docker_image
+    docker: image_name
   }
 }

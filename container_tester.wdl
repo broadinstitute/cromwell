@@ -14,7 +14,7 @@ workflow container_tester {
   }
 
   output {
-    String output = container_tester_task.out
+    String result = container_tester_task.out
   }
 }
 

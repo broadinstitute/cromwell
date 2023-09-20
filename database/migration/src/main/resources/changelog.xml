@@ -93,6 +93,11 @@
     <!-- REMINDER!
       Before appending here, did you remember to include the 'objectQuotingStrategy="QUOTE_ALL_OBJECTS"' line in your changeset/xyz.xml...?
     -->
+    <!-- WARNING!
+      This changeset should always be last. It it always run (and should always run last) to set table ownership correctly:
+    -->
+    <include file="changesets/set_table_role.xml" relativeToChangelogFile="true" />
+
 
 </databaseChangeLog>
 <!--

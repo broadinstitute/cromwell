@@ -93,6 +93,7 @@
     <!-- REMINDER!
       Before appending here, did you remember to include the 'objectQuotingStrategy="QUOTE_ALL_OBJECTS"' line in your changeset/xyz.xml...?
     -->
+
 </databaseChangeLog>
 <!--
 

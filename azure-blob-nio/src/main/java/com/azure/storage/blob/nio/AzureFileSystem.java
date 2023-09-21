@@ -520,10 +520,15 @@ public final class AzureFileSystem extends FileSystem {
         this.expiry = expiryString.map(es -> Instant.parse(es)).orElse(null);
     }
 
+    /**
+     * Return true if this filesystem has SAS credentials with an expiration data attached, and we're within
+     * `buffer` of the expiration. Return false if our credentials don't come with an expiration, or we
+     * aren't within `buffer` of our expiration.
+     */
     public boolean isExpired(Duration buffer) {
         return Optional.ofNullable(this.expiry)
             .map(e -> Instant.now().plus(buffer).isAfter(e))
-            .orElse(true);
+            .orElse(false);
 
     }
 }

@@ -276,7 +276,9 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   private def handleExecutionError(status: TesRunStatus, returnCode: Option[Int]): Future[ExecutionHandle] = {
-    val exception = new AggregatedMessageException(s"Task ${jobDescriptor.key.tag} failed for unknown reason: ${status.toString()}", status.sysLogs)
+    val msg = s"Task ${jobDescriptor.key.tag} failed with ${status.toString}"
+    jobLogger.info(s"${msg}. Error messages: ${status.sysLogs}")
+    val exception = new AggregatedMessageException(msg, status.sysLogs)
     Future.successful(FailedNonRetryableExecutionHandle(exception, returnCode, None))
   }
 

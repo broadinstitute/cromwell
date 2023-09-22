@@ -118,6 +118,42 @@ class TesTaskSpec
     val workflowDescriptor = buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld,
                                                         labels = Labels("foo" -> "bar"))
     val jobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor,
+      Map.empty,
+      emptyWorkflowOptions,
+      Set.empty)
+    val tesPaths = TesJobPaths(jobDescriptor.key,
+      jobDescriptor.workflowDescriptor,
+      TestConfig.emptyConfig)
+    val tesTask = TesTask(jobDescriptor,
+      TestConfig.emptyBackendConfigDescriptor,
+      jobLogger,
+      tesPaths,
+      runtimeAttributes,
+      DefaultPathBuilder.build("").get,
+      "",
+      InstantiatedCommand("command"),
+      "",
+      Map.empty,
+      "",
+      OutputMode.ROOT)
+
+    val task = TesTask.makeTask(tesTask)
+
+    task.tags shouldBe Option(
+      Map(
+        "foo" -> Option("bar"),
+        "workflow_id" -> Option(workflowDescriptor.id.toString),
+        "root_workflow_id" -> Option(workflowDescriptor.id.toString),
+        "parent_workflow_id" -> None
+      )
+    )
+  }
+
+  it should "put workflow ids in tags" in {
+    val jobLogger = mock[JobLogger]
+    val emptyWorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
+    val workflowDescriptor = buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld)
+    val jobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor,
                                                             Map.empty,
                                                             emptyWorkflowOptions,
                                                             Set.empty)
@@ -139,6 +175,96 @@ class TesTaskSpec
 
     val task = TesTask.makeTask(tesTask)
 
-    task.tags shouldBe Option(Map("foo" -> "bar"))
+    task.tags shouldBe Option(
+      Map(
+        "workflow_id" -> Option(workflowDescriptor.id.toString),
+        "root_workflow_id" -> Option(workflowDescriptor.id.toString),
+        "parent_workflow_id" -> None
+      )
+    )
   }
+
+//  it should "put non-root workflow ids in tags" in {
+//    val jobLogger = mock[JobLogger]
+//
+//    val emptyWorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
+//    val workflowDescriptor = buildWdlWorkflowDescriptor(SubWorkflows(5.seconds).workflowSource(""))
+//    val jobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor,
+//      Map.empty,
+//      emptyWorkflowOptions,
+//      Set.empty)
+//    val tesPaths = TesJobPaths(jobDescriptor.key,
+//      jobDescriptor.workflowDescriptor,
+//      TestConfig.emptyConfig)
+//    val tesTask = TesTask(jobDescriptor,
+//      TestConfig.emptyBackendConfigDescriptor,
+//      jobLogger,
+//      tesPaths,
+//      runtimeAttributes,
+//      DefaultPathBuilder.build("").get,
+//      "",
+//      InstantiatedCommand("command"),
+//      "",
+//      Map.empty,
+//      "",
+//      OutputMode.ROOT)
+//
+//    val task = TesTask.makeTask(tesTask)
+//
+//    task.tags shouldBe Option(
+//      Map(
+//        "workflow_id" -> Option(workflowDescriptor.id.toString),
+//        "root_workflow_id" -> Option(workflowDescriptor.id.toString),
+//        "parent_workflow_id" -> None
+//      )
+//    )
+//  }
+
 }
+
+//case class SubWorkflows(naptime: FiniteDuration) extends SampleWdl {
+//  override def workflowSource(runtime: String): WorkflowSource = root
+//
+//  override val rawInputs: ExecutableInputMap = Map("parent.naptime" -> naptime.toSeconds.toInt)
+//
+//  val root: WorkflowSource =
+//    """
+//      |import "subsub.wdl" as sub
+//      |
+//      |workflow parent {
+//      |  input {
+//      |    Int naptime
+//      |  }
+//      |  scatter (i in range(3)) {
+//      |    call sub.sub { input: naptime = naptime }
+//      |  }
+//      |}
+//    """.stripMargin.trim
+//
+//  val sub: WorkflowSource =
+//    """
+//      |task snooze {
+//      |  input {
+//      |    Int naptime
+//      |  }
+//      |  command {
+//      |    echo "zzzz"; sleep ~{naptime}
+//      |  }
+//      |}
+//      |
+//      |workflow sub {
+//      |  input {
+//      |    Int naptime
+//      |  }
+//      |  call snooze { input: naptime = naptime }
+//      |}
+//      |
+//    """.stripMargin.trim
+//
+//  override val imports: Option[Set[WorkflowImport]] =
+//    Option(
+//      Set(
+//        WorkflowImport(name = "subsub.wdl", content = sub)
+//      )
+//    )
+//}

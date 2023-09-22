@@ -244,6 +244,16 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     preferedWorkflowExecutionIdentity,
     Option(tesPaths.tesTaskRoot)
   )
+
+  val tags: Map[String, Option[String]] = {
+    // In addition to passing through any workflow labels, include relevant workflow ids as tags.
+    val baseTags = jobDescriptor.workflowDescriptor.customLabels.asMap.map { case (k, v) => (k, Option(v)) }
+    baseTags ++ Map(
+      "workflow_id" -> Option(jobDescriptor.workflowDescriptor.id.toString),
+      "root_workflow_id" -> Option(jobDescriptor.workflowDescriptor.rootWorkflowId.toString),
+      "parent_workflow_id" -> jobDescriptor.workflowDescriptor.breadCrumbs.lastOption.map(_.id.toString)
+    )
+  }
 }
 
 object TesTask {
@@ -298,7 +308,7 @@ object TesTask {
       resources = Option(tesTask.resources),
       executors = tesTask.executors,
       volumes = None,
-      tags = Option(tesTask.jobDescriptor.workflowDescriptor.customLabels.asMap),
+      tags = Option(tesTask.tags),
       logs = None
     )
   }
@@ -314,7 +324,7 @@ final case class Task(id: Option[String],
                       resources: Option[Resources],
                       executors: Seq[Executor],
                       volumes: Option[Seq[String]],
-                      tags: Option[Map[String, String]],
+                      tags: Option[Map[String, Option[String]]],
                       logs: Option[Seq[TaskLog]])
 
 final case class Executor(image: String,

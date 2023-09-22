@@ -3,7 +3,7 @@ package drs.localizer.downloaders
 import cats.syntax.validated._
 import cloud.nio.impl.drs.AccessUrl
 import common.validation.ErrorOr.ErrorOr
-import drs.localizer.downloaders.AccessUrlDownloader.Hashes
+import drs.localizer.downloaders.BulkAccessUrlDownloader.Hashes
 import org.apache.commons.codec.binary.Base64.encodeBase64String
 import org.apache.commons.codec.binary.Hex.decodeHex
 import org.apache.commons.text.StringEscapeUtils

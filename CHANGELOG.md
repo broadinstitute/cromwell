@@ -10,6 +10,11 @@ WDL `size` engine function now works for HTTP files.
 Cromwell can now send logs to Azure Application Insights. To enable, set environment 
 variable `APPLICATIONINSIGHTS_INSTRUMENTATIONKEY` to your account's key. [See here for information.](https://learn.microsoft.com/en-us/azure/azure-monitor/app/sdk-connection-string)
 
+### Workflow Completion Callback
+
+Cromwell can be configured to send a POST request to a specified URL when a workflow completes. The request body
+includes the workflow id, terminal state, and (if applicable) final outputs or error message.
+See `WorkflowCallback` in [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/) for more information.
 
 ## 85 Release Notes
 

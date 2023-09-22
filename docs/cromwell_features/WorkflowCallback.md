@@ -1,6 +1,7 @@
 The workflow callback is a simple way to integrate Cromwell with an external system. When each workflow reaches a terminal
-state, Cromwell will POST a message to a provided URL (see below for schema of this message). Messages are sent for root
-workflows only, not subworkflows.
+state, Cromwell will attempt to POST a message to a provided URL (see below for schema of this message). 
+Messages are sent for root workflows only, not subworkflows. Callback status information, including success or failure, 
+will be recorded in workflow metadata with keys containing `workflowCallback`.
 
 ### Configuration
 

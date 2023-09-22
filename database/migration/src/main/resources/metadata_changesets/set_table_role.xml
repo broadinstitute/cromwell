@@ -21,13 +21,13 @@
             </sqlCheck>
         </preConditions>
         <sql>
-            ALTER TABLE "CUSTOM_LABEL_ENTRY" OWNER TO '${sharedCromwellDbRole}';
-            ALTER TABLE "METADATA_ENTRY" OWNER TO '${sharedCromwellDbRole}';
-            ALTER TABLE "SUMMARY_QUEUE_ENTRY" OWNER TO '${sharedCromwellDbRole}';
-            ALTER TABLE "SUMMARY_STATUS_ENTRY" OWNER TO '${sharedCromwellDbRole}';
-            ALTER TABLE "WORKFLOW_METADATA_SUMMARY_ENTRY" OWNER TO '${sharedCromwellDbRole}';
-            ALTER TABLE "sqlmetadatadatabasechangelog" OWNER TO '${sharedCromwellDbRole}';
-            ALTER TABLE "sqlmetadatadatabasechangeloglock" OWNER TO '${sharedCromwellDbRole}';
+            ALTER TABLE "CUSTOM_LABEL_ENTRY" OWNER TO ${sharedCromwellDbRole};
+            ALTER TABLE "METADATA_ENTRY" OWNER TO ${sharedCromwellDbRole};
+            ALTER TABLE "SUMMARY_QUEUE_ENTRY" OWNER TO ${sharedCromwellDbRole};
+            ALTER TABLE "SUMMARY_STATUS_ENTRY" OWNER TO ${sharedCromwellDbRole};
+            ALTER TABLE "WORKFLOW_METADATA_SUMMARY_ENTRY" OWNER TO ${sharedCromwellDbRole};
+            ALTER TABLE "sqlmetadatadatabasechangelog" OWNER TO ${sharedCromwellDbRole};
+            ALTER TABLE "sqlmetadatadatabasechangeloglock" OWNER TO ${sharedCromwellDbRole};
         </sql>
     </changeSet>
 

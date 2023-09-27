@@ -735,7 +735,7 @@ public final class AzurePath implements Path {
         String fileStoreName = this.rootToFileStore(root.toString());
 
         BlobContainerClient containerClient =
-            ((AzureFileStore) this.parentFileSystem.getFileStore(fileStoreName)).getContainerClient();
+            ((AzureFileStore) this.parentFileSystem.getFileStore()).getContainerClient();
 
         String blobName = this.withoutRoot();
         if (blobName.isEmpty()) {

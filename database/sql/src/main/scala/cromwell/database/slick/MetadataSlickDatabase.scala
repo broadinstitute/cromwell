@@ -10,6 +10,7 @@ import cromwell.database.sql.MetadataSqlDatabase
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, MetadataJobQueryValue, WorkflowQuery}
 import cromwell.database.sql.tables.{CustomLabelEntry, InformationSchemaEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
+import net.ceedubs.ficus.Ficus._
 import slick.basic.DatabasePublisher
 import slick.jdbc.{ResultSetConcurrency, ResultSetType}
 
@@ -60,6 +61,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   import dataAccess.driver.api._
   import MetadataSlickDatabase._
 
+  lazy val pgLargeObjectWriteRole = originalDatabaseConfig.as[Option[String]]("pg-large-object-write-role")
+
   override def existsMetadataEntries()(implicit ec: ExecutionContext): Future[Boolean] = {
     val action = dataAccess.metadataEntriesExists.result
     runTransaction(action)
@@ -87,7 +90,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
         rootWorkflowIdKey,
         labelMetadataKey)
 
-    val roleSet = Option(sqlu"""SET ROLE TO cromwellmetadata_ndgz1t""")
+    val roleSet = pgLargeObjectWriteRole.map(role => sqlu"""SET ROLE TO ${role}""")
 
     // These entries also require a write to the summary queue.
     def writeSummarizable(): Future[Unit] = if (partitioned.summarizableMetadata.isEmpty) Future.successful(()) else {

@@ -82,6 +82,10 @@ object GoogleConfiguration {
         UserServiceAccountMode(name)
       }
 
+      def userServiceAccountImpersonationAuth(name: String): ErrorOr[GoogleAuthMode] = validate {
+        UserServiceAccountImpersonationMode(name)
+      }
+
       val name = authConfig.getString("name")
       val scheme = authConfig.getString("scheme")
       scheme match {
@@ -89,6 +93,7 @@ object GoogleConfiguration {
         case "user_account" => userAccountAuth(authConfig, name)
         case "application_default" => applicationDefaultAuth(name)
         case "user_service_account" => userServiceAccountAuth(name)
+        case "user_service_account_impersonation" => userServiceAccountImpersonationAuth(name)
         case "mock" => MockAuthMode(name).validNel
         case wut => s"Unsupported authentication scheme: $wut".invalidNel
       }

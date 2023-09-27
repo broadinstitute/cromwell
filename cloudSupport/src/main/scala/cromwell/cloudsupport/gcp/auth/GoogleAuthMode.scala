@@ -10,10 +10,11 @@ import com.google.api.client.http.{HttpResponseException, HttpTransport}
 import com.google.api.client.json.gson.GsonFactory
 import com.google.auth.Credentials
 import com.google.auth.http.HttpTransportFactory
-import com.google.auth.oauth2.{GoogleCredentials, OAuth2Credentials, ServiceAccountCredentials, UserCredentials}
+import com.google.auth.oauth2.{GoogleCredentials, OAuth2Credentials, ServiceAccountCredentials, UserCredentials, ImpersonatedCredentials}
 import com.google.cloud.NoCredentials
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.cloudsupport.gcp.auth.ApplicationDefaultMode.applicationDefaultCredentials
+import cromwell.cloudsupport.gcp.auth.UserServiceAccountImpersonationMode.applicationDefaultCredentials
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode._
 import cromwell.cloudsupport.gcp.auth.ServiceAccountMode.{CredentialFileFormat, JsonFileFormat, PemFileFormat}
 
@@ -43,6 +44,7 @@ object GoogleAuthMode {
   lazy val HttpTransportFactory: HttpTransportFactory = () => httpTransport
 
   val UserServiceAccountKey = "user_service_account_json"
+  val UserServiceAccountEmailKey = "user_service_account_email"
   val DockerCredentialsEncryptionKeyNameKey = "docker_credentials_key_name"
   val DockerCredentialsTokenKey = "docker_credentials_token"
 
@@ -203,6 +205,37 @@ final case class ApplicationDefaultMode(name: String) extends GoogleAuthMode {
   override def credentials(unusedOptions: OptionLookup,
                            scopes: Iterable[String]): GoogleCredentials = {
     validateCredentials(applicationDefaultCredentials, scopes)
+  }
+}
+
+object UserServiceAccountImpersonationMode {
+  private lazy val applicationDefaultCredentials: GoogleCredentials = GoogleCredentials.getApplicationDefault
+}
+
+final case class UserServiceAccountImpersonationMode(name: String) extends GoogleAuthMode {
+
+  private def extractServiceAccount(options: OptionLookup): String = {
+    extract(options, UserServiceAccountEmailKey)
+  }
+
+  override def validateCredentials[A <: GoogleCredentials](credential: A,
+                                                           scopes: Iterable[String]): GoogleCredentials = {
+    Try(credentialsValidation(credential)) match {
+      case Failure(ex) => throw new RuntimeException(s"Google credentials are invalid: ${ex.getMessage}", ex)
+      case Success(_) => credential
+    }
+  }
+
+  override def credentials(options: OptionLookup,
+                           scopes: Iterable[String]): GoogleCredentials = {
+    val credentials = ImpersonatedCredentials.create(
+      applicationDefaultCredentials,
+      extractServiceAccount(options),
+      null,
+      new java.util.ArrayList[String](scopes.toList.asJava),
+      3600
+    )
+    validateCredentials(credentials, scopes)
   }
 }
 

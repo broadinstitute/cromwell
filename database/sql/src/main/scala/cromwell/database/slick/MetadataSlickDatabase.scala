@@ -87,6 +87,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
         rootWorkflowIdKey,
         labelMetadataKey)
 
+    val roleSet = Option(sqlu"""SET ROLE TO cromwellmetadata_ndgz1t""")
+
     // These entries also require a write to the summary queue.
     def writeSummarizable(): Future[Unit] = if (partitioned.summarizableMetadata.isEmpty) Future.successful(()) else {
       val batchesToWrite = partitioned.summarizableMetadata.grouped(insertBatchSize).toList
@@ -94,13 +96,13 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
         val insertMetadata = dataAccess.metadataEntryIdsAutoInc ++= batch
         insertMetadata.flatMap(ids => writeSummaryQueueEntries(ids))
       }
-      runTransaction(DBIO.sequence(insertActions)).void
+      runTransaction(DBIO.sequence(roleSet ++ insertActions)).void
     }
 
     // Non-summarizable metadata that only needs to go to the metadata table can be written much more efficiently
     // than summarizable metadata.
     def writeNonSummarizable(): Future[Unit] = if (partitioned.nonSummarizableMetadata.isEmpty) Future.successful(()) else {
-      val action = DBIO.sequence(partitioned.nonSummarizableMetadata.grouped(insertBatchSize).map(dataAccess.metadataEntries ++= _))
+      val action = DBIO.sequence(roleSet ++ partitioned.nonSummarizableMetadata.grouped(insertBatchSize).map(dataAccess.metadataEntries ++= _))
       runLobAction(action).void
     }
 

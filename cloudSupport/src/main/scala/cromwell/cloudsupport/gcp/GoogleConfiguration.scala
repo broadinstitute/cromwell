@@ -83,10 +83,8 @@ object GoogleConfiguration {
       }
 
       def userServiceAccountImpersonationAuth(authConfig: Config, name: String): ErrorOr[GoogleAuthMode] = validate {
-        authConfig.getAs[String]("json-file") match {
-          case Some(json) => UserServiceAccountImpersonationMode(name, JsonFileFormat(json))
-          case None => UserServiceAccountImpersonationMode(name)
-        }
+        val jsonFileOpt: Option[JsonFileFormat] = authConfig.getAs[String]("json-file").map(JsonFileFormat)
+        UserServiceAccountImpersonationMode(name, jsonFileOpt)
       }
 
       val name = authConfig.getString("name")

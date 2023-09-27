@@ -61,7 +61,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   import dataAccess.driver.api._
   import MetadataSlickDatabase._
 
-  lazy val pgLargeObjectWriteRole = originalDatabaseConfig.as[Option[String]]("pg-large-object-write-role")
+  lazy val pgLargeObjectWriteRole: Option[String] = originalDatabaseConfig.as[Option[String]]("pg-large-object-write-role")
 
   override def existsMetadataEntries()(implicit ec: ExecutionContext): Future[Boolean] = {
     val action = dataAccess.metadataEntriesExists.result

@@ -117,12 +117,18 @@ sealed trait GoogleAuthMode extends LazyLogging {
     */
   private[auth] var credentialsValidation: CredentialsValidation = refreshCredentials
 
-  protected def validateCredentials[A <: GoogleCredentials](credential: A,
-                                                            scopes: Iterable[String]): GoogleCredentials = {
-    val scopedCredentials = credential.createScoped(scopes.asJavaCollection)
-    Try(credentialsValidation(scopedCredentials)) match {
-      case Failure(ex) => throw new RuntimeException(s"Google credentials are invalid: ${ex.getMessage}", ex)
-      case Success(_) => scopedCredentials
+  protected def validateCredentials[A <: GoogleCredentials](
+     credential: A,
+     scopes: Iterable[String]
+   ): GoogleCredentials = {
+    val credentialsToValidate =
+      if (scopes != null) credential.createScoped(scopes.asJavaCollection)
+      else credential
+    Try(credentialsValidation(credentialsToValidate)) match {
+      case Failure(ex) =>
+        throw new RuntimeException(s"Google credentials are invalid: ${ex.getMessage}", ex)
+      case Success(_) =>
+        credentialsToValidate
     }
   }
 }
@@ -218,24 +224,18 @@ final case class UserServiceAccountImpersonationMode(name: String) extends Googl
     extract(options, UserServiceAccountEmailKey)
   }
 
-  override def validateCredentials[A <: GoogleCredentials](credential: A,
-                                                           scopes: Iterable[String]): GoogleCredentials = {
-    Try(credentialsValidation(credential)) match {
-      case Failure(ex) => throw new RuntimeException(s"Google credentials are invalid: ${ex.getMessage}", ex)
-      case Success(_) => credential
-    }
-  }
-
   override def credentials(options: OptionLookup,
                            scopes: Iterable[String]): GoogleCredentials = {
     val credentials = ImpersonatedCredentials.create(
       applicationDefaultCredentials,
       extractServiceAccount(options),
       null,
-      new java.util.ArrayList[String](scopes.toList.asJava),
+      scopes.toList.asJava,
       3600
     )
-    validateCredentials(credentials, scopes)
+    // We don't pass in scopes because they are added to the credentials
+    // when we create ImpersonatedCredentials above.
+    validateCredentials(credentials, null)
   }
 }
 

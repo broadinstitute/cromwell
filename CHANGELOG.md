@@ -16,6 +16,14 @@ Cromwell can be configured to send a POST request to a specified URL when a work
 includes the workflow id, terminal state, and (if applicable) final outputs or error message.
 See `WorkflowCallback` in [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/) for more information.
 
+### Workflow runtime limit increased
+
+Workflow tasks in Terra now support 14 days of run time on non-preemptible VMs, up from 7 days previously.
+
+Tasks running for 7 days or less will see no change in behavior or cost. Tasks that previously timed out at the 7-day mark will now continue to run until they terminate on their own, or for 14 days, whichever is sooner.
+
+The maximum duration of preemptible VMs is unchanged at 24 hours.
+
 ## 85 Release Notes
 
 ### Migration of PKs to BIGINT

@@ -156,7 +156,7 @@ workflows using the Google backend.
 
 **Batch timeout**
 
-Google sets a default pipeline timeout of 7 days, after which the pipeline will abort. Setting `batch-timeout` overrides this limit to a maximum of 30 days.
+Google sets a default pipeline timeout of 14 days, after which the pipeline will abort. Setting `batch-timeout` overrides this limit to a maximum of 30 days.
 
 ```hocon
 backend.providers.GCPBATCH.config {

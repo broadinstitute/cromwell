@@ -191,7 +191,7 @@ object PipelinesApiConfigurationAttributes
     } }
     val requestWorkers: ErrorOr[Int Refined Positive] = validatePositiveInt(backendConfig.as[Option[Int]]("request-workers").getOrElse(3), "request-workers")
 
-    val pipelineTimeout: FiniteDuration = backendConfig.getOrElse("pipeline-timeout", 7.days)
+    val pipelineTimeout: FiniteDuration = backendConfig.getOrElse("pipeline-timeout", 14.days)
 
     val logFlushPeriod: Option[FiniteDuration] = backendConfig.as[Option[FiniteDuration]]("log-flush-period") match {
       case Some(duration) if duration.isFinite => Option(duration)

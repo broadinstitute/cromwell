@@ -230,7 +230,7 @@ workflows using the Google backend.
 
 **Pipeline timeout**
 
-Google sets a default pipeline timeout of 7 days, after which the pipeline will abort. Setting `pipeline-timeout` overrides this limit to a maximum of 30 days.
+Google sets a default pipeline timeout of 14 days, after which the pipeline will abort. Setting `pipeline-timeout` overrides this limit to a maximum of 30 days.
 
 ```hocon
 backend.providers.PAPIv2.config {

@@ -11,7 +11,7 @@ import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, MetadataJobQ
 import cromwell.database.sql.tables.{CustomLabelEntry, InformationSchemaEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
 import net.ceedubs.ficus.Ficus._
 import slick.basic.DatabasePublisher
-import slick.jdbc.{ResultSetConcurrency, ResultSetType, SQLActionBuilder}
+import slick.jdbc.{ResultSetConcurrency, ResultSetType}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._

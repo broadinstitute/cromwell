@@ -100,7 +100,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
     val backendConfig = ConfigFactory.parseString(configString())
     val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
 
-    gcpBatchAttributes.batchTimeout should be(7.days)
+    gcpBatchAttributes.batchTimeout should be(14.days)
   }
 
   it should "parse compute service account" in {

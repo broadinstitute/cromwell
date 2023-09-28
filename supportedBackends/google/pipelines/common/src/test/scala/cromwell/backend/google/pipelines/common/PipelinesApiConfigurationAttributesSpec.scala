@@ -96,7 +96,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
     val backendConfig = ConfigFactory.parseString(configString())
     val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig, "papi")
 
-    pipelinesApiAttributes.pipelineTimeout should be(7.days)
+    pipelinesApiAttributes.pipelineTimeout should be(14.days)
   }
 
   it should "parse compute service account" in {

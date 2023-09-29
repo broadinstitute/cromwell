@@ -89,7 +89,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
         rootWorkflowIdKey,
         labelMetadataKey)
 
-    val roleSet = pgLargeObjectWriteRole.map(role => sqlu"""SET ROLE TO #$role""")
+    val roleSet = pgLargeObjectWriteRole.map(role => sqlu"""SET ROLE TO "#$role"""")
 
     // These entries also require a write to the summary queue.
     def writeSummarizable(): Future[Unit] = if (partitioned.summarizableMetadata.isEmpty) Future.successful(()) else {

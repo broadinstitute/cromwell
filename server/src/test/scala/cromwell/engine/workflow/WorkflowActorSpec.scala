@@ -15,16 +15,18 @@ import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowActorWorkComplete
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{ExecuteWorkflowCommand, WorkflowExecutionAbortedResponse, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
-import cromwell.engine.workflow.lifecycle.finalization.CopyWorkflowLogsActor
-import cromwell.engine.workflow.lifecycle.finalization.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationSucceededResponse}
+import cromwell.engine.workflow.lifecycle.finalization.{CopyWorkflowLogsActor, WorkflowCallbackActor}
+import cromwell.engine.workflow.lifecycle.finalization.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationFailedResponse, WorkflowFinalizationSucceededResponse}
 import cromwell.engine.workflow.lifecycle.initialization.WorkflowInitializationActor.{StartInitializationCommand, WorkflowInitializationAbortedResponse, WorkflowInitializationFailedResponse, WorkflowInitializationSucceededResponse}
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor.MaterializeWorkflowDescriptorFailureResponse
 import cromwell.engine.workflow.workflowstore.{StartableState, Submitted, WorkflowHeartbeatConfig, WorkflowToStart}
 import cromwell.engine.{EngineFilesystems, EngineWorkflowDescriptor}
 import cromwell.services.metadata.MetadataService.{MetadataWriteSuccess, PutMetadataActionAndRespond}
 import cromwell.util.SampleWdl.ThreeStep
+import cromwell.util.WomMocks
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
+import wom.values.WomString
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -50,7 +52,8 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
     )
 
   val mockDir: Path = DefaultPathBuilder.get("/where/to/copy/wf/logs")
-  val mockWorkflowOptions = s"""{ "final_workflow_log_dir" : "$mockDir" }"""
+  val mockUri: String = "http://example.com"
+  val mockWorkflowOptions = s"""{ "final_workflow_log_dir" : "$mockDir", "workflow_callback_uri": "$mockUri" }"""
 
   var currentWorkflowId: WorkflowId = _
   val currentLifecycleActor: TestProbe = TestProbe("currentLifecycleActor")
@@ -63,6 +66,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
   val executionProbe: TestProbe = TestProbe("executionProbe")
   val finalizationProbe: TestProbe = TestProbe("finalizationProbe")
   var copyWorkflowLogsProbe: TestProbe = _
+  val workflowCallbackProbe: TestProbe = TestProbe("workflowCallbackProbe")
   val AwaitAlmostNothing: FiniteDuration = 100.milliseconds
   val initialJobCtByRootWf = new AtomicInteger()
   val callCachingEnabled = true
@@ -79,7 +83,11 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
 
   private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(ConfigFactory.load())
 
-  private def createWorkflowActor(state: WorkflowActorState, extraPathBuilderFactory: Option[PathBuilderFactory] = None, initializationMaxRetries: Int = 3, initializationInterval: FiniteDuration = 10.millis) = {
+  private def createWorkflowActor(state: WorkflowActorState,
+                                  extraPathBuilderFactory: Option[PathBuilderFactory] = None,
+                                  workflowCallbackActor: Option[ActorRef] = None,
+                                  initializationMaxRetries: Int = 3,
+                                  initializationInterval: FiniteDuration = 10.millis) = {
     val actor = TestFSMRef(
       factory = new WorkflowActorWithTestAddons(
         finalizationProbe = finalizationProbe,
@@ -92,6 +100,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
         ioActor = system.actorOf(SimpleIoActor.props, s"ioActor-$currentWorkflowId"),
         serviceRegistryActor = mockServiceRegistryActor,
         workflowLogCopyRouter = copyWorkflowLogsProbe.ref,
+        workflowCallbackActor = workflowCallbackActor,
         jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props, s"jobStoreActor-$currentWorkflowId"),
         subWorkflowStoreActor =
           system.actorOf(AlwaysHappySubWorkflowStoreActor.props, s"subWorkflowStoreActor-$currentWorkflowId"),
@@ -328,6 +337,31 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
         val _ = createWorkflowActor(WorkflowSucceededState, Option(new ThrowingPathBuilderFactory()))
       }
     }
+
+    "send a workflow callback message" in {
+      val actor = createWorkflowActor(ExecutingWorkflowState, workflowCallbackActor = Option(workflowCallbackProbe.ref))
+      deathwatch watch actor
+      val mockOutputs = WomMocks.mockOutputExpectations(Map("foo" -> WomString("bar")))
+      val msg = WorkflowCallbackActor.PerformCallbackCommand(currentWorkflowId, Some(mockUri), WorkflowSucceeded, mockOutputs, List.empty)
+
+      workflowCallbackProbe.expectNoMessage(AwaitAlmostNothing)
+      actor ! WorkflowExecutionSucceededResponse(Map.empty, Set(currentWorkflowId), mockOutputs, Set.empty)
+      actor ! WorkflowFinalizationSucceededResponse
+      workflowCallbackProbe.expectMsg(msg)
+      deathwatch.expectTerminated(actor)
+    }
+
+    "send a workflow callback message for a failing workflow" in {
+      val actor = createWorkflowActor(FinalizingWorkflowState, workflowCallbackActor = Option(workflowCallbackProbe.ref))
+      deathwatch watch actor
+      val errorText = "oh nooo :("
+      val msg = WorkflowCallbackActor.PerformCallbackCommand(currentWorkflowId, Some(mockUri), WorkflowFailed, CallOutputs.empty, List(errorText))
+
+      workflowCallbackProbe.expectNoMessage(AwaitAlmostNothing)
+      actor ! WorkflowFinalizationFailedResponse(Seq(new RuntimeException(errorText)))
+      workflowCallbackProbe.expectMsg(msg)
+      deathwatch.expectTerminated(actor)
+    }
   }
 }
 
@@ -353,6 +387,7 @@ class WorkflowActorWithTestAddons(val finalizationProbe: TestProbe,
                                   ioActor: ActorRef,
                                   serviceRegistryActor: ActorRef,
                                   workflowLogCopyRouter: ActorRef,
+                                  workflowCallbackActor: Option[ActorRef],
                                   jobStoreActor: ActorRef,
                                   subWorkflowStoreActor: ActorRef,
                                   callCacheReadActor: ActorRef,
@@ -379,6 +414,7 @@ class WorkflowActorWithTestAddons(val finalizationProbe: TestProbe,
   ioActor = ioActor,
   serviceRegistryActor = serviceRegistryActor,
   workflowLogCopyRouter = workflowLogCopyRouter,
+  workflowCallbackActor,
   jobStoreActor = jobStoreActor,
   subWorkflowStoreActor = subWorkflowStoreActor,
   callCacheReadActor = callCacheReadActor,

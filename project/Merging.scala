@@ -9,6 +9,14 @@ object Merging {
       MergeStrategy.filterDistinctLines
     case PathList(ps@_*) if ps.last == "logback.xml" =>
       MergeStrategy.first
+    // Merge mozilla/public-suffix-list.txt if duplicated
+    case PathList(ps@_*) if ps.last == "public-suffix-list.txt" =>
+      MergeStrategy.last
+    // Merge kotlin modules if duplicated
+    case PathList(ps@_*) if ps.last == "kotlin-stdlib-common.kotlin_module" =>
+      MergeStrategy.last
+    case PathList(ps@_*) if ps.last == "kotlin-stdlib.kotlin_module" =>
+      MergeStrategy.last
     // AWS SDK v2 configuration files - can be discarded
     case PathList(ps@_*) if Set("codegen.config" , "service-2.json" , "waiters-2.json" , "customization.config" , "examples-1.json" , "paginators-1.json").contains(ps.last) =>
       MergeStrategy.discard
@@ -53,7 +61,7 @@ object Merging {
           val oldStrategy = (assembly / assemblyMergeStrategy).value
           oldStrategy(x)
       }
-    case "asm-license.txt" | "module-info.class" | "overview.html" | "cobertura.properties" =>
+    case "asm-license.txt" | "module-info.class" | "overview.html" | "cobertura.properties" | "grammar.hgr" | "CHANGELOG.txt" =>
       MergeStrategy.discard
     // inspired by https://github.com/ergoplatform/explorer-backend/blob/7364ecfdeabeb691f0f25525e577d6c48240c672/build.sbt#L14-L15
     case other if other.contains("scala/annotation/nowarn.class")  => MergeStrategy.discard

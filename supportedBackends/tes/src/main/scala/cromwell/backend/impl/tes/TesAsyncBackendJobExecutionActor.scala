@@ -1,12 +1,14 @@
 package cromwell.backend.impl.tes
 
 import common.exception.AggregatedMessageException
+
 import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
 import cats.syntax.apply._
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.Marshal
+import akka.http.scaladsl.model.HttpHeader.ParsingResult.Ok
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
@@ -20,13 +22,12 @@ import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExec
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.retry.Retry._
+import cromwell.filesystems.blob.BlobPath
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import wom.values.WomFile
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.Future
-import scala.concurrent.duration._
-import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 sealed trait TesRunStatus {
@@ -71,30 +72,13 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
 
-  override lazy val pollBackOff = SimpleExponentialBackoff(
-    initialInterval = 1 seconds,
-    maxInterval = 5 minutes,
-    multiplier = 1.1
-  )
-
-  override lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(
-    initialInterval = 3 seconds,
-    maxInterval = 30 seconds,
-    multiplier = 1.1
-  )
+  override lazy val pollBackOff: SimpleExponentialBackoff = tesConfiguration.pollBackoff
+  override lazy val executeOrRecoverBackOff: SimpleExponentialBackoff = tesConfiguration.executeOrRecoverBackoff
 
   private lazy val realDockerImageUsed: String = jobDescriptor.maybeCallCachingEligible.dockerHash.getOrElse(runtimeAttributes.dockerImage)
   override lazy val dockerImageUsed: Option[String] = Option(realDockerImageUsed)
 
   private val tesEndpoint = workflowDescriptor.workflowOptions.getOrElse("endpoint", tesConfiguration.endpointURL)
-
-  // Temporary support for configuring the format we use to send BlobPaths to TES.
-  // Added 10/2022 as a workaround for the CromwellOnAzure TES server expecting
-  // blob containers to be mounted via blobfuse rather than addressed natively.
-  private val transformBlobToLocalPaths: Boolean =
-    configurationDescriptor.backendConfig
-      .getAs[Boolean]("transform-blob-to-local-path")
-      .getOrElse(false)
 
   override lazy val jobTag: String = jobDescriptor.key.tag
 
@@ -132,6 +116,20 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           tesJobPaths.containerExec(commandDirectory, path.name)
         case Success(path: Path) if path.startsWith(tesJobPaths.callRoot) =>
           tesJobPaths.callDockerRoot.resolve(path.name).pathAsString
+        case Success(path: BlobPath) if path.startsWith(tesJobPaths.workflowPaths.workflowRoot) =>
+          // Blob paths can get really long, which causes problems for some tools. If this input file
+          // lives in the workflow execution directory, strip off that prefix from the path we're
+          // generating inside `inputs/` to keep the total path length under control.
+          // In Terra on Azure, this saves us 200+ characters.
+          tesJobPaths.callInputsDockerRoot.resolve(
+            path.pathStringWithoutPrefix(tesJobPaths.workflowPaths.workflowRoot)
+          ).pathAsString
+        case Success(path: BlobPath) if path.startsWith(tesJobPaths.workflowPaths.executionRoot) =>
+          // See comment above... if this file is in the execution root, strip that off.
+          // In Terra on Azure, this saves us 160+ characters.
+          tesJobPaths.callInputsDockerRoot.resolve(
+            path.pathStringWithoutPrefix(tesJobPaths.workflowPaths.executionRoot)
+          ).pathAsString
         case Success(path: Path) =>
           tesJobPaths.callInputsDockerRoot.resolve(path.pathWithoutScheme.stripPrefix("/")).pathAsString
         case _ =>
@@ -164,7 +162,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         mode)
     })
 
-    tesTask.map(TesTask.makeTask(_, transformBlobToLocalPaths))
+    tesTask.map(TesTask.makeTask)
   }
 
   def writeScriptFile(): Future[Unit] = {
@@ -278,7 +276,9 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   private def handleExecutionError(status: TesRunStatus, returnCode: Option[Int]): Future[ExecutionHandle] = {
-    val exception = new AggregatedMessageException(s"Task ${jobDescriptor.key.tag} failed for unknown reason: ${status.toString()}", status.sysLogs)
+    val msg = s"Task ${jobDescriptor.key.tag} failed with ${status.toString}"
+    jobLogger.info(s"${msg}. Error messages: ${status.sysLogs}")
+    val exception = new AggregatedMessageException(msg, status.sysLogs)
     Future.successful(FailedNonRetryableExecutionHandle(exception, returnCode, None))
   }
 
@@ -314,9 +314,18 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
+  // Headers that should be included with all requests to the TES server
+  private def requestHeaders: List[HttpHeader] =
+    tesConfiguration.token.flatMap { t =>
+      HttpHeader.parse("Authorization", t) match {
+        case Ok(header, _) => Some(header)
+        case _ => None
+      }
+    }.toList
+
   private def makeRequest[A](request: HttpRequest)(implicit um: Unmarshaller[ResponseEntity, A]): Future[A] = {
     for {
-      response <- withRetry(() => Http().singleRequest(request))
+      response <- withRetry(() => Http().singleRequest(request.withHeaders(requestHeaders)))
       data <- if (response.status.isFailure()) {
         response.entity.dataBytes.runFold(ByteString(""))(_ ++ _).map(_.utf8String) flatMap { errorBody =>
           Future.failed(new RuntimeException(s"Failed TES request: Code ${response.status.intValue()}, Body = $errorBody"))

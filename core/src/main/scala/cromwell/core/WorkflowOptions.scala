@@ -62,6 +62,7 @@ object WorkflowOptions {
   case object WorkflowFailureMode extends WorkflowOption("workflow_failure_mode")
   case object UseReferenceDisks extends WorkflowOption("use_reference_disks")
   case object MemoryRetryMultiplier extends WorkflowOption("memory_retry_multiplier")
+  case object WorkflowCallbackUri extends WorkflowOption("workflow_callback_uri")
 
   private lazy val WorkflowOptionsConf = ConfigFactory.load.getConfig("workflow-options")
   private lazy val EncryptedFields: Seq[String] = WorkflowOptionsConf.getStringList("encrypted-fields").asScala.toList

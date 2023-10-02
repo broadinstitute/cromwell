@@ -1,4 +1,4 @@
-version development
+version development-1.1
 
 # Is there a better way to test this?
 import "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/womtool/src/test/resources/validate/biscayne/valid/relative_imports/sub_wfs/foo.wdl"

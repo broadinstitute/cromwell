@@ -4,36 +4,32 @@
 
 set -eou pipefail
 
-apt-get update
-apt-get install \
+apt update
+apt install \
     apt-transport-https \
     curl \
     git \
     gnupg \
     wget \
+    ca-certificates \
+    unzip \
+    zip \
     -y --no-install-recommends
 
-# setup install for adoptopenjdk
-# https://adoptopenjdk.net/installation.html#linux-pkg-deb
-wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | apt-key add -
-echo "deb https://adoptopenjdk.jfrog.io/adoptopenjdk/deb $(
-        grep UBUNTU_CODENAME /etc/os-release | cut -d = -f 2
-    ) main" |
-    tee /etc/apt/sources.list.d/adoptopenjdk.list
+mkdir -p /etc/apt/keyrings
+wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | tee /etc/apt/keyrings/adoptium.asc
+echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list
+apt update
+apt install -y temurin-11-jdk
 
 # Install jq 1.6 to ensure --rawfile is supported
 curl -L https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 -o /usr/bin/jq
 chmod +x /usr/bin/jq
 
-apt-get update
-apt-get install \
-    adoptopenjdk-11-hotspot \
-    -y --no-install-recommends
-
 # sbt launcher non-deb package installation instructions adapted from
 # - https://github.com/sbt/sbt/releases/tag/v1.4.9
 # - https://github.com/broadinstitute/scala-baseimage/pull/4/files
-curl --location --fail --silent --show-error "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.tgz" |
+curl --location --fail --silent --show-error "https://github.com/sbt/sbt/releases/download/v1.8.2/sbt-1.8.2.tgz" |
     tar zxf - -C /usr/share
 update-alternatives --install /usr/bin/sbt sbt /usr/share/sbt/bin/sbt 1
 

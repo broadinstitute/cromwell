@@ -1,7 +1,6 @@
 package cromwell.database.slick
 
 import java.sql.Timestamp
-
 import cats.syntax.functor._
 import cats.instances.future._
 import com.typesafe.config.{Config, ConfigFactory}
@@ -10,6 +9,7 @@ import cromwell.database.sql.MetadataSqlDatabase
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, MetadataJobQueryValue, WorkflowQuery}
 import cromwell.database.sql.tables.{CustomLabelEntry, InformationSchemaEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
+import net.ceedubs.ficus.Ficus._
 import slick.basic.DatabasePublisher
 import slick.jdbc.{ResultSetConcurrency, ResultSetType}
 
@@ -60,6 +60,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   import dataAccess.driver.api._
   import MetadataSlickDatabase._
 
+  lazy val pgLargeObjectWriteRole: Option[String] = originalDatabaseConfig.as[Option[String]]("pgLargeObjectWriteRole")
+
   override def existsMetadataEntries()(implicit ec: ExecutionContext): Future[Boolean] = {
     val action = dataAccess.metadataEntriesExists.result
     runTransaction(action)
@@ -87,6 +89,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
         rootWorkflowIdKey,
         labelMetadataKey)
 
+    val roleSet = pgLargeObjectWriteRole.map(role => sqlu"""SET ROLE TO "#$role"""")
+
     // These entries also require a write to the summary queue.
     def writeSummarizable(): Future[Unit] = if (partitioned.summarizableMetadata.isEmpty) Future.successful(()) else {
       val batchesToWrite = partitioned.summarizableMetadata.grouped(insertBatchSize).toList
@@ -94,13 +98,13 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
         val insertMetadata = dataAccess.metadataEntryIdsAutoInc ++= batch
         insertMetadata.flatMap(ids => writeSummaryQueueEntries(ids))
       }
-      runTransaction(DBIO.sequence(insertActions)).void
+      runTransaction(DBIO.sequence(roleSet ++ insertActions)).void
     }
 
     // Non-summarizable metadata that only needs to go to the metadata table can be written much more efficiently
     // than summarizable metadata.
     def writeNonSummarizable(): Future[Unit] = if (partitioned.nonSummarizableMetadata.isEmpty) Future.successful(()) else {
-      val action = DBIO.sequence(partitioned.nonSummarizableMetadata.grouped(insertBatchSize).map(dataAccess.metadataEntries ++= _))
+      val action = DBIO.sequence(roleSet ++ partitioned.nonSummarizableMetadata.grouped(insertBatchSize).map(dataAccess.metadataEntries ++= _))
       runLobAction(action).void
     }
 
@@ -514,5 +518,10 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
 
   override def getMetadataTableSizeInformation()(implicit ec: ExecutionContext): Future[Option[InformationSchemaEntry]] = {
     runAction(dataAccess.metadataTableSizeInformation())
+  }
+
+  override def getFailedJobsMetadataWithWorkflowId(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Vector[MetadataEntry]] = {
+    val isPostgres = databaseConfig.getValue("db.driver").toString.toLowerCase().contains("postgres")
+    runLobAction(dataAccess.failedJobsMetadataWithWorkflowId(rootWorkflowId, isPostgres))
   }
 }

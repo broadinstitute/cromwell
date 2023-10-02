@@ -4,9 +4,11 @@
 
 * A Unix-based operating system (yes, that includes Mac!)
 * A Java 11 runtime environment 
-	* You can see what you have by running `$ java -version` on a terminal. 
-	* If not, you can download Java [here](https://adoptopenjdk.net/).
-	* You might need to update the `export JAVA_HOME` in your bash profile to point to your JAVA install location.
+    * You can see what you have by running `$ java -version` on a terminal.
+    * If not, consider installing via conda or brew [as explained here](../Releases.md).
+    * We recommend [SDKMAN](https://sdkman.io/install) to install the latest 11 build of [Temurin](https://adoptium.net/temurin/releases/?version=11)
+      * `sdk install java 11.0.16-tem` as of the time of this writing
+    * You might need to update the `export JAVA_HOME` in your bash profile to point to your JAVA install location.
 * A sense of adventure!
 
 ### Goals

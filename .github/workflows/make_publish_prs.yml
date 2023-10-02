@@ -16,7 +16,7 @@ on:
 jobs:
   make-firecloud-develop-pr:
     name: Create firecloud-develop PR
-    runs-on: self-hosted # Faster machines; see https://github.com/broadinstitute/cromwell/settings/actions/runners
+    runs-on: ubuntu-latest
     steps:
       - name: Clone firecloud-develop
         uses: actions/checkout@v2
@@ -50,7 +50,7 @@ jobs:
           git config --global user.email "broadbot@broadinstitute.org"
           git commit -m "Updating Cromwell version to ${NEW_CROMWELL_V}"
           git push https://broadbot:$BROADBOT_GITHUB_TOKEN@github.com/broadinstitute/firecloud-develop.git ${NEW_BRANCH_NAME}
-          echo ::set-output name=NEW_BRANCH_NAME::${NEW_BRANCH_NAME}
+          echo "NEW_BRANCH_NAME=${NEW_BRANCH_NAME}" >> $GITHUB_OUTPUT
       - name: Create firecloud-develop PR
         uses: actions/github-script@v6
         with:
@@ -70,4 +70,3 @@ jobs:
                 'It updates cromwell from version ${{ github.event.inputs.old_cromwell_version }} to ${{ github.event.inputs.new_cromwell_version }}.'
               ].join('\n')
             });
-

@@ -109,4 +109,33 @@ class WomMapTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
       case _: UnsupportedOperationException => // expected
     }
   }
+
+  it should "tsvSerialize non-empty maps correctly and with newlines after every line" in {
+    stringIntMap.tsvSerialize shouldEqual Success("a\t1\nb\t2\nc\t3\n")
+
+    val intIntMap = WomMap(WomMapType(WomIntegerType, WomIntegerType), Map(
+      WomInteger(4) -> WomInteger(1),
+      WomInteger(5) -> WomInteger(2),
+      WomInteger(6) -> WomInteger(3),
+    ))
+    intIntMap.tsvSerialize shouldEqual Success("4\t1\n5\t2\n6\t3\n")
+
+    val stringStringMap = WomMap(WomMapType(WomStringType, WomStringType), Map(
+      WomString("a") -> WomString("x"),
+      WomString("b") -> WomString("y"),
+      WomString("c") -> WomString("z")
+    ))
+    stringStringMap.tsvSerialize shouldEqual Success("a\tx\nb\ty\nc\tz\n")
+  }
+
+  it should "tsvSerialize empty maps to empty Strings" in {
+    val emptyStringIntMap = WomMap(WomMapType(WomStringType, WomIntegerType), Map.empty)
+    emptyStringIntMap.tsvSerialize shouldEqual Success("")
+
+    val emptyIntIntMap = WomMap(WomMapType(WomIntegerType, WomIntegerType), Map.empty)
+    emptyIntIntMap.tsvSerialize shouldEqual Success("")
+
+    val emptyStringStringMap = WomMap(WomMapType(WomStringType, WomStringType), Map.empty)
+    emptyStringStringMap.tsvSerialize shouldEqual Success("")
+  }
 }

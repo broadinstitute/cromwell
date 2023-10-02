@@ -1,7 +1,6 @@
 package cromwell.server
 
 import java.util.concurrent.atomic.AtomicBoolean
-
 import akka.Done
 import akka.actor._
 import akka.http.scaladsl.Http
@@ -83,6 +82,7 @@ object CromwellShutdown extends GracefulStopSupport {
                              actorSystem: ActorSystem,
                              workflowManagerActor: ActorRef,
                              logCopyRouter: ActorRef,
+                             workflowCallbackActor: Option[ActorRef],
                              jobTokenDispenser: ActorRef,
                              jobStoreActor: ActorRef,
                              workflowStoreActor: ActorRef,
@@ -180,6 +180,7 @@ object CromwellShutdown extends GracefulStopSupport {
 
     shutdownActor(workflowStoreActor, CoordinatedShutdown.PhaseServiceRequestsDone, ShutdownCommand)
     shutdownActor(logCopyRouter, CoordinatedShutdown.PhaseServiceRequestsDone, Broadcast(ShutdownCommand))
+    workflowCallbackActor.foreach(wca => shutdownActor(wca, CoordinatedShutdown.PhaseServiceRequestsDone, Broadcast(ShutdownCommand)))
     shutdownActor(jobTokenDispenser, CoordinatedShutdown.PhaseServiceRequestsDone, ShutdownCommand)
     
     /*

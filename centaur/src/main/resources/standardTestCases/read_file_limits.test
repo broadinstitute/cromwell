@@ -1,5 +1,6 @@
 name: read_file_limits
 testFormat: workflowfailure
+tags: [batchexclude]
 
 files {
   workflow: read_file_limits/read_file_limits.wdl

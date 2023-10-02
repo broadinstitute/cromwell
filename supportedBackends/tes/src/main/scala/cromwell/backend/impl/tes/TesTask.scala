@@ -1,5 +1,4 @@
 package cromwell.backend.impl.tes
-
 import common.collections.EnhancedCollections._
 import common.util.StringUtil._
 import cromwell.backend.impl.tes.OutputMode.OutputMode
@@ -71,7 +70,6 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     path = tesPaths.callExecutionDockerRoot.resolve("script").toString,
     `type` = Option("FILE")
   )
-
   private def writeFunctionFiles: Map[FullyQualifiedName, Seq[WomFile]] =
     instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f.file) } toMap
 
@@ -231,11 +229,6 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       workflowExecutionIdentityOption
   )
 
-  val resources: Resources = TesTask.makeResources(
-    runtimeAttributes,
-    preferedWorkflowExecutionIdentity
-  )
-
   val executors = Seq(Executor(
     image = dockerImageUsed,
     command = Seq(jobShell, commandScript.path),
@@ -245,6 +238,12 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     stdin = None,
     env = None
   ))
+
+  val resources: Resources = TesTask.makeResources(
+    runtimeAttributes,
+    preferedWorkflowExecutionIdentity,
+    Option(tesPaths.tesTaskRoot)
+  )
 }
 
 object TesTask {
@@ -254,15 +253,22 @@ object TesTask {
     configIdentity.map(_.value).orElse(workflowOptionsIdentity.map(_.value))
   }
   def makeResources(runtimeAttributes: TesRuntimeAttributes,
-                    workflowExecutionId: Option[String]): Resources = {
-
-    // This was added in BT-409 to let us pass information to an Azure
-    // TES server about which user identity to run tasks as.
-    // Note that we validate the type of WorkflowExecutionIdentity
-    // in TesInitializationActor.
-    val backendParameters = runtimeAttributes.backendParameters ++
+                    workflowExecutionId: Option[String], internalPathPrefix: Option[String]): Resources = {
+    /*
+     * workflowExecutionId: This was added in BT-409 to let us pass information to an Azure
+     * TES server about which user identity to run tasks as.
+     * Note that we validate the type of WorkflowExecutionIdentity in TesInitializationActor.
+     *
+     * internalPathPrefix: Added in WX-1156 to support the azure TES implementation. Specifies
+     * a working directory that the TES task can use.
+     */
+    val internalPathPrefixKey = "internal_path_prefix"
+    val backendParameters : Map[String, Option[String]] = runtimeAttributes.backendParameters ++
       workflowExecutionId
         .map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option(_))
+        .toMap ++
+      internalPathPrefix
+        .map(internalPathPrefixKey -> Option(_))
         .toMap
     val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
       case Some(x) =>
@@ -281,16 +287,14 @@ object TesTask {
     )
   }
 
-  def makeTask(tesTask: TesTask, transformBlobToLocalPath: Boolean = false): Task = {
-    val inputs = if (transformBlobToLocalPath) transformInputs(tesTask.inputs) else tesTask.inputs
-    val outputs = if (transformBlobToLocalPath) transformOutputs(tesTask.outputs) else tesTask.outputs
+  def makeTask(tesTask: TesTask): Task = {
     Task(
       id = None,
       state = None,
       name = Option(tesTask.name),
       description = Option(tesTask.description),
-      inputs = Option(inputs),
-      outputs = Option(outputs),
+      inputs = Option(tesTask.inputs),
+      outputs = Option(tesTask.outputs),
       resources = Option(tesTask.resources),
       executors = tesTask.executors,
       volumes = None,
@@ -298,20 +302,6 @@ object TesTask {
       logs = None
     )
   }
-
-  def transformInputs(inputs: Seq[Input]): Seq[Input] = inputs.map(i =>
-    i.copy(url=i.url.map(transformBlobString))
-  )
-
-  def transformOutputs(outputs: Seq[Output]): Seq[Output] = outputs.map(i =>
-    i.copy(url=i.url.map(transformBlobString))
-  )
-
-  val blobSegment = ".blob.core.windows.net"
-  def transformBlobString(s: String): String = if (s.contains(blobSegment)) {
-    s.replaceFirst("https:/", "").replaceFirst(blobSegment, "")
-  } else s
-
 }
 
 // Field requirements in classes below based off GA4GH schema

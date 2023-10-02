@@ -70,8 +70,9 @@ object DockerRegistryV2Abstract {
   }
 
   // Placeholder exceptions that can be carried through IO before being converted to a DockerInfoFailedResponse
-  private class Unauthorized() extends Exception
-  private class NotFound() extends Exception
+  private class Unauthorized(message: String) extends Exception(message)
+  private class NotFound(message: String) extends Exception(message)
+  private class UnknownError(message: String) extends Exception(message)
 }
 
 /**
@@ -106,7 +107,7 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
   }
 
   // Execute a request. No retries because they're expected to already be handled by the client
-  private def executeRequest[A](request: IO[Request[IO]], handler: Response[IO] => IO[A])(implicit client: Client[IO]): IO[A] = {
+  protected def executeRequest[A](request: IO[Request[IO]], handler: Response[IO] => IO[A])(implicit client: Client[IO]): IO[A] = {
     request.flatMap(client.run(_).use[IO, A](handler))
   }
 
@@ -131,7 +132,10 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
   protected def getDockerResponse(token: Option[String], dockerInfoContext: DockerInfoContext)(implicit client: Client[IO]): IO[DockerInfoSuccessResponse] = {
     val requestDockerManifest = manifestRequest(token, dockerInfoContext.dockerImageID, AcceptDockerManifestV2Header)
     lazy val requestOCIManifest = manifestRequest(token, dockerInfoContext.dockerImageID, AcceptOCIIndexV1Header)
-    def tryOCIManifest(err: Throwable) = executeRequest(requestOCIManifest, handleManifestResponse(dockerInfoContext, token))
+    def tryOCIManifest(err: Throwable) = {
+      logger.info(s"Manifest request failed for docker manifest V2, falling back to OCI manifest. Image: ${dockerInfoContext.dockerImageID}", err)
+      executeRequest(requestOCIManifest, handleManifestResponse(dockerInfoContext, token))
+    }
     // Try to execute a request using the Docker Manifest format, and if that fails, try using the newer OCI manifest format
     executeRequest(requestDockerManifest, handleManifestResponse(dockerInfoContext, token))
       .handleErrorWith(tryOCIManifest)
@@ -184,7 +188,7 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
   /**
     * Builds the token request
     */
-  private def buildTokenRequest(dockerInfoContext: DockerInfoContext): IO[Request[IO]] = {
+  protected def buildTokenRequest(dockerInfoContext: DockerInfoContext): IO[Request[IO]] = {
     val request = Method.GET(
       buildTokenRequestUri(dockerInfoContext.dockerImageID),
       buildTokenRequestHeaders(dockerInfoContext): _*
@@ -216,7 +220,7 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
     * Request to get the manifest, using the auth token if provided
     */
   private def manifestRequest(token: Option[String], imageId: DockerImageIdentifier, manifestHeader: Accept): IO[Request[IO]] = {
-    val authorizationHeader = token.map(t => Authorization(Credentials.Token(AuthScheme.Bearer, t)))
+    val authorizationHeader: Option[Authorization] = token.map(t => Authorization(Credentials.Token(AuthScheme.Bearer, t)))
     val request = Method.GET(
       buildManifestUri(imageId),
       List(
@@ -282,9 +286,9 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
 
   private def getDigestFromResponse(response: Response[IO]): IO[DockerHashResult] = response match {
     case Status.Successful(r) => extractDigestFromHeaders(r.headers)
-    case Status.Unauthorized(_) => IO.raiseError(new Unauthorized)
-    case Status.NotFound(_) => IO.raiseError(new NotFound)
-    case failed => failed.as[String].flatMap(body => IO.raiseError(new Exception(s"Failed to get manifest: $body"))
+    case Status.Unauthorized(r) => r.as[String].flatMap(body => IO.raiseError(new Unauthorized(r.status.toString + " " + body)))
+    case Status.NotFound(r) => r.as[String].flatMap(body => IO.raiseError(new NotFound(r.status.toString + " " + body)))
+    case failed => failed.as[String].flatMap(body => IO.raiseError(new UnknownError(failed.status.toString + " " + body))
     )
   }
 

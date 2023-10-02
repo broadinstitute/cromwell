@@ -9,6 +9,7 @@ run-name: ${{ github.actor }} running Cromwell sbt unit tests.
 on:
   workflow_dispatch: #Manual trigger from GitHub UI
   push:
+  merge_group:
 
 permissions: 
   contents: read
@@ -27,6 +28,10 @@ jobs:
   
     #Invoke SBT to run all unit tests for Cromwell. 
     - name: Run tests
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.VAULT_AZURE_CENTAUR_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.VAULT_AZURE_CENTAUR_CLIENT_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.VAULT_AZURE_CENTAUR_TENANT_ID }}
       run: |
         set -e
         sbt "test"

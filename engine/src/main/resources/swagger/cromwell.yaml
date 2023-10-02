@@ -510,6 +510,26 @@ paths:
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/ServerError'
+  '/api/workflows/{version}/{id}/metadata/failed-jobs':
+    get:
+      operationId: failed-jobs
+      summary: Get call-level metadata of failed tasks for a specified root workflow
+      parameters:
+        - $ref: '#/parameters/versionParam'
+        - $ref: '#/parameters/singleId'
+      tags:
+        - Workflows
+      responses:
+        '200':
+          description: Successful request
+          schema:
+            $ref: '#/definitions/WorkflowMetadataResponse'
+        '400':
+          $ref: '#/responses/BadRequest'
+        '404':
+          $ref: '#/responses/NotFound'
+        '500':
+          $ref: '#/responses/ServerError'
   '/api/workflows/{version}/{id}/metadata':
     get:
       operationId: metadata
@@ -1353,6 +1373,16 @@ definitions:
               type: string
             fieldType:
               $ref: '#/definitions/ValueType'
+      nonEmpty:
+        type: boolean
+        description: Boolean representation of the contents in an array.
+      pairType:
+        type: object
+        properties:
+          leftType:
+            $ref: '#/definitions/ValueType'
+          rightType:
+            $ref: '#/definitions/ValueType'
   MapValueType:
     type: object
     description: A type representing a map from one type to another.

@@ -1,22 +1,24 @@
 package cromwell.filesystems.blob
 
-import com.azure.storage.blob.nio.{AzureBlobFileAttributes}
+import com.azure.storage.blob.nio.AzureBlobFileAttributes
 import com.google.common.net.UrlEscapers
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.blob.BlobPathBuilder._
 
 import java.net.{MalformedURLException, URI}
+import java.nio.file.{Files, LinkOption}
+import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import java.nio.file.Files
 
 object BlobPathBuilder {
-
+  private val blobHostnameSuffix = ".blob.core.windows.net"
   sealed trait BlobPathValidation
-  case class ValidBlobPath(path: String) extends BlobPathValidation
+  case class ValidBlobPath(path: String, container: BlobContainerName, endpoint: EndpointURL) extends BlobPathValidation
   case class UnparsableBlobPath(errorMessage: Throwable) extends BlobPathValidation
 
-  def invalidBlobPathMessage(container: BlobContainerName, endpoint: EndpointURL) = s"Malformed Blob URL for this builder. Expecting a URL for a container $container and endpoint $endpoint"
+  def invalidBlobHostMessage(endpoint: EndpointURL) = s"Malformed Blob URL for this builder: The endpoint $endpoint doesn't contain the expected host string '{SA}.blob.core.windows.net/'"
+  def invalidBlobContainerMessage(endpoint: EndpointURL) = s"Malformed Blob URL for this builder: Could not parse container"
   def parseURI(string: String): Try[URI] = Try(URI.create(UrlEscapers.urlFragmentEscaper().escape(string)))
   def parseStorageAccount(uri: URI): Try[StorageAccountName] = uri.getHost.split("\\.").find(_.nonEmpty).map(StorageAccountName(_))
       .map(Success(_)).getOrElse(Failure(new Exception("Could not parse storage account")))
@@ -39,28 +41,31 @@ object BlobPathBuilder {
     *
     * If the configured container and storage account do not match, the string is considered unparsable
     */
-  def validateBlobPath(string: String, container: BlobContainerName, endpoint: EndpointURL): BlobPathValidation = {
+ def validateBlobPath(string: String): BlobPathValidation = {
     val blobValidation = for {
       testUri <- parseURI(string)
-      endpointUri <- parseURI(endpoint.value)
+      testEndpoint = EndpointURL(testUri.getScheme + "://" + testUri.getHost())
       testStorageAccount <- parseStorageAccount(testUri)
-      endpointStorageAccount <- parseStorageAccount(endpointUri)
-      hasContainer = testUri.getPath.split("/").find(_.nonEmpty).contains(container.value)
-      hasEndpoint = testStorageAccount.equals(endpointStorageAccount)
-      blobPathValidation = (hasContainer && hasEndpoint) match {
-        case true => ValidBlobPath(testUri.getPath.replaceFirst("/" + container, ""))
-        case false => UnparsableBlobPath(new MalformedURLException(invalidBlobPathMessage(container, endpoint)))
+      testContainer = testUri.getPath.split("/").find(_.nonEmpty)
+      isBlobHost = testUri.getHost().contains(blobHostnameSuffix) && testUri.getScheme().contains("https")
+      blobPathValidation = (isBlobHost, testContainer) match {
+        case (true, Some(container)) => ValidBlobPath(
+            testUri.getPath.replaceFirst("/" + container, ""),
+            BlobContainerName(container),
+            testEndpoint)
+        case (false, _) => UnparsableBlobPath(new MalformedURLException(invalidBlobHostMessage(testEndpoint)))
+        case (true, None) => UnparsableBlobPath(new MalformedURLException(invalidBlobContainerMessage(testEndpoint)))
       }
     } yield blobPathValidation
     blobValidation recover { case t => UnparsableBlobPath(t) } get
   }
 }
 
-class BlobPathBuilder(container: BlobContainerName, endpoint: EndpointURL)(private val fsm: BlobFileSystemManager) extends PathBuilder {
+class BlobPathBuilder()(private val fsm: BlobFileSystemManager) extends PathBuilder {
 
   def build(string: String): Try[BlobPath] = {
-    validateBlobPath(string, container, endpoint) match {
-      case ValidBlobPath(path) => Try(BlobPath(path, endpoint, container)(fsm))
+    validateBlobPath(string) match {
+      case ValidBlobPath(path, container, endpoint) => Try(BlobPath(path, endpoint, container)(fsm))
       case UnparsableBlobPath(errorMessage: Throwable) => Failure(errorMessage)
     }
   }
@@ -68,14 +73,36 @@ class BlobPathBuilder(container: BlobContainerName, endpoint: EndpointURL)(priva
 }
 
 object BlobPath {
-  // The Azure NIO library uses `{containerName}:` as the root of the path.
-  // This doesn't work well for our need to easily transfer back and forth
-  // to and from the blob URL format. This method removes anything up to and including
-  // the first colon, to create a path string useful for working with BlobPath.
-  // This is safe because the NIO library enforces no colons except to mark
-  // the root container name.
-  private def nioPathString(nioPath: NioPath): String = {
-    val pathStr = nioPath.toString
+  // The Azure NIO library uses `{containerName}:` as the root of the path (treating the blob container within
+  // the storage account similarly to a drive within a computer). This doesn't work well for our need to easily
+  // transfer back and forth to and from the blob URL format. It also causes the library to garble full http://
+  // paths that it receives (it interprets `http` as the container name); it transforms them to http:/<remainder of path>
+  //
+  // We transform these library-generated paths in two steps:
+  // 1) If the path starts with http:/ (single slash!) transform it to the containerName:<path inside container>
+  //    format the library expects
+  // 2) If the path looks like <container>:<path>, strip off the <container>: to leave the absolute path inside the container.
+  private val brokenPathRegex = "https:/([a-z0-9]+).blob.core.windows.net/([-a-zA-Z0-9]+)/(.*)".r
+
+  // Blob files larger than 5 GB upload in parallel parts [0][1] and do not get a native `CONTENT-MD5` property.
+  // Instead, some uploaders such as TES [2] calculate the md5 themselves and store it under this key in metadata.
+  // They do this for all files they touch, regardless of size, and the root/metadata property is authoritative over native.
+  //
+  // N.B. most if not virtually all large files in the wild will NOT have this key populated because they were not created
+  // by TES or its associated upload utility [4].
+  //
+  // [0] https://learn.microsoft.com/en-us/azure/storage/blobs/scalability-targets
+  // [1] https://learn.microsoft.com/en-us/rest/api/storageservices/version-2019-12-12
+  // [2] https://github.com/microsoft/ga4gh-tes/blob/03feb746bb961b72fa91266a56db845e3b31be27/src/Tes.Runner/Transfer/BlobBlockApiHttpUtils.cs#L25
+  // [4] https://github.com/microsoft/ga4gh-tes/blob/main/src/Tes.RunnerCLI/scripts/roothash.sh
+  private val largeBlobFileMetadataKey = "md5_4mib_hashlist_root_hash"
+
+  def cleanedNioPathString(nioString: String): String = {
+    val pathStr = nioString match {
+      case brokenPathRegex(_, containerName, pathInContainer) =>
+        s"${containerName}:/${pathInContainer}"
+      case _ => nioString
+    }
     pathStr.substring(pathStr.indexOf(":")+1)
   }
 
@@ -83,7 +110,7 @@ object BlobPath {
             endpoint: EndpointURL,
             container: BlobContainerName,
             fsm: BlobFileSystemManager): BlobPath = {
-    BlobPath(nioPathString(nioPath), endpoint, container)(fsm)
+    BlobPath(cleanedNioPathString(nioPath.toString), endpoint, container)(fsm)
   }
 }
 
@@ -95,10 +122,10 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
   override def pathAsString: String = List(endpoint, container, pathString.stripPrefix("/")).mkString("/")
 
   //This is purposefully an unprotected get because if the endpoint cannot be parsed this should fail loudly rather than quietly
-  override def pathWithoutScheme: String = parseURI(endpoint.value).map(u => List(u.getHost, container, pathString).mkString("/")).get
+  override def pathWithoutScheme: String = parseURI(endpoint.value).map(u => List(u.getHost, container, pathString.stripPrefix("/")).mkString("/")).get
 
   private def findNioPath(path: String): NioPath = (for {
-    fileSystem <- fsm.retrieveFilesystem()
+    fileSystem <- fsm.retrieveFilesystem(endpoint, container)
     // The Azure NIO library uses `{container}:` to represent the root of the path
     nioPath = fileSystem.getPath(s"${container.value}:", path)
   // This is purposefully an unprotected get because the NIO API needing an unwrapped path object.
@@ -108,15 +135,56 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
   def blobFileAttributes: Try[AzureBlobFileAttributes] =
     Try(Files.readAttributes(nioPath, classOf[AzureBlobFileAttributes]))
 
-  def md5HexString: Try[Option[String]] = {
-    blobFileAttributes.map(h =>
-      Option(h.blobHttpHeaders().getContentMd5) match {
-        case None => None
-        case Some(arr) if arr.isEmpty => None
-        // Convert the bytes to a hex-encoded string. Note that this value
-        // is rendered in base64 in the Azure web portal.
-        case Some(bytes) => Option(bytes.map("%02x".format(_)).mkString)
-      }
-    )
+  def blobFileMetadata: Try[Option[Map[String, String]]] = blobFileAttributes.map { attrs =>
+    // `metadata()` has a documented `null` case
+    Option(attrs.metadata()).map(_.asScala.toMap)
   }
+
+  def md5HexString: Try[Option[String]] = {
+    def md5FromMetadata: Option[String] = (blobFileMetadata map { maybeMetadataMap: Option[Map[String, String]] =>
+      maybeMetadataMap flatMap { metadataMap: Map[String, String] =>
+        metadataMap.get(BlobPath.largeBlobFileMetadataKey)
+      }
+    }).toOption.flatten
+
+    // Convert the bytes to a hex-encoded string. Note that the value
+    // is rendered in base64 in the Azure web portal.
+    def hexString(bytes: Array[Byte]): String = bytes.map("%02x".format(_)).mkString
+
+    blobFileAttributes.map { attr: AzureBlobFileAttributes =>
+      (Option(attr.blobHttpHeaders().getContentMd5), md5FromMetadata) match {
+        case (None, None) => None
+        // (Some, Some) will happen for all <5 GB files uploaded by TES. Per Microsoft 2023-08-15 the
+        // root/metadata algorithm emits different values than the native algorithm and we should
+        // always choose metadata for consistency with larger files that only have that one.
+        case (_, Some(metadataMd5)) => Option(metadataMd5)
+        case (Some(headerMd5Bytes), None) if headerMd5Bytes.isEmpty => None
+        case (Some(headerMd5Bytes), None) => Option(hexString(headerMd5Bytes))
+      }
+    }
+  }
+
+  /**
+    * Return the pathString of this BlobPath, with the given prefix removed if this path shares that
+    * prefix.
+    */
+  def pathStringWithoutPrefix(prefix: Path): String = {
+    if (this.startsWith(prefix)) {
+      prefix.relativize(this) match {
+        case b: BlobPath => b.pathString // path inside the blob container
+        case p: Path => p.pathAsString // full path
+      }
+    }
+    else pathString
+  }
+
+  /**
+    * Returns the path relative to the container root.
+    * For example, https://{storageAccountName}.blob.core.windows.net/{containerid}/path/to/my/file
+    * will be returned as path/to/my/file.
+    * @return Path string relative to the container root.
+    */
+  def pathWithoutContainer : String = pathString
+  
+  override def getSymlinkSafePath(options: LinkOption*): Path  = toAbsolutePath
 }

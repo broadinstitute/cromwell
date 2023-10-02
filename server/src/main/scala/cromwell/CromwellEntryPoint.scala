@@ -140,8 +140,11 @@ object CromwellEntryPoint extends GracefulStopSupport {
     *
     * Also copies variables from config/system/environment/defaults over to the system properties.
     * Fixes issue where users are trying to specify Java properties as environment variables.
+    *
+    * Also also enables Azure log handling when appropriate
     */
   private def initLogging(command: Command): Unit = {
+
     val logbackSetting = command match {
       case Server => "STANDARD"
       case Submit => "PRETTY"

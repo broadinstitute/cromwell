@@ -4,6 +4,8 @@ workflow drs_usa_jdr {
     input {
         File file1
         File file2
+        File gcsFile1
+        File gcsFile2
     }
 
     call localize_jdr_drs_with_usa {
@@ -28,20 +30,27 @@ workflow drs_usa_jdr {
     # This invokes a different code path in the DRSLocalizer that uses gsutil rather than getm.
     call read_from_gcp_directly {
         input:
-            file1 = "gs://broad-jade-dev-data-bucket/ca8edd48-e954-4c20-b911-b017fedffb67/585f3f19-985f-43b0-ab6a-79fa4c8310fc",
-            file2 = "gs://broad-jade-dev-data-bucket/e1941fb9-6537-4e1a-b70d-34352a3a7817/ad783b60-aeba-4055-8f7b-194880f37259/hello_jade_2.json"
+            file1 = gcsFile1,
+            file2 = gcsFile2
     }
 
     # Verify that the localizer can handle a hybrid of drs and GCS urls.
     call read_from_drs_and_gcp {
         input:
-            file1 = "gs://broad-jade-dev-data-bucket/ca8edd48-e954-4c20-b911-b017fedffb67/585f3f19-985f-43b0-ab6a-79fa4c8310fc",
+            file1 = gcsFile1,
             file2 = file2
     }
 
+    # Verify that a lonesome DRS file works
     call read_single_file {
         input:
             file1 = file1
+    }
+
+    # Verify that a lonesome GCS file works
+    call read_single_gcs_file {
+        input:
+            file1 = gcsFile1
     }
 
     output {
@@ -60,6 +69,7 @@ workflow drs_usa_jdr {
         Map[String, String] map5 = read_from_drs_and_gcp.map1
         Map[String, String] map6 = read_from_drs_and_gcp.map2
         Map[String, String] map7 = read_single_file.map1
+        Map[String, String] map8 = read_single_gcs_file.map1
     }
 }
 
@@ -182,6 +192,25 @@ task read_from_drs_and_gcp {
 }
 
 task read_single_file {
+    input {
+        File file1
+    }
+
+    command <<<
+        echo file is read by the engine
+    >>>
+
+    output {
+        Map[String, String] map1 = read_json(file1)
+    }
+
+    runtime {
+        docker: "ubuntu:latest"
+        backend: "papi-v2-usa"
+    }
+}
+
+task read_single_gcs_file {
     input {
         File file1
     }

@@ -30,12 +30,18 @@ metadata {
   # This JDR file has a gsUri that can skip localization
   "outputs.drs_usa_jdr.cloud2" =
     "gs://broad-jade-dev-data-bucket/e1941fb9-6537-4e1a-b70d-34352a3a7817/ad783b60-aeba-4055-8f7b-194880f37259/hello_jade_2.json"
+  #can we localize 2 DRS urls?
   "outputs.drs_usa_jdr.map1.hello" = "jade"
   "outputs.drs_usa_jdr.map2.hello" = "jade"
+  # Can we localize 2 GCS urls?
   "outputs.drs_usa_jdr.map3.hello" = "jade"
   "outputs.drs_usa_jdr.map4.hello" = "jade"
+  # Can we localize 1 DRS 1 GCS url?
   "outputs.drs_usa_jdr.map5.hello" = "jade"
   "outputs.drs_usa_jdr.map6.hello" = "jade"
+  # Can we localize a single DRS URL?
   "outputs.drs_usa_jdr.map7.hello" = "jade"
+  # Can we localize a single GCS urls?
+  "outputs.drs_usa_jdr.map8.hello" = "jade"
   "outputs.drs_usa_jdr.map2.attempt" = "2"
 }

@@ -35,7 +35,7 @@ class WorkflowCallbackActorSpec
   private val serviceRegistryActor = TestProbe("testServiceRegistryActor")
   private val deathWatch = TestProbe("deathWatch")
   private val mockUri = new URI("http://example.com")
-  private val basicConfig = WorkflowCallbackConfig.empty.copy(enabled = true)
+  private val basicConfig = WorkflowCallbackConfig.empty.copy(enabled = true).copy(retryBackoff = SimpleExponentialBackoff(100.millis, 200.millis, 1.1))
   private val basicOutputs = WomMocks.mockOutputExpectations(List("foo" -> WomString("bar")).toMap)
 
   private val httpSuccess = Future.successful(HttpResponse.apply(StatusCodes.OK))

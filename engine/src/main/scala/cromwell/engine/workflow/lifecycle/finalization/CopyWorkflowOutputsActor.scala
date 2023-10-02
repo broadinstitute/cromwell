@@ -15,6 +15,7 @@ import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import wom.values.{WomSingleFile, WomValue}
 
+import java.nio.file.Files
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
@@ -49,6 +50,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
   private def copyWorkflowOutputs(workflowOutputsFilePath: String): Future[Seq[Unit]] = {
     val workflowOutputsPath = buildPath(workflowOutputsFilePath)
     val outputFilePaths = getOutputFilePaths(workflowOutputsPath)
+    val hardlinkOutputs: Boolean = workflowDescriptor.getWorkflowOption(HardlinkOutputPaths).contains("true")
 
     // Check if there are duplicated destination paths and throw an exception if that is the case.
     // This creates a map of destinations and source paths which point to them in cases where there are multiple
@@ -67,7 +69,30 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
         "Cannot copy output files to given final_workflow_outputs_dir" +
           s" as multiple files will be copied to the same path: \n${formattedCollidingCopyOptions.mkString("\n")}")}
 
-    val copies = outputFilePaths map {
+    val outputPaths = if (hardlinkOutputs) {
+      outputFilePaths filter {
+        case (src, dest) =>  try {
+          if(!dest.parent.exists()){
+            dest.parent.createDirectories()
+          }
+          if (dest.exists()) {
+            log.warning(s"File already exists: ${dest.pathAsString}, forcing link.")
+            dest.delete(swallowIOExceptions = true)
+          }
+          Files.createLink(dest.nioPath, src.nioPath)
+          false
+        }
+        catch {
+          case error: java.nio.file.FileSystemException =>
+            log.error(s"Could not hardlink $src to $dest. Error: ${error.toString}. Trying copying instead.")
+            true
+        }
+      }
+    } else {
+      outputFilePaths
+    }
+
+    val copies = outputPaths map {
       case (srcPath, dstPath) => asyncIo.copyAsync(srcPath, dstPath)
     }
 

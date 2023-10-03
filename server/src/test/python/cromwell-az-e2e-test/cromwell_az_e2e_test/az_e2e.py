@@ -7,6 +7,8 @@ import uuid
 import time
 
 bearer_token = os.environ['POETRY_BEARER_TOKEN']
+
+# Commenting out GHS specific variables for now
 # bee_name = os.environ['BEE_NAME']
 # billing_project_name = os.environ['BILLING_PROJECT_NAME']
 # number_of_workspaces = 1
@@ -24,6 +26,8 @@ def output_message(msg):
 def handle_failed_request(response, msg, status_code=200):
     if(response.status_code != status_code):
         raise Exception(f'{response.status_code} - {msg}')
+
+# Commenting out workspace/provisioning helpers for now
 # def create_workspace():
 #    rawls_api_call = f"{rawls_url}/api/workspaces"
 #    request_body= {
@@ -140,7 +144,7 @@ def get_completed_workflow(app_url, workflow_ids, max_retries=4):
             else:
                 # Reset current count to 0 for next retry
                 # Decrement max_retries by 1
-                # Wait 5 minutes before checking workflow statuses again
+                # Wait 2 minutes before checking workflow statuses again (adjust as needed)
                 output_message(f"These workflows have yet to return a completed status: [{', '.join(workflow_ids)}]")
                 max_retries -= 1
                 current_running_workflow_count = 0
@@ -148,11 +152,14 @@ def get_completed_workflow(app_url, workflow_ids, max_retries=4):
 
 def start():
     sleep_timer = 60 * 3
-    # This chunk of code only executes one workflow
-    # Would like to modify this down the road to execute and store references for multiple workflows
+
+    # Commenting out the workspace/provisioning steps for now
     # workspace_id = create_workspace()
     # time.sleep(60 * 20) # Added an sleep here to give the workspace time to provision
     # app_url = get_app_url(workspace_id, 'cromwell')
+
+    # This chunk of code only executes one workflow
+    # Would like to modify this down the road to execute and store references for multiple workflows
     workflow_response = submit_workflow_to_cromwell(app_url, "Run Workflow Test")
     #Giving workflow 10 minutes to complete
     #Will need to update this when swapping out hello wdl with fetch_sra_to_bam (20 min?)

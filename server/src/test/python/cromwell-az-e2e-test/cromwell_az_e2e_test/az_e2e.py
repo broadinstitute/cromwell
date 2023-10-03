@@ -24,10 +24,6 @@ def output_message(msg):
 def handle_failed_request(response, msg, status_code=200):
     if(response.status_code != status_code):
         raise Exception(msg)
-    else:
-        workflow_id = response.json()['id']
-        output_message(f'Workflow submission successful. Workflow ID: {workflow_id}')
-
 # def create_workspace():
 #    rawls_api_call = f"{rawls_url}/api/workspaces"
 #    request_body= {
@@ -115,15 +111,19 @@ def submit_workflow_to_cromwell(app_url, workflow_test_name):
     return response.json()
 
 def get_workflow_information(app_url, workflow_id):
-    workflow_endpoint = f'{app_url}/cromwell/api/workflows/v1/{workflow_id}/metadata'
+    workflow_endpoint = f'{app_url}/api/workflows/v1/{workflow_id}/metadata'
     headers = {"Authorization": f'Bearer {bearer_token}',
               "accept": "application/json"}
+    print(workflow_endpoint)
+    print('-------')
+    print(headers)
     response = requests.get(workflow_endpoint, headers=headers)
     print('------')
     print(response.status_code)
     print('------')
     print(response.json())
     handle_failed_request(response, f"Error fetching workflow metadata for {workflow_id}")
+    output_message(f'Workflow submission successful. Workflow ID: {workflow_id}')
     return response.json()
 
 def get_completed_workflow(app_url, workflow_ids, max_retries=4):
@@ -133,21 +133,20 @@ def get_completed_workflow(app_url, workflow_ids, max_retries=4):
         if max_retries == 0:
             raise Exception(f"Workflow(s) did not finish running within retry window ({max_retries} retries)")
         workflow_id = workflow_ids.pop()
-        print(workflow_id)
         workflow_metadata = get_workflow_information(app_url, workflow_id)
         if workflow_metadata['status'] in target_statuses:
             output_message(f"{workflow_id} finished running. Status: {workflow_metadata['status']}")
         else:
             workflow_ids.append(workflow_id)
             current_running_workflow_count += 1
-        if current_running_workflow_count == workflow_ids.len():
+        if current_running_workflow_count == len(workflow_ids):
             if current_running_workflow_count == 0:
                 output_message("Workflow(s) finished running")
             else:
                 # Reset current count to 0 for next retry
                 # Decrement max_retries by 1
                 # Wait 5 minutes before checking workflow statuses again
-                output_message(f"These workflows have yet to return a completed status: [{workflow_ids.join(', ')}]")
+                output_message(f"These workflows have yet to return a completed status: [{', '.join(workflow_ids)}]")
                 max_retries -= 1
                 current_running_workflow_count = 0
                 time.sleep(60 * 2)

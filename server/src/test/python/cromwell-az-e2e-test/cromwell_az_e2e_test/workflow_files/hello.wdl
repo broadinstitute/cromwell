@@ -1,5 +1,9 @@
+version 1.0
+
 task hello {
-  String addressee
+  input {
+    String addressee
+  }
   command {
     echo "Hello ${addressee}!"
   }
@@ -14,6 +18,6 @@ task hello {
 workflow wf_hello {
   call hello
   output {
-     hello.salutation
+     String out = hello.salutation
   }
 }

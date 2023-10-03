@@ -23,7 +23,7 @@ def output_message(msg):
 
 def handle_failed_request(response, msg, status_code=200):
     if(response.status_code != status_code):
-        raise Exception(msg)
+        raise Exception(f'{response.status_code} - {msg}')
 # def create_workspace():
 #    rawls_api_call = f"{rawls_url}/api/workspaces"
 #    request_body= {
@@ -108,22 +108,17 @@ def submit_workflow_to_cromwell(app_url, workflow_test_name):
     }
     response = requests.post(workflow_endpoint, headers=headers, files=files)
     handle_failed_request(response, f"Error submitting workflow to Cromwell for {workflow_test_name}", 201)
+    output_message(response.json())
     return response.json()
 
 def get_workflow_information(app_url, workflow_id):
     workflow_endpoint = f'{app_url}/api/workflows/v1/{workflow_id}/metadata'
     headers = {"Authorization": f'Bearer {bearer_token}',
               "accept": "application/json"}
-    print(workflow_endpoint)
-    print('-------')
-    print(headers)
+    output_message(f"Fetching workflow metadata for {workflow_id}")
     response = requests.get(workflow_endpoint, headers=headers)
-    print('------')
-    print(response.status_code)
-    print('------')
-    print(response.json())
     handle_failed_request(response, f"Error fetching workflow metadata for {workflow_id}")
-    output_message(f'Workflow submission successful. Workflow ID: {workflow_id}')
+    output_message(response.json())
     return response.json()
 
 def get_completed_workflow(app_url, workflow_ids, max_retries=4):
@@ -152,7 +147,7 @@ def get_completed_workflow(app_url, workflow_ids, max_retries=4):
                 time.sleep(60 * 2)
 
 def start():
-    sleep_timer = 60 * 5
+    sleep_timer = 60 * 3
     # This chunk of code only executes one workflow
     # Would like to modify this down the road to execute and store references for multiple workflows
     # workspace_id = create_workspace()
@@ -167,6 +162,5 @@ def start():
     # This chunk of code supports checking one or more workflows
     # Probably won't require too much modification if we want to run additional submission tests
     workflow_ids = [workflow_response['id']]
-    print(workflow_ids)
     get_completed_workflow(app_url, workflow_ids)
-    output_message("Workflow submission and completion successful")
+    output_message("Workflow(s) submission and completion successful")

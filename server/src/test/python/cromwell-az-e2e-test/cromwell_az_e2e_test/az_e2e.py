@@ -6,6 +6,8 @@ import string
 import uuid
 import time
 
+# NOTE: defining env variables for appUrl for now, will remove when provisioning ticket is in progress
+app_url = os.environ['POETRY_APP_URL']
 bearer_token = os.environ['POETRY_BEARER_TOKEN']
 
 # Commenting out GHS specific variables for now
@@ -92,9 +94,6 @@ def handle_failed_request(response, msg, status_code=200):
 #         print(f"{app} url: {app_url}")
 
 #     return app_url
-
-# NOTE: defining env variables for appUrl for now, will remove when provisioning ticket is in progress
-app_url = os.environ['POETRY_APP_URL']
 
 def submit_workflow_to_cromwell(app_url, workflow_test_name):
     absolute_file_path = os.path.dirname(__file__)

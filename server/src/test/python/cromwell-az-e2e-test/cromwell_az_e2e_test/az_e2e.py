@@ -7,6 +7,7 @@ import uuid
 import time
 
 # NOTE: defining env variables for appUrl for now, will remove when provisioning ticket is in progress
+# NOTE: POETRY prefix is outlined per documentation here: https://python-poetry.org/docs/configuration#using-environment-variables
 app_url = os.environ['POETRY_APP_URL']
 bearer_token = os.environ['POETRY_BEARER_TOKEN']
 
@@ -150,6 +151,7 @@ def get_completed_workflow(app_url, workflow_ids, max_retries=4):
                 time.sleep(60 * 2)
 
 def start():
+    # Giving workflow 3 minutes to complete
     sleep_timer = 60 * 3
 
     # Commenting out the workspace/provisioning steps for now
@@ -160,7 +162,6 @@ def start():
     # This chunk of code only executes one workflow
     # Would like to modify this down the road to execute and store references for multiple workflows
     workflow_response = submit_workflow_to_cromwell(app_url, "Run Workflow Test")
-    #Giving workflow 10 minutes to complete
     #Will need to update this when swapping out hello wdl with fetch_sra_to_bam (20 min?)
     output_message(f'Executing sleep for {sleep_timer} seconds to allow workflow(s) to complete')
     time.sleep(sleep_timer)

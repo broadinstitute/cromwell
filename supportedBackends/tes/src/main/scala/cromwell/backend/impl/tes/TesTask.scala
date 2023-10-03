@@ -1,5 +1,4 @@
 package cromwell.backend.impl.tes
-
 import common.collections.EnhancedCollections._
 import common.util.StringUtil._
 import cromwell.backend.impl.tes.OutputMode.OutputMode
@@ -71,7 +70,6 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     path = tesPaths.callExecutionDockerRoot.resolve("script").toString,
     `type` = Option("FILE")
   )
-
   private def writeFunctionFiles: Map[FullyQualifiedName, Seq[WomFile]] =
     instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f.file) } toMap
 
@@ -231,11 +229,6 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       workflowExecutionIdentityOption
   )
 
-  val resources: Resources = TesTask.makeResources(
-    runtimeAttributes,
-    preferedWorkflowExecutionIdentity
-  )
-
   val executors = Seq(Executor(
     image = dockerImageUsed,
     command = Seq(jobShell, commandScript.path),
@@ -245,6 +238,12 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     stdin = None,
     env = None
   ))
+
+  val resources: Resources = TesTask.makeResources(
+    runtimeAttributes,
+    preferedWorkflowExecutionIdentity,
+    Option(tesPaths.tesTaskRoot)
+  )
 }
 
 object TesTask {
@@ -254,15 +253,22 @@ object TesTask {
     configIdentity.map(_.value).orElse(workflowOptionsIdentity.map(_.value))
   }
   def makeResources(runtimeAttributes: TesRuntimeAttributes,
-                    workflowExecutionId: Option[String]): Resources = {
-
-    // This was added in BT-409 to let us pass information to an Azure
-    // TES server about which user identity to run tasks as.
-    // Note that we validate the type of WorkflowExecutionIdentity
-    // in TesInitializationActor.
-    val backendParameters = runtimeAttributes.backendParameters ++
+                    workflowExecutionId: Option[String], internalPathPrefix: Option[String]): Resources = {
+    /*
+     * workflowExecutionId: This was added in BT-409 to let us pass information to an Azure
+     * TES server about which user identity to run tasks as.
+     * Note that we validate the type of WorkflowExecutionIdentity in TesInitializationActor.
+     *
+     * internalPathPrefix: Added in WX-1156 to support the azure TES implementation. Specifies
+     * a working directory that the TES task can use.
+     */
+    val internalPathPrefixKey = "internal_path_prefix"
+    val backendParameters : Map[String, Option[String]] = runtimeAttributes.backendParameters ++
       workflowExecutionId
         .map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option(_))
+        .toMap ++
+      internalPathPrefix
+        .map(internalPathPrefixKey -> Option(_))
         .toMap
     val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
       case Some(x) =>

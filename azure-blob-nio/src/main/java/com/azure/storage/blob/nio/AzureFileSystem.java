@@ -3,6 +3,30 @@
 
 package com.azure.storage.blob.nio;
 
+import java.io.IOException;
+import java.nio.file.FileStore;
+import java.nio.file.FileSystem;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
+import java.nio.file.PathMatcher;
+import java.nio.file.WatchService;
+import java.nio.file.attribute.BasicFileAttributeView;
+import java.nio.file.attribute.FileAttributeView;
+import java.nio.file.attribute.UserPrincipalLookupService;
+import java.nio.file.spi.FileSystemProvider;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.regex.PatternSyntaxException;
+
 import com.azure.core.credential.AzureSasCredential;
 import com.azure.core.http.HttpClient;
 import com.azure.core.http.policy.HttpLogDetailLevel;
@@ -15,26 +39,6 @@ import com.azure.storage.blob.implementation.util.BlobUserAgentModificationPolic
 import com.azure.storage.common.StorageSharedKeyCredential;
 import com.azure.storage.common.policy.RequestRetryOptions;
 import com.azure.storage.common.policy.RetryPolicyType;
-
-import java.io.IOException;
-import java.nio.file.FileStore;
-import java.nio.file.FileSystem;
-import java.nio.file.InvalidPathException;
-import java.nio.file.Path;
-import java.nio.file.PathMatcher;
-import java.nio.file.WatchService;
-import java.nio.file.attribute.BasicFileAttributeView;
-import java.nio.file.attribute.FileAttributeView;
-import java.nio.file.attribute.UserPrincipalLookupService;
-import java.nio.file.spi.FileSystemProvider;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.regex.PatternSyntaxException;
-import java.util.stream.Collectors;
 
 /**
  * Implement's Java's {@link FileSystem} interface for Azure Blob Storage.
@@ -66,6 +70,11 @@ public final class AzureFileSystem extends FileSystem {
      * Expected type: String
      */
     public static final String AZURE_STORAGE_SAS_TOKEN_CREDENTIAL = "AzureStorageSasTokenCredential";
+
+    /**
+     * Expected type: String
+     */
+    public static final String AZURE_STORAGE_PUBLIC_ACCESS_CREDENTIAL = "AzureStoragePublicAccessCredential";
 
     /**
      * Expected type: com.azure.core.http.policy.HttpLogLevelDetail
@@ -159,9 +168,11 @@ public final class AzureFileSystem extends FileSystem {
     private final Long putBlobThreshold;
     private final Integer maxConcurrencyPerRequest;
     private final Integer downloadResumeRetries;
-    private final Map<String, FileStore> fileStores;
     private FileStore defaultFileStore;
     private boolean closed;
+
+    private AzureSasCredential currentActiveSasCredential;
+    private Instant expiry;
 
     AzureFileSystem(AzureFileSystemProvider parentFileSystemProvider, String endpoint, Map<String, ?> config)
             throws IOException {
@@ -179,9 +190,10 @@ public final class AzureFileSystem extends FileSystem {
             this.putBlobThreshold = (Long) config.get(AZURE_STORAGE_PUT_BLOB_THRESHOLD);
             this.maxConcurrencyPerRequest = (Integer) config.get(AZURE_STORAGE_MAX_CONCURRENCY_PER_REQUEST);
             this.downloadResumeRetries = (Integer) config.get(AZURE_STORAGE_DOWNLOAD_RESUME_RETRIES);
+            this.currentActiveSasCredential = (AzureSasCredential) config.get(AZURE_STORAGE_SAS_TOKEN_CREDENTIAL);
 
             // Initialize and ensure access to FileStores.
-            this.fileStores = this.initializeFileStores(config);
+            this.defaultFileStore = this.initializeFileStore(config);
         } catch (RuntimeException e) {
             throw LoggingUtility.logError(LOGGER, new IllegalArgumentException("There was an error parsing the "
                 + "configurations map. Please ensure all fields are set to a legal value of the correct type.", e));
@@ -221,7 +233,7 @@ public final class AzureFileSystem extends FileSystem {
     @Override
     public void close() throws IOException {
         this.closed = true;
-        this.parentFileSystemProvider.closeFileSystem(this.getFileSystemUrl());
+        this.parentFileSystemProvider.closeFileSystem(this.getFileSystemUrl() + "/" + defaultFileStore.name());
     }
 
     /**
@@ -282,9 +294,7 @@ public final class AzureFileSystem extends FileSystem {
         If the file system was set to use all containers in the account, the account will be re-queried and the
         list may grow or shrink if containers were added or deleted.
          */
-        return fileStores.keySet().stream()
-            .map(name -> this.getPath(name + AzurePath.ROOT_DIR_SUFFIX))
-            .collect(Collectors.toList());
+        return Arrays.asList(this.getPath(defaultFileStore.name() + AzurePath.ROOT_DIR_SUFFIX));
     }
 
     /**
@@ -304,7 +314,7 @@ public final class AzureFileSystem extends FileSystem {
         If the file system was set to use all containers in the account, the account will be re-queried and the
         list may grow or shrink if containers were added or deleted.
          */
-        return this.fileStores.values();
+        return Arrays.asList(defaultFileStore);
     }
 
     /**
@@ -397,6 +407,12 @@ public final class AzureFileSystem extends FileSystem {
             builder.credential((StorageSharedKeyCredential) config.get(AZURE_STORAGE_SHARED_KEY_CREDENTIAL));
         } else if (config.containsKey(AZURE_STORAGE_SAS_TOKEN_CREDENTIAL)) {
             builder.credential((AzureSasCredential) config.get(AZURE_STORAGE_SAS_TOKEN_CREDENTIAL));
+            this.setExpiryFromSAS((AzureSasCredential) config.get(AZURE_STORAGE_SAS_TOKEN_CREDENTIAL));
+        } else if (config.containsKey(AZURE_STORAGE_PUBLIC_ACCESS_CREDENTIAL)) {
+            // The Blob Service Client Builder requires at least one kind of authentication to make requests
+            // For public files however, this is unnecessary. This key-value pair is to denote the case
+            // explicitly when we supply a placeholder SAS credential to bypass this requirement.
+            builder.credential((AzureSasCredential) config.get(AZURE_STORAGE_PUBLIC_ACCESS_CREDENTIAL));
         } else {
             throw LoggingUtility.logError(LOGGER, new IllegalArgumentException(String.format("No credentials were "
                     + "provided. Please specify one of the following when constructing an AzureFileSystem: %s, %s.",
@@ -430,23 +446,17 @@ public final class AzureFileSystem extends FileSystem {
         return builder.buildClient();
     }
 
-    private Map<String, FileStore> initializeFileStores(Map<String, ?> config) throws IOException {
-        String fileStoreNames = (String) config.get(AZURE_STORAGE_FILE_STORES);
-        if (CoreUtils.isNullOrEmpty(fileStoreNames)) {
+    private FileStore initializeFileStore(Map<String, ?> config) throws IOException {
+        String fileStoreName = (String) config.get(AZURE_STORAGE_FILE_STORES);
+        if (CoreUtils.isNullOrEmpty(fileStoreName)) {
             throw LoggingUtility.logError(LOGGER, new IllegalArgumentException("The list of FileStores cannot be "
                 + "null."));
         }
 
         Boolean skipConnectionCheck = (Boolean) config.get(AZURE_STORAGE_SKIP_INITIAL_CONTAINER_CHECK);
         Map<String, FileStore> fileStores = new HashMap<>();
-        for (String fileStoreName : fileStoreNames.split(",")) {
-            FileStore fs = new AzureFileStore(this, fileStoreName, skipConnectionCheck);
-            if (this.defaultFileStore == null) {
-                this.defaultFileStore = fs;
-            }
-            fileStores.put(fileStoreName, fs);
-        }
-        return fileStores;
+        this.defaultFileStore = new AzureFileStore(this, fileStoreName, skipConnectionCheck);
+        return this.defaultFileStore;
     }
 
     @Override
@@ -470,12 +480,11 @@ public final class AzureFileSystem extends FileSystem {
         return this.getPath(this.defaultFileStore.name() + AzurePath.ROOT_DIR_SUFFIX);
     }
 
-    FileStore getFileStore(String name) throws IOException {
-        FileStore store = this.fileStores.get(name);
-        if (store == null) {
-            throw LoggingUtility.logError(LOGGER, new IOException("Invalid file store: " + name));
+    FileStore getFileStore() throws IOException {
+        if (this.defaultFileStore == null) {
+            throw LoggingUtility.logError(LOGGER, new IOException("FileStore not initialized"));
         }
-        return store;
+        return defaultFileStore;
     }
 
     Long getBlockSize() {
@@ -488,5 +497,38 @@ public final class AzureFileSystem extends FileSystem {
 
     Integer getMaxConcurrencyPerRequest() {
         return this.maxConcurrencyPerRequest;
+    }
+
+    public String createSASAppendedURL(String url) throws IllegalStateException {
+        if (Objects.isNull(currentActiveSasCredential)) {
+            throw new IllegalStateException("No current active SAS credential present");
+        }
+        return url + "?" + currentActiveSasCredential.getSignature();
+    }
+
+    public Optional<Instant> getExpiry() {
+        return Optional.ofNullable(expiry);
+    }
+
+    private void setExpiryFromSAS(AzureSasCredential token) {
+        List<String> strings = Arrays.asList(token.getSignature().split("&"));
+        Optional<String> expiryString = strings.stream()
+            .filter(s -> s.startsWith("se"))
+            .findFirst()
+            .map(s -> s.replaceFirst("se=",""))
+            .map(s -> s.replace("%3A", ":"));
+        this.expiry = expiryString.map(es -> Instant.parse(es)).orElse(null);
+    }
+
+    /**
+     * Return true if this filesystem has SAS credentials with an expiration data attached, and we're within
+     * `buffer` of the expiration. Return false if our credentials don't come with an expiration, or we
+     * aren't within `buffer` of our expiration.
+     */
+    public boolean isExpired(Duration buffer) {
+        return Optional.ofNullable(this.expiry)
+            .map(e -> Instant.now().plus(buffer).isAfter(e))
+            .orElse(false);
+
     }
 }

@@ -47,6 +47,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import com.azure.core.util.CoreUtils;
 import com.azure.core.util.logging.ClientLogger;
@@ -695,16 +696,23 @@ public final class AzureFileSystemProvider extends FileSystemProvider {
         // Remove accepted options as we find them. Anything left we don't support.
         boolean replaceExisting = false;
         List<CopyOption> optionsList = new ArrayList<>(Arrays.asList(copyOptions));
-        if (!optionsList.contains(StandardCopyOption.COPY_ATTRIBUTES)) {
-            throw LoggingUtility.logError(ClientLoggerHolder.LOGGER, new UnsupportedOperationException(
-                "StandardCopyOption.COPY_ATTRIBUTES must be specified as the service will always copy "
-                    + "file attributes."));
+//        NOTE: We're going to assume COPY_ATTRIBUTES as a default copy option (but can still be provided and handled safely)
+//        REPLACE_EXISTING must still be provided if you want to replace existing file
+
+//        if (!optionsList.contains(StandardCopyOption.COPY_ATTRIBUTES)) {
+//            throw LoggingUtility.logError(ClientLoggerHolder.LOGGER, new UnsupportedOperationException(
+//                "StandardCopyOption.COPY_ATTRIBUTES must be specified as the service will always copy "
+//                    + "file attributes."));
+//        }
+        if(optionsList.contains(StandardCopyOption.COPY_ATTRIBUTES)) {
+            optionsList.remove(StandardCopyOption.COPY_ATTRIBUTES);
         }
-        optionsList.remove(StandardCopyOption.COPY_ATTRIBUTES);
+
         if (optionsList.contains(StandardCopyOption.REPLACE_EXISTING)) {
             replaceExisting = true;
             optionsList.remove(StandardCopyOption.REPLACE_EXISTING);
         }
+
         if (!optionsList.isEmpty()) {
             throw LoggingUtility.logError(ClientLoggerHolder.LOGGER,
                 new UnsupportedOperationException("Unsupported copy option found. Only "
@@ -760,9 +768,16 @@ public final class AzureFileSystemProvider extends FileSystemProvider {
         customer scenarios and how many virtual directories they copy, it could be better to check the directory status
         first and then do a copy or createDir, which would always be two requests for all resource types.
          */
+
         try {
+            /*
+            Format the url by appending the SAS token as a param, otherwise the copy request will fail.
+            AzureFileSystem has been updated to handle url transformation via createSASAuthorizedURL()
+            */
+            AzureFileSystem afs = (AzureFileSystem) sourceRes.getPath().getFileSystem();
+            String sasAppendedSourceUrl = afs.createSASAppendedURL(sourceRes.getBlobClient().getBlobUrl());
             SyncPoller<BlobCopyInfo, Void> pollResponse =
-                destinationRes.getBlobClient().beginCopy(sourceRes.getBlobClient().getBlobUrl(), null, null, null,
+                destinationRes.getBlobClient().beginCopy(sasAppendedSourceUrl, null, null, null,
                     null, requestConditions, null);
             pollResponse.waitForCompletion(Duration.ofSeconds(COPY_TIMEOUT_SECONDS));
         } catch (BlobStorageException e) {

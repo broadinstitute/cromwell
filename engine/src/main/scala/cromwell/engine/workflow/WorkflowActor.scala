@@ -1,7 +1,6 @@
 package cromwell.engine.workflow
 
 import java.util.concurrent.atomic.AtomicInteger
-
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import com.typesafe.config.Config
@@ -23,6 +22,7 @@ import cromwell.engine.workflow.lifecycle.deletion.DeleteWorkflowFilesActor
 import cromwell.engine.workflow.lifecycle.deletion.DeleteWorkflowFilesActor.{DeleteWorkflowFilesFailedResponse, DeleteWorkflowFilesSucceededResponse, StartWorkflowFilesDeletion}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
+import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackActor.PerformCallbackCommand
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationFailedResponse, WorkflowFinalizationSucceededResponse}
 import cromwell.engine.workflow.lifecycle.finalization.{CopyWorkflowLogsActor, CopyWorkflowOutputsActor, WorkflowFinalizationActor}
 import cromwell.engine.workflow.lifecycle.initialization.WorkflowInitializationActor
@@ -149,7 +149,7 @@ object WorkflowActor {
                                initializationData: AllBackendInitializationData,
                                lastStateReached: StateCheckpoint,
                                effectiveStartableState: StartableState,
-                               workflowFinalOutputs: Set[WomValue] = Set.empty,
+                               workflowFinalOutputs: Option[CallOutputs] = None,
                                workflowAllOutputs: Set[WomValue] = Set.empty,
                                rootAndSubworkflowIds: Set[WorkflowId] = Set.empty,
                                failedInitializationAttempts: Int = 0)
@@ -176,6 +176,7 @@ object WorkflowActor {
             ioActor: ActorRef,
             serviceRegistryActor: ActorRef,
             workflowLogCopyRouter: ActorRef,
+            workflowCallbackActor: Option[ActorRef],
             jobStoreActor: ActorRef,
             subWorkflowStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
@@ -199,6 +200,7 @@ object WorkflowActor {
         ioActor = ioActor,
         serviceRegistryActor = serviceRegistryActor,
         workflowLogCopyRouter = workflowLogCopyRouter,
+        workflowCallbackActor = workflowCallbackActor,
         jobStoreActor = jobStoreActor,
         subWorkflowStoreActor = subWorkflowStoreActor,
         callCacheReadActor = callCacheReadActor,
@@ -226,6 +228,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
                     ioActor: ActorRef,
                     override val serviceRegistryActor: ActorRef,
                     workflowLogCopyRouter: ActorRef,
+                    workflowCallbackActor: Option[ActorRef],
                     jobStoreActor: ActorRef,
                     subWorkflowStoreActor: ActorRef,
                     callCacheReadActor: ActorRef,
@@ -534,26 +537,27 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
         case _ => // The WMA is waiting for the WorkflowActorWorkComplete message. No extra information needed here.
       }
 
+      /*
+       * The submitted workflow options have been previously validated by the CromwellApiHandler. These are
+       * being recreated so that even if the MaterializeWorkflowDescriptor fails, the workflow options can still be
+       * accessed outside of the EngineWorkflowDescriptor. Used for both copying workflow log and sending workflow callbacks.
+       */
+      def bruteForceWorkflowOptions: WorkflowOptions = sources.workflowOptions
+
+      val system = context.system
+      val ec = context.system.dispatcher
+      def bruteForcePathBuilders: Future[List[PathBuilder]] = {
+        // Protect against path builders that may throw an exception instead of returning a failed future
+        Future(EngineFilesystems.pathBuildersForWorkflow(bruteForceWorkflowOptions, pathBuilderFactories)(system))(ec).flatten
+      }
+
+      val (workflowOptions, pathBuilders) = stateData.workflowDescriptor match {
+        case Some(wd) => (wd.backendDescriptor.workflowOptions, Future.successful(wd.pathBuilders))
+        case None => (bruteForceWorkflowOptions, bruteForcePathBuilders)
+      }
+
       // Copy/Delete workflow logs
       if (WorkflowLogger.isEnabled) {
-        /*
-          * The submitted workflow options have been previously validated by the CromwellApiHandler. These are
-          * being recreated so that in case MaterializeWorkflowDescriptor fails, the workflow logs can still
-          * be copied by accessing the workflow options outside of the EngineWorkflowDescriptor.
-          */
-        def bruteForceWorkflowOptions: WorkflowOptions = sources.workflowOptions
-        val system = context.system
-        val ec = context.system.dispatcher
-        def bruteForcePathBuilders: Future[List[PathBuilder]] = {
-          // Protect against path builders that may throw an exception instead of returning a failed future
-          Future(EngineFilesystems.pathBuildersForWorkflow(bruteForceWorkflowOptions, pathBuilderFactories)(system))(ec).flatten
-        }
-
-        val (workflowOptions, pathBuilders) = stateData.workflowDescriptor match {
-          case Some(wd) => (wd.backendDescriptor.workflowOptions, Future.successful(wd.pathBuilders))
-          case None => (bruteForceWorkflowOptions, bruteForcePathBuilders)
-        }
-
         workflowOptions.get(FinalWorkflowLogDir).toOption match {
           case Some(destinationDir) =>
             pathBuilders
@@ -564,6 +568,18 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
             case _ =>
           }
         }
+      }
+
+      // Attempt to perform workflow completion callback
+      workflowCallbackActor.foreach { wca =>
+        val callbackUri = workflowOptions.get(WorkflowOptions.WorkflowCallbackUri).toOption
+        wca ! PerformCallbackCommand(
+          workflowId,
+          callbackUri,
+          terminalState.workflowState,
+          stateData.workflowFinalOutputs.getOrElse(CallOutputs.empty),
+          nextStateData.lastStateReached.failures.toList.flatMap(_.map(_.getMessage))
+        )
       }
 
       // We can't transition from within another transition function, but we can instruct ourselves to with a message:
@@ -627,7 +643,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
         rootWorkflowId = rootWorkflowId,
         rootWorkflowRootPaths = data.initializationData.getWorkflowRoots(),
         rootAndSubworkflowIds = data.rootAndSubworkflowIds,
-        workflowFinalOutputs = data.workflowFinalOutputs,
+        workflowFinalOutputs = data.workflowFinalOutputs.map(out => out.outputs.values.toSet).getOrElse(Set.empty),
         workflowAllOutputs = data.workflowAllOutputs,
         pathBuilders = data.workflowDescriptor.get.pathBuilders,
         serviceRegistryActor = serviceRegistryActor,
@@ -689,7 +705,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
     finalizationActor ! StartFinalizationCommand
     goto(FinalizingWorkflowState) using data.copy(
       lastStateReached = StateCheckpoint (lastStateOverride.getOrElse(stateName), failures),
-      workflowFinalOutputs = workflowFinalOutputs.outputs.values.toSet,
+      workflowFinalOutputs = Option(workflowFinalOutputs),
       workflowAllOutputs = workflowAllOutputs,
       rootAndSubworkflowIds = rootAndSubworkflowIds
     )

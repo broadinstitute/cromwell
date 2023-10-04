@@ -6,21 +6,13 @@ import string
 import uuid
 import time
 
-# NOTE: defining env variables for appUrl for now, will remove when provisioning ticket is in progress
 # NOTE: POETRY prefix is outlined per documentation here: https://python-poetry.org/docs/configuration#using-environment-variables
-app_url = os.environ['POETRY_APP_URL']
 bearer_token = os.environ['POETRY_BEARER_TOKEN']
+bee_name = os.environ['POETRY_BEE_NAME']
+billing_project_name = os.environ['POETRY_BILLING_PROJECT_NAME']
 
-# Commenting out GHS specific variables for now
-# bee_name = os.environ['BEE_NAME']
-# billing_project_name = os.environ['BILLING_PROJECT_NAME']
-# number_of_workspaces = 1
-# wds_upload=False
-# cbas_submit_workflow=False
-# number_of_workflows_to_kick_off = 1
-
-# rawls_url = f"https://rawls.{bee_name}.bee.envs-terra.bio"
-# leo_url = f"https://leonardo.{bee_name}.bee.envs-terra.bio"
+rawls_url = f"https://rawls.{bee_name}.bee.envs-terra.bio"
+leo_url = f"https://leonardo.{bee_name}.bee.envs-terra.bio"
 
 def output_message(msg):
     current_time = time.strftime("%H:%M:%S", time.localtime())
@@ -30,71 +22,69 @@ def handle_failed_request(response, msg, status_code=200):
     if(response.status_code != status_code):
         raise Exception(f'{response.status_code} - {msg}')
 
-# Commenting out workspace/provisioning helpers for now
-# def create_workspace():
-#    rawls_api_call = f"{rawls_url}/api/workspaces"
-#    request_body= {
-#       "namespace": billing_project_name, # Billing project name
-#       "name": f"api-workspace-{''.join(random.choices(string.ascii_lowercase, k=5))}", # workspace name
-#       "attributes": {}}
+def create_workspace():
+   rawls_api_call = f"{rawls_url}/api/workspaces"
+   request_body= {
+      "namespace": billing_project_name, # Billing project name
+      "name": f"api-workspace-{''.join(random.choices(string.ascii_lowercase, k=5))}", # workspace name
+      "attributes": {}}
    
-#    create_workspace_response = requests.post(url=rawls_api_call, 
-#                                              json=request_body, 
-#                                              headers={"Authorization": f"Bearer {bearer_token}"}
-#    ).json()
+   create_workspace_response = requests.post(url=rawls_api_call, 
+                                             json=request_body, 
+                                             headers={"Authorization": f"Bearer {bearer_token}"}
+   ).json()
 
-#    create_workspace_data = json.loads(json.dumps(create_workspace_response))
-#    workspaceId = create_workspace_data['workspaceId']
+   create_workspace_data = json.loads(json.dumps(create_workspace_response))
+   workspaceId = create_workspace_data['workspaceId']
 
-#    print(f"Enabling CBAS for workspace {workspaceId}")
-#    activate_cbas_request = f"{leo_url}/api/apps/v2/{workspaceId}/terra-app-{str(uuid.uuid4())}"
-#    cbas_request_body = {
-#       "appType": "CROMWELL"
-#    } 
+   output_message(f"Enabling CBAS for workspace {workspaceId}")
+   activate_cbas_request = f"{leo_url}/api/apps/v2/{workspaceId}/terra-app-{str(uuid.uuid4())}"
+   cbas_request_body = {
+      "appType": "CROMWELL"
+   } 
         
-#    response = requests.post(url=activate_cbas_request, json=cbas_request_body, 
-#                             headers={"Authorization": f"Bearer {bearer_token}"})
-#    # will return 202 or error
-#    handle_failed_request(response, "Error activating CBAS", 202)
+   response = requests.post(url=activate_cbas_request, json=cbas_request_body, 
+                            headers={"Authorization": f"Bearer {bearer_token}"})
+   # will return 202 or error
+   handle_failed_request(response, "Error activating CBAS", 202)
    
-#    print(response)
-#    return workspaceId
+   output_message(response.json())
+   return workspaceId
 
-# # GET WDS OR CROMWELL ENDPOINT URL FROM LEO
-# def get_app_url(workspaceId, app):
-#     """"Get url for wds/cbas."""
-#     uri = f"{leo_url}/api/apps/v2/{workspaceId}?includeDeleted=false"
+# GET WDS OR CROMWELL ENDPOINT URL FROM LEO
+def get_app_url(workspaceId, app):
+    uri = f"{leo_url}/api/apps/v2/{workspaceId}?includeDeleted=false"
 
-#     headers = {"Authorization": bearer_token,
-#                "accept": "application/json"}
+    headers = {"Authorization": bearer_token,
+               "accept": "application/json"}
 
-#     response = requests.get(uri, headers=headers)
-#     status_code = response.status_code
+    response = requests.get(uri, headers=headers)
+    status_code = response.status_code
 
-#     if status_code != 200:
-#         return response.text
-#     print("Successfully retrieved details.")
-#     response = response.json()
+    if status_code != 200:
+        return response.text
+    output_message("Successfully retrieved details.")
+    response = response.json()
 
-#     app_url = ""
-#     app_type = "CROMWELL" if app != 'wds' else app.upper()
-#     print(f"App type: {app_type}")
-#     for entries in response: 
-#         if entries['appType'] == app_type and entries['proxyUrls'][app] is not None:
-#             print(entries['status'])
-#             if(entries['status'] == "PROVISIONING"):
-#                 print(f"{app} is still provisioning")
-#                 break
-#             print(f"App status: {entries['status']}")
-#             app_url = entries['proxyUrls'][app]
-#             break 
+    app_url = ""
+    app_type = "CROMWELL" if app != 'wds' else app.upper()
+    output_message(f"App type: {app_type}")
+    for entries in response: 
+        if entries['appType'] == app_type and entries['proxyUrls'][app] is not None:
+            print(entries['status'])
+            if(entries['status'] == "PROVISIONING"):
+                output_message(f"{app} is still provisioning")
+                break
+            output_message(f"App status: {entries['status']}")
+            app_url = entries['proxyUrls'][app]
+            break 
 
-#     if app_url is None: 
-#         print(f"{app} is missing in current workspace")
-#     else:
-#         print(f"{app} url: {app_url}")
+    if app_url is None: 
+        output_message(f"{app} is missing in current workspace")
+    else:
+        output_message(f"{app} url: {app_url}")
 
-#     return app_url
+    return app_url
 
 def submit_workflow_to_cromwell(app_url, workflow_test_name):
     absolute_file_path = os.path.dirname(__file__)
@@ -154,10 +144,9 @@ def start():
     # Giving workflow 3 minutes to complete
     sleep_timer = 60 * 3
 
-    # Commenting out the workspace/provisioning steps for now
-    # workspace_id = create_workspace()
-    # time.sleep(60 * 20) # Added an sleep here to give the workspace time to provision
-    # app_url = get_app_url(workspace_id, 'cromwell')
+    workspace_id = create_workspace()
+    time.sleep(60 * 20) # Added an sleep here to give the workspace time to provision
+    app_url = get_app_url(workspace_id, 'cromwell')
 
     # This chunk of code only executes one workflow
     # Would like to modify this down the road to execute and store references for multiple workflows

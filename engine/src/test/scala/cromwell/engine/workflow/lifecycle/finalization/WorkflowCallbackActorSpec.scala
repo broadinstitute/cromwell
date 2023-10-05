@@ -1,27 +1,29 @@
 package cromwell.engine.workflow.lifecycle.finalization
 
-import akka.testkit._
 import akka.http.scaladsl.client.RequestBuilding.Post
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
-import akka.testkit.TestProbe
+import akka.testkit.{TestProbe, _}
 import common.mock.MockSugar
 import cromwell.core.retry.SimpleExponentialBackoff
-import org.mockito.Mockito._
-import cromwell.core.{CallOutputs, TestKitSuite, WorkflowFailed, WorkflowId, WorkflowSucceeded}
+import cromwell.core._
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackActor.PerformCallbackCommand
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackJsonSupport._
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
-import cromwell.util.{GracefulShutdownHelper, WomMocks}
+import cromwell.util.GracefulShutdownHelper
+import org.mockito.Mockito._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+import wom.graph.GraphNodePort.GraphNodeOutputPort
+import wom.graph.WomIdentifier
+import wom.types.WomStringType
 import wom.values.WomString
 
 import java.net.URI
 import java.time.Instant
-import scala.concurrent.duration._
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 class WorkflowCallbackActorSpec
   extends TestKitSuite with AnyFlatSpecLike with Matchers with MockSugar {
@@ -36,7 +38,9 @@ class WorkflowCallbackActorSpec
   private val deathWatch = TestProbe("deathWatch")
   private val mockUri = new URI("http://example.com")
   private val basicConfig = WorkflowCallbackConfig.empty.copy(enabled = true).copy(retryBackoff = SimpleExponentialBackoff(100.millis, 200.millis, 1.1))
-  private val basicOutputs = WomMocks.mockOutputExpectations(List("foo" -> WomString("bar")).toMap)
+  private val basicOutputs = CallOutputs(Map(
+    GraphNodeOutputPort(WomIdentifier("foo", "wf.foo"), WomStringType, null) -> WomString("bar")
+  ))
 
   private val httpSuccess = Future.successful(HttpResponse.apply(StatusCodes.OK))
   private val httpFailure = Future.successful(HttpResponse.apply(StatusCodes.GatewayTimeout))
@@ -64,7 +68,7 @@ class WorkflowCallbackActorSpec
     val expectedPostBody = CallbackMessage(
       workflowId.toString,
       WorkflowSucceeded.toString,
-      basicOutputs.outputs.map(entry => (entry._1.name, entry._2)),
+      Map(("wf.foo", WomString("bar"))),
       List.empty
     )
     val expectedRequest = Post(mockUri.toString, expectedPostBody)
@@ -114,7 +118,7 @@ class WorkflowCallbackActorSpec
     val expectedPostBody = CallbackMessage(
       workflowId.toString,
       WorkflowSucceeded.toString,
-      basicOutputs.outputs.map(entry => (entry._1.name, entry._2)),
+      Map(("wf.foo", WomString("bar"))),
       List.empty
     )
     val expectedRequest = Post(mockUri.toString, expectedPostBody)

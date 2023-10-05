@@ -35,10 +35,10 @@ def create_workspace():
    ).json()
 
    create_workspace_data = json.loads(json.dumps(create_workspace_response))
-   workspaceId = create_workspace_data['workspaceId']
+   workspace_id = create_workspace_data['workspaceId']
 
-   output_message(f"Enabling CBAS for workspace {workspaceId}")
-   activate_cbas_request = f"{leo_url}/api/apps/v2/{workspaceId}/terra-app-{str(uuid.uuid4())}"
+   output_message(f"Enabling CBAS for workspace {workspace_id}")
+   activate_cbas_request = f"{leo_url}/api/apps/v2/{workspace_id}/terra-app-{str(uuid.uuid4())}"
    cbas_request_body = {
       "appType": "CROMWELL"
    } 
@@ -47,9 +47,7 @@ def create_workspace():
                             headers={"Authorization": f"Bearer {bearer_token}"})
    # will return 202 or error
    handle_failed_request(response, "Error activating CBAS", 202)
-   
-   output_message(response.json())
-   return workspaceId
+   return create_workspace_data
 
 # GET WDS OR CROMWELL ENDPOINT URL FROM LEO
 def get_app_url(workspaceId, app):
@@ -140,23 +138,52 @@ def get_completed_workflow(app_url, workflow_ids, max_retries=4):
                 current_running_workflow_count = 0
                 time.sleep(60 * 2)
 
+def deleteApps(workspace_id):
+    delete_url = f"{leo_url}/api/apps/v2/{workspace_id}/deleteAll"
+    response = requests.delete(url=delete_url, 
+                                headers={"Authorization": f"Bearer {bearer_token}"})
+    handle_failed_request(response, f"Error deleting apps for workspace {workspace_id}", 202)
+    output_message(f"Apps successfully deleted for workspace {workspace_id}")
+
+def deleteWorkspace(workspace_namespace, workspace_name):
+    if workspace_namespace and workspace_name:
+        rawls_api_call = f"{rawls_url}/api/workspaces/{workspace_namespace}/{workspace_name}"
+        response = requests.delete(url=rawls_api_call, 
+                                headers={"Authorization": f"Bearer {bearer_token}"}
+        )
+        handle_failed_request(response, f"Error deleting workspace {workspace_namespace} - {workspace_name}", 204)
+        output_message(f"Workspace {workspace_name} successfully deleted")
+
 def start():
+    workspace_namespace = ""
+    workspace_name = ""
     # Giving workflow 3 minutes to complete
     sleep_timer = 60 * 3
+    try:
+        created_workspace = create_workspace()
+        workspace_id = created_workspace['workspaceId']
+        workspace_namespace = created_workspace['namespace']
+        workspace_name = created_workspace['name']
+        time.sleep(60 * 20) # Added an sleep here to give the workspace time to provision
+        app_url = get_app_url(workspace_id, 'cromwell')
 
-    workspace_id = create_workspace()
-    time.sleep(60 * 20) # Added an sleep here to give the workspace time to provision
-    app_url = get_app_url(workspace_id, 'cromwell')
+        # This chunk of code only executes one workflow
+        # Would like to modify this down the road to execute and store references for multiple workflows
+        workflow_response = submit_workflow_to_cromwell(app_url, "Run Workflow Test")
+        #Will need to update this when swapping out hello wdl with fetch_sra_to_bam (20 min?)
+        output_message(f'Executing sleep for {sleep_timer} seconds to allow workflow(s) to complete')
+        time.sleep(sleep_timer)
 
-    # This chunk of code only executes one workflow
-    # Would like to modify this down the road to execute and store references for multiple workflows
-    workflow_response = submit_workflow_to_cromwell(app_url, "Run Workflow Test")
-    #Will need to update this when swapping out hello wdl with fetch_sra_to_bam (20 min?)
-    output_message(f'Executing sleep for {sleep_timer} seconds to allow workflow(s) to complete')
-    time.sleep(sleep_timer)
-
-    # This chunk of code supports checking one or more workflows
-    # Probably won't require too much modification if we want to run additional submission tests
-    workflow_ids = [workflow_response['id']]
-    get_completed_workflow(app_url, workflow_ids)
-    output_message("Workflow(s) submission and completion successful")
+        # This chunk of code supports checking one or more workflows
+        # Probably won't require too much modification if we want to run additional submission tests
+        workflow_ids = [workflow_response['id']]
+        get_completed_workflow(app_url, workflow_ids)
+        output_message("Workflow(s) submission and completion successful")
+    except Exception as e:
+        raise e
+    finally:
+        deleteApps(workspace_id)
+        time.sleep(60 * 3) # Not sure if this is necessary
+        deleteWorkspace(workspace_namespace, workspace_name)
+        time.sleep(60 * 3) # Not sure if this is necessary
+        output_message("Workspace cleanup complete")

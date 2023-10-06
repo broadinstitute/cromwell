@@ -54,7 +54,7 @@ def create_workspace():
 def get_app_url(workspaceId, app):
     uri = f"{leo_url}/api/apps/v2/{workspaceId}?includeDeleted=false"
 
-    headers = {"Authorization": bearer_token,
+    headers = {"Authorization": f"Bearer {bearer_token}",
                "accept": "application/json"}
 
     response = requests.get(uri, headers=headers)

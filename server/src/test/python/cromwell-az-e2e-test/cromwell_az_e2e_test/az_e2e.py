@@ -150,7 +150,9 @@ def get_completed_workflow(app_url, workflow_ids, max_retries=4):
 def deleteApps(workspace_id):
     delete_url = f"{leo_url}/api/apps/v2/{workspace_id}/deleteAll"
     response = requests.delete(url=delete_url, 
-                                headers={"Authorization": f"Bearer {bearer_token}"})
+                                headers={
+                                    "Authorization": f"Bearer {bearer_token}"
+                                    "accept: application/json"})
     handle_failed_request(response, f"Error deleting apps for workspace {workspace_id}", 202)
     output_message(f"Apps successfully deleted for workspace {workspace_id}")
 
@@ -158,14 +160,16 @@ def deleteWorkspace(workspace_namespace, workspace_name):
     if workspace_namespace and workspace_name:
         rawls_api_call = f"{rawls_url}/api/workspaces/{workspace_namespace}/{workspace_name}"
         response = requests.delete(url=rawls_api_call, 
-                                headers={"Authorization": f"Bearer {bearer_token}"}
-        )
+                                headers={
+                                    "Authorization": f"Bearer {bearer_token}"
+                                    "accept: application/json"})
         handle_failed_request(response, f"Error deleting workspace {workspace_namespace} - {workspace_name}", 204)
         output_message(f"Workspace {workspace_name} successfully deleted")
 
 def start():
     workspace_namespace = ""
     workspace_name = ""
+    workspace_id = ""
     # Giving workflow 3 minutes to complete
     sleep_timer = 60 * 3
     try:

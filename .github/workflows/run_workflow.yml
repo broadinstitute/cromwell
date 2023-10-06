@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       target-branch:
-        description: 'Branch of Cromwell to run tests on'
+        description: 'Branch name of Cromwell repo to run tests on'
         required: true
         default: 'develop'
         type: string

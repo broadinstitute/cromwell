@@ -114,14 +114,21 @@ def get_workflow_information(app_url, workflow_id):
     return response.json()
 
 def get_completed_workflow(app_url, workflow_ids, max_retries=4):
-    target_statuses = ['Succeeded', 'Failed']
+    success_statuses = ['Succeeded']
+    throw_exception_statuses = ['Aborted', 'Failed'] # Are there other statuses that should throw an exception?
+    
     current_running_workflow_count = 0
     while workflow_ids:
         if max_retries == 0:
             raise Exception(f"Workflow(s) did not finish running within retry window ({max_retries} retries)")
+        
         workflow_id = workflow_ids.pop()
         workflow_metadata = get_workflow_information(app_url, workflow_id)
-        if workflow_metadata['status'] in target_statuses:
+        workflow_status = workflow_metadata['status']
+
+        if(workflow_status in throw_exception_statuses):
+            raise Exception(f"Exception raised: Workflow {workflow_id} reporting {workflow_status} status")
+        if workflow_status in success_statuses:
             output_message(f"{workflow_id} finished running. Status: {workflow_metadata['status']}")
         else:
             workflow_ids.append(workflow_id)
@@ -137,6 +144,8 @@ def get_completed_workflow(app_url, workflow_ids, max_retries=4):
                 max_retries -= 1
                 current_running_workflow_count = 0
                 time.sleep(60 * 2)
+
+    output_message("Workflow(s) submission and completion successful")
 
 def deleteApps(workspace_id):
     delete_url = f"{leo_url}/api/apps/v2/{workspace_id}/deleteAll"
@@ -178,7 +187,6 @@ def start():
         # Probably won't require too much modification if we want to run additional submission tests
         workflow_ids = [workflow_response['id']]
         get_completed_workflow(app_url, workflow_ids)
-        output_message("Workflow(s) submission and completion successful")
     except Exception as e:
         raise e
     finally:

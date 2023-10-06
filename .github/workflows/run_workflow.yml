@@ -113,8 +113,7 @@ jobs:
           create_credentials_file: false
       - uses: actions/checkout@v3
         with:
-          #NOTE: replace with ${{inputs.target-branch}} before merge
-          ref: refs/heads/WX-1307
+          ref: refs/heads/${{inputs.target-branch}}
       - name: Set up python
         id: setup-python
         uses: actions/setup-python@v4

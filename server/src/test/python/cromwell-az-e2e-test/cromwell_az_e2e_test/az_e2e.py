@@ -99,10 +99,12 @@ def submit_workflow_to_cromwell(app_url, workflow_test_name):
         'workflowType': 'WDL',
         'workflowTypeVersion': '1.0'
     }
-    response = requests.post(workflow_endpoint, headers=headers, files=files)
     print('-----')
     print(workflow_endpoint)
     print('------')
+    print(headers)
+    print('------')
+    response = requests.post(workflow_endpoint, headers=headers, files=files)
     handle_failed_request(response, f"Error submitting workflow to Cromwell for {workflow_test_name}", 201)
     output_message(response.json())
     return response.json()

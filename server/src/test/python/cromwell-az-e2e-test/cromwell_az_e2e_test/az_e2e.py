@@ -47,6 +47,7 @@ def create_workspace():
                             headers={"Authorization": f"Bearer {bearer_token}"})
    # will return 202 or error
    handle_failed_request(response, "Error activating CBAS", 202)
+   output_message("CBAS successfully activated")
    return create_workspace_data
 
 # GET WDS OR CROMWELL ENDPOINT URL FROM LEO
@@ -99,6 +100,9 @@ def submit_workflow_to_cromwell(app_url, workflow_test_name):
         'workflowTypeVersion': '1.0'
     }
     response = requests.post(workflow_endpoint, headers=headers, files=files)
+    print('-----')
+    print(workflow_endpoint)
+    print('------')
     handle_failed_request(response, f"Error submitting workflow to Cromwell for {workflow_test_name}", 201)
     output_message(response.json())
     return response.json()

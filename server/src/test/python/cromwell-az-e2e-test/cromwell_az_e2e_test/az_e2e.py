@@ -176,6 +176,7 @@ def start():
     workflow_run_sleep_timer = 60 * 5
     cleanup_sleep_timer = 60 * 10
     provision_sleep_timer = 60 * 15
+    found_exception = False
     try:
         created_workspace = create_workspace()
         workspace_id = created_workspace['workspaceId']
@@ -195,11 +196,15 @@ def start():
         workflow_ids = [workflow_response['id']]
         get_completed_workflow(app_url, workflow_ids)
     except Exception as e:
-        output_message(f"Exception raised:\n{e}")
-        print(e)
+        output_message(f"Exception occured during test:\n{e}")
+        found_exception = e
     finally:
         deleteApps(workspace_id)
         time.sleep(cleanup_sleep_timer) # Not sure if this is necessary
         deleteWorkspace(workspace_namespace, workspace_name)
         time.sleep(cleanup_sleep_timer) # Not sure if this is necessary
         output_message("Workspace cleanup complete")
+        # Use exit(1) so that GHA will fail if an exception was found
+        if(found_exception):
+            output_message("Workflow test failed due to exception(s)")
+            exit(1)

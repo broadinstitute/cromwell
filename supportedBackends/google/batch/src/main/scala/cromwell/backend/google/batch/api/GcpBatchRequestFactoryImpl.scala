@@ -1,17 +1,14 @@
 package cromwell.backend.google.batch.api
 
-import com.google.cloud.batch.v1.AllocationPolicy.Accelerator
-import com.google.cloud.batch.v1.{DeleteJobRequest, GetJobRequest, JobName}
-import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
-import cromwell.backend.google.batch.models.GcpBatchRequest
-import cromwell.backend.google.batch.runnable._
-import cromwell.backend.google.batch.util.BatchUtilityConversions
-import com.google.cloud.batch.v1.AllocationPolicy.{AttachedDisk, InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, NetworkInterface, NetworkPolicy, ProvisioningModel}
+import com.google.cloud.batch.v1.AllocationPolicy._
 import com.google.cloud.batch.v1.LogsPolicy.Destination
-import com.google.cloud.batch.v1.{AllocationPolicy, ComputeResource, CreateJobRequest, Job, LogsPolicy, Runnable, ServiceAccount, TaskGroup, TaskSpec, Volume}
+import com.google.cloud.batch.v1.{AllocationPolicy, ComputeResource, CreateJobRequest, DeleteJobRequest, GetJobRequest, Job, JobName, LogsPolicy, Runnable, ServiceAccount, TaskGroup, TaskSpec, Volume}
 import com.google.protobuf.Duration
 import cromwell.backend.google.batch.io.GcpBatchAttachedDisk
-import cromwell.backend.google.batch.models.VpcAndSubnetworkProjectLabelValues
+import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
+import cromwell.backend.google.batch.models.{GcpBatchRequest, VpcAndSubnetworkProjectLabelValues}
+import cromwell.backend.google.batch.runnable._
+import cromwell.backend.google.batch.util.BatchUtilityConversions
 
 import scala.jdk.CollectionConverters._
 
@@ -61,16 +58,21 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
       .build
   }
 
-  private def createInstancePolicy(cpuPlatform: String, spotModel: ProvisioningModel, accelerators: Option[Accelerator.Builder], attachedDisks: List[AttachedDisk]) = {
+  private def createInstancePolicy(cpuPlatform: String, spotModel: ProvisioningModel, accelerators: Option[Accelerator.Builder], attachedDisks: List[AttachedDisk]): InstancePolicy.Builder = {
 
     //set GPU count to 0 if not included in workflow
-    val gpuAccelerators = accelerators.getOrElse(Accelerator.newBuilder.setCount(0).setType(""))
+    val gpuAccelerators = accelerators.getOrElse(Accelerator.newBuilder.setCount(0).setType("")) // TODO: Driver version
+
     val instancePolicy = InstancePolicy
       .newBuilder
       .setProvisioningModel(spotModel)
       .addAllDisks(attachedDisks.asJava)
       .setMinCpuPlatform(cpuPlatform)
       .buildPartial()
+
+
+    //val acceleratorCount = accelerators.mkString
+    println(s"gpu count  ${accelerators.mkString}")
 
     //add GPUs if GPU count is greater than 1
     if (gpuAccelerators.getCount >= 1) {
@@ -82,7 +84,6 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     }
 
   }
-
 
   private def createNetworkPolicy(networkInterface: NetworkInterface): NetworkPolicy = {
     NetworkPolicy
@@ -113,8 +114,9 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
 
   }
 
-  private def createAllocationPolicy(data: GcpBatchRequest, locationPolicy: LocationPolicy, instancePolicy: InstancePolicy, networkPolicy: NetworkPolicy, serviceAccount: ServiceAccount) = {
-    AllocationPolicy
+  private def createAllocationPolicy(data: GcpBatchRequest, locationPolicy: LocationPolicy, instancePolicy: InstancePolicy, networkPolicy: NetworkPolicy, serviceAccount: ServiceAccount, accelerators: Option[Accelerator.Builder]) = {
+
+    val allocationPolicy = AllocationPolicy
       .newBuilder
       .setLocation(locationPolicy)
       .setNetwork(networkPolicy)
@@ -122,12 +124,18 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
       .putLabels("goog-batch-worker", "true")
       .putAllLabels((data.createParameters.googleLabels.map(label => label.key -> label.value).toMap.asJava))
       .setServiceAccount(serviceAccount)
-      .addInstances(InstancePolicyOrTemplate
-        .newBuilder
-        .setPolicy(instancePolicy)
-        .build)
-      .build
+      .buildPartial()
+
+    val gpuAccelerators = accelerators.getOrElse(Accelerator.newBuilder.setCount(0).setType(""))
+
+    //add GPUs if GPU count is greater than or equal to 1
+    if (gpuAccelerators.getCount >= 1) {
+      allocationPolicy.toBuilder.addInstances(InstancePolicyOrTemplate.newBuilder.setPolicy(instancePolicy).setInstallGpuDrivers(true).build)
+    } else {
+      allocationPolicy.toBuilder.addInstances(InstancePolicyOrTemplate.newBuilder.setPolicy(instancePolicy).build)
+    }
   }
+
 
   override def submitRequest(data: GcpBatchRequest): CreateJobRequest = {
 
@@ -159,10 +167,6 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
 
     // Batch defaults to 1 task
     val taskCount: Long = 1
-
-    println(f"command script container path ${data.createParameters.commandScriptContainerPath}")
-    println(f"cloud workflow root ${data.createParameters.cloudWorkflowRoot}")
-    println(f"all parameters:\n ${data.createParameters.allParameters.mkString("\n")}")
 
     // parse preemption value and set value for Spot. Spot is replacement for preemptible
     val spotModel = toProvisioningModel(runtimeAttributes.preemptible)
@@ -205,11 +209,11 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
     val instancePolicy = createInstancePolicy(cpuPlatform, spotModel, accelerators, allDisks)
     val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
-    val allocationPolicy = createAllocationPolicy(data, locationPolicy, instancePolicy.build, networkPolicy, gcpSa)
+    val allocationPolicy = createAllocationPolicy(data, locationPolicy, instancePolicy.build, networkPolicy, gcpSa, accelerators)
     val job = Job
       .newBuilder
       .addTaskGroups(taskGroup)
-      .setAllocationPolicy(allocationPolicy)
+      .setAllocationPolicy(allocationPolicy.build())
       .putLabels("submitter", "cromwell") // label to signify job submitted by cromwell for larger tracking purposes within GCP batch
       .putLabels("goog-batch-worker", "true")
       .putAllLabels((data.createParameters.googleLabels.map(label => label.key -> label.value).toMap.asJava))
@@ -218,9 +222,6 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
         .setDestination(Destination.CLOUD_LOGGING)
         .build)
 
-    println(f"job shell ${data.createParameters.jobShell}")
-    println(f"script container path ${data.createParameters.commandScriptContainerPath}")
-    println(f"labels ${data.createParameters.googleLabels}")
 
     CreateJobRequest
       .newBuilder

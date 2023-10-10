@@ -829,12 +829,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       _ <- evaluateRuntimeAttributes
       _ <- uploadScriptFile()
       customLabels <- Future.fromTry(GcpLabel.fromWorkflowOptions(workflowDescriptor.workflowOptions))
-      _ = customLabels.foreach(x => println(s"ZZZ Custom Labels - $x"))
       batchParameters <- generateInputOutputParameters
-      _ = batchParameters.fileInputParameters.foreach(x => println(s"ZZZ File InputParameters - $x"))
-      _ = batchParameters.jobInputParameters.foreach(x => println(s"ZZZ InputParameters - $x"))
-      _ = batchParameters.fileOutputParameters.foreach(x => println(s"ZZZ File OutputParameters - $x"))
-      _ = batchParameters.jobOutputParameters.foreach(x => println(s"ZZZ OutputParameters - $x"))
       createParameters = createBatchParameters(batchParameters, customLabels)
       drsLocalizationManifestCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.DrsLocalizationManifestName
       _ <- uploadDrsLocalizationManifest(createParameters, drsLocalizationManifestCloudPath)

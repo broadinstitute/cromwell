@@ -93,24 +93,27 @@ def submit_workflow_to_cromwell(app_url, workflow_test_name):
     headers = {"Authorization": f'Bearer {bearer_token}',
               "accept": "application/json",
     }
-    files = {
-        'workflowSource': ('hello.wdl', open(workflow_source_path, 'rb'), 'application/octet-stream'),
-        'workflowInputs': ('hello.inputs', open(workflow_inputs_path, 'rb'), 'application/octet-stream'),
-        'workflowType': 'WDL',
-        'workflowTypeVersion': '1.0'
-    }
-    print('-----')
-    print(workflow_endpoint)
-    print('------')
-    print(headers)
-    print('------')
-    response = requests.post(workflow_endpoint, headers=headers, files=files)
-    handle_failed_request(response, f"Error submitting workflow to Cromwell for {workflow_test_name}", 201)
-    output_message(response.json())
-    return response.json()
+    with open(workflow_source_path, 'rb') as hello_wdl:
+        with open(workflow_inputs_path, 'rb') as hello_inputs:
+            print(workflow_source_path)
+            print('-------------------')
+            print(workflow_inputs_path)
+            print('-------------------')
+            files = {
+                'workflowSource': ('hello.wdl', hello_wdl, 'application/octet-stream'),
+                'workflowInputs': ('hello.inputs', hello_inputs, 'application/octet-stream'),
+                'workflowType': 'WDL',
+                'workflowTypeVersion': '1.0'
+            }
+            response = requests.post(workflow_endpoint, headers=headers, files=files)
+            print(response.status_code)
+            print('-------------------')
+            handle_failed_request(response, f"Error submitting workflow to Cromwell for {workflow_test_name}", 201)
+            output_message(response.json())
+            return response.json()
 
 def get_workflow_information(app_url, workflow_id):
-    workflow_endpoint = f'{app_url}/api/workflows/v1/{workflow_id}/metadata'
+    workflow_endpoint = f'{app_url}/api/workflows/v1/{workflow_id}/status'
     headers = {"Authorization": f'Bearer {bearer_token}',
               "accept": "application/json"}
     output_message(f"Fetching workflow metadata for {workflow_id}")
@@ -119,7 +122,7 @@ def get_workflow_information(app_url, workflow_id):
     output_message(response.json())
     return response.json()
 
-def get_completed_workflow(app_url, workflow_ids, max_retries=4):
+def get_completed_workflow(app_url, workflow_ids, max_retries=4, sleep_timer=60 * 2):
     success_statuses = ['Succeeded']
     throw_exception_statuses = ['Aborted', 'Failed'] # Are there other statuses that should throw an exception?
     
@@ -145,12 +148,11 @@ def get_completed_workflow(app_url, workflow_ids, max_retries=4):
             else:
                 # Reset current count to 0 for next retry
                 # Decrement max_retries by 1
-                # Wait 2 minutes before checking workflow statuses again (adjust as needed)
+                # Wait for sleep_timer before checking workflow statuses again (adjust value as needed)
                 output_message(f"These workflows have yet to return a completed status: [{', '.join(workflow_ids)}]")
                 max_retries -= 1
                 current_running_workflow_count = 0
-                time.sleep(60 * 2)
-
+                time.sleep(sleep_timer)
     output_message("Workflow(s) submission and completion successful")
 
 def deleteApps(workspace_id):
@@ -176,32 +178,34 @@ def start():
     workspace_namespace = ""
     workspace_name = ""
     workspace_id = ""
-    # Giving workflow 3 minutes to complete
-    sleep_timer = 60 * 3
+    # Sleep timers for various steps in the test
+    workflow_run_sleep_timer = 60 * 5
+    cleanup_sleep_timer = 60 * 10
+    provision_sleep_timer = 60 * 15
     try:
         created_workspace = create_workspace()
         workspace_id = created_workspace['workspaceId']
         workspace_namespace = created_workspace['namespace']
         workspace_name = created_workspace['name']
-        time.sleep(60 * 20) # Added an sleep here to give the workspace time to provision
+        time.sleep(provision_sleep_timer) # Added an sleep here to give the workspace time to provision
         app_url = get_app_url(workspace_id, 'cromwell')
 
         # This chunk of code only executes one workflow
         # Would like to modify this down the road to execute and store references for multiple workflows
         workflow_response = submit_workflow_to_cromwell(app_url, "Run Workflow Test")
-        #Will need to update this when swapping out hello wdl with fetch_sra_to_bam (20 min?)
-        output_message(f'Executing sleep for {sleep_timer} seconds to allow workflow(s) to complete')
-        time.sleep(sleep_timer)
+        output_message(f'Executing sleep for {workflow_run_sleep_timer} seconds to allow workflow(s) to complete')
+        time.sleep(workflow_run_sleep_timer)
 
         # This chunk of code supports checking one or more workflows
         # Probably won't require too much modification if we want to run additional submission tests
         workflow_ids = [workflow_response['id']]
         get_completed_workflow(app_url, workflow_ids)
     except Exception as e:
+        output_message(f"Exception raised: {e}")
         raise e
     finally:
         deleteApps(workspace_id)
-        time.sleep(60 * 3) # Not sure if this is necessary
+        time.sleep(cleanup_sleep_timer) # Not sure if this is necessary
         deleteWorkspace(workspace_namespace, workspace_name)
-        time.sleep(60 * 3) # Not sure if this is necessary
+        time.sleep(cleanup_sleep_timer) # Not sure if this is necessary
         output_message("Workspace cleanup complete")

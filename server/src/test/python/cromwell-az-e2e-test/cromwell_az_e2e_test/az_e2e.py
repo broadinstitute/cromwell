@@ -95,10 +95,6 @@ def submit_workflow_to_cromwell(app_url, workflow_test_name):
     }
     with open(workflow_source_path, 'rb') as hello_wdl:
         with open(workflow_inputs_path, 'rb') as hello_inputs:
-            print(workflow_source_path)
-            print('-------------------')
-            print(workflow_inputs_path)
-            print('-------------------')
             files = {
                 'workflowSource': ('hello.wdl', hello_wdl, 'application/octet-stream'),
                 'workflowInputs': ('hello.inputs', hello_inputs, 'application/octet-stream'),
@@ -106,8 +102,6 @@ def submit_workflow_to_cromwell(app_url, workflow_test_name):
                 'workflowTypeVersion': '1.0'
             }
             response = requests.post(workflow_endpoint, headers=headers, files=files)
-            print(response.status_code)
-            print('-------------------')
             handle_failed_request(response, f"Error submitting workflow to Cromwell for {workflow_test_name}", 201)
             output_message(response.json())
             return response.json()
@@ -201,7 +195,7 @@ def start():
         workflow_ids = [workflow_response['id']]
         get_completed_workflow(app_url, workflow_ids)
     except Exception as e:
-        output_message(f"Exception raised: {e}")
+        output_message(f"Exception raised:\n{e}")
         print(e)
     finally:
         deleteApps(workspace_id)

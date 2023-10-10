@@ -70,10 +70,6 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
       .setMinCpuPlatform(cpuPlatform)
       .buildPartial()
 
-
-    //val acceleratorCount = accelerators.mkString
-    println(s"gpu count  ${accelerators.mkString}")
-
     //add GPUs if GPU count is greater than 1
     if (gpuAccelerators.getCount >= 1) {
       val instancePolicyGpu = instancePolicy.toBuilder

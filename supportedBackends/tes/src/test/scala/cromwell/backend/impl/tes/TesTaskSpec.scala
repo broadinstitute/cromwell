@@ -3,8 +3,8 @@ package cromwell.backend.impl.tes
 import common.assertion.CromwellTimeoutSpec
 import common.mock.MockSugar
 import cromwell.backend.validation.ContinueOnReturnCodeSet
-import cromwell.backend.{BackendSpec, TestConfig}
-import cromwell.core.WorkflowOptions
+import cromwell.backend.{BackendJobBreadCrumb, BackendJobDescriptor, BackendSpec, BackendWorkflowDescriptor, TestConfig}
+import cromwell.core.{RootWorkflowId, WorkflowId, WorkflowOptions}
 import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.DefaultPathBuilder
@@ -12,6 +12,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import spray.json.{JsObject, JsValue}
 import wom.InstantiatedCommand
+
+import java.util.UUID
 
 class TesTaskSpec
   extends AnyFlatSpec
@@ -184,87 +186,46 @@ class TesTaskSpec
     )
   }
 
-//  it should "put non-root workflow ids in tags" in {
-//    val jobLogger = mock[JobLogger]
-//
-//    val emptyWorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
-//    val workflowDescriptor = buildWdlWorkflowDescriptor(SubWorkflows(5.seconds).workflowSource(""))
-//    val jobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor,
-//      Map.empty,
-//      emptyWorkflowOptions,
-//      Set.empty)
-//    val tesPaths = TesJobPaths(jobDescriptor.key,
-//      jobDescriptor.workflowDescriptor,
-//      TestConfig.emptyConfig)
-//    val tesTask = TesTask(jobDescriptor,
-//      TestConfig.emptyBackendConfigDescriptor,
-//      jobLogger,
-//      tesPaths,
-//      runtimeAttributes,
-//      DefaultPathBuilder.build("").get,
-//      "",
-//      InstantiatedCommand("command"),
-//      "",
-//      Map.empty,
-//      "",
-//      OutputMode.ROOT)
-//
-//    val task = TesTask.makeTask(tesTask)
-//
-//    task.tags shouldBe Option(
-//      Map(
-//        "workflow_id" -> Option(workflowDescriptor.id.toString),
-//        "root_workflow_id" -> Option(workflowDescriptor.id.toString),
-//        "parent_workflow_id" -> None
-//      )
-//    )
-//  }
+  it should "put non-root workflow ids in tags" in {
+    // Doing this test with mocks rather than real job/workflow descriptors as above because
+    // getting the subworkflow structure build was really hard.
+    val jobLogger = mock[JobLogger]
+    val rootWorkflowId = RootWorkflowId(UUID.randomUUID())
+    val subWorkflowId = WorkflowId(UUID.randomUUID())
+    val subSubWorkflowId = WorkflowId(UUID.randomUUID())
 
+    val jobDescriptor = mock[BackendJobDescriptor]
+    val workflowDescriptor = mock[BackendWorkflowDescriptor]
+    val rootBreadcrumb = mock[BackendJobBreadCrumb]
+    val subBreadcrumb = mock[BackendJobBreadCrumb]
+    val tesPaths = mock[TesJobPaths]
+
+    jobDescriptor.workflowDescriptor returns workflowDescriptor
+    workflowDescriptor.customLabels returns Labels.empty
+    workflowDescriptor.id returns subSubWorkflowId
+    workflowDescriptor.rootWorkflowId returns rootWorkflowId
+
+    rootBreadcrumb.id returns rootWorkflowId
+    subBreadcrumb.id returns subWorkflowId
+    workflowDescriptor.breadCrumbs returns List(rootBreadcrumb, subBreadcrumb)
+
+    val tesTask = TesTask(jobDescriptor,
+      TestConfig.emptyBackendConfigDescriptor,
+      jobLogger,
+      tesPaths,
+      runtimeAttributes,
+      DefaultPathBuilder.build("").get,
+      "",
+      InstantiatedCommand("command"),
+      "",
+      Map.empty,
+      "",
+      OutputMode.ROOT)
+
+    tesTask.tags shouldBe Map(
+      "workflow_id" -> Option(subSubWorkflowId.toString),
+      "root_workflow_id" -> Option(rootWorkflowId.toString),
+      "parent_workflow_id" -> Option(subWorkflowId.toString)
+    )
+  }
 }
-
-//case class SubWorkflows(naptime: FiniteDuration) extends SampleWdl {
-//  override def workflowSource(runtime: String): WorkflowSource = root
-//
-//  override val rawInputs: ExecutableInputMap = Map("parent.naptime" -> naptime.toSeconds.toInt)
-//
-//  val root: WorkflowSource =
-//    """
-//      |import "subsub.wdl" as sub
-//      |
-//      |workflow parent {
-//      |  input {
-//      |    Int naptime
-//      |  }
-//      |  scatter (i in range(3)) {
-//      |    call sub.sub { input: naptime = naptime }
-//      |  }
-//      |}
-//    """.stripMargin.trim
-//
-//  val sub: WorkflowSource =
-//    """
-//      |task snooze {
-//      |  input {
-//      |    Int naptime
-//      |  }
-//      |  command {
-//      |    echo "zzzz"; sleep ~{naptime}
-//      |  }
-//      |}
-//      |
-//      |workflow sub {
-//      |  input {
-//      |    Int naptime
-//      |  }
-//      |  call snooze { input: naptime = naptime }
-//      |}
-//      |
-//    """.stripMargin.trim
-//
-//  override val imports: Option[Set[WorkflowImport]] =
-//    Option(
-//      Set(
-//        WorkflowImport(name = "subsub.wdl", content = sub)
-//      )
-//    )
-//}

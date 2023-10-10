@@ -87,8 +87,8 @@ def get_app_url(workspaceId, app):
 
 def submit_workflow_to_cromwell(app_url, workflow_test_name):
     absolute_file_path = os.path.dirname(__file__)
-    workflow_source_path = os.path.join(absolute_file_path, 'workflow_files/hello.wdl')
-    workflow_inputs_path = os.path.join(absolute_file_path, 'workflow_files/hello.inputs')
+    workflow_source_path = os.path.join(absolute_file_path, './workflow_files/hello.wdl')
+    workflow_inputs_path = os.path.join(absolute_file_path, './workflow_files/hello.inputs')
     workflow_endpoint = f'{app_url}/api/workflows/v1'
     headers = {"Authorization": f'Bearer {bearer_token}',
               "accept": "application/json",
@@ -202,7 +202,7 @@ def start():
         get_completed_workflow(app_url, workflow_ids)
     except Exception as e:
         output_message(f"Exception raised: {e}")
-        raise e
+        print(e)
     finally:
         deleteApps(workspace_id)
         time.sleep(cleanup_sleep_timer) # Not sure if this is necessary

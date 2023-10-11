@@ -20,7 +20,7 @@ import cromwell.engine.io.{IoActor, IoActorProxy}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.AbortAllWorkflowsCommand
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor, CallCacheWriteActor}
-import cromwell.engine.workflow.lifecycle.finalization.CopyWorkflowLogsActor
+import cromwell.engine.workflow.lifecycle.finalization.{CopyWorkflowLogsActor, WorkflowCallbackActor, WorkflowCallbackConfig}
 import cromwell.engine.workflow.tokens.{DynamicRateLimiter, JobTokenDispenserActor}
 import cromwell.engine.workflow.workflowstore.AbortRequestScanningActor.AbortConfig
 import cromwell.engine.workflow.workflowstore._
@@ -122,6 +122,18 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
     .props(CopyWorkflowLogsActor.props(serviceRegistryActor, ioActor)),
     "WorkflowLogCopyRouter")
 
+  private val workflowCallbackConfig = WorkflowCallbackConfig(config.getConfig("workflow-state-callback"))
+
+  lazy val workflowCallbackActor: Option[ActorRef] = {
+    if (workflowCallbackConfig.enabled) {
+      val props = WorkflowCallbackActor.props(
+        serviceRegistryActor,
+        workflowCallbackConfig
+      )
+      Option(context.actorOf(props, "WorkflowCallbackActor"))
+    } else None
+  }
+
   //Call-caching config validation
   lazy val callCachingConfig = config.getConfig("call-caching")
   lazy val callCachingEnabled = callCachingConfig.getBoolean("enabled")
@@ -174,6 +186,7 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
       ioActor = ioActorProxy,
       serviceRegistryActor = serviceRegistryActor,
       workflowLogCopyRouter = workflowLogCopyRouter,
+      workflowCallbackActor = workflowCallbackActor,
       jobStoreActor = jobStoreActor,
       subWorkflowStoreActor = subWorkflowStoreActor,
       callCacheReadActor = callCacheReadActor,
@@ -218,6 +231,7 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
       actorSystem = context.system,
       workflowManagerActor = workflowManagerActor,
       logCopyRouter = workflowLogCopyRouter,
+      workflowCallbackActor = workflowCallbackActor,
       jobStoreActor = jobStoreActor,
       jobTokenDispenser = jobExecutionTokenDispenserActor,
       workflowStoreActor = workflowStoreActor,

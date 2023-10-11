@@ -33,7 +33,7 @@ case object AzureCredentials {
     new DefaultAzureCredentialBuilder()
       .authorityHost(azureProfile.getEnvironment.getActiveDirectoryEndpoint)
 
-  def getAccessToken(identityClientId: Option[String]): ErrorOr[String] = {
+  def getAccessToken(identityClientId: Option[String] = None): ErrorOr[String] = {
     val credentials = identityClientId.foldLeft(defaultCredentialBuilder) {
       (builder, clientId) => builder.managedIdentityClientId(clientId)
     }.build()

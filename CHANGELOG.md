@@ -2,14 +2,17 @@
 
 ## 86 Release Notes
 
-### HTTPFilesystem Improvements
+### GCP Batch
+Cromwell now supports the GCP Batch backend for running workflows. See `Backend` in [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/) for more information.
 
-WDL `size` engine function now works for HTTP files. 
+### Workflow Completion Callback
+Cromwell can be configured to send a POST request to a specified URL when a workflow completes. The request body includes the workflow ID, terminal state,
+and (if applicable) final outputs or error message. See `WorkflowCallback` in [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/) for more information.
 
-### Azure ApplicationInsights Logging Support
-Cromwell can now send logs to Azure Application Insights. To enable, set environment 
-variable `APPLICATIONINSIGHTS_INSTRUMENTATIONKEY` to your account's key. [See here for information.](https://learn.microsoft.com/en-us/azure/azure-monitor/app/sdk-connection-string)
-
+### Other Improvements
+* Cromwell will now parallelize the downloads of DRS files that resolve to signed URLs. This significantly reduces the time localization takes in certain situations.
+* WDL size engine function now works for HTTP files
+* Improved Cromwell's handling of docker manifests. Additional logging information is emitted, and Cromwell will fall back to using OCI manifests if it encounters an error with a Docker Image Manifest V2. 
 
 ## 85 Release Notes
 

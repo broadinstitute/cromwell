@@ -149,18 +149,18 @@ def get_completed_workflow(app_url, workflow_ids, max_retries=4, sleep_timer=60 
                 time.sleep(sleep_timer)
     output_message("Workflow(s) submission and completion successful")
 
-def deleteApps(workspace_id):
-    delete_url = f"{leo_url}/api/apps/v2/{workspace_id}/deleteAll"
-    response = requests.delete(url=delete_url, 
-                                headers={
-                                    "Authorization": f"Bearer {bearer_token}"
-                                    "accept: application/json"})
-    handle_failed_request(response, f"Error deleting apps for workspace {workspace_id}", 202)
-    output_message(f"Apps successfully deleted for workspace {workspace_id}")
+# def deleteApps(workspace_id):
+#     delete_url = f"{leo_url}/api/apps/v2/{workspace_id}/deleteAll"
+#     response = requests.delete(url=delete_url, 
+#                                 headers={
+#                                     "Authorization": f"Bearer {bearer_token}"
+#                                     "accept: application/json"})
+#     handle_failed_request(response, f"Error deleting apps for workspace {workspace_id}", 202)
+#     output_message(f"Apps successfully deleted for workspace {workspace_id}")
 
 def deleteWorkspace(workspace_namespace, workspace_name):
     if workspace_namespace and workspace_name:
-        rawls_api_call = f"{rawls_url}/api/workspaces/{workspace_namespace}/{workspace_name}"
+        rawls_api_call = f"{rawls_url}/api/workspaces/v2/{workspace_namespace}/{workspace_name}"
         response = requests.delete(url=rawls_api_call, 
                                 headers={
                                     "Authorization": f"Bearer {bearer_token}"
@@ -172,11 +172,14 @@ def start():
     workspace_namespace = ""
     workspace_name = ""
     workspace_id = ""
+    found_exception = False
+    
     # Sleep timers for various steps in the test
     workflow_run_sleep_timer = 60 * 5
     cleanup_sleep_timer = 60 * 10
     provision_sleep_timer = 60 * 15
-    found_exception = False
+    workflow_status_sleep_timer = 60 * 2
+    
     try:
         created_workspace = create_workspace()
         workspace_id = created_workspace['workspaceId']
@@ -194,13 +197,13 @@ def start():
         # This chunk of code supports checking one or more workflows
         # Probably won't require too much modification if we want to run additional submission tests
         workflow_ids = [workflow_response['id']]
-        get_completed_workflow(app_url, workflow_ids)
+        get_completed_workflow(app_url, workflow_ids, workflow_status_sleep_timer)
     except Exception as e:
         output_message(f"Exception occured during test:\n{e}")
         found_exception = e
     finally:
-        deleteApps(workspace_id)
-        time.sleep(cleanup_sleep_timer) # Not sure if this is necessary
+        # deleteApps(workspace_id)
+        # time.sleep(cleanup_sleep_timer) # Not sure if this is necessary
         deleteWorkspace(workspace_namespace, workspace_name)
         time.sleep(cleanup_sleep_timer) # Not sure if this is necessary
         output_message("Workspace cleanup complete")

@@ -3,7 +3,7 @@ package cromwell.backend.impl.tes
 import common.assertion.CromwellTimeoutSpec
 import common.mock.MockSugar
 import cromwell.backend.validation.ContinueOnReturnCodeSet
-import cromwell.backend.{BackendJobBreadCrumb, BackendJobDescriptor, BackendSpec, BackendWorkflowDescriptor, TestConfig}
+import cromwell.backend.{BackendJobDescriptor, BackendSpec, BackendWorkflowDescriptor, TestConfig}
 import cromwell.core.{RootWorkflowId, WorkflowId, WorkflowOptions}
 import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
@@ -196,18 +196,13 @@ class TesTaskSpec
 
     val jobDescriptor = mock[BackendJobDescriptor]
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
-    val rootBreadcrumb = mock[BackendJobBreadCrumb]
-    val subBreadcrumb = mock[BackendJobBreadCrumb]
     val tesPaths = mock[TesJobPaths]
 
     jobDescriptor.workflowDescriptor returns workflowDescriptor
     workflowDescriptor.customLabels returns Labels.empty
     workflowDescriptor.id returns subSubWorkflowId
     workflowDescriptor.rootWorkflowId returns rootWorkflowId
-
-    rootBreadcrumb.id returns rootWorkflowId
-    subBreadcrumb.id returns subWorkflowId
-    workflowDescriptor.breadCrumbs returns List(rootBreadcrumb, subBreadcrumb)
+    workflowDescriptor.possibleParentWorkflowId returns Option(subWorkflowId)
 
     val tesTask = TesTask(jobDescriptor,
       TestConfig.emptyBackendConfigDescriptor,

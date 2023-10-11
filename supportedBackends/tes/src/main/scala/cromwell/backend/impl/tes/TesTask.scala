@@ -251,7 +251,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     baseTags ++ Map(
       "workflow_id" -> Option(jobDescriptor.workflowDescriptor.id.toString),
       "root_workflow_id" -> Option(jobDescriptor.workflowDescriptor.rootWorkflowId.toString),
-      "parent_workflow_id" -> jobDescriptor.workflowDescriptor.breadCrumbs.lastOption.map(_.id.toString)
+      "parent_workflow_id" -> jobDescriptor.workflowDescriptor.possibleParentWorkflowId.map(_.toString)
     )
   }
 }

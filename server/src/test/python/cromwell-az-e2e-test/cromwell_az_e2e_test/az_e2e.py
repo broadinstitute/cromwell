@@ -20,7 +20,7 @@ def output_message(msg):
 
 def handle_failed_request(response, msg, status_code=200):
     if(response.status_code != status_code):
-        raise Exception(f'{response.status_code} - {msg}')
+        raise Exception(f'{response.status_code} - {msg}\n{response.text}')
 
 def create_workspace():
    rawls_api_call = f"{rawls_url}/api/workspaces"
@@ -110,7 +110,7 @@ def get_workflow_information(app_url, workflow_id):
     workflow_endpoint = f'{app_url}/api/workflows/v1/{workflow_id}/status'
     headers = {"Authorization": f'Bearer {bearer_token}',
               "accept": "application/json"}
-    output_message(f"Fetching workflow metadata for {workflow_id}")
+    output_message(f"Fetching workflow status for {workflow_id}")
     response = requests.get(workflow_endpoint, headers=headers)
     handle_failed_request(response, f"Error fetching workflow metadata for {workflow_id}")
     output_message(response.json())
@@ -149,24 +149,36 @@ def get_completed_workflow(app_url, workflow_ids, max_retries=4, sleep_timer=60 
                 time.sleep(sleep_timer)
     output_message("Workflow(s) submission and completion successful")
 
-# def deleteApps(workspace_id):
-#     delete_url = f"{leo_url}/api/apps/v2/{workspace_id}/deleteAll"
-#     response = requests.delete(url=delete_url, 
-#                                 headers={
-#                                     "Authorization": f"Bearer {bearer_token}"
-#                                     "accept: application/json"})
-#     handle_failed_request(response, f"Error deleting apps for workspace {workspace_id}", 202)
-#     output_message(f"Apps successfully deleted for workspace {workspace_id}")
-
-def deleteWorkspace(workspace_namespace, workspace_name):
+def deleteWorkspace(workspace_namespace, workspace_name, max_retry=4):
     if workspace_namespace and workspace_name:
-        rawls_api_call = f"{rawls_url}/api/workspaces/v2/{workspace_namespace}/{workspace_name}"
-        response = requests.delete(url=rawls_api_call, 
-                                headers={
-                                    "Authorization": f"Bearer {bearer_token}"
-                                    "accept: application/json"})
-        handle_failed_request(response, f"Error deleting workspace {workspace_namespace} - {workspace_name}", 204)
-        output_message(f"Workspace {workspace_name} successfully deleted")
+        delete_workspace_url = f"{rawls_url}/api/workspaces/v2/{workspace_namespace}/{workspace_name}"
+        print(delete_workspace_url)
+        headers = {"Authorization": f'Bearer {bearer_token}',
+                   "accept": "application/json"}
+        # First call to initiate workspace deletion
+        response = requests.delete(url=delete_workspace_url, headers=headers)                               
+        handle_failed_request(response, f"Error deleting workspace {workspace_name} - {workspace_namespace}", 202)
+       
+        # polling to ensure that workspace is deleted (which takes about 5ish minutes)
+        is_workspace_deleted = False
+        while not is_workspace_deleted and max_retry > 0:
+            time.sleep(2 * 60)
+            get_workspace_url = f"{rawls_url}/api/workspaces/{workspace_namespace}/{workspace_name}"
+            print(get_workspace_url)
+            polling_response = requests.get(url=get_workspace_url, headers=headers)
+            polling_status_code = polling_response.status_code
+            output_message(f"Polling result: {polling_status_code}")
+            if polling_status_code == 200:
+                output_message(f"Workspace {workspace_name} - {workspace_namespace} is still active")
+                max_retry -= 1
+            elif polling_status_code == 404:
+                is_workspace_deleted = True
+                output_message(f"Workspace {workspace_name} - {workspace_namespace} is deleted")
+            else:
+                output_message(f"Unexpected status code {polling_status_code} received\n{polling_response.text}")
+                raise Exception(polling_response.text)
+        if not is_workspace_deleted:
+            raise Exception(f"Workspace {workspace_name} was not deleted within {max_retry * 2} minutes")
 
 def start():
     workspace_namespace = ""
@@ -176,7 +188,6 @@ def start():
     
     # Sleep timers for various steps in the test
     workflow_run_sleep_timer = 60 * 5
-    cleanup_sleep_timer = 60 * 10
     provision_sleep_timer = 60 * 15
     workflow_status_sleep_timer = 60 * 2
     
@@ -202,10 +213,7 @@ def start():
         output_message(f"Exception occured during test:\n{e}")
         found_exception = e
     finally:
-        # deleteApps(workspace_id)
-        # time.sleep(cleanup_sleep_timer) # Not sure if this is necessary
         deleteWorkspace(workspace_namespace, workspace_name)
-        time.sleep(cleanup_sleep_timer) # Not sure if this is necessary
         output_message("Workspace cleanup complete")
         # Use exit(1) so that GHA will fail if an exception was found
         if(found_exception):

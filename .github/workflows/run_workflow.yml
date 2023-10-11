@@ -69,7 +69,7 @@ jobs:
           token: ${{ env.BROADBOT_TOKEN }}
           # NOTE: Opting to use "prod" instead of custom tag since I specifically want to test against the current prod state
           # NOTE: For testing/development purposes I'm using dev
-          inputs: '{ "bee-name": "${{ env.BEE_NAME }}", "version-template": "dev" }'
+          inputs: '{ "bee-name": "${{ env.BEE_NAME }}", "version-template": "dev", "bee-template-name": "rawls-e2e-azure-tests"}'
   
   create-and-attach-billing-project-to-landing-zone-workflow:
     runs-on: ubuntu-latest

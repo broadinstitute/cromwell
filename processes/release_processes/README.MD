@@ -90,6 +90,13 @@ The workflow outputs its status to the console.
 * Announce release in `#dsp-workflows`, set expectations about when the new version will be available in Terra.
 * **One business day later,** confirm that [the Homebrew package](https://formulae.brew.sh/formula/cromwell) has the latest version. If it doesn't, start investigation by looking at [Homebrew PR's](https://github.com/Homebrew/homebrew-core/pulls?q=is%3Apr+cromwell).
 
+### Publish Docker Image
+* If the release workflow went well, it's time to also publish Docker images for this release. 
+* `git checkout` the Cromwell hash that was just published (i.e. the one directly BEFORE the "Update Cromwell version from x to x+1" commit that the publish WDL makes). It's important that the image being built uses the exact same code as the .jar files published to github.
+* Run `sbt -Dproject.isSnapshot=false -Dproject.isRelease=true dockerBuildAndPush` from your local Cromwell directory. 
+* Grab a cup of coffee, and verify that all of the new images were pushed successfully. For example, you should now be able to do `docker pull broadinstitute/cromwell:{new version #}`
+  * The list of images is `cromwell`, `cromiam`, `cromwell-drs-localizer`, and `womtool`
+
 ### How to Deploy Cromwell in CaaS staging and CaaS prod
 
 CaaS is "Cromwell as a Service". It is used by a couple of Broad teams (Pipelines and Epigenomics), though the long-term plan is for those teams to migrate to using Terra.

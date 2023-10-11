@@ -20,22 +20,17 @@ class BulkAccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec w
   val threeElements: List[ResolvedDrsUrl] = List(ex1, ex2, ex3)
 
   it should "correctly parse a collection of Access Urls into a manifest.json" in {
-    val expected: String =
-      s"""|[
-          |  {
-          |    "url" : "https://my.fake/url123",
-          |    "filepath" : "path/to/local/download/dest"
-          |  },
-          |  {
-          |    "url" : "https://my.fake/url1234",
-          |    "filepath" : "path/to/local/download/dest2"
-          |  },
-          |  {
-          |    "url" : "https://my.fake/url1235",
-          |    "filepath" : "path/to/local/download/dest3"
-          |  }
-          |]""".stripMargin
-
+    val expected =
+      """[{
+        |  "url": "https://my.fake/url123",
+        |  "filepath": "path/to/local/download/dest"
+        |}, {
+        |  "url": "https://my.fake/url1234",
+        |  "filepath": "path/to/local/download/dest2"
+        |}, {
+        |  "url": "https://my.fake/url1235",
+        |  "filepath": "path/to/local/download/dest3"
+        |}]""".stripMargin
     val downloader = BulkAccessUrlDownloader(threeElements)
 
     val filepath: IO[Path] = downloader.generateJsonManifest(threeElements)
@@ -45,11 +40,7 @@ class BulkAccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec w
   }
 
   it should "properly construct empty JSON array from empty list." in {
-    val expected: String =
-      s"""|[
-          |
-          |]""".stripMargin
-
+    val expected: String = "[]"
     val downloader = BulkAccessUrlDownloader(emptyList)
     val filepath: IO[Path] = downloader.generateJsonManifest(emptyList)
     val source = scala.io.Source.fromFile(filepath.unsafeRunSync().toString)
@@ -59,12 +50,10 @@ class BulkAccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec w
 
   it should "properly construct JSON array from single element list." in {
     val expected: String =
-      s"""|[
-          |  {
-          |    "url" : "https://my.fake/url123",
-          |    "filepath" : "path/to/local/download/dest"
-          |  }
-          |]""".stripMargin
+      s"""|[{
+          |  "url": "https://my.fake/url123",
+          |  "filepath": "path/to/local/download/dest"
+          |}]""".stripMargin
 
     val downloader = BulkAccessUrlDownloader(oneElement)
     val filepath: IO[Path] = downloader.generateJsonManifest(oneElement)

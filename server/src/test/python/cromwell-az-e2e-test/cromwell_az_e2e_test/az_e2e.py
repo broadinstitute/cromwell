@@ -134,7 +134,7 @@ def get_completed_workflow(app_url, workflow_ids, max_retries=4, sleep_timer=60 
         if workflow_status in success_statuses:
             output_message(f"{workflow_id} finished running. Status: {workflow_metadata['status']}")
         else:
-            workflow_ids.appendLeft(workflow_id)
+            workflow_ids.appendleft(workflow_id)
             current_running_workflow_count += 1
         if current_running_workflow_count == len(workflow_ids):
             if current_running_workflow_count == 0:

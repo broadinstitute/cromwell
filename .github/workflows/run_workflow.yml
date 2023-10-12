@@ -133,6 +133,7 @@ jobs:
           poetry run start
 
   delete-billing-project-v2-from-bee-workflow:
+    continue-on-error: true
     runs-on: ubuntu-latest
     needs: [run-cromwell-az-e2e, create-and-attach-billing-project-to-landing-zone-workflow, params-gen]
     if: always()

@@ -149,7 +149,7 @@ def get_completed_workflow(app_url, workflow_ids, max_retries=4, sleep_timer=60 
                 time.sleep(sleep_timer)
     output_message("Workflow(s) submission and completion successful")
 
-def deleteWorkspace(workspace_namespace, workspace_name, max_retry=4):
+def delete_workspace(workspace_namespace, workspace_name, max_retry=4):
     if workspace_namespace and workspace_name:
         delete_workspace_url = f"{rawls_url}/api/workspaces/v2/{workspace_namespace}/{workspace_name}"
         headers = {"Authorization": f'Bearer {bearer_token}',
@@ -178,6 +178,16 @@ def deleteWorkspace(workspace_namespace, workspace_name, max_retry=4):
                 raise Exception(polling_response.text)
         if not is_workspace_deleted:
             raise Exception(f"Workspace {workspace_name} was not deleted within {max_retry * 2} minutes")
+        
+def test_cleanup(workspace_namespace, workspace_name):
+    try:
+        delete_workspace(workspace_namespace, workspace_name)
+        output_message("Workspace cleanup complete")
+    # Catch the exeception and continue with the test since we don't want cleanup to affect the test results
+    # We can assume that Janitor will clean up the workspace if the test fails
+    except Exception as e:
+        output_message("Error cleaning up workspace, test script will continue")
+        output_message(f'Exception details below:\n{e}')
 
 def start():
     workspace_namespace = ""
@@ -212,9 +222,8 @@ def start():
         output_message(f"Exception occured during test:\n{e}")
         found_exception = e
     finally:
-        deleteWorkspace(workspace_namespace, workspace_name)
-        output_message("Workspace cleanup complete")
-        # Use exit(1) so that GHA will fail if an exception was found
+        test_cleanup(workspace_namespace, workspace_name)
+        # Use exit(1) so that GHA will fail if an exception was found during the test
         if(found_exception):
             output_message("Workflow test failed due to exception(s)")
             exit(1)

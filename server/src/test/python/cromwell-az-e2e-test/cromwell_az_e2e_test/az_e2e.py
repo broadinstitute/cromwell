@@ -181,7 +181,7 @@ def delete_workspace(workspace_namespace, workspace_name, max_retry=4):
         
 def test_cleanup(workspace_namespace, workspace_name):
     try:
-        delete_workspace(workspace_namespace, workspace_name)
+        delete_workspace(workspace_namespace, workspace_name, 4)
         output_message("Workspace cleanup complete")
     # Catch the exeception and continue with the test since we don't want cleanup to affect the test results
     # We can assume that Janitor will clean up the workspace if the test fails

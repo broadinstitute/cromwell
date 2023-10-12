@@ -152,7 +152,6 @@ def get_completed_workflow(app_url, workflow_ids, max_retries=4, sleep_timer=60 
 def deleteWorkspace(workspace_namespace, workspace_name, max_retry=4):
     if workspace_namespace and workspace_name:
         delete_workspace_url = f"{rawls_url}/api/workspaces/v2/{workspace_namespace}/{workspace_name}"
-        print(delete_workspace_url)
         headers = {"Authorization": f'Bearer {bearer_token}',
                    "accept": "application/json"}
         # First call to initiate workspace deletion
@@ -164,7 +163,6 @@ def deleteWorkspace(workspace_namespace, workspace_name, max_retry=4):
         while not is_workspace_deleted and max_retry > 0:
             time.sleep(2 * 60)
             get_workspace_url = f"{rawls_url}/api/workspaces/{workspace_namespace}/{workspace_name}"
-            print(get_workspace_url)
             polling_response = requests.get(url=get_workspace_url, headers=headers)
             polling_status_code = polling_response.status_code
             output_message(f"Polling result: {polling_status_code}")

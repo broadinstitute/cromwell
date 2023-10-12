@@ -154,8 +154,6 @@ jobs:
 
   destroy-bee-workflow:
     runs-on: ubuntu-latest
-    # QUESTION: Can a billing project be deleted if the bee is deleted?
-    # QUESTION: Can a billing project be deleted if the bee is still tied to it?
     needs: [create-bee-workflow, delete-billing-project-v2-from-bee-workflow]
     if: always()
     permissions:

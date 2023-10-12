@@ -5,6 +5,7 @@ import random
 import string
 import uuid
 import time
+from collections import deque
 
 # NOTE: POETRY prefix is outlined per documentation here: https://python-poetry.org/docs/configuration#using-environment-variables
 bearer_token = os.environ['POETRY_BEARER_TOKEN']
@@ -70,7 +71,6 @@ def get_app_url(workspaceId, app):
     output_message(f"App type: {app_type}")
     for entries in response: 
         if entries['appType'] == app_type and entries['proxyUrls'][app] is not None:
-            print(entries['status'])
             if(entries['status'] == "PROVISIONING"):
                 output_message(f"{app} is still provisioning")
                 break
@@ -134,7 +134,7 @@ def get_completed_workflow(app_url, workflow_ids, max_retries=4, sleep_timer=60 
         if workflow_status in success_statuses:
             output_message(f"{workflow_id} finished running. Status: {workflow_metadata['status']}")
         else:
-            workflow_ids.append(workflow_id)
+            workflow_ids.appendLeft(workflow_id)
             current_running_workflow_count += 1
         if current_running_workflow_count == len(workflow_ids):
             if current_running_workflow_count == 0:
@@ -207,7 +207,7 @@ def start():
 
         # This chunk of code supports checking one or more workflows
         # Probably won't require too much modification if we want to run additional submission tests
-        workflow_ids = [workflow_response['id']]
+        workflow_ids = deque([workflow_response['id']])
         get_completed_workflow(app_url, workflow_ids, workflow_status_sleep_timer)
     except Exception as e:
         output_message(f"Exception occured during test:\n{e}")

@@ -1,10 +1,12 @@
 package drs.localizer.downloaders
 import cats.effect.{ExitCode, IO}
+import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
 import com.typesafe.scalalogging.StrictLogging
 import drs.localizer.downloaders.GcsUriDownloader.RequesterPaysErrorMsg
-
+import scala.language.postfixOps
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
+import scala.concurrent.duration.DurationInt
 import scala.sys.process.{Process, ProcessLogger}
 
 case class GcsUriDownloader(gcsUrl: String,
@@ -12,7 +14,15 @@ case class GcsUriDownloader(gcsUrl: String,
                             downloadLoc: String,
                             requesterPaysProjectIdOption: Option[String]) extends Downloader with StrictLogging {
 
+  val defaultNumRetries: Int = 5
+  val defaultBackoff: CloudNioBackoff = CloudNioSimpleExponentialBackoff(
+    initialInterval = 1 seconds, maxInterval = 60 seconds, multiplier = 2)
+
   override def download: IO[DownloadResult] = {
+    downloadWithRetries(defaultNumRetries, Option(defaultBackoff))
+  }
+
+  def runDownloadCommand: IO[DownloadResult] = {
 
     logger.info(s"Requester Pays project ID is $requesterPaysProjectIdOption")
     logger.info(s"Attempting to download $gcsUrl to $downloadLoc")
@@ -38,6 +48,37 @@ case class GcsUriDownloader(gcsUrl: String,
     val result = if (returnCode == 0) DownloadSuccess else RecognizedRetryableDownloadFailure(exitCode = ExitCode(returnCode))
 
     IO.pure(result)
+  }
+
+  def downloadWithRetries(downloadRetries: Int,
+                          backoff: Option[CloudNioBackoff],
+                          downloadAttempt: Int = 0): IO[DownloadResult] =
+  {
+
+    def maybeRetryForDownloadFailure(t: Throwable): IO[DownloadResult] = {
+      if (downloadAttempt < downloadRetries) {
+        backoff foreach { b => Thread.sleep(b.backoffMillis) }
+        logger.warn(s"Attempting download retry $downloadAttempt of $downloadRetries for a GCS url", t)
+        downloadWithRetries(downloadRetries, backoff map {
+          _.next
+        }, downloadAttempt + 1)
+      } else {
+        IO.raiseError(new RuntimeException(s"Exhausted $downloadRetries resolution retries to download GCS file", t))
+      }
+    }
+
+    runDownloadCommand.redeemWith(
+      recover = maybeRetryForDownloadFailure,
+      bind = {
+        case s: DownloadSuccess.type =>
+          IO.pure(s)
+        case _: RecognizedRetryableDownloadFailure =>
+          downloadWithRetries(downloadRetries, backoff, downloadAttempt+1)
+        case _: UnrecognizedRetryableDownloadFailure =>
+          downloadWithRetries(downloadRetries, backoff, downloadAttempt+1)
+        case _ =>
+          downloadWithRetries(downloadRetries, backoff, downloadAttempt+1)
+      })
   }
 
   /**

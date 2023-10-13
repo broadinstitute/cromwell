@@ -17,6 +17,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.http.client.methods.{HttpGet, HttpPost}
 import org.apache.http.entity.{ContentType, StringEntity}
 import org.apache.http.impl.client.HttpClientBuilder
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
 import org.apache.http.util.EntityUtils
 import org.apache.http.{HttpResponse, HttpStatus, StatusLine}
 
@@ -24,16 +25,16 @@ import java.nio.ByteBuffer
 import java.nio.channels.{Channels, ReadableByteChannel}
 import scala.util.Try
 
-abstract class DrsPathResolver(drsConfig: DrsConfig, retryInternally: Boolean = true) {
+abstract class DrsPathResolver(drsConfig: DrsConfig) {
 
   protected lazy val httpClientBuilder: HttpClientBuilder = {
     val clientBuilder = HttpClientBuilder.create()
-    if (retryInternally) {
-      val retryHandler = new DrsResolverHttpRequestRetryStrategy(drsConfig)
-      clientBuilder
-        .setRetryHandler(retryHandler)
-        .setServiceUnavailableRetryStrategy(retryHandler)
-    }
+    val retryHandler = new DrsResolverHttpRequestRetryStrategy(drsConfig)
+    clientBuilder
+      .setRetryHandler(retryHandler)
+      .setServiceUnavailableRetryStrategy(retryHandler)
+    clientBuilder.setConnectionManager(connectionManager)
+    clientBuilder.setConnectionManagerShared(true)
     clientBuilder
   }
 
@@ -240,5 +241,14 @@ object DrsResolverResponseSupport {
         // No entity in HTTP response
         baseMessage + "(empty response)"
     }
+  }
+
+  lazy val connectionManager = {
+    val connManager = new PoolingHttpClientConnectionManager()
+    connManager.setMaxTotal(250)
+    // Since the HttpClient is always talking to DRSHub,
+    // make the max connections per route the same as max total connections
+    connManager.setDefaultMaxPerRoute(250)
+    connManager
   }
 }

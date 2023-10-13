@@ -19,5 +19,12 @@
     <include file="metadata_changesets/remove_non_summarizable_metadata_from_queue.xml" relativeToChangelogFile="true" />
     <include file="metadata_changesets/update_metadata_archive_index.xml" relativeToChangelogFile="true" />
     <include file="metadata_changesets/reset_archive_statuses_to_null.xml" relativeToChangelogFile="true" />
+    <!-- WARNING!
+      This changeset should always be last.
+      It it always run (and should always run last) to set table ownership correctly.
+      If your changeset adds a new table, make sure it is also owned by the sharedCromwellDbRole.
+    -->
+    <include file="metadata_changesets/set_table_role.xml" relativeToChangelogFile="true" />
+
 </databaseChangeLog>
 <!-- See Dos and Don'ts in changelog.xml -->

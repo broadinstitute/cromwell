@@ -35,6 +35,11 @@ class TesJobPathsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
       File(s"/cromwell-executions/wf_hello/$id/call-hello").pathAsString
     jobPaths.callExecutionDockerRoot.toString shouldBe
       File(s"/cromwell-executions/wf_hello/$id/call-hello/execution").pathAsString
+    jobPaths.azureLogPathsForMetadata shouldBe
+      Map(
+        "tes_stdout" -> File(s"local-cromwell-executions/wf_hello/$id/call-hello/tes_task/stdout.txt").pathAsString,
+        "tes_stderr" -> File(s"local-cromwell-executions/wf_hello/$id/call-hello/tes_task/stderr.txt").pathAsString
+      )
 
     val jobKeySharded = BackendJobDescriptorKey(call, Option(0), 1)
     val jobPathsSharded = TesJobPaths(jobKeySharded, wd, TesTestConfig.backendConfig)

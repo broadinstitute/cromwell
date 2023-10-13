@@ -1,4 +1,4 @@
-package cromwell.filesystems.blob
+package cromwell.cloudsupport.azure
 
 import cats.implicits.catsSyntaxValidatedId
 import com.azure.core.credential.TokenRequestContext
@@ -9,7 +9,6 @@ import common.validation.ErrorOr.ErrorOr
 
 import scala.concurrent.duration._
 import scala.jdk.DurationConverters._
-
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -34,7 +33,7 @@ case object AzureCredentials {
     new DefaultAzureCredentialBuilder()
       .authorityHost(azureProfile.getEnvironment.getActiveDirectoryEndpoint)
 
-  def getAccessToken(identityClientId: Option[String]): ErrorOr[String] = {
+  def getAccessToken(identityClientId: Option[String] = None): ErrorOr[String] = {
     val credentials = identityClientId.foldLeft(defaultCredentialBuilder) {
       (builder, clientId) => builder.managedIdentityClientId(clientId)
     }.build()

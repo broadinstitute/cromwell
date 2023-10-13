@@ -2,14 +2,13 @@ package cromwell.backend.impl.tes
 import common.collections.EnhancedCollections._
 import common.util.StringUtil._
 import cromwell.backend.impl.tes.OutputMode.OutputMode
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendWorkflowDescriptor}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import net.ceedubs.ficus.Ficus._
 
 import scala.language.postfixOps
 import scala.util.Try
-
 import wdl.draft2.model.FullyQualifiedName
 import wdl4s.parser.MemoryUnit
 import wom.InstantiatedCommand
@@ -32,29 +31,29 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          jobShell: String,
                          outputMode: OutputMode) {
 
-  private lazy val workflowDescriptor = jobDescriptor.workflowDescriptor
-  private lazy val workflowName = workflowDescriptor.callable.name
-  private lazy val fullyQualifiedTaskName = jobDescriptor.taskCall.fullyQualifiedName
-  private lazy val workflowExecutionIdentityConfig: Option[WorkflowExecutionIdentityConfig] =
+  private val workflowDescriptor = jobDescriptor.workflowDescriptor
+  private val workflowName = workflowDescriptor.callable.name
+  private val fullyQualifiedTaskName = jobDescriptor.taskCall.fullyQualifiedName
+  private val workflowExecutionIdentityConfig: Option[WorkflowExecutionIdentityConfig] =
     configurationDescriptor.backendConfig
       .getAs[String]("workflow-execution-identity")
       .map(WorkflowExecutionIdentityConfig)
-  private lazy val workflowExecutionIdentityOption: Option[WorkflowExecutionIdentityOption] =
+  private val workflowExecutionIdentityOption: Option[WorkflowExecutionIdentityOption] =
     workflowDescriptor
       .workflowOptions
       .get(TesWorkflowOptionKeys.WorkflowExecutionIdentity)
       .toOption
       .map(WorkflowExecutionIdentityOption)
-  lazy val name: String = fullyQualifiedTaskName
-  lazy val description: String = jobDescriptor.toString
+  val name: String = fullyQualifiedTaskName
+  val description: String = jobDescriptor.toString
 
   // TODO validate "project" field of workflowOptions
-  lazy val project = {
+  val project = {
     workflowDescriptor.workflowOptions.getOrElse("project", "")
   }
 
   // contains the script to be executed
-  private lazy val commandScript = Input(
+  private val commandScript = Input(
     name = Option("commandScript"),
     description = Option(fullyQualifiedTaskName + ".commandScript"),
     url = Option(tesPaths.script.pathAsString),
@@ -63,7 +62,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     content = None
   )
 
-  private lazy val commandScriptOut = Output(
+  private val commandScriptOut = Output(
     name = Option("commandScript"),
     description = Option(fullyQualifiedTaskName + ".commandScript"),
     url = Option(tesPaths.script.toString),
@@ -73,7 +72,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   private def writeFunctionFiles: Map[FullyQualifiedName, Seq[WomFile]] =
     instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f.file) } toMap
 
-  private lazy val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor
+  private val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor
     .fullyQualifiedInputs
     .safeMapValues {
       _.collectAsSeq { case w: WomFile => w }
@@ -124,7 +123,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   // extract output files
   // if output paths are absolute we will ignore them here and assume they are redirects
-  private lazy val outputWomFiles: Seq[WomFile] = {
+  private val outputWomFiles: Seq[WomFile] = {
     import cats.syntax.validated._
     // TODO WOM: this should be pushed back into WOM.
     // It's also a mess, evaluateFiles returns an ErrorOr but can still throw. We might want to use an EitherT, although
@@ -165,7 +164,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     )
   }
 
-  private lazy val womOutputs = outputWomFiles.flatMap(_.flattenFiles)
+  private val womOutputs = outputWomFiles.flatMap(_.flattenFiles)
     .zipWithIndex
     .flatMap {
       case (f: WomSingleFile, index) =>
@@ -203,7 +202,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
         )
     }
 
-  private lazy val additionalGlobOutput = jobDescriptor.taskCall.callable.additionalGlob.toList.flatMap(handleGlobFile(_, womOutputs.size))
+  private val additionalGlobOutput = jobDescriptor.taskCall.callable.additionalGlob.toList.flatMap(handleGlobFile(_, womOutputs.size))
 
   private lazy val cwdOutput = Output(
     name = Option("execution.dir.output"),
@@ -213,7 +212,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     `type` = Option("DIRECTORY")
   )
 
-  lazy val outputs: Seq[Output] = {
+  val outputs: Seq[Output] = {
     val result =  outputMode match {
       case OutputMode.GRANULAR => standardOutputs ++ Seq(commandScriptOut) ++ womOutputs ++ additionalGlobOutput
       case OutputMode.ROOT => List(cwdOutput) ++ additionalGlobOutput
@@ -224,12 +223,12 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     result
   }
 
-  lazy val preferedWorkflowExecutionIdentity = TesTask.getPreferredWorkflowExecutionIdentity(
+  val preferedWorkflowExecutionIdentity = TesTask.getPreferredWorkflowExecutionIdentity(
       workflowExecutionIdentityConfig,
       workflowExecutionIdentityOption
   )
 
-  lazy val executors = Seq(Executor(
+  val executors = Seq(Executor(
     image = dockerImageUsed,
     command = Seq(jobShell, commandScript.path),
     workdir = runtimeAttributes.dockerWorkingDir,
@@ -239,21 +238,13 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     env = None
   ))
 
-  lazy val resources: Resources = TesTask.makeResources(
+  val resources: Resources = TesTask.makeResources(
     runtimeAttributes,
     preferedWorkflowExecutionIdentity,
     Option(tesPaths.tesTaskRoot)
   )
 
-  lazy val tags: Map[String, Option[String]] = {
-    // In addition to passing through any workflow labels, include relevant workflow ids as tags.
-    val baseTags = jobDescriptor.workflowDescriptor.customLabels.asMap.map { case (k, v) => (k, Option(v)) }
-    baseTags ++ Map(
-      "workflow_id" -> Option(jobDescriptor.workflowDescriptor.id.toString),
-      "root_workflow_id" -> Option(jobDescriptor.workflowDescriptor.rootWorkflowId.toString),
-      "parent_workflow_id" -> jobDescriptor.workflowDescriptor.possibleParentWorkflowId.map(_.toString)
-    )
-  }
+  val tags: Map[String, Option[String]] = TesTask.makeTags(jobDescriptor.workflowDescriptor)
 }
 
 object TesTask {
@@ -294,6 +285,16 @@ object TesTask {
       preemptible = Option(runtimeAttributes.preemptible),
       zones = None,
       backend_parameters = Option(backendParameters)
+    )
+  }
+
+  def makeTags(workflowDescriptor: BackendWorkflowDescriptor): Map[String, Option[String]] = {
+    // In addition to passing through any workflow labels, include relevant workflow ids as tags.
+    val baseTags = workflowDescriptor.customLabels.asMap.map { case (k, v) => (k, Option(v)) }
+    baseTags ++ Map(
+      "workflow_id" -> Option(workflowDescriptor.id.toString),
+      "root_workflow_id" -> Option(workflowDescriptor.rootWorkflowId.toString),
+      "parent_workflow_id" -> workflowDescriptor.possibleParentWorkflowId.map(_.toString)
     )
   }
 

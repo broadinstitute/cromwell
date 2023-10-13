@@ -3,7 +3,7 @@ package cromwell.backend.impl.tes
 import common.assertion.CromwellTimeoutSpec
 import common.mock.MockSugar
 import cromwell.backend.validation.ContinueOnReturnCodeSet
-import cromwell.backend.{BackendJobDescriptor, BackendSpec, BackendWorkflowDescriptor, TestConfig}
+import cromwell.backend.{BackendSpec, BackendWorkflowDescriptor, TestConfig}
 import cromwell.core.{RootWorkflowId, WorkflowId, WorkflowOptions}
 import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
@@ -189,35 +189,17 @@ class TesTaskSpec
   it should "put non-root workflow ids in tags" in {
     // Doing this test with mocks rather than real job/workflow descriptors as above because
     // getting the subworkflow structure build was really hard.
-    val jobLogger = mock[JobLogger]
     val rootWorkflowId = RootWorkflowId(UUID.randomUUID())
     val subWorkflowId = WorkflowId(UUID.randomUUID())
     val subSubWorkflowId = WorkflowId(UUID.randomUUID())
 
-    val jobDescriptor = mock[BackendJobDescriptor]
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
-    val tesPaths = mock[TesJobPaths]
-
-    jobDescriptor.workflowDescriptor returns workflowDescriptor
     workflowDescriptor.customLabels returns Labels.empty
     workflowDescriptor.id returns subSubWorkflowId
     workflowDescriptor.rootWorkflowId returns rootWorkflowId
     workflowDescriptor.possibleParentWorkflowId returns Option(subWorkflowId)
 
-    val tesTask = TesTask(jobDescriptor,
-      TestConfig.emptyBackendConfigDescriptor,
-      jobLogger,
-      tesPaths,
-      runtimeAttributes,
-      DefaultPathBuilder.build("").get,
-      "",
-      InstantiatedCommand("command"),
-      "",
-      Map.empty,
-      "",
-      OutputMode.ROOT)
-
-    tesTask.tags shouldBe Map(
+    TesTask.makeTags(workflowDescriptor) shouldBe Map(
       "workflow_id" -> Option(subSubWorkflowId.toString),
       "root_workflow_id" -> Option(rootWorkflowId.toString),
       "parent_workflow_id" -> Option(subWorkflowId.toString)

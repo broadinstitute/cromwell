@@ -60,10 +60,8 @@ def get_app_url(workspaceId, app):
 
     response = requests.get(uri, headers=headers)
     status_code = response.status_code
-
-    if status_code != 200:
-        return response.text
-    output_message("Successfully retrieved details.")
+    handle_failed_request(response, f"{status_code} - Error retrieving details for {workspaceId}", 200)
+    output_message(f"Successfully retrieved details.\n{response.text}")
     response = response.json()
 
     app_url = ""

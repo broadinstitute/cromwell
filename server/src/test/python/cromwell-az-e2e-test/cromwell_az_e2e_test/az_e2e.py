@@ -147,7 +147,8 @@ def get_completed_workflow(app_url, workflow_ids, max_retries=4, sleep_timer=60 
                 time.sleep(sleep_timer)
     output_message("Workflow(s) submission and completion successful")
 
-def delete_workspace(workspace_namespace, workspace_name, max_retry=4):
+def delete_workspace(workspace_namespace, workspace_name, max_attempts=4):
+    retries_left = max_attempts
     if workspace_namespace and workspace_name:
         delete_workspace_url = f"{rawls_url}/api/workspaces/v2/{workspace_namespace}/{workspace_name}"
         headers = {"Authorization": f'Bearer {bearer_token}',
@@ -160,7 +161,7 @@ def delete_workspace(workspace_namespace, workspace_name, max_retry=4):
        
         # polling to ensure that workspace is deleted (which takes about 5ish minutes)
         is_workspace_deleted = False
-        while not is_workspace_deleted and max_retry > 0:
+        while not is_workspace_deleted and retries_left > 0:
             time.sleep(2 * 60)
             get_workspace_url = f"{rawls_url}/api/workspaces/{workspace_namespace}/{workspace_name}"
             polling_response = requests.get(url=get_workspace_url, headers=headers)
@@ -168,7 +169,7 @@ def delete_workspace(workspace_namespace, workspace_name, max_retry=4):
             output_message(f"Polling GET WORKSPACE - {polling_status_code}")
             if polling_status_code == 200:
                 output_message(f"Workspace {workspace_name} - {workspace_namespace} is still active")
-                max_retry -= 1
+                retries_left -= 1
             elif polling_status_code == 404:
                 is_workspace_deleted = True
                 output_message(f"Workspace {workspace_name} - {workspace_namespace} is deleted")
@@ -176,7 +177,7 @@ def delete_workspace(workspace_namespace, workspace_name, max_retry=4):
                 output_message(f"Unexpected status code {polling_status_code} received\n{polling_response.text}")
                 raise Exception(polling_response.text)
         if not is_workspace_deleted:
-            raise Exception(f"Workspace {workspace_name} was not deleted within {max_retry * 2} minutes")
+            raise Exception(f"Workspace {workspace_name} was not deleted within {max_attempts * 2} minutes")
         
 def test_cleanup(workspace_namespace, workspace_name):
     try:

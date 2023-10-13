@@ -156,7 +156,6 @@ def delete_workspace(workspace_namespace, workspace_name, max_retry=4):
         response = requests.delete(url=delete_workspace_url, headers=headers)
         output_message(response.text)                              
         handle_failed_request(response, f"Error deleting workspace {workspace_name} - {workspace_namespace}", 202)
-        output_message(response.text)
         output_message(f"Workspace {workspace_name} - {workspace_namespace} delete request submitted")
        
         # polling to ensure that workspace is deleted (which takes about 5ish minutes)

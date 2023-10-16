@@ -227,6 +227,7 @@ In the AWS backend those notifications can be send to **SNS Topic** or **EventBr
 #### AWS SNS
 
 1. Create an SNS topic, add the following to your `cromwell.conf` file and replace `topicArn` with the topic's ARN you just created:
+2. By default, all cromwell events will be publish to sns. Set `publishStatusOnly = true` if you only publish events that are `status` updates.
 
 ```
 services {
@@ -241,12 +242,13 @@ services {
                 }]
                 region = "us-east-1"
                 topicArn = "<topicARN>"
+                publishStatusOnly = true
             }
         }
     }
 }
 ```
-2. Add `sns:Publish` IAM policy to your Cromwell server IAM role. 
+3. Add `sns:Publish` IAM policy to your Cromwell server IAM role. 
 
 #### AWS EventBridge
 

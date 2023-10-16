@@ -46,7 +46,7 @@ import software.amazon.awssdk.services.sns.model.PublishRequest
 import spray.json.enrichAny
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 
 /**
@@ -61,6 +61,10 @@ class AwsSnsMetadataServiceActor(serviceConfig: Config, globalConfig: Config, se
 
   //setup sns client
   val topicArn: String = serviceConfig.getString("aws.topicArn")
+  val publishStatusOnly: Boolean = Try(serviceConfig.getBoolean("aws.publishStatusOnly")) match {
+    case Failure(_) => false
+    case Success(value) => value
+  }
 
   val awsConfig: AwsConfiguration = AwsConfiguration(globalConfig)
   val credentialsProviderChain: AwsCredentialsProviderChain =
@@ -74,7 +78,11 @@ class AwsSnsMetadataServiceActor(serviceConfig: Config, globalConfig: Config, se
   def publishMessages(events: Iterable[MetadataEvent]): Future[Unit] = {
     import AwsSnsMetadataServiceActor.EnhancedMetadataEvents
 
-    val eventsJson = events.toJson
+    val eventsJson = if (publishStatusOnly) {
+      events.filter(_.key.key == "status").toJson
+    } else {
+      events.toJson
+    }
     //if there are no events then don't publish anything
     if( eventsJson.length < 1) { return Future(())}
     log.debug(f"Publishing to $topicArn : $eventsJson")

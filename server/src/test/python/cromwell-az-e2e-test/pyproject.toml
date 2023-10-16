@@ -2,7 +2,7 @@
 name = "cromwell-az-e2e-test"
 version = "0.1.0"
 description = ""
-authors = ["JVThomas <jthomas0209@gmail.com>"]
+authors = ["JVThomas <jthomas@broadinstitute.org>"]
 
 [tool.poetry.dependencies]
 python = "^3.10"

@@ -155,7 +155,7 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
   }
 
   private def performCallback(workflowId: WorkflowId, callbackUri: URI, terminalState: WorkflowState, outputs: CallOutputs, failures: List[String]): Future[Done] = {
-    val callbackPostBody = CallbackMessage(workflowId.toString, terminalState.toString, outputs.outputs.map(entry => (entry._1.name, entry._2)), failures)
+    val callbackPostBody = CallbackMessage(workflowId.toString, terminalState.toString, outputs.outputs.map(entry => (entry._1.identifier.fullyQualifiedName.value, entry._2)), failures)
     for {
       entity <- Marshal(callbackPostBody).to[RequestEntity]
       headers <- makeHeaders

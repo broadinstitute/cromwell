@@ -2,14 +2,13 @@ package cromwell.backend.impl.tes
 import common.collections.EnhancedCollections._
 import common.util.StringUtil._
 import cromwell.backend.impl.tes.OutputMode.OutputMode
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendWorkflowDescriptor}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import net.ceedubs.ficus.Ficus._
 
 import scala.language.postfixOps
 import scala.util.Try
-
 import wdl.draft2.model.FullyQualifiedName
 import wdl4s.parser.MemoryUnit
 import wom.InstantiatedCommand
@@ -244,6 +243,8 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     preferedWorkflowExecutionIdentity,
     Option(tesPaths.tesTaskRoot)
   )
+
+  val tags: Map[String, Option[String]] = TesTask.makeTags(jobDescriptor.workflowDescriptor)
 }
 
 object TesTask {
@@ -287,6 +288,16 @@ object TesTask {
     )
   }
 
+  def makeTags(workflowDescriptor: BackendWorkflowDescriptor): Map[String, Option[String]] = {
+    // In addition to passing through any workflow labels, include relevant workflow ids as tags.
+    val baseTags = workflowDescriptor.customLabels.asMap.map { case (k, v) => (k, Option(v)) }
+    baseTags ++ Map(
+      "workflow_id" -> Option(workflowDescriptor.id.toString),
+      "root_workflow_id" -> Option(workflowDescriptor.rootWorkflowId.toString),
+      "parent_workflow_id" -> workflowDescriptor.possibleParentWorkflowId.map(_.toString)
+    )
+  }
+
   def makeTask(tesTask: TesTask): Task = {
     Task(
       id = None,
@@ -298,7 +309,7 @@ object TesTask {
       resources = Option(tesTask.resources),
       executors = tesTask.executors,
       volumes = None,
-      tags = Option(tesTask.jobDescriptor.workflowDescriptor.customLabels.asMap),
+      tags = Option(tesTask.tags),
       logs = None
     )
   }
@@ -314,7 +325,7 @@ final case class Task(id: Option[String],
                       resources: Option[Resources],
                       executors: Seq[Executor],
                       volumes: Option[Seq[String]],
-                      tags: Option[Map[String, String]],
+                      tags: Option[Map[String, Option[String]]],
                       logs: Option[Seq[TaskLog]])
 
 final case class Executor(image: String,

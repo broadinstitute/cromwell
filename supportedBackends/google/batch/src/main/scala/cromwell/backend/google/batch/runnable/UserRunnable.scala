@@ -8,9 +8,6 @@ trait UserRunnable {
 
   def userRunnables(createParameters: CreateBatchJobParameters, volumes: List[Volume]): List[Runnable] = {
 
-    println(f"job shell ${createParameters.jobShell}")
-    println(f"script container path ${createParameters.commandScriptContainerPath}")
-
     val userRunnable = RunnableBuilder.userRunnable(
       docker = createParameters.dockerImage,
       scriptContainerPath = createParameters.commandScriptContainerPath.pathAsString,

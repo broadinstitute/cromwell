@@ -3,8 +3,8 @@ package cromwell.backend.impl.tes
 import common.assertion.CromwellTimeoutSpec
 import common.mock.MockSugar
 import cromwell.backend.validation.ContinueOnReturnCodeSet
-import cromwell.backend.{BackendSpec, TestConfig}
-import cromwell.core.WorkflowOptions
+import cromwell.backend.{BackendSpec, BackendWorkflowDescriptor, TestConfig}
+import cromwell.core.{RootWorkflowId, WorkflowId, WorkflowOptions}
 import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.DefaultPathBuilder
@@ -12,6 +12,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import spray.json.{JsObject, JsValue}
 import wom.InstantiatedCommand
+
+import java.util.UUID
 
 class TesTaskSpec
   extends AnyFlatSpec
@@ -118,6 +120,42 @@ class TesTaskSpec
     val workflowDescriptor = buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld,
                                                         labels = Labels("foo" -> "bar"))
     val jobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor,
+      Map.empty,
+      emptyWorkflowOptions,
+      Set.empty)
+    val tesPaths = TesJobPaths(jobDescriptor.key,
+      jobDescriptor.workflowDescriptor,
+      TestConfig.emptyConfig)
+    val tesTask = TesTask(jobDescriptor,
+      TestConfig.emptyBackendConfigDescriptor,
+      jobLogger,
+      tesPaths,
+      runtimeAttributes,
+      DefaultPathBuilder.build("").get,
+      "",
+      InstantiatedCommand("command"),
+      "",
+      Map.empty,
+      "",
+      OutputMode.ROOT)
+
+    val task = TesTask.makeTask(tesTask)
+
+    task.tags shouldBe Option(
+      Map(
+        "foo" -> Option("bar"),
+        "workflow_id" -> Option(workflowDescriptor.id.toString),
+        "root_workflow_id" -> Option(workflowDescriptor.id.toString),
+        "parent_workflow_id" -> None
+      )
+    )
+  }
+
+  it should "put workflow ids in tags" in {
+    val jobLogger = mock[JobLogger]
+    val emptyWorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
+    val workflowDescriptor = buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld)
+    val jobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor,
                                                             Map.empty,
                                                             emptyWorkflowOptions,
                                                             Set.empty)
@@ -139,6 +177,32 @@ class TesTaskSpec
 
     val task = TesTask.makeTask(tesTask)
 
-    task.tags shouldBe Option(Map("foo" -> "bar"))
+    task.tags shouldBe Option(
+      Map(
+        "workflow_id" -> Option(workflowDescriptor.id.toString),
+        "root_workflow_id" -> Option(workflowDescriptor.id.toString),
+        "parent_workflow_id" -> None
+      )
+    )
+  }
+
+  it should "put non-root workflow ids in tags" in {
+    // Doing this test with mocks rather than real job/workflow descriptors as above because
+    // getting the subworkflow structure build was really hard.
+    val rootWorkflowId = RootWorkflowId(UUID.randomUUID())
+    val subWorkflowId = WorkflowId(UUID.randomUUID())
+    val subSubWorkflowId = WorkflowId(UUID.randomUUID())
+
+    val workflowDescriptor = mock[BackendWorkflowDescriptor]
+    workflowDescriptor.customLabels returns Labels.empty
+    workflowDescriptor.id returns subSubWorkflowId
+    workflowDescriptor.rootWorkflowId returns rootWorkflowId
+    workflowDescriptor.possibleParentWorkflowId returns Option(subWorkflowId)
+
+    TesTask.makeTags(workflowDescriptor) shouldBe Map(
+      "workflow_id" -> Option(subSubWorkflowId.toString),
+      "root_workflow_id" -> Option(rootWorkflowId.toString),
+      "parent_workflow_id" -> Option(subWorkflowId.toString)
+    )
   }
 }

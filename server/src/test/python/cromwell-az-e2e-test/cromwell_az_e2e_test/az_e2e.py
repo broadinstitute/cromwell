@@ -147,8 +147,7 @@ def get_completed_workflow(app_url, workflow_ids, max_retries=4, sleep_timer=60 
                 time.sleep(sleep_timer)
     output_message("Workflow(s) submission and completion successful")
 
-def delete_workspace(workspace_namespace, workspace_name, max_attempts=4):
-    retries_left = max_attempts
+def delete_workspace(workspace_namespace, workspace_name):
     if workspace_namespace and workspace_name:
         delete_workspace_url = f"{rawls_url}/api/workspaces/v2/{workspace_namespace}/{workspace_name}"
         headers = {"Authorization": f'Bearer {bearer_token}',
@@ -161,7 +160,8 @@ def delete_workspace(workspace_namespace, workspace_name, max_attempts=4):
        
         # polling to ensure that workspace is deleted (which takes about 5ish minutes)
         is_workspace_deleted = False
-        while not is_workspace_deleted and retries_left > 0:
+        token_expired = False
+        while not is_workspace_deleted and not token_expired:
             time.sleep(2 * 60)
             get_workspace_url = f"{rawls_url}/api/workspaces/{workspace_namespace}/{workspace_name}"
             polling_response = requests.get(url=get_workspace_url, headers=headers)
@@ -169,19 +169,20 @@ def delete_workspace(workspace_namespace, workspace_name, max_attempts=4):
             output_message(f"Polling GET WORKSPACE - {polling_status_code}")
             if polling_status_code == 200:
                 output_message(f"Workspace {workspace_name} - {workspace_namespace} is still active")
-                retries_left -= 1
             elif polling_status_code == 404:
                 is_workspace_deleted = True
                 output_message(f"Workspace {workspace_name} - {workspace_namespace} is deleted")
+            elif polling_status_code == 401:
+                token_expired = True
             else:
                 output_message(f"Unexpected status code {polling_status_code} received\n{polling_response.text}")
                 raise Exception(polling_response.text)
-        if not is_workspace_deleted:
-            raise Exception(f"Workspace {workspace_name} was not deleted within {max_attempts * 2} minutes")
+        if token_expired:
+            raise Exception(f"Workspace {workspace_name} was not deleted within bearer token lifespan")
         
 def test_cleanup(workspace_namespace, workspace_name):
     try:
-        delete_workspace(workspace_namespace, workspace_name, 6)
+        delete_workspace(workspace_namespace, workspace_name)
         output_message("Workspace cleanup complete")
     # Catch the exeception and continue with the test since we don't want cleanup to affect the test results
     # We can assume that Janitor will clean up the workspace if the test fails
@@ -220,7 +221,7 @@ def start():
         get_completed_workflow(app_url, workflow_ids, workflow_status_sleep_timer)
     except Exception as e:
         output_message(f"Exception occured during test:\n{e}")
-        found_exception = e
+        found_exception = True
     finally:
         test_cleanup(workspace_namespace, workspace_name)
         # Use exit(1) so that GHA will fail if an exception was found during the test

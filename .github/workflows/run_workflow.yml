@@ -40,8 +40,8 @@ jobs:
         id: extract-inputs
         run: |
           echo "branch=${{ inputs.target-branch || 'develop' }}" >> "$GITHUB_OUTPUT"
-          echo "branch=${{ inputs.owner-subject || 'hermione.owner@quality.firecloud.org' }}" >> "$GITHUB_OUTPUT"
-          echo "branch=${{ inputs.service-account || 'firecloud-qa@broad-dsde-qa.iam.gserviceaccount.com' }}" >> "$GITHUB_OUTPUT"
+          echo "owner-subject=${{ inputs.owner-subject || 'hermione.owner@quality.firecloud.org' }}" >> "$GITHUB_OUTPUT"
+          echo "service-account=${{ inputs.service-account || 'firecloud-qa@broad-dsde-qa.iam.gserviceaccount.com' }}" >> "$GITHUB_OUTPUT"
 
   # This job provisions useful parameters for e2e tests, including access tokens.
   # Please note: access tokens are for use in the same workflow, they cannot be dispatched to remote workflows.

@@ -1,5 +1,7 @@
 name: 'Azure e2e - Run Workflow'
 on:
+  schedule:
+    - cron: '0 16 * * *' # UTC 4pm, EST 11am, EDT 12pm
   workflow_dispatch:
     inputs:
       target-branch:
@@ -29,6 +31,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       branch: ${{ steps.extract-inputs.outputs.branch }}
+      owner-subject: ${{ steps.extract-inputs.outputs.owner-subject }}
+      service-account: ${{ steps.extract-inputs.outputs.service-account }}
     steps:
 #       NOTE: below was included in the rawls template but seems redundant due to defined values up on top
 #       Remove if it ends up being unecessary
@@ -36,6 +40,8 @@ jobs:
         id: extract-inputs
         run: |
           echo "branch=${{ inputs.target-branch || 'develop' }}" >> "$GITHUB_OUTPUT"
+          echo "branch=${{ inputs.owner-subject || 'hermione.owner@quality.firecloud.org' }}" >> "$GITHUB_OUTPUT"
+          echo "branch=${{ inputs.service-account || 'firecloud-qa@broad-dsde-qa.iam.gserviceaccount.com' }}" >> "$GITHUB_OUTPUT"
 
   # This job provisions useful parameters for e2e tests, including access tokens.
   # Please note: access tokens are for use in the same workflow, they cannot be dispatched to remote workflows.
@@ -73,7 +79,7 @@ jobs:
   
   create-and-attach-billing-project-to-landing-zone-workflow:
     runs-on: ubuntu-latest
-    needs: [create-bee-workflow, params-gen]
+    needs: [init-github-context, create-bee-workflow, params-gen]
     steps:
       - name: dispatch to terra-github-workflows
         uses: broadinstitute/workflow-dispatch@v3
@@ -86,15 +92,15 @@ jobs:
             "run-name": "attach-billing-project-to-landing-zone-${{ env.RUN_NAME_SUFFIX }}",
             "bee-name": "${{ env.BEE_NAME }}",
             "billing-project": "${{ needs.params-gen.outputs.project-name }}",
-            "billing-project-creator": "${{ inputs.owner-subject }}",
-            "service-account": "${{inputs.service-account}}" }'
+            "billing-project-creator": "${{ needs.init-github-context.outputs.owner-subject }}",
+            "service-account": "${{needs.init-github-context.outputs.service-account}}" }'
 
   run-cromwell-az-e2e:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./server/src/test/python/cromwell-az-e2e-test
-    needs: [params-gen, create-and-attach-billing-project-to-landing-zone-workflow]
+    needs: [init-github-context, params-gen, create-and-attach-billing-project-to-landing-zone-workflow]
     permissions:
       contents: 'read'
       id-token: 'write'
@@ -106,14 +112,14 @@ jobs:
         with:
           token_format: 'access_token'
           workload_identity_provider: 'projects/1038484894585/locations/global/workloadIdentityPools/github-wi-pool/providers/github-wi-provider'
-          service_account: ${{ inputs.service-account }}
+          service_account: ${{ needs.init-github-context.outputs.service-account }}
           access_token_scopes: 'profile, email, openid'
-          access_token_subject: ${{ inputs.owner-subject }}
+          access_token_subject: ${{ needs.init-github-context.outputs.owner-subject }}
           export_environment_variables: false
           create_credentials_file: false
       - uses: actions/checkout@v3
         with:
-          ref: refs/heads/${{inputs.target-branch}}
+          ref: refs/heads/${{needs.init-github-context.outputs.branch}}
       - name: Set up python
         id: setup-python
         uses: actions/setup-python@v4
@@ -135,7 +141,7 @@ jobs:
   delete-billing-project-v2-from-bee-workflow:
     continue-on-error: true
     runs-on: ubuntu-latest
-    needs: [run-cromwell-az-e2e, create-and-attach-billing-project-to-landing-zone-workflow, params-gen]
+    needs: [init-github-context, run-cromwell-az-e2e, create-and-attach-billing-project-to-landing-zone-workflow, params-gen]
     if: always()
     steps:
       - name: dispatch to terra-github-workflows
@@ -149,8 +155,8 @@ jobs:
             "run-name": "delete-billing-project-v2-from-bee-${{ env.RUN_NAME_SUFFIX }}",
             "bee-name": "${{ env.BEE_NAME }}", 
             "billing-project": "${{ needs.params-gen.outputs.project-name }}", 
-            "billing-project-owner": "${{ inputs.owner-subject }}", 
-            "service-account": "${{ inputs.service-account }}", 
+            "billing-project-owner": "${{ needs.init-github-context.outputs.owner-subject }}", 
+            "service-account": "${{ needs.init-github-context.outputs.service-account }}", 
             "silent-on-failure": "false" }'
 
   destroy-bee-workflow:

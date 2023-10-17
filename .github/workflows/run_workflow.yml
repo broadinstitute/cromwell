@@ -39,7 +39,7 @@ jobs:
       - name: Get inputs or use defaults
         id: extract-inputs
         run: |
-          echo "branch=${{ inputs.target-branch || 'develop' }}" >> "$GITHUB_OUTPUT"
+          echo "branch=${{ inputs.target-branch || 'main' }}" >> "$GITHUB_OUTPUT"
           echo "owner-subject=${{ inputs.owner-subject || 'hermione.owner@quality.firecloud.org' }}" >> "$GITHUB_OUTPUT"
           echo "service-account=${{ inputs.service-account || 'firecloud-qa@broad-dsde-qa.iam.gserviceaccount.com' }}" >> "$GITHUB_OUTPUT"
 
@@ -97,13 +97,7 @@ jobs:
 
   run-cromwell-az-e2e:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./server/src/test/python/cromwell-az-e2e-test
     needs: [init-github-context, params-gen, create-and-attach-billing-project-to-landing-zone-workflow]
-    permissions:
-      contents: 'read'
-      id-token: 'write'
     steps:
       - uses: 'actions/checkout@v3'
       - name: Generate OAuth2 2.0 access token for owner
@@ -112,31 +106,23 @@ jobs:
         with:
           token_format: 'access_token'
           workload_identity_provider: 'projects/1038484894585/locations/global/workloadIdentityPools/github-wi-pool/providers/github-wi-provider'
-          service_account: ${{ needs.init-github-context.outputs.service-account }}
+          service_account: ${{ inputs.service-account }}
           access_token_scopes: 'profile, email, openid'
-          access_token_subject: ${{ needs.init-github-context.outputs.owner-subject }}
+          access_token_subject: ${{ inputs.owner-subject }}
           export_environment_variables: false
           create_credentials_file: false
-      - uses: actions/checkout@v3
+      - name: Run Cromwell E2E tests on Azure
+        uses: broadinstitute/workflow-dispatch@v3
         with:
-          ref: refs/heads/${{needs.init-github-context.outputs.branch}}
-      - name: Set up python
-        id: setup-python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-      - name: Install poetry
-        uses: snok/install-poetry@v1
-      - name: Install dependencies
-        run: |
-          poetry install --no-interaction     
-      - name: Run e2e test
-        env:
-          POETRY_BEE_NAME: ${{env.BEE_NAME}}
-          POETRY_BILLING_PROJECT_NAME: ${{needs.params-gen.outputs.project-name}}
-          POETRY_BEARER_TOKEN: ${{ steps.owner_auth.outputs.access_token }}
-        run: |
-          poetry run start
+            workflow: cromwell-az-e2e-test.yaml
+            repo: broadinstitute/dsp-reusable-workflows
+            ref: refs/heads/${{ needs.init-github-context.outputs.branch }}
+            token: ${{ env.BROADBOT_TOKEN }}
+            inputs: '{
+              "branch": "${{ needs.init-github-context.outputs.branch }}",
+              "bee-name": "${{ env.BEE_NAME }}",
+              "bearer-token": "${{ steps.owner_auth.outputs.access_token }}",
+              "project-name": "${{ needs.params-gen.outputs.project-name }}"}'
 
   delete-billing-project-v2-from-bee-workflow:
     continue-on-error: true

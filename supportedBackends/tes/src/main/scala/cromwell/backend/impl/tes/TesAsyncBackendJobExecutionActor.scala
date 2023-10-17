@@ -24,8 +24,7 @@ import cromwell.filesystems.blob.BlobPathBuilder.ValidBlobPath
 import cromwell.filesystems.blob.{BlobPath, BlobPathBuilder}
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import net.ceedubs.ficus.Ficus._
-import wdl.draft2.model.FullyQualifiedName
-import wom.values.{WomFile, _}
+import wom.values.WomFile
 
 import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
@@ -95,7 +94,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   override def scriptPreamble: String = {
-    super.scriptPreamble ++ getLocalizedSasTokenParams(taskInputFiles).map{
+    super.scriptPreamble ++ getLocalizedSasTokenParams.map{
       localizedSasParams =>
         s"""
            |blobPath="${localizedSasParams.blobContainer}"
@@ -104,35 +103,13 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
            |""".stripMargin
     }.getOrElse("")
   }
-  def taskInputFiles: List[Input] = {
-    // input files for the task. NB: Does not contain files from the instantiatedCommand
-    val inputFiles: Map[FullyQualifiedName, Seq[WomFile]] =
-      jobDescriptor.fullyQualifiedInputs.safeMapValues(_.collectAsSeq { case w: WomFile => w })
-    //++ instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f.file) }
 
-    val taskInputs: List[Input] = inputFiles.flatMap {
-      case (fullyQualifiedName, files) => files.flatMap(_.flattenFiles).zipWithIndex.map {
-        case (f, index) =>
-          val inputType = f match {
-            case _: WomUnlistedDirectory => "DIRECTORY"
-            case _: WomSingleFile => "FILE"
-            case _: WomGlobFile => "FILE"
-          }
-          mapCommandLineWomFile(f).value
-          Input(
-            name = Option(fullyQualifiedName + "." + index),
-            description = Option(workflowDescriptor.callable.name + "." + fullyQualifiedName + "." + index),
-            url = Option(f.value),
-            path = mapCommandLineWomFile(f).value,
-            `type` = Option(inputType),
-            content = None
-          )
-      }
-    }.toList
-    taskInputs
-  }
-  def getLocalizedSasTokenParams(inputFiles: List[Input]) : Option[LocalizedSasTokenParams] = {
-    val blobFiles: List[ValidBlobPath] = inputFiles.map{
+  def getLocalizedSasTokenParams : Option[LocalizedSasTokenParams] = {
+    val workflowName = workflowDescriptor.callable.name
+    val callInputFiles = jobDescriptor.fullyQualifiedInputs.safeMapValues { _.collectAsSeq { case w: WomFile => w }}
+    val taskInputs: List[Input] = TesTask.buildTaskInputs(callInputFiles, workflowName, mapCommandLineWomFile)
+
+    val blobFiles: List[ValidBlobPath] = taskInputs.map{
       input => BlobPathBuilder.validateBlobPath(input.path)
     }.collect{
       case c: BlobPathBuilder.ValidBlobPath => c

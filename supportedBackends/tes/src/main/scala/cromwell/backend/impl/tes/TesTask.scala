@@ -81,7 +81,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     }
 
   lazy val inputs: Seq[Input] = {
-    val result = TesTask.buildTaskInputs(callInputFiles ++ writeFunctionFiles, workflowName, commandScript, mapCommandLineWomFile)
+    val result = TesTask.buildTaskInputs(callInputFiles ++ writeFunctionFiles, workflowName, mapCommandLineWomFile) ++ Seq(commandScript)
     jobLogger.info(s"Calculated TES inputs (found ${result.size}): " + result.mkString(System.lineSeparator(),System.lineSeparator(),System.lineSeparator()))
     result
   }
@@ -273,7 +273,7 @@ object TesTask {
     )
   }
 
-  def buildTaskInputs(taskFiles: Map[FullyQualifiedName, Seq[WomFile]], workflowName: String, commandScript: Input, womMapFn: WomFile => WomFile): Seq[Input] = {
+  def buildTaskInputs(taskFiles: Map[FullyQualifiedName, Seq[WomFile]], workflowName: String, womMapFn: WomFile => WomFile): List[Input] = {
     taskFiles.flatMap {
       case (fullyQualifiedName, files) => files.flatMap(_.flattenFiles).zipWithIndex.map {
         case (f, index) =>
@@ -291,7 +291,7 @@ object TesTask {
             content = None
           )
       }
-    }.toList ++ Seq(commandScript)
+    }.toList
   }
 
   def makeTags(workflowDescriptor: BackendWorkflowDescriptor): Map[String, Option[String]] = {

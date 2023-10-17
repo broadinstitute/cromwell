@@ -84,6 +84,7 @@ case class BackendWorkflowDescriptor(id: WorkflowId,
   val rootWorkflow = breadCrumbs.headOption.map(_.callable).getOrElse(callable)
   val possiblyNotRootWorkflowId = id.toPossiblyNotRoot
   val rootWorkflowId = breadCrumbs.headOption.map(_.id).getOrElse(id).toRoot
+  val possibleParentWorkflowId = breadCrumbs.lastOption.map(_.id)
 
   override def toString: String = s"[BackendWorkflowDescriptor id=${id.shortString} workflowName=${callable.name}]"
   def getWorkflowOption(key: WorkflowOption) = workflowOptions.get(key).toOption

@@ -128,8 +128,8 @@ trait AwsBatchJobDefinitionBuilder {
       )
     }
 
-    def buildName(imageName: String, packedCommand: String, volumes: List[Volume], mountPoints: List[MountPoint], env: Seq[KeyValuePair]): String = {
-      val str = s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints.map(_.toString).mkString(",")}:${env.map(_.toString).mkString(",")}"
+    def buildName(imageName: String, packedCommand: String, volumes: List[Volume], mountPoints: List[MountPoint], env: Seq[KeyValuePair], logsGroup: String): String = {
+      val str = s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints.map(_.toString).mkString(",")}:${env.map(_.toString).mkString(",")}:$logsGroup"
 
       val sha1 = MessageDigest.getInstance("SHA-1")
             .digest( str.getBytes("UTF-8") )
@@ -161,7 +161,8 @@ trait AwsBatchJobDefinitionBuilder {
       packedCommand.mkString(","),
       volumes,
       mountPoints,
-      environment
+      environment,
+      context.runtimeAttributes.logsGroup
     )
 
     (builder

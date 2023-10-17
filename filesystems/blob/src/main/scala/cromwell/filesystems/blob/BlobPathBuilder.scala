@@ -185,6 +185,10 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
     * @return Path string relative to the container root.
     */
   def pathWithoutContainer : String = pathString
-  
+
+  def parseTerraWorkspaceIdFromPath: Option[String] = {
+    if(container.value.startsWith("sc-")) Option(container.value.substring(3)) else None
+  }
+
   override def getSymlinkSafePath(options: LinkOption*): Path  = toAbsolutePath
 }

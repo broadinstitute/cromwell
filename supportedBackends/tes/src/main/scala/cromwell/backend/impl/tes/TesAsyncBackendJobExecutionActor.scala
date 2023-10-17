@@ -1,10 +1,5 @@
 package cromwell.backend.impl.tes
 
-import common.exception.AggregatedMessageException
-
-import java.io.FileNotFoundException
-import java.nio.file.FileAlreadyExistsException
-import cats.syntax.apply._
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.Marshal
@@ -13,6 +8,9 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
+import cats.syntax.apply._
+import common.collections.EnhancedCollections._
+import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.backend.BackendJobLifecycleActor
@@ -20,16 +18,19 @@ import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNo
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.retry.Retry._
-import cromwell.filesystems.blob.BlobPath
+import cromwell.core.retry.SimpleExponentialBackoff
+import cromwell.filesystems.blob.BlobPathBuilder.ValidBlobPath
+import cromwell.filesystems.blob.{BlobPath, BlobPathBuilder}
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
-import wom.values.WomFile
 import net.ceedubs.ficus.Ficus._
+import wdl.draft2.model.FullyQualifiedName
+import wom.values.{WomFile, _}
 
+import java.io.FileNotFoundException
+import java.nio.file.FileAlreadyExistsException
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
-
 sealed trait TesRunStatus {
   def isTerminal: Boolean
   def sysLogs: Seq[String] = Seq.empty[String]
@@ -61,6 +62,9 @@ object TesAsyncBackendJobExecutionActor {
   val JobIdKey = "tes_job_id"
 }
 
+case class LocalizedSasTokenParams(wsmEndpoint: String, blobContainer: String, workspaceId: String)
+
+case
 class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends BackendJobLifecycleActor with StandardAsyncExecutionActor with TesJobCachingActorHelper {
   implicit val actorSystem = context.system
@@ -88,6 +92,58 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         .getAs[String]("output-mode")
         .getOrElse("granular").toUpperCase
     )
+  }
+
+  override def scriptPreamble: String = {
+    super.scriptPreamble ++ getLocalizedSasTokenParams(taskInputFiles).map{
+      localizedSasParams =>
+        s"""
+           |blobPath="${localizedSasParams.blobContainer}"
+           |WORKSPACE_ID="${localizedSasParams.workspaceId}"
+           |WSM_ENDPOINT="${localizedSasParams.wsmEndpoint}"
+           |""".stripMargin
+    }.getOrElse("")
+  }
+  def taskInputFiles: List[Input] = {
+    // input files for the task. NB: Does not contain files from the instantiatedCommand
+    val inputFiles: Map[FullyQualifiedName, Seq[WomFile]] =
+      jobDescriptor.fullyQualifiedInputs.safeMapValues(_.collectAsSeq { case w: WomFile => w })
+    //++ instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f.file) }
+
+    val taskInputs: List[Input] = inputFiles.flatMap {
+      case (fullyQualifiedName, files) => files.flatMap(_.flattenFiles).zipWithIndex.map {
+        case (f, index) =>
+          val inputType = f match {
+            case _: WomUnlistedDirectory => "DIRECTORY"
+            case _: WomSingleFile => "FILE"
+            case _: WomGlobFile => "FILE"
+          }
+          mapCommandLineWomFile(f).value
+          Input(
+            name = Option(fullyQualifiedName + "." + index),
+            description = Option(workflowDescriptor.callable.name + "." + fullyQualifiedName + "." + index),
+            url = Option(f.value),
+            path = mapCommandLineWomFile(f).value,
+            `type` = Option(inputType),
+            content = None
+          )
+      }
+    }.toList
+    taskInputs
+  }
+  def getLocalizedSasTokenParams(inputFiles: List[Input]) : Option[LocalizedSasTokenParams] = {
+    val blobFiles: List[ValidBlobPath] = inputFiles.map{
+      input => BlobPathBuilder.validateBlobPath(input.path)
+    }.collect{
+      case c: BlobPathBuilder.ValidBlobPath => c
+    }
+    val shouldLocalizeSas = true //TODO: Make this a Workflow Option or come from the WDL
+    if(!shouldLocalizeSas || blobFiles.isEmpty) return None
+    val templateBlobFile = blobFiles.head
+    val container = templateBlobFile.container
+    val maybeWorkspaceId = Option("1234")
+    val wsmEndpoint = "1234"
+    maybeWorkspaceId.map(workspaceId => LocalizedSasTokenParams(wsmEndpoint, container.value, workspaceId))
   }
 
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
@@ -173,7 +229,6 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   override def executeAsync(): Future[ExecutionHandle] = {
-
     // create call exec dir
     tesJobPaths.callExecutionRoot.createPermissionedDirectories()
     val taskMessageFuture = createTaskMessage().fold(

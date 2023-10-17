@@ -9,13 +9,14 @@ import net.ceedubs.ficus.Ficus._
 
 import scala.language.postfixOps
 import scala.util.Try
-
 import wdl.draft2.model.FullyQualifiedName
 import wdl4s.parser.MemoryUnit
 import wom.InstantiatedCommand
 import wom.callable.Callable.OutputDefinition
 import wom.expression.NoIoFunctionSet
 import wom.values._
+
+import scala.collection.immutable.Map
 
 final case class WorkflowExecutionIdentityConfig(value: String) {override def toString: String = value.toString}
 final case class WorkflowExecutionIdentityOption(value: String) {override def toString: String = value}
@@ -80,24 +81,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     }
 
   lazy val inputs: Seq[Input] = {
-    val result = (callInputFiles ++ writeFunctionFiles).flatMap {
-      case (fullyQualifiedName, files) => files.flatMap(_.flattenFiles).zipWithIndex.map {
-        case (f, index) =>
-          val inputType = f match {
-            case _: WomUnlistedDirectory => "DIRECTORY"
-            case _: WomSingleFile => "FILE"
-            case _: WomGlobFile => "FILE"
-          }
-          Input(
-            name = Option(fullyQualifiedName + "." + index),
-            description = Option(workflowName + "." + fullyQualifiedName + "." + index),
-            url = Option(f.value),
-            path = mapCommandLineWomFile(f).value,
-            `type` = Option(inputType),
-            content = None
-          )
-      }
-    }.toList ++ Seq(commandScript)
+    val result = TesTask.buildTaskInputs(callInputFiles ++ writeFunctionFiles, workflowName, commandScript, mapCommandLineWomFile)
     jobLogger.info(s"Calculated TES inputs (found ${result.size}): " + result.mkString(System.lineSeparator(),System.lineSeparator(),System.lineSeparator()))
     result
   }
@@ -285,6 +269,27 @@ object TesTask {
       zones = None,
       backend_parameters = Option(backendParameters)
     )
+  }
+
+  def buildTaskInputs(taskFiles: Map[FullyQualifiedName, Seq[WomFile]], workflowName: String, commandScript: Input, womMapFn: WomFile => WomFile): Seq[Input] = {
+    taskFiles.flatMap {
+      case (fullyQualifiedName, files) => files.flatMap(_.flattenFiles).zipWithIndex.map {
+        case (f, index) =>
+          val inputType = f match {
+            case _: WomUnlistedDirectory => "DIRECTORY"
+            case _: WomSingleFile => "FILE"
+            case _: WomGlobFile => "FILE"
+          }
+          Input(
+            name = Option(fullyQualifiedName + "." + index),
+            description = Option(workflowName + "." + fullyQualifiedName + "." + index),
+            url = Option(f.value),
+            path = womMapFn(f).value,
+            `type` = Option(inputType),
+            content = None
+          )
+      }
+    }.toList ++ Seq(commandScript)
   }
 
   def makeTask(tesTask: TesTask): Task = {

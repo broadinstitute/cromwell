@@ -178,10 +178,7 @@ case class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClient
     * @return an AzureSasCredential for accessing a blob container
     */
   def generateBlobSasToken(endpoint: EndpointURL, container: BlobContainerName): Try[AzureSasCredential] = {
-    val wsmAuthToken: Try[String] = overrideWsmAuthToken match {
-      case Some(t) => Success(t)
-      case None => AzureCredentials.getAccessToken(None).toTry
-    }
+    val wsmAuthToken: Try[String] = getWsmAuth
     container.workspaceId match {
       // If this is a Terra workspace, request a token from WSM
       case Success(workspaceId) => {
@@ -204,6 +201,13 @@ case class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClient
  def getContainerResourceId(workspaceId: UUID, container: BlobContainerName, wsmAuth : String): Try[UUID] = {
     val wsmResourceClient = wsmClientProvider.getResourceApi(wsmAuth)
     wsmResourceClient.findContainerResourceId(workspaceId, container)
+  }
+
+  def getWsmAuth: Try[String] = {
+    overrideWsmAuthToken match {
+      case Some(t) => Success(t)
+      case None => AzureCredentials.getAccessToken(None).toTry
+    }
   }
 }
 

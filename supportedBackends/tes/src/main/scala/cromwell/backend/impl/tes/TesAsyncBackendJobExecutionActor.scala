@@ -29,7 +29,7 @@ import wom.values.WomFile
 import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 sealed trait TesRunStatus {
   def isTerminal: Boolean
   def sysLogs: Seq[String] = Seq.empty[String]
@@ -74,7 +74,6 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override type StandardAsyncRunState = TesRunStatus
 
   def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
-
   override lazy val pollBackOff: SimpleExponentialBackoff = tesConfiguration.pollBackoff
   override lazy val executeOrRecoverBackOff: SimpleExponentialBackoff = tesConfiguration.executeOrRecoverBackoff
 
@@ -105,6 +104,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   def getLocalizedSasTokenParams : Option[LocalizedSasTokenParams] = {
+
     val workflowName = workflowDescriptor.callable.name
     val callInputFiles = jobDescriptor.fullyQualifiedInputs.safeMapValues { _.collectAsSeq { case w: WomFile => w }}
     val taskInputs: List[Input] = TesTask.buildTaskInputs(callInputFiles, workflowName, mapCommandLineWomFile)
@@ -114,13 +114,20 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }.collect{
       case c: BlobPathBuilder.ValidBlobPath => c
     }
+
     val shouldLocalizeSas = true //TODO: Make this a Workflow Option or come from the WDL
     if(!shouldLocalizeSas || blobFiles.isEmpty) return None
     val templateBlobFile = blobFiles.head
+    val initialPath: Try[Path] = getPath(templateBlobFile.path)
+    val blobPath: Option[BlobPath] = initialPath.get match {
+      case blob: BlobPath => Option(blob)
+      case _: Any => None
+    }
+
     val container = templateBlobFile.container
-    val maybeWorkspaceId = Option("1234")
+    val maybeWorkspaceId = blobPath
     val wsmEndpoint = "1234"
-    maybeWorkspaceId.map(workspaceId => LocalizedSasTokenParams(wsmEndpoint, container.value, workspaceId))
+    maybeWorkspaceId.map(workspaceId => LocalizedSasTokenParams(wsmEndpoint, container.value, blobPath.get.containerWSMResourceId.get.toString))
   }
 
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {

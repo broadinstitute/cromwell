@@ -8,10 +8,9 @@ import wom.format.MemorySize
 
 trait BatchUtilityConversions {
 
-
   // construct zones string
   def toZonesPath(zones: Vector[String]): String = {
-    "zones/" + zones.mkString(",")
+    zones.map(zone => "zones/" + zone).mkString(" ")
   }
 
   // lowercase text to match gcp label requirements

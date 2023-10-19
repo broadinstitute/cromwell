@@ -193,29 +193,23 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
     if(container.value.startsWith("sc-")) Try(UUID.fromString(container.value.substring(3))) else Failure(new Exception("Could not parse workspace ID from storage container"))
   }
 
-  def containerWSMResourceId: Try[UUID] = {
-    val wsmGenerator: Option[WSMBlobSasTokenGenerator] = fsm.blobTokenGenerator match {
-      case wsmGenerator: WSMBlobSasTokenGenerator => Option(wsmGenerator)
-      case _: Any => None
+  private def getWSMTokenGenerator: Try[WSMBlobSasTokenGenerator] = {
+    fsm.blobTokenGenerator match {
+      case wsmGenerator: WSMBlobSasTokenGenerator => Try(wsmGenerator)
+      case _: Any => Failure(new NoSuchElementException("This blob file does not have an associated WSMBlobSasTokenGenerator"))
     }
-    val workspaceId: Try[UUID] = parseTerraWorkspaceIdFromPath
-    val wsmAuth: Try[String] = wsmGenerator.get.getWsmAuth
-
-    Try(wsmGenerator.get.getContainerResourceId(workspaceId.get, container, wsmAuth.get)).flatten
+  }
+  def containerWSMResourceId: Try[UUID] = {
+    for {
+      generator <- getWSMTokenGenerator
+      workspaceId <- parseTerraWorkspaceIdFromPath
+      wsmAuth <- generator.getWsmAuth
+      resourceId <- generator.getContainerResourceId(workspaceId, container, wsmAuth)
+    } yield resourceId
   }
 
   def wsmEndpoint: Try[String] = {
-    val wsmGenerator: Option[WSMBlobSasTokenGenerator] = fsm.blobTokenGenerator match {
-      case wsmGenerator: WSMBlobSasTokenGenerator => Option(wsmGenerator)
-      case _: Any => None
-    }
-    val maybeEndpoint = wsmGenerator.map{generator =>
-      generator.wsmClientProvider.getBaseWorkspaceManagerUrl
-    }
-    maybeEndpoint match {
-      case endpoint: Some[String] => Try(endpoint.value)
-      case _ => Failure(new NoSuchElementException("Could not determine WSM API endpoint."))
-    }
+    getWSMTokenGenerator.map(generator => generator.wsmClientProvider.getBaseWorkspaceManagerUrl)
   }
 
   override def getSymlinkSafePath(options: LinkOption*): Path  = toAbsolutePath

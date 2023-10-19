@@ -70,39 +70,39 @@ object TesAsyncBackendJobExecutionActor {
   }
 
   /* Under certain situations (and only on Terra), we want the VM running a TES task to have the ability to acquire a
-   * fresh SaS token for itself. In order to be able to do this, we must provide the task execution script with a
-   * WSM endpoint, WorkspaceID, and container resource ID. The task VM will use the user assigned managed identity that
-   * it is running as in order to authenticate.
+   * fresh sas token for itself. In order to be able to do this, we provide it with a precomputed endpoint it can use.
+   * This endpoint will contain the WSM root, WorkspaceID, and container resource ID.
+   * The task VM will use the user assigned managed identity that it is running as in order to authenticate.
    */
-  def getLocalizedSasTokenParams(taskInputs: List[Input], pathGetter: String => Try[Path]): Option[LocalizedSasTokenParams] = {
+  def getLocalizedSasTokenParams(taskInputs: List[Input], pathGetter: String => Try[Path]): Option[String] = {
     val shouldLocalizeSas = true //TODO: Make this a Workflow Option or come from the WDL
-    if (!shouldLocalizeSas || taskInputs.isEmpty) return None
+    if (!shouldLocalizeSas) return None
 
-    val templateInput = taskInputs.head
-    val templateValidatedBlob = BlobPathBuilder.validateBlobPath(templateInput.url.getOrElse("NotValid"))
-    if(templateValidatedBlob.equals("")) return None
-
-    val blobFiles: List[ValidBlobPath] = taskInputs.map {
-      input => BlobPathBuilder.validateBlobPath(input.url.getOrElse("NotValid"))
-    }.collect {
-      case c: BlobPathBuilder.ValidBlobPath => c
+    val blobFiles = taskInputs.collect{ //Collect all inputs with URLs defined as (in)valid blob paths
+      case input if input.url.isDefined => BlobPathBuilder.validateBlobPath(input.url.get)
+    }.collect{ //Collect only the valid blob paths
+      case valid: BlobPathBuilder.ValidBlobPath => valid
     }
 
-    val templateBlobFile = blobFiles.head
-    val url = templateBlobFile.toUrl
-    val initialPath: Try[Path] = pathGetter(url)
-    val blobPath: Option[BlobPath] = initialPath.get match {
-      case blob: BlobPath => Option(blob)
+    if(blobFiles.isEmpty) return None
+    //We use the first blob file in the list as a template for determining the localized sas params
+    val blobPath: Try[BlobPath] = pathGetter(blobFiles.head.toUrl).getOrElse(None) match {
+      case blob: BlobPath => Try(blob)
+      case _: Any => Failure(new UnsupportedOperationException("Could not convert path into Blob path"))
+    }
+
+    val sasTokenEndpoint = for {
+      blob <- blobPath
+      wsmEndpoint <- blob.wsmEndpoint
+      workspaceId <- blob.parseTerraWorkspaceIdFromPath
+      containerResourceId <- blob.containerWSMResourceId
+      endpoint = s"$wsmEndpoint/$workspaceId/resources/controlled/azure/storageContainer/$containerResourceId/getSasToken"
+    } yield endpoint
+
+    sasTokenEndpoint match {
+      case good: Success[String] => Some(good.value)
       case _: Any => None
     }
-
-    val uuid: Try[UUID] = blobPath.get.containerWSMResourceId
-    if(!uuid.isSuccess) return None
-    val container = templateBlobFile.container
-    val maybeWorkspaceId = blobPath
-    val tryWsm = blobPath.get.wsmEndpoint
-    val wsmEndpoint = tryWsm.getOrElse("invalid")
-    maybeWorkspaceId.map(workspaceId => LocalizedSasTokenParams(wsmEndpoint, container.value, blobPath.get.containerWSMResourceId.get.toString))
   }
 }
 

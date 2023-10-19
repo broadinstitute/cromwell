@@ -29,6 +29,7 @@ import wom.values.WomFile
 
 import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
+import java.util.UUID
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 sealed trait TesRunStatus {
@@ -67,6 +68,12 @@ object TesAsyncBackendJobExecutionActor {
        |CONTAINER_RESOURCE_ID="${sasParams.containerResourceId}"
        |""".stripMargin
   }
+
+  /* Under certain situations (and only on Terra), we want the VM running a TES task to have the ability to acquire a
+   * fresh SaS token for itself. In order to be able to do this, we must provide the task execution script with a
+   * WSM endpoint, WorkspaceID, and container resource ID. The task VM will use the user assigned managed identity that
+   * it is running as in order to authenticate.
+   */
   def getLocalizedSasTokenParams(taskInputs: List[Input], pathGetter: String => Try[Path]): Option[LocalizedSasTokenParams] = {
     val shouldLocalizeSas = true //TODO: Make this a Workflow Option or come from the WDL
     if (!shouldLocalizeSas || taskInputs.isEmpty) return None
@@ -89,9 +96,12 @@ object TesAsyncBackendJobExecutionActor {
       case _: Any => None
     }
 
+    val uuid: Try[UUID] = blobPath.get.containerWSMResourceId
+    if(!uuid.isSuccess) return None
     val container = templateBlobFile.container
     val maybeWorkspaceId = blobPath
-    val wsmEndpoint = "1234"
+    val tryWsm = blobPath.get.wsmEndpoint
+    val wsmEndpoint = tryWsm.getOrElse("invalid")
     maybeWorkspaceId.map(workspaceId => LocalizedSasTokenParams(wsmEndpoint, container.value, blobPath.get.containerWSMResourceId.get.toString))
   }
 }

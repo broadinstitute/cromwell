@@ -20,6 +20,7 @@ import scala.util.Try
 trait WorkspaceManagerApiClientProvider {
   def getControlledAzureResourceApi(token: String): WsmControlledAzureResourceApi
   def getResourceApi(token: String): WsmResourceApi
+  def getBaseWorkspaceManagerUrl: String
 }
 
 class HttpWorkspaceManagerClientProvider(baseWorkspaceManagerUrl: WorkspaceManagerURL) extends WorkspaceManagerApiClientProvider {
@@ -39,6 +40,10 @@ class HttpWorkspaceManagerClientProvider(baseWorkspaceManagerUrl: WorkspaceManag
     val apiClient = getApiClient
     apiClient.setAccessToken(token)
     WsmControlledAzureResourceApi(new ControlledAzureResourceApi(apiClient))
+  }
+
+  def getBaseWorkspaceManagerUrl: String = {
+    baseWorkspaceManagerUrl.value
   }
 }
 

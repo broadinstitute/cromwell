@@ -194,15 +194,28 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
   }
 
   def containerWSMResourceId: Try[UUID] = {
-
     val wsmGenerator: Option[WSMBlobSasTokenGenerator] = fsm.blobTokenGenerator match {
-      case wsmGenerator: WSMBlobSasTokenGenerator    => Option(wsmGenerator)
+      case wsmGenerator: WSMBlobSasTokenGenerator => Option(wsmGenerator)
       case _: Any => None
     }
     val workspaceId: Try[UUID] = parseTerraWorkspaceIdFromPath
     val wsmAuth: Try[String] = wsmGenerator.get.getWsmAuth
 
     Try(wsmGenerator.get.getContainerResourceId(workspaceId.get, container, wsmAuth.get)).flatten
+  }
+
+  def wsmEndpoint: Try[String] = {
+    val wsmGenerator: Option[WSMBlobSasTokenGenerator] = fsm.blobTokenGenerator match {
+      case wsmGenerator: WSMBlobSasTokenGenerator => Option(wsmGenerator)
+      case _: Any => None
+    }
+    val maybeEndpoint = wsmGenerator.map{generator =>
+      generator.wsmClientProvider.getBaseWorkspaceManagerUrl
+    }
+    maybeEndpoint match {
+      case endpoint: Some[String] => Try(endpoint.value)
+      case _ => Failure(new NoSuchElementException("Could not determine WSM API endpoint."))
+    }
   }
 
   override def getSymlinkSafePath(options: LinkOption*): Path  = toAbsolutePath

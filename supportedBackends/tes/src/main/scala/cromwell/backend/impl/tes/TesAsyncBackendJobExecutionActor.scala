@@ -15,6 +15,7 @@ import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.backend.BackendJobLifecycleActor
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
+import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{generateLocalizedSasScriptPreammble, getLocalizedSasTokenParams}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -59,9 +60,43 @@ case object Cancelled extends TesRunStatus {
 
 object TesAsyncBackendJobExecutionActor {
   val JobIdKey = "tes_job_id"
+  def generateLocalizedSasScriptPreammble(sasParams: LocalizedSasTokenParams) : String = {
+    s"""
+       |WSM_ENDPOINT="${sasParams.wsmEndpoint}"
+       |WORKSPACE_ID="${sasParams.workspaceId}"
+       |CONTAINER_RESOURCE_ID="${sasParams.containerResourceId}"
+       |""".stripMargin
+  }
+  def getLocalizedSasTokenParams(taskInputs: List[Input], pathGetter: String => Try[Path]): Option[LocalizedSasTokenParams] = {
+    val shouldLocalizeSas = true //TODO: Make this a Workflow Option or come from the WDL
+    if (!shouldLocalizeSas || taskInputs.isEmpty) return None
+
+    val templateInput = taskInputs.head
+    val templateValidatedBlob = BlobPathBuilder.validateBlobPath(templateInput.url.getOrElse("NotValid"))
+    if(templateValidatedBlob.equals("")) return None
+
+    val blobFiles: List[ValidBlobPath] = taskInputs.map {
+      input => BlobPathBuilder.validateBlobPath(input.url.getOrElse("NotValid"))
+    }.collect {
+      case c: BlobPathBuilder.ValidBlobPath => c
+    }
+
+    val templateBlobFile = blobFiles.head
+    val url = templateBlobFile.toUrl
+    val initialPath: Try[Path] = pathGetter(url)
+    val blobPath: Option[BlobPath] = initialPath.get match {
+      case blob: BlobPath => Option(blob)
+      case _: Any => None
+    }
+
+    val container = templateBlobFile.container
+    val maybeWorkspaceId = blobPath
+    val wsmEndpoint = "1234"
+    maybeWorkspaceId.map(workspaceId => LocalizedSasTokenParams(wsmEndpoint, container.value, blobPath.get.containerWSMResourceId.get.toString))
+  }
 }
 
-case class LocalizedSasTokenParams(wsmEndpoint: String, blobContainer: String, workspaceId: String)
+case class LocalizedSasTokenParams(wsmEndpoint: String, workspaceId: String, containerResourceId: String)
 
 case
 class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
@@ -93,41 +128,14 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   override def scriptPreamble: String = {
-    super.scriptPreamble ++ getLocalizedSasTokenParams.map{
-      localizedSasParams =>
-        s"""
-           |blobPath="${localizedSasParams.blobContainer}"
-           |WORKSPACE_ID="${localizedSasParams.workspaceId}"
-           |WSM_ENDPOINT="${localizedSasParams.wsmEndpoint}"
-           |""".stripMargin
-    }.getOrElse("")
-  }
-
-  def getLocalizedSasTokenParams : Option[LocalizedSasTokenParams] = {
-
     val workflowName = workflowDescriptor.callable.name
-    val callInputFiles = jobDescriptor.fullyQualifiedInputs.safeMapValues { _.collectAsSeq { case w: WomFile => w }}
+    val callInputFiles = jobDescriptor.fullyQualifiedInputs.safeMapValues {
+      _.collectAsSeq { case w: WomFile => w }
+    }
     val taskInputs: List[Input] = TesTask.buildTaskInputs(callInputFiles, workflowName, mapCommandLineWomFile)
-
-    val blobFiles: List[ValidBlobPath] = taskInputs.map{
-      input => BlobPathBuilder.validateBlobPath(input.path)
-    }.collect{
-      case c: BlobPathBuilder.ValidBlobPath => c
-    }
-
-    val shouldLocalizeSas = true //TODO: Make this a Workflow Option or come from the WDL
-    if(!shouldLocalizeSas || blobFiles.isEmpty) return None
-    val templateBlobFile = blobFiles.head
-    val initialPath: Try[Path] = getPath(templateBlobFile.path)
-    val blobPath: Option[BlobPath] = initialPath.get match {
-      case blob: BlobPath => Option(blob)
-      case _: Any => None
-    }
-
-    val container = templateBlobFile.container
-    val maybeWorkspaceId = blobPath
-    val wsmEndpoint = "1234"
-    maybeWorkspaceId.map(workspaceId => LocalizedSasTokenParams(wsmEndpoint, container.value, blobPath.get.containerWSMResourceId.get.toString))
+    super.scriptPreamble ++ getLocalizedSasTokenParams(taskInputs, getPath).map{
+      sasParams => generateLocalizedSasScriptPreammble(sasParams)
+    }.getOrElse("")
   }
 
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {

@@ -15,7 +15,9 @@ import scala.util.{Failure, Success, Try}
 object BlobPathBuilder {
   private val blobHostnameSuffix = ".blob.core.windows.net"
   sealed trait BlobPathValidation
-  case class ValidBlobPath(path: String, container: BlobContainerName, endpoint: EndpointURL) extends BlobPathValidation
+  case class ValidBlobPath(path: String, container: BlobContainerName, endpoint: EndpointURL) extends BlobPathValidation {
+    def toUrl: String = endpoint.value + "/" + container.value + path
+  }
   case class UnparsableBlobPath(errorMessage: Throwable) extends BlobPathValidation
 
   def invalidBlobHostMessage(endpoint: EndpointURL) = s"Malformed Blob URL for this builder: The endpoint $endpoint doesn't contain the expected host string '{SA}.blob.core.windows.net/'"

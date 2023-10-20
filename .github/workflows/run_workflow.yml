@@ -33,6 +33,7 @@ jobs:
       branch: ${{ steps.extract-inputs.outputs.branch }}
       owner-subject: ${{ steps.extract-inputs.outputs.owner-subject }}
       service-account: ${{ steps.extract-inputs.outputs.service-account }}
+      bee-name: 'cromwell-6591295034-1-dev' #'${{ github.event.repository.name }}-${{ github.run_id }}-${{ github.run_attempt}}-dev'
     steps:
 #       NOTE: below was included in the rawls template but seems redundant due to defined values up on top
 #       Remove if it ends up being unecessary
@@ -43,8 +44,7 @@ jobs:
           echo "owner-subject=${{ inputs.owner-subject || 'hermione.owner@quality.firecloud.org' }}" >> "$GITHUB_OUTPUT"
           echo "service-account=${{ inputs.service-account || 'firecloud-qa@broad-dsde-qa.iam.gserviceaccount.com' }}" >> "$GITHUB_OUTPUT"
 
-  # This job provisions useful parameters for e2e tests, including access tokens.
-  # Please note: access tokens are for use in the same workflow, they cannot be dispatched to remote workflows.
+  # This job provisions useful parameters for e2e tests
   params-gen:
     runs-on: ubuntu-latest
     permissions:
@@ -96,7 +96,6 @@ jobs:
             "service-account": "${{needs.init-github-context.outputs.service-account}}" }'
 
   run-cromwell-az-e2e:
-    runs-on: ubuntu-latest
     needs: [init-github-context, params-gen, create-and-attach-billing-project-to-landing-zone-workflow]
     permissions:
       contents: read
@@ -104,7 +103,7 @@ jobs:
     uses: "broadinstitute/dsp-reusable-workflows/.github/workflows/cromwell-az-e2e-test.yaml@${{ needs.init-github-context.outputs.branch }}"
     with:
       branch: "${{ needs.init-github-context.outputs.branch }}"
-      bee-name: "${{ env.BEE_NAME }}"
+      bee-name: "${{ needs.init-github-context.outputs.bee-name }}"
       billing-project-name: "${{ needs.params-gen.outputs.project-name }}"
 
   delete-billing-project-v2-from-bee-workflow:

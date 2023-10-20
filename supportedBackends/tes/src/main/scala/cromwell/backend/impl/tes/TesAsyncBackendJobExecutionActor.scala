@@ -15,13 +15,12 @@ import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.backend.BackendJobLifecycleActor
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
-import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{generateLocalizedSasScriptPreammble, getLocalizedSasTokenParams}
+import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{generateLocalizedSasScriptPreammble, determineWSMSasEndpointFromInputs}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.Retry._
 import cromwell.core.retry.SimpleExponentialBackoff
-import cromwell.filesystems.blob.BlobPathBuilder.ValidBlobPath
 import cromwell.filesystems.blob.{BlobPath, BlobPathBuilder}
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import net.ceedubs.ficus.Ficus._
@@ -29,7 +28,6 @@ import wom.values.WomFile
 
 import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
-import java.util.UUID
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 sealed trait TesRunStatus {
@@ -61,20 +59,36 @@ case object Cancelled extends TesRunStatus {
 
 object TesAsyncBackendJobExecutionActor {
   val JobIdKey = "tes_job_id"
-  def generateLocalizedSasScriptPreammble(sasParams: LocalizedSasTokenParams) : String = {
+  def generateLocalizedSasScriptPreammble(getSasWsmEndpoint: String) : String = {
+    // BEARER_TOKEN: https://learn.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http
+    // NB: Scala string interpolation and bash variable substitution use similar syntax. $$ is an escaped $, much like \\ is an escaped \.
+    // NB: For easier debugging/logging, we echo the first 4 characters of the acquired sas token. If something goes wrong with the curl, these will be "null"
     s"""
-       |WSM_ENDPOINT="${sasParams.wsmEndpoint}"
-       |WORKSPACE_ID="${sasParams.workspaceId}"
-       |CONTAINER_RESOURCE_ID="${sasParams.containerResourceId}"
+       |apt-get install jq
+       |apt-get install curl
+       |BEARER_TOKEN=$$(curl 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fmanagement.azure.com%2F' -H Metadata:true -s | jq .access_token)
+       |echo "Acquired bearer token:"
+       |echo $${BEARER_TOKEN:0:4}
+       |GET_SAS_ENDPOINT=$getSasWsmEndpoint
+       |sas_response_json=$$(curl -s \\
+       |                    --retry 3 \\
+       |                    --retry-delay 2 \\
+       |                    -X POST "$$GET_SAS_ENDPOINT" \\
+       |                    -H "Content-Type: application/json" \\
+       |                    -H "accept: */*" \\
+       |                    -H "Authorization: Bearer $${BEARER_TOKEN}")
+       |export AZURE_STORAGE_SAS_TOKEN=$$(echo "$${sas_response_json}" | jq -r '.token')
+       |echo Acquired sas token:
+       |echo $${AZURE_STORAGE_SAS_TOKEN:0:4}
        |""".stripMargin
   }
 
   /* Under certain situations (and only on Terra), we want the VM running a TES task to have the ability to acquire a
    * fresh sas token for itself. In order to be able to do this, we provide it with a precomputed endpoint it can use.
-   * This endpoint will contain the WSM root, WorkspaceID, and container resource ID.
    * The task VM will use the user assigned managed identity that it is running as in order to authenticate.
+   * We only return a value if //TODO and if at least one blob storage file is provided as a task input.
    */
-  def getLocalizedSasTokenParams(taskInputs: List[Input], pathGetter: String => Try[Path]): Option[String] = {
+  def determineWSMSasEndpointFromInputs(taskInputs: List[Input], pathGetter: String => Try[Path]): Option[String] = {
     val shouldLocalizeSas = true //TODO: Make this a Workflow Option or come from the WDL
     if (!shouldLocalizeSas) return None
 
@@ -86,9 +100,8 @@ object TesAsyncBackendJobExecutionActor {
 
     if(blobFiles.isEmpty) return None
     //We use the first blob file in the list as a template for determining the localized sas params
-    val blobPath: Try[BlobPath] = pathGetter(blobFiles.head.toUrl).getOrElse(None) match {
-      case blob: BlobPath => Try(blob)
-      case _: Any => Failure(new UnsupportedOperationException("Could not convert path into Blob path"))
+    val blobPath: Try[BlobPath] = pathGetter(blobFiles.head.toUrl).collect{
+      case blob: BlobPath => blob
     }
 
     val sasTokenEndpoint = for {
@@ -143,8 +156,8 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       _.collectAsSeq { case w: WomFile => w }
     }
     val taskInputs: List[Input] = TesTask.buildTaskInputs(callInputFiles, workflowName, mapCommandLineWomFile)
-    super.scriptPreamble ++ getLocalizedSasTokenParams(taskInputs, getPath).map{
-      sasParams => generateLocalizedSasScriptPreammble(sasParams)
+    super.scriptPreamble ++ determineWSMSasEndpointFromInputs(taskInputs, getPath).map{
+      endpoint => generateLocalizedSasScriptPreammble(endpoint)
     }.getOrElse("")
   }
 

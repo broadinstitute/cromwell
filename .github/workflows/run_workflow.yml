@@ -99,13 +99,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [init-github-context, params-gen, create-and-attach-billing-project-to-landing-zone-workflow]
     steps:
-      - uses: 'actions/checkout@v3'
       - name: Run Cromwell E2E tests on Azure
         uses: broadinstitute/workflow-dispatch@v3
         with:
             workflow: cromwell-az-e2e-test.yaml
             repo: broadinstitute/dsp-reusable-workflows
-            ref: refs/heads/${{ needs.init-github-context.outputs.branch }}
+            ref: ${{ needs.init-github-context.outputs.branch }}
             token: ${{ env.BROADBOT_TOKEN }}
             inputs: '{
               "branch": "${{ needs.init-github-context.outputs.branch }}",

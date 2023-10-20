@@ -22,7 +22,7 @@ on:
         type: string
 
 env:
-  BEE_NAME: '${{ github.event.repository.name }}-${{ github.run_id }}-${{ github.run_attempt}}-dev'
+  BEE_NAME: 'cromwell-6591295034-1-dev' #'${{ github.event.repository.name }}-${{ github.run_id }}-${{ github.run_attempt}}-dev'
   BROADBOT_TOKEN: '${{ secrets.BROADBOT_GITHUB_TOKEN }}' # github token for access to kick off a job in the private repo
   RUN_NAME_SUFFIX: '${{ github.event.repository.name }}-${{ github.run_id }}-${{ github.run_attempt }}'
 
@@ -59,27 +59,27 @@ jobs:
           project_name=$(echo "tmp-billing-project-$(uuidgen)" | cut -c -30)
           echo "project_name=${project_name}" >> $GITHUB_OUTPUT
   
-  create-bee-workflow:
-    runs-on: ubuntu-latest
-    needs: [init-github-context, params-gen]
-    permissions:
-      contents: 'read'
-      id-token: 'write'
-    steps:
-      - name: Dispatch to terra-github-workflows
-        uses: broadinstitute/workflow-dispatch@v3
-        with:
-          workflow: bee-create
-          repo: broadinstitute/terra-github-workflows
-          ref: refs/heads/main
-          token: ${{ env.BROADBOT_TOKEN }}
-          # NOTE: Opting to use "prod" instead of custom tag since I specifically want to test against the current prod state
-          # NOTE: For testing/development purposes I'm using dev
-          inputs: '{ "bee-name": "${{ env.BEE_NAME }}", "version-template": "dev", "bee-template-name": "rawls-e2e-azure-tests"}'
+  # create-bee-workflow:
+  #   runs-on: ubuntu-latest
+  #   needs: [init-github-context, params-gen]
+  #   permissions:
+  #     contents: 'read'
+  #     id-token: 'write'
+  #   steps:
+  #     - name: Dispatch to terra-github-workflows
+  #       uses: broadinstitute/workflow-dispatch@v3
+  #       with:
+  #         workflow: bee-create
+  #         repo: broadinstitute/terra-github-workflows
+  #         ref: refs/heads/main
+  #         token: ${{ env.BROADBOT_TOKEN }}
+  #         # NOTE: Opting to use "prod" instead of custom tag since I specifically want to test against the current prod state
+  #         # NOTE: For testing/development purposes I'm using dev
+  #         inputs: '{ "bee-name": "${{ env.BEE_NAME }}", "version-template": "dev", "bee-template-name": "rawls-e2e-azure-tests"}'
   
   create-and-attach-billing-project-to-landing-zone-workflow:
     runs-on: ubuntu-latest
-    needs: [init-github-context, create-bee-workflow, params-gen]
+    needs: [init-github-context, params-gen]
     steps:
       - name: dispatch to terra-github-workflows
         uses: broadinstitute/workflow-dispatch@v3

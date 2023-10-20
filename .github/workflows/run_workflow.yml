@@ -100,17 +100,6 @@ jobs:
     needs: [init-github-context, params-gen, create-and-attach-billing-project-to-landing-zone-workflow]
     steps:
       - uses: 'actions/checkout@v3'
-      - name: Generate OAuth2 2.0 access token for owner
-        id: 'owner_auth'
-        uses: google-github-actions/auth@v1
-        with:
-          token_format: 'access_token'
-          workload_identity_provider: 'projects/1038484894585/locations/global/workloadIdentityPools/github-wi-pool/providers/github-wi-provider'
-          service_account: ${{ inputs.service-account }}
-          access_token_scopes: 'profile, email, openid'
-          access_token_subject: ${{ inputs.owner-subject }}
-          export_environment_variables: false
-          create_credentials_file: false
       - name: Run Cromwell E2E tests on Azure
         uses: broadinstitute/workflow-dispatch@v3
         with:
@@ -121,8 +110,7 @@ jobs:
             inputs: '{
               "branch": "${{ needs.init-github-context.outputs.branch }}",
               "bee-name": "${{ env.BEE_NAME }}",
-              "bearer-token": "${{ steps.owner_auth.outputs.access_token }}",
-              "project-name": "${{ needs.params-gen.outputs.project-name }}"}'
+              "billing-project-name": "${{ needs.params-gen.outputs.project-name }}"}'
 
   delete-billing-project-v2-from-bee-workflow:
     continue-on-error: true

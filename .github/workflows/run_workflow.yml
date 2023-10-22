@@ -22,7 +22,7 @@ on:
         type: string
 
 env:
-  BEE_NAME: 'cromwell-6591295034-1-dev' #'${{ github.event.repository.name }}-${{ github.run_id }}-${{ github.run_attempt}}-dev'
+  BEE_NAME: '${{ github.event.repository.name }}-${{ github.run_id }}-${{ github.run_attempt}}-dev'
   BROADBOT_TOKEN: '${{ secrets.BROADBOT_GITHUB_TOKEN }}' # github token for access to kick off a job in the private repo
   RUN_NAME_SUFFIX: '${{ github.event.repository.name }}-${{ github.run_id }}-${{ github.run_attempt }}'
 

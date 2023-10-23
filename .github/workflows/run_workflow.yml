@@ -144,3 +144,10 @@ jobs:
           token: ${{ env.BROADBOT_TOKEN }}
           inputs: '{ "bee-name": "${{ env.BEE_NAME }}" }'
           wait-for-completion: true
+
+  report-workflow:
+    uses: broadinstitute/sherlock/.github/workflows/client-report-workflow.yaml@main
+    with:
+      notify-slack-channels-upon-workflow-failure: "#cromwell_jenkins_ci_errors"
+    permissions:
+      id-token: write

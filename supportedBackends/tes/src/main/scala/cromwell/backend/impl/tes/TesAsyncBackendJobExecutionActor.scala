@@ -15,7 +15,7 @@ import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.backend.BackendJobLifecycleActor
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
-import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{determineWSMSasEndpointFromInputs, generateLocalizedSasScriptPreamble, maybeConvertToBlob}
+import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{determineWSMSasEndpointFromInputs, generateLocalizedSasScriptPreamble}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -62,7 +62,6 @@ object TesAsyncBackendJobExecutionActor {
   private def generateLocalizedSasScriptPreamble(getSasWsmEndpoint: String) : String = {
     // BEARER_TOKEN: https://learn.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http
     // NB: Scala string interpolation and bash variable substitution use similar syntax. $$ is an escaped $, much like \\ is an escaped \.
-    // NB: For easier debugging/logging, we echo the first 4 characters of the acquired sas token. If something goes wrong with the curl, these will be "null"
     s"""
        |### BEGIN ACQUIRE LOCAL SAS TOKEN ###
        |# Install dependencies
@@ -78,11 +77,10 @@ object TesAsyncBackendJobExecutionActor {
        |BEARER_TOKEN="$${BEARER_TOKEN%\\"}"
        |
        |# Use the precomputed endpoint from cromwell + WSM to acquire a sas token
-       |GET_SAS_ENDPOINT=$getSasWsmEndpoint
        |sas_response_json=$$(curl -s \\
        |                    --retry 3 \\
        |                    --retry-delay 2 \\
-       |                    -X POST "$$GET_SAS_ENDPOINT" \\
+       |                    -X POST "$getSasWsmEndpoint" \\
        |                    -H "Content-Type: application/json" \\
        |                    -H "accept: */*" \\
        |                    -H "Authorization: Bearer $${BEARER_TOKEN}")
@@ -90,7 +88,7 @@ object TesAsyncBackendJobExecutionActor {
        |# Store token as environment variable
        |export AZURE_STORAGE_SAS_TOKEN=$$(echo "$${sas_response_json}" | jq -r '.token')
        |
-       |# Echo the first 3 characters for logging/debugging purposes. We expect them to be sv= if everything went well.
+       |# Echo the first characters for logging/debugging purposes. "null" indicates something went wrong.
        |echo Acquired sas token: "$${AZURE_STORAGE_SAS_TOKEN:0:3}****"
        |### END ACQUIRE LOCAL SAS TOKEN ###
        |""".stripMargin
@@ -99,6 +97,7 @@ object TesAsyncBackendJobExecutionActor {
   private def maybeConvertToBlob(pathToTest: Try[Path]): Try[BlobPath] = {
     pathToTest.collect { case blob: BlobPath => blob }
   }
+
   /**
    * Under certain situations (and only on Terra), we want the VM running a TES task to have the ability to acquire a
    * fresh sas token for itself. In order to be able to do this, we provide it with a precomputed endpoint it can use.
@@ -107,8 +106,9 @@ object TesAsyncBackendJobExecutionActor {
    * @param taskInputs The inputs to this particular TesTask. If any are blob files, the first  will be used to
    *                   determine the storage container to retrieve the sas token for.
    * @param pathGetter A function to convert string filepath into a cromwell Path object.
-   * @param blobConverter A function to convert a Path into a Blob path, if possible. Use the default: this is a parameter
-   *                      only because the usual means of identifying if a Path is a BlobPath doesn't work with mocked types.
+   * @param blobConverter A function to convert a Path into a Blob path, if possible. Provided for testing purposes.
+   * @return A URL endpoint that, when called with proper authentication, will return a sas token.
+   *         Returns 'None' if one should not be used for this task.
    */
   def determineWSMSasEndpointFromInputs(taskInputs: List[Input],
                                         pathGetter: String => Try[Path],
@@ -116,18 +116,17 @@ object TesAsyncBackendJobExecutionActor {
     val shouldLocalizeSas = true //TODO: Make this a Workflow Option or come from the WDL
     if (!shouldLocalizeSas) return None
 
-    val blobFiles = taskInputs.collect{ //Collect all inputs with URLs defined as (in)valid blob paths
+    // Collect all of the inputs that are valid blob paths
+    val blobFiles = taskInputs.collect{
       case input if input.url.isDefined => BlobPathBuilder.validateBlobPath(input.url.get)
-    }.collect{ //Collect only the valid blob paths
+    }.collect{
       case valid: BlobPathBuilder.ValidBlobPath => valid
     }
-
     if(blobFiles.isEmpty) return None
-    // We use the first blob file in the list as a template for determining the localized sas params
-    val blobPath: Try[BlobPath] = blobConverter(pathGetter(blobFiles.head.toUrl))
 
+    // We use the first blob file in the list as a template for determining the localized sas params
     val sasTokenEndpoint = for {
-      blob <- blobPath
+      blob <- blobConverter(pathGetter(blobFiles.head.toUrl))
       wsmEndpoint <- blob.wsmEndpoint
       workspaceId <- blob.parseTerraWorkspaceIdFromPath
       containerResourceId <- blob.containerWSMResourceId
@@ -141,7 +140,6 @@ object TesAsyncBackendJobExecutionActor {
   }
 }
 
-case
 class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends BackendJobLifecycleActor with StandardAsyncExecutionActor with TesJobCachingActorHelper {
   implicit val actorSystem = context.system
@@ -176,9 +174,11 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       _.collectAsSeq { case w: WomFile => w }
     }
     val taskInputs: List[Input] = TesTask.buildTaskInputs(callInputFiles, workflowName, mapCommandLineWomFile)
-    super.scriptPreamble ++ determineWSMSasEndpointFromInputs(taskInputs, getPath).map{
+    val tesTaskPreamble = determineWSMSasEndpointFromInputs(taskInputs, getPath).map {
       endpoint => generateLocalizedSasScriptPreamble(endpoint)
     }.getOrElse("")
+
+    super.scriptPreamble ++ tesTaskPreamble
   }
 
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {

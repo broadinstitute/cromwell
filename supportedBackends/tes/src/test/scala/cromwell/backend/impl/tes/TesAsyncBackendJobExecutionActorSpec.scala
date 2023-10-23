@@ -68,10 +68,9 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
   mockBlobPath.wsmEndpoint returns Try(mockWsmEndpoint)
   mockBlobPath.parseTerraWorkspaceIdFromPath returns Try(UUID.fromString(mockWorkspaceId))
   mockBlobPath.containerWSMResourceId returns Try(UUID.fromString(mockContainerResourceId))
-  mockBlobPath.md5 returns "blobmd5"
+  mockBlobPath.md5 returns "BLOB_MD5"
 
   val mockPath: Path = mock[Path]
-  mockPath.md5 returns "nonBlobmd5"
   def mockPathGetter(pathString: String): Try[Path] = {
     val foundBlobPath: Success[BlobPath] = Success(mockBlobPath)
     val foundNonBlobPath: Success[Path] = Success(mockPath)
@@ -80,9 +79,8 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
   }
 
   def mockBlobConverter(pathToConvert: Try[Path]): Try[BlobPath] = {
-    val mockMd5 = mockBlobPath.md5
-    val pathMd5 = pathToConvert.get.md5
-    if (mockMd5.equals(pathMd5)) pathToConvert.asInstanceOf[Try[BlobPath]] else Failure(new Exception("failed"))
+    //using a stubbed md5 rather than matching on type because type matching of mocked types at runtime causes problems
+    if (pathToConvert.get.md5.equals("BLOB_MD5")) pathToConvert.asInstanceOf[Try[BlobPath]] else Failure(new Exception("failed"))
   }
 
   it should "not return sas endpoint when no blob paths are provided" in {
@@ -94,13 +92,11 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
 
   it should "return a sas endpoint based on inputs when blob paths are provided" in {
     val expected = s"$mockWsmEndpoint/api/workspaces/v1/$mockWorkspaceId/resources/controlled/azure/storageContainer/$mockContainerResourceId/getSasToken"
+    val blobInput: List[Input] = List(blobInput_0)
     val blobInputs: List[Input] = List(blobInput_0, blobInput_1)
     val mixedInputs: List[Input] = List(notBlobInput_1, blobInput_0, blobInput_1)
+    TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(blobInput, mockPathGetter, mockBlobConverter).get shouldEqual expected
     TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(blobInputs, mockPathGetter, mockBlobConverter).get shouldEqual expected
     TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(mixedInputs, mockPathGetter, mockBlobConverter).get shouldEqual expected
-  }
-
-  it should "generate proper script preamble" in {
-
   }
 }

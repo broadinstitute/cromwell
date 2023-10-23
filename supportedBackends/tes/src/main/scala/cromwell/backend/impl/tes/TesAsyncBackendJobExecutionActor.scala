@@ -15,7 +15,7 @@ import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.backend.BackendJobLifecycleActor
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
-import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{generateLocalizedSasScriptPreamble, determineWSMSasEndpointFromInputs}
+import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{determineWSMSasEndpointFromInputs, generateLocalizedSasScriptPreamble, maybeConvertToBlob}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -59,7 +59,7 @@ case object Cancelled extends TesRunStatus {
 
 object TesAsyncBackendJobExecutionActor {
   val JobIdKey = "tes_job_id"
-  def generateLocalizedSasScriptPreamble(getSasWsmEndpoint: String) : String = {
+  private def generateLocalizedSasScriptPreamble(getSasWsmEndpoint: String) : String = {
     // BEARER_TOKEN: https://learn.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http
     // NB: Scala string interpolation and bash variable substitution use similar syntax. $$ is an escaped $, much like \\ is an escaped \.
     // NB: For easier debugging/logging, we echo the first 4 characters of the acquired sas token. If something goes wrong with the curl, these will be "null"
@@ -96,12 +96,23 @@ object TesAsyncBackendJobExecutionActor {
        |""".stripMargin
   }
 
-  /* Under certain situations (and only on Terra), we want the VM running a TES task to have the ability to acquire a
+  private def maybeConvertToBlob(pathToTest: Try[Path]): Try[BlobPath] = {
+    pathToTest.collect { case blob: BlobPath => blob }
+  }
+  /**
+   * Under certain situations (and only on Terra), we want the VM running a TES task to have the ability to acquire a
    * fresh sas token for itself. In order to be able to do this, we provide it with a precomputed endpoint it can use.
    * The task VM will use the user assigned managed identity that it is running as in order to authenticate.
-   * We only return a value if //TODO and if at least one blob storage file is provided as a task input.
+   * We only return a value if at least one of the inputs is a BlobPath and //TODO flag specified in WDL.
+   * @param taskInputs The inputs to this particular TesTask. If any are blob files, the first  will be used to
+   *                   determine the storage container to retrieve the sas token for.
+   * @param pathGetter A function to convert string filepath into a cromwell Path object.
+   * @param blobConverter A function to convert a Path into a Blob path, if possible. Use the default: this is a parameter
+   *                      only because the usual means of identifying if a Path is a BlobPath doesn't work with mocked types.
    */
-  def determineWSMSasEndpointFromInputs(taskInputs: List[Input], pathGetter: String => Try[Path]): Option[String] = {
+  def determineWSMSasEndpointFromInputs(taskInputs: List[Input],
+                                        pathGetter: String => Try[Path],
+                                        blobConverter: Try[Path] => Try[BlobPath] = maybeConvertToBlob): Option[String] = {
     val shouldLocalizeSas = true //TODO: Make this a Workflow Option or come from the WDL
     if (!shouldLocalizeSas) return None
 
@@ -112,10 +123,8 @@ object TesAsyncBackendJobExecutionActor {
     }
 
     if(blobFiles.isEmpty) return None
-    //We use the first blob file in the list as a template for determining the localized sas params
-    val blobPath: Try[BlobPath] = pathGetter(blobFiles.head.toUrl).collect{
-      case blob: BlobPath => blob
-    }
+    // We use the first blob file in the list as a template for determining the localized sas params
+    val blobPath: Try[BlobPath] = blobConverter(pathGetter(blobFiles.head.toUrl))
 
     val sasTokenEndpoint = for {
       blob <- blobPath

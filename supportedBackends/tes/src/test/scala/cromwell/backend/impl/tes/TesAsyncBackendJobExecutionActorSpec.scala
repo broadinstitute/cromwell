@@ -1,20 +1,21 @@
 package cromwell.backend.impl.tes
 
-import com.fasterxml.jackson.databind.ext.NioPathSerializer
-import cromwell.core.path.{NioPath, Path}
-import cromwell.filesystems.blob.{BlobPath, BlobPathBuilderFactory, EndpointURL}
+import common.mock.MockSugar
+import cromwell.core.path.Path
+import cromwell.filesystems.blob.{BlobContainerName, BlobPath}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.tools.nsc.io.Path
+import java.util.UUID
+import scala.util.{Failure, Success, Try}
 
 
-class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers {
+class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers with MockSugar {
   behavior of "TesAsyncBackendJobExecutionActor"
 
   val fullyQualifiedName = "this.name.is.more.than.qualified"
   val workflowName = "mockWorkflow"
-  val someBlobUrl = "https://lz813a3d637adefec2c6e88f.blob.core.windows.net/sc-d8143fd8-aa07-446d-9ba0-af72203f1794/nyxp6c/tes-internal/configuration/supported-vm-sizes?sv=sasToken"
+  val someBlobUrl = "https://lz813a3d637adefec2c6e88f.blob.core.windows.net/sc-d8143fd8-aa07-446d-9ba0-af72203f1794/nyxp6c/tes-internal/configuration/supported-vm-sizes"
   val someNotBlobUrl = "https://www.google.com/path/to/exile"
   var index = 0
 
@@ -57,30 +58,49 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers {
     content = None
   )
 
-  def pathGetter(pathString: String): Path = {
-    /*
-    val factory: BlobPathBuilderFactory = BlobPathBuilderFactory()
-    val nioPath: java.nio.file.Path = NioPathSerializer()
-    val endpoint: EndpointURL = EndpointURL("www.some.blob.endpoint/url")
-    if(pathString.startsWith(someBlobUrl)) BlobPath("someBlobPath",endpoint,)
-     */
+  // Mock blob path functionality.
+  val mockWsmEndpoint = "https://wsm.mock.com/endpoint"
+  val mockWorkspaceId = "e58ed763-928c-4155-0000-fdbaaadc15f3"
+  val mockContainerResourceId = "e58ed763-928c-4155-1111-fdbaaadc15f3"
+
+  val mockBlobPath: BlobPath = mock[BlobPath]
+  mockBlobPath.container returns BlobContainerName("1234")
+  mockBlobPath.wsmEndpoint returns Try(mockWsmEndpoint)
+  mockBlobPath.parseTerraWorkspaceIdFromPath returns Try(UUID.fromString(mockWorkspaceId))
+  mockBlobPath.containerWSMResourceId returns Try(UUID.fromString(mockContainerResourceId))
+  mockBlobPath.md5 returns "blobmd5"
+
+  val mockPath: Path = mock[Path]
+  mockPath.md5 returns "nonBlobmd5"
+  def mockPathGetter(pathString: String): Try[Path] = {
+    val foundBlobPath: Success[BlobPath] = Success(mockBlobPath)
+    val foundNonBlobPath: Success[Path] = Success(mockPath)
+    if (pathString.equals(blobInput_0.url.get) || pathString.equals(blobInput_1.url.get)) return foundBlobPath
+    foundNonBlobPath
   }
 
-  it should "not generate sas params when no blob paths are provided" in {
-    val inputs = List[Input]
-    //TesAsyncBackendJobExecutionActor.getLocalizedSasTokenParams(inputs,)
+  def mockBlobConverter(pathToConvert: Try[Path]): Try[BlobPath] = {
+    val mockMd5 = mockBlobPath.md5
+    val pathMd5 = pathToConvert.get.md5
+    if (mockMd5.equals(pathMd5)) pathToConvert.asInstanceOf[Try[BlobPath]] else Failure(new Exception("failed"))
+  }
+
+  it should "not return sas endpoint when no blob paths are provided" in {
+    val emptyInputs: List[Input] = List()
+    val bloblessInputs: List[Input] = List(notBlobInput_1, notBlobInput_2)
+    TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(emptyInputs, mockPathGetter, mockBlobConverter).isEmpty shouldBe true
+    TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(bloblessInputs, mockPathGetter, mockBlobConverter).isEmpty shouldBe true
+  }
+
+  it should "return a sas endpoint based on inputs when blob paths are provided" in {
+    val expected = s"$mockWsmEndpoint/api/workspaces/v1/$mockWorkspaceId/resources/controlled/azure/storageContainer/$mockContainerResourceId/getSasToken"
+    val blobInputs: List[Input] = List(blobInput_0, blobInput_1)
+    val mixedInputs: List[Input] = List(notBlobInput_1, blobInput_0, blobInput_1)
+    TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(blobInputs, mockPathGetter, mockBlobConverter).get shouldEqual expected
+    TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(mixedInputs, mockPathGetter, mockBlobConverter).get shouldEqual expected
   }
 
   it should "generate proper script preamble" in {
-    val mockEndpoint = "www.workspacemanager.com"
-    val mockWorkspaceId = "1111-2222-3333-4444"
-    val mockContainerId = "5678-who-do-we-appreciate"
-    val mockSasParams: LocalizedSasTokenParams = LocalizedSasTokenParams(mockEndpoint, mockWorkspaceId, mockContainerId)
-    TesAsyncBackendJobExecutionActor.generateLocalizedSasScriptPreamble(mockSasParams) shouldBe
-      s"""
-         |WSM_ENDPOINT="${mockEndpoint}"
-         |WORKSPACE_ID="${mockWorkspaceId}"
-         |CONTAINER_RESOURCE_ID="${mockContainerId}"
-         |""".stripMargin
+
   }
 }

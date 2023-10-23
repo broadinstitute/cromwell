@@ -89,7 +89,7 @@ object TesAsyncBackendJobExecutionActor {
        |export AZURE_STORAGE_SAS_TOKEN=$$(echo "$${sas_response_json}" | jq -r '.token')
        |
        |# Echo the first characters for logging/debugging purposes. "null" indicates something went wrong.
-       |echo Acquired sas token: "$${AZURE_STORAGE_SAS_TOKEN:0:3}****"
+       |echo Acquired sas token: "$${AZURE_STORAGE_SAS_TOKEN:0:4}****"
        |### END ACQUIRE LOCAL SAS TOKEN ###
        |""".stripMargin
   }

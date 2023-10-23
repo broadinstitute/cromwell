@@ -15,7 +15,7 @@ import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.backend.BackendJobLifecycleActor
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
-import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{generateLocalizedSasScriptPreammble, determineWSMSasEndpointFromInputs}
+import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{generateLocalizedSasScriptPreamble, determineWSMSasEndpointFromInputs}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -59,16 +59,25 @@ case object Cancelled extends TesRunStatus {
 
 object TesAsyncBackendJobExecutionActor {
   val JobIdKey = "tes_job_id"
-  def generateLocalizedSasScriptPreammble(getSasWsmEndpoint: String) : String = {
+  def generateLocalizedSasScriptPreamble(getSasWsmEndpoint: String) : String = {
     // BEARER_TOKEN: https://learn.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http
     // NB: Scala string interpolation and bash variable substitution use similar syntax. $$ is an escaped $, much like \\ is an escaped \.
     // NB: For easier debugging/logging, we echo the first 4 characters of the acquired sas token. If something goes wrong with the curl, these will be "null"
     s"""
-       |apt-get install jq
-       |apt-get install curl
+       |### BEGIN ACQUIRE LOCAL SAS TOKEN ###
+       |# Install dependencies
+       |apt-get -y update
+       |apt-get -y install curl
+       |apt-get -y install jq
+       |
+       |# Acquire bearer token, relying on the User Assigned Managed Identity of this VM.
        |BEARER_TOKEN=$$(curl 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fmanagement.azure.com%2F' -H Metadata:true -s | jq .access_token)
-       |echo "Acquired bearer token:"
-       |echo $${BEARER_TOKEN:0:4}
+       |
+       |# Remove the leading and trailing quotes
+       |BEARER_TOKEN="$${BEARER_TOKEN#\\"}"
+       |BEARER_TOKEN="$${BEARER_TOKEN%\\"}"
+       |
+       |# Use the precomputed endpoint from cromwell + WSM to acquire a sas token
        |GET_SAS_ENDPOINT=$getSasWsmEndpoint
        |sas_response_json=$$(curl -s \\
        |                    --retry 3 \\
@@ -77,9 +86,13 @@ object TesAsyncBackendJobExecutionActor {
        |                    -H "Content-Type: application/json" \\
        |                    -H "accept: */*" \\
        |                    -H "Authorization: Bearer $${BEARER_TOKEN}")
+       |
+       |# Store token as environment variable
        |export AZURE_STORAGE_SAS_TOKEN=$$(echo "$${sas_response_json}" | jq -r '.token')
-       |echo Acquired sas token:
-       |echo $${AZURE_STORAGE_SAS_TOKEN:0:4}
+       |
+       |# Echo the first 3 characters for logging/debugging purposes. We expect them to be sv= if everything went well.
+       |echo Acquired sas token: "$${AZURE_STORAGE_SAS_TOKEN:0:3}****"
+       |### END ACQUIRE LOCAL SAS TOKEN ###
        |""".stripMargin
   }
 
@@ -109,7 +122,7 @@ object TesAsyncBackendJobExecutionActor {
       wsmEndpoint <- blob.wsmEndpoint
       workspaceId <- blob.parseTerraWorkspaceIdFromPath
       containerResourceId <- blob.containerWSMResourceId
-      endpoint = s"$wsmEndpoint/$workspaceId/resources/controlled/azure/storageContainer/$containerResourceId/getSasToken"
+      endpoint = s"$wsmEndpoint/api/workspaces/v1/$workspaceId/resources/controlled/azure/storageContainer/$containerResourceId/getSasToken"
     } yield endpoint
 
     sasTokenEndpoint match {
@@ -118,8 +131,6 @@ object TesAsyncBackendJobExecutionActor {
     }
   }
 }
-
-case class LocalizedSasTokenParams(wsmEndpoint: String, workspaceId: String, containerResourceId: String)
 
 case
 class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
@@ -157,7 +168,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
     val taskInputs: List[Input] = TesTask.buildTaskInputs(callInputFiles, workflowName, mapCommandLineWomFile)
     super.scriptPreamble ++ determineWSMSasEndpointFromInputs(taskInputs, getPath).map{
-      endpoint => generateLocalizedSasScriptPreammble(endpoint)
+      endpoint => generateLocalizedSasScriptPreamble(endpoint)
     }.getOrElse("")
   }
 

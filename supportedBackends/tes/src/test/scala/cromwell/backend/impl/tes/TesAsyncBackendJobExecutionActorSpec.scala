@@ -76,7 +76,7 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers {
     val mockWorkspaceId = "1111-2222-3333-4444"
     val mockContainerId = "5678-who-do-we-appreciate"
     val mockSasParams: LocalizedSasTokenParams = LocalizedSasTokenParams(mockEndpoint, mockWorkspaceId, mockContainerId)
-    TesAsyncBackendJobExecutionActor.generateLocalizedSasScriptPreammble(mockSasParams) shouldBe
+    TesAsyncBackendJobExecutionActor.generateLocalizedSasScriptPreamble(mockSasParams) shouldBe
       s"""
          |WSM_ENDPOINT="${mockEndpoint}"
          |WORKSPACE_ID="${mockWorkspaceId}"

@@ -59,7 +59,7 @@ case object Cancelled extends TesRunStatus {
 
 object TesAsyncBackendJobExecutionActor {
   val JobIdKey = "tes_job_id"
-  private def generateLocalizedSasScriptPreamble(getSasWsmEndpoint: String) : String = {
+  private def generateLocalizedSasScriptPreamble(environmentVariableName: String, getSasWsmEndpoint: String) : String = {
     // BEARER_TOKEN: https://learn.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http
     // NB: Scala string interpolation and bash variable substitution use similar syntax. $$ is an escaped $, much like \\ is an escaped \.
     s"""
@@ -86,10 +86,10 @@ object TesAsyncBackendJobExecutionActor {
        |                    -H "Authorization: Bearer $${BEARER_TOKEN}")
        |
        |# Store token as environment variable
-       |export AZURE_STORAGE_SAS_TOKEN=$$(echo "$${sas_response_json}" | jq -r '.token')
+       |export $environmentVariableName=$$(echo "$${sas_response_json}" | jq -r '.token')
        |
        |# Echo the first characters for logging/debugging purposes. "null" indicates something went wrong.
-       |echo Acquired sas token: "$${AZURE_STORAGE_SAS_TOKEN:0:4}****"
+       |echo Acquired sas token: "$${$environmentVariableName:0:4}****"
        |### END ACQUIRE LOCAL SAS TOKEN ###
        |""".stripMargin
   }
@@ -169,15 +169,17 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   override def scriptPreamble: String = {
-    val workflowName = workflowDescriptor.callable.name
-    val callInputFiles = jobDescriptor.fullyQualifiedInputs.safeMapValues {
-      _.collectAsSeq { case w: WomFile => w }
-    }
-    val taskInputs: List[Input] = TesTask.buildTaskInputs(callInputFiles, workflowName, mapCommandLineWomFile)
-    val tesTaskPreamble = determineWSMSasEndpointFromInputs(taskInputs, getPath).map {
-      endpoint => generateLocalizedSasScriptPreamble(endpoint)
+    val tesTaskPreamble: String = runtimeAttributes.localizedSasEnvVar.map{enviornmentVariableName =>
+      val workflowName = workflowDescriptor.callable.name
+      val callInputFiles = jobDescriptor.fullyQualifiedInputs.safeMapValues {
+        _.collectAsSeq { case w: WomFile => w }
+      }
+      val taskInputs: List[Input] = TesTask.buildTaskInputs(callInputFiles, workflowName, mapCommandLineWomFile)
+      val preamble = determineWSMSasEndpointFromInputs(taskInputs, getPath).map{ endpoint =>
+        generateLocalizedSasScriptPreamble(enviornmentVariableName, endpoint)
+      }.getOrElse("")
+      preamble
     }.getOrElse("")
-
     super.scriptPreamble ++ tesTaskPreamble
   }
 

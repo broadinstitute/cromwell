@@ -1,5 +1,6 @@
 package cromwell.backend.impl.tes
 
+import cats.data.Validated
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
@@ -15,6 +16,8 @@ import wom.format.MemorySize
 import wom.types.{WomIntegerType, WomStringType}
 import wom.values._
 
+import java.util.regex.Pattern
+
 case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
                                 dockerImage: String,
                                 dockerWorkingDir: Option[String],
@@ -23,13 +26,14 @@ case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
                                 memory: Option[MemorySize],
                                 disk: Option[MemorySize],
                                 preemptible: Boolean,
+                                localizedSasEnvVar: Option[String],
                                 backendParameters: Map[String, Option[String]])
 
 object TesRuntimeAttributes {
-
   val DockerWorkingDirKey = "dockerWorkingDir"
   val DiskSizeKey = "disk"
   val PreemptibleKey = "preemptible"
+  val LocalizedSasKey = "sasEnvironmentVariable"
 
   private def cpuValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Int Refined Positive] = CpuValidation.optional
 
@@ -47,8 +51,8 @@ object TesRuntimeAttributes {
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
 
   private val dockerWorkingDirValidation: OptionalRuntimeAttributesValidation[String] = DockerWorkingDirValidation.optional
-
   private def preemptibleValidation(runtimeConfig: Option[Config]) = PreemptibleValidation.default(runtimeConfig)
+  private def localizedSasValidation: OptionalRuntimeAttributesValidation[String] = LocalizedSasValidation.optional
 
   def runtimeAttributesBuilder(backendRuntimeConfig: Option[Config]): StandardValidatedRuntimeAttributesBuilder =
     // !! NOTE !! If new validated attributes are added to TesRuntimeAttributes, be sure to include
@@ -62,6 +66,7 @@ object TesRuntimeAttributes {
       dockerValidation,
       dockerWorkingDirValidation,
       preemptibleValidation(backendRuntimeConfig),
+      localizedSasValidation
     )
 
   def makeBackendParameters(runtimeAttributes: Map[String, WomValue],
@@ -124,8 +129,10 @@ object TesRuntimeAttributes {
       RuntimeAttributesValidation.extract(failOnStderrValidation(backendRuntimeConfig), validatedRuntimeAttributes)
     val continueOnReturnCode: ContinueOnReturnCode =
       RuntimeAttributesValidation.extract(continueOnReturnCodeValidation(backendRuntimeConfig), validatedRuntimeAttributes)
-    val preemptible: Boolean =
+    val preemptible: Boolean = {
       RuntimeAttributesValidation.extract(preemptibleValidation(backendRuntimeConfig), validatedRuntimeAttributes)
+    }
+    val localizedSas: Option[String] = RuntimeAttributesValidation.extractOption(localizedSasValidation.key, validatedRuntimeAttributes)
 
     // !! NOTE !! If new validated attributes are added to TesRuntimeAttributes, be sure to include
     // their validations here so that they will be handled correctly with backendParameters.
@@ -139,7 +146,8 @@ object TesRuntimeAttributes {
       diskSizeCompatValidation(backendRuntimeConfig),
       failOnStderrValidation(backendRuntimeConfig),
       continueOnReturnCodeValidation(backendRuntimeConfig),
-      preemptibleValidation(backendRuntimeConfig)
+      preemptibleValidation(backendRuntimeConfig),
+      localizedSasValidation
     )
 
     // BT-458 any strings included in runtime attributes that aren't otherwise used should be
@@ -156,6 +164,7 @@ object TesRuntimeAttributes {
       memory,
       disk,
       preemptible,
+      localizedSas,
       backendParameters
     )
   }
@@ -217,4 +226,26 @@ class PreemptibleValidation extends BooleanRuntimeAttributesValidation(TesRuntim
 
   override protected def missingValueMessage: String =
     s"Expecting $key runtime attribute to be an Integer, Boolean, or a String with values of 'true' or 'false'"
+}
+
+object LocalizedSasValidation {
+  lazy val instance: RuntimeAttributesValidation[String] = new LocalizedSasValidation
+  lazy val optional: OptionalRuntimeAttributesValidation[String] = instance.optional
+}
+
+class LocalizedSasValidation extends StringRuntimeAttributesValidation(TesRuntimeAttributes.LocalizedSasKey) {
+  private def isValidBashVariableName(str: String): Boolean = {
+    // require string be only letters, numbers, and underscores
+    val pattern = Pattern.compile("^[a-zA-Z0-9_]+$", Pattern.CASE_INSENSITIVE)
+    val matcher = pattern.matcher(str)
+    matcher.find
+  }
+
+  override protected def invalidValueMessage(value: WomValue): String = {
+    s"Invalid Runtime Attribute value for ${TesRuntimeAttributes.LocalizedSasKey}. Value must be a string containing only letters, numbers, and underscores."
+  }
+
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[String]] = {
+    case WomString(value) => if(isValidBashVariableName(value)) value.validNel else Validated.invalidNel(invalidValueMessage(WomString(value)))
+  }
 }

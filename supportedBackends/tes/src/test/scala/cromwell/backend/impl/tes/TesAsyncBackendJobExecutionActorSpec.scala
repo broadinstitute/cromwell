@@ -1,11 +1,11 @@
 package cromwell.backend.impl.tes
 
 import common.mock.MockSugar
-import cromwell.core.path.Path
 import cromwell.filesystems.blob.{BlobContainerName, BlobPath}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.nio.file.Paths
 import java.util.UUID
 import scala.util.{Failure, Success, Try}
 
@@ -68,17 +68,18 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
   mockBlobPath.wsmEndpoint returns Try(mockWsmEndpoint)
   mockBlobPath.parseTerraWorkspaceIdFromPath returns Try(UUID.fromString(mockWorkspaceId))
   mockBlobPath.containerWSMResourceId returns Try(UUID.fromString(mockContainerResourceId))
+  mockBlobPath.nioPath returns Paths.get("dummy/path")
   mockBlobPath.md5 returns "BLOB_MD5"
 
-  val mockPath: Path = mock[Path]
-  def mockPathGetter(pathString: String): Try[Path] = {
+  val mockPath: cromwell.core.path.Path = mock[cromwell.core.path.Path]
+  def mockPathGetter(pathString: String): Try[cromwell.core.path.Path] = {
     val foundBlobPath: Success[BlobPath] = Success(mockBlobPath)
-    val foundNonBlobPath: Success[Path] = Success(mockPath)
+    val foundNonBlobPath: Success[cromwell.core.path.Path] = Success(mockPath)
     if (pathString.equals(blobInput_0.url.get) || pathString.equals(blobInput_1.url.get)) return foundBlobPath
     foundNonBlobPath
   }
 
-  def mockBlobConverter(pathToConvert: Try[Path]): Try[BlobPath] = {
+  def mockBlobConverter(pathToConvert: Try[cromwell.core.path.Path]): Try[BlobPath] = {
     //using a stubbed md5 rather than matching on type because type matching of mocked types at runtime causes problems
     if (pathToConvert.get.md5.equals("BLOB_MD5")) pathToConvert.asInstanceOf[Try[BlobPath]] else Failure(new Exception("failed"))
   }

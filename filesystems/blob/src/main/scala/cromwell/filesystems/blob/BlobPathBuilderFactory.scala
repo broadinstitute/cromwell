@@ -29,7 +29,6 @@ final case class EndpointURL(value: String) {
   }
 }
 final case class WorkspaceId(value: UUID) {override def toString: String = value.toString}
-
 final case class ContainerResourceId(value: UUID) {override def toString: String = value.toString}
 final case class WorkspaceManagerURL(value: String) {override def toString: String = value}
 

@@ -1,14 +1,12 @@
 package cromwell.backend.impl.tes
 
 import common.mock.MockSugar
+import cromwell.core.path
 import cromwell.filesystems.blob.{BlobContainerName, BlobPath}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-import java.nio.file.Paths
 import java.util.UUID
 import scala.util.{Failure, Success, Try}
-
 
 class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers with MockSugar {
   behavior of "TesAsyncBackendJobExecutionActor"
@@ -64,11 +62,13 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
   val mockContainerResourceId = "e58ed763-928c-4155-1111-fdbaaadc15f3"
 
   val mockBlobPath: BlobPath = mock[BlobPath]
+  val mockNioPath: path.NioPath = mock[path.NioPath]
+
   mockBlobPath.container returns BlobContainerName("1234")
   mockBlobPath.wsmEndpoint returns Try(mockWsmEndpoint)
   mockBlobPath.parseTerraWorkspaceIdFromPath returns Try(UUID.fromString(mockWorkspaceId))
   mockBlobPath.containerWSMResourceId returns Try(UUID.fromString(mockContainerResourceId))
-  mockBlobPath.nioPath returns Paths.get(".")
+  mockBlobPath.nioPath returns mockNioPath
   mockBlobPath.md5 returns "BLOB_MD5"
 
   val mockPath: cromwell.core.path.Path = mock[cromwell.core.path.Path]

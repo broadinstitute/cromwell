@@ -68,7 +68,7 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
   mockBlobPath.wsmEndpoint returns Try(mockWsmEndpoint)
   mockBlobPath.parseTerraWorkspaceIdFromPath returns Try(UUID.fromString(mockWorkspaceId))
   mockBlobPath.containerWSMResourceId returns Try(UUID.fromString(mockContainerResourceId))
-  mockBlobPath.nioPath returns Paths.get("dummy/path")
+  mockBlobPath.nioPath returns Paths.get(".")
   mockBlobPath.md5 returns "BLOB_MD5"
 
   val mockPath: cromwell.core.path.Path = mock[cromwell.core.path.Path]

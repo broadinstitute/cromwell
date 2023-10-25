@@ -70,6 +70,7 @@ object TesAsyncBackendJobExecutionActor {
        |apt-get -y install jq
        |
        |# Acquire bearer token, relying on the User Assigned Managed Identity of this VM.
+       |echo Acquiring Bearer Token using User Assigned Managed Identity...
        |BEARER_TOKEN=$$(curl 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fmanagement.azure.com%2F' -H Metadata:true -s | jq .access_token)
        |
        |# Remove the leading and trailing quotes
@@ -77,6 +78,7 @@ object TesAsyncBackendJobExecutionActor {
        |BEARER_TOKEN="$${BEARER_TOKEN%\\"}"
        |
        |# Use the precomputed endpoint from cromwell + WSM to acquire a sas token
+       |echo Requesting sas token from WSM...
        |sas_response_json=$$(curl -s \\
        |                    --retry 3 \\
        |                    --retry-delay 2 \\
@@ -89,7 +91,7 @@ object TesAsyncBackendJobExecutionActor {
        |export $environmentVariableName=$$(echo "$${sas_response_json}" | jq -r '.token')
        |
        |# Echo the first characters for logging/debugging purposes. "null" indicates something went wrong.
-       |echo Acquired sas token: "$${$environmentVariableName:0:4}****"
+       |echo Saving sas token: $${$environmentVariableName:0:4}**** to environment variable $environmentVariableName...
        |### END ACQUIRE LOCAL SAS TOKEN ###
        |""".stripMargin
   }

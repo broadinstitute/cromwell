@@ -84,7 +84,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: "broadinstitute/dsp-reusable-workflows/.github/workflows/cromwell-az-e2e-test.yaml@${{ inputs.target-branch }}"
+    uses: "broadinstitute/dsp-reusable-workflows/.github/workflows/cromwell-az-e2e-test.yaml@main"
     with:
       branch: "${{ inputs.target-branch }}"
       bee-name: "${{ needs.params-gen.outputs.bee-name }}"

@@ -5,9 +5,9 @@ on:
   workflow_dispatch:
     inputs:
       target-branch:
-        description: 'Branch name of Cromwell repo to run tests on'
+        description: 'Branch name of dsp-reusable-workflows repo to run tests on'
         required: true
-        default: 'develop'
+        default: 'main'
         type: string
       # Replace user data with seeded data provided by devOps (once available)
       owner-subject:
@@ -84,7 +84,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: "broadinstitute/dsp-reusable-workflows/.github/workflows/cromwell-az-e2e-test.yaml@main"
+    uses: "broadinstitute/dsp-reusable-workflows/.github/workflows/cromwell-az-e2e-test.yaml@${{ inputs.target-branch }}"
     with:
       branch: "${{ inputs.target-branch }}"
       bee-name: "${{ needs.params-gen.outputs.bee-name }}"

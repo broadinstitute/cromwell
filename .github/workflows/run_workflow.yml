@@ -9,7 +9,6 @@ on:
         required: true
         default: 'main'
         type: string
-      # Replace user data with seeded data provided by devOps (once available)
       owner-subject:
         description: 'Owner of billing project'
         required: true

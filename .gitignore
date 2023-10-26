@@ -23,6 +23,9 @@ console_output.txt
 expected.json
 run_mode_metadata.json
 
+#bloop files
+/.bloop
+
 # custom config
 cromwell-executions
 cromwell-test-executions
@@ -55,3 +58,6 @@ tesk_application.conf
 **/venv/
 exome_germline_single_sample_v1.3/
 **/*.pyc
+
+# GHA credentials
+gha-creds-*.json

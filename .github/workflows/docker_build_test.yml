@@ -30,6 +30,10 @@ jobs:
           java-version: adopt@1.11
       # The following invocation should be as similar as possible to the one in chart_update_on_merge.yml
       # To state the obvious: This test should not publish anything. It should simply verify that the build completes.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
       - name: Build Cromwell Docker
         run: |
           set -e

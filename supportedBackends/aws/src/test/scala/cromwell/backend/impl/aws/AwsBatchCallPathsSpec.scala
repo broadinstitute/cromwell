@@ -33,7 +33,8 @@ package cromwell.backend.impl.aws
 
 import common.collections.EnhancedCollections._
 import cromwell.backend.BackendSpec
-import cromwell.backend.io.JobPathsSpecHelper._
+import cromwell.backend.impl.aws.io.{AwsBatchJobPaths, AwsBatchWorkflowPaths}
+import cromwell.backend.io.JobPathsSpecHelper.{EnhancedJobPaths, EnhancedCallContext}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 import cromwell.core.Tags.AwsTest

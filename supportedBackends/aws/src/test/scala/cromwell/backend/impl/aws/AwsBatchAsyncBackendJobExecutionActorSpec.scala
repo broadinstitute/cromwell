@@ -32,7 +32,6 @@
 package cromwell.backend.impl.aws
 
 import java.util.UUID
-
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration}
 import common.collections.EnhancedCollections._
@@ -41,7 +40,7 @@ import cromwell.backend._
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.aws.AwsBatchAsyncBackendJobExecutionActor.AwsBatchPendingExecutionHandle
 import cromwell.backend.impl.aws.RunStatus.UnsuccessfulRunStatus
-import cromwell.backend.impl.aws.io.AwsBatchWorkingDisk
+import cromwell.backend.impl.aws.io.{AwsBatchWorkflowPaths, AwsBatchWorkingDisk}
 import cromwell.backend.io.JobPathsSpecHelper._
 import cromwell.backend.standard.{
   DefaultStandardAsyncExecutionActorParams,

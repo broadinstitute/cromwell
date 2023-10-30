@@ -121,7 +121,7 @@ final case class AwsBatchJob(
     */
   lazy val reconfiguredScript: String = {
     // this is the location of the aws cli mounted into the container by the ec2 launch template
-    val awsCmd = "/usr/local/aws-cli/v2/current/bin/aws "
+    val awsCmd = "/usr/local/aws-cli/v2/current/bin/aws"
     // internal to the container, therefore not mounted
     val workDir = "/tmp/scratch"
     // working in a mount will cause collisions in long running workers
@@ -195,11 +195,11 @@ final case class AwsBatchJob(
          |      echo "$$s3_path is not an S3 path with a bucket and key. aborting"
          |      exit 1
          |    fi
-         |    # copy  
+         |    # copy
          |    $awsCmd s3 cp --no-progress "$$s3_path" "$$destination"  ||
          |        { echo "attempt $$i to copy $$s3_path failed" && sleep $$((7 * "$$i")) && continue; }
          |    # check data integrity
-         |    _check_data_integrity $$destination $$s3_path || 
+         |    _check_data_integrity $$destination $$s3_path ||
          |       { echo "data content length difference detected in attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
          |    # copy succeeded
          |    break
@@ -215,7 +215,7 @@ final case class AwsBatchJob(
          |  # get the multipart chunk size
          |  chunk_size=$$(_get_multipart_chunk_size $$local_path)
          |  local MP_THRESHOLD=${mp_threshold}
-         |  # then set them 
+         |  # then set them
          |  $awsCmd configure set default.s3.multipart_threshold $$MP_THRESHOLD
          |  $awsCmd configure set default.s3.multipart_chunksize $$chunk_size
          |
@@ -228,27 +228,27 @@ final case class AwsBatchJob(
          |        exit 2
          |    fi
          |    # if destination is not a bucket : abort
-         |    if ! [[ $$destination =~ s3://([^/]+)/(.+) ]]; then 
+         |    if ! [[ $$destination =~ s3://([^/]+)/(.+) ]]; then
          |     echo "$$destination is not an S3 path with a bucket and key. aborting"
          |      exit 1
          |    fi
          |    # copy ok or try again.
          |    if [[ -d "$$local_path" ]]; then
-         |       # make sure to strip the trailing / in destination 
+         |       # make sure to strip the trailing / in destination
          |       destination=$${destination%/}
          |       # glob directory. do recursive copy
-         |       $awsCmd s3 cp --no-progress $$local_path $$destination --recursive --exclude "cromwell_glob_control_file" || 
-         |         { echo "attempt $$i to copy globDir $$local_path failed" && sleep $$((7 * "$$i")) && continue; } 
+         |       $awsCmd s3 cp --no-progress $$local_path $$destination --recursive --exclude "cromwell_glob_control_file" ||
+         |         { echo "attempt $$i to copy globDir $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
          |       # check integrity for each of the files
          |       for FILE in $$(cd $$local_path ; ls | grep -v cromwell_glob_control_file); do
-         |           _check_data_integrity $$local_path/$$FILE $$destination/$$FILE || 
+         |           _check_data_integrity $$local_path/$$FILE $$destination/$$FILE ||
          |               { echo "data content length difference detected in attempt $$i to copy $$local_path/$$FILE failed" && sleep $$((7 * "$$i")) && continue 2; }
          |       done
-         |    else 
-         |      $awsCmd s3 cp --no-progress "$$local_path" "$$destination" || 
-         |         { echo "attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; } 
+         |    else
+         |      $awsCmd s3 cp --no-progress "$$local_path" "$$destination" ||
+         |         { echo "attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
          |      # check content length for data integrity
-         |      _check_data_integrity $$local_path $$destination || 
+         |      _check_data_integrity $$local_path $$destination ||
          |         { echo "data content length difference detected in attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
          |    fi
          |    # copy succeeded
@@ -259,9 +259,9 @@ final case class AwsBatchJob(
          |function _get_multipart_chunk_size() {
          |  local file_path=$$1
          |  # file size
-         |  file_size=$$(stat --printf="%s" $$file_path) 
+         |  file_size=$$(stat --printf="%s" $$file_path)
          |  # chunk_size : you can have at most 10K parts with at least one 5MB part
-         |  # this reflects the formula in s3-copy commands of cromwell (S3FileSystemProvider.java) 
+         |  # this reflects the formula in s3-copy commands of cromwell (S3FileSystemProvider.java)
          |  #   => long partSize = Math.max((objectSize / 10000L) + 1, 5 * 1024 * 1024);
          |  a=$$(( ( file_size / 10000) + 1 ))
          |  b=$$(( 5 * 1024 * 1024 ))
@@ -272,9 +272,9 @@ final case class AwsBatchJob(
          |function _check_data_integrity() {
          |  local local_path=$$1
          |  local s3_path=$$2
-         |  
+         |
          |  # remote : use content_length
-         |  if [[ $$s3_path =~ s3://([^/]+)/(.+) ]]; then 
+         |  if [[ $$s3_path =~ s3://([^/]+)/(.+) ]]; then
          |        bucket="$${BASH_REMATCH[1]}"
          |        key="$${BASH_REMATCH[2]}"
          |  else
@@ -282,16 +282,16 @@ final case class AwsBatchJob(
          |      echo "$$s3_path is not an S3 path with a bucket and key. aborting"
          |      exit 1
          |  fi
-         |  s3_content_length=$$($awsCmd s3api head-object --bucket "$$bucket" --key "$$key" --query 'ContentLength') || 
-         |        { echo "Attempt to get head of object failed for $$s3_path." && return 1 ; }
+         |  s3_content_length=$$($awsCmd s3api head-object --bucket "$$bucket" --key "$$key" --query 'ContentLength') ||
+         |        { echo "Attempt to get head of object failed for $$s3_path." && return 1; }
          |  # local
-         |  local_content_length=$$(LC_ALL=C ls -dnL -- "$$local_path" | awk '{print $$5; exit}' ) || 
-         |        { echo "Attempt to get local content length failed for $$_local_path." && return 1; }   
+         |  local_content_length=$$(LC_ALL=C ls -dnL -- "$$local_path" | awk '{print $$5; exit}' ) ||
+         |        { echo "Attempt to get local content length failed for $$_local_path." && return 1; }
          |  # compare
          |  if [[ "$$s3_content_length" -eq "$$local_content_length" ]]; then
          |       true
          |  else
-         |       false  
+         |       false
          |  fi
          |}
          |
@@ -413,8 +413,8 @@ final case class AwsBatchJob(
             Log.debug("Add cmd to create MD5 sibling.")
             md5_cmd =
               s"""
-                 |if [[ ! -f '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' ]] ; then 
-                 |   md5sum '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}' > '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' || (echo 'Could not generate ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' && exit 1 ); 
+                 |if [[ ! -f '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' ]] ; then
+                 |   md5sum '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}' > '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' || (echo 'Could not generate ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' && exit 1 );
                  |fi
                  |""".stripMargin
           } else {

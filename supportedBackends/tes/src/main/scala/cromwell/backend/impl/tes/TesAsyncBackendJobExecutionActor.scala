@@ -66,9 +66,7 @@ object TesAsyncBackendJobExecutionActor {
     // NB: Scala string interpolation and bash variable substitution use similar syntax. $$ is an escaped $, much like \\ is an escaped \.
     s"""
        |### BEGIN ACQUIRE LOCAL SAS TOKEN ###
-       |# Install dependencies
-       |
-       |# Function to check if a command exists
+       |# Function to check if a command exists on this machine
        |command_exists() {
        |  command -v "$$1" > /dev/null 2>&1
        |}

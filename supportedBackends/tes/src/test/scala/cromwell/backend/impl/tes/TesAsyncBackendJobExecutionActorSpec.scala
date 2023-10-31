@@ -2,7 +2,6 @@ package cromwell.backend.impl.tes
 
 import common.mock.MockSugar
 import cromwell.core.logging.JobLogger
-import cromwell.core.path
 import cromwell.filesystems.blob.{BlobFileSystemManager, BlobPath, WSMBlobSasTokenGenerator}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -70,14 +69,12 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
   mockTokenGenerator.getWSMSasFetchEndpoint(mockBlobPath) returns  Try(s"$mockWsmEndpoint/api/workspaces/v1/$mockWorkspaceId/resources/controlled/azure/storageContainer/$mockContainerResourceId/getSasToken")
   mockFsm.blobTokenGenerator returns mockTokenGenerator
 
-  val mockNioPath: path.NioPath = mock[path.NioPath]
+  val mockPath: cromwell.core.path.Path = mock[cromwell.core.path.Path]
 
   mockBlobPath.getFilesystemManager returns mockFsm
-  mockBlobPath.toAbsolutePath returns mockBlobPath
+  mockBlobPath.toAbsolutePath returns mockPath
   mockBlobPath.md5 returns "MOCK_MD5"
 
-
-  val mockPath: cromwell.core.path.Path = mock[cromwell.core.path.Path]
   def mockPathGetter(pathString: String): Try[cromwell.core.path.Path] = {
     val foundBlobPath: Success[BlobPath] = Success(mockBlobPath)
     val foundNonBlobPath: Success[cromwell.core.path.Path] = Success(mockPath)

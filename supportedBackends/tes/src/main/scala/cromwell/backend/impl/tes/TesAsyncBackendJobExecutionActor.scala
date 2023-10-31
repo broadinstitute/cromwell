@@ -67,9 +67,39 @@ object TesAsyncBackendJobExecutionActor {
     s"""
        |### BEGIN ACQUIRE LOCAL SAS TOKEN ###
        |# Install dependencies
-       |apt-get -y update
-       |apt-get -y install curl
-       |apt-get -y install jq
+       |
+       |# Function to check if a command exists
+       |command_exists() {
+       |  command -v "$$1" > /dev/null 2>&1
+       |}
+       |
+       |# Check if curl exists; install if not
+       |if ! command_exists curl; then
+       |  if command_exists apt-get; then
+       |    apt-get -y update && apt-get -y install curl
+       |    if [ $$? -ne 0 ]; then
+       |      echo "Error: Failed to install curl via apt-get."
+       |      exit 1
+       |    fi
+       |  else
+       |    echo "Error: apt-get is not available, and curl is not installed."
+       |    exit 1
+       |  fi
+       |fi
+       |
+       |# Check if jq exists; install if not
+       |if ! command_exists jq; then
+       |  if command_exists apt-get; then
+       |    apt-get -y update && apt-get -y install jq
+       |    if [ $$? -ne 0 ]; then
+       |      echo "Error: Failed to install jq via apt-get."
+       |      exit 1
+       |    fi
+       |  else
+       |    echo "Error: apt-get is not available, and jq is not installed."
+       |    exit 1
+       |  fi
+       |fi
        |
        |# Acquire bearer token, relying on the User Assigned Managed Identity of this VM.
        |echo Acquiring Bearer Token using User Assigned Managed Identity...

@@ -7,7 +7,6 @@ import cromwell.filesystems.blob.BlobPathBuilder._
 
 import java.net.{MalformedURLException, URI}
 import java.nio.file.{Files, LinkOption}
-import java.util.UUID
 import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -189,28 +188,7 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
     */
   def pathWithoutContainer : String = pathString
 
-  def parseTerraWorkspaceIdFromPath: Try[UUID] = {
-    if(container.value.startsWith("sc-")) Try(UUID.fromString(container.value.substring(3))) else Failure(new Exception("Could not parse workspace ID from storage container"))
-  }
-
-  private def getWSMTokenGenerator: Try[WSMBlobSasTokenGenerator] = {
-    fsm.blobTokenGenerator match {
-      case wsmGenerator: WSMBlobSasTokenGenerator => Try(wsmGenerator)
-      case _: Any => Failure(new NoSuchElementException("This blob file does not have an associated WSMBlobSasTokenGenerator"))
-    }
-  }
-  def containerWSMResourceId: Try[UUID] = {
-    for {
-      generator <- getWSMTokenGenerator
-      workspaceId <- parseTerraWorkspaceIdFromPath
-      wsmAuth <- generator.getWsmAuth
-      resourceId <- generator.getContainerResourceId(workspaceId, container, wsmAuth)
-    } yield resourceId
-  }
-
-  def wsmEndpoint: Try[String] = {
-    getWSMTokenGenerator.map(generator => generator.wsmClientProvider.getBaseWorkspaceManagerUrl)
-  }
+  def getFilesystemManager: BlobFileSystemManager = fsm
 
   override def getSymlinkSafePath(options: LinkOption*): Path  = toAbsolutePath
 

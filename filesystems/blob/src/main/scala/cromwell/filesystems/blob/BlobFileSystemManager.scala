@@ -165,6 +165,8 @@ object BlobSasTokenGenerator {
 
 }
 
+case class WSMTerraCoordinates(wsmEndpoint: String, workspaceId: UUID, containerResourceId: UUID)
+
 case class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClientProvider,
                                     overrideWsmAuthToken: Option[String]) extends BlobSasTokenGenerator {
 
@@ -203,10 +205,34 @@ case class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClient
     wsmResourceClient.findContainerResourceId(workspaceId, container)
   }
 
-  def getWsmAuth: Try[String] = {
+  private def getWsmAuth: Try[String] = {
     overrideWsmAuthToken match {
       case Some(t) => Success(t)
       case None => AzureCredentials.getAccessToken(None).toTry
+    }
+  }
+  private def parseTerraWorkspaceIdFromPath(blobPath: BlobPath): Try[UUID] = {
+    if (blobPath.container.value.startsWith("sc-")) Try(UUID.fromString(blobPath.container.value.substring(3)))
+    else Failure(new Exception("Could not parse workspace ID from storage container. Are you sure this is a file in a Terra Workspace?"))
+  }
+
+  /**
+   * If the provided blob path looks like it comes from a terra workspace, return an end point that, when called with GET
+   * and proper authentication, will return a sas token capable of accessing the container the blob path points to.
+   * @param blobPath A blob path of a file living in a blob container that WSM knows about (likely a workspace container).
+   *
+   * NOTE: This function makes two synchronous REST requests.
+   */
+  def getWSMSasFetchEndpoint(blobPath: BlobPath): Try[String] = {
+    val wsmEndpoint = wsmClientProvider.getBaseWorkspaceManagerUrl
+    val terraInfo: Try[WSMTerraCoordinates] = for {
+      workspaceId <- parseTerraWorkspaceIdFromPath(blobPath)
+      auth <- getWsmAuth
+      containerResourceId <- getContainerResourceId(workspaceId, blobPath.container, auth)
+      coordinates = WSMTerraCoordinates(wsmEndpoint, workspaceId, containerResourceId)
+    } yield coordinates
+    terraInfo.map{terraCoordinates =>
+      s"${terraCoordinates.wsmEndpoint}/api/workspaces/v1/${terraCoordinates.workspaceId.toString}/resources/controlled/azure/storageContainer/${terraCoordinates.containerResourceId.toString}/getSasToken"
     }
   }
 }

@@ -18,10 +18,12 @@ import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNo
 import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{determineWSMSasEndpointFromInputs, generateLocalizedSasScriptPreamble}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
+import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.Retry._
 import cromwell.core.retry.SimpleExponentialBackoff
-import cromwell.filesystems.blob.{BlobPath, BlobPathBuilder}
+import cromwell.filesystems.blob.BlobPathBuilder.ValidBlobPath
+import cromwell.filesystems.blob.{BlobContainerName, BlobPath, BlobPathBuilder, WSMBlobSasTokenGenerator}
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import net.ceedubs.ficus.Ficus._
 import wom.values.WomFile
@@ -114,31 +116,35 @@ object TesAsyncBackendJobExecutionActor {
    */
   def determineWSMSasEndpointFromInputs(taskInputs: List[Input],
                                         pathGetter: String => Try[Path],
-                                        blobConverter: Try[Path] => Try[BlobPath] = maybeConvertToBlob): Option[String] = {
-    val shouldLocalizeSas = true //TODO: Make this a Workflow Option or come from the WDL
-    if (!shouldLocalizeSas) return None
-
+                                        logger: JobLogger,
+                                        blobConverter: Try[Path] => Try[BlobPath] = maybeConvertToBlob): Try[String] = {
     // Collect all of the inputs that are valid blob paths
     val blobFiles = taskInputs.collect{
-      case input if input.url.isDefined => BlobPathBuilder.validateBlobPath(input.url.get)
+      case Input(_, _, Some(url), _, _, _) => BlobPathBuilder.validateBlobPath(url)
     }.collect{
       case valid: BlobPathBuilder.ValidBlobPath => valid
     }
-    if(blobFiles.isEmpty) return None
+
+    // Log if not all input files live in the same container.
+    // We'll do our best anyway, but will still only be able to retrieve a token for a single container.
+    if(blobFiles.forall(_.container == blobFiles.headOption.map(file => file.container).getOrElse(BlobContainerName("no_container")))) {
+      logger.warn(s"While parsing blob inputs, found more than one container. Can only generate an environment sas token for a single blob container at once.")
+    }
 
     // We use the first blob file in the list as a template for determining the localized sas params
-    val sasTokenEndpoint = for {
-      blob <- blobConverter(pathGetter(blobFiles.head.toUrl))
-      wsmEndpoint <- blob.wsmEndpoint
-      workspaceId <- blob.parseTerraWorkspaceIdFromPath
-      containerResourceId <- blob.containerWSMResourceId
-      endpoint = s"$wsmEndpoint/api/workspaces/v1/$workspaceId/resources/controlled/azure/storageContainer/$containerResourceId/getSasToken"
-    } yield endpoint
-
-    sasTokenEndpoint match {
-      case good: Success[String] => Some(good.value)
-      case _: Any => None
+    val headBlob: Try[ValidBlobPath] = blobFiles.headOption  match {
+      case Some(validBlob) => Try(validBlob)
+      case _ => Failure(new NoSuchElementException("No valid blob file for determining WSM end point found in task inputs."))
     }
+
+    for {
+      blobFile <- headBlob
+      blob <- blobConverter(pathGetter(blobFile.toUrl))
+      endpoint <- blob.getFilesystemManager.blobTokenGenerator match {
+        case wsmGenerator: WSMBlobSasTokenGenerator => wsmGenerator.getWSMSasFetchEndpoint(blob)
+        case _ => Failure(new NoSuchElementException("This blob file does not have an associated WSMBlobSasTokenGenerator"))
+      }
+    } yield endpoint
   }
 }
 
@@ -171,17 +177,18 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   override def scriptPreamble: String = {
-    val tesTaskPreamble: String = runtimeAttributes.localizedSasEnvVar.map{enviornmentVariableName =>
-      val workflowName = workflowDescriptor.callable.name
-      val callInputFiles = jobDescriptor.fullyQualifiedInputs.safeMapValues {
+    val tesTaskPreamble: String = runtimeAttributes.localizedSasEnvVar match {
+      case Some(environmentVariableName) =>
+        val workflowName = workflowDescriptor.callable.name
+        val callInputFiles = jobDescriptor.fullyQualifiedInputs.safeMapValues {
         _.collectAsSeq { case w: WomFile => w }
-      }
-      val taskInputs: List[Input] = TesTask.buildTaskInputs(callInputFiles, workflowName, mapCommandLineWomFile)
-      val preamble = determineWSMSasEndpointFromInputs(taskInputs, getPath).map{ endpoint =>
-        generateLocalizedSasScriptPreamble(enviornmentVariableName, endpoint)
-      }.getOrElse("")
-      preamble
-    }.getOrElse("")
+        }
+        val taskInputs: List[Input] = TesTask.buildTaskInputs(callInputFiles, workflowName, mapCommandLineWomFile)
+        determineWSMSasEndpointFromInputs(taskInputs, getPath, jobLogger).map { endpoint =>
+        generateLocalizedSasScriptPreamble(environmentVariableName, endpoint)
+        }.getOrElse("")
+    case _ => ""
+    }
     super.scriptPreamble ++ tesTaskPreamble
   }
 

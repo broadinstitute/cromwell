@@ -33,7 +33,7 @@ object TesRuntimeAttributes {
   val DockerWorkingDirKey = "dockerWorkingDir"
   val DiskSizeKey = "disk"
   val PreemptibleKey = "preemptible"
-  val LocalizedSasKey = "sasEnvironmentVariable"
+  val LocalizedSasKey = "azureSasEnvironmentVariable"
 
   private def cpuValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Int Refined Positive] = CpuValidation.optional
 

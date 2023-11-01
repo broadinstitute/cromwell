@@ -4,7 +4,6 @@ import com.google.cloud.batch.v1.Runnable.Container
 import com.google.cloud.batch.v1.{Environment,Runnable, Volume}
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.batch.models.{BatchParameter, GcpBatchInput, GcpBatchOutput}
-//import cromwell.backend.google.batch.runnable.RunnableLabels._
 import cromwell.core.path.Path
 import mouse.all.anySyntaxMouse
 
@@ -60,8 +59,14 @@ object RunnableBuilder {
     def withVolumes(volumes: List[Volume]): Runnable.Builder = {
       val formattedVolumes = volumes.map { volume =>
         val mountPath = volume.getMountPath
-        val mountOptions = Option(volume.getMountOptionsList).map(_.asScala.toList).getOrElse(List.empty)
-        s"$mountPath:$mountPath:${mountOptions.mkString(",")}"
+
+        val mountOptions = Option(volume.getMountOptionsList)
+          .map(_.asScala)
+          .filter(_.nonEmpty)
+          .map(_.mkString(":", ",", ""))
+          .getOrElse("")
+
+        s"$mountPath:$mountPath$mountOptions"
       }
 
       builder.setContainer(

@@ -3,17 +3,6 @@ on:
   schedule:
     - cron: '0 16 * * *' # UTC 4pm, EST 11am, EDT 12pm
   workflow_dispatch:
-    inputs:
-      owner-subject:
-        description: 'Owner of billing project'
-        required: true
-        default: 'hermione.owner@quality.firecloud.org'
-        type: string
-      service-account:
-        description: 'Email address or unique identifier of the Google Cloud service account for which to generate credentials'
-        required: true
-        default: 'firecloud-qa@broad-dsde-qa.iam.gserviceaccount.com'
-        type: string
 
 env:
   BROADBOT_TOKEN: '${{ secrets.BROADBOT_GITHUB_TOKEN }}' # github token for access to kick off a job in the private repo
@@ -70,8 +59,7 @@ jobs:
             "run-name": "attach-billing-project-to-landing-zone-${{ env.RUN_NAME_SUFFIX }}",
             "bee-name": "${{ needs.params-gen.outputs.bee-name }}",
             "billing-project": "${{ needs.params-gen.outputs.project-name }}",
-            "billing-project-creator": "${{ inputs.owner-subject }}",
-            "service-account": "${{inputs.service-account}}" }'
+            "service-account": "firecloud-qa@broad-dsde-qa.iam.gserviceaccount.com" }'
 
   run-cromwell-az-e2e:
     needs: [params-gen, create-and-attach-billing-project-to-landing-zone-workflow]
@@ -100,8 +88,7 @@ jobs:
             "run-name": "delete-billing-project-v2-from-bee-${{ env.RUN_NAME_SUFFIX }}",
             "bee-name": "${{ needs.params-gen.outputs.bee-name }}", 
             "billing-project": "${{ needs.params-gen.outputs.project-name }}", 
-            "billing-project-owner": "${{ inputs.owner-subject }}", 
-            "service-account": "${{ inputs.service-account }}", 
+            "service-account": "firecloud-qa@broad-dsde-qa.iam.gserviceaccount.com", 
             "silent-on-failure": "false" }'
 
   destroy-bee-workflow:

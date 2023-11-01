@@ -2,10 +2,12 @@ package cromwell.backend.impl.tes
 
 import common.mock.MockSugar
 import cromwell.core.logging.JobLogger
+import cromwell.core.path
 import cromwell.filesystems.blob.{BlobFileSystemManager, BlobPath, WSMBlobSasTokenGenerator}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.nio.file.Path
 import scala.util.{Failure, Success, Try}
 
 class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers with MockSugar {
@@ -70,8 +72,12 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
   mockFsm.blobTokenGenerator returns mockTokenGenerator
 
   val mockPath: cromwell.core.path.Path = mock[cromwell.core.path.Path]
+  val mockNioPath: path.NioPath = mock[path.NioPath]
+  val mockJavaPath: Path = mock[java.nio.file.Path]
 
+  mockNioPath.toAbsolutePath returns mockJavaPath
   mockBlobPath.getFilesystemManager returns mockFsm
+  mockBlobPath.nioPath returns mockNioPath
   mockBlobPath.toAbsolutePath returns mockPath
   mockBlobPath.md5 returns "MOCK_MD5"
 

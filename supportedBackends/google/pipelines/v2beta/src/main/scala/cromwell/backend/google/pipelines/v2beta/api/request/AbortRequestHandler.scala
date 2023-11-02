@@ -35,7 +35,7 @@ trait AbortRequestHandler extends LazyLogging { this: RequestHandler =>
   // The Genomics batch endpoint doesn't seem to be able to handle abort requests on V2 operations at the moment
   // For now, don't batch the request and execute it on its own
   def handleRequest(abortQuery: PAPIAbortRequest, batch: BatchRequest, pollingManager: ActorRef)(implicit ec: ExecutionContext): Future[Try[Unit]] = {
-    Future(abortQuery.httpRequest.execute()) map {
+    Future(abortQuery.httpRequest.setThrowExceptionOnExecuteError(false).execute()) map {
       case response if response.isSuccessStatusCode =>
         abortQuery.requester ! PAPIAbortRequestSuccessful(abortQuery.jobId.jobId)
         Success(())

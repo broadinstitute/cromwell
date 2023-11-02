@@ -15,6 +15,7 @@ import java.nio.file.spi.FileSystemProvider
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, OffsetDateTime}
 import java.util.UUID
+import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
@@ -160,14 +161,14 @@ object BlobSasTokenGenerator {
     */
   def createBlobTokenGenerator(workspaceManagerClient: WorkspaceManagerApiClientProvider,
                                overrideWsmAuthToken: Option[String]): BlobSasTokenGenerator = {
-    WSMBlobSasTokenGenerator(workspaceManagerClient, overrideWsmAuthToken)
+    new WSMBlobSasTokenGenerator(workspaceManagerClient, overrideWsmAuthToken)
   }
 
 }
 
 case class WSMTerraCoordinates(wsmEndpoint: String, workspaceId: UUID, containerResourceId: UUID)
 
-case class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClientProvider,
+class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClientProvider,
                                     overrideWsmAuthToken: Option[String]) extends BlobSasTokenGenerator {
 
   /**
@@ -200,9 +201,21 @@ case class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClient
     }
   }
 
- def getContainerResourceId(workspaceId: UUID, container: BlobContainerName, wsmAuth : String): Try[UUID] = {
-    val wsmResourceClient = wsmClientProvider.getResourceApi(wsmAuth)
-    wsmResourceClient.findContainerResourceId(workspaceId, container)
+  private val cachedContainerResourceIds = new mutable.HashMap[BlobContainerName, UUID]()
+
+ private def getContainerResourceId(workspaceId: UUID, container: BlobContainerName, wsmAuth : String): Try[UUID] = {
+   cachedContainerResourceIds.get(container) match {
+     case Some(id) => Try(id)
+     case _ => {
+       val wsmResourceClient = wsmClientProvider.getResourceApi(wsmAuth)
+       val resourceId = wsmResourceClient.findContainerResourceId(workspaceId, container)
+       resourceId.map(id => cachedContainerResourceIds.put(container, id)) //NB: Modifying cache state here.
+       cachedContainerResourceIds.get(container) match {
+         case Some(uuid) => Try(uuid)
+         case _ => Failure(new NoSuchElementException("Could not retrieve container resource ID from WSM"))
+       }
+     }
+   }
   }
 
   private def getWsmAuth: Try[String] = {

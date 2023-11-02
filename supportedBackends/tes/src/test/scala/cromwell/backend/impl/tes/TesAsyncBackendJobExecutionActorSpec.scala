@@ -72,6 +72,7 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
   mockFsm.blobTokenGenerator returns mockTokenGenerator
 
   val mockPath: cromwell.core.path.Path = mock[cromwell.core.path.Path]
+  mockPath.normalize() returns mockPath
   val mockNioPath: path.NioPath = mock[path.NioPath]
   val mockJavaPath: Path = mock[java.nio.file.Path]
 

@@ -156,7 +156,7 @@ object TesAsyncBackendJobExecutionActor {
     // Log if not all input files live in the same container.
     // We'll do our best anyway, but will still only be able to retrieve a token for a single container.
     if(blobFiles.forall(_.container == blobFiles.headOption.map(file => file.container).getOrElse(BlobContainerName("no_container")))) {
-      logger.warn(s"While parsing blob inputs, found more than one container. Can only generate an environment sas token for a single blob container at once.")
+      logger.info(s"While parsing blob inputs, found more than one container. Can only generate an environment sas token for a single blob container at once.")
     }
 
     // We use the first blob file in the list as a template for determining the localized sas params

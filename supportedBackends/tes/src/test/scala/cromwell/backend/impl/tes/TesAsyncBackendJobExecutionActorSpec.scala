@@ -77,7 +77,7 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
   val mockNioPath: path.NioPath = mock[path.NioPath]
   val mockJavaPath: Path = mock[java.nio.file.Path]
   mockNioPath.toAbsolutePath returns mockJavaPath
-  mockNioPath.normalize returns mockNioPath
+  mockNioPath.normalize() returns mockNioPath
 
   mockBlobPath.getFilesystemManager returns mockFsm
   mockBlobPath.nioPath returns mockNioPath

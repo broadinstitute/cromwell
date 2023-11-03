@@ -78,6 +78,8 @@ object PipelinesApiRuntimeAttributes {
   // via `gcloud compute zones describe us-central1-a`
   val CpuPlatformIntelCascadeLakeValue = "Intel Cascade Lake"
   val CpuPlatformAMDRomeValue = "AMD Rome"
+  val CpuPlatformIntelIceLakeValue = "Intel Ice Lake"
+  val CpuPlatformIntelSapphireRapidsValue = "Intel Sapphire Rapids"
 
   val UseDockerImageCacheKey = "useDockerImageCache"
   private val useDockerImageCacheValidationInstance = new BooleanRuntimeAttributesValidation(UseDockerImageCacheKey).optional

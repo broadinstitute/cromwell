@@ -179,11 +179,16 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       params.jobExecutionTokenDispenserActor ! FetchLimitedGroups
       stay()
     case Event(ReplyLimitedGroups(groups), stateData) =>
+      val wfCount = stateData.workflows.size
+      val swfCount = stateData.subWorkflows.size
+      val maxNewWorkflows = maxWorkflowsToLaunch min (maxWorkflowsRunning - wfCount - swfCount)
+      val fetchCountLog = s"Fetching $maxNewWorkflows new workflows ($wfCount workflows and $swfCount subworkflows in flight)"
       if (groups.nonEmpty)
-        log.info(s"Excluding groups from workflow launch: ${groups.mkString(", ")}")
+        log.info(s"${fetchCountLog}, excluding groups: ${groups.mkString(", ")}")
+      else if (maxNewWorkflows < 1)
+        log.info(s"${fetchCountLog}, no groups excluded from workflow launch.")
       else
-        log.debug("No groups excluded from workflow launch.")
-      val maxNewWorkflows = maxWorkflowsToLaunch min (maxWorkflowsRunning - stateData.workflows.size - stateData.subWorkflows.size)
+        log.debug(s"${fetchCountLog}, no groups excluded from workflow launch.")
       params.workflowStore ! WorkflowStoreActor.FetchRunnableWorkflows(maxNewWorkflows, excludedGroups = groups)
       stay()
     case Event(WorkflowStoreEngineActor.NoNewWorkflowsToStart, _) =>

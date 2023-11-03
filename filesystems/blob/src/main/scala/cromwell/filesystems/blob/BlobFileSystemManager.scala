@@ -188,7 +188,7 @@ class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClientProvi
         (for {
           wsmAuth <- wsmAuthToken
           wsmAzureResourceClient = wsmClientProvider.getControlledAzureResourceApi(wsmAuth)
-          resourceId <- getContainerResourceId(workspaceId, container, wsmAuth)
+          resourceId <- getContainerResourceId(workspaceId, container, Some(wsmAuth))
           sasToken <- wsmAzureResourceClient.createAzureStorageContainerSasToken(workspaceId, resourceId)
         } yield sasToken).recoverWith {
           // If the storage account was still not found in WSM, this may be a public filesystem
@@ -203,19 +203,25 @@ class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClientProvi
 
   private val cachedContainerResourceIds = new mutable.HashMap[BlobContainerName, UUID]()
 
- private def getContainerResourceId(workspaceId: UUID, container: BlobContainerName, wsmAuth : String): Try[UUID] = {
-   cachedContainerResourceIds.get(container) match {
-     case Some(id) => Try(id)
-     case _ => {
-       val wsmResourceClient = wsmClientProvider.getResourceApi(wsmAuth)
-       val resourceId = wsmResourceClient.findContainerResourceId(workspaceId, container)
-       resourceId.map(id => cachedContainerResourceIds.put(container, id)) //NB: Modifying cache state here.
-       cachedContainerResourceIds.get(container) match {
-         case Some(uuid) => Try(uuid)
-         case _ => Failure(new NoSuchElementException("Could not retrieve container resource ID from WSM"))
-       }
-     }
-   }
+  // Optionally provide wsmAuth to avoid acquiring it twice in generateBlobSasToken.
+  // In the case that the resourceId is not cached and no auth is provided, this function will acquire a new auth as necessary.
+  private def getContainerResourceId(workspaceId: UUID, container: BlobContainerName, precomputedWsmAuth: Option[String]): Try[UUID] = {
+    cachedContainerResourceIds.get(container) match {
+      case Some(id) => Try(id) //cache hit
+      case _ => { //cache miss
+        val auth: Try[String] = precomputedWsmAuth.map(auth => Try(auth)).getOrElse(getWsmAuth)
+        val resourceId = for {
+          wsmAuth <- auth
+          wsmResourceApi = wsmClientProvider.getResourceApi(wsmAuth)
+          resourceId <- wsmResourceApi.findContainerResourceId(workspaceId, container)
+        } yield resourceId
+        resourceId.map(id => cachedContainerResourceIds.put(container, id)) //NB: Modifying cache state here.
+        cachedContainerResourceIds.get(container) match {
+          case Some(uuid) => Try(uuid)
+          case _ => Failure(new NoSuchElementException("Could not retrieve container resource ID from WSM"))
+        }
+      }
+    }
   }
 
   private def getWsmAuth: Try[String] = {
@@ -224,6 +230,7 @@ class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClientProvi
       case None => AzureCredentials.getAccessToken(None).toTry
     }
   }
+
   private def parseTerraWorkspaceIdFromPath(blobPath: BlobPath): Try[UUID] = {
     if (blobPath.container.value.startsWith("sc-")) Try(UUID.fromString(blobPath.container.value.substring(3)))
     else Failure(new Exception("Could not parse workspace ID from storage container. Are you sure this is a file in a Terra Workspace?"))
@@ -234,14 +241,14 @@ class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClientProvi
    * and proper authentication, will return a sas token capable of accessing the container the blob path points to.
    * @param blobPath A blob path of a file living in a blob container that WSM knows about (likely a workspace container).
    *
-   * NOTE: This function makes two synchronous REST requests.
+   * NOTE: If requesting the sas endpoint of a container that *isn't* what this token generator was constructed for, this
+   * function may make two REST requests. Otherwise, it's safe to assume that the relevant data is already cached locally.
    */
   def getWSMSasFetchEndpoint(blobPath: BlobPath): Try[String] = {
     val wsmEndpoint = wsmClientProvider.getBaseWorkspaceManagerUrl
     val terraInfo: Try[WSMTerraCoordinates] = for {
       workspaceId <- parseTerraWorkspaceIdFromPath(blobPath)
-      auth <- getWsmAuth
-      containerResourceId <- getContainerResourceId(workspaceId, blobPath.container, auth)
+      containerResourceId <- getContainerResourceId(workspaceId, blobPath.container, None)
       coordinates = WSMTerraCoordinates(wsmEndpoint, workspaceId, containerResourceId)
     } yield coordinates
     terraInfo.map{terraCoordinates =>

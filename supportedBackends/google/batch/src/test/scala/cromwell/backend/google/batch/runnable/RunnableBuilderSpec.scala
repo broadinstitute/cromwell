@@ -76,7 +76,7 @@ class RunnableBuilderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     runnable.getContainer.getCommandsList.asScala shouldBe expectedCommand
     runnable.getAlwaysRun shouldBe true
     runnable.getLabelsMap shouldBe memoryRetryRunnableExpectedLabels
-    runnable.getContainer.getVolumesList.asScala.toList shouldBe volumes.map(v => s"${v.getMountPath}:${v.getMountPath}:")
+    runnable.getContainer.getVolumesList.asScala.toList shouldBe volumes.map(v => s"${v.getMountPath}:${v.getMountPath}")
   }
 
   it should "return cloud sdk runnable for multiple keys in retry-with-double-memory" in {
@@ -89,6 +89,6 @@ class RunnableBuilderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     runnable.getContainer.getCommandsList.asScala shouldBe expectedCommand
     runnable.getAlwaysRun shouldBe true
     runnable.getLabelsMap shouldBe memoryRetryRunnableExpectedLabels
-    runnable.getContainer.getVolumesList.asScala.toList shouldBe volumes.map(v => s"${v.getMountPath}:${v.getMountPath}:")
+    runnable.getContainer.getVolumesList.asScala.toList shouldBe volumes.map(v => s"${v.getMountPath}:${v.getMountPath}")
   }
 }

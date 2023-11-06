@@ -8,7 +8,7 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
-import cats.syntax.apply._
+import cats.implicits._
 import common.collections.EnhancedCollections._
 import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
@@ -22,8 +22,7 @@ import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.Retry._
 import cromwell.core.retry.SimpleExponentialBackoff
-import cromwell.filesystems.blob.BlobPathBuilder.ValidBlobPath
-import cromwell.filesystems.blob.{BlobContainerName, BlobPath, BlobPathBuilder, WSMBlobSasTokenGenerator}
+import cromwell.filesystems.blob.{BlobPath, WSMBlobSasTokenGenerator}
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import net.ceedubs.ficus.Ficus._
 import wom.values.WomFile
@@ -61,7 +60,8 @@ case object Cancelled extends TesRunStatus {
 
 object TesAsyncBackendJobExecutionActor {
   val JobIdKey = "tes_job_id"
-  private def generateLocalizedSasScriptPreamble(environmentVariableName: String, getSasWsmEndpoint: String) : String = {
+
+  def generateLocalizedSasScriptPreamble(environmentVariableName: String, getSasWsmEndpoint: String) : String = {
     // BEARER_TOKEN: https://learn.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http
     // NB: Scala string interpolation and bash variable substitution use similar syntax. $$ is an escaped $, much like \\ is an escaped \.
     s"""
@@ -131,10 +131,10 @@ object TesAsyncBackendJobExecutionActor {
   }
 
   /**
-   * Under certain situations (and only on Terra), we want the VM running a TES task to have the ability to acquire a
-   * fresh sas token for itself. In order to be able to do this, we provide it with a precomputed endpoint it can use.
+   * Computes an endpoint that can be used to retrieve a sas token for a particular blob storage container.
+   * This assumes that some of the task inputs are blob files, all blob files are in the same container, and we can get a sas
+   * token for this container from WSM.
    * The task VM will use the user assigned managed identity that it is running as in order to authenticate.
-   * We only return a value if at least one of the inputs is a BlobPath and //TODO flag specified in WDL.
    * @param taskInputs The inputs to this particular TesTask. If any are blob files, the first  will be used to
    *                   determine the storage container to retrieve the sas token for.
    * @param pathGetter A function to convert string filepath into a cromwell Path object.
@@ -147,32 +147,22 @@ object TesAsyncBackendJobExecutionActor {
                                         logger: JobLogger,
                                         blobConverter: Try[Path] => Try[BlobPath] = maybeConvertToBlob): Try[String] = {
     // Collect all of the inputs that are valid blob paths
-    val blobFiles = taskInputs.collect{
-      case Input(_, _, Some(url), _, _, _) => BlobPathBuilder.validateBlobPath(url)
-    }.collect{
-      case valid: BlobPathBuilder.ValidBlobPath => valid
-    }
+    val blobFiles = taskInputs
+      .collect{ case Input(_, _, Some(url), _, _, _) => blobConverter(pathGetter(url)) }
+      .collect{ case Success(blob) => blob }
 
     // Log if not all input files live in the same container.
-    // We'll do our best anyway, but will still only be able to retrieve a token for a single container.
-    if(blobFiles.forall(_.container == blobFiles.headOption.map(file => file.container).getOrElse(BlobContainerName("no_container")))) {
+    if (blobFiles.map(_.container).distinct.size > 1) {
       logger.info(s"While parsing blob inputs, found more than one container. Can only generate an environment sas token for a single blob container at once.")
     }
 
-    // We use the first blob file in the list as a template for determining the localized sas params
-    val headBlob: Try[ValidBlobPath] = blobFiles.headOption  match {
-      case Some(validBlob) => Try(validBlob)
-      case _ => Failure(new NoSuchElementException("No valid blob file for determining WSM end point found in task inputs."))
-    }
-
-    for {
-      blobFile <- headBlob
-      blob <- blobConverter(pathGetter(blobFile.toUrl))
-      endpoint <- blob.getFilesystemManager.blobTokenGenerator match {
-        case wsmGenerator: WSMBlobSasTokenGenerator => wsmGenerator.getWSMSasFetchEndpoint(blob)
-        case _ => Failure(new NoSuchElementException("This blob file does not have an associated WSMBlobSasTokenGenerator"))
+    // We use the first blob file in the list to determine the correct blob container.
+    blobFiles.headOption.map{blobPath =>
+      blobPath.getFilesystemManager.blobTokenGenerator match {
+        case wsmGenerator: WSMBlobSasTokenGenerator => wsmGenerator.getWSMSasFetchEndpoint(blobPath)
+        case _ => Failure(new UnsupportedOperationException("Blob file does not have an associated WSMBlobSasTokenGenerator"))
       }
-    } yield endpoint
+    }.getOrElse(Failure(new NoSuchElementException("Could not infer blob storage container from task inputs: No valid blob files provided.")))
   }
 }
 
@@ -204,20 +194,36 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     )
   }
 
-  override def scriptPreamble: String = {
-    val tesTaskPreamble: String = runtimeAttributes.localizedSasEnvVar match {
-      case Some(environmentVariableName) =>
+  /**
+   * This script preamble is bash code that is executed at the start of a task inside the user's container.
+   * It is executed directly before the user's instantiated command is, which gives cromwell a chance to adjust the
+   * container environment before the actual task runs. See commandScriptContents in StandardAsyncExecutionActor for more context.
+   *
+   * For TES tasks, we sometimes want to acquire and save an azure sas token to an environment variable.
+   * If the user provides a value for runtimeAttributes.localizedSasEnvVar, we will add the relevant bash code to the preamble
+   * that acquires/exports the sas token to an environment variable. Once there, it will be visible to the user's task code.
+   *
+   * If runtimeAttributes.localizedSasEnvVar is provided in the WDL (and determineWSMSasEndpointFromInputs is successful),
+   * we will export the sas token to an environment variable named to be the value of runtimeAttributes.localizedSasEnvVar.
+   * Otherwise, we won't alter the preamble.
+   *
+   * See determineWSMSasEndpointFromInputs to see how we use taskInputs to infer *which* container to get a sas token for.
+   *
+   * @return Bash code to run at the start of a task.
+   */
+  override def scriptPreamble: ErrorOr[String] = {
+    runtimeAttributes.localizedSasEnvVar match {
+      case Some(environmentVariableName) => { // Case: user wants a sas token. Return the computed preamble or die trying.
         val workflowName = workflowDescriptor.callable.name
         val callInputFiles = jobDescriptor.fullyQualifiedInputs.safeMapValues {
-        _.collectAsSeq { case w: WomFile => w }
+          _.collectAsSeq { case w: WomFile => w }
         }
         val taskInputs: List[Input] = TesTask.buildTaskInputs(callInputFiles, workflowName, mapCommandLineWomFile)
-        determineWSMSasEndpointFromInputs(taskInputs, getPath, jobLogger).map { endpoint =>
-        generateLocalizedSasScriptPreamble(environmentVariableName, endpoint)
-        }.getOrElse("")
-    case _ => ""
+        val computedEndpoint = determineWSMSasEndpointFromInputs(taskInputs, getPath, jobLogger)
+        computedEndpoint.map(endpoint => generateLocalizedSasScriptPreamble(environmentVariableName, endpoint))
+      }.toErrorOr
+      case _ => "".valid // Case: user doesn't want a sas token. Empty preamble is the correct preamble.
     }
-    super.scriptPreamble ++ tesTaskPreamble
   }
 
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {

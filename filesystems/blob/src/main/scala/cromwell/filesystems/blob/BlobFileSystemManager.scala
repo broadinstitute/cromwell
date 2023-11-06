@@ -237,12 +237,11 @@ class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClientProvi
   }
 
   /**
-   * If the provided blob path looks like it comes from a terra workspace, return an end point that, when called with GET
-   * and proper authentication, will return a sas token capable of accessing the container the blob path points to.
+   * Return a REST endpoint that will reply with a sas token for the blob storage container associated with the provided blob path.
    * @param blobPath A blob path of a file living in a blob container that WSM knows about (likely a workspace container).
    *
-   * NOTE: If requesting the sas endpoint of a container that *isn't* what this token generator was constructed for, this
-   * function may make two REST requests. Otherwise, it's safe to assume that the relevant data is already cached locally.
+   * NOTE: If a blobPath is provided for a file in a container other than what this token generator was constructed for,
+   * this function will make two REST requests. Otherwise, the relevant data is already cached locally.
    */
   def getWSMSasFetchEndpoint(blobPath: BlobPath): Try[String] = {
     val wsmEndpoint = wsmClientProvider.getBaseWorkspaceManagerUrl

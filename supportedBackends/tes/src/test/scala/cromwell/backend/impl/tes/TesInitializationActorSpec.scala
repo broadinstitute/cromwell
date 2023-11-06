@@ -63,7 +63,7 @@ class TesInitializationActorSpec extends TestKitSuite
       |    # The keys below have been commented out as they are optional runtime attributes.
       |    # dockerWorkingDir
       |    # docker
-      |    # sasEnvironmentVariable
+      |    # azureSasEnvironmentVariable
       |}
       |""".stripMargin
 

@@ -1,7 +1,6 @@
 package cromwell.backend.standard
 
 import java.io.IOException
-
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
 import cats.implicits._
@@ -329,7 +328,7 @@ trait StandardAsyncExecutionActor
   }
 
   /** Any custom code that should be run within commandScriptContents before the instantiated command. */
-  def scriptPreamble: String = ""
+  def scriptPreamble: ErrorOr[String] = "".valid
 
   def cwd: Path = commandDirectory
   def rcPath: Path = cwd./(jobPaths.returnCodeFilename)
@@ -430,7 +429,7 @@ trait StandardAsyncExecutionActor
     // The `tee` trickery below is to be able to redirect to known filenames for CWL while also streaming
     // stdout and stderr for PAPI to periodically upload to cloud storage.
     // https://stackoverflow.com/questions/692000/how-do-i-write-stderr-to-a-file-while-using-tee-with-a-pipe
-    (errorOrDirectoryOutputs, errorOrGlobFiles).mapN((directoryOutputs, globFiles) =>
+    (errorOrDirectoryOutputs, errorOrGlobFiles, scriptPreamble).mapN((directoryOutputs, globFiles, preamble) =>
     s"""|#!$jobShell
         |DOCKER_OUTPUT_DIR_LINK
         |cd ${cwd.pathAsString}
@@ -464,7 +463,7 @@ trait StandardAsyncExecutionActor
         |)
         |mv $rcTmpPath $rcPath
         |""".stripMargin
-      .replace("SCRIPT_PREAMBLE", scriptPreamble)
+      .replace("SCRIPT_PREAMBLE", preamble)
       .replace("ENVIRONMENT_VARIABLES", environmentVariables)
       .replace("INSTANTIATED_COMMAND", commandString)
       .replace("SCRIPT_EPILOGUE", scriptEpilogue)

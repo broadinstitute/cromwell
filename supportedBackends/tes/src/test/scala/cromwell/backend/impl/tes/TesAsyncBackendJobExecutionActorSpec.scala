@@ -59,34 +59,37 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
   )
 
   // Mock blob path functionality.
-  val mockWsmEndpoint = "https://wsm.mock.com/endpoint"
-  val mockWorkspaceId = "e58ed763-928c-4155-0000-fdbaaadc15f3"
-  val mockContainerResourceId = "e58ed763-928c-4155-1111-fdbaaadc15f3"
+  val testWsmEndpoint = "https://wsm.mock.com/endpoint"
+  val testWorkspaceId = "e58ed763-928c-4155-0000-fdbaaadc15f3"
+  val testContainerResourceId = "e58ed763-928c-4155-1111-fdbaaadc15f3"
 
-  val mockLogger: JobLogger = mock[JobLogger]
-  val mockBlobPath: BlobPath = mock[BlobPath]
-  val mockTokenGenerator: WSMBlobSasTokenGenerator = mock[WSMBlobSasTokenGenerator]
-  val mockFsm: BlobFileSystemManager = mock[BlobFileSystemManager]
+  def generateMockBlobPath: BlobPath = {
+    val mockCromwellPath: cromwell.core.path.Path = mock[cromwell.core.path.Path]
+    mockCromwellPath.normalize() returns mockCromwellPath
+    val mockNioPath: path.NioPath = mock[path.NioPath]
+    val mockJavaPath: Path = mock[java.nio.file.Path]
+    mockNioPath.toAbsolutePath returns mockJavaPath
+    mockNioPath.normalize() returns mockNioPath
 
-  mockTokenGenerator.getWSMSasFetchEndpoint(mockBlobPath) returns  Try(s"$mockWsmEndpoint/api/workspaces/v1/$mockWorkspaceId/resources/controlled/azure/storageContainer/$mockContainerResourceId/getSasToken")
-  mockFsm.blobTokenGenerator returns mockTokenGenerator
+    val mockBlobPath = mock[BlobPath]
+    mockBlobPath.nioPath returns mockNioPath
+    mockBlobPath.toAbsolutePath returns mockCromwellPath
+    mockBlobPath.md5 returns "MOCK_MD5"
 
-  val mockPath: cromwell.core.path.Path = mock[cromwell.core.path.Path]
-  mockPath.normalize() returns mockPath
+    val mockTokenGenerator: WSMBlobSasTokenGenerator = mock[WSMBlobSasTokenGenerator]
+    val mockFsm: BlobFileSystemManager = mock[BlobFileSystemManager]
+    mockTokenGenerator.getWSMSasFetchEndpoint(mockBlobPath) returns Try(s"$testWsmEndpoint/api/workspaces/v1/$testWorkspaceId/resources/controlled/azure/storageContainer/$testContainerResourceId/getSasToken")
+    mockFsm.blobTokenGenerator returns mockTokenGenerator
+    mockBlobPath.getFilesystemManager returns mockFsm
 
-  val mockNioPath: path.NioPath = mock[path.NioPath]
-  val mockJavaPath: Path = mock[java.nio.file.Path]
-  mockNioPath.toAbsolutePath returns mockJavaPath
-  mockNioPath.normalize() returns mockNioPath
-
-  mockBlobPath.getFilesystemManager returns mockFsm
-  mockBlobPath.nioPath returns mockNioPath
-  mockBlobPath.toAbsolutePath returns mockPath
-  mockBlobPath.md5 returns "MOCK_MD5"
+    mockBlobPath
+  }
 
   def mockPathGetter(pathString: String): Try[cromwell.core.path.Path] = {
+    val mockBlobPath = generateMockBlobPath
+    val mockCromwellPath: cromwell.core.path.Path = mock[cromwell.core.path.Path]
     val foundBlobPath: Success[BlobPath] = Success(mockBlobPath)
-    val foundNonBlobPath: Success[cromwell.core.path.Path] = Success(mockPath)
+    val foundNonBlobPath: Success[cromwell.core.path.Path] = Success(mockCromwellPath)
     if (pathString.equals(blobInput_0.url.get) || pathString.equals(blobInput_1.url.get)) return foundBlobPath
     foundNonBlobPath
   }
@@ -97,6 +100,7 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
   }
 
   it should "not return sas endpoint when no blob paths are provided" in {
+    val mockLogger: JobLogger = mock[JobLogger]
     val emptyInputs: List[Input] = List()
     val bloblessInputs: List[Input] = List(notBlobInput_1, notBlobInput_2)
     TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(emptyInputs, mockPathGetter, mockLogger, mockBlobConverter).isFailure shouldBe true
@@ -104,12 +108,40 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
   }
 
   it should "return a sas endpoint based on inputs when blob paths are provided" in {
-    val expected = s"$mockWsmEndpoint/api/workspaces/v1/$mockWorkspaceId/resources/controlled/azure/storageContainer/$mockContainerResourceId/getSasToken"
+    val mockLogger: JobLogger = mock[JobLogger]
+    val expected = s"$testWsmEndpoint/api/workspaces/v1/$testWorkspaceId/resources/controlled/azure/storageContainer/$testContainerResourceId/getSasToken"
     val blobInput: List[Input] = List(blobInput_0)
     val blobInputs: List[Input] = List(blobInput_0, blobInput_1)
     val mixedInputs: List[Input] = List(notBlobInput_1, blobInput_0, blobInput_1)
     TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(blobInput, mockPathGetter, mockLogger, mockBlobConverter).get shouldEqual expected
     TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(blobInputs, mockPathGetter, mockLogger, mockBlobConverter).get shouldEqual expected
     TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(mixedInputs, mockPathGetter, mockLogger,  mockBlobConverter).get shouldEqual expected
+  }
+
+  it should "contain expected strings in the bash script" in {
+
+    val mockEnvironmentVariableNameFromWom = "mock_env_var_for_storing_sas_token"
+    val expectedEndpoint = s"$testWsmEndpoint/api/workspaces/v1/$testWorkspaceId/resources/controlled/azure/storageContainer/$testContainerResourceId/getSasToken"
+
+    val beginSubstring = "### BEGIN ACQUIRE LOCAL SAS TOKEN ###"
+    val endSubstring = "### END ACQUIRE LOCAL SAS TOKEN ###"
+    val curlCommandSubstring =
+      s"""
+        |sas_response_json=$$(curl -s \\
+        |                    --retry 3 \\
+        |                    --retry-delay 2 \\
+        |                    -X POST "$expectedEndpoint" \\
+        |                    -H "Content-Type: application/json" \\
+        |                    -H "accept: */*" \\
+        |                    -H "Authorization: Bearer $${BEARER_TOKEN}")
+        |""".stripMargin
+    val exportCommandSubstring = s"""export $mockEnvironmentVariableNameFromWom=$$(echo "$${sas_response_json}" | jq -r '.token')"""
+
+    val generatedBashScript = TesAsyncBackendJobExecutionActor.generateLocalizedSasScriptPreamble(mockEnvironmentVariableNameFromWom, expectedEndpoint)
+
+    generatedBashScript should include (beginSubstring)
+    generatedBashScript should include (endSubstring)
+    generatedBashScript should include (curlCommandSubstring)
+    generatedBashScript should include (exportCommandSubstring)
   }
 }

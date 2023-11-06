@@ -72,13 +72,13 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
-    "validate a valid sasEnvironmentVariable entry" in {
+    "validate a valid azureSasEnvironmentVariable entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), TesRuntimeAttributes.LocalizedSasKey -> WomString("THIS_IS_VALID"))
       val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(localizedSasEnvVar = Some("THIS_IS_VALID"))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
-    "fail to validate an invalid sasEnvironmentVariable entry" in {
+    "fail to validate an invalid azureSasEnvironmentVariable entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), TesRuntimeAttributes.LocalizedSasKey -> WomString("THIS IS INVALID"))
       assertFailure(runtimeAttributes, "Value must be a string containing only letters, numbers, and underscores.")
     }

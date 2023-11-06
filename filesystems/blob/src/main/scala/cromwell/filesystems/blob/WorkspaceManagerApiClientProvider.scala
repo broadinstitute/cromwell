@@ -41,10 +41,7 @@ class HttpWorkspaceManagerClientProvider(baseWorkspaceManagerUrl: WorkspaceManag
     apiClient.setAccessToken(token)
     WsmControlledAzureResourceApi(new ControlledAzureResourceApi(apiClient))
   }
-
-  def getBaseWorkspaceManagerUrl: String = {
-    baseWorkspaceManagerUrl.value
-  }
+  def getBaseWorkspaceManagerUrl: String = baseWorkspaceManagerUrl.value
 }
 
 case class WsmResourceApi(resourcesApi : ResourceApi) {

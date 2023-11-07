@@ -80,7 +80,7 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
   //path to a blob file
   def generateMockBlobPath: BlobPath = {
     val mockBlobPath = mock[BlobPath]
-    mockBlobPath.md5 returns "BLOB_MD5"
+    mockBlobPath.pathAsString returns someBlobUrl
 
     val mockFsm = generateMockFsm
     mockBlobPath.getFilesystemManager returns mockFsm
@@ -94,17 +94,17 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
   def generateMockDefaultPath: cromwell.core.path.Path = {
     val mockDefaultPath: cromwell.core.path.Path = mock[cromwell.core.path.Path]
     mockDefaultPath.pathAsString returns someNotBlobUrl
-    mockDefaultPath.md5 returns "DEFAULT_MD5"
     mockDefaultPath
   }
   def pathGetter(pathString: String): Try[cromwell.core.path.Path] = {
-    if(pathString.contains(someBlobUrl)) Try(generateMockBlobPath) else Try(generateMockDefaultPath)
+    val mockBlob: BlobPath = generateMockBlobPath
+    val mockDefault: cromwell.core.path.Path = generateMockDefaultPath
+    if(pathString.contains(someBlobUrl)) Try(mockBlob) else Try(mockDefault)
   }
 
   def blobConverter(pathToConvert: Try[cromwell.core.path.Path]): Try[BlobPath] = {
-    // Cromwell matches on (sub)type at runtime to determine if BlobPath or not.
-    // That doesn't work with mocks, so we use stubbed md5 for testing.
-    if(pathToConvert.get.md5.equals("BLOB_MD5")) Try(generateMockBlobPath) else Failure(new Exception("failed"))
+    val mockBlob: BlobPath = generateMockBlobPath
+    if(pathToConvert.get.pathAsString.contains(someBlobUrl)) Try(mockBlob) else Failure(new Exception("failed"))
   }
 
   it should "not return sas endpoint when no blob paths are provided" in {
@@ -128,7 +128,6 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
   }
 
   it should "contain expected strings in the bash script" in {
-
     val mockEnvironmentVariableNameFromWom = "mock_env_var_for_storing_sas_token"
     val expectedEndpoint = s"$testWsmEndpoint/api/workspaces/v1/$testWorkspaceId/resources/controlled/azure/storageContainer/$testContainerResourceId/getSasToken"
 

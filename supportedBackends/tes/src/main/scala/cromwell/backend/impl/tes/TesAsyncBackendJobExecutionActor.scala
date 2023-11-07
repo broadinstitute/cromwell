@@ -29,6 +29,8 @@ import wom.values.WomFile
 
 import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
+import java.time.Duration
+import java.time.temporal.ChronoUnit
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 sealed trait TesRunStatus {
@@ -159,7 +161,7 @@ object TesAsyncBackendJobExecutionActor {
     // We use the first blob file in the list to determine the correct blob container.
     blobFiles.headOption.map{blobPath =>
       blobPath.getFilesystemManager.blobTokenGenerator match {
-        case wsmGenerator: WSMBlobSasTokenGenerator => wsmGenerator.getWSMSasFetchEndpoint(blobPath)
+        case wsmGenerator: WSMBlobSasTokenGenerator => wsmGenerator.getWSMSasFetchEndpoint(blobPath, Some(Duration.of(24, ChronoUnit.HOURS)))
         case _ => Failure(new UnsupportedOperationException("Blob file does not have an associated WSMBlobSasTokenGenerator"))
       }
     }.getOrElse(Failure(new NoSuchElementException("Could not infer blob storage container from task inputs: No valid blob files provided.")))

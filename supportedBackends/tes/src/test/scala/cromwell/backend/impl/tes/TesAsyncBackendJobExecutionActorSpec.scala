@@ -8,7 +8,9 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.nio.file.Path
-import scala.util.{Failure, Success, Try}
+import java.time.Duration
+import java.time.temporal.ChronoUnit
+import scala.util.{Failure, Try}
 
 class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers with MockSugar {
   behavior of "TesAsyncBackendJobExecutionActor"
@@ -63,6 +65,7 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
   val testWorkspaceId = "e58ed763-928c-4155-0000-fdbaaadc15f3"
   val testContainerResourceId = "e58ed763-928c-4155-1111-fdbaaadc15f3"
 
+  //path to a blob file
   def generateMockBlobPath: BlobPath = {
     val mockCromwellPath: cromwell.core.path.Path = mock[cromwell.core.path.Path]
     mockCromwellPath.normalize() returns mockCromwellPath
@@ -74,48 +77,53 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
     val mockBlobPath = mock[BlobPath]
     mockBlobPath.nioPath returns mockNioPath
     mockBlobPath.toAbsolutePath returns mockCromwellPath
-    mockBlobPath.md5 returns "MOCK_MD5"
+    mockBlobPath.md5 returns "BLOB_MD5"
 
     val mockTokenGenerator: WSMBlobSasTokenGenerator = mock[WSMBlobSasTokenGenerator]
     val mockFsm: BlobFileSystemManager = mock[BlobFileSystemManager]
-    mockTokenGenerator.getWSMSasFetchEndpoint(mockBlobPath) returns Try(s"$testWsmEndpoint/api/workspaces/v1/$testWorkspaceId/resources/controlled/azure/storageContainer/$testContainerResourceId/getSasToken")
+    val expectedTokenDuration: Duration = Duration.of(24, ChronoUnit.HOURS)
+    mockTokenGenerator.getWSMSasFetchEndpoint(mockBlobPath, Some(expectedTokenDuration)) returns Try(s"$testWsmEndpoint/api/workspaces/v1/$testWorkspaceId/resources/controlled/azure/storageContainer/$testContainerResourceId/getSasToken?sasExpirationDuration=${expectedTokenDuration.getSeconds.toInt}")
     mockFsm.blobTokenGenerator returns mockTokenGenerator
     mockBlobPath.getFilesystemManager returns mockFsm
 
     mockBlobPath
   }
 
-  def mockPathGetter(pathString: String): Try[cromwell.core.path.Path] = {
-    val mockBlobPath = generateMockBlobPath
-    val mockCromwellPath: cromwell.core.path.Path = mock[cromwell.core.path.Path]
-    val foundBlobPath: Success[BlobPath] = Success(mockBlobPath)
-    val foundNonBlobPath: Success[cromwell.core.path.Path] = Success(mockCromwellPath)
-    if (pathString.equals(blobInput_0.url.get) || pathString.equals(blobInput_1.url.get)) return foundBlobPath
-    foundNonBlobPath
+  //Path to a file that isn't a blob file
+  def generateMockDefaultPath: cromwell.core.path.Path = {
+    val mockDefaultPath: cromwell.core.path.Path = mock[cromwell.core.path.Path]
+    mockDefaultPath.pathAsString returns someNotBlobUrl
+    mockDefaultPath.md5 returns "DEFAULT_MD5"
+    mockDefaultPath
+  }
+  def pathGetter(pathString: String): Try[cromwell.core.path.Path] = {
+    if(pathString.contains(someBlobUrl)) Try(generateMockBlobPath) else Try(generateMockDefaultPath)
   }
 
-  def mockBlobConverter(pathToConvert: Try[cromwell.core.path.Path]): Try[BlobPath] = {
-    //using a stubbed md5 rather than matching on type because type matching of mocked types at runtime causes problems
-    if (pathToConvert.get.md5.equals("MOCK_MD5")) pathToConvert.asInstanceOf[Try[BlobPath]] else Failure(new Exception("failed"))
+  def blobConverter(pathToConvert: Try[cromwell.core.path.Path]): Try[BlobPath] = {
+    // Cromwell matches on (sub)type at runtime to determine if BlobPath or not.
+    // That doesn't work with mocks, so we use stubbed md5 for testing.
+    if(pathToConvert.get.md5.equals("BLOB_MD5")) Try(generateMockBlobPath) else Failure(new Exception("failed"))
   }
 
   it should "not return sas endpoint when no blob paths are provided" in {
     val mockLogger: JobLogger = mock[JobLogger]
     val emptyInputs: List[Input] = List()
     val bloblessInputs: List[Input] = List(notBlobInput_1, notBlobInput_2)
-    TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(emptyInputs, mockPathGetter, mockLogger, mockBlobConverter).isFailure shouldBe true
-    TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(bloblessInputs, mockPathGetter, mockLogger, mockBlobConverter).isFailure shouldBe true
+    TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(emptyInputs, pathGetter, mockLogger, blobConverter).isFailure shouldBe true
+    TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(bloblessInputs, pathGetter, mockLogger, blobConverter).isFailure shouldBe true
   }
 
   it should "return a sas endpoint based on inputs when blob paths are provided" in {
     val mockLogger: JobLogger = mock[JobLogger]
-    val expected = s"$testWsmEndpoint/api/workspaces/v1/$testWorkspaceId/resources/controlled/azure/storageContainer/$testContainerResourceId/getSasToken"
+    val expectedTokenLifetimeSeconds = 24 * 60 * 60 //assert that cromwell asks for 24h token duration.
+    val expected = s"$testWsmEndpoint/api/workspaces/v1/$testWorkspaceId/resources/controlled/azure/storageContainer/$testContainerResourceId/getSasToken?sasExpirationDuration=${expectedTokenLifetimeSeconds}"
     val blobInput: List[Input] = List(blobInput_0)
     val blobInputs: List[Input] = List(blobInput_0, blobInput_1)
     val mixedInputs: List[Input] = List(notBlobInput_1, blobInput_0, blobInput_1)
-    TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(blobInput, mockPathGetter, mockLogger, mockBlobConverter).get shouldEqual expected
-    TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(blobInputs, mockPathGetter, mockLogger, mockBlobConverter).get shouldEqual expected
-    TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(mixedInputs, mockPathGetter, mockLogger,  mockBlobConverter).get shouldEqual expected
+    TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(blobInput, pathGetter, mockLogger, blobConverter).get shouldEqual expected
+    TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(blobInputs, pathGetter, mockLogger, blobConverter).get shouldEqual expected
+    TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(mixedInputs, pathGetter, mockLogger,  blobConverter).get shouldEqual expected
   }
 
   it should "contain expected strings in the bash script" in {

@@ -239,11 +239,12 @@ class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClientProvi
   /**
    * Return a REST endpoint that will reply with a sas token for the blob storage container associated with the provided blob path.
    * @param blobPath A blob path of a file living in a blob container that WSM knows about (likely a workspace container).
-   *
+   * @param tokenDuration How long will the token last after being generated. Default is 8 hours. Sas tokens won't last longer than 24h.
    * NOTE: If a blobPath is provided for a file in a container other than what this token generator was constructed for,
    * this function will make two REST requests. Otherwise, the relevant data is already cached locally.
    */
-  def getWSMSasFetchEndpoint(blobPath: BlobPath): Try[String] = {
+  def getWSMSasFetchEndpoint(blobPath: BlobPath, tokenDuration: Option[Duration] = None): Try[String] = {
+    val lifetimeSeconds: Int = tokenDuration.map(d => d.toSeconds.intValue).getOrElse(8*60*60)
     val wsmEndpoint = wsmClientProvider.getBaseWorkspaceManagerUrl
     val terraInfo: Try[WSMTerraCoordinates] = for {
       workspaceId <- parseTerraWorkspaceIdFromPath(blobPath)
@@ -251,7 +252,7 @@ class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClientProvi
       coordinates = WSMTerraCoordinates(wsmEndpoint, workspaceId, containerResourceId)
     } yield coordinates
     terraInfo.map{terraCoordinates =>
-      s"${terraCoordinates.wsmEndpoint}/api/workspaces/v1/${terraCoordinates.workspaceId.toString}/resources/controlled/azure/storageContainer/${terraCoordinates.containerResourceId.toString}/getSasToken"
+      s"${terraCoordinates.wsmEndpoint}/api/workspaces/v1/${terraCoordinates.workspaceId.toString}/resources/controlled/azure/storageContainer/${terraCoordinates.containerResourceId.toString}/getSasToken?sasExpirationDuration=$lifetimeSeconds"
     }
   }
 }

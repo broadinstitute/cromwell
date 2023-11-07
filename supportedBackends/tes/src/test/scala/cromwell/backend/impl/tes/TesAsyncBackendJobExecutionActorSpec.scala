@@ -2,12 +2,10 @@ package cromwell.backend.impl.tes
 
 import common.mock.MockSugar
 import cromwell.core.logging.JobLogger
-import cromwell.core.path
 import cromwell.filesystems.blob.{BlobFileSystemManager, BlobPath, WSMBlobSasTokenGenerator}
+import org.mockito.ArgumentMatchers.any
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-import java.nio.file.Path
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 import scala.util.{Failure, Try}
@@ -65,29 +63,27 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
   val testWorkspaceId = "e58ed763-928c-4155-0000-fdbaaadc15f3"
   val testContainerResourceId = "e58ed763-928c-4155-1111-fdbaaadc15f3"
 
+  def generateMockWsmTokenGenerator: WSMBlobSasTokenGenerator = {
+    val mockTokenGenerator = mock[WSMBlobSasTokenGenerator]
+    val expectedTokenDuration: Duration = Duration.of(24, ChronoUnit.HOURS)
+    mockTokenGenerator.getWSMSasFetchEndpoint(any[BlobPath], any[Option[Duration]]) returns Try(s"$testWsmEndpoint/api/workspaces/v1/$testWorkspaceId/resources/controlled/azure/storageContainer/$testContainerResourceId/getSasToken?sasExpirationDuration=${expectedTokenDuration.getSeconds.toInt}")
+    mockTokenGenerator
+  }
+  def generateMockFsm: BlobFileSystemManager = {
+    val mockFsm: BlobFileSystemManager = mock[BlobFileSystemManager]
+    val mockGenerator: WSMBlobSasTokenGenerator = generateMockWsmTokenGenerator
+    mockFsm.blobTokenGenerator returns mockGenerator
+    mockFsm
+  }
   //path to a blob file
   def generateMockBlobPath: BlobPath = {
-    val mockCromwellPath: cromwell.core.path.Path = mock[cromwell.core.path.Path]
-    mockCromwellPath.normalize() returns mockCromwellPath
-    val mockNioPath: path.NioPath = mock[path.NioPath]
-    val mockJavaPath: Path = mock[java.nio.file.Path]
-    mockNioPath.toAbsolutePath returns mockJavaPath
-    mockNioPath.normalize() returns mockNioPath
-
     val mockBlobPath = mock[BlobPath]
-    mockBlobPath.nioPath returns mockNioPath
-    mockBlobPath.toAbsolutePath returns mockCromwellPath
     mockBlobPath.md5 returns "BLOB_MD5"
-
-    val mockTokenGenerator: WSMBlobSasTokenGenerator = mock[WSMBlobSasTokenGenerator]
-    val mockFsm: BlobFileSystemManager = mock[BlobFileSystemManager]
-    val expectedTokenDuration: Duration = Duration.of(24, ChronoUnit.HOURS)
-    mockTokenGenerator.getWSMSasFetchEndpoint(mockBlobPath, Some(expectedTokenDuration)) returns Try(s"$testWsmEndpoint/api/workspaces/v1/$testWorkspaceId/resources/controlled/azure/storageContainer/$testContainerResourceId/getSasToken?sasExpirationDuration=${expectedTokenDuration.getSeconds.toInt}")
-    mockFsm.blobTokenGenerator returns mockTokenGenerator
+    val mockFsm = generateMockFsm
     mockBlobPath.getFilesystemManager returns mockFsm
-
     mockBlobPath
   }
+
 
   //Path to a file that isn't a blob file
   def generateMockDefaultPath: cromwell.core.path.Path = {

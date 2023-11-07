@@ -123,6 +123,7 @@ object PactHelper {
       .body(responseBody)
 
   def buildInteraction(builder: PactDslWithProvider,
+                       state: String,
                        uponReceiving: String,
                        method: String,
                        path: String,
@@ -131,11 +132,12 @@ object PactHelper {
                        status: Int,
                       ): PactDslResponse =
     builder
+      .`given`(state)
       .uponReceiving(uponReceiving)
       .method(method)
       .path(path)
-      .body(requestBody)
       .headers(scala.jdk.CollectionConverters.MapHasAsJava(requestHeaders.toMap).asJava)
+      .body(requestBody)
       .willRespondWith()
       .status(status)
 

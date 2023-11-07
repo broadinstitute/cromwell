@@ -6,14 +6,14 @@ import au.com.dius.pact.consumer.{ConsumerPactBuilder, PactTestExecutionContext}
 import au.com.dius.pact.core.model.RequestResponsePact
 import cats.effect.IO
 import org.broadinstitute.dsde.workbench.cromwell.consumer.PactHelper._
-import org.http4s.Uri
 import org.http4s.blaze.client.BlazeClientBuilder
 import org.http4s.client.Client
+import org.http4s.headers.Authorization
+import org.http4s.{AuthScheme, Credentials, Uri}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import pact4s.scalatest.RequestResponsePactForger
 
-import java.util.UUID
 import java.util.concurrent.Executors
 import scala.concurrent.ExecutionContext
 
@@ -30,8 +30,6 @@ class CbasClientSpec extends AnyFlatSpec with Matchers with RequestResponsePactF
 
   val bearerToken = "my-token"
   val workflowId = "33333333-3333-3333-3333-333333333333"
-  val workspaceId = "44444444-3333-3333-3333-333333333333"
-
   val state = "Aborted"
   val outputs = "[]"
   val failures = List.empty[String]
@@ -56,6 +54,7 @@ class CbasClientSpec extends AnyFlatSpec with Matchers with RequestResponsePactF
 
   var pactDslResponse: PactDslResponse = buildInteraction(
     pactProvider,
+    state = "post workflow results",
     uponReceiving = "Request to post workflow results",
     method = "POST",
     path = "/api/batch/v1/runs/results",
@@ -69,9 +68,12 @@ class CbasClientSpec extends AnyFlatSpec with Matchers with RequestResponsePactF
     BlazeClientBuilder[IO](ExecutionContext.global).resource.allocated.unsafeRunSync()._1
   }
 
-  it should "post workflow results" in {
+  it should "successfully post workflow results" in {
     new CbasClientImpl[IO](client, Uri.unsafeFromString(mockServer.getUrl))
-      .postWorkflowResults(bearerToken, UUID.fromString(workflowId), state, outputs, failures)
+      .postWorkflowResults(
+        Authorization(Credentials.Token(AuthScheme.Bearer, bearerToken)),
+        WorkflowCallbackMessage(workflowId, state, Map.empty, failures)
+      )
       .attempt
       .unsafeRunSync() shouldBe Right(true)
   }

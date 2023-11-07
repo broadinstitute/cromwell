@@ -2,10 +2,12 @@ package cromwell.backend.impl.tes
 
 import common.mock.MockSugar
 import cromwell.core.logging.JobLogger
+import cromwell.core.path.NioPath
 import cromwell.filesystems.blob.{BlobFileSystemManager, BlobPath, WSMBlobSasTokenGenerator}
 import org.mockito.ArgumentMatchers.any
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 import scala.util.{Failure, Try}
@@ -79,11 +81,14 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
   def generateMockBlobPath: BlobPath = {
     val mockBlobPath = mock[BlobPath]
     mockBlobPath.md5 returns "BLOB_MD5"
+
     val mockFsm = generateMockFsm
     mockBlobPath.getFilesystemManager returns mockFsm
+
+    val mockNioPath: NioPath = mock[NioPath]
+    mockBlobPath.nioPath returns mockNioPath
     mockBlobPath
   }
-
 
   //Path to a file that isn't a blob file
   def generateMockDefaultPath: cromwell.core.path.Path = {

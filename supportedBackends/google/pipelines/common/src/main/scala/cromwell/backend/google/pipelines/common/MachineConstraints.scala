@@ -25,7 +25,7 @@ object MachineConstraints {
       // The below logic infers the machine type from the requested CPU. We're assuming that users want  the newest
       // "General Purpose" machine type that is compatible with the requested CPU. For example, if someone requests
       // Intel Cascade Lake as their CPU platform, then infer the n2 machine type. AMD Rome -> n2d.
-      // The heuristic we're using is "find the newest 'General Purpose' type that supports the given CPU.
+      // The heuristic we're using is: find the newest 'General Purpose' type that supports the given CPU.
       // https://cloud.google.com/compute/docs/machine-resource
       val customMachineType =
         cpuPlatformOption match {

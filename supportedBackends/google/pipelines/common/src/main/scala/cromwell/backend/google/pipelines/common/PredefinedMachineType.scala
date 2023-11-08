@@ -17,10 +17,15 @@ object PredefinedMachineType {
   val c3Standard_176 = PredefinedMachineType(176, "c3-standard-176")
 
   def getClosestC3Machine(requestedMemory: MemorySize, requestedCpu: Refined[Int, Positive],  jobLogger: Logger): String = {
+    val c3DebugString = "Intel Sapphire Rapids C3 machine type"
+
+    // Memory isn't configurable for c3 machines: it's always 4x the CPU count. Adjust memory to match requested CPU count.
     val adjustedMemory: MemorySize = MemorySize(requestedCpu.value * 4.0, MemoryUnit.GB)
     if (adjustedMemory != requestedMemory) {
-      jobLogger.info(s"Adjusting memory from ${requestedMemory.toString} to ${adjustedMemory.toString} in order to match GCP requirements for the requested CPU.")
+      jobLogger.info(s"Adjusting memory from ${requestedMemory.toString} to ${adjustedMemory.toString} in order to match GCP requirements for the requested ${c3DebugString}.")
     }
+
+    // Always round up requested CPU to next smallest size.
     val machine = requestedCpu.value match {
       case cpu if cpu <= 4 => c3Standard_4
       case cpu if cpu > 4 && cpu <= 8 => c3Standard_8
@@ -31,7 +36,7 @@ object PredefinedMachineType {
     }
 
     if(machine.cpuCount != requestedCpu.value) {
-      jobLogger.info(s"Rounding up CPU count from ${requestedCpu} to ${machine.cpuCount} in order to match GCP requirements for the requested CPU.")
+      jobLogger.info(s"Rounding up CPU count from ${requestedCpu} to ${machine.cpuCount} in order to match GCP requirements for the requested ${c3DebugString}.")
     }
     machine.gcpString
   }

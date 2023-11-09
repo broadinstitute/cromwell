@@ -62,7 +62,7 @@ class CbasClientSpec extends AnyFlatSpec with Matchers with RequestResponsePactF
     uponReceiving = "Request to post workflow results",
     method = "POST",
     path = "/api/batch/v1/runs/results",
-    requestHeaders = Seq("Authorization" -> "Bearer %s".formatted(bearerToken), "Content-type" -> "application/json"),
+    requestHeaders = Seq("Authorization" -> "Bearer %s".format(bearerToken), "Content-type" -> "application/json"),
     requestBody = updateCompletedRunDsl,
     status = 200
   )

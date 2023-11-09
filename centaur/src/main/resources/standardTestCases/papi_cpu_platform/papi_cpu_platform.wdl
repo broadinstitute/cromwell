@@ -5,7 +5,8 @@ task cpu_platform {
         String cpu_platform
     }
     command {
-       apt-get install --assume-yes jq > /dev/null
+       apt-get update
+       apt-get install --assume-yes jq
        NAME=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/name)
        FULLY_QUALIFIED_ZONE=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone)
        ZONE=$(basename "$FULLY_QUALIFIED_ZONE")

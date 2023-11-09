@@ -29,15 +29,20 @@ class CbasClientSpec extends AnyFlatSpec with Matchers with RequestResponsePactF
     )
 
   val bearerToken = "my-token"
-  val workflowId = "33333333-3333-3333-3333-333333333333"
-  val state = "Aborted"
-  val outputs = "[]"
+  val workflowId = "12345678-1234-1234-1111-111111111111"
+  val completedState = "Succeeded"
+  val workflowOutputs =
+    """
+       {
+           "wf_hello.hello.salutations": "Hello batch!"
+       }
+    """
   val failures = List.empty[String]
 
-  val updateRequestDsl = newJsonBody { o =>
+  val updateCompletedRunDsl = newJsonBody { o =>
     o.stringType("workflowId", workflowId)
-    o.stringType("state", state)
-    o.stringType("outputs", outputs)
+    o.stringType("state", completedState)
+    o.stringType("outputs", workflowOutputs)
     o.array("failures",
       { f =>
         failures.foreach(f.stringType)
@@ -51,18 +56,17 @@ class CbasClientSpec extends AnyFlatSpec with Matchers with RequestResponsePactF
   val pactProvider: PactDslWithProvider = consumerPactBuilder
     .hasPactWith("cbas")
 
-
-  var pactDslResponse: PactDslResponse = buildInteraction(
+  var pactUpdateCompletedRunDslResponse: PactDslResponse = buildInteraction(
     pactProvider,
-    state = "post workflow results",
+    state = "post completed workflow results",
     uponReceiving = "Request to post workflow results",
     method = "POST",
     path = "/api/batch/v1/runs/results",
     requestHeaders = Seq("Authorization" -> "Bearer %s".formatted(bearerToken), "Content-type" -> "application/json"),
-    requestBody = updateRequestDsl,
+    requestBody = updateCompletedRunDsl,
     status = 200
   )
-  override val pact: RequestResponsePact = pactDslResponse.toPact
+  override val pact: RequestResponsePact = pactUpdateCompletedRunDslResponse.toPact
 
   val client: Client[IO] = {
     BlazeClientBuilder[IO](ExecutionContext.global).resource.allocated.unsafeRunSync()._1
@@ -72,7 +76,7 @@ class CbasClientSpec extends AnyFlatSpec with Matchers with RequestResponsePactF
     new CbasClientImpl[IO](client, Uri.unsafeFromString(mockServer.getUrl))
       .postWorkflowResults(
         Authorization(Credentials.Token(AuthScheme.Bearer, bearerToken)),
-        WorkflowCallbackMessage(workflowId, state, Map.empty, failures)
+        WorkflowCallbackMessage(workflowId, completedState, workflowOutputs, failures)
       )
       .attempt
       .unsafeRunSync() shouldBe Right(true)

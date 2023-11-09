@@ -51,7 +51,7 @@ class CbasClientSpec extends AnyFlatSpec with Matchers with RequestResponsePactF
   }.build
 
   val consumerPactBuilder: ConsumerPactBuilder = ConsumerPactBuilder
-    .consumer("cromwell")
+    .consumer("cromwell-consumer")
 
   val pactProvider: PactDslWithProvider = consumerPactBuilder
     .hasPactWith("cbas")

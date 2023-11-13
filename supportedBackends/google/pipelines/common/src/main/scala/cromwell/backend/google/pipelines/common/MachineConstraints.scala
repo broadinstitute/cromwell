@@ -17,11 +17,11 @@ object MachineConstraints {
       s"predefined-$cpu-${memory.to(MemoryUnit.MB).amount.intValue()}"
     } else {
       // Users specify a CPU platform in their WDL, but GCP also needs to know which machine type to use.
-      // The below logic infers the machine type from the requested CPU. We're assuming that users want  the newest
-      // "General Purpose" machine type that is compatible with the requested CPU. For example, if someone requests
-      // Intel Cascade Lake as their CPU platform, then infer the n2 machine type. AMD Rome -> n2d.
+      // The below logic infers the machine type from the requested CPU.
       // The heuristic we're using is: find the newest 'General Purpose' type that supports the given CPU.
       // https://cloud.google.com/compute/docs/machine-resource
+      // For example, if someone requests Intel Cascade Lake as their CPU platform, then infer the n2 machine type.
+      // Infer n2d from AMD Rome, etc.
       val customMachineType =
         cpuPlatformOption match {
           case Some(PipelinesApiRuntimeAttributes.CpuPlatformIntelIceLakeValue) => N2CustomMachineType

@@ -63,6 +63,7 @@ class TesInitializationActorSpec extends TestKitSuite
       |    # The keys below have been commented out as they are optional runtime attributes.
       |    # dockerWorkingDir
       |    # docker
+      |    # azureSasEnvironmentVariable
       |}
       |""".stripMargin
 
@@ -107,6 +108,7 @@ class TesInitializationActorSpec extends TestKitSuite
     }
 
     def nonStringErrorMessage(key: String) = s"Workflow option $key must be a string"
+
     val bothRequiredErrorMessage = s"Workflow options ${TesWorkflowOptionKeys.WorkflowExecutionIdentity} and ${TesWorkflowOptionKeys.DataAccessIdentity} are both required if one is provided"
 
     "fail when WorkflowExecutionIdentity is not a string and DataAccessIdentity is missing" in {
@@ -120,7 +122,7 @@ class TesInitializationActorSpec extends TestKitSuite
           case InitializationFailed(failure) =>
             val expectedMsg = nonStringErrorMessage(TesWorkflowOptionKeys.WorkflowExecutionIdentity)
             if (!(failure.getMessage.contains(expectedMsg) &&
-                  failure.getMessage.contains(bothRequiredErrorMessage))) {
+              failure.getMessage.contains(bothRequiredErrorMessage))) {
               fail(s"Exception message did not contain both '$expectedMsg' and '$bothRequiredErrorMessage'. Was '$failure'")
             }
         }

@@ -185,6 +185,9 @@ case class BlobPath private[blob](pathString: String, endpoint: EndpointURL, con
     * @return Path string relative to the container root.
     */
   def pathWithoutContainer : String = pathString
-  
+
+  def getFilesystemManager: BlobFileSystemManager = fsm
+
   override def getSymlinkSafePath(options: LinkOption*): Path  = toAbsolutePath
+
 }

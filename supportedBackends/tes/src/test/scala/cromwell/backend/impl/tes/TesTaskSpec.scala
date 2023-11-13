@@ -31,6 +31,7 @@ class TesTaskSpec
     None,
     None,
     false,
+    None,
     Map.empty
   )
   val internalPathPrefix = Option("mock/path/to/tes/task")

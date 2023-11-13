@@ -188,7 +188,7 @@ class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClientProvi
         (for {
           wsmAuth <- wsmAuthToken
           wsmAzureResourceClient = wsmClientProvider.getControlledAzureResourceApi(wsmAuth)
-          resourceId <- getContainerResourceId(workspaceId, container, Some(wsmAuth))
+          resourceId <- getContainerResourceId(workspaceId, container, Option(wsmAuth))
           sasToken <- wsmAzureResourceClient.createAzureStorageContainerSasToken(workspaceId, resourceId)
         } yield sasToken).recoverWith {
           // If the storage account was still not found in WSM, this may be a public filesystem

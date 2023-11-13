@@ -380,12 +380,12 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   private lazy val isDockerImageCacheUsageRequested = runtimeAttributes.useDockerImageCache.getOrElse(useDockerImageCache(jobDescriptor.workflowDescriptor))
 
-  override def scriptPreamble: String = {
+  override def scriptPreamble: ErrorOr[String] = {
     if (monitoringOutput.isDefined) {
       s"""|touch $DockerMonitoringLogPath
           |chmod u+x $DockerMonitoringScriptPath
           |$DockerMonitoringScriptPath > $DockerMonitoringLogPath &""".stripMargin
-    } else ""
+    }.valid else "".valid
   }
 
   override def globParentDirectory(womGlobFile: WomGlobFile): Path = {

@@ -15,6 +15,7 @@ import java.nio.file.spi.FileSystemProvider
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, OffsetDateTime}
 import java.util.UUID
+import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
@@ -160,12 +161,14 @@ object BlobSasTokenGenerator {
     */
   def createBlobTokenGenerator(workspaceManagerClient: WorkspaceManagerApiClientProvider,
                                overrideWsmAuthToken: Option[String]): BlobSasTokenGenerator = {
-    WSMBlobSasTokenGenerator(workspaceManagerClient, overrideWsmAuthToken)
+    new WSMBlobSasTokenGenerator(workspaceManagerClient, overrideWsmAuthToken)
   }
 
 }
 
-case class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClientProvider,
+case class WSMTerraCoordinates(wsmEndpoint: String, workspaceId: UUID, containerResourceId: UUID)
+
+class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClientProvider,
                                     overrideWsmAuthToken: Option[String]) extends BlobSasTokenGenerator {
 
   /**
@@ -178,17 +181,14 @@ case class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClient
     * @return an AzureSasCredential for accessing a blob container
     */
   def generateBlobSasToken(endpoint: EndpointURL, container: BlobContainerName): Try[AzureSasCredential] = {
-    val wsmAuthToken: Try[String] = overrideWsmAuthToken match {
-      case Some(t) => Success(t)
-      case None => AzureCredentials.getAccessToken(None).toTry
-    }
+    val wsmAuthToken: Try[String] = getWsmAuth
     container.workspaceId match {
       // If this is a Terra workspace, request a token from WSM
       case Success(workspaceId) => {
         (for {
           wsmAuth <- wsmAuthToken
           wsmAzureResourceClient = wsmClientProvider.getControlledAzureResourceApi(wsmAuth)
-          resourceId <- getContainerResourceId(workspaceId, container, wsmAuth)
+          resourceId <- getContainerResourceId(workspaceId, container, Option(wsmAuth))
           sasToken <- wsmAzureResourceClient.createAzureStorageContainerSasToken(workspaceId, resourceId)
         } yield sasToken).recoverWith {
           // If the storage account was still not found in WSM, this may be a public filesystem
@@ -201,9 +201,59 @@ case class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClient
     }
   }
 
- def getContainerResourceId(workspaceId: UUID, container: BlobContainerName, wsmAuth : String): Try[UUID] = {
-    val wsmResourceClient = wsmClientProvider.getResourceApi(wsmAuth)
-    wsmResourceClient.findContainerResourceId(workspaceId, container)
+  private val cachedContainerResourceIds = new mutable.HashMap[BlobContainerName, UUID]()
+
+  // Optionally provide wsmAuth to avoid acquiring it twice in generateBlobSasToken.
+  // In the case that the resourceId is not cached and no auth is provided, this function will acquire a new auth as necessary.
+  private def getContainerResourceId(workspaceId: UUID, container: BlobContainerName, precomputedWsmAuth: Option[String]): Try[UUID] = {
+    cachedContainerResourceIds.get(container) match {
+      case Some(id) => Try(id) //cache hit
+      case _ => { //cache miss
+        val auth: Try[String] = precomputedWsmAuth.map(auth => Try(auth)).getOrElse(getWsmAuth)
+        val resourceId = for {
+          wsmAuth <- auth
+          wsmResourceApi = wsmClientProvider.getResourceApi(wsmAuth)
+          resourceId <- wsmResourceApi.findContainerResourceId(workspaceId, container)
+        } yield resourceId
+        resourceId.map(id => cachedContainerResourceIds.put(container, id)) //NB: Modifying cache state here.
+        cachedContainerResourceIds.get(container) match {
+          case Some(uuid) => Try(uuid)
+          case _ => Failure(new NoSuchElementException("Could not retrieve container resource ID from WSM"))
+        }
+      }
+    }
+  }
+
+  private def getWsmAuth: Try[String] = {
+    overrideWsmAuthToken match {
+      case Some(t) => Success(t)
+      case None => AzureCredentials.getAccessToken(None).toTry
+    }
+  }
+
+  private def parseTerraWorkspaceIdFromPath(blobPath: BlobPath): Try[UUID] = {
+    if (blobPath.container.value.startsWith("sc-")) Try(UUID.fromString(blobPath.container.value.substring(3)))
+    else Failure(new Exception("Could not parse workspace ID from storage container. Are you sure this is a file in a Terra Workspace?"))
+  }
+
+  /**
+   * Return a REST endpoint that will reply with a sas token for the blob storage container associated with the provided blob path.
+   * @param blobPath A blob path of a file living in a blob container that WSM knows about (likely a workspace container).
+   * @param tokenDuration How long will the token last after being generated. Default is 8 hours. Sas tokens won't last longer than 24h.
+   * NOTE: If a blobPath is provided for a file in a container other than what this token generator was constructed for,
+   * this function will make two REST requests. Otherwise, the relevant data is already cached locally.
+   */
+  def getWSMSasFetchEndpoint(blobPath: BlobPath, tokenDuration: Option[Duration] = None): Try[String] = {
+    val wsmEndpoint = wsmClientProvider.getBaseWorkspaceManagerUrl
+    val lifetimeQueryParameters: String = tokenDuration.map(d => s"?sasExpirationDuration=${d.toSeconds.intValue}").getOrElse("")
+    val terraInfo: Try[WSMTerraCoordinates] = for {
+      workspaceId <- parseTerraWorkspaceIdFromPath(blobPath)
+      containerResourceId <- getContainerResourceId(workspaceId, blobPath.container, None)
+      coordinates = WSMTerraCoordinates(wsmEndpoint, workspaceId, containerResourceId)
+    } yield coordinates
+    terraInfo.map{terraCoordinates =>
+      s"${terraCoordinates.wsmEndpoint}/api/workspaces/v1/${terraCoordinates.workspaceId.toString}/resources/controlled/azure/storageContainer/${terraCoordinates.containerResourceId.toString}/getSasToken${lifetimeQueryParameters}"
+    }
   }
 }
 

@@ -155,7 +155,7 @@ object TesAsyncBackendJobExecutionActor {
 
     // Log if not all input files live in the same container.
     if (blobFiles.map(_.container).distinct.size > 1) {
-      logger.info(s"While parsing blob inputs, found more than one container. Can only generate an environment sas token for a single blob container at once.")
+      logger.info(s"While parsing blob inputs, found more than one container. Generating SAS token based on first file in the list.")
     }
 
     // We use the first blob file in the list to determine the correct blob container.

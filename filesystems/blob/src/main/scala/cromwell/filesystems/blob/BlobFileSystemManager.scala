@@ -244,15 +244,15 @@ class WSMBlobSasTokenGenerator(wsmClientProvider: WorkspaceManagerApiClientProvi
    * this function will make two REST requests. Otherwise, the relevant data is already cached locally.
    */
   def getWSMSasFetchEndpoint(blobPath: BlobPath, tokenDuration: Option[Duration] = None): Try[String] = {
-    val lifetimeSeconds: Int = tokenDuration.map(d => d.toSeconds.intValue).getOrElse(8*60*60)
     val wsmEndpoint = wsmClientProvider.getBaseWorkspaceManagerUrl
+    val lifetimeQueryParameters: String = tokenDuration.map(d => s"?sasExpirationDuration=${d.toSeconds.intValue}").getOrElse("")
     val terraInfo: Try[WSMTerraCoordinates] = for {
       workspaceId <- parseTerraWorkspaceIdFromPath(blobPath)
       containerResourceId <- getContainerResourceId(workspaceId, blobPath.container, None)
       coordinates = WSMTerraCoordinates(wsmEndpoint, workspaceId, containerResourceId)
     } yield coordinates
     terraInfo.map{terraCoordinates =>
-      s"${terraCoordinates.wsmEndpoint}/api/workspaces/v1/${terraCoordinates.workspaceId.toString}/resources/controlled/azure/storageContainer/${terraCoordinates.containerResourceId.toString}/getSasToken?sasExpirationDuration=$lifetimeSeconds"
+      s"${terraCoordinates.wsmEndpoint}/api/workspaces/v1/${terraCoordinates.workspaceId.toString}/resources/controlled/azure/storageContainer/${terraCoordinates.containerResourceId.toString}/getSasToken${lifetimeQueryParameters}"
     }
   }
 }

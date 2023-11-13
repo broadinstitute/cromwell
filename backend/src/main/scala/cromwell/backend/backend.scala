@@ -142,6 +142,7 @@ object CommonBackendConfigurationAttributes {
     "default-runtime-attributes.docker",
     "default-runtime-attributes.queueArn",
     "default-runtime-attributes.awsBatchRetryAttempts",
+    "default-runtime-attributes.awsBatchEvaluateOnExit",
     "default-runtime-attributes.ulimits",
     "default-runtime-attributes.efsDelocalize",
     "default-runtime-attributes.efsMakeMD5",

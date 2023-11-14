@@ -96,7 +96,13 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
   }
 
   def monitorQueueSize() = {
-    val load = if (workQueue.size > LoadConfig.PAPIThreshold) HighLoad else NormalLoad
+    val load = if (workQueue.size > LoadConfig.PAPIThreshold) {
+      log.warning(s"PAPI Request Manager notifying HighLoad with queue size ${workQueue.size} exceeding limit of ${LoadConfig.PAPIThreshold}")
+      HighLoad
+    } else {
+      log.debug("PAPI Request Manager notifying NormaLoad")
+      NormalLoad
+    }
     serviceRegistryActor ! LoadMetric("PAPIQueryManager", load)
     updateQueueSize(workQueue.size)
   }

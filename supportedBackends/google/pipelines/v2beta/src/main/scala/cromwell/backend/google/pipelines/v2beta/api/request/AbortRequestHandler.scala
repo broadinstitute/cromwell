@@ -3,7 +3,7 @@ package cromwell.backend.google.pipelines.v2beta.api.request
 import akka.actor.ActorRef
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.json.GoogleJsonError
-import com.google.api.client.http.{ByteArrayContent, HttpHeaders}
+import com.google.api.client.http.HttpHeaders
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager._
 import cromwell.backend.google.pipelines.common.api.clients.PipelinesApiAbortClient.{PAPIAbortRequestSuccessful, PAPIOperationIsAlreadyTerminal}

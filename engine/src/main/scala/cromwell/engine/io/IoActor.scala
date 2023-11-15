@@ -136,7 +136,7 @@ final class IoActor(ioConfig: IoConfig,
 
   override def onBackpressure(scale: Option[Double] = None): Unit = {
     incrementBackpressure()
-    log.info("IoActor notifying HighLoad")
+    log.warning("IoActor notifying HighLoad")
     serviceRegistryActor ! LoadMetric("IO", HighLoad)
 
     val uncappedDelay = scale.getOrElse(1.0d) * LoadConfig.IoNormalWindowMinimum

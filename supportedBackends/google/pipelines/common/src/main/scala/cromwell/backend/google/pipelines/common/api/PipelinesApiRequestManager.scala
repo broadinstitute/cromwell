@@ -2,7 +2,6 @@ package cromwell.backend.google.pipelines.common.api
 
 import java.io.IOException
 import java.util.UUID
-
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, SupervisorStrategy, Terminated, Timers}
 import akka.dispatch.ControlMessage
 import cats.data.NonEmptyList
@@ -18,7 +17,7 @@ import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{CromwellFatalExceptionMarker, LoadConfig, Mailbox, WorkflowId}
 import cromwell.services.instrumentation.CromwellInstrumentationScheduler
-import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadMetric, NormalLoad}
+import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadLevel, LoadMetric, NormalLoad}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric._
 
@@ -89,6 +88,8 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
   protected[api] var statusPollers: Vector[ActorRef] = Vector.empty
   self ! ResetAllRequestWorkers
 
+  private var previousLoad: LoadLevel = NormalLoad
+
   override def preStart() = {
     log.info("Running with {} PAPI request workers", requestWorkers.value)
     startInstrumentationTimer()
@@ -96,14 +97,16 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
   }
 
   def monitorQueueSize() = {
-    val load = if (workQueue.size > LoadConfig.PAPIThreshold) {
-      log.warning(s"PAPI Request Manager notifying HighLoad with queue size ${workQueue.size} exceeding limit of ${LoadConfig.PAPIThreshold}")
-      HighLoad
-    } else {
-      log.debug("PAPI Request Manager notifying NormaLoad")
-      NormalLoad
-    }
-    serviceRegistryActor ! LoadMetric("PAPIQueryManager", load)
+    val newLoad = if (workQueue.size > LoadConfig.PAPIThreshold) HighLoad else NormalLoad
+
+    if (previousLoad == NormalLoad && newLoad == HighLoad)
+      log.warning(s"PAPI Request Manager transitioned to HighLoad with queue size ${workQueue.size} exceeding limit of ${LoadConfig.PAPIThreshold}")
+    else if (previousLoad == HighLoad && newLoad == NormalLoad)
+      log.info("PAPI Request Manager transitioned back to NormaLoad")
+
+    previousLoad = newLoad
+
+    serviceRegistryActor ! LoadMetric("PAPIQueryManager", newLoad)
     updateQueueSize(workQueue.size)
   }
 

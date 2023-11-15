@@ -112,10 +112,8 @@ class ServiceRegistryActor(globalConfig: Config) extends Actor with ActorLogging
 
   private def debugLogLoadMessages(msg: ServiceRegistryMessage, sender: ActorRef): Unit = {
     msg match {
-      case msg: LoadMetric if msg.loadLevel == HighLoad =>
-        log.debug(s"Service Registry Actor receiving HighLoad messages from $sender")
-      case _: LoadMetric =>
-        log.debug(s"Service Registry Actor receiving NormalLoad messages from $sender")
+      case msg: LoadMetric =>
+        log.debug(s"Service Registry Actor receiving $msg message from $sender")
     }
   }
 

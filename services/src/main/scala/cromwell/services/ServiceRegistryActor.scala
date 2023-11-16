@@ -6,7 +6,7 @@ import akka.routing.Listen
 import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory, ConfigObject}
 import cromwell.core.Dispatcher.ServiceDispatcher
-import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadMetric}
+import cromwell.services.loadcontroller.LoadControllerService.LoadMetric
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import net.ceedubs.ficus.Ficus._

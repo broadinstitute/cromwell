@@ -6,6 +6,7 @@ import akka.routing.Listen
 import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory, ConfigObject}
 import cromwell.core.Dispatcher.ServiceDispatcher
+import cromwell.services.loadcontroller.LoadControllerService.LoadMetric
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import net.ceedubs.ficus.Ficus._
@@ -82,7 +83,9 @@ class ServiceRegistryActor(globalConfig: Config) extends Actor with ActorLogging
   def receive = {
     case msg: ServiceRegistryMessage =>
       services.get(msg.serviceName) match {
-        case Some(ref) => ref.tell(transform(msg, sender()), sender())
+        case Some(ref) =>
+          debugLogLoadMessages(msg, sender())
+          ref.tell(transform(msg, sender()), sender())
         case None =>
           log.error("Received ServiceRegistryMessage requesting service '{}' for which no service is configured.  Message: {}", msg.serviceName, msg)
           sender() ! ServiceRegistryFailure(msg.serviceName)
@@ -105,6 +108,15 @@ class ServiceRegistryActor(globalConfig: Config) extends Actor with ActorLogging
     case fool =>
       log.error("Received message which is not a ServiceRegistryMessage: {}", fool)
       sender() ! ServiceRegistryFailure("Message is not a ServiceRegistryMessage: " + fool)
+  }
+
+  private def debugLogLoadMessages(msg: ServiceRegistryMessage, sender: ActorRef): Unit = {
+    msg match {
+      case msg: LoadMetric =>
+        log.debug(s"Service Registry Actor receiving $msg message from $sender")
+      case _ =>
+        ()
+    }
   }
 
   /**

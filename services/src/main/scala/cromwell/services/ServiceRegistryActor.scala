@@ -114,6 +114,8 @@ class ServiceRegistryActor(globalConfig: Config) extends Actor with ActorLogging
     msg match {
       case msg: LoadMetric =>
         log.debug(s"Service Registry Actor receiving $msg message from $sender")
+      case _ =>
+        ()
     }
   }
 

@@ -87,7 +87,6 @@ class DrsHubClientImpl[F[_]: Concurrent](client: Client[F], baseUrl: Uri) extend
       }
     }
   }
-
 }
 
 

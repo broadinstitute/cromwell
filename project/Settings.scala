@@ -100,6 +100,7 @@ object Settings {
 
   val pact4sSettings = sharedSettings ++ List(
     libraryDependencies ++= pact4sDependencies,
+    libraryDependencies ++= engineDependencies,
 
     /**
       * Invoking pact tests from root project (sbt "project pact" test)

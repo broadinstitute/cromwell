@@ -1,6 +1,6 @@
 version 1.0
 
-import "./speak.wdl" as sub
+import "./hello.wdl" as sub
 
 task start {
   command {
@@ -22,14 +22,17 @@ task done {
 
 workflow main_workflow {
   call start
-  call sub.speak as hello_english {
-    input: greeting_text = "Hello"
+  call sub.hello as hello_english {
+    input: greeting = "Hello"
   }
-  call sub.speak as hello_spanish {
-    input: greeting_text = "Hola"
+  call sub.hello as hello_spanish {
+    input: greeting = "Hola"
   }
-  call sub.speak as hello_french {
-    input: greeting_text = "Bonjour"
+  call sub.hello as hello_french {
+    input: greeting = "Bonjour"
   }
   call done
+  output {
+    Array[String] greetings = [hello_english.out, hello_spanish.out, hello_french.out]
+  }
 }

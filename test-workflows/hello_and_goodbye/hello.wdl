@@ -1,33 +1,33 @@
 version 1.0
 
-import "goodbye.wdl" as sub
+import "./goodbye.wdl" as bye
 
 task sayHello {
   input {
-    String greeting
+    String say_greeting
   }
   command {
-    echo "${greeting}"
+    echo "${say_greeting}"
   }
   output {
     String out = read_string(stdout())
   }
 }
 
-workflow hello{
+workflow hello {
   input {
     String greeting
   }
   call sayHello {
-    input: greeting = greeting
+    input: say_greeting = greeting
   }
-  call sub.goodbye as english_goodbye {
+  call bye.goodbye as english_goodbye {
    input: farewell = "Goodbye"
   }
-  call sub.goodbye as spanish_goodbye {
+  call bye.goodbye as spanish_goodbye {
     input: farewell = "Adios"
   }
-  call sub.goodbye as french_goodbye {
+  call bye.goodbye as french_goodbye {
     input: farewell = "Au revoir"
   }
 }

@@ -33,6 +33,6 @@ workflow main_workflow {
   }
   call done
   output {
-    Array[String] greetings = [hello_english.out, hello_spanish.out, hello_french.out]
+    String speak_english = hello_english.hello_out + " " + hello_english.english_goodbye_out
   }
 }

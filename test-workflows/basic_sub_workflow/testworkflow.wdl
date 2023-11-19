@@ -1,7 +1,5 @@
 version 1.0
 
-import "subTestworkflow.wdl" as subTest
-
 task scatteringHello {
   input {
     Int number
@@ -15,8 +13,11 @@ task scatteringHello {
 }
 
 task scatteringGoodbye {
+  input {
+    Int number
+  }
   command {
-    echo "${2/0}"
+    echo "${number/0}"
   }
   output {
     String out = read_string(stdout())
@@ -27,15 +28,15 @@ workflow wf_scattering {
   Array[Int] numbers = [1, 2, 3]
   Array[Int] numbers2 = [1, 2]
   scatter (i in numbers) {
-     call scatteringHello
-  }
-  scatter (i in numbers2) {
-     call scatteringGoodbye {
-      input: 
-        number = 0
+     call scatteringHello {
+      input: number = i
      }
   }
-  call subTest.sub_wf_scattering
+  scatter (i in numbers2) {
+    call scatteringGoodbye {
+      input: number = i
+    }
+  }
   output {
     Array[String] out = scatteringHello.out
     Array[String] out2 = scatteringGoodbye.out

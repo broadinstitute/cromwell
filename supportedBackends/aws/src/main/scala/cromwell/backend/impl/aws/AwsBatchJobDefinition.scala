@@ -34,7 +34,7 @@ package cromwell.backend.impl.aws
 import scala.collection.mutable.ListBuffer
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
-import software.amazon.awssdk.services.batch.model.{ContainerProperties, Host, KeyValuePair, MountPoint, ResourceRequirement, ResourceType, Volume}
+import software.amazon.awssdk.services.batch.model.{ContainerProperties, Host, KeyValuePair, LogConfiguration, MountPoint, ResourceRequirement, ResourceType, Volume}
 import cromwell.backend.impl.aws.io.AwsBatchVolume
 
 import scala.jdk.CollectionConverters._
@@ -128,8 +128,8 @@ trait AwsBatchJobDefinitionBuilder {
       )
     }
 
-    def buildName(imageName: String, packedCommand: String, volumes: List[Volume], mountPoints: List[MountPoint], env: Seq[KeyValuePair]): String = {
-      val str = s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints.map(_.toString).mkString(",")}:${env.map(_.toString).mkString(",")}"
+    def buildName(imageName: String, packedCommand: String, volumes: List[Volume], mountPoints: List[MountPoint], env: Seq[KeyValuePair], logsGroup: String): String = {
+      val str = s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints.map(_.toString).mkString(",")}:${env.map(_.toString).mkString(",")}:$logsGroup"
 
       val sha1 = MessageDigest.getInstance("SHA-1")
             .digest( str.getBytes("UTF-8") )
@@ -148,26 +148,36 @@ trait AwsBatchJobDefinitionBuilder {
     val packedCommand = packCommand("/bin/bash", "-c", cmdName)
     val volumes =  buildVolumes( context.runtimeAttributes.disks )
     val mountPoints = buildMountPoints( context.runtimeAttributes.disks)
+    val logConfiguration = LogConfiguration.builder()
+      .logDriver("awslogs")
+      .options(
+        Map(
+          "awslogs-group" -> context.runtimeAttributes.logsGroup
+        ).asJava
+      )
+      .build()
     val jobDefinitionName = buildName(
       context.runtimeAttributes.dockerImage,
       packedCommand.mkString(","),
       volumes,
       mountPoints,
-      environment
+      environment,
+      context.runtimeAttributes.logsGroup
     )
 
     (builder
        .command(packedCommand.asJava)
-      .resourceRequirements(
-        ResourceRequirement.builder()
-          .`type`(ResourceType.MEMORY)
-          .value(context.runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt.toString)
-          .build(),
-        ResourceRequirement.builder()
-          .`type`(ResourceType.VCPU)
-          .value(context.runtimeAttributes.cpu.value.toString)
-          .build(),
-      )
+        .resourceRequirements(
+          ResourceRequirement.builder()
+            .`type`(ResourceType.MEMORY)
+            .value(context.runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt.toString)
+            .build(),
+          ResourceRequirement.builder()
+            .`type`(ResourceType.VCPU)
+            .value(context.runtimeAttributes.cpu.value.toString)
+            .build(),
+        )
+        .logConfiguration(logConfiguration)
         .volumes( volumes.asJava)
         .mountPoints( mountPoints.asJava)
         .environment(environment.asJava),

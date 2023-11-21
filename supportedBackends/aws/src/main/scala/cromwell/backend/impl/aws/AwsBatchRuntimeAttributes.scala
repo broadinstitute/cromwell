@@ -45,6 +45,7 @@ import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
+import scala.jdk.CollectionConverters._
 import scala.util.matching.Regex
 
 /**
@@ -60,6 +61,8 @@ import scala.util.matching.Regex
  * @param noAddress is there no address
  * @param scriptS3BucketName the s3 bucket where the execution command or script will be written and, from there, fetched into the container and executed
  * @param fileSystem the filesystem type, default is "s3"
+ * @param logsGroup the CloudWatch log group name to write logs to
+ * @param resourceTags a map of tags to add to the AWS Batch job submission
  */
 case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      zones: Vector[String],
@@ -71,7 +74,10 @@ case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      continueOnReturnCode: ContinueOnReturnCode,
                                      noAddress: Boolean,
                                      scriptS3BucketName: String,
-                                     fileSystem:String= "s3")
+                                     logsGroup: String,
+                                     resourceTags: Map[String, String],
+                                     fileSystem: String = "s3") {
+}
 
 object AwsBatchRuntimeAttributes {
 
@@ -91,6 +97,12 @@ object AwsBatchRuntimeAttributes {
   private val DisksDefaultValue = WomString(s"${AwsBatchWorkingDisk.Name}")
 
   private val MemoryDefaultValue = "2 GB"
+
+  private val logsGroupKey = "logsGroup"
+  private val logsGroupValidationInstance = new StringRuntimeAttributesValidation(logsGroupKey)
+  private val LogsGroupDefaultValue = WomString("/aws/batch/job")
+
+  private val resourceTagsKey = "resourceTags"
 
   private def cpuValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int Refined Positive] = CpuValidation.instance
     .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
@@ -123,6 +135,9 @@ object AwsBatchRuntimeAttributes {
   private def noAddressValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] = noAddressValidationInstance
     .withDefault(noAddressValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse NoAddressDefaultValue)
 
+  private def logsGroupValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[String] = logsGroupValidationInstance
+    .withDefault(logsGroupValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse LogsGroupDefaultValue)
+
   private def scriptS3BucketNameValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[String] = {
     ScriptS3BucketNameValidation(scriptS3BucketKey).withDefault(ScriptS3BucketNameValidation(scriptS3BucketKey)
       .configDefaultWomValue(runtimeConfig).getOrElse( throw new RuntimeException( "scriptBucketName is required" )))
@@ -146,7 +161,8 @@ object AwsBatchRuntimeAttributes {
                         noAddressValidation(runtimeConfig),
                         dockerValidation,
                         queueArnValidation(runtimeConfig),
-                        scriptS3BucketNameValidation(runtimeConfig)
+                        scriptS3BucketNameValidation(runtimeConfig),
+                        logsGroupValidation(runtimeConfig)
                       )
    def validationsLocalBackend  = StandardValidatedRuntimeAttributesBuilder.default(runtimeConfig).withValidation(
       cpuValidation(runtimeConfig),
@@ -157,7 +173,8 @@ object AwsBatchRuntimeAttributes {
       memoryMinValidation(runtimeConfig),
       noAddressValidation(runtimeConfig),
       dockerValidation,
-      queueArnValidation(runtimeConfig)
+      queueArnValidation(runtimeConfig),
+      logsGroupValidation(runtimeConfig)
     )
 
     configuration.fileSystem match  {
@@ -181,7 +198,14 @@ object AwsBatchRuntimeAttributes {
        case AWSBatchStorageSystems.s3 => RuntimeAttributesValidation.extract(scriptS3BucketNameValidation(runtimeAttrsConfig) , validatedRuntimeAttributes)
        case _ => ""
      }
+    val logsGroup: String = RuntimeAttributesValidation.extract(logsGroupValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
 
+    val resourceTags: Map[String, String] = runtimeAttrsConfig.collect {
+        case config if config.hasPath(resourceTagsKey) =>
+          config.getObject(resourceTagsKey).entrySet().asScala
+            .map(e => e.getKey -> e.getValue.unwrapped().toString)
+            .toMap
+    }.getOrElse(Map.empty[String, String])
 
     new AwsBatchRuntimeAttributes(
       cpu,
@@ -194,6 +218,8 @@ object AwsBatchRuntimeAttributes {
       continueOnReturnCode,
       noAddress,
       scriptS3BucketName,
+      logsGroup,
+      resourceTags,
       fileSystem
     )
   }

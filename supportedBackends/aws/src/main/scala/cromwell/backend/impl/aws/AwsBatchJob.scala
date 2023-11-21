@@ -30,8 +30,6 @@
  */
 package cromwell.backend.impl.aws
 
-import java.security.MessageDigest
-
 import cats.data.ReaderT._
 import cats.data.{Kleisli, ReaderT}
 import cats.effect.{Async, Timer}
@@ -53,8 +51,9 @@ import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.{GetObjectRequest, HeadObjectRequest, NoSuchKeyException, PutObjectRequest}
 import wdl4s.parser.MemoryUnit
 
-import scala.jdk.CollectionConverters._
+import java.security.MessageDigest
 import scala.concurrent.duration._
+import scala.jdk.CollectionConverters._
 import scala.util.{Random, Try}
 
 /**
@@ -256,7 +255,6 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
           SubmitJobRequest.builder()
             .jobName(sanitize(jobDescriptor.taskCall.fullyQualifiedName))
             .parameters(parameters.collect({ case i: AwsBatchInput => i.toStringString }).toMap.asJava)
-
             //provide job environment variables, vcpu and memory
             .containerOverrides(
               ContainerOverrides.builder
@@ -276,6 +274,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                 )
                 .build()
             )
+            .tags(runtimeAttributes.resourceTags.asJava)
             .jobQueue(runtimeAttributes.queueArn)
             .jobDefinition(definitionArn)
             .build
@@ -462,7 +461,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
   def output(detail: JobDetail): String = {
     val events: Seq[OutputLogEvent] = cloudWatchLogsClient.getLogEvents(GetLogEventsRequest.builder
       // http://aws-java-sdk-javadoc.s3-website-us-west-2.amazonaws.com/latest/software/amazon/awssdk/services/batch/model/ContainerDetail.html#logStreamName--
-      .logGroupName("/aws/batch/job")
+      .logGroupName(runtimeAttributes.logsGroup)
       .logStreamName(detail.container.logStreamName)
       .startFromHead(true)
       .build).events.asScala.toList

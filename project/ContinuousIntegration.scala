@@ -9,6 +9,7 @@ object ContinuousIntegration {
   lazy val ciSettings: Seq[Setting[_]] = List(
     srcCiResources := sourceDirectory.value / "ci" / "resources",
     targetCiResources := target.value / "ci" / "resources",
+    envFile := srcCiResources.value / "envFile.env",
     vaultToken := userHome / ".vault-token",
     copyCiResources := {
       IO.copyDirectory(srcCiResources.value, targetCiResources.value)
@@ -36,6 +37,7 @@ object ContinuousIntegration {
         "-e", "ENVIRONMENT=not_used",
         "-e", s"INPUT_PATH=${srcCiResources.value}",
         "-e", s"OUT_PATH=${targetCiResources.value}",
+        "-e", s"ENV_FILE=${envFile.value}",
         "broadinstitute/dsde-toolbox:dev", "render-templates.sh"
       )
       val result = cmd ! log
@@ -63,6 +65,7 @@ object ContinuousIntegration {
   private val srcCiResources: SettingKey[File] = settingKey[File]("Source directory for CI resources")
   private val targetCiResources: SettingKey[File] = settingKey[File]("Target directory for CI resources")
   private val vaultToken: SettingKey[File] = settingKey[File]("File with the vault token")
+  private val envFile: SettingKey[File] = settingKey[File]("File with the environment variables needed to render CI resources.")
 
   /**
     * For "reasons" these projects are excluded from the root aggregation in build.sbt.

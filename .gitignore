@@ -61,3 +61,6 @@ exome_germline_single_sample_v1.3/
 
 # GHA credentials
 gha-creds-*.json
+
+# jenv
+.java-version

@@ -11,7 +11,7 @@ filesystems {
                     # static: Where is WSM Endpoint
                     url: "https://workspace.dsde-dev.broadinstitute.org"
                     # aka LeoToken, Bearer token, auth token. Can be retrieved from TerraUI by copying value from cookies.
-                    b2cToken: "{{ envOrDefault "CROMWELL_B2C_TOKEN" "missing b2c token" }}"
+                    b2cToken: "{{ env "CROMWELL_B2C_TOKEN" }}"
                 }
             }
         }
@@ -45,7 +45,7 @@ backend {
         endpoint = "https://lz7388ada396994bb48ea5c87a02eed673689c82c2af423d03.servicebus.windows.net/terra-app-8dca2584-99fc-4fcb-8843-f7b6ad0302a2-d8143fd8-aa07-446d-9ba0-af72203f1794/tes/v1/tasks"
         concurrent-job-limit = 1000
         workflow-execution-identity = "pet-2676571657071603a9eab"
-        bearer-token="Bearer "{{ envOrDefault "CROMWELL_B2C_TOKEN" "missing b2c token" }}""
+        bearer-token="Bearer {{ env "CROMWELL_B2C_TOKEN" }}"
         # Override default polling to make it faster for speedy tests
         poll-backoff {
           min: "10 seconds"

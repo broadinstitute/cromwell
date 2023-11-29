@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# This script is used to acquire a b2c token and save it to a temporary file, which will be
-# used by the dsde-toolbox/renderCiResources to render configs.
-# Currently, this is used to populate the CROMWELL_B2C_TOKEN in tes_application.conf
-# with a fresh bearer token evry time cromwell is launched. 
+# This script acquires a b2c token using gcloud auth and writes it to a file.
+# This file is used by renderCiResources to populate the CROMWELL_B2C_TOKEN in tes_application.conf.
+# It should be run as a "Before Launch" task in IntelliJ so the token is refreshed regularly.
 
 ### Setting up this script for the first time in IntelliJ? 
 ### 1. Open the "Run/Debug Configurations" dialog for the TES repo template.
-### 2. Add a new "Before Launch" task, selecting "Run External Tool".
+### 2. Add a new "Before Launch" task, selecting "Run External Tool". 
+###    This task should run BEFORE the renderCiResources task.
 ### 3. Configure the new task:
 ###   - Name: "Acquire b2c token"
 ###   - Program: /full/path/to/src/ci/resources/acquire_b2c_token.sh

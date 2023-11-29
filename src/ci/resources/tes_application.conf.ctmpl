@@ -33,7 +33,6 @@ engine {
   }
 }
 
-
 backend {
   default = "TES"
   providers {
@@ -80,4 +79,3 @@ workflow-options {
   # Directory where to write per workflow logs
   workflow-log-dir: "https://lz43a8a3d21540dfd25f5ace.blob.core.windows.net/sc-ebda3e1d-09bf-48b1-be2e-3d09f67dfc5c/workspace-services/cbas/terra-app-4628d0e1-d4b5-4b09-ad5c-9a5766650a7a/workflow-logs"
 }
-

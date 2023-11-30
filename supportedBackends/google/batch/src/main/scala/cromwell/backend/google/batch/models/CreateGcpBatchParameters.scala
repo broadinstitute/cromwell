@@ -7,4 +7,4 @@ case class CreateGcpBatchParameters(jobDescriptor: BackendJobDescriptor,
                                     batchAttributes: GcpBatchConfigurationAttributes,
                                     projectId: String,
                                     region: String
-                                   )
+)

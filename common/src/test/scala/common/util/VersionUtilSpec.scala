@@ -4,7 +4,6 @@ import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-
 class VersionUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "VersionUtil"
@@ -22,12 +21,12 @@ class VersionUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
 
   it should "getVersion with the default" in {
     val version = VersionUtil.getVersion("made-up-artifact")
-    version should be ("made-up-artifact-version.conf-to-be-generated-by-sbt")
+    version should be("made-up-artifact-version.conf-to-be-generated-by-sbt")
   }
 
   it should "getVersion with a default override" in {
     val version = VersionUtil.getVersion("made-up-artifact", _ => "default override")
-    version should be ("default override")
+    version should be("default override")
   }
 
   it should "defaultMessage" in {
@@ -38,7 +37,7 @@ class VersionUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
     val expected = intercept[RuntimeException](VersionUtil.sbtDependencyVersion("madeUp")("made-up-project"))
     expected.getMessage should fullyMatch regex
       "Did not parse a version for 'madeUpV' from .*/project/Dependencies.scala " +
-        "\\(This occurred after made-up-project-version.conf was not found.\\)"
+      "\\(This occurred after made-up-project-version.conf was not found.\\)"
   }
 
   it should "pass sbtDependencyVersion check for typesafeConfig" in {

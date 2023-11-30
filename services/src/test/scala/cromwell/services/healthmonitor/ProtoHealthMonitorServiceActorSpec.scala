@@ -20,14 +20,17 @@ import scala.language.postfixOps
 
 class ProtoHealthMonitorServiceActorSpec extends TestKitSuite with AnyFlatSpecLike with Eventually {
   implicit val timeout = Timeout(scaled(5.seconds))
-  final implicit val blockingEc: ExecutionContextExecutor = ExecutionContext.fromExecutor(
+  implicit final val blockingEc: ExecutionContextExecutor = ExecutionContext.fromExecutor(
     Executors.newCachedThreadPool()
   )
 
   override val patienceConfig = PatienceConfig(timeout = scaled(20 seconds), interval = scaled(1 second))
   implicit val patience = patienceConfig
 
-  private def eventualStatus(actorRef: ActorRef, ok: Boolean, systems: (MonitoredSubsystem, SubsystemStatus)*): Assertion = {
+  private def eventualStatus(actorRef: ActorRef,
+                             ok: Boolean,
+                             systems: (MonitoredSubsystem, SubsystemStatus)*
+  ): Assertion = {
     case class NameAndStatus(name: String, status: SubsystemStatus)
 
     eventually {
@@ -35,7 +38,7 @@ class ProtoHealthMonitorServiceActorSpec extends TestKitSuite with AnyFlatSpecLi
       assert(resp.ok == ok)
 
       val actual = resp.systems.toList.map(NameAndStatus.tupled).sortBy(_.name)
-      val expected = systems.map { case (m, s) => m.name -> s } map { NameAndStatus.tupled } sortBy(_.name)
+      val expected = systems.map { case (m, s) => m.name -> s } map NameAndStatus.tupled sortBy (_.name)
       assert(actual.length == expected.length)
 
       actual.zip(expected) map { case (a, e) =>
@@ -46,7 +49,10 @@ class ProtoHealthMonitorServiceActorSpec extends TestKitSuite with AnyFlatSpecLi
           am <- a.status.messages.toList.flatten.headOption
           em <- e.status.messages.toList.flatten.headOption
         } yield am.startsWith(em)
-        assert(isEmpty || actualPrefixedByExpected.contains(true), s"Instead, a.status.messages = ${a.status.messages.toList.flatten} and e.status.messages = ${e.status.messages.toList.flatten}")
+        assert(
+          isEmpty || actualPrefixedByExpected.contains(true),
+          s"Instead, a.status.messages = ${a.status.messages.toList.flatten} and e.status.messages = ${e.status.messages.toList.flatten}"
+        )
       } head
     }
   }
@@ -106,7 +112,7 @@ class ProtoHealthMonitorServiceActorSpec extends TestKitSuite with AnyFlatSpecLi
 
   it should "handle timed out futures" in {
     var first = true
-    def timeOutCheck(): Future[SubsystemStatus] = {
+    def timeOutCheck(): Future[SubsystemStatus] =
       if (first) {
         first = false
         Future.successful(OkStatus)
@@ -116,7 +122,6 @@ class ProtoHealthMonitorServiceActorSpec extends TestKitSuite with AnyFlatSpecLi
           OkStatus
         }
       }
-    }
 
     val timeoutSubsystem = MonitoredSubsystem("Timeout", () => timeOutCheck())
 
@@ -174,8 +179,8 @@ class ProtoHealthMonitorServiceActorSpec extends TestKitSuite with AnyFlatSpecLi
     val statusStoreMessages: List[Option[String]] = statusStores.map(_.messages.flatMap(_.headOption))
 
     val expectedMessagePrefixes = List(None, Option("womp womp"), Option("Timed out"))
-    statusStoreMessages.zip(expectedMessagePrefixes) foreach {
-      case (a, e) => assert(a.isEmpty && e.isEmpty || a.exists(_.startsWith(e.get)))
+    statusStoreMessages.zip(expectedMessagePrefixes) foreach { case (a, e) =>
+      assert(a.isEmpty && e.isEmpty || a.exists(_.startsWith(e.get)))
     }
   }
 }
@@ -189,16 +194,16 @@ object ProtoHealthMonitorServiceActorSpec {
   val TimedOutStatus = SubsystemStatus(ok = false, Option(List("Timed out")))
 
   abstract class TestHealthMonitorActor(override val serviceConfig: Config = ConfigFactory.empty())
-    extends ProtoHealthMonitorServiceActor with ScaledTimeSpans {
+      extends ProtoHealthMonitorServiceActor
+      with ScaledTimeSpans {
     override lazy val staleThreshold = scaled(3.seconds)
     override lazy val failureRetryInterval = scaled(100.milliseconds)
     override lazy val sweepInterval = scaled(200.milliseconds)
     override lazy val futureTimeout = scaled(1.second)
   }
 
-  private def mockCheckSuccess(): Future[SubsystemStatus] = {
+  private def mockCheckSuccess(): Future[SubsystemStatus] =
     Future.successful(OkStatus)
-  }
 
   private def mockCheckFailure(): Future[SubsystemStatus] = {
     // Pay no mind, just needed to make sure the checks for both subsystems in the "binning" test get to run.

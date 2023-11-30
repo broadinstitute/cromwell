@@ -18,15 +18,15 @@ object CromwellManager extends StrictLogging {
   private var cromwellProcess: Option[CromwellProcess] = None
   private var _ready: Boolean = false
   private var _isManaged: Boolean = false
-  
+
   /**
     * Returns true if Cromwell is ready to be queried, false otherwise
     * In Unmanaged mode, this is irrelevant so always return true.
     * In managed mode return the value of _ready
     */
   def isReady: Boolean = !_isManaged || _ready
-  
-  // Check that we have a cromwellProcess, that this process is alive, and that cromwell is ready to accept requests 
+
+  // Check that we have a cromwellProcess, that this process is alive, and that cromwell is ready to accept requests
   private def isAlive(checkType: String): Boolean = {
     val processAlive = cromwellProcess.exists(_.isAlive)
     logger.info(s"Cromwell process alive $checkType = $processAlive")
@@ -76,14 +76,14 @@ object CromwellManager extends StrictLogging {
   def stopCromwell(reason: String) = {
     _ready = false
     logger.info(s"Stopping Cromwell... ($reason)")
-    try {
+    try
       cromwellProcess foreach { _.stop() }
-    } catch {
-      case e: Exception => 
+    catch {
+      case e: Exception =>
         logger.error("Caught exception while stopping Cromwell")
         e.printStackTrace()
     }
-    
+
     cromwellProcess = None
   }
 }

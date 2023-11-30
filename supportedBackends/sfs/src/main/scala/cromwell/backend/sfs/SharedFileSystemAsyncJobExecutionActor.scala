@@ -76,7 +76,9 @@ object SharedFileSystemAsyncJobExecutionActor {
   * messages.
   */
 trait SharedFileSystemAsyncJobExecutionActor
-  extends BackendJobLifecycleActor with StandardAsyncExecutionActor with SharedFileSystemJobCachingActorHelper {
+    extends BackendJobLifecycleActor
+    with StandardAsyncExecutionActor
+    with SharedFileSystemJobCachingActorHelper {
 
   override type StandardAsyncRunInfo = Any
 
@@ -85,7 +87,8 @@ trait SharedFileSystemAsyncJobExecutionActor
   /** True if the status contained in `thiz` is equivalent to `that`, delta any other data that might be carried around
     * in the state type.
     */
-  override def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz.status == that.status
+  override def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean =
+    thiz.status == that.status
 
   override lazy val pollBackOff = SimpleExponentialBackoff(1.second, 5.minutes, 1.1)
 
@@ -129,28 +132,26 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   lazy val jobPathsWithDocker: JobPathsWithDocker = jobPaths.asInstanceOf[JobPathsWithDocker]
 
-  def jobName: String = s"cromwell_${jobDescriptor.workflowDescriptor.id.shortString}_${jobDescriptor.taskCall.localName}"
+  def jobName: String =
+    s"cromwell_${jobDescriptor.workflowDescriptor.id.shortString}_${jobDescriptor.taskCall.localName}"
 
   /**
     * Localizes the file, run outside of docker.
     */
-  override def preProcessWomFile(womFile: WomFile): WomFile = {
+  override def preProcessWomFile(womFile: WomFile): WomFile =
     sharedFileSystem.localizeWomFile(jobPathsWithDocker.callInputsRoot, isDockerRun)(womFile)
-  }
 
   /**
     * Returns the paths to the file, inside of docker.
     */
-  override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
+  override def mapCommandLineWomFile(womFile: WomFile): WomFile =
     womFile mapFile { path =>
       val cleanPath = DefaultPathBuilder.build(path).get
       if (isDockerRun) jobPathsWithDocker.toDockerPath(cleanPath).pathAsString else cleanPath.pathAsString
     }
-  }
 
-  override lazy val commandDirectory: Path = {
+  override lazy val commandDirectory: Path =
     if (isDockerRun) jobPathsWithDocker.callExecutionDockerRoot else jobPaths.callExecutionRoot
-  }
 
   override def execute(): ExecutionHandle = {
     if (isDockerRun) jobPaths.callExecutionRoot.createPermissionedDirectories()
@@ -161,22 +162,34 @@ trait SharedFileSystemAsyncJobExecutionActor
         val runner = makeProcessRunner()
         val exitValue = runner.run()
         if (exitValue != 0) {
-          FailedNonRetryableExecutionHandle(new RuntimeException("Unable to start job. " +
-            s"Check the stderr file for possible errors: ${runner.stderrPath}"), kvPairsToSave = None)
+          FailedNonRetryableExecutionHandle(new RuntimeException(
+                                              "Unable to start job. " +
+                                                s"Check the stderr file for possible errors: ${runner.stderrPath}"
+                                            ),
+                                            kvPairsToSave = None
+          )
         } else {
           val runningJob = getJob(exitValue, runner.stdoutPath, runner.stderrPath)
           PendingExecutionHandle(jobDescriptor, runningJob, None, None)
         }
-    }
+      }
     )
   }
 
   def writeScriptContents(): Either[ExecutionHandle, Unit] =
     commandScriptContents.fold(
-      errors => Left(FailedNonRetryableExecutionHandle(new RuntimeException("Unable to start job due to: " + errors.toList.mkString(", ")), kvPairsToSave = None)),
-      {script => jobPaths.script.write(script); Right(())} )
+      errors =>
+        Left(
+          FailedNonRetryableExecutionHandle(
+            new RuntimeException("Unable to start job due to: " + errors.toList.mkString(", ")),
+            kvPairsToSave = None
+          )
+        ),
+      { script => jobPaths.script.write(script); Right(()) }
+    )
 
   lazy val standardPaths = jobPaths.standardPaths
+
   /**
     * Creates a script to submit the script for asynchronous processing. The default implementation assumes the
     * processArgs already runs the script asynchronously. If not, mix in the `BackgroundAsyncJobExecutionActor` that
@@ -192,15 +205,13 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   override def recover(job: StandardAsyncJob): ExecutionHandle = reconnectToExistingJob(job)
 
-  override def reconnectAsync(job: StandardAsyncJob): Future[ExecutionHandle] = {
+  override def reconnectAsync(job: StandardAsyncJob): Future[ExecutionHandle] =
     Future.successful(reconnectToExistingJob(job))
-  }
 
-  override def reconnectToAbortAsync(job: StandardAsyncJob): Future[ExecutionHandle] = {
+  override def reconnectToAbortAsync(job: StandardAsyncJob): Future[ExecutionHandle] =
     Future.successful(reconnectToExistingJob(job, forceAbort = true))
-  }
 
-  private def reconnectToExistingJob(job: StandardAsyncJob, forceAbort: Boolean = false): ExecutionHandle = {
+  private def reconnectToExistingJob(job: StandardAsyncJob, forceAbort: Boolean = false): ExecutionHandle =
     // To avoid race conditions, check for the rc file after checking if the job is alive.
     isAlive(job) match {
       case Success(true) =>
@@ -215,12 +226,16 @@ trait SharedFileSystemAsyncJobExecutionActor
           PendingExecutionHandle(jobDescriptor, job, None, None)
         } else {
           // Could start executeScript(), but for now fail because we shouldn't be in this state.
-          FailedNonRetryableExecutionHandle(new RuntimeException(
-            s"Unable to determine that ${job.jobId} is alive, and ${jobPaths.returnCode} does not exist."), None, kvPairsToSave = None)
+          FailedNonRetryableExecutionHandle(
+            new RuntimeException(
+              s"Unable to determine that ${job.jobId} is alive, and ${jobPaths.returnCode} does not exist."
+            ),
+            None,
+            kvPairsToSave = None
+          )
         }
       case Failure(f) => FailedNonRetryableExecutionHandle(f, None, kvPairsToSave = None)
     }
-  }
 
   def isAlive(job: StandardAsyncJob): Try[Boolean] = Try {
     val argv = checkAliveArgs(job).argv
@@ -235,18 +250,18 @@ trait SharedFileSystemAsyncJobExecutionActor
   override def tryAbort(job: StandardAsyncJob): Unit = {
     val returnCodeTmp = jobPaths.returnCode.plusExt("kill")
     returnCodeTmp.write(s"$SIGTERM\n")
-    try {
+    try
       returnCodeTmp.moveTo(jobPaths.returnCode)
-    } catch {
+    catch {
       case _: FileAlreadyExistsException =>
         // If the process has already completed, there will be an existing rc file.
         returnCodeTmp.delete(true)
     }
     val stderrTmp = standardPaths.error.plusExt("kill")
     stderrTmp.touch()
-    try {
+    try
       stderrTmp.moveTo(standardPaths.error)
-    } catch {
+    catch {
       case _: FileAlreadyExistsException =>
         // If the process has already started, there will be an existing stderr file.
         stderrTmp.delete(true)
@@ -259,16 +274,13 @@ trait SharedFileSystemAsyncJobExecutionActor
     ()
   }
 
-  override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunState = {
+  override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunState =
     if (jobPaths.returnCode.exists) SharedFileSystemJobDone
     else SharedFileSystemJobWaitingForReturnCode(waitUntil = None)
-  }
 
-  override def isTerminal(runStatus: StandardAsyncRunState): Boolean = {
+  override def isTerminal(runStatus: StandardAsyncRunState): Boolean =
     runStatus.terminal
-  }
 
-  override def mapOutputWomFile(womFile: WomFile): WomFile = {
+  override def mapOutputWomFile(womFile: WomFile): WomFile =
     sharedFileSystem.mapJobWomFile(jobPaths)(womFile)
-  }
 }

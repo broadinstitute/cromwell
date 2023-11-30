@@ -18,50 +18,57 @@ case class StackdriverConfig(googleProject: String,
                              flushRate: FiniteDuration,
                              cromwellInstanceIdentifier: Option[String],
                              cromwellInstanceRole: Option[String],
-                             cromwellPerfTestCase: Option[String])
+                             cromwellPerfTestCase: Option[String]
+)
 
 object StackdriverConfig {
   val CromwellInstanceIdentifier = "cromwell-instance-identifier"
   val CromwellInstanceRole = "cromwell-instance-role"
   val CromwellPerfTest = "cromwell-perf-test-case"
 
-  private def validateFlushRate(rateFunc: => FiniteDuration): ErrorOr[FiniteDuration] = {
+  private def validateFlushRate(rateFunc: => FiniteDuration): ErrorOr[FiniteDuration] =
     validate[FiniteDuration](rateFunc) match {
-      case Valid(duration) => duration match {
-        case _ if duration < 1.minute => (s"`flush-rate` must be 1 minute or longer, specified rate is `$duration`. " +
-          s"Google's Stackdriver API needs each metric to be sent not more than once per minute.").invalidNel
-        case _ => duration.validNel
-      }
+      case Valid(duration) =>
+        duration match {
+          case _ if duration < 1.minute =>
+            (s"`flush-rate` must be 1 minute or longer, specified rate is `$duration`. " +
+              s"Google's Stackdriver API needs each metric to be sent not more than once per minute.").invalidNel
+          case _ => duration.validNel
+        }
       case Invalid(e) => e.invalid
     }
-  }
 
-
-  private def validateAuth(authSchemeFunc: => String, googleConfiguration: GoogleConfiguration): ErrorOr[GoogleAuthMode] = {
+  private def validateAuth(authSchemeFunc: => String,
+                           googleConfiguration: GoogleConfiguration
+  ): ErrorOr[GoogleAuthMode] =
     validate[String](authSchemeFunc) match {
-      case Valid(schemeString) => googleConfiguration.auth(schemeString) match {
-        case Valid(auth @ (_:ApplicationDefaultMode | _:ServiceAccountMode)) => auth.valid
-        case Valid(auth @ (_: MockAuthMode)) => auth.valid // Allow mocking for tests
-        case Valid(_) => s"`auth` scheme: $schemeString is not allowed for Stackdriver instrumentation. Only `application_default` and `service_account` modes are valid.".invalidNel
-        case Invalid(error) => s"`auth` scheme is invalid. Errors: $error".invalidNel
-      }
+      case Valid(schemeString) =>
+        googleConfiguration.auth(schemeString) match {
+          case Valid(auth @ (_: ApplicationDefaultMode | _: ServiceAccountMode)) => auth.valid
+          case Valid(auth @ (_: MockAuthMode)) => auth.valid // Allow mocking for tests
+          case Valid(_) =>
+            s"`auth` scheme: $schemeString is not allowed for Stackdriver instrumentation. Only `application_default` and `service_account` modes are valid.".invalidNel
+          case Invalid(error) => s"`auth` scheme is invalid. Errors: $error".invalidNel
+        }
       case Invalid(e) => e.invalid
     }
-  }
-
 
   def apply(serviceConfig: Config, globalConfig: Config): StackdriverConfig = {
     val googleConfiguration: GoogleConfiguration = GoogleConfiguration(globalConfig)
     val cromwellInstanceId: ErrorOr[Option[String]] = globalConfig.getAs[String]("system.cromwell_id").validNel
 
-    val googleProject: ErrorOr[String] = validate[String] { serviceConfig.as[String]("google-project") }
+    val googleProject: ErrorOr[String] = validate[String](serviceConfig.as[String]("google-project"))
     val authScheme: ErrorOr[GoogleAuthMode] = validateAuth(serviceConfig.as[String]("auth"), googleConfiguration)
     val flushRate: ErrorOr[FiniteDuration] = validateFlushRate(serviceConfig.as[FiniteDuration]("flush-rate"))
     val cromwellInstanceRole: ErrorOr[Option[String]] = serviceConfig.getAs[String](CromwellInstanceRole).validNel
     val cromwellPerfTestCase: ErrorOr[Option[String]] = serviceConfig.getAs[String](CromwellPerfTest).validNel
 
-    (googleProject, authScheme, flushRate, cromwellInstanceId, cromwellInstanceRole, cromwellPerfTestCase).mapN({ (p, a, f, i, r, t) =>
-      new StackdriverConfig(p, a, f, i, r, t)
-    }).valueOr(errors => throw AggregatedMessageException("Stackdriver instrumentation config is invalid. Error(s)", errors.toList))
+    (googleProject, authScheme, flushRate, cromwellInstanceId, cromwellInstanceRole, cromwellPerfTestCase)
+      .mapN { (p, a, f, i, r, t) =>
+        new StackdriverConfig(p, a, f, i, r, t)
+      }
+      .valueOr(errors =>
+        throw AggregatedMessageException("Stackdriver instrumentation config is invalid. Error(s)", errors.toList)
+      )
   }
 }

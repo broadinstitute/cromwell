@@ -8,7 +8,7 @@ package object graph {
 
   private[graph] def dotSafe(s: String) = s""""${s.replace("\"", "\\\"")}""""
 
-  private[graph] implicit class GraphNodeGraphics(val graphNode: GraphNode) extends AnyVal {
+  implicit private[graph] class GraphNodeGraphics(val graphNode: GraphNode) extends AnyVal {
     def graphFillColor = graphNode match {
       case _: ConditionalNode | _: ScatterNode | _: WorkflowCallNode => "lightgray"
       case _: ExternalGraphInputNode => "lightskyblue1"
@@ -41,7 +41,7 @@ package object graph {
     def graphId: String = dotSafe("NODE" + graphObjectUniqueId(graphNode))
   }
 
-  private[graph] implicit class GraphNodePortGraphics(val graphNodePort: GraphNodePort) extends AnyVal {
+  implicit private[graph] class GraphNodePortGraphics(val graphNodePort: GraphNodePort) extends AnyVal {
     def graphShape = graphNodePort match {
       case _: InputPort => "oval"
       case _: OutputPort => "hexagon"

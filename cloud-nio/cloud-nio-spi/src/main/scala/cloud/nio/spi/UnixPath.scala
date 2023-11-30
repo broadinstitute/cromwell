@@ -24,7 +24,7 @@ private[spi] object UnixPath {
 
   private def hasTrailingSeparator(path: String): Boolean = !path.isEmpty && path.charAt(path.length - 1) == Separator
 
-  def getPath(path: String): UnixPath = {
+  def getPath(path: String): UnixPath =
     if (path.isEmpty) {
       EmptyPath
     } else if (isRoot(path)) {
@@ -32,7 +32,6 @@ private[spi] object UnixPath {
     } else {
       UnixPath(path)
     }
-  }
 
   def getPath(first: String, more: String*): UnixPath = {
     if (more.isEmpty) {
@@ -40,7 +39,7 @@ private[spi] object UnixPath {
     }
 
     val builder = new StringBuilder(first)
-    for ((part, index) <- more.view.zipWithIndex) {
+    for ((part, index) <- more.view.zipWithIndex)
       if (part.isEmpty) {
         // do nothing
       } else if (isAbsolute(part)) {
@@ -55,7 +54,6 @@ private[spi] object UnixPath {
         builder.append(Separator)
         builder.append(part)
       }
-    }
 
     UnixPath(builder.toString)
   }
@@ -73,14 +71,13 @@ final private[spi] case class UnixPath(path: String) extends CharSequence {
 
   def hasTrailingSeparator: Boolean = UnixPath.hasTrailingSeparator(path)
 
-  def seemsLikeDirectory(): Boolean = {
+  def seemsLikeDirectory(): Boolean =
     path.isEmpty ||
-    hasTrailingSeparator ||
-    path.endsWith(".") && (length == 1 || path.charAt(length - 2) == UnixPath.Separator) ||
-    path.endsWith("..") && (length == 2 || path.charAt(length - 3) == UnixPath.Separator)
-  }
+      hasTrailingSeparator ||
+      path.endsWith(".") && (length == 1 || path.charAt(length - 2) == UnixPath.Separator) ||
+      path.endsWith("..") && (length == 2 || path.charAt(length - 3) == UnixPath.Separator)
 
-  def getFileName: Option[UnixPath] = {
+  def getFileName: Option[UnixPath] =
     if (path.isEmpty || isRoot) {
       None
     } else {
@@ -90,7 +87,6 @@ final private[spi] case class UnixPath(path: String) extends CharSequence {
         Some(UnixPath(parts.last))
       }
     }
-  }
 
   def getParent: Option[UnixPath] = {
     if (path.isEmpty || isRoot) {
@@ -103,7 +99,7 @@ final private[spi] case class UnixPath(path: String) extends CharSequence {
       else
         path.lastIndexOf(UnixPath.Separator.toInt)
     index match {
-      case -1  => if (isAbsolute) Some(UnixPath.RootPath) else None
+      case -1 => if (isAbsolute) Some(UnixPath.RootPath) else None
       case pos => Some(UnixPath(path.substring(0, pos + 1)))
     }
   }
@@ -122,7 +118,7 @@ final private[spi] case class UnixPath(path: String) extends CharSequence {
     Try(UnixPath(parts.slice(beginIndex, endIndex).mkString(UnixPath.Separator.toString)))
   }
 
-  def getNameCount: Int = {
+  def getNameCount: Int =
     if (path.isEmpty) {
       1
     } else if (isRoot) {
@@ -130,7 +126,6 @@ final private[spi] case class UnixPath(path: String) extends CharSequence {
     } else {
       parts.length
     }
-  }
 
   def getName(index: Int): Try[UnixPath] = {
     if (path.isEmpty) {
@@ -144,7 +139,7 @@ final private[spi] case class UnixPath(path: String) extends CharSequence {
     Success(UnixPath(parts(2)))
   }
 
-  def resolve(other: UnixPath): UnixPath = {
+  def resolve(other: UnixPath): UnixPath =
     if (other.path.isEmpty) {
       this
     } else if (other.isAbsolute) {
@@ -154,15 +149,13 @@ final private[spi] case class UnixPath(path: String) extends CharSequence {
     } else {
       new UnixPath(path + UnixPath.Separator.toString + other.path)
     }
-  }
 
-  def resolveSibling(other: UnixPath): UnixPath = {
+  def resolveSibling(other: UnixPath): UnixPath =
     getParent match {
       case Some(parent: UnixPath) =>
         parent.resolve(other)
       case None => other
     }
-  }
 
   def relativize(other: UnixPath): UnixPath = {
     if (path.isEmpty) {
@@ -247,21 +240,18 @@ final private[spi] case class UnixPath(path: String) extends CharSequence {
 
   def splitReverse(): Iterator[String] = parts.reverseIterator
 
-  def removeBeginningSeparator(): UnixPath = {
+  def removeBeginningSeparator(): UnixPath =
     if (isAbsolute) new UnixPath(path.substring(1)) else this
-  }
 
-  def addTrailingSeparator(): UnixPath = {
+  def addTrailingSeparator(): UnixPath =
     if (hasTrailingSeparator) this else new UnixPath(path + UnixPath.Separator)
-  }
 
-  def removeTrailingSeparator(): UnixPath = {
+  def removeTrailingSeparator(): UnixPath =
     if (!isRoot && hasTrailingSeparator) {
       new UnixPath(path.substring(0, length - 1))
     } else {
       this
     }
-  }
 
   def startsWith(other: UnixPath): Boolean = {
     val me = removeTrailingSeparator()
@@ -279,11 +269,10 @@ final private[spi] case class UnixPath(path: String) extends CharSequence {
   }
 
   def startsWith(left: Iterator[String], right: Iterator[String]): Boolean = {
-    while (right.hasNext) {
+    while (right.hasNext)
       if (!left.hasNext || right.next() != left.next()) {
         return false
       }
-    }
     true
   }
 
@@ -310,9 +299,8 @@ final private[spi] case class UnixPath(path: String) extends CharSequence {
     if (isAbsolute) Success(this) else Success(currentWorkingDirectory.resolve(this))
   }
 
-  def toAbsolutePath: UnixPath = {
+  def toAbsolutePath: UnixPath =
     if (isAbsolute) this else UnixPath.RootPath.resolve(this)
-  }
 
   def compareTo(other: UnixPath): Int = {
     val me = parts.toList
@@ -327,29 +315,24 @@ final private[spi] case class UnixPath(path: String) extends CharSequence {
     }
   }
 
-  override def equals(obj: scala.Any): Boolean = {
+  override def equals(obj: scala.Any): Boolean =
     (this eq obj.asInstanceOf[AnyRef]) || {
       obj.isInstanceOf[UnixPath] && obj.asInstanceOf[UnixPath].path.equals(path)
     }
-  }
 
-  override def length(): Int = {
+  override def length(): Int =
     path.length
-  }
 
-  override def charAt(index: Int): Char = {
+  override def charAt(index: Int): Char =
     path.charAt(index)
-  }
 
-  override def subSequence(start: Int, end: Int): CharSequence = {
+  override def subSequence(start: Int, end: Int): CharSequence =
     path.subSequence(start, end)
-  }
 
-  override def toString: String = {
+  override def toString: String =
     path
-  }
 
-  def initParts(): Array[String] = {
+  def initParts(): Array[String] =
     if (path.isEmpty) {
       Array.empty[String]
     } else {
@@ -359,5 +342,4 @@ final private[spi] case class UnixPath(path: String) extends CharSequence {
         path.split(UnixPath.Separator)
       }
     }
-  }
 }

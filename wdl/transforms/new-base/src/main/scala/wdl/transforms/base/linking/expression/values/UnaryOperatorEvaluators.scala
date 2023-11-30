@@ -22,13 +22,12 @@ object UnaryOperatorEvaluators {
     override def evaluateValue(a: A,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
-                              (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
+    )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] =
       a.argument.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions) flatMap { arg =>
         op(arg.value).toErrorOr map {
           EvaluatedValue(_, arg.sideEffectFiles)
         }
       }
-    }
   }
 }

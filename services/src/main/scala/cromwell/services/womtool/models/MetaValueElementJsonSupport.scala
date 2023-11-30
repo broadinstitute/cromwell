@@ -9,7 +9,7 @@ object MetaValueElementJsonSupport {
 
   // We only implement the encoder, because currently, the decoder is not required.
   implicit val metaValueElementEncoder: Encoder[MetaValueElement] = new Encoder[MetaValueElement] {
-    final def apply(a : MetaValueElement) : Json = {
+    final def apply(a: MetaValueElement): Json =
       a match {
         case MetaValueElementNull =>
           Json.Null
@@ -30,10 +30,9 @@ object MetaValueElementJsonSupport {
           Json.fromValues(vec.map(apply))
 
         case MetaValueElementObject(m) =>
-          Json.fromFields(m.map{ case (key, value) =>
-                            key -> apply(value)
-                          })
+          Json.fromFields(m.map { case (key, value) =>
+            key -> apply(value)
+          })
       }
-    }
   }
 }

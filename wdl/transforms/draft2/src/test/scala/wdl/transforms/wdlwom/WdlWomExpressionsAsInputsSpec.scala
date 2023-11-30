@@ -35,7 +35,6 @@ object WdlWomExpressionsAsInputsSpec {
     """.stripMargin
 }
 
-
 class WdlWomExpressionsAsInputsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "WdlWomExpressionsAsInputs"
 
@@ -47,7 +46,9 @@ class WdlWomExpressionsAsInputsSpec extends AnyFlatSpec with CromwellTimeoutSpec
       case Invalid(errors) => fail(s"Unable to build wom graph from WDL: ${errors.toList.mkString("\n", "\n", "\n")}")
     }
 
-    val callNodes = workflowGraph.nodes.toList collect { case callNode: CommandCallNode => callNode.localName -> callNode } toMap
+    val callNodes = workflowGraph.nodes.toList collect { case callNode: CommandCallNode =>
+      callNode.localName -> callNode
+    } toMap
 
     val a = callNodes("a")
     val b = callNodes("b")
@@ -56,9 +57,8 @@ class WdlWomExpressionsAsInputsSpec extends AnyFlatSpec with CromwellTimeoutSpec
     val cInputExpressionNode = c.inputPorts.map(_.upstream).head.graphNode.asInstanceOf[ExpressionNode]
     cInputExpressionNode.inputPorts.map(_.upstream) shouldBe a.outputPorts ++ b.outputPorts
 
-    val inputExpression = c.inputDefinitionMappings
-      .head._2.select[OutputPort].get
-      .graphNode.asInstanceOf[ExpressionNode]  
+    val inputExpression =
+      c.inputDefinitionMappings.head._2.select[OutputPort].get.graphNode.asInstanceOf[ExpressionNode]
 
     List("a", "b") foreach { x =>
       val connectedInputPort = inputExpression.inputMapping(s"$x.int_out")

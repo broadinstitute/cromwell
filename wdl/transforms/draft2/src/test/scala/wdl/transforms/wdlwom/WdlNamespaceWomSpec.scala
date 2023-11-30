@@ -64,7 +64,8 @@ class WdlNamespaceWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
 
     val workflowGraph = wom3Step match {
       case Valid(g) => g
-      case Invalid(errors) => fail(s"Unable to build wom version of 3step from WDL: ${errors.toList.mkString("\n", "\n", "\n")}")
+      case Invalid(errors) =>
+        fail(s"Unable to build wom version of 3step from WDL: ${errors.toList.mkString("\n", "\n", "\n")}")
     }
 
     val graphInputNodes = workflowGraph.nodes collect { case gin: ExternalGraphInputNode => gin }
@@ -73,17 +74,27 @@ class WdlNamespaceWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     patternInputNode.localName should be("cgrep.pattern")
     patternInputNode.fullyQualifiedName should be("three_step.cgrep.pattern")
 
-    workflowGraph.nodes collect { case gon: ExpressionBasedGraphOutputNode => gon.localName } should be(Set("wc.count", "cgrep.count", "ps.procs"))
+    workflowGraph.nodes collect { case gon: ExpressionBasedGraphOutputNode => gon.localName } should be(
+      Set("wc.count", "cgrep.count", "ps.procs")
+    )
 
-    val ps: CommandCallNode = workflowGraph.nodes.collectFirst({ case ps: CommandCallNode if ps.localName == "ps" => ps }).get
-    val cgrep: CommandCallNode = workflowGraph.nodes.collectFirst({ case cgrep: CommandCallNode if cgrep.localName == "cgrep" => cgrep }).get
-    val cgrepInFileExpression = {
-      workflowGraph.nodes.collectFirst({ case cgrepInFile: ExpressionNode if cgrepInFile.localName == "cgrep.in_file" => cgrepInFile }).get
-    }
-    val wc: CommandCallNode = workflowGraph.nodes.collectFirst({ case wc: CommandCallNode if wc.localName == "wc" => wc }).get
-    val wcInFileExpression = {
-      workflowGraph.nodes.collectFirst({ case wcInFile: ExpressionNode if wcInFile.localName == "wc.in_file" => wcInFile }).get
-    }
+    val ps: CommandCallNode = workflowGraph.nodes.collectFirst {
+      case ps: CommandCallNode if ps.localName == "ps" => ps
+    }.get
+    val cgrep: CommandCallNode = workflowGraph.nodes.collectFirst {
+      case cgrep: CommandCallNode if cgrep.localName == "cgrep" => cgrep
+    }.get
+    val cgrepInFileExpression =
+      workflowGraph.nodes.collectFirst {
+        case cgrepInFile: ExpressionNode if cgrepInFile.localName == "cgrep.in_file" => cgrepInFile
+      }.get
+    val wc: CommandCallNode = workflowGraph.nodes.collectFirst {
+      case wc: CommandCallNode if wc.localName == "wc" => wc
+    }.get
+    val wcInFileExpression =
+      workflowGraph.nodes.collectFirst {
+        case wcInFile: ExpressionNode if wcInFile.localName == "wc.in_file" => wcInFile
+      }.get
 
     workflowGraph.nodes.filterByType[CallNode] should be(Set(ps, cgrep, wc))
     ps.inputPorts.map(_.name) should be(Set.empty)
@@ -102,10 +113,15 @@ class WdlNamespaceWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     val inFileMapping = cgrepInputs(cgrepFileInputDef)
     inFileMapping.select[OutputPort].isDefined shouldBe true
     // This should be less ugly when we can access a string value from a womexpression
-    inFileMapping.select[OutputPort].get
-      .graphNode.asInstanceOf[ExpressionNode]
-      .womExpression.asInstanceOf[WdlWomExpression]
-      .wdlExpression.valueString shouldBe "ps.procs"
+    inFileMapping
+      .select[OutputPort]
+      .get
+      .graphNode
+      .asInstanceOf[ExpressionNode]
+      .womExpression
+      .asInstanceOf[WdlWomExpression]
+      .wdlExpression
+      .valueString shouldBe "ps.procs"
 
     val cgrepPatternInputDef = cgrep.callable.inputs.find(_.name == "pattern").get
     cgrepInputs(cgrepPatternInputDef).select[OutputPort].get eq patternInputNode.singleOutputPort shouldBe true

@@ -18,7 +18,8 @@ import scala.collection.immutable.Queue
 final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
                             queueOrder: Vector[String],
                             eventLogger: TokenEventLogger,
-                            private [tokens] val pool: UnhoggableTokenPool) extends StrictLogging {
+                            private[tokens] val pool: UnhoggableTokenPool
+) extends StrictLogging {
   val tokenType = pool.tokenType
 
   /**
@@ -31,7 +32,7 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
     *
     * @return the new token queue
     */
-  def enqueue(placeholder: TokenQueuePlaceholder): TokenQueue = {
+  def enqueue(placeholder: TokenQueuePlaceholder): TokenQueue =
     if (queues.contains(placeholder.hogGroup)) {
       this.copy(
         queues = queues + (placeholder.hogGroup -> queues(placeholder.hogGroup).enqueue(placeholder))
@@ -42,7 +43,6 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
         queueOrder = queueOrder :+ placeholder.hogGroup
       )
     }
-  }
 
   /**
     * Returns a dequeue'd actor if one exists and there's a token available for it
@@ -57,7 +57,10 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
     recursingDequeue(guaranteedNonEmptyQueues, Vector.empty, queueOrder)
   }
 
-  private def recursingDequeue(queues: Map[String, Queue[TokenQueuePlaceholder]], queuesTried: Vector[String], queuesRemaining: Vector[String]): DequeueResult = {
+  private def recursingDequeue(queues: Map[String, Queue[TokenQueuePlaceholder]],
+                               queuesTried: Vector[String],
+                               queuesRemaining: Vector[String]
+  ): DequeueResult =
     if (queuesRemaining.isEmpty) {
       DequeueResult(None, this)
     } else {
@@ -69,7 +72,9 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
 
       if (oldQueue.isEmpty) {
         // We should have caught this above. But just in case:
-        logger.warn(s"Programmer error: Empty token queue value still present in TokenQueue: $hogGroup *and* made it through into recursiveDequeue(!): $hogGroup")
+        logger.warn(
+          s"Programmer error: Empty token queue value still present in TokenQueue: $hogGroup *and* made it through into recursiveDequeue(!): $hogGroup"
+        )
         recursingDequeue(queues, queuesTried :+ hogGroup, remainingHogGroups)
       } else {
         leaseTry match {
@@ -80,7 +85,9 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
             } else {
               (queues + (hogGroup -> newQueue), remainingHogGroups ++ queuesTried :+ hogGroup)
             }
-            DequeueResult(Option(LeasedActor(placeholder, thl)), TokenQueue(newQueues, newQueueOrder, eventLogger, pool))
+            DequeueResult(Option(LeasedActor(placeholder, thl)),
+                          TokenQueue(newQueues, newQueueOrder, eventLogger, pool)
+            )
           case TokenTypeExhausted =>
             // The pool is completely full right now, so there's no benefit trying the other hog groups:
             eventLogger.outOfTokens(tokenType.backend)
@@ -91,7 +98,6 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
         }
       }
     }
-  }
 
   def removeTokenlessActor(actor: ActorRef): TokenQueue = {
     val actorRemovedQueues = queues.map { case (hogGroup, queue) =>
@@ -139,7 +145,8 @@ object TokenQueue {
   case class LeasedActor(queuePlaceholder: TokenQueuePlaceholder, lease: Lease[JobToken]) {
     def actor: ActorRef = queuePlaceholder.actor
   }
-  def apply(tokenType: JobTokenType, logger: TokenEventLogger) = new TokenQueue(Map.empty, Vector.empty, logger, new UnhoggableTokenPool(tokenType))
+  def apply(tokenType: JobTokenType, logger: TokenEventLogger) =
+    new TokenQueue(Map.empty, Vector.empty, logger, new UnhoggableTokenPool(tokenType))
   final case class TokenQueuePlaceholder(actor: ActorRef, hogGroup: String)
 
   @JsonCodec

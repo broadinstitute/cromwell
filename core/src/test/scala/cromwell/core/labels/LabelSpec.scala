@@ -29,7 +29,7 @@ class LabelSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     "11f2468c-39d6-4be3-85c8-32735c01e66b",
     "",
     "!@#$%^&*()_+={}[]:;'<>?,./`~",
-    "now valid 255 character value-at vero eosd accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa",
+    "now valid 255 character value-at vero eosd accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa"
   )
 
   val badLabelKeys = List(

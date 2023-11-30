@@ -7,7 +7,7 @@ sealed trait TypeElement extends LanguageElement
 case class PrimitiveTypeElement(primitiveType: WomPrimitiveType) extends TypeElement
 
 case class ArrayTypeElement(inner: TypeElement) extends TypeElement
-case class MapTypeElement(keyType: TypeElement, valueType: TypeElement ) extends TypeElement
+case class MapTypeElement(keyType: TypeElement, valueType: TypeElement) extends TypeElement
 case class OptionalTypeElement(maybeType: TypeElement) extends TypeElement
 case class NonEmptyTypeElement(arrayType: TypeElement) extends TypeElement
 case class PairTypeElement(leftType: TypeElement, rightType: TypeElement) extends TypeElement

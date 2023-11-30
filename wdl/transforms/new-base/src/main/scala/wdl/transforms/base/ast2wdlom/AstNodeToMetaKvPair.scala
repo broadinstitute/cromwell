@@ -13,12 +13,14 @@ import wom.callable.{MetaKvPair, MetaValueElement}
 import scala.util.{Failure, Try}
 
 object AstNodeToMetaKvPair {
-  def astNodeToMetaKvPair(implicit astNodeToStaticString: CheckedAtoB[GenericAstNode, StaticString]): CheckedAtoB[GenericAstNode, MetaKvPair] = {
+  def astNodeToMetaKvPair(implicit
+    astNodeToStaticString: CheckedAtoB[GenericAstNode, StaticString]
+  ): CheckedAtoB[GenericAstNode, MetaKvPair] =
     CheckedAtoB.fromErrorOr("convert AstNode to MetaKvPair")(convertMetaKvPair)
-  }
 
-  private def convertMetaKvPair(astNode: GenericAstNode)
-                               (implicit astNodeToStaticString: CheckedAtoB[GenericAstNode, StaticString]): ErrorOr[MetaKvPair] = astNode match {
+  private def convertMetaKvPair(
+    astNode: GenericAstNode
+  )(implicit astNodeToStaticString: CheckedAtoB[GenericAstNode, StaticString]): ErrorOr[MetaKvPair] = astNode match {
     case a: GenericAst if a.getName == "MetaKvPair" =>
       val keyValidation: ErrorOr[String] = a.getAttributeAs[String]("key").toValidated
       val valueValidation: ErrorOr[MetaValueElement] = convertMetaValue(a.getAttribute("value"))
@@ -27,8 +29,9 @@ object AstNodeToMetaKvPair {
     case other => s"Expected Ast of type 'MetaKvPair' but got $other".invalidNel
   }
 
-  private def convertMetaValue(astNode: GenericAstNode)
-                              (implicit astNodeToStaticString: CheckedAtoB[GenericAstNode, StaticString]): ErrorOr[MetaValueElement] = {
+  private def convertMetaValue(
+    astNode: GenericAstNode
+  )(implicit astNodeToStaticString: CheckedAtoB[GenericAstNode, StaticString]): ErrorOr[MetaValueElement] = {
     implicit val recursiveKvPairConversion = CheckedAtoB.fromErrorOr(convertMetaKvPair _)
     astNode match {
       // This is a primitive type, one of {null, boolean, float, int, string}.
@@ -42,10 +45,13 @@ object AstNodeToMetaKvPair {
           case (name, other) => s"No conversion defined for Ast ($name, $other) to MetaValueElement".invalidNel
         }
 
-      case a: GenericAst if a.getName == "StaticString" => astNodeToStaticString(a).toValidated map { staticString => MetaValueElementString.apply(staticString.value) }
+      case a: GenericAst if a.getName == "StaticString" =>
+        astNodeToStaticString(a).toValidated map { staticString => MetaValueElementString.apply(staticString.value) }
 
       case a: GenericAst if a.getName == "MetaArray" =>
-        a.getAttributeAsVectorF[MetaValueElement]("values")(convertMetaValue(_).toEither).toValidated.map(MetaValueElementArray)
+        a.getAttributeAsVectorF[MetaValueElement]("values")(convertMetaValue(_).toEither)
+          .toValidated
+          .map(MetaValueElementArray)
 
       case a: GenericAst if a.getName == "MetaObject" =>
         (for {

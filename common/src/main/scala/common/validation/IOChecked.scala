@@ -1,6 +1,5 @@
 package common.validation
 
-
 import cats.arrow.FunctionK
 import cats.data.EitherT.fromEither
 import cats.data.{EitherT, NonEmptyList, ValidatedNel}
@@ -22,6 +21,7 @@ object IOChecked {
     * The monad transformer allows to flatMap over the value while keeping the IO effect as well as the list of potential errors
     */
   type IOChecked[A] = EitherT[IO, NonEmptyList[String], A]
+
   /**
     * Fixes the left type of Either to Throwable
     * This is useful when calling on IO[A].attempt, transforming it to IO[ Either[Throwable, A] ] == IO[ Attempt[A] ]
@@ -40,22 +40,22 @@ object IOChecked {
     */
   implicit val eitherThrowableApplicative = new Applicative[Attempt] {
     override def pure[A](x: A) = Right(x)
-    override def ap[A, B](ff: Attempt[A => B])(fa: Attempt[A]): Attempt[B] = {
+    override def ap[A, B](ff: Attempt[A => B])(fa: Attempt[A]): Attempt[B] =
       (fa, ff) match {
-          // Both have a list or error messages, combine them in a single one
-        case (Left(t1: MessageAggregation), Left(t2: MessageAggregation)) => Left(AggregatedMessageException("", t1.errorMessages ++ t2.errorMessages))
-          // Only one of them is a MessageAggregation, combined the errors and the other exception in a CompositeException
+        // Both have a list or error messages, combine them in a single one
+        case (Left(t1: MessageAggregation), Left(t2: MessageAggregation)) =>
+          Left(AggregatedMessageException("", t1.errorMessages ++ t2.errorMessages))
+        // Only one of them is a MessageAggregation, combined the errors and the other exception in a CompositeException
         case (Left(t1: MessageAggregation), Left(t2)) => Left(CompositeException("", List(t2), t1.errorMessages))
         case (Left(t2), Left(t1: MessageAggregation)) => Left(CompositeException("", List(t2), t1.errorMessages))
-          // None of them is a MessageAggregation, combine the 2 throwables in an AggregatedException
+        // None of them is a MessageAggregation, combine the 2 throwables in an AggregatedException
         case (Left(t1), Left(t2)) => Left(AggregatedException("", List(t1, t2)))
-          // Success case, apply f on v
+        // Success case, apply f on v
         case (Right(v), Right(f)) => Right(f(v))
-          // Default failure case, just keep the failure
+        // Default failure case, just keep the failure
         case (Left(t1), _) => Left(t1)
         case (_, Left(t1)) => Left(t1)
       }
-    }
   }
 
   /**
@@ -100,7 +100,7 @@ object IOChecked {
       * We now have an IO[ Either[NonEmptyList[String], A] ] which we can wrap into an IOChecked with EitherT.apply
       */
     override def sequential: FunctionK[IOCheckedPar, IOChecked] =
-      new FunctionK[IOCheckedPar, IOChecked] { 
+      new FunctionK[IOCheckedPar, IOChecked] {
         def apply[A](fa: IOCheckedPar[A]): IOChecked[A] = EitherT {
           IO.Par.unwrap(fa: IO.Par[Attempt[A]]) flatMap {
             case Left(t: MessageAggregation) => IO.pure(Left(NonEmptyList.fromListUnsafe(t.errorMessages.toList)))
@@ -138,7 +138,7 @@ object IOChecked {
   def error[A](error: String, tail: String*): IOChecked[A] = EitherT.leftT {
     NonEmptyList.of(error, tail: _*)
   }
-  
+
   def pure[A](value: A): IOChecked[A] = EitherT.pure(value)
 
   def goIOChecked[A](f: => A): IOChecked[A] = Try(f).toIOChecked
@@ -150,12 +150,11 @@ object IOChecked {
   implicit class EnhancedIOChecked[A](val p: IOChecked[A]) extends AnyVal {
     import cats.syntax.either._
 
-    def toChecked: Checked[A] = {
+    def toChecked: Checked[A] =
       Try(p.value.unsafeRunSync()) match {
         case Success(r) => r
         case Failure(f) => NonEmptyList.one(f.getMessage).asLeft
       }
-    }
 
     def toErrorOr: ErrorOr[A] = toChecked.toValidated
 
@@ -163,12 +162,11 @@ object IOChecked {
 
     def unsafe(context: String) = unsafeToEither().unsafe(context)
 
-    def contextualizeErrors(context: String): IOChecked[A] = {
-      p.leftMap({ errors =>
+    def contextualizeErrors(context: String): IOChecked[A] =
+      p.leftMap { errors =>
         val total = errors.size
         errors.zipWithIndex map { case (e, i) => s"Failed to $context (reason ${i + 1} of $total): $e" }
-      })
-    }
+      }
   }
 
   implicit class TryIOChecked[A](val t: Try[A]) extends AnyVal {
@@ -176,9 +174,8 @@ object IOChecked {
   }
 
   implicit class FutureIOChecked[A](val future: Future[A]) extends AnyVal {
-    def toIOChecked(implicit cs: ContextShift[IO]): IOChecked[A] = {
+    def toIOChecked(implicit cs: ContextShift[IO]): IOChecked[A] =
       IO.fromFuture(IO(future)).to[IOChecked]
-    }
   }
 
   implicit class ErrorOrIOChecked[A](val e: ErrorOr[A]) extends AnyVal {
@@ -198,9 +195,8 @@ object IOChecked {
   }
 
   implicit class OptionIOChecked[A](val o: Option[A]) extends AnyVal {
-    def toIOChecked(errorMessage: String): IOChecked[A] = {
+    def toIOChecked(errorMessage: String): IOChecked[A] =
       EitherT.fromOption(o, NonEmptyList.of(errorMessage))
-    }
   }
 
   type IOCheckedValidated[A] = IO[ValidatedNel[String, A]]

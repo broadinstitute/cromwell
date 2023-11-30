@@ -8,10 +8,12 @@ import wom.values.WomValue
 
 import scala.util.{Failure, Success}
 
-
 abstract class WomCoercionSpec(val goodCoercionTable: TableFor2[_ <: Any, WomValue],
                                val badCoercionTable: TableFor2[_ <: Any, WomType],
-                               val behaviorOf: String) extends AnyFlatSpecLike with CromwellTimeoutSpec with Matchers {
+                               val behaviorOf: String
+) extends AnyFlatSpecLike
+    with CromwellTimeoutSpec
+    with Matchers {
 
   import TableDrivenPropertyChecks._
   import WomCoercionSpec.StringableAny
@@ -19,11 +21,10 @@ abstract class WomCoercionSpec(val goodCoercionTable: TableFor2[_ <: Any, WomVal
   behavior of behaviorOf
 
   forAll(goodCoercionTable) { (fromValue, toValue) =>
-
     it should s"Allow coercion from ${fromValue.displayString} (${fromValue.typeDisplayString}) to ${toValue.toWomString} (${toValue.womType.stableName})" in {
       toValue.womType.coercionDefined(fromValue) should be(true)
       fromValue match {
-        case wv: WomValue => 
+        case wv: WomValue =>
           toValue.womType.isCoerceableFrom(wv.womType) should be(true)
         case _ => // can't test isCoerceableFrom for this fromValue
       }
@@ -35,7 +36,6 @@ abstract class WomCoercionSpec(val goodCoercionTable: TableFor2[_ <: Any, WomVal
   }
 
   forAll(badCoercionTable) { (fromValue, toType) =>
-
     it should s"Not allow coercion from ${fromValue.displayString} to ${toType.stableName}" in {
       toType.coercionDefined(fromValue) should be(false)
       fromValue match {

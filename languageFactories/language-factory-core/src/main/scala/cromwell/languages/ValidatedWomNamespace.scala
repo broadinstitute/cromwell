@@ -11,4 +11,5 @@ import wom.values.WomValue
   */
 final case class ValidatedWomNamespace(executable: Executable,
                                        womValueInputs: Map[OutputPort, WomValue],
-                                       importedFileContent: Map[String, String])
+                                       importedFileContent: Map[String, String]
+)

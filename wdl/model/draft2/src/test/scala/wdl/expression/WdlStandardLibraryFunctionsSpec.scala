@@ -11,7 +11,6 @@ import wom.values._
 
 import scala.util.{Success, Try}
 
-
 class WdlStandardLibraryFunctionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   import TableDrivenPropertyChecks._
@@ -26,7 +25,6 @@ class WdlStandardLibraryFunctionsSpec extends AnyFlatSpec with CromwellTimeoutSp
   )
 
   selectionTable foreach { case (input, select_first_ifAppropriate, select_all) =>
-
     val functionInput = Seq(Success(mkWdlArray(input)))
     if (select_first_ifAppropriate.isDefined) {
       val select_first = select_first_ifAppropriate.get

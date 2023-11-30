@@ -22,32 +22,34 @@ import scala.util.matching.Regex
 class QueryTimeoutSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures {
 
   DatabaseSystem.All foreach { databaseSystem =>
-    testOption(databaseSystem) foreach {
-      case (sleepCommand, errorMessageGenerator) =>
-        behavior of s"Query timeouts on ${databaseSystem.name}"
+    testOption(databaseSystem) foreach { case (sleepCommand, errorMessageGenerator) =>
+      behavior of s"Query timeouts on ${databaseSystem.name}"
 
-        val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
+      val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
 
-        it should "start container if required" taggedAs DbmsTest in {
-          containerOpt.foreach { _.start }
-        }
+      it should "start container if required" taggedAs DbmsTest in {
+        containerOpt.foreach(_.start)
+      }
 
-        it should "fail with a timeout" taggedAs DbmsTest in {
-          checkDatabaseSystem(containerOpt, databaseSystem, sleepCommand, errorMessageGenerator)
-        }
+      it should "fail with a timeout" taggedAs DbmsTest in {
+        checkDatabaseSystem(containerOpt, databaseSystem, sleepCommand, errorMessageGenerator)
+      }
 
-        it should "stop container if required" taggedAs DbmsTest in {
-          containerOpt.foreach { _.stop() }
-        }
+      it should "stop container if required" taggedAs DbmsTest in {
+        containerOpt.foreach(_.stop())
+      }
     }
   }
 
   private def checkDatabaseSystem(containerOpt: Option[Container],
                                   databaseSystem: DatabaseSystem,
                                   sleepCommand: String,
-                                  errorMessageGenerator: ErrorMessageGenerator): Unit = {
+                                  errorMessageGenerator: ErrorMessageGenerator
+  ): Unit =
     for {
-      testDatabase <- DatabaseTestKit.schemalessDatabaseFromContainerOptAndSystem(containerOpt, databaseSystem).autoClosed
+      testDatabase <- DatabaseTestKit
+        .schemalessDatabaseFromContainerOptAndSystem(containerOpt, databaseSystem)
+        .autoClosed
     } {
       import testDatabase.dataAccess.driver.api._
 
@@ -55,7 +57,7 @@ class QueryTimeoutSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
 
       val errorMessage = errorMessageGenerator(metadataGenerator)
 
-      //noinspection SqlDialectInspection
+      // noinspection SqlDialectInspection
       val future = testDatabase.runTestTransaction(sql"""#$sleepCommand""".as[Int].headOption, timeout = 5.seconds)
       errorMessage match {
         case IntErrorMessage(result) => future.futureValue(Timeout(10.seconds)) should be(Option(result))
@@ -64,21 +66,21 @@ class QueryTimeoutSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
           future.failed.futureValue(Timeout(10.seconds)).getMessage should fullyMatch regex pattern
       }
     }
-  }
 
-  private def testOption(databaseSystem: DatabaseSystem): Option[(String, ErrorMessageGenerator)] = {
+  private def testOption(databaseSystem: DatabaseSystem): Option[(String, ErrorMessageGenerator)] =
     databaseSystem.platform match {
       case HsqldbDatabasePlatform =>
         // HSQL does not document a SLEEP() function, which is essential for this test
         // The functionality being tested is not relevant to an HSQL user, so the omission is probably acceptable
         None
       case MariadbDatabasePlatform =>
-        Option((
-          "select sleep(10);",
-          (metadataGenerator: MetadataGenerator) => {
-            val metadata = metadataGenerator()
-            (metadata.databaseMajorVersion, metadata.databaseMinorVersion) match {
-              /*
+        Option(
+          (
+            "select sleep(10);",
+            (metadataGenerator: MetadataGenerator) => {
+              val metadata = metadataGenerator()
+              (metadata.databaseMajorVersion, metadata.databaseMinorVersion) match {
+                /*
               The docs say "If SLEEP() is interrupted, it returns 1."
 
               - https://mariadb.com/kb/en/sleep/
@@ -101,27 +103,31 @@ class QueryTimeoutSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
 
               Either way, we just need to make sure the sleep was interrupted and don't care if it was via an exception
               or returning `1`.
-               */
-              case (major, minor) if (major >= 10 && minor >= 3) || major >= 11 =>
-                RegexErrorMessage(
+                 */
+                case (major, minor) if (major >= 10 && minor >= 3) || major >= 11 =>
+                  RegexErrorMessage(
                     """(\(conn=\d+\) )?Query execution was interrupted \(max_statement_time exceeded\)""".r
-                )
-              case _ => IntErrorMessage(1)
+                  )
+                case _ => IntErrorMessage(1)
+              }
             }
-          }
-        ))
+          )
+        )
       case MysqlDatabasePlatform =>
-        Option((
-          "select sleep(10);",
-          _ => StringErrorMessage("Statement cancelled due to timeout or client request"),
-        ))
+        Option(
+          (
+            "select sleep(10);",
+            _ => StringErrorMessage("Statement cancelled due to timeout or client request")
+          )
+        )
       case PostgresqlDatabasePlatform =>
-        Option((
-          "select pg_sleep(10);",
-          _ => StringErrorMessage("ERROR: canceling statement due to user request"),
-        ))
+        Option(
+          (
+            "select pg_sleep(10);",
+            _ => StringErrorMessage("ERROR: canceling statement due to user request")
+          )
+        )
     }
-  }
 }
 
 object QueryTimeoutSpec {

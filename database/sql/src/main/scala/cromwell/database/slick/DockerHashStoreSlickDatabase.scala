@@ -15,8 +15,9 @@ trait DockerHashStoreSlickDatabase extends DockerHashStoreSqlDatabase {
   /**
     * Adds a docker hash entry to the store.
     */
-  override def addDockerHashStoreEntry(dockerHashStoreEntry: DockerHashStoreEntry)
-                                      (implicit ec: ExecutionContext): Future[Unit] = {
+  override def addDockerHashStoreEntry(
+    dockerHashStoreEntry: DockerHashStoreEntry
+  )(implicit ec: ExecutionContext): Future[Unit] = {
     val action = dataAccess.dockerHashStoreEntries += dockerHashStoreEntry
     runTransaction(action) void
   }
@@ -25,8 +26,9 @@ trait DockerHashStoreSlickDatabase extends DockerHashStoreSqlDatabase {
     * Retrieves docker hash entries for a workflow.
     *
     */
-  override def queryDockerHashStoreEntries(workflowExecutionUuid: String)
-                                          (implicit ec: ExecutionContext): Future[Seq[DockerHashStoreEntry]] = {
+  override def queryDockerHashStoreEntries(
+    workflowExecutionUuid: String
+  )(implicit ec: ExecutionContext): Future[Seq[DockerHashStoreEntry]] = {
     val action = dataAccess.dockerHashStoreEntriesForWorkflowExecutionUuid(workflowExecutionUuid).result
     runTransaction(action)
   }
@@ -34,7 +36,9 @@ trait DockerHashStoreSlickDatabase extends DockerHashStoreSqlDatabase {
   /**
     * Deletes docker hash entries related to a workflow, returning the number of rows affected.
     */
-  override def removeDockerHashStoreEntries(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Int] = {
+  override def removeDockerHashStoreEntries(
+    workflowExecutionUuid: String
+  )(implicit ec: ExecutionContext): Future[Int] = {
     val action = dataAccess.dockerHashStoreEntriesForWorkflowExecutionUuid(workflowExecutionUuid).delete
     runTransaction(action)
   }

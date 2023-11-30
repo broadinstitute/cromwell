@@ -14,8 +14,7 @@ import scala.concurrent.duration._
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Try}
 
-class CopyWorkflowLogsActorSpec
-  extends TestKitSuite with AnyFlatSpecLike with Matchers {
+class CopyWorkflowLogsActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
 
   behavior of "CopyWorkflowLogsActor"
 
@@ -25,9 +24,8 @@ class CopyWorkflowLogsActorSpec
   private val deathWatch = TestProbe("deathWatch")
   private val tempDir = DefaultPathBuilder.createTempDirectory("tempDir.")
 
-  override protected def beforeAll(): Unit = {
+  override protected def beforeAll(): Unit =
     super.beforeAll()
-  }
 
   override protected def afterAll(): Unit = {
     super.afterAll()
@@ -43,7 +41,7 @@ class CopyWorkflowLogsActorSpec
         ioActor = ioActor.ref,
         workflowLogConfigurationOption = WorkflowLogger.workflowLogConfiguration,
         copyCommandBuilder = DefaultIoCommandBuilder,
-        deleteCommandBuilder = DefaultIoCommandBuilder,
+        deleteCommandBuilder = DefaultIoCommandBuilder
       )
     val copyWorkflowLogsActor = system.actorOf(props, "testCopyWorkflowLogsActor")
 
@@ -60,7 +58,7 @@ class CopyWorkflowLogsActorSpec
     copyWorkflowLogsActor !
       ((
         workflowId,
-        IoFailure(copyCommand, new Exception("everything's fine, I am an expected copy fail") with NoStackTrace),
+        IoFailure(copyCommand, new Exception("everything's fine, I am an expected copy fail") with NoStackTrace)
       ))
 
     // There should now be a delete command sent to the ioActor
@@ -83,8 +81,8 @@ class CopyWorkflowLogsActorSpec
     val workflowId = WorkflowId.randomId()
     val destinationPath = DefaultPathBuilder.createTempFile(s"test_file_$workflowId.", ".file", Option(tempDir))
     val partialIoCommandBuilder = new PartialIoCommandBuilder {
-      override def copyCommand: PartialFunction[(Path, Path), Try[IoCopyCommand]] = {
-        case _ => Failure(new Exception("everything's fine, I am an expected copy fail") with NoStackTrace)
+      override def copyCommand: PartialFunction[(Path, Path), Try[IoCopyCommand]] = { case _ =>
+        Failure(new Exception("everything's fine, I am an expected copy fail") with NoStackTrace)
       }
     }
     val ioCommandBuilder = new IoCommandBuilder(List(partialIoCommandBuilder))
@@ -93,7 +91,7 @@ class CopyWorkflowLogsActorSpec
         serviceRegistryActor = serviceRegistryActor.ref,
         ioActor = ioActor.ref,
         workflowLogConfigurationOption = WorkflowLogger.workflowLogConfiguration,
-        copyCommandBuilder = ioCommandBuilder,
+        copyCommandBuilder = ioCommandBuilder
       )
     val copyWorkflowLogsActor = system.actorOf(props, "testCopyWorkflowLogsActorFailCopy")
 
@@ -105,7 +103,9 @@ class CopyWorkflowLogsActorSpec
     val deleteCommand = DefaultIoDeleteCommand(workflowLogPath, swallowIOExceptions = true)
     ioActor.expectMsg(msgWait, deleteCommand)
 
-    copyWorkflowLogsActor ! IoFailure(deleteCommand, new Exception("everything's fine, I am an expected delete fail") with NoStackTrace)
+    copyWorkflowLogsActor ! IoFailure(deleteCommand,
+                                      new Exception("everything's fine, I am an expected delete fail") with NoStackTrace
+    )
 
     // Send a shutdown after the delete
     deathWatch.watch(copyWorkflowLogsActor)
@@ -119,8 +119,8 @@ class CopyWorkflowLogsActorSpec
     val workflowId = WorkflowId.randomId()
     val destinationPath = DefaultPathBuilder.createTempFile(s"test_file_$workflowId.", ".file", Option(tempDir))
     val partialIoCommandBuilder = new PartialIoCommandBuilder {
-      override def copyCommand: PartialFunction[(Path, Path), Try[IoCopyCommand]] = {
-        case _ => Failure(new Exception("everything's fine, I am an expected copy fail") with NoStackTrace)
+      override def copyCommand: PartialFunction[(Path, Path), Try[IoCopyCommand]] = { case _ =>
+        Failure(new Exception("everything's fine, I am an expected copy fail") with NoStackTrace)
       }
     }
     val ioCommandBuilder = new IoCommandBuilder(List(partialIoCommandBuilder))
@@ -128,7 +128,7 @@ class CopyWorkflowLogsActorSpec
       serviceRegistryActor = serviceRegistryActor.ref,
       ioActor = ioActor.ref,
       workflowLogConfigurationOption = WorkflowLogger.workflowLogConfiguration,
-      copyCommandBuilder = ioCommandBuilder,
+      copyCommandBuilder = ioCommandBuilder
     )
     val copyWorkflowLogsActor = system.actorOf(props, "testCopyWorkflowLogsActorFailCopyShutdown")
 
@@ -146,7 +146,10 @@ class CopyWorkflowLogsActorSpec
 
     // Test that the actor is still alive and receiving messages even after a shutdown was requested
     EventFilter.error(pattern = "Failed to delete workflow logs", occurrences = 1).intercept {
-      copyWorkflowLogsActor ! IoFailure(deleteCommand, new Exception("everything's fine, I am an expected delete fail") with NoStackTrace)
+      copyWorkflowLogsActor ! IoFailure(deleteCommand,
+                                        new Exception("everything's fine, I am an expected delete fail")
+                                          with NoStackTrace
+      )
     }
 
     // Then the actor should shutdown
@@ -157,12 +160,12 @@ class CopyWorkflowLogsActorSpec
     val workflowId = WorkflowId.randomId()
     val destinationPath = DefaultPathBuilder.createTempFile(s"test_file_$workflowId.", ".file", Option(tempDir))
     val partialIoCommandBuilder = new PartialIoCommandBuilder {
-      override def copyCommand: PartialFunction[(Path, Path), Try[IoCopyCommand]] = {
-        case _ => Failure(new Exception("everything's fine, I am an expected copy fail") with NoStackTrace)
+      override def copyCommand: PartialFunction[(Path, Path), Try[IoCopyCommand]] = { case _ =>
+        Failure(new Exception("everything's fine, I am an expected copy fail") with NoStackTrace)
       }
 
-      override def deleteCommand: PartialFunction[(Path, Boolean), Try[IoDeleteCommand]] = {
-        case _ => Failure(new Exception("everything's fine, I am an expected delete fail") with NoStackTrace)
+      override def deleteCommand: PartialFunction[(Path, Boolean), Try[IoDeleteCommand]] = { case _ =>
+        Failure(new Exception("everything's fine, I am an expected delete fail") with NoStackTrace)
       }
     }
     val ioCommandBuilder = new IoCommandBuilder(List(partialIoCommandBuilder))
@@ -172,7 +175,7 @@ class CopyWorkflowLogsActorSpec
         ioActor = ioActor.ref,
         workflowLogConfigurationOption = WorkflowLogger.workflowLogConfiguration,
         copyCommandBuilder = ioCommandBuilder,
-        deleteCommandBuilder = ioCommandBuilder,
+        deleteCommandBuilder = ioCommandBuilder
       )
     val copyWorkflowLogsActor = system.actorOf(props, "testCopyWorkflowLogsActorFailDelete")
 

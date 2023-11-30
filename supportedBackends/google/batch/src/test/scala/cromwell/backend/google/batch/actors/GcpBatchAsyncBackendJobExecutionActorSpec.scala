@@ -18,7 +18,12 @@ import cromwell.backend.google.batch.io.{DiskType, GcpBatchWorkingDisk}
 import cromwell.backend.google.batch.models._
 import cromwell.backend.google.batch.util.BatchExpressionFunctions
 import cromwell.backend.io.JobPathsSpecHelper._
-import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardAsyncJob, StandardExpressionFunctionsParams}
+import cromwell.backend.standard.{
+  DefaultStandardAsyncExecutionActorParams,
+  StandardAsyncExecutionActorParams,
+  StandardAsyncJob,
+  StandardExpressionFunctionsParams
+}
 import cromwell.core._
 import cromwell.core.callcaching.NoDocker
 import cromwell.core.labels.Labels
@@ -53,14 +58,15 @@ import scala.language.postfixOps
 import common.mock.MockSugar
 import org.mockito.Mockito._
 
-class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
-  with AnyFlatSpecLike
-  with Matchers
-  with ImplicitSender
-  with BackendSpec
-  with BeforeAndAfter
-  with MockSugar
-  with DefaultJsonProtocol {
+class GcpBatchAsyncBackendJobExecutionActorSpec
+    extends TestKitSuite
+    with AnyFlatSpecLike
+    with Matchers
+    with ImplicitSender
+    with BackendSpec
+    with BeforeAndAfter
+    with MockSugar
+    with DefaultJsonProtocol {
 
   val mockPathBuilder: GcsPathBuilder = MockGcsPathBuilder.instance
   import MockGcsPathBuilder._
@@ -68,7 +74,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
 
   private def gcsPath(str: String) = mockPathBuilder.build(str).getOrElse(fail(s"Invalid gcs path: $str"))
 
-  //import GcpBatchTestConfig._
+  // import GcpBatchTestConfig._
   import cromwell.backend.google.batch.models.GcpBatchTestConfig._
 
   implicit val Timeout: FiniteDuration = 25.seconds.dilated
@@ -98,31 +104,39 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
 
   private val NoOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
 
-  private lazy val TestableCallContext = CallContext(mockPathBuilder.build("gs://root").get, DummyStandardPaths, isDocker = false)
+  private lazy val TestableCallContext =
+    CallContext(mockPathBuilder.build("gs://root").get, DummyStandardPaths, isDocker = false)
 
-  private lazy val TestableStandardExpressionFunctionsParams: StandardExpressionFunctionsParams
-  = new StandardExpressionFunctionsParams {
-    override lazy val pathBuilders: List[PathBuilder] = List(mockPathBuilder)
-    override lazy val callContext: CallContext = TestableCallContext
-    override val ioActorProxy: ActorRef = simpleIoActor
-    override val executionContext: ExecutionContext = system.dispatcher
-  }
+  private lazy val TestableStandardExpressionFunctionsParams: StandardExpressionFunctionsParams =
+    new StandardExpressionFunctionsParams {
+      override lazy val pathBuilders: List[PathBuilder] = List(mockPathBuilder)
+      override lazy val callContext: CallContext = TestableCallContext
+      override val ioActorProxy: ActorRef = simpleIoActor
+      override val executionContext: ExecutionContext = system.dispatcher
+    }
 
-  lazy val TestableGcpBatchExpressionFunctions: BatchExpressionFunctions = {
+  lazy val TestableGcpBatchExpressionFunctions: BatchExpressionFunctions =
     new BatchExpressionFunctions(TestableStandardExpressionFunctionsParams)
-  }
 
   private def buildInitializationData(jobDescriptor: BackendJobDescriptor, configuration: GcpBatchConfiguration) = {
-    val pathBuilders = Await.result(configuration.configurationDescriptor.pathBuilders(WorkflowOptions.empty), 5.seconds)
+    val pathBuilders =
+      Await.result(configuration.configurationDescriptor.pathBuilders(WorkflowOptions.empty), 5.seconds)
     val workflowPaths = GcpBatchWorkflowPaths(
-      jobDescriptor.workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), configuration, pathBuilders, GcpBatchInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper)
+      jobDescriptor.workflowDescriptor,
+      NoCredentials.getInstance(),
+      NoCredentials.getInstance(),
+      configuration,
+      pathBuilders,
+      GcpBatchInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper
+    )
     val runtimeAttributesBuilder = GcpBatchRuntimeAttributes.runtimeAttributesBuilder(configuration)
 
     GcpBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, null, None, None, None)
   }
 
-  class TestableGcpBatchJobExecutionActor(params: StandardAsyncExecutionActorParams, functions: BatchExpressionFunctions)
-    extends GcpBatchAsyncBackendJobExecutionActor(params) {
+  class TestableGcpBatchJobExecutionActor(params: StandardAsyncExecutionActorParams,
+                                          functions: BatchExpressionFunctions
+  ) extends GcpBatchAsyncBackendJobExecutionActor(params) {
 
     def this(jobDescriptor: BackendJobDescriptor,
              promise: Promise[BackendJobExecutionResponse],
@@ -130,8 +144,8 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
              functions: BatchExpressionFunctions = TestableGcpBatchExpressionFunctions,
              batchSingletonActor: ActorRef = emptyActor,
              ioActor: ActorRef = mockIoActor,
-             serviceRegistryActor: ActorRef = kvService) = {
-
+             serviceRegistryActor: ActorRef = kvService
+    ) =
       this(
         DefaultStandardAsyncExecutionActorParams(
           jobIdKey = GcpBatchAsyncBackendJobExecutionActor.GcpBatchOperationIdKey,
@@ -146,7 +160,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
         ),
         functions
       )
-    }
 
     override lazy val jobLogger: JobLogger = new JobLogger(
       loggerName = "TestLogger",
@@ -162,7 +175,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
     override lazy val backendEngineFunctions: BatchExpressionFunctions = functions
   }
 
-
   private val runtimeAttributesBuilder = GcpBatchRuntimeAttributes.runtimeAttributesBuilder(gcpBatchConfiguration)
   private val workingDisk = GcpBatchWorkingDisk(DiskType.SSD, 200)
 
@@ -174,11 +186,18 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
       |}
     """.stripMargin
 
-  private def buildPreemptibleJobDescriptor(preemptible: Int, previousPreemptions: Int, previousUnexpectedRetries: Int, failedRetriesCountOpt: Option[Int] = None): BackendJobDescriptor = {
+  private def buildPreemptibleJobDescriptor(preemptible: Int,
+                                            previousPreemptions: Int,
+                                            previousUnexpectedRetries: Int,
+                                            failedRetriesCountOpt: Option[Int] = None
+  ): BackendJobDescriptor = {
     val attempt = previousPreemptions + previousUnexpectedRetries + 1
-    val wdlNamespace = WdlNamespaceWithWorkflow.load(YoSup.replace("[PREEMPTIBLE]", s"preemptible: $preemptible"),
-      Seq.empty[Draft2ImportResolver]).get
-    val womDefinition = wdlNamespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
+    val wdlNamespace = WdlNamespaceWithWorkflow
+      .load(YoSup.replace("[PREEMPTIBLE]", s"preemptible: $preemptible"), Seq.empty[Draft2ImportResolver])
+      .get
+    val womDefinition = wdlNamespace.workflow
+      .toWomWorkflowDefinition(isASubworkflow = false)
+      .getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
 
     wdlNamespace.toWomExecutable(Option(Inputs.toJson.compactPrint), NoIoFunctionSet, strictValidation = true) match {
       case Right(womExecutable) =>
@@ -203,21 +222,42 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
         val key = BackendJobDescriptorKey(job, None, attempt)
         val runtimeAttributes = makeRuntimeAttributes(job)
         val prefetchedKvEntries = Map(
-          GcpBatchBackendLifecycleActorFactory.preemptionCountKey -> KvPair(ScopedKey(workflowDescriptor.id, KvJobKey(key), GcpBatchBackendLifecycleActorFactory.preemptionCountKey), previousPreemptions.toString),
-          GcpBatchBackendLifecycleActorFactory.unexpectedRetryCountKey -> KvPair(ScopedKey(workflowDescriptor.id, KvJobKey(key), GcpBatchBackendLifecycleActorFactory.unexpectedRetryCountKey), previousUnexpectedRetries.toString))
-        val prefetchedKvEntriesUpd = if(failedRetriesCountOpt.isEmpty) {
+          GcpBatchBackendLifecycleActorFactory.preemptionCountKey -> KvPair(
+            ScopedKey(workflowDescriptor.id, KvJobKey(key), GcpBatchBackendLifecycleActorFactory.preemptionCountKey),
+            previousPreemptions.toString
+          ),
+          GcpBatchBackendLifecycleActorFactory.unexpectedRetryCountKey -> KvPair(
+            ScopedKey(workflowDescriptor.id,
+                      KvJobKey(key),
+                      GcpBatchBackendLifecycleActorFactory.unexpectedRetryCountKey
+            ),
+            previousUnexpectedRetries.toString
+          )
+        )
+        val prefetchedKvEntriesUpd = if (failedRetriesCountOpt.isEmpty) {
           prefetchedKvEntries
         } else {
-          prefetchedKvEntries + (BackendLifecycleActorFactory.FailedRetryCountKey -> KvPair(ScopedKey(workflowDescriptor.id, KvJobKey(key), BackendLifecycleActorFactory.FailedRetryCountKey), failedRetriesCountOpt.get.toString ))
+          prefetchedKvEntries + (BackendLifecycleActorFactory.FailedRetryCountKey -> KvPair(
+            ScopedKey(workflowDescriptor.id, KvJobKey(key), BackendLifecycleActorFactory.FailedRetryCountKey),
+            failedRetriesCountOpt.get.toString
+          ))
         }
-        BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(Inputs), NoDocker, None, prefetchedKvEntriesUpd)
+        BackendJobDescriptor(workflowDescriptor,
+                             key,
+                             runtimeAttributes,
+                             fqnWdlMapToDeclarationMap(Inputs),
+                             NoDocker,
+                             None,
+                             prefetchedKvEntriesUpd
+        )
       case Left(badtimes) => fail(badtimes.toList.mkString(", "))
     }
   }
 
   private case class DockerImageCacheTestingParameters(dockerImageCacheDiskOpt: Option[String],
                                                        dockerImageAsSpecifiedByUser: String,
-                                                       isDockerImageCacheUsageRequested: Boolean)
+                                                       isDockerImageCacheUsageRequested: Boolean
+  )
 
   private def executionActor(jobDescriptor: BackendJobDescriptor,
                              promise: Promise[BackendJobExecutionResponse],
@@ -226,13 +266,19 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
                              serviceRegistryActor: ActorRef = kvService,
                              referenceInputFilesOpt: Option[Set[GcpBatchInput]] = None,
                              dockerImageCacheTestingParamsOpt: Option[DockerImageCacheTestingParameters] = None
-                            ): ActorRef = {
+  ): ActorRef = {
 
     val job = generateStandardAsyncJob
     val run = Run(job)
     val handle = new GcpBatchPendingExecutionHandle(jobDescriptor, run.job, Option(run), None)
 
-    class ExecuteOrRecoverActor extends TestableGcpBatchJobExecutionActor(jobDescriptor, promise, gcpBatchConfiguration, batchSingletonActor = batchSingletonActor, serviceRegistryActor = serviceRegistryActor) {
+    class ExecuteOrRecoverActor
+        extends TestableGcpBatchJobExecutionActor(jobDescriptor,
+                                                  promise,
+                                                  gcpBatchConfiguration,
+                                                  batchSingletonActor = batchSingletonActor,
+                                                  serviceRegistryActor = serviceRegistryActor
+        ) {
       override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
         sendIncrementMetricsForReferenceFiles(referenceInputFilesOpt)
         dockerImageCacheTestingParamsOpt.foreach { dockerImageCacheTestingParams =>
@@ -251,17 +297,23 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
     system.actorOf(Props(new ExecuteOrRecoverActor), "ExecuteOrRecoverActor-" + UUID.randomUUID)
   }
 
-  def runAndFail(previousPreemptions: Int, previousUnexpectedRetries: Int, preemptible: Int, errorCode: Status, innerErrorMessage: String, expectPreemptible: Boolean): BackendJobExecutionResponse = {
+  def runAndFail(previousPreemptions: Int,
+                 previousUnexpectedRetries: Int,
+                 preemptible: Int,
+                 errorCode: Status,
+                 innerErrorMessage: String,
+                 expectPreemptible: Boolean
+  ): BackendJobExecutionResponse = {
 
     val runStatus: RunStatus = RunStatus.Failed(List.empty)
     //    val runStatus = UnsuccessfulRunStatus(errorCode, Option(innerErrorMessage), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), expectPreemptible)
     val statusPoller = TestProbe("statusPoller")
 
     val promise = Promise[BackendJobExecutionResponse]()
-    val jobDescriptor =  buildPreemptibleJobDescriptor(preemptible, previousPreemptions, previousUnexpectedRetries)
+    val jobDescriptor = buildPreemptibleJobDescriptor(preemptible, previousPreemptions, previousUnexpectedRetries)
 
     // TODO: Use this to check the new KV entries are there!  From PAPI
-    //val kvProbe = TestProbe("kvProbe")
+    // val kvProbe = TestProbe("kvProbe")
 
     val backend = executionActor(jobDescriptor, promise, statusPoller.ref, expectPreemptible)
     backend ! Execute
@@ -277,20 +329,35 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
           case RunStatus.Unrecognized => com.google.cloud.batch.v1.JobStatus.State.UNRECOGNIZED
         }
 
-        backend ! GcpBatchBackendSingletonActor.Event.JobStatusRetrieved(Job.newBuilder.setStatus(com.google.cloud.batch.v1.JobStatus.newBuilder.setState(internalStatus).build()).build())
+        backend ! GcpBatchBackendSingletonActor.Event.JobStatusRetrieved(
+          Job.newBuilder
+            .setStatus(com.google.cloud.batch.v1.JobStatus.newBuilder.setState(internalStatus).build())
+            .build()
+        )
     }
 
     Await.result(promise.future, Timeout)
   }
 
-  def buildPreemptibleTestActorRef(attempt: Int, preemptible: Int, failedRetriesCountOpt: Option[Int] = None): TestActorRef[TestableGcpBatchJobExecutionActor] = {
+  def buildPreemptibleTestActorRef(attempt: Int,
+                                   preemptible: Int,
+                                   failedRetriesCountOpt: Option[Int] = None
+  ): TestActorRef[TestableGcpBatchJobExecutionActor] = {
     // For this test we say that all previous attempts were preempted:
-    val jobDescriptor = buildPreemptibleJobDescriptor(preemptible, attempt - 1, previousUnexpectedRetries = 0, failedRetriesCountOpt = failedRetriesCountOpt)
-    val props = Props(new TestableGcpBatchJobExecutionActor(jobDescriptor, Promise(),
-      gcpBatchConfiguration,
-      TestableGcpBatchExpressionFunctions,
-      emptyActor,
-      failIoActor))
+    val jobDescriptor = buildPreemptibleJobDescriptor(preemptible,
+                                                      attempt - 1,
+                                                      previousUnexpectedRetries = 0,
+                                                      failedRetriesCountOpt = failedRetriesCountOpt
+    )
+    val props = Props(
+      new TestableGcpBatchJobExecutionActor(jobDescriptor,
+                                            Promise(),
+                                            gcpBatchConfiguration,
+                                            TestableGcpBatchExpressionFunctions,
+                                            emptyActor,
+                                            failIoActor
+      )
+    )
     TestActorRef(props, s"TestableGcpBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
   }
 
@@ -331,12 +398,30 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
 
   it should "send proper value for \"number of reference files used gauge\" metric, or don't send anything if reference disks feature is disabled" in {
 
-    val expectedInput1 = GcpBatchFileInput(name = "testfile1", relativeHostPath = DefaultPathBuilder.build(Paths.get(s"test/reference/path/file1")), mount = null, cloudPath = null)
-    val expectedInput2 = GcpBatchFileInput(name = "testfile2", relativeHostPath = DefaultPathBuilder.build(Paths.get(s"test/reference/path/file2")), mount = null, cloudPath = null)
+    val expectedInput1 = GcpBatchFileInput(name = "testfile1",
+                                           relativeHostPath =
+                                             DefaultPathBuilder.build(Paths.get(s"test/reference/path/file1")),
+                                           mount = null,
+                                           cloudPath = null
+    )
+    val expectedInput2 = GcpBatchFileInput(name = "testfile2",
+                                           relativeHostPath =
+                                             DefaultPathBuilder.build(Paths.get(s"test/reference/path/file2")),
+                                           mount = null,
+                                           cloudPath = null
+    )
     val expectedReferenceInputFiles = Set[GcpBatchInput](expectedInput1, expectedInput2)
 
-    val expectedMsg1 = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, NonEmptyList.of("referencefiles", expectedInput1.relativeHostPath.pathAsString))))
-    val expectedMsg2 = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, NonEmptyList.of("referencefiles", expectedInput2.relativeHostPath.pathAsString))))
+    val expectedMsg1 = InstrumentationServiceMessage(
+      CromwellIncrement(
+        CromwellBucket(List.empty, NonEmptyList.of("referencefiles", expectedInput1.relativeHostPath.pathAsString))
+      )
+    )
+    val expectedMsg2 = InstrumentationServiceMessage(
+      CromwellIncrement(
+        CromwellBucket(List.empty, NonEmptyList.of("referencefiles", expectedInput2.relativeHostPath.pathAsString))
+      )
+    )
 
     val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0)
     val serviceRegistryProbe = TestProbe()
@@ -370,59 +455,74 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
     val serviceRegistryProbe = TestProbe()
     val madeUpDockerImageName = "test_madeup_docker_image_name"
 
-    val expectedMessageWhenRequestedNotFound = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, NonEmptyList("docker", List("image", "cache", "image_not_in_cache", madeUpDockerImageName)))))
+    val expectedMessageWhenRequestedNotFound = InstrumentationServiceMessage(
+      CromwellIncrement(
+        CromwellBucket(List.empty,
+                       NonEmptyList("docker", List("image", "cache", "image_not_in_cache", madeUpDockerImageName))
+        )
+      )
+    )
     val backendDockerCacheRequestedButNotFound = executionActor(
       jobDescriptor,
       Promise[BackendJobExecutionResponse](),
       TestProbe().ref,
       shouldBePreemptible = false,
       serviceRegistryActor = serviceRegistryProbe.ref,
-      dockerImageCacheTestingParamsOpt =
-        Option(
-          DockerImageCacheTestingParameters(
-            None,
-            "test_madeup_docker_image_name",
-            isDockerImageCacheUsageRequested = true
-          )
+      dockerImageCacheTestingParamsOpt = Option(
+        DockerImageCacheTestingParameters(
+          None,
+          "test_madeup_docker_image_name",
+          isDockerImageCacheUsageRequested = true
         )
+      )
     )
     backendDockerCacheRequestedButNotFound ! Execute
     serviceRegistryProbe.expectMsg(expectedMessageWhenRequestedNotFound)
 
-    val expectedMessageWhenRequestedAndFound = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, NonEmptyList("docker", List("image", "cache", "used_image_from_cache", madeUpDockerImageName)))))
+    val expectedMessageWhenRequestedAndFound = InstrumentationServiceMessage(
+      CromwellIncrement(
+        CromwellBucket(List.empty,
+                       NonEmptyList("docker", List("image", "cache", "used_image_from_cache", madeUpDockerImageName))
+        )
+      )
+    )
     val backendDockerCacheRequestedAndFound = executionActor(
       jobDescriptor,
       Promise[BackendJobExecutionResponse](),
       TestProbe().ref,
       shouldBePreemptible = false,
       serviceRegistryActor = serviceRegistryProbe.ref,
-      dockerImageCacheTestingParamsOpt =
-        Option(
-          DockerImageCacheTestingParameters(
-            Option("test_madeup_disk_image_name"),
-            "test_madeup_docker_image_name",
-            isDockerImageCacheUsageRequested = true
-          )
+      dockerImageCacheTestingParamsOpt = Option(
+        DockerImageCacheTestingParameters(
+          Option("test_madeup_disk_image_name"),
+          "test_madeup_docker_image_name",
+          isDockerImageCacheUsageRequested = true
         )
+      )
     )
     backendDockerCacheRequestedAndFound ! Execute
     serviceRegistryProbe.expectMsg(expectedMessageWhenRequestedAndFound)
 
-    val expectedMessageWhenNotRequestedButFound = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, NonEmptyList("docker", List("image", "cache", "cached_image_not_used", madeUpDockerImageName)))))
+    val expectedMessageWhenNotRequestedButFound = InstrumentationServiceMessage(
+      CromwellIncrement(
+        CromwellBucket(List.empty,
+                       NonEmptyList("docker", List("image", "cache", "cached_image_not_used", madeUpDockerImageName))
+        )
+      )
+    )
     val backendDockerCacheNotRequestedButFound = executionActor(
       jobDescriptor,
       Promise[BackendJobExecutionResponse](),
       TestProbe().ref,
       shouldBePreemptible = false,
       serviceRegistryActor = serviceRegistryProbe.ref,
-      dockerImageCacheTestingParamsOpt =
-        Option(
-          DockerImageCacheTestingParameters(
-            Option("test_madeup_disk_image_name"),
-            "test_madeup_docker_image_name",
-            isDockerImageCacheUsageRequested = false
-          )
+      dockerImageCacheTestingParamsOpt = Option(
+        DockerImageCacheTestingParameters(
+          Option("test_madeup_disk_image_name"),
+          "test_madeup_docker_image_name",
+          isDockerImageCacheUsageRequested = false
         )
+      )
     )
     backendDockerCacheNotRequestedButFound ! Execute
     serviceRegistryProbe.expectMsg(expectedMessageWhenNotRequestedButFound)
@@ -433,14 +533,13 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
       TestProbe().ref,
       shouldBePreemptible = false,
       serviceRegistryActor = serviceRegistryProbe.ref,
-      dockerImageCacheTestingParamsOpt =
-        Option(
-          DockerImageCacheTestingParameters(
-            None,
-            "test_madeup_docker_image_name",
-            isDockerImageCacheUsageRequested = false
-          )
+      dockerImageCacheTestingParamsOpt = Option(
+        DockerImageCacheTestingParameters(
+          None,
+          "test_madeup_docker_image_name",
+          isDockerImageCacheUsageRequested = false
         )
+      )
     )
     backendDockerCacheNotRequestedNotFound ! Execute
     serviceRegistryProbe.expectNoMessage(timeout)
@@ -475,8 +574,10 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
 
     checkFailedResult(Status.ABORTED, Option("15: Other type of error."))
       .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    checkFailedResult(Status.OUT_OF_RANGE, Option("14: Wrong errorCode.")).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    checkFailedResult(Status.ABORTED, Option("Weird error message.")).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
+    checkFailedResult(Status.OUT_OF_RANGE, Option("14: Wrong errorCode."))
+      .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
+    checkFailedResult(Status.ABORTED, Option("Weird error message."))
+      .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
     checkFailedResult(Status.ABORTED, Option("UnparsableInt: Even weirder error message."))
       .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
     checkFailedResult(Status.ABORTED, None).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
@@ -511,14 +612,20 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
       gcsFileKey -> gcsFileVal
     )
 
-    val wdlNamespace = WdlNamespaceWithWorkflow.load(
-      wdlString,
-      Seq.empty[Draft2ImportResolver],
-    ).get
-    val womWorkflow = wdlNamespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
+    val wdlNamespace = WdlNamespaceWithWorkflow
+      .load(
+        wdlString,
+        Seq.empty[Draft2ImportResolver]
+      )
+      .get
+    val womWorkflow = wdlNamespace.workflow
+      .toWomWorkflowDefinition(isASubworkflow = false)
+      .getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
     wdlNamespace.toWomExecutable(Option(inputs.toJson.compactPrint), NoIoFunctionSet, strictValidation = true) match {
       case Right(womExecutable) =>
-        val wdlInputs = womExecutable.resolvedExecutableInputs.flatMap({case (port, v) => v.select[WomValue] map { port -> _ }})
+        val wdlInputs = womExecutable.resolvedExecutableInputs.flatMap { case (port, v) =>
+          v.select[WomValue] map { port -> _ }
+        }
 
         val workflowDescriptor = BackendWorkflowDescriptor(
           WorkflowId.randomId(),
@@ -531,19 +638,28 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
           None
         )
 
-        val call: CommandCallNode = workflowDescriptor.callable.graph.nodes.collectFirst({ case t: CommandCallNode => t }).get
+        val call: CommandCallNode = workflowDescriptor.callable.graph.nodes.collectFirst { case t: CommandCallNode =>
+          t
+        }.get
         val key = BackendJobDescriptorKey(call, None, 1)
         val runtimeAttributes = makeRuntimeAttributes(call)
-        val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, None, Map.empty)
+        val jobDescriptor = BackendJobDescriptor(workflowDescriptor,
+                                                 key,
+                                                 runtimeAttributes,
+                                                 fqnWdlMapToDeclarationMap(inputs),
+                                                 NoDocker,
+                                                 None,
+                                                 Map.empty
+        )
 
         val props = Props(new TestableGcpBatchJobExecutionActor(jobDescriptor, Promise(), gcpBatchConfiguration))
         val testActorRef = TestActorRef[TestableGcpBatchJobExecutionActor](
-          props, s"TestableGcpBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
+          props,
+          s"TestableGcpBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}"
+        )
 
-
-        def gcsPathToLocal(womValue: WomValue): WomValue = {
+        def gcsPathToLocal(womValue: WomValue): WomValue =
           WomFileMapper.mapWomFiles(testActorRef.underlyingActor.mapCommandLineWomFile)(womValue).get
-        }
 
         val mappedInputs = jobDescriptor.localInputs safeMapValues gcsPathToLocal
 
@@ -569,8 +685,14 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
 
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      WdlNamespaceWithWorkflow.load(SampleWdl.EmptyString.asWorkflowSources(DockerAndDiskRuntime).workflowSource.get,
-        Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
+      WdlNamespaceWithWorkflow
+        .load(SampleWdl.EmptyString.asWorkflowSources(DockerAndDiskRuntime).workflowSource.get,
+              Seq.empty[Draft2ImportResolver]
+        )
+        .get
+        .workflow
+        .toWomWorkflowDefinition(isASubworkflow = false)
+        .getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       WorkflowOptions.fromJsonString("""{"monitoring_script": "gs://path/to/script"}""").get,
       Labels.empty,
@@ -582,22 +704,37 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
     val job: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
     val runtimeAttributes = makeRuntimeAttributes(job)
     val key = BackendJobDescriptorKey(job, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, None, Map.empty)
+    val jobDescriptor =
+      BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, None, Map.empty)
 
     val props = Props(new TestableGcpBatchJobExecutionActor(jobDescriptor, Promise(), gcpBatchConfiguration))
     val testActorRef = TestActorRef[TestableGcpBatchJobExecutionActor](
-      props, s"TestableGcpBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
+      props,
+      s"TestableGcpBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}"
+    )
 
     testActorRef.underlyingActor.monitoringScript shouldBe
-      Option(GcpBatchFileInput("monitoring-in", gcsPath("gs://path/to/script"), DefaultPathBuilder.get("monitoring.sh"), workingDisk))
+      Option(
+        GcpBatchFileInput("monitoring-in",
+                          gcsPath("gs://path/to/script"),
+                          DefaultPathBuilder.get("monitoring.sh"),
+                          workingDisk
+        )
+      )
   }
 
   it should "not create a GcpBatchFileInput for the monitoring script, when not specified" in {
 
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      WdlNamespaceWithWorkflow.load(SampleWdl.EmptyString.asWorkflowSources(DockerAndDiskRuntime).workflowSource.get,
-        Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
+      WdlNamespaceWithWorkflow
+        .load(SampleWdl.EmptyString.asWorkflowSources(DockerAndDiskRuntime).workflowSource.get,
+              Seq.empty[Draft2ImportResolver]
+        )
+        .get
+        .workflow
+        .toWomWorkflowDefinition(isASubworkflow = false)
+        .getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       NoOptions,
       Labels.empty,
@@ -606,14 +743,17 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
       None
     )
 
-    val job: CommandCallNode = workflowDescriptor.callable.graph.nodes.collectFirst({case t: CommandCallNode => t}).get
+    val job: CommandCallNode = workflowDescriptor.callable.graph.nodes.collectFirst { case t: CommandCallNode => t }.get
     val key = BackendJobDescriptorKey(job, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(job)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, None, Map.empty)
+    val jobDescriptor =
+      BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, None, Map.empty)
 
     val props = Props(new TestableGcpBatchJobExecutionActor(jobDescriptor, Promise(), gcpBatchConfiguration))
     val testActorRef = TestActorRef[TestableGcpBatchJobExecutionActor](
-      props, s"TestableGcpBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
+      props,
+      s"TestableGcpBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}"
+    )
 
     testActorRef.underlyingActor.monitoringScript shouldBe None
   }
@@ -622,11 +762,18 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
 
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId(UUID.fromString("e6236763-c518-41d0-9688-432549a8bf7c")),
-      WdlNamespaceWithWorkflow.load(
-        SampleWdl.HelloWorld.asWorkflowSources(""" runtime {docker: "ubuntu:latest"} """).workflowSource.get,
-        Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
+      WdlNamespaceWithWorkflow
+        .load(SampleWdl.HelloWorld.asWorkflowSources(""" runtime {docker: "ubuntu:latest"} """).workflowSource.get,
+              Seq.empty[Draft2ImportResolver]
+        )
+        .get
+        .workflow
+        .toWomWorkflowDefinition(isASubworkflow = false)
+        .getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
-      WorkflowOptions.fromJsonString(s""" {"${GcpBatchWorkflowPaths.GcsRootOptionKey}": "gs://path/to/gcs_root"} """).get,
+      WorkflowOptions
+        .fromJsonString(s""" {"${GcpBatchWorkflowPaths.GcsRootOptionKey}": "gs://path/to/gcs_root"} """)
+        .get,
       Labels.empty,
       HogGroup("foo"),
       List.empty,
@@ -636,11 +783,14 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
     val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == "hello").get
     val key = BackendJobDescriptorKey(call, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, None, Map.empty)
+    val jobDescriptor =
+      BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, None, Map.empty)
 
     val props = Props(new TestableGcpBatchJobExecutionActor(jobDescriptor, Promise(), gcpBatchConfiguration))
     val testActorRef = TestActorRef[TestableGcpBatchJobExecutionActor](
-      props, s"TestableGcpBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
+      props,
+      s"TestableGcpBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}"
+    )
 
     val batchBackend = testActorRef.underlyingActor
 
@@ -659,11 +809,19 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
 
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId(UUID.fromString("e6236763-c518-41d0-9688-432549a8bf7d")),
-      WdlNamespaceWithWorkflow.load(
-        new SampleWdl.ScatterWdl().asWorkflowSources(""" runtime {docker: "ubuntu:latest"} """).workflowSource.get,
-        Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
+      WdlNamespaceWithWorkflow
+        .load(
+          new SampleWdl.ScatterWdl().asWorkflowSources(""" runtime {docker: "ubuntu:latest"} """).workflowSource.get,
+          Seq.empty[Draft2ImportResolver]
+        )
+        .get
+        .workflow
+        .toWomWorkflowDefinition(isASubworkflow = false)
+        .getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
-      WorkflowOptions.fromJsonString(s""" {"${GcpBatchWorkflowPaths.GcsRootOptionKey}": "gs://path/to/gcs_root"} """).get,
+      WorkflowOptions
+        .fromJsonString(s""" {"${GcpBatchWorkflowPaths.GcsRootOptionKey}": "gs://path/to/gcs_root"} """)
+        .get,
       Labels.empty,
       HogGroup("foo"),
       List.empty,
@@ -673,11 +831,14 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
     val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == "B").get
     val key = BackendJobDescriptorKey(call, Option(2), 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, None, Map.empty)
+    val jobDescriptor =
+      BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, None, Map.empty)
 
     val props = Props(new TestableGcpBatchJobExecutionActor(jobDescriptor, Promise(), gcpBatchConfiguration))
     val testActorRef = TestActorRef[TestableGcpBatchJobExecutionActor](
-      props, s"TestableGcpBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
+      props,
+      s"TestableGcpBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}"
+    )
 
     val batchBackend = testActorRef.underlyingActor
 
@@ -694,9 +855,8 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
 
   it should "return preemptible = true only in the correct cases" in {
 
-    def attempt(max: Int, attempt: Int): GcpBatchAsyncBackendJobExecutionActor = {
+    def attempt(max: Int, attempt: Int): GcpBatchAsyncBackendJobExecutionActor =
       buildPreemptibleTestActorRef(attempt, max).underlyingActor
-    }
     def attempt1(max: Int) = attempt(max, 1)
     def attempt2(max: Int) = attempt(max, 2)
 
@@ -733,13 +893,15 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
         .toWomWorkflowDefinition(isASubworkflow = false)
         .getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
-      WorkflowOptions.fromJsonString(
-        s"""|{
-            |  "google_project": "$googleProject",
-            |  "${GcpBatchWorkflowPaths.GcsRootOptionKey}": "$batchGcsRoot"
-            |}
-            |""".stripMargin
-      ).get,
+      WorkflowOptions
+        .fromJsonString(
+          s"""|{
+              |  "google_project": "$googleProject",
+              |  "${GcpBatchWorkflowPaths.GcsRootOptionKey}": "$batchGcsRoot"
+              |}
+              |""".stripMargin
+        )
+        .get,
       Labels.empty,
       HogGroup("foo"),
       List.empty,
@@ -749,11 +911,14 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
     val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == "goodbye").get
     val key = BackendJobDescriptorKey(call, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, None, Map.empty)
+    val jobDescriptor =
+      BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, None, Map.empty)
 
     val props = Props(new TestableGcpBatchJobExecutionActor(jobDescriptor, Promise(), gcpBatchConfiguration))
     val testActorRef = TestActorRef[TestableGcpBatchJobExecutionActor](
-      props, s"TestableGcpBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
+      props,
+      s"TestableGcpBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}"
+    )
 
     val batchBackend = testActorRef.underlyingActor
 
@@ -789,12 +954,15 @@ class GcpBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
   }
 
   private def makeRuntimeAttributes(job: CommandCallNode) = {
-    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(job.callable.runtimeAttributes, null, Map.empty)
-    RuntimeAttributeDefinition.addDefaultsToAttributes(
-      runtimeAttributesBuilder.definitions.toSet, NoOptions)(evaluatedAttributes.getOrElse(fail("Failed to evaluate runtime attributes")))
+    val evaluatedAttributes =
+      RuntimeAttributeDefinition.evaluateRuntimeAttributes(job.callable.runtimeAttributes, null, Map.empty)
+    RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributesBuilder.definitions.toSet, NoOptions)(
+      evaluatedAttributes.getOrElse(fail("Failed to evaluate runtime attributes"))
+    )
   }
 
-  private def generateStandardAsyncJob = {
-    StandardAsyncJob(JobName.newBuilder().setJob(UUID.randomUUID().toString).setProject("test").setLocation("local").build().toString)
-  }
+  private def generateStandardAsyncJob =
+    StandardAsyncJob(
+      JobName.newBuilder().setJob(UUID.randomUUID().toString).setProject("test").setLocation("local").build().toString
+    )
 }

@@ -17,8 +17,10 @@ class DeduplicateFailureMessageIds extends BatchedTaskChange {
   val callFqnColumn = "CALL_FQN"
   val jobScatterIndexColumn = "JOB_SCATTER_INDEX"
   val retryAttemptColumn = "JOB_RETRY_ATTEMPT"
-  val contentEqualityCheck = List(workflowIdColumn, metadataKeyColumn, callFqnColumn, jobScatterIndexColumn, retryAttemptColumn)
-    .map(s => s"(t2.$s = t1.$s OR (t2.$s IS NULL AND t1.$s IS NULL))").mkString(" AND ")
+  val contentEqualityCheck =
+    List(workflowIdColumn, metadataKeyColumn, callFqnColumn, jobScatterIndexColumn, retryAttemptColumn)
+      .map(s => s"(t2.$s = t1.$s OR (t2.$s IS NULL AND t1.$s IS NULL))")
+      .mkString(" AND ")
 
   val fixableFailureMessageFilter = "METADATA_KEY LIKE '%failures[%]%:message'"
 

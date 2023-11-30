@@ -28,7 +28,8 @@ class SamClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfterAll {
     HttpResponse(StatusCodes.InternalServerError, entity = HttpEntity("expected error"))
 
   private val authorization = Authorization(OAuth2BearerToken("my-token"))
-  private val authorizedUserWithCollection = User(WorkbenchUserId(MockSamClient.AuthorizedUserCollectionStr), authorization)
+  private val authorizedUserWithCollection =
+    User(WorkbenchUserId(MockSamClient.AuthorizedUserCollectionStr), authorization)
   private val unauthorizedUserWithNoCollection =
     User(WorkbenchUserId(MockSamClient.UnauthorizedUserCollectionStr), authorization)
   private val notWhitelistedUser = User(WorkbenchUserId(MockSamClient.NotWhitelistedUser), authorization)
@@ -47,25 +48,25 @@ class SamClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfterAll {
     super.afterAll()
   }
 
-
   behavior of "SamClient"
   it should "return true if user is whitelisted" in {
     val samClient = new MockSamClient()
-    samClient.isSubmitWhitelisted(authorizedUserWithCollection, emptyHttpRequest).map(v => assert(v))
-      .asIo.unsafeToFuture()
+    samClient
+      .isSubmitWhitelisted(authorizedUserWithCollection, emptyHttpRequest)
+      .map(v => assert(v))
+      .asIo
+      .unsafeToFuture()
   }
 
   it should "return false if user is not whitelisted" in {
     val samClient = new MockSamClient()
-    samClient.isSubmitWhitelisted(notWhitelistedUser, emptyHttpRequest).map(v => assert(!v))
-      .asIo.unsafeToFuture()
+    samClient.isSubmitWhitelisted(notWhitelistedUser, emptyHttpRequest).map(v => assert(!v)).asIo.unsafeToFuture()
   }
 
   it should "return sam errors while checking is whitelisted" in {
     val samClient = new MockSamClient() {
-      override def isSubmitWhitelistedSam(user: User, cromiamRequest: HttpRequest): FailureResponseOrT[Boolean] = {
+      override def isSubmitWhitelistedSam(user: User, cromiamRequest: HttpRequest): FailureResponseOrT[Boolean] =
         MockSamClient.returnResponse(expectedErrorResponse)
-      }
     }
     samClient.isSubmitWhitelisted(notWhitelistedUser, emptyHttpRequest).value.unsafeToFuture() map {
       _ should be(Left(expectedErrorResponse))
@@ -74,32 +75,33 @@ class SamClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfterAll {
 
   it should "eventually return the collection(s) of user" in {
     val samClient = new MockSamClient()
-    samClient.collectionsForUser(authorizedUserWithCollection, emptyHttpRequest).map(collectionList =>
-      assert(collectionList == MockSamClient.UserCollectionList)
-    ).asIo.unsafeToFuture()
+    samClient
+      .collectionsForUser(authorizedUserWithCollection, emptyHttpRequest)
+      .map(collectionList => assert(collectionList == MockSamClient.UserCollectionList))
+      .asIo
+      .unsafeToFuture()
   }
 
   it should "fail if user doesn't have any collections" in {
     val samClient = new MockSamClient()
     recoverToExceptionIf[Exception] {
-      samClient.collectionsForUser(unauthorizedUserWithNoCollection, emptyHttpRequest)
-        .asIo.unsafeToFuture()
-    } map(exception =>
-      assert(exception.getMessage == s"Unable to look up collections for user ${unauthorizedUserWithNoCollection.userId.value}!")
+      samClient.collectionsForUser(unauthorizedUserWithNoCollection, emptyHttpRequest).asIo.unsafeToFuture()
+    } map (exception =>
+      assert(
+        exception.getMessage == s"Unable to look up collections for user ${unauthorizedUserWithNoCollection.userId.value}!"
+      )
     )
   }
 
   it should "return true if user is authorized to perform action on collection" in {
     val samClient = new MockSamClient()
-    samClient.requestAuth(authorizedCollectionRequest, emptyHttpRequest).map(_ => succeed)
-      .asIo.unsafeToFuture()
+    samClient.requestAuth(authorizedCollectionRequest, emptyHttpRequest).map(_ => succeed).asIo.unsafeToFuture()
   }
 
   it should "throw SamDenialException if user is not authorized to perform action on collection" in {
     val samClient = new MockSamClient()
     recoverToExceptionIf[SamDenialException] {
-      samClient.requestAuth(unauthorizedCollectionRequest, emptyHttpRequest)
-        .asIo.unsafeToFuture()
+      samClient.requestAuth(unauthorizedCollectionRequest, emptyHttpRequest).asIo.unsafeToFuture()
     } map { exception =>
       assert(exception.getMessage == "Access Denied")
     }
@@ -107,15 +109,21 @@ class SamClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfterAll {
 
   it should "register collection to Sam if user has authorization to create/add to collection" in {
     val samClient = new MockSamClient()
-    samClient.requestSubmission(authorizedUserWithCollection, authorizedCollection, emptyHttpRequest).map(_ => succeed)
-      .asIo.unsafeToFuture()
+    samClient
+      .requestSubmission(authorizedUserWithCollection, authorizedCollection, emptyHttpRequest)
+      .map(_ => succeed)
+      .asIo
+      .unsafeToFuture()
   }
 
   it should "throw SamRegisterCollectionException if user doesn't have authorization to create/add to collection" in {
     val samClient = new MockSamClient()
     recoverToExceptionIf[SamRegisterCollectionException] {
-      samClient.requestSubmission(unauthorizedUserWithNoCollection, unauthorizedCollection, emptyHttpRequest).map(_ => succeed)
-        .asIo.unsafeToFuture()
+      samClient
+        .requestSubmission(unauthorizedUserWithNoCollection, unauthorizedCollection, emptyHttpRequest)
+        .map(_ => succeed)
+        .asIo
+        .unsafeToFuture()
     } map { exception =>
       assert(exception.getMessage == "Can't register collection with Sam. Status code: 400 Bad Request")
     }
@@ -125,15 +133,16 @@ class SamClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfterAll {
     val samClient = new BaseMockSamClient() {
       override protected def registerCreation(user: User,
                                               collection: Collection,
-                                              cromiamRequest: HttpRequest): FailureResponseOrT[HttpResponse] = {
+                                              cromiamRequest: HttpRequest
+      ): FailureResponseOrT[HttpResponse] = {
         val conflictResponse = HttpResponse(StatusCodes.Conflict, entity = HttpEntity("expected conflict"))
         returnResponse(conflictResponse)
       }
 
       override def requestAuth(authorizationRequest: CollectionAuthorizationRequest,
-                               cromiamRequest: HttpRequest): FailureResponseOrT[Unit] = {
+                               cromiamRequest: HttpRequest
+      ): FailureResponseOrT[Unit] =
         Monad[FailureResponseOrT].unit
-      }
     }
     samClient
       .requestSubmission(unauthorizedUserWithNoCollection, unauthorizedCollection, emptyHttpRequest)
@@ -146,19 +155,22 @@ class SamClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfterAll {
     val samClient = new BaseMockSamClient() {
       override protected def registerCreation(user: User,
                                               collection: Collection,
-                                              cromiamRequest: HttpRequest): FailureResponseOrT[HttpResponse] = {
+                                              cromiamRequest: HttpRequest
+      ): FailureResponseOrT[HttpResponse] = {
         val conflictResponse = HttpResponse(StatusCodes.Conflict, entity = HttpEntity("expected conflict"))
         returnResponse(conflictResponse)
       }
 
       override def requestAuth(authorizationRequest: CollectionAuthorizationRequest,
-                               cromiamRequest: HttpRequest): FailureResponseOrT[Unit] = {
+                               cromiamRequest: HttpRequest
+      ): FailureResponseOrT[Unit] =
         returnResponse(expectedErrorResponse)
-      }
     }
     recoverToExceptionIf[UnsuccessfulRequestException] {
-      samClient.requestSubmission(unauthorizedUserWithNoCollection, unauthorizedCollection, emptyHttpRequest)
-        .asIo.unsafeToFuture()
+      samClient
+        .requestSubmission(unauthorizedUserWithNoCollection, unauthorizedCollection, emptyHttpRequest)
+        .asIo
+        .unsafeToFuture()
     } map { exception =>
       assert(exception.getMessage == "expected error")
     }
@@ -168,14 +180,17 @@ class SamClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfterAll {
     val samClient = new BaseMockSamClient() {
       override protected def registerCreation(user: User,
                                               collection: Collection,
-                                              cromiamRequest: HttpRequest): FailureResponseOrT[HttpResponse] = {
+                                              cromiamRequest: HttpRequest
+      ): FailureResponseOrT[HttpResponse] = {
         val unexpectedOkResponse = HttpResponse(StatusCodes.OK, entity = HttpEntity("elided ok message"))
         returnResponse(unexpectedOkResponse)
       }
     }
     recoverToExceptionIf[SamRegisterCollectionException] {
-      samClient.requestSubmission(unauthorizedUserWithNoCollection, unauthorizedCollection, emptyHttpRequest)
-        .asIo.unsafeToFuture()
+      samClient
+        .requestSubmission(unauthorizedUserWithNoCollection, unauthorizedCollection, emptyHttpRequest)
+        .asIo
+        .unsafeToFuture()
     } map { exception =>
       exception.getMessage should be("Can't register collection with Sam. Status code: 200 OK")
     }
@@ -185,14 +200,17 @@ class SamClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfterAll {
     val samClient = new BaseMockSamClient() {
       override protected def registerCreation(user: User,
                                               collection: Collection,
-                                              cromiamRequest: HttpRequest): FailureResponseOrT[HttpResponse] = {
+                                              cromiamRequest: HttpRequest
+      ): FailureResponseOrT[HttpResponse] = {
         val unexpectedFailureResponse = HttpResponse(StatusCodes.ImATeapot, entity = HttpEntity("elided error message"))
         returnResponse(unexpectedFailureResponse)
       }
     }
     recoverToExceptionIf[SamRegisterCollectionException] {
-      samClient.requestSubmission(unauthorizedUserWithNoCollection, unauthorizedCollection, emptyHttpRequest)
-        .asIo.unsafeToFuture()
+      samClient
+        .requestSubmission(unauthorizedUserWithNoCollection, unauthorizedCollection, emptyHttpRequest)
+        .asIo
+        .unsafeToFuture()
     } map { exception =>
       exception.getMessage should be("Can't register collection with Sam. Status code: 418 I'm a teapot")
     }

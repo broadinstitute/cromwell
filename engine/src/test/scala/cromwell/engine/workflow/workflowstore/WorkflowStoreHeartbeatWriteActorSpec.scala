@@ -16,8 +16,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NoStackTrace
 
-class WorkflowStoreHeartbeatWriteActorSpec extends TestKitSuite
-  with AnyFlatSpecLike with Matchers with Eventually {
+class WorkflowStoreHeartbeatWriteActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually {
 
   behavior of "WorkflowStoreHeartbeatWriteActor"
 
@@ -27,22 +26,23 @@ class WorkflowStoreHeartbeatWriteActorSpec extends TestKitSuite
 
     val workflowStore = new InMemoryWorkflowStore {
       override def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)],
-                                           heartbeatDateTime: OffsetDateTime)
-                                          (implicit ec: ExecutionContext): Future[Int] = {
+                                           heartbeatDateTime: OffsetDateTime
+      )(implicit ec: ExecutionContext): Future[Int] =
         Future.failed(new RuntimeException("this is expected") with NoStackTrace)
-      }
     }
 
     val workflowStoreAccess = UncoordinatedWorkflowStoreAccess(workflowStore)
-    val workflowHeartbeatTypesafeConfig = ConfigFactory.parseString(
-      """|danger.debug.only.minimum-heartbeat-ttl = 10 ms
-         |system.workflow-heartbeats {
-         |  heartbeat-interval = 500 ms
-         |  write-batch-size = 1
-         |  write-failure-shutdown-duration = 1 s
-         |}
-         |""".stripMargin
-    ).withFallback(ConfigFactory.load())
+    val workflowHeartbeatTypesafeConfig = ConfigFactory
+      .parseString(
+        """|danger.debug.only.minimum-heartbeat-ttl = 10 ms
+           |system.workflow-heartbeats {
+           |  heartbeat-interval = 500 ms
+           |  write-batch-size = 1
+           |  write-failure-shutdown-duration = 1 s
+           |}
+           |""".stripMargin
+      )
+      .withFallback(ConfigFactory.load())
     val workflowHeartbeatConfig = WorkflowHeartbeatConfig(workflowHeartbeatTypesafeConfig)
     val terminator = new CromwellTerminator {
       override def beginCromwellShutdown(reason: CoordinatedShutdown.Reason): Future[Done] = {

@@ -65,7 +65,7 @@ object GenerateRestApiDocs {
     * @param content The original contents of the RESTAPI.md.
     * @return The contents with updated paths.
     */
-  private def replacePaths(content: String): String = {
+  private def replacePaths(content: String): String =
     content match {
       case PathsRegex(start, paths, end) =>
         val replacedPaths = paths.linesWithSeparators map {
@@ -73,12 +73,13 @@ object GenerateRestApiDocs {
           case other => other
         }
         replacedPaths.mkString(start, "", end)
-      case _ => throw new IllegalArgumentException(
-        "Content did not match expected regex. " +
-          "Did the swagger2markdown format change significantly? " +
-          "If so, a new regex may be required.")
+      case _ =>
+        throw new IllegalArgumentException(
+          "Content did not match expected regex. " +
+            "Did the swagger2markdown format change significantly? " +
+            "If so, a new regex may be required."
+        )
     }
-  }
 
   /**
     * Replaces generic strings in the generated RESTAPI.md.
@@ -86,9 +87,8 @@ object GenerateRestApiDocs {
     * @param content The contents of the RESTAPI.md.
     * @return The contents with generic replacements.
     */
-  private def replaceGenerics(content: String): String = {
+  private def replaceGenerics(content: String): String =
     GenericReplacements.foldRight(content)(replaceGeneric)
-  }
 
   /**
     * Replaces a single generic string in the generated RESTAPI.md.
@@ -118,12 +118,11 @@ object GenerateRestApiDocs {
     try {
       currentThread.setContextClassLoader(classUtilsClassLoader)
       block
-    } finally {
+    } finally
       currentThread.setContextClassLoader(originalThreadClassLoader)
-    }
   }
 
-  private def getModifiedMarkdown: String = {
+  private def getModifiedMarkdown: String =
     withPatchedClassLoader {
       val config = new Swagger2MarkupConfigBuilder()
         .withMarkupLanguage(MarkupLanguage.MARKDOWN)
@@ -135,7 +134,6 @@ object GenerateRestApiDocs {
       val contents = converter.toString
       replaceGenerics(replacePaths(contents))
     }
-  }
 
   /**
     * Generates the markdown from the swagger YAML, with some Cromwell customizations.
@@ -164,6 +162,6 @@ object GenerateRestApiDocs {
   // Returns a settings including the `generateRestApiDocs` task.
   val generateRestApiDocsSettings: Seq[Setting[_]] = List(
     generateRestApiDocs := writeModifiedMarkdown(),
-    checkRestApiDocs := checkModifiedMarkdown(streams.value.log),
+    checkRestApiDocs := checkModifiedMarkdown(streams.value.log)
   )
 }

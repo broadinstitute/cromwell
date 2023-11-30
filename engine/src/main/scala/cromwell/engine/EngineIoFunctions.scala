@@ -8,16 +8,23 @@ import better.files.File._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class EngineIoFunctions(val pathBuilders: List[PathBuilder], override val asyncIo: AsyncIo, override val ec: ExecutionContext) extends ReadLikeFunctions with WorkflowCorePathFunctions {
-  override def glob(pattern: String): Future[Seq[String]] = throw new UnsupportedOperationException(s"glob(path, pattern) not implemented yet")
+class EngineIoFunctions(val pathBuilders: List[PathBuilder],
+                        override val asyncIo: AsyncIo,
+                        override val ec: ExecutionContext
+) extends ReadLikeFunctions
+    with WorkflowCorePathFunctions {
+  override def glob(pattern: String): Future[Seq[String]] = throw new UnsupportedOperationException(
+    s"glob(path, pattern) not implemented yet"
+  )
 
   // TODO: This is not suited for multi backend / multi filesystem use. Keep local for now to not break local CWL conf tests
   override def writeFile(path: String, content: String): Future[WomSingleFile] = Future.successful {
     val cromwellPath = buildPath(path)
-    val string = if (cromwellPath.isAbsolute) 
-      cromwellPath.write(content).pathAsString
-    else 
-      (newTemporaryDirectory() / path).write(content).pathAsString
+    val string =
+      if (cromwellPath.isAbsolute)
+        cromwellPath.write(content).pathAsString
+      else
+        (newTemporaryDirectory() / path).write(content).pathAsString
     WomSingleFile(string)
   }
 
@@ -27,7 +34,9 @@ class EngineIoFunctions(val pathBuilders: List[PathBuilder], override val asyncI
   override def listAllFilesUnderDirectory(dirPath: String): Nothing =
     throw new UnsupportedOperationException(s"listAllFilesUnderDirectory not implemented yet")
 
-  override def listDirectory(path: String)(visited: Vector[String]) = throw new UnsupportedOperationException(s"listDirectory not implemented yet")
+  override def listDirectory(path: String)(visited: Vector[String]) = throw new UnsupportedOperationException(
+    s"listDirectory not implemented yet"
+  )
 
   override def isDirectory(path: String) = Future.successful(buildPath(path).isDirectory)
 

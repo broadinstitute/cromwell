@@ -12,7 +12,7 @@ class JobStoreSimpletonMigration extends AbstractRestartMigration {
 
   // GOTC (substituting COUNT(*) for the projection): 1 row in set (5.22 sec)
   private val QueryOutputsForDoneCallsInRunningWorkflows =
-  """
+    """
       SELECT
         js.JOB_STORE_ID,   -- 1
         s.NAME,            -- 2
@@ -51,9 +51,10 @@ class JobStoreSimpletonMigration extends AbstractRestartMigration {
 
     def buildJobStoreSimpletonEntries(name: String, womValue: WomValue, womType: WomType) = Option(womValue) match {
       case None => List(JobStoreSimpletonEntry(name, null, womType.stableName))
-      case Some(_) => womValue.simplify(name) map { s =>
-        JobStoreSimpletonEntry(s.simpletonKey, s.simpletonValue.valueString, s.simpletonValue.womType.stableName)
-      }
+      case Some(_) =>
+        womValue.simplify(name) map { s =>
+          JobStoreSimpletonEntry(s.simpletonKey, s.simpletonValue.valueString, s.simpletonValue.womType.stableName)
+        }
     }
 
     while (results.next()) {
@@ -73,5 +74,3 @@ class JobStoreSimpletonMigration extends AbstractRestartMigration {
     }
   }
 }
-
-

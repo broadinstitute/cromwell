@@ -13,7 +13,6 @@ import org.broadinstitute.dsde.workbench.util.health.StatusJsonSupport._
 
 import scala.concurrent.ExecutionContextExecutor
 
-
 trait EngineRouteSupport extends RequestSupport with SprayJsonSupport {
   val statusService: StatusService
   val cromwellClient: CromwellClient
@@ -25,7 +24,7 @@ trait EngineRouteSupport extends RequestSupport with SprayJsonSupport {
   def versionRoute: Route = path("engine" / Segment / "version") { _ =>
     get {
       extractStrictRequest { req =>
-        complete { cromwellClient.forwardToCromwell(req).asHttpResponse }
+        complete(cromwellClient.forwardToCromwell(req).asHttpResponse)
       }
     }
   }
@@ -39,10 +38,11 @@ trait EngineRouteSupport extends RequestSupport with SprayJsonSupport {
     }
   }
 
-  def statsRoute: Route = path("engine" / Segment / "stats") { _ => complete(CromIamStatsForbidden) }
+  def statsRoute: Route = path("engine" / Segment / "stats")(_ => complete(CromIamStatsForbidden))
 
 }
 
 object EngineRouteSupport {
-  private[webservice] val CromIamStatsForbidden = HttpResponse(status = Forbidden, entity = "CromIAM does not allow access to the /stats endpoint")
+  private[webservice] val CromIamStatsForbidden =
+    HttpResponse(status = Forbidden, entity = "CromIAM does not allow access to the /stats endpoint")
 }

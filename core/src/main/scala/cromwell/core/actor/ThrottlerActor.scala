@@ -15,7 +15,7 @@ import scala.concurrent.duration._
 abstract class ThrottlerActor[C] extends BatchActor[C](Duration.Zero, 1) {
   override protected def logOnStartUp = false
   override def weightFunction(command: C) = 1
-  override final def process(data: NonEmptyVector[C]): Future[Int] = {
+  final override def process(data: NonEmptyVector[C]): Future[Int] =
     // This ShouldNotBePossible™ but in case it happens, instead of dropping elements process them all anyway
     // Explanation: batch size is 1 which means as soon as we receive 1 element, the process method should be called.
     // Because the BatchActor calls the process method with vector of elements which total weight is batch size, and because
@@ -25,6 +25,5 @@ abstract class ThrottlerActor[C] extends BatchActor[C](Duration.Zero, 1) {
       log.error("{} is throttled and is not supposed to process more than one element at a time !", self.path.name)
       data.toVector.traverse(processHead).map(_.length)
     } else processHead(data.head).map(_ => 1)
-  }
   def processHead(head: C): Future[Int]
 }

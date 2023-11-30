@@ -46,8 +46,8 @@ import scala.concurrent.{ExecutionContext, Future}
 
 // The constructor of this class is required to be Config, Config by cromwell
 // So, we need to take this config and get the AuthMode out of it
-final case class S3PathBuilderFactory private(globalConfig: Config, instanceConfig: Config)
-  extends PathBuilderFactory {
+final case class S3PathBuilderFactory private (globalConfig: Config, instanceConfig: Config)
+    extends PathBuilderFactory {
 
   // Grab the authMode out of configuration
   val conf: AwsConfiguration = AwsConfiguration(globalConfig)
@@ -55,19 +55,16 @@ final case class S3PathBuilderFactory private(globalConfig: Config, instanceConf
   val authModeValidation: ErrorOr[AwsAuthMode] = conf.auth(authModeAsString)
   val authMode = authModeValidation.unsafe(s"Failed to get authentication mode for $authModeAsString")
 
-  def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[S3PathBuilder] = {
-    S3PathBuilder.fromAuthMode(authMode, S3Storage.DefaultConfiguration,  options, conf.region)
-  }
+  def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[S3PathBuilder] =
+    S3PathBuilder.fromAuthMode(authMode, S3Storage.DefaultConfiguration, options, conf.region)
 
   // Ignores the authMode and creates an S3PathBuilder using the passed credentials directly.
   // Can be used when the Credentials are already available.
-  def fromProvider(options: WorkflowOptions, provider: AwsCredentialsProvider): S3PathBuilder = {
+  def fromProvider(options: WorkflowOptions, provider: AwsCredentialsProvider): S3PathBuilder =
     S3PathBuilder.fromProvider(provider, S3Storage.DefaultConfiguration, options, conf.region)
-  }
 }
 
 object S3PathBuilderFactory {
-  def apply(globalConfig: Config, instanceConfig: Config): S3PathBuilderFactory = {
+  def apply(globalConfig: Config, instanceConfig: Config): S3PathBuilderFactory =
     new S3PathBuilderFactory(globalConfig, instanceConfig)
-  }
 }

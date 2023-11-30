@@ -14,20 +14,24 @@ package object defaults {
   implicit val womIntegerCoercer: WomTypeCoercer[WomInteger] = defaultCoercionForType[WomInteger](WomIntegerType)
   implicit val womFloatCoercer: WomTypeCoercer[WomFloat] = defaultCoercionForType[WomFloat](WomFloatType)
   implicit val womStringCoercer: WomTypeCoercer[WomString] = defaultCoercionForType[WomString](WomStringType)
-  implicit val womSingleFileCoercer: WomTypeCoercer[WomSingleFile] = defaultCoercionForType[WomSingleFile](WomSingleFileType)
+  implicit val womSingleFileCoercer: WomTypeCoercer[WomSingleFile] =
+    defaultCoercionForType[WomSingleFile](WomSingleFileType)
   implicit val womObjectCoercer: WomTypeCoercer[WomObject] = defaultCoercionForType[WomObject](WomObjectType)
 
   implicit val womOptionalOfAnyCoercer = defaultCoercionForType[WomOptionalValue](WomOptionalType(WomAnyType))
   implicit val womArrayOfAnyCoercer = defaultCoercionForType[WomArray](WomArrayType(WomAnyType))
   implicit val womMapOfAnyCoercer = defaultCoercionForType[WomMap](WomMapType(WomAnyType, WomAnyType))
-  implicit def womArrayTypeCoercer(arrayType: WomArrayType): WomTypeCoercer[WomArray] = defaultCoercionForType[WomArray](arrayType)
+  implicit def womArrayTypeCoercer(arrayType: WomArrayType): WomTypeCoercer[WomArray] =
+    defaultCoercionForType[WomArray](arrayType)
 
-  private def defaultCoercionForType[A](typeObject: WomType)(implicit classTag: ClassTag[A]): WomTypeCoercer[A] = new WomTypeCoercer[A] {
-    override def coerceToType(any: Any): ErrorOr[A] = typeObject.coerceRawValue(any).toErrorOr flatMap {
-      case womValue: A => womValue.validNel
-      case other => s"Bad coercion in ${getClass.getSimpleName}! Coercion should have created ${typeObject.stableName} but instead created ${other.womType.stableName}".invalidNel
+  private def defaultCoercionForType[A](typeObject: WomType)(implicit classTag: ClassTag[A]): WomTypeCoercer[A] =
+    new WomTypeCoercer[A] {
+      override def coerceToType(any: Any): ErrorOr[A] = typeObject.coerceRawValue(any).toErrorOr flatMap {
+        case womValue: A => womValue.validNel
+        case other =>
+          s"Bad coercion in ${getClass.getSimpleName}! Coercion should have created ${typeObject.stableName} but instead created ${other.womType.stableName}".invalidNel
+      }
+      override def coercionDefined(any: Any): Boolean = typeObject.coercionDefined(any)
+      override def toDisplayString: String = typeObject.stableName
     }
-    override def coercionDefined(any: Any): Boolean = typeObject.coercionDefined(any)
-    override def toDisplayString: String = typeObject.stableName
-  }
 }

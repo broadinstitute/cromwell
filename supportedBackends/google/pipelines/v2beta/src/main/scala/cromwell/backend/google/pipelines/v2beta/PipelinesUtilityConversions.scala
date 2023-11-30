@@ -12,14 +12,15 @@ import PipelinesUtilityConversions._
 import scala.language.postfixOps
 
 trait PipelinesUtilityConversions {
-  def toAccelerator(gpuResource: GpuResource): Accelerator = new Accelerator().setCount(gpuResource.gpuCount.value.toLong).setType(gpuResource.gpuType.toString)
+  def toAccelerator(gpuResource: GpuResource): Accelerator =
+    new Accelerator().setCount(gpuResource.gpuCount.value.toLong).setType(gpuResource.gpuType.toString)
   def toMachineType(jobLogger: JobLogger)(attributes: PipelinesApiRuntimeAttributes): String =
     MachineConstraints.machineType(
       memory = attributes.memory,
       cpu = attributes.cpu,
       cpuPlatformOption = attributes.cpuPlatform,
       googleLegacyMachineSelection = attributes.googleLegacyMachineSelection,
-      jobLogger = jobLogger,
+      jobLogger = jobLogger
     )
   def toMounts(disks: Seq[PipelinesApiAttachedDisk]): List[Mount] = disks.map(toMount).toList
   def toDisks(disks: Seq[PipelinesApiAttachedDisk]): List[Disk] = disks.map(toDisk).toList
@@ -57,7 +58,9 @@ trait PipelinesUtilityConversions {
     // There are both "Started pulling" and "Stopped pulling" events but these are confusing for metadata, especially on the
     // timing diagram. Create a single "Pulling <docker image>" grouping to absorb these events.
     def groupingFromPull: Option[String] = List("Started", "Stopped") flatMap { k =>
-      Option(event.getDescription) collect { case d if d.startsWith(s"$k pulling") => "Pulling" + d.substring(s"$k pulling".length)}
+      Option(event.getDescription) collect {
+        case d if d.startsWith(s"$k pulling") => "Pulling" + d.substring(s"$k pulling".length)
+      }
     } headOption
 
     // See WX-1137. ContainerStoppedEvent descriptions contain the stderr, which may include 4-byte unicode
@@ -85,7 +88,7 @@ trait PipelinesUtilityConversions {
 object PipelinesUtilityConversions {
 
   implicit class EnhancedEvent(val event: Event) extends AnyVal {
-    def getActionId: Option[Integer] = {
+    def getActionId: Option[Integer] =
       if (event.getContainerKilled != null) {
         Option(event.getContainerKilled.getActionId)
       } else if (event.getContainerStarted != null) {
@@ -97,12 +100,10 @@ object PipelinesUtilityConversions {
       } else {
         None
       }
-    }
   }
 
   lazy val utf8mb4Regex = "[\\x{10000}-\\x{FFFFF}]"
-  lazy val utf8mb3Replacement = "\uFFFD"  // This is the standard char for replacing invalid/unknown unicode chars
-  def cleanUtf8mb4(in: String): String = {
+  lazy val utf8mb3Replacement = "\uFFFD" // This is the standard char for replacing invalid/unknown unicode chars
+  def cleanUtf8mb4(in: String): String =
     in.replaceAll(utf8mb4Regex, utf8mb3Replacement)
-  }
 }

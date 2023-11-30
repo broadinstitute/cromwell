@@ -17,15 +17,13 @@ abstract class MetadataCustomSql extends CustomSqlChange {
 
   def queries: Array[String]
 
-  override def generateStatements(database: Database): Array[SqlStatement] = {
-    queries map { query =>  new RawSqlStatement(query) }
-  }
+  override def generateStatements(database: Database): Array[SqlStatement] =
+    queries map { query => new RawSqlStatement(query) }
 
   override def setUp(): Unit = ()
 
-  override def validate(database: Database): ValidationErrors = {
+  override def validate(database: Database): ValidationErrors =
     new ValidationErrors()
-  }
 
   override def setFileOpener(resourceAccessor: ResourceAccessor): Unit = ()
 }

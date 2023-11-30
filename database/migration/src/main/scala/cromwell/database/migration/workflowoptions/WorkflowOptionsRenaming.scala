@@ -12,10 +12,9 @@ object WorkflowOptionsRenaming {
     "call_logs_dir" -> "final_call_logs_dir"
   )
 
-  def renameOptionKeys(field: JsField): JsField = {
+  def renameOptionKeys(field: JsField): JsField =
     field match {
       case (oldName, value) if RenamedOptionKeys.contains(oldName) => RenamedOptionKeys(oldName) -> value
       case noop => noop
     }
-  }
 }

@@ -7,7 +7,6 @@ import org.scalatest.matchers.should.Matchers
 import wom.expression._
 import wom.types.{WomIntegerType, WomStringType}
 
-
 class GraphOutputNodeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "ExpressionBasedGraphOutputNode"
@@ -24,12 +23,17 @@ class GraphOutputNodeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     val ijExpression = PlaceholderWomExpression(Set("i", "j"), WomIntegerType)
 
     // Declare the expression output using both i and j:
-    val xOutputValidation = ExpressionBasedGraphOutputNode.fromInputMapping(WomIdentifier("x_out"), ijExpression, WomStringType, Map(
-      "i" -> iInputNode.singleOutputPort,
-      "j" -> jInputNode.singleOutputPort))
+    val xOutputValidation = ExpressionBasedGraphOutputNode.fromInputMapping(
+      WomIdentifier("x_out"),
+      ijExpression,
+      WomStringType,
+      Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort)
+    )
 
     import common.validation.ErrorOr.ShortCircuitingFlatMap
-    val graph = xOutputValidation flatMap { xOutput => Graph.validateAndConstruct(Set(iInputNode, jInputNode, jOutput, xOutput)) }
+    val graph = xOutputValidation flatMap { xOutput =>
+      Graph.validateAndConstruct(Set(iInputNode, jInputNode, jOutput, xOutput))
+    }
 
     graph match {
       case Valid(g) => validate(g)

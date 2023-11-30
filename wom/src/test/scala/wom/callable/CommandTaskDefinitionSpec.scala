@@ -26,7 +26,9 @@ class CommandTaskDefinitionSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     executableOneInputTask match {
       case Valid(task) =>
         task.graph.nodes.size should be(2)
-        (task.graph.nodes.toList.find(_.isInstanceOf[GraphInputNode]), task.graph.nodes.toList.find(_.isInstanceOf[CallNode])) match {
+        (task.graph.nodes.toList.find(_.isInstanceOf[GraphInputNode]),
+         task.graph.nodes.toList.find(_.isInstanceOf[CallNode])
+        ) match {
           case (Some(inputNode), Some(callNode)) =>
             callNode.inputPorts.size should be(1)
             callNode.inputPorts.head.upstream.graphNode should be(inputNode)
@@ -41,7 +43,9 @@ class CommandTaskDefinitionSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
       case Valid(task) =>
         val graph = task.graph
         graph.nodes.size should be(2)
-        (graph.nodes.toList.find(_.isInstanceOf[PortBasedGraphOutputNode]), graph.nodes.toList.find(_.isInstanceOf[CallNode])) match {
+        (graph.nodes.toList.find(_.isInstanceOf[PortBasedGraphOutputNode]),
+         graph.nodes.toList.find(_.isInstanceOf[CallNode])
+        ) match {
           case (Some(outputNode), Some(callNode)) =>
             callNode.outputPorts.size should be(1)
             outputNode.inputPorts.size should be(1)
@@ -74,7 +78,8 @@ object CommandTaskDefinitionSpec {
     inputs = List.empty,
     adHocFileCreation = Set.empty,
     environmentExpressions = Map.empty,
-    sourceLocation = None)
+    sourceLocation = None
+  )
   val executableNoInputsOrOutputsTask = noInputsOrOutputsTask.toExecutable
 
   val oneInputTask = CallableTaskDefinition(
@@ -87,7 +92,8 @@ object CommandTaskDefinitionSpec {
     inputs = List(Callable.RequiredInputDefinition(LocalName("bar"), WomIntegerType)),
     adHocFileCreation = Set.empty,
     environmentExpressions = Map.empty,
-    sourceLocation = None)
+    sourceLocation = None
+  )
   val executableOneInputTask = oneInputTask.toExecutable
 
   val oneOutputTask = CallableTaskDefinition(
@@ -100,7 +106,8 @@ object CommandTaskDefinitionSpec {
     inputs = List.empty,
     adHocFileCreation = Set.empty,
     environmentExpressions = Map.empty,
-    sourceLocation = None)
+    sourceLocation = None
+  )
   val executableOneOutputTask = oneOutputTask.toExecutable
 
   val duplicateFqns = CallableTaskDefinition(
@@ -110,7 +117,9 @@ object CommandTaskDefinitionSpec {
     meta = Map.empty,
     parameterMeta = Map.empty,
     outputs = List(Callable.OutputDefinition(LocalName("bar"), WomStringType, null)),
-    inputs = List(Callable.RequiredInputDefinition(LocalName("bar"), WomStringType), Callable.RequiredInputDefinition(LocalName("bar"), WomStringType)),
+    inputs = List(Callable.RequiredInputDefinition(LocalName("bar"), WomStringType),
+                  Callable.RequiredInputDefinition(LocalName("bar"), WomStringType)
+    ),
     adHocFileCreation = Set.empty,
     environmentExpressions = Map.empty,
     sourceLocation = None

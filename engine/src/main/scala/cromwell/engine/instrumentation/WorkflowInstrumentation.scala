@@ -13,8 +13,9 @@ import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 
 object WorkflowInstrumentation {
-  private val WorkflowStatePaths: Map[WorkflowState, InstrumentationPath] = WorkflowState.WorkflowStateValues map { state =>
-    state -> NonEmptyList.of(state.toString)
+  private val WorkflowStatePaths: Map[WorkflowState, InstrumentationPath] = WorkflowState.WorkflowStateValues map {
+    state =>
+      state -> NonEmptyList.of(state.toString)
   } toMap
 
   // Use "Queued" instead of "Submitted" as it seems to reflect better the actual state
@@ -28,43 +29,39 @@ object WorkflowInstrumentation {
   * Provides helper methods for workflow instrumentation
   */
 trait WorkflowInstrumentation extends CromwellInstrumentationActor { this: Actor =>
-  private def workflowStatePath(workflowState: WorkflowState): InstrumentationPath = WorkflowInstrumentation.WorkflowStatePaths(workflowState)
+  private def workflowStatePath(workflowState: WorkflowState): InstrumentationPath =
+    WorkflowInstrumentation.WorkflowStatePaths(workflowState)
 
   /**
     * Generic method to increment a workflow related counter metric value
     */
-  def incrementWorkflow(statsDPath: InstrumentationPath): Unit = {
+  def incrementWorkflow(statsDPath: InstrumentationPath): Unit =
     increment(statsDPath, WorkflowPrefix)
-  }
 
   /**
     * Generic method to add a workflow related timing metric value
     */
-  def setTimingWorkflow(statsDPath: InstrumentationPath, duration: FiniteDuration): Unit = {
+  def setTimingWorkflow(statsDPath: InstrumentationPath, duration: FiniteDuration): Unit =
     sendTiming(statsDPath, duration, WorkflowPrefix)
-  }
 
   /**
     * Generic method to update a workflow related gauge metric value
     */
-  def sendGaugeWorkflow(statsDPath: InstrumentationPath, value: Long): Unit = {
+  def sendGaugeWorkflow(statsDPath: InstrumentationPath, value: Long): Unit =
     sendGauge(statsDPath, value, WorkflowPrefix)
-  }
 
   /**
     * Counts every time a workflow enters a given state
     */
-  def incrementWorkflowState(workflowState: WorkflowState): Unit = {
+  def incrementWorkflowState(workflowState: WorkflowState): Unit =
     incrementWorkflow(workflowStatePath(workflowState))
-  }
 
   /**
     * Add a timing value for the run time of a workflow in a given state
     */
-  //* TODO: enforce a terminal state ?
-  def setWorkflowTimePerState(workflowState: WorkflowState, duration: FiniteDuration): Unit = {
+  // * TODO: enforce a terminal state ?
+  def setWorkflowTimePerState(workflowState: WorkflowState, duration: FiniteDuration): Unit =
     setTimingWorkflow(workflowStatePath(workflowState), duration)
-  }
 
   /**
     * Set the current number of submitted workflows (queued but not running)

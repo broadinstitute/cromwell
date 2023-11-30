@@ -5,7 +5,11 @@ import cats.data.NonEmptyList
 import cromwell.core.{HogGroup, WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreAbortResponse.WorkflowStoreAbortResponse
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreState.WorkflowStoreState
-import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowStoreAbortResponse, WorkflowStoreState, WorkflowSubmissionResponse}
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{
+  WorkflowStoreAbortResponse,
+  WorkflowStoreState,
+  WorkflowSubmissionResponse
+}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
@@ -18,12 +22,15 @@ class InMemoryWorkflowStore extends WorkflowStore {
     * Adds the requested WorkflowSourceFiles to the store and returns a WorkflowId for each one (in order)
     * for tracking purposes.
     */
-  override def add(sources: NonEmptyList[WorkflowSourceFilesCollection])(implicit ec: ExecutionContext): Future[NonEmptyList[WorkflowSubmissionResponse]] = {
-    val actualWorkflowState = if (sources.head.workflowOnHold) WorkflowStoreState.OnHold else WorkflowStoreState.Submitted
+  override def add(
+    sources: NonEmptyList[WorkflowSourceFilesCollection]
+  )(implicit ec: ExecutionContext): Future[NonEmptyList[WorkflowSubmissionResponse]] = {
+    val actualWorkflowState =
+      if (sources.head.workflowOnHold) WorkflowStoreState.OnHold else WorkflowStoreState.Submitted
     val addedWorkflows = sources map { WorkflowIdAndSources(WorkflowId.randomId(), _) -> actualWorkflowState }
     workflowStore ++= addedWorkflows.toList.toMap
-    Future.successful(addedWorkflows map {
-      case (WorkflowIdAndSources(id, _), _) => WorkflowSubmissionResponse(actualWorkflowState, id)
+    Future.successful(addedWorkflows map { case (WorkflowIdAndSources(id, _), _) =>
+      WorkflowSubmissionResponse(actualWorkflowState, id)
     })
   }
 
@@ -31,9 +38,15 @@ class InMemoryWorkflowStore extends WorkflowStore {
     * Retrieves up to n workflows which have not already been pulled into the engine and sets their pickedUp
     * flag to true
     */
-  override def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration, excludedGroups: Set[String])(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
+  override def fetchStartableWorkflows(n: Int,
+                                       cromwellId: String,
+                                       heartbeatTtl: FiniteDuration,
+                                       excludedGroups: Set[String]
+  )(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
     if (excludedGroups.nonEmpty)
-      throw new UnsupportedOperationException("Programmer Error: group filtering not supported for single-tenant/in-memory workflow store")
+      throw new UnsupportedOperationException(
+        "Programmer Error: group filtering not supported for single-tenant/in-memory workflow store"
+      )
 
     val startableWorkflows = workflowStore filter { _._2 == WorkflowStoreState.Submitted } take n
     val updatedWorkflows = startableWorkflows map { _._1 -> WorkflowStoreState.Running }
@@ -51,17 +64,18 @@ class InMemoryWorkflowStore extends WorkflowStore {
 
   override def initialize(implicit ec: ExecutionContext): Future[Unit] = Future.successful(())
 
-  override def stats(implicit ec: ExecutionContext): Future[Map[WorkflowStoreState, Int]] = Future.successful(Map(WorkflowStoreState.Submitted -> workflowStore.size))
+  override def stats(implicit ec: ExecutionContext): Future[Map[WorkflowStoreState, Int]] =
+    Future.successful(Map(WorkflowStoreState.Submitted -> workflowStore.size))
 
   override def abortAllRunning()(implicit ec: ExecutionContext): Future[Unit] = {
-    workflowStore = workflowStore.map({
+    workflowStore = workflowStore.map {
       case (workflow, WorkflowStoreState.Running) => workflow -> WorkflowStoreState.Aborting
       case (workflow, state) => workflow -> state
-    })
+    }
     Future.successful(())
   }
 
-  override def abort(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] = {
+  override def abort(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] =
     workflowStore collectFirst {
       case (workflowIdAndSources, workflowStoreState) if workflowIdAndSources.id == id =>
         (workflowIdAndSources, workflowStoreState)
@@ -76,21 +90,24 @@ class InMemoryWorkflowStore extends WorkflowStore {
       case None =>
         Future.successful(WorkflowStoreAbortResponse.NotFound)
     }
-  }
 
   override def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)],
-                                       heartbeatDateTime: OffsetDateTime)
-                                      (implicit ec: ExecutionContext): Future[Int] = {
+                                       heartbeatDateTime: OffsetDateTime
+  )(implicit ec: ExecutionContext): Future[Int] =
     Future.successful(workflowIds.size)
-  }
 
-  override def switchOnHoldToSubmitted(id: WorkflowId)(implicit ec: ExecutionContext): Future[Unit] = Future.successful(())
+  override def switchOnHoldToSubmitted(id: WorkflowId)(implicit ec: ExecutionContext): Future[Unit] =
+    Future.successful(())
 
-  override def findWorkflowsWithAbortRequested(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[WorkflowId]] = Future.successful(List.empty)
+  override def findWorkflowsWithAbortRequested(cromwellId: String)(implicit
+    ec: ExecutionContext
+  ): Future[Iterable[WorkflowId]] = Future.successful(List.empty)
 
-  override def findWorkflows(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[WorkflowId]] = Future.successful(workflowStore.keys.map(_.id))
+  override def findWorkflows(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[WorkflowId]] =
+    Future.successful(workflowStore.keys.map(_.id))
 
-  override def deleteFromStore(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] = Future.successful(0)
+  override def deleteFromStore(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] =
+    Future.successful(0)
 }
 
 final case class WorkflowIdAndSources(id: WorkflowId, sources: WorkflowSourceFilesCollection)

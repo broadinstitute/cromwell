@@ -21,7 +21,7 @@ class FilePassingWorkflowSpec extends CromwellTestKitWordSpec {
           "file_passing.b.contents" -> WomString("foo bar baz")
         ),
         patienceConfig = PatienceConfig(2.minutes.dilated),
-        testActorName = "TestCromwellRootActor-files",
+        testActorName = "TestCromwellRootActor-files"
       )
     }
   }

@@ -3,8 +3,7 @@ package cromwell.services.database
 /**
   * Metadata from the JDBC connection and driver.
   */
-case class ConnectionMetadata
-(
+case class ConnectionMetadata(
   databaseProductName: String,
   databaseProductVersion: String,
   databaseMajorVersion: Int,
@@ -14,5 +13,5 @@ case class ConnectionMetadata
   driverMajorVersion: Int,
   driverMinorVersion: Int,
   jdbcMajorVersion: Int,
-  jdbcMinorVersion: Int,
+  jdbcMinorVersion: Int
 )

@@ -31,15 +31,18 @@ case object Aes256Cbc {
     cipher
   }
 
-  final def validateLength(arrayName: String, array: Array[Byte], expectedBitLength: Int): Try[Unit] = {
+  final def validateLength(arrayName: String, array: Array[Byte], expectedBitLength: Int): Try[Unit] =
     if (array.length * 8 == expectedBitLength) {
       Success(())
     } else {
-      Failure(new IllegalArgumentException(s"$arrayName size (${array.length * 8} bits) did not match the required length $expectedBitLength"))
+      Failure(
+        new IllegalArgumentException(
+          s"$arrayName size (${array.length * 8} bits) did not match the required length $expectedBitLength"
+        )
+      )
     }
-  }
 
-  final def encrypt(plainText: Array[Byte], secretKey: SecretKey): Try[EncryptedBytes] = {
+  final def encrypt(plainText: Array[Byte], secretKey: SecretKey): Try[EncryptedBytes] =
     validateLength("Secret key", secretKey.key, keySize) map { _ =>
       val iv = new Array[Byte](blockSize / 8)
       ranGen.nextBytes(iv)
@@ -47,15 +50,15 @@ case object Aes256Cbc {
       val cipher = init(Cipher.ENCRYPT_MODE, secretKey.key, iv)
       EncryptedBytes(cipher.doFinal(plainText), iv)
     }
-  }
 
-  final def decrypt(encryptedBytes: EncryptedBytes, secretKey: SecretKey): Try[Array[Byte]] = {
+  final def decrypt(encryptedBytes: EncryptedBytes, secretKey: SecretKey): Try[Array[Byte]] =
     for {
       _ <- validateLength("Secret key", secretKey.key, keySize)
       _ <- validateLength("Initialization vector", encryptedBytes.initializationVector, blockSize)
-      bytes = init(Cipher.DECRYPT_MODE, secretKey.key, encryptedBytes.initializationVector).doFinal(encryptedBytes.cipherText)
+      bytes = init(Cipher.DECRYPT_MODE, secretKey.key, encryptedBytes.initializationVector).doFinal(
+        encryptedBytes.cipherText
+      )
     } yield bytes
-  }
 }
 
 final case class EncryptedBytes(cipherText: Array[Byte], initializationVector: Array[Byte]) {

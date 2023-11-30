@@ -13,8 +13,12 @@ import org.slf4j.Logger
 import org.slf4j.event.Level
 import common.mock.MockSugar
 
-class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with MockSugar
-  with TableDrivenPropertyChecks {
+class LoggerWrapperSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with MockSugar
+    with TableDrivenPropertyChecks {
 
   behavior of "LoggerWrapper"
 
@@ -25,7 +29,6 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
       "slf4jMessages",
       "akkaMessages"
     ),
-
     (
       "log error with no args",
       _.error("Hello {} {} {} {}"),
@@ -80,7 +83,6 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
       List(Slf4jMessage(Level.ERROR, List("tag: Hello {} {} {} {}", "arg1", exception))),
       List(AkkaMessage(Logging.ErrorLevel, s"tag: Hello arg1 {} {} {}", Option(exception)))
     ),
-
     (
       "log warn with no args",
       _.warn("Hello {} {} {} {}"),
@@ -123,7 +125,6 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
       List(Slf4jMessage(Level.WARN, List("tag: Hello {} {} {} {}", exception))),
       List(AkkaMessage(Logging.WarningLevel, s"tag: Hello {} {} {} {}\n$exceptionMessage"))
     ),
-
     (
       "log info with no args",
       _.info("Hello {} {} {} {}"),
@@ -138,7 +139,7 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
     ),
     (
       "log info with one arg",
-      _.info("Hello {} {} {} {}", arg ="arg1"),
+      _.info("Hello {} {} {} {}", arg = "arg1"),
       List(Slf4jMessage(Level.INFO, List("tag: Hello {} {} {} {}", "arg1"))),
       List(AkkaMessage(Logging.InfoLevel, "tag: Hello arg1 {} {} {}"))
     ),
@@ -166,7 +167,6 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
       List(Slf4jMessage(Level.INFO, List("tag: Hello {} {} {} {}", exception))),
       List(AkkaMessage(Logging.InfoLevel, s"tag: Hello {} {} {} {}\n$exceptionMessage"))
     ),
-
     (
       "log debug with no args",
       _.debug("Hello {} {} {} {}"),
@@ -181,7 +181,7 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
     ),
     (
       "log debug with one arg",
-      _.debug("Hello {} {} {} {}", argument ="arg1"),
+      _.debug("Hello {} {} {} {}", argument = "arg1"),
       List(Slf4jMessage(Level.DEBUG, List("tag: Hello {} {} {} {}", "arg1"))),
       List(AkkaMessage(Logging.DebugLevel, "tag: Hello arg1 {} {} {}"))
     ),
@@ -209,7 +209,6 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
       List(Slf4jMessage(Level.DEBUG, List("tag: Hello {} {} {} {}", exception))),
       List(AkkaMessage(Logging.DebugLevel, s"tag: Hello {} {} {} {}\n$exceptionMessage"))
     ),
-
     (
       "log trace with no args",
       _.trace("Hello {} {} {} {}"),
@@ -260,40 +259,36 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
 
       var actualAkkaMessages = List.empty[AkkaMessage]
 
-      def toList(arguments: Any): List[Any] = {
+      def toList(arguments: Any): List[Any] =
         arguments match {
           case array: Array[_] => toLastFlattened(array)
           case seq: Seq[_] => seq.toList
           case any => List(any)
         }
-      }
 
       /*
-        * Flatten the last element of the array if the last element is itself an array.
-        *
-        * org.mockito.ArgumentMatchers#anyVararg() is deprecated, but works, sending in an empty array in the tail
-        * position. If we tried to use org.mockito.ArgumentMatchers#any(), it ends up mocking the wrong overloaded
-        * method. At each logging level there are two methods with very similar signatures:
-        *
-        * cromwell.core.logging.LoggerWrapper.error(pattern: String, arguments: AnyRef*)
-        * cromwell.core.logging.LoggerWrapper.error(pattern: String, arg: Any)
-        *
-        * As is, the Any vs. AnyRef overloads are barely dodging the issue https://issues.scala-lang.org/browse/SI-2991.
-        */
-      def toLastFlattened(array: Array[_]): List[Any] = {
+       * Flatten the last element of the array if the last element is itself an array.
+       *
+       * org.mockito.ArgumentMatchers#anyVararg() is deprecated, but works, sending in an empty array in the tail
+       * position. If we tried to use org.mockito.ArgumentMatchers#any(), it ends up mocking the wrong overloaded
+       * method. At each logging level there are two methods with very similar signatures:
+       *
+       * cromwell.core.logging.LoggerWrapper.error(pattern: String, arguments: AnyRef*)
+       * cromwell.core.logging.LoggerWrapper.error(pattern: String, arg: Any)
+       *
+       * As is, the Any vs. AnyRef overloads are barely dodging the issue https://issues.scala-lang.org/browse/SI-2991.
+       */
+      def toLastFlattened(array: Array[_]): List[Any] =
         array.toList.reverse match {
           case (array: Array[_]) :: tail => tail.reverse ++ array.toList
           case other => other.reverse
         }
-      }
 
-      def updateSlf4jMessages(level: Level, arguments: Any): Unit = {
+      def updateSlf4jMessages(level: Level, arguments: Any): Unit =
         actualSlf4jMessages :+= Slf4jMessage(level, toList(arguments))
-      }
 
-      def updateAkkaMessages(logLevel: LogLevel, message: String, causeOption: Option[Throwable] = None): Unit = {
+      def updateAkkaMessages(logLevel: LogLevel, message: String, causeOption: Option[Throwable] = None): Unit =
         actualAkkaMessages :+= AkkaMessage(logLevel, message, causeOption)
-      }
 
       val mockLogger = mock[Logger]
 
@@ -333,25 +328,20 @@ class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
         override val isInfoEnabled: Boolean = true
         override val isDebugEnabled: Boolean = true
 
-        override protected def notifyError(message: String): Unit = {
+        override protected def notifyError(message: String): Unit =
           updateAkkaMessages(Logging.ErrorLevel, message)
-        }
 
-        override protected def notifyError(cause: Throwable, message: String): Unit = {
+        override protected def notifyError(cause: Throwable, message: String): Unit =
           updateAkkaMessages(Logging.ErrorLevel, message, Option(cause))
-        }
 
-        override protected def notifyWarning(message: String): Unit = {
+        override protected def notifyWarning(message: String): Unit =
           updateAkkaMessages(Logging.WarningLevel, message)
-        }
 
-        override protected def notifyInfo(message: String): Unit = {
+        override protected def notifyInfo(message: String): Unit =
           updateAkkaMessages(Logging.InfoLevel, message)
-        }
 
-        override protected def notifyDebug(message: String): Unit = {
+        override protected def notifyDebug(message: String): Unit =
           updateAkkaMessages(Logging.DebugLevel, message)
-        }
       }
 
       val wrapper = new LoggerWrapper {

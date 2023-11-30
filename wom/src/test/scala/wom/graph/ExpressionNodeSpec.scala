@@ -37,7 +37,12 @@ class ExpressionNodeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     // Declare the expression node using both i and j:
     import common.validation.ErrorOr.ShortCircuitingFlatMap
     val graph = for {
-      xDeclarationNode <- AnonymousExpressionNode.fromInputMapping(WomIdentifier("x"), ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort), PlainAnonymousExpressionNode.apply)
+      xDeclarationNode <- AnonymousExpressionNode.fromInputMapping(
+        WomIdentifier("x"),
+        ijExpression,
+        Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort),
+        PlainAnonymousExpressionNode.apply
+      )
       xOutputNode = PortBasedGraphOutputNode(WomIdentifier("x_out"), WomIntegerType, xDeclarationNode.singleOutputPort)
       g <- Graph.validateAndConstruct(Set(iInputNode, jInputNode, xDeclarationNode, xOutputNode))
     } yield g
@@ -48,10 +53,12 @@ class ExpressionNodeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     }
 
     def validate(graph: Graph) = {
-      val x_outGraphOutputNode = graph.nodes.find {
-        case g: GraphOutputNode => g.localName == "x_out"
-        case _ => false
-      }.getOrElse(fail("No 'x_out' GraphOutputNode in the graph"))
+      val x_outGraphOutputNode = graph.nodes
+        .find {
+          case g: GraphOutputNode => g.localName == "x_out"
+          case _ => false
+        }
+        .getOrElse(fail("No 'x_out' GraphOutputNode in the graph"))
 
       x_outGraphOutputNode.upstream.size should be(1)
       val xExpressionNode = x_outGraphOutputNode.upstream.head.asInstanceOf[ExpressionNode]

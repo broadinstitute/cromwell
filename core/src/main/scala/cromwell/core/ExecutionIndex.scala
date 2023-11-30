@@ -23,8 +23,7 @@ object ExecutionIndex {
   }
 
   implicit val ExecutionIndexOrdering = new Ordering[ExecutionIndex] {
-    override def compare(x: ExecutionIndex, y: ExecutionIndex): Int = {
+    override def compare(x: ExecutionIndex, y: ExecutionIndex): Int =
       x.fromIndex.compareTo(y.fromIndex)
-    }
   }
 }

@@ -9,16 +9,16 @@ import scala.jdk.CollectionConverters._
 
 trait SSHAccessAction {
 
-  def sshAccessActions(createPipelineParameters: CreatePipelineParameters, mounts: List[Mount]) : List[Action] = {
+  def sshAccessActions(createPipelineParameters: CreatePipelineParameters, mounts: List[Mount]): List[Action] =
     if (createPipelineParameters.enableSshAccess) {
       sshAccessAction(mounts)
     } else {
       Nil
     }
-  }
 
   private def sshAccessAction(mounts: List[Mount]): List[Action] = {
-    val sshAction = ActionBuilder.withImage(ActionUtils.sshImage)
+    val sshAction = ActionBuilder
+      .withImage(ActionUtils.sshImage)
       .withEntrypointCommand(ActionUtils.sshEntryPoint)
       .setPortMappings(ActionUtils.sshPortMappings.asJava)
       .setRunInBackground(true)

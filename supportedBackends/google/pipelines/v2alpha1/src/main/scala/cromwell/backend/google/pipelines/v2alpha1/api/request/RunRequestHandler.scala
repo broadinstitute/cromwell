@@ -14,7 +14,10 @@ import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
 
 trait RunRequestHandler { this: RequestHandler =>
-  private def runCreationResultHandler(originalRequest: PAPIApiRequest, completionPromise: Promise[Try[Unit]], pollingManager: ActorRef) = new JsonBatchCallback[Operation] {
+  private def runCreationResultHandler(originalRequest: PAPIApiRequest,
+                                       completionPromise: Promise[Try[Unit]],
+                                       pollingManager: ActorRef
+  ) = new JsonBatchCallback[Operation] {
     override def onSuccess(operation: Operation, responseHeaders: HttpHeaders): Unit = {
       originalRequest.requester ! getJob(operation)
       completionPromise.trySuccess(Success(()))
@@ -41,17 +44,23 @@ trait RunRequestHandler { this: RequestHandler =>
     }
   }
 
-  def handleRequest(runCreationQuery: PAPIRunCreationRequest, batch: BatchRequest, pollingManager: ActorRef): Future[Try[Unit]] = {
+  def handleRequest(runCreationQuery: PAPIRunCreationRequest,
+                    batch: BatchRequest,
+                    pollingManager: ActorRef
+  ): Future[Try[Unit]] = {
     val completionPromise = Promise[Try[Unit]]()
     val resultHandler = runCreationResultHandler(runCreationQuery, completionPromise, pollingManager)
     addRunCreationToBatch(runCreationQuery.httpRequest, batch, resultHandler)
     completionPromise.future
   }
 
-  private def addRunCreationToBatch(request: HttpRequest, batch: BatchRequest, resultHandler: JsonBatchCallback[Operation]): Unit = {
+  private def addRunCreationToBatch(request: HttpRequest,
+                                    batch: BatchRequest,
+                                    resultHandler: JsonBatchCallback[Operation]
+  ): Unit = {
     /*
-      * Manually enqueue the request instead of doing it through the RunPipelineRequest
-      * as it would unnecessarily rebuild the request (which we already have)
+     * Manually enqueue the request instead of doing it through the RunPipelineRequest
+     * as it would unnecessarily rebuild the request (which we already have)
      */
     batch.queue(request, classOf[Operation], classOf[GoogleJsonErrorContainer], resultHandler)
     ()

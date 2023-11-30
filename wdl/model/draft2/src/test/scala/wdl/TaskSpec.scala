@@ -21,12 +21,17 @@ class TaskSpec extends WdlTest {
     s"have a task with name 'wc'" in {
       wcTask.name shouldEqual "wc"
       wcTask.declarations.map(_.toWdlString) shouldEqual Vector("File in_file")
-      wcTask.instantiateCommand(
-        wcTask.inputsFromMap(
-          Map("wc.in_file" -> WomSingleFile("/path/to/file"))
-        ),
-        NoFunctions
-      ).toTry.get.head.commandString shouldEqual "cat /path/to/file | wc -l"
+      wcTask
+        .instantiateCommand(
+          wcTask.inputsFromMap(
+            Map("wc.in_file" -> WomSingleFile("/path/to/file"))
+          ),
+          NoFunctions
+        )
+        .toTry
+        .get
+        .head
+        .commandString shouldEqual "cat /path/to/file | wc -l"
       wcTask.outputs.size shouldEqual 1
       wcTask.outputs.head.unqualifiedName shouldEqual "count"
       wcTask.outputs.head.womType shouldEqual WomIntegerType
@@ -38,12 +43,17 @@ class TaskSpec extends WdlTest {
         "String pattern",
         "File in_file"
       )
-      cgrepTask.instantiateCommand(
-        cgrepTask.inputsFromMap(
-          Map("cgrep.pattern" -> WomString("^...$"), "cgrep.in_file" -> WomSingleFile("/path/to/file"))
-        ),
-        NoFunctions
-      ).toTry.get.head.commandString shouldEqual "grep '^...$' /path/to/file | wc -l"
+      cgrepTask
+        .instantiateCommand(
+          cgrepTask.inputsFromMap(
+            Map("cgrep.pattern" -> WomString("^...$"), "cgrep.in_file" -> WomSingleFile("/path/to/file"))
+          ),
+          NoFunctions
+        )
+        .toTry
+        .get
+        .head
+        .commandString shouldEqual "grep '^...$' /path/to/file | wc -l"
       cgrepTask.outputs.size shouldEqual 1
       cgrepTask.outputs.head.unqualifiedName shouldEqual "count"
       cgrepTask.outputs.head.womType shouldEqual WomIntegerType
@@ -72,7 +82,12 @@ class TaskSpec extends WdlTest {
         "param_test.e" -> WomArray(WomArrayType(WomIntegerType), Seq(0, 1, 2) map WomInteger.apply),
         "param_test.f" -> WomBoolean.False
       )
-      paramTestTask.instantiateCommand(paramTestTask.inputsFromMap(inputs), NoFunctions).toTry.get.head.commandString shouldEqual "./binary a_val -p b_val c0,c1,c2 1 0\t1\t2 --false"
+      paramTestTask
+        .instantiateCommand(paramTestTask.inputsFromMap(inputs), NoFunctions)
+        .toTry
+        .get
+        .head
+        .commandString shouldEqual "./binary a_val -p b_val c0,c1,c2 1 0\t1\t2 --false"
     }
 
     s"instantiate command (1)" in {
@@ -83,7 +98,12 @@ class TaskSpec extends WdlTest {
         "param_test.e" -> WomArray(WomArrayType(WomIntegerType), Seq(0, 1, 2) map WomInteger.apply),
         "param_test.f" -> WomBoolean.True
       )
-      paramTestTask.instantiateCommand(paramTestTask.inputsFromMap(inputs), NoFunctions).toTry.get.head.commandString shouldEqual "./binary a_val -p b_val c0,c1,c2 9 0\t1\t2 --true"
+      paramTestTask
+        .instantiateCommand(paramTestTask.inputsFromMap(inputs), NoFunctions)
+        .toTry
+        .get
+        .head
+        .commandString shouldEqual "./binary a_val -p b_val c0,c1,c2 9 0\t1\t2 --true"
     }
 
     s"instantiate command (2)" in {
@@ -95,7 +115,12 @@ class TaskSpec extends WdlTest {
         "param_test.e" -> WomArray(WomArrayType(WomIntegerType), Seq()),
         "param_test.f" -> WomBoolean.True
       )
-      paramTestTask.instantiateCommand(paramTestTask.inputsFromMap(inputs), NoFunctions).toTry.get.head.commandString shouldEqual "./binary a_val -p b_val c0 1  --true"
+      paramTestTask
+        .instantiateCommand(paramTestTask.inputsFromMap(inputs), NoFunctions)
+        .toTry
+        .get
+        .head
+        .commandString shouldEqual "./binary a_val -p b_val c0 1  --true"
     }
 
     s"instantiate command (3)" in {
@@ -107,11 +132,18 @@ class TaskSpec extends WdlTest {
         "param_test.e" -> WomArray(WomArrayType(WomIntegerType), Seq()),
         "param_test.f" -> WomBoolean.True
       )
-      paramTestTask.instantiateCommand(paramTestTask.inputsFromMap(inputs), NoFunctions).toTry.get.head.commandString shouldEqual "./binary a_val -p b_val  1  --true"
+      paramTestTask
+        .instantiateCommand(paramTestTask.inputsFromMap(inputs), NoFunctions)
+        .toTry
+        .get
+        .head
+        .commandString shouldEqual "./binary a_val -p b_val  1  --true"
     }
 
     s"fail to instantiate command if missing a required input" in {
-      paramTestTask.instantiateCommand(paramTestTask.inputsFromMap(Map("param_test.a" -> WomString("a_val"))), NoFunctions).toTry match {
+      paramTestTask
+        .instantiateCommand(paramTestTask.inputsFromMap(Map("param_test.a" -> WomString("a_val"))), NoFunctions)
+        .toTry match {
         case Failure(_) => // expected
         case _ => fail("Expected an exception")
       }

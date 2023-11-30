@@ -8,7 +8,6 @@ import cromwell.core.path.{DefaultPathBuilder, Path}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import shapeless.syntax.typeable._
 
-
 object DrsResolver {
   private val GcsScheme: String = "gs"
 
@@ -16,18 +15,18 @@ object DrsResolver {
 
   private val DrsLocalizationPathsContainer = "drs_localization_paths"
 
-  private def resolveError[A](pathAsString: String)(throwable: Throwable): IO[A] = {
+  private def resolveError[A](pathAsString: String)(throwable: Throwable): IO[A] =
     IO.raiseError(
       new RuntimeException(
         s"Error while resolving DRS path: $pathAsString. Error: ${ExceptionUtils.getMessage(throwable)}"
       )
     )
-  }
 
   private def getDrsPathResolver(drsPath: DrsPath): IO[DrsPathResolver] = {
     val drsFileSystemProviderOption = drsPath.drsPath.getFileSystem.provider.cast[DrsCloudNioFileSystemProvider]
 
-    val noFileSystemForDrsError = s"Unable to cast file system provider to DrsCloudNioFileSystemProvider for DRS path $drsPath."
+    val noFileSystemForDrsError =
+      s"Unable to cast file system provider to DrsCloudNioFileSystemProvider for DRS path $drsPath."
 
     for {
       drsFileSystemProvider <- toIO(drsFileSystemProviderOption, noFileSystemForDrsError)
@@ -37,11 +36,17 @@ object DrsResolver {
   case class DrsResolverLocalizationData(gsUri: Option[String],
                                          fileName: Option[String],
                                          bondProvider: Option[String],
-                                         localizationPath: Option[String])
+                                         localizationPath: Option[String]
+  )
 
   private def getDrsResolverLocalizationData(pathAsString: String,
-                                        drsPathResolver: DrsPathResolver): IO[DrsResolverLocalizationData] = {
-    val fields = NonEmptyList.of(DrsResolverField.GsUri, DrsResolverField.FileName, DrsResolverField.BondProvider, DrsResolverField.LocalizationPath)
+                                             drsPathResolver: DrsPathResolver
+  ): IO[DrsResolverLocalizationData] = {
+    val fields = NonEmptyList.of(DrsResolverField.GsUri,
+                                 DrsResolverField.FileName,
+                                 DrsResolverField.BondProvider,
+                                 DrsResolverField.LocalizationPath
+    )
 
     drsPathResolver.resolveDrs(pathAsString, fields) map { r =>
       DrsResolverLocalizationData(r.gsUri, r.fileName, r.bondProvider, r.localizationPath)
@@ -49,7 +54,7 @@ object DrsResolver {
   }
 
   /** Returns the `gsUri` if it ends in the `fileName` and the `bondProvider` is empty. */
-  private def getSimpleGsUri(localizationData: DrsResolverLocalizationData): Option[String] = {
+  private def getSimpleGsUri(localizationData: DrsResolverLocalizationData): Option[String] =
     localizationData match {
       // `gsUri` not defined so no gsUri can be returned.
       case DrsResolverLocalizationData(None, _, _, _) => None
@@ -60,11 +65,9 @@ object DrsResolver {
       // Barring any of the situations above return the `gsUri`.
       case DrsResolverLocalizationData(Some(gsUri), _, _, _) => Option(gsUri)
     }
-  }
 
   /** Returns the `gsUri` if it ends in the `fileName` and the `bondProvider` is empty. */
-  def getSimpleGsUri(pathAsString: String,
-                     drsPathResolver: DrsPathResolver): IO[Option[String]] = {
+  def getSimpleGsUri(pathAsString: String, drsPathResolver: DrsPathResolver): IO[Option[String]] = {
 
     val gsUriIO = getDrsResolverLocalizationData(pathAsString, drsPathResolver) map getSimpleGsUri
 
@@ -72,12 +75,11 @@ object DrsResolver {
   }
 
   /** Returns the `gsUri` if it ends in the `fileName` and the `bondProvider` is empty. */
-  def getSimpleGsUri(drsPath: DrsPath): IO[Option[String]] = {
+  def getSimpleGsUri(drsPath: DrsPath): IO[Option[String]] =
     for {
       drsPathResolver <- getDrsPathResolver(drsPath)
       gsUri <- getSimpleGsUri(drsPath.pathAsString, drsPathResolver)
     } yield gsUri
-  }
 
   def getContainerRelativePath(drsPath: DrsPath): IO[String] = {
     val pathIO = for {

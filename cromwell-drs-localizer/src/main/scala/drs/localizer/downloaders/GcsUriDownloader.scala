@@ -12,15 +12,16 @@ import scala.sys.process.{Process, ProcessLogger}
 case class GcsUriDownloader(gcsUrl: String,
                             serviceAccountJson: Option[String],
                             downloadLoc: String,
-                            requesterPaysProjectIdOption: Option[String]) extends Downloader with StrictLogging {
+                            requesterPaysProjectIdOption: Option[String]
+) extends Downloader
+    with StrictLogging {
 
   val defaultNumRetries: Int = 5
-  val defaultBackoff: CloudNioBackoff = CloudNioSimpleExponentialBackoff(
-    initialInterval = 1 seconds, maxInterval = 60 seconds, multiplier = 2)
+  val defaultBackoff: CloudNioBackoff =
+    CloudNioSimpleExponentialBackoff(initialInterval = 1 seconds, maxInterval = 60 seconds, multiplier = 2)
 
-  override def download: IO[DownloadResult] = {
+  override def download: IO[DownloadResult] =
     downloadWithRetries(defaultNumRetries, Option(defaultBackoff))
-  }
 
   def runDownloadCommand: IO[DownloadResult] = {
 
@@ -45,27 +46,30 @@ case class GcsUriDownloader(gcsUrl: String,
     // run the multiple bash script to download file and log stream sent to stdout and stderr using ProcessLogger
     val returnCode = copyProcess ! ProcessLogger(logger.underlying.info, logger.underlying.error)
 
-    val result = if (returnCode == 0) DownloadSuccess else RecognizedRetryableDownloadFailure(exitCode = ExitCode(returnCode))
+    val result =
+      if (returnCode == 0) DownloadSuccess else RecognizedRetryableDownloadFailure(exitCode = ExitCode(returnCode))
 
     IO.pure(result)
   }
 
   def downloadWithRetries(downloadRetries: Int,
                           backoff: Option[CloudNioBackoff],
-                          downloadAttempt: Int = 0): IO[DownloadResult] =
-  {
+                          downloadAttempt: Int = 0
+  ): IO[DownloadResult] = {
 
-    def maybeRetryForDownloadFailure(t: Throwable): IO[DownloadResult] = {
+    def maybeRetryForDownloadFailure(t: Throwable): IO[DownloadResult] =
       if (downloadAttempt < downloadRetries) {
         backoff foreach { b => Thread.sleep(b.backoffMillis) }
         logger.warn(s"Attempting download retry $downloadAttempt of $downloadRetries for a GCS url", t)
-        downloadWithRetries(downloadRetries, backoff map {
-          _.next
-        }, downloadAttempt + 1)
+        downloadWithRetries(downloadRetries,
+                            backoff map {
+                              _.next
+                            },
+                            downloadAttempt + 1
+        )
       } else {
         IO.raiseError(new RuntimeException(s"Exhausted $downloadRetries resolution retries to download GCS file", t))
       }
-    }
 
     runDownloadCommand.redeemWith(
       recover = maybeRetryForDownloadFailure,
@@ -73,12 +77,13 @@ case class GcsUriDownloader(gcsUrl: String,
         case s: DownloadSuccess.type =>
           IO.pure(s)
         case _: RecognizedRetryableDownloadFailure =>
-          downloadWithRetries(downloadRetries, backoff, downloadAttempt+1)
+          downloadWithRetries(downloadRetries, backoff, downloadAttempt + 1)
         case _: UnrecognizedRetryableDownloadFailure =>
-          downloadWithRetries(downloadRetries, backoff, downloadAttempt+1)
+          downloadWithRetries(downloadRetries, backoff, downloadAttempt + 1)
         case _ =>
-          downloadWithRetries(downloadRetries, backoff, downloadAttempt+1)
-      })
+          downloadWithRetries(downloadRetries, backoff, downloadAttempt + 1)
+      }
+    )
   }
 
   /**
@@ -88,7 +93,7 @@ case class GcsUriDownloader(gcsUrl: String,
 
     def gcsCopyCommand(flag: String = ""): String = s"gsutil $flag cp $gcsUrl $downloadLoc"
 
-    def setServiceAccount(): String = {
+    def setServiceAccount(): String =
       saJsonPathOption match {
         case Some(saJsonPath) =>
           s"""# Set gsutil to use the service account returned from the DRS Resolver
@@ -103,9 +108,8 @@ case class GcsUriDownloader(gcsUrl: String,
              |""".stripMargin
         case None => ""
       }
-    }
 
-    def recoverWithRequesterPays(): String = {
+    def recoverWithRequesterPays(): String =
       requesterPaysProjectIdOption match {
         case Some(userProject) =>
           s"""if [ "$$RC_GSUTIL" != "0" ]; then
@@ -119,7 +123,6 @@ case class GcsUriDownloader(gcsUrl: String,
              |""".stripMargin
         case None => ""
       }
-    }
 
     // bash to download the GCS file using gsutil
     s"""set -euo pipefail
@@ -145,5 +148,5 @@ case class GcsUriDownloader(gcsUrl: String,
 }
 
 object GcsUriDownloader {
-  private final val RequesterPaysErrorMsg = "requester pays bucket but no user project"
+  final private val RequesterPaysErrorMsg = "requester pays bucket but no user project"
 }

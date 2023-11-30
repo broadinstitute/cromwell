@@ -24,15 +24,15 @@ class LobSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Sc
     PatienceConfig(timeout = scaled(5.seconds), interval = scaled(100.millis))
 
   DatabaseSystem.All foreach { databaseSystem =>
-
     behavior of s"CLOBs and BLOBs on ${databaseSystem.name}"
 
     val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
 
-    lazy val database = DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, EngineDatabaseType, databaseSystem)
+    lazy val database =
+      DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, EngineDatabaseType, databaseSystem)
 
     it should "start container if required" taggedAs DbmsTest in {
-      containerOpt.foreach { _.start }
+      containerOpt.foreach(_.start)
     }
 
     it should "store empty blobs" taggedAs DbmsTest in {
@@ -58,7 +58,7 @@ class LobSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Sc
         submissionTime = OffsetDateTime.now.toSystemTimestamp,
         importsZip = Option(emptyBlob),
         customLabels = clob,
-        hogGroup = None,
+        hogGroup = None
       )
 
       val workflowStoreEntries = Seq(workflowStoreEntry)
@@ -122,7 +122,7 @@ class LobSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Sc
         submissionTime = OffsetDateTime.now.toSystemTimestamp,
         importsZip = Option(Array.empty[Byte]).toBlobOption,
         customLabels = clob,
-        hogGroup = Option("abc-1"),
+        hogGroup = Option("abc-1")
       )
 
       val noneWorkflowUuid = WorkflowId.randomId().toString
@@ -141,7 +141,7 @@ class LobSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Sc
         submissionTime = OffsetDateTime.now.toSystemTimestamp,
         importsZip = None,
         customLabels = clob,
-        hogGroup = Option("abc-1"),
+        hogGroup = Option("abc-1")
       )
 
       val aByte = 'a'.toByte
@@ -161,7 +161,7 @@ class LobSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Sc
         submissionTime = OffsetDateTime.now.toSystemTimestamp,
         importsZip = Option(Array(aByte)).toBlobOption,
         customLabels = clob,
-        hogGroup = Option("abc-1"),
+        hogGroup = Option("abc-1")
       )
 
       val workflowStoreEntries = Seq(emptyWorkflowStoreEntry, noneWorkflowStoreEntry, aByteWorkflowStoreEntry)
@@ -201,7 +201,7 @@ class LobSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Sc
     }
 
     it should "stop container if required" taggedAs DbmsTest in {
-      containerOpt.foreach { _.stop() }
+      containerOpt.foreach(_.stop())
     }
   }
 }

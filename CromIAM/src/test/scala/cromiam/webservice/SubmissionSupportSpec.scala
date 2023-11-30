@@ -12,8 +12,12 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-
-class SubmissionSupportSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest with SubmissionSupport {
+class SubmissionSupportSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with ScalatestRouteTest
+    with SubmissionSupport {
   override val cromwellClient = new MockCromwellClient()
   override val samClient = new MockSamClient()
   override val log: LoggingAdapter = NoLogging
@@ -55,7 +59,6 @@ class SubmissionSupportSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
       """.stripMargin
   val workflowSource = Multipart.FormData.BodyPart("workflowSource", HttpEntity(helloWorldWdl))
   val formData = Multipart.FormData(workflowSource).toEntity()
-
 
   "Submit endpoint" should "forward the request to Cromwell for authorized SAM user" in {
     Post(submitPath).withHeaders(goodAuthHeaders).withEntity(formData) ~> submitRoute ~> check {

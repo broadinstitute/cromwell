@@ -5,9 +5,12 @@ import cromwell.engine.workflow.tokens.JobTokenDispenserActor.JobTokenDispensed
 import cromwell.jobstore.JobStoreActor.QueryJobCompletion
 import org.scalatest.concurrent.Eventually
 
-class EjeaRequestingRestartCheckTokenSpec extends EngineJobExecutionActorSpec with CanValidateJobStoreKey with Eventually {
+class EjeaRequestingRestartCheckTokenSpec
+    extends EngineJobExecutionActorSpec
+    with CanValidateJobStoreKey
+    with Eventually {
 
-  override implicit val stateUnderTest: EngineJobExecutionActorState = RequestingRestartCheckToken
+  implicit override val stateUnderTest: EngineJobExecutionActorState = RequestingRestartCheckToken
 
   "An EJEA in the RequestingRestartTokenCheck state" should {
 

@@ -3,7 +3,6 @@ package wdl.draft2.model
 import common.collections.EnhancedCollections._
 import wdl.draft2.model.AstTools.{EnhancedAstNode, VariableReference}
 
-
 sealed trait WdlGraphNode extends Scope {
 
   /**
@@ -19,9 +18,9 @@ sealed trait WdlGraphNode extends Scope {
   final lazy val upstream: Set[WdlGraphNode] = {
     // If we are inside the scope of another graph node (i.e. via document element ancestry), then
     // that is also upstream of us.
-    val closestScopedAncestor = ancestry.collectFirst({
-      case ancestor: WdlGraphNode => ancestor
-    })
+    val closestScopedAncestor = ancestry.collectFirst { case ancestor: WdlGraphNode =>
+      ancestor
+    }
 
     // We want:
     // - Nodes that this node references
@@ -30,21 +29,20 @@ sealed trait WdlGraphNode extends Scope {
     // But because our children's upstream might also include these (which we don't want), filter out:
     // - This
     // - Any other WdlGraphNode descendants of this
-    (referencedNodes ++ closestScopedAncestor.toSeq ++ childGraphNodes.flatMap(_.upstream)).toSet - this -- descendants.filterByType[WdlGraphNode]
+    (referencedNodes ++ closestScopedAncestor.toSeq ++ childGraphNodes.flatMap(_.upstream)).toSet - this -- descendants
+      .filterByType[WdlGraphNode]
   }
 
-  final lazy val downstream: Set[WdlGraphNode] = {
+  final lazy val downstream: Set[WdlGraphNode] =
     for {
-      node <- namespace.descendants.collect({
+      node <- namespace.descendants.collect {
         case n: WdlGraphNode if n.fullyQualifiedName != fullyQualifiedName => n
-      })
+      }
       if node.upstream.contains(this)
     } yield node
-  }
 
-  def isUpstreamFrom(other: WdlGraphNode): Boolean = {
+  def isUpstreamFrom(other: WdlGraphNode): Boolean =
     other.upstreamAncestry.contains(this) || (other.childGraphNodes exists isUpstreamFrom)
-  }
 }
 
 object WdlGraphNode {
@@ -59,17 +57,17 @@ trait WdlGraphNodeWithUpstreamReferences extends WdlGraphNode {
   def upstreamReferences: Iterable[VariableReference]
 
   // If we have variable reference to other graph nodes, then they are upstream from us.
-  override final def referencedNodes = for {
-      variable <- upstreamReferences
-      node <- resolveVariable(variable.terminal.sourceString)
-      if node.fullyQualifiedNameWithIndexScopes != fullyQualifiedNameWithIndexScopes
-    } yield node
+  final override def referencedNodes = for {
+    variable <- upstreamReferences
+    node <- resolveVariable(variable.terminal.sourceString)
+    if node.fullyQualifiedNameWithIndexScopes != fullyQualifiedNameWithIndexScopes
+  } yield node
 }
 
 trait WdlGraphNodeWithInputs extends WdlGraphNode {
   def inputMappings: Map[String, WdlExpression]
 
-  override final def referencedNodes = for {
+  final override def referencedNodes = for {
     expr <- inputMappings.values
     variable <- expr.variableReferences(this)
     scope <- parent

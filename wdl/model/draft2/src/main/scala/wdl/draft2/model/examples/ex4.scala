@@ -5,13 +5,13 @@ import wdl.draft2.model.WdlNamespaceWithWorkflow
 object ex4 {
   def main(args: Array[String]): Unit = {
     val wdl = """
-      |task a {
-      |  command { ps }
-      |}
-      |workflow wf {
-      | call a
-      | call a as b
-      |}""".stripMargin
+                |task a {
+                |  command { ps }
+                |}
+                |workflow wf {
+                | call a
+                | call a as b
+                |}""".stripMargin
 
     val ns = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
 

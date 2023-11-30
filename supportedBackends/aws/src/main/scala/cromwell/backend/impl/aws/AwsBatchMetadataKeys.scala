@@ -31,7 +31,6 @@
 
 package cromwell.backend.impl.aws
 
-
 object AwsBatchMetadataKeys {
   val ExecutionBucket = "batch:executionBucket"
   // TODO: This will be needed later

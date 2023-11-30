@@ -10,7 +10,11 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
-class HttpFilesystemEnablementSpec extends AnyWordSpecLike with CromwellTimeoutSpec with Matchers with BeforeAndAfterAll {
+class HttpFilesystemEnablementSpec
+    extends AnyWordSpecLike
+    with CromwellTimeoutSpec
+    with Matchers
+    with BeforeAndAfterAll {
   "The http filesystem on the default Local backend" should {
     "be enabled unless explicitly disabled" in {
       configuredFilesystems(LocalConfig) shouldEqual Set("http")
@@ -19,7 +23,6 @@ class HttpFilesystemEnablementSpec extends AnyWordSpecLike with CromwellTimeoutS
     }
   }
 }
-
 
 object HttpFilesystemEnablementSpec {
   def configuredFilesystems(configs: Configurations): Set[String] = {
@@ -34,10 +37,10 @@ object HttpFilesystemEnablementSpec {
     // This is only checking the http filesystem, no need to load all those other filesystems with their
     // filesystem classes that live in other subprojects.
     val globalFilesystemsConfig =
-    """
-      |http {
-      |  class = "cromwell.filesystems.http.HttpPathBuilderFactory"
-      |}
+      """
+        |http {
+        |  class = "cromwell.filesystems.http.HttpPathBuilderFactory"
+        |}
     """.stripMargin
 
     val globalFilesystems = ConfigFactory.parseString(globalFilesystemsConfig)

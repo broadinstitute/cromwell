@@ -27,7 +27,14 @@ class GcpBatchJobPathsSpec extends TestKitSuite with AnyFlatSpecLike with Matche
     )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
 
-    val workflowPaths = GcpBatchWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), gcpBatchConfiguration, pathBuilders(), GcpBatchInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper)
+    val workflowPaths = GcpBatchWorkflowPaths(
+      workflowDescriptor,
+      NoCredentials.getInstance(),
+      NoCredentials.getInstance(),
+      gcpBatchConfiguration,
+      pathBuilders(),
+      GcpBatchInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper
+    )
 
     val callPaths = GcpBatchJobPaths(workflowPaths, jobDescriptorKey)
 
@@ -44,7 +51,14 @@ class GcpBatchJobPathsSpec extends TestKitSuite with AnyFlatSpecLike with Matche
     )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
 
-    val workflowPaths = GcpBatchWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), gcpBatchConfiguration, pathBuilders(), GcpBatchInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper)
+    val workflowPaths = GcpBatchWorkflowPaths(
+      workflowDescriptor,
+      NoCredentials.getInstance(),
+      NoCredentials.getInstance(),
+      gcpBatchConfiguration,
+      pathBuilders(),
+      GcpBatchInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper
+    )
 
     val callPaths = GcpBatchJobPaths(workflowPaths, jobDescriptorKey)
 
@@ -66,7 +80,14 @@ class GcpBatchJobPathsSpec extends TestKitSuite with AnyFlatSpecLike with Matche
     )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
 
-    val workflowPaths = GcpBatchWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), gcpBatchConfiguration, pathBuilders(), GcpBatchInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper)
+    val workflowPaths = GcpBatchWorkflowPaths(
+      workflowDescriptor,
+      NoCredentials.getInstance(),
+      NoCredentials.getInstance(),
+      gcpBatchConfiguration,
+      pathBuilders(),
+      GcpBatchInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper
+    )
 
     val callPaths = GcpBatchJobPaths(workflowPaths, jobDescriptorKey)
 

@@ -25,19 +25,21 @@ object CromwellFtpFileSystems {
   }
 
   def parseConfig(config: Config): FtpFileSystemsConfiguration = {
-    val cacheTTL = validate[FiniteDuration] { config.as[FiniteDuration]("cache-ttl") }
-    val leaseTimeout = validate[Option[FiniteDuration]] { config.getAs[FiniteDuration]("obtain-connection-timeout") }
+    val cacheTTL = validate[FiniteDuration](config.as[FiniteDuration]("cache-ttl"))
+    val leaseTimeout = validate[Option[FiniteDuration]](config.getAs[FiniteDuration]("obtain-connection-timeout"))
     // Cannot be less than 2, otherwise we can't copy files as we need 2 connections to copy a file (one for downstream and one for upstream)
-    val capacity: ErrorOr[Int] = validate[Int] { config.as[Int]("max-connection-per-server-per-user") } map { c => Math.max(2, c) }
-    val idleConnectionTimeout = validate[FiniteDuration] { config.as[FiniteDuration]("idle-connection-timeout") }
-    val connectionPort = validate[Int] { config.as[Int]("connection-port") }
-    val connectionMode = validate[ConnectionMode] { config.as[ConnectionMode]("connection-mode") }
+    val capacity: ErrorOr[Int] = validate[Int](config.as[Int]("max-connection-per-server-per-user")) map { c =>
+      Math.max(2, c)
+    }
+    val idleConnectionTimeout = validate[FiniteDuration](config.as[FiniteDuration]("idle-connection-timeout"))
+    val connectionPort = validate[Int](config.as[Int]("connection-port"))
+    val connectionMode = validate[ConnectionMode](config.as[ConnectionMode]("connection-mode"))
 
     (cacheTTL, leaseTimeout, capacity, idleConnectionTimeout, connectionPort, connectionMode)
       .mapN(FtpFileSystemsConfiguration.apply)
       .unsafe("Failed to parse FTP configuration")
   }
-  
+
   val Default = new CromwellFtpFileSystems(FtpFileSystems.Default)
 }
 

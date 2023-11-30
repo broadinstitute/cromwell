@@ -10,19 +10,38 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-
-trait SwaggerUiHttpServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest with SwaggerUiHttpService {
+trait SwaggerUiHttpServiceSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with ScalatestRouteTest
+    with SwaggerUiHttpService {
   def actorRefFactory = system
 }
 
-trait SwaggerResourceHttpServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest with
-TableDrivenPropertyChecks with SwaggerResourceHttpService {
+trait SwaggerResourceHttpServiceSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with ScalatestRouteTest
+    with TableDrivenPropertyChecks
+    with SwaggerResourceHttpService {
 
-  val testPathsForOptions = Table("endpoint", "/", "/swagger", "/swagger/index.html", "/api", "/api/example",
-    "/api/example?with=param", "/api/example/path")
+  val testPathsForOptions = Table("endpoint",
+                                  "/",
+                                  "/swagger",
+                                  "/swagger/index.html",
+                                  "/api",
+                                  "/api/example",
+                                  "/api/example?with=param",
+                                  "/api/example/path"
+  )
 }
 
-trait SwaggerUiResourceHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerResourceHttpServiceSpec with SwaggerUiResourceHttpService
+trait SwaggerUiResourceHttpServiceSpec
+    extends SwaggerUiHttpServiceSpec
+    with SwaggerResourceHttpServiceSpec
+    with SwaggerUiResourceHttpService
 
 object SwaggerUiHttpServiceSpec {
   // TODO: Re-common-ize swagger out of cromwell's engine and reuse.
@@ -40,7 +59,7 @@ class BasicSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
   behavior of "SwaggerUiHttpService"
 
   override protected def rewriteSwaggerIndex(data: String): String =
-  // Replace same magic string used in SwaggerUiResourceHttpService.rewriteSwaggerIndex
+    // Replace same magic string used in SwaggerUiResourceHttpService.rewriteSwaggerIndex
     data.replace("window.ui = ui", "replaced-client-id")
 
   it should "redirect /swagger to /" in {
@@ -80,7 +99,9 @@ class BasicSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
   }
 
   override def oauthConfig: SwaggerOauthConfig = SwaggerOauthConfig(
-    clientId = "test-client-id", realm = "test-realm", appName = "test-appname"
+    clientId = "test-client-id",
+    realm = "test-realm",
+    appName = "test-appname"
   )
 }
 
@@ -194,7 +215,6 @@ class YamlSwaggerUiResourceHttpServiceSpec extends SwaggerUiResourceHttpServiceS
     }
   }
 }
-
 
 class JsonSwaggerUiResourceHttpServiceSpec extends SwaggerUiResourceHttpServiceSpec {
 

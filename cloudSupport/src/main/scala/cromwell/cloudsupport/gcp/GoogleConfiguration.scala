@@ -18,14 +18,13 @@ import org.slf4j.LoggerFactory
 
 final case class GoogleConfiguration private (applicationName: String, authsByName: Map[String, GoogleAuthMode]) {
 
-  def auth(name: String): ErrorOr[GoogleAuthMode] = {
+  def auth(name: String): ErrorOr[GoogleAuthMode] =
     authsByName.get(name) match {
       case None =>
         val knownAuthNames = authsByName.keys.mkString(", ")
         s"`google` configuration stanza does not contain an auth named '$name'.  Known auth names: $knownAuthNames".invalidNel
       case Some(a) => a.validNel
     }
-  }
 }
 
 object GoogleConfiguration {
@@ -37,7 +36,8 @@ object GoogleConfiguration {
 
   def withCustomTimeouts(httpRequestInitializer: HttpRequestInitializer,
                          connectionTimeout: FiniteDuration = DefaultConnectionTimeout,
-                         readTimeout: FiniteDuration = DefaultReadTimeout): HttpRequestInitializer = {
+                         readTimeout: FiniteDuration = DefaultReadTimeout
+  ): HttpRequestInitializer =
     new HttpRequestInitializer() {
       @throws[IOException]
       override def initialize(httpRequest: HttpRequest): Unit = {
@@ -47,7 +47,6 @@ object GoogleConfiguration {
         ()
       }
     }
-  }
 
   private val log = LoggerFactory.getLogger("GoogleConfiguration")
 
@@ -59,20 +58,27 @@ object GoogleConfiguration {
 
     val googleConfig = config.getConfig("google")
 
-    val appName = validate { googleConfig.as[String]("application-name") }
+    val appName = validate(googleConfig.as[String]("application-name"))
 
     def buildAuth(authConfig: Config): ErrorOr[GoogleAuthMode] = {
 
       def serviceAccountAuth(authConfig: Config, name: String): ErrorOr[GoogleAuthMode] = validate {
         (authConfig.getAs[String]("pem-file"), authConfig.getAs[String]("json-file")) match {
-          case (Some(pem), None) => ServiceAccountMode(name, PemFileFormat(authConfig.as[String]("service-account-id"), pem))
+          case (Some(pem), None) =>
+            ServiceAccountMode(name, PemFileFormat(authConfig.as[String]("service-account-id"), pem))
           case (None, Some(json)) => ServiceAccountMode(name, JsonFileFormat(json))
-          case (None, None) => throw new ConfigException.Generic(s"""No credential configuration was found for service account "$name". See reference.conf under the google.auth, service-account section for supported credential formats.""")
-          case (Some(_), Some(_)) => throw new ConfigException.Generic(s"""Both a pem file and a json file were supplied for service account "$name" in the configuration file. Only one credential file can be supplied for the same service account. Please choose between the two.""")
+          case (None, None) =>
+            throw new ConfigException.Generic(
+              s"""No credential configuration was found for service account "$name". See reference.conf under the google.auth, service-account section for supported credential formats."""
+            )
+          case (Some(_), Some(_)) =>
+            throw new ConfigException.Generic(
+              s"""Both a pem file and a json file were supplied for service account "$name" in the configuration file. Only one credential file can be supplied for the same service account. Please choose between the two."""
+            )
         }
       }
 
-      def userAccountAuth(authConfig: Config, name: String): ErrorOr[GoogleAuthMode] =  validate {
+      def userAccountAuth(authConfig: Config, name: String): ErrorOr[GoogleAuthMode] = validate {
         UserMode(name, authConfig.as[String]("secrets-file"))
       }
 

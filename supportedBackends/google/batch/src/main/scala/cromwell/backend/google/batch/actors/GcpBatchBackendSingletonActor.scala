@@ -14,10 +14,11 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 object GcpBatchBackendSingletonActor {
-  def props(requestFactory: GcpBatchRequestFactory, serviceRegistryActor: ActorRef)(implicit requestHandler: GcpBatchApiRequestHandler): Props = {
+  def props(requestFactory: GcpBatchRequestFactory, serviceRegistryActor: ActorRef)(implicit
+    requestHandler: GcpBatchApiRequestHandler
+  ): Props =
     Props(new GcpBatchBackendSingletonActor(requestFactory, serviceRegistryActor = serviceRegistryActor))
       .withDispatcher(BackendDispatcher)
-  }
 
   // This is the only type of messages that can be processed by this actor from this actor
   sealed trait Action extends Product with Serializable
@@ -38,8 +39,10 @@ object GcpBatchBackendSingletonActor {
 
 }
 
-final class GcpBatchBackendSingletonActor(requestFactory: GcpBatchRequestFactory, override val serviceRegistryActor: ActorRef)(implicit requestHandler: GcpBatchApiRequestHandler)
-  extends Actor
+final class GcpBatchBackendSingletonActor(requestFactory: GcpBatchRequestFactory,
+                                          override val serviceRegistryActor: ActorRef
+)(implicit requestHandler: GcpBatchApiRequestHandler)
+    extends Actor
     with ActorLogging
     with BatchInstrumentation
     with CromwellInstrumentationScheduler
@@ -47,7 +50,7 @@ final class GcpBatchBackendSingletonActor(requestFactory: GcpBatchRequestFactory
 
   import GcpBatchBackendSingletonActor._
 
-  private implicit val ec: ExecutionContext = context.dispatcher
+  implicit private val ec: ExecutionContext = context.dispatcher
 
   override def preStart() = {
     startInstrumentationTimer()
@@ -81,8 +84,8 @@ final class GcpBatchBackendSingletonActor(requestFactory: GcpBatchRequestFactory
           replyTo ! Event.JobStatusRetrieved(job)
 
         case Failure(exception) =>
-          log.error(exception,  s"Failed to query job status ($jobName) from GCP")
-          replyTo ! Event.ActionFailed(jobName.toString ,exception)
+          log.error(exception, s"Failed to query job status ($jobName) from GCP")
+          replyTo ! Event.ActionFailed(jobName.toString, exception)
       }
 
     case Action.AbortJob(jobName) =>
@@ -108,7 +111,8 @@ final class GcpBatchBackendSingletonActor(requestFactory: GcpBatchRequestFactory
       // that are on a final state.
       log.info(s"Cromwell requested to abort workflow $workflowId")
 
-    case other => log.error(s"Unexpected message from {} to ${this.getClass.getSimpleName}: {}", sender().path.name, other)
+    case other =>
+      log.error(s"Unexpected message from {} to ${this.getClass.getSimpleName}: {}", sender().path.name, other)
   }
 
   override def receive = instrumentationReceive(loadMetricHandler _).orElse(normalReceive)

@@ -20,49 +20,40 @@ class CloudNioFileSystem(override val provider: CloudNioFileSystemProvider, val 
     // do nothing currently.
   }
 
-  override def isOpen: Boolean = {
+  override def isOpen: Boolean =
     true
-  }
 
-  override def isReadOnly: Boolean = {
+  override def isReadOnly: Boolean =
     false
-  }
 
-  override def getSeparator: String = {
+  override def getSeparator: String =
     CloudNioFileSystem.Separator
-  }
 
-  override def getRootDirectories: java.lang.Iterable[Path] = {
+  override def getRootDirectories: java.lang.Iterable[Path] =
     Set[Path](getPath(UnixPath.Root)).asJava
-  }
 
-  override def getFileStores: java.lang.Iterable[FileStore] = {
+  override def getFileStores: java.lang.Iterable[FileStore] =
     Set.empty[FileStore].asJava
-  }
 
-  override def getPathMatcher(syntaxAndPattern: String): PathMatcher = {
+  override def getPathMatcher(syntaxAndPattern: String): PathMatcher =
     FileSystems.getDefault.getPathMatcher(syntaxAndPattern)
-  }
 
-  override def getUserPrincipalLookupService: UserPrincipalLookupService = {
+  override def getUserPrincipalLookupService: UserPrincipalLookupService =
     throw new UnsupportedOperationException
-  }
 
-  override def newWatchService(): WatchService = {
+  override def newWatchService(): WatchService =
     throw new UnsupportedOperationException
-  }
 
-  override def supportedFileAttributeViews(): java.util.Set[String] = {
+  override def supportedFileAttributeViews(): java.util.Set[String] =
     Set("basic", CloudNioFileAttributeView.Name).asJava
-  }
 
   def canEqual(other: Any): Boolean = other.isInstanceOf[CloudNioFileSystem]
 
   override def equals(other: Any): Boolean = other match {
     case that: CloudNioFileSystem =>
       (that canEqual this) &&
-        provider == that.provider &&
-        host == that.host
+      provider == that.provider &&
+      host == that.host
     case _ => false
   }
 

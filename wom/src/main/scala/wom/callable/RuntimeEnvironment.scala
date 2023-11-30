@@ -18,5 +18,5 @@ case class RuntimeEnvironment(outputPath: String,
                               cores: Int Refined Positive,
                               ram: Double,
                               outputPathSize: Long,
-                              tempPathSize: Long)
-
+                              tempPathSize: Long
+)

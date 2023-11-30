@@ -21,9 +21,11 @@ object UnaryOperatorEvaluators {
     override def predictFilesNeededToEvaluate(a: A,
                                               inputs: Map[String, WomValue],
                                               ioFunctionSet: IoFunctionSet,
-                                              coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
+                                              coerceTo: WomType
+    )(implicit
+      fileEvaluator: FileEvaluator[ExpressionElement],
+      valueEvaluator: ValueEvaluator[ExpressionElement]
+    ): ErrorOr[Set[WomFile]] =
       a.argument.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
   }
 }

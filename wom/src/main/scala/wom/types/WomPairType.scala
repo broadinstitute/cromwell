@@ -8,7 +8,8 @@ import scala.util.{Failure, Success, Try}
 case class WomPairType(leftType: WomType, rightType: WomType) extends WomType {
 
   override def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = otherType match {
-    case WomPairType(otherType1, otherType2) => leftType.isCoerceableFrom(otherType1) && rightType.isCoerceableFrom(otherType2)
+    case WomPairType(otherType1, otherType2) =>
+      leftType.isCoerceableFrom(otherType1) && rightType.isCoerceableFrom(otherType2)
     case _ => false
   }
 
@@ -27,25 +28,34 @@ case class WomPairType(leftType: WomType, rightType: WomType) extends WomType {
 
   def coercePair(m: Map[String, JsValue], womPairType: WomPairType): WomPair = {
 
-    val caseNormalizedMap = m map { case(k, v) => k.toLowerCase.capitalize -> v }
+    val caseNormalizedMap = m map { case (k, v) => k.toLowerCase.capitalize -> v }
 
-    def invalidPair(missingArgs: String*) = Seq(Failure(new IllegalArgumentException(s"Pair ${JsObject(m)} requires for ${missingArgs.mkString("/")} value(s) to be defined.")))
+    def invalidPair(missingArgs: String*) = Seq(
+      Failure(
+        new IllegalArgumentException(
+          s"Pair ${JsObject(m)} requires for ${missingArgs.mkString("/")} value(s) to be defined."
+        )
+      )
+    )
 
     val womPair: Seq[Try[WomValue]] = (caseNormalizedMap.get("Left"), caseNormalizedMap.get("Right")) match {
-      case (Some(leftVal), Some(rightVal)) => Seq(womPairType.leftType.coerceRawValue(leftVal), womPairType.rightType.coerceRawValue(rightVal))
+      case (Some(leftVal), Some(rightVal)) =>
+        Seq(womPairType.leftType.coerceRawValue(leftVal), womPairType.rightType.coerceRawValue(rightVal))
       case (Some(_), _) => invalidPair("Right")
       case (_, Some(_)) => invalidPair("Left")
       case _ => invalidPair("Right", "Left")
     }
 
-    val failures = womPair collect { case f:Failure[_] => f }
+    val failures = womPair collect { case f: Failure[_] => f }
 
     if (failures.isEmpty) {
       womPair match {
         case Seq(Success(left), Success(right)) => WomPair(left, right)
       }
     } else {
-      throw new UnsupportedOperationException(s"Failed to coerce one or more values for creating a ${womPairType.stableName}:\n${failures.toList.mkString("\n")}")
+      throw new UnsupportedOperationException(
+        s"Failed to coerce one or more values for creating a ${womPairType.stableName}:\n${failures.toList.mkString("\n")}"
+      )
     }
   }
 

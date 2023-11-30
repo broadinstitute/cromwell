@@ -13,23 +13,29 @@ import common.collections.EnhancedCollections._
   * @param conditionExpression The (boolean) expression on which the conditional is predicated.
   * @param conditionalOutputPorts Output ports for the conditional node which link back to GraphOutputNodes of the inner graph.
   */
-final case class ConditionalNode private(override val innerGraph: Graph,
-                                         conditionExpression: ExpressionNode,
-                                         conditionalOutputPorts: Set[ConditionalOutputPort]) extends GraphNode with GraphNodeWithInnerGraph {
+final case class ConditionalNode private (override val innerGraph: Graph,
+                                          conditionExpression: ExpressionNode,
+                                          conditionalOutputPorts: Set[ConditionalOutputPort]
+) extends GraphNode
+    with GraphNodeWithInnerGraph {
 
   override val identifier: WomIdentifier = WomIdentifier("ConditionalNode")
 
-  override val inputPorts: Set[InputPort] = Set(ConnectedInputPort("condition", WomBooleanType, conditionExpression.singleOutputPort, _ => this))
+  override val inputPorts: Set[InputPort] = Set(
+    ConnectedInputPort("condition", WomBooleanType, conditionExpression.singleOutputPort, _ => this)
+  )
   override val outputPorts: Set[GraphNodePort.OutputPort] = conditionalOutputPorts.toSet[OutputPort]
 }
 
-object ConditionalNode  {
+object ConditionalNode {
 
   final case class ConditionalNodeWithNewNodes(node: ConditionalNode) extends GeneratedNodeAndNewNodes {
     override val newInputs = node.innerGraph.externalInputNodes
     override val usedOuterGraphInputNodes =
       (node.conditionExpression.upstream.filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode]) ++
-        (node.innerGraph.outerGraphInputNodes.map(_.linkToOuterGraphNode).filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode])
+        (node.innerGraph.outerGraphInputNodes
+          .map(_.linkToOuterGraphNode)
+          .filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode])
 
     override val newExpressions = Set(node.conditionExpression)
   }

@@ -9,15 +9,29 @@ object EngineFunctions {
   def transpose(a: WomValue): Try[WomArray] = {
     case class ExpandedTwoDimensionalArray(innerType: WomType, value: Seq[Seq[WomValue]])
     def validateAndExpand(value: WomValue): Try[ExpandedTwoDimensionalArray] = value match {
-      case WomArray(WomArrayType(WomArrayType(innerType)), array: Seq[WomValue]) => expandWdlArray(array) map { ExpandedTwoDimensionalArray(innerType, _) }
-      case WomArray(WomArrayType(nonArrayType), _) => Failure(new IllegalArgumentException(s"Array must be two-dimensional to be transposed but given array of $nonArrayType"))
-      case otherValue => Failure(new IllegalArgumentException(s"Function 'transpose' must be given a two-dimensional array but instead got ${otherValue.typeName}"))
+      case WomArray(WomArrayType(WomArrayType(innerType)), array: Seq[WomValue]) =>
+        expandWdlArray(array) map { ExpandedTwoDimensionalArray(innerType, _) }
+      case WomArray(WomArrayType(nonArrayType), _) =>
+        Failure(
+          new IllegalArgumentException(
+            s"Array must be two-dimensional to be transposed but given array of $nonArrayType"
+          )
+        )
+      case otherValue =>
+        Failure(
+          new IllegalArgumentException(
+            s"Function 'transpose' must be given a two-dimensional array but instead got ${otherValue.typeName}"
+          )
+        )
     }
 
     def expandWdlArray(outerArray: Seq[WomValue]): Try[Seq[Seq[WomValue]]] = Try {
       outerArray map {
         case array: WomArray => array.value
-        case otherValue => throw new IllegalArgumentException(s"Function 'transpose' must be given a two-dimensional array but instead got WdlArray[${otherValue.typeName}]")
+        case otherValue =>
+          throw new IllegalArgumentException(
+            s"Function 'transpose' must be given a two-dimensional array but instead got WdlArray[${otherValue.typeName}]"
+          )
       }
     }
 

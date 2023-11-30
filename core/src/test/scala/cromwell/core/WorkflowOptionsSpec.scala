@@ -21,11 +21,11 @@ class WorkflowOptionsSpec extends Matchers with AnyWordSpecLike {
       WorkflowOptions.fromJsonObject(workflowOptionsJson) match {
         case Success(options) =>
           options.get("key") shouldEqual Success("value")
-          options.get("bad_key") shouldBe a [Failure[_]]
+          options.get("bad_key") shouldBe a[Failure[_]]
 
           options.clearEncryptedValues.asPrettyJson shouldEqual """{
-                                                         |  "key": "value"
-                                                         |}""".stripMargin
+                                                                  |  "key": "value"
+                                                                  |}""".stripMargin
         case _ => fail("Expecting workflow options to be parseable")
       }
     }

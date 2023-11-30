@@ -4,7 +4,12 @@ import _root_.wdl.draft2.model.LocallyQualifiedName
 import akka.testkit.{TestDuration, TestProbe}
 import com.typesafe.config.ConfigFactory
 import common.collections.EnhancedCollections._
-import cromwell.backend.BackendJobExecutionActor.{JobAbortedResponse, JobFailedNonRetryableResponse, JobSucceededResponse, RunOnBackend}
+import cromwell.backend.BackendJobExecutionActor.{
+  JobAbortedResponse,
+  JobFailedNonRetryableResponse,
+  JobSucceededResponse,
+  RunOnBackend
+}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
 import cromwell.backend.async.WrongReturnCode
@@ -33,8 +38,12 @@ import java.io.FileNotFoundException
 import scala.concurrent.duration._
 import scala.sys.process._
 
-class SharedFileSystemJobExecutionActorSpec extends TestKitSuite
-  with AnyFlatSpecLike with BackendSpec with TableDrivenPropertyChecks with OptionValues {
+class SharedFileSystemJobExecutionActorSpec
+    extends TestKitSuite
+    with AnyFlatSpecLike
+    with BackendSpec
+    with TableDrivenPropertyChecks
+    with OptionValues {
 
   behavior of "SharedFileSystemJobExecutionActor"
 
@@ -45,13 +54,27 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite
   private val mockBackendJobDescriptorKey = BackendJobDescriptorKey(call, None, 1)
 
   def executeSpec(docker: Boolean): Any = {
-    val expectedOutputs: CallOutputs = WomMocks.mockOutputExpectations(Map("hello.salutation" -> WomString("Hello you !")))
+    val expectedOutputs: CallOutputs =
+      WomMocks.mockOutputExpectations(Map("hello.salutation" -> WomString("Hello you !")))
 
-    val expectedResponse = JobSucceededResponse(mockBackendJobDescriptorKey, Some(0), expectedOutputs, None, Seq.empty, None, resultGenerationMode = RunOnBackend)
+    val expectedResponse = JobSucceededResponse(mockBackendJobDescriptorKey,
+                                                Some(0),
+                                                expectedOutputs,
+                                                None,
+                                                Seq.empty,
+                                                None,
+                                                resultGenerationMode = RunOnBackend
+    )
     val runtime = if (docker) s"""runtime { docker: "$dockerImageUbuntu" }""" else ""
     val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = runtime)
     val workflow = TestWorkflow(workflowDescriptor, TestConfig.backendRuntimeConfigDescriptor, expectedResponse)
-    val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions), workflow.config)
+    val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor,
+                                                                    Map.empty,
+                                                                    WorkflowOptions.empty,
+                                                                    runtimeAttributeDefinitions
+                                ),
+                                workflow.config
+    )
     testWorkflow(workflow, backend)
   }
 
@@ -76,37 +99,53 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite
 
   it should "send back an execution failure if the task fails" in {
     val expectedResponse =
-      JobFailedNonRetryableResponse(mockBackendJobDescriptorKey, WrongReturnCode("wf_goodbye.goodbye:NA:1", 1, None), Option(1))
-    val workflow = TestWorkflow(buildWdlWorkflowDescriptor(GoodbyeWorld), TestConfig.backendRuntimeConfigDescriptor, expectedResponse)
-    val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions), workflow.config)
+      JobFailedNonRetryableResponse(mockBackendJobDescriptorKey,
+                                    WrongReturnCode("wf_goodbye.goodbye:NA:1", 1, None),
+                                    Option(1)
+      )
+    val workflow = TestWorkflow(buildWdlWorkflowDescriptor(GoodbyeWorld),
+                                TestConfig.backendRuntimeConfigDescriptor,
+                                expectedResponse
+    )
+    val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor,
+                                                                    Map.empty,
+                                                                    WorkflowOptions.empty,
+                                                                    runtimeAttributeDefinitions
+                                ),
+                                workflow.config
+    )
     testWorkflow(workflow, backend)
   }
 
   def localizationSpec(docker: Boolean): Assertion = {
-    def templateConf(localizers: String) = BackendConfigurationDescriptor(ConfigFactory.parseString(
-                s"""|{
-                    |  root = "local-cromwell-executions"
-                    |  filesystems {
-                    |    local {
-                    |      localization = [
-                    |        $localizers
-                    |      ]
-                    |    }
-                    |  }
-                    |  default-runtime-attributes {
-                    |  cpu: 1
-                    |  failOnStderr: false
-                    |  continueOnReturnCode: 0
-                    |  }
-                    |}
-                    |""".stripMargin), ConfigFactory.parseString("{}"))
+    def templateConf(localizers: String) = BackendConfigurationDescriptor(
+      ConfigFactory.parseString(s"""|{
+                                    |  root = "local-cromwell-executions"
+                                    |  filesystems {
+                                    |    local {
+                                    |      localization = [
+                                    |        $localizers
+                                    |      ]
+                                    |    }
+                                    |  }
+                                    |  default-runtime-attributes {
+                                    |  cpu: 1
+                                    |  failOnStderr: false
+                                    |  continueOnReturnCode: 0
+                                    |  }
+                                    |}
+                                    |""".stripMargin),
+      ConfigFactory.parseString("{}")
+    )
 
     val hardConf = templateConf("hard-link")
     val symConf = templateConf("soft-link")
     val copyConf = templateConf("copy")
 
-    val jsonInputFile = createCannedFile("localize", "content from json inputs", Option(DefaultPathBuilder.build(".").get))
-    val callInputFile = createCannedFile("localize", "content from call inputs", Option(DefaultPathBuilder.build(".").get))
+    val jsonInputFile =
+      createCannedFile("localize", "content from json inputs", Option(DefaultPathBuilder.build(".").get))
+    val callInputFile =
+      createCannedFile("localize", "content from call inputs", Option(DefaultPathBuilder.build(".").get))
     val inputs = Option(s"""{
       "wf_localize.workflowFile": "${callInputFile.pathAsString}",
       "wf_localize.localize.inputFileFromJson": "${jsonInputFile.pathAsString}"
@@ -115,9 +154,8 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite
     val expectedOutputs: CallOutputs = WomMocks.mockOutputExpectations(
       Map(
         "localize.out" -> WomArray(WomArrayType(WomStringType),
-          List(
-            WomString("content from json inputs"),
-            WomString("content from call inputs")))
+                                   List(WomString("content from json inputs"), WomString("content from call inputs"))
+        )
       )
     )
 
@@ -135,24 +173,50 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite
       val runtime = if (docker) s"""runtime { docker: "$dockerImageUbuntu" } """ else ""
       val workflowDescriptor = buildWdlWorkflowDescriptor(InputFiles, inputs, runtime = runtime)
       val callInputs = Map(
-        "inputFileFromCallInputs" -> workflowDescriptor.knownValues.collectFirst({
-          case (outputPort, resolvedValue) if outputPort.fullyQualifiedName == "wf_localize.workflowFile" => resolvedValue
-        }).get,
-        "inputFileFromJson" -> workflowDescriptor.knownValues.collectFirst({
-          case (outputPort, resolvedValue) if outputPort.fullyQualifiedName == "wf_localize.localize.inputFileFromJson" => resolvedValue
-        }).get
+        "inputFileFromCallInputs" -> workflowDescriptor.knownValues.collectFirst {
+          case (outputPort, resolvedValue) if outputPort.fullyQualifiedName == "wf_localize.workflowFile" =>
+            resolvedValue
+        }.get,
+        "inputFileFromJson" -> workflowDescriptor.knownValues.collectFirst {
+          case (outputPort, resolvedValue)
+              if outputPort.fullyQualifiedName == "wf_localize.localize.inputFileFromJson" =>
+            resolvedValue
+        }.get
       )
 
-      val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflowDescriptor, callInputs, WorkflowOptions.empty, runtimeAttributeDefinitions), conf)
-      val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, callInputs, WorkflowOptions.empty, runtimeAttributeDefinitions)
-      val expectedResponse = JobSucceededResponse(jobDescriptor.key, Some(0), expectedOutputs, None, Seq.empty, None, resultGenerationMode = RunOnBackend)
+      val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflowDescriptor,
+                                                                      callInputs,
+                                                                      WorkflowOptions.empty,
+                                                                      runtimeAttributeDefinitions
+                                  ),
+                                  conf
+      )
+      val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor,
+                                                                                    callInputs,
+                                                                                    WorkflowOptions.empty,
+                                                                                    runtimeAttributeDefinitions
+      )
+      val expectedResponse = JobSucceededResponse(jobDescriptor.key,
+                                                  Some(0),
+                                                  expectedOutputs,
+                                                  None,
+                                                  Seq.empty,
+                                                  None,
+                                                  resultGenerationMode = RunOnBackend
+      )
 
       val jobPaths = JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, conf.backendConfig)
 
       whenReady(backend.execute) { executionResponse =>
         assertResponse(executionResponse, expectedResponse)
-        val localizedJsonInputFile = DefaultPathBuilder.get(jobPaths.callInputsRoot.pathAsString, jsonInputFile.parent.pathAsString.hashCode.toString + "/" + jsonInputFile.name)
-        val localizedCallInputFile = DefaultPathBuilder.get(jobPaths.callInputsRoot.pathAsString, callInputFile.parent.pathAsString.hashCode.toString + "/" + callInputFile.name)
+        val localizedJsonInputFile =
+          DefaultPathBuilder.get(jobPaths.callInputsRoot.pathAsString,
+                                 jsonInputFile.parent.pathAsString.hashCode.toString + "/" + jsonInputFile.name
+          )
+        val localizedCallInputFile =
+          DefaultPathBuilder.get(jobPaths.callInputsRoot.pathAsString,
+                                 callInputFile.parent.pathAsString.hashCode.toString + "/" + callInputFile.name
+          )
 
         localizedJsonInputFile.isSymbolicLink shouldBe isSymlink
         val realJsonInputFile =
@@ -177,7 +241,11 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite
 
   it should "abort a job and kill a process" in {
     val workflowDescriptor = buildWdlWorkflowDescriptor(Sleep20)
-    val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions)
+    val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor,
+                                                                                  Map.empty,
+                                                                                  WorkflowOptions.empty,
+                                                                                  runtimeAttributeDefinitions
+    )
     val backendRef = createBackendRef(jobDescriptor, TestConfig.backendRuntimeConfigDescriptor)
     val backend = backendRef.underlyingActor
 
@@ -191,7 +259,11 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite
 
   def recoverSpec(completed: Boolean, writeReturnCode: Boolean = true): Assertion = {
     val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld)
-    val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions)
+    val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor,
+                                                                                  Map.empty,
+                                                                                  WorkflowOptions.empty,
+                                                                                  runtimeAttributeDefinitions
+    )
     val backendRef = createBackendRef(jobDescriptor, TestConfig.backendRuntimeConfigDescriptor)
     val backend = backendRef.underlyingActor
 
@@ -267,14 +339,33 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite
       // If this is not the case, more context/logic will need to be moved to the backend so it can figure it out by itself
       val symbolMaps: Map[LocallyQualifiedName, WomInteger] = Map("intNumber" -> WomInteger(shard))
 
-      val evaluatedAttributes = call.callable.runtimeAttributes.attributes.safeMapValues(_.evaluateValue(Map.empty, NoIoFunctionSet).getOrElse(fail("Can't evaluate runtime attribute")))
-      val runtimeAttributes: Map[LocallyQualifiedName, WomValue] = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, WorkflowOptions.empty)(evaluatedAttributes)
+      val evaluatedAttributes = call.callable.runtimeAttributes.attributes
+        .safeMapValues(_.evaluateValue(Map.empty, NoIoFunctionSet).getOrElse(fail("Can't evaluate runtime attribute")))
+      val runtimeAttributes: Map[LocallyQualifiedName, WomValue] =
+        RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, WorkflowOptions.empty)(
+          evaluatedAttributes
+        )
 
       val jobDescriptor: BackendJobDescriptor =
-        BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, Option(shard), 1), runtimeAttributes, fqnWdlMapToDeclarationMap(symbolMaps), NoDocker, None, Map.empty)
+        BackendJobDescriptor(workflowDescriptor,
+                             BackendJobDescriptorKey(call, Option(shard), 1),
+                             runtimeAttributes,
+                             fqnWdlMapToDeclarationMap(symbolMaps),
+                             NoDocker,
+                             None,
+                             Map.empty
+        )
       val backend = createBackend(jobDescriptor, TestConfig.backendRuntimeConfigDescriptor)
       val response =
-        JobSucceededResponse(mockBackendJobDescriptorKey, Some(0), WomMocks.mockOutputExpectations(Map("scattering.out" -> WomInteger(shard))), None, Seq.empty, None, resultGenerationMode = RunOnBackend)
+        JobSucceededResponse(
+          mockBackendJobDescriptorKey,
+          Some(0),
+          WomMocks.mockOutputExpectations(Map("scattering.out" -> WomInteger(shard))),
+          None,
+          Seq.empty,
+          None,
+          resultGenerationMode = RunOnBackend
+        )
       executeJobAndAssertOutputs(backend, response)
     }
   }
@@ -285,30 +376,55 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite
       "wf_localize.localize.inputFile": "$inputFile"
     }""")
     val workflowDescriptor = buildWdlWorkflowDescriptor(OutputProcess, inputs)
-    val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions)
+    val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor,
+                                                                                  Map.empty,
+                                                                                  WorkflowOptions.empty,
+                                                                                  runtimeAttributeDefinitions
+    )
     val backend = createBackend(jobDescriptor, TestConfig.backendRuntimeConfigDescriptor)
-    val jobPaths = JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, TestConfig.backendRuntimeConfigDescriptor.backendConfig)
+    val jobPaths =
+      JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, TestConfig.backendRuntimeConfigDescriptor.backendConfig)
     val expectedA = WomSingleFile(jobPaths.callExecutionRoot.resolve("a").toAbsolutePath.pathAsString)
     val expectedB = WomSingleFile(jobPaths.callExecutionRoot.resolve("dir").toAbsolutePath.resolve("b").pathAsString)
-    val expectedOutputs = WomMocks.mockOutputExpectations(Map(
-      "localize.o1" -> expectedA,
-      "localize.o2" -> WomArray(WomArrayType(WomSingleFileType), Seq(expectedA, expectedB)),
-      "localize.o3" -> WomSingleFile(inputFile)
-    ))
-    val expectedResponse = JobSucceededResponse(jobDescriptor.key, Some(0), expectedOutputs, None, Seq.empty, None, resultGenerationMode = RunOnBackend)
+    val expectedOutputs = WomMocks.mockOutputExpectations(
+      Map(
+        "localize.o1" -> expectedA,
+        "localize.o2" -> WomArray(WomArrayType(WomSingleFileType), Seq(expectedA, expectedB)),
+        "localize.o3" -> WomSingleFile(inputFile)
+      )
+    )
+    val expectedResponse = JobSucceededResponse(jobDescriptor.key,
+                                                Some(0),
+                                                expectedOutputs,
+                                                None,
+                                                Seq.empty,
+                                                None,
+                                                resultGenerationMode = RunOnBackend
+    )
 
     executeJobAndAssertOutputs(backend, expectedResponse)
   }
 
   it should "fail post processing if an output file is not found" in {
-    val expectedResponse = JobFailedNonRetryableResponse(mockBackendJobDescriptorKey,
-      new FileNotFoundException("Could not process output, file not found:"), Option(0))
-    val workflow = TestWorkflow(buildWdlWorkflowDescriptor(MissingOutputProcess), TestConfig.backendRuntimeConfigDescriptor, expectedResponse)
-    val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions), workflow.config)
+    val expectedResponse =
+      JobFailedNonRetryableResponse(mockBackendJobDescriptorKey,
+                                    new FileNotFoundException("Could not process output, file not found:"),
+                                    Option(0)
+      )
+    val workflow = TestWorkflow(buildWdlWorkflowDescriptor(MissingOutputProcess),
+                                TestConfig.backendRuntimeConfigDescriptor,
+                                expectedResponse
+    )
+    val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor,
+                                                                    Map.empty,
+                                                                    WorkflowOptions.empty,
+                                                                    runtimeAttributeDefinitions
+                                ),
+                                workflow.config
+    )
     testWorkflow(workflow, backend)
   }
 
-  def createCannedFile(prefix: String, contents: String, parent: Option[Path] = None): Path = {
+  def createCannedFile(prefix: String, contents: String, parent: Option[Path] = None): Path =
     DefaultPathBuilder.createTempFile(prefix, ".out", parent).write(contents)
-  }
 }

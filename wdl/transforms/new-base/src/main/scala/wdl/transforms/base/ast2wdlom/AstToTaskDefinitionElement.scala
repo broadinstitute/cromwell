@@ -11,14 +11,15 @@ import wom.SourceFileLocation
 
 object AstToTaskDefinitionElement {
 
-  def astToTaskDefinitionElement(implicit astNodeToTaskSectionElement: CheckedAtoB[GenericAstNode, TaskSectionElement]
-                                ): CheckedAtoB[GenericAst, TaskDefinitionElement] = CheckedAtoB.fromErrorOr
-  { a: GenericAst => s"read task definition${a.lineAndColumnString}" }
-  { a =>
-
+  def astToTaskDefinitionElement(implicit
+    astNodeToTaskSectionElement: CheckedAtoB[GenericAstNode, TaskSectionElement]
+  ): CheckedAtoB[GenericAst, TaskDefinitionElement] = CheckedAtoB.fromErrorOr { a: GenericAst =>
+    s"read task definition${a.lineAndColumnString}"
+  } { a =>
     val nameElementValidation: ErrorOr[String] = astNodeToString(a.getAttribute("name")).toValidated
-    val sectionsValidation: ErrorOr[Vector[TaskSectionElement]] = a.getAttributeAsVector[TaskSectionElement]("sections").toValidated
-    val sourceLocation : Option[SourceFileLocation] = a.getSourceLine.map(SourceFileLocation(_))
+    val sectionsValidation: ErrorOr[Vector[TaskSectionElement]] =
+      a.getAttributeAsVector[TaskSectionElement]("sections").toValidated
+    val sourceLocation: Option[SourceFileLocation] = a.getSourceLine.map(SourceFileLocation(_))
 
     (nameElementValidation, sectionsValidation) flatMapN { (nameElement, sections) =>
       combineElements(nameElement, sections, sourceLocation)
@@ -27,19 +28,41 @@ object AstToTaskDefinitionElement {
 
   def combineElements(nameElement: String,
                       bodyElements: Vector[TaskSectionElement],
-                      sourceLocation: Option[SourceFileLocation]) = {
-    val inputsSectionElement: ErrorOr[Option[InputsSectionElement]] = validateOneMax(bodyElements.filterByType[InputsSectionElement], "inputs")
-    val declarations: Vector[IntermediateValueDeclarationElement] = bodyElements.filterByType[IntermediateValueDeclarationElement]
-    val outputsSectionElement: ErrorOr[Option[OutputsSectionElement]] = validateOneMax(bodyElements.filterByType[OutputsSectionElement], "outputs")
-    val commandSectionElement: ErrorOr[CommandSectionElement] = validateExists(bodyElements.filterByType[CommandSectionElement], "command")
-    val runtimeSectionElement: ErrorOr[Option[RuntimeAttributesSectionElement]] = validateOneMax(bodyElements.filterByType[RuntimeAttributesSectionElement], "runtime")
+                      sourceLocation: Option[SourceFileLocation]
+  ) = {
+    val inputsSectionElement: ErrorOr[Option[InputsSectionElement]] =
+      validateOneMax(bodyElements.filterByType[InputsSectionElement], "inputs")
+    val declarations: Vector[IntermediateValueDeclarationElement] =
+      bodyElements.filterByType[IntermediateValueDeclarationElement]
+    val outputsSectionElement: ErrorOr[Option[OutputsSectionElement]] =
+      validateOneMax(bodyElements.filterByType[OutputsSectionElement], "outputs")
+    val commandSectionElement: ErrorOr[CommandSectionElement] =
+      validateExists(bodyElements.filterByType[CommandSectionElement], "command")
+    val runtimeSectionElement: ErrorOr[Option[RuntimeAttributesSectionElement]] =
+      validateOneMax(bodyElements.filterByType[RuntimeAttributesSectionElement], "runtime")
 
-    val metaSectionElement: ErrorOr[Option[MetaSectionElement]] = validateOneMax(bodyElements.filterByType[MetaSectionElement], "meta")
-    val parameterMetaSectionElement: ErrorOr[Option[ParameterMetaSectionElement]] = validateOneMax(bodyElements.filterByType[ParameterMetaSectionElement], "parameterMeta")
+    val metaSectionElement: ErrorOr[Option[MetaSectionElement]] =
+      validateOneMax(bodyElements.filterByType[MetaSectionElement], "meta")
+    val parameterMetaSectionElement: ErrorOr[Option[ParameterMetaSectionElement]] =
+      validateOneMax(bodyElements.filterByType[ParameterMetaSectionElement], "parameterMeta")
 
-    (inputsSectionElement, outputsSectionElement, commandSectionElement, runtimeSectionElement, metaSectionElement, parameterMetaSectionElement) mapN {
-      (inputs, outputs, command, runtime, meta, parameterMeta) =>
-        TaskDefinitionElement(nameElement, inputs, declarations, outputs, command, runtime, meta, parameterMeta, sourceLocation)
+    (inputsSectionElement,
+     outputsSectionElement,
+     commandSectionElement,
+     runtimeSectionElement,
+     metaSectionElement,
+     parameterMetaSectionElement
+    ) mapN { (inputs, outputs, command, runtime, meta, parameterMeta) =>
+      TaskDefinitionElement(nameElement,
+                            inputs,
+                            declarations,
+                            outputs,
+                            command,
+                            runtime,
+                            meta,
+                            parameterMeta,
+                            sourceLocation
+      )
     }
   }
 

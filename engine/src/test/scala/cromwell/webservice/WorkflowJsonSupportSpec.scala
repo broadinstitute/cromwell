@@ -8,7 +8,8 @@ import spray.json._
 
 class WorkflowJsonSupportSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
-  val sampleSuccessResponse1 = SuccessResponse("good", "msg", Option(JsArray(Vector(JsString("data1"), JsString("data2")))))
+  val sampleSuccessResponse1 =
+    SuccessResponse("good", "msg", Option(JsArray(Vector(JsString("data1"), JsString("data2")))))
   val sampleSuccessResponse2 = SuccessResponse("good", "msg", None)
   val sampleSuccessResponseJson1 =
     """{

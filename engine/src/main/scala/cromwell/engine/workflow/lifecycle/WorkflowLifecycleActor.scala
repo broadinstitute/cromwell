@@ -27,17 +27,18 @@ object WorkflowLifecycleActor {
   case class WorkflowLifecycleActorData(actors: Set[ActorRef],
                                         successes: Seq[BackendActorAndInitializationData],
                                         failures: Map[ActorRef, Throwable],
-                                        aborted: Seq[ActorRef]) {
+                                        aborted: Seq[ActorRef]
+  ) {
 
     def withActors(actors: Set[ActorRef]) = this.copy(
       actors = this.actors ++ actors
     )
     def withSuccess(successfulActor: ActorRef, data: Option[BackendInitializationData] = None) = this.copy(
       actors = this.actors - successfulActor,
-      successes = successes :+ BackendActorAndInitializationData(successfulActor, data))
-    def withFailure(failedActor: ActorRef, reason: Throwable) = this.copy(
-      actors = this.actors - failedActor,
-      failures = failures + (failedActor -> reason))
+      successes = successes :+ BackendActorAndInitializationData(successfulActor, data)
+    )
+    def withFailure(failedActor: ActorRef, reason: Throwable) =
+      this.copy(actors = this.actors - failedActor, failures = failures + (failedActor -> reason))
     def withAborted(abortedActor: ActorRef) = this.copy(
       actors = this.actors - abortedActor,
       aborted = aborted :+ abortedActor
@@ -51,7 +52,7 @@ trait AbortableWorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends 
 
   def abortedResponse: EngineLifecycleActorAbortedResponse
 
-  override protected def checkForDoneAndTransition(newData: WorkflowLifecycleActorData): State = {
+  override protected def checkForDoneAndTransition(newData: WorkflowLifecycleActorData): State =
     if (checkForDone(newData)) {
       if (stateName == abortingState) {
         context.parent ! abortedResponse
@@ -60,10 +61,11 @@ trait AbortableWorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends 
     } else {
       stay() using newData
     }
-  }
 }
 
-trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends LoggingFSM[S, WorkflowLifecycleActorData] with WorkflowLogging {
+trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState]
+    extends LoggingFSM[S, WorkflowLifecycleActorData]
+    with WorkflowLogging {
   val successState: S
   val failureState: S
 
@@ -78,10 +80,9 @@ trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends LoggingFS
     case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
   }
 
-  whenUnhandled {
-    case unhandledMessage =>
-      workflowLogger.warn(s"received an unhandled message: $unhandledMessage")
-      stay()
+  whenUnhandled { case unhandledMessage =>
+    workflowLogger.warn(s"received an unhandled message: $unhandledMessage")
+    stay()
   }
 
   onTransition {
@@ -92,7 +93,7 @@ trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends LoggingFS
       workflowLogger.debug(s"State is transitioning from $fromState to $toState.")
   }
 
-  protected def checkForDoneAndTransition(newData: WorkflowLifecycleActorData): State = {
+  protected def checkForDoneAndTransition(newData: WorkflowLifecycleActorData): State =
     if (checkForDone(newData)) {
       if (newData.failures.isEmpty) {
         context.parent ! successResponse(newData)
@@ -104,7 +105,6 @@ trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends LoggingFS
     } else {
       stay() using newData
     }
-  }
 
-  protected final def checkForDone(stateData: WorkflowLifecycleActorData) = stateData.actors.isEmpty
+  final protected def checkForDone(stateData: WorkflowLifecycleActorData) = stateData.actors.isEmpty
 }

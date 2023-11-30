@@ -14,7 +14,6 @@ trait TestFileUtil {
     File(file).write(contents).path
   }
 
-  def createFile(name: String, dir: Path, contents: String) = {
+  def createFile(name: String, dir: Path, contents: String) =
     File(dir).createDirectories()./(name).write(contents).path
-  }
 }

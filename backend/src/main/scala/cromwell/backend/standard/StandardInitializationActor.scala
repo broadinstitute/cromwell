@@ -4,7 +4,12 @@ import akka.actor.ActorRef
 import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.validation.RuntimeAttributesDefault
 import cromwell.backend.wfs.WorkflowPathBuilder
-import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
+import cromwell.backend.{
+  BackendConfigurationDescriptor,
+  BackendInitializationData,
+  BackendWorkflowDescriptor,
+  BackendWorkflowInitializationActor
+}
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.PathBuilder
 import wom.expression.WomExpression
@@ -24,8 +29,7 @@ trait StandardInitializationActorParams {
   def configurationDescriptor: BackendConfigurationDescriptor
 }
 
-case class DefaultInitializationActorParams
-(
+case class DefaultInitializationActorParams(
   workflowDescriptor: BackendWorkflowDescriptor,
   ioActor: ActorRef,
   calls: Set[CommandCallNode],
@@ -42,7 +46,7 @@ case class DefaultInitializationActorParams
   * @param standardParams Standard parameters
   */
 class StandardInitializationActor(val standardParams: StandardInitializationActorParams)
-  extends BackendWorkflowInitializationActor {
+    extends BackendWorkflowInitializationActor {
 
   implicit protected val system = context.system
 
@@ -50,16 +54,18 @@ class StandardInitializationActor(val standardParams: StandardInitializationActo
 
   override lazy val calls: Set[CommandCallNode] = standardParams.calls
 
-  override def beforeAll(): Future[Option[BackendInitializationData]] = {
+  override def beforeAll(): Future[Option[BackendInitializationData]] =
     initializationData map Option.apply
-  }
 
   lazy val initializationData: Future[StandardInitializationData] =
-    workflowPaths map { new StandardInitializationData(_, runtimeAttributesBuilder, classOf[StandardExpressionFunctions]) }
+    workflowPaths map {
+      new StandardInitializationData(_, runtimeAttributesBuilder, classOf[StandardExpressionFunctions])
+    }
 
   lazy val expressionFunctions: Class[_ <: StandardExpressionFunctions] = classOf[StandardExpressionFunctions]
 
-  lazy val pathBuilders: Future[List[PathBuilder]] = standardParams.configurationDescriptor.pathBuilders(workflowDescriptor.workflowOptions)
+  lazy val pathBuilders: Future[List[PathBuilder]] =
+    standardParams.configurationDescriptor.pathBuilders(workflowDescriptor.workflowOptions)
 
   lazy val workflowPaths: Future[WorkflowPaths] =
     pathBuilders map { WorkflowPathBuilder.workflowPaths(configurationDescriptor, workflowDescriptor, _) }
@@ -74,13 +80,11 @@ class StandardInitializationActor(val standardParams: StandardInitializationActo
   def runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
     StandardValidatedRuntimeAttributesBuilder.default(configurationDescriptor.backendRuntimeAttributesConfig)
 
-  override protected lazy val runtimeAttributeValidators: Map[String, (Option[WomExpression]) => Boolean] = {
+  override protected lazy val runtimeAttributeValidators: Map[String, (Option[WomExpression]) => Boolean] =
     runtimeAttributesBuilder.validatorMap
-  }
 
-  override protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WomValue]] = {
+  override protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WomValue]] =
     RuntimeAttributesDefault.workflowOptionsDefault(options, runtimeAttributesBuilder.coercionMap)
-  }
 
   def validateWorkflowOptions(): Try[Unit] = Success(())
 
@@ -93,19 +97,19 @@ class StandardInitializationActor(val standardParams: StandardInitializationActo
         val notSupportedAttrString = notSupportedAttributes mkString ", "
         workflowLogger.warn(
           s"Key/s [$notSupportedAttrString] is/are not supported by backend. " +
-            s"Unsupported attributes will not be part of job executions.")
+            s"Unsupported attributes will not be part of job executions."
+        )
       }
     }
   }
 
-  override def validate(): Future[Unit] = {
+  override def validate(): Future[Unit] =
     Future.fromTry(
       for {
         _ <- validateWorkflowOptions()
         _ <- checkForUnsupportedRuntimeAttributes()
       } yield ()
     )
-  }
 
   override protected lazy val workflowDescriptor: BackendWorkflowDescriptor = standardParams.workflowDescriptor
 

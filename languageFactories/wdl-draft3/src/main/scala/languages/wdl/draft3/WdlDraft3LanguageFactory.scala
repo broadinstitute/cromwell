@@ -32,40 +32,57 @@ class WdlDraft3LanguageFactory(override val config: Config) extends LanguageFact
   override val languageName: String = "WDL"
   override val languageVersionName: String = "1.0"
 
-
   override def validateNamespace(source: WorkflowSourceFilesCollection,
                                  workflowSource: WorkflowSource,
                                  workflowOptions: WorkflowOptions,
                                  importLocalFilesystem: Boolean,
                                  workflowIdForLogging: WorkflowId,
                                  ioFunctions: IoFunctionSet,
-                                 importResolvers: List[ImportResolver]): IOChecked[ValidatedWomNamespace] = {
+                                 importResolvers: List[ImportResolver]
+  ): IOChecked[ValidatedWomNamespace] = {
 
     val factories: List[LanguageFactory] = List(this)
 
     val checked: Checked[ValidatedWomNamespace] = for {
       _ <- enabledCheck
-      bundle <- getWomBundle(workflowSource, workflowSourceOrigin = None, source.workflowOptions.asPrettyJson, importResolvers, factories)
+      bundle <- getWomBundle(workflowSource,
+                             workflowSourceOrigin = None,
+                             source.workflowOptions.asPrettyJson,
+                             importResolvers,
+                             factories
+      )
       executable <- createExecutable(bundle, source.inputsJson, ioFunctions)
     } yield executable
 
     fromEither[IO](checked)
   }
 
-
   // The only reason this isn't a sub-def inside 'getWomBundle' is that it gets overridden in test cases:
   protected def makeWomBundle(workflowSource: WorkflowSource,
-                            workflowSourceOrigin: Option[ResolvedImportRecord],
-                            workflowOptionsJson: WorkflowOptionsJson,
-                            importResolvers: List[ImportResolver],
-                            languageFactories: List[LanguageFactory],
-                            convertNestedScatterToSubworkflow : Boolean = true): ErrorOr[WomBundle] = {
+                              workflowSourceOrigin: Option[ResolvedImportRecord],
+                              workflowOptionsJson: WorkflowOptionsJson,
+                              importResolvers: List[ImportResolver],
+                              languageFactories: List[LanguageFactory],
+                              convertNestedScatterToSubworkflow: Boolean = true
+  ): ErrorOr[WomBundle] = {
 
-    val converter: CheckedAtoB[FileStringParserInput, WomBundle] = stringToAst andThen wrapAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, workflowOptionsJson, convertNestedScatterToSubworkflow, importResolvers, languageFactories, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
+    val converter: CheckedAtoB[FileStringParserInput, WomBundle] =
+      stringToAst andThen wrapAst andThen astToFileElement.map(
+        FileElementToWomBundleInputs(
+          _,
+          workflowOptionsJson,
+          convertNestedScatterToSubworkflow,
+          importResolvers,
+          languageFactories,
+          workflowDefinitionElementToWomWorkflowDefinition,
+          taskDefinitionElementToWomTaskDefinition
+        )
+      ) andThen fileElementToWomBundle
 
     converter
       .run(FileStringParserInput(workflowSource, workflowSourceOrigin.map(_.importPath).getOrElse("input.wdl")))
-      .map(b => b.copyResolvedImportRecord(b, workflowSourceOrigin)).toValidated
+      .map(b => b.copyResolvedImportRecord(b, workflowSourceOrigin))
+      .toValidated
   }
 
   override def getWomBundle(workflowSource: WorkflowSource,
@@ -73,13 +90,21 @@ class WdlDraft3LanguageFactory(override val config: Config) extends LanguageFact
                             workflowOptionsJson: WorkflowOptionsJson,
                             importResolvers: List[ImportResolver],
                             languageFactories: List[LanguageFactory],
-                            convertNestedScatterToSubworkflow : Boolean = true): Checked[WomBundle] = {
+                            convertNestedScatterToSubworkflow: Boolean = true
+  ): Checked[WomBundle] = {
 
     lazy val validationCallable = new Callable[ErrorOr[WomBundle]] {
-      def call: ErrorOr[WomBundle] = makeWomBundle(workflowSource, workflowSourceOrigin, workflowOptionsJson, importResolvers, languageFactories, convertNestedScatterToSubworkflow)
+      def call: ErrorOr[WomBundle] = makeWomBundle(workflowSource,
+                                                   workflowSourceOrigin,
+                                                   workflowOptionsJson,
+                                                   importResolvers,
+                                                   languageFactories,
+                                                   convertNestedScatterToSubworkflow
+      )
     }
 
-    lazy val parserCacheInputs = ParserCacheInputs(Option(workflowSource), workflowSourceOrigin.map(_.importPath), None, importResolvers)
+    lazy val parserCacheInputs =
+      ParserCacheInputs(Option(workflowSource), workflowSourceOrigin.map(_.importPath), None, importResolvers)
 
     for {
       _ <- enabledCheck
@@ -87,13 +112,16 @@ class WdlDraft3LanguageFactory(override val config: Config) extends LanguageFact
     } yield womBundle
   }
 
-  override def createExecutable(womBundle: WomBundle, inputsJson: WorkflowJson, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] = {
+  override def createExecutable(womBundle: WomBundle,
+                                inputsJson: WorkflowJson,
+                                ioFunctions: IoFunctionSet
+  ): Checked[ValidatedWomNamespace] =
     for {
       _ <- enabledCheck
       executable <- womBundle.toWomExecutable(Option(inputsJson), ioFunctions, strictValidation)
       validated <- LanguageFactoryUtil.validateWomNamespace(executable, ioFunctions)
     } yield validated
-  }
 
-  override def looksParsable(content: String): Boolean = LanguageFactoryUtil.simpleLooksParseable(List("version 1.0"), List("#"))(content)
+  override def looksParsable(content: String): Boolean =
+    LanguageFactoryUtil.simpleLooksParseable(List("version 1.0"), List("#"))(content)
 }

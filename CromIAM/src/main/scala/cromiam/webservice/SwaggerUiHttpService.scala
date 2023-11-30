@@ -27,7 +27,7 @@ trait SwaggerUiHttpService extends Directives {
     s"META-INF/resources/webjars/swagger-ui/$swaggerUiVersion"
   }
 
-  private val serveIndex: server.Route = {
+  private val serveIndex: server.Route =
     mapResponseEntity { entityFromJar =>
       entityFromJar.transformDataBytes(Flow.fromFunction[ByteString, ByteString] { original: ByteString =>
         ByteString(rewriteSwaggerIndex(original.utf8String))
@@ -35,14 +35,13 @@ trait SwaggerUiHttpService extends Directives {
     } {
       getFromResource(s"$resourceDirectory/index.html")
     }
-  }
 
   /**
    * Serves up the swagger UI only. Redirects requests to the root of the UI path to the index.html.
    *
    * @return Route serving the swagger UI.
    */
-  final def swaggerUiRoute: Route = {
+  final def swaggerUiRoute: Route =
     pathEndOrSingleSlash {
       get {
         serveIndex
@@ -68,16 +67,15 @@ trait SwaggerUiHttpService extends Directives {
 
         }
       }
-  }
 
   /** Rewrite the swagger index.html. Default passes through the origin data. */
   protected def rewriteSwaggerIndex(original: String): String = {
     val swaggerOptions =
       s"""
-        |        validatorUrl: null,
-        |        apisSorter: "alpha",
-        |        oauth2RedirectUrl: window.location.origin + "/swagger/oauth2-redirect.html",
-        |        operationsSorter: "alpha"
+         |        validatorUrl: null,
+         |        apisSorter: "alpha",
+         |        oauth2RedirectUrl: window.location.origin + "/swagger/oauth2-redirect.html",
+         |        operationsSorter: "alpha"
       """.stripMargin
 
     val initOAuthOriginal = "window.ui = ui"
@@ -94,7 +92,6 @@ trait SwaggerUiHttpService extends Directives {
           |$initOAuthOriginal
           |""".stripMargin
 
-
     original
       .replace(initOAuthOriginal, initOAuthReplacement)
       .replace("""url: "https://petstore.swagger.io/v2/swagger.json"""", "url: 'cromiam.yaml'")
@@ -109,6 +106,7 @@ trait SwaggerUiHttpService extends Directives {
  * swagger UI, but defaults to "yaml". This is an alternative to spray-swagger's SwaggerHttpService.
  */
 trait SwaggerResourceHttpService {
+
   /**
    * @return The directory for the resource under the classpath, and in the url
    */
@@ -134,7 +132,8 @@ trait SwaggerResourceHttpService {
    */
   final def swaggerResourceRoute: Route = {
     // Serve CromIAM API docs from either `/swagger/cromiam.yaml` or just `cromiam.yaml`.
-    val swaggerDocsDirective = path(separateOnSlashes(swaggerDocsPath)) | path(s"$swaggerServiceName.$swaggerResourceType")
+    val swaggerDocsDirective =
+      path(separateOnSlashes(swaggerDocsPath)) | path(s"$swaggerServiceName.$swaggerResourceType")
     val route = get {
       swaggerDocsDirective {
         // Return /uiPath/serviceName.resourceType from the classpath resources.

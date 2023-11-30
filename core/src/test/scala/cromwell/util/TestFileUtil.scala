@@ -17,9 +17,8 @@ trait TestFileUtil {
     tempFile.write(contents)
   }
 
-  def createFile(name: String, dir: Path, contents: String): Path = {
+  def createFile(name: String, dir: Path, contents: String): Path =
     dir.createPermissionedDirectories()./(name).write(contents)
-  }
 }
 
 trait HashUtil extends TestFileUtil {
@@ -36,6 +35,7 @@ trait HashUtil extends TestFileUtil {
 
 object ErrorOrUtil {
   implicit class EnhancedErrorOr[A](val value: ErrorOr[A]) extends AnyVal {
+
     /** Extract a value from an `ErrorOr` box if the box is `Valid`, throw an exception if the box is `Invalid`.
       * For test code only. */
     def get: A = value match {

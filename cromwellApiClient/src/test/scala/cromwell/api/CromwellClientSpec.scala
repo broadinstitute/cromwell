@@ -11,7 +11,6 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-
 class CromwellClientSpec extends AsyncFlatSpec with BeforeAndAfterAll with Matchers with TableDrivenPropertyChecks {
   behavior of "CromwellClient"
 
@@ -40,86 +39,81 @@ class CromwellClientSpec extends AsyncFlatSpec with BeforeAndAfterAll with Match
 
   private val okRequestEntityTests = Table(
     ("description", "workflowSubmission", "expectedJsons", "expectedFiles"),
-
     ("submit a wdl",
-      WorkflowSingleSubmission(Option("wdl"), None, None, None, None, None, None, None, None),
-      Map("workflowSource" -> "wdl"),
-      Map()
+     WorkflowSingleSubmission(Option("wdl"), None, None, None, None, None, None, None, None),
+     Map("workflowSource" -> "wdl"),
+     Map()
     ),
-
     ("batch submit a wdl",
-      WorkflowBatchSubmission(Option("wdl"), None, None, None, None, List(), None, None, None),
-      Map("workflowSource" -> "wdl", "workflowInputs" -> "[]"),
-      Map()
+     WorkflowBatchSubmission(Option("wdl"), None, None, None, None, List(), None, None, None),
+     Map("workflowSource" -> "wdl", "workflowInputs" -> "[]"),
+     Map()
     ),
-
     ("submit a wdl with data",
-      WorkflowSingleSubmission(
-        Option("wdl"),
-        None,
-        None,
-        Option("wfType"),
-        Option("wfTypeVersion"),
-        Option("inputsJson"),
-        Option("optionsJson"),
-        Option(List(Label("labelKey", "labelValue"))),
-        Option(tempFile)
-      ),
-      Map(
-        "workflowSource" -> "wdl",
-        "workflowType" -> "wfType",
-        "workflowTypeVersion" -> "wfTypeVersion",
-        "workflowInputs" -> "inputsJson",
-        "workflowOptions" -> "optionsJson",
-        "labels" -> """{"labelKey":"labelValue"}"""
-      ),
-      Map("workflowDependencies" -> tempFile)
+     WorkflowSingleSubmission(
+       Option("wdl"),
+       None,
+       None,
+       Option("wfType"),
+       Option("wfTypeVersion"),
+       Option("inputsJson"),
+       Option("optionsJson"),
+       Option(List(Label("labelKey", "labelValue"))),
+       Option(tempFile)
+     ),
+     Map(
+       "workflowSource" -> "wdl",
+       "workflowType" -> "wfType",
+       "workflowTypeVersion" -> "wfTypeVersion",
+       "workflowInputs" -> "inputsJson",
+       "workflowOptions" -> "optionsJson",
+       "labels" -> """{"labelKey":"labelValue"}"""
+     ),
+     Map("workflowDependencies" -> tempFile)
     ),
-
     ("submit a wdl using workflow url",
-      WorkflowSingleSubmission(
-        None,
-        Option("https://link-to-url"),
-        None,
-        Option("wfType"),
-        Option("wfTypeVersion"),
-        Option("inputsJson"),
-        Option("optionsJson"),
-        Option(List(Label("labelKey", "labelValue"))),
-        Option(tempFile)
-      ),
-      Map(
-        "workflowUrl" -> "https://link-to-url",
-        "workflowType" -> "wfType",
-        "workflowTypeVersion" -> "wfTypeVersion",
-        "workflowInputs" -> "inputsJson",
-        "workflowOptions" -> "optionsJson",
-        "labels" -> """{"labelKey":"labelValue"}"""
-      ),
-      Map("workflowDependencies" -> tempFile)
+     WorkflowSingleSubmission(
+       None,
+       Option("https://link-to-url"),
+       None,
+       Option("wfType"),
+       Option("wfTypeVersion"),
+       Option("inputsJson"),
+       Option("optionsJson"),
+       Option(List(Label("labelKey", "labelValue"))),
+       Option(tempFile)
+     ),
+     Map(
+       "workflowUrl" -> "https://link-to-url",
+       "workflowType" -> "wfType",
+       "workflowTypeVersion" -> "wfTypeVersion",
+       "workflowInputs" -> "inputsJson",
+       "workflowOptions" -> "optionsJson",
+       "labels" -> """{"labelKey":"labelValue"}"""
+     ),
+     Map("workflowDependencies" -> tempFile)
     ),
-
     ("batch submit a wdl with data",
-      WorkflowBatchSubmission(
-        Option("wdl"),
-        None,
-        None,
-        Option("wfType"),
-        Option("wfTypeVersion"),
-        List("inputsJson1", "inputsJson2"),
-        Option("optionsJson"),
-        Option(List(Label("labelKey", "labelValue"))),
-        Option(tempFile)
-      ),
-      Map(
-        "workflowSource" -> "wdl",
-        "workflowType" -> "wfType",
-        "workflowTypeVersion" -> "wfTypeVersion",
-        "workflowInputs" -> "[inputsJson1,inputsJson2]",
-        "workflowOptions" -> "optionsJson",
-        "labels" -> """{"labelKey":"labelValue"}"""
-      ),
-      Map("workflowDependencies" -> tempFile)
+     WorkflowBatchSubmission(
+       Option("wdl"),
+       None,
+       None,
+       Option("wfType"),
+       Option("wfTypeVersion"),
+       List("inputsJson1", "inputsJson2"),
+       Option("optionsJson"),
+       Option(List(Label("labelKey", "labelValue"))),
+       Option(tempFile)
+     ),
+     Map(
+       "workflowSource" -> "wdl",
+       "workflowType" -> "wfType",
+       "workflowTypeVersion" -> "wfTypeVersion",
+       "workflowInputs" -> "[inputsJson1,inputsJson2]",
+       "workflowOptions" -> "optionsJson",
+       "labels" -> """{"labelKey":"labelValue"}"""
+     ),
+     Map("workflowDependencies" -> tempFile)
     )
   )
 
@@ -132,24 +126,22 @@ class CromwellClientSpec extends AsyncFlatSpec with BeforeAndAfterAll with Match
           contentType.mediaType.isMultipart should be(true)
           val boundary = contentType.mediaType.params("boundary")
 
-          val expectedJsonChunks = expectedJsons map {
-            case (chunkKey, chunkValue) =>
-              s"""|--$boundary
-                  |Content-Type: application/json
-                  |Content-Disposition: form-data; name="$chunkKey"
-                  |
-                  |$chunkValue
-                  |""".stripMargin.replace("\n", "\r\n").trim
+          val expectedJsonChunks = expectedJsons map { case (chunkKey, chunkValue) =>
+            s"""|--$boundary
+                |Content-Type: application/json
+                |Content-Disposition: form-data; name="$chunkKey"
+                |
+                |$chunkValue
+                |""".stripMargin.replace("\n", "\r\n").trim
           }
-          val expectedFileChunks = expectedFiles.iterator map {
-            case (chunkKey, chunkFile) =>
-              s"""|--$boundary
-                  |Content-Type: application/zip
-                  |Content-Disposition: form-data; filename="${chunkFile.name}"; name="$chunkKey"
-                  |""".stripMargin.replace("\n", "\r\n").trim
+          val expectedFileChunks = expectedFiles.iterator map { case (chunkKey, chunkFile) =>
+            s"""|--$boundary
+                |Content-Type: application/zip
+                |Content-Disposition: form-data; filename="${chunkFile.name}"; name="$chunkKey"
+                |""".stripMargin.replace("\n", "\r\n").trim
           }
-          val expectedFileContents = expectedFiles.iterator map {
-            case (_, chunkFile) => chunkFile.contentAsString
+          val expectedFileContents = expectedFiles.iterator map { case (_, chunkFile) =>
+            chunkFile.contentAsString
           }
           val boundaryEnd = s"--$boundary--"
 

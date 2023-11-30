@@ -8,12 +8,11 @@ import common.exception.Aggregation._
 import scala.annotation.tailrec
 
 object Aggregation {
-  def formatMessageWithList(message: String, list: Iterable[String]) = {
+  def formatMessageWithList(message: String, list: Iterable[String]) =
     if (list.nonEmpty) {
       val messages = s"\n${list.mkString("\n")}"
       s"$message:$messages"
     } else message
-  }
 
   def flattenThrowable(throwable: Throwable) = {
     @tailrec
@@ -57,12 +56,12 @@ trait ThrowableAggregation extends MessageAggregation {
   override def errorMessages = throwables map buildMessage
 
   private def buildMessage(t: Throwable): String = t match {
-      // The message for file not found exception only contains the file name, so add the actual reason
+    // The message for file not found exception only contains the file name, so add the actual reason
     case _: FileNotFoundException | _: NoSuchFileException => s"File not found ${t.getMessage}"
     case aggregation: ThrowableAggregation =>
       formatMessageWithList(aggregation.exceptionContext, aggregation.throwables.map(buildMessage).map("\t" + _))
     case other =>
-      val cause = Option(other.getCause) map { c => s"\n\t${buildMessage(c)}" }  getOrElse ""
+      val cause = Option(other.getCause) map { c => s"\n\t${buildMessage(c)}" } getOrElse ""
       s"${other.getMessage}$cause"
   }
 }
@@ -70,6 +69,14 @@ trait ThrowableAggregation extends MessageAggregation {
 /**
   * Generic convenience case class for aggregated exceptions.
   */
-case class AggregatedException(exceptionContext: String, throwables: Iterable[Throwable]) extends Exception with ThrowableAggregation
-case class AggregatedMessageException(exceptionContext: String, errorMessages: Iterable[String]) extends Exception with MessageAggregation
-case class CompositeException(exceptionContext: String, throwables: Iterable[Throwable], override val errorMessages: Iterable[String]) extends Exception with ThrowableAggregation
+case class AggregatedException(exceptionContext: String, throwables: Iterable[Throwable])
+    extends Exception
+    with ThrowableAggregation
+case class AggregatedMessageException(exceptionContext: String, errorMessages: Iterable[String])
+    extends Exception
+    with MessageAggregation
+case class CompositeException(exceptionContext: String,
+                              throwables: Iterable[Throwable],
+                              override val errorMessages: Iterable[String]
+) extends Exception
+    with ThrowableAggregation

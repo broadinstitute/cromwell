@@ -24,7 +24,7 @@ trait MigrationTaskChange extends CustomTaskChange with LazyLogging {
     */
   def migrate(connection: JdbcConnection): Unit
 
-  override def execute(database: Database): Unit = {
+  override def execute(database: Database): Unit =
     try {
       val dbConn = database.getConnection.asInstanceOf[JdbcConnection]
       val autoCommit = dbConn.getAutoCommit
@@ -36,7 +36,6 @@ trait MigrationTaskChange extends CustomTaskChange with LazyLogging {
       case exception: Exception =>
         throw new CustomChangeException(s"Could not apply migration script for $migrationName", exception)
     }
-  }
 
   override def setUp() = {}
 

@@ -15,23 +15,29 @@ import scala.concurrent.duration._
 class CentaurOperationsSpec extends AnyFlatSpec with Matchers {
   behavior of "validateMetadataJson"
 
-  val placeholderSubmittedWorkflow: SubmittedWorkflow = SubmittedWorkflow(id = WorkflowId(UUID.randomUUID()), null, null)
-  val placeholderWorkflow: Workflow = Workflow(testName = "", null, null, null, null, null, false, false, false, null, null)
+  val placeholderSubmittedWorkflow: SubmittedWorkflow =
+    SubmittedWorkflow(id = WorkflowId(UUID.randomUUID()), null, null)
+  val placeholderWorkflow: Workflow =
+    Workflow(testName = "", null, null, null, null, null, false, false, false, null, null)
 
   val allowableOneWordAdditions = List("farmer")
 
   def runTest(json1: String, json2: String, expectMatching: Boolean): Unit = {
-    val validation = Operations.validateMetadataJson("",
-      json1.parseJson.asJsObject,
-      json2.parseJson.asJsObject,
-      placeholderSubmittedWorkflow,
-      placeholderWorkflow,
-      allowableAddedOneWordFields = allowableOneWordAdditions).unsafeToFuture()
+    val validation = Operations
+      .validateMetadataJson(
+        "",
+        json1.parseJson.asJsObject,
+        json2.parseJson.asJsObject,
+        placeholderSubmittedWorkflow,
+        placeholderWorkflow,
+        allowableAddedOneWordFields = allowableOneWordAdditions
+      )
+      .unsafeToFuture()
     Await.ready(validation, atMost = 10.seconds)
     validation.value.get match {
       case Success(()) if expectMatching => // great
       case Success(_) if !expectMatching => fail("Metadata unexpectedly matches")
-      case Failure(e) if expectMatching  => fail("Metadata unexpectedly mismatches", e)
+      case Failure(e) if expectMatching => fail("Metadata unexpectedly mismatches", e)
       case Failure(_) if !expectMatching => // great
       case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
     }

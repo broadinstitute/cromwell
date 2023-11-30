@@ -18,9 +18,13 @@ object LoadControlledBatchActor {
 trait LoadControlledBatchActor[C] { this: BatchActor[C] =>
   def threshold: Int
   def serviceRegistryActor: ActorRef
-  private val path = if (routed) NonEmptyList.of(context.parent.path.name, self.path.name) else NonEmptyList.one(self.path.name)
+  private val path =
+    if (routed) NonEmptyList.of(context.parent.path.name, self.path.name) else NonEmptyList.one(self.path.name)
 
-  timers.startSingleTimer(LoadControlledBatchActorTimerKey, LoadControlledBatchActorTimerAction, LoadConfig.MonitoringFrequency)
+  timers.startSingleTimer(LoadControlledBatchActorTimerKey,
+                          LoadControlledBatchActorTimerAction,
+                          LoadConfig.MonitoringFrequency
+  )
 
   private def weightToLoad(weight: Int) = if (weight > threshold) HighLoad else NormalLoad
 
@@ -28,9 +32,11 @@ trait LoadControlledBatchActor[C] { this: BatchActor[C] =>
     * Don't forget to chain this into your receive method to monitor the queue size:
     * override def receive = loadControlReceive.orElse(super.receive)
     */
-  protected def loadControlReceive: Receive = {
-    case LoadControlledBatchActorTimerAction => 
-      serviceRegistryActor ! LoadMetric(path, weightToLoad(stateData.weight))
-      timers.startSingleTimer(LoadControlledBatchActorTimerKey, LoadControlledBatchActorTimerAction, LoadConfig.MonitoringFrequency)
+  protected def loadControlReceive: Receive = { case LoadControlledBatchActorTimerAction =>
+    serviceRegistryActor ! LoadMetric(path, weightToLoad(stateData.weight))
+    timers.startSingleTimer(LoadControlledBatchActorTimerKey,
+                            LoadControlledBatchActorTimerAction,
+                            LoadConfig.MonitoringFrequency
+    )
   }
 }

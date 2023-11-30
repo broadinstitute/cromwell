@@ -39,7 +39,6 @@ import cromwell.cloudsupport.aws.auth.{AssumeRoleMode, CustomKeyMode, DefaultMod
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-
 class AwsConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "AwsConfiguration"
@@ -47,38 +46,38 @@ class AwsConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
   it should "parse all manner of well-formed auths" in {
     val righteousAwsConfig =
       s"""
-        |aws {
-        |  application-name = "cromwell"
-        |
-        |  auths = [
-        |    {
-        |      name = "default"
-        |      scheme = "default"
-        |    },
-        |    {
-        |      name = "custom-keys"
-        |      scheme = "custom_keys"
-        |      access-key = "access_key_id"
-        |      secret-key = "secret_key"
-        |    },
-        |    {
-        |      name = "assume-role-based-on-another-with-external"
-        |      scheme = "assume_role"
-        |      base-auth = "default"
-        |      role-arn = "my-role-arn"
-        |      external-id = "my-external-id"
-        |    },
-        |    {
-        |      name = "assume-role-based-on-another"
-        |      scheme = "assume_role"
-        |      base-auth = "default"
-        |      role-arn = "my-role-arn"
-        |    }
-        |  ]
-        |
-        |  region = "region"
-        |}
-        |
+         |aws {
+         |  application-name = "cromwell"
+         |
+         |  auths = [
+         |    {
+         |      name = "default"
+         |      scheme = "default"
+         |    },
+         |    {
+         |      name = "custom-keys"
+         |      scheme = "custom_keys"
+         |      access-key = "access_key_id"
+         |      secret-key = "secret_key"
+         |    },
+         |    {
+         |      name = "assume-role-based-on-another-with-external"
+         |      scheme = "assume_role"
+         |      base-auth = "default"
+         |      role-arn = "my-role-arn"
+         |      external-id = "my-external-id"
+         |    },
+         |    {
+         |      name = "assume-role-based-on-another"
+         |      scheme = "assume_role"
+         |      base-auth = "default"
+         |      role-arn = "my-role-arn"
+         |    }
+         |  ]
+         |
+         |  region = "region"
+         |}
+         |
       """.stripMargin
 
     val conf = AwsConfiguration(ConfigFactory.parseString(righteousAwsConfig))
@@ -146,8 +145,8 @@ class AwsConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
     val conf = AwsConfiguration(ConfigFactory.parseString(config))
     conf.auth("name-botched") should be(
-      "`aws` configuration stanza does not contain an auth named 'name-botched'.  Known auth names: name-default"
-        .invalidNel)
+      "`aws` configuration stanza does not contain an auth named 'name-botched'.  Known auth names: name-default".invalidNel
+    )
   }
 
   it should "not parse a configuration stanza without applicationName" in {

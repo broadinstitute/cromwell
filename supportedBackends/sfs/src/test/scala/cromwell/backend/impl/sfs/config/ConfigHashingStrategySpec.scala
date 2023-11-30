@@ -19,8 +19,13 @@ import wom.values.WomSingleFile
 
 import scala.util.Success
 
-class ConfigHashingStrategySpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
-  with TableDrivenPropertyChecks with MockSugar with BeforeAndAfterAll {
+class ConfigHashingStrategySpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with TableDrivenPropertyChecks
+    with MockSugar
+    with BeforeAndAfterAll {
 
   behavior of "ConfigHashingStrategy"
 
@@ -60,7 +65,9 @@ class ConfigHashingStrategySpec extends AnyFlatSpec with CromwellTimeoutSpec wit
   private def makeStrategy(strategy: String, checkSibling: Option[Boolean] = None) = {
     val conf = ConfigFactory.parseString(s"""hashing-strategy: "$strategy"""")
     ConfigHashingStrategy(
-      checkSibling map { check => conf.withValue("check-sibling-md5", ConfigValueFactory.fromAnyRef(check)) } getOrElse conf
+      checkSibling map { check =>
+        conf.withValue("check-sibling-md5", ConfigValueFactory.fromAnyRef(check))
+      } getOrElse conf
     )
   }
 
@@ -233,15 +240,14 @@ class ConfigHashingStrategySpec extends AnyFlatSpec with CromwellTimeoutSpec wit
   }
 
   it should "create a fingerprint strategy from config" in {
-    val defaultFingerprint:  FingerprintStrategy = makeStrategy("fingerprint").asInstanceOf[FingerprintStrategy]
+    val defaultFingerprint: FingerprintStrategy = makeStrategy("fingerprint").asInstanceOf[FingerprintStrategy]
     defaultFingerprint.isInstanceOf[FingerprintStrategy] shouldBe true
     defaultFingerprint.checkSiblingMd5 shouldBe false
     defaultFingerprint.fingerprintSize shouldBe 10 * 1024 * 1024
 
-    val config = ConfigFactory.parseString(
-      """|hashing-strategy: "fingerprint"
-         |fingerprint-size: 123456789
-         |""".stripMargin)
+    val config = ConfigFactory.parseString("""|hashing-strategy: "fingerprint"
+                                              |fingerprint-size: 123456789
+                                              |""".stripMargin)
     val otherFingerprint: FingerprintStrategy = ConfigHashingStrategy.apply(config).asInstanceOf[FingerprintStrategy]
     otherFingerprint.fingerprintSize shouldBe 123456789
     otherFingerprint.isInstanceOf[FingerprintStrategy] shouldBe true
@@ -261,8 +267,10 @@ class ConfigHashingStrategySpec extends AnyFlatSpec with CromwellTimeoutSpec wit
   }
 
   it should "have a fingerprint strategy and use md5 sibling file when appropriate" in {
-    val fingerPrintHash = HashFileXxH64StrategyMethods.xxh64sumString(file.lastModifiedTime.toEpochMilli.toHexString +
-                                                              file.size.toHexString) + steakXxh64
+    val fingerPrintHash = HashFileXxH64StrategyMethods.xxh64sumString(
+      file.lastModifiedTime.toEpochMilli.toHexString +
+        file.size.toHexString
+    ) + steakXxh64
     val table = Table(
       ("check", "withMd5", "expected"),
       (true, true, md5FileHash),

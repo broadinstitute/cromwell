@@ -23,18 +23,19 @@ class CallCacheInvalidateActor(callCache: CallCache, cacheId: CallCachingEntryId
       context.stop(self)
   }
 
-  override def receive: Receive = {
-    case any => log.error("Unexpected message to InvalidateCallCacheActor: " + any)
+  override def receive: Receive = { case any =>
+    log.error("Unexpected message to InvalidateCallCacheActor: " + any)
   }
 }
 
 object CallCacheInvalidateActor {
-  def props(callCache: CallCache, cacheId: CallCachingEntryId) = {
-    Props(new CallCacheInvalidateActor(callCache: CallCache, cacheId: CallCachingEntryId)).withDispatcher(EngineDispatcher)
-  }
+  def props(callCache: CallCache, cacheId: CallCachingEntryId) =
+    Props(new CallCacheInvalidateActor(callCache: CallCache, cacheId: CallCachingEntryId))
+      .withDispatcher(EngineDispatcher)
 }
 
 sealed trait CallCacheInvalidatedResponse
-case class CallCacheInvalidatedSuccess(cacheId: CallCachingEntryId, maybeEntry: Option[CallCachingEntry]) extends CallCacheInvalidatedResponse
+case class CallCacheInvalidatedSuccess(cacheId: CallCachingEntryId, maybeEntry: Option[CallCachingEntry])
+    extends CallCacheInvalidatedResponse
 case object CallCacheInvalidationUnnecessary extends CallCacheInvalidatedResponse
 case class CallCacheInvalidatedFailure(cacheId: CallCachingEntryId, t: Throwable) extends CallCacheInvalidatedResponse

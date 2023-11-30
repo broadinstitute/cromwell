@@ -6,6 +6,7 @@ import net.ceedubs.ficus.Ficus._
 import org.apache.commons.text.StringEscapeUtils
 
 object RunnableUtils {
+
   /** Image to use for ssh access. */
   val sshImage = "gcr.io/cloud-genomics-pipelines/tools"
 
@@ -32,7 +33,7 @@ object RunnableUtils {
     * When updating this value, also consider updating the CromwellImagesSizeRoundedUpInGB below.
     */
   val CloudSdkImage: String =
-    //config.getOrElse("cloud-sdk-image-url", "gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine")
+    // config.getOrElse("cloud-sdk-image-url", "gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine")
     config.getOrElse("cloud-sdk-image-url", "gcr.io/google.com/cloudsdktool/cloud-sdk:434.0.0-alpine")
   /*
    * At the moment, cloud-sdk (584MB for 354.0.0-alpine) and stedolan/jq (182MB) decompressed ~= 0.8 GB
@@ -55,27 +56,28 @@ object RunnableUtils {
 
   private val backgroundRunnableTerminationGraceTime = 10
 
-  val terminateAllBackgroundRunnablesCommand: String = s"kill -TERM -1 && sleep $backgroundRunnableTerminationGraceTime || true"
+  val terminateAllBackgroundRunnablesCommand: String =
+    s"kill -TERM -1 && sleep $backgroundRunnableTerminationGraceTime || true"
 
   def timestampedMessage(message: String): String =
     s"""printf '%s %s\\n' "$$(date -u '+%Y/%m/%d %H:%M:%S')" ${shellEscaped(message)}"""
 
   /** Start background runnables first, leave the rest as is */
   def sortRunnables(containerSetup: List[Runnable],
-                            localization: List[Runnable],
-                            userRunnable: List[Runnable],
-                            memoryRetryRunnable: List[Runnable],
-                            deLocalization: List[Runnable],
-                            monitoringSetup: List[Runnable],
-                            monitoringShutdown: List[Runnable],
-                            checkpointingStart: List[Runnable],
-                            checkpointingShutdown: List[Runnable],
-                            sshAccess: List[Runnable],
-                            isBackground: Runnable => Boolean,
-                         ): List[Runnable] = {
+                    localization: List[Runnable],
+                    userRunnable: List[Runnable],
+                    memoryRetryRunnable: List[Runnable],
+                    deLocalization: List[Runnable],
+                    monitoringSetup: List[Runnable],
+                    monitoringShutdown: List[Runnable],
+                    checkpointingStart: List[Runnable],
+                    checkpointingShutdown: List[Runnable],
+                    sshAccess: List[Runnable],
+                    isBackground: Runnable => Boolean
+  ): List[Runnable] = {
     val toBeSortedRunnables = localization ++ userRunnable ++ memoryRetryRunnable ++ deLocalization
-    val sortedRunnables = toBeSortedRunnables.sortWith {
-      case (runnable, _) => isBackground(runnable)
+    val sortedRunnables = toBeSortedRunnables.sortWith { case (runnable, _) =>
+      isBackground(runnable)
     }
 
     sshAccess ++ containerSetup ++ monitoringSetup ++ checkpointingStart ++ sortedRunnables ++ checkpointingShutdown ++ monitoringShutdown

@@ -9,9 +9,9 @@ import wdl.model.draft3.elements.CommandPartElement.StringCommandPartElement
 import wdl.model.draft3.elements.{CommandPartElement, CommandSectionElement, CommandSectionLine}
 
 object AstToCommandSectionElement {
-  def astToCommandSectionElement(implicit astNodeToCommandPartElement: CheckedAtoB[GenericAstNode, CommandPartElement]
-                                ): CheckedAtoB[GenericAst, CommandSectionElement] = CheckedAtoB.fromCheck { ast: GenericAst =>
-
+  def astToCommandSectionElement(implicit
+    astNodeToCommandPartElement: CheckedAtoB[GenericAstNode, CommandPartElement]
+  ): CheckedAtoB[GenericAst, CommandSectionElement] = CheckedAtoB.fromCheck { ast: GenericAst =>
     ast.getAttributeAsVector[CommandPartElement]("parts") flatMap { parts =>
       val lines = makeLines(parts)
       val trimmed = trimStartAndEndBlankLines(lines)
@@ -36,9 +36,7 @@ object AstToCommandSectionElement {
       for {
         prefix <- commonPrefix
         lines <- stripStarts(trimmed, prefix)
-      } yield {
-        CommandSectionElement(lines)
-      }
+      } yield CommandSectionElement(lines)
     }
   }
 
@@ -63,9 +61,8 @@ object AstToCommandSectionElement {
     finalAccumulator map dropEmpties
   }
 
-  private def trimStartAndEndBlankLines(elements: Vector[CommandSectionLine]): Vector[CommandSectionLine] = {
+  private def trimStartAndEndBlankLines(elements: Vector[CommandSectionLine]): Vector[CommandSectionLine] =
     elements.dropWhile(allWhitespace).reverse.dropWhile(allWhitespace).reverse
-  }
 
   private def dropEmpties(line: CommandSectionLine): CommandSectionLine = {
     def empty(c: CommandPartElement): Boolean = c match {
@@ -86,19 +83,20 @@ object AstToCommandSectionElement {
     lines.map(leadingWhitespaceForLine(_).getOrElse(""))
   }
 
-  private def stripStarts(lines: Vector[CommandSectionLine], prefix: String): Checked[List[CommandSectionLine]] = {
+  private def stripStarts(lines: Vector[CommandSectionLine], prefix: String): Checked[List[CommandSectionLine]] =
     if (prefix.isEmpty)
       lines.toList.validNelCheck
     else
       lines.toList traverse { line: CommandSectionLine =>
         line.parts.headOption match {
           case Some(StringCommandPartElement(str)) if str.startsWith(prefix) =>
-            CommandSectionLine(Vector(StringCommandPartElement(str.stripPrefix(prefix))) ++ line.parts.tail).validNelCheck
+            CommandSectionLine(
+              Vector(StringCommandPartElement(str.stripPrefix(prefix))) ++ line.parts.tail
+            ).validNelCheck
           case _ =>
             "Failed to strip common whitespace prefix from line.".invalidNelCheck
         }
       }
-  }
 
   private def allWhitespace(s: String): Boolean = s.forall(_.isWhitespace)
   private def allWhitespace(c: CommandPartElement): Boolean = c match {

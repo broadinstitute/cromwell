@@ -17,8 +17,8 @@ import scala.concurrent.{ExecutionContext, Future}
   */
 class DrsFileSystemConfig(val config: Config)
 
-
-class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, singletonConfig: DrsFileSystemConfig) extends PathBuilderFactory {
+class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, singletonConfig: DrsFileSystemConfig)
+    extends PathBuilderFactory {
 
   private lazy val googleConfiguration: GoogleConfiguration = GoogleConfiguration(globalConfig)
   private lazy val scheme = instanceConfig.getString("auth")
@@ -26,7 +26,9 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
   // For Azure support - this should be the UAMI client id
   private val dataAccessIdentityKey = "data_access_identity"
 
-  override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder] = {
+  override def withOptions(
+    options: WorkflowOptions
+  )(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder] =
     Future {
       val drsResolverScopes = List(
         // Profile and Email scopes are requirements for interacting with DRS Resolvers
@@ -36,13 +38,20 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
 
       val (googleAuthMode, drsCredentials) = scheme match {
         case "azure" => (None, AzureDrsCredentials(options.get(dataAccessIdentityKey).toOption))
-        case googleAuthScheme => googleConfiguration.auth(googleAuthScheme) match {
-          case Valid(auth) => (
-            Option(auth),
-            GoogleOauthDrsCredentials(auth.credentials(options.get(_).get, drsResolverScopes), singletonConfig.config)
-          )
-          case Invalid(error) => throw new RuntimeException(s"Error while instantiating DRS path builder factory. Errors: ${error.toString}")
-        }
+        case googleAuthScheme =>
+          googleConfiguration.auth(googleAuthScheme) match {
+            case Valid(auth) =>
+              (
+                Option(auth),
+                GoogleOauthDrsCredentials(auth.credentials(options.get(_).get, drsResolverScopes),
+                                          singletonConfig.config
+                )
+              )
+            case Invalid(error) =>
+              throw new RuntimeException(
+                s"Error while instantiating DRS path builder factory. Errors: ${error.toString}"
+              )
+          }
       }
 
       // Unlike PAPI we're not going to fall back to a "default" project from the backend config.
@@ -58,8 +67,7 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
           .getBoolean("override_preresolve_for_test")
           .toOption
           .getOrElse(
-            singletonConfig
-              .config
+            singletonConfig.config
               .getBoolean("resolver.preresolve")
           )
 
@@ -67,15 +75,15 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
         new DrsCloudNioFileSystemProvider(
           singletonConfig.config,
           drsCredentials,
-          DrsReader.readInterpreter(googleAuthMode, options, requesterPaysProjectIdOption),
+          DrsReader.readInterpreter(googleAuthMode, options, requesterPaysProjectIdOption)
         ),
         requesterPaysProjectIdOption,
-        preResolve,
+        preResolve
       )
     }
-  }
 }
 
 case class UrlNotFoundException(scheme: String) extends Exception(s"No $scheme url associated with given DRS path.")
 
-case class DrsResolverResponseMissingKeyException(missingKey: String) extends Exception(s"The response from the DRS Resolver doesn't contain the key '$missingKey'.")
+case class DrsResolverResponseMissingKeyException(missingKey: String)
+    extends Exception(s"The response from the DRS Resolver doesn't contain the key '$missingKey'.")

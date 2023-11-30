@@ -35,7 +35,7 @@ trait BatchApiRunCreationClient { this: Actor with ActorLogging with BatchInstru
     runCreationClientPromise = None
   }
 
-  def runBatchJob(request: GcpBatchRequest, backendSingletonActor: ActorRef): Future[StandardAsyncJob] = {
+  def runBatchJob(request: GcpBatchRequest, backendSingletonActor: ActorRef): Future[StandardAsyncJob] =
     runCreationClientPromise match {
       case Some(p) =>
         p.future
@@ -46,5 +46,4 @@ trait BatchApiRunCreationClient { this: Actor with ActorLogging with BatchInstru
         runCreationClientPromise = Option(newPromise)
         newPromise.future
     }
-  }
 }

@@ -44,22 +44,25 @@ import cromwell.core.path.Path
 trait AwsBatchJobCachingActorHelper extends StandardCachingActorHelper {
   this: Actor with JobLogging =>
 
-  lazy val initializationData: AwsBatchBackendInitializationData = {
+  lazy val initializationData: AwsBatchBackendInitializationData =
     backendInitializationDataAs[AwsBatchBackendInitializationData]
-  }
 
   lazy val configuration: AwsBatchConfiguration = initializationData.configuration
 
   // TODO: Determine if call paths are relevant
   lazy val callPaths: AwsBatchJobPaths = jobPaths.asInstanceOf[AwsBatchJobPaths]
 
-  lazy val runtimeAttributes: AwsBatchRuntimeAttributes = AwsBatchRuntimeAttributes(validatedRuntimeAttributes, configuration.runtimeConfig, configuration.fileSystem)
+  lazy val runtimeAttributes: AwsBatchRuntimeAttributes =
+    AwsBatchRuntimeAttributes(validatedRuntimeAttributes, configuration.runtimeConfig, configuration.fileSystem)
 
-  lazy val workingDisk: AwsBatchVolume = runtimeAttributes.disks.find(x => configuration.fileSystem match {
-    case AWSBatchStorageSystems.s3 => x.name == AwsBatchWorkingDisk.Name
-    case _ =>  configuration.root.startsWith(x.mountPoint.pathAsString)
-  }).get
-
+  lazy val workingDisk: AwsBatchVolume = runtimeAttributes.disks
+    .find(x =>
+      configuration.fileSystem match {
+        case AWSBatchStorageSystems.s3 => x.name == AwsBatchWorkingDisk.Name
+        case _ => configuration.root.startsWith(x.mountPoint.pathAsString)
+      }
+    )
+    .get
 
   lazy val callRootPath: Path = callPaths.callExecutionRoot
   lazy val returnCodeFilename: String = callPaths.returnCodeFilename

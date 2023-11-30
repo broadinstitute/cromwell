@@ -35,25 +35,21 @@ trait JobInstrumentation extends CromwellInstrumentationActor { this: Actor =>
   /**
     * Generic method to add a workflow related timing metric value
     */
-  def setTimingJob(statsDPath: InstrumentationPath, duration: FiniteDuration): Unit = {
+  def setTimingJob(statsDPath: InstrumentationPath, duration: FiniteDuration): Unit =
     sendTiming(statsDPath, duration, JobPrefix)
-  }
 
   /**
     * Generic method to update a job related gauge metric value
     */
-  def sendGaugeJob(statsDPath: InstrumentationPath, value: Long): Unit = {
+  def sendGaugeJob(statsDPath: InstrumentationPath, value: Long): Unit =
     sendGauge(statsDPath, value, JobPrefix)
-  }
 
   /**
     * Add a timing value for the run time of a job in a given state
     */
-  def setJobTimePerState(response: BackendJobExecutionResponse, duration: FiniteDuration): Unit = {
+  def setJobTimePerState(response: BackendJobExecutionResponse, duration: FiniteDuration): Unit =
     setTimingJob(backendJobExecutionResponsePaths(response), duration)
-  }
-  
-  def recordExecutionStepTiming(state: String, duration: FiniteDuration): Unit = {
+
+  def recordExecutionStepTiming(state: String, duration: FiniteDuration): Unit =
     sendTiming(jobTimingKey.concatNel("state").concatNel(state), duration, JobPrefix)
-  }
 }

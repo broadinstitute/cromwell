@@ -36,4 +36,8 @@ object WorkflowProcessingEvents {
   val ProcessingEventsKey = "workflowProcessingEvents"
 }
 
-case class WorkflowProcessingEvent(cromwellId: String, description: String, timestamp: OffsetDateTime, cromwellVersion: String)
+case class WorkflowProcessingEvent(cromwellId: String,
+                                   description: String,
+                                   timestamp: OffsetDateTime,
+                                   cromwellVersion: String
+)

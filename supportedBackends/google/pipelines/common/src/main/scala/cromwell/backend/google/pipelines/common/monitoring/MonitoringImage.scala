@@ -13,8 +13,8 @@ final class MonitoringImage(jobDescriptor: BackendJobDescriptor,
                             workflowPaths: WorkflowPaths,
                             commandDirectory: Path,
                             workingDisk: PipelinesApiAttachedDisk,
-                            localMonitoringImageScriptPath: Path,
-                           ) {
+                            localMonitoringImageScriptPath: Path
+) {
 
   val monitoringImageOption: Option[String] = workflowOptions.get(WorkflowOptionKeys.MonitoringImage).toOption
 
@@ -24,22 +24,21 @@ final class MonitoringImage(jobDescriptor: BackendJobDescriptor,
     for {
       _ <- monitoringImageOption // Only use the monitoring_image_script when monitoring_image provided
       monitoringImageScript <- workflowOptions.get(WorkflowOptionKeys.MonitoringImageScript).toOption
-    } yield {
-      PathFactory.buildPath(
-        monitoringImageScript,
-        workflowPaths.pathBuilders,
-      )
-    }
+    } yield PathFactory.buildPath(
+      monitoringImageScript,
+      workflowPaths.pathBuilders
+    )
 
   val monitoringImageCommand: List[String] =
     monitoringImageScriptOption match {
-      case Some(_) => List(
-        "/bin/sh",
-        "-c",
-        s"cd '${commandDirectory.pathAsString}' && " +
-          s"chmod +x '${monitoringImageScriptContainerPath.pathAsString}' && " +
-          s"'${monitoringImageScriptContainerPath.pathAsString}'"
-      )
+      case Some(_) =>
+        List(
+          "/bin/sh",
+          "-c",
+          s"cd '${commandDirectory.pathAsString}' && " +
+            s"chmod +x '${monitoringImageScriptContainerPath.pathAsString}' && " +
+            s"'${monitoringImageScriptContainerPath.pathAsString}'"
+        )
       case None => Nil
     }
 

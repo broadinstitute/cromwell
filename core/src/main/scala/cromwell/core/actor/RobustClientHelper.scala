@@ -15,14 +15,14 @@ object RobustClientHelper {
 }
 
 trait RobustClientHelper { this: Actor with ActorLogging =>
-  private [actor] implicit val robustActorHelperEc = context.dispatcher
+  implicit private[actor] val robustActorHelperEc = context.dispatcher
 
   private var backoff: Option[Backoff] = None
 
   // package private for testing
-  private [core] var timeouts = Map.empty[Any, (Cancellable, FiniteDuration)]
+  private[core] var timeouts = Map.empty[Any, (Cancellable, FiniteDuration)]
 
-  protected def initialBackoff(): Backoff = SimpleExponentialBackoff(5.seconds, 20.minutes, 2D)
+  protected def initialBackoff(): Backoff = SimpleExponentialBackoff(5.seconds, 20.minutes, 2d)
 
   def robustReceive: Receive = {
     case BackPressure(request) =>
@@ -33,39 +33,38 @@ trait RobustClientHelper { this: Actor with ActorLogging =>
     case RequestTimeout(request, to) => onTimeout(request, to)
   }
 
-  private final def newTimer(msg: Any, to: ActorRef, in: FiniteDuration) = {
+  final private def newTimer(msg: Any, to: ActorRef, in: FiniteDuration) =
     context.system.scheduler.scheduleOnce(in, to, msg)(robustActorHelperEc, self)
-  }
 
   def robustSend(msg: Any, to: ActorRef, timeout: FiniteDuration = DefaultRequestLostTimeout): Unit = {
     to ! msg
     addTimeout(msg, to, timeout)
   }
 
-  private final def addTimeout(command: Any, to: ActorRef, timeout: FiniteDuration) = {
+  final private def addTimeout(command: Any, to: ActorRef, timeout: FiniteDuration) = {
     val cancellable = newTimer(RequestTimeout(command, to), self, timeout)
     timeouts = timeouts + (command -> (cancellable -> timeout))
   }
 
-  protected final def hasTimeout(command: Any) = timeouts.get(command).isDefined
+  final protected def hasTimeout(command: Any) = timeouts.get(command).isDefined
 
-  protected final def cancelTimeout(command: Any) = {
+  final protected def cancelTimeout(command: Any) = {
     timeouts.get(command) foreach { case (cancellable, _) => cancellable.cancel() }
     timeouts = timeouts - command
   }
 
-  private final def resetTimeout(command: Any, to: ActorRef) = {
+  final private def resetTimeout(command: Any, to: ActorRef) = {
     val timeout = timeouts.get(command) map { _._2 }
     cancelTimeout(command)
     timeout foreach { addTimeout(command, to, _) }
   }
 
-  private [actor] final def generateBackpressureTime: FiniteDuration = {
-    val effectiveBackoff = backoff.getOrElse({
+  final private[actor] def generateBackpressureTime: FiniteDuration = {
+    val effectiveBackoff = backoff.getOrElse {
       val firstBackoff = initialBackoff()
       backoff = Option(firstBackoff)
       firstBackoff
-    })
+    }
     val backoffTime = effectiveBackoff.backoffMillis
     backoff = Option(effectiveBackoff.next)
     backoffTime.millis

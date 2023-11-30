@@ -16,7 +16,7 @@ object FtpPathBuilder {
 case class FtpPathBuilder(fileSystemProvider: CloudNioFileSystemProvider) extends PathBuilder {
   override def name = "FTP"
 
-  override def build(string: String) = {
+  override def build(string: String) =
     if (string == "ftp://") Failure(new IllegalArgumentException(s"$string does not have a valid host"))
     else {
       Try(URI.create(UrlEscapers.urlFragmentEscaper().escape(string))) flatMap { uri =>
@@ -31,5 +31,4 @@ case class FtpPathBuilder(fileSystemProvider: CloudNioFileSystemProvider) extend
         }
       }
     }
-  }
 }

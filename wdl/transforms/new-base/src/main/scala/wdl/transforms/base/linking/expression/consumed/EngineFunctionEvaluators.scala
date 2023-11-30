@@ -7,15 +7,19 @@ import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
 
 object EngineFunctionEvaluators {
 
-  implicit val stdoutElementValueConsumer: ExpressionValueConsumer[StdoutElement.type] = new ExpressionValueConsumer[ExpressionElement.StdoutElement.type] {
-    override def expressionConsumedValueHooks(a: ExpressionElement.StdoutElement.type)
-                                             (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): Set[UnlinkedConsumedValueHook] = Set.empty
-  }
+  implicit val stdoutElementValueConsumer: ExpressionValueConsumer[StdoutElement.type] =
+    new ExpressionValueConsumer[ExpressionElement.StdoutElement.type] {
+      override def expressionConsumedValueHooks(a: ExpressionElement.StdoutElement.type)(implicit
+        expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
+      ): Set[UnlinkedConsumedValueHook] = Set.empty
+    }
 
-  implicit val stderrElementValueConsumer: ExpressionValueConsumer[StderrElement.type] = new ExpressionValueConsumer[ExpressionElement.StderrElement.type] {
-    override def expressionConsumedValueHooks(a: ExpressionElement.StderrElement.type)
-                                             (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): Set[UnlinkedConsumedValueHook] = Set.empty
-  }
+  implicit val stderrElementValueConsumer: ExpressionValueConsumer[StderrElement.type] =
+    new ExpressionValueConsumer[ExpressionElement.StderrElement.type] {
+      override def expressionConsumedValueHooks(a: ExpressionElement.StderrElement.type)(implicit
+        expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
+      ): Set[UnlinkedConsumedValueHook] = Set.empty
+    }
 
   implicit val readLinesValueConsumer: ExpressionValueConsumer[ReadLines] = forOneParamFunction
   implicit val readTsvValueConsumer: ExpressionValueConsumer[ReadTsv] = forOneParamFunction
@@ -54,29 +58,33 @@ object EngineFunctionEvaluators {
   implicit val joinValueConsumer: ExpressionValueConsumer[Sep] = forTwoParamFunction
 
   implicit val subFunctionValueConsumer: ExpressionValueConsumer[Sub] = new ExpressionValueConsumer[Sub] {
-    override def expressionConsumedValueHooks(a: Sub)
-                                             (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): Set[UnlinkedConsumedValueHook] = {
+    override def expressionConsumedValueHooks(
+      a: Sub
+    )(implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): Set[UnlinkedConsumedValueHook] =
       a.input.expressionConsumedValueHooks ++ a.pattern.expressionConsumedValueHooks ++ a.replace.expressionConsumedValueHooks
-    }
   }
 
-  private def forOneParamFunction[A <: OneParamFunctionCallElement]: ExpressionValueConsumer[A] = new ExpressionValueConsumer[A] {
-    override def expressionConsumedValueHooks(a: A)
-                                             (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): Set[UnlinkedConsumedValueHook] = a.param.expressionConsumedValueHooks
-  }
-
-  private def forOneOrTwoParamFunction[A <: OneOrTwoParamFunctionCallElement]: ExpressionValueConsumer[A] = new ExpressionValueConsumer[A] {
-    override def expressionConsumedValueHooks(a: A)
-                                             (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): Set[UnlinkedConsumedValueHook] = {
-      a.firstParam.expressionConsumedValueHooks ++
-        a.secondParam.toSet.flatMap { secondParam: ExpressionElement => secondParam.expressionConsumedValueHooks }
+  private def forOneParamFunction[A <: OneParamFunctionCallElement]: ExpressionValueConsumer[A] =
+    new ExpressionValueConsumer[A] {
+      override def expressionConsumedValueHooks(a: A)(implicit
+        expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
+      ): Set[UnlinkedConsumedValueHook] = a.param.expressionConsumedValueHooks
     }
-  }
 
-  private def forTwoParamFunction[A <: TwoParamFunctionCallElement]: ExpressionValueConsumer[A] = new ExpressionValueConsumer[A] {
-    override def expressionConsumedValueHooks(a: A)
-                                             (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): Set[UnlinkedConsumedValueHook] = {
-      a.arg1.expressionConsumedValueHooks ++ a.arg2.expressionConsumedValueHooks
+  private def forOneOrTwoParamFunction[A <: OneOrTwoParamFunctionCallElement]: ExpressionValueConsumer[A] =
+    new ExpressionValueConsumer[A] {
+      override def expressionConsumedValueHooks(a: A)(implicit
+        expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
+      ): Set[UnlinkedConsumedValueHook] =
+        a.firstParam.expressionConsumedValueHooks ++
+          a.secondParam.toSet.flatMap { secondParam: ExpressionElement => secondParam.expressionConsumedValueHooks }
     }
-  }
+
+  private def forTwoParamFunction[A <: TwoParamFunctionCallElement]: ExpressionValueConsumer[A] =
+    new ExpressionValueConsumer[A] {
+      override def expressionConsumedValueHooks(a: A)(implicit
+        expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
+      ): Set[UnlinkedConsumedValueHook] =
+        a.arg1.expressionConsumedValueHooks ++ a.arg2.expressionConsumedValueHooks
+    }
 }

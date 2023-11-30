@@ -11,7 +11,6 @@ import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.{ListObjectsRequest, ListObjectsResponse, S3Object}
 import org.scalatest.flatspec.AnyFlatSpec
 
-
 class FileCheckerSpec extends AnyFlatSpec with CromwellTimeoutSpec with MockSugar {
 
   import centaur.test.ObjectCounterInstances._
@@ -26,14 +25,19 @@ class FileCheckerSpec extends AnyFlatSpec with CromwellTimeoutSpec with MockSuga
   private val wrongBucketPrefix = "s3Bucket://my-not-so-cool-bucket/somelogs/empty"
   private val EmptyTestPath = ""
   private val testGsPath = "gs://my-cool-bucket/path/to/file"
-  private val objResponse = ListObjectsResponse.builder()
-    .contents(util.Arrays.asList(S3Object.builder()
-      .build()))
+  private val objResponse = ListObjectsResponse
+    .builder()
+    .contents(
+      util.Arrays.asList(
+        S3Object
+          .builder()
+          .build()
+      )
+    )
     .build()
   private val objRequest = ListObjectsRequest.builder().bucket(bucketName).prefix(dirName).build()
   private val awsS3Path = awsS3ObjectCounter.parsePath(s3PrefixRegex)(testPath)
   private val gsPath = gcsObjectCounter.parsePath(gsPrefixRegex)(testGsPath)
-
 
   "parsePath" should "return a bucket and directories" in {
     assert(awsS3Path.bucket == bucketName)
@@ -41,9 +45,9 @@ class FileCheckerSpec extends AnyFlatSpec with CromwellTimeoutSpec with MockSuga
   }
 
   "parsePath" should "throw Exception for wrong path" in {
-    assertThrows[centaur.test.IllegalPathException] {awsS3ObjectCounter.parsePath(s3PrefixRegex)(wrongBucketPrefix)}
-    assertThrows[centaur.test.IllegalPathException] {awsS3ObjectCounter.parsePath(s3PrefixRegex)(testGsPath)}
-    assertThrows[centaur.test.IllegalPathException] {awsS3ObjectCounter.parsePath(s3PrefixRegex)(EmptyTestPath)}
+    assertThrows[centaur.test.IllegalPathException](awsS3ObjectCounter.parsePath(s3PrefixRegex)(wrongBucketPrefix))
+    assertThrows[centaur.test.IllegalPathException](awsS3ObjectCounter.parsePath(s3PrefixRegex)(testGsPath))
+    assertThrows[centaur.test.IllegalPathException](awsS3ObjectCounter.parsePath(s3PrefixRegex)(EmptyTestPath))
   }
 
   "countObjectAtPath" should "should return 1 if the file exist" in {

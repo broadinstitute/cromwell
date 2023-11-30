@@ -22,9 +22,20 @@ import com.typesafe.scalalogging.StrictLogging
 import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{CallCacheDiff, Failed, HashDifference, SubmittedWorkflow, Succeeded, TerminalStatus, WaasDescription, WorkflowId, WorkflowMetadata, WorkflowStatus}
+import cromwell.api.model.{
+  CallCacheDiff,
+  Failed,
+  HashDifference,
+  SubmittedWorkflow,
+  Succeeded,
+  TerminalStatus,
+  WaasDescription,
+  WorkflowId,
+  WorkflowMetadata,
+  WorkflowStatus
+}
 import cromwell.cloudsupport.aws.AwsConfiguration
-import cromwell.cloudsupport.azure.{AzureUtils}
+import cromwell.cloudsupport.azure.AzureUtils
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import io.circe.parser._
@@ -53,32 +64,28 @@ sealed abstract class Test[A] {
 object Test {
   def successful[A](value: A): Test[A] = testMonad.pure(value)
 
-  def invalidTestDefinition[A](message: String, workflowDefinition: Workflow): Test[A] = {
+  def invalidTestDefinition[A](message: String, workflowDefinition: Workflow): Test[A] =
     new Test[A] {
       override def run: IO[Nothing] = IO.raiseError(CentaurTestException(message, workflowDefinition))
     }
-  }
 
   implicit val testMonad: Monad[Test] = new Monad[Test] {
-    override def flatMap[A, B](fa: Test[A])(f: A => Test[B]): Test[B] = {
+    override def flatMap[A, B](fa: Test[A])(f: A => Test[B]): Test[B] =
       new Test[B] {
         override def run: IO[B] = fa.run flatMap { f(_).run }
       }
-    }
 
-    override def pure[A](x: A): Test[A] = {
+    override def pure[A](x: A): Test[A] =
       new Test[A] {
         override def run: IO[A] = IO.pure(x)
       }
-    }
 
     /** Call the default non-stack-safe but correct version of this method. */
-    override def tailRecM[A, B](a: A)(f: A => Test[Either[A, B]]): Test[B] = {
+    override def tailRecM[A, B](a: A)(f: A => Test[Either[A, B]]): Test[B] =
       flatMap(f(a)) {
         case Right(b) => pure(b)
         case Left(nextA) => tailRecM(nextA)(f)
       }
-    }
   }
 
   implicit class TestableIO[A](a: IO[A]) {
@@ -103,14 +110,14 @@ object Operations extends StrictLogging {
   lazy val authName: String = googleConf.getString("auth")
   lazy val genomicsEndpointUrl: String = googleConf.getString("genomics.endpoint-url")
   lazy val genomicsAndStorageScopes = List(StorageScopes.CLOUD_PLATFORM_READ_ONLY, GenomicsScopes.GENOMICS)
-  lazy val credentials: Credentials = configuration.auth(authName)
+  lazy val credentials: Credentials = configuration
+    .auth(authName)
     .unsafe
     .credentials(genomicsAndStorageScopes)
-  lazy val credentialsProjectOption: Option[String] = {
-    Option(credentials) collect {
-      case serviceAccountCredentials: ServiceAccountCredentials => serviceAccountCredentials.getProjectId
+  lazy val credentialsProjectOption: Option[String] =
+    Option(credentials) collect { case serviceAccountCredentials: ServiceAccountCredentials =>
+      serviceAccountCredentials.getProjectId
     }
-  }
   lazy val confProjectOption: Option[String] = googleConf.get[Option[String]]("project") valueOrElse None
   // The project from the config or from the credentials. By default the project is read from the system environment.
   lazy val projectOption: Option[String] = confProjectOption orElse credentialsProjectOption
@@ -140,13 +147,14 @@ object Operations extends StrictLogging {
   lazy val awsConfiguration: AwsConfiguration = AwsConfiguration(CentaurConfig.conf)
   lazy val awsConf: Config = CentaurConfig.conf.getConfig("aws")
   lazy val awsAuthName: String = awsConf.getString("auths")
-  lazy val region: String  = awsConf.getString("region")
-  lazy val accessKeyId: String  = awsConf.getString("access-key")
+  lazy val region: String = awsConf.getString("region")
+  lazy val accessKeyId: String = awsConf.getString("access-key")
   lazy val secretAccessKey: String = awsConf.getString("secret-key")
 
   def buildAmazonS3Client: S3Client = {
     val basicAWSCredentials = AwsBasicCredentials.create(accessKeyId, secretAccessKey)
-    S3Client.builder()
+    S3Client
+      .builder()
       .region(Region.of(region))
       .credentialsProvider(StaticCredentialsProvider.create(basicAWSCredentials))
       .build()
@@ -156,16 +164,16 @@ object Operations extends StrictLogging {
   val azureSubscription = azureConfig.getString("subscription")
   val blobContainer = azureConfig.getString("container")
   val azureEndpoint = azureConfig.getString("endpoint")
-  //NB: Centaur will throw an exception if it isn't able to authenticate with Azure blob storage via the local environment.
-  lazy val blobContainerClient: BlobContainerClient = AzureUtils.buildContainerClientFromLocalEnvironment(blobContainer, azureEndpoint, Option(azureSubscription)).get
+  // NB: Centaur will throw an exception if it isn't able to authenticate with Azure blob storage via the local environment.
+  lazy val blobContainerClient: BlobContainerClient =
+    AzureUtils.buildContainerClientFromLocalEnvironment(blobContainer, azureEndpoint, Option(azureSubscription)).get
 
-  def submitWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = {
+  def submitWorkflow(workflow: Workflow): Test[SubmittedWorkflow] =
     new Test[SubmittedWorkflow] {
       override def run: IO[SubmittedWorkflow] = for {
         id <- CentaurCromwellClient.submit(workflow)
       } yield id
     }
-  }
 
   /**
     * A smoke test of the version endpoint, this confirms that a) nothing explodes and b) the result must be a JSON object
@@ -180,15 +188,15 @@ object Operations extends StrictLogging {
   def checkTimingRequirement(timeRequirement: Option[FiniteDuration]): Test[FiniteDuration] = new Test[FiniteDuration] {
     override def run: IO[FiniteDuration] = timeRequirement match {
       case Some(duration) => IO.pure(duration)
-      case None => IO.raiseError(new Exception("Duration value for 'maximumTime' required but not supplied in test config"))
+      case None =>
+        IO.raiseError(new Exception("Duration value for 'maximumTime' required but not supplied in test config"))
     }
   }
 
   def checkFastEnough(before: Long, after: Long, allowance: FiniteDuration): Test[Unit] = new Test[Unit] {
-    override def run: IO[Unit] = {
+    override def run: IO[Unit] =
       if (after - before < allowance.toSeconds) IO.pure(())
       else IO.raiseError(new Exception(s"Test took too long. Allowance was $allowance. Actual time: ${after - before}"))
-    }
   }
 
   def timingVerificationNotSupported(timingRequirement: Option[FiniteDuration]): Test[Unit] = new Test[Unit] {
@@ -198,7 +206,7 @@ object Operations extends StrictLogging {
 
   }
 
-  def checkDescription(workflow: Workflow, validityExpectation: Option[Boolean], retries: Int = 3): Test[Unit] = {
+  def checkDescription(workflow: Workflow, validityExpectation: Option[Boolean], retries: Int = 3): Test[Unit] =
     new Test[Unit] {
 
       private val timeout = 60.seconds
@@ -210,77 +218,79 @@ object Operations extends StrictLogging {
             case None => IO.pure(())
             case Some(d.valid) => IO.pure(())
             case Some(otherExpectation) =>
-              logger.error(s"Unexpected 'valid=${d.valid}' response when expecting $otherExpectation. Full unexpected description:${System.lineSeparator()}$d")
-              IO.raiseError(new Exception(s"Expected this workflow's /describe validity to be '$otherExpectation' but got: '${d.valid}' (errors: ${d.errors.mkString(", ")})"))
+              logger.error(
+                s"Unexpected 'valid=${d.valid}' response when expecting $otherExpectation. Full unexpected description:${System
+                    .lineSeparator()}$d"
+              )
+              IO.raiseError(
+                new Exception(
+                  s"Expected this workflow's /describe validity to be '$otherExpectation' but got: '${d.valid}' (errors: ${d.errors
+                      .mkString(", ")})"
+                )
+              )
           }
-        }).timeoutTo(timeout, IO {
-          if (alreadyTried + 1 >= retries) {
-            throw new TimeoutException("Timeout from checkDescription 60 seconds: " + timeoutStackTraceString)
-          } else {
-            logger.warn(s"checkDescription timeout on attempt ${alreadyTried + 1}. ")
-            checkDescriptionInner(alreadyTried + 1)
-            ()
+        }).timeoutTo(
+          timeout,
+          IO {
+            if (alreadyTried + 1 >= retries) {
+              throw new TimeoutException("Timeout from checkDescription 60 seconds: " + timeoutStackTraceString)
+            } else {
+              logger.warn(s"checkDescription timeout on attempt ${alreadyTried + 1}. ")
+              checkDescriptionInner(alreadyTried + 1)
+              ()
+            }
           }
-        })
+        )
       }
 
-
-      override def run: IO[Unit] = {
-
-
+      override def run: IO[Unit] =
         // We can't describe workflows based on zipped imports, so don't try:
         if (workflow.skipDescribeEndpointValidation || workflow.data.zippedImports.nonEmpty) {
           IO.pure(())
         } else {
           checkDescriptionInner(0)
         }
-      }
     }
-  }
 
-  def submitInvalidWorkflow(workflow: Workflow): Test[SubmitHttpResponse] = {
+  def submitInvalidWorkflow(workflow: Workflow): Test[SubmitHttpResponse] =
     new Test[SubmitHttpResponse] {
-      override def run: IO[SubmitHttpResponse] = {
-        CentaurCromwellClient.submit(workflow).redeemWith(
-          {
-            case unsuccessfulRequestException: UnsuccessfulRequestException =>
-              val httpResponse = unsuccessfulRequestException.httpResponse
-              val statusCode = httpResponse.status.intValue()
-              httpResponse.entity match {
-                case akka.http.scaladsl.model.HttpEntity.Strict(_, data) =>
-                  IO.pure(SubmitHttpResponse(statusCode, data.utf8String))
-                case _ =>
-                  val message = s"Expected a strict http response entity but got ${httpResponse.entity}"
-                  IO.raiseError(CentaurTestException(message, workflow, unsuccessfulRequestException))
-              }
-            case unexpected: Exception =>
-              val message = s"Unexpected error: ${unexpected.getMessage}"
-              IO.raiseError(CentaurTestException(message, workflow, unexpected))
-            case throwable: Throwable => throw throwable
-          },
-          {
-            submittedWorkflow => {
+      override def run: IO[SubmitHttpResponse] =
+        CentaurCromwellClient
+          .submit(workflow)
+          .redeemWith(
+            {
+              case unsuccessfulRequestException: UnsuccessfulRequestException =>
+                val httpResponse = unsuccessfulRequestException.httpResponse
+                val statusCode = httpResponse.status.intValue()
+                httpResponse.entity match {
+                  case akka.http.scaladsl.model.HttpEntity.Strict(_, data) =>
+                    IO.pure(SubmitHttpResponse(statusCode, data.utf8String))
+                  case _ =>
+                    val message = s"Expected a strict http response entity but got ${httpResponse.entity}"
+                    IO.raiseError(CentaurTestException(message, workflow, unsuccessfulRequestException))
+                }
+              case unexpected: Exception =>
+                val message = s"Unexpected error: ${unexpected.getMessage}"
+                IO.raiseError(CentaurTestException(message, workflow, unexpected))
+              case throwable: Throwable => throw throwable
+            },
+            { submittedWorkflow =>
               val message =
                 s"Expected a failure but got a successfully submitted workflow with id ${submittedWorkflow.id}"
               IO.raiseError(CentaurTestException(message, workflow))
             }
-          }
-        )
-      }
+          )
     }
-  }
 
-  def abortWorkflow(workflow: SubmittedWorkflow): Test[WorkflowStatus] = {
+  def abortWorkflow(workflow: SubmittedWorkflow): Test[WorkflowStatus] =
     new Test[WorkflowStatus] {
       override def run: IO[WorkflowStatus] = CentaurCromwellClient.abort(workflow)
     }
-  }
 
-  def waitFor(duration: FiniteDuration): Test[Unit] = {
+  def waitFor(duration: FiniteDuration): Test[Unit] =
     new Test[Unit] {
       override def run: IO[Unit] = IO.sleep(duration)
     }
-  }
 
   /**
     * Polls until a valid status is reached.
@@ -290,16 +300,18 @@ object Operations extends StrictLogging {
   def expectSomeProgress(workflow: SubmittedWorkflow,
                          testDefinition: Workflow,
                          expectedStatuses: Set[WorkflowStatus],
-                         timeout: FiniteDuration): Test[SubmittedWorkflow] = {
+                         timeout: FiniteDuration
+  ): Test[SubmittedWorkflow] =
     new Test[SubmittedWorkflow] {
-      def status(remainingTimeout: FiniteDuration): IO[SubmittedWorkflow] = {
+      def status(remainingTimeout: FiniteDuration): IO[SubmittedWorkflow] =
         for {
           workflowStatus <- CentaurCromwellClient.status(workflow)
           mappedStatus <- workflowStatus match {
             case s if expectedStatuses.contains(s) => IO.pure(workflow)
             case s: TerminalStatus =>
               CentaurCromwellClient.metadata(workflow) flatMap { metadata =>
-                val message = s"Unexpected terminal status $s while waiting for one of [${expectedStatuses.mkString(", ")}] (workflow ID: ${workflow.id})"
+                val message =
+                  s"Unexpected terminal status $s while waiting for one of [${expectedStatuses.mkString(", ")}] (workflow ID: ${workflow.id})"
                 IO.raiseError(CentaurTestException(message, testDefinition, workflow, metadata))
               }
             case _ if remainingTimeout > 0.seconds =>
@@ -308,16 +320,15 @@ object Operations extends StrictLogging {
                 s <- status(remainingTimeout - 10.seconds)
               } yield s
             case other =>
-              val message = s"Cromwell failed to progress into any of the statuses [${expectedStatuses.mkString(", ")}]. Was still '$other' after $timeout (workflow ID: ${workflow.id})"
+              val message =
+                s"Cromwell failed to progress into any of the statuses [${expectedStatuses.mkString(", ")}]. Was still '$other' after $timeout (workflow ID: ${workflow.id})"
               IO.raiseError(CentaurTestException(message, testDefinition, workflow))
           }
         } yield mappedStatus
-      }
 
       override def run: IO[SubmittedWorkflow] = status(timeout).timeout(CentaurConfig.maxWorkflowLength)
 
     }
-  }
 
   /**
     * Polls until a specific status is reached.
@@ -326,9 +337,10 @@ object Operations extends StrictLogging {
     */
   def pollUntilStatus(workflow: SubmittedWorkflow,
                       testDefinition: Workflow,
-                      expectedStatus: WorkflowStatus): Test[SubmittedWorkflow] = {
+                      expectedStatus: WorkflowStatus
+  ): Test[SubmittedWorkflow] =
     new Test[SubmittedWorkflow] {
-      def status: IO[SubmittedWorkflow] = {
+      def status: IO[SubmittedWorkflow] =
         for {
           workflowStatus <- CentaurCromwellClient.status(workflow)
           mappedStatus <- workflowStatus match {
@@ -336,35 +348,38 @@ object Operations extends StrictLogging {
             case s: TerminalStatus =>
               val reducedMetadataOptions: Map[String, List[String]] =
                 CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ Map(
-                  "includeKey" -> (List("status") ++ (if (expectedStatus == Succeeded) List("failures") else List.empty)),
+                  "includeKey" -> (List("status") ++ (if (expectedStatus == Succeeded) List("failures")
+                                                      else List.empty)),
                   "expandSubWorkflows" -> List("false")
                 )
 
-              CentaurCromwellClient.metadata(workflow = workflow, args = Option(reducedMetadataOptions)) flatMap { metadata =>
-                val failuresString = if (expectedStatus == Succeeded) {
-                  (for {
-                    metadataJson <- parse(metadata.value).toOption
-                    asObject <- metadataJson.asObject
-                    failures <- asObject.toMap.get("failures")
-                  } yield s" Metadata 'failures' content: ${failures.spaces2}").getOrElse("No additional failure information found in metadata.")
-                } else {
-                  ""
-                }
+              CentaurCromwellClient.metadata(workflow = workflow, args = Option(reducedMetadataOptions)) flatMap {
+                metadata =>
+                  val failuresString = if (expectedStatus == Succeeded) {
+                    (for {
+                      metadataJson <- parse(metadata.value).toOption
+                      asObject <- metadataJson.asObject
+                      failures <- asObject.toMap.get("failures")
+                    } yield s" Metadata 'failures' content: ${failures.spaces2}")
+                      .getOrElse("No additional failure information found in metadata.")
+                  } else {
+                    ""
+                  }
 
-                val message = s"Unexpected terminal status $s but was waiting for $expectedStatus (workflow ID: ${workflow.id}).$failuresString"
-                IO.raiseError(CentaurTestException(message, testDefinition, workflow, metadata))
+                  val message =
+                    s"Unexpected terminal status $s but was waiting for $expectedStatus (workflow ID: ${workflow.id}).$failuresString"
+                  IO.raiseError(CentaurTestException(message, testDefinition, workflow, metadata))
               }
-            case _ => for {
-              _ <- IO.sleep(10.seconds)
-              s <- status
-            } yield s
+            case _ =>
+              for {
+                _ <- IO.sleep(10.seconds)
+                s <- status
+              } yield s
           }
         } yield mappedStatus
-      }
 
       override def run: IO[SubmittedWorkflow] = status.timeout(CentaurConfig.maxWorkflowLength)
     }
-  }
 
   /**
     * Validate that the given jobId matches the one in the metadata
@@ -373,7 +388,8 @@ object Operations extends StrictLogging {
                         workflow: SubmittedWorkflow,
                         metadata: WorkflowMetadata,
                         callFqn: String,
-                        formerJobId: String): Test[Unit] = {
+                        formerJobId: String
+  ): Test[Unit] =
     new Test[Unit] {
       override def run: IO[Unit] = CentaurCromwellClient.metadata(workflow) flatMap { s =>
         s.asFlat.value.get(s"calls.$callFqn.jobId") match {
@@ -387,56 +403,58 @@ object Operations extends StrictLogging {
         }
       }
     }
-  }
 
-  def validatePAPIAborted(workflowDefinition: Workflow, workflow: SubmittedWorkflow, jobId: String): Test[Unit] = {
+  def validatePAPIAborted(workflowDefinition: Workflow, workflow: SubmittedWorkflow, jobId: String): Test[Unit] =
     new Test[Unit] {
-      def checkPAPIAborted(): IO[Unit] = {
+      def checkPAPIAborted(): IO[Unit] =
         for {
-          operation <- IO { genomics.projects().operations().get(jobId).execute() }
+          operation <- IO(genomics.projects().operations().get(jobId).execute())
           done = operation.getDone
           operationError = Option(operation.getError)
-          aborted = operationError.exists(_.getCode == 1) && operationError.exists(_.getMessage.startsWith("Operation canceled"))
-          result <- if (!(done && aborted)) {
-            CentaurCromwellClient.metadata(workflow) flatMap { metadata =>
-              val message = s"Underlying JES job was not aborted properly. " +
-                s"Done = $done. Error = ${operationError.map(_.getMessage).getOrElse("N/A")} (workflow ID: ${workflow.id})"
-              IO.raiseError(CentaurTestException(message, workflowDefinition, workflow, metadata))
-            }
-          } else IO.unit
+          aborted = operationError.exists(_.getCode == 1) && operationError.exists(
+            _.getMessage.startsWith("Operation canceled")
+          )
+          result <-
+            if (!(done && aborted)) {
+              CentaurCromwellClient.metadata(workflow) flatMap { metadata =>
+                val message = s"Underlying JES job was not aborted properly. " +
+                  s"Done = $done. Error = ${operationError.map(_.getMessage).getOrElse("N/A")} (workflow ID: ${workflow.id})"
+                IO.raiseError(CentaurTestException(message, workflowDefinition, workflow, metadata))
+              }
+            } else IO.unit
         } yield result
-      }
 
       override def run: IO[Unit] = if (jobId.startsWith("operations/")) {
         checkPAPIAborted()
       } else IO.unit
     }
-  }
 
   /**
     * Polls until a specific call is in Running state. Returns the job id.
     */
-  def pollUntilCallIsRunning(workflowDefinition: Workflow, workflow: SubmittedWorkflow, callFqn: String): Test[String] = {
+  def pollUntilCallIsRunning(workflowDefinition: Workflow,
+                             workflow: SubmittedWorkflow,
+                             callFqn: String
+  ): Test[String] = {
     // Special case for sub workflow testing
-    def findJobIdInSubWorkflow(subWorkflowId: String): IO[Option[String]] = {
+    def findJobIdInSubWorkflow(subWorkflowId: String): IO[Option[String]] =
       for {
         metadata <- CentaurCromwellClient
           .metadataWithId(WorkflowId.fromString(subWorkflowId))
           .redeem(_ => None, Option.apply)
         jobId <- IO.pure(metadata.flatMap(_.asFlat.value.get("calls.inner_abort.aborted.jobId")))
       } yield jobId.map(_.asInstanceOf[JsString].value)
-    }
 
-    def valueAsString(key: String, metadata: WorkflowMetadata) = {
+    def valueAsString(key: String, metadata: WorkflowMetadata) =
       metadata.asFlat.value.get(key).map(_.asInstanceOf[JsString].value)
-    }
 
     def findCallStatus(metadata: WorkflowMetadata): IO[Option[(String, String)]] = {
       val status = metadata.asFlat.value.get(s"calls.$callFqn.executionStatus")
       val statusString = status.map(_.asInstanceOf[JsString].value)
 
       for {
-        jobId <- valueAsString(s"calls.$callFqn.jobId", metadata).map(jobId => IO.pure(Option(jobId)))
+        jobId <- valueAsString(s"calls.$callFqn.jobId", metadata)
+          .map(jobId => IO.pure(Option(jobId)))
           .orElse(valueAsString(s"calls.$callFqn.subWorkflowId", metadata).map(findJobIdInSubWorkflow))
           .getOrElse(IO.pure(None))
         pair = (statusString, jobId) match {
@@ -447,7 +465,7 @@ object Operations extends StrictLogging {
     }
 
     new Test[String] {
-      def doPerform(): IO[String] = {
+      def doPerform(): IO[String] =
         for {
           // We don't want to keep going forever if the workflow failed
           status <- CentaurCromwellClient.status(workflow)
@@ -464,13 +482,13 @@ object Operations extends StrictLogging {
             case Some(("Failed", _)) =>
               val message = s"$callFqn failed"
               IO.raiseError(CentaurTestException(message, workflowDefinition, workflow, metadata))
-            case _ => for {
-              _ <- IO.sleep(5.seconds)
-              recurse <- doPerform()
-            } yield recurse
+            case _ =>
+              for {
+                _ <- IO.sleep(5.seconds)
+                recurse <- doPerform()
+              } yield recurse
           }
         } yield result
-      }
 
       override def run: IO[String] = doPerform().timeout(CentaurConfig.maxWorkflowLength)
     }
@@ -483,34 +501,40 @@ object Operations extends StrictLogging {
 
       for {
         md <- CentaurCromwellClient.metadata(workflowB)
-        calls = md.asFlat.value.keySet.flatMap({
+        calls = md.asFlat.value.keySet.flatMap {
           case callNameRegexp(name) => Option(name)
           case _ => None
-        })
-        diffs <- calls.toList.traverse[IO, CallCacheDiff]({ callName =>
+        }
+        diffs <- calls.toList.traverse[IO, CallCacheDiff] { callName =>
           CentaurCromwellClient.callCacheDiff(workflowA, callName, workflowB, callName)
-        })
+        }
       } yield diffs.flatMap(_.hashDifferential)
     }
 
-    override def run: IO[Unit] = {
+    override def run: IO[Unit] =
       hashDiffOfAllCalls map {
         case diffs if diffs.nonEmpty && CentaurCromwellClient.LogFailures =>
           Console.err.println(s"Hash differential for ${workflowA.id} and ${workflowB.id}")
-          diffs.map({ diff =>
-            s"For key ${diff.hashKey}:\nCall A: ${diff.callA.getOrElse("N/A")}\nCall B: ${diff.callB.getOrElse("N/A")}"
-          }).foreach(Console.err.println)
+          diffs
+            .map { diff =>
+              s"For key ${diff.hashKey}:\nCall A: ${diff.callA.getOrElse("N/A")}\nCall B: ${diff.callB.getOrElse("N/A")}"
+            }
+            .foreach(Console.err.println)
         case _ =>
       }
-    }
   }
 
   /* Select only those flat metadata items whose keys begin with the specified prefix, removing the prefix from the keys. Also
    * perform variable substitutions for UUID and WORKFLOW_ROOT and remove any ~> Centaur metadata expectation metacharacters. */
-  private def selectMetadataExpectationSubsetByPrefix(workflow: Workflow, prefix: String, workflowId: WorkflowId, workflowRoot: String): List[(String, JsValue)] = {
+  private def selectMetadataExpectationSubsetByPrefix(workflow: Workflow,
+                                                      prefix: String,
+                                                      workflowId: WorkflowId,
+                                                      workflowRoot: String
+  ): List[(String, JsValue)] = {
     import WorkflowFlatMetadata._
     def replaceVariables(value: JsValue): JsValue = value match {
-      case s: JsString => JsString(s.value.replaceExpectationVariables(workflowId, workflowRoot).replaceFirst("^~>", ""))
+      case s: JsString =>
+        JsString(s.value.replaceExpectationVariables(workflowId, workflowRoot).replaceFirst("^~>", ""))
       case o => o
     }
     val filterLabels: PartialFunction[(String, JsValue), (String, JsValue)] = {
@@ -525,7 +549,8 @@ object Operations extends StrictLogging {
 
   def fetchAndValidateOutputs(submittedWorkflow: SubmittedWorkflow,
                               workflow: Workflow,
-                              workflowRoot: String): Test[JsObject] = new Test[JsObject] {
+                              workflowRoot: String
+  ): Test[JsObject] = new Test[JsObject] {
 
     def checkOutputs(expectedOutputs: List[(String, JsValue)])(actualOutputs: Map[String, JsValue]): IO[Unit] = {
       val expected = expectedOutputs.toSet
@@ -535,11 +560,13 @@ object Operations extends StrictLogging {
       lazy val inExpectedButNotInActual = expected.diff(actual)
 
       if (!workflow.allowOtherOutputs && inActualButNotInExpected.nonEmpty) {
-        val message = s"In actual outputs but not in expected and other outputs not allowed: ${inActualButNotInExpected.mkString(", ")}"
+        val message =
+          s"In actual outputs but not in expected and other outputs not allowed: ${inActualButNotInExpected.mkString(", ")}"
         IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
       } else if (inExpectedButNotInActual.nonEmpty) {
-        val message = s"In actual outputs but not in expected: ${inExpectedButNotInActual.mkString(", ")}" + System.lineSeparator +
-          s"In expected outputs but not in actual: ${inExpectedButNotInActual.mkString(", ")}"
+        val message =
+          s"In actual outputs but not in expected: ${inExpectedButNotInActual.mkString(", ")}" + System.lineSeparator +
+            s"In expected outputs but not in actual: ${inExpectedButNotInActual.mkString(", ")}"
         IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
       } else {
         IO.unit
@@ -549,7 +576,8 @@ object Operations extends StrictLogging {
     override def run: IO[JsObject] = {
       import centaur.test.metadata.WorkflowFlatOutputs._
 
-      val expectedOutputs: List[(String, JsValue)] = selectMetadataExpectationSubsetByPrefix(workflow, "outputs.", submittedWorkflow.id, workflowRoot)
+      val expectedOutputs: List[(String, JsValue)] =
+        selectMetadataExpectationSubsetByPrefix(workflow, "outputs.", submittedWorkflow.id, workflowRoot)
 
       for {
         outputs <- CentaurCromwellClient.outputs(submittedWorkflow)
@@ -562,7 +590,8 @@ object Operations extends StrictLogging {
 
   def fetchAndValidateLabels(submittedWorkflow: SubmittedWorkflow,
                              workflow: Workflow,
-                             workflowRoot: String): Test[Unit] = new Test[Unit] {
+                             workflowRoot: String
+  ): Test[Unit] = new Test[Unit] {
     override def run: IO[Unit] = {
       import centaur.test.metadata.WorkflowFlatLabels._
 
@@ -570,17 +599,18 @@ object Operations extends StrictLogging {
       val expectedLabels: List[(String, JsValue)] = workflowIdLabel ::
         selectMetadataExpectationSubsetByPrefix(workflow, "labels.", submittedWorkflow.id, workflowRoot)
 
-
       def validateLabels(actualLabels: Map[String, JsValue]) = {
         val diff = expectedLabels.toSet.diff(actualLabels.toSet)
         if (diff.isEmpty) {
           IO.unit
         } else {
-          IO.raiseError(CentaurTestException(
-            s"In expected labels but not in actual: ${diff.mkString(", ")}",
-            workflow,
-            submittedWorkflow
-          ))
+          IO.raiseError(
+            CentaurTestException(
+              s"In expected labels but not in actual: ${diff.mkString(", ")}",
+              workflow,
+              submittedWorkflow
+            )
+          )
         }
       }
 
@@ -593,75 +623,77 @@ object Operations extends StrictLogging {
   }
 
   /** Compares logs filtered from the raw `metadata` endpoint with the `logs` endpoint. */
-  def validateLogs(metadata: WorkflowMetadata,
-                   submittedWorkflow: SubmittedWorkflow,
-                   workflow: Workflow): Test[Unit] = new Test[Unit] {
-    val suffixes = Set("stdout", "shardIndex", "stderr", "attempt", "backendLogs.log")
+  def validateLogs(metadata: WorkflowMetadata, submittedWorkflow: SubmittedWorkflow, workflow: Workflow): Test[Unit] =
+    new Test[Unit] {
+      val suffixes = Set("stdout", "shardIndex", "stderr", "attempt", "backendLogs.log")
 
-    def removeSubworkflowKeys(flattened: Map[String, JsValue]): Map[String, JsValue] = {
-      val subWorkflowIdPrefixes = flattened.keys.filter(_.endsWith(".subWorkflowId")).map(s => s.substring(0, s.lastIndexOf('.')))
-      flattened filter { case (k, _) => !subWorkflowIdPrefixes.exists(k.startsWith) }
-    }
+      def removeSubworkflowKeys(flattened: Map[String, JsValue]): Map[String, JsValue] = {
+        val subWorkflowIdPrefixes =
+          flattened.keys.filter(_.endsWith(".subWorkflowId")).map(s => s.substring(0, s.lastIndexOf('.')))
+        flattened filter { case (k, _) => !subWorkflowIdPrefixes.exists(k.startsWith) }
+      }
 
-    // Filter to only include the fields in the flattened metadata that should appear in the logs endpoint.
-    def filterForLogsFields(flattened: Map[String, JsValue]): Map[String, JsValue] = removeSubworkflowKeys(flattened).filter {
-      case (k, _) => k == "id" || suffixes.exists(s => k.endsWith("." + s) && !k.contains(".outputs.") && !k.startsWith("outputs."))
-    }
-
-    override def run: IO[Unit] = {
-
-      def validateLogsMetadata(flatLogs: Map[String, JsValue], flatFilteredMetadata: Map[String, JsValue]): IO[Unit] =
-        if (flatLogs.equals(flatFilteredMetadata)) {
-          IO.unit
-        } else {
-          val message = (List("actual logs endpoint output did not equal filtered metadata", "flat logs: ") ++
-            flatLogs.toList ++ List("flat filtered metadata: ") ++ flatFilteredMetadata.toList).mkString("\n")
-          IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
+      // Filter to only include the fields in the flattened metadata that should appear in the logs endpoint.
+      def filterForLogsFields(flattened: Map[String, JsValue]): Map[String, JsValue] =
+        removeSubworkflowKeys(flattened).filter { case (k, _) =>
+          k == "id" || suffixes.exists(s =>
+            k.endsWith("." + s) && !k.contains(".outputs.") && !k.startsWith("outputs.")
+          )
         }
 
-      for {
-        logs <- CentaurCromwellClient.logs(submittedWorkflow)
-        flatLogs = logs.asFlat.value
-        flatFilteredMetadata = metadata.asFlat.value |> filterForLogsFields
-        _ <- validateLogsMetadata(flatLogs, flatFilteredMetadata)
-      } yield ()
-    }
-  }
+      override def run: IO[Unit] = {
 
-  def fetchMetadata(submittedWorkflow: SubmittedWorkflow,
-                    expandSubworkflows: Boolean): IO[WorkflowMetadata] = {
+        def validateLogsMetadata(flatLogs: Map[String, JsValue], flatFilteredMetadata: Map[String, JsValue]): IO[Unit] =
+          if (flatLogs.equals(flatFilteredMetadata)) {
+            IO.unit
+          } else {
+            val message = (List("actual logs endpoint output did not equal filtered metadata", "flat logs: ") ++
+              flatLogs.toList ++ List("flat filtered metadata: ") ++ flatFilteredMetadata.toList).mkString("\n")
+            IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
+          }
+
+        for {
+          logs <- CentaurCromwellClient.logs(submittedWorkflow)
+          flatLogs = logs.asFlat.value
+          flatFilteredMetadata = metadata.asFlat.value |> filterForLogsFields
+          _ <- validateLogsMetadata(flatLogs, flatFilteredMetadata)
+        } yield ()
+      }
+    }
+
+  def fetchMetadata(submittedWorkflow: SubmittedWorkflow, expandSubworkflows: Boolean): IO[WorkflowMetadata] =
     CentaurCromwellClient.metadata(submittedWorkflow, expandSubworkflows = expandSubworkflows)
-  }
 
   def fetchAndValidateNonSubworkflowMetadata(submittedWorkflow: SubmittedWorkflow,
                                              workflowSpec: Workflow,
-                                             cacheHitUUID: Option[UUID] = None): Test[WorkflowMetadata] = {
+                                             cacheHitUUID: Option[UUID] = None
+  ): Test[WorkflowMetadata] =
     new Test[WorkflowMetadata] {
 
       def fetchOnce(): IO[WorkflowMetadata] = fetchMetadata(submittedWorkflow, expandSubworkflows = false)
 
       def eventuallyMetadata(workflow: SubmittedWorkflow,
-                             expectedMetadata: WorkflowFlatMetadata): IO[WorkflowMetadata] = {
-        validateMetadata(workflow, expectedMetadata).handleErrorWith({ _ =>
+                             expectedMetadata: WorkflowFlatMetadata
+      ): IO[WorkflowMetadata] =
+        validateMetadata(workflow, expectedMetadata).handleErrorWith { _ =>
           for {
             _ <- IO.sleep(2.seconds)
             recurse <- eventuallyMetadata(workflow, expectedMetadata)
           } yield recurse
-        })
-      }
+        }
 
       def validateMetadata(workflow: SubmittedWorkflow,
-                           expectedMetadata: WorkflowFlatMetadata): IO[WorkflowMetadata] = {
-        def checkDiff(diffs: Iterable[String], actualMetadata: WorkflowMetadata): IO[Unit] = {
+                           expectedMetadata: WorkflowFlatMetadata
+      ): IO[WorkflowMetadata] = {
+        def checkDiff(diffs: Iterable[String], actualMetadata: WorkflowMetadata): IO[Unit] =
           if (diffs.nonEmpty) {
             val message = s"Invalid metadata response:\n -${diffs.mkString("\n -")}\n"
             IO.raiseError(CentaurTestException(message, workflowSpec, workflow, actualMetadata))
           } else {
             IO.unit
           }
-        }
 
-        def validateUnwantedMetadata(actualMetadata: WorkflowMetadata): IO[Unit] = {
+        def validateUnwantedMetadata(actualMetadata: WorkflowMetadata): IO[Unit] =
           if (workflowSpec.notInMetadata.nonEmpty) {
             // Check that none of the "notInMetadata" keys are in the actual metadata
             val absentMdIntersect = workflowSpec.notInMetadata.toSet.intersect(actualMetadata.asFlat.value.keySet)
@@ -674,23 +706,23 @@ object Operations extends StrictLogging {
           } else {
             IO.unit
           }
-        }
 
-        def validateAllowOtherOutputs(actualMetadata: WorkflowMetadata): IO[Unit] = {
+        def validateAllowOtherOutputs(actualMetadata: WorkflowMetadata): IO[Unit] =
           if (workflowSpec.allowOtherOutputs) IO.unit
           else {
             val flat = actualMetadata.asFlat.value
             val actualOutputs: Iterable[String] = flat.keys.filter(_.startsWith("outputs."))
-            val expectedOutputs: Iterable[String] = workflowSpec.metadata.map(w => w.value.keys.filter(_.startsWith("outputs."))).getOrElse(List.empty)
+            val expectedOutputs: Iterable[String] =
+              workflowSpec.metadata.map(w => w.value.keys.filter(_.startsWith("outputs."))).getOrElse(List.empty)
             val diff = actualOutputs.toSet.diff(expectedOutputs.toSet)
             if (diff.nonEmpty) {
-              val message = s"Found unwanted keys in metadata with `allow-other-outputs` = false: ${diff.mkString(", ")}"
+              val message =
+                s"Found unwanted keys in metadata with `allow-other-outputs` = false: ${diff.mkString(", ")}"
               IO.raiseError(CentaurTestException(message, workflowSpec, workflow, actualMetadata))
             } else {
               IO.unit
             }
           }
-        }
 
         for {
           actualMetadata <- fetchOnce()
@@ -709,14 +741,14 @@ object Operations extends StrictLogging {
         case None => fetchOnce()
       }
     }
-  }
 
   def validateMetadataJson(testType: String,
                            expected: JsObject,
                            actual: JsObject,
                            submittedWorkflow: SubmittedWorkflow,
                            workflow: Workflow,
-                           allowableAddedOneWordFields: List[String]): IO[Unit] = {
+                           allowableAddedOneWordFields: List[String]
+  ): IO[Unit] =
     if (actual.equals(expected)) {
       IO.unit
     } else {
@@ -748,46 +780,66 @@ object Operations extends StrictLogging {
       } else {
         val writer: JsonWriter[Vector[Operation[JsValue]]] = new JsonWriter[Vector[Operation[JsValue]]] {
           def processOperation(op: Operation[JsValue]): JsValue = op match {
-            case Add(path, value) => JsObject(Map[String, JsValue](
-              "description" -> JsString("Unexpected value found"),
-              "path" -> JsString(path.toString),
-              "value" -> value))
-            case Copy(from, path) => JsObject(Map[String, JsValue](
-              "description" -> JsString("Value(s) unexpectedly copied"),
-              "expected_at" -> JsString(from.toString),
-              "also_at" -> JsString(path.toString)))
-            case Move(from, path) => JsObject(Map[String, JsValue](
-              "description" -> JsString("Value(s) unexpectedly moved"),
-              "expected_location" -> JsString(from.toString),
-              "actual_location" -> JsString(path.toString)))
-            case Remove(path, old) => JsObject(Map[String, JsValue](
-              "description" -> JsString("Value missing"),
-              "expected_location" -> JsString(path.toString)) ++
-              old.map(o => "expected_value" -> o))
-            case Replace(path, value, old) => JsObject(Map[String, JsValue](
-              "description" -> JsString("Incorrect value found"),
-              "path" -> JsString(path.toString),
-              "found_value" -> value) ++ old.map(o => "expected_value" -> o))
-            case diffson.jsonpatch.Test(path, value) => JsObject(Map[String, JsValue](
-              "op" -> JsString("test"),
-              "path" -> JsString(path.toString),
-              "value" -> value))
+            case Add(path, value) =>
+              JsObject(
+                Map[String, JsValue]("description" -> JsString("Unexpected value found"),
+                                     "path" -> JsString(path.toString),
+                                     "value" -> value
+                )
+              )
+            case Copy(from, path) =>
+              JsObject(
+                Map[String, JsValue]("description" -> JsString("Value(s) unexpectedly copied"),
+                                     "expected_at" -> JsString(from.toString),
+                                     "also_at" -> JsString(path.toString)
+                )
+              )
+            case Move(from, path) =>
+              JsObject(
+                Map[String, JsValue]("description" -> JsString("Value(s) unexpectedly moved"),
+                                     "expected_location" -> JsString(from.toString),
+                                     "actual_location" -> JsString(path.toString)
+                )
+              )
+            case Remove(path, old) =>
+              JsObject(
+                Map[String, JsValue]("description" -> JsString("Value missing"),
+                                     "expected_location" -> JsString(path.toString)
+                ) ++
+                  old.map(o => "expected_value" -> o)
+              )
+            case Replace(path, value, old) =>
+              JsObject(
+                Map[String, JsValue]("description" -> JsString("Incorrect value found"),
+                                     "path" -> JsString(path.toString),
+                                     "found_value" -> value
+                ) ++ old.map(o => "expected_value" -> o)
+              )
+            case diffson.jsonpatch.Test(path, value) =>
+              JsObject(
+                Map[String, JsValue]("op" -> JsString("test"), "path" -> JsString(path.toString), "value" -> value)
+              )
           }
 
-          override def write(vector: Vector[Operation[JsValue]]): JsValue = {
+          override def write(vector: Vector[Operation[JsValue]]): JsValue =
             JsArray(vector.map(processOperation))
-          }
         }
 
         val jsonDiff = filteredDifferences.toJson(writer).prettyPrint
-        IO.raiseError(CentaurTestException(s"Error during $testType metadata comparison. Diff: $jsonDiff Expected: $expected Actual: $actual", workflow, submittedWorkflow))
+        IO.raiseError(
+          CentaurTestException(
+            s"Error during $testType metadata comparison. Diff: $jsonDiff Expected: $expected Actual: $actual",
+            workflow,
+            submittedWorkflow
+          )
+        )
       }
     }
-  }
 
   def fetchAndValidateJobManagerStyleMetadata(submittedWorkflow: SubmittedWorkflow,
                                               workflow: Workflow,
-                                              prefetchedOriginalNonSubWorkflowMetadata: Option[String]): Test[WorkflowMetadata] = new Test[WorkflowMetadata] {
+                                              prefetchedOriginalNonSubWorkflowMetadata: Option[String]
+  ): Test[WorkflowMetadata] = new Test[WorkflowMetadata] {
 
     // If the non-subworkflow metadata was already fetched, there's no need to fetch it again.
     def originalMetadataStringIO: IO[String] = prefetchedOriginalNonSubWorkflowMetadata match {
@@ -799,19 +851,43 @@ object Operations extends StrictLogging {
       originalMetadata <- originalMetadataStringIO
       jmMetadata <- CentaurCromwellClient.metadata(
         workflow = submittedWorkflow,
-        Option(CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ jmArgs))
+        Option(CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ jmArgs)
+      )
       jmMetadataObject <- IO.fromTry(Try(jmMetadata.value.parseJson.asJsObject))
       expectation <- IO.fromTry(Try(extractJmStyleMetadataFields(originalMetadata.parseJson.asJsObject)))
-      _ <- validateMetadataJson(testType = s"fetchAndValidateJobManagerStyleMetadata", expectation, jmMetadataObject, submittedWorkflow, workflow, allowableOneWordAdditionsInJmMetadata)
+      _ <- validateMetadataJson(testType = s"fetchAndValidateJobManagerStyleMetadata",
+                                expectation,
+                                jmMetadataObject,
+                                submittedWorkflow,
+                                workflow,
+                                allowableOneWordAdditionsInJmMetadata
+      )
     } yield jmMetadata
   }
 
   val oneWordJmIncludeKeys = List(
-    "attempt", "callRoot", "end",
-    "executionStatus", "failures", "inputs", "jobId",
-    "calls", "outputs", "shardIndex", "start", "stderr", "stdout",
-    "description", "executionEvents", "labels", "parentWorkflowId",
-    "returnCode", "status", "submission", "subWorkflowId", "workflowName"
+    "attempt",
+    "callRoot",
+    "end",
+    "executionStatus",
+    "failures",
+    "inputs",
+    "jobId",
+    "calls",
+    "outputs",
+    "shardIndex",
+    "start",
+    "stderr",
+    "stdout",
+    "description",
+    "executionEvents",
+    "labels",
+    "parentWorkflowId",
+    "returnCode",
+    "status",
+    "submission",
+    "subWorkflowId",
+    "workflowName"
   )
 
   // Our Job Manager metadata validation works by comparing the first pull of metadata which satisfies all test requirements
@@ -839,12 +915,13 @@ object Operations extends StrictLogging {
 
     // NB: this filter to remove "calls" is because - although it is a single word in the JM request,
     // it gets treated specially by the API (so has to be treated specially here too)
-    def processOneWordIncludes(json: JsObject) = (oneWordJmIncludeKeys.filterNot(_ == "calls") :+ "id").foldRight(JsObject.empty) { (toInclude, current) =>
-      json.fields.get(toInclude) match {
-        case Some(jsonToInclude) => JsObject(current.fields + (toInclude -> jsonToInclude))
-        case None => current
+    def processOneWordIncludes(json: JsObject) =
+      (oneWordJmIncludeKeys.filterNot(_ == "calls") :+ "id").foldRight(JsObject.empty) { (toInclude, current) =>
+        json.fields.get(toInclude) match {
+          case Some(jsonToInclude) => JsObject(current.fields + (toInclude -> jsonToInclude))
+          case None => current
+        }
       }
-    }
 
     def processCallCacheField(callJson: JsObject) = for {
       originalCallCachingField <- callJson.fields.get("callCaching")
@@ -864,7 +941,9 @@ object Operations extends StrictLogging {
     }
 
     val workflowLevelWithOneWordIncludes = processOneWordIncludes(originalWorkflowMetadataJson)
-    val callsField = originalCallMetadataJson map { calls => Map("calls" -> processCallsSection(calls)) } getOrElse Map.empty
+    val callsField = originalCallMetadataJson map { calls =>
+      Map("calls" -> processCallsSection(calls))
+    } getOrElse Map.empty
 
     JsObject(workflowLevelWithOneWordIncludes.fields ++ callsField)
   }
@@ -875,7 +954,8 @@ object Operations extends StrictLogging {
   def validateCacheResultField(workflowDefinition: Workflow,
                                submittedWorkflow: SubmittedWorkflow,
                                metadata: WorkflowMetadata,
-                               blacklistedValue: String): Test[Unit] = {
+                               blacklistedValue: String
+  ): Test[Unit] =
     new Test[Unit] {
       override def run: IO[Unit] = {
         val badCacheResults = metadata.asFlat.value collect {
@@ -891,24 +971,24 @@ object Operations extends StrictLogging {
         }
       }
     }
-  }
 
   def validateDirectoryContentsCounts(workflowDefinition: Workflow,
                                       submittedWorkflow: SubmittedWorkflow,
-                                      metadata: WorkflowMetadata): Test[Unit] = new Test[Unit] {
+                                      metadata: WorkflowMetadata
+  ): Test[Unit] = new Test[Unit] {
     private val workflowId = submittedWorkflow.id.id.toString
 
     override def run: IO[Unit] = workflowDefinition.directoryContentCounts match {
       case None => IO.unit
       case Some(directoryContentCountCheck) =>
-        val counts = directoryContentCountCheck.expectedDirectoryContentsCounts map {
-          case (directory, count) =>
-            val substitutedDir = directory.replaceAll("<<UUID>>", workflowId)
-            (substitutedDir, count, directoryContentCountCheck.checkFiles.countObjectsAtPath(substitutedDir))
+        val counts = directoryContentCountCheck.expectedDirectoryContentsCounts map { case (directory, count) =>
+          val substitutedDir = directory.replaceAll("<<UUID>>", workflowId)
+          (substitutedDir, count, directoryContentCountCheck.checkFiles.countObjectsAtPath(substitutedDir))
         }
 
         val badCounts = counts collect {
-          case (directory, expectedCount, actualCount) if expectedCount != actualCount => s"Expected to find $expectedCount item(s) at $directory but got $actualCount"
+          case (directory, expectedCount, actualCount) if expectedCount != actualCount =>
+            s"Expected to find $expectedCount item(s) at $directory but got $actualCount"
         }
         if (badCounts.isEmpty) {
           IO.unit
@@ -921,21 +1001,22 @@ object Operations extends StrictLogging {
 
   def validateNoCacheHits(submittedWorkflow: SubmittedWorkflow,
                           metadata: WorkflowMetadata,
-                          workflowDefinition: Workflow): Test[Unit] = {
+                          workflowDefinition: Workflow
+  ): Test[Unit] =
     validateCacheResultField(workflowDefinition, submittedWorkflow, metadata, "Cache Hit")
-  }
 
   def validateNoCacheMisses(submittedWorkflow: SubmittedWorkflow,
                             metadata: WorkflowMetadata,
-                            workflowDefinition: Workflow): Test[Unit] = {
+                            workflowDefinition: Workflow
+  ): Test[Unit] =
     validateCacheResultField(workflowDefinition, submittedWorkflow, metadata, "Cache Miss")
-  }
 
   def validateSubmitFailure(workflow: Workflow,
                             expectedSubmitResponse: SubmitHttpResponse,
-                            actualSubmitResponse: SubmitHttpResponse): Test[Unit] = {
+                            actualSubmitResponse: SubmitHttpResponse
+  ): Test[Unit] =
     new Test[Unit] {
-      override def run: IO[Unit] = {
+      override def run: IO[Unit] =
         if (expectedSubmitResponse == actualSubmitResponse) {
           IO.unit
         } else {
@@ -949,7 +1030,5 @@ object Operations extends StrictLogging {
                 |""".stripMargin
           IO.raiseError(CentaurTestException(message, workflow))
         }
-      }
     }
-  }
 }

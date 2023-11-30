@@ -16,15 +16,14 @@ object WdlWriterImpl {
   import WdlWriter.ops._
 
   implicit val ifWriter: WdlWriter[IfElement] = new WdlWriter[IfElement] {
-    override def toWdlV1(a: IfElement) = {
+    override def toWdlV1(a: IfElement) =
       s"""if (${a.conditionExpression.toWdlV1}) {
          |${indentAndCombine(a.graphElements.map(_.toWdlV1))}}""".stripMargin
-    }
   }
 
   implicit val stringPieceWriter: WdlWriter[StringPiece] = new WdlWriter[StringPiece] {
     override def toWdlV1(a: StringPiece): String = a match {
-      case a: StringLiteral     => a.value
+      case a: StringLiteral => a.value
       case a: StringPlaceholder => "~{" + a.expr.toWdlV1 + "}"
       case NewlineEscape => "\\n"
       case TabEscape => "\\t"
@@ -35,7 +34,8 @@ object WdlWriterImpl {
     }
   }
 
-  implicit val indexAccessWriter: WdlWriter[IndexAccess] = a => s"${expressionElementWriter.toWdlV1(a.expressionElement)}[${expressionElementWriter.toWdlV1(a.index)}]"
+  implicit val indexAccessWriter: WdlWriter[IndexAccess] = a =>
+    s"${expressionElementWriter.toWdlV1(a.expressionElement)}[${expressionElementWriter.toWdlV1(a.index)}]"
 
   // Recursive references must be explicit
   implicit val expressionElementWriter: WdlWriter[ExpressionElement] = new WdlWriter[ExpressionElement] {
@@ -45,25 +45,31 @@ object WdlWriterImpl {
       case a: StringExpression => "\"" + a.pieces.map(_.toWdlV1).mkString + "\""
       case a: StringLiteral => "\"" + StringEscapeUtils.escapeJava(a.value) + "\""
       case a: ObjectLiteral =>
-        "object { " + a.elements.map { pair =>
-          pair._1 + ": " + expressionElementWriter.toWdlV1(pair._2)
-        }.mkString(", ") + " }"
+        "object { " + a.elements
+          .map { pair =>
+            pair._1 + ": " + expressionElementWriter.toWdlV1(pair._2)
+          }
+          .mkString(", ") + " }"
       case a: ArrayLiteral =>
         "[" + a.elements.map(expressionElementWriter.toWdlV1).mkString(", ") + "]"
       case a: MapLiteral =>
-        "{ " + a.elements.map { pair =>
-          expressionElementWriter.toWdlV1(pair._1) + ": " + expressionElementWriter.toWdlV1(pair._2)
-        }.mkString(", ") + " }"
+        "{ " + a.elements
+          .map { pair =>
+            expressionElementWriter.toWdlV1(pair._1) + ": " + expressionElementWriter.toWdlV1(pair._2)
+          }
+          .mkString(", ") + " }"
       case a: PairLiteral =>
         s"(${expressionElementWriter.toWdlV1(a.left)}, ${expressionElementWriter.toWdlV1(a.right)})"
       case a: UnaryOperation => a.toWdlV1
       case a: BinaryOperation => a.toWdlV1
       case a: TernaryIf =>
-        s"if ${expressionElementWriter.toWdlV1(a.condition)} then ${expressionElementWriter.toWdlV1(a.ifTrue)} else ${expressionElementWriter.toWdlV1(a.ifFalse)}"
+        s"if ${expressionElementWriter.toWdlV1(a.condition)} then ${expressionElementWriter.toWdlV1(a.ifTrue)} else ${expressionElementWriter
+            .toWdlV1(a.ifFalse)}"
       case a: FunctionCallElement => a.toWdlV1
       case a: IdentifierLookup => a.identifier
       case a: IdentifierMemberAccess => a.toWdlV1
-      case a: ExpressionMemberAccess => s"${expressionElementWriter.toWdlV1(a.expression)}.${a.memberAccessTail.toList.mkString(".")}"
+      case a: ExpressionMemberAccess =>
+        s"${expressionElementWriter.toWdlV1(a.expression)}.${a.memberAccessTail.toList.mkString(".")}"
       case a: IndexAccess => a.toWdlV1
       case a: ExpressionLiteralElement => a.expression
     }
@@ -71,38 +77,37 @@ object WdlWriterImpl {
 
   implicit val unaryOperationWriter: WdlWriter[UnaryOperation] = new WdlWriter[UnaryOperation] {
     override def toWdlV1(a: UnaryOperation): String = a match {
-      case a: LogicalNot    => s"!(${a.argument.toWdlV1})"
+      case a: LogicalNot => s"!(${a.argument.toWdlV1})"
       case a: UnaryNegation => s"-(${a.argument.toWdlV1})"
-      case a: UnaryPlus     => s"+(${a.argument.toWdlV1})"
+      case a: UnaryPlus => s"+(${a.argument.toWdlV1})"
     }
   }
 
   implicit val identifierMemberAccessWriter: WdlWriter[IdentifierMemberAccess] = new WdlWriter[IdentifierMemberAccess] {
-    override def toWdlV1(a: IdentifierMemberAccess): String = {
+    override def toWdlV1(a: IdentifierMemberAccess): String =
       s"${a.first}.${a.second}" + (if (a.memberAccessTail.nonEmpty) {
-        "." + a.memberAccessTail.mkString(".")
-      } else {
-        ""
-      })
-    }
+                                     "." + a.memberAccessTail.mkString(".")
+                                   } else {
+                                     ""
+                                   })
   }
 
   implicit val binaryOperationWriter: WdlWriter[BinaryOperation] = new WdlWriter[BinaryOperation] {
     override def toWdlV1(a: BinaryOperation) = {
       val op = a match {
-        case _: LogicalOr           => "||"
-        case _: LogicalAnd          => "&&"
-        case _: Equals              => "=="
-        case _: NotEquals           => "!="
-        case _: LessThan            => "<"
-        case _: LessThanOrEquals    => "<="
-        case _: GreaterThan         => ">"
+        case _: LogicalOr => "||"
+        case _: LogicalAnd => "&&"
+        case _: Equals => "=="
+        case _: NotEquals => "!="
+        case _: LessThan => "<"
+        case _: LessThanOrEquals => "<="
+        case _: GreaterThan => ">"
         case _: GreaterThanOrEquals => ">="
-        case _: Add                 => "+"
-        case _: Subtract            => "-"
-        case _: Multiply            => "*"
-        case _: Divide              => "/"
-        case _: Remainder           => "%"
+        case _: Add => "+"
+        case _: Subtract => "-"
+        case _: Multiply => "*"
+        case _: Divide => "/"
+        case _: Remainder => "%"
       }
 
       s"(${a.left.toWdlV1} $op ${a.right.toWdlV1})"
@@ -127,14 +132,13 @@ object WdlWriterImpl {
   }
 
   implicit val callBodyElement: WdlWriter[CallBodyElement] = new WdlWriter[CallBodyElement] {
-    override def toWdlV1(a: CallBodyElement): String = {
+    override def toWdlV1(a: CallBodyElement): String =
       if (a.inputs.nonEmpty) {
         s"""input:
            |${indent(indent(a.inputs.map(_.toWdlV1).mkString(",\n")))}""".stripMargin
       } else {
         ""
       }
-    }
   }
 
   object CallElementWriter {
@@ -166,19 +170,22 @@ object WdlWriterImpl {
     }
   }
 
-  implicit val intermediateValueDeclarationElementWriter: WdlWriter[IntermediateValueDeclarationElement] = new WdlWriter[IntermediateValueDeclarationElement] {
-    override def toWdlV1(a: IntermediateValueDeclarationElement) =
-      s"${a.typeElement.toWdlV1} ${a.name} = ${a.expression.toWdlV1}"
-  }
+  implicit val intermediateValueDeclarationElementWriter: WdlWriter[IntermediateValueDeclarationElement] =
+    new WdlWriter[IntermediateValueDeclarationElement] {
+      override def toWdlV1(a: IntermediateValueDeclarationElement) =
+        s"${a.typeElement.toWdlV1} ${a.name} = ${a.expression.toWdlV1}"
+    }
 
   implicit val typeElementWriter: WdlWriter[TypeElement] = new WdlWriter[TypeElement] {
     override def toWdlV1(a: TypeElement) = a match {
       case a: PrimitiveTypeElement => a.primitiveType.toWdlV1
       case a: ArrayTypeElement => s"Array[${typeElementWriter.toWdlV1(a.inner)}]"
-      case a: MapTypeElement => s"Map[${typeElementWriter.toWdlV1(a.keyType)}, ${typeElementWriter.toWdlV1(a.valueType)}]"
+      case a: MapTypeElement =>
+        s"Map[${typeElementWriter.toWdlV1(a.keyType)}, ${typeElementWriter.toWdlV1(a.valueType)}]"
       case a: OptionalTypeElement => s"${typeElementWriter.toWdlV1(a.maybeType)}?"
       case a: NonEmptyTypeElement => s"${typeElementWriter.toWdlV1(a.arrayType)}+"
-      case a: PairTypeElement => s"Pair[${typeElementWriter.toWdlV1(a.leftType)}, ${typeElementWriter.toWdlV1(a.rightType)}]"
+      case a: PairTypeElement =>
+        s"Pair[${typeElementWriter.toWdlV1(a.leftType)}, ${typeElementWriter.toWdlV1(a.rightType)}]"
       case _: ObjectTypeElement.type => "Object"
       case a: TypeAliasElement => a.alias
     }
@@ -188,58 +195,60 @@ object WdlWriterImpl {
     override def toWdlV1(a: WomPrimitiveType) = a.stableName
   }
 
-  implicit val workflowDefinitionElementWriter: WdlWriter[WorkflowDefinitionElement] = new WdlWriter[WorkflowDefinitionElement] {
-    override def toWdlV1(a: WorkflowDefinitionElement) = {
-      val inputs = a.inputsSection match {
-        case Some(i) => i.toWdlV1
-        case None => ""
+  implicit val workflowDefinitionElementWriter: WdlWriter[WorkflowDefinitionElement] =
+    new WdlWriter[WorkflowDefinitionElement] {
+      override def toWdlV1(a: WorkflowDefinitionElement) = {
+        val inputs = a.inputsSection match {
+          case Some(i) => i.toWdlV1
+          case None => ""
+        }
+        val outputs = a.outputsSection match {
+          case Some(o) => o.toWdlV1
+          case None => ""
+        }
+
+        // Readability / cosmetic reordering
+        // TODO: use graph ordering
+        // https://github.com/broadinstitute/cromwell/issues/3796
+        val inputDeclarationElements: List[InputDeclarationElement] =
+          a.graphElements.toList.filterByType[InputDeclarationElement]
+        val intermediateValueDeclarationElements: List[IntermediateValueDeclarationElement] =
+          a.graphElements.toList.filterByType[IntermediateValueDeclarationElement]
+        val ifElements: List[IfElement] =
+          a.graphElements.toList.filterByType[IfElement]
+        val scatterElements: List[ScatterElement] =
+          a.graphElements.toList.filterByType[ScatterElement]
+        val callElements: List[CallElement] =
+          a.graphElements.toList.filterByType[CallElement]
+        val outputDeclarationElements: List[OutputDeclarationElement] =
+          a.graphElements.toList.filterByType[OutputDeclarationElement]
+
+        val combined: List[WorkflowGraphElement] = inputDeclarationElements ++
+          intermediateValueDeclarationElements ++
+          ifElements ++
+          scatterElements ++
+          callElements ++
+          outputDeclarationElements
+
+        s"""workflow ${a.name} {
+           |${indent(inputs)}
+           |${indentAndCombine(combined.map(_.toWdlV1))}
+           |${indent(outputs)}
+           |}""".stripMargin
       }
-      val outputs = a.outputsSection match {
-        case Some(o) => o.toWdlV1
-        case None => ""
-      }
-
-      // Readability / cosmetic reordering
-      // TODO: use graph ordering
-      // https://github.com/broadinstitute/cromwell/issues/3796
-      val inputDeclarationElements: List[InputDeclarationElement] =
-      a.graphElements.toList.filterByType[InputDeclarationElement]
-      val intermediateValueDeclarationElements: List[IntermediateValueDeclarationElement] =
-        a.graphElements.toList.filterByType[IntermediateValueDeclarationElement]
-      val ifElements: List[IfElement] =
-        a.graphElements.toList.filterByType[IfElement]
-      val scatterElements: List[ScatterElement] =
-        a.graphElements.toList.filterByType[ScatterElement]
-      val callElements: List[CallElement] =
-        a.graphElements.toList.filterByType[CallElement]
-      val outputDeclarationElements: List[OutputDeclarationElement] =
-        a.graphElements.toList.filterByType[OutputDeclarationElement]
-
-      val combined: List[WorkflowGraphElement] = inputDeclarationElements ++
-        intermediateValueDeclarationElements ++
-        ifElements ++
-        scatterElements ++
-        callElements ++
-        outputDeclarationElements
-
-      s"""workflow ${a.name} {
-         |${indent(inputs)}
-         |${indentAndCombine(combined.map(_.toWdlV1))}
-         |${indent(outputs)}
-         |}""".stripMargin
     }
-  }
 
-  implicit val runtimeAttributesSectionElementWriter: WdlWriter[RuntimeAttributesSectionElement] = new WdlWriter[RuntimeAttributesSectionElement] {
-    override def toWdlV1(a: RuntimeAttributesSectionElement): String = {
-      val runtimeMap = a.runtimeAttributes map { pair =>
-        s"${pair.key}: ${pair.value.toWdlV1}"
+  implicit val runtimeAttributesSectionElementWriter: WdlWriter[RuntimeAttributesSectionElement] =
+    new WdlWriter[RuntimeAttributesSectionElement] {
+      override def toWdlV1(a: RuntimeAttributesSectionElement): String = {
+        val runtimeMap = a.runtimeAttributes map { pair =>
+          s"${pair.key}: ${pair.value.toWdlV1}"
+        }
+
+        s"""runtime {
+           |${indentAndCombine(runtimeMap)}}""".stripMargin
       }
-
-      s"""runtime {
-         |${indentAndCombine(runtimeMap)}}""".stripMargin
     }
-  }
 
   implicit val metaValueElementWriter: WdlWriter[MetaValueElement] = new WdlWriter[MetaValueElement] {
     override def toWdlV1(a: MetaValueElement): String = a match {
@@ -249,13 +258,14 @@ object WdlWriterImpl {
       case a: MetaValueElementInteger => a.value.toString
       case a: MetaValueElementString => "\"" + a.value + "\""
       case a: MetaValueElementObject =>
-        "{" + a.value.map { pair =>
-          s"${pair._1}: ${metaValueElementWriter.toWdlV1(pair._2)}"
-        }.mkString(", ") + "}"
+        "{" + a.value
+          .map { pair =>
+            s"${pair._1}: ${metaValueElementWriter.toWdlV1(pair._2)}"
+          }
+          .mkString(", ") + "}"
       case a: MetaValueElementArray => "[" + a.value.map(metaValueElementWriter.toWdlV1).mkString(", ") + "]"
     }
   }
-
 
   implicit val metaSectionElementWriter: WdlWriter[MetaSectionElement] = new WdlWriter[MetaSectionElement] {
     override def toWdlV1(a: MetaSectionElement): String = {
@@ -268,62 +278,62 @@ object WdlWriterImpl {
     }
   }
 
-  implicit val parameterMetaSectionElementWriter: WdlWriter[ParameterMetaSectionElement] = new WdlWriter[ParameterMetaSectionElement] {
-    override def toWdlV1(a: ParameterMetaSectionElement): String = {
-      val map = a.metaAttributes.map { pair =>
-        s"${pair._1}: ${pair._2.toWdlV1}"
+  implicit val parameterMetaSectionElementWriter: WdlWriter[ParameterMetaSectionElement] =
+    new WdlWriter[ParameterMetaSectionElement] {
+      override def toWdlV1(a: ParameterMetaSectionElement): String = {
+        val map = a.metaAttributes.map { pair =>
+          s"${pair._1}: ${pair._2.toWdlV1}"
+        }
+        s"""parameter_meta {
+           |${indentAndCombine(map)}
+           |}""".stripMargin
       }
-      s"""parameter_meta {
-         |${indentAndCombine(map)}
-         |}""".stripMargin
     }
-  }
 
-  implicit val taskDefinitionTypeElementWriter: WdlWriter[TaskDefinitionElement] = new WdlWriter[TaskDefinitionElement] {
-    override def toWdlV1(a: TaskDefinitionElement) = {
-      val inputs = a.inputsSection match {
-        case Some(i) => i.toWdlV1
-        case None => ""
-      }
-      val outputs = a.outputsSection match {
-        case Some(o) => o.toWdlV1
-        case None => ""
-      }
-      val runtime = a.runtimeSection match {
-        case Some(r) => r.toWdlV1
-        case None => ""
-      }
-      val meta = a.metaSection match {
-        case Some(m) => m.toWdlV1
-        case None => ""
-      }
-      val parameterMeta = a.parameterMetaSection match {
-        case Some(p) => p.toWdlV1
-        case None => ""
-      }
+  implicit val taskDefinitionTypeElementWriter: WdlWriter[TaskDefinitionElement] =
+    new WdlWriter[TaskDefinitionElement] {
+      override def toWdlV1(a: TaskDefinitionElement) = {
+        val inputs = a.inputsSection match {
+          case Some(i) => i.toWdlV1
+          case None => ""
+        }
+        val outputs = a.outputsSection match {
+          case Some(o) => o.toWdlV1
+          case None => ""
+        }
+        val runtime = a.runtimeSection match {
+          case Some(r) => r.toWdlV1
+          case None => ""
+        }
+        val meta = a.metaSection match {
+          case Some(m) => m.toWdlV1
+          case None => ""
+        }
+        val parameterMeta = a.parameterMetaSection match {
+          case Some(p) => p.toWdlV1
+          case None => ""
+        }
 
-      s"""task ${a.name} {
-         |${indent(inputs)}
-         |${indentAndCombine(a.declarations.map(_.toWdlV1))}
-         |${indent(outputs)}
-         |${a.commandSection.toWdlV1}
-         |${indent(runtime)}
-         |${indent(meta)}
-         |${indent(parameterMeta)}}""".stripMargin
+        s"""task ${a.name} {
+           |${indent(inputs)}
+           |${indentAndCombine(a.declarations.map(_.toWdlV1))}
+           |${indent(outputs)}
+           |${a.commandSection.toWdlV1}
+           |${indent(runtime)}
+           |${indent(meta)}
+           |${indent(parameterMeta)}}""".stripMargin
+      }
     }
-  }
 
   implicit val commandSectionElementWriter: WdlWriter[CommandSectionElement] = new WdlWriter[CommandSectionElement] {
-    override def toWdlV1(a: CommandSectionElement): String = {
+    override def toWdlV1(a: CommandSectionElement): String =
       s"""  command <<<
          |${combine(a.parts.map(_.toWdlV1))}  >>>""".stripMargin
-    }
   }
 
   implicit val commandSectionLineWriter: WdlWriter[CommandSectionLine] = new WdlWriter[CommandSectionLine] {
-    override def toWdlV1(a: CommandSectionLine): String = {
+    override def toWdlV1(a: CommandSectionLine): String =
       a.parts.map(_.toWdlV1).mkString
-    }
   }
 
   implicit val commandPartElementWriter: WdlWriter[CommandPartElement] = new WdlWriter[CommandPartElement] {
@@ -339,49 +349,49 @@ object WdlWriterImpl {
     }
   }
 
-  implicit val placeholderAttributeSetWriter: WdlWriter[PlaceholderAttributeSet] = new WdlWriter[PlaceholderAttributeSet] {
-    override def toWdlV1(a: PlaceholderAttributeSet): String = {
-      val attrStrings = Map(
-        "sep" -> a.sepAttribute,
-        "true" -> a.trueAttribute,
-        "false" -> a.falseAttribute,
-        "default" -> a.defaultAttribute
-      ).collect({ case (attrKey: String, Some(value)) => attrKey + "=\"" + value + "\"" })
+  implicit val placeholderAttributeSetWriter: WdlWriter[PlaceholderAttributeSet] =
+    new WdlWriter[PlaceholderAttributeSet] {
+      override def toWdlV1(a: PlaceholderAttributeSet): String = {
+        val attrStrings = Map(
+          "sep" -> a.sepAttribute,
+          "true" -> a.trueAttribute,
+          "false" -> a.falseAttribute,
+          "default" -> a.defaultAttribute
+        ).collect { case (attrKey: String, Some(value)) => attrKey + "=\"" + value + "\"" }
 
-      if (attrStrings.isEmpty) "" else attrStrings.mkString(start = "", sep = " ", end = " ")
+        if (attrStrings.isEmpty) "" else attrStrings.mkString(start = "", sep = " ", end = " ")
+      }
     }
-  }
 
   implicit val inputsSectionElementWriter: WdlWriter[InputsSectionElement] = new WdlWriter[InputsSectionElement] {
-    override def toWdlV1(a: InputsSectionElement): String = {
+    override def toWdlV1(a: InputsSectionElement): String =
       s"""input {
          |${indentAndCombine(a.inputDeclarations.map(_.toWdlV1))}}""".stripMargin
-    }
   }
 
-  implicit val inputDeclarationElementWriter: WdlWriter[InputDeclarationElement] = new WdlWriter[InputDeclarationElement] {
-    override def toWdlV1(a: InputDeclarationElement): String = {
-      val expression = a.expression match {
-        case Some(expr) => s" = ${expr.toWdlV1}"
-        case None => ""
+  implicit val inputDeclarationElementWriter: WdlWriter[InputDeclarationElement] =
+    new WdlWriter[InputDeclarationElement] {
+      override def toWdlV1(a: InputDeclarationElement): String = {
+        val expression = a.expression match {
+          case Some(expr) => s" = ${expr.toWdlV1}"
+          case None => ""
+        }
+
+        s"${a.typeElement.toWdlV1} ${a.name}$expression"
       }
-
-      s"${a.typeElement.toWdlV1} ${a.name}$expression"
     }
-  }
 
   implicit val outputsSectionElementWriter: WdlWriter[OutputsSectionElement] = new WdlWriter[OutputsSectionElement] {
-    override def toWdlV1(a: OutputsSectionElement): String = {
+    override def toWdlV1(a: OutputsSectionElement): String =
       s"""output {
          |${indentAndCombine(a.outputs.map(_.toWdlV1))}}""".stripMargin
-    }
   }
 
-  implicit val outputDeclarationElementWriter: WdlWriter[OutputDeclarationElement] = new WdlWriter[OutputDeclarationElement] {
-    override def toWdlV1(a: OutputDeclarationElement): String = {
-      s"${a.typeElement.toWdlV1} ${a.name} = ${a.expression.toWdlV1}"
+  implicit val outputDeclarationElementWriter: WdlWriter[OutputDeclarationElement] =
+    new WdlWriter[OutputDeclarationElement] {
+      override def toWdlV1(a: OutputDeclarationElement): String =
+        s"${a.typeElement.toWdlV1} ${a.name} = ${a.expression.toWdlV1}"
     }
-  }
 
   implicit val functionCallElementWriter: WdlWriter[FunctionCallElement] = new WdlWriter[FunctionCallElement] {
     override def toWdlV1(a: FunctionCallElement): String = a match {
@@ -394,71 +404,73 @@ object WdlWriterImpl {
     }
   }
 
-  implicit val oneParamFunctionCallElementWriter: WdlWriter[OneParamFunctionCallElement] = new WdlWriter[OneParamFunctionCallElement] {
-    override def toWdlV1(a: OneParamFunctionCallElement): String = {
-      val fn = a match {
-        case _: ReadLines    => "read_lines"
-        case _: ReadTsv      => "read_tsv"
-        case _: ReadMap      => "read_map"
-        case _: ReadObject   => "read_object"
-        case _: ReadObjects  => "read_objects"
-        case _: ReadJson     => "read_json"
-        case _: ReadInt      => "read_int"
-        case _: ReadString   => "read_string"
-        case _: ReadFloat    => "read_float"
-        case _: ReadBoolean  => "read_boolean"
-        case _: WriteLines   => "write_lines"
-        case _: WriteTsv     => "write_tsv"
-        case _: WriteMap     => "write_map"
-        case _: WriteObject  => "write_object"
-        case _: WriteObjects => "write_objects"
-        case _: WriteJson    => "write_json"
-        case _: Range        => "range"
-        case _: Transpose    => "transpose"
-        case _: Length       => "length"
-        case _: Flatten      => "flatten"
-        case _: SelectFirst  => "select_first"
-        case _: SelectAll    => "select_all"
-        case _: Defined      => "defined"
-        case _: Floor        => "floor"
-        case _: Ceil         => "ceil"
-        case _: Round        => "round"
-        case _: Glob         => "glob"
-        case _: Keys         => "keys"
-        case _: AsMap        => "as_map"
-        case _: AsPairs      => "as_pairs"
-        case _: CollectByKey => "collect_by_key"
-      }
+  implicit val oneParamFunctionCallElementWriter: WdlWriter[OneParamFunctionCallElement] =
+    new WdlWriter[OneParamFunctionCallElement] {
+      override def toWdlV1(a: OneParamFunctionCallElement): String = {
+        val fn = a match {
+          case _: ReadLines => "read_lines"
+          case _: ReadTsv => "read_tsv"
+          case _: ReadMap => "read_map"
+          case _: ReadObject => "read_object"
+          case _: ReadObjects => "read_objects"
+          case _: ReadJson => "read_json"
+          case _: ReadInt => "read_int"
+          case _: ReadString => "read_string"
+          case _: ReadFloat => "read_float"
+          case _: ReadBoolean => "read_boolean"
+          case _: WriteLines => "write_lines"
+          case _: WriteTsv => "write_tsv"
+          case _: WriteMap => "write_map"
+          case _: WriteObject => "write_object"
+          case _: WriteObjects => "write_objects"
+          case _: WriteJson => "write_json"
+          case _: Range => "range"
+          case _: Transpose => "transpose"
+          case _: Length => "length"
+          case _: Flatten => "flatten"
+          case _: SelectFirst => "select_first"
+          case _: SelectAll => "select_all"
+          case _: Defined => "defined"
+          case _: Floor => "floor"
+          case _: Ceil => "ceil"
+          case _: Round => "round"
+          case _: Glob => "glob"
+          case _: Keys => "keys"
+          case _: AsMap => "as_map"
+          case _: AsPairs => "as_pairs"
+          case _: CollectByKey => "collect_by_key"
+        }
 
-      s"$fn(${a.param.toWdlV1})"
-    }
-  }
-
-  implicit val oneOrTwoParamFunctionCallElementWriter: WdlWriter[OneOrTwoParamFunctionCallElement] = new WdlWriter[OneOrTwoParamFunctionCallElement] {
-    override def toWdlV1(a: OneOrTwoParamFunctionCallElement): String = {
-      (a, a.secondParam) match {
-        case (_: Size, Some(unit)) => s"size(${a.firstParam.toWdlV1}, ${unit.toWdlV1})"
-        case (_: Size, None) => s"size(${a.firstParam.toWdlV1})"
-        case (_: Basename, Some(suffix)) => s"basename(${a.firstParam.toWdlV1}, ${suffix.toWdlV1})"
-        case (_: Basename, None) => s"basename(${a.firstParam.toWdlV1})"
+        s"$fn(${a.param.toWdlV1})"
       }
     }
-  }
 
-  implicit val twoParamFunctionCallElementWriter: WdlWriter[TwoParamFunctionCallElement] = new WdlWriter[TwoParamFunctionCallElement] {
-    override def toWdlV1(a: TwoParamFunctionCallElement): String = {
-      def functionCall(name: String) = s"$name(${a.arg1.toWdlV1}, ${a.arg2.toWdlV1})"
+  implicit val oneOrTwoParamFunctionCallElementWriter: WdlWriter[OneOrTwoParamFunctionCallElement] =
+    new WdlWriter[OneOrTwoParamFunctionCallElement] {
+      override def toWdlV1(a: OneOrTwoParamFunctionCallElement): String =
+        (a, a.secondParam) match {
+          case (_: Size, Some(unit)) => s"size(${a.firstParam.toWdlV1}, ${unit.toWdlV1})"
+          case (_: Size, None) => s"size(${a.firstParam.toWdlV1})"
+          case (_: Basename, Some(suffix)) => s"basename(${a.firstParam.toWdlV1}, ${suffix.toWdlV1})"
+          case (_: Basename, None) => s"basename(${a.firstParam.toWdlV1})"
+        }
+    }
 
-      a match {
-        case _: Zip => functionCall("zip")
-        case _: Cross => functionCall("cross")
-        case _: Prefix => functionCall("prefix")
-        case _: Min => functionCall("min")
-        case _: Max => functionCall("max")
-        case _: Sep => functionCall("sep")
+  implicit val twoParamFunctionCallElementWriter: WdlWriter[TwoParamFunctionCallElement] =
+    new WdlWriter[TwoParamFunctionCallElement] {
+      override def toWdlV1(a: TwoParamFunctionCallElement): String = {
+        def functionCall(name: String) = s"$name(${a.arg1.toWdlV1}, ${a.arg2.toWdlV1})"
+
+        a match {
+          case _: Zip => functionCall("zip")
+          case _: Cross => functionCall("cross")
+          case _: Prefix => functionCall("prefix")
+          case _: Min => functionCall("min")
+          case _: Max => functionCall("max")
+          case _: Sep => functionCall("sep")
+        }
       }
     }
-  }
 
   implicit val structElementWriter: WdlWriter[StructElement] = new WdlWriter[StructElement] {
     override def toWdlV1(a: StructElement): String =
@@ -471,33 +483,33 @@ object WdlWriterImpl {
   }
 
   implicit val importElementWriter: WdlWriter[ImportElement] = new WdlWriter[ImportElement] {
-    override def toWdlV1(a: ImportElement): String = {
+    override def toWdlV1(a: ImportElement): String =
       a.namespace match {
         case Some(namespace) => s"""import "${a.importUrl}" as $namespace"""
-        case None =>            s"""import "${a.importUrl}""""
+        case None => s"""import "${a.importUrl}""""
       }
-    }
   }
 
   implicit val fileElementWriter: WdlWriter[FileElement] = new WdlWriter[FileElement] {
-    override def toWdlV1(a: FileElement) = {
+    override def toWdlV1(a: FileElement) =
       "version 1.0" + System.lineSeparator +
         combine(a.imports.map(_.toWdlV1)) +
         combine(a.structs.map(_.toWdlV1)) +
         combine(a.workflows.map(_.toWdlV1)) +
         combine(a.tasks.map(_.toWdlV1))
-    }
   }
 
   implicit val kvPairWriter: WdlWriter[KvPair] = new WdlWriter[KvPair] {
     override def toWdlV1(a: KvPair): String = s"${a.key} = ${a.value.toWdlV1}"
   }
 
-  implicit val primitiveLiteralExpressionElementWriter: WdlWriter[PrimitiveLiteralExpressionElement] = new WdlWriter[PrimitiveLiteralExpressionElement] {
-    override def toWdlV1(a: PrimitiveLiteralExpressionElement) = a.value.toWomString
-  }
+  implicit val primitiveLiteralExpressionElementWriter: WdlWriter[PrimitiveLiteralExpressionElement] =
+    new WdlWriter[PrimitiveLiteralExpressionElement] {
+      override def toWdlV1(a: PrimitiveLiteralExpressionElement) = a.value.toWomString
+    }
 
-  implicit val noneLiteralExpressionElementWriter: WdlWriter[NoneLiteralElement.type] = new WdlWriter[NoneLiteralElement.type] {
-    override def toWdlV1(a: NoneLiteralElement.type): String = "None"
-  }
+  implicit val noneLiteralExpressionElementWriter: WdlWriter[NoneLiteralElement.type] =
+    new WdlWriter[NoneLiteralElement.type] {
+      override def toWdlV1(a: NoneLiteralElement.type): String = "None"
+    }
 }

@@ -25,13 +25,13 @@ import scala.concurrent.duration._
   * @param writeBatchSize     The maximum size of a write batch.
   * @param writeThreshold     The threshold of heartbeat writes above which load is considered high.
   */
-case class WorkflowHeartbeatConfig(
-                                    cromwellId: String,
-                                    heartbeatInterval: FiniteDuration,
-                                    ttl: FiniteDuration,
-                                    failureShutdownDuration: FiniteDuration,
-                                    writeBatchSize: Int,
-                                    writeThreshold: Int) {
+case class WorkflowHeartbeatConfig(cromwellId: String,
+                                   heartbeatInterval: FiniteDuration,
+                                   ttl: FiniteDuration,
+                                   failureShutdownDuration: FiniteDuration,
+                                   writeBatchSize: Int,
+                                   writeThreshold: Int
+) {
   override def toString: String = this.asInstanceOf[WorkflowHeartbeatConfig].asJson.spaces2
 }
 
@@ -41,14 +41,12 @@ object WorkflowHeartbeatConfig {
   // compiler flag settings then promote to an error.
 
   // NOTE: This is a different encoding than circe's finiteDurationEncoder: https://github.com/circe/circe/pull/978
-  private[engine] implicit lazy val encodeFiniteDuration: Encoder[FiniteDuration] = {
+  implicit private[engine] lazy val encodeFiniteDuration: Encoder[FiniteDuration] =
     Encoder.encodeString.contramap(_.toString)
-  }
-  private[engine] implicit lazy val encodeWorkflowHeartbeatConfig: Encoder[WorkflowHeartbeatConfig] = deriveEncoder
+  implicit private[engine] lazy val encodeWorkflowHeartbeatConfig: Encoder[WorkflowHeartbeatConfig] = deriveEncoder
 
-  def apply(config: Config): WorkflowHeartbeatConfig = {
+  def apply(config: Config): WorkflowHeartbeatConfig =
     validate(config).toTry("Errors parsing WorkflowHeartbeatConfig").get
-  }
 
   private def validate(config: Config): ErrorOr[WorkflowHeartbeatConfig] = {
     val randomSuffix = config

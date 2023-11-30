@@ -52,7 +52,7 @@ case object WomSingleFileType extends WomPrimitiveFileType {
   }
 
   override def equalsType(rhs: WomType): Try[WomType] = rhs match {
-    case wct:WomCoproductType => wct.typeExists(WomStringType)
+    case wct: WomCoproductType => wct.typeExists(WomStringType)
     case WomSingleFileType => Success(WomBooleanType)
     case WomStringType => Success(WomBooleanType)
     case WomOptionalType(memberType) => equalsType(memberType)
@@ -77,7 +77,7 @@ case object WomGlobFileType extends WomPrimitiveFileType {
   }
 
   override def equalsType(rhs: WomType): Try[WomType] = rhs match {
-    case wct:WomCoproductType => wct.typeExists(WomStringType)
+    case wct: WomCoproductType => wct.typeExists(WomStringType)
     case WomGlobFileType => Success(WomBooleanType)
     case WomStringType => Success(WomBooleanType)
     case WomOptionalType(memberType) => equalsType(memberType)

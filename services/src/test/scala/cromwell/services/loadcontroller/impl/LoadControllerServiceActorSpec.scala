@@ -19,9 +19,14 @@ object LoadControllerServiceActorSpec {
   val Config = ConfigFactory.parseString("control-frequency = 1 second")
 }
 
-class LoadControllerServiceActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually with ImplicitSender {
+class LoadControllerServiceActorSpec
+    extends TestKitSuite
+    with AnyFlatSpecLike
+    with Matchers
+    with Eventually
+    with ImplicitSender {
   behavior of "LoadControllerServiceActor"
-  override implicit val patienceConfig: PatienceConfig = PatienceConfig(scaled(2.seconds))
+  implicit override val patienceConfig: PatienceConfig = PatienceConfig(scaled(2.seconds))
 
   it should "record metrics" in {
     val loadActor = TestActorRef(new LoadControllerServiceActor(Config, Config, TestProbe().ref))

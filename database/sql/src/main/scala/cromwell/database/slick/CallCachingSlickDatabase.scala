@@ -18,28 +18,38 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
 
   import dataAccess.driver.api._
 
-  override def addCallCaching(joins: Seq[CallCachingJoin], batchSize: Int)
-                             (implicit ec: ExecutionContext): Future[Unit] = {
+  override def addCallCaching(joins: Seq[CallCachingJoin], batchSize: Int)(implicit
+    ec: ExecutionContext
+  ): Future[Unit] = {
 
     // Construct parallel lists of parent entries, hashes, simpletons, and detritus from `CallCachingJoin`s.
     val (entries, hashes, simpletons, detritus, aggregations) = joins.toList.foldMap { j =>
-      (List(j.callCachingEntry), List(j.callCachingHashEntries), List(j.callCachingSimpletonEntries), List(j.callCachingDetritusEntries), List(j.callCachingAggregationEntry.toList)) }
+      (List(j.callCachingEntry),
+       List(j.callCachingHashEntries),
+       List(j.callCachingSimpletonEntries),
+       List(j.callCachingDetritusEntries),
+       List(j.callCachingAggregationEntry.toList)
+      )
+    }
 
     // Use the supplied `assigner` function to assign parent entry row IDs into the parallel `Seq` of children entities.
-    def assignEntryIdsToChildren[C](ids: Seq[Long], groupingsOfChildren: Seq[Seq[C]], assigner: (Long, C) => C): Seq[C] = {
+    def assignEntryIdsToChildren[C](ids: Seq[Long],
+                                    groupingsOfChildren: Seq[Seq[C]],
+                                    assigner: (Long, C) => C
+    ): Seq[C] =
       (ids zip groupingsOfChildren) flatMap { case (id, children) => children.map(assigner(id, _)) }
-    }
 
     // Batch insert entities into the appropriate `Table`.
-    def batchInsert[E, T <: Table[E]](entries: Seq[E], tableQuery: TableQuery[T]): DBIO[_] = {
-      DBIO.sequence(entries.grouped(batchSize).map { tableQuery ++= _ })
-    }
+    def batchInsert[E, T <: Table[E]](entries: Seq[E], tableQuery: TableQuery[T]): DBIO[_] =
+      DBIO.sequence(entries.grouped(batchSize).map(tableQuery ++= _))
 
     // Functions to assign call cache entry IDs into child hash entry, simpleton, and detritus rows.
     def hashAssigner(id: Long, hash: CallCachingHashEntry) = hash.copy(callCachingEntryId = Option(id))
-    def simpletonAssigner(id: Long, simpleton: CallCachingSimpletonEntry) = simpleton.copy(callCachingEntryId = Option(id))
+    def simpletonAssigner(id: Long, simpleton: CallCachingSimpletonEntry) =
+      simpleton.copy(callCachingEntryId = Option(id))
     def detritusAssigner(id: Long, detritus: CallCachingDetritusEntry) = detritus.copy(callCachingEntryId = Option(id))
-    def aggregationAssigner(id: Long, aggregation: CallCachingAggregationEntry) = aggregation.copy(callCachingEntryId = Option(id))
+    def aggregationAssigner(id: Long, aggregation: CallCachingAggregationEntry) =
+      aggregation.copy(callCachingEntryId = Option(id))
 
     val action = for {
       entryIds <- dataAccess.callCachingEntryIdsAutoInc ++= entries
@@ -70,87 +80,114 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
     (0 to 2).toList map { total(_) map { p => PrefixAndLength(p, p.length) } getOrElse doNotMatch }
   }
 
-  override def hasMatchingCallCachingEntriesForBaseAggregation(baseAggregationHash: String, callCachePrefixes: Option[List[String]] = None)
-                                                              (implicit ec: ExecutionContext): Future[Boolean] = {
+  override def hasMatchingCallCachingEntriesForBaseAggregation(baseAggregationHash: String,
+                                                               callCachePrefixes: Option[List[String]] = None
+  )(implicit ec: ExecutionContext): Future[Boolean] = {
     val action = callCachePrefixes match {
       case None => dataAccess.existsCallCachingEntriesForBaseAggregationHash(baseAggregationHash).result
       case Some(ps) =>
         val one :: two :: three :: _ = prefixesAndLengths(ps)
-        dataAccess.existsCallCachingEntriesForBaseAggregationHashWithCallCachePrefix(
-          (baseAggregationHash,
-            one.prefix, one.length,
-            two.prefix, two.length,
-            three.prefix, three.length)).result
+        dataAccess
+          .existsCallCachingEntriesForBaseAggregationHashWithCallCachePrefix(
+            (baseAggregationHash, one.prefix, one.length, two.prefix, two.length, three.prefix, three.length)
+          )
+          .result
     }
     runTransaction(action)
   }
 
-  override def findCacheHitForAggregation(baseAggregationHash: String, inputFilesAggregationHash: Option[String], callCachePathPrefixes: Option[List[String]], excludedIds: Set[Long])
-                                         (implicit ec: ExecutionContext): Future[Option[Long]] = {
+  override def findCacheHitForAggregation(baseAggregationHash: String,
+                                          inputFilesAggregationHash: Option[String],
+                                          callCachePathPrefixes: Option[List[String]],
+                                          excludedIds: Set[Long]
+  )(implicit ec: ExecutionContext): Future[Option[Long]] = {
 
     val action = callCachePathPrefixes match {
       case None =>
-        dataAccess.callCachingEntriesForAggregatedHashes(baseAggregationHash, inputFilesAggregationHash, excludedIds).result.headOption
+        dataAccess
+          .callCachingEntriesForAggregatedHashes(baseAggregationHash, inputFilesAggregationHash, excludedIds)
+          .result
+          .headOption
       case Some(ps) =>
         val one :: two :: three :: _ = prefixesAndLengths(ps)
-        dataAccess.callCachingEntriesForAggregatedHashesWithPrefixes(
-          baseAggregationHash, inputFilesAggregationHash,
-          one.prefix, one.length,
-          two.prefix, two.length,
-          three.prefix, three.length,
-          excludedIds).result.headOption
+        dataAccess
+          .callCachingEntriesForAggregatedHashesWithPrefixes(baseAggregationHash,
+                                                             inputFilesAggregationHash,
+                                                             one.prefix,
+                                                             one.length,
+                                                             two.prefix,
+                                                             two.length,
+                                                             three.prefix,
+                                                             three.length,
+                                                             excludedIds
+          )
+          .result
+          .headOption
     }
 
     runTransaction(action)
   }
 
-  override def queryResultsForCacheId(callCachingEntryId: Long)
-                                     (implicit ec: ExecutionContext): Future[Option[CallCachingJoin]] = {
+  override def queryResultsForCacheId(
+    callCachingEntryId: Long
+  )(implicit ec: ExecutionContext): Future[Option[CallCachingJoin]] = {
     val action = for {
-      callCachingEntryOption <- dataAccess.
-        callCachingEntriesForId(callCachingEntryId).result.headOption
-      callCachingSimpletonEntries <- dataAccess.
-        callCachingSimpletonEntriesForCallCachingEntryId(callCachingEntryId).result
-      callCachingDetritusEntries <- dataAccess.
-        callCachingDetritusEntriesForCallCachingEntryId(callCachingEntryId).result
+      callCachingEntryOption <- dataAccess.callCachingEntriesForId(callCachingEntryId).result.headOption
+      callCachingSimpletonEntries <- dataAccess
+        .callCachingSimpletonEntriesForCallCachingEntryId(callCachingEntryId)
+        .result
+      callCachingDetritusEntries <- dataAccess
+        .callCachingDetritusEntriesForCallCachingEntryId(callCachingEntryId)
+        .result
     } yield callCachingEntryOption.map(
-      CallCachingJoin(_, Seq.empty, None, callCachingSimpletonEntries, callCachingDetritusEntries))
+      CallCachingJoin(_, Seq.empty, None, callCachingSimpletonEntries, callCachingDetritusEntries)
+    )
 
     runTransaction(action)
   }
 
-  private def callCacheJoinFromEntryQuery(callCachingEntry: CallCachingEntry)
-                            (implicit ec: ExecutionContext): DBIO[CallCachingJoin] = {
+  private def callCacheJoinFromEntryQuery(
+    callCachingEntry: CallCachingEntry
+  )(implicit ec: ExecutionContext): DBIO[CallCachingJoin] = {
     val callCachingEntryId = callCachingEntry.callCachingEntryId.get
-    val callCachingSimpletonEntries: DBIO[Seq[CallCachingSimpletonEntry]] = dataAccess.
-      callCachingSimpletonEntriesForCallCachingEntryId(callCachingEntryId).result
-    val callCachingDetritusEntries: DBIO[Seq[CallCachingDetritusEntry]] = dataAccess.
-      callCachingDetritusEntriesForCallCachingEntryId(callCachingEntryId).result
-    val callCachingHashEntries: DBIO[Seq[CallCachingHashEntry]] = dataAccess.
-      callCachingHashEntriesForCallCachingEntryId(callCachingEntryId).result
-    val callCachingAggregationEntries: DBIO[Option[CallCachingAggregationEntry]] = dataAccess.
-      callCachingAggregationForCacheEntryId(callCachingEntryId).result.headOption
-    
-    (callCachingHashEntries, callCachingAggregationEntries, callCachingSimpletonEntries, callCachingDetritusEntries) mapN { 
-      case (hashes, aggregation, simpletons, detrituses) =>
-        CallCachingJoin(callCachingEntry, hashes, aggregation, simpletons, detrituses)
+    val callCachingSimpletonEntries: DBIO[Seq[CallCachingSimpletonEntry]] =
+      dataAccess.callCachingSimpletonEntriesForCallCachingEntryId(callCachingEntryId).result
+    val callCachingDetritusEntries: DBIO[Seq[CallCachingDetritusEntry]] =
+      dataAccess.callCachingDetritusEntriesForCallCachingEntryId(callCachingEntryId).result
+    val callCachingHashEntries: DBIO[Seq[CallCachingHashEntry]] =
+      dataAccess.callCachingHashEntriesForCallCachingEntryId(callCachingEntryId).result
+    val callCachingAggregationEntries: DBIO[Option[CallCachingAggregationEntry]] =
+      dataAccess.callCachingAggregationForCacheEntryId(callCachingEntryId).result.headOption
+
+    (callCachingHashEntries,
+     callCachingAggregationEntries,
+     callCachingSimpletonEntries,
+     callCachingDetritusEntries
+    ) mapN { case (hashes, aggregation, simpletons, detrituses) =>
+      CallCachingJoin(callCachingEntry, hashes, aggregation, simpletons, detrituses)
     }
   }
 
-  override def callCacheJoinForCall(workflowExecutionUuid: String, callFqn: String, index: Int)
-                                   (implicit ec: ExecutionContext): Future[Option[CallCachingJoin]] = {
+  override def callCacheJoinForCall(workflowExecutionUuid: String, callFqn: String, index: Int)(implicit
+    ec: ExecutionContext
+  ): Future[Option[CallCachingJoin]] = {
     val action = for {
-      callCachingEntryOption <- dataAccess.
-        callCachingEntriesForWorkflowFqnIndex((workflowExecutionUuid, callFqn, index)).result.headOption
+      callCachingEntryOption <- dataAccess
+        .callCachingEntriesForWorkflowFqnIndex((workflowExecutionUuid, callFqn, index))
+        .result
+        .headOption
       callCacheJoin <- callCachingEntryOption
-        .fold[DBIOAction[Option[CallCachingJoin], NoStream, Effect.All]](DBIO.successful(None))(callCacheJoinFromEntryQuery(_).map(Option.apply))
+        .fold[DBIOAction[Option[CallCachingJoin], NoStream, Effect.All]](DBIO.successful(None))(
+          callCacheJoinFromEntryQuery(_).map(Option.apply)
+        )
     } yield callCacheJoin
 
     runTransaction(action)
   }
 
-  override def invalidateCall(callCachingEntryId: Long)
-                             (implicit ec: ExecutionContext): Future[Option[CallCachingEntry]] = {
+  override def invalidateCall(
+    callCachingEntryId: Long
+  )(implicit ec: ExecutionContext): Future[Option[CallCachingEntry]] = {
     val action = for {
       _ <- dataAccess.allowResultReuseForCallCachingEntryId(callCachingEntryId).update(false)
       callCachingEntryOption <- dataAccess.callCachingEntriesForId(callCachingEntryId).result.headOption
@@ -159,13 +196,16 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
     runTransaction(action)
   }
 
-  override def invalidateCallCacheEntryIdsForWorkflowId(workflowExecutionUuid: String)
-                                                       (implicit ec: ExecutionContext): Future[Unit] = {
+  override def invalidateCallCacheEntryIdsForWorkflowId(
+    workflowExecutionUuid: String
+  )(implicit ec: ExecutionContext): Future[Unit] = {
     val action = dataAccess.allowResultReuseForWorkflowId(workflowExecutionUuid).update(false)
     runTransaction(action).void
   }
 
-  override def callCacheEntryIdsForWorkflowId(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Seq[Long]] = {
+  override def callCacheEntryIdsForWorkflowId(
+    workflowExecutionUuid: String
+  )(implicit ec: ExecutionContext): Future[Seq[Long]] = {
     val action = dataAccess.callCachingEntryIdsForWorkflowId(workflowExecutionUuid).result
     runTransaction(action)
   }

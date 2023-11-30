@@ -11,8 +11,7 @@ import womtool.input.WomGraphMaker
 import scala.util.{Failure, Success, Try}
 
 object Outputs {
-  def outputsJson(main: Path): Termination = {
-
+  def outputsJson(main: Path): Termination =
     WomGraphMaker.fromFiles(main, inputs = None) match {
       case Right(graphWithImports) =>
         Try(graphWithImports.graph.outputNodes.asJson.printWith(sprayLikePrettyPrinter)) match {
@@ -21,20 +20,22 @@ object Outputs {
         }
       case Left(errors) => UnsuccessfulTermination(errors.toList.mkString(System.lineSeparator))
     }
-  }
 
-  private implicit val e: Encoder[Set[GraphOutputNode]] = (set: Set[GraphOutputNode]) => {
-    val valueMap = set.toList.map {
-      node: GraphOutputNode => node.fullyQualifiedName -> womTypeToJson(node.womType)
+  implicit private val e: Encoder[Set[GraphOutputNode]] = (set: Set[GraphOutputNode]) => {
+    val valueMap = set.toList.map { node: GraphOutputNode =>
+      node.fullyQualifiedName -> womTypeToJson(node.womType)
     }
 
     valueMap.toMap.asJson
   }
 
   private def womTypeToJson(womType: WomType): Json = womType match {
-    case WomCompositeType(typeMap, _) => JsonObject.fromMap(
-      typeMap.map { case (name, wt) => name -> womTypeToJson(wt) }
-    ).asJson
+    case WomCompositeType(typeMap, _) =>
+      JsonObject
+        .fromMap(
+          typeMap.map { case (name, wt) => name -> womTypeToJson(wt) }
+        )
+        .asJson
     case _ => womType.stableName.asJson
   }
 

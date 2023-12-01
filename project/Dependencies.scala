@@ -60,7 +60,7 @@ object Dependencies {
   private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20220916-2.0.0"
   private val googleOauth2V = "1.5.3"
   private val googleOauthClientV = "1.33.1"
-  private val googleCloudResourceManagerV = "1.17.0"
+  private val googleCloudResourceManagerV = "1.32.0"
   private val grpcV = "1.54.1"
   private val guavaV = "31.0.1-jre"
   private val heterodonV = "1.0.0-beta3"

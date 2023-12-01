@@ -215,7 +215,7 @@ object Dependencies {
   val azureBlobNioDependencies = List(
     "com.azure" % "azure-core" % "1.40.0",
     "com.azure" % "azure-storage-blob" % "12.23.0-beta.1",
-    "com.azure" % "azure-storage-common" % "12.22.0-beta.1",
+    "com.azure" % "azure-storage-common" % "12.22.1",
     "com.azure" % "azure-core-test" % "1.18.0",
     "org.junit.jupiter" % "junit-jupiter-params" % "5.9.3",
     "org.junit.jupiter" % "junit-jupiter-engine" % "5.9.3",

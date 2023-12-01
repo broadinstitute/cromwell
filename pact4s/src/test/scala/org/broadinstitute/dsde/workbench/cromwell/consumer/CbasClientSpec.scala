@@ -5,6 +5,8 @@ import au.com.dius.pact.consumer.dsl._
 import au.com.dius.pact.consumer.{ConsumerPactBuilder, PactTestExecutionContext}
 import au.com.dius.pact.core.model.RequestResponsePact
 import cats.effect.IO
+import cromwell.engine.workflow.lifecycle.finalization.CallbackMessage
+import cromwell.util.JsonFormatting.WomValueJsonFormatter.WomValueJsonFormat
 import org.broadinstitute.dsde.workbench.cromwell.consumer.PactHelper._
 import org.http4s.blaze.client.BlazeClientBuilder
 import org.http4s.client.Client
@@ -13,12 +15,13 @@ import org.http4s.{AuthScheme, Credentials, Uri}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import pact4s.scalatest.RequestResponsePactForger
+import wom.values._
 
 import java.util.concurrent.Executors
 import scala.concurrent.ExecutionContext
 
 class CbasClientSpec extends AnyFlatSpec with Matchers with RequestResponsePactForger {
-  val ec = ExecutionContext.fromExecutorService(Executors.newCachedThreadPool())
+  val ec: ExecutionContext = ExecutionContext.fromExecutorService(Executors.newCachedThreadPool())
   implicit val cs = IO.contextShift(ec)
   /*
     Define the folder that the pact contracts get written to upon completion of this test suite.
@@ -38,14 +41,24 @@ class CbasClientSpec extends AnyFlatSpec with Matchers with RequestResponsePactF
        }
     """
   val failures = List.empty[String]
+  val workflowCallback: CallbackMessage = CallbackMessage(
+    workflowId,
+    completedState,
+    Map(("wf.foo", WomString("bar"))),
+    List.empty
+  )
+  val outputsMap: Map[String, WomValue] = workflowCallback.outputs
 
   val updateCompletedRunDsl = newJsonBody { o =>
-    o.stringType("workflowId", workflowId)
-    o.stringType("state", completedState)
-    o.stringType("outputs", workflowOutputs)
+    o.stringType("workflowId", workflowCallback.workflowId)
+    o.stringType("state", workflowCallback.state)
+    o.`object`("outputs",
+      outputsMap.toList flatMap {
+        case (k, v) => o eachLike(k, WomValueJsonFormat.write(v))
+      })
     o.array("failures",
       { f =>
-        failures.foreach(f.stringType)
+        workflowCallback.failures.foreach(f.stringType)
       })
     ()
   }.build
@@ -76,7 +89,7 @@ class CbasClientSpec extends AnyFlatSpec with Matchers with RequestResponsePactF
     new CbasClientImpl[IO](client, Uri.unsafeFromString(mockServer.getUrl))
       .postWorkflowResults(
         Authorization(Credentials.Token(AuthScheme.Bearer, bearerToken)),
-        WorkflowCallbackMessage(workflowId, completedState, workflowOutputs, failures)
+        CallbackMessage(workflowId, completedState, outputsMap, failures)
       )
       .attempt
       .unsafeRunSync() shouldBe Right(true)

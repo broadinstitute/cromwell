@@ -1,22 +1,21 @@
 package org.broadinstitute.dsde.workbench.cromwell.consumer
 
+import akka.http.scaladsl.marshalling.Marshal
 import cats.effect.Concurrent
 import cats.syntax.all._
 import com.typesafe.scalalogging.LazyLogging
+import cromwell.engine.workflow.lifecycle.finalization.{CallbackMessage, WorkflowCallbackJsonSupport}
+import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackJsonSupport._
 import io.circe.Encoder
 import org.http4s._
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.client.Client
 import org.http4s.headers.Authorization
-
-final case class WorkflowCallbackMessage(workflowId: String,
-                                 state: String,
-                                 outputs: Object,
-                                 failures: List[String])
+import spray.json.DefaultJsonProtocol.{StringJsonFormat, mapFormat}
 
 trait CbasClient[F[_]] extends LazyLogging {
   def postWorkflowResults(authHeader: Authorization,
-                          callbackMessage: WorkflowCallbackMessage): F[Boolean]
+                          callbackMessage: CallbackMessage): F[Boolean]
 }
 
 /*
@@ -26,7 +25,7 @@ trait CbasClient[F[_]] extends LazyLogging {
 class CbasClientImpl[F[_]: Concurrent](client: Client[F], baseUrl: Uri) extends CbasClient[F] {
   val apiVersion = "v1"
 
-  implicit val workflowCallbackMessageEncoder: Encoder[WorkflowCallbackMessage] = Encoder.forProduct4(
+  implicit val workflowCallbackMessageEncoder: Encoder[CallbackMessage] = Encoder.forProduct4(
     "workflowId",
     "state",
     "outputs",
@@ -34,9 +33,9 @@ class CbasClientImpl[F[_]: Concurrent](client: Client[F], baseUrl: Uri) extends 
   )(x => (x.workflowId, x.state, x.outputs.toString, x.failures))
 
   override def postWorkflowResults(authHeader: Authorization,
-                                   callbackMessage: WorkflowCallbackMessage): F[Boolean] = {
+                                   callbackMessage: CallbackMessage): F[Boolean] = {
     val body = callbackMessage
-    val entityBody: EntityBody[F] = EntityEncoder[F, WorkflowCallbackMessage].toEntity(body).body
+    val entityBody: EntityBody[F] = EntityEncoder[F, CallbackMessage].toEntity(body).body
     val request = Request[F](uri = baseUrl / "api" / "batch" / apiVersion / "runs" / "results", method = Method.POST, body = entityBody)
       .withHeaders(
         org.http4s.headers.`Content-Type`(MediaType.application.json),

@@ -359,8 +359,8 @@ cromwell::private::create_build_variables() {
     backend_type="$(echo "${backend_type}" | sed 's/\([A-Z]\)/_\1/g' | tr '[:upper:]' '[:lower:]' | cut -c 2-)"
     CROMWELL_BUILD_BACKEND_TYPE="${backend_type}"
 
-    if [[ "${CROMWELL_BUILD_TYPE}" == conformance* ]]; then
-        CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND="server/assembly centaurCwlRunner/assembly"
+    if [[ "${CROMWELL_BUILD_TYPE}" == centaurHoricromtalPapiV2beta ]]; then
+        CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND="server/assembly"
     else
         CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND="assembly"
     fi

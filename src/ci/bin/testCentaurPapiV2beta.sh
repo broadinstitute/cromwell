@@ -17,7 +17,7 @@ cromwell::build::papi::setup_papi_centaur_environment
 cromwell::build::assemble_jars
 
 cromwell::build::run_centaur \
-    -p 200 \
+    -p 500 \
     -e localdockertest \
     -e relative_output_paths \
     -e relative_output_paths_colliding \

@@ -144,12 +144,13 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
         |                    -H "Authorization: Bearer $${BEARER_TOKEN}")
         |""".stripMargin
     val exportCommandSubstring = s"""export $mockEnvironmentVariableNameFromWom=$$(echo "$${sas_response_json}" | jq -r '.token')"""
-
+    val echoCommandSubstring = s"""echo "Saving sas token: $${$mockEnvironmentVariableNameFromWom:0:4}**** to environment variable $mockEnvironmentVariableNameFromWom...""""
     val generatedBashScript = TesAsyncBackendJobExecutionActor.generateLocalizedSasScriptPreamble(mockEnvironmentVariableNameFromWom, expectedEndpoint)
 
     generatedBashScript should include (beginSubstring)
     generatedBashScript should include (endSubstring)
     generatedBashScript should include (curlCommandSubstring)
+    generatedBashScript should include (echoCommandSubstring)
     generatedBashScript should include (exportCommandSubstring)
   }
 }

@@ -384,8 +384,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       ScriptPreambleData(
       s"""|touch $DockerMonitoringLogPath
           |chmod u+x $DockerMonitoringScriptPath
-          |$DockerMonitoringScriptPath > $DockerMonitoringLogPath &""".stripMargin, executeInSubshell = true
-      ).valid
+          |$DockerMonitoringScriptPath > $DockerMonitoringLogPath &""".stripMargin).valid
      else ScriptPreambleData("").valid
   }
 

@@ -55,7 +55,7 @@ object Dependencies {
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"
   private val googleHttpClientApacheV = "2.1.2"
   private val googleHttpClientV = "1.42.3"
-  private val googleCloudBatchV1 = "0.18.0"
+  private val googleCloudBatchV1 = "0.30.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-lifesciences
   private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20220916-2.0.0"
   private val googleOauth2V = "1.5.3"

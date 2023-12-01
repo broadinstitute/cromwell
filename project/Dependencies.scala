@@ -377,7 +377,7 @@ object Dependencies {
   private val googleBatchv1Dependency = List(
     "com.google.cloud" % "google-cloud-batch" % googleCloudBatchV1,
     "com.google.api.grpc" % "proto-google-cloud-batch-v1" % googleCloudBatchV1,
-    "com.google.api.grpc" % "proto-google-cloud-resourcemanager-v3" % "1.17.0"
+    "com.google.api.grpc" % "proto-google-cloud-resourcemanager-v3" % "1.32.0"
   )
 
   /*

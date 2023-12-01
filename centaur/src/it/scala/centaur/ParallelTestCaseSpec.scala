@@ -1,6 +1,7 @@
 package centaur
 
 import centaur.CentaurTestSuite.cromwellTracker
+import com.typesafe.scalalogging.LazyLogging
 import org.scalatest._
 
 
@@ -10,9 +11,13 @@ import org.scalatest._
   */
 @DoNotDiscover
 class ParallelTestCaseSpec(cromwellBackends: List[String])
-  extends AbstractCentaurTestCaseSpec(cromwellBackends, cromwellTracker = cromwellTracker) with ParallelTestExecution {
+  extends AbstractCentaurTestCaseSpec(cromwellBackends, cromwellTracker = cromwellTracker) with ParallelTestExecution with LazyLogging {
   
   def this() = this(CentaurTestSuite.cromwellBackends)
 
-  allTestCases.filter(_.testFormat.isParallel) foreach executeStandardTest
+  allTestCases.filter(_.testFormat.isParallel) foreach { test =>
+    import java.time
+    logger.info(s"Starting test ${test.name} at ${time.LocalDateTime.now().toString}")
+    executeStandardTest(test)
+  }
 }

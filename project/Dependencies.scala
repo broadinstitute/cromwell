@@ -20,7 +20,7 @@ object Dependencies {
   // duplicate messages in AI. See WX-1122.)
   private val azureAppInsightsLogbackV = "2.6.4"
   private val betterFilesV = "3.9.1"
-  private val jsonSmartV = "2.4.10"
+  private val jsonSmartV = "2.4.11"
   /*
   cats-effect, fs2, http4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
    */

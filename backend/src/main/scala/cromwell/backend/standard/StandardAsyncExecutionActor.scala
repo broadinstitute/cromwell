@@ -332,7 +332,7 @@ trait StandardAsyncExecutionActor
   }
 
   /** Any custom code that should be run within commandScriptContents before the instantiated command. */
-  def scriptPreamble: ErrorOr[ScriptPreambleData] = ScriptPreambleData("", executeInSubshell = true).valid
+  def scriptPreamble: ErrorOr[ScriptPreambleData] = ScriptPreambleData("").valid
 
   def cwd: Path = commandDirectory
   def rcPath: Path = cwd./(jobPaths.returnCodeFilename)

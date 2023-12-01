@@ -14,6 +14,8 @@ cromwell::build::setup_centaur_environment
 
 cromwell::build::papi::setup_papi_centaur_environment
 
+cromwell::build::assemble_jars
+
 cromwell::build::build_cromwell_docker
 
 cromwell::build::run_centaur \

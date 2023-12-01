@@ -1,7 +1,6 @@
 package cromwell.backend.google.pipelines.common
 
 import java.net.SocketTimeoutException
-
 import _root_.io.grpc.Status
 import akka.actor.ActorRef
 import akka.http.scaladsl.model.{ContentType, ContentTypes}
@@ -27,7 +26,7 @@ import cromwell.backend.google.pipelines.common.errors.FailedToDelocalizeFailure
 import cromwell.backend.google.pipelines.common.io._
 import cromwell.backend.google.pipelines.common.monitoring.{CheckpointingConfiguration, MonitoringImage}
 import cromwell.backend.io.DirectoryFunctions
-import cromwell.backend.standard.{StandardAdHocValue, StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
+import cromwell.backend.standard.{ScriptPreambleData, StandardAdHocValue, StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
 import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -380,12 +379,13 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   private lazy val isDockerImageCacheUsageRequested = runtimeAttributes.useDockerImageCache.getOrElse(useDockerImageCache(jobDescriptor.workflowDescriptor))
 
-  override def scriptPreamble: ErrorOr[String] = {
-    if (monitoringOutput.isDefined) {
+  override def scriptPreamble: ErrorOr[ScriptPreambleData] = {
+    if (monitoringOutput.isDefined)
+      ScriptPreambleData(
       s"""|touch $DockerMonitoringLogPath
           |chmod u+x $DockerMonitoringScriptPath
-          |$DockerMonitoringScriptPath > $DockerMonitoringLogPath &""".stripMargin
-    }.valid else "".valid
+          |$DockerMonitoringScriptPath > $DockerMonitoringLogPath &""".stripMargin).valid
+     else ScriptPreambleData("").valid
   }
 
   override def globParentDirectory(womGlobFile: WomGlobFile): Path = {

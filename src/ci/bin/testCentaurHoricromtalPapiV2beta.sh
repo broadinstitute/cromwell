@@ -27,3 +27,5 @@ cromwell::build::run_centaur \
     -e papi_v2alpha1_gcsa \
 
 cromwell::build::generate_code_coverage
+
+cromwell::build::print_slowest_workflows

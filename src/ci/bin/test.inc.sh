@@ -1607,6 +1607,20 @@ cromwell::build::generate_code_coverage() {
     fi
 }
 
+cromwell::build::print_slowest_workflows() {
+    mysql --host=127.0.0.1 --user=cromwell --password=test cromwell_test -e \
+        "SELECT
+            WORKFLOW_EXECUTION_UUID,
+            MAX(CASE WHEN METADATA_KEY = 'start' THEN METADATA_VALUE END) AS start_time,
+            MAX(CASE WHEN METADATA_KEY = 'end' THEN METADATA_VALUE END) AS end_time,
+            MAX(CASE WHEN METADATA_KEY = 'workflowName' THEN METADATA_VALUE END) AS name,
+            TIMESTAMPDIFF(SECOND, MAX(CASE WHEN METADATA_KEY = 'start' THEN METADATA_VALUE END), MAX(CASE WHEN METADATA_KEY = 'end' THEN METADATA_VALUE END)) AS duration
+        FROM METADATA_ENTRY
+        GROUP BY WORKFLOW_EXECUTION_UUID
+        ORDER BY duration DESC
+        LIMIT 20;"
+}
+
 cromwell::build::exec_retry_function() {
     local retried_function
     local retry_count

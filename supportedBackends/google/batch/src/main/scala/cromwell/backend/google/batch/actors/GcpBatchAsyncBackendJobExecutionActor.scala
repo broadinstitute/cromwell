@@ -671,8 +671,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       s"""|touch $DockerMonitoringLogPath
           |chmod u+x $DockerMonitoringScriptPath
           |$DockerMonitoringScriptPath > $DockerMonitoringLogPath &""".stripMargin, executeInSubshell = true).valid
-    else ScriptPreambleData("", executeInSubshell = true
-    ).valid
+    else ScriptPreambleData("").valid
   }
 
   private[actors] def generateInputs(jobDescriptor: BackendJobDescriptor): Set[GcpBatchInput] = {

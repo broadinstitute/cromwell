@@ -61,7 +61,9 @@ case class DefaultStandardAsyncExecutionActorParams
   override val minimumRuntimeSettings: MinimumRuntimeSettings
 ) extends StandardAsyncExecutionActorParams
 
-case class ScriptPreambleData(bashString: String, executeInSubshell: Boolean)
+// Typically we want to "executeInSubshell" for encapsulation of bash code.
+// Override to `false` when we need the script to set an environment variable in the parent shell.
+case class ScriptPreambleData(bashString: String, executeInSubshell: Boolean = true)
 
 /**
   * An extension of the generic AsyncBackendJobExecutionActor providing a standard abstract implementation of an

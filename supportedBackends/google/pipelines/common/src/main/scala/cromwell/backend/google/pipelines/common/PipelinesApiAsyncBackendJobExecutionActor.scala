@@ -386,7 +386,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           |chmod u+x $DockerMonitoringScriptPath
           |$DockerMonitoringScriptPath > $DockerMonitoringLogPath &""".stripMargin, executeInSubshell = true
       ).valid
-     else ScriptPreambleData("", executeInSubshell = true).valid
+     else ScriptPreambleData("").valid
   }
 
   override def globParentDirectory(womGlobFile: WomGlobFile): Path = {

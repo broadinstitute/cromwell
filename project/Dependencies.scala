@@ -222,7 +222,7 @@ object Dependencies {
     "org.junit.jupiter" % "junit-jupiter-api" % "5.9.3",
     "io.projectreactor" % "reactor-test" % "3.4.29",
     "cglib" % "cglib-nodep" % "3.2.7",
-    "com.azure" % "azure-core-http-okhttp" % "1.11.10",
+    "com.azure" % "azure-core-http-okhttp" % "1.11.17",
     "org.mockito" % "mockito-core" % "4.11.0",
     "com.github.sbt" % "junit-interface" % "0.13.2"
   )

@@ -3,14 +3,13 @@ package cromwell.cloudsupport.gcp.auth
 import java.io.{ByteArrayInputStream, FileNotFoundException, InputStream}
 import java.net.HttpURLConnection._
 import java.nio.charset.StandardCharsets
-
 import better.files.File
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.http.{HttpResponseException, HttpTransport}
 import com.google.api.client.json.gson.GsonFactory
 import com.google.auth.Credentials
 import com.google.auth.http.HttpTransportFactory
-import com.google.auth.oauth2.{GoogleCredentials, OAuth2Credentials, ServiceAccountCredentials, UserCredentials}
+import com.google.auth.oauth2.{GoogleCredentials, ImpersonatedCredentials, OAuth2Credentials, ServiceAccountCredentials, UserCredentials}
 import com.google.cloud.NoCredentials
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.cloudsupport.gcp.auth.ApplicationDefaultMode.applicationDefaultCredentials
@@ -43,6 +42,7 @@ object GoogleAuthMode {
   lazy val HttpTransportFactory: HttpTransportFactory = () => httpTransport
 
   val UserServiceAccountKey = "user_service_account_json"
+  val UserServiceAccountEmailKey = "user_service_account_email"
   val DockerCredentialsEncryptionKeyNameKey = "docker_credentials_key_name"
   val DockerCredentialsTokenKey = "docker_credentials_token"
 
@@ -73,6 +73,18 @@ object GoogleAuthMode {
   private def refreshCredentials(credentials: Credentials): Unit = {
     credentials.refresh()
   }
+
+  def createServiceAccountCredentials(fileFormat: CredentialFileFormat): ServiceAccountCredentials = {
+    val credentialsFile = File(fileFormat.file)
+    checkReadable(credentialsFile)
+
+    fileFormat match {
+      case PemFileFormat(accountId, _) =>
+        ServiceAccountCredentials.fromPkcs8(accountId, accountId, credentialsFile.contentAsString, null, null)
+      case _: JsonFileFormat => ServiceAccountCredentials.fromStream(credentialsFile.newInputStream)
+    }
+  }
+
 }
 
 sealed trait GoogleAuthMode extends LazyLogging {
@@ -115,12 +127,18 @@ sealed trait GoogleAuthMode extends LazyLogging {
     */
   private[auth] var credentialsValidation: CredentialsValidation = refreshCredentials
 
-  protected def validateCredentials[A <: GoogleCredentials](credential: A,
-                                                            scopes: Iterable[String]): GoogleCredentials = {
-    val scopedCredentials = credential.createScoped(scopes.asJavaCollection)
-    Try(credentialsValidation(scopedCredentials)) match {
-      case Failure(ex) => throw new RuntimeException(s"Google credentials are invalid: ${ex.getMessage}", ex)
-      case Success(_) => scopedCredentials
+  protected def validateCredentials[A <: GoogleCredentials](
+     credential: A,
+     scopes: Iterable[String]
+   ): GoogleCredentials = {
+    val credentialsToValidate =
+      if (scopes != null) credential.createScoped(scopes.asJavaCollection)
+      else credential
+    Try(credentialsValidation(credentialsToValidate)) match {
+      case Failure(ex) =>
+        throw new RuntimeException(s"Google credentials are invalid: ${ex.getMessage}", ex)
+      case Success(_) =>
+        credentialsToValidate
     }
   }
 }
@@ -149,14 +167,10 @@ final case class ServiceAccountMode(override val name: String,
   private val credentialsFile = File(fileFormat.file)
   checkReadable(credentialsFile)
 
-  private lazy val serviceAccountCredentials: ServiceAccountCredentials = {
-    fileFormat match {
-      case PemFileFormat(accountId, _) =>
-        logger.warn("The PEM file format will be deprecated in the upcoming Cromwell version. Please use JSON instead.")
-        ServiceAccountCredentials.fromPkcs8(accountId, accountId, credentialsFile.contentAsString, null, null)
-      case _: JsonFileFormat => ServiceAccountCredentials.fromStream(credentialsFile.newInputStream)
-    }
+  if (fileFormat.isInstanceOf[PemFileFormat]) {
+    logger.warn("The PEM file format will be deprecated in the upcoming Cromwell version. Please use JSON instead.")
   }
+  private lazy val serviceAccountCredentials: ServiceAccountCredentials = createServiceAccountCredentials(fileFormat)
 
   override def credentials(unusedOptions: OptionLookup,
                            scopes: Iterable[String]): GoogleCredentials = {
@@ -203,6 +217,37 @@ final case class ApplicationDefaultMode(name: String) extends GoogleAuthMode {
   override def credentials(unusedOptions: OptionLookup,
                            scopes: Iterable[String]): GoogleCredentials = {
     validateCredentials(applicationDefaultCredentials, scopes)
+  }
+}
+
+final case class UserServiceAccountImpersonationMode(
+  override val name: String,
+  jsonFileFormat: Option[JsonFileFormat] = None  // Optional credential file format
+) extends GoogleAuthMode {
+
+  private def extractServiceAccount(options: OptionLookup): String = {
+    extract(options, UserServiceAccountEmailKey)
+  }
+
+  override def credentials(options: OptionLookup, scopes: Iterable[String]): GoogleCredentials = {
+    // Credentials for the source service account that should have
+    // roles/iam.serviceAccountTokenCreator on the target service account
+    val credentials = jsonFileFormat match {
+      case Some(format) => createServiceAccountCredentials(format)
+      case None => GoogleCredentials.getApplicationDefault
+    }
+
+    val impersonatedCredentials = ImpersonatedCredentials.create(
+      credentials,
+      extractServiceAccount(options),
+      null,
+      scopes.toList.asJava,
+      3600
+    )
+
+    // We don't pass in scopes because they are added to the credentials
+    // when we create ImpersonatedCredentials above.
+    validateCredentials(impersonatedCredentials, null)
   }
 }
 

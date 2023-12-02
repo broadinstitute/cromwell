@@ -54,7 +54,16 @@ class GoogleConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
         |    {
         |      name = "name-user-service-account"
         |      scheme = "user_service_account"
-        |    }
+        |    },
+        |    {
+        |      name = "name-user-service-account-impersonation"
+        |      scheme = "user_service_account_impersonation"
+        |    },
+        |    {
+        |      name = "name-user-service-account-impersonation_json"
+        |      scheme = "user_service_account_impersonation"
+        |      json-file = "${jsonMockFile.pathAsString}"
+        |    },
         |  ]
         |}
         |
@@ -63,7 +72,7 @@ class GoogleConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
     val gconf = GoogleConfiguration(ConfigFactory.parseString(righteousGoogleConfig))
 
     gconf.applicationName shouldBe "cromwell"
-    gconf.authsByName should have size 5
+    gconf.authsByName should have size 7
 
     val auths = gconf.authsByName.values
 
@@ -86,6 +95,17 @@ class GoogleConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
     serviceJson.name shouldBe "name-json-service"
     serviceJson.fileFormat.isInstanceOf[JsonFileFormat] shouldBe true
     serviceJson.fileFormat.file shouldBe jsonMockFile.pathAsString
+
+    val serviceImpersonation = (auths collectFirst { case a: UserServiceAccountImpersonationMode if a.name == "name-user-service-account-impersonation" => a }).get
+    serviceImpersonation.name shouldBe "name-user-service-account-impersonation"
+
+    val serviceImpersonationJson = (auths collectFirst { case a: UserServiceAccountImpersonationMode if a.name == "name-user-service-account-impersonation_json" => a }).get
+    serviceImpersonationJson.name shouldBe "name-user-service-account-impersonation_json"
+    serviceImpersonationJson.jsonFileFormat.isInstanceOf[Option[JsonFileFormat]] shouldBe true
+    serviceImpersonationJson.jsonFileFormat match {
+      case Some(format) => format.file shouldBe jsonMockFile.pathAsString
+      case None => fail("jsonFileFormat should be Some")
+    }
 
     pemMockFile.delete(swallowIOExceptions = true)
     jsonMockFile.delete(swallowIOExceptions = true)

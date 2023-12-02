@@ -82,6 +82,11 @@ object GoogleConfiguration {
         UserServiceAccountMode(name)
       }
 
+      def userServiceAccountImpersonationAuth(authConfig: Config, name: String): ErrorOr[GoogleAuthMode] = validate {
+        val jsonFileOpt: Option[JsonFileFormat] = authConfig.getAs[String]("json-file").map(JsonFileFormat)
+        UserServiceAccountImpersonationMode(name, jsonFileOpt)
+      }
+
       val name = authConfig.getString("name")
       val scheme = authConfig.getString("scheme")
       scheme match {
@@ -89,6 +94,7 @@ object GoogleConfiguration {
         case "user_account" => userAccountAuth(authConfig, name)
         case "application_default" => applicationDefaultAuth(name)
         case "user_service_account" => userServiceAccountAuth(name)
+        case "user_service_account_impersonation" => userServiceAccountImpersonationAuth(authConfig, name)
         case "mock" => MockAuthMode(name).validNel
         case wut => s"Unsupported authentication scheme: $wut".invalidNel
       }

@@ -24,8 +24,12 @@ object JobStoreServiceSpec {
   private val EmptyExpression = PlaceholderWomExpression(Set.empty, WomStringType)
 }
 
-class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with CoordinatedWorkflowStoreActorBuilder
-  with SqlWorkflowStoreBuilder with CromwellTimeoutSpec {
+class JobStoreServiceSpec
+    extends CromwellTestKitWordSpec
+    with Matchers
+    with CoordinatedWorkflowStoreActorBuilder
+    with SqlWorkflowStoreBuilder
+    with CromwellTimeoutSpec {
 
   "JobStoreService" should {
     "register Job and Workflow completions and read back (query) the result" in {
@@ -33,18 +37,18 @@ class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Coo
         lazy val jobStore: JobStore = new SqlJobStore(EngineServicesStore.engineDatabaseInterface)
         val jobStoreService =
           system.actorOf(
-            props =
-              JobStoreActor.props(
-                database = jobStore,
-                registryActor = dummyServiceRegistryActor,
-                workflowStoreAccess = access("coordinatedAccessActor-register")(workflowStore)
-              ),
-            name = "jobStoreService-register",
+            props = JobStoreActor.props(
+              database = jobStore,
+              registryActor = dummyServiceRegistryActor,
+              workflowStoreAccess = access("coordinatedAccessActor-register")(workflowStore)
+            ),
+            name = "jobStoreService-register"
           )
 
         val workflowId = WorkflowId.randomId()
-        val mockTask = WomMocks.mockTaskDefinition("bar")
-        .copy(outputs = List(OutputDefinition("baz", WomStringType, EmptyExpression)))
+        val mockTask = WomMocks
+          .mockTaskDefinition("bar")
+          .copy(outputs = List(OutputDefinition("baz", WomStringType, EmptyExpression)))
         val successCall = WomMocks.mockTaskCall(WomIdentifier("bar"), definition = mockTask)
 
         val successKey = BackendJobDescriptorKey(successCall, None, 1).toJobStoreKey(workflowId)
@@ -68,12 +72,16 @@ class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Coo
         jobStoreService ! QueryJobCompletion(failureKey, mockTask.outputs map WomMocks.mockOutputPort)
         expectMsgType[JobNotComplete.type](MaxWait)
 
-        jobStoreService ! RegisterJobCompleted(failureKey, JobResultFailure(Option(11), new IllegalArgumentException("Insufficient funds"), retryable = false))
+        jobStoreService ! RegisterJobCompleted(failureKey,
+                                               JobResultFailure(Option(11),
+                                                                new IllegalArgumentException("Insufficient funds"),
+                                                                retryable = false
+                                               )
+        )
         expectMsgType[JobStoreWriteSuccess](MaxWait)
 
         jobStoreService ! QueryJobCompletion(failureKey, mockTask.outputs map WomMocks.mockOutputPort)
-        expectMsgPF(MaxWait) {
-          case JobComplete(JobResultFailure(Some(11), _, false)) =>
+        expectMsgPF(MaxWait) { case JobComplete(JobResultFailure(Some(11), _, false)) =>
         }
 
         jobStoreService ! RegisterWorkflowCompleted(workflowId)

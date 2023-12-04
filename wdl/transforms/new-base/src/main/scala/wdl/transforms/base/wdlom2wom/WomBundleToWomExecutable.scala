@@ -10,6 +10,10 @@ import wom.transforms.WomExecutableMaker
 object WomBundleToWomExecutable {
 
   implicit val draft3WomBundleToWomExecutable: WomExecutableMaker[WomBundle] = new WomExecutableMaker[WomBundle] {
-    override def toWomExecutable(a: WomBundle, inputs: Option[WorkflowJson], ioFunctions: IoFunctionSet, strictValidation: Boolean): Checked[Executable] = WdlSharedInputParsing.buildWomExecutable(a, inputs, ioFunctions, strictValidation)
+    override def toWomExecutable(a: WomBundle,
+                                 inputs: Option[WorkflowJson],
+                                 ioFunctions: IoFunctionSet,
+                                 strictValidation: Boolean
+    ): Checked[Executable] = WdlSharedInputParsing.buildWomExecutable(a, inputs, ioFunctions, strictValidation)
   }
 }

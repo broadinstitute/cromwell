@@ -10,6 +10,9 @@ import wom.values.WomValue
 case class StringCommandPart(literal: String) extends WdlCommandPart {
   override def toString: String = literal
 
-  override def instantiate(declarations: Seq[Declaration], inputsMap: Map[String, WomValue], functions: WdlFunctions[WomValue],
-                           valueMapper: (WomValue) => WomValue): ErrorOr[List[InstantiatedCommand]] = List(InstantiatedCommand(literal)).validNel
+  override def instantiate(declarations: Seq[Declaration],
+                           inputsMap: Map[String, WomValue],
+                           functions: WdlFunctions[WomValue],
+                           valueMapper: (WomValue) => WomValue
+  ): ErrorOr[List[InstantiatedCommand]] = List(InstantiatedCommand(literal)).validNel
 }

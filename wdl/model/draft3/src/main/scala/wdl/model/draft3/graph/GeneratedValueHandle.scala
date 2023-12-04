@@ -8,7 +8,8 @@ sealed trait GeneratedValueHandle {
 }
 
 final case class GeneratedIdentifierValueHandle(linkableName: String, womType: WomType) extends GeneratedValueHandle
-final case class GeneratedCallOutputValueHandle(callName: String, outputName: String, womType: WomType) extends GeneratedValueHandle {
+final case class GeneratedCallOutputValueHandle(callName: String, outputName: String, womType: WomType)
+    extends GeneratedValueHandle {
   override def linkableName: String = s"$callName.$outputName"
 }
 

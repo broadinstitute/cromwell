@@ -19,7 +19,6 @@ case object DefaultPathBuilder extends PathBuilder {
     val uri = URI.create(UrlEscapers.urlFragmentEscaper().escape(pathAsString))
     Option(uri.getScheme) match {
       case Some("file") | None =>
-
         if (pathAsString.startsWith("file://")) {
           // NOTE: Legacy support for old paths generated as URIs by the old .toRealString
           val host = Option(uri.getHost) getOrElse ""
@@ -44,15 +43,14 @@ case object DefaultPathBuilder extends PathBuilder {
 
   def createTempDirectory(prefix: String): DefaultPath = DefaultPath(java.nio.file.Files.createTempDirectory(prefix))
 
-  def createTempFile(prefix: String = "", suffix: String = "", parent: Option[Path] = None): Path = {
+  def createTempFile(prefix: String = "", suffix: String = "", parent: Option[Path] = None): Path =
     parent match {
       case Some(dir) => dir.createTempFile(prefix, suffix)
       case _ => DefaultPath(java.nio.file.Files.createTempFile(prefix, suffix))
     }
-  }
 }
 
-case class DefaultPath private[path](nioPath: NioPath) extends Path {
+case class DefaultPath private[path] (nioPath: NioPath) extends Path {
   override protected def newPath(nioPath: NioPath): DefaultPath = DefaultPath(nioPath)
 
   override def pathAsString: String = nioPath.toString

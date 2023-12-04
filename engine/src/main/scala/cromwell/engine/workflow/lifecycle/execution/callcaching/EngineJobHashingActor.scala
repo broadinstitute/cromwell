@@ -8,7 +8,12 @@ import cromwell.core.callcaching._
 import cromwell.core.logging.JobLogging
 import cromwell.engine.workflow.lifecycle.execution.CallMetadataHelper
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCachePathPrefixes
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{CompleteFileHashingResult, FinalFileHashingResult, InitialHashingResult, NoFileHashesResult}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{
+  CompleteFileHashingResult,
+  FinalFileHashingResult,
+  InitialHashingResult,
+  NoFileHashesResult
+}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor._
 import cromwell.services.CallCaching.CallCachingEntryId
@@ -31,7 +36,11 @@ class EngineJobHashingActor(receiver: ActorRef,
                             activity: CallCachingActivity,
                             callCachingEligible: CallCachingEligible,
                             callCachePathPrefixes: Option[CallCachePathPrefixes],
-                            fileHashBatchSize: Int) extends Actor with ActorLogging with JobLogging with CallMetadataHelper {
+                            fileHashBatchSize: Int
+) extends Actor
+    with ActorLogging
+    with JobLogging
+    with CallMetadataHelper {
 
   override val jobTag = jobDescriptor.key.tag
   val workflowId = jobDescriptor.workflowDescriptor.id
@@ -39,25 +48,28 @@ class EngineJobHashingActor(receiver: ActorRef,
   override val rootWorkflowIdForLogging = jobDescriptor.workflowDescriptor.rootWorkflowId
   override val workflowIdForCallMetadata: WorkflowId = workflowId
 
-  private [callcaching] var initialHash: Option[InitialHashingResult] = None
+  private[callcaching] var initialHash: Option[InitialHashingResult] = None
 
-  private [callcaching] val callCacheReadingJobActor = if (activity.readFromCache) {
+  private[callcaching] val callCacheReadingJobActor = if (activity.readFromCache) {
     Option(context.actorOf(callCacheReadingJobActorProps, s"CCReadingJobActor-${workflowId.shortString}-$jobTag"))
   } else None
 
   override def preStart(): Unit = {
-    context.actorOf(CallCacheHashingJobActor.props(
-      jobDescriptor,
-      callCacheReadingJobActor,
-      initializationData,
-      runtimeAttributeDefinitions,
-      backendNameForCallCachingPurposes,
-      fileHashingActorProps,
-      callCachingEligible,
-      activity,
-      callCachePathPrefixes,
-      fileHashBatchSize
-    ), s"CCHashingJobActor-${workflowId.shortString}-$jobTag")
+    context.actorOf(
+      CallCacheHashingJobActor.props(
+        jobDescriptor,
+        callCacheReadingJobActor,
+        initializationData,
+        runtimeAttributeDefinitions,
+        backendNameForCallCachingPurposes,
+        fileHashingActorProps,
+        callCachingEligible,
+        activity,
+        callCachePathPrefixes,
+        fileHashBatchSize
+      ),
+      s"CCHashingJobActor-${workflowId.shortString}-$jobTag"
+    )
     super.preStart()
   }
 
@@ -81,7 +93,10 @@ class EngineJobHashingActor(receiver: ActorRef,
 
   private def publishHashFailure(failure: Throwable) = {
     import cromwell.services.metadata.MetadataService._
-    val failureAsEvents = throwableToMetadataEvents(metadataKeyForCall(jobDescriptor.key, CallMetadataKeys.CallCachingKeys.HashFailuresKey), failure)
+    val failureAsEvents = throwableToMetadataEvents(
+      metadataKeyForCall(jobDescriptor.key, CallMetadataKeys.CallCachingKeys.HashFailuresKey),
+      failure
+    )
     serviceRegistryActor ! PutMetadataAction(failureAsEvents)
   }
 
@@ -125,7 +140,10 @@ object EngineJobHashingActor {
   case class CacheHit(cacheResultId: CallCachingEntryId) extends EJHAResponse
   case class HashError(reason: Throwable) extends EJHAResponse
   case class FileHashes(hashes: Set[HashResult], aggregatedHash: String)
-  case class CallCacheHashes(initialHashes: Set[HashResult], aggregatedInitialHash: String, fileHashes: Option[FileHashes]) extends EJHAResponse {
+  case class CallCacheHashes(initialHashes: Set[HashResult],
+                             aggregatedInitialHash: String,
+                             fileHashes: Option[FileHashes]
+  ) extends EJHAResponse {
     val hashes = initialHashes ++ fileHashes.map(_.hashes).getOrElse(Set.empty)
     def aggregatedHashString: String = {
       val file = fileHashes match {
@@ -147,17 +165,21 @@ object EngineJobHashingActor {
             activity: CallCachingActivity,
             callCachingEligible: CallCachingEligible,
             callCachePathPrefixes: Option[CallCachePathPrefixes],
-            fileHashBatchSize: Int): Props = Props(new EngineJobHashingActor(
-    receiver = receiver,
-    serviceRegistryActor = serviceRegistryActor,
-    jobDescriptor = jobDescriptor,
-    initializationData = initializationData,
-    fileHashingActorProps = fileHashingActorProps,
-    callCacheReadingJobActorProps = callCacheReadingJobActorProps,
-    runtimeAttributeDefinitions = runtimeAttributeDefinitions,
-    backendNameForCallCachingPurposes = backendNameForCallCachingPurposes,
-    activity = activity,
-    callCachingEligible = callCachingEligible,
-    callCachePathPrefixes = callCachePathPrefixes,
-    fileHashBatchSize = fileHashBatchSize)).withDispatcher(EngineDispatcher)
+            fileHashBatchSize: Int
+  ): Props = Props(
+    new EngineJobHashingActor(
+      receiver = receiver,
+      serviceRegistryActor = serviceRegistryActor,
+      jobDescriptor = jobDescriptor,
+      initializationData = initializationData,
+      fileHashingActorProps = fileHashingActorProps,
+      callCacheReadingJobActorProps = callCacheReadingJobActorProps,
+      runtimeAttributeDefinitions = runtimeAttributeDefinitions,
+      backendNameForCallCachingPurposes = backendNameForCallCachingPurposes,
+      activity = activity,
+      callCachingEligible = callCachingEligible,
+      callCachePathPrefixes = callCachePathPrefixes,
+      fileHashBatchSize = fileHashBatchSize
+    )
+  ).withDispatcher(EngineDispatcher)
 }

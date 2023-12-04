@@ -15,20 +15,19 @@ object UriUtil {
       * - the StringUtilSpec for current expectations
       * - https://stackoverflow.com/questions/4571346/how-to-encode-url-to-avoid-special-characters-in-java#answer-4571518
       */
-    def maskSensitive: URI = {
+    def maskSensitive: URI =
       Try {
-          new URI(
-            uri.getScheme,
-            null, // Remove all userInfo
-            uri.getHost,
-            uri.getPort,
-            uri.getPath,
-            Option(uri.getQuery).map(maskSensitiveQuery).orNull,
-            uri.getFragment,
-          )
+        new URI(
+          uri.getScheme,
+          null, // Remove all userInfo
+          uri.getHost,
+          uri.getPort,
+          uri.getPath,
+          Option(uri.getQuery).map(maskSensitiveQuery).orNull,
+          uri.getFragment
+        )
       }
-      .getOrElse(uri)
-    }
+        .getOrElse(uri)
   }
 
   private def maskSensitiveQuery(query: String): String = {
@@ -85,7 +84,7 @@ object UriUtil {
   private val SensitiveKeyParts =
     List(
       "credential",
-      "signature",
+      "signature"
     )
 
   private def isSensitiveKey(name: String): Boolean = {

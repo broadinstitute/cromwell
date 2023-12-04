@@ -34,7 +34,7 @@ object Publishing {
     `CROMWELL_SBT_DOCKER_TAGS=dev,develop sbt 'show docker::imageNames'` returns:
       ArrayBuffer(broadinstitute/womtool:dev, broadinstitute/womtool:develop)
       ArrayBuffer(broadinstitute/cromwell:dev, broadinstitute/cromwell:develop)
-    */
+     */
     dockerTags := {
       val versionsCsv = if (Version.isSnapshot) {
         // Tag looks like `85-443a6fc-SNAP`
@@ -113,19 +113,19 @@ object Publishing {
     docker / buildOptions := BuildOptions(
       cache = false,
       removeIntermediateContainers = BuildOptions.Remove.Always
-    ),
+    )
   )
 
-  def dockerPushSettings(pushEnabled: Boolean): Seq[Setting[_]] = {
+  def dockerPushSettings(pushEnabled: Boolean): Seq[Setting[_]] =
     if (pushEnabled) {
       List(
         dockerPushCheck := {
           val projectName = name.value
           val repositoryName = s"broadinstitute/$projectName"
           val repositoryUrl = s"https://registry.hub.docker.com/v2/repositories/$repositoryName/"
-          try {
+          try
             url(repositoryUrl).cat.lineStream
-          } catch {
+          catch {
             case exception: Exception =>
               throw new IllegalStateException(
                 s"""|Verify that public repository https://hub.docker.com/r/$repositoryName exists.
@@ -144,7 +144,6 @@ object Publishing {
         }
       )
     }
-  }
 
   private val broadArtifactoryResolver: Resolver =
     "Broad Artifactory" at
@@ -170,12 +169,11 @@ object Publishing {
   private val artifactoryCredentialsFile =
     file("target/ci/resources/artifactory_credentials.properties").getAbsoluteFile
 
-  private val artifactoryCredentials: Seq[Credentials] = {
+  private val artifactoryCredentials: Seq[Credentials] =
     if (artifactoryCredentialsFile.exists)
       List(Credentials(artifactoryCredentialsFile))
     else
       Nil
-  }
 
   // BT-250 Check if publishing will fail due to already published artifacts
   val checkAlreadyPublished = taskKey[Boolean]("Verifies if publishing has already occurred")
@@ -183,7 +181,8 @@ object Publishing {
 
   private case class CromwellMDArtifactType(artifactType: String,
                                             artifactExtension: String,
-                                            classifierOption: Option[String])
+                                            classifierOption: Option[String]
+  )
 
   /**
     * The types of MDArtifacts published by this sbt build.
@@ -201,18 +200,18 @@ object Publishing {
   /**
     * Retrieve the IBiblioResolver from sbt's Ivy setup.
     */
-  private def getIBiblioResolver(ivy: Ivy): IBiblioResolver = {
+  private def getIBiblioResolver(ivy: Ivy): IBiblioResolver =
     ivy.getSettings.getResolver(broadArtifactoryResolver.name) match {
       case iBiblioResolver: IBiblioResolver => iBiblioResolver
       case other => sys.error(s"Expected an IBiblioResolver, got $other")
     }
-  }
 
   /**
     * Maps an sbt artifact to the Apache Ivy artifact type.
     */
-  private def makeMDArtifact(moduleDescriptor: DefaultModuleDescriptor)
-                            (cromwellMDArtifactType: CromwellMDArtifactType): MDArtifact = {
+  private def makeMDArtifact(moduleDescriptor: DefaultModuleDescriptor)(
+    cromwellMDArtifactType: CromwellMDArtifactType
+  ): MDArtifact =
     new MDArtifact(
       moduleDescriptor,
       moduleDescriptor.getModuleRevisionId.getName,
@@ -221,7 +220,6 @@ object Publishing {
       null,
       cromwellMDArtifactType.classifierOption.map("classifier" -> _).toMap.asJava
     )
-  }
 
   /**
     * Returns true and prints out an error if an artifact already exists.
@@ -243,20 +241,19 @@ object Publishing {
       val module = ivyModule.value
       val log = streams.value.log
 
-      module.withModule(log) {
-        case (ivy, moduleDescriptor, _) =>
-          val resolver = getIBiblioResolver(ivy)
-          cromwellMDArtifactTypes
-            .map(makeMDArtifact(moduleDescriptor))
-            .map(existsMDArtifact(resolver, log))
-            .exists(identity)
+      module.withModule(log) { case (ivy, moduleDescriptor, _) =>
+        val resolver = getIBiblioResolver(ivy)
+        cromwellMDArtifactTypes
+          .map(makeMDArtifact(moduleDescriptor))
+          .map(existsMDArtifact(resolver, log))
+          .exists(identity)
       }
     },
     errorIfAlreadyPublished := {
       if (checkAlreadyPublished.value) {
         sys.error(
           s"Some ${version.value} artifacts were already published and will need to be manually deleted. " +
-          "See the errors above for the list of published artifacts."
+            "See the errors above for the list of published artifacts."
         )
       }
     }

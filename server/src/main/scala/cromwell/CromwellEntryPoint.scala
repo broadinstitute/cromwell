@@ -18,7 +18,11 @@ import cromwell.api.CromwellClient
 import cromwell.api.model.{Label, LabelsJsonFormatter, WorkflowSingleSubmission}
 import cromwell.core.logging.JavaLoggingBridge
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip, WorkflowSourceFilesWithoutImports}
+import cromwell.core.{
+  WorkflowSourceFilesCollection,
+  WorkflowSourceFilesWithDependenciesZip,
+  WorkflowSourceFilesWithoutImports
+}
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.server.{CromwellServer, CromwellShutdown, CromwellSystem}
@@ -78,7 +82,9 @@ object CromwellEntryPoint extends GracefulStopSupport {
     val runner = cromwellSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
 
     import cromwell.util.PromiseActor.EnhancedActorRef
-    waitAndExit(() => runner.askNoTimeout(RunWorkflow), () => CromwellShutdown.instance(cromwellSystem.actorSystem).run(JvmExitReason))
+    waitAndExit(() => runner.askNoTimeout(RunWorkflow),
+                () => CromwellShutdown.instance(cromwellSystem.actorSystem).run(JvmExitReason)
+    )
   }
 
   def submitToServer(args: CommandLineArguments): Unit = {
@@ -123,11 +129,10 @@ object CromwellEntryPoint extends GracefulStopSupport {
       new CromwellSystem {
         override lazy val config: Config = CromwellEntryPoint.config
       }
-    } recoverWith {
-      case t: Throwable =>
-        Log.error(s"Failed to instantiate Cromwell System. Shutting down Cromwell.", t)
-        System.exit(1)
-        Failure(t)
+    } recoverWith { case t: Throwable =>
+      Log.error(s"Failed to instantiate Cromwell System. Shutting down Cromwell.", t)
+      System.exit(1)
+      Failure(t)
     } get
   }
 
@@ -184,11 +189,12 @@ object CromwellEntryPoint extends GracefulStopSupport {
     val futureResult = operation()
     Await.ready(futureResult, Duration.Inf)
 
-    try {
+    try
       Await.ready(shutdown(), 30.seconds)
-    } catch {
+    catch {
       case _: TimeoutException => Console.err.println("Timed out trying to shutdown actor system")
-      case other: Exception => Console.err.println(s"Unexpected error trying to shutdown actor system: ${other.getMessage}")
+      case other: Exception =>
+        Console.err.println(s"Unexpected error trying to shutdown actor system: ${other.getMessage}")
     }
 
     val returnCode = futureResult.value.get match {
@@ -201,34 +207,33 @@ object CromwellEntryPoint extends GracefulStopSupport {
     sys.exit(returnCode)
   }
 
-  private def waitAndExit(runner: CromwellSystem => Future[Any], workflowManagerSystem: CromwellSystem): Unit = {
+  private def waitAndExit(runner: CromwellSystem => Future[Any], workflowManagerSystem: CromwellSystem): Unit =
     waitAndExit(() => runner(workflowManagerSystem), () => workflowManagerSystem.shutdownActorSystem())
-  }
 
   def validateSubmitArguments(args: CommandLineArguments): WorkflowSingleSubmission = {
     import LabelsJsonFormatter._
     import spray.json._
 
-    val validation = args.validateSubmission(EntryPointLogger) map {
-      case ValidSubmission(s, u, r, i, o, l, z) =>
-        val finalWorkflowSourceAndUrl: WorkflowSourceOrUrl =
-          (s, u) match {
-            case (None, Some(url)) if !url.startsWith("http") => //case where url is a WDL/CWL file
-              WorkflowSourceOrUrl(Option(DefaultPathBuilder.get(url).contentAsString), None)
-            case _ =>
-              WorkflowSourceOrUrl(s, u)
-          }
+    val validation = args.validateSubmission(EntryPointLogger) map { case ValidSubmission(s, u, r, i, o, l, z) =>
+      val finalWorkflowSourceAndUrl: WorkflowSourceOrUrl =
+        (s, u) match {
+          case (None, Some(url)) if !url.startsWith("http") => // case where url is a WDL/CWL file
+            WorkflowSourceOrUrl(Option(DefaultPathBuilder.get(url).contentAsString), None)
+          case _ =>
+            WorkflowSourceOrUrl(s, u)
+        }
 
-        WorkflowSingleSubmission(
-          workflowSource = finalWorkflowSourceAndUrl.source,
-          workflowUrl = finalWorkflowSourceAndUrl.url,
-          workflowRoot = r,
-          workflowType = args.workflowType,
-          workflowTypeVersion = args.workflowTypeVersion,
-          inputsJson = Option(i),
-          options = Option(o.asPrettyJson),
-          labels = Option(l.parseJson.convertTo[List[Label]]),
-          zippedImports = z)
+      WorkflowSingleSubmission(
+        workflowSource = finalWorkflowSourceAndUrl.source,
+        workflowUrl = finalWorkflowSourceAndUrl.url,
+        workflowRoot = r,
+        workflowType = args.workflowType,
+        workflowTypeVersion = args.workflowTypeVersion,
+        inputsJson = Option(i),
+        options = Option(o.asPrettyJson),
+        labels = Option(l.parseJson.convertTo[List[Label]]),
+        zippedImports = z
+      )
     }
 
     validOrFailSubmission(validation)
@@ -236,37 +241,40 @@ object CromwellEntryPoint extends GracefulStopSupport {
 
   def validateRunArguments(args: CommandLineArguments): WorkflowSourceFilesCollection = {
 
-    val sourceFileCollection = (args.validateSubmission(EntryPointLogger), writeableMetadataPath(args.metadataOutput)) mapN {
-      case (ValidSubmission(s, u, r, i, o, l, Some(z)), _) =>
-        //noinspection RedundantDefaultArgument
-        WorkflowSourceFilesWithDependenciesZip.apply(
-          workflowSource = s,
-          workflowUrl = u,
-          workflowRoot = r,
-          workflowType = args.workflowType,
-          workflowTypeVersion = args.workflowTypeVersion,
-          inputsJson = i,
-          workflowOptions = o,
-          labelsJson = l,
-          importsZip = z.loadBytes,
-          warnings = Vector.empty,
-          workflowOnHold = false,
-          requestedWorkflowId = None)
-      case (ValidSubmission(s, u, r, i, o, l, None), _) =>
-        //noinspection RedundantDefaultArgument
-        WorkflowSourceFilesWithoutImports.apply(
-          workflowSource = s,
-          workflowUrl = u,
-          workflowRoot = r,
-          workflowType = args.workflowType,
-          workflowTypeVersion = args.workflowTypeVersion,
-          inputsJson = i,
-          workflowOptions = o,
-          labelsJson = l,
-          warnings = Vector.empty,
-          workflowOnHold = false,
-          requestedWorkflowId = None)
-    }
+    val sourceFileCollection =
+      (args.validateSubmission(EntryPointLogger), writeableMetadataPath(args.metadataOutput)) mapN {
+        case (ValidSubmission(s, u, r, i, o, l, Some(z)), _) =>
+          // noinspection RedundantDefaultArgument
+          WorkflowSourceFilesWithDependenciesZip.apply(
+            workflowSource = s,
+            workflowUrl = u,
+            workflowRoot = r,
+            workflowType = args.workflowType,
+            workflowTypeVersion = args.workflowTypeVersion,
+            inputsJson = i,
+            workflowOptions = o,
+            labelsJson = l,
+            importsZip = z.loadBytes,
+            warnings = Vector.empty,
+            workflowOnHold = false,
+            requestedWorkflowId = None
+          )
+        case (ValidSubmission(s, u, r, i, o, l, None), _) =>
+          // noinspection RedundantDefaultArgument
+          WorkflowSourceFilesWithoutImports.apply(
+            workflowSource = s,
+            workflowUrl = u,
+            workflowRoot = r,
+            workflowType = args.workflowType,
+            workflowTypeVersion = args.workflowTypeVersion,
+            inputsJson = i,
+            workflowOptions = o,
+            labelsJson = l,
+            warnings = Vector.empty,
+            workflowOnHold = false,
+            requestedWorkflowId = None
+          )
+      }
 
     val sourceFiles = for {
       sources <- sourceFileCollection
@@ -276,19 +284,19 @@ object CromwellEntryPoint extends GracefulStopSupport {
     validOrFailSubmission(sourceFiles)
   }
 
-  def validOrFailSubmission[A](validation: ErrorOr[A]): A = {
-    validation.valueOr(errors => throw new RuntimeException with MessageAggregation {
-      override def exceptionContext: String = "ERROR: Unable to submit workflow to Cromwell:"
-      override def errorMessages: Iterable[String] = errors.toList
-    })
-  }
+  def validOrFailSubmission[A](validation: ErrorOr[A]): A =
+    validation.valueOr(errors =>
+      throw new RuntimeException with MessageAggregation {
+        override def exceptionContext: String = "ERROR: Unable to submit workflow to Cromwell:"
+        override def errorMessages: Iterable[String] = errors.toList
+      }
+    )
 
-  private def writeableMetadataPath(path: Option[Path]): ErrorOr[Unit] = {
+  private def writeableMetadataPath(path: Option[Path]): ErrorOr[Unit] =
     path match {
       case Some(p) if !metadataPathIsWriteable(p) => s"Unable to write to metadata directory: $p".invalidNel
       case _ => ().validNel
     }
-  }
 
   private def metadataPathIsWriteable(metadataPath: Path): Boolean =
     Try(metadataPath.createIfNotExists(createParents = true).append("")).isSuccess

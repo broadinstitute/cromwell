@@ -15,17 +15,18 @@ import cromwell.api.model.{WorkflowDescribeRequest, WorkflowSingleSubmission}
 import java.nio.file.Path
 import scala.concurrent.duration.FiniteDuration
 
-final case class Workflow private(testName: String,
-                                  data: WorkflowData,
-                                  metadata: Option[WorkflowFlatMetadata],
-                                  notInMetadata: List[String],
-                                  directoryContentCounts: Option[DirectoryContentCountCheck],
-                                  backends: BackendsRequirement,
-                                  retryTestFailures: Boolean,
-                                  allowOtherOutputs: Boolean,
-                                  skipDescribeEndpointValidation: Boolean,
-                                  submittedWorkflowTracker: SubmittedWorkflowTracker,
-                                  maximumAllowedTime: Option[FiniteDuration]) {
+final case class Workflow private (testName: String,
+                                   data: WorkflowData,
+                                   metadata: Option[WorkflowFlatMetadata],
+                                   notInMetadata: List[String],
+                                   directoryContentCounts: Option[DirectoryContentCountCheck],
+                                   backends: BackendsRequirement,
+                                   retryTestFailures: Boolean,
+                                   allowOtherOutputs: Boolean,
+                                   skipDescribeEndpointValidation: Boolean,
+                                   submittedWorkflowTracker: SubmittedWorkflowTracker,
+                                   maximumAllowedTime: Option[FiniteDuration]
+) {
 
   def toWorkflowSubmission: WorkflowSingleSubmission = WorkflowSingleSubmission(
     workflowSource = data.workflowContent,
@@ -36,7 +37,8 @@ final case class Workflow private(testName: String,
     inputsJson = data.inputs.map(_.unsafeRunSync()),
     options = data.options.map(_.unsafeRunSync()),
     labels = Option(data.labels),
-    zippedImports = data.zippedImports)
+    zippedImports = data.zippedImports
+  )
 
   def toWorkflowDescribeRequest: WorkflowDescribeRequest = WorkflowDescribeRequest(
     workflowSource = data.workflowContent,
@@ -46,22 +48,26 @@ final case class Workflow private(testName: String,
     inputsJson = data.inputs.map(_.unsafeRunSync())
   )
 
-  def secondRun: Workflow = {
+  def secondRun: Workflow =
     copy(data = data.copy(options = data.secondOptions))
-  }
 
-  def thirdRun: Workflow = {
+  def thirdRun: Workflow =
     copy(data = data.copy(options = data.thirdOptions))
-  }
 }
 
 object Workflow {
 
-  def fromConfig(conf: Config, configFile: File, submittedWorkflowTracker: SubmittedWorkflowTracker): ErrorOr[Workflow] = {
+  def fromConfig(conf: Config,
+                 configFile: File,
+                 submittedWorkflowTracker: SubmittedWorkflowTracker
+  ): ErrorOr[Workflow] =
     conf.get[String]("name") match {
       case Result.Success(n) =>
         // If backend is provided, Centaur will only run this test if that backend is available on Cromwell
-        val backendsRequirement = BackendsRequirement.fromConfig(conf.get[String]("backendsMode").map(_.toLowerCase).valueOrElse("all"), conf.get[List[String]]("backends").valueOrElse(List.empty[String]).map(_.toLowerCase))
+        val backendsRequirement = BackendsRequirement.fromConfig(
+          conf.get[String]("backendsMode").map(_.toLowerCase).valueOrElse("all"),
+          conf.get[List[String]]("backends").valueOrElse(List.empty[String]).map(_.toLowerCase)
+        )
         // If basePath is provided it'll be used as basis for finding other files, otherwise use the dir the config was in
         val basePath = conf.get[Option[Path]]("basePath") valueOrElse None map (File(_)) getOrElse configFile
         val metadata: ErrorOr[Option[WorkflowFlatMetadata]] = conf.get[Config]("metadata") match {
@@ -73,7 +79,8 @@ object Workflow {
           case Result.Failure(_) => List.empty
         }
 
-        val directoryContentCheckValidation: ErrorOr[Option[DirectoryContentCountCheck]] = DirectoryContentCountCheck.forConfig(n, conf)
+        val directoryContentCheckValidation: ErrorOr[Option[DirectoryContentCountCheck]] =
+          DirectoryContentCountCheck.forConfig(n, conf)
         val files = conf.get[Config]("files") match {
           case Result.Success(f) => WorkflowData.fromConfig(filesConfig = f, fullConfig = conf, basePath = basePath)
           case Result.Failure(_) => invalidNel(s"No 'files' block in $configFile")
@@ -89,10 +96,21 @@ object Workflow {
         val maximumTime: Option[FiniteDuration] = conf.get[Option[FiniteDuration]]("maximumTime").value
 
         (files, directoryContentCheckValidation, metadata, retryTestFailuresErrorOr) mapN {
-          (f, d, m, retryTestFailures) => Workflow(n, f, m, absentMetadata, d, backendsRequirement, retryTestFailures, allowOtherOutputs, validateDescription, submittedWorkflowTracker, maximumTime)
+          (f, d, m, retryTestFailures) =>
+            Workflow(n,
+                     f,
+                     m,
+                     absentMetadata,
+                     d,
+                     backendsRequirement,
+                     retryTestFailures,
+                     allowOtherOutputs,
+                     validateDescription,
+                     submittedWorkflowTracker,
+                     maximumTime
+            )
         }
 
       case Result.Failure(_) => invalidNel(s"No test 'name' for: $configFile")
     }
-  }
 }

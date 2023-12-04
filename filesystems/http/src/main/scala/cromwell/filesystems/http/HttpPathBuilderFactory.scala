@@ -8,10 +8,10 @@ import cromwell.core.path.{PathBuilder, PathBuilderFactory}
 import scala.concurrent.{ExecutionContext, Future}
 
 class HttpPathBuilderFactory(globalConfig: Config, instanceConfig: Config) extends PathBuilderFactory {
-  override def withOptions(options: WorkflowOptions)
-                          (implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder] = {
+  override def withOptions(
+    options: WorkflowOptions
+  )(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder] =
     Future {
       new HttpPathBuilder
     }
-  }
 }

@@ -21,15 +21,14 @@ object CloudNioPaths {
     * @see [[cloud.nio.util.CloudNioPaths#showAbsolute(java.nio.file.Path)]]
     * @see [[cloud.nio.spi.CloudNioPath#uriAsString()]]
     */
-  def get(filePath: String): Path = {
-    try {
+  def get(filePath: String): Path =
+    try
       // TODO: softer parsing using Guava UrlEscapers. May also be better to list the providers ourselves if possible.
       Paths.get(new URI(filePath))
-    } catch {
-      case _: URISyntaxException                                               => Paths.get(filePath)
+    catch {
+      case _: URISyntaxException => Paths.get(filePath)
       case iae: IllegalArgumentException if iae.getMessage == "Missing scheme" => Paths.get(filePath)
     }
-  }
 
   /**
     * Return a path in a way reciprocal with [[cloud.nio.util.CloudNioPaths#get]].
@@ -38,12 +37,11 @@ object CloudNioPaths {
     * @see [[cloud.nio.util.CloudNioPaths#showRelative(java.nio.file.Path)]]
     * @see [[cloud.nio.spi.CloudNioPath#uriAsString()]]
     */
-  def showAbsolute(path: Path): String = {
+  def showAbsolute(path: Path): String =
     path match {
       case cloudNioPath: CloudNioPath => cloudNioPath.uriAsString
-      case _                          => path.toAbsolutePath.toString
+      case _ => path.toAbsolutePath.toString
     }
-  }
 
   /**
     * When the path is relative returns a relative path in a way reciprocal with resolve.
@@ -53,11 +51,10 @@ object CloudNioPaths {
     * @see [[java.nio.file.Path#resolve(java.nio.file.Path)]]
     * @see [[cloud.nio.spi.CloudNioPath#uriAsString()]]
     */
-  def showRelative(path: Path): String = {
+  def showRelative(path: Path): String =
     path match {
       case cloudNioPath: CloudNioPath => cloudNioPath.relativeDependentPath
-      case _ if !path.isAbsolute      => path.normalize().toString
-      case _                          => path.getRoot.relativize(path).normalize().toString
+      case _ if !path.isAbsolute => path.normalize().toString
+      case _ => path.getRoot.relativize(path).normalize().toString
     }
-  }
 }

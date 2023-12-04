@@ -40,7 +40,7 @@ class GcpBatchAttachedDiskSpec extends AnyFlatSpec with CromwellTimeoutSpec with
   )
 
   it should "reject malformed disk mounts" in {
-    forAll(invalidTable) { (unparsed) =>
+    forAll(invalidTable) { unparsed =>
       GcpBatchAttachedDisk.parse(unparsed) should be(a[Failure[_]])
     }
   }

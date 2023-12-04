@@ -9,7 +9,10 @@ class NamespaceSpec extends WdlTest {
       val namespace = Try(loadWdl("type_checks.wdl"))
 
       namespace match {
-        case Failure(f) => f.getMessage should startWith("ERROR: oopsNotOptionalArray is declared as a Array[Int] but the expression evaluates to a Array[Int?]")
+        case Failure(f) =>
+          f.getMessage should startWith(
+            "ERROR: oopsNotOptionalArray is declared as a Array[Int] but the expression evaluates to a Array[Int?]"
+          )
         case Success(_) => fail("Should have failed to load namespace")
       }
     }

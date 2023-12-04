@@ -52,32 +52,33 @@ sealed trait GcpBatchOutput extends BatchParameter {
   def contentType: Option[ContentType] = None
 }
 
-final case class GcpBatchFileInput(name: String,
-                                       cloudPath: Path,
-                                       relativeHostPath: Path,
-                                       mount: GcpBatchAttachedDisk) extends GcpBatchInput
+final case class GcpBatchFileInput(name: String, cloudPath: Path, relativeHostPath: Path, mount: GcpBatchAttachedDisk)
+    extends GcpBatchInput
 
 final case class GcpBatchDirectoryInput(name: String,
-                                            cloudPath: Path,
-                                            relativeHostPath: Path,
-                                            mount: GcpBatchAttachedDisk) extends GcpBatchInput
-
-final case class GcpBatchFileOutput(name: String,
                                         cloudPath: Path,
                                         relativeHostPath: Path,
-                                        mount: GcpBatchAttachedDisk,
-                                        optional: Boolean,
-                                        secondary: Boolean,
-                                        uploadPeriod: Option[FiniteDuration] = None,
-                                        override val contentType: Option[ContentType] = None) extends GcpBatchOutput
+                                        mount: GcpBatchAttachedDisk
+) extends GcpBatchInput
+
+final case class GcpBatchFileOutput(name: String,
+                                    cloudPath: Path,
+                                    relativeHostPath: Path,
+                                    mount: GcpBatchAttachedDisk,
+                                    optional: Boolean,
+                                    secondary: Boolean,
+                                    uploadPeriod: Option[FiniteDuration] = None,
+                                    override val contentType: Option[ContentType] = None
+) extends GcpBatchOutput
 
 final case class GcpBatchDirectoryOutput(name: String,
-                                             cloudPath: Path,
-                                             relativeHostPath: Path,
-                                             mount: GcpBatchAttachedDisk,
-                                             optional: Boolean,
-                                             secondary: Boolean,
-                                             override val contentType: Option[ContentType] = None) extends GcpBatchOutput
+                                         cloudPath: Path,
+                                         relativeHostPath: Path,
+                                         mount: GcpBatchAttachedDisk,
+                                         optional: Boolean,
+                                         secondary: Boolean,
+                                         override val contentType: Option[ContentType] = None
+) extends GcpBatchOutput
 
 // TODO: Remove when support for V1 is stopped, this is only used to pass the extra_param auth file
 final case class GcpBatchLiteralInput(name: String, value: String)

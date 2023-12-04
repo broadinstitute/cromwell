@@ -26,11 +26,14 @@ class ValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     case "b" => WomInteger(2)
     case "s" => WomString("s")
     case "array_str" => WomArray(WomArrayType(WomStringType), Seq("foo", "bar", "baz").map(WomString))
-    case "map_str_int" => WomMap(WomMapType(WomStringType, WomIntegerType), Map(
-      WomString("a") -> WomInteger(0),
-      WomString("b") -> WomInteger(1),
-      WomString("c") -> WomInteger(2)
-    ))
+    case "map_str_int" =>
+      WomMap(WomMapType(WomStringType, WomIntegerType),
+             Map(
+               WomString("a") -> WomInteger(0),
+               WomString("b") -> WomInteger(1),
+               WomString("c") -> WomInteger(2)
+             )
+      )
     case "o" => WomObject(Map("key1" -> WomString("value1"), "key2" -> WomInteger(9)))
     case "myPair" => WomPair(WomInteger(3), WomString("hello"))
     case "etc_f" => WomSingleFile("/etc")
@@ -38,14 +41,14 @@ class ValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     case "etc_s" => WomString("/etc")
     case "sudoers_f" => WomSingleFile("/sudoers")
     case "sudoers_s" => WomString("/sudoers")
-    case "f" => WomFloat(0.5F)
+    case "f" => WomFloat(0.5f)
     case "t" => WomBoolean(true)
     case "someIntAsString" => WomOptionalValue(WomString("1"))
     case "someFloatAsString" => WomOptionalValue(WomString("0.5"))
     case "someStr" => WomOptionalValue(WomString("someStr"))
     case "someInt" => WomOptionalValue(WomInteger(1))
     case "someBoolean" => WomOptionalValue(WomBoolean(false))
-    case "someFloat" => WomOptionalValue(WomFloat(0.5F))
+    case "someFloat" => WomOptionalValue(WomFloat(0.5f))
     case "someFile" => WomOptionalValue(WomSingleFile("file"))
     case "noneStr" => WomOptionalValue.none(WomStringType)
     case "noneInt" => WomOptionalValue.none(WomIntegerType)
@@ -54,7 +57,6 @@ class ValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     case "noneFile" => WomOptionalValue.none(WomSingleFileType)
   }
 
-
   def identifierTypeLookup(name: String): WomType = identifierLookup(name).womType
 
   class TestValueFunctions extends WdlStandardLibraryFunctions {
@@ -62,7 +64,9 @@ class ValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
 
     override def readFile(path: String, sizeLimit: Int): String = throw new UnsupportedOperationException()
 
-    override def writeFile(path: String, content: String): Try[WomSingleFile] = Failure(new UnsupportedOperationException())
+    override def writeFile(path: String, content: String): Try[WomSingleFile] = Failure(
+      new UnsupportedOperationException()
+    )
 
     override def stdout(params: Seq[Try[WomValue]]): Try[WomSingleFile] = Failure(new UnsupportedOperationException())
 
@@ -70,9 +74,13 @@ class ValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
 
     override def read_json(params: Seq[Try[WomValue]]): Try[WomValue] = Failure(new UnsupportedOperationException())
 
-    override def write_tsv(params: Seq[Try[WomValue]]): Try[WomSingleFile] = Failure(new UnsupportedOperationException())
+    override def write_tsv(params: Seq[Try[WomValue]]): Try[WomSingleFile] = Failure(
+      new UnsupportedOperationException()
+    )
 
-    override def write_json(params: Seq[Try[WomValue]]): Try[WomSingleFile] = Failure(new UnsupportedOperationException())
+    override def write_json(params: Seq[Try[WomValue]]): Try[WomSingleFile] = Failure(
+      new UnsupportedOperationException()
+    )
 
     override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Failure(new UnsupportedOperationException())
 
@@ -101,23 +109,23 @@ class ValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
 
   def constEval(exprStr: String): WomValue = expr(exprStr).evaluate(noLookup, new TestValueFunctions()).get
 
-  def constEvalType(exprStr: String): WomType = expr(exprStr).evaluateType(identifierTypeLookup, new TestTypeFunctions).get
+  def constEvalType(exprStr: String): WomType =
+    expr(exprStr).evaluateType(identifierTypeLookup, new TestTypeFunctions).get
 
-  def constEvalError(exprStr: String): Throwable = {
+  def constEvalError(exprStr: String): Throwable =
     expr(exprStr).evaluate(noLookup, new TestValueFunctions()).asInstanceOf[Try[WomPrimitive]] match {
       case Failure(ex) => ex
       case Success(v) => fail(s"Operation was supposed to fail, instead I got value: $v")
     }
-  }
 
-  def identifierEval(exprStr: String): WomPrimitive = expr(exprStr).evaluate(identifierLookup, new TestValueFunctions()).asInstanceOf[Try[WomPrimitive]].get
+  def identifierEval(exprStr: String): WomPrimitive =
+    expr(exprStr).evaluate(identifierLookup, new TestValueFunctions()).asInstanceOf[Try[WomPrimitive]].get
 
-  def identifierEvalError(exprStr: String): Unit = {
+  def identifierEvalError(exprStr: String): Unit =
     expr(exprStr).evaluate(identifierLookup, new TestValueFunctions()).asInstanceOf[Try[WomPrimitive]] match {
       case Failure(_) => // Expected
       case Success(v) => fail(s"Operation was supposed to fail, instead I got value: $v")
     }
-  }
 
   val constantExpressions = Table(
     ("expression", "value"),
@@ -227,128 +235,137 @@ class ValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     ("(1)", WomInteger(1)),
 
     // Array in pair:
-    ("(\"hello\", [ 1, 2, 3 ])", WomPair(WomString("hello"), WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(1), WomInteger(2), WomInteger(3))))),
+    ("(\"hello\", [ 1, 2, 3 ])",
+     WomPair(WomString("hello"),
+             WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(1), WomInteger(2), WomInteger(3)))
+     )
+    ),
 
     // Map to pairs:
     ("""{
-    | 1: (1, 2),
-    | 2: (2, 3)
-    |}
-    """.stripMargin, WomMap(WomMapType(WomIntegerType, WomPairType(WomIntegerType, WomIntegerType)), Map(
-      WomInteger(1) -> WomPair(WomInteger(1), WomInteger(2)),
-      WomInteger(2) -> WomPair(WomInteger(2), WomInteger(3))
-    )))
+       | 1: (1, 2),
+       | 2: (2, 3)
+       |}
+    """.stripMargin,
+     WomMap(
+       WomMapType(WomIntegerType, WomPairType(WomIntegerType, WomIntegerType)),
+       Map(
+         WomInteger(1) -> WomPair(WomInteger(1), WomInteger(2)),
+         WomInteger(2) -> WomPair(WomInteger(2), WomInteger(3))
+       )
+     )
+    )
   )
 
   val badExpressions = Table(
-    ("expression"),
+    "expression",
 
     // Integers
-    ("1+true"),
-    ("1-true"),
-    (""" 1-"s"  """),
-    ("1*true"),
-    (""" 1*"s"  """),
-    ("1 / 0"),
-    ("1 / 0.0"),
-    ("25/0.0"),
-    ("1/true"),
-    (""" 1/"s"  """),
-    ("1%false"),
-    (""" 1%"s"  """),
-    ("1%0"),
-    (" 24 == false "),
-    (""" 1 == "s"  """),
-    (" 24 != false "),
-    (""" 1 != "s"  """),
-    (" 24 < false "),
-    (""" 1 < "s"  """),
-    (" 24 <= false "),
-    (""" 1 <= "s"  """),
-    ("4 > false"),
-    (""" 1 > "s"  """),
-    ("4 >= false"),
-    (""" 1 >= "s"  """),
+    "1+true",
+    "1-true",
+    """ 1-"s"  """,
+    "1*true",
+    """ 1*"s"  """,
+    "1 / 0",
+    "1 / 0.0",
+    "25/0.0",
+    "1/true",
+    """ 1/"s"  """,
+    "1%false",
+    """ 1%"s"  """,
+    "1%0",
+    " 24 == false ",
+    """ 1 == "s"  """,
+    " 24 != false ",
+    """ 1 != "s"  """,
+    " 24 < false ",
+    """ 1 < "s"  """,
+    " 24 <= false ",
+    """ 1 <= "s"  """,
+    "4 > false",
+    """ 1 > "s"  """,
+    "4 >= false",
+    """ 1 >= "s"  """,
 
     // Floats
-    ("1.0+true"),
-    ("1.0-true"),
-    (""" 1.0-"s"  """),
-    ("1.0*true"),
-    (""" 1.0*"s"  """),
-    ("1.0/true"),
-    ("1.0/0.0"),
-    ("1.0/0"),
-    (""" 1.0/"s"  """),
-    ("10.0 % 0"),
-    ("10.0 % 0.0"),
-    ("1.0%false"),
-    (""" 1.0%"s"  """),
-    ("24.0 == false "),
-    (""" 1.0 == "s"  """),
-    ("24.0 != false "),
-    (""" 1.0 != "s"  """),
-    ("24.0 < false "),
-    (""" 1.0 < "s"  """),
-    ("24.0 <= false "),
-    (""" 1.0 <= "s"  """),
-    ("4.0 > false"),
-    (""" 1.0 > "s"  """),
-    ("4.0 >= false"),
-    (""" 1.0 >= "s"  """),
+    "1.0+true",
+    "1.0-true",
+    """ 1.0-"s"  """,
+    "1.0*true",
+    """ 1.0*"s"  """,
+    "1.0/true",
+    "1.0/0.0",
+    "1.0/0",
+    """ 1.0/"s"  """,
+    "10.0 % 0",
+    "10.0 % 0.0",
+    "1.0%false",
+    """ 1.0%"s"  """,
+    "24.0 == false ",
+    """ 1.0 == "s"  """,
+    "24.0 != false ",
+    """ 1.0 != "s"  """,
+    "24.0 < false ",
+    """ 1.0 < "s"  """,
+    "24.0 <= false ",
+    """ 1.0 <= "s"  """,
+    "4.0 > false",
+    """ 1.0 > "s"  """,
+    "4.0 >= false",
+    """ 1.0 >= "s"  """,
 
     // Booleans
-    (""" true + "String" """),
-    ("true+2"),
-    ("true+2.3"),
-    ("false+true"),
-    ("false-5"),
-    ("false-6.6"),
-    ("true-true"),
-    (""" true-"s"  """),
-    ("false * 7"),
-    ("false * 7.2"),
-    ("false*true"),
-    (""" false*"s"  """),
-    ("false / 4"),
-    ("false/2.0"),
-    ("false/true"),
-    (""" true/"s"  """),
-    ("true % 3"),
-    ("true % 3.5"),
-    ("false%false"),
-    (""" true % "s"  """),
-    ("true == 24 "),
-    ("true == 24.0 "),
-    ("""true == "s"  """),
-    ("true != 0 "),
-    ("true != 0.0 "),
-    ("""true != "s"  """),
-    ("true < 3"),
-    ("true < 3.0"),
-    ("true < 5.0"),
-    ("""true < "s"  """),
-    ("true <= 4"),
-    ("true <= 3.0"),
-    ("""true <= "s"  """),
-    ("true > 3"),
-    ("true > 3.0"),
-    ("true >= 4"),
-    ("true >= 4.0"),
-    ("""true >= "s"  """),
-    ("false || 4"),
-    ("false || 4.0"),
-    ("""false || "s"  """),
-    ("true && 4"),
-    ("true && 4.0"),
-    ("""true && "s"  """),
+    """ true + "String" """,
+    "true+2",
+    "true+2.3",
+    "false+true",
+    "false-5",
+    "false-6.6",
+    "true-true",
+    """ true-"s"  """,
+    "false * 7",
+    "false * 7.2",
+    "false*true",
+    """ false*"s"  """,
+    "false / 4",
+    "false/2.0",
+    "false/true",
+    """ true/"s"  """,
+    "true % 3",
+    "true % 3.5",
+    "false%false",
+    """ true % "s"  """,
+    "true == 24 ",
+    "true == 24.0 ",
+    """true == "s"  """,
+    "true != 0 ",
+    "true != 0.0 ",
+    """true != "s"  """,
+    "true < 3",
+    "true < 3.0",
+    "true < 5.0",
+    """true < "s"  """,
+    "true <= 4",
+    "true <= 3.0",
+    """true <= "s"  """,
+    "true > 3",
+    "true > 3.0",
+    "true >= 4",
+    "true >= 4.0",
+    """true >= "s"  """,
+    "false || 4",
+    "false || 4.0",
+    """false || "s"  """,
+    "true && 4",
+    "true && 4.0",
+    """true && "s"  """,
 
     // Strings
-    (""" "hello" + true """),
-    (""" "hello" == true """),
-    (""" "hello" != true """),
-    (""" "hello" < true """),
-    (""" "hello" > true """)
+    """ "hello" + true """,
+    """ "hello" == true """,
+    """ "hello" != true """,
+    """ "hello" < true """,
+    """ "hello" > true """
   )
 
   val identifierLookupExpressions = Table(
@@ -413,7 +430,6 @@ class ValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     ("s == someStr", WomBoolean(false)),
     ("s < someStr", WomBoolean(true)),
     ("s > someStr", WomBoolean(false)),
-
     ("someStr + s", WomString("someStrs")),
     ("someInt + s", WomString("1s")),
     ("someFloat + s", WomString("0.5s")),
@@ -430,7 +446,6 @@ class ValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     ("a == someInt", WomBoolean(true)),
     ("a > someInt", WomBoolean(false)),
     ("a < someInt", WomBoolean(false)),
-
     ("someIntAsString + a", WomString("11")),
     ("someInt + a", WomInteger(2)),
     ("someInt * a", WomInteger(1)),
@@ -438,7 +453,6 @@ class ValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     ("someInt == a", WomBoolean(true)),
     ("someInt > a", WomBoolean(false)),
     ("someInt < a", WomBoolean(false)),
-
     ("-someInt", WomInteger(-1)),
     ("+someInt", WomInteger(1)),
 
@@ -450,7 +464,6 @@ class ValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     ("f == someFloat", WomBoolean(true)),
     ("f > someFloat", WomBoolean(false)),
     ("f < someFloat", WomBoolean(false)),
-
     ("someFloatAsString + f", WomString("0.50.5")),
     ("someFloat + f", WomFloat(1)),
     ("someFloat * f", WomFloat(0.25)),
@@ -458,7 +471,6 @@ class ValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     ("someFloat == f", WomBoolean(true)),
     ("someFloat > f", WomBoolean(false)),
     ("someFloat < f", WomBoolean(false)),
-
     ("-someFloat", WomFloat(-0.5)),
     ("+someFloat", WomFloat(0.5)),
 
@@ -468,64 +480,61 @@ class ValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     ("t < someBoolean", WomBoolean(false)),
     ("t && someBoolean", WomBoolean(false)),
     ("t || someBoolean", WomBoolean(true)),
-
     ("someBoolean == t", WomBoolean(false)),
     ("someBoolean > t", WomBoolean(false)),
     ("someBoolean < t", WomBoolean(true)),
     ("someBoolean && t", WomBoolean(false)),
     ("someBoolean || t", WomBoolean(true)),
-
     ("!someBoolean", WomBoolean(true)),
 
     // File
     ("etc_f + someStr", WomSingleFile("/etcsomeStr")),
     ("etc_f == someStr", WomBoolean(false)),
     ("etc_f == someFile", WomBoolean(false)),
-
     ("someFile == etc_f", WomBoolean(false))
   )
 
   val badIdentifierExpressions = Table(
-    ("expression"),
-    ("etc_f + 1"),
-    ("etc_f == 1"),
-    ("0.key3"),
-    ("array_str[3]"),
-    ("""map_str_int["d"]""")
+    "expression",
+    "etc_f + 1",
+    "etc_f == 1",
+    "0.key3",
+    "array_str[3]",
+    """map_str_int["d"]"""
   )
 
-  forAll (constantExpressions) { (expression, value) =>
+  forAll(constantExpressions) { (expression, value) =>
     it should s"evaluate $expression into ${value.valueString} (${value.womType.stableName})" in {
       constEval(expression) shouldEqual value
     }
   }
 
-  forAll (constantExpressions) { (expression, value) =>
+  forAll(constantExpressions) { (expression, value) =>
     it should s"evaluate $expression into type ${value.womType.stableName}" in {
       constEvalType(expression) shouldEqual value.womType
     }
   }
 
-  forAll (identifierLookupExpressions) { (expression, value) =>
+  forAll(identifierLookupExpressions) { (expression, value) =>
     it should s"evaluate $expression into ${value.valueString} (${value.womType.stableName})" in {
       identifierEval(expression) shouldEqual value
     }
   }
 
-  forAll (identifierLookupExpressions) { (expression, value) =>
+  forAll(identifierLookupExpressions) { (expression, value) =>
     it should s"evaluate $expression into type ${value.womType.stableName}" in {
       // need to skip the object expressions because we don't know the types of sub-objects
       if (!expression.startsWith("o.key")) constEvalType(expression) shouldEqual value.womType
     }
   }
 
-  forAll (badExpressions) { (expression) =>
+  forAll(badExpressions) { expression =>
     it should s"error when evaluating: $expression" in {
       constEvalError(expression)
     }
   }
 
-  forAll (badIdentifierExpressions) { (expression) =>
+  forAll(badIdentifierExpressions) { expression =>
     it should s"error when evaluating: $expression" in {
       identifierEvalError(expression)
     }
@@ -534,7 +543,9 @@ class ValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
   "A string with special characters in it" should "convert to escape sequences when converted to WDL" in {
     WomString("a\nb").toWomString shouldEqual "\"a\\nb\""
     WomString("a\nb\t").toWomString shouldEqual "\"a\\nb\\t\""
-    WomString("be \u266f or be \u266e, just don't be \u266d").toWomString shouldEqual "\"be \\u266F or be \\u266E, just don't be \\u266D\""
+    WomString(
+      "be \u266f or be \u266e, just don't be \u266d"
+    ).toWomString shouldEqual "\"be \\u266F or be \\u266E, just don't be \\u266D\""
   }
 
   "Optional values" should "fail to perform addition with the + operator if the argument is None" in {
@@ -552,15 +563,21 @@ class ValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
   }
 
   "Ternary if blocks" should "fail to evaluate if the condition is not a boolean" in {
-    constEvalError(""" if 5 + 6 then 6 + 7 else 14 * 15 """).getMessage should be("'if' expression must be given a boolean argument but got: 11")
+    constEvalError(""" if 5 + 6 then 6 + 7 else 14 * 15 """).getMessage should be(
+      "'if' expression must be given a boolean argument but got: 11"
+    )
   }
 
   "Ternary if blocks" should "fail to evaluate if the chosen LHS expression fails to evaluate" in {
-    constEvalError(""" if (5 == 4 + 1) then fail() else 13 """).getClass.getSimpleName should be("NoSuchMethodException")
+    constEvalError(""" if (5 == 4 + 1) then fail() else 13 """).getClass.getSimpleName should be(
+      "NoSuchMethodException"
+    )
   }
 
   "Ternary if blocks" should "fail to evaluate if the chosen RHS expression fails to evaluate" in {
-    constEvalError(""" if (5 == 6 + 1) then 13 else fail() """).getClass.getSimpleName should be("NoSuchMethodException")
+    constEvalError(""" if (5 == 6 + 1) then 13 else fail() """).getClass.getSimpleName should be(
+      "NoSuchMethodException"
+    )
   }
 
   "WdlMaps" should "be coerced to their lowest common WomType" in {
@@ -583,10 +600,13 @@ class ValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     )
     val exp = model.WdlExpression.fromString(str)
 
-    val expectedMap: WomMap = WomMap(WomMapType(WomStringType, WomOptionalType(WomStringType)), Map (
-      WomString("i") -> WomOptionalValue(WomStringType, Some(WomString("1"))),
-      WomString("s") -> WomOptionalValue(WomStringType, Some(WomString("two")))
-    ))
+    val expectedMap: WomMap = WomMap(
+      WomMapType(WomStringType, WomOptionalType(WomStringType)),
+      Map(
+        WomString("i") -> WomOptionalValue(WomStringType, Some(WomString("1"))),
+        WomString("s") -> WomOptionalValue(WomStringType, Some(WomString("two")))
+      )
+    )
 
     val evaluated = exp.evaluate(lookup, NoFunctions)
 

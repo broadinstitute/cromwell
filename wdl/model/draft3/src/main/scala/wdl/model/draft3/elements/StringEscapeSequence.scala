@@ -2,7 +2,15 @@ package wdl.model.draft3.elements
 
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
-import wdl.model.draft3.elements.ExpressionElement.{BackslashEscape, DoubleQuoteEscape, NewlineEscape, SingleQuoteEscape, StringEscapeSequence, TabEscape, UnicodeCharacterEscape}
+import wdl.model.draft3.elements.ExpressionElement.{
+  BackslashEscape,
+  DoubleQuoteEscape,
+  NewlineEscape,
+  SingleQuoteEscape,
+  StringEscapeSequence,
+  TabEscape,
+  UnicodeCharacterEscape
+}
 
 object StringEscapeSequence {
   val Octal = "\\\\([0-7]{3})".r
@@ -20,7 +28,6 @@ object StringEscapeSequence {
     case Hex(codePoint) => UnicodeCharacterEscape(BigInt(codePoint, 16).intValue).validNel
     case FourDigitUnicode(codePoint) => UnicodeCharacterEscape(BigInt(codePoint, 16).intValue).validNel
     case EightDigitUnicode(codePoint) => UnicodeCharacterEscape(BigInt(codePoint, 16).intValue).validNel
-
 
     case _ => s"Unrecognized escape sequence '$seq'".invalidNel
   }

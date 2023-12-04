@@ -18,7 +18,7 @@ object PathCopier {
     val tokens2 = string2.split(regexIncludingSlashes)
 
     val matchingTokens: Array[(String, String)] = tokens1.zip(tokens2).takeWhile(Function.tupled(_ == _))
-    val matchingPrefix = matchingTokens.map({ case (str, _) => str }).mkString
+    val matchingPrefix = matchingTokens.map { case (str, _) => str }.mkString
 
     string2.stripPrefix(matchingPrefix).replaceAll("^/+", "")
   }
@@ -39,13 +39,12 @@ object PathCopier {
   /**
     * Copies from source to destination. NOTE: Copies are not atomic, and may create a partial copy.
     */
-  def copy(sourceFilePath: Path, destinationFilePath: Path): Try[Unit] = {
+  def copy(sourceFilePath: Path, destinationFilePath: Path): Try[Unit] =
     Try {
       Option(destinationFilePath.parent).foreach(_.createDirectories())
       sourceFilePath.copyTo(destinationFilePath, overwrite = true)
       ()
-    } recoverWith {
-      case ex => Failure(new IOException(s"Failed to copy $sourceFilePath to $destinationFilePath", ex))
+    } recoverWith { case ex =>
+      Failure(new IOException(s"Failed to copy $sourceFilePath to $destinationFilePath", ex))
     }
-  }
 }

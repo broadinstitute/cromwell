@@ -11,8 +11,9 @@ trait JobStoreSlickDatabase extends JobStoreSqlDatabase {
 
   import dataAccess.driver.api._
 
-  override def addJobStores(jobStoreJoins: Seq[JobStoreJoin], batchSize: Int)
-                           (implicit ec: ExecutionContext): Future[Unit] = {
+  override def addJobStores(jobStoreJoins: Seq[JobStoreJoin], batchSize: Int)(implicit
+    ec: ExecutionContext
+  ): Future[Unit] = {
 
     def assignJobStoreIdsToSimpletons(jobStoreIds: Seq[Long]): Seq[JobStoreSimpletonEntry] = {
       val simpletonsByJobStoreEntry = jobStoreJoins map { _.jobStoreSimpletonEntries }
@@ -32,13 +33,17 @@ trait JobStoreSlickDatabase extends JobStoreSqlDatabase {
     runTransaction(action)
   }
 
-  override def queryJobStores(workflowExecutionUuid: String, callFqn: String, jobScatterIndex: Int,
-                              jobScatterAttempt: Int)(implicit ec: ExecutionContext):
-  Future[Option[JobStoreJoin]] = {
+  override def queryJobStores(workflowExecutionUuid: String,
+                              callFqn: String,
+                              jobScatterIndex: Int,
+                              jobScatterAttempt: Int
+  )(implicit ec: ExecutionContext): Future[Option[JobStoreJoin]] = {
 
     val action = for {
-      jobStoreEntryOption <- dataAccess.
-        jobStoreEntriesForJobKey((workflowExecutionUuid, callFqn, jobScatterIndex, jobScatterAttempt)).result.headOption
+      jobStoreEntryOption <- dataAccess
+        .jobStoreEntriesForJobKey((workflowExecutionUuid, callFqn, jobScatterIndex, jobScatterAttempt))
+        .result
+        .headOption
       jobStoreSimpletonEntries <- jobStoreEntryOption match {
         case Some(jobStoreEntry) =>
           dataAccess.jobStoreSimpletonEntriesForJobStoreEntryId(jobStoreEntry.jobStoreEntryId.get).result
@@ -49,10 +54,9 @@ trait JobStoreSlickDatabase extends JobStoreSqlDatabase {
     runTransaction(action)
   }
 
-  override def removeJobStores(workflowExecutionUuids: Seq[String])
-                              (implicit ec: ExecutionContext): Future[Seq[Int]] = {
-    val actions = workflowExecutionUuids map {
-      workflowExecutionUuid => dataAccess.jobStoreEntriesForWorkflowExecutionUuid(workflowExecutionUuid).delete
+  override def removeJobStores(workflowExecutionUuids: Seq[String])(implicit ec: ExecutionContext): Future[Seq[Int]] = {
+    val actions = workflowExecutionUuids map { workflowExecutionUuid =>
+      dataAccess.jobStoreEntriesForWorkflowExecutionUuid(workflowExecutionUuid).delete
     }
     runTransaction(DBIO.sequence(actions))
   }

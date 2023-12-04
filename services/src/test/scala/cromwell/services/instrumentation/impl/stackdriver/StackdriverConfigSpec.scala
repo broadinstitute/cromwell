@@ -46,7 +46,6 @@ class StackdriverConfigSpec extends TestKitSuite with AnyFlatSpecLike with Befor
     stackdriverConfig.cromwellPerfTestCase shouldBe Option("perf-test-1")
   }
 
-
   it should "correctly parse config with optional values" in {
     val config = ConfigFactory.parseString(
       """
@@ -65,7 +64,6 @@ class StackdriverConfigSpec extends TestKitSuite with AnyFlatSpecLike with Befor
     stackdriverConfig.cromwellInstanceRole shouldBe None
     stackdriverConfig.cromwellPerfTestCase shouldBe None
   }
-
 
   it should "correctly add cromwell instance identifier to config" in {
     val globalConfig = ConfigFactory.parseString(
@@ -102,7 +100,6 @@ class StackdriverConfigSpec extends TestKitSuite with AnyFlatSpecLike with Befor
     stackdriverConfig.cromwellPerfTestCase shouldBe None
   }
 
-
   it should "throw error for invalid auth" in {
     val config = ConfigFactory.parseString(
       """
@@ -117,7 +114,6 @@ class StackdriverConfigSpec extends TestKitSuite with AnyFlatSpecLike with Befor
     exception.getMessage shouldBe """Stackdriver instrumentation config is invalid. Error(s):
                                     |`auth` scheme is invalid. Errors: NonEmptyList(`google` configuration stanza does not contain an auth named 'my-auth'.  Known auth names: application-default)""".stripMargin
   }
-
 
   it should "throw error for invalid flush rate" in {
     val config = ConfigFactory.parseString(

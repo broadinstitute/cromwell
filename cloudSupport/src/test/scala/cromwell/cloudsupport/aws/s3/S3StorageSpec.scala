@@ -36,7 +36,6 @@ import org.scalatest.matchers.should.Matchers
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 import software.amazon.awssdk.regions.Region
 
-
 class S3StorageSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "S3Storage"

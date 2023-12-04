@@ -16,36 +16,36 @@ import scala.util.{Failure, Success}
 
 class SyntaxErrorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   private val psTaskWdl = """
-      |task ps {
-      |  command {
-      |    ps
-      |  }
-      |  output {
-      |    File procs = stdout()
-      |  }
-      |}""".stripMargin
+                            |task ps {
+                            |  command {
+                            |    ps
+                            |  }
+                            |  output {
+                            |    File procs = stdout()
+                            |  }
+                            |}""".stripMargin
 
   private val cgrepTaskWdl = s"""
-     |task cgrep {
-     |  String pattern
-     |  File in_file
-     |  command {
-     |    grep '$${pattern}' $${in_file} | wc -l
-     |  }
-     |  output {
-     |    Int count = read_int(stdout())
-     |  }
-     |}""".stripMargin
+                                |task cgrep {
+                                |  String pattern
+                                |  File in_file
+                                |  command {
+                                |    grep '$${pattern}' $${in_file} | wc -l
+                                |  }
+                                |  output {
+                                |    Int count = read_int(stdout())
+                                |  }
+                                |}""".stripMargin
 
-  private def resolver(importUri: String): Draft2ResolvedImportBundle = {
+  private def resolver(importUri: String): Draft2ResolvedImportBundle =
     importUri match {
       case "ps" => Draft2ResolvedImportBundle(psTaskWdl, ResolvedImportRecord("ps"))
       case "cgrep" => Draft2ResolvedImportBundle(cgrepTaskWdl, ResolvedImportRecord("cgrep"))
       case _ => throw new RuntimeException(s"Can't resolve $importUri")
     }
-  }
 
-  private def normalizeErrorMessage(msg: String) = StringUtil.stripAll(msg, " \t\n\r", " \t\n\r").replaceAll("[ \t]+\n", "\n")
+  private def normalizeErrorMessage(msg: String) =
+    StringUtil.stripAll(msg, " \t\n\r", " \t\n\r").replaceAll("[ \t]+\n", "\n")
 
   trait ErrorWdl {
     def testString: String
@@ -384,17 +384,17 @@ class SyntaxErrorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
     val testString = "detect when a call has multiple input sections"
     val wdl =
       s"""task x {
-        |  String a
-        |  String b
-        |  command {  ./script $${a} $${b} }
-        |}
-        |
-        |workflow wf {
-        |  call x {
-        |    input: a = "a"
-        |    input: b = "b"
-        |  }
-        |}
+         |  String a
+         |  String b
+         |  command {  ./script $${a} $${b} }
+         |}
+         |
+         |workflow wf {
+         |  call x {
+         |    input: a = "a"
+         |    input: b = "b"
+         |  }
+         |}
       """.stripMargin
 
     val errors =
@@ -495,7 +495,7 @@ class SyntaxErrorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
         |    Boolean o = a.x
         |            ^""".stripMargin
   }
-  
+
   case object TypeMismatch4 extends ErrorWdl {
     val testString = "detect when a call output has a type mismatch (4)"
     val wdl =
@@ -573,25 +573,25 @@ class SyntaxErrorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
     val testString = s"detect when expressions in command section reference missing task inputs"
     val wdl =
       s"""task a {
-        |  Int x
-        |  command { ./script $${x+y} }
-        |}
-        |
-        |workflow w {
-        |  call a
-        |}
+         |  Int x
+         |  command { ./script $${x+y} }
+         |}
+         |
+         |workflow w {
+         |  call a
+         |}
       """.stripMargin
 
     val errors =
       s"""ERROR: Variable y does not reference any declaration in the task (line 3, col 26):
-        |
-        |  command { ./script $${x+y} }
-        |                         ^
-        |
-        |Task defined here (line 1, col 6):
-        |
-        |task a {
-        |     ^
+         |
+         |  command { ./script $${x+y} }
+         |                         ^
+         |
+         |Task defined here (line 1, col 6):
+         |
+         |task a {
+         |     ^
       """.stripMargin
   }
 
@@ -673,11 +673,11 @@ class SyntaxErrorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
     val testString = "detect when a variable is declared more than once (1)"
     val wdl =
       s"""task inputOops {
-        |  Int a = 5
-        |  Int a = 10
-        |  command { echo $${a} }
-        |}
-        |workflow a { call inputOops }
+         |  Int a = 5
+         |  Int a = 10
+         |  command { echo $${a} }
+         |}
+         |workflow a { call inputOops }
       """.stripMargin
 
     val errors =
@@ -799,16 +799,16 @@ class SyntaxErrorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
 
     val errors =
       """|ERROR: Sibling nodes have conflicting names:
-        |
-        |WorkflowOutput defined here (line 4, col 4):
-        |
-        |   String o = "output"
-        |   ^
-        |
-        |WorkflowOutput statement defined here (line 4, col 4):
-        |
-        |   String o = "output"
-        |   ^
+         |
+         |WorkflowOutput defined here (line 4, col 4):
+         |
+         |   String o = "output"
+         |   ^
+         |
+         |WorkflowOutput statement defined here (line 4, col 4):
+         |
+         |   String o = "output"
+         |   ^
       """.stripMargin
   }
 
@@ -1036,14 +1036,14 @@ class SyntaxErrorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
     UnknownVariableInDeclaration
   )
 
-  forAll(syntaxErrorWdlTable) { (errorWdl) =>
+  forAll(syntaxErrorWdlTable) { errorWdl =>
     it should errorWdl.testString in {
-        WdlNamespace.loadUsingSource(errorWdl.wdl, None, Option(Seq(resolver))) match {
-          case Failure(e: SyntaxError) => normalizeErrorMessage(e.getMessage) shouldEqual normalizeErrorMessage(errorWdl.errors)
-          case Failure(x) => throw new Exception(s"Expecting a SyntaxError but got $x", x)
-          case Success(_) => fail("Bad WDL unexpectedly validated.")
+      WdlNamespace.loadUsingSource(errorWdl.wdl, None, Option(Seq(resolver))) match {
+        case Failure(e: SyntaxError) =>
+          normalizeErrorMessage(e.getMessage) shouldEqual normalizeErrorMessage(errorWdl.errors)
+        case Failure(x) => throw new Exception(s"Expecting a SyntaxError but got $x", x)
+        case Success(_) => fail("Bad WDL unexpectedly validated.")
       }
     }
   }
 }
-

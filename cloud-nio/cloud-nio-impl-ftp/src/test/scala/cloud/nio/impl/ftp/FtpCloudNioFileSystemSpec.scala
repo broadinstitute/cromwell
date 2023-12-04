@@ -11,7 +11,6 @@ import org.scalatest.matchers.should.Matchers
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 
-
 class FtpCloudNioFileSystemSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Eventually {
 
   behavior of "FtpCloudNioFileSystemSpec"
@@ -20,11 +19,12 @@ class FtpCloudNioFileSystemSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
   implicit val patience = patienceConfig
 
   it should "lease the number of clients configured, not more, not less" in {
-    val fileSystems = new FtpFileSystems(FtpFileSystems.DefaultConfig.copy(leaseTimeout = Option(1.second), capacity = 3))
+    val fileSystems =
+      new FtpFileSystems(FtpFileSystems.DefaultConfig.copy(leaseTimeout = Option(1.second), capacity = 3))
     val provider = new FtpCloudNioFileSystemProvider(ConfigFactory.empty, FtpAnonymousCredentials, fileSystems)
     val fileSystem = new FtpCloudNioFileSystem(provider, "ftp.example.com") {
       // Override so we don't try to connect to anything
-      override private[ftp] lazy val clientFactory = () => { new FTPClient() }
+      override private[ftp] lazy val clientFactory = () => new FTPClient()
     }
 
     val client1 = fileSystem.leaseClient
@@ -46,7 +46,7 @@ class FtpCloudNioFileSystemSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val provider = new FtpCloudNioFileSystemProvider(ConfigFactory.empty, FtpAnonymousCredentials, fileSystems)
     val fileSystem = new FtpCloudNioFileSystem(provider, "ftp.example.com") {
       // Override so we don't try to connect to anything
-      override private[ftp] lazy val clientFactory = () => { new FTPClient() }
+      override private[ftp] lazy val clientFactory = () => new FTPClient()
 
       override def leaseClient = {
         val lease = super.leaseClient

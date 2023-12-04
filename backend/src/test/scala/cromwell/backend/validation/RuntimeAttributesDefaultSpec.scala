@@ -21,9 +21,7 @@ class RuntimeAttributesDefaultSpec extends AnyFlatSpec with CromwellTimeoutSpec 
   )
 
   it should "coerce workflow options from Json to WdlValues" in {
-    val workflowOptions = WorkflowOptions(JsObject(
-      "default_runtime_attributes" -> JsObject(map))
-    )
+    val workflowOptions = WorkflowOptions(JsObject("default_runtime_attributes" -> JsObject(map)))
 
     val coercionMap: Map[String, Set[WomType]] = Map(
       "str" -> Set(WomStringType),
@@ -43,9 +41,7 @@ class RuntimeAttributesDefaultSpec extends AnyFlatSpec with CromwellTimeoutSpec 
   }
 
   it should "only return default values if they're in the coercionMap" in {
-    val workflowOptions = WorkflowOptions(JsObject(
-      "default_runtime_attributes" -> JsObject(map))
-    )
+    val workflowOptions = WorkflowOptions(JsObject("default_runtime_attributes" -> JsObject(map)))
 
     val coercionMap: Map[String, Set[WomType]] = Map(
       "str" -> Set(WomStringType),
@@ -69,9 +65,7 @@ class RuntimeAttributesDefaultSpec extends AnyFlatSpec with CromwellTimeoutSpec 
   }
 
   it should "throw an exception if a value can't be coerced" in {
-    val workflowOptions = WorkflowOptions(JsObject(
-      "default_runtime_attributes" -> JsObject(map))
-    )
+    val workflowOptions = WorkflowOptions(JsObject("default_runtime_attributes" -> JsObject(map)))
 
     val coercionMap: Map[String, Set[WomType]] = Map(
       "str" -> Set(WomBooleanType),

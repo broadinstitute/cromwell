@@ -67,12 +67,13 @@ class SchemaManagerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
         for {
           actualDatabase <- inMemoryDatabase(databaseType, schemaManager).autoClosed
           expectedDatabase <- inMemoryDatabase(databaseType, otherSchemaManager).autoClosed
-        } {
+        }
           compare(
-            expectedDatabase.dataAccess.driver, expectedDatabase.database,
-            actualDatabase.dataAccess.driver, actualDatabase.database,
+            expectedDatabase.dataAccess.driver,
+            expectedDatabase.database,
+            actualDatabase.dataAccess.driver,
+            actualDatabase.database
           ) { diffResult =>
-
             import cromwell.database.migration.liquibase.DiffResultFilter._
 
             /*
@@ -80,9 +81,7 @@ class SchemaManagerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
             See notes at the bottom of changelog.xml
              */
             val diffFilters = StandardTypeFilters
-            val filteredDiffResult = diffResult
-              .filterChangeLogs
-              .filterLiquibaseObjects
+            val filteredDiffResult = diffResult.filterChangeLogs.filterLiquibaseObjects
               .filterChangedObjects(diffFilters)
 
             val totalChanged =
@@ -98,14 +97,16 @@ class SchemaManagerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
               diffToChangeLog.print(printStream)
               val changeSetsScoped = XML.loadString(outputStream.toString) \ "changeSet" \ "_"
               val changeSets = changeSetsScoped map stripNodeScope
-              fail(changeSets.mkString(
-                s"The following changes are in $schemaManager but not in $otherSchemaManager:\n  ",
-                "\n  ",
-                "\nEnsure that the columns/fields exist, with the same lengths in " +
-                  s"$schemaManager and $otherSchemaManager and synchronize the two."))
+              fail(
+                changeSets.mkString(
+                  s"The following changes are in $schemaManager but not in $otherSchemaManager:\n  ",
+                  "\n  ",
+                  "\nEnsure that the columns/fields exist, with the same lengths in " +
+                    s"$schemaManager and $otherSchemaManager and synchronize the two."
+                )
+              )
             }
           }
-        }
       }
 
       it should "match expected generated names" taggedAs DbmsTest in {
@@ -113,9 +114,8 @@ class SchemaManagerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
 
         for {
           slickDatabase <- inMemoryDatabase(databaseType, schemaManager).autoClosed
-        } {
-          schemaMetadata = getSchemaMetadata(slickDatabase)
         }
+          schemaMetadata = getSchemaMetadata(slickDatabase)
 
         var misnamed = Seq.empty[String]
 
@@ -184,7 +184,9 @@ class SchemaManagerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
           if (missing.nonEmpty) {
             failMessage += missing.mkString(
               s"Based on the schema in $schemaManager, please ensure that the following tables/columns exist:\n",
-              "\n", "\n")
+              "\n",
+              "\n"
+            )
           }
 
           fail(failMessage)
@@ -196,33 +198,29 @@ class SchemaManagerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
 
 object SchemaManagerSpec {
   // strip the namespace from elems and their children
-  private def stripNodeScope(node: Node): Node = {
+  private def stripNodeScope(node: Node): Node =
     node match {
       case elem: Elem => elem.copy(scope = TopScope, child = elem.child map stripNodeScope)
       case other => other
     }
-  }
 
-  private def compare[ReferenceProfile <: JdbcProfile, ComparisonProfile <: JdbcProfile, T]
-  (referenceProfile: ReferenceProfile,
-   referenceDatabase: ReferenceProfile#Backend#Database,
-   comparisonProfile: ComparisonProfile,
-   comparisonDatabase: ComparisonProfile#Backend#Database)(block: DiffResult => T): T = {
+  private def compare[ReferenceProfile <: JdbcProfile, ComparisonProfile <: JdbcProfile, T](
+    referenceProfile: ReferenceProfile,
+    referenceDatabase: ReferenceProfile#Backend#Database,
+    comparisonProfile: ComparisonProfile,
+    comparisonDatabase: ComparisonProfile#Backend#Database
+  )(block: DiffResult => T): T =
     DatabaseTestKit.withConnections(referenceProfile, referenceDatabase, comparisonProfile, comparisonDatabase) {
       LiquibaseUtils.compare(_, _)(block)
     }
-  }
-
 
   private val SnakeRegex = "_([a-z])".r
 
-  private def snakeToCamel(value: String): String = {
+  private def snakeToCamel(value: String): String =
     SnakeRegex.replaceAllIn(value.toLowerCase, _.group(1).toUpperCase)
-  }
 
-  private def snakeAbbreviate(value: String): String = {
+  private def snakeAbbreviate(value: String): String =
     SnakeRegex.findAllMatchIn("_" + value.toLowerCase).map(_.group(1)).mkString("").toUpperCase
-  }
 
   private def tableClassName(tableName: String) = s"cromwell.database.sql.tables.$tableName"
 
@@ -246,40 +244,42 @@ object SchemaManagerSpec {
 
   case class DatabaseItem(tableName: String, itemName: String)
 
-  case class SchemaMetadata(tableMetadata: Seq[MTable], columnMetadata: Seq[MColumn], indexMetadata: Seq[MIndexInfo],
-                            primaryKeyMetadata: Seq[MPrimaryKey], foreignKeyMetadata: Seq[MForeignKey]) {
-    lazy val tables: Seq[TableClass] = tableMetadata.map({ table =>
+  case class SchemaMetadata(tableMetadata: Seq[MTable],
+                            columnMetadata: Seq[MColumn],
+                            indexMetadata: Seq[MIndexInfo],
+                            primaryKeyMetadata: Seq[MPrimaryKey],
+                            foreignKeyMetadata: Seq[MForeignKey]
+  ) {
+    lazy val tables: Seq[TableClass] = tableMetadata.map { table =>
       val tableName = snakeToCamel(table.name.name).capitalize
       TableClass(tableName)
-    }).distinct
+    }.distinct
 
-    lazy val columns: Seq[DatabaseItem] = columnMetadata.map({ column =>
+    lazy val columns: Seq[DatabaseItem] = columnMetadata.map { column =>
       val tableName = snakeToCamel(column.table.name).capitalize
       val columnName = snakeToCamel(column.name)
       DatabaseItem(tableName, columnName)
-    }).distinct
+    }.distinct
 
-    lazy val indexes: Seq[DatabaseItem] = indexMetadata.map({ index =>
+    lazy val indexes: Seq[DatabaseItem] = indexMetadata.map { index =>
       val tableName = snakeToCamel(index.table.name).capitalize
       val indexName = snakeToCamel(getIndexName(index))
       DatabaseItem(tableName, indexName)
-    }).distinct
+    }.distinct
 
-    lazy val foreignKeys: Seq[DatabaseItem] = foreignKeyMetadata.map({ foreignKey =>
+    lazy val foreignKeys: Seq[DatabaseItem] = foreignKeyMetadata.map { foreignKey =>
       val tableName = snakeToCamel(foreignKey.fkTable.name).capitalize
       val indexName = snakeToCamel(foreignKey.fkName.get)
       DatabaseItem(tableName, indexName)
-    }).distinct
+    }.distinct
 
     lazy val slickItems: Seq[DatabaseItem] = columns ++ indexes ++ foreignKeys
 
-    def existsTableItem(tableItem: DatabaseItem): Boolean = {
+    def existsTableItem(tableItem: DatabaseItem): Boolean =
       tables.find(_.tableName == tableItem.tableName).exists(_.existsTableField(tableItem.itemName))
-    }
 
-    def existsSlickMapping(tableItem: DatabaseItem): Boolean = {
+    def existsSlickMapping(tableItem: DatabaseItem): Boolean =
       tables.find(_.tableName == tableItem.tableName).exists(_.existsSlickMapping(tableItem.itemName))
-    }
   }
 
 }

@@ -20,8 +20,9 @@ import simulacrum.typeclass
 
 trait PipelinesParameterConversions {
   implicit val fileInputToParameter: ToParameter[PipelinesApiFileInput] = new ToParameter[PipelinesApiFileInput] {
-    override def toActions(fileInput: PipelinesApiFileInput, mounts: List[Mount])
-                          (implicit retryPolicy: GcsTransferConfiguration): List[Action] = {
+    override def toActions(fileInput: PipelinesApiFileInput, mounts: List[Mount])(implicit
+      retryPolicy: GcsTransferConfiguration
+    ): List[Action] = {
       lazy val config = ConfigFactory.load
 
       val labels = ActionBuilder.parameterLabels(fileInput)
@@ -29,13 +30,12 @@ trait PipelinesParameterConversions {
         case sraPath: SraPath =>
           val sraConfig = config.getConfig("filesystems.sra")
 
-          def getString(key: String): Option[String] = {
+          def getString(key: String): Option[String] =
             if (sraConfig.hasPath(key)) {
               Some(sraConfig.getString(key))
             } else {
               None
             }
-          }
 
           val image = getString("docker-image") getOrElse "fusera/fusera:alpine"
           val (createNgc, ngcArgs) = getString("ngc") match {
@@ -67,31 +67,33 @@ trait PipelinesParameterConversions {
 
   implicit val directoryInputToParameter: ToParameter[PipelinesApiDirectoryInput] =
     new ToParameter[PipelinesApiDirectoryInput] {
-    override def toActions(directoryInput: PipelinesApiDirectoryInput, mounts: List[Mount])
-                          (implicit retryPolicy: GcsTransferConfiguration): List[Action] = {
-      directoryInput.cloudPath match {
-        case _: GcsPath => Nil // GCS paths will be localized with a separate localization script.
-        case _ =>
-          val labels = ActionBuilder.parameterLabels(directoryInput)
-          val describeAction = ActionBuilder.describeParameter(directoryInput, labels)
-          val localizationAction = cloudSdkShellAction(
-            localizeDirectory(directoryInput.cloudPath, directoryInput.containerPath)
-          )(mounts = mounts, labels = labels)
-          List(describeAction, localizationAction)
-      }
+      override def toActions(directoryInput: PipelinesApiDirectoryInput, mounts: List[Mount])(implicit
+        retryPolicy: GcsTransferConfiguration
+      ): List[Action] =
+        directoryInput.cloudPath match {
+          case _: GcsPath => Nil // GCS paths will be localized with a separate localization script.
+          case _ =>
+            val labels = ActionBuilder.parameterLabels(directoryInput)
+            val describeAction = ActionBuilder.describeParameter(directoryInput, labels)
+            val localizationAction = cloudSdkShellAction(
+              localizeDirectory(directoryInput.cloudPath, directoryInput.containerPath)
+            )(mounts = mounts, labels = labels)
+            List(describeAction, localizationAction)
+        }
     }
-  }
 
   implicit val fileOutputToParameter: ToParameter[PipelinesApiFileOutput] = new ToParameter[PipelinesApiFileOutput] {
-    override def toActions(fileOutput: PipelinesApiFileOutput, mounts: List[Mount])
-                          (implicit retryPolicy: GcsTransferConfiguration): List[Action] = {
+    override def toActions(fileOutput: PipelinesApiFileOutput, mounts: List[Mount])(implicit
+      retryPolicy: GcsTransferConfiguration
+    ): List[Action] = {
 
       // If the output is a "secondary file", it actually could be a directory but we won't know before runtime.
       // The fileOrDirectory method will generate a command that can cover both cases
-      lazy val copy = if (fileOutput.secondary)
-        delocalizeFileOrDirectory(fileOutput.containerPath, fileOutput.cloudPath, fileOutput.contentType)
-      else
-        delocalizeFile(fileOutput.containerPath, fileOutput.cloudPath, fileOutput.contentType)
+      lazy val copy =
+        if (fileOutput.secondary)
+          delocalizeFileOrDirectory(fileOutput.containerPath, fileOutput.cloudPath, fileOutput.contentType)
+        else
+          delocalizeFile(fileOutput.containerPath, fileOutput.cloudPath, fileOutput.contentType)
 
       lazy val copyOnlyIfExists = ifExist(fileOutput.containerPath) {
         copy
@@ -106,7 +108,8 @@ trait PipelinesParameterConversions {
         case _ =>
           val describeAction = ActionBuilder.describeParameter(fileOutput, labels)
 
-          val delocalizationAction = cloudSdkShellAction(copyCommand)(mounts = mounts, labels = labels).withAlwaysRun(true)
+          val delocalizationAction =
+            cloudSdkShellAction(copyCommand)(mounts = mounts, labels = labels).withAlwaysRun(true)
           List(describeAction, delocalizationAction)
       }
 
@@ -132,32 +135,34 @@ trait PipelinesParameterConversions {
 
   implicit val directoryOutputToParameter: ToParameter[PipelinesApiDirectoryOutput] =
     new ToParameter[PipelinesApiDirectoryOutput] {
-    override def toActions(directoryOutput: PipelinesApiDirectoryOutput, mounts: List[Mount])
-                          (implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Action] = {
-      directoryOutput.cloudPath match {
-        case _: GcsPath => Nil // GCS paths will be delocalized with a separate delocalization script.
-        case _ =>
-          val labels = ActionBuilder.parameterLabels(directoryOutput)
-          val describeAction = ActionBuilder.describeParameter(directoryOutput, labels)
-          val delocalizationAction = cloudSdkShellAction(
-            delocalizeDirectory(directoryOutput.containerPath, directoryOutput.cloudPath, None)
-          )(mounts = mounts, labels = labels).withAlwaysRun(true)
-          List(describeAction, delocalizationAction)
-      }
+      override def toActions(directoryOutput: PipelinesApiDirectoryOutput, mounts: List[Mount])(implicit
+        gcsTransferConfiguration: GcsTransferConfiguration
+      ): List[Action] =
+        directoryOutput.cloudPath match {
+          case _: GcsPath => Nil // GCS paths will be delocalized with a separate delocalization script.
+          case _ =>
+            val labels = ActionBuilder.parameterLabels(directoryOutput)
+            val describeAction = ActionBuilder.describeParameter(directoryOutput, labels)
+            val delocalizationAction = cloudSdkShellAction(
+              delocalizeDirectory(directoryOutput.containerPath, directoryOutput.cloudPath, None)
+            )(mounts = mounts, labels = labels).withAlwaysRun(true)
+            List(describeAction, delocalizationAction)
+        }
     }
-  }
 
   implicit val inputToParameter: ToParameter[PipelinesApiInput] = new ToParameter[PipelinesApiInput] {
-    override def toActions(p: PipelinesApiInput, mounts: List[Mount])
-                          (implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Action] = p match {
+    override def toActions(p: PipelinesApiInput, mounts: List[Mount])(implicit
+      gcsTransferConfiguration: GcsTransferConfiguration
+    ): List[Action] = p match {
       case fileInput: PipelinesApiFileInput => fileInputToParameter.toActions(fileInput, mounts)
       case directoryInput: PipelinesApiDirectoryInput => directoryInputToParameter.toActions(directoryInput, mounts)
     }
   }
 
   implicit val outputToParameter: ToParameter[PipelinesApiOutput] = new ToParameter[PipelinesApiOutput] {
-    override def toActions(p: PipelinesApiOutput, mounts: List[Mount])
-                          (implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Action] = p match {
+    override def toActions(p: PipelinesApiOutput, mounts: List[Mount])(implicit
+      gcsTransferConfiguration: GcsTransferConfiguration
+    ): List[Action] = p match {
       case fileOutput: PipelinesApiFileOutput => fileOutputToParameter.toActions(fileOutput, mounts)
       case directoryOutput: PipelinesApiDirectoryOutput => directoryOutputToParameter.toActions(directoryOutput, mounts)
     }

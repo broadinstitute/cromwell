@@ -8,7 +8,7 @@ import com.typesafe.config.{Config, ConfigException, ConfigValue}
 import org.slf4j.LoggerFactory
 
 import scala.jdk.CollectionConverters._
-import scala.reflect.{ClassTag, classTag}
+import scala.reflect.{classTag, ClassTag}
 
 object ConfigUtil {
 
@@ -20,12 +20,12 @@ object ConfigUtil {
     /**
      * For keys that are in the configuration but not in the reference keySet, log a warning.
      */
-    def warnNotRecognized(keySet: Set[String], context: String) = {
+    def warnNotRecognized(keySet: Set[String], context: String) =
       keys.diff(keySet) match {
-        case warnings if warnings.nonEmpty => validationLogger.warn(s"Unrecognized configuration key(s) for $context: ${warnings.mkString(", ")}")
+        case warnings if warnings.nonEmpty =>
+          validationLogger.warn(s"Unrecognized configuration key(s) for $context: ${warnings.mkString(", ")}")
         case _ =>
       }
-    }
 
     /**
      * Validates that the value for this key is a well formed URL.
@@ -34,15 +34,15 @@ object ConfigUtil {
       new URL(config.getString(url))
     }
 
-    def validateString(key: String): ValidatedNel[String, String] = try {
+    def validateString(key: String): ValidatedNel[String, String] = try
       config.getString(key).validNel
-    } catch {
+    catch {
       case _: ConfigException.Missing => s"Could not find key: $key".invalidNel
     }
 
-    def validateConfig(key: String): ValidatedNel[String, Config] = try {
+    def validateConfig(key: String): ValidatedNel[String, Config] = try
       config.getConfig(key).validNel
-    } catch {
+    catch {
       case _: ConfigException.Missing => s"Could not find key: $key".invalidNel
       case _: ConfigException.WrongType => s"key $key cannot be parsed to a Config".invalidNel
     }
@@ -50,6 +50,7 @@ object ConfigUtil {
   }
 
   implicit class EnhancedValidation[I <: AnyRef](val value: I) extends AnyVal {
+
     /**
      * Validates this value by applying validationFunction to it and returning a Validation:
      * Returns successNel upon success.
@@ -58,9 +59,9 @@ object ConfigUtil {
      * @tparam O return type of validationFunction
      * @tparam E Restricts the subtype of Exception that should be caught during validation
      */
-    def validateAny[O, E <: Exception: ClassTag](validationFunction: I => O): ValidatedNel[String, O] = try {
+    def validateAny[O, E <: Exception: ClassTag](validationFunction: I => O): ValidatedNel[String, O] = try
       validationFunction(value).validNel
-    } catch {
+    catch {
       case e if classTag[E].runtimeClass.isInstance(e) => e.getMessage.invalidNel
     }
   }

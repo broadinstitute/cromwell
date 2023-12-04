@@ -19,13 +19,11 @@ case class Labels(value: Vector[Label]) {
 }
 
 object Labels {
-  def apply(values: (String, String)*): Labels = {
+  def apply(values: (String, String)*): Labels =
     Labels(values.toVector map (Label.apply _).tupled)
-  }
 
-  def validateMapOfLabels(labels: Map[String, String]): ErrorOr[Labels] = {
+  def validateMapOfLabels(labels: Map[String, String]): ErrorOr[Labels] =
     labels.toVector traverse { Label.validateLabel _ }.tupled map Labels.apply
-  }
 
   def empty = Labels(Vector.empty)
 }

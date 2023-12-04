@@ -10,7 +10,8 @@ import wom.values.{WomFile, WomValue}
 trait ContainerizedInputExpression {
   def evaluate(hostInputValues: Map[String, WomValue],
                containerizedInputValues: Map[String, WomValue],
-               ioFunctionSet: IoFunctionSet): IOChecked[List[AdHocValue]]
+               ioFunctionSet: IoFunctionSet
+  ): IOChecked[List[AdHocValue]]
 }
 
 final case class AdHocValue(womValue: WomFile, alternativeName: Option[String], inputName: Option[String])

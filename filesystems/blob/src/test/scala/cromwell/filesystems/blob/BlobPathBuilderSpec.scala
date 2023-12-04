@@ -19,11 +19,10 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val evalPath = "/path/to/file"
     val testString = endpoint.value + "/" + container + evalPath
     BlobPathBuilder.validateBlobPath(testString) match {
-      case BlobPathBuilder.ValidBlobPath(path, parsedContainer, parsedEndpoint) => {
+      case BlobPathBuilder.ValidBlobPath(path, parsedContainer, parsedEndpoint) =>
         path should equal(evalPath)
         parsedContainer should equal(container)
         parsedEndpoint should equal(endpoint)
-      }
       case BlobPathBuilder.UnparsableBlobPath(errorMessage) => fail(errorMessage)
     }
   }
@@ -119,9 +118,14 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val builder = makeBlobPathBuilder()
     val rootString = s"${endpoint.value}/${container.value}/cromwell-execution"
     val blobRoot: BlobPath = builder build rootString getOrElse fail()
-    blobRoot.toAbsolutePath.pathAsString should equal ("https://centaurtesting.blob.core.windows.net/test-blob/cromwell-execution")
-    val otherFile = blobRoot.resolve("https://centaurtesting.blob.core.windows.net/test-blob/cromwell-execution/test/inputFile.txt")
-    otherFile.toAbsolutePath.pathAsString should equal ("https://centaurtesting.blob.core.windows.net/test-blob/cromwell-execution/test/inputFile.txt")
+    blobRoot.toAbsolutePath.pathAsString should equal(
+      "https://centaurtesting.blob.core.windows.net/test-blob/cromwell-execution"
+    )
+    val otherFile =
+      blobRoot.resolve("https://centaurtesting.blob.core.windows.net/test-blob/cromwell-execution/test/inputFile.txt")
+    otherFile.toAbsolutePath.pathAsString should equal(
+      "https://centaurtesting.blob.core.windows.net/test-blob/cromwell-execution/test/inputFile.txt"
+    )
   }
 
   it should "build a blob path from a test string and read a file" in {
@@ -136,8 +140,8 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     blobPath.pathAsString should equal(testString)
     blobPath.pathWithoutScheme should equal(endpointHost + "/" + container + evalPath)
     val is = blobPath.newInputStream()
-    val fileText = (is.readAllBytes.map(_.toChar)).mkString
-    fileText should include ("This is my test file!!!! Did it work?")
+    val fileText = is.readAllBytes.map(_.toChar).mkString
+    fileText should include("This is my test file!!!! Did it work?")
   }
 
   it should "build duplicate blob paths in the same filesystem" in {
@@ -149,38 +153,47 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val blobPath2: BlobPath = builder build testString getOrElse fail()
     blobPath1 should equal(blobPath2)
     val is = blobPath1.newInputStream()
-    val fileText = (is.readAllBytes.map(_.toChar)).mkString
-    fileText should include ("This is my test file!!!! Did it work?")
+    val fileText = is.readAllBytes.map(_.toChar).mkString
+    fileText should include("This is my test file!!!! Did it work?")
   }
 
   it should "resolve a path without duplicating container name" in {
     val builder = makeBlobPathBuilder()
     val rootString = s"${endpoint.value}/${container.value}/cromwell-execution"
     val blobRoot: BlobPath = builder build rootString getOrElse fail()
-    blobRoot.toAbsolutePath.pathAsString should equal ("https://centaurtesting.blob.core.windows.net/test-blob/cromwell-execution")
+    blobRoot.toAbsolutePath.pathAsString should equal(
+      "https://centaurtesting.blob.core.windows.net/test-blob/cromwell-execution"
+    )
     val otherFile = blobRoot.resolve("test/inputFile.txt")
-    otherFile.toAbsolutePath.pathAsString should equal ("https://centaurtesting.blob.core.windows.net/test-blob/cromwell-execution/test/inputFile.txt")
+    otherFile.toAbsolutePath.pathAsString should equal(
+      "https://centaurtesting.blob.core.windows.net/test-blob/cromwell-execution/test/inputFile.txt"
+    )
   }
 
   it should "correctly remove a prefix from the blob path" in {
     val builder = makeBlobPathBuilder()
     val rootString = s"${endpoint.value}/${container.value}/cromwell-execution/"
-    val execDirString = s"${endpoint.value}/${container.value}/cromwell-execution/abc123/myworkflow/task1/def4356/execution/"
-    val fileString = s"${endpoint.value}/${container.value}/cromwell-execution/abc123/myworkflow/task1/def4356/execution/stdout"
+    val execDirString =
+      s"${endpoint.value}/${container.value}/cromwell-execution/abc123/myworkflow/task1/def4356/execution/"
+    val fileString =
+      s"${endpoint.value}/${container.value}/cromwell-execution/abc123/myworkflow/task1/def4356/execution/stdout"
     val blobRoot: BlobPath = builder build rootString getOrElse fail()
     val execDir: BlobPath = builder build execDirString getOrElse fail()
     val blobFile: BlobPath = builder build fileString getOrElse fail()
-    blobFile.pathStringWithoutPrefix(blobRoot) should equal ("abc123/myworkflow/task1/def4356/execution/stdout")
-    blobFile.pathStringWithoutPrefix(execDir) should equal ("stdout")
-    blobFile.pathStringWithoutPrefix(blobFile) should equal ("")
+    blobFile.pathStringWithoutPrefix(blobRoot) should equal("abc123/myworkflow/task1/def4356/execution/stdout")
+    blobFile.pathStringWithoutPrefix(execDir) should equal("stdout")
+    blobFile.pathStringWithoutPrefix(blobFile) should equal("")
   }
 
   it should "not change a path if it doesn't start with a prefix" in {
     val builder = makeBlobPathBuilder()
     val otherRootString = s"${endpoint.value}/${container.value}/foobar/"
-    val fileString = s"${endpoint.value}/${container.value}/cromwell-execution/abc123/myworkflow/task1/def4356/execution/stdout"
+    val fileString =
+      s"${endpoint.value}/${container.value}/cromwell-execution/abc123/myworkflow/task1/def4356/execution/stdout"
     val otherBlobRoot: BlobPath = builder build otherRootString getOrElse fail()
     val blobFile: BlobPath = builder build fileString getOrElse fail()
-    blobFile.pathStringWithoutPrefix(otherBlobRoot) should equal ("/cromwell-execution/abc123/myworkflow/task1/def4356/execution/stdout")
+    blobFile.pathStringWithoutPrefix(otherBlobRoot) should equal(
+      "/cromwell-execution/abc123/myworkflow/task1/def4356/execution/stdout"
+    )
   }
 }

@@ -2,14 +2,13 @@ package common.numeric
 
 object IntegerUtil {
 
-  private def ordinal(int: Int): String = {
+  private def ordinal(int: Int): String =
     int match {
       case 1 => "st"
       case 2 => "nd"
       case 3 => "rd"
       case _ => "th"
     }
-  }
 
   implicit class IntEnhanced(val value: Int) extends AnyVal {
     def toOrdinal: String = value match {
@@ -19,9 +18,8 @@ object IntegerUtil {
         s"$v$suffix"
     }
 
-    def isBetweenInclusive(min: Int, max: Int): Boolean = {
+    def isBetweenInclusive(min: Int, max: Int): Boolean =
       min <= value && value <= max
-    }
   }
 
 }

@@ -3,7 +3,10 @@ package cromwell.google.pipelines.common
 import cats.syntax.apply._
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
-import cromwell.backend.google.pipelines.common.PipelinesApiBackendLifecycleActorFactory.{preemptionCountKey, unexpectedRetryCountKey}
+import cromwell.backend.google.pipelines.common.PipelinesApiBackendLifecycleActorFactory.{
+  preemptionCountKey,
+  unexpectedRetryCountKey
+}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 
 import scala.util.{Failure, Success, Try}
@@ -14,9 +17,10 @@ object PreviousRetryReasons {
 
   def tryApply(prefetchedKvEntries: Map[String, KvResponse], attemptNumber: Int): ErrorOr[PreviousRetryReasons] = {
     val validatedPreemptionCount = validatedKvResponse(prefetchedKvEntries.get(preemptionCountKey), preemptionCountKey)
-    val validatedUnexpectedRetryCount = validatedKvResponse(prefetchedKvEntries.get(unexpectedRetryCountKey), unexpectedRetryCountKey)
+    val validatedUnexpectedRetryCount =
+      validatedKvResponse(prefetchedKvEntries.get(unexpectedRetryCountKey), unexpectedRetryCountKey)
 
-    (validatedPreemptionCount, validatedUnexpectedRetryCount) mapN { PreviousRetryReasons.apply }
+    (validatedPreemptionCount, validatedUnexpectedRetryCount) mapN PreviousRetryReasons.apply
   }
 
   def apply(knownPreemptedCount: Int, knownUnexpectedRetryCount: Int, attempt: Int): PreviousRetryReasons = {
@@ -35,10 +39,9 @@ object PreviousRetryReasons {
     case None => s"Programmer Error: Engine made no effort to prefetch $fromKey".invalidNel
   }
 
-  private def validatedInt(s: String, fromKey: String): ErrorOr[Int] = {
+  private def validatedInt(s: String, fromKey: String): ErrorOr[Int] =
     Try(s.toInt) match {
       case Success(i) => i.validNel
       case Failure(_) => s"Unexpected value found in the KV store: $fromKey='$s'".invalidNel
     }
-  }
 }

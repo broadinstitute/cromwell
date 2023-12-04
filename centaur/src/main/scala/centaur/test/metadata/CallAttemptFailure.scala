@@ -12,8 +12,7 @@ import io.circe.parser._
   *
   * https://github.com/DataBiosphere/job-manager/blob/f83e4284e2419389b7e515720c9d960d2eb81a29/servers/cromwell/jobs/controllers/jobs_controller.py#L155-L162
   */
-case class CallAttemptFailure
-(
+case class CallAttemptFailure(
   workflowId: String,
   callFullyQualifiedName: String,
   jobIndex: Int,
@@ -27,29 +26,25 @@ case class CallAttemptFailure
 )
 
 object CallAttemptFailure {
-  def buildFailures(jsonOption: Option[String]): IO[Vector[CallAttemptFailure]] = {
+  def buildFailures(jsonOption: Option[String]): IO[Vector[CallAttemptFailure]] =
     jsonOption.map(buildFailures).getOrElse(IO.pure(Vector.empty))
-  }
 
-  def buildFailures(json: String): IO[Vector[CallAttemptFailure]] = {
+  def buildFailures(json: String): IO[Vector[CallAttemptFailure]] =
     IO.fromEither(decode[Vector[CallAttemptFailure]](json))
-  }
 
-  private implicit val decodeFailures: Decoder[Vector[CallAttemptFailure]] = {
+  implicit private val decodeFailures: Decoder[Vector[CallAttemptFailure]] =
     Decoder.instance { c =>
       for {
         workflowId <- c.get[String]("id")
         calls <- c.get[Map[String, Json]]("calls").map(_.toVector)
-        callAttemptFailures <- calls.flatTraverse[Decoder.Result, CallAttemptFailure] {
-          case (callName, callJson) =>
-            val decoderCallAttempt = decodeFromCallAttempt(workflowId, callName)
-            callJson.as[Vector[Option[CallAttemptFailure]]](Decoder.decodeVector(decoderCallAttempt)).map(_.flatten)
+        callAttemptFailures <- calls.flatTraverse[Decoder.Result, CallAttemptFailure] { case (callName, callJson) =>
+          val decoderCallAttempt = decodeFromCallAttempt(workflowId, callName)
+          callJson.as[Vector[Option[CallAttemptFailure]]](Decoder.decodeVector(decoderCallAttempt)).map(_.flatten)
         }
       } yield callAttemptFailures
     } or Decoder.const(Vector.empty)
-  }
 
-  private def decodeFromCallAttempt(workflowId: String, callName: String): Decoder[Option[CallAttemptFailure]] = {
+  private def decodeFromCallAttempt(workflowId: String, callName: String): Decoder[Option[CallAttemptFailure]] =
     Decoder.instance { c =>
       for {
         shardIndexOption <- c.get[Option[Int]]("shardIndex")
@@ -77,5 +72,4 @@ object CallAttemptFailure {
         }
       } yield callAttemptFailureOption
     } or Decoder.const(None)
-  }
 }

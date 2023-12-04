@@ -23,34 +23,36 @@ class AzureFileSystemSpec extends AnyFlatSpec with Matchers {
     val combinedEndpoint = BlobFileSystemManager.combinedEnpointContainerUri(storageEndpoint, container)
 
     val provider = new AzureFileSystemProvider()
-    provider.newFileSystem(
-      combinedEndpoint,
-      BlobFileSystemManager.buildConfigMap(creds, container).asJava
-    ).asInstanceOf[AzureFileSystem]
+    provider
+      .newFileSystem(
+        combinedEndpoint,
+        BlobFileSystemManager.buildConfigMap(creds, container).asJava
+      )
+      .asInstanceOf[AzureFileSystem]
   }
 
   it should "parse an expiration from a sas token" in {
     val now = Instant.now()
-    val filesystem : AzureFileSystem = makeFilesystemWithExpiration(now)
+    val filesystem: AzureFileSystem = makeFilesystemWithExpiration(now)
     filesystem.getExpiry.asScala shouldBe Some(now)
     filesystem.getFileStores.asScala.map(_.name()).exists(_ == "testContainer") shouldBe true
   }
 
   it should "not be expired when the token is fresh" in {
     val anHourFromNow = Instant.now().plusSeconds(3600)
-    val filesystem : AzureFileSystem = makeFilesystemWithExpiration(anHourFromNow)
+    val filesystem: AzureFileSystem = makeFilesystemWithExpiration(anHourFromNow)
     filesystem.isExpired(fiveMinutes) shouldBe false
   }
 
   it should "be expired when we're within the buffer" in {
     val threeMinutesFromNow = Instant.now().plusSeconds(180)
-    val filesystem : AzureFileSystem = makeFilesystemWithExpiration(threeMinutesFromNow)
+    val filesystem: AzureFileSystem = makeFilesystemWithExpiration(threeMinutesFromNow)
     filesystem.isExpired(fiveMinutes) shouldBe true
   }
 
   it should "be expired when the token is stale" in {
     val anHourAgo = Instant.now().minusSeconds(3600)
-    val filesystem : AzureFileSystem = makeFilesystemWithExpiration(anHourAgo)
+    val filesystem: AzureFileSystem = makeFilesystemWithExpiration(anHourAgo)
     filesystem.isExpired(fiveMinutes) shouldBe true
   }
 

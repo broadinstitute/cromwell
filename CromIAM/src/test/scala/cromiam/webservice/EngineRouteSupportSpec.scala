@@ -9,8 +9,12 @@ import cromiam.server.status.{MockStatusService, StatusService}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-
-class EngineRouteSupportSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest with EngineRouteSupport  {
+class EngineRouteSupportSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with ScalatestRouteTest
+    with EngineRouteSupport {
   override val cromwellClient = new MockCromwellClient()
   val samClient = new MockSamClient()
   override val statusService: StatusService = new MockStatusService(() => Map.empty)

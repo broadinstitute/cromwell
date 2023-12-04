@@ -26,13 +26,11 @@ abstract class PartialIoCommandBuilder {
 }
 
 object IoCommandBuilder {
-  def apply(partialBuilders: PartialIoCommandBuilder*): IoCommandBuilder = {
+  def apply(partialBuilders: PartialIoCommandBuilder*): IoCommandBuilder =
     new IoCommandBuilder(partialBuilders.toList)
-  }
 
-  def apply: IoCommandBuilder = {
+  def apply: IoCommandBuilder =
     new IoCommandBuilder(List.empty)
-  }
 }
 
 /**
@@ -49,56 +47,58 @@ class IoCommandBuilder(partialBuilders: List[PartialIoCommandBuilder] = List.emp
   // Find the first partialBuilder for which the partial function is defined, or use the default
   private def buildOrDefault[A, B](builder: PartialIoCommandBuilder => PartialFunction[A, Try[B]],
                                    params: A,
-                                   default: => B): Try[B] = {
-    partialBuilders.to(LazyList).map(builder(_).lift(params)).collectFirst({
-      case Some(command) => command
-    }).getOrElse(Try(default))
-  }
+                                   default: => B
+  ): Try[B] =
+    partialBuilders
+      .to(LazyList)
+      .map(builder(_).lift(params))
+      .collectFirst { case Some(command) =>
+        command
+      }
+      .getOrElse(Try(default))
 
   def contentAsStringCommand(path: Path,
                              maxBytes: Option[Int],
-                             failOnOverflow: Boolean): Try[IoContentAsStringCommand] = {
-    buildOrDefault(_.contentAsStringCommand, (path, maxBytes, failOnOverflow), DefaultIoContentAsStringCommand(path, IoReadOptions(maxBytes, failOnOverflow)))
-  }
+                             failOnOverflow: Boolean
+  ): Try[IoContentAsStringCommand] =
+    buildOrDefault(_.contentAsStringCommand,
+                   (path, maxBytes, failOnOverflow),
+                   DefaultIoContentAsStringCommand(path, IoReadOptions(maxBytes, failOnOverflow))
+    )
 
   def writeCommand(path: Path,
                    content: String,
                    options: OpenOptions,
-                   compressPayload: Boolean = false): Try[IoWriteCommand] = {
-    buildOrDefault(_.writeCommand, (path, content, options, compressPayload), DefaultIoWriteCommand(path, content, options, compressPayload))
-  }
+                   compressPayload: Boolean = false
+  ): Try[IoWriteCommand] =
+    buildOrDefault(_.writeCommand,
+                   (path, content, options, compressPayload),
+                   DefaultIoWriteCommand(path, content, options, compressPayload)
+    )
 
-  def sizeCommand(path: Path): Try[IoSizeCommand] = {
+  def sizeCommand(path: Path): Try[IoSizeCommand] =
     buildOrDefault(_.sizeCommand, path, DefaultIoSizeCommand(path))
-  }
 
-  def deleteCommand(path: Path, swallowIoExceptions: Boolean = true): Try[IoDeleteCommand] = {
+  def deleteCommand(path: Path, swallowIoExceptions: Boolean = true): Try[IoDeleteCommand] =
     buildOrDefault(_.deleteCommand, (path, swallowIoExceptions), DefaultIoDeleteCommand(path, swallowIoExceptions))
-  }
 
-  def copyCommand(src: Path, dest: Path): Try[IoCopyCommand] = {
+  def copyCommand(src: Path, dest: Path): Try[IoCopyCommand] =
     buildOrDefault(_.copyCommand, (src, dest), DefaultIoCopyCommand(src, dest))
-  }
 
-  def hashCommand(file: Path): Try[IoHashCommand] = {
+  def hashCommand(file: Path): Try[IoHashCommand] =
     buildOrDefault(_.hashCommand, file, DefaultIoHashCommand(file))
-  }
 
-  def touchCommand(file: Path): Try[IoTouchCommand] = {
+  def touchCommand(file: Path): Try[IoTouchCommand] =
     buildOrDefault(_.touchCommand, file, DefaultIoTouchCommand(file))
-  }
 
-  def existsCommand(file: Path): Try[IoExistsCommand] = {
+  def existsCommand(file: Path): Try[IoExistsCommand] =
     buildOrDefault(_.existsCommand, file, DefaultIoExistsCommand(file))
-  }
 
-  def isDirectoryCommand(file: Path): Try[IoIsDirectoryCommand] = {
+  def isDirectoryCommand(file: Path): Try[IoIsDirectoryCommand] =
     buildOrDefault(_.isDirectoryCommand, file, DefaultIoIsDirectoryCommand(file))
-  }
 
-  def readLines(file: Path): Try[IoReadLinesCommand] = {
+  def readLines(file: Path): Try[IoReadLinesCommand] =
     buildOrDefault(_.readLinesCommand, file, DefaultIoReadLinesCommand(file))
-  }
 }
 
 /**

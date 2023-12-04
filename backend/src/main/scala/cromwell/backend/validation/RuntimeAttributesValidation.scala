@@ -26,61 +26,56 @@ object RuntimeAttributesValidation {
     if (unrecognized.nonEmpty) logger.warn(s"Unrecognized runtime attribute keys: $unrecognized")
   }
 
-  def validateDocker(docker: Option[WomValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
+  def validateDocker(docker: Option[WomValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] =
     validateWithValidation(docker, DockerValidation.instance.optional, onMissingKey)
-  }
 
-  def validateFailOnStderr(value: Option[WomValue], onMissingKey: => ErrorOr[Boolean]): ErrorOr[Boolean] = {
+  def validateFailOnStderr(value: Option[WomValue], onMissingKey: => ErrorOr[Boolean]): ErrorOr[Boolean] =
     validateWithValidation(value, FailOnStderrValidation.instance, onMissingKey)
-  }
 
   def validateContinueOnReturnCode(value: Option[WomValue],
-                                   onMissingKey: => ErrorOr[ContinueOnReturnCode]): ErrorOr[ContinueOnReturnCode] = {
+                                   onMissingKey: => ErrorOr[ContinueOnReturnCode]
+  ): ErrorOr[ContinueOnReturnCode] =
     validateWithValidation(value, ContinueOnReturnCodeValidation.instance, onMissingKey)
-  }
 
-  def validateMemory(value: Option[WomValue], onMissingKey: => ErrorOr[MemorySize]): ErrorOr[MemorySize] = {
+  def validateMemory(value: Option[WomValue], onMissingKey: => ErrorOr[MemorySize]): ErrorOr[MemorySize] =
     validateWithValidation(value, MemoryValidation.instance(), onMissingKey)
-  }
 
-  def validateCpu(cpu: Option[WomValue], onMissingKey: => ErrorOr[Int Refined Positive]): ErrorOr[Int Refined Positive] = {
+  def validateCpu(cpu: Option[WomValue],
+                  onMissingKey: => ErrorOr[Int Refined Positive]
+  ): ErrorOr[Int Refined Positive] =
     validateWithValidation(cpu, CpuValidation.instance, onMissingKey)
-  }
 
-  def validateMaxRetries(maxRetries: Option[WomValue], onMissingKey: => ErrorOr[Int]): ErrorOr[Int] = {
+  def validateMaxRetries(maxRetries: Option[WomValue], onMissingKey: => ErrorOr[Int]): ErrorOr[Int] =
     validateWithValidation(maxRetries, MaxRetriesValidation.instance, onMissingKey)
-  }
 
   private def validateWithValidation[T](valueOption: Option[WomValue],
                                         validation: RuntimeAttributesValidation[T],
-                                        onMissingValue: => ErrorOr[T]): ErrorOr[T] = {
+                                        onMissingValue: => ErrorOr[T]
+  ): ErrorOr[T] =
     valueOption match {
       case Some(value) =>
         validation.validateValue.applyOrElse(value, (_: Any) => validation.invalidValueFailure(value))
       case None => onMissingValue
     }
-  }
 
-  def validateInt(value: WomValue): ErrorOr[Int] = {
+  def validateInt(value: WomValue): ErrorOr[Int] =
     WomIntegerType.coerceRawValue(value) match {
       case scala.util.Success(WomInteger(i)) => i.intValue.validNel
       case _ => s"Could not coerce ${value.valueString} into an integer".invalidNel
     }
-  }
 
-  def validateBoolean(value: WomValue): ErrorOr[Boolean] = {
+  def validateBoolean(value: WomValue): ErrorOr[Boolean] =
     WomBooleanType.coerceRawValue(value) match {
       case scala.util.Success(WomBoolean(b)) => b.booleanValue.validNel
       case _ => s"Could not coerce ${value.valueString} into a boolean".invalidNel
     }
-  }
 
-  def parseMemoryString(k: String, s: WomString): ErrorOr[MemorySize] = {
+  def parseMemoryString(k: String, s: WomString): ErrorOr[MemorySize] =
     InformationValidation.validateString(k, s, allowZero = false)
-  }
 
   def withDefault[ValidatedType](validation: RuntimeAttributesValidation[ValidatedType],
-                                 default: WomValue): RuntimeAttributesValidation[ValidatedType] = {
+                                 default: WomValue
+  ): RuntimeAttributesValidation[ValidatedType] =
     new RuntimeAttributesValidation[ValidatedType] {
       override def key: String = validation.key
 
@@ -101,10 +96,10 @@ object RuntimeAttributesValidation {
 
       override protected def staticDefaultOption = Option(default)
     }
-  }
 
   def withUsedInCallCaching[ValidatedType](validation: RuntimeAttributesValidation[ValidatedType],
-                                           usedInCallCachingValue: Boolean): RuntimeAttributesValidation[ValidatedType] = {
+                                           usedInCallCachingValue: Boolean
+  ): RuntimeAttributesValidation[ValidatedType] =
     new RuntimeAttributesValidation[ValidatedType] {
       override def key: String = validation.key
 
@@ -125,10 +120,10 @@ object RuntimeAttributesValidation {
 
       override protected def staticDefaultOption = validation.staticDefaultOption
     }
-  }
 
-  def optional[ValidatedType](validation: RuntimeAttributesValidation[ValidatedType]):
-  OptionalRuntimeAttributesValidation[ValidatedType] = {
+  def optional[ValidatedType](
+    validation: RuntimeAttributesValidation[ValidatedType]
+  ): OptionalRuntimeAttributesValidation[ValidatedType] =
     new OptionalRuntimeAttributesValidation[ValidatedType] {
       override def key: String = validation.key
 
@@ -149,7 +144,6 @@ object RuntimeAttributesValidation {
 
       override protected def staticDefaultOption = validation.staticDefaultOption
     }
-  }
 
   /**
     * Returns the value from the attributes, unpacking options, and converting them to string values suitable for
@@ -181,9 +175,9 @@ object RuntimeAttributesValidation {
     * @throws ClassCastException if the validation is called on an optional validation.
     */
   def extract[A](runtimeAttributesValidation: RuntimeAttributesValidation[A],
-                 validatedRuntimeAttributes: ValidatedRuntimeAttributes): A = {
+                 validatedRuntimeAttributes: ValidatedRuntimeAttributes
+  ): A =
     extract(runtimeAttributesValidation.key, validatedRuntimeAttributes)
-  }
 
   /**
     * Returns the value from the attributes matching the key.
@@ -192,14 +186,15 @@ object RuntimeAttributesValidation {
     * @param validatedRuntimeAttributes The values to search.
     * @return The value matching the key.
     */
-  def extract[A](key: String,
-                 validatedRuntimeAttributes: ValidatedRuntimeAttributes): A = {
+  def extract[A](key: String, validatedRuntimeAttributes: ValidatedRuntimeAttributes): A = {
     val value = extractOption(key, validatedRuntimeAttributes)
     value match {
       // NOTE: Some(innerValue) aka Some.unapply() throws a `ClassCastException` to `Nothing$` as it can't tell the type
       case some: Some[_] => some.get.asInstanceOf[A]
-      case None => throw new RuntimeException(
-        s"$key not found in runtime attributes ${validatedRuntimeAttributes.attributes.keys}")
+      case None =>
+        throw new RuntimeException(
+          s"$key not found in runtime attributes ${validatedRuntimeAttributes.attributes.keys}"
+        )
     }
   }
 
@@ -211,9 +206,9 @@ object RuntimeAttributesValidation {
     * @return The Some(value) matching the key or None.
     */
   def extractOption[A](runtimeAttributesValidation: RuntimeAttributesValidation[A],
-                       validatedRuntimeAttributes: ValidatedRuntimeAttributes): Option[A] = {
+                       validatedRuntimeAttributes: ValidatedRuntimeAttributes
+  ): Option[A] =
     extractOption(runtimeAttributesValidation.key, validatedRuntimeAttributes)
-  }
 
   /**
     * Returns Some(value) from the attributes matching the key, or None.
@@ -234,13 +229,12 @@ object RuntimeAttributesValidation {
     * @tparam A The type to cast the unpacked value.
     * @return The Some(value) matching the key or None.
     */
-  final def unpackOption[A](value: Any): Option[A] = {
+  final def unpackOption[A](value: Any): Option[A] =
     value match {
       case None => None
       case Some(innerValue) => unpackOption(innerValue)
       case _ => Option(value.asInstanceOf[A])
     }
-  }
 }
 
 /**
@@ -251,13 +245,13 @@ case class BadDefaultAttribute(badDefaultValue: WomValue) extends WomValue {
   val womType = WomStringType
 }
 
-
 /**
   * Performs a validation on a runtime attribute and returns some value.
   *
   * @tparam ValidatedType The type of the validated value.
   */
 trait RuntimeAttributesValidation[ValidatedType] {
+
   /**
     * Returns the key of the runtime attribute.
     *
@@ -297,8 +291,8 @@ trait RuntimeAttributesValidation[ValidatedType] {
     *
     * @return true if the value can be validated.
     */
-  protected def validateExpression: PartialFunction[WomValue, Boolean] = {
-    case womValue => coercion.exists(_ == womValue.womType)
+  protected def validateExpression: PartialFunction[WomValue, Boolean] = { case womValue =>
+    coercion.exists(_ == womValue.womType)
   }
 
   /**
@@ -322,7 +316,7 @@ trait RuntimeAttributesValidation[ValidatedType] {
     *
     * @return Wrapped invalidValueMessage.
     */
-  protected final def invalidValueFailure(value: WomValue): ErrorOr[ValidatedType] =
+  final protected def invalidValueFailure(value: WomValue): ErrorOr[ValidatedType] =
     invalidValueMessage(value).invalidNel
 
   /**
@@ -337,7 +331,7 @@ trait RuntimeAttributesValidation[ValidatedType] {
     *
     * @return Wrapped missingValueMessage.
     */
-  protected final lazy val missingValueFailure: ErrorOr[ValidatedType] = missingValueMessage.invalidNel
+  final protected lazy val missingValueFailure: ErrorOr[ValidatedType] = missingValueMessage.invalidNel
 
   /**
     * Runs this validation on the value matching key.
@@ -347,12 +341,11 @@ trait RuntimeAttributesValidation[ValidatedType] {
     * @param values The full set of values.
     * @return The error or valid value for this key.
     */
-  def validate(values: Map[String, WomValue]): ErrorOr[ValidatedType] = {
+  def validate(values: Map[String, WomValue]): ErrorOr[ValidatedType] =
     values.get(key) match {
       case Some(value) => validateValue.applyOrElse(value, (_: Any) => invalidValueFailure(value))
       case None => validateNone
     }
-  }
 
   /**
     * Used during initialization, returning true if the expression __may be__ valid.
@@ -371,7 +364,7 @@ trait RuntimeAttributesValidation[ValidatedType] {
     * @param wdlExpressionMaybe The optional expression.
     * @return True if the expression may be evaluated.
     */
-  def validateOptionalWomValue(wdlExpressionMaybe: Option[WomValue]): Boolean = {
+  def validateOptionalWomValue(wdlExpressionMaybe: Option[WomValue]): Boolean =
     wdlExpressionMaybe match {
       case None => staticDefaultOption.isDefined || validateNone.isValid
       case Some(wdlExpression: WdlExpression) =>
@@ -381,9 +374,8 @@ trait RuntimeAttributesValidation[ValidatedType] {
         }
       case Some(womValue) => validateExpression.applyOrElse(womValue, (_: Any) => false)
     }
-  }
 
-  def validateOptionalWomExpression(womExpressionMaybe: Option[WomExpression]): Boolean = {
+  def validateOptionalWomExpression(womExpressionMaybe: Option[WomExpression]): Boolean =
     womExpressionMaybe match {
       case None => staticDefaultOption.isDefined || validateNone.isValid
       case Some(womExpression) =>
@@ -392,7 +384,7 @@ trait RuntimeAttributesValidation[ValidatedType] {
           case Invalid(_) => true // If we can't evaluate it, we'll let it pass for now...
         }
     }
-  }
+
   /**
     * Indicates whether this runtime attribute should be used in call caching calculations.
     *
@@ -410,7 +402,7 @@ trait RuntimeAttributesValidation[ValidatedType] {
     * Returns an optional version of this validation.
     */
   final lazy val optional: OptionalRuntimeAttributesValidation[ValidatedType] =
-  RuntimeAttributesValidation.optional(this)
+    RuntimeAttributesValidation.optional(this)
 
   /**
     * Returns a version of this validation with the default value.
@@ -432,7 +424,7 @@ trait RuntimeAttributesValidation[ValidatedType] {
     * @param optionalRuntimeConfig Optional default runtime attributes config of a particular backend.
     * @return The new version of this validation.
     */
-  final def configDefaultWomValue(optionalRuntimeConfig: Option[Config]): Option[WomValue] = {
+  final def configDefaultWomValue(optionalRuntimeConfig: Option[Config]): Option[WomValue] =
     optionalRuntimeConfig collect {
       case config if config.hasPath(key) =>
         val value = config.getValue(key).unwrapped()
@@ -442,13 +434,11 @@ trait RuntimeAttributesValidation[ValidatedType] {
           BadDefaultAttribute(WomString(value.toString))
         }
     }
-  }
 
-  final def configDefaultValue(optionalRuntimeConfig: Option[Config]): Option[String] = {
+  final def configDefaultValue(optionalRuntimeConfig: Option[Config]): Option[String] =
     optionalRuntimeConfig collect {
       case config if config.hasPath(key) => config.getValue(key).unwrapped().toString
     }
-  }
 
   /*
   Methods below provide aliases to expose protected methods to the package.
@@ -457,15 +447,15 @@ trait RuntimeAttributesValidation[ValidatedType] {
   access the protected values, except the `validation` package that uses these back doors.
    */
 
-  private[validation] final lazy val validateValuePackagePrivate = validateValue
+  final private[validation] lazy val validateValuePackagePrivate = validateValue
 
-  private[validation] final lazy val validateExpressionPackagePrivate = validateExpression
+  final private[validation] lazy val validateExpressionPackagePrivate = validateExpression
 
-  private[validation] final def invalidValueMessagePackagePrivate(value: WomValue) = invalidValueMessage(value)
+  final private[validation] def invalidValueMessagePackagePrivate(value: WomValue) = invalidValueMessage(value)
 
-  private[validation] final lazy val missingValueMessagePackagePrivate = missingValueMessage
+  final private[validation] lazy val missingValueMessagePackagePrivate = missingValueMessage
 
-  private[validation] final lazy val usedInCallCachingPackagePrivate = usedInCallCaching
+  final private[validation] lazy val usedInCallCachingPackagePrivate = usedInCallCaching
 }
 
 /**
@@ -474,6 +464,7 @@ trait RuntimeAttributesValidation[ValidatedType] {
   * @tparam ValidatedType The type of the validated value.
   */
 trait OptionalRuntimeAttributesValidation[ValidatedType] extends RuntimeAttributesValidation[Option[ValidatedType]] {
+
   /**
     * Validates the wdl value.
     *
@@ -484,13 +475,12 @@ trait OptionalRuntimeAttributesValidation[ValidatedType] extends RuntimeAttribut
     */
   protected def validateOption: PartialFunction[WomValue, ErrorOr[ValidatedType]]
 
-  override final protected lazy val validateValue = new PartialFunction[WomValue, ErrorOr[Option[ValidatedType]]] {
+  final override protected lazy val validateValue = new PartialFunction[WomValue, ErrorOr[Option[ValidatedType]]] {
     override def isDefinedAt(womValue: WomValue): Boolean = validateOption.isDefinedAt(womValue)
 
-    override def apply(womValue: WomValue): Validated[NonEmptyList[String], Option[ValidatedType]] = {
+    override def apply(womValue: WomValue): Validated[NonEmptyList[String], Option[ValidatedType]] =
       validateOption.apply(womValue).map(Option.apply)
-    }
   }
 
-  override final protected lazy val validateNone: ErrorOr[None.type] = None.validNel[String]
+  final override protected lazy val validateNone: ErrorOr[None.type] = None.validNel[String]
 }

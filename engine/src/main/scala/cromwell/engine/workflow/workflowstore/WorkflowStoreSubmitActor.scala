@@ -14,7 +14,11 @@ import cromwell.engine.workflow.WorkflowProcessingEventPublishing._
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreState.WorkflowStoreState
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowStoreState, WorkflowSubmissionResponse}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
-import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmitFailed, WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{
+  WorkflowsBatchSubmittedToStore,
+  WorkflowSubmitFailed,
+  WorkflowSubmittedToStore
+}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import spray.json._
@@ -22,8 +26,12 @@ import spray.json._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryActor: ActorRef) extends Actor 
-  with ActorLogging with WorkflowMetadataHelper with MonitoringCompanionHelper with WorkflowInstrumentation {
+final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryActor: ActorRef)
+    extends Actor
+    with ActorLogging
+    with WorkflowMetadataHelper
+    with MonitoringCompanionHelper
+    with WorkflowInstrumentation {
   implicit val ec: ExecutionContext = context.dispatcher
 
   val workflowStoreReceive: Receive = {
@@ -80,32 +88,32 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
           removeWork()
       }
   }
-  
+
   override def receive = workflowStoreReceive.orElse(monitoringReceive)
 
-  private def convertDatabaseStateToApiState(workflowStoreState: WorkflowStoreState): WorkflowState ={
+  private def convertDatabaseStateToApiState(workflowStoreState: WorkflowStoreState): WorkflowState =
     workflowStoreState match {
       case WorkflowStoreState.Submitted => WorkflowSubmitted
       case WorkflowStoreState.OnHold => WorkflowOnHold
       case WorkflowStoreState.Aborting => WorkflowAborting
       case WorkflowStoreState.Running => WorkflowRunning
     }
-  }
 
-  private def storeWorkflowSources(sources: NonEmptyList[WorkflowSourceFilesCollection]): Future[NonEmptyList[WorkflowSubmissionResponse]] = {
+  private def storeWorkflowSources(
+    sources: NonEmptyList[WorkflowSourceFilesCollection]
+  ): Future[NonEmptyList[WorkflowSubmissionResponse]] =
     for {
       workflowSubmissionResponses <- store.add(sources)
     } yield workflowSubmissionResponses
-  }
 
-  private def convertJsonToLabelsMap(json: String): Map[String, String] = {
+  private def convertJsonToLabelsMap(json: String): Map[String, String] =
     json.parseJson match {
-      case JsObject(inputs) => inputs.collect({
-        case (key, JsString(value)) => key -> value
-      })
+      case JsObject(inputs) =>
+        inputs.collect { case (key, JsString(value)) =>
+          key -> value
+        }
       case _ => Map.empty
     }
-  }
 
   /**
     * Runs processing on workflow source files before they are stored.
@@ -114,61 +122,97 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
     * @param source         Original workflow source
     * @return Attempted updated workflow source
     */
-  private def processSource(processOptions: WorkflowOptions => WorkflowOptions)
-                           (source: WorkflowSourceFilesCollection): WorkflowSourceFilesCollection = {
-
+  private def processSource(processOptions: WorkflowOptions => WorkflowOptions)(
+    source: WorkflowSourceFilesCollection
+  ): WorkflowSourceFilesCollection =
     source.setOptions(processOptions(source.workflowOptions))
-  }
 
   /**
     * Takes the workflow id and sends it over to the metadata service w/ default empty values for inputs/outputs
     */
-  private def registerSubmission(
-      id: WorkflowId,
-      originalSourceFiles: WorkflowSourceFilesCollection): Unit = {
+  private def registerSubmission(id: WorkflowId, originalSourceFiles: WorkflowSourceFilesCollection): Unit = {
     // Increment the workflow submitted count
     incrementWorkflowState(WorkflowSubmitted)
 
-    val actualWorkflowState = if(originalSourceFiles.workflowOnHold)
-      WorkflowOnHold
-    else
-      WorkflowSubmitted
+    val actualWorkflowState =
+      if (originalSourceFiles.workflowOnHold)
+        WorkflowOnHold
+      else
+        WorkflowSubmitted
 
     val sourceFiles = processSource(_.clearEncryptedValues)(originalSourceFiles)
 
-      val submissionEvents: List[MetadataEvent] = List(
-        MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionTime), MetadataValue(OffsetDateTime.now)),
-        MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Inputs)),
-        MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Outputs)),
-        MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.Status), MetadataValue(actualWorkflowState)),
-
-        MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Workflow), MetadataValue(sourceFiles.workflowSource.orNull)),
-        MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_WorkflowUrl), MetadataValue(sourceFiles.workflowUrl.orNull)),
-        MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Root), MetadataValue(sourceFiles.workflowRoot.orNull)),
-        MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Inputs), MetadataValue(sourceFiles.inputsJson)),
-        MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Options), MetadataValue(sourceFiles.workflowOptions.asPrettyJson)),
-        MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Labels), MetadataValue(sourceFiles.labelsJson))
+    val submissionEvents: List[MetadataEvent] = List(
+      MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionTime), MetadataValue(OffsetDateTime.now)),
+      MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Inputs)),
+      MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Outputs)),
+      MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.Status), MetadataValue(actualWorkflowState)),
+      MetadataEvent(
+        MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Workflow),
+        MetadataValue(sourceFiles.workflowSource.orNull)
+      ),
+      MetadataEvent(
+        MetadataKey(id,
+                    None,
+                    WorkflowMetadataKeys.SubmissionSection,
+                    WorkflowMetadataKeys.SubmissionSection_WorkflowUrl
+        ),
+        MetadataValue(sourceFiles.workflowUrl.orNull)
+      ),
+      MetadataEvent(
+        MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Root),
+        MetadataValue(sourceFiles.workflowRoot.orNull)
+      ),
+      MetadataEvent(
+        MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Inputs),
+        MetadataValue(sourceFiles.inputsJson)
+      ),
+      MetadataEvent(
+        MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Options),
+        MetadataValue(sourceFiles.workflowOptions.asPrettyJson)
+      ),
+      MetadataEvent(
+        MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Labels),
+        MetadataValue(sourceFiles.labelsJson)
       )
+    )
 
-      // Don't publish metadata for either workflow type or workflow type version if not defined.
-      val workflowTypeAndVersionEvents: List[Option[MetadataEvent]] = List(
-        sourceFiles.workflowType map { wt => MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_WorkflowType), MetadataValue(wt)) },
-        sourceFiles.workflowTypeVersion map { wtv => MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_WorkflowTypeVersion), MetadataValue(wtv)) }
-      )
+    // Don't publish metadata for either workflow type or workflow type version if not defined.
+    val workflowTypeAndVersionEvents: List[Option[MetadataEvent]] = List(
+      sourceFiles.workflowType map { wt =>
+        MetadataEvent(MetadataKey(id,
+                                  None,
+                                  WorkflowMetadataKeys.SubmissionSection,
+                                  WorkflowMetadataKeys.SubmissionSection_WorkflowType
+                      ),
+                      MetadataValue(wt)
+        )
+      },
+      sourceFiles.workflowTypeVersion map { wtv =>
+        MetadataEvent(MetadataKey(id,
+                                  None,
+                                  WorkflowMetadataKeys.SubmissionSection,
+                                  WorkflowMetadataKeys.SubmissionSection_WorkflowTypeVersion
+                      ),
+                      MetadataValue(wtv)
+        )
+      }
+    )
 
-      serviceRegistryActor ! PutMetadataAction(submissionEvents ++ workflowTypeAndVersionEvents.flatten)
-      ()
+    serviceRegistryActor ! PutMetadataAction(submissionEvents ++ workflowTypeAndVersionEvents.flatten)
+    ()
   }
 }
 
 object WorkflowStoreSubmitActor {
-  def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef) = {
+  def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef) =
     Props(WorkflowStoreSubmitActor(workflowStoreDatabase, serviceRegistryActor)).withDispatcher(ApiDispatcher)
-  }
 
   sealed trait WorkflowStoreSubmitActorResponse
-  final case class WorkflowSubmittedToStore(workflowId: WorkflowId, state: WorkflowState) extends WorkflowStoreSubmitActorResponse
-  final case class WorkflowsBatchSubmittedToStore(workflowIds: NonEmptyList[WorkflowId], state: WorkflowState) extends WorkflowStoreSubmitActorResponse
+  final case class WorkflowSubmittedToStore(workflowId: WorkflowId, state: WorkflowState)
+      extends WorkflowStoreSubmitActorResponse
+  final case class WorkflowsBatchSubmittedToStore(workflowIds: NonEmptyList[WorkflowId], state: WorkflowState)
+      extends WorkflowStoreSubmitActorResponse
 
   final case class WorkflowSubmitFailed(throwable: Throwable) extends WorkflowStoreSubmitActorResponse
 }

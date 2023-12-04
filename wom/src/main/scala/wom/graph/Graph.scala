@@ -53,19 +53,26 @@ object Graph {
 
     def upstreamNodeInGraph(port: InputPort): ErrorOr[Unit] = {
       val upstreamOutputPort = port.upstream
-      boolToErrorOr(nodes.exists(_ eq upstreamOutputPort.graphNode), s"The input link ${port.name} on ${port.graphNode.localName} is linked to a node outside the graph set (${upstreamOutputPort.name})")
+      boolToErrorOr(
+        nodes.exists(_ eq upstreamOutputPort.graphNode),
+        s"The input link ${port.name} on ${port.graphNode.localName} is linked to a node outside the graph set (${upstreamOutputPort.name})"
+      )
     }
 
-    def portProperlyEmbedded(port: GraphNodePort, portFinder: GraphNode => Set[_ <: GraphNodePort]): ErrorOr[Unit] = {
-      boolToErrorOr(portFinder(port.graphNode).exists(_ eq port), s"The port ${port.name} thinks it belongs to a Node (${port.graphNode}), but that Node doesn't think it owns it.")
-    }
+    def portProperlyEmbedded(port: GraphNodePort, portFinder: GraphNode => Set[_ <: GraphNodePort]): ErrorOr[Unit] =
+      boolToErrorOr(
+        portFinder(port.graphNode).exists(_ eq port),
+        s"The port ${port.name} thinks it belongs to a Node (${port.graphNode}), but that Node doesn't think it owns it."
+      )
 
-    def outerGraphInputNodePointsHere(ogin: OuterGraphInputNode): ErrorOr[Unit] = {
-      boolToErrorOr(nodes.contains(ogin.linkToOuterGraph.graphNode), s"The OuterGraphInputNode ${ogin.identifier} does not link into the outer graph")
-    }
+    def outerGraphInputNodePointsHere(ogin: OuterGraphInputNode): ErrorOr[Unit] =
+      boolToErrorOr(nodes.contains(ogin.linkToOuterGraph.graphNode),
+                    s"The OuterGraphInputNode ${ogin.identifier} does not link into the outer graph"
+      )
 
     def validateInnerNodes(node: GraphNode): ErrorOr[Unit] = node match {
-      case g: GraphNodeWithInnerGraph => g.innerGraph.nodes.filterByType[OuterGraphInputNode].toList.traverse(outerGraphInputNodePointsHere).void
+      case g: GraphNodeWithInnerGraph =>
+        g.innerGraph.nodes.filterByType[OuterGraphInputNode].toList.traverse(outerGraphInputNodePointsHere).void
       case _ => ().validNel
     }
 
@@ -77,26 +84,29 @@ object Graph {
       (upstreamNodeValidation, inputPortEmbeddedValidation, upstreamPortEmbeddedValidation).tupled.void
     }
 
-    def validateNode(node: GraphNode): ErrorOr[Unit] = {
+    def validateNode(node: GraphNode): ErrorOr[Unit] =
       (node.inputPorts.toList.traverse(goodLink), validateInnerNodes(node)).tupled.void
-    }
 
     // from https://stackoverflow.com/a/24729587/1498572
     def fqnUniqueness: ErrorOr[Unit] = nodes
-      .collect({
+      .collect {
         case callNode: CallNode => callNode
         case gin: GraphInputNode => gin
         case gon: GraphOutputNode => gon
-      })
+      }
       .toList // Important since nodes is a Set, we don't want duplicates to disappear automatically when mapping to FQN
       .map(_.identifier.fullyQualifiedName)
       .groupBy(identity)
-      .collect({
+      .collect {
         case (fqn, list) if list.lengthCompare(1) > 0 => fqn
-      }).toList match {
+      }
+      .toList match {
       case Nil => ().validNel
       case head :: tail =>
-        NonEmptyList.of(head, tail: _*).map(fqn => s"Two or more nodes have the same FullyQualifiedName: ${fqn.value}").invalid
+        NonEmptyList
+          .of(head, tail: _*)
+          .map(fqn => s"Two or more nodes have the same FullyQualifiedName: ${fqn.value}")
+          .invalid
     }
 
     (fqnUniqueness, nodes.toList.traverse(validateNode)) mapN { case (_, _) =>

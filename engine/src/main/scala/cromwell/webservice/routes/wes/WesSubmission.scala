@@ -10,7 +10,7 @@ final case class WesSubmission(workflowParams: Option[String],
                                workflowEngineParameters: Option[String],
                                workflowUrl: Option[String],
                                workflowAttachment: Iterable[String]
-                              ) {
+) {
   val entity: Multipart.FormData = {
     /*
       FIXME:
@@ -27,15 +27,29 @@ final case class WesSubmission(workflowParams: Option[String],
       Content-Disposition headers on each of these files which can be used to describe directory structure and such
       for relative import resolution
      */
-    val sourcePart = workflowAttachment.headOption map { a => Multipart.FormData.BodyPart(WorkflowSourceKey, HttpEntity(MediaTypes.`application/json`, a)) }
+    val sourcePart = workflowAttachment.headOption map { a =>
+      Multipart.FormData.BodyPart(WorkflowSourceKey, HttpEntity(MediaTypes.`application/json`, a))
+    }
 
-    val urlPart = workflowUrl map { u => Multipart.FormData.BodyPart(WorkflowUrlKey, HttpEntity(MediaTypes.`application/json`, u)) }
+    val urlPart = workflowUrl map { u =>
+      Multipart.FormData.BodyPart(WorkflowUrlKey, HttpEntity(MediaTypes.`application/json`, u))
+    }
 
-    val typePart = workflowType map { w => Multipart.FormData.BodyPart(WorkflowTypeKey, HttpEntity(MediaTypes.`application/json`, w)) }
-    val typeVersionPart = workflowTypeVersion map { v => Multipart.FormData.BodyPart(WorkflowTypeVersionKey, HttpEntity(MediaTypes.`application/json`, v)) }
-    val inputsPart = workflowParams map { p => Multipart.FormData.BodyPart(WorkflowInputsKey, HttpEntity(MediaTypes.`application/json`, p)) }
-    val optionsPart = workflowEngineParameters map { o => Multipart.FormData.BodyPart(WorkflowOptionsKey, HttpEntity(MediaTypes.`application/json`, o)) }
-    val labelsPart = tags map { t => Multipart.FormData.BodyPart(labelsKey, HttpEntity(MediaTypes.`application/json`, t)) }
+    val typePart = workflowType map { w =>
+      Multipart.FormData.BodyPart(WorkflowTypeKey, HttpEntity(MediaTypes.`application/json`, w))
+    }
+    val typeVersionPart = workflowTypeVersion map { v =>
+      Multipart.FormData.BodyPart(WorkflowTypeVersionKey, HttpEntity(MediaTypes.`application/json`, v))
+    }
+    val inputsPart = workflowParams map { p =>
+      Multipart.FormData.BodyPart(WorkflowInputsKey, HttpEntity(MediaTypes.`application/json`, p))
+    }
+    val optionsPart = workflowEngineParameters map { o =>
+      Multipart.FormData.BodyPart(WorkflowOptionsKey, HttpEntity(MediaTypes.`application/json`, o))
+    }
+    val labelsPart = tags map { t =>
+      Multipart.FormData.BodyPart(labelsKey, HttpEntity(MediaTypes.`application/json`, t))
+    }
 
     val parts = List(sourcePart, urlPart, typePart, typeVersionPart, inputsPart, optionsPart, labelsPart).flatten
 

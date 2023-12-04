@@ -14,7 +14,8 @@ object IoActorProxy {
 }
 
 class IoActorProxy(ioActor: ActorRef) extends Actor with ActorLogging with GracefulShutdownHelper {
-  private val cache = CacheBuilder.newBuilder()
+  private val cache = CacheBuilder
+    .newBuilder()
     .build[IoCommandWithPromise[_], IoResult]()
 
   private val ioPromiseProxyActor: ActorRef = context.actorOf(IoPromiseProxyActor.props(ioActor), "IoPromiseProxyActor")
@@ -31,7 +32,7 @@ class IoActorProxy(ioActor: ActorRef) extends Actor with ActorLogging with Grace
     case ioCommand: IoCommand[_] => ioActor forward ioCommand
     case withContext: (Any, IoCommand[_]) @unchecked => ioActor forward withContext
 
-    case ShutdownCommand => 
+    case ShutdownCommand =>
       context stop ioPromiseProxyActor
       waitForActorsAndShutdown(NonEmptyList.one(ioActor))
   }

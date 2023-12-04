@@ -19,7 +19,8 @@ class CallPreparationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
   it should "disallow empty Strings being input as Files" in {
     val callKey = mock[CallKey]
 
-    val inputExpressionPointer: InputDefinitionPointer = Coproduct[InputDefinitionPointer](WomString("").asWomExpression: WomExpression)
+    val inputExpressionPointer: InputDefinitionPointer =
+      Coproduct[InputDefinitionPointer](WomString("").asWomExpression: WomExpression)
     val inputs: InputDefinitionMappings = List(
       (RequiredInputDefinition("inputVal", WomSingleFileType), inputExpressionPointer)
     )

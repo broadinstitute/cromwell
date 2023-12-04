@@ -5,10 +5,11 @@ import cromwell.languages.config.CromwellLanguages.{CromwellLanguageName, Cromwe
 import cromwell.languages.LanguageFactory
 
 // Construct a singleton instance of this class using 'initLanguages' below.
-final case class CromwellLanguages private(languageConfig: LanguagesConfiguration) {
+final case class CromwellLanguages private (languageConfig: LanguagesConfiguration) {
 
   val languages: Map[CromwellLanguageName, LanguageVersions] = makeLanguages
-  val default: LanguageVersions = languages.find(lang => languageConfig.default.contains(lang._1)).getOrElse(languages.head)._2
+  val default: LanguageVersions =
+    languages.find(lang => languageConfig.default.contains(lang._1)).getOrElse(languages.head)._2
 
   private def makeLanguages: Map[CromwellLanguageName, LanguageVersions] = (languageConfig.languages map { lc =>
     val versions = lc.versions map { case (languageVersion, languageConfigEntryFields) =>
@@ -19,18 +20,20 @@ final case class CromwellLanguages private(languageConfig: LanguagesConfiguratio
     lc.name.toUpperCase -> LanguageVersions(versions, default)
   }).toMap
 
-  private def makeLanguageFactory(className: String, config: Config) = {
-    Class.forName(className)
+  private def makeLanguageFactory(className: String, config: Config) =
+    Class
+      .forName(className)
       .getConstructor(classOf[Config])
       .newInstance(config)
       .asInstanceOf[LanguageFactory]
-  }
 }
 
 /**
   * Holds all the registered versions of a language.
   */
-final case class LanguageVersions private(allVersions: Map[CromwellLanguageVersion, LanguageFactory], default: LanguageFactory)
+final case class LanguageVersions private (allVersions: Map[CromwellLanguageVersion, LanguageFactory],
+                                           default: LanguageFactory
+)
 
 object CromwellLanguages {
   type CromwellLanguageName = String
@@ -39,7 +42,6 @@ object CromwellLanguages {
   private var _instance: CromwellLanguages = _
   lazy val instance: CromwellLanguages = _instance
 
-  def initLanguages(backendEntries: LanguagesConfiguration): Unit = {
+  def initLanguages(backendEntries: LanguagesConfiguration): Unit =
     _instance = CromwellLanguages(backendEntries)
-  }
 }

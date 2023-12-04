@@ -79,8 +79,10 @@ class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
 object DescriberSpec {
   sealed trait DescriberSpecTestCase { def expectedDescription: String }
-  final case class FileAndDescription(file: String, override val expectedDescription: String) extends DescriberSpecTestCase
-  final case class UrlAndDescription(url: String, override val expectedDescription: String) extends DescriberSpecTestCase
+  final case class FileAndDescription(file: String, override val expectedDescription: String)
+      extends DescriberSpecTestCase
+  final case class UrlAndDescription(url: String, override val expectedDescription: String)
+      extends DescriberSpecTestCase
 
   def interpretTestCase(caseDirectory: Path): DescriberSpecTestCase = {
     val description = caseDirectory.resolve("description.json").contentAsString

@@ -11,26 +11,31 @@ import cromwell.core.labels.Label
 import cromwell.services.metadata.WorkflowQueryKey._
 import common.validation.ErrorOr._
 
-case class WorkflowQueryParameters private(statuses: Set[String],
-                                           names: Set[String],
-                                           ids: Set[WorkflowId],
-                                           labelsAnd: Set[Label],
-                                           labelsOr: Set[Label],
-                                           excludeLabelsAnd: Set[Label],
-                                           excludeLabelsOr: Set[Label],
-                                           submissionTime: Option[OffsetDateTime],
-                                           startDate: Option[OffsetDateTime],
-                                           endDate: Option[OffsetDateTime],
-                                           metadataArchiveStatus: Set[MetadataArchiveStatus],
-                                           page: Option[Int],
-                                           pageSize: Option[Int],
-                                           additionalQueryResultFields: Set[String],
-                                           includeSubworkflows: Boolean,
-                                           newestFirst: Boolean)
+case class WorkflowQueryParameters private (statuses: Set[String],
+                                            names: Set[String],
+                                            ids: Set[WorkflowId],
+                                            labelsAnd: Set[Label],
+                                            labelsOr: Set[Label],
+                                            excludeLabelsAnd: Set[Label],
+                                            excludeLabelsOr: Set[Label],
+                                            submissionTime: Option[OffsetDateTime],
+                                            startDate: Option[OffsetDateTime],
+                                            endDate: Option[OffsetDateTime],
+                                            metadataArchiveStatus: Set[MetadataArchiveStatus],
+                                            page: Option[Int],
+                                            pageSize: Option[Int],
+                                            additionalQueryResultFields: Set[String],
+                                            includeSubworkflows: Boolean,
+                                            newestFirst: Boolean
+)
 
 object WorkflowQueryParameters {
 
-  private def validateDate1BeforeDate2(date1: Option[OffsetDateTime], date2: Option[OffsetDateTime], date1Type: String, date2Type: String): ErrorOr[Unit] = {
+  private def validateDate1BeforeDate2(date1: Option[OffsetDateTime],
+                                       date2: Option[OffsetDateTime],
+                                       date1Type: String,
+                                       date2Type: String
+  ): ErrorOr[Unit] = {
     // Invert the notion of success/failure here to only "successfully" generate an error message if
     // both date1 and date2 dates have been specified and date1 is after date2.
     val date1AfterDate2Error = for {
@@ -62,7 +67,7 @@ object WorkflowQueryParameters {
    * Run the validation logic over the specified raw parameters, creating a `WorkflowQueryParameters` if all
    * validation succeeds, otherwise accumulate all validation messages within the `ValidationNel`.
    */
-  private [metadata] def runValidation(rawParameters: Seq[(String, String)]): ErrorOr[WorkflowQueryParameters] = {
+  private[metadata] def runValidation(rawParameters: Seq[(String, String)]): ErrorOr[WorkflowQueryParameters] = {
 
     val onlyRecognizedKeysValidation = validateOnlyRecognizedKeys(rawParameters)
 
@@ -74,16 +79,23 @@ object WorkflowQueryParameters {
     val submissionTimeValidation = SubmissionTime.validate(valuesByCanonicalCapitalization)
     val statusesValidation: ErrorOr[Set[String]] = Status.validate(valuesByCanonicalCapitalization).map(_.toSet)
     val namesValidation: ErrorOr[Set[String]] = Name.validate(valuesByCanonicalCapitalization).map(_.toSet)
-    val workflowIdsValidation: ErrorOr[Set[WorkflowId]] = WorkflowQueryKey.Id.validate(valuesByCanonicalCapitalization).map(ids => (ids map WorkflowId.fromString).toSet)
-    val labelsAndValidation: ErrorOr[Set[Label]] = WorkflowQueryKey.LabelAndKeyValue.validate(valuesByCanonicalCapitalization).map(_.toSet)
-    val labelsOrValidation: ErrorOr[Set[Label]] = WorkflowQueryKey.LabelOrKeyValue.validate(valuesByCanonicalCapitalization).map(_.toSet)
-    val excludeLabelsAndValidation: ErrorOr[Set[Label]] = WorkflowQueryKey.ExcludeLabelAndKeyValue.validate(valuesByCanonicalCapitalization).map(_.toSet)
-    val excludeLabelsOrValidation: ErrorOr[Set[Label]] = WorkflowQueryKey.ExcludeLabelOrKeyValue.validate(valuesByCanonicalCapitalization).map(_.toSet)
+    val workflowIdsValidation: ErrorOr[Set[WorkflowId]] =
+      WorkflowQueryKey.Id.validate(valuesByCanonicalCapitalization).map(ids => (ids map WorkflowId.fromString).toSet)
+    val labelsAndValidation: ErrorOr[Set[Label]] =
+      WorkflowQueryKey.LabelAndKeyValue.validate(valuesByCanonicalCapitalization).map(_.toSet)
+    val labelsOrValidation: ErrorOr[Set[Label]] =
+      WorkflowQueryKey.LabelOrKeyValue.validate(valuesByCanonicalCapitalization).map(_.toSet)
+    val excludeLabelsAndValidation: ErrorOr[Set[Label]] =
+      WorkflowQueryKey.ExcludeLabelAndKeyValue.validate(valuesByCanonicalCapitalization).map(_.toSet)
+    val excludeLabelsOrValidation: ErrorOr[Set[Label]] =
+      WorkflowQueryKey.ExcludeLabelOrKeyValue.validate(valuesByCanonicalCapitalization).map(_.toSet)
     val pageValidation = Page.validate(valuesByCanonicalCapitalization)
     val pageSizeValidation = PageSize.validate(valuesByCanonicalCapitalization)
-    val additionalQueryResultFieldsValidation: ErrorOr[Set[String]] = AdditionalQueryResultFields.validate(valuesByCanonicalCapitalization).map(_.toSet)
+    val additionalQueryResultFieldsValidation: ErrorOr[Set[String]] =
+      AdditionalQueryResultFields.validate(valuesByCanonicalCapitalization).map(_.toSet)
     val includeSubworkflowsValidation = IncludeSubworkflows.validate(valuesByCanonicalCapitalization)
-    val metadataArchiveStatusValidation: ErrorOr[Set[MetadataArchiveStatus]] = WorkflowQueryKey.MetadataArchiveStatus.validate(valuesByCanonicalCapitalization).map(_.toSet)
+    val metadataArchiveStatusValidation: ErrorOr[Set[MetadataArchiveStatus]] =
+      WorkflowQueryKey.MetadataArchiveStatus.validate(valuesByCanonicalCapitalization).map(_.toSet)
     val newestFirstValidation = NewestFirst.validate(valuesByCanonicalCapitalization)
 
     // Only validate start before end if both of the individual date parsing validations have already succeeded.
@@ -99,26 +111,45 @@ object WorkflowQueryParameters {
     }
 
     (onlyRecognizedKeysValidation,
-      startBeforeEndValidation,
-      submissionBeforeStartValidation,
-      statusesValidation,
-      namesValidation,
-      workflowIdsValidation,
-      labelsAndValidation,
-      labelsOrValidation,
-      excludeLabelsAndValidation,
-      excludeLabelsOrValidation,
-      submissionTimeValidation,
-      startDateValidation,
-      endDateValidation,
-      pageValidation,
-      pageSizeValidation,
-      additionalQueryResultFieldsValidation,
-      includeSubworkflowsValidation,
-      metadataArchiveStatusValidation,
-      newestFirstValidation
+     startBeforeEndValidation,
+     submissionBeforeStartValidation,
+     statusesValidation,
+     namesValidation,
+     workflowIdsValidation,
+     labelsAndValidation,
+     labelsOrValidation,
+     excludeLabelsAndValidation,
+     excludeLabelsOrValidation,
+     submissionTimeValidation,
+     startDateValidation,
+     endDateValidation,
+     pageValidation,
+     pageSizeValidation,
+     additionalQueryResultFieldsValidation,
+     includeSubworkflowsValidation,
+     metadataArchiveStatusValidation,
+     newestFirstValidation
     ) mapN {
-      (_, _, _, statuses, names, ids, labelsAnd, labelsOr, excludeLabelsAnd, excludeLabelsOr, submissionTime, startDate, endDate, page, pageSize, additionalQueryResultFields, includeSubworkflows, metadataArchiveStatus, newestFirst) =>
+      (_,
+       _,
+       _,
+       statuses,
+       names,
+       ids,
+       labelsAnd,
+       labelsOr,
+       excludeLabelsAnd,
+       excludeLabelsOr,
+       submissionTime,
+       startDate,
+       endDate,
+       page,
+       pageSize,
+       additionalQueryResultFields,
+       includeSubworkflows,
+       metadataArchiveStatus,
+       newestFirst
+      ) =>
         WorkflowQueryParameters(
           statuses,
           names,
@@ -140,10 +171,9 @@ object WorkflowQueryParameters {
     }
   }
 
-  def apply(rawParameters: Seq[(String, String)]): WorkflowQueryParameters = {
+  def apply(rawParameters: Seq[(String, String)]): WorkflowQueryParameters =
     runValidation(rawParameters) match {
       case Valid(queryParameters) => queryParameters
       case Invalid(x) => throw new IllegalArgumentException(x.toList.mkString("\n"))
     }
-  }
 }

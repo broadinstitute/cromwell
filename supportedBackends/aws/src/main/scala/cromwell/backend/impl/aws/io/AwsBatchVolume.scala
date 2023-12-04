@@ -42,7 +42,6 @@ import wom.values._
 import scala.util.Try
 import scala.util.matching.Regex
 
-
 /*
  * This will handle volumes that are defined in the configuration. It will
  * *not* attach new block storage, as that is handled a priori as part of the
@@ -66,7 +65,7 @@ object AwsBatchVolume {
       case DiskPatterns.WorkingDiskPattern(_, _) =>
         Valid(AwsBatchWorkingDisk())
       case DiskPatterns.MountedDiskPattern(mountPoint, _, fsType) =>
-        Valid(AwsBatchEmptyMountedDisk(DefaultPathBuilder.get(mountPoint),fsType))
+        Valid(AwsBatchEmptyMountedDisk(DefaultPathBuilder.get(mountPoint), fsType))
       case _ =>
         s"Disk strings should be of the format 'local-disk' or '/mount/point' but got: '$s'".invalidNel
     }
@@ -86,29 +85,24 @@ trait AwsBatchVolume {
   def name: String
   def mountPoint: Path
   def fsType: String
-  def getHostPath(id: Option[String]) : String =  {
+  def getHostPath(id: Option[String]): String =
     id match {
       case Some(id) => mountPoint.toAbsolutePath.pathAsString + "/" + id
-      case None   =>   mountPoint.toAbsolutePath.pathAsString
+      case None => mountPoint.toAbsolutePath.pathAsString
     }
-  }
-  def toVolume(id: Option[String]=None): Volume = {
-    Volume
-      .builder
+  def toVolume(id: Option[String] = None): Volume =
+    Volume.builder
       .name(name)
       .host(Host.builder.sourcePath(getHostPath(id)).build)
       .build
-  }
-  def toMountPoint: MountPoint = {
-    MountPoint
-      .builder
+  def toMountPoint: MountPoint =
+    MountPoint.builder
       .containerPath(mountPoint.toAbsolutePath.pathAsString)
       .sourceVolume(name)
       .build
-  }
 }
 
-case class AwsBatchEmptyMountedDisk(mountPoint: Path, ftype:String="ebs") extends AwsBatchVolume {
+case class AwsBatchEmptyMountedDisk(mountPoint: Path, ftype: String = "ebs") extends AwsBatchVolume {
   val name = s"d-${mountPoint.pathAsString.md5Sum}"
   val fsType = ftype.toLowerCase
   override def toString: String = s"$name $mountPoint"
@@ -117,7 +111,7 @@ case class AwsBatchEmptyMountedDisk(mountPoint: Path, ftype:String="ebs") extend
 object AwsBatchWorkingDisk {
   val MountPoint: Path = DefaultPathBuilder.get("/cromwell_root")
   val Name = "local-disk"
-  val fsType=  "ebs"
+  val fsType = "ebs"
   val Default = AwsBatchWorkingDisk()
 }
 

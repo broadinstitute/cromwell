@@ -11,7 +11,12 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class PipelinesApiConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks with BeforeAndAfterAll {
+class PipelinesApiConfigurationSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with TableDrivenPropertyChecks
+    with BeforeAndAfterAll {
 
   behavior of "PipelinesApiConfigurationSpec"
 
@@ -22,26 +27,25 @@ class PipelinesApiConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec
     ()
   }
 
-  val globalConfig = ConfigFactory.parseString(
-    s"""
-      |google {
-      |
-      |  application-name = "cromwell"
-      |
-      |  auths = [
-      |    {
-      |      name = "application-default"
-      |      scheme = "application_default"
-      |    },
-      |    {
-      |      name = "service-account"
-      |      scheme = "service_account"
-      |      service-account-id = "my-service-account"
-      |      pem-file = "${mockFile.pathAsString}"
-      |    }
-      |  ]
-      |}
-      |
+  val globalConfig = ConfigFactory.parseString(s"""
+                                                  |google {
+                                                  |
+                                                  |  application-name = "cromwell"
+                                                  |
+                                                  |  auths = [
+                                                  |    {
+                                                  |      name = "application-default"
+                                                  |      scheme = "application_default"
+                                                  |    },
+                                                  |    {
+                                                  |      name = "service-account"
+                                                  |      scheme = "service_account"
+                                                  |      service-account-id = "my-service-account"
+                                                  |      pem-file = "${mockFile.pathAsString}"
+                                                  |    }
+                                                  |  ]
+                                                  |}
+                                                  |
     """.stripMargin)
 
   val backendConfig = ConfigFactory.parseString(
@@ -88,7 +92,8 @@ class PipelinesApiConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec
       |    }
       |  }
       |
-    """.stripMargin)
+    """.stripMargin
+  )
 
   it should "fail to instantiate if any required configuration is missing" in {
 
@@ -108,17 +113,29 @@ class PipelinesApiConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec
       an[Exception] shouldBe thrownBy {
         val failingGoogleConf = GoogleConfiguration(global)
         val failingAttributes = PipelinesApiConfigurationAttributes(failingGoogleConf, backend, "papi")
-        new PipelinesApiConfiguration(BackendConfigurationDescriptor(backend, global), genomicsFactory, failingGoogleConf, failingAttributes)
+        new PipelinesApiConfiguration(BackendConfigurationDescriptor(backend, global),
+                                      genomicsFactory,
+                                      failingGoogleConf,
+                                      failingAttributes
+        )
       }
     }
   }
 
   it should "have correct root" in {
-    new PipelinesApiConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), genomicsFactory, googleConfiguration, papiAttributes).root shouldBe "gs://my-cromwell-workflows-bucket"
+    new PipelinesApiConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig),
+                                  genomicsFactory,
+                                  googleConfiguration,
+                                  papiAttributes
+    ).root shouldBe "gs://my-cromwell-workflows-bucket"
   }
 
   it should "have correct docker" in {
-    val dockerConf = new PipelinesApiConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), genomicsFactory, googleConfiguration, papiAttributes).dockerCredentials
+    val dockerConf = new PipelinesApiConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig),
+                                                   genomicsFactory,
+                                                   googleConfiguration,
+                                                   papiAttributes
+    ).dockerCredentials
     dockerConf shouldBe defined
     dockerConf.get.token shouldBe "dockerToken"
   }

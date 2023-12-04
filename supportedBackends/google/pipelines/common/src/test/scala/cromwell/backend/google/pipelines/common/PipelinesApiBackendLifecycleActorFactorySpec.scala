@@ -9,7 +9,10 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class PipelinesApiBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with Matchers with TableDrivenPropertyChecks {
+class PipelinesApiBackendLifecycleActorFactorySpec
+    extends AnyFlatSpecLike
+    with Matchers
+    with TableDrivenPropertyChecks {
 
   "PipelinesApiBackendLifecycleActorFactory" should "robustly build configuration attributes" in {
 
@@ -33,7 +36,8 @@ class PipelinesApiBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with 
       batchRequestTimeoutConfiguration = null,
       referenceFileToDiskImageMappingOpt = None,
       dockerImageToCacheDiskImageMappingOpt = None,
-      checkpointingInterval = 1 second)
+      checkpointingInterval = 1 second
+    )
 
     PipelinesApiBackendLifecycleActorFactory.robustBuildAttributes(() => attributes) shouldBe attributes
   }
@@ -50,8 +54,11 @@ class PipelinesApiBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with 
     )
     forAll(fails) { (attempts, description, function) =>
       it should s"$description: make $attempts attribute creation attempts before giving up" in {
-        val e = the [RuntimeException] thrownBy {
-          PipelinesApiBackendLifecycleActorFactory.robustBuildAttributes(function, initialIntervalMillis = 1, maxIntervalMillis = 5)
+        val e = the[RuntimeException] thrownBy {
+          PipelinesApiBackendLifecycleActorFactory.robustBuildAttributes(function,
+                                                                         initialIntervalMillis = 1,
+                                                                         maxIntervalMillis = 5
+          )
         }
         e.getMessage should startWith(s"Failed to build PipelinesApiConfigurationAttributes on attempt $attempts of 3")
       }

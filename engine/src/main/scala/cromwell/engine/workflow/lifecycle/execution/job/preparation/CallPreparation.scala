@@ -15,15 +15,15 @@ object CallPreparation {
 
   trait CallPreparationActorResponse
 
-  case class BackendJobPreparationSucceeded(jobDescriptor: BackendJobDescriptor, bjeaProps: Props) extends CallPreparationActorResponse
+  case class BackendJobPreparationSucceeded(jobDescriptor: BackendJobDescriptor, bjeaProps: Props)
+      extends CallPreparationActorResponse
 
   case class JobCallPreparationFailed(jobKey: JobKey, throwable: Throwable) extends CallPreparationActorResponse
   case class CallPreparationFailed(jobKey: JobKey, throwable: Throwable) extends CallPreparationActorResponse
 
   def resolveAndEvaluateInputs(callKey: CallKey,
                                expressionLanguageFunctions: IoFunctionSet,
-                               valueStore: ValueStore): ErrorOr[WomEvaluatedCallInputs] = {
-
+                               valueStore: ValueStore
+  ): ErrorOr[WomEvaluatedCallInputs] =
     CallNode.resolveAndEvaluateInputs(callKey.node, expressionLanguageFunctions, valueStore.resolve(callKey.index))
-  }
 }

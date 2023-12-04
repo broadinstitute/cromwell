@@ -45,7 +45,7 @@ package object model {
   }
 
   implicit class EnhancedFailureResponseOrHttpResponseT(val responseIoT: FailureResponseOrT[HttpResponse])
-    extends AnyVal {
+      extends AnyVal {
     def asHttpResponse: Future[HttpResponse] = {
       val io = responseIoT.value map {
         case Left(response) => response
@@ -55,13 +55,14 @@ package object model {
     }
   }
 
-  implicit class EnhancedFailureResponseOrT[SuccessType](val responseIoT: FailureResponseOrT[SuccessType]) extends AnyVal {
-    final def timeout(duration: FiniteDuration)
-                     (implicit timer: Timer[IO], cs: ContextShift[IO]): FailureResponseOrT[SuccessType] = {
+  implicit class EnhancedFailureResponseOrT[SuccessType](val responseIoT: FailureResponseOrT[SuccessType])
+      extends AnyVal {
+    final def timeout(
+      duration: FiniteDuration
+    )(implicit timer: Timer[IO], cs: ContextShift[IO]): FailureResponseOrT[SuccessType] =
       EitherT(responseIoT.value.timeout(duration))
-    }
 
-    def asIo(implicit materializer: ActorMaterializer, executionContext: ExecutionContext): IO[SuccessType] = {
+    def asIo(implicit materializer: ActorMaterializer, executionContext: ExecutionContext): IO[SuccessType] =
       responseIoT.value flatMap {
         case Left(response) =>
           implicit def cs = IO.contextShift(executionContext)
@@ -72,15 +73,13 @@ package object model {
           })
         case Right(a) => IO.pure(a)
       }
-    }
 
     /**
       * Transforms the IO error from one type to another.
       */
     def mapErrorWith(mapper: Throwable => IO[Nothing]): FailureResponseOrT[SuccessType] = {
-      def handleErrorIo[A](ioIn: IO[A]): IO[A] = {
+      def handleErrorIo[A](ioIn: IO[A]): IO[A] =
         ioIn handleErrorWith mapper
-      }
 
       responseIoT.mapK(FunctionK.lift(handleErrorIo))
     }

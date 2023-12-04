@@ -6,11 +6,8 @@ import java.nio.channels._
 class CloudNioWriteChannel(fileProvider: CloudNioFileProvider, retry: CloudNioRetry, cloudNioPath: CloudNioPath)
     extends SeekableByteChannel {
   private var internalPosition: Long = 0
-  private val channel: WritableByteChannel = {
-    retry.from(
-      () => fileProvider.write(cloudNioPath.cloudHost, cloudNioPath.cloudPath)
-    )
-  }
+  private val channel: WritableByteChannel =
+    retry.from(() => fileProvider.write(cloudNioPath.cloudHost, cloudNioPath.cloudPath))
 
   override def read(dst: ByteBuffer): Int = throw new NonReadableChannelException
 

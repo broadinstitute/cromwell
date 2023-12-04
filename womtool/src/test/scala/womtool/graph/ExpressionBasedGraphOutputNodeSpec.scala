@@ -20,12 +20,16 @@ class ExpressionBasedGraphOutputNodeSpec extends WomDotGraphTest {
 
     // Declare the expression output using both i and j:
     val xOutputValidation = ExpressionBasedGraphOutputNode.fromInputMapping(
-      WomIdentifier("x_out"), ijExpression, ijExpression.fixedWomType, Map(
-      "i" -> iInputNode.singleOutputPort,
-      "j" -> jInputNode.singleOutputPort))
+      WomIdentifier("x_out"),
+      ijExpression,
+      ijExpression.fixedWomType,
+      Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort)
+    )
 
     import common.validation.ErrorOr.ShortCircuitingFlatMap
-    val graph = xOutputValidation flatMap { xOutput => Graph.validateAndConstruct(Set(iInputNode, jInputNode, jOutput, xOutput)) }
+    val graph = xOutputValidation flatMap { xOutput =>
+      Graph.validateAndConstruct(Set(iInputNode, jInputNode, jOutput, xOutput))
+    }
 
     graph match {
       case Valid(g) => g
@@ -69,6 +73,8 @@ class ExpressionBasedGraphOutputNodeSpec extends WomDotGraphTest {
       |}
       |""".stripMargin
 
-  override val cases = List(WomDotGraphTestCase("ExpressionBasedGraphOutputNodes", expressionOutputGraph, expressionOutputDot))
+  override val cases = List(
+    WomDotGraphTestCase("ExpressionBasedGraphOutputNodes", expressionOutputGraph, expressionOutputDot)
+  )
   tests()
 }

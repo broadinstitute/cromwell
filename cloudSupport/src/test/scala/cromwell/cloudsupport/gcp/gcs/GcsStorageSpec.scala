@@ -6,7 +6,6 @@ import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-
 class GcsStorageSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "GcsStorage"
@@ -19,7 +18,8 @@ class GcsStorageSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
   }
 
   it should "build gcs storage" in {
-    val configuration = GcsStorage.gcsStorage("gcs-storage-spec", NoCredentials.getInstance(), RetrySettings.newBuilder().build())
+    val configuration =
+      GcsStorage.gcsStorage("gcs-storage-spec", NoCredentials.getInstance(), RetrySettings.newBuilder().build())
     configuration.getApplicationName should be("gcs-storage-spec")
   }
 

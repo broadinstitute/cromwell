@@ -13,7 +13,7 @@ sealed trait SchemaManager {
 object SchemaManager {
   val All: Seq[SchemaManager] = List(
     LiquibaseSchemaManager,
-    SlickSchemaManager,
+    SlickSchemaManager
   )
 }
 

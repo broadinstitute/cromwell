@@ -20,22 +20,27 @@ class ConfigWdlNamespace(backendConfig: Config) {
   private val configRuntimeAttributes = backendConfig.as[Option[String]](RuntimeAttributesConfig).getOrElse("")
 
   private val submitCommandOption = backendConfig.as[Option[String]](SubmitConfig)
-  private val submitSourceOption = submitCommandOption.map(makeWdlSource(
-    SubmitTask, _, submitRuntimeAttributes + configRuntimeAttributes))
+  private val submitSourceOption =
+    submitCommandOption.map(makeWdlSource(SubmitTask, _, submitRuntimeAttributes + configRuntimeAttributes))
 
   private val submitDockerCommandOption = backendConfig.as[Option[String]](SubmitDockerConfig)
-  private val submitDockerSourceOption = submitDockerCommandOption.map(makeWdlSource(
-    SubmitDockerTask, _, submitRuntimeAttributes + submitDockerRuntimeAttributes + configRuntimeAttributes))
+  private val submitDockerSourceOption = submitDockerCommandOption.map(
+    makeWdlSource(SubmitDockerTask,
+                  _,
+                  submitRuntimeAttributes + submitDockerRuntimeAttributes + configRuntimeAttributes
+    )
+  )
 
   private val killCommandOption = backendConfig.as[Option[String]](KillConfig)
   private val killSourceOption = killCommandOption.map(makeWdlSource(KillTask, _, jobIdRuntimeAttributes))
 
   private val killDockerCommandOption = backendConfig.as[Option[String]](KillDockerConfig)
-  private val killDockerSourceOption = killDockerCommandOption.map(makeWdlSource(KillDockerTask, _, jobIdRuntimeAttributes))
+  private val killDockerSourceOption =
+    killDockerCommandOption.map(makeWdlSource(KillDockerTask, _, jobIdRuntimeAttributes))
 
   private val checkAliveCommandOption = backendConfig.as[Option[String]](CheckAliveConfig)
-  private val checkAliveSourceOption = checkAliveCommandOption.map(makeWdlSource(
-    CheckAliveTask, _, jobIdRuntimeAttributes))
+  private val checkAliveSourceOption =
+    checkAliveCommandOption.map(makeWdlSource(CheckAliveTask, _, jobIdRuntimeAttributes))
 
   private val workflowSource =
     s"""
@@ -49,12 +54,11 @@ class ConfigWdlNamespace(backendConfig: Config) {
   /**
     * The wdl namespace containing the submit, kill, and check alive tasks.
     */
-  val wdlNamespace = {
+  val wdlNamespace =
     WdlNamespace.loadUsingSource(workflowSource, None, None) match {
       case Success(ns) => ns
       case Failure(f) => throw new RuntimeException(s"Error parsing generated wdl:\n$workflowSource".stripMargin, f)
     }
-  }
 
   private val runtimeAttributesTask = makeTask(RuntimeAttributesTask, "", configRuntimeAttributes)
 
@@ -62,12 +66,13 @@ class ConfigWdlNamespace(backendConfig: Config) {
     * The declarations of runtime attributes.
     */
   val runtimeDeclarations = runtimeAttributesTask.declarations
-  val callCachedRuntimeAttributes = backendConfig.as[Option[Map[String, Boolean]]](RuntimeAttributesCachingConfig).getOrElse(Map.empty)
+  val callCachedRuntimeAttributes =
+    backendConfig.as[Option[Map[String, Boolean]]](RuntimeAttributesCachingConfig).getOrElse(Map.empty)
 
 }
 
 object ConfigWdlNamespace {
-  private def makeWdlSource(taskName: String, command: String, declarations: String): WorkflowSource = {
+  private def makeWdlSource(taskName: String, command: String, declarations: String): WorkflowSource =
     s"""
        |task $taskName {
        |$declarations
@@ -76,7 +81,6 @@ object ConfigWdlNamespace {
        |}
        |}
        |""".stripMargin
-  }
 
   private def makeTask(taskName: String, command: String, declarations: String): WdlTask = {
     val workflowSource = makeWdlSource(taskName, command, declarations)

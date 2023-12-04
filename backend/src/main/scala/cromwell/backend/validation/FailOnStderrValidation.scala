@@ -18,9 +18,10 @@ import wom.values._
 
 object FailOnStderrValidation {
   lazy val instance: RuntimeAttributesValidation[Boolean] = new FailOnStderrValidation
-  def default(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] = instance.withDefault(
-    configDefaultWdlValue(runtimeConfig) getOrElse WomBoolean(false))
-  def configDefaultWdlValue(runtimeConfig: Option[Config]): Option[WomValue] = instance.configDefaultWomValue(runtimeConfig)
+  def default(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
+    instance.withDefault(configDefaultWdlValue(runtimeConfig) getOrElse WomBoolean(false))
+  def configDefaultWdlValue(runtimeConfig: Option[Config]): Option[WomValue] =
+    instance.configDefaultWomValue(runtimeConfig)
 }
 
 class FailOnStderrValidation extends BooleanRuntimeAttributesValidation(RuntimeAttributesKeys.FailOnStderrKey) {

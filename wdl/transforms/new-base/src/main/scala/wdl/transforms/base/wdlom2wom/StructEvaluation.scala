@@ -13,7 +13,9 @@ import wdl.transforms.base.linking.typemakers._
 object StructEvaluation {
   def convert(a: StructEvaluationInputs): ErrorOr[Map[String, WomType]] = {
 
-    val validKnownAliases: Map[String, ErrorOr[WomType]] = a.knownTypeAliases map { case (key, value) => key -> value.validNel }
+    val validKnownAliases: Map[String, ErrorOr[WomType]] = a.knownTypeAliases map { case (key, value) =>
+      key -> value.validNel
+    }
     val withNewStructs = a.structSections.foldLeft(validKnownAliases)(structFoldFunction)
 
     def unpackMapEntry(entry: (String, ErrorOr[WomType])): ErrorOr[(String, WomType)] = entry._2 map { entry._1 -> _ }
@@ -21,10 +23,12 @@ object StructEvaluation {
     withNewStructs.toList.traverse(unpackMapEntry).map(_.toMap)
   }
 
-  private def structFoldFunction(current: Map[String, ErrorOr[WomType]], next: StructElement): Map[String, ErrorOr[WomType]] = {
+  private def structFoldFunction(current: Map[String, ErrorOr[WomType]],
+                                 next: StructElement
+  ): Map[String, ErrorOr[WomType]] = {
 
-    val currentValid = current collect {
-      case (key, Valid(value)) => key -> value
+    val currentValid = current collect { case (key, Valid(value)) =>
+      key -> value
     }
 
     def convertStructEntryElement(structEntryElement: StructEntryElement): ErrorOr[(String, WomType)] =
@@ -32,9 +36,10 @@ object StructEvaluation {
 
     val elementsValidation: ErrorOr[List[(String, WomType)]] = next.entries.toList.traverse(convertStructEntryElement)
 
-    current + (next.name -> (elementsValidation map { elements => WomCompositeType(elements.toMap, Option(next.name)) } ))
+    current + (next.name -> (elementsValidation map { elements =>
+      WomCompositeType(elements.toMap, Option(next.name))
+    }))
   }
 
   case class StructEvaluationInputs(structSections: Seq[StructElement], knownTypeAliases: Map[String, WomType])
 }
-

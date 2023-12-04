@@ -9,7 +9,12 @@ import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.backend.standard.callcaching.CopyingActorBlacklistCacheSupport._
 import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor._
-import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, MetricableCacheCopyErrorCategory}
+import cromwell.backend.{
+  BackendConfigurationDescriptor,
+  BackendInitializationData,
+  BackendJobDescriptor,
+  MetricableCacheCopyErrorCategory
+}
 import cromwell.core.CallOutputs
 import cromwell.core.io._
 import cromwell.core.logging.JobLogging
@@ -46,8 +51,7 @@ trait StandardCacheHitCopyingActorParams {
 }
 
 /** A default implementation of the cache hit copying params. */
-case class DefaultStandardCacheHitCopyingActorParams
-(
+case class DefaultStandardCacheHitCopyingActorParams(
   override val jobDescriptor: BackendJobDescriptor,
   override val backendInitializationDataOption: Option[BackendInitializationData],
   override val serviceRegistryActor: ActorRef,
@@ -81,32 +85,33 @@ object StandardCacheHitCopyingActor {
                                               newDetritus: DetritusMap,
                                               cacheHit: CallCachingEntryId,
                                               returnCode: Option[Int]
-                                             ) {
+  ) {
 
     /**
       * Removes the command from commandsToWaitFor
       * returns a pair of the new state data and CommandSetState giving information about what to do next
       */
-    def commandComplete(command: IoCommand[_]): (StandardCacheHitCopyingActorData, CommandSetState) = commandsToWaitFor match {
-      // If everything was already done send back current data and AllCommandsDone
-      case Nil => (this, AllCommandsDone)
-      case lastSubset :: Nil =>
-        val updatedSubset = lastSubset - command
-        // If the last subset is now empty, we're done
-        if (updatedSubset.isEmpty) (this.copy(commandsToWaitFor = List.empty), AllCommandsDone)
-        // otherwise update commandsToWaitFor and keep waiting
-        else (this.copy(commandsToWaitFor = List(updatedSubset)), StillWaiting)
-      case currentSubset :: otherSubsets =>
-        val updatedSubset = currentSubset - command
-        // This subset is done but there are other ones, remove it from commandsToWaitFor and return the next round of commands
-        if (updatedSubset.isEmpty) (this.copy(commandsToWaitFor = otherSubsets), NextSubSet(otherSubsets.head))
-        // otherwise update the head subset and keep waiting
-        else (this.copy(commandsToWaitFor = List(updatedSubset) ++ otherSubsets), StillWaiting)
-    }
+    def commandComplete(command: IoCommand[_]): (StandardCacheHitCopyingActorData, CommandSetState) =
+      commandsToWaitFor match {
+        // If everything was already done send back current data and AllCommandsDone
+        case Nil => (this, AllCommandsDone)
+        case lastSubset :: Nil =>
+          val updatedSubset = lastSubset - command
+          // If the last subset is now empty, we're done
+          if (updatedSubset.isEmpty) (this.copy(commandsToWaitFor = List.empty), AllCommandsDone)
+          // otherwise update commandsToWaitFor and keep waiting
+          else (this.copy(commandsToWaitFor = List(updatedSubset)), StillWaiting)
+        case currentSubset :: otherSubsets =>
+          val updatedSubset = currentSubset - command
+          // This subset is done but there are other ones, remove it from commandsToWaitFor and return the next round of commands
+          if (updatedSubset.isEmpty) (this.copy(commandsToWaitFor = otherSubsets), NextSubSet(otherSubsets.head))
+          // otherwise update the head subset and keep waiting
+          else (this.copy(commandsToWaitFor = List(updatedSubset) ++ otherSubsets), StillWaiting)
+      }
   }
 
   // Internal ADT to keep track of command set states
-  private[callcaching] sealed trait CommandSetState
+  sealed private[callcaching] trait CommandSetState
   private[callcaching] case object StillWaiting extends CommandSetState
   private[callcaching] case object AllCommandsDone extends CommandSetState
   private[callcaching] case class NextSubSet(commands: Set[IoCommand[_]]) extends CommandSetState
@@ -114,17 +119,23 @@ object StandardCacheHitCopyingActor {
   private val BucketRegex: Regex = "^gs://([^/]+).*".r
 }
 
-class DefaultStandardCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams) extends StandardCacheHitCopyingActor(standardParams)
+class DefaultStandardCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams)
+    extends StandardCacheHitCopyingActor(standardParams)
 
 /**
   * Standard implementation of a BackendCacheHitCopyingActor.
   */
 abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHitCopyingActorParams)
-  extends FSM[StandardCacheHitCopyingActorState, Option[StandardCacheHitCopyingActorData]]
-    with JobLogging with StandardCachingActorHelper with IoClientHelper with CromwellInstrumentationActor with CopyingActorBlacklistCacheSupport {
+    extends FSM[StandardCacheHitCopyingActorState, Option[StandardCacheHitCopyingActorData]]
+    with JobLogging
+    with StandardCachingActorHelper
+    with IoClientHelper
+    with CromwellInstrumentationActor
+    with CopyingActorBlacklistCacheSupport {
 
   override lazy val jobDescriptor: BackendJobDescriptor = standardParams.jobDescriptor
-  override lazy val backendInitializationDataOption: Option[BackendInitializationData] = standardParams.backendInitializationDataOption
+  override lazy val backendInitializationDataOption: Option[BackendInitializationData] =
+    standardParams.backendInitializationDataOption
   override lazy val serviceRegistryActor: ActorRef = standardParams.serviceRegistryActor
   override lazy val configurationDescriptor: BackendConfigurationDescriptor = standardParams.configurationDescriptor
   protected val commandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
@@ -142,78 +153,78 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   /** Override this method if you want to provide an alternative way to duplicate files than copying them. */
   protected def duplicate(copyPairs: Set[PathPair]): Option[Try[Unit]] = None
 
-  when(Idle) {
-    case Event(command @ CopyOutputsCommand(simpletons, jobDetritus, cacheHit, returnCode), None) =>
-      val (nextState, cacheReadType) =
-        if (isSourceBlacklisted(cacheHit)) {
-          // We don't want to log this because blacklisting is a common and expected occurrence.
-          (failAndStop(BlacklistSkip(MetricableCacheCopyErrorCategory.HitBlacklisted)), ReadHitOnly)
-        } else if (isSourceBlacklisted(command)) {
-          // We don't want to log this because blacklisting is a common and expected occurrence.
-          (failAndStop(BlacklistSkip(MetricableCacheCopyErrorCategory.BucketBlacklisted)), ReadHitAndBucket)
-        } else {
-          // Try to make a Path of the callRootPath from the detritus
-          val next = lookupSourceCallRootPath(jobDetritus) match {
-            case Success(sourceCallRootPath) =>
+  when(Idle) { case Event(command @ CopyOutputsCommand(simpletons, jobDetritus, cacheHit, returnCode), None) =>
+    val (nextState, cacheReadType) =
+      if (isSourceBlacklisted(cacheHit)) {
+        // We don't want to log this because blacklisting is a common and expected occurrence.
+        (failAndStop(BlacklistSkip(MetricableCacheCopyErrorCategory.HitBlacklisted)), ReadHitOnly)
+      } else if (isSourceBlacklisted(command)) {
+        // We don't want to log this because blacklisting is a common and expected occurrence.
+        (failAndStop(BlacklistSkip(MetricableCacheCopyErrorCategory.BucketBlacklisted)), ReadHitAndBucket)
+      } else {
+        // Try to make a Path of the callRootPath from the detritus
+        val next = lookupSourceCallRootPath(jobDetritus) match {
+          case Success(sourceCallRootPath) =>
+            // process simpletons and detritus to get updated paths and corresponding IoCommands
+            val processed = for {
+              (destinationCallOutputs, simpletonIoCommands) <- processSimpletons(simpletons, sourceCallRootPath)
+              (destinationDetritus, detritusIoCommands) <- processDetritus(jobDetritus)
+            } yield (destinationCallOutputs, destinationDetritus, simpletonIoCommands ++ detritusIoCommands)
 
-              // process simpletons and detritus to get updated paths and corresponding IoCommands
-              val processed = for {
-                (destinationCallOutputs, simpletonIoCommands) <- processSimpletons(simpletons, sourceCallRootPath)
-                (destinationDetritus, detritusIoCommands) <- processDetritus(jobDetritus)
-              } yield (destinationCallOutputs, destinationDetritus, simpletonIoCommands ++ detritusIoCommands)
+            processed match {
+              case Success((destinationCallOutputs, destinationDetritus, detritusAndOutputsIoCommands)) =>
+                duplicate(ioCommandsToCopyPairs(detritusAndOutputsIoCommands)) match {
+                  // Use the duplicate override if exists
+                  case Some(Success(_)) => succeedAndStop(returnCode, destinationCallOutputs, destinationDetritus)
+                  case Some(Failure(failure)) =>
+                    // Something went wrong in the custom duplication code. We consider this loggable because it's most likely a user-permission error:
+                    failAndStop(CopyAttemptError(failure))
+                  // Otherwise send the first round of IoCommands (file outputs and detritus) if any
+                  case None if detritusAndOutputsIoCommands.nonEmpty =>
+                    detritusAndOutputsIoCommands foreach sendIoCommand
 
-              processed match {
-                case Success((destinationCallOutputs, destinationDetritus, detritusAndOutputsIoCommands)) =>
-                  duplicate(ioCommandsToCopyPairs(detritusAndOutputsIoCommands)) match {
-                    // Use the duplicate override if exists
-                    case Some(Success(_)) => succeedAndStop(returnCode, destinationCallOutputs, destinationDetritus)
-                    case Some(Failure(failure)) =>
-                      // Something went wrong in the custom duplication code. We consider this loggable because it's most likely a user-permission error:
-                      failAndStop(CopyAttemptError(failure))
-                    // Otherwise send the first round of IoCommands (file outputs and detritus) if any
-                    case None if detritusAndOutputsIoCommands.nonEmpty =>
-                      detritusAndOutputsIoCommands foreach sendIoCommand
-
-                      // Add potential additional commands to the list
-                      val additionalCommandsTry =
-                        additionalIoCommands(
-                          sourceCallRootPath = sourceCallRootPath,
-                          originalSimpletons = simpletons,
-                          newOutputs = destinationCallOutputs,
-                          originalDetritus = jobDetritus,
-                          newDetritus = destinationDetritus,
-                        )
-                      additionalCommandsTry match {
-                        case Success(additionalCommands) =>
-                          val allCommands = List(detritusAndOutputsIoCommands) ++ additionalCommands
-                          goto(WaitingForIoResponses) using
-                            Option(StandardCacheHitCopyingActorData(
+                    // Add potential additional commands to the list
+                    val additionalCommandsTry =
+                      additionalIoCommands(
+                        sourceCallRootPath = sourceCallRootPath,
+                        originalSimpletons = simpletons,
+                        newOutputs = destinationCallOutputs,
+                        originalDetritus = jobDetritus,
+                        newDetritus = destinationDetritus
+                      )
+                    additionalCommandsTry match {
+                      case Success(additionalCommands) =>
+                        val allCommands = List(detritusAndOutputsIoCommands) ++ additionalCommands
+                        goto(WaitingForIoResponses) using
+                          Option(
+                            StandardCacheHitCopyingActorData(
                               commandsToWaitFor = allCommands,
                               newJobOutputs = destinationCallOutputs,
                               newDetritus = destinationDetritus,
                               cacheHit = cacheHit,
-                              returnCode = returnCode,
-                            ))
-                        // Something went wrong in generating duplication commands.
-                        // We consider this a loggable error because we don't expect this to happen:
-                        case Failure(failure) => failAndStop(CopyAttemptError(failure))
-                      }
-                    case _ => succeedAndStop(returnCode, destinationCallOutputs, destinationDetritus)
-                  }
+                              returnCode = returnCode
+                            )
+                          )
+                      // Something went wrong in generating duplication commands.
+                      // We consider this a loggable error because we don't expect this to happen:
+                      case Failure(failure) => failAndStop(CopyAttemptError(failure))
+                    }
+                  case _ => succeedAndStop(returnCode, destinationCallOutputs, destinationDetritus)
+                }
 
-                // Something went wrong in generating duplication commands. We consider this loggable error because we don't expect this to happen:
-                case Failure(failure) => failAndStop(CopyAttemptError(failure))
-              }
+              // Something went wrong in generating duplication commands. We consider this loggable error because we don't expect this to happen:
+              case Failure(failure) => failAndStop(CopyAttemptError(failure))
+            }
 
-            // Something went wrong in looking up the call root... loggable because we don't expect this to happen:
-            case Failure(failure) => failAndStop(CopyAttemptError(failure))
-          }
-          (next, ReadHitAndBucket)
+          // Something went wrong in looking up the call root... loggable because we don't expect this to happen:
+          case Failure(failure) => failAndStop(CopyAttemptError(failure))
         }
+        (next, ReadHitAndBucket)
+      }
 
-      publishBlacklistReadMetrics(command, cacheHit, cacheReadType)
+    publishBlacklistReadMetrics(command, cacheHit, cacheReadType)
 
-      nextState
+    nextState
   }
 
   when(WaitingForIoResponses) {
@@ -293,7 +304,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       _ = blacklistAndMetricHit(cache, data.cacheHit)
       prefix <- extractBlacklistPrefix(path)
       _ = blacklistAndMetricBucket(cache, prefix)
-    } yield()
+    } yield ()
     andThen
   }
 
@@ -309,8 +320,18 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
   def succeedAndStop(returnCode: Option[Int], copiedJobOutputs: CallOutputs, detritusMap: DetritusMap): State = {
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
-    serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), startMetadataKeyValues)
-    context.parent ! JobSucceededResponse(jobDescriptor.key, returnCode, copiedJobOutputs, Option(detritusMap), Seq.empty, None, resultGenerationMode = CallCached)
+    serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id,
+                                     Option(jobDescriptor.key),
+                                     startMetadataKeyValues
+    )
+    context.parent ! JobSucceededResponse(jobDescriptor.key,
+                                          returnCode,
+                                          copiedJobOutputs,
+                                          Option(detritusMap),
+                                          Seq.empty,
+                                          None,
+                                          resultGenerationMode = CallCached
+    )
     context stop self
     stay()
   }
@@ -323,7 +344,10 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
   /** If there are no responses pending this behaves like `failAndStop`, otherwise this goes to `FailedState` and waits
     * for all the pending responses to come back before stopping. */
-  def failAndAwaitPendingResponses(failure: CacheCopyFailure, command: IoCommand[_], data: StandardCacheHitCopyingActorData): State = {
+  def failAndAwaitPendingResponses(failure: CacheCopyFailure,
+                                   command: IoCommand[_],
+                                   data: StandardCacheHitCopyingActorData
+  ): State = {
     context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure)
 
     val (newData, commandState) = data.commandComplete(command)
@@ -344,12 +368,16 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     stay()
   }
 
-  protected def lookupSourceCallRootPath(sourceJobDetritusFiles: Map[String, String]): Try[Path] = {
+  protected def lookupSourceCallRootPath(sourceJobDetritusFiles: Map[String, String]): Try[Path] =
     sourceJobDetritusFiles.get(JobPaths.CallRootPathKey) match {
       case Some(source) => getPath(source)
-      case None => Failure(new RuntimeException(s"${JobPaths.CallRootPathKey} wasn't found for call ${jobDescriptor.taskCall.fullyQualifiedName}"))
+      case None =>
+        Failure(
+          new RuntimeException(
+            s"${JobPaths.CallRootPathKey} wasn't found for call ${jobDescriptor.taskCall.fullyQualifiedName}"
+          )
+        )
     }
-  }
 
   private def ioCommandsToCopyPairs(commands: Set[IoCommand[_]]): Set[PathPair] = commands collect {
     case copyCommand: IoCopyCommand => copyCommand.source -> copyCommand.destination
@@ -358,18 +386,22 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   /**
     * Returns a pair of the list of simpletons with copied paths, and copy commands necessary to perform those copies.
     */
-  protected def processSimpletons(womValueSimpletons: Seq[WomValueSimpleton], sourceCallRootPath: Path): Try[(CallOutputs, Set[IoCommand[_]])] = Try {
-    val (destinationSimpletons, ioCommands): (List[WomValueSimpleton], Set[IoCommand[_]]) = womValueSimpletons.toList.foldMap({
-      case WomValueSimpleton(key, wdlFile: WomSingleFile) =>
-        val sourcePath = getPath(wdlFile.value).get
-        val destinationPath = PathCopier.getDestinationFilePath(sourceCallRootPath, sourcePath, destinationCallRootPath)
+  protected def processSimpletons(womValueSimpletons: Seq[WomValueSimpleton],
+                                  sourceCallRootPath: Path
+  ): Try[(CallOutputs, Set[IoCommand[_]])] = Try {
+    val (destinationSimpletons, ioCommands): (List[WomValueSimpleton], Set[IoCommand[_]]) =
+      womValueSimpletons.toList.foldMap {
+        case WomValueSimpleton(key, wdlFile: WomSingleFile) =>
+          val sourcePath = getPath(wdlFile.value).get
+          val destinationPath =
+            PathCopier.getDestinationFilePath(sourceCallRootPath, sourcePath, destinationCallRootPath)
 
-        val destinationSimpleton = WomValueSimpleton(key, WomSingleFile(destinationPath.pathAsString))
+          val destinationSimpleton = WomValueSimpleton(key, WomSingleFile(destinationPath.pathAsString))
 
-        // PROD-444: Keep It Short and Simple: Throw on the first error and let the outer Try catch-and-re-wrap
-        List(destinationSimpleton) -> Set(commandBuilder.copyCommand(sourcePath, destinationPath).get)
-      case nonFileSimpleton => (List(nonFileSimpleton), Set.empty[IoCommand[_]])
-    })
+          // PROD-444: Keep It Short and Simple: Throw on the first error and let the outer Try catch-and-re-wrap
+          List(destinationSimpleton) -> Set(commandBuilder.copyCommand(sourcePath, destinationPath).get)
+        case nonFileSimpleton => (List(nonFileSimpleton), Set.empty[IoCommand[_]])
+      }
 
     (WomValueBuilder.toJobOutputs(jobDescriptor.taskCall.outputPorts, destinationSimpletons), ioCommands)
   }
@@ -377,7 +409,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   /**
     * Returns the file (and ONLY the file detritus) intersection between the cache hit and this call.
     */
-  protected final def detritusFileKeys(sourceJobDetritusFiles: Map[String, String]): Set[String] = {
+  final protected def detritusFileKeys(sourceJobDetritusFiles: Map[String, String]): Set[String] = {
     val sourceKeys = sourceJobDetritusFiles.keySet
     val destinationKeys = destinationJobDetritusPaths.keySet
     sourceKeys.intersect(destinationKeys).filterNot(_ == JobPaths.CallRootPathKey)
@@ -386,21 +418,22 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   /**
     * Returns a pair of the detritus with copied paths, and copy commands necessary to perform those copies.
     */
-  protected def processDetritus(sourceJobDetritusFiles: Map[String, String]): Try[(Map[String, Path], Set[IoCommand[_]])] = Try {
+  protected def processDetritus(
+    sourceJobDetritusFiles: Map[String, String]
+  ): Try[(Map[String, Path], Set[IoCommand[_]])] = Try {
     val fileKeys = detritusFileKeys(sourceJobDetritusFiles)
 
     val zero = (Map.empty[String, Path], Set.empty[IoCommand[_]])
 
-    val (destinationDetritus, ioCommands) = fileKeys.foldLeft(zero)({
-      case ((detrituses, commands), detritus) =>
-        val sourcePath = getPath(sourceJobDetritusFiles(detritus)).get
-        val destinationPath = destinationJobDetritusPaths(detritus)
+    val (destinationDetritus, ioCommands) = fileKeys.foldLeft(zero) { case ((detrituses, commands), detritus) =>
+      val sourcePath = getPath(sourceJobDetritusFiles(detritus)).get
+      val destinationPath = destinationJobDetritusPaths(detritus)
 
-        val newDetrituses = detrituses + (detritus -> destinationPath)
+      val newDetrituses = detrituses + (detritus -> destinationPath)
 
       // PROD-444: Keep It Short and Simple: Throw on the first error and let the outer Try catch-and-re-wrap
       (newDetrituses, commands + commandBuilder.copyCommand(sourcePath, destinationPath).get)
-    })
+    }
 
     (destinationDetritus + (JobPaths.CallRootPathKey -> destinationCallRootPath), ioCommands)
   }
@@ -412,13 +445,16 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   protected def additionalIoCommands(sourceCallRootPath: Path,
                                      originalSimpletons: Seq[WomValueSimpleton],
                                      newOutputs: CallOutputs,
-                                     originalDetritus:  Map[String, String],
-                                     newDetritus: Map[String, Path]): Try[List[Set[IoCommand[_]]]] = Success(Nil)
+                                     originalDetritus: Map[String, String],
+                                     newDetritus: Map[String, Path]
+  ): Try[List[Set[IoCommand[_]]]] = Success(Nil)
 
   override protected def onTimeout(message: Any, to: ActorRef): Unit = {
     val exceptionMessage = message match {
-      case copyCommand: IoCopyCommand => s"The Cache hit copying actor timed out waiting for a response to copy ${copyCommand.source.pathAsString} to ${copyCommand.destination.pathAsString}"
-      case touchCommand: IoTouchCommand => s"The Cache hit copying actor timed out waiting for a response to touch ${touchCommand.file.pathAsString}"
+      case copyCommand: IoCopyCommand =>
+        s"The Cache hit copying actor timed out waiting for a response to copy ${copyCommand.source.pathAsString} to ${copyCommand.destination.pathAsString}"
+      case touchCommand: IoTouchCommand =>
+        s"The Cache hit copying actor timed out waiting for a response to touch ${touchCommand.file.pathAsString}"
       case other => s"The Cache hit copying actor timed out waiting for an unknown I/O operation: $other"
     }
 

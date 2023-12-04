@@ -13,10 +13,9 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.ExecutionContext
 
-
 class StreamActorHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with ImplicitSender {
   behavior of "StreamActorHelper"
-  
+
   implicit val materializer = ActorMaterializer()
 
   it should "catch EnqueueResponse message" in {
@@ -26,7 +25,7 @@ class StreamActorHelperSpec extends TestKitSuite with AnyFlatSpecLike with Match
     expectMsg("hello")
     system stop actor
   }
-  
+
   it should "send a backpressure message when messages are dropped by the queue" in {
     val actor = TestActorRef(new TestStreamActor(1))
     val command = new TestStreamActorCommand
@@ -50,14 +49,19 @@ class StreamActorHelperSpec extends TestKitSuite with AnyFlatSpecLike with Match
   }
 }
 
-
 private object TestStreamActor {
   class TestStreamActorCommand
-  case class TestStreamActorContext(request: TestStreamActorCommand, replyTo: ActorRef, override val clientContext: Option[Any]) extends StreamContext
+  case class TestStreamActorContext(request: TestStreamActorCommand,
+                                    replyTo: ActorRef,
+                                    override val clientContext: Option[Any]
+  ) extends StreamContext
 }
 
-private class TestStreamActor(queueSize: Int)(implicit override val materializer: ActorMaterializer) extends Actor with ActorLogging with StreamActorHelper[TestStreamActorContext] {
-  
+private class TestStreamActor(queueSize: Int)(implicit override val materializer: ActorMaterializer)
+    extends Actor
+    with ActorLogging
+    with StreamActorHelper[TestStreamActorContext] {
+
   override protected def actorReceive: Receive = {
     case command: TestStreamActorCommand =>
       val replyTo = sender()
@@ -69,8 +73,9 @@ private class TestStreamActor(queueSize: Int)(implicit override val materializer
       sendToStream(commandContext)
   }
 
-  override protected val streamSource = Source.queue[TestStreamActorContext](queueSize, OverflowStrategy.dropNew)
-    .map{ ("hello", _) }
+  override protected val streamSource = Source
+    .queue[TestStreamActorContext](queueSize, OverflowStrategy.dropNew)
+    .map(("hello", _))
 
-  override implicit def ec: ExecutionContext = context.dispatcher
+  implicit override def ec: ExecutionContext = context.dispatcher
 }

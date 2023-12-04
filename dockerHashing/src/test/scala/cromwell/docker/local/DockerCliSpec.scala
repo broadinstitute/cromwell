@@ -1,7 +1,7 @@
 package cromwell.docker.local
 
 import cromwell.core.Tags.IntegrationTest
-import cromwell.docker.DockerInfoActor.{DockerInfoNotFound, DockerInfoSuccessResponse, DockerInformation}
+import cromwell.docker.DockerInfoActor.{DockerInfoNotFound, DockerInformation, DockerInfoSuccessResponse}
 import cromwell.docker.{DockerHashResult, DockerRegistry, DockerRegistrySpec}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -16,30 +16,27 @@ class DockerCliSpec extends DockerRegistrySpec with AnyFlatSpecLike with Matcher
   it should "retrieve a public docker hash" taggedAs IntegrationTest in {
     dockerActor ! makeRequest("ubuntu:latest")
 
-    expectMsgPF(30.seconds) {
-      case DockerInfoSuccessResponse(DockerInformation(DockerHashResult(alg, hash), _), _) =>
-        alg shouldBe "sha256"
-        hash should not be empty
+    expectMsgPF(30.seconds) { case DockerInfoSuccessResponse(DockerInformation(DockerHashResult(alg, hash), _), _) =>
+      alg shouldBe "sha256"
+      hash should not be empty
     }
   }
 
   it should "retrieve a public docker hash on gcr" taggedAs IntegrationTest in {
     dockerActor ! makeRequest("gcr.io/google-containers/alpine-with-bash:1.0")
 
-    expectMsgPF(30.seconds) {
-      case DockerInfoSuccessResponse(DockerInformation(DockerHashResult(alg, hash), _), _) =>
-        alg shouldBe "sha256"
-        hash should not be empty
+    expectMsgPF(30.seconds) { case DockerInfoSuccessResponse(DockerInformation(DockerHashResult(alg, hash), _), _) =>
+      alg shouldBe "sha256"
+      hash should not be empty
     }
   }
 
   it should "retrieve a public docker hash on gar" taggedAs IntegrationTest in {
     dockerActor ! makeRequest("us-central1-docker.pkg.dev/broad-dsde-cromwell-dev/bt-335/ubuntu:bt-335")
 
-    expectMsgPF(30.seconds) {
-      case DockerInfoSuccessResponse(DockerInformation(DockerHashResult(alg, hash), _), _) =>
-        alg shouldBe "sha256"
-        hash should not be empty
+    expectMsgPF(30.seconds) { case DockerInfoSuccessResponse(DockerInformation(DockerHashResult(alg, hash), _), _) =>
+      alg shouldBe "sha256"
+      hash should not be empty
     }
   }
 

@@ -12,15 +12,15 @@ object WomValueJsonFormatter extends DefaultJsonProtocol {
       case f: WomFloat => JsNumber(f.value)
       case b: WomBoolean => JsBoolean(b.value)
       case f: WomSingleFile => JsString(f.value)
-      case o: WomObjectLike => new JsObject(o.values map {case(k, v) => k -> write(v)})
+      case o: WomObjectLike => new JsObject(o.values map { case (k, v) => k -> write(v) })
       case a: WomArray => new JsArray(a.value.map(write).toVector)
-      case m: WomMap => new JsObject(m.value map {case(k,v) => k.valueString -> write(v)})
+      case m: WomMap => new JsObject(m.value map { case (k, v) => k.valueString -> write(v) })
       case q: WomPair => new JsObject(Map("left" -> write(q.left), "right" -> write(q.right)))
       case WomOptionalValue(_, Some(innerValue)) => write(innerValue)
       case WomOptionalValue(_, None) => JsNull
       case WomCoproductValue(_, innerValue) => write(innerValue)
       case WomEnumerationValue(_, innerValue) => JsString(innerValue)
-        // handles WdlExpression
+      // handles WdlExpression
       case v: WomValue => JsString(v.toWomString)
 
     }
@@ -31,7 +31,7 @@ object WomValueJsonFormatter extends DefaultJsonProtocol {
     // In addition, we make a lot of assumptions about what type of WomValue to create. Oh well... it should all fall out in the coercion (fingercrossed)!
     def read(value: JsValue): WomValue = value match {
       case JsObject(fields) =>
-        val wdlFields: Map[WomValue, WomValue] = fields map {case (k, v) => WomString(k) -> read(v)}
+        val wdlFields: Map[WomValue, WomValue] = fields map { case (k, v) => WomString(k) -> read(v) }
         if (fields.isEmpty) WomMap(WomMapType(WomStringType, WomStringType), Map.empty[WomValue, WomValue])
         else WomMap(WomMapType(wdlFields.head._1.womType, wdlFields.head._2.womType), wdlFields)
       case JsArray(vector) if vector.nonEmpty => WomArray(WomArrayType(read(vector.head).womType), vector map read)
@@ -53,4 +53,3 @@ object WomSingleFileJsonFormatter extends DefaultJsonProtocol {
     }
   }
 }
-

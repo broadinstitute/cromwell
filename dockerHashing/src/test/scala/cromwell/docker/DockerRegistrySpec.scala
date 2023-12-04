@@ -18,14 +18,13 @@ abstract class DockerRegistrySpec extends TestKitSuite with ImplicitSender {
   // Disable cache by setting a cache size of 0 - A separate test tests the cache
   lazy val dockerActor: ActorRef = system.actorOf(
     props = DockerInfoActor.props(registryFlows, 1000, 20.minutes, 0),
-    name = "dockerActor",
+    name = "dockerActor"
   )
 
   def dockerImage(string: String): DockerImageIdentifier = DockerImageIdentifier.fromString(string).get
 
-  def makeRequest(string: String): DockerInfoRequest = {
+  def makeRequest(string: String): DockerInfoRequest =
     DockerInfoRequest(dockerImage(string))
-  }
 
   override protected def afterAll(): Unit = {
     system.stop(dockerActor)

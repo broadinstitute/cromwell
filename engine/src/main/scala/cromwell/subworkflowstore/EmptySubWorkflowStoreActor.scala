@@ -7,7 +7,7 @@ import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 class EmptySubWorkflowStoreActor extends Actor with ActorLogging {
   override def receive: Receive = {
-    case register: RegisterSubWorkflow => sender() ! SubWorkflowStoreRegisterSuccess(register) 
+    case register: RegisterSubWorkflow => sender() ! SubWorkflowStoreRegisterSuccess(register)
     case query: QuerySubWorkflow => sender() ! SubWorkflowNotFound(query)
     case _: WorkflowComplete => // No-op!
     case ShutdownCommand => context stop self

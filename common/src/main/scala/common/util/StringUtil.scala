@@ -64,11 +64,10 @@ object StringUtil {
       */
     def relativeDirectory: String = string.ensureNoLeadingSlash.ensureSlashed
 
-    def elided(limit: Int): String = {
+    def elided(limit: Int): String =
       if (string.length > limit) {
         s"(elided) ${string.take(limit)}..."
       } else string
-    }
 
     /**
       * Removes userInfo and sensitive query parts from strings that are RFC 2396 URIs.
@@ -84,10 +83,9 @@ object StringUtil {
       * - the StringUtilSpec for current expectations
       * - https://stackoverflow.com/questions/4571346/how-to-encode-url-to-avoid-special-characters-in-java#answer-4571518
       */
-    def maskSensitiveUri: String = {
+    def maskSensitiveUri: String =
       Try(new URI(string))
         .map(_.maskSensitive.toASCIIString)
         .getOrElse(string)
-    }
   }
 }

@@ -34,9 +34,10 @@ trait IoActorRequester extends StrictLogging { this: Actor =>
         promise.complete(Success(actorRef))
       case Success(NoIoActorRefAvailable) =>
         logger.warn(s"No IoActorRef available for ${self.path} yet. Retrying in $backoffInterval.")
-        context.system.scheduler.scheduleOnce(backoffInterval) { requestIoActorInner(promise, backoffInterval) }
+        context.system.scheduler.scheduleOnce(backoffInterval)(requestIoActorInner(promise, backoffInterval))
       case Success(other) =>
-        val message = s"Programmer Error: Unexpected response to a RequestIoActor message in ${self.path}'s IoActorRequester: $other"
+        val message =
+          s"Programmer Error: Unexpected response to a RequestIoActor message in ${self.path}'s IoActorRequester: $other"
         logger.error(message)
         promise.failure(new Exception(message))
       case Failure(reason) =>

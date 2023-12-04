@@ -156,7 +156,7 @@ class TokenQueueSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
     val expectedOrder = (0 until 23).toVector.map(i => s"hogGroup${i + 2}") ++ Vector("hogGroup0", "hogGroup1")
     usedQueue.queueOrder should be(expectedOrder)
 
-      usedQueue.size should be(jobCount - poolSize)
+    usedQueue.size should be(jobCount - poolSize)
 
   }
 

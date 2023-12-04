@@ -47,16 +47,14 @@ object Obsolete {
   val File = ObsoleteFile
 
   object ObsoleteFile {
-    def newTemporaryDirectory(prefix: String = ""): DefaultPath = {
+    def newTemporaryDirectory(prefix: String = ""): DefaultPath =
       DefaultPath(better.files.File.newTemporaryDirectory(prefix).path)
-    }
 
-    def newTemporaryFile(prefix: String = "", suffix: String = "", parent: Option[Path] = None): Path = {
+    def newTemporaryFile(prefix: String = "", suffix: String = "", parent: Option[Path] = None): Path =
       parent match {
         case Some(dir) => dir.createTempFile(prefix, suffix)
         case _ => DefaultPathBuilder.createTempFile(prefix, suffix)
       }
-    }
 
     def apply(path: String, fragments: String*) = DefaultPath(better.files.File(path, fragments: _*).path)
 

@@ -38,14 +38,17 @@ trait PipelinesApiStatusRequestClient { this: Actor with ActorLogging with PapiI
     pollingActorClientPromise = None
   }
 
-  def pollStatus(workflowId: WorkflowId, jobId: StandardAsyncJob): Future[RunStatus] = {
+  def pollStatus(workflowId: WorkflowId, jobId: StandardAsyncJob): Future[RunStatus] =
     pollingActorClientPromise match {
       case Some(p) => p.future
       case None =>
-        papiApiActor ! PipelinesApiRequestManager.PAPIStatusPollRequest(workflowId, self, requestFactory.getRequest(jobId), jobId)
+        papiApiActor ! PipelinesApiRequestManager.PAPIStatusPollRequest(workflowId,
+                                                                        self,
+                                                                        requestFactory.getRequest(jobId),
+                                                                        jobId
+        )
         val newPromise = Promise[RunStatus]()
         pollingActorClientPromise = Option(newPromise)
         newPromise.future
     }
-  }
 }

@@ -21,8 +21,8 @@ object MaxRetriesValidation {
   lazy val instance: RuntimeAttributesValidation[Int] = new MaxRetriesValidation(MaxRetriesKey)
   lazy val optional: OptionalRuntimeAttributesValidation[Int] = instance.optional
 
-  def default(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] = instance.withDefault(
-    configDefaultWomValue(runtimeConfig) getOrElse WomInteger(0))
+  def default(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] =
+    instance.withDefault(configDefaultWomValue(runtimeConfig) getOrElse WomInteger(0))
   def configDefaultWomValue(config: Option[Config]): Option[WomValue] = instance.configDefaultWomValue(config)
 }
 

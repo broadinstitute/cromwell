@@ -17,47 +17,63 @@ trait Localization {
   import RunnableCommands._
   import RunnableLabels._
 
-  def localizeRunnables(createParameters: CreateBatchJobParameters, volumes: List[Volume])
-                       (implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Runnable] = {
+  def localizeRunnables(createParameters: CreateBatchJobParameters, volumes: List[Volume])(implicit
+    gcsTransferConfiguration: GcsTransferConfiguration
+  ): List[Runnable] = {
     val localizationLabel = Map(Key.Tag -> Value.Localization)
 
     val gcsTransferLibraryContainerPath = createParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
-    val localizeGcsTransferLibrary = cloudSdkShellRunnable(localizeFile(
-      cloudPath = createParameters.cloudCallRoot / GcsTransferLibraryName,
-      containerPath = gcsTransferLibraryContainerPath))(volumes = volumes, labels = localizationLabel, flags = List.empty)
+    val localizeGcsTransferLibrary = cloudSdkShellRunnable(
+      localizeFile(cloudPath = createParameters.cloudCallRoot / GcsTransferLibraryName,
+                   containerPath = gcsTransferLibraryContainerPath
+      )
+    )(volumes = volumes, labels = localizationLabel, flags = List.empty)
 
     val gcsLocalizationContainerPath = createParameters.commandScriptContainerPath.sibling(GcsLocalizationScriptName)
-    val localizeGcsLocalizationScript = cloudSdkShellRunnable(localizeFile(
-      cloudPath = createParameters.cloudCallRoot / GcsLocalizationScriptName,
-      containerPath = gcsLocalizationContainerPath))(volumes = volumes, labels = localizationLabel, flags = List.empty)
+    val localizeGcsLocalizationScript = cloudSdkShellRunnable(
+      localizeFile(cloudPath = createParameters.cloudCallRoot / GcsLocalizationScriptName,
+                   containerPath = gcsLocalizationContainerPath
+      )
+    )(volumes = volumes, labels = localizationLabel, flags = List.empty)
 
-    val gcsDelocalizationContainerPath = createParameters.commandScriptContainerPath.sibling(GcsDelocalizationScriptName)
-    val localizeGcsDelocalizationScript = cloudSdkShellRunnable(localizeFile(
-      cloudPath = createParameters.cloudCallRoot / GcsDelocalizationScriptName,
-      containerPath = gcsDelocalizationContainerPath))(volumes = volumes, labels = localizationLabel, flags = List.empty)
+    val gcsDelocalizationContainerPath =
+      createParameters.commandScriptContainerPath.sibling(GcsDelocalizationScriptName)
+    val localizeGcsDelocalizationScript = cloudSdkShellRunnable(
+      localizeFile(cloudPath = createParameters.cloudCallRoot / GcsDelocalizationScriptName,
+                   containerPath = gcsDelocalizationContainerPath
+      )
+    )(volumes = volumes, labels = localizationLabel, flags = List.empty)
 
-    val runGcsLocalizationScript = cloudSdkShellRunnable(
-      s"/bin/bash $gcsLocalizationContainerPath")(volumes = volumes, labels = localizationLabel, flags = List.empty)
+    val runGcsLocalizationScript = cloudSdkShellRunnable(s"/bin/bash $gcsLocalizationContainerPath")(
+      volumes = volumes,
+      labels = localizationLabel,
+      flags = List.empty
+    )
 
     val drsInputs: List[DrsPath] = createParameters.inputOutputParameters.fileInputParameters.collect {
       case GcpBatchFileInput(_, drsPath: DrsPath, _, _) => drsPath
     }
 
     val drsLocalizationRunnable = if (drsInputs.nonEmpty) {
-      val drsLocalizationManifestContainerPath = createParameters.commandScriptContainerPath.sibling(DrsLocalizationManifestName)
-      val localizeDrsLocalizationManifest = cloudSdkShellRunnable(localizeFile(
-        cloudPath = createParameters.cloudCallRoot / DrsLocalizationManifestName,
-        containerPath = drsLocalizationManifestContainerPath))(volumes = volumes, labels = localizationLabel, flags = List.empty)
+      val drsLocalizationManifestContainerPath =
+        createParameters.commandScriptContainerPath.sibling(DrsLocalizationManifestName)
+      val localizeDrsLocalizationManifest = cloudSdkShellRunnable(
+        localizeFile(cloudPath = createParameters.cloudCallRoot / DrsLocalizationManifestName,
+                     containerPath = drsLocalizationManifestContainerPath
+        )
+      )(volumes = volumes, labels = localizationLabel, flags = List.empty)
 
       // Requester pays project id is stored on each DrsPath, but will be the same for all DRS inputs to a
       // particular workflow because it's determined by the Google project set in workflow options.
       val requesterPaysProjectId: Option[String] = drsInputs.flatMap(_.requesterPaysProjectIdOption).headOption
-      val runDrsLocalization = Localization.drsRunnable(drsLocalizationManifestContainerPath, localizationLabel, requesterPaysProjectId)
+      val runDrsLocalization =
+        Localization.drsRunnable(drsLocalizationManifestContainerPath, localizationLabel, requesterPaysProjectId)
       List(localizeDrsLocalizationManifest, runDrsLocalization)
     } else List[Runnable.Builder]()
 
     // Any "classic" PAPI v2 one-at-a-time localizations for non-GCS inputs.
-    val singletonLocalizations = createParameters.inputOutputParameters.fileInputParameters.flatMap(_.toRunnables(volumes))
+    val singletonLocalizations =
+      createParameters.inputOutputParameters.fileInputParameters.flatMap(_.toRunnables(volumes))
 
     val localizations =
       localizeGcsTransferLibrary ::
@@ -79,7 +95,7 @@ object Localization {
   def drsRunnable(manifestPath: Path,
                   labels: Map[String, String],
                   requesterPaysProjectId: Option[String]
-                 ): Runnable.Builder = {
+  ): Runnable.Builder = {
     import RunnableBuilder.EnhancedRunnableBuilder
 
     val drsResolverConfig = config.getConfig("filesystems.drs.global.config.resolver")

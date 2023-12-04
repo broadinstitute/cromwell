@@ -77,82 +77,114 @@ class WdlWorkflowSpec extends AnyWordSpec with CromwellTimeoutSpec with Matchers
 
     val workflowInputs = Map("main_workflow.workflow_input" -> WomString("workflow_input"))
 
-    def outputResolverForWorkflow(workflow: WdlWorkflow)(call: WdlGraphNode, index: Option[Int])= {
+    def outputResolverForWorkflow(workflow: WdlWorkflow)(call: WdlGraphNode, index: Option[Int]) =
       call match {
         // Main Task
         case c: WdlCall if c == workflow.findCallByName("main_task").get =>
-          Success(WdlCallOutputsObject(c, Map(
-            "task_o1" -> WomString("MainTaskOutputString"),
-            "task_o2" -> WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(8)))
-          )))
+          Success(
+            WdlCallOutputsObject(c,
+                                 Map(
+                                   "task_o1" -> WomString("MainTaskOutputString"),
+                                   "task_o2" -> WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(8)))
+                                 )
+            )
+          )
         case c: WdlCall if c == workflow.findCallByName("main_task2").get =>
-          Success(WdlCallOutputsObject(c, Map(
-            "task_o1" -> WomString("MainTask2OutputString"),
-            "task_o2" -> WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(16)))
-          )))
+          Success(
+            WdlCallOutputsObject(c,
+                                 Map(
+                                   "task_o1" -> WomString("MainTask2OutputString"),
+                                   "task_o2" -> WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(16)))
+                                 )
+            )
+          )
         case c: WdlCall if c == workflow.findCallByName("main_task_in_scatter").get =>
-          Success(WdlCallOutputsObject(c, Map(
-            "task_o1" -> WomArray(WomArrayType(WomStringType), Seq(WomString("MainTaskOutputString")))
-          )))
+          Success(
+            WdlCallOutputsObject(c,
+                                 Map(
+                                   "task_o1" -> WomArray(WomArrayType(WomStringType),
+                                                         Seq(WomString("MainTaskOutputString"))
+                                   )
+                                 )
+            )
+          )
 
-        //Sub Task
+        // Sub Task
         case c: WdlCall if c == workflow.findCallByName("sub_task").get =>
-          Success(WdlCallOutputsObject(c, Map(
-            "sub_task_o1" -> WomString("SubTaskOutputString")
-          )))
+          Success(
+            WdlCallOutputsObject(c,
+                                 Map(
+                                   "sub_task_o1" -> WomString("SubTaskOutputString")
+                                 )
+            )
+          )
         case c: WdlCall if c == workflow.findCallByName("sub_task2").get =>
-          Success(WdlCallOutputsObject(c, Map(
-            "sub_task_o1" -> WomString("SubTask2OutputString")
-          )))
+          Success(
+            WdlCallOutputsObject(c,
+                                 Map(
+                                   "sub_task_o1" -> WomString("SubTask2OutputString")
+                                 )
+            )
+          )
 
         // Workflow Task
         case c: WdlCall if c == workflow.findCallByName("sub_workflow").get =>
-          Success(WdlCallOutputsObject(c, Map(
-            "sub_sub_workflow_sub_task_sub_task_o1" -> WomString("SubWorkflowSubTaskOutputString"),
-            "sub_o1" -> WomString("SubWorkflowOutputString")
-          )))
+          Success(
+            WdlCallOutputsObject(
+              c,
+              Map(
+                "sub_sub_workflow_sub_task_sub_task_o1" -> WomString("SubWorkflowSubTaskOutputString"),
+                "sub_o1" -> WomString("SubWorkflowOutputString")
+              )
+            )
+          )
         case c: WdlCall if c == workflow.findCallByName("sub_workflow2").get =>
-          Success(WdlCallOutputsObject(c, Map(
-            "sub_sub_workflow_sub_task_sub_task_o1" -> WomString("SubWorkflow2SubTaskOutputString"),
-            "sub_o1" -> WomString("SubWorkflow2OutputString")
-          )))
+          Success(
+            WdlCallOutputsObject(
+              c,
+              Map(
+                "sub_sub_workflow_sub_task_sub_task_o1" -> WomString("SubWorkflow2SubTaskOutputString"),
+                "sub_o1" -> WomString("SubWorkflow2OutputString")
+              )
+            )
+          )
         case c: WdlCall => fail(s"No output found for call ${c.unqualifiedName}")
         case _ => Failure(new Exception())
       }
-    }
 
     case class WorkflowOutputExpectation(unqualifiedName: FullyQualifiedName, womType: WomType, sourceString: String)
 
     implicit val workflowOutputEquality = new Equality[WorkflowOutput] {
-      override def areEqual(src: WorkflowOutput, expectation: Any): Boolean = {
+      override def areEqual(src: WorkflowOutput, expectation: Any): Boolean =
         expectation match {
           case output: WorkflowOutputExpectation =>
             output.unqualifiedName == src.unqualifiedName &&
             "main_workflow." + output.unqualifiedName == src.locallyQualifiedName(src.parent.get) &&
-              output.womType.stableName == src.womType.stableName &&
-              output.sourceString == src.requiredExpression.toWomString
+            output.womType.stableName == src.womType.stableName &&
+            output.sourceString == src.requiredExpression.toWomString
           case _ => false
         }
-      }
     }
 
     def evaluateOutputs(workflow: WdlWorkflow,
                         knownInputs: WorkflowCoercedInputs,
                         wdlFunctions: WdlFunctions[WomValue],
                         outputResolver: OutputResolver,
-                        shards: Map[Scatter, Int] = Map.empty[Scatter, Int]): Try[Map[WorkflowOutput, WomValue]] = {
+                        shards: Map[Scatter, Int] = Map.empty[Scatter, Int]
+    ): Try[Map[WorkflowOutput, WomValue]] = {
 
-      val evaluatedOutputs = workflow.outputs.foldLeft(Map.empty[WorkflowOutput, Try[WomValue]])((outputMap, output) => {
-        val currentOutputs = outputMap collect {
-          case (outputName, outputValue) if outputValue.isSuccess => outputName.fullyQualifiedName -> outputValue.get
-        }
-        def knownValues = currentOutputs ++ knownInputs
-        val lookup = workflow.lookupFunction(knownValues, wdlFunctions, outputResolver, shards, output)
-        val coerced = output.requiredExpression.evaluate(lookup, wdlFunctions) flatMap output.womType.coerceRawValue
-        val workflowOutput = output -> coerced
+      val evaluatedOutputs = workflow.outputs.foldLeft(Map.empty[WorkflowOutput, Try[WomValue]]) {
+        (outputMap, output) =>
+          val currentOutputs = outputMap collect {
+            case (outputName, outputValue) if outputValue.isSuccess => outputName.fullyQualifiedName -> outputValue.get
+          }
+          def knownValues = currentOutputs ++ knownInputs
+          val lookup = workflow.lookupFunction(knownValues, wdlFunctions, outputResolver, shards, output)
+          val coerced = output.requiredExpression.evaluate(lookup, wdlFunctions) flatMap output.womType.coerceRawValue
+          val workflowOutput = output -> coerced
 
-        outputMap + workflowOutput
-      })
+          outputMap + workflowOutput
+      }
 
       TryUtil.sequenceMap(evaluatedOutputs, "Failed to evaluate workflow outputs.\n")
     }
@@ -160,36 +192,52 @@ class WdlWorkflowSpec extends AnyWordSpec with CromwellTimeoutSpec with Matchers
     def verifyOutputsForNamespace(ns: WdlNamespaceWithWorkflow,
                                   declarationExpectations: Seq[WorkflowOutputExpectation],
                                   evaluationExpectations: Map[String, WomValue],
-                                  outputResolver: OutputResolver) = {
+                                  outputResolver: OutputResolver
+    ) = {
       val outputs = ns.workflow.outputs
       outputs should contain theSameElementsAs declarationExpectations
 
       val evaluatedOutputs = evaluateOutputs(ns.workflow, workflowInputs, NoFunctions, outputResolver)
       evaluatedOutputs match {
-        case Success(v) => v.map { case (output, outputValue) => output.unqualifiedName -> outputValue }.toList should contain theSameElementsAs evaluationExpectations
+        case Success(v) =>
+          v.map { case (output, outputValue) =>
+            output.unqualifiedName -> outputValue
+          }.toList should contain theSameElementsAs evaluationExpectations
         case Failure(e) => fail(e)
       }
     }
-    
-    def verifyOutputs(outputString: String, declarationExpectations: Seq[WorkflowOutputExpectation], evaluationExpectations: Map[String, WomValue]) = {
-      val ns = WdlNamespaceWithWorkflow.load(
-        wdl.replace("<<OUTPUTS>>", outputString), Seq((uri: String) => Draft2ResolvedImportBundle(subWorkflow, ResolvedImportRecord(uri)))).get
-      verifyOutputsForNamespace(ns, declarationExpectations, evaluationExpectations, outputResolverForWorkflow(ns.workflow))
+
+    def verifyOutputs(outputString: String,
+                      declarationExpectations: Seq[WorkflowOutputExpectation],
+                      evaluationExpectations: Map[String, WomValue]
+    ) = {
+      val ns = WdlNamespaceWithWorkflow
+        .load(wdl.replace("<<OUTPUTS>>", outputString),
+              Seq((uri: String) => Draft2ResolvedImportBundle(subWorkflow, ResolvedImportRecord(uri)))
+        )
+        .get
+      verifyOutputsForNamespace(ns,
+                                declarationExpectations,
+                                evaluationExpectations,
+                                outputResolverForWorkflow(ns.workflow)
+      )
     }
 
-    case class WorkflowOutputTestCase(description: String, output: String,
+    case class WorkflowOutputTestCase(description: String,
+                                      output: String,
                                       declarationExpectation: Seq[WorkflowOutputExpectation],
-                                      evaluatedOutputExpectation: Map[String, WomValue])
-    
+                                      evaluatedOutputExpectation: Map[String, WomValue]
+    )
+
     Seq(
       /*  WILDCARD OUTPUTS  */
       /*
         main_task.*                                # task wildcard
         main_task2.*                               # aliased task wildcard
-        
+
         sub_task.*                                 # sub task wildcard
         sub_task2.*                                # aliased sub task wildcard
-           
+
         sub_workflow.*                             # sub workflow wildcard
         sub_workflow2.*                            # aliased sub workflow wildcard
        */
@@ -229,16 +277,16 @@ class WdlWorkflowSpec extends AnyWordSpec with CromwellTimeoutSpec with Matchers
         Seq(WorkflowOutputExpectation("sub_task2.sub_task_o1", WomStringType, "sub_task2.sub_task_o1")),
         Map("sub_task2.sub_task_o1" -> WomString("SubTask2OutputString"))
       ),
-      
+
       /*  DIRECT OUTPUT REFERENCES  */
       /*
         main_task.task_o1                          # task output
         main_task2.task_o2                         # aliased task output
         main_task_in_scatter.task_o1               # task output in scatter
-        
+
         sub_task.sub_task_o1                       # sub task output
         sub_task2.sub_task_o1                      # aliased sub task output
-           
+
         sub_workflow.sub_o1                        # sub workflow output
         sub_workflow2.sub_o1                       # aliased sub workflow output
        */
@@ -257,15 +305,24 @@ class WdlWorkflowSpec extends AnyWordSpec with CromwellTimeoutSpec with Matchers
       WorkflowOutputTestCase(
         "task output in scatter",
         "main_task_in_scatter.task_o1",
-        Seq(WorkflowOutputExpectation("main_task_in_scatter.task_o1", WomArrayType(WomStringType), "main_task_in_scatter.task_o1")),
-        Map("main_task_in_scatter.task_o1" -> WomArray(WomArrayType(WomStringType), Seq(WomString("MainTaskOutputString"))))
+        Seq(
+          WorkflowOutputExpectation("main_task_in_scatter.task_o1",
+                                    WomArrayType(WomStringType),
+                                    "main_task_in_scatter.task_o1"
+          )
+        ),
+        Map(
+          "main_task_in_scatter.task_o1" -> WomArray(WomArrayType(WomStringType),
+                                                     Seq(WomString("MainTaskOutputString"))
+          )
+        )
       ),
       WorkflowOutputTestCase(
         "sub task output",
         "sub_task.sub_task_o1",
         Seq(WorkflowOutputExpectation("sub_task.sub_task_o1", WomStringType, "sub_task.sub_task_o1")),
         Map("sub_task.sub_task_o1" -> WomString("SubTaskOutputString"))
-        ),
+      ),
       WorkflowOutputTestCase(
         "aliased sub task output",
         "sub_task2.sub_task_o1",
@@ -289,21 +346,21 @@ class WdlWorkflowSpec extends AnyWordSpec with CromwellTimeoutSpec with Matchers
       /*
         String o1 = main_task.task_o1                       # task output
         Array[Int] o2 = main_task2.task_o2                  # aliased task output
-        
+
         String o3 = sub_task.sub_task_o1                    # sub task output
         String o4 = sub_task2.sub_task_o1                   # aliased sub task output
-        
+
         String o5 = sub_workflow.sub_o1                     # sub workflow output
         String o6 = sub_workflow2.sub_o1                    # aliased sub workflow output
-        
+
         String o7 = o1                                      # reference to output
-        String o8 = workflow_input                          # reference to empty input declaration 
+        String o8 = workflow_input                          # reference to empty input declaration
         String o9 = workflow_input2                         # reference to provided input declaration
         File o10 = workflow_input2                          # coercion 1
         Array[Int] o11 = main_task2.task_o2                 # complex type
         Map[Int, String] o12 = {1: "1"}                     # inline declaration with complex type
         String o13 = o1 + " " + o3                          # simple expression
-        
+
         Array[String] o14 = main_task_in_scatter.task_o1    # task in scatter
         String? o15 = optionalValue                         # optional value
        */
@@ -386,7 +443,7 @@ class WdlWorkflowSpec extends AnyWordSpec with CromwellTimeoutSpec with Matchers
         "inline declaration with complex type",
         "Map[Int, String] o12 = {1: \"1\"}",
         Seq(WorkflowOutputExpectation("o12", WomMapType(WomIntegerType, WomStringType), "{1: \"1\"}")),
-        Map("o12" -> WomMap(WomMapType(WomIntegerType,WomStringType), Map(WomInteger(1) -> WomString("1"))))
+        Map("o12" -> WomMap(WomMapType(WomIntegerType, WomStringType), Map(WomInteger(1) -> WomString("1"))))
       ),
       WorkflowOutputTestCase(
         "simple expression",
@@ -406,7 +463,7 @@ class WdlWorkflowSpec extends AnyWordSpec with CromwellTimeoutSpec with Matchers
         Seq(WorkflowOutputExpectation("o15", WomOptionalType(WomStringType), "optionalValue")),
         Map("o15" -> WomOptionalValue(WomString("optional")))
       ),
-      
+
       /* LEGACY SYNTAX FOLLOWED BY NEW SYNTAX */
       WorkflowOutputTestCase(
         "support legacy syntax followed by new syntax",
@@ -437,7 +494,11 @@ class WdlWorkflowSpec extends AnyWordSpec with CromwellTimeoutSpec with Matchers
         """.stripMargin
 
       a[SyntaxError] should be thrownBy {
-        WdlNamespaceWithWorkflow.load(wdl.replace("<<OUTPUTS>>", output), Seq((uri: String) => Draft2ResolvedImportBundle(subWorkflow, ResolvedImportRecord(uri)))).get
+        WdlNamespaceWithWorkflow
+          .load(wdl.replace("<<OUTPUTS>>", output),
+                Seq((uri: String) => Draft2ResolvedImportBundle(subWorkflow, ResolvedImportRecord(uri)))
+          )
+          .get
       }
     }
 
@@ -460,7 +521,7 @@ class WdlWorkflowSpec extends AnyWordSpec with CromwellTimeoutSpec with Matchers
         WorkflowOutputExpectation("t.o1", WomStringType, "t.o1"),
         WorkflowOutputExpectation("t.o2", WomStringType, "t.o2")
       )
-      
+
       val expectedEvaluatedOutputs = Map(
         "t.o1" -> WomString("o1"),
         "t.o2" -> WomString("o2")
@@ -468,21 +529,23 @@ class WdlWorkflowSpec extends AnyWordSpec with CromwellTimeoutSpec with Matchers
 
       val ns = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
 
-      def outputResolver(call: WdlGraphNode, index: Option[Int])= {
+      def outputResolver(call: WdlGraphNode, index: Option[Int]) =
         call match {
           case c: WdlCall if c == ns.workflow.findCallByName("t").get =>
-            Success(WdlCallOutputsObject(c, Map(
-              "o1" -> WomString("o1"),
-              "o2" -> WomString("o2")
+            Success(
+              WdlCallOutputsObject(c,
+                                   Map(
+                                     "o1" -> WomString("o1"),
+                                     "o2" -> WomString("o2")
+                                   )
               )
-            ))
+            )
           case _ => Failure(new Exception())
         }
-      }
-      
+
       verifyOutputsForNamespace(ns, expectedDeclarations, expectedEvaluatedOutputs, outputResolver)
     }
-    
+
     "Throw a clear error when trying to use outputs declared with the old syntax in a parent workflow" in {
       val subWorkflow =
         """
@@ -511,12 +574,16 @@ class WdlWorkflowSpec extends AnyWordSpec with CromwellTimeoutSpec with Matchers
           |  call sub.sub_workflow
           |}
         """.stripMargin
-      
+
       val exception = the[SyntaxError] thrownBy
-        WdlNamespaceWithWorkflow.load(parentWorkflow, Seq((uri: String) => Draft2ResolvedImportBundle(subWorkflow, ResolvedImportRecord(uri)))).get
+        WdlNamespaceWithWorkflow
+          .load(parentWorkflow,
+                Seq((uri: String) => Draft2ResolvedImportBundle(subWorkflow, ResolvedImportRecord(uri)))
+          )
+          .get
       exception.getMessage shouldBe s"""Workflow sub_workflow is used as a sub workflow but has outputs declared with a deprecated syntax not compatible with sub workflows.
-                                        |To use this workflow as a sub workflow please update the workflow outputs section to the latest WDL specification.
-                                        |See https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#outputs""".stripMargin
+                                       |To use this workflow as a sub workflow please update the workflow outputs section to the latest WDL specification.
+                                       |See https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#outputs""".stripMargin
     }
   }
 }

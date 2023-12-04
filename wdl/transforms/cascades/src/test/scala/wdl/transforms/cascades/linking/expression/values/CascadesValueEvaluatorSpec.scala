@@ -23,8 +23,8 @@ class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
     val str = "3 + 3"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-    expr.shouldBeValidPF {
-      case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(WomInteger(6), Seq.empty)
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(WomInteger(6), Seq.empty)
     }
   }
 
@@ -32,14 +32,16 @@ class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
     val str = """ as_map( [("x", 1), ("y", 2), ("z", 3)] ) """
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-    val expectedMap: WomMap = WomMap(Map (
-      WomString("x") -> WomInteger(1),
-      WomString("y") -> WomInteger(2),
-      WomString("z") -> WomInteger(3)
-    ))
+    val expectedMap: WomMap = WomMap(
+      Map(
+        WomString("x") -> WomInteger(1),
+        WomString("y") -> WomInteger(2),
+        WomString("z") -> WomInteger(3)
+      )
+    )
 
-    expr.shouldBeValidPF {
-      case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedMap, Seq.empty)
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedMap, Seq.empty)
     }
   }
 
@@ -50,14 +52,16 @@ class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
       val expr = fromString[ExpressionElement](str, parser.parse_e)
 
       val inputs = Map("three" -> WomString("three"))
-      val expectedPairs: WomArray = WomArray(Seq(
-        WomPair(WomInteger(1), WomString("one")),
-        WomPair(WomInteger(2), WomString("two")),
-        WomPair(WomInteger(3), WomString("three"))
-      ))
+      val expectedPairs: WomArray = WomArray(
+        Seq(
+          WomPair(WomInteger(1), WomString("one")),
+          WomPair(WomInteger(2), WomString("two")),
+          WomPair(WomInteger(3), WomString("three"))
+        )
+      )
 
-      expr.shouldBeValidPF {
-        case e => e.evaluateValue(inputs, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedPairs, Seq.empty)
+      expr.shouldBeValidPF { case e =>
+        e.evaluateValue(inputs, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedPairs, Seq.empty)
       }
       ()
     }
@@ -73,16 +77,18 @@ class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
       val str = """ as_pairs(as_map(echo_me)) """
       val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-      val expectedPairs: WomArray = WomArray(Seq(
-        WomPair(WomInteger(1), WomString("one")),
-        WomPair(WomInteger(2), WomString("two")),
-        WomPair(WomInteger(3), WomString("three"))
-      ))
+      val expectedPairs: WomArray = WomArray(
+        Seq(
+          WomPair(WomInteger(1), WomString("one")),
+          WomPair(WomInteger(2), WomString("two")),
+          WomPair(WomInteger(3), WomString("three"))
+        )
+      )
 
       val inputs = Map("echo_me" -> expectedPairs)
 
-      expr.shouldBeValidPF {
-        case e => e.evaluateValue(inputs, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedPairs, Seq.empty)
+      expr.shouldBeValidPF { case e =>
+        e.evaluateValue(inputs, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedPairs, Seq.empty)
       }
       ()
     }
@@ -95,8 +101,11 @@ class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
       val str = """ as_map( [("x", 1), ("y", 2), ("x", 3)] ) """
       val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-      expr.shouldBeValidPF {
-        case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None).shouldBeInvalid("""Cannot evaluate 'as_map' with duplicated keys: keys can only appear once but "x" appeared 2 times.""")
+      expr.shouldBeValidPF { case e =>
+        e.evaluateValue(Map.empty, NoIoFunctionSet, None)
+          .shouldBeInvalid(
+            """Cannot evaluate 'as_map' with duplicated keys: keys can only appear once but "x" appeared 2 times."""
+          )
       }
       ()
     }
@@ -109,13 +118,15 @@ class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
       val str = """ collect_by_key( [("x", 1), ("y", 2), ("x", 3)] ) """
       val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-      val expectedMap: WomMap = WomMap(Map(
-        WomString("x") -> WomArray(Seq(WomInteger(1), WomInteger(3))),
-        WomString("y") -> WomArray(Seq(WomInteger(2)))
-      ))
+      val expectedMap: WomMap = WomMap(
+        Map(
+          WomString("x") -> WomArray(Seq(WomInteger(1), WomInteger(3))),
+          WomString("y") -> WomArray(Seq(WomInteger(2)))
+        )
+      )
 
-      expr.shouldBeValidPF {
-        case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedMap, Seq.empty)
+      expr.shouldBeValidPF { case e =>
+        e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedMap, Seq.empty)
       }
       ()
     }
@@ -129,13 +140,16 @@ class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
     )
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-    val expectedMap: WomMap = WomMap(WomMapType(WomStringType, WomOptionalType(WomStringType)), Map (
-      WomString("i") -> WomOptionalValue(WomStringType, Some(WomString("1"))),
-      WomString("s") -> WomOptionalValue(WomStringType, Some(WomString("two")))
-    ))
+    val expectedMap: WomMap = WomMap(
+      WomMapType(WomStringType, WomOptionalType(WomStringType)),
+      Map(
+        WomString("i") -> WomOptionalValue(WomStringType, Some(WomString("1"))),
+        WomString("s") -> WomOptionalValue(WomStringType, Some(WomString("two")))
+      )
+    )
 
-    expr.shouldBeValidPF {
-      case e => e.evaluateValue(inputs, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedMap, Seq.empty)
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(inputs, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedMap, Seq.empty)
     }
   }
 
@@ -158,8 +172,8 @@ class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
         val expectedEvaluation = WomString(expected)
         val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-        expr.shouldBeValidPF {
-          case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedEvaluation, Seq.empty)
+        expr.shouldBeValidPF { case e =>
+          e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedEvaluation, Seq.empty)
         }
       }
     }
@@ -171,8 +185,8 @@ class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
 
     val expectedString: WomString = WomString("a b c")
 
-    expr.shouldBeValidPF {
-      case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedString, Seq.empty)
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedString, Seq.empty)
     }
   }
 
@@ -182,8 +196,8 @@ class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
 
     val expectedString: WomString = WomString("-i a -i b -i c")
 
-    expr.shouldBeValidPF {
-      case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedString, Seq.empty)
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedString, Seq.empty)
     }
   }
 }

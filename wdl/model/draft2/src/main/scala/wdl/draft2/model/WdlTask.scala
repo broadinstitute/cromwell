@@ -19,7 +19,7 @@ import scala.language.postfixOps
 
 object WdlTask {
   val Ws = Pattern.compile("[\\ \\t]+")
-  private implicit val instantiatedCommandMonoid = cats.derived.MkMonoid[InstantiatedCommand]
+  implicit private val instantiatedCommandMonoid = cats.derived.MkMonoid[InstantiatedCommand]
 
   /** The function validateDeclaration() and the DeclarationAccumulator class are used
     * to accumulate errors and keep track of which Declarations/TaskOutputs have been examined.
@@ -38,7 +38,8 @@ object WdlTask {
     val meta = AstTools.wdlSectionToStringMap(ast, AstNodeName.Meta, wdlSyntaxErrorFormatter)
     val parameterMeta = AstTools.wdlSectionToStringMap(ast, AstNodeName.ParameterMeta, wdlSyntaxErrorFormatter)
 
-    if (commandAsts.size != 1) throw new SyntaxError(wdlSyntaxErrorFormatter.expectedExactlyOneCommandSectionPerTask(taskNameTerminal))
+    if (commandAsts.size != 1)
+      throw new SyntaxError(wdlSyntaxErrorFormatter.expectedExactlyOneCommandSectionPerTask(taskNameTerminal))
     val commandTemplate = commandAsts.head.getAttribute("parts").asInstanceOf[AstList].asScala.toVector map {
       case x: Terminal => StringCommandPart(x.getSourceString)
       case x: Ast => ParameterCommandPart(x, wdlSyntaxErrorFormatter)
@@ -47,7 +48,13 @@ object WdlTask {
     WdlTask(name, commandTemplate, runtimeAttributes, meta, parameterMeta, ast)
   }
 
-  def empty: WdlTask = new WdlTask("taskName", Seq.empty, WdlRuntimeAttributes(Map.empty[String, WdlExpression]), Map.empty, Map.empty, null)
+  def empty: WdlTask = new WdlTask("taskName",
+                                   Seq.empty,
+                                   WdlRuntimeAttributes(Map.empty[String, WdlExpression]),
+                                   Map.empty,
+                                   Map.empty,
+                                   null
+  )
 
 }
 
@@ -66,7 +73,8 @@ case class WdlTask(name: String,
                    runtimeAttributes: WdlRuntimeAttributes,
                    meta: Map[String, String],
                    parameterMeta: Map[String, String],
-                   ast: Ast) extends WdlCallable {
+                   ast: Ast
+) extends WdlCallable {
 
   override val unqualifiedName: LocallyQualifiedName = name
 
@@ -111,18 +119,20 @@ case class WdlTask(name: String,
     */
   def instantiateCommand(taskInputs: EvaluatedTaskInputs,
                          functions: WdlFunctions[WomValue],
-                         valueMapper: WomValue => WomValue = identity): ErrorOr[List[InstantiatedCommand]] = {
+                         valueMapper: WomValue => WomValue = identity
+  ): ErrorOr[List[InstantiatedCommand]] = {
 
-    val mappedInputs = taskInputs.map({case (k, v) => k.unqualifiedName -> v})
+    val mappedInputs = taskInputs.map { case (k, v) => k.unqualifiedName -> v }
     // `foldMap`: `map` over the elements of the `List[WdlCommandPart]`s, transforming each `WdlCommandPart` to an
     // `ErrorOr[InstantiatedCommand]`. Then fold the resulting `List[ErrorOr[InstantiatedCommand]]` into a single
     // `ErrorOr[InstantiatedCommand]`.
     import WdlTask.instantiatedCommandMonoid
     val fullInstantiatedCommand: ErrorOr[InstantiatedCommand] = commandTemplate.toList
-      .flatTraverse(_.instantiate(declarations, mappedInputs, functions, valueMapper)).map(_.combineAll)
+      .flatTraverse(_.instantiate(declarations, mappedInputs, functions, valueMapper))
+      .map(_.combineAll)
 
     // `normalize` the instantiation (i.e. don't break Python code indentation)
-    fullInstantiatedCommand map { c => List(c.copy(commandString = StringUtil.normalize(c.commandString)))}
+    fullInstantiatedCommand map { c => List(c.copy(commandString = StringUtil.normalize(c.commandString))) }
   }
 
   def commandTemplateString: String = StringUtil.normalize(commandTemplate.map(_.toString).mkString)
@@ -139,10 +149,10 @@ case class WdlTask(name: String,
     * inputMap = Map("t.s" -> WdlString("hello"))
     */
   // TODO WOM: Unused except in Specs
-  def inputsFromMap(inputs: Map[FullyQualifiedName, WomValue]): EvaluatedTaskInputs = {
+  def inputsFromMap(inputs: Map[FullyQualifiedName, WomValue]): EvaluatedTaskInputs =
     declarations flatMap { declaration =>
       inputs collectFirst {
-        case (fqn, value) if fqn == declaration.fullyQualifiedName => declaration -> value }
+        case (fqn, value) if fqn == declaration.fullyQualifiedName => declaration -> value
+      }
     } toMap
-  }
 }

@@ -8,7 +8,7 @@ import org.scalatest.concurrent.Eventually
 
 class EjeaRequestingExecutionTokenSpec extends EngineJobExecutionActorSpec with CanValidateJobStoreKey with Eventually {
 
-  override implicit val stateUnderTest: EngineJobExecutionActorState = RequestingExecutionToken
+  implicit override val stateUnderTest: EngineJobExecutionActorState = RequestingExecutionToken
 
   "An EJEA in the RequestingExecutionToken state" should {
 
@@ -27,8 +27,14 @@ class EjeaRequestingExecutionTokenSpec extends EngineJobExecutionActorSpec with 
         ejea = helper.buildEJEA(restarting = false)
         ejea ! JobTokenDispensed
 
-        helper.replyToProbe.expectMsg(max = awaitTimeout, hint = "Awaiting JobStarting message", JobStarting(helper.jobDescriptorKey))
-        helper.replyToProbe.expectMsg(max = awaitTimeout, hint = "Awaiting RequestValueStore message", RequestValueStore)
+        helper.replyToProbe.expectMsg(max = awaitTimeout,
+                                      hint = "Awaiting JobStarting message",
+                                      JobStarting(helper.jobDescriptorKey)
+        )
+        helper.replyToProbe.expectMsg(max = awaitTimeout,
+                                      hint = "Awaiting RequestValueStore message",
+                                      RequestValueStore
+        )
         ejea.stateName should be(WaitingForValueStore)
       }
     }

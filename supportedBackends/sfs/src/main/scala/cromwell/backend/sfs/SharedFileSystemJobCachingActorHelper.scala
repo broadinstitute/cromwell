@@ -12,18 +12,18 @@ trait SharedFileSystemJobCachingActorHelper extends StandardCachingActorHelper {
 
   lazy val sharedFileSystem = new SharedFileSystem {
 
-    override implicit def actorContext: ActorContext = context
+    implicit override def actorContext: ActorContext = context
 
     override lazy val pathBuilders: List[PathBuilder] = standardInitializationData.workflowPaths.pathBuilders
 
-    override lazy val sharedFileSystemConfig: Config = {
+    override lazy val sharedFileSystemConfig: Config =
       configurationDescriptor.backendConfig.as[Option[Config]]("filesystems.local").getOrElse(ConfigFactory.empty())
-    }
 
     // cachedCopyDir should be on the same physical filesystem as the execution root.
     // WDL workflow names may not contain '-' so using 'cached-inputs' will certainly
     // not collide with any workflows in the root directory.
     override lazy val cachedCopyDir: Option[Path] = Option(
-      workflowPaths.executionRoot.createChild("cached-inputs", asDirectory = true))
+      workflowPaths.executionRoot.createChild("cached-inputs", asDirectory = true)
+    )
   }
 }

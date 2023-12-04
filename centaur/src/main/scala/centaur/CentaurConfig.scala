@@ -41,16 +41,19 @@ sealed trait CentaurRunMode {
   def cromwellUrl: URL
 }
 
-case class UnmanagedCromwellServer(cromwellUrl : URL) extends CentaurRunMode
-case class ManagedCromwellServer(preRestart: CromwellConfiguration, postRestart: CromwellConfiguration, withRestart: Boolean) extends CentaurRunMode {
+case class UnmanagedCromwellServer(cromwellUrl: URL) extends CentaurRunMode
+case class ManagedCromwellServer(preRestart: CromwellConfiguration,
+                                 postRestart: CromwellConfiguration,
+                                 withRestart: Boolean
+) extends CentaurRunMode {
   override val cromwellUrl = new URL(s"http://localhost:${CromwellManager.ManagedCromwellPort}")
 }
 
 object CentaurConfig {
   lazy val conf: Config = ConfigFactory.load().getConfig("centaur")
-  
+
   lazy val runMode: CentaurRunMode = CentaurRunMode(conf)
-  
+
   lazy val cromwellUrl: URL = runMode.cromwellUrl
   lazy val workflowProgressTimeout: FiniteDuration = conf.getDuration("workflow-progress-timeout").toScala
   lazy val sendReceiveTimeout: FiniteDuration = conf.getDuration("sendReceiveTimeout").toScala

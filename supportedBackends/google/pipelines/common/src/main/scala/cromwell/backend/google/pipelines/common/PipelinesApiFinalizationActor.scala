@@ -8,8 +8,7 @@ import cromwell.core.io.AsyncIoActorClient
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import wom.graph.CommandCallNode
 
-case class PipelinesApiFinalizationActorParams
-(
+case class PipelinesApiFinalizationActorParams(
   workflowDescriptor: BackendWorkflowDescriptor,
   ioActor: ActorRef,
   calls: Set[CommandCallNode],
@@ -22,7 +21,8 @@ case class PipelinesApiFinalizationActorParams
 }
 
 class PipelinesApiFinalizationActor(val pipelinesParams: PipelinesApiFinalizationActorParams)
-  extends StandardFinalizationActor(pipelinesParams) with AsyncIoActorClient {
+    extends StandardFinalizationActor(pipelinesParams)
+    with AsyncIoActorClient {
 
   lazy val jesConfiguration: PipelinesApiConfiguration = pipelinesParams.jesConfiguration
 

@@ -12,13 +12,15 @@ import io.github.andrebeat.pool._
 import scala.collection.immutable.HashSet
 import scala.collection.mutable
 
-final class UnhoggableTokenPool(val tokenType: JobTokenType) extends SimplePool[JobToken](
-  capacity = tokenType.maxPoolSize.getOrElse(UnhoggableTokenPool.MaxCapacity),
-  referenceType = ReferenceType.Strong,
-  _factory = () => JobToken(tokenType, UUID.randomUUID()),
-  _reset = Function.const(()),
-  _dispose = Function.const(()),
-  _healthCheck = Function.const(true)) {
+final class UnhoggableTokenPool(val tokenType: JobTokenType)
+    extends SimplePool[JobToken](
+      capacity = tokenType.maxPoolSize.getOrElse(UnhoggableTokenPool.MaxCapacity),
+      referenceType = ReferenceType.Strong,
+      _factory = () => JobToken(tokenType, UUID.randomUUID()),
+      _reset = Function.const(()),
+      _dispose = Function.const(()),
+      _healthCheck = Function.const(true)
+    ) {
 
   lazy val hogLimitOption: Option[Int] = tokenType match {
     case JobTokenType(_, Some(limit), hogFactor) if hogFactor > 1 =>
@@ -28,10 +30,11 @@ final class UnhoggableTokenPool(val tokenType: JobTokenType) extends SimplePool[
 
   private[this] val hogGroupAssignments: mutable.Map[String, HashSet[JobToken]] = mutable.Map.empty
 
-  override def tryAcquire(): Option[Lease[JobToken]] = throw new UnsupportedOperationException("Use tryAcquire(hogGroup)")
+  override def tryAcquire(): Option[Lease[JobToken]] = throw new UnsupportedOperationException(
+    "Use tryAcquire(hogGroup)"
+  )
 
-  def available(hogGroup: String): UnhoggableTokenPoolAvailability = {
-
+  def available(hogGroup: String): UnhoggableTokenPoolAvailability =
     hogLimitOption match {
       case None if leased() < capacity => TokensAvailable
       case None => TokenTypeExhausted
@@ -46,10 +49,8 @@ final class UnhoggableTokenPool(val tokenType: JobTokenType) extends SimplePool[
           }
         } else TokenTypeExhausted
     }
-  }
 
-  def tryAcquire(hogGroup: String): UnhoggableTokenPoolResult = {
-
+  def tryAcquire(hogGroup: String): UnhoggableTokenPoolResult =
     hogLimitOption match {
       case Some(hogLimit) =>
         synchronized {
@@ -75,9 +76,8 @@ final class UnhoggableTokenPool(val tokenType: JobTokenType) extends SimplePool[
           case None => TokenTypeExhausted
         }
     }
-  }
 
-  def unhog(hogGroup: String, lease: Lease[JobToken]): Unit = {
+  def unhog(hogGroup: String, lease: Lease[JobToken]): Unit =
     hogLimitOption foreach { _ =>
       synchronized {
         val newAssignment = hogGroupAssignments.getOrElse(hogGroup, HashSet.empty) - lease.get()
@@ -89,15 +89,15 @@ final class UnhoggableTokenPool(val tokenType: JobTokenType) extends SimplePool[
         }
       }
     }
-  }
 
   def poolState: TokenPoolState = {
     val (hogGroupUsages, hogLimitValue): (Option[Set[HogGroupState]], Option[Int]) = hogLimitOption match {
       case Some(hogLimit) =>
         synchronized {
-          val entries: Set[HogGroupState] = hogGroupAssignments.toSet[(String, HashSet[JobToken])].map { case (hogGroup, set) =>
-            HogGroupState(hogGroup, set.size, !hogGroupAssignments.get(hogGroup).forall(_.size < hogLimit))
-          }
+          val entries: Set[HogGroupState] =
+            hogGroupAssignments.toSet[(String, HashSet[JobToken])].map { case (hogGroup, set) =>
+              HogGroupState(hogGroup, set.size, !hogGroupAssignments.get(hogGroup).forall(_.size < hogLimit))
+            }
           (Option(entries), Option(hogLimit))
         }
       case None => (None, None)
@@ -113,7 +113,9 @@ object UnhoggableTokenPool {
 
   sealed trait UnhoggableTokenPoolResult
 
-  final class TokenHoggingLease(lease: Lease[JobToken], hogGroup: String, pool: UnhoggableTokenPool) extends Lease[JobToken] with UnhoggableTokenPoolResult {
+  final class TokenHoggingLease(lease: Lease[JobToken], hogGroup: String, pool: UnhoggableTokenPool)
+      extends Lease[JobToken]
+      with UnhoggableTokenPoolResult {
     private[this] val dirty = new AtomicBoolean(false)
     override protected[this] def a: JobToken = lease.get()
 
@@ -153,6 +155,11 @@ object UnhoggableTokenPool {
   final case class HogGroupState(hogGroup: String, used: Int, atLimit: Boolean)
 
   @JsonCodec
-  final case class TokenPoolState(hogGroups: Option[Set[HogGroupState]], hogLimit: Option[Int], capacity: Int, leased: Int, available: Boolean)
+  final case class TokenPoolState(hogGroups: Option[Set[HogGroupState]],
+                                  hogLimit: Option[Int],
+                                  capacity: Int,
+                                  leased: Int,
+                                  available: Boolean
+  )
 
 }

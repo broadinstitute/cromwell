@@ -16,6 +16,7 @@ trait SqlDatabase extends AutoCloseable {
 }
 
 object SqlDatabase {
+
   /**
     * Modifies config.getString("url") to return a unique schema, if the original url contains the text
     * "\${uniqueSchema}".

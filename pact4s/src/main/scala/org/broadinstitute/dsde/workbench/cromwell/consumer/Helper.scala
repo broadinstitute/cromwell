@@ -14,7 +14,7 @@ object PactHelper {
                        status: Int,
                        responseHeaders: Seq[(String, String)],
                        body: DslPart
-                      ): PactDslResponse =
+  ): PactDslResponse =
     builder
       .`given`(state)
       .uponReceiving(uponReceiving)
@@ -33,8 +33,8 @@ object PactHelper {
                        path: String,
                        requestHeaders: Seq[(String, String)],
                        status: Int,
-                       responseHeaders: Seq[(String, String)],
-                      ): PactDslResponse =
+                       responseHeaders: Seq[(String, String)]
+  ): PactDslResponse =
     builder
       .`given`(state)
       .uponReceiving(uponReceiving)
@@ -52,7 +52,7 @@ object PactHelper {
                        path: String,
                        requestHeaders: Seq[(String, String)],
                        status: Int
-                      ): PactDslResponse =
+  ): PactDslResponse =
     builder
       .`given`(state)
       .uponReceiving(uponReceiving)
@@ -68,7 +68,7 @@ object PactHelper {
                        path: String,
                        requestHeaders: Seq[(String, String)],
                        status: Int
-                      ): PactDslResponse =
+  ): PactDslResponse =
     builder
       .uponReceiving(uponReceiving)
       .method(method)
@@ -86,7 +86,7 @@ object PactHelper {
                        status: Int,
                        responseHeaders: Seq[(String, String)],
                        body: DslPart
-                      ): PactDslResponse =
+  ): PactDslResponse =
     builder
       .`given`(state)
       .uponReceiving(uponReceiving)
@@ -109,7 +109,7 @@ object PactHelper {
                        status: Int,
                        responseHeaders: Seq[(String, String)],
                        responsBody: DslPart
-                      ): PactDslResponse =
+  ): PactDslResponse =
     builder
       .`given`(state, scala.jdk.CollectionConverters.MapHasAsJava(stateParams).asJava)
       .uponReceiving(uponReceiving)
@@ -132,7 +132,7 @@ object PactHelper {
                        status: Int,
                        responseHeaders: Seq[(String, String)],
                        body: DslPart
-                      ): PactDslResponse =
+  ): PactDslResponse =
     builder
       .`given`(state, scala.jdk.CollectionConverters.MapHasAsJava(stateParams).asJava)
       .uponReceiving(uponReceiving)
@@ -154,7 +154,7 @@ object PactHelper {
                           status: Int,
                           responseHeaders: Seq[(String, String)],
                           body: A
-                         )(implicit ev: PactBodyJsonEncoder[A]): PactDslResponse =
+  )(implicit ev: PactBodyJsonEncoder[A]): PactDslResponse =
     builder
       .`given`(state, scala.jdk.CollectionConverters.MapHasAsJava(stateParams).asJava)
       .uponReceiving(uponReceiving)
@@ -174,7 +174,7 @@ object PactHelper {
                           requestHeaders: Seq[(String, String)],
                           requestBody: A,
                           status: Int
-                         )(implicit ev: PactBodyJsonEncoder[A]): PactDslResponse =
+  )(implicit ev: PactBodyJsonEncoder[A]): PactDslResponse =
     builder
       .`given`(state)
       .uponReceiving(uponReceiving)
@@ -194,7 +194,7 @@ object PactHelper {
                           requestHeaders: Seq[(String, String)],
                           requestBody: A,
                           status: Int
-                         )(implicit ev: PactBodyJsonEncoder[A]): PactDslResponse =
+  )(implicit ev: PactBodyJsonEncoder[A]): PactDslResponse =
     builder
       .`given`(state, scala.jdk.CollectionConverters.MapHasAsJava(stateParams).asJava)
       .uponReceiving(uponReceiving)

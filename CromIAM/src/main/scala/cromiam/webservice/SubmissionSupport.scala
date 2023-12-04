@@ -7,7 +7,7 @@ import akka.http.scaladsl.server._
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import cats.effect.IO
-import cromiam.auth.Collection.{CollectionLabelName, LabelsKey, validateLabels}
+import cromiam.auth.Collection.{validateLabels, CollectionLabelName, LabelsKey}
 import cromiam.auth.{Collection, User}
 import cromiam.cromwell.CromwellClient
 import cromiam.sam.SamClient
@@ -57,16 +57,18 @@ trait SubmissionSupport extends RequestSupport {
 
   private def forwardSubmissionToCromwell(user: User,
                                           collection: Collection,
-                                          submissionRequest: HttpRequest): FailureResponseOrT[HttpResponse] = {
-    log.info("Forwarding submission request for " + user.userId + " with collection " + collection.name + " to Cromwell")
+                                          submissionRequest: HttpRequest
+  ): FailureResponseOrT[HttpResponse] = {
+    log.info(
+      "Forwarding submission request for " + user.userId + " with collection " + collection.name + " to Cromwell"
+    )
 
-    def registerWithSam(collection: Collection, httpRequest: HttpRequest): FailureResponseOrT[Unit] = {
+    def registerWithSam(collection: Collection, httpRequest: HttpRequest): FailureResponseOrT[Unit] =
       samClient.requestSubmission(user, collection, httpRequest) mapErrorWith {
         case e: SamDenialException => IO.raiseError(e)
         case SamRegisterCollectionException(statusCode) => IO.raiseError(SamRegisterCollectionException(statusCode))
         case e => IO.raiseError(SamConnectionFailure("new workflow registration", e))
       }
-    }
 
     FailureResponseOrT(
       (for {
@@ -81,36 +83,34 @@ trait SubmissionSupport extends RequestSupport {
 }
 
 object SubmissionSupport {
-  def extractCollection(user: User): Directive1[Collection] = {
+  def extractCollection(user: User): Directive1[Collection] =
     formField(CollectionNameKey.?) map { maybeCollectionName =>
       maybeCollectionName.map(Collection(_)).getOrElse(Collection.forUser(user))
     }
-  }
 
-  def extractSubmission(user: User): Directive1[WorkflowSubmission] = {
+  def extractSubmission(user: User): Directive1[WorkflowSubmission] =
     (
       extractCollection(user) &
-      formFields((
-        WorkflowSourceKey.?,
-        WorkflowUrlKey.?,
-        WorkflowTypeKey.?,
-        WorkflowTypeVersionKey.?,
-        WorkflowInputsKey.?,
-        WorkflowOptionsKey.?,
-        WorkflowOnHoldKey.as[Boolean].?,
-        WorkflowDependenciesKey.as[ByteString].?)) &
-      extractLabels &
-      extractInputAux
+        formFields(
+          (WorkflowSourceKey.?,
+           WorkflowUrlKey.?,
+           WorkflowTypeKey.?,
+           WorkflowTypeVersionKey.?,
+           WorkflowInputsKey.?,
+           WorkflowOptionsKey.?,
+           WorkflowOnHoldKey.as[Boolean].?,
+           WorkflowDependenciesKey.as[ByteString].?
+          )
+        ) &
+        extractLabels &
+        extractInputAux
     ).as(WorkflowSubmission)
-  }
 
-  def extractLabels: Directive1[Option[Map[String, JsValue]]] = {
+  def extractLabels: Directive1[Option[Map[String, JsValue]]] =
     formField(LabelsKey.?) flatMap validateLabels
-  }
 
-  def extractInputAux: Directive1[Map[String, String]] = {
+  def extractInputAux: Directive1[Map[String, String]] =
     formFieldMap.map(_.view.filterKeys(_.startsWith(WorkflowInputsAuxPrefix)).toMap)
-  }
 
   // FIXME: Much like CromwellClient see if there are ways of unifying this a bit w/ the mothership
   final case class WorkflowSubmission(collection: Collection,
@@ -123,32 +123,61 @@ object SubmissionSupport {
                                       workflowOnHold: Option[Boolean],
                                       workflowDependencies: Option[ByteString],
                                       origLabels: Option[Map[String, JsValue]],
-                                      workflowInputsAux: Map[String, String]) {
+                                      workflowInputsAux: Map[String, String]
+  ) {
     // For auto-validation, if origLabels defined, can't have CaaS collection label set. Was checked previously, but ...
     require(origLabels.forall(!_.keySet.contains(CollectionLabelName)))
 
     // Inject the collection name into the labels and convert to a String
     private val collectionLabels = Map(CollectionLabelName -> JsString(collection.name))
-    private val labels: String = JsObject(origLabels.map(o => o ++ collectionLabels).getOrElse(collectionLabels)).toString
+    private val labels: String = JsObject(
+      origLabels.map(o => o ++ collectionLabels).getOrElse(collectionLabels)
+    ).toString
 
     val entity: MessageEntity = {
-      val sourcePart = workflowSource map { s => Multipart.FormData.BodyPart(WorkflowSourceKey, HttpEntity(MediaTypes.`application/json`, s)) }
-      val urlPart = workflowUrl map { u => Multipart.FormData.BodyPart(WorkflowUrlKey, HttpEntity(MediaTypes.`application/json`, u))}
-      val typePart = workflowType map { t => Multipart.FormData.BodyPart(WorkflowTypeKey, HttpEntity(MediaTypes.`application/json`, t)) }
-      val typeVersionPart = workflowTypeVersion map { v => Multipart.FormData.BodyPart(WorkflowTypeVersionKey, HttpEntity(MediaTypes.`application/json`, v)) }
-      val inputsPart = workflowInputs map { i => Multipart.FormData.BodyPart(WorkflowInputsKey, HttpEntity(MediaTypes.`application/json`, i)) }
-      val optionsPart = workflowOptions map { o => Multipart.FormData.BodyPart(WorkflowOptionsKey, HttpEntity(MediaTypes.`application/json`, o)) }
-      val importsPart = workflowDependencies map { d => Multipart.FormData.BodyPart(WorkflowDependenciesKey, HttpEntity(MediaTypes.`application/octet-stream`, d)) }
-      val onHoldPart = workflowOnHold map { h => Multipart.FormData.BodyPart(WorkflowOnHoldKey, HttpEntity(h.toString)) }
+      val sourcePart = workflowSource map { s =>
+        Multipart.FormData.BodyPart(WorkflowSourceKey, HttpEntity(MediaTypes.`application/json`, s))
+      }
+      val urlPart = workflowUrl map { u =>
+        Multipart.FormData.BodyPart(WorkflowUrlKey, HttpEntity(MediaTypes.`application/json`, u))
+      }
+      val typePart = workflowType map { t =>
+        Multipart.FormData.BodyPart(WorkflowTypeKey, HttpEntity(MediaTypes.`application/json`, t))
+      }
+      val typeVersionPart = workflowTypeVersion map { v =>
+        Multipart.FormData.BodyPart(WorkflowTypeVersionKey, HttpEntity(MediaTypes.`application/json`, v))
+      }
+      val inputsPart = workflowInputs map { i =>
+        Multipart.FormData.BodyPart(WorkflowInputsKey, HttpEntity(MediaTypes.`application/json`, i))
+      }
+      val optionsPart = workflowOptions map { o =>
+        Multipart.FormData.BodyPart(WorkflowOptionsKey, HttpEntity(MediaTypes.`application/json`, o))
+      }
+      val importsPart = workflowDependencies map { d =>
+        Multipart.FormData.BodyPart(WorkflowDependenciesKey, HttpEntity(MediaTypes.`application/octet-stream`, d))
+      }
+      val onHoldPart = workflowOnHold map { h =>
+        Multipart.FormData.BodyPart(WorkflowOnHoldKey, HttpEntity(h.toString))
+      }
       val labelsPart = Multipart.FormData.BodyPart(LabelsKey, HttpEntity(MediaTypes.`application/json`, labels))
-      val parts = List(sourcePart, urlPart, typePart, typeVersionPart, inputsPart, optionsPart, importsPart, onHoldPart, Option(labelsPart)).flatten ++ auxParts
+      val parts = List(sourcePart,
+                       urlPart,
+                       typePart,
+                       typeVersionPart,
+                       inputsPart,
+                       optionsPart,
+                       importsPart,
+                       onHoldPart,
+                       Option(labelsPart)
+      ).flatten ++ auxParts
 
       Multipart.FormData(parts: _*).toEntity()
     }
 
-    private def auxParts = {
-      workflowInputsAux map { case (k, v) => Multipart.FormData.BodyPart(k, HttpEntity(MediaTypes.`application/json`, v)) }
-    }
+    private def auxParts =
+      workflowInputsAux map { case (k, v) =>
+        Multipart.FormData.BodyPart(k, HttpEntity(MediaTypes.`application/json`, v))
+      }
   }
 
   // FIXME: Unify these w/ Cromwell.PartialWorkflowSources (via common?)

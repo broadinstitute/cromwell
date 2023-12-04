@@ -11,10 +11,9 @@ trait TimedFSM[S] { this: FSM[S, _] =>
 
   def currentStateDuration: FiniteDuration = (System.currentTimeMillis() - lastTransitionTime).milliseconds
 
-  onTransition {
-    case from -> to =>
-      val now = System.currentTimeMillis()
-      onTimedTransition(from, to, (now - lastTransitionTime).milliseconds)
-      lastTransitionTime = now
+  onTransition { case from -> to =>
+    val now = System.currentTimeMillis()
+    onTimedTransition(from, to, (now - lastTransitionTime).milliseconds)
+    lastTransitionTime = now
   }
 }

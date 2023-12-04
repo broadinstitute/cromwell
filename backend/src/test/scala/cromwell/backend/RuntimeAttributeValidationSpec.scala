@@ -19,12 +19,14 @@ class RuntimeAttributeValidationSpec extends AnyFlatSpec with Matchers with Scal
       val defaultValue = womValue.asWomExpression
       val validator: Option[WomExpression] => Boolean = _.contains(defaultValue)
       assert(
-        BackendWorkflowInitializationActor.validateRuntimeAttributes(
-          taskName = taskName,
-          defaultRuntimeAttributes = defaultRuntimeAttributes,
-          runtimeAttributes = Map.empty,
-          runtimeAttributeValidators = Map((attributeName, validator)),
-        ).isValid
+        BackendWorkflowInitializationActor
+          .validateRuntimeAttributes(
+            taskName = taskName,
+            defaultRuntimeAttributes = defaultRuntimeAttributes,
+            runtimeAttributes = Map.empty,
+            runtimeAttributeValidators = Map((attributeName, validator))
+          )
+          .isValid
       )
   }
 
@@ -33,12 +35,14 @@ class RuntimeAttributeValidationSpec extends AnyFlatSpec with Matchers with Scal
       val defaultRuntimeAttributes = Map(attributeName -> womValue)
 
       assert(
-        BackendWorkflowInitializationActor.validateRuntimeAttributes(
-          taskName = taskName,
-          defaultRuntimeAttributes = defaultRuntimeAttributes,
-          runtimeAttributes = Map.empty,
-          runtimeAttributeValidators = Map((attributeName, (_: Option[WomExpression]) => false)),
-        ).isInvalid
+        BackendWorkflowInitializationActor
+          .validateRuntimeAttributes(
+            taskName = taskName,
+            defaultRuntimeAttributes = defaultRuntimeAttributes,
+            runtimeAttributes = Map.empty,
+            runtimeAttributeValidators = Map((attributeName, (_: Option[WomExpression]) => false))
+          )
+          .isInvalid
       )
   }
 
@@ -49,47 +53,51 @@ class RuntimeAttributeValidationSpec extends AnyFlatSpec with Matchers with Scal
 
       val validator: Option[WomExpression] => Boolean = _.contains(runtimeWomExpression)
       assert(
-        BackendWorkflowInitializationActor.validateRuntimeAttributes(
-          taskName = taskName,
-          defaultRuntimeAttributes = defaultRuntimeAttributes,
-          runtimeAttributes = runtimeAttributes,
-          runtimeAttributeValidators = Map((attributeName, validator)),
-        ).isValid
+        BackendWorkflowInitializationActor
+          .validateRuntimeAttributes(
+            taskName = taskName,
+            defaultRuntimeAttributes = defaultRuntimeAttributes,
+            runtimeAttributes = runtimeAttributes,
+            runtimeAttributeValidators = Map((attributeName, validator))
+          )
+          .isValid
       )
   }
 
   it should "fail validation if no setting is present but it should be" in forAll {
     (taskName: String, attributeName: String) =>
-
       val validator: Option[WomExpression] => Boolean = {
         case None => false
         case Some(x) => throw new RuntimeException(s"expecting the runtime validator to receive a None but got $x")
       }
       assert(
-       BackendWorkflowInitializationActor.validateRuntimeAttributes(
-         taskName = taskName,
-         defaultRuntimeAttributes = Map.empty,
-         runtimeAttributes = Map.empty,
-         runtimeAttributeValidators = Map((attributeName, validator)),
-       ).isInvalid
+        BackendWorkflowInitializationActor
+          .validateRuntimeAttributes(
+            taskName = taskName,
+            defaultRuntimeAttributes = Map.empty,
+            runtimeAttributes = Map.empty,
+            runtimeAttributeValidators = Map((attributeName, validator))
+          )
+          .isInvalid
       )
   }
 
   it should "use the taskName and attribute name in correct places for failures" in forAll {
     (taskName: String, attributeName: String) =>
-
       val validator: Option[WomExpression] => Boolean = {
         case None => false
         case Some(x) => throw new RuntimeException(s"expecting the runtime validator to receive a None but got $x")
       }
-      BackendWorkflowInitializationActor.validateRuntimeAttributes(taskName, Map.empty, Map.empty, Map((attributeName,validator))).fold(
-        { errors =>
-          val error = errors.toList.head
-          withClue("attribute name should be set correctly")(error.runtimeAttributeName shouldBe attributeName)
-          withClue("task name should be set correctly")(error.jobTag shouldBe taskName)
-        },
-        _ => fail("expecting validation to fail!")
-      )
+      BackendWorkflowInitializationActor
+        .validateRuntimeAttributes(taskName, Map.empty, Map.empty, Map((attributeName, validator)))
+        .fold(
+          { errors =>
+            val error = errors.toList.head
+            withClue("attribute name should be set correctly")(error.runtimeAttributeName shouldBe attributeName)
+            withClue("task name should be set correctly")(error.jobTag shouldBe taskName)
+          },
+          _ => fail("expecting validation to fail!")
+        )
   }
 }
 

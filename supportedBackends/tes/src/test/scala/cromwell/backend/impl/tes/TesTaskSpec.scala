@@ -15,12 +15,7 @@ import wom.InstantiatedCommand
 
 import java.util.UUID
 
-class TesTaskSpec
-  extends AnyFlatSpec
-    with CromwellTimeoutSpec
-    with Matchers
-    with BackendSpec
-    with MockSugar {
+class TesTaskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with BackendSpec with MockSugar {
 
   val runtimeAttributes = new TesRuntimeAttributes(
     ContinueOnReturnCodeSet(Set(0)),
@@ -40,19 +35,25 @@ class TesTaskSpec
   it should "create the correct resources when an identity is passed in WorkflowOptions" in {
     val wei = Option("abc123")
     TesTask.makeResources(runtimeAttributes, wei, internalPathPrefix) shouldEqual
-        Resources(None, None, None, Option(false), None,
-          Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option("abc123"),
-            expectedTuple))
-    )
+      Resources(None,
+                None,
+                None,
+                Option(false),
+                None,
+                Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option("abc123"), expectedTuple))
+      )
   }
 
   it should "create the correct resources when an empty identity is passed in WorkflowOptions" in {
     val wei = Option("")
     TesTask.makeResources(runtimeAttributes, wei, internalPathPrefix) shouldEqual
-      Resources(None, None, None, Option(false), None,
-        Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option(""),
-          expectedTuple))
-    )
+      Resources(None,
+                None,
+                None,
+                Option(false),
+                None,
+                Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option(""), expectedTuple))
+      )
   }
 
   it should "create the correct resources when no identity is passed in WorkflowOptions" in {
@@ -66,9 +67,13 @@ class TesTaskSpec
     val weio = Option(WorkflowExecutionIdentityOption("def456"))
     val wei = TesTask.getPreferredWorkflowExecutionIdentity(weic, weio)
     TesTask.makeResources(runtimeAttributes, wei, internalPathPrefix) shouldEqual
-        Resources(None, None, None, Option(false), None, Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option("abc123"),
-          expectedTuple))
-    )
+      Resources(None,
+                None,
+                None,
+                Option(false),
+                None,
+                Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option("abc123"), expectedTuple))
+      )
   }
 
   it should "create the correct resources when no identity is passed in via backend config" in {
@@ -76,58 +81,65 @@ class TesTaskSpec
     val weio = Option(WorkflowExecutionIdentityOption("def456"))
     val wei = TesTask.getPreferredWorkflowExecutionIdentity(weic, weio)
     TesTask.makeResources(runtimeAttributes, wei, internalPathPrefix) shouldEqual
-        Resources(None, None, None, Option(false), None, Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option("def456"),
-          expectedTuple))
-    )
+      Resources(None,
+                None,
+                None,
+                Option(false),
+                None,
+                Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option("def456"), expectedTuple))
+      )
   }
 
   it should "correctly set the internal path prefix when provided as a backend parameter" in {
     val wei = Option("abc123")
     val internalPathPrefix = Option("mock/path/to/tes/task")
     TesTask.makeResources(runtimeAttributes, wei, internalPathPrefix) shouldEqual
-      Resources(None, None, None, Option(false), None,
-        Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option("abc123"),
-          "internal_path_prefix" -> internalPathPrefix)
-      ))
+      Resources(
+        None,
+        None,
+        None,
+        Option(false),
+        None,
+        Option(
+          Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option("abc123"),
+              "internal_path_prefix" -> internalPathPrefix
+          )
+        )
+      )
   }
 
   it should "correctly resolve the path to .../tes_task and add the k/v pair to backend parameters" in {
     val emptyWorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
-    val workflowDescriptor = buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld,
-      labels = Labels("foo" -> "bar"))
-    val jobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor,
-      Map.empty,
-      emptyWorkflowOptions,
-      Set.empty)
-    val tesPaths = TesJobPaths(jobDescriptor.key,
-      jobDescriptor.workflowDescriptor,
-      TestConfig.emptyConfig)
+    val workflowDescriptor = buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld, labels = Labels("foo" -> "bar"))
+    val jobDescriptor =
+      jobDescriptorFromSingleCallWorkflow(workflowDescriptor, Map.empty, emptyWorkflowOptions, Set.empty)
+    val tesPaths = TesJobPaths(jobDescriptor.key, jobDescriptor.workflowDescriptor, TestConfig.emptyConfig)
 
     val expectedKey = "internal_path_prefix"
     val expectedValue = Option(tesPaths.tesTaskRoot)
 
-    //Assert path correctly ends up in the resources
+    // Assert path correctly ends up in the resources
     val wei = Option("abc123")
     TesTask.makeResources(runtimeAttributes, wei, expectedValue) shouldEqual
-      Resources(None, None, None, Option(false), None,
-        Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option("abc123"),
-          expectedKey -> expectedValue))
+      Resources(
+        None,
+        None,
+        None,
+        Option(false),
+        None,
+        Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> Option("abc123"), expectedKey -> expectedValue))
       )
   }
 
   it should "copy labels to tags" in {
     val jobLogger = mock[JobLogger]
     val emptyWorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
-    val workflowDescriptor = buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld,
-                                                        labels = Labels("foo" -> "bar"))
-    val jobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor,
-      Map.empty,
-      emptyWorkflowOptions,
-      Set.empty)
-    val tesPaths = TesJobPaths(jobDescriptor.key,
-      jobDescriptor.workflowDescriptor,
-      TestConfig.emptyConfig)
-    val tesTask = TesTask(jobDescriptor,
+    val workflowDescriptor = buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld, labels = Labels("foo" -> "bar"))
+    val jobDescriptor =
+      jobDescriptorFromSingleCallWorkflow(workflowDescriptor, Map.empty, emptyWorkflowOptions, Set.empty)
+    val tesPaths = TesJobPaths(jobDescriptor.key, jobDescriptor.workflowDescriptor, TestConfig.emptyConfig)
+    val tesTask = TesTask(
+      jobDescriptor,
       TestConfig.emptyBackendConfigDescriptor,
       jobLogger,
       tesPaths,
@@ -138,7 +150,8 @@ class TesTaskSpec
       "",
       Map.empty,
       "",
-      OutputMode.ROOT)
+      OutputMode.ROOT
+    )
 
     val task = TesTask.makeTask(tesTask)
 
@@ -156,25 +169,23 @@ class TesTaskSpec
     val jobLogger = mock[JobLogger]
     val emptyWorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
     val workflowDescriptor = buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld)
-    val jobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor,
-                                                            Map.empty,
-                                                            emptyWorkflowOptions,
-                                                            Set.empty)
-    val tesPaths = TesJobPaths(jobDescriptor.key,
-                               jobDescriptor.workflowDescriptor,
-                               TestConfig.emptyConfig)
-    val tesTask = TesTask(jobDescriptor,
-                          TestConfig.emptyBackendConfigDescriptor,
-                          jobLogger,
-                          tesPaths,
-                          runtimeAttributes,
-                          DefaultPathBuilder.build("").get,
-                          "",
-                          InstantiatedCommand("command"),
-                          "",
-                          Map.empty,
-                          "",
-                          OutputMode.ROOT)
+    val jobDescriptor =
+      jobDescriptorFromSingleCallWorkflow(workflowDescriptor, Map.empty, emptyWorkflowOptions, Set.empty)
+    val tesPaths = TesJobPaths(jobDescriptor.key, jobDescriptor.workflowDescriptor, TestConfig.emptyConfig)
+    val tesTask = TesTask(
+      jobDescriptor,
+      TestConfig.emptyBackendConfigDescriptor,
+      jobLogger,
+      tesPaths,
+      runtimeAttributes,
+      DefaultPathBuilder.build("").get,
+      "",
+      InstantiatedCommand("command"),
+      "",
+      Map.empty,
+      "",
+      OutputMode.ROOT
+    )
 
     val task = TesTask.makeTask(tesTask)
 

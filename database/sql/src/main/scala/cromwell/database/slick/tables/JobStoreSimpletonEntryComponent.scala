@@ -26,7 +26,9 @@ trait JobStoreSimpletonEntryComponent {
       (JobStoreSimpletonEntry.tupled, JobStoreSimpletonEntry.unapply)
 
     def fkJobStoreSimpletonEntryJobStoreEntryId = foreignKey("FK_JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_ENTRY_ID",
-      jobStoreEntryId, jobStoreEntries)(_.jobStoreEntryId, onDelete = Cascade)
+                                                             jobStoreEntryId,
+                                                             jobStoreEntries
+    )(_.jobStoreEntryId, onDelete = Cascade)
 
     def ucJobStoreSimpletonEntryJseiSk =
       index("UC_JOB_STORE_SIMPLETON_ENTRY_JSEI_SK", (jobStoreEntryId, simpletonKey), unique = true)
@@ -40,8 +42,8 @@ trait JobStoreSimpletonEntryComponent {
   /**
     * Find all result simpletons which match a given JOB_STORE_ENTRY_ID
     */
-  val jobStoreSimpletonEntriesForJobStoreEntryId = Compiled(
-    (jobStoreEntryId: Rep[Long]) => for {
+  val jobStoreSimpletonEntriesForJobStoreEntryId = Compiled((jobStoreEntryId: Rep[Long]) =>
+    for {
       jobStoreSimpletonEntry <- jobStoreSimpletonEntries if jobStoreSimpletonEntry.jobStoreEntryId === jobStoreEntryId
     } yield jobStoreSimpletonEntry
   )

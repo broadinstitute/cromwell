@@ -17,19 +17,19 @@ object WomGraphMakerTools {
     }
 
     Graph(g.nodes.union((g.nodes collect {
-      case node: CallNode => node.outputPorts.map(op => {
-        val identifier = makeIdentifier(WomIdentifier(op.identifier.localName.value))
-        PortBasedGraphOutputNode(identifier, op.womType, op)
-      })
-      case node: ExposedExpressionNode if forWorkflowOutputs.isEmpty => node.outputPorts.map(op => {
-        PortBasedGraphOutputNode(makeIdentifier(WomIdentifier(op.name)), op.womType, op)
-      })
-      case node: ScatterNode => node.outputMapping.map(op => {
-        PortBasedGraphOutputNode(makeIdentifier(op.identifier), op.womType, op)
-      })
-      case node: ConditionalNode => node.conditionalOutputPorts.map(op => {
-        PortBasedGraphOutputNode(makeIdentifier(op.identifier), op.womType, op)
-      })
+      case node: CallNode =>
+        node.outputPorts.map { op =>
+          val identifier = makeIdentifier(WomIdentifier(op.identifier.localName.value))
+          PortBasedGraphOutputNode(identifier, op.womType, op)
+        }
+      case node: ExposedExpressionNode if forWorkflowOutputs.isEmpty =>
+        node.outputPorts.map(op => PortBasedGraphOutputNode(makeIdentifier(WomIdentifier(op.name)), op.womType, op))
+      case node: ScatterNode =>
+        node.outputMapping.map(op => PortBasedGraphOutputNode(makeIdentifier(op.identifier), op.womType, op))
+      case node: ConditionalNode =>
+        node.conditionalOutputPorts.map { op =>
+          PortBasedGraphOutputNode(makeIdentifier(op.identifier), op.womType, op)
+        }
     }).flatten))
   }
 }

@@ -25,7 +25,12 @@ import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{
   generateLocalizedSasScriptPreamble
 }
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
-import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
+import cromwell.backend.standard.{
+  ScriptPreambleData,
+  StandardAsyncExecutionActor,
+  StandardAsyncExecutionActorParams,
+  StandardAsyncJob
+}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.Retry._
@@ -131,7 +136,7 @@ object TesAsyncBackendJobExecutionActor {
        |export $environmentVariableName=$$(echo "$${sas_response_json}" | jq -r '.token')
        |
        |# Echo the first characters for logging/debugging purposes. "null" indicates something went wrong.
-       |echo Saving sas token: $${$environmentVariableName:0:4}**** to environment variable $environmentVariableName...
+       |echo "Saving sas token: $${$environmentVariableName:0:4}**** to environment variable $environmentVariableName..."
        |### END ACQUIRE LOCAL SAS TOKEN ###
        |""".stripMargin
 
@@ -236,7 +241,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
    *
    * @return Bash code to run at the start of a task.
    */
-  override def scriptPreamble: ErrorOr[String] =
+  override def scriptPreamble: ErrorOr[ScriptPreambleData] =
     runtimeAttributes.localizedSasEnvVar match {
       case Some(environmentVariableName) =>
         { // Case: user wants a sas token. Return the computed preamble or die trying.
@@ -246,11 +251,17 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           }
           val taskInputs: List[Input] = TesTask.buildTaskInputs(callInputFiles, workflowName, mapCommandLineWomFile)
           val computedEndpoint = determineWSMSasEndpointFromInputs(taskInputs, getPath, jobLogger)
-          computedEndpoint.map(endpoint => generateLocalizedSasScriptPreamble(environmentVariableName, endpoint))
+          computedEndpoint.map(endpoint =>
+            ScriptPreambleData(generateLocalizedSasScriptPreamble(environmentVariableName, endpoint),
+                               executeInSubshell = false
+            )
+          )
         }.toErrorOr
-      case _ => "".valid // Case: user doesn't want a sas token. Empty preamble is the correct preamble.
+      case _ =>
+        ScriptPreambleData("",
+                           executeInSubshell = false
+        ).valid // Case: user doesn't want a sas token. Empty preamble is the correct preamble.
     }
-
   override def mapCommandLineWomFile(womFile: WomFile): WomFile =
     womFile.mapFile(value =>
       (getPath(value), asAdHocFile(womFile)) match {

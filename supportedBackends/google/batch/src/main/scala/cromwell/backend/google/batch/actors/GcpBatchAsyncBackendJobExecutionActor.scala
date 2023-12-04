@@ -23,13 +23,24 @@ import cromwell.backend.google.batch.runnable.WorkflowOptionKeys
 import cromwell.backend.google.batch.util.{GcpBatchReferenceFilesMappingOperations, RuntimeOutputMapping}
 import cromwell.filesystems.gcs.GcsPathBuilder
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
+
 import java.io.FileNotFoundException
+<<<<<<< HEAD
 import cromwell.backend.standard.{
   StandardAdHocValue,
   StandardAsyncExecutionActor,
   StandardAsyncExecutionActorParams,
   StandardAsyncJob
 }
+=======
+import cromwell.backend.standard.{
+  ScriptPreambleData,
+  StandardAdHocValue,
+  StandardAsyncExecutionActor,
+  StandardAsyncExecutionActorParams,
+  StandardAsyncJob
+}
+>>>>>>> develop
 import cromwell.core._
 import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -54,6 +65,7 @@ import wom.core.FullyQualifiedName
 import wom.expression.{FileEvaluation, NoIoFunctionSet}
 import wom.format.MemorySize
 import wom.values._
+
 import java.io.OutputStreamWriter
 import java.nio.charset.Charset
 import java.util.Base64
@@ -748,12 +760,12 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   private val DockerMonitoringScriptPath: Path =
     GcpBatchWorkingDisk.MountPoint.resolve(gcpBatchCallPaths.batchMonitoringScriptFilename)
 
-  override def scriptPreamble: ErrorOr[String] =
-    if (monitoringOutput.isDefined) {
-      s"""|touch $DockerMonitoringLogPath
-          |chmod u+x $DockerMonitoringScriptPath
-          |$DockerMonitoringScriptPath > $DockerMonitoringLogPath &""".stripMargin.valid
-    } else "".valid
+  override def scriptPreamble: ErrorOr[ScriptPreambleData] =
+    if (monitoringOutput.isDefined)
+      ScriptPreambleData(s"""|touch $DockerMonitoringLogPath
+                             |chmod u+x $DockerMonitoringScriptPath
+                             |$DockerMonitoringScriptPath > $DockerMonitoringLogPath &""".stripMargin).valid
+    else ScriptPreambleData("").valid
 
   private[actors] def generateInputs(jobDescriptor: BackendJobDescriptor): Set[GcpBatchInput] = {
     // We need to tell PAPI about files that were created as part of command instantiation (these need to be defined

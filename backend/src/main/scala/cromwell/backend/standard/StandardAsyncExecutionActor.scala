@@ -65,6 +65,10 @@ case class DefaultStandardAsyncExecutionActorParams(
   override val minimumRuntimeSettings: MinimumRuntimeSettings
 ) extends StandardAsyncExecutionActorParams
 
+// Typically we want to "executeInSubshell" for encapsulation of bash code.
+// Override to `false` when we need the script to set an environment variable in the parent shell.
+case class ScriptPreambleData(bashString: String, executeInSubshell: Boolean = true)
+
 /**
   * An extension of the generic AsyncBackendJobExecutionActor providing a standard abstract implementation of an
   * asynchronous polling backend.
@@ -346,7 +350,7 @@ trait StandardAsyncExecutionActor
   }
 
   /** Any custom code that should be run within commandScriptContents before the instantiated command. */
-  def scriptPreamble: ErrorOr[String] = "".valid
+  def scriptPreamble: ErrorOr[ScriptPreambleData] = ScriptPreambleData("").valid
 
   def cwd: Path = commandDirectory
   def rcPath: Path = cwd./(jobPaths.returnCodeFilename)
@@ -447,7 +451,22 @@ trait StandardAsyncExecutionActor
                     |find . -type d -exec sh -c '[ -z "$$(ls -A '"'"'{}'"'"')" ] && touch '"'"'{}'"'"'/.file' \\;
                     |)""".stripMargin)
 
-    val errorOrPreamble: ErrorOr[String] = scriptPreamble
+    val errorOrPreamble: ErrorOr[String] = scriptPreamble.map { preambleData =>
+      preambleData.executeInSubshell match {
+        case true =>
+          s"""
+             |(
+             |cd ${cwd.pathAsString}
+             |${preambleData.bashString}
+             |)
+             |""".stripMargin
+        case false =>
+          s"""
+             |cd ${cwd.pathAsString}
+             |${preambleData.bashString}
+             |""".stripMargin
+      }
+    }
 
     // The `tee` trickery below is to be able to redirect to known filenames for CWL while also streaming
     // stdout and stderr for PAPI to periodically upload to cloud storage.
@@ -461,10 +480,9 @@ trait StandardAsyncExecutionActor
           |export _JAVA_OPTIONS=-Djava.io.tmpdir="$$tmpDir"
           |export TMPDIR="$$tmpDir"
           |export HOME="$home"
-          |(
-          |cd ${cwd.pathAsString}
+          |
           |SCRIPT_PREAMBLE
-          |)
+          |
           |$out="$${tmpDir}/out.$$$$" $err="$${tmpDir}/err.$$$$"
           |mkfifo "$$$out" "$$$err"
           |trap 'rm "$$$out" "$$$err"' EXIT

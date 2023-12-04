@@ -89,6 +89,8 @@ object RuntimeAttributesValidation {
       override protected def validateValue: PartialFunction[WomValue, ErrorOr[ValidatedType]] =
         validation.validateValuePackagePrivate
 
+      override protected def validateNone: ErrorOr[ValidatedType] = validateValue(default)
+
       override protected def validateExpression: PartialFunction[WomValue, Boolean] =
         validation.validateExpressionPackagePrivate
 
@@ -112,6 +114,8 @@ object RuntimeAttributesValidation {
 
       override protected def validateValue: PartialFunction[WomValue, ErrorOr[ValidatedType]] =
         validation.validateValuePackagePrivate
+
+      override protected def validateNone: ErrorOr[ValidatedType] = validation.validateNone
 
       override protected def validateExpression: PartialFunction[WomValue, Boolean] =
         validation.validateExpressionPackagePrivate
@@ -492,5 +496,10 @@ trait OptionalRuntimeAttributesValidation[ValidatedType] extends RuntimeAttribut
     }
   }
 
-  override final protected lazy val validateNone: ErrorOr[None.type] = None.validNel[String]
+  override final protected lazy val validateNone: ErrorOr[Option[ValidatedType]] = {
+    staticDefaultOption match {
+      case Some(default) => validateValue(default)
+      case None => None.validNel[String]
+    }
+  }
 }

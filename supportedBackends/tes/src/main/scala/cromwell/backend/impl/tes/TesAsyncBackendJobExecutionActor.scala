@@ -100,11 +100,11 @@ object TesAsyncBackendJobExecutionActor {
        |    exit 1
        |  fi
        |fi
-       |
+       |curl --version
+       |jq --version
        |# Acquire bearer token, relying on the User Assigned Managed Identity of this VM.
        |echo Acquiring Bearer Token using User Assigned Managed Identity...
        |BEARER_TOKEN=$$(curl 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fmanagement.azure.com%2F' -H Metadata:true -s | jq .access_token)
-       |
        |# Remove the leading and trailing quotes
        |BEARER_TOKEN="$${BEARER_TOKEN#\\"}"
        |BEARER_TOKEN="$${BEARER_TOKEN%\\"}"
@@ -117,7 +117,9 @@ object TesAsyncBackendJobExecutionActor {
        |                    -X POST "$getSasWsmEndpoint" \\
        |                    -H "Content-Type: application/json" \\
        |                    -H "accept: */*" \\
-       |                    -H "Authorization: Bearer $${BEARER_TOKEN}")
+       |                    -H "Authorization: Bearer $${BEARER_TOKEN}" \\
+       |                    -H "Content-Length: 0" \\
+       |                    -d "")
        |
        |# Store token as environment variable
        |export $environmentVariableName=$$(echo "$${sas_response_json}" | jq -r '.token')

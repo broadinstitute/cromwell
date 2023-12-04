@@ -141,7 +141,9 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
         |                    -X POST "$expectedEndpoint" \\
         |                    -H "Content-Type: application/json" \\
         |                    -H "accept: */*" \\
-        |                    -H "Authorization: Bearer $${BEARER_TOKEN}")
+        |                    -H "Authorization: Bearer $${BEARER_TOKEN}" \\
+        |                    -H "Content-Length: 0" \\
+        |                    -d "")
         |""".stripMargin
     val exportCommandSubstring = s"""export $mockEnvironmentVariableNameFromWom=$$(echo "$${sas_response_json}" | jq -r '.token')"""
     val echoCommandSubstring = s"""echo "Saving sas token: $${$mockEnvironmentVariableNameFromWom:0:4}**** to environment variable $mockEnvironmentVariableNameFromWom...""""

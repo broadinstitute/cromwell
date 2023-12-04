@@ -1616,7 +1616,7 @@ cromwell::build::print_workflow_statistics() {
     mysql --host=127.0.0.1 --user=cromwell --password=test cromwell_test -e \
         "SELECT WORKFlOW_NAME as name,
             TIMESTAMPDIFF(MINUTE, START_TIMESTAMP, END_TIMESTAMP) as runtime_minutes,
-            START_TIMESTAMP as start,
+            START_TIMESTAMP as START,
             END_TIMESTAMP as end
         FROM WORKFLOW_METADATA_SUMMARY_ENTRY
             ORDER BY START_TIMESTAMP DESC
@@ -1627,7 +1627,7 @@ cromwell::build::print_workflow_statistics() {
         "SELECT WORKFlOW_NAME as name,
             TIMESTAMPDIFF(MINUTE, START_TIMESTAMP, END_TIMESTAMP) as runtime_minutes,
             START_TIMESTAMP as start,
-            END_TIMESTAMP as end
+            END_TIMESTAMP as END
         FROM WORKFLOW_METADATA_SUMMARY_ENTRY
             ORDER BY END_TIMESTAMP DESC
             LIMIT 20;"
@@ -1635,11 +1635,11 @@ cromwell::build::print_workflow_statistics() {
     echo "Long duration"
     mysql --host=127.0.0.1 --user=cromwell --password=test cromwell_test -e \
         "SELECT WORKFlOW_NAME as name,
-            TIMESTAMPDIFF(MINUTE, START_TIMESTAMP, END_TIMESTAMP) as runtime_minutes,
+            TIMESTAMPDIFF(MINUTE, START_TIMESTAMP, END_TIMESTAMP) as RUNTIME_MINUTES,
             START_TIMESTAMP as start,
             END_TIMESTAMP as end
         FROM WORKFLOW_METADATA_SUMMARY_ENTRY
-            ORDER BY runtime_minutes DESC
+            ORDER BY RUNTIME_MINUTES DESC
             LIMIT 20;"
 }
 

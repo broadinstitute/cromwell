@@ -10,7 +10,12 @@ import cats.data.NonEmptyVector
 import cromwell.core._
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreAbortResponse
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreAbortResponse.WorkflowStoreAbortResponse
-import cromwell.engine.workflow.workflowstore.WorkflowStoreCoordinatedAccessActor.{Abort, DeleteFromStore, FetchStartableWorkflows, WriteHeartbeats}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreCoordinatedAccessActor.{
+  Abort,
+  DeleteFromStore,
+  FetchStartableWorkflows,
+  WriteHeartbeats
+}
 import org.scalatest.flatspec.AsyncFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -18,13 +23,16 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
-class WorkflowStoreCoordinatedAccessActorSpec extends TestKitSuite
-  with AsyncFlatSpecLike with Matchers with TableDrivenPropertyChecks {
+class WorkflowStoreCoordinatedAccessActorSpec
+    extends TestKitSuite
+    with AsyncFlatSpecLike
+    with Matchers
+    with TableDrivenPropertyChecks {
 
   behavior of "WorkflowStoreCoordinatedWriteActor"
 
   // So that we can timeout the asks below, change from the serial execution context to a parallel one
-  override implicit def executionContext: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
+  implicit override def executionContext: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
 
   def sleepAndThrow: Nothing = {
     Thread.sleep(30.seconds.dilated.toMillis)
@@ -35,10 +43,9 @@ class WorkflowStoreCoordinatedAccessActorSpec extends TestKitSuite
     val expected = 12345
     val workflowStore = new InMemoryWorkflowStore {
       override def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)],
-                                           heartbeatDateTime: OffsetDateTime)
-                                          (implicit ec: ExecutionContext): Future[Int] = {
+                                           heartbeatDateTime: OffsetDateTime
+      )(implicit ec: ExecutionContext): Future[Int] =
         Future.successful(expected)
-      }
     }
     val actor = TestActorRef(new WorkflowStoreCoordinatedAccessActor(workflowStore))
     val request = WriteHeartbeats(NonEmptyVector.of((WorkflowId.randomId(), OffsetDateTime.now)), OffsetDateTime.now)
@@ -64,12 +71,15 @@ class WorkflowStoreCoordinatedAccessActorSpec extends TestKitSuite
       requestedWorkflowId = None
     )
     val now = OffsetDateTime.now()
-    val expected: List[WorkflowToStart] = List(WorkflowToStart(WorkflowId.randomId(), now, collection, Submitted, HogGroup("foo")))
+    val expected: List[WorkflowToStart] =
+      List(WorkflowToStart(WorkflowId.randomId(), now, collection, Submitted, HogGroup("foo")))
     val workflowStore = new InMemoryWorkflowStore {
-      override def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration, excludedGroups: Set[String])
-                                          (implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
+      override def fetchStartableWorkflows(n: Int,
+                                           cromwellId: String,
+                                           heartbeatTtl: FiniteDuration,
+                                           excludedGroups: Set[String]
+      )(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] =
         Future.successful(expected)
-      }
     }
     val actor = TestActorRef(new WorkflowStoreCoordinatedAccessActor(workflowStore))
     val request = FetchStartableWorkflows(1, "test fetchStartableWorkflows success", 1.second, Set.empty)
@@ -95,15 +105,19 @@ class WorkflowStoreCoordinatedAccessActorSpec extends TestKitSuite
       requestedWorkflowId = None
     )
     val now = OffsetDateTime.now()
-    val expected: List[WorkflowToStart] = List(WorkflowToStart(WorkflowId.randomId(), now, collection, Submitted, HogGroup("foo")))
+    val expected: List[WorkflowToStart] =
+      List(WorkflowToStart(WorkflowId.randomId(), now, collection, Submitted, HogGroup("foo")))
     val workflowStore = new InMemoryWorkflowStore {
-      override def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration, excludedGroups: Set[String])
-                                          (implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
+      override def fetchStartableWorkflows(n: Int,
+                                           cromwellId: String,
+                                           heartbeatTtl: FiniteDuration,
+                                           excludedGroups: Set[String]
+      )(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] =
         Future.successful(expected)
-      }
     }
     val actor = TestActorRef(new WorkflowStoreCoordinatedAccessActor(workflowStore))
-    val request = FetchStartableWorkflows(1, "test fetchStartableWorkflows with workflow url success", 1.second, Set.empty)
+    val request =
+      FetchStartableWorkflows(1, "test fetchStartableWorkflows with workflow url success", 1.second, Set.empty)
     implicit val timeout: Timeout = Timeout(2.seconds.dilated)
     actor.ask(request).mapTo[List[WorkflowToStart]] map { actual =>
       actual should be(expected)
@@ -113,9 +127,8 @@ class WorkflowStoreCoordinatedAccessActorSpec extends TestKitSuite
   it should "abort workflows" in {
     val expected = WorkflowStoreAbortResponse.AbortRequested
     val workflowStore = new InMemoryWorkflowStore {
-      override def abort(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] = {
+      override def abort(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] =
         Future.successful(WorkflowStoreAbortResponse.AbortRequested)
-      }
     }
     val actor = TestActorRef(new WorkflowStoreCoordinatedAccessActor(workflowStore))
     val request = Abort(WorkflowId.fromString("00001111-2222-3333-aaaa-bbbbccccdddd"))
@@ -128,9 +141,8 @@ class WorkflowStoreCoordinatedAccessActorSpec extends TestKitSuite
   it should "delete workflow store entries" in {
     val expected = 1 // 1 row deleted
     val workflowStore = new InMemoryWorkflowStore {
-      override def deleteFromStore(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] = {
+      override def deleteFromStore(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] =
         Future.successful(1)
-      }
     }
     val actor = TestActorRef(new WorkflowStoreCoordinatedAccessActor(workflowStore))
     val request = DeleteFromStore(WorkflowId.fromString("00001111-2222-3333-aaaa-bbbbccccdddd"))
@@ -143,17 +155,16 @@ class WorkflowStoreCoordinatedAccessActorSpec extends TestKitSuite
   val failureResponses = Table(
     ("description", "result", "expectedException", "expectedMessagePrefix"),
     ("a failure", () => Future.failed(new IOException("expected")), classOf[IOException], "expected"),
-    ("a timeout", () => Future(sleepAndThrow), classOf[AskTimeoutException], "Ask timed out"),
+    ("a timeout", () => Future(sleepAndThrow), classOf[AskTimeoutException], "Ask timed out")
   )
 
   forAll(failureResponses) { (description, result, expectedException, expectedMessagePrefix) =>
     it should s"fail to writeHeartBeats due to $description" in {
       val workflowStore = new InMemoryWorkflowStore {
         override def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)],
-                                             heartbeatDateTime: OffsetDateTime)
-                                            (implicit ec: ExecutionContext): Future[Nothing] = {
+                                             heartbeatDateTime: OffsetDateTime
+        )(implicit ec: ExecutionContext): Future[Nothing] =
           result()
-        }
       }
       val actor = TestActorRef(new WorkflowStoreCoordinatedAccessActor(workflowStore))
       val request = WriteHeartbeats(NonEmptyVector.of((WorkflowId.randomId(), OffsetDateTime.now)), OffsetDateTime.now)
@@ -166,14 +177,17 @@ class WorkflowStoreCoordinatedAccessActorSpec extends TestKitSuite
 
     it should s"fail to fetchStartableWorkflows due to $description" in {
       val workflowStore = new InMemoryWorkflowStore {
-        override def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration, excludedGroups: Set[String])
-                                            (implicit ec: ExecutionContext): Future[Nothing] = {
+        override def fetchStartableWorkflows(n: Int,
+                                             cromwellId: String,
+                                             heartbeatTtl: FiniteDuration,
+                                             excludedGroups: Set[String]
+        )(implicit ec: ExecutionContext): Future[Nothing] =
           result()
-        }
       }
       val actor = TestActorRef(new WorkflowStoreCoordinatedAccessActor(workflowStore))
       val heartbeatTtlNotReallyUsed = 1.second
-      val request = FetchStartableWorkflows(1, s"test $description fetchStartableWorkflows", heartbeatTtlNotReallyUsed, Set.empty)
+      val request =
+        FetchStartableWorkflows(1, s"test $description fetchStartableWorkflows", heartbeatTtlNotReallyUsed, Set.empty)
       implicit val timeout: Timeout = Timeout(2.seconds.dilated)
       actor.ask(request).failed map { actual =>
         actual.getMessage should startWith(expectedMessagePrefix)

@@ -12,17 +12,13 @@ class InputSymbolTableMigration extends SymbolTableMigration {
                              symbolScope: String,
                              symbolIndex: Option[Int],
                              symbolAttempt: Option[Int],
-                             womValue: WomValue): Int = {
-
+                             womValue: WomValue
+  ): Int =
     (symbolIndex, symbolAttempt) match {
-      case (Some(index) , Some(attempt)) =>
+      case (Some(index), Some(attempt)) =>
         // Call scoped
-        val metadataStatementForCall = new MetadataStatementForCall(statement,
-          workflowUuid,
-          symbolScope,
-          index,
-          attempt
-        )
+        val metadataStatementForCall =
+          new MetadataStatementForCall(statement, workflowUuid, symbolScope, index, attempt)
 
         addWdlValue(s"inputs:$symbolName", womValue, metadataStatementForCall)
       case (None, None) if !symbolScope.contains('.') =>
@@ -31,7 +27,6 @@ class InputSymbolTableMigration extends SymbolTableMigration {
       case _ =>
         0
     }
-  }
 
   override def getConfirmationMessage: String = "Inputs from Symbol Table migration complete."
 }

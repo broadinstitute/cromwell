@@ -14,7 +14,6 @@ import wom.core.{WorkflowOptionsJson, WorkflowSource}
 import wom.executable.WomBundle
 import wom.expression.NoIoFunctionSet
 
-
 class WdlDraft3CachingSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   val languageConfig = ConfigFactory.parseString(
@@ -29,10 +28,7 @@ class WdlDraft3CachingSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
       |  }
       |}
       |""".stripMargin
-
   )
-
-
 
   it should "only evaluate files once" in {
     val invalidWorkflowSource =
@@ -124,9 +120,21 @@ object WdlDraft3CachingSpec {
 
     var evaluationCount = 0
 
-    override protected def makeWomBundle(workflowSource: WorkflowSource, workflowSourceOrigin: Option[ResolvedImportRecord], workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver.ImportResolver], languageFactories: List[LanguageFactory], convertNestedScatterToSubworkflow: Boolean): ErrorOr[WomBundle] = {
+    override protected def makeWomBundle(workflowSource: WorkflowSource,
+                                         workflowSourceOrigin: Option[ResolvedImportRecord],
+                                         workflowOptionsJson: WorkflowOptionsJson,
+                                         importResolvers: List[ImportResolver.ImportResolver],
+                                         languageFactories: List[LanguageFactory],
+                                         convertNestedScatterToSubworkflow: Boolean
+    ): ErrorOr[WomBundle] = {
       evaluationCount = evaluationCount + 1
-      super.makeWomBundle(workflowSource, workflowSourceOrigin, workflowOptionsJson, importResolvers, languageFactories, convertNestedScatterToSubworkflow)
+      super.makeWomBundle(workflowSource,
+                          workflowSourceOrigin,
+                          workflowOptionsJson,
+                          importResolvers,
+                          languageFactories,
+                          convertNestedScatterToSubworkflow
+      )
     }
 
   }

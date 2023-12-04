@@ -34,13 +34,18 @@ class PipelinesConversionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with
   private lazy val fakeCredentials = NoCredentials.getInstance
 
   private val drsReadInterpreter: DrsReadInterpreter = (_, _) =>
-    throw new UnsupportedOperationException("Currently PipelinesConversionsSpec doesn't need to use drs read interpreter.")
+    throw new UnsupportedOperationException(
+      "Currently PipelinesConversionsSpec doesn't need to use drs read interpreter."
+    )
 
   it should "create a DRS input parameter" in {
 
     val drsPathBuilder = DrsPathBuilder(
-      new DrsCloudNioFileSystemProvider(drsResolverConfig, GoogleOauthDrsCredentials(fakeCredentials, 1.minutes), drsReadInterpreter),
-      None,
+      new DrsCloudNioFileSystemProvider(drsResolverConfig,
+                                        GoogleOauthDrsCredentials(fakeCredentials, 1.minutes),
+                                        drsReadInterpreter
+      ),
+      None
     )
     val drsPath = drsPathBuilder.build("drs://drs.example.org/aaaabbbb-cccc-dddd-eeee-abcd0000dcba").get
     val containerRelativePath = DefaultPathBuilder.get("path/to/file.bai")
@@ -62,10 +67,10 @@ class PipelinesConversionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with
     )
 
     logging.get("flags") should be(a[java.util.List[_]])
-    logging.get("flags").asInstanceOf[java.util.List[_]] should be (empty)
+    logging.get("flags").asInstanceOf[java.util.List[_]] should be(empty)
 
     logging.get("mounts") should be(a[java.util.List[_]])
-    logging.get("mounts").asInstanceOf[java.util.List[_]] should be (empty)
+    logging.get("mounts").asInstanceOf[java.util.List[_]] should be(empty)
 
     logging.get("imageUri") should be(ActionUtils.CloudSdkImage)
 
@@ -86,7 +91,7 @@ class PipelinesConversionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with
     )
 
     action.get("mounts") should be(a[java.util.List[_]])
-    action.get("mounts").asInstanceOf[java.util.List[_]] should be (empty)
+    action.get("mounts").asInstanceOf[java.util.List[_]] should be(empty)
 
     action.get("imageUri") should be("somerepo/drs-downloader:tagged")
 

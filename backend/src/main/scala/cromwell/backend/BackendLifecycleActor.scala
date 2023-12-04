@@ -30,7 +30,7 @@ trait BackendLifecycleActor extends Actor {
   /**
     * The execution context for the actor
     */
-  protected implicit def ec: ExecutionContext = context.dispatcher
+  implicit protected def ec: ExecutionContext = context.dispatcher
 
   /**
     * The configuration for the backend, in the context of the entire Cromwell configuration file.
@@ -39,7 +39,8 @@ trait BackendLifecycleActor extends Actor {
 
   protected def performActionThenRespond(operation: => Future[BackendWorkflowLifecycleActorResponse],
                                          onFailure: Throwable => BackendWorkflowLifecycleActorResponse,
-                                         andThen: => Unit = ()) = {
+                                         andThen: => Unit = ()
+  ) = {
     val respondTo: ActorRef = sender()
     operation onComplete {
       case Success(r) =>
@@ -54,9 +55,9 @@ trait BackendLifecycleActor extends Actor {
 
 trait BackendWorkflowLifecycleActor extends BackendLifecycleActor with WorkflowLogging {
 
-  //For Logging and boilerplate
-  override lazy final val workflowIdForLogging = workflowDescriptor.possiblyNotRootWorkflowId
-  override lazy final val rootWorkflowIdForLogging = workflowDescriptor.rootWorkflowId
+  // For Logging and boilerplate
+  final override lazy val workflowIdForLogging = workflowDescriptor.possiblyNotRootWorkflowId
+  final override lazy val rootWorkflowIdForLogging = workflowDescriptor.rootWorkflowId
 
   /**
     * The workflow descriptor for the workflow in which this Backend is being used

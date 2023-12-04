@@ -23,7 +23,11 @@ import cromwell.engine.workflow.lifecycle.execution.keys.SubWorkflowKey
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.engine.workflow.workflowstore.{RestartableRunning, StartableState, Submitted}
 import cromwell.engine.{ContinueWhilePossible, EngineIoFunctions, EngineWorkflowDescriptor}
-import cromwell.services.metadata.MetadataService.{MetadataWriteFailure, MetadataWriteSuccess, PutMetadataActionAndRespond}
+import cromwell.services.metadata.MetadataService.{
+  MetadataWriteFailure,
+  MetadataWriteSuccess,
+  PutMetadataActionAndRespond
+}
 import cromwell.subworkflowstore.SubWorkflowStoreActor.{QuerySubWorkflow, SubWorkflowFound, SubWorkflowNotFound}
 import cromwell.util.WomMocks
 import org.scalatest.BeforeAndAfterAll
@@ -37,8 +41,13 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.control.NoStackTrace
 
-class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with MockSugar
-  with Eventually with BeforeAndAfterAll {
+class SubWorkflowExecutionActorSpec
+    extends TestKitSuite
+    with AnyFlatSpecLike
+    with Matchers
+    with MockSugar
+    with Eventually
+    with BeforeAndAfterAll {
 
   behavior of "SubWorkflowExecutionActor"
 
@@ -90,35 +99,40 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
     parentProbe = TestProbe()
   }
 
-  private def buildSWEA(startState: StartableState = Submitted) = {
-    new TestFSMRef[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData, SubWorkflowExecutionActor](system, Props(
-      new SubWorkflowExecutionActor(
-        subKey,
-        parentWorkflowDescriptor,
-        new EngineIoFunctions(List.empty, new AsyncIo(simpleIoActor, DefaultIoCommandBuilder), system.dispatcher),
-        Map.empty,
-        ioActorProbe.ref,
-        serviceRegistryProbe.ref,
-        jobStoreProbe.ref,
-        subWorkflowStoreProbe.ref,
-        callCacheReadActorProbe.ref,
-        callCacheWriteActorProbe.ref,
-        dockerHashActorProbe.ref,
-        jobRestartCheckTokenDispenserProbe.ref,
-        jobExecutionTokenDispenserProbe.ref,
-        BackendSingletonCollection(Map.empty),
-        AllBackendInitializationData(Map.empty),
-        startState,
-        rootConfig,
-        new AtomicInteger(),
-        fileHashCacheActor = None,
-        blacklistCache = None
-      ) {
-        override def createSubWorkflowPreparationActor(subWorkflowId: WorkflowId): ActorRef = preparationActor.ref
-        override def createSubWorkflowActor(createSubWorkflowActor: EngineWorkflowDescriptor): ActorRef =
-          subWorkflowActor.ref
-      }), parentProbe.ref, s"SubWorkflowExecutionActorSpec-${UUID.randomUUID()}")
-  }
+  private def buildSWEA(startState: StartableState = Submitted) =
+    new TestFSMRef[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData, SubWorkflowExecutionActor](
+      system,
+      Props(
+        new SubWorkflowExecutionActor(
+          subKey,
+          parentWorkflowDescriptor,
+          new EngineIoFunctions(List.empty, new AsyncIo(simpleIoActor, DefaultIoCommandBuilder), system.dispatcher),
+          Map.empty,
+          ioActorProbe.ref,
+          serviceRegistryProbe.ref,
+          jobStoreProbe.ref,
+          subWorkflowStoreProbe.ref,
+          callCacheReadActorProbe.ref,
+          callCacheWriteActorProbe.ref,
+          dockerHashActorProbe.ref,
+          jobRestartCheckTokenDispenserProbe.ref,
+          jobExecutionTokenDispenserProbe.ref,
+          BackendSingletonCollection(Map.empty),
+          AllBackendInitializationData(Map.empty),
+          startState,
+          rootConfig,
+          new AtomicInteger(),
+          fileHashCacheActor = None,
+          blacklistCache = None
+        ) {
+          override def createSubWorkflowPreparationActor(subWorkflowId: WorkflowId): ActorRef = preparationActor.ref
+          override def createSubWorkflowActor(createSubWorkflowActor: EngineWorkflowDescriptor): ActorRef =
+            subWorkflowActor.ref
+        }
+      ),
+      parentProbe.ref,
+      s"SubWorkflowExecutionActorSpec-${UUID.randomUUID()}"
+    )
 
   it should "Check the sub workflow store when restarting" in {
     val swea = buildSWEA(startState = RestartableRunning)
@@ -138,7 +152,16 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
     swea.setState(SubWorkflowCheckingStoreState)
 
     val subWorkflowUuid = WorkflowId.randomId()
-    swea ! SubWorkflowFound(SubWorkflowStoreEntry(Option(0), parentWorkflowId.toString, subKey.node.fullyQualifiedName, subKey.index.fromIndex, subKey.attempt, subWorkflowUuid.toString, None))
+    swea ! SubWorkflowFound(
+      SubWorkflowStoreEntry(Option(0),
+                            parentWorkflowId.toString,
+                            subKey.node.fullyQualifiedName,
+                            subKey.index.fromIndex,
+                            subKey.attempt,
+                            subWorkflowUuid.toString,
+                            None
+      )
+    )
     parentProbe.expectMsg(RequestValueStore)
 
     eventually {
@@ -210,8 +233,8 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
     val preparationFailedMessage: CallPreparationFailed = CallPreparationFailed(subWorkflowKey, throwable)
     swea ! preparationFailedMessage
 
-    serviceRegistryProbe.fishForSpecificMessage(awaitTimeout) {
-      case PutMetadataActionAndRespond(events, _, _) => swea ! MetadataWriteSuccess(events)
+    serviceRegistryProbe.fishForSpecificMessage(awaitTimeout) { case PutMetadataActionAndRespond(events, _, _) =>
+      swea ! MetadataWriteSuccess(events)
     }
     parentProbe.expectMsg(SubWorkflowFailedResponse(subKey, Map.empty, throwable))
     deathWatch.expectTerminated(swea, awaitTimeout)
@@ -228,8 +251,8 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
     val outputs: CallOutputs = CallOutputs.empty
     val workflowSuccessfulMessage = WorkflowExecutionSucceededResponse(jobExecutionMap, Set.empty[WorkflowId], outputs)
     swea ! workflowSuccessfulMessage
-    serviceRegistryProbe.fishForSpecificMessage(awaitTimeout) {
-      case PutMetadataActionAndRespond(events, _, _) => swea ! MetadataWriteSuccess(events)
+    serviceRegistryProbe.fishForSpecificMessage(awaitTimeout) { case PutMetadataActionAndRespond(events, _, _) =>
+      swea ! MetadataWriteSuccess(events)
     }
     parentProbe.expectMsg(SubWorkflowSucceededResponse(subKey, jobExecutionMap, Set.empty[WorkflowId], outputs))
     deathWatch.expectTerminated(swea, awaitTimeout)
@@ -246,8 +269,8 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
 
     val workflowFailedMessage = WorkflowExecutionFailedResponse(jobExecutionMap, expectedException)
     swea ! workflowFailedMessage
-    serviceRegistryProbe.fishForSpecificMessage(awaitTimeout) {
-      case PutMetadataActionAndRespond(events, _, _) => swea ! MetadataWriteSuccess(events)
+    serviceRegistryProbe.fishForSpecificMessage(awaitTimeout) { case PutMetadataActionAndRespond(events, _, _) =>
+      swea ! MetadataWriteSuccess(events)
     }
     parentProbe.expectMsg(SubWorkflowFailedResponse(subKey, jobExecutionMap, expectedException))
     deathWatch.expectTerminated(swea, awaitTimeout)
@@ -265,33 +288,31 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
     val outputs: CallOutputs = CallOutputs.empty
     val workflowSuccessfulMessage = WorkflowExecutionSucceededResponse(jobExecutionMap, Set.empty[WorkflowId], outputs)
     swea ! workflowSuccessfulMessage
-    serviceRegistryProbe.fishForSpecificMessage(awaitTimeout) {
-      case PutMetadataActionAndRespond(events, _, _) => swea ! MetadataWriteFailure(expectedException, events)
+    serviceRegistryProbe.fishForSpecificMessage(awaitTimeout) { case PutMetadataActionAndRespond(events, _, _) =>
+      swea ! MetadataWriteFailure(expectedException, events)
     }
 
     import ManyTimes.intWithTimes
     10.times {
-      serviceRegistryProbe.fishForSpecificMessage(awaitTimeout) {
-        case PutMetadataActionAndRespond(events, _, _) =>
-          events.size should be(1)
-          events.head.key.key should be("status")
-          events.head.value.get.value should be("Failed")
-          swea ! MetadataWriteFailure(expectedException, events)
+      serviceRegistryProbe.fishForSpecificMessage(awaitTimeout) { case PutMetadataActionAndRespond(events, _, _) =>
+        events.size should be(1)
+        events.head.key.key should be("status")
+        events.head.value.get.value should be("Failed")
+        swea ! MetadataWriteFailure(expectedException, events)
       }
       // Check there are no messages going to the parent yet:
       parentProbe.expectNoMessage(10.millis)
     }
 
     // Now let's say eventually the write does somehow get through.
-    serviceRegistryProbe.fishForSpecificMessage(awaitTimeout) {
-      case PutMetadataActionAndRespond(events, _, _) => swea ! MetadataWriteSuccess(events)
+    serviceRegistryProbe.fishForSpecificMessage(awaitTimeout) { case PutMetadataActionAndRespond(events, _, _) =>
+      swea ! MetadataWriteSuccess(events)
     }
 
     // The workflow is now considered failed since lots of metadata is probably lost:
-    parentProbe.expectMsgPF(awaitTimeout) {
-      case SubWorkflowFailedResponse(`subKey`, `jobExecutionMap`, reason) =>
-        reason.getMessage should be("Sub workflow execution actor unable to write final state to metadata")
-        reason.getCause should be(expectedException)
+    parentProbe.expectMsgPF(awaitTimeout) { case SubWorkflowFailedResponse(`subKey`, `jobExecutionMap`, reason) =>
+      reason.getMessage should be("Sub workflow execution actor unable to write final state to metadata")
+      reason.getCause should be(expectedException)
     }
     deathWatch.expectTerminated(swea, awaitTimeout)
   }
@@ -305,8 +326,8 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
     val jobExecutionMap: JobExecutionMap = Map.empty
     val workflowAbortedMessage = WorkflowExecutionAbortedResponse(jobExecutionMap)
     swea ! workflowAbortedMessage
-    serviceRegistryProbe.fishForSpecificMessage(awaitTimeout) {
-      case PutMetadataActionAndRespond(events, _, _) => swea ! MetadataWriteSuccess(events)
+    serviceRegistryProbe.fishForSpecificMessage(awaitTimeout) { case PutMetadataActionAndRespond(events, _, _) =>
+      swea ! MetadataWriteSuccess(events)
     }
     parentProbe.expectMsg(SubWorkflowAbortedResponse(subKey, jobExecutionMap))
     deathWatch.expectTerminated(swea, awaitTimeout)
@@ -316,7 +337,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
     val swea = buildSWEA()
     swea.setState(
       SubWorkflowRunningState,
-      SubWorkflowExecutionActorLiveData(Option(WorkflowId.randomId()), Option(subWorkflowActor.ref)),
+      SubWorkflowExecutionActorLiveData(Option(WorkflowId.randomId()), Option(subWorkflowActor.ref))
     )
 
     deathWatch watch swea
@@ -325,8 +346,8 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
     swea ! EngineLifecycleActorAbortCommand
     subWorkflowActor.expectMsg(EngineLifecycleActorAbortCommand)
     subWorkflowActor.reply(WorkflowExecutionAbortedResponse(jobExecutionMap))
-    serviceRegistryProbe.fishForSpecificMessage(awaitTimeout) {
-      case PutMetadataActionAndRespond(events, _, _) => swea ! MetadataWriteSuccess(events)
+    serviceRegistryProbe.fishForSpecificMessage(awaitTimeout) { case PutMetadataActionAndRespond(events, _, _) =>
+      swea ! MetadataWriteSuccess(events)
     }
     parentProbe.expectMsg(SubWorkflowAbortedResponse(subKey, jobExecutionMap))
     deathWatch.expectTerminated(swea, awaitTimeout)

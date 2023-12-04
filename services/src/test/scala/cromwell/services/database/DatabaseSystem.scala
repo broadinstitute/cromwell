@@ -19,7 +19,7 @@ object DatabaseSystem {
     MysqlEarliestDatabaseSystem,
     MysqlLatestDatabaseSystem,
     PostgresqlEarliestDatabaseSystem,
-    PostgresqlLatestDatabaseSystem,
+    PostgresqlLatestDatabaseSystem
   )
 }
 

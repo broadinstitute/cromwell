@@ -7,7 +7,11 @@ final case class TrueAttributeElement(value: String) extends PlaceholderAttribut
 final case class FalseAttributeElement(value: String) extends PlaceholderAttributeElement
 final case class SepAttributeElement(value: String) extends PlaceholderAttributeElement
 
-final case class PlaceholderAttributeSet(defaultAttribute: Option[String], trueAttribute: Option[String], falseAttribute: Option[String], sepAttribute: Option[String])
+final case class PlaceholderAttributeSet(defaultAttribute: Option[String],
+                                         trueAttribute: Option[String],
+                                         falseAttribute: Option[String],
+                                         sepAttribute: Option[String]
+)
 
 object PlaceholderAttributeSet {
   val empty = PlaceholderAttributeSet(None, None, None, None)

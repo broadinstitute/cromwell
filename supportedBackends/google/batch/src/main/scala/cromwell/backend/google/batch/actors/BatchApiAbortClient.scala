@@ -6,9 +6,8 @@ import cromwell.backend.google.batch.monitoring.BatchInstrumentation
 
 trait BatchApiAbortClient { this: Actor with ActorLogging with BatchInstrumentation =>
 
-  def abortJob(jobName: JobName, backendSingletonActor: ActorRef): Unit = {
+  def abortJob(jobName: JobName, backendSingletonActor: ActorRef): Unit =
     backendSingletonActor ! GcpBatchBackendSingletonActor.Action.AbortJob(jobName)
-  }
 
   def abortActorClientReceive: Actor.Receive = {
     case GcpBatchBackendSingletonActor.Event.JobAbortRequestSent(job) =>

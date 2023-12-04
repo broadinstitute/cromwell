@@ -12,21 +12,19 @@ object Label {
   val MaxLabelLength = 255
   val LabelExpectationsMessage = s"A Label key must be non-empty."
 
-  def validateLabelKey(s: String): ErrorOr[String] = {
+  def validateLabelKey(s: String): ErrorOr[String] =
     (s.length >= 1, s.length <= MaxLabelLength) match {
       case (true, true) => s.validNel
       case (false, _) => s"Invalid label: `$s` can't be empty".invalidNel
       case (_, false) => s"Invalid label: `$s` is ${s.length} characters. The maximum is $MaxLabelLength.".invalidNel
     }
-  }
 
-  def validateLabelValue(s: String): ErrorOr[String] = {
+  def validateLabelValue(s: String): ErrorOr[String] =
     if (s.length <= MaxLabelLength) {
       s.validNel
     } else {
       s"Invalid label: `$s` is ${s.length} characters. The maximum is $MaxLabelLength.".invalidNel
     }
-  }
 
   def validateLabel(key: String, value: String): ErrorOr[Label] = {
     val validatedKey = validateLabelKey(key)
@@ -35,7 +33,6 @@ object Label {
     (validatedKey, validatedValue) mapN Label.apply
   }
 
-  def apply(key: String, value: String) = {
+  def apply(key: String, value: String) =
     new Label(key, value) {}
-  }
 }

@@ -4,7 +4,9 @@ import org.scalatest.{DoNotDiscover, ParallelTestExecution}
 
 @DoNotDiscover
 class WdlUpgradeTestCaseSpec(cromwellBackends: List[String])
-  extends AbstractCentaurTestCaseSpec(cromwellBackends) with ParallelTestExecution with CentaurTestSuiteShutdown {
+    extends AbstractCentaurTestCaseSpec(cromwellBackends)
+    with ParallelTestExecution
+    with CentaurTestSuiteShutdown {
 
   def this() = this(CentaurTestSuite.cromwellBackends)
 

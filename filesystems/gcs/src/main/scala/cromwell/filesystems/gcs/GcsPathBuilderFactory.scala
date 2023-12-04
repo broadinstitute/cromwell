@@ -14,8 +14,7 @@ import org.threeten.bp.Duration
 
 import scala.concurrent.{ExecutionContext, Future}
 
-final case class GcsPathBuilderFactory(globalConfig: Config, instanceConfig: Config)
-  extends PathBuilderFactory {
+final case class GcsPathBuilderFactory(globalConfig: Config, instanceConfig: Config) extends PathBuilderFactory {
   import net.ceedubs.ficus.Ficus._
   // Parse the configuration and create a GoogleConfiguration
   val googleConf: GoogleConfiguration = GoogleConfiguration(globalConfig)
@@ -30,8 +29,9 @@ final case class GcsPathBuilderFactory(globalConfig: Config, instanceConfig: Con
 
   val defaultProject = instanceConfig.as[Option[String]]("project")
 
-  lazy val defaultRetrySettings: RetrySettings = {
-    RetrySettings.newBuilder()
+  lazy val defaultRetrySettings: RetrySettings =
+    RetrySettings
+      .newBuilder()
       .setMaxAttempts(maxAttempts)
       .setTotalTimeout(Duration.ofSeconds(30))
       .setInitialRetryDelay(Duration.ofMillis(100))
@@ -41,9 +41,8 @@ final case class GcsPathBuilderFactory(globalConfig: Config, instanceConfig: Con
       .setRpcTimeoutMultiplier(1.1)
       .setMaxRpcTimeout(Duration.ofSeconds(5))
       .build()
-  }
 
-  def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[GcsPathBuilder] = {
+  def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[GcsPathBuilder] =
     GcsPathBuilder.fromAuthMode(
       authMode,
       applicationName,
@@ -52,7 +51,6 @@ final case class GcsPathBuilderFactory(globalConfig: Config, instanceConfig: Con
       options,
       defaultProject
     )
-  }
 }
 
 object GcsPathBuilderFactory {

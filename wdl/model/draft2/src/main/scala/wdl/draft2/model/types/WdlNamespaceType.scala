@@ -6,7 +6,7 @@ import wom.types.WomType
 case object WdlNamespaceType extends WomType {
   override def stableName: String = "Namespace"
 
-  override protected def coercion = {
-    case n: WdlNamespace => n
+  override protected def coercion = { case n: WdlNamespace =>
+    n
   }
 }

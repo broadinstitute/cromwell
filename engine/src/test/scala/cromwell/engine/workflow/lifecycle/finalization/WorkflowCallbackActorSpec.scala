@@ -25,22 +25,25 @@ import java.time.Instant
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-class WorkflowCallbackActorSpec
-  extends TestKitSuite with AnyFlatSpecLike with Matchers with MockSugar {
+class WorkflowCallbackActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with MockSugar {
 
   behavior of "WorkflowCallbackActor"
 
-  private implicit val ec = system.dispatcher
+  implicit private val ec = system.dispatcher
 
   private val msgWait = 10.second.dilated
   private val awaitAlmostNothing = 1.second
   private val serviceRegistryActor = TestProbe("testServiceRegistryActor")
   private val deathWatch = TestProbe("deathWatch")
   private val mockUri = new URI("http://example.com")
-  private val basicConfig = WorkflowCallbackConfig.empty.copy(enabled = true).copy(retryBackoff = SimpleExponentialBackoff(100.millis, 200.millis, 1.1))
-  private val basicOutputs = CallOutputs(Map(
-    GraphNodeOutputPort(WomIdentifier("foo", "wf.foo"), WomStringType, null) -> WomString("bar")
-  ))
+  private val basicConfig = WorkflowCallbackConfig.empty
+    .copy(enabled = true)
+    .copy(retryBackoff = SimpleExponentialBackoff(100.millis, 200.millis, 1.1))
+  private val basicOutputs = CallOutputs(
+    Map(
+      GraphNodeOutputPort(WomIdentifier("foo", "wf.foo"), WomStringType, null) -> WomString("bar")
+    )
+  )
 
   private val httpSuccess = Future.successful(HttpResponse.apply(StatusCodes.OK))
   private val httpFailure = Future.successful(HttpResponse.apply(StatusCodes.GatewayTimeout))
@@ -85,7 +88,11 @@ class WorkflowCallbackActorSpec
 
     // Do the thing
     val cmd = PerformCallbackCommand(
-      workflowId = workflowId, uri = None, terminalState = WorkflowSucceeded, workflowOutputs = basicOutputs, List.empty
+      workflowId = workflowId,
+      uri = None,
+      terminalState = WorkflowSucceeded,
+      workflowOutputs = basicOutputs,
+      List.empty
     )
     workflowCallbackActor ! cmd
 
@@ -97,7 +104,7 @@ class WorkflowCallbackActorSpec
         uriEvent.key shouldBe expectedUriMetadata.key
         uriEvent.value shouldBe expectedUriMetadata.value
         timestampEvent.key shouldBe expectedTimestampMetadata.key
-        // Not checking timestamp value because it won't match
+      // Not checking timestamp value because it won't match
       case _ =>
     }
 
@@ -136,7 +143,11 @@ class WorkflowCallbackActorSpec
 
     // Do the thing
     val cmd = PerformCallbackCommand(
-      workflowId = workflowId, uri = None, terminalState = WorkflowSucceeded, workflowOutputs = basicOutputs, List.empty
+      workflowId = workflowId,
+      uri = None,
+      terminalState = WorkflowSucceeded,
+      workflowOutputs = basicOutputs,
+      List.empty
     )
     workflowCallbackActor ! cmd
 
@@ -183,7 +194,7 @@ class WorkflowCallbackActorSpec
       serviceRegistryActor.ref,
       basicConfig.copy(
         retryBackoff = SimpleExponentialBackoff(500.millis, 1.minute, 1.1),
-        maxRetries = 5,
+        maxRetries = 5
       ),
       httpClient = mockHttpClient
     )
@@ -234,7 +245,11 @@ class WorkflowCallbackActorSpec
 
     // Do the thing
     val cmd = PerformCallbackCommand(
-      workflowId = workflowId, uri = None, terminalState = WorkflowSucceeded, workflowOutputs = basicOutputs, List.empty
+      workflowId = workflowId,
+      uri = None,
+      terminalState = WorkflowSucceeded,
+      workflowOutputs = basicOutputs,
+      List.empty
     )
     workflowCallbackActor ! cmd
 

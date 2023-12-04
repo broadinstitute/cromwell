@@ -1,7 +1,6 @@
 package cromwell.database.sql.tables
 
-case class DockerHashStoreEntry
-(
+case class DockerHashStoreEntry(
   workflowExecutionUuid: String,
   dockerTag: String,
   dockerHash: String,

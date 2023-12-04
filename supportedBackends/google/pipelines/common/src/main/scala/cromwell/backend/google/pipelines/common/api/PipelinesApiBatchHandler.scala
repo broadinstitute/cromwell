@@ -9,5 +9,8 @@ import scala.util.Try
 
 trait PipelinesApiBatchHandler {
   def makeBatchRequest: BatchRequest
-  def enqueue[T <: PAPIApiRequest](papiApiRequest: T, batchRequest: BatchRequest, pollingManager: ActorRef): Future[Try[Unit]]
+  def enqueue[T <: PAPIApiRequest](papiApiRequest: T,
+                                   batchRequest: BatchRequest,
+                                   pollingManager: ActorRef
+  ): Future[Try[Unit]]
 }

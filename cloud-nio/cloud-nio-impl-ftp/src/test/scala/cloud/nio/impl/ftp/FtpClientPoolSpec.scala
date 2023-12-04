@@ -17,15 +17,13 @@ class FtpClientPoolSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
     var loggedOut: Boolean = false
     var disconnected: Boolean = false
     client.isConnected.returns(true)
-    client.logout().responds(_ => {
+    client.logout().responds { _ =>
       loggedOut = true
       true
-    })
-    client.disconnect().responds(_ => {
-      disconnected = true
-    })
+    }
+    client.disconnect().responds(_ => disconnected = true)
 
-    val clientPool = new FtpClientPool(1, 10.minutes, () => { client })
+    val clientPool = new FtpClientPool(1, 10.minutes, () => client)
     clientPool.acquire().invalidate()
 
     loggedOut shouldBe true

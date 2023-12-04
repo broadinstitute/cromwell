@@ -22,9 +22,11 @@ class GcsEnhancedRequestSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
       CloudStorageFileSystem.forBucket("bucket").getPath("test"),
       mock[com.google.api.services.storage.Storage],
       mock[com.google.cloud.storage.Storage],
-      "GcsEnhancedRequest-project",
+      "GcsEnhancedRequest-project"
     )
-  val requesterPaysException = new StorageException(BucketIsRequesterPaysErrorCode, "Bucket is a requester pays bucket but no user project provided.")
+  val requesterPaysException = new StorageException(BucketIsRequesterPaysErrorCode,
+                                                    "Bucket is a requester pays bucket but no user project provided."
+  )
 
   it should "attempt first without project, and not retry if the requests succeeds" in {
     val testFunction = mock[Boolean => String]
@@ -54,7 +56,9 @@ class GcsEnhancedRequestSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
     when(testFunction.apply(false)).thenThrow(requesterPaysException)
     // We expect it to be called a second time with withProject = true this time, and fail for another reason
     when(testFunction.apply(true)).thenThrow(new RuntimeException("it really doesn't work"))
-    a[RuntimeException] should be thrownBy GcsEnhancedRequest.recoverFromProjectNotProvided(path, testFunction).unsafeRunSync()
+    a[RuntimeException] should be thrownBy GcsEnhancedRequest
+      .recoverFromProjectNotProvided(path, testFunction)
+      .unsafeRunSync()
   }
 
   it should "not retry requests if the error does not match" in {
@@ -62,7 +66,9 @@ class GcsEnhancedRequestSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
 
     // Throw an unrelated exception, should only be called once
     when(testFunction.apply(false)).thenThrow(new RuntimeException("it really doesn't work"))
-    a[RuntimeException] should be thrownBy GcsEnhancedRequest.recoverFromProjectNotProvided(path, testFunction).unsafeRunSync()
+    a[RuntimeException] should be thrownBy GcsEnhancedRequest
+      .recoverFromProjectNotProvided(path, testFunction)
+      .unsafeRunSync()
     verify(testFunction).apply(false)
     verify(testFunction).apply(anyBoolean)
   }
@@ -72,7 +78,9 @@ class GcsEnhancedRequestSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
 
     // Throw an unrelated exception, should only be called once
     when(testFunction.apply(false)).thenThrow(new StorageException(404, "gs://does/not/exist"))
-    a[FileNotFoundException] should be thrownBy GcsEnhancedRequest.recoverFromProjectNotProvided(path, testFunction).unsafeRunSync()
+    a[FileNotFoundException] should be thrownBy GcsEnhancedRequest
+      .recoverFromProjectNotProvided(path, testFunction)
+      .unsafeRunSync()
     verify(testFunction).apply(false)
     verify(testFunction).apply(anyBoolean)
   }
@@ -86,7 +94,9 @@ class GcsEnhancedRequestSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
 
     // Throw an unrelated exception, should only be called once
     when(testFunction.apply(false)).thenAnswer(_ => throw new GoogleJsonResponseException(builder, error))
-    a[FileNotFoundException] should be thrownBy GcsEnhancedRequest.recoverFromProjectNotProvided(path, testFunction).unsafeRunSync()
+    a[FileNotFoundException] should be thrownBy GcsEnhancedRequest
+      .recoverFromProjectNotProvided(path, testFunction)
+      .unsafeRunSync()
     verify(testFunction).apply(false)
     verify(testFunction).apply(anyBoolean)
   }

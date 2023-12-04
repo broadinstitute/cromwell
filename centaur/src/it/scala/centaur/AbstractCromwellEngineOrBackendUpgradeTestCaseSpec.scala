@@ -13,7 +13,7 @@ import scala.concurrent.Future
 
 @DoNotDiscover
 abstract class AbstractCromwellEngineOrBackendUpgradeTestCaseSpec(cromwellBackends: List[String])
-  extends AbstractCentaurTestCaseSpec(cromwellBackends)
+    extends AbstractCentaurTestCaseSpec(cromwellBackends)
     with CentaurTestSuiteShutdown
     with BeforeAndAfter {
 
@@ -27,15 +27,20 @@ abstract class AbstractCromwellEngineOrBackendUpgradeTestCaseSpec(cromwellBacken
   override protected def beforeAll(): Unit = {
     super.beforeAll()
     val beforeAllIo = for {
-      _ <- checkIsEmpty(cromwellDatabase.engineDatabase, cromwellDatabase.engineDatabase.existsJobKeyValueEntries(), testType)
-      _ <- checkIsEmpty(cromwellDatabase.metadataDatabase, cromwellDatabase.metadataDatabase.existsMetadataEntries(), testType)
+      _ <- checkIsEmpty(cromwellDatabase.engineDatabase,
+                        cromwellDatabase.engineDatabase.existsJobKeyValueEntries(),
+                        testType
+      )
+      _ <- checkIsEmpty(cromwellDatabase.metadataDatabase,
+                        cromwellDatabase.metadataDatabase.existsMetadataEntries(),
+                        testType
+      )
     } yield ()
     beforeAllIo.unsafeRunSync()
   }
 
-  private def failNotSlick(database: SqlDatabase): IO[Unit] = {
+  private def failNotSlick(database: SqlDatabase): IO[Unit] =
     IO.raiseError(new RuntimeException(s"Expected a slick database for ${database.connectionDescription}."))
-  }
 
   after {
     val afterIo = for {
@@ -54,26 +59,29 @@ abstract class AbstractCromwellEngineOrBackendUpgradeTestCaseSpec(cromwellBacken
   def isMatchingUpgradeTest(testCase: CentaurTestCase): Boolean
 }
 
-
 object AbstractCromwellEngineOrBackendUpgradeTestCaseSpec {
-  private def checkIsEmpty(database: SqlDatabase, lookup: => Future[Boolean], testType: => String)(implicit cs: ContextShift[IO]): IO[Unit] = {
-    IO.fromFuture(IO(lookup)).flatMap(exists =>
-      if (exists) {
-        IO(Assertions.fail(
-          s"Database ${database.connectionDescription} contains data. " +
-            s"$testType tests should only be run on a completely empty database. " +
-            "You may need to manually drop and recreate the database to continue."
-        ))
-      } else {
-        IO.unit
-      }
-    )
-  }
+  private def checkIsEmpty(database: SqlDatabase, lookup: => Future[Boolean], testType: => String)(implicit
+    cs: ContextShift[IO]
+  ): IO[Unit] =
+    IO.fromFuture(IO(lookup))
+      .flatMap(exists =>
+        if (exists) {
+          IO(
+            Assertions.fail(
+              s"Database ${database.connectionDescription} contains data. " +
+                s"$testType tests should only be run on a completely empty database. " +
+                "You may need to manually drop and recreate the database to continue."
+            )
+          )
+        } else {
+          IO.unit
+        }
+      )
 
   private def recreateDatabase(slickDatabase: SlickDatabase)(implicit cs: ContextShift[IO]): IO[Unit] = {
     import slickDatabase.dataAccess.driver.api._
     val schemaName = slickDatabase.databaseConfig.getOrElse("db.cromwell-database-name", "cromwell_test")
-    //noinspection SqlDialectInspection
+    // noinspection SqlDialectInspection
     for {
       _ <- IO.fromFuture(IO(slickDatabase.database.run(sqlu"""DROP SCHEMA IF EXISTS #$schemaName""")))
       _ <- IO.fromFuture(IO(slickDatabase.database.run(sqlu"""CREATE SCHEMA #$schemaName""")))

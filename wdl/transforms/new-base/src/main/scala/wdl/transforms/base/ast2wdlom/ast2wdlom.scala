@@ -20,10 +20,14 @@ package object ast2wdlom {
     case other => s"Cannot convert from AstNode type '${other.getClass.getSimpleName}' into Terminal".invalidNelCheck
   }
 
-  implicit val astNodeToString: CheckedAtoB[GenericAstNode, String] = CheckedAtoB.fromCheck { a: GenericAstNode => a match {
-    case t: GenericTerminal => t.getSourceString.validNelCheck
-    case a: GenericAst => s"Cannot convert Ast of type ${a.getName} into String. Did you want one of its attributes (${a.getAttributes.keys.mkString(", ")})?".invalidNelCheck
-    case other: GenericAstNode => s"Cannot convert ${other.getClass.getSimpleName} into String".invalidNelCheck
-  }}
+  implicit val astNodeToString: CheckedAtoB[GenericAstNode, String] = CheckedAtoB.fromCheck { a: GenericAstNode =>
+    a match {
+      case t: GenericTerminal => t.getSourceString.validNelCheck
+      case a: GenericAst =>
+        s"Cannot convert Ast of type ${a.getName} into String. Did you want one of its attributes (${a.getAttributes.keys
+            .mkString(", ")})?".invalidNelCheck
+      case other: GenericAstNode => s"Cannot convert ${other.getClass.getSimpleName} into String".invalidNelCheck
+    }
+  }
 
 }

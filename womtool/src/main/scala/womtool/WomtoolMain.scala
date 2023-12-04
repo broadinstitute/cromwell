@@ -62,14 +62,12 @@ object WomtoolMain extends App with StrictLogging {
     case _ => BadUsageTermination(WomtoolCommandLineParser.instance.usage)
   }
 
-
   def highlight(workflowSourcePath: String, mode: HighlightMode): Termination = {
 
-    def highlight(highlighter: SyntaxHighlighter) = {
+    def highlight(highlighter: SyntaxHighlighter) =
       loadWdl(workflowSourcePath) { namespace =>
         SuccessfulTermination(new SyntaxFormatter(highlighter).format(namespace))
       }
-    }
 
     mode match {
       case HtmlHighlighting => highlight(HtmlSyntaxHighlighter)
@@ -78,9 +76,8 @@ object WomtoolMain extends App with StrictLogging {
     }
   }
 
-  def parse(workflowSourcePath: String): Termination = {
+  def parse(workflowSourcePath: String): Termination =
     SuccessfulTermination(AstTools.getAst(Paths.get(workflowSourcePath)).toPrettyString)
-  }
 
   def upgrade(workflowSourcePath: String): Termination = {
     import wdl.draft2.model.Import
@@ -91,20 +88,21 @@ object WomtoolMain extends App with StrictLogging {
       WdlNamespace.loadUsingPath(
         Paths.get(workflowSourcePath),
         None,
-        Option(List(
-          WdlNamespace.directoryResolver(File(workflowSourcePath).parent),
-          WdlNamespace.fileResolver,
-          WdlDraft2LanguageFactory.httpResolver
-        ))
+        Option(
+          List(
+            WdlNamespace.directoryResolver(File(workflowSourcePath).parent),
+            WdlNamespace.fileResolver,
+            WdlDraft2LanguageFactory.httpResolver
+          )
+        )
       )
 
-    def upgradeImport(draft2Import: Import): ImportElement = {
+    def upgradeImport(draft2Import: Import): ImportElement =
       if (draft2Import.namespaceName.nonEmpty)
         // draft-2 does not have structs, so the source WDL will not have any for us to rename
         ImportElement(draft2Import.uri, Option(draft2Import.namespaceName), Map())
       else
         ImportElement(draft2Import.uri, None, Map())
-    }
 
     val maybeWdl: Try[Path] = DefaultPathBuilder.build(workflowSourcePath)
 
@@ -116,13 +114,16 @@ object WomtoolMain extends App with StrictLogging {
             val maybeFileElement = womBundleToFileElement.run(womBundle)
             maybeFileElement match {
               case Right(fileElement) =>
-                SuccessfulTermination(
-                  fileElement.copy(imports = wdlNamespace.imports.map(upgradeImport)).toWdlV1)
+                SuccessfulTermination(fileElement.copy(imports = wdlNamespace.imports.map(upgradeImport)).toWdlV1)
               case Left(errors) =>
-                UnsuccessfulTermination(s"WDL parsing succeeded but could not create WOM: ${errors.toList.mkString("[", ",", "]")}")
+                UnsuccessfulTermination(
+                  s"WDL parsing succeeded but could not create WOM: ${errors.toList.mkString("[", ",", "]")}"
+                )
             }
           case Left(errors) =>
-            UnsuccessfulTermination(s"WDL parsing succeeded but could not create WOM: ${errors.toList.mkString("[", ",", "]")}")
+            UnsuccessfulTermination(
+              s"WDL parsing succeeded but could not create WOM: ${errors.toList.mkString("[", ",", "]")}"
+            )
         }
       case (Failure(throwable), _) =>
         UnsuccessfulTermination(s"Failed to load WDL source: ${throwable.getMessage}")
@@ -131,31 +132,41 @@ object WomtoolMain extends App with StrictLogging {
     }
   }
 
-  def graph(workflowSourcePath: Path): Termination = {
-    WomGraphMaker.getBundle(workflowSourcePath).flatMap(_.toExecutableCallable).contextualizeErrors("create wom bundle") match {
-      case Right(executable) => SuccessfulTermination (new GraphPrint(executable).dotString)
-      case Left(errors) => UnsuccessfulTermination(errors.toList.mkString(System.lineSeparator, System.lineSeparator, System.lineSeparator))
+  def graph(workflowSourcePath: Path): Termination =
+    WomGraphMaker
+      .getBundle(workflowSourcePath)
+      .flatMap(_.toExecutableCallable)
+      .contextualizeErrors("create wom bundle") match {
+      case Right(executable) => SuccessfulTermination(new GraphPrint(executable).dotString)
+      case Left(errors) =>
+        UnsuccessfulTermination(
+          errors.toList.mkString(System.lineSeparator, System.lineSeparator, System.lineSeparator)
+        )
     }
-  }
 
-  def womGraph(workflowSourcePath: Path): Termination = {
-    WomGraphMaker.fromFiles(mainFile = workflowSourcePath, inputs = None).contextualizeErrors("create wom Graph") match {
-      case Right(graphWithImports) => SuccessfulTermination (new WomGraph(graphName = "workflow", graphWithImports.graph).digraphDot)
-      case Left(errors) => UnsuccessfulTermination(errors.toList.mkString(System.lineSeparator, System.lineSeparator, System.lineSeparator))
+  def womGraph(workflowSourcePath: Path): Termination =
+    WomGraphMaker
+      .fromFiles(mainFile = workflowSourcePath, inputs = None)
+      .contextualizeErrors("create wom Graph") match {
+      case Right(graphWithImports) =>
+        SuccessfulTermination(new WomGraph(graphName = "workflow", graphWithImports.graph).digraphDot)
+      case Left(errors) =>
+        UnsuccessfulTermination(
+          errors.toList.mkString(System.lineSeparator, System.lineSeparator, System.lineSeparator)
+        )
     }
-  }
 
-  private[this] def loadWdl(path: String)(f: WdlNamespace => Termination): Termination = {
+  private[this] def loadWdl(path: String)(f: WdlNamespace => Termination): Termination =
     WdlNamespace.loadUsingPath(Paths.get(path), None, None) match {
       case Success(namespace) => f(namespace)
       case Failure(r: RuntimeException) => throw new RuntimeException("Unexpected failure mode", r)
       case Failure(t) => UnsuccessfulTermination(t.getMessage)
     }
-  }
-
 
   def runWomtool(cmdLineArgs: Seq[String]): Termination = {
-    val parsedArgs = WomtoolCommandLineParser.instance.parse(cmdLineArgs, PartialWomtoolCommandLineArguments()) flatMap WomtoolCommandLineParser.validateCommandLine
+    val parsedArgs = WomtoolCommandLineParser.instance.parse(cmdLineArgs,
+                                                             PartialWomtoolCommandLineArguments()
+    ) flatMap WomtoolCommandLineParser.validateCommandLine
 
     parsedArgs match {
       case Some(pa) => dispatchCommand(pa)

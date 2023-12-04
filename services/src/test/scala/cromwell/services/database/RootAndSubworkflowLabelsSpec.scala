@@ -32,28 +32,33 @@ class RootAndSubworkflowLabelsSpec extends AnyFlatSpec with CromwellTimeoutSpec 
     println(now)
 
     it should "start container if required" taggedAs DbmsTest in {
-      containerOpt.foreach { _.start }
+      containerOpt.foreach(_.start)
     }
 
     it should "set up the test data" taggedAs DbmsTest in {
-      database.runTestTransaction(
-        {
-          val root = summary(name = "root")
-          val branch = summary(name = "branch", parent = Option("root"), root = Option("root"))
-          val leaf = summary(name = "leaf", parent = Option("branch"), root = Option("root"))
-          val random = summary(name = "random")
-          database.dataAccess.workflowMetadataSummaryEntries ++= Seq(root, branch, leaf, random)
-        } andThen {
-          val root = label("root")
-          // intentionally not labeling the branch as a negative test
-          val leaf = label("leaf")
-          val random = label("random")
-          database.dataAccess.customLabelEntries ++= Seq(root, /* branch, */ leaf, random)
-        }
-      ).futureValue(Timeout(10.seconds))
+      database
+        .runTestTransaction(
+          {
+            val root = summary(name = "root")
+            val branch = summary(name = "branch", parent = Option("root"), root = Option("root"))
+            val leaf = summary(name = "leaf", parent = Option("branch"), root = Option("root"))
+            val random = summary(name = "random")
+            database.dataAccess.workflowMetadataSummaryEntries ++= Seq(root, branch, leaf, random)
+          } andThen {
+            val root = label("root")
+            // intentionally not labeling the branch as a negative test
+            val leaf = label("leaf")
+            val random = label("random")
+            database.dataAccess.customLabelEntries ++= Seq(root, /* branch, */ leaf, random)
+          }
+        )
+        .futureValue(Timeout(10.seconds))
     }
 
-    def summary(name: String, parent: Option[String] = None, root: Option[String] = None): WorkflowMetadataSummaryEntry = {
+    def summary(name: String,
+                parent: Option[String] = None,
+                root: Option[String] = None
+    ): WorkflowMetadataSummaryEntry =
       WorkflowMetadataSummaryEntry(
         workflowExecutionUuid = name,
         workflowStatus = Option("Succeeded"),
@@ -65,22 +70,19 @@ class RootAndSubworkflowLabelsSpec extends AnyFlatSpec with CromwellTimeoutSpec 
         rootWorkflowExecutionUuid = root,
         metadataArchiveStatus = None
       )
-    }
 
-    def label(uuid: String): CustomLabelEntry = {
+    def label(uuid: String): CustomLabelEntry =
       CustomLabelEntry(customLabelKey = "key", customLabelValue = uuid, workflowExecutionUuid = uuid)
-    }
 
     it should "query root and subworkflow labels correctly" taggedAs DbmsTest in {
-      database.getRootAndSubworkflowLabels("root").
-        futureValue(Timeout(10.seconds)) shouldBe Map(
+      database.getRootAndSubworkflowLabels("root").futureValue(Timeout(10.seconds)) shouldBe Map(
         "root" -> Map("key" -> "root"),
         "leaf" -> Map("key" -> "leaf")
       )
     }
 
     it should "stop container if required" taggedAs DbmsTest in {
-      containerOpt.foreach { _.stop() }
+      containerOpt.foreach(_.stop())
     }
   }
 }

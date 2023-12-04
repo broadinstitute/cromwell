@@ -20,13 +20,15 @@ class TesConfigurationSpec extends AnyFlatSpec with Matchers {
     )
   )
 
-  def backoffsAreEquivalent(expectedBackoff: SimpleExponentialBackoff, actualBackoff: SimpleExponentialBackoff): Boolean = {
+  def backoffsAreEquivalent(expectedBackoff: SimpleExponentialBackoff,
+                            actualBackoff: SimpleExponentialBackoff
+  ): Boolean = {
     val b1 = expectedBackoff.googleBackoff
     val b2 = actualBackoff.googleBackoff
     b1.getInitialIntervalMillis == b2.getInitialIntervalMillis &&
-      b1.getMaxIntervalMillis == b2.getMaxIntervalMillis &&
-      b1.getMultiplier == b2.getMultiplier &&
-      b1.getRandomizationFactor == b2.getRandomizationFactor
+    b1.getMaxIntervalMillis == b2.getMaxIntervalMillis &&
+    b1.getMultiplier == b2.getMultiplier &&
+    b1.getRandomizationFactor == b2.getRandomizationFactor
   }
 
   it should "use default backoffs when no custom config provided" in {
@@ -38,7 +40,9 @@ class TesConfigurationSpec extends AnyFlatSpec with Matchers {
   it should "use configured backoffs if they exist" in {
     val tesConfig = makeTesConfig(TesTestConfig.backendConfigWithBackoffs)
     backoffsAreEquivalent(SimpleExponentialBackoff(5 seconds, 1 minute, 2.5, .7), tesConfig.pollBackoff) shouldBe true
-    backoffsAreEquivalent(SimpleExponentialBackoff(3 minutes, 1 hours, 5, .1), tesConfig.executeOrRecoverBackoff) shouldBe true
+    backoffsAreEquivalent(SimpleExponentialBackoff(3 minutes, 1 hours, 5, .1),
+                          tesConfig.executeOrRecoverBackoff
+    ) shouldBe true
   }
 
   it should "fail if user defines an invalid backoff" in {

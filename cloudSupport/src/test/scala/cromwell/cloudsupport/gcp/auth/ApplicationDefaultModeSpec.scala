@@ -4,7 +4,6 @@ import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-
 class ApplicationDefaultModeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "ApplicationDefaultMode"

@@ -22,37 +22,46 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import scala.jdk.CollectionConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import scala.util.{Failure, Try, Success => TrySuccess}
+import scala.util.{Failure, Success => TrySuccess, Try}
 
 trait GetRequestHandler { this: RequestHandler =>
   // the Genomics batch endpoint doesn't seem to be able to handle get requests on V2 operations at the moment
   // For now, don't batch the request and execute it on its own
-  def handleRequest(pollingRequest: PAPIStatusPollRequest, batch: BatchRequest, pollingManager: ActorRef)(implicit ec: ExecutionContext): Future[Try[Unit]] = Future(pollingRequest.httpRequest.execute()) map {
+  def handleRequest(pollingRequest: PAPIStatusPollRequest, batch: BatchRequest, pollingManager: ActorRef)(implicit
+    ec: ExecutionContext
+  ): Future[Try[Unit]] = Future(pollingRequest.httpRequest.execute()) map {
     case response if response.isSuccessStatusCode =>
       val operation = response.parseAs(classOf[Operation])
       pollingRequest.requester ! interpretOperationStatus(operation, pollingRequest)
       TrySuccess(())
     case response =>
       val failure = Try(GoogleJsonError.parse(GoogleAuthMode.jsonFactory, response)) match {
-        case TrySuccess(googleError) => new SystemPAPIApiException(GoogleJsonException(googleError, response.getHeaders))
-        case Failure(_) => new SystemPAPIApiException(new RuntimeException(s"Failed to get status for operation ${pollingRequest.jobId.jobId}: HTTP Status Code: ${response.getStatusCode}"))
+        case TrySuccess(googleError) =>
+          new SystemPAPIApiException(GoogleJsonException(googleError, response.getHeaders))
+        case Failure(_) =>
+          new SystemPAPIApiException(
+            new RuntimeException(
+              s"Failed to get status for operation ${pollingRequest.jobId.jobId}: HTTP Status Code: ${response.getStatusCode}"
+            )
+          )
       }
       pollingManager ! PipelinesApiStatusQueryFailed(pollingRequest, failure)
       Failure(failure)
-  } recover {
-    case e =>
-      pollingManager ! PipelinesApiStatusQueryFailed(pollingRequest, new SystemPAPIApiException(e))
-      Failure(e)
+  } recover { case e =>
+    pollingManager ! PipelinesApiStatusQueryFailed(pollingRequest, new SystemPAPIApiException(e))
+    Failure(e)
   }
 
-  private [request] def interpretOperationStatus(operation: Operation, pollingRequest: PAPIStatusPollRequest): RunStatus = {
+  private[request] def interpretOperationStatus(operation: Operation,
+                                                pollingRequest: PAPIStatusPollRequest
+  ): RunStatus =
     if (Option(operation).isEmpty) {
       // It is possible to receive a null via an HTTP 200 with no response. If that happens, handle it and don't crash.
       // https://github.com/googleapis/google-http-java-client/blob/v1.28.0/google-http-client/src/main/java/com/google/api/client/http/HttpResponse.java#L456-L458
       val errorMessage = "Operation returned as empty"
       UnsuccessfulRunStatus(Status.UNKNOWN, Option(errorMessage), Nil, None, None, None, wasPreemptible = false)
     } else {
-      try {
+      try
         if (operation.getDone) {
           val metadata = operation.metadata
           // Deserialize the response
@@ -66,7 +75,7 @@ trait GetRequestHandler { this: RequestHandler =>
             .toList
             .flatten
           val workerEvent: Option[WorkerAssignedEvent] =
-            findEvent[WorkerAssignedEvent](events).flatMap(_ (pollingRequest.workflowId -> operation))
+            findEvent[WorkerAssignedEvent](events).flatMap(_(pollingRequest.workflowId -> operation))
           val executionEvents = getEventList(metadata, events, actions)
           val virtualMachineOption = for {
             pipelineValue <- pipeline
@@ -111,7 +120,7 @@ trait GetRequestHandler { this: RequestHandler =>
         } else {
           Initializing
         }
-      } catch {
+      catch {
         case nullPointerException: NullPointerException =>
           throw new RuntimeException(
             s"Caught NPE while interpreting operation ${operation.getName}: " +
@@ -121,20 +130,25 @@ trait GetRequestHandler { this: RequestHandler =>
           )
       }
     }
-  }
 
-  private def getEventList(metadata: Map[String, AnyRef], events: List[Event], actions: List[Action]): List[ExecutionEvent] = {
-    val starterEvent: Option[ExecutionEvent] = {
-      metadata.get("createTime") map { time => ExecutionEvent("waiting for quota", OffsetDateTime.parse(time.toString)) }
-    }
+  private def getEventList(metadata: Map[String, AnyRef],
+                           events: List[Event],
+                           actions: List[Action]
+  ): List[ExecutionEvent] = {
+    val starterEvent: Option[ExecutionEvent] =
+      metadata.get("createTime") map { time =>
+        ExecutionEvent("waiting for quota", OffsetDateTime.parse(time.toString))
+      }
 
-    val completionEvent: Option[ExecutionEvent] = {
-      metadata.get("endTime") map { time => ExecutionEvent("Complete in GCE / Cromwell Poll Interval", OffsetDateTime.parse(time.toString)) }
-    }
+    val completionEvent: Option[ExecutionEvent] =
+      metadata.get("endTime") map { time =>
+        ExecutionEvent("Complete in GCE / Cromwell Poll Interval", OffsetDateTime.parse(time.toString))
+      }
 
     // Map action indexes to event types. Action indexes are 1-based for some reason.
     val actionIndexToEventType: Map[Int, String] = List(Key.Logging, Key.Tag).flatMap { k =>
-      actions.zipWithIndex collect { case (a, i) if a.getLabels.containsKey(k) => (i + 1) -> a.getLabels.get(k) } } toMap
+      actions.zipWithIndex collect { case (a, i) if a.getLabels.containsKey(k) => (i + 1) -> a.getLabels.get(k) }
+    } toMap
 
     val executionEvents = events.map(toExecutionEvent(actionIndexToEventType))
     // The Docker image used for CWL output parsing causes some complications for the timing diagram. Docker image
@@ -152,7 +166,10 @@ trait GetRequestHandler { this: RequestHandler =>
     val filteredExecutionEvents = startDelocalization match {
       case None => executionEvents // Can't do filtering without a start time for Delocalization.
       case Some(start) =>
-        executionEvents filterNot { e => (e.name.startsWith("Started pulling ") || e.name.startsWith("Stopped pulling ")) && e.offsetDateTime.compareTo(start.offsetDateTime) > 0 }
+        executionEvents filterNot { e =>
+          (e.name.startsWith("Started pulling ") || e.name.startsWith("Stopped pulling ")) && e.offsetDateTime
+            .compareTo(start.offsetDateTime) > 0
+        }
     }
 
     starterEvent.toList ++ filteredExecutionEvents ++ completionEvent

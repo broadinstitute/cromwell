@@ -15,20 +15,15 @@ object JarCromwellConfiguration {
 
 case class JarCromwellConfiguration(jar: String, conf: String, logFile: String) extends CromwellConfiguration {
   override def createProcess: CromwellProcess = {
-    case class JarCromwellProcess(override val cromwellConfiguration: JarCromwellConfiguration) extends CromwellProcess {
-      private val command = Array(
-        "java",
-        s"-Dconfig.file=$conf",
-        s"-Dwebservice.port=$ManagedCromwellPort",
-        "-jar",
-        jar,
-        "server")
+    case class JarCromwellProcess(override val cromwellConfiguration: JarCromwellConfiguration)
+        extends CromwellProcess {
+      private val command =
+        Array("java", s"-Dconfig.file=$conf", s"-Dwebservice.port=$ManagedCromwellPort", "-jar", jar, "server")
 
       private var process: Option[Process] = None
 
-      override def start(): Unit = {
+      override def start(): Unit =
         process = Option(runProcess(command, Map.empty))
-      }
 
       override def stop(): Unit = {
         process foreach {
@@ -37,7 +32,7 @@ case class JarCromwellConfiguration(jar: String, conf: String, logFile: String) 
         process = None
       }
 
-      override def isAlive: Boolean = process.exists { _.isAlive }
+      override def isAlive: Boolean = process.exists(_.isAlive)
 
       override def logFile: String = cromwellConfiguration.logFile
     }

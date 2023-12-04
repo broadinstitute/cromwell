@@ -9,6 +9,7 @@ import liquibase.exception.CustomChangeException
   * Runs a migration as a series of batches.
   */
 trait BatchedTaskChange extends MigrationTaskChange {
+
   /**
     * Returns sql to retrieve the maximum primary key for the table.
     *
@@ -80,14 +81,16 @@ trait BatchedTaskChange extends MigrationTaskChange {
 
   override def migrate(connection: JdbcConnection): Unit = {
 
-    logger.info(s"Running migration $migrationName with a read batch size of " +
-      s"$readBatchSize and a write batch size of $writeBatchSize")
+    logger.info(
+      s"Running migration $migrationName with a read batch size of " +
+        s"$readBatchSize and a write batch size of $writeBatchSize"
+    )
 
     /*
-      * Keep count of the size of the batch.
-      *
-      * @see writeBatchSize
-      */
+     * Keep count of the size of the batch.
+     *
+     * @see writeBatchSize
+     */
     var batchMigrationCounter: Int = 0
 
     val readCount = getReadCount(connection)
@@ -101,25 +104,24 @@ trait BatchedTaskChange extends MigrationTaskChange {
     val paginator = new QueryPaginator(readBatchStatement, readBatchSize, readCount)
 
     // Loop over pages
-    paginator.zipWithIndex foreach {
-      case (resultBatch, page) =>
-        // Loop over rows in page
-        new ResultSetIterator(resultBatch) foreach { row =>
-            batchMigrationCounter += migrateBatchRow(row, migrateBatchStatements)
-            // batchMigrationCounter can actually be bigger than writeBatchSize as wdlValues are processed atomically,
-            // so this is a best effort
-            if (batchMigrationCounter >= writeBatchSize) {
-              migrateBatchStatements.foreach(_.executeBatch())
-              connection.commit()
-              batchMigrationCounter = 0
-            }
+    paginator.zipWithIndex foreach { case (resultBatch, page) =>
+      // Loop over rows in page
+      new ResultSetIterator(resultBatch) foreach { row =>
+        batchMigrationCounter += migrateBatchRow(row, migrateBatchStatements)
+        // batchMigrationCounter can actually be bigger than writeBatchSize as wdlValues are processed atomically,
+        // so this is a best effort
+        if (batchMigrationCounter >= writeBatchSize) {
+          migrateBatchStatements.foreach(_.executeBatch())
+          connection.commit()
+          batchMigrationCounter = 0
         }
+      }
 
-        resultBatch.close()
+      resultBatch.close()
 
-        val progress = Math.min((page + 1) * 100 / pageCount, 100)
-        val progressMessage = s"[$migrationName] $progress%"
-        logger.info(progressMessage)
+      val progress = Math.min((page + 1) * 100 / pageCount, 100)
+      val progressMessage = s"[$migrationName] $progress%"
+      logger.info(progressMessage)
     }
 
     if (batchMigrationCounter != 0) {

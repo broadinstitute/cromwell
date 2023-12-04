@@ -19,9 +19,9 @@ object DockerRegistryConfig {
   lazy val default = DockerRegistryConfig(None, 5)
 
   def fromConfig(config: Config): ErrorOr[DockerRegistryConfig] = {
-    val throttle = validate { config.getAs[Throttle]("throttle") }
-    val threads = validate { config.as[Int]("num-threads") }
-   
+    val throttle = validate(config.getAs[Throttle]("throttle"))
+    val threads = validate(config.as[Int]("num-threads"))
+
     (throttle, threads) mapN DockerRegistryConfig.apply
   }
 }

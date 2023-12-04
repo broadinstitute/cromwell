@@ -23,13 +23,13 @@ class Ast2WdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   val parser = new WdlParser()
 
   def fromString[A](expression: String,
-                    parseFunction: (util.List[WdlParser.Terminal], SyntaxErrorFormatter) => ParseTree)
-                   (implicit converter: CheckedAtoB[GenericAstNode, A]): Checked[A] = {
+                    parseFunction: (util.List[WdlParser.Terminal], SyntaxErrorFormatter) => ParseTree
+  )(implicit converter: CheckedAtoB[GenericAstNode, A]): Checked[A] = {
     // Add the "version 1.0" to force the lexer into "main" mode.
     val versionedExpression = "version 1.0\n" + expression
     // That "version 1.0" means we'll have 2 unwanted tokens at the start of the list, so drop 'em:
     val tokens = parser.lex(versionedExpression, "string").asScala.drop(2).asJava
-    val terminalMap = (tokens.asScala.toVector map {(_, expression)}).toMap
+    val terminalMap = (tokens.asScala.toVector map { (_, expression) }).toMap
     val parseTree = parseFunction(tokens, WdlDraft3SyntaxErrorFormatter(terminalMap))
     (wrapAstNode andThen converter).run(parseTree.toAst)
   }
@@ -55,6 +55,6 @@ class Ast2WdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   it should "parse the (biscayne) None keyword as a plain old identifier" in {
     val str = "None"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
-    expr shouldBeValid(IdentifierLookup("None"))
+    expr shouldBeValid (IdentifierLookup("None"))
   }
 }

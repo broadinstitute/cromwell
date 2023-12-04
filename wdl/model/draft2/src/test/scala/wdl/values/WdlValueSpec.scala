@@ -59,7 +59,8 @@ class WdlValueSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     (WdlExpression.fromString("a + b"), "a + b"),
     (WdlExpression.fromString("a(b, c)"), "a(b, c)"),
     (WdlExpression.fromString("\"a\" + \"b\""), "\"a\" + \"b\""),
-    (WdlExpression.fromString("a.b.c"), "a.b.c"))
+    (WdlExpression.fromString("a.b.c"), "a.b.c")
+  )
 
   forAll(wdlExpressionRawStrings) { (womValue, rawString) =>
     it should s"resemble a ${womValue.typeName} to/from raw string '$rawString'" in {
@@ -98,41 +99,64 @@ class WdlValueSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
       WomObject(Map("0" -> WomString("zero")))
     ),
     (
-      WomObject(Map(
-        "0" -> WomString("zero"), "1" -> WomString("one"), "2" -> WomString("two"), "3" -> WomString("three")
-      )),
-      WomObject(Map(
-        "0" -> WomString("zero"), "1" -> WomString("one"), "2" -> WomString("two")
-      ))
+      WomObject(
+        Map(
+          "0" -> WomString("zero"),
+          "1" -> WomString("one"),
+          "2" -> WomString("two"),
+          "3" -> WomString("three")
+        )
+      ),
+      WomObject(
+        Map(
+          "0" -> WomString("zero"),
+          "1" -> WomString("one"),
+          "2" -> WomString("two")
+        )
+      )
     ),
     (
       WdlCallOutputsObject(testCall, Map("0" -> WomString("zero"))),
       WdlCallOutputsObject(testCall, Map("0" -> WomString("zero")))
     ),
     (
-      WdlCallOutputsObject(testCall, Map(
-        "0" -> WomString("zero"), "1" -> WomString("one"), "2" -> WomString("two"), "3" -> WomString("three")
-      )),
-      WdlCallOutputsObject(testCall, Map(
-        "0" -> WomString("zero"), "1" -> WomString("one"), "2" -> WomString("two")
-      ))
+      WdlCallOutputsObject(testCall,
+                           Map(
+                             "0" -> WomString("zero"),
+                             "1" -> WomString("one"),
+                             "2" -> WomString("two"),
+                             "3" -> WomString("three")
+                           )
+      ),
+      WdlCallOutputsObject(testCall,
+                           Map(
+                             "0" -> WomString("zero"),
+                             "1" -> WomString("one"),
+                             "2" -> WomString("two")
+                           )
+      )
     ),
     (
       WomMap(WomMapType(WomStringType, WomStringType), Map(WomString("0") -> WomString("zero"))),
       WomMap(WomMapType(WomStringType, WomStringType), Map(WomString("0") -> WomString("zero")))
     ),
     (
-      WomMap(WomMapType(WomStringType, WomStringType), Map(
-        WomString("0") -> WomString("zero"),
-        WomString("1") -> WomString("one"),
-        WomString("2") -> WomString("two"),
-        WomString("3") -> WomString("three")
-      )),
-      WomMap(WomMapType(WomStringType, WomStringType), Map(
-        WomString("0") -> WomString("zero"),
-        WomString("1") -> WomString("one"),
-        WomString("2") -> WomString("two")
-      ))
+      WomMap(
+        WomMapType(WomStringType, WomStringType),
+        Map(
+          WomString("0") -> WomString("zero"),
+          WomString("1") -> WomString("one"),
+          WomString("2") -> WomString("two"),
+          WomString("3") -> WomString("three")
+        )
+      ),
+      WomMap(WomMapType(WomStringType, WomStringType),
+             Map(
+               WomString("0") -> WomString("zero"),
+               WomString("1") -> WomString("one"),
+               WomString("2") -> WomString("two")
+             )
+      )
     ),
     (
       WomArray(WomArrayType(WomStringType), Seq(WomString("0"))),
@@ -146,18 +170,38 @@ class WdlValueSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
       WomArray(
         WomArrayType(WomArrayType(WomStringType)),
         Seq(
-          WomArray(WomArrayType(WomStringType), Seq(
-            WomString("a0"), WomString("a1"), WomString("a2"), WomString("a3")
-          )),
-          WomArray(WomArrayType(WomStringType), Seq(
-            WomString("b0"), WomString("b1"), WomString("b2"), WomString("b3")
-          )),
-          WomArray(WomArrayType(WomStringType), Seq(
-            WomString("c0"), WomString("c1"), WomString("c2"), WomString("c3")
-          )),
-          WomArray(WomArrayType(WomStringType), Seq(
-            WomString("d0"), WomString("d1"), WomString("d2"), WomString("d3")
-          ))
+          WomArray(WomArrayType(WomStringType),
+                   Seq(
+                     WomString("a0"),
+                     WomString("a1"),
+                     WomString("a2"),
+                     WomString("a3")
+                   )
+          ),
+          WomArray(WomArrayType(WomStringType),
+                   Seq(
+                     WomString("b0"),
+                     WomString("b1"),
+                     WomString("b2"),
+                     WomString("b3")
+                   )
+          ),
+          WomArray(WomArrayType(WomStringType),
+                   Seq(
+                     WomString("c0"),
+                     WomString("c1"),
+                     WomString("c2"),
+                     WomString("c3")
+                   )
+          ),
+          WomArray(WomArrayType(WomStringType),
+                   Seq(
+                     WomString("d0"),
+                     WomString("d1"),
+                     WomString("d2"),
+                     WomString("d3")
+                   )
+          )
         )
       ),
       WomArray(
@@ -171,13 +215,12 @@ class WdlValueSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     )
   )
 
-  private def describe(womValue: WomValue): String = {
+  private def describe(womValue: WomValue): String =
     womValue match {
       case WdlCallOutputsObject(call, outputs) =>
         s"WdlCallOutputsObject(${call.unqualifiedName}, ${outputs.safeMapValues(_.toWomString)})"
       case _ => womValue.toWomString
     }
-  }
 
   forAll(wdlValueMaxedElements) { (womValue, expected) =>
     it should s"take max elements for ${describe(womValue)}" in {

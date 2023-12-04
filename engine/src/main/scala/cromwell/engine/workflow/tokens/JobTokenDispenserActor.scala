@@ -29,23 +29,25 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
                              override val dispensingRate: DynamicRateLimiter.Rate,
                              logInterval: Option[FiniteDuration],
                              dispenserType: String,
-                             tokenAllocatedDescription: String)
-  extends Actor
+                             tokenAllocatedDescription: String
+) extends Actor
     with ActorLogging
     with JobInstrumentation
     with CromwellInstrumentationScheduler
     with Timers
     with DynamicRateLimiter
-    with CromwellInstrumentation
-{
+    with CromwellInstrumentation {
 
   // Metrics paths are based on the dispenser type
   private val tokenDispenserMetricsBasePath: NonEmptyList[String] = NonEmptyList.of("token_dispenser", dispenserType)
 
-  private val tokenLeaseDurationMetricPath: NonEmptyList[String] = tokenDispenserMetricsBasePath :+ "token_hold_duration"
+  private val tokenLeaseDurationMetricPath: NonEmptyList[String] =
+    tokenDispenserMetricsBasePath :+ "token_hold_duration"
 
-  private val tokenDispenserMetricsActivityRates: NonEmptyList[String] = tokenDispenserMetricsBasePath :+ "activity_rate"
-  private val requestsEnqueuedMetricPath: NonEmptyList[String] = tokenDispenserMetricsActivityRates :+ "requests_enqueued"
+  private val tokenDispenserMetricsActivityRates: NonEmptyList[String] =
+    tokenDispenserMetricsBasePath :+ "activity_rate"
+  private val requestsEnqueuedMetricPath: NonEmptyList[String] =
+    tokenDispenserMetricsActivityRates :+ "requests_enqueued"
   private val tokensLeasedMetricPath: NonEmptyList[String] = tokenDispenserMetricsActivityRates :+ "tokens_dispensed"
   private val tokensReturnedMetricPath: NonEmptyList[String] = tokenDispenserMetricsActivityRates :+ "tokens_returned"
 
@@ -90,7 +92,8 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
     super.preStart()
   }
 
-  override def receive: Actor.Receive = tokenDispensingReceive.orElse(rateReceive).orElse(instrumentationReceive(instrumentationAction))
+  override def receive: Actor.Receive =
+    tokenDispensingReceive.orElse(rateReceive).orElse(instrumentationReceive(instrumentationAction))
 
   private def tokenDispensingReceive: Receive = {
     case JobTokenRequest(hogGroup, tokenType) => enqueue(sender(), hogGroup.value, tokenType)
@@ -111,7 +114,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
     count(tokensReturnedMetricPath, 0L, ServicesPrefix)
   }
 
-  private def enqueue(sndr: ActorRef, hogGroup: String, tokenType: JobTokenType): Unit = {
+  private def enqueue(sndr: ActorRef, hogGroup: String, tokenType: JobTokenType): Unit =
     if (tokenAssignments.contains(sndr)) {
       sndr ! JobTokenDispensed
     } else {
@@ -121,12 +124,12 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
       increment(requestsEnqueuedMetricPath, ServicesPrefix)
       ()
     }
-  }
 
   private def dispense(n: Int) = if (tokenQueues.nonEmpty) {
 
     // Sort by backend name to avoid re-ordering across iterations:
-    val iterator = new RoundRobinQueueIterator(tokenQueues.toList.sortBy(_._1.backend).map(_._2), currentTokenQueuePointer)
+    val iterator =
+      new RoundRobinQueueIterator(tokenQueues.toList.sortBy(_._1.backend).map(_._2), currentTokenQueuePointer)
 
     // In rare cases, an abort might empty an inner queue between "available" and "dequeue", which could cause an
     // exception.
@@ -139,11 +142,12 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
     }
 
     if (nextTokens.nonEmpty) {
-      val hogGroupCounts = nextTokens.groupBy(t => t.queuePlaceholder.hogGroup).map { case (hogGroup, list) => s"$hogGroup: ${list.size}" }
+      val hogGroupCounts =
+        nextTokens.groupBy(t => t.queuePlaceholder.hogGroup).map { case (hogGroup, list) => s"$hogGroup: ${list.size}" }
       log.info(s"Assigned new job $dispenserType tokens to the following groups: ${hogGroupCounts.mkString(", ")}")
     }
 
-    nextTokens.foreach({
+    nextTokens.foreach {
       case LeasedActor(queuePlaceholder, lease) if !tokenAssignments.contains(queuePlaceholder.actor) =>
         tokenAssignments = tokenAssignments + (queuePlaceholder.actor -> TokenLeaseRecord(lease, OffsetDateTime.now()))
         incrementJob("Started")
@@ -151,19 +155,21 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
         queuePlaceholder.actor ! JobTokenDispensed
       // Only one token per actor, so if you've already got one, we don't need to use this new one:
       case LeasedActor(queuePlaceholder, lease) =>
-        log.error(s"Programmer Error: Actor ${queuePlaceholder.actor.path} requested a job $dispenserType token more than once.")
+        log.error(
+          s"Programmer Error: Actor ${queuePlaceholder.actor.path} requested a job $dispenserType token more than once."
+        )
         // Because this actor already has a lease assigned to it:
         // a) tell the actor that it has a lease
         // b) don't hold onto this new lease - release it and let some other actor take it instead
         queuePlaceholder.actor ! JobTokenDispensed
         lease.release()
-    })
+    }
 
     tokenQueues = iterator.updatedQueues.map(queue => queue.tokenType -> queue).toMap
     currentTokenQueuePointer = iterator.updatedPointer
   }
 
-  private def release(actor: ActorRef): Unit = {
+  private def release(actor: ActorRef): Unit =
     tokenAssignments.get(actor) match {
       case Some(TokenLeaseRecord(leasedToken, timestamp)) =>
         tokenAssignments -= actor
@@ -175,7 +181,6 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
       case None =>
         log.error(s"Job {} token returned from incorrect actor: {}", dispenserType, actor.path.name)
     }
-  }
 
   private def onTerminate(terminee: ActorRef): Unit = {
     tokenAssignments.get(terminee) match {
@@ -185,8 +190,8 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
       case None =>
         log.debug("Actor {} stopped before receiving a token, removing it from any queues if necessary", terminee)
         // This is a very inefficient way to remove the actor from the queue and can lead to very poor performance for a large queue and a large number of actors to remove
-        tokenQueues = tokenQueues map {
-          case (tokenType, tokenQueue) => tokenType -> tokenQueue.removeTokenlessActor(terminee)
+        tokenQueues = tokenQueues map { case (tokenType, tokenQueue) =>
+          tokenType -> tokenQueue.removeTokenlessActor(terminee)
         }
     }
     context.unwatch(terminee)
@@ -214,7 +219,9 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
     }
 
     // Schedule the next log event:
-    context.system.scheduler.scheduleOnce(someInterval) { self ! LogJobTokenAllocation(someInterval) }(context.dispatcher)
+    context.system.scheduler.scheduleOnce(someInterval)(self ! LogJobTokenAllocation(someInterval))(
+      context.dispatcher
+    )
     ()
   }
 
@@ -225,19 +232,23 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
           so it's desirable that a group submitting to two or more backends pause workflow
           pickup globally when it exhausts tokens in one of the backends
    */
-  private def tokenExhaustedGroups: ReplyLimitedGroups = {
+  private def tokenExhaustedGroups: ReplyLimitedGroups =
     ReplyLimitedGroups(
       tokenQueues.values.flatMap(_.eventLogger.tokenExhaustedGroups).toSet
     )
-  }
 }
 
 object JobTokenDispenserActor {
   case object TokensTimerKey
 
-  def props(serviceRegistryActor: ActorRef, rate: DynamicRateLimiter.Rate, logInterval: Option[FiniteDuration],
-            dispenserType: String, tokenAllocatedDescription: String): Props =
-    Props(new JobTokenDispenserActor(serviceRegistryActor, rate, logInterval, dispenserType, tokenAllocatedDescription)).withDispatcher(EngineDispatcher)
+  def props(serviceRegistryActor: ActorRef,
+            rate: DynamicRateLimiter.Rate,
+            logInterval: Option[FiniteDuration],
+            dispenserType: String,
+            tokenAllocatedDescription: String
+  ): Props =
+    Props(new JobTokenDispenserActor(serviceRegistryActor, rate, logInterval, dispenserType, tokenAllocatedDescription))
+      .withDispatcher(EngineDispatcher)
 
   case class JobTokenRequest(hogGroup: HogGroup, jobTokenType: JobTokenType)
 
@@ -250,7 +261,11 @@ object JobTokenDispenserActor {
   implicit val tokenEncoder = deriveEncoder[JobTokenType]
 
   @JsonCodec(encodeOnly = true)
-  final case class TokenDispenserState(dispenserType: String, tokenTypes: Vector[TokenTypeState], pointer: Int, leased: Int)
+  final case class TokenDispenserState(dispenserType: String,
+                                       tokenTypes: Vector[TokenTypeState],
+                                       pointer: Int,
+                                       leased: Int
+  )
 
   @JsonCodec(encodeOnly = true)
   final case class TokenTypeState(tokenType: JobTokenType, queue: TokenQueueState)

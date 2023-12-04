@@ -8,18 +8,22 @@ import cromwell.languages.config.CromwellLanguages.{CromwellLanguageName, Cromwe
 import scala.jdk.CollectionConverters._
 
 final case class LanguagesConfiguration(languages: List[LanguageVersionConfigurationEntry], default: Option[String])
-final case class LanguageVersionConfigurationEntry(name: CromwellLanguageName, versions: Map[CromwellLanguageVersion, LanguageVersionConfig], default: Option[String])
+final case class LanguageVersionConfigurationEntry(name: CromwellLanguageName,
+                                                   versions: Map[CromwellLanguageVersion, LanguageVersionConfig],
+                                                   default: Option[String]
+)
 final case class LanguageVersionConfig(className: String, config: Config)
 
 object LanguageConfiguration {
   private val LanguagesConfig = ConfigFactory.load.getConfig("languages")
-  private val DefaultLanguageName: Option[String] = if (LanguagesConfig.hasPath("default")) Option(LanguagesConfig.getString("default")) else None
+  private val DefaultLanguageName: Option[String] =
+    if (LanguagesConfig.hasPath("default")) Option(LanguagesConfig.getString("default")) else None
 
-  private val LanguageNames: Set[String] = LanguagesConfig.entrySet().asScala.map(findFirstKey).filterNot(_ == "default").toSet
+  private val LanguageNames: Set[String] =
+    LanguagesConfig.entrySet().asScala.map(findFirstKey).filterNot(_ == "default").toSet
 
   val AllLanguageEntries: LanguagesConfiguration = {
     val languages = LanguageNames.toList map { languageName =>
-
       val languageConfig = LanguagesConfig.getConfig(languageName)
       val versionSet = languageConfig.getConfig("versions")
       val allLanguageVersionNames: Set[String] = versionSet.entrySet().asScala.map(findFirstKey).toSet
@@ -29,7 +33,8 @@ object LanguageConfiguration {
       val versions = (languageVersionNames.toList map { languageVersionName =>
         val configEntry = versionSet.getConfig(s""""$languageVersionName"""")
         val className: String = configEntry.getString("language-factory")
-        val factoryConfig: Config = if (configEntry.hasPath("config")) configEntry.getConfig("config") else ConfigFactory.empty()
+        val factoryConfig: Config =
+          if (configEntry.hasPath("config")) configEntry.getConfig("config") else ConfigFactory.empty()
         val fields = LanguageVersionConfig(className, factoryConfig)
         languageVersionName -> fields
       }).toMap

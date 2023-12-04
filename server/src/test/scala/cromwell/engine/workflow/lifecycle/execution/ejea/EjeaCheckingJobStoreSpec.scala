@@ -1,16 +1,24 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-import cromwell.backend.BackendJobExecutionActor.{JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{
+  JobFailedNonRetryableResponse,
+  JobFailedRetryableResponse,
+  JobSucceededResponse
+}
 import cromwell.core.CallOutputs
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.CallCacheEntryForCall
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec.EnhancedTestEJEA
-import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor.{CheckingCacheEntryExistence, CheckingJobStore, NoData}
+import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor.{
+  CheckingCacheEntryExistence,
+  CheckingJobStore,
+  NoData
+}
 import cromwell.jobstore.JobStoreActor.{JobComplete, JobNotComplete}
 import cromwell.jobstore.{JobResultFailure, JobResultSuccess}
 
 class EjeaCheckingJobStoreSpec extends EngineJobExecutionActorSpec {
 
-  override implicit val stateUnderTest = CheckingJobStore
+  implicit override val stateUnderTest = CheckingJobStore
 
   "An EJEA in CheckingJobStore state should" should {
     "send a Job SucceededResponse if the job is already complete and successful" in {
@@ -21,17 +29,15 @@ class EjeaCheckingJobStoreSpec extends EngineJobExecutionActorSpec {
 
       ejea ! JobComplete(JobResultSuccess(returnCode, jobOutputs))
 
-      helper.replyToProbe.expectMsgPF(awaitTimeout) {
-        case response: JobSucceededResponse =>
-          response.returnCode shouldBe returnCode
-          response.jobOutputs shouldBe jobOutputs
+      helper.replyToProbe.expectMsgPF(awaitTimeout) { case response: JobSucceededResponse =>
+        response.returnCode shouldBe returnCode
+        response.jobOutputs shouldBe jobOutputs
       }
 
       helper.deathwatch.expectTerminated(ejea)
     }
 
     List(("FailedNonRetryableResponse", false), ("FailedRetryableResponse", true)) foreach { case (name, retryable) =>
-
       s"send a $name if the job is already complete and failed" in {
         createCheckingJobStoreEjea()
         val returnCode: Option[Int] = Option(1)
@@ -59,12 +65,16 @@ class EjeaCheckingJobStoreSpec extends EngineJobExecutionActorSpec {
       ejea.setState(CheckingJobStore)
       ejea ! JobNotComplete
 
-      helper.callCacheReadActorProbe.expectMsg(awaitTimeout, "expecting CallCacheEntryForCall", CallCacheEntryForCall(helper.workflowId, helper.jobDescriptorKey))
+      helper.callCacheReadActorProbe.expectMsg(awaitTimeout,
+                                               "expecting CallCacheEntryForCall",
+                                               CallCacheEntryForCall(helper.workflowId, helper.jobDescriptorKey)
+      )
       ejea.stateName should be(CheckingCacheEntryExistence)
 
       ejea.stop()
     }
   }
 
-  private def createCheckingJobStoreEjea(): Unit = { ejea = helper.buildEJEA(restarting = true).setStateInline(state = CheckingJobStore, data = NoData) }
+  private def createCheckingJobStoreEjea(): Unit = ejea =
+    helper.buildEJEA(restarting = true).setStateInline(state = CheckingJobStore, data = NoData)
 }

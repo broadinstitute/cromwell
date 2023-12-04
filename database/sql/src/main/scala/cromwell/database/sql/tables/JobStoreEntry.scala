@@ -2,8 +2,7 @@ package cromwell.database.sql.tables
 
 import javax.sql.rowset.serial.SerialClob
 
-case class JobStoreEntry
-(
+case class JobStoreEntry(
   workflowExecutionUuid: String,
   callFullyQualifiedName: String,
   jobIndex: Int,

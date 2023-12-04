@@ -11,15 +11,18 @@ import scala.concurrent.{ExecutionContext, Future}
 
 object PathBuilderFactory {
   // Given a list of factories, instantiates the corresponding path builders
-  def instantiatePathBuilders(factories: List[PathBuilderFactory], workflowOptions: WorkflowOptions)(implicit as: ActorSystem): Future[List[PathBuilder]] = {
+  def instantiatePathBuilders(factories: List[PathBuilderFactory], workflowOptions: WorkflowOptions)(implicit
+    as: ActorSystem
+  ): Future[List[PathBuilder]] = {
     implicit val ec: ExecutionContext = as.dispatchers.lookup(Dispatcher.IoDispatcher)
     val sortedFactories = factories.sortBy(_.priority)
     sortedFactories.traverse(_.withOptions(workflowOptions))
   }
 
-  val PriorityBlob     = 100   // High priority to evaluate first, because blob files may inadvertently match other filesystems
+  val PriorityBlob =
+    100 // High priority to evaluate first, because blob files may inadvertently match other filesystems
   val PriorityStandard = 1000
-  val PriorityDefault  = 10000 // "Default" is a fallback, evaluate last
+  val PriorityDefault = 10000 // "Default" is a fallback, evaluate last
 }
 
 /**

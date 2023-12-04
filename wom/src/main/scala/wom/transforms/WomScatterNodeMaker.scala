@@ -8,5 +8,10 @@ import simulacrum._
 
 @typeclass
 trait WomScatterNodeMaker[A] {
-  def toWomScatterNode(a: A, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, OutputPort], preserveIndexForOuterLookups: Boolean, inASubworkflow: Boolean): ErrorOr[ScatterNodeWithNewNodes]
+  def toWomScatterNode(a: A,
+                       localLookup: Map[String, GraphNodePort.OutputPort],
+                       outerLookup: Map[String, OutputPort],
+                       preserveIndexForOuterLookups: Boolean,
+                       inASubworkflow: Boolean
+  ): ErrorOr[ScatterNodeWithNewNodes]
 }

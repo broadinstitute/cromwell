@@ -20,13 +20,13 @@ class EngineJobExecutionActorTransitionsSpec extends AnyFlatSpec with CromwellTi
 
     val cacheReadCycles = 5
 
-    val longCallCachingCycleStateSequence = List(
-      Pending,
-      RequestingExecutionToken,
-      CheckingJobStore,
-      CheckingCallCache,
-      FetchingCachedOutputsFromDatabase,
-      CheckingCacheEntryExistence) ++ callCachingStateCycle * cacheReadCycles ++ List(
+    val longCallCachingCycleStateSequence = List(Pending,
+                                                 RequestingExecutionToken,
+                                                 CheckingJobStore,
+                                                 CheckingCallCache,
+                                                 FetchingCachedOutputsFromDatabase,
+                                                 CheckingCacheEntryExistence
+    ) ++ callCachingStateCycle * cacheReadCycles ++ List(
       WaitingForValueStore,
       PreparingJob,
       RunningJob,
@@ -39,26 +39,28 @@ class EngineJobExecutionActorTransitionsSpec extends AnyFlatSpec with CromwellTi
     val transitionSequence = longCallCachingCycleStateSequence.sliding(2) map {
       case fromState :: toState :: _ => EngineJobExecutionActorState.transitionEventString(fromState, toState)
       case _ => fail("Programmer blunder. This test writer had one job to do...")
-    } collect {
-      case Some(stateName) => stateName
+    } collect { case Some(stateName) =>
+      stateName
     }
 
-    transitionSequence.toList should be(List(
-      // "Pending", <-- NB: There's no transition into "Pending" because that was the start state
-      "RequestingExecutionToken",
-      "CheckingJobStore",
-      "CallCacheReading",
-      "WaitingForValueStore",
-      "PreparingJob",
-      "RunningJob",
-      "UpdatingCallCache",
-      "UpdatingJobStore",
-    ))
+    transitionSequence.toList should be(
+      List(
+        // "Pending", <-- NB: There's no transition into "Pending" because that was the start state
+        "RequestingExecutionToken",
+        "CheckingJobStore",
+        "CallCacheReading",
+        "WaitingForValueStore",
+        "PreparingJob",
+        "RunningJob",
+        "UpdatingCallCache",
+        "UpdatingJobStore"
+      )
+    )
   }
 }
 
 object EngineJobExecutionActorTransitionsSpec {
   implicit class MultipliableList[A](val list: List[A]) extends AnyVal {
-    final def *(i: Int): List[A] = if (i == 0 ) List.empty else if (i == 1) list else list ++ (list * (i - 1))
+    final def *(i: Int): List[A] = if (i == 0) List.empty else if (i == 1) list else list ++ (list * (i - 1))
   }
 }

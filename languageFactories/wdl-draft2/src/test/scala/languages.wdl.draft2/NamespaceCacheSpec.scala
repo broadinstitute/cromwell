@@ -69,14 +69,18 @@ class NamespaceCacheSpec extends AnyFlatSpec with CromwellTimeoutSpec with Befor
     }
 
     def validate = {
-      val futureNamespace = factory.validateNamespace(
-        source = collection,
-        workflowSource = ThreeStep,
-        workflowOptions = WorkflowOptions(new spray.json.JsObject(Map.empty)),
-        importLocalFilesystem = false,
-        workflowIdForLogging = WorkflowId.randomId(),
-        ioFunctions = NoIoFunctionSet,
-        importResolvers = List(countingResolver)).value.unsafeToFuture()
+      val futureNamespace = factory
+        .validateNamespace(
+          source = collection,
+          workflowSource = ThreeStep,
+          workflowOptions = WorkflowOptions(new spray.json.JsObject(Map.empty)),
+          importLocalFilesystem = false,
+          workflowIdForLogging = WorkflowId.randomId(),
+          ioFunctions = NoIoFunctionSet,
+          importResolvers = List(countingResolver)
+        )
+        .value
+        .unsafeToFuture()
       Await.result(futureNamespace, Duration.Inf).toOption.get
     }
 

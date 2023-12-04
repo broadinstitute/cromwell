@@ -39,25 +39,35 @@ class CromwellClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfter
   }
 
   "CromwellClient" should "eventually return a subworkflow's root workflow id" in {
-    cromwellClient.getRootWorkflow(SubworkflowId.id.toString, FictitiousUser, fakeHttpRequest).map(w => assert(w == RootWorkflowId.id.toString))
-      .asIo.unsafeToFuture()
+    cromwellClient
+      .getRootWorkflow(SubworkflowId.id.toString, FictitiousUser, fakeHttpRequest)
+      .map(w => assert(w == RootWorkflowId.id.toString))
+      .asIo
+      .unsafeToFuture()
   }
 
   it should "eventually return a top level workflow's ID when requesting root workflow id" in {
-    cromwellClient.getRootWorkflow(RootWorkflowId.id.toString, FictitiousUser, fakeHttpRequest).map(w => assert(w == RootWorkflowId.id.toString))
-      .asIo.unsafeToFuture()
+    cromwellClient
+      .getRootWorkflow(RootWorkflowId.id.toString, FictitiousUser, fakeHttpRequest)
+      .map(w => assert(w == RootWorkflowId.id.toString))
+      .asIo
+      .unsafeToFuture()
   }
 
   it should "properly fetch the collection for a workflow with a collection name" in {
-    cromwellClient.collectionForWorkflow(RootWorkflowId.id.toString, FictitiousUser, fakeHttpRequest).map(c =>
-      assert(c.name == CollectionName)
-    ).asIo.unsafeToFuture()
+    cromwellClient
+      .collectionForWorkflow(RootWorkflowId.id.toString, FictitiousUser, fakeHttpRequest)
+      .map(c => assert(c.name == CollectionName))
+      .asIo
+      .unsafeToFuture()
   }
 
   it should "throw an exception if the workflow doesn't have a collection" in {
     recoverToExceptionIf[IllegalArgumentException] {
-      cromwellClient.collectionForWorkflow(WorkflowIdWithoutCollection.id.toString, FictitiousUser, fakeHttpRequest)
-        .asIo.unsafeToFuture()
+      cromwellClient
+        .collectionForWorkflow(WorkflowIdWithoutCollection.id.toString, FictitiousUser, fakeHttpRequest)
+        .asIo
+        .unsafeToFuture()
     } map { exception =>
       assert(exception.getMessage == s"Workflow $WorkflowIdWithoutCollection has no associated collection")
     }
@@ -65,24 +75,25 @@ class CromwellClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfter
 }
 
 object CromwellClientSpec {
-  final class MockCromwellClient()(implicit system: ActorSystem,
-                                   ece: ExecutionContextExecutor,
-                                   materializer: ActorMaterializer)
-  extends CromwellClient("http", "bar", 1, NoLogging, ActorRef.noSender) {
+  final class MockCromwellClient()(implicit
+    system: ActorSystem,
+    ece: ExecutionContextExecutor,
+    materializer: ActorMaterializer
+  ) extends CromwellClient("http", "bar", 1, NoLogging, ActorRef.noSender) {
     override val cromwellApiClient: CromwellApiClient = new MockCromwellApiClient()
 
     override def sendTimingApi(statsDPath: InstrumentationPath,
                                timing: FiniteDuration,
                                prefixToStatsd: NonEmptyList[String]
-                              ): Unit = ()
+    ): Unit = ()
   }
 
   final class MockCromwellApiClient()(implicit actorSystem: ActorSystem, materializer: ActorMaterializer)
-    extends CromwellApiClient(new URL("http://foo.com"), "bar") {
+      extends CromwellApiClient(new URL("http://foo.com"), "bar") {
 
-
-    override def labels(workflowId: WorkflowId, headers: List[HttpHeader] = defaultHeaders)
-                       (implicit ec: ExecutionContext): FailureResponseOrT[WorkflowLabels] = {
+    override def labels(workflowId: WorkflowId, headers: List[HttpHeader] = defaultHeaders)(implicit
+      ec: ExecutionContext
+    ): FailureResponseOrT[WorkflowLabels] =
       if (workflowId == RootWorkflowId) {
         FailureResponseOrT.pure(FictitiousWorkflowLabelsWithCollection)
       } else if (workflowId == WorkflowIdWithoutCollection) {
@@ -92,18 +103,17 @@ object CromwellClientSpec {
           IO.raiseError(new RuntimeException("Unexpected workflow ID sent to MockCromwellApiClient"))
         }
       }
-    }
 
     override def metadata(workflowId: WorkflowId,
-                 args: Option[Map[String, List[String]]] = None,
-                 headers: List[HttpHeader] = defaultHeaders
-                )(implicit ec: ExecutionContext): FailureResponseOrT[WorkflowMetadata] = {
+                          args: Option[Map[String, List[String]]] = None,
+                          headers: List[HttpHeader] = defaultHeaders
+    )(implicit ec: ExecutionContext): FailureResponseOrT[WorkflowMetadata] =
       if (workflowId == RootWorkflowId) FailureResponseOrT.pure(RootWorkflowMetadata)
       else if (workflowId == SubworkflowId) FailureResponseOrT.pure(SubWorkflowMetadata)
-      else FailureResponseOrT[IO, HttpResponse, WorkflowMetadata] {
-        IO.raiseError(new RuntimeException("Unexpected workflow ID sent to MockCromwellApiClient"))
-      }
-    }
+      else
+        FailureResponseOrT[IO, HttpResponse, WorkflowMetadata] {
+          IO.raiseError(new RuntimeException("Unexpected workflow ID sent to MockCromwellApiClient"))
+        }
   }
 
   private val SubworkflowId = WorkflowId.fromString("58114f5c-f439-4488-8d73-092273cf92d9")
@@ -126,7 +136,8 @@ object CromwellClientSpec {
                                               }""")
 
   val CollectionName = "foo"
-  val FictitiousWorkflowLabelsWithCollection = WorkflowLabels(RootWorkflowId.id.toString, JsObject(Map("caas-collection-name" -> JsString(CollectionName))))
-  val FictitiousWorkflowLabelsWithoutCollection = WorkflowLabels(RootWorkflowId.id.toString, JsObject(Map("something" -> JsString("foo"))))
+  val FictitiousWorkflowLabelsWithCollection =
+    WorkflowLabels(RootWorkflowId.id.toString, JsObject(Map("caas-collection-name" -> JsString(CollectionName))))
+  val FictitiousWorkflowLabelsWithoutCollection =
+    WorkflowLabels(RootWorkflowId.id.toString, JsObject(Map("something" -> JsString("foo"))))
 }
-

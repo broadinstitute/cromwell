@@ -49,41 +49,40 @@ object WorkflowLogger {
   https://github.com/qos-ch/logback/commit/77128a003a7fd7e8bd7a6ddb12da7a65cf296593#diff-f8cd32379a53986c2e70e2abe86fa0faR145
    */
   private def makeSynchronizedFileLogger(path: Path, level: Level, ctx: LoggerContext, name: String): Logger =
-  ctx.synchronized {
-    Option(ctx.exists(name)) match {
-      case Some(existingLogger) => existingLogger
-      case None =>
-        val encoder = new PatternLayoutEncoder()
-        encoder.setPattern("%date %-5level - %msg%n")
-        encoder.setContext(ctx)
-        encoder.start()
+    ctx.synchronized {
+      Option(ctx.exists(name)) match {
+        case Some(existingLogger) => existingLogger
+        case None =>
+          val encoder = new PatternLayoutEncoder()
+          encoder.setPattern("%date %-5level - %msg%n")
+          encoder.setContext(ctx)
+          encoder.start()
 
-        val appender = new FileAppender[ILoggingEvent]()
-        appender.setFile(path.pathAsString)
-        appender.setEncoder(encoder)
-        appender.setName(name)
-        appender.setContext(ctx)
-        appender.start()
+          val appender = new FileAppender[ILoggingEvent]()
+          appender.setFile(path.pathAsString)
+          appender.setEncoder(encoder)
+          appender.setName(name)
+          appender.setContext(ctx)
+          appender.start()
 
-        val fileLogger = ctx.getLogger(name)
-        fileLogger.addAppender(appender)
-        fileLogger.setAdditive(false)
-        fileLogger.setLevel(level)
-        fileLogger
+          val fileLogger = ctx.getLogger(name)
+          fileLogger.addAppender(appender)
+          fileLogger.setAdditive(false)
+          fileLogger.setLevel(level)
+          fileLogger
+      }
     }
-  }
 
   case class WorkflowLogConfiguration(dir: Path, temporary: Boolean)
 
   private val conf = ConfigFactory.load()
 
-  val workflowLogConfiguration: Option[WorkflowLogConfiguration] = {
+  val workflowLogConfiguration: Option[WorkflowLogConfiguration] =
     for {
       workflowConfig <- conf.as[Option[Config]]("workflow-options")
       dir <- workflowConfig.as[Option[String]]("workflow-log-dir") if !dir.isEmpty
       temporary <- workflowConfig.as[Option[Boolean]]("workflow-log-temporary") orElse Option(true)
     } yield WorkflowLogConfiguration(DefaultPathBuilder.get(dir).toAbsolutePath, temporary)
-  }
 
   val isEnabled = workflowLogConfiguration.isDefined
   val isTemporary = workflowLogConfiguration exists {
@@ -111,8 +110,8 @@ class WorkflowLogger(loggerName: String,
                      workflowId: PossiblyNotRootWorkflowId,
                      rootWorkflowId: RootWorkflowId,
                      override val akkaLogger: Option[LoggingAdapter],
-                     otherLoggers: Set[Logger] = Set.empty[Logger])
-  extends LoggerWrapper {
+                     otherLoggers: Set[Logger] = Set.empty[Logger]
+) extends LoggerWrapper {
 
   override def getName = loggerName
 
@@ -137,7 +136,8 @@ class WorkflowLogger(loggerName: String,
   import WorkflowLogger._
 
   lazy val workflowLogPath = workflowLogConfiguration.map(workflowLogConfigurationActual =>
-    workflowLogConfigurationActual.dir.createPermissionedDirectories() / s"workflow.$rootWorkflowId.log")
+    workflowLogConfigurationActual.dir.createPermissionedDirectories() / s"workflow.$rootWorkflowId.log"
+  )
 
   lazy val fileLogger = workflowLogPath match {
     case Some(path) => makeFileLogger(path, Level.toLevel(sys.props.getOrElse("LOG_LEVEL", "debug")))

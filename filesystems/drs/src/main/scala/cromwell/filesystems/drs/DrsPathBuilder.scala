@@ -9,20 +9,20 @@ import scala.util.{Failure, Success, Try}
 
 case class DrsPathBuilder(fileSystemProvider: DrsCloudNioFileSystemProvider,
                           requesterPaysProjectIdOption: Option[String],
-                          preResolve: Boolean = false,
-                         ) extends PreResolvePathBuilder with StrictLogging {
+                          preResolve: Boolean = false
+) extends PreResolvePathBuilder
+    with StrictLogging {
 
   private val drsScheme: String = fileSystemProvider.getScheme
 
   override def name: String = "DRS"
 
-  override def build(pathAsString: String, pathBuilders: PathBuilders): Try[Path] = {
+  override def build(pathAsString: String, pathBuilders: PathBuilders): Try[Path] =
     if (pathAsString.startsWith(s"$drsScheme://")) {
       Try(createDrsOrOtherPath(pathAsString, pathBuilders))
     } else {
       Failure(new IllegalArgumentException(s"$pathAsString does not have a $drsScheme scheme."))
     }
-  }
 
   private def createDrsOrOtherPath(pathAsString: String, pathBuilders: PathBuilders): Path = {
     def drsPath = DrsPath(fileSystemProvider.getCloudNioPath(pathAsString), requesterPaysProjectIdOption)
@@ -35,17 +35,15 @@ case class DrsPathBuilder(fileSystemProvider: DrsCloudNioFileSystemProvider,
 
   private def maybeCreateOtherPath(pathAsString: String, pathBuilders: PathBuilders): Option[Path] = {
 
-    def logAttempt[A](description: String, attempt: => A): Option[A] = {
+    def logAttempt[A](description: String, attempt: => A): Option[A] =
       logTry(description, Try(attempt))
-    }
 
-    def logTry[A](description: String, tried: Try[A]): Option[A] = {
+    def logTry[A](description: String, tried: Try[A]): Option[A] =
       tried match {
         case Success(result) => Option(result)
         case Failure(exception) =>
           logFailure(description, exception)
       }
-    }
 
     def logFailure(description: String, reason: Any): None.type = {
       logger.debug(s"Unable to $description, will use a DrsPath to access '$pathAsString': $reason")
@@ -66,7 +64,7 @@ case class DrsPathBuilder(fileSystemProvider: DrsCloudNioFileSystemProvider,
       gcsUrlWithNoCreds <- gsUriOption
       gcsPath <- logAttempt(
         s"create a GcsPath for '$gcsUrlWithNoCreds'",
-        PathFactory.buildPath(gcsUrlWithNoCreds, pathBuilders),
+        PathFactory.buildPath(gcsUrlWithNoCreds, pathBuilders)
       )
       // Extra: Make sure the GcsPath _actually_ has permission to access the path
       _ <- logAttempt(s"access '$gcsPath' with GCS credentials", gcsPath.size)

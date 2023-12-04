@@ -9,15 +9,21 @@ import wdl.model.draft3.elements.{CommandPartElement, ExpressionElement, Placeho
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 
 object AstNodeToCommandPartElement {
-  def astNodeToCommandPartElement(implicit astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement],
-                                  astNodeToPlaceholderAttributeSet: CheckedAtoB[GenericAstNode, PlaceholderAttributeSet]
-                                 ): CheckedAtoB[GenericAstNode, CommandPartElement] = CheckedAtoB.fromErrorOr { a: GenericAstNode => a match {
-    case t: GenericTerminal => astNodeToString(t).toValidated map StringCommandPartElement
-    case a: GenericAst =>
-      val expressionElementV: ErrorOr[ExpressionElement] = a.getAttributeAs[ExpressionElement]("expr").toValidated
-      val attributesV: ErrorOr[PlaceholderAttributeSet] = a.getAttributeAs[PlaceholderAttributeSet]("attributes").toValidated
+  def astNodeToCommandPartElement(implicit
+    astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement],
+    astNodeToPlaceholderAttributeSet: CheckedAtoB[GenericAstNode, PlaceholderAttributeSet]
+  ): CheckedAtoB[GenericAstNode, CommandPartElement] = CheckedAtoB.fromErrorOr { a: GenericAstNode =>
+    a match {
+      case t: GenericTerminal => astNodeToString(t).toValidated map StringCommandPartElement
+      case a: GenericAst =>
+        val expressionElementV: ErrorOr[ExpressionElement] = a.getAttributeAs[ExpressionElement]("expr").toValidated
+        val attributesV: ErrorOr[PlaceholderAttributeSet] =
+          a.getAttributeAs[PlaceholderAttributeSet]("attributes").toValidated
 
-      (expressionElementV, attributesV) mapN { (expressionElement, attributes) => PlaceholderCommandPartElement(expressionElement, attributes) }
-    case other => s"Conversion for $other not supported".invalidNel
-  }}
+        (expressionElementV, attributesV) mapN { (expressionElement, attributes) =>
+          PlaceholderCommandPartElement(expressionElement, attributes)
+        }
+      case other => s"Conversion for $other not supported".invalidNel
+    }
+  }
 }

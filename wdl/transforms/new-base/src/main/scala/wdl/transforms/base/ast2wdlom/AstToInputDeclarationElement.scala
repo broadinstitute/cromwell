@@ -9,8 +9,10 @@ import wdl.model.draft3.elements.{ExpressionElement, InputDeclarationElement, Ty
 
 object AstToInputDeclarationElement {
 
-  def astToInputDeclarationElement(implicit astNodeToTypeElement: CheckedAtoB[GenericAstNode, TypeElement],
-                                   astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement]): CheckedAtoB[GenericAst, InputDeclarationElement] = CheckedAtoB.fromErrorOr { a: GenericAst =>
+  def astToInputDeclarationElement(implicit
+    astNodeToTypeElement: CheckedAtoB[GenericAstNode, TypeElement],
+    astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement]
+  ): CheckedAtoB[GenericAst, InputDeclarationElement] = CheckedAtoB.fromErrorOr { a: GenericAst =>
     val nameValidation: ErrorOr[String] = astNodeToString(a.getAttribute("name")).toValidated
     val inputTypeValidation: ErrorOr[TypeElement] = astNodeToTypeElement(a.getAttribute("type")).toValidated
     val expressionValidation: ErrorOr[Option[ExpressionElement]] = Option(a.getAttribute("expression")) match {
@@ -18,9 +20,8 @@ object AstToInputDeclarationElement {
       case None => None.validNel
     }
 
-    (nameValidation, inputTypeValidation, expressionValidation) mapN {
-      (name, inputType, expression) =>
-        InputDeclarationElement(inputType, name, expression)
+    (nameValidation, inputTypeValidation, expressionValidation) mapN { (name, inputType, expression) =>
+      InputDeclarationElement(inputType, name, expression)
     }
   }
 }

@@ -15,8 +15,8 @@ class CascadesTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val str = "3 + 3"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-    expr.shouldBeValidPF {
-      case e => e.evaluateType(Map.empty) shouldBeValid WomIntegerType
+    expr.shouldBeValidPF { case e =>
+      e.evaluateType(Map.empty) shouldBeValid WomIntegerType
     }
   }
 
@@ -24,8 +24,8 @@ class CascadesTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val str = """as_map([(1,2), (3,4)])"""
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-    expr.shouldBeValidPF {
-      case e => e.evaluateType(Map.empty) shouldBeValid WomMapType(WomIntegerType, WomIntegerType)
+    expr.shouldBeValidPF { case e =>
+      e.evaluateType(Map.empty) shouldBeValid WomMapType(WomIntegerType, WomIntegerType)
     }
   }
 
@@ -33,8 +33,8 @@ class CascadesTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val str = """as_pairs({ "one": 1, "two": 2, "three": 3 })"""
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-    expr.shouldBeValidPF {
-      case e => e.evaluateType(Map.empty) shouldBeValid WomArrayType(WomPairType(WomStringType, WomIntegerType))
+    expr.shouldBeValidPF { case e =>
+      e.evaluateType(Map.empty) shouldBeValid WomArrayType(WomPairType(WomStringType, WomIntegerType))
     }
   }
 
@@ -42,8 +42,8 @@ class CascadesTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val str = """ sep(' ', ["a", "b", "c"]) """
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-    expr.shouldBeValidPF {
-      case e => e.evaluateType(Map.empty) shouldBeValid WomStringType
+    expr.shouldBeValidPF { case e =>
+      e.evaluateType(Map.empty) shouldBeValid WomStringType
     }
   }
 
@@ -51,8 +51,8 @@ class CascadesTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val str = """ sep(' ', prefix("-i ", ["a", "b", "c"])) """
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-    expr.shouldBeValidPF {
-      case e => e.evaluateType(Map.empty) shouldBeValid WomStringType
+    expr.shouldBeValidPF { case e =>
+      e.evaluateType(Map.empty) shouldBeValid WomStringType
     }
   }
 

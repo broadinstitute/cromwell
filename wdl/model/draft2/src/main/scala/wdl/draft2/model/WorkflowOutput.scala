@@ -13,4 +13,9 @@ object WorkflowOutput {
   }
 }
 
-case class WorkflowOutput(unqualifiedName: String, womType: WomType, requiredExpression: WdlExpression, ast: Ast, override val parent: Option[Scope]) extends Output
+case class WorkflowOutput(unqualifiedName: String,
+                          womType: WomType,
+                          requiredExpression: WdlExpression,
+                          ast: Ast,
+                          override val parent: Option[Scope]
+) extends Output

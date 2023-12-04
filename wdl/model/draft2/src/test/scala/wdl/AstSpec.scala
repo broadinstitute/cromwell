@@ -17,9 +17,11 @@ class AstSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   }
 
   it should "produce AST with 3 Call nodes in the Workflow node" in {
-    AstTools.findAsts(
-      AstTools.findAsts(namespace.ast, "Workflow").head,
-      "Call"
-    ).size shouldEqual 3
+    AstTools
+      .findAsts(
+        AstTools.findAsts(namespace.ast, "Workflow").head,
+        "Call"
+      )
+      .size shouldEqual 3
   }
 }

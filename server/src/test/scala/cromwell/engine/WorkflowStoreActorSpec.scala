@@ -7,14 +7,22 @@ import akka.testkit._
 import cats.data.{NonEmptyList, NonEmptyVector}
 import common.assertion.CromwellTimeoutSpec
 import cromwell.core._
-import cromwell.core.abort.{AbortResponse, WorkflowAbortFailureResponse, WorkflowAbortRequestedResponse, WorkflowAbortedResponse}
+import cromwell.core.abort.{
+  AbortResponse,
+  WorkflowAbortedResponse,
+  WorkflowAbortFailureResponse,
+  WorkflowAbortRequestedResponse
+}
 import cromwell.engine.workflow.{CoordinatedWorkflowStoreActorBuilder, SqlWorkflowStoreBuilder}
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreState
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreCoordinatedAccessActor.WriteHeartbeats
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{NewWorkflowsToStart, NoNewWorkflowsToStart}
-import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{
+  WorkflowsBatchSubmittedToStore,
+  WorkflowSubmittedToStore
+}
 import cromwell.engine.workflow.workflowstore._
 import cromwell.services.metadata.MetadataQuery
 import cromwell.services.metadata.MetadataService.{GetMetadataAction, MetadataLookupResponse}
@@ -31,8 +39,14 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWorkflowStoreActorBuilder
-  with SqlWorkflowStoreBuilder with Matchers with BeforeAndAfter with Eventually with CromwellTimeoutSpec {
+class WorkflowStoreActorSpec
+    extends CromwellTestKitWordSpec
+    with CoordinatedWorkflowStoreActorBuilder
+    with SqlWorkflowStoreBuilder
+    with Matchers
+    with BeforeAndAfter
+    with Eventually
+    with CromwellTimeoutSpec {
   private val helloWorldSourceFiles = HelloWorld.asWorkflowSources().asInstanceOf[WorkflowSourceFilesWithoutImports]
   private val helloWorldSourceFilesOnHold = HelloWorld.asWorkflowSources(workflowOnHold = true)
   private val helloCwlWorldSourceFiles =
@@ -46,8 +60,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
       val (list, distinct) = knownDistinct
       if (!distinct) {
         (list :+ next, false)
-      }
-      else {
+      } else {
         (list :+ next, !list.map(_.id).contains(next.id))
       }
     }
@@ -89,8 +102,8 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
         "WorkflowStoreActor-CheckOnHold"
       )
       storeActor ! SubmitWorkflow(helloWorldSourceFilesOnHold)
-      expectMsgPF(10 seconds) {
-        case submit: WorkflowSubmittedToStore => submit.state shouldBe WorkflowOnHold
+      expectMsgPF(10 seconds) { case submit: WorkflowSubmittedToStore =>
+        submit.state shouldBe WorkflowOnHold
       }
     }
 
@@ -107,9 +120,11 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
         ),
         "WorkflowStoreActor-ReturnIdsForBatch"
       )
-      storeActor ! BatchSubmitWorkflows(NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloWorldSourceFiles))
-      expectMsgPF(10 seconds) {
-        case WorkflowsBatchSubmittedToStore(ids, WorkflowSubmitted) => ids.toList.size shouldBe 3
+      storeActor ! BatchSubmitWorkflows(
+        NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloWorldSourceFiles)
+      )
+      expectMsgPF(10 seconds) { case WorkflowsBatchSubmittedToStore(ids, WorkflowSubmitted) =>
+        ids.toList.size shouldBe 3
       }
     }
 
@@ -126,46 +141,42 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
         ),
         "WorkflowStoreActor-FetchExactlyN"
       )
-      storeActor ! BatchSubmitWorkflows(NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloCwlWorldSourceFiles))
+      storeActor ! BatchSubmitWorkflows(
+        NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloCwlWorldSourceFiles)
+      )
       val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.toList
 
       storeActor ! FetchRunnableWorkflows(2, Set.empty)
-      expectMsgPF(10 seconds) {
-        case NewWorkflowsToStart(workflowNel) =>
-          workflowNel.toList.size shouldBe 2
-          checkDistinctIds(workflowNel.toList) shouldBe true
-          workflowNel map {
-            case WorkflowToStart(id, _, sources, state, _) =>
-              insertedIds.contains(id) shouldBe true
-              sources shouldBe helloWorldSourceFiles
-              state shouldBe Submitted
-          }
+      expectMsgPF(10 seconds) { case NewWorkflowsToStart(workflowNel) =>
+        workflowNel.toList.size shouldBe 2
+        checkDistinctIds(workflowNel.toList) shouldBe true
+        workflowNel map { case WorkflowToStart(id, _, sources, state, _) =>
+          insertedIds.contains(id) shouldBe true
+          sources shouldBe helloWorldSourceFiles
+          state shouldBe Submitted
+        }
       }
 
       storeActor ! FetchRunnableWorkflows(1, Set.empty)
-      expectMsgPF(10 seconds) {
-        case NewWorkflowsToStart(workflowNel) =>
-          workflowNel.toList.size shouldBe 1
-          checkDistinctIds(workflowNel.toList) shouldBe true
-          workflowNel map {
-            case WorkflowToStart(id, _, sources, state, _) =>
-              insertedIds.contains(id) shouldBe true
-              sources shouldBe helloCwlWorldSourceFiles
-              state shouldBe Submitted
-          }
+      expectMsgPF(10 seconds) { case NewWorkflowsToStart(workflowNel) =>
+        workflowNel.toList.size shouldBe 1
+        checkDistinctIds(workflowNel.toList) shouldBe true
+        workflowNel map { case WorkflowToStart(id, _, sources, state, _) =>
+          insertedIds.contains(id) shouldBe true
+          sources shouldBe helloCwlWorldSourceFiles
+          state shouldBe Submitted
+        }
       }
     }
 
     "fetch encrypted and cleared workflow options" in {
       EncryptionSpec.assumeAes256Cbc()
 
-      val optionedSourceFiles = HelloWorld.asWorkflowSources(workflowOptions =
-        s"""|{
-            |  "key": "value",
-            |  "refresh_token": "it's a secret"
-            |}
-            |""".stripMargin)
-
+      val optionedSourceFiles = HelloWorld.asWorkflowSources(workflowOptions = s"""|{
+                                                                                   |  "key": "value",
+                                                                                   |  "refresh_token": "it's a secret"
+                                                                                   |}
+                                                                                   |""".stripMargin)
 
       val store = new InMemoryWorkflowStore
       val storeActor = system.actorOf(
@@ -183,36 +194,35 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
       val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.toList
 
       storeActor ! FetchRunnableWorkflows(1, Set.empty)
-      expectMsgPF(10 seconds) {
-        case NewWorkflowsToStart(workflowNel) =>
-          workflowNel.toList.size should be(1)
-          checkDistinctIds(workflowNel.toList) should be(true)
-          workflowNel.toList.foreach {
-            case WorkflowToStart(id, _, sources, state, _) =>
-              insertedIds.contains(id) should be(true)
-              sources.workflowSource should be(optionedSourceFiles.workflowSource)
-              sources.inputsJson should be(optionedSourceFiles.inputsJson)
-              state should be(Submitted)
+      expectMsgPF(10 seconds) { case NewWorkflowsToStart(workflowNel) =>
+        workflowNel.toList.size should be(1)
+        checkDistinctIds(workflowNel.toList) should be(true)
+        workflowNel.toList.foreach { case WorkflowToStart(id, _, sources, state, _) =>
+          insertedIds.contains(id) should be(true)
+          sources.workflowSource should be(optionedSourceFiles.workflowSource)
+          sources.inputsJson should be(optionedSourceFiles.inputsJson)
+          state should be(Submitted)
 
-              import spray.json._
+          import spray.json._
 
-              // We need to wait for workflow metadata to be flushed before we can successfully query for it
-              eventually(timeout(15.seconds.dilated), interval(500.millis.dilated)) {
-                val actorNameUniquificationString = UUID.randomUUID().toString.take(7)
-                val readMetadataActor = system.actorOf(
-                  ReadDatabaseMetadataWorkerActor.props(metadataReadTimeout = 30 seconds, metadataReadRowNumberSafetyThreshold = 20000),
-                  s"ReadMetadataActor-FetchEncryptedOptions-$actorNameUniquificationString"
-                )
+          // We need to wait for workflow metadata to be flushed before we can successfully query for it
+          eventually(timeout(15.seconds.dilated), interval(500.millis.dilated)) {
+            val actorNameUniquificationString = UUID.randomUUID().toString.take(7)
+            val readMetadataActor = system.actorOf(
+              ReadDatabaseMetadataWorkerActor.props(metadataReadTimeout = 30 seconds,
+                                                    metadataReadRowNumberSafetyThreshold = 20000
+              ),
+              s"ReadMetadataActor-FetchEncryptedOptions-$actorNameUniquificationString"
+            )
 
-                readMetadataActor ! GetMetadataAction(MetadataQuery.forWorkflow(id))
-                expectMsgPF(10 seconds) {
-                  case MetadataLookupResponse(_, eventList) =>
-                    val optionsEvent = eventList.find(_.key.key == "submittedFiles:options").get
-                    val clearedJsObject = optionsEvent.value.get.value.parseJson.asJsObject
-                    clearedJsObject.fields("key") should be(JsString("value"))
-                }
-              }
+            readMetadataActor ! GetMetadataAction(MetadataQuery.forWorkflow(id))
+            expectMsgPF(10 seconds) { case MetadataLookupResponse(_, eventList) =>
+              val optionsEvent = eventList.find(_.key.key == "submittedFiles:options").get
+              val clearedJsObject = optionsEvent.value.get.value.parseJson.asJsObject
+              clearedJsObject.fields("key") should be(JsString("value"))
+            }
           }
+        }
       }
     }
 
@@ -229,20 +239,20 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
         ),
         "WorkflowStoreActor-ReturnOnlyRemaining"
       )
-      storeActor ! BatchSubmitWorkflows(NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloWorldSourceFiles))
+      storeActor ! BatchSubmitWorkflows(
+        NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloWorldSourceFiles)
+      )
       val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.toList
 
       storeActor ! FetchRunnableWorkflows(100, Set.empty)
-      expectMsgPF(10 seconds) {
-        case NewWorkflowsToStart(workflowNel) =>
-          workflowNel.toList.size shouldBe 3
-          checkDistinctIds(workflowNel.toList) shouldBe true
-          workflowNel map {
-            case WorkflowToStart(id, _, sources, state, _) =>
-              insertedIds.contains(id) shouldBe true
-              sources shouldBe helloWorldSourceFiles
-              state shouldBe Submitted
-          }
+      expectMsgPF(10 seconds) { case NewWorkflowsToStart(workflowNel) =>
+        workflowNel.toList.size shouldBe 3
+        checkDistinctIds(workflowNel.toList) shouldBe true
+        workflowNel map { case WorkflowToStart(id, _, sources, state, _) =>
+          insertedIds.contains(id) shouldBe true
+          sources shouldBe helloWorldSourceFiles
+          state shouldBe Submitted
+        }
       }
     }
 
@@ -426,7 +436,8 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
       abortResponse.asInstanceOf[WorkflowAbortFailureResponse].workflowId should be(notFoundWorkflowId)
       abortResponse.asInstanceOf[WorkflowAbortFailureResponse].failure should be(a[WorkflowNotFoundException])
       abortResponse.asInstanceOf[WorkflowAbortFailureResponse].failure.getMessage should be(
-        s"Couldn't abort 7ff8dff3-bc80-4500-af3b-57dbe7a6ecbb because no workflow with that ID is in progress")
+        s"Couldn't abort 7ff8dff3-bc80-4500-af3b-57dbe7a6ecbb because no workflow with that ID is in progress"
+      )
     }
 
   }

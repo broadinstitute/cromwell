@@ -34,7 +34,7 @@ object LiquibaseUtils {
     * @param settings The liquibase settings.
     * @param jdbcConnection A jdbc connection to the database.
     */
-  def updateSchema(settings: LiquibaseSettings)(jdbcConnection: Connection): Unit = {
+  def updateSchema(settings: LiquibaseSettings)(jdbcConnection: Connection): Unit =
     mutex.synchronized {
       val liquibaseConnection = newConnection(jdbcConnection)
       try {
@@ -44,11 +44,9 @@ object LiquibaseUtils {
 
         val liquibase = new Liquibase(settings.changeLogResourcePath, new ClassLoaderResourceAccessor(), database)
         updateSchema(liquibase)
-      } finally {
+      } finally
         closeConnection(liquibaseConnection)
-      }
     }
-  }
 
   /**
     * Wraps a jdbc connection in the database with the appropriate liquibase connection.
@@ -58,21 +56,19 @@ object LiquibaseUtils {
     * @param jdbcConnection The liquibase connection.
     * @return
     */
-  private def newConnection(jdbcConnection: Connection): DatabaseConnection = {
+  private def newConnection(jdbcConnection: Connection): DatabaseConnection =
     jdbcConnection.getMetaData.getDatabaseProductName match {
       case HsqlDatabaseProperties.PRODUCT_NAME => new HsqlConnection(jdbcConnection)
       case _ => new JdbcConnection(jdbcConnection)
     }
-  }
 
   /**
     * Updates the liquibase database.
     *
     * @param liquibase The facade for interacting with liquibase.
     */
-  private def updateSchema(liquibase: Liquibase): Unit = {
+  private def updateSchema(liquibase: Liquibase): Unit =
     liquibase.update(DefaultContexts, DefaultLabelExpression)
-  }
 
   /**
     * Converts a liquibase connection to a liquibase database.
@@ -80,9 +76,8 @@ object LiquibaseUtils {
     * @param liquibaseConnection The liquibase connection.
     * @return The liquibase database.
     */
-  private def toDatabase(liquibaseConnection: DatabaseConnection): Database = {
+  private def toDatabase(liquibaseConnection: DatabaseConnection): Database =
     DatabaseFactory.getInstance().findCorrectDatabaseImplementation(liquibaseConnection)
-  }
 
   /**
     * Compares a reference to a comparison liquibase database.
@@ -91,9 +86,8 @@ object LiquibaseUtils {
     * @param comparisonDatabase The comparison liquibase database.
     * @return The complete diff results.
     */
-  private def compare(referenceDatabase: Database, comparisonDatabase: Database): DiffResult = {
+  private def compare(referenceDatabase: Database, comparisonDatabase: Database): DiffResult =
     DiffGeneratorFactory.getInstance().compare(referenceDatabase, comparisonDatabase, CompareControl.STANDARD)
-  }
 
   /**
     * Compares a reference to a comparison JDBC connection.
@@ -103,7 +97,7 @@ object LiquibaseUtils {
     * @param block          Block of code to run before closing the connections.
     * @return The complete diff results.
     */
-  def compare[T](referenceJdbc: Connection, comparisonJdbc: Connection)(block: DiffResult => T): T = {
+  def compare[T](referenceJdbc: Connection, comparisonJdbc: Connection)(block: DiffResult => T): T =
     mutex.synchronized {
       withConnection(referenceJdbc) { referenceLiquibase =>
         withConnection(comparisonJdbc) { comparisonLiquibase =>
@@ -112,7 +106,6 @@ object LiquibaseUtils {
         }
       }
     }
-  }
 
   /**
     * Provides a connection to a block of code, closing the connection afterwards.
@@ -124,11 +117,10 @@ object LiquibaseUtils {
     */
   private def withConnection[T](jdbcConnection: Connection)(block: DatabaseConnection => T): T = {
     val liquibaseConnection = newConnection(jdbcConnection)
-    try {
+    try
       block(liquibaseConnection)
-    } finally {
+    finally
       closeConnection(liquibaseConnection)
-    }
   }
 
   /**
@@ -136,13 +128,12 @@ object LiquibaseUtils {
     *
     * @param connection The liquibase connection.
     */
-  private def closeConnection(connection: DatabaseConnection): Unit = {
-    try {
+  private def closeConnection(connection: DatabaseConnection): Unit =
+    try
       connection.close()
-    } finally {
+    finally {
       /* ignore */
     }
-  }
 
   /**
     * Returns the changelog for a liquibase setting.
@@ -165,11 +156,10 @@ object LiquibaseUtils {
     * @param settings The liquibase settings.
     * @return The database change sets.
     */
-  def getChangeSets(settings: LiquibaseSettings): Seq[ChangeSet] = {
+  def getChangeSets(settings: LiquibaseSettings): Seq[ChangeSet] =
     mutex.synchronized {
       getChangeLog(settings).getChangeSets.asScala.toList
     }
-  }
 
   /**
     * Returns a schema snapshot.
@@ -177,7 +167,7 @@ object LiquibaseUtils {
     * @param jdbcConnection A jdbc connection to the database.
     * @return The database change sets.
     */
-  def getSnapshot(jdbcConnection: Connection): DatabaseSnapshot = {
+  def getSnapshot(jdbcConnection: Connection): DatabaseSnapshot =
     mutex.synchronized {
       withConnection(jdbcConnection) { referenceLiquibase =>
         val database = toDatabase(referenceLiquibase)
@@ -191,10 +181,8 @@ object LiquibaseUtils {
             database,
             new SnapshotControl(database)
           )
-        } finally {
+        } finally
           database.setObjectQuotingStrategy(objectQuotingStrategy)
-        }
       }
     }
-  }
 }

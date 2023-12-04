@@ -11,11 +11,10 @@ import wdl4s.parser.MemoryUnit
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-
 object MemorySize {
   val memoryPattern = """(\d+(?:\.\d+)?)\s*(\w+)""".r
 
-  def parse(unparsed: String): Try[MemorySize] = {
+  def parse(unparsed: String): Try[MemorySize] =
     unparsed match {
       case memoryPattern(amountString, unitString) =>
         val amount: ErrorOr[Double] = amountString.parseDouble leftMap {
@@ -31,9 +30,11 @@ object MemorySize {
           case Valid(memorySize) => Success(memorySize)
           case Invalid(nel) => Failure(new UnsupportedOperationException(nel.toList.mkString("\n")))
         }
-      case _ => Failure(new UnsupportedOperationException(s"$unparsed should be of the form 'X Unit' where X is a number, e.g. 8 GB"))
+      case _ =>
+        Failure(
+          new UnsupportedOperationException(s"$unparsed should be of the form 'X Unit' where X is a number, e.g. 8 GB")
+        )
     }
-  }
 }
 
 case class MemorySize(amount: Double, unit: MemoryUnit) {

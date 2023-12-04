@@ -20,14 +20,16 @@ object LinkedGraphMaker {
   def make(nodes: Set[WorkflowGraphElement],
            externalHandles: Set[GeneratedValueHandle],
            typeAliases: Map[String, WomType],
-           callables: Map[String, Callable])
-          (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): ErrorOr[LinkedGraph] = {
+           callables: Map[String, Callable]
+  )(implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): ErrorOr[LinkedGraph] = {
 
-    val generatedValuesByGraphNodeValidation: ErrorOr[Map[WorkflowGraphElement, Set[GeneratedValueHandle]]] = nodes.toList.traverse{ node =>
-      node.generatedValueHandles(typeAliases, callables).map(node -> _)
-    } map (_.toMap)
+    val generatedValuesByGraphNodeValidation: ErrorOr[Map[WorkflowGraphElement, Set[GeneratedValueHandle]]] =
+      nodes.toList.traverse { node =>
+        node.generatedValueHandles(typeAliases, callables).map(node -> _)
+      } map (_.toMap)
 
-    val consumedValuesByGraphNodeValidation: ErrorOr[Map[WorkflowGraphElement, Set[UnlinkedConsumedValueHook]]] = nodes.toList.traverse(n => n.graphElementConsumedValueHooks(typeAliases, callables).map(n -> _)).map(_.toMap)
+    val consumedValuesByGraphNodeValidation: ErrorOr[Map[WorkflowGraphElement, Set[UnlinkedConsumedValueHook]]] =
+      nodes.toList.traverse(n => n.graphElementConsumedValueHooks(typeAliases, callables).map(n -> _)).map(_.toMap)
 
     for {
       generatedValuesByGraphNode <- generatedValuesByGraphNodeValidation
@@ -41,7 +43,8 @@ object LinkedGraphMaker {
 
   def getOrdering(linkedGraph: LinkedGraph): ErrorOr[List[WorkflowGraphElement]] = {
 
-    def nodeName(workflowGraphElement: WorkflowGraphElement): String = workflowGraphElement.toWdlV1.linesIterator.toList.headOption.getOrElse("Unnamed Element").replace("\"", "")
+    def nodeName(workflowGraphElement: WorkflowGraphElement): String =
+      workflowGraphElement.toWdlV1.linesIterator.toList.headOption.getOrElse("Unnamed Element").replace("\"", "")
 
     // Find the topological order in which we must create the graph nodes:
     val edges = linkedGraph.edges map { case LinkedGraphEdge(from, to) => DiEdge(from, to) }
@@ -58,9 +61,9 @@ object LinkedGraphMaker {
             //   c -> a
             //   a -> b
             // we want to start the cycle with the edge "a -> b"
-            val edgeDict : Map[String, String] =
-              cycle.value.edges.map{
-                case graph.EdgeT(from, to) => nodeName(from) -> nodeName(to)
+            val edgeDict: Map[String, String] =
+              cycle.value.edges.map { case graph.EdgeT(from, to) =>
+                nodeName(from) -> nodeName(to)
               }.toMap
             val startPoint = edgeDict.keys.toVector.sorted.head
             var cursor = startPoint
@@ -79,7 +82,9 @@ object LinkedGraphMaker {
                |${cycleReport.mkString(System.lineSeparator)}""".stripMargin.invalidNel
 
           case _ =>
-            val edgeStrings = linkedGraph.edges map { case LinkedGraphEdge(from, to) => s""""${nodeName(from)}" -> "${nodeName(to)}"""" }
+            val edgeStrings = linkedGraph.edges map { case LinkedGraphEdge(from, to) =>
+              s""""${nodeName(from)}" -> "${nodeName(to)}""""
+            }
             // sort the edges for determinism
             val edges = edgeStrings.toVector.sorted
             s"""This workflow contains an elusive cyclic dependency amongst these edges:
@@ -87,14 +92,16 @@ object LinkedGraphMaker {
         }
 
       // This asInstanceOf is not required, but it suppresses an incorrect intelliJ error highlight:
-      case Right(topologicalOrder) => topologicalOrder.toList.map(_.value).asInstanceOf[List[WorkflowGraphElement]].validNel
+      case Right(topologicalOrder) =>
+        topologicalOrder.toList.map(_.value).asInstanceOf[List[WorkflowGraphElement]].validNel
     }
   }
 
   private def makeEdges(elements: Set[WorkflowGraphElement],
-                    consumedValuesByGraphNode: Map[WorkflowGraphElement, Set[UnlinkedConsumedValueHook]],
-                    consumedValueLookup: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
-                    graphElementByGeneratedValueHandle: Map[GeneratedValueHandle, WorkflowGraphElement]): Set[LinkedGraphEdge] = for {
+                        consumedValuesByGraphNode: Map[WorkflowGraphElement, Set[UnlinkedConsumedValueHook]],
+                        consumedValueLookup: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
+                        graphElementByGeneratedValueHandle: Map[GeneratedValueHandle, WorkflowGraphElement]
+  ): Set[LinkedGraphEdge] = for {
     downstreamElement <- elements
     hook <- consumedValuesByGraphNode(downstreamElement)
     upstreamHandle = consumedValueLookup(hook)
@@ -105,23 +112,36 @@ object LinkedGraphMaker {
                                       typeAliases: Map[String, WomType],
                                       availableHandles: Set[GeneratedValueHandle],
                                       callables: Map[String, Callable]
-                                     )
-                                     (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): ErrorOr[Map[UnlinkedConsumedValueHook, GeneratedValueHandle]] = {
-    val consumedValidation: ErrorOr[Set[UnlinkedConsumedValueHook]] = nodes.toList.traverse(n => n.graphElementConsumedValueHooks(typeAliases, callables)).map(_.toSet.flatten)
+  )(implicit
+    expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
+  ): ErrorOr[Map[UnlinkedConsumedValueHook, GeneratedValueHandle]] = {
+    val consumedValidation: ErrorOr[Set[UnlinkedConsumedValueHook]] =
+      nodes.toList.traverse(n => n.graphElementConsumedValueHooks(typeAliases, callables)).map(_.toSet.flatten)
 
-    consumedValidation.flatMap { consumed => makeConsumedValueLookup(consumed, availableHandles) }
+    consumedValidation.flatMap(consumed => makeConsumedValueLookup(consumed, availableHandles))
   }
 
-  def makeConsumedValueLookup(consumedValues: Set[UnlinkedConsumedValueHook], availableHandles: Set[GeneratedValueHandle]): ErrorOr[Map[UnlinkedConsumedValueHook, GeneratedValueHandle]] = {
+  def makeConsumedValueLookup(consumedValues: Set[UnlinkedConsumedValueHook],
+                              availableHandles: Set[GeneratedValueHandle]
+  ): ErrorOr[Map[UnlinkedConsumedValueHook, GeneratedValueHandle]] = {
     def isMatch(hook: UnlinkedConsumedValueHook, handle: GeneratedValueHandle): Boolean = (hook, handle) match {
       case (UnlinkedIdentifierHook(id1), GeneratedIdentifierValueHandle(id2, _)) => id1 == id2
-      case (UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first, _), GeneratedIdentifierValueHandle(id2, _)) if first == id2 => true
-      case (UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first1, second1), GeneratedCallOutputValueHandle(first2, second2, _)) if first1 == first2 && second1 == second2 => true
-      case (UnlinkedAfterCallHook(upstreamCallName), GeneratedCallFinishedHandle(finishedCallName)) if finishedCallName == upstreamCallName => true
+      case (UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first, _), GeneratedIdentifierValueHandle(id2, _))
+          if first == id2 =>
+        true
+      case (UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first1, second1),
+            GeneratedCallOutputValueHandle(first2, second2, _)
+          ) if first1 == first2 && second1 == second2 =>
+        true
+      case (UnlinkedAfterCallHook(upstreamCallName), GeneratedCallFinishedHandle(finishedCallName))
+          if finishedCallName == upstreamCallName =>
+        true
       case _ => false
     }
 
-    def findHandle(consumedValueHook: UnlinkedConsumedValueHook): ErrorOr[(UnlinkedConsumedValueHook, GeneratedValueHandle)] = {
+    def findHandle(
+      consumedValueHook: UnlinkedConsumedValueHook
+    ): ErrorOr[(UnlinkedConsumedValueHook, GeneratedValueHandle)] = {
       val maybeFoundHandle = availableHandles collectFirst {
         case handle if isMatch(consumedValueHook, handle) => handle
       }
@@ -129,22 +149,25 @@ object LinkedGraphMaker {
       (maybeFoundHandle, consumedValueHook) match {
         case (Some(handle), hook) => (hook -> handle).validNel
         case (None, UnlinkedAfterCallHook(upstreamCallName)) =>
-            val didYouMean = availableHandles.collect {
-              case after: GeneratedCallFinishedHandle => s"'${after.finishedCallName}'"
-            }.mkString("[", ", ", "]")
-            s"Cannot specify 'after $upstreamCallName': no such call exists. Available calls are: $didYouMean".invalidNel
+          val didYouMean = availableHandles
+            .collect { case after: GeneratedCallFinishedHandle =>
+              s"'${after.finishedCallName}'"
+            }
+            .mkString("[", ", ", "]")
+          s"Cannot specify 'after $upstreamCallName': no such call exists. Available calls are: $didYouMean".invalidNel
         case (None, _) =>
-            val didYouMean = availableHandles.map(h => s"'${h.linkableName}'").mkString("[", ", ", "]")
-            s"Cannot lookup value '${consumedValueHook.linkString}', it is never declared. Available values are: $didYouMean".invalidNel
+          val didYouMean = availableHandles.map(h => s"'${h.linkableName}'").mkString("[", ", ", "]")
+          s"Cannot lookup value '${consumedValueHook.linkString}', it is never declared. Available values are: $didYouMean".invalidNel
       }
     }
 
-
-    consumedValues.toList.traverse { findHandle } map {_.toMap}
+    consumedValues.toList.traverse(findHandle) map { _.toMap }
 
   }
 
-  private def reverseMap(mapping: Map[WorkflowGraphElement, Set[GeneratedValueHandle]]): ErrorOr[Map[GeneratedValueHandle, WorkflowGraphElement]] = {
+  private def reverseMap(
+    mapping: Map[WorkflowGraphElement, Set[GeneratedValueHandle]]
+  ): ErrorOr[Map[GeneratedValueHandle, WorkflowGraphElement]] = {
     val reversed = for {
       nodeAndHandles <- mapping.toList
       node = nodeAndHandles._1

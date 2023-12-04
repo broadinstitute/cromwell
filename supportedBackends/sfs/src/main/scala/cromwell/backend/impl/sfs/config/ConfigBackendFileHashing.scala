@@ -9,9 +9,9 @@ import scala.language.postfixOps
 import scala.util.Try
 
 private[config] object ConfigBackendFileHashing {
-  def getMd5Result(request: SingleFileHashRequest, log: LoggingAdapter): Try[String] ={
-    val path = DefaultPathBuilder.build(request.file.valueString) recover {
-      case failure => throw new RuntimeException("Failed to construct path to hash", failure)
+  def getMd5Result(request: SingleFileHashRequest, log: LoggingAdapter): Try[String] = {
+    val path = DefaultPathBuilder.build(request.file.valueString) recover { case failure =>
+      throw new RuntimeException("Failed to construct path to hash", failure)
     } get
 
     tryWithResource(() => path.newInputStream) { inputStream =>

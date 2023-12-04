@@ -37,21 +37,21 @@ object GpuResource {
 
 final case class GpuResource(gpuType: GpuType, gpuCount: Int Refined Positive)
 
-final case class GcpBatchRuntimeAttributes(
-                                      cpu: Int Refined Positive,
-                                      cpuPlatform: Option[String],
-                                      gpuResource: Option[GpuResource],
-                                      zones: Vector[String],
-                                      preemptible: Int,
-                                      bootDiskSize: Int,
-                                      memory: MemorySize,
-                                      disks: Seq[GcpBatchAttachedDisk],
-                                      dockerImage: String,
-                                      failOnStderr: Boolean,
-                                      continueOnReturnCode: ContinueOnReturnCode,
-                                      noAddress: Boolean,
-                                      useDockerImageCache: Option[Boolean],
-                                      checkpointFilename: Option[String])
+final case class GcpBatchRuntimeAttributes(cpu: Int Refined Positive,
+                                           cpuPlatform: Option[String],
+                                           gpuResource: Option[GpuResource],
+                                           zones: Vector[String],
+                                           preemptible: Int,
+                                           bootDiskSize: Int,
+                                           memory: MemorySize,
+                                           disks: Seq[GcpBatchAttachedDisk],
+                                           dockerImage: String,
+                                           failOnStderr: Boolean,
+                                           continueOnReturnCode: ContinueOnReturnCode,
+                                           noAddress: Boolean,
+                                           useDockerImageCache: Option[Boolean],
+                                           checkpointFilename: Option[String]
+)
 
 object GcpBatchRuntimeAttributes {
 
@@ -74,147 +74,188 @@ object GcpBatchRuntimeAttributes {
   private val DisksDefaultValue = WomString(s"${GcpBatchWorkingDisk.Name} 10 SSD")
 
   val CpuPlatformKey = "cpuPlatform"
-  private val cpuPlatformValidationInstance = new StringRuntimeAttributesValidation(CpuPlatformKey)
-    .optional
+  private val cpuPlatformValidationInstance = new StringRuntimeAttributesValidation(CpuPlatformKey).optional
   // via `gcloud compute zones describe us-central1-a`
   val CpuPlatformIntelCascadeLakeValue = "Intel Cascade Lake"
   val CpuPlatformAMDRomeValue = "AMD Rome"
 
-  private def cpuMinValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int Refined Positive] = CpuValidation
-    .instanceMin
-    .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
+  private def cpuMinValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int Refined Positive] =
+    CpuValidation.instanceMin
+      .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
 
   val UseDockerImageCacheKey = "useDockerImageCache"
-  private val useDockerImageCacheValidationInstance = new BooleanRuntimeAttributesValidation(UseDockerImageCacheKey)
-    .optional
+  private val useDockerImageCacheValidationInstance = new BooleanRuntimeAttributesValidation(
+    UseDockerImageCacheKey
+  ).optional
 
   val CheckpointFileKey = "checkpointFile"
   private val checkpointFileValidationInstance = new StringRuntimeAttributesValidation(CheckpointFileKey).optional
 
   private val MemoryDefaultValue = "2048 MB"
 
-  private def cpuValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int Refined Positive] = CpuValidation
-    .instance
-    .withDefault(CpuValidation
-      .configDefaultWomValue(runtimeConfig) getOrElse CpuValidation
-      .defaultMin)
-  private def cpuPlatformValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] = cpuPlatformValidationInstance
-  private def gpuTypeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[GpuType] = GpuTypeValidation.optional
+  private def cpuValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int Refined Positive] =
+    CpuValidation.instance
+      .withDefault(
+        CpuValidation
+          .configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin
+      )
+  private def cpuPlatformValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] =
+    cpuPlatformValidationInstance
+  private def gpuTypeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[GpuType] =
+    GpuTypeValidation.optional
 
   val GpuDriverVersionKey = "nvidiaDriverVersion"
-  private def gpuDriverValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] = new StringRuntimeAttributesValidation(GpuDriverVersionKey).optional
+  private def gpuDriverValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] =
+    new StringRuntimeAttributesValidation(GpuDriverVersionKey).optional
 
-  private def gpuCountValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Int Refined Positive] = GpuValidation.optional
-  private def gpuMinValidation(runtimeConfig: Option[Config]):OptionalRuntimeAttributesValidation[Int Refined Positive] = GpuValidation.optionalMin
+  private def gpuCountValidation(
+    runtimeConfig: Option[Config]
+  ): OptionalRuntimeAttributesValidation[Int Refined Positive] = GpuValidation.optional
+  private def gpuMinValidation(
+    runtimeConfig: Option[Config]
+  ): OptionalRuntimeAttributesValidation[Int Refined Positive] = GpuValidation.optionalMin
 
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
 
   private def failOnStderrValidation(runtimeConfig: Option[Config]) = FailOnStderrValidation.default(runtimeConfig)
 
-  private def continueOnReturnCodeValidation(runtimeConfig: Option[Config]) = ContinueOnReturnCodeValidation.default(runtimeConfig)
+  private def continueOnReturnCodeValidation(runtimeConfig: Option[Config]) =
+    ContinueOnReturnCodeValidation.default(runtimeConfig)
 
-  private def disksValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Seq[GcpBatchAttachedDisk]] = DisksValidation
-    .withDefault(DisksValidation.configDefaultWomValue(runtimeConfig) getOrElse DisksDefaultValue)
+  private def disksValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Seq[GcpBatchAttachedDisk]] =
+    DisksValidation
+      .withDefault(DisksValidation.configDefaultWomValue(runtimeConfig) getOrElse DisksDefaultValue)
 
-  private def zonesValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Vector[String]] = ZonesValidation
-    .withDefault(ZonesValidation
-      .configDefaultWomValue(runtimeConfig) getOrElse ZonesDefaultValue)
+  private def zonesValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Vector[String]] =
+    ZonesValidation
+      .withDefault(
+        ZonesValidation
+          .configDefaultWomValue(runtimeConfig) getOrElse ZonesDefaultValue
+      )
 
-  private def preemptibleValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] = preemptibleValidationInstance
-    .withDefault(preemptibleValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse PreemptibleDefaultValue)
+  private def preemptibleValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] =
+    preemptibleValidationInstance
+      .withDefault(preemptibleValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse PreemptibleDefaultValue)
 
-  private def memoryValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[MemorySize] = {
+  private def memoryValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[MemorySize] =
     MemoryValidation.withDefaultMemory(
       RuntimeAttributesKeys.MemoryKey,
-      MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, runtimeConfig) getOrElse MemoryDefaultValue)
-  }
+      MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, runtimeConfig) getOrElse MemoryDefaultValue
+    )
 
-  private def memoryMinValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[MemorySize] = {
+  private def memoryMinValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[MemorySize] =
     MemoryValidation.withDefaultMemory(
       RuntimeAttributesKeys.MemoryMinKey,
       MemoryValidation
-        .configDefaultString(RuntimeAttributesKeys.MemoryMinKey, runtimeConfig) getOrElse MemoryDefaultValue)
-  }
+        .configDefaultString(RuntimeAttributesKeys.MemoryMinKey, runtimeConfig) getOrElse MemoryDefaultValue
+    )
 
+  private def bootDiskSizeValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] =
+    bootDiskValidationInstance
+      .withDefault(bootDiskValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse BootDiskDefaultValue)
 
-  private def bootDiskSizeValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] = bootDiskValidationInstance
-    .withDefault(bootDiskValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse BootDiskDefaultValue)
+  private def noAddressValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
+    noAddressValidationInstance
+      .withDefault(
+        noAddressValidationInstance
+          .configDefaultWomValue(runtimeConfig) getOrElse NoAddressDefaultValue
+      )
 
-  private def noAddressValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] = noAddressValidationInstance
-    .withDefault(noAddressValidationInstance
-      .configDefaultWomValue(runtimeConfig) getOrElse NoAddressDefaultValue)
-
-  private def useDockerImageCacheValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Boolean] =
+  private def useDockerImageCacheValidation(
+    runtimeConfig: Option[Config]
+  ): OptionalRuntimeAttributesValidation[Boolean] =
     useDockerImageCacheValidationInstance
 
-  private val outDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] = {
+  private val outDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] =
     InformationValidation.optional(RuntimeAttributesKeys.OutDirMinKey, MemoryUnit.MB, allowZero = true)
-  }
 
-  private val tmpDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] = {
+  private val tmpDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] =
     InformationValidation.optional(RuntimeAttributesKeys.TmpDirMinKey, MemoryUnit.MB, allowZero = true)
-  }
 
-  private val inputDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] = {
+  private val inputDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] =
     InformationValidation.optional(RuntimeAttributesKeys.DnaNexusInputDirMinKey, MemoryUnit.MB, allowZero = true)
-  }
 
   def runtimeAttributesBuilder(batchConfiguration: GcpBatchConfiguration): StandardValidatedRuntimeAttributesBuilder = {
     val runtimeConfig = batchConfiguration.runtimeConfig
-    StandardValidatedRuntimeAttributesBuilder.default(runtimeConfig).withValidation(
-      gpuCountValidation(runtimeConfig),
-      gpuTypeValidation(runtimeConfig),
-      gpuDriverValidation(runtimeConfig),
-      cpuValidation(runtimeConfig),
-      cpuPlatformValidation(runtimeConfig),
-      cpuMinValidation(runtimeConfig),
-      gpuMinValidation(runtimeConfig),
-      disksValidation(runtimeConfig),
-      noAddressValidation(runtimeConfig),
-      zonesValidation(runtimeConfig),
-      preemptibleValidation(runtimeConfig),
-      memoryValidation(runtimeConfig),
-      memoryMinValidation(runtimeConfig),
-      bootDiskSizeValidation(runtimeConfig),
-      useDockerImageCacheValidation(runtimeConfig),
-      checkpointFileValidationInstance,
-      dockerValidation,
-      outDirMinValidation,
-      tmpDirMinValidation,
-      inputDirMinValidation
-    )
+    StandardValidatedRuntimeAttributesBuilder
+      .default(runtimeConfig)
+      .withValidation(
+        gpuCountValidation(runtimeConfig),
+        gpuTypeValidation(runtimeConfig),
+        gpuDriverValidation(runtimeConfig),
+        cpuValidation(runtimeConfig),
+        cpuPlatformValidation(runtimeConfig),
+        cpuMinValidation(runtimeConfig),
+        gpuMinValidation(runtimeConfig),
+        disksValidation(runtimeConfig),
+        noAddressValidation(runtimeConfig),
+        zonesValidation(runtimeConfig),
+        preemptibleValidation(runtimeConfig),
+        memoryValidation(runtimeConfig),
+        memoryMinValidation(runtimeConfig),
+        bootDiskSizeValidation(runtimeConfig),
+        useDockerImageCacheValidation(runtimeConfig),
+        checkpointFileValidationInstance,
+        dockerValidation,
+        outDirMinValidation,
+        tmpDirMinValidation,
+        inputDirMinValidation
+      )
   }
 
-  def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, runtimeAttrsConfig: Option[Config]): GcpBatchRuntimeAttributes = {
-    val cpu: Int Refined Positive = RuntimeAttributesValidation.extract(cpuValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val cpuPlatform: Option[String] = RuntimeAttributesValidation.extractOption(cpuPlatformValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
-    val checkpointFileName: Option[String] = RuntimeAttributesValidation.extractOption(checkpointFileValidationInstance.key, validatedRuntimeAttributes)
+  def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes,
+            runtimeAttrsConfig: Option[Config]
+  ): GcpBatchRuntimeAttributes = {
+    val cpu: Int Refined Positive =
+      RuntimeAttributesValidation.extract(cpuValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val cpuPlatform: Option[String] = RuntimeAttributesValidation.extractOption(
+      cpuPlatformValidation(runtimeAttrsConfig).key,
+      validatedRuntimeAttributes
+    )
+    val checkpointFileName: Option[String] =
+      RuntimeAttributesValidation.extractOption(checkpointFileValidationInstance.key, validatedRuntimeAttributes)
 
-    //GPU
+    // GPU
     lazy val gpuType: Option[GpuType] = RuntimeAttributesValidation
       .extractOption(gpuTypeValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
     lazy val gpuCount: Option[Int Refined Positive] = RuntimeAttributesValidation
       .extractOption(gpuCountValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
-    lazy val gpuDriver: Option[String] = RuntimeAttributesValidation.extractOption(gpuDriverValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
+    lazy val gpuDriver: Option[String] =
+      RuntimeAttributesValidation.extractOption(gpuDriverValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
 
     val gpuResource: Option[GpuResource] = if (gpuType.isDefined || gpuCount.isDefined || gpuDriver.isDefined) {
-      Option(GpuResource(gpuType.getOrElse(GpuType.DefaultGpuType), gpuCount
-        .getOrElse(GpuType.DefaultGpuCount)))
+      Option(
+        GpuResource(gpuType.getOrElse(GpuType.DefaultGpuType),
+                    gpuCount
+                      .getOrElse(GpuType.DefaultGpuCount)
+        )
+      )
     } else {
       None
     }
 
-
     val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
-    val failOnStderr: Boolean = RuntimeAttributesValidation.extract(failOnStderrValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val continueOnReturnCode: ContinueOnReturnCode = RuntimeAttributesValidation.extract(continueOnReturnCodeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val noAddress: Boolean = RuntimeAttributesValidation.extract(noAddressValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val failOnStderr: Boolean =
+      RuntimeAttributesValidation.extract(failOnStderrValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val continueOnReturnCode: ContinueOnReturnCode = RuntimeAttributesValidation.extract(
+      continueOnReturnCodeValidation(runtimeAttrsConfig),
+      validatedRuntimeAttributes
+    )
+    val noAddress: Boolean =
+      RuntimeAttributesValidation.extract(noAddressValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val zones: Vector[String] = RuntimeAttributesValidation.extract(ZonesValidation, validatedRuntimeAttributes)
-    val preemptible: Int = RuntimeAttributesValidation.extract(preemptibleValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val bootDiskSize: Int = RuntimeAttributesValidation.extract(bootDiskSizeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val memory: MemorySize = RuntimeAttributesValidation.extract(memoryValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val disks: Seq[GcpBatchAttachedDisk] = RuntimeAttributesValidation.extract(disksValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val useDockerImageCache: Option[Boolean] = RuntimeAttributesValidation.extractOption(useDockerImageCacheValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
+    val preemptible: Int =
+      RuntimeAttributesValidation.extract(preemptibleValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val bootDiskSize: Int =
+      RuntimeAttributesValidation.extract(bootDiskSizeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val memory: MemorySize =
+      RuntimeAttributesValidation.extract(memoryValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val disks: Seq[GcpBatchAttachedDisk] =
+      RuntimeAttributesValidation.extract(disksValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val useDockerImageCache: Option[Boolean] = RuntimeAttributesValidation.extractOption(
+      useDockerImageCacheValidation(runtimeAttrsConfig).key,
+      validatedRuntimeAttributes
+    )
 
     val outDirMin: Option[MemorySize] = RuntimeAttributesValidation
       .extractOption(outDirMinValidation.key, validatedRuntimeAttributes)
@@ -223,9 +264,10 @@ object GcpBatchRuntimeAttributes {
     val inputDirMin: Option[MemorySize] = RuntimeAttributesValidation
       .extractOption(inputDirMinValidation.key, validatedRuntimeAttributes)
 
-
-    val totalExecutionDiskSizeBytes = List(inputDirMin.map(_.bytes), outDirMin.map(_.bytes), tmpDirMin.map(_.bytes))
-      .flatten.fold(MemorySize(0, MemoryUnit.Bytes).bytes)(_ + _)
+    val totalExecutionDiskSizeBytes = List(inputDirMin.map(_.bytes),
+                                           outDirMin.map(_.bytes),
+                                           tmpDirMin.map(_.bytes)
+    ).flatten.fold(MemorySize(0, MemoryUnit.Bytes).bytes)(_ + _)
     val totalExecutionDiskSize = MemorySize(totalExecutionDiskSizeBytes, MemoryUnit.Bytes)
 
     val adjustedDisks = disks.adjustWorkingDiskWithNewMin(totalExecutionDiskSize, ())
@@ -244,9 +286,9 @@ object GcpBatchRuntimeAttributes {
       continueOnReturnCode,
       noAddress,
       useDockerImageCache,
-      checkpointFileName)
+      checkpointFileName
+    )
   }
-
 
 }
 
@@ -277,24 +319,23 @@ object DisksValidation extends RuntimeAttributesValidation[Seq[GcpBatchAttachedD
   }
 
   private def validateLocalDisks(disks: Seq[String]): ErrorOr[Seq[GcpBatchAttachedDisk]] = {
-    val diskNels: ErrorOr[Seq[GcpBatchAttachedDisk]] = disks.toList.traverse[ErrorOr, GcpBatchAttachedDisk](validateLocalDisk)
+    val diskNels: ErrorOr[Seq[GcpBatchAttachedDisk]] =
+      disks.toList.traverse[ErrorOr, GcpBatchAttachedDisk](validateLocalDisk)
     val defaulted: ErrorOr[Seq[GcpBatchAttachedDisk]] = addDefault(diskNels)
     defaulted
   }
 
-  private def validateLocalDisk(disk: String): ErrorOr[GcpBatchAttachedDisk] = {
+  private def validateLocalDisk(disk: String): ErrorOr[GcpBatchAttachedDisk] =
     GcpBatchAttachedDisk.parse(disk) match {
       case scala.util.Success(attachedDisk) => attachedDisk.validNel
       case scala.util.Failure(ex) => ex.getMessage.invalidNel
     }
-  }
 
-  private def addDefault(disksNel: ErrorOr[Seq[GcpBatchAttachedDisk]]): ErrorOr[Seq[GcpBatchAttachedDisk]] = {
+  private def addDefault(disksNel: ErrorOr[Seq[GcpBatchAttachedDisk]]): ErrorOr[Seq[GcpBatchAttachedDisk]] =
     disksNel map {
       case disks if disks.exists(_.name == GcpBatchWorkingDisk.Name) => disks
       case disks => disks :+ GcpBatchWorkingDisk.Default
     }
-  }
 
   override protected def missingValueMessage: String =
     s"Expecting $key runtime attribute to be a comma separated String or Array[String]"

@@ -16,13 +16,12 @@ object CentaurTestSuite extends StrictLogging {
   // before we can generate the tests.
   startCromwell()
 
-  def startCromwell(): Unit = {
+  def startCromwell(): Unit =
     CentaurConfig.runMode match {
       case ManagedCromwellServer(preRestart, _, _) =>
         CromwellManager.startCromwell(preRestart)
       case _ =>
     }
-  }
 
   val cromwellBackends = CentaurCromwellClient.backends.unsafeRunSync().supportedBackends.map(_.toLowerCase)
 
@@ -63,9 +62,8 @@ object CentaurTestSuite extends StrictLogging {
 trait CentaurTestSuiteShutdown extends Suite with BeforeAndAfterAll {
   private var shutdownHook: Option[ShutdownHookThread] = _
 
-  override protected def beforeAll() = {
-    shutdownHook = Option(sys.addShutdownHook { CromwellManager.stopCromwell("JVM Shutdown Hook") })
-  }
+  override protected def beforeAll() =
+    shutdownHook = Option(sys.addShutdownHook(CromwellManager.stopCromwell("JVM Shutdown Hook")))
 
   override protected def afterAll() = {
     CromwellManager.stopCromwell("ScalaTest AfterAll")
@@ -78,6 +76,6 @@ trait CentaurTestSuiteShutdown extends Suite with BeforeAndAfterAll {
   * The main centaur test suites, runs sub suites in parallel, but allows better control over the way each nested suite runs.
   */
 class CentaurTestSuite
-  extends Suites(new SequentialTestCaseSpec(), new ParallelTestCaseSpec())
+    extends Suites(new SequentialTestCaseSpec(), new ParallelTestCaseSpec())
     with ParallelTestExecution
     with CentaurTestSuiteShutdown

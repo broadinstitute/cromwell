@@ -25,10 +25,10 @@ class QueryForWorkflowsMatchingParametersSpec extends AnyWordSpec with CromwellT
           r.endDate should be(Symbol("empty"))
           r.names should be(Symbol("empty"))
           r.statuses should be(Symbol("empty"))
-          r.labelsAnd should be (Symbol("empty"))
-          r.labelsOr should be (Symbol("empty"))
-          r.excludeLabelsAnd should be (Symbol("empty"))
-          r.excludeLabelsOr should be (Symbol("empty"))
+          r.labelsAnd should be(Symbol("empty"))
+          r.labelsOr should be(Symbol("empty"))
+          r.excludeLabelsAnd should be(Symbol("empty"))
+          r.excludeLabelsOr should be(Symbol("empty"))
           r.submissionTime should be(Symbol("empty"))
         case Invalid(fs) =>
           throw new RuntimeException(fs.toList.mkString(", "))
@@ -200,7 +200,7 @@ class QueryForWorkflowsMatchingParametersSpec extends AnyWordSpec with CromwellT
       )
       val result = WorkflowQueryParameters.runValidation(rawParameters)
       result match {
-        case Valid(_) => //good
+        case Valid(_) => // good
         case Invalid(fs) =>
           fs.toList should have size 1
       }
@@ -230,7 +230,7 @@ class QueryForWorkflowsMatchingParametersSpec extends AnyWordSpec with CromwellT
       )
       val result = WorkflowQueryParameters.runValidation(rawParameters)
       result match {
-        case Valid(_) => //good
+        case Valid(_) => // good
         case Invalid(fs) =>
           fs.toList should have size 1
       }

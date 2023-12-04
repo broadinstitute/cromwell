@@ -11,7 +11,7 @@ trait CallCachingSimpletonEntryComponent {
   import driver.api._
 
   class CallCachingSimpletonEntries(tag: Tag)
-    extends Table[CallCachingSimpletonEntry](tag, "CALL_CACHING_SIMPLETON_ENTRY") {
+      extends Table[CallCachingSimpletonEntry](tag, "CALL_CACHING_SIMPLETON_ENTRY") {
     def callCachingSimpletonEntryId = column[Long]("CALL_CACHING_SIMPLETON_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
     def simpletonKey = column[String]("SIMPLETON_KEY", O.Length(255))
@@ -25,8 +25,10 @@ trait CallCachingSimpletonEntryComponent {
     override def * = (simpletonKey, simpletonValue, wdlType, callCachingEntryId.?, callCachingSimpletonEntryId.?) <>
       (CallCachingSimpletonEntry.tupled, CallCachingSimpletonEntry.unapply)
 
-    def fkCallCachingSimpletonEntryCallCachingEntryId = foreignKey(
-      "FK_CALL_CACHING_SIMPLETON_ENTRY_CALL_CACHING_ENTRY_ID", callCachingEntryId, callCachingEntries)(_.callCachingEntryId)
+    def fkCallCachingSimpletonEntryCallCachingEntryId =
+      foreignKey("FK_CALL_CACHING_SIMPLETON_ENTRY_CALL_CACHING_ENTRY_ID", callCachingEntryId, callCachingEntries)(
+        _.callCachingEntryId
+      )
 
     def ucCallCachingSimpletonEntryCceiSk =
       index("UC_CALL_CACHING_SIMPLETON_ENTRY_CCEI_SK", (callCachingEntryId, simpletonKey), unique = true)
@@ -40,8 +42,8 @@ trait CallCachingSimpletonEntryComponent {
   /**
     * Find all result simpletons which match a given CALL_CACHING_ENTRY_ID
     */
-  val callCachingSimpletonEntriesForCallCachingEntryId = Compiled(
-    (callCachingEntryId: Rep[Long]) => for {
+  val callCachingSimpletonEntriesForCallCachingEntryId = Compiled((callCachingEntryId: Rep[Long]) =>
+    for {
       callCachingSimpletonEntry <- callCachingSimpletonEntries
       if callCachingSimpletonEntry.callCachingEntryId === callCachingEntryId
     } yield callCachingSimpletonEntry

@@ -9,7 +9,7 @@ import scala.concurrent.duration._
 
 class StatsDConfigSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "StatsDConfig"
-  
+
   it should "parse correct service configuration" in {
     val config = ConfigFactory.parseString(
       """

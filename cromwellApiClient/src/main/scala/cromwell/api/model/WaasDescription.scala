@@ -22,17 +22,20 @@ final case class WaasDescription(valid: Boolean,
                                  importedDescriptorTypes: List[WaasWorkflowDescriptorType],
                                  meta: JsObject,
                                  parameterMeta: JsObject,
-                                 isRunnableWorkflow: Boolean)
+                                 isRunnableWorkflow: Boolean
+)
 
 final case class WaasDescriptionInputDefinition(name: String,
                                                 valueType: WaasDescriptionWomType,
                                                 optional: Option[Boolean],
                                                 default: Option[JsValue],
-                                                typeDisplayName: String)
+                                                typeDisplayName: String
+)
 
 final case class WaasDescriptionOutputDefinition(name: String,
                                                  valueType: WaasDescriptionWomType,
-                                                 typeDisplayName: String)
+                                                 typeDisplayName: String
+)
 
 final case class WaasDescriptionWomType(typeName: String)
 final case class WaasWorkflowDescriptorType(descriptorType: Option[String], descriptorTypeVersion: Option[String])

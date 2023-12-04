@@ -9,7 +9,7 @@ import scala.concurrent.duration._
 object FtpFileSystems {
   val DefaultConfig = FtpFileSystemsConfiguration(1.day, Option(1.hour), 5, 1.hour, 21, Passive)
   val Default = new FtpFileSystems(DefaultConfig)
-  private [ftp] case class FtpCacheKey(host: String, ftpProvider: FtpCloudNioFileSystemProvider)
+  private[ftp] case class FtpCacheKey(host: String, ftpProvider: FtpCloudNioFileSystemProvider)
 }
 
 /**
@@ -21,18 +21,18 @@ class FtpFileSystems(val config: FtpFileSystemsConfiguration) {
 
   private val fileSystemTTL = config.cacheTTL
 
-  private val fileSystemsCache: LoadingCache[FtpCacheKey, FtpCloudNioFileSystem] = CacheBuilder.newBuilder()
+  private val fileSystemsCache: LoadingCache[FtpCacheKey, FtpCloudNioFileSystem] = CacheBuilder
+    .newBuilder()
     .expireAfterAccess(fileSystemTTL.length, fileSystemTTL.unit)
-    .removalListener((notification: RemovalNotification[FtpCacheKey, FtpCloudNioFileSystem]) => {
+    .removalListener { (notification: RemovalNotification[FtpCacheKey, FtpCloudNioFileSystem]) =>
       notification.getValue.close()
-    })
+    }
     .build[FtpCacheKey, FtpCloudNioFileSystem](new CacheLoader[FtpCacheKey, FtpCloudNioFileSystem] {
       override def load(key: FtpCacheKey) = createFileSystem(key)
     })
-  
-  private [ftp] def createFileSystem(key: FtpCacheKey) = new FtpCloudNioFileSystem(key.ftpProvider, key.host)
 
-  def getFileSystem(host: String, ftpCloudNioFileProvider: FtpCloudNioFileSystemProvider) = {
+  private[ftp] def createFileSystem(key: FtpCacheKey) = new FtpCloudNioFileSystem(key.ftpProvider, key.host)
+
+  def getFileSystem(host: String, ftpCloudNioFileProvider: FtpCloudNioFileSystemProvider) =
     fileSystemsCache.get(FtpCacheKey(host, ftpCloudNioFileProvider))
-  }
 }

@@ -16,10 +16,11 @@ trait SqlWorkflowStoreBuilder {
 
   def runWithDatabase[T](databaseConfig: Config)(block: SqlWorkflowStore => T): T = {
     val database = new EngineSlickDatabase(databaseConfig).initialized(EngineServicesStore.EngineLiquibaseSettings)
-    val metadataDatabase = new MetadataSlickDatabase(databaseConfig).initialized(MetadataServicesStore.MetadataLiquibaseSettings)
-    try {
+    val metadataDatabase =
+      new MetadataSlickDatabase(databaseConfig).initialized(MetadataServicesStore.MetadataLiquibaseSettings)
+    try
       block(SqlWorkflowStore(database, metadataDatabase))
-    } finally {
+    finally {
       Try(database.close())
       ()
     }

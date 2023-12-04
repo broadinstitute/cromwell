@@ -21,11 +21,16 @@ object GcpBatchAttachedDisk {
     def diskTypeValidation(diskTypeString: String): ErrorOr[DiskType] = validateDiskType(diskTypeString)
 
     val validation: ErrorOr[GcpBatchAttachedDisk] = s match {
-      case WorkingDiskPattern(sizeGb, diskType) => (validateDiskType(diskType), sizeGbValidation(sizeGb)) mapN {
-        GcpBatchWorkingDisk.apply
-      }
-      case MountedDiskPattern(mountPoint, sizeGb, diskType) => (sizeGbValidation(sizeGb), diskTypeValidation(diskType)) mapN { (s, dt) => PipelinesApiEmptyMountedDisk(dt, s, DefaultPathBuilder.get(mountPoint)) }
-      case _ => s"Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE' but got: '$s'".invalidNel
+      case WorkingDiskPattern(sizeGb, diskType) =>
+        (validateDiskType(diskType), sizeGbValidation(sizeGb)) mapN {
+          GcpBatchWorkingDisk.apply
+        }
+      case MountedDiskPattern(mountPoint, sizeGb, diskType) =>
+        (sizeGbValidation(sizeGb), diskTypeValidation(diskType)) mapN { (s, dt) =>
+          PipelinesApiEmptyMountedDisk(dt, s, DefaultPathBuilder.get(mountPoint))
+        }
+      case _ =>
+        s"Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE' but got: '$s'".invalidNel
     }
 
     Try(validation match {
@@ -38,26 +43,25 @@ object GcpBatchAttachedDisk {
     })
   }
 
-  private def validateDiskType(diskTypeName: String): ErrorOr[DiskType] = {
+  private def validateDiskType(diskTypeName: String): ErrorOr[DiskType] =
     DiskType.values().find(_.diskTypeName == diskTypeName) match {
       case Some(diskType) => diskType.validNel
       case None =>
         val diskTypeNames = DiskType.values.map(_.diskTypeName).mkString(", ")
         s"Disk TYPE $diskTypeName should be one of $diskTypeNames".invalidNel
     }
-  }
 
-  private def validateLong(value: String): ErrorOr[Long] = {
-    try {
+  private def validateLong(value: String): ErrorOr[Long] =
+    try
       value.toLong.validNel
-    } catch {
+    catch {
       case _: IllegalArgumentException => s"$value not convertible to a Long".invalidNel
     }
-  }
 
   implicit class EnhancedDisks(val disks: Seq[GcpBatchAttachedDisk]) extends AnyVal {
     def adjustWorkingDiskWithNewMin(minimum: MemorySize, onAdjustment: => Unit): Seq[GcpBatchAttachedDisk] = disks map {
-      case disk: GcpBatchWorkingDisk if disk == GcpBatchWorkingDisk.Default && disk.sizeGb < minimum.to(MemoryUnit.GB).amount.toInt =>
+      case disk: GcpBatchWorkingDisk
+          if disk == GcpBatchWorkingDisk.Default && disk.sizeGb < minimum.to(MemoryUnit.GB).amount.toInt =>
         onAdjustment
         disk.copy(sizeGb = minimum.to(MemoryUnit.GB).amount.toInt)
       case other => other
@@ -72,7 +76,8 @@ trait GcpBatchAttachedDisk {
   def mountPoint: Path
 }
 
-case class PipelinesApiEmptyMountedDisk(diskType: DiskType, sizeGb: Int, mountPoint: Path) extends GcpBatchAttachedDisk {
+case class PipelinesApiEmptyMountedDisk(diskType: DiskType, sizeGb: Int, mountPoint: Path)
+    extends GcpBatchAttachedDisk {
   val name = s"d-${mountPoint.pathAsString.md5Sum}"
 
   override def toString: String = s"$mountPoint $sizeGb ${diskType.diskTypeName}"

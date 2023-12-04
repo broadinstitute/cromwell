@@ -10,16 +10,19 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 trait PipelinesApiRequestHandler {
-  def initializeHttpRequest(batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration)
-                           (httpRequest: HttpRequest): Unit = {
-    batchRequestTimeoutConfiguration.readTimeoutMillis foreach {
-      timeout => httpRequest.setReadTimeout(timeout.value)
+  def initializeHttpRequest(
+    batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration
+  )(httpRequest: HttpRequest): Unit = {
+    batchRequestTimeoutConfiguration.readTimeoutMillis foreach { timeout =>
+      httpRequest.setReadTimeout(timeout.value)
     }
-    batchRequestTimeoutConfiguration.connectTimeoutMillis foreach {
-      timeout => httpRequest.setConnectTimeout(timeout.value)
+    batchRequestTimeoutConfiguration.connectTimeoutMillis foreach { timeout =>
+      httpRequest.setConnectTimeout(timeout.value)
     }
   }
 
   def makeBatchRequest: BatchRequest
-  def enqueue[T <: PAPIApiRequest](papiApiRequest: T, batchRequest: BatchRequest, pollingManager: ActorRef)(implicit ec: ExecutionContext): Future[Try[Unit]]
+  def enqueue[T <: PAPIApiRequest](papiApiRequest: T, batchRequest: BatchRequest, pollingManager: ActorRef)(implicit
+    ec: ExecutionContext
+  ): Future[Try[Unit]]
 }

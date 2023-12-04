@@ -22,11 +22,11 @@ class LeaseInputStreamSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     }
     val mockClient = mock[FTPClient]
     var completed: Boolean = false
-    mockClient.completePendingCommand().returns({
+    mockClient.completePendingCommand().returns {
       completed = true
       true
-    })
-    val clientPool = new FtpClientPool(1, 10.minutes, () => { mockClient })
+    }
+    val clientPool = new FtpClientPool(1, 10.minutes, () => mockClient)
     val lease = clientPool.acquire()
     val leasedInputStream = new LeasedInputStream("host", "path", is, lease)
 

@@ -15,10 +15,10 @@ trait WdlFunctions[T] {
     * Extract a single `WomValue` from the specified `Seq`, returning `Failure` if the parameters
     * represent something other than a single `WomValue`.
     */
-  def extractSingleArgument(functionName: String, params: Seq[Try[T]]): Try[T] = {
-    if (params.length != 1) Failure(new UnsupportedOperationException(s"Expected one argument for $functionName, got ${params.length}"))
+  def extractSingleArgument(functionName: String, params: Seq[Try[T]]): Try[T] =
+    if (params.length != 1)
+      Failure(new UnsupportedOperationException(s"Expected one argument for $functionName, got ${params.length}"))
     else params.head
-  }
 
   /*
    * Below are methods that can be overridden, if necessary, by engine implementations of the standard library
@@ -27,5 +27,7 @@ trait WdlFunctions[T] {
   /**
     * Path where to write files created by standard functions (write_*).
    */
-  def tempFilePath: String = throw new UnsupportedOperationException("write_* functions are not supported by this implementation")
+  def tempFilePath: String = throw new UnsupportedOperationException(
+    "write_* functions are not supported by this implementation"
+  )
 }

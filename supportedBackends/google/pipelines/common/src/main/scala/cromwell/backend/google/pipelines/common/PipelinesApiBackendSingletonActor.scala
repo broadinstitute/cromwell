@@ -9,10 +9,17 @@ import cromwell.core.Mailbox
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 
-final class PipelinesApiBackendSingletonActor(qps: Int Refined Positive, requestWorkers: Int Refined Positive, serviceRegistryActor: ActorRef)
-                                                  (implicit batchHandler: PipelinesApiRequestHandler) extends Actor with ActorLogging {
+final class PipelinesApiBackendSingletonActor(qps: Int Refined Positive,
+                                              requestWorkers: Int Refined Positive,
+                                              serviceRegistryActor: ActorRef
+)(implicit batchHandler: PipelinesApiRequestHandler)
+    extends Actor
+    with ActorLogging {
 
-  val jesApiQueryManager = context.actorOf(PipelinesApiRequestManager.props(qps, requestWorkers, serviceRegistryActor).withMailbox(Mailbox.PriorityMailbox), "PAPIQueryManager")
+  val jesApiQueryManager = context.actorOf(
+    PipelinesApiRequestManager.props(qps, requestWorkers, serviceRegistryActor).withMailbox(Mailbox.PriorityMailbox),
+    "PAPIQueryManager"
+  )
 
   override def receive = {
     case abort: BackendSingletonActorAbortWorkflow => jesApiQueryManager.forward(abort)
@@ -23,6 +30,8 @@ final class PipelinesApiBackendSingletonActor(qps: Int Refined Positive, request
 }
 
 object PipelinesApiBackendSingletonActor {
-  def props[O](qps: Int Refined Positive, requestWorkers: Int Refined Positive, serviceRegistryActor: ActorRef)
-              (implicit batchHandler: PipelinesApiRequestHandler): Props = Props(new PipelinesApiBackendSingletonActor(qps, requestWorkers, serviceRegistryActor)).withDispatcher(BackendDispatcher)
+  def props[O](qps: Int Refined Positive, requestWorkers: Int Refined Positive, serviceRegistryActor: ActorRef)(implicit
+    batchHandler: PipelinesApiRequestHandler
+  ): Props = Props(new PipelinesApiBackendSingletonActor(qps, requestWorkers, serviceRegistryActor))
+    .withDispatcher(BackendDispatcher)
 }

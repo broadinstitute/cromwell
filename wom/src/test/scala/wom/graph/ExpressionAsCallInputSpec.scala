@@ -37,8 +37,12 @@ class ExpressionAsCallInputSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val ijExpression = PlaceholderWomExpression(Set("i", "j"), WomIntegerType)
 
     // Use that as an input to a one-input task:
-    val expressionNode = AnonymousExpressionNode.fromInputMapping(
-      WomIdentifier("bar"), ijExpression, Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort), TaskCallInputExpressionNode.apply)
+    val expressionNode = AnonymousExpressionNode
+      .fromInputMapping(WomIdentifier("bar"),
+                        ijExpression,
+                        Map("i" -> iInputNode.singleOutputPort, "j" -> jInputNode.singleOutputPort),
+                        TaskCallInputExpressionNode.apply
+      )
       .getOrElse(fail("Failed to build expression node"))
 
     val callNodeBuilder = new CallNodeBuilder()

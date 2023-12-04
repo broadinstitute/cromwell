@@ -8,6 +8,7 @@ object JsonUtils {
   val attemptNumber = "attempt"
 
   implicit class EnhancedJsValue(val jsValue: JsValue) extends AnyVal {
+
     /**
       * Modified from http://stackoverflow.com/a/31592156 - changes were made both to port from using
       * Play-JSON to Spray-JSON as well as to handle some cases specific to Cromwell's metadata response
@@ -32,9 +33,8 @@ object JsonUtils {
       */
     def flatten(prefix: String = ""): JsObject = {
 
-      def flattenShardAndAttempt(k:String, v: JsArray, f: JsObject => String): JsObject = {
-        v.elements.map(_.asJsObject).fold(JsObject.empty) { (x, y) => x ++ y.flatten(s"$k.${f(y)}") }
-      }
+      def flattenShardAndAttempt(k: String, v: JsArray, f: JsObject => String): JsObject =
+        v.elements.map(_.asJsObject).fold(JsObject.empty)((x, y) => x ++ y.flatten(s"$k.${f(y)}"))
 
       jsValue.asJsObject.fields.foldLeft(JsObject.empty) {
         case (acc, (k, v: JsArray)) if v.isSingleCallArray => acc ++ JsObject(k -> v.elements.head).flatten(prefix)
@@ -44,10 +44,13 @@ object JsonUtils {
              to avoid lossy conversion for multiple attempts of the same shard. The older way of flattening shards
              with only shard index in the flattened structure is also kept so that the new structure doesn't fail tests
              that rely on the older flattened structure. This should be cleaned up in https://broadworkbench.atlassian.net/browse/BW-483
-          */
+           */
           acc ++
             flattenShardAndAttempt(k, v, (y: JsObject) => y.getField(shardIndex).get) ++
-            flattenShardAndAttempt(k, v, (y: JsObject) => s"${y.getField(shardIndex).get}.${y.getField(attemptNumber).get}")
+            flattenShardAndAttempt(k,
+                                   v,
+                                   (y: JsObject) => s"${y.getField(shardIndex).get}.${y.getField(attemptNumber).get}"
+            )
         case (acc, (k, v: JsArray)) =>
           v.elements.zipWithIndex.foldLeft(acc) { case (accumulator, (element, idx)) =>
             val maybePrefix = if (prefix.isEmpty) "" else s"$prefix."
@@ -76,7 +79,7 @@ object JsonUtils {
     // A couple of helper functions to assist with flattening Cromwell metadata responses
     def hasField(fieldName: String): Boolean = jsObject.fields.keySet contains fieldName
     def getField(fieldName: String): Option[String] = jsObject.fields.get(fieldName) map { _.toString() }
-    def flattenToMap: Map [String, JsValue] = jsObject.flatten().fields map { case (k, v: JsValue) => k -> v}
+    def flattenToMap: Map[String, JsValue] = jsObject.flatten().fields map { case (k, v: JsValue) => k -> v }
   }
 
   /**
@@ -89,9 +92,8 @@ object JsonUtils {
     def nonEmptyObjectArray = jsArray.isObjectArray && jsArray.nonEmpty
     def isSingleCallArray = jsArray.hasField(shardIndex) && jsArray.size == 1
 
-    def hasField(fieldName: String): Boolean = {
+    def hasField(fieldName: String): Boolean =
       if (jsArray.nonEmptyObjectArray) jsArray.elements.map(_.asJsObject) forall { _.hasField(fieldName) }
       else false
-    }
   }
 }

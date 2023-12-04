@@ -48,10 +48,10 @@ trait KeyValueServiceActor extends Actor with GracefulShutdownHelper with ActorL
     case _: ActorInitializationException => Escalate
     case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
   }
-  
+
   private val kvReadActor = context.actorOf(kvReadActorProps, "KvReadActor")
   private val kvWriteActor = context.actorOf(kvWriteActorProps, "KvWriteActor")
-  
+
   override def receive = {
     case get: KvGet => kvReadActor forward get
     case put: KvPut => kvWriteActor forward put

@@ -13,7 +13,6 @@ import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wom.expression.NoIoFunctionSet
 import wom.values.{WomInteger, WomObject, WomPair, WomString}
 
-
 class MemberAccessValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   val fiveLiteral = PrimitiveLiteralExpressionElement(WomInteger(5))
@@ -48,7 +47,10 @@ class MemberAccessValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpe
       ),
       memberAccessTail = NonEmptyList("left", List("right", "right", "left"))
     )
-     nestedPairLookup.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(WomPair(womFive, womSix), Seq.empty)
+    nestedPairLookup.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(
+      WomPair(womFive, womSix),
+      Seq.empty
+    )
   }
 
   it should "evaluate a nested member access on a call output" in {
@@ -57,7 +59,9 @@ class MemberAccessValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpe
       "t.out" -> WomPair(WomPair(womFive, WomPair(womFive, womSix)), womFive)
     )
 
-    callOutputLookup.evaluateValue(inputs, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(WomPair(womFive, womSix), Seq.empty)
+    callOutputLookup.evaluateValue(inputs, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(WomPair(womFive, womSix),
+                                                                                               Seq.empty
+    )
   }
 
   it should "evaluate a nested member access on an object" in {
@@ -66,14 +70,18 @@ class MemberAccessValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpe
       "t" -> WomObject(Map("out" -> WomPair(WomPair(womFive, WomPair(womFive, womSix)), womFive)))
     )
 
-    objectLookup.evaluateValue(inputs, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(WomPair(womFive, womSix), Seq.empty)
+    objectLookup.evaluateValue(inputs, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(WomPair(womFive, womSix),
+                                                                                           Seq.empty
+    )
   }
 
   it should "evaluate an identifier lookup" in {
     val identifierLookup: ExpressionElement = IdentifierLookup("foo")
     val inputs = Map("foo" -> WomString("foo"))
 
-    identifierLookup.evaluateValue(inputs, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(WomString("foo"), Seq.empty)
+    identifierLookup.evaluateValue(inputs, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(WomString("foo"),
+                                                                                               Seq.empty
+    )
   }
 
 }

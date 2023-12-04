@@ -31,13 +31,13 @@ class SlickDeadlocksSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
   it should "not happen" in {
     val logger = Logger(LoggerFactory.getLogger(getClass.getName))
     // Test based on https://github.com/kwark/slick-deadlock/blob/82525fc/src/main/scala/SlickDeadlock.scala
-    val databaseConfig = ConfigFactory.parseString(
-      s"""|db.url = "jdbc:hsqldb:mem:$${uniqueSchema};shutdown=false;hsqldb.tx=mvcc"
-          |db.driver = "org.hsqldb.jdbcDriver"
-          |db.connectionTimeout = 3000
-          |db.numThreads = 2
-          |profile = "slick.jdbc.HsqldbProfile$$"
-          |""".stripMargin)
+    val databaseConfig =
+      ConfigFactory.parseString(s"""|db.url = "jdbc:hsqldb:mem:$${uniqueSchema};shutdown=false;hsqldb.tx=mvcc"
+                                    |db.driver = "org.hsqldb.jdbcDriver"
+                                    |db.connectionTimeout = 3000
+                                    |db.numThreads = 2
+                                    |profile = "slick.jdbc.HsqldbProfile$$"
+                                    |""".stripMargin)
     logger.info("Initializing deadlock-test database")
     for {
       database <- DatabaseTestKit.initializedDatabaseFromConfig(EngineDatabaseType, databaseConfig).autoClosed

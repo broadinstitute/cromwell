@@ -29,8 +29,7 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
   /**
     * Set all running workflows to aborting state.
     */
-  def setStateToState(fromWorkflowState: String, toWorkflowState: String)
-                     (implicit ec: ExecutionContext): Future[Unit]
+  def setStateToState(fromWorkflowState: String, toWorkflowState: String)(implicit ec: ExecutionContext): Future[Unit]
 
   /**
     * Set the workflow Id from one state to another.
@@ -45,14 +44,15 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
   def deleteOrUpdateWorkflowToState(workflowExecutionUuid: String,
                                     workflowStateToDelete1: String,
                                     workflowStateToDelete2: String,
-                                    workflowStateForUpdate: String)
-                                   (implicit ec: ExecutionContext): Future[Option[Boolean]]
+                                    workflowStateForUpdate: String
+  )(implicit ec: ExecutionContext): Future[Option[Boolean]]
 
   /**
     * Adds the requested WorkflowSourceFiles to the store.
     */
-  def addWorkflowStoreEntries(workflowStoreEntries: Iterable[WorkflowStoreEntry])
-                             (implicit ec: ExecutionContext): Future[Unit]
+  def addWorkflowStoreEntries(workflowStoreEntries: Iterable[WorkflowStoreEntry])(implicit
+    ec: ExecutionContext
+  ): Future[Unit]
 
   /**
     * Retrieves a limited number of workflows which have not already been pulled into the engine and updates their
@@ -75,12 +75,12 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
                             workflowStateFrom: String,
                             workflowStateTo: String,
                             workflowStateExcluded: String,
-                            excludedGroups: Set[String])
-                           (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]]
+                            excludedGroups: Set[String]
+  )(implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]]
 
-  def writeWorkflowHeartbeats(workflowExecutionUuids: Seq[String],
-                              heartbeatTimestamp: Timestamp)
-                             (implicit ec: ExecutionContext): Future[Int]
+  def writeWorkflowHeartbeats(workflowExecutionUuids: Seq[String], heartbeatTimestamp: Timestamp)(implicit
+    ec: ExecutionContext
+  ): Future[Int]
 
   /**
     * Clears out cromwellId and heartbeatTimestamp for all workflow store entries currently assigned
@@ -98,8 +98,9 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
   /**
     * Returns the number of rows updated from one state to another.
     */
-  def updateWorkflowState(workflowExecutionUuid: String, fromWorkflowState: String, toWorkflowState: String)
-                         (implicit ec: ExecutionContext): Future[Int]
+  def updateWorkflowState(workflowExecutionUuid: String, fromWorkflowState: String, toWorkflowState: String)(implicit
+    ec: ExecutionContext
+  ): Future[Int]
 
   def findWorkflowsWithAbortRequested(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[String]]
 

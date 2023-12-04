@@ -7,10 +7,10 @@ import cromwell.docker.DockerInfoActor.DockerInfoResponse
 import scala.concurrent.duration.FiniteDuration
 
 trait DockerClientHelper extends RobustClientHelper { this: Actor with ActorLogging =>
-  
+
   protected def dockerHashingActor: ActorRef
-  
-  private [docker] def dockerResponseReceive: Receive = {
+
+  private[docker] def dockerResponseReceive: Receive = {
     case dockerResponse: DockerInfoResponse if hasTimeout(dockerResponse.request) =>
       cancelTimeout(dockerResponse.request)
       receive.apply(dockerResponse)
@@ -19,9 +19,10 @@ trait DockerClientHelper extends RobustClientHelper { this: Actor with ActorLogg
       receive.apply(context -> dockerResponse)
   }
 
-  def sendDockerCommand(dockerHashRequest: DockerInfoRequest, timeout: FiniteDuration = RobustClientHelper.DefaultRequestLostTimeout) = {
+  def sendDockerCommand(dockerHashRequest: DockerInfoRequest,
+                        timeout: FiniteDuration = RobustClientHelper.DefaultRequestLostTimeout
+  ) =
     robustSend(dockerHashRequest, dockerHashingActor, timeout)
-  }
 
   def dockerReceive = robustReceive orElse dockerResponseReceive
 }

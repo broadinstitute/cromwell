@@ -3,7 +3,7 @@ package cromwell.backend.google.pipelines.common.callcaching
 import akka.event.NoLogging
 import akka.testkit.{ImplicitSender, TestFSMRef, TestProbe}
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.BackendCacheHitCopyingActor.{CopyOutputsCommand, CopyingOutputsFailedResponse}
+import cromwell.backend.BackendCacheHitCopyingActor.{CopyingOutputsFailedResponse, CopyOutputsCommand}
 import cromwell.backend.BackendJobExecutionActor.JobSucceededResponse
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes._
 import cromwell.backend.google.pipelines.common._
@@ -38,9 +38,13 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Success, Try}
 
-
-class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
-  with AnyFlatSpecLike with Matchers with ImplicitSender with MockSugar with Eventually {
+class PipelinesApiBackendCacheHitCopyingActorSpec
+    extends TestKitSuite
+    with AnyFlatSpecLike
+    with Matchers
+    with ImplicitSender
+    with MockSugar
+    with Eventually {
 
   behavior of "PipelinesApiBackendCacheHitCopyingActor"
 
@@ -72,7 +76,8 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
     // Make sure we got the expected type of cache
     blacklistCache match {
       case _: GroupingBlacklistCache =>
-      case bad => fail(s"Unexpected blacklist cache type, expected GroupingBlacklistCache: ${bad.getClass.getSimpleName}")
+      case bad =>
+        fail(s"Unexpected blacklist cache type, expected GroupingBlacklistCache: ${bad.getClass.getSimpleName}")
     }
 
     {
@@ -86,7 +91,8 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
         fakeIoActor = ioActor,
         fakeServiceRegistryActor = serviceRegistryActor,
         supervisor = supervisor,
-        grouping = grouping)
+        grouping = grouping
+      )
 
       val copyCommand = buildCopyCommand(hitId = 0, bucket = WideOpenBucket)
       supervisor watch copyActor
@@ -97,9 +103,8 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
         copyActor.underlyingActor.stateName shouldBe WaitingForIoResponses
       }
 
-      ioActor.expectMsgPF(5 seconds) {
-        case ioCommand: DefaultIoCopyCommand =>
-          ioActor.reply(IoSuccess(ioCommand, ()))
+      ioActor.expectMsgPF(5 seconds) { case ioCommand: DefaultIoCopyCommand =>
+        ioActor.reply(IoSuccess(ioCommand, ()))
       }
 
       supervisor.expectMsgPF(5 seconds) { case _: JobSucceededResponse => }
@@ -135,7 +140,8 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
         fakeIoActor = ioActor,
         fakeServiceRegistryActor = serviceRegistryActor,
         supervisor = supervisor,
-        grouping = grouping)
+        grouping = grouping
+      )
 
       val command = buildCopyCommand(hitId = 1, bucket = LockedDownBucket)
       supervisor watch copyActor
@@ -146,10 +152,9 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
         copyActor.underlyingActor.stateName shouldBe WaitingForIoResponses
       }
 
-      ioActor.expectMsgPF(5 seconds) {
-        case ioCommand: DefaultIoCopyCommand =>
-          val failedPath = command.jobDetritusFiles(JobPaths.ReturnCodePathKey)
-          ioActor.reply(IoReadForbiddenFailure(ioCommand, new RuntimeException(), failedPath))
+      ioActor.expectMsgPF(5 seconds) { case ioCommand: DefaultIoCopyCommand =>
+        val failedPath = command.jobDetritusFiles(JobPaths.ReturnCodePathKey)
+        ioActor.reply(IoReadForbiddenFailure(ioCommand, new RuntimeException(), failedPath))
       }
 
       supervisor.expectMsgPF(5 seconds) { case _: CopyingOutputsFailedResponse => }
@@ -193,7 +198,8 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
         fakeIoActor = ioActor,
         fakeServiceRegistryActor = serviceRegistryActor,
         supervisor = supervisor,
-        grouping = grouping)
+        grouping = grouping
+      )
 
       supervisor watch copyActor
 
@@ -234,7 +240,8 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
         fakeIoActor = ioActor,
         fakeServiceRegistryActor = serviceRegistryActor,
         supervisor = supervisor,
-        grouping = grouping)
+        grouping = grouping
+      )
 
       supervisor watch copyActor
 
@@ -245,12 +252,12 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
         copyActor.underlyingActor.stateName shouldBe WaitingForIoResponses
       }
 
-      ioActor.expectMsgPF(5 seconds) {
-        case ioCommand: DefaultIoCopyCommand =>
-          ioActor.reply(IoFailure(ioCommand, new RuntimeException()))
+      ioActor.expectMsgPF(5 seconds) { case ioCommand: DefaultIoCopyCommand =>
+        ioActor.reply(IoFailure(ioCommand, new RuntimeException()))
       }
 
-      val List(readHit, readBucket, writeHit) = instrumentationCounts(n = 3, serviceRegistryActor = serviceRegistryActor)
+      val List(readHit, readBucket, writeHit) =
+        instrumentationCounts(n = 3, serviceRegistryActor = serviceRegistryActor)
 
       readHit.bucket.path.toList shouldBe expectedMetric(Hit, Read, UntestedCacheResult)
       readBucket.bucket.path.toList shouldBe expectedMetric(Bucket, Read, GoodCacheResult)
@@ -286,15 +293,15 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
         fakeIoActor = ioActor,
         fakeServiceRegistryActor = serviceRegistryActor,
         supervisor = supervisor,
-        grouping = grouping)
+        grouping = grouping
+      )
 
       supervisor watch copyActor
 
       val command = buildCopyCommand(hitId = 3, bucket = WideOpenBucket)
       copyActor ! command
 
-      supervisor.expectMsgPF(5 seconds) {
-        case _: CopyingOutputsFailedResponse =>
+      supervisor.expectMsgPF(5 seconds) { case _: CopyingOutputsFailedResponse =>
       }
       // The IoActor should not be consulted and the copying actor should simply stop itself without transitioning.
       supervisor.expectTerminated(copyActor)
@@ -328,15 +335,15 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
         fakeIoActor = ioActor,
         fakeServiceRegistryActor = serviceRegistryActor,
         supervisor = supervisor,
-        grouping = grouping)
+        grouping = grouping
+      )
 
       supervisor watch copyActor
 
       val command = buildCopyCommand(hitId = 4, bucket = LockedDownBucket)
       copyActor ! command
 
-      supervisor.expectMsgPF(5 seconds) {
-        case _: CopyingOutputsFailedResponse =>
+      supervisor.expectMsgPF(5 seconds) { case _: CopyingOutputsFailedResponse =>
       }
       // The IoActor should not be consulted and the copying actor should simply stop itself without transitioning.
       supervisor.expectTerminated(copyActor)
@@ -364,7 +371,9 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
 
   private def instrumentationCounts(n: Int, serviceRegistryActor: TestProbe): List[CromwellCount] = {
     val received = serviceRegistryActor.receiveN(n = n, max = 5 seconds).toList
-    val instrumentationCounts = received collect { case InstrumentationServiceMessage(c) => c } collect { case c: CromwellCount => c }
+    val instrumentationCounts = received collect { case InstrumentationServiceMessage(c) => c } collect {
+      case c: CromwellCount => c
+    }
     instrumentationCounts foreach { c => c.value shouldBe 1; c.sampling shouldBe 1.0 }
 
     instrumentationCounts
@@ -399,7 +408,8 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
                              fakeIoActor: TestProbe,
                              fakeServiceRegistryActor: TestProbe,
                              supervisor: TestProbe,
-                             grouping: Option[String]): TestFSMRefPipelinesApiBackendCacheHitCopyingActor = {
+                             grouping: Option[String]
+  ): TestFSMRefPipelinesApiBackendCacheHitCopyingActor = {
     // Couldn't mock this, possibly due to the use of `Refined` in two parameters:
     //
     // Underlying exception : java.lang.IllegalArgumentException: Cannot cast to primitive type: int
@@ -449,7 +459,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
       attempt = 1
     )
 
-    //noinspection ScalaUnusedSymbol
+    // noinspection ScalaUnusedSymbol
     def mapper(jobPaths: PipelinesApiJobPaths, originalPath: String): String = originalPath
 
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
@@ -524,9 +534,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
 
     CopyOutputsCommand(
       womValueSimpletons = List.empty,
-      jobDetritusFiles = Map(
-        JobPaths.CallRootPathKey -> callRoot,
-        JobPaths.ReturnCodePathKey -> rcFile),
+      jobDetritusFiles = Map(JobPaths.CallRootPathKey -> callRoot, JobPaths.ReturnCodePathKey -> rcFile),
       returnCode = Option(0),
       cacheHit = CallCachingEntryId(hitId)
     )
@@ -540,10 +548,15 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
   case object Read extends CacheAccessType
   case object Write extends CacheAccessType
 
-  private def expectedMetric(hitOrBucket: BlacklistingType, accessType: CacheAccessType, status: BlacklistStatus): List[String] = {
-    List("job", "callcaching", "blacklist",
-      accessType.metricFormat,
-      hitOrBucket.metricFormat,
-      status.getClass.getSimpleName.dropRight(1))
-  }
+  private def expectedMetric(hitOrBucket: BlacklistingType,
+                             accessType: CacheAccessType,
+                             status: BlacklistStatus
+  ): List[String] =
+    List("job",
+         "callcaching",
+         "blacklist",
+         accessType.metricFormat,
+         hitOrBucket.metricFormat,
+         status.getClass.getSimpleName.dropRight(1)
+    )
 }

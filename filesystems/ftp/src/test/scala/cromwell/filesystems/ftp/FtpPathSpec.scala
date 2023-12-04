@@ -16,9 +16,10 @@ class FtpPathSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
 
   behavior of "FtpPathSpec"
 
-  val pathBuilderFactory = new FtpPathBuilderFactory(ConfigFactory.empty(), ConfigFactory.empty(), CromwellFtpFileSystems.Default) {
-    override private [ftp] lazy val configFtpConfiguration = new FtpInstanceConfiguration(FtpAnonymousCredentials)
-  }
+  val pathBuilderFactory =
+    new FtpPathBuilderFactory(ConfigFactory.empty(), ConfigFactory.empty(), CromwellFtpFileSystems.Default) {
+      override private[ftp] lazy val configFtpConfiguration = new FtpInstanceConfiguration(FtpAnonymousCredentials)
+    }
 
   val pathBuilder =
     Await.result(pathBuilderFactory.withOptions(WorkflowOptions.empty)(null, null), 1.second)
@@ -41,7 +42,10 @@ class FtpPathSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
     ("ftp://ftp-server.com/path/to/my//dir", "ftp://ftp-server.com/path/to/my/dir/file", "dir/file"),
     ("ftp://ftp-server.com/path/to/my//dir", "ftp://ftp-server.com/path/to/my/dir//file", "dir//file"),
     ("ftp://ftp-server.com/path/to/my/dir", "ftp://ftp-server.com/path/./to/my/dir/file", "./to/my/dir/file"),
-    ("ftp://ftp-server.com/path/to/my/dir/with/file", "ftp://ftp-server.com/path/to/other/dir/with/file", "other/dir/with/file")
+    ("ftp://ftp-server.com/path/to/my/dir/with/file",
+     "ftp://ftp-server.com/path/to/other/dir/with/file",
+     "other/dir/with/file"
+    )
   )
 
   private def goodPaths = Seq(
@@ -57,8 +61,8 @@ class FtpPathSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
       name = "with spaces",
       getFileName = s"ftp://ftp-server.com/with spaces",
       getNameCount = 3,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "a path with non-ascii",
       path = s"ftp://ftp-server.com/hello/world/with non ascii £€",
@@ -71,8 +75,8 @@ class FtpPathSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
       name = "with non ascii £€",
       getFileName = s"ftp://ftp-server.com/with non ascii £€",
       getNameCount = 3,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "an ftp uri path with encoded characters",
       path = s"ftp://ftp-server.com/hello/world/encoded%20spaces",
@@ -85,8 +89,8 @@ class FtpPathSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
       name = "encoded%20spaces",
       getFileName = s"ftp://ftp-server.com/encoded%20spaces",
       getNameCount = 3,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "a hostname only path (root path)",
       path = s"ftp://ftp-server.com",
@@ -99,8 +103,8 @@ class FtpPathSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
       name = "",
       getFileName = null,
       getNameCount = 1,
-      isAbsolute = false),
-
+      isAbsolute = false
+    ),
     GoodPath(
       description = "a hostname only path ending in a /",
       path = s"ftp://ftp-server.com/",
@@ -113,8 +117,8 @@ class FtpPathSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
       name = "",
       getFileName = null,
       getNameCount = 0,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "a file at the top of the hostname",
       path = s"ftp://ftp-server.com/hello",
@@ -127,8 +131,8 @@ class FtpPathSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
       name = "hello",
       getFileName = s"ftp://ftp-server.com/hello",
       getNameCount = 1,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "a path ending in /",
       path = s"ftp://ftp-server.com/hello/world/",
@@ -141,7 +145,8 @@ class FtpPathSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
       name = "world",
       getFileName = s"ftp://ftp-server.com/world",
       getNameCount = 2,
-      isAbsolute = true),
+      isAbsolute = true
+    ),
 
     // Special paths
 
@@ -157,8 +162,8 @@ class FtpPathSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
       name = "",
       getFileName = s"ftp://ftp-server.com/.",
       getNameCount = 1,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "a hostname with a path ..",
       path = s"ftp://ftp-server.com/..",
@@ -171,8 +176,8 @@ class FtpPathSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
       name = "",
       getFileName = s"ftp://ftp-server.com/..",
       getNameCount = 1,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "a bucket including . in the path",
       path = s"ftp://ftp-server.com/hello/./world",
@@ -185,8 +190,8 @@ class FtpPathSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
       name = "world",
       getFileName = s"ftp://ftp-server.com/world",
       getNameCount = 3,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "a path including .. in the path",
       path = s"ftp://ftp-server.com/hello/../world",
@@ -199,7 +204,8 @@ class FtpPathSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
       name = "world",
       getFileName = s"ftp://ftp-server.com/world",
       getNameCount = 3,
-      isAbsolute = true),
+      isAbsolute = true
+    ),
 
     // Normalized
 
@@ -215,8 +221,8 @@ class FtpPathSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
       name = "",
       getFileName = null,
       getNameCount = 0,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "a path with a normalized path ..",
       path = s"ftp://ftp-server.com/..",
@@ -229,8 +235,8 @@ class FtpPathSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
       name = "",
       getFileName = null,
       getNameCount = 1,
-      isAbsolute = false),
-
+      isAbsolute = false
+    ),
     GoodPath(
       description = "a path including . in the normalized path",
       path = s"ftp://ftp-server.com/hello/./world",
@@ -243,8 +249,8 @@ class FtpPathSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
       name = "world",
       getFileName = s"ftp://ftp-server.com/world",
       getNameCount = 2,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "a path including .. in the normalized path",
       path = s"ftp://ftp-server.com/hello/../world",
@@ -257,14 +263,18 @@ class FtpPathSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
       name = "world",
       getFileName = s"ftp://ftp-server.com/world",
       getNameCount = 1,
-      isAbsolute = true),
+      isAbsolute = true
+    )
   )
 
   private def badPaths = Seq(
     BadPath("an empty path", "", " does not have an ftp scheme"),
     BadPath("a hostless path", "ftp://", "ftp:// does not have a valid host"),
     BadPath("a bucket named .", "ftp://./hello/world", "ftp://./hello/world does not have a valid host"),
-    BadPath("a non ascii bucket name", "ftp://nonasciibucket£€/hello/world", "ftp://nonasciibucket£€/hello/world does not have a valid host"),
+    BadPath("a non ascii bucket name",
+            "ftp://nonasciibucket£€/hello/world",
+            "ftp://nonasciibucket£€/hello/world does not have a valid host"
+    ),
     BadPath("a https path", "https://hello/world", "https://hello/world does not have an ftp scheme"),
     BadPath("a file uri path", "file:///hello/world", "file:///hello/world does not have an ftp scheme"),
     BadPath("a relative file path", "hello/world", "hello/world does not have an ftp scheme"),

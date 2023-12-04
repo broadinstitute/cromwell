@@ -79,147 +79,145 @@ object SampleWdl {
       withPlaceholders.stripMargin.replace(outputSectionPlaceholder, outputsSection)
     }
 
-    val PatternKey ="three_step.cgrep.pattern"
+    val PatternKey = "three_step.cgrep.pattern"
   }
 
   object ThreeStep extends ThreeStepTemplate
-
 
   object NestedScatterWdl extends SampleWdl {
     override def workflowSource(runtime: String = "") =
       s"""
         task A {
-        |  command {
-        |    echo -n -e "jeff\nchris\nmiguel\nthibault\nkhalid\nscott"
-        |  }
-        |  output {
-        |    Array[String] A_out = read_lines(stdout())
-        |  }
-        |}
-        |
-        |task B {
-        |  String B_in
-        |  command {
-        |    python -c "print(len('$${B_in}'))"
-        |  }
-        |  output {
-        |    Int B_out = read_int(stdout())
-        |  }
-        |}
-        |
-        |task C {
-        |  Int C_in
-        |  command {
-        |    python -c "print($${C_in}*100)"
-        |  }
-        |  output {
-        |    Int C_out = read_int(stdout())
-        |  }
-        |}
-        |
-        |task D {
-        |  Array[Int] D_in
-        |  command {
-        |    python -c "print($${sep = '+' D_in})"
-        |  }
-        |  output {
-        |    Int D_out = read_int(stdout())
-        |  }
-        |}
-        |
-        |task E {
-        |  command {
-        |    python -c "import random; print(random.randint(1,100))"
-        |  }
-        |  output {
-        |    Int E_out = read_int(stdout())
-        |  }
-        |}
-        |
-        |workflow w {
-        |  call A
-        |  scatter (item in A.A_out) { # scatter 0
-        |    call B {input: B_in = item}
-        |    call C {input: C_in = B.B_out}
-        |    call E
-        |    scatter (itemB in B.B_out) { # scatter 1
-        |      call E as G
-        |    }
-        |    scatter (itemB in B.B_out) { # scatter 2
-        |      call E as H
-        |    }
-        |  }
-        |  scatter (item in A.A_out) { # scatter 3
-        |    call E as F
-        |  }
-        |  call D {input: D_in = B.B_out}
-        |}
+         |  command {
+         |    echo -n -e "jeff\nchris\nmiguel\nthibault\nkhalid\nscott"
+         |  }
+         |  output {
+         |    Array[String] A_out = read_lines(stdout())
+         |  }
+         |}
+         |
+         |task B {
+         |  String B_in
+         |  command {
+         |    python -c "print(len('$${B_in}'))"
+         |  }
+         |  output {
+         |    Int B_out = read_int(stdout())
+         |  }
+         |}
+         |
+         |task C {
+         |  Int C_in
+         |  command {
+         |    python -c "print($${C_in}*100)"
+         |  }
+         |  output {
+         |    Int C_out = read_int(stdout())
+         |  }
+         |}
+         |
+         |task D {
+         |  Array[Int] D_in
+         |  command {
+         |    python -c "print($${sep = '+' D_in})"
+         |  }
+         |  output {
+         |    Int D_out = read_int(stdout())
+         |  }
+         |}
+         |
+         |task E {
+         |  command {
+         |    python -c "import random; print(random.randint(1,100))"
+         |  }
+         |  output {
+         |    Int E_out = read_int(stdout())
+         |  }
+         |}
+         |
+         |workflow w {
+         |  call A
+         |  scatter (item in A.A_out) { # scatter 0
+         |    call B {input: B_in = item}
+         |    call C {input: C_in = B.B_out}
+         |    call E
+         |    scatter (itemB in B.B_out) { # scatter 1
+         |      call E as G
+         |    }
+         |    scatter (itemB in B.B_out) { # scatter 2
+         |      call E as H
+         |    }
+         |  }
+         |  scatter (item in A.A_out) { # scatter 3
+         |    call E as F
+         |  }
+         |  call D {input: D_in = B.B_out}
+         |}
       """.stripMargin
   }
 
-
   class ScatterWdl extends SampleWdl {
     val tasks = s"""task A {
-      |  command {
-      |    echo -n -e "jeff\nchris\nmiguel\nthibault\nkhalid\nscott"
-      |  }
-      |  output {
-      |    Array[String] A_out = read_lines(stdout())
-      |  }
-      |}
-      |
-      |task B {
-      |  String B_in
-      |  command {
-      |    python -c "print(len('$${B_in}'))"
-      |  }
-      |  output {
-      |    Int B_out = read_int(stdout())
-      |  }
-      |}
-      |
-      |task C {
-      |  Int C_in
-      |  command {
-      |    python -c "print($${C_in}*100)"
-      |  }
-      |  output {
-      |    Int C_out = read_int(stdout())
-      |  }
-      |}
-      |
-      |task D {
-      |  Array[Int] D_in
-      |  command {
-      |    python -c "print($${sep = '+' D_in})"
-      |  }
-      |  output {
-      |    Int D_out = read_int(stdout())
-      |  }
-      |}
-      |
-      |task E {
-      |  command {
-      |    python -c "print(9)"
-      |  }
-      |  output {
-      |    Int E_out = read_int(stdout())
-      |  }
-      |}
+                   |  command {
+                   |    echo -n -e "jeff\nchris\nmiguel\nthibault\nkhalid\nscott"
+                   |  }
+                   |  output {
+                   |    Array[String] A_out = read_lines(stdout())
+                   |  }
+                   |}
+                   |
+                   |task B {
+                   |  String B_in
+                   |  command {
+                   |    python -c "print(len('$${B_in}'))"
+                   |  }
+                   |  output {
+                   |    Int B_out = read_int(stdout())
+                   |  }
+                   |}
+                   |
+                   |task C {
+                   |  Int C_in
+                   |  command {
+                   |    python -c "print($${C_in}*100)"
+                   |  }
+                   |  output {
+                   |    Int C_out = read_int(stdout())
+                   |  }
+                   |}
+                   |
+                   |task D {
+                   |  Array[Int] D_in
+                   |  command {
+                   |    python -c "print($${sep = '+' D_in})"
+                   |  }
+                   |  output {
+                   |    Int D_out = read_int(stdout())
+                   |  }
+                   |}
+                   |
+                   |task E {
+                   |  command {
+                   |    python -c "print(9)"
+                   |  }
+                   |  output {
+                   |    Int E_out = read_int(stdout())
+                   |  }
+                   |}
     """.stripMargin
 
     override def workflowSource(runtime: String = "") =
       s"""$tasks
-        |
-        |workflow w {
-        |  call A
-        |  scatter (item in A.A_out) {
-        |    call B {input: B_in = item}
-        |    call C {input: C_in = B.B_out}
-        |    call E
-        |  }
-        |  call D {input: D_in = B.B_out}
-        |}
+         |
+         |workflow w {
+         |  call A
+         |  scatter (item in A.A_out) {
+         |    call B {input: B_in = item}
+         |    call C {input: C_in = B.B_out}
+         |    call E
+         |  }
+         |  call D {input: D_in = B.B_out}
+         |}
       """.stripMargin
   }
 
@@ -263,67 +261,66 @@ object SampleWdl {
   object TaskDeclarationsWdl extends SampleWdl {
     override def workflowSource(runtime: String = "") =
       """
-      |task t {
-      |   String s
-      |   command {
-      |     echo ${s}
-      |   }
-      |   output {
-      |     String o = s
-      |     Array[Int] outputArray = [0, 1, 2]
-      |   }
-      |}
-      |
-      |task u {
-      |   String a
-      |   String b
-      |   String c
-      |   Int d
-      |   String e = "e"
-      |   String f
-      |   String? g
-      |   String? h
-      |   String i
-      |   File j
-      |   Array[File] k
-      |   String? l
-      |
-      |   command {
-      |     echo ${a}
-      |     echo ${b}
-      |     echo ${c}
-      |     echo ${d}
-      |     echo ${e}
-      |     echo ${f}
-      |     echo ${g}
-      |     echo ${h}
-      |     echo ${i}
-      |   }
-      |}
-      |
-      |workflow wf {
-      | String workflowDeclarationFromInput
-      | String workflowDeclaration = "b"
-      | Array[File] files = ["a", "b", "c"]
-      |
-      | call t as t2 {input: s = "hey" }
-      |
-      | scatter (i in t2.outputArray) {
-      |   call t {input: s = "c"}
-      |   if (true) {
-      |     call t as t3 {input: s = "c"}
-      |   }
-      |   call u as v {input: a = workflowDeclarationFromInput,
-      |                       b = workflowDeclaration,
-      |                       c = t.o,
-      |                       d = i,
-      |                       i = "${workflowDeclaration}",
-      |                       k = files,
-      |                       l = t3.o }
-      | }
-      |}
-    """.
-        stripMargin
+        |task t {
+        |   String s
+        |   command {
+        |     echo ${s}
+        |   }
+        |   output {
+        |     String o = s
+        |     Array[Int] outputArray = [0, 1, 2]
+        |   }
+        |}
+        |
+        |task u {
+        |   String a
+        |   String b
+        |   String c
+        |   Int d
+        |   String e = "e"
+        |   String f
+        |   String? g
+        |   String? h
+        |   String i
+        |   File j
+        |   Array[File] k
+        |   String? l
+        |
+        |   command {
+        |     echo ${a}
+        |     echo ${b}
+        |     echo ${c}
+        |     echo ${d}
+        |     echo ${e}
+        |     echo ${f}
+        |     echo ${g}
+        |     echo ${h}
+        |     echo ${i}
+        |   }
+        |}
+        |
+        |workflow wf {
+        | String workflowDeclarationFromInput
+        | String workflowDeclaration = "b"
+        | Array[File] files = ["a", "b", "c"]
+        |
+        | call t as t2 {input: s = "hey" }
+        |
+        | scatter (i in t2.outputArray) {
+        |   call t {input: s = "c"}
+        |   if (true) {
+        |     call t as t3 {input: s = "c"}
+        |   }
+        |   call u as v {input: a = workflowDeclarationFromInput,
+        |                       b = workflowDeclaration,
+        |                       c = t.o,
+        |                       d = i,
+        |                       i = "${workflowDeclaration}",
+        |                       k = files,
+        |                       l = t3.o }
+        | }
+        |}
+    """.stripMargin
 
     val workflowInputs = Map(
       "wf.workflowDeclarationFromInput" -> WomString("a"),

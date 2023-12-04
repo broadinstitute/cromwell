@@ -15,9 +15,8 @@ package object keys {
     ).validNel
   }
 
-  private def bypassedScopeResults(jobKey: JobKey): Map[ValueKey, WomOptionalValue] = {
-    jobKey.node.outputPorts.map({ outputPort =>
-      ValueKey(outputPort, jobKey.index) ->  WomOptionalValue.none(outputPort.womType)
-    }).toMap
-  }
+  private def bypassedScopeResults(jobKey: JobKey): Map[ValueKey, WomOptionalValue] =
+    jobKey.node.outputPorts.map { outputPort =>
+      ValueKey(outputPort, jobKey.index) -> WomOptionalValue.none(outputPort.womType)
+    }.toMap
 }

@@ -23,23 +23,27 @@ package object values {
     override def evaluateValue(a: ExpressionElement,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
-                              (implicit valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
-
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
+    )(implicit valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] =
       a match {
         // Literals:
-        case a: PrimitiveLiteralExpressionElement => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
+        case a: PrimitiveLiteralExpressionElement =>
+          a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
         case a: StringLiteral => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
-        case a: StringExpression => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
+        case a: StringExpression =>
+          a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
         case a: ObjectLiteral => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
         case a: MapLiteral => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
         case a: ArrayLiteral => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
         case a: PairLiteral => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
 
         // Lookups and member accesses:
-        case a: IdentifierLookup => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
-        case a: ExpressionMemberAccess => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
-        case a: IdentifierMemberAccess => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
+        case a: IdentifierLookup =>
+          a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
+        case a: ExpressionMemberAccess =>
+          a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
+        case a: IdentifierMemberAccess =>
+          a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
         case a: IndexAccess => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
 
         // Unary operators:
@@ -53,9 +57,11 @@ package object values {
         case a: Equals => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
         case a: NotEquals => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
         case a: LessThan => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
-        case a: LessThanOrEquals => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
+        case a: LessThanOrEquals =>
+          a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
         case a: GreaterThan => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
-        case a: GreaterThanOrEquals => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
+        case a: GreaterThanOrEquals =>
+          a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
         case a: Add => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
         case a: Subtract => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
         case a: Multiply => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
@@ -65,8 +71,10 @@ package object values {
         case a: TernaryIf => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
 
         // Engine functions:
-        case a: StdoutElement.type => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
-        case a: StderrElement.type => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
+        case a: StdoutElement.type =>
+          a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
+        case a: StderrElement.type =>
+          a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
 
         case a: ReadLines => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
         case a: ReadTsv => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(valueEvaluator)
@@ -107,6 +115,5 @@ package object values {
 
         case other => s"Unable to process ${other.toWdlV1}: No evaluateValue exists for that type in WDL 1.0".invalidNel
       }
-    }
   }
 }

@@ -11,51 +11,51 @@ import wdl.model.draft3.graph.expression.WomTypeMaker.ops._
 import wom.types._
 
 package object typemakers {
-  implicit val primitiveTypeElementConverter: WomTypeMaker[PrimitiveTypeElement] = new WomTypeMaker[PrimitiveTypeElement] {
-    override def determineWomType(a: PrimitiveTypeElement, availableAliases: Map[String, WomType]): ErrorOr[WomType] = {
-      a.primitiveType.validNel
+  implicit val primitiveTypeElementConverter: WomTypeMaker[PrimitiveTypeElement] =
+    new WomTypeMaker[PrimitiveTypeElement] {
+      override def determineWomType(a: PrimitiveTypeElement, availableAliases: Map[String, WomType]): ErrorOr[WomType] =
+        a.primitiveType.validNel
     }
-  }
 
   implicit val arrayTypeElementConverter: WomTypeMaker[ArrayTypeElement] = new WomTypeMaker[ArrayTypeElement] {
-    override def determineWomType(a: ArrayTypeElement, availableAliases: Map[String, WomType]): ErrorOr[WomType] = {
+    override def determineWomType(a: ArrayTypeElement, availableAliases: Map[String, WomType]): ErrorOr[WomType] =
       a.inner.determineWomType(availableAliases) map { inner => WomArrayType(inner) }
-    }
   }
 
   implicit val mapTypeElementConverter: WomTypeMaker[MapTypeElement] = new WomTypeMaker[MapTypeElement] {
-    override def determineWomType(a: MapTypeElement, availableAliases: Map[String, WomType]): ErrorOr[WomType] = {
-      (a.keyType.determineWomType(availableAliases),
-        a.valueType.determineWomType(availableAliases)) mapN { (keyType, valueType) => WomMapType(keyType, valueType) }
-    }
+    override def determineWomType(a: MapTypeElement, availableAliases: Map[String, WomType]): ErrorOr[WomType] =
+      (a.keyType.determineWomType(availableAliases), a.valueType.determineWomType(availableAliases)) mapN {
+        (keyType, valueType) => WomMapType(keyType, valueType)
+      }
   }
 
   implicit val optionalTypeElementConverter: WomTypeMaker[OptionalTypeElement] = new WomTypeMaker[OptionalTypeElement] {
-    override def determineWomType(a: OptionalTypeElement, availableAliases: Map[String, WomType]): ErrorOr[WomType] = {
+    override def determineWomType(a: OptionalTypeElement, availableAliases: Map[String, WomType]): ErrorOr[WomType] =
       a.maybeType.determineWomType(availableAliases) map { inner => WomOptionalType(inner) }
-    }
   }
 
   implicit val nonEmptyTypeElementConverter: WomTypeMaker[NonEmptyTypeElement] = new WomTypeMaker[NonEmptyTypeElement] {
-    override def determineWomType(a: NonEmptyTypeElement, availableAliases: Map[String, WomType]): ErrorOr[WomType] = {
+    override def determineWomType(a: NonEmptyTypeElement, availableAliases: Map[String, WomType]): ErrorOr[WomType] =
       a.arrayType.determineWomType(availableAliases) flatMap {
         case WomArrayType(memberType) => WomNonEmptyArrayType(memberType).validNel
         case other: WomType => s"Cannot declare a non-empty $other (+ is only applicable to Array[_] types)".invalidNel
       }
-    }
   }
 
   implicit val pairTypeElementConverter: WomTypeMaker[PairTypeElement] = new WomTypeMaker[PairTypeElement] {
-    override def determineWomType(a: PairTypeElement, availableAliases: Map[String, WomType]): ErrorOr[WomType] = {
-      (a.leftType.determineWomType(availableAliases),
-        a.rightType.determineWomType(availableAliases)) mapN { (keyType, valueType) => WomPairType(keyType, valueType) }
-    }
+    override def determineWomType(a: PairTypeElement, availableAliases: Map[String, WomType]): ErrorOr[WomType] =
+      (a.leftType.determineWomType(availableAliases), a.rightType.determineWomType(availableAliases)) mapN {
+        (keyType, valueType) => WomPairType(keyType, valueType)
+      }
   }
 
   implicit val structTypeElementConverter: WomTypeMaker[TypeAliasElement] = new WomTypeMaker[TypeAliasElement] {
-    override def determineWomType(a: TypeAliasElement, availableAliases: Map[String, WomType]): ErrorOr[WomType] = {
-      availableAliases.get(a.alias).toErrorOr(s"No struct definition for '${a.alias}' found in available structs: [${availableAliases.values.mkString(", ")}]")
-    }
+    override def determineWomType(a: TypeAliasElement, availableAliases: Map[String, WomType]): ErrorOr[WomType] =
+      availableAliases
+        .get(a.alias)
+        .toErrorOr(
+          s"No struct definition for '${a.alias}' found in available structs: [${availableAliases.values.mkString(", ")}]"
+        )
   }
 
   implicit val typeElementToWomType: WomTypeMaker[TypeElement] = new WomTypeMaker[TypeElement] {

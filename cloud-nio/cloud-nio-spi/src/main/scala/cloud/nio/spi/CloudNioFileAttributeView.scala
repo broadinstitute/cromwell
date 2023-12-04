@@ -11,21 +11,17 @@ final case class CloudNioFileAttributeView(
 ) extends BasicFileAttributeView {
   override def name(): String = CloudNioFileAttributeView.Name
 
-  override def readAttributes(): CloudNioFileAttributes = {
+  override def readAttributes(): CloudNioFileAttributes =
     if (isDirectory) {
       CloudNioDirectoryAttributes(cloudNioPath)
     } else {
       retry
-        .from(
-          () => fileProvider.fileAttributes(cloudNioPath.cloudHost, cloudNioPath.cloudPath)
-        )
+        .from(() => fileProvider.fileAttributes(cloudNioPath.cloudHost, cloudNioPath.cloudPath))
         .getOrElse(throw new FileNotFoundException(cloudNioPath.uriAsString))
     }
-  }
 
-  override def setTimes(lastModifiedTime: FileTime, lastAccessTime: FileTime, createTime: FileTime): Unit = {
+  override def setTimes(lastModifiedTime: FileTime, lastAccessTime: FileTime, createTime: FileTime): Unit =
     throw new UnsupportedOperationException
-  }
 }
 
 object CloudNioFileAttributeView {

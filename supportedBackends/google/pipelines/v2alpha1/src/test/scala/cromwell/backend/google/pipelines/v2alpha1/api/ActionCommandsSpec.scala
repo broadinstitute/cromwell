@@ -19,7 +19,7 @@ class ActionCommandsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
       mock[Path],
       mock[com.google.api.services.storage.Storage],
       mock[com.google.cloud.storage.Storage],
-      "my-project",
+      "my-project"
     )
     val recovered = recoverRequesterPaysError(path) { flag =>
       s"flag is $flag"
@@ -46,21 +46,23 @@ class ActionCommandsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
   }
 
   it should "use GcsTransferConfiguration to set the number of localization retries" in {
-    implicit val gcsTransferConfiguration: GcsTransferConfiguration = GcsTransferConfiguration(
-      transferAttempts = refineMV(31380), parallelCompositeUploadThreshold = "0")
-    retry("I'm very flaky") shouldBe """for i in $(seq 31380); do
-                                       |  (
-                                       |    I'm very flaky
-                                       |  )
-                                       |  RC=$?
-                                       |  if [ "$RC" = "0" ]; then
-                                       |    break
-                                       |  fi
-                                       |  if [ $i -lt 31380 ]; then
-                                       |    printf '%s %s\n' "$(date -u '+%Y/%m/%d %H:%M:%S')" Waiting\ 5\ seconds\ and\ retrying
-                                       |    sleep 5
-                                       |  fi
-                                       |done
-                                       |exit "$RC"""".stripMargin
+    implicit val gcsTransferConfiguration: GcsTransferConfiguration =
+      GcsTransferConfiguration(transferAttempts = refineMV(31380), parallelCompositeUploadThreshold = "0")
+    retry(
+      "I'm very flaky"
+    ) shouldBe """for i in $(seq 31380); do
+                 |  (
+                 |    I'm very flaky
+                 |  )
+                 |  RC=$?
+                 |  if [ "$RC" = "0" ]; then
+                 |    break
+                 |  fi
+                 |  if [ $i -lt 31380 ]; then
+                 |    printf '%s %s\n' "$(date -u '+%Y/%m/%d %H:%M:%S')" Waiting\ 5\ seconds\ and\ retrying
+                 |    sleep 5
+                 |  fi
+                 |done
+                 |exit "$RC"""".stripMargin
   }
 }

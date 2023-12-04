@@ -4,15 +4,27 @@ import cromwell.core.callcaching._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.HashError
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec.EnhancedTestEJEA
 import cromwell.engine.workflow.lifecycle.execution.ejea.HasJobSuccessResponse.SuccessfulCallCacheHashes
-import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor.{FailedResponseData, ResponsePendingData, RunningJob, SucceededResponseData}
+import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor.{
+  FailedResponseData,
+  ResponsePendingData,
+  RunningJob,
+  SucceededResponseData
+}
 import org.scalatest.concurrent.Eventually
 
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
 
-class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually with CanValidateJobStoreKey with CanExpectJobStoreWrites with CanExpectCacheWrites with HasJobSuccessResponse with HasJobFailureResponses {
+class EjeaRunningJobSpec
+    extends EngineJobExecutionActorSpec
+    with Eventually
+    with CanValidateJobStoreKey
+    with CanExpectJobStoreWrites
+    with CanExpectCacheWrites
+    with HasJobSuccessResponse
+    with HasJobFailureResponses {
 
-  override implicit val stateUnderTest = RunningJob
+  implicit override val stateUnderTest = RunningJob
 
   val hashError = HashError(new Exception("ARGH!!!") with NoStackTrace)
 
@@ -23,7 +35,6 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
 
   "A 'RunningJob' EJEA" should {
     CallCachingModes foreach { mode =>
-
       /* *************************** */
       /* JobAbortedResponse Handling */
       /* *************************** */
@@ -43,7 +54,7 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
       s"Handle receiving a JobAbortedResponse correctly in $mode mode with successful hashes" in {
         ejea = ejeaInRunningState(mode)
         ejea ! SuccessfulCallCacheHashes
-        eventually { ejea.stateData should be(initialData.copy(hashes = Some(Success(SuccessfulCallCacheHashes)))) }
+        eventually(ejea.stateData should be(initialData.copy(hashes = Some(Success(SuccessfulCallCacheHashes)))))
         ejea.stateName should be(RunningJob)
 
         ejea ! abortedResponse
@@ -59,7 +70,7 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
       s"Handle receiving a JobAbortedResponse correctly in $mode mode with failed hashes" in {
         ejea = ejeaInRunningState(mode)
         ejea ! hashError
-        eventually { ejea.stateData should be(initialData.copy(hashes = Some(Failure(hashError.reason)))) }
+        eventually(ejea.stateData should be(initialData.copy(hashes = Some(Failure(hashError.reason)))))
         ejea.stateName should be(RunningJob)
 
         ejea ! abortedResponse
@@ -85,7 +96,7 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
         s"Handle receiving SuccessResponse then CallCacheHashes correctly in $mode mode" in {
           ejea = ejeaInRunningState(mode)
           ejea ! successResponse
-          eventually { ejea.stateData should be(SucceededResponseData(successResponse, None)) }
+          eventually(ejea.stateData should be(SucceededResponseData(successResponse, None)))
           ejea.stateName should be(RunningJob)
           ejea ! SuccessfulCallCacheHashes
           expectCacheWrite(successResponse, SuccessfulCallCacheHashes)
@@ -94,7 +105,7 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
         s"Handle receiving CallCacheHashes then SuccessResponse correctly in $mode mode" in {
           ejea = ejeaInRunningState(mode)
           ejea ! SuccessfulCallCacheHashes
-          eventually { ejea.stateData should be(initialData.copy(hashes = Some(Success(SuccessfulCallCacheHashes)))) }
+          eventually(ejea.stateData should be(initialData.copy(hashes = Some(Success(SuccessfulCallCacheHashes)))))
           ejea.stateName should be(RunningJob)
           ejea ! successResponse
           expectCacheWrite(successResponse, SuccessfulCallCacheHashes)
@@ -103,7 +114,7 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
         s"Handle receiving SuccessResponse then HashError correctly in $mode mode" in {
           ejea = ejeaInRunningState(mode)
           ejea ! successResponse
-          eventually { ejea.stateData should be(SucceededResponseData(successResponse, None)) }
+          eventually(ejea.stateData should be(SucceededResponseData(successResponse, None)))
           ejea.stateName should be(RunningJob)
           ejea ! hashError
           expectJobStoreWrite(SucceededResponseData(successResponse, Some(Failure(hashError.reason))))
@@ -112,7 +123,11 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
         s"Handle receiving HashError then SuccessResponse correctly in $mode mode" in {
           ejea = ejeaInRunningState(mode)
           ejea ! hashError
-          eventually { ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, Some(Failure(hashError.reason)))) }
+          eventually {
+            ejea.stateData should be(
+              ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, Some(Failure(hashError.reason)))
+            )
+          }
           ejea.stateName should be(RunningJob)
           ejea ! successResponse
           expectJobStoreWrite(SucceededResponseData(successResponse, Some(Failure(hashError.reason))))
@@ -125,11 +140,13 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
             val failedResponse = responseMaker()
             ejea = ejeaInRunningState(mode)
             ejea ! failedResponse
-            eventually { ejea.stateData should be(FailedResponseData(failedResponse, None)) }
+            eventually(ejea.stateData should be(FailedResponseData(failedResponse, None)))
             ejea.stateName should be(RunningJob)
             ejea ! SuccessfulCallCacheHashes
             // Don't expect cache write here (the job failed !) but do expect job store write
-            expectJobStoreWriteFailed(FailedResponseData(failedResponse, Option(Success(SuccessfulCallCacheHashes))), retryable)
+            expectJobStoreWriteFailed(FailedResponseData(failedResponse, Option(Success(SuccessfulCallCacheHashes))),
+                                      retryable
+            )
             helper.callCacheWriteActorProbe.expectNoMessage(awaitAlmostNothing)
           }
 
@@ -138,10 +155,12 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
             ejea = ejeaInRunningState(mode)
             ejea.stateName should be(RunningJob)
             ejea ! SuccessfulCallCacheHashes
-            eventually { ejea.stateData should be(initialData.copy(hashes = Some(Success(SuccessfulCallCacheHashes)))) }
+            eventually(ejea.stateData should be(initialData.copy(hashes = Some(Success(SuccessfulCallCacheHashes)))))
             ejea ! failedResponse
             // Don't expect cache write here (the job failed !) but do expect job store write
-            expectJobStoreWriteFailed(FailedResponseData(failedResponse, Option(Success(SuccessfulCallCacheHashes))), retryable)
+            expectJobStoreWriteFailed(FailedResponseData(failedResponse, Option(Success(SuccessfulCallCacheHashes))),
+                                      retryable
+            )
             helper.callCacheWriteActorProbe.expectNoMessage(awaitAlmostNothing)
           }
 
@@ -149,7 +168,7 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
             val failedResponse = responseMaker()
             ejea = ejeaInRunningState(mode)
             ejea ! failedResponse
-            eventually { ejea.stateData should be(FailedResponseData(failedResponse, None)) }
+            eventually(ejea.stateData should be(FailedResponseData(failedResponse, None)))
             ejea.stateName should be(RunningJob)
             ejea ! hashError
             expectJobStoreWriteFailed(FailedResponseData(failedResponse, Some(Failure(hashError.reason))), retryable)
@@ -160,7 +179,11 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
             val failedResponse = responseMaker()
             ejea = ejeaInRunningState(mode)
             ejea ! hashError
-            eventually { ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, Some(Failure(hashError.reason)))) }
+            eventually {
+              ejea.stateData should be(
+                ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, Some(Failure(hashError.reason)))
+              )
+            }
             ejea.stateName should be(RunningJob)
             ejea ! failedResponse
             expectJobStoreWriteFailed(FailedResponseData(failedResponse, Some(Failure(hashError.reason))), retryable)
@@ -179,7 +202,7 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
         s"Handle receiving a SucceededResponse correctly in $mode mode with successful hashes" in {
           ejea = ejeaInRunningState(mode)
           ejea ! SuccessfulCallCacheHashes
-          eventually { ejea.stateData should be(initialData.copy(hashes = Some(Success(SuccessfulCallCacheHashes)))) }
+          eventually(ejea.stateData should be(initialData.copy(hashes = Some(Success(SuccessfulCallCacheHashes)))))
           ejea.stateName should be(RunningJob)
           ejea ! successResponse
           // Even if we received hashes, writeToCache is false so we go straight to job store and don't write them to the cache
@@ -190,7 +213,7 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
         s"Handle receiving a SucceededResponse correctly in $mode mode with failed hashes" in {
           ejea = ejeaInRunningState(mode)
           ejea ! hashError
-          eventually { ejea.stateData should be(initialData.copy(hashes = Some(Failure(hashError.reason)))) }
+          eventually(ejea.stateData should be(initialData.copy(hashes = Some(Failure(hashError.reason)))))
           ejea.stateName should be(RunningJob)
           ejea ! successResponse
           // Even if we received hashes, writeToCache is false so we go straight to job store and don't write them to the cache
@@ -212,10 +235,12 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
             val failedResponse = responseMaker()
             ejea = ejeaInRunningState(mode)
             ejea ! SuccessfulCallCacheHashes
-            eventually { ejea.stateData should be(initialData.copy(hashes = Some(Success(SuccessfulCallCacheHashes)))) }
+            eventually(ejea.stateData should be(initialData.copy(hashes = Some(Success(SuccessfulCallCacheHashes)))))
             ejea.stateName should be(RunningJob)
             ejea ! failedResponse
-            expectJobStoreWriteFailed(FailedResponseData(failedResponse, Some(Success(SuccessfulCallCacheHashes))), retryable)
+            expectJobStoreWriteFailed(FailedResponseData(failedResponse, Some(Success(SuccessfulCallCacheHashes))),
+                                      retryable
+            )
             helper.callCacheWriteActorProbe.expectNoMessage(awaitAlmostNothing)
           }
 
@@ -223,7 +248,7 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
             val failedResponse = responseMaker()
             ejea = ejeaInRunningState(mode)
             ejea ! hashError
-            eventually { ejea.stateData should be(initialData.copy(hashes = Some(Failure(hashError.reason)))) }
+            eventually(ejea.stateData should be(initialData.copy(hashes = Some(Failure(hashError.reason)))))
             ejea.stateName should be(RunningJob)
             ejea ! failedResponse
             expectJobStoreWriteFailed(FailedResponseData(failedResponse, Some(Failure(hashError.reason))), retryable)
@@ -235,5 +260,6 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
   }
 
   def initialData = ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, None)
-  def ejeaInRunningState(mode: CallCachingMode = CallCachingActivity(ReadAndWriteCache)) = helper.buildEJEA(callCachingMode = mode).setStateInline(state = RunningJob, data = initialData)
+  def ejeaInRunningState(mode: CallCachingMode = CallCachingActivity(ReadAndWriteCache)) =
+    helper.buildEJEA(callCachingMode = mode).setStateInline(state = RunningJob, data = initialData)
 }

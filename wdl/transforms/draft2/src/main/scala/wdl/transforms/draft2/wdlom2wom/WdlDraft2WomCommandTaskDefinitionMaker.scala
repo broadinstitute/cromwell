@@ -5,12 +5,11 @@ import common.validation.ErrorOr.ErrorOr
 import wdl.draft2.model.{AstTools, WdlTask, WdlWomExpression}
 import wdl.draft2.parser.WdlParser.Terminal
 import wom.SourceFileLocation
-import wom.callable.Callable.{OverridableInputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
+import wom.callable.Callable.{OptionalInputDefinition, OverridableInputDefinitionWithDefault, RequiredInputDefinition}
 import wom.callable.{Callable, CallableTaskDefinition, CommandTaskDefinition, MetaValueElement}
 import wom.graph.LocalName
 import wom.transforms.WomCommandTaskDefinitionMaker
 import wom.types.WomOptionalType
-
 
 object WdlDraft2WomCommandTaskDefinitionMaker extends WomCommandTaskDefinitionMaker[WdlTask] {
 
@@ -22,7 +21,10 @@ object WdlDraft2WomCommandTaskDefinitionMaker extends WomCommandTaskDefinitionMa
       case d if d.expression.isEmpty && d.womType.isInstanceOf[WomOptionalType] =>
         OptionalInputDefinition(LocalName(d.unqualifiedName), d.womType.asInstanceOf[WomOptionalType])
       case d if d.expression.nonEmpty =>
-        OverridableInputDefinitionWithDefault(LocalName(d.unqualifiedName), d.womType, WdlWomExpression(d.expression.get, wdlTask))
+        OverridableInputDefinitionWithDefault(LocalName(d.unqualifiedName),
+                                              d.womType,
+                                              WdlWomExpression(d.expression.get, wdlTask)
+        )
     }).toList
 
     // Figure out the start line of the workflow in the source file
@@ -30,12 +32,10 @@ object WdlDraft2WomCommandTaskDefinitionMaker extends WomCommandTaskDefinitionMa
 
     // Draft-2 only support string values. It does not support composite values, or
     // anything
-    def stringifyMetaValues(meta: Map[String, String]): Map[String, MetaValueElement] = {
-      meta map {
-        case (key, value) =>
-          key -> MetaValueElement.MetaValueElementString(value)
+    def stringifyMetaValues(meta: Map[String, String]): Map[String, MetaValueElement] =
+      meta map { case (key, value) =>
+        key -> MetaValueElement.MetaValueElementString(value)
       }
-    }
 
     CallableTaskDefinition(
       name = wdlTask.fullyQualifiedName,

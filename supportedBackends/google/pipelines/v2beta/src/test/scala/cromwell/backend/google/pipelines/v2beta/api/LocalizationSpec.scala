@@ -25,11 +25,12 @@ class LocalizationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
 
     action.get("commands") should be(a[java.util.List[_]])
     action.get("commands").asInstanceOf[java.util.List[_]] should contain theSameElementsAs List(
-      "-m", manifestPathString
+      "-m",
+      manifestPathString
     )
 
     action.get("mounts") should be(a[java.util.List[_]])
-    action.get("mounts").asInstanceOf[java.util.List[_]] should be (empty)
+    action.get("mounts").asInstanceOf[java.util.List[_]] should be(empty)
 
     action.get("imageUri") should be("somerepo/drs-downloader:tagged")
 
@@ -52,11 +53,14 @@ class LocalizationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
 
     action.get("commands") should be(a[java.util.List[_]])
     action.get("commands").asInstanceOf[java.util.List[_]] should contain theSameElementsAs List(
-      "-m", manifestPathString, "-r", requesterPaysProjectId
+      "-m",
+      manifestPathString,
+      "-r",
+      requesterPaysProjectId
     )
 
     action.get("mounts") should be(a[java.util.List[_]])
-    action.get("mounts").asInstanceOf[java.util.List[_]] should be (empty)
+    action.get("mounts").asInstanceOf[java.util.List[_]] should be(empty)
 
     action.get("imageUri") should be("somerepo/drs-downloader:tagged")
 

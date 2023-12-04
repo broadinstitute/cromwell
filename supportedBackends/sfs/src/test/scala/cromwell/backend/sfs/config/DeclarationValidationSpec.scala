@@ -12,16 +12,23 @@ import wdl.draft2.model._
 import wom.types.WomIntegerType
 import wom.values.WomInteger
 
-class DeclarationValidationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks {
+class DeclarationValidationSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with TableDrivenPropertyChecks {
   behavior of "DeclarationValidation"
-  
+
   def validateCpu(key: String) = {
     val expression = WdlExpression.fromString("5")
     val declarationValidation = DeclarationValidation.fromDeclaration(callCachedRuntimeAttributesMap = Map.empty)(
-      Declaration(WomIntegerType, key, Option(expression), None, null))
-    declarationValidation.extractWdlValueOption(ValidatedRuntimeAttributes(Map(key -> refineMV[Positive](5)))) shouldBe Some(WomInteger(5))
+      Declaration(WomIntegerType, key, Option(expression), None, null)
+    )
+    declarationValidation.extractWdlValueOption(
+      ValidatedRuntimeAttributes(Map(key -> refineMV[Positive](5)))
+    ) shouldBe Some(WomInteger(5))
   }
-  
+
   it should "validate cpu attributes" in {
     val keys = Table(
       "key",
@@ -29,7 +36,7 @@ class DeclarationValidationSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
       "cpuMin",
       "cpuMax"
     )
-    
-    forAll(keys) { validateCpu }
+
+    forAll(keys)(validateCpu)
   }
 }

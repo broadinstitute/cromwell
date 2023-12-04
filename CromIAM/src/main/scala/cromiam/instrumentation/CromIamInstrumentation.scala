@@ -27,10 +27,11 @@ trait CromIamInstrumentation extends CromwellInstrumentation {
   val rootWfIdPrefix = NonEmptyList.one("root-workflow-id")
   val wfCollectionPrefix = NonEmptyList.one("workflow-collection")
 
-
   def convertRequestToPath(httpRequest: HttpRequest): NonEmptyList[String] = NonEmptyList.of(
     // Returns the path of the URI only, without query parameters (e.g: api/engine/workflows/metadata)
-    httpRequest.uri.path.toString().stripPrefix("/")
+    httpRequest.uri.path
+      .toString()
+      .stripPrefix("/")
       // Replace UUIDs with [id] to keep paths same regardless of the workflow
       .replaceAll(CromIamInstrumentation.UUIDRegex, "[id]"),
     // Name of the method (e.g: GET)
@@ -43,15 +44,19 @@ trait CromIamInstrumentation extends CromwellInstrumentation {
   def makePathFromRequestAndResponse(httpRequest: HttpRequest, httpResponse: HttpResponse): InstrumentationPath =
     convertRequestToPath(httpRequest).concatNel(NonEmptyList.of(httpResponse.status.intValue.toString))
 
-  def sendTimingApi(statsDPath: InstrumentationPath, timing: FiniteDuration, prefixToStatsd: NonEmptyList[String]): Unit = {
+  def sendTimingApi(statsDPath: InstrumentationPath,
+                    timing: FiniteDuration,
+                    prefixToStatsd: NonEmptyList[String]
+  ): Unit =
     sendTiming(prefixToStatsd.concatNel(statsDPath), timing, CromIamPrefix)
-  }
 
-  def instrumentationPrefixForSam(methodPrefix: NonEmptyList[String]): NonEmptyList[String] = samPrefix.concatNel(methodPrefix)
+  def instrumentationPrefixForSam(methodPrefix: NonEmptyList[String]): NonEmptyList[String] =
+    samPrefix.concatNel(methodPrefix)
 
   def instrumentRequest[A](func: () => FailureResponseOrT[A],
                            httpRequest: HttpRequest,
-                           prefix: NonEmptyList[String]): FailureResponseOrT[A] = {
+                           prefix: NonEmptyList[String]
+  ): FailureResponseOrT[A] = {
     def now(): Deadline = Deadline.now
 
     val startTimestamp = now()

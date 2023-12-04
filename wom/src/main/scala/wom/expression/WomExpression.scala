@@ -30,7 +30,10 @@ trait WomExpression {
 
   def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType]
 
-  def evaluateFiles(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]]
+  def evaluateFiles(inputValues: Map[String, WomValue],
+                    ioFunctionSet: IoFunctionSet,
+                    coerceTo: WomType
+  ): ErrorOr[Set[FileEvaluation]]
 
   /** Returns `true` if all file types within the specified `WomType` are optional. If not all the file types are
     * optional, return `false` since the current file evaluation structure doesn't allow for mapping individual
@@ -39,10 +42,12 @@ trait WomExpression {
     def innerAreAllFileTypesInWomTypeOptional(womType: WomType): Boolean = womType match {
       case WomOptionalType(_: WomPrimitiveFileType) => true
       case _: WomPrimitiveFileType => false
-      case _: WomPrimitiveType => true // WomPairTypes and WomCompositeTypes may have non-File components here which is fine.
+      case _: WomPrimitiveType =>
+        true // WomPairTypes and WomCompositeTypes may have non-File components here which is fine.
       case WomArrayType(inner) => innerAreAllFileTypesInWomTypeOptional(inner)
       case WomMapType(_, inner) => innerAreAllFileTypesInWomTypeOptional(inner)
-      case WomPairType(leftType, rightType) => innerAreAllFileTypesInWomTypeOptional(leftType) && innerAreAllFileTypesInWomTypeOptional(rightType)
+      case WomPairType(leftType, rightType) =>
+        innerAreAllFileTypesInWomTypeOptional(leftType) && innerAreAllFileTypesInWomTypeOptional(rightType)
       case WomCompositeType(typeMap, _) => typeMap.values.forall(innerAreAllFileTypesInWomTypeOptional)
       case _ => false
     }
@@ -60,9 +65,13 @@ trait WomExpression {
   */
 final case class ValueAsAnExpression(value: WomValue) extends WomExpression {
   override def sourceString: String = value.valueString
-  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = Valid(value)
+  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] =
+    Valid(value)
   override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = Valid(value.womType)
-  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = Valid(Set.empty)
+  override def evaluateFiles(inputTypes: Map[String, WomValue],
+                             ioFunctionSet: IoFunctionSet,
+                             coerceTo: WomType
+  ): ErrorOr[Set[FileEvaluation]] = Valid(Set.empty)
   override val inputs: Set[String] = Set.empty
 }
 
@@ -70,6 +79,7 @@ final case class ValueAsAnExpression(value: WomValue) extends WomExpression {
   * Functions only requiring path manipulation and NO I/O
   */
 trait PathFunctionSet {
+
   /**
     * Similar to java.nio.Path.resolveSibling with
     * of == a string representation of a java.nio.Path
@@ -84,7 +94,8 @@ trait PathFunctionSet {
   /**
     * Similar to sibling only if "of" IS an absolute path and "other" IS NOT an absolute path, otherwise return other
     */
-  def absoluteSibling(of: String, other: String): String = if (isAbsolute(of) && !isAbsolute(other)) sibling(of, other) else other
+  def absoluteSibling(of: String, other: String): String =
+    if (isAbsolute(of) && !isAbsolute(other)) sibling(of, other) else other
 
   /**
     * If path is relative, prefix it with the _host_ call root.
@@ -108,6 +119,7 @@ trait PathFunctionSet {
 }
 
 object IoFunctionSet {
+
   /**
     * Simple wrapper class providing information on whether a path is a File or a Directory
     * Avoids repeated calls to isDirectory.
@@ -187,7 +199,7 @@ trait IoFunctionSet {
     * To map/flatMap over IO results
     */
   implicit def ec: ExecutionContext
-  
+
   implicit def cs = IO.contextShift(ec)
 
   /**

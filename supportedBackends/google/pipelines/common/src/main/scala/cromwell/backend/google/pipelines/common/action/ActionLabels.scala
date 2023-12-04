@@ -2,6 +2,7 @@ package cromwell.backend.google.pipelines.common.action
 
 object ActionLabels {
   object Key {
+
     /**
       * Very short description of the action
       */

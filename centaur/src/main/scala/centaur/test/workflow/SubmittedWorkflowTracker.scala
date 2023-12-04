@@ -25,7 +25,6 @@ class SubmittedWorkflowTracker {
    * object require a retry. Prevents unwanted cache hits from partially successful attempts when retrying a call
    * caching test case.
    */
-  def add(submittedWorkflow: SubmittedWorkflow): Unit = {
+  def add(submittedWorkflow: SubmittedWorkflow): Unit =
     submittedWorkflowIds = submittedWorkflow.id :: submittedWorkflowIds
-  }
 }

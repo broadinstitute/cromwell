@@ -2,7 +2,6 @@ package cromwell.core.callcaching
 
 import cromwell.core.callcaching.HashKey.KeySeparator
 
-
 object HashKey {
   private val KeySeparator = ": "
   def apply(keyComponents: String*) = new HashKey(true, keyComponents.toList)

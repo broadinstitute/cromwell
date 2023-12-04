@@ -18,5 +18,6 @@ package object model {
   type Draft2ImportResolver = String => Draft2ResolvedImportBundle
   type OutputResolver = (WdlGraphNode, Option[Int]) => Try[WomValue]
 
-  val NoOutputResolver: OutputResolver = (node: WdlGraphNode, i: Option[Int]) => Failure(OutputVariableLookupException(node, i))
+  val NoOutputResolver: OutputResolver = (node: WdlGraphNode, i: Option[Int]) =>
+    Failure(OutputVariableLookupException(node, i))
 }

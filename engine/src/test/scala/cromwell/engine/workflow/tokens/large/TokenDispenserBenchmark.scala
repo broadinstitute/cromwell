@@ -38,7 +38,7 @@ object TokenDispenserBenchmark extends Bench[Double] with DefaultJsonProtocol {
   def fillQueue(tokenQueueIn: TokenQueue, jobsPerGroup: Int, hogGroups: List[String]): TokenQueue = {
     var tokenQueue = tokenQueueIn
     hogGroups foreach { hogGroup =>
-    (0 until jobsPerGroup) foreach { _ =>
+      (0 until jobsPerGroup) foreach { _ =>
         tokenQueue = tokenQueue.enqueue(TokenQueuePlaceholder(actorToQueue, hogGroup))
       }
     }
@@ -71,7 +71,8 @@ object TokenDispenserBenchmark extends Bench[Double] with DefaultJsonProtocol {
 
     measure method "enqueuing and dequeuing with multiple hog groups" in {
       val poolSize = 5 * ScaleFactor
-      val jobCounts: Gen[Int] = Gen.range("initialJobsInQueue")(from = 1 * ScaleFactor, upto = 15 * ScaleFactor, hop = 3 * ScaleFactor)
+      val jobCounts: Gen[Int] =
+        Gen.range("initialJobsInQueue")(from = 1 * ScaleFactor, upto = 15 * ScaleFactor, hop = 3 * ScaleFactor)
       val jobsAtATime = 50
 
       val queues = for {

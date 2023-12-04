@@ -3,7 +3,7 @@ package cloud.nio.spi
 import java.net.URI
 import java.nio.channels.SeekableByteChannel
 import java.nio.file._
-import java.nio.file.attribute.{BasicFileAttributeView, BasicFileAttributes, FileAttribute, FileAttributeView}
+import java.nio.file.attribute.{BasicFileAttributes, BasicFileAttributeView, FileAttribute, FileAttributeView}
 import java.nio.file.spi.FileSystemProvider
 
 import com.typesafe.config.{Config, ConfigFactory}

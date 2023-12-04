@@ -11,7 +11,7 @@ import slick.basic.DatabaseConfig
 import slick.jdbc.{JdbcCapabilities, JdbcProfile, PostgresProfile, TransactionIsolation}
 
 import java.sql.{Connection, PreparedStatement, Statement}
-import java.util.concurrent.{ExecutorService, Executors}
+import java.util.concurrent.{Executors, ExecutorService}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 

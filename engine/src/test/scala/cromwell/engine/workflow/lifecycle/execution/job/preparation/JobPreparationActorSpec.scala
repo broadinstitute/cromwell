@@ -4,7 +4,7 @@ import akka.testkit.{ImplicitSender, TestActorRef}
 import cats.syntax.validated._
 import cromwell.core.TestKitSuite
 import cromwell.core.callcaching.{DockerWithHash, FloatingDockerTagWithoutHash}
-import cromwell.docker.DockerInfoActor.{DockerInfoSuccessResponse, DockerInformation, DockerSize}
+import cromwell.docker.DockerInfoActor.{DockerInformation, DockerInfoSuccessResponse, DockerSize}
 import cromwell.docker.{DockerHashResult, DockerImageIdentifier, DockerImageIdentifierWithoutHash, DockerInfoRequest}
 import cromwell.engine.workflow.WorkflowDockerLookupActor.WorkflowDockerLookupFailure
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation.{

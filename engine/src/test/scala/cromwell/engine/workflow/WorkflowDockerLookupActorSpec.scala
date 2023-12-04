@@ -9,7 +9,7 @@ import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.database.slick.EngineSlickDatabase
 import cromwell.database.sql.tables.DockerHashStoreEntry
-import cromwell.docker.DockerInfoActor.{DockerInfoFailedResponse, DockerInfoSuccessResponse, DockerInformation}
+import cromwell.docker.DockerInfoActor.{DockerInfoFailedResponse, DockerInformation, DockerInfoSuccessResponse}
 import cromwell.docker.{DockerHashResult, DockerImageIdentifier, DockerImageIdentifierWithoutHash, DockerInfoRequest}
 import cromwell.engine.workflow.WorkflowDockerLookupActor.{
   DockerHashActorTimeout,

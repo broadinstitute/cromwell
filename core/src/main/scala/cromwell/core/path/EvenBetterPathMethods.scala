@@ -1,6 +1,6 @@
 package cromwell.core.path
 
-import java.io.{BufferedInputStream, BufferedReader, ByteArrayOutputStream, IOException, InputStream, InputStreamReader}
+import java.io.{BufferedInputStream, BufferedReader, ByteArrayOutputStream, InputStream, InputStreamReader, IOException}
 import java.nio.file.{FileAlreadyExistsException, Files}
 import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
 import java.util.zip.GZIPOutputStream

@@ -5,7 +5,7 @@ import cats.syntax.traverse._
 import cats.instances.list._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
-import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow, WdlNamespaceWithoutWorkflow}
+import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithoutWorkflow, WdlNamespaceWithWorkflow}
 import wom.callable.{TaskDefinition, WorkflowDefinition}
 import wom.executable.WomBundle
 import wom.transforms.WomWorkflowDefinitionMaker.ops._

@@ -9,7 +9,7 @@ import cromwell.CromwellTestKitSpec._
 import cromwell.core._
 import cromwell.core.path.BetterFileMethods.Cmds
 import cromwell.core.path.DefaultPathBuilder
-import cromwell.docker.DockerInfoActor.{DockerInfoSuccessResponse, DockerInformation}
+import cromwell.docker.DockerInfoActor.{DockerInformation, DockerInfoSuccessResponse}
 import cromwell.docker.{DockerHashResult, DockerInfoRequest}
 import cromwell.engine.MockCromwellTerminator
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
@@ -22,7 +22,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteAc
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteSuccess
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowSubmittedToStore
 import cromwell.engine.workflow.workflowstore.{InMemorySubWorkflowStore, InMemoryWorkflowStore, WorkflowStoreActor}
-import cromwell.jobstore.JobStoreActor.{JobStoreWriteSuccess, JobStoreWriterCommand}
+import cromwell.jobstore.JobStoreActor.{JobStoreWriterCommand, JobStoreWriteSuccess}
 import cromwell.languages.config.{CromwellLanguages, LanguageConfiguration}
 import cromwell.server.{CromwellRootActor, CromwellSystem}
 import cromwell.services.metadata.MetadataService._

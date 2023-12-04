@@ -1,7 +1,7 @@
 package cromwell.docker.local
 
 import cromwell.core.Tags.IntegrationTest
-import cromwell.docker.DockerInfoActor.{DockerInfoNotFound, DockerInfoSuccessResponse, DockerInformation}
+import cromwell.docker.DockerInfoActor.{DockerInfoNotFound, DockerInformation, DockerInfoSuccessResponse}
 import cromwell.docker.{DockerHashResult, DockerRegistry, DockerRegistrySpec}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers

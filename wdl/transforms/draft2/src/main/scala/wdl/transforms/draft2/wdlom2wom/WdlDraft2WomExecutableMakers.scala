@@ -1,7 +1,7 @@
 package wdl.transforms.draft2.wdlom2wom
 
 import common.Checked
-import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow, WdlNamespaceWithoutWorkflow}
+import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithoutWorkflow, WdlNamespaceWithWorkflow}
 import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomBundleMakers._
 import wdl.shared.transforms.wdlom2wom.WdlSharedInputParsing
 import wom.core.WorkflowJson

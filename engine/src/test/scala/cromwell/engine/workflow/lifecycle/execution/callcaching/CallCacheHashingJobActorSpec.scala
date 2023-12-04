@@ -11,8 +11,8 @@ import cromwell.backend.standard.callcaching.StandardFileHashingActor.{FileHashR
 import cromwell.core.TestKitSuite
 import cromwell.core.callcaching.{HashingFailedMessage, _}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{
-  CCHJAFileHashResponse,
   CallCacheHashingJobActorData,
+  CCHJAFileHashResponse,
   CompleteFileHashingResult,
   HashingFiles,
   InitialHashingResult,

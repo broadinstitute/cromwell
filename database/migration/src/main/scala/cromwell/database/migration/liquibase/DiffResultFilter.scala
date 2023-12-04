@@ -1,7 +1,7 @@
 package cromwell.database.migration.liquibase
 
 import liquibase.database.Database
-import liquibase.diff.{DiffResult, Difference, ObjectDifferences}
+import liquibase.diff.{Difference, DiffResult, ObjectDifferences}
 import liquibase.structure.DatabaseObject
 import liquibase.structure.core._
 

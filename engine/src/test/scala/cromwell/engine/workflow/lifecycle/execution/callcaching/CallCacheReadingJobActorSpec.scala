@@ -2,7 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.testkit.{TestFSMRef, TestProbe}
 import cromwell.core.TestKitSuite
-import cromwell.core.callcaching.{HashKey, HashResult, HashValue, HashingFailedMessage}
+import cromwell.core.callcaching.{HashingFailedMessage, HashKey, HashResult, HashValue}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{
   CompleteFileHashingResult,
   InitialHashingResult,

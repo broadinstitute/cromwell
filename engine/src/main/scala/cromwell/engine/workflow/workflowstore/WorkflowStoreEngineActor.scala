@@ -5,7 +5,7 @@ import cats.data.NonEmptyList
 import cromwell.core.Dispatcher._
 import cromwell.core.WorkflowProcessingEvents.DescriptionEventValue.PickedUp
 import cromwell.core._
-import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortRequestedResponse, WorkflowAbortedResponse}
+import cromwell.core.abort.{WorkflowAbortedResponse, WorkflowAbortFailureResponse, WorkflowAbortRequestedResponse}
 import cromwell.engine.instrumentation.WorkflowInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.{WorkflowMetadataHelper, WorkflowProcessingEventPublishing}

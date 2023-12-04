@@ -7,8 +7,8 @@ import cromwell.backend.BackendCacheHitCopyingActor.{
   BlacklistSkip,
   CacheCopyFailure,
   CopyAttemptError,
-  CopyOutputsCommand,
-  CopyingOutputsFailedResponse
+  CopyingOutputsFailedResponse,
+  CopyOutputsCommand
 }
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand

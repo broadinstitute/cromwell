@@ -24,7 +24,7 @@ import languages.wdl.draft2.WdlDraft2LanguageFactory._
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
 import wdl.draft2.Draft2ResolvedImportBundle
-import wdl.draft2.model.{Draft2ImportResolver, WdlNamespace, WdlNamespaceWithWorkflow, WdlNamespaceWithoutWorkflow}
+import wdl.draft2.model.{Draft2ImportResolver, WdlNamespace, WdlNamespaceWithoutWorkflow, WdlNamespaceWithWorkflow}
 import wdl.shared.transforms.wdlom2wom.WdlSharedInputParsing
 import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomBundleMakers._
 import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomExecutableMakers._

@@ -15,9 +15,9 @@ import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreStat
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowStoreState, WorkflowSubmissionResponse}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{
+  WorkflowsBatchSubmittedToStore,
   WorkflowSubmitFailed,
-  WorkflowSubmittedToStore,
-  WorkflowsBatchSubmittedToStore
+  WorkflowSubmittedToStore
 }
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}

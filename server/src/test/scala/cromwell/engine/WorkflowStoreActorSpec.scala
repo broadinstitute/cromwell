@@ -9,9 +9,9 @@ import common.assertion.CromwellTimeoutSpec
 import cromwell.core._
 import cromwell.core.abort.{
   AbortResponse,
+  WorkflowAbortedResponse,
   WorkflowAbortFailureResponse,
-  WorkflowAbortRequestedResponse,
-  WorkflowAbortedResponse
+  WorkflowAbortRequestedResponse
 }
 import cromwell.engine.workflow.{CoordinatedWorkflowStoreActorBuilder, SqlWorkflowStoreBuilder}
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
@@ -20,8 +20,8 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreCoordinatedAccessActor.WriteHeartbeats
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{NewWorkflowsToStart, NoNewWorkflowsToStart}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{
-  WorkflowSubmittedToStore,
-  WorkflowsBatchSubmittedToStore
+  WorkflowsBatchSubmittedToStore,
+  WorkflowSubmittedToStore
 }
 import cromwell.engine.workflow.workflowstore._
 import cromwell.services.metadata.MetadataQuery

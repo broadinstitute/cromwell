@@ -33,7 +33,7 @@ package cromwell.backend.impl.aws.callcaching
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import common.util.TryUtil
 import cromwell.backend.BackendInitializationData
-import cromwell.backend.impl.aws.{AWSBatchStorageSystems, AwsBatchBackendInitializationData}
+import cromwell.backend.impl.aws.{AwsBatchBackendInitializationData, AWSBatchStorageSystems}
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardCacheHitCopyingActorParams}
 import cromwell.core.CallOutputs

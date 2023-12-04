@@ -9,8 +9,8 @@ import cromwell.core.{CallOutputs, WorkflowId}
 import cromwell.engine.workflow.{CoordinatedWorkflowStoreActorBuilder, SqlWorkflowStoreBuilder}
 import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
 import cromwell.jobstore.JobStoreActor.{
-  JobStoreWriteSuccess,
   JobStoreWriterCommand,
+  JobStoreWriteSuccess,
   RegisterJobCompleted,
   RegisterWorkflowCompleted
 }

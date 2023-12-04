@@ -5,8 +5,8 @@ import cromwell.core.JobToken.JobTokenType
 import cromwell.engine.workflow.tokens.UnhoggableTokenPool.{
   HogLimitExceeded,
   TokenHoggingLease,
-  TokenTypeExhausted,
-  TokensAvailable
+  TokensAvailable,
+  TokenTypeExhausted
 }
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpec

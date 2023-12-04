@@ -10,8 +10,8 @@ import cromwell.database.sql.EngineSqlDatabase
 import cromwell.database.sql.tables.DockerHashStoreEntry
 import cromwell.docker.DockerInfoActor.{
   DockerHashFailureResponse,
-  DockerInfoSuccessResponse,
   DockerInformation,
+  DockerInfoSuccessResponse,
   DockerSize
 }
 import cromwell.docker.{DockerClientHelper, DockerHashResult, DockerImageIdentifier, DockerInfoRequest}

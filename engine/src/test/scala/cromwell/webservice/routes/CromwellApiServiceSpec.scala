@@ -9,7 +9,7 @@ import akka.stream.ActorMaterializer
 import com.typesafe.scalalogging.StrictLogging
 import common.util.VersionUtil
 import cromwell.core._
-import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortRequestedResponse, WorkflowAbortedResponse}
+import cromwell.core.abort.{WorkflowAbortedResponse, WorkflowAbortFailureResponse, WorkflowAbortRequestedResponse}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
@@ -18,8 +18,8 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{
   WorkflowOnHoldToSubmittedSuccess
 }
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{
-  WorkflowSubmittedToStore,
-  WorkflowsBatchSubmittedToStore
+  WorkflowsBatchSubmittedToStore,
+  WorkflowSubmittedToStore
 }
 import cromwell.services._
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{

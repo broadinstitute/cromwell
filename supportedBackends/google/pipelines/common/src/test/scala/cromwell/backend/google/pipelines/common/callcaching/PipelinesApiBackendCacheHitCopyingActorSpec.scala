@@ -3,7 +3,7 @@ package cromwell.backend.google.pipelines.common.callcaching
 import akka.event.NoLogging
 import akka.testkit.{ImplicitSender, TestFSMRef, TestProbe}
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.BackendCacheHitCopyingActor.{CopyOutputsCommand, CopyingOutputsFailedResponse}
+import cromwell.backend.BackendCacheHitCopyingActor.{CopyingOutputsFailedResponse, CopyOutputsCommand}
 import cromwell.backend.BackendJobExecutionActor.JobSucceededResponse
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes._
 import cromwell.backend.google.pipelines.common._

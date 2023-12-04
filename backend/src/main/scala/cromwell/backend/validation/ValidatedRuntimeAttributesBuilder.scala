@@ -38,18 +38,14 @@ trait ValidatedRuntimeAttributesBuilder {
   /**
     * Returns validators suitable for BackendWorkflowInitializationActor.runtimeAttributeValidators.
     */
-  final lazy val validatorMap: Map[String, Option[WomExpression] => Boolean] = {
-    validations.map(validation =>
-      validation.key -> validation.validateOptionalWomExpression _
-    ).toMap
-  }
+  final lazy val validatorMap: Map[String, Option[WomExpression] => Boolean] =
+    validations.map(validation => validation.key -> validation.validateOptionalWomExpression _).toMap
 
   /**
     * Returns a map of coercions suitable for RuntimeAttributesDefault.workflowOptionsDefault.
     */
-  final lazy val coercionMap: Map[String, Iterable[WomType]] = {
+  final lazy val coercionMap: Map[String, Iterable[WomType]] =
     validations.map(validation => validation.key -> validation.coercion).toMap
-  }
 
   def unsupportedKeys(keys: Seq[String]): Seq[String] = keys.diff(validationKeys)
 
@@ -61,11 +57,12 @@ trait ValidatedRuntimeAttributesBuilder {
     val runtimeAttributesErrorOr: ErrorOr[ValidatedRuntimeAttributes] = validate(attrs)
     runtimeAttributesErrorOr match {
       case Valid(runtimeAttributes) => runtimeAttributes
-      case Invalid(nel) => throw new RuntimeException with MessageAggregation with NoStackTrace {
-        override def exceptionContext: String = "Runtime attribute validation failed"
+      case Invalid(nel) =>
+        throw new RuntimeException with MessageAggregation with NoStackTrace {
+          override def exceptionContext: String = "Runtime attribute validation failed"
 
-        override def errorMessages: Iterable[String] = nel.toList
-      }
+          override def errorMessages: Iterable[String] = nel.toList
+        }
     }
   }
 
@@ -73,8 +70,8 @@ trait ValidatedRuntimeAttributesBuilder {
     val listOfKeysToErrorOrAnys: List[(String, ErrorOr[Any])] =
       validations.map(validation => validation.key -> validation.validate(values)).toList
 
-    val listOfErrorOrKeysToAnys: List[ErrorOr[(String, Any)]] = listOfKeysToErrorOrAnys map {
-      case (key, errorOrAny) => errorOrAny map { any => (key, any) }
+    val listOfErrorOrKeysToAnys: List[ErrorOr[(String, Any)]] = listOfKeysToErrorOrAnys map { case (key, errorOrAny) =>
+      errorOrAny map { any => (key, any) }
     }
 
     import cats.syntax.traverse._

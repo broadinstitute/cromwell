@@ -20,8 +20,10 @@ trait CallCachingHashEntryComponent {
     override def * = (hashKey, hashValue, callCachingEntryId.?, callCachingHashEntryId.?) <>
       (CallCachingHashEntry.tupled, CallCachingHashEntry.unapply)
 
-    def fkCallCachingHashEntryCallCachingEntryId = foreignKey("FK_CALL_CACHING_HASH_ENTRY_CALL_CACHING_ENTRY_ID",
-      callCachingEntryId, callCachingEntries)(_.callCachingEntryId)
+    def fkCallCachingHashEntryCallCachingEntryId =
+      foreignKey("FK_CALL_CACHING_HASH_ENTRY_CALL_CACHING_ENTRY_ID", callCachingEntryId, callCachingEntries)(
+        _.callCachingEntryId
+      )
 
     def ucCallCachingHashEntryCceiHk =
       index("UC_CALL_CACHING_HASH_ENTRY_CCEI_HK", (callCachingEntryId, hashKey), unique = true)
@@ -31,12 +33,12 @@ trait CallCachingHashEntryComponent {
 
   val callCachingHashEntryIdsAutoInc = callCachingHashEntries returning
     callCachingHashEntries.map(_.callCachingHashEntryId)
-  
+
   /**
     * Find all hashes for a CALL_CACHING_ENTRY_ID
     */
-  val callCachingHashEntriesForCallCachingEntryId = Compiled(
-    (callCachingEntryId: Rep[Long]) => for {
+  val callCachingHashEntriesForCallCachingEntryId = Compiled((callCachingEntryId: Rep[Long]) =>
+    for {
       callCachingHashEntry <- callCachingHashEntries
       if callCachingHashEntry.callCachingEntryId === callCachingEntryId
     } yield callCachingHashEntry

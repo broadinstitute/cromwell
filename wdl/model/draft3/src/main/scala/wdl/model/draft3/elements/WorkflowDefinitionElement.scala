@@ -7,4 +7,5 @@ final case class WorkflowDefinitionElement(name: String,
                                            outputsSection: Option[OutputsSectionElement],
                                            metaSection: Option[MetaSectionElement],
                                            parameterMetaSection: Option[ParameterMetaSectionElement],
-                                           override val sourceLocation : Option[SourceFileLocation]) extends FileBodyElement
+                                           override val sourceLocation: Option[SourceFileLocation]
+) extends FileBodyElement

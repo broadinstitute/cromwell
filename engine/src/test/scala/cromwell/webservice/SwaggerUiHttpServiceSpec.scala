@@ -11,18 +11,37 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 
 import scala.concurrent.duration._
 
-trait SwaggerUiHttpServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest with SwaggerUiHttpService
+trait SwaggerUiHttpServiceSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with ScalatestRouteTest
+    with SwaggerUiHttpService
 
-trait SwaggerResourceHttpServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest with
-TableDrivenPropertyChecks with SwaggerResourceHttpService {
-  val testPathsForOptions = Table("endpoint", "/", "/swagger", "/swagger/index.html", "/api", "/api/example",
-    "/api/example?with=param", "/api/example/path")
+trait SwaggerResourceHttpServiceSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with ScalatestRouteTest
+    with TableDrivenPropertyChecks
+    with SwaggerResourceHttpService {
+  val testPathsForOptions = Table("endpoint",
+                                  "/",
+                                  "/swagger",
+                                  "/swagger/index.html",
+                                  "/api",
+                                  "/api/example",
+                                  "/api/example?with=param",
+                                  "/api/example/path"
+  )
 
   implicit val timeout: RouteTestTimeout = RouteTestTimeout(5.seconds)
 }
 
-trait SwaggerUiResourceHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerResourceHttpServiceSpec with
-SwaggerUiResourceHttpService
+trait SwaggerUiResourceHttpServiceSpec
+    extends SwaggerUiHttpServiceSpec
+    with SwaggerResourceHttpServiceSpec
+    with SwaggerUiResourceHttpService
 
 object SwaggerUiHttpServiceSpec {
   val SwaggerIndexPreamble =
@@ -94,7 +113,6 @@ class OverrideBasePathSwaggerUiHttpServiceSpec extends SwaggerResourceHttpServic
     }
   }
 }
-
 
 class YamlSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpServiceSpec {
   override def swaggerServiceName = "testservice"
@@ -193,7 +211,6 @@ class YamlSwaggerUiResourceHttpServiceSpec extends SwaggerUiResourceHttpServiceS
     }
   }
 }
-
 
 class JsonSwaggerUiResourceHttpServiceSpec extends SwaggerUiResourceHttpServiceSpec {
   override def swaggerServiceName = "testservice"

@@ -22,7 +22,8 @@ final case class WorkflowSingleSubmission(workflowSource: Option[String],
                                           inputsJson: Option[String],
                                           options: Option[String],
                                           labels: Option[List[Label]],
-                                          zippedImports: Option[File]) extends WorkflowSubmission
+                                          zippedImports: Option[File]
+) extends WorkflowSubmission
 
 final case class WorkflowBatchSubmission(workflowSource: Option[String],
                                          workflowUrl: Option[String],
@@ -32,7 +33,8 @@ final case class WorkflowBatchSubmission(workflowSource: Option[String],
                                          inputsBatch: List[String],
                                          options: Option[String],
                                          labels: Option[List[Label]],
-                                         zippedImports: Option[File]) extends WorkflowSubmission {
+                                         zippedImports: Option[File]
+) extends WorkflowSubmission {
 
   override val inputsJson: Option[String] = Option(inputsBatch.mkString(start = "[", sep = ",", end = "]"))
 }

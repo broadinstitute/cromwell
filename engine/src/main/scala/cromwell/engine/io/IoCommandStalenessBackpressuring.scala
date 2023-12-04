@@ -19,17 +19,18 @@ trait IoCommandStalenessBackpressuring extends StrictLogging {
 
     val seconds = millis / 1000.0
     logger.info("I/O command {} seconds stale, applying I/O subsystem backpressure with scale {}",
-      f"$seconds%,.3f", f"$scale%.2f")
+                f"$seconds%,.3f",
+                f"$scale%.2f"
+    )
 
     onBackpressure(Option(scale))
   }
 
   /** Invokes `onBackpressure` if `ioCommand` is older than the staleness limit returned by `maxStaleness`. */
-  def backpressureIfStale(ioCommand: IoCommand[_], onBackpressure: Option[Double] => Unit): Unit = {
+  def backpressureIfStale(ioCommand: IoCommand[_], onBackpressure: Option[Double] => Unit): Unit =
     if (ioCommand.creation.isBefore(commandStalenessThreshold)) {
       logAndBackpressure(ioCommand, onBackpressure)
     }
-  }
 
   /** Invokes `onBackpressure` if at least one IoCommandContext in `contexts` is older than the
     * staleness limit returned by `maxStaleness`. */

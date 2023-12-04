@@ -46,12 +46,12 @@ object Validation {
     case Failure(f) => defaultThrowableToString(f).invalidNel
   }
 
-  implicit class ValidationOps[B,A](val v: ValidatedNel[B, A]) {
-    //Convert this into a future by folding over the state and returning the corresponding Future terminal state.
+  implicit class ValidationOps[B, A](val v: ValidatedNel[B, A]) {
+    // Convert this into a future by folding over the state and returning the corresponding Future terminal state.
     def toFuture(f: NonEmptyList[B] => Throwable) =
-      v fold(
-        //Use f to turn the failure list into a Throwable, then fail a future with it.
-        //Function composition lets us ignore the actual argument of the error list
+      v fold (
+        // Use f to turn the failure list into a Throwable, then fail a future with it.
+        // Function composition lets us ignore the actual argument of the error list
         Future.failed _ compose f,
         Future.successful
       )
@@ -59,31 +59,30 @@ object Validation {
 
   implicit class TryValidation[A](val t: Try[A]) extends AnyVal {
     def toErrorOr: ErrorOr[A] = toErrorOr(defaultThrowableToString)
-    def toErrorOr(throwableToStringFunction: ThrowableToStringFunction): ErrorOr[A] = {
+    def toErrorOr(throwableToStringFunction: ThrowableToStringFunction): ErrorOr[A] =
       Validated.fromTry(t).leftMap(throwableToStringFunction).toValidatedNel[String, A]
-    }
 
     def toErrorOrWithContext(context: String): ErrorOr[A] = toErrorOrWithContext(context, defaultThrowableToString)
-    def toErrorOrWithContext(context: String,
-                            throwableToStringFunction: ThrowableToStringFunction): ErrorOr[A] = toChecked(throwableToStringFunction)
-      .contextualizeErrors(context)
-      .leftMap({contextualizedErrors =>
-        if (t.failed.isFailure) {
-          val errors = new StringWriter
-          t.failed.get.printStackTrace(new PrintWriter(errors))
-          contextualizedErrors.::(s"Stacktrace: ${errors.toString}")
-        } else contextualizedErrors
-      })
-      .toValidated
+    def toErrorOrWithContext(context: String, throwableToStringFunction: ThrowableToStringFunction): ErrorOr[A] =
+      toChecked(throwableToStringFunction)
+        .contextualizeErrors(context)
+        .leftMap { contextualizedErrors =>
+          if (t.failed.isFailure) {
+            val errors = new StringWriter
+            t.failed.get.printStackTrace(new PrintWriter(errors))
+            contextualizedErrors.::(s"Stacktrace: ${errors.toString}")
+          } else contextualizedErrors
+        }
+        .toValidated
 
     def toChecked: Checked[A] = toChecked(defaultThrowableToString)
-    def toChecked(throwableToStringFunction: ThrowableToStringFunction): Checked[A] = {
-      Either.fromTry(t).leftMap { ex => NonEmptyList.one(throwableToStringFunction(ex)) }
-    }
+    def toChecked(throwableToStringFunction: ThrowableToStringFunction): Checked[A] =
+      Either.fromTry(t).leftMap(ex => NonEmptyList.one(throwableToStringFunction(ex)))
 
-    def toCheckedWithContext(context: String): Checked[A] = toErrorOrWithContext(context, defaultThrowableToString).toEither
-    def toCheckedWithContext(context: String,
-                             throwableToStringFunction: ThrowableToStringFunction): Checked[A] = toErrorOrWithContext(context, throwableToStringFunction).toEither
+    def toCheckedWithContext(context: String): Checked[A] =
+      toErrorOrWithContext(context, defaultThrowableToString).toEither
+    def toCheckedWithContext(context: String, throwableToStringFunction: ThrowableToStringFunction): Checked[A] =
+      toErrorOrWithContext(context, throwableToStringFunction).toEither
   }
 
   implicit class ValidationTry[A](val e: ErrorOr[A]) extends AnyVal {
@@ -109,12 +108,10 @@ object Validation {
   }
 
   implicit class OptionValidation[A](val o: Option[A]) extends AnyVal {
-    def toErrorOr(errorMessage: => String): ErrorOr[A] = {
+    def toErrorOr(errorMessage: => String): ErrorOr[A] =
       Validated.fromOption(o, NonEmptyList.of(errorMessage))
-    }
 
-    def toChecked(errorMessage: => String): Checked[A] = {
+    def toChecked(errorMessage: => String): Checked[A] =
       Either.fromOption(o, NonEmptyList.of(errorMessage))
-    }
   }
 }

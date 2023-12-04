@@ -17,8 +17,8 @@ class BiscayneExpressionValueConsumersSpec extends AnyFlatSpec with CromwellTime
     val str = "3 + 3"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-    expr.shouldBeValidPF {
-      case e => e.expressionConsumedValueHooks should be(Set.empty)
+    expr.shouldBeValidPF { case e =>
+      e.expressionConsumedValueHooks should be(Set.empty)
     }
   }
 
@@ -26,8 +26,8 @@ class BiscayneExpressionValueConsumersSpec extends AnyFlatSpec with CromwellTime
     val str = "3 + three"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-    expr.shouldBeValidPF {
-      case e => e.expressionConsumedValueHooks should be(Set(UnlinkedIdentifierHook("three")))
+    expr.shouldBeValidPF { case e =>
+      e.expressionConsumedValueHooks should be(Set(UnlinkedIdentifierHook("three")))
     }
   }
 
@@ -35,8 +35,8 @@ class BiscayneExpressionValueConsumersSpec extends AnyFlatSpec with CromwellTime
     val str = "as_map(my_task.out)"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-    expr.shouldBeValidPF {
-      case e => e.expressionConsumedValueHooks should be(Set(UnlinkedCallOutputOrIdentifierAndMemberAccessHook("my_task", "out")))
+    expr.shouldBeValidPF { case e =>
+      e.expressionConsumedValueHooks should be(Set(UnlinkedCallOutputOrIdentifierAndMemberAccessHook("my_task", "out")))
     }
   }
 
@@ -44,8 +44,8 @@ class BiscayneExpressionValueConsumersSpec extends AnyFlatSpec with CromwellTime
     val str = "as_pairs(as_map(my_task.out))"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-    expr.shouldBeValidPF {
-      case e => e.expressionConsumedValueHooks should be(Set(UnlinkedCallOutputOrIdentifierAndMemberAccessHook("my_task", "out")))
+    expr.shouldBeValidPF { case e =>
+      e.expressionConsumedValueHooks should be(Set(UnlinkedCallOutputOrIdentifierAndMemberAccessHook("my_task", "out")))
     }
   }
 
@@ -53,8 +53,8 @@ class BiscayneExpressionValueConsumersSpec extends AnyFlatSpec with CromwellTime
     val str = """ sep(my_separator, ["a", "b", c]) """
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-    expr.shouldBeValidPF {
-      case e => e.expressionConsumedValueHooks should be(Set(UnlinkedIdentifierHook("my_separator"), UnlinkedIdentifierHook("c")))
+    expr.shouldBeValidPF { case e =>
+      e.expressionConsumedValueHooks should be(Set(UnlinkedIdentifierHook("my_separator"), UnlinkedIdentifierHook("c")))
     }
   }
 }

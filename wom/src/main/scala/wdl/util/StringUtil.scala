@@ -50,18 +50,16 @@ object StringUtil {
   def stripAll(s: String, startChars: String, endChars: String): String = {
     /* https://stackoverflow.com/questions/17995260/trimming-strings-in-scala */
     @tailrec
-    def start(n: Int): String = {
+    def start(n: Int): String =
       if (n == s.length) ""
       else if (startChars.indexOf(s.charAt(n).toInt) < 0) end(n, s.length)
       else start(1 + n)
-    }
 
     @tailrec
-    def end(a: Int, n: Int): String = {
+    def end(a: Int, n: Int): String =
       if (n <= a) s.substring(a, n)
       else if (endChars.indexOf(s.charAt(n - 1).toInt) < 0) s.substring(a, n)
       else end(a, n - 1)
-    }
 
     start(0)
   }

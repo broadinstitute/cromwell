@@ -18,8 +18,11 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration.DurationInt
 
-class PipelinesApiAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
-  with MockSugar {
+class PipelinesApiAsyncBackendJobExecutionActorSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with MockSugar {
   behavior of "PipelinesParameterConversions"
 
   it should "group files by bucket" in {
@@ -47,8 +50,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Cro
 
     val expected =
       Map("foo" -> (NonEmptyList.of(0, 1) map inputs.apply)) ++
-      Map("bar" -> (NonEmptyList.of(2, 3, 4) map inputs.apply)) ++
-      Map("baz" -> NonEmptyList.of(inputs(5)))
+        Map("bar" -> (NonEmptyList.of(2, 3, 4) map inputs.apply)) ++
+        Map("baz" -> NonEmptyList.of(inputs(5)))
 
     PipelinesApiAsyncBackendJobExecutionActor.groupParametersByGcsBucket(inputs) shouldEqual expected
   }
@@ -65,11 +68,16 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Cro
       val fakeCredentials = NoCredentials.getInstance
 
       val drsReadInterpreter: DrsReadInterpreter = (_, _) =>
-        throw new UnsupportedOperationException("PipelinesApiAsyncBackendJobExecutionActorSpec doesn't need to use drs read interpreter.")
+        throw new UnsupportedOperationException(
+          "PipelinesApiAsyncBackendJobExecutionActorSpec doesn't need to use drs read interpreter."
+        )
 
       DrsPathBuilder(
-        new DrsCloudNioFileSystemProvider(drsResolverConfig, GoogleOauthDrsCredentials(fakeCredentials, 1.minutes), drsReadInterpreter),
-        None,
+        new DrsCloudNioFileSystemProvider(drsResolverConfig,
+                                          GoogleOauthDrsCredentials(fakeCredentials, 1.minutes),
+                                          drsReadInterpreter
+        ),
+        None
       )
     }
 
@@ -82,7 +90,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Cro
     }
 
     val nonDrsInput: PipelinesApiFileInput = PipelinesApiFileInput("nnn",
-      DefaultPathBuilder.get("/local/nnn.bai"), DefaultPathBuilder.get("/path/to/nnn.bai"), mount)
+                                                                   DefaultPathBuilder.get("/local/nnn.bai"),
+                                                                   DefaultPathBuilder.get("/path/to/nnn.bai"),
+                                                                   mount
+    )
 
     val inputs = List(
       makeDrsInput("aaa", "drs://drs.example.org/aaa", "path/to/aaa.bai"),

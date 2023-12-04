@@ -15,19 +15,22 @@ trait FileEvaluator[A <: ExpressionElement] {
   final def evaluateFilesNeededToEvaluate(a: A,
                                           inputs: Map[String, WomValue],
                                           ioFunctionSet: IoFunctionSet,
-                                          coerceTo: WomType)
-                                         (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                          valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] = {
+                                          coerceTo: WomType
+  )(implicit
+    fileEvaluator: FileEvaluator[ExpressionElement],
+    valueEvaluator: ValueEvaluator[ExpressionElement]
+  ): ErrorOr[Set[WomFile]] =
     valueEvaluator.evaluateValue(a, inputs, ioFunctionSet, None) match {
       case Valid(womValue) => FileEvaluatorUtil.findFilesToDelocalize(womValue.value, coerceTo).toSet.validNel
       case _ => predictFilesNeededToEvaluate(a, inputs, ioFunctionSet, coerceTo)
     }
-  }
 
   def predictFilesNeededToEvaluate(a: A,
                                    inputs: Map[String, WomValue],
                                    ioFunctionSet: IoFunctionSet,
-                                   coerceTo: WomType)
-                                  (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                   valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]]
+                                   coerceTo: WomType
+  )(implicit
+    fileEvaluator: FileEvaluator[ExpressionElement],
+    valueEvaluator: ValueEvaluator[ExpressionElement]
+  ): ErrorOr[Set[WomFile]]
 }

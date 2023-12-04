@@ -13,20 +13,23 @@ import scala.util.control.NoStackTrace
 
 class EjeaCheckingCacheEntryExistenceSpec extends EngineJobExecutionActorSpec {
 
-  override implicit val stateUnderTest = CheckingJobStore
+  implicit override val stateUnderTest = CheckingJobStore
 
   "An EJEA in EjeaCheckingCacheEntryExistence state should" should {
     "re-use the results from the cache hit" in {
       createCheckingCacheEntryExistenceEjea()
 
-      ejea ! CallCachingJoin(CallCachingEntry(helper.workflowId.toString, helper.jobFqn, 0, None, None, allowResultReuse = true),
+      ejea ! CallCachingJoin(
+        CallCachingEntry(helper.workflowId.toString, helper.jobFqn, 0, None, None, allowResultReuse = true),
         List(CallCachingHashEntry("runtime attribute: docker", "HASHVALUE")),
         None,
         List.empty,
         List.empty
       )
-      helper.serviceRegistryProbe.expectMsgPF(awaitTimeout) {
-        case put: PutMetadataAction => put.events.find(_.key.key.endsWith("runtime attribute:docker"))flatMap(_.value.map(_.value)) shouldBe Option("HASHVALUE")
+      helper.serviceRegistryProbe.expectMsgPF(awaitTimeout) { case put: PutMetadataAction =>
+        put.events.find(_.key.key.endsWith("runtime attribute:docker")) flatMap (_.value.map(_.value)) shouldBe Option(
+          "HASHVALUE"
+        )
       }
       helper.jobStoreProbe.expectMsgClass(classOf[RegisterJobCompleted])
       ejea.stateName should be(UpdatingJobStore)
@@ -49,7 +52,6 @@ class EjeaCheckingCacheEntryExistenceSpec extends EngineJobExecutionActorSpec {
     }
   }
 
-  private def createCheckingCacheEntryExistenceEjea(): Unit = {
+  private def createCheckingCacheEntryExistenceEjea(): Unit =
     ejea = helper.buildEJEA().setStateInline(state = CheckingCacheEntryExistence, data = NoData)
-  }
 }

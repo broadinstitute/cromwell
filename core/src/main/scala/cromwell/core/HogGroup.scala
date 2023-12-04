@@ -17,16 +17,16 @@ object HogGroup {
     if (config.hasPath("system.hog-safety.workflow-option")) {
       val hogGroupField = config.getString("system.hog-safety.workflow-option")
 
-      (options, workflowId) => {
+      (options, workflowId) =>
         options.get(hogGroupField) match {
           case Success(hg) => HogGroup(hg)
           case Failure(_) => HogGroup(workflowId.shortString)
         }
-      }
-    } else {
-      (_, workflowId) => HogGroup(workflowId.shortString)
+    } else { (_, workflowId) =>
+      HogGroup(workflowId.shortString)
     }
   }
 
-  def decide(workflowOptions: WorkflowOptions, workflowId: WorkflowId): HogGroup = HogGroupDeciderFunction.apply(workflowOptions, workflowId)
+  def decide(workflowOptions: WorkflowOptions, workflowId: WorkflowId): HogGroup =
+    HogGroupDeciderFunction.apply(workflowOptions, workflowId)
 }

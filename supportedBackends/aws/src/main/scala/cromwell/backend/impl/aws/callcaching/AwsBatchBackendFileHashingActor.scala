@@ -37,11 +37,15 @@ import cromwell.backend.impl.aws.AwsBatchBackendInitializationData
 import cromwell.backend.impl.aws.AWSBatchStorageSystems
 import cromwell.core.io.DefaultIoCommandBuilder
 
-class AwsBatchBackendFileHashingActor(standardParams: StandardFileHashingActorParams) extends StandardFileHashingActor(standardParams) {
+class AwsBatchBackendFileHashingActor(standardParams: StandardFileHashingActorParams)
+    extends StandardFileHashingActor(standardParams) {
 
-  override val ioCommandBuilder = BackendInitializationData.as[AwsBatchBackendInitializationData](standardParams.backendInitializationDataOption)
-    .configuration.batchAttributes.fileSystem match {
-       case AWSBatchStorageSystems.s3  => S3BatchCommandBuilder
-       case _ =>  DefaultIoCommandBuilder
+  override val ioCommandBuilder = BackendInitializationData
+    .as[AwsBatchBackendInitializationData](standardParams.backendInitializationDataOption)
+    .configuration
+    .batchAttributes
+    .fileSystem match {
+    case AWSBatchStorageSystems.s3 => S3BatchCommandBuilder
+    case _ => DefaultIoCommandBuilder
   }
 }

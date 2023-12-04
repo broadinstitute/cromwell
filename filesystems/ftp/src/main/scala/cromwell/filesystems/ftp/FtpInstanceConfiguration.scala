@@ -25,12 +25,12 @@ case class FtpInstanceConfiguration(ftpCredentials: FtpCredentials)
 
 object FtpInstanceConfiguration {
   lazy val Default = FtpInstanceConfiguration(FtpAnonymousCredentials)
-  
+
   def apply(conf: Config): FtpInstanceConfiguration = {
     val credentials: ErrorOr[FtpCredentials] = conf.getAs[Config]("auth") map { authConfig =>
-      val username = validate { authConfig.as[String]("username") }
-      val password = validate { authConfig.as[String]("password") }
-      val account = validate { authConfig.getAs[String]("account") }
+      val username = validate(authConfig.as[String]("username"))
+      val password = validate(authConfig.as[String]("password"))
+      val account = validate(authConfig.getAs[String]("account"))
       (username, password, account) mapN FtpAuthenticatedCredentials.apply
     } getOrElse Default.ftpCredentials.validNel
 

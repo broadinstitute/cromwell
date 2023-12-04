@@ -95,7 +95,7 @@ class AsyncIoSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers {
     }
 
     // Honor swallow exception false
-    //noinspection RedundantDefaultArgument
+    // noinspection RedundantDefaultArgument
     recoverToSucceededIf[NoSuchFileException] {
       testActor.underlyingActor.asyncIo.deleteAsync(testPath, swallowIoExceptions = false)
     }
@@ -103,8 +103,8 @@ class AsyncIoSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers {
 
   it should "handle command creation errors asynchronously" in {
     val partialIoCommandBuilder = new PartialIoCommandBuilder {
-      override def existsCommand: PartialFunction[Path, Try[IoExistsCommand]] = {
-        case _ => Failure(new Exception("everything's fine, I am an expected exists fail") with NoStackTrace)
+      override def existsCommand: PartialFunction[Path, Try[IoExistsCommand]] = { case _ =>
+        Failure(new Exception("everything's fine, I am an expected exists fail") with NoStackTrace)
       }
     }
     val testActor =
@@ -120,10 +120,11 @@ class AsyncIoSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers {
 
   private class AsyncIoTestActor(override val ioActor: ActorRef,
                                  override val ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
-                                ) extends Actor with ActorLogging with AsyncIoActorClient {
+  ) extends Actor
+      with ActorLogging
+      with AsyncIoActorClient {
 
-    override def receive: Receive = {
-      case _ =>
+    override def receive: Receive = { case _ =>
     }
   }
 

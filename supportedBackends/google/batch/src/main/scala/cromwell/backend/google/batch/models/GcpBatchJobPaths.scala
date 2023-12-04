@@ -16,18 +16,16 @@ object GcpBatchJobPaths {
   val DrsLocalizationManifestName = "drs_manifest"
 
 }
-case class GcpBatchJobPaths(override val workflowPaths: GcpBatchWorkflowPaths, jobKey: BackendJobDescriptorKey, override val isCallCacheCopyAttempt: Boolean = false) extends JobPaths {
+case class GcpBatchJobPaths(override val workflowPaths: GcpBatchWorkflowPaths,
+                            jobKey: BackendJobDescriptorKey,
+                            override val isCallCacheCopyAttempt: Boolean = false
+) extends JobPaths {
 
   def batchLogBasename = {
-    val index = jobKey
-      .index
+    val index = jobKey.index
       .map(s => s"-$s")
       .getOrElse("")
-    s"${
-      jobKey
-        .node
-        .localName
-    }$index"
+    s"${jobKey.node.localName}$index"
   }
 
   val batchLogFilename: String = s"$batchLogBasename.log"

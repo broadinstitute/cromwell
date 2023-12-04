@@ -10,7 +10,6 @@ import wom.values._
 
 import scala.util.{Failure, Success}
 
-
 class DeclarationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   lazy val wdlSource = (new SampleWdl.DeclarationsWdl).workflowSource()
   lazy val namespace = WdlNamespaceWithWorkflow.load(wdlSource, Seq.empty).get
@@ -148,44 +147,44 @@ class DeclarationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
   }
 
   "A workflow" should "allow for JIT evaluation of declarations" in {
-    val wdl =  """task t {
-                 |    String i
-                 |    command {
-                 |        echo "${i}"
-                 |    }
-                 |    output {
-                 |        String o = read_string(stdout())
-                 |    }
-                 |}
-                 |
-                 |workflow declarations_as_nodes {
-                 |    call t as t1 { input: i = "hello" }
-                 |    
-                 |    String a = t1.o + " world"
-                 |    
-                 |    call t as t2 { input: i = a }
-                 |    
-                 |    Array[String] arr = [t1.o, t2.o]
-                 |    
-                 |    Map[String, String] map = { "key": t1.o }
-                 |    
-                 |    scatter(i in arr) {
-                 |        call t as t3 { input: i = i }
-                 |        String b = i + t3.o
-                 |        call t as t4 { input: i = b }
-                 |        String c = t3.o + " " + t4.o
-                 |    }
-                 |    
-                 |    Array[String] d = c
-                 |     
-                 |    output {
-                 |        String o1 = a
-                 |        Array[String] o2 = t4.o
-                 |        Array[String] o3 = d
-                 |        Array[String] o4 = b
-                 |        Array[String] o5 = c
-                 |    }
-                 |}
+    val wdl = """task t {
+                |    String i
+                |    command {
+                |        echo "${i}"
+                |    }
+                |    output {
+                |        String o = read_string(stdout())
+                |    }
+                |}
+                |
+                |workflow declarations_as_nodes {
+                |    call t as t1 { input: i = "hello" }
+                |    
+                |    String a = t1.o + " world"
+                |    
+                |    call t as t2 { input: i = a }
+                |    
+                |    Array[String] arr = [t1.o, t2.o]
+                |    
+                |    Map[String, String] map = { "key": t1.o }
+                |    
+                |    scatter(i in arr) {
+                |        call t as t3 { input: i = i }
+                |        String b = i + t3.o
+                |        call t as t4 { input: i = b }
+                |        String c = t3.o + " " + t4.o
+                |    }
+                |    
+                |    Array[String] d = c
+                |     
+                |    output {
+                |        String o1 = a
+                |        Array[String] o2 = t4.o
+                |        Array[String] o3 = d
+                |        Array[String] o4 = b
+                |        Array[String] o5 = c
+                |    }
+                |}
             """.stripMargin
     val ns = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
     ns.staticDeclarationsRecursive(Map.empty[String, WomValue], NoFunctions) match {
@@ -195,4 +194,3 @@ class DeclarationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
     }
   }
 }
-

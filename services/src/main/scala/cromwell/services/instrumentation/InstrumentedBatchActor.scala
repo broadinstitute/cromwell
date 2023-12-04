@@ -40,10 +40,9 @@ trait InstrumentedBatchActor[C] { this: BatchActor[C] with CromwellInstrumentati
     * Don't forget to chain this into your receive method to instrument the queue size:
     * override def receive = instrumentationReceive.orElse(super.receive)
     */
-  protected def instrumentationReceive: Receive = {
-    case QueueSizeTimerAction => 
-      sendGauge(queueSizePath, stateData.weight.toLong, instrumentationPrefix)
-      timers.startSingleTimer(QueueSizeTimerKey, QueueSizeTimerAction, CromwellInstrumentation.InstrumentationRate)
+  protected def instrumentationReceive: Receive = { case QueueSizeTimerAction =>
+    sendGauge(queueSizePath, stateData.weight.toLong, instrumentationPrefix)
+    timers.startSingleTimer(QueueSizeTimerKey, QueueSizeTimerAction, CromwellInstrumentation.InstrumentationRate)
   }
 
   /**
@@ -59,7 +58,10 @@ trait InstrumentedBatchActor[C] { this: BatchActor[C] with CromwellInstrumentati
     action onComplete {
       case Success(numProcessed) =>
         count(processedPath, numProcessed.toLong, instrumentationPrefix)
-        sendTiming(durationPath, (OffsetDateTime.now().toEpochSecond - startTime.toEpochSecond).seconds, instrumentationPrefix)
+        sendTiming(durationPath,
+                   (OffsetDateTime.now().toEpochSecond - startTime.toEpochSecond).seconds,
+                   instrumentationPrefix
+        )
       case Failure(_) => count(failurePath, 1L, instrumentationPrefix)
     }
     action

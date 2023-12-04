@@ -1,7 +1,7 @@
 package cromwell.services.healthmonitor.impl.common
 
 import cromwell.services.EngineServicesStore
-import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{MonitoredSubsystem, SubsystemStatus, OkStatus}
+import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{MonitoredSubsystem, OkStatus, SubsystemStatus}
 import cats.syntax.functor._
 import cats.instances.future._
 import scala.concurrent.{ExecutionContext, Future}
@@ -19,7 +19,6 @@ trait EngineDatabaseMonitor {
   /**
     * Demonstrates connectivity to the engine database by periodically making a small query
     */
-  private def checkEngineDb(): Future[SubsystemStatus] = {
+  private def checkEngineDb(): Future[SubsystemStatus] =
     EngineServicesStore.engineDatabaseInterface.queryDockerHashStoreEntries("DOESNOTEXIST") as OkStatus
-  }
 }

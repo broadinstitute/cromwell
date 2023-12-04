@@ -19,7 +19,11 @@ class WdlWiringSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     val wdlFile = testDir / "test.wdl"
     if (!wdlFile.exists) fail(s"Expecting a 'test.wdl' file in directory 'cases/${testDir.name}'")
     def resolvers: Seq[Draft2ImportResolver] =
-      Seq((relPath: String) => Draft2ResolvedImportBundle((testDir / relPath).contentAsString, ResolvedImportRecord((testDir / relPath).pathAsString)))
+      Seq((relPath: String) =>
+        Draft2ResolvedImportBundle((testDir / relPath).contentAsString,
+                                   ResolvedImportRecord((testDir / relPath).pathAsString)
+        )
+      )
     val namespace = WdlNamespaceWithWorkflow.load(File(wdlFile.path).contentAsString, resolvers).get
     val wdlFileRelPath = File(".").relativize(wdlFile)
 
@@ -98,12 +102,17 @@ class WdlWiringSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
       expectedWorkflowInputsFile.write(jsObject.prettyPrint + "\n")
     }
 
-    expectedWorkflowInputsFile.contentAsString.parseJson.asInstanceOf[JsObject].fields.asInstanceOf[Map[String, JsString]] map {
-      case (k, v) => k -> v.value
+    expectedWorkflowInputsFile.contentAsString.parseJson
+      .asInstanceOf[JsObject]
+      .fields
+      .asInstanceOf[Map[String, JsString]] map { case (k, v) =>
+      k -> v.value
     }
   }
 
-  private def expectedParents(testDir: File, namespace: WdlNamespaceWithWorkflow): Map[FullyQualifiedName, Option[FullyQualifiedName]] = {
+  private def expectedParents(testDir: File,
+                              namespace: WdlNamespaceWithWorkflow
+  ): Map[FullyQualifiedName, Option[FullyQualifiedName]] = {
     val expectedParentsFile = testDir / "parents.expectations"
 
     if (!expectedParentsFile.exists) {
@@ -120,7 +129,9 @@ class WdlWiringSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     }
   }
 
-  private def expectedChildren(testDir: File, namespace: WdlNamespaceWithWorkflow): Map[FullyQualifiedName, Seq[Scope]] = {
+  private def expectedChildren(testDir: File,
+                               namespace: WdlNamespaceWithWorkflow
+  ): Map[FullyQualifiedName, Seq[Scope]] = {
     val expectedChildrenFile = testDir / "children.expectations"
 
     if (!expectedChildrenFile.exists) {
@@ -131,14 +142,18 @@ class WdlWiringSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
       expectedChildrenFile.write(jsObject.prettyPrint + "\n")
     }
 
-    expectedChildrenFile.contentAsString.parseJson.asInstanceOf[JsObject].fields.asInstanceOf[Map[String, JsArray]] map {
-      case (k, v) =>
-        val children = v.elements.collect({ case s: JsString => s }).map(s => namespace.resolve(s.value).get)
-        k -> children
+    expectedChildrenFile.contentAsString.parseJson
+      .asInstanceOf[JsObject]
+      .fields
+      .asInstanceOf[Map[String, JsArray]] map { case (k, v) =>
+      val children = v.elements.collect { case s: JsString => s }.map(s => namespace.resolve(s.value).get)
+      k -> children
     }
   }
 
-  private def expectedFullyQualifiedNames(testDir: File, namespace: WdlNamespaceWithWorkflow): Map[FullyQualifiedName, String] = {
+  private def expectedFullyQualifiedNames(testDir: File,
+                                          namespace: WdlNamespaceWithWorkflow
+  ): Map[FullyQualifiedName, String] = {
     val expectedFqnsAndClassFile = testDir / "fqn.expectations"
 
     if (!expectedFqnsAndClassFile.exists) {
@@ -149,12 +164,17 @@ class WdlWiringSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
       expectedFqnsAndClassFile.write(jsObject.prettyPrint + "\n")
     }
 
-    expectedFqnsAndClassFile.contentAsString.parseJson.asInstanceOf[JsObject].fields.asInstanceOf[Map[String, JsString]] map {
-      case (k, v) => k -> v.value
+    expectedFqnsAndClassFile.contentAsString.parseJson
+      .asInstanceOf[JsObject]
+      .fields
+      .asInstanceOf[Map[String, JsString]] map { case (k, v) =>
+      k -> v.value
     }
   }
 
-  private def expectedFullyQualifiedNamesWithIndexScopes(testDir: File, namespace: WdlNamespaceWithWorkflow): Map[FullyQualifiedName, String] = {
+  private def expectedFullyQualifiedNamesWithIndexScopes(testDir: File,
+                                                         namespace: WdlNamespaceWithWorkflow
+  ): Map[FullyQualifiedName, String] = {
     val expectedFqnsAndClassFile = testDir / "fqn_index_scopes.expectations"
 
     if (!expectedFqnsAndClassFile.exists) {
@@ -165,8 +185,11 @@ class WdlWiringSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
       expectedFqnsAndClassFile.write(jsObject.prettyPrint + "\n")
     }
 
-    expectedFqnsAndClassFile.contentAsString.parseJson.asInstanceOf[JsObject].fields.asInstanceOf[Map[String, JsString]] map {
-      case (k, v) => k -> v.value
+    expectedFqnsAndClassFile.contentAsString.parseJson
+      .asInstanceOf[JsObject]
+      .fields
+      .asInstanceOf[Map[String, JsString]] map { case (k, v) =>
+      k -> v.value
     }
   }
 
@@ -181,30 +204,39 @@ class WdlWiringSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
       expectedAncestryFile.write(jsObject.prettyPrint + "\n")
     }
 
-    expectedAncestryFile.contentAsString.parseJson.asInstanceOf[JsObject].fields.asInstanceOf[Map[String, JsArray]] map {
-      case (k, v) =>
-        val expectedAncestry = v.elements.asInstanceOf[Vector[JsString]].map(n => namespace.resolve(n.value).get)
-        val resolvedFqn = namespace.resolve(k).get
-        resolvedFqn -> expectedAncestry
+    expectedAncestryFile.contentAsString.parseJson
+      .asInstanceOf[JsObject]
+      .fields
+      .asInstanceOf[Map[String, JsArray]] map { case (k, v) =>
+      val expectedAncestry = v.elements.asInstanceOf[Vector[JsString]].map(n => namespace.resolve(n.value).get)
+      val resolvedFqn = namespace.resolve(k).get
+      resolvedFqn -> expectedAncestry
     }
   }
 
-  private def expectedUpstreamAncestry(testDir: File, namespace: WdlNamespaceWithWorkflow): Map[WdlGraphNode, Set[Scope]] = {
+  private def expectedUpstreamAncestry(testDir: File,
+                                       namespace: WdlNamespaceWithWorkflow
+  ): Map[WdlGraphNode, Set[Scope]] = {
     val expectedUpstreamFile = testDir / "upstreamAncestry.expectations"
 
     if (!expectedUpstreamFile.exists) {
-      val upstreamFqns = namespace.descendants.collect({ case n: WdlGraphNode => n }) map { node =>
-        node.fullyQualifiedName -> JsArray(node.upstreamAncestry.toVector.map(_.fullyQualifiedName).sorted.map(JsString(_)))
+      val upstreamFqns = namespace.descendants.collect { case n: WdlGraphNode => n } map { node =>
+        node.fullyQualifiedName -> JsArray(
+          node.upstreamAncestry.toVector.map(_.fullyQualifiedName).sorted.map(JsString(_))
+        )
       }
       val jsObject = JsObject(ListMap(upstreamFqns.toSeq.sortBy(_._1): _*))
       expectedUpstreamFile.write(jsObject.prettyPrint + "\n")
     }
 
-    expectedUpstreamFile.contentAsString.parseJson.asInstanceOf[JsObject].fields.asInstanceOf[Map[String, JsArray]] map {
-      case (k, v) =>
-        val expectedUpstreamAncestors = v.elements.asInstanceOf[Vector[JsString]].map(n => namespace.resolve(n.value).get).toSet
-        val resolvedFqn = namespace.resolve(k).get.asInstanceOf[WdlGraphNode]
-        resolvedFqn -> expectedUpstreamAncestors
+    expectedUpstreamFile.contentAsString.parseJson
+      .asInstanceOf[JsObject]
+      .fields
+      .asInstanceOf[Map[String, JsArray]] map { case (k, v) =>
+      val expectedUpstreamAncestors =
+        v.elements.asInstanceOf[Vector[JsString]].map(n => namespace.resolve(n.value).get).toSet
+      val resolvedFqn = namespace.resolve(k).get.asInstanceOf[WdlGraphNode]
+      resolvedFqn -> expectedUpstreamAncestors
     }
   }
 
@@ -212,18 +244,20 @@ class WdlWiringSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     val expectedUpstreamFile = testDir / "upstream.expectations"
 
     if (!expectedUpstreamFile.exists) {
-      val upstreamFqns = namespace.descendants.collect({ case n: WdlGraphNode => n }) map { node =>
+      val upstreamFqns = namespace.descendants.collect { case n: WdlGraphNode => n } map { node =>
         node.fullyQualifiedName -> JsArray(node.upstream.toVector.map(_.fullyQualifiedName).sorted.map(JsString(_)))
       }
       val jsObject = JsObject(ListMap(upstreamFqns.toSeq.sortBy(_._1): _*))
       expectedUpstreamFile.write(jsObject.prettyPrint + "\n")
     }
 
-    expectedUpstreamFile.contentAsString.parseJson.asInstanceOf[JsObject].fields.asInstanceOf[Map[String, JsArray]] map {
-      case (k, v) =>
-        val expectedUpstream = v.elements.asInstanceOf[Vector[JsString]].map(n => namespace.resolve(n.value).get).toSet
-        val resolvedFqn = namespace.resolve(k).get.asInstanceOf[WdlGraphNode]
-        resolvedFqn -> expectedUpstream
+    expectedUpstreamFile.contentAsString.parseJson
+      .asInstanceOf[JsObject]
+      .fields
+      .asInstanceOf[Map[String, JsArray]] map { case (k, v) =>
+      val expectedUpstream = v.elements.asInstanceOf[Vector[JsString]].map(n => namespace.resolve(n.value).get).toSet
+      val resolvedFqn = namespace.resolve(k).get.asInstanceOf[WdlGraphNode]
+      resolvedFqn -> expectedUpstream
     }
   }
 
@@ -231,14 +265,17 @@ class WdlWiringSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     val expectedDownstreamFile = testDir / "downstream.expectations"
 
     if (!expectedDownstreamFile.exists) {
-      val downstreamFqns = namespace.descendants.collect({ case n: WdlGraphNode => n }) map { node =>
+      val downstreamFqns = namespace.descendants.collect { case n: WdlGraphNode => n } map { node =>
         node.fullyQualifiedName -> JsArray(node.downstream.toVector.map(_.fullyQualifiedName).sorted.map(JsString(_)))
       }
       val jsObject = JsObject(ListMap(downstreamFqns.toSeq.sortBy(_._1): _*))
       expectedDownstreamFile.write(jsObject.prettyPrint + "\n")
     }
 
-    expectedDownstreamFile.contentAsString.parseJson.asInstanceOf[JsObject].fields.asInstanceOf[Map[String, JsArray]] map { case (k, v) =>
+    expectedDownstreamFile.contentAsString.parseJson
+      .asInstanceOf[JsObject]
+      .fields
+      .asInstanceOf[Map[String, JsArray]] map { case (k, v) =>
       val expectedDownstream = v.elements.asInstanceOf[Vector[JsString]].map(n => namespace.resolve(n.value).get).toSet
       val resolvedFqn = namespace.resolve(k).get.asInstanceOf[WdlGraphNode]
       resolvedFqn -> expectedDownstream

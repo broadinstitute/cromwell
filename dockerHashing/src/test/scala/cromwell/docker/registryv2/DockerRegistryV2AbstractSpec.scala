@@ -23,15 +23,18 @@ class DockerRegistryV2AbstractSpec extends AnyFlatSpec with CromwellTimeoutSpec 
     val mediaType = MediaType.parse(DockerRegistryV2Abstract.DockerManifestV2MediaType).toOption.get
     val contentType: Header = `Content-Type`(mediaType)
 
-    val mockClient = Client({ _: Request[IO] =>
+    val mockClient = Client { _: Request[IO] =>
       // This response will have an empty body, so we need to be explicit about the typing:
-      Resource.pure[IO, Response[IO]](Response(headers = Headers.of(contentType))) : Resource[IO, Response[IO]]
-    })
+      Resource.pure[IO, Response[IO]](Response(headers = Headers.of(contentType))): Resource[IO, Response[IO]]
+    }
 
     val dockerImageIdentifier = DockerImageIdentifier.fromString("ubuntu").get
     val dockerInfoRequest = DockerInfoRequest(dockerImageIdentifier)
     val context = DockerInfoContext(dockerInfoRequest, null)
     val result = registry.run(context)(mockClient).unsafeRunSync()
-    result.asInstanceOf[(DockerInfoFailedResponse, DockerInfoContext)]._1.reason shouldBe "Failed to get docker hash for ubuntu:latest Malformed message body: Invalid JSON: empty body"
+    result
+      .asInstanceOf[(DockerInfoFailedResponse, DockerInfoContext)]
+      ._1
+      .reason shouldBe "Failed to get docker hash for ubuntu:latest Malformed message body: Invalid JSON: empty body"
   }
 }

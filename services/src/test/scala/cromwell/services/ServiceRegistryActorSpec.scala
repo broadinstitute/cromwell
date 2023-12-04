@@ -1,6 +1,5 @@
 package cromwell.services
 
-
 import java.util.UUID
 
 import akka.actor.SupervisorStrategy.Stop
@@ -18,7 +17,6 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
-
 
 abstract class EmptyActor extends Actor {
   override def receive: Receive = Actor.emptyBehavior
@@ -67,8 +65,10 @@ object ServiceRegistryActorSpec {
          | $ServiceNameKey {
          |   class = "$ServiceClassKey"
          | }
-      """.stripMargin.replace(ServiceNameKey, serviceClass.serviceName)
-        .stripMargin.replace(ServiceClassKey, serviceClass.getCanonicalName)
+      """.stripMargin
+        .replace(ServiceNameKey, serviceClass.serviceName)
+        .stripMargin
+        .replace(ServiceClassKey, serviceClass.getCanonicalName)
   }
 
   val AwaitTimeout: FiniteDuration = 5 seconds
@@ -97,18 +97,17 @@ class ServiceRegistryActorSpec extends TestKitSuite with AnyFlatSpecLike with Ma
     system.actorOf(
       props = Props(new EmptyActor {
         context.actorOf(ServiceRegistryActor.props(config), s"ServiceRegistryActor-$uuid")
-        override val supervisorStrategy: SupervisorStrategy = OneForOneStrategy() {
-          case f => parentProbe.ref ! f; Stop
+        override val supervisorStrategy: SupervisorStrategy = OneForOneStrategy() { case f =>
+          parentProbe.ref ! f; Stop
         }
       }),
-      name = s"childActor-$uuid",
+      name = s"childActor-$uuid"
     )
     parentProbe
   }
 
-  private def buildServiceRegistry(config: Config): ActorRef = {
+  private def buildServiceRegistry(config: Config): ActorRef =
     system.actorOf(ServiceRegistryActor.props(config), s"ServiceRegistryActor-${UUID.randomUUID()}")
-  }
 
   behavior of "ServiceRegistryActorSpec"
 
@@ -121,10 +120,9 @@ class ServiceRegistryActorSpec extends TestKitSuite with AnyFlatSpecLike with Ma
     val configString = buildConfig(classOf[FooServiceActor])
     val missingServices = configString.replace("  services ", "  shmervices")
     val probe = buildProbeForInitializationException(ConfigFactory.parseString(missingServices))
-    probe.expectMsgPF(AwaitTimeout) {
-      case e: ActorInitializationException =>
-        e.getCause shouldBe a [ConfigException.Missing]
-        e.getCause.getMessage shouldBe "String: 1: No configuration setting found for key 'services'"
+    probe.expectMsgPF(AwaitTimeout) { case e: ActorInitializationException =>
+      e.getCause shouldBe a[ConfigException.Missing]
+      e.getCause.getMessage shouldBe "String: 1: No configuration setting found for key 'services'"
     }
   }
 
@@ -132,24 +130,24 @@ class ServiceRegistryActorSpec extends TestKitSuite with AnyFlatSpecLike with Ma
     val configString = buildConfig(classOf[FooServiceActor])
     val missingService = configString.replace("FooServiceActor", "FooWhoServiceActor")
     val probe = buildProbeForInitializationException(ConfigFactory.parseString(missingService))
-    probe.expectMsgPF(AwaitTimeout) {
-      case e: ActorInitializationException =>
-        // The class not found exception is wrapped in a Runtime Exception giving the name of the faulty service
-        val cause = e.getCause
-        cause shouldBe a [RuntimeException] 
-        val classNotFound = cause.getCause
-        classNotFound shouldBe a [ClassNotFoundException]
-        classNotFound.getMessage shouldBe "cromwell.services.FooWhoServiceActor"
+    probe.expectMsgPF(AwaitTimeout) { case e: ActorInitializationException =>
+      // The class not found exception is wrapped in a Runtime Exception giving the name of the faulty service
+      val cause = e.getCause
+      cause shouldBe a[RuntimeException]
+      val classNotFound = cause.getCause
+      classNotFound shouldBe a[ClassNotFoundException]
+      classNotFound.getMessage shouldBe "cromwell.services.FooWhoServiceActor"
     }
   }
 
   it should "die during construction if a service class lacks a proper constructor" in {
     val configString = buildConfig(classOf[NoAppropriateConstructorServiceActor])
     val probe = buildProbeForInitializationException(ConfigFactory.parseString(configString))
-    probe.expectMsgPF(AwaitTimeout) {
-      case e: ActorInitializationException =>
-        e.getCause shouldBe an [IllegalArgumentException]
-        e.getCause.getMessage should include("no matching constructor found on class cromwell.services.NoAppropriateConstructorServiceActor")
+    probe.expectMsgPF(AwaitTimeout) { case e: ActorInitializationException =>
+      e.getCause shouldBe an[IllegalArgumentException]
+      e.getCause.getMessage should include(
+        "no matching constructor found on class cromwell.services.NoAppropriateConstructorServiceActor"
+      )
     }
   }
 
@@ -157,10 +155,9 @@ class ServiceRegistryActorSpec extends TestKitSuite with AnyFlatSpecLike with Ma
     val configString = buildConfig(classOf[FooServiceActor])
     val missingService = configString.replace("class = \"cromwell.services.FooServiceActor\"", "")
     val probe = buildProbeForInitializationException(ConfigFactory.parseString(missingService))
-    probe.expectMsgPF(AwaitTimeout) {
-      case e: ActorInitializationException =>
-        e.getCause shouldBe an [IllegalArgumentException]
-        e.getCause.getMessage shouldBe "Invalid configuration for service Foo: missing 'class' definition"
+    probe.expectMsgPF(AwaitTimeout) { case e: ActorInitializationException =>
+      e.getCause shouldBe an[IllegalArgumentException]
+      e.getCause.getMessage shouldBe "Invalid configuration for service Foo: missing 'class' definition"
     }
   }
 
@@ -171,9 +168,8 @@ class ServiceRegistryActorSpec extends TestKitSuite with AnyFlatSpecLike with Ma
 
     service.tell("This is a String, not an appropriate ServiceRegistryActor message", probe.ref)
 
-    probe.expectMsgPF(AwaitTimeout) {
-      case e: ServiceRegistryFailure =>
-        e.serviceName should include("Message is not a ServiceRegistryMessage:")
+    probe.expectMsgPF(AwaitTimeout) { case e: ServiceRegistryFailure =>
+      e.serviceName should include("Message is not a ServiceRegistryMessage:")
     }
   }
 
@@ -185,9 +181,8 @@ class ServiceRegistryActorSpec extends TestKitSuite with AnyFlatSpecLike with Ma
 
     service.tell(ArbitraryBarMessage, probe.ref)
 
-    probe.expectMsgPF(AwaitTimeout) {
-      case e: ServiceRegistryFailure =>
-        e.serviceName shouldBe "Bar"
+    probe.expectMsgPF(AwaitTimeout) { case e: ServiceRegistryFailure =>
+      e.serviceName shouldBe "Bar"
     }
   }
 
@@ -204,7 +199,7 @@ class ServiceRegistryActorSpec extends TestKitSuite with AnyFlatSpecLike with Ma
       case x => fail("unexpected message: " + x)
     }
   }
-  
+
   it should "unpack ListenTo messages" in {
     val snd = TestProbe("snd").ref
     val configString = buildConfig(classOf[BarServiceActor])

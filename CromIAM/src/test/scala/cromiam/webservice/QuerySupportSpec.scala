@@ -11,8 +11,12 @@ import org.broadinstitute.dsde.workbench.model.WorkbenchUserId
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-
-class QuerySupportSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest with QuerySupport {
+class QuerySupportSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with ScalatestRouteTest
+    with QuerySupport {
   override val cromwellClient = new MockCromwellClient()
   override val samClient = new MockSamClient()
   override val log: LoggingAdapter = NoLogging
@@ -27,7 +31,8 @@ class QuerySupportSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
   val getQuery = s"$queryPath?status=Submitted&label=foo:bar&label=foo:baz"
   val badGetQuery = s"$queryPath?status=Submitted&labelor=foo:bar&label=foo:baz"
 
-  val goodPostEntity = HttpEntity(ContentTypes.`application/json`,
+  val goodPostEntity = HttpEntity(
+    ContentTypes.`application/json`,
     """|[
        |  {
        |    "start": "2015-11-01T00:00:00-04:00"
@@ -50,7 +55,8 @@ class QuerySupportSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
        |]
        |""".stripMargin
   )
-  val badPostEntity = HttpEntity(ContentTypes.`application/json`,
+  val badPostEntity = HttpEntity(
+    ContentTypes.`application/json`,
     """|[
        |  {
        |    "start": "2015-11-01T00:00:00-04:00"

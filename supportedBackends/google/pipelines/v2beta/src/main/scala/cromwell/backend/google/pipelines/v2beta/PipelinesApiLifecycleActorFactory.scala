@@ -2,18 +2,22 @@ package cromwell.backend.google.pipelines.v2beta
 
 import akka.actor.{ActorRef, Props}
 import cromwell.backend.BackendConfigurationDescriptor
-import cromwell.backend.google.pipelines.common.{PipelinesApiBackendLifecycleActorFactory, PipelinesApiBackendSingletonActor, PipelinesApiConfiguration}
+import cromwell.backend.google.pipelines.common.{
+  PipelinesApiBackendLifecycleActorFactory,
+  PipelinesApiBackendSingletonActor,
+  PipelinesApiConfiguration
+}
 import cromwell.backend.google.pipelines.v2beta.api.request.RequestHandler
 import cromwell.backend.standard.StandardAsyncExecutionActor
 
 class PipelinesApiLifecycleActorFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
-  extends PipelinesApiBackendLifecycleActorFactory(name, configurationDescriptor) {
+    extends PipelinesApiBackendLifecycleActorFactory(name, configurationDescriptor) {
   private val genomicsFactory =
     LifeSciencesFactory(
       googleConfig.applicationName,
       papiAttributes.auths.genomics,
       papiAttributes.endpointUrl,
-      papiAttributes.location,
+      papiAttributes.location
     )(papiAttributes.gcsTransferConfiguration)
   override protected val jesConfiguration =
     new PipelinesApiConfiguration(configurationDescriptor, genomicsFactory, googleConfig, papiAttributes)
@@ -22,7 +26,7 @@ class PipelinesApiLifecycleActorFactory(name: String, configurationDescriptor: B
       new RequestHandler(
         googleConfig.applicationName,
         papiAttributes.endpointUrl,
-        papiAttributes.batchRequestTimeoutConfiguration,
+        papiAttributes.batchRequestTimeoutConfiguration
       )
     PipelinesApiBackendSingletonActor.props(
       jesConfiguration.papiAttributes.qps,

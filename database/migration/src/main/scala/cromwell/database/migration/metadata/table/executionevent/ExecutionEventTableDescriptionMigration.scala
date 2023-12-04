@@ -4,7 +4,7 @@ import cromwell.database.migration.metadata.MetadataCustomSql
 
 class ExecutionEventTableDescriptionMigration extends MetadataCustomSql {
 
-  override def queries: Array[String] = {
+  override def queries: Array[String] =
     Array(
       """
         |INSERT INTO METADATA_JOURNAL (
@@ -31,7 +31,6 @@ class ExecutionEventTableDescriptionMigration extends MetadataCustomSql {
         |    JOIN WORKFLOW_EXECUTION we ON we.WORKFLOW_EXECUTION_ID = e.WORKFLOW_EXECUTION_ID;
       """.stripMargin
     )
-  }
 
   override def getConfirmationMessage: String = "Execution Event Table (Description field) migration complete."
 }

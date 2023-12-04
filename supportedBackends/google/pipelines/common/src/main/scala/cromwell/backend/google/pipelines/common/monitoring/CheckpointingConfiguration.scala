@@ -10,18 +10,21 @@ final class CheckpointingConfiguration(jobDescriptor: BackendJobDescriptor,
                                        workflowPaths: WorkflowPaths,
                                        commandDirectory: Path,
                                        checkpointInterval: FiniteDuration
-                                      ) {
-  def checkpointFileCloud(checkpointFileName: String): String = {
+) {
+  def checkpointFileCloud(checkpointFileName: String): String =
     // The checkpoint file for ANY attempt always goes in the "attempt 1" directory. That way we guarantee that
     // every attempt is able to recover from the single source of checkpointing truth.
-    workflowPaths.toJobPaths(jobDescriptor.key.copy(attempt = 1), jobDescriptor.workflowDescriptor)
-      .callExecutionRoot.resolve("__checkpointing").resolve(checkpointFileName).toAbsolutePath.pathAsString
-  }
+    workflowPaths
+      .toJobPaths(jobDescriptor.key.copy(attempt = 1), jobDescriptor.workflowDescriptor)
+      .callExecutionRoot
+      .resolve("__checkpointing")
+      .resolve(checkpointFileName)
+      .toAbsolutePath
+      .pathAsString
   def tmpCheckpointFileCloud(checkpointFileName: String): String = checkpointFileCloud(checkpointFileName) + "-tmp"
 
-  def checkpointFileLocal(checkpointFileName: String): String = {
+  def checkpointFileLocal(checkpointFileName: String): String =
     commandDirectory.resolve(checkpointFileName).toAbsolutePath.pathAsString
-  }
   def tmpCheckpointFileLocal(checkpointFileName: String): String = checkpointFileLocal(checkpointFileName) + "-tmp"
 
   def localizePreviousCheckpointCommand(checkpointFileName: String): String = {

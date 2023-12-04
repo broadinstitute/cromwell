@@ -5,6 +5,7 @@ import wom.expression.WomExpression
 object RuntimeAttributesKeys {
   val DockerKey = "docker"
   val MaxRetriesKey = "maxRetries"
+
   /**
     * Equivalent to CPUMinKey
     */
@@ -12,6 +13,7 @@ object RuntimeAttributesKeys {
   val CpuPlatformKey = "cpuPlatform"
   val CpuMinKey = "cpuMin"
   val CpuMaxKey = "cpuMax"
+
   /**
     * Equivalent to GPUMinKey
     */
@@ -20,6 +22,7 @@ object RuntimeAttributesKeys {
   val GpuMaxKey = "gpuCountMax"
   val GpuTypeKey = "gpuType"
   val DnaNexusInputDirMinKey = "dnaNexusInputDirMin"
+
   /**
     * Equivalent to MemoryMinKey
     */

@@ -9,8 +9,9 @@ trait JobStoreSqlDatabase {
 
   def addJobStores(jobStoreJoins: Seq[JobStoreJoin], batchSize: Int)(implicit ec: ExecutionContext): Future[Unit]
 
-  def queryJobStores(workflowExecutionUuid: String, callFqn: String, jobScatterIndex: Int, jobScatterAttempt: Int)
-                    (implicit ec: ExecutionContext): Future[Option[JobStoreJoin]]
+  def queryJobStores(workflowExecutionUuid: String, callFqn: String, jobScatterIndex: Int, jobScatterAttempt: Int)(
+    implicit ec: ExecutionContext
+  ): Future[Option[JobStoreJoin]]
 
   def removeJobStores(workflowExecutionUuids: Seq[String])(implicit ec: ExecutionContext): Future[Seq[Int]]
 }

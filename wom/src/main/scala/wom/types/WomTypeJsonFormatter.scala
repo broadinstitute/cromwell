@@ -11,13 +11,11 @@ object WomTypeJsonFormatter extends DefaultJsonProtocol {
   }
 
   implicit object WorkflowInputJsonFormat extends RootJsonFormat[Map[FullyQualifiedName, InputDefinition]] {
-    def write(inputs: Map[FullyQualifiedName, InputDefinition]) = {
+    def write(inputs: Map[FullyQualifiedName, InputDefinition]) =
       JsObject(inputs map { case (fqn, input) =>
         val optional = if (input.optional) "(optional) " else ""
         fqn -> JsString(s"$optional${input.womType.stableName}")
       })
-    }
     def read(value: JsValue) = throw new UnsupportedOperationException
   }
 }
-

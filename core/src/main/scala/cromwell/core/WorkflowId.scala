@@ -8,19 +8,17 @@ sealed trait WorkflowId {
   override def toString = id.toString
   def shortString = id.toString.split("-")(0)
 
-  def toRoot: RootWorkflowId = {
+  def toRoot: RootWorkflowId =
     this match {
       case root: RootWorkflowId => root
       case _ => RootWorkflowId(id)
     }
-  }
 
-  def toPossiblyNotRoot: PossiblyNotRootWorkflowId = {
+  def toPossiblyNotRoot: PossiblyNotRootWorkflowId =
     this match {
       case possiblyNotRoot: PossiblyNotRootWorkflowId => possiblyNotRoot
       case _ => PossiblyNotRootWorkflowId(id)
     }
-  }
 }
 
 object WorkflowId {

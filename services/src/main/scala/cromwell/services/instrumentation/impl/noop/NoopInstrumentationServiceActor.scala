@@ -6,13 +6,16 @@ import cromwell.services.instrumentation.InstrumentationService.InstrumentationS
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 object NoopInstrumentationServiceActor {
-  def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) = Props(new NoopInstrumentationServiceActor(serviceConfig, globalConfig, serviceRegistryActor))
+  def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) = Props(
+    new NoopInstrumentationServiceActor(serviceConfig, globalConfig, serviceRegistryActor)
+  )
 }
 
 /**
   * Actor that ignores every InstrumentationServiceMessage - This is the default implementation of this service
   */
-class NoopInstrumentationServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor {
+class NoopInstrumentationServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
+    extends Actor {
   override def receive = {
     case InstrumentationServiceMessage(_) => // Drop all messages
     case ShutdownCommand => context stop self

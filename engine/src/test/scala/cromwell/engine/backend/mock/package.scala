@@ -17,6 +17,7 @@ package object mock {
     case WomSingleFileType => WomSingleFile("/root/of/all/evil")
     case WomArrayType(memberType) => WomArray(WomArrayType(memberType), List(sampleValue(memberType)))
     case WomObjectType => WomObject(Map("a" -> WomString("1"), "b" -> WomString("2")))
-    case WomMapType(keyType, valueType) => WomMap(WomMapType(keyType, valueType), Map(sampleValue(keyType) -> sampleValue(valueType)))
+    case WomMapType(keyType, valueType) =>
+      WomMap(WomMapType(keyType, valueType), Map(sampleValue(keyType) -> sampleValue(valueType)))
   }
 }

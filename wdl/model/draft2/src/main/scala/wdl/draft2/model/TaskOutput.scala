@@ -14,11 +14,18 @@ object TaskOutput {
     TaskOutput(name, womType, expression, ast, parent)
   }
 
-  def buildWomOutputDefinition(taskOutput: TaskOutput) = {
-    OutputDefinition(LocalName(taskOutput.unqualifiedName), taskOutput.womType, WdlWomExpression(taskOutput.requiredExpression, from = taskOutput))
-  }
+  def buildWomOutputDefinition(taskOutput: TaskOutput) =
+    OutputDefinition(LocalName(taskOutput.unqualifiedName),
+                     taskOutput.womType,
+                     WdlWomExpression(taskOutput.requiredExpression, from = taskOutput)
+    )
 }
 
-final case class TaskOutput(unqualifiedName: String, womType: WomType, requiredExpression: WdlExpression, ast: Ast, override val parent: Option[Scope]) extends Output {
+final case class TaskOutput(unqualifiedName: String,
+                            womType: WomType,
+                            requiredExpression: WdlExpression,
+                            ast: Ast,
+                            override val parent: Option[Scope]
+) extends Output {
   lazy val womOutputDefinition: OutputDefinition = TaskOutput.buildWomOutputDefinition(this)
 }

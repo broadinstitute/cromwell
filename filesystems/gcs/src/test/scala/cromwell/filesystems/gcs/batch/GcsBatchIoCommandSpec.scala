@@ -182,7 +182,9 @@ class GcsBatchIoCommandSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
 
     response.setDone(false)
     response.setRewriteToken("token")
-    command.onSuccess(response, new HttpHeaders()).toEither.toOption.get.toOption.get.rewriteToken should be(Option("token"))
+    command.onSuccess(response, new HttpHeaders()).toEither.toOption.get.toOption.get.rewriteToken should be(
+      Option("token")
+    )
 
     command.onFailure(new GoogleJsonError(), new HttpHeaders()) should be(None)
   }

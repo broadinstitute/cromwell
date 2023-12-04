@@ -17,7 +17,8 @@ case class GoodPath(description: String,
                     name: String,
                     getFileName: String,
                     getNameCount: Int,
-                    isAbsolute: Boolean)
+                    isAbsolute: Boolean
+)
 
 case class BadPath(description: String, path: String, exceptionMessage: String)
 
@@ -29,7 +30,8 @@ trait PathBuilderSpecUtils {
 
   def truncateCommonRoots(builder: => PathBuilder,
                           pathsToTruncate: TableFor3[String, String, String],
-                          tag: Tag = PathBuilderSpecUtils.PathTest): Unit = {
+                          tag: Tag = PathBuilderSpecUtils.PathTest
+  ): Unit = {
     behavior of s"PathCopier"
 
     it should "truncate common roots" taggedAs tag in {

@@ -109,8 +109,10 @@ object AwsBatchTestConfig {
   val AwsBatchBackendConfig = ConfigFactory.parseString(AwsBatchBackendConfigString)
   val AwsBatchGlobalConfig = ConfigFactory.parseString(AwsBatchGlobalConfigString)
   val AwsBatchBackendNoDefaultConfig = ConfigFactory.parseString(NoDefaultsConfigString)
-  val AwsBatchBackendConfigurationDescriptor = BackendConfigurationDescriptor(AwsBatchBackendConfig, AwsBatchGlobalConfig)
-  val NoDefaultsConfigurationDescriptor = BackendConfigurationDescriptor(AwsBatchBackendNoDefaultConfig, AwsBatchGlobalConfig)
+  val AwsBatchBackendConfigurationDescriptor =
+    BackendConfigurationDescriptor(AwsBatchBackendConfig, AwsBatchGlobalConfig)
+  val NoDefaultsConfigurationDescriptor =
+    BackendConfigurationDescriptor(AwsBatchBackendNoDefaultConfig, AwsBatchGlobalConfig)
 }
 
 object AwsBatchTestConfigForLocalFS {
@@ -188,6 +190,8 @@ object AwsBatchTestConfigForLocalFS {
   val AwsBatchBackendConfig = ConfigFactory.parseString(AwsBatchBackendConfigString)
   val AwsBatchGlobalConfig = ConfigFactory.parseString(AwsBatchGlobalConfigString)
   val AwsBatchBackendNoDefaultConfig = ConfigFactory.parseString(NoDefaultsConfigString)
-  val AwsBatchBackendConfigurationDescriptor = BackendConfigurationDescriptor(AwsBatchBackendConfig, AwsBatchGlobalConfig)
-  val NoDefaultsConfigurationDescriptor = BackendConfigurationDescriptor(AwsBatchBackendNoDefaultConfig, AwsBatchGlobalConfig)
+  val AwsBatchBackendConfigurationDescriptor =
+    BackendConfigurationDescriptor(AwsBatchBackendConfig, AwsBatchGlobalConfig)
+  val NoDefaultsConfigurationDescriptor =
+    BackendConfigurationDescriptor(AwsBatchBackendNoDefaultConfig, AwsBatchGlobalConfig)
 }

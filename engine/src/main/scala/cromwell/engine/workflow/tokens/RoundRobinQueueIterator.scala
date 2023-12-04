@@ -7,7 +7,8 @@ import cromwell.engine.workflow.tokens.TokenQueue.{DequeueResult, LeasedActor}
   * It will keep rotating the list until it finds a queue with an element that can be dequeued.
   * If no queue can be dequeued, the iterator is empty.
   */
-final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue], initialPointer: Int) extends Iterator[LeasedActor] {
+final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue], initialPointer: Int)
+    extends Iterator[LeasedActor] {
   // Assumes the number of queues won't change during iteration (it really shouldn't !)
   private val numberOfQueues = initialTokenQueue.size
   // Indicate the index of next queue to try to dequeue from.
@@ -45,14 +46,14 @@ final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue], initial
     val indexStream = ((pointer until numberOfQueues) ++ (0 until pointer)).to(LazyList)
     val dequeuedTokenStream = indexStream.map(index => tokenQueues(index).dequeue -> index)
 
-    val firstLeasedActor = dequeuedTokenStream.collectFirst({
+    val firstLeasedActor = dequeuedTokenStream.collectFirst {
       case (DequeueResult(Some(dequeuedActor), newTokenQueue), index) =>
         // Update the tokenQueues with the new queue
         tokenQueues = tokenQueues.updated(index, newTokenQueue)
         // Update the index. Add 1 to force trying all the queues as we call next, even if the first one is available
         pointer = (index + 1) % numberOfQueues
         dequeuedActor
-    })
+    }
 
     firstLeasedActor
   }

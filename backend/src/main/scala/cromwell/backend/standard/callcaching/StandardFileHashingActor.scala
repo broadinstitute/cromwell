@@ -34,8 +34,7 @@ trait StandardFileHashingActorParams {
 }
 
 /** A default implementation of the cache hit copying params. */
-case class DefaultStandardFileHashingActorParams
-(
+case class DefaultStandardFileHashingActorParams(
   override val jobDescriptor: BackendJobDescriptor,
   override val backendInitializationDataOption: Option[BackendInitializationData],
   override val serviceRegistryActor: ActorRef,
@@ -46,7 +45,8 @@ case class DefaultStandardFileHashingActorParams
 
 case class FileHashContext(hashKey: HashKey, file: String)
 
-class DefaultStandardFileHashingActor(standardParams: StandardFileHashingActorParams) extends StandardFileHashingActor(standardParams) {
+class DefaultStandardFileHashingActor(standardParams: StandardFileHashingActorParams)
+    extends StandardFileHashingActor(standardParams) {
   override val ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
 }
 
@@ -54,14 +54,20 @@ object StandardFileHashingActor {
   case class FileHashingFunction(work: (SingleFileHashRequest, LoggingAdapter) => Try[String])
 
   sealed trait BackendSpecificHasherCommand { def jobKey: JobKey }
-  final case class SingleFileHashRequest(jobKey: JobKey, hashKey: HashKey, file: WomFile, initializationData: Option[BackendInitializationData]) extends BackendSpecificHasherCommand
+  final case class SingleFileHashRequest(jobKey: JobKey,
+                                         hashKey: HashKey,
+                                         file: WomFile,
+                                         initializationData: Option[BackendInitializationData]
+  ) extends BackendSpecificHasherCommand
 
   sealed trait BackendSpecificHasherResponse extends SuccessfulHashResultMessage
-  case class FileHashResponse(hashResult: HashResult) extends BackendSpecificHasherResponse { override def hashes = Set(hashResult) }
+  case class FileHashResponse(hashResult: HashResult) extends BackendSpecificHasherResponse {
+    override def hashes = Set(hashResult)
+  }
 }
 
 abstract class StandardFileHashingActor(standardParams: StandardFileHashingActorParams)
-  extends Actor
+    extends Actor
     with ActorLogging
     with JobLogging
     with IoClientHelper
@@ -69,19 +75,21 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
     with Timers {
   override lazy val ioActor: ActorRef = standardParams.ioActor
   override lazy val jobDescriptor: BackendJobDescriptor = standardParams.jobDescriptor
-  override lazy val backendInitializationDataOption: Option[BackendInitializationData] = standardParams.backendInitializationDataOption
+  override lazy val backendInitializationDataOption: Option[BackendInitializationData] =
+    standardParams.backendInitializationDataOption
   override lazy val serviceRegistryActor: ActorRef = standardParams.serviceRegistryActor
   override lazy val configurationDescriptor: BackendConfigurationDescriptor = standardParams.configurationDescriptor
 
   protected def ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
 
   def customHashStrategy(fileRequest: SingleFileHashRequest): Option[Try[String]] = None
-  
+
   def fileHashingReceive: Receive = {
     // Hash Request
     case fileRequest: SingleFileHashRequest =>
       customHashStrategy(fileRequest) match {
-        case Some(Success(result)) => context.parent ! FileHashResponse(HashResult(fileRequest.hashKey, HashValue(result)))
+        case Some(Success(result)) =>
+          context.parent ! FileHashResponse(HashResult(fileRequest.hashKey, HashValue(result)))
         case Some(Failure(failure)) => context.parent ! HashingFailedMessage(fileRequest.file.value, failure)
         case None => asyncHashing(fileRequest, context.parent)
       }
@@ -93,7 +101,7 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
     case (fileHashRequest: FileHashContext, IoSuccess(_, other)) =>
       context.parent ! HashingFailedMessage(
         fileHashRequest.file,
-        new Exception(s"Hash function supposedly succeeded but responded with '$other' instead of a string hash"),
+        new Exception(s"Hash function supposedly succeeded but responded with '$other' instead of a string hash")
       )
 
     // Hash Failure
@@ -124,9 +132,9 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
     }
   }
 
-  override def receive: Receive = ioReceive orElse fileHashingReceive 
+  override def receive: Receive = ioReceive orElse fileHashingReceive
 
-  override protected def onTimeout(message: Any, to: ActorRef): Unit = {
+  override protected def onTimeout(message: Any, to: ActorRef): Unit =
     message match {
       case (_, ioHashCommand: IoHashCommand) =>
         val fileAsString = ioHashCommand.file.pathAsString
@@ -137,5 +145,4 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
         log.warning(s"Async File hashing actor received unexpected timeout message: $other")
         context.parent ! HashingServiceUnvailable
     }
-  }
 }

@@ -25,9 +25,9 @@ class EnhancedDateConverter extends DateConverter {
     cachingDateFormatterProtected = Option(getFirstOption) match {
       case Some(CoreConstants.ISO8601_STR) | None => new CachingDateFormatter(CoreConstants.ISO8601_PATTERN)
       case Some(datePattern) =>
-        try {
+        try
           new CachingDateFormatter(datePattern)
-        } catch {
+        catch {
           case e: IllegalArgumentException =>
             addWarn("Could not instantiate SimpleDateFormat with pattern " + datePattern, e)
             // default to the ISO8601 format
@@ -35,8 +35,7 @@ class EnhancedDateConverter extends DateConverter {
         }
     }
     // if the option list contains a TZ option, then set it.
-    Option(getOptionList)
-      .toList
+    Option(getOptionList).toList
       .flatMap(_.asScala)
       .drop(1)
       .headOption

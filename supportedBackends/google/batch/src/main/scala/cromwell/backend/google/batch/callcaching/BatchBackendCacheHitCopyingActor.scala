@@ -16,20 +16,24 @@ import wom.values.WomFile
 import scala.language.postfixOps
 import scala.util.Try
 
-class BatchBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams) extends StandardCacheHitCopyingActor(standardParams){
+class BatchBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams)
+    extends StandardCacheHitCopyingActor(standardParams) {
   override protected val commandBuilder: GcsBatchCommandBuilder.type = GcsBatchCommandBuilder
   private val cachingStrategy: BatchCacheHitDuplicationStrategy = BackendInitializationData
     .as[GcpBackendInitializationData](standardParams.backendInitializationDataOption)
-    .gcpBatchConfiguration.batchAttributes.cacheHitDuplicationStrategy
+    .gcpBatchConfiguration
+    .batchAttributes
+    .cacheHitDuplicationStrategy
 
   override def processSimpletons(womValueSimpletons: Seq[WomValueSimpleton],
-                                 sourceCallRootPath: Path,
-                                ): Try[(CallOutputs, Set[IoCommand[_]])] =
+                                 sourceCallRootPath: Path
+  ): Try[(CallOutputs, Set[IoCommand[_]])] =
     cachingStrategy match {
       case CopyCachedOutputs => super.processSimpletons(womValueSimpletons, sourceCallRootPath)
       case UseOriginalCachedOutputs =>
         val touchCommands: Seq[Try[IoTouchCommand]] = womValueSimpletons collect {
-          case WomValueSimpleton(_, wdlFile: WomFile) => getPath(wdlFile.value) flatMap GcsBatchCommandBuilder.touchCommand
+          case WomValueSimpleton(_, wdlFile: WomFile) =>
+            getPath(wdlFile.value) flatMap GcsBatchCommandBuilder.touchCommand
         }
 
         TryUtil.sequence(touchCommands) map {
@@ -37,10 +41,13 @@ class BatchBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingAc
         }
     }
 
-  override def extractBlacklistPrefix(path: String): Option[String] = Option(path.stripPrefix("gs://").takeWhile(_ != '/'))
+  override def extractBlacklistPrefix(path: String): Option[String] = Option(
+    path.stripPrefix("gs://").takeWhile(_ != '/')
+  )
 
-  override def processDetritus(sourceJobDetritusFiles: Map[String, String]
-                              ): Try[(Map[String, Path], Set[IoCommand[_]])] =
+  override def processDetritus(
+    sourceJobDetritusFiles: Map[String, String]
+  ): Try[(Map[String, Path], Set[IoCommand[_]])] =
     cachingStrategy match {
       case CopyCachedOutputs => super.processDetritus(sourceJobDetritusFiles)
       case UseOriginalCachedOutputs =>
@@ -63,7 +70,8 @@ class BatchBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingAc
                                               originalSimpletons: Seq[WomValueSimpleton],
                                               newOutputs: CallOutputs,
                                               originalDetritus: Map[String, String],
-                                              newDetritus: Map[String, Path]): Try[List[Set[IoCommand[_]]]] = Try {
+                                              newDetritus: Map[String, Path]
+  ): Try[List[Set[IoCommand[_]]]] = Try {
     cachingStrategy match {
       case UseOriginalCachedOutputs =>
         val content =
@@ -74,13 +82,17 @@ class BatchBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingAc
     """.stripMargin
 
         // PROD-444: Keep It Short and Simple: Throw on the first error and let the outer Try catch-and-re-wrap
-        List(Set(
-          GcsBatchCommandBuilder.writeCommand(
-            path = jobPaths.forCallCacheCopyAttempts.callExecutionRoot / "call_caching_placeholder.txt",
-            content = content,
-            options = Seq(CloudStorageOptions.withMimeType("text/plain")),
-          ).get
-        ))
+        List(
+          Set(
+            GcsBatchCommandBuilder
+              .writeCommand(
+                path = jobPaths.forCallCacheCopyAttempts.callExecutionRoot / "call_caching_placeholder.txt",
+                content = content,
+                options = Seq(CloudStorageOptions.withMimeType("text/plain"))
+              )
+              .get
+          )
+        )
       case CopyCachedOutputs => List.empty
     }
   }

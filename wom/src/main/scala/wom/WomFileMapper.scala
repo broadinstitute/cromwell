@@ -8,6 +8,7 @@ import wom.values._
 import scala.util.{Success, Try}
 
 object WomFileMapper {
+
   /**
     * Loops over a WomValue applying the supplied mapper function whenever a WomFile is encountered.
     *
@@ -18,8 +19,7 @@ object WomFileMapper {
     * @see [[wom.values.WomValue.collectAsSeq]]
     * @see [[wom.values.WomFile.mapFile]]
     */
-  def mapWomFiles(mapper: WomFile => WomFile)
-                 (womValue: WomValue): Try[WomValue] = {
+  def mapWomFiles(mapper: WomFile => WomFile)(womValue: WomValue): Try[WomValue] =
     womValue match {
       case file: WomFile => Try(mapper(file))
       case array: WomArray =>
@@ -28,25 +28,27 @@ object WomFileMapper {
           WomArray(array.womType, _)
         }
       case map: WomMap =>
-        val mappedMap = map.value map {
-          case (key, value) => mapWomFiles(mapper)(key) -> mapWomFiles(mapper)(value)
+        val mappedMap = map.value map { case (key, value) =>
+          mapWomFiles(mapper)(key) -> mapWomFiles(mapper)(value)
         }
         TryUtil.sequenceKeyValues(mappedMap) map {
           WomMap(map.womType, _)
         }
       case womObject: WomObjectLike =>
-        val mappedMap = womObject.values map {
-          case (key, value) => key -> mapWomFiles(mapper)(value)
+        val mappedMap = womObject.values map { case (key, value) =>
+          key -> mapWomFiles(mapper)(value)
         }
         TryUtil.sequenceMap(mappedMap).map(WomObject.withTypeUnsafe(_, womObject.womObjectTypeLike))
       case pair: WomPair =>
-        val mappedPair: (Try[WomValue], Try[WomValue]) = (mapWomFiles(mapper)(pair.left), mapWomFiles(mapper)(pair.right))
+        val mappedPair: (Try[WomValue], Try[WomValue]) =
+          (mapWomFiles(mapper)(pair.left), mapWomFiles(mapper)(pair.right))
         TryUtil.sequenceTuple(mappedPair) map {
           (WomPair.apply _).tupled
         }
       case optionalValue: WomOptionalValue =>
         // Build a `WomOptionalValue` from an `Option[WomValue]`.
-        def buildWomOptionalValue(optionalWomValue: Option[WomValue]) = WomOptionalValue(optionalValue.innerType, optionalWomValue)
+        def buildWomOptionalValue(optionalWomValue: Option[WomValue]) =
+          WomOptionalValue(optionalValue.innerType, optionalWomValue)
 
         val mappedOptional: Option[Try[WomValue]] = optionalValue.value.map(mapWomFiles(mapper))
         mappedOptional match {
@@ -57,5 +59,4 @@ object WomFileMapper {
       case coproduct: WomCoproductValue => mapWomFiles(mapper)(coproduct.womValue)
       case other => Success(other)
     }
-  }
 }

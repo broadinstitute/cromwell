@@ -14,10 +14,23 @@ import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.backend.BackendJobLifecycleActor
-import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
-import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{determineWSMSasEndpointFromInputs, generateLocalizedSasScriptPreamble}
+import cromwell.backend.async.{
+  AbortedExecutionHandle,
+  ExecutionHandle,
+  FailedNonRetryableExecutionHandle,
+  PendingExecutionHandle
+}
+import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{
+  determineWSMSasEndpointFromInputs,
+  generateLocalizedSasScriptPreamble
+}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
-import cromwell.backend.standard.{ScriptPreambleData, StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
+import cromwell.backend.standard.{
+  ScriptPreambleData,
+  StandardAsyncExecutionActor,
+  StandardAsyncExecutionActorParams,
+  StandardAsyncJob
+}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.Retry._
@@ -63,7 +76,7 @@ case object Cancelled extends TesRunStatus {
 object TesAsyncBackendJobExecutionActor {
   val JobIdKey = "tes_job_id"
 
-  def generateLocalizedSasScriptPreamble(environmentVariableName: String, getSasWsmEndpoint: String) : String = {
+  def generateLocalizedSasScriptPreamble(environmentVariableName: String, getSasWsmEndpoint: String): String =
     // BEARER_TOKEN: https://learn.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http
     // NB: Scala string interpolation and bash variable substitution use similar syntax. $$ is an escaped $, much like \\ is an escaped \.
     s"""
@@ -100,11 +113,11 @@ object TesAsyncBackendJobExecutionActor {
        |    exit 1
        |  fi
        |fi
-       |
+       |curl --version
+       |jq --version
        |# Acquire bearer token, relying on the User Assigned Managed Identity of this VM.
        |echo Acquiring Bearer Token using User Assigned Managed Identity...
        |BEARER_TOKEN=$$(curl 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fmanagement.azure.com%2F' -H Metadata:true -s | jq .access_token)
-       |
        |# Remove the leading and trailing quotes
        |BEARER_TOKEN="$${BEARER_TOKEN#\\"}"
        |BEARER_TOKEN="$${BEARER_TOKEN%\\"}"
@@ -117,7 +130,9 @@ object TesAsyncBackendJobExecutionActor {
        |                    -X POST "$getSasWsmEndpoint" \\
        |                    -H "Content-Type: application/json" \\
        |                    -H "accept: */*" \\
-       |                    -H "Authorization: Bearer $${BEARER_TOKEN}")
+       |                    -H "Authorization: Bearer $${BEARER_TOKEN}" \\
+       |                    -H "Content-Length: 0" \\
+       |                    -d "")
        |
        |# Store token as environment variable
        |export $environmentVariableName=$$(echo "$${sas_response_json}" | jq -r '.token')
@@ -126,11 +141,9 @@ object TesAsyncBackendJobExecutionActor {
        |echo "Saving sas token: $${$environmentVariableName:0:4}**** to environment variable $environmentVariableName..."
        |### END ACQUIRE LOCAL SAS TOKEN ###
        |""".stripMargin
-  }
 
-  private def maybeConvertToBlob(pathToTest: Try[Path]): Try[BlobPath] = {
+  private def maybeConvertToBlob(pathToTest: Try[Path]): Try[BlobPath] =
     pathToTest.collect { case blob: BlobPath => blob }
-  }
 
   /**
    * Computes an endpoint that can be used to retrieve a sas token for a particular blob storage container.
@@ -147,29 +160,44 @@ object TesAsyncBackendJobExecutionActor {
   def determineWSMSasEndpointFromInputs(taskInputs: List[Input],
                                         pathGetter: String => Try[Path],
                                         logger: JobLogger,
-                                        blobConverter: Try[Path] => Try[BlobPath] = maybeConvertToBlob): Try[String] = {
+                                        blobConverter: Try[Path] => Try[BlobPath] = maybeConvertToBlob
+  ): Try[String] = {
     // Collect all of the inputs that are valid blob paths
     val blobFiles = taskInputs
-      .collect{ case Input(_, _, Some(url), _, _, _) => blobConverter(pathGetter(url)) }
-      .collect{ case Success(blob) => blob }
+      .collect { case Input(_, _, Some(url), _, _, _) => blobConverter(pathGetter(url)) }
+      .collect { case Success(blob) => blob }
 
     // Log if not all input files live in the same container.
     if (blobFiles.map(_.container).distinct.size > 1) {
-      logger.info(s"While parsing blob inputs, found more than one container. Generating SAS token based on first file in the list.")
+      logger.info(
+        s"While parsing blob inputs, found more than one container. Generating SAS token based on first file in the list."
+      )
     }
 
     // We use the first blob file in the list to determine the correct blob container.
-    blobFiles.headOption.map{blobPath =>
-      blobPath.getFilesystemManager.blobTokenGenerator match {
-        case wsmGenerator: WSMBlobSasTokenGenerator => wsmGenerator.getWSMSasFetchEndpoint(blobPath, Some(Duration.of(24, ChronoUnit.HOURS)))
-        case _ => Failure(new UnsupportedOperationException("Blob file does not have an associated WSMBlobSasTokenGenerator"))
+    blobFiles.headOption
+      .map { blobPath =>
+        blobPath.getFilesystemManager.blobTokenGenerator match {
+          case wsmGenerator: WSMBlobSasTokenGenerator =>
+            wsmGenerator.getWSMSasFetchEndpoint(blobPath, Some(Duration.of(24, ChronoUnit.HOURS)))
+          case _ =>
+            Failure(new UnsupportedOperationException("Blob file does not have an associated WSMBlobSasTokenGenerator"))
+        }
       }
-    }.getOrElse(Failure(new NoSuchElementException("Could not infer blob storage container from task inputs: No valid blob files provided.")))
+      .getOrElse(
+        Failure(
+          new NoSuchElementException(
+            "Could not infer blob storage container from task inputs: No valid blob files provided."
+          )
+        )
+      )
   }
 }
 
 class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
-  extends BackendJobLifecycleActor with StandardAsyncExecutionActor with TesJobCachingActorHelper {
+    extends BackendJobLifecycleActor
+    with StandardAsyncExecutionActor
+    with TesJobCachingActorHelper {
   implicit val actorSystem = context.system
   implicit val materializer = ActorMaterializer()
 
@@ -181,7 +209,8 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override lazy val pollBackOff: SimpleExponentialBackoff = tesConfiguration.pollBackoff
   override lazy val executeOrRecoverBackOff: SimpleExponentialBackoff = tesConfiguration.executeOrRecoverBackoff
 
-  private lazy val realDockerImageUsed: String = jobDescriptor.maybeCallCachingEligible.dockerHash.getOrElse(runtimeAttributes.dockerImage)
+  private lazy val realDockerImageUsed: String =
+    jobDescriptor.maybeCallCachingEligible.dockerHash.getOrElse(runtimeAttributes.dockerImage)
   override lazy val dockerImageUsed: Option[String] = Option(realDockerImageUsed)
 
   private val tesEndpoint = workflowDescriptor.workflowOptions.getOrElse("endpoint", tesConfiguration.endpointURL)
@@ -192,7 +221,8 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     OutputMode.withName(
       configurationDescriptor.backendConfig
         .getAs[String]("output-mode")
-        .getOrElse("granular").toUpperCase
+        .getOrElse("granular")
+        .toUpperCase
     )
   }
 
@@ -213,22 +243,28 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
    *
    * @return Bash code to run at the start of a task.
    */
-  override def scriptPreamble: ErrorOr[ScriptPreambleData] = {
+  override def scriptPreamble: ErrorOr[ScriptPreambleData] =
     runtimeAttributes.localizedSasEnvVar match {
-      case Some(environmentVariableName) => { // Case: user wants a sas token. Return the computed preamble or die trying.
-        val workflowName = workflowDescriptor.callable.name
-        val callInputFiles = jobDescriptor.fullyQualifiedInputs.safeMapValues {
-          _.collectAsSeq { case w: WomFile => w }
-        }
-        val taskInputs: List[Input] = TesTask.buildTaskInputs(callInputFiles, workflowName, mapCommandLineWomFile)
-        val computedEndpoint = determineWSMSasEndpointFromInputs(taskInputs, getPath, jobLogger)
-        computedEndpoint.map(endpoint => ScriptPreambleData(generateLocalizedSasScriptPreamble(environmentVariableName, endpoint), executeInSubshell =  false))
-      }.toErrorOr
-      case _ => ScriptPreambleData("", executeInSubshell = false).valid // Case: user doesn't want a sas token. Empty preamble is the correct preamble.
+      case Some(environmentVariableName) =>
+        { // Case: user wants a sas token. Return the computed preamble or die trying.
+          val workflowName = workflowDescriptor.callable.name
+          val callInputFiles = jobDescriptor.fullyQualifiedInputs.safeMapValues {
+            _.collectAsSeq { case w: WomFile => w }
+          }
+          val taskInputs: List[Input] = TesTask.buildTaskInputs(callInputFiles, workflowName, mapCommandLineWomFile)
+          val computedEndpoint = determineWSMSasEndpointFromInputs(taskInputs, getPath, jobLogger)
+          computedEndpoint.map(endpoint =>
+            ScriptPreambleData(generateLocalizedSasScriptPreamble(environmentVariableName, endpoint),
+                               executeInSubshell = false
+            )
+          )
+        }.toErrorOr
+      case _ =>
+        ScriptPreambleData("",
+                           executeInSubshell = false
+        ).valid // Case: user doesn't want a sas token. Empty preamble is the correct preamble.
     }
-  }
-
-  override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
+  override def mapCommandLineWomFile(womFile: WomFile): WomFile =
     womFile.mapFile(value =>
       (getPath(value), asAdHocFile(womFile)) match {
         case (Success(path: Path), Some(adHocFile)) =>
@@ -238,9 +274,8 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         case _ => mapCommandLineJobInputWomFile(womFile).value
       }
     )
-  }
 
-  override def mapCommandLineJobInputWomFile(womFile: WomFile): WomFile = {
+  override def mapCommandLineJobInputWomFile(womFile: WomFile): WomFile =
     womFile.mapFile(value =>
       getPath(value) match {
         case Success(drsPath: DrsPath) =>
@@ -259,33 +294,35 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           // lives in the workflow execution directory, strip off that prefix from the path we're
           // generating inside `inputs/` to keep the total path length under control.
           // In Terra on Azure, this saves us 200+ characters.
-          tesJobPaths.callInputsDockerRoot.resolve(
-            path.pathStringWithoutPrefix(tesJobPaths.workflowPaths.workflowRoot)
-          ).pathAsString
+          tesJobPaths.callInputsDockerRoot
+            .resolve(
+              path.pathStringWithoutPrefix(tesJobPaths.workflowPaths.workflowRoot)
+            )
+            .pathAsString
         case Success(path: BlobPath) if path.startsWith(tesJobPaths.workflowPaths.executionRoot) =>
           // See comment above... if this file is in the execution root, strip that off.
           // In Terra on Azure, this saves us 160+ characters.
-          tesJobPaths.callInputsDockerRoot.resolve(
-            path.pathStringWithoutPrefix(tesJobPaths.workflowPaths.executionRoot)
-          ).pathAsString
+          tesJobPaths.callInputsDockerRoot
+            .resolve(
+              path.pathStringWithoutPrefix(tesJobPaths.workflowPaths.executionRoot)
+            )
+            .pathAsString
         case Success(path: Path) =>
           tesJobPaths.callInputsDockerRoot.resolve(path.pathWithoutScheme.stripPrefix("/")).pathAsString
         case _ =>
           value
       }
     )
-  }
 
-  override lazy val commandDirectory: Path = {
+  override lazy val commandDirectory: Path =
     runtimeAttributes.dockerWorkingDir match {
       case Some(path) => DefaultPathBuilder.get(path)
       case None => tesJobPaths.callExecutionDockerRoot
     }
-  }
 
   def createTaskMessage(): ErrorOr[Task] = {
-    val tesTask = (commandScriptContents, outputMode).mapN({
-      case (contents, mode) => TesTask(
+    val tesTask = (commandScriptContents, outputMode).mapN { case (contents, mode) =>
+      TesTask(
         jobDescriptor,
         configurationDescriptor,
         jobLogger,
@@ -297,25 +334,26 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         realDockerImageUsed,
         mapCommandLineWomFile,
         jobShell,
-        mode)
-    })
+        mode
+      )
+    }
 
     tesTask.map(TesTask.makeTask)
   }
 
-  def writeScriptFile(): Future[Unit] = {
+  def writeScriptFile(): Future[Unit] =
     commandScriptContents.fold(
       errors => Future.failed(new RuntimeException(errors.toList.mkString(", "))),
       asyncIo.writeAsync(jobPaths.script, _, Seq.empty)
     )
-  }
 
   override def executeAsync(): Future[ExecutionHandle] = {
     // create call exec dir
     tesJobPaths.callExecutionRoot.createPermissionedDirectories()
     val taskMessageFuture = createTaskMessage().fold(
       errors => Future.failed(new RuntimeException(errors.toList.mkString(", "))),
-      Future.successful)
+      Future.successful
+    )
 
     for {
       _ <- writeScriptFile()
@@ -326,7 +364,12 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   override def reconnectAsync(jobId: StandardAsyncJob) = {
-    val handle = PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState](jobDescriptor, jobId, None, previousState = None)
+    val handle = PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState](jobDescriptor,
+                                                                                                       jobId,
+                                                                                                       None,
+                                                                                                       previousState =
+                                                                                                         None
+    )
     Future.successful(handle)
   }
 
@@ -341,15 +384,17 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
     val returnCodeTmp = jobPaths.returnCode.plusExt("kill")
     returnCodeTmp.write(s"$SIGTERM\n")
-    try {
+    try
       returnCodeTmp.moveTo(jobPaths.returnCode)
-    } catch {
+    catch {
       case _: FileAlreadyExistsException =>
         // If the process has already completed, there will be an existing rc file.
         returnCodeTmp.delete(true)
     }
 
-    makeRequest[CancelTaskResponse](HttpRequest(method = HttpMethods.POST, uri = s"$tesEndpoint/${job.jobId}:cancel")) onComplete {
+    makeRequest[CancelTaskResponse](
+      HttpRequest(method = HttpMethods.POST, uri = s"$tesEndpoint/${job.jobId}:cancel")
+    ) onComplete {
       case Success(_) => jobLogger.info("{} Aborted {}", tag: Any, job.jobId)
       case Failure(ex) => jobLogger.warn("{} Failed to abort {}: {}", tag, job.jobId, ex.getMessage)
     }
@@ -359,12 +404,12 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override def requestsAbortAndDiesImmediately: Boolean = false
 
-  override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] = {
+  override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] =
     for {
       status <- queryStatusAsync(handle)
       errorLog <- status match {
-          case Error(_) | Failed(_) => getErrorLogs(handle)
-          case _ => Future.successful(Seq.empty[String])
+        case Error(_) | Failed(_) => getErrorLogs(handle)
+        case _ => Future.successful(Seq.empty[String])
       }
       statusWithLog = status match {
         case Error(_) => Error(errorLog)
@@ -372,9 +417,8 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         case _ => status
       }
     } yield statusWithLog
-  }
 
-  private def queryStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] = {
+  private def queryStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] =
     makeRequest[MinimalTaskView](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=MINIMAL")) map {
       response =>
         val state = response.state
@@ -398,16 +442,14 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           case _ => Running
         }
     }
-  }
 
-  private def getErrorLogs(handle: StandardAsyncPendingExecutionHandle): Future[Seq[String]] = {
+  private def getErrorLogs(handle: StandardAsyncPendingExecutionHandle): Future[Seq[String]] =
     makeRequest[Task](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=FULL")) map { response =>
       response.logs.flatMap(_.lastOption).flatMap(_.system_logs).getOrElse(Seq.empty[String])
     }
-  }
 
   override def customPollStatusFailure: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] = {
-    case (oldHandle: StandardAsyncPendingExecutionHandle@unchecked, e: Exception) =>
+    case (oldHandle: StandardAsyncPendingExecutionHandle @unchecked, e: Exception) =>
       jobLogger.error(s"$tag TES Job ${oldHandle.pendingJob.jobId} has not been found, failing call")
       FailedNonRetryableExecutionHandle(e, kvPairsToSave = None)
   }
@@ -419,26 +461,23 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     Future.successful(FailedNonRetryableExecutionHandle(exception, returnCode, None))
   }
 
-  override def handleExecutionFailure(status: StandardAsyncRunState, returnCode: Option[Int]) = {
+  override def handleExecutionFailure(status: StandardAsyncRunState, returnCode: Option[Int]) =
     status match {
       case Cancelled => Future.successful(AbortedExecutionHandle)
       case Error(_) | Failed(_) => handleExecutionError(status, returnCode)
       case _ => super.handleExecutionFailure(status, returnCode)
     }
-  }
 
-  override def isTerminal(runStatus: TesRunStatus): Boolean = {
+  override def isTerminal(runStatus: TesRunStatus): Boolean =
     runStatus.isTerminal
-  }
 
-  override def isDone(runStatus: TesRunStatus): Boolean = {
+  override def isDone(runStatus: TesRunStatus): Boolean =
     runStatus match {
       case Complete => true
       case _ => false
     }
-  }
 
-  override def mapOutputWomFile(womFile: WomFile): WomFile = {
+  override def mapOutputWomFile(womFile: WomFile): WomFile =
     womFile mapFile { path =>
       val absPath = getPath(path) match {
         case Success(absoluteOutputPath) if absoluteOutputPath.isAbsolute => absoluteOutputPath
@@ -449,7 +488,6 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         throw new FileNotFoundException(s"Could not process output, file not found: ${absPath.pathAsString}")
       } else absPath.pathAsString
     }
-  }
 
   // Headers that should be included with all requests to the TES server
   private def requestHeaders: List[HttpHeader] =
@@ -460,16 +498,18 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       }
     }.toList
 
-  private def makeRequest[A](request: HttpRequest)(implicit um: Unmarshaller[ResponseEntity, A]): Future[A] = {
+  private def makeRequest[A](request: HttpRequest)(implicit um: Unmarshaller[ResponseEntity, A]): Future[A] =
     for {
       response <- withRetry(() => Http().singleRequest(request.withHeaders(requestHeaders)))
-      data <- if (response.status.isFailure()) {
-        response.entity.dataBytes.runFold(ByteString(""))(_ ++ _).map(_.utf8String) flatMap { errorBody =>
-          Future.failed(new RuntimeException(s"Failed TES request: Code ${response.status.intValue()}, Body = $errorBody"))
+      data <-
+        if (response.status.isFailure()) {
+          response.entity.dataBytes.runFold(ByteString(""))(_ ++ _).map(_.utf8String) flatMap { errorBody =>
+            Future.failed(
+              new RuntimeException(s"Failed TES request: Code ${response.status.intValue()}, Body = $errorBody")
+            )
+          }
+        } else {
+          Unmarshal(response.entity).to[A]
         }
-      } else {
-        Unmarshal(response.entity).to[A]
-      }
     } yield data
-  }
 }

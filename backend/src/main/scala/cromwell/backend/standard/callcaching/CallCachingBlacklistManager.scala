@@ -47,7 +47,7 @@ class CallCachingBlacklistManager(rootConfig: Config, logger: LoggingAdapter) {
     import CallCachingBlacklistManager.Defaults.Groupings._
     for {
       _ <- blacklistGroupingWorkflowOptionKey
-      groupingsOption = rootConfig.as[Option[Config]] ("call-caching.blacklist-cache.groupings")
+      groupingsOption = rootConfig.as[Option[Config]]("call-caching.blacklist-cache.groupings")
       conf = CacheConfig.config(groupingsOption, defaultConcurrency = Concurrency, defaultSize = Size, defaultTtl = Ttl)
     } yield conf
   }
@@ -74,7 +74,10 @@ class CallCachingBlacklistManager(rootConfig: Config, logger: LoggingAdapter) {
 
   // If configuration allows, build a cache of blacklist groupings to BlacklistCaches.
   private val blacklistGroupingsCache: Option[LoadingCache[String, BlacklistCache]] = {
-    def buildBlacklistGroupingsCache(groupingConfig: CacheConfig, bucketConfig: CacheConfig, hitConfig: CacheConfig): LoadingCache[String, BlacklistCache] = {
+    def buildBlacklistGroupingsCache(groupingConfig: CacheConfig,
+                                     bucketConfig: CacheConfig,
+                                     hitConfig: CacheConfig
+    ): LoadingCache[String, BlacklistCache] = {
       val emptyBlacklistCacheLoader = new CacheLoader[String, BlacklistCache]() {
         override def load(key: String): BlacklistCache = new GroupingBlacklistCache(
           bucketCacheConfig = bucketConfig,
@@ -83,12 +86,12 @@ class CallCachingBlacklistManager(rootConfig: Config, logger: LoggingAdapter) {
         )
       }
 
-      CacheBuilder.
-        newBuilder().
-        concurrencyLevel(groupingConfig.concurrency).
-        maximumSize(groupingConfig.size).
-        expireAfterWrite(groupingConfig.ttl.length, groupingConfig.ttl.unit).
-        build[String, BlacklistCache](emptyBlacklistCacheLoader)
+      CacheBuilder
+        .newBuilder()
+        .concurrencyLevel(groupingConfig.concurrency)
+        .maximumSize(groupingConfig.size)
+        .expireAfterWrite(groupingConfig.ttl.length, groupingConfig.ttl.unit)
+        .build[String, BlacklistCache](emptyBlacklistCacheLoader)
     }
 
     for {
@@ -121,8 +124,13 @@ class CallCachingBlacklistManager(rootConfig: Config, logger: LoggingAdapter) {
     val maybeCache = groupBlacklistCache orElse rootWorkflowBlacklistCache
     maybeCache collect {
       case group: GroupingBlacklistCache =>
-        logger.info("Workflow {} using group blacklist cache '{}' containing blacklist status for {} hits and {} buckets.",
-          workflow.id, group.group, group.hitCache.size(), group.bucketCache.size())
+        logger.info(
+          "Workflow {} using group blacklist cache '{}' containing blacklist status for {} hits and {} buckets.",
+          workflow.id,
+          group.group,
+          group.hitCache.size(),
+          group.bucketCache.size()
+        )
       case _: RootWorkflowBlacklistCache =>
         logger.info("Workflow {} using root workflow blacklist cache.", workflow.id)
     }

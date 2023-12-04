@@ -34,7 +34,8 @@ object BackendWorkflowInitializationActor {
   // Responses
   sealed trait BackendWorkflowInitializationActorResponse extends BackendWorkflowLifecycleActorResponse
   sealed trait InitializationResponse extends BackendWorkflowInitializationActorResponse
-  case class InitializationSuccess(backendInitializationData: Option[BackendInitializationData]) extends InitializationResponse
+  case class InitializationSuccess(backendInitializationData: Option[BackendInitializationData])
+      extends InitializationResponse
   case class InitializationFailed(reason: Throwable) extends Exception with InitializationResponse
 
   /**
@@ -70,24 +71,25 @@ object BackendWorkflowInitializationActor {
     * - It would be nice to memoize as much of the work that gets done here as possible so it doesn't have to all be
     *   repeated when the various `FooRuntimeAttributes` classes are created, in the spirit of #1076.
     */
-    def validateRuntimeAttributes(
-                                   taskName: String,
-                                   defaultRuntimeAttributes: Map[String, WomValue],
-                                   runtimeAttributes: Map[String, WomExpression],
-                                   runtimeAttributeValidators: Map[String, Option[WomExpression] => Boolean]
-                                 ): ValidatedNel[RuntimeAttributeValidationFailure, Unit] = {
+  def validateRuntimeAttributes(
+    taskName: String,
+    defaultRuntimeAttributes: Map[String, WomValue],
+    runtimeAttributes: Map[String, WomExpression],
+    runtimeAttributeValidators: Map[String, Option[WomExpression] => Boolean]
+  ): ValidatedNel[RuntimeAttributeValidationFailure, Unit] = {
 
-      //This map append will overwrite default key/values with runtime settings upon key collisions
-      val lookups = defaultRuntimeAttributes.safeMapValues(_.asWomExpression) ++ runtimeAttributes
+    // This map append will overwrite default key/values with runtime settings upon key collisions
+    val lookups = defaultRuntimeAttributes.safeMapValues(_.asWomExpression) ++ runtimeAttributes
 
-      runtimeAttributeValidators.toList.traverse{
-        case (attributeName, validator) =>
-          val runtimeAttributeValue: Option[WomExpression] = lookups.get(attributeName)
-          validator(runtimeAttributeValue).fold(
-            validNel(()),
-            Invalid(NonEmptyList.of(RuntimeAttributeValidationFailure(taskName, attributeName, runtimeAttributeValue)))
-          )
-      }.map(_ => ())
+    runtimeAttributeValidators.toList
+      .traverse { case (attributeName, validator) =>
+        val runtimeAttributeValue: Option[WomExpression] = lookups.get(attributeName)
+        validator(runtimeAttributeValue).fold(
+          validNel(()),
+          Invalid(NonEmptyList.of(RuntimeAttributeValidationFailure(taskName, attributeName, runtimeAttributeValue)))
+        )
+      }
+      .map(_ => ())
   }
 }
 
@@ -110,7 +112,9 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     * declarations will fail evaluation and return `true` from this predicate, even if the type could be determined
     * to be wrong with consideration of task declarations or inputs.
     */
-  protected def womTypePredicate(valueRequired: Boolean, predicate: WomType => Boolean)(womExpressionMaybe: Option[WomExpression]): Boolean = {
+  protected def womTypePredicate(valueRequired: Boolean, predicate: WomType => Boolean)(
+    womExpressionMaybe: Option[WomExpression]
+  ): Boolean =
     womExpressionMaybe match {
       case None => !valueRequired
       case Some(womExpression: WomExpression) =>
@@ -119,28 +123,30 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
           case Invalid(_) => true // If we can't evaluate it, we'll let it pass for now...
         }
     }
-  }
 
   /**
     * This predicate is only appropriate for validation during workflow initialization.  The logic does not differentiate
     * between evaluation failures due to missing call inputs or evaluation failures due to malformed expressions, and will
     * return `true` in both cases.
     */
-  protected def continueOnReturnCodePredicate(valueRequired: Boolean)(womExpressionMaybe: Option[WomValue]): Boolean = {
-    ContinueOnReturnCodeValidation.default(configurationDescriptor.backendRuntimeAttributesConfig).validateOptionalWomValue(womExpressionMaybe)
-  }
+  protected def continueOnReturnCodePredicate(valueRequired: Boolean)(womExpressionMaybe: Option[WomValue]): Boolean =
+    ContinueOnReturnCodeValidation
+      .default(configurationDescriptor.backendRuntimeAttributesConfig)
+      .validateOptionalWomValue(womExpressionMaybe)
 
   protected def runtimeAttributeValidators: Map[String, Option[WomExpression] => Boolean]
 
   // FIXME: If a workflow executes jobs using multiple backends,
   // each backend will try to write its own workflow root and override any previous one.
   // They should be structured differently or at least be prefixed by the backend name
-  protected def publishWorkflowRoot(workflowRoot: String): Unit = {
-    serviceRegistryActor ! PutMetadataAction(MetadataEvent(MetadataKey(workflowDescriptor.id, None, WorkflowMetadataKeys.WorkflowRoot), MetadataValue(workflowRoot)))
-  }
+  protected def publishWorkflowRoot(workflowRoot: String): Unit =
+    serviceRegistryActor ! PutMetadataAction(
+      MetadataEvent(MetadataKey(workflowDescriptor.id, None, WorkflowMetadataKeys.WorkflowRoot),
+                    MetadataValue(workflowRoot)
+      )
+    )
 
   protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WomValue]]
-
 
   def receive: Receive = LoggingReceive {
     case Initialize => performActionThenRespond(initSequence(), onFailure = InitializationFailed)
@@ -154,10 +160,11 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     for {
       defaultRuntimeAttributes <- coerceDefaultRuntimeAttributes(workflowDescriptor.workflowOptions) |> Future.fromTry _
       taskList = calls.toList.map(_.callable).map(t => t.name -> t.runtimeAttributes.attributes)
-      _ <- taskList.
-            traverse{
-              case (name, runtimeAttributes) => validateRuntimeAttributes(name, defaultRuntimeAttributes, runtimeAttributes, runtimeAttributeValidators)
-            }.toFuture(errors => RuntimeAttributeValidationFailures(errors.toList))
+      _ <- taskList
+        .traverse { case (name, runtimeAttributes) =>
+          validateRuntimeAttributes(name, defaultRuntimeAttributes, runtimeAttributes, runtimeAttributeValidators)
+        }
+        .toFuture(errors => RuntimeAttributeValidationFailures(errors.toList))
       _ <- validate()
       data <- beforeAll()
     } yield InitializationSuccess(data)

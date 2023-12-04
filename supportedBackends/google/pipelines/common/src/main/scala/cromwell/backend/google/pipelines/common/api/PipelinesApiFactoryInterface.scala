@@ -16,7 +16,7 @@ abstract class PipelinesApiFactoryInterface {
     val httpCredentialsAdapter = new HttpCredentialsAdapter(credentials)
     build(httpCredentialsAdapter)
   }
-  
+
   protected def build(httpRequestInitializer: HttpRequestInitializer): PipelinesApiRequestFactory
 
   def usesEncryptedDocker: Boolean

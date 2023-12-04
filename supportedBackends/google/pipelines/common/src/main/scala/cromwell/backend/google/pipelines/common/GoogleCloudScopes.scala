@@ -4,6 +4,7 @@ package cromwell.backend.google.pipelines.common
   * Google cloud scopes that don't have constants defined elsewhere in Google Cloud Java API.
   */
 object GoogleCloudScopes {
+
   /**
     * More restricted version of com.google.api.services.cloudkms.v1.CloudKMSScopes.CLOUD_PLATFORM
     * Could use that scope to keep things simple, but docs say to use a more restricted scope:

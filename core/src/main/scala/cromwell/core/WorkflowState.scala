@@ -2,7 +2,6 @@ package cromwell.core
 
 import cats.Semigroup
 
-
 sealed trait WorkflowState {
   def isTerminal: Boolean
   protected def ordinal: Int
@@ -10,10 +9,18 @@ sealed trait WorkflowState {
 }
 
 object WorkflowState {
-  lazy val WorkflowStateValues = Seq(WorkflowOnHold, WorkflowSubmitted, WorkflowRunning, WorkflowFailed, WorkflowSucceeded, WorkflowAborting, WorkflowAborted)
+  lazy val WorkflowStateValues = Seq(WorkflowOnHold,
+                                     WorkflowSubmitted,
+                                     WorkflowRunning,
+                                     WorkflowFailed,
+                                     WorkflowSucceeded,
+                                     WorkflowAborting,
+                                     WorkflowAborted
+  )
 
-  def withName(str: String): WorkflowState = WorkflowStateValues.find(_.toString.equalsIgnoreCase(str)).getOrElse(
-    throw new NoSuchElementException(s"No such WorkflowState: $str"))
+  def withName(str: String): WorkflowState = WorkflowStateValues
+    .find(_.toString.equalsIgnoreCase(str))
+    .getOrElse(throw new NoSuchElementException(s"No such WorkflowState: $str"))
 
   implicit val WorkflowStateSemigroup = new Semigroup[WorkflowState] {
     override def combine(f1: WorkflowState, f2: WorkflowState): WorkflowState = f1.combine(f2)
@@ -22,7 +29,7 @@ object WorkflowState {
   implicit val WorkflowStateOrdering = Ordering.by { self: WorkflowState => self.ordinal }
 }
 
-case object WorkflowOnHold extends WorkflowState{
+case object WorkflowOnHold extends WorkflowState {
   override val toString: String = "On Hold"
   override val isTerminal = false
   override val ordinal = 0

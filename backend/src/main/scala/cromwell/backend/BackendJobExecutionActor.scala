@@ -33,7 +33,8 @@ object BackendJobExecutionActor {
                                   jobDetritusFiles: Option[Map[String, Path]],
                                   executionEvents: Seq[ExecutionEvent],
                                   dockerImageUsed: Option[String],
-                                  resultGenerationMode: ResultGenerationMode) extends BackendJobExecutionResponse
+                                  resultGenerationMode: ResultGenerationMode
+  ) extends BackendJobExecutionResponse
 
   sealed trait ResultGenerationMode
   case object RunOnBackend extends ResultGenerationMode
@@ -41,25 +42,30 @@ object BackendJobExecutionActor {
   case object FetchedFromJobStore extends ResultGenerationMode
 
   case class JobAbortedResponse(jobKey: BackendJobDescriptorKey) extends BackendJobExecutionResponse
-  
-  sealed trait BackendJobFailedResponse extends BackendJobExecutionResponse {  def throwable: Throwable; def returnCode: Option[Int] }
-  case class JobFailedNonRetryableResponse(jobKey: JobKey, throwable: Throwable, returnCode: Option[Int]) extends BackendJobFailedResponse
-  case class JobFailedRetryableResponse(jobKey: BackendJobDescriptorKey,
-                                        throwable: Throwable,
-                                        returnCode: Option[Int]) extends BackendJobFailedResponse
-  
-  // Reconnection Exceptions
-  case class JobReconnectionNotSupportedException(jobKey: BackendJobDescriptorKey) extends Exception(
-    s"This backend does not support job reconnection. The status of the underlying job for ${jobKey.tag} cannot be known."
-  ) with CromwellFatalExceptionMarker
 
-  case class JobNotFoundException(jobKey: BackendJobDescriptorKey) extends Exception (
-    s"No backend job for ${jobKey.tag} could be found. The status of the underlying job cannot be known."
-  ) with CromwellFatalExceptionMarker
-
-  def buildJobExecutionActorName(workflowId: WorkflowId, jobKey: BackendJobDescriptorKey) = {
-    s"$workflowId-BackendJobExecutionActor-${jobKey.tag}"
+  sealed trait BackendJobFailedResponse extends BackendJobExecutionResponse {
+    def throwable: Throwable; def returnCode: Option[Int]
   }
+  case class JobFailedNonRetryableResponse(jobKey: JobKey, throwable: Throwable, returnCode: Option[Int])
+      extends BackendJobFailedResponse
+  case class JobFailedRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int])
+      extends BackendJobFailedResponse
+
+  // Reconnection Exceptions
+  case class JobReconnectionNotSupportedException(jobKey: BackendJobDescriptorKey)
+      extends Exception(
+        s"This backend does not support job reconnection. The status of the underlying job for ${jobKey.tag} cannot be known."
+      )
+      with CromwellFatalExceptionMarker
+
+  case class JobNotFoundException(jobKey: BackendJobDescriptorKey)
+      extends Exception(
+        s"No backend job for ${jobKey.tag} could be found. The status of the underlying job cannot be known."
+      )
+      with CromwellFatalExceptionMarker
+
+  def buildJobExecutionActorName(workflowId: WorkflowId, jobKey: BackendJobDescriptorKey) =
+    s"$workflowId-BackendJobExecutionActor-${jobKey.tag}"
 }
 
 /**
@@ -92,7 +98,9 @@ trait BackendJobExecutionActor extends BackendJobLifecycleActor with ActorLoggin
     */
   def recover: Future[BackendJobExecutionResponse] = {
     log.warning("{} backend currently doesn't support recovering jobs. Starting {} again.",
-      jobTag, jobDescriptor.key.call.fullyQualifiedName)
+                jobTag,
+                jobDescriptor.key.call.fullyQualifiedName
+    )
     execute
   }
 
@@ -100,28 +108,24 @@ trait BackendJobExecutionActor extends BackendJobLifecycleActor with ActorLoggin
     * Tries to reconnect to a previously started job. This method differs from recover by sending a ReconnectionFailure
     * if it can't reconnect to the job for whatever reason. It should NOT execute the job if reconnection is impossible.
     */
-  def reconnect: Future[BackendJobExecutionResponse] = {
+  def reconnect: Future[BackendJobExecutionResponse] =
     Future.failed(JobReconnectionNotSupportedException(jobDescriptor.key))
-  }
 
   /**
     * Similar to reconnect, except that if the reconnection succeeds and the job is still running,
     * an abort attempt should be made.
     */
-  def reconnectToAborting: Future[BackendJobExecutionResponse] = {
+  def reconnectToAborting: Future[BackendJobExecutionResponse] =
     Future.failed(JobReconnectionNotSupportedException(jobDescriptor.key))
-  }
 
   /**
     * Abort a running job.
     */
-  def abort(): Unit = {
-    log.warning("{} backend currently doesn't support abort for {}.",
-      jobTag, jobDescriptor.key.call.fullyQualifiedName)
-  }
+  def abort(): Unit =
+    log.warning("{} backend currently doesn't support abort for {}.", jobTag, jobDescriptor.key.call.fullyQualifiedName)
 
-  def evaluateOutputs(wdlFunctions: IoFunctionSet,
-                      postMapper: WomValue => Try[WomValue] = v => Success(v))(implicit ec: ExecutionContext): EvaluatedJobOutputs = {
+  def evaluateOutputs(wdlFunctions: IoFunctionSet, postMapper: WomValue => Try[WomValue] = v => Success(v))(implicit
+    ec: ExecutionContext
+  ): EvaluatedJobOutputs =
     Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, wdlFunctions, postMapper), Duration.Inf)
-  }
 }

@@ -107,7 +107,8 @@ class S3PathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers 
       name = "with spaces",
       getFileName = s"s3://$bucket/with spaces",
       getNameCount = 3,
-      isAbsolute = true),
+      isAbsolute = true
+    ),
 
     // GoodPath(
     //   description = "a path with non-ascii",
@@ -134,7 +135,8 @@ class S3PathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers 
       name = "with non ascii £€",
       getFileName = s"s3://$bucket/with non ascii £€",
       getNameCount = 3,
-      isAbsolute = true),
+      isAbsolute = true
+    ),
 
     // GoodPath(
     //   description = "a s3 uri path with encoded characters",
@@ -162,7 +164,8 @@ class S3PathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers 
       name = "encoded                    paces",
       getFileName = s"s3://$bucket/encoded                    paces",
       getNameCount = 3,
-      isAbsolute = true),
+      isAbsolute = true
+    ),
 
     // TODO: In order for this to pass tests, S3Path needs to implement the
     //       Path trait directly and cannot inherit. We will work on this later
@@ -192,8 +195,8 @@ class S3PathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers 
       name = "",
       getFileName = null,
       getNameCount = 0,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "a file at the top of the bucket",
       path = s"s3://$bucket/hello",
@@ -206,7 +209,8 @@ class S3PathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers 
       name = "hello",
       getFileName = s"s3://$bucket/hello",
       getNameCount = 1,
-      isAbsolute = true),
+      isAbsolute = true
+    ),
 
     // parent/getParent do not end in a "/".
     // TODO: Determine if this is critcal. Note
@@ -236,7 +240,8 @@ class S3PathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers 
       name = "world",
       getFileName = s"s3://$bucket/world",
       getNameCount = 2,
-      isAbsolute = true),
+      isAbsolute = true
+    ),
 
     // Special paths
 
@@ -252,7 +257,8 @@ class S3PathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers 
       name = "",
       getFileName = s"s3://$bucket/.",
       getNameCount = 1,
-      isAbsolute = true),
+      isAbsolute = true
+    ),
 
     // GoodPath(
     //   description = "a bucket with a path ..",
@@ -352,8 +358,8 @@ class S3PathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers 
       name = "world",
       getFileName = s"s3://$bucket/world",
       getNameCount = 1,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "a bucket with an underscore",
       path = s"s3://hello_underscore/world",
@@ -366,27 +372,37 @@ class S3PathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers 
       name = "world",
       getFileName = s"s3://hello_underscore/world",
       getNameCount = 1,
-      isAbsolute = true)
+      isAbsolute = true
+    )
   )
 
   private def badPaths = Seq(
     BadPath("an empty path", "", " does not have a s3 scheme"),
-    BadPath("a bucketless path", "s3://", "The specified S3 path 's3://' does not parse as a URI.\nExpected authority at index 5: s3://"),
-    BadPath("a bucket named .", "s3://./hello/world", "The path 's3://./hello/world' does not seem to be a valid S3 path. Please check that it starts with s3:// and that the bucket and object follow S3 naming guidelines at https://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html"),
-    BadPath("a non ascii bucket name", "s3://nonasciibucket£€/hello/world",
-      "The path 's3://nonasciibucket£€/hello/world' does not seem to be a valid S3 path. Please check that it starts with s3:// and that the bucket and object follow S3 naming guidelines at https://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html"),
+    BadPath("a bucketless path",
+            "s3://",
+            "The specified S3 path 's3://' does not parse as a URI.\nExpected authority at index 5: s3://"
+    ),
+    BadPath(
+      "a bucket named .",
+      "s3://./hello/world",
+      "The path 's3://./hello/world' does not seem to be a valid S3 path. Please check that it starts with s3:// and that the bucket and object follow S3 naming guidelines at https://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html"
+    ),
+    BadPath(
+      "a non ascii bucket name",
+      "s3://nonasciibucket£€/hello/world",
+      "The path 's3://nonasciibucket£€/hello/world' does not seem to be a valid S3 path. Please check that it starts with s3:// and that the bucket and object follow S3 naming guidelines at https://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html"
+    ),
     BadPath("a https path", "https://hello/world", "S3 URIs must have 's3' scheme: https://hello/world"),
     BadPath("a file uri path", "file:///hello/world", "S3 URIs must have 's3' scheme: file:///hello/world"),
     BadPath("a relative file path", "hello/world", "hello/world does not have a s3 scheme"),
     BadPath("an absolute file path", "/hello/world", "/hello/world does not have a s3 scheme")
   )
 
-  private lazy val pathBuilder = {
+  private lazy val pathBuilder =
     S3PathBuilder.fromProvider(
       AnonymousCredentialsProvider.create,
       S3Storage.s3Configuration(),
       WorkflowOptions.empty,
       Option(Region.US_EAST_1)
     )
-  }
 }

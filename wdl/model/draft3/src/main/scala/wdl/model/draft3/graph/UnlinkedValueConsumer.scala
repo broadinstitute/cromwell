@@ -8,14 +8,14 @@ import wom.types.WomType
 
 @typeclass
 trait GraphElementValueConsumer[A] {
-  def graphElementConsumedValueHooks(a: A,
-                                     typeAliases: Map[String, WomType],
-                                     callables: Map[String, Callable])
-                                    (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): ErrorOr[Set[UnlinkedConsumedValueHook]]
+  def graphElementConsumedValueHooks(a: A, typeAliases: Map[String, WomType], callables: Map[String, Callable])(implicit
+    expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
+  ): ErrorOr[Set[UnlinkedConsumedValueHook]]
 }
 
 @typeclass
 trait ExpressionValueConsumer[A] {
-  def expressionConsumedValueHooks(a: A)
-                                  (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): Set[UnlinkedConsumedValueHook]
+  def expressionConsumedValueHooks(a: A)(implicit
+    expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
+  ): Set[UnlinkedConsumedValueHook]
 }

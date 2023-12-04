@@ -22,9 +22,9 @@ object BinaryOperatorEvaluators {
   implicit val remainderEvaluator: ExpressionValueConsumer[Remainder] = forOperation
 
   private def forOperation[A <: BinaryOperation] = new ExpressionValueConsumer[A] {
-    override def expressionConsumedValueHooks(a: A)
-                                             (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): Set[UnlinkedConsumedValueHook] = {
+    override def expressionConsumedValueHooks(a: A)(implicit
+      expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
+    ): Set[UnlinkedConsumedValueHook] =
       a.left.expressionConsumedValueHooks ++ a.right.expressionConsumedValueHooks
-    }
   }
 }

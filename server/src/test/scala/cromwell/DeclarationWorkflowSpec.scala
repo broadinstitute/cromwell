@@ -21,7 +21,11 @@ class DeclarationWorkflowSpec extends Matchers with AnyWordSpecLike {
       /*
        * WARNING: be aware that `workflow.inputs` is used by projects external to Cromwell (eg FC's input enumerator).
        */
-      val actualInputs = WdlNamespaceWithWorkflow.load(SampleWdl.DeclarationsWorkflow.workflowSource(), Seq.empty[Draft2ImportResolver]).get.workflow.inputs
+      val actualInputs = WdlNamespaceWithWorkflow
+        .load(SampleWdl.DeclarationsWorkflow.workflowSource(), Seq.empty[Draft2ImportResolver])
+        .get
+        .workflow
+        .inputs
 
       actualInputs foreach {
         case (inputName: FullyQualifiedName, actualRequiredInputDefinition: RequiredInputDefinition) =>
@@ -34,10 +38,13 @@ class DeclarationWorkflowSpec extends Matchers with AnyWordSpecLike {
           inputName should be("two_step.cat.flags2")
           inputDefinition.womType should be(WomOptionalType(WomStringType))
         case (inputName: FullyQualifiedName, inputDefinition: OverridableInputDefinitionWithDefault) =>
-          inputDefinition.localName.value should be ("two_step.static_string")
+          inputDefinition.localName.value should be("two_step.static_string")
           inputName should be("two_step.static_string")
           inputDefinition.womType should be(WomStringType)
-        case other => throw new RuntimeException(s"Programmer Error! Draft 2 isn't set up to produce or handle ${other.getClass.getSimpleName}")
+        case other =>
+          throw new RuntimeException(
+            s"Programmer Error! Draft 2 isn't set up to produce or handle ${other.getClass.getSimpleName}"
+          )
       }
     }
   }

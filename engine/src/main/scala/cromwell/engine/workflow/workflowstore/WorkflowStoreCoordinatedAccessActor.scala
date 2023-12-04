@@ -13,7 +13,6 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-
 /**
   * Serializes access to the workflow store for workflow store writers that acquire locks to multiple rows inside a single
   * transaction and otherwise are prone to deadlock.
@@ -44,12 +43,18 @@ class WorkflowStoreCoordinatedAccessActor(workflowStore: WorkflowStore) extends 
 
 object WorkflowStoreCoordinatedAccessActor {
   final case class WriteHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)],
-                                   heartbeatDateTime: OffsetDateTime)
-  final case class FetchStartableWorkflows(count: Int, cromwellId: String, heartbeatTtl: FiniteDuration, excludedGroups: Set[String])
+                                   heartbeatDateTime: OffsetDateTime
+  )
+  final case class FetchStartableWorkflows(count: Int,
+                                           cromwellId: String,
+                                           heartbeatTtl: FiniteDuration,
+                                           excludedGroups: Set[String]
+  )
   final case class DeleteFromStore(workflowId: WorkflowId)
   final case class Abort(workflowId: WorkflowId)
 
   val Timeout = 1 minute
 
-  def props(workflowStore: WorkflowStore): Props = Props(new WorkflowStoreCoordinatedAccessActor(workflowStore)).withDispatcher(Dispatcher.IoDispatcher)
+  def props(workflowStore: WorkflowStore): Props =
+    Props(new WorkflowStoreCoordinatedAccessActor(workflowStore)).withDispatcher(Dispatcher.IoDispatcher)
 }

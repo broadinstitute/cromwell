@@ -16,7 +16,7 @@ import wom.values.{WomBoolean, WomValue}
   * Represents a conditional node in the execution store.
   * Runnable when the associated expression (represented by an expression node in the graph) is done.
   */
-private [execution] case class ConditionalKey(node: ConditionalNode, index: ExecutionIndex) extends JobKey {
+private[execution] case class ConditionalKey(node: ConditionalNode, index: ExecutionIndex) extends JobKey {
   override val tag = node.localName
   override val attempt = 1
 
@@ -30,10 +30,10 @@ private [execution] case class ConditionalKey(node: ConditionalNode, index: Exec
     * @return ExecutionStore of scattered children.
     */
   def populate(bypassed: Boolean): Map[JobKey, ExecutionStatus.Value] = {
-    val conditionalKeys = node.innerGraph.nodes.flatMap({ node => keyify(node) })
+    val conditionalKeys = node.innerGraph.nodes.flatMap(node => keyify(node))
 
     val finalStatus = if (bypassed) ExecutionStatus.NotStarted else ExecutionStatus.Bypassed
-    (conditionalKeys ++ collectors).map({ _ -> finalStatus }).toMap
+    (conditionalKeys ++ collectors).map(_ -> finalStatus).toMap
   }
 
   /**
@@ -48,12 +48,16 @@ private [execution] case class ConditionalKey(node: ConditionalNode, index: Exec
     case _: GraphInputNode => None
     case _: PortBasedGraphOutputNode => None
     case _: ScatterNode =>
-      throw new UnsupportedOperationException("Nested Scatters are not supported (yet) ... but you might try a sub workflow to achieve the same effect!")
+      throw new UnsupportedOperationException(
+        "Nested Scatters are not supported (yet) ... but you might try a sub workflow to achieve the same effect!"
+      )
     case e =>
       throw new UnsupportedOperationException(s"Scope ${e.getClass.getName} is not supported in an If block.")
   }
 
-  def processRunnable(data: WorkflowExecutionActorData, workflowLogger: WorkflowLogger): ErrorOr[WorkflowExecutionDiff] = {
+  def processRunnable(data: WorkflowExecutionActorData,
+                      workflowLogger: WorkflowLogger
+  ): ErrorOr[WorkflowExecutionDiff] = {
     // This is the output port from the conditional's 'condition' input:
     val conditionOutputPort = node.conditionExpression.singleOutputPort
     data.valueStore.get(conditionOutputPort, index) match {
@@ -64,9 +68,9 @@ private [execution] case class ConditionalKey(node: ConditionalNode, index: Exec
           node.conditionalOutputPorts.map(op => ValueKey(op, index) -> op.womType.none).toMap
         } else Map.empty
 
-        WorkflowExecutionDiff(
-          executionStoreChanges = populate(b.value) + (this -> conditionalStatus),
-          valueStoreAdditions = valueStoreAdditions).validNel
+        WorkflowExecutionDiff(executionStoreChanges = populate(b.value) + (this -> conditionalStatus),
+                              valueStoreAdditions = valueStoreAdditions
+        ).validNel
       case Some(v: WomValue) =>
         s"'if' condition ${node.conditionExpression.womExpression.sourceString} must evaluate to a boolean but instead got ${v.womType.stableName}".invalidNel
       case None =>

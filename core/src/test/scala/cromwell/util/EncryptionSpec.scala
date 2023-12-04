@@ -14,7 +14,8 @@ object EncryptionSpec {
     """|
        |Did you install the Java Cryptography Extension (JCE) Unlimited Strength Jurisdiction Policy Files?
        |http://www.oracle.com/technetwork/java/javase/downloads/jce8-download-2133166.html
-       |""".stripMargin)
+       |""".stripMargin
+  )
 }
 
 class EncryptionSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {

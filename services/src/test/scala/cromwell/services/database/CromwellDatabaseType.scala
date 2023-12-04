@@ -20,7 +20,7 @@ sealed trait CromwellDatabaseType[T <: SlickDatabase] {
 object CromwellDatabaseType {
   val All: Seq[CromwellDatabaseType[_ <: SlickDatabase]] = List(
     EngineDatabaseType,
-    MetadataDatabaseType,
+    MetadataDatabaseType
   )
 }
 
@@ -28,16 +28,14 @@ object EngineDatabaseType extends CromwellDatabaseType[EngineSlickDatabase] {
   override val name: String = "Engine"
   override val liquibaseSettings: LiquibaseSettings = EngineServicesStore.EngineLiquibaseSettings
 
-  override def newDatabase(config: Config): EngineSlickDatabase with TestSlickDatabase = {
+  override def newDatabase(config: Config): EngineSlickDatabase with TestSlickDatabase =
     new EngineSlickDatabase(config) with TestSlickDatabase
-  }
 }
 
 object MetadataDatabaseType extends CromwellDatabaseType[MetadataSlickDatabase] {
   override val name: String = "Metadata"
   override val liquibaseSettings: LiquibaseSettings = MetadataServicesStore.MetadataLiquibaseSettings
 
-  override def newDatabase(config: Config): MetadataSlickDatabase with TestSlickDatabase = {
+  override def newDatabase(config: Config): MetadataSlickDatabase with TestSlickDatabase =
     new MetadataSlickDatabase(config) with TestSlickDatabase
-  }
 }

@@ -21,7 +21,12 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
 import scala.language.postfixOps
 
-class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with ImplicitSender with Eventually {
+class IoActorProxyGcsBatchSpec
+    extends TestKitSuite
+    with AnyFlatSpecLike
+    with Matchers
+    with ImplicitSender
+    with Eventually {
   behavior of "IoActor [GCS Batch]"
 
   implicit val ec: ExecutionContext = system.dispatcher
@@ -74,10 +79,11 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Ma
                        dst: GcsPath,
                        directory: GcsPath,
                        testActorName: String,
-                       serviceRegistryActorName: String) = {
+                       serviceRegistryActorName: String
+  ) = {
     val testActor = TestActorRef(
       factory = new IoActor(IoActorConfig, TestProbe(serviceRegistryActorName).ref, "cromwell test"),
-      name = testActorName,
+      name = testActorName
     )
 
     val copyCommand = GcsBatchCopyCommand.forPaths(src, dst).get
@@ -102,20 +108,24 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Ma
     received1.size shouldBe 5
     received1 forall { _.isInstanceOf[IoSuccess[_]] } shouldBe true
 
-    received1 collect {
-      case IoSuccess(_: GcsBatchSizeCommand, fileSize: Long) => fileSize shouldBe 5
+    received1 collect { case IoSuccess(_: GcsBatchSizeCommand, fileSize: Long) =>
+      fileSize shouldBe 5
+    }
+
+    received1 collect { case IoSuccess(_: GcsBatchCrc32Command, hash: String) =>
+      hash shouldBe "mnG7TA=="
     }
 
     received1 collect {
-      case IoSuccess(_: GcsBatchCrc32Command, hash: String) => hash shouldBe "mnG7TA=="
+      case IoSuccess(command: GcsBatchIsDirectoryCommand, isDirectory: Boolean)
+          if command.file.pathAsString == directory.pathAsString =>
+        isDirectory shouldBe true
     }
 
     received1 collect {
-      case IoSuccess(command: GcsBatchIsDirectoryCommand, isDirectory: Boolean) if command.file.pathAsString == directory.pathAsString => isDirectory shouldBe true
-    }
-
-    received1 collect {
-      case IoSuccess(command: GcsBatchIsDirectoryCommand, isDirectory: Boolean) if command.file.pathAsString == src.pathAsString => isDirectory shouldBe false
+      case IoSuccess(command: GcsBatchIsDirectoryCommand, isDirectory: Boolean)
+          if command.file.pathAsString == src.pathAsString =>
+        isDirectory shouldBe false
     }
 
     testActor ! deleteSrcCommand
@@ -136,7 +146,7 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Ma
       dst = dst,
       directory = directory,
       testActorName = "testActor-batch",
-      serviceRegistryActorName = "serviceRegistryActor-batch",
+      serviceRegistryActorName = "serviceRegistryActor-batch"
     )
   }
 
@@ -146,14 +156,14 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Ma
       dst = dstRequesterPays,
       directory = directoryRequesterPays,
       testActorName = "testActor-batch-rp",
-      serviceRegistryActorName = "serviceRegistryActor-batch-rp",
+      serviceRegistryActorName = "serviceRegistryActor-batch-rp"
     )
   }
 
   it should "copy files across GCS storage classes" taggedAs IntegrationTest in {
     val testActor = TestActorRef(
       factory = new IoActor(IoActorConfig, TestProbe("serviceRegistryActor").ref, "cromwell test"),
-      name = "testActor",
+      name = "testActor"
     )
 
     val copyCommand = GcsBatchCopyCommand.forPaths(srcRegional, dstMultiRegional).get

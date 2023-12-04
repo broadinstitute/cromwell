@@ -24,11 +24,16 @@ object Command {
     */
   def instantiate(jobDescriptor: BackendJobDescriptor,
                   callEngineFunction: IoFunctionSet,
-                  inputsPreProcessor: WomEvaluatedCallInputs => Try[WomEvaluatedCallInputs] = (i: WomEvaluatedCallInputs) => Success(i),
+                  inputsPreProcessor: WomEvaluatedCallInputs => Try[WomEvaluatedCallInputs] =
+                    (i: WomEvaluatedCallInputs) => Success(i),
                   valueMapper: WomValue => WomValue,
-                  runtimeEnvironment: RuntimeEnvironment): ErrorOr[InstantiatedCommand] = {
+                  runtimeEnvironment: RuntimeEnvironment
+  ): ErrorOr[InstantiatedCommand] =
     inputsPreProcessor(jobDescriptor.evaluatedTaskInputs).toErrorOr flatMap { mappedInputs =>
-      jobDescriptor.taskCall.callable.instantiateCommand(mappedInputs, callEngineFunction, valueMapper, runtimeEnvironment)
+      jobDescriptor.taskCall.callable.instantiateCommand(mappedInputs,
+                                                         callEngineFunction,
+                                                         valueMapper,
+                                                         runtimeEnvironment
+      )
     }
-  }
 }

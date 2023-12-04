@@ -11,8 +11,8 @@ object MachineConstraints {
                   cpu: Int Refined Positive,
                   cpuPlatformOption: Option[String],
                   googleLegacyMachineSelection: Boolean,
-                  jobLogger: Logger,
-                 ): String = {
+                  jobLogger: Logger
+  ): String =
     if (googleLegacyMachineSelection) {
       s"predefined-$cpu-${memory.to(MemoryUnit.MB).amount.intValue()}"
     } else {
@@ -26,10 +26,9 @@ object MachineConstraints {
         cpuPlatformOption match {
           case Some(PipelinesApiRuntimeAttributes.CpuPlatformIntelIceLakeValue) => N2CustomMachineType
           case Some(PipelinesApiRuntimeAttributes.CpuPlatformIntelCascadeLakeValue) => N2CustomMachineType
-          case Some(PipelinesApiRuntimeAttributes.CpuPlatformAMDRomeValue)          => N2DCustomMachineType 
+          case Some(PipelinesApiRuntimeAttributes.CpuPlatformAMDRomeValue) => N2DCustomMachineType
           case _ => N1CustomMachineType
         }
       customMachineType.machineType(memory, cpu, jobLogger)
     }
-  }
 }

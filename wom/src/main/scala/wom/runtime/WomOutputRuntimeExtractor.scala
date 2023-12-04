@@ -7,8 +7,8 @@ import net.ceedubs.ficus.Ficus._
 
 object WomOutputRuntimeExtractor {
   def fromConfig(config: Config) = {
-    val dockerImage = validate { config.getAs[String]("docker-image") }
-    val command = validate { config.as[String]("command") }
+    val dockerImage = validate(config.getAs[String]("docker-image"))
+    val command = validate(config.as[String]("command"))
 
     (dockerImage, command).mapN(WomOutputRuntimeExtractor.apply)
   }

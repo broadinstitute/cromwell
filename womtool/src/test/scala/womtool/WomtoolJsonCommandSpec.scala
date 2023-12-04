@@ -41,10 +41,10 @@ abstract class WomtoolJsonCommandSpec extends AnyFlatSpec with CromwellTimeoutSp
         val caseName = validCase.name
 
         // The WDL file is expected to be valid:
-        val wdlFile = mustExist(versionDirectory.path.resolve(s"../../validate/$versionName/valid/$caseName/$caseName.wdl").toFile)
+        val wdlFile =
+          mustExist(versionDirectory.path.resolve(s"../../validate/$versionName/valid/$caseName/$caseName.wdl").toFile)
 
         testDefinitions foreach { definition =>
-
           it should s"validate '${definition.testName}' for $versionName workflow: '$caseName''" in {
             val expectation = expectedJson(versionDirectory, caseName, definition.expectationFilename)
             val fullCommandFormat = definition.commandFormat :+ wdlFile.getAbsolutePath
@@ -57,7 +57,12 @@ abstract class WomtoolJsonCommandSpec extends AnyFlatSpec with CromwellTimeoutSp
                 val unexpected = actualSet.diff(expectedSet)
                 val ungenerated = expectedSet.diff(actualSet)
 
-                assert(actualSet == expectedSet, s"Received lines: $actualContent${System.lineSeparator}with unexpected values: ${unexpected.mkString("[", ",", "]")}${System.lineSeparator}and missing expected values: ${ungenerated.mkString("[", ",", "]")}")
+                assert(
+                  actualSet == expectedSet,
+                  s"Received lines: $actualContent${System.lineSeparator}with unexpected values: ${unexpected
+                      .mkString("[", ",", "]")}${System.lineSeparator}and missing expected values: ${ungenerated
+                      .mkString("[", ",", "]")}"
+                )
 
               case other => fail(s"Expected successful termination but got $other")
             }
@@ -67,9 +72,9 @@ abstract class WomtoolJsonCommandSpec extends AnyFlatSpec with CromwellTimeoutSp
     }
   }
 
-  private def expectedJson(versionDirectory: File, caseName: String, jsonName: String): String = {
+  private def expectedJson(versionDirectory: File, caseName: String, jsonName: String): String =
     File(mustExist(versionDirectory.path.resolve(caseName).resolve(jsonName).toFile).getAbsolutePath).contentAsString
-  }
 
-  private def mustExist(file: java.io.File): java.io.File = if (file.exists) file else fail(s"No such file: ${file.getAbsolutePath}")
+  private def mustExist(file: java.io.File): java.io.File =
+    if (file.exists) file else fail(s"No such file: ${file.getAbsolutePath}")
 }

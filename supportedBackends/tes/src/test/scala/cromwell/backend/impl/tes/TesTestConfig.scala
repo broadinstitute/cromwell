@@ -112,4 +112,3 @@ object TesTestConfig {
 
   val backendConfigWithInvalidBackoffs = ConfigFactory.parseString(backendConfigStringWithInvalidBackoffs)
 }
-

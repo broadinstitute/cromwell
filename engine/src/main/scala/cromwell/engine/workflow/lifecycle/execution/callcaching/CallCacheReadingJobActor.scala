@@ -4,7 +4,12 @@ import akka.actor.{ActorRef, LoggingFSM, Props}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching.HashingFailedMessage
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCachePathPrefixes
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{CompleteFileHashingResult, InitialHashingResult, NextBatchOfFileHashesRequest, NoFileHashesResult}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{
+  CompleteFileHashingResult,
+  InitialHashingResult,
+  NextBatchOfFileHashesRequest,
+  NoFileHashesResult
+}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, HashError}
@@ -24,16 +29,16 @@ import cromwell.services.CallCaching.CallCachingEntryId
   * Sends the response to its parent.
   * In case of a CacheHit, stays alive in case using the hit fails and it needs to fetch the next one. Otherwise just dies.
   */
-class CallCacheReadingJobActor(callCacheReadActor: ActorRef, prefixesHint: Option[CallCachePathPrefixes]) extends LoggingFSM[CallCacheReadingJobActorState, CCRJAData] {
-  
+class CallCacheReadingJobActor(callCacheReadActor: ActorRef, prefixesHint: Option[CallCachePathPrefixes])
+    extends LoggingFSM[CallCacheReadingJobActorState, CCRJAData] {
+
   startWith(WaitingForInitialHash, CCRJANoData)
-  
-  when(WaitingForInitialHash) {
-    case Event(InitialHashingResult(_, aggregatedBaseHash, hints), CCRJANoData) =>
-      callCacheReadActor ! HasMatchingInitialHashLookup(aggregatedBaseHash, hints)
-      goto(WaitingForHashCheck) using CCRJAWithData(sender(), aggregatedBaseHash, fileHash = None, seenCaches = Set.empty)
+
+  when(WaitingForInitialHash) { case Event(InitialHashingResult(_, aggregatedBaseHash, hints), CCRJANoData) =>
+    callCacheReadActor ! HasMatchingInitialHashLookup(aggregatedBaseHash, hints)
+    goto(WaitingForHashCheck) using CCRJAWithData(sender(), aggregatedBaseHash, fileHash = None, seenCaches = Set.empty)
   }
-  
+
   when(WaitingForHashCheck) {
     case Event(HasMatchingEntries, CCRJAWithData(hashingActor, _, _, _)) =>
       hashingActor ! NextBatchOfFileHashesRequest
@@ -41,16 +46,22 @@ class CallCacheReadingJobActor(callCacheReadActor: ActorRef, prefixesHint: Optio
     case Event(NoMatchingEntries, _) =>
       cacheMiss
   }
-  
+
   when(WaitingForFileHashes) {
     case Event(CompleteFileHashingResult(_, aggregatedFileHash), data: CCRJAWithData) =>
-      callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(data.initialHash, aggregatedFileHash), data.seenCaches, prefixesHint)
+      callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(data.initialHash, aggregatedFileHash),
+                                              data.seenCaches,
+                                              prefixesHint
+      )
       goto(WaitingForCacheHitOrMiss) using data.withFileHash(aggregatedFileHash)
     case Event(NoFileHashesResult, data: CCRJAWithData) =>
-      callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(data.initialHash, None), data.seenCaches, prefixesHint)
+      callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(data.initialHash, None),
+                                              data.seenCaches,
+                                              prefixesHint
+      )
       goto(WaitingForCacheHitOrMiss)
   }
-  
+
   when(WaitingForCacheHitOrMiss) {
     case Event(CacheLookupNextHit(hit), data: CCRJAWithData) =>
       context.parent ! CacheHit(hit)
@@ -58,7 +69,10 @@ class CallCacheReadingJobActor(callCacheReadActor: ActorRef, prefixesHint: Optio
     case Event(CacheLookupNoHit, _) =>
       cacheMiss
     case Event(NextHit, CCRJAWithData(_, aggregatedInitialHash, aggregatedFileHash, seenCaches)) =>
-      callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(aggregatedInitialHash, aggregatedFileHash), seenCaches, prefixesHint)
+      callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(aggregatedInitialHash, aggregatedFileHash),
+                                              seenCaches,
+                                              prefixesHint
+      )
       stay()
   }
 
@@ -80,9 +94,8 @@ class CallCacheReadingJobActor(callCacheReadActor: ActorRef, prefixesHint: Optio
 
 object CallCacheReadingJobActor {
 
-  def props(callCacheReadActor: ActorRef, prefixesHint: Option[CallCachePathPrefixes]) = {
+  def props(callCacheReadActor: ActorRef, prefixesHint: Option[CallCachePathPrefixes]) =
     Props(new CallCacheReadingJobActor(callCacheReadActor, prefixesHint)).withDispatcher(EngineDispatcher)
-  }
 
   sealed trait CallCacheReadingJobActorState
   case object WaitingForInitialHash extends CallCacheReadingJobActorState
@@ -92,7 +105,11 @@ object CallCacheReadingJobActor {
 
   sealed trait CCRJAData
   case object CCRJANoData extends CCRJAData
-  case class CCRJAWithData(hashingActor: ActorRef, initialHash: String, fileHash: Option[String], seenCaches: Set[CallCachingEntryId]) extends CCRJAData {
+  case class CCRJAWithData(hashingActor: ActorRef,
+                           initialHash: String,
+                           fileHash: Option[String],
+                           seenCaches: Set[CallCachingEntryId]
+  ) extends CCRJAData {
     def withSeenCache(id: CallCachingEntryId): CCRJAWithData = this.copy(seenCaches = seenCaches + id)
     def withFileHash(aggregatedFileHash: String): CCRJAWithData = this.copy(fileHash = Option(aggregatedFileHash))
   }

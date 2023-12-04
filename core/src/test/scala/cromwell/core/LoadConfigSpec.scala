@@ -8,7 +8,7 @@ import scala.concurrent.duration._
 
 class LoadConfigSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "LoadConfig"
-  
+
   it should "parse load config" in {
     LoadConfig.JobStoreReadThreshold shouldBe 10000
     LoadConfig.JobStoreWriteThreshold shouldBe 10000

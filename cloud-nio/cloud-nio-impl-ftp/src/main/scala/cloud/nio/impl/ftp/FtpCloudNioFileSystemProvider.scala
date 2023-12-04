@@ -11,7 +11,11 @@ import com.typesafe.scalalogging.StrictLogging
 
 import scala.util.{Failure, Success, Try}
 
-class FtpCloudNioFileSystemProvider(override val config: Config, val credentials: FtpCredentials, ftpFileSystems: FtpFileSystems) extends CloudNioFileSystemProvider with StrictLogging {
+class FtpCloudNioFileSystemProvider(override val config: Config,
+                                    val credentials: FtpCredentials,
+                                    ftpFileSystems: FtpFileSystems
+) extends CloudNioFileSystemProvider
+    with StrictLogging {
   val ftpConfig = ftpFileSystems.config
 
   override def fileProvider = new FtpCloudNioFileProvider(this)
@@ -29,18 +33,19 @@ class FtpCloudNioFileSystemProvider(override val config: Config, val credentials
      * will try to get it using the fileProvider which will require a new client lease and can result in a  deadlock of the client pool, since
      * the read channel holds on to its lease until its closed.
      */
-    val preComputedFileSize = retry.from(() => fileProvider.fileAttributes(cloudNioPath.cloudHost, cloudNioPath.cloudPath).map(_.size()))
+    val preComputedFileSize =
+      retry.from(() => fileProvider.fileAttributes(cloudNioPath.cloudHost, cloudNioPath.cloudPath).map(_.size()))
     new CloudNioReadChannel(fileProvider, retry, cloudNioPath) {
       override def fileSize = preComputedFileSize
     }
   }
 
-  override def createDirectory(dir: Path, attrs: FileAttribute[_]*): Unit = {
+  override def createDirectory(dir: Path, attrs: FileAttribute[_]*): Unit =
     Try {
-      retry.from(() => {
+      retry.from { () =>
         val cloudNioPath = CloudNioPath.checkPath(dir)
         fileProvider.createDirectory(cloudNioPath.cloudHost, cloudNioPath.cloudPath)
-      })
+      }
     } match {
       case Success(_) =>
       case Failure(f: FileAlreadyExistsException) => throw f
@@ -51,15 +56,12 @@ class FtpCloudNioFileSystemProvider(override val config: Config, val credentials
         throw f
       case Failure(f) => throw f
     }
-  }
 
   override def usePseudoDirectories = false
 
-  override def newCloudNioFileSystem(uriAsString: String, config: Config) = {
+  override def newCloudNioFileSystem(uriAsString: String, config: Config) =
     newCloudNioFileSystemFromHost(getHost(uriAsString))
-  }
-  
-  def newCloudNioFileSystemFromHost(host: String) = {
+
+  def newCloudNioFileSystemFromHost(host: String) =
     ftpFileSystems.getFileSystem(host, this)
-  }
 }

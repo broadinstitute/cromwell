@@ -20,34 +20,41 @@ object PipelinesApiWorkflowPaths {
   private val AuthFilePathOptionKey = "auth_bucket"
   private val GcsPrefix = "gs://"
 
-  private[common] def callCachePathPrefixFromExecutionRoot(executionRoot: String): String = {
+  private[common] def callCachePathPrefixFromExecutionRoot(executionRoot: String): String =
     // If the root looks like gs://bucket/stuff-under-bucket this should return gs://bucket
     GcsPrefix + executionRoot.substring(GcsPrefix.length).takeWhile(_ != '/')
-  }
 }
 
-case class PipelinesApiWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
-                                     gcsCredentials: Credentials,
-                                     genomicsCredentials: Credentials,
-                                     papiConfiguration: PipelinesApiConfiguration,
-                                     override val pathBuilders: PathBuilders,
-                                     // This allows for the adjustment of the standard stream file names in PAPI v1 to match the
-                                     // combined controller + job standard output and error files. PAPI v1 controls the periodic
-                                     // delocalization of these files so the metadata Cromwell publishes for these files needs
-                                     // to match the PAPI v1 names.
-                                     standardStreamNameToFileNameMetadataMapper: (PipelinesApiJobPaths, String) => String)(implicit ec: ExecutionContext) extends WorkflowPaths {
+case class PipelinesApiWorkflowPaths(
+  workflowDescriptor: BackendWorkflowDescriptor,
+  gcsCredentials: Credentials,
+  genomicsCredentials: Credentials,
+  papiConfiguration: PipelinesApiConfiguration,
+  override val pathBuilders: PathBuilders,
+  // This allows for the adjustment of the standard stream file names in PAPI v1 to match the
+  // combined controller + job standard output and error files. PAPI v1 controls the periodic
+  // delocalization of these files so the metadata Cromwell publishes for these files needs
+  // to match the PAPI v1 names.
+  standardStreamNameToFileNameMetadataMapper: (PipelinesApiJobPaths, String) => String
+)(implicit ec: ExecutionContext)
+    extends WorkflowPaths {
 
   override lazy val executionRootString: String =
     workflowDescriptor.workflowOptions.getOrElse(PipelinesApiWorkflowPaths.GcsRootOptionKey, papiConfiguration.root)
 
-  override lazy val callCacheRootPrefix: Option[String] = Option(callCachePathPrefixFromExecutionRoot(executionRootString))
+  override lazy val callCacheRootPrefix: Option[String] = Option(
+    callCachePathPrefixFromExecutionRoot(executionRootString)
+  )
 
   private val workflowOptions: WorkflowOptions = workflowDescriptor.workflowOptions
 
   val gcsAuthFilePath: Path = {
     // The default auth file bucket is always at the root of the root workflow
-    val defaultBucket = executionRoot.resolve(workflowDescriptor.rootWorkflow.name).resolve(workflowDescriptor.rootWorkflowId.toString)
-    val bucket = workflowDescriptor.workflowOptions.get(PipelinesApiWorkflowPaths.AuthFilePathOptionKey) getOrElse defaultBucket.pathAsString
+    val defaultBucket =
+      executionRoot.resolve(workflowDescriptor.rootWorkflow.name).resolve(workflowDescriptor.rootWorkflowId.toString)
+    val bucket = workflowDescriptor.workflowOptions.get(
+      PipelinesApiWorkflowPaths.AuthFilePathOptionKey
+    ) getOrElse defaultBucket.pathAsString
 
     /*
      * This is an "exception". The filesystem used here is built from genomicsAuth
@@ -62,23 +69,24 @@ case class PipelinesApiWorkflowPaths(workflowDescriptor: BackendWorkflowDescript
       Option(papiConfiguration.papiAttributes.project)
     )
 
-    val authBucket = pathBuilderWithGenomicsAuth.build(bucket) recover {
-      case ex => throw new Exception(s"Invalid gcs auth_bucket path $bucket", ex)
+    val authBucket = pathBuilderWithGenomicsAuth.build(bucket) recover { case ex =>
+      throw new Exception(s"Invalid gcs auth_bucket path $bucket", ex)
     } get
 
     authBucket.resolve(s"${workflowDescriptor.rootWorkflowId}_auth.json")
   }
 
-  val monitoringScriptPath: Option[Path] = workflowOptions.get(WorkflowOptionKeys.MonitoringScript).toOption map { path =>
-    // Fail here if the path exists but can't be built
-    getPath(path).get
+  val monitoringScriptPath: Option[Path] = workflowOptions.get(WorkflowOptionKeys.MonitoringScript).toOption map {
+    path =>
+      // Fail here if the path exists but can't be built
+      getPath(path).get
   }
 
-  override def toJobPaths(workflowPaths: WorkflowPaths, jobKey: BackendJobDescriptorKey): PipelinesApiJobPaths = {
+  override def toJobPaths(workflowPaths: WorkflowPaths, jobKey: BackendJobDescriptorKey): PipelinesApiJobPaths =
     new PipelinesApiJobPaths(workflowPaths.asInstanceOf[PipelinesApiWorkflowPaths], jobKey)
-  }
 
-  override protected def withDescriptor(workflowDescriptor: BackendWorkflowDescriptor): WorkflowPaths = this.copy(workflowDescriptor = workflowDescriptor)
+  override protected def withDescriptor(workflowDescriptor: BackendWorkflowDescriptor): WorkflowPaths =
+    this.copy(workflowDescriptor = workflowDescriptor)
 
   override def config: Config = papiConfiguration.configurationDescriptor.backendConfig
 }

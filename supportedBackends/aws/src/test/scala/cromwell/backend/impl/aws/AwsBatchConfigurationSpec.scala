@@ -40,7 +40,12 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class AwsBatchConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks with BeforeAndAfterAll {
+class AwsBatchConfigurationSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with TableDrivenPropertyChecks
+    with BeforeAndAfterAll {
 
   behavior of "AwsBatchConfigurationSpec"
 
@@ -51,32 +56,31 @@ class AwsBatchConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     ()
   }
 
-  val globalConfig = ConfigFactory.parseString(
-    s"""
-      |aws {
-      |
-      |  application-name = "cromwell"
-      |   numSubmitAttempts = 6
-      |   numCreateDefinitionAttempts = 6
-      |
-      |  auths = [
-      |    {
-      |      name = "application-default"
-      |      scheme = "default"
-      |    },
-      |    {
-      |      name = "user-via-refresh"
-      |      scheme = "custom_keys"
-      |      access-key = "secret_key"
-      |      secret-key = "${mockFile.pathAsString}"
-      |    },
-      |    {
-      |      name = "service-account"
-      |      scheme = "default"
-      |    }
-      |  ]
-      |}
-      |
+  val globalConfig = ConfigFactory.parseString(s"""
+                                                  |aws {
+                                                  |
+                                                  |  application-name = "cromwell"
+                                                  |   numSubmitAttempts = 6
+                                                  |   numCreateDefinitionAttempts = 6
+                                                  |
+                                                  |  auths = [
+                                                  |    {
+                                                  |      name = "application-default"
+                                                  |      scheme = "default"
+                                                  |    },
+                                                  |    {
+                                                  |      name = "user-via-refresh"
+                                                  |      scheme = "custom_keys"
+                                                  |      access-key = "secret_key"
+                                                  |      secret-key = "${mockFile.pathAsString}"
+                                                  |    },
+                                                  |    {
+                                                  |      name = "service-account"
+                                                  |      scheme = "default"
+                                                  |    }
+                                                  |  ]
+                                                  |}
+                                                  |
     """.stripMargin)
 
   val backendConfig = ConfigFactory.parseString(
@@ -110,7 +114,8 @@ class AwsBatchConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
       |    }
       |  }
       |
-    """.stripMargin)
+    """.stripMargin
+  )
 
   it should "fail to instantiate if any required configuration is missing" in {
 
@@ -131,11 +136,14 @@ class AwsBatchConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
   }
 
   it should "have correct root" in {
-    new AwsBatchConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig)).root shouldBe "s3://my-cromwell-workflows-bucket"
+    new AwsBatchConfiguration(
+      BackendConfigurationDescriptor(backendConfig, globalConfig)
+    ).root shouldBe "s3://my-cromwell-workflows-bucket"
   }
 
   it should "have correct docker" in {
-    val dockerConf = new AwsBatchConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig)).dockerCredentials
+    val dockerConf =
+      new AwsBatchConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig)).dockerCredentials
     dockerConf shouldBe defined
     dockerConf.get.token shouldBe "dockerToken"
   }

@@ -17,9 +17,13 @@ import scala.util.{Failure, Success, Try}
 /**
   * Sends batched requests to JES as a worker to the JesApiQueryManager
   */
-class PipelinesApiRequestWorker(val pollingManager: ActorRef, val batchInterval: FiniteDuration, override val serviceRegistryActor: ActorRef)
-                               (implicit val batchHandler: PipelinesApiRequestHandler)
-  extends Actor with ActorLogging with CromwellInstrumentationActor {
+class PipelinesApiRequestWorker(val pollingManager: ActorRef,
+                                val batchInterval: FiniteDuration,
+                                override val serviceRegistryActor: ActorRef
+)(implicit val batchHandler: PipelinesApiRequestHandler)
+    extends Actor
+    with ActorLogging
+    with CromwellInstrumentationActor {
 
   self ! NoWorkToDo // Starts the check-for-work cycle when the actor is fully initialized.
 
@@ -51,18 +55,18 @@ class PipelinesApiRequestWorker(val pollingManager: ActorRef, val batchInterval:
     runBatch(batch)
     Future.sequence(batchFutures.toList)
   }
-  
+
   // These are separate functions so that the tests can hook in and replace the JES-side stuff
   private[api] def createBatch(): BatchRequest = batch
-  private[api] def runBatch(batch: BatchRequest): Unit = {
-    try {
+  private[api] def runBatch(batch: BatchRequest): Unit =
+    try
       if (batch.size() > 0) batch.execute()
-    } catch {
+    catch {
       case e: java.io.IOException =>
-        val msg = s"A batch of PAPI status requests failed. The request manager will retry automatically up to 10 times. The error was: ${e.getMessage}"
+        val msg =
+          s"A batch of PAPI status requests failed. The request manager will retry automatically up to 10 times. The error was: ${e.getMessage}"
         throw new Exception(msg, e.getCause) with NoStackTrace
     }
-  }
 
   // TODO: FSMify this actor?
   private def interstitialRecombobulation: PartialFunction[Try[List[Try[Unit]]], Unit] = {
@@ -71,11 +75,17 @@ class PipelinesApiRequestWorker(val pollingManager: ActorRef, val batchInterval:
       scheduleCheckForWork()
     case Success(someFailures) =>
       val errors = someFailures collect { case Failure(t) => t.getMessage }
-      log.warning("PAPI request worker had {} failures making {} requests: {}", errors.size, someFailures.size, errors.mkString(System.lineSeparator, "," + System.lineSeparator, ""))
+      log.warning(
+        "PAPI request worker had {} failures making {} requests: {}",
+        errors.size,
+        someFailures.size,
+        errors.mkString(System.lineSeparator, "," + System.lineSeparator, "")
+      )
       scheduleCheckForWork()
     case Failure(t) =>
       // NB: Should be impossible since we only ever do completionPromise.trySuccess()
-      val msg = "Programmer Error: Completion promise unexpectedly set to Failure: {}. Don't do this, otherwise the Future.sequence is short-circuited on the first failure"
+      val msg =
+        "Programmer Error: Completion promise unexpectedly set to Failure: {}. Don't do this, otherwise the Future.sequence is short-circuited on the first failure"
       log.error(msg, t.getMessage)
       scheduleCheckForWork()
   }
@@ -85,16 +95,19 @@ class PipelinesApiRequestWorker(val pollingManager: ActorRef, val batchInterval:
     * Warning: Only use this from inside a receive method.
     */
   private def scheduleCheckForWork(): Unit = {
-    context.system.scheduler.scheduleOnce(batchInterval) { pollingManager ! PipelinesApiRequestManager.PipelinesWorkerRequestWork(MaxBatchSize) }
+    context.system.scheduler.scheduleOnce(batchInterval) {
+      pollingManager ! PipelinesApiRequestManager.PipelinesWorkerRequestWork(MaxBatchSize)
+    }
     ()
   }
 }
 
 object PipelinesApiRequestWorker {
-  def props(pollingManager: ActorRef, batchInterval: FiniteDuration, serviceRegistryActor: ActorRef)
-              (implicit batchHandler: PipelinesApiRequestHandler) = {
-    Props(new PipelinesApiRequestWorker(pollingManager, batchInterval, serviceRegistryActor)).withDispatcher(BackendDispatcher)
-  }
+  def props(pollingManager: ActorRef, batchInterval: FiniteDuration, serviceRegistryActor: ActorRef)(implicit
+    batchHandler: PipelinesApiRequestHandler
+  ) =
+    Props(new PipelinesApiRequestWorker(pollingManager, batchInterval, serviceRegistryActor))
+      .withDispatcher(BackendDispatcher)
 
   // The Batch API limits us to 100 at a time
   val MaxBatchSize = 100

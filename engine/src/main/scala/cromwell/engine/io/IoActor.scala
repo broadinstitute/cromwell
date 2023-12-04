@@ -27,7 +27,6 @@ import java.time.temporal.ChronoUnit
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-
 /**
   * Actor that performs IO operations asynchronously using akka streams
   * 
@@ -35,26 +34,28 @@ import scala.concurrent.duration._
   * @param materializer actor materializer to run the stream
   * @param serviceRegistryActor actorRef for the serviceRegistryActor
   */
-final class IoActor(ioConfig: IoConfig,
-                    override val serviceRegistryActor: ActorRef,
-                    applicationName: String)(implicit val materializer: ActorMaterializer)
-  extends Actor with ActorLogging with StreamActorHelper[IoCommandContext[_]] with IoInstrumentation with Timers {
+final class IoActor(ioConfig: IoConfig, override val serviceRegistryActor: ActorRef, applicationName: String)(implicit
+  val materializer: ActorMaterializer
+) extends Actor
+    with ActorLogging
+    with StreamActorHelper[IoCommandContext[_]]
+    with IoInstrumentation
+    with Timers {
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val system: ActorSystem = context.system
 
   // IntelliJ disapproves of mutable state in Actors, but this should be safe as long as access occurs only in
   // the `receive` method. Alternatively IntelliJ does suggest a `become` workaround we might try in the future.
 
-  //noinspection ActorMutableStateInspection
+  // noinspection ActorMutableStateInspection
   private var backpressureExpiration: Option[OffsetDateTime] = None
 
   /**
     * Method for instrumentation to be executed when a IoCommand failed and is being retried.
     * Can be passed to flows so they can invoke it when necessary.
     */
-  private def onRetry(commandContext: IoCommandContext[_])(throwable: Throwable): Unit = {
+  private def onRetry(commandContext: IoCommandContext[_])(throwable: Throwable): Unit =
     incrementIoRetry(commandContext.request, throwable)
-  }
 
   override def preStart(): Unit = {
     // On start up, let the controller know that the load is normal
@@ -62,25 +63,25 @@ final class IoActor(ioConfig: IoConfig,
     super.preStart()
   }
 
-  private [io] lazy val defaultFlow =
+  private[io] lazy val defaultFlow =
     new NioFlow(
       parallelism = ioConfig.nio.parallelism,
       onRetryCallback = onRetry,
       onBackpressure = onBackpressure,
       numberOfAttempts = ioConfig.numberOfAttempts,
-      commandBackpressureStaleness = ioConfig.commandBackpressureStaleness)
-      .flow
+      commandBackpressureStaleness = ioConfig.commandBackpressureStaleness
+    ).flow
       .withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
 
-  private [io] lazy val gcsBatchFlow =
+  private[io] lazy val gcsBatchFlow =
     new ParallelGcsBatchFlow(
       config = ioConfig.gcsBatch,
       scheduler = context.system.scheduler,
       onRetry = onRetry,
       onBackpressure = onBackpressure,
       applicationName = applicationName,
-      commandBackpressureStaleness = ioConfig.commandBackpressureStaleness)
-      .flow
+      commandBackpressureStaleness = ioConfig.commandBackpressureStaleness
+    ).flow
       .withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
 
   private val source = Source.queue[IoCommandContext[_]](ioConfig.queueSize, OverflowStrategy.dropNew)
@@ -91,10 +92,14 @@ final class IoActor(ioConfig: IoConfig,
     val input = builder.add(Flow[IoCommandContext[_]])
 
     // Partitions requests between gcs batch, and single nio requests
-    val batchPartitioner = builder.add(Partition[IoCommandContext[_]](2, {
-      case _: GcsBatchCommandContext[_, _] => 0
-      case _ => 1
-    }))
+    val batchPartitioner = builder.add(
+      Partition[IoCommandContext[_]](2,
+                                     {
+                                       case _: GcsBatchCommandContext[_, _] => 0
+                                       case _ => 1
+                                     }
+      )
+    )
 
     // Sub flow for batched gcs requests
     val batches = batchPartitioner.out(0) collect { case batch: GcsBatchCommandContext[_, _] => batch }
@@ -112,8 +117,8 @@ final class IoActor(ioConfig: IoConfig,
     val batchFlowPorts = builder.add(gcsBatchFlow)
 
     input ~> batchPartitioner
-             defaults.outlet ~> defaultFlowPorts ~> merger
-             batches.outlet ~> batchFlowPorts ~> merger
+    defaults.outlet ~> defaultFlowPorts ~> merger
+    batches.outlet ~> batchFlowPorts ~> merger
 
     FlowShape[IoCommandContext[_], IoResult](input.in, merger.out)
   }
@@ -149,11 +154,11 @@ final class IoActor(ioConfig: IoConfig,
     /* GCS Batch command with context */
     case (clientContext: Any, gcsBatchCommand: GcsBatchIoCommand[_, _]) =>
       val replyTo = sender()
-      val commandContext = GcsBatchCommandContext(
-        request = gcsBatchCommand,
-        maxAttemptsNumber = ioConfig.numberOfAttempts,
-        replyTo = replyTo,
-        clientContext = Option(clientContext))
+      val commandContext = GcsBatchCommandContext(request = gcsBatchCommand,
+                                                  maxAttemptsNumber = ioConfig.numberOfAttempts,
+                                                  replyTo = replyTo,
+                                                  clientContext = Option(clientContext)
+      )
       sendToStream(commandContext)
 
     /* GCS Batch command without context */
@@ -202,7 +207,10 @@ final class IoActor(ioConfig: IoConfig,
           }
 
           val newExpiration = OffsetDateTime.now().until(proposedExpiry, ChronoUnit.MILLIS)
-          timers.startSingleTimer(BackPressureTimerResetKey, BackPressureTimerResetAction, FiniteDuration(newExpiration, MILLISECONDS))
+          timers.startSingleTimer(BackPressureTimerResetKey,
+                                  BackPressureTimerResetAction,
+                                  FiniteDuration(newExpiration, MILLISECONDS)
+          )
           backpressureExpiration = Option(proposedExpiry)
 
         case _ => // Ignore proposed expiries that would be before the current expiry
@@ -220,7 +228,8 @@ trait IoCommandContext[T] extends StreamContext {
   def request: IoCommand[T]
   def replyTo: ActorRef
   def fail(failure: Throwable): IoResult = (request.fail(failure), this)
-  def failReadForbidden(failure: Throwable, forbiddenPath: String): IoResult = (request.failReadForbidden(failure, forbiddenPath), this)
+  def failReadForbidden(failure: Throwable, forbiddenPath: String): IoResult =
+    (request.failReadForbidden(failure, forbiddenPath), this)
   def success(value: T): IoResult = (request.success(value), this)
 }
 
@@ -234,7 +243,10 @@ object IoActor {
   /** Result type of an IoFlow, contains the original command context and the final IoAck response. */
   type IoResult = (IoAck[_], IoCommandContext[_])
 
-  case class DefaultCommandContext[T](request: IoCommand[T], replyTo: ActorRef, override val clientContext: Option[Any] = None) extends IoCommandContext[T]
+  case class DefaultCommandContext[T](request: IoCommand[T],
+                                      replyTo: ActorRef,
+                                      override val clientContext: Option[Any] = None
+  ) extends IoCommandContext[T]
 
   case object BackPressureTimerResetKey
 
@@ -242,13 +254,10 @@ object IoActor {
 
   case class BackPressure(duration: FiniteDuration) extends ControlMessage
 
-  def props(ioConfig: IoConfig,
-            serviceRegistryActor: ActorRef,
-            applicationName: String,
-           )
-           (implicit materializer: ActorMaterializer): Props = {
+  def props(ioConfig: IoConfig, serviceRegistryActor: ActorRef, applicationName: String)(implicit
+    materializer: ActorMaterializer
+  ): Props =
     Props(new IoActor(ioConfig, serviceRegistryActor, applicationName)).withDispatcher(IoDispatcher)
-  }
 
   case class IoConfig(queueSize: Int,
                       numberOfAttempts: Int,
@@ -258,7 +267,8 @@ object IoActor {
                       ioNormalWindowMaximum: FiniteDuration,
                       nio: NioFlowConfig,
                       gcsBatch: GcsBatchFlowConfig,
-                      throttle: Option[Throttle])
+                      throttle: Option[Throttle]
+  )
 
   implicit val ioConfigReader: ValueReader[IoConfig] = (config: Config, _: String) => {
 

@@ -11,7 +11,6 @@ import cromwell.languages.util.ImportResolver.{DirectoryResolver, HttpResolver}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-
 class ImportResolverSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "HttpResolver"
 
@@ -49,7 +48,8 @@ class ImportResolverSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
 
   it should "resolve a path and store the import in ResolvedImportRecord" in {
     val resolver = HttpResolver(None, Map.empty, None)
-    val importUri = "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/hello/hello.wdl"
+    val importUri =
+      "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/hello/hello.wdl"
     val resolvedBundle = resolver.innerResolver(importUri, List(resolver))
 
     resolvedBundle.map(_.resolvedImportRecord) match {
@@ -158,7 +158,8 @@ class ImportResolverSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
   behavior of "directory resolver from root"
 
   val workingDirectory = sys.props("user.dir")
-  val rootDirectoryResolver = DirectoryResolver(DefaultPath(Paths.get("/")), customName = None, deleteOnClose = false, directoryHash = None)
+  val rootDirectoryResolver =
+    DirectoryResolver(DefaultPath(Paths.get("/")), customName = None, deleteOnClose = false, directoryHash = None)
 
   it should "resolve a random path" in {
     val pathToLookup = rootDirectoryResolver.resolveAndMakeAbsolute("/path/to/file.wdl")
@@ -177,10 +178,18 @@ class ImportResolverSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
 
   behavior of "unprotected relative directory resolver"
 
-  val relativeDirectoryResolver = DirectoryResolver(DefaultPath(Paths.get("/path/to/imports/")), customName = None, deleteOnClose = false, directoryHash = None)
+  val relativeDirectoryResolver = DirectoryResolver(DefaultPath(Paths.get("/path/to/imports/")),
+                                                    customName = None,
+                                                    deleteOnClose = false,
+                                                    directoryHash = None
+  )
 
   val relativeDirForSampleWf = s"$workingDirectory/languageFactories/language-factory-core/src/test/"
-  val relativeDirResolverForSampleWf = DirectoryResolver(DefaultPath(Paths.get(relativeDirForSampleWf)), customName = None, deleteOnClose = false, directoryHash = None)
+  val relativeDirResolverForSampleWf = DirectoryResolver(DefaultPath(Paths.get(relativeDirForSampleWf)),
+                                                         customName = None,
+                                                         deleteOnClose = false,
+                                                         directoryHash = None
+  )
 
   it should "resolve an absolute path" in {
     val pathToLookup = relativeDirectoryResolver.resolveAndMakeAbsolute("/path/to/file.wdl")
@@ -208,14 +217,24 @@ class ImportResolverSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
 
     resolvedBundle.map(_.resolvedImportRecord) match {
       case Left(e) => fail(s"Expected ResolvedImportBundle but got $e")
-      case Right(resolvedImport) => resolvedImport.importPath shouldBe(relativeDirForSampleWf + path)
+      case Right(resolvedImport) => resolvedImport.importPath shouldBe (relativeDirForSampleWf + path)
     }
   }
 
   behavior of "protected relative directory resolver"
 
-  val protectedRelativeDirectoryResolver = DirectoryResolver(DefaultPath(Paths.get("/path/to/imports/")), Some("/path/to/imports/"), customName = None, deleteOnClose = false, directoryHash = None)
-  val protectedRelativeDirResolverForSampleWf = DirectoryResolver(DefaultPath(Paths.get(relativeDirForSampleWf)), Some(relativeDirForSampleWf), customName = None, deleteOnClose = false, directoryHash = None)
+  val protectedRelativeDirectoryResolver = DirectoryResolver(DefaultPath(Paths.get("/path/to/imports/")),
+                                                             Some("/path/to/imports/"),
+                                                             customName = None,
+                                                             deleteOnClose = false,
+                                                             directoryHash = None
+  )
+  val protectedRelativeDirResolverForSampleWf = DirectoryResolver(DefaultPath(Paths.get(relativeDirForSampleWf)),
+                                                                  Some(relativeDirForSampleWf),
+                                                                  customName = None,
+                                                                  deleteOnClose = false,
+                                                                  directoryHash = None
+  )
 
   it should "resolve a good relative path" in {
     val pathToLookup = protectedRelativeDirectoryResolver.resolveAndMakeAbsolute("path/to/file.wdl")
@@ -224,11 +243,12 @@ class ImportResolverSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
 
   it should "resolve a good relative path to sampleWorkflow" in {
     val path = "resources/sampleWorkflow.wdl"
-    val resolvedBundle = protectedRelativeDirResolverForSampleWf.innerResolver(path, List(protectedRelativeDirResolverForSampleWf))
+    val resolvedBundle =
+      protectedRelativeDirResolverForSampleWf.innerResolver(path, List(protectedRelativeDirResolverForSampleWf))
 
     resolvedBundle.map(_.resolvedImportRecord) match {
       case Left(e) => fail(s"Expected ResolvedImportBundle but got $e")
-      case Right(resolvedImport) => resolvedImport.importPath shouldBe(relativeDirForSampleWf + path)
+      case Right(resolvedImport) => resolvedImport.importPath shouldBe (relativeDirForSampleWf + path)
     }
   }
 
@@ -252,7 +272,7 @@ class ImportResolverSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     resolver.resolveAndMakeAbsolute("QC.wdl").map(Files.exists(_)).toOption shouldBe Some(true)
     resolver.resolveAndMakeAbsolute("tasks/cutadapt.wdl").map(Files.exists(_)).toOption shouldBe Some(true)
     resolver.resolveAndMakeAbsolute("tasks/fastqc.wdl").map(Files.exists(_)).toOption shouldBe Some(true)
-      // Make sure above testing is correct by testing for a non-existent wdl.
+    // Make sure above testing is correct by testing for a non-existent wdl.
     resolver.resolveAndMakeAbsolute("machine_learning_skynet.wdl").map(Files.exists(_)).toOption shouldBe Some(false)
   }
 

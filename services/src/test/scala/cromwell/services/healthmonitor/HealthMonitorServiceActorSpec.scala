@@ -14,9 +14,15 @@ import org.scalatest.time.{Millis, Seconds, Span}
 
 import scala.concurrent.duration._
 
-class HealthMonitorServiceActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually with AskSupport {
+class HealthMonitorServiceActorSpec
+    extends TestKitSuite
+    with AnyFlatSpecLike
+    with Matchers
+    with Eventually
+    with AskSupport {
 
-  override implicit def patienceConfig = PatienceConfig(timeout = scaled(Span(15, Seconds)), interval = Span(500, Millis))
+  implicit override def patienceConfig =
+    PatienceConfig(timeout = scaled(Span(15, Seconds)), interval = Span(500, Millis))
 
   behavior of "HealthMonitorServiceActor"
 
@@ -29,14 +35,20 @@ class HealthMonitorServiceActorSpec extends TestKitSuite with AnyFlatSpecLike wi
         |check-papi-backends: []
         |""".stripMargin
 
-
     val globalConfigString =
       s"""services.HealthMonitor.config: {
          |$serviceConfigString
          |}
          |""".stripMargin
 
-    val actor = system.actorOf(Props(new HealthMonitorServiceActor(ConfigFactory.parseString(serviceConfigString), ConfigFactory.parseString(globalConfigString), null)))
+    val actor = system.actorOf(
+      Props(
+        new HealthMonitorServiceActor(ConfigFactory.parseString(serviceConfigString),
+                                      ConfigFactory.parseString(globalConfigString),
+                                      null
+        )
+      )
+    )
 
     val testProbe = TestProbe()
 

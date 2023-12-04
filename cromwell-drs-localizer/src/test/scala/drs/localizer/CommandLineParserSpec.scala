@@ -63,7 +63,9 @@ class CommandLineParserSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
   }
 
   it should "successfully parse with three arguments and requester pays project" in {
-    val args = parser.parse(Array(drsObject, containerPath, requesterPaysProject, "-r", requesterPaysProject), CommandLineArguments()).get
+    val args = parser
+      .parse(Array(drsObject, containerPath, requesterPaysProject, "-r", requesterPaysProject), CommandLineArguments())
+      .get
 
     args.drsObject.get shouldBe drsObject
     args.containerPath.get shouldBe containerPath
@@ -74,7 +76,9 @@ class CommandLineParserSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
   }
 
   it should "fail if requester pays argument and flag specify different projects" in {
-    parser.parse(Array(drsObject, containerPath, requesterPaysProject, "-r", "boom!"), CommandLineArguments()) shouldBe None
+    parser.parse(Array(drsObject, containerPath, requesterPaysProject, "-r", "boom!"),
+                 CommandLineArguments()
+    ) shouldBe None
   }
 
   it should "successfully parse args with a manifest file" in {
@@ -99,12 +103,18 @@ class CommandLineParserSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
   }
 
   it should "successfully parse an explicit Google access token strategy invocation" in {
-    val args = parser.parse(Array(
-      "--access-token-strategy", "google",
-      drsObject,
-      containerPath,
-      "--requester-pays-project", requesterPaysProject
-    ), CommandLineArguments()).get
+    val args = parser
+      .parse(Array(
+               "--access-token-strategy",
+               "google",
+               drsObject,
+               containerPath,
+               "--requester-pays-project",
+               requesterPaysProject
+             ),
+             CommandLineArguments()
+      )
+      .get
 
     args.drsObject.get shouldBe drsObject
     args.containerPath.get shouldBe containerPath
@@ -115,19 +125,26 @@ class CommandLineParserSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
   }
 
   it should "fail to parse an Azure invocation that specifies requester pays" in {
-    val args = parser.parse(Array(
-      "--access-token-strategy", AccessTokenStrategy.Azure,
-      drsObject,
-      containerPath,
-      "--requester-pays-project", requesterPaysProject), CommandLineArguments())
+    val args = parser.parse(
+      Array("--access-token-strategy",
+            AccessTokenStrategy.Azure,
+            drsObject,
+            containerPath,
+            "--requester-pays-project",
+            requesterPaysProject
+      ),
+      CommandLineArguments()
+    )
 
     args shouldBe None
   }
 
   it should "successfully parse an Azure invocation" in {
-    val args = parser.parse(Array(
-      "--access-token-strategy", AccessTokenStrategy.Azure,
-      drsObject, containerPath), CommandLineArguments()).get
+    val args = parser
+      .parse(Array("--access-token-strategy", AccessTokenStrategy.Azure, drsObject, containerPath),
+             CommandLineArguments()
+      )
+      .get
 
     args.drsObject.get shouldBe drsObject
     args.containerPath.get shouldBe containerPath
@@ -138,10 +155,18 @@ class CommandLineParserSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
   }
 
   it should "successfully parse an Azure invocation with identity" in {
-    val args = parser.parse(Array(
-      "--access-token-strategy", AccessTokenStrategy.Azure,
-      "--identity-client-id", azureIdentityClientId,
-      drsObject, containerPath), CommandLineArguments()).get
+    val args = parser
+      .parse(
+        Array("--access-token-strategy",
+              AccessTokenStrategy.Azure,
+              "--identity-client-id",
+              azureIdentityClientId,
+              drsObject,
+              containerPath
+        ),
+        CommandLineArguments()
+      )
+      .get
 
     args.drsObject.get shouldBe drsObject
     args.containerPath.get shouldBe containerPath
@@ -152,7 +177,8 @@ class CommandLineParserSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
   }
 
   it should "fail to parse with an unrecognized access token strategy" in {
-    val args = parser.parse(Array("--access-token-strategy", "nebulous", drsObject, containerPath), CommandLineArguments())
+    val args =
+      parser.parse(Array("--access-token-strategy", "nebulous", drsObject, containerPath), CommandLineArguments())
     args shouldBe None
   }
 }

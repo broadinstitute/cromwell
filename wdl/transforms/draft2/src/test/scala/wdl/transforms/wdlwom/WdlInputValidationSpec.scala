@@ -22,7 +22,12 @@ import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.types._
 import wom.values._
 
-class WdlInputValidationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with BeforeAndAfterAll with TableDrivenPropertyChecks {
+class WdlInputValidationSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with BeforeAndAfterAll
+    with TableDrivenPropertyChecks {
 
   behavior of "WDL Wom executable"
 
@@ -47,23 +52,41 @@ class WdlInputValidationSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
     """.stripMargin
 
   val namespace = WdlNamespace.loadUsingSource(wdlWorkflow, None, None).get.asInstanceOf[WdlNamespaceWithWorkflow]
-  val graph = namespace.workflow.toWomWorkflowDefinition(isASubworkflow = false)
+  val graph = namespace.workflow
+    .toWomWorkflowDefinition(isASubworkflow = false)
     .valueOr(errors => fail(s"Failed to build a wom definition: ${errors.toList.mkString(", ")}"))
     .graph
 
-  val w1OutputPort = graph.externalInputNodes.find(_.fullyQualifiedName == "w.w1").getOrElse(fail("Failed to find an input node for w1")).singleOutputPort
-  val w2OutputPort = graph.externalInputNodes.find(_.fullyQualifiedName == "w.w2").getOrElse(fail("Failed to find an input node for w2")).singleOutputPort
-  val t1OutputPort = graph.externalInputNodes.find(_.fullyQualifiedName == "w.t.t1").getOrElse(fail("Failed to find an input node for t1")).singleOutputPort
-  val t2OutputPort = graph.externalInputNodes.find(_.fullyQualifiedName == "w.t.t2").getOrElse(fail("Failed to find an input node for t2")).singleOutputPort
-  val u1OutputPort = graph.externalInputNodes.find(_.fullyQualifiedName == "w.u.t1").getOrElse(fail("Failed to find an input node for u1")).singleOutputPort
-  val u2OutputPort = graph.externalInputNodes.find(_.fullyQualifiedName == "w.u.t2").getOrElse(fail("Failed to find an input node for u2")).singleOutputPort
+  val w1OutputPort = graph.externalInputNodes
+    .find(_.fullyQualifiedName == "w.w1")
+    .getOrElse(fail("Failed to find an input node for w1"))
+    .singleOutputPort
+  val w2OutputPort = graph.externalInputNodes
+    .find(_.fullyQualifiedName == "w.w2")
+    .getOrElse(fail("Failed to find an input node for w2"))
+    .singleOutputPort
+  val t1OutputPort = graph.externalInputNodes
+    .find(_.fullyQualifiedName == "w.t.t1")
+    .getOrElse(fail("Failed to find an input node for t1"))
+    .singleOutputPort
+  val t2OutputPort = graph.externalInputNodes
+    .find(_.fullyQualifiedName == "w.t.t2")
+    .getOrElse(fail("Failed to find an input node for t2"))
+    .singleOutputPort
+  val u1OutputPort = graph.externalInputNodes
+    .find(_.fullyQualifiedName == "w.u.t1")
+    .getOrElse(fail("Failed to find an input node for u1"))
+    .singleOutputPort
+  val u2OutputPort = graph.externalInputNodes
+    .find(_.fullyQualifiedName == "w.u.t2")
+    .getOrElse(fail("Failed to find an input node for u2"))
+    .singleOutputPort
 
-  def validate(inputFile: String): Checked[ResolvedExecutableInputs] = {
+  def validate(inputFile: String): Checked[ResolvedExecutableInputs] =
     namespace.toWomExecutable(Option(inputFile), NoIoFunctionSet, strictValidation = true) match {
       case Left(errors) => Left(errors)
       case Right(e) => e.resolvedExecutableInputs.validNelCheck
     }
-  }
 
   val validations: TableFor3[String, String, Checked[ResolvedExecutableInputs]] = Table(
     ("test name", "inputs JSON", "input set"),
@@ -112,18 +135,22 @@ class WdlInputValidationSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
         |{
         |}
       """.stripMargin,
-      NonEmptyList.fromListUnsafe(List(
-        "Required workflow input 'w.t.t1' not specified",
-        "Required workflow input 'w.u.t1' not specified",
-        "Required workflow input 'w.w1' not specified"
-      )).asLeft[ResolvedExecutableInputs]
+      NonEmptyList
+        .fromListUnsafe(
+          List(
+            "Required workflow input 'w.t.t1' not specified",
+            "Required workflow input 'w.u.t1' not specified",
+            "Required workflow input 'w.w1' not specified"
+          )
+        )
+        .asLeft[ResolvedExecutableInputs]
     )
   )
 
   /*
    * Note that we create the graph twice:
-    * once in namespace.workflow.toWomWorkflowDefinition for the expectations
-    * once in namespace.toWomExecutable to validate the actual inputs
+   * once in namespace.workflow.toWomWorkflowDefinition for the expectations
+   * once in namespace.toWomExecutable to validate the actual inputs
    * So the output ports in the map won't be object matches. We just check the name equality.
    */
   private def validateInexactPortEquality(actual: ResolvedExecutableInputs, expected: ResolvedExecutableInputs) = {
@@ -135,13 +162,14 @@ class WdlInputValidationSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
   }
 
   forAll(validations) { (name, inputSource, expectation) =>
-
     it should s"validate $name" in {
       (validate(inputSource), expectation) match {
-        case (Left(actualError), Left(expectedError)) => actualError.toList.toSet -- expectedError.toList.toSet should be(Set.empty)
+        case (Left(actualError), Left(expectedError)) =>
+          actualError.toList.toSet -- expectedError.toList.toSet should be(Set.empty)
         case (Left(actualError), _) => fail(s"Expected success but got errors: ${actualError.toList.mkString(", ")}")
         case (Right(actualInputs), Right(expectedInputs)) => validateInexactPortEquality(actualInputs, expectedInputs)
-        case (_, Left(expectedError)) => fail(s"Expected errors: '${expectedError.toList.mkString(", ")}' but got success ")
+        case (_, Left(expectedError)) =>
+          fail(s"Expected errors: '${expectedError.toList.mkString(", ")}' but got success ")
       }
     }
   }

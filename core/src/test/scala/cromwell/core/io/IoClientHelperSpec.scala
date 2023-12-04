@@ -21,10 +21,11 @@ class IoClientHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
   it should "intercept IoAcks and cancel timers" in {
     val ioActorProbe = TestProbe()
     val delegateProbe = TestProbe()
-    val backoff = SimpleExponentialBackoff(100 seconds, 10.hours, 2D, 0D)
+    val backoff = SimpleExponentialBackoff(100 seconds, 10.hours, 2d, 0d)
     val noResponseTimeout = 3 seconds
 
-    val testActor = TestActorRef(new IoClientHelperTestActor(ioActorProbe.ref, delegateProbe.ref, backoff, noResponseTimeout))
+    val testActor =
+      TestActorRef(new IoClientHelperTestActor(ioActorProbe.ref, delegateProbe.ref, backoff, noResponseTimeout))
 
     val command = DefaultIoSizeCommand(mock[Path])
     val response = IoSuccess(command, 5L)
@@ -51,10 +52,11 @@ class IoClientHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
   it should "intercept IoAcks and cancel timers for a command with context" in {
     val ioActorProbe = TestProbe()
     val delegateProbe = TestProbe()
-    val backoff = SimpleExponentialBackoff(100 seconds, 10.hours, 2D, 0D)
+    val backoff = SimpleExponentialBackoff(100 seconds, 10.hours, 2d, 0d)
     val noResponseTimeout = 3 seconds
 
-    val testActor = TestActorRef(new IoClientHelperTestActor(ioActorProbe.ref, delegateProbe.ref, backoff, noResponseTimeout))
+    val testActor =
+      TestActorRef(new IoClientHelperTestActor(ioActorProbe.ref, delegateProbe.ref, backoff, noResponseTimeout))
 
     val commandContext = "context"
     val command = DefaultIoSizeCommand(mock[Path])
@@ -71,7 +73,7 @@ class IoClientHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
 
     // delegate should receive the response
     delegateProbe.expectMsgPF(1 second) {
-      case (contextReceived,  responseReceived) if contextReceived == "context" && responseReceived == response =>
+      case (contextReceived, responseReceived) if contextReceived == "context" && responseReceived == response =>
     }
 
     // And nothing else, meaning the timeout timer has been cancelled
@@ -84,9 +86,12 @@ class IoClientHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
   private case object ServiceUnreachable
 
   private class IoClientHelperTestActor(override val ioActor: ActorRef,
-                                delegateTo: ActorRef,
-                                backoff: Backoff,
-                                noResponseTimeout: FiniteDuration) extends Actor with ActorLogging with IoClientHelper {
+                                        delegateTo: ActorRef,
+                                        backoff: Backoff,
+                                        noResponseTimeout: FiniteDuration
+  ) extends Actor
+      with ActorLogging
+      with IoClientHelper {
 
     implicit val ioCommandBuilder: DefaultIoCommandBuilder.type = DefaultIoCommandBuilder
 
@@ -94,21 +99,18 @@ class IoClientHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
 
     context.become(ioReceive orElse receive)
 
-    override def receive: Receive = {
-      case message => delegateTo ! message
+    override def receive: Receive = { case message =>
+      delegateTo ! message
     }
 
-    def sendMessage(command: IoCommand[_]): Unit = {
+    def sendMessage(command: IoCommand[_]): Unit =
       sendIoCommandWithCustomTimeout(command, noResponseTimeout)
-    }
 
-    def sendMessageWithContext(context: Any, command: IoCommand[_]): Unit = {
+    def sendMessageWithContext(context: Any, command: IoCommand[_]): Unit =
       sendIoCommandWithContext(command, context, noResponseTimeout)
-    }
 
-    override protected def onTimeout(message: Any, to: ActorRef): Unit = {
+    override protected def onTimeout(message: Any, to: ActorRef): Unit =
       delegateTo ! ServiceUnreachable
-    }
   }
 
 }

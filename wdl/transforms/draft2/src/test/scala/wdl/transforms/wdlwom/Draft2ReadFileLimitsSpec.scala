@@ -11,7 +11,7 @@ import scala.concurrent.Future
 
 class Draft2ReadFileLimitsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "ReadLikeFunctions Size Limit Draft 2"
-  
+
   it should "pass correct size limits to the ioFunctions for read_lines" in {
     new WdlWomExpression(WdlExpression.fromString("""read_lines("blah")"""), null)
       .evaluateValue(Map.empty, ioFunctionTester(1, ""))
@@ -75,9 +75,13 @@ class Draft2ReadFileLimitsSpec extends AnyFlatSpec with CromwellTimeoutSpec with
 
 object Draft2ReadFileLimitsSpec {
   def ioFunctionTester(expectedMaxBytes: Int, result: String) = new EmptyIoFunctionSet {
-    override def readFile(path: String, maxBytes: Option[Int] = None, failOnOverflow: Boolean = false) = {
+    override def readFile(path: String, maxBytes: Option[Int] = None, failOnOverflow: Boolean = false) =
       if (maxBytes.contains(expectedMaxBytes)) Future.successful(result)
-      else Future.failed(new Exception(s"readFile was called with a max bytes value of ${maxBytes.getOrElse("No value")} but was expecting $expectedMaxBytes"))
-    }
+      else
+        Future.failed(
+          new Exception(
+            s"readFile was called with a max bytes value of ${maxBytes.getOrElse("No value")} but was expecting $expectedMaxBytes"
+          )
+        )
   }
 }

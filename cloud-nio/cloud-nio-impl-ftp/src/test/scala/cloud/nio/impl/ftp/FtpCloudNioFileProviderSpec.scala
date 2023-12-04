@@ -46,7 +46,8 @@ class FtpCloudNioFileProviderSpec extends AnyFlatSpec with CromwellTimeoutSpec w
     fakeUnixFileSystem.add(new DirectoryEntry(directory))
 
     fileProvider.listObjects("localhost", root, None).paths should contain theSameElementsAs List(
-      file.stripPrefix("/"), directory.stripPrefix("/")
+      file.stripPrefix("/"),
+      directory.stripPrefix("/")
     )
   }
 

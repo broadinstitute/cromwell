@@ -13,7 +13,9 @@ import scala.concurrent.duration._
   * Because of the vagaries of timing, etc this is intended to give a rough idea of what's going on instead of
   * being a ground truth.
   */
-final case class EngineStatsActor(workflowActors: List[ActorRef], replyTo: ActorRef, timeout: FiniteDuration) extends Actor with ActorLogging {
+final case class EngineStatsActor(workflowActors: List[ActorRef], replyTo: ActorRef, timeout: FiniteDuration)
+    extends Actor
+    with ActorLogging {
   implicit val ec = context.dispatcher
 
   private var jobCounts = Map.empty[ActorRef, Int]
@@ -23,7 +25,7 @@ final case class EngineStatsActor(workflowActors: List[ActorRef], replyTo: Actor
    * Because of sub workflows there is currently no reliable way to know if we received responses from all running WEAs.
    * For now, we always wait for the timeout duration before responding to give a chance to all WEAs to respond (even nested ones).
    * This could be improved by having WEAs wait for their sub WEAs before sending back the response.
-  */
+   */
   val scheduledMsg = context.system.scheduler.scheduleOnce(timeout, self, ShutItDown)
 
   if (workflowActors.isEmpty) reportStats()
@@ -47,9 +49,8 @@ final case class EngineStatsActor(workflowActors: List[ActorRef], replyTo: Actor
 object EngineStatsActor {
   import scala.language.postfixOps
 
-  def props(workflowActors: List[ActorRef], replyTo: ActorRef, timeout: FiniteDuration = MaxTimeToWait) = {
+  def props(workflowActors: List[ActorRef], replyTo: ActorRef, timeout: FiniteDuration = MaxTimeToWait) =
     Props(EngineStatsActor(workflowActors, replyTo, timeout)).withDispatcher(Dispatcher.ApiDispatcher)
-  }
 
   sealed abstract class EngineStatsActorMessage
   private case object ShutItDown extends EngineStatsActorMessage

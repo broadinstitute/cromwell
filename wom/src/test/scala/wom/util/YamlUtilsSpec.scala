@@ -13,8 +13,12 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-
-class YamlUtilsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks with EitherValues {
+class YamlUtilsSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with TableDrivenPropertyChecks
+    with EitherValues {
 
   behavior of "YamlUtils"
 
@@ -25,14 +29,14 @@ class YamlUtilsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers w
       "a stackoverflow yaml bomb",
       "{a: &b [*b]}",
       refineMV[NonNegative](10),
-      "Loop detected",
+      "Loop detected"
     ),
     (
       // https://bitbucket.org/asomov/snakeyaml/wiki/Documentation#markdown-header-aliases
       "a recursive yaml example from the snakeyaml wiki",
       "&A [ *A ]",
       refineMV[NonNegative](10),
-      "Loop detected",
+      "Loop detected"
     ),
     (
       "a recursive yaml based on mappings back to the root",
@@ -40,7 +44,7 @@ class YamlUtilsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers w
          |  c: *b
          |""".stripMargin,
       refineMV[NonNegative](10),
-      "Loop detected",
+      "Loop detected"
     ),
     (
       // https://bitbucket.org/asomov/snakeyaml-engine/src/41b3845/src/test/resources/recursive/recursive-set-1.yaml
@@ -54,7 +58,7 @@ class YamlUtilsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers w
          |? *key
          |""".stripMargin,
       refineMV[NonNegative](10),
-      "Loop detected",
+      "Loop detected"
     ),
     (
       // https://en.wikipedia.org/w/index.php?title=Billion_laughs_attack&oldid=871224525#Variations
@@ -70,25 +74,25 @@ class YamlUtilsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers w
          |i: &i [*h,*h,*h,*h,*h,*h,*h,*h,*h]
          |""".stripMargin,
       refineMV[NonNegative](10000),
-      "Loop detection halted at 10000 nodes",
+      "Loop detection halted at 10000 nodes"
     ),
     (
       "a null yaml",
       null,
       refineMV[NonNegative](0),
-      null,
+      null
     ),
     (
       "an empty yaml mapping when limited to zero nodes",
       "{}",
       refineMV[NonNegative](0),
-      "Loop detection halted at 0 nodes",
+      "Loop detection halted at 0 nodes"
     ),
     (
       "an empty yaml sequence when limited to zero nodes",
       "[]",
       refineMV[NonNegative](0),
-      "Loop detection halted at 0 nodes",
+      "Loop detection halted at 0 nodes"
     ),
     (
       "a yaml without a closing brace",
@@ -102,8 +106,8 @@ class YamlUtilsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers w
          | in 'reader', line 1, column 2:
          |    {
          |     ^
-         |""".stripMargin,
-    ),
+         |""".stripMargin
+    )
   )
 
   private val legalYamlTests = Table(
@@ -112,19 +116,19 @@ class YamlUtilsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers w
       "an empty yaml mapping when limited to one node",
       "{}",
       refineMV[NonNegative](1),
-      Json.obj(),
+      Json.obj()
     ),
     (
       "an empty yaml",
       "",
       refineMV[NonNegative](1),
-      Json.False,
+      Json.False
     ),
     (
       "an empty yaml sequence when limited to one node",
       "[]",
       refineMV[NonNegative](1),
-      Json.arr(),
+      Json.arr()
     ),
     (
       "a yaml with the same node for a key and value",
@@ -132,14 +136,14 @@ class YamlUtilsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers w
          |: *a
          |""".stripMargin,
       refineMV[NonNegative](3),
-      Json.obj("b" -> Json.fromString("b")),
+      Json.obj("b" -> Json.fromString("b"))
     ),
     (
       "a yaml with the same nodes in a sequence",
       "[ &a b, *a ]",
       refineMV[NonNegative](3),
-      Json.arr(Json.fromString("b"), Json.fromString("b")),
-    ),
+      Json.arr(Json.fromString("b"), Json.fromString("b"))
+    )
   )
 
   forAll(illegalYamlTests) { (description, yaml, maxNodes, exceptionMessage) =>

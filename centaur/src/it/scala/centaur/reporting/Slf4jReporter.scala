@@ -13,15 +13,13 @@ import scala.concurrent.ExecutionContext
   * Useful as a backup in cases where another reporter is not available, for example in external PRs where secure
   * environment variables are not available.
   */
-class Slf4jReporter(override val params: ErrorReporterParams)
-  extends ErrorReporter with StrictLogging {
+class Slf4jReporter(override val params: ErrorReporterParams) extends ErrorReporter with StrictLogging {
 
   override lazy val destination: String = "error"
 
-  override def logFailure(testEnvironment: TestEnvironment,
-                          ciEnvironment: CiEnvironment,
-                          throwable: Throwable)
-                         (implicit executionContext: ExecutionContext): IO[Unit] = {
+  override def logFailure(testEnvironment: TestEnvironment, ciEnvironment: CiEnvironment, throwable: Throwable)(implicit
+    executionContext: ExecutionContext
+  ): IO[Unit] =
     IO {
 
       val errorMessage = throwable match {
@@ -41,9 +39,9 @@ class Slf4jReporter(override val params: ErrorReporterParams)
       if (testEnvironment.attempt >= testEnvironment.retries) {
         logger.error(message, throwable)
       } else {
-        val messageWithShortExceptionContext = message + " (" + ExceptionUtils.getMessage(throwable).replace("\n", " ").take(150) + "[...])"
+        val messageWithShortExceptionContext =
+          message + " (" + ExceptionUtils.getMessage(throwable).replace("\n", " ").take(150) + "[...])"
         logger.warn(messageWithShortExceptionContext)
       }
     }
-  }
 }

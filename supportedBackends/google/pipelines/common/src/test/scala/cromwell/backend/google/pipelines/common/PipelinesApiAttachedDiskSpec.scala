@@ -1,7 +1,12 @@
 package cromwell.backend.google.pipelines.common
 
 import common.assertion.CromwellTimeoutSpec
-import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiAttachedDisk, PipelinesApiEmptyMountedDisk, PipelinesApiWorkingDisk}
+import cromwell.backend.google.pipelines.common.io.{
+  DiskType,
+  PipelinesApiAttachedDisk,
+  PipelinesApiEmptyMountedDisk,
+  PipelinesApiWorkingDisk
+}
 import cromwell.core.path.DefaultPathBuilder
 import org.scalatest.TryValues
 import org.scalatest.flatspec.AnyFlatSpec
@@ -41,7 +46,7 @@ class PipelinesApiAttachedDiskSpec extends AnyFlatSpec with CromwellTimeoutSpec 
   )
 
   it should "reject malformed disk mounts" in {
-    forAll(invalidTable) { (unparsed) =>
+    forAll(invalidTable) { unparsed =>
       PipelinesApiAttachedDisk.parse(unparsed) should be(a[Failure[_]])
     }
   }

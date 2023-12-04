@@ -18,8 +18,8 @@ class CascadesFileEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val str = "3 + 3"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-    expr.shouldBeValidPF {
-      case e => e.predictFilesNeededToEvaluate(Map.empty, NoIoFunctionSet, WomIntegerType) shouldBeValid Set.empty
+    expr.shouldBeValidPF { case e =>
+      e.predictFilesNeededToEvaluate(Map.empty, NoIoFunctionSet, WomIntegerType) shouldBeValid Set.empty
     }
   }
 
@@ -27,8 +27,11 @@ class CascadesFileEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val str = """as_pairs(read_map("my_map.txt"))"""
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-    expr.shouldBeValidPF {
-      case e => e.predictFilesNeededToEvaluate(Map.empty, NoIoFunctionSet, WomArrayType(WomPairType(WomStringType, WomStringType))) shouldBeValid Set(WomSingleFile("my_map.txt"))
+    expr.shouldBeValidPF { case e =>
+      e.predictFilesNeededToEvaluate(Map.empty,
+                                     NoIoFunctionSet,
+                                     WomArrayType(WomPairType(WomStringType, WomStringType))
+      ) shouldBeValid Set(WomSingleFile("my_map.txt"))
     }
   }
 
@@ -36,8 +39,10 @@ class CascadesFileEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val str = """ sep(' ', read_lines("foo.txt")) """
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-    expr.shouldBeValidPF {
-      case e => e.predictFilesNeededToEvaluate(Map.empty, NoIoFunctionSet, WomStringType) shouldBeValid Set(WomSingleFile("foo.txt"))
+    expr.shouldBeValidPF { case e =>
+      e.predictFilesNeededToEvaluate(Map.empty, NoIoFunctionSet, WomStringType) shouldBeValid Set(
+        WomSingleFile("foo.txt")
+      )
     }
   }
 }

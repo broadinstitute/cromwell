@@ -5,7 +5,11 @@ import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.services.genomics.v2alpha1.Genomics
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.BatchRequestTimeoutConfiguration
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{PAPIAbortRequest, PAPIRunCreationRequest, PAPIStatusPollRequest}
+import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{
+  PAPIAbortRequest,
+  PAPIRunCreationRequest,
+  PAPIStatusPollRequest
+}
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiRequestHandler, PipelinesApiRequestManager}
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import org.slf4j.{Logger, LoggerFactory}
@@ -21,18 +25,18 @@ object RequestHandler {
 
 class RequestHandler(applicationName: String,
                      endpointUrl: URL,
-                     batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration)
-  extends PipelinesApiRequestHandler
-  with RunRequestHandler
-  with GetRequestHandler
-  with AbortRequestHandler {
+                     batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration
+) extends PipelinesApiRequestHandler
+    with RunRequestHandler
+    with GetRequestHandler
+    with AbortRequestHandler {
 
   override def makeBatchRequest: BatchRequest = {
     val builder =
       new Genomics.Builder(
         GoogleAuthMode.httpTransport,
         GoogleAuthMode.jsonFactory,
-        initializeHttpRequest(batchRequestTimeoutConfiguration) _,
+        initializeHttpRequest(batchRequestTimeoutConfiguration) _
       )
         .setApplicationName(applicationName)
         .setRootUrl(endpointUrl.toString)
@@ -42,9 +46,8 @@ class RequestHandler(applicationName: String,
 
   override def enqueue[T <: PipelinesApiRequestManager.PAPIApiRequest](papiApiRequest: T,
                                                                        batchRequest: BatchRequest,
-                                                                       pollingManager: ActorRef)
-                                                                      (implicit ec: ExecutionContext)
-  : Future[Try[Unit]] = papiApiRequest match {
+                                                                       pollingManager: ActorRef
+  )(implicit ec: ExecutionContext): Future[Try[Unit]] = papiApiRequest match {
     case create: PAPIRunCreationRequest => handleRequest(create, batchRequest, pollingManager)
     case status: PAPIStatusPollRequest => handleRequest(status, batchRequest, pollingManager)
     case abort: PAPIAbortRequest => handleRequest(abort, batchRequest, pollingManager)

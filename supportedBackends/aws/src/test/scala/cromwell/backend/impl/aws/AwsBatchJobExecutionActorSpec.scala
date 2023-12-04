@@ -35,7 +35,11 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.testkit._
 import cromwell.backend.BackendJobExecutionActor.{ExecuteJobCommand, JobFailedNonRetryableResponse}
 import cromwell.backend.impl.aws.ControllableFailingJabjea.JabjeaExplode
-import cromwell.backend.standard.{DefaultStandardSyncExecutionActorParams, StandardSyncExecutionActor, StandardSyncExecutionActorParams}
+import cromwell.backend.standard.{
+  DefaultStandardSyncExecutionActorParams,
+  StandardSyncExecutionActor,
+  StandardSyncExecutionActorParams
+}
 import cromwell.backend.{BackendJobDescriptor, MinimumRuntimeSettings}
 import cromwell.core.TestKitSuite
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -67,12 +71,21 @@ class AwsBatchJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
 
     val parent = TestProbe("parent")
     val deathwatch = TestProbe("deathwatch")
-    val params = DefaultStandardSyncExecutionActorParams(AwsBatchAsyncBackendJobExecutionActor.AwsBatchOperationIdKey, serviceRegistryActor, ioActor,
-      jobDescriptor, null, Option(initializationData), backendSingletonActor,
-      classOf[AwsBatchAsyncBackendJobExecutionActor], MinimumRuntimeSettings())
+    val params = DefaultStandardSyncExecutionActorParams(
+      AwsBatchAsyncBackendJobExecutionActor.AwsBatchOperationIdKey,
+      serviceRegistryActor,
+      ioActor,
+      jobDescriptor,
+      null,
+      Option(initializationData),
+      backendSingletonActor,
+      classOf[AwsBatchAsyncBackendJobExecutionActor],
+      MinimumRuntimeSettings()
+    )
     val testJJEA = TestActorRef[TestAwsBatchJobExecutionActor](
       props = Props(new TestAwsBatchJobExecutionActor(params, Props(new ConstructorFailingJABJEA))),
-      supervisor = parent.ref)
+      supervisor = parent.ref
+    )
     deathwatch watch testJJEA
 
     // Nothing happens:
@@ -81,9 +94,10 @@ class AwsBatchJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
 
     testJJEA.tell(msg = ExecuteJobCommand, sender = parent.ref)
 
-    parent.expectMsgPF(max = TimeoutDuration) {
-      case JobFailedNonRetryableResponse(_, throwable, _) =>
-        throwable.getMessage should be("AwsBatchAsyncBackendJobExecutionActor failed and didn't catch its exception. This condition has been handled and the job will be marked as failed.")
+    parent.expectMsgPF(max = TimeoutDuration) { case JobFailedNonRetryableResponse(_, throwable, _) =>
+      throwable.getMessage should be(
+        "AwsBatchAsyncBackendJobExecutionActor failed and didn't catch its exception. This condition has been handled and the job will be marked as failed."
+      )
     }
   }
 
@@ -100,13 +114,22 @@ class AwsBatchJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
     val parent = TestProbe("parent")
     val deathwatch = TestProbe("deathwatch")
     val constructionPromise = Promise[ActorRef]()
-    val params = DefaultStandardSyncExecutionActorParams(AwsBatchAsyncBackendJobExecutionActor.AwsBatchOperationIdKey, serviceRegistryActor, ioActor,
-      jobDescriptor, null, Option(initializationData), backendSingletonActor,
+    val params = DefaultStandardSyncExecutionActorParams(
+      AwsBatchAsyncBackendJobExecutionActor.AwsBatchOperationIdKey,
+      serviceRegistryActor,
+      ioActor,
+      jobDescriptor,
+      null,
+      Option(initializationData),
+      backendSingletonActor,
       classOf[AwsBatchAsyncBackendJobExecutionActor],
-      MinimumRuntimeSettings())
+      MinimumRuntimeSettings()
+    )
     val testJJEA = TestActorRef[TestAwsBatchJobExecutionActor](
-      props = Props(new TestAwsBatchJobExecutionActor(params, Props(new ControllableFailingJabjea(constructionPromise)))),
-      supervisor = parent.ref)
+      props =
+        Props(new TestAwsBatchJobExecutionActor(params, Props(new ControllableFailingJabjea(constructionPromise)))),
+      supervisor = parent.ref
+    )
     deathwatch watch testJJEA
 
     // Nothing happens:
@@ -127,15 +150,16 @@ class AwsBatchJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
         throw exception
     }
 
-    parent.expectMsgPF(max = TimeoutDuration) {
-      case JobFailedNonRetryableResponse(_, throwable, _) =>
-        throwable.getMessage should be("AwsBatchAsyncBackendJobExecutionActor failed and didn't catch its exception. This condition has been handled and the job will be marked as failed.")
+    parent.expectMsgPF(max = TimeoutDuration) { case JobFailedNonRetryableResponse(_, throwable, _) =>
+      throwable.getMessage should be(
+        "AwsBatchAsyncBackendJobExecutionActor failed and didn't catch its exception. This condition has been handled and the job will be marked as failed."
+      )
     }
   }
 }
 
-class TestAwsBatchJobExecutionActor(params: StandardSyncExecutionActorParams,
-                               fakeJabjeaProps: Props) extends StandardSyncExecutionActor(params) {
+class TestAwsBatchJobExecutionActor(params: StandardSyncExecutionActorParams, fakeJabjeaProps: Props)
+    extends StandardSyncExecutionActor(params) {
   override def createAsyncProps(): Props = fakeJabjeaProps
 }
 
@@ -147,12 +171,12 @@ class ConstructorFailingJABJEA extends ControllableFailingJabjea(Promise[ActorRe
 class ControllableFailingJabjea(constructionPromise: Promise[ActorRef]) extends Actor {
   def explode(): Unit = {
     val boom = 1 == 1
-    if (boom) throw new RuntimeException("Test Exception! Don't panic if this appears during a test run!")
-      with NoStackTrace
+    if (boom)
+      throw new RuntimeException("Test Exception! Don't panic if this appears during a test run!") with NoStackTrace
   }
   constructionPromise.trySuccess(self)
-  override def receive: Receive = {
-    case JabjeaExplode => explode()
+  override def receive: Receive = { case JabjeaExplode =>
+    explode()
   }
 }
 

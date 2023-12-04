@@ -24,8 +24,8 @@ trait SummaryStatusEntryComponent {
 
   val summaryStatusEntryIdsAutoInc = summaryStatusEntries returning summaryStatusEntries.map(_.summaryStatusEntryId)
 
-  val summaryPositionForSummaryName = Compiled(
-    (summaryName: Rep[String]) => for {
+  val summaryPositionForSummaryName = Compiled((summaryName: Rep[String]) =>
+    for {
       summaryStatusEntry <- summaryStatusEntries
       if summaryStatusEntry.summaryName === summaryName
     } yield summaryStatusEntry.summaryPosition

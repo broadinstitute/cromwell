@@ -23,7 +23,16 @@ class JobResultSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   }
 
   it should "write more complicated WdlValues" in {
-    val success = JobResultSuccess(Some(0), WomMocks.mockOutputExpectations(Map("abc" -> WomMap(WomMapType(WomStringType, WomIntegerType), Map(WomString("hello") -> WomInteger(4), WomString("goodbye") -> WomInteger(6))))))
+    val success = JobResultSuccess(
+      Some(0),
+      WomMocks.mockOutputExpectations(
+        Map(
+          "abc" -> WomMap(WomMapType(WomStringType, WomIntegerType),
+                          Map(WomString("hello") -> WomInteger(4), WomString("goodbye") -> WomInteger(6))
+          )
+        )
+      )
+    )
     val asJson = success.toJson
 
     val jsonString = asJson.toString()

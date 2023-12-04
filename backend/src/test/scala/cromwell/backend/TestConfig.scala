@@ -30,7 +30,8 @@ object TestConfig {
 
   lazy val sampleBackendRuntimeConfig = ConfigFactory.parseString(sampleBackendRuntimeConfigString)
 
-  lazy val allRuntimeAttrsConfig = ConfigFactory.parseString(allBackendRuntimeAttrsString).getConfig("default-runtime-attributes")
+  lazy val allRuntimeAttrsConfig =
+    ConfigFactory.parseString(allBackendRuntimeAttrsString).getConfig("default-runtime-attributes")
 
   lazy val optionalRuntimeConfig = sampleBackendRuntimeConfig.getConfig("default-runtime-attributes")
 

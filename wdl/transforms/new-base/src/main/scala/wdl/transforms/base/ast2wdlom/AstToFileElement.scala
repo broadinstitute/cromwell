@@ -9,12 +9,14 @@ import wdl.model.draft3.elements._
 
 object AstToFileElement {
 
-  def astToFileElement(implicit astNodeToImportElement: CheckedAtoB[GenericAstNode, ImportElement],
-                       astNodeToFileBodyElement: CheckedAtoB[GenericAstNode, FileBodyElement]
-                      ): CheckedAtoB[GenericAst, FileElement] = CheckedAtoB.fromErrorOr { ast =>
-
-    val validatedImportElements: ErrorOr[Vector[ImportElement]] = ast.getAttributeAsVector[ImportElement]("imports").toValidated
-    val validatedFileBodyElements: ErrorOr[Vector[FileBodyElement]] = ast.getAttributeAsVector[FileBodyElement]("body").toValidated
+  def astToFileElement(implicit
+    astNodeToImportElement: CheckedAtoB[GenericAstNode, ImportElement],
+    astNodeToFileBodyElement: CheckedAtoB[GenericAstNode, FileBodyElement]
+  ): CheckedAtoB[GenericAst, FileElement] = CheckedAtoB.fromErrorOr { ast =>
+    val validatedImportElements: ErrorOr[Vector[ImportElement]] =
+      ast.getAttributeAsVector[ImportElement]("imports").toValidated
+    val validatedFileBodyElements: ErrorOr[Vector[FileBodyElement]] =
+      ast.getAttributeAsVector[FileBodyElement]("body").toValidated
 
     (validatedImportElements, validatedFileBodyElements) mapN { (importElements, fileBodyElements) =>
       val workflowElements: Vector[WorkflowDefinitionElement] = fileBodyElements.filterByType[WorkflowDefinitionElement]

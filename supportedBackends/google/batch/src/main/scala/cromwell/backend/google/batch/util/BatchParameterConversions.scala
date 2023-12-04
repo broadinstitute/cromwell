@@ -12,7 +12,9 @@ import cromwell.filesystems.http.HttpPath
 import simulacrum.typeclass
 
 @typeclass trait ToParameter[A <: BatchParameter] {
-  def toRunnables(p: A, volumes: List[Volume])(implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Runnable.Builder]
+  def toRunnables(p: A, volumes: List[Volume])(implicit
+    gcsTransferConfiguration: GcsTransferConfiguration
+  ): List[Runnable.Builder]
 }
 
 trait GcpBatchParameterConversions {
@@ -20,16 +22,17 @@ trait GcpBatchParameterConversions {
   import RunnableCommands._
   import RunnableLabels._
 
-
   implicit val fileInputToParameter: ToParameter[GcpBatchFileInput] = new ToParameter[GcpBatchFileInput] {
-    override def toRunnables(fileInput: GcpBatchFileInput, volumes: List[Volume])
-                          (implicit retryPolicy: GcsTransferConfiguration): List[Runnable.Builder] = {
+    override def toRunnables(fileInput: GcpBatchFileInput, volumes: List[Volume])(implicit
+      retryPolicy: GcsTransferConfiguration
+    ): List[Runnable.Builder] = {
 
       val labels = RunnableBuilder.parameterLabels(fileInput)
       fileInput.cloudPath match {
         case _: HttpPath =>
           val command = s"curl --silent --create-dirs --output ${fileInput.containerPath} ${fileInput.cloudPath}"
-          val localizationRunnables = RunnableBuilder.cloudSdkShellRunnable(command)(volumes = volumes, labels = labels, flags = List.empty)
+          val localizationRunnables =
+            RunnableBuilder.cloudSdkShellRunnable(command)(volumes = volumes, labels = labels, flags = List.empty)
           List(RunnableBuilder.describeParameter(fileInput, volumes, labels), localizationRunnables)
 
         case _: GcsPath =>
@@ -44,8 +47,9 @@ trait GcpBatchParameterConversions {
 
   implicit val directoryInputToParameter: ToParameter[GcpBatchDirectoryInput] =
     new ToParameter[GcpBatchDirectoryInput] {
-      override def toRunnables(directoryInput: GcpBatchDirectoryInput, volumes: List[Volume])
-                            (implicit retryPolicy: GcsTransferConfiguration): List[Runnable.Builder] = {
+      override def toRunnables(directoryInput: GcpBatchDirectoryInput, volumes: List[Volume])(implicit
+        retryPolicy: GcsTransferConfiguration
+      ): List[Runnable.Builder] =
         directoryInput.cloudPath match {
           case _: GcsPath => Nil // GCS paths will be localized with a separate localization script.
           case _ =>
@@ -56,19 +60,23 @@ trait GcpBatchParameterConversions {
             )(volumes = volumes, labels = labels, flags = List.empty)
             List(describeRunnables, localizationRunnables)
         }
-      }
     }
 
   implicit val fileOutputToParameter: ToParameter[GcpBatchFileOutput] = new ToParameter[GcpBatchFileOutput] {
-    override def toRunnables(fileOutput: GcpBatchFileOutput, volumes: List[Volume])
-                          (implicit retryPolicy: GcsTransferConfiguration): List[Runnable.Builder] = {
+    override def toRunnables(fileOutput: GcpBatchFileOutput, volumes: List[Volume])(implicit
+      retryPolicy: GcsTransferConfiguration
+    ): List[Runnable.Builder] = {
 
       // If the output is a "secondary file", it actually could be a directory but we won't know before runtime.
       // The fileOrDirectory method will generate a command that can cover both cases
-      lazy val copy = if (fileOutput.secondary)
-        RunnableCommands.delocalizeFileOrDirectory(fileOutput.containerPath, fileOutput.cloudPath, fileOutput.contentType)
-      else
-        RunnableCommands.delocalizeFile(fileOutput.containerPath, fileOutput.cloudPath, fileOutput.contentType)
+      lazy val copy =
+        if (fileOutput.secondary)
+          RunnableCommands.delocalizeFileOrDirectory(fileOutput.containerPath,
+                                                     fileOutput.cloudPath,
+                                                     fileOutput.contentType
+          )
+        else
+          RunnableCommands.delocalizeFile(fileOutput.containerPath, fileOutput.cloudPath, fileOutput.contentType)
 
       lazy val copyOnlyIfExists = RunnableCommands.ifExist(fileOutput.containerPath) {
         copy
@@ -97,11 +105,13 @@ trait GcpBatchParameterConversions {
             case (key, _) if key == Key.Tag => key -> Value.Background
             case (key, value) => key -> value
           }
-          val periodic = RunnableBuilder.cloudSdkShellRunnable(
-            every(period) {
-              copyCommand
-            }
-          )(volumes = volumes, labels = periodicLabels, flags = List.empty).withRunInBackground(true)
+          val periodic = RunnableBuilder
+            .cloudSdkShellRunnable(
+              every(period) {
+                copyCommand
+              }
+            )(volumes = volumes, labels = periodicLabels, flags = List.empty)
+            .withRunInBackground(true)
 
           finalDelocalizationRunnables :+ periodic
 
@@ -112,34 +122,37 @@ trait GcpBatchParameterConversions {
 
   implicit val directoryOutputToParameter: ToParameter[GcpBatchDirectoryOutput] =
     new ToParameter[GcpBatchDirectoryOutput] {
-      override def toRunnables(directoryOutput: GcpBatchDirectoryOutput, volumes: List[Volume])
-                            (implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Runnable.Builder] = {
+      override def toRunnables(directoryOutput: GcpBatchDirectoryOutput, volumes: List[Volume])(implicit
+        gcsTransferConfiguration: GcsTransferConfiguration
+      ): List[Runnable.Builder] =
         directoryOutput.cloudPath match {
           case _: GcsPath => Nil // GCS paths will be delocalized with a separate delocalization script.
           case _ =>
             val labels = RunnableBuilder.parameterLabels(directoryOutput)
             val describeRunnable = RunnableBuilder.describeParameter(directoryOutput, volumes, labels)
-            val delocalizationRunnable = RunnableBuilder.cloudSdkShellRunnable(
-              delocalizeDirectory(directoryOutput.containerPath, directoryOutput.cloudPath, None)
-            )(volumes = volumes, labels = labels, flags = List.empty)
+            val delocalizationRunnable = RunnableBuilder
+              .cloudSdkShellRunnable(
+                delocalizeDirectory(directoryOutput.containerPath, directoryOutput.cloudPath, None)
+              )(volumes = volumes, labels = labels, flags = List.empty)
               .withAlwaysRun(true)
 
             List(describeRunnable, delocalizationRunnable)
         }
-      }
     }
 
   implicit val inputToParameter: ToParameter[GcpBatchInput] = new ToParameter[GcpBatchInput] {
-    override def toRunnables(p: GcpBatchInput, volumes: List[Volume])
-                          (implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Runnable.Builder] = p match {
+    override def toRunnables(p: GcpBatchInput, volumes: List[Volume])(implicit
+      gcsTransferConfiguration: GcsTransferConfiguration
+    ): List[Runnable.Builder] = p match {
       case fileInput: GcpBatchFileInput => fileInputToParameter.toRunnables(fileInput, volumes)
       case directoryInput: GcpBatchDirectoryInput => directoryInputToParameter.toRunnables(directoryInput, volumes)
     }
   }
 
   implicit val outputToParameter: ToParameter[GcpBatchOutput] = new ToParameter[GcpBatchOutput] {
-    override def toRunnables(p: GcpBatchOutput, volumes: List[Volume])
-                          (implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Runnable.Builder] = p match {
+    override def toRunnables(p: GcpBatchOutput, volumes: List[Volume])(implicit
+      gcsTransferConfiguration: GcsTransferConfiguration
+    ): List[Runnable.Builder] = p match {
       case fileOutput: GcpBatchFileOutput => fileOutputToParameter.toRunnables(fileOutput, volumes)
       case directoryOutput: GcpBatchDirectoryOutput => directoryOutputToParameter.toRunnables(directoryOutput, volumes)
     }

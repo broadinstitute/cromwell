@@ -16,8 +16,11 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import java.net.URL
 import scala.concurrent.duration._
 
-class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
-  with TableDrivenPropertyChecks {
+class PipelinesApiConfigurationAttributesSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with TableDrivenPropertyChecks {
 
   import PipelinesApiTestConfig._
 
@@ -64,8 +67,12 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
     val backendConfig = ConfigFactory.parseString(configString(customContent = customContent))
     val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig, "papi")
 
-    pipelinesApiAttributes.batchRequestTimeoutConfiguration.readTimeoutMillis.get.value should be(100.hours.toMillis.toInt)
-    pipelinesApiAttributes.batchRequestTimeoutConfiguration.connectTimeoutMillis.get.value should be(10.seconds.toMillis.toInt)
+    pipelinesApiAttributes.batchRequestTimeoutConfiguration.readTimeoutMillis.get.value should be(
+      100.hours.toMillis.toInt
+    )
+    pipelinesApiAttributes.batchRequestTimeoutConfiguration.connectTimeoutMillis.get.value should be(
+      10.seconds.toMillis.toInt
+    )
   }
 
   it should "parse an empty batch-requests.timeouts section correctly" in {
@@ -136,8 +143,8 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
         |""".stripMargin,
       VirtualPrivateCloudConfiguration(
         Option(VirtualPrivateCloudLabels("my-network", Option("my-subnetwork"), mockAuth)),
-        None,
-      ),
+        None
+      )
     ),
     (
       "labels config without subnetwork key",
@@ -148,8 +155,8 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
         |""".stripMargin,
       VirtualPrivateCloudConfiguration(
         Option(VirtualPrivateCloudLabels("my-network", None, mockAuth)),
-        None,
-      ),
+        None
+      )
     ),
     (
       "literal config",
@@ -160,8 +167,8 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
         |""".stripMargin,
       VirtualPrivateCloudConfiguration(
         None,
-        Option(VirtualPrivateCloudLiterals("my-network", Option("my-subnetwork"))),
-      ),
+        Option(VirtualPrivateCloudLiterals("my-network", Option("my-subnetwork")))
+      )
     ),
     (
       "literal config without subnetwork name",
@@ -171,9 +178,9 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
         |""".stripMargin,
       VirtualPrivateCloudConfiguration(
         None,
-        Option(VirtualPrivateCloudLiterals("my-network", None)),
-      ),
-    ),
+        Option(VirtualPrivateCloudLiterals("my-network", None))
+      )
+    )
   )
 
   private val invalidVPCConfigTests = Table(
@@ -184,7 +191,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
         |  network-label-key = my-network
         |}
         |""".stripMargin,
-      List("Virtual Private Cloud configuration is invalid. Missing keys: `auth`."),
+      List("Virtual Private Cloud configuration is invalid. Missing keys: `auth`.")
     ),
     (
       "without network label-key",
@@ -192,7 +199,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
         |  auth = mock
         |}
         |""".stripMargin,
-      List("Virtual Private Cloud configuration is invalid. Missing keys: `network-label-key`."),
+      List("Virtual Private Cloud configuration is invalid. Missing keys: `network-label-key`.")
     ),
     (
       "with just a subnetwork label key",
@@ -200,7 +207,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
         |  subnetwork-label-key = my-subnetwork
         |}
         |""".stripMargin,
-      List("Virtual Private Cloud configuration is invalid. Missing keys: `network-label-key,auth`."),
+      List("Virtual Private Cloud configuration is invalid. Missing keys: `network-label-key,auth`.")
     ),
     (
       "with subnetwork label network key and auth",
@@ -209,8 +216,8 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
         |   auth = mock
         | }
         |""".stripMargin,
-      List("Virtual Private Cloud configuration is invalid. Missing keys: `network-label-key`."),
-    ),
+      List("Virtual Private Cloud configuration is invalid. Missing keys: `network-label-key`.")
+    )
   )
 
   forAll(validVpcConfigTests) { (description, customConfig, vpcConfig) =>
@@ -233,13 +240,12 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
 
   it should "not parse invalid config" in {
     val nakedConfig =
-      ConfigFactory.parseString(
-        """
-          |{
-          |   genomics {
-          |     endpoint-url = "myEndpoint"
-          |   }
-          |}
+      ConfigFactory.parseString("""
+                                  |{
+                                  |   genomics {
+                                  |     endpoint-url = "myEndpoint"
+                                  |   }
+                                  |}
         """.stripMargin)
 
     val exception = intercept[IllegalArgumentException with MessageAggregation] {
@@ -255,27 +261,27 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
 
   def configString(customContent: String = "", genomics: String = ""): String =
     s"""
-      |{
-      |   project = "myProject"
-      |   root = "gs://myBucket"
-      |   maximum-polling-interval = 600
-      |   $customContent
-      |   genomics {
-      |     // A reference to an auth defined in the `google` stanza at the top.  This auth is used to create
-      |     // Pipelines and manipulate auth JSONs.
-      |     auth = "mock"
-      |    $genomics
-      |     endpoint-url = "http://myEndpoint"
-      |   }
-      |
-      |   filesystems = {
-      |     gcs {
-      |       // A reference to a potentially different auth for manipulating files via engine functions.
-      |       auth = "mock"
-      |     }
-      |   }
-      |}
-      | """.stripMargin
+       |{
+       |   project = "myProject"
+       |   root = "gs://myBucket"
+       |   maximum-polling-interval = 600
+       |   $customContent
+       |   genomics {
+       |     // A reference to an auth defined in the `google` stanza at the top.  This auth is used to create
+       |     // Pipelines and manipulate auth JSONs.
+       |     auth = "mock"
+       |    $genomics
+       |     endpoint-url = "http://myEndpoint"
+       |   }
+       |
+       |   filesystems = {
+       |     gcs {
+       |       // A reference to a potentially different auth for manipulating files via engine functions.
+       |       auth = "mock"
+       |     }
+       |   }
+       |}
+       | """.stripMargin
 
   it should "parse gsutil memory specifications" in {
     val valids = List("0", "150M", "14   PIBIT", "6kib")
@@ -290,7 +296,8 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
     val invalids = List("-1", "150MB", "14PB")
 
     invalids foreach {
-      case invalid@PipelinesApiConfigurationAttributes.GsutilHumanBytes(_, _) => fail(s"Memory specification $invalid not expected to be accepted")
+      case invalid @ PipelinesApiConfigurationAttributes.GsutilHumanBytes(_, _) =>
+        fail(s"Memory specification $invalid not expected to be accepted")
       case _ =>
     }
   }
@@ -317,32 +324,32 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
     // Highly abridged versions of hg19 and hg38 manifests just to test for correctness
     // of parsing.
     val manifestConfig =
-    """
-      |reference-disk-localization-manifests = [
-      |{
-      |  "imageIdentifier" : "hg19-public-2020-10-26",
-      |  "diskSizeGb" : 10,
-      |  "files" : [ {
-      |    "path" : "gcp-public-data--broad-references/hg19/v0/Homo_sapiens_assembly19.fasta.fai",
-      |    "crc32c" : 159565724
-      |  }, {
-      |    "path" : "gcp-public-data--broad-references/hg19/v0/Homo_sapiens_assembly19.dict",
-      |    "crc32c" : 1679459712
-      |  }]
-      |},
-      |{
-      |  "imageIdentifier" : "hg38-public-2020-10-26",
-      |  "diskSizeGb" : 20,
-      |  "files" : [ {
-      |    "path" : "gcp-public-data--broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz",
-      |    "crc32c" : 930173616
-      |  }, {
-      |    "path" : "gcp-public-data--broad-references/hg38/v0/exome_evaluation_regions.v1.interval_list",
-      |    "crc32c" : 289077232
-      |  }]
-      |}
-      |]
-      |""".stripMargin
+      """
+        |reference-disk-localization-manifests = [
+        |{
+        |  "imageIdentifier" : "hg19-public-2020-10-26",
+        |  "diskSizeGb" : 10,
+        |  "files" : [ {
+        |    "path" : "gcp-public-data--broad-references/hg19/v0/Homo_sapiens_assembly19.fasta.fai",
+        |    "crc32c" : 159565724
+        |  }, {
+        |    "path" : "gcp-public-data--broad-references/hg19/v0/Homo_sapiens_assembly19.dict",
+        |    "crc32c" : 1679459712
+        |  }]
+        |},
+        |{
+        |  "imageIdentifier" : "hg38-public-2020-10-26",
+        |  "diskSizeGb" : 20,
+        |  "files" : [ {
+        |    "path" : "gcp-public-data--broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz",
+        |    "crc32c" : 930173616
+        |  }, {
+        |    "path" : "gcp-public-data--broad-references/hg38/v0/exome_evaluation_regions.v1.interval_list",
+        |    "crc32c" : 289077232
+        |  }]
+        |}
+        |]
+        |""".stripMargin
     val backendConfig = ConfigFactory.parseString(configString(manifestConfig))
     val validation = PipelinesApiConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "papi")
     val manifests: List[ManifestFile] = validation.toEither.toOption.get.get
@@ -406,7 +413,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
          |   "imageIdentifier" : "hg19-public-2020-10-26",
          |   "diskSizeGb" : 10,
          |   # missing files
-         |}]""",
+         |}]"""
     )
 
     badValues foreach { badValue =>
@@ -417,18 +424,20 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
     }
   }
 
-
   it should "parse correct existing docker-image-cache-manifest-file config" in {
     val dockerImageCacheManifest1Path = "gs://bucket/manifest1.json"
     val dockerImageCacheManifestConfigStr = s"""docker-image-cache-manifest-file = "$dockerImageCacheManifest1Path""""
     val backendConfig = ConfigFactory.parseString(configString(dockerImageCacheManifestConfigStr))
 
-    val validatedGcsPathToDockerImageCacheManifestFileErrorOr = PipelinesApiConfigurationAttributes.validateGcsPathToDockerImageCacheManifestFile(backendConfig)
+    val validatedGcsPathToDockerImageCacheManifestFileErrorOr =
+      PipelinesApiConfigurationAttributes.validateGcsPathToDockerImageCacheManifestFile(backendConfig)
     validatedGcsPathToDockerImageCacheManifestFileErrorOr match {
       case Valid(validatedGcsPathToDockerImageCacheManifestFileOpt) =>
         validatedGcsPathToDockerImageCacheManifestFileOpt match {
           case Some(validatedGcsPathToDockerCacheManifestFile) =>
-            validatedGcsPathToDockerCacheManifestFile shouldBe GcsPathBuilder.validateGcsPath(dockerImageCacheManifest1Path)
+            validatedGcsPathToDockerCacheManifestFile shouldBe GcsPathBuilder.validateGcsPath(
+              dockerImageCacheManifest1Path
+            )
           case None =>
             fail("GCS paths to docker image cache manifest files, parsed from config, should not be empty")
         }
@@ -440,7 +449,8 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
   it should "parse correct missing docker-image-cache-manifest-file config" in {
     val backendConfig = ConfigFactory.parseString(configString())
 
-    val validatedGcsPathsToDockerImageCacheManifestFilesErrorOr = PipelinesApiConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "unit-test-backend")
+    val validatedGcsPathsToDockerImageCacheManifestFilesErrorOr =
+      PipelinesApiConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "unit-test-backend")
     validatedGcsPathsToDockerImageCacheManifestFilesErrorOr match {
       case Valid(validatedGcsPathsToDockerImageCacheManifestFilesOpt) =>
         validatedGcsPathsToDockerImageCacheManifestFilesOpt shouldBe None

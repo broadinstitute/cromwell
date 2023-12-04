@@ -26,20 +26,19 @@ class MetadataServiceActorSpec extends ServicesSpec {
   val config: Config = ConfigFactory.parseString(Config)
   lazy val actor: ActorRef =
     system.actorOf(
-      props =
-        MetadataServiceActor.props(
-          serviceConfig = globalConfigToMetadataServiceConfig(config),
-          globalConfig = config,
-          serviceRegistryActor = TestProbe("serviceRegistryActor").ref,
-        ),
-      name = "MetadataServiceActor-for-MetadataServiceActorSpec",
+      props = MetadataServiceActor.props(
+        serviceConfig = globalConfigToMetadataServiceConfig(config),
+        globalConfig = config,
+        serviceRegistryActor = TestProbe("serviceRegistryActor").ref
+      ),
+      name = "MetadataServiceActor-for-MetadataServiceActorSpec"
     )
 
   val workflowId: WorkflowId = WorkflowId.randomId()
 
-    /*
+  /*
     Simple store / retrieve
-     */
+   */
 
   val key1: MetadataKey = MetadataKey(workflowId, None, "key1")
   val key2: MetadataKey = MetadataKey(workflowId, None, "key2")
@@ -71,50 +70,64 @@ class MetadataServiceActorSpec extends ServicesSpec {
   val query4: MetadataQuery = MetadataQuery.forWorkflow(workflowId)
   val query5: MetadataQuery = MetadataQuery.forJob(workflowId, supJob)
 
-  val testCases: List[(String, MetadataQuery, String)] = List[(String, MetadataQuery, String)] (
-    ("query1", query1, s"""{
-                          |  "key1": "value2",
-                          |  "calls": {},
-                          |  "id": "$workflowId"
-                          |}""".stripMargin),
-    ("query2", query2, s"""{
-                          |  "key2": "value1",
-                          |  "calls": {},
-                          |  "id": "$workflowId"
-                          |}""".stripMargin),
-    ("query3", query3, s"""{
-                          |  "calls": {
-                          |    "sup.sup": [{
-                          |      "dog": {},
-                          |      "attempt": 1,
-                          |      "shardIndex": -1
-                          |    }]
-                          |  },
-                          |  "id": "$workflowId"
-                          |}""".stripMargin),
-    ("query4", query4, s"""{
-                          |  "key1": "value2",
-                          |  "key2": "value1",
-                          |  "calls": {
-                          |    "sup.sup": [{
-                          |      "dog": {},
-                          |      "attempt": 1,
-                          |      "shardIndex": -1
-                          |    }]
-                          |  },
-                          |  "id": "$workflowId"
-                          |}""".stripMargin),
-    ("query5", query5, s"""{
-                          |  "calls": {
-                          |    "sup.sup": [{
-                          |      "dog": {},
-                          |      "attempt": 1,
-                          |      "shardIndex": -1
-                          |    }]
-                          |  },
-                          |  "id": "$workflowId"
-                          |}""".stripMargin),
-
+  val testCases: List[(String, MetadataQuery, String)] = List[(String, MetadataQuery, String)](
+    ("query1",
+     query1,
+     s"""{
+        |  "key1": "value2",
+        |  "calls": {},
+        |  "id": "$workflowId"
+        |}""".stripMargin
+    ),
+    ("query2",
+     query2,
+     s"""{
+        |  "key2": "value1",
+        |  "calls": {},
+        |  "id": "$workflowId"
+        |}""".stripMargin
+    ),
+    ("query3",
+     query3,
+     s"""{
+        |  "calls": {
+        |    "sup.sup": [{
+        |      "dog": {},
+        |      "attempt": 1,
+        |      "shardIndex": -1
+        |    }]
+        |  },
+        |  "id": "$workflowId"
+        |}""".stripMargin
+    ),
+    ("query4",
+     query4,
+     s"""{
+        |  "key1": "value2",
+        |  "key2": "value1",
+        |  "calls": {
+        |    "sup.sup": [{
+        |      "dog": {},
+        |      "attempt": 1,
+        |      "shardIndex": -1
+        |    }]
+        |  },
+        |  "id": "$workflowId"
+        |}""".stripMargin
+    ),
+    ("query5",
+     query5,
+     s"""{
+        |  "calls": {
+        |    "sup.sup": [{
+        |      "dog": {},
+        |      "attempt": 1,
+        |      "shardIndex": -1
+        |    }]
+        |  },
+        |  "id": "$workflowId"
+        |}""".stripMargin
+    )
   )
 
   actorName should {
@@ -126,10 +139,10 @@ class MetadataServiceActorSpec extends ServicesSpec {
     }
 
     testCases foreach { case (name, query, expectation) =>
-
       s"perform $name correctly" in {
         eventually(Timeout(10.seconds), Interval(2.seconds)) {
-          val response = Await.result((actor ? GetMetadataAction(query)).mapTo[SuccessfulMetadataJsonResponse], 1.seconds)
+          val response =
+            Await.result((actor ? GetMetadataAction(query)).mapTo[SuccessfulMetadataJsonResponse], 1.seconds)
 
           response.responseJson shouldBe expectation.parseJson
         }
@@ -138,19 +151,26 @@ class MetadataServiceActorSpec extends ServicesSpec {
 
     "be able to query by Unarchived metadataArchiveStatus" in {
 
-      val summarizableStatusUpdate = PutMetadataAction(MetadataEvent(
-        MetadataKey(workflowId, None, WorkflowMetadataKeys.Status),
-        Option(MetadataValue("Running")),
-        moment.plusSeconds(1)
-      ))
+      val summarizableStatusUpdate = PutMetadataAction(
+        MetadataEvent(
+          MetadataKey(workflowId, None, WorkflowMetadataKeys.Status),
+          Option(MetadataValue("Running")),
+          moment.plusSeconds(1)
+        )
+      )
       actor ! summarizableStatusUpdate
 
       eventually(Timeout(10.seconds), Interval(2.seconds)) {
-        val queryEverythingResponse = Await.result((actor ? QueryForWorkflowsMatchingParameters(List.empty)).mapTo[WorkflowQuerySuccess], 1.seconds)
+        val queryEverythingResponse =
+          Await.result((actor ? QueryForWorkflowsMatchingParameters(List.empty)).mapTo[WorkflowQuerySuccess], 1.seconds)
         queryEverythingResponse.response.results.length should be(1)
         println(queryEverythingResponse)
 
-        val response1 = Await.result((actor ? QueryForWorkflowsMatchingParameters(List(("metadataArchiveStatus", "Unarchived")))).mapTo[WorkflowQuerySuccess], 1.seconds)
+        val response1 =
+          Await.result((actor ? QueryForWorkflowsMatchingParameters(List(("metadataArchiveStatus", "Unarchived"))))
+                         .mapTo[WorkflowQuerySuccess],
+                       1.seconds
+          )
         // We submitted one workflow, so we should should see one value here:
         response1.response.results.length should be(1)
       }
@@ -158,21 +178,35 @@ class MetadataServiceActorSpec extends ServicesSpec {
 
     "be able to query by Archived metadataArchiveStatus" in {
 
-      val response2 = Await.result((actor ? QueryForWorkflowsMatchingParameters(List(("metadataArchiveStatus", "Archived")))).mapTo[WorkflowQuerySuccess], 1.seconds)
+      val response2 =
+        Await.result((actor ? QueryForWorkflowsMatchingParameters(List(("metadataArchiveStatus", "Archived"))))
+                       .mapTo[WorkflowQuerySuccess],
+                     1.seconds
+        )
       // That workflow hasn't been marked as archived so this result set is empty:
       response2.response.results.length should be(0)
     }
 
     "be able to query by ArchiveFailed metadataArchiveStatus" in {
-      val response3 = Await.result((actor ? QueryForWorkflowsMatchingParameters(List(("metadataArchiveStatus", "ArchiveFailed")))).mapTo[WorkflowQuerySuccess], 1.seconds)
+      val response3 =
+        Await.result((actor ? QueryForWorkflowsMatchingParameters(List(("metadataArchiveStatus", "ArchiveFailed"))))
+                       .mapTo[WorkflowQuerySuccess],
+                     1.seconds
+        )
       // That workflow hasn't been marked as archived so this result set is empty:
       response3.response.results.length should be(0)
     }
 
     "not be able to query by an invalid metadataArchiveStatus" in {
-      val response4 = Await.result((actor ? QueryForWorkflowsMatchingParameters(List(("metadataArchiveStatus", "!!OOPS!!")))).mapTo[WorkflowQueryFailure], 1.seconds)
+      val response4 =
+        Await.result((actor ? QueryForWorkflowsMatchingParameters(List(("metadataArchiveStatus", "!!OOPS!!"))))
+                       .mapTo[WorkflowQueryFailure],
+                     1.seconds
+        )
       // That workflow hasn't been marked as archived so this result set is empty:
-      response4.reason.getMessage should be("Unrecognized 'metadata archive status' value(s): No such MetadataArchiveStatus: !!OOPS!!")
+      response4.reason.getMessage should be(
+        "Unrecognized 'metadata archive status' value(s): No such MetadataArchiveStatus: !!OOPS!!"
+      )
     }
   }
 }
@@ -184,12 +218,15 @@ object MetadataServiceActorSpec {
       |services.MetadataService.config.db-flush-rate = 100 millis
     """.stripMargin
 
-  val ConfigWithoutSummarizer: String = Config + """
-      |services.MetadataService.config.metadata-summary-refresh-interval = "Inf"
+  val ConfigWithoutSummarizer: String =
+    Config + """
+               |services.MetadataService.config.metadata-summary-refresh-interval = "Inf"
     """.stripMargin
 
   // Use this to convert the above "global" configs into metadata service specific "service config"s:
-  def globalConfigToMetadataServiceConfig(config: Config): Config = if (config.hasPath("services.MetadataService.config")) {
+  def globalConfigToMetadataServiceConfig(config: Config): Config = if (
+    config.hasPath("services.MetadataService.config")
+  ) {
     config.getConfig("services.MetadataService.config")
   } else {
     ConfigFactory.empty()

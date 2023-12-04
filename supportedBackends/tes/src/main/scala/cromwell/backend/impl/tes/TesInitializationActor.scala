@@ -12,8 +12,7 @@ import wom.graph.CommandCallNode
 import scala.concurrent.Future
 import scala.util.Try
 
-case class TesInitializationActorParams
-(
+case class TesInitializationActorParams(
   workflowDescriptor: BackendWorkflowDescriptor,
   calls: Set[CommandCallNode],
   tesConfiguration: TesConfiguration,
@@ -22,14 +21,12 @@ case class TesInitializationActorParams
   override val configurationDescriptor: BackendConfigurationDescriptor = tesConfiguration.configurationDescriptor
 }
 
-class TesInitializationActor(params: TesInitializationActorParams)
-  extends StandardInitializationActor(params) {
+class TesInitializationActor(params: TesInitializationActorParams) extends StandardInitializationActor(params) {
 
   private val tesConfiguration = params.tesConfiguration
 
-  override lazy val pathBuilders: Future[List[PathBuilder]] = {
+  override lazy val pathBuilders: Future[List[PathBuilder]] =
     standardParams.configurationDescriptor.pathBuildersWithDefault(workflowDescriptor.workflowOptions)
-  }
 
   override lazy val workflowPaths: Future[TesWorkflowPaths] = pathBuilders map {
     new TesWorkflowPaths(workflowDescriptor, tesConfiguration.configurationDescriptor.backendConfig, _)
@@ -41,10 +38,13 @@ class TesInitializationActor(params: TesInitializationActorParams)
   override def validateWorkflowOptions(): Try[Unit] = {
     def validateIdentities() = {
       val optionsMap = workflowDescriptor.workflowOptions.toMap
-      (optionsMap.get(TesWorkflowOptionKeys.WorkflowExecutionIdentity), optionsMap.get(TesWorkflowOptionKeys.DataAccessIdentity)) match {
+      (optionsMap.get(TesWorkflowOptionKeys.WorkflowExecutionIdentity),
+       optionsMap.get(TesWorkflowOptionKeys.DataAccessIdentity)
+      ) match {
         case (None, None) => ().validNel
         case (Some(_), Some(_)) => ().validNel
-        case _ => s"Workflow options ${TesWorkflowOptionKeys.WorkflowExecutionIdentity} and ${TesWorkflowOptionKeys.DataAccessIdentity} are both required if one is provided.".invalidNel
+        case _ =>
+          s"Workflow options ${TesWorkflowOptionKeys.WorkflowExecutionIdentity} and ${TesWorkflowOptionKeys.DataAccessIdentity} are both required if one is provided.".invalidNel
       }
     }
 
@@ -76,8 +76,7 @@ class TesInitializationActor(params: TesInitializationActorParams)
           // This is difficult because we're dealing with WomExpression rather than WomValue.
           s"Key/s [$notSupportedAttrString] is/are not explicitly supported by backend. Those with string values will " +
             "be passed to TES server in backend_parameters map, other attributes will not be part of job executions."
-        }
-        else {
+        } else {
           s"Key/s [$notSupportedAttrString] is/are not supported by backend. " +
             s"Unsupported attributes will not be part of job executions."
         }
@@ -86,11 +85,10 @@ class TesInitializationActor(params: TesInitializationActorParams)
     }
   }
 
-  override def beforeAll(): Future[Option[BackendInitializationData]] = {
+  override def beforeAll(): Future[Option[BackendInitializationData]] =
     workflowPaths map { paths =>
       publishWorkflowRoot(paths.workflowRoot.toString)
       paths.workflowRoot.createPermissionedDirectories()
       Option(TesBackendInitializationData(paths, runtimeAttributesBuilder, tesConfiguration))
     }
-  }
 }

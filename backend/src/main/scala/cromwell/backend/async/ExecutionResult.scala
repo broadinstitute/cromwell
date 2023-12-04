@@ -16,7 +16,8 @@ final case class SuccessfulExecution(outputs: CallOutputs,
                                      returnCode: Int,
                                      jobDetritusFiles: Map[String, Path],
                                      executionEvents: Seq[ExecutionEvent],
-                                     resultsClonedFrom: Option[BackendJobDescriptor] = None) extends ExecutionResult
+                                     resultsClonedFrom: Option[BackendJobDescriptor] = None
+) extends ExecutionResult
 
 /**
  * A user-requested abort of the command.

@@ -60,13 +60,13 @@ object S3Storage {
     builder.build
   }
 
-  def s3Client(provider: AwsCredentialsProvider, region: Option[Region]): S3Client = {
+  def s3Client(provider: AwsCredentialsProvider, region: Option[Region]): S3Client =
     s3Client(s3Configuration(), provider, region)
-  }
 
   def s3Configuration(accelerateModeEnabled: Boolean = false,
                       dualstackEnabled: Boolean = false,
-                      pathStyleAccessEnabled: Boolean = false): S3Configuration = {
+                      pathStyleAccessEnabled: Boolean = false
+  ): S3Configuration = {
 
     @nowarn("msg=method dualstackEnabled in trait Builder is deprecated")
     val builder = S3Configuration.builder

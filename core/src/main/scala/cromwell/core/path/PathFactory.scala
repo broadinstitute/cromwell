@@ -15,6 +15,7 @@ import scala.util.{Failure, Success, Try}
   * Convenience trait delegating to the PathFactory singleton
   */
 trait PathFactory {
+
   /**
     * Path builders to be applied (in order) to attempt to build a Path from a string.
     */
@@ -43,11 +44,13 @@ object PathFactory {
   private def findFirstSuccess(string: String,
                                allPathBuilders: PathBuilders,
                                restPathBuilders: PathBuilders,
-                               failures: Vector[String]): ErrorOr[Path] = restPathBuilders match {
-    case Nil => NonEmptyList.fromList(failures.toList) match {
-      case Some(errors) => Invalid(errors)
-      case None => s"Could not parse '$string' to path. No PathBuilders were provided".invalidNel
-    }
+                               failures: Vector[String]
+  ): ErrorOr[Path] = restPathBuilders match {
+    case Nil =>
+      NonEmptyList.fromList(failures.toList) match {
+        case Some(errors) => Invalid(errors)
+        case None => s"Could not parse '$string' to path. No PathBuilders were provided".invalidNel
+      }
     case pb :: rest =>
       pb.build(string, allPathBuilders) match {
         case Success(path) =>
@@ -64,7 +67,8 @@ object PathFactory {
   def buildPath(string: String,
                 pathBuilders: PathBuilders,
                 preMapping: String => String = identity[String],
-                postMapping: Path => Path = identity[Path]): Path = {
+                postMapping: Path => Path = identity[Path]
+  ): Path = {
 
     lazy val pathBuilderNames: String = pathBuilders map { _.name } mkString ", "
 
@@ -77,12 +81,12 @@ object PathFactory {
     path match {
       case Valid(v) => v
       case Invalid(errors) =>
-      throw PathParsingException(
-        s"""Could not build the path "$string". It may refer to a filesystem not supported by this instance of Cromwell.""" +
-          s" Supported filesystems are: $pathBuilderNames." +
-          s" Failures: ${errors.toList.mkString(System.lineSeparator, System.lineSeparator, System.lineSeparator)}" +
-          s" Please refer to the documentation for more information on how to configure filesystems: http://cromwell.readthedocs.io/en/develop/backends/HPC/#filesystems"
-      )
+        throw PathParsingException(
+          s"""Could not build the path "$string". It may refer to a filesystem not supported by this instance of Cromwell.""" +
+            s" Supported filesystems are: $pathBuilderNames." +
+            s" Failures: ${errors.toList.mkString(System.lineSeparator, System.lineSeparator, System.lineSeparator)}" +
+            s" Please refer to the documentation for more information on how to configure filesystems: http://cromwell.readthedocs.io/en/develop/backends/HPC/#filesystems"
+        )
     }
   }
 }

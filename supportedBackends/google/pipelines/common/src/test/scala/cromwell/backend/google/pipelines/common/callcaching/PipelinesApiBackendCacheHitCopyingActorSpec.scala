@@ -465,6 +465,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
     val copyDestinationPaths = mock[PipelinesApiJobPaths]
     val copyDestinationRcPath = mock[Path]
     copyDestinationPaths.detritusPaths returns Map(JobPaths.ReturnCodePathKey -> copyDestinationRcPath)
+    copyDestinationPaths.metadataPaths returns Map.empty
 
     pipelinesApiJobPaths.forCallCacheCopyAttempts returns copyDestinationPaths
     pipelinesApiJobPaths.metadataPaths returns Map.empty

@@ -36,14 +36,6 @@ import cromwell.backend.google.pipelines.common.errors.FailedToDelocalizeFailure
 import cromwell.backend.google.pipelines.common.io._
 import cromwell.backend.google.pipelines.common.monitoring.{CheckpointingConfiguration, MonitoringImage}
 import cromwell.backend.io.DirectoryFunctions
-<<<<<<< HEAD
-import cromwell.backend.standard.{
-  StandardAdHocValue,
-  StandardAsyncExecutionActor,
-  StandardAsyncExecutionActorParams,
-  StandardAsyncJob
-}
-=======
 import cromwell.backend.standard.{
   ScriptPreambleData,
   StandardAdHocValue,
@@ -51,7 +43,6 @@ import cromwell.backend.standard.{
   StandardAsyncExecutionActorParams,
   StandardAsyncJob
 }
->>>>>>> develop
 import cromwell.core._
 import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.{DefaultPathBuilder, Path}

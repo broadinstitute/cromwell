@@ -25,14 +25,6 @@ import cromwell.filesystems.gcs.GcsPathBuilder
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 
 import java.io.FileNotFoundException
-<<<<<<< HEAD
-import cromwell.backend.standard.{
-  StandardAdHocValue,
-  StandardAsyncExecutionActor,
-  StandardAsyncExecutionActorParams,
-  StandardAsyncJob
-}
-=======
 import cromwell.backend.standard.{
   ScriptPreambleData,
   StandardAdHocValue,
@@ -40,7 +32,6 @@ import cromwell.backend.standard.{
   StandardAsyncExecutionActorParams,
   StandardAsyncJob
 }
->>>>>>> develop
 import cromwell.core._
 import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.{DefaultPathBuilder, Path}

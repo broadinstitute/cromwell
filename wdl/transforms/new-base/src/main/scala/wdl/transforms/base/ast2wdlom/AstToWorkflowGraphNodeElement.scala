@@ -7,17 +7,20 @@ import common.validation.Checked._
 import wdl.model.draft3.elements._
 
 object AstToWorkflowGraphNodeElementConverterMaker {
-  private def astToWorkflowGraphNodeElement(astNodeToDeclarationContent: CheckedAtoB[GenericAstNode, DeclarationContent],
-                                    astNodeToCallElement: CheckedAtoB[GenericAstNode, CallElement],
-                                    astNodeToScatterElement: CheckedAtoB[GenericAstNode, ScatterElement],
-                                    astNodeToIfElement: CheckedAtoB[GenericAstNode, IfElement]
-                                   ): CheckedAtoB[GenericAst, WorkflowGraphElement] = CheckedAtoB.fromCheck { a: GenericAst => a.getName match {
-    case "Declaration" => astNodeToDeclarationContent(a).map(IntermediateValueDeclarationElement.fromContent)
-    case "Call" => astNodeToCallElement(a)
-    case "Scatter" => astNodeToScatterElement(a)
-    case "If" => astNodeToIfElement(a)
-    case other => s"No conversion defined for Ast with name $other to WorkflowGraphElement".invalidNelCheck
-  }}
+  private def astToWorkflowGraphNodeElement(
+    astNodeToDeclarationContent: CheckedAtoB[GenericAstNode, DeclarationContent],
+    astNodeToCallElement: CheckedAtoB[GenericAstNode, CallElement],
+    astNodeToScatterElement: CheckedAtoB[GenericAstNode, ScatterElement],
+    astNodeToIfElement: CheckedAtoB[GenericAstNode, IfElement]
+  ): CheckedAtoB[GenericAst, WorkflowGraphElement] = CheckedAtoB.fromCheck { a: GenericAst =>
+    a.getName match {
+      case "Declaration" => astNodeToDeclarationContent(a).map(IntermediateValueDeclarationElement.fromContent)
+      case "Call" => astNodeToCallElement(a)
+      case "Scatter" => astNodeToScatterElement(a)
+      case "If" => astNodeToIfElement(a)
+      case other => s"No conversion defined for Ast with name $other to WorkflowGraphElement".invalidNelCheck
+    }
+  }
 }
 
 class AstToWorkflowGraphNodeElementConverterMaker() {
@@ -28,9 +31,10 @@ class AstToWorkflowGraphNodeElementConverterMaker() {
 
   val uninitializedMessage = NonEmptyList.fromListUnsafe(List(""))
 
-  implicit val astNodeToDeclarationContentFixed: CheckedAtoB[GenericAstNode, DeclarationContent] = CheckedAtoB.fromCheck { a =>
-    Either.fromOption(astNodeToDeclarationContent, uninitializedMessage) flatMap { c => c.run(a) }
-  }
+  implicit val astNodeToDeclarationContentFixed: CheckedAtoB[GenericAstNode, DeclarationContent] =
+    CheckedAtoB.fromCheck { a =>
+      Either.fromOption(astNodeToDeclarationContent, uninitializedMessage) flatMap { c => c.run(a) }
+    }
 
   implicit val astNodeToCallElementFixed: CheckedAtoB[GenericAstNode, CallElement] = CheckedAtoB.fromCheck { a =>
     Either.fromOption(astNodeToCallElement, uninitializedMessage) flatMap { c => c.run(a) }
@@ -48,5 +52,6 @@ class AstToWorkflowGraphNodeElementConverterMaker() {
     astNodeToDeclarationContentFixed,
     astNodeToCallElementFixed,
     astNodeToScatterElementFixed,
-    astNodeToIfElementFixed)
+    astNodeToIfElementFixed
+  )
 }

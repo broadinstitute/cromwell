@@ -6,8 +6,8 @@ import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor
 import cromwell.services.healthmonitor.impl.workbench.WorkbenchHealthMonitorServiceActor
 
 final class HealthMonitorServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
-  extends WorkbenchHealthMonitorServiceActor(serviceConfig, globalConfig, serviceRegistryActor) {
-  override implicit val system = context.system
+    extends WorkbenchHealthMonitorServiceActor(serviceConfig, globalConfig, serviceRegistryActor) {
+  implicit override val system = context.system
 
   override lazy val subsystems: Set[ProtoHealthMonitorServiceActor.MonitoredSubsystem] = {
 
@@ -18,7 +18,7 @@ final class HealthMonitorServiceActor(serviceConfig: Config, globalConfig: Confi
     Set(
       dockerHubSubsystemOption,
       engineDatabaseSubsystemOption,
-      gcsSubsystemOption,
+      gcsSubsystemOption
     ).flatten ++ PapiSubsystems
   }
 }

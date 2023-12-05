@@ -29,13 +29,13 @@ class WomObjectSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers w
       val array: Array[WomObject] = parsed.success.value
       array should have size 1
 
-      //Attributes
+      // Attributes
       array.head.values should contain key "one"
       array.head.values should contain key "two"
       array.head.values should contain key "three"
       array.head.values should contain key "four"
 
-      //Values
+      // Values
       array.head.values.get("one") shouldBe Some(WomString("one"))
       array.head.values.get("two") shouldBe Some(WomString("four"))
       array.head.values.get("three") shouldBe Some(WomString("nine"))
@@ -73,7 +73,7 @@ class WomObjectSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers w
       val array: Array[WomObject] = parsed.success.value
       array should have size 2
 
-      //Attributes
+      // Attributes
       array foreach { a =>
         a.values should contain key "one"
         a.values should contain key "two"
@@ -81,7 +81,7 @@ class WomObjectSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers w
         a.values should contain key "four"
       }
 
-      //Values
+      // Values
       array.head.values.get("one") shouldBe Some(WomString("one"))
       array.head.values.get("two") shouldBe Some(WomString("four"))
       array.head.values.get("three") shouldBe Some(WomString("nine"))

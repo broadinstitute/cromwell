@@ -14,7 +14,7 @@ class WorkflowOutputsSpec extends CromwellTestKitWordSpec {
           "three_step.wc.count" -> AnyValueIsFine
         ),
         allowOtherOutputs = false,
-        testActorName = "TestCromwellRootActor-use-all",
+        testActorName = "TestCromwellRootActor-use-all"
       )
     }
 
@@ -26,7 +26,7 @@ class WorkflowOutputsSpec extends CromwellTestKitWordSpec {
           "three_step.wc.count" -> AnyValueIsFine
         ),
         allowOtherOutputs = false,
-        testActorName = "TestCromwellRootActor-output",
+        testActorName = "TestCromwellRootActor-output"
       )
     }
 
@@ -38,7 +38,7 @@ class WorkflowOutputsSpec extends CromwellTestKitWordSpec {
           "scatter0.inside_scatter.out" -> AnyValueIsFine
         ),
         allowOtherOutputs = false,
-        testActorName = "TestCromwellRootActor-shards",
+        testActorName = "TestCromwellRootActor-shards"
       )
     }
 
@@ -49,7 +49,7 @@ class WorkflowOutputsSpec extends CromwellTestKitWordSpec {
           "scatter0.inside_scatter.out" -> AnyValueIsFine
         ),
         allowOtherOutputs = false,
-        testActorName = "TestCromwellRootActor-wildcards",
+        testActorName = "TestCromwellRootActor-wildcards"
       )
     }
   }

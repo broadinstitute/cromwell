@@ -9,8 +9,7 @@ import cromwell.core.io.AsyncIoActorClient
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import wom.graph.CommandCallNode
 
-case class GcpBatchFinalizationActorParams
-(
+case class GcpBatchFinalizationActorParams(
   workflowDescriptor: BackendWorkflowDescriptor,
   ioActor: ActorRef,
   batchConfiguration: GcpBatchConfiguration,
@@ -22,7 +21,9 @@ case class GcpBatchFinalizationActorParams
   override def configurationDescriptor: BackendConfigurationDescriptor = batchConfiguration.configurationDescriptor
 }
 
-class GcpBatchFinalizationActor(val batchParams: GcpBatchFinalizationActorParams) extends StandardFinalizationActor(batchParams) with AsyncIoActorClient {
+class GcpBatchFinalizationActor(val batchParams: GcpBatchFinalizationActorParams)
+    extends StandardFinalizationActor(batchParams)
+    with AsyncIoActorClient {
 
   lazy val batchConfiguration: GcpBatchConfiguration = batchParams.batchConfiguration
 
@@ -30,6 +31,4 @@ class GcpBatchFinalizationActor(val batchParams: GcpBatchFinalizationActorParams
   override def ioActor: ActorRef = batchParams.ioActor
 }
 
-object GcpBatchFinalizationActor {
-
-}
+object GcpBatchFinalizationActor {}

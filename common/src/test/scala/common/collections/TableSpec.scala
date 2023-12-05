@@ -4,7 +4,6 @@ import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-
 class TableSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "Table"
@@ -21,10 +20,14 @@ class TableSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   }
 
   it should "fill a table" in {
-    Table.fill(List(
-      ("a", "b", "c"),
-      ("d", "e", "f")
-    )).table shouldBe Map(
+    Table
+      .fill(
+        List(
+          ("a", "b", "c"),
+          ("d", "e", "f")
+        )
+      )
+      .table shouldBe Map(
       "a" -> Map("b" -> "c"),
       "d" -> Map("e" -> "f")
     )
@@ -48,7 +51,7 @@ class TableSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     someTable.rowOptional("a") shouldBe Some(Map("b" -> "c"))
     someTable.rowOptional("b") shouldBe None
   }
-  
+
   it should "implement row" in {
     someTable.row("a") shouldBe Map("b" -> "c")
     someTable.row("b") shouldBe empty
@@ -87,7 +90,7 @@ class TableSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   it should "implement addTriplet" in {
     someTable.addTriplet(
-        ("0", "1", "2")
+      ("0", "1", "2")
     ) shouldBe Table(
       Map(
         "a" -> Map("b" -> "c"),

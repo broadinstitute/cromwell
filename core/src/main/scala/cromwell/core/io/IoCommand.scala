@@ -23,7 +23,7 @@ object IoCommand {
     .setInitialIntervalMillis((1 second).toMillis.toInt)
     .setMaxIntervalMillis((5 minutes).toMillis.toInt)
     .setMultiplier(3L)
-    .setRandomizationFactor(0.2D)
+    .setRandomizationFactor(0.2d)
     .setMaxElapsedTimeMillis((10 minutes).toMillis.toInt)
     .build()
 
@@ -47,7 +47,7 @@ trait IoCommand[+T] {
   def logIOMsgOverLimit(message: => String): Unit = {
     val millis: Long = java.time.Duration.between(creation, OffsetDateTime.now).toMillis
     if (millis > IoCommand.IOCommandWarnLimit.toMillis) {
-      val seconds = millis / 1000D
+      val seconds = millis / 1000d
 
       /*
         For now we decided to log this as INFO. In future if needed, we can update this to WARN.
@@ -59,8 +59,10 @@ trait IoCommand[+T] {
                 (https://github.com/broadinstitute/firecloud-develop/blob/c77e0f371be0aac545e204f1a134cc6f8ef3c301/run-context/live/configs/cromwell/app.env.ctmpl#L42-L51)
               - Logback manual (http://logback.qos.ch/manual/index.html)
        */
-      IoCommand.logger.info(f"(IO-$uuid) '$message' is over 5 minutes. It was running for " +
-        f"$seconds%,.3f seconds. IO command description: '$commandDescription'")
+      IoCommand.logger.info(
+        f"(IO-$uuid) '$message' is over 5 minutes. It was running for " +
+          f"$seconds%,.3f seconds. IO command description: '$commandDescription'"
+      )
     }
   }
 
@@ -82,7 +84,9 @@ trait IoCommand[+T] {
   }
 
   def failReadForbidden[S >: T](failure: Throwable, forbiddenPath: String): IoReadForbiddenFailure[S] = {
-    logIOMsgOverLimit(s"IOCommand.failReadForbidden '${failure.toPrettyElidedString(limit = 1000)}' path '$forbiddenPath'")
+    logIOMsgOverLimit(
+      s"IOCommand.failReadForbidden '${failure.toPrettyElidedString(limit = 1000)}' path '$forbiddenPath'"
+    )
     IoReadForbiddenFailure(this, failure, forbiddenPath)
   }
 
@@ -118,7 +122,9 @@ object IoContentAsStringCommand {
 /**
   * Read file as a string (load the entire content in memory)
   */
-abstract class IoContentAsStringCommand(val file: Path, val options: IoReadOptions = IoReadOptions(None, failOnOverflow = false)) extends SingleFileIoCommand[String] {
+abstract class IoContentAsStringCommand(val file: Path,
+                                        val options: IoReadOptions = IoReadOptions(None, failOnOverflow = false)
+) extends SingleFileIoCommand[String] {
   override def toString = s"read content of ${file.pathAsString}"
   override lazy val name = "read"
 }
@@ -138,7 +144,8 @@ abstract class IoSizeCommand(val file: Path) extends SingleFileIoCommand[Long] {
 abstract class IoWriteCommand(val file: Path,
                               val content: String,
                               val openOptions: OpenOptions,
-                              val compressPayload: Boolean) extends SingleFileIoCommand[Unit] {
+                              val compressPayload: Boolean
+) extends SingleFileIoCommand[Unit] {
   override def toString = s"write to ${file.pathAsString}"
   override lazy val name = "write"
 }

@@ -18,11 +18,11 @@ class DockerCredentialsSpec extends AnyFlatSpec with Matchers {
       val credentials: Any = new DockerCredentials(Base64.getEncoder.encodeToString(tokenString.getBytes()), None, None)
 
       credentials match {
-        case DockerCredentialUsernameAndPassword(u, p) => {
+        case DockerCredentialUsernameAndPassword(u, p) =>
           u should be(expectedUsername)
           p should be(expectedPassword)
-        }
-        case _ => fail(s"Expected to decompose ${tokenString} into username=$expectedPassword and password=$expectedPassword")
+        case _ =>
+          fail(s"Expected to decompose ${tokenString} into username=$expectedPassword and password=$expectedPassword")
       }
     }
   }

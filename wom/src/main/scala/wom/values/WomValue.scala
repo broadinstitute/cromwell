@@ -15,7 +15,10 @@ trait WomValue {
   def womType: WomType
   def invalid(operation: String) = Failure(new WomExpressionException(s"Cannot perform operation: $operation"))
   def emptyValueFailure(operationName: String) = Failure(OptionalNotSuppliedException(operationName))
-  def evaluateIfDefined[A <: WomValue](operationName: String, optionalValue: WomOptionalValue, operation: WomValue => Try[A]): Try[A] = optionalValue match {
+  def evaluateIfDefined[A <: WomValue](operationName: String,
+                                       optionalValue: WomOptionalValue,
+                                       operation: WomValue => Try[A]
+  ): Try[A] = optionalValue match {
     case WomOptionalValue(_, Some(v)) => operation(v)
     case _ => emptyValueFailure(operationName)
   }
@@ -26,13 +29,13 @@ trait WomValue {
   def divide(rhs: WomValue): Try[WomValue] = invalid(s"$this / $rhs")
   def mod(rhs: WomValue): Try[WomValue] = invalid(s"$this % $rhs")
   def equals(rhs: WomValue): Try[WomBoolean] = invalid(s"$this == $rhs")
-  def notEquals(rhs: WomValue): Try[WomBoolean] = equals(rhs).map{ x => WomBoolean(!x.value)}
+  def notEquals(rhs: WomValue): Try[WomBoolean] = equals(rhs).map(x => WomBoolean(!x.value))
   def lessThan(rhs: WomValue): Try[WomBoolean] = invalid(s"$this < $rhs")
   def lessThanOrEqual(rhs: WomValue): Try[WomBoolean] =
-    Try(WomBoolean(Seq(lessThan _, equals _).exists{ p => p(rhs).get == WomBoolean.True }))
+    Try(WomBoolean(Seq(lessThan _, equals _).exists(p => p(rhs).get == WomBoolean.True)))
   def greaterThan(rhs: WomValue): Try[WomBoolean] = invalid(s"$this > $rhs")
   def greaterThanOrEqual(rhs: WomValue): Try[WomBoolean] =
-    Try(WomBoolean(Seq(greaterThan _, equals _).exists{ p => p(rhs).get == WomBoolean.True }))
+    Try(WomBoolean(Seq(greaterThan _, equals _).exists(p => p(rhs).get == WomBoolean.True)))
   def or(rhs: WomValue): Try[WomBoolean] = invalid(s"$this || $rhs")
   def and(rhs: WomValue): Try[WomBoolean] = invalid(s"$this && $rhs")
   def not: Try[WomValue] = invalid(s"!$this")
@@ -52,9 +55,8 @@ trait WomValue {
    */
   def valueString: String = toWomString
 
-  def collectAsSeq[T <: WomValue](filterFn: PartialFunction[WomValue, T]): Seq[T] = {
+  def collectAsSeq[T <: WomValue](filterFn: PartialFunction[WomValue, T]): Seq[T] =
     if (filterFn.isDefinedAt(this)) Seq(filterFn(this)) else Nil
-  }
 
   private def symbolHash(hash: String) = SymbolHash((this.getClass.getCanonicalName + hash).md5Sum)
 
@@ -64,7 +66,7 @@ trait WomValue {
     symbolHash(concatenatedMap)
   }
 
-  def computeHash(implicit hasher: FileHasher): SymbolHash = {
+  def computeHash(implicit hasher: FileHasher): SymbolHash =
     this match {
       case w: WomObject => symbolHash(w.values safeMapValues { _.computeHash(hasher) })
       case w: WomMap => symbolHash(w.value map { case (k, v) => k.computeHash(hasher) -> v.computeHash(hasher) })
@@ -72,7 +74,6 @@ trait WomValue {
       case w: WomFile => hasher(w)
       case w => symbolHash(w.valueString)
     }
-  }
 
   def asWomExpression: ValueAsAnExpression = ValueAsAnExpression(this)
 
@@ -87,6 +88,7 @@ trait WomValue {
 }
 
 object WomValue {
+
   /**
     * Returns the womValue with all collections recursively limited to maximum length `maxElements`.
     *
@@ -95,7 +97,7 @@ object WomValue {
     * @return The womValue with maximum maxElements per collection.
     */
   def takeMaxElements(womValue: WomValue, maxElements: Int): WomValue = {
-    def takeMaxElements(recursiveWomValue: WomValue): WomValue = {
+    def takeMaxElements(recursiveWomValue: WomValue): WomValue =
       recursiveWomValue match {
         case WomArray(womType, values) =>
           val subset = values.take(maxElements)
@@ -104,16 +106,16 @@ object WomValue {
           val subset = values.take(maxElements)
           WomMap(
             womType,
-            subset map {
-              case (mapKey, mapValue) => takeMaxElements(mapKey) -> takeMaxElements(mapValue)
+            subset map { case (mapKey, mapValue) =>
+              takeMaxElements(mapKey) -> takeMaxElements(mapValue)
             }
           )
         case objectLike: WomObjectLike =>
           // First take only a limited number of the top-level elements.
           val shallowSubset = objectLike.values.take(maxElements)
           // Then recursively take only a limited number of elements.
-          val deepSubset = shallowSubset map {
-            case (mapKey, mapValue) => mapKey -> takeMaxElements(mapValue)
+          val deepSubset = shallowSubset map { case (mapKey, mapValue) =>
+            mapKey -> takeMaxElements(mapValue)
           }
           objectLike.copyWith(deepSubset)
         case WomOptionalValue(innerType, valueOption) =>
@@ -121,7 +123,6 @@ object WomValue {
         case WomPair(left, right) => WomPair(takeMaxElements(left), takeMaxElements(right))
         case _ => recursiveWomValue
       }
-    }
 
     takeMaxElements(womValue)
   }

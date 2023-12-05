@@ -15,12 +15,14 @@ object TernaryIfEvaluator {
     override def predictFilesNeededToEvaluate(a: TernaryIf,
                                               inputs: Map[String, WomValue],
                                               ioFunctionSet: IoFunctionSet,
-                                              coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] = {
+                                              coerceTo: WomType
+    )(implicit
+      fileEvaluator: FileEvaluator[ExpressionElement],
+      valueEvaluator: ValueEvaluator[ExpressionElement]
+    ): ErrorOr[Set[WomFile]] =
       (a.condition.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo),
-        a.ifTrue.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo),
-        a.ifFalse.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)) mapN { _ ++ _ ++ _ }
-    }
+       a.ifTrue.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo),
+       a.ifFalse.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
+      ) mapN { _ ++ _ ++ _ }
   }
 }

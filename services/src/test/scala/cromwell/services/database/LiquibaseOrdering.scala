@@ -15,9 +15,8 @@ object LiquibaseOrdering {
 
   implicit val liquibaseOrderingForeignKey: Ordering[ForeignKey] = Ordering.by[ForeignKey, String](_.getName)
 
-  implicit val liquibaseOrderingUniqueConstraint: Ordering[UniqueConstraint] = {
+  implicit val liquibaseOrderingUniqueConstraint: Ordering[UniqueConstraint] =
     Ordering.by[UniqueConstraint, String](_.getName)
-  }
 
   implicit val liquibaseOrderingIndex: Ordering[Index] = Ordering.by[Index, String](_.getName)
 }

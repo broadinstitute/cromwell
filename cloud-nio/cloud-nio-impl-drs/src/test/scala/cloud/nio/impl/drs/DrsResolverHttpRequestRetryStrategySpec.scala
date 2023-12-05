@@ -93,7 +93,7 @@ class DrsResolverHttpRequestRetryStrategySpec extends AnyFlatSpec with Matchers 
         waitInitial = 10.seconds,
         waitMultiplier = 2.0d,
         waitMaximum = 1.minute,
-        waitRandomizationFactor = 0d,
+        waitRandomizationFactor = 0d
       )
     val retryStrategy = new DrsResolverHttpRequestRetryStrategy(drsConfig)
 

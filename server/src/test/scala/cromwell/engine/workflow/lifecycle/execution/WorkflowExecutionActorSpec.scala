@@ -10,7 +10,10 @@ import cromwell.backend.AllBackendInitializationData
 import cromwell.core.{SimpleIoActor, WorkflowId}
 import cromwell.engine.backend.{BackendConfigurationEntry, BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.workflow.WorkflowDescriptorBuilderForSpecs
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{ExecuteWorkflowCommand, WorkflowExecutionFailedResponse}
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{
+  ExecuteWorkflowCommand,
+  WorkflowExecutionFailedResponse
+}
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.Rate
 import cromwell.engine.workflow.tokens.JobTokenDispenserActor
 import cromwell.engine.workflow.workflowstore.Submitted
@@ -24,14 +27,18 @@ import org.scalatest.matchers.should.Matchers
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 
-class WorkflowExecutionActorSpec extends CromwellTestKitSpec with AnyFlatSpecLike with Matchers with BeforeAndAfter with WorkflowDescriptorBuilderForSpecs {
+class WorkflowExecutionActorSpec
+    extends CromwellTestKitSpec
+    with AnyFlatSpecLike
+    with Matchers
+    with BeforeAndAfter
+    with WorkflowDescriptorBuilderForSpecs {
 
-  override implicit val actorSystem = system
+  implicit override val actorSystem = system
   implicit val DefaultDuration = 60.seconds.dilated
 
   def mockServiceRegistryActor = TestActorRef(new Actor {
-    override def receive = {
-      case _ => // No action
+    override def receive = { case _ => // No action
     }
   })
 
@@ -57,17 +64,33 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with AnyFlatSpecLik
     import MetadataWatchActor.metadataKeyAttemptChecker
     val metadataSuccessPromise = Promise[Unit]()
     val requiredMetadataMatchers: Seq[MetadataWatchActor.Matcher] = List(
-      MetadataWatchActor.JobKeyMetadataKeyAndValueContainStringMatcher(metadataKeyAttemptChecker(1), "executionStatus", "RetryableFailure"),
-      MetadataWatchActor.JobKeyMetadataKeyAndValueContainStringMatcher(metadataKeyAttemptChecker(2), "executionStatus", "RetryableFailure"),
-      MetadataWatchActor.JobKeyMetadataKeyAndValueContainStringMatcher(metadataKeyAttemptChecker(3), "executionStatus", "Failed")
+      MetadataWatchActor.JobKeyMetadataKeyAndValueContainStringMatcher(metadataKeyAttemptChecker(1),
+                                                                       "executionStatus",
+                                                                       "RetryableFailure"
+      ),
+      MetadataWatchActor.JobKeyMetadataKeyAndValueContainStringMatcher(metadataKeyAttemptChecker(2),
+                                                                       "executionStatus",
+                                                                       "RetryableFailure"
+      ),
+      MetadataWatchActor.JobKeyMetadataKeyAndValueContainStringMatcher(metadataKeyAttemptChecker(3),
+                                                                       "executionStatus",
+                                                                       "Failed"
+      )
     )
-    val metadataWatcherActor = TestActorRef[MetadataWatchActor](Props(MetadataWatchActor(metadataSuccessPromise, requiredMetadataMatchers: _*)))
-    val serviceRegistryActor = system.actorOf(ServiceRegistryActor.props(ConfigFactory.load(), overrides = Map(MetadataService.MetadataServiceName -> metadataWatcherActor.props)))
+    val metadataWatcherActor =
+      TestActorRef[MetadataWatchActor](Props(MetadataWatchActor(metadataSuccessPromise, requiredMetadataMatchers: _*)))
+    val serviceRegistryActor = system.actorOf(
+      ServiceRegistryActor.props(ConfigFactory.load(),
+                                 overrides = Map(MetadataService.MetadataServiceName -> metadataWatcherActor.props)
+      )
+    )
     val jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props)
     val ioActor = system.actorOf(SimpleIoActor.props)
     val subWorkflowStoreActor = system.actorOf(AlwaysHappySubWorkflowStoreActor.props)
-    val jobRestartCheckTokenDispenserActor = system.actorOf(JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running"))
-    val jobExecutionTokenDispenserActor = system.actorOf(JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running"))
+    val jobRestartCheckTokenDispenserActor =
+      system.actorOf(JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running"))
+    val jobExecutionTokenDispenserActor =
+      system.actorOf(JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running"))
     val MockBackendConfigEntry = BackendConfigurationEntry(
       name = "Mock",
       lifecycleActorFactoryClass = "cromwell.engine.backend.mock.RetryableBackendLifecycleActorFactory",
@@ -76,18 +99,38 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with AnyFlatSpecLik
     CromwellBackends.initBackends(List(MockBackendConfigEntry))
 
     val workflowId = WorkflowId.randomId()
-    val engineWorkflowDescriptor = createMaterializedEngineWorkflowDescriptor(workflowId, SampleWdl.HelloWorld.asWorkflowSources(runtime = runtimeSection))
+    val engineWorkflowDescriptor =
+      createMaterializedEngineWorkflowDescriptor(workflowId,
+                                                 SampleWdl.HelloWorld.asWorkflowSources(runtime = runtimeSection)
+      )
     val callCacheReadActor = TestProbe()
     val callCacheWriteActor = TestProbe()
     val dockerHashActor = TestProbe()
 
     val weaSupervisor = TestProbe()
     val workflowExecutionActor = TestActorRef(
-      props = WorkflowExecutionActor.props(engineWorkflowDescriptor, ioActor, serviceRegistryActor, jobStoreActor, subWorkflowStoreActor,
-        callCacheReadActor.ref, callCacheWriteActor.ref, dockerHashActor.ref, jobRestartCheckTokenDispenserActor, jobExecutionTokenDispenserActor, MockBackendSingletonCollection,
-        AllBackendInitializationData.empty, startState = Submitted, rootConfig, new AtomicInteger(), fileHashCacheActor = None, blacklistCache = None),
+      props = WorkflowExecutionActor.props(
+        engineWorkflowDescriptor,
+        ioActor,
+        serviceRegistryActor,
+        jobStoreActor,
+        subWorkflowStoreActor,
+        callCacheReadActor.ref,
+        callCacheWriteActor.ref,
+        dockerHashActor.ref,
+        jobRestartCheckTokenDispenserActor,
+        jobExecutionTokenDispenserActor,
+        MockBackendSingletonCollection,
+        AllBackendInitializationData.empty,
+        startState = Submitted,
+        rootConfig,
+        new AtomicInteger(),
+        fileHashCacheActor = None,
+        blacklistCache = None
+      ),
       name = "WorkflowExecutionActor",
-      supervisor = weaSupervisor.ref)
+      supervisor = weaSupervisor.ref
+    )
 
     EventFilter.info(pattern = "Starting wf_hello.hello", occurrences = 3).intercept {
       workflowExecutionActor ! ExecuteWorkflowCommand
@@ -96,10 +139,12 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with AnyFlatSpecLik
     weaSupervisor.expectMsgClass(classOf[WorkflowExecutionFailedResponse])
 
     // Super-helpful debug in case the metadata watcher is still unhappy:
-    if(metadataWatcherActor.underlyingActor.unsatisfiedMatchers.nonEmpty) {
+    if (metadataWatcherActor.underlyingActor.unsatisfiedMatchers.nonEmpty) {
       requiredMetadataMatchers foreach { matcher =>
         matcher.nearMissInformation.foreach { info =>
-          System.out.println("A matcher had a near miss (it might still get a matching value later!): " + info.replace("\n", "..."))
+          System.out.println(
+            "A matcher had a near miss (it might still get a matching value later!): " + info.replace("\n", "...")
+          )
         }
       }
     }

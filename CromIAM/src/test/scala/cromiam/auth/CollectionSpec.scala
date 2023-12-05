@@ -42,7 +42,6 @@ class CollectionSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
     }
   }
 
-
   behavior of "validateLabels"
   it should "not throw exception when labels are valid" in {
     val labels = """{"key-1":"foo","key-2":"bar"}"""

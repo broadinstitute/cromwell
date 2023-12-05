@@ -41,7 +41,7 @@ trait SwaggerUiHttpService {
    *
    * @return Route serving the swagger UI.
    */
-  final def swaggerUiRoute: Route = {
+  final def swaggerUiRoute: Route =
     pathEndOrSingleSlash {
       get {
         serveIndex
@@ -61,13 +61,13 @@ trait SwaggerUiHttpService {
       // the subject of the CVE linked below while preserving any fragment identifiers to scroll to the right spot in
       // the Swagger UI.
       // https://github.com/swagger-api/swagger-ui/security/advisories/GHSA-qrmm-w75w-3wpx
-      (path("swagger" / "index.html") | path ("swagger")) {
+      (path("swagger" / "index.html") | path("swagger")) {
         get {
           redirect("/", StatusCodes.MovedPermanently)
         }
       }
-  }
 }
+
 /**
  * An extension of HttpService to serve up a resource containing the swagger api as yaml or json. The resource
  * directory and path on the classpath must match the path for route. The resource can be any file type supported by the
@@ -75,9 +75,8 @@ trait SwaggerUiHttpService {
  */
 trait SwaggerResourceHttpService {
 
-  def getBasePathOverride(): Option[String] = {
+  def getBasePathOverride(): Option[String] =
     Option(System.getenv("SWAGGER_BASE_PATH"))
-  }
 
   /**
    * @return The directory for the resource under the classpath, and in the url
@@ -104,18 +103,21 @@ trait SwaggerResourceHttpService {
    */
   final def swaggerResourceRoute: Route = {
     // Serve Cromwell API docs from either `/swagger/cromwell.yaml` or just `cromwell.yaml`.
-    val swaggerDocsDirective = path(separateOnSlashes(swaggerDocsPath)) | path(s"$swaggerServiceName.$swaggerResourceType")
+    val swaggerDocsDirective =
+      path(separateOnSlashes(swaggerDocsPath)) | path(s"$swaggerServiceName.$swaggerResourceType")
 
-    def injectBasePath(basePath: Option[String])(response: HttpResponse): HttpResponse = {
+    def injectBasePath(basePath: Option[String])(response: HttpResponse): HttpResponse =
       basePath match {
         case _ if response.status != StatusCodes.OK => response
         case None => response
-        case Some(base_path) => response.mapEntity { entity =>
-          val swapperFlow: Flow[ByteString, ByteString, Any] = Flow[ByteString].map(byteString => ByteString.apply(byteString.utf8String.replace("#basePath: ...", "basePath: " + base_path)))
-          entity.transformDataBytes(swapperFlow)
-        }
+        case Some(base_path) =>
+          response.mapEntity { entity =>
+            val swapperFlow: Flow[ByteString, ByteString, Any] = Flow[ByteString].map(byteString =>
+              ByteString.apply(byteString.utf8String.replace("#basePath: ...", "basePath: " + base_path))
+            )
+            entity.transformDataBytes(swapperFlow)
+          }
       }
-    }
 
     val route = get {
       swaggerDocsDirective {
@@ -135,6 +137,7 @@ trait SwaggerResourceHttpService {
  * Extends the SwaggerUiHttpService and SwaggerResourceHttpService to serve up both.
  */
 trait SwaggerUiResourceHttpService extends SwaggerUiHttpService with SwaggerResourceHttpService {
+
   /**
    * @return A route that redirects to the swagger UI and returns the swagger resource.
    */

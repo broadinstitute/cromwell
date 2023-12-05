@@ -10,7 +10,8 @@ class SqlSubWorkflowStore(subWorkflowStoreSqlDatabase: SubWorkflowStoreSqlDataba
                                         callFullyQualifiedName: String,
                                         jobIndex: Int,
                                         jobAttempt: Int,
-                                        subWorkflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Unit] = {
+                                        subWorkflowExecutionUuid: String
+  )(implicit ec: ExecutionContext): Future[Unit] =
     subWorkflowStoreSqlDatabase.addSubWorkflowStoreEntry(
       rootWorkflowExecutionUuid,
       parentWorkflowExecutionUuid,
@@ -19,13 +20,16 @@ class SqlSubWorkflowStore(subWorkflowStoreSqlDatabase: SubWorkflowStoreSqlDataba
       jobAttempt,
       subWorkflowExecutionUuid
     )
-  }
 
-  override def querySubWorkflowStore(parentWorkflowExecutionUuid: String, callFqn: String, jobIndex: Int, jobAttempt: Int)(implicit ec: ExecutionContext): Future[Option[SubWorkflowStoreEntry]] = {
+  override def querySubWorkflowStore(parentWorkflowExecutionUuid: String,
+                                     callFqn: String,
+                                     jobIndex: Int,
+                                     jobAttempt: Int
+  )(implicit ec: ExecutionContext): Future[Option[SubWorkflowStoreEntry]] =
     subWorkflowStoreSqlDatabase.querySubWorkflowStore(parentWorkflowExecutionUuid, callFqn, jobIndex, jobAttempt)
-  }
 
-  override def removeSubWorkflowStoreEntries(parentWorkflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Int] = {
+  override def removeSubWorkflowStoreEntries(parentWorkflowExecutionUuid: String)(implicit
+    ec: ExecutionContext
+  ): Future[Int] =
     subWorkflowStoreSqlDatabase.removeSubWorkflowStoreEntries(parentWorkflowExecutionUuid)
-  }
 }

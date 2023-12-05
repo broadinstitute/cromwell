@@ -7,8 +7,8 @@ import wom.values.{WomOptionalValue, WomValue}
   * (and yet at the same time, most) interesting of all the types, the WomNothingType!
   */
 case object WomNothingType extends WomType {
-  override protected def coercion: PartialFunction[Any, WomValue] = {
-    case WomOptionalValue(WomNothingType, None) => WomOptionalValue(WomNothingType, None)
+  override protected def coercion: PartialFunction[Any, WomValue] = { case WomOptionalValue(WomNothingType, None) =>
+    WomOptionalValue(WomNothingType, None)
   }
   override def stableName: String = "Nothing"
 }

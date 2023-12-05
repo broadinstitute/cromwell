@@ -13,8 +13,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 
 import scala.concurrent.duration._
 
-class RootWorkflowHashCacheActorSpec extends TestKitSuite with ImplicitSender
-  with AnyFlatSpecLike {
+class RootWorkflowHashCacheActorSpec extends TestKitSuite with ImplicitSender with AnyFlatSpecLike {
 
   private val fakeWorkflowId = WorkflowId.randomId()
   private val fakeFileName = "fakeFileName"
@@ -25,17 +24,24 @@ class RootWorkflowHashCacheActorSpec extends TestKitSuite with ImplicitSender
       props = Props(new RootWorkflowFileHashCacheActor(ioActorProbe.ref, fakeWorkflowId) {
         override lazy val defaultIoTimeout: FiniteDuration = 1.second
       }),
-      name = "rootWorkflowFileHashCacheActor-without-timer",
+      name = "rootWorkflowFileHashCacheActor-without-timer"
     )
 
-    val ioHashCommandWithContext = IoHashCommandWithContext(DefaultIoHashCommand(DefaultPathBuilder.build("").get), FileHashContext(HashKey(checkForHitOrMiss = false, List.empty), fakeFileName))
+    val ioHashCommandWithContext =
+      IoHashCommandWithContext(DefaultIoHashCommand(DefaultPathBuilder.build("").get),
+                               FileHashContext(HashKey(checkForHitOrMiss = false, List.empty), fakeFileName)
+      )
     rootWorkflowFileHashCacheActor ! ioHashCommandWithContext
 
-    //wait for timeout
+    // wait for timeout
     Thread.sleep(2000)
 
     EventFilter.info(msgIoAckWithNoRequesters.format(fakeFileName), occurrences = 1).intercept {
-      ioActorProbe.send(rootWorkflowFileHashCacheActor, ioHashCommandWithContext.fileHashContext -> IoSuccess(ioHashCommandWithContext.ioHashCommand, "Successful result"))
+      ioActorProbe.send(rootWorkflowFileHashCacheActor,
+                        ioHashCommandWithContext.fileHashContext -> IoSuccess(ioHashCommandWithContext.ioHashCommand,
+                                                                              "Successful result"
+                        )
+      )
     }
   }
 
@@ -46,17 +52,32 @@ class RootWorkflowHashCacheActorSpec extends TestKitSuite with ImplicitSender
         // Effectively disabling automatic timeout firing here. We'll send RequestTimeout ourselves
         override lazy val defaultIoTimeout: FiniteDuration = 1.hour
       }),
-      "rootWorkflowFileHashCacheActor-with-timer",
+      "rootWorkflowFileHashCacheActor-with-timer"
     )
 
-    val ioHashCommandWithContext = IoHashCommandWithContext(DefaultIoHashCommand(DefaultPathBuilder.build("").get), FileHashContext(HashKey(checkForHitOrMiss = false, List.empty), fakeFileName))
+    val ioHashCommandWithContext =
+      IoHashCommandWithContext(DefaultIoHashCommand(DefaultPathBuilder.build("").get),
+                               FileHashContext(HashKey(checkForHitOrMiss = false, List.empty), fakeFileName)
+      )
     rootWorkflowFileHashCacheActor ! ioHashCommandWithContext
 
     val hashVal = "Success"
-    EventFilter.info(msgTimeoutAfterIoAck.format(s"FileHashSuccess($hashVal)", ioHashCommandWithContext.fileHashContext.file), occurrences = 1).intercept {
-      ioActorProbe.send(rootWorkflowFileHashCacheActor, (ioHashCommandWithContext.fileHashContext, IoSuccess(ioHashCommandWithContext.ioHashCommand, hashVal)))
-      Thread.sleep(2000) // wait for actor to put value into cache
-      ioActorProbe.send(rootWorkflowFileHashCacheActor, RequestTimeout(ioHashCommandWithContext.fileHashContext -> ioHashCommandWithContext.ioHashCommand, rootWorkflowFileHashCacheActor))
-    }
+    EventFilter
+      .info(msgTimeoutAfterIoAck.format(s"FileHashSuccess($hashVal)", ioHashCommandWithContext.fileHashContext.file),
+            occurrences = 1
+      )
+      .intercept {
+        ioActorProbe.send(
+          rootWorkflowFileHashCacheActor,
+          (ioHashCommandWithContext.fileHashContext, IoSuccess(ioHashCommandWithContext.ioHashCommand, hashVal))
+        )
+        Thread.sleep(2000) // wait for actor to put value into cache
+        ioActorProbe.send(
+          rootWorkflowFileHashCacheActor,
+          RequestTimeout(ioHashCommandWithContext.fileHashContext -> ioHashCommandWithContext.ioHashCommand,
+                         rootWorkflowFileHashCacheActor
+          )
+        )
+      }
   }
 }

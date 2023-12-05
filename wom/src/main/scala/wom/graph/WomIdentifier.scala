@@ -25,14 +25,14 @@ case class FullyQualifiedName(value: String) {
 
 object WomIdentifier {
   def apply(localName: String): WomIdentifier = WomIdentifier(LocalName(localName), FullyQualifiedName(localName))
-  def apply(localName: String, fullyQualifiedName: String): WomIdentifier = WomIdentifier(LocalName(localName), FullyQualifiedName(fullyQualifiedName))
+  def apply(localName: String, fullyQualifiedName: String): WomIdentifier =
+    WomIdentifier(LocalName(localName), FullyQualifiedName(fullyQualifiedName))
 }
 
 case class WomIdentifier(localName: LocalName, fullyQualifiedName: FullyQualifiedName) {
   def combine(other: LocalName): WomIdentifier = combine(other.value)
-  def combine(other: String): WomIdentifier = {
+  def combine(other: String): WomIdentifier =
     WomIdentifier(localName.combineToLocalName(other), fullyQualifiedName.combine(other))
-  }
   def workflowLocalName: String = fullyQualifiedName.value.split("\\.") match {
     case fqn if fqn.length > 1 => fqn.tail.mkString(".")
     case lqn => lqn.head

@@ -18,10 +18,10 @@ class ParallelGcsBatchFlow(config: GcsBatchFlowConfig,
                            onRetry: IoCommandContext[_] => Throwable => Unit,
                            onBackpressure: Option[Double] => Unit,
                            applicationName: String,
-                           commandBackpressureStaleness: FiniteDuration)
-                          (implicit ec: ExecutionContext) {
+                           commandBackpressureStaleness: FiniteDuration
+)(implicit ec: ExecutionContext) {
 
-  //noinspection TypeAnnotation
+  // noinspection TypeAnnotation
   val flow = GraphDSL.create() { implicit builder =>
     import GraphDSL.Implicits._
     val balancer = builder.add(Balance[GcsBatchCommandContext[_, _]](config.parallelism, waitForAllDownstreams = false))
@@ -35,7 +35,8 @@ class ParallelGcsBatchFlow(config: GcsBatchFlowConfig,
         onRetry = onRetry,
         onBackpressure = onBackpressure,
         applicationName = applicationName,
-        backpressureStaleness = commandBackpressureStaleness).flow
+        backpressureStaleness = commandBackpressureStaleness
+      ).flow
       // for each worker, add an edge from the balancer to the worker, then wire
       // it to the merge element
       balancer ~> workerFlow.async ~> merge

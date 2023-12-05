@@ -28,11 +28,16 @@ object BinaryOperatorEvaluators {
   implicit val remainderEvaluator: FileEvaluator[Remainder] = forOperation(_.mod(_))
 
   private def forOperation[A <: BinaryOperation](op: (WomValue, WomValue) => Try[WomValue]) = new FileEvaluator[A] {
-    override def predictFilesNeededToEvaluate(a: A, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] = {
+    override def predictFilesNeededToEvaluate(a: A,
+                                              inputs: Map[String, WomValue],
+                                              ioFunctionSet: IoFunctionSet,
+                                              coerceTo: WomType
+    )(implicit
+      fileEvaluator: FileEvaluator[ExpressionElement],
+      valueEvaluator: ValueEvaluator[ExpressionElement]
+    ): ErrorOr[Set[WomFile]] =
       (a.left.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo),
-        a.right.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)) mapN { _ ++ _ }
-    }
+       a.right.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
+      ) mapN { _ ++ _ }
   }
 }

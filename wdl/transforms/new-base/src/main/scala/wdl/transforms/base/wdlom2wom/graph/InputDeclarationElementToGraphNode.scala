@@ -18,15 +18,17 @@ import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
 import wdl.transforms.base.wdlom2wdl.WdlWriterImpl._
 
 object InputDeclarationElementToGraphNode {
-  def convert(a: GraphInputNodeMakerInputs)
-             (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
-              fileEvaluator: FileEvaluator[ExpressionElement],
-              typeEvaluator: TypeEvaluator[ExpressionElement],
-              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[GraphNode]] = a.node match {
+  def convert(a: GraphInputNodeMakerInputs)(implicit
+    expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
+    fileEvaluator: FileEvaluator[ExpressionElement],
+    typeEvaluator: TypeEvaluator[ExpressionElement],
+    valueEvaluator: ValueEvaluator[ExpressionElement]
+  ): ErrorOr[Set[GraphNode]] = a.node match {
     case InputDeclarationElement(typeElement, name, None) =>
       val nameInInputSet = s"${a.workflowName}.$name"
       typeElement.determineWomType(a.availableTypeAliases) map {
-        case opt: WomOptionalType => Set(OptionalGraphInputNode(WomIdentifier(name), opt.flatOptionalType, nameInInputSet))
+        case opt: WomOptionalType =>
+          Set(OptionalGraphInputNode(WomIdentifier(name), opt.flatOptionalType, nameInInputSet))
         case womType => Set(RequiredGraphInputNode(WomIdentifier(name), womType, nameInInputSet))
       }
     case InputDeclarationElement(typeElement, name, Some(expr)) =>
@@ -45,7 +47,8 @@ object InputDeclarationElementToGraphNode {
 }
 
 final case class GraphInputNodeMakerInputs(node: InputDeclarationElement,
-                                            linkableValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
-                                            linkablePorts: Map[String, OutputPort],
-                                            availableTypeAliases: Map[String, WomType],
-                                            workflowName: String)
+                                           linkableValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
+                                           linkablePorts: Map[String, OutputPort],
+                                           availableTypeAliases: Map[String, WomType],
+                                           workflowName: String
+)

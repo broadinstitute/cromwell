@@ -13,7 +13,9 @@ final case class CallAttempt(fqn: FullyQualifiedName, attempt: Int)
 object WorkflowFailureMode {
   def tryParse(mode: String): Try[WorkflowFailureMode] = {
     val modes = Seq(ContinueWhilePossible, NoNewCalls)
-    modes find { _.toString.equalsIgnoreCase(mode) } map { Success(_) } getOrElse Failure(new Exception(s"Invalid workflow failure mode: $mode"))
+    modes find { _.toString.equalsIgnoreCase(mode) } map { Success(_) } getOrElse Failure(
+      new Exception(s"Invalid workflow failure mode: $mode")
+    )
   }
 }
 sealed trait WorkflowFailureMode {

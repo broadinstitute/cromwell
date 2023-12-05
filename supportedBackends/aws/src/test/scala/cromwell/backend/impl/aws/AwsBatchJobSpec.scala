@@ -102,30 +102,51 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
 
   val cpu: Int Refined Positive = 2
   val runtimeAttributes: AwsBatchRuntimeAttributes = new AwsBatchRuntimeAttributes(
-      cpu = cpu,
-      zones = Vector("us-east-1"),
-      memory = MemorySize(2.0, MemoryUnit.GB),
-      disks = Seq.empty,
-      dockerImage = "ubuntu:latest",
-      queueArn = "arn:aws:batch:us-east-1:123456789:job-queue/default-gwf-core",
-      failOnStderr = true,
-      continueOnReturnCode = ContinueOnReturnCodeFlag(false),
-      noAddress = false,
-      scriptS3BucketName = "script-bucket",
-      fileSystem = "s3")
+    cpu = cpu,
+    zones = Vector("us-east-1"),
+    memory = MemorySize(2.0, MemoryUnit.GB),
+    disks = Seq.empty,
+    dockerImage = "ubuntu:latest",
+    queueArn = "arn:aws:batch:us-east-1:123456789:job-queue/default-gwf-core",
+    failOnStderr = true,
+    continueOnReturnCode = ContinueOnReturnCodeFlag(false),
+    noAddress = false,
+    scriptS3BucketName = "script-bucket",
+    fileSystem = "s3"
+  )
 
   private def generateBasicJob: AwsBatchJob = {
-    val job = AwsBatchJob(null, runtimeAttributes, "commandLine", script,
-      "/cromwell_root/hello-rc.txt", "/cromwell_root/hello-stdout.log", "/cromwell_root/hello-stderr.log",
-      Seq.empty[AwsBatchInput].toSet, Seq.empty[AwsBatchFileOutput].toSet,
-      jobPaths, Seq.empty[AwsBatchParameter], None)
+    val job = AwsBatchJob(
+      null,
+      runtimeAttributes,
+      "commandLine",
+      script,
+      "/cromwell_root/hello-rc.txt",
+      "/cromwell_root/hello-stdout.log",
+      "/cromwell_root/hello-stderr.log",
+      Seq.empty[AwsBatchInput].toSet,
+      Seq.empty[AwsBatchFileOutput].toSet,
+      jobPaths,
+      Seq.empty[AwsBatchParameter],
+      None
+    )
     job
   }
   private def generateBasicJobForLocalFS: AwsBatchJob = {
-    val job = AwsBatchJob(null, runtimeAttributes.copy(fileSystem="local"), "commandLine", script,
-      "/cromwell_root/hello-rc.txt", "/cromwell_root/hello-stdout.log", "/cromwell_root/hello-stderr.log",
-      Seq.empty[AwsBatchInput].toSet, Seq.empty[AwsBatchFileOutput].toSet,
-      jobPaths, Seq.empty[AwsBatchParameter], None)
+    val job = AwsBatchJob(
+      null,
+      runtimeAttributes.copy(fileSystem = "local"),
+      "commandLine",
+      script,
+      "/cromwell_root/hello-rc.txt",
+      "/cromwell_root/hello-stdout.log",
+      "/cromwell_root/hello-stderr.log",
+      Seq.empty[AwsBatchInput].toSet,
+      Seq.empty[AwsBatchFileOutput].toSet,
+      jobPaths,
+      Seq.empty[AwsBatchParameter],
+      None
+    )
     job
   }
 
@@ -136,10 +157,10 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
 
     val job: AwsBatchJob = generateBasicJob
 
-    job.AWS_RETRY_MODE should be ("AWS_RETRY_MODE")
-    job.AWS_RETRY_MODE_DEFAULT_VALUE should be ("adaptive")
-    job.AWS_MAX_ATTEMPTS should be ("AWS_MAX_ATTEMPTS")
-    job.AWS_MAX_ATTEMPTS_DEFAULT_VALUE should be ("14")
+    job.AWS_RETRY_MODE should be("AWS_RETRY_MODE")
+    job.AWS_RETRY_MODE_DEFAULT_VALUE should be("adaptive")
+    job.AWS_MAX_ATTEMPTS should be("AWS_MAX_ATTEMPTS")
+    job.AWS_MAX_ATTEMPTS_DEFAULT_VALUE should be("14")
   }
 
   it should "generate appropriate KV pairs for the container environment for S3" in {
@@ -149,10 +170,10 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     // testing a private method see https://www.scalatest.org/user_guide/using_PrivateMethodTester
     val kvPairs = job invokePrivate generateEnvironmentKVPairs("script-bucket", "prefix-", "key")
 
-    kvPairs should contain (buildKVPair(job.AWS_MAX_ATTEMPTS, job.AWS_MAX_ATTEMPTS_DEFAULT_VALUE))
-    kvPairs should contain (buildKVPair(job.AWS_RETRY_MODE, "adaptive"))
-    kvPairs should contain (buildKVPair("BATCH_FILE_TYPE", "script"))
-    kvPairs should contain (buildKVPair("BATCH_FILE_S3_URL", "s3://script-bucket/prefix-key"))
+    kvPairs should contain(buildKVPair(job.AWS_MAX_ATTEMPTS, job.AWS_MAX_ATTEMPTS_DEFAULT_VALUE))
+    kvPairs should contain(buildKVPair(job.AWS_RETRY_MODE, "adaptive"))
+    kvPairs should contain(buildKVPair("BATCH_FILE_TYPE", "script"))
+    kvPairs should contain(buildKVPair("BATCH_FILE_S3_URL", "s3://script-bucket/prefix-key"))
   }
 
   it should "generate appropriate KV pairs for the container environment for Local FS" in {
@@ -162,9 +183,9 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     // testing a private method see https://www.scalatest.org/user_guide/using_PrivateMethodTester
     val kvPairs = job invokePrivate generateEnvironmentKVPairs("script-bucket", "prefix-", "key")
 
-    kvPairs should contain (buildKVPair(job.AWS_MAX_ATTEMPTS, job.AWS_MAX_ATTEMPTS_DEFAULT_VALUE))
-    kvPairs should contain (buildKVPair(job.AWS_RETRY_MODE, "adaptive"))
-    kvPairs should contain (buildKVPair("BATCH_FILE_TYPE", "script"))
-    kvPairs should contain (buildKVPair("BATCH_FILE_S3_URL", ""))
+    kvPairs should contain(buildKVPair(job.AWS_MAX_ATTEMPTS, job.AWS_MAX_ATTEMPTS_DEFAULT_VALUE))
+    kvPairs should contain(buildKVPair(job.AWS_RETRY_MODE, "adaptive"))
+    kvPairs should contain(buildKVPair("BATCH_FILE_TYPE", "script"))
+    kvPairs should contain(buildKVPair("BATCH_FILE_S3_URL", ""))
   }
 }

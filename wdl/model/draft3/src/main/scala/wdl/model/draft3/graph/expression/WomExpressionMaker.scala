@@ -10,5 +10,6 @@ import wom.types.WomType
 trait WomExpressionMaker[A] {
   def makeWomExpression(a: A,
                         typeAliases: Map[String, WomType],
-                        consumedValueLookup: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]): ErrorOr[WomExpression]
+                        consumedValueLookup: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]
+  ): ErrorOr[WomExpression]
 }

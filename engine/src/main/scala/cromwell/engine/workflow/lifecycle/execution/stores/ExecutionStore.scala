@@ -25,6 +25,7 @@ object ExecutionStore {
   val MaxJobsToStartPerTick = 1000
 
   implicit class EnhancedJobKey(val key: JobKey) extends AnyVal {
+
     /**
       * Given a StatusStable, return true if all dependencies of this key are in the table (and therefore are in this status),
       * false otherwise.
@@ -42,26 +43,30 @@ object ExecutionStore {
         case scatterCollector: ScatterCollectorKey =>
           // The outputToGather is the PortBasedGraphOutputNode of the inner graph that we're collecting. Go one step upstream and then
           // find the node which will have entries in the execution store. If that has 'n' entries, then we're good to start collecting,
-          statusTable.row(scatterCollector.outputNodeToGather.singleUpstreamPort.executionNode).size == scatterCollector.scatterWidth
+          statusTable
+            .row(scatterCollector.outputNodeToGather.singleUpstreamPort.executionNode)
+            .size == scatterCollector.scatterWidth
         case conditionalCollector: ConditionalCollectorKey =>
           val upstreamPort = conditionalCollector.outputNodeToCollect.singleUpstreamPort
           upstreamPort.executionNode.isInStatus(chooseIndex(upstreamPort), statusTable)
         // In the general case, the dependencies are held by the upstreamPorts
         case _ =>
           key.node.upstreamPorts forall { p =>
-              p.executionNode.isInStatus(chooseIndex(p), statusTable)
+            p.executionNode.isInStatus(chooseIndex(p), statusTable)
           }
       }
     }
 
     def nonStartableOutputKeys: Set[JobKey] = key match {
-      case scatterKey: ScatterKey => scatterKey.makeCollectors(0, scatterKey.node.scatterCollectionFunctionBuilder(List.empty)).toSet[JobKey]
+      case scatterKey: ScatterKey =>
+        scatterKey.makeCollectors(0, scatterKey.node.scatterCollectionFunctionBuilder(List.empty)).toSet[JobKey]
       case conditionalKey: ConditionalKey => conditionalKey.collectors.toSet[JobKey]
       case _ => Set.empty[JobKey]
     }
   }
 
   implicit class EnhancedOutputPort(val outputPort: OutputPort) extends AnyVal {
+
     /**
       * Node that should be considered to determine upstream dependencies
       */
@@ -78,18 +83,25 @@ object ExecutionStore {
       case svn: ScatterVariableNode => table.contains(svn.linkToOuterGraph.graphNode, None)
       // OuterGraphInputNodes signal that an input comes from outside the graph.
       // Depending on whether or not this input is outside of a scatter graph will change the index which we need to look at
-      case ogin: OuterGraphInputNode if !ogin.preserveScatterIndex => ogin.linkToOuterGraph.executionNode.isInStatus(None, table)
+      case ogin: OuterGraphInputNode if !ogin.preserveScatterIndex =>
+        ogin.linkToOuterGraph.executionNode.isInStatus(None, table)
       case ogin: OuterGraphInputNode => ogin.linkToOuterGraph.executionNode.isInStatus(index, table)
       case _: GraphInputNode => true
       case _ => table.contains(graphNode, index)
     }
   }
 
-  case class ExecutionStoreUpdate(runnableKeys: List[JobKey], updatedStore: ExecutionStore, statusChanges: Map[JobKey, ExecutionStatus])
+  case class ExecutionStoreUpdate(runnableKeys: List[JobKey],
+                                  updatedStore: ExecutionStore,
+                                  statusChanges: Map[JobKey, ExecutionStatus]
+  )
 
   def empty = ActiveExecutionStore(Map.empty[JobKey, ExecutionStatus], needsUpdate = false)
 
-  def apply(callable: ExecutableCallable, totalJobsByRootWf: AtomicInteger, totalMaxJobsPerRootWf: Int): ErrorOr[ActiveExecutionStore] = {
+  def apply(callable: ExecutableCallable,
+            totalJobsByRootWf: AtomicInteger,
+            totalMaxJobsPerRootWf: Int
+  ): ErrorOr[ActiveExecutionStore] = {
     // Keys that are added in a NotStarted Status
     val notStartedKeys = callable.graph.nodes collect {
       case call: CommandCallNode => BackendJobDescriptorKey(call, None, attempt = 1)
@@ -118,21 +130,25 @@ object ExecutionStore {
 /**
   * Execution store in its nominal state
   */
-final case class ActiveExecutionStore private[stores](private val statusStore: Map[JobKey, ExecutionStatus], override val needsUpdate: Boolean) extends ExecutionStore(statusStore, needsUpdate) {
+final case class ActiveExecutionStore private[stores] (private val statusStore: Map[JobKey, ExecutionStatus],
+                                                       override val needsUpdate: Boolean
+) extends ExecutionStore(statusStore, needsUpdate) {
 
   override def toString: String = {
     import io.circe.syntax._
     import io.circe.Printer
 
-    statusStore.map {
-      case (k, v) if k.isShard => s"${k.node.fullyQualifiedName}:${k.index.get}" -> v.toString
-      case (k, v) => k.node.fullyQualifiedName -> v.toString
-    }.asJson.printWith(Printer.spaces2.copy(dropNullValues = true, colonLeft = ""))
+    statusStore
+      .map {
+        case (k, v) if k.isShard => s"${k.node.fullyQualifiedName}:${k.index.get}" -> v.toString
+        case (k, v) => k.node.fullyQualifiedName -> v.toString
+      }
+      .asJson
+      .printWith(Printer.spaces2.copy(dropNullValues = true, colonLeft = ""))
   }
 
-  override def updateKeys(values: Map[JobKey, ExecutionStatus], needsUpdate: Boolean): ActiveExecutionStore = {
+  override def updateKeys(values: Map[JobKey, ExecutionStatus], needsUpdate: Boolean): ActiveExecutionStore =
     this.copy(statusStore = statusStore ++ values, needsUpdate = needsUpdate)
-  }
   override def seal: SealedExecutionStore = SealedExecutionStore(statusStore.filterNot(_._2 == NotStarted), needsUpdate)
   override def withNeedsUpdateFalse: ExecutionStore = if (!needsUpdate) this else this.copy(needsUpdate = false)
   override def withNeedsUpdateTrue: ExecutionStore = if (needsUpdate) this else this.copy(needsUpdate = true)
@@ -142,12 +158,13 @@ final case class ActiveExecutionStore private[stores](private val statusStore: M
   * Execution store when the workflow is in either Failing or Aborting state. Keys in NotStarted state have been removed and
   * no new NotStarted key can be added. Other statuses can still be updated.
   */
-final case class SealedExecutionStore private[stores](private val statusStore: Map[JobKey, ExecutionStatus], override val needsUpdate: Boolean) extends ExecutionStore(statusStore, false) {
+final case class SealedExecutionStore private[stores] (private val statusStore: Map[JobKey, ExecutionStatus],
+                                                       override val needsUpdate: Boolean
+) extends ExecutionStore(statusStore, false) {
 
-  override def updateKeys(values: Map[JobKey, ExecutionStatus], needsUpdate: Boolean): SealedExecutionStore = {
+  override def updateKeys(values: Map[JobKey, ExecutionStatus], needsUpdate: Boolean): SealedExecutionStore =
     // Don't allow NotStarted keys in sealed mode
     this.copy(statusStore = statusStore ++ values.filterNot(_._2 == NotStarted), needsUpdate = needsUpdate)
-  }
   override def seal: SealedExecutionStore = this
   override def withNeedsUpdateFalse: ExecutionStore = this.copy(needsUpdate = false)
   override def withNeedsUpdateTrue: ExecutionStore = this.copy(needsUpdate = true)
@@ -162,13 +179,14 @@ final case class SealedExecutionStore private[stores](private val statusStore: M
   *                    when true, something happened since the last update that could yield new runnable keys, so update should be called
   *                    when false, nothing happened between the last update and now that will yield different results so no need to call the update method
   */
-sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, ExecutionStatus], val needsUpdate: Boolean) {
+sealed abstract class ExecutionStore private[stores] (statusStore: Map[JobKey, ExecutionStatus],
+                                                      val needsUpdate: Boolean
+) {
   // View of the statusStore more suited for lookup based on status
   lazy val store: Map[ExecutionStatus, List[JobKey]] = statusStore.groupBy(_._2).safeMapValues(_.keys.toList)
 
-  def backendJobDescriptorKeyForNode(node: GraphNode): Option[BackendJobDescriptorKey] = {
+  def backendJobDescriptorKeyForNode(node: GraphNode): Option[BackendJobDescriptorKey] =
     statusStore.keys collectFirst { case k: BackendJobDescriptorKey if k.node eq node => k }
-  }
 
   /**
     * Number of queued jobs
@@ -183,10 +201,9 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
   /**
     * Update key statuses
     */
-  def updateKeys(values: Map[JobKey, ExecutionStatus]): ExecutionStore = {
+  def updateKeys(values: Map[JobKey, ExecutionStatus]): ExecutionStore =
     // The store might newly need updating now if a job has completed because downstream jobs might now be runnable
     updateKeys(values, needsUpdate || values.values.exists(_.isTerminalOrRetryable))
-  }
 
   /**
     * Returns a SealedExecutionStore: all NotStarted keys will be removed and no new NotStarted keys can be added after that
@@ -204,23 +221,23 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
   protected def withNeedsUpdateFalse: ExecutionStore
 
   /*
-    * Create 2 Tables, one for keys in done status and one for keys in terminal status.
-    * A Table is nothing more than a Map[R, Map[C, V]], see Table trait for more details
-    * In this case, rows are GraphNodes, columns are ExecutionIndexes, and values are JobKeys
-    * This allows for quick lookup of all shards for a node, as well as accessing a specific key with a
-    * (node, index) pair
+   * Create 2 Tables, one for keys in done status and one for keys in terminal status.
+   * A Table is nothing more than a Map[R, Map[C, V]], see Table trait for more details
+   * In this case, rows are GraphNodes, columns are ExecutionIndexes, and values are JobKeys
+   * This allows for quick lookup of all shards for a node, as well as accessing a specific key with a
+   * (node, index) pair
    */
   lazy val (doneStatus, terminalStatus) = {
     def toTableEntry(key: JobKey) = (key.node, key.index, key)
 
-    store.foldLeft((Table.empty[GraphNode, ExecutionIndex, JobKey], Table.empty[GraphNode, ExecutionIndex, JobKey]))({
-      case ((done, terminal), (status, keys))  =>
+    store.foldLeft((Table.empty[GraphNode, ExecutionIndex, JobKey], Table.empty[GraphNode, ExecutionIndex, JobKey])) {
+      case ((done, terminal), (status, keys)) =>
         lazy val newMapEntries = keys map toTableEntry
         val newDone = if (status.isDoneOrBypassed) done.addAll(newMapEntries) else done
         val newTerminal = if (status.isTerminal) terminal.addAll(newMapEntries) else terminal
 
         newDone -> newTerminal
-    })
+    }
   }
 
   private def keysWithStatus(status: ExecutionStatus) = store.getOrElse(status, List.empty)
@@ -229,29 +246,28 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     * We're done when all the keys have a terminal status,
     * which is equivalent to non of them being in a non-terminal status and faster to verify
     */
-  def isDone: Boolean = {
+  def isDone: Boolean =
     NonTerminalStatuses.toList.map(keysWithStatus).forall(_.isEmpty)
-  }
 
-  def isStalled: Boolean = {
+  def isStalled: Boolean =
     !isDone && !needsUpdate && ActiveStatuses.map(keysWithStatus).forall(_.isEmpty)
-  }
 
   def unstarted = keysWithStatus(NotStarted)
 
   def jobStatus(jobKey: JobKey): Option[ExecutionStatus] = statusStore.get(jobKey)
 
-  def startedJobs: List[BackendJobDescriptorKey] = {
-    store.filterNot({ case (s, _) => s == NotStarted}).values.toList.flatten collect {
+  def startedJobs: List[BackendJobDescriptorKey] =
+    store.filterNot { case (s, _) => s == NotStarted }.values.toList.flatten collect {
       case k: BackendJobDescriptorKey => k
     }
-  }
 
   override def toString: String =
     s"""
        |ExecutionStore(
        |  statusStore = {
-       |    ${store.map { case (j, s) => s"$j -> ${s.mkString(System.lineSeparator + "      ", ", " + System.lineSeparator + "      ", "")}" } mkString("," + System.lineSeparator + "    ")}
+       |    ${store.map { case (j, s) =>
+        s"$j -> ${s.mkString(System.lineSeparator + "      ", ", " + System.lineSeparator + "      ", "")}"
+      } mkString ("," + System.lineSeparator + "    ")}
        |  },
        |  needsUpdate = $needsUpdate
        |)""".stripMargin

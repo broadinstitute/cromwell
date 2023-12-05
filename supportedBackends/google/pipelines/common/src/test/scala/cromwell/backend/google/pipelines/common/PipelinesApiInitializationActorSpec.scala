@@ -8,7 +8,12 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed, InitializationSuccess, Initialize}
 import cromwell.backend.async.RuntimeAttributeValidationFailures
 import cromwell.backend.google.pipelines.common.PipelinesApiInitializationActorSpec._
-import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig.{PapiGlobalConfig, genomicsFactory, googleConfiguration, papiAttributes}
+import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig.{
+  genomicsFactory,
+  googleConfiguration,
+  papiAttributes,
+  PapiGlobalConfig
+}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.TestKitSuite
@@ -20,41 +25,54 @@ import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
 
-class PipelinesApiInitializationActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
-  with ImplicitSender {
+class PipelinesApiInitializationActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with ImplicitSender {
   val Timeout: FiniteDuration = 30.second.dilated
 
   import BackendSpec._
 
   val HelloWorld: String =
     s"""
-      |task hello {
-      |  String addressee = "you"
-      |  command {
-      |    echo "Hello $${addressee}!"
-      |  }
-      |  output {
-      |    String salutation = read_string(stdout())
-      |  }
-      |
-      |  RUNTIME
-      |}
-      |
-      |workflow wf_hello {
-      |  call hello
-      |}
+       |task hello {
+       |  String addressee = "you"
+       |  command {
+       |    echo "Hello $${addressee}!"
+       |  }
+       |  output {
+       |    String salutation = read_string(stdout())
+       |  }
+       |
+       |  RUNTIME
+       |}
+       |
+       |workflow wf_hello {
+       |  call hello
+       |}
     """.stripMargin
 
   private def getJesBackendProps(workflowDescriptor: BackendWorkflowDescriptor,
                                  calls: Set[CommandCallNode],
-                                 jesConfiguration: PipelinesApiConfiguration): Props = {
+                                 jesConfiguration: PipelinesApiConfiguration
+  ): Props = {
     val ioActor = mockIoActor
-    val params = PipelinesApiInitializationActorParams(workflowDescriptor, ioActor, calls, jesConfiguration, emptyActor, restarting = false)
+    val params = PipelinesApiInitializationActorParams(workflowDescriptor,
+                                                       ioActor,
+                                                       calls,
+                                                       jesConfiguration,
+                                                       emptyActor,
+                                                       restarting = false
+    )
     Props(new PipelinesApiInitializationActor(params)).withDispatcher(BackendDispatcher)
   }
 
-  private def getJesBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[CommandCallNode], conf: BackendConfigurationDescriptor) = {
-    val props = getJesBackendProps(workflowDescriptor, calls, new PipelinesApiConfiguration(conf, genomicsFactory, googleConfiguration, papiAttributes))
+  private def getJesBackend(workflowDescriptor: BackendWorkflowDescriptor,
+                            calls: Set[CommandCallNode],
+                            conf: BackendConfigurationDescriptor
+  ) = {
+    val props = getJesBackendProps(
+      workflowDescriptor,
+      calls,
+      new PipelinesApiConfiguration(conf, genomicsFactory, googleConfiguration, papiAttributes)
+    )
     system.actorOf(props, "TestableJesInitializationActor-" + UUID.randomUUID)
   }
 
@@ -63,17 +81,16 @@ class PipelinesApiInitializationActorSpec extends TestKitSuite with AnyFlatSpecL
   it should "log a warning message when there are unsupported runtime attributes" in {
 
     within(Timeout) {
-      val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld,
-        runtime = """runtime { docker: "ubuntu/latest" test: true }""")
-      val backend = getJesBackend(workflowDescriptor, workflowDescriptor.callable.taskCallNodes,
-        defaultBackendConfig)
+      val workflowDescriptor =
+        buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { docker: "ubuntu/latest" test: true }""")
+      val backend = getJesBackend(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, defaultBackendConfig)
       val eventPattern =
         "Key/s [test] is/are not supported by backend. Unsupported attributes will not be part of job executions."
       EventFilter.warning(pattern = escapePattern(eventPattern), occurrences = 1) intercept {
         backend ! Initialize
       }
       expectMsgPF() {
-        case InitializationSuccess(_) => //Docker entry is present.
+        case InitializationSuccess(_) => // Docker entry is present.
         case InitializationFailed(failure) => fail(s"InitializationSuccess was expected but got $failure")
       }
     }
@@ -82,36 +99,39 @@ class PipelinesApiInitializationActorSpec extends TestKitSuite with AnyFlatSpecL
   it should "return InitializationFailed when docker runtime attribute key is not present" in {
     within(Timeout) {
       val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
-      val backend = getJesBackend(workflowDescriptor, workflowDescriptor.callable.taskCallNodes,
-        defaultBackendConfig)
+      val backend = getJesBackend(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, defaultBackendConfig)
       backend ! Initialize
-      expectMsgPF() {
-        case InitializationFailed(failure) =>
-          failure match {
-            case exception: RuntimeAttributeValidationFailures =>
-              if (!exception.getMessage.equals("Runtime validation failed:\nTask hello has an invalid runtime attribute docker = !! NOT FOUND !!"))
-                fail("Exception message is not equal to 'Runtime validation failed:\nTask hello has an invalid runtime attribute docker = !! NOT FOUND !!'.")
-          }
+      expectMsgPF() { case InitializationFailed(failure) =>
+        failure match {
+          case exception: RuntimeAttributeValidationFailures =>
+            if (
+              !exception.getMessage.equals(
+                "Runtime validation failed:\nTask hello has an invalid runtime attribute docker = !! NOT FOUND !!"
+              )
+            )
+              fail(
+                "Exception message is not equal to 'Runtime validation failed:\nTask hello has an invalid runtime attribute docker = !! NOT FOUND !!'."
+              )
+        }
       }
     }
   }
 }
 
 object PipelinesApiInitializationActorSpec {
-  val globalConfig: Config = ConfigFactory.parseString(
-    """
-      |google {
-      |
-      |  application-name = "cromwell"
-      |
-      |  auths = [
-      |    {
-      |      name = "application-default"
-      |      scheme = "mock"
-      |    }
-      |  ]
-      |}
-      |""".stripMargin)
+  val globalConfig: Config = ConfigFactory.parseString("""
+                                                         |google {
+                                                         |
+                                                         |  application-name = "cromwell"
+                                                         |
+                                                         |  auths = [
+                                                         |    {
+                                                         |      name = "application-default"
+                                                         |      scheme = "mock"
+                                                         |    }
+                                                         |  ]
+                                                         |}
+                                                         |""".stripMargin)
 
   val backendConfigTemplate: String =
     """
@@ -158,25 +178,38 @@ object PipelinesApiInitializationActorSpec {
       |[DOCKERHUBCONFIG]
       |""".stripMargin
 
-  val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate.replace("[VPCCONFIG]", "").replace("[DOCKERHUBCONFIG]", ""))
+  val backendConfig: Config =
+    ConfigFactory.parseString(backendConfigTemplate.replace("[VPCCONFIG]", "").replace("[DOCKERHUBCONFIG]", ""))
 
-  val dockerBackendConfig: Config = ConfigFactory.parseString(backendConfigTemplate.replace("[VPCCONFIG]", "").replace("[DOCKERHUBCONFIG]",
-    """
-      |dockerhub {
-      |  account = "my@docker.account"
-      |  # no secrets here guys this is just `echo -n username:password | base64`
-      |  token = "dXNlcm5hbWU6cGFzc3dvcmQ="
-      |}
-      | """.stripMargin))
+  val dockerBackendConfig: Config = ConfigFactory.parseString(
+    backendConfigTemplate
+      .replace("[VPCCONFIG]", "")
+      .replace(
+        "[DOCKERHUBCONFIG]",
+        """
+          |dockerhub {
+          |  account = "my@docker.account"
+          |  # no secrets here guys this is just `echo -n username:password | base64`
+          |  token = "dXNlcm5hbWU6cGFzc3dvcmQ="
+          |}
+          | """.stripMargin
+      )
+  )
 
-  val vpcBackendConfig: Config = ConfigFactory.parseString(backendConfigTemplate.replace("[DOCKERHUBCONFIG]", "").replace("[VPCCONFIG]",
-    """
-      |virtual-private-cloud {
-      |  network-label-key = "cromwell-ci-network"
-      |  subnetwork-label-key = "cromwell-ci-subnetwork"
-      |  auth = "service_account"
-      |}
-      | """.stripMargin))
+  val vpcBackendConfig: Config = ConfigFactory.parseString(
+    backendConfigTemplate
+      .replace("[DOCKERHUBCONFIG]", "")
+      .replace(
+        "[VPCCONFIG]",
+        """
+          |virtual-private-cloud {
+          |  network-label-key = "cromwell-ci-network"
+          |  subnetwork-label-key = "cromwell-ci-subnetwork"
+          |  auth = "service_account"
+          |}
+          | """.stripMargin
+      )
+  )
 
   private val defaultBackendConfig = new BackendConfigurationDescriptor(backendConfig, globalConfig) {
     override private[backend] lazy val cromwellFileSystems = new CromwellFileSystems(PapiGlobalConfig)

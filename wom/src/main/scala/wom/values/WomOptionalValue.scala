@@ -83,9 +83,8 @@ final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) e
     case None => emptyValueFailure(">")
   }
 
-  override def collectAsSeq[T <: WomValue](filterFn: PartialFunction[WomValue, T]): Seq[T] = {
+  override def collectAsSeq[T <: WomValue](filterFn: PartialFunction[WomValue, T]): Seq[T] =
     value.toList flatMap { _.collectAsSeq(filterFn) }
-  }
 
   /**
     * Unpack a nested option down to a single layer of optionality
@@ -93,7 +92,8 @@ final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) e
     */
   @tailrec
   def flattenOptional: WomOptionalValue = this match {
-    case WomOptionalValue(_: WomOptionalType, Some(innerOptionalValue: WomOptionalValue)) => innerOptionalValue.flattenOptional
+    case WomOptionalValue(_: WomOptionalType, Some(innerOptionalValue: WomOptionalValue)) =>
+      innerOptionalValue.flattenOptional
     case WomOptionalValue(innerType: WomOptionalType, None) => WomOptionalValue(innerType.baseMemberType, None)
     case _ => this
   }
@@ -107,7 +107,8 @@ final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) e
 
     assert(
       targetType.baseMemberTypeIsCompatibleWith(womType.baseMemberType),
-      s"base member type ${targetType.baseMemberType} and womtype ${womType.baseMemberType} are not compatible")
+      s"base member type ${targetType.baseMemberType} and womtype ${womType.baseMemberType} are not compatible"
+    )
     if (womType.depth.equals(targetType.depth)) {
       this
     } else {
@@ -141,7 +142,9 @@ final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) e
     }
   } getOrElse applicative.pure(this)
 
-  override def initialize(ioFunctionSet: IoFunctionSet): IOChecked[WomValue] = traverse(_.initialize(ioFunctionSet)).widen
+  override def initialize(ioFunctionSet: IoFunctionSet): IOChecked[WomValue] = traverse(
+    _.initialize(ioFunctionSet)
+  ).widen
 }
 
 object WomOptionalValue {

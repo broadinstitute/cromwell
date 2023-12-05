@@ -11,31 +11,34 @@ class TryWithResourceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
   behavior of "tryWithResource"
 
   it should "catch instantiation errors" in {
-    val triedMyBest = tryWithResource(() => if (1 == 1) throw InstantiationException else null) { _ => 5 }
+    val triedMyBest = tryWithResource(() => if (1 == 1) throw InstantiationException else null)(_ => 5)
     triedMyBest should be(Failure(InstantiationException))
   }
 
   it should "close the closeable" in {
     val myCloseable = new MyCloseable
-    val triedMyBest = tryWithResource(() => myCloseable) { _.value } // Nothing special about 5... Just need to return something!
+    val triedMyBest = tryWithResource(() => myCloseable) {
+      _.value
+    } // Nothing special about 5... Just need to return something!
     triedMyBest should be(Success(5))
     myCloseable.isClosed should be(true)
   }
 
   it should "catch errors and still close the closeable" in {
     val myCloseable = new MyCloseable
-    val triedMyBest = tryWithResource(() => myCloseable) { _.badValue }
+    val triedMyBest = tryWithResource(() => myCloseable)(_.badValue)
     triedMyBest should be(Failure(ReadValueException))
     myCloseable.isClosed should be(true)
   }
 
   it should "be robust to failures in close methods" in {
     val myCloseable = new FailingCloseable
-    val triedMyBest = tryWithResource(() => myCloseable) { _.value }
+    val triedMyBest = tryWithResource(() => myCloseable)(_.value)
     triedMyBest should be(Failure(CloseCloseableException))
-    val triedMyBest2 = tryWithResource(() => myCloseable) { _.badValue }
+    val triedMyBest2 = tryWithResource(() => myCloseable)(_.badValue)
     triedMyBest2 match {
-      case Failure(ReadValueException) => ReadValueException.getSuppressed.headOption should be(Some(CloseCloseableException))
+      case Failure(ReadValueException) =>
+        ReadValueException.getSuppressed.headOption should be(Some(CloseCloseableException))
       case x => fail(s"$x was not equal to $ReadValueException")
     }
   }
@@ -47,9 +50,8 @@ class MyCloseable extends AutoCloseable {
   val value = if (isClosed) throw ReadValueException else 5 // Ensures we aren't closed when .value is called
   def badValue = throw ReadValueException
 
-  override def close() = {
+  override def close() =
     isClosed = true
-  }
 }
 
 class FailingCloseable extends MyCloseable {

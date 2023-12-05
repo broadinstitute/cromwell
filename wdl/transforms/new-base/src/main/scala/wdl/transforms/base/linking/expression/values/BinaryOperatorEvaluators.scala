@@ -16,8 +16,10 @@ import wom.values.{WomBoolean, WomOptionalValue, WomValue}
 import scala.util.Try
 
 object BinaryOperatorEvaluators {
-  implicit val logicalOrEvaluator: ValueEvaluator[LogicalOr] = forOperationWithShortCircuit(_.or(_), shortCircuit = { case WomBoolean(true) => WomBoolean(true) })
-  implicit val logicalAndEvaluator: ValueEvaluator[LogicalAnd] = forOperationWithShortCircuit(_.and(_), shortCircuit = { case WomBoolean(false) => WomBoolean(false) })
+  implicit val logicalOrEvaluator: ValueEvaluator[LogicalOr] =
+    forOperationWithShortCircuit(_.or(_), shortCircuit = { case WomBoolean(true) => WomBoolean(true) })
+  implicit val logicalAndEvaluator: ValueEvaluator[LogicalAnd] =
+    forOperationWithShortCircuit(_.and(_), shortCircuit = { case WomBoolean(false) => WomBoolean(false) })
   implicit val equalsEvaluator: ValueEvaluator[Equals] = forOperation(_.equals(_))
   implicit val notEqualsEvaluator: ValueEvaluator[NotEquals] = forOperation(_.notEquals(_))
   implicit val lessThanEvaluator: ValueEvaluator[LessThan] = forOperation(_.lessThan(_))
@@ -33,14 +35,14 @@ object BinaryOperatorEvaluators {
   private def forOperation[A <: BinaryOperation](op: (WomValue, WomValue) => Try[WomValue]): ValueEvaluator[A] =
     forOperationWithShortCircuit(op, PartialFunction.empty[WomValue, WomValue])
 
-
   private def forOperationWithShortCircuit[A <: BinaryOperation](op: (WomValue, WomValue) => Try[WomValue],
-                                                                 shortCircuit: PartialFunction[WomValue, WomValue]) = new ValueEvaluator[A] {
+                                                                 shortCircuit: PartialFunction[WomValue, WomValue]
+  ) = new ValueEvaluator[A] {
     override def evaluateValue(a: A,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
-                              (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] =
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
+    )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] =
       a.left.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions) flatMap { left =>
         if (shortCircuit.isDefinedAt(left.value)) {
           EvaluatedValue(shortCircuit(left.value), left.sideEffectFiles).validNel
@@ -50,10 +52,13 @@ object BinaryOperatorEvaluators {
 
             // Allow unsupplied optionals, but only if we're instantiating a command:
             val handleOptionals = rawResult.recover {
-              case OptionalNotSuppliedException(_) if forCommandInstantiationOptions.isDefined => WomOptionalValue(WomStringType, None)
+              case OptionalNotSuppliedException(_) if forCommandInstantiationOptions.isDefined =>
+                WomOptionalValue(WomStringType, None)
             }
 
-            handleOptionals.toErrorOr map { newValue => EvaluatedValue(newValue, left.sideEffectFiles ++ right.sideEffectFiles) }
+            handleOptionals.toErrorOr map { newValue =>
+              EvaluatedValue(newValue, left.sideEffectFiles ++ right.sideEffectFiles)
+            }
           }
         }
       }

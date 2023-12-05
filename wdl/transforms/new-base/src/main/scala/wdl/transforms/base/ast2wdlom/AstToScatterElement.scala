@@ -8,19 +8,22 @@ import wdl.model.draft3.elements._
 import wom.SourceFileLocation
 
 object AstToScatterElement {
-  def astToScatterElement(implicit astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement],
-                          astNodeToWorkflowGraphElement: CheckedAtoB[GenericAstNode, WorkflowGraphElement]
-                         ): CheckedAtoB[GenericAst, ScatterElement] = CheckedAtoB.fromErrorOr("process scatter block") { ast =>
-
+  def astToScatterElement(implicit
+    astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement],
+    astNodeToWorkflowGraphElement: CheckedAtoB[GenericAstNode, WorkflowGraphElement]
+  ): CheckedAtoB[GenericAst, ScatterElement] = CheckedAtoB.fromErrorOr("process scatter block") { ast =>
     val scatterVariableValidation: ErrorOr[GenericTerminal] = ast.getAttributeAs[GenericTerminal]("item").toValidated
 
-    val scatterCollectionExpressionValidation: ErrorOr[ExpressionElement] = ast.getAttributeAs[ExpressionElement]("collection").toValidated
-    val bodyValidation: ErrorOr[Vector[WorkflowGraphElement]] = ast.getAttributeAsVector[WorkflowGraphElement]("body").toValidated
-    val sourceLocation : Option[SourceFileLocation] = ast.getSourceLine.map(SourceFileLocation(_))
+    val scatterCollectionExpressionValidation: ErrorOr[ExpressionElement] =
+      ast.getAttributeAs[ExpressionElement]("collection").toValidated
+    val bodyValidation: ErrorOr[Vector[WorkflowGraphElement]] =
+      ast.getAttributeAsVector[WorkflowGraphElement]("body").toValidated
+    val sourceLocation: Option[SourceFileLocation] = ast.getSourceLine.map(SourceFileLocation(_))
 
-    (scatterVariableValidation, scatterCollectionExpressionValidation, bodyValidation) mapN { (variable, collection, body) =>
-      val scatterName = s"ScatterAt${variable.getLine}_${variable.getColumn}"
-      ScatterElement(scatterName, collection, variable.getSourceString, body, sourceLocation)
+    (scatterVariableValidation, scatterCollectionExpressionValidation, bodyValidation) mapN {
+      (variable, collection, body) =>
+        val scatterName = s"ScatterAt${variable.getLine}_${variable.getColumn}"
+        ScatterElement(scatterName, collection, variable.getSourceString, body, sourceLocation)
     }
   }
 }

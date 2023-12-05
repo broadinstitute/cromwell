@@ -23,9 +23,10 @@ import scala.util.{Failure, Success, Try}
   * for which there's an existing class.
   * This class provides implicit functions to deserialize those map to their proper type.
   */
-private [api] object Deserialization {
+private[api] object Deserialization {
 
   implicit class OperationDeserialization(val operation: Operation) extends AnyVal {
+
     /**
       * Deserializes the events to com.google.api.services.genomics.v2beta.model.Event
       *
@@ -35,11 +36,12 @@ private [api] object Deserialization {
     def events: ErrorOr[List[Event]] = {
       val eventsErrorOrOption = for {
         eventsMap <- metadata.get("events")
-        eventsErrorOr <- Option(eventsMap
-          .asInstanceOf[JArrayList[JMap[String, Object]]]
-          .asScala
-          .toList
-          .traverse[ErrorOr, Event](deserializeTo[Event](_).toErrorOr)
+        eventsErrorOr <- Option(
+          eventsMap
+            .asInstanceOf[JArrayList[JMap[String, Object]]]
+            .asScala
+            .toList
+            .traverse[ErrorOr, Event](deserializeTo[Event](_).toErrorOr)
         )
       } yield eventsErrorOr
       eventsErrorOrOption.getOrElse(Nil.validNel)
@@ -48,11 +50,10 @@ private [api] object Deserialization {
     /**
       * Deserializes the pipeline to com.google.api.services.genomics.v2beta.model.Pipeline
       */
-    def pipeline: Option[Try[Pipeline]] = {
+    def pipeline: Option[Try[Pipeline]] =
       metadata
         .get("pipeline")
         .map(_.asInstanceOf[JMap[String, Object]] |> deserializeTo[Pipeline])
-    }
 
     // If there's a WorkerAssignedEvent it means a VM was created - which we consider as the job started
     // Note that the VM might still be booting
@@ -70,19 +71,23 @@ private [api] object Deserialization {
   /**
     * Deserializes a java.util.Map[String, Object] to an instance of T
     */
-  private [api] def deserializeTo[T <: GenericJson](attributes: JMap[String, Object])(implicit tag: ClassTag[T]): Try[T] = Try {
+  private[api] def deserializeTo[T <: GenericJson](
+    attributes: JMap[String, Object]
+  )(implicit tag: ClassTag[T]): Try[T] = Try {
     // Create a new instance, because it's a GenericJson there's always a 0-arg constructor
     val newT = tag.runtimeClass.asInstanceOf[Class[T]].getConstructor().newInstance()
 
     // Optionally returns the field with the given name
     def field(name: String) = Option(newT.getClassInfo.getField(name))
 
-    def handleMap(key: String, value: Object) = {
+    def handleMap(key: String, value: Object) =
       (field(key), value) match {
         // If the serialized value is a list, we need to check if its elements need to be deserialized
         case (Some(f), list: java.util.List[java.util.Map[String, Object]] @unchecked) =>
           // Try to get the generic type of the declared field (the field should have a list type since the value is a list)
-          Try(f.getGenericType.asInstanceOf[ParameterizedType].getActualTypeArguments.toList.head.asInstanceOf[Class[_]]) match {
+          Try(
+            f.getGenericType.asInstanceOf[ParameterizedType].getActualTypeArguments.toList.head.asInstanceOf[Class[_]]
+          ) match {
             // If we can get it and its a GenericJson, it means we need to deserialize the elements to their proper type
             case Success(genericListType) if classOf[GenericJson].isAssignableFrom(genericListType) =>
               // The get throws at the first error and hence doesn't aggregate the errors but it seems
@@ -101,7 +106,8 @@ private [api] object Deserialization {
         // If it can't be assigned and the value is a map, it is very likely that the field "key" of T is of some type U
         // but has been deserialized to a Map[String, Object]. In this case we retrieve the type U from the field and recurse
         // to deserialize properly
-        case (Some(f), map: java.util.Map[String, Object] @unchecked) if classOf[GenericJson].isAssignableFrom(f.getType) =>
+        case (Some(f), map: java.util.Map[String, Object] @unchecked)
+            if classOf[GenericJson].isAssignableFrom(f.getType) =>
           // This whole function is wrapped in a try so just .get to throw
           val deserializedInnerAttribute = deserializeTo(map)(ClassTag[GenericJson](f.getType)).get
           newT.set(key, deserializedInnerAttribute)
@@ -118,7 +124,6 @@ private [api] object Deserialization {
         // and losing properly deserialized attributes
         case _ =>
       }
-    }
 
     // Go over the map entries and use the "set" method of GenericJson to set the attributes.
     Option(attributes).map(_.asScala).getOrElse(Map.empty).foreach((handleMap _).tupled)

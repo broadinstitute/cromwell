@@ -42,12 +42,13 @@ import software.amazon.awssdk.services.batch.model.KeyValuePair
 sealed trait AwsBatchParameter {
   def name: String
   def toKeyValuePair: KeyValuePair
-  def toStringString: (String,String)
+  def toStringString: (String, String)
 }
 
 sealed trait AwsBatchInput extends AwsBatchParameter
 
-final case class AwsBatchFileInput(name: String, s3key: String, local: Path, mount: AwsBatchVolume) extends AwsBatchInput {
+final case class AwsBatchFileInput(name: String, s3key: String, local: Path, mount: AwsBatchVolume)
+    extends AwsBatchInput {
   def toKeyValuePair = KeyValuePair.builder.name(name).value(s3key).build
   def toStringString = (name, s3key)
   def containerPath: Path = mount.mountPoint.resolve(local)
@@ -58,7 +59,8 @@ final case class AwsBatchLiteralInput(name: String, value: String) extends AwsBa
   def toStringString = (name, value)
 }
 
-final case class AwsBatchFileOutput(name: String, s3key: String, local: Path, mount: AwsBatchVolume) extends AwsBatchParameter {
+final case class AwsBatchFileOutput(name: String, s3key: String, local: Path, mount: AwsBatchVolume)
+    extends AwsBatchParameter {
   def toKeyValuePair = KeyValuePair.builder.name(name).value(s3key).build
   def toStringString = (name, s3key)
 }

@@ -6,8 +6,7 @@ import cromwell.backend.io.{JobPaths, WorkflowPaths}
 
 import scala.concurrent.ExecutionContext
 
-class StandardInitializationData
-(
+class StandardInitializationData(
   val workflowPaths: WorkflowPaths,
   val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder,
   val standardExpressionFunctionsClass: Class[_ <: StandardExpressionFunctions]
@@ -17,7 +16,10 @@ class StandardInitializationData
   private lazy val standardExpressionFunctionsConstructor =
     standardExpressionFunctionsClass.getConstructor(classOf[StandardExpressionFunctionsParams])
 
-  def expressionFunctions(jobPaths: JobPaths, ioActorProxy: ActorRef, ec: ExecutionContext): StandardExpressionFunctions = {
+  def expressionFunctions(jobPaths: JobPaths,
+                          ioActorProxy: ActorRef,
+                          ec: ExecutionContext
+  ): StandardExpressionFunctions = {
     val pathBuilders = jobPaths.workflowPaths.pathBuilders
     val standardParams = DefaultStandardExpressionFunctionsParams(pathBuilders, jobPaths.callContext, ioActorProxy, ec)
     standardExpressionFunctionsConstructor.newInstance(standardParams)

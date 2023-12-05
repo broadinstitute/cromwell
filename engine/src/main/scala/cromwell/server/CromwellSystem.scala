@@ -40,26 +40,23 @@ trait CromwellSystem extends CromwellTerminator {
 
   implicit final lazy val actorSystem = newActorSystem()
   implicit final lazy val materializer = ActorMaterializer()
-  implicit private final lazy val ec = actorSystem.dispatcher
+  implicit final private lazy val ec = actorSystem.dispatcher
 
-  override def beginCromwellShutdown(reason: CoordinatedShutdown.Reason): Future[Done] = {
+  override def beginCromwellShutdown(reason: CoordinatedShutdown.Reason): Future[Done] =
     CromwellShutdown.instance(actorSystem).run(reason)
-  }
 
-  def shutdownActorSystem(): Future[Terminated] = {
+  def shutdownActorSystem(): Future[Terminated] =
     // If the actor system is already terminated it's already too late for a clean shutdown
     // Note: This does not protect again starting 2 shutdowns concurrently
     if (!actorSystem.whenTerminated.isCompleted) {
       Http().shutdownAllConnectionPools() flatMap { _ =>
         shutdownMaterializerAndActorSystem()
-      } recoverWith {
-        case _ =>
-          // we still want to shutdown the materializer and actor system if shutdownAllConnectionPools failed
-          shutdownMaterializerAndActorSystem()
+      } recoverWith { case _ =>
+        // we still want to shutdown the materializer and actor system if shutdownAllConnectionPools failed
+        shutdownMaterializerAndActorSystem()
       }
     } else actorSystem.whenTerminated
-  }
-  
+
   private def shutdownMaterializerAndActorSystem() = {
     materializer.shutdown()
     actorSystem.terminate()

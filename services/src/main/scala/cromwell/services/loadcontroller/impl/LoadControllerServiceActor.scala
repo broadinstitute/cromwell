@@ -28,21 +28,27 @@ object LoadControllerServiceActor {
 class LoadControllerServiceActor(serviceConfig: Config,
                                  globalConfig: Config,
                                  override val serviceRegistryActor: ActorRef
-                                ) extends Actor
-  with ActorLogging with Listeners with Timers with CromwellInstrumentation {
+) extends Actor
+    with ActorLogging
+    with Listeners
+    with Timers
+    with CromwellInstrumentation {
   private val controlFrequency = serviceConfig
     .as[Option[Duration]]("control-frequency")
     .getOrElse(5.seconds)
 
-  private [impl] var loadLevel: LoadLevel = NormalLoad
-  private [impl] var monitoredActors: Set[ActorRef] = Set.empty
-  private [impl] var loadMetrics: Map[ActorAndMetric, LoadLevel] = Map.empty
+  private[impl] var loadLevel: LoadLevel = NormalLoad
+  private[impl] var monitoredActors: Set[ActorRef] = Set.empty
+  private[impl] var loadMetrics: Map[ActorAndMetric, LoadLevel] = Map.empty
 
   override def receive = listenerManagement.orElse(controlReceive)
 
   override def preStart() = {
     if (controlFrequency.isFinite)
-      timers.startPeriodicTimer(LoadControlTimerKey, LoadControlTimerAction, controlFrequency.asInstanceOf[FiniteDuration])
+      timers.startPeriodicTimer(LoadControlTimerKey,
+                                LoadControlTimerAction,
+                                controlFrequency.asInstanceOf[FiniteDuration]
+      )
     else
       log.info("Load control disabled")
     super.preStart()
@@ -74,7 +80,8 @@ class LoadControllerServiceActor(serviceConfig: Config,
     val backToNormal = loadLevel != NormalLoad && newLoadLevel == NormalLoad
     // If there's something to say, let it out !
     if (escalates || backToNormal) {
-      if (newLoadLevel == HighLoad) log.info(s"The following components have reported being overloaded: $highLoadMetricsForLogging")
+      if (newLoadLevel == HighLoad)
+        log.info(s"The following components have reported being overloaded: $highLoadMetricsForLogging")
       gossip(newLoadLevel)
     }
     loadLevel = newLoadLevel
@@ -83,14 +90,16 @@ class LoadControllerServiceActor(serviceConfig: Config,
 
   private def handleTerminated(terminee: ActorRef) = {
     monitoredActors = monitoredActors - terminee
-    loadMetrics = loadMetrics.view.filterKeys({
-      case ActorAndMetric(actor, _) => actor != terminee
-    }).toMap
+    loadMetrics = loadMetrics.view.filterKeys { case ActorAndMetric(actor, _) =>
+      actor != terminee
+    }.toMap
   }
 
-  private def highLoadMetricsForLogging = {
-    loadMetrics.collect({
-      case (ActorAndMetric(_, metricPath), HighLoad) => metricPath.head
-    }).toSet.mkString(", ")
-  }
+  private def highLoadMetricsForLogging =
+    loadMetrics
+      .collect { case (ActorAndMetric(_, metricPath), HighLoad) =>
+        metricPath.head
+      }
+      .toSet
+      .mkString(", ")
 }

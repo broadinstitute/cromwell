@@ -20,24 +20,24 @@ object ConfigHashingStrategy {
   val defaultStrategy = HashFileMd5Strategy(checkSiblingMd5 = false)
 
   def apply(hashingConfig: Config): ConfigHashingStrategy = {
-      val checkSiblingMd5 = hashingConfig.as[Option[Boolean]]("check-sibling-md5").getOrElse(false)
+    val checkSiblingMd5 = hashingConfig.as[Option[Boolean]]("check-sibling-md5").getOrElse(false)
 
-      // Fingerprint strategy by default checks the first 10 MiB (10485760 bytes) for performance reasons.
-      // 100 MB will take to much time on network file systems. 1 MB might not be unique enough.
-      // The value is user configurable.
-      lazy val fingerprintSize = hashingConfig.as[Option[Long]]("fingerprint-size").getOrElse(10L * 1024 * 1024)
+    // Fingerprint strategy by default checks the first 10 MiB (10485760 bytes) for performance reasons.
+    // 100 MB will take to much time on network file systems. 1 MB might not be unique enough.
+    // The value is user configurable.
+    lazy val fingerprintSize = hashingConfig.as[Option[Long]]("fingerprint-size").getOrElse(10L * 1024 * 1024)
 
-      hashingConfig.as[Option[String]]("hashing-strategy").getOrElse("file") match {
-        case "path" => HashPathStrategy(checkSiblingMd5)
-        case "file" => HashFileMd5Strategy(checkSiblingMd5)
-        case "md5" => HashFileMd5Strategy(checkSiblingMd5)
-        case "path+modtime" => HashPathModTimeStrategy(checkSiblingMd5)
-        case "xxh64" => HashFileXxH64Strategy(checkSiblingMd5)
-        case "fingerprint" => FingerprintStrategy(checkSiblingMd5, fingerprintSize)
-        case what =>
-          logger.warn(s"Unrecognized hashing strategy $what.")
-          HashPathStrategy(checkSiblingMd5)
-      }
+    hashingConfig.as[Option[String]]("hashing-strategy").getOrElse("file") match {
+      case "path" => HashPathStrategy(checkSiblingMd5)
+      case "file" => HashFileMd5Strategy(checkSiblingMd5)
+      case "md5" => HashFileMd5Strategy(checkSiblingMd5)
+      case "path+modtime" => HashPathModTimeStrategy(checkSiblingMd5)
+      case "xxh64" => HashFileXxH64Strategy(checkSiblingMd5)
+      case "fingerprint" => FingerprintStrategy(checkSiblingMd5, fingerprintSize)
+      case what =>
+        logger.warn(s"Unrecognized hashing strategy $what.")
+        HashPathStrategy(checkSiblingMd5)
+    }
   }
 }
 
@@ -53,7 +53,8 @@ abstract class ConfigHashingStrategy {
     def usingStandardInitData(initData: StandardInitializationData) = {
       val pathBuilders = initData.workflowPaths.pathBuilders
       val file = PathFactory.buildPath(request.file.valueString, pathBuilders).followSymbolicLinks
-      if (!file.exists) Failure(new FileNotFoundException(s"Cannot hash file $file because it can't be found")) else {
+      if (!file.exists) Failure(new FileNotFoundException(s"Cannot hash file $file because it can't be found"))
+      else {
         if (checkSiblingMd5) {
           precomputedMd5(file) match {
             case Some(md5) => Try(md5.contentAsString.trim)
@@ -65,7 +66,8 @@ abstract class ConfigHashingStrategy {
 
     request.initializationData match {
       case Some(initData: StandardInitializationData) => usingStandardInitData(initData)
-      case _ => Failure(new IllegalArgumentException("Need SharedFileSystemBackendInitializationData to calculate hash."))
+      case _ =>
+        Failure(new IllegalArgumentException("Need SharedFileSystemBackendInitializationData to calculate hash."))
     }
   }
 
@@ -74,54 +76,51 @@ abstract class ConfigHashingStrategy {
     if (md5.exists) Option(md5) else None
   }
 
-  override def toString: String = {
+  override def toString: String =
     s"Call caching hashing strategy: $checkSiblingMessage$description."
-  }
 }
 
 final case class HashPathStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
-  override def hash(file: Path): Try[String] = {
+  override def hash(file: Path): Try[String] =
     Try(DigestUtils.md5Hex(file.toAbsolutePath.pathAsString))
-  }
 
   override val description = "hash file path"
 }
 
 final case class HashPathModTimeStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
-  override def hash(file: Path): Try[String] = {
+  override def hash(file: Path): Try[String] =
     // Add the last modified date here to make sure these are the files we are looking for.
     Try(DigestUtils.md5Hex(file.toAbsolutePath.pathAsString + file.lastModifiedTime.toString))
-  }
 
   override val description = "hash file path and last modified time"
 }
 
 final case class HashFileMd5Strategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
-  override protected def hash(file: Path): Try[String] = {
-    tryWithResource(() => file.newInputStream) { DigestUtils.md5Hex }
-  }
+  override protected def hash(file: Path): Try[String] =
+    tryWithResource(() => file.newInputStream)(DigestUtils.md5Hex)
 
   override val description = "hash file content with md5"
 }
 
 final case class HashFileXxH64Strategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
-  override protected def hash(file: Path): Try[String] = {
-    tryWithResource(() => file.newInputStream) {HashFileXxH64StrategyMethods.xxh64sum(_)}
-  }
+  override protected def hash(file: Path): Try[String] =
+    tryWithResource(() => file.newInputStream)(HashFileXxH64StrategyMethods.xxh64sum(_))
   override val description = "hash file content with xxh64"
 }
 
 final case class FingerprintStrategy(checkSiblingMd5: Boolean, fingerprintSize: Long) extends ConfigHashingStrategy {
-  override protected def hash(file: Path): Try[String] = {
+  override protected def hash(file: Path): Try[String] =
     Try {
       // Calculate the xxh64 hash of last modified time and filesize. These are NOT added, as it will lead to loss of
       // information. Instead their hexstrings are concatenated and then hashed.
-      HashFileXxH64StrategyMethods.xxh64sumString(file.lastModifiedTime.toEpochMilli.toHexString +
-      file.size.toHexString) +
-      HashFileXxH64StrategyMethods.xxh64sum(file.newInputStream, maxSize = fingerprintSize)
-      }
+      HashFileXxH64StrategyMethods.xxh64sumString(
+        file.lastModifiedTime.toEpochMilli.toHexString +
+          file.size.toHexString
+      ) +
+        HashFileXxH64StrategyMethods.xxh64sum(file.newInputStream, maxSize = fingerprintSize)
     }
-  override val description = "fingerprint the file with last modified time, size and a xxh64 hash of the first part of the file"
+  override val description =
+    "fingerprint the file with last modified time, size and a xxh64 hash of the first part of the file"
 }
 
 object HashFileXxH64StrategyMethods {
@@ -139,17 +138,17 @@ object HashFileXxH64StrategyMethods {
   def xxh64sum(inputStream: InputStream,
                bufferSize: Int = defaultBufferSize,
                maxSize: Long = Long.MaxValue,
-               seed: Long = 0L): String = {
+               seed: Long = 0L
+  ): String = {
     val hasher = xxhashFactory.newStreamingHash64(seed)
     val buffer: Array[Byte] = new Array[Byte](bufferSize)
     var byteCounter: Long = 0
-    try {
+    try
       while (inputStream.available() > 0 && byteCounter < maxSize) {
         val length: Int = inputStream.read(buffer)
         hasher.update(buffer, 0, length)
         byteCounter += length
       }
-    }
     finally inputStream.close()
     // Long.toHexString does not add leading zero's
     f"%%16s".format(hasher.getValue.toHexString).replace(" ", "0")
@@ -165,4 +164,3 @@ object HashFileXxH64StrategyMethods {
     f"%%16s".format(hash.toHexString).replace(" ", "0")
   }
 }
-

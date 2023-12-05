@@ -6,7 +6,11 @@ import cats.syntax.validated._
 import cromwell.backend._
 import cromwell.core._
 import cromwell.core.callcaching._
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{CompleteFileHashingResult, InitialHashingResult, NoFileHashesResult}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{
+  CompleteFileHashingResult,
+  InitialHashingResult,
+  NoFileHashesResult
+}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor._
 import cromwell.services.metadata.MetadataService.PutMetadataAction
@@ -21,24 +25,42 @@ import wom.graph.WomIdentifier
 import wom.values.WomValue
 import common.mock.MockSugar
 
-class EngineJobHashingActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with BackendSpec
-  with MockSugar with TableDrivenPropertyChecks with Eventually {
+class EngineJobHashingActorSpec
+    extends TestKitSuite
+    with AnyFlatSpecLike
+    with Matchers
+    with BackendSpec
+    with MockSugar
+    with TableDrivenPropertyChecks
+    with Eventually {
   behavior of "EngineJobHashingActor"
 
   def templateJobDescriptor(inputs: Map[LocallyQualifiedName, WomValue] = Map.empty): BackendJobDescriptor = {
-    val task = WomMocks.mockTaskDefinition("hello").copy(
-      commandTemplateBuilder = Function.const(List(StringCommandPart("Do the stuff... now!!")).validNel)
-    )
+    val task = WomMocks
+      .mockTaskDefinition("hello")
+      .copy(
+        commandTemplateBuilder = Function.const(List(StringCommandPart("Do the stuff... now!!")).validNel)
+      )
     val call = WomMocks.mockTaskCall(WomIdentifier("hello", "workflow.hello")).copy(callable = task)
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
     workflowDescriptor.id returns WorkflowId.randomId()
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), Map.empty, fqnWdlMapToDeclarationMap(inputs), NoDocker, None, Map.empty)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor,
+                                             BackendJobDescriptorKey(call, None, 1),
+                                             Map.empty,
+                                             fqnWdlMapToDeclarationMap(inputs),
+                                             NoDocker,
+                                             None,
+                                             Map.empty
+    )
     jobDescriptor
   }
 
   val serviceRegistryActorProbe: TestProbe = TestProbe()
 
-  def makeEJHA(receiver: ActorRef, activity: CallCachingActivity, ccReaderProps: Props = Props.empty): TestActorRef[EngineJobHashingActor] = {
+  def makeEJHA(receiver: ActorRef,
+               activity: CallCachingActivity,
+               ccReaderProps: Props = Props.empty
+  ): TestActorRef[EngineJobHashingActor] =
     TestActorRef[EngineJobHashingActor](
       EngineJobHashingActorTest.props(
         receiver,
@@ -54,7 +76,6 @@ class EngineJobHashingActorSpec extends TestKitSuite with AnyFlatSpecLike with M
         fileHashBatchSize = 100
       )
     )
-  }
 
   it should "record initial hashes" in {
     val receiver = TestProbe()
@@ -106,7 +127,9 @@ class EngineJobHashingActorSpec extends TestKitSuite with AnyFlatSpecLike with M
 
     actorUnderTest ! initialResult
     actorUnderTest ! fileResult
-    receiver.expectMsg(CallCacheHashes(initialHashes, initialAggregatedHash, Option(FileHashes(fileHashes, fileAggregatedHash))))
+    receiver.expectMsg(
+      CallCacheHashes(initialHashes, initialAggregatedHash, Option(FileHashes(fileHashes, fileAggregatedHash)))
+    )
   }
 
   it should "forward CacheMiss to receiver" in {
@@ -133,8 +156,8 @@ class EngineJobHashingActorSpec extends TestKitSuite with AnyFlatSpecLike with M
     val activity = CallCachingActivity(ReadAndWriteCache)
     val monitorProbe = TestProbe()
     val ccReadActorProps = Props(new Actor {
-      override def receive: Receive = {
-        case NextHit => monitorProbe.ref forward NextHit
+      override def receive: Receive = { case NextHit =>
+        monitorProbe.ref forward NextHit
       }
     })
 
@@ -188,18 +211,22 @@ class EngineJobHashingActorSpec extends TestKitSuite with AnyFlatSpecLike with M
               backendName: String,
               activity: CallCachingActivity,
               callCachingEligible: CallCachingEligible,
-              fileHashBatchSize: Int): Props = Props(new EngineJobHashingActorTest(
-      receiver = receiver,
-      serviceRegistryActor = serviceRegistryActor,
-      jobDescriptor = jobDescriptor,
-      initializationData = initializationData,
-      fileHashingActorProps = fileHashingActorProps,
-      callCacheReadingJobActorProps = callCacheReadingJobActorProps,
-      runtimeAttributeDefinitions = runtimeAttributeDefinitions,
-      backendName = backendName,
-      activity = activity,
-      callCachingEligible = callCachingEligible,
-      fileHashBatchSize = fileHashBatchSize))
+              fileHashBatchSize: Int
+    ): Props = Props(
+      new EngineJobHashingActorTest(
+        receiver = receiver,
+        serviceRegistryActor = serviceRegistryActor,
+        jobDescriptor = jobDescriptor,
+        initializationData = initializationData,
+        fileHashingActorProps = fileHashingActorProps,
+        callCacheReadingJobActorProps = callCacheReadingJobActorProps,
+        runtimeAttributeDefinitions = runtimeAttributeDefinitions,
+        backendName = backendName,
+        activity = activity,
+        callCachingEligible = callCachingEligible,
+        fileHashBatchSize = fileHashBatchSize
+      )
+    )
   }
 
   class EngineJobHashingActorTest(receiver: ActorRef,
@@ -212,19 +239,21 @@ class EngineJobHashingActorSpec extends TestKitSuite with AnyFlatSpecLike with M
                                   backendName: String,
                                   activity: CallCachingActivity,
                                   callCachingEligible: CallCachingEligible,
-                                  fileHashBatchSize: Int) extends EngineJobHashingActor(
-    receiver = receiver,
-    serviceRegistryActor = serviceRegistryActor,
-    jobDescriptor = jobDescriptor,
-    initializationData = initializationData,
-    fileHashingActorProps = fileHashingActorProps,
-    callCacheReadingJobActorProps = callCacheReadingJobActorProps,
-    runtimeAttributeDefinitions = runtimeAttributeDefinitions,
-    backendNameForCallCachingPurposes = backendName,
-    activity = activity,
-    callCachingEligible = callCachingEligible,
-    callCachePathPrefixes = None,
-    fileHashBatchSize = fileHashBatchSize) {
+                                  fileHashBatchSize: Int
+  ) extends EngineJobHashingActor(
+        receiver = receiver,
+        serviceRegistryActor = serviceRegistryActor,
+        jobDescriptor = jobDescriptor,
+        initializationData = initializationData,
+        fileHashingActorProps = fileHashingActorProps,
+        callCacheReadingJobActorProps = callCacheReadingJobActorProps,
+        runtimeAttributeDefinitions = runtimeAttributeDefinitions,
+        backendNameForCallCachingPurposes = backendName,
+        activity = activity,
+        callCachingEligible = callCachingEligible,
+        callCachePathPrefixes = None,
+        fileHashBatchSize = fileHashBatchSize
+      ) {
     // override preStart to nothing to prevent the creation of the CCHJA.
     // This way it doesn't interfere with the tests and we can manually inject the messages we want
     override def preStart(): Unit = ()

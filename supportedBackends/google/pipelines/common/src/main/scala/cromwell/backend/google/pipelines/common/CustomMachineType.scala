@@ -20,6 +20,7 @@ import math.{log, pow}
   * - https://cloud.google.com/sdk/gcloud/reference/compute/instances/create#--custom-vm-type
   */
 trait CustomMachineType {
+
   /**
     * The vm prefix to create this custom machine type.
     */
@@ -53,10 +54,7 @@ trait CustomMachineType {
   /**
     * Generates a custom machine type based on the requested memory and cpu
     */
-  def machineType(requestedMemory: MemorySize,
-                  requestedCpu: Int Refined Positive,
-                  jobLogger: Logger,
-                 ): String = {
+  def machineType(requestedMemory: MemorySize, requestedCpu: Int Refined Positive, jobLogger: Logger): String = {
     val memory = requestedMemory |> validateMemory
     val cpu = requestedCpu |> validateCpu
 
@@ -91,8 +89,8 @@ trait CustomMachineType {
                             adjustedCpu: Int,
                             originalMemory: MemorySize,
                             adjustedMemory: MemorySize,
-                            logger: Logger,
-                           ): Unit = {
+                            logger: Logger
+  ): Unit = {
     def memoryAdjustmentLog = s"memory was adjusted from ${originalMemory.toMBString} to ${adjustedMemory.toMBString}"
 
     def cpuAdjustmentLog = s"cpu was adjusted from $originalCpu to $adjustedCpu"
@@ -100,7 +98,7 @@ trait CustomMachineType {
     val messageOption =
       (
         originalCpu == adjustedCpu,
-        originalMemory.to(MemoryUnit.MB).amount == adjustedMemory.to(MemoryUnit.MB).amount,
+        originalMemory.to(MemoryUnit.MB).amount == adjustedMemory.to(MemoryUnit.MB).amount
       ) match {
         case (true, false) => Option(memoryAdjustmentLog)
         case (false, true) => Option(cpuAdjustmentLog)
@@ -128,17 +126,15 @@ case object N1CustomMachineType extends CustomMachineType {
   override val maxMemoryPerCpu: MemorySize = MemorySize(6.5, MemoryUnit.GB)
   override val memoryFactor: MemorySize = MemorySize(256, MemoryUnit.MB)
 
-  override def validateCpu(cpu: Refined[Int, Positive]): Int = {
+  override def validateCpu(cpu: Refined[Int, Positive]): Int =
     // Either one cpu, or an even number of cpus
     cpu.value match {
       case 1 => 1
       case cpu => cpu + (cpu % 2)
     }
-  }
 
-  override def validateMemory(memory: MemorySize): MemorySize = {
+  override def validateMemory(memory: MemorySize): MemorySize =
     memory.asMultipleOf(memoryFactor)
-  }
 }
 
 case object N2CustomMachineType extends CustomMachineType {
@@ -147,18 +143,16 @@ case object N2CustomMachineType extends CustomMachineType {
   override val maxMemoryPerCpu: MemorySize = MemorySize(8.0, MemoryUnit.GB)
   override val memoryFactor: MemorySize = MemorySize(256, MemoryUnit.MB)
 
-  override def validateCpu(cpu: Refined[Int, Positive]): Int = {
+  override def validateCpu(cpu: Refined[Int, Positive]): Int =
     // cpus must be divisible by 2 up to 32, and higher numbers must be divisible by 4
     cpu.value match {
       case cpu if cpu <= 32 => cpu + (cpu % 2)
       case cpu if cpu % 4 == 0 => cpu
       case cpu => cpu + (4 - (cpu % 4))
     }
-  }
 
-  override def validateMemory(memory: MemorySize): MemorySize = {
+  override def validateMemory(memory: MemorySize): MemorySize =
     memory.asMultipleOf(memoryFactor)
-  }
 }
 
 case object N2DCustomMachineType extends CustomMachineType {
@@ -166,18 +160,15 @@ case object N2DCustomMachineType extends CustomMachineType {
   override val minMemoryPerCpu: MemorySize = MemorySize(0.5, MemoryUnit.GB)
   override val maxMemoryPerCpu: MemorySize = MemorySize(8.0, MemoryUnit.GB)
   override val memoryFactor: MemorySize = MemorySize(256, MemoryUnit.MB)
-  
-  override def validateCpu(cpu: Refined[Int, Positive]): Int = {
+
+  override def validateCpu(cpu: Refined[Int, Positive]): Int =
     cpu.value match {
-      case cpu if cpu <= 16 => 2 max pow(2, (log(cpu.toDouble)/log(2)).ceil).toInt
+      case cpu if cpu <= 16 => 2 max pow(2, (log(cpu.toDouble) / log(2)).ceil).toInt
       case cpu if cpu > 16 && cpu <= 96 && cpu % 16 == 0 => cpu
       case cpu if cpu > 16 && cpu <= 96 => cpu + 16 - (cpu % 16)
       case cpu if cpu > 96 => 96
     }
-  }
 
-  override def validateMemory(memory: MemorySize): MemorySize = {
+  override def validateMemory(memory: MemorySize): MemorySize =
     memory.asMultipleOf(memoryFactor)
-  }
 }
-

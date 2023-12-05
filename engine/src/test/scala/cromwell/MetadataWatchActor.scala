@@ -18,7 +18,7 @@ final case class MetadataWatchActor(promise: Promise[Unit], matchers: Matcher*) 
   var unsatisfiedMatchers = matchers
 
   def tryMatchingEvents(events: Iterable[MetadataEvent]) = {
-    unsatisfiedMatchers = unsatisfiedMatchers.filterNot { m => m.matches(events) }
+    unsatisfiedMatchers = unsatisfiedMatchers.filterNot(m => m.matches(events))
     if (unsatisfiedMatchers.isEmpty) {
       promise.trySuccess(())
       ()
@@ -41,7 +41,8 @@ final case class MetadataWatchActor(promise: Promise[Unit], matchers: Matcher*) 
 
 object MetadataWatchActor {
 
-  def props(promise: Promise[Unit], matchers: Matcher*): Props = Props(MetadataWatchActor(promise, matchers: _*)).withDispatcher(EngineDispatcher)
+  def props(promise: Promise[Unit], matchers: Matcher*): Props =
+    Props(MetadataWatchActor(promise, matchers: _*)).withDispatcher(EngineDispatcher)
 
   trait Matcher {
     private var _fullEventList: List[MetadataEvent] = List.empty
@@ -57,7 +58,8 @@ object MetadataWatchActor {
 
     def checkMetadataValueContains(key: String, actual: MetadataValue, expected: String): Boolean = {
       val result = actual.value.contains(expected)
-      if (!result) addNearMissInfo(s"Key $key had unexpected value.\nActual value: ${actual.value}\n\nDid not contain: $expected")
+      if (!result)
+        addNearMissInfo(s"Key $key had unexpected value.\nActual value: ${actual.value}\n\nDid not contain: $expected")
       result
     }
   }
@@ -67,20 +69,28 @@ object MetadataWatchActor {
     case None => false
   }
 
-  final case class JobKeyMetadataKeyAndValueContainStringMatcher(jobKeyCheck: Option[MetadataJobKey] => Boolean, key: String, value: String) extends Matcher {
-    def _matches(events: Iterable[MetadataEvent]): Boolean = {
-      events.exists(e => e.key.key.contains(key) && jobKeyCheck(e.key.jobKey) && e.value.exists { v => v.valueType == MetadataString && checkMetadataValueContains(e.key.key, v, value) })
-    }
+  final case class JobKeyMetadataKeyAndValueContainStringMatcher(jobKeyCheck: Option[MetadataJobKey] => Boolean,
+                                                                 key: String,
+                                                                 value: String
+  ) extends Matcher {
+    def _matches(events: Iterable[MetadataEvent]): Boolean =
+      events.exists(e =>
+        e.key.key.contains(key) && jobKeyCheck(e.key.jobKey) && e.value.exists { v =>
+          v.valueType == MetadataString && checkMetadataValueContains(e.key.key, v, value)
+        }
+      )
   }
 
   abstract class KeyMatchesRegexAndValueContainsStringMatcher(keyTemplate: String, value: String) extends Matcher {
     val templateRegex = keyTemplate.r
-    def _matches(events: Iterable[MetadataEvent]): Boolean = {
-      events.exists(e => templateRegex.findFirstIn(e.key.key).isDefined &&
-        e.value.exists { v => checkMetadataValueContains(e.key.key, v, value) })
-    }
+    def _matches(events: Iterable[MetadataEvent]): Boolean =
+      events.exists(e =>
+        templateRegex.findFirstIn(e.key.key).isDefined &&
+          e.value.exists(v => checkMetadataValueContains(e.key.key, v, value))
+      )
   }
 
   val failurePattern = """failures\[\d*\].*\:message"""
-  final case class FailureMatcher(value: String) extends KeyMatchesRegexAndValueContainsStringMatcher(failurePattern, value) { }
+  final case class FailureMatcher(value: String)
+      extends KeyMatchesRegexAndValueContainsStringMatcher(failurePattern, value) {}
 }

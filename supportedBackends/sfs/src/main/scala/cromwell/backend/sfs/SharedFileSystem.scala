@@ -33,8 +33,8 @@ object SharedFileSystem extends StrictLogging {
 
   object AttemptedLookupResult {
     implicit class AugmentedAttemptedLookupSequence(s: Seq[AttemptedLookupResult]) {
-      def toLookupMap: Map[String, WomValue] = s collect {
-        case AttemptedLookupResult(name, Success(value)) => (name, value)
+      def toLookupMap: Map[String, WomValue] = s collect { case AttemptedLookupResult(name, Success(value)) =>
+        (name, value)
       } toMap
     }
   }
@@ -42,10 +42,9 @@ object SharedFileSystem extends StrictLogging {
   case class PairOfFiles(src: Path, dst: Path)
   type DuplicationStrategy = (Path, Path, Boolean) => Try[Unit]
 
-  private def createParentDirectory(executionPath: Path, docker: Boolean) = {
+  private def createParentDirectory(executionPath: Path, docker: Boolean) =
     if (docker) executionPath.parent.createPermissionedDirectories()
     else executionPath.parent.createDirectories()
-  }
 
   /**
     * Return a `Success` result if the file has already been localized, otherwise `Failure`.
@@ -71,24 +70,29 @@ object SharedFileSystem extends StrictLogging {
     logOnFailure(action, "hard link")
   }
 
-  private def localizePathViaSymbolicLink(originalPath: Path, executionPath: Path, docker: Boolean): Try[Unit] = {
-      if (originalPath.isDirectory) Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
-      else if (!originalPath.exists) Failure(new FileNotFoundException(originalPath.pathAsString))
-      else {
-        val action = Try {
-          createParentDirectory(executionPath, docker)
-          executionPath.linkTo(originalPath, symbolic = true)
-        }.void
-        logOnFailure(action, "symbolic link")
-      }
-  }
+  private def localizePathViaSymbolicLink(originalPath: Path, executionPath: Path, docker: Boolean): Try[Unit] =
+    if (originalPath.isDirectory)
+      Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
+    else if (!originalPath.exists) Failure(new FileNotFoundException(originalPath.pathAsString))
+    else {
+      val action = Try {
+        createParentDirectory(executionPath, docker)
+        executionPath.linkTo(originalPath, symbolic = true)
+      }.void
+      logOnFailure(action, "symbolic link")
+    }
 
   private def logOnFailure(action: Try[Unit], actionLabel: String): Try[Unit] = {
     if (action.isFailure) logger.warn(s"Localization via $actionLabel has failed: ${action.failed.get.getMessage}")
     action
   }
 
-  private def duplicate(description: String, source: Path, dest: Path, strategies: LazyList[DuplicationStrategy], docker: Boolean): Try[Unit] = {
+  private def duplicate(description: String,
+                        source: Path,
+                        dest: Path,
+                        strategies: LazyList[DuplicationStrategy],
+                        docker: Boolean
+  ): Try[Unit] = {
     val attempts: LazyList[Try[Unit]] = strategies.map(_.apply(source.followSymbolicLinks, dest, docker))
     attempts.find(_.isSuccess) getOrElse {
       TryUtil.sequence(attempts, s"Could not $description $source -> $dest").void
@@ -97,22 +101,20 @@ object SharedFileSystem extends StrictLogging {
 
   private lazy val beingCopied: mutable.Map[Path, Boolean] = mutable.Map[Path, Boolean]()
 
-  private def waitOnCopy(path: Path, lockFile: Path): Unit = {
-    while (beingCopied.getOrElse(path, false) || lockFile.exists)  {
+  private def waitOnCopy(path: Path, lockFile: Path): Unit =
+    while (beingCopied.getOrElse(path, false) || lockFile.exists)
       Thread.sleep(1)
-    }
-  }
 
-  private def countLinks(path: Path): Int = {
+  private def countLinks(path: Path): Int =
     path.getAttribute("unix:nlink").asInstanceOf[Int]
-  }
 }
 
 trait SharedFileSystem extends PathFactory {
   import SharedFileSystem._
 
   def sharedFileSystemConfig: Config
-  lazy val maxHardLinks: Int = sharedFileSystemConfig.getOrElse[Int]("max-hardlinks",950)  // Windows limit 1024. Keep a safe margin.
+  lazy val maxHardLinks: Int =
+    sharedFileSystemConfig.getOrElse[Int]("max-hardlinks", 950) // Windows limit 1024. Keep a safe margin.
   lazy val cachedCopyDir: Option[Path] = None
 
   private def localizePathViaCachedCopy(originalPath: Path, executionPath: Path, docker: Boolean): Try[Unit] = {
@@ -121,7 +123,8 @@ trait SharedFileSystem extends PathFactory {
       // Hash the parent. This will make sure bamfiles and their indexes stay in the same dir. This is not ideal. But should work.
       // There should be no file collisions because two files with the same name cannot exist in the same parent dir.
       // use .get . This strategy should not be used when there is no cachedCopyDir
-      val cachedCopySubDir: Path = cachedCopyDir.get.createChild(originalPath.toAbsolutePath.parent.hashCode.toString, asDirectory = true)
+      val cachedCopySubDir: Path =
+        cachedCopyDir.get.createChild(originalPath.toAbsolutePath.parent.hashCode.toString, asDirectory = true)
 
       // By prepending the modtime we prevent collisions in the cache from files that have changed in between.
       // Md5 is safer but much much slower and way too CPU intensive for big files.
@@ -142,9 +145,11 @@ trait SharedFileSystem extends PathFactory {
           // The copying may have been started while waiting on the lock.
           // If it is not there or the maxHardLinks are exceeded, is it already being copied by another thread?
           // if not copied by another thread, is it copied by another cromwell process? (Lock file present)
-          if ((!cachedCopyPath.exists || countLinks(cachedCopyPath) >= maxHardLinks) &&
+          if (
+            (!cachedCopyPath.exists || countLinks(cachedCopyPath) >= maxHardLinks) &&
             !SharedFileSystem.beingCopied.getOrElse(cachedCopyPath, false) &&
-            !cachedCopyPathLockFile.exists) {
+            !cachedCopyPathLockFile.exists
+          ) {
             // Create a lock file so other cromwell processes know copying has started
             try {
               cachedCopyPathLockFile.touch()
@@ -174,8 +179,7 @@ trait SharedFileSystem extends PathFactory {
             originalPath.copyTo(cachedCopyTmpPath, overwrite = true).moveTo(cachedCopyPath, overwrite = true)
           } catch {
             case e: Exception => throw e
-          }
-          finally {
+          } finally {
             // Always remove the locks after copying. Even if there is an exception.
             // We remove the key! Not set it to false. We don't want this map being flooded with
             // keys if the cromwell process is active for months in server mode. (Memory leak!)
@@ -197,19 +201,20 @@ trait SharedFileSystem extends PathFactory {
   lazy val DefaultStrategies = Seq("hard-link", "soft-link", "copy")
 
   lazy val LocalizationStrategyNames: Seq[String] = getConfigStrategies("localization")
-  lazy val LocalizationStrategies: Seq[DuplicationStrategy] = createStrategies(LocalizationStrategyNames, docker = false)
-  lazy val DockerLocalizationStrategies: Seq[DuplicationStrategy] = createStrategies(LocalizationStrategyNames, docker = true)
+  lazy val LocalizationStrategies: Seq[DuplicationStrategy] =
+    createStrategies(LocalizationStrategyNames, docker = false)
+  lazy val DockerLocalizationStrategies: Seq[DuplicationStrategy] =
+    createStrategies(LocalizationStrategyNames, docker = true)
 
   lazy val CachingStrategies: Seq[String] = getConfigStrategies("caching.duplication-strategy")
   lazy val Cachers: Seq[DuplicationStrategy] = createStrategies(CachingStrategies, docker = false)
 
-  private def getConfigStrategies(configPath: String): Seq[String] = {
+  private def getConfigStrategies(configPath: String): Seq[String] =
     if (sharedFileSystemConfig.hasPath(configPath)) {
       sharedFileSystemConfig.getStringList(configPath).asScala.toList
     } else {
       DefaultStrategies
     }
-  }
 
   private def createStrategies(configStrategies: Seq[String], docker: Boolean): Seq[DuplicationStrategy] = {
     // If localizing for a docker job, remove soft-link as an option
@@ -238,42 +243,41 @@ trait SharedFileSystem extends PathFactory {
     val path = PathFactory.buildPath(pathString, pathBuilders)
     path match {
       case _: DefaultPath if !path.isAbsolute => jobPaths.callExecutionRoot.resolve(path).toAbsolutePath
-      case _: DefaultPath if jobPaths.isInExecution(path.pathAsString) => jobPaths.hostPathFromContainerPath(path.pathAsString)
+      case _: DefaultPath if jobPaths.isInExecution(path.pathAsString) =>
+        jobPaths.hostPathFromContainerPath(path.pathAsString)
       case _: DefaultPath => jobPaths.hostPathFromContainerInputs(path.pathAsString)
     }
   }
 
-  def outputMapper(job: JobPaths)(womValue: WomValue): Try[WomValue] = {
+  def outputMapper(job: JobPaths)(womValue: WomValue): Try[WomValue] =
     WomFileMapper.mapWomFiles(mapJobWomFile(job))(womValue)
-  }
 
   def mapJobWomFile(jobPaths: JobPaths)(womFile: WomFile): WomFile = {
     val hostPath = hostAbsoluteFilePath(jobPaths, womFile.valueString)
     def hostAbsolute(pathString: String): String = hostAbsoluteFilePath(jobPaths, pathString).pathAsString
 
-    if (!hostPath.exists) throw new FileNotFoundException(s"Could not process output, file not found: ${hostAbsolute(womFile.valueString)}")
+    if (!hostPath.exists)
+      throw new FileNotFoundException(s"Could not process output, file not found: ${hostAbsolute(womFile.valueString)}")
 
     // There are composite WomFile types like WomMaybeListedDirectoryType that need to make the paths of contained
     // WomFiles host absolute, so don't just pass in a `const` of the function call result above.
     womFile mapFile hostAbsolute
   }
 
-  def cacheCopy(sourceFilePath: Path, destinationFilePath: Path): Try[Unit] = {
+  def cacheCopy(sourceFilePath: Path, destinationFilePath: Path): Try[Unit] =
     duplicate("cache", sourceFilePath, destinationFilePath, Cachers.to(LazyList), docker = false)
-  }
 
   /**
    * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
    * been performed for this `Backend` implementation.
    */
-  def localizeInputs(inputsRoot: Path, docker: Boolean)(inputs: WomEvaluatedCallInputs): Try[WomEvaluatedCallInputs] = {
+  def localizeInputs(inputsRoot: Path, docker: Boolean)(inputs: WomEvaluatedCallInputs): Try[WomEvaluatedCallInputs] =
     TryUtil.sequenceMap(
       inputs safeMapValues WomFileMapper.mapWomFiles(localizeWomFile(inputsRoot, docker)),
       "Failures during localization"
-    ) recoverWith {
-      case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)
+    ) recoverWith { case e =>
+      Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)
     }
-  }
 
   def localizeWomFile(inputsRoot: Path, docker: Boolean)(value: WomFile): WomFile = {
     val strategies = if (docker) DockerLocalizationStrategies else LocalizationStrategies
@@ -282,23 +286,27 @@ trait SharedFileSystem extends PathFactory {
     def stripProtocolScheme(path: Path): Path = DefaultPathBuilder.get(path.pathWithoutScheme)
 
     /*
-      * Transform an original input path to a path in the call directory.
-      * The new path matches the original path, it only "moves" the root to be the call directory.
-      */
+     * Transform an original input path to a path in the call directory.
+     * The new path matches the original path, it only "moves" the root to be the call directory.
+     */
 
     def toCallPath(womFile: WomFile)(path: String): Try[PairOfFiles] = Try {
       val src = buildPath(path)
       // Strip out potential prefix protocol
       val localInputPath = stripProtocolScheme(src)
-      val dest = if (inputsRoot.isParentOf(localInputPath)) localInputPath
-      else {
-        val nameOverride = womFile match {
-          case directory: WomMaybeListedDirectory => directory.basename
-          case _ => None
+      val dest =
+        if (inputsRoot.isParentOf(localInputPath)) localInputPath
+        else {
+          val nameOverride = womFile match {
+            case directory: WomMaybeListedDirectory => directory.basename
+            case _ => None
+          }
+          // Concatenate call directory with absolute input path
+          DefaultPathBuilder.get(inputsRoot.pathAsString,
+                                 localInputPath.parent.pathAsString.hashCode.toString,
+                                 nameOverride.getOrElse(localInputPath.name)
+          )
         }
-        // Concatenate call directory with absolute input path
-        DefaultPathBuilder.get(inputsRoot.pathAsString, localInputPath.parent.pathAsString.hashCode.toString, nameOverride.getOrElse(localInputPath.name))
-      }
 
       PairOfFiles(src, dest)
     }
@@ -306,12 +314,12 @@ trait SharedFileSystem extends PathFactory {
     // A possibly staged version of the input file suitable for downstream processing, or just the original input
     // file if no staging was required.
     val staged: WomFile = value.mapFile { input =>
-      pathBuilders.collectFirst({ case h: HttpPathBuilder if HttpPathBuilder.accepts(input) => h }) match {
+      pathBuilders.collectFirst { case h: HttpPathBuilder if HttpPathBuilder.accepts(input) => h } match {
         case Some(httpPathBuilder) =>
           implicit val materializer = ActorMaterializer()
           implicit val ec: ExecutionContext = actorContext.dispatcher
 
-          Await.result(httpPathBuilder.content(input).map { _.toString }, Duration.Inf)
+          Await.result(httpPathBuilder.content(input).map(_.toString), Duration.Inf)
         case _ => input
       }
     }
@@ -328,16 +336,18 @@ trait SharedFileSystem extends PathFactory {
     * @param womFile WomFile to localize
     * @return localized WomFile
     */
-  private def localizeWomFile(toDestPath: WomFile => String => Try[PairOfFiles], strategies: LazyList[DuplicationStrategy], docker: Boolean)
-                             (womFile: WomFile): WomFile = {
+  private def localizeWomFile(toDestPath: WomFile => String => Try[PairOfFiles],
+                              strategies: LazyList[DuplicationStrategy],
+                              docker: Boolean
+  )(womFile: WomFile): WomFile = {
     val localized = womFile mapWomFile { file =>
-      val result = toDestPath(file)(file.value) flatMap {
-        case PairOfFiles(src, dst) => duplicate("localize", src, dst, strategies, docker).map(_ => dst.pathAsString)
+      val result = toDestPath(file)(file.value) flatMap { case PairOfFiles(src, dst) =>
+        duplicate("localize", src, dst, strategies, docker).map(_ => dst.pathAsString)
       }
       result.get
     }
     val sized = localized collect {
-      case womMaybePopulatedFile@WomMaybePopulatedFile(Some(path), _, None, _, _, _, _) =>
+      case womMaybePopulatedFile @ WomMaybePopulatedFile(Some(path), _, None, _, _, _, _) =>
         val pair = toDestPath(womMaybePopulatedFile)(path).get
         val srcSize = pair.src.size
         womMaybePopulatedFile.copy(sizeOption = Option(srcSize))

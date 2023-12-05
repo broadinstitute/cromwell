@@ -23,7 +23,7 @@ trait ServiceAccountTestSupport {
   // Hide me from git secrets false positives
   private val theStringThatShallNotBeNamed = List("private", "key").mkString("_")
 
-  def serviceAccountJsonContents: String = {
+  def serviceAccountJsonContents: String =
     toJson(
       "type" -> "service_account",
       "client_id" -> "the_account_id",
@@ -31,7 +31,6 @@ trait ServiceAccountTestSupport {
       theStringThatShallNotBeNamed -> serviceAccountPemContents,
       s"${theStringThatShallNotBeNamed}_id" -> "the_key_id"
     )
-  }
 
   def toJson(contents: (String, String)*): String = {
     // Generator doesn't matter as long as it generates JSON. Using `jsonFactory` to get an extra line hit of coverage.
@@ -40,10 +39,9 @@ trait ServiceAccountTestSupport {
     val generator = factory.createJsonGenerator(writer)
     generator.enablePrettyPrint()
     generator.writeStartObject()
-    contents foreach {
-      case (key, value) =>
-        generator.writeFieldName(key)
-        generator.writeString(value)
+    contents foreach { case (key, value) =>
+      generator.writeFieldName(key)
+      generator.writeString(value)
     }
     generator.writeEndObject()
     generator.close()

@@ -35,8 +35,8 @@ class FtpFileSystemsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     verify(mockCreateFunction).apply(ftpCacheKey)
   }
 
-  class MockFtpFileSystems(conf: FtpFileSystemsConfiguration,
-                           mockCreateFunction: FtpCacheKey => FtpCloudNioFileSystem) extends FtpFileSystems(conf) {
+  class MockFtpFileSystems(conf: FtpFileSystemsConfiguration, mockCreateFunction: FtpCacheKey => FtpCloudNioFileSystem)
+      extends FtpFileSystems(conf) {
     override private[ftp] def createFileSystem(key: FtpCacheKey) = mockCreateFunction(key)
   }
 }

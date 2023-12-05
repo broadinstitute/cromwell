@@ -30,7 +30,7 @@ class ServiceAccountModeSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
       .write(serviceAccountPemContents)
     val serviceAccountMode = ServiceAccountMode(
       "service-account",
-      ServiceAccountMode.PemFileFormat("the_account_id", pemMockFile.pathAsString),
+      ServiceAccountMode.PemFileFormat("the_account_id", pemMockFile.pathAsString)
     )
     val exception = intercept[RuntimeException](serviceAccountMode.credentials())
     exception.getMessage should startWith("Google credentials are invalid: ")
@@ -53,7 +53,7 @@ class ServiceAccountModeSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
     val exception = intercept[FileNotFoundException] {
       ServiceAccountMode(
         "service-account",
-        ServiceAccountMode.PemFileFormat("the_account_id", pemMockFile.pathAsString),
+        ServiceAccountMode.PemFileFormat("the_account_id", pemMockFile.pathAsString)
       )
     }
     exception.getMessage should fullyMatch regex "File .*/service-account..*.pem does not exist or is not readable"
@@ -79,7 +79,7 @@ class ServiceAccountModeSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
       .write(serviceAccountPemContents)
     val serviceAccountMode = ServiceAccountMode(
       "service-account",
-      ServiceAccountMode.PemFileFormat("the_account_id", pemMockFile.pathAsString),
+      ServiceAccountMode.PemFileFormat("the_account_id", pemMockFile.pathAsString)
     )
     serviceAccountMode.credentialsValidation = GoogleAuthMode.NoCredentialsValidation
     val credentials = serviceAccountMode.credentials()

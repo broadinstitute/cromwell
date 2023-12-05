@@ -13,15 +13,14 @@ import wom.values.WomSingleFile
 
 import scala.concurrent.Future
 
-
 class Draft3ReadFileLimitsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "ReadLikeFunctions Size Limit Draft 3"
-  
+
   it should "pass correct size limits to the ioFunctions for read_lines" in {
-      ReadLines(PrimitiveLiteralExpressionElement(WomSingleFile("blah")))
-        .evaluateValue(Map.empty, ioFunctionTester(1, ""), None)
-        .valueOr(errors => fail(errors.toList.mkString(", ")))
+    ReadLines(PrimitiveLiteralExpressionElement(WomSingleFile("blah")))
+      .evaluateValue(Map.empty, ioFunctionTester(1, ""), None)
+      .valueOr(errors => fail(errors.toList.mkString(", ")))
   }
 
   it should "pass correct size limits to the ioFunctions for read_bool" in {
@@ -82,9 +81,13 @@ class Draft3ReadFileLimitsSpec extends AnyFlatSpec with CromwellTimeoutSpec with
 
 object Draft3ReadFileLimitsSpec {
   def ioFunctionTester(expectedMaxBytes: Int, result: String) = new EmptyIoFunctionSet {
-    override def readFile(path: String, maxBytes: Option[Int] = None, failOnOverflow: Boolean = false) = {
+    override def readFile(path: String, maxBytes: Option[Int] = None, failOnOverflow: Boolean = false) =
       if (maxBytes.contains(expectedMaxBytes)) Future.successful(result)
-      else Future.failed(new Exception(s"readFile was called with a max bytes value of ${maxBytes.getOrElse("No value")} but was expecting $expectedMaxBytes"))
-    }
+      else
+        Future.failed(
+          new Exception(
+            s"readFile was called with a max bytes value of ${maxBytes.getOrElse("No value")} but was expecting $expectedMaxBytes"
+          )
+        )
   }
 }

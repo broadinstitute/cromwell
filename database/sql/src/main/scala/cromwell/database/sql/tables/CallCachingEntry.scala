@@ -1,7 +1,6 @@
 package cromwell.database.sql.tables
 
-case class CallCachingEntry
-(
+case class CallCachingEntry(
   workflowExecutionUuid: String,
   callFullyQualifiedName: String,
   jobIndex: Int,

@@ -7,26 +7,27 @@ object TestWorkflows {
 
   case class TestWorkflow(workflowDescriptor: BackendWorkflowDescriptor,
                           config: BackendConfigurationDescriptor,
-                          expectedResponse: BackendJobExecutionResponse)
+                          expectedResponse: BackendJobExecutionResponse
+  )
 
   val HelloWorld =
     s"""
-      |task hello {
-      |  String addressee = "you "
-      |  command {
-      |    echo "Hello $${addressee}!"
-      |  }
-      |  output {
-      |    String salutation = read_string(stdout())
-      |  }
-      |
-      |  RUNTIME
-      |}
-      |
-      |workflow wf_hello {
-      |  call hello
-      |}
-      |""".stripMargin
+       |task hello {
+       |  String addressee = "you "
+       |  command {
+       |    echo "Hello $${addressee}!"
+       |  }
+       |  output {
+       |    String salutation = read_string(stdout())
+       |  }
+       |
+       |  RUNTIME
+       |}
+       |
+       |workflow wf_hello {
+       |  call hello
+       |}
+       |""".stripMargin
 
   val GoodbyeWorld =
     """
@@ -46,26 +47,26 @@ object TestWorkflows {
 
   val InputFiles =
     s"""
-      |task localize {
-      |  File inputFileFromJson
-      |  File inputFileFromCallInputs
-      |  command {
-      |    cat $${inputFileFromJson}
-      |    echo ""
-      |    cat $${inputFileFromCallInputs}
-      |  }
-      |  output {
-      |    Array[String] out = read_lines(stdout())
-      |  }
-      |
-      |  RUNTIME
-      |}
-      |
-      |workflow wf_localize {
-      |  File workflowFile
-      |  call localize { input: inputFileFromCallInputs = workflowFile }
-      |}
-      |""".stripMargin
+       |task localize {
+       |  File inputFileFromJson
+       |  File inputFileFromCallInputs
+       |  command {
+       |    cat $${inputFileFromJson}
+       |    echo ""
+       |    cat $${inputFileFromCallInputs}
+       |  }
+       |  output {
+       |    Array[String] out = read_lines(stdout())
+       |  }
+       |
+       |  RUNTIME
+       |}
+       |
+       |workflow wf_localize {
+       |  File workflowFile
+       |  call localize { input: inputFileFromCallInputs = workflowFile }
+       |}
+       |""".stripMargin
 
   val Sleep10 =
     """
@@ -83,25 +84,25 @@ object TestWorkflows {
 
   val Scatter =
     s"""
-      |task scattering {
-      |  Int intNumber
-      |  command {
-      |    echo $${intNumber}
-      |  }
-      |  output {
-      |    Int out = read_string(stdout())
-      |  }
-      |}
-      |
-      |workflow wf_scattering {
-      |  Array[Int] numbers = [1, 2, 3]
-      |  scatter (i in numbers) {
-      |     call scattering { input: intNumber = i }
-      |  }
-      |}
-      |""".stripMargin
+       |task scattering {
+       |  Int intNumber
+       |  command {
+       |    echo $${intNumber}
+       |  }
+       |  output {
+       |    Int out = read_string(stdout())
+       |  }
+       |}
+       |
+       |workflow wf_scattering {
+       |  Array[Int] numbers = [1, 2, 3]
+       |  scatter (i in numbers) {
+       |     call scattering { input: intNumber = i }
+       |  }
+       |}
+       |""".stripMargin
 
-  val OutputProcess = {
+  val OutputProcess =
     """
       |task localize {
       |  File inputFile
@@ -121,9 +122,8 @@ object TestWorkflows {
       |  call localize
       |}
       |""".stripMargin
-  }
 
-  val MissingOutputProcess = {
+  val MissingOutputProcess =
     """
       |task localize {
       |  command {
@@ -137,5 +137,4 @@ object TestWorkflows {
       |  call localize
       |}
       |""".stripMargin
-  }
 }

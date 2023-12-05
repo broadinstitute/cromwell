@@ -35,7 +35,6 @@ class WdlNestedConditionalWomSpec extends AnyFlatSpec with CromwellTimeoutSpec w
     ("same lookups in if condition, scatter collection, and task calls", sameLookupsInConditionsAndInnerTaskCalls)
   )
 
-
   /*
      NB these tests go as far as "can I make a WOM Graph out of this WDL.
      We don't do anything to check that the WOM Graph is correct"
@@ -51,12 +50,15 @@ class WdlNestedConditionalWomSpec extends AnyFlatSpec with CromwellTimeoutSpec w
 
       // Run each WDL through 20 times because the topological ordering of WdlGraphNodes is sometimes non-deterministic
       // and the order of operations has been known to change whether a bug is expressed or not.
-      val errors = (0 until 20).toList.as(mkTestGraph) collect {
-        case i @ Invalid(_) => i.e.toList
+      val errors = (0 until 20).toList.as(mkTestGraph) collect { case i @ Invalid(_) =>
+        i.e.toList
       }
 
       if (errors.nonEmpty) {
-        fail(s"Unable to build wom version of nested_lookups from WDL ${errors.size * 5}% of the time. First failure was: ${errors.head.mkString("\n", "\n", "\n")}")
+        fail(
+          s"Unable to build wom version of nested_lookups from WDL ${errors.size * 5}% of the time. First failure was: ${errors.head
+              .mkString("\n", "\n", "\n")}"
+        )
       }
 
     }

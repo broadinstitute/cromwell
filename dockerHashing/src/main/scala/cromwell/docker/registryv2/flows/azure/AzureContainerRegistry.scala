@@ -15,7 +15,6 @@ import org.http4s.client.Client
 import io.circe.generic.auto._
 import org.http4s._
 
-
 class AzureContainerRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstract(config) with LazyLogging {
 
   /**
@@ -25,7 +24,7 @@ class AzureContainerRegistry(config: DockerRegistryConfig) extends DockerRegistr
     dockerImageIdentifier.host.getOrElse("")
 
   override def accepts(dockerImageIdentifier: DockerImageIdentifier): Boolean =
-    dockerImageIdentifier.hostAsString.contains(domain) 
+    dockerImageIdentifier.hostAsString.contains(domain)
 
   override protected def authorizationServerHostName(dockerImageIdentifier: DockerImageIdentifier): String =
     dockerImageIdentifier.host.getOrElse("")
@@ -35,13 +34,12 @@ class AzureContainerRegistry(config: DockerRegistryConfig) extends DockerRegistr
     */
   override def serviceName: Option[String] =
     throw new Exception("ACR service name is host of user-defined registry, must derive from `DockerImageIdentifier`")
-  
+
   /**
     * Builds the list of headers for the token request
     */
-  override protected def buildTokenRequestHeaders(dockerInfoContext: DockerInfoContext): List[Header] = {
+  override protected def buildTokenRequestHeaders(dockerInfoContext: DockerInfoContext): List[Header] =
     List(contentTypeHeader)
-  }
 
   private val contentTypeHeader: Header = {
     import org.http4s.headers.`Content-Type`
@@ -49,7 +47,7 @@ class AzureContainerRegistry(config: DockerRegistryConfig) extends DockerRegistr
 
     `Content-Type`(MediaType.application.`x-www-form-urlencoded`)
   }
-  
+
   private def getRefreshToken(authServerHostname: String, defaultAccessToken: String): IO[Request[IO]] = {
     import org.http4s.Uri.{Authority, Scheme}
     import org.http4s.client.dsl.io._
@@ -69,16 +67,16 @@ class AzureContainerRegistry(config: DockerRegistryConfig) extends DockerRegistr
         "grant_type" -> "access_token"
       ),
       uri,
-      List(contentTypeHeader): _* 
+      List(contentTypeHeader): _*
     )
   }
 
   /*
   Unlike other repositories, Azure reserves `GET /oauth2/token` for Basic Authentication [0]
   In order to use Oauth we must `POST /oauth2/token` [1]
-  
+
   [0] https://github.com/Azure/acr/blob/main/docs/Token-BasicAuth.md#using-the-token-api
-  [1] https://github.com/Azure/acr/blob/main/docs/AAD-OAuth.md#calling-post-oauth2token-to-get-an-acr-access-token 
+  [1] https://github.com/Azure/acr/blob/main/docs/AAD-OAuth.md#calling-post-oauth2token-to-get-an-acr-access-token
    */
   private def getDockerAccessToken(hostname: String, repository: String, refreshToken: String): IO[Request[IO]] = {
     import org.http4s.Uri.{Authority, Scheme}
@@ -102,14 +100,17 @@ class AzureContainerRegistry(config: DockerRegistryConfig) extends DockerRegistr
         "grant_type" -> "refresh_token"
       ),
       uri,
-      List(contentTypeHeader): _* 
+      List(contentTypeHeader): _*
     )
   }
 
-  override protected def getToken(dockerInfoContext: DockerInfoContext)(implicit client: Client[IO]): IO[Option[String]] = {
+  override protected def getToken(
+    dockerInfoContext: DockerInfoContext
+  )(implicit client: Client[IO]): IO[Option[String]] = {
     val hostname = authorizationServerHostName(dockerInfoContext.dockerImageID)
-    val maybeAadAccessToken: ErrorOr[String] = AzureCredentials.getAccessToken(None) // AAD token suitable for get-refresh-token request
-    val repository = dockerInfoContext.dockerImageID.image // ACR uses what we think of image name, as the repository 
+    val maybeAadAccessToken: ErrorOr[String] =
+      AzureCredentials.getAccessToken(None) // AAD token suitable for get-refresh-token request
+    val repository = dockerInfoContext.dockerImageID.image // ACR uses what we think of image name, as the repository
 
     // Top-level flow: AAD access token -> refresh token -> ACR access token
     maybeAadAccessToken match {
@@ -131,19 +132,21 @@ class AzureContainerRegistry(config: DockerRegistryConfig) extends DockerRegistr
   private def parseRefreshToken(response: Response[IO]): IO[String] = response match {
     case Status.Successful(r) => r.as[AcrRefreshToken].map(_.refresh_token)
     case r =>
-      r.as[String].flatMap(b => IO.raiseError(new Exception(s"Request failed with status ${r.status.code} and body $b")))
+      r.as[String]
+        .flatMap(b => IO.raiseError(new Exception(s"Request failed with status ${r.status.code} and body $b")))
   }
 
   private def parseAccessToken(response: Response[IO]): IO[String] = response match {
     case Status.Successful(r) => r.as[AcrAccessToken].map(_.access_token)
     case r =>
-      r.as[String].flatMap(b => IO.raiseError(new Exception(s"Request failed with status ${r.status.code} and body $b")))
+      r.as[String]
+        .flatMap(b => IO.raiseError(new Exception(s"Request failed with status ${r.status.code} and body $b")))
   }
 
 }
 
 object AzureContainerRegistry {
-  
+
   def domain: String = "azurecr.io"
-  
+
 }

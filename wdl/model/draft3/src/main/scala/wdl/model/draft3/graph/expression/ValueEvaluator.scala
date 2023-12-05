@@ -9,6 +9,7 @@ import wom.values.WomValue
 
 @typeclass
 trait ValueEvaluator[A] {
+
   /**
     * Evaluate a value from an A
     * @param a The A to evaluate
@@ -20,8 +21,8 @@ trait ValueEvaluator[A] {
   def evaluateValue(a: A,
                     inputs: Map[String, WomValue],
                     ioFunctionSet: IoFunctionSet,
-                    forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
-                   (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]]
+                    forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
+  )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]]
 }
 
 final case class ForCommandInstantiationOptions(valueMapper: WomValue => WomValue)

@@ -4,13 +4,22 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.testkit.TestProbe
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.TestKitSuite
-import cromwell.services.metadata.MetadataQuerySpec.{CannedResponseReadMetadataWorker, MetadataServiceActor_CustomizeRead}
-import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, MetadataServiceResponse, QueryForWorkflowsMatchingParameters, WorkflowQueryResponse, WorkflowQuerySuccess}
+import cromwell.services.metadata.MetadataQuerySpec.{
+  CannedResponseReadMetadataWorker,
+  MetadataServiceActor_CustomizeRead
+}
+import cromwell.services.metadata.MetadataService.{
+  BuildMetadataJsonAction,
+  MetadataServiceResponse,
+  QueryForWorkflowsMatchingParameters,
+  WorkflowQueryResponse,
+  WorkflowQuerySuccess
+}
 import cromwell.services.metadata.impl.{MetadataServiceActor, MetadataServiceActorSpec}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class MetadataQuerySpec extends TestKitSuite with AnyFlatSpecLike with Matchers  {
+class MetadataQuerySpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
 
   it should "correctly forward requests to read workers and responses back to requesters" in {
 
@@ -26,7 +35,9 @@ class MetadataQuerySpec extends TestKitSuite with AnyFlatSpecLike with Matchers 
     val requester = TestProbe("MetadataServiceClientProbe")
     def readWorkerProps() = Props(new CannedResponseReadMetadataWorker(Map(request -> response)))
     val serviceRegistry = TestProbe("ServiceRegistryProbe")
-    val metadataService = system.actorOf(MetadataServiceActor_CustomizeRead.props(readWorkerProps, serviceRegistry), "MetadataServiceUnderTest")
+    val metadataService = system.actorOf(MetadataServiceActor_CustomizeRead.props(readWorkerProps, serviceRegistry),
+                                         "MetadataServiceUnderTest"
+    )
 
     requester.send(metadataService, request)
     requester.expectMsg(response)
@@ -35,12 +46,17 @@ class MetadataQuerySpec extends TestKitSuite with AnyFlatSpecLike with Matchers 
 
 }
 
-
 object MetadataQuerySpec {
-  final class MetadataServiceActor_CustomizeRead(config: Config, serviceRegistryActor: ActorRef, readWorkerMaker: () => Props)
-    extends MetadataServiceActor(MetadataServiceActorSpec.globalConfigToMetadataServiceConfig(config), config, serviceRegistryActor) {
+  final class MetadataServiceActor_CustomizeRead(config: Config,
+                                                 serviceRegistryActor: ActorRef,
+                                                 readWorkerMaker: () => Props
+  ) extends MetadataServiceActor(MetadataServiceActorSpec.globalConfigToMetadataServiceConfig(config),
+                                 config,
+                                 serviceRegistryActor
+      ) {
 
-    override def readMetadataWorkerActorProps(): Props = readWorkerMaker.apply().withDispatcher(cromwell.core.Dispatcher.ServiceDispatcher)
+    override def readMetadataWorkerActorProps(): Props =
+      readWorkerMaker.apply().withDispatcher(cromwell.core.Dispatcher.ServiceDispatcher)
   }
 
   object MetadataServiceActor_CustomizeRead {
@@ -50,10 +66,10 @@ object MetadataQuerySpec {
       Props(new MetadataServiceActor_CustomizeRead(config, serviceRegistryProbe.ref, readActorProps))
   }
 
-
-  final class CannedResponseReadMetadataWorker(cannedResponses: Map[BuildMetadataJsonAction, MetadataServiceResponse]) extends Actor {
-    override def receive: Receive = {
-      case msg: BuildMetadataJsonAction => sender() ! cannedResponses.getOrElse(msg, throw new Exception(s"Unexpected inbound message: $msg"))
+  final class CannedResponseReadMetadataWorker(cannedResponses: Map[BuildMetadataJsonAction, MetadataServiceResponse])
+      extends Actor {
+    override def receive: Receive = { case msg: BuildMetadataJsonAction =>
+      sender() ! cannedResponses.getOrElse(msg, throw new Exception(s"Unexpected inbound message: $msg"))
     }
   }
 }

@@ -11,5 +11,7 @@ import wom.values.WomValue
   * Trait for nodes that can be evaluated by the engine
   */
 trait ExpressionNodeLike extends GraphNode {
-  def evaluate(outputPortLookup: OutputPort => ErrorOr[WomValue], ioFunctionSet: IoFunctionSet): Checked[Map[OutputPort, WomValue]]
+  def evaluate(outputPortLookup: OutputPort => ErrorOr[WomValue],
+               ioFunctionSet: IoFunctionSet
+  ): Checked[Map[OutputPort, WomValue]]
 }

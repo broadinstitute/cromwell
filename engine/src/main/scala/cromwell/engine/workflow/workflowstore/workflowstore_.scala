@@ -27,4 +27,5 @@ final case class WorkflowToStart(id: WorkflowId,
                                  submissionTime: OffsetDateTime,
                                  sources: WorkflowSourceFilesCollection,
                                  state: StartableState,
-                                 hogGroup: HogGroup) extends HasWorkflowIdAndSources
+                                 hogGroup: HogGroup
+) extends HasWorkflowIdAndSources

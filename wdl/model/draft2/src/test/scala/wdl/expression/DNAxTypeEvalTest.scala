@@ -43,30 +43,25 @@ class DNAxTypeEvalTest extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
        |}
        |""".stripMargin
 
-
   // Figure out the type of an expression
-  def evalType(expr: WdlExpression, parent: Scope) : Try[WomType] = {
-    expr.evaluateType(WdlNamespace.lookupType(parent),
-                      new WdlStandardLibraryFunctionsType,
-                      Some(parent))
-  }
+  def evalType(expr: WdlExpression, parent: Scope): Try[WomType] =
+    expr.evaluateType(WdlNamespace.lookupType(parent), new WdlStandardLibraryFunctionsType, Some(parent))
 
   it should "correctly evaluate expression types" in {
     val ns = WdlNamespaceWithWorkflow.load(wdlCode, Seq.empty).get
     val wf = ns.workflow
 
-    val call:WdlCall = wf.findCallByName("Add") match {
+    val call: WdlCall = wf.findCallByName("Add") match {
       case None => throw new Exception(s"Call Add not found in WDL file")
       case Some(call) => call
     }
-    val ssc:Scatter = wf.scatters.head
+    val ssc: Scatter = wf.scatters.head
 
     call.inputMappings.foreach { case (_, expr) =>
-      val t:Try[WomType] = evalType(expr, ssc)
+      val t: Try[WomType] = evalType(expr, ssc)
       t should equal(Success(WomIntegerType))
     }
   }
-
 
   val wdlCode2 =
     """|task Copy {
@@ -100,7 +95,7 @@ class DNAxTypeEvalTest extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
     val ns = WdlNamespaceWithWorkflow.load(wdlCode2, Seq.empty).get
     val wf = ns.workflow
 
-    val copy2call:WdlCall = wf.findCallByName("Copy2") match {
+    val copy2call: WdlCall = wf.findCallByName("Copy2") match {
       case None => throw new Exception(s"Call Add not found in WDL file")
       case Some(call) => call
     }
@@ -113,7 +108,6 @@ class DNAxTypeEvalTest extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
     val t2 = evalType(e2, copy2call)
     t2 should equal(Success(WomStringType))
   }
-
 
   val wdlCode3 =
     """|
@@ -160,7 +154,7 @@ class DNAxTypeEvalTest extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
     val ns = WdlNamespaceWithWorkflow.load(wdlCode3, Seq.empty).get
     val wf = ns.workflow
 
-    val incCall:WdlCall = wf.findCallByName("Inc") match {
+    val incCall: WdlCall = wf.findCallByName("Inc") match {
       case None => throw new Exception(s"Call Add not found in WDL file")
       case Some(call) => call
     }

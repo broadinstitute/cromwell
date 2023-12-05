@@ -18,32 +18,38 @@ import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
 
-class SharedFileSystemInitializationActorSpec extends TestKitSuite
-  with AnyWordSpecLike with Matchers with ImplicitSender {
+class SharedFileSystemInitializationActorSpec
+    extends TestKitSuite
+    with AnyWordSpecLike
+    with Matchers
+    with ImplicitSender {
   val Timeout: FiniteDuration = 10.second.dilated
 
   val HelloWorld: String =
     s"""
-      |task hello {
-      |  String addressee = "you"
-      |  command {
-      |    echo "Hello $${addressee}!"
-      |  }
-      |  output {
-      |    String salutation = read_string(stdout())
-      |  }
-      |
-      |  RUNTIME
-      |}
-      |
-      |workflow wf_hello {
-      |  call hello
-      |}
+       |task hello {
+       |  String addressee = "you"
+       |  command {
+       |    echo "Hello $${addressee}!"
+       |  }
+       |  output {
+       |    String salutation = read_string(stdout())
+       |  }
+       |
+       |  RUNTIME
+       |}
+       |
+       |workflow wf_hello {
+       |  call hello
+       |}
     """.stripMargin
 
-  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[CommandCallNode],
-                          conf: BackendConfigurationDescriptor) = {
-    val params = DefaultInitializationActorParams(workflowDescriptor, emptyActor, calls, emptyActor, conf, restarting = false)
+  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor,
+                          calls: Set[CommandCallNode],
+                          conf: BackendConfigurationDescriptor
+  ) = {
+    val params =
+      DefaultInitializationActorParams(workflowDescriptor, emptyActor, calls, emptyActor, conf, restarting = false)
     val props = Props(new SharedFileSystemInitializationActor(params))
     system.actorOf(props, "SharedFileSystemInitializationActor")
   }

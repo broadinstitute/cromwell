@@ -9,22 +9,25 @@ import wom.types.{WomMapType, WomObjectType, WomStringType}
 import wom.values.{WomMap, WomObject, WomString}
 
 class WdlObjectTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
-  val abcObject = WomObject(Map(
-    "a" -> WomString("one"),
-    "b" -> WomString("two"),
-    "c" -> WomString("three")
-  ))
-
-  val coerceableMap = WomMap(WomMapType(WomStringType, WomStringType), Map(
-    WomString("a") -> WomString("one"),
-    WomString("b") -> WomString("two"),
-    WomString("c") -> WomString("three"))
+  val abcObject = WomObject(
+    Map(
+      "a" -> WomString("one"),
+      "b" -> WomString("two"),
+      "c" -> WomString("three")
+    )
   )
 
-  val nonCoerceableMap = WomMap(WomMapType(WomStringType, WomObjectType), Map(
-    WomString("a") -> WomObject(Map.empty),
-    WomString("b") -> WomObject(Map.empty),
-    WomString("c") -> WomObject(Map.empty))
+  val coerceableMap = WomMap(
+    WomMapType(WomStringType, WomStringType),
+    Map(WomString("a") -> WomString("one"), WomString("b") -> WomString("two"), WomString("c") -> WomString("three"))
+  )
+
+  val nonCoerceableMap = WomMap(
+    WomMapType(WomStringType, WomObjectType),
+    Map(WomString("a") -> WomObject(Map.empty),
+        WomString("b") -> WomObject(Map.empty),
+        WomString("c") -> WomObject(Map.empty)
+    )
   )
 
   it should "convert WDL source code to WdlMap" in {

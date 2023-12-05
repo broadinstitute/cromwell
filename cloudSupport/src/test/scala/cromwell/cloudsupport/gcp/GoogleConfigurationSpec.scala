@@ -14,7 +14,6 @@ import cromwell.cloudsupport.gcp.auth._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-
 class GoogleConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "GoogleConfiguration"
@@ -25,39 +24,39 @@ class GoogleConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
 
     val righteousGoogleConfig =
       s"""
-        |google {
-        |  application-name = "cromwell"
-        |
-        |  auths = [
-        |    {
-        |      name = "name-default"
-        |      scheme = "application_default"
-        |    },
-        |    {
-        |      name = "name-user"
-        |      scheme = "user_account"
-        |      user = "me"
-        |      secrets-file = "${pemMockFile.pathAsString}"
-        |      data-store-dir = "/where/the/data/at"
-        |    },
-        |    {
-        |      name = "name-pem-service"
-        |      scheme = "service_account"
-        |      service-account-id = "my-google-account"
-        |      pem-file = "${pemMockFile.pathAsString}"
-        |    },
-        |    {
-        |      name = "name-json-service"
-        |      scheme = "service_account"
-        |      json-file = "${jsonMockFile.pathAsString}"
-        |    },
-        |    {
-        |      name = "name-user-service-account"
-        |      scheme = "user_service_account"
-        |    }
-        |  ]
-        |}
-        |
+         |google {
+         |  application-name = "cromwell"
+         |
+         |  auths = [
+         |    {
+         |      name = "name-default"
+         |      scheme = "application_default"
+         |    },
+         |    {
+         |      name = "name-user"
+         |      scheme = "user_account"
+         |      user = "me"
+         |      secrets-file = "${pemMockFile.pathAsString}"
+         |      data-store-dir = "/where/the/data/at"
+         |    },
+         |    {
+         |      name = "name-pem-service"
+         |      scheme = "service_account"
+         |      service-account-id = "my-google-account"
+         |      pem-file = "${pemMockFile.pathAsString}"
+         |    },
+         |    {
+         |      name = "name-json-service"
+         |      scheme = "service_account"
+         |      json-file = "${jsonMockFile.pathAsString}"
+         |    },
+         |    {
+         |      name = "name-user-service-account"
+         |      scheme = "user_service_account"
+         |    }
+         |  ]
+         |}
+         |
       """.stripMargin
 
     val gconf = GoogleConfiguration(ConfigFactory.parseString(righteousGoogleConfig))
@@ -125,16 +124,16 @@ class GoogleConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
 
     val googleConfiguration = GoogleConfiguration(ConfigFactory.parseString(config))
     googleConfiguration.auth("name-botched") should be(
-      "`google` configuration stanza does not contain an auth named 'name-botched'.  Known auth names: name-default"
-        .invalidNel)
+      "`google` configuration stanza does not contain an auth named 'name-botched'.  Known auth names: name-default".invalidNel
+    )
   }
 
   it should "create an initializer with custom timeouts" in {
     val transport = new MockHttpTransport()
-    val initializer = GoogleConfiguration.withCustomTimeouts(request => {
+    val initializer = GoogleConfiguration.withCustomTimeouts { request =>
       request.getHeaders.set("custom_init", "ok")
       ()
-    })
+    }
     val factory = transport.createRequestFactory(initializer)
     val request = factory.buildGetRequest(new GenericUrl(new URL("http://example.com")))
     request.getConnectTimeout should be(180000)

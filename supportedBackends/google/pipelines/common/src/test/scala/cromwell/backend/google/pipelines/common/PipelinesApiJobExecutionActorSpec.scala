@@ -4,7 +4,11 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.testkit._
 import cromwell.backend.BackendJobExecutionActor.{ExecuteJobCommand, JobFailedNonRetryableResponse}
 import cromwell.backend.google.pipelines.common.ControllableFailingPabjea.JabjeaExplode
-import cromwell.backend.standard.{DefaultStandardSyncExecutionActorParams, StandardSyncExecutionActor, StandardSyncExecutionActorParams}
+import cromwell.backend.standard.{
+  DefaultStandardSyncExecutionActorParams,
+  StandardSyncExecutionActor,
+  StandardSyncExecutionActorParams
+}
 import cromwell.backend.{BackendJobDescriptor, MinimumRuntimeSettings}
 import cromwell.core.TestKitSuite
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -36,12 +40,21 @@ class PipelinesApiJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLik
 
     val parent = TestProbe("parent")
     val deathwatch = TestProbe("deathwatch")
-    val params = DefaultStandardSyncExecutionActorParams(PipelinesApiAsyncBackendJobExecutionActor.JesOperationIdKey, serviceRegistryActor, ioActor,
-      jobDescriptor, null, Option(initializationData), jesBackendSingletonActor,
-      classOf[PipelinesApiAsyncBackendJobExecutionActor], MinimumRuntimeSettings())
+    val params = DefaultStandardSyncExecutionActorParams(
+      PipelinesApiAsyncBackendJobExecutionActor.JesOperationIdKey,
+      serviceRegistryActor,
+      ioActor,
+      jobDescriptor,
+      null,
+      Option(initializationData),
+      jesBackendSingletonActor,
+      classOf[PipelinesApiAsyncBackendJobExecutionActor],
+      MinimumRuntimeSettings()
+    )
     val testJJEA = TestActorRef[TestPipelinesApiJobExecutionActor](
       props = Props(new TestPipelinesApiJobExecutionActor(params, Props(new ConstructorFailingJABJEA))),
-      supervisor = parent.ref)
+      supervisor = parent.ref
+    )
     deathwatch watch testJJEA
 
     // Nothing happens:
@@ -50,9 +63,10 @@ class PipelinesApiJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLik
 
     testJJEA.tell(msg = ExecuteJobCommand, sender = parent.ref)
 
-    parent.expectMsgPF(max = TimeoutDuration) {
-      case JobFailedNonRetryableResponse(_, throwable, _) =>
-        throwable.getMessage should be("PipelinesApiAsyncBackendJobExecutionActor failed and didn't catch its exception. This condition has been handled and the job will be marked as failed.")
+    parent.expectMsgPF(max = TimeoutDuration) { case JobFailedNonRetryableResponse(_, throwable, _) =>
+      throwable.getMessage should be(
+        "PipelinesApiAsyncBackendJobExecutionActor failed and didn't catch its exception. This condition has been handled and the job will be marked as failed."
+      )
     }
   }
 
@@ -69,13 +83,23 @@ class PipelinesApiJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLik
     val parent = TestProbe("parent")
     val deathwatch = TestProbe("deathwatch")
     val jabjeaConstructionPromise = Promise[ActorRef]()
-    val params = DefaultStandardSyncExecutionActorParams(PipelinesApiAsyncBackendJobExecutionActor.JesOperationIdKey, serviceRegistryActor, ioActor,
-      jobDescriptor, null, Option(initializationData), jesBackendSingletonActor,
+    val params = DefaultStandardSyncExecutionActorParams(
+      PipelinesApiAsyncBackendJobExecutionActor.JesOperationIdKey,
+      serviceRegistryActor,
+      ioActor,
+      jobDescriptor,
+      null,
+      Option(initializationData),
+      jesBackendSingletonActor,
       classOf[PipelinesApiAsyncBackendJobExecutionActor],
-      MinimumRuntimeSettings())
+      MinimumRuntimeSettings()
+    )
     val testJJEA = TestActorRef[TestPipelinesApiJobExecutionActor](
-      props = Props(new TestPipelinesApiJobExecutionActor(params, Props(new ControllableFailingPabjea(jabjeaConstructionPromise)))),
-      supervisor = parent.ref)
+      props = Props(
+        new TestPipelinesApiJobExecutionActor(params, Props(new ControllableFailingPabjea(jabjeaConstructionPromise)))
+      ),
+      supervisor = parent.ref
+    )
     deathwatch watch testJJEA
 
     // Nothing happens:
@@ -96,15 +120,16 @@ class PipelinesApiJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLik
         throw exception
     }
 
-    parent.expectMsgPF(max = TimeoutDuration) {
-      case JobFailedNonRetryableResponse(_, throwable, _) =>
-        throwable.getMessage should be("PipelinesApiAsyncBackendJobExecutionActor failed and didn't catch its exception. This condition has been handled and the job will be marked as failed.")
+    parent.expectMsgPF(max = TimeoutDuration) { case JobFailedNonRetryableResponse(_, throwable, _) =>
+      throwable.getMessage should be(
+        "PipelinesApiAsyncBackendJobExecutionActor failed and didn't catch its exception. This condition has been handled and the job will be marked as failed."
+      )
     }
   }
 }
 
-class TestPipelinesApiJobExecutionActor(params: StandardSyncExecutionActorParams,
-                                        fakeJabjeaProps: Props) extends StandardSyncExecutionActor(params) {
+class TestPipelinesApiJobExecutionActor(params: StandardSyncExecutionActorParams, fakeJabjeaProps: Props)
+    extends StandardSyncExecutionActor(params) {
   override def createAsyncProps(): Props = fakeJabjeaProps
 }
 
@@ -116,12 +141,12 @@ class ConstructorFailingJABJEA extends ControllableFailingPabjea(Promise[ActorRe
 class ControllableFailingPabjea(constructionPromise: Promise[ActorRef]) extends Actor {
   def explode(): Unit = {
     val boom = 1 == 1
-    if (boom) throw new RuntimeException("Test Exception! Don't panic if this appears during a test run!")
-      with NoStackTrace
+    if (boom)
+      throw new RuntimeException("Test Exception! Don't panic if this appears during a test run!") with NoStackTrace
   }
   constructionPromise.trySuccess(self)
-  override def receive: Receive = {
-    case JabjeaExplode => explode()
+  override def receive: Receive = { case JabjeaExplode =>
+    explode()
   }
 }
 

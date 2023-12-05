@@ -6,8 +6,10 @@ import org.broadinstitute.dsde.workbench.util.health.Subsystems.{Cromwell, Sam, 
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class MockStatusService(checkStatus: () => Map[Subsystem, Future[SubsystemStatus]])(implicit system: ActorSystem, executionContext: ExecutionContext) extends
-  StatusService(checkStatus)(system, executionContext) {
+class MockStatusService(checkStatus: () => Map[Subsystem, Future[SubsystemStatus]])(implicit
+  system: ActorSystem,
+  executionContext: ExecutionContext
+) extends StatusService(checkStatus)(system, executionContext) {
 
   override def status(): Future[StatusCheckResponse] = {
     val subsystemStatus: SubsystemStatus = SubsystemStatus(ok = true, None)
@@ -16,4 +18,3 @@ class MockStatusService(checkStatus: () => Map[Subsystem, Future[SubsystemStatus
     Future.successful(StatusCheckResponse(ok = true, subsystems))
   }
 }
-

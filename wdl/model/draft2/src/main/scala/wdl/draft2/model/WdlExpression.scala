@@ -47,9 +47,11 @@ object WdlExpression {
     def isMapLiteral: Boolean = ast.getName == "MapLiteral"
     def isObjectLiteral: Boolean = ast.getName == "ObjectLiteral"
     def isArrayOrMapLookup: Boolean = ast.getName == "ArrayOrMapLookup"
-    def params: Vector[AstNode] = Option(ast.getAttribute("params")).map(_.asInstanceOf[AstList].asScala.toVector).getOrElse(Vector.empty)
+    def params: Vector[AstNode] =
+      Option(ast.getAttribute("params")).map(_.asInstanceOf[AstList].asScala.toVector).getOrElse(Vector.empty)
     def name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
-    def isFunctionCallWithFirstParameterBeingFile = ast.isFunctionCall && ast.params.nonEmpty && WdlFunctionsWithFirstParameterBeingFile.contains(ast.functionName)
+    def isFunctionCallWithFirstParameterBeingFile =
+      ast.isFunctionCall && ast.params.nonEmpty && WdlFunctionsWithFirstParameterBeingFile.contains(ast.functionName)
     def isGlobFunctionCall = ast.isFunctionCall && ast.params.size == 1 && "glob".equals(ast.functionName)
   }
 
@@ -76,9 +78,19 @@ object WdlExpression {
   type ScopedLookupFunction = String => WomValue
 
   val BinaryOperators = Set(
-    "Add", "Subtract", "Multiply", "Divide", "Remainder",
-    "GreaterThan", "LessThan", "GreaterThanOrEqual", "LessThanOrEqual",
-    "Equals", "NotEquals", "LogicalAnd", "LogicalOr"
+    "Add",
+    "Subtract",
+    "Multiply",
+    "Divide",
+    "Remainder",
+    "GreaterThan",
+    "LessThan",
+    "GreaterThanOrEqual",
+    "LessThanOrEqual",
+    "Equals",
+    "NotEquals",
+    "LogicalAnd",
+    "LogicalOr"
   )
 
   val UnaryOperators = Set("LogicalNot", "UnaryPlus", "UnaryNegation")
@@ -100,24 +112,33 @@ object WdlExpression {
   def evaluate(ast: AstNode, lookup: ScopedLookupFunction, functions: WdlFunctions[WomValue]): Try[WomValue] =
     ValueEvaluator(lookup, functions).evaluate(ast)
 
-  def evaluateFiles(ast: AstNode, lookup: ScopedLookupFunction, functions: WdlFunctions[WomValue], coerceTo: WomType = WomAnyType) =
+  def evaluateFiles(ast: AstNode,
+                    lookup: ScopedLookupFunction,
+                    functions: WdlFunctions[WomValue],
+                    coerceTo: WomType = WomAnyType
+  ) =
     FileEvaluator(ValueEvaluator(lookup, functions), coerceTo).evaluate(ast)
 
-  def evaluateType(ast: AstNode, lookup: (String) => WomType, functions: WdlFunctions[WomType], from: Option[Scope] = None) =
+  def evaluateType(ast: AstNode,
+                   lookup: (String) => WomType,
+                   functions: WdlFunctions[WomType],
+                   from: Option[Scope] = None
+  ) =
     TypeEvaluator(lookup, functions, from).evaluate(ast)
 
   def fromString(expression: WorkflowSource): WdlExpression = {
     val tokens = parser.lex(expression, "string")
-    val terminalMap = (tokens.asScala.toVector map {(_, expression)}).toMap
+    val terminalMap = (tokens.asScala.toVector map { (_, expression) }).toMap
     val parseTree = parser.parse_e(tokens, WdlSyntaxErrorFormatter(terminalMap))
     new WdlExpression(parseTree.toAst)
   }
 
-  def toString(ast: AstNode, highlighter: SyntaxHighlighter = NullSyntaxHighlighter): String = {
+  def toString(ast: AstNode, highlighter: SyntaxHighlighter = NullSyntaxHighlighter): String =
     ast match {
-      case t: Terminal if Seq("identifier", "integer", "float", "boolean").contains(t.getTerminalStr) => t.getSourceString
+      case t: Terminal if Seq("identifier", "integer", "float", "boolean").contains(t.getTerminalStr) =>
+        t.getSourceString
       case t: Terminal if t.getTerminalStr == "string" => s""""${t.getSourceString.replaceAll("\"", "\\" + "\"")}""""
-      case a:Ast if a.isBinaryOperator =>
+      case a: Ast if a.isBinaryOperator =>
         val lhs = Option(a.getAttribute("lhs")).map(toString(_, highlighter)).getOrElse("")
         val rhs = Option(a.getAttribute("rhs")).map(toString(_, highlighter)).getOrElse("")
         a.getName match {
@@ -148,10 +169,10 @@ object WdlExpression {
         val f = toString(ifFalse, highlighter)
         s"if $c then $t else $f"
       case a: Ast if a.isArrayLiteral =>
-        val evaluatedElements = a.getAttribute("values").astListAsVector map {x => toString(x, highlighter)}
+        val evaluatedElements = a.getAttribute("values").astListAsVector map { x => toString(x, highlighter) }
         s"[${evaluatedElements.mkString(", ")}]"
       case a: Ast if a.isTupleLiteral =>
-        val evaluatedElements = a.getAttribute("values").astListAsVector map { x => toString(x, highlighter)}
+        val evaluatedElements = a.getAttribute("values").astListAsVector map { x => toString(x, highlighter) }
         s"(${evaluatedElements.mkString(", ")})"
       case a: Ast if a.isMapLiteral =>
         val evaluatedMap = a.getAttribute("map").astListAsVector map { kv =>
@@ -179,7 +200,6 @@ object WdlExpression {
         val params = a.params map { a => toString(a, highlighter) }
         s"${highlighter.function(a.name)}(${params.mkString(", ")})"
     }
-  }
 }
 
 case class WdlExpression(ast: AstNode) extends WomValue {
@@ -188,23 +208,27 @@ case class WdlExpression(ast: AstNode) extends WomValue {
   def evaluate(lookup: ScopedLookupFunction, functions: WdlFunctions[WomValue]): Try[WomValue] =
     WdlExpression.evaluate(ast, lookup, functions)
 
-  def evaluateFiles(lookup: ScopedLookupFunction, functions: WdlFunctions[WomValue], coerceTo: WomType): Try[Seq[WomFile]] =
+  def evaluateFiles(lookup: ScopedLookupFunction,
+                    functions: WdlFunctions[WomValue],
+                    coerceTo: WomType
+  ): Try[Seq[WomFile]] =
     WdlExpression.evaluateFiles(ast, lookup, functions, coerceTo)
 
-  def evaluateType(lookup: String => WomType, functions: WdlFunctions[WomType], from: Option[Scope] = None): Try[WomType] =
+  def evaluateType(lookup: String => WomType,
+                   functions: WdlFunctions[WomType],
+                   from: Option[Scope] = None
+  ): Try[WomType] =
     WdlExpression.evaluateType(ast, lookup, functions, from)
 
   def containsFunctionCall = ast.containsFunctionCalls
 
-  def toString(highlighter: SyntaxHighlighter): String = {
+  def toString(highlighter: SyntaxHighlighter): String =
     WdlExpression.toString(ast, highlighter)
-  }
 
   override def toWomString: String = toString(NullSyntaxHighlighter)
 
-  def prerequisiteCallNames: Set[String] = {
+  def prerequisiteCallNames: Set[String] =
     this.topLevelMemberAccesses map { _.lhsString }
-  }
   def topLevelMemberAccesses: Set[MemberAccess] = AstTools.findTopLevelMemberAccesses(ast) map { MemberAccess(_) } toSet
   def variableReferences(from: Scope): Iterable[VariableReference] = AstTools.findVariableReferences(ast, from)
 }
@@ -220,7 +244,8 @@ final case class WdlWomExpression(wdlExpression: WdlExpression, from: Scope) ext
   override def inputs: Set[String] = wdlExpression.variableReferences(from) map { _.referencedVariableName } toSet
 
   override def evaluateValue(variableValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
-    lazy val wdlFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet(ioFunctionSet, FileSizeLimitationConfig.fileSizeLimitationConfig)
+    lazy val wdlFunctions =
+      WdlStandardLibraryFunctions.fromIoFunctionSet(ioFunctionSet, FileSizeLimitationConfig.fileSizeLimitationConfig)
     wdlExpression.evaluate(variableValues.apply, wdlFunctions).toErrorOr
   }
 
@@ -229,26 +254,42 @@ final case class WdlWomExpression(wdlExpression: WdlExpression, from: Scope) ext
     // case in the brave new WOM-world.
     wdlExpression.evaluateType(inputTypes.apply, new WdlStandardLibraryFunctionsType, Option(from)).toErrorOr
 
-  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = {
+  override def evaluateFiles(inputTypes: Map[String, WomValue],
+                             ioFunctionSet: IoFunctionSet,
+                             coerceTo: WomType
+  ): ErrorOr[Set[FileEvaluation]] = {
     lazy val wdlFunctions = new WdlStandardLibraryFunctions {
 
-      override def readFile(path: String, sizeLimit: Int): String = Await.result(ioFunctionSet.readFile(path, Option(sizeLimit), failOnOverflow = true), Duration.Inf)
+      override def readFile(path: String, sizeLimit: Int): String =
+        Await.result(ioFunctionSet.readFile(path, Option(sizeLimit), failOnOverflow = true), Duration.Inf)
 
-      override def writeFile(path: String, content: String): Try[WomFile] = Try(Await.result(ioFunctionSet.writeFile(path, content), Duration.Inf))
+      override def writeFile(path: String, content: String): Try[WomFile] = Try(
+        Await.result(ioFunctionSet.writeFile(path, content), Duration.Inf)
+      )
 
-      override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = Success(WomSingleFile(ioFunctionSet.pathFunctions.stdout))
+      override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = Success(
+        WomSingleFile(ioFunctionSet.pathFunctions.stdout)
+      )
 
-      override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = Success(WomSingleFile(ioFunctionSet.pathFunctions.stderr))
+      override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = Success(
+        WomSingleFile(ioFunctionSet.pathFunctions.stderr)
+      )
 
       override def globHelper(pattern: String): Seq[String] = Await.result(ioFunctionSet.glob(pattern), Duration.Inf)
 
-      override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Failure(new Exception("You shouldn't call 'size' from a FileEvaluator"))
+      override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Failure(
+        new Exception("You shouldn't call 'size' from a FileEvaluator")
+      )
 
-      override protected val fileSizeLimitationConfig: FileSizeLimitationConfig = FileSizeLimitationConfig.fileSizeLimitationConfig
+      override protected val fileSizeLimitationConfig: FileSizeLimitationConfig =
+        FileSizeLimitationConfig.fileSizeLimitationConfig
     }
-    wdlExpression.evaluateFiles(inputTypes.apply, wdlFunctions, coerceTo).toErrorOr.map(_.toSet[WomFile] map { file =>
-      FileEvaluation(file, optional = areAllFileTypesInWomTypeOptional(coerceTo), secondary = false)
-    })
+    wdlExpression
+      .evaluateFiles(inputTypes.apply, wdlFunctions, coerceTo)
+      .toErrorOr
+      .map(_.toSet[WomFile] map { file =>
+        FileEvaluation(file, optional = areAllFileTypesInWomTypeOptional(coerceTo), secondary = false)
+      })
   }
 }
 
@@ -263,7 +304,8 @@ object WdlWomExpression {
                               innerLookup: Map[String, GraphNodePort.OutputPort],
                               outerLookup: Map[String, GraphNodePort.OutputPort],
                               preserveIndexForOuterLookups: Boolean,
-                              owningScope: Scope): ErrorOr[Map[String, GraphNodePort.OutputPort]] = {
+                              owningScope: Scope
+  ): ErrorOr[Map[String, GraphNodePort.OutputPort]] = {
 
     def resolveVariable(v: AstTools.VariableReference): ErrorOr[(String, GraphNodePort.OutputPort)] = {
       val name = v.referencedVariableName
@@ -272,8 +314,11 @@ object WdlWomExpression {
           // If we can find the value locally, use it.
           // It might be a local value or it might be an OGIN already created by another Node for an outerLookup.
           Valid(name -> port)
-        case (None, Some(port)) => Valid(name -> OuterGraphInputNode(WomIdentifier(name), port, preserveIndexForOuterLookups).singleOutputPort)
-        case (None, None) => s"No input $name found evaluating inputs for expression ${expression.wdlExpression.toWomString} in (${(innerLookup.keys ++ outerLookup.keys).mkString(", ")})".invalidNel
+        case (None, Some(port)) =>
+          Valid(name -> OuterGraphInputNode(WomIdentifier(name), port, preserveIndexForOuterLookups).singleOutputPort)
+        case (None, None) =>
+          s"No input $name found evaluating inputs for expression ${expression.wdlExpression.toWomString} in (${(innerLookup.keys ++ outerLookup.keys)
+              .mkString(", ")})".invalidNel
       }
     }
 
@@ -288,21 +333,22 @@ object WdlWomExpression {
                                                               outerLookup: Map[String, GraphNodePort.OutputPort],
                                                               preserveIndexForOuterLookups: Boolean,
                                                               owningScope: Scope,
-                                                              constructor: AnonymousExpressionConstructor[T]): ErrorOr[T] = {
+                                                              constructor: AnonymousExpressionConstructor[T]
+  ): ErrorOr[T] = {
     import common.validation.ErrorOr.ShortCircuitingFlatMap
 
-    findInputsforExpression(expression, innerLookup, outerLookup, preserveIndexForOuterLookups, owningScope) flatMap { resolvedVariables =>
-      AnonymousExpressionNode.fromInputMapping(nodeIdentifier, expression, resolvedVariables, constructor)
+    findInputsforExpression(expression, innerLookup, outerLookup, preserveIndexForOuterLookups, owningScope) flatMap {
+      resolvedVariables =>
+        AnonymousExpressionNode.fromInputMapping(nodeIdentifier, expression, resolvedVariables, constructor)
     }
   }
 }
 
 object TernaryIf {
-  def unapply(arg: Ast): Option[(AstNode, AstNode, AstNode)] = {
+  def unapply(arg: Ast): Option[(AstNode, AstNode, AstNode)] =
     if (arg.getName.equals("TernaryIf")) {
       Option((arg.getAttribute("cond"), arg.getAttribute("iftrue"), arg.getAttribute("iffalse")))
     } else {
       None
     }
-  }
 }

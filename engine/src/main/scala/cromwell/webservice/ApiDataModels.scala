@@ -6,7 +6,6 @@ import spray.json._
 import wdl.draft2.model.FullyQualifiedName
 import wom.values.WomValue
 
-
 case class WorkflowStatusResponse(id: String, status: String)
 
 case class WorkflowSubmitResponse(id: String, status: String)
@@ -21,16 +20,16 @@ case class WorkflowMetadataQueryParameters(outputs: Boolean = true, timings: Boo
 
 object APIResponse {
 
-  private def constructFailureResponse(status: String, ex: Throwable) = {
+  private def constructFailureResponse(status: String, ex: Throwable) =
     ex match {
       case exceptionWithErrors: MessageAggregation =>
-        FailureResponse(
-          status,
-          exceptionWithErrors.exceptionContext,
-          Option(exceptionWithErrors.errorMessages.toVector))
-      case e: Throwable => FailureResponse(status, e.getMessage, Option(e.getCause).map(c => Vector(ExceptionUtils.getMessage(c))))
+        FailureResponse(status,
+                        exceptionWithErrors.exceptionContext,
+                        Option(exceptionWithErrors.errorMessages.toVector)
+        )
+      case e: Throwable =>
+        FailureResponse(status, e.getMessage, Option(e.getCause).map(c => Vector(ExceptionUtils.getMessage(c))))
     }
-  }
 
   /** When the data submitted in the request is incorrect. */
   def fail(ex: Throwable) = constructFailureResponse("fail", ex)

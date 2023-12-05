@@ -12,12 +12,12 @@ import cromwell.api.model.{SubmittedWorkflow, WorkflowMetadata}
   * @param metadataJsonOption The optional metadata.
   * @param causeOption The optional underlying cause.
   */
-case class CentaurTestException private(message: String,
-                                        testName: String,
-                                        workflowIdOption: Option[String],
-                                        metadataJsonOption: Option[String],
-                                        causeOption: Option[Exception])
-  extends RuntimeException(message, causeOption.orNull)
+case class CentaurTestException private (message: String,
+                                         testName: String,
+                                         workflowIdOption: Option[String],
+                                         metadataJsonOption: Option[String],
+                                         causeOption: Option[Exception]
+) extends RuntimeException(message, causeOption.orNull)
 
 object CentaurTestException {
 
@@ -25,7 +25,8 @@ object CentaurTestException {
   def apply(message: String,
             workflowDefinition: Workflow,
             submittedWorkflow: SubmittedWorkflow,
-            actualMetadata: WorkflowMetadata): CentaurTestException = {
+            actualMetadata: WorkflowMetadata
+  ): CentaurTestException =
     new CentaurTestException(
       message,
       workflowDefinition.testName,
@@ -33,12 +34,9 @@ object CentaurTestException {
       Option(actualMetadata.value),
       None
     )
-  }
 
   /** Create a new CentaurTestException for a submitted workflow. */
-  def apply(message: String,
-            workflowDefinition: Workflow,
-            submittedWorkflow: SubmittedWorkflow): CentaurTestException = {
+  def apply(message: String, workflowDefinition: Workflow, submittedWorkflow: SubmittedWorkflow): CentaurTestException =
     new CentaurTestException(
       message,
       workflowDefinition.testName,
@@ -46,10 +44,9 @@ object CentaurTestException {
       None,
       None
     )
-  }
 
   /** Create a new CentaurTestException for only a workflow definition. */
-  def apply(message: String, workflowDefinition: Workflow): CentaurTestException = {
+  def apply(message: String, workflowDefinition: Workflow): CentaurTestException =
     new CentaurTestException(
       message,
       workflowDefinition.testName,
@@ -57,10 +54,9 @@ object CentaurTestException {
       None,
       None
     )
-  }
 
   /** Create a new CentaurTestException for only a workflow definition, including a root cause. */
-  def apply(message: String, workflowDefinition: Workflow, cause: Exception): CentaurTestException = {
+  def apply(message: String, workflowDefinition: Workflow, cause: Exception): CentaurTestException =
     new CentaurTestException(
       message,
       workflowDefinition.testName,
@@ -68,5 +64,4 @@ object CentaurTestException {
       None,
       Option(cause)
     )
-  }
 }

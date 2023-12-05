@@ -6,8 +6,10 @@ import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor2}
 import wom.types.WomOptionalTypeSpecDefs._
 import wom.values._
 
-
-class WomOptionalTypeSpec() extends WomCoercionSpec(goodCoercionTable, badCoercionTable, behaviorOf) with AnyFlatSpecLike with Matchers {
+class WomOptionalTypeSpec()
+    extends WomCoercionSpec(goodCoercionTable, badCoercionTable, behaviorOf)
+    with AnyFlatSpecLike
+    with Matchers {
 
   import TableDrivenPropertyChecks._
 
@@ -15,7 +17,10 @@ class WomOptionalTypeSpec() extends WomCoercionSpec(goodCoercionTable, badCoerci
     ("optional type", "flat optional type", "base member type"),
     (WomOptionalType(WomIntegerType), WomOptionalType(WomIntegerType), WomIntegerType),
     (WomOptionalType(WomOptionalType(WomIntegerType)), WomOptionalType(WomIntegerType), WomIntegerType),
-    (WomOptionalType(WomOptionalType(WomOptionalType(WomArrayType(WomOptionalType(WomIntegerType))))), WomOptionalType(WomArrayType(WomOptionalType(WomIntegerType))), WomArrayType(WomOptionalType(WomIntegerType)))
+    (WomOptionalType(WomOptionalType(WomOptionalType(WomArrayType(WomOptionalType(WomIntegerType))))),
+     WomOptionalType(WomArrayType(WomOptionalType(WomIntegerType))),
+     WomArrayType(WomOptionalType(WomIntegerType))
+    )
   )
 
   forAll(baseTypes) { (optType, flatOptType, baseType) =>
@@ -42,7 +47,9 @@ private object WomOptionalTypeSpecDefs {
     // Inner coercion defined:
     (WomOptionalValue(WomInteger(4)), WomOptionalValue(WomString("4"))),
     (WomOptionalValue(WomString("a.txt")), WomOptionalValue(WomSingleFile("a.txt"))),
-    (WomOptionalValue(WomOptionalValue(WomString("a.txt"))), WomOptionalValue(WomOptionalValue(WomSingleFile("a.txt")))),
+    (WomOptionalValue(WomOptionalValue(WomString("a.txt"))),
+     WomOptionalValue(WomOptionalValue(WomSingleFile("a.txt")))
+    ),
     (WomOptionalValue(WomIntegerType, None), WomOptionalValue(WomStringType, None)),
 
     // auto-boxing optionals
@@ -57,15 +64,31 @@ private object WomOptionalTypeSpecDefs {
     (WomOptionalValue(WomOptionalValue(WomIntegerType, None)), WomOptionalValue(WomIntegerType, None)),
 
     // flattening and boxing and coercion all at once:
-    (WomOptionalValue(WomOptionalValue(WomOptionalValue(WomInteger(3)))), WomOptionalValue(WomOptionalValue(WomString("3")))),
-    (WomOptionalValue(WomOptionalValue(WomInteger(3))), WomOptionalValue(WomOptionalValue(WomOptionalValue(WomString("3"))))),
-    (WomOptionalValue(WomOptionalValue(WomOptionalValue(WomIntegerType, None))), WomOptionalValue(WomOptionalType(WomStringType), None)),
-    (WomOptionalValue(WomOptionalValue(WomIntegerType, None)), WomOptionalValue(WomOptionalType(WomOptionalType(WomStringType)), None)),
+    (WomOptionalValue(WomOptionalValue(WomOptionalValue(WomInteger(3)))),
+     WomOptionalValue(WomOptionalValue(WomString("3")))
+    ),
+    (WomOptionalValue(WomOptionalValue(WomInteger(3))),
+     WomOptionalValue(WomOptionalValue(WomOptionalValue(WomString("3"))))
+    ),
+    (WomOptionalValue(WomOptionalValue(WomOptionalValue(WomIntegerType, None))),
+     WomOptionalValue(WomOptionalType(WomStringType), None)
+    ),
+    (WomOptionalValue(WomOptionalValue(WomIntegerType, None)),
+     WomOptionalValue(WomOptionalType(WomOptionalType(WomStringType)), None)
+    ),
 
     // Javascript coercions:
     (JsNull, WomOptionalValue.none(WomOptionalType(WomIntegerType))),
-    ("[1, 2, null, 4]".parseJson, WomArray(WomArrayType(WomOptionalType(WomIntegerType)),
-      List(WomOptionalValue(WomInteger(1)), WomOptionalValue(WomInteger(2)), WomOptionalValue.none(WomIntegerType), WomOptionalValue(WomInteger(4))))),
+    ("[1, 2, null, 4]".parseJson,
+     WomArray(
+       WomArrayType(WomOptionalType(WomIntegerType)),
+       List(WomOptionalValue(WomInteger(1)),
+            WomOptionalValue(WomInteger(2)),
+            WomOptionalValue.none(WomIntegerType),
+            WomOptionalValue(WomInteger(4))
+       )
+     )
+    ),
     ("""
        |{
        |  "one": 1,
@@ -73,11 +96,14 @@ private object WomOptionalTypeSpecDefs {
        |  "three": 3
        |}
      """.stripMargin.parseJson,
-      WomMap(WomMapType(WomStringType, WomOptionalType(WomIntegerType)), Map(
-        WomString("one") -> WomOptionalValue(WomInteger(1)),
-        WomString("two") -> WomOptionalValue.none(WomIntegerType),
-        WomString("three") ->WomOptionalValue(WomInteger(3))
-      ))
+     WomMap(
+       WomMapType(WomStringType, WomOptionalType(WomIntegerType)),
+       Map(
+         WomString("one") -> WomOptionalValue(WomInteger(1)),
+         WomString("two") -> WomOptionalValue.none(WomIntegerType),
+         WomString("three") -> WomOptionalValue(WomInteger(3))
+       )
+     )
     )
   )
 

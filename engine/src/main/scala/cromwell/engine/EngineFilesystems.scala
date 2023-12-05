@@ -19,17 +19,18 @@ object EngineFilesystems {
       .filter(_ => config.as[Boolean]("engine.filesystems.local.enabled"))
       .to(collection.immutable.SortedMap)
 
-  private val pathBuilderFactories: SortedMap[String, PathBuilderFactory] = {
+  private val pathBuilderFactories: SortedMap[String, PathBuilderFactory] =
     // Unordered maps are a classical source of randomness injection into a system
     (
-      CromwellFileSystems.instance.factoriesFromConfig(config.as[Config]("engine"))
+      CromwellFileSystems.instance
+        .factoriesFromConfig(config.as[Config]("engine"))
         .unsafe("Failed to instantiate engine filesystem") ++ defaultFileSystemFactory
     ).to(collection.immutable.SortedMap)
-  }
 
   def configuredPathBuilderFactories: List[PathBuilderFactory] = pathBuilderFactories.values.toList
 
-  def pathBuildersForWorkflow(workflowOptions: WorkflowOptions, factories: List[PathBuilderFactory])(implicit as: ActorSystem): Future[List[PathBuilder]] = {
+  def pathBuildersForWorkflow(workflowOptions: WorkflowOptions, factories: List[PathBuilderFactory])(implicit
+    as: ActorSystem
+  ): Future[List[PathBuilder]] =
     PathBuilderFactory.instantiatePathBuilders(factories, workflowOptions)
-  }
 }

@@ -16,18 +16,22 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 case class CallCacheWriteActor(callCache: CallCache, serviceRegistryActor: ActorRef, threshold: Int)
-  extends EnhancedBatchActor[CommandAndReplyTo[SaveCallCacheHashes]](
-    CallCacheWriteActor.dbFlushRate,
-    CallCacheWriteActor.dbBatchSize) {
+    extends EnhancedBatchActor[CommandAndReplyTo[SaveCallCacheHashes]](CallCacheWriteActor.dbFlushRate,
+                                                                       CallCacheWriteActor.dbBatchSize
+    ) {
 
   override protected def process(data: NonEmptyVector[CommandAndReplyTo[SaveCallCacheHashes]]) = instrumentedProcess {
     log.debug("Flushing {} call cache hashes sets to the DB", data.length)
 
     //     Collect all the bundles of hashes that should be written and all the senders which should be informed of
     //     success or failure.
-    val (bundles, replyTos) = data.toList.foldMap { case CommandAndReplyTo(s: SaveCallCacheHashes, r: ActorRef) => (List(s.bundle), List(r)) }
+    val (bundles, replyTos) = data.toList.foldMap { case CommandAndReplyTo(s: SaveCallCacheHashes, r: ActorRef) =>
+      (List(s.bundle), List(r))
+    }
     if (bundles.nonEmpty) {
-      val futureMessage = callCache.addToCache(bundles, batchSize) map { _ => CallCacheWriteSuccess } recover { case t => CallCacheWriteFailure(t) }
+      val futureMessage = callCache.addToCache(bundles, batchSize) map { _ => CallCacheWriteSuccess } recover {
+        case t => CallCacheWriteFailure(t)
+      }
       futureMessage map { message =>
         replyTos foreach { _ ! message }
       }
@@ -46,9 +50,9 @@ case class CallCacheWriteActor(callCache: CallCache, serviceRegistryActor: Actor
 }
 
 object CallCacheWriteActor {
-  def props(callCache: CallCache, registryActor: ActorRef): Props = {
-    Props(CallCacheWriteActor(callCache, registryActor, LoadConfig.CallCacheWriteThreshold)).withDispatcher(EngineDispatcher)
-  }
+  def props(callCache: CallCache, registryActor: ActorRef): Props =
+    Props(CallCacheWriteActor(callCache, registryActor, LoadConfig.CallCacheWriteThreshold))
+      .withDispatcher(EngineDispatcher)
 
   case class SaveCallCacheHashes(bundle: CallCacheHashBundle)
 

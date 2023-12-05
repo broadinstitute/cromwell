@@ -20,9 +20,14 @@ object PipelinesApiAttachedDisk {
     def diskTypeValidation(diskTypeString: String): ErrorOr[DiskType] = validateDiskType(diskTypeString)
 
     val validation: ErrorOr[PipelinesApiAttachedDisk] = s match {
-      case WorkingDiskPattern(sizeGb, diskType) => (validateDiskType(diskType), sizeGbValidation(sizeGb)) mapN { PipelinesApiWorkingDisk.apply }
-      case MountedDiskPattern(mountPoint, sizeGb, diskType) => (sizeGbValidation(sizeGb), diskTypeValidation(diskType)) mapN { (s, dt) => PipelinesApiEmptyMountedDisk(dt, s, DefaultPathBuilder.get(mountPoint)) }
-      case _ => s"Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE' but got: '$s'".invalidNel
+      case WorkingDiskPattern(sizeGb, diskType) =>
+        (validateDiskType(diskType), sizeGbValidation(sizeGb)) mapN PipelinesApiWorkingDisk.apply
+      case MountedDiskPattern(mountPoint, sizeGb, diskType) =>
+        (sizeGbValidation(sizeGb), diskTypeValidation(diskType)) mapN { (s, dt) =>
+          PipelinesApiEmptyMountedDisk(dt, s, DefaultPathBuilder.get(mountPoint))
+        }
+      case _ =>
+        s"Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE' but got: '$s'".invalidNel
     }
 
     Try(validation match {
@@ -35,30 +40,30 @@ object PipelinesApiAttachedDisk {
     })
   }
 
-  private def validateDiskType(diskTypeName: String): ErrorOr[DiskType] = {
+  private def validateDiskType(diskTypeName: String): ErrorOr[DiskType] =
     DiskType.values().find(_.diskTypeName == diskTypeName) match {
       case Some(diskType) => diskType.validNel
       case None =>
         val diskTypeNames = DiskType.values.map(_.diskTypeName).mkString(", ")
         s"Disk TYPE $diskTypeName should be one of $diskTypeNames".invalidNel
     }
-  }
 
-  private def validateLong(value: String): ErrorOr[Long] = {
-    try {
+  private def validateLong(value: String): ErrorOr[Long] =
+    try
       value.toLong.validNel
-    } catch {
+    catch {
       case _: IllegalArgumentException => s"$value not convertible to a Long".invalidNel
     }
-  }
-  
+
   implicit class EnhancedDisks(val disks: Seq[PipelinesApiAttachedDisk]) extends AnyVal {
-    def adjustWorkingDiskWithNewMin(minimum: MemorySize, onAdjustment: => Unit): Seq[PipelinesApiAttachedDisk] = disks map {
-      case disk: PipelinesApiWorkingDisk if disk == PipelinesApiWorkingDisk.Default && disk.sizeGb < minimum.to(MemoryUnit.GB).amount.toInt =>
-        onAdjustment
-        disk.copy(sizeGb = minimum.to(MemoryUnit.GB).amount.toInt)
-      case other => other
-    }
+    def adjustWorkingDiskWithNewMin(minimum: MemorySize, onAdjustment: => Unit): Seq[PipelinesApiAttachedDisk] =
+      disks map {
+        case disk: PipelinesApiWorkingDisk
+            if disk == PipelinesApiWorkingDisk.Default && disk.sizeGb < minimum.to(MemoryUnit.GB).amount.toInt =>
+          onAdjustment
+          disk.copy(sizeGb = minimum.to(MemoryUnit.GB).amount.toInt)
+        case other => other
+      }
   }
 }
 
@@ -69,7 +74,8 @@ trait PipelinesApiAttachedDisk {
   def mountPoint: Path
 }
 
-case class PipelinesApiEmptyMountedDisk(diskType: DiskType, sizeGb: Int, mountPoint: Path) extends PipelinesApiAttachedDisk {
+case class PipelinesApiEmptyMountedDisk(diskType: DiskType, sizeGb: Int, mountPoint: Path)
+    extends PipelinesApiAttachedDisk {
   val name = s"d-${mountPoint.pathAsString.md5Sum}"
   override def toString: String = s"$mountPoint $sizeGb ${diskType.diskTypeName}"
 }

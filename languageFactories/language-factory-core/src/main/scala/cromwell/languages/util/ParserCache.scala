@@ -22,23 +22,27 @@ import scala.concurrent.duration._
 
 trait ParserCache[A] extends StrictLogging { this: LanguageFactory =>
 
-  def retrieveOrCalculate(cacheInputs: ParserCacheInputs,
-                          calculationCallable: Callable[ErrorOr[A]]): ErrorOr[A] = {
-
+  def retrieveOrCalculate(cacheInputs: ParserCacheInputs, calculationCallable: Callable[ErrorOr[A]]): ErrorOr[A] =
     (cache map { c: Cache[String, ErrorOr[A]] =>
-      workflowHashKey(cacheInputs.workflowSource, cacheInputs.workflowUrl, cacheInputs.workflowRoot, cacheInputs.importResolvers) match {
+      workflowHashKey(cacheInputs.workflowSource,
+                      cacheInputs.workflowUrl,
+                      cacheInputs.workflowRoot,
+                      cacheInputs.importResolvers
+      ) match {
         case Valid(hashKey) => c.get(hashKey, calculationCallable)
         case Invalid(errors) =>
-          logger.info(s"Failed to calculate hash key for 'workflow source to WOM' cache: {}", errors.toList.mkString(", "))
+          logger.info(s"Failed to calculate hash key for 'workflow source to WOM' cache: {}",
+                      errors.toList.mkString(", ")
+          )
           calculationCallable.call
       }
     }).getOrElse(calculationCallable.call())
-  }
 
   private[this] def workflowHashKey(workflowSource: Option[WorkflowSource],
                                     workflowUrl: Option[WorkflowUrl],
                                     workflowRoot: Option[String],
-                                    importResolvers: List[ImportResolver]): ErrorOr[String] = {
+                                    importResolvers: List[ImportResolver]
+  ): ErrorOr[String] = {
     def stringOptionToHash(opt: Option[String]): String = opt map { _.md5Sum } getOrElse ""
 
     val importResolversToHash: ErrorOr[String] = importResolvers.traverse(_.hashKey).map(_.mkString(":"))
@@ -48,17 +52,21 @@ trait ParserCache[A] extends StrictLogging { this: LanguageFactory =>
     }
   }
 
-  private[this] lazy val cacheConfig: Option[CacheConfig] = {
+  private[this] lazy val cacheConfig: Option[CacheConfig] =
     // Caching is an opt-in activity:
     for {
       _ <- enabled.option(())
       cachingConfigSection <- config.as[Option[Config]]("caching")
-      cc <- CacheConfig.optionalConfig(cachingConfigSection, defaultConcurrency = 2, defaultSize = 1000L, defaultTtl = 20.minutes)
+      cc <- CacheConfig.optionalConfig(cachingConfigSection,
+                                       defaultConcurrency = 2,
+                                       defaultSize = 1000L,
+                                       defaultTtl = 20.minutes
+      )
     } yield cc
-  }
 
   private[this] lazy val cache: Option[Cache[String, ErrorOr[A]]] = cacheConfig map { c =>
-    CacheBuilder.newBuilder()
+    CacheBuilder
+      .newBuilder()
       .concurrencyLevel(c.concurrency)
       .expireAfterAccess(c.ttl.length, c.ttl.unit)
       .maximumSize(c.size)
@@ -70,5 +78,6 @@ object ParserCache {
   final case class ParserCacheInputs(workflowSource: Option[WorkflowSource],
                                      workflowUrl: Option[WorkflowUrl],
                                      workflowRoot: Option[String],
-                                     importResolvers: List[ImportResolver])
+                                     importResolvers: List[ImportResolver]
+  )
 }

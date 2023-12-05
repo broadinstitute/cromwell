@@ -13,8 +13,12 @@ import org.mockito.Mockito._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class FtpCloudNioFileSystemProviderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with MockSugar
-  with MockFtpFileSystem {
+class FtpCloudNioFileSystemProviderSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with MockSugar
+    with MockFtpFileSystem {
 
   behavior of "FtpCloudNioFileSystemProviderSpec"
 
@@ -45,7 +49,9 @@ class FtpCloudNioFileSystemProviderSpec extends AnyFlatSpec with CromwellTimeout
   it should "pre compute the size before opening a read channel to avoid deadlocks" in {
     val mockSizeFunction = mock[() => Long]
     val provider: FtpCloudNioFileSystemProvider = new FtpCloudNioFileSystemProvider(
-      ConfigFactory.empty, FtpAnonymousCredentials, ftpFileSystems
+      ConfigFactory.empty,
+      FtpAnonymousCredentials,
+      ftpFileSystems
     ) {
 
       override def fileProvider: FtpCloudNioFileProvider = new FtpCloudNioFileProvider(this) {
@@ -59,9 +65,8 @@ class FtpCloudNioFileSystemProviderSpec extends AnyFlatSpec with CromwellTimeout
             }
           )
 
-        override def read(cloudHost: String, cloudPath: String, offset: Long): ReadableByteChannel = {
+        override def read(cloudHost: String, cloudPath: String, offset: Long): ReadableByteChannel =
           mock[ReadableByteChannel]
-        }
       }
     }
 

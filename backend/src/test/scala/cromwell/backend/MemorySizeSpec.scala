@@ -66,7 +66,7 @@ class MemorySizeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
       memorySize.to(newUnit) shouldEqual result
     }
   }
-  
+
   it should "round trip" in {
     List(
       "2 GB"

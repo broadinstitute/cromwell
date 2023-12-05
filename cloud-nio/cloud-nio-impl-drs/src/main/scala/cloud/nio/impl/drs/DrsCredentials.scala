@@ -27,11 +27,10 @@ trait DrsCredentials {
   * is designed for use within the Cromwell engine.
   */
 case class GoogleOauthDrsCredentials(credentials: OAuth2Credentials, acceptableTTL: Duration) extends DrsCredentials {
-  //Based on method from GoogleRegistry
+  // Based on method from GoogleRegistry
   def getAccessToken: ErrorOr[String] = {
-    def accessTokenTTLIsAcceptable(accessToken: AccessToken): Boolean = {
+    def accessTokenTTLIsAcceptable(accessToken: AccessToken): Boolean =
       (accessToken.getExpirationTime.getTime - System.currentTimeMillis()).millis.gteq(acceptableTTL)
-    }
 
     Option(credentials.getAccessToken) match {
       case Some(accessToken) if accessTokenTTLIsAcceptable(accessToken) =>
@@ -51,26 +50,25 @@ object GoogleOauthDrsCredentials {
     GoogleOauthDrsCredentials(credentials, config.as[FiniteDuration]("access-token-acceptable-ttl"))
 }
 
-
 /**
   * Strategy for obtaining an access token from Google Application Default credentials that are assumed to already exist
   * in the environment. This class is designed for use by standalone executables running in environments
   * that have direct access to a Google identity (ex. CromwellDrsLocalizer).
   */
 case object GoogleAppDefaultTokenStrategy extends DrsCredentials {
-  private final val UserInfoEmailScope = "https://www.googleapis.com/auth/userinfo.email"
-  private final val UserInfoProfileScope = "https://www.googleapis.com/auth/userinfo.profile"
+  final private val UserInfoEmailScope = "https://www.googleapis.com/auth/userinfo.email"
+  final private val UserInfoProfileScope = "https://www.googleapis.com/auth/userinfo.profile"
 
-  def getAccessToken: ErrorOr[String] = {
+  def getAccessToken: ErrorOr[String] =
     Try {
-      val scopedCredentials = GoogleCredentials.getApplicationDefault().createScoped(UserInfoEmailScope, UserInfoProfileScope)
+      val scopedCredentials =
+        GoogleCredentials.getApplicationDefault().createScoped(UserInfoEmailScope, UserInfoProfileScope)
       scopedCredentials.refreshAccessToken().getTokenValue
     } match {
       case Success(null) => "null token value attempting to refresh access token".invalidNel
       case Success(value) => value.validNel
       case Failure(e) => s"Failed to refresh access token: ${e.getMessage}".invalidNel
     }
-  }
 }
 
 /**
@@ -96,9 +94,11 @@ case class AzureDrsCredentials(identityClientId: Option[String]) extends DrsCred
       .authorityHost(azureProfile.getEnvironment.getActiveDirectoryEndpoint)
 
   def getAccessToken: ErrorOr[String] = {
-    val credentials = identityClientId.foldLeft(defaultCredentialBuilder) {
-      (builder, clientId) => builder.managedIdentityClientId(clientId)
-    }.build()
+    val credentials = identityClientId
+      .foldLeft(defaultCredentialBuilder) { (builder, clientId) =>
+        builder.managedIdentityClientId(clientId)
+      }
+      .build()
 
     Try(
       credentials

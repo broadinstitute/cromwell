@@ -5,13 +5,13 @@ import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
 import cromwell.core.path.Path
 
 object DefaultIoCommand {
-  case class DefaultIoCopyCommand(override val source: Path,
-                                  override val destination: Path,
-                                 ) extends IoCopyCommand(source, destination) {
+  case class DefaultIoCopyCommand(override val source: Path, override val destination: Path)
+      extends IoCopyCommand(source, destination) {
     override def commandDescription: String = s"DefaultIoCopyCommand source '$source' destination '$destination'"
   }
 
-  case class DefaultIoContentAsStringCommand(override val file: Path, override val options: IoReadOptions) extends IoContentAsStringCommand(file, options) {
+  case class DefaultIoContentAsStringCommand(override val file: Path, override val options: IoReadOptions)
+      extends IoContentAsStringCommand(file, options) {
     override def commandDescription: String = s"DefaultIoContentAsStringCommand file '$file' options '$options'"
   }
 
@@ -22,18 +22,24 @@ object DefaultIoCommand {
   case class DefaultIoWriteCommand(override val file: Path,
                                    override val content: String,
                                    override val openOptions: OpenOptions,
-                                   override val compressPayload: Boolean) extends IoWriteCommand(
-    file, content, openOptions, compressPayload
-  ) {
+                                   override val compressPayload: Boolean
+  ) extends IoWriteCommand(
+        file,
+        content,
+        openOptions,
+        compressPayload
+      ) {
     override def commandDescription: String = s"DefaultIoWriteCommand file '$file' content length " +
       s"'${content.length}' openOptions '$openOptions' compressPayload '$compressPayload'"
   }
 
-  case class DefaultIoDeleteCommand(override val file: Path,
-                                    override val swallowIOExceptions: Boolean) extends IoDeleteCommand(
-    file, swallowIOExceptions
-  ) {
-    override def commandDescription: String = s"DefaultIoDeleteCommand file '$file' swallowIOExceptions '$swallowIOExceptions'"
+  case class DefaultIoDeleteCommand(override val file: Path, override val swallowIOExceptions: Boolean)
+      extends IoDeleteCommand(
+        file,
+        swallowIOExceptions
+      ) {
+    override def commandDescription: String =
+      s"DefaultIoDeleteCommand file '$file' swallowIOExceptions '$swallowIOExceptions'"
   }
 
   case class DefaultIoHashCommand(override val file: Path) extends IoHashCommand(file) {

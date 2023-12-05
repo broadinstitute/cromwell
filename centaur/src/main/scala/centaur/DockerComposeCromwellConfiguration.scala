@@ -14,13 +14,17 @@ object DockerComposeCromwellConfiguration {
   }
 }
 
-case class DockerComposeCromwellConfiguration(dockerTag: String, dockerComposeFile: String, conf: String, logFile: String) extends CromwellConfiguration {
+case class DockerComposeCromwellConfiguration(dockerTag: String,
+                                              dockerComposeFile: String,
+                                              conf: String,
+                                              logFile: String
+) extends CromwellConfiguration {
   override def createProcess: CromwellProcess = {
-    case class DockerComposeCromwellProcess(override val cromwellConfiguration: DockerComposeCromwellConfiguration) extends CromwellProcess {
+    case class DockerComposeCromwellProcess(override val cromwellConfiguration: DockerComposeCromwellConfiguration)
+        extends CromwellProcess {
 
-      private def composeCommand(command: String*): Array[String] = {
+      private def composeCommand(command: String*): Array[String] =
         Array("docker-compose", "-f", dockerComposeFile) ++ command
-      }
 
       private val startCommand = composeCommand("up", "--abort-on-container-exit")
       private val logsCommand = composeCommand("logs")
@@ -29,14 +33,13 @@ case class DockerComposeCromwellConfiguration(dockerTag: String, dockerComposeFi
       private val envVariables = Map[String, String](
         "CROMWELL_BUILD_CENTAUR_MANAGED_PORT" -> ManagedCromwellPort.toString,
         "CROMWELL_BUILD_CENTAUR_MANAGED_TAG" -> dockerTag,
-        "CROMWELL_BUILD_CENTAUR_MANAGED_CONFIG" -> conf,
+        "CROMWELL_BUILD_CENTAUR_MANAGED_CONFIG" -> conf
       )
 
       private var process: Option[Process] = None
 
-      override def start(): Unit = {
+      override def start(): Unit =
         process = Option(runProcess(startCommand, envVariables))
-      }
 
       override def stop(): Unit = {
         if (!isAlive) {

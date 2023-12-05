@@ -32,13 +32,18 @@ import scala.util.{Failure, Success, Try}
 object ImportResolver {
 
   case class ImportResolutionRequest(toResolve: String, currentResolvers: List[ImportResolver])
-  case class ResolvedImportBundle(source: WorkflowSource, newResolvers: List[ImportResolver], resolvedImportRecord: ResolvedImportRecord)
+  case class ResolvedImportBundle(source: WorkflowSource,
+                                  newResolvers: List[ImportResolver],
+                                  resolvedImportRecord: ResolvedImportRecord
+  )
 
   trait ImportResolver {
     def name: String
     protected def innerResolver(path: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle]
     def resolver: CheckedAtoB[ImportResolutionRequest, ResolvedImportBundle] = CheckedAtoB.fromCheck { request =>
-      innerResolver(request.toResolve, request.currentResolvers).contextualizeErrors(s"resolve '${request.toResolve}' using resolver: '$name'")
+      innerResolver(request.toResolve, request.currentResolvers).contextualizeErrors(
+        s"resolve '${request.toResolve}' using resolver: '$name'"
+      )
     }
     def cleanupIfNecessary(): ErrorOr[Unit]
 
@@ -48,7 +53,10 @@ object ImportResolver {
   }
 
   object DirectoryResolver {
-    private def apply(directory: Path, allowEscapingDirectory: Boolean, customName: Option[String]): DirectoryResolver = {
+    private def apply(directory: Path,
+                      allowEscapingDirectory: Boolean,
+                      customName: Option[String]
+    ): DirectoryResolver = {
       val dontEscapeFrom = if (allowEscapingDirectory) None else Option(directory.toJava.getCanonicalPath)
       DirectoryResolver(directory, dontEscapeFrom, customName, deleteOnClose = false, directoryHash = None)
     }
@@ -77,19 +85,23 @@ object ImportResolver {
                                dontEscapeFrom: Option[String] = None,
                                customName: Option[String],
                                deleteOnClose: Boolean,
-                               directoryHash: Option[String]) extends ImportResolver {
+                               directoryHash: Option[String]
+  ) extends ImportResolver {
     lazy val absolutePathToDirectory: String = directory.toJava.getCanonicalPath
 
     override def innerResolver(path: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle] = {
 
-      def updatedResolverSet(oldRootDirectory: Path, newRootDirectory: Path, current: List[ImportResolver]): List[ImportResolver] = {
+      def updatedResolverSet(oldRootDirectory: Path,
+                             newRootDirectory: Path,
+                             current: List[ImportResolver]
+      ): List[ImportResolver] =
         current map {
-          case d if d == this => DirectoryResolver(newRootDirectory, dontEscapeFrom, customName, deleteOnClose = false, directoryHash = None)
+          case d if d == this =>
+            DirectoryResolver(newRootDirectory, dontEscapeFrom, customName, deleteOnClose = false, directoryHash = None)
           case other => other
         }
-      }
 
-      def fetchContentFromAbsolutePath(absolutePathToFile: NioPath): ErrorOr[String] = {
+      def fetchContentFromAbsolutePath(absolutePathToFile: NioPath): ErrorOr[String] =
         checkLocation(absolutePathToFile, path) flatMap { _ =>
           val file = File(absolutePathToFile)
           if (file.exists) {
@@ -98,7 +110,6 @@ object ImportResolver {
             s"File not found: $path".invalidNel
           }
         }
-      }
 
       val errorOr = for {
         resolvedPath <- resolvePath(path)
@@ -111,7 +122,9 @@ object ImportResolver {
     }
 
     private def resolvePath(path: String): ErrorOr[Path] = Try(directory.resolve(path)).toErrorOr
-    private def makeAbsolute(resolvedPath: Path): ErrorOr[NioPath] = Try(Paths.get(resolvedPath.toFile.getCanonicalPath)).toErrorOr
+    private def makeAbsolute(resolvedPath: Path): ErrorOr[NioPath] = Try(
+      Paths.get(resolvedPath.toFile.getCanonicalPath)
+    ).toErrorOr
     private def checkLocation(absoluteNioPath: NioPath, reportedPathIfBad: String): ErrorOr[Unit] =
       if (dontEscapeFrom.forall(absoluteNioPath.startsWith))
         ().validNel
@@ -135,7 +148,8 @@ object ImportResolver {
 
         s"relative to directory $relativePathToDirectory (without escaping $relativePathToDontEscapeFrom)"
       case (None, None) =>
-        val shortPathToDirectory = Paths.get(absolutePathToDirectory).toFile.getCanonicalFile.toPath.getFileName.toString
+        val shortPathToDirectory =
+          Paths.get(absolutePathToDirectory).toFile.getCanonicalFile.toPath.getFileName.toString
         s"relative to directory [...]/$shortPathToDirectory (escaping allowed)"
     }
 
@@ -148,20 +162,25 @@ object ImportResolver {
       else
         ().validNel
 
-    override def hashKey: ErrorOr[String] = directoryHash.map(_.validNel).getOrElse("No hashKey available for directory importer".invalidNel)
+    override def hashKey: ErrorOr[String] =
+      directoryHash.map(_.validNel).getOrElse("No hashKey available for directory importer".invalidNel)
   }
 
   def zippedImportResolver(zippedImports: Array[Byte], workflowId: WorkflowId): ErrorOr[DirectoryResolver] = {
 
     val zipHash = new String(MessageDigest.getInstance("MD5").digest(zippedImports))
     LanguageFactoryUtil.createImportsDirectory(zippedImports, workflowId) map { dir =>
-      DirectoryResolver(dir, Option(dir.toJava.getCanonicalPath), None, deleteOnClose = true, directoryHash = Option(zipHash))
+      DirectoryResolver(dir,
+                        Option(dir.toJava.getCanonicalPath),
+                        None,
+                        deleteOnClose = true,
+                        directoryHash = Option(zipHash)
+      )
     }
   }
 
-  case class HttpResolver(relativeTo: Option[String],
-                          headers: Map[String, String],
-                          hostAllowlist: Option[List[String]]) extends ImportResolver {
+  case class HttpResolver(relativeTo: Option[String], headers: Map[String, String], hostAllowlist: Option[List[String]])
+      extends ImportResolver {
     import HttpResolver._
 
     override def name: String = relativeTo match {
@@ -192,7 +211,7 @@ object ImportResolver {
       case None => true
     }
 
-    override def innerResolver(str: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle] = {
+    override def innerResolver(str: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle] =
       pathToLookup(str) flatMap { toLookup: WorkflowSource =>
         (Try {
           val uri: Uri = uri"$toLookup"
@@ -207,7 +226,6 @@ object ImportResolver {
           case Failure(e) => s"HTTP resolver with headers had an unexpected error (${e.getMessage})".invalidNelCheck
         }).contextualizeErrors(s"download $toLookup")
       }
-    }
 
     private def getUri(toLookup: WorkflowSource): Either[NonEmptyList[WorkflowSource], ResolvedImportBundle] = {
       implicit val sttpBackend = HttpResolver.sttpBackend()
@@ -215,7 +233,9 @@ object ImportResolver {
 
       // temporary situation to get functionality working before
       // starting in on async-ifying the entire WdlNamespace flow
-      val result: Checked[WorkflowSource] = Await.result(responseIO.unsafeToFuture(), 15.seconds).body.leftMap { e => NonEmptyList(e.toString.trim, List.empty) }
+      val result: Checked[WorkflowSource] = Await.result(responseIO.unsafeToFuture(), 15.seconds).body.leftMap { e =>
+        NonEmptyList(e.toString.trim, List.empty)
+      }
 
       result map {
         ResolvedImportBundle(_, newResolverList(toLookup), ResolvedImportRecord(toLookup))
@@ -232,8 +252,7 @@ object ImportResolver {
     import common.util.IntrospectableLazy
     import common.util.IntrospectableLazy._
 
-    def apply(relativeTo: Option[String] = None,
-              headers: Map[String, String] = Map.empty): HttpResolver = {
+    def apply(relativeTo: Option[String] = None, headers: Map[String, String] = Map.empty): HttpResolver = {
       val config = ConfigFactory.load().getConfig("languages.WDL.http-allow-list")
       val allowListEnabled = config.as[Option[Boolean]]("enabled").getOrElse(false)
       val allowList: Option[List[String]] =

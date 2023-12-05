@@ -15,8 +15,7 @@ sealed trait ExecutionHandle {
   def result: ExecutionResult
 }
 
-final case class PendingExecutionHandle[BackendJobId <: JobId, BackendRunInfo, BackendRunState]
-(
+final case class PendingExecutionHandle[BackendJobId <: JobId, BackendRunInfo, BackendRunState](
   jobDescriptor: BackendJobDescriptor,
   pendingJob: BackendJobId,
   runInfo: Option[BackendRunInfo],
@@ -30,7 +29,8 @@ final case class SuccessfulExecutionHandle(outputs: CallOutputs,
                                            returnCode: Int,
                                            jobDetritusFiles: Map[String, Path],
                                            executionEvents: Seq[ExecutionEvent],
-                                           resultsClonedFrom: Option[BackendJobDescriptor] = None) extends ExecutionHandle {
+                                           resultsClonedFrom: Option[BackendJobDescriptor] = None
+) extends ExecutionHandle {
   override val isDone = true
   override val result = SuccessfulExecution(outputs, returnCode, jobDetritusFiles, executionEvents, resultsClonedFrom)
 }
@@ -41,7 +41,8 @@ sealed trait FailedExecutionHandle extends ExecutionHandle {
 
 final case class FailedNonRetryableExecutionHandle(throwable: Throwable,
                                                    returnCode: Option[Int] = None,
-                                                   override val kvPairsToSave: Option[Seq[KvPair]]) extends FailedExecutionHandle {
+                                                   override val kvPairsToSave: Option[Seq[KvPair]]
+) extends FailedExecutionHandle {
 
   override val isDone = true
   override val result = NonRetryableExecution(throwable, returnCode)
@@ -49,7 +50,8 @@ final case class FailedNonRetryableExecutionHandle(throwable: Throwable,
 
 final case class FailedRetryableExecutionHandle(throwable: Throwable,
                                                 returnCode: Option[Int] = None,
-                                                override val kvPairsToSave: Option[Seq[KvPair]]) extends FailedExecutionHandle {
+                                                override val kvPairsToSave: Option[Seq[KvPair]]
+) extends FailedExecutionHandle {
 
   override val isDone = true
   override val result = RetryableExecution(throwable, returnCode)

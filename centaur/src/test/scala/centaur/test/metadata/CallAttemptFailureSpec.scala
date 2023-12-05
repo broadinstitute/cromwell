@@ -6,7 +6,6 @@ import io.circe.ParsingFailure
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-
 class CallAttemptFailureSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "CallAttemptFailure"

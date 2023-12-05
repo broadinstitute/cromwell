@@ -26,47 +26,51 @@ trait WomObjectLike extends WomValue {
   }
   def womObjectTypeLike: WomObjectTypeLike
 
-  override def collectAsSeq[T <: WomValue](filterFn: PartialFunction[WomValue, T]): Seq[T] = {
+  override def collectAsSeq[T <: WomValue](filterFn: PartialFunction[WomValue, T]): Seq[T] =
     values.values.toSeq flatMap { _.collectAsSeq(filterFn) }
-  }
 
-  def traverse[R <: WomValue, G[_]](f: WomValue => G[R])(implicit applicative: Applicative[G]): G[WomObjectLike] = {
+  def traverse[R <: WomValue, G[_]](f: WomValue => G[R])(implicit applicative: Applicative[G]): G[WomObjectLike] =
     if (values.isEmpty) applicative.pure(this)
     else {
-      val traverseFunction: (String, WomValue) => G[(String, R)] = {
-        case (key, value) => applicative.map(f(value)) { key -> _ }
+      val traverseFunction: (String, WomValue) => G[(String, R)] = { case (key, value) =>
+        applicative.map(f(value))(key -> _)
       }
       applicative.map(values.toList.traverse[G, (String, R)](traverseFunction.tupled)) { mapped =>
         copyWith(mapped.toMap)
       }
     }
-  }
 
-  override def initialize(ioFunctionSet: IoFunctionSet): IOChecked[WomValue] = traverse(_.initialize(ioFunctionSet)).widen
+  override def initialize(ioFunctionSet: IoFunctionSet): IOChecked[WomValue] = traverse(
+    _.initialize(ioFunctionSet)
+  ).widen
 }
 
 object WomObject {
 
   def coerceObject(m: Map[String, String]): WomObject = {
-    val coerced = WomMap.coerceMap(m, WomMapType(WomStringType, WomAnyType)).value map {
-      case (k, v) => k.valueString -> v
+    val coerced = WomMap.coerceMap(m, WomMapType(WomStringType, WomAnyType)).value map { case (k, v) =>
+      k.valueString -> v
     }
 
     WomObject(coerced)
   }
 
-  def fromTsv(tsv: String): Try[Array[WomObject]] = {
+  def fromTsv(tsv: String): Try[Array[WomObject]] =
     FileUtil.parseTsv(tsv) match {
-      case Success(table) if table.isEmpty => Failure(new UnsupportedOperationException("TSV file was empty or could not be parsed."))
-      case Success(table) if table.length < 2 => Failure(new UnsupportedOperationException("TSV must be 2 rows (or more) to convert to an Object (Array[Object])"))
-      case Success(table) => Try {
-        table.tail map { line => coerceObject((table.head zip line).toMap) }
-      }
+      case Success(table) if table.isEmpty =>
+        Failure(new UnsupportedOperationException("TSV file was empty or could not be parsed."))
+      case Success(table) if table.length < 2 =>
+        Failure(
+          new UnsupportedOperationException("TSV must be 2 rows (or more) to convert to an Object (Array[Object])")
+        )
+      case Success(table) =>
+        Try {
+          table.tail map { line => coerceObject((table.head zip line).toMap) }
+        }
       case Failure(e) => Failure(e)
     }
-  }
 
-  //TODO: Try to stream this out to avoid memory overhead
+  // TODO: Try to stream this out to avoid memory overhead
   def tsvSerializeArray(input: Seq[WomObject]): Try[String] = {
 
     // Validates that all objects have the same attributes.
@@ -86,10 +90,15 @@ object WomObject {
         val attributesLine = attributes.mkString("\t")
         val valuesLines = objects map { obj =>
           attributes map { obj.values(_).valueString } mkString "\t"
-        } mkString(start = "", sep = "\n", end = "\n")
+        } mkString (start = "", sep = "\n", end = "\n")
 
         Success(s"$attributesLine\n$valuesLines")
-      case _ => Failure(new UnsupportedOperationException("Could not serialize array: Objects in the array have different attributes."))
+      case _ =>
+        Failure(
+          new UnsupportedOperationException(
+            "Could not serialize array: Objects in the array have different attributes."
+          )
+        )
     }
   }
 
@@ -100,17 +109,17 @@ object WomObject {
     withTypeErrorOr(values, objectTypeLike).toTry.get
   }
 
-  def withTypeErrorOr(values: Map[String, Any], objectTypeLike: WomObjectTypeLike): ErrorOr[WomObject] = {
+  def withTypeErrorOr(values: Map[String, Any], objectTypeLike: WomObjectTypeLike): ErrorOr[WomObject] =
     objectTypeLike.validateAndCoerceValues(values).map(new WomObject(_, objectTypeLike))
-  }
 
-  def withTypeChecked(values: Map[String, Any], objectTypeLike: WomObjectTypeLike): Checked[WomObject] = {
+  def withTypeChecked(values: Map[String, Any], objectTypeLike: WomObjectTypeLike): Checked[WomObject] =
     withTypeErrorOr(values, objectTypeLike).toEither
-  }
 
 }
 
-case class WomObject private[WomObject] (values: Map[String, WomValue], womType: WomObjectTypeLike) extends WomObjectLike with TsvSerializable {
+case class WomObject private[WomObject] (values: Map[String, WomValue], womType: WomObjectTypeLike)
+    extends WomObjectLike
+    with TsvSerializable {
   lazy val orderedAttributes = values.keySet.toSeq
   lazy val orderedValues = orderedAttributes map { values(_) }
   lazy val womObjectTypeLike = womType

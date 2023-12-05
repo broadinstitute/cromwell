@@ -28,14 +28,14 @@ class JobLogger(loggerName: String,
                 rootWorkflowIdForLogging: RootWorkflowId,
                 jobTag: String,
                 akkaLogger: Option[LoggingAdapter] = None,
-                otherLoggers: Set[Logger] = Set.empty[Logger])
-  extends WorkflowLogger(
-    loggerName = loggerName,
-    workflowId = workflowIdForLogging,
-    rootWorkflowId = rootWorkflowIdForLogging,
-    akkaLogger = akkaLogger,
-    otherLoggers = otherLoggers
-  ) {
+                otherLoggers: Set[Logger] = Set.empty[Logger]
+) extends WorkflowLogger(
+      loggerName = loggerName,
+      workflowId = workflowIdForLogging,
+      rootWorkflowId = rootWorkflowIdForLogging,
+      akkaLogger = akkaLogger,
+      otherLoggers = otherLoggers
+    ) {
 
   override def tag = s"$loggerName [UUID(${workflowIdForLogging.shortString})$jobTag]"
 }

@@ -19,7 +19,7 @@ cromwell::build::assemble_jars
 cromwell::build::build_cromwell_docker
 
 cromwell::build::run_centaur \
-    -p 100 \
+    -p 500 \
     -e localdockertest \
     -e relative_output_paths \
     -e relative_output_paths_colliding \
@@ -27,3 +27,5 @@ cromwell::build::run_centaur \
     -e papi_v2alpha1_gcsa \
 
 cromwell::build::generate_code_coverage
+
+cromwell::build::print_workflow_statistics

@@ -26,7 +26,6 @@ cromwell::build::run_centaur \
     -e standard_output_paths_colliding_prevented \
     -e papi_v2alpha1_gcsa \
 
-
 cromwell::build::generate_code_coverage
 
 cromwell::build::print_workflow_statistics

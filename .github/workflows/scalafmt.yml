@@ -1,0 +1,28 @@
+name: 'Scalafmt'
+
+#This github action runs the scalafmt linting tool on the entire codebase.
+# It fails if any files are not formatted properly.
+
+run-name: ${{ format('{0} Scalafmt', github.actor) }}
+
+on:
+  workflow_dispatch:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  run-scalafmt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.target-branch }}
+      - uses: ./.github/set_up_cromwell_action #This github action will set up git-secrets, caching, java, and sbt.
+        with:
+          cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+      - name: Run Scalafmt
+        run: |
+          sbt scalafmtCheckAll scalafmtDetailedError:true scalafmtLogOnEachError:true scalafmtFailOnErrors:true

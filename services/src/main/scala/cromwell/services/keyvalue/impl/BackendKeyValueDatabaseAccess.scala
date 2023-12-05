@@ -17,27 +17,43 @@ object BackendKeyValueDatabaseAccess {
 
 trait BackendKeyValueDatabaseAccess {
 
-  def getBackendValueByKey(workflowId: WorkflowId, jobKey: KvJobKey, key: String)
-                           (implicit ec: ExecutionContext): Future[Option[String]] = {
-    EngineServicesStore.engineDatabaseInterface.queryStoreValue(
-      workflowId.toString, jobKey.callFqn, jobKey.callIndex.fromIndex, jobKey.callAttempt, key)
-  }
+  def getBackendValueByKey(workflowId: WorkflowId, jobKey: KvJobKey, key: String)(implicit
+    ec: ExecutionContext
+  ): Future[Option[String]] =
+    EngineServicesStore.engineDatabaseInterface.queryStoreValue(workflowId.toString,
+                                                                jobKey.callFqn,
+                                                                jobKey.callIndex.fromIndex,
+                                                                jobKey.callAttempt,
+                                                                key
+    )
 
   def updateBackendKeyValuePair(workflowId: WorkflowId,
                                 jobKey: KvJobKey,
                                 backendStoreKey: String,
-                                backendStoreValue: String)(implicit ec: ExecutionContext, actorSystem: ActorSystem): Future[Unit] = {
-    val jobKeyValueEntry = JobKeyValueEntry(workflowId.toString, jobKey.callFqn, jobKey.callIndex.fromIndex,
-      jobKey.callAttempt, backendStoreKey, backendStoreValue)
+                                backendStoreValue: String
+  )(implicit ec: ExecutionContext, actorSystem: ActorSystem): Future[Unit] = {
+    val jobKeyValueEntry = JobKeyValueEntry(workflowId.toString,
+                                            jobKey.callFqn,
+                                            jobKey.callIndex.fromIndex,
+                                            jobKey.callAttempt,
+                                            backendStoreKey,
+                                            backendStoreValue
+    )
     withRetry(() => EngineServicesStore.engineDatabaseInterface.addJobKeyValueEntry(jobKeyValueEntry))
   }
 
-  def updateBackendKeyValuePairs(pairs: Iterable[BackendKeyValuePair])(implicit ec: ExecutionContext, actorSystem: ActorSystem): Future[Unit] = {
-    val entries = pairs.map({
-      case (workflowId, jobKey, backendStoreKey, backendStoreValue) =>
-        JobKeyValueEntry(workflowId.toString, jobKey.callFqn, jobKey.callIndex.fromIndex,
-          jobKey.callAttempt, backendStoreKey, backendStoreValue)
-    })
+  def updateBackendKeyValuePairs(
+    pairs: Iterable[BackendKeyValuePair]
+  )(implicit ec: ExecutionContext, actorSystem: ActorSystem): Future[Unit] = {
+    val entries = pairs.map { case (workflowId, jobKey, backendStoreKey, backendStoreValue) =>
+      JobKeyValueEntry(workflowId.toString,
+                       jobKey.callFqn,
+                       jobKey.callIndex.fromIndex,
+                       jobKey.callAttempt,
+                       backendStoreKey,
+                       backendStoreValue
+      )
+    }
     withRetry(() => EngineServicesStore.engineDatabaseInterface.addJobKeyValueEntries(entries))
   }
 }

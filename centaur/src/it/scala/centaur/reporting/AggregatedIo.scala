@@ -11,6 +11,7 @@ import cats.syntax.traverse._
   * Validation that aggregates multiple throwable errors.
   */
 object AggregatedIo {
+
   /**
     * Similar to common.validation.ErrorOr#ErrorOr, but retains the stack traces.
     */
@@ -39,16 +40,16 @@ object AggregatedIo {
   /**
     * Creates an aggregated exception for multiple exceptions.
     */
-  class AggregatedException private[reporting](exceptionContext: String, suppressed: List[Throwable])
-    extends RuntimeException(
-      {
-        val suppressedZipped = suppressed.zipWithIndex
-        val messages = suppressedZipped map {
-          case (throwable, index) => s"\n  ${index+1}: ${throwable.getMessage}"
+  class AggregatedException private[reporting] (exceptionContext: String, suppressed: List[Throwable])
+      extends RuntimeException(
+        {
+          val suppressedZipped = suppressed.zipWithIndex
+          val messages = suppressedZipped map { case (throwable, index) =>
+            s"\n  ${index + 1}: ${throwable.getMessage}"
+          }
+          s"$exceptionContext:$messages"
         }
-        s"$exceptionContext:$messages"
-      }
-    ) {
+      ) {
     suppressed foreach addSuppressed
   }
 

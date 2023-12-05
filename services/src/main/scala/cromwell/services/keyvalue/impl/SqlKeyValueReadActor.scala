@@ -5,13 +5,13 @@ import cromwell.services.keyvalue.KeyValueServiceActor.{KvKeyLookupFailed, KvPai
 import cromwell.services.keyvalue.{KeyValueReadActor, KeyValueServiceActor}
 
 object SqlKeyValueReadActor {
-  def props(threshold: Int, serviceRegistryActor: ActorRef) = {
+  def props(threshold: Int, serviceRegistryActor: ActorRef) =
     Props(new SqlKeyValueReadActor(threshold, serviceRegistryActor))
-  }
 }
 
 class SqlKeyValueReadActor(threshold: Int, serviceRegistryActor: ActorRef)
-  extends KeyValueReadActor(threshold, serviceRegistryActor) with BackendKeyValueDatabaseAccess {
+    extends KeyValueReadActor(threshold, serviceRegistryActor)
+    with BackendKeyValueDatabaseAccess {
   override def processGet(get: KeyValueServiceActor.KvGet) = {
     val backendValue = getBackendValueByKey(
       get.key.workflowId,

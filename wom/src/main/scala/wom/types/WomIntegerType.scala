@@ -14,11 +14,12 @@ case object WomIntegerType extends WomPrimitiveType {
     case n: JsNumber if n.value.isValidInt => WomInteger(n.value.intValue)
     case i: WomInteger => i
     case WomLong(i) if i.inIntRange => WomInteger(i.toInt)
-    case WomLong(i) => throw new RuntimeException(
-      s"Tried to convert a Long value $i into an Int but it was outside the bounds of acceptable Ints, namely ${Int.MinValue} <-> ${Int.MaxValue}")
-    case s: WomString => {
-        WomInteger(s.value.toInt)
-    }
+    case WomLong(i) =>
+      throw new RuntimeException(
+        s"Tried to convert a Long value $i into an Int but it was outside the bounds of acceptable Ints, namely ${Int.MinValue} <-> ${Int.MaxValue}"
+      )
+    case s: WomString =>
+      WomInteger(s.value.toInt)
     case s: String =>
       val bigTry = Try(BigDecimal(s))
       if (bigTry.isSuccess)
@@ -36,13 +37,12 @@ case object WomIntegerType extends WomPrimitiveType {
   }
 
   private def comparisonOperator(rhs: WomType, symbol: String): Try[WomType] = rhs match {
-    case wct:WomCoproductType => wct.typeExists(WomStringType)
+    case wct: WomCoproductType => wct.typeExists(WomStringType)
     case WomIntegerType => Success(WomBooleanType)
     case WomFloatType => Success(WomBooleanType)
     case WomOptionalType(memberType) => comparisonOperator(memberType, symbol)
     case _ => invalid(s"$this $symbol $rhs")
   }
-
 
   override def add(rhs: WomType): Try[WomType] = rhs match {
     case WomStringType => Success(WomStringType)

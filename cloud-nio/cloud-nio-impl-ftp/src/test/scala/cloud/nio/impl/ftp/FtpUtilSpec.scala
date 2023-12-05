@@ -16,7 +16,7 @@ class FtpUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "autoRelease"
 
   it should "release the lease when the client fails the operation without throwing" in {
-    val clientPool = new FtpClientPool(1, 10.minutes, () => { new FTPClient })
+    val clientPool = new FtpClientPool(1, 10.minutes, () => new FTPClient)
     val lease = clientPool.acquire()
 
     val action = autoRelease(IO.pure(lease)) { _ =>
@@ -28,7 +28,7 @@ class FtpUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   }
 
   it should "invalidate the lease when the client fails the operation by throwing" in {
-    val clientPool = new FtpClientPool(1, 10.minutes, () => { new FTPClient })
+    val clientPool = new FtpClientPool(1, 10.minutes, () => new FTPClient)
     val lease = clientPool.acquire()
 
     val action = autoRelease(IO.pure(lease)) { _ =>
@@ -40,7 +40,7 @@ class FtpUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   }
 
   it should "release the lease when the operation succeeds" in {
-    val clientPool = new FtpClientPool(1, 10.minutes, () => { new FTPClient })
+    val clientPool = new FtpClientPool(1, 10.minutes, () => new FTPClient)
     val lease = clientPool.acquire()
 
     val action = autoRelease(IO.pure(lease)) { _ =>

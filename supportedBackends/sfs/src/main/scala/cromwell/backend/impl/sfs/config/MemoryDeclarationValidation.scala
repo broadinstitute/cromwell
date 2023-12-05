@@ -31,7 +31,10 @@ import wom.values._
   * @param declaration The declaration used to create this memory validation.
   */
 class MemoryDeclarationValidation(declaration: Declaration, attributeName: String, attributeNamePrefix: String)
-  extends DeclarationValidation(declaration, MemoryValidation.instance(attributeName), usedInCallCachingOverride = Option(false)) {
+    extends DeclarationValidation(declaration,
+                                  MemoryValidation.instance(attributeName),
+                                  usedInCallCachingOverride = Option(false)
+    ) {
 
   import MemoryDeclarationValidation._
 
@@ -46,14 +49,15 @@ class MemoryDeclarationValidation(declaration: Declaration, attributeName: Strin
     * @return The new validation.
     */
   override protected def default(validation: RuntimeAttributesValidation[_],
-                                 wdlExpression: WdlExpression): RuntimeAttributesValidation[_] = {
+                                 wdlExpression: WdlExpression
+  ): RuntimeAttributesValidation[_] = {
     val womValue = declaration.expression.get.evaluate(NoLookup, NoFunctions).get
     val amount: Double = defaultAmount(womValue)
     val memorySize = MemorySize(amount, declarationMemoryUnit)
     validation.withDefault(WomLong(memorySize.bytes.toLong))
   }
 
-  private def defaultAmount(womValue: WomValue): Double = {
+  private def defaultAmount(womValue: WomValue): Double =
     womValue match {
       case WomInteger(value) => value.toDouble
       case WomLong(value) => value.toDouble
@@ -61,7 +65,6 @@ class MemoryDeclarationValidation(declaration: Declaration, attributeName: Strin
       case WomOptionalValue(_, Some(optionalWdlValue)) => defaultAmount(optionalWdlValue)
       case other => throw new RuntimeException(s"Unsupported memory default: $other")
     }
-  }
 
   private lazy val declarationMemoryUnit: MemoryUnit = {
     val suffix = memoryUnitSuffix(declaration.unqualifiedName, attributeName, attributeNamePrefix)
@@ -78,10 +81,9 @@ class MemoryDeclarationValidation(declaration: Declaration, attributeName: Strin
     * @param validatedRuntimeAttributes The validated attributes.
     * @return The value from the collection wrapped in `Some`, or `None` if the value wasn't found.
     */
-  override def extractWdlValueOption(validatedRuntimeAttributes: ValidatedRuntimeAttributes): Option[WomValue] = {
+  override def extractWdlValueOption(validatedRuntimeAttributes: ValidatedRuntimeAttributes): Option[WomValue] =
     RuntimeAttributesValidation.extractOption(MemoryValidation.instance(attributeName), validatedRuntimeAttributes) map
       coerceMemorySize(declaration.womType)
-  }
 
   private def coerceMemorySize(womType: WomType)(value: MemorySize): WomValue = {
     val amount = value.to(declarationMemoryUnit).amount
@@ -95,7 +97,7 @@ class MemoryDeclarationValidation(declaration: Declaration, attributeName: Strin
 }
 
 object MemoryDeclarationValidation {
-  def isMemoryDeclaration(name: String, attributeName: String, attributeNamePrefix: String): Boolean = {
+  def isMemoryDeclaration(name: String, attributeName: String, attributeNamePrefix: String): Boolean =
     name match {
       case `attributeName` => true
       case prefixed if prefixed.startsWith(attributeNamePrefix) =>
@@ -105,12 +107,10 @@ object MemoryDeclarationValidation {
         }
       case _ => false
     }
-  }
 
-  private def memoryUnitSuffix(name: String, attributeName: String, attributeNamePrefix: String) = {
+  private def memoryUnitSuffix(name: String, attributeName: String, attributeNamePrefix: String) =
     if (name == attributeName)
       MemoryUnit.Bytes.suffixes.head
     else
       name.substring(attributeNamePrefix.length)
-  }
 }

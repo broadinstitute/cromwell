@@ -5,8 +5,10 @@ import com.google.monitoring.v3.CreateTimeSeriesRequest
 import com.typesafe.config.Config
 import scala.jdk.CollectionConverters._
 
-class TestStackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
-  extends StackdriverInstrumentationServiceActor(serviceConfig, globalConfig, serviceRegistryActor) {
+class TestStackdriverInstrumentationServiceActor(serviceConfig: Config,
+                                                 globalConfig: Config,
+                                                 serviceRegistryActor: ActorRef
+) extends StackdriverInstrumentationServiceActor(serviceConfig, globalConfig, serviceRegistryActor) {
 
   var metricsReceived = List[TimeSeriesRequest]()
 
@@ -15,14 +17,15 @@ class TestStackdriverInstrumentationServiceActor(serviceConfig: Config, globalCo
     val metric = timeSeries.getMetric
 
     metricsReceived = metricsReceived :+ TimeSeriesRequest(metric.getType,
-      timeSeries.getPoints(0).getValue.getDoubleValue,
-      timeSeries.getResource.getLabelsMap.asScala.toMap,
-      metric.getLabelsMap.asScala.toMap)
+                                                           timeSeries.getPoints(0).getValue.getDoubleValue,
+                                                           timeSeries.getResource.getLabelsMap.asScala.toMap,
+                                                           metric.getLabelsMap.asScala.toMap
+    )
   }
 }
-
 
 case class TimeSeriesRequest(metricPath: String,
                              metricValue: Double,
                              resourceLabels: Map[String, String],
-                             metricLabels: Map[String, String])
+                             metricLabels: Map[String, String]
+)

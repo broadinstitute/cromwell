@@ -76,13 +76,12 @@ object S3PathBuilder {
     override def errorMessage: String = s"S3 URIs must have 's3' scheme: $pathString"
   }
   final case class InvalidFullS3Path(pathString: String) extends InvalidS3Path {
-    override def errorMessage: String = {
+    override def errorMessage: String =
       s"""
          |The path '$pathString' does not seem to be a valid S3 path.
          |Please check that it starts with s3:// and that the bucket and object follow S3 naming guidelines at
          |https://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html
       """.stripMargin.replace("\n", " ").trim
-    }
   }
   final case class UnparseableS3Path(pathString: String, throwable: Throwable) extends InvalidS3Path {
     override def errorMessage: String =
@@ -98,7 +97,7 @@ object S3PathBuilder {
   def pathToUri(string: String): URI =
     URI.create(UrlEscapers.urlFragmentEscaper.escape(string))
 
-  def validatePath(string: String): S3PathValidation = {
+  def validatePath(string: String): S3PathValidation =
     Try {
       val uri = pathToUri(string)
       if (uri.getScheme == null) { PossiblyValidRelativeS3Path }
@@ -108,56 +107,46 @@ object S3PathBuilder {
         } else { ValidFullS3Path(uri.getHost, uri.getPath) }
       } else { InvalidScheme(string) }
     } recover { case t => UnparseableS3Path(string, t) } get
-  }
 
   def fromAuthMode(authMode: AwsAuthMode,
                    configuration: S3Configuration,
                    options: WorkflowOptions,
-                   storageRegion: Option[Region])(implicit ec: ExecutionContext): Future[S3PathBuilder] = {
+                   storageRegion: Option[Region]
+  )(implicit ec: ExecutionContext): Future[S3PathBuilder] = {
     val provider = authMode.provider()
 
     // Other backends needed retry here. In case we need retry, we'll return
     // a future. This will allow us to add capability without changing signature
-    Future(fromProvider(provider,
-      configuration,
-      options,
-      storageRegion
-    ))
+    Future(fromProvider(provider, configuration, options, storageRegion))
   }
 
   def fromProvider(provider: AwsCredentialsProvider,
                    configuration: S3Configuration,
                    options: WorkflowOptions,
-                   storageRegion: Option[Region]): S3PathBuilder = {
+                   storageRegion: Option[Region]
+  ): S3PathBuilder =
     new S3PathBuilder(configuration)
-  }
 }
 
-class S3PathBuilder(configuration: S3Configuration
-                     ) extends PathBuilder {
+class S3PathBuilder(configuration: S3Configuration) extends PathBuilder {
   // Tries to create a new S3Path from a String representing an absolute s3 path: s3://<bucket>[/<key>].
-  def build(string: String): Try[S3Path] = {
+  def build(string: String): Try[S3Path] =
     validatePath(string) match {
       case ValidFullS3Path(bucket, path) =>
         Try {
           val s3Path = new S3FileSystemProvider()
             .getFileSystem(URI.create("s3:////"), System.getenv)
             .getPath(s"""/$bucket/$path""")
-          S3Path(s3Path, bucket,
-            new AmazonS3ClientFactory().getS3Client(URI.create("s3:////"), System.getProperties))
+          S3Path(s3Path, bucket, new AmazonS3ClientFactory().getS3Client(URI.create("s3:////"), System.getProperties))
         }
       case PossiblyValidRelativeS3Path => Failure(new IllegalArgumentException(s"$string does not have a s3 scheme"))
       case invalid: InvalidS3Path => Failure(new IllegalArgumentException(invalid.errorMessage))
     }
-  }
 
   override def name: String = "s3"
 }
 
-case class S3Path private[s3](nioPath: NioPath,
-                               bucket: String,
-                               client: S3Client
-                               ) extends Path {
+case class S3Path private[s3] (nioPath: NioPath, bucket: String, client: S3Client) extends Path {
   override protected def newPath(nioPath: NioPath): S3Path = S3Path(nioPath, bucket, client)
 
   override def pathAsString: String = s"s3://$pathWithoutScheme"
@@ -188,7 +177,7 @@ case class S3Path private[s3](nioPath: NioPath,
     val originalPath = s3Path.toString
     if (originalPath.startsWith("s3")) return s3Path.toAbsolutePath.toString
     originalPath.charAt(0) match {
-      case '/' =>  s3Path.toAbsolutePath.toString
+      case '/' => s3Path.toAbsolutePath.toString
       case _ => s3Path.resolve(s"/$bucket/$originalPath").toAbsolutePath.toString
     }
   }

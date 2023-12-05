@@ -19,7 +19,10 @@ object PipelinesApiJobPaths {
 // Non-`final` as this is mocked for testing since using a real instance proved too difficult.
 // Do not subclass this or other case classes in production code, at least without understanding the pitfalls:
 // https://nrinaudo.github.io/scala-best-practices/tricky_behaviours/final_case_classes.html
-case class PipelinesApiJobPaths(override val workflowPaths: PipelinesApiWorkflowPaths, jobKey: BackendJobDescriptorKey, override val isCallCacheCopyAttempt: Boolean = false) extends JobPaths {
+case class PipelinesApiJobPaths(override val workflowPaths: PipelinesApiWorkflowPaths,
+                                jobKey: BackendJobDescriptorKey,
+                                override val isCallCacheCopyAttempt: Boolean = false
+) extends JobPaths {
 
   // `jesLogBasename` is a `def` rather than a `val` because it is referenced polymorphically from
   // the initialization code of the extended `JobPaths` trait, but this class will not have initialized its `val`s
@@ -41,8 +44,11 @@ case class PipelinesApiJobPaths(override val workflowPaths: PipelinesApiWorkflow
   override lazy val customMetadataPaths = Map(
     CallMetadataKeys.BackendLogsPrefix + ":log" -> jesLogPath
   ) ++ (
-    workflowPaths.monitoringScriptPath map { p => Map(PipelinesApiMetadataKeys.MonitoringScript -> p,
-                                                      PipelinesApiMetadataKeys.MonitoringLog -> jesMonitoringLogPath) } getOrElse Map.empty
+    workflowPaths.monitoringScriptPath map { p =>
+      Map(PipelinesApiMetadataKeys.MonitoringScript -> p,
+          PipelinesApiMetadataKeys.MonitoringLog -> jesMonitoringLogPath
+      )
+    } getOrElse Map.empty
   )
 
   override lazy val customDetritusPaths: Map[String, Path] = Map(
@@ -53,12 +59,11 @@ case class PipelinesApiJobPaths(override val workflowPaths: PipelinesApiWorkflow
     PipelinesApiJobPaths.JesLogPathKey -> jesLogPath
   )
 
-  override def standardOutputAndErrorPaths: Map[String, Path] = {
+  override def standardOutputAndErrorPaths: Map[String, Path] =
     super.standardOutputAndErrorPaths map { case (k, v) =>
       val updated = workflowPaths.standardStreamNameToFileNameMetadataMapper(this, k)
       k -> v.parent.resolve(updated)
     }
-  }
 
   override def forCallCacheCopyAttempts: JobPaths = this.copy(isCallCacheCopyAttempt = true)
 }

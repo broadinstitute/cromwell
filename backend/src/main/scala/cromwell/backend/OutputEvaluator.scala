@@ -26,15 +26,20 @@ object OutputEvaluator {
 
   def evaluateOutputs(jobDescriptor: BackendJobDescriptor,
                       ioFunctions: IoFunctionSet,
-                      postMapper: WomValue => Try[WomValue] = v => Success(v))(implicit ec: ExecutionContext): Future[EvaluatedJobOutputs] = {
+                      postMapper: WomValue => Try[WomValue] = v => Success(v)
+  )(implicit ec: ExecutionContext): Future[EvaluatedJobOutputs] = {
     val taskInputValues: Map[String, WomValue] = jobDescriptor.localInputs
 
-    def foldFunction(accumulatedOutputs: Try[ErrorOr[List[(OutputPort, WomValue)]]], output: ExpressionBasedOutputPort) = accumulatedOutputs flatMap { accumulated =>
+    def foldFunction(accumulatedOutputs: Try[ErrorOr[List[(OutputPort, WomValue)]]],
+                     output: ExpressionBasedOutputPort
+    ) = accumulatedOutputs flatMap { accumulated =>
       // Extract the valid pairs from the job outputs accumulated so far, and add to it the inputs (outputs can also reference inputs)
       val allKnownValues: Map[String, WomValue] = accumulated match {
         case Valid(outputs) =>
           // The evaluateValue methods needs a Map[String, WomValue], use the output port name for already computed outputs
-          outputs.toMap[OutputPort, WomValue].map({ case (port, value) => port.internalName -> value }) ++ taskInputValues
+          outputs.toMap[OutputPort, WomValue].map { case (port, value) =>
+            port.internalName -> value
+          } ++ taskInputValues
         case Invalid(_) => taskInputValues
       }
 
@@ -45,22 +50,24 @@ object OutputEvaluator {
         }
 
       // Attempt to coerce the womValue to the desired output type
-      def coerceOutputValue(womValue: WomValue, coerceTo: WomType): OutputResult[WomValue] = {
+      def coerceOutputValue(womValue: WomValue, coerceTo: WomType): OutputResult[WomValue] =
         fromEither[Try](
           // TODO WOM: coerceRawValue should return an ErrorOr
-          coerceTo.coerceRawValue(womValue).toEither.leftMap(t => NonEmptyList.one(t.getClass.getSimpleName + ": " + t.getMessage))
+          coerceTo
+            .coerceRawValue(womValue)
+            .toEither
+            .leftMap(t => NonEmptyList.one(t.getClass.getSimpleName + ": " + t.getMessage))
         )
-      }
 
       /*
-        * Go through evaluation, coercion and post processing.
-        * Transform the result to a validated Try[ErrorOr[(String, WomValue)]] with toValidated
-        * If we have a valid pair, add it to the previously accumulated outputs, otherwise combine the Nels of errors
+       * Go through evaluation, coercion and post processing.
+       * Transform the result to a validated Try[ErrorOr[(String, WomValue)]] with toValidated
+       * If we have a valid pair, add it to the previously accumulated outputs, otherwise combine the Nels of errors
        */
       val evaluated = for {
         evaluated <- evaluateOutputExpression
         coerced <- coerceOutputValue(evaluated, output.womType)
-        postProcessed <- EitherT { postMapper(coerced).map(_.validNelCheck) }: OutputResult[WomValue]
+        postProcessed <- EitherT(postMapper(coerced).map(_.validNelCheck)): OutputResult[WomValue]
         pair = output -> postProcessed
       } yield pair
 
@@ -73,24 +80,27 @@ object OutputEvaluator {
     val emptyValue = Success(List.empty[(OutputPort, WomValue)].validNel): Try[ErrorOr[List[(OutputPort, WomValue)]]]
 
     // Fold over the outputs to evaluate them in order, map the result to an EvaluatedJobOutputs
-    def fromOutputPorts: EvaluatedJobOutputs = jobDescriptor.taskCall.expressionBasedOutputPorts.foldLeft(emptyValue)(foldFunction) match {
-      case Success(Valid(outputs)) => ValidJobOutputs(CallOutputs(outputs.toMap))
-      case Success(Invalid(errors)) => InvalidJobOutputs(errors)
-      case Failure(exception) => JobOutputsEvaluationException(exception)
-    }
+    def fromOutputPorts: EvaluatedJobOutputs =
+      jobDescriptor.taskCall.expressionBasedOutputPorts.foldLeft(emptyValue)(foldFunction) match {
+        case Success(Valid(outputs)) => ValidJobOutputs(CallOutputs(outputs.toMap))
+        case Success(Invalid(errors)) => InvalidJobOutputs(errors)
+        case Failure(exception) => JobOutputsEvaluationException(exception)
+      }
 
     /*
-      * Because Cromwell doesn't trust anyone, if custom evaluation is provided,
-      * still make sure that all the output ports have been filled with values
+     * Because Cromwell doesn't trust anyone, if custom evaluation is provided,
+     * still make sure that all the output ports have been filled with values
      */
     def validateCustomEvaluation(outputs: Map[OutputPort, WomValue]): EvaluatedJobOutputs = {
-      def toError(outputPort: OutputPort) = s"Missing output value for ${outputPort.identifier.fullyQualifiedName.value}"
+      def toError(outputPort: OutputPort) =
+        s"Missing output value for ${outputPort.identifier.fullyQualifiedName.value}"
 
       jobDescriptor.taskCall.expressionBasedOutputPorts.diff(outputs.keySet.toList) match {
         case Nil =>
           val errorMessagePrefix = "Error applying postMapper in short-circuit output evaluation"
-          TryUtil.sequenceMap(outputs map { case (k, v) => (k, postMapper(v))}, errorMessagePrefix) match {
-            case Failure(e) => InvalidJobOutputs(NonEmptyList.of(e.getMessage, e.getStackTrace.take(5).toIndexedSeq.map(_.toString):_*))
+          TryUtil.sequenceMap(outputs map { case (k, v) => (k, postMapper(v)) }, errorMessagePrefix) match {
+            case Failure(e) =>
+              InvalidJobOutputs(NonEmptyList.of(e.getMessage, e.getStackTrace.take(5).toIndexedSeq.map(_.toString): _*))
             case Success(postMappedOutputs) => ValidJobOutputs(CallOutputs(postMappedOutputs))
           }
         case head :: tail => InvalidJobOutputs(NonEmptyList.of(toError(head), tail.map(toError): _*))
@@ -98,18 +108,20 @@ object OutputEvaluator {
     }
 
     /*
-      * See if the task definition has "short-circuit" for the default output evaluation.
-      * In the case of CWL for example, this gives a chance to look for cwl.output.json and use it as the output of the tool,
-      * instead of the default behavior of going over each output port of the task and evaluates their expression.
-      * If the "customOutputEvaluation" returns None (which will happen if the cwl.output.json is not there, as well as for all WDL workflows),
-      * we fallback to the default behavior.
+     * See if the task definition has "short-circuit" for the default output evaluation.
+     * In the case of CWL for example, this gives a chance to look for cwl.output.json and use it as the output of the tool,
+     * instead of the default behavior of going over each output port of the task and evaluates their expression.
+     * If the "customOutputEvaluation" returns None (which will happen if the cwl.output.json is not there, as well as for all WDL workflows),
+     * we fallback to the default behavior.
      */
-    jobDescriptor.taskCall.customOutputEvaluation(taskInputValues, ioFunctions, ec).value
-      .map({
+    jobDescriptor.taskCall
+      .customOutputEvaluation(taskInputValues, ioFunctions, ec)
+      .value
+      .map {
         case Some(Right(outputs)) => validateCustomEvaluation(outputs)
         case Some(Left(errors)) => InvalidJobOutputs(errors)
         // If it returns an empty value, fallback to canonical output evaluation
         case None => fromOutputPorts
-      })
+      }
   }
 }

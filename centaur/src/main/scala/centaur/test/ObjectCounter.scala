@@ -40,20 +40,19 @@ object ObjectCounterInstances {
     listObjectsAtPath(_).size
   }
 
-  implicit val blobObjectCounter: ObjectCounter[BlobContainerClient] = (containerClient : BlobContainerClient) => {
+  implicit val blobObjectCounter: ObjectCounter[BlobContainerClient] = (containerClient: BlobContainerClient) => {
     val pathToInt: Path => Int = providedPath => {
-      //Our path parsing is somewhat GCP centric. Convert to a blob path starting from the container root.
-      def pathToBlobPath(parsedPath : Path) : String = {
+      // Our path parsing is somewhat GCP centric. Convert to a blob path starting from the container root.
+      def pathToBlobPath(parsedPath: Path): String =
         (Option(parsedPath.bucket), Option(parsedPath.directory)) match {
           case (None, _) => ""
           case (Some(_), None) => parsedPath.bucket
           case (Some(_), Some(_)) => parsedPath.bucket + "/" + parsedPath.directory
         }
-      }
 
       val fullPath = pathToBlobPath(providedPath)
-      val blobsInFolder =  containerClient.listBlobsByHierarchy(fullPath)
-      //if something "isPrefix", it's a directory. Otherwise, its a file. We just want to count files.
+      val blobsInFolder = containerClient.listBlobsByHierarchy(fullPath)
+      // if something "isPrefix", it's a directory. Otherwise, its a file. We just want to count files.
       blobsInFolder.asScala.count(!_.isPrefix)
     }
     pathToInt(_)
@@ -63,7 +62,8 @@ object ObjectCounterInstances {
 object ObjectCounterSyntax {
 
   implicit class ObjectCounterSyntax[A](client: A) {
-    def countObjects(regex: String)(implicit c: ObjectCounter[A]): String => Int = c.parsePath(regex) andThen c.countObjectsAtPath(client)
+    def countObjects(regex: String)(implicit c: ObjectCounter[A]): String => Int =
+      c.parsePath(regex) andThen c.countObjectsAtPath(client)
   }
 
 }

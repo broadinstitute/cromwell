@@ -4,8 +4,7 @@ import com.google.auth.Credentials
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory
 import cromwell.backend.standard.{StandardInitializationData, StandardValidatedRuntimeAttributesBuilder}
 
-case class PipelinesApiBackendInitializationData
-(
+case class PipelinesApiBackendInitializationData(
   override val workflowPaths: PipelinesApiWorkflowPaths,
   override val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder,
   papiConfiguration: PipelinesApiConfiguration,

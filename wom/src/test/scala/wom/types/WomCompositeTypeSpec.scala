@@ -6,8 +6,10 @@ import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor2}
 import wom.types.WomCompositeTypeSpecDefs._
 import wom.values._
 
-
-class WomCompositeTypeSpec() extends WomCoercionSpec(goodCoercionTable, badCoercionTable, behaviorOf) with AnyFlatSpecLike with Matchers {
+class WomCompositeTypeSpec()
+    extends WomCoercionSpec(goodCoercionTable, badCoercionTable, behaviorOf)
+    with AnyFlatSpecLike
+    with Matchers {
 
   "WomObject with composite type" should "fail to build invalid values" in {
     val wrongType = the[Exception] thrownBy {
@@ -45,7 +47,9 @@ private object WomCompositeTypeSpecDefs {
   import spray.json._
   val stringIntCompositeType = WomCompositeType(Map("a" -> WomStringType, "b" -> WomIntegerType))
   val nestedStringIntCompositeType = WomCompositeType(Map("nested_a" -> WomStringType, "nested_b" -> WomIntegerType))
-  val complexNestedCompositeType = WomCompositeType(Map("a" -> WomArrayType(WomStringType), "b" -> nestedStringIntCompositeType))
+  val complexNestedCompositeType = WomCompositeType(
+    Map("a" -> WomArrayType(WomStringType), "b" -> nestedStringIntCompositeType)
+  )
   val simpleCompositeValue = WomObject.withTypeUnsafe(
     Map("a" -> WomString("0"), "b" -> WomInteger(1)),
     stringIntCompositeType
@@ -55,11 +59,13 @@ private object WomCompositeTypeSpecDefs {
       // Field "a" is an array of string
       "a" -> WomArray(WomArrayType(WomStringType), List(WomString("5"))),
       // Field "b" is a composite type itself
-      "b" -> WomObject.withTypeUnsafe(Map("nested_a" -> WomString("8"), "nested_b" -> WomInteger(2)), nestedStringIntCompositeType)
+      "b" -> WomObject.withTypeUnsafe(Map("nested_a" -> WomString("8"), "nested_b" -> WomInteger(2)),
+                                      nestedStringIntCompositeType
+      )
     ),
     complexNestedCompositeType
   )
-  
+
   val simpleCompositeValueAsAMap = WomMap(
     WomMapType(WomStringType, WomIntegerType),
     Map(
@@ -67,7 +73,7 @@ private object WomCompositeTypeSpecDefs {
       WomString("b") -> WomInteger(1)
     )
   )
-  
+
   val goodCoercionTable = Table[Any, WomValue](
     ("fromValue", "toValue"),
     // Identity coercion with simple field types
@@ -78,22 +84,26 @@ private object WomCompositeTypeSpecDefs {
     (simpleCompositeValueAsAMap, simpleCompositeValue),
     // Coercion from untyped WomObject
     (WomObject(
-      Map(
-        "a" -> WomString("0"),
-        "b" -> WomInteger(1)
-      )
-    ), simpleCompositeValue),
+       Map(
+         "a" -> WomString("0"),
+         "b" -> WomInteger(1)
+       )
+     ),
+     simpleCompositeValue
+    ),
     (WomObject(
-      Map(
-        "a" -> WomArray(WomArrayType(WomIntegerType), List(WomInteger(5))),
-        "b" -> WomObject(
-          Map(
-            "nested_a" -> WomInteger(8),
-            "nested_b" -> WomInteger(2)
-          )
-        )
-      )
-    ), complexCompositeValue),
+       Map(
+         "a" -> WomArray(WomArrayType(WomIntegerType), List(WomInteger(5))),
+         "b" -> WomObject(
+           Map(
+             "nested_a" -> WomInteger(8),
+             "nested_b" -> WomInteger(2)
+           )
+         )
+       )
+     ),
+     complexCompositeValue
+    ),
     // Coercion from Json
     ("""{ "a": "0", "b": "1" }""".parseJson, simpleCompositeValue),
     ("""{ "a": ["5"], "b": { "nested_a": "8", "nested_b": 2 } }""".parseJson, complexCompositeValue),
@@ -107,7 +117,8 @@ private object WomCompositeTypeSpecDefs {
           "b" -> WomMap(
             WomMapType(WomSingleFileType, WomIntegerType),
             Map(
-              WomSingleFile("nested_a") -> WomInteger(8) , WomSingleFile("nested_b") -> WomInteger(2)
+              WomSingleFile("nested_a") -> WomInteger(8),
+              WomSingleFile("nested_b") -> WomInteger(2)
             )
           )
         ),
@@ -123,7 +134,9 @@ private object WomCompositeTypeSpecDefs {
     // Automatic optional none default
     (
       WomObject.withTypeUnsafe(Map.empty, WomCompositeType(Map("a" -> WomOptionalType(WomStringType)))),
-      WomObject.withTypeUnsafe(Map("a" -> WomOptionalValue.none(WomStringType)), WomCompositeType(Map("a" -> WomOptionalType(WomStringType))))
+      WomObject.withTypeUnsafe(Map("a" -> WomOptionalValue.none(WomStringType)),
+                               WomCompositeType(Map("a" -> WomOptionalType(WomStringType)))
+      )
     )
   )
 
@@ -140,7 +153,8 @@ private object WomCompositeTypeSpecDefs {
         Map(
           "a" -> WomString("0"),
           "b" -> WomBoolean(false)
-        ), WomCompositeType(Map("a" -> WomStringType, "b" -> WomBooleanType))
+        ),
+        WomCompositeType(Map("a" -> WomStringType, "b" -> WomBooleanType))
       ),
       stringIntCompositeType
     ),

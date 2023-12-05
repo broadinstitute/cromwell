@@ -2,8 +2,7 @@ package cromwell.database.sql.tables
 
 import java.sql.Timestamp
 
-case class WorkflowMetadataSummaryEntry
-(
+case class WorkflowMetadataSummaryEntry(
   workflowExecutionUuid: String,
   workflowName: Option[String],
   workflowStatus: Option[String],

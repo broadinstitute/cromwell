@@ -10,7 +10,9 @@ object UnaryOperatorEvaluators {
   implicit val logicalNotEvaluator: IdentifierLookupRenamer[LogicalNot] = forOperation(LogicalNot)
 
   private def forOperation[A <: UnaryOperation](constructor: ExpressionElement => A) = new IdentifierLookupRenamer[A] {
-    override def renameIdentifiers(a: A, renamingMap: Map[String, String])(implicit expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement]): A =
+    override def renameIdentifiers(a: A, renamingMap: Map[String, String])(implicit
+      expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement]
+    ): A =
       constructor.apply(expressionElementRenamer.renameIdentifiers(a.argument, renamingMap)(expressionElementRenamer))
   }
 }

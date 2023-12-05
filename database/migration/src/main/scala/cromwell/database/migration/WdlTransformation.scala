@@ -11,15 +11,16 @@ import wom.types.{WomPrimitiveType, WomType}
 
 import scala.util.Try
 
-private [migration] object WdlTransformation {
+private[migration] object WdlTransformation {
 
   def inflate(value: String): Try[String] = Try {
     Option(value) match {
-      case Some(v) => IOUtils.toString(new GZIPInputStream(new ByteArrayInputStream(Base64.decodeBase64(v))), Charset.defaultCharset)
+      case Some(v) =>
+        IOUtils.toString(new GZIPInputStream(new ByteArrayInputStream(Base64.decodeBase64(v))), Charset.defaultCharset)
       case None => null
     }
-  } recover {
-    case _: IOException => value
+  } recover { case _: IOException =>
+    value
   }
 
   def coerceStringToWdl(wdlString: String, womType: WomType) = womType match {

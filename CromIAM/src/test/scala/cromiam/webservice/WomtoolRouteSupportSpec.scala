@@ -10,8 +10,12 @@ import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-
-class WomtoolRouteSupportSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with WomtoolRouteSupport with ScalatestRouteTest {
+class WomtoolRouteSupportSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with WomtoolRouteSupport
+    with ScalatestRouteTest {
 
   override lazy val cromwellClient = new MockCromwellClient()
   override lazy val samClient = new MockSamClient()

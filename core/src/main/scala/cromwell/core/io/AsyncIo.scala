@@ -23,7 +23,8 @@ object AsyncIo {
   */
 class AsyncIo(ioEndpoint: ActorRef, ioCommandBuilder: IoCommandBuilder) {
   private def asyncCommand[A](commandTry: Try[IoCommand[A]],
-                              timeout: FiniteDuration = AsyncIo.defaultTimeout): Future[A] = {
+                              timeout: FiniteDuration = AsyncIo.defaultTimeout
+  ): Future[A] =
     commandTry match {
       case Failure(throwable) =>
         Future.failed(throwable)
@@ -32,46 +33,36 @@ class AsyncIo(ioEndpoint: ActorRef, ioCommandBuilder: IoCommandBuilder) {
         ioEndpoint ! commandWithPromise
         commandWithPromise.promise.future
     }
-  }
 
   /**
     * IMPORTANT: This loads the entire content of the file into memory !
     * Only use for small files !
     */
-  def contentAsStringAsync(path: Path, maxBytes: Option[Int], failOnOverflow: Boolean): Future[String] = {
+  def contentAsStringAsync(path: Path, maxBytes: Option[Int], failOnOverflow: Boolean): Future[String] =
     asyncCommand(ioCommandBuilder.contentAsStringCommand(path, maxBytes, failOnOverflow))
-  }
 
-  def writeAsync(path: Path, content: String, options: OpenOptions, compressPayload: Boolean = false): Future[Unit] = {
+  def writeAsync(path: Path, content: String, options: OpenOptions, compressPayload: Boolean = false): Future[Unit] =
     asyncCommand(ioCommandBuilder.writeCommand(path, content, options, compressPayload))
-  }
 
-  def sizeAsync(path: Path): Future[Long] = {
+  def sizeAsync(path: Path): Future[Long] =
     asyncCommand(ioCommandBuilder.sizeCommand(path))
-  }
 
-  def hashAsync(path: Path): Future[String] = {
+  def hashAsync(path: Path): Future[String] =
     asyncCommand(ioCommandBuilder.hashCommand(path))
-  }
 
-  def deleteAsync(path: Path, swallowIoExceptions: Boolean = false): Future[Unit] = {
+  def deleteAsync(path: Path, swallowIoExceptions: Boolean = false): Future[Unit] =
     asyncCommand(ioCommandBuilder.deleteCommand(path, swallowIoExceptions))
-  }
 
-  def existsAsync(path: Path): Future[Boolean] = {
+  def existsAsync(path: Path): Future[Boolean] =
     asyncCommand(ioCommandBuilder.existsCommand(path))
-  }
 
-  def readLinesAsync(path: Path): Future[Iterable[String]] = {
+  def readLinesAsync(path: Path): Future[Iterable[String]] =
     asyncCommand(ioCommandBuilder.readLines(path))
-  }
 
-  def isDirectory(path: Path): Future[Boolean] = {
+  def isDirectory(path: Path): Future[Boolean] =
     asyncCommand(ioCommandBuilder.isDirectoryCommand(path))
-  }
 
-  def copyAsync(src: Path, dest: Path): Future[Unit] = {
+  def copyAsync(src: Path, dest: Path): Future[Unit] =
     // Allow for a much larger timeout for copies, as large files can take a while (even on gcs, if they are in different locations...)
     asyncCommand(ioCommandBuilder.copyCommand(src, dest), AsyncIo.copyTimeout)
-  }
 }

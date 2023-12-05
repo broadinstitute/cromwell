@@ -9,6 +9,7 @@ import scala.util.{Success, Try}
 final case class Collection(name: String) extends AnyVal
 
 object Collection {
+
   /**
     * Parses a raw JSON string to make sure it fits the standard pattern (see below) for labels,
     * performs some CromIAM-specific checking to ensure the user isn't attempting to manipulate the
@@ -19,13 +20,14 @@ object Collection {
     */
   def validateLabels(labelsJson: Option[String]): Directive1[Option[Map[String, JsValue]]] = {
 
-      val labels = labelsJson map { l =>
-        Try(l.parseJson) match {
-          case Success(JsObject(json)) if json.keySet.contains(CollectionLabelName) => throw new LabelContainsCollectionException
-          case Success(JsObject(json)) => json
-          case _ => throw InvalidLabelsException(l)
-        }
+    val labels = labelsJson map { l =>
+      Try(l.parseJson) match {
+        case Success(JsObject(json)) if json.keySet.contains(CollectionLabelName) =>
+          throw new LabelContainsCollectionException
+        case Success(JsObject(json)) => json
+        case _ => throw InvalidLabelsException(l)
       }
+    }
 
     provide(labels)
   }
@@ -34,15 +36,16 @@ object Collection {
   val LabelsKey = "labels"
 
   // LabelContainsCollectionException is a class because of ScalaTest, some of the constructs don't play well w/ case objects
-  final class LabelContainsCollectionException extends Exception(s"Submitted labels contain the key $CollectionLabelName, which is not allowed\n")
-  final case class InvalidLabelsException(labels: String) extends Exception(s"Labels must be a valid JSON object, received: $labels\n")
+  final class LabelContainsCollectionException
+      extends Exception(s"Submitted labels contain the key $CollectionLabelName, which is not allowed\n")
+  final case class InvalidLabelsException(labels: String)
+      extends Exception(s"Labels must be a valid JSON object, received: $labels\n")
 
   /**
     * Returns the default collection for a user.
     */
-  def forUser(user: User): Collection = {
+  def forUser(user: User): Collection =
     Collection(user.userId.value)
-  }
 
   implicit val collectionJsonReader = new JsonReader[Collection] {
     import spray.json.DefaultJsonProtocol._

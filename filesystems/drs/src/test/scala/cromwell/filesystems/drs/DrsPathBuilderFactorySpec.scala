@@ -6,7 +6,7 @@ import cromwell.core.filesystem.CromwellFileSystems
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class DrsPathBuilderFactorySpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers{
+class DrsPathBuilderFactorySpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "DrsPathBuilderFactory"
 

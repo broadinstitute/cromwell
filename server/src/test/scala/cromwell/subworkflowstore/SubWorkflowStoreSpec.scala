@@ -29,14 +29,18 @@ object SubWorkflowStoreSpec {
   val EmptyExpression = WdlExpression.fromString(""" "" """)
 }
 
-class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkflowStoreActorBuilder
-  with CromwellTimeoutSpec with Matchers {
+class SubWorkflowStoreSpec
+    extends CromwellTestKitWordSpec
+    with CoordinatedWorkflowStoreActorBuilder
+    with CromwellTimeoutSpec
+    with Matchers {
   "SubWorkflowStore" should {
     "work" in {
       lazy val subWorkflowStore = new SqlSubWorkflowStore(EngineServicesStore.engineDatabaseInterface)
       val subWorkflowStoreService = system.actorOf(SubWorkflowStoreActor.props(subWorkflowStore))
 
-      lazy val workflowStore = SqlWorkflowStore(EngineServicesStore.engineDatabaseInterface, MetadataServicesStore.metadataDatabaseInterface)
+      lazy val workflowStore =
+        SqlWorkflowStore(EngineServicesStore.engineDatabaseInterface, MetadataServicesStore.metadataDatabaseInterface)
       val workflowHeartbeatConfig = WorkflowHeartbeatConfig(CromwellTestKitSpec.DefaultConfig)
       val workflowStoreService = system.actorOf(
         WorkflowStoreActor.props(
@@ -64,17 +68,19 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkf
         override def tag: String = "foobar"
       }
 
-      workflowStoreService ! SubmitWorkflow(WorkflowSourceFilesWithoutImports(
-        workflowSource = Option(""),
-        workflowUrl = None,
-        workflowRoot = None,
-        workflowType = Option("WDL"),
-        workflowTypeVersion = None,
-        inputsJson = "{}",
-        workflowOptions = WorkflowOptions.empty,
-        labelsJson = "{}",
-        warnings = Vector.empty,
-        requestedWorkflowId = None)
+      workflowStoreService ! SubmitWorkflow(
+        WorkflowSourceFilesWithoutImports(
+          workflowSource = Option(""),
+          workflowUrl = None,
+          workflowRoot = None,
+          workflowType = Option("WDL"),
+          workflowTypeVersion = None,
+          inputsJson = "{}",
+          workflowOptions = WorkflowOptions.empty,
+          labelsJson = "{}",
+          warnings = Vector.empty,
+          requestedWorkflowId = None
+        )
       )
       val rootWorkflowId = expectMsgType[WorkflowSubmittedToStore](10 seconds).workflowId
 
@@ -95,7 +101,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkf
         callIndex = jobKey.index.fromIndex,
         callAttempt = jobKey.attempt,
         subWorkflowExecutionUuid = subWorkflowId.toString,
-        subWorkflowStoreEntryId = Option(0),
+        subWorkflowStoreEntryId = Option(0)
       )
       expectMsg[SubWorkflowFound](SubWorkflowFound(subWorkflowEntry))
 
@@ -112,7 +118,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkf
         callIndex = jobKey.index.fromIndex,
         callAttempt = jobKey.attempt,
         subWorkflowExecutionUuid = subSubWorkflowId.toString,
-        subWorkflowStoreEntryId = Option(1),
+        subWorkflowStoreEntryId = Option(1)
       )
       expectMsg[SubWorkflowFound](SubWorkflowFound(subSubWorkflowEntry))
 

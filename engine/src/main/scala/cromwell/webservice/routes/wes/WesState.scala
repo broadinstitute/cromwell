@@ -6,24 +6,23 @@ import spray.json.{DefaultJsonProtocol, JsObject, JsString, JsValue, RootJsonFor
 
 object WesState {
   sealed trait WesState extends Product with Serializable { val name: String }
-  case object Unknown extends WesState { override val name = "UNKNOWN"}
-  case object Queued extends WesState { override val name = "QUEUED"}
-  case object Initializing extends WesState { override val name = "INITIALIZING"}
-  case object Running extends WesState { override val name = "RUNNING"}
-  case object Paused extends WesState { override val name = "PAUSED"}
-  case object Complete extends WesState { override val name = "COMPLETE"}
-  case object ExecutorError extends WesState { override val name = "EXECUTOR_ERROR"}
-  case object SystemError extends WesState { override val name = "SYSTEM_ERROR"}
-  case object Canceled extends WesState { override val name = "CANCELED"}
-  case object Canceling extends WesState { override val name = "CANCELING"}
+  case object Unknown extends WesState { override val name = "UNKNOWN" }
+  case object Queued extends WesState { override val name = "QUEUED" }
+  case object Initializing extends WesState { override val name = "INITIALIZING" }
+  case object Running extends WesState { override val name = "RUNNING" }
+  case object Paused extends WesState { override val name = "PAUSED" }
+  case object Complete extends WesState { override val name = "COMPLETE" }
+  case object ExecutorError extends WesState { override val name = "EXECUTOR_ERROR" }
+  case object SystemError extends WesState { override val name = "SYSTEM_ERROR" }
+  case object Canceled extends WesState { override val name = "CANCELED" }
+  case object Canceling extends WesState { override val name = "CANCELING" }
 
-  def fromStatusString(status: Option[String]): WesState = {
+  def fromStatusString(status: Option[String]): WesState =
     status match {
       case Some(status) => fromCromwellStatus(WorkflowState.withName(status))
       case None => Unknown
     }
-  }
-  def fromCromwellStatus(cromwellStatus: WorkflowState): WesState = {
+  def fromCromwellStatus(cromwellStatus: WorkflowState): WesState =
     cromwellStatus match {
       case WorkflowOnHold => Paused
       case WorkflowSubmitted => Queued
@@ -34,18 +33,24 @@ object WesState {
       case WorkflowFailed => ExecutorError
       case _ => Unknown
     }
-  }
 
   def fromCromwellStatusJson(jsonResponse: JsObject): WesState = {
 
-    val statusString = jsonResponse.fields.get("status").collect {
-      case str: JsString => str.value
-    }.getOrElse(throw new IllegalArgumentException(s"Could not coerce Cromwell status response ${jsonResponse.compactPrint} into a valid WES status"))
+    val statusString = jsonResponse.fields
+      .get("status")
+      .collect { case str: JsString =>
+        str.value
+      }
+      .getOrElse(
+        throw new IllegalArgumentException(
+          s"Could not coerce Cromwell status response ${jsonResponse.compactPrint} into a valid WES status"
+        )
+      )
 
     fromCromwellStatus(WorkflowState.withName(statusString))
   }
 
-  def fromString(status: String): WesState = {
+  def fromString(status: String): WesState =
     status match {
       case Unknown.name => Unknown
       case Queued.name => Queued
@@ -59,7 +64,6 @@ object WesState {
       case Canceling.name => Canceling
       case doh => throw new IllegalArgumentException(s"Invalid status attempting to be coerced to WesState: $doh")
     }
-  }
 }
 
 object WesStateJsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
@@ -70,8 +74,8 @@ object WesStateJsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
 
     def read(json: JsValue): WesState =
       json match {
-      case JsString(string) => WesState.fromString(string)
-      case other => throw new UnsupportedOperationException(s"Cannot deserialize $other into a WesState")
-    }
+        case JsString(string) => WesState.fromString(string)
+        case other => throw new UnsupportedOperationException(s"Cannot deserialize $other into a WesState")
+      }
   }
 }

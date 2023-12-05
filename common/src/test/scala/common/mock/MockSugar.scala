@@ -2,7 +2,7 @@ package common.mock
 
 import org.mockito.{ArgumentCaptor, Mockito}
 
-import scala.reflect.{ClassTag, classTag}
+import scala.reflect.{classTag, ClassTag}
 
 /**
   * Yet another scala wrapper around Mockito.
@@ -37,12 +37,11 @@ trait MockSugar extends MockImplicits {
     *
     * Note: if you run into issues with `mock` then try [[mockWithDefaults]].
     */
-  def mock[A: ClassTag]: A = {
+  def mock[A: ClassTag]: A =
     Mockito.mock(
       classTag[A].runtimeClass.asInstanceOf[Class[A]],
-      Mockito.withSettings().defaultAnswer(Mockito.RETURNS_SMART_NULLS),
+      Mockito.withSettings().defaultAnswer(Mockito.RETURNS_SMART_NULLS)
     )
-  }
 
   /**
     * Creates a mock returning default values instead of Smart Nulls.
@@ -56,16 +55,14 @@ trait MockSugar extends MockImplicits {
     *
     * An alternative workaround was to use `Mockito.doReturn(retVal).when(mockObj).someMethod`.
     */
-  def mockWithDefaults[A: ClassTag]: A = {
+  def mockWithDefaults[A: ClassTag]: A =
     Mockito.mock(
       classTag[A].runtimeClass.asInstanceOf[Class[A]],
-      Mockito.withSettings().defaultAnswer(Mockito.RETURNS_DEFAULTS),
+      Mockito.withSettings().defaultAnswer(Mockito.RETURNS_DEFAULTS)
     )
-  }
 
-  def capture[A: ClassTag]: ArgumentCaptor[A] = {
+  def capture[A: ClassTag]: ArgumentCaptor[A] =
     ArgumentCaptor.forClass(classTag[A].runtimeClass.asInstanceOf[Class[A]])
-  }
 }
 
 object MockSugar extends MockSugar

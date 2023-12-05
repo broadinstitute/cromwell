@@ -6,7 +6,7 @@ import cats.effect.{IO, Resource}
 import cats.implicits._
 import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDisposition}
 import cloud.nio.impl.drs.DrsResolverResponseSupport._
-import common.exception.{AggregatedMessageException, toIO}
+import common.exception.{toIO, AggregatedMessageException}
 import common.validation.ErrorOr.ErrorOr
 import io.circe._
 import io.circe.generic.semiauto._
@@ -40,22 +40,27 @@ abstract class DrsPathResolver(drsConfig: DrsConfig) {
 
   def getAccessToken: ErrorOr[String]
 
-  private def makeHttpRequestToDrsResolver(drsPath: String, fields: NonEmptyList[DrsResolverField.Value]): Resource[IO, HttpPost] = {
+  private def makeHttpRequestToDrsResolver(drsPath: String,
+                                           fields: NonEmptyList[DrsResolverField.Value]
+  ): Resource[IO, HttpPost] = {
     val io = getAccessToken match {
-      case Valid(token) => IO {
-        val postRequest = new HttpPost(drsConfig.drsResolverUrl)
-        val requestJson = DrsResolverRequest(drsPath, fields).asJson.noSpaces
-        postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
-        postRequest.setHeader("Authorization", s"Bearer $token")
-        postRequest
-      }
+      case Valid(token) =>
+        IO {
+          val postRequest = new HttpPost(drsConfig.drsResolverUrl)
+          val requestJson = DrsResolverRequest(drsPath, fields).asJson.noSpaces
+          postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
+          postRequest.setHeader("Authorization", s"Bearer $token")
+          postRequest
+        }
       case Invalid(errors) =>
         IO.raiseError(AggregatedMessageException("Error getting access token", errors.toList))
     }
     Resource.eval(io)
   }
 
-  private def httpResponseToDrsResolverResponse(drsPathForDebugging: String)(httpResponse: HttpResponse): IO[DrsResolverResponse] = {
+  private def httpResponseToDrsResolverResponse(
+    drsPathForDebugging: String
+  )(httpResponse: HttpResponse): IO[DrsResolverResponse] = {
     val responseStatusLine = httpResponse.getStatusLine
     val status = responseStatusLine.getStatusCode
 
@@ -73,45 +78,53 @@ abstract class DrsPathResolver(drsConfig: DrsConfig) {
         IO.raiseError(new RuntimeException(retryMessage) with RegularRetryDisposition)
       case _ =>
         val drsResolverResponseEntityOption = Option(httpResponse.getEntity).map(EntityUtils.toString)
-        val exceptionMsg = errorMessageFromResponse(drsPathForDebugging, drsResolverResponseEntityOption, responseStatusLine, drsConfig.drsResolverUrl)
-        val responseEntityOption = (responseStatusLine.getStatusCode == HttpStatus.SC_OK).valueOrZero(drsResolverResponseEntityOption)
+        val exceptionMsg = errorMessageFromResponse(drsPathForDebugging,
+                                                    drsResolverResponseEntityOption,
+                                                    responseStatusLine,
+                                                    drsConfig.drsResolverUrl
+        )
+        val responseEntityOption =
+          (responseStatusLine.getStatusCode == HttpStatus.SC_OK).valueOrZero(drsResolverResponseEntityOption)
         val responseContentIO = toIO(responseEntityOption, exceptionMsg)
 
-        responseContentIO.flatMap { responseContent =>
-          IO.fromEither(decode[DrsResolverResponse](responseContent))
-        }.handleErrorWith {
-          e => IO.raiseError(new RuntimeException(s"Unexpected response during DRS resolution: ${ExceptionUtils.getMessage(e)}"))
-        }
+        responseContentIO
+          .flatMap { responseContent =>
+            IO.fromEither(decode[DrsResolverResponse](responseContent))
+          }
+          .handleErrorWith { e =>
+            IO.raiseError(
+              new RuntimeException(s"Unexpected response during DRS resolution: ${ExceptionUtils.getMessage(e)}")
+            )
+          }
     }
   }
 
-  private def executeDrsResolverRequest(httpPost: HttpPost): Resource[IO, HttpResponse]= {
+  private def executeDrsResolverRequest(httpPost: HttpPost): Resource[IO, HttpResponse] =
     for {
       httpClient <- Resource.fromAutoCloseable(IO(httpClientBuilder.build()))
       httpResponse <- Resource.fromAutoCloseable(IO(httpClient.execute(httpPost)))
     } yield httpResponse
-  }
 
-  def rawDrsResolverResponse(drsPath: String, fields: NonEmptyList[DrsResolverField.Value]): Resource[IO, HttpResponse] = {
+  def rawDrsResolverResponse(drsPath: String,
+                             fields: NonEmptyList[DrsResolverField.Value]
+  ): Resource[IO, HttpResponse] =
     for {
       httpPost <- makeHttpRequestToDrsResolver(drsPath, fields)
       response <- executeDrsResolverRequest(httpPost)
     } yield response
-  }
 
   /** *
     * Resolves the DRS path through DRS Resolver url provided in the config.
     * Please note, this method returns an IO that would make a synchronous HTTP request to DRS Resolver when run.
     */
-  def resolveDrs(drsPath: String, fields: NonEmptyList[DrsResolverField.Value]): IO[DrsResolverResponse] = {
+  def resolveDrs(drsPath: String, fields: NonEmptyList[DrsResolverField.Value]): IO[DrsResolverResponse] =
     rawDrsResolverResponse(drsPath, fields).use(httpResponseToDrsResolverResponse(drsPathForDebugging = drsPath))
-  }
 
-  def openChannel(accessUrl: AccessUrl): IO[ReadableByteChannel] = {
+  def openChannel(accessUrl: AccessUrl): IO[ReadableByteChannel] =
     IO {
       val httpGet = new HttpGet(accessUrl.url)
-      accessUrl.headers.getOrElse(Map.empty).toList foreach {
-        case (name, value) => httpGet.addHeader(name, value)
+      accessUrl.headers.getOrElse(Map.empty).toList foreach { case (name, value) =>
+        httpGet.addHeader(name, value)
       }
       val client = httpClientBuilder.build()
       val response = client.execute(httpGet)
@@ -130,7 +143,7 @@ abstract class DrsPathResolver(drsConfig: DrsConfig) {
 
         override def isOpen: Boolean = inner.isOpen
 
-        //noinspection ScalaUnusedExpression
+        // noinspection ScalaUnusedExpression
         override def close(): Unit = {
           val innerTry = Try(inner.close())
           val responseTry = Try(response.close())
@@ -141,7 +154,6 @@ abstract class DrsPathResolver(drsConfig: DrsConfig) {
         }
       }
     }
-  }
 }
 
 object DrsPathResolver {
@@ -198,14 +210,15 @@ final case class DrsResolverResponse(size: Option[Long] = None,
                                      hashes: Option[Map[String, String]] = None,
                                      accessUrl: Option[AccessUrl] = None,
                                      localizationPath: Option[String] = None
-                               )
+)
 
 final case class DrsResolverFailureResponse(response: DrsResolverFailureResponsePayload)
 final case class DrsResolverFailureResponsePayload(text: String)
 
 object DrsResolverResponseSupport {
 
-  implicit lazy val drsResolverFieldEncoder: Encoder[DrsResolverField.Value] = Encoder.encodeEnumeration(DrsResolverField)
+  implicit lazy val drsResolverFieldEncoder: Encoder[DrsResolverField.Value] =
+    Encoder.encodeEnumeration(DrsResolverField)
   implicit lazy val drsResolverRequestEncoder: Encoder[DrsResolverRequest] = deriveEncoder
 
   implicit lazy val saDataObjectDecoder: Decoder[SADataObject] = deriveDecoder
@@ -219,12 +232,17 @@ object DrsResolverResponseSupport {
   private val GcsScheme = "gs://"
 
   def getGcsBucketAndName(gcsUrl: String): (String, String) = {
-     val array = gcsUrl.substring(GcsScheme.length).split("/", 2)
-      (array(0), array(1))
+    val array = gcsUrl.substring(GcsScheme.length).split("/", 2)
+    (array(0), array(1))
   }
 
-  def errorMessageFromResponse(drsPathForDebugging: String, drsResolverResponseEntityOption: Option[String], responseStatusLine: StatusLine, drsResolverUri: String): String = {
-    val baseMessage = s"Could not access object \'$drsPathForDebugging\'. Status: ${responseStatusLine.getStatusCode}, reason: \'${responseStatusLine.getReasonPhrase}\', DRS Resolver location: \'$drsResolverUri\', message: "
+  def errorMessageFromResponse(drsPathForDebugging: String,
+                               drsResolverResponseEntityOption: Option[String],
+                               responseStatusLine: StatusLine,
+                               drsResolverUri: String
+  ): String = {
+    val baseMessage =
+      s"Could not access object \'$drsPathForDebugging\'. Status: ${responseStatusLine.getStatusCode}, reason: \'${responseStatusLine.getReasonPhrase}\', DRS Resolver location: \'$drsResolverUri\', message: "
 
     drsResolverResponseEntityOption match {
       case Some(entity) =>

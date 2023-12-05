@@ -12,7 +12,9 @@ object FtpCloudNioFileSystem {
   val logger = LoggerFactory.getLogger("FtpFileSystem")
 }
 
-class FtpCloudNioFileSystem(provider: FtpCloudNioFileSystemProvider, host: String) extends CloudNioFileSystem(provider, host) with StrictLogging {
+class FtpCloudNioFileSystem(provider: FtpCloudNioFileSystemProvider, host: String)
+    extends CloudNioFileSystem(provider, host)
+    with StrictLogging {
   private val credentials = provider.credentials
   private val ftpConfig = provider.ftpConfig
   private val connectionModeFunction: FTPClient => Unit = ftpConfig.connectionMode match {
@@ -20,7 +22,7 @@ class FtpCloudNioFileSystem(provider: FtpCloudNioFileSystemProvider, host: Strin
     case Active => client: FTPClient => client.enterLocalActiveMode()
   }
 
-  private [ftp] lazy val clientFactory = () => {
+  private[ftp] lazy val clientFactory = () => {
     val client = new FTPClient()
     client.setDefaultPort(ftpConfig.connectionPort)
     client.connect(host)
@@ -33,7 +35,10 @@ class FtpCloudNioFileSystem(provider: FtpCloudNioFileSystemProvider, host: Strin
   private val clientPool = new FtpClientPool(ftpConfig.capacity, ftpConfig.idleConnectionTimeout, clientFactory)
 
   def leaseClient = ftpConfig.leaseTimeout match {
-    case Some(timeout) => clientPool.tryAcquire(timeout).getOrElse(throw new TimeoutException("Timed out waiting for an available connection, try again later."))
+    case Some(timeout) =>
+      clientPool
+        .tryAcquire(timeout)
+        .getOrElse(throw new TimeoutException("Timed out waiting for an available connection, try again later."))
     case _ => clientPool.acquire()
   }
 

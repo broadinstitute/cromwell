@@ -18,23 +18,30 @@ object DockerConfiguration {
 
   lazy val instance: DockerConfiguration = {
     if (dockerHashLookupConfig.hasPath("gcr-api-queries-per-100-seconds")) {
-      logger.warn("'docker.hash-lookup.gcr-api-queries-per-100-seconds' is no longer supported, use 'docker.hash-lookup.google.throttle' instead (see reference.conf)")
+      logger.warn(
+        "'docker.hash-lookup.gcr-api-queries-per-100-seconds' is no longer supported, use 'docker.hash-lookup.google.throttle' instead (see reference.conf)"
+      )
     }
-    val enabled = validate { dockerHashLookupConfig.as[Boolean]("enabled") }
-    val cacheEntryTtl = validate { dockerHashLookupConfig.as[FiniteDuration]("cache-entry-ttl") }
-    val cacheSize = validate { dockerHashLookupConfig.as[Long]("cache-size") }
-    val method: ErrorOr[DockerHashLookupMethod] = validate { dockerHashLookupConfig.as[String]("method") } map {
+    val enabled = validate(dockerHashLookupConfig.as[Boolean]("enabled"))
+    val cacheEntryTtl = validate(dockerHashLookupConfig.as[FiniteDuration]("cache-entry-ttl"))
+    val cacheSize = validate(dockerHashLookupConfig.as[Long]("cache-size"))
+    val method: ErrorOr[DockerHashLookupMethod] = validate(dockerHashLookupConfig.as[String]("method")) map {
       case "local" => DockerLocalLookup
       case "remote" => DockerRemoteLookup
       case other => throw new IllegalArgumentException(s"Unrecognized docker hash lookup method: $other")
     }
-    val sizeCompressionFactor = validate { dockerHashLookupConfig.as[Double]("size-compression-factor") }
-    val maxTimeBetweenRetries = validate { dockerHashLookupConfig.as[FiniteDuration]("max-time-between-retries") }
-    val maxRetries = validate { dockerHashLookupConfig.as[Int]("max-retries") }
+    val sizeCompressionFactor = validate(dockerHashLookupConfig.as[Double]("size-compression-factor"))
+    val maxTimeBetweenRetries = validate(dockerHashLookupConfig.as[FiniteDuration]("max-time-between-retries"))
+    val maxRetries = validate(dockerHashLookupConfig.as[Int]("max-retries"))
 
     val dockerConfiguration = (enabled,
-      cacheEntryTtl, cacheSize, method,
-      sizeCompressionFactor, maxTimeBetweenRetries, maxRetries) mapN DockerConfiguration.apply
+                               cacheEntryTtl,
+                               cacheSize,
+                               method,
+                               sizeCompressionFactor,
+                               maxTimeBetweenRetries,
+                               maxRetries
+    ) mapN DockerConfiguration.apply
 
     dockerConfiguration match {
       case Valid(conf) => conf
@@ -44,14 +51,14 @@ object DockerConfiguration {
 }
 
 case class DockerConfiguration(
-                                enabled: Boolean,
-                                cacheEntryTtl: FiniteDuration,
-                                cacheSize: Long,
-                                method: DockerHashLookupMethod,
-                                sizeCompressionFactor: Double,
-                                maxTimeBetweenRetries: FiniteDuration,
-                                maxRetries: Int
-                              )
+  enabled: Boolean,
+  cacheEntryTtl: FiniteDuration,
+  cacheSize: Long,
+  method: DockerHashLookupMethod,
+  sizeCompressionFactor: Double,
+  maxTimeBetweenRetries: FiniteDuration,
+  maxRetries: Int
+)
 
 sealed trait DockerHashLookupMethod
 

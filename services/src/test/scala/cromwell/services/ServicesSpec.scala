@@ -70,8 +70,7 @@ object ServicesSpec {
   val config: Config = ConfigFactory.parseString(ServicesSpec.configString)
 }
 
-abstract class ServicesSpec extends TestKitSuite
-  with Matchers with AnyWordSpecLike with ScalaFutures {
+abstract class ServicesSpec extends TestKitSuite with Matchers with AnyWordSpecLike with ScalaFutures {
 
   override protected lazy val actorSystemConfig: Config = ServicesSpec.config
   implicit val timeout: Timeout = Timeout(60.seconds.dilated)

@@ -24,11 +24,15 @@ case class DefaultStandardExpressionFunctionsParams(override val pathBuilders: P
                                                     override val callContext: CallContext,
                                                     override val ioActorProxy: ActorRef,
                                                     override val executionContext: ExecutionContext
-                                                   ) extends StandardExpressionFunctionsParams
+) extends StandardExpressionFunctionsParams
 
 // TODO: Once we figure out premapping and postmapping, maybe we can standardize that behavior. Currently that's the most important feature that subclasses override.
 class StandardExpressionFunctions(val standardParams: StandardExpressionFunctionsParams)
-  extends GlobFunctions with DirectoryFunctions with ReadLikeFunctions with WriteFunctions with CallCorePathFunctions {
+    extends GlobFunctions
+    with DirectoryFunctions
+    with ReadLikeFunctions
+    with WriteFunctions
+    with CallCorePathFunctions {
 
   override lazy val ec = standardParams.executionContext
 
@@ -41,6 +45,6 @@ class StandardExpressionFunctions(val standardParams: StandardExpressionFunction
   val callContext: CallContext = standardParams.callContext
 
   val writeDirectory: Path = callContext.root
-  
+
   val isDocker: Boolean = callContext.isDocker
 }

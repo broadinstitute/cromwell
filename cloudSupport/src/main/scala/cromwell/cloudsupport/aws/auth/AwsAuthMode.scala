@@ -52,9 +52,8 @@ sealed trait AwsAuthMode {
   /**
     * Validate the auth mode against provided options
     */
-  def validate(options: OptionLookup): Unit = {
+  def validate(options: OptionLookup): Unit =
     ()
-  }
 
   /**
    * The name of the auth mode
@@ -72,27 +71,30 @@ sealed trait AwsAuthMode {
     * All traits in this file are sealed, all classes final, meaning things
     * like Mockito or other java/scala overrides cannot work.
     */
-   private[auth] var credentialValidation: (AwsCredentialsProvider, Option[String]) => Unit =
-     (provider: AwsCredentialsProvider, region: Option[String]) => {
-       val builder = StsClient.builder
+  private[auth] var credentialValidation: (AwsCredentialsProvider, Option[String]) => Unit =
+    (provider: AwsCredentialsProvider, region: Option[String]) => {
+      val builder = StsClient.builder
 
-       //If the region argument exists in config, set it in the builder.
-       //Otherwise it is left unset and the AwsCredentialsProvider will be responsible for sourcing a region
-       region.map(Region.of).foreach(builder.region)
+      // If the region argument exists in config, set it in the builder.
+      // Otherwise it is left unset and the AwsCredentialsProvider will be responsible for sourcing a region
+      region.map(Region.of).foreach(builder.region)
 
-       // make an essentially no-op call just to assure ourselves the credentials from our provider are valid
-       builder.credentialsProvider(provider)
-         .build
-         .getCallerIdentity(GetCallerIdentityRequest.builder.build)
-       ()
-     }
+      // make an essentially no-op call just to assure ourselves the credentials from our provider are valid
+      builder
+        .credentialsProvider(provider)
+        .build
+        .getCallerIdentity(GetCallerIdentityRequest.builder.build)
+      ()
+    }
 
-  protected def validateCredential(provider: AwsCredentialsProvider, region: Option[String]) = {
+  protected def validateCredential(provider: AwsCredentialsProvider, region: Option[String]) =
     Try(credentialValidation(provider, region)) match {
-      case Failure(ex) => throw new RuntimeException(s"Credentials produced by the AWS provider ${name} are invalid: ${ex.getMessage}", ex)
+      case Failure(ex) =>
+        throw new RuntimeException(s"Credentials produced by the AWS provider ${name} are invalid: ${ex.getMessage}",
+                                   ex
+        )
       case Success(_) => provider
     }
-  }
 }
 
 /**
@@ -114,11 +116,8 @@ object CustomKeyMode
  * @param secretKey static AWS secret key
  * @param region an optional AWS region
  */
-final case class CustomKeyMode(override val name: String,
-                                    accessKey: String,
-                                    secretKey: String,
-                                    region: Option[String]
-                                    ) extends AwsAuthMode {
+final case class CustomKeyMode(override val name: String, accessKey: String, secretKey: String, region: Option[String])
+    extends AwsAuthMode {
   private lazy val _provider: AwsCredentialsProvider = {
     // make a provider locked to the given access and secret
     val p = StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey))
@@ -159,17 +158,17 @@ final case class DefaultMode(override val name: String, region: Option[String]) 
  * @param region an optional AWS region
  */
 final case class AssumeRoleMode(override val name: String,
-                          baseAuthName: String,
-                          roleArn: String,
-                          externalId: String,
-                          region: Option[String]
-                          ) extends AwsAuthMode {
+                                baseAuthName: String,
+                                roleArn: String,
+                                externalId: String,
+                                region: Option[String]
+) extends AwsAuthMode {
 
   private lazy val _provider: AwsCredentialsProvider = {
     // we need to perform operations on STS using the credentials provided from the baseAuthName
     val stsBuilder = StsClient.builder
     region.foreach(str => stsBuilder.region(Region.of(str)))
-    baseAuthObj match{
+    baseAuthObj match {
       case Some(auth) => stsBuilder.credentialsProvider(auth.provider())
       case _ => throw new RuntimeException(s"Base auth configuration required for assume role")
     }
@@ -179,7 +178,7 @@ final case class AssumeRoleMode(override val name: String,
       .roleArn(roleArn)
       .durationSeconds(3600)
       .roleSessionName("cromwell")
-    if (! externalId.isEmpty) assumeRoleBuilder.externalId(externalId)
+    if (!externalId.isEmpty) assumeRoleBuilder.externalId(externalId)
 
     // this provider is one that will handle refreshing the assume-role creds when needed
     val p = StsAssumeRoleCredentialsProvider.builder
@@ -195,23 +194,21 @@ final case class AssumeRoleMode(override val name: String,
   // start a background thread to perform the refresh
   override def provider(): AwsCredentialsProvider = _provider
 
-  private var baseAuthObj : Option[AwsAuthMode] = None
+  private var baseAuthObj: Option[AwsAuthMode] = None
 
-  def assign(baseAuth: AwsAuthMode) : Unit = {
+  def assign(baseAuth: AwsAuthMode): Unit =
     baseAuthObj match {
       case None => baseAuthObj = Some(baseAuth)
       case _ => throw new RuntimeException(s"Base auth object has already been assigned")
     }
-  }
 
   // We want to allow our tests access to the value
   // of the baseAuthObj
-  def baseAuthentication() : AwsAuthMode = {
+  def baseAuthentication(): AwsAuthMode =
     baseAuthObj match {
       case Some(o) => o
       case _ => throw new RuntimeException(s"Base auth object has not been set")
     }
-  }
 }
 
 class OptionLookupException(val key: String, cause: Throwable) extends RuntimeException(key, cause)

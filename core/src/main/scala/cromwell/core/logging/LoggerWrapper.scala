@@ -23,9 +23,8 @@ abstract class LoggerWrapper extends MarkerIgnoringBase {
     *
     * https://github.com/qos-ch/slf4j/blob/v_1.7.30/slf4j-simple/src/main/java/org/slf4j/impl/SimpleLogger.java#L293-L295
     */
-  private def format(msg: String, throwable: Throwable): String = {
+  private def format(msg: String, throwable: Throwable): String =
     format(msg) + "\n" + ExceptionUtils.getStackTrace(throwable)
-  }
 
   /**
     * Passes a formatted string to akka similar to slf4j's SimpleLogger
@@ -113,7 +112,7 @@ abstract class LoggerWrapper extends MarkerIgnoringBase {
     lazy val formatted: String = format(pattern)
 
     varargsAkkaLog(Logging.ErrorLevel, pattern, arguments)
-    slf4jLoggers.foreach(_.error(formatted, arguments:_*))
+    slf4jLoggers.foreach(_.error(formatted, arguments: _*))
   }
 
   override def error(pattern: String, arg: Any): Unit = {
@@ -130,10 +129,9 @@ abstract class LoggerWrapper extends MarkerIgnoringBase {
     slf4jLoggers.foreach(_.error(formatted, arg1, arg2: Any))
   }
 
-  def error(t: Throwable, pattern: String, arguments: Any*): Unit = {
+  def error(t: Throwable, pattern: String, arguments: Any*): Unit =
     // slf4j extracts the last variable argument as a throwable.
     error(pattern, (arguments :+ t).map(_.asInstanceOf[AnyRef]): _*)
-  }
 
   override def debug(msg: String): Unit = {
     lazy val formatted: String = format(msg)
@@ -153,7 +151,7 @@ abstract class LoggerWrapper extends MarkerIgnoringBase {
     lazy val formatted: String = format(pattern)
 
     varargsAkkaLog(Logging.DebugLevel, pattern, arguments)
-    slf4jLoggers.foreach(_.debug(formatted, arguments:_*))
+    slf4jLoggers.foreach(_.debug(formatted, arguments: _*))
   }
 
   override def debug(pattern: String, argument: Any): Unit = {
@@ -170,25 +168,20 @@ abstract class LoggerWrapper extends MarkerIgnoringBase {
     slf4jLoggers.foreach(_.debug(formatted, arg1, arg2: Any))
   }
 
-  override def trace(msg: String): Unit = {
+  override def trace(msg: String): Unit =
     slf4jLoggers.foreach(_.trace(format(msg)))
-  }
 
-  override def trace(msg: String, t: Throwable): Unit = {
+  override def trace(msg: String, t: Throwable): Unit =
     slf4jLoggers.foreach(_.trace(format(msg), t))
-  }
 
-  override def trace(pattern: String, arguments: AnyRef*): Unit = {
-    slf4jLoggers.foreach(_.trace(format(pattern), arguments:_*))
-  }
+  override def trace(pattern: String, arguments: AnyRef*): Unit =
+    slf4jLoggers.foreach(_.trace(format(pattern), arguments: _*))
 
-  override def trace(pattern: String, arg: Any): Unit = {
+  override def trace(pattern: String, arg: Any): Unit =
     slf4jLoggers.foreach(_.trace(format(pattern), arg))
-  }
 
-  override def trace(pattern: String, arg1: Any, arg2: Any): Unit = {
+  override def trace(pattern: String, arg1: Any, arg2: Any): Unit =
     slf4jLoggers.foreach(_.trace(format(pattern), arg1, arg2: Any))
-  }
 
   override def info(msg: String): Unit = {
     lazy val formatted: String = format(msg)
@@ -208,7 +201,7 @@ abstract class LoggerWrapper extends MarkerIgnoringBase {
     lazy val formatted: String = format(pattern)
 
     varargsAkkaLog(Logging.InfoLevel, pattern, arguments)
-    slf4jLoggers.foreach(_.info(formatted, arguments:_*))
+    slf4jLoggers.foreach(_.info(formatted, arguments: _*))
   }
 
   override def info(pattern: String, arg: Any): Unit = {
@@ -225,14 +218,24 @@ abstract class LoggerWrapper extends MarkerIgnoringBase {
     slf4jLoggers.foreach(_.info(formatted, arg1, arg2: Any))
   }
 
-  override def isErrorEnabled: Boolean = throw new UnsupportedOperationException("This logger wraps an arbitrary set of loggers that can each have a different level enabled.")
+  override def isErrorEnabled: Boolean = throw new UnsupportedOperationException(
+    "This logger wraps an arbitrary set of loggers that can each have a different level enabled."
+  )
 
-  override def isInfoEnabled: Boolean = throw new UnsupportedOperationException("This logger wraps an arbitrary set of loggers that can each have a different level enabled.")
+  override def isInfoEnabled: Boolean = throw new UnsupportedOperationException(
+    "This logger wraps an arbitrary set of loggers that can each have a different level enabled."
+  )
 
-  override def isDebugEnabled: Boolean = throw new UnsupportedOperationException("This logger wraps an arbitrary set of loggers that can each have a different level enabled.")
+  override def isDebugEnabled: Boolean = throw new UnsupportedOperationException(
+    "This logger wraps an arbitrary set of loggers that can each have a different level enabled."
+  )
 
-  override def isTraceEnabled: Boolean = throw new UnsupportedOperationException("This logger wraps an arbitrary set of loggers that can each have a different level enabled.")
+  override def isTraceEnabled: Boolean = throw new UnsupportedOperationException(
+    "This logger wraps an arbitrary set of loggers that can each have a different level enabled."
+  )
 
-  override def isWarnEnabled: Boolean = throw new UnsupportedOperationException("This logger wraps an arbitrary set of loggers that can each have a different level enabled.")
+  override def isWarnEnabled: Boolean = throw new UnsupportedOperationException(
+    "This logger wraps an arbitrary set of loggers that can each have a different level enabled."
+  )
 
 }

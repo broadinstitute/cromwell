@@ -39,7 +39,9 @@ object AkkaTestUtil {
   class DeathTestActor extends Actor {
     protected def stoppingReceive: Actor.Receive = {
       case InternalStop => context.stop(self)
-      case ThrowException => throw new Exception("Don't panic, dear debugger! This was a deliberate exception for the test case.") with NoStackTrace
+      case ThrowException =>
+        throw new Exception("Don't panic, dear debugger! This was a deliberate exception for the test case.")
+          with NoStackTrace
     }
     override def receive = stoppingReceive orElse Actor.ignoringBehavior
   }
@@ -55,6 +57,6 @@ object AkkaTestUtil {
 
     def loggedReceive: Receive
 
-    override final def receive: Receive = logMessage orElse loggedReceive
+    final override def receive: Receive = logMessage orElse loggedReceive
   }
 }

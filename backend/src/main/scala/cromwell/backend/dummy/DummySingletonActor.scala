@@ -22,7 +22,7 @@ final class DummySingletonActor() extends Actor with StrictLogging {
     case PlusOne => count = count + 1
     case MinusOne => count = count - 1
     case PrintCount =>
-      if(countHistory.lastOption.exists(_._2 != count)) {
+      if (countHistory.lastOption.exists(_._2 != count)) {
         countHistory = countHistory :+ (OffsetDateTime.now() -> count)
         logger.info("The current count is now: " + count)
         if (count == 0) {
@@ -52,7 +52,7 @@ final class DummySingletonActor() extends Actor with StrictLogging {
     bw.close()
   }
 
-  context.system.scheduler.schedule(10.seconds, 1.second) { self ! PrintCount }
+  context.system.scheduler.schedule(10.seconds, 1.second)(self ! PrintCount)
 }
 
 object DummySingletonActor {
@@ -60,4 +60,3 @@ object DummySingletonActor {
   case object MinusOne
   case object PrintCount
 }
-

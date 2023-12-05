@@ -48,16 +48,16 @@ trait StandardCachingActorHelper extends JobCachingActorHelper {
 
   lazy val call: CommandCallNode = jobDescriptor.key.call
 
-  lazy val standardInitializationData: StandardInitializationData = BackendInitializationData.
-    as[StandardInitializationData](backendInitializationDataOption)
+  lazy val standardInitializationData: StandardInitializationData =
+    BackendInitializationData.as[StandardInitializationData](backendInitializationDataOption)
 
   lazy val validatedRuntimeAttributes: ValidatedRuntimeAttributes = {
     val builder = standardInitializationData.runtimeAttributesBuilder
     builder.build(jobDescriptor.runtimeAttributes, jobLogger)
   }
 
-  lazy val isDockerRun: Boolean = RuntimeAttributesValidation.extractOption(
-    DockerValidation.instance, validatedRuntimeAttributes).isDefined
+  lazy val isDockerRun: Boolean =
+    RuntimeAttributesValidation.extractOption(DockerValidation.instance, validatedRuntimeAttributes).isDefined
 
   /**
     * Returns the paths to the job.

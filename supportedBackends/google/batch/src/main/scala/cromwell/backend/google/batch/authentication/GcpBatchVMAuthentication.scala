@@ -28,7 +28,9 @@ object GcpBatchDockerCredentials {
       case None => ().validNel // fine
       case _ =>
         for {
-          authName <- dockerCredentials.authName.toErrorOr("KMS Encryption key defined for private Docker but no auth specified")
+          authName <- dockerCredentials.authName.toErrorOr(
+            "KMS Encryption key defined for private Docker but no auth specified"
+          )
           _ <- googleConfig.auth(authName)
         } yield ()
     }
@@ -37,10 +39,10 @@ object GcpBatchDockerCredentials {
       case Invalid(errors) =>
         throw new RuntimeException(errors.toList.mkString(", "))
       case Valid(_) =>
-        new GcpBatchDockerCredentials(
-          token = dockerCredentials.token,
-          keyName = dockerCredentials.keyName,
-          authName = dockerCredentials.authName)
+        new GcpBatchDockerCredentials(token = dockerCredentials.token,
+                                      keyName = dockerCredentials.keyName,
+                                      authName = dockerCredentials.authName
+        )
     }
   }
 }
@@ -50,8 +52,9 @@ object GcpBatchDockerCredentials {
   */
 case class GcpBatchDockerCredentials(override val token: String,
                                      override val keyName: Option[String],
-                                     override val authName: Option[String])
-  extends DockerCredentials(token = token, keyName = keyName, authName = authName) with GcpBatchAuthObject {
+                                     override val authName: Option[String]
+) extends DockerCredentials(token = token, keyName = keyName, authName = authName)
+    with GcpBatchAuthObject {
 
   override val context = "docker"
   override val map = Map(

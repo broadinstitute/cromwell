@@ -6,5 +6,10 @@ import io.circe.generic.JsonCodec
 import wom.expression.WomExpression
 import wom.types.WomType
 
-@JsonCodec(encodeOnly=true)
-case class InputDescription(name: String, valueType: WomType, typeDisplayName: String, optional: Boolean, default: Option[WomExpression])
+@JsonCodec(encodeOnly = true)
+case class InputDescription(name: String,
+                            valueType: WomType,
+                            typeDisplayName: String,
+                            optional: Boolean,
+                            default: Option[WomExpression]
+)

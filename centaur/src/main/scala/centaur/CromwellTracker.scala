@@ -14,7 +14,6 @@ import org.apache.commons.math3.stat.inference.ChiSquareTest
 
 import scala.language.postfixOps
 
-
 case class CromwellTracker(backendCount: Int, configuredSignificance: Double) extends StrictLogging {
   var counts: Map[String, Int] = Map()
   def track(metadata: WorkflowMetadata): Unit = {
@@ -45,10 +44,15 @@ case class CromwellTracker(backendCount: Int, configuredSignificance: Double) ex
     val actual: Array[Long] = counts.values map { _.toLong } toArray
 
     val observedSignificance = new ChiSquareTest().chiSquareTest(expected, actual)
-    logger.info(f"configured/observed horicromtal significance levels: $configuredSignificance%.4f/$observedSignificance%.4f", configuredSignificance, observedSignificance)
+    logger.info(
+      f"configured/observed horicromtal significance levels: $configuredSignificance%.4f/$observedSignificance%.4f",
+      configuredSignificance,
+      observedSignificance
+    )
 
     if (observedSignificance < configuredSignificance) {
-      val message = f"Failed horicromtal check: observed significance level $observedSignificance%.4f, minimum of $configuredSignificance%.4f was required"
+      val message =
+        f"Failed horicromtal check: observed significance level $observedSignificance%.4f, minimum of $configuredSignificance%.4f was required"
       throw new RuntimeException(message)
     }
   }

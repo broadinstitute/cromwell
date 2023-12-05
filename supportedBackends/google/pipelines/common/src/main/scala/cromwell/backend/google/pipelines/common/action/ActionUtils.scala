@@ -5,6 +5,7 @@ import org.apache.commons.text.StringEscapeUtils
 import net.ceedubs.ficus.Ficus._
 
 object ActionUtils {
+
   /** Image to use for ssh access. */
   val sshImage = "gcr.io/cloud-genomics-pipelines/tools"
 
@@ -72,7 +73,8 @@ object ActionUtils {
     */
   private val backgroundActionTerminationGraceTime = 10
 
-  val terminateAllBackgroundActionsCommand: String = s"kill -TERM -1 && sleep $backgroundActionTerminationGraceTime || true"
+  val terminateAllBackgroundActionsCommand: String =
+    s"kill -TERM -1 && sleep $backgroundActionTerminationGraceTime || true"
 
   def timestampedMessage(message: String): String =
     s"""printf '%s %s\\n' "$$(date -u '+%Y/%m/%d %H:%M:%S')" ${shellEscaped(message)}"""
@@ -88,12 +90,12 @@ object ActionUtils {
                           checkpointingStart: List[Action],
                           checkpointingShutdown: List[Action],
                           sshAccess: List[Action],
-                          isBackground: Action => Boolean,
-                         ): List[Action] = {
+                          isBackground: Action => Boolean
+  ): List[Action] = {
     val toBeSortedActions = localization ++ userAction ++ memoryRetryAction ++ deLocalization
-    val sortedActions = toBeSortedActions.sortWith({
-      case (action, _) => isBackground(action)
-    })
+    val sortedActions = toBeSortedActions.sortWith { case (action, _) =>
+      isBackground(action)
+    }
 
     sshAccess ++ containerSetup ++ monitoringSetup ++ checkpointingStart ++ sortedActions ++ checkpointingShutdown ++ monitoringShutdown
   }

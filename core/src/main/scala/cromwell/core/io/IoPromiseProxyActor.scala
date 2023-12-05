@@ -25,17 +25,15 @@ object IoPromiseProxyActor {
 class IoPromiseProxyActor(override val ioActor: ActorRef) extends Actor with ActorLogging with IoClientHelper {
   override def receive = ioReceive orElse actorReceive
 
-  def actorReceive: Receive = {
-    case withPromise: IoCommandWithPromise[_] =>
-      sendIoCommandWithContext(withPromise.ioCommand, withPromise.promise, withPromise.timeout)
+  def actorReceive: Receive = { case withPromise: IoCommandWithPromise[_] =>
+    sendIoCommandWithContext(withPromise.ioCommand, withPromise.promise, withPromise.timeout)
   }
 
-  override protected def ioResponseReceive: Receive = {
-    case (promise: Promise[_], ack: IoAck[Any] @unchecked) =>
-      cancelTimeout(promise -> ack.command)
-      // This is not typesafe and assumes the Promise context is of the same type as the IoAck response.
-      promise.asInstanceOf[Promise[Any]].complete(ack.toTry)
-      ()
+  override protected def ioResponseReceive: Receive = { case (promise: Promise[_], ack: IoAck[Any] @unchecked) =>
+    cancelTimeout(promise -> ack.command)
+    // This is not typesafe and assumes the Promise context is of the same type as the IoAck response.
+    promise.asInstanceOf[Promise[Any]].complete(ack.toTry)
+    ()
   }
 
   override def onTimeout(message: Any, to: ActorRef): Unit = message match {

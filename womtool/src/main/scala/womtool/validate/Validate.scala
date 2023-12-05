@@ -11,7 +11,8 @@ object Validate {
 
     def workflowDependenciesMsg(workflowResolvedImports: Set[ResolvedImportRecord]) = {
       val msgPrefix = "\nList of Workflow dependencies is:\n"
-      val dependenciesList = if (workflowResolvedImports.nonEmpty) workflowResolvedImports.map(_.importPath).mkString("\n") else "None"
+      val dependenciesList =
+        if (workflowResolvedImports.nonEmpty) workflowResolvedImports.map(_.importPath).mkString("\n") else "None"
 
       msgPrefix + dependenciesList
     }

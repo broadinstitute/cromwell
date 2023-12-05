@@ -12,11 +12,13 @@ import cromwell.services.EnhancedThrottlerActor
 import scala.util.{Failure, Success}
 
 object JobStoreReaderActor {
-  def props(database: JobStore, registryActor: ActorRef) = Props(new JobStoreReaderActor(database, registryActor, LoadConfig.JobStoreReadThreshold)).withDispatcher(EngineDispatcher)
+  def props(database: JobStore, registryActor: ActorRef) = Props(
+    new JobStoreReaderActor(database, registryActor, LoadConfig.JobStoreReadThreshold)
+  ).withDispatcher(EngineDispatcher)
 }
 
 class JobStoreReaderActor(database: JobStore, override val serviceRegistryActor: ActorRef, override val threshold: Int)
-  extends EnhancedThrottlerActor[CommandAndReplyTo[QueryJobCompletion]]
+    extends EnhancedThrottlerActor[CommandAndReplyTo[QueryJobCompletion]]
     with ActorLogging {
 
   override def processHead(head: CommandAndReplyTo[QueryJobCompletion]) = instrumentedProcess {
@@ -35,7 +37,7 @@ class JobStoreReaderActor(database: JobStore, override val serviceRegistryActor:
   override def receive = enhancedReceive.orElse(super.receive)
   override protected def instrumentationPath = NonEmptyList.of("store", "read")
   override protected def instrumentationPrefix = InstrumentationPrefixes.JobPrefix
-  override def commandToData(snd: ActorRef) = {
-    case query: QueryJobCompletion => CommandAndReplyTo(query, sender())
+  override def commandToData(snd: ActorRef) = { case query: QueryJobCompletion =>
+    CommandAndReplyTo(query, sender())
   }
 }

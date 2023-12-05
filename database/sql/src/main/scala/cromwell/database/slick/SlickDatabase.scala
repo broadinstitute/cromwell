@@ -11,11 +11,12 @@ import slick.basic.DatabaseConfig
 import slick.jdbc.{JdbcCapabilities, JdbcProfile, PostgresProfile, TransactionIsolation}
 
 import java.sql.{Connection, PreparedStatement, Statement}
-import java.util.concurrent.{ExecutorService, Executors}
+import java.util.concurrent.{Executors, ExecutorService}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 
 object SlickDatabase {
+
   /**
     * Returns either the "url" or "properties.url"
     */
@@ -23,7 +24,7 @@ object SlickDatabase {
 
   lazy val log: Logger = LoggerFactory.getLogger("cromwell.database.slick")
 
-  def createSchema(slickDatabase: SlickDatabase): Unit = {
+  def createSchema(slickDatabase: SlickDatabase): Unit =
     // NOTE: Slick 3.0.0 schema creation, Clobs, and MySQL don't mix:  https://github.com/slick/slick/issues/637
     //
     // Not really an issue, since externally run liquibase is standard way of installing / upgrading MySQL.
@@ -43,7 +44,6 @@ object SlickDatabase {
       import slickDatabase.dataAccess.driver.api._
       Await.result(slickDatabase.database.run(slickDatabase.dataAccess.schema.create), Duration.Inf)
     }
-  }
 
   def getDatabaseConfig(name: String, parentConfig: Config): Config = {
     val rootDatabaseConfig = parentConfig.getConfig("database")
@@ -130,7 +130,8 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
   }
 
   private val actionExecutionContext: ExecutionContext = ExecutionContext.fromExecutor(
-    actionThreadPool, database.executor.executionContext.reportFailure
+    actionThreadPool,
+    database.executor.executionContext.reportFailure
   )
 
   protected[this] lazy val insertBatchSize: Int = databaseConfig.getOrElse("insert-batch-size", 2000)
@@ -138,23 +139,21 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
   protected[this] lazy val useSlickUpserts: Boolean =
     dataAccess.driver.capabilities.contains(JdbcCapabilities.insertOrUpdate)
 
-  //noinspection SameParameterValue
-  protected[this] def assertUpdateCount(description: String, updates: Int, expected: Int): DBIO[Unit] = {
+  // noinspection SameParameterValue
+  protected[this] def assertUpdateCount(description: String, updates: Int, expected: Int): DBIO[Unit] =
     if (updates == expected) {
       DBIO.successful(())
     } else {
       DBIO.failed(new RuntimeException(s"$description expected update count $expected, got $updates"))
     }
-  }
 
-  override def withConnection[A](block: Connection => A): A = {
+  override def withConnection[A](block: Connection => A): A =
     /*
      TODO: Should this withConnection() method have a (implicit?) timeout parameter, that it passes on to Await.result?
      If we run completely asynchronously, nest calls to withConnection, and then call flatMap, the outer connection may
      already be closed before an inner block finishes running.
      */
     Await.result(database.run(SimpleDBIO(context => block(context.connection))), Duration.Inf)
-  }
 
   override def close(): Unit = {
     actionThreadPool.shutdown()
@@ -166,40 +165,41 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
 
   protected[this] def runTransaction[R](action: DBIO[R],
                                         isolationLevel: TransactionIsolation = TransactionIsolation.RepeatableRead,
-                                        timeout: Duration = Duration.Inf): Future[R] = {
+                                        timeout: Duration = Duration.Inf
+  ): Future[R] =
     runActionInternal(action.transactionally.withTransactionIsolation(isolationLevel), timeout = timeout)
-  }
 
   /* Note that this is only appropriate for actions that do not involve Blob
    * or Clob fields in Postgres, since large object support requires running
    * transactionally.  Use runLobAction instead, which will still run in
    * auto-commit mode when using other database engines.
    */
-  protected[this] def runAction[R](action: DBIO[R]): Future[R] = {
+  protected[this] def runAction[R](action: DBIO[R]): Future[R] =
     runActionInternal(action.withPinnedSession)
-  }
 
   /* Wrapper for queries where Clob/Blob types are used
    * https://stackoverflow.com/questions/3164072/large-objects-may-not-be-used-in-auto-commit-mode#answer-3164352
    */
-  protected[this] def runLobAction[R](action: DBIO[R]): Future[R] = {
+  protected[this] def runLobAction[R](action: DBIO[R]): Future[R] =
     dataAccess.driver match {
       case PostgresProfile => runTransaction(action)
       case _ => runAction(action)
     }
-  }
 
-  private def runActionInternal[R](action: DBIO[R], timeout: Duration = Duration.Inf): Future[R] = {
-    //database.run(action) <-- See comment above private val actionThreadPool
+  private def runActionInternal[R](action: DBIO[R], timeout: Duration = Duration.Inf): Future[R] =
+    // database.run(action) <-- See comment above private val actionThreadPool
     Future {
-      try {
+      try
         if (timeout.isFinite) {
           // https://stackoverflow.com/a/52569275/818054
-          Await.result(database.run(action.withStatementParameters(statementInit = _.setQueryTimeout(timeout.toSeconds.toInt))), Duration.Inf)
+          Await.result(
+            database.run(action.withStatementParameters(statementInit = _.setQueryTimeout(timeout.toSeconds.toInt))),
+            Duration.Inf
+          )
         } else {
           Await.result(database.run(action), Duration.Inf)
         }
-      } catch {
+      catch {
         case rollbackException: MySQLTransactionRollbackException =>
           debugExitStatusCodeOption match {
             case Some(status) =>
@@ -229,17 +229,16 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
           }
       }
     }(actionExecutionContext)
-  }
 
   /*
-    * Upsert the provided values in batch.
-    * Fails the query if one or more upsert failed.
-    * Adapted from https://github.com/slick/slick/issues/1781
+   * Upsert the provided values in batch.
+   * Fails the query if one or more upsert failed.
+   * Adapted from https://github.com/slick/slick/issues/1781
    */
   protected[this] def createBatchUpsert[T](description: String,
                                            compiled: dataAccess.driver.JdbcCompiledInsert,
                                            values: Iterable[T]
-                                          )(implicit ec: ExecutionContext): DBIO[Unit] = {
+  )(implicit ec: ExecutionContext): DBIO[Unit] =
     SimpleDBIO { context =>
       context.session.withPreparedStatement[Array[Int]](compiled.upsert.sql) { st: PreparedStatement =>
         values.foreach { update =>
@@ -255,10 +254,11 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
       else {
         val valueList = values.toList
         val failedRequests = failures.toList.map(valueList(_))
-        DBIO.failed(new RuntimeException(
-          s"$description failed to upsert the following rows: ${failedRequests.mkString(", ")}"
-        ))
+        DBIO.failed(
+          new RuntimeException(
+            s"$description failed to upsert the following rows: ${failedRequests.mkString(", ")}"
+          )
+        )
       }
     }
-  }
 }

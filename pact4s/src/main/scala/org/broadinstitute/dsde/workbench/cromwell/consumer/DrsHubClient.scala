@@ -57,19 +57,19 @@ class DrsHubClientImpl[F[_]: Concurrent](client: Client[F], baseUrl: Uri) extend
     "localizationPath",
     "bondProvider"
   )(ResourceMetadata.apply)
-  implicit val resourceMetadataRequestEncoder: Encoder[ResourceMetadataRequest] = Encoder.forProduct2("url", "fields")(x =>
-    (x.url, x.fields)
-  )
-  implicit val resourceMetadataRequestEntityEncoder: EntityEncoder[F, ResourceMetadataRequest] = circeEntityEncoder[F, ResourceMetadataRequest]
+  implicit val resourceMetadataRequestEncoder: Encoder[ResourceMetadataRequest] =
+    Encoder.forProduct2("url", "fields")(x => (x.url, x.fields))
+  implicit val resourceMetadataRequestEntityEncoder: EntityEncoder[F, ResourceMetadataRequest] =
+    circeEntityEncoder[F, ResourceMetadataRequest]
   override def fetchSystemStatus(): F[Boolean] = {
     val request = Request[F](uri = baseUrl / "status").withHeaders(
       org.http4s.headers.Accept(MediaType.application.json)
     )
     client.run(request).use { resp =>
       resp.status match {
-        case Status.Ok                  => true.pure[F]
+        case Status.Ok => true.pure[F]
         case Status.InternalServerError => false.pure[F]
-        case _                          => UnknownError.raiseError
+        case _ => UnknownError.raiseError
       }
     }
   }
@@ -77,17 +77,17 @@ class DrsHubClientImpl[F[_]: Concurrent](client: Client[F], baseUrl: Uri) extend
   override def resolveDrsObject(drsPath: String, fields: List[String]): F[ResourceMetadata] = {
     val body = ResourceMetadataRequest(url = drsPath, fields = fields)
     val entityBody: EntityBody[F] = EntityEncoder[F, ResourceMetadataRequest].toEntity(body).body
-    val request = Request[F](uri = baseUrl / "api" / apiVersion / "drs" / "resolve", method=Method.POST, body=entityBody).withHeaders(
-      org.http4s.headers.`Content-Type`(MediaType.application.json)
-    )
+    val request =
+      Request[F](uri = baseUrl / "api" / apiVersion / "drs" / "resolve", method = Method.POST, body = entityBody)
+        .withHeaders(
+          org.http4s.headers.`Content-Type`(MediaType.application.json)
+        )
     client.run(request).use { resp =>
       resp.status match {
-        case Status.Ok                  => resp.as[ResourceMetadata]
-        case _                          => UnknownError.raiseError
+        case Status.Ok => resp.as[ResourceMetadata]
+        case _ => UnknownError.raiseError
       }
     }
   }
 
 }
-
-

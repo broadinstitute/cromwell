@@ -14,16 +14,19 @@ object TernaryIfEvaluator {
     override def evaluateValue(a: TernaryIf,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
-                              (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
-
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
+    )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] =
       a.condition.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions) flatMap {
         case EvaluatedValue(WomBoolean(true), conditionSideEffectFiles) =>
-          a.ifTrue.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions).map(result => result.copy(sideEffectFiles = result.sideEffectFiles ++ conditionSideEffectFiles))
+          a.ifTrue
+            .evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
+            .map(result => result.copy(sideEffectFiles = result.sideEffectFiles ++ conditionSideEffectFiles))
         case EvaluatedValue(WomBoolean(false), conditionSideEffectFiles) =>
-          a.ifFalse.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions).map(result => result.copy(sideEffectFiles = result.sideEffectFiles ++ conditionSideEffectFiles))
-        case other => s"Condition should have evaluated to a Boolean but instead got ${other.value.womType.stableName}".invalidNel
+          a.ifFalse
+            .evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
+            .map(result => result.copy(sideEffectFiles = result.sideEffectFiles ++ conditionSideEffectFiles))
+        case other =>
+          s"Condition should have evaluated to a Boolean but instead got ${other.value.womType.stableName}".invalidNel
       }
-    }
   }
 }

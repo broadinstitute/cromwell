@@ -16,8 +16,11 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-trait EngineJobExecutionActorSpec extends AbstractEngineJobExecutionActorSpec
-  with Matchers with BeforeAndAfterAll with BeforeAndAfter {
+trait EngineJobExecutionActorSpec
+    extends AbstractEngineJobExecutionActorSpec
+    with Matchers
+    with BeforeAndAfterAll
+    with BeforeAndAfter {
 
   // If we WANT something to happen, make sure it happens within this window:
   val awaitTimeout: FiniteDuration = 10 seconds
@@ -28,7 +31,8 @@ trait EngineJobExecutionActorSpec extends AbstractEngineJobExecutionActorSpec
 
   val allowMultipleCacheCycles = false
 
-  implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = scaled(awaitTimeout), interval = scaled(awaitAlmostNothing))
+  implicit override val patienceConfig: PatienceConfig =
+    PatienceConfig(timeout = scaled(awaitTimeout), interval = scaled(awaitAlmostNothing))
 
   // The default values for these are "null". The helper is created in "before", the ejea is up to the test cases
   private[ejea] var helper: PerTestHelper = _
@@ -42,7 +46,8 @@ trait EngineJobExecutionActorSpec extends AbstractEngineJobExecutionActorSpec
     List(
       ("FetchCachedResultsActor", helper.fetchCachedResultsActorCreations),
       ("JobHashingActor", helper.jobHashingInitializations),
-      ("CallCacheInvalidateActor", helper.invalidateCacheActorCreations)) foreach {
+      ("CallCacheInvalidateActor", helper.invalidateCacheActorCreations)
+    ) foreach {
       case (name, GotTooMany(list)) if !allowMultipleCacheCycles => fail(s"Too many $name creations (${list.size})")
       case _ => // Fine.
     }
@@ -51,15 +56,23 @@ trait EngineJobExecutionActorSpec extends AbstractEngineJobExecutionActorSpec
   }
 
   // Some helper lists
-  val CallCachingModes = List(CallCachingOff, CallCachingActivity(ReadCache), CallCachingActivity(WriteCache), CallCachingActivity(ReadAndWriteCache))
-  case class RestartOrExecuteCommandTuple(operationName: String, restarting: Boolean, expectedMessageToBjea: BackendJobExecutionActorCommand)
+  val CallCachingModes = List(CallCachingOff,
+                              CallCachingActivity(ReadCache),
+                              CallCachingActivity(WriteCache),
+                              CallCachingActivity(ReadAndWriteCache)
+  )
+  case class RestartOrExecuteCommandTuple(operationName: String,
+                                          restarting: Boolean,
+                                          expectedMessageToBjea: BackendJobExecutionActorCommand
+  )
   val RestartOrExecuteCommandTuples = List(
     RestartOrExecuteCommandTuple("execute", restarting = false, BackendJobExecutionActor.ExecuteJobCommand),
-    RestartOrExecuteCommandTuple("restart", restarting = true, BackendJobExecutionActor.RecoverJobCommand))
+    RestartOrExecuteCommandTuple("restart", restarting = true, BackendJobExecutionActor.RecoverJobCommand)
+  )
 }
 
 object EngineJobExecutionActorSpec {
-  implicit class EnhancedTestEJEA[S,D,T <: Actor](me: TestFSMRef[S, D, T]) {
+  implicit class EnhancedTestEJEA[S, D, T <: Actor](me: TestFSMRef[S, D, T]) {
     // Like setState, but mirrors back the EJEA (for easier inlining)
     def setStateInline(state: S = me.stateName, data: D = me.stateData): TestFSMRef[S, D, T] = {
       me.setState(state, data)
@@ -127,8 +140,16 @@ object AbstractEngineJobExecutionActorSpec {
   private lazy val testConfig = ConfigFactory.parseString(ConfigText)
 }
 
-abstract class AbstractEngineJobExecutionActorSpec extends TestKitSuite
-  with DefaultTimeout with ImplicitSender with Matchers with ScalaFutures with Eventually with Suite
-  with OneInstancePerTest with BeforeAndAfterAll with AnyWordSpecLike {
+abstract class AbstractEngineJobExecutionActorSpec
+    extends TestKitSuite
+    with DefaultTimeout
+    with ImplicitSender
+    with Matchers
+    with ScalaFutures
+    with Eventually
+    with Suite
+    with OneInstancePerTest
+    with BeforeAndAfterAll
+    with AnyWordSpecLike {
   override protected lazy val actorSystemConfig: Config = AbstractEngineJobExecutionActorSpec.testConfig
 }

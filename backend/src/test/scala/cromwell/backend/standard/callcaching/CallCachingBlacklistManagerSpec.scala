@@ -8,11 +8,10 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import spray.json._
 
-
 class CallCachingBlacklistManagerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "CallCachingBlacklistManager"
 
-  //noinspection RedundantDefaultArgument
+  // noinspection RedundantDefaultArgument
   val workflowSourcesNoGrouping = WorkflowSourceFilesWithoutImports(
     workflowSource = None,
     workflowUrl = None,

@@ -59,7 +59,7 @@ case class TailedWriter(path: Path, tailedSize: Int) extends PathWriter {
     *
     * @return a descriptive tail of the `path` and the last `tailedLines` written.
     */
-  def tailString: String = {
+  def tailString: String =
     if (tailedLines.isEmpty) {
       s"Contents of $path were empty."
     } else if (isTailed) {
@@ -67,5 +67,4 @@ case class TailedWriter(path: Path, tailedSize: Int) extends PathWriter {
     } else {
       s"Contents of $path:\n${tailedLines.mkString("\n")}"
     }
-  }
 }

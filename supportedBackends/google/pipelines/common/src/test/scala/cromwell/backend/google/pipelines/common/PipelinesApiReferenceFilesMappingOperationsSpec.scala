@@ -22,41 +22,61 @@ class PipelinesApiReferenceFilesMappingOperationsSpec extends AnyFlatSpecLike wi
   private val papiReferenceFilesMappingOperationsMockObject: PipelinesApiReferenceFilesMappingOperations =
     new PipelinesApiReferenceFilesMappingOperations {
 
-      override def bulkValidateCrc32cs(gcsClient: Storage, filesWithValidPaths: Map[ReferenceFile, ValidFullGcsPath]): IO[Map[ReferenceFile, Boolean]] =
+      override def bulkValidateCrc32cs(gcsClient: Storage,
+                                       filesWithValidPaths: Map[ReferenceFile, ValidFullGcsPath]
+      ): IO[Map[ReferenceFile, Boolean]] =
         IO.pure(filesWithValidPaths.keySet.map(file => (file, file.path != refFile4Disk2MismatchingChecksum)).toMap)
     }
 
   private val refFileMappingsMock = papiReferenceFilesMappingOperationsMockObject.generateReferenceFilesMapping(
     MockAuthMode("default"),
     List(
-      ManifestFile(imageIdentifier = disk1.image, diskSizeGb = disk1.sizeGb, files = List(
-        ReferenceFile(path = refFile1Disk1, crc32c = 5),
-        ReferenceFile(path = refFile2Disk1, crc32c = 6)
-      )),
-      ManifestFile(imageIdentifier = disk2.image, diskSizeGb = disk2.sizeGb, files = List(
-        ReferenceFile(path = refFile3Disk2, crc32c = 7)
-      ))
+      ManifestFile(imageIdentifier = disk1.image,
+                   diskSizeGb = disk1.sizeGb,
+                   files = List(
+                     ReferenceFile(path = refFile1Disk1, crc32c = 5),
+                     ReferenceFile(path = refFile2Disk1, crc32c = 6)
+                   )
+      ),
+      ManifestFile(imageIdentifier = disk2.image,
+                   diskSizeGb = disk2.sizeGb,
+                   files = List(
+                     ReferenceFile(path = refFile3Disk2, crc32c = 7)
+                   )
+      )
     )
   )
 
   it should "correctly figure out which disks have to be mounted based on provided input file paths" in {
     val nonReferenceInputFilePaths = Set("gs://not/a/reference/file")
-    val forNonReferenceFile = papiReferenceFilesMappingOperationsMockObject.getReferenceDisksToMount(refFileMappingsMock, nonReferenceInputFilePaths)
+    val forNonReferenceFile =
+      papiReferenceFilesMappingOperationsMockObject.getReferenceDisksToMount(refFileMappingsMock,
+                                                                             nonReferenceInputFilePaths
+      )
     forNonReferenceFile.isEmpty shouldBe true
 
     val referenceInputFilePathsFrom2Disks = Set(s"gs://$refFile1Disk1", s"gs://$refFile3Disk2")
-    val forReferencesFrom2Disks = papiReferenceFilesMappingOperationsMockObject.getReferenceDisksToMount(refFileMappingsMock, referenceInputFilePathsFrom2Disks)
+    val forReferencesFrom2Disks =
+      papiReferenceFilesMappingOperationsMockObject.getReferenceDisksToMount(refFileMappingsMock,
+                                                                             referenceInputFilePathsFrom2Disks
+      )
     forReferencesFrom2Disks should contain theSameElementsAs List(disk1, disk2)
 
     val referenceInputFilePathsFromSingleDisk = Set(s"gs://$refFile1Disk1", s"gs://$refFile2Disk1")
-    val forReferencesFromSingleDisk = papiReferenceFilesMappingOperationsMockObject.getReferenceDisksToMount(refFileMappingsMock, referenceInputFilePathsFromSingleDisk)
+    val forReferencesFromSingleDisk =
+      papiReferenceFilesMappingOperationsMockObject.getReferenceDisksToMount(refFileMappingsMock,
+                                                                             referenceInputFilePathsFromSingleDisk
+      )
     forReferencesFromSingleDisk.size shouldBe 1
     forReferencesFromSingleDisk.head shouldBe disk1
   }
 
   it should "not consider valid a reference file with mismatching checksum" in {
     val mismatchingChecksumReferenceFile = Set(refFile4Disk2MismatchingChecksum)
-    val forMismatchingChecksumReferenceFile = papiReferenceFilesMappingOperationsMockObject.getReferenceDisksToMount(refFileMappingsMock, mismatchingChecksumReferenceFile)
+    val forMismatchingChecksumReferenceFile =
+      papiReferenceFilesMappingOperationsMockObject.getReferenceDisksToMount(refFileMappingsMock,
+                                                                             mismatchingChecksumReferenceFile
+      )
     forMismatchingChecksumReferenceFile.isEmpty shouldBe true
   }
 }

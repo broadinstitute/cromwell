@@ -15,15 +15,18 @@ import org.scalatest.matchers.should.Matchers
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
-class CromwellResponseFailedSpec extends TestKit(ActorSystem("CromwellResponseFailedSpec"))
-  with AsyncFlatSpecLike with Matchers with BeforeAndAfterAll {
+class CromwellResponseFailedSpec
+    extends TestKit(ActorSystem("CromwellResponseFailedSpec"))
+    with AsyncFlatSpecLike
+    with Matchers
+    with BeforeAndAfterAll {
   override def afterAll(): Unit = {
     Await.ready(system.terminate(), 10.seconds.dilated)
     super.afterAll()
   }
-  
+
   implicit val materializer: ActorMaterializer = ActorMaterializer()
-  
+
   "CromwellAPIClient" should "fail the Future if the HttpResponse is unsuccessful" in {
     val errorMessage =
       """|{
@@ -32,14 +35,15 @@ class CromwellResponseFailedSpec extends TestKit(ActorSystem("CromwellResponseFa
          |}
          |""".stripMargin.trim
     val client = new CromwellClient(new URL("http://fakeurl"), "v1") {
-      override def executeRequest(request: HttpRequest, headers: List[HttpHeader]): Future[HttpResponse] = Future.successful(
-        new HttpResponse(
-          StatusCodes.ServiceUnavailable,
-          List.empty[HttpHeader],
-          HttpEntity(ContentTypes.`application/json`, errorMessage),
-          HttpProtocols.`HTTP/1.1`
+      override def executeRequest(request: HttpRequest, headers: List[HttpHeader]): Future[HttpResponse] =
+        Future.successful(
+          new HttpResponse(
+            StatusCodes.ServiceUnavailable,
+            List.empty[HttpHeader],
+            HttpEntity(ContentTypes.`application/json`, errorMessage),
+            HttpProtocols.`HTTP/1.1`
+          )
         )
-      )
     }
 
     for {

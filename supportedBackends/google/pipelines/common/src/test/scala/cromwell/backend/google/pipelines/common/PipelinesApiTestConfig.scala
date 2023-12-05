@@ -104,24 +104,21 @@ object PipelinesApiTestConfig {
   val PapiBackendConfig: Config = ConfigFactory.parseString(PapiBackendConfigString)
   val PapiGlobalConfig: Config = ConfigFactory.parseString(PapiGlobalConfigString)
   val PapiBackendNoDefaultConfig: Config = ConfigFactory.parseString(NoDefaultsConfigString)
-  val PapiBackendConfigurationDescriptor: BackendConfigurationDescriptor = {
+  val PapiBackendConfigurationDescriptor: BackendConfigurationDescriptor =
     new BackendConfigurationDescriptor(PapiBackendConfig, PapiGlobalConfig) {
       override private[backend] lazy val cromwellFileSystems = new CromwellFileSystems(PapiGlobalConfig)
     }
-  }
   val NoDefaultsConfigurationDescriptor: BackendConfigurationDescriptor =
     BackendConfigurationDescriptor(PapiBackendNoDefaultConfig, PapiGlobalConfig)
   val genomicsFactory: PipelinesApiFactoryInterface = new PipelinesApiFactoryInterface {
-    override def build(httpRequestInitializer: HttpRequestInitializer): PipelinesApiRequestFactory = {
+    override def build(httpRequestInitializer: HttpRequestInitializer): PipelinesApiRequestFactory =
       new PipelinesApiRequestFactory {
         override def cancelRequest(job: StandardAsyncJob) = throw new UnsupportedOperationException
         override def getRequest(job: StandardAsyncJob) = throw new UnsupportedOperationException
-        override def runRequest(createPipelineParameters:
-                                PipelinesApiRequestFactory.CreatePipelineParameters,
-                                jobLogger: JobLogger,
-                               ) = throw new UnsupportedOperationException
+        override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters,
+                                jobLogger: JobLogger
+        ) = throw new UnsupportedOperationException
       }
-    }
     override def usesEncryptedDocker: Boolean = false
   }
   def pathBuilders()(implicit as: ActorSystem): List[PathBuilder] =
@@ -129,5 +126,9 @@ object PipelinesApiTestConfig {
   val googleConfiguration: GoogleConfiguration = GoogleConfiguration(PapiGlobalConfig)
   val papiAttributes: PipelinesApiConfigurationAttributes =
     PipelinesApiConfigurationAttributes(googleConfiguration, PapiBackendConfig, "papi")
-  val papiConfiguration = new PipelinesApiConfiguration(PapiBackendConfigurationDescriptor, genomicsFactory, googleConfiguration, papiAttributes)
+  val papiConfiguration = new PipelinesApiConfiguration(PapiBackendConfigurationDescriptor,
+                                                        genomicsFactory,
+                                                        googleConfiguration,
+                                                        papiAttributes
+  )
 }

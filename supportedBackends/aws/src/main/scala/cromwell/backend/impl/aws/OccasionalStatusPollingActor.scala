@@ -26,7 +26,9 @@ import scala.util.{Failure, Success, Try}
   *   - The 'queuesToMonitor' get added to but never cleared out (so on a multi-tenant system, will grow indefinitely)
   *   - We don't track completed jobs - so when a job completes the caller will get a None, and have to fall back to an AWS query anyway.
   */
-class OccasionalStatusPollingActor(configRegion: Option[Region], optAwsAuthMode: Option[AwsAuthMode] = None) extends Actor with ActorLogging {
+class OccasionalStatusPollingActor(configRegion: Option[Region], optAwsAuthMode: Option[AwsAuthMode] = None)
+    extends Actor
+    with ActorLogging {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
@@ -61,7 +63,10 @@ class OccasionalStatusPollingActor(configRegion: Option[Region], optAwsAuthMode:
       statuses += jobId -> status
       queuesToMonitor += queueArn // Set addition so expectation is a no-op almost every time
     case NotifyOfStatus(_, jobId, None) =>
-      log.error("Programmer Error: OccasionalStatusPollerActor was given an empty status update for {}. It was probably intended to be filled.", jobId)
+      log.error(
+        "Programmer Error: OccasionalStatusPollerActor was given an empty status update for {}. It was probably intended to be filled.",
+        jobId
+      )
   }
 
   private def updateStatuses() = {
@@ -69,14 +74,18 @@ class OccasionalStatusPollingActor(configRegion: Option[Region], optAwsAuthMode:
     final case class PageAccumulation(nextPageToken: String, currentList: Vector[String])
 
     @tailrec
-    def findJobsInStatus(awsStatusName: String, queueName: String, pageAccumulation: Option[PageAccumulation]): Vector[String] = {
+    def findJobsInStatus(awsStatusName: String,
+                         queueName: String,
+                         pageAccumulation: Option[PageAccumulation]
+    ): Vector[String] = {
 
-      val requestBuilder = ListJobsRequest.builder()
+      val requestBuilder = ListJobsRequest
+        .builder()
         .jobStatus(awsStatusName)
         .jobQueue(queueName)
-          .maxResults(100)
+        .maxResults(100)
 
-      pageAccumulation.foreach { pa => requestBuilder.nextToken(pa.nextPageToken) }
+      pageAccumulation.foreach(pa => requestBuilder.nextToken(pa.nextPageToken))
 
       val request = requestBuilder.build()
 
@@ -103,19 +112,18 @@ class OccasionalStatusPollingActor(configRegion: Option[Region], optAwsAuthMode:
         // Remove the old values and add the new values
 
         statuses = statuses.filterNot(_._2 == mapToRunStatus) ++ jobIdsInStatus.map(_ -> mapToRunStatus)
-      } recover {
-        case e =>
-          log.error(e, s"Failure fetching statuses for AWS jobs in $mapToRunStatus. No updates will occur.")
+      } recover { case e =>
+        log.error(e, s"Failure fetching statuses for AWS jobs in $mapToRunStatus. No updates will occur.")
       }
       ()
     }
 
-      updateForStatusNames(List("SUBMITTED", "PENDING", "RUNNABLE"), Initializing)
-      updateForStatusNames(List("STARTING", "RUNNING"), Running)
+    updateForStatusNames(List("SUBMITTED", "PENDING", "RUNNABLE"), Initializing)
+    updateForStatusNames(List("STARTING", "RUNNING"), Running)
   }
 
   def scheduleStatusUpdate(in: FiniteDuration): Unit = {
-    context.system.scheduler.scheduleOnce(in) { self ! UpdateStatuses }
+    context.system.scheduler.scheduleOnce(in)(self ! UpdateStatuses)
     ()
   }
 
@@ -129,8 +137,11 @@ object OccasionalStatusPollingActor {
   case object UpdateStatuses extends OccasionalStatusPollingActorMessage
   case class StatusUpdates(newState: Map[String, RunStatus]) extends OccasionalStatusPollingActorMessage
 
-  final case class NotifyOfStatus(queueArn: String, jobId: String, runStatus: Option[RunStatus]) extends OccasionalStatusPollingActorMessage
+  final case class NotifyOfStatus(queueArn: String, jobId: String, runStatus: Option[RunStatus])
+      extends OccasionalStatusPollingActorMessage
   final case class WhatsMyStatus(queueArn: String, jobId: String) extends OccasionalStatusPollingActorMessage
 
-  def props(configRegion: Option[Region], optAwsAuthMode: Option[AwsAuthMode] = None) = Props(new OccasionalStatusPollingActor(configRegion, optAwsAuthMode))
+  def props(configRegion: Option[Region], optAwsAuthMode: Option[AwsAuthMode] = None) = Props(
+    new OccasionalStatusPollingActor(configRegion, optAwsAuthMode)
+  )
 }

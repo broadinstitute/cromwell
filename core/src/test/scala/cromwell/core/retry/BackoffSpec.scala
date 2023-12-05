@@ -18,10 +18,9 @@ class BackoffSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
         .setInitialIntervalMillis(1.second.toMillis.toInt)
         .setMaxIntervalMillis(2.seconds.toMillis.toInt)
         .setMaxElapsedTimeMillis(Integer.MAX_VALUE)
-        .setRandomizationFactor(0D)
+        .setRandomizationFactor(0d)
         .build()
     )
-
 
     exponentialBackoff.backoffMillis shouldBe 3.seconds.toMillis
     exponentialBackoff.next.backoffMillis shouldBe 1.second.toMillis
@@ -33,7 +32,7 @@ class BackoffSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
         .setInitialIntervalMillis(1.second.toMillis.toInt)
         .setMaxIntervalMillis(2.seconds.toMillis.toInt)
         .setMaxElapsedTimeMillis(Integer.MAX_VALUE)
-        .setRandomizationFactor(0D)
+        .setRandomizationFactor(0d)
         .build()
     ).backoffMillis shouldBe 1.second.toMillis
   }
@@ -46,7 +45,7 @@ class BackoffSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
           .setInitialIntervalMillis(1.second.toMillis.toInt)
           .setMaxIntervalMillis(2.seconds.toMillis.toInt)
           .setMaxElapsedTimeMillis(Integer.MAX_VALUE)
-          .setRandomizationFactor(0D)
+          .setRandomizationFactor(0d)
           .build()
       )
     }
@@ -57,16 +56,16 @@ class BackoffSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
       Map[String, Any](
         "min" -> "5 seconds",
         "max" -> "30 seconds",
-        "multiplier" -> 6D,
-        "randomization-factor" -> 0D
+        "multiplier" -> 6d,
+        "randomization-factor" -> 0d
       ).asJava
     )
 
     val backoff = SimpleExponentialBackoff(config)
     backoff.googleBackoff.getCurrentIntervalMillis shouldBe 5.seconds.toMillis.toInt
     backoff.googleBackoff.getMaxIntervalMillis shouldBe 30.seconds.toMillis.toInt
-    backoff.googleBackoff.getMultiplier shouldBe 6D
-    backoff.googleBackoff.getRandomizationFactor shouldBe 0D
+    backoff.googleBackoff.getMultiplier shouldBe 6d
+    backoff.googleBackoff.getRandomizationFactor shouldBe 0d
   }
 
 }

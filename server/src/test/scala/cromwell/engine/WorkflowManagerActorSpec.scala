@@ -1,4 +1,3 @@
-
 package cromwell.engine
 
 import akka.actor.ActorSystem
@@ -14,7 +13,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class WorkflowManagerActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorBuilderForSpecs {
-  override implicit val actorSystem: ActorSystem = system
+  implicit override val actorSystem: ActorSystem = system
 
   "A WorkflowManagerActor" should {
 
@@ -80,18 +79,21 @@ class WorkflowManagerActorSpec extends CromwellTestKitWordSpec with WorkflowDesc
           )
       }
 
-      val config = CromwellTestKitSpec.NooPServiceActorConfig.
-        withValue("system.max-concurrent-workflows", ConfigValueFactory.fromAnyRef(2)).
-        withValue("system.new-workflow-poll-rate", ConfigValueFactory.fromAnyRef(1))
+      val config = CromwellTestKitSpec.NooPServiceActorConfig
+        .withValue("system.max-concurrent-workflows", ConfigValueFactory.fromAnyRef(2))
+        .withValue("system.new-workflow-poll-rate", ConfigValueFactory.fromAnyRef(1))
 
       val rootActor = buildCromwellRootActor(config = config, actorName = "TestCromwellRootActor-pickup")
       val serviceRegistryActor = rootActor.underlyingActor.serviceRegistryActor
 
       val firstSources = SubWorkflows(naptime = 60 seconds).asWorkflowSources()
 
-      def waitForState(workflowId: WorkflowId, state: WorkflowState): Unit = {
-        eventually { verifyWorkflowState(serviceRegistryActor, workflowId, state) } (config = defaultPatience, pos = implicitly[org.scalactic.source.Position], retrying = implicitly[Retrying[Unit]])
-      }
+      def waitForState(workflowId: WorkflowId, state: WorkflowState): Unit =
+        eventually(verifyWorkflowState(serviceRegistryActor, workflowId, state))(
+          config = defaultPatience,
+          pos = implicitly[org.scalactic.source.Position],
+          retrying = implicitly[Retrying[Unit]]
+        )
 
       val firstWorkflowId = rootActor.underlyingActor.submitWorkflow(firstSources)
       waitForState(firstWorkflowId, WorkflowRunning)

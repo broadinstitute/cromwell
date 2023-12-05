@@ -12,14 +12,25 @@ import wom.graph.GraphNodePort.OutputPort
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+
 /**
   * Joins the service registry API to the JobStoreReaderActor and JobStoreWriterActor.
   *
   * This level of indirection is a tiny bit awkward but allows the database to be injected.
   */
-class JobStoreActor(jobStore: JobStore, dbBatchSize: Int, dbFlushRate: FiniteDuration, registryActor: ActorRef, workflowStoreAccess: WorkflowStoreAccess) extends Actor with ActorLogging with GracefulShutdownHelper {
+class JobStoreActor(jobStore: JobStore,
+                    dbBatchSize: Int,
+                    dbFlushRate: FiniteDuration,
+                    registryActor: ActorRef,
+                    workflowStoreAccess: WorkflowStoreAccess
+) extends Actor
+    with ActorLogging
+    with GracefulShutdownHelper {
   import JobStoreActor._
-  val jobStoreWriterActor = context.actorOf(JobStoreWriterActor.props(jobStore, dbBatchSize, dbFlushRate, registryActor, workflowStoreAccess), "JobStoreWriterActor")
+  val jobStoreWriterActor = context.actorOf(
+    JobStoreWriterActor.props(jobStore, dbBatchSize, dbFlushRate, registryActor, workflowStoreAccess),
+    "JobStoreWriterActor"
+  )
   val jobStoreReaderActor = context.actorOf(JobStoreReaderActor.props(jobStore, registryActor), "JobStoreReaderActor")
 
   override def receive: Receive = {
@@ -47,16 +58,19 @@ object JobStoreActor {
   case class JobStoreWriteFailure(reason: Throwable) extends JobStoreWriterResponse
 
   sealed trait JobStoreReaderCommand extends JobStoreCommand
+
   /**
     * Message to query the JobStoreReaderActor, asks whether the specified job has already been completed.
     */
   case class QueryJobCompletion(jobKey: JobStoreKey, taskOutputs: Seq[OutputPort]) extends JobStoreReaderCommand
 
   sealed trait JobStoreReaderResponse
+
   /**
     * Message which indicates that a job has already completed, and contains the results of the job
     */
   case class JobComplete(jobResult: JobResult) extends JobStoreReaderResponse
+
   /**
     * Indicates that the job has not been completed yet. Makes no statement about whether the job is
     * running versus unstarted or (maybe?) doesn't even exist!
@@ -65,7 +79,9 @@ object JobStoreActor {
 
   case class JobStoreReadFailure(reason: Throwable) extends JobStoreReaderResponse
 
-  def props(database: JobStore, registryActor: ActorRef, workflowStoreAccess: WorkflowStoreAccess) = Props(new JobStoreActor(database, dbBatchSize, dbFlushRate, registryActor, workflowStoreAccess)).withDispatcher(EngineDispatcher)
+  def props(database: JobStore, registryActor: ActorRef, workflowStoreAccess: WorkflowStoreAccess) = Props(
+    new JobStoreActor(database, dbBatchSize, dbFlushRate, registryActor, workflowStoreAccess)
+  ).withDispatcher(EngineDispatcher)
 
   val dbFlushRate = 1 second
 

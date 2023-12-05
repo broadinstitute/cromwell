@@ -37,7 +37,7 @@ class DeserializationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
               "portMappings" -> Map(
                 "8000" -> Integer.valueOf(8008)
               ).asJava
-            ).asJava,
+            ).asJava
           ).asJava
         ).asJava
       )
@@ -118,7 +118,7 @@ class DeserializationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
         "resources" -> Map[String, Object](
           "projectId" -> "project",
           "virtualMachine" -> Map(
-            "machineType" -> "custom-1-1024",
+            "machineType" -> "custom-1-1024"
           ).asJava
         ).asJava
       ).asJava
@@ -149,15 +149,20 @@ class DeserializationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
       )
     ).asJava
 
-    val metadataMapStarted = makeMetadata(Map[String, Object](
-      "workerAssigned" -> Map(
-        "zone" -> "event 1 Zone",
-        "instance" -> "event 1 Instance"
-      ).asJava))
+    val metadataMapStarted = makeMetadata(
+      Map[String, Object](
+        "workerAssigned" -> Map(
+          "zone" -> "event 1 Zone",
+          "instance" -> "event 1 Instance"
+        ).asJava
+      )
+    )
     val metadataMapNotStarted = makeMetadata(Map.empty)
-    val metadataMapNotStarted2 = makeMetadata(Map[String, Object](
-      "containerStarted" -> Map().asJava
-    ))
+    val metadataMapNotStarted2 = makeMetadata(
+      Map[String, Object](
+        "containerStarted" -> Map().asJava
+      )
+    )
 
     operation.setMetadata(metadataMapStarted)
     operation.hasStarted shouldBe true
@@ -170,8 +175,8 @@ class DeserializationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
   it should "deserialize big decimals correctly" in {
     val valueMap = Map[String, Object](
       "integerValue" -> BigDecimal(5),
-      "doubleValue" -> BigDecimal.decimal(6D),
-      "floatValue" -> BigDecimal.decimal(7F),
+      "doubleValue" -> BigDecimal.decimal(6d),
+      "floatValue" -> BigDecimal.decimal(7f),
       "longValue" -> BigDecimal.decimal(8L)
     ).asJava
 
@@ -179,8 +184,8 @@ class DeserializationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     deserialized match {
       case Success(deserializedSuccess) =>
         deserializedSuccess.integerValue shouldBe 5
-        deserializedSuccess.doubleValue shouldBe 6D
-        deserializedSuccess.floatValue shouldBe 7F
+        deserializedSuccess.doubleValue shouldBe 6d
+        deserializedSuccess.floatValue shouldBe 7f
         deserializedSuccess.longValue shouldBe 8L
       case Failure(f) =>
         fail("Bad deserialization", f)

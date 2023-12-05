@@ -22,14 +22,13 @@ object CopyWorkflowLogsActor {
   // Commands
   case class Copy(workflowId: WorkflowId, destinationDirPath: Path)
 
-  val strategy: OneForOneStrategy = OneForOneStrategy(maxNrOfRetries = 3) {
-    case _: IOException => Restart
+  val strategy: OneForOneStrategy = OneForOneStrategy(maxNrOfRetries = 3) { case _: IOException =>
+    Restart
   }
 
   def props(serviceRegistryActor: ActorRef,
             ioActor: ActorRef,
-            workflowLogConfigurationOption: Option[WorkflowLogConfiguration] =
-            WorkflowLogger.workflowLogConfiguration,
+            workflowLogConfigurationOption: Option[WorkflowLogConfiguration] = WorkflowLogger.workflowLogConfiguration,
             /*
             The theory is that the `GcsBatchCommandBuilder` copies the temporary workflow logs from the local disk to
             GCS. Then later, the separate `DefaultIOCommandBuilder` deletes files from the local disk.
@@ -47,16 +46,17 @@ object CopyWorkflowLogsActor {
             implemented, It Works (TM), and I'm not changing it for now.
              */
             copyCommandBuilder: IoCommandBuilder = GcsBatchCommandBuilder,
-            deleteCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder,
-           ): Props = {
-    Props(new CopyWorkflowLogsActor(
-      serviceRegistryActor = serviceRegistryActor,
-      ioActor = ioActor,
-      workflowLogConfigurationOption = workflowLogConfigurationOption,
-      copyCommandBuilder = copyCommandBuilder,
-      deleteCommandBuilder = deleteCommandBuilder,
-    )).withDispatcher(IoDispatcher)
-  }
+            deleteCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
+  ): Props =
+    Props(
+      new CopyWorkflowLogsActor(
+        serviceRegistryActor = serviceRegistryActor,
+        ioActor = ioActor,
+        workflowLogConfigurationOption = workflowLogConfigurationOption,
+        copyCommandBuilder = copyCommandBuilder,
+        deleteCommandBuilder = deleteCommandBuilder
+      )
+    ).withDispatcher(IoDispatcher)
 }
 
 // This could potentially be turned into a more generic "Copy/Move something from A to B"
@@ -65,9 +65,12 @@ class CopyWorkflowLogsActor(override val serviceRegistryActor: ActorRef,
                             override val ioActor: ActorRef,
                             workflowLogConfigurationOption: Option[WorkflowLogConfiguration],
                             copyCommandBuilder: IoCommandBuilder,
-                            deleteCommandBuilder: IoCommandBuilder,
-                           ) extends Actor
-  with ActorLogging with IoClientHelper with WorkflowMetadataHelper with MonitoringCompanionHelper {
+                            deleteCommandBuilder: IoCommandBuilder
+) extends Actor
+    with ActorLogging
+    with IoClientHelper
+    with WorkflowMetadataHelper
+    with MonitoringCompanionHelper {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
@@ -87,9 +90,10 @@ class CopyWorkflowLogsActor(override val serviceRegistryActor: ActorRef,
         removeWork()
     }
   } else removeWork()
-  
+
   private def updateLogsPathInMetadata(workflowId: WorkflowId, path: Path): Unit = {
-    val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.WorkflowLog), MetadataValue(path.pathAsString))
+    val metadataEventMsg =
+      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.WorkflowLog), MetadataValue(path.pathAsString))
     serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
   }
 
@@ -111,30 +115,31 @@ class CopyWorkflowLogsActor(override val serviceRegistryActor: ActorRef,
             case Failure(failure) =>
               log.error(
                 cause = failure,
-                message =
-                  s"Failed to copy workflow logs from ${src.pathAsString} to ${destPath.pathAsString}: " +
-                    s"${failure.getMessage}",
+                message = s"Failed to copy workflow logs from ${src.pathAsString} to ${destPath.pathAsString}: " +
+                  s"${failure.getMessage}"
               )
               deleteLog(src)
             case Success(_) =>
-              // Deliberately not deleting the file here, that will be done in batch in `deleteLog`
-              // after the copy is terminal.
+            // Deliberately not deleting the file here, that will be done in batch in `deleteLog`
+            // after the copy is terminal.
           }
           workflowLogger.close()
         }
       }
-      
+
     case (workflowId: WorkflowId, IoSuccess(copy: IoCopyCommand, _)) =>
       updateLogsPathInMetadata(workflowId, copy.destination)
       deleteLog(copy.source)
-      
+
     case (workflowId: WorkflowId, IoFailAck(copy: IoCopyCommand, failure)) =>
       pushWorkflowFailures(workflowId, List(new IOException("Could not copy workflow logs", failure)))
-      log.error(failure, s"Failed to copy workflow logs from ${copy.source.pathAsString} to ${copy.destination.pathAsString}")
+      log.error(failure,
+                s"Failed to copy workflow logs from ${copy.source.pathAsString} to ${copy.destination.pathAsString}"
+      )
       deleteLog(copy.source)
-      
+
     case IoSuccess(_: IoDeleteCommand, _) => removeWork()
-      
+
     case IoFailAck(delete: IoDeleteCommand, failure) =>
       removeWork()
       log.error(failure, s"Failed to delete workflow logs from ${delete.file.pathAsString}")
@@ -148,13 +153,14 @@ class CopyWorkflowLogsActor(override val serviceRegistryActor: ActorRef,
   override def receive: Receive = monitoringReceive orElse ioReceive orElse copyLogsReceive
   /*_*/
 
-  override def preRestart(t: Throwable, message: Option[Any]): Unit = {
+  override def preRestart(t: Throwable, message: Option[Any]): Unit =
     message foreach self.forward
-  }
 
   override protected def onTimeout(message: Any, to: ActorRef): Unit = message match {
     case copy: IoCopyCommand =>
-      log.error(s"Failed to copy workflow logs from ${copy.source.pathAsString} to ${copy.destination.pathAsString}: Timeout")
+      log.error(
+        s"Failed to copy workflow logs from ${copy.source.pathAsString} to ${copy.destination.pathAsString}: Timeout"
+      )
       deleteLog(copy.source)
     case delete: IoDeleteCommand =>
       log.error(s"Failed to delete workflow logs from ${delete.file.pathAsString}: Timeout")

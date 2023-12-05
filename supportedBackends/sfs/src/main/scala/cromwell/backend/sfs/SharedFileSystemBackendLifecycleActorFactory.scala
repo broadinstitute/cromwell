@@ -12,7 +12,6 @@ trait SharedFileSystemBackendLifecycleActorFactory extends StandardLifecycleActo
 
   override def jobIdKey: String = SharedFileSystemAsyncJobExecutionActor.JobIdKey
 
-  override lazy val cacheHitCopyingActorClassOption: Option[Class[_ <: StandardCacheHitCopyingActor]] = {
+  override lazy val cacheHitCopyingActorClassOption: Option[Class[_ <: StandardCacheHitCopyingActor]] =
     Option(classOf[SharedFileSystemCacheHitCopyingActor])
-  }
 }

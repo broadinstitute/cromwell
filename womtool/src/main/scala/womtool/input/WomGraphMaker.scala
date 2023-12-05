@@ -32,7 +32,8 @@ object WomGraphMaker {
         List(
           new WdlDraft3LanguageFactory(ConfigFactory.empty()),
           new WdlBiscayneLanguageFactory(ConfigFactory.empty()),
-          new WdlCascadesLanguageFactory(ConfigFactory.empty()))
+          new WdlCascadesLanguageFactory(ConfigFactory.empty())
+        )
           .find(_.looksParsable(mainFileContents))
           .getOrElse(new WdlDraft2LanguageFactory(ConfigFactory.empty()))
 
@@ -42,7 +43,7 @@ object WomGraphMaker {
     }
   }
 
-  def fromFiles(mainFile: Path, inputs: Option[Path]): Checked[WomGraphWithResolvedImports] = {
+  def fromFiles(mainFile: Path, inputs: Option[Path]): Checked[WomGraphWithResolvedImports] =
     getBundleAndFactory(mainFile) flatMap { case (womBundle, languageFactory) =>
       inputs match {
         case None =>
@@ -56,11 +57,11 @@ object WomGraphMaker {
           } yield WomGraphWithResolvedImports(validatedWomNamespace.executable.graph, womBundle.resolvedImportRecords)
       }
     }
-  }
 
-  private def readFile(filePath: String): Checked[String] = Try(Files.readAllLines(Paths.get(filePath)).asScala.mkString(System.lineSeparator())).toChecked
+  private def readFile(filePath: String): Checked[String] = Try(
+    Files.readAllLines(Paths.get(filePath)).asScala.mkString(System.lineSeparator())
+  ).toChecked
 
 }
-
 
 case class WomGraphWithResolvedImports(graph: Graph, resolvedImportRecords: Set[ResolvedImportRecord])

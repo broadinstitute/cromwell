@@ -11,7 +11,8 @@ import spray.json.{DefaultJsonProtocol, JsObject, JsString}
 
 object LabelsManagerActor {
 
-  def props(serviceRegistryActor: ActorRef): Props = Props(new LabelsManagerActor(serviceRegistryActor)).withDispatcher(Dispatcher.ApiDispatcher)
+  def props(serviceRegistryActor: ActorRef): Props =
+    Props(new LabelsManagerActor(serviceRegistryActor)).withDispatcher(Dispatcher.ApiDispatcher)
 
   final case class LabelsData(workflowId: WorkflowId, labels: Labels)
 
@@ -49,7 +50,7 @@ class LabelsManagerActor(serviceRegistryActor: ActorRef) extends Actor with Acto
       /*
         Ask the metadata store for the current set of labels, so we can return the full label set to the user.
         At this point in the actor lifecycle, wfId has already been filled out so the .get is safe
-      */
+       */
       serviceRegistryActor ! GetLabels(wfId.get)
     case SuccessfulMetadataJsonResponse(_, jsObject) =>
       /*
@@ -64,7 +65,7 @@ class LabelsManagerActor(serviceRegistryActor: ActorRef) extends Actor with Acto
         the return packet, this is a likely cause.
 
         At this point in the actor lifecycle, newLabels will have been filled in so the .get is safe
-      */
+       */
 
       def replaceOrAddLabel(originalJson: JsObject, label: Label): JsObject = {
         val labels = originalJson.fields.get("labels").map(_.asJsObject.fields).getOrElse(Map.empty)
@@ -83,7 +84,9 @@ class LabelsManagerActor(serviceRegistryActor: ActorRef) extends Actor with Acto
 
         At this point in the actor lifecycle, wfId has already been filled out so the .get is safe
        */
-      target ! FailedLabelsManagerResponse(new RuntimeException(s"Unable to update labels for ${wfId.get} due to ${f.reason.getMessage}"))
+      target ! FailedLabelsManagerResponse(
+        new RuntimeException(s"Unable to update labels for ${wfId.get} due to ${f.reason.getMessage}")
+      )
       context stop self
   }
 }

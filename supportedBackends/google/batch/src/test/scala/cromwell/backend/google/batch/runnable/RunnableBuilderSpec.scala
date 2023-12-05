@@ -18,31 +18,42 @@ class RunnableBuilderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     ("description", "runnable", "command"),
     ("a cloud sdk runnable", RunnableBuilder.cloudSdkRunnable, s"docker run ${RunnableUtils.CloudSdkImage}"),
     ("a cloud sdk runnable with args",
-      RunnableBuilder.cloudSdkRunnable.withCommand("bash", "-c", "echo hello"),
-      s"docker run ${RunnableUtils.CloudSdkImage} bash -c echo\\ hello"
+     RunnableBuilder.cloudSdkRunnable.withCommand("bash", "-c", "echo hello"),
+     s"docker run ${RunnableUtils.CloudSdkImage} bash -c echo\\ hello"
     ),
     ("a cloud sdk runnable with quotes in the args",
-      RunnableBuilder.cloudSdkRunnable.withCommand("bash", "-c", "echo hello m'lord"),
-      s"docker run ${RunnableUtils.CloudSdkImage} bash -c echo\\ hello\\ m\\'lord"
+     RunnableBuilder.cloudSdkRunnable.withCommand("bash", "-c", "echo hello m'lord"),
+     s"docker run ${RunnableUtils.CloudSdkImage} bash -c echo\\ hello\\ m\\'lord"
     ),
     ("a cloud sdk runnable with a newline in the args",
-      RunnableBuilder.cloudSdkRunnable.withCommand("bash", "-c", "echo hello\\\nworld"),
-      s"docker run ${RunnableUtils.CloudSdkImage} bash -c echo\\ hello\\\\world"
+     RunnableBuilder.cloudSdkRunnable.withCommand("bash", "-c", "echo hello\\\nworld"),
+     s"docker run ${RunnableUtils.CloudSdkImage} bash -c echo\\ hello\\\\world"
     ),
     ("an runnable with multiple args",
-      Runnable.newBuilder()
-        .setContainer(Runnable.Container.newBuilder.setImageUri("ubuntu"))
-        .withEntrypointCommand("")
-        .withCommand("bash", "-c", "echo hello")
-        .withAlwaysRun(true)
-        .withVolumes(List(
-          Volume.newBuilder().setDeviceName("read-only-disk").setMountPath("/mnt/read/only/container").addMountOptions("ro"),
-          Volume.newBuilder().setDeviceName("read-write-disk").setMountPath("/mnt/read/write/container").addMountOptions("rw"),
-        ).map(_.build())),
-      "docker run" +
-        " -v /mnt/read/only/container:/mnt/read/only/container -v /mnt/read/write/container:/mnt/read/write/container" +
-        " ubuntu bash -c echo\\ hello"
-    ),
+     Runnable
+       .newBuilder()
+       .setContainer(Runnable.Container.newBuilder.setImageUri("ubuntu"))
+       .withEntrypointCommand("")
+       .withCommand("bash", "-c", "echo hello")
+       .withAlwaysRun(true)
+       .withVolumes(
+         List(
+           Volume
+             .newBuilder()
+             .setDeviceName("read-only-disk")
+             .setMountPath("/mnt/read/only/container")
+             .addMountOptions("ro"),
+           Volume
+             .newBuilder()
+             .setDeviceName("read-write-disk")
+             .setMountPath("/mnt/read/write/container")
+             .addMountOptions("rw")
+         ).map(_.build())
+       ),
+     "docker run" +
+       " -v /mnt/read/only/container:/mnt/read/only/container -v /mnt/read/write/container:/mnt/read/write/container" +
+       " ubuntu bash -c echo\\ hello"
+    )
   )
 
   forAll(dockerRunRunnables) { (description, runnable, command) =>
@@ -53,15 +64,17 @@ class RunnableBuilderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
 
   private val memoryRetryExpectedEntrypoint = "/bin/sh"
 
-  def memoryRetryExpectedCommand(lookupString: String): List[String] = {
+  def memoryRetryExpectedCommand(lookupString: String): List[String] =
     List(
       "-c",
       s"grep -E -q '$lookupString' /cromwell_root/stderr ; echo $$? > /cromwell_root/memory_retry_rc"
     )
-  }
 
   val volumes = List(
-    Volume.newBuilder().setDeviceName("read-only-disk").setMountPath("/mnt/read/only/container")/*.addMountOptions("ro")*/
+    Volume
+      .newBuilder()
+      .setDeviceName("read-only-disk")
+      .setMountPath("/mnt/read/only/container") /*.addMountOptions("ro")*/
   ).map(_.build())
 
   private val memoryRetryRunnableExpectedLabels = Map(Key.Tag -> Value.RetryWithMoreMemory).asJava
@@ -76,7 +89,9 @@ class RunnableBuilderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     runnable.getContainer.getCommandsList.asScala shouldBe expectedCommand
     runnable.getAlwaysRun shouldBe true
     runnable.getLabelsMap shouldBe memoryRetryRunnableExpectedLabels
-    runnable.getContainer.getVolumesList.asScala.toList shouldBe volumes.map(v => s"${v.getMountPath}:${v.getMountPath}")
+    runnable.getContainer.getVolumesList.asScala.toList shouldBe volumes.map(v =>
+      s"${v.getMountPath}:${v.getMountPath}"
+    )
   }
 
   it should "return cloud sdk runnable for multiple keys in retry-with-double-memory" in {
@@ -89,6 +104,8 @@ class RunnableBuilderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     runnable.getContainer.getCommandsList.asScala shouldBe expectedCommand
     runnable.getAlwaysRun shouldBe true
     runnable.getLabelsMap shouldBe memoryRetryRunnableExpectedLabels
-    runnable.getContainer.getVolumesList.asScala.toList shouldBe volumes.map(v => s"${v.getMountPath}:${v.getMountPath}")
+    runnable.getContainer.getVolumesList.asScala.toList shouldBe volumes.map(v =>
+      s"${v.getMountPath}:${v.getMountPath}"
+    )
   }
 }

@@ -34,11 +34,18 @@ trait ProtoHealthMonitorServiceActor extends Actor with LazyLogging with Timers 
 
   implicit val ec: ExecutionContext = context.system.dispatcher
 
-  lazy val sweepInterval = serviceConfig.as[Option[FiniteDuration]]("services.HealthMonitor.check-refresh-time").getOrElse(DefaultSweepTime)
-  lazy val futureTimeout: FiniteDuration = serviceConfig.as[Option[FiniteDuration]]("services.HealthMonitor.check-timeout").getOrElse(DefaultFutureTimeout)
-  lazy val staleThreshold: FiniteDuration = serviceConfig.as[Option[FiniteDuration]]("services.HealthMonitor.status-ttl").getOrElse(DefaultStaleThreshold)
-  lazy val failureRetryCount: Int = serviceConfig.as[Option[Int]]("services.HealthMonitor.check-failure-retry-count").getOrElse(DefaultFailureRetryCount)
-  lazy val failureRetryInterval: FiniteDuration = serviceConfig.as[Option[FiniteDuration]]("services.HealthMonitor.check-failure-retry-interval").getOrElse(DefaultFailureRetryInterval)
+  lazy val sweepInterval =
+    serviceConfig.as[Option[FiniteDuration]]("services.HealthMonitor.check-refresh-time").getOrElse(DefaultSweepTime)
+  lazy val futureTimeout: FiniteDuration =
+    serviceConfig.as[Option[FiniteDuration]]("services.HealthMonitor.check-timeout").getOrElse(DefaultFutureTimeout)
+  lazy val staleThreshold: FiniteDuration =
+    serviceConfig.as[Option[FiniteDuration]]("services.HealthMonitor.status-ttl").getOrElse(DefaultStaleThreshold)
+  lazy val failureRetryCount: Int = serviceConfig
+    .as[Option[Int]]("services.HealthMonitor.check-failure-retry-count")
+    .getOrElse(DefaultFailureRetryCount)
+  lazy val failureRetryInterval: FiniteDuration = serviceConfig
+    .as[Option[FiniteDuration]]("services.HealthMonitor.check-failure-retry-interval")
+    .getOrElse(DefaultFailureRetryInterval)
 
   /**
     * Contains each subsystem status along with a timestamp of when the entry was made so we know when the status
@@ -49,24 +56,20 @@ trait ProtoHealthMonitorServiceActor extends Actor with LazyLogging with Timers 
     subsystems.map((_, CachedSubsystemStatus(UnknownStatus, now))).toMap
   }
 
-  private[healthmonitor] def initialize(): Unit = {
+  private[healthmonitor] def initialize(): Unit =
     subsystems foreach { s =>
       logger.info(s"Availability of '${s.name}' will be monitored and reported via the '/engine/v1/status' API")
       self ! Check(s, failureRetryCount)
     }
-  }
 
-  private def check(subsystem: MonitoredSubsystem, after: FiniteDuration, withRetriesLeft: Int): Unit = {
+  private def check(subsystem: MonitoredSubsystem, after: FiniteDuration, withRetriesLeft: Int): Unit =
     timers.startSingleTimer(UUID.randomUUID(), Check(subsystem, withRetriesLeft), after)
-  }
 
-  private[healthmonitor] def scheduleFailedRetryCheck(subsystem: MonitoredSubsystem, retriesLeft: Int): Unit = {
+  private[healthmonitor] def scheduleFailedRetryCheck(subsystem: MonitoredSubsystem, retriesLeft: Int): Unit =
     check(subsystem, after = failureRetryInterval, withRetriesLeft = retriesLeft - 1)
-  }
 
-  private[healthmonitor] def scheduleSweepCheck(subsystem: MonitoredSubsystem): Unit = {
+  private[healthmonitor] def scheduleSweepCheck(subsystem: MonitoredSubsystem): Unit =
     check(subsystem, after = sweepInterval, withRetriesLeft = failureRetryCount)
-  }
 
   initialize()
 
@@ -138,15 +141,21 @@ object ProtoHealthMonitorServiceActor {
 
   final case class MonitoredSubsystem(name: String, check: () => Future[SubsystemStatus])
   final case class SubsystemStatus(ok: Boolean, messages: Option[List[String]])
-  final case class CachedSubsystemStatus(status: SubsystemStatus, created: Long) // created is time in millis when status was captured
+  final case class CachedSubsystemStatus(status: SubsystemStatus,
+                                         created: Long
+  ) // created is time in millis when status was captured
 
   sealed abstract class HealthMonitorServiceActorRequest
   case class Check(subsystem: MonitoredSubsystem, retriesLeft: Int) extends HealthMonitorServiceActorRequest
-  final case class Store(subsystem: MonitoredSubsystem, status: SubsystemStatus) extends HealthMonitorServiceActorRequest
-  case object GetCurrentStatus extends HealthMonitorServiceActorRequest with ServiceRegistryMessage { override val serviceName = "HealthMonitor" }
+  final case class Store(subsystem: MonitoredSubsystem, status: SubsystemStatus)
+      extends HealthMonitorServiceActorRequest
+  case object GetCurrentStatus extends HealthMonitorServiceActorRequest with ServiceRegistryMessage {
+    override val serviceName = "HealthMonitor"
+  }
 
   sealed abstract class HealthMonitorServiceActorResponse
-  final case class StatusCheckResponse(ok: Boolean, systems: Map[String, SubsystemStatus]) extends HealthMonitorServiceActorResponse
+  final case class StatusCheckResponse(ok: Boolean, systems: Map[String, SubsystemStatus])
+      extends HealthMonitorServiceActorResponse
 
   /**
     * Adds non-blocking timeout support to futures.
@@ -157,8 +166,10 @@ object ProtoHealthMonitorServiceActor {
     *   // returns in 5 seconds
     * }}}
     */
-  private implicit class FutureWithTimeout[A](f: Future[A]) {
-    def withTimeout(duration: FiniteDuration, errMsg: String, scheduler: Scheduler)(implicit ec: ExecutionContext): Future[A] =
+  implicit private class FutureWithTimeout[A](f: Future[A]) {
+    def withTimeout(duration: FiniteDuration, errMsg: String, scheduler: Scheduler)(implicit
+      ec: ExecutionContext
+    ): Future[A] =
       Future.firstCompletedOf(List(f, after(duration, scheduler)(Future.failed(new TimeoutException(errMsg)))))
   }
 }

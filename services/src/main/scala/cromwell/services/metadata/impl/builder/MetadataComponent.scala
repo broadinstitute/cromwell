@@ -18,7 +18,7 @@ object MetadataComponent {
     private lazy val stringKeyMapSg = implicitly[Semigroup[Map[String, MetadataComponent]]]
     private lazy val intKeyMapSg = implicitly[Semigroup[Map[Int, MetadataComponent]]]
 
-    def combine(f1: MetadataComponent, f2: MetadataComponent): MetadataComponent = {
+    def combine(f1: MetadataComponent, f2: MetadataComponent): MetadataComponent =
       (f1, f2) match {
         case (MetadataObject(v1), MetadataObject(v2)) => MetadataObject(stringKeyMapSg.combine(v1, v2))
         case (MetadataList(v1), MetadataList(v2)) => MetadataList(intKeyMapSg.combine(v1, v2))
@@ -27,15 +27,17 @@ object MetadataComponent {
         // Otherwise assume it's ordered by default and take the new one
         case (_, o2) => o2
       }
-    }
 
     override def empty: MetadataComponent = MetadataObject.empty
   }
 
   val metadataPrimitiveJsonWriter: JsonWriter[MetadataPrimitive] = JsonWriter.func2Writer[MetadataPrimitive] {
-    case MetadataPrimitive(MetadataValue(value, MetadataInt), _) => Try(value.toInt) map JsNumber.apply getOrElse JsString(value)
-    case MetadataPrimitive(MetadataValue(value, MetadataNumber), _) => Try(value.toDouble) map JsNumber.apply getOrElse JsString(value)
-    case MetadataPrimitive(MetadataValue(value, MetadataBoolean), _) => Try(value.toBoolean) map JsBoolean.apply getOrElse JsString(value)
+    case MetadataPrimitive(MetadataValue(value, MetadataInt), _) =>
+      Try(value.toInt) map JsNumber.apply getOrElse JsString(value)
+    case MetadataPrimitive(MetadataValue(value, MetadataNumber), _) =>
+      Try(value.toDouble) map JsNumber.apply getOrElse JsString(value)
+    case MetadataPrimitive(MetadataValue(value, MetadataBoolean), _) =>
+      Try(value.toBoolean) map JsBoolean.apply getOrElse JsString(value)
     case MetadataPrimitive(MetadataValue(value, MetadataString), _) => JsString(value)
     case MetadataPrimitive(MetadataValue(_, MetadataNull), _) => JsNull
   }
@@ -58,7 +60,7 @@ object MetadataComponent {
   val KeySplitter = s"(?<!\\\\)$KeySeparator"
   private val bracketMatcher = """\[(\d*)\]""".r
 
-  private def parseKeyChunk(chunk: String, innerValue: MetadataComponent): MetadataComponent = {
+  private def parseKeyChunk(chunk: String, innerValue: MetadataComponent): MetadataComponent =
     chunk.indexOf('[') match {
       // If there's no bracket, it's an object. e.g.: "calls"
       case -1 => MetadataObject(Map(chunk -> innerValue))
@@ -77,7 +79,7 @@ object MetadataComponent {
         } yield asInt
         // Fold into a MetadataList: MetadataList(0 -> MetadataList(1 -> innerValue))
         val init = if (innerValue == MetadataEmptyComponent) {
-        // Empty value means empty list
+          // Empty value means empty list
           listIndices.toList.init.foldRight(MetadataList.empty)((index, acc) => MetadataList(TreeMap(index -> acc)))
         } else {
           listIndices.toList.foldRight(innerValue)((index, acc) => MetadataList(TreeMap(index -> acc)))
@@ -86,27 +88,29 @@ object MetadataComponent {
 
         MetadataObject(Map(objectName -> metadataList))
     }
-  }
 
   private def customOrdering(event: MetadataEvent): Option[Ordering[MetadataPrimitive]] = event match {
-    case MetadataEvent(MetadataKey(_, Some(_), key), _, _)
-      if key == CallMetadataKeys.ExecutionStatus => Option(MetadataPrimitive.ExecutionStatusOrdering)
-    case MetadataEvent(MetadataKey(_, _, key), _, _)
-      if key == CallMetadataKeys.Start || key == CallMetadataKeys.End => Option(MetadataPrimitive.TimestampOrdering)
-    case MetadataEvent(MetadataKey(_, None, key), _, _)
-      if key == WorkflowMetadataKeys.Status => Option(MetadataPrimitive.WorkflowStateOrdering)
+    case MetadataEvent(MetadataKey(_, Some(_), key), _, _) if key == CallMetadataKeys.ExecutionStatus =>
+      Option(MetadataPrimitive.ExecutionStatusOrdering)
+    case MetadataEvent(MetadataKey(_, _, key), _, _) if key == CallMetadataKeys.Start || key == CallMetadataKeys.End =>
+      Option(MetadataPrimitive.TimestampOrdering)
+    case MetadataEvent(MetadataKey(_, None, key), _, _) if key == WorkflowMetadataKeys.Status =>
+      Option(MetadataPrimitive.WorkflowStateOrdering)
     case _ => None
   }
 
   private def toMetadataComponent(subWorkflowMetadata: Map[String, JsValue])(event: MetadataEvent) = {
-    lazy val primitive = event.value map { MetadataPrimitive(_, customOrdering(event)) } getOrElse MetadataEmptyComponent
+    lazy val primitive = event.value map {
+      MetadataPrimitive(_, customOrdering(event))
+    } getOrElse MetadataEmptyComponent
     lazy val originalKeyAndPrimitive = (event.key.key, primitive)
 
     val keyAndPrimitive: (String, MetadataComponent) = if (event.key.key.endsWith(CallMetadataKeys.SubWorkflowId)) {
       (for {
         metadataValue <- event.value
         subWorkflowMetadata <- subWorkflowMetadata.get(metadataValue.value)
-        keyWithSubWorkflowMetadata = event.key.key.replace(CallMetadataKeys.SubWorkflowId, CallMetadataKeys.SubWorkflowMetadata)
+        keyWithSubWorkflowMetadata = event.key.key
+          .replace(CallMetadataKeys.SubWorkflowId, CallMetadataKeys.SubWorkflowMetadata)
         subWorkflowComponent = MetadataJsonComponent(subWorkflowMetadata)
       } yield (keyWithSubWorkflowMetadata, subWorkflowComponent)) getOrElse originalKeyAndPrimitive
     } else originalKeyAndPrimitive
@@ -115,15 +119,13 @@ object MetadataComponent {
   }
 
   /** Sort events by timestamp, transform them into MetadataComponent, and merge them together. */
-  def apply(events: Seq[MetadataEvent], subWorkflowMetadata: Map[String, JsValue] = Map.empty): MetadataComponent = {
+  def apply(events: Seq[MetadataEvent], subWorkflowMetadata: Map[String, JsValue] = Map.empty): MetadataComponent =
     // The `List` has a `Foldable` instance defined in scope, and because the `List`'s elements have a `Monoid` instance
     // defined in scope, `combineAll` can derive a sane `TimestampedJsValue` value even if the `List` of events is empty.
     events.toList map toMetadataComponent(subWorkflowMetadata) combineAll
-  }
 
-  def fromMetadataKeyAndPrimitive(metadataKey: String, innerComponent: MetadataComponent) = {
+  def fromMetadataKeyAndPrimitive(metadataKey: String, innerComponent: MetadataComponent) =
     metadataKey.split(KeySplitter).map(_.unescapeMeta).foldRight(innerComponent)(parseKeyChunk)
-  }
 }
 
 sealed trait MetadataComponent
@@ -133,9 +135,8 @@ case object MetadataNullComponent extends MetadataComponent
 // Metadata Object
 object MetadataObject {
   def empty = new MetadataObject(Map.empty)
-  def apply(kvPair: (String, MetadataComponent)*) = {
+  def apply(kvPair: (String, MetadataComponent)*) =
     new MetadataObject(kvPair.toMap)
-  }
 }
 
 case class MetadataObject(v: Map[String, MetadataComponent]) extends MetadataComponent
@@ -143,7 +144,9 @@ case class MetadataObject(v: Map[String, MetadataComponent]) extends MetadataCom
 // Metadata List
 object MetadataList {
   def empty = new MetadataList(Map.empty)
-  def apply(components: List[MetadataComponent]) = new MetadataList(components.zipWithIndex.map({case (c, i) => i -> c}).toMap)
+  def apply(components: List[MetadataComponent]) = new MetadataList(components.zipWithIndex.map { case (c, i) =>
+    i -> c
+  }.toMap)
 }
 case class MetadataList(v: Map[Int, MetadataComponent]) extends MetadataComponent
 
@@ -161,7 +164,8 @@ object MetadataPrimitive {
     Instant.parse(primitive.v.value)
   }.reverse
 }
-case class MetadataPrimitive(v: MetadataValue, customOrdering: Option[Ordering[MetadataPrimitive]] = None) extends MetadataComponent
+case class MetadataPrimitive(v: MetadataValue, customOrdering: Option[Ordering[MetadataPrimitive]] = None)
+    extends MetadataComponent
 
 // Metadata Component that owns an already computed JsValue
 case class MetadataJsonComponent(jsValue: JsValue) extends MetadataComponent

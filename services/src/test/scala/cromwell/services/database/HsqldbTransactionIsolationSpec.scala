@@ -14,7 +14,12 @@ import org.scalatest.matchers.should.Matchers
   * http://www.hsqldb.org/doc/guide/sessions-chapt.html#snc_tx_mvcc
   * https://en.wikipedia.org/wiki/Multiversion_concurrency_control
   */
-class HsqldbTransactionIsolationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures with StringNormalizations {
+class HsqldbTransactionIsolationSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with ScalaFutures
+    with StringNormalizations {
 
   CromwellDatabaseType.All foreach { databaseType =>
     behavior of s"HSQLDB transaction isolation for ${databaseType.name}"
@@ -24,7 +29,7 @@ class HsqldbTransactionIsolationSpec extends AnyFlatSpec with CromwellTimeoutSpe
         slickDatabase <- DatabaseTestKit.initializedDatabaseFromSystem(databaseType, HsqldbDatabaseSystem).autoClosed
       } {
         import slickDatabase.dataAccess.driver.api._
-        //noinspection SqlDialectInspection
+        // noinspection SqlDialectInspection
         val getHsqldbTx =
           sql"""SELECT PROPERTY_VALUE
                 FROM INFORMATION_SCHEMA.SYSTEM_PROPERTIES
@@ -32,7 +37,7 @@ class HsqldbTransactionIsolationSpec extends AnyFlatSpec with CromwellTimeoutSpe
              """.as[String].head
 
         val future = slickDatabase.database.run(getHsqldbTx)
-        (future.futureValue shouldEqual "mvcc") (after being lowerCased)
+        (future.futureValue shouldEqual "mvcc")(after being lowerCased)
       }
     }
   }

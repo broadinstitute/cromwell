@@ -21,15 +21,15 @@ class GcpBatchVpcAndSubnetworkProjectLabelValuesSpec extends AnyFlatSpec with Ma
       s"slashed/$${projectId}/net",
       None,
       "slashed/my-project/net",
-      None,
+      None
     ),
     (
       "a subnet with a project token",
       "slashed/net",
       Option(s"slashed/$${projectId}/sub"),
       "slashed/net",
-      Option("slashed/my-project/sub"),
-    ),
+      Option("slashed/my-project/sub")
+    )
   )
 
   forAll(labelsTests) { (description, network, subnetOption, networkName, subnetNameOption) =>

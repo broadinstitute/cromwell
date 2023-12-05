@@ -54,15 +54,13 @@ trait JobPaths {
   /**
     * Return a host path corresponding to the specified container path.
     */
-  def hostPathFromContainerPath(string: String): Path = {
+  def hostPathFromContainerPath(string: String): Path =
     // No container here, just return a Path of the absolute path to the file.
     callExecutionRoot.resolve(string.stripPrefix(rootWithSlash))
-  }
 
   def hostPathFromContainerInputs(string: String): Path =
     // No container here, just return a Path of the absolute path to the file.
     callExecutionRoot.resolve(string.stripPrefix(rootWithSlash))
-
 
   def scriptFilename: String = "script"
   def dockerCidFilename: String = "docker_cid"

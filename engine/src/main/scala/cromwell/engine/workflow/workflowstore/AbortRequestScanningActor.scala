@@ -5,19 +5,26 @@ import com.google.common.cache.CacheBuilder
 import cromwell.core.{CacheConfig, WorkflowId}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.workflowstore.AbortRequestScanningActor.{AbortConfig, RunScan}
-import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{FindWorkflowsWithAbortRequested, FindWorkflowsWithAbortRequestedFailure, FindWorkflowsWithAbortRequestedSuccess}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{
+  FindWorkflowsWithAbortRequested,
+  FindWorkflowsWithAbortRequestedFailure,
+  FindWorkflowsWithAbortRequestedSuccess
+}
 
 import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 
-
 class AbortRequestScanningActor(workflowStoreActor: ActorRef,
                                 workflowManagerActor: ActorRef,
                                 abortConfig: AbortConfig,
-                                workflowHeartbeatConfig: WorkflowHeartbeatConfig) extends Actor with Timers with ActorLogging {
+                                workflowHeartbeatConfig: WorkflowHeartbeatConfig
+) extends Actor
+    with Timers
+    with ActorLogging {
   private val cache = {
     val cacheConfig = abortConfig.cacheConfig
-    CacheBuilder.newBuilder()
+    CacheBuilder
+      .newBuilder()
       .concurrencyLevel(cacheConfig.concurrency)
       .expireAfterWrite(cacheConfig.ttl.length, cacheConfig.ttl.unit)
       .build[WorkflowId, java.lang.Boolean]()
@@ -52,6 +59,10 @@ object AbortRequestScanningActor {
 
   case object RunScan
 
-  def props(workflowStoreActor: ActorRef, workflowManagerActor: ActorRef, abortConfig: AbortConfig, workflowHeartbeatConfig: WorkflowHeartbeatConfig): Props =
+  def props(workflowStoreActor: ActorRef,
+            workflowManagerActor: ActorRef,
+            abortConfig: AbortConfig,
+            workflowHeartbeatConfig: WorkflowHeartbeatConfig
+  ): Props =
     Props(new AbortRequestScanningActor(workflowStoreActor, workflowManagerActor, abortConfig, workflowHeartbeatConfig))
 }

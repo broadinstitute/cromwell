@@ -7,5 +7,10 @@ import simulacrum._
 
 @typeclass
 trait WomCallNodeMaker[A] {
-  def toWomCallNode(a: A, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort], preserveIndexForOuterLookups: Boolean, inASubworkflow: Boolean): ErrorOr[CallNodeAndNewNodes]
+  def toWomCallNode(a: A,
+                    localLookup: Map[String, GraphNodePort.OutputPort],
+                    outerLookup: Map[String, GraphNodePort.OutputPort],
+                    preserveIndexForOuterLookups: Boolean,
+                    inASubworkflow: Boolean
+  ): ErrorOr[CallNodeAndNewNodes]
 }

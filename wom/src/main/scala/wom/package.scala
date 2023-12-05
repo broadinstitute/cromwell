@@ -12,7 +12,10 @@ trait TsvSerializable {
 }
 
 class WomExpressionException(message: String = null, cause: Throwable = null) extends RuntimeException(message, cause)
-final case class OptionalNotSuppliedException(operationName: String) extends Exception(s"Sorry! Operation $operationName is not supported on empty optional values. You might resolve this using select_first([optional, default]) to guarantee that you have a filled value.")
+final case class OptionalNotSuppliedException(operationName: String)
+    extends Exception(
+      s"Sorry! Operation $operationName is not supported on empty optional values. You might resolve this using select_first([optional, default]) to guarantee that you have a filled value."
+    )
 
 case class JobOutput(womValue: WomValue)
 
@@ -23,9 +26,11 @@ package object values {
   type WomEvaluatedCallInputs = Map[InputDefinition, WomValue]
 
   implicit class EnhancedWomEvaluatedCallInputs(val inputs: WomEvaluatedCallInputs) extends AnyVal {
-    def prettyString = inputs.map({
-      case (inputDef, womValue) => s"${inputDef.name} -> ${womValue.valueString}"
-    }).mkString(", ")
+    def prettyString = inputs
+      .map { case (inputDef, womValue) =>
+        s"${inputDef.name} -> ${womValue.valueString}"
+      }
+      .mkString(", ")
   }
 
   implicit class HashableString(val value: String) extends AnyVal with Hashable {
@@ -84,7 +89,8 @@ final case class InstantiatedCommand(commandString: String,
                                      evaluatedStdoutOverride: Option[String] = None,
                                      evaluatedStderrOverride: Option[String] = None,
                                      preprocessedInputs: List[(LocalName, WomValue)] = List.empty,
-                                     valueMappedPreprocessedInputs: List[(LocalName, WomValue)] = List.empty)
+                                     valueMappedPreprocessedInputs: List[(LocalName, WomValue)] = List.empty
+)
 
 /**
   * File created as a side effect of instantiating the command.

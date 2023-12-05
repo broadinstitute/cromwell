@@ -18,9 +18,8 @@ abstract class TestKitSuite extends TestKitBase with Suite with BeforeAndAfterAl
 
   implicit lazy val system: ActorSystem = ActorSystem(actorSystemName, actorSystemConfig)
 
-  override protected def afterAll(): Unit = {
+  override protected def afterAll(): Unit =
     shutdown()
-  }
 
   // 'BlackHoleActor' swallows messages without logging them (thus reduces log file overhead):
   val emptyActor: ActorRef = system.actorOf(TestActors.blackholeProps, "TestKitSuiteEmptyActor")

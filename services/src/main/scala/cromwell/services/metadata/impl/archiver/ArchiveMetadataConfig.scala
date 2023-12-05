@@ -21,8 +21,8 @@ final case class ArchiveMetadataConfig(pathBuilders: PathBuilders,
                                        archiveDelay: FiniteDuration,
                                        instrumentationInterval: FiniteDuration,
                                        debugLogging: Boolean,
-                                       batchSize: Long) {
-}
+                                       batchSize: Long
+) {}
 
 object ArchiveMetadataConfig {
   def parseConfig(archiveMetadataConfig: Config)(implicit system: ActorSystem): Checked[ArchiveMetadataConfig] = {
@@ -33,16 +33,34 @@ object ArchiveMetadataConfig {
     val defaultBatchSize: Long = 1
 
     for {
-      _ <- Try(archiveMetadataConfig.getConfig("filesystems.gcs")).toCheckedWithContext("parse archiver 'filesystems.gcs' field from config")
+      _ <- Try(archiveMetadataConfig.getConfig("filesystems.gcs"))
+        .toCheckedWithContext("parse archiver 'filesystems.gcs' field from config")
       pathBuilderFactories <- CromwellFileSystems.instance.factoriesFromConfig(archiveMetadataConfig)
-      pathBuilders <- Try(Await.result(PathBuilderFactory.instantiatePathBuilders(pathBuilderFactories.values.toList, WorkflowOptions.empty), 60.seconds))
+      pathBuilders <- Try(
+        Await.result(
+          PathBuilderFactory.instantiatePathBuilders(pathBuilderFactories.values.toList, WorkflowOptions.empty),
+          60.seconds
+        )
+      )
         .toCheckedWithContext("construct archiver path builders from factories")
-      bucket <- Try(archiveMetadataConfig.getString("bucket")).toCheckedWithContext("parse Carboniter 'bucket' field from config")
-      backoffInterval <- Try(archiveMetadataConfig.getOrElse[FiniteDuration]("backoff-interval", defaultMaxInterval)).toChecked
+      bucket <- Try(archiveMetadataConfig.getString("bucket"))
+        .toCheckedWithContext("parse Carboniter 'bucket' field from config")
+      backoffInterval <- Try(
+        archiveMetadataConfig.getOrElse[FiniteDuration]("backoff-interval", defaultMaxInterval)
+      ).toChecked
       archiveDelay <- Try(archiveMetadataConfig.getOrElse("archive-delay", defaultArchiveDelay)).toChecked
-      instrumentationInterval <- Try(archiveMetadataConfig.getOrElse("instrumentation-interval", defaultInstrumentationInterval)).toChecked
+      instrumentationInterval <- Try(
+        archiveMetadataConfig.getOrElse("instrumentation-interval", defaultInstrumentationInterval)
+      ).toChecked
       debugLogging <- Try(archiveMetadataConfig.getOrElse("debug-logging", defaultDebugLogging)).toChecked
       batchSize <- Try(archiveMetadataConfig.getOrElse("batch-size", defaultBatchSize)).toChecked
-    } yield ArchiveMetadataConfig(pathBuilders, bucket, backoffInterval, archiveDelay, instrumentationInterval, debugLogging, batchSize)
+    } yield ArchiveMetadataConfig(pathBuilders,
+                                  bucket,
+                                  backoffInterval,
+                                  archiveDelay,
+                                  instrumentationInterval,
+                                  debugLogging,
+                                  batchSize
+    )
   }
 }

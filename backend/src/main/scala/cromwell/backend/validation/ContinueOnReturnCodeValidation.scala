@@ -24,9 +24,10 @@ import scala.util.Try
   */
 object ContinueOnReturnCodeValidation {
   lazy val instance: RuntimeAttributesValidation[ContinueOnReturnCode] = new ContinueOnReturnCodeValidation
-  def default(runtimeConfig: Option[Config]): RuntimeAttributesValidation[ContinueOnReturnCode] = instance.withDefault(
-    configDefaultWdlValue(runtimeConfig) getOrElse WomInteger(0))
-  def configDefaultWdlValue(runtimeConfig: Option[Config]): Option[WomValue] = instance.configDefaultWomValue(runtimeConfig)
+  def default(runtimeConfig: Option[Config]): RuntimeAttributesValidation[ContinueOnReturnCode] =
+    instance.withDefault(configDefaultWdlValue(runtimeConfig) getOrElse WomInteger(0))
+  def configDefaultWdlValue(runtimeConfig: Option[Config]): Option[WomValue] =
+    instance.configDefaultWomValue(runtimeConfig)
 }
 
 class ContinueOnReturnCodeValidation extends RuntimeAttributesValidation[ContinueOnReturnCode] {
@@ -40,7 +41,7 @@ class ContinueOnReturnCodeValidation extends RuntimeAttributesValidation[Continu
     case WomString(value) if Try(value.toBoolean).isSuccess => ContinueOnReturnCodeFlag(value.toBoolean).validNel
     case WomString(value) if Try(value.toInt).isSuccess => ContinueOnReturnCodeSet(Set(value.toInt)).validNel
     case WomInteger(value) => ContinueOnReturnCodeSet(Set(value)).validNel
-    case value@WomArray(_, seq) =>
+    case value @ WomArray(_, seq) =>
       val errorOrInts: ErrorOr[List[Int]] = (seq.toList map validateInt).sequence[ErrorOr, Int]
       errorOrInts match {
         case Valid(ints) => ContinueOnReturnCodeSet(ints.toSet).validNel
@@ -54,8 +55,8 @@ class ContinueOnReturnCodeValidation extends RuntimeAttributesValidation[Continu
     case WomString(value) if Try(value.toBoolean).isSuccess => true
     case WomInteger(_) => true
     case WomArray(WomArrayType(WomStringType), elements) =>
-      elements forall {
-        value => Try(value.valueString.toInt).isSuccess
+      elements forall { value =>
+        Try(value.valueString.toInt).isSuccess
       }
     case WomArray(WomArrayType(WomIntegerType), _) => true
   }

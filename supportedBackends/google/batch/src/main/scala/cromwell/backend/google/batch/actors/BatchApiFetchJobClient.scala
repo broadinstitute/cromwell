@@ -33,7 +33,7 @@ trait BatchApiFetchJobClient { this: Actor with ActorLogging with BatchInstrumen
     pollingActorClientPromise = None
   }
 
-  def fetchJob(jobName: JobName, backendSingletonActor: ActorRef): Future[Job] = {
+  def fetchJob(jobName: JobName, backendSingletonActor: ActorRef): Future[Job] =
     pollingActorClientPromise match {
       case Some(p) => p.future
       case None =>
@@ -43,5 +43,4 @@ trait BatchApiFetchJobClient { this: Actor with ActorLogging with BatchInstrumen
         pollingActorClientPromise = Option(newPromise)
         newPromise.future
     }
-  }
 }

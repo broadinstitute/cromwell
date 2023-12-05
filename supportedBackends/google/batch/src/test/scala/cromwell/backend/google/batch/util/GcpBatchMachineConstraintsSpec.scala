@@ -65,9 +65,9 @@ class GcpBatchMachineConstraintsSpec extends AnyFlatSpec with CromwellTimeoutSpe
 
       // Same tests but with AMD Rome (n2d) #cpu > 16 are in increments of 16
       (MemorySize(1024, MemoryUnit.MB), refineMV[Positive](1), n2dOption, false, "n2d-custom-2-1024"),
-      (MemorySize(4,  MemoryUnit.GB), refineMV[Positive](3), n2dOption, false, "n2d-custom-4-4096"),
+      (MemorySize(4, MemoryUnit.GB), refineMV[Positive](3), n2dOption, false, "n2d-custom-4-4096"),
       (MemorySize(1, MemoryUnit.GB), refineMV[Positive](1), n2dOption, false, "n2d-custom-2-1024"),
-      (MemorySize(1 , MemoryUnit.GB), refineMV[Positive](4), n2dOption, false, "n2d-custom-4-2048"),
+      (MemorySize(1, MemoryUnit.GB), refineMV[Positive](4), n2dOption, false, "n2d-custom-4-2048"),
       (MemorySize(14, MemoryUnit.GB), refineMV[Positive](16), n2dOption, false, "n2d-custom-16-14336"),
       (MemorySize(13.65, MemoryUnit.GB), refineMV[Positive](1), n2dOption, false, "n2d-custom-2-14080"),
       (MemorySize(1520.96, MemoryUnit.MB), refineMV[Positive](1), n2dOption, false, "n2d-custom-2-1536"),
@@ -83,7 +83,7 @@ class GcpBatchMachineConstraintsSpec extends AnyFlatSpec with CromwellTimeoutSpe
         cpu = cpu,
         cpuPlatformOption = cpuPlatformOption,
         googleLegacyMachineSelection = googleLegacyMachineSelection,
-        jobLogger = NOPLogger.NOP_LOGGER,
+        jobLogger = NOPLogger.NOP_LOGGER
       ) shouldBe expected
     }
   }

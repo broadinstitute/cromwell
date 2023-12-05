@@ -12,9 +12,10 @@ import scala.concurrent.duration.Duration
 
 class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfig,
                                 httpClientBuilderOverride: Option[HttpClientBuilder] = None,
-                                accessTokenAcceptableTTL: Duration = Duration.Inf,
-                               )
-  extends EngineDrsPathResolver(drsConfig, GoogleOauthDrsCredentials(NoCredentials.getInstance, accessTokenAcceptableTTL)) {
+                                accessTokenAcceptableTTL: Duration = Duration.Inf
+) extends EngineDrsPathResolver(drsConfig,
+                                GoogleOauthDrsCredentials(NoCredentials.getInstance, accessTokenAcceptableTTL)
+    ) {
 
   override protected lazy val httpClientBuilder: HttpClientBuilder =
     httpClientBuilderOverride getOrElse MockSugar.mock[HttpClientBuilder]
@@ -38,13 +39,15 @@ class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfi
 
   private val drsResolverObjWithFileName = drsResolverObjWithGcsPath.copy(fileName = Option("file.txt"))
 
-  private val drsResolverObjWithLocalizationPath = drsResolverObjWithGcsPath.copy(localizationPath = Option("/dir/subdir/file.txt"))
+  private val drsResolverObjWithLocalizationPath =
+    drsResolverObjWithGcsPath.copy(localizationPath = Option("/dir/subdir/file.txt"))
 
-  private val drsResolverObjWithAllThePaths = drsResolverObjWithLocalizationPath.copy(fileName = drsResolverObjWithFileName.fileName)
+  private val drsResolverObjWithAllThePaths =
+    drsResolverObjWithLocalizationPath.copy(fileName = drsResolverObjWithFileName.fileName)
 
   private val drsResolverObjWithNoGcsPath = drsResolverObjWithGcsPath.copy(gsUri = None)
 
-  override def resolveDrs(drsPath: String, fields: NonEmptyList[DrsResolverField.Value]): IO[DrsResolverResponse] = {
+  override def resolveDrs(drsPath: String, fields: NonEmptyList[DrsResolverField.Value]): IO[DrsResolverResponse] =
     drsPath match {
       case MockDrsPaths.drsPathResolvingGcsPath => IO(drsResolverObjWithGcsPath)
       case MockDrsPaths.drsPathWithNonPathChars => IO(drsResolverObjWithGcsPath)
@@ -60,7 +63,6 @@ class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfi
           )
         )
     }
-  }
 
   override lazy val getAccessToken: ErrorOr[String] = MockDrsPaths.mockToken.validNel
 }

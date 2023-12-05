@@ -10,7 +10,7 @@ case class FailToLocalizeFailure(messages: List[String]) extends PipelinesApiKno
 }
 
 case class FailedToDelocalizeFailure(message: String, jobTag: String, stderrPath: Option[Path])
-  extends PipelinesApiKnownJobFailure {
+    extends PipelinesApiKnownJobFailure {
   lazy val stderrMessage = stderrPath map { p =>
     s"3) Look into the stderr (${p.pathAsString}) file for evidence that some of the output files the command is expected to create were not created."
   } getOrElse ""

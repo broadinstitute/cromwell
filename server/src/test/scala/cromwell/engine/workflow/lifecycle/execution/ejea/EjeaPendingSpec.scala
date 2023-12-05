@@ -9,7 +9,7 @@ import org.scalatest.concurrent.Eventually
 
 class EjeaPendingSpec extends EngineJobExecutionActorSpec with CanValidateJobStoreKey with Eventually {
 
-  override implicit val stateUnderTest: EngineJobExecutionActorState = Pending
+  implicit override val stateUnderTest: EngineJobExecutionActorState = Pending
 
   "An EJEA in the Pending state" should {
 
@@ -36,7 +36,8 @@ class EjeaPendingSpec extends EngineJobExecutionActorSpec with CanValidateJobSto
         if (restarting) {
           helper.jobRestartCheckTokenDispenserProbe.expectMsgClass(max = awaitTimeout, classOf[JobTokenRequest])
         } else {
-          val tokenRequest = helper.jobExecutionTokenDispenserProbe.expectMsgClass(max = awaitTimeout, classOf[JobTokenRequest])
+          val tokenRequest =
+            helper.jobExecutionTokenDispenserProbe.expectMsgClass(max = awaitTimeout, classOf[JobTokenRequest])
           // 1 is the default hog-factor value defined in reference.conf
           tokenRequest.jobTokenType.hogFactor should be(1)
         }
@@ -45,14 +46,20 @@ class EjeaPendingSpec extends EngineJobExecutionActorSpec with CanValidateJobSto
       s"should use hog-factor defined in backend configuration in token request (with restarting=$restarting)" in {
         val expectedHogFactorValue = 123
         val overriddenHogFactorAttributeString = s"hog-factor: $expectedHogFactorValue"
-        val backendWithOverriddenHogFactorConfigDescriptor = BackendConfigurationDescriptor(backendConfig = ConfigFactory.parseString(overriddenHogFactorAttributeString), globalConfig)
-        ejea = helper.buildEJEA(restarting = restarting, backendConfigurationDescriptor = backendWithOverriddenHogFactorConfigDescriptor)
+        val backendWithOverriddenHogFactorConfigDescriptor =
+          BackendConfigurationDescriptor(backendConfig = ConfigFactory.parseString(overriddenHogFactorAttributeString),
+                                         globalConfig
+          )
+        ejea = helper.buildEJEA(restarting = restarting,
+                                backendConfigurationDescriptor = backendWithOverriddenHogFactorConfigDescriptor
+        )
         ejea ! Execute
 
         if (restarting) {
           helper.jobRestartCheckTokenDispenserProbe.expectMsgClass(max = awaitTimeout, classOf[JobTokenRequest])
         } else {
-          val tokenRequest = helper.jobExecutionTokenDispenserProbe.expectMsgClass(max = awaitTimeout, classOf[JobTokenRequest])
+          val tokenRequest =
+            helper.jobExecutionTokenDispenserProbe.expectMsgClass(max = awaitTimeout, classOf[JobTokenRequest])
           tokenRequest.jobTokenType.hogFactor should be(expectedHogFactorValue)
         }
       }

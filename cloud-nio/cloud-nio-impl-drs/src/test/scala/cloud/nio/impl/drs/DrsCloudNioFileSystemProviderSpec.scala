@@ -17,6 +17,6 @@ class DrsCloudNioFileSystemProviderSpec extends org.scalatest.flatspec.AnyFlatSp
     val path = fileSystemProvider.getCloudNioPath("drs://foo/bar/")
     the[UnsupportedOperationException] thrownBy {
       fileSystemProvider.deleteIfExists(path)
-    } should have message("DRS currently doesn't support delete.")
+    } should have message "DRS currently doesn't support delete."
   }
 }

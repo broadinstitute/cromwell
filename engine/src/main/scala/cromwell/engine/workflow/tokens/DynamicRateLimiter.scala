@@ -28,9 +28,8 @@ trait DynamicRateLimiter { this: Actor with Timers with ActorLogging =>
     timers.startPeriodicTimer(ResetKey, ResetAction, dispensingRate.per)
   }
 
-  private def releaseTokens() = {
+  private def releaseTokens() =
     self ! TokensAvailable(dispensingRate.n)
-  }
 
   // When load is high, freeze token distribution
   private def highLoad(doLogging: Boolean = true) = {

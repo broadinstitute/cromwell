@@ -8,7 +8,6 @@ import common.validation.ErrorOr._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-
 class ErrorOrSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "ErrorOr"
@@ -44,11 +43,33 @@ class ErrorOrSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   }
 
   val DivBy0Error: String = "Divide by 0!"
-  def errorOrDiv(v1: Int, v2: Int): ErrorOr[Double] = if (v2 != 0) { Valid(v1.toDouble / v2.toDouble) } else { DivBy0Error.invalidNel }
-  def errorOrDiv(v1: Double, v2: Int): ErrorOr[Double] = if (v2 != 0) { Valid(v1.toDouble / v2.toDouble) } else { DivBy0Error.invalidNel }
-  def errorOrSelect(v1: Int, v2: Int, v3: Int, v4: Int, v5: Int, v6: Int, v7: Int,
-                    v8: Int, v9: Int, v10: Int, v11: Int, v12: Int, v13: Int, v14: Int,
-                    v15: Int, v16: Int, v17: Int, v18: Int, v19: Int, v20: Int, v21: Int, v22: Int): ErrorOr[Int] = Valid(v4 + v6 + v22)
+  def errorOrDiv(v1: Int, v2: Int): ErrorOr[Double] = if (v2 != 0) { Valid(v1.toDouble / v2.toDouble) }
+  else { DivBy0Error.invalidNel }
+  def errorOrDiv(v1: Double, v2: Int): ErrorOr[Double] = if (v2 != 0) { Valid(v1.toDouble / v2.toDouble) }
+  else { DivBy0Error.invalidNel }
+  def errorOrSelect(v1: Int,
+                    v2: Int,
+                    v3: Int,
+                    v4: Int,
+                    v5: Int,
+                    v6: Int,
+                    v7: Int,
+                    v8: Int,
+                    v9: Int,
+                    v10: Int,
+                    v11: Int,
+                    v12: Int,
+                    v13: Int,
+                    v14: Int,
+                    v15: Int,
+                    v16: Int,
+                    v17: Int,
+                    v18: Int,
+                    v19: Int,
+                    v20: Int,
+                    v21: Int,
+                    v22: Int
+  ): ErrorOr[Int] = Valid(v4 + v6 + v22)
 
   val valid0 = Valid(0)
   val valid1 = Valid(1)
@@ -63,13 +84,29 @@ class ErrorOrSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   }
 
   it should "flatMapN 22-tuples into a Valid" in {
-    (valid0, valid1, valid2,
-      valid0, valid1, valid2,
-      valid0, valid1, valid2,
-      valid0, valid1, valid2,
-      valid0, valid1, valid2,
-      valid0, valid1, valid2,
-      valid0, valid1, valid2, valid0) flatMapN errorOrSelect should be(Valid(0 + 2 + 0))
+    (valid0,
+     valid1,
+     valid2,
+     valid0,
+     valid1,
+     valid2,
+     valid0,
+     valid1,
+     valid2,
+     valid0,
+     valid1,
+     valid2,
+     valid0,
+     valid1,
+     valid2,
+     valid0,
+     valid1,
+     valid2,
+     valid0,
+     valid1,
+     valid2,
+     valid0
+    ) flatMapN errorOrSelect should be(Valid(0 + 2 + 0))
   }
 
   it should "flatMapN 1-tuples into a Valid string" in {
@@ -139,82 +176,211 @@ class ErrorOrSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   }
 
   it should "flatMapN 13-tuples into a Valid string" in {
-    val result = (
-      valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2,
-      valid0)
-      .flatMapN(Array(_, _, _, _, _, _, _, _, _, _, _, _, _).mkString.valid)
+    val result =
+      (valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2, valid0)
+        .flatMapN(Array(_, _, _, _, _, _, _, _, _, _, _, _, _).mkString.valid)
     result should be(Valid("0120120120120"))
   }
 
   it should "flatMapN 14-tuples into a Valid string" in {
-    val result = (
-      valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2,
-      valid0, valid1)
-      .flatMapN(Array(_, _, _, _, _, _, _, _, _, _, _, _, _, _).mkString.valid)
+    val result =
+      (valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1)
+        .flatMapN(Array(_, _, _, _, _, _, _, _, _, _, _, _, _, _).mkString.valid)
     result should be(Valid("01201201201201"))
   }
 
   it should "flatMapN 15-tuples into a Valid string" in {
-    val result = (
-      valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2,
-      valid0, valid1, valid2)
+    val result = (valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2
+    )
       .flatMapN(Array(_, _, _, _, _, _, _, _, _, _, _, _, _, _, _).mkString.valid)
     result should be(Valid("012012012012012"))
   }
 
   it should "flatMapN 16-tuples into a Valid string" in {
-    val result = (
-      valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2,
-      valid0, valid1, valid2, valid0)
+    val result = (valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0
+    )
       .flatMapN(Array(_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _).mkString.valid)
     result should be(Valid("0120120120120120"))
   }
 
   it should "flatMapN 17-tuples into a Valid string" in {
-    val result = (
-      valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2,
-      valid0, valid1, valid2, valid0, valid1)
+    val result = (valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1
+    )
       .flatMapN(Array(_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _).mkString.valid)
     result should be(Valid("01201201201201201"))
   }
 
   it should "flatMapN 18-tuples into a Valid string" in {
-    val result = (
-      valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2,
-      valid0, valid1, valid2, valid0, valid1, valid2)
+    val result = (valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2
+    )
       .flatMapN(Array(_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _).mkString.valid)
     result should be(Valid("012012012012012012"))
   }
 
   it should "flatMapN 19-tuples into a Valid string" in {
-    val result = (
-      valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2,
-      valid0, valid1, valid2, valid0, valid1, valid2, valid0)
+    val result = (valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0
+    )
       .flatMapN(Array(_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _).mkString.valid)
     result should be(Valid("0120120120120120120"))
   }
 
   it should "flatMapN 20-tuples into a Valid string" in {
-    val result = (
-      valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2,
-      valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1)
+    val result = (valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1
+    )
       .flatMapN(Array(_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _).mkString.valid)
     result should be(Valid("01201201201201201201"))
   }
 
   it should "flatMapN 21-tuples into a Valid string" in {
-    val result = (
-      valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2,
-      valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2)
+    val result = (valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2
+    )
       .flatMapN(Array(_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _).mkString.valid)
     result should be(Valid("012012012012012012012"))
   }
 
   it should "flatMapN 22-tuples into a Valid string" in {
-    val result = (
-      valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2,
-      valid0, valid1, valid2, valid0, valid1, valid2, valid0, valid1, valid2, valid0).flatMapN(
-      Array(_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _).mkString.valid)
+    val result = (valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0,
+                  valid1,
+                  valid2,
+                  valid0
+    ).flatMapN(Array(_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _).mkString.valid)
     result should be(Valid("0120120120120120120120"))
   }
 
@@ -228,7 +394,8 @@ class ErrorOrSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
          |    def flatMapN[T_OUT](f1: (A) => ErrorOr[T_OUT]): ErrorOr[T_OUT] = t1.tupled flatMap f1.tupled
          |}
          |
-         |""".stripMargin)
+         |""".stripMargin
+    )
     result
   }
 

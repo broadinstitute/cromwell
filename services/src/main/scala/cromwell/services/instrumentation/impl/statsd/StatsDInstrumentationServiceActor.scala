@@ -22,6 +22,7 @@ object StatsDInstrumentationServiceActor {
     Props(new StatsDInstrumentationServiceActor(serviceConfig, globalConfig, serviceRegistryActor))
 
   implicit class CromwellBucketEnhanced(val cromwellBucket: CromwellBucket) extends AnyVal {
+
     /**
       * Transforms a CromwellBucket to a StatsD path, optionally inserting a value between prefix and path
       */
@@ -45,7 +46,9 @@ object StatsDInstrumentationServiceActor {
   * If performance or statistics accuracy becomes a problem one might implement a more efficient solution
   * by making use of downsampling and / or multi metrics packets: https://github.com/etsy/statsd/blob/master/docs/metric_types.md
   */
-class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with DefaultInstrumented {
+class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
+    extends Actor
+    with DefaultInstrumented {
   val statsDConfig: StatsDConfig = StatsDConfig(serviceConfig)
   val cromwellInstanceIdOption: Option[String] = globalConfig.getAs[String]("system.cromwell_id")
 
@@ -63,13 +66,14 @@ class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Con
     .start(statsDConfig.flushRate.toMillis, TimeUnit.MILLISECONDS)
 
   override def receive: Receive = {
-    case InstrumentationServiceMessage(cromwellMetric) => cromwellMetric match {
-      case CromwellIncrement(bucket) => increment(bucket)
-      case CromwellCount(bucket, value, _) => updateCounter(bucket, value)
-      case CromwellGauge(bucket, value) => updateGauge(bucket, value)
-      case CromwellTiming(bucket, value, _) => updateTiming(bucket, value)
-      case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
-    }
+    case InstrumentationServiceMessage(cromwellMetric) =>
+      cromwellMetric match {
+        case CromwellIncrement(bucket) => increment(bucket)
+        case CromwellCount(bucket, value, _) => updateCounter(bucket, value)
+        case CromwellGauge(bucket, value) => updateGauge(bucket, value)
+        case CromwellTiming(bucket, value, _) => updateTiming(bucket, value)
+        case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
+      }
     case ShutdownCommand => context stop self
   }
 
@@ -105,7 +109,7 @@ class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Con
     val newGauge = !gaugeFunctions.containsKey(bucket)
     gaugeFunctions.put(bucket, value)
     if (newGauge) {
-      metrics.gauge(bucket.toStatsDString()){ gaugeFunctions.get(bucket) }
+      metrics.gauge(bucket.toStatsDString())(gaugeFunctions.get(bucket))
     }
     ()
   }
@@ -113,7 +117,6 @@ class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Con
   /**
     * Adds a new timing value for this bucket
     */
-  private def updateTiming(bucket: CromwellBucket, value: FiniteDuration): Unit = {
+  private def updateTiming(bucket: CromwellBucket, value: FiniteDuration): Unit =
     metrics.timer(bucket.toStatsDString()).update(value)
-  }
 }

@@ -9,15 +9,19 @@ import wdl.model.draft3.elements.{ImportElement, LanguageElement, StaticString}
 
 object AstToImportElement {
 
-  def astToImportElement(implicit astNodeToStaticString: CheckedAtoB[GenericAstNode, StaticString]): CheckedAtoB[GenericAst, ImportElement] =
+  def astToImportElement(implicit
+    astNodeToStaticString: CheckedAtoB[GenericAstNode, StaticString]
+  ): CheckedAtoB[GenericAst, ImportElement] =
     CheckedAtoB.fromErrorOr("convert Ast to ImportElement") { a =>
-
       val importPath: ErrorOr[String] = a.getAttributeAs[StaticString]("uri").map(_.value).toValidated
       val alias: ErrorOr[Option[String]] = a.getAttributeAsOptional[String]("namespace").toValidated
 
-      val aliasElementMaker: CheckedAtoB[GenericAstNode, ImportStructRenameElement] = astNodeToAst andThen CheckedAtoB.fromErrorOr(convertAliasElement _)
-      val structRenames: ErrorOr[Vector[ImportStructRenameElement]] = a.getAttributeAsVector[ImportStructRenameElement]("aliases")(aliasElementMaker).toValidated
-      val structRenameMap: ErrorOr[Map[String, String]] = structRenames.map(_.map(rename => rename.oldName -> rename.newName).toMap)
+      val aliasElementMaker: CheckedAtoB[GenericAstNode, ImportStructRenameElement] =
+        astNodeToAst andThen CheckedAtoB.fromErrorOr(convertAliasElement _)
+      val structRenames: ErrorOr[Vector[ImportStructRenameElement]] =
+        a.getAttributeAsVector[ImportStructRenameElement]("aliases")(aliasElementMaker).toValidated
+      val structRenameMap: ErrorOr[Map[String, String]] =
+        structRenames.map(_.map(rename => rename.oldName -> rename.newName).toMap)
 
       (importPath, alias, structRenameMap) mapN ImportElement
     }
@@ -29,5 +33,5 @@ object AstToImportElement {
     (oldName, newName) mapN ImportStructRenameElement
   }
 
-  private final case class ImportStructRenameElement(oldName: String, newName: String) extends LanguageElement
+  final private case class ImportStructRenameElement(oldName: String, newName: String) extends LanguageElement
 }

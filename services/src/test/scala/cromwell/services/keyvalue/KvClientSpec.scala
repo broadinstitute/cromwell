@@ -58,5 +58,3 @@ class KvClientSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
 class KvTestClientActor(val serviceRegistryActor: ActorRef) extends Actor with ActorLogging with KvClient {
   override def receive: Receive = kvClientReceive orElse Actor.ignoringBehavior
 }
-
-

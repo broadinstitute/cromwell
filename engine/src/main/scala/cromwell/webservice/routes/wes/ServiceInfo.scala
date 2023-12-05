@@ -49,9 +49,12 @@ object ServiceInfo {
   /**
     * Generate any runtime level information and create a response to the client
     */
-  def toWesResponse(workflowStoreActor: ActorRef)(implicit ec: ExecutionContext, timeout: Timeout): Future[WesStatusInfoResponse] = {
+  def toWesResponse(
+    workflowStoreActor: ActorRef
+  )(implicit ec: ExecutionContext, timeout: Timeout): Future[WesStatusInfoResponse] =
     workflowStats(workflowStoreActor).map(stats =>
-      WesStatusInfoResponse(WorkflowTypeVersion,
+      WesStatusInfoResponse(
+        WorkflowTypeVersion,
         SupportedWesVersions,
         SupportedFilesystemProtocols,
         WorkflowEngineVerisons,
@@ -59,18 +62,20 @@ object ServiceInfo {
         stats,
         AuthInstructionsUrl.toString,
         ContactInfoUrl.toString,
-        Tags)
+        Tags
+      )
     )
-  }
 
   /**
     * Retrieve a map from state to count for all represented non-terminal workflow states
     */
-  private def workflowStats(workflowStoreActor: ActorRef)(implicit ec: ExecutionContext, timeout: Timeout): Future[Map[WesState, Int]] = {
-    workflowStoreActor.ask(GetWorkflowStoreStats)
+  private def workflowStats(
+    workflowStoreActor: ActorRef
+  )(implicit ec: ExecutionContext, timeout: Timeout): Future[Map[WesState, Int]] =
+    workflowStoreActor
+      .ask(GetWorkflowStoreStats)
       .mapTo[Map[WorkflowState, Int]]
       .map(m => m.map(e => WesState.fromCromwellStatus(e._1) -> e._2)) // Convert WorkflowState -> WesState
-  }
 }
 
 /*

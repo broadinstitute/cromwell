@@ -16,7 +16,7 @@ metadata {
   
   "calls.restart_while_failing.A.executionStatus": "Failed"
   "calls.restart_while_failing.B.executionStatus": "Done"
-  "calls.restart_while_failing.B1.  executionStatus": "Done"
+  "calls.restart_while_failing.B1.executionStatus": "Done"
 
   "restart_while_failing.sleep_exit.0.executionStatus": "Done"
   "restart_while_failing.sleep_exit.1.executionStatus": "Done"

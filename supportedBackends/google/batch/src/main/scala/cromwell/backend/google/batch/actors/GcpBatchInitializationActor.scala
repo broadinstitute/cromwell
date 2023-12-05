@@ -16,10 +16,18 @@ import com.google.auth.http.HttpCredentialsAdapter
 import com.google.auth.oauth2.OAuth2Credentials
 import cromwell.backend.google.batch._
 import cromwell.backend.google.batch.actors.GcpBatchInitializationActor._
-import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.{VirtualPrivateCloudConfiguration, VirtualPrivateCloudLabels, VirtualPrivateCloudLiterals}
+import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.{
+  VirtualPrivateCloudConfiguration,
+  VirtualPrivateCloudLabels,
+  VirtualPrivateCloudLiterals
+}
 import cromwell.backend.google.batch.models._
 import cromwell.backend.google.batch.runnable.WorkflowOptionKeys
-import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
+import cromwell.backend.standard.{
+  StandardInitializationActor,
+  StandardInitializationActorParams,
+  StandardValidatedRuntimeAttributesBuilder
+}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode.{httpTransport, jsonFactory}
 import cromwell.cloudsupport.gcp.auth.{GoogleAuthMode, UserServiceAccountMode}
@@ -36,8 +44,7 @@ import scala.concurrent.Future
 import scala.util.Try
 import scala.util.control.NonFatal
 
-case class GcpBatchInitializationActorParams
-(
+case class GcpBatchInitializationActorParams(
   workflowDescriptor: BackendWorkflowDescriptor,
   ioActor: ActorRef,
   calls: Set[CommandCallNode],
@@ -48,7 +55,9 @@ case class GcpBatchInitializationActorParams
   override val configurationDescriptor: BackendConfigurationDescriptor = batchConfiguration.configurationDescriptor
 
 }
-class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams) extends StandardInitializationActor(batchParams) with AsyncIoActorClient {
+class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams)
+    extends StandardInitializationActor(batchParams)
+    with AsyncIoActorClient {
 
   override lazy val ioActor: ActorRef = batchParams.ioActor
   protected val gcpBatchConfiguration: GcpBatchConfiguration = batchParams.batchConfiguration
@@ -65,11 +74,12 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
 
   // Credentials object for the Genomics API
   private lazy val genomicsCredentials: Future[Credentials] = gcpBatchConfiguration.batchAttributes.auths.genomics
-                                                                                    .retryCredentials(workflowOptions, List(
-                                                                                      CloudLifeSciencesScopes
-                                                                                        .CLOUD_PLATFORM,
-                                                                                      GenomicsScopes.GENOMICS
-                                                                                    ))
+    .retryCredentials(workflowOptions,
+                      List(
+                        CloudLifeSciencesScopes.CLOUD_PLATFORM,
+                        GenomicsScopes.GENOMICS
+                      )
+    )
 
   val privateDockerEncryptionKeyName: Option[String] = {
     val optionsEncryptionKey = workflowOptions.get(GoogleAuthMode.DockerCredentialsEncryptionKeyNameKey).toOption
@@ -89,11 +99,14 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
       // That doesn't seem great but it's effectively what the existing code around user service accounts appears to be doing.
       val userServiceAccountAuth: Option[GoogleAuthMode] = for {
         _ <- workflowOptions.get(GoogleAuthMode.UserServiceAccountKey).toOption
-        usaAuth <- gcpBatchConfiguration.googleConfig.authsByName.values collectFirst { case u: UserServiceAccountMode => u }
+        usaAuth <- gcpBatchConfiguration.googleConfig.authsByName.values collectFirst {
+          case u: UserServiceAccountMode => u
+        }
       } yield usaAuth
 
-      def encryptionAuthFromConfig: Option[GoogleAuthMode] = gcpBatchConfiguration.dockerEncryptionAuthName.flatMap { name =>
-        gcpBatchConfiguration.googleConfig.auth(name).toOption
+      def encryptionAuthFromConfig: Option[GoogleAuthMode] = gcpBatchConfiguration.dockerEncryptionAuthName.flatMap {
+        name =>
+          gcpBatchConfiguration.googleConfig.auth(name).toOption
       }
       // If there's no user service account auth in the workflow options fall back to an auth specified in config.
       userServiceAccountAuth orElse encryptionAuthFromConfig
@@ -103,12 +116,18 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
       new String(Base64.decodeBase64(dockerToken)).split(':') match {
         case Array(username, password) =>
           // unencrypted tokens are base64-encoded username:password
-          Option(JsObject(
-            Map(
-              "username" -> JsString(username),
-              "password" -> JsString(password)
-            )).compactPrint)
-        case _ => throw new RuntimeException(s"provided dockerhub token '$dockerToken' is not a base64-encoded username:password")
+          Option(
+            JsObject(
+              Map(
+                "username" -> JsString(username),
+                "password" -> JsString(password)
+              )
+            ).compactPrint
+          )
+        case _ =>
+          throw new RuntimeException(
+            s"provided dockerhub token '$dockerToken' is not a base64-encoded username:password"
+          )
       }
     }
 
@@ -122,17 +141,25 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
   }
 
   private def vpcNetworkAndSubnetworkProjectLabelsFuture(): Future[Option[VpcAndSubnetworkProjectLabelValues]] = {
-    def googleProject(descriptor: BackendWorkflowDescriptor): String = {
-      descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.GoogleProject, batchParams.batchConfiguration.batchAttributes.project)
-    }
+    def googleProject(descriptor: BackendWorkflowDescriptor): String =
+      descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.GoogleProject,
+                                           batchParams.batchConfiguration.batchAttributes.project
+      )
 
-    def projectMetadataRequest(vpcConfig: VirtualPrivateCloudLabels): Future[HttpRequest] = {
+    def projectMetadataRequest(vpcConfig: VirtualPrivateCloudLabels): Future[HttpRequest] =
       Future {
-        val credentials = vpcConfig.auth.credentials(workflowOptions.get(_).getOrElse(throw new RuntimeException("Unable to find the necessary workflow option for auth credentials")), List(CloudResourceManagerScopes.CLOUD_PLATFORM))
+        val credentials = vpcConfig.auth.credentials(
+          workflowOptions
+            .get(_)
+            .getOrElse(throw new RuntimeException("Unable to find the necessary workflow option for auth credentials")),
+          List(CloudResourceManagerScopes.CLOUD_PLATFORM)
+        )
 
         val httpCredentialsAdapter = new HttpCredentialsAdapter(credentials)
-        val cloudResourceManagerBuilder = new CloudResourceManager
-        .Builder(GoogleAuthMode.httpTransport, GoogleAuthMode.jsonFactory, httpCredentialsAdapter)
+        val cloudResourceManagerBuilder = new CloudResourceManager.Builder(GoogleAuthMode.httpTransport,
+                                                                           GoogleAuthMode.jsonFactory,
+                                                                           httpCredentialsAdapter
+        )
           .setApplicationName(gcpBatchConfiguration.googleConfig.applicationName)
           .build()
 
@@ -140,19 +167,23 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
 
         project.buildHttpRequest()
       }
-    }
 
     def projectMetadataResponseToLabels(httpResponse: HttpResponse): Future[ProjectLabels] = {
       implicit val googleProjectMetadataLabelDecoder: Decoder[ProjectLabels] = deriveDecoder
-      Future.fromTry(decode[ProjectLabels](httpResponse.parseAsString()).toTry).recoverWith {
-        case NonFatal(e) => Future.failed(new RuntimeException(s"Failed to parse labels from project metadata response from Google Cloud Resource Manager API. " +
-          s"${ExceptionUtils.getMessage(e)}", e))
+      Future.fromTry(decode[ProjectLabels](httpResponse.parseAsString()).toTry).recoverWith { case NonFatal(e) =>
+        Future.failed(
+          new RuntimeException(
+            s"Failed to parse labels from project metadata response from Google Cloud Resource Manager API. " +
+              s"${ExceptionUtils.getMessage(e)}",
+            e
+          )
+        )
       }
     }
 
     def networkLabelsFromProjectLabels(vpcConfig: VirtualPrivateCloudLabels,
-                                       projectLabels: ProjectLabels,
-                                      ): Option[VpcAndSubnetworkProjectLabelValues] = {
+                                       projectLabels: ProjectLabels
+    ): Option[VpcAndSubnetworkProjectLabelValues] =
       projectLabels.labels.get(vpcConfig.network) map { vpcNetworkLabelValue =>
         val subnetworkLabelOption = vpcConfig.subnetwork.flatMap { s =>
           projectLabels.labels.collectFirst {
@@ -162,22 +193,22 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
 
         VpcAndSubnetworkProjectLabelValues(vpcNetworkLabelValue, subnetworkLabelOption)
       }
-    }
 
-    def fetchVpcLabelsFromProjectMetadata(vpcConfig: VirtualPrivateCloudLabels
-                                         ): Future[Option[VpcAndSubnetworkProjectLabelValues]] = {
+    def fetchVpcLabelsFromProjectMetadata(
+      vpcConfig: VirtualPrivateCloudLabels
+    ): Future[Option[VpcAndSubnetworkProjectLabelValues]] =
       for {
         projectMetadataResponse <- projectMetadataRequest(vpcConfig).map(_.executeAsync().get())
         projectLabels <- projectMetadataResponseToLabels(projectMetadataResponse)
       } yield networkLabelsFromProjectLabels(vpcConfig, projectLabels)
-    }
 
     /*
     First, try to fetch the network information from labels, where that fetch may still return None.
     Then, if we did not discover a network via labels for whatever reason try to look for literal values.
      */
-    def fetchVpcLabels(vpcConfig: VirtualPrivateCloudConfiguration
-                      ): Future[Option[VpcAndSubnetworkProjectLabelValues]] = {
+    def fetchVpcLabels(
+      vpcConfig: VirtualPrivateCloudConfiguration
+    ): Future[Option[VpcAndSubnetworkProjectLabelValues]] = {
       // Added explicit types to hopefully help future devs who stumble across this two-step code
       val fetchedFromLabels: Future[Option[VpcAndSubnetworkProjectLabelValues]] = vpcConfig.labelsOption match {
         case Some(labels: VirtualPrivateCloudLabels) => fetchVpcLabelsFromProjectMetadata(labels)
@@ -201,9 +232,13 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
     gcsCred <- gcsCredentials
     genomicsCred <- genomicsCredentials
     validatedPathBuilders <- pathBuilders
-  } yield new GcpBatchWorkflowPaths(
-      workflowDescriptor, gcsCred, genomicsCred, gcpBatchConfiguration, validatedPathBuilders, standardStreamNameToFileNameMetadataMapper)(ioEc)
-
+  } yield new GcpBatchWorkflowPaths(workflowDescriptor,
+                                    gcsCred,
+                                    genomicsCred,
+                                    gcpBatchConfiguration,
+                                    validatedPathBuilders,
+                                    standardStreamNameToFileNameMetadataMapper
+  )(ioEc)
 
   override lazy val initializationData: Future[GcpBackendInitializationData] = for {
     batchWorkflowPaths <- workflowPaths
@@ -221,13 +256,12 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
 
   override def validateWorkflowOptions(): Try[Unit] = GcpLabel.fromWorkflowOptions(workflowOptions).map(_ => ())
 
-  override def beforeAll(): Future[Option[BackendInitializationData]] = {
+  override def beforeAll(): Future[Option[BackendInitializationData]] =
     for {
       paths <- workflowPaths
       _ = publishWorkflowRoot(paths.workflowRoot.pathAsString)
       data <- initializationData
     } yield Option(data)
-  }
 
   def standardStreamNameToFileNameMetadataMapper(gcpBatchJobPaths: GcpBatchJobPaths, streamName: String): String =
     GcpBatchInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper(gcpBatchJobPaths, streamName)
@@ -238,7 +272,9 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
 
 object GcpBatchInitializationActor {
   // For metadata publishing purposes default to using the name of a standard stream as the stream's filename.
-  def defaultStandardStreamNameToFileNameMetadataMapper(gcpBatchJobPaths: GcpBatchJobPaths, streamName: String): String = streamName
+  def defaultStandardStreamNameToFileNameMetadataMapper(gcpBatchJobPaths: GcpBatchJobPaths,
+                                                        streamName: String
+  ): String = streamName
 
   def encryptKms(keyName: String, credentials: OAuth2Credentials, plainText: String): String = {
     val httpCredentialsAdapter = new HttpCredentialsAdapter(credentials)

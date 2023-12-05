@@ -1,6 +1,5 @@
 package cromwell.engine.workflow.tokens.large
 
-
 import akka.actor.{Actor, ActorRef}
 import cromwell.core.JobToken.JobTokenType
 import cromwell.engine.workflow.tokens.large.LargeScaleJobTokenDispenserActorSpec.RunningJobCounter
@@ -15,7 +14,12 @@ import cromwell.engine.workflow.tokens.large.PatientTokenNeedingActor.{AllDone, 
   *
   * Because I'm a good citizen, I'm going to record and return a value representing my "peak concurrent tokens distributed"
   */
-class MultipleTokenUsingActor(tokenDispenser: ActorRef, tokenType: JobTokenType, totalJobs: Int, hogGroup: String, globalRunningJobCounter: RunningJobCounter) extends Actor {
+class MultipleTokenUsingActor(tokenDispenser: ActorRef,
+                              tokenType: JobTokenType,
+                              totalJobs: Int,
+                              hogGroup: String,
+                              globalRunningJobCounter: RunningJobCounter
+) extends Actor {
 
   var hasToken: Boolean = false
 
@@ -32,7 +36,9 @@ class MultipleTokenUsingActor(tokenDispenser: ActorRef, tokenType: JobTokenType,
     case Begin =>
       starter = sender()
       (0 until totalJobs) foreach { i =>
-        val jobActor = context.actorOf(PatientTokenNeedingActor.props(tokenDispenser, tokenType, hogGroup), name = self.path.name + s"job$i")
+        val jobActor = context.actorOf(PatientTokenNeedingActor.props(tokenDispenser, tokenType, hogGroup),
+                                       name = self.path.name + s"job$i"
+        )
         jobActor ! Begin
       }
       startedJobs = totalJobs
@@ -54,7 +60,6 @@ class MultipleTokenUsingActor(tokenDispenser: ActorRef, tokenType: JobTokenType,
       errors :+= s"Received unexpected message $other"
   }
 }
-
 
 object MultipleTokenUsingActor {
   final case class TokenUsingActorCompletion(queueWaits: Seq[Long], maximumConcurrency: Int, errors: List[String])

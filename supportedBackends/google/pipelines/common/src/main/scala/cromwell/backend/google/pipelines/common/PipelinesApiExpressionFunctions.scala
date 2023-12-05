@@ -10,26 +10,25 @@ import cromwell.filesystems.gcs.GcsPathBuilder
 import cromwell.filesystems.gcs.GcsPathBuilder.{InvalidGcsPath, PossiblyValidRelativeGcsPath, ValidFullGcsPath}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 
-class PipelinesApiPathFunctions(pathBuilders: PathBuilders, callContext: CallContext) extends CallCorePathFunctionSet(pathBuilders, callContext) {
-  override def relativeToHostCallRoot(path: String) = {
+class PipelinesApiPathFunctions(pathBuilders: PathBuilders, callContext: CallContext)
+    extends CallCorePathFunctionSet(pathBuilders, callContext) {
+  override def relativeToHostCallRoot(path: String) =
     GcsPathBuilder.validateGcsPath(path) match {
       case _: ValidFullGcsPath => path
       case _ => callContext.root.resolve(path.stripPrefix("file://").stripPrefix("/")).pathAsString
     }
-  }
 }
 
 class PipelinesApiExpressionFunctions(standardParams: StandardExpressionFunctionsParams)
-  extends StandardExpressionFunctions(standardParams) {
+    extends StandardExpressionFunctions(standardParams) {
   override lazy val ioCommandBuilder: IoCommandBuilder = GcsBatchCommandBuilder
 
-  override def preMapping(str: String) = {
+  override def preMapping(str: String) =
     GcsPathBuilder.validateGcsPath(str) match {
       case _: ValidFullGcsPath => str
       case PossiblyValidRelativeGcsPath => callContext.root.resolve(str.stripPrefix("/")).pathAsString
       case _: InvalidGcsPath => str
     }
-  }
 
   override lazy val pathFunctions = new PipelinesApiPathFunctions(pathBuilders, callContext)
 

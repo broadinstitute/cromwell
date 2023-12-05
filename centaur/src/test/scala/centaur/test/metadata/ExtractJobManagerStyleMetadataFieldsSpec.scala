@@ -6,7 +6,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import spray.json._
 
-
 class ExtractJobManagerStyleMetadataFieldsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "extracting Job Manager style metadata fields"
 
@@ -45,6 +44,8 @@ class ExtractJobManagerStyleMetadataFieldsSpec extends AnyFlatSpec with Cromwell
         |	}
         |}""".stripMargin
 
-    Operations.extractJmStyleMetadataFields(originalMetadata.parseJson.asJsObject) should be(expectedExpectedMetadata.parseJson.asJsObject)
+    Operations.extractJmStyleMetadataFields(originalMetadata.parseJson.asJsObject) should be(
+      expectedExpectedMetadata.parseJson.asJsObject
+    )
   }
 }

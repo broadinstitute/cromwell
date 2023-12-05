@@ -3,8 +3,14 @@ package cromwell.backend.google.pipelines.common.api.clients
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import cromwell.backend.google.pipelines.common.PapiInstrumentation
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{PAPIAbortRequest, PipelinesApiAbortQueryFailed}
-import cromwell.backend.google.pipelines.common.api.clients.PipelinesApiAbortClient.{PAPIAbortRequestSuccessful, PAPIOperationIsAlreadyTerminal}
+import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{
+  PAPIAbortRequest,
+  PipelinesApiAbortQueryFailed
+}
+import cromwell.backend.google.pipelines.common.api.clients.PipelinesApiAbortClient.{
+  PAPIAbortRequestSuccessful,
+  PAPIOperationIsAlreadyTerminal
+}
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.WorkflowId
 import cromwell.core.logging.JobLogging
@@ -23,9 +29,8 @@ trait PipelinesApiAbortClient { this: Actor with ActorLogging with JobLogging wi
   val papiApiActor: ActorRef
   val requestFactory: PipelinesApiRequestFactory
 
-  def abortJob(jobId: StandardAsyncJob) = {
+  def abortJob(jobId: StandardAsyncJob) =
     papiApiActor ! PAPIAbortRequest(workflowId, self, requestFactory.cancelRequest(jobId), jobId)
-  }
 
   def abortActorClientReceive: Actor.Receive = {
     case PAPIAbortRequestSuccessful(jobId) =>

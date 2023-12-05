@@ -31,17 +31,20 @@ import scala.concurrent.{ExecutionContext, Future}
   * as GCS and PAPI. This implementation makes some assumptions of Cromwell's configuration which will be true
   * in a Workbench scenario but YMMV otherwise. Caveat emptor and all of that fun stuff.
   */
-abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
-  extends ProtoHealthMonitorServiceActor
+abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config,
+                                                  globalConfig: Config,
+                                                  serviceRegistryActor: ActorRef
+) extends ProtoHealthMonitorServiceActor
     with DockerHubMonitor
     with EngineDatabaseMonitor {
-  override implicit val system = context.system
+  implicit override val system = context.system
 
-  private lazy val papiBackendConfigurations = serviceConfig.as[Set[String]]("check-papi-backends").map(WorkbenchHealthMonitorServiceActor.PapiConfiguration.fromBackendNameValue(_, serviceConfig, globalConfig))
+  private lazy val papiBackendConfigurations = serviceConfig
+    .as[Set[String]]("check-papi-backends")
+    .map(WorkbenchHealthMonitorServiceActor.PapiConfiguration.fromBackendNameValue(_, serviceConfig, globalConfig))
 
-  def papiMonitoredSubsystem(papiConfiguration: PapiConfiguration): MonitoredSubsystem = {
+  def papiMonitoredSubsystem(papiConfiguration: PapiConfiguration): MonitoredSubsystem =
     MonitoredSubsystem(papiConfiguration.backendName, () => checkPapi(papiConfiguration))
-  }
 
   protected lazy val Gcs = MonitoredSubsystem("GCS", () => checkGcs())
   protected lazy val PapiSubsystems = papiBackendConfigurations map papiMonitoredSubsystem
@@ -54,7 +57,8 @@ abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, glo
   private def getGoogleAuthConfigurationOrFail(googleAuthName: String): GoogleAuthMode =
     googleConfig.auth(googleAuthName) match {
       case Valid(a) => a
-      case Invalid(e) => throw new IllegalArgumentException("Unable to configure WorkbenchHealthMonitor: " + e.toList.mkString(", "))
+      case Invalid(e) =>
+        throw new IllegalArgumentException("Unable to configure WorkbenchHealthMonitor: " + e.toList.mkString(", "))
     }
 
   /**
@@ -80,12 +84,19 @@ abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, glo
     val check = for {
       credentials <- Future(googleAuth.credentials(List(CloudLifeSciencesScopes.CLOUD_PLATFORM)))
       actorFactoryName = papiProviderConfig.as[String]("actor-factory")
-      genomicsChecker = if (actorFactoryName.contains("v2beta")) {
-        val location = papiConfig.as[String]("genomics.location")
-        GenomicsCheckerV2Beta(googleConfig.applicationName, googleAuth, endpointUrl, location, credentials, papiProjectId)
-      } else {
-        GenomicsCheckerV2Alpha1(googleConfig.applicationName, googleAuth, endpointUrl, credentials, papiProjectId)
-      }
+      genomicsChecker =
+        if (actorFactoryName.contains("v2beta")) {
+          val location = papiConfig.as[String]("genomics.location")
+          GenomicsCheckerV2Beta(googleConfig.applicationName,
+                                googleAuth,
+                                endpointUrl,
+                                location,
+                                credentials,
+                                papiProjectId
+          )
+        } else {
+          GenomicsCheckerV2Alpha1(googleConfig.applicationName, googleAuth, endpointUrl, credentials, papiProjectId)
+        }
       checked <- genomicsChecker.check
     } yield checked
 
@@ -98,9 +109,8 @@ object WorkbenchHealthMonitorServiceActor {
     protected def httpInitializer(credentials: Credentials) = {
       val delegate = new HttpCredentialsAdapter(credentials)
       new HttpRequestInitializer() {
-        def initialize(httpRequest: HttpRequest) = {
+        def initialize(httpRequest: HttpRequest) =
           delegate.initialize(httpRequest)
-        }
       }
     }
 
@@ -112,34 +122,42 @@ object WorkbenchHealthMonitorServiceActor {
                                    endpointUrl: URL,
                                    location: String,
                                    credentials: Credentials,
-                                   papiProjectId: String)(implicit val ec: ExecutionContext) extends GenomicsChecker {
-    val lifeSciences = new CloudLifeSciences.Builder(
-      GoogleAuthMode.httpTransport,
-      GoogleAuthMode.jsonFactory,
-      httpInitializer(credentials))
+                                   papiProjectId: String
+  )(implicit val ec: ExecutionContext)
+      extends GenomicsChecker {
+    val lifeSciences = new CloudLifeSciences.Builder(GoogleAuthMode.httpTransport,
+                                                     GoogleAuthMode.jsonFactory,
+                                                     httpInitializer(credentials)
+    )
       .setApplicationName(applicationName)
       .setRootUrl(endpointUrl.toString)
       .build
 
     override def check = Future {
       // https://cloud.google.com/life-sciences/docs/reference/rest/v2beta/projects.locations.operations
-      lifeSciences.projects().locations().operations().list(s"projects/$papiProjectId/locations/$location").setPageSize(1).execute()
+      lifeSciences
+        .projects()
+        .locations()
+        .operations()
+        .list(s"projects/$papiProjectId/locations/$location")
+        .setPageSize(1)
+        .execute()
       ()
     }
   }
 
   case class GenomicsCheckerV2Alpha1(applicationName: String,
-                                   authMode: GoogleAuthMode,
-                                   endpointUrl: URL,
-                                   credentials: Credentials,
-                                   papiProjectId: String)(implicit val ec: ExecutionContext) extends GenomicsChecker {
-    val genomics = new Genomics.Builder(
-      GoogleAuthMode.httpTransport,
-      GoogleAuthMode.jsonFactory,
-      httpInitializer(credentials))
-      .setApplicationName(applicationName)
-      .setRootUrl(endpointUrl.toString)
-      .build
+                                     authMode: GoogleAuthMode,
+                                     endpointUrl: URL,
+                                     credentials: Credentials,
+                                     papiProjectId: String
+  )(implicit val ec: ExecutionContext)
+      extends GenomicsChecker {
+    val genomics =
+      new Genomics.Builder(GoogleAuthMode.httpTransport, GoogleAuthMode.jsonFactory, httpInitializer(credentials))
+        .setApplicationName(applicationName)
+        .setRootUrl(endpointUrl.toString)
+        .build
 
     override def check = Future {
       // https://cloud.google.com/genomics/reference/rest/#rest-resource-v2alpha1projectsoperations
@@ -153,15 +171,16 @@ object WorkbenchHealthMonitorServiceActor {
   object PapiConfiguration {
     def fromBackendNameKey(backendNameKey: String,
                            serviceConfig: Config,
-                           globalConfig: Config): Option[PapiConfiguration] = {
+                           globalConfig: Config
+    ): Option[PapiConfiguration] =
       serviceConfig.as[Option[String]](backendNameKey) map {
         fromBackendNameValue(_, serviceConfig, globalConfig)
       }
-    }
 
     def fromBackendNameValue(papiBackendName: String,
                              serviceConfig: Config,
-                             globalConfig: Config): PapiConfiguration = {
+                             globalConfig: Config
+    ): PapiConfiguration = {
       val papiProviderConfig: Config = globalConfig.as[Config](s"backend.providers.$papiBackendName")
       val papiConfig: Config = papiProviderConfig.as[Config]("config")
       PapiConfiguration(papiBackendName, papiConfig, papiProviderConfig)

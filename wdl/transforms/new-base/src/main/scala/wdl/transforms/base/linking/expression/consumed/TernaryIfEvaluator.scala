@@ -7,9 +7,11 @@ import wdl.model.draft3.graph.{ExpressionValueConsumer, UnlinkedConsumedValueHoo
 
 object TernaryIfEvaluator {
 
-  implicit val ternaryIfUnlinkedValueConsumer: ExpressionValueConsumer[TernaryIf] = new ExpressionValueConsumer[TernaryIf] {
-    override def expressionConsumedValueHooks(a: TernaryIf)
-                                             (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): Set[UnlinkedConsumedValueHook] =
-      a.condition.expressionConsumedValueHooks ++ a.ifTrue.expressionConsumedValueHooks ++ a.ifFalse.expressionConsumedValueHooks
-  }
+  implicit val ternaryIfUnlinkedValueConsumer: ExpressionValueConsumer[TernaryIf] =
+    new ExpressionValueConsumer[TernaryIf] {
+      override def expressionConsumedValueHooks(
+        a: TernaryIf
+      )(implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): Set[UnlinkedConsumedValueHook] =
+        a.condition.expressionConsumedValueHooks ++ a.ifTrue.expressionConsumedValueHooks ++ a.ifFalse.expressionConsumedValueHooks
+    }
 }

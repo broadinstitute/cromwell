@@ -12,6 +12,7 @@ import scala.util.{Failure, Success}
   * Edits the workflow options stored in a table.
   */
 trait WorkflowOptionsChange extends BatchedTaskChange {
+
   /** @return name of the table */
   def tableName: String
 
@@ -47,7 +48,9 @@ trait WorkflowOptionsChange extends BatchedTaskChange {
         |  WHERE $primaryKeyColumn >= ? AND $primaryKeyColumn < ? $additionalReadBatchFilters;
         |""".stripMargin
 
-  override def migrateBatchQueries = List(s"UPDATE $tableName SET $workflowOptionsColumn = ? WHERE $primaryKeyColumn = ?;")
+  override def migrateBatchQueries = List(
+    s"UPDATE $tableName SET $workflowOptionsColumn = ? WHERE $primaryKeyColumn = ?;"
+  )
 
   override def migrateBatchRow(readRow: ResultSet, migrateStatements: List[PreparedStatement]): Int = {
     val migrateStatement = migrateStatements.head
@@ -61,8 +64,7 @@ trait WorkflowOptionsChange extends BatchedTaskChange {
         migrateStatement.addBatch()
         1
       case Failure(exception) =>
-        logger.error(
-          s"Unable to process $tableName pk $rowId\njson:\n$workflowOptionsJson", exception)
+        logger.error(s"Unable to process $tableName pk $rowId\njson:\n$workflowOptionsJson", exception)
         0
     }
   }

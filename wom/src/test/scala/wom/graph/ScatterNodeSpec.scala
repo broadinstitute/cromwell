@@ -15,7 +15,6 @@ import wom.graph.GraphNodePort.OutputPort
 import wom.graph.expression.{AnonymousExpressionNode, PlainAnonymousExpressionNode}
 import wom.types.{WomArrayType, WomIntegerType, WomStringType}
 
-
 class ScatterNodeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "ScatterNode"
 
@@ -59,7 +58,11 @@ class ScatterNodeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
 
     val xsExpression = PlaceholderWomExpression(Set("xs"), WomArrayType(WomIntegerType))
     val xsExpressionAsInput = AnonymousExpressionNode
-      .fromInputMapping(WomIdentifier("x"), xsExpression, Map("xs" -> xs_inputNode.singleOutputPort), PlainAnonymousExpressionNode.apply)
+      .fromInputMapping(WomIdentifier("x"),
+                        xsExpression,
+                        Map("xs" -> xs_inputNode.singleOutputPort),
+                        PlainAnonymousExpressionNode.apply
+      )
       .valueOr(failures => fail(s"Failed to create expression node: ${failures.toList.mkString(", ")}"))
 
     val x_inputNode = ScatterVariableNode(WomIdentifier("x"), xsExpressionAsInput, WomArrayType(WomIntegerType))
@@ -73,8 +76,13 @@ class ScatterNodeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
       ),
       newGraphInputNodes = Set.empty
     )
-    val CallNodeAndNewNodes(foo_callNode, _, _, _) = fooNodeBuilder.build(WomIdentifier("foo"), task_foo, fooInputFold, Set.empty, None)
-    val foo_call_outNode = PortBasedGraphOutputNode(WomIdentifier("foo.out"), WomStringType, foo_callNode.outputByName("foo.out").getOrElse(fail("foo CallNode didn't contain the expected 'out' output")))
+    val CallNodeAndNewNodes(foo_callNode, _, _, _) =
+      fooNodeBuilder.build(WomIdentifier("foo"), task_foo, fooInputFold, Set.empty, None)
+    val foo_call_outNode = PortBasedGraphOutputNode(
+      WomIdentifier("foo.out"),
+      WomStringType,
+      foo_callNode.outputByName("foo.out").getOrElse(fail("foo CallNode didn't contain the expected 'out' output"))
+    )
     val scatterGraph = Graph.validateAndConstruct(Set(foo_callNode, x_inputNode, foo_call_outNode)) match {
       case Valid(sg) => sg
       case Invalid(es) => fail("Failed to make scatter graph: " + es.toList.mkString(", "))
@@ -116,7 +124,10 @@ class ScatterNodeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
       finalOutput.inputPorts.head.upstream.name should be("foo.out")
 
       // foo.out links back to the correct output in the inner graph:
-      val innerGraphFooOutNode = scatterNode.outputMapping.find(_.name == "foo.out").getOrElse(fail("Scatter couldn't link back the foo.out output.")).outputToGather
+      val innerGraphFooOutNode = scatterNode.outputMapping
+        .find(_.name == "foo.out")
+        .getOrElse(fail("Scatter couldn't link back the foo.out output."))
+        .outputToGather
       innerGraphFooOutNode.womType should be(WomStringType)
       innerGraphFooOutNode.upstream.size should be(1)
       innerGraphFooOutNode.upstream.head match {

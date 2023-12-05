@@ -8,7 +8,12 @@ import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import cromwell.core.{WorkflowOptions, WorkflowSourceFilesCollection}
-import cromwell.services.womtool.WomtoolServiceMessages.{DescribeFailure, DescribeRequest, DescribeResult, DescribeSuccess}
+import cromwell.services.womtool.WomtoolServiceMessages.{
+  DescribeFailure,
+  DescribeRequest,
+  DescribeResult,
+  DescribeSuccess
+}
 import cromwell.webservice.WebServiceUtils
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
 

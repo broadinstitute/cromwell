@@ -14,8 +14,9 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
 
   import dataAccess.driver.api._
 
-  override def setStateToState(fromWorkflowState: String, toWorkflowState: String)
-                              (implicit ec: ExecutionContext): Future[Unit] = {
+  override def setStateToState(fromWorkflowState: String, toWorkflowState: String)(implicit
+    ec: ExecutionContext
+  ): Future[Unit] = {
     val action = dataAccess
       .workflowStateForWorkflowState(fromWorkflowState)
       .update(toWorkflowState)
@@ -26,8 +27,8 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
   override def deleteOrUpdateWorkflowToState(workflowExecutionUuid: String,
                                              workflowStateToDelete1: String,
                                              workflowStateToDelete2: String,
-                                             workflowStateForUpdate: String)
-                                            (implicit ec: ExecutionContext): Future[Option[Boolean]] = {
+                                             workflowStateForUpdate: String
+  )(implicit ec: ExecutionContext): Future[Option[Boolean]] = {
     val action = for {
       // First, delete all rows in either of our states to be deleted.
       deleted <- dataAccess
@@ -44,11 +45,14 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
         }
     } yield (deleted, updated)
 
-    runTransaction(action) map { case (deleted, updated) => if (deleted == 0 && updated == 0) None else Option(deleted > 0) }
+    runTransaction(action) map { case (deleted, updated) =>
+      if (deleted == 0 && updated == 0) None else Option(deleted > 0)
+    }
   }
 
-  override def addWorkflowStoreEntries(workflowStoreEntries: Iterable[WorkflowStoreEntry])
-                                      (implicit ec: ExecutionContext): Future[Unit] = {
+  override def addWorkflowStoreEntries(
+    workflowStoreEntries: Iterable[WorkflowStoreEntry]
+  )(implicit ec: ExecutionContext): Future[Unit] = {
     val action = dataAccess.workflowStoreEntryIdsAutoInc ++= workflowStoreEntries
     runTransaction(action).void
   }
@@ -60,15 +64,14 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
                                      workflowStateFrom: String,
                                      workflowStateTo: String,
                                      workflowStateExcluded: String,
-                                     excludedGroups: Set[String])
-                                    (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]] = {
+                                     excludedGroups: Set[String]
+  )(implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]] = {
 
     def updateForFetched(cromwellId: String,
                          heartbeatTimestampTo: Timestamp,
                          workflowStateFrom: String,
-                         workflowStateTo: String)
-                        (workflowStoreEntry: WorkflowStoreEntry)
-                        (implicit ec: ExecutionContext): DBIO[Unit] = {
+                         workflowStateTo: String
+    )(workflowStoreEntry: WorkflowStoreEntry)(implicit ec: ExecutionContext): DBIO[Unit] = {
       val workflowExecutionUuid = workflowStoreEntry.workflowExecutionUuid
       val updateState = workflowStoreEntry.workflowState match {
         case matched if matched == workflowStateFrom => workflowStateTo
@@ -88,20 +91,28 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
       } yield ()
     }
 
-    def fetchAndUpdateStartableWfs(hogGroup: Option[String]) = {
+    def fetchAndUpdateStartableWfs(hogGroup: Option[String]) =
       for {
-        workflowStoreEntries <- dataAccess.fetchStartableWfsForHogGroup(
-          (limit.toLong, heartbeatTimestampTimedOut, workflowStateExcluded, hogGroup)
-        ).result
+        workflowStoreEntries <- dataAccess
+          .fetchStartableWfsForHogGroup(
+            (limit.toLong, heartbeatTimestampTimedOut, workflowStateExcluded, hogGroup)
+          )
+          .result
         _ <- DBIO.sequence(
-          workflowStoreEntries map updateForFetched(cromwellId, heartbeatTimestampTo, workflowStateFrom, workflowStateTo)
+          workflowStoreEntries map updateForFetched(cromwellId,
+                                                    heartbeatTimestampTo,
+                                                    workflowStateFrom,
+                                                    workflowStateTo
+          )
         )
       } yield workflowStoreEntries
-    }
 
     val action = for {
       // find hog group with lowest count of actively running workflows
-      hogGroupOption <- dataAccess.getHogGroupWithLowestRunningWfs(heartbeatTimestampTimedOut, workflowStateExcluded, excludedGroups).result.headOption
+      hogGroupOption <- dataAccess
+        .getHogGroupWithLowestRunningWfs(heartbeatTimestampTimedOut, workflowStateExcluded, excludedGroups)
+        .result
+        .headOption
       workflowStoreEntries <- hogGroupOption match {
         // if no such hog group was found, all hog groups have workflows that are either actively running or in "OnHold" status
         case None => DBIO.successful(Seq.empty[WorkflowStoreEntry])
@@ -118,9 +129,9 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
     runTransaction(action, TransactionIsolation.ReadCommitted)
   }
 
-  override def writeWorkflowHeartbeats(workflowExecutionUuids: Seq[String],
-                                       heartbeatTimestamp: Timestamp)
-                                      (implicit ec: ExecutionContext): Future[Int] = {
+  override def writeWorkflowHeartbeats(workflowExecutionUuids: Seq[String], heartbeatTimestamp: Timestamp)(implicit
+    ec: ExecutionContext
+  ): Future[Int] = {
     // Return the count of heartbeats written. This could legitimately be less than the size of the `workflowExecutionUuids`
     // List if any of those workflows completed and their workflow store entries were removed.
     val action = for {
@@ -147,10 +158,9 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
     runTransaction(action) map { _.toMap }
   }
 
-  override def updateWorkflowState(workflowExecutionUuid: String,
-                                   fromWorkflowState: String,
-                                   toWorkflowState: String)
-                                  (implicit ec: ExecutionContext): Future[Int] = {
+  override def updateWorkflowState(workflowExecutionUuid: String, fromWorkflowState: String, toWorkflowState: String)(
+    implicit ec: ExecutionContext
+  ): Future[Int] = {
     val action = for {
       updated <- dataAccess
         .workflowStateForWorkflowExecutionUUidAndWorkflowState((workflowExecutionUuid, fromWorkflowState))
@@ -160,15 +170,14 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
     runTransaction(action)
   }
 
-  override def findWorkflowsWithAbortRequested(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[String]] = {
+  override def findWorkflowsWithAbortRequested(cromwellId: String)(implicit
+    ec: ExecutionContext
+  ): Future[Iterable[String]] =
     runTransaction(dataAccess.findWorkflowsWithAbortRequested(cromwellId).result)
-  }
 
-  override def findWorkflows(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[String]] = {
+  override def findWorkflows(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[String]] =
     runTransaction(dataAccess.findWorkflows(cromwellId).result)
-  }
 
-  override def checkWhetherWorkflowExists(workflowId: String)(implicit ec: ExecutionContext): Future[Boolean] = {
+  override def checkWhetherWorkflowExists(workflowId: String)(implicit ec: ExecutionContext): Future[Boolean] =
     runTransaction(dataAccess.checkExists(workflowId).result.map(_.nonEmpty))
-  }
 }

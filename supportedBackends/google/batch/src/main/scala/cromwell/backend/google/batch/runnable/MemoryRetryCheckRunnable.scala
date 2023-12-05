@@ -5,10 +5,9 @@ import cromwell.backend.google.batch.api.GcpBatchRequestFactory.CreateBatchJobPa
 
 trait MemoryRetryCheckRunnable {
 
-  def checkForMemoryRetryRunnables(createParameters: CreateBatchJobParameters, volumes: List[Volume]): List[Runnable] = {
+  def checkForMemoryRetryRunnables(createParameters: CreateBatchJobParameters, volumes: List[Volume]): List[Runnable] =
     createParameters.retryWithMoreMemoryKeys match {
       case Some(keys) => List(RunnableBuilder.checkForMemoryRetryRunnable(keys, volumes)).map(_.build)
       case None => List.empty[Runnable]
     }
-  }
 }

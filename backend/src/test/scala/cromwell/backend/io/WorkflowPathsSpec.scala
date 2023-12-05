@@ -16,16 +16,15 @@ class WorkflowPathsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
 
   def createConfig(values: Map[String, String]): Config = {
     val config = mock[Config]
-    values.foreach {
-      case (key: String, value: String) =>
-        when(config.hasPath(key)).thenReturn(true)
-        when(config.getString(key)).thenReturn(value)
+    values.foreach { case (key: String, value: String) =>
+      when(config.hasPath(key)).thenReturn(true)
+      when(config.getString(key)).thenReturn(value)
     }
     config
   }
 
   def rootConfig(root: Option[String], dockerRoot: Option[String]): Config = {
-    val values: Map[String,String] = root.map("root" -> _).toMap ++ dockerRoot.map("dockerRoot" -> _).toMap
+    val values: Map[String, String] = root.map("root" -> _).toMap ++ dockerRoot.map("dockerRoot" -> _).toMap
     createConfig(values)
   }
 
@@ -82,9 +81,12 @@ class WorkflowPathsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
     val expectedDockerRoot = dockerRoot.getOrElse(WorkflowPathsWithDocker.DefaultDockerRoot)
 
     workflowPaths.workflowRoot.pathAsString shouldBe
-      DefaultPathBuilder.get(
-        s"$expectedRoot/rootWorkflow/$rootWorkflowId/call-call1/shard-1/attempt-2/subWorkflow/$subWorkflowId"
-      ).toAbsolutePath.pathAsString
+      DefaultPathBuilder
+        .get(
+          s"$expectedRoot/rootWorkflow/$rootWorkflowId/call-call1/shard-1/attempt-2/subWorkflow/$subWorkflowId"
+        )
+        .toAbsolutePath
+        .pathAsString
     workflowPaths.dockerWorkflowRoot.pathAsString shouldBe s"$expectedDockerRoot/rootWorkflow/$rootWorkflowId/call-call1/shard-1/attempt-2/subWorkflow/$subWorkflowId"
     ()
   }

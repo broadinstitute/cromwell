@@ -6,6 +6,7 @@ import wom.graph.GraphNodePort.OutputPort
 
 trait GraphNodeWithSingleOutputPort extends GraphNode {
   def singleOutputPort: OutputPort
+
   /**
     * Can be used to use this node as an InputDefinitionPointer
     */

@@ -5,8 +5,7 @@ import scala.util.Try
 /**
   * Scala representation of the CI environment values defined in `test.inc.sh`.
   */
-case class CiEnvironment
-(
+case class CiEnvironment(
   isCi: Option[Boolean],
   `type`: Option[String],
   branch: Option[String],
@@ -20,7 +19,7 @@ case class CiEnvironment
 )
 
 object CiEnvironment {
-  def apply(): CiEnvironment = {
+  def apply(): CiEnvironment =
     new CiEnvironment(
       isCi = sys.env.get("CROMWELL_BUILD_IS_CI").flatMap(tryToBoolean),
       `type` = sys.env.get("CROMWELL_BUILD_TYPE"),
@@ -31,9 +30,8 @@ object CiEnvironment {
       provider = sys.env.get("CROMWELL_BUILD_PROVIDER"),
       os = sys.env.get("CROMWELL_BUILD_OS"),
       url = sys.env.get("CROMWELL_BUILD_URL"),
-      centaurType = sys.env.get("CROMWELL_BUILD_CENTAUR_TYPE"),
+      centaurType = sys.env.get("CROMWELL_BUILD_CENTAUR_TYPE")
     )
-  }
 
   /** Try converting the value to a boolean, or return None. */
   private def tryToBoolean(string: String): Option[Boolean] = Try(string.toBoolean).toOption

@@ -20,17 +20,17 @@ object TryWithResource {
       case x: Throwable =>
         t = Option(x)
         throw x
-    } finally {
+    } finally
       resource foreach { r =>
-        try {
+        try
           r.close()
-        } catch {
-          case y: Throwable => t match {
-            case Some(_t) => _t.addSuppressed(y)
-            case None => throw y
-          }
+        catch {
+          case y: Throwable =>
+            t match {
+              case Some(_t) => _t.addSuppressed(y)
+              case None => throw y
+            }
         }
       }
-    }
   }
 }

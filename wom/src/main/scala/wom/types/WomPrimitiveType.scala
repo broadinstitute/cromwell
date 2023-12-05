@@ -14,10 +14,9 @@ trait WomPrimitiveType extends WomType {
     WomBooleanType -> Seq(WomStringType, WomBooleanType)
   )
 
-  override def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = {
+  override def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean =
     coercionMap.get(otherType) match {
       case Some(types) => types contains this
       case None => false
     }
-  }
 }

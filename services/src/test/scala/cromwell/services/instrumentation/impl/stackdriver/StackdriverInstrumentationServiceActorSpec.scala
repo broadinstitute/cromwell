@@ -12,7 +12,11 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class StackdriverInstrumentationServiceActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually {
+class StackdriverInstrumentationServiceActorSpec
+    extends TestKitSuite
+    with AnyFlatSpecLike
+    with Matchers
+    with Eventually {
   behavior of "StackdriverInstrumentationServiceActor"
 
   private val MaxWaitTime = 2.minutes
@@ -39,7 +43,6 @@ class StackdriverInstrumentationServiceActorSpec extends TestKitSuite with AnyFl
   private val testGaugeBucket =
     CromwellBucket(List("test_prefix"), NonEmptyList.of("test", "gauge", "metric", "bucket"))
 
-
   it should "correctly receive the metrics with resource labels" in {
     val stackdriverConfig = ConfigFactory.parseString(
       """
@@ -64,21 +67,27 @@ class StackdriverInstrumentationServiceActorSpec extends TestKitSuite with AnyFl
     val expectedGaugeMetrics = ("custom.googleapis.com/cromwell/test_prefix/test/gauge/metric/bucket", 40.0)
     val expectedTimingMetrics = ("custom.googleapis.com/cromwell/test_prefix/test/metric/bucket/timing", 7500.0)
 
-    val stackdriverActor = TestActorRef(new TestStackdriverInstrumentationServiceActor(stackdriverConfig, globalConfig, registryProbe))
+    val stackdriverActor =
+      TestActorRef(new TestStackdriverInstrumentationServiceActor(stackdriverConfig, globalConfig, registryProbe))
 
     rawMetricList foreach (metric => stackdriverActor ! InstrumentationServiceMessage(metric))
 
     eventually {
       stackdriverActor.underlyingActor.metricsReceived should have length 3
 
-      stackdriverActor.underlyingActor.metricsReceived.map(m => (m.metricPath, m.metricValue)) should contain (expectedCumulativeMetrics)
-      stackdriverActor.underlyingActor.metricsReceived.map(m => (m.metricPath, m.metricValue)) should contain (expectedGaugeMetrics)
-      stackdriverActor.underlyingActor.metricsReceived.map(m => (m.metricPath, m.metricValue)) should contain (expectedTimingMetrics)
+      stackdriverActor.underlyingActor.metricsReceived.map(m => (m.metricPath, m.metricValue)) should contain(
+        expectedCumulativeMetrics
+      )
+      stackdriverActor.underlyingActor.metricsReceived.map(m => (m.metricPath, m.metricValue)) should contain(
+        expectedGaugeMetrics
+      )
+      stackdriverActor.underlyingActor.metricsReceived.map(m => (m.metricPath, m.metricValue)) should contain(
+        expectedTimingMetrics
+      )
 
-      stackdriverActor.underlyingActor.metricsReceived.map(_.resourceLabels) should contain (resourceLabels)
+      stackdriverActor.underlyingActor.metricsReceived.map(_.resourceLabels) should contain(resourceLabels)
     }
   }
-
 
   it should "correctly receive metrics with metric labels" in {
     val stackdriverConfig = ConfigFactory.parseString(
@@ -99,15 +108,18 @@ class StackdriverInstrumentationServiceActorSpec extends TestKitSuite with AnyFl
     val expectedCumulativeMetrics = ("custom.googleapis.com/cromwell/test_prefix/test/metric/bucket", 50.0)
     val metricLabels = Map("cromwell_instance_role" -> "backend", "cromwell_perf_test_case" -> "perf-test-1")
 
-    val stackdriverActor = TestActorRef(new TestStackdriverInstrumentationServiceActor(stackdriverConfig, globalConfig, registryProbe))
+    val stackdriverActor =
+      TestActorRef(new TestStackdriverInstrumentationServiceActor(stackdriverConfig, globalConfig, registryProbe))
 
     rawMetricList foreach (metric => stackdriverActor ! InstrumentationServiceMessage(metric))
 
     eventually {
       stackdriverActor.underlyingActor.metricsReceived should have length 1
-      stackdriverActor.underlyingActor.metricsReceived.map(m => (m.metricPath, m.metricValue)) should contain (expectedCumulativeMetrics)
-      stackdriverActor.underlyingActor.metricsReceived.map(_.resourceLabels) should contain (resourceLabels)
-      stackdriverActor.underlyingActor.metricsReceived.map(_.metricLabels) should contain (metricLabels)
+      stackdriverActor.underlyingActor.metricsReceived.map(m => (m.metricPath, m.metricValue)) should contain(
+        expectedCumulativeMetrics
+      )
+      stackdriverActor.underlyingActor.metricsReceived.map(_.resourceLabels) should contain(resourceLabels)
+      stackdriverActor.underlyingActor.metricsReceived.map(_.metricLabels) should contain(metricLabels)
     }
   }
 }

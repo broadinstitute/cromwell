@@ -15,7 +15,8 @@ sealed trait GraphOutputNode extends GraphNode {
 /**
   * Exposes an existing output port as a graph output.
   */
-final case class PortBasedGraphOutputNode(override val identifier: WomIdentifier, womType: WomType, source: OutputPort) extends GraphOutputNode {
+final case class PortBasedGraphOutputNode(override val identifier: WomIdentifier, womType: WomType, source: OutputPort)
+    extends GraphOutputNode {
   val singleInputPort: InputPort = ConnectedInputPort(localName, womType, source, _ => this)
   lazy val singleUpstreamNode: GraphNode = singleInputPort.upstream.graphNode
   lazy val singleUpstreamPort: OutputPort = singleInputPort.upstream
@@ -28,14 +29,15 @@ object ExpressionBasedGraphOutputNode {
   def fromInputMapping(identifier: WomIdentifier,
                        expression: WomExpression,
                        explicitWomType: WomType,
-                       inputMapping: Map[String, OutputPort]): ErrorOr[ExpressionBasedGraphOutputNode] = {
+                       inputMapping: Map[String, OutputPort]
+  ): ErrorOr[ExpressionBasedGraphOutputNode] = {
     // This constructor ignores the evaluated type and uses the explicit type instead
     def constructor(identifier: WomIdentifier,
                     expression: WomExpression,
                     evaluatedType: WomType,
-                    inputPorts: Map[String, InputPort]) = {
+                    inputPorts: Map[String, InputPort]
+    ) =
       new ExpressionNode(identifier, expression, explicitWomType, inputPorts) with ExpressionBasedGraphOutputNode
-    }
     buildFromConstructor(constructor)(identifier, expression, inputMapping)
   }
 }

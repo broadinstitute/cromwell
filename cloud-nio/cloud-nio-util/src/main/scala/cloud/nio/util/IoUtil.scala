@@ -11,24 +11,21 @@ object IoUtil {
 
       type ACC = IO[Either[NonEmptyList[Exception], A]]
 
-      def attemptHead(headIo: IO[A]): ACC = {
+      def attemptHead(headIo: IO[A]): ACC =
         attemptIo(NonEmptyList.one)(headIo)
-      }
 
-      def attemptAcc(accIo: ACC, nextIo: IO[A]): ACC = {
+      def attemptAcc(accIo: ACC, nextIo: IO[A]): ACC =
         accIo flatMap {
-          case Right(previousSuccess)   => IO.pure(Right(previousSuccess))
+          case Right(previousSuccess) => IO.pure(Right(previousSuccess))
           case Left(previousExceptions) => attemptIo(_ :: previousExceptions)(nextIo)
         }
-      }
 
-      def attemptIo(f: Exception => NonEmptyList[Exception])(io: IO[A]): ACC = {
+      def attemptIo(f: Exception => NonEmptyList[Exception])(io: IO[A]): ACC =
         io.attempt flatMap {
-          case Right(success)             => IO.pure(Right(success))
+          case Right(success) => IO.pure(Right(success))
           case Left(exception: Exception) => IO.pure(Left(f(exception)))
-          case Left(throwable)            => throw throwable
+          case Left(throwable) => throw throwable
         }
-      }
 
       val res: ACC = tries.tail.foldLeft(attemptHead(tries.head))(attemptAcc)
 

@@ -11,19 +11,20 @@ case object UntestedCacheResult extends BlacklistStatus
 
 sealed abstract class BlacklistCache(bucketCacheConfig: CacheConfig,
                                      hitCacheConfig: CacheConfig,
-                                     val name: Option[String]) {
+                                     val name: Option[String]
+) {
   val bucketCache = {
     // Queries to the bucket blacklist cache return UntestedCacheResult by default.
     val unknownLoader = new CacheLoader[String, BlacklistStatus]() {
       override def load(key: String): BlacklistStatus = UntestedCacheResult
     }
 
-    CacheBuilder.
-      newBuilder().
-      concurrencyLevel(bucketCacheConfig.concurrency).
-      maximumSize(bucketCacheConfig.size).
-      expireAfterWrite(bucketCacheConfig.ttl.length, bucketCacheConfig.ttl.unit).
-      build[String, BlacklistStatus](unknownLoader)
+    CacheBuilder
+      .newBuilder()
+      .concurrencyLevel(bucketCacheConfig.concurrency)
+      .maximumSize(bucketCacheConfig.size)
+      .expireAfterWrite(bucketCacheConfig.ttl.length, bucketCacheConfig.ttl.unit)
+      .build[String, BlacklistStatus](unknownLoader)
   }
 
   val hitCache = {
@@ -32,12 +33,12 @@ sealed abstract class BlacklistCache(bucketCacheConfig: CacheConfig,
       override def load(key: CallCachingEntryId): BlacklistStatus = UntestedCacheResult
     }
 
-    CacheBuilder.
-      newBuilder().
-      concurrencyLevel(hitCacheConfig.concurrency).
-      maximumSize(hitCacheConfig.size).
-      expireAfterWrite(hitCacheConfig.ttl.length, hitCacheConfig.ttl.unit).
-      build[CallCachingEntryId, BlacklistStatus](unknownLoader)
+    CacheBuilder
+      .newBuilder()
+      .concurrencyLevel(hitCacheConfig.concurrency)
+      .maximumSize(hitCacheConfig.size)
+      .expireAfterWrite(hitCacheConfig.ttl.length, hitCacheConfig.ttl.unit)
+      .build[CallCachingEntryId, BlacklistStatus](unknownLoader)
   }
 
   def getBlacklistStatus(hit: CallCachingEntryId): BlacklistStatus = hitCache.get(hit)
@@ -53,8 +54,8 @@ sealed abstract class BlacklistCache(bucketCacheConfig: CacheConfig,
   def whitelist(bucket: String): Unit = bucketCache.put(bucket, GoodCacheResult)
 }
 
-class RootWorkflowBlacklistCache(bucketCacheConfig: CacheConfig, hitCacheConfig: CacheConfig) extends
-  BlacklistCache(bucketCacheConfig = bucketCacheConfig, hitCacheConfig = hitCacheConfig, name = None)
+class RootWorkflowBlacklistCache(bucketCacheConfig: CacheConfig, hitCacheConfig: CacheConfig)
+    extends BlacklistCache(bucketCacheConfig = bucketCacheConfig, hitCacheConfig = hitCacheConfig, name = None)
 
-class GroupingBlacklistCache(bucketCacheConfig: CacheConfig, hitCacheConfig: CacheConfig, val group: String) extends
-  BlacklistCache(bucketCacheConfig = bucketCacheConfig, hitCacheConfig = hitCacheConfig, name = Option(group))
+class GroupingBlacklistCache(bucketCacheConfig: CacheConfig, hitCacheConfig: CacheConfig, val group: String)
+    extends BlacklistCache(bucketCacheConfig = bucketCacheConfig, hitCacheConfig = hitCacheConfig, name = Option(group))

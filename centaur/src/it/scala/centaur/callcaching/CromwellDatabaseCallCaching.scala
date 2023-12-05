@@ -11,7 +11,6 @@ object CromwellDatabaseCallCaching extends StrictLogging {
 
   private val cromwellDatabase = CromwellDatabase.instance
 
-  def clearCachedResults(workflowId: String)(implicit executionContext: ExecutionContext): IO[Unit] = {
+  def clearCachedResults(workflowId: String)(implicit executionContext: ExecutionContext): IO[Unit] =
     IO.fromFuture(IO(cromwellDatabase.engineDatabase.invalidateCallCacheEntryIdsForWorkflowId(workflowId)))
-  }
 }

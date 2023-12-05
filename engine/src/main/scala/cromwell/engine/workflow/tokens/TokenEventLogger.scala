@@ -22,29 +22,28 @@ case object NullTokenEventLogger extends TokenEventLogger {
 
 class CachingTokenEventLogger(cacheEntryTTL: FiniteDuration) extends TokenEventLogger {
 
-  private val groupCache = CacheBuilder.newBuilder()
+  private val groupCache = CacheBuilder
+    .newBuilder()
     .expireAfterWrite(cacheEntryTTL._1, cacheEntryTTL._2)
     .maximumSize(10000)
     .build[String, Object]()
 
-  override def flagTokenHog(hogGroup: String): Unit = {
+  override def flagTokenHog(hogGroup: String): Unit =
     groupCache.put(hogGroup, new Object())
-  }
 
   override def tokenExhaustedGroups: Set[String] = {
     import scala.jdk.CollectionConverters._
     groupCache.asMap().keySet().asScala.toSet
   }
 
-
-  private val backendCache = CacheBuilder.newBuilder()
+  private val backendCache = CacheBuilder
+    .newBuilder()
     .expireAfterWrite(cacheEntryTTL._1, cacheEntryTTL._2)
     .maximumSize(10000)
     .build[String, Object]()
 
-  override def outOfTokens(backend: String): Unit = {
+  override def outOfTokens(backend: String): Unit =
     backendCache.put(backend, new Object())
-  }
 
   override def tokenExhaustedBackends: Set[String] = {
     import scala.jdk.CollectionConverters._

@@ -18,7 +18,12 @@ import org.scalatest.time.{Millis, Seconds, Span}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class KeyValueDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures with RecoverMethods {
+class KeyValueDatabaseSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with ScalaFutures
+    with RecoverMethods {
 
   implicit val ec: ExecutionContext = ExecutionContext.global
   implicit val defaultPatience: PatienceConfig = PatienceConfig(scaled(Span(5, Seconds)), scaled(Span(100, Millis)))
@@ -28,7 +33,8 @@ class KeyValueDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
     val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
 
-    lazy val dataAccess = DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, EngineDatabaseType, databaseSystem)
+    lazy val dataAccess =
+      DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, EngineDatabaseType, databaseSystem)
 
     val workflowId = WorkflowId.randomId().toString
     val callFqn = "AwesomeWorkflow.GoodJob"
@@ -70,7 +76,7 @@ class KeyValueDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     )
 
     it should "start database container if required" taggedAs DbmsTest in {
-      containerOpt.foreach { _.start }
+      containerOpt.foreach(_.start)
     }
 
     it should "upsert and retrieve kv pairs correctly" taggedAs DbmsTest in {
@@ -116,13 +122,13 @@ class KeyValueDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     }
 
     it should "stop container" taggedAs DbmsTest in {
-      containerOpt.foreach { _.stop() }
+      containerOpt.foreach(_.stop())
     }
   }
 }
 
 object KeyValueDatabaseSpec {
-  private def getFailureRegex(databaseSystem: DatabaseSystem): String = {
+  private def getFailureRegex(databaseSystem: DatabaseSystem): String =
     databaseSystem.platform match {
       case HsqldbDatabasePlatform =>
         """integrity constraint violation: NOT NULL check constraint; """ +
@@ -133,14 +139,12 @@ object KeyValueDatabaseSpec {
         """ERROR: null value in column "STORE_VALUE" """ +
           """(of relation "JOB_KEY_VALUE_ENTRY" )?violates not-null constraint"""
     }
-  }
 
-  private def getFailureClass(databaseSystem: DatabaseSystem): Class[_ <: Exception] = {
+  private def getFailureClass(databaseSystem: DatabaseSystem): Class[_ <: Exception] =
     databaseSystem.platform match {
       case HsqldbDatabasePlatform => classOf[SQLIntegrityConstraintViolationException]
       case MariadbDatabasePlatform => classOf[BatchUpdateException]
       case MysqlDatabasePlatform => classOf[BatchUpdateException]
       case PostgresqlDatabasePlatform => classOf[PSQLException]
     }
-  }
 }

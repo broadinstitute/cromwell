@@ -33,7 +33,8 @@ class CallCache(database: CallCachingSqlDatabase) {
         jobIndex = b.jobIndex.fromIndex,
         jobAttempt = b.jobAttempt,
         returnCode = b.returnCode,
-        allowResultReuse = b.allowResultReuse)
+        allowResultReuse = b.allowResultReuse
+      )
       val result = b.callOutputs.outputs.simplify
       val jobDetritus = b.jobDetritusFiles.getOrElse(Map.empty)
       buildCallCachingJoin(metaInfo, b.callCacheHashes, result, jobDetritus)
@@ -42,70 +43,81 @@ class CallCache(database: CallCachingSqlDatabase) {
     database.addCallCaching(joins, batchSize)
   }
 
-  private def buildCallCachingJoin(callCachingEntry: CallCachingEntry, callCacheHashes: CallCacheHashes,
-                                   result: Iterable[WomValueSimpleton], jobDetritus: Map[String, Path]): CallCachingJoin = {
+  private def buildCallCachingJoin(callCachingEntry: CallCachingEntry,
+                                   callCacheHashes: CallCacheHashes,
+                                   result: Iterable[WomValueSimpleton],
+                                   jobDetritus: Map[String, Path]
+  ): CallCachingJoin = {
 
-    val hashesToInsert: Iterable[CallCachingHashEntry] = {
+    val hashesToInsert: Iterable[CallCachingHashEntry] =
       callCacheHashes.hashes map { hash => CallCachingHashEntry(hash.hashKey.key, hash.hashValue.value) }
-    }
 
-    val aggregatedHashesToInsert: Option[CallCachingAggregationEntry] = {
-      Option(CallCachingAggregationEntry(
-        baseAggregation = callCacheHashes.aggregatedInitialHash,
-        inputFilesAggregation = callCacheHashes.fileHashes.map(_.aggregatedHash)
-      ))
-    }
+    val aggregatedHashesToInsert: Option[CallCachingAggregationEntry] =
+      Option(
+        CallCachingAggregationEntry(
+          baseAggregation = callCacheHashes.aggregatedInitialHash,
+          inputFilesAggregation = callCacheHashes.fileHashes.map(_.aggregatedHash)
+        )
+      )
 
-    val resultToInsert: Iterable[CallCachingSimpletonEntry] = {
-      result map {
-        case WomValueSimpleton(simpletonKey, wdlPrimitive) =>
-          CallCachingSimpletonEntry(simpletonKey, wdlPrimitive.valueString.toClobOption, wdlPrimitive.womType.stableName)
+    val resultToInsert: Iterable[CallCachingSimpletonEntry] =
+      result map { case WomValueSimpleton(simpletonKey, wdlPrimitive) =>
+        CallCachingSimpletonEntry(simpletonKey, wdlPrimitive.valueString.toClobOption, wdlPrimitive.womType.stableName)
       }
-    }
 
-    val jobDetritusToInsert: Iterable[CallCachingDetritusEntry] = {
-      jobDetritus map {
-        case (fileName, filePath) => CallCachingDetritusEntry(fileName, filePath.pathAsString.toClobOption)
+    val jobDetritusToInsert: Iterable[CallCachingDetritusEntry] =
+      jobDetritus map { case (fileName, filePath) =>
+        CallCachingDetritusEntry(fileName, filePath.pathAsString.toClobOption)
       }
-    }
 
-    CallCachingJoin(callCachingEntry, hashesToInsert.toSeq, aggregatedHashesToInsert, resultToInsert.toSeq, jobDetritusToInsert.toSeq)
+    CallCachingJoin(callCachingEntry,
+                    hashesToInsert.toSeq,
+                    aggregatedHashesToInsert,
+                    resultToInsert.toSeq,
+                    jobDetritusToInsert.toSeq
+    )
   }
 
-  def hasBaseAggregatedHashMatch(baseAggregatedHash: String, hints: List[CacheHitHint])(implicit ec: ExecutionContext): Future[Boolean] = {
+  def hasBaseAggregatedHashMatch(baseAggregatedHash: String, hints: List[CacheHitHint])(implicit
+    ec: ExecutionContext
+  ): Future[Boolean] = {
     val ccpp = hints collectFirst { case h: CallCachePathPrefixes => h.prefixes }
     database.hasMatchingCallCachingEntriesForBaseAggregation(baseAggregatedHash, ccpp)
   }
 
-  def callCachingHitForAggregatedHashes(aggregatedCallHashes: AggregatedCallHashes, prefixesHint: Option[CallCachePathPrefixes], excludedIds: Set[CallCachingEntryId])
-                                       (implicit ec: ExecutionContext): Future[Option[CallCachingEntryId]] = {
-    database.findCacheHitForAggregation(
-      baseAggregationHash = aggregatedCallHashes.baseAggregatedHash,
-      inputFilesAggregationHash = aggregatedCallHashes.inputFilesAggregatedHash,
-      callCachePathPrefixes = prefixesHint.map(_.prefixes),
-      excludedIds.map(_.id)).map(_ map CallCachingEntryId.apply)
-  }
+  def callCachingHitForAggregatedHashes(aggregatedCallHashes: AggregatedCallHashes,
+                                        prefixesHint: Option[CallCachePathPrefixes],
+                                        excludedIds: Set[CallCachingEntryId]
+  )(implicit ec: ExecutionContext): Future[Option[CallCachingEntryId]] =
+    database
+      .findCacheHitForAggregation(
+        baseAggregationHash = aggregatedCallHashes.baseAggregatedHash,
+        inputFilesAggregationHash = aggregatedCallHashes.inputFilesAggregatedHash,
+        callCachePathPrefixes = prefixesHint.map(_.prefixes),
+        excludedIds.map(_.id)
+      )
+      .map(_ map CallCachingEntryId.apply)
 
-  def fetchCachedResult(callCachingEntryId: CallCachingEntryId)(implicit ec: ExecutionContext): Future[Option[CallCachingJoin]] = {
+  def fetchCachedResult(callCachingEntryId: CallCachingEntryId)(implicit
+    ec: ExecutionContext
+  ): Future[Option[CallCachingJoin]] =
     database.queryResultsForCacheId(callCachingEntryId.id)
-  }
 
-  def callCachingJoinForCall(workflowUuid: String, callFqn: String, index: Int)(implicit ec: ExecutionContext): Future[Option[CallCachingJoin]] = {
+  def callCachingJoinForCall(workflowUuid: String, callFqn: String, index: Int)(implicit
+    ec: ExecutionContext
+  ): Future[Option[CallCachingJoin]] =
     database.callCacheJoinForCall(workflowUuid, callFqn, index)
-  }
 
-  def invalidate(callCachingEntryId: CallCachingEntryId)(implicit ec: ExecutionContext) = {
+  def invalidate(callCachingEntryId: CallCachingEntryId)(implicit ec: ExecutionContext) =
     database.invalidateCall(callCachingEntryId.id)
-  }
 
-  def callCacheEntryIdsForWorkflowId(workflowId: String)(implicit ec: ExecutionContext) = {
+  def callCacheEntryIdsForWorkflowId(workflowId: String)(implicit ec: ExecutionContext) =
     database.callCacheEntryIdsForWorkflowId(workflowId)
-  }
 }
 
 object CallCache {
   object CallCacheHashBundle {
-    def apply(workflowId: WorkflowId, callCacheHashes: CallCacheHashes, jobSucceededResponse: JobSucceededResponse) = {
+    def apply(workflowId: WorkflowId, callCacheHashes: CallCacheHashes, jobSucceededResponse: JobSucceededResponse) =
       new CallCacheHashBundle(
         workflowId = workflowId,
         callCacheHashes = callCacheHashes,
@@ -117,9 +129,11 @@ object CallCache {
         callOutputs = jobSucceededResponse.jobOutputs,
         jobDetritusFiles = jobSucceededResponse.jobDetritusFiles
       )
-    }
 
-    def apply(workflowId: WorkflowId, callCacheHashes: CallCacheHashes, jobFailedNonRetryableResponse: JobFailedNonRetryableResponse) = {
+    def apply(workflowId: WorkflowId,
+              callCacheHashes: CallCacheHashes,
+              jobFailedNonRetryableResponse: JobFailedNonRetryableResponse
+    ) =
       new CallCacheHashBundle(
         workflowId = workflowId,
         callCacheHashes = callCacheHashes,
@@ -131,47 +145,58 @@ object CallCache {
         callOutputs = CallOutputs.empty,
         jobDetritusFiles = None
       )
-    }
   }
   case class CallCacheHashBundle private (
-                                           workflowId: WorkflowId,
-                                           callCacheHashes: CallCacheHashes,
-                                           fullyQualifiedName: FullyQualifiedName,
-                                           jobIndex: ExecutionIndex,
-                                           jobAttempt: Option[Int],
-                                           returnCode: Option[Int],
-                                           allowResultReuse: Boolean,
-                                           callOutputs: CallOutputs,
-                                           jobDetritusFiles: Option[Map[String, Path]]
-                                         )
+    workflowId: WorkflowId,
+    callCacheHashes: CallCacheHashes,
+    fullyQualifiedName: FullyQualifiedName,
+    jobIndex: ExecutionIndex,
+    jobAttempt: Option[Int],
+    returnCode: Option[Int],
+    allowResultReuse: Boolean,
+    callOutputs: CallOutputs,
+    jobDetritusFiles: Option[Map[String, Path]]
+  )
 
   implicit class EnhancedCallCachingJoin(val callCachingJoin: CallCachingJoin) extends AnyVal {
     def toJobSuccess(key: BackendJobDescriptorKey, pathBuilders: List[PathBuilder]): JobSucceededResponse = {
       import cromwell.Simpletons._
       import cromwell.core.path.PathFactory._
-      val detritus = callCachingJoin.callCachingDetritusEntries.map({ jobDetritusEntry =>
+      val detritus = callCachingJoin.callCachingDetritusEntries.map { jobDetritusEntry =>
         jobDetritusEntry.detritusKey -> buildPath(jobDetritusEntry.detritusValue.toRawString, pathBuilders)
-      }).toMap
+      }.toMap
 
-      val outputs = if (callCachingJoin.callCachingSimpletonEntries.isEmpty) CallOutputs(Map.empty)
-      else WomValueBuilder.toJobOutputs(key.call.outputPorts, callCachingJoin.callCachingSimpletonEntries map toSimpleton)
+      val outputs =
+        if (callCachingJoin.callCachingSimpletonEntries.isEmpty) CallOutputs(Map.empty)
+        else
+          WomValueBuilder.toJobOutputs(key.call.outputPorts,
+                                       callCachingJoin.callCachingSimpletonEntries map toSimpleton
+          )
 
-      JobSucceededResponse(key, callCachingJoin.callCachingEntry.returnCode,outputs, Option(detritus), Seq.empty, None, resultGenerationMode = CallCached)
+      JobSucceededResponse(key,
+                           callCachingJoin.callCachingEntry.returnCode,
+                           outputs,
+                           Option(detritus),
+                           Seq.empty,
+                           None,
+                           resultGenerationMode = CallCached
+      )
     }
 
     def callCacheHashes: Set[HashResult] = {
-      val hashResults = callCachingJoin.callCachingHashEntries.map({
-        case CallCachingHashEntry(k, v, _, _) => HashResult(HashKey.deserialize(k), HashValue(v))
-      }) ++ callCachingJoin.callCachingAggregationEntry.collect({
-        case CallCachingAggregationEntry(k, Some(v), _, _) => HashResult(HashKey.deserialize(k), HashValue(v))
-      })
+      val hashResults = callCachingJoin.callCachingHashEntries.map { case CallCachingHashEntry(k, v, _, _) =>
+        HashResult(HashKey.deserialize(k), HashValue(v))
+      } ++ callCachingJoin.callCachingAggregationEntry.collect { case CallCachingAggregationEntry(k, Some(v), _, _) =>
+        HashResult(HashKey.deserialize(k), HashValue(v))
+      }
 
       hashResults.toSet
     }
   }
 
   sealed trait CacheHitHint
-  case class CallCachePathPrefixes(callCacheRootPrefix: Option[String], workflowOptionPrefixes: List[String]) extends CacheHitHint {
+  case class CallCachePathPrefixes(callCacheRootPrefix: Option[String], workflowOptionPrefixes: List[String])
+      extends CacheHitHint {
     lazy val prefixes: List[String] = (callCacheRootPrefix.toList ++ workflowOptionPrefixes) map { _.ensureSlashed }
   }
 }

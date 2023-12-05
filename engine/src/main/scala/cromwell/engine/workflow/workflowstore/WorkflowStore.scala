@@ -32,17 +32,21 @@ trait WorkflowStore {
     * Adds the requested WorkflowSourceFiles to the store and returns a WorkflowId for each one (in order)
     * for tracking purposes.
     */
-  def add(sources: NonEmptyList[WorkflowSourceFilesCollection])(implicit ec: ExecutionContext): Future[NonEmptyList[WorkflowSubmissionResponse]]
+  def add(sources: NonEmptyList[WorkflowSourceFilesCollection])(implicit
+    ec: ExecutionContext
+  ): Future[NonEmptyList[WorkflowSubmissionResponse]]
 
   /**
     * Retrieves up to n workflows which have not already been pulled into the engine and sets their pickedUp
     * flag to true
     */
-  def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration, excludedGroups: Set[String])(implicit ec: ExecutionContext): Future[List[WorkflowToStart]]
+  def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration, excludedGroups: Set[String])(
+    implicit ec: ExecutionContext
+  ): Future[List[WorkflowToStart]]
 
-  def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)],
-                              heartbeatDateTime: OffsetDateTime)
-                             (implicit ec: ExecutionContext): Future[Int]
+  def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)], heartbeatDateTime: OffsetDateTime)(
+    implicit ec: ExecutionContext
+  ): Future[Int]
 
   def switchOnHoldToSubmitted(id: WorkflowId)(implicit ec: ExecutionContext): Future[Unit]
 

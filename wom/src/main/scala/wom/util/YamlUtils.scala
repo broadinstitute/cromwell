@@ -36,7 +36,7 @@ object YamlUtils {
   def parse(yaml: String,
             maxNodes: Int Refined NonNegative = defaultMaxNodes,
             maxDepth: Int Refined NonNegative = defaultMaxDepth
-           ): Either[ParsingFailure, Json] = {
+  ): Either[ParsingFailure, Json] =
     try {
       val yamlConstructor = new SafeConstructor(loaderOptions)
       val yamlComposer = new MaxDepthComposer(yaml, maxDepth)
@@ -53,16 +53,14 @@ object YamlUtils {
       case exception: Exception =>
         Left(ParsingFailure(exception.getMessage, exception))
     }
-  }
 
-  private[util] implicit val refinedNonNegativeReader: ValueReader[Int Refined NonNegative] = {
-    (config: Config, path: String) => {
+  implicit private[util] val refinedNonNegativeReader: ValueReader[Int Refined NonNegative] = {
+    (config: Config, path: String) =>
       val int = config.getInt(path)
       refineV[NonNegative](int) match {
         case Left(error) => throw new BadValue(path, error)
         case Right(refinedInt) => refinedInt
       }
-    }
   }
 
   private val yamlConfig = ConfigFactory.load().getConfig("yaml")
@@ -82,11 +80,11 @@ object YamlUtils {
 
   /** Extends SnakeYaml's Composer checking for a maximum depth before a StackOverflowError occurs. */
   private class MaxDepthComposer(yaml: String, maxDepth: Int Refined NonNegative)
-    extends Composer(
-      new ParserImpl(new StreamReader(new StringReader(yaml)), loaderOptions),
-      new Resolver(),
-      loaderOptions
-    ) {
+      extends Composer(
+        new ParserImpl(new StreamReader(new StringReader(yaml)), loaderOptions),
+        new Resolver(),
+        loaderOptions
+      ) {
 
     private val depth = new Counter
 
@@ -99,29 +97,23 @@ object YamlUtils {
       result
     }
 
-    override def composeScalarNode(anchor: String, blockComments: util.List[CommentLine]): Node = {
+    override def composeScalarNode(anchor: String, blockComments: util.List[CommentLine]): Node =
       checkDepth(super.composeScalarNode(anchor, blockComments))
-    }
 
-    override def composeSequenceNode(anchor: String): Node = {
+    override def composeSequenceNode(anchor: String): Node =
       checkDepth(super.composeSequenceNode(anchor))
-    }
 
-    override def composeMappingNode(anchor: String): Node = {
+    override def composeMappingNode(anchor: String): Node =
       checkDepth(super.composeMappingNode(anchor))
-    }
 
-    override def composeMappingChildren(children: util.List[NodeTuple], node: MappingNode): Unit = {
+    override def composeMappingChildren(children: util.List[NodeTuple], node: MappingNode): Unit =
       checkDepth(super.composeMappingChildren(children, node))
-    }
 
-    override def composeKeyNode(node: MappingNode): Node = {
+    override def composeKeyNode(node: MappingNode): Node =
       checkDepth(super.composeKeyNode(node))
-    }
 
-    override def composeValueNode(node: MappingNode): Node = {
+    override def composeValueNode(node: MappingNode): Node =
       checkDepth(super.composeValueNode(node))
-    }
   }
 
   /** A "pointer" reference to a mutable count. */
@@ -147,7 +139,8 @@ object YamlUtils {
   private def searchForOversizedYaml(node: AnyRef,
                                      identitySet: java.util.Set[AnyRef],
                                      maxNodes: Int Refined NonNegative,
-                                     counter: Counter): Unit = {
+                                     counter: Counter
+  ): Unit = {
     if (!identitySet.add(node)) {
       throw new IllegalArgumentException("Loop detected")
     }
@@ -158,15 +151,14 @@ object YamlUtils {
     }
 
     node match {
-      case iterable: java.lang.Iterable[AnyRef]@unchecked =>
+      case iterable: java.lang.Iterable[AnyRef] @unchecked =>
         iterable.asScala foreach {
           searchForOversizedYaml(_, identitySet, maxNodes, counter)
         }
-      case map: java.util.Map[AnyRef, AnyRef]@unchecked =>
-        map.asScala foreach {
-          case (key, value) =>
-            searchForOversizedYaml(key, identitySet, maxNodes, counter)
-            searchForOversizedYaml(value, identitySet, maxNodes, counter)
+      case map: java.util.Map[AnyRef, AnyRef] @unchecked =>
+        map.asScala foreach { case (key, value) =>
+          searchForOversizedYaml(key, identitySet, maxNodes, counter)
+          searchForOversizedYaml(value, identitySet, maxNodes, counter)
         }
       case _ => /* ignore scalars, only loop through Yaml sequences and mappings: https://yaml.org/spec/1.1/#id861435 */
     }

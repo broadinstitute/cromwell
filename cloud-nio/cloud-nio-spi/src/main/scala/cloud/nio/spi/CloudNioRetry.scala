@@ -24,7 +24,7 @@ class CloudNioRetry(config: Config) {
     val delay = backoff.backoffMillis
 
     f() match {
-      case Success(ret)                                        => ret
+      case Success(ret) => ret
       case Failure(exception: Exception) if isFatal(exception) => throw exception
       case Failure(exception: Exception) if !isFatal(exception) =>
         val retriesLeft = if (isTransient(exception)) maxRetries else maxRetries map { _ - 1 }
@@ -38,11 +38,13 @@ class CloudNioRetry(config: Config) {
     }
   }
 
-  def from[A](f: () => A, maxRetries: Option[Int] = Option(defaultMaxRetries), backoff: CloudNioBackoff = defaultBackOff): A = {
+  def from[A](f: () => A,
+              maxRetries: Option[Int] = Option(defaultMaxRetries),
+              backoff: CloudNioBackoff = defaultBackOff
+  ): A =
     fromTry[A](
       () => Try(f()),
       maxRetries,
       backoff
     )
-  }
 }

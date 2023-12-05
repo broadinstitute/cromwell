@@ -5,7 +5,11 @@ import cats.syntax.either._
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
-import cromwell.backend.validation.{OptionalRuntimeAttributesValidation, PositiveIntRuntimeAttributesValidation, RuntimeAttributesValidation}
+import cromwell.backend.validation.{
+  OptionalRuntimeAttributesValidation,
+  PositiveIntRuntimeAttributesValidation,
+  RuntimeAttributesValidation
+}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineV

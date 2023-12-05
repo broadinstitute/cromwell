@@ -16,8 +16,7 @@ trait TestSlickDatabase {
 
   def runTestTransaction[R](action: DBIO[R],
                             isolationLevel: TransactionIsolation = TransactionIsolation.RepeatableRead,
-                            timeout: Duration = Duration.Inf,
-                           ): Future[R] = {
+                            timeout: Duration = Duration.Inf
+  ): Future[R] =
     slickDatabase.runTransaction(action, isolationLevel, timeout)
-  }
 }

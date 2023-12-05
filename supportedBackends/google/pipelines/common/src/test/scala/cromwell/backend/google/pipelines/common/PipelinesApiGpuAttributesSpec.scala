@@ -6,28 +6,22 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import wom.values.{WomFloat, WomInteger, WomSingleFile, WomString, WomValue}
 
-class PipelinesApiGpuAttributesSpec
-  extends AnyWordSpecLike
-    with Matchers
-    with PipelinesApiRuntimeAttributesSpecsMixin {
+class PipelinesApiGpuAttributesSpec extends AnyWordSpecLike with Matchers with PipelinesApiRuntimeAttributesSpecsMixin {
 
   val validGpuTypes = List(
     (Option(WomString("nvidia-tesla-k80")), Option(GpuType.NVIDIATeslaK80)),
-    (Option(WomString("nvidia-tesla-p100")), Option( GpuType.NVIDIATeslaP100)),
-    (Option(WomString("custom-gpu-24601")), Option( GpuType("custom-gpu-24601"))),
-    (None, None))
-  val invalidGpuTypes = List(
-    WomSingleFile("nvidia-tesla-k80"),
-    WomInteger(100))
+    (Option(WomString("nvidia-tesla-p100")), Option(GpuType.NVIDIATeslaP100)),
+    (Option(WomString("custom-gpu-24601")), Option(GpuType("custom-gpu-24601"))),
+    (None, None)
+  )
+  val invalidGpuTypes = List(WomSingleFile("nvidia-tesla-k80"), WomInteger(100))
 
   val validGpuCounts = List(
     (Option(WomInteger(1)), Option(1)),
     (Option(WomInteger(100)), Option(100)),
     (None, None)
   )
-  val invalidGpuCounts = List(
-    WomString("ten"),
-    WomFloat(1.0))
+  val invalidGpuCounts = List(WomString("ten"), WomFloat(1.0))
 
   validGpuTypes foreach { case (validGpuType, expectedGpuTypeValue) =>
     validGpuCounts foreach { case (validGpuCount, expectedGpuCountValue) =>
@@ -36,7 +30,8 @@ class PipelinesApiGpuAttributesSpec
           "docker" -> WomString("ubuntu:latest")
         ) ++ validGpuType.map(t => "gpuType" -> t) ++ validGpuCount.map(c => "gpuCount" -> c)
 
-        val actualRuntimeAttributes = toPapiRuntimeAttributes(runtimeAttributes, emptyWorkflowOptions, papiConfiguration)
+        val actualRuntimeAttributes =
+          toPapiRuntimeAttributes(runtimeAttributes, emptyWorkflowOptions, papiConfiguration)
 
         expectedGpuTypeValue match {
           case Some(v) => actualRuntimeAttributes.gpuResource.exists(_.gpuType == v)
@@ -57,9 +52,9 @@ class PipelinesApiGpuAttributesSpec
           "docker" -> WomString("ubuntu:latest")
         ) ++ validGpuType.map(t => "gpuType" -> t) + ("gpuCount" -> invalidGpuCount)
 
-        assertPapiRuntimeAttributesFailedCreation(
-          runtimeAttributes,
-          s"Invalid gpu count. Expected positive Int but got")
+        assertPapiRuntimeAttributesFailedCreation(runtimeAttributes,
+                                                  s"Invalid gpu count. Expected positive Int but got"
+        )
       }
     }
   }
@@ -71,9 +66,9 @@ class PipelinesApiGpuAttributesSpec
           "docker" -> WomString("ubuntu:latest")
         ) + ("gpuType" -> invalidGpuType) + ("gpuCount" -> invalidGpuCount)
 
-        assertPapiRuntimeAttributesFailedCreation(
-          runtimeAttributes,
-          s"Invalid gpu count. Expected positive Int but got")
+        assertPapiRuntimeAttributesFailedCreation(runtimeAttributes,
+                                                  s"Invalid gpu count. Expected positive Int but got"
+        )
       }
     }
   }

@@ -20,7 +20,7 @@ object ex8 {
     println(ast.toPrettyString)
 
     /* Traverse the tree to find all Task definitions */
-    AstTools.findAsts(ast, "Task") foreach {ast =>
+    AstTools.findAsts(ast, "Task") foreach { ast =>
       println(s"Task name: ${ast.getAttribute("name").sourceString}")
     }
   }

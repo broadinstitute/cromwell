@@ -24,13 +24,14 @@ trait WriteFunctions extends PathFactory with IoFunctionSet with AsyncIoFunction
     */
   def writeDirectory: Path
 
-  private lazy val _writeDirectory = if (isDocker) writeDirectory.createPermissionedDirectories() else writeDirectory.createDirectories()
+  private lazy val _writeDirectory =
+    if (isDocker) writeDirectory.createPermissionedDirectories() else writeDirectory.createDirectories()
 
   override def createTemporaryDirectory(name: Option[String]) = {
     val tempDirPath = _writeDirectory / name.getOrElse(UUID.randomUUID().toString)
     // This is evil, but has the added advantage to work both for cloud and local
     val tempDirHiddenFile = tempDirPath / ".file"
-    asyncIo.writeAsync(tempDirHiddenFile, "", OpenOptions.default) as { tempDirPath.pathAsString }
+    asyncIo.writeAsync(tempDirHiddenFile, "", OpenOptions.default) as tempDirPath.pathAsString
   }
 
   protected def writeAsync(file: Path, content: String) = asyncIo.writeAsync(file, content, OpenOptions.default)
@@ -38,21 +39,22 @@ trait WriteFunctions extends PathFactory with IoFunctionSet with AsyncIoFunction
   override def writeFile(path: String, content: String): Future[WomSingleFile] = {
     val file = _writeDirectory / path
     asyncIo.existsAsync(file) flatMap {
-      case false => writeAsync(file, content) as { WomSingleFile(file.pathAsString) }
+      case false => writeAsync(file, content) as WomSingleFile(file.pathAsString)
       case true => Future.successful(WomSingleFile(file.pathAsString))
     }
   }
 
   private val relativeToLocal = System.getProperty("user.dir").ensureSlashed
 
-  def relativeToAbsolutePath(pathFrom: String): String = if (buildPath(pathFrom).isAbsolute) pathFrom else relativeToLocal + pathFrom
+  def relativeToAbsolutePath(pathFrom: String): String =
+    if (buildPath(pathFrom).isAbsolute) pathFrom else relativeToLocal + pathFrom
 
   override def copyFile(pathFrom: String, targetName: String): Future[WomSingleFile] = {
     val source = buildPath(relativeToAbsolutePath(pathFrom))
     val destination = _writeDirectory / targetName
 
-    asyncIo.copyAsync(source, destination).as(WomSingleFile(destination.pathAsString)) recoverWith {
-      case e => Future.failed(new Exception(s"Could not copy ${source.toAbsolutePath} to ${destination.toAbsolutePath}", e))
+    asyncIo.copyAsync(source, destination).as(WomSingleFile(destination.pathAsString)) recoverWith { case e =>
+      Future.failed(new Exception(s"Could not copy ${source.toAbsolutePath} to ${destination.toAbsolutePath}", e))
     }
   }
 }

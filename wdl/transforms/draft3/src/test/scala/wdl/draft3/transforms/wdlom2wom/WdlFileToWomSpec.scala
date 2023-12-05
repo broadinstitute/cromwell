@@ -33,24 +33,35 @@ class WdlFileToWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
   }
 
   testCases.list.filter(x => x.isRegularFile && x.extension.contains(".wdl")) foreach { testCase =>
-
     val fileName = testCase.name
     val testName = testCase.name.split("\\.").head
 
     val itShouldString = s"create a valid WOM object for $fileName"
-    val testOrIgnore: (=>Any) => Unit = if (testCase.name.endsWith(".ignored.wdl") || testCase.name.endsWith(".nowom.wdl")) {
-      (it should itShouldString).ignore _
-    } else {
-      (it should itShouldString).in _
-    }
+    val testOrIgnore: (=> Any) => Unit =
+      if (testCase.name.endsWith(".ignored.wdl") || testCase.name.endsWith(".nowom.wdl")) {
+        (it should itShouldString).ignore _
+      } else {
+        (it should itShouldString).in _
+      }
 
     testOrIgnore {
-      val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen wrapAst andThen astToFileElement.map(fe => FileElementToWomBundleInputs(fe, "{}", convertNestedScatterToSubworkflow = true, List.empty, List.empty, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
+      val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen wrapAst andThen astToFileElement.map(fe =>
+        FileElementToWomBundleInputs(
+          fe,
+          "{}",
+          convertNestedScatterToSubworkflow = true,
+          List.empty,
+          List.empty,
+          workflowDefinitionElementToWomWorkflowDefinition,
+          taskDefinitionElementToWomTaskDefinition
+        )
+      ) andThen fileElementToWomBundle
 
       converter.run(testCase) match {
         case Right(bundle) => validators(testName).apply(bundle)
         case Left(errors) =>
-          val formattedErrors = errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())
+          val formattedErrors =
+            errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())
           fail(s"Failed to create WOM bundle: $formattedErrors")
       }
     }
@@ -65,7 +76,17 @@ class WdlFileToWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
   // }
   //
   it should "be able to leave nested scatters intact" in {
-    val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen wrapAst andThen astToFileElement.map(fe => FileElementToWomBundleInputs(fe, "{}", convertNestedScatterToSubworkflow = false, List.empty, List.empty, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
+    val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen wrapAst andThen astToFileElement.map(fe =>
+      FileElementToWomBundleInputs(
+        fe,
+        "{}",
+        convertNestedScatterToSubworkflow = false,
+        List.empty,
+        List.empty,
+        workflowDefinitionElementToWomWorkflowDefinition,
+        taskDefinitionElementToWomTaskDefinition
+      )
+    ) andThen fileElementToWomBundle
 
     val twoLevelScatterFile = File("wdl/transforms/draft3/src/test/cases/two_level_scatter.wdl")
 
@@ -75,27 +96,37 @@ class WdlFileToWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
         val graph = wf.innerGraph
 
         // get the top scatter node
-        graph.scatters.size shouldBe(1)
-        val topScatter : ScatterNode = graph.scatters.toVector.head
+        graph.scatters.size shouldBe 1
+        val topScatter: ScatterNode = graph.scatters.toVector.head
         val wfCalls = graph.allNodes.filterByType[WorkflowCallNode]
 
         // don't generate any sub-workflows
-        wfCalls.size shouldBe(0)
+        wfCalls.size shouldBe 0
 
         // there should be one scatter inside the top scatter
         val innerGraph = topScatter.innerGraph
-        innerGraph.scatters.size shouldBe(1)
+        innerGraph.scatters.size shouldBe 1
         Succeeded
 
       case Left(errors) =>
-        val formattedErrors = errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())
+        val formattedErrors =
+          errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())
         fail(s"Failed to create WOM bundle: $formattedErrors")
     }
   }
 
-
   it should "split a nested scatter into a toplevel scatter, and a bottom sub-workflow" in {
-    val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen wrapAst andThen astToFileElement.map(fe => FileElementToWomBundleInputs(fe, "{}", convertNestedScatterToSubworkflow = true, List.empty, List.empty, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
+    val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen wrapAst andThen astToFileElement.map(fe =>
+      FileElementToWomBundleInputs(
+        fe,
+        "{}",
+        convertNestedScatterToSubworkflow = true,
+        List.empty,
+        List.empty,
+        workflowDefinitionElementToWomWorkflowDefinition,
+        taskDefinitionElementToWomTaskDefinition
+      )
+    ) andThen fileElementToWomBundle
 
     val twoLevelScatterFile = File("wdl/transforms/draft3/src/test/cases/two_level_scatter.wdl")
 
@@ -105,18 +136,18 @@ class WdlFileToWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
         val graph = wf.innerGraph
 
         // There should be just one scatter.
-        graph.scatters.size shouldBe(1)
+        graph.scatters.size shouldBe 1
         val wfCalls = graph.allNodes.filterByType[WorkflowCallNode]
 
         // There should be a call to a generated sub-workflow in the graph
-        wfCalls.size shouldBe(1)
+        wfCalls.size shouldBe 1
         Succeeded
       case Left(errors) =>
-        val formattedErrors = errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())
+        val formattedErrors =
+          errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())
         fail(s"Failed to create WOM bundle: $formattedErrors")
     }
   }
-
 
   private val validators: Map[String, WomBundle => Assertion] = Map(
     "declaration_chain" -> anyWomWillDo,
@@ -161,9 +192,11 @@ class WdlFileToWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
   private def anyWomWillDo(b: WomBundle): Assertion = Succeeded
 
   private def validateStructDefinitionWom(b: WomBundle): Assertion = {
-    val wfDef: WorkflowDefinition = (b.allCallables.values.toSet.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).head
+    val wfDef: WorkflowDefinition =
+      (b.allCallables.values.toSet.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).head
     b.typeAliases.keySet shouldBe Set("FooStruct")
-    val structOutputType = (wfDef.graph.outputNodes.map(_.womType).filterByType[WomCompositeType]: Set[WomCompositeType]).head
+    val structOutputType =
+      (wfDef.graph.outputNodes.map(_.womType).filterByType[WomCompositeType]: Set[WomCompositeType]).head
 
     structOutputType.typeMap shouldBe Map(
       "simple" -> WomIntegerType,
@@ -172,27 +205,44 @@ class WdlFileToWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
   }
 
   private def validateTaskDefinitionWom(b: WomBundle): Assertion = {
-    val taskDef: CallableTaskDefinition = (b.allCallables.values.toSet.filterByType[CallableTaskDefinition]: Set[CallableTaskDefinition]).head
+    val taskDef: CallableTaskDefinition =
+      (b.allCallables.values.toSet.filterByType[CallableTaskDefinition]: Set[CallableTaskDefinition]).head
     taskDef.name shouldBe "simple"
-    taskDef.commandTemplate(Map.empty) shouldBe List(WdlomWomStringCommandPart(StringCommandPartElement("echo Hello World ")))
+    taskDef.commandTemplate(Map.empty) shouldBe List(
+      WdlomWomStringCommandPart(StringCommandPartElement("echo Hello World "))
+    )
   }
 
   private def validateCommandSyntaxes(b: WomBundle): Assertion = {
     b.allCallables.size should be(2)
-    b.allCallables.get("a")match {
+    b.allCallables.get("a") match {
       case Some(taskA) =>
-        taskA.inputs.filter(_.isInstanceOf[FixedInputDefinitionWithDefault]).map(_.name).toSet should be(Set("rld", "__world1", "__world2"))
-        taskA.inputs.filter(_.isInstanceOf[OptionalInputDefinition]).map(_.name).toSet should be(Set("world1", "world2"))
+        taskA.inputs.filter(_.isInstanceOf[FixedInputDefinitionWithDefault]).map(_.name).toSet should be(
+          Set("rld", "__world1", "__world2")
+        )
+        taskA.inputs.filter(_.isInstanceOf[OptionalInputDefinition]).map(_.name).toSet should be(
+          Set("world1", "world2")
+        )
         taskA.inputs.map(_.name).toSet should be(Set("rld", "__world1", "__world2", "world1", "world2"))
         taskA.outputs.map(_.name).toSet should be(Set("out"))
-        taskA.asInstanceOf[CallableTaskDefinition].runtimeAttributes.attributes("docker").asInstanceOf[WdlomWomExpression].expressionElement should be(StringLiteral("ubuntu:latest"))
+        taskA
+          .asInstanceOf[CallableTaskDefinition]
+          .runtimeAttributes
+          .attributes("docker")
+          .asInstanceOf[WdlomWomExpression]
+          .expressionElement should be(StringLiteral("ubuntu:latest"))
       case None => fail("Expected a task called 'a'")
     }
     b.allCallables.get("b") match {
       case Some(taskB) =>
         taskB.inputs.map(_.name) should be(Seq("world"))
         taskB.outputs.map(_.name) should be(Seq("out"))
-        taskB.asInstanceOf[CallableTaskDefinition].runtimeAttributes.attributes("docker").asInstanceOf[WdlomWomExpression].expressionElement should be(StringLiteral("ubuntu:latest"))
+        taskB
+          .asInstanceOf[CallableTaskDefinition]
+          .runtimeAttributes
+          .attributes("docker")
+          .asInstanceOf[WdlomWomExpression]
+          .expressionElement should be(StringLiteral("ubuntu:latest"))
       case None => fail("Expected a task called 'b'")
     }
   }
@@ -203,11 +253,17 @@ class WdlFileToWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
       case None => fail("No callable found 'nio_file'")
       case Some(nioFileTask) =>
         // Plain old input:
-        nioFileTask.inputs.find(_.name == "f").get.parameterMeta should be(Some(MetaValueElementObject(Map("localization_optional" -> MetaValueElementBoolean(true)))))
+        nioFileTask.inputs.find(_.name == "f").get.parameterMeta should be(
+          Some(MetaValueElementObject(Map("localization_optional" -> MetaValueElementBoolean(true))))
+        )
         // Input based on upstream:
-        nioFileTask.inputs.find(_.name == "g").get.parameterMeta should be(Some(MetaValueElementObject(Map("localization_optional" -> MetaValueElementBoolean(true)))))
+        nioFileTask.inputs.find(_.name == "g").get.parameterMeta should be(
+          Some(MetaValueElementObject(Map("localization_optional" -> MetaValueElementBoolean(true))))
+        )
         // Optional input:
-        nioFileTask.inputs.find(_.name == "h").get.parameterMeta should be(Some(MetaValueElementObject(Map("localization_optional" -> MetaValueElementBoolean(true)))))
+        nioFileTask.inputs.find(_.name == "h").get.parameterMeta should be(
+          Some(MetaValueElementObject(Map("localization_optional" -> MetaValueElementBoolean(true))))
+        )
     }
   }
 
@@ -231,16 +287,20 @@ class WdlFileToWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
   private def validateMetaSection(b: WomBundle): Assertion = {
     val task = b.primaryCallable.get.asInstanceOf[CallableTaskDefinition]
 
-    task.meta should be (Map("author" -> MetaValueElementString("John Doe"),
-                             "email" -> MetaValueElementString("john.doe@yahoo.com"),
-                             "b" -> MetaValueElementBoolean(true),
-                             "zipcode" -> MetaValueElementInteger(94043),
-                             "f" -> MetaValueElementFloat(1.3),
-                             "numbers" -> MetaValueElementArray(Vector(MetaValueElementInteger(1),
-                                                                       MetaValueElementInteger(2),
-                                                                       MetaValueElementInteger(3))),
-                             "extras" -> MetaValueElementObject(Map("house" -> MetaValueElementString("With porch"),
-                                                                    "cat" -> MetaValueElementString("Lucy")))
-                         ))
+    task.meta should be(
+      Map(
+        "author" -> MetaValueElementString("John Doe"),
+        "email" -> MetaValueElementString("john.doe@yahoo.com"),
+        "b" -> MetaValueElementBoolean(true),
+        "zipcode" -> MetaValueElementInteger(94043),
+        "f" -> MetaValueElementFloat(1.3),
+        "numbers" -> MetaValueElementArray(
+          Vector(MetaValueElementInteger(1), MetaValueElementInteger(2), MetaValueElementInteger(3))
+        ),
+        "extras" -> MetaValueElementObject(
+          Map("house" -> MetaValueElementString("With porch"), "cat" -> MetaValueElementString("Lucy"))
+        )
+      )
+    )
   }
 }

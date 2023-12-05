@@ -49,8 +49,8 @@ class EngineStatsActorSpec extends TestKitSuite with AnyFlatSpecLike with Matche
 
 object EngineStatsActorSpec {
   final case class FakeWorkflowActor(jobs: Int) extends Actor {
-    override def receive = {
-      case JobCountQuery => sender() ! JobCount(jobs)
+    override def receive = { case JobCountQuery =>
+      sender() ! JobCount(jobs)
     }
   }
 }

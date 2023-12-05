@@ -1,7 +1,7 @@
 package cromwell.database.migration.liquibase
 
 import liquibase.database.Database
-import liquibase.diff.{DiffResult, Difference, ObjectDifferences}
+import liquibase.diff.{Difference, DiffResult, ObjectDifferences}
 import liquibase.structure.DatabaseObject
 import liquibase.structure.core._
 
@@ -11,6 +11,7 @@ import scala.jdk.CollectionConverters._
   * Filters liquibase results.
   */
 object DiffResultFilter {
+
   /**
     * A filter for a database object.
     */
@@ -42,19 +43,16 @@ object DiffResultFilter {
     val unexpectedObjects = diffResult.getUnexpectedObjects.asScala
     val changedObjects = diffResult.getChangedObjects.asScala
 
-    val newDiffResult = new DiffResult(
-      diffResult.getReferenceSnapshot,
-      diffResult.getComparisonSnapshot,
-      diffResult.getCompareControl)
+    val newDiffResult =
+      new DiffResult(diffResult.getReferenceSnapshot, diffResult.getComparisonSnapshot, diffResult.getCompareControl)
 
     missingObjects.filterNot(unchangedFilter(referenceDatabase, _)).foreach(newDiffResult.addMissingObject)
     unexpectedObjects.filterNot(unchangedFilter(comparisonDatabase, _)).foreach(newDiffResult.addUnexpectedObject)
 
     val filteredChangedObjects =
       changedObjects.filterNot(isSameObject(referenceDatabase, comparisonDatabase, changedFilters))
-    for ((obj, difference) <- filteredChangedObjects) {
+    for ((obj, difference) <- filteredChangedObjects)
       newDiffResult.addChangedObject(obj, difference)
-    }
 
     newDiffResult
   }
@@ -71,12 +69,14 @@ object DiffResultFilter {
     * @param objectAndDiff A tuple of the object and the set of differences.
     * @return True if the object is actually the same.
     */
-  def isSameObject(referenceDatabase: Database, comparisonDatabase: Database, filters: Seq[DiffFilter])
-                  (objectAndDiff: (DatabaseObject, ObjectDifferences)): Boolean = {
+  def isSameObject(referenceDatabase: Database, comparisonDatabase: Database, filters: Seq[DiffFilter])(
+    objectAndDiff: (DatabaseObject, ObjectDifferences)
+  ): Boolean = {
     val (obj, objectDifferences) = objectAndDiff
     val differences = objectDifferences.getDifferences.asScala
     val filtered = filters.foldLeft(differences)((diffs, diffFilter) =>
-      diffs.filterNot(diffFilter(referenceDatabase, comparisonDatabase, obj, _)))
+      diffs.filterNot(diffFilter(referenceDatabase, comparisonDatabase, obj, _))
+    )
     filtered.isEmpty
   }
 
@@ -89,16 +89,19 @@ object DiffResultFilter {
     * @param difference         The difference reported.
     * @return True if the object is actually the same with slightly different column widths.
     */
-  def isVarchar255(referenceDatabase: Database, comparisonDatabase: Database,
-                   databaseObject: DatabaseObject, difference: Difference): Boolean = {
+  def isVarchar255(referenceDatabase: Database,
+                   comparisonDatabase: Database,
+                   databaseObject: DatabaseObject,
+                   difference: Difference
+  ): Boolean = {
     val compared = difference.getComparedValue
     val referenced = difference.getReferenceValue
     compared.isInstanceOf[DataType] && referenced.isInstanceOf[DataType] && {
       val comparedDataType = compared.asInstanceOf[DataType]
       val referencedDataType = referenced.asInstanceOf[DataType]
       comparedDataType.getTypeName == "VARCHAR" && referencedDataType.getTypeName == "VARCHAR" &&
-        // Our liquibase copypasta defaults VARCHAR to 255. Slick without a value defaults to 254
-        (comparedDataType.getColumnSize + referencedDataType.getColumnSize == 255 + 254)
+      // Our liquibase copypasta defaults VARCHAR to 255. Slick without a value defaults to 254
+      (comparedDataType.getColumnSize + referencedDataType.getColumnSize == 255 + 254)
     }
   }
 
@@ -114,9 +117,11 @@ object DiffResultFilter {
     * @param difference The difference reported.
     * @return True if the object is actually similar based on type.
     */
-  def isTypeSimilar(similarTypes: String*)
-                   (referenceDatabase: Database, comparisonDatabase: Database,
-                    databaseObject: DatabaseObject, difference: Difference): Boolean = {
+  def isTypeSimilar(similarTypes: String*)(referenceDatabase: Database,
+                                           comparisonDatabase: Database,
+                                           databaseObject: DatabaseObject,
+                                           difference: Difference
+  ): Boolean = {
     val compared = difference.getComparedValue
     val referenced = difference.getReferenceValue
     compared.isInstanceOf[DataType] && referenced.isInstanceOf[DataType] && {
@@ -137,10 +142,12 @@ object DiffResultFilter {
     * @param difference The difference reported.
     * @return True if the object is actually similar based on type.
     */
-  def isReordered(referenceDatabase: Database, comparisonDatabase: Database,
-                  databaseObject: DatabaseObject, difference: Difference): Boolean = {
+  def isReordered(referenceDatabase: Database,
+                  comparisonDatabase: Database,
+                  databaseObject: DatabaseObject,
+                  difference: Difference
+  ): Boolean =
     difference.getField == "order"
-  }
 
   /**
     * Returns true if the object is a change log object.
@@ -149,7 +156,7 @@ object DiffResultFilter {
     * @param databaseObject The database object.
     * @return True if the object is a change log object.
     */
-  def isChangeLog(database: Database, databaseObject: DatabaseObject): Boolean = {
+  def isChangeLog(database: Database, databaseObject: DatabaseObject): Boolean =
     databaseObject match {
       case table: Table => table.getName.contains("DATABASECHANGELOG")
       case column: Column => isChangeLog(database, column.getRelation)
@@ -157,7 +164,6 @@ object DiffResultFilter {
       case key: PrimaryKey => isChangeLog(database, key.getTable)
       case _ => false
     }
-  }
 
   /**
     * Returns true if the object is liquibase database object.
@@ -166,9 +172,8 @@ object DiffResultFilter {
     * @param databaseObject The database object.
     * @return True if the object is a liquibase database object.
     */
-  def isLiquibaseObject(database: Database, databaseObject: DatabaseObject): Boolean = {
+  def isLiquibaseObject(database: Database, databaseObject: DatabaseObject): Boolean =
     database.isLiquibaseObject(databaseObject)
-  }
 
   /**
     * Returns true if the object is a member of the excluded table.
@@ -178,23 +183,19 @@ object DiffResultFilter {
     * @param databaseObject The database object.
     * @return True if the object is a member of the tables.
     */
-  def isTableObject(tables: Seq[String])
-                   (database: Database, databaseObject: DatabaseObject): Boolean = {
+  def isTableObject(tables: Seq[String])(database: Database, databaseObject: DatabaseObject): Boolean =
     isTableObject(tables, databaseObject)
-  }
 
-  private def isTableObject(tables: Seq[String], databaseObject: DatabaseObject): Boolean = {
+  private def isTableObject(tables: Seq[String], databaseObject: DatabaseObject): Boolean =
     tables.exists(table =>
       databaseObject.getName.equalsIgnoreCase(table) ||
         getContainingObjects(databaseObject).exists(isTableObject(tables, _))
     )
-  }
 
   // getContainingObjects is ill-mannered and returns null when really it ought to return an empty array, so wrap
   // in an `Option` and `getOrElse`.
-  private def getContainingObjects(databaseObject: DatabaseObject): Array[DatabaseObject] = {
+  private def getContainingObjects(databaseObject: DatabaseObject): Array[DatabaseObject] =
     Option(databaseObject.getContainingObjects).getOrElse(Array.empty)
-  }
 
   /**
     * Adds utility methods to a liquibase diff result.
@@ -202,6 +203,7 @@ object DiffResultFilter {
     * @param diffResult The origin diff result.
     */
   implicit class EnhancedDiffResult(val diffResult: DiffResult) extends AnyVal {
+
     /**
       * Filters changelogs.
       *

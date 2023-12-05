@@ -9,8 +9,8 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class AsynchronousThrottlingGaugeMetricActor(metricPath: NonEmptyList[String],
                                              instrumentationPrefix: Option[String],
-                                             override val serviceRegistryActor: ActorRef)
-  extends LoggingFSM[AsynchronousThrottlingGaugeMetricActorState, Unit]
+                                             override val serviceRegistryActor: ActorRef
+) extends LoggingFSM[AsynchronousThrottlingGaugeMetricActorState, Unit]
     with CromwellInstrumentation {
 
   implicit val ec = context.dispatcher
@@ -42,10 +42,11 @@ class AsynchronousThrottlingGaugeMetricActor(metricPath: NonEmptyList[String],
       goto(WaitingForMetricCalculationRequestOrMetricValue)
   }
 
-  whenUnhandled {
-    case Event(unexpected, _) =>
-      log.warning(s"Programmer error: this actor should not receive message $unexpected from ${sender().path} while in state $stateName")
-      stay()
+  whenUnhandled { case Event(unexpected, _) =>
+    log.warning(
+      s"Programmer error: this actor should not receive message $unexpected from ${sender().path} while in state $stateName"
+    )
+    stay()
   }
 
   private def sendGaugeAndStay(metricValue: Long): State = {

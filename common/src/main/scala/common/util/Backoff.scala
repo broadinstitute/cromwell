@@ -3,8 +3,10 @@ package common.util
 import scala.concurrent.duration.FiniteDuration
 
 trait Backoff {
+
   /** Next interval in millis */
   def backoffMillis: Long
+
   /** Get the next instance of backoff. This should be called after every call to backoffMillis */
   def next: Backoff
 }

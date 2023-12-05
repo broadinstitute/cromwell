@@ -45,79 +45,79 @@ class WdlWorkflowImportsSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
 
   val basicWdl =
     s"""
-      |import "$echoHelloWdlFile"
+       |import "$echoHelloWdlFile"
       """.stripMargin +
-    """
-      |
-      |task ls {
-      |  command {
-      |    ls -l
-      |  }
-      |  output {
-      |    String fileList = read_string(stdout())
-      |  }
-      |}
-      |
-      |task pwd {
-      |   command {
-      |     pwd
-      |   }
-      |   output {
-      |     String current = read_string(stdout())
-      |   }
-      |}
-      |
-      |workflow basic {
-      |  call ls
-      |  call pwd
-      |  output {
-      |       ls.fileList
-      |   }
-      |}
+      """
+        |
+        |task ls {
+        |  command {
+        |    ls -l
+        |  }
+        |  output {
+        |    String fileList = read_string(stdout())
+        |  }
+        |}
+        |
+        |task pwd {
+        |   command {
+        |     pwd
+        |   }
+        |   output {
+        |     String current = read_string(stdout())
+        |   }
+        |}
+        |
+        |workflow basic {
+        |  call ls
+        |  call pwd
+        |  output {
+        |       ls.fileList
+        |   }
+        |}
     """.stripMargin
 
   val printNumsWdl =
     s"""
-      |import "$echoHelloWdlFile" as multilingualEcho
-      |
+       |import "$echoHelloWdlFile" as multilingualEcho
+       |
       """.stripMargin +
-    """
-      |task ls {
-      |  command {
-      |    ls
-      |  }
-      |}
-      |
-      |
-      |task print1 {
-      |  Int x = 10
-      |  command {
-      |    for i in `seq 1 ${x}`
-      |      do
-      |        echo $i
-      |      done
-      |  }
-      |}
-      |
-      |task print2 {
-      |  Int x = 20
-      |  command {
-      |    for i in `seq 1 ${x}`
-      |      do
-      |        echo $i
-      |      done
-      |  }
-      |}
-      |
-      |task print3 {
-      |  Int x = 30
-      |  command {
-      |    for i in `seq 1 ${x}`
-      |      do
-      |        echo $i
-      |      done
-      |  }
-      |}
+      """
+        |task ls {
+        |  command {
+        |    ls
+        |  }
+        |}
+        |
+        |
+        |task print1 {
+        |  Int x = 10
+        |  command {
+        |    for i in `seq 1 ${x}`
+        |      do
+        |        echo $i
+        |      done
+        |  }
+        |}
+        |
+        |task print2 {
+        |  Int x = 20
+        |  command {
+        |    for i in `seq 1 ${x}`
+        |      do
+        |        echo $i
+        |      done
+        |  }
+        |}
+        |
+        |task print3 {
+        |  Int x = 30
+        |  command {
+        |    for i in `seq 1 ${x}`
+        |      do
+        |        echo $i
+        |      done
+        |  }
+        |}
     """.stripMargin
 
   val snoozeWdl =
@@ -176,11 +176,10 @@ class WdlWorkflowImportsSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
       |}
     """.stripMargin
 
-
   val threeStepWdlWithImports =
     s"""
-      |import "$echoHelloWdlFile" as funEcho
-      |
+       |import "$echoHelloWdlFile" as funEcho
+       |
       """.stripMargin + threeStepWdl
 
   val basicWdlImportFile = addAndGetFile("basic", basicWdl)
@@ -188,8 +187,7 @@ class WdlWorkflowImportsSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
   val snoozeWdlImportFile = addAndGetFile("snooze", snoozeWdl)
   val printNumsWdlImportFile = addAndGetFile("printNums", printNumsWdl)
 
-  def noExtension(fileName: String) = fileName.replace(".wdl","")
-
+  def noExtension(fileName: String) = fileName.replace(".wdl", "")
 
   val imports =
     s"""
@@ -202,41 +200,42 @@ class WdlWorkflowImportsSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
 
   val primaryWorkflow =
     s"""
-    |
-    |task testCaseTask {
-    |  command {
-    |     echo "Ruchi's birthday: 01/19"
-    |  }
-    |}
-    |
-    |workflow testCases {
-    |  call ${noExtension(basicWdlImportFile)}.ls as ls1
-    |  call ${noExtension(printNumsWdlImportFile)}.ls as ls2
-    |
-    |  #call ${noExtension(basicWdlImportFile)}.pwd as soBasic
-    |
-    |  #call ${noExtension(printNumsWdlImportFile)}.print1
-    |  #call ${noExtension(printNumsWdlImportFile)}.print2 as printingFun
-    |
-    |
-    |  call classicThreeStep.ps
-    |  call classicThreeStep.ps as psAgain
-    |
-    |  call trySleep.sleep
-    |  call trySleep.sleep2 as sleepMore
-    |
-    |  call ${noExtension(basicWdlImportFile)}.${noExtension(echoHelloWdlFile)}.inFrench
-    |  call classicThreeStep.funEcho.inSpanish
-    |  call classicThreeStep.funEcho.inSpanish as inPortugese
-    |  call ${noExtension(printNumsWdlImportFile)}.multilingualEcho.inItalian
-    |
-    |}
-    |""".stripMargin
+       |
+       |task testCaseTask {
+       |  command {
+       |     echo "Ruchi's birthday: 01/19"
+       |  }
+       |}
+       |
+       |workflow testCases {
+       |  call ${noExtension(basicWdlImportFile)}.ls as ls1
+       |  call ${noExtension(printNumsWdlImportFile)}.ls as ls2
+       |
+       |  #call ${noExtension(basicWdlImportFile)}.pwd as soBasic
+       |
+       |  #call ${noExtension(printNumsWdlImportFile)}.print1
+       |  #call ${noExtension(printNumsWdlImportFile)}.print2 as printingFun
+       |
+       |
+       |  call classicThreeStep.ps
+       |  call classicThreeStep.ps as psAgain
+       |
+       |  call trySleep.sleep
+       |  call trySleep.sleep2 as sleepMore
+       |
+       |  call ${noExtension(basicWdlImportFile)}.${noExtension(echoHelloWdlFile)}.inFrench
+       |  call classicThreeStep.funEcho.inSpanish
+       |  call classicThreeStep.funEcho.inSpanish as inPortugese
+       |  call ${noExtension(printNumsWdlImportFile)}.multilingualEcho.inItalian
+       |
+       |}
+       |""".stripMargin
 
   val wdlWithImports = imports + primaryWorkflow
 
   val namespace = {
-    val resolvers: Seq[Draft2ImportResolver] = Seq(WdlNamespace.directoryResolver(wdlDirectory), WdlNamespace.fileResolver)
+    val resolvers: Seq[Draft2ImportResolver] =
+      Seq(WdlNamespace.directoryResolver(wdlDirectory), WdlNamespace.fileResolver)
     WdlNamespaceWithWorkflow.load(wdlWithImports, resolvers).get
   }
 
@@ -256,7 +255,8 @@ class WdlWorkflowImportsSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
   }
   it should "import two WDL file (with clashing task names) and be able to reference all tasks by FQN" in {
     val clashingTaskNames = Seq(namespace.resolve(s"${noExtension(basicWdlImportFile)}.ls"),
-                            namespace.resolve(s"${noExtension(printNumsWdlImportFile)}.ls"))
+                                namespace.resolve(s"${noExtension(printNumsWdlImportFile)}.ls")
+    )
 
     clashingTaskNames.size shouldEqual 2
   }

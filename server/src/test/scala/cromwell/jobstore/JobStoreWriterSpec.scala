@@ -8,7 +8,12 @@ import cromwell.core.actor.BatchActor.{BatchActorState, CommandAndReplyTo, Proce
 import cromwell.core.{CallOutputs, WorkflowId}
 import cromwell.engine.workflow.{CoordinatedWorkflowStoreActorBuilder, SqlWorkflowStoreBuilder}
 import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
-import cromwell.jobstore.JobStoreActor.{JobStoreWriteSuccess, JobStoreWriterCommand, RegisterJobCompleted, RegisterWorkflowCompleted}
+import cromwell.jobstore.JobStoreActor.{
+  JobStoreWriterCommand,
+  JobStoreWriteSuccess,
+  RegisterJobCompleted,
+  RegisterWorkflowCompleted
+}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.matchers.should.Matchers
 import wom.graph.GraphNodePort.OutputPort
@@ -17,7 +22,13 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 
-class JobStoreWriterSpec extends CromwellTestKitWordSpec with SqlWorkflowStoreBuilder with CoordinatedWorkflowStoreActorBuilder with Matchers with BeforeAndAfter with CromwellTimeoutSpec {
+class JobStoreWriterSpec
+    extends CromwellTestKitWordSpec
+    with SqlWorkflowStoreBuilder
+    with CoordinatedWorkflowStoreActorBuilder
+    with Matchers
+    with BeforeAndAfter
+    with CromwellTimeoutSpec {
 
   var database: WriteCountingJobStore = _
   var workflowId: WorkflowId = _
@@ -29,9 +40,13 @@ class JobStoreWriterSpec extends CromwellTestKitWordSpec with SqlWorkflowStoreBu
     workflowId = WorkflowId.randomId()
   }
 
-  private def sendRegisterCompletion(jobStoreWriter: TestFSMRef[BatchActorState, WeightedQueue[CommandAndReplyTo[JobStoreWriterCommand], Int], JobStoreWriterActor])(attempt: Int): Unit = {
+  private def sendRegisterCompletion(
+    jobStoreWriter: TestFSMRef[BatchActorState,
+                               WeightedQueue[CommandAndReplyTo[JobStoreWriterCommand], Int],
+                               JobStoreWriterActor
+    ]
+  )(attempt: Int): Unit =
     jobStoreWriter ! RegisterJobCompleted(jobKey(attempt), successResult)
-  }
 
   private def jobKey(attempt: Int): JobStoreKey = JobStoreKey(workflowId, s"call.fqn", None, attempt)
 
@@ -43,7 +58,7 @@ class JobStoreWriterSpec extends CromwellTestKitWordSpec with SqlWorkflowStoreBu
     ()
   }
 
-  //noinspection SameParameterValue
+  // noinspection SameParameterValue
   private def assertDb(totalWritesCalled: Int, jobCompletionsRecorded: Int, workflowCompletionsRecorded: Int): Unit = {
     database.totalWritesCalled shouldBe totalWritesCalled
     database.jobCompletionsRecorded shouldBe jobCompletionsRecorded
@@ -51,7 +66,7 @@ class JobStoreWriterSpec extends CromwellTestKitWordSpec with SqlWorkflowStoreBu
     ()
   }
 
-  //noinspection SameParameterValue
+  // noinspection SameParameterValue
   private def assertReceived(expectedJobStoreWriteAcks: Int): Unit = {
     val received = receiveN(expectedJobStoreWriteAcks, 10 seconds)
     received foreach {
@@ -73,9 +88,9 @@ class JobStoreWriterSpec extends CromwellTestKitWordSpec with SqlWorkflowStoreBu
               flushRate = flushFrequency,
               serviceRegistryActor = TestProbe("serviceRegistryActor-collapse").ref,
               threshold = 1000,
-              workflowStoreAccess = access("coordinatedAccessActor-collapse")(workflowStore),
+              workflowStoreAccess = access("coordinatedAccessActor-collapse")(workflowStore)
             ),
-            name = "jobStoreWriter-collapse",
+            name = "jobStoreWriter-collapse"
           )
 
         // Send a job completion. The database will hang.
@@ -111,9 +126,9 @@ class JobStoreWriterSpec extends CromwellTestKitWordSpec with SqlWorkflowStoreBu
               flushRate = flushFrequency,
               serviceRegistryActor = TestProbe("serviceRegistryActor-skip").ref,
               threshold = 1000,
-              workflowStoreAccess = access("coordinatedAccessActor-skip")(workflowStore),
+              workflowStoreAccess = access("coordinatedAccessActor-skip")(workflowStore)
             ),
-            "jobStoreWriter-skip",
+            "jobStoreWriter-skip"
           )
 
         // Send a job completion. The database will hang.
@@ -143,7 +158,10 @@ class JobStoreWriterSpec extends CromwellTestKitWordSpec with SqlWorkflowStoreBu
   }
 }
 
-class WriteCountingJobStore(var totalWritesCalled: Int, var jobCompletionsRecorded: Int, var workflowCompletionsRecorded: Int) extends JobStore {
+class WriteCountingJobStore(var totalWritesCalled: Int,
+                            var jobCompletionsRecorded: Int,
+                            var workflowCompletionsRecorded: Int
+) extends JobStore {
 
   // A Promise so that the calling tests can hang the writer on the db write.  Once the promise is completed the writer is
   // released and all further messages will be written immediately.
@@ -154,8 +172,10 @@ class WriteCountingJobStore(var totalWritesCalled: Int, var jobCompletionsRecord
     ()
   }
 
-  override def writeToDatabase(workflowCompletions: Seq[WorkflowCompletion], jobCompletions: Seq[JobCompletion], batchSize: Int)
-                              (implicit ec: ExecutionContext): Future[Unit] = {
+  override def writeToDatabase(workflowCompletions: Seq[WorkflowCompletion],
+                               jobCompletions: Seq[JobCompletion],
+                               batchSize: Int
+  )(implicit ec: ExecutionContext): Future[Unit] = {
 
     totalWritesCalled += 1
     jobCompletionsRecorded += jobCompletions.size
@@ -163,7 +183,9 @@ class WriteCountingJobStore(var totalWritesCalled: Int, var jobCompletionsRecord
     writePromise.future
   }
 
-  override def readJobResult(jobStoreKey: JobStoreKey, taskOutputs: Seq[OutputPort])(implicit ec: ExecutionContext): Future[Option[JobResult]] = throw new UnsupportedOperationException()
+  override def readJobResult(jobStoreKey: JobStoreKey, taskOutputs: Seq[OutputPort])(implicit
+    ec: ExecutionContext
+  ): Future[Option[JobResult]] = throw new UnsupportedOperationException()
 }
 
 object WriteCountingJobStore {

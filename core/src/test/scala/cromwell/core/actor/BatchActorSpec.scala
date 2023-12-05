@@ -189,24 +189,23 @@ class BatchActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wit
     }
   }
 
-  class BatchActorTest(processingTime: FiniteDuration = Duration.Zero, fail: Boolean = false) extends BatchActor[String](10.hours, 10) {
+  class BatchActorTest(processingTime: FiniteDuration = Duration.Zero, fail: Boolean = false)
+      extends BatchActor[String](10.hours, 10) {
     var processed: Vector[String] = Vector.empty
-    override def commandToData(snd: ActorRef) = {
-      case command: String => command
+    override def commandToData(snd: ActorRef) = { case command: String =>
+      command
     }
     override protected def weightFunction(command: String) = command.length
-    override protected def process(data: NonEmptyVector[String]) = {
+    override protected def process(data: NonEmptyVector[String]) =
       if (processingTime != Duration.Zero) {
         processed = processed ++ data.toVector
-       val promise = Promise[Int]()
-        system.scheduler.scheduleOnce(processingTime) { promise.success(data.map(weightFunction).toVector.sum) }
+        val promise = Promise[Int]()
+        system.scheduler.scheduleOnce(processingTime)(promise.success(data.map(weightFunction).toVector.sum))
         promise.future
       } else if (!fail) {
         processed = processed ++ data.toVector
         Future.successful(data.map(weightFunction).toVector.sum)
-      }
-      else Future.failed(new Exception("Oh nose ! (This is a test failure and is expected !)") with NoStackTrace)
-    }
+      } else Future.failed(new Exception("Oh nose ! (This is a test failure and is expected !)") with NoStackTrace)
   }
 
 }

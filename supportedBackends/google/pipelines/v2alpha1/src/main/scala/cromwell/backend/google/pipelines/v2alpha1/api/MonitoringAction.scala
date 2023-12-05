@@ -5,9 +5,9 @@ import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttribu
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 
 trait MonitoringAction {
-  def monitoringSetupActions(createPipelineParameters: CreatePipelineParameters,
-                             mounts: List[Mount]
-                            )(implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Action] = {
+  def monitoringSetupActions(createPipelineParameters: CreatePipelineParameters, mounts: List[Mount])(implicit
+    gcsTransferConfiguration: GcsTransferConfiguration
+  ): List[Action] = {
 
     val monitoringImageScriptActions =
       createPipelineParameters.monitoringImage.monitoringImageScriptOption match {
@@ -16,12 +16,12 @@ trait MonitoringAction {
             ActionBuilder.monitoringImageScriptAction(
               script,
               createPipelineParameters.monitoringImage.monitoringImageScriptContainerPath,
-              mounts,
+              mounts
             )
           val describeLocalizeScriptAction =
             ActionBuilder.describeDocker(
               "localizing monitoring image script action",
-              localizeScriptAction,
+              localizeScriptAction
             )
           List(describeLocalizeScriptAction, localizeScriptAction)
         case None => Nil
@@ -30,7 +30,6 @@ trait MonitoringAction {
     val monitoringImageActions =
       createPipelineParameters.monitoringImage.monitoringImageOption match {
         case Some(image) =>
-
           val monitoringImage = image
           val monitoringImageCommand = createPipelineParameters.monitoringImage.monitoringImageCommand
           val monitoringImageEnvironment = createPipelineParameters.monitoringImage.monitoringImageEnvironment
@@ -39,7 +38,7 @@ trait MonitoringAction {
             monitoringImage,
             monitoringImageCommand,
             monitoringImageEnvironment(mounts.map(_.getPath)),
-            mounts,
+            mounts
           )
 
           val describeMonitoringAction = ActionBuilder.describeDocker("monitoring action", monitoringAction)
@@ -52,7 +51,7 @@ trait MonitoringAction {
     monitoringImageScriptActions ++ monitoringImageActions
   }
 
-  def monitoringShutdownActions(createPipelineParameters: CreatePipelineParameters): List[Action] = {
+  def monitoringShutdownActions(createPipelineParameters: CreatePipelineParameters): List[Action] =
     createPipelineParameters.monitoringImage.monitoringImageOption match {
       case Some(_) =>
         val terminationAction = ActionBuilder.terminateBackgroundActionsAction()
@@ -62,5 +61,4 @@ trait MonitoringAction {
         List(describeTerminationAction, terminationAction)
       case None => Nil
     }
-  }
 }

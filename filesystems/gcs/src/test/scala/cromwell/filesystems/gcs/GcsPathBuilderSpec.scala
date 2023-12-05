@@ -15,7 +15,12 @@ import org.scalatest.prop.Tables.Table
 
 import java.io.ByteArrayInputStream
 
-class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with PathBuilderSpecUtils with ServiceAccountTestSupport {
+class GcsPathBuilderSpec
+    extends TestKitSuite
+    with AnyFlatSpecLike
+    with Matchers
+    with PathBuilderSpecUtils
+    with ServiceAccountTestSupport {
 
   behavior of "GcsPathBuilder"
 
@@ -64,8 +69,8 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       name = "with spaces",
       getFileName = s"gs://$bucket/with spaces",
       getNameCount = 3,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "a path with non-ascii",
       path = s"gs://$bucket/hello/world/with non ascii £€",
@@ -78,8 +83,8 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       name = "with non ascii £€",
       getFileName = s"gs://$bucket/with non ascii £€",
       getNameCount = 3,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "a gs uri path with encoded characters",
       path = s"gs://$bucket/hello/world/encoded%20spaces",
@@ -92,8 +97,8 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       name = "encoded%20spaces",
       getFileName = s"gs://$bucket/encoded%20spaces",
       getNameCount = 3,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "a bucket only path",
       path = s"gs://$bucket",
@@ -106,8 +111,8 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       name = "",
       getFileName = s"gs://$bucket/",
       getNameCount = 1,
-      isAbsolute = false),
-
+      isAbsolute = false
+    ),
     GoodPath(
       description = "a bucket only path ending in a /",
       path = s"gs://$bucket/",
@@ -120,8 +125,8 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       name = "",
       getFileName = null,
       getNameCount = 0,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "a file at the top of the bucket",
       path = s"gs://$bucket/hello",
@@ -134,8 +139,8 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       name = "hello",
       getFileName = s"gs://$bucket/hello",
       getNameCount = 1,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "a path ending in /",
       path = s"gs://$bucket/hello/world/",
@@ -148,7 +153,8 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       name = "world",
       getFileName = s"gs://$bucket/world",
       getNameCount = 2,
-      isAbsolute = true),
+      isAbsolute = true
+    ),
 
     // Special paths
 
@@ -164,8 +170,8 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       name = "",
       getFileName = s"gs://$bucket/.",
       getNameCount = 1,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "a bucket with a path ..",
       path = s"gs://$bucket/..",
@@ -178,8 +184,8 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       name = "",
       getFileName = s"gs://$bucket/..",
       getNameCount = 1,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "a bucket including . in the path",
       path = s"gs://$bucket/hello/./world",
@@ -192,8 +198,8 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       name = "world",
       getFileName = s"gs://$bucket/world",
       getNameCount = 3,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "a bucket including .. in the path",
       path = s"gs://$bucket/hello/../world",
@@ -206,7 +212,8 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       name = "world",
       getFileName = s"gs://$bucket/world",
       getNameCount = 3,
-      isAbsolute = true),
+      isAbsolute = true
+    ),
 
     // Normalized
 
@@ -222,8 +229,8 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       name = "",
       getFileName = null,
       getNameCount = 0,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "a bucket with a normalized path ..",
       path = s"gs://$bucket/..",
@@ -236,8 +243,8 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       name = "",
       getFileName = s"gs://$bucket/",
       getNameCount = 1,
-      isAbsolute = false),
-
+      isAbsolute = false
+    ),
     GoodPath(
       description = "a bucket including . in the normalized path",
       path = s"gs://$bucket/hello/./world",
@@ -250,8 +257,8 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       name = "world",
       getFileName = s"gs://$bucket/world",
       getNameCount = 2,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "a bucket including .. in the normalized path",
       path = s"gs://$bucket/hello/../world",
@@ -264,8 +271,8 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       name = "world",
       getFileName = s"gs://$bucket/world",
       getNameCount = 1,
-      isAbsolute = true),
-
+      isAbsolute = true
+    ),
     GoodPath(
       description = "a bucket with an underscore",
       path = s"gs://hello_underscore/world",
@@ -278,24 +285,34 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       name = "world",
       getFileName = s"gs://hello_underscore/world",
       getNameCount = 1,
-      isAbsolute = true)
+      isAbsolute = true
+    )
   )
 
   private def badPaths = Seq(
     BadPath("an empty path", "", "Path \"\" does not have a gcs scheme"),
-    BadPath("an bucketless path", "gs://", "The specified GCS path 'gs://' does not parse as a URI.\nExpected authority at index 5: gs://"),
-    BadPath("a bucket named .", "gs://./hello/world", "The path 'gs://./hello/world' does not seem to be a valid GCS path. Please check that it starts with gs:// and that the bucket and object follow GCS naming guidelines at https://cloud.google.com/storage/docs/naming."),
-    BadPath("a non ascii bucket name", "gs://nonasciibucket£€/hello/world",
-      "The path 'gs://nonasciibucket£€/hello/world' does not seem to be a valid GCS path. Please check that it starts with gs:// and that the bucket and object follow GCS naming guidelines at https://cloud.google.com/storage/docs/naming."),
+    BadPath("an bucketless path",
+            "gs://",
+            "The specified GCS path 'gs://' does not parse as a URI.\nExpected authority at index 5: gs://"
+    ),
+    BadPath(
+      "a bucket named .",
+      "gs://./hello/world",
+      "The path 'gs://./hello/world' does not seem to be a valid GCS path. Please check that it starts with gs:// and that the bucket and object follow GCS naming guidelines at https://cloud.google.com/storage/docs/naming."
+    ),
+    BadPath(
+      "a non ascii bucket name",
+      "gs://nonasciibucket£€/hello/world",
+      "The path 'gs://nonasciibucket£€/hello/world' does not seem to be a valid GCS path. Please check that it starts with gs:// and that the bucket and object follow GCS naming guidelines at https://cloud.google.com/storage/docs/naming."
+    ),
     BadPath("a https path", "https://hello/world", "Cloud Storage URIs must have 'gs' scheme: https://hello/world"),
     BadPath("a file uri path", "file:///hello/world", "Cloud Storage URIs must have 'gs' scheme: file:///hello/world"),
     BadPath("a relative file path", "hello/world", "Path \"hello/world\" does not have a gcs scheme"),
     BadPath("an absolute file path", "/hello/world", "Path \"/hello/world\" does not have a gcs scheme")
   )
 
-  private lazy val pathBuilder = {
+  private lazy val pathBuilder =
     MockGcsPathBuilder.instance
-  }
 
   it should "not mix up credentials" in {
     def retrySettings: RetrySettings = RetrySettings.newBuilder().build()
@@ -304,22 +321,25 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
     val noCredentials = NoCredentials.getInstance()
     val noCredentialsPathBuilder: GcsPathBuilder = {
       val noCredentialsStorage = GcsStorage.gcsStorage("no-credentials", noCredentials, retrySettings)
-      val noCredentialsStorageOptions = GcsStorage.gcsStorageOptions(noCredentials, retrySettings, Option("proj-no-credentials"))
+      val noCredentialsStorageOptions =
+        GcsStorage.gcsStorageOptions(noCredentials, retrySettings, Option("proj-no-credentials"))
 
       new GcsPathBuilder(noCredentialsStorage, cloudStorageConfig, noCredentialsStorageOptions)
     }
 
-    val serviceAccountCredentials = ServiceAccountCredentials.fromStream(
-      new ByteArrayInputStream(serviceAccountJsonContents.getBytes))
+    val serviceAccountCredentials =
+      ServiceAccountCredentials.fromStream(new ByteArrayInputStream(serviceAccountJsonContents.getBytes))
     val serviceAccountPathBuilder: GcsPathBuilder = {
       val serviceAccountStorage = GcsStorage.gcsStorage("service-account", serviceAccountCredentials, retrySettings)
-      val serviceAccountStorageOptions = GcsStorage.gcsStorageOptions(serviceAccountCredentials, retrySettings, Option("proj-service-account"))
+      val serviceAccountStorageOptions =
+        GcsStorage.gcsStorageOptions(serviceAccountCredentials, retrySettings, Option("proj-service-account"))
 
       new GcsPathBuilder(serviceAccountStorage, cloudStorageConfig, serviceAccountStorageOptions)
     }
 
     def credentialsForPath(gcsPath: GcsPath): Credentials = {
-      val cloudFilesystemProvider = gcsPath.nioPath.getFileSystem.provider().asInstanceOf[CloudStorageFileSystemProvider]
+      val cloudFilesystemProvider =
+        gcsPath.nioPath.getFileSystem.provider().asInstanceOf[CloudStorageFileSystemProvider]
       val storageOptionsField = cloudFilesystemProvider.getClass.getDeclaredField("storageOptions")
       storageOptionsField.setAccessible(true)
       val storageOptions = storageOptionsField.get(cloudFilesystemProvider)

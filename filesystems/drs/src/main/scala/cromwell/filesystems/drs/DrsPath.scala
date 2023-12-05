@@ -6,14 +6,12 @@ import cromwell.core.path.{NioPath, Path}
 
 import java.io.IOException
 
-
 case class DrsPath(drsPath: CloudNioPath, requesterPaysProjectIdOption: Option[String]) extends Path {
 
   override def nioPath: NioPath = drsPath
 
-  override protected def newPath(nioPath: NioPath): Path = {
+  override protected def newPath(nioPath: NioPath): Path =
     DrsPath(nioPath.asInstanceOf[CloudNioPath], requesterPaysProjectIdOption)
-  }
 
   override def pathAsString: String = drsPath.cloudHost
 
@@ -28,9 +26,15 @@ case class DrsPath(drsPath: CloudNioPath, requesterPaysProjectIdOption: Option[S
       case Some(fileAttributes) =>
         fileAttributes.fileHash match {
           case Some(fileHash) => fileHash
-          case None => throw new IOException(s"Error while resolving DRS path $this. The response from DRS Resolver doesn't contain the 'md5' hash for the file.")
+          case None =>
+            throw new IOException(
+              s"Error while resolving DRS path $this. The response from DRS Resolver doesn't contain the 'md5' hash for the file."
+            )
         }
-      case None => throw new IOException(s"Error getting file hash of DRS path $this. Reason: File attributes class DrsCloudNioRegularFileAttributes wasn't defined in DrsCloudNioFileProvider.")
+      case None =>
+        throw new IOException(
+          s"Error getting file hash of DRS path $this. Reason: File attributes class DrsCloudNioRegularFileAttributes wasn't defined in DrsCloudNioFileProvider."
+        )
     }
   }
 }

@@ -16,7 +16,12 @@ import cromiam.auth.{Collection, User}
 import cromiam.cromwell.CromwellClient
 import cromiam.instrumentation.CromIamInstrumentation
 import cromiam.sam.SamClient
-import cromiam.sam.SamClient.{CollectionAuthorizationRequest, SamConnectionFailure, SamDenialException, SamDenialResponse}
+import cromiam.sam.SamClient.{
+  CollectionAuthorizationRequest,
+  SamConnectionFailure,
+  SamDenialException,
+  SamDenialResponse
+}
 import cromiam.server.config.CromIamServerConfig
 import cromiam.server.status.StatusService
 import cromiam.webservice.CromIamApiService._
@@ -30,12 +35,13 @@ trait SwaggerService extends SwaggerUiResourceHttpService {
 }
 
 // NB: collection name *must* follow label value rules in cromwell. This needs to be documented somewhere. (although those restrictions are soon to die)
-trait CromIamApiService extends RequestSupport
-  with EngineRouteSupport
-  with SubmissionSupport
-  with QuerySupport
-  with WomtoolRouteSupport
-  with CromIamInstrumentation {
+trait CromIamApiService
+    extends RequestSupport
+    with EngineRouteSupport
+    with SubmissionSupport
+    with QuerySupport
+    with WomtoolRouteSupport
+    with CromIamInstrumentation {
 
   implicit val system: ActorSystem
   implicit def executor: ExecutionContextExecutor
@@ -44,23 +50,23 @@ trait CromIamApiService extends RequestSupport
   protected def rootConfig: Config
   protected def configuration: CromIamServerConfig
 
-  override lazy val serviceRegistryActor: ActorRef = system.actorOf(ServiceRegistryActor.props(rootConfig), "ServiceRegistryActor")
+  override lazy val serviceRegistryActor: ActorRef =
+    system.actorOf(ServiceRegistryActor.props(rootConfig), "ServiceRegistryActor")
 
   val log: LoggingAdapter
 
-  val CromIamExceptionHandler: ExceptionHandler = {
-  ExceptionHandler {
-      case e: Exception =>
-        log.error(e, "Request failed {}", e)
-        complete(HttpResponse(InternalServerError, entity = e.getMessage)) // FIXME: use workbench-model ErrorReport
+  val CromIamExceptionHandler: ExceptionHandler =
+    ExceptionHandler { case e: Exception =>
+      log.error(e, "Request failed {}", e)
+      complete(HttpResponse(InternalServerError, entity = e.getMessage)) // FIXME: use workbench-model ErrorReport
     }
-  }
 
   lazy val cromwellClient = new CromwellClient(configuration.cromwellConfig.scheme,
-    configuration.cromwellConfig.interface,
-    configuration.cromwellConfig.port,
-    log,
-    serviceRegistryActor)
+                                               configuration.cromwellConfig.interface,
+                                               configuration.cromwellConfig.port,
+                                               log,
+                                               serviceRegistryActor
+  )
 
   lazy val samClient = new SamClient(
     configuration.samConfig.http.scheme,
@@ -68,7 +74,8 @@ trait CromIamApiService extends RequestSupport
     configuration.samConfig.http.port,
     configuration.samConfig.checkSubmitWhitelist,
     log,
-    serviceRegistryActor)
+    serviceRegistryActor
+  )
 
   val statusService: StatusService
 
@@ -76,8 +83,7 @@ trait CromIamApiService extends RequestSupport
     workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute ~ labelPatchRoute ~
     callCacheDiffRoute ~ labelGetRoute ~ releaseHoldRoute
 
-
-  val allRoutes: Route = handleExceptions(CromIamExceptionHandler) { workflowRoutes ~ engineRoutes ~ womtoolRoutes }
+  val allRoutes: Route = handleExceptions(CromIamExceptionHandler)(workflowRoutes ~ engineRoutes ~ womtoolRoutes)
 
   def abortRoute: Route = path("api" / "workflows" / Segment / Segment / Abort) { (_, workflowId) =>
     post {
@@ -90,8 +96,8 @@ trait CromIamApiService extends RequestSupport
     }
   }
 
-  //noinspection MutatorLikeMethodIsParameterless
-  def releaseHoldRoute: Route =  path("api" / "workflows" / Segment / Segment / ReleaseHold) { (_, workflowId) =>
+  // noinspection MutatorLikeMethodIsParameterless
+  def releaseHoldRoute: Route = path("api" / "workflows" / Segment / Segment / ReleaseHold) { (_, workflowId) =>
     post {
       extractUserAndStrictRequest { (user, req) =>
         logUserWorkflowAction(user, workflowId, ReleaseHold)
@@ -109,22 +115,22 @@ trait CromIamApiService extends RequestSupport
   def statusRoute: Route = workflowGetRouteWithId("status")
   def labelGetRoute: Route = workflowGetRouteWithId(Labels)
 
-  def labelPatchRoute: Route = {
+  def labelPatchRoute: Route =
     path("api" / "workflows" / Segment / Segment / Labels) { (_, workflowId) =>
       patch {
         extractUserAndStrictRequest { (user, req) =>
           entity(as[String]) { labels =>
             logUserWorkflowAction(user, workflowId, Labels)
-            validateLabels(Option(labels)) { _ => // Not using the labels, just using this to verify they didn't specify labels we don't want them to
-              complete {
-                authorizeUpdateThenForwardToCromwell(user, workflowId, req).asHttpResponse
-              }
+            validateLabels(Option(labels)) {
+              _ => // Not using the labels, just using this to verify they didn't specify labels we don't want them to
+                complete {
+                  authorizeUpdateThenForwardToCromwell(user, workflowId, req).asHttpResponse
+                }
             }
           }
         }
       }
     }
-  }
 
   def backendRoute: Route = workflowGetRoute("backends")
 
@@ -137,7 +143,10 @@ trait CromIamApiService extends RequestSupport
           complete {
             (paramMap.get("workflowA"), paramMap.get("workflowB")) match {
               case (Some(a), Some(b)) => authorizeReadThenForwardToCromwell(user, List(a, b), req).asHttpResponse
-              case _ => HttpResponse(status = BadRequest, entity = "Must supply both workflowA and workflowB to the /callcaching/diff endpoint")
+              case _ =>
+                HttpResponse(status = BadRequest,
+                             entity = "Must supply both workflowA and workflowB to the /callcaching/diff endpoint"
+                )
             }
           }
         }
@@ -162,31 +171,31 @@ trait CromIamApiService extends RequestSupport
     */
   private def workflowGetRouteWithId(urlSuffix: String): Route = workflowRoute(urlSuffix, get)
 
-  private def workflowRoute(urlSuffix: String, method: Directive0): Route = path("api" / "workflows" / Segment / Segment / urlSuffix) { (_, workflowId) =>
-    method {
-      extractUserAndStrictRequest { (user, req) =>
-        logUserWorkflowAction(user, workflowId, urlSuffix)
-        complete {
-          authorizeReadThenForwardToCromwell(user, List(workflowId), req).asHttpResponse
+  private def workflowRoute(urlSuffix: String, method: Directive0): Route =
+    path("api" / "workflows" / Segment / Segment / urlSuffix) { (_, workflowId) =>
+      method {
+        extractUserAndStrictRequest { (user, req) =>
+          logUserWorkflowAction(user, workflowId, urlSuffix)
+          complete {
+            authorizeReadThenForwardToCromwell(user, List(workflowId), req).asHttpResponse
+          }
         }
       }
     }
-  }
 
   private def authorizeThenForwardToCromwell(user: User,
                                              workflowIds: List[String],
                                              action: String,
                                              request: HttpRequest,
-                                             cromwellClient: CromwellClient):
-  FailureResponseOrT[HttpResponse] = {
-    def authForCollection(collection: Collection): FailureResponseOrT[Unit] = {
+                                             cromwellClient: CromwellClient
+  ): FailureResponseOrT[HttpResponse] = {
+    def authForCollection(collection: Collection): FailureResponseOrT[Unit] =
       samClient.requestAuth(CollectionAuthorizationRequest(user, collection, action), request) mapErrorWith {
         case e: SamDenialException => IO.raiseError(e)
         case e =>
           log.error(e, "Unable to connect to Sam {}", e)
           IO.raiseError(SamConnectionFailure("authorization", e))
       }
-    }
 
     val cromwellResponseT = for {
       rootWorkflowIds <- workflowIds.traverse(cromwellClient.getRootWorkflow(_, user, request))
@@ -209,31 +218,29 @@ trait CromIamApiService extends RequestSupport
   private def authorizeReadThenForwardToCromwell(user: User,
                                                  workflowIds: List[String],
                                                  request: HttpRequest
-                                                ): FailureResponseOrT[HttpResponse] = {
-    authorizeThenForwardToCromwell(
-      user = user,
-      workflowIds = workflowIds,
-      action = "view",
-      request = request,
-      cromwellClient = cromwellClient)
-  }
+  ): FailureResponseOrT[HttpResponse] =
+    authorizeThenForwardToCromwell(user = user,
+                                   workflowIds = workflowIds,
+                                   action = "view",
+                                   request = request,
+                                   cromwellClient = cromwellClient
+    )
 
   private def authorizeUpdateThenForwardToCromwell(user: User,
                                                    workflowId: String,
                                                    request: HttpRequest
-                                                  ): FailureResponseOrT[HttpResponse] = {
-    authorizeThenForwardToCromwell(
-      user = user,
-      workflowIds = List(workflowId),
-      action = "update",
-      request = request,
-      cromwellClient = cromwellClient)
-  }
+  ): FailureResponseOrT[HttpResponse] =
+    authorizeThenForwardToCromwell(user = user,
+                                   workflowIds = List(workflowId),
+                                   action = "update",
+                                   request = request,
+                                   cromwellClient = cromwellClient
+    )
 
   private def authorizeAbortThenForwardToCromwell(user: User,
                                                   workflowId: String,
                                                   request: HttpRequest
-                                                 ): FailureResponseOrT[HttpResponse] = {
+  ): FailureResponseOrT[HttpResponse] =
     // Do all the authing for the abort with "this" cromwell instance (cromwellClient), but the actual abort command
     // must go to the dedicated abort server (cromwellAbortClient).
     authorizeThenForwardToCromwell(
@@ -243,13 +250,11 @@ trait CromIamApiService extends RequestSupport
       request = request,
       cromwellClient = cromwellClient
     )
-  }
 
   private def logUserAction(user: User, action: String) = log.info("User " + user.userId + " requesting " + action)
 
-  private def logUserWorkflowAction(user: User, wfId: String, action: String) = {
+  private def logUserWorkflowAction(user: User, wfId: String, action: String) =
     log.info("User " + user.userId + " requesting " + action + " with " + wfId)
-  }
 }
 
 object CromIamApiService {

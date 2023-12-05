@@ -7,7 +7,6 @@ import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-
 class ExceptionAggregationSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matchers {
 
   "MessageAggregation" should "aggregate messages" in {

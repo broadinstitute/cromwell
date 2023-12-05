@@ -7,12 +7,11 @@ import configs.Result.{Failure, Success}
 import configs.syntax._
 
 object CallMarker {
-  def fromConfig(config: Config): ErrorOr[Option[CallMarker]] = {
+  def fromConfig(config: Config): ErrorOr[Option[CallMarker]] =
     config.get[Option[String]]("callMark") match {
       case Success(marker) => (marker map CallMarker.apply).validNel
       case Failure(f) => s"Invalid restart marker $f".invalidNel
     }
-  }
 }
 
 /**

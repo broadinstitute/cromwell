@@ -9,9 +9,7 @@ object DeclarationMock {
 }
 
 trait DeclarationMock extends MockSugar {
-  def mockDeclaration(name: String,
-                      womType: WomType,
-                      expression: WdlExpression): Declaration = {
+  def mockDeclaration(name: String, womType: WomType, expression: WdlExpression): Declaration = {
     val declaration = mock[Declaration]
     declaration.unqualifiedName returns name
     declaration.expression returns Option(expression)

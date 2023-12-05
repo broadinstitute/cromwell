@@ -50,7 +50,6 @@ cromwell::build::run_centaur \
 #    -e scatter \
 #    -e long_cmd \
 #    -e runtwiceexpectingcallcaching \
-#    -e cwl_cache_within_workflow \
 #    -e cachewithinwf
 
 cromwell::build::generate_code_coverage

@@ -16,9 +16,13 @@ import org.yaml.snakeyaml.{LoaderOptions, Yaml => SnakeYaml}
 
 import scala.jdk.CollectionConverters._
 
-
-class SwaggerServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with SwaggerService with ScalatestRouteTest with Matchers
-  with TableDrivenPropertyChecks {
+class SwaggerServiceSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with SwaggerService
+    with ScalatestRouteTest
+    with Matchers
+    with TableDrivenPropertyChecks {
   def actorRefFactory = system
   override def oauthConfig: SwaggerOauthConfig = SwaggerOauthConfig("clientId", "realm", "appName")
   val yamlLoaderOptions = new LoaderOptions
@@ -33,7 +37,8 @@ class SwaggerServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Swagg
         contentType should be(ContentTypes.`application/octet-stream`)
 
         val body = responseAs[String]
-        val yaml = new SnakeYaml(new UniqueKeyConstructor(new LoaderOptions)).loadAs(body, classOf[java.util.Map[String, AnyRef]])
+        val yaml = new SnakeYaml(new UniqueKeyConstructor(new LoaderOptions))
+          .loadAs(body, classOf[java.util.Map[String, AnyRef]])
 
         yaml.get("swagger") should be("2.0")
       }
@@ -62,27 +67,42 @@ class SwaggerServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Swagg
 
         resultWithInfo.getSwagger.getDefinitions.asScala foreach {
           // If no properties, `getProperties` returns `null` instead of an empty map
-          case (defKey, defVal) => Option(defVal.getProperties).map(_.asScala).getOrElse(Map.empty) foreach {
-            /*
+          case (defKey, defVal) =>
+            Option(defVal.getProperties).map(_.asScala).getOrElse(Map.empty) foreach {
+              /*
             Two against one.
             Swagger parser implementation lets a RefProperty have descriptions.
             http://swagger.io/specification/#referenceObject & http://editor.swagger.io both say it's ref ONLY!
-             */
-            case (propKey, propVal: RefProperty) =>
-              withClue(s"RefProperty $defKey.$propKey has a description: ") {
-                propVal.getDescription should be(null)
-              }
-            case _ => /* ignore */
-          }
+               */
+              case (propKey, propVal: RefProperty) =>
+                withClue(s"RefProperty $defKey.$propKey has a description: ") {
+                  propVal.getDescription should be(null)
+                }
+              case _ => /* ignore */
+            }
         }
       }
   }
 
   it should "return status OK when getting OPTIONS on paths" in {
-    val pathExamples = Table("path", "/", "/swagger", "/swagger/cromwell.yaml", "/swagger/index.html", "/api",
-      "/api/workflows/", "/api/workflows/v1", "/workflows/v1/outputs", "/workflows/v1/status",
-      "/api/workflows/v1/validate", "/workflows", "/workflows/v1", "/workflows/v1/outputs", "/workflows/v1/status",
-      "/workflows/v1/validate")
+    val pathExamples = Table(
+      "path",
+      "/",
+      "/swagger",
+      "/swagger/cromwell.yaml",
+      "/swagger/index.html",
+      "/api",
+      "/api/workflows/",
+      "/api/workflows/v1",
+      "/workflows/v1/outputs",
+      "/workflows/v1/status",
+      "/api/workflows/v1/validate",
+      "/workflows",
+      "/workflows/v1",
+      "/workflows/v1/outputs",
+      "/workflows/v1/status",
+      "/workflows/v1/validate"
+    )
 
     forAll(pathExamples) { path =>
       Options(path) ~>

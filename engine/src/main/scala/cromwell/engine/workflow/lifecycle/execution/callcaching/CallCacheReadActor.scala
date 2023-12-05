@@ -20,10 +20,8 @@ import cromwell.services.CallCaching.CallCachingEntryId
   *
   * Would be nice if instead there was a pull- rather than push-based mailbox but I can't find one...
   */
-class CallCacheReadActor(cache: CallCache,
-                         override val serviceRegistryActor: ActorRef,
-                         override val threshold: Int)
-  extends EnhancedThrottlerActor[CommandAndReplyTo[CallCacheReadActorRequest]]
+class CallCacheReadActor(cache: CallCache, override val serviceRegistryActor: ActorRef, override val threshold: Int)
+    extends EnhancedThrottlerActor[CommandAndReplyTo[CallCacheReadActorRequest]]
     with ActorLogging {
   override def routed = true
   override def processHead(request: CommandAndReplyTo[CallCacheReadActorRequest]): Future[Int] = instrumentedProcess {
@@ -58,29 +56,34 @@ class CallCacheReadActor(cache: CallCache,
   override def receive: Receive = enhancedReceive.orElse(super.receive)
   override protected def instrumentationPath = NonEmptyList.of("callcaching", "read")
   override protected def instrumentationPrefix = InstrumentationPrefixes.JobPrefix
-  override def commandToData(snd: ActorRef) = {
-    case request: CallCacheReadActorRequest => CommandAndReplyTo(request, snd)
+  override def commandToData(snd: ActorRef) = { case request: CallCacheReadActorRequest =>
+    CommandAndReplyTo(request, snd)
   }
 }
 
 object CallCacheReadActor {
-  def props(callCache: CallCache, serviceRegistryActor: ActorRef): Props = {
-    Props(new CallCacheReadActor(callCache, serviceRegistryActor, LoadConfig.CallCacheReadThreshold)).withDispatcher(EngineDispatcher)
-  }
+  def props(callCache: CallCache, serviceRegistryActor: ActorRef): Props =
+    Props(new CallCacheReadActor(callCache, serviceRegistryActor, LoadConfig.CallCacheReadThreshold))
+      .withDispatcher(EngineDispatcher)
 
   private[CallCacheReadActor] case class RequestTuple(requester: ActorRef, request: CallCacheReadActorRequest)
 
   object AggregatedCallHashes {
-    def apply(baseAggregatedHash: String, inputFilesAggregatedHash: String) = {
+    def apply(baseAggregatedHash: String, inputFilesAggregatedHash: String) =
       new AggregatedCallHashes(baseAggregatedHash, Option(inputFilesAggregatedHash))
-    }
   }
   case class AggregatedCallHashes(baseAggregatedHash: String, inputFilesAggregatedHash: Option[String])
 
   sealed trait CallCacheReadActorRequest
-  final case class CacheLookupRequest(aggregatedCallHashes: AggregatedCallHashes, excludedIds: Set[CallCachingEntryId], prefixesHint: Option[CallCachePathPrefixes]) extends CallCacheReadActorRequest
-  final case class HasMatchingInitialHashLookup(aggregatedTaskHash: String, cacheHitHints: List[CacheHitHint] = List.empty) extends CallCacheReadActorRequest
-  final case class CallCacheEntryForCall(workflowId: WorkflowId, jobKey: BackendJobDescriptorKey) extends CallCacheReadActorRequest
+  final case class CacheLookupRequest(aggregatedCallHashes: AggregatedCallHashes,
+                                      excludedIds: Set[CallCachingEntryId],
+                                      prefixesHint: Option[CallCachePathPrefixes]
+  ) extends CallCacheReadActorRequest
+  final case class HasMatchingInitialHashLookup(aggregatedTaskHash: String,
+                                                cacheHitHints: List[CacheHitHint] = List.empty
+  ) extends CallCacheReadActorRequest
+  final case class CallCacheEntryForCall(workflowId: WorkflowId, jobKey: BackendJobDescriptorKey)
+      extends CallCacheReadActorRequest
 
   sealed trait CallCacheReadActorResponse
   // Responses on whether or not there is at least one matching entry (can for initial matches of file matches)

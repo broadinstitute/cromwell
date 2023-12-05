@@ -21,20 +21,21 @@ object IntrospectableLazy {
 
 }
 
-class IntrospectableLazy[A] private(f: => A) {
+class IntrospectableLazy[A] private (f: => A) {
 
   private var option: Option[A] = None
 
-  def apply(): A = {
+  def apply(): A =
     option match {
       case Some(a) => a
       case None =>
-        synchronized { option match {
-          case Some(a) => a
-          case None => val a = f; option = Some(a); a
-        }}
+        synchronized {
+          option match {
+            case Some(a) => a
+            case None => val a = f; option = Some(a); a
+          }
+        }
     }
-  }
 
   def exists: Boolean = option.isDefined
 

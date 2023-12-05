@@ -18,9 +18,11 @@ object GcsStorage {
   val HttpTransport = GoogleNetHttpTransport.newTrustedTransport
 
   val DefaultCloudStorageConfiguration = {
-    val UploadBufferBytes = ConfigFactory.load().as[Option[Int]]("google.upload-buffer-bytes").getOrElse(MediaHttpUploader.MINIMUM_CHUNK_SIZE)
+    val UploadBufferBytes =
+      ConfigFactory.load().as[Option[Int]]("google.upload-buffer-bytes").getOrElse(MediaHttpUploader.MINIMUM_CHUNK_SIZE)
 
-    CloudStorageConfiguration.builder()
+    CloudStorageConfiguration
+      .builder()
       .blockSize(UploadBufferBytes)
       .permitEmptyPathComponents(true)
       .stripPrefixSlash(true)
@@ -28,23 +30,24 @@ object GcsStorage {
       .build()
   }
 
-  def gcsStorage(applicationName: String,
-                 storageOptions: StorageOptions): Storage = {
-    new Storage.Builder(HttpTransport,
+  def gcsStorage(applicationName: String, storageOptions: StorageOptions): Storage =
+    new Storage.Builder(
+      HttpTransport,
       JsonFactory,
-      GoogleConfiguration.withCustomTimeouts(TransportOptions.getHttpRequestInitializer(storageOptions)))
+      GoogleConfiguration.withCustomTimeouts(TransportOptions.getHttpRequestInitializer(storageOptions))
+    )
       .setApplicationName(applicationName)
       .build()
-  }
 
-  def gcsStorage(applicationName: String, credentials: Credentials, retrySettings: RetrySettings): Storage = {
+  def gcsStorage(applicationName: String, credentials: Credentials, retrySettings: RetrySettings): Storage =
     gcsStorage(applicationName, gcsStorageOptions(credentials, retrySettings))
-  }
 
   def gcsStorageOptions(credentials: Credentials,
                         retrySettings: RetrySettings,
-                        project: Option[String] = None): StorageOptions = {
-    val storageOptionsBuilder = StorageOptions.newBuilder()
+                        project: Option[String] = None
+  ): StorageOptions = {
+    val storageOptionsBuilder = StorageOptions
+      .newBuilder()
       .setTransportOptions(TransportOptions)
       .setCredentials(credentials)
 

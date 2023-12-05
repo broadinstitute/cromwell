@@ -13,7 +13,14 @@ import cromwell.database.sql.{MetadataSqlDatabase, WorkflowStoreSqlDatabase}
 import cromwell.database.sql.tables.WorkflowStoreEntry
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreAbortResponse.WorkflowStoreAbortResponse
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreState.WorkflowStoreState
-import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{DuplicateWorkflowIdsRequested, NotInOnHoldStateException, WorkflowIdsAlreadyInUseException, WorkflowStoreAbortResponse, WorkflowStoreState, WorkflowSubmissionResponse}
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{
+  DuplicateWorkflowIdsRequested,
+  NotInOnHoldStateException,
+  WorkflowIdsAlreadyInUseException,
+  WorkflowStoreAbortResponse,
+  WorkflowStoreState,
+  WorkflowSubmissionResponse
+}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.collection._
 
@@ -23,17 +30,17 @@ import scala.concurrent.{ExecutionContext, Future}
 object SqlWorkflowStore {
   case class WorkflowSubmissionResponse(state: WorkflowStoreState, id: WorkflowId)
 
-  case class DuplicateWorkflowIdsRequested(workflowIds: Seq[WorkflowId]) extends
-    Exception (s"Requested workflow IDs are duplicated: ${workflowIds.mkString(", ")}")
+  case class DuplicateWorkflowIdsRequested(workflowIds: Seq[WorkflowId])
+      extends Exception(s"Requested workflow IDs are duplicated: ${workflowIds.mkString(", ")}")
 
-  case class WorkflowIdsAlreadyInUseException(workflowIds: Seq[WorkflowId]) extends
-    Exception (s"Requested workflow IDs are already in use: ${workflowIds.mkString(", ")}")
+  case class WorkflowIdsAlreadyInUseException(workflowIds: Seq[WorkflowId])
+      extends Exception(s"Requested workflow IDs are already in use: ${workflowIds.mkString(", ")}")
 
-  case class NotInOnHoldStateException(workflowId: WorkflowId) extends
-    Exception(
-      s"Couldn't change status of workflow $workflowId to " +
-        "'Submitted' because the workflow is not in 'On Hold' state"
-    )
+  case class NotInOnHoldStateException(workflowId: WorkflowId)
+      extends Exception(
+        s"Couldn't change status of workflow $workflowId to " +
+          "'Submitted' because the workflow is not in 'On Hold' state"
+      )
 
   object WorkflowStoreState extends Enumeration {
     type WorkflowStoreState = Value
@@ -51,12 +58,14 @@ object SqlWorkflowStore {
   }
 }
 
-case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase, metadataSqlDatabase: MetadataSqlDatabase) extends WorkflowStore {
+case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase, metadataSqlDatabase: MetadataSqlDatabase)
+    extends WorkflowStore {
+
   /** This is currently hardcoded to success but used to do stuff, left in place for now as a useful
     *  startup initialization hook. */
   override def initialize(implicit ec: ExecutionContext): Future[Unit] = Future.successful(())
 
-  override def abort(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] = {
+  override def abort(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] =
     sqlDatabase.deleteOrUpdateWorkflowToState(
       workflowExecutionUuid = id.toString,
       workflowStateToDelete1 = WorkflowStoreState.OnHold.toString,
@@ -70,33 +79,34 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase, metadataSqlDa
       case None =>
         WorkflowStoreAbortResponse.NotFound
     }
-  }
 
-  override def findWorkflows(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[WorkflowId]] = {
+  override def findWorkflows(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[WorkflowId]] =
     sqlDatabase.findWorkflows(cromwellId) map { _ map WorkflowId.fromString }
-  }
 
-  override def findWorkflowsWithAbortRequested(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[WorkflowId]] = {
+  override def findWorkflowsWithAbortRequested(cromwellId: String)(implicit
+    ec: ExecutionContext
+  ): Future[Iterable[WorkflowId]] =
     sqlDatabase.findWorkflowsWithAbortRequested(cromwellId) map { _ map WorkflowId.fromString }
-  }
 
-  override def abortAllRunning()(implicit ec: ExecutionContext): Future[Unit] = {
+  override def abortAllRunning()(implicit ec: ExecutionContext): Future[Unit] =
     sqlDatabase.setStateToState(WorkflowStoreState.Running.toString, WorkflowStoreState.Aborting.toString)
-  }
 
-  override def stats(implicit ec: ExecutionContext): Future[Map[WorkflowStoreState, Int]] = {
+  override def stats(implicit ec: ExecutionContext): Future[Map[WorkflowStoreState, Int]] =
     sqlDatabase.workflowStateCounts.map {
-      _ map {
-        case (key, value) => WorkflowStoreState.withName(key) -> value
+      _ map { case (key, value) =>
+        WorkflowStoreState.withName(key) -> value
       }
     }
-  }
 
   /**
     * Retrieves up to n workflows which have not already been pulled into the engine and sets their pickedUp
     * flag to true
     */
-  override def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration, excludedGroups: Set[String])(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
+  override def fetchStartableWorkflows(n: Int,
+                                       cromwellId: String,
+                                       heartbeatTtl: FiniteDuration,
+                                       excludedGroups: Set[String]
+  )(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
     import cats.syntax.traverse._
     import common.validation.Validation._
     sqlDatabase.fetchWorkflowsInState(
@@ -115,38 +125,44 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase, metadataSqlDa
   }
 
   override def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)],
-                                       heartbeatDateTime: OffsetDateTime)
-                                      (implicit ec: ExecutionContext): Future[Int] = {
-    val sortedWorkflowIds = workflowIds.toList sortBy(_._2) map (_._1.toString)
+                                       heartbeatDateTime: OffsetDateTime
+  )(implicit ec: ExecutionContext): Future[Int] = {
+    val sortedWorkflowIds = workflowIds.toList sortBy (_._2) map (_._1.toString)
     sqlDatabase.writeWorkflowHeartbeats(sortedWorkflowIds, heartbeatDateTime.toSystemTimestamp)
   }
 
-  def workflowAlreadyExists(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Boolean] = {
-    Future.sequence(Seq(
-      sqlDatabase.checkWhetherWorkflowExists(workflowId.id.toString),
-      metadataSqlDatabase.getWorkflowStatus(workflowId.id.toString).map(_.nonEmpty)
-    )).map(_.exists(_ == true))
-  }
+  def workflowAlreadyExists(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Boolean] =
+    Future
+      .sequence(
+        Seq(
+          sqlDatabase.checkWhetherWorkflowExists(workflowId.id.toString),
+          metadataSqlDatabase.getWorkflowStatus(workflowId.id.toString).map(_.nonEmpty)
+        )
+      )
+      .map(_.exists(_ == true))
 
-  def findPreexistingWorkflowIds(workflowIds: Seq[WorkflowId])(implicit ec: ExecutionContext): Future[Seq[WorkflowId]] = {
-    Future.sequence(workflowIds.map(wfid => {
-      workflowAlreadyExists(wfid).map {
-        case true => Option(wfid)
-        case false => None
-      }
-    })).map { _.collect { case Some(existingId) => existingId } }
-  }
+  def findPreexistingWorkflowIds(workflowIds: Seq[WorkflowId])(implicit ec: ExecutionContext): Future[Seq[WorkflowId]] =
+    Future
+      .sequence(workflowIds.map { wfid =>
+        workflowAlreadyExists(wfid).map {
+          case true => Option(wfid)
+          case false => None
+        }
+      })
+      .map(_.collect { case Some(existingId) => existingId })
 
   /**
     * Adds the requested WorkflowSourceFiles to the store and returns a WorkflowId for each one (in order)
     * for tracking purposes.
     */
-  override def add(sources: NonEmptyList[WorkflowSourceFilesCollection])(implicit ec: ExecutionContext): Future[NonEmptyList[WorkflowSubmissionResponse]] = {
+  override def add(
+    sources: NonEmptyList[WorkflowSourceFilesCollection]
+  )(implicit ec: ExecutionContext): Future[NonEmptyList[WorkflowSubmissionResponse]] = {
 
     val requestedWorkflowIds = sources.map(_.requestedWorkflowId).collect { case Some(id) => id }
     val duplicatedIds = requestedWorkflowIds.diff(requestedWorkflowIds.toSet.toSeq)
 
-    if(duplicatedIds.nonEmpty) {
+    if (duplicatedIds.nonEmpty) {
       Future.failed(DuplicateWorkflowIdsRequested(duplicatedIds))
     } else {
       findPreexistingWorkflowIds(requestedWorkflowIds) flatMap { preexistingIds =>
@@ -168,7 +184,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase, metadataSqlDa
     }
   }
 
-  override def switchOnHoldToSubmitted(id: WorkflowId)(implicit ec: ExecutionContext): Future[Unit] = {
+  override def switchOnHoldToSubmitted(id: WorkflowId)(implicit ec: ExecutionContext): Future[Unit] =
     for {
       updated <- sqlDatabase.updateWorkflowState(
         id.toString,
@@ -177,19 +193,17 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase, metadataSqlDa
       )
       _ <- if (updated == 0) Future.failed(NotInOnHoldStateException(id)) else Future.successful(())
     } yield ()
-  }
 
-  override def deleteFromStore(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] = {
+  override def deleteFromStore(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] =
     sqlDatabase.removeWorkflowStoreEntry(workflowId.toString)
-  }
 
   private def fromWorkflowStoreEntry(workflowStoreEntry: WorkflowStoreEntry): ErrorOr[WorkflowToStart] = {
 
-    val workflowOptionsValidation: ErrorOr[WorkflowOptions] = WorkflowOptions.fromJsonString(workflowStoreEntry.workflowOptions.toRawString).toErrorOr
+    val workflowOptionsValidation: ErrorOr[WorkflowOptions] =
+      WorkflowOptions.fromJsonString(workflowStoreEntry.workflowOptions.toRawString).toErrorOr
     val startableStateValidation = workflowStoreStateToStartableState(workflowStoreEntry)
 
     (startableStateValidation, workflowOptionsValidation) mapN { (startableState, workflowOptions) =>
-
       val id = WorkflowId.fromString(workflowStoreEntry.workflowExecutionUuid)
 
       val sources = WorkflowSourceFilesCollection(
@@ -207,7 +221,8 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase, metadataSqlDa
         requestedWorkflowId = Option(id)
       )
 
-      val hogGroup: HogGroup = workflowStoreEntry.hogGroup.map(HogGroup(_)).getOrElse(HogGroup.decide(workflowOptions, id))
+      val hogGroup: HogGroup =
+        workflowStoreEntry.hogGroup.map(HogGroup(_)).getOrElse(HogGroup.decide(workflowOptions, id))
 
       WorkflowToStart(
         id = id,
@@ -219,16 +234,15 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase, metadataSqlDa
     }
   }
 
-  private def workflowSubmissionState(workflowSourceFiles: WorkflowSourceFilesCollection) = {
+  private def workflowSubmissionState(workflowSourceFiles: WorkflowSourceFilesCollection) =
     if (workflowSourceFiles.workflowOnHold)
       WorkflowStoreState.OnHold
     else
       WorkflowStoreState.Submitted
-  }
 
   private def toWorkflowStoreEntry(workflowSourceFiles: WorkflowSourceFilesCollection): WorkflowStoreEntry = {
     import eu.timepit.refined._
-    val nonEmptyJsonString: String Refined NonEmpty  = refineMV[NonEmpty]("{}")
+    val nonEmptyJsonString: String Refined NonEmpty = refineMV[NonEmpty]("{}")
 
     val actualWorkflowState = workflowSubmissionState(workflowSourceFiles)
 

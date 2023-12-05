@@ -18,7 +18,11 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import scala.concurrent.ExecutionContext
 
 class CallCachingSlickDatabaseSpec
-  extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures with BeforeAndAfterAll
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with ScalaFutures
+    with BeforeAndAfterAll
     with TableDrivenPropertyChecks {
 
   implicit val ec: ExecutionContext = ExecutionContext.global
@@ -30,7 +34,7 @@ class CallCachingSlickDatabaseSpec
     ("description", "prefixOption"),
     ("without prefixes", None),
     ("with some prefixes", Option(List("prefix1", "prefix2", "prefix3", "prefix4"))),
-    ("with thousands of prefixes", Option((1 to 10000).map("prefix" + _).toList)),
+    ("with thousands of prefixes", Option((1 to 10000).map("prefix" + _).toList))
   )
 
   DatabaseSystem.All foreach { databaseSystem =>
@@ -38,14 +42,14 @@ class CallCachingSlickDatabaseSpec
 
     val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
 
-    lazy val dataAccess = DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, EngineDatabaseType, databaseSystem)
+    lazy val dataAccess =
+      DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, EngineDatabaseType, databaseSystem)
 
     it should "start container if required" taggedAs DbmsTest in {
-      containerOpt.foreach { _.start }
+      containerOpt.foreach(_.start)
     }
 
     forAll(allowResultReuseTests) { (description, prefixOption) =>
-
       val idA = WorkflowId.randomId().toString
       val callA = "AwesomeWorkflow.GoodJob"
       val callCachingEntryA = CallCachingEntry(
@@ -85,14 +89,15 @@ class CallCachingSlickDatabaseSpec
       it should s"honor allowResultReuse $description" taggedAs DbmsTest in {
         (for {
           _ <- dataAccess.addCallCaching(Seq(
-            CallCachingJoin(
-              callCachingEntryA,
-              callCachingHashEntriesA,
-              aggregation,
-              callCachingSimpletonsA, callCachingDetritusesA
-            )
-          ),
-            100
+                                           CallCachingJoin(
+                                             callCachingEntryA,
+                                             callCachingHashEntriesA,
+                                             aggregation,
+                                             callCachingSimpletonsA,
+                                             callCachingDetritusesA
+                                           )
+                                         ),
+                                         100
           )
           hasBaseAggregation <- dataAccess.hasMatchingCallCachingEntriesForBaseAggregation(
             "BASE_AGGREGATION",
@@ -115,20 +120,16 @@ class CallCachingSlickDatabaseSpec
           _ = join shouldBe defined
           getJoin = join.get
           // We can't compare directly because the ones out from the DB have IDs filled in, so just compare the relevant values
-          _ = getJoin
-            .callCachingHashEntries
+          _ = getJoin.callCachingHashEntries
             .map(e => (e.hashKey, e.hashValue)) should contain theSameElementsAs
             callCachingHashEntriesA.map(e => (e.hashKey, e.hashValue))
-          _ = getJoin
-            .callCachingSimpletonEntries
+          _ = getJoin.callCachingSimpletonEntries
             .map(e => (e.simpletonKey, e.simpletonValue.map(_.toRawString))) should contain theSameElementsAs
             callCachingSimpletonsA.map(e => (e.simpletonKey, e.simpletonValue.map(_.toRawString)))
-          _ = getJoin
-            .callCachingAggregationEntry
+          _ = getJoin.callCachingAggregationEntry
             .map(e => (e.baseAggregation, e.inputFilesAggregation)) shouldBe
             aggregation.map(e => (e.baseAggregation, e.inputFilesAggregation))
-          _ = getJoin
-            .callCachingDetritusEntries
+          _ = getJoin.callCachingDetritusEntries
             .map(e => (e.detritusKey, e.detritusValue.map(_.toRawString))) should contain theSameElementsAs
             callCachingDetritusesA.map(e => (e.detritusKey, e.detritusValue.map(_.toRawString)))
         } yield ()).futureValue
@@ -141,7 +142,7 @@ class CallCachingSlickDatabaseSpec
     }
 
     it should "stop container if required" taggedAs DbmsTest in {
-      containerOpt.foreach { _.stop() }
+      containerOpt.foreach(_.stop())
     }
   }
 }

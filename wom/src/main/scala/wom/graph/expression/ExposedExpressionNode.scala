@@ -10,14 +10,15 @@ object ExposedExpressionNode {
   def fromInputMapping(identifier: WomIdentifier,
                        expression: WomExpression,
                        explicitWomType: WomType,
-                       inputMapping: Map[String, OutputPort]): ErrorOr[ExposedExpressionNode] = {
+                       inputMapping: Map[String, OutputPort]
+  ): ErrorOr[ExposedExpressionNode] = {
     // This constructor ignores the evaluated type and uses the explicit type instead
     def constructor(identifier: WomIdentifier,
                     expression: WomExpression,
                     evaluatedType: WomType,
-                    inputPorts: Map[String, InputPort]) = {
+                    inputPorts: Map[String, InputPort]
+    ) =
       new ExpressionNode(identifier, expression, explicitWomType, inputPorts) with ExposedExpressionNode
-    }
     ExpressionNode.buildFromConstructor(constructor)(identifier, expression, inputMapping)
   }
 }

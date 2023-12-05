@@ -8,26 +8,26 @@ object WomTypeJsonSupport {
   // We use `wom.types.WomType.callCachingName` instead of `wom.types.WomType.displayName` here because
   // the type hierarchy is designed for machine readability and should similarly be stable.
   implicit val womTypeEncoder: Encoder[WomType] = new Encoder[WomType] {
-    final def apply(a: WomType): Json = {
+    final def apply(a: WomType): Json =
       a match {
         case a: WomMapType =>
           Json.obj(
             ("typeName", Json.fromString("Map")),
             ("mapType",
-              Json.obj(
-                ("keyType", womTypeEncoder.apply(a.keyType)),
-                ("valueType", womTypeEncoder.apply(a.valueType))
-              )
+             Json.obj(
+               ("keyType", womTypeEncoder.apply(a.keyType)),
+               ("valueType", womTypeEncoder.apply(a.valueType))
+             )
             )
           )
         case a: WomPairType =>
           Json.obj(
             ("typeName", Json.fromString("Pair")),
             ("pairType",
-              Json.obj(
-                ("leftType", womTypeEncoder.apply(a.leftType)),
-                ("rightType", womTypeEncoder.apply(a.rightType))
-              )
+             Json.obj(
+               ("leftType", womTypeEncoder.apply(a.leftType)),
+               ("rightType", womTypeEncoder.apply(a.rightType))
+             )
             )
           )
         case a: WomArrayType =>
@@ -39,14 +39,16 @@ object WomTypeJsonSupport {
         case a: WomCompositeType =>
           Json.obj(
             ("typeName", Json.fromString("Object")),
-            ("objectFieldTypes", Json.fromValues(
-              a.typeMap map { entry =>
-                Json.obj(
-                  ("fieldName", Json.fromString(entry._1)),
-                  ("fieldType", womTypeEncoder.apply(entry._2))
-                )
-              }
-            ))
+            ("objectFieldTypes",
+             Json.fromValues(
+               a.typeMap map { entry =>
+                 Json.obj(
+                   ("fieldName", Json.fromString(entry._1)),
+                   ("fieldType", womTypeEncoder.apply(entry._2))
+                 )
+               }
+             )
+            )
           )
         case a: WomOptionalType =>
           Json.obj(
@@ -58,7 +60,6 @@ object WomTypeJsonSupport {
             ("typeName", Json.fromString(a.stableName))
           )
       }
-    }
   }
 
 }

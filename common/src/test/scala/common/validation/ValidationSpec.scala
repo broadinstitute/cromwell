@@ -14,7 +14,6 @@ import common.mock.MockSugar
 
 import scala.util.{Failure, Success}
 
-
 class ValidationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with MockSugar {
 
   behavior of "Validation"

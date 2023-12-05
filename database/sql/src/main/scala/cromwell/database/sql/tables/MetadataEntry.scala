@@ -4,8 +4,7 @@ import java.sql.Timestamp
 
 import javax.sql.rowset.serial.SerialClob
 
-case class MetadataEntry
-(
+case class MetadataEntry(
   workflowExecutionUuid: String,
   callFullyQualifiedName: Option[String],
   jobIndex: Option[Int],

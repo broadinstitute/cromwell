@@ -33,14 +33,22 @@ object ContinuousIntegration {
         "docker",
         "run",
         "--rm",
-        "-v", s"${vaultToken.value}:/root/.vault-token",
-        "-v", s"${srcCiResources.value}:${srcCiResources.value}",
-        "-v", s"${targetCiResources.value}:${targetCiResources.value}",
-        "-e", s"ENV_FILE=${envFile.value}",
-        "-e", "ENVIRONMENT=not_used",
-        "-e", s"INPUT_PATH=${srcCiResources.value}",
-        "-e", s"OUT_PATH=${targetCiResources.value}",
-        "broadinstitute/dsde-toolbox:dev", "render-templates.sh"
+        "-v",
+        s"${vaultToken.value}:/root/.vault-token",
+        "-v",
+        s"${srcCiResources.value}:${srcCiResources.value}",
+        "-v",
+        s"${targetCiResources.value}:${targetCiResources.value}",
+        "-e",
+        s"ENV_FILE=${envFile.value}",
+        "-e",
+        "ENVIRONMENT=not_used",
+        "-e",
+        s"INPUT_PATH=${srcCiResources.value}",
+        "-e",
+        s"OUT_PATH=${targetCiResources.value}",
+        "broadinstitute/dsde-toolbox:dev",
+        "render-templates.sh"
       )
       val result = cmd ! log
       if (result != 0) {
@@ -49,7 +57,7 @@ object ContinuousIntegration {
             "https://hub.docker.com/r/broadinstitute/dsde-toolbox/"
         )
       }
-    },
+    }
   )
 
   def aggregateSettings(rootProject: Project): Seq[Setting[_]] = List(
@@ -58,7 +66,7 @@ object ContinuousIntegration {
       streams.value.log // make sure logger is loaded
       validateAggregatedProjects(rootProject, state.value)
       (Compile / compile).value
-    },
+    }
   )
 
   private val copyCiResources: TaskKey[Unit] = taskKey[Unit](s"Copy CI resources.")
@@ -79,9 +87,9 @@ object ContinuousIntegration {
     */
   private def getBuildSbtNames(rootProject: Project, state: State): Set[String] = {
     val extracted = Project.extract(state)
-    extracted.structure.units.flatMap({
-      case (_, loadedBuildUnit) => loadedBuildUnit.defined.keys
-    }).toSet - rootProject.id
+    extracted.structure.units.flatMap { case (_, loadedBuildUnit) =>
+      loadedBuildUnit.defined.keys
+    }.toSet - rootProject.id
   }
 
   /**
@@ -90,8 +98,8 @@ object ContinuousIntegration {
   private def validateAggregatedProjects(rootProject: Project, state: State): Unit = {
     // Get the list of projects explicitly aggregated
     val projectReferences: Seq[ProjectReference] = rootProject.aggregate
-    val localProjectReferences = projectReferences collect {
-      case localProject: LocalProject => localProject
+    val localProjectReferences = projectReferences collect { case localProject: LocalProject =>
+      localProject
     }
     val aggregatedNames = localProjectReferences.map(_.project).toSet
 
@@ -103,7 +111,7 @@ object ContinuousIntegration {
 
     val falseNames = unaggregatedProjects.filterKeys(aggregatedNames.contains)
     if (falseNames.nonEmpty) {
-      val reasons = falseNames.map({case (name, reason) => s"  ${name}: ${reason}"}).mkString("\n")
+      val reasons = falseNames.map { case (name, reason) => s"  ${name}: ${reason}" }.mkString("\n")
       sys.error(s"There are projects aggregated in build.sbt that shouldn't be:\n$reasons")
     }
   }

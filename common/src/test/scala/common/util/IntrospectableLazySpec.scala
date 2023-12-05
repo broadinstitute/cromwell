@@ -22,17 +22,19 @@ class IntrospectableLazySpec extends AnyFlatSpec with CromwellTimeoutSpec with M
       4
     }
 
-    val myLazy = lazily { lazyContents }
+    val myLazy = lazily(lazyContents)
 
     assert(lazyInstantiations == 0)
     assert(!myLazy.exists)
 
     // Fails without `synchronized { ... }`
     Await.result(Future.sequence(
-      Seq.fill(100)(Future {
-        myLazy() shouldBe 4
-      })
-    ), 1.seconds)
+                   Seq.fill(100)(Future {
+                     myLazy() shouldBe 4
+                   })
+                 ),
+                 1.seconds
+    )
 
     assert(lazyInstantiations == 1)
     assert(myLazy.exists)

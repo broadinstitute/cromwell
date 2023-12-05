@@ -2,14 +2,14 @@ package cromwell.database.slick.tables
 
 import cromwell.database.sql.tables.CallCachingAggregationEntry
 
-
 trait CallCachingAggregationEntryComponent {
 
   this: DriverComponent with CallCachingEntryComponent with CallCachingDetritusEntryComponent =>
 
   import driver.api._
 
-  class CallCachingAggregationEntries(tag: Tag) extends Table[CallCachingAggregationEntry](tag, "CALL_CACHING_AGGREGATION_ENTRY") {
+  class CallCachingAggregationEntries(tag: Tag)
+      extends Table[CallCachingAggregationEntry](tag, "CALL_CACHING_AGGREGATION_ENTRY") {
     def callCachingAggregationEntryId = column[Long]("CALL_CACHING_AGGREGATION_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
     def baseAggregation = column[String]("BASE_AGGREGATION", O.Length(255))
@@ -21,8 +21,10 @@ trait CallCachingAggregationEntryComponent {
     override def * = (baseAggregation, inputFilesAggregation, callCachingEntryId.?, callCachingAggregationEntryId.?) <>
       (CallCachingAggregationEntry.tupled, CallCachingAggregationEntry.unapply)
 
-    def fkCallCachingAggregationEntryCallCachingEntryId = foreignKey("FK_CALL_CACHING_AGGREGATION_ENTRY_CALL_CACHING_ENTRY_ID",
-      callCachingEntryId, callCachingEntries)(_.callCachingEntryId)
+    def fkCallCachingAggregationEntryCallCachingEntryId =
+      foreignKey("FK_CALL_CACHING_AGGREGATION_ENTRY_CALL_CACHING_ENTRY_ID", callCachingEntryId, callCachingEntries)(
+        _.callCachingEntryId
+      )
 
     def ixCallCachingAggregationEntryBaIfa =
       index("IX_CALL_CACHING_AGGREGATION_ENTRY_BA_IFA", (baseAggregation, inputFilesAggregation), unique = false)
@@ -32,16 +34,16 @@ trait CallCachingAggregationEntryComponent {
 
   val callCachingAggregationEntryIdsAutoInc = callCachingAggregationEntries returning
     callCachingAggregationEntries.map(_.callCachingAggregationEntryId)
-  
-  val callCachingAggregationForCacheEntryId = Compiled(
-    (callCachingEntryId: Rep[Long]) => for {
-      callCachingAggregationEntry <- callCachingAggregationEntries 
+
+  val callCachingAggregationForCacheEntryId = Compiled((callCachingEntryId: Rep[Long]) =>
+    for {
+      callCachingAggregationEntry <- callCachingAggregationEntries
       if callCachingAggregationEntry.callCachingEntryId === callCachingEntryId
     } yield callCachingAggregationEntry
   )
 
-  val existsCallCachingEntriesForBaseAggregationHash = Compiled(
-    (baseAggregation: Rep[String]) => (for {
+  val existsCallCachingEntriesForBaseAggregationHash = Compiled((baseAggregation: Rep[String]) =>
+    (for {
       callCachingEntry <- callCachingEntries
       if callCachingEntry.allowResultReuse
       callCachingAggregationEntry <- callCachingAggregationEntries
@@ -52,24 +54,32 @@ trait CallCachingAggregationEntryComponent {
 
   val existsCallCachingEntriesForBaseAggregationHashWithCallCachePrefix = Compiled(
     (baseAggregation: Rep[String],
-     prefix1: Rep[String], prefix1Length: Rep[Int],
-     prefix2: Rep[String], prefix2Length: Rep[Int],
-     prefix3: Rep[String], prefix3Length: Rep[Int]
-    ) => (for {
-      callCachingEntry <- callCachingEntries
-      if callCachingEntry.allowResultReuse
-      callCachingAggregationEntry <- callCachingAggregationEntries
-      if callCachingEntry.callCachingEntryId === callCachingAggregationEntry.callCachingEntryId
-      if callCachingAggregationEntry.baseAggregation === baseAggregation
-      detritus <- callCachingDetritusEntries
-      if detritus.callCachingEntryId === callCachingEntry.callCachingEntryId
-      detritusPath = detritus.detritusValue.map(clobToString)
-      if (detritusPath.substring(0, prefix1Length) === prefix1) ||
-        (detritusPath.substring(0, prefix2Length) === prefix2) ||
-        (detritusPath.substring(0, prefix3Length) === prefix3)} yield ()).exists
+     prefix1: Rep[String],
+     prefix1Length: Rep[Int],
+     prefix2: Rep[String],
+     prefix2Length: Rep[Int],
+     prefix3: Rep[String],
+     prefix3Length: Rep[Int]
+    ) =>
+      (for {
+        callCachingEntry <- callCachingEntries
+        if callCachingEntry.allowResultReuse
+        callCachingAggregationEntry <- callCachingAggregationEntries
+        if callCachingEntry.callCachingEntryId === callCachingAggregationEntry.callCachingEntryId
+        if callCachingAggregationEntry.baseAggregation === baseAggregation
+        detritus <- callCachingDetritusEntries
+        if detritus.callCachingEntryId === callCachingEntry.callCachingEntryId
+        detritusPath = detritus.detritusValue.map(clobToString)
+        if (detritusPath.substring(0, prefix1Length) === prefix1) ||
+          (detritusPath.substring(0, prefix2Length) === prefix2) ||
+          (detritusPath.substring(0, prefix3Length) === prefix3)
+      } yield ()).exists
   )
 
-  def callCachingEntriesForAggregatedHashes(baseAggregation: Rep[String], inputFilesAggregation: Rep[Option[String]], excludedIds: Set[Long]) = {
+  def callCachingEntriesForAggregatedHashes(baseAggregation: Rep[String],
+                                            inputFilesAggregation: Rep[Option[String]],
+                                            excludedIds: Set[Long]
+  ) =
     (for {
       callCachingEntry <- callCachingEntries
       if callCachingEntry.allowResultReuse && !(callCachingEntry.callCachingEntryId inSet excludedIds)
@@ -79,13 +89,17 @@ trait CallCachingAggregationEntryComponent {
       if (callCachingAggregationEntry.inputFilesAggregation.isEmpty && inputFilesAggregation.isEmpty) ||
         (callCachingAggregationEntry.inputFilesAggregation === inputFilesAggregation)
     } yield callCachingAggregationEntry.callCachingEntryId).take(1)
-  }
 
-  def callCachingEntriesForAggregatedHashesWithPrefixes(baseAggregation: Rep[String], inputFilesAggregation: Rep[Option[String]],
-                                                        prefix1: Rep[String], prefix1Length: Rep[Int],
-                                                        prefix2: Rep[String], prefix2Length: Rep[Int],
-                                                        prefix3: Rep[String], prefix3Length: Rep[Int],
-                                                        excludedIds: Set[Long]) = {
+  def callCachingEntriesForAggregatedHashesWithPrefixes(baseAggregation: Rep[String],
+                                                        inputFilesAggregation: Rep[Option[String]],
+                                                        prefix1: Rep[String],
+                                                        prefix1Length: Rep[Int],
+                                                        prefix2: Rep[String],
+                                                        prefix2Length: Rep[Int],
+                                                        prefix3: Rep[String],
+                                                        prefix3Length: Rep[Int],
+                                                        excludedIds: Set[Long]
+  ) =
     (for {
       callCachingEntry <- callCachingEntries
       if callCachingEntry.allowResultReuse && !(callCachingEntry.callCachingEntryId inSet excludedIds)
@@ -104,5 +118,4 @@ trait CallCachingAggregationEntryComponent {
         (detritusPath.substring(0, prefix2Length) === prefix2) ||
         (detritusPath.substring(0, prefix3Length) === prefix3)
     } yield callCachingAggregationEntry.callCachingEntryId).take(1)
-  }
 }

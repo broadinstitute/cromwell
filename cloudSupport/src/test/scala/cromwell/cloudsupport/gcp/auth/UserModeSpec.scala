@@ -7,7 +7,6 @@ import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-
 class UserModeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "UserMode"

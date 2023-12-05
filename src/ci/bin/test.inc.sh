@@ -355,15 +355,11 @@ cromwell::private::create_build_variables() {
     backend_type="${backend_type#centaurWdlUpgrade}"
     backend_type="${backend_type#centaurHoricromtal}"
     backend_type="${backend_type#centaur}"
-    backend_type="${backend_type#conformance}"
     backend_type="$(echo "${backend_type}" | sed 's/\([A-Z]\)/_\1/g' | tr '[:upper:]' '[:lower:]' | cut -c 2-)"
     CROMWELL_BUILD_BACKEND_TYPE="${backend_type}"
 
-    if [[ "${CROMWELL_BUILD_TYPE}" == conformance* ]]; then
-        CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND="server/assembly centaurCwlRunner/assembly"
-    else
-        CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND="assembly"
-    fi
+    # It may be possible to trim this down to e.g. `server/assembly` for some jobs
+    CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND="assembly"
 
     if [[ "${CROMWELL_BUILD_GENERATE_COVERAGE}" == "true" ]]; then
         CROMWELL_BUILD_SBT_COVERAGE_COMMAND="coverage"
@@ -747,45 +743,6 @@ cromwell::private::create_centaur_variables() {
     export CROMWELL_BUILD_DOCKER_TAG
 }
 
-cromwell::private::create_conformance_variables() {
-    CROMWELL_BUILD_CWL_RUNNER_MODE="${CROMWELL_BUILD_BACKEND_TYPE}"
-    CROMWELL_BUILD_CWL_TOOL_VERSION="3.0.20200724003302"
-    CROMWELL_BUILD_CWL_TEST_VERSION="1.0.20190228134645"
-    CROMWELL_BUILD_CWL_TEST_COMMIT="1f501e38ff692a408e16b246ac7d64d32f0822c2" # use known git hash to avoid changes
-    CROMWELL_BUILD_CWL_TEST_RUNNER="${CROMWELL_BUILD_ROOT_DIRECTORY}/centaurCwlRunner/src/bin/centaur-cwl-runner.bash"
-    CROMWELL_BUILD_CWL_TEST_DIRECTORY="${CROMWELL_BUILD_ROOT_DIRECTORY}/common-workflow-language"
-    CROMWELL_BUILD_CWL_TEST_RESOURCES="${CROMWELL_BUILD_CWL_TEST_DIRECTORY}/v1.0/v1.0"
-    CROMWELL_BUILD_CWL_TEST_WDL="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cwl_conformance_test.wdl"
-    CROMWELL_BUILD_CWL_TEST_INPUTS="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cwl_conformance_test.inputs.json"
-    CROMWELL_BUILD_CWL_TEST_OUTPUT="${CROMWELL_BUILD_LOG_DIRECTORY}/cwl_conformance_test.out.txt"
-
-    # Setting CROMWELL_BUILD_CWL_TEST_PARALLELISM too high will cause false negatives due to cromwell server timeouts.
-    case "${CROMWELL_BUILD_TYPE}" in
-        conformanceTesk)
-            # BA-6547: TESK is not currently tested in FC-Jenkins nor Travis
-            CROMWELL_BUILD_CWL_RUNNER_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/ftp_centaur_cwl_runner.conf"
-            CROMWELL_BUILD_CWL_TEST_PARALLELISM=8
-            ;;
-        *)
-            CROMWELL_BUILD_CWL_RUNNER_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_cwl_runner_application.conf"
-            CROMWELL_BUILD_CWL_TEST_PARALLELISM=10
-            ;;
-    esac
-
-    export CROMWELL_BUILD_CWL_RUNNER_CONFIG
-    export CROMWELL_BUILD_CWL_RUNNER_MODE
-    export CROMWELL_BUILD_CWL_TOOL_VERSION
-    export CROMWELL_BUILD_CWL_TEST_VERSION
-    export CROMWELL_BUILD_CWL_TEST_COMMIT
-    export CROMWELL_BUILD_CWL_TEST_RUNNER
-    export CROMWELL_BUILD_CWL_TEST_DIRECTORY
-    export CROMWELL_BUILD_CWL_TEST_RESOURCES
-    export CROMWELL_BUILD_CWL_TEST_WDL
-    export CROMWELL_BUILD_CWL_TEST_INPUTS
-    export CROMWELL_BUILD_CWL_TEST_OUTPUT
-    export CROMWELL_BUILD_CWL_TEST_PARALLELISM
-}
-
 cromwell::private::verify_secure_build() {
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
@@ -1032,39 +989,6 @@ cromwell::private::start_docker_databases() {
     fi
 }
 
-cromwell::private::install_cwltest() {
-    # TODO: No clue why these are needed for cwltool. If you know please update this comment.
-    sudo apt-get install procps || true
-    cromwell::private::pip_install cwltool=="${CROMWELL_BUILD_CWL_TOOL_VERSION}" --ignore-installed
-    cromwell::private::pip_install cwltest=="${CROMWELL_BUILD_CWL_TEST_VERSION}"
-}
-
-cromwell::private::checkout_pinned_cwl() {
-    if [[ ! -d "${CROMWELL_BUILD_CWL_TEST_DIRECTORY}" ]]; then
-        git clone \
-            https://github.com/common-workflow-language/common-workflow-language.git \
-            "${CROMWELL_BUILD_CWL_TEST_DIRECTORY}"
-        (
-            pushd "${CROMWELL_BUILD_CWL_TEST_DIRECTORY}" > /dev/null
-            git checkout "${CROMWELL_BUILD_CWL_TEST_COMMIT}"
-            popd > /dev/null
-        )
-    fi
-}
-
-cromwell::private::write_cwl_test_inputs() {
-    cat <<JSON >"${CROMWELL_BUILD_CWL_TEST_INPUTS}"
-{
-    "cwl_conformance_test.cwl_dir": "${CROMWELL_BUILD_CWL_TEST_DIRECTORY}",
-    "cwl_conformance_test.test_result_output": "${CROMWELL_BUILD_CWL_TEST_OUTPUT}",
-    "cwl_conformance_test.centaur_cwl_runner": "${CROMWELL_BUILD_CWL_TEST_RUNNER}",
-    "cwl_conformance_test.conformance_expected_failures":
-        "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_conformance_expected_failures.txt",
-    "cwl_conformance_test.timeout": 2400
-}
-JSON
-}
-
 cromwell::private::vault_run() {
     if cromwell::private::is_xtrace_enabled; then
         cromwell::private::exec_silent_function cromwell::private::vault_run "$@"
@@ -1267,11 +1191,6 @@ cromwell::private::cat_centaur_log() {
     cat "${CROMWELL_BUILD_CENTAUR_LOG}"
 }
 
-cromwell::private::cat_conformance_log() {
-    echo "CONFORMANCE LOG"
-    cat "${CROMWELL_BUILD_CWL_TEST_OUTPUT}"
-}
-
 cromwell::private::kill_build_heartbeat() {
     if [[ -n "${CROMWELL_BUILD_HEARTBEAT_PID:+set}" ]]; then
         cromwell::private::kill_tree "${CROMWELL_BUILD_HEARTBEAT_PID}"
@@ -1335,47 +1254,6 @@ cromwell::private::kill_tree() {
     cromwell::private::kill_tree "${cpid}"
   done
   kill "${pid}" 2> /dev/null
-}
-
-cromwell::private::start_conformance_cromwell() {
-    # Start the Cromwell server in the directory containing input files so it can access them via their relative path
-    pushd "${CROMWELL_BUILD_CWL_TEST_RESOURCES}" > /dev/null
-
-    # Turn off call caching as hashing doesn't work since it sees local and not GCS paths.
-    # CWL conformance uses alpine images that do not have bash.
-    java \
-        -Xmx2g \
-        -Dconfig.file="${CROMWELL_BUILD_CROMWELL_CONFIG}" \
-        -Dcall-caching.enabled=false \
-        -Dsystem.job-shell=/bin/sh \
-        -jar "${CROMWELL_BUILD_CROMWELL_JAR}" \
-        server &
-
-    CROMWELL_BUILD_CONFORMANCE_CROMWELL_PID=$!
-
-    popd > /dev/null
-
-    cromwell::private::add_exit_function cromwell::private::kill_conformance_cromwell
-}
-
-cromwell::private::kill_conformance_cromwell() {
-    if [[ -n "${CROMWELL_BUILD_CONFORMANCE_CROMWELL_PID+set}" ]]; then
-        cromwell::build::kill_tree "${CROMWELL_BUILD_CONFORMANCE_CROMWELL_PID}"
-    fi
-}
-
-cromwell::private::run_conformance_wdl() {
-    pushd "${CROMWELL_BUILD_CWL_TEST_RESOURCES}" > /dev/null
-
-    CENTAUR_CWL_JAVA_ARGS="-Dconfig.file=${CROMWELL_BUILD_CWL_RUNNER_CONFIG}" \
-        java \
-        -Xmx6g \
-        -Dbackend.providers.Local.config.concurrent-job-limit="${CROMWELL_BUILD_CWL_TEST_PARALLELISM}" \
-        -jar "${CROMWELL_BUILD_CROMWELL_JAR}" \
-        run "${CROMWELL_BUILD_CWL_TEST_WDL}" \
-        -i "${CROMWELL_BUILD_CWL_TEST_INPUTS}"
-
-    popd > /dev/null
 }
 
 cromwell::build::exec_test_script() {
@@ -1456,17 +1334,6 @@ cromwell::build::setup_centaur_environment() {
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
         cromwell::private::add_exit_function cromwell::private::cat_centaur_log
     fi
-}
-
-cromwell::build::setup_conformance_environment() {
-    cromwell::private::create_centaur_variables
-    cromwell::private::create_conformance_variables
-    if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
-        cromwell::private::install_cwltest
-    fi
-    cromwell::private::checkout_pinned_cwl
-    cromwell::private::write_cwl_test_inputs
-    cromwell::private::add_exit_function cromwell::private::cat_conformance_log
 }
 
 cromwell::private::find_or_assemble_cromwell_jar() {
@@ -1592,19 +1459,49 @@ cromwell::build::run_centaur() {
         "$@"
 }
 
-cromwell::build::run_conformance() {
-    cromwell::private::start_conformance_cromwell
-
-    # Give cromwell time to start up
-    sleep 30
-
-    cromwell::private::run_conformance_wdl
-}
-
 cromwell::build::generate_code_coverage() {
     if [[ "${CROMWELL_BUILD_GENERATE_COVERAGE}" == "true" ]]; then
         cromwell::private::generate_code_coverage
     fi
+}
+
+cromwell::build::print_workflow_statistics() {
+    echo "Total workflows"
+    mysql --host=127.0.0.1 --user=cromwell --password=test cromwell_test -e \
+        "SELECT COUNT(*) as total_workflows_run FROM WORKFLOW_METADATA_SUMMARY_ENTRY;"
+
+    echo "Late starters"
+    mysql --host=127.0.0.1 --user=cromwell --password=test cromwell_test -e \
+        "SELECT WORKFlOW_NAME as name,
+            TIMESTAMPDIFF(MINUTE, START_TIMESTAMP, END_TIMESTAMP) as runtime_minutes,
+            START_TIMESTAMP as START,
+            END_TIMESTAMP as end
+        FROM WORKFLOW_METADATA_SUMMARY_ENTRY
+            WHERE PARENT_WORKFLOW_EXECUTION_UUID IS NULL # exclude subworkflows
+            ORDER BY START_TIMESTAMP DESC
+            LIMIT 20;"
+
+    echo "Late finishers"
+    mysql --host=127.0.0.1 --user=cromwell --password=test cromwell_test -e \
+        "SELECT WORKFlOW_NAME as name,
+            TIMESTAMPDIFF(MINUTE, START_TIMESTAMP, END_TIMESTAMP) as runtime_minutes,
+            START_TIMESTAMP as start,
+            END_TIMESTAMP as END
+        FROM WORKFLOW_METADATA_SUMMARY_ENTRY
+            WHERE PARENT_WORKFLOW_EXECUTION_UUID IS NULL
+            ORDER BY END_TIMESTAMP DESC
+            LIMIT 20;"
+
+    echo "Long duration"
+    mysql --host=127.0.0.1 --user=cromwell --password=test cromwell_test -e \
+        "SELECT WORKFlOW_NAME as name,
+            TIMESTAMPDIFF(MINUTE, START_TIMESTAMP, END_TIMESTAMP) as RUNTIME_MINUTES,
+            START_TIMESTAMP as start,
+            END_TIMESTAMP as end
+        FROM WORKFLOW_METADATA_SUMMARY_ENTRY
+            WHERE PARENT_WORKFLOW_EXECUTION_UUID IS NULL
+            ORDER BY RUNTIME_MINUTES DESC
+            LIMIT 20;"
 }
 
 cromwell::build::exec_retry_function() {

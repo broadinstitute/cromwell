@@ -6,7 +6,6 @@ import common.validation.ErrorOr.ErrorOr
 import org.scalatest.Assertion
 import org.scalatest.matchers.should.Matchers
 
-
 object ErrorOrAssertions {
   implicit class ErrorOrWithAssertions[A](errorOr: ErrorOr[A]) extends Matchers {
     def shouldBeValid(other: A): Assertion = errorOr match {

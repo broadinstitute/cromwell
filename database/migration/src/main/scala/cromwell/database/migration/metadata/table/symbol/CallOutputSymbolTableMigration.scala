@@ -11,23 +11,20 @@ class CallOutputSymbolTableMigration extends SymbolTableMigration {
                              symbolScope: String,
                              symbolIndex: Option[Int],
                              symbolAttempt: Option[Int],
-                             womValue: WomValue): Int = {
-
+                             womValue: WomValue
+  ): Int =
     (symbolIndex, symbolAttempt) match {
       case (Some(index), Some(attempt)) =>
-        val metadataStatementForCall = new MetadataStatementForCall(statement,
-          workflowUuid,
-          symbolScope,
-          index,
-          attempt
-        )
+        val metadataStatementForCall =
+          new MetadataStatementForCall(statement, workflowUuid, symbolScope, index, attempt)
 
         addWdlValue(s"outputs:$symbolName", womValue, metadataStatementForCall)
       case _ =>
-        logger.warn(s"Found output without index or attempt: [$workflowUuid] $symbolScope - $symbolName:$symbolIndex:$symbolAttempt")
+        logger.warn(
+          s"Found output without index or attempt: [$workflowUuid] $symbolScope - $symbolName:$symbolIndex:$symbolAttempt"
+        )
         0
     }
-  }
 
   override def getConfirmationMessage: String = "Call outputs from Symbol Table migration complete."
 }

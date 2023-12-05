@@ -22,15 +22,18 @@ trait MockFtpFileSystem extends BeforeAndAfterAll { this: Suite =>
     connectionPort = Option(fakeFtpServer.getServerControlPort)
   }
 
-  override def afterAll() = {
+  override def afterAll() =
     fakeFtpServer.stop()
-  }
 
-  lazy val ftpFileSystemsConfiguration = FtpFileSystems.DefaultConfig.copy(connectionPort = connectionPort.getOrElse(throw new RuntimeException("Fake FTP server has not been started")))
+  lazy val ftpFileSystemsConfiguration = FtpFileSystems.DefaultConfig.copy(connectionPort =
+    connectionPort.getOrElse(throw new RuntimeException("Fake FTP server has not been started"))
+  )
   lazy val ftpFileSystems = new FtpFileSystems(ftpFileSystemsConfiguration)
 
   // Do not call this before starting the server
-  lazy val mockProvider = {
-    new FtpCloudNioFileSystemProvider(ConfigFactory.empty, FtpAuthenticatedCredentials("test_user", "test_password", None), ftpFileSystems)
-  }
+  lazy val mockProvider =
+    new FtpCloudNioFileSystemProvider(ConfigFactory.empty,
+                                      FtpAuthenticatedCredentials("test_user", "test_password", None),
+                                      ftpFileSystems
+    )
 }

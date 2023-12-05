@@ -8,6 +8,7 @@ import scala.util.{Failure, Success, Try}
   * @tparam T type of the returned value if success
   */
 sealed trait IoAck[T] {
+
   /**
     * Original command
     */
@@ -20,13 +21,12 @@ case class IoSuccess[T](command: IoCommand[T], result: T) extends IoAck[T] {
 }
 
 object IoFailAck {
-  def unapply(any: Any): Option[(IoCommand[_], Throwable)] = {
+  def unapply(any: Any): Option[(IoCommand[_], Throwable)] =
     any match {
       case f: IoFailAck[_] =>
         Option((f.command, f.failure))
       case _ => None
     }
-  }
 }
 
 trait IoFailAck[T] extends IoAck[T] {
@@ -36,5 +36,7 @@ trait IoFailAck[T] extends IoAck[T] {
 
 /** Failure of an unspecified variety. */
 case class IoFailure[T](command: IoCommand[T], override val failure: Throwable) extends IoFailAck[T]
+
 /** Specifically read forbidden failure. */
-case class IoReadForbiddenFailure[T](command: IoCommand[T], override val failure: Throwable, forbiddenPath: String) extends IoFailAck[T]
+case class IoReadForbiddenFailure[T](command: IoCommand[T], override val failure: Throwable, forbiddenPath: String)
+    extends IoFailAck[T]

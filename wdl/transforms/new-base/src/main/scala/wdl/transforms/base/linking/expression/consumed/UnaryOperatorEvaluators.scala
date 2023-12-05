@@ -11,7 +11,8 @@ object UnaryOperatorEvaluators {
   implicit val unaryPlusEvaluator: ExpressionValueConsumer[UnaryPlus] = forOperation
 
   private def forOperation[A <: UnaryOperation] = new ExpressionValueConsumer[A] {
-    override def expressionConsumedValueHooks(a: A)
-                                             (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): Set[UnlinkedConsumedValueHook] = a.argument.expressionConsumedValueHooks
+    override def expressionConsumedValueHooks(a: A)(implicit
+      expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
+    ): Set[UnlinkedConsumedValueHook] = a.argument.expressionConsumedValueHooks
   }
 }

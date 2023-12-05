@@ -18,10 +18,11 @@ class DirectoryFunctionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
     override def copyFile(source: String, destination: String) = throw new UnsupportedOperationException()
     override def glob(pattern: String) = throw new UnsupportedOperationException()
     override def size(path: String) = throw new UnsupportedOperationException()
-    override def readFile(path: String, maxBytes: Option[Int], failOnOverflow: Boolean)  = throw new UnsupportedOperationException()
+    override def readFile(path: String, maxBytes: Option[Int], failOnOverflow: Boolean) =
+      throw new UnsupportedOperationException()
     override def pathFunctions = throw new UnsupportedOperationException()
     override def writeFile(path: String, content: String) = throw new UnsupportedOperationException()
-    override implicit def ec = throw new UnsupportedOperationException()
+    implicit override def ec = throw new UnsupportedOperationException()
     override def createTemporaryDirectory(name: Option[String]) = throw new UnsupportedOperationException()
     override def asyncIo = throw new UnsupportedOperationException()
   }
@@ -32,13 +33,12 @@ class DirectoryFunctionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
     val innerDir = (rootDir / "innerDir").createDirectories()
     val link = innerDir / "linkToRootDirInInnerDir"
     link.symbolicLinkTo(rootDir)
-    
-    def listRecursively(path: String)(visited: Vector[String] = Vector.empty): Iterator[String] = {
+
+    def listRecursively(path: String)(visited: Vector[String] = Vector.empty): Iterator[String] =
       Await.result(functions.listDirectory(path)(visited), Duration.Inf) flatMap {
         case IoFile(v) => List(v)
         case IoDirectory(v) => List(v) ++ listRecursively(v)(visited :+ path)
       }
-    }
 
     listRecursively(rootDir.pathAsString)().toList shouldBe List(innerDir, link).map(_.pathAsString)
   }

@@ -15,7 +15,7 @@ case class WomValueSimpleton(simpletonKey: String, simpletonValue: WomPrimitive)
   * `WomValueSimpleton`s are transformed back to `WomValue`s.
   */
 object WomValueSimpleton {
-  
+
   val ClassKey = "class"
   val DirectoryClass = "Directory"
   val FileClass = "File"
@@ -35,23 +35,30 @@ object WomValueSimpleton {
     private def toNumberSimpleton(key: String)(value: Long) = WomValueSimpleton(key, WomInteger(value.toInt))
 
     // Pass the simplifyMode down to recursive calls without having to sling the parameter around explicitly.
-    def simplify(name: String)(implicit simplifyMode: SimplifyMode = SimplifyMode(forCaching = false)): Iterable[WomValueSimpleton] = {
+    def simplify(
+      name: String
+    )(implicit simplifyMode: SimplifyMode = SimplifyMode(forCaching = false)): Iterable[WomValueSimpleton] = {
       def suffix(suffix: String) = s"$name:$suffix"
       val fileValueSimplifier: String => String => WomValueSimpleton =
         if (simplifyMode.forCaching) key => value => WomValueSimpleton(key, WomSingleFile(value)) else toStringSimpleton
       // What should this even do? Maybe just pick out the last bit of the path and store that as a String?
       val directoryValueSimplifier: String => String => WomValueSimpleton =
-        if (simplifyMode.forCaching) key => value => WomValueSimpleton(key, WomString(value.substring(value.lastIndexOf("/") + 1))) else toStringSimpleton
+        if (simplifyMode.forCaching)
+          key => value => WomValueSimpleton(key, WomString(value.substring(value.lastIndexOf("/") + 1)))
+        else toStringSimpleton
 
       womValue match {
         case prim: WomPrimitive => List(WomValueSimpleton(name, prim))
         case opt: WomOptionalValue => opt.value.map(_.simplify(name)).getOrElse(Seq.empty)
-        case WomArray(_, arrayValue) => arrayValue.zipWithIndex flatMap { case (arrayItem, index) => arrayItem.simplify(s"$name[$index]") }
-        case WomMap(_, mapValue) => mapValue flatMap { case (key, value) => value.simplify(s"$name:${key.valueString.escapeMeta}") }
+        case WomArray(_, arrayValue) =>
+          arrayValue.zipWithIndex flatMap { case (arrayItem, index) => arrayItem.simplify(s"$name[$index]") }
+        case WomMap(_, mapValue) =>
+          mapValue flatMap { case (key, value) => value.simplify(s"$name:${key.valueString.escapeMeta}") }
         case WomPair(left, right) => left.simplify(s"$name:left") ++ right.simplify(s"$name:right")
-        case womObjectLike: WomObjectLike => womObjectLike.values flatMap {
-          case (key, value) => value.simplify(s"$name:${key.escapeMeta}")
-        }
+        case womObjectLike: WomObjectLike =>
+          womObjectLike.values flatMap { case (key, value) =>
+            value.simplify(s"$name:${key.escapeMeta}")
+          }
         case WomMaybeListedDirectory(valueOption, listingOption, _, _) =>
           // This simpleton is not strictly part of the WomFile but is used to record the type of this WomValue so it can
           // be re-built appropriately in the WomValueBuilder
@@ -82,10 +89,14 @@ object WomValueSimpleton {
   }
 
   implicit class WomValuesSimplifier(womValues: Map[String, WomValue]) {
-    def simplifyForCaching: Iterable[WomValueSimpleton] = womValues flatMap { case (name, value) => value.simplify(name)(simplifyMode = SimplifyMode(forCaching = true)) }
+    def simplifyForCaching: Iterable[WomValueSimpleton] = womValues flatMap { case (name, value) =>
+      value.simplify(name)(simplifyMode = SimplifyMode(forCaching = true))
+    }
   }
 
   implicit class WomValuesSimplifierPort(womValues: Map[OutputPort, WomValue]) {
-    def simplify: Iterable[WomValueSimpleton] = womValues flatMap { case (port, value) => value.simplify(port.internalName) }
+    def simplify: Iterable[WomValueSimpleton] = womValues flatMap { case (port, value) =>
+      value.simplify(port.internalName)
+    }
   }
 }

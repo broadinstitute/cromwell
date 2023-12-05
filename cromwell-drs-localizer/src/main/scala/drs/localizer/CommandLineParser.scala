@@ -4,7 +4,6 @@ import common.util.VersionUtil
 import drs.localizer.CommandLineParser.AccessTokenStrategy._
 import drs.localizer.CommandLineParser.Usage
 
-
 class CommandLineParser extends scopt.OptionParser[CommandLineArguments](Usage) {
   lazy val localizerVersion: String = VersionUtil.getVersion("cromwell-drs-localizer")
 
@@ -14,31 +13,30 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments](Usage) 
 
   head("cromwell-drs-localizer", localizerVersion)
 
-  arg[String]("drs-object-id").text("DRS object ID").optional().
-    action((s, c) =>
-      c.copy(drsObject = Option(s)))
-  arg[String]("container-path").text("Container path").optional().
-    action((s, c) =>
-      c.copy(containerPath = Option(s)))
-  arg[String]("requester-pays-project").text(s"Requester pays project (only valid with '$Google' auth strategy)").optional().
-    action((s, c) =>
-      c.copy(googleRequesterPaysProject = Option(s)))
-  opt[String]('m', "manifest-path").text("File path of manifest containing multiple files to localize").
-    action((s, c) =>
-      c.copy(manifestPath = Option(s)))
-  opt[String]('r', "requester-pays-project").text(s"Requester pays project (only valid with '$Google' auth strategy)").optional().
-    action((s, c) => {
+  arg[String]("drs-object-id").text("DRS object ID").optional().action((s, c) => c.copy(drsObject = Option(s)))
+  arg[String]("container-path").text("Container path").optional().action((s, c) => c.copy(containerPath = Option(s)))
+  arg[String]("requester-pays-project")
+    .text(s"Requester pays project (only valid with '$Google' auth strategy)")
+    .optional()
+    .action((s, c) => c.copy(googleRequesterPaysProject = Option(s)))
+  opt[String]('m', "manifest-path")
+    .text("File path of manifest containing multiple files to localize")
+    .action((s, c) => c.copy(manifestPath = Option(s)))
+  opt[String]('r', "requester-pays-project")
+    .text(s"Requester pays project (only valid with '$Google' auth strategy)")
+    .optional()
+    .action { (s, c) =>
       c.copy(
         googleRequesterPaysProject = Option(s),
         googleRequesterPaysProjectConflict = c.googleRequesterPaysProject.exists(_ != s)
       )
-    })
-  opt[String]('t', "access-token-strategy").text(s"Access token strategy, must be one of '$Azure' or '$Google' (default '$Google')").
-    action((s, c) =>
-      c.copy(accessTokenStrategy = Option(s.toLowerCase())))
-  opt[String]('i', "identity-client-id").text("Azure identity client id").
-    action((s, c) =>
-      c.copy(azureIdentityClientId = Option(s)))
+    }
+  opt[String]('t', "access-token-strategy")
+    .text(s"Access token strategy, must be one of '$Azure' or '$Google' (default '$Google')")
+    .action((s, c) => c.copy(accessTokenStrategy = Option(s.toLowerCase())))
+  opt[String]('i', "identity-client-id")
+    .text("Azure identity client id")
+    .action((s, c) => c.copy(azureIdentityClientId = Option(s)))
   checkConfig(c =>
     if (c.googleRequesterPaysProjectConflict)
       failure("Requester pays project differs between positional argument and option flag")
@@ -66,6 +64,7 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments](Usage) 
 }
 
 object CommandLineParser {
+
   /**
    * These access token strategies are named simplistically as there is currently only one access token strategy being
    * used for each of these cloud vendors. But it is certainly possible that multiple strategies could come into use
@@ -95,4 +94,5 @@ case class CommandLineArguments(accessTokenStrategy: Option[String] = Option(Goo
                                 googleRequesterPaysProject: Option[String] = None,
                                 azureIdentityClientId: Option[String] = None,
                                 manifestPath: Option[String] = None,
-                                googleRequesterPaysProjectConflict: Boolean = false)
+                                googleRequesterPaysProjectConflict: Boolean = false
+)

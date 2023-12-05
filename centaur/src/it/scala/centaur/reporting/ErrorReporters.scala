@@ -25,9 +25,8 @@ class ErrorReporters(rootConfig: Config) {
     providersConfig.entrySet.asScala.map(_.getKey.split("\\.").toList.head).toList
   }
 
-  private val errorReportersIo: IO[List[ErrorReporter]] = {
+  private val errorReportersIo: IO[List[ErrorReporter]] =
     AggregatedIo.aggregateExceptions("Errors while creating ErrorReporters", errorReporterNames.map(getErrorReporter))
-  }
 
   val errorReporters: List[ErrorReporter] = errorReportersIo.unsafeRunSync()
 
@@ -42,26 +41,27 @@ class ErrorReporters(rootConfig: Config) {
     * @param throwable            The exception that occurred while running the test.
     * @return An IO effect that will log the failure.
     */
-  def logFailure(testEnvironment: TestEnvironment,
-                 ciEnvironment: CiEnvironment,
-                 throwable: Throwable)
-                (implicit executionContext: ExecutionContext): IO[Unit] = {
+  def logFailure(testEnvironment: TestEnvironment, ciEnvironment: CiEnvironment, throwable: Throwable)(implicit
+    executionContext: ExecutionContext
+  ): IO[Unit] =
     if (errorReporters.isEmpty) {
       // If the there are no reporters, then just "throw" the exception. Do not retry to run the test.
       IO.raiseError(throwable)
     } else {
       val listIo = errorReporters.map(_.logFailure(testEnvironment, ciEnvironment, throwable))
-      AggregatedIo.aggregateExceptions("Errors while reporting a failure", listIo).handleErrorWith(err => {
-        err.addSuppressed(throwable)
-        IO.raiseError(err)
-      }).void
+      AggregatedIo
+        .aggregateExceptions("Errors while reporting a failure", listIo)
+        .handleErrorWith { err =>
+          err.addSuppressed(throwable)
+          IO.raiseError(err)
+        }
+        .void
     }
-  }
 
   /**
     * Constructs the IO reporter by name.
     */
-  private def getErrorReporter(errorReporterName: String): IO[ErrorReporter] = {
+  private def getErrorReporter(errorReporterName: String): IO[ErrorReporter] =
     IO {
       val clazz = errorReporterConfig.getString(s"providers.$errorReporterName.class")
       val reporterConfig = errorReporterConfig.getOrElse(s"providers.$errorReporterName.config", ConfigFactory.empty)
@@ -69,7 +69,6 @@ class ErrorReporters(rootConfig: Config) {
       val params = ErrorReporterParams(errorReporterName, rootConfig, reporterConfig, errorReporterCromwellDatabase)
       constructor.newInstance(params).asInstanceOf[ErrorReporter]
     }
-  }
 }
 
 object ErrorReporters extends StrictLogging {
@@ -84,9 +83,8 @@ object ErrorReporters extends StrictLogging {
   if (retryAttempts > 0)
     logger.info("Error retry count: {}", retryAttempts)
 
-  def logFailure(testEnvironment: TestEnvironment,
-                 throwable: Throwable)
-                (implicit executionContext: ExecutionContext): IO[Unit] = {
+  def logFailure(testEnvironment: TestEnvironment, throwable: Throwable)(implicit
+    executionContext: ExecutionContext
+  ): IO[Unit] =
     errorReporters.logFailure(testEnvironment, ciEnvironment, throwable)
-  }
 }

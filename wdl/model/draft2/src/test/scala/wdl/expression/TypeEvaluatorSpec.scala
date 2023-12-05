@@ -19,20 +19,23 @@ class TypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
 
   def noLookup(String: String): WomType = fail("No identifiers should be looked up in this test")
 
-  def identifierLookup(String: String): WomType = {
+  def identifierLookup(String: String): WomType =
     String match {
       case "cgrep" => WdlCallOutputsObjectType(namespace.workflow.calls.find(_.unqualifiedName == "cgrep").get)
       case "ps" => WdlCallOutputsObjectType(namespace.workflow.calls.find(_.unqualifiedName == "ps").get)
     }
-  }
 
-  def identifierEval(exprStr: String): WomPrimitiveType = expr(exprStr).evaluateType(identifierLookup, new WdlStandardLibraryFunctionsType).asInstanceOf[Try[WomPrimitiveType]].get
-  def identifierEvalError(exprStr: String): Unit = {
-    expr(exprStr).evaluateType(identifierLookup, new WdlStandardLibraryFunctionsType).asInstanceOf[Try[WomPrimitive]] match {
+  def identifierEval(exprStr: String): WomPrimitiveType = expr(exprStr)
+    .evaluateType(identifierLookup, new WdlStandardLibraryFunctionsType)
+    .asInstanceOf[Try[WomPrimitiveType]]
+    .get
+  def identifierEvalError(exprStr: String): Unit =
+    expr(exprStr)
+      .evaluateType(identifierLookup, new WdlStandardLibraryFunctionsType)
+      .asInstanceOf[Try[WomPrimitive]] match {
       case Failure(_) => // Expected
       case Success(badValue) => fail(s"Operation was supposed to fail, instead I got value: $badValue")
     }
-  }
 
   private def operate(lhs: WomType, op: String, rhs: WomType): Try[WomType] = op match {
     case "+" => lhs.add(rhs)
@@ -384,13 +387,13 @@ class TypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
     (WomBooleanType, "&&", WomSingleFileType)
   )
 
-  forAll (validOperations) { (lhs, op, rhs, expectedType) =>
+  forAll(validOperations) { (lhs, op, rhs, expectedType) =>
     it should s"validate the output type for the expression: $lhs $op $rhs = $expectedType" in {
       operate(lhs, op, rhs) shouldEqual Success(expectedType)
     }
   }
 
-  forAll (invalidOperations) { (lhs, op, rhs) =>
+  forAll(invalidOperations) { (lhs, op, rhs) =>
     it should s"not allow the expression: $lhs $op $rhs" in {
       operate(lhs, op, rhs) should be(a[Failure[_]])
     }

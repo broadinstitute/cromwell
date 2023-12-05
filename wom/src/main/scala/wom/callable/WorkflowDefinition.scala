@@ -8,7 +8,8 @@ final case class WorkflowDefinition(name: String,
                                     innerGraph: Graph,
                                     meta: Map[String, MetaValueElement],
                                     parameterMeta: Map[String, MetaValueElement],
-                                    override val sourceLocation : Option[SourceFileLocation]) extends ExecutableCallable {
+                                    override val sourceLocation: Option[SourceFileLocation]
+) extends ExecutableCallable {
 
   override lazy val toString = s"[Workflow $name]"
   override val graph: Graph = innerGraph

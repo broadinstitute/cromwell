@@ -1,7 +1,12 @@
 package cromwell.backend.google.pipelines.common
 
 import com.google.api.client.http.HttpResponseException
-import com.google.api.client.testing.http.{HttpTesting, MockHttpTransport, MockLowLevelHttpRequest, MockLowLevelHttpResponse}
+import com.google.api.client.testing.http.{
+  HttpTesting,
+  MockHttpTransport,
+  MockLowLevelHttpRequest,
+  MockLowLevelHttpResponse
+}
 import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -25,10 +30,9 @@ class IoSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   }
 
   private def mockTransport(statusCode: Int) = new MockHttpTransport() {
-    override def buildRequest(method: String, url: String) = {
+    override def buildRequest(method: String, url: String) =
       new MockLowLevelHttpRequest() {
         override def execute() = new MockLowLevelHttpResponse().setStatusCode(statusCode)
       }
-    }
   }
 }

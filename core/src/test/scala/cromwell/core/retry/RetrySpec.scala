@@ -16,7 +16,7 @@ class RetrySpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Sca
 
     var counter: Int = n
 
-    def doIt(): Future[Int] = {
+    def doIt(): Future[Int] =
       if (counter == 0)
         Future.successful(9)
       else {
@@ -24,23 +24,22 @@ class RetrySpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Sca
         val ex = if (counter <= transients) new TransientException else new IllegalArgumentException("Failed")
         Future.failed(ex)
       }
-    }
   }
 
-  implicit val defaultPatience: PatienceConfig = PatienceConfig(timeout = Span(30, Seconds), interval = Span(100, Millis))
+  implicit val defaultPatience: PatienceConfig =
+    PatienceConfig(timeout = Span(30, Seconds), interval = Span(100, Millis))
 
   private def runRetry(retries: Int,
                        work: MockWork,
                        isTransient: Throwable => Boolean = Retry.throwableToFalse,
-                       isFatal: Throwable => Boolean = Retry.throwableToFalse): Future[Int] = {
-
+                       isFatal: Throwable => Boolean = Retry.throwableToFalse
+  ): Future[Int] =
     withRetry(
       f = () => work.doIt(),
       maxRetries = Option(retries),
       isTransient = isTransient,
       isFatal = isFatal
     )
-  }
 
   "Retry" should "retry a function until it works" in {
     val work = new MockWork(2)
@@ -53,7 +52,7 @@ class RetrySpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Sca
 
   it should "fail if it hits the max retry count" in {
     whenReady(runRetry(1, new MockWork(3)).failed) { x =>
-      x shouldBe an [CromwellFatalException]
+      x shouldBe an[CromwellFatalException]
     }
   }
 
@@ -61,18 +60,19 @@ class RetrySpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Sca
     val work = new MockWork(3)
 
     whenReady(runRetry(3, work, isFatal = (t: Throwable) => t.isInstanceOf[IllegalArgumentException]).failed) { x =>
-      x shouldBe an [CromwellFatalException]
+      x shouldBe an[CromwellFatalException]
       work.counter shouldBe 2
     }
 
     val work2 = new MockWork(4, 2)
     val retry = runRetry(4,
-      work2,
-      isFatal = (t: Throwable) => t.isInstanceOf[IllegalArgumentException],
-      isTransient = (t: Throwable) => t.isInstanceOf[TransientException])
+                         work2,
+                         isFatal = (t: Throwable) => t.isInstanceOf[IllegalArgumentException],
+                         isTransient = (t: Throwable) => t.isInstanceOf[TransientException]
+    )
 
     whenReady(retry.failed) { x =>
-      x shouldBe an [CromwellFatalException]
+      x shouldBe an[CromwellFatalException]
       work2.counter shouldBe 3
     }
   }

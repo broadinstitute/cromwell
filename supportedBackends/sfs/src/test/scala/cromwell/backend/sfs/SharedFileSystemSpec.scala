@@ -14,8 +14,12 @@ import wom.values.WomSingleFile
 
 import scala.io.Source
 
-class SharedFileSystemSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
-  with TableDrivenPropertyChecks with BackendSpec {
+class SharedFileSystemSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with TableDrivenPropertyChecks
+    with BackendSpec {
 
   behavior of "SharedFileSystem"
 
@@ -27,14 +31,14 @@ class SharedFileSystemSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     ConfigFactory.parseString("""{localization: [cached-copy], max-hardlinks: 3 }""")
   private val localPathBuilder = List(DefaultPathBuilder)
 
-
   def localizationTest(config: Config,
                        docker: Boolean,
                        fileInCallDir: Boolean = false,
                        fileAlreadyExists: Boolean = false,
                        symlink: Boolean = false,
                        cachedCopy: Boolean = false,
-                       linkNb: Int = 1): Path = {
+                       linkNb: Int = 1
+  ): Path = {
     val callDir = DefaultPathBuilder.createTempDirectory("SharedFileSystem")
     val orig = if (fileInCallDir) callDir.createChild("inputFile") else DefaultPathBuilder.createTempFile("inputFile")
     val dest = if (fileInCallDir) orig else callDir./(orig.parent.pathAsString.hashCode.toString)./(orig.name)
@@ -54,11 +58,12 @@ class SharedFileSystemSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     val sharedFS: SharedFileSystem = new SharedFileSystem {
       override val pathBuilders: PathBuilders = localPathBuilder
       override val sharedFileSystemConfig: Config = config
-      override implicit def actorContext: ActorContext = null
+      implicit override def actorContext: ActorContext = null
       override lazy val cachedCopyDir: Option[Path] = Option(DefaultPathBuilder.createTempDirectory("cached-copy"))
     }
     val cachedFile: Option[Path] = sharedFS.cachedCopyDir.map(
-      _./(orig.parent.pathAsString.hashCode.toString)./(orig.lastModifiedTime.toEpochMilli.toString + orig.name))
+      _./(orig.parent.pathAsString.hashCode.toString)./(orig.lastModifiedTime.toEpochMilli.toString + orig.name)
+    )
     val localizedinputs = Map(inputs.head._1 -> WomSingleFile(dest.pathAsString))
     val result = sharedFS.localizeInputs(callDir, docker = docker)(inputs)
 
@@ -114,7 +119,7 @@ class SharedFileSystemSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     val sharedFS: SharedFileSystem = new SharedFileSystem {
       override val pathBuilders: PathBuilders = localPathBuilder
       override val sharedFileSystemConfig: Config = defaultLocalization
-      override implicit def actorContext: ActorContext = null
+      implicit override def actorContext: ActorContext = null
     }
     val result = sharedFS.localizeInputs(callDir, docker = false)(inputs)
     result.isFailure shouldBe true
@@ -130,11 +135,12 @@ class SharedFileSystemSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     val sharedFS: SharedFileSystem = new SharedFileSystem {
       override val pathBuilders: PathBuilders = localPathBuilder
       override val sharedFileSystemConfig: Config = cachedCopyLocalization
-      override implicit def actorContext: ActorContext = null
+      implicit override def actorContext: ActorContext = null
       override lazy val cachedCopyDir: Option[Path] = Option(DefaultPathBuilder.createTempDirectory("cached-copy"))
     }
     val cachedFile: Option[Path] = sharedFS.cachedCopyDir.map(
-      _./(orig.parent.pathAsString.hashCode.toString)./(orig.lastModifiedTime.toEpochMilli.toString + orig.name))
+      _./(orig.parent.pathAsString.hashCode.toString)./(orig.lastModifiedTime.toEpochMilli.toString + orig.name)
+    )
 
     val results = callDirs.map(sharedFS.localizeInputs(_, docker = true)(inputs))
 
@@ -148,7 +154,7 @@ class SharedFileSystemSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     dests.foreach(_.delete(swallowIOExceptions = true))
   }
 
-it should "copy the file again when the copy-cached file has exceeded the maximum number of hardlinks" in {
+  it should "copy the file again when the copy-cached file has exceeded the maximum number of hardlinks" in {
     val callDirs: IndexedSeq[Path] = 1 to 3 map { _ => DefaultPathBuilder.createTempDirectory("SharedFileSystem") }
     val orig = DefaultPathBuilder.createTempFile("inputFile")
     val dests = callDirs.map(_./(orig.parent.pathAsString.hashCode.toString)./(orig.name))
@@ -157,11 +163,12 @@ it should "copy the file again when the copy-cached file has exceeded the maximu
     val sharedFS: SharedFileSystem = new SharedFileSystem {
       override val pathBuilders: PathBuilders = localPathBuilder
       override val sharedFileSystemConfig: Config = cachedCopyLocalizationMaxHardlinks
-      override implicit def actorContext: ActorContext = null
+      implicit override def actorContext: ActorContext = null
       override lazy val cachedCopyDir: Option[Path] = Option(DefaultPathBuilder.createTempDirectory("cached-copy"))
     }
     val cachedFile: Option[Path] = sharedFS.cachedCopyDir.map(
-      _./(orig.parent.pathAsString.hashCode.toString)./(orig.lastModifiedTime.toEpochMilli.toString + orig.name))
+      _./(orig.parent.pathAsString.hashCode.toString)./(orig.lastModifiedTime.toEpochMilli.toString + orig.name)
+    )
 
     val results = callDirs.map(sharedFS.localizeInputs(_, docker = true)(inputs))
 
@@ -174,7 +181,6 @@ it should "copy the file again when the copy-cached file has exceeded the maximu
     orig.delete(swallowIOExceptions = true)
     dests.foreach(_.delete(swallowIOExceptions = true))
   }
-
 
   private[this] def countLinks(file: Path): Int = file.getAttribute("unix:nlink").asInstanceOf[Int]
 

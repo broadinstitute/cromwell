@@ -23,7 +23,8 @@ trait GenericAstNode {
 
   def firstTerminal: Option[GenericTerminal] = {
     def foldFunction(acc: Option[GenericTerminal], next: GenericTerminal): Option[GenericTerminal] = acc match {
-      case Some(t) if t.getLine > next.getLine || (t.getLine == next.getLine && t.getColumn > next.getColumn) => Some(next)
+      case Some(t) if t.getLine > next.getLine || (t.getLine == next.getLine && t.getColumn > next.getColumn) =>
+        Some(next)
       case None => Some(next)
       case _ => acc
     }
@@ -36,11 +37,10 @@ trait GenericAstNode {
   // all the information needed for downstream analysis phases. However, it turns out that
   // getting accurate information out of Hermes is not that simple. For now, we just
   // get the initial source line, which is -more or less- accurate.
-  def getSourceLine: Option[Int] = {
-    firstTerminal map {t => t.getLine }
-  }
+  def getSourceLine: Option[Int] =
+    firstTerminal map { t => t.getLine }
 
-  def lineAndColumnString = firstTerminal map { t => s" at line ${t.getLine} column ${t.getColumn}"} getOrElse("")
+  def lineAndColumnString = firstTerminal map { t => s" at line ${t.getLine} column ${t.getColumn}" } getOrElse ""
 }
 
 trait GenericAst extends GenericAstNode {
@@ -48,13 +48,12 @@ trait GenericAst extends GenericAstNode {
   def getAttributes: Map[String, GenericAstNode]
   def getName: String
 
-  private def getAttributeAsAstNodeVector(attr: String, optional: Boolean): Checked[Vector[GenericAstNode]] = {
+  private def getAttributeAsAstNodeVector(attr: String, optional: Boolean): Checked[Vector[GenericAstNode]] =
     Option(getAttribute(attr)) match {
       case Some(attributeNode) => attributeNode.astListAsVector
       case None if optional => Vector.empty.validNelCheck
       case None => s"No expected attribute '$attr' found".invalidNelCheck
     }
-  }
 
   /**
     * Will get an attribute on this Ast as an AstNode and then convert that into a single element of
@@ -71,7 +70,9 @@ trait GenericAst extends GenericAstNode {
     * Will get an attribute on this Ast as an AstList and then convert that into a vector of Ast
     * @param attr The attribute to read from this Ast
     */
-  def getAttributeAsVector[A](attr: String, optional: Boolean = false)(implicit toA: CheckedAtoB[GenericAstNode, A]): Checked[Vector[A]] = {
+  def getAttributeAsVector[A](attr: String, optional: Boolean = false)(implicit
+    toA: CheckedAtoB[GenericAstNode, A]
+  ): Checked[Vector[A]] =
     for {
       asVector <- getAttributeAsAstNodeVector(attr, optional)
       // This toValidated/toEither dance is necessary to
@@ -79,13 +80,14 @@ trait GenericAst extends GenericAstNode {
       // (2) convert back into a Checked for the flatMap
       result <- asVector.traverse(item => toA.run(item).toValidated).toEither
     } yield result
-  }
 
   /**
     * Will get an attribute on this Ast as an AstList and then convert that into a vector of Ast
     * @param attr The attribute to read from this Ast
     */
-  def getAttributeAsVectorF[A](attr: String, optional: Boolean = false)(toA: GenericAstNode => Checked[A]): Checked[Vector[A]] = {
+  def getAttributeAsVectorF[A](attr: String, optional: Boolean = false)(
+    toA: GenericAstNode => Checked[A]
+  ): Checked[Vector[A]] =
     for {
       asVector <- getAttributeAsAstNodeVector(attr, optional)
       // This toValidated/toEither dance is necessary to
@@ -93,17 +95,15 @@ trait GenericAst extends GenericAstNode {
       // (2) convert back into a Checked for the flatMap
       result <- asVector.traverse(item => toA(item).toValidated).toEither
     } yield result
-  }
 
   /**
     * Gets an attribute on this Ast as an Optional Ast, returns an empty Option if the attribute is empty.
     */
-  def getAttributeAsOptional[A](attr: String)(implicit toA: CheckedAtoB[GenericAstNode, A]): Checked[Option[A]] =  {
+  def getAttributeAsOptional[A](attr: String)(implicit toA: CheckedAtoB[GenericAstNode, A]): Checked[Option[A]] =
     Option(getAttribute(attr)) match {
       case None => None.validNelCheck
       case Some(attribute) => toA.run(attribute).map(Option.apply)
     }
-  }
 }
 
 trait GenericAstList extends GenericAstNode {

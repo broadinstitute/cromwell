@@ -9,7 +9,6 @@ import org.scalatest.matchers.should.Matchers
 import scala.util.{Failure, Success, Try}
 import org.scalatest.enablers.Emptiness._
 
-
 class TryUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "TryUtil"
@@ -80,15 +79,15 @@ class TryUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   }
 
   it should "sequence successful keys and successful values" in {
-    val result: Try[Map[String, String]] = sequenceKeyValues(
-      Map(Success("success key") -> Success("success value")), "prefix")
+    val result: Try[Map[String, String]] =
+      sequenceKeyValues(Map(Success("success key") -> Success("success value")), "prefix")
     result.isSuccess should be(true)
     result.get.toList should contain theSameElementsAs Map("success key" -> "success value")
   }
 
   it should "sequence successful keys and failed values" in {
-    val result: Try[Map[String, String]] = sequenceKeyValues(
-      Map(Success("success key") -> Failure(new RuntimeException("failed value"))), "prefix")
+    val result: Try[Map[String, String]] =
+      sequenceKeyValues(Map(Success("success key") -> Failure(new RuntimeException("failed value"))), "prefix")
     result.isFailure should be(true)
     result.failed.get should be(an[AggregatedException])
     val exception = result.failed.get.asInstanceOf[AggregatedException]
@@ -98,8 +97,8 @@ class TryUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   }
 
   it should "sequence failed keys and successful values" in {
-    val result: Try[Map[String, String]] = sequenceKeyValues(
-      Map(Failure(new RuntimeException("failed key")) -> Success("success value")), "prefix")
+    val result: Try[Map[String, String]] =
+      sequenceKeyValues(Map(Failure(new RuntimeException("failed key")) -> Success("success value")), "prefix")
     result.isFailure should be(true)
     result.failed.get should be(an[AggregatedException])
     val exception = result.failed.get.asInstanceOf[AggregatedException]
@@ -110,7 +109,9 @@ class TryUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   it should "sequence failed keys and failed values" in {
     val result: Try[Map[String, String]] = sequenceKeyValues(
-      Map(Failure(new RuntimeException("failed key")) -> Failure(new RuntimeException("failed value"))), "prefix")
+      Map(Failure(new RuntimeException("failed key")) -> Failure(new RuntimeException("failed value"))),
+      "prefix"
+    )
     result.isFailure should be(true)
     result.failed.get should be(an[AggregatedException])
     val exception = result.failed.get.asInstanceOf[AggregatedException]
@@ -127,8 +128,8 @@ class TryUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   }
 
   it should "sequence a successful key with a failed value" in {
-    val result: Try[(String, String)] = sequenceTuple(
-      (Success("success key"), Failure(new RuntimeException("failed value"))), "prefix")
+    val result: Try[(String, String)] =
+      sequenceTuple((Success("success key"), Failure(new RuntimeException("failed value"))), "prefix")
     result.isFailure should be(true)
     result.failed.get should be(an[AggregatedException])
     val exception = result.failed.get.asInstanceOf[AggregatedException]
@@ -138,8 +139,8 @@ class TryUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   }
 
   it should "sequence a failed key with a successful value" in {
-    val result: Try[(String, String)] = sequenceTuple(
-      (Failure(new RuntimeException("failed key")), Success("success value")), "prefix")
+    val result: Try[(String, String)] =
+      sequenceTuple((Failure(new RuntimeException("failed key")), Success("success value")), "prefix")
     result.isFailure should be(true)
     result.failed.get should be(an[AggregatedException])
     val exception = result.failed.get.asInstanceOf[AggregatedException]
@@ -149,8 +150,10 @@ class TryUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   }
 
   it should "sequence a failed key with a failed value" in {
-    val result: Try[(String, String)] = sequenceTuple(
-      (Failure(new RuntimeException("failed key")), Failure(new RuntimeException("failed value"))), "prefix")
+    val result: Try[(String, String)] =
+      sequenceTuple((Failure(new RuntimeException("failed key")), Failure(new RuntimeException("failed value"))),
+                    "prefix"
+      )
     result.isFailure should be(true)
     result.failed.get should be(an[AggregatedException])
     val exception = result.failed.get.asInstanceOf[AggregatedException]

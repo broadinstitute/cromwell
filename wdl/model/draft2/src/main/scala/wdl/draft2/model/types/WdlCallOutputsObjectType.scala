@@ -7,7 +7,7 @@ import wom.types.WomObjectTypeLike
 case class WdlCallOutputsObjectType(call: WdlCall) extends WomObjectTypeLike {
   val stableName: String = "Object"
 
-  override protected def coercion = {
-    case o: WdlCallOutputsObject => o
+  override protected def coercion = { case o: WdlCallOutputsObject =>
+    o
   }
 }

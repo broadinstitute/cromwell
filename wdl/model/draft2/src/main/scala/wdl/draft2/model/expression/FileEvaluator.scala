@@ -37,21 +37,20 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WomType = Wom
 
   private def evalValue(ast: AstNode): Try[WomValue] = valueEvaluator.evaluate(ast)
 
-  private def evalValueToWdlFile(ast: AstNode): Try[WomFile] = {
+  private def evalValueToWdlFile(ast: AstNode): Try[WomFile] =
     evalValue(ast) match {
       case Success(p: WomPrimitive) => Success(WomSingleFile(p.valueString))
-      case Success(_) => Failure(new WomExpressionException(s"Expecting a primitive type from AST:\n${ast.toPrettyString}"))
+      case Success(_) =>
+        Failure(new WomExpressionException(s"Expecting a primitive type from AST:\n${ast.toPrettyString}"))
       case Failure(e) => Failure(e)
     }
-  }
 
-  def evaluate(ast: AstNode, anticipatedType: WomType = coerceTo): Try[Seq[WomFile]] = {
+  def evaluate(ast: AstNode, anticipatedType: WomType = coerceTo): Try[Seq[WomFile]] =
     valueEvaluator.evaluate(ast) match {
-        // If the ast can successfully be evaluated, then just find the WdlFiles that it contains
+      // If the ast can successfully be evaluated, then just find the WdlFiles that it contains
       case Success(v) => Success(FileEvaluatorUtil.findFilesToDelocalize(v, coerceTo))
       case Failure(_) => evaluateRecursive(ast, anticipatedType)
     }
-  }
 
   /**
     * Recursively traverse the ast and collect asts that evaluate successfully to a WdlFile
@@ -69,7 +68,7 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WomType = Wom
     * Because we know that read_string takes a file parameter, WdlString("out") is transformed to a WdlFile (see evalValueToWdlFile)
     * We can now deduce that this task is expected to produce a WdlFile called "out"
     */
-  private def evaluateRecursive(ast: AstNode, anticipatedType: WomType): Try[Seq[WomFile]] = {
+  private def evaluateRecursive(ast: AstNode, anticipatedType: WomType): Try[Seq[WomFile]] =
     ast match {
       case a: Ast if a.isGlobFunctionCall =>
         evalValueToWdlFile(a.params.head) map { wdlFile => Seq(WomGlobFile(wdlFile.value)) }
@@ -83,17 +82,18 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WomType = Wom
       case a: Ast if a.isBinaryOperator =>
         evalValueToWdlFile(a) match {
           case Success(f: WomFile) => Success(Seq(f))
-          case _ => for {
-            left <- evaluateRecursive(a.getAttribute("lhs"), anticipatedType)
-            right <- evaluateRecursive(a.getAttribute("rhs"), anticipatedType)
-          } yield left ++ right
+          case _ =>
+            for {
+              left <- evaluateRecursive(a.getAttribute("lhs"), anticipatedType)
+              right <- evaluateRecursive(a.getAttribute("rhs"), anticipatedType)
+            } yield left ++ right
         }
       case a: Ast if a.isUnaryOperator =>
         evalValueToWdlFile(a) match {
           case Success(f: WomFile) => Success(Seq(f))
           case _ =>
             evaluateRecursive(a.getAttribute("expression"), anticipatedType) match {
-              case Success(a:Seq[WomFile]) => Success(a)
+              case Success(a: Seq[WomFile]) => Success(a)
               case _ => Failure(new WomExpressionException(s"Could not evaluate:\n${a.toPrettyString}"))
             }
         }
@@ -106,10 +106,11 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WomType = Wom
       case a: Ast if a.isArrayOrMapLookup =>
         evalValue(a) match {
           case Success(f: WomFile) => Success(Seq(f))
-          case _ => for {
-            left <- evaluateRecursive(a.getAttribute("lhs"), anticipatedType)
-            right <- evaluateRecursive(a.getAttribute("rhs"), anticipatedType)
-          } yield left ++ right
+          case _ =>
+            for {
+              left <- evaluateRecursive(a.getAttribute("lhs"), anticipatedType)
+              right <- evaluateRecursive(a.getAttribute("rhs"), anticipatedType)
+            } yield left ++ right
         }
       case a: Ast if a.isMemberAccess =>
         evalValue(a) match {
@@ -124,7 +125,12 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WomType = Wom
               case Success(v) => Success(v.flatten)
               case f => f.map(_.flatten)
             }
-          case _ => Failure(new WomExpressionException(s"Failed to parse $a for files. Found an unexpected Array literal but anticipated a ${anticipatedType.stableName}"))
+          case _ =>
+            Failure(
+              new WomExpressionException(
+                s"Failed to parse $a for files. Found an unexpected Array literal but anticipated a ${anticipatedType.stableName}"
+              )
+            )
         }
       case a: Ast if a.isTupleLiteral =>
         val unevaluatedElements = a.getAttribute("values").astListAsVector
@@ -137,7 +143,12 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WomType = Wom
                 left <- evaluate(unevaluatedElements.head, leftType)
                 right <- evaluate(unevaluatedElements(1), rightType)
               } yield left ++ right
-            case _ => Failure(new WomExpressionException(s"Failed to parse $a for files. Found an unexpected Pair literal but anticipated a ${anticipatedType.stableName}"))
+            case _ =>
+              Failure(
+                new WomExpressionException(
+                  s"Failed to parse $a for files. Found an unexpected Pair literal but anticipated a ${anticipatedType.stableName}"
+                )
+              )
           }
 
         } else {
@@ -152,20 +163,22 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WomType = Wom
               key -> value
             }
 
-            val flattenedTries = evaluatedMap flatMap { case (k,v) => Seq(k,v) }
-            flattenedTries partition {_.isSuccess} match {
+            val flattenedTries = evaluatedMap flatMap { case (k, v) => Seq(k, v) }
+            flattenedTries partition { _.isSuccess } match {
               case (_, failures) if failures.nonEmpty =>
                 val message = failures.collect { case f: Failure[_] => f.exception.getMessage }.mkString("\n")
                 Failure(new WomExpressionException(s"Could not evaluate expression:\n$message"))
               case (successes, _) =>
                 Success(successes.flatMap(_.get))
             }
-          case _ => Failure(new WomExpressionException(s"Failed to parse $a for files. Found an unexpected Map literal but anticipated a ${anticipatedType.stableName}"))
+          case _ =>
+            Failure(
+              new WomExpressionException(
+                s"Failed to parse $a for files. Found an unexpected Map literal but anticipated a ${anticipatedType.stableName}"
+              )
+            )
         }
-
 
       case _ => Success(Seq.empty[WomFile])
     }
-  }
 }
-

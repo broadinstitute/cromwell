@@ -40,7 +40,9 @@ class RoundRobinQueueIteratorSpec extends TestKitSuite with AnyFlatSpecLike with
     val probe2 = TestProbe("probe-2").ref
     val probe3 = TestProbe("probe-3").ref
     val queues = List(
-      TokenQueue(InfiniteTokenType, tokenEventLogger).enqueue(TokenQueuePlaceholder(probe1, "hogGroupA")).enqueue(TokenQueuePlaceholder(probe3, "hogGroupA")),
+      TokenQueue(InfiniteTokenType, tokenEventLogger)
+        .enqueue(TokenQueuePlaceholder(probe1, "hogGroupA"))
+        .enqueue(TokenQueuePlaceholder(probe3, "hogGroupA")),
       TokenQueue(Pool2, tokenEventLogger).enqueue(TokenQueuePlaceholder(probe2, "hogGroupA"))
     )
     val iterator = new RoundRobinQueueIterator(queues, 0)

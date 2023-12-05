@@ -32,12 +32,16 @@ class MetadataServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     val womArray = WomArray(WomArrayType(WomStringType), Seq(WomString("Hello"), WomString("world!")))
     val emptyWomArray = WomArray(WomArrayType(WomStringType), Seq.empty)
 
-    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), womArray).toList should contain theSameElementsInOrderAs List(
+    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"),
+                             womArray
+    ).toList should contain theSameElementsInOrderAs List(
       MetadataEvent(MetadataKey(workflowId, None, "root[0]"), MetadataValue("Hello")),
       MetadataEvent(MetadataKey(workflowId, None, "root[1]"), MetadataValue("world!"))
     )
 
-    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), emptyWomArray).toList should contain theSameElementsAs List(
+    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"),
+                             emptyWomArray
+    ).toList should contain theSameElementsAs List(
       MetadataEvent.empty(MetadataKey(workflowId, None, "root[]"))
     )
   }
@@ -45,18 +49,24 @@ class MetadataServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
   it should "convert a WomMap to MetadataEvents" in {
     import MetadataService._
     val workflowId = WorkflowId.randomId()
-    val womMap = WomMap(WomMapType(WomStringType, WomStringType), Map(
-      WomString("Hello") -> WomString("world!"),
-      WomString("Goodbye") -> WomString("world!")
-    ))
+    val womMap = WomMap(WomMapType(WomStringType, WomStringType),
+                        Map(
+                          WomString("Hello") -> WomString("world!"),
+                          WomString("Goodbye") -> WomString("world!")
+                        )
+    )
     val emptyWomMap = WomMap(WomMapType(WomStringType, WomStringType), Map.empty)
 
-    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), womMap).toList should contain theSameElementsInOrderAs List(
+    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"),
+                             womMap
+    ).toList should contain theSameElementsInOrderAs List(
       MetadataEvent(MetadataKey(workflowId, None, "root:Hello"), MetadataValue("world!")),
       MetadataEvent(MetadataKey(workflowId, None, "root:Goodbye"), MetadataValue("world!"))
     )
 
-    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), emptyWomMap).toList should contain theSameElementsAs List(
+    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"),
+                             emptyWomMap
+    ).toList should contain theSameElementsAs List(
       MetadataEvent.empty(MetadataKey(workflowId, None, "root"))
     )
   }
@@ -82,7 +92,9 @@ class MetadataServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
       )
     )
 
-    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), womMaybePopulatedFileOuter).toList should contain theSameElementsInOrderAs List(
+    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"),
+                             womMaybePopulatedFileOuter
+    ).toList should contain theSameElementsInOrderAs List(
       MetadataEvent(MetadataKey(workflowId, None, "root:class"), MetadataValue("File")),
       MetadataEvent(MetadataKey(workflowId, None, "root:location"), MetadataValue("fileValue")),
       MetadataEvent(MetadataKey(workflowId, None, "root:checksum"), MetadataValue("checksum")),
@@ -119,7 +131,9 @@ class MetadataServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
       )
     )
 
-    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), womMaybeListedDirectoryOuter).toList should contain theSameElementsInOrderAs List(
+    womValueToMetadataEvents(MetadataKey(workflowId, None, "root"),
+                             womMaybeListedDirectoryOuter
+    ).toList should contain theSameElementsInOrderAs List(
       MetadataEvent(MetadataKey(workflowId, None, "root:class"), MetadataValue("Directory")),
       MetadataEvent(MetadataKey(workflowId, None, "root:location"), MetadataValue("directoryValue")),
       MetadataEvent(MetadataKey(workflowId, None, "root:listing[0]:class"), MetadataValue("Directory")),
@@ -137,12 +151,14 @@ class MetadataServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
       ("womValue", "metadataValue"),
       (WomString("hi"), MetadataValue("hi", MetadataString)),
       (WomInteger(1), MetadataValue("1", MetadataInt)),
-      (WomFloat(1F), MetadataValue("1.0", MetadataNumber)),
+      (WomFloat(1f), MetadataValue("1.0", MetadataNumber)),
       (WomBoolean(true), MetadataValue("true", MetadataBoolean))
     )
 
     forAll(values) { (womValue, metadataValue) =>
-      womValueToMetadataEvents(MetadataKey(workflowId, None, "root"), womValue).toList should contain theSameElementsAs List(
+      womValueToMetadataEvents(MetadataKey(workflowId, None, "root"),
+                               womValue
+      ).toList should contain theSameElementsAs List(
         metadata.MetadataEvent(MetadataKey(workflowId, None, "root"), metadataValue)
       )
     }
@@ -192,7 +208,8 @@ class MetadataServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
 
     val (outerPrefix, outerCausedBys, outerFailureId) = validateExceptionMessage(events.head, workflowId, tMsg)
     val (cause1Prefix, cause1CausedBys, cause1FailureId) = validateExceptionMessage(events(1), workflowId, causeMsg)
-    val (cause2Prefix, cause2CausedBys, cause2FailureId) = validateExceptionMessage(events(2), workflowId, innerCauseMsg)
+    val (cause2Prefix, cause2CausedBys, cause2FailureId) =
+      validateExceptionMessage(events(2), workflowId, innerCauseMsg)
     events(3).key.key should be(s"$cause2Prefix[$cause2FailureId]$cause2CausedBys:causedBy[]")
 
     outerPrefix should be(pathToFailures)
@@ -236,7 +253,8 @@ class MetadataServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     runtimeCausedBys should be("")
 
     // Aggregate exception:
-    val (aggregatePrefix, aggregateCausedBys, aggregateFailureId) = validateExceptionMessage(events(1), workflowId, causeContext)
+    val (aggregatePrefix, aggregateCausedBys, aggregateFailureId) =
+      validateExceptionMessage(events(1), workflowId, causeContext)
     aggregatePrefix should be(pathToFailures)
     aggregateCausedBys should be(":causedBy[0]")
     aggregateFailureId should be(runtimeFailureId)
@@ -250,7 +268,8 @@ class MetadataServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
 
     // cause2, caused by innerCause caused by []
     val (cause2Prefix, cause2CausedBys, cause2FailureId) = validateExceptionMessage(events(4), workflowId, cause2Msg)
-    val (innerCausePrefix, innerCauseCausedBys, innerCauseFailureIds) = validateExceptionMessage(events(5), workflowId, innerCauseMsg)
+    val (innerCausePrefix, innerCauseCausedBys, innerCauseFailureIds) =
+      validateExceptionMessage(events(5), workflowId, innerCauseMsg)
     cause2Prefix should be(pathToFailures)
     cause2CausedBys should be(":causedBy[0]:causedBy[1]")
     cause2FailureId should be(runtimeFailureId)
@@ -277,6 +296,9 @@ class MetadataServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
         case failureMessageRegex(prefix, failureIndex, causedBys) => (prefix, causedBys, failureIndex)
         case _ => fail("Unexpected failure key format: " + k.key)
       }
-    case _ => fail("throwableToMetadataEvents generated a metadata event without a metadata value! Bad throwableToMetadataEvents! Very bad!")
+    case _ =>
+      fail(
+        "throwableToMetadataEvents generated a metadata event without a metadata value! Bad throwableToMetadataEvents! Very bad!"
+      )
   }
 }

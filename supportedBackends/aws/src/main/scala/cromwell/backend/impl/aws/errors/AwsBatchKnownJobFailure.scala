@@ -6,11 +6,11 @@ import cromwell.core.path.Path
 sealed trait AwsBatchKnownJobFailure extends KnownJobFailureException
 
 case class FailedToDelocalizeFailure(message: String, jobTag: String, stderrPath: Option[Path])
-  extends AwsBatchKnownJobFailure {
+    extends AwsBatchKnownJobFailure {
   lazy val stderrMessage = stderrPath map { p =>
     s"3) Look into the stderr (${p.pathAsString}) file for evidence that some of the output files the command is expected to create were not created."
   } getOrElse ""
-  
+
   lazy val missingFilesMessage = if (message.contains("No URLs matched")) {
     s"""It appears that some of the expected output files for task $jobTag did not exist when the command exited.
        |A few things to try
@@ -19,6 +19,6 @@ case class FailedToDelocalizeFailure(message: String, jobTag: String, stderrPath
        |$stderrMessage
      """.stripMargin
   } else ""
-  
+
   override def getMessage = missingFilesMessage + message
 }

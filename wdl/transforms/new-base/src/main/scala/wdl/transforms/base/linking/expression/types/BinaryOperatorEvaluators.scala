@@ -28,10 +28,11 @@ object BinaryOperatorEvaluators {
   implicit val remainderEvaluator: TypeEvaluator[Remainder] = forOperation(_.mod(_))
 
   private def forOperation[A <: BinaryOperation](op: (WomType, WomType) => Try[WomType]) = new TypeEvaluator[A] {
-    override def evaluateType(a: A, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
-                             (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
-      (a.left.evaluateType(linkedValues),
-        a.right.evaluateType(linkedValues)) flatMapN { (left, right) => op(left, right).toErrorOr }
-    }
+    override def evaluateType(a: A, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
+      expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
+    ): ErrorOr[WomType] =
+      (a.left.evaluateType(linkedValues), a.right.evaluateType(linkedValues)) flatMapN { (left, right) =>
+        op(left, right).toErrorOr
+      }
   }
 }

@@ -5,5 +5,6 @@ final case class CallElement(callableReference: String,
                              alias: Option[String],
                              afters: Vector[String],
                              body: Option[CallBodyElement],
-                             override val sourceLocation : Option[SourceFileLocation])
-    extends LanguageElement with WorkflowGraphElement
+                             override val sourceLocation: Option[SourceFileLocation]
+) extends LanguageElement
+    with WorkflowGraphElement

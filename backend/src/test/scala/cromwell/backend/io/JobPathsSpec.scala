@@ -26,7 +26,7 @@ class JobPathsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wi
       |        }
     """.stripMargin
 
-  val backendConfig =  ConfigFactory.parseString(configString)
+  val backendConfig = ConfigFactory.parseString(configString)
   val defaultBackendConfigDescriptor = BackendConfigurationDescriptor(backendConfig, TestConfig.globalConfig)
 
   "JobPaths" should "provide correct paths for a job" in {
@@ -55,8 +55,9 @@ class JobPathsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wi
       fullPath(s"/cromwell-executions/wf_hello/$id/call-hello")
     jobPaths.callExecutionDockerRoot.pathAsString shouldBe
       fullPath(s"/cromwell-executions/wf_hello/$id/call-hello/execution")
-    jobPaths.toDockerPath(DefaultPathBuilder.get(
-      s"local-cromwell-executions/wf_hello/$id/call-hello/execution/stdout")).pathAsString shouldBe
+    jobPaths
+      .toDockerPath(DefaultPathBuilder.get(s"local-cromwell-executions/wf_hello/$id/call-hello/execution/stdout"))
+      .pathAsString shouldBe
       fullPath(s"/cromwell-executions/wf_hello/$id/call-hello/execution/stdout")
     jobPaths.toDockerPath(DefaultPathBuilder.get("/cromwell-executions/dock/path")).pathAsString shouldBe
       fullPath("/cromwell-executions/dock/path")

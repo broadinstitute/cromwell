@@ -24,8 +24,9 @@ if [ -z "$1" ]; then
 fi
 
 # Acquire a b2c token using gcloud auth.
+# Send stderr to /dev/null so that any gcloud auth errors/update prompts don't pollute the token output.
 echo "Using local gcloud auth to acquire a b2c token..."
-B2C_TOKEN=$(gcloud auth print-access-token)
+B2C_TOKEN=$(gcloud auth print-access-token 2>/dev/null)
 if [ $? -eq 0 ]; then
     echo "Acquired b2c token: ${B2C_TOKEN:0:4}****"
 else

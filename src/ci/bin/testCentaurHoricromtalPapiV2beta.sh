@@ -20,11 +20,13 @@ cromwell::build::build_cromwell_docker
 
 cromwell::build::run_centaur \
     -p 500 \
-    -e localdockertest \
-    -e relative_output_paths \
-    -e relative_output_paths_colliding \
-    -e standard_output_paths_colliding_prevented \
-    -e papi_v2alpha1_gcsa \
+    -i lots_of_inputs \
+#    -e localdockertest \
+#    -e relative_output_paths \
+#    -e relative_output_paths_colliding \
+#    -e standard_output_paths_colliding_prevented \
+#    -e papi_v2alpha1_gcsa \
+
 
 cromwell::build::generate_code_coverage
 

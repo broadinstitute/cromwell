@@ -7,8 +7,14 @@ task do_nothing {
   output {
     String o = read_string(stdout())
   }
+
+  # We are localizing 10,000 tiny files, so the default disk size of 10 GB SSD [0] is NOT
+  # going to cut it, having a measly IO per second rating of just 10 x 30 = 300 IOPS [1]
+  # [0] https://cromwell.readthedocs.io/en/stable/RuntimeAttributes/
+  # [1] https://cloud.google.com/compute/docs/disks/performance#zonal
   runtime {
     docker: "python:latest"
+    disks: "local-disk 1000 SSD"
   }
 }
 
@@ -28,6 +34,7 @@ task make_array {
   }
   runtime {
     docker: "python:latest"
+    disks: "local-disk 1000 SSD"
   }
 }
 

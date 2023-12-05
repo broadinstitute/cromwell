@@ -1607,6 +1607,45 @@ cromwell::build::generate_code_coverage() {
     fi
 }
 
+cromwell::build::print_workflow_statistics() {
+    echo "Total workflows"
+    mysql --host=127.0.0.1 --user=cromwell --password=test cromwell_test -e \
+        "SELECT COUNT(*) as total_workflows_run FROM WORKFLOW_METADATA_SUMMARY_ENTRY;"
+
+    echo "Late starters"
+    mysql --host=127.0.0.1 --user=cromwell --password=test cromwell_test -e \
+        "SELECT WORKFlOW_NAME as name,
+            TIMESTAMPDIFF(MINUTE, START_TIMESTAMP, END_TIMESTAMP) as runtime_minutes,
+            START_TIMESTAMP as START,
+            END_TIMESTAMP as end
+        FROM WORKFLOW_METADATA_SUMMARY_ENTRY
+            WHERE PARENT_WORKFLOW_EXECUTION_UUID IS NULL # exclude subworkflows
+            ORDER BY START_TIMESTAMP DESC
+            LIMIT 20;"
+
+    echo "Late finishers"
+    mysql --host=127.0.0.1 --user=cromwell --password=test cromwell_test -e \
+        "SELECT WORKFlOW_NAME as name,
+            TIMESTAMPDIFF(MINUTE, START_TIMESTAMP, END_TIMESTAMP) as runtime_minutes,
+            START_TIMESTAMP as start,
+            END_TIMESTAMP as END
+        FROM WORKFLOW_METADATA_SUMMARY_ENTRY
+            WHERE PARENT_WORKFLOW_EXECUTION_UUID IS NULL
+            ORDER BY END_TIMESTAMP DESC
+            LIMIT 20;"
+
+    echo "Long duration"
+    mysql --host=127.0.0.1 --user=cromwell --password=test cromwell_test -e \
+        "SELECT WORKFlOW_NAME as name,
+            TIMESTAMPDIFF(MINUTE, START_TIMESTAMP, END_TIMESTAMP) as RUNTIME_MINUTES,
+            START_TIMESTAMP as start,
+            END_TIMESTAMP as end
+        FROM WORKFLOW_METADATA_SUMMARY_ENTRY
+            WHERE PARENT_WORKFLOW_EXECUTION_UUID IS NULL
+            ORDER BY RUNTIME_MINUTES DESC
+            LIMIT 20;"
+}
+
 cromwell::build::exec_retry_function() {
     local retried_function
     local retry_count

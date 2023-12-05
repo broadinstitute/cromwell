@@ -1619,6 +1619,7 @@ cromwell::build::print_workflow_statistics() {
             START_TIMESTAMP as START,
             END_TIMESTAMP as end
         FROM WORKFLOW_METADATA_SUMMARY_ENTRY
+            WHERE PARENT_WORKFLOW_EXECUTION_UUID IS NULL # exclude subworkflows
             ORDER BY START_TIMESTAMP DESC
             LIMIT 20;"
 
@@ -1629,6 +1630,7 @@ cromwell::build::print_workflow_statistics() {
             START_TIMESTAMP as start,
             END_TIMESTAMP as END
         FROM WORKFLOW_METADATA_SUMMARY_ENTRY
+            WHERE PARENT_WORKFLOW_EXECUTION_UUID IS NULL
             ORDER BY END_TIMESTAMP DESC
             LIMIT 20;"
 
@@ -1639,6 +1641,7 @@ cromwell::build::print_workflow_statistics() {
             START_TIMESTAMP as start,
             END_TIMESTAMP as end
         FROM WORKFLOW_METADATA_SUMMARY_ENTRY
+            WHERE PARENT_WORKFLOW_EXECUTION_UUID IS NULL
             ORDER BY RUNTIME_MINUTES DESC
             LIMIT 20;"
 }

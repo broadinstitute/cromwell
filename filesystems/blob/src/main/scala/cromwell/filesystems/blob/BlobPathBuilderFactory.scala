@@ -27,8 +27,7 @@ final case class EndpointURL(value: String) {
     sa.toRight(new Exception(s"Storage account name could not be parsed from $value")).toTry
   }
 }
-final case class WorkspaceId(value: UUID) { override def toString: String = value.toString }
-final case class ContainerResourceId(value: UUID) { override def toString: String = value.toString }
+
 final case class WorkspaceManagerURL(value: String) { override def toString: String = value }
 
 final case class BlobPathBuilderFactory(globalConfig: Config, instanceConfig: Config, fsm: BlobFileSystemManager)

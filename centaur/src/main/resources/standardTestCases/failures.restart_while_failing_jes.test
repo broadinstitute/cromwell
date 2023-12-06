@@ -2,6 +2,7 @@ name: failures.restart_while_failing_jes
 testFormat: WorkflowFailureRestartWithRecover
 callMark: restart_while_failing.B1
 backends: [Papi]
+tags: [restart]
 
 files {
   workflow: failures/restart_while_failing/restart_while_failing.wdl

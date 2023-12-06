@@ -2,7 +2,7 @@ name: failures.restart_while_failing_tes
 testFormat: WorkflowFailureRestartWithoutRecover
 callMark: restart_while_failing.B1
 backends: [TES]
-tags: [localdockertest]
+tags: [localdockertest, restart]
 
 files {
   workflow: failures/restart_while_failing/restart_while_failing.wdl

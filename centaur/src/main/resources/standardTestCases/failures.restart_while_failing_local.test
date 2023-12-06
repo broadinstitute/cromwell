@@ -3,7 +3,7 @@ testFormat: WorkflowFailureRestartWithRecover
 callMark: restart_while_failing.B1
 backendsMode: "only"
 backends: [Local, LocalNoDocker]
-tags: [localdockertest]
+tags: [localdockertest, restart]
 
 files {
   workflow: failures/restart_while_failing/restart_while_failing.wdl

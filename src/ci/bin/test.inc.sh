@@ -47,15 +47,12 @@ cromwell::private::check_debug() {
 
 # Exports environment variables used for scripts.
 cromwell::private::create_build_variables() {
-    CROMWELL_BUILD_PROVIDER_JENKINS="jenkins"
     CROMWELL_BUILD_PROVIDER_GITHUB="github"
     CROMWELL_BUILD_PROVIDER_UNKNOWN="unknown"
 
-    if [[ "${JENKINS-false}" == "true" ]]; then
-        CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_JENKINS}"
-    elif [[ "${CIRCLECI-false}" == "true" ]]; then
-        CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_CIRCLE}"
-    elif [[ "${GITHUB_ACTIONS-false}" == "true" ]]; then
+    # CI providers set an env like `GITHUB_ACTIONS` that indicates to jobs where they're running
+    # https://docs.github.com/en/actions/learn-github-actions/variables#default-environment-variables
+    if [[ "${GITHUB_ACTIONS-false}" == "true" ]]; then
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_GITHUB}"
     else
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_UNKNOWN}"
@@ -125,21 +122,6 @@ cromwell::private::create_build_variables() {
     # https://broadinstitute.slack.com/archives/GHYJZ2ZE0/p1656625952888149?thread_ts=1656620572.975059&cid=GHYJZ2ZE0
 
     case "${CROMWELL_BUILD_PROVIDER}" in
-        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
-            # External variables must be passed through in the ENVIRONMENT of src/ci/docker-compose/docker-compose.yml
-            CROMWELL_BUILD_IS_CI=true
-            CROMWELL_BUILD_TYPE="${JENKINS_BUILD_TYPE}"
-            CROMWELL_BUILD_BRANCH="${GIT_BRANCH#origin/}"
-            CROMWELL_BUILD_EVENT=""
-            CROMWELL_BUILD_TAG=""
-            CROMWELL_BUILD_NUMBER="${BUILD_NUMBER}"
-            CROMWELL_BUILD_URL="${BUILD_URL}"
-            CROMWELL_BUILD_GIT_USER_EMAIL="jenkins@jenkins.io"
-            CROMWELL_BUILD_GIT_USER_NAME="Jenkins CI"
-            CROMWELL_BUILD_HEARTBEAT_PATTERN="…\n"
-            CROMWELL_BUILD_GENERATE_COVERAGE=false
-            CROMWELL_BUILD_RUN_TESTS=true
-            ;;
         "${CROMWELL_BUILD_PROVIDER_GITHUB}")
             CROMWELL_BUILD_IS_CI=true
             CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
@@ -262,7 +244,6 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_OS_LINUX
     export CROMWELL_BUILD_PRIOR_VERSION_NUMBER
     export CROMWELL_BUILD_PROVIDER
-    export CROMWELL_BUILD_PROVIDER_JENKINS
     export CROMWELL_BUILD_PROVIDER_UNKNOWN
     export CROMWELL_BUILD_REQUIRES_PRIOR_VERSION
     export CROMWELL_BUILD_REQUIRES_SECURE
@@ -328,29 +309,6 @@ cromwell::private::create_database_variables() {
             CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME="localhost"
             CROMWELL_BUILD_POSTGRESQL_LATEST_PORT="15432"
             CROMWELL_BUILD_POSTGRESQL_LATEST_TAG="${BUILD_POSTGRESQL_LATEST-}"
-            ;;
-        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
-            # NOTE: Jenkins uses src/ci/docker-compose/docker-compose.yml.
-            # We don't define a docker tag because the docker-compose has already spun up the database containers by the
-            # time this script is run. Other variables here must match the database service names and settings the yaml.
-            CROMWELL_BUILD_MARIADB_HOSTNAME="mariadb-db"
-            CROMWELL_BUILD_MARIADB_PORT="3306"
-            CROMWELL_BUILD_MARIADB_DOCKER_TAG=""
-            CROMWELL_BUILD_MARIADB_LATEST_HOSTNAME="mariadb-db-latest"
-            CROMWELL_BUILD_MARIADB_LATEST_PORT="3306"
-            CROMWELL_BUILD_MARIADB_LATEST_TAG=""
-            CROMWELL_BUILD_MYSQL_HOSTNAME="mysql-db"
-            CROMWELL_BUILD_MYSQL_PORT="3306"
-            CROMWELL_BUILD_MYSQL_DOCKER_TAG=""
-            CROMWELL_BUILD_MYSQL_LATEST_HOSTNAME="mysql-db-latest"
-            CROMWELL_BUILD_MYSQL_LATEST_PORT="3306"
-            CROMWELL_BUILD_MYSQL_LATEST_TAG=""
-            CROMWELL_BUILD_POSTGRESQL_HOSTNAME="postgresql-db"
-            CROMWELL_BUILD_POSTGRESQL_PORT="5432"
-            CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG=""
-            CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME="postgresql-db-latest"
-            CROMWELL_BUILD_POSTGRESQL_LATEST_PORT="3306"
-            CROMWELL_BUILD_POSTGRESQL_LATEST_TAG=""
             ;;
         *)
             if [[ -z "${CROMWELL_BUILD_DOCKER_LOCALHOST-}" ]]; then
@@ -493,12 +451,6 @@ cromwell::private::create_centaur_variables() {
             fi
 
             CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS=
-            ;;
-        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
-            CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.MySQLProfile$"
-            CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="com.mysql.cj.jdbc.Driver"
-            CROMWELL_BUILD_CENTAUR_JDBC_URL="${mysql_jdbc_url}"
-            CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS="${CENTAUR_TEST_ADDITIONAL_PARAMETERS-}"
             ;;
         *)
             CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="${CROMWELL_BUILD_CENTAUR_SLICK_PROFILE-slick.jdbc.MySQLProfile\$}"
@@ -813,27 +765,7 @@ cromwell::private::render_secure_resources() {
     fi
 }
 
-cromwell::private::copy_all_resources() {
-    # Only copy the CI resources. Secure resources are not rendered.
-    sbt -Dsbt.supershell=false --warn copyCiResources
-}
-
-cromwell::private::setup_secure_resources() {
-    case "${CROMWELL_BUILD_PROVIDER}" in
-        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
-            # Jenkins secret resources should have already been rendered outside the CI's docker-compose container.
-            cromwell::private::copy_all_resources
-            ;;
-        *)
-            cromwell::private::render_secure_resources
-            ;;
-    esac
-}
-
 cromwell::private::make_build_directories() {
-    if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_JENKINS}" ]]; then
-        sudo chmod -R a+w .
-    fi
     mkdir -p "${CROMWELL_BUILD_LOG_DIRECTORY}"
     mkdir -p "${CROMWELL_BUILD_RESOURCES_DIRECTORY}"
 }
@@ -1038,12 +970,11 @@ cromwell::build::setup_common_environment() {
             cromwell::private::upgrade_pip
             cromwell::private::start_docker_databases
             ;;
-        "${CROMWELL_BUILD_PROVIDER_JENKINS}"|\
         *)
             ;;
     esac
 
-    cromwell::private::setup_secure_resources
+    cromwell::private::render_secure_resources
     cromwell::private::start_build_heartbeat
 }
 
@@ -1223,25 +1154,6 @@ cromwell::build::print_workflow_statistics() {
             WHERE PARENT_WORKFLOW_EXECUTION_UUID IS NULL
             ORDER BY RUNTIME_MINUTES DESC
             LIMIT 20;"
-}
-
-cromwell::build::exec_retry_function() {
-    local retried_function
-    local retry_count
-    local attempt
-    local exit_status
-
-    retried_function="${1:?exec_retry_function called without a function}"; shift
-    retry_count="${1:-3}"; shift || true
-    sleep_seconds="${1:-15}"; shift || true
-
-    # https://unix.stackexchange.com/a/82610
-    # https://stackoverflow.com/a/17336953
-    for attempt in $(seq 0 "${retry_count}"); do
-        [[ ${attempt} -gt 0 ]] && sleep "${sleep_seconds}"
-        ${retried_function} && exit_status=0 && break || exit_status=$?
-    done
-    return ${exit_status}
 }
 
 cromwell::build::exec_silent_function() {

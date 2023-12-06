@@ -29,7 +29,11 @@ object ContinuousIntegration {
         sys.error(s"""The vault token file "${vaultToken.value}" should not be a directory.""")
       }
 
-      val cmd = List(
+      // Only include the local file argument if the file exists (local development w/ acquire_b2c_token.sh)
+      // Don't include it otherwise (CI/CD and other development)
+      val localEnvFileArgs = if(envFile.value.exists()) List("-e", s"ENV_FILE=${envFile.value}") else List()
+
+      val cmd: List[String] = List.concat(List(
         "docker",
         "run",
         "--rm",
@@ -38,9 +42,9 @@ object ContinuousIntegration {
         "-v",
         s"${srcCiResources.value}:${srcCiResources.value}",
         "-v",
-        s"${targetCiResources.value}:${targetCiResources.value}",
-        "-e",
-        s"ENV_FILE=${envFile.value}",
+        s"${targetCiResources.value}:${targetCiResources.value}"),
+        localEnvFileArgs,
+        List(
         "-e",
         "ENVIRONMENT=not_used",
         "-e",
@@ -49,7 +53,7 @@ object ContinuousIntegration {
         s"OUT_PATH=${targetCiResources.value}",
         "broadinstitute/dsde-toolbox:dev",
         "render-templates.sh"
-      )
+      ))
       val result = cmd ! log
       if (result != 0) {
         sys.error(

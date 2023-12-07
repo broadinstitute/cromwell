@@ -47,5 +47,3 @@ class CbasClientImpl[F[_]: Concurrent](client: Client[F], baseUrl: Uri) extends 
     }
   }
 }
-
-

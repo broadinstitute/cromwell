@@ -25,4 +25,4 @@ jobs:
           cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
       - name: Run Scalafmt
         run: |
-          sbt scalafmtCheckAll scalafmtDetailedError:true scalafmtLogOnEachError:true scalafmtFailOnErrors:true
+          sbt scalafmtCheckAll

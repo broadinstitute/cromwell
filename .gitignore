@@ -58,6 +58,10 @@ tesk_application.conf
 **/venv/
 exome_germline_single_sample_v1.3/
 **/*.pyc
+src/ci/resources/*.temp
 
 # GHA credentials
 gha-creds-*.json
+
+# jenv
+.java-version

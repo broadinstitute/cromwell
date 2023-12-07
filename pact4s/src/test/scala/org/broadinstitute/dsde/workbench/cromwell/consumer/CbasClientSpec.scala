@@ -5,8 +5,7 @@ import au.com.dius.pact.consumer.dsl._
 import au.com.dius.pact.consumer.{ConsumerPactBuilder, PactTestExecutionContext}
 import au.com.dius.pact.core.model.RequestResponsePact
 import cats.effect.IO
-import cromwell.engine.workflow.lifecycle.finalization.CallbackMessage
-import cromwell.util.JsonFormatting.WomValueJsonFormatter.WomValueJsonFormat
+import cromwell.engine.workflow.lifecycle.finalization.{CallbackMessage, WorkflowCallbackJsonSupport}
 import org.broadinstitute.dsde.workbench.cromwell.consumer.PactHelper._
 import org.http4s.blaze.client.BlazeClientBuilder
 import org.http4s.client.Client
@@ -34,28 +33,24 @@ class CbasClientSpec extends AnyFlatSpec with Matchers with RequestResponsePactF
   val bearerToken = "my-token"
   val workflowId = "12345678-1234-1234-1111-111111111111"
   val completedState = "Succeeded"
-  val workflowOutputs =
-    """
-       {
-           "wf_hello.hello.salutations": "Hello batch!"
-       }
-    """
+  val workflowOutputs = Map(("wf.foo", WomString("bar")), ("wf.hello.hello", WomString("Hello")))
   val failures = List.empty[String]
+
   val workflowCallback: CallbackMessage = CallbackMessage(
     workflowId,
     completedState,
-    Map(("wf.foo", WomString("bar"))),
-    List.empty
+    workflowOutputs,
+    failures
   )
-  val outputsMap: Map[String, WomValue] = workflowCallback.outputs
+  /*
+      Get a json representation of a workflowCallback object.
+  */
+  val workflowCallbackJson = WorkflowCallbackJsonSupport.callbackMessageFormat.write(workflowCallback)
 
   val updateCompletedRunDsl = newJsonBody { o =>
     o.stringType("workflowId", workflowCallback.workflowId)
     o.stringType("state", workflowCallback.state)
-    o.`object`("outputs",
-      outputsMap.toList flatMap {
-        case (k, v) => o eachLike(k, WomValueJsonFormat.write(v))
-      })
+    o.stringType("outputs", workflowCallbackJson.asJsObject.fields("outputs").toString())
     o.array("failures",
       { f =>
         workflowCallback.failures.foreach(f.stringType)
@@ -64,7 +59,7 @@ class CbasClientSpec extends AnyFlatSpec with Matchers with RequestResponsePactF
   }.build
 
   val consumerPactBuilder: ConsumerPactBuilder = ConsumerPactBuilder
-    .consumer("cromwell")
+    .consumer("cromwell-consumer")
 
   val pactProvider: PactDslWithProvider = consumerPactBuilder
     .hasPactWith("cbas")
@@ -89,7 +84,7 @@ class CbasClientSpec extends AnyFlatSpec with Matchers with RequestResponsePactF
     new CbasClientImpl[IO](client, Uri.unsafeFromString(mockServer.getUrl))
       .postWorkflowResults(
         Authorization(Credentials.Token(AuthScheme.Bearer, bearerToken)),
-        CallbackMessage(workflowId, completedState, outputsMap, failures)
+        CallbackMessage(workflowId, completedState, workflowOutputs, failures)
       )
       .attempt
       .unsafeRunSync() shouldBe Right(true)

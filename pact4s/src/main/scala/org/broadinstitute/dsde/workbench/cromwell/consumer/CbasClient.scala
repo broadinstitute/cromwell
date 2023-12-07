@@ -1,17 +1,14 @@
 package org.broadinstitute.dsde.workbench.cromwell.consumer
 
-import akka.http.scaladsl.marshalling.Marshal
 import cats.effect.Concurrent
 import cats.syntax.all._
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.engine.workflow.lifecycle.finalization.{CallbackMessage, WorkflowCallbackJsonSupport}
-import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackJsonSupport._
+import cromwell.engine.workflow.lifecycle.finalization.CallbackMessage
 import io.circe.Encoder
 import org.http4s._
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.client.Client
 import org.http4s.headers.Authorization
-import spray.json.DefaultJsonProtocol.{StringJsonFormat, mapFormat}
 
 trait CbasClient[F[_]] extends LazyLogging {
   def postWorkflowResults(authHeader: Authorization,

@@ -163,7 +163,7 @@ object Publishing {
   val additionalResolvers = List(
     broadArtifactoryResolver,
     broadArtifactoryResolverSnap,
-    Resolver.sonatypeOssRepos("releases")
+    Resolver.sonatypeRepo("releases")
   )
 
   private val artifactoryCredentialsFile =

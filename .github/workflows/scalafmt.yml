@@ -1,6 +1,6 @@
 name: 'Scalafmt'
 
-#This github action runs the scalafmt linting tool on the entire codebase.
+# This GitHub Action runs the ScalaFmt linting tool on the entire codebase.
 # It fails if any files are not formatted properly.
 
 run-name: ${{ format('Scalafmt on {0}', github.ref_name) }}
@@ -23,6 +23,6 @@ jobs:
       - uses: ./.github/set_up_cromwell_action
         with:
           cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
-      - name: Run Scalafmt
+      - name: Run ScalaFmt
         run: |
           sbt scalafmtCheckAll

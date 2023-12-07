@@ -111,6 +111,7 @@ cromwell::private::papi::setup_papi_endpoint_url() {
 
 cromwell::build::papi::setup_papi_centaur_environment() {
     cromwell::private::papi::setup_papi_gcloud
+    cromwell::private::papi::setup_papi_gcr
     cromwell::private::papi::setup_papi_service_account
     cromwell::private::papi::setup_papi_endpoint_url
 }

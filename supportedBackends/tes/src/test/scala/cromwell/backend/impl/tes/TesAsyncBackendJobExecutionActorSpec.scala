@@ -114,8 +114,12 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
     val mockLogger: JobLogger = mock[JobLogger]
     val emptyInputs: List[Input] = List()
     val bloblessInputs: List[Input] = List(notBlobInput_1, notBlobInput_2)
-    TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(emptyInputs, pathGetter, mockLogger, blobConverter).isFailure shouldBe true
-    TesAsyncBackendJobExecutionActor.determineWSMSasEndpointFromInputs(bloblessInputs, pathGetter, mockLogger, blobConverter).isFailure shouldBe true
+    TesAsyncBackendJobExecutionActor
+      .determineWSMSasEndpointFromInputs(emptyInputs, pathGetter, mockLogger, blobConverter)
+      .isFailure shouldBe true
+    TesAsyncBackendJobExecutionActor
+      .determineWSMSasEndpointFromInputs(bloblessInputs, pathGetter, mockLogger, blobConverter)
+      .isFailure shouldBe true
   }
 
   it should "return a sas endpoint based on inputs when blob paths are provided" in {

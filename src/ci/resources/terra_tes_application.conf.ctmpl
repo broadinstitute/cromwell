@@ -6,6 +6,15 @@ filesystems {
         class = "cromwell.filesystems.blob.BlobPathBuilderFactory"
         global {
             class = "cromwell.filesystems.blob.BlobFileSystemManager"
+            config {
+                workspace-manager: {
+                    # static: Where is WSM Endpoint
+                    url: "https://workspace.dsde-dev.broadinstitute.org"
+                    # See comment in src/ci/resources/acquire_b2c_token.sh for the one-time setup required to automatically acquire this.
+                    # This token can also be manually acquired with gcloud auth print-access-token myAccount@gmail.com
+                    b2cToken: "{{ env "CROMWELL_B2C_TOKEN" }}"
+                }
+            }
         }
     }
 }
@@ -36,10 +45,13 @@ backend {
         root = ""
         dockerRoot = "/cromwell-executions"
         # TES Endpoint for cromwell to use. Might look something like: "https://lz7388ada396994bb48ea5c87a02eed673689c82c2af423d03.servicebus.windows.net/something/tes/v1/tasks
-        endpoint = "http://127.0.0.1:9000/v1/tasks"
+        endpoint = ""
         concurrent-job-limit = 1000
         # Identity to execute the workflow as. Might look something like: "pet-2676571657071603a9eab"
         workflow-execution-identity = ""
+        # See comment in src/ci/resources/acquire_b2c_token.sh for the one-time setup required to automatically acquire this.
+        # This token can also be manually acquired with gcloud auth print-access-token myAccount@gmail.com
+        bearer-token="Bearer {{ env "CROMWELL_B2C_TOKEN" }}"
         # Override default polling to make it faster for speedy tests
         poll-backoff {
           min: "10 seconds"

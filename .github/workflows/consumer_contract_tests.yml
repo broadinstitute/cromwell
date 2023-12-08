@@ -56,7 +56,6 @@ jobs:
       - name: Find Cromwell short SHA
         run: |
           set -e
-          cd cromwell
           echo "CROMWELL_SHORT_SHA=`git rev-parse --short $GITHUB_SHA`" >> $GITHUB_ENV
       - name: Find Cromwell release number
         run: |

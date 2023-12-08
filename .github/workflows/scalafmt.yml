@@ -29,6 +29,7 @@ jobs:
         with:
           cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
       - name: Check for ScalaFmt Comment
+        id: check-comment
         run: |
           if [[ "${{ github.event_name }}" == "issue_comment" && "${{ github.event.comment.body }}" == *"scalafmt"* ]]; then
             echo "::set-output name=comment-triggered::true"

@@ -110,7 +110,8 @@ jobs:
         run: |
           cd pact4s
           ls -la
-          NON_BREAKING_B64=$(cat target/pacts/cromwell-consumer-drshub-provider.json | base64 -w 0)
+          ls -la target/
+          NON_BREAKING_B64=$(cat target/pacts/cromwell-drshub-provider.json | base64 -w 0)
           echo "pact-b64=${NON_BREAKING_B64}" >> $GITHUB_OUTPUT
 
   # Prevent untrusted sources from using PRs to publish contracts

@@ -45,54 +45,14 @@ cromwell::private::check_debug() {
     fi
 }
 
-cromwell::private::set_variable_if_only_some_files_changed() {
-  files_changed_regex=${1}
-  variable_to_set=${2}
-
-    if [[ "${TRAVIS_EVENT_TYPE:-unset}" != "pull_request" ]]; then
-        export "${variable_to_set}=false"
-    else
-      # Large changesets seem to trigger the situation described in [1] where a `git diff` pipelined to `grep` can cause
-      # `grep` to exit 0 on the first match while `git diff` is still writing to the pipe. When this happens `git diff`
-      # is killed with a SIGPIPE and exits with code 141. With `set -o pipefail` this causes the entire pipeline to exit
-      # with code 141, which sets `$variable_to_set` to `true` when it probably should have been set to `false`.
-      #
-      # Instead of composing these commands into a pipeline write to a temporary file.
-      #
-      # [1] https://stackoverflow.com/a/19120674
-      # [2] https://gist.github.com/mohanpedala/1e2ff5661761d3abd0385e8223e16425#set--o-pipefail
-
-      files_changed_temporary_file=$(mktemp)
-
-      git diff --name-only "origin/${TRAVIS_BRANCH}" > "${files_changed_temporary_file}" 2>&1 && \
-          grep -E -q --invert-match "${files_changed_regex}" "${files_changed_temporary_file}"
-      RESULT=$?
-
-      if [[ $RESULT -eq 0 ]]; then
-        export "${variable_to_set}=false"
-      else
-        export "${variable_to_set}=true"
-      fi
-
-      rm "${files_changed_temporary_file}"
-    fi
-}
-
 # Exports environment variables used for scripts.
 cromwell::private::create_build_variables() {
-    CROMWELL_BUILD_PROVIDER_TRAVIS="travis"
-    CROMWELL_BUILD_PROVIDER_JENKINS="jenkins"
-    CROMWELL_BUILD_PROVIDER_CIRCLE="circle"
     CROMWELL_BUILD_PROVIDER_GITHUB="github"
     CROMWELL_BUILD_PROVIDER_UNKNOWN="unknown"
 
-    if [[ "${TRAVIS-false}" == "true" ]]; then
-        CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_TRAVIS}"
-    elif [[ "${JENKINS-false}" == "true" ]]; then
-        CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_JENKINS}"
-    elif [[ "${CIRCLECI-false}" == "true" ]]; then
-        CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_CIRCLE}"
-    elif [[ "${GITHUB_ACTIONS-false}" == "true" ]]; then
+    # CI providers set an env like `GITHUB_ACTIONS` that indicates to jobs where they're running
+    # https://docs.github.com/en/actions/learn-github-actions/variables#default-environment-variables
+    if [[ "${GITHUB_ACTIONS-false}" == "true" ]]; then
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_GITHUB}"
     else
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_UNKNOWN}"
@@ -157,155 +117,13 @@ cromwell::private::create_build_variables() {
         CROMWELL_BUILD_GIT_HASH_SUFFIX="gUNKNOWN"
     fi
 
-    # Value of the `TRAVIS_BRANCH` variable depends on type of Travis build: if it is pull request build, the value
-    # will be the name of the branch targeted by the pull request, and for push builds it will be the name of the
-    # branch. So, in case of push builds `git diff` will always return empty result. This is why we only use this short
-    # circuiting logic for pull request builds
-
     # PR #6790 disabled the conditional that skips tests for documentation-only PRs, because
     # those PRs (and only those PRs) were uniformly failing tests with a nondescript error.
     # https://broadinstitute.slack.com/archives/GHYJZ2ZE0/p1656625952888149?thread_ts=1656620572.975059&cid=GHYJZ2ZE0
 
     case "${CROMWELL_BUILD_PROVIDER}" in
-        "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
-            CROMWELL_BUILD_IS_CI=true
-            CROMWELL_BUILD_IS_SECURE="${TRAVIS_SECURE_ENV_VARS}"
-
-            CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
-            CROMWELL_BUILD_BRANCH="${TRAVIS_PULL_REQUEST_BRANCH:-${TRAVIS_BRANCH}}"
-            CROMWELL_BUILD_EVENT="${TRAVIS_EVENT_TYPE}"
-            CROMWELL_BUILD_TAG="${TRAVIS_TAG}"
-            CROMWELL_BUILD_NUMBER="${TRAVIS_JOB_NUMBER}"
-            CROMWELL_BUILD_URL="https://travis-ci.com/${TRAVIS_REPO_SLUG}/jobs/${TRAVIS_JOB_ID}"
-            CROMWELL_BUILD_GIT_USER_EMAIL="travis@travis-ci.com"
-            CROMWELL_BUILD_GIT_USER_NAME="Travis CI"
-            CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
-            CROMWELL_BUILD_GENERATE_COVERAGE=true
-
-            local travis_commit_message
-            local travis_force_tests
-            local travis_minimal_tests
-            if [[ -n "${TRAVIS_COMMIT_RANGE:+set}" ]]; then
-                # The commit message to analyze should be the last one in the commit range.
-                # This works for both pull_request and push builds, unlike using 'git log HEAD' which
-                # gives a merge commit message on pull requests.
-                travis_commit_message="$(git log --reverse "${TRAVIS_COMMIT_RANGE}" | tail -n1 2>/dev/null || true)"
-            fi
-
-            if [[ -z "${travis_commit_message:-}" ]]; then
-                travis_commit_message="$(git log --format=%B --max-count=1 HEAD 2>/dev/null || true)"
-            fi
-
-            if [[ "${travis_commit_message}" == *"[force ci]"* ]]; then
-                travis_force_tests=true
-                travis_minimal_tests=false
-            elif [[ "${travis_commit_message}" == *"[minimal ci]"* ]]; then
-                travis_force_tests=false
-                travis_minimal_tests=true
-            else
-                travis_force_tests=false
-                travis_minimal_tests=false
-            fi
-
-            echo "Building for commit message='${travis_commit_message}' with force=${travis_force_tests} and minimal=${travis_minimal_tests}"
-
-            # For solely documentation updates run only checkPublish. Otherwise always run sbt, even for 'push'.
-            # This allows quick sanity checks before starting PRs *and* publishing after merges into develop.
-            if [[ "${travis_force_tests}" == "true" ]]; then
-                CROMWELL_BUILD_RUN_TESTS=true
-            elif [[ "${travis_minimal_tests}" == "true" ]] && \
-                [[ "${TRAVIS_EVENT_TYPE}" != "push" ]]; then
-                CROMWELL_BUILD_RUN_TESTS=false
-            elif [[ "${TRAVIS_EVENT_TYPE}" == "push" ]] && \
-                [[ "${BUILD_TYPE}" != "sbt" ]]; then
-                CROMWELL_BUILD_RUN_TESTS=false
-            else
-                CROMWELL_BUILD_RUN_TESTS=true
-            fi
-            ;;
-        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
-            # External variables must be passed through in the ENVIRONMENT of src/ci/docker-compose/docker-compose.yml
-            CROMWELL_BUILD_IS_CI=true
-            CROMWELL_BUILD_IS_SECURE=true
-            CROMWELL_BUILD_TYPE="${JENKINS_BUILD_TYPE}"
-            CROMWELL_BUILD_BRANCH="${GIT_BRANCH#origin/}"
-            CROMWELL_BUILD_EVENT=""
-            CROMWELL_BUILD_TAG=""
-            CROMWELL_BUILD_NUMBER="${BUILD_NUMBER}"
-            CROMWELL_BUILD_URL="${BUILD_URL}"
-            CROMWELL_BUILD_GIT_USER_EMAIL="jenkins@jenkins.io"
-            CROMWELL_BUILD_GIT_USER_NAME="Jenkins CI"
-            CROMWELL_BUILD_HEARTBEAT_PATTERN="…\n"
-            CROMWELL_BUILD_GENERATE_COVERAGE=false
-            CROMWELL_BUILD_RUN_TESTS=true
-            ;;
-        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
-            CROMWELL_BUILD_IS_CI=true
-            CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
-            CROMWELL_BUILD_NUMBER="${CIRCLE_BUILD_NUM}"
-            CROMWELL_BUILD_URL="${CIRCLE_BUILD_URL}"
-            CROMWELL_BUILD_GIT_USER_EMAIL="builds@circleci.com"
-            CROMWELL_BUILD_GIT_USER_NAME="CircleCI"
-            CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
-            CROMWELL_BUILD_GENERATE_COVERAGE=true
-            CROMWELL_BUILD_BRANCH="${CIRCLE_BRANCH:-${CIRCLE_TAG}}"
-            CROMWELL_BUILD_TAG="${CIRCLE_TAG:-}"
-
-            local circle_github_repository
-            circle_github_repository="${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
-
-            if [[ "${circle_github_repository}" == "broadinstitute/cromwell" ]]; then
-                CROMWELL_BUILD_IS_SECURE=true
-            else
-                CROMWELL_BUILD_IS_SECURE=false
-            fi
-
-            CROMWELL_BUILD_EVENT="pull_request"
-
-            local circle_commit_message
-            local circle_force_tests
-            local circle_minimal_tests
-            if [[ -n "${CIRCLE_COMMIT_RANGE:+set}" ]]; then
-                # The commit message to analyze should be the last one in the commit range.
-                # This works for both pull_request and push builds, unlike using 'git log HEAD' which
-                # gives a merge commit message on pull requests.
-                circle_commit_message="$(git log --reverse "${CIRCLE_COMMIT_RANGE}" | tail -n1 2>/dev/null || true)"
-            fi
-
-            if [[ -z "${circle_commit_message:-}" ]]; then
-                circle_commit_message="$(git log --format=%B --max-count=1 HEAD 2>/dev/null || true)"
-            fi
-
-            if [[ "${circle_commit_message}" == *"[force ci]"* ]]; then
-                circle_force_tests=true
-                circle_minimal_tests=false
-            elif [[ "${circle_commit_message}" == *"[minimal ci]"* ]]; then
-                circle_force_tests=false
-                circle_minimal_tests=true
-            else
-                circle_force_tests=false
-                circle_minimal_tests=false
-            fi
-
-            echo "Building for commit message='${circle_commit_message}' with force=${circle_force_tests} and minimal=${circle_minimal_tests}"
-
-            # For solely documentation updates run only checkPublish. Otherwise always run sbt, even for 'push'.
-            # This allows quick sanity checks before starting PRs *and* publishing after merges into develop.
-            if [[ "${circle_force_tests}" == "true" ]]; then
-                CROMWELL_BUILD_RUN_TESTS=true
-            elif [[ "${circle_minimal_tests}" == "true" ]] && \
-                [[ "${CROMWELL_BUILD_EVENT}" != "push" ]]; then
-                CROMWELL_BUILD_RUN_TESTS=false
-            elif [[ "${CROMWELL_BUILD_EVENT}" == "push" ]] && \
-                [[ "${BUILD_TYPE}" != "sbt" ]]; then
-                CROMWELL_BUILD_RUN_TESTS=false
-            else
-                CROMWELL_BUILD_RUN_TESTS=true
-            fi
-            ;;
         "${CROMWELL_BUILD_PROVIDER_GITHUB}")
             CROMWELL_BUILD_IS_CI=true
-            CROMWELL_BUILD_IS_SECURE=true
             CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
             CROMWELL_BUILD_BRANCH="${GITHUB_REF_NAME}"
             CROMWELL_BUILD_EVENT="${GITHUB_EVENT_NAME}"
@@ -320,7 +138,6 @@ cromwell::private::create_build_variables() {
             ;;
         *)
             CROMWELL_BUILD_IS_CI=false
-            CROMWELL_BUILD_IS_SECURE=true
             CROMWELL_BUILD_TYPE="unknown"
             CROMWELL_BUILD_BRANCH="unknown"
             CROMWELL_BUILD_EVENT="unknown"
@@ -371,20 +188,8 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_SBT_EXCLUDE="${BUILD_SBT_EXCLUDE:-}"
 
     case "${CROMWELL_BUILD_TYPE}" in
-        centaurPapiUpgradePapiV2alpha1*)
-            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2alpha1_v2beta_upgrade_application.conf"
-            ;;
-        centaurPapiUpgradeNewWorkflowsPapiV2alpha1*)
-            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2alpha1_v2beta_upgrade_application.conf"
-            ;;
-        centaurHoricromtalPapiV2alpha1*)
-            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2alpha1_horicromtal_application.conf"
-            ;;
         centaurHoricromtalPapiV2beta*)
             CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2beta_horicromtal_application.conf"
-            ;;
-        centaurHoricromtalEngineUpgrade*)
-            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2alpha1_horicromtal_application.conf"
             ;;
         centaurBlob*)
             CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_blob_test.conf"
@@ -405,7 +210,6 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_DOCKER_TAG="${CROMWELL_BUILD_DOCKER_TAG:0:128}"
     CROMWELL_BUILD_DOCKER_TAG="${CROMWELL_BUILD_DOCKER_TAG//[^a-zA-Z0-9.-]/_}"
 
-    CROMWELL_BUILD_REQUIRES_SECURE="${CROMWELL_BUILD_REQUIRES_SECURE-false}"
     CROMWELL_BUILD_REQUIRES_PRIOR_VERSION="${CROMWELL_BUILD_REQUIRES_PRIOR_VERSION-false}"
 
     local hours_to_minutes
@@ -432,7 +236,6 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_HOME_DIRECTORY
     export CROMWELL_BUILD_IS_CI
     export CROMWELL_BUILD_IS_HOTFIX
-    export CROMWELL_BUILD_IS_SECURE
     export CROMWELL_BUILD_IS_VIRTUAL_ENV
     export CROMWELL_BUILD_LOG_DIRECTORY
     export CROMWELL_BUILD_NUMBER
@@ -441,9 +244,6 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_OS_LINUX
     export CROMWELL_BUILD_PRIOR_VERSION_NUMBER
     export CROMWELL_BUILD_PROVIDER
-    export CROMWELL_BUILD_PROVIDER_CIRCLE
-    export CROMWELL_BUILD_PROVIDER_JENKINS
-    export CROMWELL_BUILD_PROVIDER_TRAVIS
     export CROMWELL_BUILD_PROVIDER_UNKNOWN
     export CROMWELL_BUILD_REQUIRES_PRIOR_VERSION
     export CROMWELL_BUILD_REQUIRES_SECURE
@@ -470,8 +270,6 @@ cromwell::private::create_build_variables() {
 
 cromwell::private::echo_build_variables() {
     echo "CROMWELL_BUILD_IS_CI='${CROMWELL_BUILD_IS_CI}'"
-    echo "CROMWELL_BUILD_IS_SECURE='${CROMWELL_BUILD_IS_SECURE}'"
-    echo "CROMWELL_BUILD_REQUIRES_SECURE='${CROMWELL_BUILD_REQUIRES_SECURE}'"
     echo "CROMWELL_BUILD_TYPE='${CROMWELL_BUILD_TYPE}'"
     echo "CROMWELL_BUILD_BRANCH='${CROMWELL_BUILD_BRANCH}'"
     echo "CROMWELL_BUILD_IS_HOTFIX='${CROMWELL_BUILD_IS_HOTFIX}'"
@@ -492,8 +290,6 @@ cromwell::private::create_database_variables() {
     CROMWELL_BUILD_DATABASE_SCHEMA="cromwell_test"
 
     case "${CROMWELL_BUILD_PROVIDER}" in
-        "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
-        "${CROMWELL_BUILD_PROVIDER_CIRCLE}"|\
         "${CROMWELL_BUILD_PROVIDER_GITHUB}")
             CROMWELL_BUILD_MARIADB_HOSTNAME="localhost"
             CROMWELL_BUILD_MARIADB_PORT="23306"
@@ -513,29 +309,6 @@ cromwell::private::create_database_variables() {
             CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME="localhost"
             CROMWELL_BUILD_POSTGRESQL_LATEST_PORT="15432"
             CROMWELL_BUILD_POSTGRESQL_LATEST_TAG="${BUILD_POSTGRESQL_LATEST-}"
-            ;;
-        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
-            # NOTE: Jenkins uses src/ci/docker-compose/docker-compose.yml.
-            # We don't define a docker tag because the docker-compose has already spun up the database containers by the
-            # time this script is run. Other variables here must match the database service names and settings the yaml.
-            CROMWELL_BUILD_MARIADB_HOSTNAME="mariadb-db"
-            CROMWELL_BUILD_MARIADB_PORT="3306"
-            CROMWELL_BUILD_MARIADB_DOCKER_TAG=""
-            CROMWELL_BUILD_MARIADB_LATEST_HOSTNAME="mariadb-db-latest"
-            CROMWELL_BUILD_MARIADB_LATEST_PORT="3306"
-            CROMWELL_BUILD_MARIADB_LATEST_TAG=""
-            CROMWELL_BUILD_MYSQL_HOSTNAME="mysql-db"
-            CROMWELL_BUILD_MYSQL_PORT="3306"
-            CROMWELL_BUILD_MYSQL_DOCKER_TAG=""
-            CROMWELL_BUILD_MYSQL_LATEST_HOSTNAME="mysql-db-latest"
-            CROMWELL_BUILD_MYSQL_LATEST_PORT="3306"
-            CROMWELL_BUILD_MYSQL_LATEST_TAG=""
-            CROMWELL_BUILD_POSTGRESQL_HOSTNAME="postgresql-db"
-            CROMWELL_BUILD_POSTGRESQL_PORT="5432"
-            CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG=""
-            CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME="postgresql-db-latest"
-            CROMWELL_BUILD_POSTGRESQL_LATEST_PORT="3306"
-            CROMWELL_BUILD_POSTGRESQL_LATEST_TAG=""
             ;;
         *)
             if [[ -z "${CROMWELL_BUILD_DOCKER_LOCALHOST-}" ]]; then
@@ -654,8 +427,6 @@ cromwell::private::create_centaur_variables() {
 
     # Pick **one** of the databases to run Centaur against
     case "${CROMWELL_BUILD_PROVIDER}" in
-        "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
-        "${CROMWELL_BUILD_PROVIDER_CIRCLE}"|\
         "${CROMWELL_BUILD_PROVIDER_GITHUB}")
 
             if [[ -n "${CROMWELL_BUILD_MYSQL_DOCKER_TAG:+set}" ]]; then
@@ -681,12 +452,6 @@ cromwell::private::create_centaur_variables() {
 
             CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS=
             ;;
-        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
-            CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.MySQLProfile$"
-            CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="com.mysql.cj.jdbc.Driver"
-            CROMWELL_BUILD_CENTAUR_JDBC_URL="${mysql_jdbc_url}"
-            CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS="${CENTAUR_TEST_ADDITIONAL_PARAMETERS-}"
-            ;;
         *)
             CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="${CROMWELL_BUILD_CENTAUR_SLICK_PROFILE-slick.jdbc.MySQLProfile\$}"
             CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="${CROMWELL_BUILD_CENTAUR_JDBC_DRIVER-com.mysql.cj.jdbc.Driver}"
@@ -706,19 +471,9 @@ cromwell::private::create_centaur_variables() {
             ;;
     esac
 
-    # When upgrading to the MariaDB driver, start with MySQL then switch to MariaDB.
-    if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]] && \
-        [[ -n "${CROMWELL_BUILD_MARIADB_DOCKER_TAG:+set}" ]]; then
-
-        CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE="slick.jdbc.MySQLProfile$"
-        CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER="com.mysql.cj.jdbc.Driver"
-        CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL="jdbc:mysql://${CROMWELL_BUILD_MARIADB_HOSTNAME}:${CROMWELL_BUILD_MARIADB_PORT}/${CROMWELL_BUILD_DATABASE_SCHEMA}?allowPublicKeyRetrieval=true&useSSL=false&rewriteBatchedStatements=true&serverTimezone=UTC&useInformationSchema=true"
-    else
-
-        CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE="${CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE-${CROMWELL_BUILD_CENTAUR_SLICK_PROFILE}}"
-        CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER="${CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER-${CROMWELL_BUILD_CENTAUR_JDBC_DRIVER}}"
-        CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL="${CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL-${CROMWELL_BUILD_CENTAUR_JDBC_URL}}"
-    fi
+    CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE="${CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE-${CROMWELL_BUILD_CENTAUR_SLICK_PROFILE}}"
+    CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER="${CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER-${CROMWELL_BUILD_CENTAUR_JDBC_DRIVER}}"
+    CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL="${CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL-${CROMWELL_BUILD_CENTAUR_JDBC_URL}}"
 
     CROMWELL_BUILD_CENTAUR_256_BITS_KEY="$(dd bs=1 count=32 if=/dev/urandom 2> /dev/null | base64 | tr -d '\n')"
 
@@ -743,36 +498,10 @@ cromwell::private::create_centaur_variables() {
     export CROMWELL_BUILD_DOCKER_TAG
 }
 
-cromwell::private::verify_secure_build() {
-    case "${CROMWELL_BUILD_PROVIDER}" in
-        "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
-            if [[ "${CROMWELL_BUILD_IS_SECURE}" != "true" ]] && \
-                [[ "${CROMWELL_BUILD_REQUIRES_SECURE}" == "true" ]]; then
-                echo "********************************************************"
-                echo "********************************************************"
-                echo "**                                                    **"
-                echo "**  WARNING: Encrypted keys are unavailable. Exiting. **"
-                echo "**                                                    **"
-                echo "********************************************************"
-                echo "********************************************************"
-                exit 0
-            fi
-            ;;
-        *)
-            ;;
-    esac
-}
-
 cromwell::private::exec_test_script() {
     local upper_build_type
     upper_build_type="$(tr '[:lower:]' '[:upper:]' <<< "${CROMWELL_BUILD_TYPE:0:1}")${CROMWELL_BUILD_TYPE:1}"
     exec "${CROMWELL_BUILD_SCRIPTS_DIRECTORY}/test${upper_build_type}.sh"
-}
-
-cromwell::private::stop_travis_defaults() {
-  # https://stackoverflow.com/questions/27382295/how-to-stop-services-on-travis-ci-running-by-default#answer-27410479
-  sudo /etc/init.d/mysql stop || true
-  sudo /etc/init.d/postgresql stop || true
 }
 
 cromwell::private::delete_boto_config() {
@@ -788,30 +517,6 @@ cromwell::private::delete_sbt_boot() {
     rm -rf ~/.sbt/boot/
 }
 
-cromwell::private::install_adoptopenjdk() {
-    # https://adoptopenjdk.net/installation.html#linux-pkg-deb
-    sudo apt-get install -y wget apt-transport-https gnupg
-    wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public |
-        sudo apt-key add -
-    echo "deb https://adoptopenjdk.jfrog.io/adoptopenjdk/deb $(
-            grep UBUNTU_CODENAME /etc/os-release | cut -d = -f 2
-        ) main" |
-        sudo tee /etc/apt/sources.list.d/adoptopenjdk.list
-    sudo apt-get update
-    sudo apt-get install -y adoptopenjdk-11-hotspot
-    sudo update-java-alternatives --set adoptopenjdk-11-hotspot-amd64
-}
-
-cromwell::private::install_sbt_launcher() {
-    # Install sbt launcher
-    # Non-deb package installation instructions adapted from
-    # - https://github.com/sbt/sbt/releases/tag/v1.4.9
-    # - https://github.com/broadinstitute/scala-baseimage/pull/4/files
-    curl --location --fail --silent --show-error "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.tgz" |
-        sudo tar zxf - -C /usr/share
-    sudo update-alternatives --install /usr/bin/sbt sbt /usr/share/sbt/bin/sbt 1
-}
-
 cromwell::private::install_docker_compose() {
     # Install or upgrade docker-compose so that we get the correct exit codes
     # https://docs.docker.com/compose/release-notes/#1230
@@ -822,12 +527,6 @@ cromwell::private::install_docker_compose() {
         > docker-compose
     sudo mv docker-compose /usr/local/bin
     sudo chmod +x /usr/local/bin/docker-compose
-}
-
-cromwell::private::setup_pyenv_python_latest() {
-    # Make `python` whatever the most recent version of python installed
-    # Fixes cases where someone has set pyenv to override `python` to use an older `python2` instead of `python3`
-    pyenv global "$(pyenv versions --bare --skip-aliases | sort -t '.' -k1,1n -k2,2n -k3,3n | tail -n 1)"
 }
 
 cromwell::private::pip_install() {
@@ -1066,27 +765,7 @@ cromwell::private::render_secure_resources() {
     fi
 }
 
-cromwell::private::copy_all_resources() {
-    # Only copy the CI resources. Secure resources are not rendered.
-    sbt -Dsbt.supershell=false --warn copyCiResources
-}
-
-cromwell::private::setup_secure_resources() {
-    case "${CROMWELL_BUILD_PROVIDER}" in
-        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
-            # Jenkins secret resources should have already been rendered outside the CI's docker-compose container.
-            cromwell::private::copy_all_resources
-            ;;
-        *)
-            cromwell::private::render_secure_resources
-            ;;
-    esac
-}
-
 cromwell::private::make_build_directories() {
-    if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_JENKINS}" ]]; then
-        sudo chmod -R a+w .
-    fi
     mkdir -p "${CROMWELL_BUILD_LOG_DIRECTORY}"
     mkdir -p "${CROMWELL_BUILD_RESOURCES_DIRECTORY}"
 }
@@ -1269,7 +948,6 @@ cromwell::build::setup_common_environment() {
     cromwell::private::check_debug
     cromwell::private::create_build_variables
     cromwell::private::echo_build_variables
-    cromwell::private::verify_secure_build
     cromwell::private::make_build_directories
     cromwell::private::install_git_secrets
     cromwell::private::install_minnie_kenny
@@ -1277,31 +955,6 @@ cromwell::build::setup_common_environment() {
     cromwell::private::create_database_variables
 
     case "${CROMWELL_BUILD_PROVIDER}" in
-        "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
-            cromwell::private::stop_travis_defaults
-            # Try to login to vault, and if successful then use vault creds to login to docker.
-            # For those committers with vault access this avoids pull rate limits reported in BT-143.
-            cromwell::private::install_vault
-            cromwell::private::login_vault
-            cromwell::private::login_docker
-            cromwell::private::install_adoptopenjdk
-            cromwell::private::install_sbt_launcher
-            cromwell::private::install_docker_compose
-            cromwell::private::delete_boto_config
-            cromwell::private::delete_sbt_boot
-            cromwell::private::upgrade_pip
-            cromwell::private::start_docker_databases
-            ;;
-        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
-            # Try to login to vault, and if successful then use vault creds to login to docker.
-            # For those committers with vault access this avoids pull rate limits reported in BT-143.
-            cromwell::private::install_vault
-            cromwell::private::login_vault
-            cromwell::private::login_docker
-            cromwell::private::install_adoptopenjdk
-            cromwell::private::setup_pyenv_python_latest
-            cromwell::private::start_docker_databases
-            ;;
         "${CROMWELL_BUILD_PROVIDER_GITHUB}")
             # Try to login to vault, and if successful then use vault creds to login to docker.
             # For those committers with vault access this avoids pull rate limits reported in BT-143.
@@ -1317,12 +970,11 @@ cromwell::build::setup_common_environment() {
             cromwell::private::upgrade_pip
             cromwell::private::start_docker_databases
             ;;
-        "${CROMWELL_BUILD_PROVIDER_JENKINS}"|\
         *)
             ;;
     esac
 
-    cromwell::private::setup_secure_resources
+    cromwell::private::render_secure_resources
     cromwell::private::start_build_heartbeat
 }
 
@@ -1502,25 +1154,6 @@ cromwell::build::print_workflow_statistics() {
             WHERE PARENT_WORKFLOW_EXECUTION_UUID IS NULL
             ORDER BY RUNTIME_MINUTES DESC
             LIMIT 20;"
-}
-
-cromwell::build::exec_retry_function() {
-    local retried_function
-    local retry_count
-    local attempt
-    local exit_status
-
-    retried_function="${1:?exec_retry_function called without a function}"; shift
-    retry_count="${1:-3}"; shift || true
-    sleep_seconds="${1:-15}"; shift || true
-
-    # https://unix.stackexchange.com/a/82610
-    # https://stackoverflow.com/a/17336953
-    for attempt in $(seq 0 "${retry_count}"); do
-        [[ ${attempt} -gt 0 ]] && sleep "${sleep_seconds}"
-        ${retried_function} && exit_status=0 && break || exit_status=$?
-    done
-    return ${exit_status}
 }
 
 cromwell::build::exec_silent_function() {

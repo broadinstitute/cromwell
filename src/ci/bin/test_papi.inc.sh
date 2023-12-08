@@ -29,10 +29,6 @@ cromwell::private::papi::setup_papi_gcloud() {
     export CROMWELL_BUILD_PAPI_GCR_IMAGES
     export CROMWELL_BUILD_PAPI_PROJECT_ID
 
-    if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]]; then
-        cromwell::private::papi::install_gcloud
-    fi
-
     # All `gcloud` commands should use this configuration directory.
     # https://stackoverflow.com/questions/34883810/how-to-authenticate-google-apis-with-different-service-account-credentials
     # https://github.com/googleapis/google-auth-library-java/issues/58
@@ -115,10 +111,7 @@ cromwell::private::papi::setup_papi_endpoint_url() {
 
 cromwell::build::papi::setup_papi_centaur_environment() {
     cromwell::private::papi::setup_papi_gcloud
-    if [[ "${CROMWELL_BUILD_PROVIDER}" != "${CROMWELL_BUILD_PROVIDER_JENKINS}" ]]
-    then
-        cromwell::private::papi::setup_papi_gcr
-    fi
+    cromwell::private::papi::setup_papi_gcr
     cromwell::private::papi::setup_papi_service_account
     cromwell::private::papi::setup_papi_endpoint_url
 }

@@ -44,6 +44,9 @@ jobs:
             echo "::set-output name=comment-triggered::false"
           fi
         shell: bash
+      - uses: actions/checkout@v3 # checkout the cromwell repo
+        with:
+         ref: ${{ inputs.target-branch }}
       - uses: ./.github/set_up_cromwell_action
         with:
           cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}

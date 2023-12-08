@@ -77,7 +77,6 @@ object Settings {
     organization := "org.broadinstitute",
     scalaVersion := ScalaVersion,
     resolvers ++= additionalResolvers,
-    // Don't run tasks in parallel, especially helps in low CPU environments like Travis
     Global / parallelExecution := true,
     Global / concurrentRestrictions ++= List(
       // Don't run any other tasks while running tests, especially helps in low CPU environments like Travis

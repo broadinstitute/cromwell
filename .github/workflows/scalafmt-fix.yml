@@ -49,6 +49,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           ref: ${{ steps.determine-branch.outputs.target_branch }}
+          token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
       - uses: ./.github/set_up_cromwell_action
         with:
           cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
@@ -62,5 +63,5 @@ jobs:
           git config --global user.name "ScalaFmt Fixer"
           git add .
           git commit -m "Auto-format code with ScalaFmt"
-          git push origin https://broadbot:$BROADBOT_GITHUB_TOKEN@github.com/broadinstitute/cromwell.git ${{ steps.determine-branch.outputs.target_branch }}
+          git push origin ${{ steps.determine-branch.outputs.target_branch }}
         working-directory: ${{ github.workspace }}

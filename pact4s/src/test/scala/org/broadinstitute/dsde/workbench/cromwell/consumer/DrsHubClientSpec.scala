@@ -113,7 +113,7 @@ class DrsHubClientSpec extends AnyFlatSpec with Matchers with RequestResponsePac
   }.build
 
   val consumerPactBuilder: ConsumerPactBuilder = ConsumerPactBuilder
-    .consumer("cromwell-consumer")
+    .consumer("cromwell")
 
   val pactProvider: PactDslWithProvider = consumerPactBuilder
     .hasPactWith("drshub-provider")

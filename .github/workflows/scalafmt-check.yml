@@ -5,7 +5,7 @@ name: 'Scalafmt'
 # If it is triggered by someone commenting 'scalafmt' on a PR, it will first format, commit, and push formatted code
 # to the branch.
 
-run-name: ${{ format('Scalafmt on {0}', github.ref_name) }}
+run-name: ${{ format('ScalaFmt Check on {0}', github.ref_name) }}
 
 on:
   workflow_dispatch:

@@ -178,8 +178,7 @@ object TesAsyncBackendJobExecutionActor {
     blobFiles.headOption
       .map { blobPath =>
         blobPath.getFilesystemManager.blobTokenGenerator match {
-          case wsmGenerator: WSMBlobSasTokenGenerator =>
-            wsmGenerator.getWSMSasFetchEndpoint(blobPath, Some(Duration.of(24, ChronoUnit.HOURS)))
+          case wsmGenerator: WSMBlobSasTokenGenerator => wsmGenerator.getWSMSasFetchEndpoint(blobPath, Some(Duration.of(24, ChronoUnit.HOURS)))
           case _ =>
             Failure(new UnsupportedOperationException("Blob file does not have an associated WSMBlobSasTokenGenerator"))
         }

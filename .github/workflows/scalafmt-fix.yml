@@ -52,13 +52,15 @@ jobs:
       - uses: ./.github/set_up_cromwell_action
         with:
           cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
-      - name: Run ScalaFmt
+      - name: Run ScalaFmt Fix
         if: steps.check-comment.outputs.comment-triggered == 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          BROADBOT_GITHUB_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
         run: |
           sbt scalafmtAll
           git config --global user.email "ScalaFmtFixer@fakeDomain.com"
           git config --global user.name "ScalaFmt Fixer"
           git add .
           git commit -m "Auto-format code with ScalaFmt"
-          git push origin ${{ steps.determine-branch.outputs.target_branch }}
+          git push origin https://broadbot:$BROADBOT_GITHUB_TOKEN@github.com/broadinstitute/cromwell.git ${{ steps.determine-branch.outputs.target_branch }}
         working-directory: ${{ github.workspace }}

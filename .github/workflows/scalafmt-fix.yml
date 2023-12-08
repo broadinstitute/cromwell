@@ -10,6 +10,7 @@ on:
   issue_comment:
     types:
       - created
+  workflow_dispatch:
 
 jobs:
   run-scalafmt-fix:
@@ -34,7 +35,7 @@ jobs:
           fi
         shell: bash
       - name: Run ScalaFmt
-        if: steps.check-comment.outputs.comment-triggered == 'true'
+        if: steps.check-comment.outputs.comment-triggered == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           sbt scalafmtAll
           git config --global user.email "${{ steps.check-comment.outputs.comment-author-email }}"

@@ -1,24 +1,19 @@
 name: 'Scalafmt'
 
 # This GitHub Action runs the ScalaFmt linting tool on the entire codebase.
-# It fails if any files are not formatted properly.
-# If it is triggered by someone commenting 'scalafmt' on a PR, it will first format, commit, and push formatted code
-# to the branch.
+# It will fix, commit, and push linted code.
+# It will only run when someone comments "scalafmt" on a PR.
 
-run-name: ${{ format('Scalafmt on {0}', github.ref_name) }}
+run-name: ${{ format('ScalaFmt Fix on {0}', github.ref_name) }}
 
 on:
   workflow_dispatch:
-  push:
   issue_comment:
     types:
       - created
 
-permissions:
-  contents: read
-
 jobs:
-  run-scalafmt:
+  run-scalafmt-fix:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -50,5 +45,4 @@ jobs:
             git commit -m "Auto-format code with ScalaFmt"
             git push origin ${{ github.ref }}
           fi
-          sbt scalafmtCheckAll
         working-directory: ${{ github.workspace }}

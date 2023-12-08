@@ -29,10 +29,6 @@ cromwell::private::batch::setup_batch_gcloud() {
     export CROMWELL_BUILD_BATCH_GCR_IMAGES
     export CROMWELL_BUILD_BATCH_PROJECT_ID
 
-    if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]]; then
-        cromwell::private::batch::install_gcloud
-    fi
-
     # All `gcloud` commands should use this configuration directory.
     # https://stackoverflow.com/questions/34883810/how-to-authenticate-google-apis-with-different-service-account-credentials
     # https://github.com/googleapis/google-auth-library-java/issues/58
@@ -106,9 +102,5 @@ cromwell::private::batch::setup_batch_service_account() {
 
 cromwell::build::batch::setup_batch_centaur_environment() {
     cromwell::private::batch::setup_batch_gcloud
-    if [[ "${CROMWELL_BUILD_PROVIDER}" != "${CROMWELL_BUILD_PROVIDER_JENKINS}" ]]
-    then
-        cromwell::private::batch::setup_batch_gcr
-    fi
     cromwell::private::batch::setup_batch_service_account
 }

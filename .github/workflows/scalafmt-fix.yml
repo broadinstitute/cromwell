@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Determine the target branch
+      - name: Determine Target Branch
         id: determine-branch
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
@@ -40,28 +40,22 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "issue_comment" && "${{ github.event.comment.body }}" == *"scalafmt"* ]]; then
             echo "::set-output name=comment-triggered::true"
-            echo "::set-output name=comment-author-email::${{ github.event.comment.user.login }}@users.noreply.github.com"
-            echo "::set-output name=comment-author-name::${{ github.event.comment.user.login }}"
           else
             echo "::set-output name=comment-triggered::false"
           fi
         shell: bash
-      - uses: actions/checkout@v3
-        with:
-          ref: ${{ steps.determine-branch.outputs.target_branch }}
-          token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
       - uses: ./.github/set_up_cromwell_action
         with:
           cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
-      - name: Run ScalaFmt Fix
+      - name: Run ScalaFmt Fixup
         if: steps.check-comment.outputs.comment-triggered == 'true' || github.event_name == 'workflow_dispatch'
         env:
           BROADBOT_GITHUB_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
         run: |
           sbt scalafmtAll
-          git config --global user.email "ScalaFmtFixer@fakeDomain.com"
-          git config --global user.name "ScalaFmt Fixer"
+          git config --global user.email "broadbot@broadinstitute.org"
+          git config --global user.name "Broad Bot"
           git add .
-          git commit -m "Auto-format code with ScalaFmt"
+          git commit -m "ScalaFmt fixup via Broad Bot"
           git push origin ${{ steps.determine-branch.outputs.target_branch }}
         working-directory: ${{ github.workspace }}

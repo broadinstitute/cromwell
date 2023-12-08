@@ -38,7 +38,7 @@ jobs:
         run: |
           if [[ ${{ steps.check-comment.outputs.comment-triggered }} == true ]]; then
             echo "PR Comment Detected. Formatting, committing, and pushing formatted scala code."
-            sbt scalaFmtAll
+            sbt scalafmtAll
             git config --global user.email "${{ steps.check-comment.outputs.comment-author-email }}"
             git config --global user.name "${{ steps.check-comment.outputs.comment-author-name }}"
             git add .

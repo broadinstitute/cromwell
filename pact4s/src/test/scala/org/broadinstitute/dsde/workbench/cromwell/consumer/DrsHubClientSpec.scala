@@ -131,13 +131,13 @@ class DrsHubClientSpec extends AnyFlatSpec with Matchers with RequestResponsePac
       "fileSize" -> filesize.toString,
       "timeCreated" -> timeCreated
     ),
-    uponReceiving = "Request to resolve drs url noop",
+    uponReceiving = "Request to resolve drs url",
     method = "POST",
     path = "/api/v4/drs/resolve",
-    requestHeaders = Seq("Content-type" -> "application/json"),
+    requestHeaders = Seq("Accept" -> "application/json"),
     requestBody = resourceRequestDsl,
     status = 200,
-    responseHeaders = Seq(),
+    responseHeaders = Seq("Content-type" -> "application/json"),
     responsBody = resourceMetadataResponseDsl
   )
 

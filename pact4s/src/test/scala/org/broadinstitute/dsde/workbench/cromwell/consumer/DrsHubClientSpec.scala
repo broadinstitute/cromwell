@@ -134,7 +134,7 @@ class DrsHubClientSpec extends AnyFlatSpec with Matchers with RequestResponsePac
     uponReceiving = "Request to resolve drs url",
     method = "POST",
     path = "/api/v4/drs/resolve",
-    requestHeaders = Seq("Content-Type" -> "application/json; charset=utf-8"),
+    requestHeaders = Seq("Content-type" -> "application/json"),
     requestBody = resourceRequestDsl,
     status = 200,
     responseHeaders = Seq(),

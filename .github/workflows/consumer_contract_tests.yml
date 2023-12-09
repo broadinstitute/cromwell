@@ -29,7 +29,7 @@ name: Consumer contract tests
 #     Consumer kicks off can-i-deploy on process to determine if changes can be promoted and used for deployment.
 #
 # NOTE: The publish-contracts workflow will use the latest commit of the branch that triggers this workflow to publish the unique consumer contract version to Pact Broker.
-
+#
 on:
   pull_request:
     paths-ignore:

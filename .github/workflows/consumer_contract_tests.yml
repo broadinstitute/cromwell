@@ -153,7 +153,7 @@ jobs:
             "repo-owner": "${{ github.repository_owner }}",
             "repo-name": "${{ github.event.repository.name }}",
             "repo-branch": "${{ needs.init-github-context.outputs.repo-branch }}",
-            "release-tag": "${{ needs.init-github-context.outputs.repo-version }}g"
+            "release-tag": "${{ needs.init-github-context.outputs.repo-version }}"
           }'
 
   can-i-deploy:

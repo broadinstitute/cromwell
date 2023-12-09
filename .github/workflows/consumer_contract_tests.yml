@@ -152,7 +152,8 @@ jobs:
             "pact-b64": "${{ needs.cromwell-contract-tests.outputs.pact-b64 }}",
             "repo-owner": "${{ github.repository_owner }}",
             "repo-name": "${{ github.event.repository.name }}",
-            "repo-branch": "${{ needs.init-github-context.outputs.repo-branch }}"
+            "repo-branch": "${{ needs.init-github-context.outputs.repo-branch }}",
+            "release-tag": "${{ needs.init-github-context.outputs.repo-version }}g"
           }'
 
   can-i-deploy:

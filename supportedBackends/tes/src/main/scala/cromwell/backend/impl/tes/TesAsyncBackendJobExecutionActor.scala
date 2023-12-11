@@ -86,15 +86,15 @@ object TesAsyncBackendJobExecutionActor {
        |  command -v "$$1" > /dev/null 2>&1
        |}
        |
-       |# Check if curl exists
+       |# Require the user image to pre-install `jq` and `curl` for us. Empirically, we found
+       |# that `apt install` at scale can run into repo outages and flakiness.
        |if ! command_exists curl; then
-       |  echo "Error: tool image must include `jq` for just-in-time SAS token generation, but it is not installed."
+       |  echo "Error: user image must include `jq` for just-in-time SAS token generation, but it is not installed."
        |  exit 1
        |fi
        |
-       |# Check if jq exists; install if not
        |if ! command_exists jq; then
-       |  echo "Error: tool image must include `curl` for just-in-time SAS token generation, but it is not installed."
+       |  echo "Error: user image must include `curl` for just-in-time SAS token generation, but it is not installed."
        |  exit 1
        |fi
        |curl --version

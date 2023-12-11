@@ -78,6 +78,7 @@ object Settings {
     scalaVersion := ScalaVersion,
     resolvers ++= additionalResolvers,
     Global / parallelExecution := true,
+    // Seems to cause race conditions in tests, that are not pertinent to what's being tested
     Test / parallelExecution := false,
     Global / concurrentRestrictions ++= List(
       // Don't run any other tasks while running tests, especially helps in low CPU environments like Travis

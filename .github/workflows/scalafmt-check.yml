@@ -1,0 +1,31 @@
+name: 'Scalafmt'
+
+# This GitHub Action runs the ScalaFmt linting tool on the entire codebase.
+# It fails if any files are not formatted properly.
+# If it is triggered by someone commenting 'scalafmt' on a PR, it will first format, commit, and push formatted code
+# to the branch.
+
+run-name: ${{ format('ScalaFmt Check on {0}', github.ref_name) }}
+
+on:
+  workflow_dispatch:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  run-scalafmt-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.target-branch }}
+      - uses: ./.github/set_up_cromwell_action
+        with:
+          cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+      - name: Run ScalaFmt
+        run: |
+          sbt scalafmtCheckAll
+        working-directory: ${{ github.workspace }}

@@ -1,0 +1,48 @@
+name: 'Scalafmt'
+
+# This GitHub Action runs the ScalaFmt linting tool on the entire codebase.
+# It will fix, commit, and push linted code.
+# It will only run when someone comments "scalafmt" on a PR.
+
+run-name: ${{ format('ScalaFmt Fix on {0}', github.ref_name) }}
+
+on:
+  workflow_dispatch:
+  issue_comment:
+    types:
+      - created
+
+jobs:
+  run-scalafmt-fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.target-branch }}
+      - uses: ./.github/set_up_cromwell_action
+        with:
+          cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+      - name: Check for ScalaFmt Comment
+        id: check-comment
+        run: |
+          if [[ "${{ github.event_name }}" == "issue_comment" && "${{ github.event.comment.body }}" == *"scalafmt"* ]]; then
+            echo "::set-output name=comment-triggered::true"
+            echo "::set-output name=comment-author-email::${{ github.event.comment.user.login }}@users.noreply.github.com"
+            echo "::set-output name=comment-author-name::${{ github.event.comment.user.login }}"
+          else
+            echo "::set-output name=comment-triggered::false"
+          fi
+        shell: bash
+      - name: Run ScalaFmt
+        run: |
+          if [[ ${{ steps.check-comment.outputs.comment-triggered }} == true ]]; then
+            echo "PR Comment Detected. Formatting, committing, and pushing formatted scala code."
+            sbt scalaFmtAll
+            git config --global user.email "${{ steps.check-comment.outputs.comment-author-email }}"
+            git config --global user.name "${{ steps.check-comment.outputs.comment-author-name }}"
+            git add .
+            git commit -m "Auto-format code with ScalaFmt"
+            git push origin ${{ github.ref }}
+          fi
+        working-directory: ${{ github.workspace }}

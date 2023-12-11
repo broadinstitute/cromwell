@@ -77,8 +77,8 @@ object Settings {
     organization := "org.broadinstitute",
     scalaVersion := ScalaVersion,
     resolvers ++= additionalResolvers,
-    Global / parallelExecution := true,
-    Test / parallelExecution := false,
+    Compile / parallelExecution := true,
+    Default / parallelExecution := false,
     Global / concurrentRestrictions ++= List(
       // Don't run any other tasks while running tests, especially helps in low CPU environments like Travis
       Tags.exclusive(Tags.Test),
@@ -95,7 +95,8 @@ object Settings {
     Compile / console / scalacOptions --= consoleHostileSettings,
     excludeDependencies ++= List(
       "org.typelevel" % "simulacrum-scalafix-annotations_2.13"
-    )
+    ),
+    // Global / lintUnusedKeysOnLoad := false
   )
 
   val pact4sSettings = sharedSettings ++ List(

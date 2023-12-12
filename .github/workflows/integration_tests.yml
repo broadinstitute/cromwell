@@ -90,12 +90,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-    - name: Setup tmate session
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 10
-      with:
-        limit-access-to-actor: true
-        detached: true
+    # - name: Setup tmate session
+    #  uses: mxschmitt/action-tmate@v3
+    #  timeout-minutes: 10
+    #  with:
+    #    limit-access-to-actor: true
+    #    detached: true
     - uses: actions/checkout@v3 # checkout the cromwell repo
       with:
         ref: ${{ inputs.target-branch }}

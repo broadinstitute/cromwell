@@ -81,9 +81,9 @@ object Settings {
     // Seems to cause race conditions in tests, that are not pertinent to what's being tested
     Test / parallelExecution := false,
     Global / concurrentRestrictions ++= List(
-      // Don't run any other tasks while running tests, especially helps in low CPU environments like Travis
+      // Don't run any other tasks while running tests
       Tags.exclusive(Tags.Test),
-      // Only run tests on one sub-project at a time, especially helps in low CPU environments like Travis
+      // Only run tests on one sub-project at a time
       Tags.limit(Tags.Test, 1)
     ),
     dependencyOverrides ++= cromwellDependencyOverrides,

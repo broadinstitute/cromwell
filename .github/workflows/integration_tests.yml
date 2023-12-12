@@ -90,12 +90,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-    # - name: Setup tmate session
-    #  uses: mxschmitt/action-tmate@v3
-    #  timeout-minutes: 10
-    #  with:
-    #    limit-access-to-actor: true
-    #    detached: true
+    # If a build step fails, activate SSH and idle for 30 minutes
+    - name: Setup tmate session
+      if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 30
+      with:
+        limit-access-to-actor: true
+        detached: true
     - uses: actions/checkout@v3 # checkout the cromwell repo
       with:
         ref: ${{ inputs.target-branch }}

@@ -64,7 +64,7 @@ apt-get clean
 # non-deb package installation instructions adapted from
 # - https://github.com/sbt/sbt/releases/tag/v1.4.9
 # - https://github.com/broadinstitute/scala-baseimage/pull/4/files
-curl -L --silent "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.tgz" |
+curl -L --silent "https://github.com/sbt/sbt/releases/download/v1.8.1/sbt-1.8.1.tgz" |
     tar zxf - -C /usr/share
 update-alternatives --install /usr/bin/sbt sbt /usr/share/sbt/bin/sbt 1
 

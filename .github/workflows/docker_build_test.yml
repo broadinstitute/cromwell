@@ -27,7 +27,7 @@ jobs:
           path: cromwell
       - uses: olafurpg/setup-scala@v10
         with:
-          java-version: adopt@1.11
+          java-version: adopt@1.17
       # The following invocation should be as similar as possible to the one in chart_update_on_merge.yml
       # To state the obvious: This test should not publish anything. It should simply verify that the build completes.
       - name: Build Cromwell Docker

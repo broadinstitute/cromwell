@@ -46,6 +46,5 @@ docker run --rm -v $PWD:/working \
 ```
 
 The generated contracts can be found in the `./target/pacts` folder
-- `cromwell-consumer-drshub-provider.json`
-- `cromwell-consumer-fake-provider.json`
+- `cromwell-drshub.json`
 

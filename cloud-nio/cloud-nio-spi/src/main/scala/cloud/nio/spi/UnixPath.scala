@@ -67,7 +67,11 @@ final private[spi] case class UnixPath(path: String) extends CharSequence {
 
   def isAbsolute: Boolean = UnixPath.isAbsolute(path)
 
-  def isEmpty: Boolean = path.isEmpty
+  // Named this way because isEmpty is a name collision new in 17.
+  // The initial compile error is that it needs an override.
+  // Adding the override results in a second error saying it overrides nothing!
+  // So, we just renamed it.
+  def izEmpty: Boolean = path.isEmpty
 
   def hasTrailingSeparator: Boolean = UnixPath.hasTrailingSeparator(path)
 

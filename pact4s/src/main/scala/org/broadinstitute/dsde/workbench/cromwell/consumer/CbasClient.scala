@@ -11,8 +11,7 @@ import org.http4s.client.Client
 import org.http4s.headers.Authorization
 
 trait CbasClient[F[_]] extends LazyLogging {
-  def postWorkflowResults(authHeader: Authorization,
-                          callbackMessage: CallbackMessage): F[Boolean]
+  def postWorkflowResults(authHeader: Authorization, callbackMessage: CallbackMessage): F[Boolean]
 }
 
 /*
@@ -29,11 +28,13 @@ class CbasClientImpl[F[_]: Concurrent](client: Client[F], baseUrl: Uri) extends 
     "failures"
   )(x => (x.workflowId, x.state, x.outputs.toString, x.failures))
 
-  override def postWorkflowResults(authHeader: Authorization,
-                                   callbackMessage: CallbackMessage): F[Boolean] = {
+  override def postWorkflowResults(authHeader: Authorization, callbackMessage: CallbackMessage): F[Boolean] = {
     val body = callbackMessage
     val entityBody: EntityBody[F] = EntityEncoder[F, CallbackMessage].toEntity(body).body
-    val request = Request[F](uri = baseUrl / "api" / "batch" / apiVersion / "runs" / "results", method = Method.POST, body = entityBody)
+    val request = Request[F](uri = baseUrl / "api" / "batch" / apiVersion / "runs" / "results",
+                             method = Method.POST,
+                             body = entityBody
+    )
       .withHeaders(
         org.http4s.headers.`Content-Type`(MediaType.application.json),
         authHeader

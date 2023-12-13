@@ -129,8 +129,8 @@ object PactHelper {
                        path: String,
                        requestHeaders: Seq[(String, String)],
                        requestBody: DslPart,
-                       status: Int,
-                      ): PactDslResponse =
+                       status: Int
+  ): PactDslResponse =
     builder
       .`given`(state)
       .uponReceiving(uponReceiving)

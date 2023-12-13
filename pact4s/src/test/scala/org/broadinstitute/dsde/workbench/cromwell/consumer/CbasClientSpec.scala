@@ -44,7 +44,7 @@ class CbasClientSpec extends AnyFlatSpec with Matchers with RequestResponsePactF
   )
   /*
       Get a json representation of a workflowCallback object.
-  */
+   */
   val workflowCallbackJson = WorkflowCallbackJsonSupport.callbackMessageFormat.write(workflowCallback)
 
   val updateCompletedRunDsl = newJsonBody { o =>
@@ -52,9 +52,9 @@ class CbasClientSpec extends AnyFlatSpec with Matchers with RequestResponsePactF
     o.stringType("state", workflowCallback.state)
     o.stringType("outputs", workflowCallbackJson.asJsObject.fields("outputs").toString())
     o.array("failures",
-      { f =>
-        workflowCallback.failures.foreach(f.stringType)
-      })
+            f =>
+              workflowCallback.failures.foreach(f.stringType)
+    )
     ()
   }.build
 
@@ -76,9 +76,8 @@ class CbasClientSpec extends AnyFlatSpec with Matchers with RequestResponsePactF
   )
   override val pact: RequestResponsePact = pactUpdateCompletedRunDslResponse.toPact
 
-  val client: Client[IO] = {
+  val client: Client[IO] =
     BlazeClientBuilder[IO](ExecutionContext.global).resource.allocated.unsafeRunSync()._1
-  }
 
   it should "successfully post workflow results" in {
     new CbasClientImpl[IO](client, Uri.unsafeFromString(mockServer.getUrl))

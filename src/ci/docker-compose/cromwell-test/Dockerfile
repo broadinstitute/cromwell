@@ -1,4 +1,4 @@
-FROM ubuntu:focal
+FROM ubuntu:latest
 
 WORKDIR /cromwell-test/
 COPY docker-setup.sh ./

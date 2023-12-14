@@ -176,7 +176,7 @@ class CloudNioPath(filesystem: CloudNioFileSystem, private[spi] val unixPath: Un
   ): WatchKey = throw new UnsupportedOperationException
 
   override def iterator(): java.util.Iterator[Path] =
-    if (unixPath.isEmpty || unixPath.isRoot) {
+    if (unixPath.izEmpty || unixPath.isRoot) {
       java.util.Collections.emptyIterator()
     } else {
       unixPath.split().to(LazyList).map(part => newPath(UnixPath.getPath(part)).asInstanceOf[Path]).iterator.asJava

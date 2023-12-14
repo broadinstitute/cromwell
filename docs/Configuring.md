@@ -689,7 +689,7 @@ This limit may be configured via the configuration value:
 
 ```hocon
 yaml {
-  max-depth = 1000
+  max-depth = 100
 }
 ```
 

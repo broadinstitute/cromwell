@@ -23,10 +23,9 @@ jobs:
         repository: broadinstitute/cromwell
         token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
         path: cromwell
-    - uses: actions/setup-java@v4
+    - uses: olafurpg/setup-scala@v10
       with:
-        distribution: 'temurin'
-        java-version: '17'
+        java-version: adopt@1.11
     - name: Clone Cromwhelm
       uses: actions/checkout@v2
       with:

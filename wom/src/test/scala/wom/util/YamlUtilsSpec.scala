@@ -80,7 +80,7 @@ class YamlUtilsSpec
       "a null yaml",
       null,
       refineMV[NonNegative](0),
-      "Cannot invoke \"String.length()\" because \"s\" is null"
+      null
     ),
     (
       "an empty yaml mapping when limited to zero nodes",
@@ -179,14 +179,14 @@ class YamlUtilsSpec
     val nesting = 1000000
     val yaml = ("[" * nesting) + ("]" * nesting)
     val exception: Exception = YamlUtils.parse(yaml).left.value
-    exception should have message "Parsing halted at node depth 100" // <-- Updating here? Also get the docs too!
+    exception should have message "Parsing halted at node depth 1000" // <-- Updating here? Also get the docs too!
   }
 
   it should "fail to parse deeply nested yaml mapping with the default configuration" in {
     val nesting = 1000000
     val yaml = ("{a:" * nesting) + "b" + ("}" * nesting)
     val exception: Exception = YamlUtils.parse(yaml).left.value
-    exception should have message "Parsing halted at node depth 100" // <-- Updating here? Also get the docs too!
+    exception should have message "Parsing halted at node depth 1000" // <-- Updating here? Also get the docs too!
   }
 
   it should "not parse a config with a negative value" in {

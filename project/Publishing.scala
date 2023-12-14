@@ -63,7 +63,7 @@ object Publishing {
       val additionalDockerInstr: Seq[Instruction] = (dockerCustomSettings ?? Nil).value
 
       new Dockerfile {
-        from("us.gcr.io/broad-dsp-gcr-public/base/jre:17-debian")
+        from("us.gcr.io/broad-dsp-gcr-public/base/jre:11-debian")
         expose(8000)
         add(artifact, artifactTargetPath)
         runRaw(s"ln -s $artifactTargetPath /app/$projectName.jar")
@@ -163,7 +163,8 @@ object Publishing {
   val additionalResolvers = List(
     broadArtifactoryResolver,
     broadArtifactoryResolverSnap,
-  ) ++ Resolver.sonatypeOssRepos("releases")
+    Resolver.sonatypeRepo("releases")
+  )
 
   private val artifactoryCredentialsFile =
     file("target/ci/resources/artifactory_credentials.properties").getAbsoluteFile

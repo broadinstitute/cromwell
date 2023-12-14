@@ -1,0 +1,1 @@
+Looking for the MySQL docs? Checkout the [Cromwell documentation](https://cromwell.readthedocs.io/en/develop/Configuring/#database)!

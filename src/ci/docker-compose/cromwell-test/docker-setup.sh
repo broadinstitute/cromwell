@@ -25,11 +25,13 @@ apt-get install -y \
     sudo \
     wget \
 
-# setup install for Temurin
-# https://adoptium.net/installation/linux/
-mkdir -p /etc/apt/keyrings
-wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | tee /etc/apt/keyrings/adoptium.asc
-echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^UBUNTU_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list
+# setup install for adoptopenjdk
+# https://adoptopenjdk.net/installation.html#linux-pkg-deb
+wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | apt-key add -
+echo "deb https://adoptopenjdk.jfrog.io/adoptopenjdk/deb $(
+        grep UBUNTU_CODENAME /etc/os-release | cut -d = -f 2
+    ) main" |
+    tee /etc/apt/sources.list.d/adoptopenjdk.list
 
 # setup install for gcloud
 # https://cloud.google.com/sdk/docs/install#deb
@@ -50,7 +52,7 @@ add-apt-repository \
 # install packages that required setup
 apt-get update
 apt-get install -y \
-    temurin-17-jdk \
+    adoptopenjdk-11-hotspot \
     containerd.io \
     docker-ce \
     docker-ce-cli \
@@ -64,7 +66,7 @@ apt-get clean
 # non-deb package installation instructions adapted from
 # - https://github.com/sbt/sbt/releases/tag/v1.4.9
 # - https://github.com/broadinstitute/scala-baseimage/pull/4/files
-curl -L --silent "https://github.com/sbt/sbt/releases/download/v1.8.1/sbt-1.8.1.tgz" |
+curl -L --silent "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.tgz" |
     tar zxf - -C /usr/share
 update-alternatives --install /usr/bin/sbt sbt /usr/share/sbt/bin/sbt 1
 

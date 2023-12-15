@@ -75,7 +75,7 @@ object BlobPathBuilder {
   private def hasSasToken(uri: Uri) = {
     // These keys are required for all SAS tokens.
     // https://learn.microsoft.com/en-us/rest/api/storageservices/create-service-sas#construct-a-service-sas
-    val SignedVersionKey = "v"
+    val SignedVersionKey = "sv"
     val SignatureKey = "sig"
 
     val query = uri.query().toMap

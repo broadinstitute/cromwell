@@ -37,7 +37,9 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
       "?sv=2021-12-02&spr=https&st=2023-12-13T20%3A27%3A55Z&se=2023-12-14T04%3A42%3A55Z&sr=c&sp=racwdlt&sig=blah&rscd=foo"
     BlobPathBuilder.validateBlobPath(sasBlob).asInstanceOf[UnparsableBlobPath].errorMessage.getMessage should equal(
       UnparsableBlobPath(
-        new IllegalArgumentException("Rejecting pre-signed SAS URL so that filesystem selection falls through to HTTP filesystem")
+        new IllegalArgumentException(
+          "Rejecting pre-signed SAS URL so that filesystem selection falls through to HTTP filesystem"
+        )
       ).errorMessage.getMessage
     )
   }
@@ -54,8 +56,9 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     testException should contain(exception)
   }
 
-  private def testBlobNioStringCleaning(input: String, expected: String) =
-    BlobPath.cleanedNioPathString(input) shouldBe expected
+  // The following tests use the `centaurtesting` account injected into CI. They depend on access to the
+  // container specified below. You may need to log in to az cli locally to get them to pass.
+  private val subscriptionId: SubscriptionId = SubscriptionId(UUID.fromString("62b22893-6bc1-46d9-8a90-806bb3cce3c9"))
 
   it should "clean the NIO path string when it has a garbled http protocol" in {
     testBlobNioStringCleaning(
@@ -84,10 +87,6 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
       ""
     )
   }
-
-  // The following tests use the `centaurtesting` account injected into CI. They depend on access to the
-  // container specified below. You may need to log in to az cli locally to get them to pass.
-  private val subscriptionId: SubscriptionId = SubscriptionId(UUID.fromString("62b22893-6bc1-46d9-8a90-806bb3cce3c9"))
   private val endpoint: EndpointURL = BlobPathBuilderSpec.buildEndpoint("centaurtesting")
   private val container: BlobContainerName = BlobContainerName("test-blob")
 
@@ -96,6 +95,9 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val fsm = new BlobFileSystemManager(10, blobTokenGenerator)
     new BlobPathBuilder()(fsm)
   }
+
+  private def testBlobNioStringCleaning(input: String, expected: String) =
+    BlobPath.cleanedNioPathString(input) shouldBe expected
 
   it should "read md5 from small files <5g" in {
     val builder = makeBlobPathBuilder()

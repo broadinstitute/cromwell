@@ -51,10 +51,7 @@ class CbasClientSpec extends AnyFlatSpec with Matchers with RequestResponsePactF
     o.stringType("workflowId", workflowCallback.workflowId)
     o.stringType("state", workflowCallback.state)
     o.stringType("outputs", workflowCallbackJson.asJsObject.fields("outputs").toString())
-    o.array("failures",
-            f =>
-              workflowCallback.failures.foreach(f.stringType)
-    )
+    o.array("failures", f => workflowCallback.failures.foreach(f.stringType))
     ()
   }.build
 

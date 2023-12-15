@@ -27,6 +27,21 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     }
   }
 
+  it should "reject a path that is otherwise valid, but has a preexisting SAS token" in {
+    import cromwell.filesystems.blob.BlobPathBuilder.UnparsableBlobPath
+
+    // The `.asInstanceOf[UnparsableBlobPath].errorMessage.getMessage` malarkey is necessary
+    // because Java exceptions compare by reference, while strings are by value
+
+    val sasBlob = "https://lz304a1e79fd7359e5327eda.blob.core.windows.net/sc-705b830a-d699-478e-9da6-49661b326e77" +
+      "?sv=2021-12-02&spr=https&st=2023-12-13T20%3A27%3A55Z&se=2023-12-14T04%3A42%3A55Z&sr=c&sp=racwdlt&sig=blah&rscd=foo"
+    BlobPathBuilder.validateBlobPath(sasBlob).asInstanceOf[UnparsableBlobPath].errorMessage.getMessage should equal(
+      UnparsableBlobPath(
+        new IllegalArgumentException("Rejecting pre-signed SAS URL so that filesystem selection falls through to HTTP filesystem")
+      ).errorMessage.getMessage
+    )
+  }
+
   it should "provide a readable error when getting an illegal nioPath" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
     val container = BlobContainerName("container")

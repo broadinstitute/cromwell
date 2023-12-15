@@ -499,7 +499,7 @@ object Dependencies {
     List("scalatest", "mysql", "mariadb", "postgresql")
       .map(name => "com.dimafeng" %% s"testcontainers-scala-$name" % testContainersScalaV % Test)
 
-  val blobFileSystemDependencies: List[ModuleID] = azureDependencies ++ wsmDependencies
+  val blobFileSystemDependencies: List[ModuleID] = azureDependencies ++ wsmDependencies ++ akkaHttpDependencies
 
   val s3FileSystemDependencies: List[ModuleID] = junitDependencies
 

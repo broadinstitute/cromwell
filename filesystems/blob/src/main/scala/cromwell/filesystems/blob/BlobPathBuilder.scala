@@ -59,14 +59,14 @@ object BlobPathBuilder {
       isBlobHost = testUri.getHost.contains(blobHostnameSuffix) && testUri.getScheme.contains("https")
       hasToken = hasSasToken(string)
       blobPathValidation = (isBlobHost, testContainer, hasToken) match {
-        case (_, _, true) =>
-          UnparsableBlobPath(new IllegalArgumentException(externalToken))
         case (true, Some(container), false) =>
           ValidBlobPath(testUri.getPath.replaceFirst("/" + container, ""), BlobContainerName(container), testEndpoint)
         case (false, _, false) =>
           UnparsableBlobPath(new MalformedURLException(invalidBlobHostMessage(testEndpoint)))
         case (true, None, false) =>
           UnparsableBlobPath(new MalformedURLException(invalidBlobContainerMessage(testEndpoint)))
+        case (_, _, true) =>
+          UnparsableBlobPath(new IllegalArgumentException(externalToken))
       }
     } yield blobPathValidation
     blobValidation recover { case t => UnparsableBlobPath(t) } get

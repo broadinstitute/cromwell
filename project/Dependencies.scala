@@ -628,7 +628,7 @@ object Dependencies {
     "org.lz4" % "lz4-java" % lz4JavaV
   )
   val scalaTest = "org.scalatest" %% "scalatest" % scalatestV
-  
+
   val testDependencies: List[ModuleID] = List(
     "org.scalatest" %% "scalatest" % scalatestV,
     // Use mockito Java DSL directly instead of the numerous and often hard to keep updated Scala DSLs.

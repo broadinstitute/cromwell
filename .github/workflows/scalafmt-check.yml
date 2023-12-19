@@ -1,4 +1,4 @@
-name: 'Scalafmt'
+name: 'ScalaFmt Check'
 
 # This GitHub Action runs the ScalaFmt linting tool on the entire codebase.
 # It fails if any files are not formatted properly.

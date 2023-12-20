@@ -135,7 +135,7 @@ jobs:
         run: |
           set -e
           cd pact4s
-          NON_BREAKING_B64_DRSHUB=$(cat target/pacts/cromwell-consumer-drshub.json | base64 -w 0)
+          NON_BREAKING_B64_DRSHUB=$(cat target/pacts/cromwell-drshub.json | base64 -w 0)
           NON_BREAKING_B64_CBAS=$(cat target/pacts/cromwell-cbas.json | base64 -w 0)
           echo "pact-b64-drshub=${NON_BREAKING_B64_DRSHUB}" >> $GITHUB_OUTPUT
           echo "pact-b64-cbas=${NON_BREAKING_B64_CBAS}" >> $GITHUB_OUTPUT

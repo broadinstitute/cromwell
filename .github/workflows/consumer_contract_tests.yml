@@ -146,7 +146,7 @@ jobs:
     if: ${{ needs.init-github-context.outputs.fork == 'false' ||  needs.init-github-context.outputs.fork == ''}}
     needs: [init-github-context, cromwell-contract-tests]
     steps:
-      - name: Dispatch to terra-github-workflows
+      - name: Dispatch drshub to terra-github-workflows
         uses: broadinstitute/workflow-dispatch@v4.0.0
         with:
           run-name: "${{ env.PUBLISH_CONTRACTS_RUN_NAME }}"
@@ -162,28 +162,22 @@ jobs:
             "repo-branch": "${{ needs.init-github-context.outputs.repo-branch }}",
             "release-tag": "${{ needs.init-github-context.outputs.repo-version }}"
           }'
-
-    publish-contracts-cbas:
-      runs-on: ubuntu-latest
-      if: ${{ needs.init-github-context.outputs.fork == 'false' ||  needs.init-github-context.outputs.fork == ''}}
-      needs: [ init-github-context, cromwell-contract-tests ]
-      steps:
-        - name: Dispatch to terra-github-workflows
-          uses: broadinstitute/workflow-dispatch@v4.0.0
-          with:
-            run-name: "${{ env.PUBLISH_CONTRACTS_RUN_NAME }}"
-            workflow: .github/workflows/publish-contracts.yaml
-            repo: broadinstitute/terra-github-workflows
-            ref: refs/heads/main
-            token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # github token for access to kick off a job in the private repo
-            inputs: '{
-              "run-name": "${{ env.PUBLISH_CONTRACTS_RUN_NAME }}",
-              "pact-b64": "${{ needs.cromwell-contract-tests.outputs.pact-b64-cbas }}",
-              "repo-owner": "${{ github.repository_owner }}",
-              "repo-name": "${{ github.event.repository.name }}",
-              "repo-branch": "${{ needs.init-github-context.outputs.repo-branch }}",
-              "release-tag": "${{ needs.init-github-context.outputs.repo-version }}"
-            }'
+      - name: Dispatch cbas to terra-github-workflows
+        uses: broadinstitute/workflow-dispatch@v4.0.0
+        with:
+          run-name: "${{ env.PUBLISH_CONTRACTS_RUN_NAME }}"
+          workflow: .github/workflows/publish-contracts.yaml
+          repo: broadinstitute/terra-github-workflows
+          ref: refs/heads/main
+          token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # github token for access to kick off a job in the private repo
+          inputs: '{
+            "run-name": "${{ env.PUBLISH_CONTRACTS_RUN_NAME }}",
+            "pact-b64": "${{ needs.cromwell-contract-tests.outputs.pact-b64-cbas }}",
+            "repo-owner": "${{ github.repository_owner }}",
+            "repo-name": "${{ github.event.repository.name }}",
+            "repo-branch": "${{ needs.init-github-context.outputs.repo-branch }}",
+            "release-tag": "${{ needs.init-github-context.outputs.repo-version }}"
+          }'
 
   can-i-deploy:
     runs-on: ubuntu-latest

@@ -133,6 +133,7 @@ jobs:
         id: encode-pact
         run: |
           cd pact4s
+          ls -l target/pacts
           NON_BREAKING_B64=$(cat target/pacts/cromwell-drshub.json | base64 -w 0)
           echo "pact-b64=${NON_BREAKING_B64}" >> $GITHUB_OUTPUT
 

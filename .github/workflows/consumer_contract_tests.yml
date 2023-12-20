@@ -132,14 +132,16 @@ jobs:
       - name: Output consumer contract as non-breaking base64 string
         id: encode-pact
         run: |
+          set -e
           cd pact4s
-          ls -l target/pacts
-          NON_BREAKING_B64=$(cat target/pacts/cromwell-drshub.json | base64 -w 0)
-          echo "pact-b64=${NON_BREAKING_B64}" >> $GITHUB_OUTPUT
+          NON_BREAKING_B64_DRSHUB=$(cat target/pacts/cromwell-consumer-drshub.json | base64 -w 0)
+          NON_BREAKING_B64_CBAS=$(cat target/pacts/cromwell-cbas.json | base64 -w 0)
+          echo "pact-b64-drshub=${NON_BREAKING_B64_DRSHUB}" >> $GITHUB_OUTPUT
+          echo "pact-b64-cbas=${NON_BREAKING_B64_CBAS}" >> $GITHUB_OUTPUT
 
   # Prevent untrusted sources from using PRs to publish contracts
   # since access to secrets is not allowed.
-  publish-contracts:
+  publish-contracts-drshub:
     runs-on: ubuntu-latest
     if: ${{ needs.init-github-context.outputs.fork == 'false' ||  needs.init-github-context.outputs.fork == ''}}
     needs: [init-github-context, cromwell-contract-tests]
@@ -154,12 +156,34 @@ jobs:
           token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # github token for access to kick off a job in the private repo
           inputs: '{
             "run-name": "${{ env.PUBLISH_CONTRACTS_RUN_NAME }}",
-            "pact-b64": "${{ needs.cromwell-contract-tests.outputs.pact-b64 }}",
+            "pact-b64": "${{ needs.cromwell-contract-tests.outputs.pact-b64-drshub }}",
             "repo-owner": "${{ github.repository_owner }}",
             "repo-name": "${{ github.event.repository.name }}",
             "repo-branch": "${{ needs.init-github-context.outputs.repo-branch }}",
             "release-tag": "${{ needs.init-github-context.outputs.repo-version }}"
           }'
+
+    publish-contracts-cbas:
+      runs-on: ubuntu-latest
+      if: ${{ needs.init-github-context.outputs.fork == 'false' ||  needs.init-github-context.outputs.fork == ''}}
+      needs: [ init-github-context, cromwell-contract-tests ]
+      steps:
+        - name: Dispatch to terra-github-workflows
+          uses: broadinstitute/workflow-dispatch@v4.0.0
+          with:
+            run-name: "${{ env.PUBLISH_CONTRACTS_RUN_NAME }}"
+            workflow: .github/workflows/publish-contracts.yaml
+            repo: broadinstitute/terra-github-workflows
+            ref: refs/heads/main
+            token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # github token for access to kick off a job in the private repo
+            inputs: '{
+              "run-name": "${{ env.PUBLISH_CONTRACTS_RUN_NAME }}",
+              "pact-b64": "${{ needs.cromwell-contract-tests.outputs.pact-b64-cbas }}",
+              "repo-owner": "${{ github.repository_owner }}",
+              "repo-name": "${{ github.event.repository.name }}",
+              "repo-branch": "${{ needs.init-github-context.outputs.repo-branch }}",
+              "release-tag": "${{ needs.init-github-context.outputs.repo-version }}"
+            }'
 
   can-i-deploy:
     runs-on: ubuntu-latest

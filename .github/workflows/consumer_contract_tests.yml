@@ -116,7 +116,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [init-github-context]
     outputs:
-      pact-b64: ${{ steps.encode-pact.outputs.pact-b64 }}
+      pact-b64-drshub: ${{ steps.encode-pact.outputs.pact-b64-drshub }}
+      pact-b64-cbas: ${{ steps.encode-pact.outputs.pact-b64-cbas }}
 
     steps:
       - uses: actions/checkout@v3
@@ -146,11 +147,6 @@ jobs:
     if: ${{ needs.init-github-context.outputs.fork == 'false' ||  needs.init-github-context.outputs.fork == ''}}
     needs: [init-github-context, cromwell-contract-tests]
     steps:
-      - name: Test output pipe
-        run: |
-            echo "pact-b64-drshub=${{ needs.cromwell-contract-tests.outputs.pact-b64-drshub }}"
-            echo "pact-b64-cbas=${{ needs.cromwell-contract-tests.outputs.pact-b64-cbas }}"
-            echo "all 'needs' context=${{ toJson(needs) }}"
       - name: Dispatch drshub to terra-github-workflows
         uses: broadinstitute/workflow-dispatch@v4.0.0
         with:

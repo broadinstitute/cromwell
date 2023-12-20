@@ -141,7 +141,7 @@ jobs:
 
   # Prevent untrusted sources from using PRs to publish contracts
   # since access to secrets is not allowed.
-  publish-contracts-drshub:
+  publish-contracts:
     runs-on: ubuntu-latest
     if: ${{ needs.init-github-context.outputs.fork == 'false' ||  needs.init-github-context.outputs.fork == ''}}
     needs: [init-github-context, cromwell-contract-tests]

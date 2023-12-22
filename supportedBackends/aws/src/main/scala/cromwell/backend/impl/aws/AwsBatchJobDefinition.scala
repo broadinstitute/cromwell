@@ -113,6 +113,13 @@ trait AwsBatchJobDefinitionBuilder {
           .builder()
           .name("awsCliHome")
           .host(Host.builder().sourcePath("/usr/local/aws-cli").build())
+          .build(),
+        // the location of the instance-id on the host (set by cloud-init)
+        // https://cloudinit.readthedocs.io/en/23.2.2/reference/faq.html#data
+        Volume
+          .builder()
+          .name("instanceId")
+          .host(Host.builder().sourcePath("/var/lib/cloud/data/instance-id").build())
           .build()
       ) ++ fsx_volumes
     }
@@ -139,6 +146,13 @@ trait AwsBatchJobDefinitionBuilder {
           .sourceVolume("awsCliHome")
           // where the aws-cli will be on the container
           .containerPath("/usr/local/aws-cli")
+          .build(),
+        // the location of the instance-id on the container, used to tag the instance
+        MountPoint
+          .builder()
+          .readOnly(true)
+          .sourceVolume("instanceId")
+          .containerPath("/var/lib/cloud/data/instance-id")
           .build()
       ) ++ fsx_disks
     }
@@ -163,11 +177,12 @@ trait AwsBatchJobDefinitionBuilder {
                   env: Seq[KeyValuePair],
                   ulimits: List[Ulimit],
                   efsDelocalize: Boolean,
-                  efsMakeMD5: Boolean
+                  efsMakeMD5: Boolean,
+                  tagResources: Boolean
     ): String =
       s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints.map(_.toString).mkString(",")}:${env
           .map(_.toString)
-          .mkString(",")}:${ulimits.map(_.toString).mkString(",")}:${efsDelocalize.toString}:${efsMakeMD5.toString}"
+          .mkString(",")}:${ulimits.map(_.toString).mkString(",")}:${efsDelocalize.toString}:${efsMakeMD5.toString}:${tagResources.toString}"
 
     val environment = List.empty[KeyValuePair]
     val cmdName = context.runtimeAttributes.fileSystem match {
@@ -180,6 +195,7 @@ trait AwsBatchJobDefinitionBuilder {
     val ulimits = buildUlimits(context.runtimeAttributes.ulimits)
     val efsDelocalize = context.runtimeAttributes.efsDelocalize
     val efsMakeMD5 = context.runtimeAttributes.efsMakeMD5
+    val tagResources = context.runtimeAttributes.tagResources
 
     val containerPropsName = buildName(
       context.runtimeAttributes.dockerImage,
@@ -189,7 +205,8 @@ trait AwsBatchJobDefinitionBuilder {
       environment,
       ulimits,
       efsDelocalize,
-      efsMakeMD5
+      efsMakeMD5,
+      tagResources
     )
 
     (ContainerProperties
@@ -308,7 +325,8 @@ case class AwsBatchJobDefinitionContext(
   fsxMntPoint: Option[List[String]],
   efsMntPoint: Option[String],
   efsMakeMD5: Option[Boolean],
-  efsDelocalize: Option[Boolean]
+  efsDelocalize: Option[Boolean],
+  tagResources: Option[Boolean]
 ) {
 
   override def toString: String =
@@ -326,5 +344,6 @@ case class AwsBatchJobDefinitionContext(
       .append("efsMntPoint", efsMntPoint)
       .append("efsMakeMD5", efsMakeMD5)
       .append("efsDelocalize", efsDelocalize)
+      .append("tagResources", tagResources)
       .build
 }

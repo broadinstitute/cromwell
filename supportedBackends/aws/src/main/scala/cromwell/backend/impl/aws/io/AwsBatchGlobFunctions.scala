@@ -31,13 +31,6 @@
 package cromwell.backend.impl.aws.io
 
 
-//import cats.implicits._
-//import common.validation.ErrorOr.ErrorOr
-//import cromwell.backend.BackendJobDescriptor
-//import cromwell.core.CallContext
-//import cromwell.core.io.AsyncIoFunctions
-//import wom.expression.{IoFunctionSet, IoFunctionSetAdapter}
-//import wom.graph.CommandCallNode
 import wom.values._
 import cromwell.backend.io._
 import cromwell.backend.standard._
@@ -45,8 +38,6 @@ import scala.concurrent.Future
 import java.nio.file.Paths
 import cromwell.core.path.DefaultPathBuilder
 
-//import cromwell.backend.impl.aws.AwsBatchAttributes
-//import cromwell.backend.impl.aws._
 
 trait AwsBatchGlobFunctions extends GlobFunctions {
     

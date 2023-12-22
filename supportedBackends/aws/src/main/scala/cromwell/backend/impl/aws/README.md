@@ -507,7 +507,37 @@ task task_three {
 }
 ```
 
+#### TAGGING RESOURCES
+AWS Batch tags jobs and, if configured in the compute environment, instances and volumes with generic tags to track costs.  These tags typically include the job-queue name. To allow more detailed cost tracking, it is possible to enable tagging instances and connected volumes with the following information : 
 
+- *cromwell-workflow-name* : the top-level name of the submitted WDL (eg "workflow myWorkflow {...}")
+- *cromwell-workflow-id* : the identifier assigned to the workflow inside cromwell (eg "2443daac-c232-4e0a-920d-fbf53273e9c5")
+- *cromwell-task-id* : A string consisting of "<workflowName>.<taskName>-<shardIdx>-<attempt>"
+
+In case the same instance is reused for multiple tasks, unique tag values are concatenated up until a maximal length of 255 characters. For example, an instance used for two identical workflows, might be tagged as followes: 
+
+- cromwell-workflow-name : myWorkflow
+- cromwell-workflow-id : 2443daac-c232-4e0a-920d-fbf53273e9c5;df19029e-cc02-41d5-a26d-8d30c0ab05cb
+- cromwell-task-id : myWorkflow.myTask-None-1
+
+To enable tagging, add "tagResources = true" to the default-runtime-attributes section of your configuration: 
+
+```
+backend {
+    providers {
+        AWSBatch {
+            config{
+                
+                default-runtime-attributes {
+                    // enable detailed tagging
+                    tagResources = true
+                }
+            }
+        }
+    }
+}
+
+```
 
 
 AWS Batch

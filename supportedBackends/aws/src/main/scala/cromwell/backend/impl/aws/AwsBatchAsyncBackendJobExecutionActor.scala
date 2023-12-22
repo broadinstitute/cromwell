@@ -31,7 +31,7 @@
 
 package cromwell.backend.impl.aws
 
-import java.net.SocketTimeoutException
+import java.net.{SocketTimeoutException, URLDecoder}
 import java.io.FileNotFoundException
 import java.nio.file.Paths
 import akka.actor.ActorRef
@@ -211,7 +211,8 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       configuration.fsxMntPoint,
       configuration.efsMntPoint,
       Option(runtimeAttributes.efsMakeMD5),
-      Option(runtimeAttributes.efsDelocalize)
+      Option(runtimeAttributes.efsDelocalize),
+      Option(runtimeAttributes.tagResources)
     )
 
   // setup batch client to query job container info
@@ -276,13 +277,13 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         case Success(path: S3Path) =>
           configuration.fileSystem match {
             case AWSBatchStorageSystems.s3 =>
-              path.pathWithoutScheme
+              URLDecoder.decode(path.pathWithoutScheme, "UTF-8")
             case _ =>
-              path.toString
+              URLDecoder.decode(path.toString, "UTF-8")
           }
         // non-s3 paths
         case _ =>
-          value
+          URLDecoder.decode(value, "UTF-8")
       }
     )
 
@@ -440,7 +441,11 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         AwsBatchFileOutput(makeSafeAwsBatchReferenceName(womFile.value), womFile.value, relpath, disk)
       } else {
         // if efs is not enabled, OR efs delocalization IS enabled, keep the s3 path as destination.
-        AwsBatchFileOutput(makeSafeAwsBatchReferenceName(womFile.value), destination, relpath, disk)
+        AwsBatchFileOutput(makeSafeAwsBatchReferenceName(womFile.value),
+                           URLDecoder.decode(destination, "UTF-8"),
+                           relpath,
+                           disk
+        )
       }
     List(output)
   }
@@ -764,7 +769,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     // STATUS LOGIC:
     //   - success : container exit code is zero
     //   - command failure: container exit code > 0, no statusReason in container
-    //   - OOM kill : container exit code > 0, statusReason contains "OutOfMemory"
+    //   - OOM kill : container exit code > 0, statusReason contains "OutOfMemory" OR exit code == 137
     //   - spot kill : no container exit code set. statusReason of ATTEMPT (not container) says "host EC2 (...) terminated"
     Log.debug(s"Looking for memoryRetry in job '${job.jobId}'")
     val describeJobsResponse = batchClient.describeJobs(DescribeJobsRequest.builder.jobs(job.jobId).build)
@@ -799,6 +804,9 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       case "0" =>
         Log.debug("container exit code was zero. job succeeded")
         false
+      case "137" =>
+        Log.info("Job failed with Container status reason : 'OutOfMemory' (code:137)")
+        true
       case _ =>
         // failed job due to command errors (~ user errors) don't have a container exit reason.
         val containerStatusReason: String = {

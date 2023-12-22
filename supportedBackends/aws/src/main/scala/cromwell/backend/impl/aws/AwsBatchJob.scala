@@ -92,7 +92,8 @@ final case class AwsBatchJob(
   fsxMntPoint: Option[List[String]],
   efsMntPoint: Option[String],
   efsMakeMD5: Option[Boolean],
-  efsDelocalize: Option[Boolean]
+  efsDelocalize: Option[Boolean],
+  tagResources: Option[Boolean]
 ) {
 
   val Log: Logger = LoggerFactory.getLogger(AwsBatchJob.getClass)
@@ -137,19 +138,19 @@ final case class AwsBatchJob(
         case input: AwsBatchFileInput if input.s3key.startsWith("s3://") && input.s3key.endsWith(".tmp") =>
           // we are localizing a tmp file which may contain workdirectory paths that need to be reconfigured
           s"""
-             |_s3_localize_with_retry ${input.s3key} $workDir/${input.local}
-             |sed -i 's#${AwsBatchWorkingDisk.MountPoint.pathAsString}#$workDir#g' $workDir/${input.local}
+             |_s3_localize_with_retry "${input.s3key}" "$workDir/${input.local}"
+             |sed -i 's#${AwsBatchWorkingDisk.MountPoint.pathAsString}#$workDir#g' "$workDir/${input.local}"
              |""".stripMargin
 
         case input: AwsBatchFileInput if input.s3key.startsWith("s3://") =>
           // regular s3 objects : download to working dir.
-          s"_s3_localize_with_retry ${input.s3key} ${input.mount.mountPoint.pathAsString}/${input.local}"
+          s"""_s3_localize_with_retry "${input.s3key}" "${input.mount.mountPoint.pathAsString}/${input.local}" """.stripMargin
             .replace(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
 
         case input: AwsBatchFileInput if efsMntPoint.isDefined && input.s3key.startsWith(efsMntPoint.get) =>
           // EFS located file : test for presence on provided path.
           Log.debug("EFS input file detected: " + input.s3key + " / " + input.local.pathAsString)
-          s"test -e ${input.s3key} || (echo 'input file: ${input.s3key} does not exist' && exit 1)"
+          s"""test -e "${input.s3key}" || (echo 'input file: ${input.s3key} does not exist' && LOCALIZATION_FAILED=1)""".stripMargin
 
         case input: AwsBatchFileInput =>
           // an entry in 'disks' => keep mount as it is..
@@ -158,7 +159,7 @@ final case class AwsBatchJob(
           //  .replace(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
           val filePath = input.local.pathAsString
           Log.debug("input entry in disks detected " + input.s3key + " / " + input.local.pathAsString)
-          s"test -e $filePath || (echo 'input file: $filePath does not exist' && exit 1)"
+          s"""test -e "$filePath" || (echo 'input file: $filePath does not exist' && LOCALIZATION_FAILED=1)""".stripMargin
 
         case _ => ""
       }
@@ -172,6 +173,20 @@ final case class AwsBatchJob(
       else 5L * 1024L * 1024L * 1024L;
     Log.debug(s"MultiPart Threshold for delocalizing is $mp_threshold")
 
+    // prepare tags, strip invalid characters
+    val invalidCharsPattern = "[^a-zA-Z0-9_.:/=+-@]+".r
+    Log.debug(s"root workflow id: ${jobDescriptor.workflowDescriptor.rootWorkflowId.toString}")
+    Log.debug(s"root workflow name: ${jobDescriptor.workflowDescriptor.rootWorkflow.name.toString}")
+
+    val workflowId = invalidCharsPattern.replaceAllIn(jobDescriptor.workflowDescriptor.rootWorkflowId.toString, "_")
+    val workflowName =
+      invalidCharsPattern.replaceAllIn(jobDescriptor.workflowDescriptor.rootWorkflow.name.toString, "_")
+    val taskId = invalidCharsPattern.replaceAllIn(
+      jobDescriptor.key.call.fullyQualifiedName + "-" + jobDescriptor.key.index + "-" + jobDescriptor.key.attempt,
+      "_"
+    )
+    val doTagging = tagResources.getOrElse(false) // development : always tag resources.
+    // val tags: Map[String,String] = Map("cromwell-workflow-name" -> workflowName, "cromwell-workflow-id" -> workflowId, "cromwell-task-id" -> taskId)
     // this goes at the start of the script after the #!
     val preamble =
       s"""
@@ -179,27 +194,29 @@ final case class AwsBatchJob(
          |export AWS_METADATA_SERVICE_NUM_ATTEMPTS=10
          |
          |function _s3_localize_with_retry() {
-         |  local s3_path=$$1
+         |  local s3_path="$$1"
          |  # destination must be the path to a file and not just the directory you want the file in
-         |  local destination=$$2
+         |  local destination="$$2"
          |
          |  for i in {1..6};
          |  do
          |    # abort if tries are exhausted
          |    if [ "$$i" -eq 6 ]; then
-         |        echo "failed to copy $$s3_path after $$(( $$i - 1 )) attempts. aborting"
-         |        exit 2
+         |        echo "failed to copy $$s3_path after $$(( $$i - 1 )) attempts."
+         |        LOCALIZATION_FAILED=1
+         |        break
          |    fi
          |    # check validity of source path
-         |    if ! [[ $$s3_path =~ s3://([^/]+)/(.+) ]]; then
-         |      echo "$$s3_path is not an S3 path with a bucket and key. aborting"
-         |      exit 1
+         |    if ! [[ "$$s3_path" =~ s3://([^/]+)/(.+) ]]; then
+         |      echo "$$s3_path is not an S3 path with a bucket and key."
+         |      LOCALIZATION_FAILED=1
+         |      break
          |    fi
          |    # copy
          |    $awsCmd s3 cp --no-progress "$$s3_path" "$$destination"  ||
          |        { echo "attempt $$i to copy $$s3_path failed" && sleep $$((7 * "$$i")) && continue; }
          |    # check data integrity
-         |    _check_data_integrity $$destination $$s3_path ||
+         |    _check_data_integrity "$$destination" "$$s3_path" || 
          |       { echo "data content length difference detected in attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
          |    # copy succeeded
          |    break
@@ -208,12 +225,19 @@ final case class AwsBatchJob(
          |
          |function _s3_delocalize_with_retry() {
          |  # input variables
-         |  local local_path=$$1
+         |  local local_path="$$1"
          |  # destination must be the path to a file and not just the directory you want the file in
-         |  local destination=$$2
+         |  local destination="$$2"
+         |
+         |  # if file/folder does not exist, return immediately
+         |  if [[ ! -e "$$local_path" ]]; then
+         |    echo "$$local_path does not exist. skipping delocalization"
+         |    DELOCALIZATION_FAILED=1
+         |    return
+         |  fi
          |
          |  # get the multipart chunk size
-         |  chunk_size=$$(_get_multipart_chunk_size $$local_path)
+         |  chunk_size=$$(_get_multipart_chunk_size "$$local_path")
          |  local MP_THRESHOLD=${mp_threshold}
          |  # then set them
          |  $awsCmd configure set default.s3.multipart_threshold $$MP_THRESHOLD
@@ -224,31 +248,36 @@ final case class AwsBatchJob(
          |  do
          |    # if tries exceeded : abort
          |    if [ "$$i" -eq 6 ]; then
-         |        echo "failed to delocalize $$local_path after $$(( $$i - 1 )) attempts. aborting"
-         |        exit 2
+         |        echo "failed to delocalize $$local_path after $$(( $$i - 1 )) attempts."
+         |        DELOCALIZATION_FAILED=1
+         |        break
          |    fi
          |    # if destination is not a bucket : abort
-         |    if ! [[ $$destination =~ s3://([^/]+)/(.+) ]]; then
-         |     echo "$$destination is not an S3 path with a bucket and key. aborting"
-         |      exit 1
+         |    if ! [[ "$$destination" =~ s3://([^/]+)/(.+) ]]; then 
+         |     echo "$$destination is not an S3 path with a bucket and key."
+         |      DELOCALIZATION_FAILED=1
+         |      break
          |    fi
          |    # copy ok or try again.
          |    if [[ -d "$$local_path" ]]; then
          |       # make sure to strip the trailing / in destination
          |       destination=$${destination%/}
          |       # glob directory. do recursive copy
-         |       $awsCmd s3 cp --no-progress $$local_path $$destination --recursive --exclude "cromwell_glob_control_file" ||
-         |         { echo "attempt $$i to copy globDir $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
-         |       # check integrity for each of the files
-         |       for FILE in $$(cd $$local_path ; ls | grep -v cromwell_glob_control_file); do
-         |           _check_data_integrity $$local_path/$$FILE $$destination/$$FILE ||
+         |       $awsCmd s3 cp --no-progress "$$local_path" "$$destination" --recursive --exclude "cromwell_glob_control_file" || 
+         |         { echo "attempt $$i to copy globDir $$local_path failed" && sleep $$((7 * "$$i")) && continue; } 
+         |       # check integrity for each of the files (allow spaces)
+         |       SAVEIFS="$$IFS"
+         |       IFS=$$'\n'
+         |       for FILE in $$(cd "$$local_path" ; ls | grep -v cromwell_glob_control_file); do
+         |           _check_data_integrity "$$local_path/$$FILE" "$$destination/$$FILE" || 
          |               { echo "data content length difference detected in attempt $$i to copy $$local_path/$$FILE failed" && sleep $$((7 * "$$i")) && continue 2; }
          |       done
-         |    else
-         |      $awsCmd s3 cp --no-progress "$$local_path" "$$destination" ||
-         |         { echo "attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
+         |       IFS="$$SAVEIFS"
+         |    else 
+         |      $awsCmd s3 cp --no-progress "$$local_path" "$$destination" || 
+         |         { echo "attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; } 
          |      # check content length for data integrity
-         |      _check_data_integrity $$local_path $$destination ||
+         |      _check_data_integrity "$$local_path" "$$destination" || 
          |         { echo "data content length difference detected in attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
          |    fi
          |    # copy succeeded
@@ -257,9 +286,9 @@ final case class AwsBatchJob(
          |}
          |
          |function _get_multipart_chunk_size() {
-         |  local file_path=$$1
+         |  local file_path="$$1"
          |  # file size
-         |  file_size=$$(stat --printf="%s" $$file_path)
+         |  file_size=$$(stat --printf="%s" "$$file_path") 
          |  # chunk_size : you can have at most 10K parts with at least one 5MB part
          |  # this reflects the formula in s3-copy commands of cromwell (S3FileSystemProvider.java)
          |  #   => long partSize = Math.max((objectSize / 10000L) + 1, 5 * 1024 * 1024);
@@ -270,16 +299,16 @@ final case class AwsBatchJob(
          |}
          |
          |function _check_data_integrity() {
-         |  local local_path=$$1
-         |  local s3_path=$$2
-         |
+         |  local local_path="$$1"
+         |  local s3_path="$$2"
+         |  
          |  # remote : use content_length
-         |  if [[ $$s3_path =~ s3://([^/]+)/(.+) ]]; then
+         |  if [[ "$$s3_path" =~ s3://([^/]+)/(.+) ]]; then 
          |        bucket="$${BASH_REMATCH[1]}"
          |        key="$${BASH_REMATCH[2]}"
          |  else
          |      # this is already checked in the caller function
-         |      echo "$$s3_path is not an S3 path with a bucket and key. aborting"
+         |      echo "$$s3_path is not an S3 path with a bucket and key."
          |      exit 1
          |  fi
          |  s3_content_length=$$($awsCmd s3api head-object --bucket "$$bucket" --key "$$key" --query 'ContentLength') ||
@@ -295,13 +324,66 @@ final case class AwsBatchJob(
          |  fi
          |}
          |
+         |# function to add tags to instance ands volumes
+         |function _add_tags() {
+         |  local WFID="${workflowId}"
+         |  local TASKID="${taskId}"
+         |  local WFNAME="${workflowName}"
+         |  # see cloud-init docs for how to get instance-id
+         |  INSTANCE_ID=$$(cat /var/lib/cloud/data/instance-id)
+         |  VOLUME_IDS=$$($awsCmd ec2 describe-volumes --filters Name=attachment.instance-id,Values=$$INSTANCE_ID --query 'Volumes[].VolumeId' --output text)
+         |  echo " - Tagging instance $$INSTANCE_ID"
+         |  # add tags. if tag key exists, append tag if value not in comma seperated list yet. 
+         |  # info : tags wfid, taskID cannot have spaces by design. wfName does not allow spaces in WDL spec. 
+         |  WFIDS=$$(_combine_tags $$($awsCmd ec2 describe-tags --filters "Name=resource-id,Values=$$INSTANCE_ID" "Name=key,Values=cromwell-root-workflow-id" --query 'Tags[].Value' --output text) $$WFID)
+         |  TASKIDS=$$(_combine_tags $$($awsCmd ec2 describe-tags --filters "Name=resource-id,Values=$$INSTANCE_ID" "Name=key,Values=cromwell-task-id" --query 'Tags[].Value' --output text) $$TASKID)
+         |  WFNAMES=$$(_combine_tags $$($awsCmd ec2 describe-tags --filters "Name=resource-id,Values=$$INSTANCE_ID" "Name=key,Values=cromwell-root-workflow-name" --query 'Tags[].Value' --output text) $$WFNAME)
+         |  $awsCmd ec2 create-tags --resources $$INSTANCE_ID --tags Key=cromwell-root-workflow-id,Value="$$WFIDS" Key=cromwell-task-id,Value="$$TASKIDS" Key=cromwell-root-workflow-name,Value="$$WFNAMES"
+         |  for VOLUME_ID in $$VOLUME_IDS; do
+         |     echo " - Tagging volume $$VOLUME_ID"
+         |     WFIDS=$$(_combine_tags $$($awsCmd ec2 describe-tags --filters "Name=resource-id,Values=$$VOLUME_ID" "Name=key,Values=cromwell-root-workflow-id" --query 'Tags[].Value' --output text) $$WFID)
+         |     TASKIDS=$$(_combine_tags $$($awsCmd ec2 describe-tags --filters "Name=resource-id,Values=$$VOLUME_ID" "Name=key,Values=cromwell-task-id" --query 'Tags[].Value' --output text) $$TASKID)
+         |     WFNAMES=$$(_combine_tags $$($awsCmd ec2 describe-tags --filters "Name=resource-id,Values=$$VOLUME_ID" "Name=key,Values=cromwell-root-workflow-name" --query 'Tags[].Value' --output text) $$WFNAME)
+         |     $awsCmd ec2 create-tags --resources $$VOLUME_ID --tags Key=cromwell-root-workflow-id,Value="$$WFIDS" Key=cromwell-task-id,Value="$$TASKIDS" Key=cromwell-root-workflow-name,Value="$$WFNAMES"
+         |  done
+         |}
+         |
+         |# function to combine tags into a comma separated list of unique values, trim to 256 characters
+         |function _combine_tags() {
+         |  local TAGS=$$1
+         |  local NEW_TAG=$$2
+         |  if [[ -z "$$TAGS" ]]; then
+         |    # first tag
+         |    echo "$$NEW_TAG"
+         |  elif [[ "$$TAGS" = *$$NEW_TAG* ]]; then
+         |    # tag already exists
+         |    echo "$$TAGS"
+         |  else
+         |    # combine, trim to 256 characters
+         |    echo "$$TAGS;$$NEW_TAG" | cut -c1-256
+         |  fi
+         |}
+         |
          |{
          |set -e
+         |# tag instance and volumes to ensure tags are present in case of failure:
+         |if [[ "${doTagging}" == "true" ]]; then
+         |  echo "*** TAGGING RESOURCES ***"
+         |  _add_tags
+         |fi 
+         |
          |echo '*** LOCALIZING INPUTS ***'
          |if [ ! -d $workDir ]; then mkdir $workDir && chmod 777 $workDir; fi
          |cd $workDir
+         |# make sure localization completes successfully
+         |LOCALIZATION_FAILED=0
          |$inputCopyCommand
-         |echo '*** COMPLETED LOCALIZATION ***'
+         |if [[ $$LOCALIZATION_FAILED -eq 1 ]]; then
+         |  echo '*** LOCALIZATION FAILED ***'
+         |  exit 1
+         |else 
+         |  echo '*** COMPLETED LOCALIZATION ***'
+         |fi
          |set +e
          |}
          |""".stripMargin
@@ -333,20 +415,23 @@ final case class AwsBatchJob(
               Log.debug("delocalization on EFS is enabled")
               Log.debug(s"Delocalizing $globDirectory to $s3GlobOutDirectory\n")
               s"""
-                 |touch ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}
-                 |_s3_delocalize_with_retry ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} ${output.s3key}
-                 |if [ -e $globDirectory ]; then _s3_delocalize_with_retry $globDirectory $s3GlobOutDirectory ; fi
+                 |touch "${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}"
+                 |_s3_delocalize_with_retry "${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}" "${output.s3key}"
+                 |if [ -e $globDirectory ]; then _s3_delocalize_with_retry "$globDirectory" "$s3GlobOutDirectory" ; fi
                  |""".stripMargin
             } else {
 
               // check file for existence
               s"""
                         |# test the glob list
-                        |test -e ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} || (echo 'output file: ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} does not exist' && exit 1)
+                        |test -e "${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}" || (echo 'output file: ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} does not exist' && DELOCALIZATION_FAILED=1)
                         |# test individual files.
-                        |for F in $$(cat ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}); do
-                        |   test -e "${globDirectory}/$$F" || (echo 'globbed file: "${globDirectory}/$$F" does not exist' && exit 1)
+                        |SAVEIFS="$$IFS"
+                        |IFS=$$'\n'
+                        |for F in $$(cat "${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}"); do
+                        |   test -e "${globDirectory}/$$F" || (echo 'globbed file: "${globDirectory}/$$F" does not exist' && DELOCALIZATION_FAILED=1 && break)
                         |done
+                        |IFS="$$SAVEIFS"
                         |"""
             }
             // need to make md5sum?
@@ -356,14 +441,14 @@ final case class AwsBatchJob(
               s"""
                  |if [[ ! -f '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' ]] ; then 
                  |   # the glob list
-                 |   md5sum '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}' > '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' || (echo 'Could not generate ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' && exit 1 ); 
+                 |   md5sum '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}' > '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' || (echo 'Could not generate ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' && DELOCALIZATION_FAILED=1 ); 
                  |   # globbed files, using specified number of cpus for parallel processing.
-                 |   cat ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} | xargs -I% -P${runtimeAttributes.cpu.##.toString} bash -c "md5sum ${globDirectory}/% > ${globDirectory}/%.md5"
+                        SAVEIFS="$$IFS"
+                 |IFS=$$'\n'
+                 |   cat "${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}" | xargs -I% -P${runtimeAttributes.cpu.##.toString} bash -c "md5sum ${globDirectory}/% > ${globDirectory}/%.md5"
                  |fi
+                 |IFS="$$SAVEIFS"
                  |""".stripMargin
-            } else {
-              Log.debug("MD5 not enabled: " + efsMakeMD5.get.toString())
-              ""
             }
             // return combined result
             s"""
@@ -374,9 +459,9 @@ final case class AwsBatchJob(
             // default delocalization command.
             Log.debug(s"Delocalize from ${output.name} to ${output.s3key}\n")
             s"""
-               |touch ${output.name}
-               |_s3_delocalize_with_retry ${output.name} ${output.s3key}
-               |if [ -e $globDirectory ]; then _s3_delocalize_with_retry $globDirectory $s3GlobOutDirectory ; fi""".stripMargin
+               |touch "${output.name}"
+               |_s3_delocalize_with_retry "${output.name}" "${output.s3key}"
+               |if [ -e "$globDirectory" ]; then _s3_delocalize_with_retry "$globDirectory" "$s3GlobOutDirectory" ; fi""".stripMargin
           }
 
         // files on /cromwell/ working dir must be delocalized
@@ -386,7 +471,7 @@ final case class AwsBatchJob(
             ) && output.mount.mountPoint.pathAsString == AwsBatchWorkingDisk.MountPoint.pathAsString =>
           // output is on working disk mount
           Log.debug("output Data on working disk mount" + output.local.pathAsString)
-          s"""_s3_delocalize_with_retry $workDir/${output.local.pathAsString} ${output.s3key}""".stripMargin
+          s"""_s3_delocalize_with_retry "$workDir/${output.local.pathAsString}" "${output.s3key}" """.stripMargin
 
         // file(name (full path), s3key (delocalized path), local (file basename), mount (disk details))
         // files on EFS mounts are optionally delocalized.
@@ -400,12 +485,12 @@ final case class AwsBatchJob(
           if (efsDelocalize.isDefined && efsDelocalize.getOrElse(false)) {
             Log.debug("efs-delocalization enabled")
             test_cmd =
-              s"_s3_delocalize_with_retry ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} ${output.s3key}"
+              s"""_s3_delocalize_with_retry "${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}" "${output.s3key}" """.stripMargin
           } else {
             Log.debug("efs-delocalization disabled")
             // check file for existence
             test_cmd =
-              s"test -e ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} || (echo 'output file: ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} does not exist' && exit 1)"
+              s"""test -e "${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}" || (echo 'output file: ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} does not exist' && DELOCALIZATION_FAILED=1)""".stripMargin
           }
           // need to make md5sum?
           var md5_cmd = ""
@@ -413,12 +498,11 @@ final case class AwsBatchJob(
             Log.debug("Add cmd to create MD5 sibling.")
             md5_cmd =
               s"""
-                 |if [[ ! -f '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' ]] ; then
-                 |   md5sum '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}' > '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' || (echo 'Could not generate ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' && exit 1 );
+                 |if [[ ! -f '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' ]] ; then 
+                 |   md5sum '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}' > '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' || (echo 'Could not generate ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' && DELOCALIZATION_FAILED=1 ); 
                  |fi
                  |""".stripMargin
           } else {
-            Log.debug("MD5 not enabled: " + efsMakeMD5.get.toString())
             md5_cmd = ""
           }
           // return combined result
@@ -431,14 +515,14 @@ final case class AwsBatchJob(
           // output on a different mount
           Log.debug("output data on other mount")
           Log.debug(output.toString)
-          s"_s3_delocalize_with_retry ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} ${output.s3key}"
+          s"""_s3_delocalize_with_retry "${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}" "${output.s3key}" """.stripMargin
         case _ => ""
       }
       .mkString("\n") + "\n" +
       s"""
-         |if [ -f $workDir/${jobPaths.returnCodeFilename} ]; then _s3_delocalize_with_retry $workDir/${jobPaths.returnCodeFilename} ${jobPaths.callRoot.pathAsString}/${jobPaths.returnCodeFilename} ; fi
-         |if [ -f $stdErr ]; then _s3_delocalize_with_retry $stdErr ${jobPaths.standardPaths.error.pathAsString}; fi
-         |if [ -f $stdOut ]; then _s3_delocalize_with_retry $stdOut ${jobPaths.standardPaths.output.pathAsString}; fi
+         |if [ -f "$workDir/${jobPaths.returnCodeFilename}" ]; then _s3_delocalize_with_retry "$workDir/${jobPaths.returnCodeFilename}" "${jobPaths.callRoot.pathAsString}/${jobPaths.returnCodeFilename}" ; fi
+         |if [ -f "$stdErr" ]; then _s3_delocalize_with_retry "$stdErr" "${jobPaths.standardPaths.error.pathAsString}"; fi
+         |if [ -f "$stdOut" ]; then _s3_delocalize_with_retry "$stdOut" "${jobPaths.standardPaths.output.pathAsString}"; fi
          |""".stripMargin
 
     // insert the preamble at the insertion point and the postscript copy command at the end
@@ -446,9 +530,22 @@ final case class AwsBatchJob(
       s"""
          |{
          |set -e
+         |# (re-)add tags to include added volumes:
+         |if [[ "${doTagging}" == "true" ]]; then
+         |  echo "*** TAGGING RESOURCES ***"
+         |  _add_tags
+         |fi 
+         |
          |echo '*** DELOCALIZING OUTPUTS ***'
+         |DELOCALIZATION_FAILED=0
          |$outputCopyCommand
-         |echo '*** COMPLETED DELOCALIZATION ***'
+         |if [[ $$DELOCALIZATION_FAILED -eq 1 ]]; then
+         |  echo '*** DELOCALIZATION FAILED ***'
+         |  echo '*** EXITING WITH RETURN CODE 1***'
+         |  exit 1
+         |else
+         |  echo '*** COMPLETED DELOCALIZATION ***'
+         |fi
          |echo '*** EXITING WITH RETURN CODE ***'
          |rc=$$(head -n 1 $workDir/${jobPaths.returnCodeFilename})
          |echo $$rc
@@ -498,40 +595,57 @@ final case class AwsBatchJob(
     // calls the client to submit the job
     def callClient(definitionArn: String, awsBatchAttributes: AwsBatchAttributes): Aws[F, SubmitJobResponse] = {
 
+      val workflowId = jobDescriptor.workflowDescriptor.id.toString
+      val workflowName = jobDescriptor.workflowDescriptor.callable.name.toString
+      val rootworkflowId = jobDescriptor.workflowDescriptor.rootWorkflowId.toString
       Log.debug(s"Submitting taskId: $taskId, job definition : $definitionArn, script: $batch_script")
-      Log.info(s"Submitting taskId: $taskId, script: $batch_script")
+      Log.info(s"Submitting taskId: $rootworkflowId::$taskId, script: $batch_script")
 
+      // prepare the job request
+      var submitJobRequest = SubmitJobRequest
+        .builder()
+        .jobName(sanitize(jobDescriptor.taskCall.fullyQualifiedName))
+        .parameters(parameters.collect { case i: AwsBatchInput => i.toStringString }.toMap.asJava)
+        // provide job environment variables, vcpu and memory
+        .containerOverrides(
+          ContainerOverrides.builder
+            .environment(
+              generateEnvironmentKVPairs(runtimeAttributes.scriptS3BucketName, scriptKeyPrefix, scriptKey): _*
+            )
+            .resourceRequirements(
+              ResourceRequirement.builder().`type`(ResourceType.VCPU).value(runtimeAttributes.cpu.##.toString).build(),
+              ResourceRequirement
+                .builder()
+                .`type`(ResourceType.MEMORY)
+                .value(runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt.toString)
+                .build()
+            )
+            .build()
+        )
+        .jobQueue(runtimeAttributes.queueArn)
+        .jobDefinition(definitionArn)
+      // tagging activated : add to request
+      if (tagResources.getOrElse(false)) {
+        // replace invalid characters in the tags
+        val invalidCharsPattern = "[^a-zA-Z0-9_.:/=+-@]+".r
+        val tags: Map[String, String] = Map(
+          "cromwell-workflow-name" -> invalidCharsPattern.replaceAllIn(workflowName, "_"),
+          "cromwell-workflow-id" -> invalidCharsPattern.replaceAllIn(workflowId, "_"),
+          "cromwell-task-id" -> invalidCharsPattern.replaceAllIn(taskId, "_"),
+          "cromwell-root-workflow-name" -> invalidCharsPattern
+            .replaceAllIn(jobDescriptor.workflowDescriptor.rootWorkflow.name.toString, "_"),
+          "cromwell-root-workflow-id" -> invalidCharsPattern.replaceAllIn(
+            jobDescriptor.workflowDescriptor.rootWorkflowId.toString,
+            "_"
+          )
+        )
+        submitJobRequest = submitJobRequest.tags(tags.asJava).propagateTags(true)
+      }
+      // submit
       val submit: F[SubmitJobResponse] =
         async.delay(
           batchClient.submitJob(
-            SubmitJobRequest
-              .builder()
-              .jobName(sanitize(jobDescriptor.taskCall.fullyQualifiedName))
-              .parameters(parameters.collect { case i: AwsBatchInput => i.toStringString }.toMap.asJava)
-
-              // provide job environment variables, vcpu and memory
-              .containerOverrides(
-                ContainerOverrides.builder
-                  .environment(
-                    generateEnvironmentKVPairs(runtimeAttributes.scriptS3BucketName, scriptKeyPrefix, scriptKey): _*
-                  )
-                  .resourceRequirements(
-                    ResourceRequirement
-                      .builder()
-                      .`type`(ResourceType.VCPU)
-                      .value(runtimeAttributes.cpu.##.toString)
-                      .build(),
-                    ResourceRequirement
-                      .builder()
-                      .`type`(ResourceType.MEMORY)
-                      .value(runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt.toString)
-                      .build()
-                  )
-                  .build()
-              )
-              .jobQueue(runtimeAttributes.queueArn)
-              .jobDefinition(definitionArn)
-              .build
+            submitJobRequest.build
           )
         )
 
@@ -639,7 +753,8 @@ final case class AwsBatchJob(
           fsxMntPoint = fsxMntPoint,
           efsMntPoint = efsMntPoint,
           efsMakeMD5 = efsMakeMD5,
-          efsDelocalize = efsDelocalize
+          efsDelocalize = efsDelocalize,
+          tagResources = tagResources
         )
 
         val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder

@@ -48,6 +48,7 @@ import com.typesafe.config.{ConfigException, ConfigValueFactory}
 
 import scala.util.matching.Regex
 import org.slf4j.{Logger, LoggerFactory}
+import wom.RuntimeAttributesKeys.GpuKey
 
 import scala.util.{Failure, Success, Try}
 import scala.jdk.CollectionConverters._
@@ -55,6 +56,7 @@ import scala.jdk.CollectionConverters._
 /**
  * Attributes that are provided to the job at runtime
  * @param cpu number of vCPU
+ * @param gpuCount number of gpu
  * @param zones the aws availability zones to run in
  * @param memory memory to allocate
  * @param disks a sequence of disk volumes
@@ -73,6 +75,7 @@ import scala.jdk.CollectionConverters._
  * @param tagResources should we tag resources
  */
 case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
+                                     gpuCount: Int,
                                      zones: Vector[String],
                                      memory: MemorySize,
                                      disks: Seq[AwsBatchVolume],
@@ -126,6 +129,11 @@ object AwsBatchRuntimeAttributes {
   private def cpuValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int Refined Positive] =
     CpuValidation.instance
       .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
+
+  private def gpuCountValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] =
+    GpuCountValidation(GpuKey).withDefault(
+      GpuCountValidation(GpuKey).configDefaultWomValue(runtimeConfig).getOrElse(WomInteger(0))
+    )
 
   private def failOnStderrValidation(runtimeConfig: Option[Config]) = FailOnStderrValidation.default(runtimeConfig)
 
@@ -239,6 +247,7 @@ object AwsBatchRuntimeAttributes {
       .default(runtimeConfig)
       .withValidation(
         cpuValidation(runtimeConfig),
+        gpuCountValidation(runtimeConfig),
         disksValidation(runtimeConfig),
         zonesValidation(runtimeConfig),
         memoryValidation(runtimeConfig),
@@ -257,6 +266,7 @@ object AwsBatchRuntimeAttributes {
       .default(runtimeConfig)
       .withValidation(
         cpuValidation(runtimeConfig),
+        gpuCountValidation(runtimeConfig),
         disksValidation(runtimeConfig),
         zonesValidation(runtimeConfig),
         memoryValidation(runtimeConfig),
@@ -284,6 +294,8 @@ object AwsBatchRuntimeAttributes {
   ): AwsBatchRuntimeAttributes = {
     val cpu: Int Refined Positive =
       RuntimeAttributesValidation.extract(cpuValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val gpuCount: Int =
+      RuntimeAttributesValidation.extract(gpuCountValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val zones: Vector[String] = RuntimeAttributesValidation.extract(ZonesValidation, validatedRuntimeAttributes)
     val memory: MemorySize =
       RuntimeAttributesValidation.extract(memoryValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
@@ -329,6 +341,7 @@ object AwsBatchRuntimeAttributes {
     )
     new AwsBatchRuntimeAttributes(
       cpu,
+      gpuCount,
       zones,
       memory,
       disks,
@@ -516,6 +529,23 @@ object DisksValidation extends RuntimeAttributesValidation[Seq[AwsBatchVolume]] 
 
   override protected def missingValueMessage: String =
     s"Expecting $key runtime attribute to be a comma separated String or Array[String]"
+}
+
+object GpuCountValidation {
+  def apply(key: String): GpuCountValidation = new GpuCountValidation(key)
+}
+
+class GpuCountValidation(key: String) extends IntRuntimeAttributesValidation(key) {
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[Int]] = {
+    case womValue if WomIntegerType.coerceRawValue(womValue).isSuccess =>
+      WomIntegerType.coerceRawValue(womValue).get match {
+        case WomInteger(value) =>
+          if (value.toInt < 0)
+            s"Expecting $key runtime attribute value greater than or equal to 0".invalidNel
+          else
+            value.toInt.validNel
+      }
+  }
 }
 
 object AwsBatchRetryAttemptsValidation {

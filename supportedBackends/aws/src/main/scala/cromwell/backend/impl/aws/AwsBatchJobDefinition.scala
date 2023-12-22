@@ -209,6 +209,8 @@ trait AwsBatchJobDefinitionBuilder {
       tagResources
     )
 
+    // To reuse job definition for gpu and gpu-runs, we will create a job definition that does not gpu requirements
+    // since aws batch does not allow you to set gpu as 0 when you dont need it. you will always need cpu and memory
     (ContainerProperties
        .builder()
        .image(context.runtimeAttributes.dockerImage)

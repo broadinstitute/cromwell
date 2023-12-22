@@ -141,6 +141,34 @@ Parameter description:
   - Type: Integer
   - Required: Yes, when `ulimits` is used.
 
+### GPU support 
+
+Tasks can request GPU by setting `gpuCount` in the task runtime attribute. For instance:
+```
+task gpu_queue_task {
+    input {
+        ...
+    }
+
+    command <<< 
+        ...
+    >>>
+    output {}
+
+    runtime {
+        queueArn: "arn:aws:batch:us-west-2:12345678910:job-queue/quekx-gpu-queue"
+        docker: "xxxx"
+        maxRetries: 1
+        cpu: "1"
+        gpuCount: 1
+        memory: "2 GB"
+    }
+}
+```
+the gpuCount value will be passed to AWS Batch as part of [resourceRequirements](https://docs.aws.amazon.com/batch/latest/userguide/job_definition_parameters.html#ContainerProperties-resourceRequirements).
+You will need to use this feature in conjunction with a aws queue that has GPU instances (see [compute-environment](/supportedBackends/aws/src/main/scala/cromwell/backend/impl/aws/DEPLOY.md#compute-environment) for more inforamtion)
+
+
 ### Call Caching with ECR private
 
 AWS ECR is a private container registry, for which access can be regulated using IAM. Call caching is possible by setting up the following configuration:

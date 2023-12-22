@@ -138,6 +138,7 @@ object CommonBackendConfigurationAttributes {
     "default-runtime-attributes.zones",
     "default-runtime-attributes.continueOnReturnCode",
     "default-runtime-attributes.cpu",
+    "default-runtime-attributes.gpuCount",
     "default-runtime-attributes.noAddress",
     "default-runtime-attributes.docker",
     "default-runtime-attributes.queueArn",

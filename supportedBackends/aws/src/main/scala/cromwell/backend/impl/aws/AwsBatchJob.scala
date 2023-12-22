@@ -30,12 +30,11 @@
  */
 package cromwell.backend.impl.aws
 
-import java.nio.file.attribute.PosixFilePermission
-
 import cats.data.ReaderT._
 import cats.data.{Kleisli, ReaderT}
 import cats.effect.{Async, Timer}
 import cats.syntax.all._
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.impl.aws.io.AwsBatchWorkingDisk
 import cromwell.backend.io.JobPaths
@@ -58,12 +57,11 @@ import software.amazon.awssdk.services.s3.model.{
 }
 import wdl4s.parser.MemoryUnit
 
+import java.nio.file.attribute.PosixFilePermission
 import java.security.MessageDigest
-import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
+import scala.jdk.CollectionConverters._
 import scala.util.Try
-import com.typesafe.config.Config
-import com.typesafe.config.ConfigFactory
 
 /**
   *  The actual job for submission in AWS batch. `AwsBatchJob` is the primary interface to AWS Batch. It creates the
@@ -601,6 +599,22 @@ final case class AwsBatchJob(
       Log.debug(s"Submitting taskId: $taskId, job definition : $definitionArn, script: $batch_script")
       Log.info(s"Submitting taskId: $rootworkflowId::$taskId, script: $batch_script")
 
+      // provide job environment variables, vcpu and memory
+      var resourceRequirements: Seq[ResourceRequirement] = Seq(
+        ResourceRequirement.builder().`type`(ResourceType.VCPU).value(runtimeAttributes.cpu.##.toString).build(),
+        ResourceRequirement
+          .builder()
+          .`type`(ResourceType.MEMORY)
+          .value(runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt.toString)
+          .build()
+      )
+
+      if (runtimeAttributes.gpuCount > 0) {
+        val gpuRequirement =
+          ResourceRequirement.builder().`type`(ResourceType.GPU).value(runtimeAttributes.gpuCount.toString)
+        resourceRequirements = resourceRequirements :+ gpuRequirement.build()
+      }
+
       // prepare the job request
       var submitJobRequest = SubmitJobRequest
         .builder()
@@ -612,14 +626,7 @@ final case class AwsBatchJob(
             .environment(
               generateEnvironmentKVPairs(runtimeAttributes.scriptS3BucketName, scriptKeyPrefix, scriptKey): _*
             )
-            .resourceRequirements(
-              ResourceRequirement.builder().`type`(ResourceType.VCPU).value(runtimeAttributes.cpu.##.toString).build(),
-              ResourceRequirement
-                .builder()
-                .`type`(ResourceType.MEMORY)
-                .value(runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt.toString)
-                .build()
-            )
+            .resourceRequirements(resourceRequirements.asJava)
             .build()
         )
         .jobQueue(runtimeAttributes.queueArn)

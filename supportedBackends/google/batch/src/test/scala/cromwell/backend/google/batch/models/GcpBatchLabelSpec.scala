@@ -25,7 +25,7 @@ class GcpBatchLabelSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
 
   googleLabelConversions foreach { case (label: String, conversion: String) =>
     it should s"not validate the bad label key '$label'" in {
-      GcpLabel.validateLabelRegex(label) match {
+      GcpLabel.validateLabelRegex(label, true) match {
         case Invalid(_) => // Good!
         case Valid(_) => fail(s"Label validation succeeded but should have failed.")
       }

@@ -380,7 +380,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       HttpRequest(method = HttpMethods.POST, uri = s"$tesEndpoint/${job.jobId}:cancel")
     ) onComplete {
       case Success(_) => jobLogger.info("{} Aborted {}", tag: Any, job.jobId)
-      case Failure(ex) => jobLogger.warn("{} Failed to abort {}: {}", tag, job.jobId, ex.getMessage)
+      case Failure(ex) => jobLogger.warn("{} Failed to abort {}", tag, job.jobId, ex)
     }
 
     ()

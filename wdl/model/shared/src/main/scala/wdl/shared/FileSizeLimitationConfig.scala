@@ -42,19 +42,18 @@ object FileSizeLimitationConfig {
 
   lazy val fileSizeLimitationConfig: FileSizeLimitationConfig = config.as[FileSizeLimitationConfig]("input-read-limits")
 
-  implicit val configReader : ValueReader[FileSizeLimitationConfig] = ValueReader.relative{c =>
+  implicit val configReader: ValueReader[FileSizeLimitationConfig] = ValueReader.relative { c =>
     def f(s: String) = c.as[Int](s)
     new FileSizeLimitationConfig {
-      val readLinesLimit =  f("lines")
-      val readBoolLimit =   f("bool")
-      val readIntLimit =    f("int")
-      val readFloatLimit =  f("float")
+      val readLinesLimit = f("lines")
+      val readBoolLimit = f("bool")
+      val readIntLimit = f("int")
+      val readFloatLimit = f("float")
       val readStringLimit = f("string")
-      val readJsonLimit =   f("json")
-      val readTsvLimit =    f("tsv")
-      val readMapLimit =    f("map")
+      val readJsonLimit = f("json")
+      val readTsvLimit = f("tsv")
+      val readMapLimit = f("map")
       val readObjectLimit = f("object")
     }
   }
 }
-

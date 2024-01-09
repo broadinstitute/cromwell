@@ -62,7 +62,7 @@ object Testing {
       spanScaleFactor,
       "-W",
       "300",
-      "300",
+      "300"
     )
 
   /** Run minnie-kenny only once per sbt invocation. */
@@ -71,7 +71,7 @@ object Testing {
     private var resultOption: Option[Int] = None
 
     /** Run using the logger, throwing an exception only on the first failure. */
-    def runOnce(log: Logger, args: Seq[String]): Unit = {
+    def runOnce(log: Logger, args: Seq[String]): Unit =
       mutex synchronized {
         if (resultOption.isEmpty) {
           log.debug(s"Running minnie-kenny.sh${args.mkString(" ", " ", "")}")
@@ -83,7 +83,6 @@ object Testing {
             sys.error("Running minnie-kenny.sh failed. Please double check for errors above.")
         }
       }
-    }
   }
 
   // Only run one minnie-kenny.sh at a time!
@@ -116,24 +115,24 @@ object Testing {
     Test / test := {
       minnieKenny.toTask("").value
       (Test / test).value
-    },
+    }
   )
 
   private val integrationTestSettings = List(
     libraryDependencies ++= testDependencies.map(_ % IntegrationTest)
   ) ++ itSettings
 
-  def addTestSettings(project: Project) = {
+  def addTestSettings(project: Project) =
     project
       .settings(testSettings)
-      .configs(AllTests).settings(inConfig(AllTests)(Defaults.testTasks): _*)
-      .configs(CromwellBenchmarkTest).settings(inConfig(CromwellBenchmarkTest)(Defaults.testTasks): _*)
-  }
+      .configs(AllTests)
+      .settings(inConfig(AllTests)(Defaults.testTasks): _*)
+      .configs(CromwellBenchmarkTest)
+      .settings(inConfig(CromwellBenchmarkTest)(Defaults.testTasks): _*)
 
-  def addIntegrationTestSettings(project: Project) = {
+  def addIntegrationTestSettings(project: Project) =
     project
       .settings(integrationTestSettings)
       .configs(IntegrationTest)
-  }
 
 }

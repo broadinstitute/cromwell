@@ -429,6 +429,7 @@ runtime {
 Note that when this options is specified, make sure the requested CPU platform is [available](https://cloud.google.com/compute/docs/regions-zones/#available) in the `zones` you selected.
 
 The following CPU platforms are currently supported by the Google Cloud backend:
+- `Intel Ice Lake`
 - `Intel Cascade Lake`
 - `Intel Skylake`     
 - `Intel Broadwell`   

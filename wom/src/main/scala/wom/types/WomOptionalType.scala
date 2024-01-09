@@ -11,6 +11,7 @@ case class WomOptionalType(memberType: WomType) extends WomType {
     case recursive: WomOptionalType => 1 + recursive.depth
     case _ => 1
   }
+
   /**
     * Method to be overridden by implementation classes defining a partial function
     * for the conversion of raw input values to specific implementation class value types.
@@ -25,16 +26,19 @@ case class WomOptionalType(memberType: WomType) extends WomType {
     case None => WomOptionalValue(memberType, None)
 
     // Coerce and adjust nesting level of equivalent nested conditionals:
-    case womOptional: WomOptionalValue if baseMemberType.isCoerceableFrom(womOptional.womType.baseMemberType) => womOptional.coerceAndSetNestingLevel(this).get
+    case womOptional: WomOptionalValue if baseMemberType.isCoerceableFrom(womOptional.womType.baseMemberType) =>
+      womOptional.coerceAndSetNestingLevel(this).get
 
     // It's safe to box up values implicitly:
-    case womValue: WomValue if baseMemberType.isCoerceableFrom(womValue.womType) => WomOptionalValue(womValue).coerceAndSetNestingLevel(this).get
+    case womValue: WomValue if baseMemberType.isCoerceableFrom(womValue.womType) =>
+      WomOptionalValue(womValue).coerceAndSetNestingLevel(this).get
 
     case WomOptionalValue(WomNothingType, None) => WomOptionalValue(memberType, None)
 
     case null => WomOptionalValue(memberType, None)
 
-    case coerceable: Any if baseMemberType.coercionDefined(coerceable) => WomOptionalValue(baseMemberType.coerceRawValue(coerceable).get).coerceAndSetNestingLevel(this).get
+    case coerceable: Any if baseMemberType.coercionDefined(coerceable) =>
+      WomOptionalValue(baseMemberType.coerceRawValue(coerceable).get).coerceAndSetNestingLevel(this).get
   }
 
   override def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = otherType match {
@@ -46,7 +50,8 @@ case class WomOptionalType(memberType: WomType) extends WomType {
     case WomOptionalType(otherMemberType) if memberType.isCoerceableFrom(otherMemberType) => true
 
     // Check flattening:
-    case WomOptionalType(otherMemberType: WomOptionalType) => baseMemberType.isCoerceableFrom(otherMemberType.baseMemberType)
+    case WomOptionalType(otherMemberType: WomOptionalType) =>
+      baseMemberType.isCoerceableFrom(otherMemberType.baseMemberType)
 
     case _ => false
   }

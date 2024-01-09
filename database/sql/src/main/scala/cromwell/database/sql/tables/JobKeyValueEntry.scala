@@ -1,7 +1,6 @@
 package cromwell.database.sql.tables
 
-case class JobKeyValueEntry
-(
+case class JobKeyValueEntry(
   workflowExecutionUuid: String,
   callFullyQualifiedName: String,
   jobIndex: Int,

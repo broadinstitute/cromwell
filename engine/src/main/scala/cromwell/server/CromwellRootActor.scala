@@ -20,7 +20,11 @@ import cromwell.engine.io.{IoActor, IoActorProxy}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.AbortAllWorkflowsCommand
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor, CallCacheWriteActor}
-import cromwell.engine.workflow.lifecycle.finalization.CopyWorkflowLogsActor
+import cromwell.engine.workflow.lifecycle.finalization.{
+  CopyWorkflowLogsActor,
+  WorkflowCallbackActor,
+  WorkflowCallbackConfig
+}
 import cromwell.engine.workflow.tokens.{DynamicRateLimiter, JobTokenDispenserActor}
 import cromwell.engine.workflow.workflowstore.AbortRequestScanningActor.AbortConfig
 import cromwell.engine.workflow.workflowstore._
@@ -54,9 +58,11 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
                                  gracefulShutdown: Boolean,
                                  abortJobsOnTerminate: Boolean,
                                  val serverMode: Boolean,
-                                 protected val config: Config)
-                                (implicit materializer: ActorMaterializer)
-  extends Actor with ActorLogging with GracefulShutdownHelper {
+                                 protected val config: Config
+)(implicit materializer: ActorMaterializer)
+    extends Actor
+    with ActorLogging
+    with GracefulShutdownHelper {
 
   import CromwellRootActor._
 
@@ -72,9 +78,11 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
 
   lazy val systemConfig = config.getConfig("system")
   lazy val serviceRegistryActor: ActorRef = context.actorOf(ServiceRegistryActor.props(config), "ServiceRegistryActor")
-  lazy val numberOfWorkflowLogCopyWorkers = systemConfig.as[Option[Int]]("number-of-workflow-log-copy-workers").getOrElse(DefaultNumberOfWorkflowLogCopyWorkers)
+  lazy val numberOfWorkflowLogCopyWorkers =
+    systemConfig.as[Option[Int]]("number-of-workflow-log-copy-workers").getOrElse(DefaultNumberOfWorkflowLogCopyWorkers)
 
-  lazy val workflowStore: WorkflowStore = SqlWorkflowStore(EngineServicesStore.engineDatabaseInterface, MetadataServicesStore.metadataDatabaseInterface)
+  lazy val workflowStore: WorkflowStore =
+    SqlWorkflowStore(EngineServicesStore.engineDatabaseInterface, MetadataServicesStore.metadataDatabaseInterface)
 
   val workflowStoreAccess: WorkflowStoreAccess = {
     val coordinatedWorkflowStoreAccess = config.as[Option[Boolean]]("system.coordinated-workflow-store-access")
@@ -90,51 +98,75 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
   }
 
   lazy val workflowStoreActor =
-    context.actorOf(WorkflowStoreActor.props(
-      workflowStoreDatabase = workflowStore,
-      workflowStoreAccess = workflowStoreAccess,
-      serviceRegistryActor = serviceRegistryActor,
-      terminator = terminator,
-      abortAllJobsOnTerminate = abortJobsOnTerminate,
-      workflowHeartbeatConfig = workflowHeartbeatConfig),
-      "WorkflowStoreActor")
+    context.actorOf(
+      WorkflowStoreActor.props(
+        workflowStoreDatabase = workflowStore,
+        workflowStoreAccess = workflowStoreAccess,
+        serviceRegistryActor = serviceRegistryActor,
+        terminator = terminator,
+        abortAllJobsOnTerminate = abortJobsOnTerminate,
+        workflowHeartbeatConfig = workflowHeartbeatConfig
+      ),
+      "WorkflowStoreActor"
+    )
 
   lazy val jobStore: JobStore = new SqlJobStore(EngineServicesStore.engineDatabaseInterface)
-  lazy val jobStoreActor: ActorRef = context.actorOf(JobStoreActor.props(jobStore, serviceRegistryActor, workflowStoreAccess), "JobStoreActor")
+  lazy val jobStoreActor: ActorRef =
+    context.actorOf(JobStoreActor.props(jobStore, serviceRegistryActor, workflowStoreAccess), "JobStoreActor")
 
   lazy val subWorkflowStore: SubWorkflowStore = new SqlSubWorkflowStore(EngineServicesStore.engineDatabaseInterface)
-  lazy val subWorkflowStoreActor: ActorRef = context.actorOf(SubWorkflowStoreActor.props(subWorkflowStore), "SubWorkflowStoreActor")
+  lazy val subWorkflowStoreActor: ActorRef =
+    context.actorOf(SubWorkflowStoreActor.props(subWorkflowStore), "SubWorkflowStoreActor")
 
   lazy val ioConfig: IoConfig = config.as[IoConfig]
-  lazy val ioActor: ActorRef = context.actorOf(
-    IoActor.props(
-      ioConfig = ioConfig,
-      serviceRegistryActor = serviceRegistryActor,
-      applicationName = GoogleConfiguration(config).applicationName),
-    "IoActor")
+  lazy val ioActor: ActorRef = context.actorOf(IoActor.props(ioConfig = ioConfig,
+                                                             serviceRegistryActor = serviceRegistryActor,
+                                                             applicationName =
+                                                               GoogleConfiguration(config).applicationName
+                                               ),
+                                               "IoActor"
+  )
   lazy val ioActorProxy: ActorRef = context.actorOf(IoActorProxy.props(ioActor), "IoProxy")
 
   // Register the IoActor with the service registry:
   serviceRegistryActor ! IoActorRef(ioActorProxy)
 
-  lazy val workflowLogCopyRouter: ActorRef = context.actorOf(RoundRobinPool(numberOfWorkflowLogCopyWorkers)
-    .withSupervisorStrategy(CopyWorkflowLogsActor.strategy)
-    .props(CopyWorkflowLogsActor.props(serviceRegistryActor, ioActor)),
-    "WorkflowLogCopyRouter")
+  lazy val workflowLogCopyRouter: ActorRef = context.actorOf(
+    RoundRobinPool(numberOfWorkflowLogCopyWorkers)
+      .withSupervisorStrategy(CopyWorkflowLogsActor.strategy)
+      .props(CopyWorkflowLogsActor.props(serviceRegistryActor, ioActor)),
+    "WorkflowLogCopyRouter"
+  )
 
-  //Call-caching config validation
+  private val workflowCallbackConfig = WorkflowCallbackConfig(config.getConfig("workflow-state-callback"))
+
+  lazy val workflowCallbackActor: Option[ActorRef] =
+    if (workflowCallbackConfig.enabled) {
+      val props = WorkflowCallbackActor.props(
+        serviceRegistryActor,
+        workflowCallbackConfig
+      )
+      Option(context.actorOf(props, "WorkflowCallbackActor"))
+    } else None
+
+  // Call-caching config validation
   lazy val callCachingConfig = config.getConfig("call-caching")
   lazy val callCachingEnabled = callCachingConfig.getBoolean("enabled")
   lazy val callInvalidateBadCacheResults = callCachingConfig.getBoolean("invalidate-bad-cache-results")
 
   lazy val callCache: CallCache = new CallCache(EngineServicesStore.engineDatabaseInterface)
 
-  lazy val numberOfCacheReadWorkers = config.getConfig("system").as[Option[Int]]("number-of-cache-read-workers").getOrElse(DefaultNumberOfCacheReadWorkers)
+  lazy val numberOfCacheReadWorkers = config
+    .getConfig("system")
+    .as[Option[Int]]("number-of-cache-read-workers")
+    .getOrElse(DefaultNumberOfCacheReadWorkers)
   lazy val callCacheReadActor = context.actorOf(RoundRobinPool(numberOfCacheReadWorkers)
-    .props(CallCacheReadActor.props(callCache, serviceRegistryActor)),
-    "CallCacheReadActor")
+                                                  .props(CallCacheReadActor.props(callCache, serviceRegistryActor)),
+                                                "CallCacheReadActor"
+  )
 
-  lazy val callCacheWriteActor = context.actorOf(CallCacheWriteActor.props(callCache, serviceRegistryActor), "CallCacheWriteActor")
+  lazy val callCacheWriteActor =
+    context.actorOf(CallCacheWriteActor.props(callCache, serviceRegistryActor), "CallCacheWriteActor")
 
   // Docker Actor
   lazy val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
@@ -148,22 +180,49 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
     case DockerRemoteLookup => DockerInfoActor.remoteRegistriesFromConfig(DockerConfiguration.dockerHashLookupConfig)
   }
 
-  lazy val dockerHashActor = context.actorOf(DockerInfoActor.props(dockerFlows, dockerActorQueueSize,
-    dockerConf.cacheEntryTtl, dockerConf.cacheSize), "DockerHashActor")
+  lazy val dockerHashActor = context.actorOf(
+    DockerInfoActor.props(dockerFlows, dockerActorQueueSize, dockerConf.cacheEntryTtl, dockerConf.cacheSize),
+    "DockerHashActor"
+  )
 
   lazy val backendSingletons = CromwellBackends.instance.get.backendLifecycleActorFactories map {
-    case (name, factory) => name -> (factory.backendSingletonActorProps(serviceRegistryActor) map { context.actorOf(_, s"$name-Singleton") })
+    case (name, factory) =>
+      name -> (factory.backendSingletonActorProps(serviceRegistryActor) map { context.actorOf(_, s"$name-Singleton") })
   }
   lazy val backendSingletonCollection = BackendSingletonCollection(backendSingletons)
 
-  lazy val jobRestartCheckRate: DynamicRateLimiter.Rate = DynamicRateLimiter.Rate(systemConfig.as[Int]("job-restart-check-rate-control.jobs"), systemConfig.as[FiniteDuration]("job-restart-check-rate-control.per"))
-  lazy val jobExecutionRate: DynamicRateLimiter.Rate = DynamicRateLimiter.Rate(systemConfig.as[Int]("job-rate-control.jobs"), systemConfig.as[FiniteDuration]("job-rate-control.per"))
+  lazy val jobRestartCheckRate: DynamicRateLimiter.Rate = DynamicRateLimiter.Rate(
+    systemConfig.as[Int]("job-restart-check-rate-control.jobs"),
+    systemConfig.as[FiniteDuration]("job-restart-check-rate-control.per")
+  )
+  lazy val jobExecutionRate: DynamicRateLimiter.Rate = DynamicRateLimiter.Rate(
+    systemConfig.as[Int]("job-rate-control.jobs"),
+    systemConfig.as[FiniteDuration]("job-rate-control.per")
+  )
 
-  lazy val restartCheckTokenLogInterval: Option[FiniteDuration] = systemConfig.as[Option[Int]]("job-restart-check-rate-control.token-log-interval-seconds").map(_.seconds)
-  lazy val executionTokenLogInterval: Option[FiniteDuration] = systemConfig.as[Option[Int]]("hog-safety.token-log-interval-seconds").map(_.seconds)
+  lazy val restartCheckTokenLogInterval: Option[FiniteDuration] =
+    systemConfig.as[Option[Int]]("job-restart-check-rate-control.token-log-interval-seconds").map(_.seconds)
+  lazy val executionTokenLogInterval: Option[FiniteDuration] =
+    systemConfig.as[Option[Int]]("hog-safety.token-log-interval-seconds").map(_.seconds)
 
-  lazy val jobRestartCheckTokenDispenserActor: ActorRef = context.actorOf(JobTokenDispenserActor.props(serviceRegistryActor, jobRestartCheckRate, restartCheckTokenLogInterval, "restart checking", "CheckingRestart"), "JobRestartCheckTokenDispenser")
-  lazy val jobExecutionTokenDispenserActor: ActorRef = context.actorOf(JobTokenDispenserActor.props(serviceRegistryActor, jobExecutionRate, executionTokenLogInterval, "execution", ExecutionStatus.Running.toString), "JobExecutionTokenDispenser")
+  lazy val jobRestartCheckTokenDispenserActor: ActorRef = context.actorOf(
+    JobTokenDispenserActor.props(serviceRegistryActor,
+                                 jobRestartCheckRate,
+                                 restartCheckTokenLogInterval,
+                                 "restart checking",
+                                 "CheckingRestart"
+    ),
+    "JobRestartCheckTokenDispenser"
+  )
+  lazy val jobExecutionTokenDispenserActor: ActorRef = context.actorOf(
+    JobTokenDispenserActor.props(serviceRegistryActor,
+                                 jobExecutionRate,
+                                 executionTokenLogInterval,
+                                 "execution",
+                                 ExecutionStatus.Running.toString
+    ),
+    "JobExecutionTokenDispenser"
+  )
 
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(
@@ -174,6 +233,7 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
       ioActor = ioActorProxy,
       serviceRegistryActor = serviceRegistryActor,
       workflowLogCopyRouter = workflowLogCopyRouter,
+      workflowCallbackActor = workflowCallbackActor,
       jobStoreActor = jobStoreActor,
       subWorkflowStoreActor = subWorkflowStoreActor,
       callCacheReadActor = callCacheReadActor,
@@ -183,19 +243,24 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
       jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
       backendSingletonCollection = backendSingletonCollection,
       serverMode = serverMode,
-      workflowHeartbeatConfig = workflowHeartbeatConfig),
-    "WorkflowManagerActor")
+      workflowHeartbeatConfig = workflowHeartbeatConfig
+    ),
+    "WorkflowManagerActor"
+  )
 
   val abortRequestScanningActor = {
     val abortConfigBlock = config.as[Option[Config]]("system.abort")
 
-    val abortCacheConfig = CacheConfig.config(caching = abortConfigBlock.flatMap { _.as[Option[Config]]("cache") },
+    val abortCacheConfig = CacheConfig.config(caching = abortConfigBlock.flatMap(_.as[Option[Config]]("cache")),
                                               defaultConcurrency = 1,
                                               defaultSize = 100000L,
-                                              defaultTtl = 20 minutes)
+                                              defaultTtl = 20 minutes
+    )
 
     val abortConfig = AbortConfig(
-      scanFrequency = abortConfigBlock.flatMap { _.as[Option[FiniteDuration]]("scan-frequency") } getOrElse (30 seconds),
+      scanFrequency = abortConfigBlock.flatMap {
+        _.as[Option[FiniteDuration]]("scan-frequency")
+      } getOrElse (30 seconds),
       cacheConfig = abortCacheConfig
     )
 
@@ -218,6 +283,7 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
       actorSystem = context.system,
       workflowManagerActor = workflowManagerActor,
       logCopyRouter = workflowLogCopyRouter,
+      workflowCallbackActor = workflowCallbackActor,
       jobStoreActor = jobStoreActor,
       jobTokenDispenser = jobExecutionTokenDispenserActor,
       workflowStoreActor = workflowStoreActor,
@@ -248,8 +314,8 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
     }
   }
 
-  override def receive = {
-    case message => logger.error(s"Unknown message received by CromwellRootActor: $message")
+  override def receive = { case message =>
+    logger.error(s"Unknown message received by CromwellRootActor: $message")
   }
 
   /**

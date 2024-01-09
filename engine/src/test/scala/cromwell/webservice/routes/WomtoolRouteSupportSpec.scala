@@ -16,7 +16,6 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-
 // N.B. this suite only tests the routing and creation of the WorkflowSourceFilesCollection, it uses the MockServiceRegistryActor
 // to return fake results instead of going to a real WomtoolServiceActor
 class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Matchers {
@@ -29,12 +28,24 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
   behavior of "/describe endpoint"
 
   object BodyParts {
-    val workflowSource  = Multipart.FormData.BodyPart("workflowSource", HttpEntity(ContentTypes.`text/plain(UTF-8)`, "This is not a WDL, but that's OK for this test of request routing."))
-    val workflowUrl     = Multipart.FormData.BodyPart("workflowUrl", HttpEntity(MediaTypes.`application/json`,
-      "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/womtool/src/test/resources/validate/wdl_draft3/valid/callable_imports/my_workflow.wdl"))
-    val workflowInputs = Multipart.FormData.BodyPart("workflowInputs", HttpEntity(MediaTypes.`application/json`, "{\"a\":\"is for apple\"}"))
+    val workflowSource = Multipart.FormData.BodyPart(
+      "workflowSource",
+      HttpEntity(ContentTypes.`text/plain(UTF-8)`, "This is not a WDL, but that's OK for this test of request routing.")
+    )
+    val workflowUrl = Multipart.FormData.BodyPart(
+      "workflowUrl",
+      HttpEntity(
+        MediaTypes.`application/json`,
+        "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/womtool/src/test/resources/validate/wdl_draft3/valid/callable_imports/my_workflow.wdl"
+      )
+    )
+    val workflowInputs = Multipart.FormData.BodyPart(
+      "workflowInputs",
+      HttpEntity(MediaTypes.`application/json`, "{\"a\":\"is for apple\"}")
+    )
     val workflowType = Multipart.FormData.BodyPart("workflowType", HttpEntity(ContentTypes.`text/plain(UTF-8)`, "WDL"))
-    val workflowVersion = Multipart.FormData.BodyPart("workflowTypeVersion", HttpEntity(ContentTypes.`text/plain(UTF-8)`, "1.0"))
+    val workflowVersion =
+      Multipart.FormData.BodyPart("workflowTypeVersion", HttpEntity(ContentTypes.`text/plain(UTF-8)`, "1.0"))
 
     val workflowSourceTriggerDescribeFailure =
       Multipart.FormData.BodyPart("workflowSource", HttpEntity(ContentTypes.`text/plain(UTF-8)`, "fail to describe"))
@@ -43,16 +54,17 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
   }
 
   it should "return Bad Request if the actor returns DescribeFailure" in {
-    Post(s"/womtool/$version/describe", Multipart.FormData(BodyParts.workflowSourceTriggerDescribeFailure).toEntity()) ~>
+    Post(s"/womtool/$version/describe",
+         Multipart.FormData(BodyParts.workflowSourceTriggerDescribeFailure).toEntity()
+    ) ~>
       akkaHttpService.womtoolRoutes ~>
       check {
         status should be(StatusCodes.BadRequest)
 
-        assertResult(
-          s"""{
-             |  "status": "fail",
-             |  "message": "as requested, failing to describe"
-             |}""".stripMargin) {
+        assertResult(s"""{
+                        |  "status": "fail",
+                        |  "message": "as requested, failing to describe"
+                        |}""".stripMargin) {
           responseAs[String]
         }
       }
@@ -75,7 +87,8 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
         status should be(StatusCodes.OK)
 
         assertResult {
-          WorkflowDescription(valid = true,
+          WorkflowDescription(
+            valid = true,
             errors = List(
               "this is fake data from the mock SR actor",
               "[reading back DescribeRequest contents] workflow hashcode: Some(580529622)",
@@ -86,7 +99,7 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
             ),
             validWorkflow = true
           )
-        } { responseAs[WorkflowDescription] }
+        }(responseAs[WorkflowDescription])
       }
   }
 
@@ -97,7 +110,8 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
         status should be(StatusCodes.OK)
 
         assertResult {
-          WorkflowDescription(valid = true,
+          WorkflowDescription(
+            valid = true,
             errors = List(
               "this is fake data from the mock SR actor",
               "[reading back DescribeRequest contents] workflow hashcode: None",
@@ -108,18 +122,24 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
             ),
             validWorkflow = true
           )
-        } { responseAs[WorkflowDescription] }
+        }(responseAs[WorkflowDescription])
       }
   }
 
   it should "include inputs, workflow type, and workflow version in the WorkflowSourceFilesCollection" in {
-    Post(s"/womtool/$version/describe", Multipart.FormData(BodyParts.workflowSource, BodyParts.workflowInputs, BodyParts.workflowType, BodyParts.workflowVersion).toEntity()) ~>
+    Post(
+      s"/womtool/$version/describe",
+      Multipart
+        .FormData(BodyParts.workflowSource, BodyParts.workflowInputs, BodyParts.workflowType, BodyParts.workflowVersion)
+        .toEntity()
+    ) ~>
       akkaHttpService.womtoolRoutes ~>
       check {
         status should be(StatusCodes.OK)
 
         assertResult {
-          WorkflowDescription(valid = true,
+          WorkflowDescription(
+            valid = true,
             errors = List(
               "this is fake data from the mock SR actor",
               "[reading back DescribeRequest contents] workflow hashcode: Some(580529622)",
@@ -130,17 +150,18 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
             ),
             validWorkflow = true
           )
-        } { responseAs[WorkflowDescription] }
+        }(responseAs[WorkflowDescription])
       }
   }
 }
 
 object WomtoolRouteSupportSpec {
-  class MockWomtoolRouteSupport()(implicit val system: ActorSystem, routeTestTimeout: RouteTestTimeout) extends WomtoolRouteSupport {
+  class MockWomtoolRouteSupport()(implicit val system: ActorSystem, routeTestTimeout: RouteTestTimeout)
+      extends WomtoolRouteSupport {
     override def actorRefFactory = system
     override val ec = system.dispatcher
     override val timeout = routeTestTimeout.duration
     override val serviceRegistryActor = actorRefFactory.actorOf(Props(new MockServiceRegistryActor()))
-    override implicit val materializer = ActorMaterializer()
+    implicit override val materializer = ActorMaterializer()
   }
 }

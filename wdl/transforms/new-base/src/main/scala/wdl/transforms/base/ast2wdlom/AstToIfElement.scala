@@ -8,12 +8,10 @@ import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.elements._
 
 object AstToIfElement {
-  def astToIfElement(implicit astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement],
-                     astNodeToWorkflowGraphElement: CheckedAtoB[GenericAstNode, WorkflowGraphElement]
-
-                    ): CheckedAtoB[GenericAst, IfElement] = CheckedAtoB.fromErrorOr("parse if block") { ast =>
-
-
+  def astToIfElement(implicit
+    astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement],
+    astNodeToWorkflowGraphElement: CheckedAtoB[GenericAstNode, WorkflowGraphElement]
+  ): CheckedAtoB[GenericAst, IfElement] = CheckedAtoB.fromErrorOr("parse if block") { ast =>
     val conditionCollectionExpressionValidation: ErrorOr[ExpressionElement] =
       ast.getAttributeAs[ExpressionElement]("expression").toValidated.contextualizeErrors("parse if (...) condition")
     val bodyValidation: ErrorOr[Vector[WorkflowGraphElement]] =

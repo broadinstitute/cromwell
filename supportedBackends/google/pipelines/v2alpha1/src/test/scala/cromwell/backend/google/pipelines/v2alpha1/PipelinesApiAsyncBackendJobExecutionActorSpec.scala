@@ -10,8 +10,11 @@ import org.mockito.Mockito._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class PipelinesApiAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
-  with MockSugar {
+class PipelinesApiAsyncBackendJobExecutionActorSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with MockSugar {
   behavior of "PipelinesParameterConversions"
 
   it should "group files by bucket" in {
@@ -39,8 +42,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Cro
 
     val expected =
       Map("foo" -> (NonEmptyList.of(0, 1) map inputs.apply)) ++
-      Map("bar" -> (NonEmptyList.of(2, 3, 4) map inputs.apply)) ++
-      Map("baz" -> NonEmptyList.of(inputs(5)))
+        Map("bar" -> (NonEmptyList.of(2, 3, 4) map inputs.apply)) ++
+        Map("baz" -> NonEmptyList.of(inputs(5)))
 
     PipelinesApiAsyncBackendJobExecutionActor.groupParametersByGcsBucket(inputs) shouldEqual expected
   }

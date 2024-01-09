@@ -10,14 +10,12 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 
 import scala.util.{Failure, Try}
 
-
 class GoogleAuthModeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "GoogleAuthMode"
 
-  private def mockHttpResponseException(statusCode: Int): HttpResponseException = {
+  private def mockHttpResponseException(statusCode: Int): HttpResponseException =
     new HttpResponseException.Builder(statusCode, "mock message", new HttpHeaders).build()
-  }
 
   private val testedExceptions = Table(
     ("description", "exception", "isFatal"),
@@ -55,14 +53,13 @@ object GoogleAuthModeSpec extends ServiceAccountTestSupport {
     ()
   }
 
-  lazy val userCredentialsContents: String = {
+  lazy val userCredentialsContents: String =
     toJson(
       "type" -> "authorized_user",
       "client_id" -> "the_id",
       "client_secret" -> "the_secret",
       "refresh_token" -> "the_token"
     )
-  }
 
   lazy val refreshTokenOptions: OptionLookup = Map("refresh_token" -> "the_refresh_token")
   lazy val userServiceAccountOptions: OptionLookup = Map("user_service_account_json" -> serviceAccountJsonContents)

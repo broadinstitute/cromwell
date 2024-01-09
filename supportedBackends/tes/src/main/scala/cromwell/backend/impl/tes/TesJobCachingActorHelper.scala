@@ -1,6 +1,5 @@
 package cromwell.backend.impl.tes
 
-
 import akka.actor.Actor
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.core.logging.JobLogging
@@ -8,9 +7,8 @@ import cromwell.core.logging.JobLogging
 trait TesJobCachingActorHelper extends StandardCachingActorHelper {
   this: Actor with JobLogging =>
 
-  lazy val initializationData: TesBackendInitializationData = {
+  lazy val initializationData: TesBackendInitializationData =
     backendInitializationDataAs[TesBackendInitializationData]
-  }
 
   lazy val tesWorkflowPaths: TesWorkflowPaths = workflowPaths.asInstanceOf[TesWorkflowPaths]
 
@@ -18,6 +16,9 @@ trait TesJobCachingActorHelper extends StandardCachingActorHelper {
 
   lazy val tesConfiguration: TesConfiguration = initializationData.tesConfiguration
 
-  lazy val runtimeAttributes = TesRuntimeAttributes(validatedRuntimeAttributes, jobDescriptor.runtimeAttributes, tesConfiguration)
+  lazy val runtimeAttributes =
+    TesRuntimeAttributes(validatedRuntimeAttributes, jobDescriptor.runtimeAttributes, tesConfiguration)
+  override protected def nonStandardMetadata: Map[String, Any] =
+    super.nonStandardMetadata ++ tesJobPaths.azureLogPathsForMetadata
 
 }

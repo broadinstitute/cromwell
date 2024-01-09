@@ -11,13 +11,14 @@ import scala.util.Try
   * https://docs.docker.com/engine/api/v1.27/
   */
 trait DockerCliClient {
+
   /**
     * Looks up a docker hash.
     *
     * @param dockerCliKey The docker hash to lookup.
     * @return The hash if found, None if not found, and Failure if an error occurs.
     */
-  def lookupHash(dockerCliKey: DockerCliKey): Try[Option[String]] = {
+  def lookupHash(dockerCliKey: DockerCliKey): Try[Option[String]] =
     /*
     The stdout contains the tab separated repository/tag/digest for __all__ local images.
     Would be great to just get a single hash using the key... unfortunately
@@ -26,16 +27,14 @@ trait DockerCliClient {
     forRun("docker", "images", "--digests", "--format", """{{printf "%s\t%s\t%s" .Repository .Tag .Digest}}""") {
       _.flatMap(parseHashLine).find(_.key == dockerCliKey).map(_.digest)
     }
-  }
 
   /**
     * Pulls a docker image.
     * @param dockerCliKey The docker hash to lookup.
     * @return Failure if an error occurs.
     */
-  def pull(dockerCliKey: DockerCliKey): Try[Unit] = {
-    forRun("docker", "pull", dockerCliKey.fullName) { const(()) }
-  }
+  def pull(dockerCliKey: DockerCliKey): Try[Unit] =
+    forRun("docker", "pull", dockerCliKey.fullName)(const(()))
 
   /**
     * Tries to run the command, then feeds the stdout to `f`. If the exit code is non-zero, returns a `Failure` with
@@ -46,20 +45,18 @@ trait DockerCliClient {
     * @tparam A Return type.
     * @return An attempt to run A.
     */
-  private def forRun[A](cmd: String*)(f: Seq[String] => A): Try[A] = {
+  private def forRun[A](cmd: String*)(f: Seq[String] => A): Try[A] =
     Try {
       val dockerCliResult = run(cmd)
       if (dockerCliResult.exitCode == 0) {
         f(dockerCliResult.stdout)
       } else {
-        throw new RuntimeException(
-          s"""|Error running: ${cmd.mkString(" ")}
-              |Exit code: ${dockerCliResult.exitCode}
-              |${dockerCliResult.stderr.mkString("\n")}
-              |""".stripMargin)
+        throw new RuntimeException(s"""|Error running: ${cmd.mkString(" ")}
+                                       |Exit code: ${dockerCliResult.exitCode}
+                                       |${dockerCliResult.stderr.mkString("\n")}
+                                       |""".stripMargin)
       }
     }
-  }
 
   /**
     * Run a command and return the result. Overridable for testing.

@@ -13,7 +13,7 @@ import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataService._
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
 import cromwell.webservice.routes.CromwellApiService.BackendResponse
-import spray.json.{DefaultJsonProtocol, JsString, JsValue, JsonFormat, RootJsonFormat}
+import spray.json.{DefaultJsonProtocol, JsonFormat, JsString, JsValue, RootJsonFormat}
 
 object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val workflowStatusResponseProtocol = jsonFormat2(WorkflowStatusResponse)
@@ -25,18 +25,24 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val BackendResponseFormat = jsonFormat2(BackendResponse)
   implicit val callAttempt = jsonFormat2(CallAttempt)
 
-  implicit val workflowOptionsFormatter: JsonFormat[WorkflowOptions] = new JsonFormat[WorkflowOptions]  {
+  implicit val workflowOptionsFormatter: JsonFormat[WorkflowOptions] = new JsonFormat[WorkflowOptions] {
     override def read(json: JsValue): WorkflowOptions = json match {
       case str: JsString => WorkflowOptions.fromJsonString(str.value).get
-      case other => throw new UnsupportedOperationException(s"Cannot use ${other.getClass.getSimpleName} value. Expected a workflow options String")
+      case other =>
+        throw new UnsupportedOperationException(
+          s"Cannot use ${other.getClass.getSimpleName} value. Expected a workflow options String"
+        )
     }
     override def write(obj: WorkflowOptions): JsValue = JsString(obj.asPrettyJson)
   }
 
-  implicit val workflowIdFormatter: JsonFormat[WorkflowId] = new JsonFormat[WorkflowId]  {
+  implicit val workflowIdFormatter: JsonFormat[WorkflowId] = new JsonFormat[WorkflowId] {
     override def read(json: JsValue): WorkflowId = json match {
       case str: JsString => WorkflowId.fromString(str.value)
-      case other => throw new UnsupportedOperationException(s"Cannot use ${other.getClass.getSimpleName} value. Expected a workflow ID String")
+      case other =>
+        throw new UnsupportedOperationException(
+          s"Cannot use ${other.getClass.getSimpleName} value. Expected a workflow ID String"
+        )
     }
     override def write(obj: WorkflowId): JsValue = JsString(obj.id.toString)
   }
@@ -58,7 +64,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
 
   // By default the formatter for JsValues prints them out ADT-style.
   // In the case of SuccessResponses, we just want raw JsValues to be included in our output verbatim.
-  private implicit val identityJsValueFormatter = new RootJsonFormat[JsValue] {
+  implicit private val identityJsValueFormatter = new RootJsonFormat[JsValue] {
     override def read(json: JsValue): JsValue = json
     override def write(obj: JsValue): JsValue = obj
   }

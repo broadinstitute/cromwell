@@ -16,7 +16,8 @@ object WdlCall {
             namespaces: Seq[WdlNamespace],
             tasks: Seq[WdlTask],
             workflows: Seq[WdlWorkflow],
-            wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): WdlCall = {
+            wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter
+  ): WdlCall = {
     val alias: Option[String] = ast.getAttribute("alias") match {
       case x: Terminal => Option(x.getSourceString)
       case _ => None
@@ -36,14 +37,12 @@ object WdlCall {
     }
   }
 
-  private def processCallInput(ast: Ast,
-                               wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Map[String, WdlExpression] = {
+  private def processCallInput(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Map[String, WdlExpression] =
     AstTools.callInputSectionIOMappings(ast, wdlSyntaxErrorFormatter) map { a =>
       val key = a.getAttribute("key").sourceString
       val expression = new WdlExpression(a.getAttribute("value"))
       (key, expression)
     } toMap
-  }
 }
 
 /**
@@ -61,7 +60,9 @@ object WdlCall {
 sealed abstract class WdlCall(val alias: Option[String],
                               val callable: WdlCallable,
                               val inputMappings: Map[String, WdlExpression],
-                              val ast: Ast) extends WdlGraphNodeWithInputs with WorkflowScoped {
+                              val ast: Ast
+) extends WdlGraphNodeWithInputs
+    with WorkflowScoped {
   val unqualifiedName: String = alias getOrElse callable.unqualifiedName
 
   def callType: String
@@ -83,7 +84,8 @@ sealed abstract class WdlCall(val alias: Option[String],
     *
     * NB Only used in tests, womtool and some external tools (eg FC's workflow input enumerator)
     */
-  def workflowInputs: Seq[InputDefinition] = declarations.filterNot(i => inputMappings.contains(i.unqualifiedName)).flatMap(_.asWorkflowInput)
+  def workflowInputs: Seq[InputDefinition] =
+    declarations.filterNot(i => inputMappings.contains(i.unqualifiedName)).flatMap(_.asWorkflowInput)
 
   override def toString: String = s"[Call $fullyQualifiedName]"
 
@@ -98,12 +100,13 @@ sealed abstract class WdlCall(val alias: Option[String],
   def evaluateTaskInputs(inputs: WorkflowCoercedInputs,
                          wdlFunctions: WdlFunctions[WomValue],
                          outputResolver: OutputResolver = NoOutputResolver,
-                         shards: Map[Scatter, Int] = Map.empty[Scatter, Int]): Try[EvaluatedTaskInputs] = {
+                         shards: Map[Scatter, Int] = Map.empty[Scatter, Int]
+  ): Try[EvaluatedTaskInputs] = {
 
     type EvaluatedDeclarations = Map[Declaration, Try[WomValue]]
     def doDeclaration(currentInputs: EvaluatedDeclarations, declaration: Declaration): EvaluatedDeclarations = {
-      val newInputs = inputs ++ currentInputs.collect{
-        case (decl, Success(value)) => decl.fullyQualifiedName -> value
+      val newInputs = inputs ++ currentInputs.collect { case (decl, Success(value)) =>
+        decl.fullyQualifiedName -> value
       }
       val lookup = lookupFunction(newInputs, wdlFunctions, outputResolver, shards, relativeTo = declaration)
       val evaluatedDeclaration = Try(lookup(declaration.unqualifiedName))
@@ -141,21 +144,30 @@ sealed abstract class WdlCall(val alias: Option[String],
                               wdlFunctions: WdlFunctions[WomValue],
                               outputResolver: OutputResolver = NoOutputResolver,
                               shards: Map[Scatter, Int] = Map.empty[Scatter, Int],
-                              relativeTo: Scope = this): (String => WomValue) =
+                              relativeTo: Scope = this
+  ): (String => WomValue) =
     (name: String) => {
 
       val inputMappingsWithMatchingName = Try(
-        inputMappings.getOrElse(name, throw new Exception(s"Could not find $name in input section of call $fullyQualifiedName"))
+        inputMappings.getOrElse(
+          name,
+          throw new Exception(s"Could not find $name in input section of call $fullyQualifiedName")
+        )
       )
 
       val declarationsWithMatchingName = Try(
-        declarations.find(_.unqualifiedName == name).getOrElse(throw new Exception(s"No declaration named $name for call $fullyQualifiedName"))
+        declarations
+          .find(_.unqualifiedName == name)
+          .getOrElse(throw new Exception(s"No declaration named $name for call $fullyQualifiedName"))
       )
 
       val inputMappingsLookup = for {
         inputExpr <- inputMappingsWithMatchingName
         parent <- Try(parent.getOrElse(throw new Exception(s"Call $unqualifiedName has no parent")))
-        evaluatedExpr <- inputExpr.evaluate(parent.lookupFunction(inputs, wdlFunctions, outputResolver, shards, relativeTo), wdlFunctions)
+        evaluatedExpr <- inputExpr.evaluate(
+          parent.lookupFunction(inputs, wdlFunctions, outputResolver, shards, relativeTo),
+          wdlFunctions
+        )
         // Coerce the input into the declared type:
         declaration <- declarationsWithMatchingName
         coerced <- declaration.womType.coerceRawValue(evaluatedExpr)
@@ -174,7 +186,10 @@ sealed abstract class WdlCall(val alias: Option[String],
       val declarationExprLookup = for {
         declaration <- declarationsWithMatchingName
         declarationExpr <- Try(declaration.expression.getOrElse(throw VariableNotFoundException(declaration)))
-        evaluatedExpr <- declarationExpr.evaluate(lookupFunction(inputs, wdlFunctions, outputResolver, shards, relativeTo), wdlFunctions)
+        evaluatedExpr <- declarationExpr.evaluate(
+          lookupFunction(inputs, wdlFunctions, outputResolver, shards, relativeTo),
+          wdlFunctions
+        )
       } yield evaluatedExpr
 
       val taskParentResolution = for {
@@ -185,11 +200,11 @@ sealed abstract class WdlCall(val alias: Option[String],
       val resolutions = Seq(inputMappingsLookup, declarationExprLookup, declarationLookup, taskParentResolution)
 
       resolutions collectFirst { case Success(value) => value } getOrElse {
-        resolutions.toList.flatMap({
+        resolutions.toList.flatMap {
           case Failure(_: VariableNotFoundException) => None
           case Failure(ex) => Option(ex) // Only take failures that are not VariableNotFoundExceptions
           case _ => None
-        }) match {
+        } match {
           case Nil => throw VariableNotFoundException(name)
           case exs => throw new VariableLookupException(name, exs)
         }
@@ -197,9 +212,17 @@ sealed abstract class WdlCall(val alias: Option[String],
     }
 }
 
-case class WdlTaskCall(override val alias: Option[String], task: WdlTask, override val inputMappings: Map[String, WdlExpression], override val ast: Ast) extends WdlCall(alias, task, inputMappings, ast) {
+case class WdlTaskCall(override val alias: Option[String],
+                       task: WdlTask,
+                       override val inputMappings: Map[String, WdlExpression],
+                       override val ast: Ast
+) extends WdlCall(alias, task, inputMappings, ast) {
   override val callType = "call"
 }
-case class WdlWorkflowCall(override val alias: Option[String], calledWorkflow: WdlWorkflow, override val inputMappings: Map[String, WdlExpression], override val ast: Ast) extends WdlCall(alias, calledWorkflow, inputMappings, ast) {
+case class WdlWorkflowCall(override val alias: Option[String],
+                           calledWorkflow: WdlWorkflow,
+                           override val inputMappings: Map[String, WdlExpression],
+                           override val ast: Ast
+) extends WdlCall(alias, calledWorkflow, inputMappings, ast) {
   override val callType = "workflow"
 }

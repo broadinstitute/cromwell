@@ -17,7 +17,11 @@ import scala.util.Random
 object WorkflowProcessingEventPublishing {
   private lazy val cromwellVersion = VersionUtil.getVersion("cromwell")
 
-  def publish(workflowId: WorkflowId, cromwellId: String, descriptionValue: DescriptionEventValue.Value, serviceRegistry: ActorRef): Unit = {
+  def publish(workflowId: WorkflowId,
+              cromwellId: String,
+              descriptionValue: DescriptionEventValue.Value,
+              serviceRegistry: ActorRef
+  ): Unit = {
     def randomNumberString: String = Random.nextInt(Int.MaxValue).toString
 
     def metadataKey(workflowId: WorkflowId, randomNumberString: String, key: String) =
@@ -41,18 +45,16 @@ object WorkflowProcessingEventPublishing {
 
   def publishLabelsToMetadata(workflowId: WorkflowId,
                               labels: Map[String, String],
-                              serviceRegistry: ActorRef): IOChecked[Unit] = {
+                              serviceRegistry: ActorRef
+  ): IOChecked[Unit] = {
     val defaultLabel = "cromwell-workflow-id" -> s"cromwell-$workflowId"
     Monad[IOChecked].pure(labelsToMetadata(workflowId, labels + defaultLabel, serviceRegistry))
   }
 
-  private def labelsToMetadata(workflowId: WorkflowId,
-                               labels: Map[String, String],
-                               serviceRegistry: ActorRef): Unit = {
+  private def labelsToMetadata(workflowId: WorkflowId, labels: Map[String, String], serviceRegistry: ActorRef): Unit =
     labels foreach { case (labelKey, labelValue) =>
       val metadataKey = MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Labels}:$labelKey")
       val metadataValue = MetadataValue(labelValue)
       serviceRegistry ! PutMetadataAction(MetadataEvent(metadataKey, metadataValue))
     }
-  }
 }

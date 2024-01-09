@@ -16,54 +16,62 @@ import wom.values.WomFile
 import scala.language.postfixOps
 import scala.util.Try
 
-class PipelinesApiBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams) extends StandardCacheHitCopyingActor(standardParams) {
+class PipelinesApiBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams)
+    extends StandardCacheHitCopyingActor(standardParams) {
   override protected val commandBuilder: GcsBatchCommandBuilder.type = GcsBatchCommandBuilder
   private val cachingStrategy = BackendInitializationData
     .as[PipelinesApiBackendInitializationData](standardParams.backendInitializationDataOption)
-    .papiConfiguration.papiAttributes.cacheHitDuplicationStrategy
-  
+    .papiConfiguration
+    .papiAttributes
+    .cacheHitDuplicationStrategy
+
   override def processSimpletons(womValueSimpletons: Seq[WomValueSimpleton],
-                                 sourceCallRootPath: Path,
-                                ): Try[(CallOutputs, Set[IoCommand[_]])] =
+                                 sourceCallRootPath: Path
+  ): Try[(CallOutputs, Set[IoCommand[_]])] =
     cachingStrategy match {
-    case CopyCachedOutputs => super.processSimpletons(womValueSimpletons, sourceCallRootPath)
-    case UseOriginalCachedOutputs =>
-      val touchCommands: Seq[Try[IoTouchCommand]] = womValueSimpletons collect {
-        case WomValueSimpleton(_, wdlFile: WomFile) => getPath(wdlFile.value) flatMap GcsBatchCommandBuilder.touchCommand
-      }
-      
-      TryUtil.sequence(touchCommands) map {
-        WomValueBuilder.toJobOutputs(jobDescriptor.taskCall.outputPorts, womValueSimpletons) -> _.toSet
-      }
-  }
-
-  override def extractBlacklistPrefix(path: String): Option[String] = Option(path.stripPrefix("gs://").takeWhile(_ != '/'))
-
-  override def processDetritus(sourceJobDetritusFiles: Map[String, String]
-                              ): Try[(Map[String, Path], Set[IoCommand[_]])] = 
-    cachingStrategy match {
-    case CopyCachedOutputs => super.processDetritus(sourceJobDetritusFiles)
-    case UseOriginalCachedOutputs =>
-      // apply getPath on each detritus string file
-      val detritusAsPaths = detritusFileKeys(sourceJobDetritusFiles).toSeq map { key =>
-        key -> getPath(sourceJobDetritusFiles(key))
-      } toMap
-
-      // Don't forget to re-add the CallRootPathKey that has been filtered out by detritusFileKeys
-      TryUtil.sequenceMap(detritusAsPaths, "Failed to make paths out of job detritus") flatMap { newDetritus =>
-        Try {
-          // PROD-444: Keep It Short and Simple: Throw on the first error and let the outer Try catch-and-re-wrap
-          (newDetritus + (JobPaths.CallRootPathKey -> destinationCallRootPath)) ->
-            newDetritus.values.map(GcsBatchCommandBuilder.touchCommand(_).get).toSet
+      case CopyCachedOutputs => super.processSimpletons(womValueSimpletons, sourceCallRootPath)
+      case UseOriginalCachedOutputs =>
+        val touchCommands: Seq[Try[IoTouchCommand]] = womValueSimpletons collect {
+          case WomValueSimpleton(_, wdlFile: WomFile) =>
+            getPath(wdlFile.value) flatMap GcsBatchCommandBuilder.touchCommand
         }
-      }
-  }
+
+        TryUtil.sequence(touchCommands) map {
+          WomValueBuilder.toJobOutputs(jobDescriptor.taskCall.outputPorts, womValueSimpletons) -> _.toSet
+        }
+    }
+
+  override def extractBlacklistPrefix(path: String): Option[String] = Option(
+    path.stripPrefix("gs://").takeWhile(_ != '/')
+  )
+
+  override def processDetritus(
+    sourceJobDetritusFiles: Map[String, String]
+  ): Try[(Map[String, Path], Set[IoCommand[_]])] =
+    cachingStrategy match {
+      case CopyCachedOutputs => super.processDetritus(sourceJobDetritusFiles)
+      case UseOriginalCachedOutputs =>
+        // apply getPath on each detritus string file
+        val detritusAsPaths = detritusFileKeys(sourceJobDetritusFiles).toSeq map { key =>
+          key -> getPath(sourceJobDetritusFiles(key))
+        } toMap
+
+        // Don't forget to re-add the CallRootPathKey that has been filtered out by detritusFileKeys
+        TryUtil.sequenceMap(detritusAsPaths, "Failed to make paths out of job detritus") flatMap { newDetritus =>
+          Try {
+            // PROD-444: Keep It Short and Simple: Throw on the first error and let the outer Try catch-and-re-wrap
+            (newDetritus + (JobPaths.CallRootPathKey -> destinationCallRootPath)) ->
+              newDetritus.values.map(GcsBatchCommandBuilder.touchCommand(_).get).toSet
+          }
+        }
+    }
 
   override protected def additionalIoCommands(sourceCallRootPath: Path,
                                               originalSimpletons: Seq[WomValueSimpleton],
                                               newOutputs: CallOutputs,
-                                              originalDetritus:  Map[String, String],
-                                              newDetritus: Map[String, Path]): Try[List[Set[IoCommand[_]]]] = Try {
+                                              originalDetritus: Map[String, String],
+                                              newDetritus: Map[String, Path]
+  ): Try[List[Set[IoCommand[_]]]] = Try {
     cachingStrategy match {
       case UseOriginalCachedOutputs =>
         val content =
@@ -74,13 +82,17 @@ class PipelinesApiBackendCacheHitCopyingActor(standardParams: StandardCacheHitCo
       """.stripMargin
 
         // PROD-444: Keep It Short and Simple: Throw on the first error and let the outer Try catch-and-re-wrap
-        List(Set(
-          GcsBatchCommandBuilder.writeCommand(
-            path = jobPaths.forCallCacheCopyAttempts.callExecutionRoot / "call_caching_placeholder.txt",
-            content = content,
-            options = Seq(CloudStorageOptions.withMimeType("text/plain")),
-          ).get
-        ))
+        List(
+          Set(
+            GcsBatchCommandBuilder
+              .writeCommand(
+                path = jobPaths.forCallCacheCopyAttempts.callExecutionRoot / "call_caching_placeholder.txt",
+                content = content,
+                options = Seq(CloudStorageOptions.withMimeType("text/plain"))
+              )
+              .get
+          )
+        )
       case CopyCachedOutputs => List.empty
     }
   }

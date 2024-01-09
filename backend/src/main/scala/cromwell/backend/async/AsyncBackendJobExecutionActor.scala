@@ -1,6 +1,5 @@
 package cromwell.backend.async
 
-
 import java.util.concurrent.ExecutionException
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
@@ -18,10 +17,12 @@ import scala.util.{Failure, Success}
 object AsyncBackendJobExecutionActor {
 
   sealed trait AsyncBackendJobExecutionActorMessage
-  private final case class IssuePollRequest(executionHandle: ExecutionHandle) extends AsyncBackendJobExecutionActorMessage
-  private final case class PollResponseReceived(executionHandle: ExecutionHandle) extends AsyncBackendJobExecutionActorMessage
-  private final case class FailAndStop(reason: Throwable) extends AsyncBackendJobExecutionActorMessage
-  private final case class Finish(executionHandle: ExecutionHandle) extends AsyncBackendJobExecutionActorMessage
+  final private case class IssuePollRequest(executionHandle: ExecutionHandle)
+      extends AsyncBackendJobExecutionActorMessage
+  final private case class PollResponseReceived(executionHandle: ExecutionHandle)
+      extends AsyncBackendJobExecutionActorMessage
+  final private case class FailAndStop(reason: Throwable) extends AsyncBackendJobExecutionActorMessage
+  final private case class Finish(executionHandle: ExecutionHandle) extends AsyncBackendJobExecutionActorMessage
 
   trait JobId
 
@@ -57,27 +58,24 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging with SlowJob
 
   def isTransient(throwable: Throwable): Boolean = false
 
-  private def withRetry[A](work: () => Future[A], backOff: SimpleExponentialBackoff): Future[A] = {
+  private def withRetry[A](work: () => Future[A], backOff: SimpleExponentialBackoff): Future[A] =
     Retry.withRetry(work, isTransient = isTransient, isFatal = isFatal, backoff = backOff)(context.system)
-  }
 
-  private def robustExecuteOrRecover(mode: ExecutionMode) = {
+  private def robustExecuteOrRecover(mode: ExecutionMode) =
     withRetry(() => executeOrRecover(mode), executeOrRecoverBackOff) onComplete {
       case Success(h) => self ! IssuePollRequest(h)
       case Failure(t) => self ! FailAndStop(t)
     }
-  }
 
   def pollBackOff: SimpleExponentialBackoff
 
   def executeOrRecoverBackOff: SimpleExponentialBackoff
 
-  private def robustPoll(handle: ExecutionHandle) = {
+  private def robustPoll(handle: ExecutionHandle) =
     withRetry(() => poll(handle), pollBackOff) onComplete {
       case Success(h) => self ! PollResponseReceived(h)
       case Failure(t) => self ! FailAndStop(t)
     }
-  }
 
   private def failAndStop(t: Throwable) = {
     completionPromise.success(JobFailedNonRetryableResponse(jobDescriptor.key, t, None))
@@ -94,7 +92,16 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging with SlowJob
       context.system.scheduler.scheduleOnce(pollBackOff.backoffMillis.millis, self, IssuePollRequest(handle))
       ()
     case Finish(SuccessfulExecutionHandle(outputs, returnCode, jobDetritusFiles, executionEvents, _)) =>
-      completionPromise.success(JobSucceededResponse(jobDescriptor.key, Some(returnCode), outputs, Option(jobDetritusFiles), executionEvents, dockerImageUsed, resultGenerationMode = RunOnBackend))
+      completionPromise.success(
+        JobSucceededResponse(jobDescriptor.key,
+                             Some(returnCode),
+                             outputs,
+                             Option(jobDetritusFiles),
+                             executionEvents,
+                             dockerImageUsed,
+                             resultGenerationMode = RunOnBackend
+        )
+      )
       context.stop(self)
     case Finish(FailedNonRetryableExecutionHandle(throwable, returnCode, _)) =>
       completionPromise.success(JobFailedNonRetryableResponse(jobDescriptor.key, throwable, returnCode))
@@ -133,5 +140,5 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging with SlowJob
 
   def jobDescriptor: BackendJobDescriptor
 
-  protected implicit def ec: ExecutionContext
+  implicit protected def ec: ExecutionContext
 }

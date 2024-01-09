@@ -17,7 +17,7 @@ final class GraphPrint(executableCallable: ExecutableCallable) {
   def dotString: String =
     WorkflowDigraph(
       workflowName = executableCallable.name,
-      digraph = listAllGraphNodes(executableCallable.graph, new AtomicInteger(0), Map.empty),
+      digraph = listAllGraphNodes(executableCallable.graph, new AtomicInteger(0), Map.empty)
     ).dotString
 
   // A "monoid" is just a fancy way of saying "thing you can add together".
@@ -32,20 +32,24 @@ final class GraphPrint(executableCallable: ExecutableCallable) {
    */
   private def listAllGraphNodes(graph: Graph,
                                 clusterCounter: AtomicInteger,
-                                availableScatterVariables: Map[ScatterVariableNode, DotScatterVariableNode]): NodesAndLinks = {
-
+                                availableScatterVariables: Map[ScatterVariableNode, DotScatterVariableNode]
+  ): NodesAndLinks =
     graph.nodes.toList.filter(worthDisplaying).foldMap {
-      case ccn: CommandCallNode => NodesAndLinks(Set(DotCallNode(ccn)), upstreamLinks(ccn, DotCallNode(ccn), availableScatterVariables))
-      case scn: WorkflowCallNode => NodesAndLinks(Set(DotSubworkflowCallNode(scn)), upstreamLinks(scn, DotSubworkflowCallNode(scn), availableScatterVariables))
+      case ccn: CommandCallNode =>
+        NodesAndLinks(Set(DotCallNode(ccn)), upstreamLinks(ccn, DotCallNode(ccn), availableScatterVariables))
+      case scn: WorkflowCallNode =>
+        NodesAndLinks(Set(DotSubworkflowCallNode(scn)),
+                      upstreamLinks(scn, DotSubworkflowCallNode(scn), availableScatterVariables)
+        )
       case s: ScatterNode => handleScatter(s, clusterCounter, availableScatterVariables)
       case c: ConditionalNode => handleConditional(c, clusterCounter, availableScatterVariables)
       case _ => nodeAndLinkMonoid.empty
     }
-  }
 
   def handleScatter(scatterNode: ScatterNode,
                     clusterCounter: AtomicInteger,
-                    knownScatterVariables: Map[ScatterVariableNode, DotScatterVariableNode]): NodesAndLinks = {
+                    knownScatterVariables: Map[ScatterVariableNode, DotScatterVariableNode]
+  ): NodesAndLinks = {
     val clusterNumber = clusterCounter.getAndIncrement()
     val id = s"cluster_$clusterNumber"
 
@@ -65,7 +69,8 @@ final class GraphPrint(executableCallable: ExecutableCallable) {
       svn -> link.get
     }.toMap
 
-    val innerGraphNodesAndLinks = listAllGraphNodes(scatterNode.innerGraph, clusterCounter, knownScatterVariables ++ madeScatterVariableNodes)
+    val innerGraphNodesAndLinks =
+      listAllGraphNodes(scatterNode.innerGraph, clusterCounter, knownScatterVariables ++ madeScatterVariableNodes)
 
     NodesAndLinks(
       nodes = Set(DotScatterNode(id, innerGraphNodesAndLinks.nodes ++ scatterExpressionNodesAndLinks.nodes)),
@@ -75,7 +80,8 @@ final class GraphPrint(executableCallable: ExecutableCallable) {
 
   def handleConditional(conditionalNode: ConditionalNode,
                         clusterCounter: AtomicInteger,
-                        knownScatterVariables: Map[ScatterVariableNode, DotScatterVariableNode]): NodesAndLinks = {
+                        knownScatterVariables: Map[ScatterVariableNode, DotScatterVariableNode]
+  ): NodesAndLinks = {
     val clusterNumber = clusterCounter.getAndIncrement()
     val id = s"cluster_$clusterNumber"
 
@@ -90,7 +96,7 @@ final class GraphPrint(executableCallable: ExecutableCallable) {
     val innerGraphNodesAndLinks = listAllGraphNodes(conditionalNode.innerGraph, clusterCounter, knownScatterVariables)
 
     NodesAndLinks(
-      nodes = Set(DotConditionalNode(id, innerGraphNodesAndLinks.nodes ++ conditionalExpressionNodesAndLinks.nodes)) ,
+      nodes = Set(DotConditionalNode(id, innerGraphNodesAndLinks.nodes ++ conditionalExpressionNodesAndLinks.nodes)),
       links = innerGraphNodesAndLinks.links ++ conditionalExpressionNodesAndLinks.links
     )
   }
@@ -141,24 +147,27 @@ object GraphPrint {
     def dotString = s"""$id [shape="hexagon" label="scatter over ${womType.friendlyName} as $valueName"]"""
   }
   object DotScatterVariableNode {
-    def apply(svn: ScatterVariableNode, clusterNumber: Int): DotScatterVariableNode = DotScatterVariableNode(svn.womType, svn.identifier.localName.value, clusterNumber)
+    def apply(svn: ScatterVariableNode, clusterNumber: Int): DotScatterVariableNode =
+      DotScatterVariableNode(svn.womType, svn.identifier.localName.value, clusterNumber)
   }
 
-  final case class DotConditionalExpressionNode(womType: WomType, expressionString: String, clusterNumber: Int) extends DotNode {
+  final case class DotConditionalExpressionNode(womType: WomType, expressionString: String, clusterNumber: Int)
+      extends DotNode {
     override def id: String = s"CONDITIONAL_${clusterNumber}_EXPRESSION"
     def dotString = s"""$id [shape="hexagon" label="if ($expressionString)" style="dashed" ]"""
   }
   object DotConditionalExpressionNode {
-    def apply(en: ExpressionNode, clusterNumber: Int): DotConditionalExpressionNode = DotConditionalExpressionNode(en.womType, escapeQuotes(en.womExpression.sourceString), clusterNumber)
+    def apply(en: ExpressionNode, clusterNumber: Int): DotConditionalExpressionNode =
+      DotConditionalExpressionNode(en.womType, escapeQuotes(en.womExpression.sourceString), clusterNumber)
   }
 
   final case class DotScatterNode(id: String, nodes: Set[DotNode]) extends DotNode {
     override def dotString: String =
       s"""subgraph $id {
-          |  style="filled,solid";
-          |  fillcolor=white;
-          |  ${nodes.toList.flatMap(_.dotString.linesIterator).mkString(System.lineSeparator() + "  ")}
-          |}""".stripMargin
+         |  style="filled,solid";
+         |  fillcolor=white;
+         |  ${nodes.toList.flatMap(_.dotString.linesIterator).mkString(System.lineSeparator() + "  ")}
+         |}""".stripMargin
   }
 
   final case class DotConditionalNode(id: String, nodes: Set[DotNode]) extends DotNode {
@@ -172,7 +181,8 @@ object GraphPrint {
 
   def upstreamLinks(originNode: GraphNode,
                     origin: DotNode,
-                    availableScatterVariables: Map[ScatterVariableNode, DotScatterVariableNode]): Set[DotLink] = {
+                    availableScatterVariables: Map[ScatterVariableNode, DotScatterVariableNode]
+  ): Set[DotLink] = {
     def relevantAsUpstream(nodeToLink: GraphNode): Set[DotNode] = nodeToLink match {
       case ccn: CommandCallNode => Set(DotCallNode(ccn))
       case scn: WorkflowCallNode => Set(DotSubworkflowCallNode(scn))
@@ -185,7 +195,8 @@ object GraphPrint {
 
     def upstreamPortToRelevantNodes(p: OutputPort) = p match {
       case gatherPort: ScatterGathererPort => relevantAsUpstream(gatherPort.outputToGather.singleUpstreamNode)
-      case conditionalOutputPort: ConditionalOutputPort => relevantAsUpstream(conditionalOutputPort.outputToExpose.singleUpstreamNode)
+      case conditionalOutputPort: ConditionalOutputPort =>
+        relevantAsUpstream(conditionalOutputPort.outputToExpose.singleUpstreamNode)
       case other =>
         relevantAsUpstream(other.graphNode)
     }

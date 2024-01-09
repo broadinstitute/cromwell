@@ -10,22 +10,28 @@ import wom.values.{WomArray, WomValue}
 
 import scala.util.{Failure, Success}
 
-
-class WomArrayTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers  {
+class WomArrayTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "WomArrayType"
 
-  List(WomStringType, WomArrayType(WomIntegerType), WomPairType(WomIntegerType, WomPairType(WomIntegerType, WomIntegerType)), WomOptionalType(WomStringType)) foreach { desiredMemberType =>
+  List(WomStringType,
+       WomArrayType(WomIntegerType),
+       WomPairType(WomIntegerType, WomPairType(WomIntegerType, WomIntegerType)),
+       WomOptionalType(WomStringType)
+  ) foreach { desiredMemberType =>
     it should s"be able to construct an empty Array[${desiredMemberType.stableName}] value" in {
 
       val desiredArrayType = WomArrayType(desiredMemberType)
       WdlExpression.fromString("[]").evaluate(noLookup, NoFunctions) match {
-        case Success(emptyArray @ WomArray(actualArrayType @ WomMaybeEmptyArrayType(actualMemberType), actualArrayValue)) =>
+        case Success(
+              emptyArray @ WomArray(actualArrayType @ WomMaybeEmptyArrayType(actualMemberType), actualArrayValue)
+            ) =>
           actualMemberType should be(WomNothingType)
           actualArrayValue should be(Seq.empty)
           desiredArrayType.isCoerceableFrom(actualArrayType) should be(true)
           desiredArrayType.coerceRawValue(emptyArray) should be(Success(WomArray(desiredArrayType, Seq.empty)))
-        case Success(WomArray(WomNonEmptyArrayType(_), _)) => fail("Empty arrays should not be created with an Array[_]+ type")
+        case Success(WomArray(WomNonEmptyArrayType(_), _)) =>
+          fail("Empty arrays should not be created with an Array[_]+ type")
         case Success(other) => fail(s"Array literal somehow got evaluated as a ${other.womType} type?!?")
         case Failure(f) => fail("Unable to create an empty array.", f)
       }
@@ -44,16 +50,24 @@ class WomArrayTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
 
   val nonEmptyLiteral = "[1, 2, 3]"
 
-  List(WomNonEmptyArrayType(WomIntegerType), WomOptionalType(WomNonEmptyArrayType(WomIntegerType))) foreach { targetType =>
-    it should s"be able to coerce an array literal into ${targetType.stableName}" in {
+  List(WomNonEmptyArrayType(WomIntegerType), WomOptionalType(WomNonEmptyArrayType(WomIntegerType))) foreach {
+    targetType =>
+      it should s"be able to coerce an array literal into ${targetType.stableName}" in {
 
-      val evaluatedLiteral: WomValue = WdlExpression.fromString(nonEmptyLiteral).evaluate(noLookup, NoFunctions).getOrElse(fail(s"Unable to evaluate non-empty literal $nonEmptyLiteral"))
+        val evaluatedLiteral: WomValue = WdlExpression
+          .fromString(nonEmptyLiteral)
+          .evaluate(noLookup, NoFunctions)
+          .getOrElse(fail(s"Unable to evaluate non-empty literal $nonEmptyLiteral"))
 
-      targetType.coerceRawValue(evaluatedLiteral) match {
-        case Success(womValue) => womValue.womType should be(targetType)
-        case Failure(e) => fail(s"Unable to coerce $evaluatedLiteral (${evaluatedLiteral.womType.stableName}) into ${targetType.stableName}", e)
+        targetType.coerceRawValue(evaluatedLiteral) match {
+          case Success(womValue) => womValue.womType should be(targetType)
+          case Failure(e) =>
+            fail(
+              s"Unable to coerce $evaluatedLiteral (${evaluatedLiteral.womType.stableName}) into ${targetType.stableName}",
+              e
+            )
+        }
       }
-    }
   }
 
   def noLookup(String: String): WomValue = fail("No identifiers should be looked up in this test")

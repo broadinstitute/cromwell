@@ -14,11 +14,10 @@ package object aws {
 
   type Aws[F[_], A] = ReaderT[F, AwsBatchAttributes, A]
 
-  def sanitize(name: String): String ={
+  def sanitize(name: String): String =
     // Up to 128 letters (uppercase and lowercase), numbers, hyphens, and underscores are allowed.
     // We'll replace all invalid characters with an underscore
     name.replaceAll("[^A-Za-z0-9_\\-]", "_").slice(0, 128)
-  }
 
   def buildKVPair(key: String, value: String): KeyValuePair =
     KeyValuePair.builder.name(key).value(value).build
@@ -67,9 +66,11 @@ package object aws {
     * @tparam ClientT the type of the client that you will get back
     * @return a configured client for the AWS service
     */
-  def configureClient[BuilderT <: AwsClientBuilder[BuilderT, ClientT], ClientT](builder: AwsClientBuilder[BuilderT, ClientT],
-                                                                                 awsAuthMode: Option[AwsAuthMode],
-                                                                                 configRegion: Option[Region]): ClientT = {
+  def configureClient[BuilderT <: AwsClientBuilder[BuilderT, ClientT], ClientT](
+    builder: AwsClientBuilder[BuilderT, ClientT],
+    awsAuthMode: Option[AwsAuthMode],
+    configRegion: Option[Region]
+  ): ClientT = {
     awsAuthMode.foreach { awsAuthMode =>
       builder.credentialsProvider(awsAuthMode.provider())
     }

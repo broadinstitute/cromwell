@@ -34,7 +34,8 @@ object RunStatus {
   case class Success(eventList: Seq[ExecutionEvent],
                      machineType: Option[String],
                      zone: Option[String],
-                     instanceName: Option[String]) extends TerminalRunStatus {
+                     instanceName: Option[String]
+  ) extends TerminalRunStatus {
     override def toString = "Success"
   }
 
@@ -45,19 +46,36 @@ object RunStatus {
               machineType: Option[String],
               zone: Option[String],
               instanceName: Option[String],
-              wasPreemptible: Boolean): UnsuccessfulRunStatus = {
+              wasPreemptible: Boolean
+    ): UnsuccessfulRunStatus = {
       val jesCode: Option[Int] = errorMessage flatMap { em => Try(em.substring(0, em.indexOf(':')).toInt).toOption }
 
       // Because of Reasons, sometimes errors which aren't indicative of preemptions are treated as preemptions.
       val unsuccessfulStatusBuilder = errorCode match {
-        case Status.ABORTED if jesCode.contains(PipelinesApiAsyncBackendJobExecutionActor.JesPreemption) => Preempted.apply _
-        case Status.ABORTED if jesCode.contains(PipelinesApiAsyncBackendJobExecutionActor.JesUnexpectedTermination) && wasPreemptible => Preempted.apply _
-        case Status.ABORTED if errorMessage.exists(_.contains(PipelinesApiAsyncBackendJobExecutionActor.FailedV2Style)) => Preempted.apply _
-        case Status.UNKNOWN if errorMessage.exists(_.contains(PipelinesApiAsyncBackendJobExecutionActor.FailedToStartDueToPreemptionSubstring)) => Preempted.apply _
+        case Status.ABORTED if jesCode.contains(PipelinesApiAsyncBackendJobExecutionActor.JesPreemption) =>
+          Preempted.apply _
+        case Status.ABORTED
+            if jesCode.contains(PipelinesApiAsyncBackendJobExecutionActor.JesUnexpectedTermination) && wasPreemptible =>
+          Preempted.apply _
+        case Status.ABORTED
+            if errorMessage.exists(_.contains(PipelinesApiAsyncBackendJobExecutionActor.FailedV2Style)) =>
+          Preempted.apply _
+        case Status.UNKNOWN
+            if errorMessage.exists(
+              _.contains(PipelinesApiAsyncBackendJobExecutionActor.FailedToStartDueToPreemptionSubstring)
+            ) =>
+          Preempted.apply _
         case Status.CANCELLED => Cancelled.apply _
         case _ => Failed.apply _
       }
-      unsuccessfulStatusBuilder.apply(errorCode, jesCode, errorMessage.toList, eventList, machineType, zone, instanceName)
+      unsuccessfulStatusBuilder.apply(errorCode,
+                                      jesCode,
+                                      errorMessage.toList,
+                                      eventList,
+                                      machineType,
+                                      zone,
+                                      instanceName
+      )
     }
   }
 
@@ -67,7 +85,8 @@ object RunStatus {
                           eventList: Seq[ExecutionEvent],
                           machineType: Option[String],
                           zone: Option[String],
-                          instanceName: Option[String]) extends UnsuccessfulRunStatus {
+                          instanceName: Option[String]
+  ) extends UnsuccessfulRunStatus {
     override def toString = "Failed"
   }
 
@@ -75,12 +94,13 @@ object RunStatus {
     * What Cromwell calls Aborted, PAPI calls Cancelled. This means the job was "cancelled" by the user
     */
   final case class Cancelled(errorCode: Status,
-                          jesCode: Option[Int],
-                          errorMessages: List[String],
-                          eventList: Seq[ExecutionEvent],
-                          machineType: Option[String],
-                          zone: Option[String],
-                          instanceName: Option[String]) extends UnsuccessfulRunStatus {
+                             jesCode: Option[Int],
+                             errorMessages: List[String],
+                             eventList: Seq[ExecutionEvent],
+                             machineType: Option[String],
+                             zone: Option[String],
+                             instanceName: Option[String]
+  ) extends UnsuccessfulRunStatus {
     override def toString = "Cancelled"
   }
 
@@ -90,7 +110,8 @@ object RunStatus {
                              eventList: Seq[ExecutionEvent],
                              machineType: Option[String],
                              zone: Option[String],
-                             instanceName: Option[String]) extends UnsuccessfulRunStatus {
+                             instanceName: Option[String]
+  ) extends UnsuccessfulRunStatus {
     override def toString = "Preempted"
   }
 }

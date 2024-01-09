@@ -17,39 +17,51 @@ object LookupEvaluators {
     override def predictFilesNeededToEvaluate(a: IdentifierLookup,
                                               inputs: Map[String, WomValue],
                                               ioFunctionSet: IoFunctionSet,
-                                              coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
+                                              coerceTo: WomType
+    )(implicit
+      fileEvaluator: FileEvaluator[ExpressionElement],
+      valueEvaluator: ValueEvaluator[ExpressionElement]
+    ): ErrorOr[Set[WomFile]] =
       Set.empty[WomFile].validNel
   }
 
-  implicit val expressionMemberAccessEvaluator: FileEvaluator[ExpressionMemberAccess] = new FileEvaluator[ExpressionMemberAccess] {
-    override def predictFilesNeededToEvaluate(a: ExpressionMemberAccess,
-                                              inputs: Map[String, WomValue],
-                                              ioFunctionSet: IoFunctionSet,
-                                              coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] = {
-      a.expression.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
+  implicit val expressionMemberAccessEvaluator: FileEvaluator[ExpressionMemberAccess] =
+    new FileEvaluator[ExpressionMemberAccess] {
+      override def predictFilesNeededToEvaluate(a: ExpressionMemberAccess,
+                                                inputs: Map[String, WomValue],
+                                                ioFunctionSet: IoFunctionSet,
+                                                coerceTo: WomType
+      )(implicit
+        fileEvaluator: FileEvaluator[ExpressionElement],
+        valueEvaluator: ValueEvaluator[ExpressionElement]
+      ): ErrorOr[Set[WomFile]] =
+        a.expression.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
     }
-  }
 
-  implicit val identifierMemberAccessEvaluator: FileEvaluator[IdentifierMemberAccess] = new FileEvaluator[IdentifierMemberAccess] {
-    override def predictFilesNeededToEvaluate(a: IdentifierMemberAccess,
-                                              inputs: Map[String, WomValue],
-                                              ioFunctionSet: IoFunctionSet,
-                                              coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      Set.empty[WomFile].validNel
-  }
+  implicit val identifierMemberAccessEvaluator: FileEvaluator[IdentifierMemberAccess] =
+    new FileEvaluator[IdentifierMemberAccess] {
+      override def predictFilesNeededToEvaluate(a: IdentifierMemberAccess,
+                                                inputs: Map[String, WomValue],
+                                                ioFunctionSet: IoFunctionSet,
+                                                coerceTo: WomType
+      )(implicit
+        fileEvaluator: FileEvaluator[ExpressionElement],
+        valueEvaluator: ValueEvaluator[ExpressionElement]
+      ): ErrorOr[Set[WomFile]] =
+        Set.empty[WomFile].validNel
+    }
 
   implicit val indexAccessFileEvaluator: FileEvaluator[IndexAccess] = new FileEvaluator[IndexAccess] {
-    override def predictFilesNeededToEvaluate(a: IndexAccess, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] = {
+    override def predictFilesNeededToEvaluate(a: IndexAccess,
+                                              inputs: Map[String, WomValue],
+                                              ioFunctionSet: IoFunctionSet,
+                                              coerceTo: WomType
+    )(implicit
+      fileEvaluator: FileEvaluator[ExpressionElement],
+      valueEvaluator: ValueEvaluator[ExpressionElement]
+    ): ErrorOr[Set[WomFile]] =
       (a.expressionElement.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo),
-        a.index.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)) mapN { _ ++ _ }
-    }
+       a.index.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
+      ) mapN { _ ++ _ }
   }
 }

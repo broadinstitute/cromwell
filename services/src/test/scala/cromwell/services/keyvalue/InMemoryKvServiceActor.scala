@@ -30,10 +30,9 @@ final class InMemoryKvServiceActor extends KeyValueServiceActor {
 
   override protected def kvWriteActorProps = Props.empty
 
-  private def respond(replyTo: ActorRef, action: KvAction, response: Future[KvResponse]): Unit = {
+  private def respond(replyTo: ActorRef, action: KvAction, response: Future[KvResponse]): Unit =
     response.onComplete {
       case Success(x) => replyTo ! x
       case Failure(ex) => replyTo ! KvFailure(action, ex)
     }
-  }
 }

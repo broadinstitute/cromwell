@@ -17,21 +17,21 @@ class FtpCredentialsSpec extends AnyFlatSpec with Matchers with MockSugar with C
     var loggedInWithAccount: Boolean = false
     var loggedInWithoutAccount: Boolean = false
     val client = mock[FTPClient]
-    client.login(anyString, anyString).responds(_ => {
+    client.login(anyString, anyString).responds { _ =>
       loggedInWithoutAccount = true
       true
-    })
-    client.login(anyString, anyString, anyString).responds(_ => {
+    }
+    client.login(anyString, anyString, anyString).responds { _ =>
       loggedInWithAccount = true
       true
-    })
+    }
 
     FtpAuthenticatedCredentials("user", "password", None).login(client)
     loggedInWithoutAccount shouldBe true
     loggedInWithAccount shouldBe false
 
     // reset
-    loggedInWithoutAccount= false
+    loggedInWithoutAccount = false
 
     FtpAuthenticatedCredentials("user", "password", Option("account")).login(client)
     loggedInWithAccount shouldBe true

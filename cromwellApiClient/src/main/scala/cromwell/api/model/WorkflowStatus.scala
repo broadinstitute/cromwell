@@ -25,7 +25,7 @@ case object Running extends NonTerminalStatus
 case object Aborting extends NonTerminalStatus
 
 object WorkflowStatus {
-  def apply(status: String): WorkflowStatus = {
+  def apply(status: String): WorkflowStatus =
     status match {
       case "Submitted" => Submitted
       case "Running" => Running
@@ -35,7 +35,6 @@ object WorkflowStatus {
       case "Succeeded" => Succeeded
       case bad => throw new IllegalArgumentException(s"No such status: $bad")
     }
-  }
 
   def apply(workflowStatus: CromwellStatus): WorkflowStatus = apply(workflowStatus.status)
 }

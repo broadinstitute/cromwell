@@ -28,20 +28,22 @@ class DockerCliFlow(implicit ec: ExecutionContext) extends DockerRegistry {
   override def run(dockerInfoContext: DockerInfoContext)(implicit client: Client[IO]) = {
     implicit val timer = IO.timer(ec)
 
-    DockerCliFlow.lookupHashOrTimeout(firstLookupTimeout)(dockerInfoContext)
-      .flatMap({
+    DockerCliFlow
+      .lookupHashOrTimeout(firstLookupTimeout)(dockerInfoContext)
+      .flatMap {
         // If the image isn't there, pull it and try again
         case (_: DockerInfoNotFound, _) =>
           DockerCliFlow.pull(dockerInfoContext)
           DockerCliFlow.lookupHashOrTimeout(firstLookupTimeout)(dockerInfoContext)
         case other => IO.pure(other)
-      })
+      }
   }
 
   override def config = DockerRegistryConfig.default
 }
 
 object DockerCliFlow {
+
   /**
     * Lookup the hash for the image referenced in the context.
     *
@@ -53,10 +55,11 @@ object DockerCliFlow {
     DockerInfoActor.logger.debug("Looking up hash of {}", dockerCliKey.fullName)
     val result = DockerCliClient.lookupHash(dockerCliKey) match {
       case Success(None) => DockerInfoNotFound(context.request)
-      case Success(Some(hash)) => DockerHashResult.fromString(hash) match {
-        case Success(r) => DockerInfoSuccessResponse(DockerInformation(r, None), context.request)
-        case Failure(t) => DockerInfoFailedResponse(t, context.request)
-      }
+      case Success(Some(hash)) =>
+        DockerHashResult.fromString(hash) match {
+          case Success(r) => DockerInfoSuccessResponse(DockerInformation(r, None), context.request)
+          case Failure(t) => DockerInfoFailedResponse(t, context.request)
+        }
       case Failure(throwable) => DockerInfoFailedResponse(throwable, context.request)
     }
     // give the compiler a hint on the debug() override we're trying to use.
@@ -72,22 +75,22 @@ object DockerCliFlow {
     * @param context   The image to lookup.
     * @return The docker hash response plus the context of our flow.
     */
-  private def lookupHashOrTimeout(timeout: FiniteDuration)
-                                 (context: DockerInfoContext)
-                                 (implicit cs: ContextShift[IO], timer: Timer[IO]): IO[(DockerInfoResponse, DockerInfoContext)] = {
-    IO(lookupHash(context)).timeout(timeout)
-      .handleErrorWith({
-        case _: TimeoutException => IO.pure {
-          val dockerCliKey = cliKeyFromImageId(context)
-          val exception = new TimeoutException(
-            s"""|Timeout while looking up hash of ${dockerCliKey.fullName}.
-                |Ensure that docker is running correctly.
-                |""".stripMargin)
-          DockerInfoFailedResponse(exception, context.request) -> context
-        }
+  private def lookupHashOrTimeout(timeout: FiniteDuration)(
+    context: DockerInfoContext
+  )(implicit cs: ContextShift[IO], timer: Timer[IO]): IO[(DockerInfoResponse, DockerInfoContext)] =
+    IO(lookupHash(context))
+      .timeout(timeout)
+      .handleErrorWith {
+        case _: TimeoutException =>
+          IO.pure {
+            val dockerCliKey = cliKeyFromImageId(context)
+            val exception = new TimeoutException(s"""|Timeout while looking up hash of ${dockerCliKey.fullName}.
+                                                     |Ensure that docker is running correctly.
+                                                     |""".stripMargin)
+            DockerInfoFailedResponse(exception, context.request) -> context
+          }
         case other => IO.pure(DockerInfoFailedResponse(other, context.request) -> context)
-      })
-  }
+      }
 
   /**
     * Pull the docker image referenced in context.

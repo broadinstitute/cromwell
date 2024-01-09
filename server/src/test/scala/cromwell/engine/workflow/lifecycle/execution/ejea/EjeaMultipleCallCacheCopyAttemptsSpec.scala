@@ -16,14 +16,14 @@ import EjeaMultipleCallCacheCopyAttemptsSpec.bt140Debug
 import akka.testkit.TestFSMRef
 
 class EjeaMultipleCallCacheCopyAttemptsSpec
-  extends EngineJobExecutionActorSpec
+    extends EngineJobExecutionActorSpec
     with HasJobSuccessResponse
     with HasCopyFailureResponses
     with HasJobFailureResponses
     with CanExpectJobStoreWrites
     with CanExpectFetchCachedResults {
 
-  override implicit val stateUnderTest: EngineJobExecutionActorState = BackendIsCopyingCachedOutputs
+  implicit override val stateUnderTest: EngineJobExecutionActorState = BackendIsCopyingCachedOutputs
   override val allowMultipleCacheCycles: Boolean = true
 
   "An EJEA attempting to call cache copy" should {
@@ -45,19 +45,29 @@ class EjeaMultipleCallCacheCopyAttemptsSpec
 
     def fetchCachedResultsActorSendsResultSetToEjeaAndEjeaReacts(copyAttemptNumber: Int) = {
       val callCachingEntryId = cacheEntryIdFromCopyAttempt(copyAttemptNumber)
-      val cachedSimpletons = Seq(WomValueSimpleton("a", WomString("hullo")), WomValueSimpleton("b", WomString("cheerio")))
+      val cachedSimpletons =
+        Seq(WomValueSimpleton("a", WomString("hullo")), WomValueSimpleton("b", WomString("cheerio")))
       val detritusMap = Map("stdout" -> "//somePath")
       val cachedReturnCode = Some(17)
       val sourceCacheDetails = s"${WorkflowId.randomId()}:call-someTask:1"
-      ejea ! CachedOutputLookupSucceeded(cachedSimpletons, detritusMap, cachedReturnCode, callCachingEntryId, sourceCacheDetails)
-      helper.callCacheHitCopyingProbe.expectMsg(CopyOutputsCommand(cachedSimpletons, detritusMap, callCachingEntryId, cachedReturnCode))
+      ejea ! CachedOutputLookupSucceeded(cachedSimpletons,
+                                         detritusMap,
+                                         cachedReturnCode,
+                                         callCachingEntryId,
+                                         sourceCacheDetails
+      )
+      helper.callCacheHitCopyingProbe.expectMsg(
+        CopyOutputsCommand(cachedSimpletons, detritusMap, callCachingEntryId, cachedReturnCode)
+      )
       eventually {
         ejea.stateName should be(BackendIsCopyingCachedOutputs)
       }
     }
 
     def copyAttemptFailsAndEjeaLooksForNextHit(becauseBlacklisted: Boolean, copyAttemptNumber: Int) = {
-      val response = if (becauseBlacklisted) cacheHitBlacklistedResponse(copyAttemptNumber) else copyAttemptFailedResponse(copyAttemptNumber)
+      val response =
+        if (becauseBlacklisted) cacheHitBlacklistedResponse(copyAttemptNumber)
+        else copyAttemptFailedResponse(copyAttemptNumber)
 
       ejea ! response
       helper.ejhaProbe.expectMsg(NextHit)
@@ -95,14 +105,15 @@ class EjeaMultipleCallCacheCopyAttemptsSpec
       // First: A long series of copy failure:
       bt140Debug("'keep waiting' running 'series of copy failures'")
       val initialCopyFailures = maxFailedCopyAttempts - 1
-      0.until(initialCopyFailures). foreach { currentCopyAttemptNumber =>
+      0.until(initialCopyFailures).foreach { currentCopyAttemptNumber =>
         ejhaSendsHitIdToEjeaAndEjeaReacts(currentCopyAttemptNumber)
         fetchCachedResultsActorSendsResultSetToEjeaAndEjeaReacts(currentCopyAttemptNumber)
         copyAttemptFailsAndEjeaLooksForNextHit(becauseBlacklisted = false, currentCopyAttemptNumber)
       }
 
       // Then: A success:
-      val currentCopyAttemptNumber = initialCopyFailures // because the initial 0.until(...) is non-inclusive of the argument
+      val currentCopyAttemptNumber =
+        initialCopyFailures // because the initial 0.until(...) is non-inclusive of the argument
       bt140Debug("'keep waiting' running 'ejhaSendsHitIdToEjeaAndEjeaReacts'")
       ejhaSendsHitIdToEjeaAndEjeaReacts(copyAttemptNumber = currentCopyAttemptNumber)
       bt140Debug("'keep waiting' running 'fetchCachedResultsActorSendsResultSetToEjeaAndEjeaReacts'")
@@ -120,7 +131,7 @@ class EjeaMultipleCallCacheCopyAttemptsSpec
       // First: A long series of copy failure:
       bt140Debug("'fail fast' running 'longer series of (genuine) copy failures'")
       val initialCopyFailures = maxFailedCopyAttempts - 1
-      0.until(initialCopyFailures). foreach { currentCopyAttemptNumber =>
+      0.until(initialCopyFailures).foreach { currentCopyAttemptNumber =>
         ejhaSendsHitIdToEjeaAndEjeaReacts(currentCopyAttemptNumber)
         fetchCachedResultsActorSendsResultSetToEjeaAndEjeaReacts(currentCopyAttemptNumber)
         copyAttemptFailsAndEjeaLooksForNextHit(becauseBlacklisted = false, currentCopyAttemptNumber)
@@ -128,7 +139,8 @@ class EjeaMultipleCallCacheCopyAttemptsSpec
 
       // Then: Another failure:
       bt140Debug("'fail fast' running 'ejhaSendsHitIdToEjeaAndEjeaReacts'")
-      val currentCopyAttemptNumber = initialCopyFailures // because the initial 0.until(...) is non-inclusive of the argument
+      val currentCopyAttemptNumber =
+        initialCopyFailures // because the initial 0.until(...) is non-inclusive of the argument
       ejhaSendsHitIdToEjeaAndEjeaReacts(copyAttemptNumber = currentCopyAttemptNumber)
       bt140Debug("'fail fast' running 'fetchCachedResultsActorSendsResultSetToEjeaAndEjeaReacts'")
       fetchCachedResultsActorSendsResultSetToEjeaAndEjeaReacts(currentCopyAttemptNumber)
@@ -145,7 +157,7 @@ class EjeaMultipleCallCacheCopyAttemptsSpec
       // First: A long series of (genuine) copy failures:
       bt140Debug("'disregard' running 'longer series of (genuine) copy failures'")
       val initialCopyFailures = maxFailedCopyAttempts - 1
-      0.until(initialCopyFailures). foreach { currentCopyAttemptNumber =>
+      0.until(initialCopyFailures).foreach { currentCopyAttemptNumber =>
         ejhaSendsHitIdToEjeaAndEjeaReacts(currentCopyAttemptNumber)
         fetchCachedResultsActorSendsResultSetToEjeaAndEjeaReacts(currentCopyAttemptNumber)
         copyAttemptFailsAndEjeaLooksForNextHit(becauseBlacklisted = false, currentCopyAttemptNumber)
@@ -154,7 +166,7 @@ class EjeaMultipleCallCacheCopyAttemptsSpec
       // Second: An even longer series of (blacklist) copy failures:
       bt140Debug("'disregard' running 'longer series of (exclude list) copy failures'")
       val blacklistCopyFailures = maxFailedCopyAttempts + 2
-      initialCopyFailures.until(initialCopyFailures + blacklistCopyFailures). foreach { currentCopyAttemptNumber =>
+      initialCopyFailures.until(initialCopyFailures + blacklistCopyFailures).foreach { currentCopyAttemptNumber =>
         ejhaSendsHitIdToEjeaAndEjeaReacts(currentCopyAttemptNumber)
         fetchCachedResultsActorSendsResultSetToEjeaAndEjeaReacts(currentCopyAttemptNumber)
         copyAttemptFailsAndEjeaLooksForNextHit(becauseBlacklisted = true, currentCopyAttemptNumber)
@@ -171,18 +183,21 @@ class EjeaMultipleCallCacheCopyAttemptsSpec
       bt140Debug("'disregard' done")
     }
 
-
   }
 
   def buildEjea(maxFailedCopyAttempts: Int): TestFSMRef[EngineJobExecutionActorState, EJEAData, MockEjea] = helper
     .buildEJEA(
       restarting = false,
       callCachingMode = CallCachingActivity(ReadCache, CallCachingOptions(invalidateBadCacheResults = false)),
-      callCachingMaxFailedCopyAttempts = maxFailedCopyAttempts)
-    .setStateInline(state = CheckingCallCache, data = ResponsePendingData(
-      jobDescriptor = helper.backendJobDescriptor,
-      bjeaProps = helper.bjeaProps,
-      ejha = Some(helper.ejhaProbe.ref)))
+      callCachingMaxFailedCopyAttempts = maxFailedCopyAttempts
+    )
+    .setStateInline(
+      state = CheckingCallCache,
+      data = ResponsePendingData(jobDescriptor = helper.backendJobDescriptor,
+                                 bjeaProps = helper.bjeaProps,
+                                 ejha = Some(helper.ejhaProbe.ref)
+      )
+    )
 
 }
 
@@ -194,7 +209,6 @@ object EjeaMultipleCallCacheCopyAttemptsSpec extends StrictLogging {
   at any point someone decides that this is not actually helping, feel free to delete all calls to this method and the
   debug method itself.
    */
-  private def bt140Debug(message: String): Unit = {
+  private def bt140Debug(message: String): Unit =
     logger.info("BT-140 debug: " + message)
-  }
 }

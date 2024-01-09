@@ -6,7 +6,7 @@ import com.github.sbt.git.SbtGit
 
 object Version {
   // Upcoming release, or current if we're on a master / hotfix branch
-  val cromwellVersion = "86"
+  val cromwellVersion = "87"
 
   /**
     * Returns true if this project should be considered a snapshot.
@@ -33,10 +33,10 @@ object Version {
       ThisBuild / git.versionProperty := "project.version",
       ThisBuild / git.baseVersion := cromwellVersion,
       ThisBuild / version :=
-        makeVersion(
-          versionProperty = git.versionProperty.value,
-          baseVersion = git.baseVersion.?.value,
-          headCommit = git.gitHeadCommit.value),
+        makeVersion(versionProperty = git.versionProperty.value,
+                    baseVersion = git.baseVersion.?.value,
+                    headCommit = git.gitHeadCommit.value
+        ),
       ThisBuild / shellPrompt := { state => "%s| %s> ".format(GitCommand.prompt.apply(state), cromwellVersion) }
     )
 
@@ -74,9 +74,7 @@ object Version {
     List(file)
   }
 
-  private def makeVersion(versionProperty: String,
-                          baseVersion: Option[String],
-                          headCommit: Option[String]): String = {
+  private def makeVersion(versionProperty: String, baseVersion: Option[String], headCommit: Option[String]): String = {
     // The version string passed in via command line settings, if desired.
     def overrideVersion = Option(sys.props(versionProperty))
 
@@ -88,7 +86,7 @@ object Version {
     // Version string fallback.
     val unknownVersion = basePrefix + "unknown"
 
-    //Now we fall through the potential version numbers...
+    // Now we fall through the potential version numbers...
     val version = overrideVersion orElse commitVersion getOrElse unknownVersion
 
     // For now, obfuscate SNAPSHOTs from sbt's developers: https://github.com/sbt/sbt/issues/2687#issuecomment-236586241

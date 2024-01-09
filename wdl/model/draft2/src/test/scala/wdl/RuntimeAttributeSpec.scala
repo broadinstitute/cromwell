@@ -79,15 +79,15 @@ object RuntimeAttributeSpec {
     """.stripMargin
 }
 
-  class RuntimeAttributeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with EitherValues {
-    val NamespaceWithRuntime = WdlNamespaceWithWorkflow.load(WorkflowWithRuntime, Seq.empty).get
-    val NamespaceWithoutRuntime = WdlNamespaceWithWorkflow.load(WorkflowWithoutRuntime, Seq.empty).get
+class RuntimeAttributeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with EitherValues {
+  val NamespaceWithRuntime = WdlNamespaceWithWorkflow.load(WorkflowWithRuntime, Seq.empty).get
+  val NamespaceWithoutRuntime = WdlNamespaceWithWorkflow.load(WorkflowWithoutRuntime, Seq.empty).get
 
-    "WDL file with runtime attributes" should "have attribute maps" in {
-      NamespaceWithRuntime.tasks.forall(_.runtimeAttributes.attrs.nonEmpty) should be(true)
-    }
-
-    "WDL file without runtime attributes" should "not have attribute maps" in {
-      NamespaceWithoutRuntime.tasks.forall(_.runtimeAttributes.attrs.isEmpty) should be(true)
-    }
+  "WDL file with runtime attributes" should "have attribute maps" in {
+    NamespaceWithRuntime.tasks.forall(_.runtimeAttributes.attrs.nonEmpty) should be(true)
   }
+
+  "WDL file without runtime attributes" should "not have attribute maps" in {
+    NamespaceWithoutRuntime.tasks.forall(_.runtimeAttributes.attrs.isEmpty) should be(true)
+  }
+}

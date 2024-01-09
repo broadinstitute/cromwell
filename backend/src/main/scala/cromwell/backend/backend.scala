@@ -26,9 +26,7 @@ import scala.util.Try
 /**
   * For uniquely identifying a job which has been or will be sent to the backend.
   */
-case class BackendJobDescriptorKey(call: CommandCallNode,
-                                   index: Option[Int],
-                                   attempt: Int) extends CallKey {
+case class BackendJobDescriptorKey(call: CommandCallNode, index: Option[Int], attempt: Int) extends CallKey {
   def node = call
   private val indexString = index map { _.toString } getOrElse "NA"
   lazy val tag = s"${call.fullyQualifiedName}:$indexString:$attempt"
@@ -44,15 +42,19 @@ final case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescrip
                                       evaluatedTaskInputs: WomEvaluatedCallInputs,
                                       maybeCallCachingEligible: MaybeCallCachingEligible,
                                       dockerSize: Option[DockerSize],
-                                      prefetchedKvStoreEntries: Map[String, KvResponse]) {
+                                      prefetchedKvStoreEntries: Map[String, KvResponse]
+) {
 
   val fullyQualifiedInputs: Map[String, WomValue] = evaluatedTaskInputs map { case (declaration, value) =>
     key.call.identifier.combine(declaration.name).fullyQualifiedName.value -> value
   }
 
-  def findInputFilesByParameterMeta(filter: MetaValueElement => Boolean): Set[WomFile] = evaluatedTaskInputs.collect {
-    case (declaration, value) if declaration.parameterMeta.exists(filter) => findFiles(value)
-  }.flatten.toSet
+  def findInputFilesByParameterMeta(filter: MetaValueElement => Boolean): Set[WomFile] = evaluatedTaskInputs
+    .collect {
+      case (declaration, value) if declaration.parameterMeta.exists(filter) => findFiles(value)
+    }
+    .flatten
+    .toSet
 
   def findFiles(v: WomValue): Set[WomFile] = v match {
     case value: WomFile => Set(value)
@@ -79,11 +81,13 @@ case class BackendWorkflowDescriptor(id: WorkflowId,
                                      customLabels: Labels,
                                      hogGroup: HogGroup,
                                      breadCrumbs: List[BackendJobBreadCrumb],
-                                     outputRuntimeExtractor: Option[WomOutputRuntimeExtractor]) {
+                                     outputRuntimeExtractor: Option[WomOutputRuntimeExtractor]
+) {
 
   val rootWorkflow = breadCrumbs.headOption.map(_.callable).getOrElse(callable)
   val possiblyNotRootWorkflowId = id.toPossiblyNotRoot
   val rootWorkflowId = breadCrumbs.headOption.map(_.id).getOrElse(id).toRoot
+  val possibleParentWorkflowId = breadCrumbs.lastOption.map(_.id)
 
   override def toString: String = s"[BackendWorkflowDescriptor id=${id.shortString} workflowName=${callable.name}]"
   def getWorkflowOption(key: WorkflowOption) = workflowOptions.get(key).toOption
@@ -99,33 +103,31 @@ case class BackendConfigurationDescriptor(backendConfig: Config, globalConfig: C
       Option(backendConfig.getConfig("default-runtime-attributes"))
     else
       None
-  
+
   // So it can be overridden in tests
-  private [backend] lazy val cromwellFileSystems = CromwellFileSystems.instance
+  private[backend] lazy val cromwellFileSystems = CromwellFileSystems.instance
 
-  lazy val configuredPathBuilderFactories: Map[String, PathBuilderFactory] = {
+  lazy val configuredPathBuilderFactories: Map[String, PathBuilderFactory] =
     cromwellFileSystems.factoriesFromConfig(backendConfig).unsafe("Failed to instantiate backend filesystem")
-  }
 
-  private lazy val configuredFactoriesWithDefault = if (configuredPathBuilderFactories.values.exists(_ == DefaultPathBuilderFactory)) {
-    configuredPathBuilderFactories
-  } else configuredPathBuilderFactories + DefaultPathBuilderFactory.tuple
+  private lazy val configuredFactoriesWithDefault =
+    if (configuredPathBuilderFactories.values.exists(_ == DefaultPathBuilderFactory)) {
+      configuredPathBuilderFactories
+    } else configuredPathBuilderFactories + DefaultPathBuilderFactory.tuple
 
   /**
     * Creates path builders using only the configured factories.
     */
-  def pathBuilders(workflowOptions: WorkflowOptions)(implicit as: ActorSystem) = {
+  def pathBuilders(workflowOptions: WorkflowOptions)(implicit as: ActorSystem) =
     PathBuilderFactory.instantiatePathBuilders(configuredPathBuilderFactories.values.toList, workflowOptions)
-  }
 
   /**
     * Creates path builders using only the configured factories + the default factory
     */
-  def pathBuildersWithDefault(workflowOptions: WorkflowOptions)(implicit as: ActorSystem) = {
+  def pathBuildersWithDefault(workflowOptions: WorkflowOptions)(implicit as: ActorSystem) =
     PathBuilderFactory.instantiatePathBuilders(configuredFactoriesWithDefault.values.toList, workflowOptions)
-  }
 
-  lazy val slowJobWarningAfter = backendConfig.as[Option[FiniteDuration]](path="slow-job-warning-time")
+  lazy val slowJobWarningAfter = backendConfig.as[Option[FiniteDuration]](path = "slow-job-warning-time")
 }
 
 object CommonBackendConfigurationAttributes {
@@ -146,7 +148,7 @@ object CommonBackendConfigurationAttributes {
     "dockerhub.token",
     "dockerhub.auth",
     "dockerhub.key-name",
-    "name-for-call-caching-purposes",
+    "name-for-call-caching-purposes"
   )
 }
 

@@ -36,48 +36,56 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends MockSug
   val ioActor: TestProbe = TestProbe()
   val workflowDockerLookupActor: TestProbe = TestProbe()
 
-  val scopedKeyMaker: ScopedKeyMaker = key => ScopedKey(workflowId, KvJobKey("correct.horse.battery.staple", None, 1), key)
+  val scopedKeyMaker: ScopedKeyMaker = key =>
+    ScopedKey(workflowId, KvJobKey("correct.horse.battery.staple", None, 1), key)
 
-  def buildTestJobPreparationActor(backpressureTimeout: FiniteDuration,
-                                   noResponseTimeout: FiniteDuration,
-                                   dockerHashCredentials: List[Any],
-                                   inputsAndAttributes: ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])],
-                                   kvStoreKeysForPrefetch: List[String],
-                                   jobKey: BackendJobDescriptorKey = mockJobKey): Props = {
-
-    Props(new TestJobPreparationActor(
-      kvStoreKeysForPrefetch = kvStoreKeysForPrefetch,
-      dockerHashCredentialsInput = dockerHashCredentials,
-      backpressureWaitTimeInput = backpressureTimeout,
-      dockerNoResponseTimeoutInput = noResponseTimeout,
-      inputsAndAttributes = inputsAndAttributes,
-      workflowDescriptor = workflowDescriptor,
-      jobKey = jobKey,
-      workflowDockerLookupActor = workflowDockerLookupActor.ref,
-      serviceRegistryActor = serviceRegistryProbe.ref,
-      ioActor = ioActor.ref,
-      scopedKeyMaker))
-  }
+  def buildTestJobPreparationActor(
+    backpressureTimeout: FiniteDuration,
+    noResponseTimeout: FiniteDuration,
+    dockerHashCredentials: List[Any],
+    inputsAndAttributes: ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])],
+    kvStoreKeysForPrefetch: List[String],
+    jobKey: BackendJobDescriptorKey = mockJobKey
+  ): Props =
+    Props(
+      new TestJobPreparationActor(
+        kvStoreKeysForPrefetch = kvStoreKeysForPrefetch,
+        dockerHashCredentialsInput = dockerHashCredentials,
+        backpressureWaitTimeInput = backpressureTimeout,
+        dockerNoResponseTimeoutInput = noResponseTimeout,
+        inputsAndAttributes = inputsAndAttributes,
+        workflowDescriptor = workflowDescriptor,
+        jobKey = jobKey,
+        workflowDockerLookupActor = workflowDockerLookupActor.ref,
+        serviceRegistryActor = serviceRegistryProbe.ref,
+        ioActor = ioActor.ref,
+        scopedKeyMaker
+      )
+    )
 }
 
-private[preparation] class TestJobPreparationActor(kvStoreKeysForPrefetch: List[String],
-                                                   dockerHashCredentialsInput: List[Any],
-                                                   backpressureWaitTimeInput: FiniteDuration,
-                                                   dockerNoResponseTimeoutInput: FiniteDuration,
-                                                   inputsAndAttributes: ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])],
-                                                   workflowDescriptor: EngineWorkflowDescriptor,
-                                                   jobKey: BackendJobDescriptorKey,
-                                                   workflowDockerLookupActor: ActorRef,
-                                                   serviceRegistryActor: ActorRef,
-                                                   ioActor: ActorRef,
-                                                   scopedKeyMaker: ScopedKeyMaker) extends JobPreparationActor(workflowDescriptor = workflowDescriptor,
-                                                                                                  jobKey = jobKey,
-                                                                                                  factory = null,
-                                                                                                  workflowDockerLookupActor = workflowDockerLookupActor,
-                                                                                                  initializationData = None,
-                                                                                                  serviceRegistryActor = serviceRegistryActor,
-                                                                                                  ioActor = ioActor,
-                                                                                                  backendSingletonActor = None) {
+private[preparation] class TestJobPreparationActor(
+  kvStoreKeysForPrefetch: List[String],
+  dockerHashCredentialsInput: List[Any],
+  backpressureWaitTimeInput: FiniteDuration,
+  dockerNoResponseTimeoutInput: FiniteDuration,
+  inputsAndAttributes: ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])],
+  workflowDescriptor: EngineWorkflowDescriptor,
+  jobKey: BackendJobDescriptorKey,
+  workflowDockerLookupActor: ActorRef,
+  serviceRegistryActor: ActorRef,
+  ioActor: ActorRef,
+  scopedKeyMaker: ScopedKeyMaker
+) extends JobPreparationActor(
+      workflowDescriptor = workflowDescriptor,
+      jobKey = jobKey,
+      factory = null,
+      workflowDockerLookupActor = workflowDockerLookupActor,
+      initializationData = None,
+      serviceRegistryActor = serviceRegistryActor,
+      ioActor = ioActor,
+      backendSingletonActor = None
+    ) {
 
   override private[preparation] lazy val kvStoreKeysToPrefetch = kvStoreKeysForPrefetch
 
@@ -93,7 +101,8 @@ private[preparation] class TestJobPreparationActor(kvStoreKeysForPrefetch: List[
                                                       initializationData: Option[BackendInitializationData],
                                                       serviceRegistryActor: ActorRef,
                                                       ioActor: ActorRef,
-                                                      backendSingletonActor: Option[ActorRef]) = Props.empty
+                                                      backendSingletonActor: Option[ActorRef]
+  ) = Props.empty
 }
 
 object JobPreparationTestHelper {

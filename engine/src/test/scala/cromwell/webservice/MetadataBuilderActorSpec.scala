@@ -22,8 +22,12 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Random
 
-class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers
-  with TableDrivenPropertyChecks with ImplicitSender {
+class MetadataBuilderActorSpec
+    extends TestKitSuite
+    with AsyncFlatSpecLike
+    with Matchers
+    with TableDrivenPropertyChecks
+    with ImplicitSender {
 
   behavior of "MetadataBuilderActor"
 
@@ -36,38 +40,41 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
                              events: Seq[MetadataEvent],
                              expectedRes: String,
                              metadataBuilderActorName: String,
-                            ): Future[Assertion] = {
+                             failedTasks: Boolean = false
+  ): Future[Assertion] = {
     val mockReadMetadataWorkerActor = TestProbe("mockReadMetadataWorkerActor")
     def readMetadataWorkerMaker = () => mockReadMetadataWorkerActor.props
 
-
     val mba = system.actorOf(
       props = MetadataBuilderActor.props(readMetadataWorkerMaker, 1000000),
-      name = metadataBuilderActorName,
+      name = metadataBuilderActorName
     )
+
     val response = mba.ask(action).mapTo[MetadataJsonResponse]
     mockReadMetadataWorkerActor.expectMsg(defaultTimeout, action)
-    mockReadMetadataWorkerActor.reply(MetadataLookupResponse(queryReply, events))
-    response map { r => r shouldBe a [SuccessfulMetadataJsonResponse] }
-    response.mapTo[SuccessfulMetadataJsonResponse] map { b => b.responseJson shouldBe expectedRes.parseJson}
+    mockReadMetadataWorkerActor.reply(
+      if (failedTasks) FetchFailedJobsMetadataLookupResponse(events) else MetadataLookupResponse(queryReply, events)
+    )
+    response map { r => r shouldBe a[SuccessfulMetadataJsonResponse] }
+    response.mapTo[SuccessfulMetadataJsonResponse] map { b => b.responseJson shouldBe expectedRes.parseJson }
   }
 
   def assertMetadataFailureResponse(action: MetadataServiceAction,
                                     metadataServiceResponse: MetadataServiceResponse,
                                     expectedException: Exception,
-                                    metadataBuilderActorName: String,
-                                   ): Future[Assertion] = {
+                                    metadataBuilderActorName: String
+  ): Future[Assertion] = {
     val mockReadMetadataWorkerActor = TestProbe("mockReadMetadataWorkerActor")
     val mba = system.actorOf(
       props = MetadataBuilderActor.props(() => mockReadMetadataWorkerActor.props, defaultSafetyRowNumberThreshold),
-      name = metadataBuilderActorName,
+      name = metadataBuilderActorName
     )
     val response = mba.ask(action).mapTo[MetadataServiceResponse]
 
     mockReadMetadataWorkerActor.expectMsg(defaultTimeout, action)
     mockReadMetadataWorkerActor.reply(metadataServiceResponse)
 
-    response map { r => r shouldBe a [FailedMetadataJsonResponse] }
+    response map { r => r shouldBe a[FailedMetadataJsonResponse] }
     response.mapTo[FailedMetadataJsonResponse] map { b =>
       b.reason.getClass shouldBe expectedException.getClass
       b.reason.getMessage shouldBe expectedException.getMessage
@@ -75,9 +82,8 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
   }
 
   it should "build workflow scope tree from metadata events" in {
-    def makeEvent(workflow: WorkflowId, key: Option[MetadataJobKey]) = {
+    def makeEvent(workflow: WorkflowId, key: Option[MetadataJobKey]) =
       MetadataEvent(MetadataKey(workflow, key, "NOT_CHECKED"), MetadataValue("NOT_CHECKED"))
-    }
 
     val workflowA = WorkflowId.randomId()
 
@@ -95,37 +101,37 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     // We'll use a Query instead of a SingleWorkflowMetadataGet, so we expect the WorkflowID this time:
     val expectedRes =
       s"""{
-        |  "calls": {
-        |    "callB": [{
-        |      "attempt": 1,
-        |      "NOT_CHECKED": "NOT_CHECKED",
-        |      "shardIndex": -1
-        |    }, {
-        |      "attempt": 1,
-        |      "NOT_CHECKED": "NOT_CHECKED",
-        |      "shardIndex": 0
-        |    }, {
-        |      "attempt": 1,
-        |      "NOT_CHECKED": "NOT_CHECKED",
-        |      "shardIndex": 1
-        |    }, {
-        |      "attempt": 2,
-        |      "NOT_CHECKED": "NOT_CHECKED",
-        |      "shardIndex": 1
-        |    }, {
-        |      "attempt": 3,
-        |      "NOT_CHECKED": "NOT_CHECKED",
-        |      "shardIndex": 1
-        |    }],
-        |    "callA": [{
-        |      "attempt": 1,
-        |      "NOT_CHECKED": "NOT_CHECKED",
-        |      "shardIndex": -1
-        |    }]
-        |  },
-        |  "NOT_CHECKED": "NOT_CHECKED",
-        |  "id": "$workflowA"
-      |}""".stripMargin
+         |  "calls": {
+         |    "callB": [{
+         |      "attempt": 1,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": -1
+         |    }, {
+         |      "attempt": 1,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": 0
+         |    }, {
+         |      "attempt": 1,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": 1
+         |    }, {
+         |      "attempt": 2,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": 1
+         |    }, {
+         |      "attempt": 3,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": 1
+         |    }],
+         |    "callA": [{
+         |      "attempt": 1,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": -1
+         |    }]
+         |  },
+         |  "NOT_CHECKED": "NOT_CHECKED",
+         |  "id": "$workflowA"
+         |}""".stripMargin
 
     val mdQuery = MetadataQuery(workflowA, None, None, None, None, expandSubWorkflows = false)
     val queryAction = GetMetadataAction(mdQuery)
@@ -134,35 +140,38 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       queryReply = mdQuery,
       events = workflowAEvents,
       expectedRes = expectedRes,
-      metadataBuilderActorName = "mba-scope-tree",
+      metadataBuilderActorName = "mba-scope-tree"
     )
   }
 
   type EventBuilder = (String, String, OffsetDateTime)
 
-  def makeEvent(workflow: WorkflowId)(key: String, value: MetadataValue, offsetDateTime: OffsetDateTime): MetadataEvent = {
+  def makeEvent(
+    workflow: WorkflowId
+  )(key: String, value: MetadataValue, offsetDateTime: OffsetDateTime): MetadataEvent =
     MetadataEvent(MetadataKey(workflow, None, key), Option(value), offsetDateTime)
-  }
 
-  def makeCallEvent(workflow: WorkflowId)
-                   (key: String, value: MetadataValue, offsetDateTime: OffsetDateTime): MetadataEvent = {
+  def makeCallEvent(
+    workflow: WorkflowId
+  )(key: String, value: MetadataValue, offsetDateTime: OffsetDateTime): MetadataEvent = {
     val jobKey = MetadataJobKey("fqn", None, 1)
     MetadataEvent(MetadataKey(workflow, Option(jobKey), key), Option(value), offsetDateTime)
   }
 
-  //noinspection ScalaUnusedSymbol
-  def makeEmptyValue(workflow: WorkflowId)
-                    (key: String, value: MetadataValue, offsetDateTime: OffsetDateTime): MetadataEvent = {
+  // noinspection ScalaUnusedSymbol
+  def makeEmptyValue(
+    workflow: WorkflowId
+  )(key: String, value: MetadataValue, offsetDateTime: OffsetDateTime): MetadataEvent =
     MetadataEvent(MetadataKey(workflow, None, key), None, offsetDateTime)
-  }
 
   def assertMetadataKeyStructure(eventList: List[EventBuilder],
                                  expectedJson: String,
                                  workflow: WorkflowId = WorkflowId.randomId(),
                                  eventMaker: WorkflowId => (String, MetadataValue, OffsetDateTime) => MetadataEvent =
-                                 makeEvent,
+                                   makeEvent,
                                  metadataBuilderActorName: String,
-                                ): Future[Assertion] = {
+                                 isFailedTaskFetch: Boolean = false
+  ): Future[Assertion] = {
 
     val events = eventList map { e => (e._1, MetadataValue(e._2), e._3) } map Function.tupled(eventMaker(workflow))
     val expectedRes = s"""{ "calls": {}, $expectedJson, "id":"$workflow" }"""
@@ -170,6 +179,73 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     val mdQuery = MetadataQuery(workflow, None, None, None, None, expandSubWorkflows = false)
     val queryAction = GetSingleWorkflowMetadataAction(workflow, None, None, expandSubWorkflows = false)
     assertMetadataResponse(queryAction, mdQuery, events, expectedRes, metadataBuilderActorName)
+  }
+
+  it should "build the call list for failed tasks when prompted" in {
+
+    def makeEvent(workflow: WorkflowId, key: Option[MetadataJobKey]) =
+      MetadataEvent(MetadataKey(workflow, key, "NOT_CHECKED"), MetadataValue("NOT_CHECKED"))
+
+    val workflowA = WorkflowId.randomId()
+
+    val workflowACalls = List(
+      Option(MetadataJobKey("callB", Option(1), 3)),
+      Option(MetadataJobKey("callB", None, 1)),
+      Option(MetadataJobKey("callB", Option(1), 2)),
+      Option(MetadataJobKey("callA", None, 1)),
+      Option(MetadataJobKey("callB", Option(1), 1)),
+      Option(MetadataJobKey("callB", Option(0), 1)),
+      None
+    )
+    val workflowAEvents = workflowACalls map {
+      makeEvent(workflowA, _)
+    }
+
+    val expectedRes =
+      s"""{
+         |"${workflowA}": {
+         |  "calls": {
+         |    "callB": [{
+         |      "attempt": 1,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": -1
+         |    }, {
+         |      "attempt": 1,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": 0
+         |    }, {
+         |      "attempt": 1,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": 1
+         |    }, {
+         |      "attempt": 2,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": 1
+         |    }, {
+         |      "attempt": 3,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": 1
+         |    }],
+         |    "callA": [{
+         |      "attempt": 1,
+         |      "NOT_CHECKED": "NOT_CHECKED",
+         |      "shardIndex": -1
+         |    }]
+         |  },
+         |  "NOT_CHECKED": "NOT_CHECKED"
+         | }
+         |}""".stripMargin
+
+    val mdQuery = MetadataQuery(workflowA, None, None, None, None, expandSubWorkflows = false)
+    val queryAction = GetMetadataAction(mdQuery)
+    assertMetadataResponse(
+      action = queryAction,
+      queryReply = mdQuery,
+      events = workflowAEvents,
+      expectedRes = expectedRes,
+      failedTasks = true,
+      metadataBuilderActorName = "mba-failed-tasks"
+    )
   }
 
   it should "assume the event list is ordered and keep last event if 2 events have same key" in {
@@ -183,7 +259,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     assertMetadataKeyStructure(
       eventList = eventBuilderList,
       expectedJson = expectedRes,
-      metadataBuilderActorName = "mba-same-key",
+      metadataBuilderActorName = "mba-same-key"
     )
   }
 
@@ -198,7 +274,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     assertMetadataKeyStructure(
       eventList = eventBuilderList,
       expectedJson = expectedRes,
-      metadataBuilderActorName = "mba-not-workflow-state",
+      metadataBuilderActorName = "mba-not-workflow-state"
     )
   }
 
@@ -210,30 +286,29 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     val workflowId = WorkflowId.randomId()
     val expectedRes =
       s""""calls": {
-        |    "fqn": [{
-        |      "attempt": 1,
-        |      "executionStatus": "Done",
-        |      "shardIndex": -1
-        |    }]
-        |  },
-        |  "id": "$workflowId"""".stripMargin
+         |    "fqn": [{
+         |      "attempt": 1,
+         |      "executionStatus": "Done",
+         |      "shardIndex": -1
+         |    }]
+         |  },
+         |  "id": "$workflowId"""".stripMargin
 
     assertMetadataKeyStructure(
       eventList = eventBuilderList,
       expectedJson = expectedRes,
       workflow = workflowId,
       eventMaker = makeCallEvent,
-      metadataBuilderActorName = "mba-not-execution-status",
+      metadataBuilderActorName = "mba-not-execution-status"
     )
   }
-
 
   it should "use reverse date ordering (oldest first) for event start and stop values" in {
     val eventBuilderList = List(
       ("start", "1990-12-20T12:30:00.000Z", OffsetDateTime.now),
       ("start", "1990-12-20T12:30:01.000Z", OffsetDateTime.now.plusSeconds(1)),
       ("end", "2018-06-02T12:30:00.000Z", OffsetDateTime.now.plusSeconds(2)),
-      ("end", "2018-06-02T12:30:01.000Z", OffsetDateTime.now.plusSeconds(3)),
+      ("end", "2018-06-02T12:30:01.000Z", OffsetDateTime.now.plusSeconds(3))
     )
     val workflowId = WorkflowId.randomId()
     val expectedRes =
@@ -252,10 +327,9 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       expectedJson = expectedRes,
       workflow = workflowId,
       eventMaker = makeCallEvent,
-      metadataBuilderActorName = "mba-start-end-values",
+      metadataBuilderActorName = "mba-start-end-values"
     )
   }
-
 
   it should "build JSON object structure from dotted key syntax" in {
     val eventBuilderList = List(
@@ -278,10 +352,9 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     assertMetadataKeyStructure(
       eventList = eventBuilderList,
       expectedJson = expectedRes,
-      metadataBuilderActorName = "mba-object-key",
+      metadataBuilderActorName = "mba-object-key"
     )
   }
-
 
   it should "build numerically sorted JSON list structure from dotted key syntax" in {
     val eventBuilderList = List(
@@ -301,7 +374,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     assertMetadataKeyStructure(
       eventList = eventBuilderList,
       expectedJson = expectedRes,
-      metadataBuilderActorName = "mba-list-key",
+      metadataBuilderActorName = "mba-list-key"
     )
   }
 
@@ -323,7 +396,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     assertMetadataKeyStructure(
       eventList = eventBuilderList,
       expectedJson = expectedRes,
-      metadataBuilderActorName = "mba-same-index",
+      metadataBuilderActorName = "mba-same-index"
     )
   }
 
@@ -368,7 +441,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     assertMetadataKeyStructure(
       eventList = eventBuilderList,
       expectedJson = expectedRes,
-      metadataBuilderActorName = "mba-nest-objects",
+      metadataBuilderActorName = "mba-nest-objects"
     )
   }
 
@@ -393,7 +466,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     assertMetadataKeyStructure(
       eventList = eventBuilderList,
       expectedJson = expectedRes,
-      metadataBuilderActorName = "mba-nest-lists",
+      metadataBuilderActorName = "mba-nest-lists"
     )
   }
 
@@ -412,7 +485,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       eventList = eventBuilderList,
       expectedJson = expectedRes,
       eventMaker = makeEmptyValue,
-      metadataBuilderActorName = "mba-nest-empty",
+      metadataBuilderActorName = "mba-nest-empty"
     )
   }
 
@@ -423,19 +496,18 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     val kiv4 = ("key[0]", "value4", OffsetDateTime.now.plusSeconds(3))
 
     val tuples = List(
-      ("mba-json-1", List(kv),  """"key": "value""""),
-      ("mba-json-2", List(kv, ksv2),  """"key": { "subkey": "value2" }"""),
-      ("mba-json-3", List(kv, ksv2, kisv3),  """"key": [ { "subkey": "value3" } ]"""),
-      ("mba-json-4", List(kv, ksv2, kisv3, kiv4),  """"key": [ "value4" ]""")
+      ("mba-json-1", List(kv), """"key": "value""""),
+      ("mba-json-2", List(kv, ksv2), """"key": { "subkey": "value2" }"""),
+      ("mba-json-3", List(kv, ksv2, kisv3), """"key": [ { "subkey": "value3" } ]"""),
+      ("mba-json-4", List(kv, ksv2, kisv3, kiv4), """"key": [ "value4" ]""")
     )
 
-    Future.sequence(tuples map {
-      case (metadataBuilderActorName, eventList, expectedJson) =>
-        assertMetadataKeyStructure(
-          eventList = eventList,
-          expectedJson = expectedJson,
-          metadataBuilderActorName = metadataBuilderActorName,
-        )
+    Future.sequence(tuples map { case (metadataBuilderActorName, eventList, expectedJson) =>
+      assertMetadataKeyStructure(
+        eventList = eventList,
+        expectedJson = expectedJson,
+        metadataBuilderActorName = metadataBuilderActorName
+      )
     }) map { assertions =>
       assertions should contain only Succeeded
     }
@@ -456,17 +528,17 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
 
     val expectedResponse =
       s"""{
-          | "calls": {},
-          | "a": 2,
-          | "b": 2,
-          | "c": 2,
-          | "d": 2.9,
-          | "e": 2.9,
-          | "f": true,
-          | "g": false,
-          | "h": "false",
-          | "id":"$workflowId"
-          | }
+         | "calls": {},
+         | "a": 2,
+         | "b": 2,
+         | "c": 2,
+         | "d": 2.9,
+         | "e": 2.9,
+         | "f": true,
+         | "g": false,
+         | "h": "false",
+         | "id":"$workflowId"
+         | }
       """.stripMargin
 
     val mdQuery = MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
@@ -476,7 +548,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       queryReply = mdQuery,
       events = events,
       expectedRes = expectedResponse,
-      metadataBuilderActorName = "mba-coerce-type",
+      metadataBuilderActorName = "mba-coerce-type"
     )
   }
 
@@ -490,10 +562,10 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
 
     val expectedResponse =
       s"""{
-          | "calls": {},
-          | "i": "UnknownClass(50)",
-          | "id":"$workflowId"
-          |}
+         | "calls": {},
+         | "i": "UnknownClass(50)",
+         | "id":"$workflowId"
+         |}
       """.stripMargin
 
     val mdQuery = MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
@@ -503,7 +575,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       queryReply = mdQuery,
       events = events,
       expectedRes = expectedResponse,
-      metadataBuilderActorName = "mba-unknown-type",
+      metadataBuilderActorName = "mba-unknown-type"
     )
   }
 
@@ -516,10 +588,10 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
 
     val expectedResponse =
       s"""{
-          | "calls": {},
-          | "i": "notAnInt",
-          | "id":"$workflowId"
-          |}
+         | "calls": {},
+         | "i": "notAnInt",
+         | "id":"$workflowId"
+         |}
       """.stripMargin
 
     val mdQuery = MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
@@ -529,7 +601,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       queryReply = mdQuery,
       events = events,
       expectedRes = expectedResponse,
-      metadataBuilderActorName = "mba-coerce-fails",
+      metadataBuilderActorName = "mba-coerce-fails"
     )
   }
 
@@ -550,11 +622,11 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
 
     val expectedEmptyResponse =
       s"""{
-          | "calls": {},
-          | "hey": {},
-          | "emptyList": [],
-          | "id":"$workflowId"
-          |}
+         | "calls": {},
+         | "hey": {},
+         | "emptyList": [],
+         | "id":"$workflowId"
+         |}
       """.stripMargin
 
     val mdQuery = MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
@@ -564,16 +636,16 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       queryReply = mdQuery,
       events = emptyEvents,
       expectedRes = expectedEmptyResponse,
-      metadataBuilderActorName = "mba-empty-values",
+      metadataBuilderActorName = "mba-empty-values"
     )
 
     val expectedNonEmptyResponse =
       s"""{
-          | "calls": {},
-          | "hey": "something",
-          | "emptyList": ["something", "something"],
-          | "id":"$workflowId"
-          |}
+         | "calls": {},
+         | "hey": "something",
+         | "emptyList": ["something", "something"],
+         | "id":"$workflowId"
+         |}
       """.stripMargin
 
     assertMetadataResponse(
@@ -581,7 +653,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       queryReply = mdQuery,
       events = valueEvents,
       expectedRes = expectedNonEmptyResponse,
-      metadataBuilderActorName = "mba-non-empty-values",
+      metadataBuilderActorName = "mba-non-empty-values"
     )
   }
 
@@ -590,7 +662,9 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     val subWorkflowId = WorkflowId.randomId()
 
     val mainEvents = List(
-      MetadataEvent(MetadataKey(mainWorkflowId, Option(MetadataJobKey("callA", None, 1)), "subWorkflowId"), MetadataValue(subWorkflowId))
+      MetadataEvent(MetadataKey(mainWorkflowId, Option(MetadataJobKey("callA", None, 1)), "subWorkflowId"),
+                    MetadataValue(subWorkflowId)
+      )
     )
 
     val subEvents = List(
@@ -612,7 +686,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       TestActorRef(
         props = MetadataBuilderActor.props(readMetadataWorkerMaker, 1000000),
         supervisor = parentProbe.ref,
-        name = s"MetadataActor-$mainWorkflowId",
+        name = s"MetadataActor-$mainWorkflowId"
       )
     val response = metadataBuilder.ask(mainQueryAction).mapTo[MetadataJsonResponse]
     mockReadMetadataWorkerActor.expectMsg(defaultTimeout, mainQueryAction)
@@ -640,9 +714,9 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
          |}
        """.stripMargin
 
-    response map { r => r shouldBe a [SuccessfulMetadataJsonResponse] }
+    response map { r => r shouldBe a[SuccessfulMetadataJsonResponse] }
     val bmr = response.mapTo[SuccessfulMetadataJsonResponse]
-    bmr map { b => b.responseJson shouldBe expandedRes.parseJson}
+    bmr map { b => b.responseJson shouldBe expandedRes.parseJson }
   }
 
   it should "NOT expand sub workflow metadata when NOT asked for" in {
@@ -650,7 +724,9 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     val subWorkflowId = WorkflowId.randomId()
 
     val mainEvents = List(
-      MetadataEvent(MetadataKey(mainWorkflowId, Option(MetadataJobKey("callA", None, 1)), "subWorkflowId"), MetadataValue(subWorkflowId))
+      MetadataEvent(MetadataKey(mainWorkflowId, Option(MetadataJobKey("callA", None, 1)), "subWorkflowId"),
+                    MetadataValue(subWorkflowId)
+      )
     )
 
     val queryNoExpand = MetadataQuery(mainWorkflowId, None, None, None, None, expandSubWorkflows = false)
@@ -659,17 +735,16 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     val parentProbe = TestProbe("parentProbe")
 
     val mockReadMetadataWorkerActor = TestProbe("mockReadMetadataWorkerActor")
-    def readMetadataWorkerMaker= () => mockReadMetadataWorkerActor.props
+    def readMetadataWorkerMaker = () => mockReadMetadataWorkerActor.props
 
     val metadataBuilder = TestActorRef(
       props = MetadataBuilderActor.props(readMetadataWorkerMaker, 1000000),
       supervisor = parentProbe.ref,
-      name = s"MetadataActor-$mainWorkflowId",
+      name = s"MetadataActor-$mainWorkflowId"
     )
     val response = metadataBuilder.ask(queryNoExpandAction).mapTo[MetadataJsonResponse]
     mockReadMetadataWorkerActor.expectMsg(defaultTimeout, queryNoExpandAction)
     mockReadMetadataWorkerActor.reply(MetadataLookupResponse(queryNoExpand, mainEvents))
-
 
     val nonExpandedRes =
       s"""
@@ -687,9 +762,9 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
          |}
        """.stripMargin
 
-    response map { r => r shouldBe a [SuccessfulMetadataJsonResponse] }
+    response map { r => r shouldBe a[SuccessfulMetadataJsonResponse] }
     val bmr = response.mapTo[SuccessfulMetadataJsonResponse]
-    bmr map { b => b.responseJson shouldBe nonExpandedRes.parseJson}
+    bmr map { b => b.responseJson shouldBe nonExpandedRes.parseJson }
 
   }
 
@@ -714,7 +789,6 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       ee(workflowId, Bar, eventIndex = 5, StartTime, Interval4.start),
       ee(workflowId, Bar, eventIndex = 5, EndTime, Interval4.end),
       ee(workflowId, Bar, eventIndex = 5, Grouping, Delocalizing),
-
       ee(workflowId, Baz, eventIndex = 6, StartTime, Interval2.start),
       ee(workflowId, Baz, eventIndex = 6, EndTime, Interval2.end),
       ee(workflowId, Baz, eventIndex = 6, Grouping, Localizing),
@@ -730,7 +804,6 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       // cause problems.
       pe(workflowId, Quux, StartTime, Interval8.start),
       pe(workflowId, Quux, EndTime, Interval8.end),
-
       pe(workflowId, Corge, StartTime, Interval9.start),
       pe(workflowId, Corge, EndTime, Interval9.end)
     )
@@ -743,36 +816,32 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       ee(workflowId, Foo, eventIndex = 1, StartTime, Interval1.start),
       ee(workflowId, Foo, eventIndex = 1, EndTime, Interval2.end),
       ee(workflowId, Foo, eventIndex = 1, Description, Localizing.name),
-
       ee(workflowId, Bar, eventIndex = 3, StartTime, Interval3.start),
       ee(workflowId, Bar, eventIndex = 3, Description, Delocalizing.name),
-
       ee(workflowId, Baz, eventIndex = 6, StartTime, Interval1.start),
       ee(workflowId, Baz, eventIndex = 6, EndTime, Interval2.end),
       ee(workflowId, Baz, eventIndex = 6, Description, Localizing.name),
-
       ee(workflowId, Qux, eventIndex = 8, StartTime, Interval7.start),
       ee(workflowId, Qux, eventIndex = 8, EndTime, Interval7.end),
-
       pe(workflowId, Quux, StartTime, Interval8.start),
       pe(workflowId, Quux, EndTime, Interval8.end),
-
       pe(workflowId, Corge, StartTime, Interval9.start),
       pe(workflowId, Corge, EndTime, Interval9.end)
     )
 
     val actual = MetadataBuilderActor.groupEvents(events).toSet
 
-    def filterEventsByCall(events: Iterable[MetadataEvent])(call: Call): Iterable[MetadataEvent] = {
-      events collect { case e@MetadataEvent(MetadataKey(_, Some(MetadataJobKey(n, _, _)), _), _, _) if call.name == n => e}
-    }
+    def filterEventsByCall(events: Iterable[MetadataEvent])(call: Call): Iterable[MetadataEvent] =
+      events collect {
+        case e @ MetadataEvent(MetadataKey(_, Some(MetadataJobKey(n, _, _)), _), _, _) if call.name == n => e
+      }
 
     val calls = List(Foo, Bar, Baz, Qux, Quux, Corge)
     val actuals = calls map filterEventsByCall(actual)
     val expecteds = calls map filterEventsByCall(expectations)
 
-    val matchesExpectations = (actuals zip expecteds) map {
-      case (as, es) => as.toList.map(_.toString).sorted == es.toList.map(_.toString).sorted
+    val matchesExpectations = (actuals zip expecteds) map { case (as, es) =>
+      as.toList.map(_.toString).sorted == es.toList.map(_.toString).sorted
     }
     matchesExpectations.reduceLeft(_ && _) shouldBe true
   }
@@ -780,9 +849,10 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
   it should "correctly order statuses (even unused ones)" in {
     val workflowId = WorkflowId.randomId()
 
-    def statusEvent(callName: String, status: String) = {
-      MetadataEvent(MetadataKey(workflowId, Option(MetadataJobKey(callName, None, 1)), "executionStatus"), MetadataValue(status))
-    }
+    def statusEvent(callName: String, status: String) =
+      MetadataEvent(MetadataKey(workflowId, Option(MetadataJobKey(callName, None, 1)), "executionStatus"),
+                    MetadataValue(status)
+      )
 
     // Combines standard "setup" statuses plus the conclusion status(es).
     def setupStatusesPlusConclusion(callName: String, conclusionStatuses: String*): Vector[MetadataEvent] = Vector(
@@ -800,11 +870,11 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
 
     val events =
       setupStatusesPlusConclusion("Foo", "Done") ++
-      setupStatusesPlusConclusion("Bar", "Aborting", "Aborted") ++
-      setupStatusesPlusConclusion("Baz", "Failed") ++
-      setupStatusesPlusConclusion("Qux", "RetryableFailure") ++
-      setupStatusesPlusConclusion("Quux", "Bypassed") ++
-      setupStatusesPlusConclusion("Quuux", "Unstartable")
+        setupStatusesPlusConclusion("Bar", "Aborting", "Aborted") ++
+        setupStatusesPlusConclusion("Baz", "Failed") ++
+        setupStatusesPlusConclusion("Qux", "RetryableFailure") ++
+        setupStatusesPlusConclusion("Quux", "Bypassed") ++
+        setupStatusesPlusConclusion("Quuux", "Unstartable")
 
     val expectedRes =
       s"""{
@@ -835,12 +905,13 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     val action = GetMetadataAction(mdQuery)
 
     val metadataRowNumber = 100500
-    val expectedException = new MetadataTooLargeNumberOfRowsException(workflowId, metadataRowNumber, defaultSafetyRowNumberThreshold)
+    val expectedException =
+      new MetadataTooLargeNumberOfRowsException(workflowId, metadataRowNumber, defaultSafetyRowNumberThreshold)
     assertMetadataFailureResponse(
       action = action,
       metadataServiceResponse = MetadataLookupFailedTooLargeResponse(mdQuery, metadataRowNumber),
       expectedException = expectedException,
-      metadataBuilderActorName = "mba-too-large",
+      metadataBuilderActorName = "mba-too-large"
     )
   }
 
@@ -855,7 +926,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       action = action,
       metadataServiceResponse = MetadataLookupFailedTimeoutResponse(mdQuery),
       expectedException = expectedException,
-      metadataBuilderActorName = "mba-read-timeout",
+      metadataBuilderActorName = "mba-read-timeout"
     )
   }
 }
@@ -916,8 +987,8 @@ object MetadataBuilderActorSpec {
 
   def executionEventName(i: Int, a: Attr): String = s"executionEvents[$i]:${a.name}"
 
-  def executionEventKey(workflowId: WorkflowId, call: Call, eventIndex: Int, attr: Attr): MetadataKey = MetadataKey(workflowId, Option(MetadataJobKey(call.name, None, 1)), executionEventName(eventIndex, attr))
-
+  def executionEventKey(workflowId: WorkflowId, call: Call, eventIndex: Int, attr: Attr): MetadataKey =
+    MetadataKey(workflowId, Option(MetadataJobKey(call.name, None, 1)), executionEventName(eventIndex, attr))
 
   def ee(workflowId: WorkflowId, call: Call, eventIndex: Int, attr: Attr, value: Any): MetadataEvent = {
     val metadataValue = value match {
@@ -927,7 +998,9 @@ object MetadataBuilderActorSpec {
     new MetadataEvent(executionEventKey(workflowId, call, eventIndex, attr), Option(MetadataValue(metadataValue)), y2k)
   }
 
-  def eventKey(workflowId: WorkflowId, call: Call, attr: Attr): MetadataKey = MetadataKey(workflowId, Option(MetadataJobKey(call.name, None, 1)), attr.name)
+  def eventKey(workflowId: WorkflowId, call: Call, attr: Attr): MetadataKey =
+    MetadataKey(workflowId, Option(MetadataJobKey(call.name, None, 1)), attr.name)
 
-  def pe(workflowId: WorkflowId, call: Call, attr: Attr, value: Any): MetadataEvent = new MetadataEvent(eventKey(workflowId, call, attr), Option(MetadataValue(value)), y2k)
+  def pe(workflowId: WorkflowId, call: Call, attr: Attr, value: Any): MetadataEvent =
+    new MetadataEvent(eventKey(workflowId, call, attr), Option(MetadataValue(value)), y2k)
 }

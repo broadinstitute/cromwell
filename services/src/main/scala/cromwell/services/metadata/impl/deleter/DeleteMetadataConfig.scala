@@ -12,7 +12,8 @@ import scala.util.Try
 final case class DeleteMetadataConfig(backoffInterval: FiniteDuration,
                                       delayAfterWorkflowCompletion: FiniteDuration,
                                       instrumentationInterval: FiniteDuration,
-                                      debugLogging: Boolean)
+                                      debugLogging: Boolean
+)
 
 object DeleteMetadataConfig {
 
@@ -21,11 +22,14 @@ object DeleteMetadataConfig {
     val defaultInstrumentationInterval = 1 minute
     val defaultDebugLogging = true
 
-
     for {
-      backoffInterval <- Try(deleteMetadataConfig.getOrElse[FiniteDuration]("backoff-interval", defaultBackoffInterval)).toChecked
+      backoffInterval <- Try(
+        deleteMetadataConfig.getOrElse[FiniteDuration]("backoff-interval", defaultBackoffInterval)
+      ).toChecked
       delayAfterWorkflowCompletion <- Try(deleteMetadataConfig.as[FiniteDuration]("deletion-delay")).toChecked
-      instrumentationInterval <- Try(deleteMetadataConfig.getOrElse("instrumentation-interval", defaultInstrumentationInterval)).toChecked
+      instrumentationInterval <- Try(
+        deleteMetadataConfig.getOrElse("instrumentation-interval", defaultInstrumentationInterval)
+      ).toChecked
       debugLogging <- Try(deleteMetadataConfig.getOrElse("debug-logging", defaultDebugLogging)).toChecked
     } yield DeleteMetadataConfig(backoffInterval, delayAfterWorkflowCompletion, instrumentationInterval, debugLogging)
   }

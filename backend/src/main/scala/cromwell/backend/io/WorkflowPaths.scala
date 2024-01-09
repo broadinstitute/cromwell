@@ -20,7 +20,8 @@ trait WorkflowPaths extends PathFactory {
   /**
     * Path (as a String) of the root directory Cromwell should use for ALL workflows.
     */
-  protected lazy val executionRootString: String = config.as[Option[String]]("root").getOrElse(WorkflowPaths.DefaultExecutionRootString)
+  protected lazy val executionRootString: String =
+    config.as[Option[String]]("root").getOrElse(WorkflowPaths.DefaultExecutionRootString)
 
   /**
     * Implementers of this trait might override this to provide an appropriate prefix corresponding to the execution root
@@ -51,18 +52,17 @@ trait WorkflowPaths extends PathFactory {
   def getPath(url: String): Try[Path] = Try(buildPath(url))
 
   // Rebuild potential intermediate call directories in case of a sub workflow
-  protected def workflowPathBuilder(root: Path): Path = {
-    workflowDescriptor.breadCrumbs.foldLeft(root)((acc, breadCrumb) => {
-      breadCrumb.toPath(acc)
-    }).resolve(workflowDescriptor.callable.name).resolve(workflowDescriptor.id.toString + "/")
-  }
+  protected def workflowPathBuilder(root: Path): Path =
+    workflowDescriptor.breadCrumbs
+      .foldLeft(root)((acc, breadCrumb) => breadCrumb.toPath(acc))
+      .resolve(workflowDescriptor.callable.name)
+      .resolve(workflowDescriptor.id.toString + "/")
 
   lazy val finalCallLogsPath: Option[Path] =
     workflowDescriptor.getWorkflowOption(FinalCallLogsDir) map getPath map { _.get }
 
-  def toJobPaths(jobDescriptor: BackendJobDescriptor): JobPaths = {
+  def toJobPaths(jobDescriptor: BackendJobDescriptor): JobPaths =
     toJobPaths(jobDescriptor.key, jobDescriptor.workflowDescriptor)
-  }
 
   /**
     * Creates job paths using the key and workflow descriptor.
@@ -73,11 +73,10 @@ trait WorkflowPaths extends PathFactory {
     * @param jobWorkflowDescriptor The workflow descriptor for the job.
     * @return The paths for the job.
     */
-  def toJobPaths(jobKey: BackendJobDescriptorKey, jobWorkflowDescriptor: BackendWorkflowDescriptor): JobPaths = {
+  def toJobPaths(jobKey: BackendJobDescriptorKey, jobWorkflowDescriptor: BackendWorkflowDescriptor): JobPaths =
     // If the descriptors are the same, no need to create a new WorkflowPaths
     if (workflowDescriptor == jobWorkflowDescriptor) toJobPaths(this, jobKey)
     else toJobPaths(withDescriptor(jobWorkflowDescriptor), jobKey)
-  }
 
   protected def toJobPaths(workflowPaths: WorkflowPaths, jobKey: BackendJobDescriptorKey): JobPaths
 

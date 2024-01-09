@@ -1,14 +1,13 @@
 package drs.localizer.downloaders
 
-import cats.effect.IO
-import cloud.nio.impl.drs.AccessUrl
-import drs.localizer.downloaders.AccessUrlDownloader.Hashes
+import drs.localizer.ResolvedDrsUrl
 
 trait DownloaderFactory {
-  def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader]
+  def buildBulkAccessUrlDownloader(urlsToDownload: List[ResolvedDrsUrl]): Downloader
 
   def buildGcsUriDownloader(gcsPath: String,
                             serviceAccountJsonOption: Option[String],
                             downloadLoc: String,
-                            requesterPaysProjectOption: Option[String]): IO[Downloader]
+                            requesterPaysProjectOption: Option[String]
+  ): Downloader
 }

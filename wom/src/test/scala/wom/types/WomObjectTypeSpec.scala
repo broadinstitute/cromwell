@@ -7,37 +7,39 @@ import wom.values.{WomInteger, WomMap, WomObject, WomString}
 
 import scala.util.{Failure, Success}
 
-
 class WomObjectTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
-  val abcObject = WomObject(Map(
-    "a" -> WomString("one"),
-    "b" -> WomString("two"),
-    "c" -> WomString("three")
-  ))
-
-  val coerceableMap = WomMap(WomMapType(WomStringType, WomStringType), Map(
-    WomString("a") -> WomString("one"),
-    WomString("b") -> WomString("two"),
-    WomString("c") -> WomString("three"))
+  val abcObject = WomObject(
+    Map(
+      "a" -> WomString("one"),
+      "b" -> WomString("two"),
+      "c" -> WomString("three")
+    )
   )
 
-  val abcMixedTypedObject = WomObject(Map(
-    "a" -> WomString("one"),
-    "b" -> WomInteger(2),
-    "c" -> WomString("three")
-  ))
+  val coerceableMap = WomMap(
+    WomMapType(WomStringType, WomStringType),
+    Map(WomString("a") -> WomString("one"), WomString("b") -> WomString("two"), WomString("c") -> WomString("three"))
+  )
 
-  val coerceableTypedObject = WomObject.withTypeUnsafe(Map(
-    "a" -> WomString("one"),
-    "b" -> WomInteger(2),
-    "c" -> WomString("three")),
+  val abcMixedTypedObject = WomObject(
+    Map(
+      "a" -> WomString("one"),
+      "b" -> WomInteger(2),
+      "c" -> WomString("three")
+    )
+  )
+
+  val coerceableTypedObject = WomObject.withTypeUnsafe(
+    Map("a" -> WomString("one"), "b" -> WomInteger(2), "c" -> WomString("three")),
     WomCompositeType(Map("a" -> WomStringType, "b" -> WomIntegerType, "c" -> WomStringType))
   )
 
-  val nonCoerceableMap = WomMap(WomMapType(WomStringType, WomObjectType), Map(
-    WomString("a") -> WomObject(Map.empty),
-    WomString("b") -> WomObject(Map.empty),
-    WomString("c") -> WomObject(Map.empty))
+  val nonCoerceableMap = WomMap(
+    WomMapType(WomStringType, WomObjectType),
+    Map(WomString("a") -> WomObject(Map.empty),
+        WomString("b") -> WomObject(Map.empty),
+        WomString("c") -> WomObject(Map.empty)
+    )
   )
 
   "WomObject" should "stringify its value" in {

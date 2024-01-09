@@ -32,14 +32,16 @@ package cromwell.filesystems.s3.batch
 
 import software.amazon.awssdk.core.exception.SdkException
 
-import software.amazon.awssdk.services.s3.model.{HeadObjectResponse, CopyObjectResponse, NoSuchKeyException}
-import cromwell.core.io.{IoCommand,
-                         IoDeleteCommand,
-                         IoSizeCommand,
-                         IoHashCommand,
-                         IoTouchCommand,
-                         IoExistsCommand,
-                         IoCopyCommand}
+import software.amazon.awssdk.services.s3.model.{CopyObjectResponse, HeadObjectResponse, NoSuchKeyException}
+import cromwell.core.io.{
+  IoCommand,
+  IoCopyCommand,
+  IoDeleteCommand,
+  IoExistsCommand,
+  IoHashCommand,
+  IoSizeCommand,
+  IoTouchCommand
+}
 
 import cromwell.filesystems.s3.S3Path
 
@@ -49,6 +51,7 @@ import cromwell.filesystems.s3.S3Path
   * @tparam U Return type of the response
   */
 sealed trait S3BatchIoCommand[T, U] extends IoCommand[T] {
+
   /**
     * Maps the response of type U to the Cromwell Io response of type T
     */
@@ -61,9 +64,8 @@ sealed trait S3BatchIoCommand[T, U] extends IoCommand[T] {
     *   Right(newCommand) means the command is not complete and needs another request to be executed.
     * Most commands will reply with Left(value).
     */
-  def onSuccess(response: U): Either[T, S3BatchIoCommand[T, U]] = {
+  def onSuccess(response: U): Either[T, S3BatchIoCommand[T, U]] =
     Left(mapResponse(response))
-  }
 
   /**
     * Override to handle a failure differently and potentially return a successful response.
@@ -72,19 +74,22 @@ sealed trait S3BatchIoCommand[T, U] extends IoCommand[T] {
 }
 
 case class S3BatchCopyCommand(
-                           override val source: S3Path,
-                           override val destination: S3Path,
-                         ) extends IoCopyCommand(source, destination) with S3BatchIoCommand[Unit, CopyObjectResponse] {
+  override val source: S3Path,
+  override val destination: S3Path
+) extends IoCopyCommand(source, destination)
+    with S3BatchIoCommand[Unit, CopyObjectResponse] {
   override def mapResponse(response: CopyObjectResponse): Unit = ()
   override def commandDescription: String = s"S3BatchCopyCommand source '$source' destination '$destination'"
 }
 
 case class S3BatchDeleteCommand(
-                                  override val file: S3Path,
-                                  override val swallowIOExceptions: Boolean
-                                ) extends IoDeleteCommand(file, swallowIOExceptions) with S3BatchIoCommand[Unit, Void] {
+  override val file: S3Path,
+  override val swallowIOExceptions: Boolean
+) extends IoDeleteCommand(file, swallowIOExceptions)
+    with S3BatchIoCommand[Unit, Void] {
   override protected def mapResponse(response: Void): Unit = ()
-  override def commandDescription: String = s"S3BatchDeleteCommand file '$file' swallowIOExceptions '$swallowIOExceptions'"
+  override def commandDescription: String =
+    s"S3BatchDeleteCommand file '$file' swallowIOExceptions '$swallowIOExceptions'"
 }
 
 /**
@@ -126,14 +131,15 @@ case class S3BatchTouchCommand(override val file: S3Path) extends IoTouchCommand
   * `IoCommand` to determine the existence of an object in S3
   * @param file the path to the object
   */
-case class S3BatchExistsCommand(override val file: S3Path) extends IoExistsCommand(file) with S3BatchHeadCommand[Boolean] {
+case class S3BatchExistsCommand(override val file: S3Path)
+    extends IoExistsCommand(file)
+    with S3BatchHeadCommand[Boolean] {
   override def mapResponse(response: HeadObjectResponse): Boolean = true
-  override def onFailure(error: SdkException): Option[Left[Boolean, Nothing]] = {
+  override def onFailure(error: SdkException): Option[Left[Boolean, Nothing]] =
     // If the object can't be found, don't fail the request but just return false as we were testing for existence
     error match {
-      case _ : NoSuchKeyException => Option(Left(false))
+      case _: NoSuchKeyException => Option(Left(false))
       case _ => None
     }
-  }
   override def commandDescription: String = s"S3BatchExistsCommand file '$file'"
 }

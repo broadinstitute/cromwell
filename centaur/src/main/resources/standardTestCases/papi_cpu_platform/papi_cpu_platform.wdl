@@ -24,8 +24,9 @@ task cpu_platform {
 }
 
 workflow cpus {
-   call cpu_platform as haswell { input: cpu_platform = "Intel Haswell" }
-   call cpu_platform as broadwell { input: cpu_platform = "Intel Broadwell" }
-   call cpu_platform as cascadeLake { input: cpu_platform = "Intel Cascade Lake" }
-   call cpu_platform as rome {input: cpu_platform = "AMD Rome" }
+    call cpu_platform as haswell { input: cpu_platform = "Intel Haswell" }
+    call cpu_platform as broadwell { input: cpu_platform = "Intel Broadwell" }
+    call cpu_platform as cascadeLake { input: cpu_platform = "Intel Cascade Lake" }
+    call cpu_platform as iceLake { input: cpu_platform = "Intel Ice Lake" }
+    call cpu_platform as rome { input: cpu_platform = "AMD Rome" }
 }

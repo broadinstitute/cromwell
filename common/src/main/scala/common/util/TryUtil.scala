@@ -22,14 +22,13 @@ object TryUtil {
   def stringifyFailures[T](possibleFailures: Iterable[Try[T]]): Iterable[String] =
     possibleFailures.collect { case failure: Failure[T] => stringifyFailure(failure) }
 
-  private def sequenceIterable[T](tries: Iterable[Try[_]], unbox: () => T, prefixErrorMessage: String): Try[T] = {
+  private def sequenceIterable[T](tries: Iterable[Try[_]], unbox: () => T, prefixErrorMessage: String): Try[T] =
     tries collect { case f: Failure[_] => f } match {
       case failures if failures.nonEmpty =>
         val exceptions = failures.toSeq.map(_.exception)
         Failure(AggregatedException(prefixErrorMessage, exceptions.toList))
       case _ => Success(unbox())
     }
-  }
 
   def sequence[T](tries: Seq[Try[T]], prefixErrorMessage: String = ""): Try[Seq[T]] = {
     def unbox = tries map { _.get }

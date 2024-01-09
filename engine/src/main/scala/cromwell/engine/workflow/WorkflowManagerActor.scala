@@ -37,6 +37,7 @@ object WorkflowManagerActor {
   class WorkflowNotFoundException(s: String) extends Exception(s)
 
   sealed trait WorkflowManagerActorMessage
+
   /**
     * Commands
     */
@@ -48,7 +49,8 @@ object WorkflowManagerActor {
   final case class SubscribeToWorkflowCommand(id: WorkflowId) extends WorkflowManagerActorCommand
   case object EngineStatsCommand extends WorkflowManagerActorCommand
   case class AbortWorkflowsCommand(ids: Set[WorkflowId]) extends WorkflowManagerActorCommand
-  final case class WorkflowActorWorkComplete(id: WorkflowId, actor: ActorRef, finalState: WorkflowState) extends WorkflowManagerActorCommand
+  final case class WorkflowActorWorkComplete(id: WorkflowId, actor: ActorRef, finalState: WorkflowState)
+      extends WorkflowManagerActorCommand
 
   def props(config: Config,
             callCachingEnabled: Boolean,
@@ -57,6 +59,7 @@ object WorkflowManagerActor {
             ioActor: ActorRef,
             serviceRegistryActor: ActorRef,
             workflowLogCopyRouter: ActorRef,
+            workflowCallbackActor: Option[ActorRef],
             jobStoreActor: ActorRef,
             subWorkflowStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
@@ -66,7 +69,8 @@ object WorkflowManagerActor {
             jobExecutionTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             serverMode: Boolean,
-            workflowHeartbeatConfig: WorkflowHeartbeatConfig): Props = {
+            workflowHeartbeatConfig: WorkflowHeartbeatConfig
+  ): Props = {
     val params = WorkflowManagerActorParams(
       config = config,
       callCachingEnabled = callCachingEnabled,
@@ -75,6 +79,7 @@ object WorkflowManagerActor {
       ioActor = ioActor,
       serviceRegistryActor = serviceRegistryActor,
       workflowLogCopyRouter = workflowLogCopyRouter,
+      workflowCallbackActor = workflowCallbackActor,
       jobStoreActor = jobStoreActor,
       subWorkflowStoreActor = subWorkflowStoreActor,
       callCacheReadActor = callCacheReadActor,
@@ -84,7 +89,8 @@ object WorkflowManagerActor {
       jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
       backendSingletonCollection = backendSingletonCollection,
       serverMode = serverMode,
-      workflowHeartbeatConfig = workflowHeartbeatConfig)
+      workflowHeartbeatConfig = workflowHeartbeatConfig
+    )
     Props(new WorkflowManagerActor(params)).withDispatcher(EngineDispatcher)
   }
 
@@ -109,11 +115,10 @@ object WorkflowManagerActor {
     }
 
     def without(id: WorkflowId): WorkflowManagerData = this.copy(workflows = workflows - id)
-    def without(actor: ActorRef): WorkflowManagerData = {
+    def without(actor: ActorRef): WorkflowManagerData =
       // If the ID was found in the lookup return a modified copy of the state data, otherwise just return
       // the same state data.
       idFromActor(actor) map without getOrElse this
-    }
   }
 }
 
@@ -124,6 +129,7 @@ case class WorkflowManagerActorParams(config: Config,
                                       ioActor: ActorRef,
                                       serviceRegistryActor: ActorRef,
                                       workflowLogCopyRouter: ActorRef,
+                                      workflowCallbackActor: Option[ActorRef],
                                       jobStoreActor: ActorRef,
                                       subWorkflowStoreActor: ActorRef,
                                       callCacheReadActor: ActorRef,
@@ -133,24 +139,29 @@ case class WorkflowManagerActorParams(config: Config,
                                       jobExecutionTokenDispenserActor: ActorRef,
                                       backendSingletonCollection: BackendSingletonCollection,
                                       serverMode: Boolean,
-                                      workflowHeartbeatConfig: WorkflowHeartbeatConfig)
+                                      workflowHeartbeatConfig: WorkflowHeartbeatConfig
+)
 
 class WorkflowManagerActor(params: WorkflowManagerActorParams)
-  extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with WorkflowMetadataHelper with Timers {
+    extends LoggingFSM[WorkflowManagerState, WorkflowManagerData]
+    with WorkflowMetadataHelper
+    with Timers {
 
   private val config = params.config
   private val callCachingEnabled: Boolean = params.callCachingEnabled
   private val invalidateBadCacheResults = params.invalidateBadCacheResults
   override val serviceRegistryActor = params.serviceRegistryActor
 
-  private val maxWorkflowsRunning = config.getConfig("system").as[Option[Int]]("max-concurrent-workflows").getOrElse(DefaultMaxWorkflowsToRun)
-  private val maxWorkflowsToLaunch = config.getConfig("system").as[Option[Int]]("max-workflow-launch-count").getOrElse(DefaultMaxWorkflowsToLaunch)
-  private val newWorkflowPollRate = config.getConfig("system").as[Option[Int]]("new-workflow-poll-rate").getOrElse(DefaultNewWorkflowPollRate).seconds
+  private val maxWorkflowsRunning =
+    config.getConfig("system").as[Option[Int]]("max-concurrent-workflows").getOrElse(DefaultMaxWorkflowsToRun)
+  private val maxWorkflowsToLaunch =
+    config.getConfig("system").as[Option[Int]]("max-workflow-launch-count").getOrElse(DefaultMaxWorkflowsToLaunch)
+  private val newWorkflowPollRate =
+    config.getConfig("system").as[Option[Int]]("new-workflow-poll-rate").getOrElse(DefaultNewWorkflowPollRate).seconds
   private val fileHashCacheEnabled = config.as[Option[Boolean]]("system.file-hash-cache").getOrElse(false)
 
   private val logger = Logging(context.system, this)
   private val tag = self.path.name
-
 
   override def preStart(): Unit = {
     // Starts the workflow polling cycle
@@ -176,11 +187,17 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       params.jobExecutionTokenDispenserActor ! FetchLimitedGroups
       stay()
     case Event(ReplyLimitedGroups(groups), stateData) =>
+      val wfCount = stateData.workflows.size
+      val swfCount = stateData.subWorkflows.size
+      val maxNewWorkflows = maxWorkflowsToLaunch min (maxWorkflowsRunning - wfCount - swfCount)
+      val fetchCountLog =
+        s"Fetching $maxNewWorkflows new workflows ($wfCount workflows and $swfCount subworkflows in flight)"
       if (groups.nonEmpty)
-        log.info(s"Excluding groups from workflow launch: ${groups.mkString(", ")}")
+        log.info(s"${fetchCountLog}, excluding groups: ${groups.mkString(", ")}")
+      else if (maxNewWorkflows < 1)
+        log.info(s"${fetchCountLog}, no groups excluded from workflow launch.")
       else
-        log.debug("No groups excluded from workflow launch.")
-      val maxNewWorkflows = maxWorkflowsToLaunch min (maxWorkflowsRunning - stateData.workflows.size - stateData.subWorkflows.size)
+        log.debug(s"${fetchCountLog}, no groups excluded from workflow launch.")
       params.workflowStore ! WorkflowStoreActor.FetchRunnableWorkflows(maxNewWorkflows, excludedGroups = groups)
       stay()
     case Event(WorkflowStoreEngineActor.NoNewWorkflowsToStart, _) =>
@@ -191,13 +208,13 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       log.info("Retrieved {} workflows from the WorkflowStoreActor", newSubmissions.toList.size)
       stay() using stateData.withAddition(newSubmissions)
     case Event(SubscribeToWorkflowCommand(id), data) =>
-      data.workflows.get(id) foreach {_ ! SubscribeTransitionCallBack(sender())}
+      data.workflows.get(id) foreach { _ ! SubscribeTransitionCallBack(sender()) }
       stay()
     case Event(AbortAllWorkflowsCommand, data) if data.workflows.isEmpty =>
       goto(Done)
     case Event(AbortAllWorkflowsCommand, data) =>
       log.info(s"$tag: Aborting all workflows")
-      data.workflows.values.foreach { _ ! WorkflowActor.AbortWorkflowCommand }
+      data.workflows.values.foreach(_ ! WorkflowActor.AbortWorkflowCommand)
       goto(Aborting)
     /*
      Responses from services
@@ -206,7 +223,9 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       log.info(s"$tag: Workflow $workflowId failed (during $inState): ${expandFailureReasons(reasons)}")
       stay()
     case Event(WorkflowActorWorkComplete(id: WorkflowId, workflowActor: ActorRef, finalState: WorkflowState), data) =>
-      log.info(s"$tag: Workflow actor for $id completed with status '$finalState'. The workflow will be removed from the workflow store.")
+      log.info(
+        s"$tag: Workflow actor for $id completed with status '$finalState'. The workflow will be removed from the workflow store."
+      )
       // This silently fails if idFromActor is None, but data.without call right below will as well
       data.idFromActor(workflowActor) foreach { workflowId =>
         params.jobStoreActor ! RegisterWorkflowCompleted(workflowId)
@@ -215,16 +234,18 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   }
 
   val scheduleNextNewWorkflowPollStateFunction: StateFunction = {
-    case event @ Event(WorkflowStoreEngineActor.NoNewWorkflowsToStart | _: WorkflowStoreEngineActor.NewWorkflowsToStart, _) =>
+    case event @ Event(WorkflowStoreEngineActor.NoNewWorkflowsToStart | _: WorkflowStoreEngineActor.NewWorkflowsToStart,
+                       _
+        ) =>
       scheduleNextNewWorkflowPoll()
       runningAndNotStartingNewWorkflowsStateFunction(event)
   }
 
-  when (Running) (scheduleNextNewWorkflowPollStateFunction.orElse(runningAndNotStartingNewWorkflowsStateFunction))
+  when(Running)(scheduleNextNewWorkflowPollStateFunction.orElse(runningAndNotStartingNewWorkflowsStateFunction))
 
-  when (RunningAndNotStartingNewWorkflows) (runningAndNotStartingNewWorkflowsStateFunction)
+  when(RunningAndNotStartingNewWorkflows)(runningAndNotStartingNewWorkflowsStateFunction)
 
-  when (Aborting) {
+  when(Aborting) {
     case Event(Transition(workflowActor, _, _: WorkflowActorTerminalState), data) =>
       // Remove this terminal actor from the workflowStore and log a progress message.
       val updatedData = data.without(workflowActor)
@@ -241,7 +262,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     case Event(_, _) => stay()
   }
 
-  when (Done) { FSM.NullFunction }
+  when(Done)(FSM.NullFunction)
 
   whenUnhandled {
     case Event(AbortWorkflowsCommand(ids), stateData) =>
@@ -272,7 +293,9 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       stay()
     case Event(EngineStatsCommand, data) =>
       val sndr = sender()
-      context.actorOf(EngineStatsActor.props(data.workflows.values.toList, sndr), s"EngineStatsActor-${sndr.hashCode()}")
+      context.actorOf(EngineStatsActor.props(data.workflows.values.toList, sndr),
+                      s"EngineStatsActor-${sndr.hashCode()}"
+      )
       stay()
     // Anything else certainly IS interesting:
     case Event(unhandled, _) =>
@@ -303,16 +326,18 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       logger.info(s"$tag: Starting workflow UUID($workflowId)")
     }
 
-    val fileHashCacheActorProps: Option[Props] = fileHashCacheEnabled.option(RootWorkflowFileHashCacheActor.props(params.ioActor, workflowId))
+    val fileHashCacheActorProps: Option[Props] =
+      fileHashCacheEnabled.option(RootWorkflowFileHashCacheActor.props(params.ioActor, workflowId))
 
     val wfProps = WorkflowActor.props(
       workflowToStart = workflow,
       conf = config,
-      callCachingEnabled = callCachingEnabled ,
+      callCachingEnabled = callCachingEnabled,
       invalidateBadCacheResults = invalidateBadCacheResults,
       ioActor = params.ioActor,
       serviceRegistryActor = params.serviceRegistryActor,
       workflowLogCopyRouter = params.workflowLogCopyRouter,
+      workflowCallbackActor = params.workflowCallbackActor,
       jobStoreActor = params.jobStoreActor,
       subWorkflowStoreActor = params.subWorkflowStoreActor,
       callCacheReadActor = params.callCacheReadActor,
@@ -326,7 +351,8 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       workflowHeartbeatConfig = params.workflowHeartbeatConfig,
       totalJobsByRootWf = new AtomicInteger(),
       fileHashCacheActorProps = fileHashCacheActorProps,
-      blacklistCache = callCachingBlacklistManager.blacklistCacheFor(workflow))
+      blacklistCache = callCachingBlacklistManager.blacklistCacheFor(workflow)
+    )
     val wfActor = context.actorOf(wfProps, name = s"WorkflowActor-$workflowId")
 
     wfActor ! SubscribeTransitionCallBack(self)
@@ -335,9 +361,8 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     WorkflowIdToActorRef(workflowId, wfActor)
   }
 
-  private def scheduleNextNewWorkflowPoll() = {
+  private def scheduleNextNewWorkflowPoll() =
     timers.startSingleTimer(RetrieveNewWorkflowsKey, RetrieveNewWorkflows, newWorkflowPollRate)
-  }
 
   private def expandFailureReasons(reasons: Seq[Throwable]): String = {
 
@@ -347,9 +372,9 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       case reason: ThrowableAggregation => expandFailureReasons(reason.throwables.toSeq)
       case reason: KnownJobFailureException =>
         val stderrMessage = reason.stderrPath map { path =>
-          val content = Try(path.annotatedContentAsStringWithLimit(3000)).recover({
-            case e => s"Could not retrieve content: ${e.getMessage}"
-          }).get
+          val content = Try(path.annotatedContentAsStringWithLimit(3000)).recover { case e =>
+            s"Could not retrieve content: ${e.getMessage}"
+          }.get
           s"\nCheck the content of stderr for potential additional information: ${path.pathAsString}.\n $content"
         } getOrElse ""
         reason.getMessage + stderrMessage

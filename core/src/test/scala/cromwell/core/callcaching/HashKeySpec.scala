@@ -4,7 +4,6 @@ import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-
 class HashKeySpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   "HashKey" should "produce consistent key value" in {
@@ -20,7 +19,7 @@ class HashKeySpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
       HashKey("output", "String myOutput"),
       HashKey("runtime attribute", "docker")
     )
-    
+
     keys map { _.key } should contain theSameElementsAs Set(
       "command template",
       "backend name",
@@ -34,5 +33,5 @@ class HashKeySpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
       "runtime attribute: docker"
     )
   }
-  
+
 }

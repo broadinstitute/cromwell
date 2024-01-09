@@ -55,13 +55,14 @@ object WorkflowOptions {
   case object FinalWorkflowLogDir extends WorkflowOption("final_workflow_log_dir")
   case object FinalCallLogsDir extends WorkflowOption("final_call_logs_dir")
   case object FinalWorkflowOutputsDir extends WorkflowOption("final_workflow_outputs_dir")
-  case object UseRelativeOutputPaths extends WorkflowOption(name="use_relative_output_paths")
+  case object UseRelativeOutputPaths extends WorkflowOption(name = "use_relative_output_paths")
 
   // Misc.
   case object DefaultRuntimeOptions extends WorkflowOption("default_runtime_attributes")
   case object WorkflowFailureMode extends WorkflowOption("workflow_failure_mode")
   case object UseReferenceDisks extends WorkflowOption("use_reference_disks")
   case object MemoryRetryMultiplier extends WorkflowOption("memory_retry_multiplier")
+  case object WorkflowCallbackUri extends WorkflowOption("workflow_callback_uri")
 
   private lazy val WorkflowOptionsConf = ConfigFactory.load.getConfig("workflow-options")
   private lazy val EncryptedFields: Seq[String] = WorkflowOptionsConf.getStringList("encrypted-fields").asScala.toList
@@ -69,23 +70,28 @@ object WorkflowOptions {
   private lazy val defaultRuntimeOptionKey: String = DefaultRuntimeOptions.name
   private lazy val validObjectKeys: Set[String] = Set(DefaultRuntimeOptions.name, "google_labels")
 
-  def encryptField(value: JsString): Try[JsObject] = {
+  def encryptField(value: JsString): Try[JsObject] =
     Aes256Cbc.encrypt(value.value.getBytes("utf-8"), SecretKey(EncryptionKey)) match {
-      case Success(encryptedValue) => Success(JsObject(Map(
-        "iv" -> JsString(encryptedValue.base64Iv),
-        "ciphertext" -> JsString(encryptedValue.base64CipherText)
-      )))
+      case Success(encryptedValue) =>
+        Success(
+          JsObject(
+            Map(
+              "iv" -> JsString(encryptedValue.base64Iv),
+              "ciphertext" -> JsString(encryptedValue.base64CipherText)
+            )
+          )
+        )
       case Failure(ex) => Failure(ex)
     }
-  }
 
-  def decryptField(obj: JsObject): Try[String] = {
+  def decryptField(obj: JsObject): Try[String] =
     (obj.fields.get("iv"), obj.fields.get("ciphertext")) match {
       case (Some(iv: JsString), Some(ciphertext: JsString)) =>
-        Aes256Cbc.decrypt(EncryptedBytes(ciphertext.value, iv.value), SecretKey(WorkflowOptions.EncryptionKey)).map(new String(_, "utf-8"))
+        Aes256Cbc
+          .decrypt(EncryptedBytes(ciphertext.value, iv.value), SecretKey(WorkflowOptions.EncryptionKey))
+          .map(new String(_, "utf-8"))
       case _ => Failure(new RuntimeException(s"JsObject must have 'iv' and 'ciphertext' fields to decrypt: $obj"))
     }
-  }
 
   def isEncryptedField(jsValue: JsValue): Boolean = jsValue match {
     case obj: JsObject if obj.fields.keys.exists(_ == "iv") && obj.fields.keys.exists(_ == "ciphertext") => true
@@ -101,7 +107,8 @@ object WorkflowOptions {
       case (k, v: JsNumber) => k -> Success(v)
       case (k, v) if isEncryptedField(v) => k -> Success(v)
       case (k, v: JsArray) => k -> Success(v)
-      case (k, v) => k -> Failure(new UnsupportedOperationException(s"Unsupported key/value pair in WorkflowOptions: $k -> $v"))
+      case (k, v) =>
+        k -> Failure(new UnsupportedOperationException(s"Unsupported key/value pair in WorkflowOptions: $k -> $v"))
     }
 
     encrypted.values collect { case f: Failure[_] => f } match {
@@ -116,7 +123,7 @@ object WorkflowOptions {
     case Success(x) => Failure(new UnsupportedOperationException(s"Expecting JSON object, got $x"))
   }
 
-  def fromMap(m: Map[String, String]) = fromJsonObject(JsObject(m map { case (k, v) => k -> JsString(v)}))
+  def fromMap(m: Map[String, String]) = fromJsonObject(JsObject(m map { case (k, v) => k -> JsString(v) }))
 
   private def getAsJson(key: String, jsObject: JsObject) = jsObject.fields.get(key) match {
     case Some(jsStr: JsString) => Success(jsStr)
@@ -156,7 +163,7 @@ case class WorkflowOptions(jsObject: JsObject) {
   }
 
   def getVectorOfStrings(key: String): ErrorOr[Option[Vector[String]]] = jsObject.fields.get(key) match {
-    case Some(jsArr: JsArray) => Option(jsArr.elements collect { case e: JsString => e.value } ).validNel
+    case Some(jsArr: JsArray) => Option(jsArr.elements collect { case e: JsString => e.value }).validNel
     case Some(jsVal: JsValue) => s"Unsupported JsValue as JsArray: $jsVal".invalidNel
     case _ => None.validNel
   }
@@ -166,8 +173,14 @@ case class WorkflowOptions(jsObject: JsObject) {
   }
 
   lazy val defaultRuntimeOptions = jsObject.fields.get(defaultRuntimeOptionKey) match {
-    case Some(jsObj: JsObject) => TryUtil.sequenceMap(jsObj.fields map { case (k, _) => k -> WorkflowOptions.getAsJson(k, jsObj) })
-    case Some(jsVal) => Failure(new IllegalArgumentException(s"Unsupported JsValue for $defaultRuntimeOptionKey: $jsVal. Expected a JSON object."))
+    case Some(jsObj: JsObject) =>
+      TryUtil.sequenceMap(jsObj.fields map { case (k, _) => k -> WorkflowOptions.getAsJson(k, jsObj) })
+    case Some(jsVal) =>
+      Failure(
+        new IllegalArgumentException(
+          s"Unsupported JsValue for $defaultRuntimeOptionKey: $jsVal. Expected a JSON object."
+        )
+      )
     case None => Failure(OptionNotFoundException(s"Cannot find definition for default runtime attributes"))
   }
 

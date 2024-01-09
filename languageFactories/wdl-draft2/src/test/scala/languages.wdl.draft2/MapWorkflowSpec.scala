@@ -11,21 +11,25 @@ import wom.values.{WomMap, WomSingleFile, WomString, WomValue}
 
 import scala.util.{Success, Try}
 
-
 class MapWorkflowSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   val namespace = WdlNamespaceWithWorkflow.load(WorkflowSource, Seq.empty[Draft2ImportResolver]).get
-  val expectedMap = WomMap(WomMapType(WomSingleFileType, WomStringType), Map(
-    WomSingleFile("f1") -> WomString("alice"),
-    WomSingleFile("f2") -> WomString("bob"),
-    WomSingleFile("f3") -> WomString("chuck")
-  ))
+  val expectedMap = WomMap(
+    WomMapType(WomSingleFileType, WomStringType),
+    Map(
+      WomSingleFile("f1") -> WomString("alice"),
+      WomSingleFile("f2") -> WomString("bob"),
+      WomSingleFile("f3") -> WomString("chuck")
+    )
+  )
 
   "A static Map[File, String] declaration" should "be a valid declaration" in {
-    val declaration = namespace.workflow.declarations.find {
-      _.unqualifiedName == "map"
-    }.getOrElse {
-      fail("Expected declaration 'map' to be found")
-    }
+    val declaration = namespace.workflow.declarations
+      .find {
+        _.unqualifiedName == "map"
+      }
+      .getOrElse {
+        fail("Expected declaration 'map' to be found")
+      }
     val expression = declaration.expression.getOrElse {
       fail("Expected an expression for declaration 'map'")
     }
@@ -47,9 +51,11 @@ class MapWorkflowSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
         case _ => throw new UnsupportedOperationException("Only write_map should be called")
       }
     }
-    val command = writeMapTask.instantiateCommand(writeMapTask.inputsFromMap(Map("file_to_name" -> expectedMap)), new CannedFunctions).getOrElse {
-      fail("Expected instantiation to work")
-    }
+    val command = writeMapTask
+      .instantiateCommand(writeMapTask.inputsFromMap(Map("file_to_name" -> expectedMap)), new CannedFunctions)
+      .getOrElse {
+        fail("Expected instantiation to work")
+      }
     command.head.commandString shouldEqual "cat /test/map/path"
   }
 }

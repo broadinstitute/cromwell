@@ -3,7 +3,7 @@ package cloud.nio.spi
 import java.net.URI
 import java.nio.channels.SeekableByteChannel
 import java.nio.file._
-import java.nio.file.attribute.{BasicFileAttributeView, BasicFileAttributes, FileAttribute, FileAttributeView}
+import java.nio.file.attribute.{BasicFileAttributes, BasicFileAttributeView, FileAttribute, FileAttributeView}
 import java.nio.file.spi.FileSystemProvider
 
 import com.typesafe.config.{Config, ConfigFactory}
@@ -64,9 +64,8 @@ abstract class CloudNioFileSystemProvider extends FileSystemProvider {
     newCloudNioFileSystem(uri.toString, config)
   }
 
-  override def getPath(uri: URI): CloudNioPath = {
+  override def getPath(uri: URI): CloudNioPath =
     getFileSystem(uri).getPath(uri.getPath)
-  }
 
   override def newByteChannel(
     path: Path,
@@ -75,7 +74,7 @@ abstract class CloudNioFileSystemProvider extends FileSystemProvider {
   ): SeekableByteChannel = {
     val cloudNioPath = CloudNioPath.checkPath(path)
 
-    for (opt <- options.asScala) {
+    for (opt <- options.asScala)
       opt match {
         case StandardOpenOption.READ | StandardOpenOption.WRITE | StandardOpenOption.SPARSE |
             StandardOpenOption.TRUNCATE_EXISTING | StandardOpenOption.CREATE | StandardOpenOption.CREATE_NEW =>
@@ -84,7 +83,6 @@ abstract class CloudNioFileSystemProvider extends FileSystemProvider {
             StandardOpenOption.SYNC =>
           throw new UnsupportedOperationException(opt.toString)
       }
-    }
 
     if (options.contains(StandardOpenOption.READ) && options.contains(StandardOpenOption.WRITE)) {
       throw new UnsupportedOperationException("Cannot open a READ+WRITE channel")
@@ -95,70 +93,64 @@ abstract class CloudNioFileSystemProvider extends FileSystemProvider {
     }
   }
 
-  protected def cloudNioReadChannel(retry: CloudNioRetry, cloudNioPath: CloudNioPath): CloudNioReadChannel = new CloudNioReadChannel(fileProvider, retry, cloudNioPath)
-  protected def cloudNioWriteChannel(retry: CloudNioRetry, cloudNioPath: CloudNioPath): CloudNioWriteChannel = new CloudNioWriteChannel(fileProvider, retry, cloudNioPath)
+  protected def cloudNioReadChannel(retry: CloudNioRetry, cloudNioPath: CloudNioPath): CloudNioReadChannel =
+    new CloudNioReadChannel(fileProvider, retry, cloudNioPath)
+  protected def cloudNioWriteChannel(retry: CloudNioRetry, cloudNioPath: CloudNioPath): CloudNioWriteChannel =
+    new CloudNioWriteChannel(fileProvider, retry, cloudNioPath)
 
-  override def createDirectory(dir: Path, attrs: FileAttribute[_]*): Unit = retry.from(() => {
+  override def createDirectory(dir: Path, attrs: FileAttribute[_]*): Unit = retry.from { () =>
     val cloudNioPath = CloudNioPath.checkPath(dir)
     fileProvider.createDirectory(cloudNioPath.cloudHost, cloudNioPath.cloudPath)
-  })
+  }
 
   override def deleteIfExists(path: Path): Boolean = {
     val cloudNioPath = CloudNioPath.checkPath(path)
 
     if (checkDirectoryExists(cloudNioPath)) {
-      val hasObjects = retry.from(
-        () => fileProvider.existsPaths(cloudNioPath.cloudHost, cloudNioPath.cloudPath)
-      )
+      val hasObjects = retry.from(() => fileProvider.existsPaths(cloudNioPath.cloudHost, cloudNioPath.cloudPath))
       if (hasObjects) {
         throw new UnsupportedOperationException("Can not delete a non-empty directory")
       } else {
         true
       }
     } else {
-      retry.from(
-        () => fileProvider.deleteIfExists(cloudNioPath.cloudHost, cloudNioPath.cloudPath)
-      )
+      retry.from(() => fileProvider.deleteIfExists(cloudNioPath.cloudHost, cloudNioPath.cloudPath))
     }
   }
 
-  override def delete(path: Path): Unit = {
+  override def delete(path: Path): Unit =
     if (!deleteIfExists(path)) {
       val cloudNioPath = CloudNioPath.checkPath(path)
       throw new NoSuchFileException(cloudNioPath.uriAsString)
     }
-  }
 
   override def copy(source: Path, target: Path, options: CopyOption*): Unit = {
     val sourceCloudNioPath = CloudNioPath.checkPath(source)
     val targetCloudNioPath = CloudNioPath.checkPath(target)
 
     if (sourceCloudNioPath != targetCloudNioPath) {
-      retry.from(
-        () =>
-          fileProvider.copy(
-            sourceCloudNioPath.cloudHost,
-            sourceCloudNioPath.cloudPath,
-            targetCloudNioPath.cloudHost,
-            targetCloudNioPath.cloudPath
-          )
+      retry.from(() =>
+        fileProvider.copy(
+          sourceCloudNioPath.cloudHost,
+          sourceCloudNioPath.cloudPath,
+          targetCloudNioPath.cloudHost,
+          targetCloudNioPath.cloudPath
+        )
       )
     }
   }
 
   override def move(source: Path, target: Path, options: CopyOption*): Unit = {
-    for (option <- options) {
+    for (option <- options)
       if (option == StandardCopyOption.ATOMIC_MOVE)
         throw new AtomicMoveNotSupportedException(null, null, "Atomic move unsupported")
-    }
     copy(source, target, options: _*)
     delete(source)
     ()
   }
 
-  override def isSameFile(path: Path, path2: Path): Boolean = {
+  override def isSameFile(path: Path, path2: Path): Boolean =
     CloudNioPath.checkPath(path).equals(CloudNioPath.checkPath(path2))
-  }
 
   override def isHidden(path: Path): Boolean = {
     CloudNioPath.checkPath(path)
@@ -174,8 +166,8 @@ abstract class CloudNioFileSystemProvider extends FileSystemProvider {
 
     val cloudNioPath = CloudNioPath.checkPath(path)
 
-    val exists = checkDirectoryExists(cloudNioPath) || retry.from(
-      () => fileProvider.existsPath(cloudNioPath.cloudHost, cloudNioPath.cloudPath)
+    val exists = checkDirectoryExists(cloudNioPath) || retry.from(() =>
+      fileProvider.existsPath(cloudNioPath.cloudHost, cloudNioPath.cloudPath)
     )
 
     if (!exists) {
@@ -183,12 +175,11 @@ abstract class CloudNioFileSystemProvider extends FileSystemProvider {
     }
   }
 
-  def checkDirectoryExists(cloudNioPath: CloudNioPath): Boolean = {
+  def checkDirectoryExists(cloudNioPath: CloudNioPath): Boolean =
     // Anything that "seems" like a directory exists. Otherwise see if the path with a "/" contains files on the cloud.
-    (usePseudoDirectories && cloudNioPath.seemsLikeDirectory) || retry.from(
-      () => fileProvider.existsPaths(cloudNioPath.cloudHost, cloudNioPath.cloudPath + "/")
+    (usePseudoDirectories && cloudNioPath.seemsLikeDirectory) || retry.from(() =>
+      fileProvider.existsPaths(cloudNioPath.cloudHost, cloudNioPath.cloudPath + "/")
     )
-  }
 
   override def getFileAttributeView[V <: FileAttributeView](
     path: Path,
@@ -205,9 +196,8 @@ abstract class CloudNioFileSystemProvider extends FileSystemProvider {
     CloudNioFileAttributeView(fileProvider, retry, cloudNioPath, isDirectory).asInstanceOf[V]
   }
 
-  override def readAttributes(path: Path, attributes: String, options: LinkOption*): java.util.Map[String, AnyRef] = {
+  override def readAttributes(path: Path, attributes: String, options: LinkOption*): java.util.Map[String, AnyRef] =
     throw new UnsupportedOperationException
-  }
 
   override def readAttributes[A <: BasicFileAttributes](
     path: Path,
@@ -224,9 +214,7 @@ abstract class CloudNioFileSystemProvider extends FileSystemProvider {
       CloudNioDirectoryAttributes(cloudNioPath).asInstanceOf[A]
     } else {
       retry
-        .from(
-          () => fileProvider.fileAttributes(cloudNioPath.cloudHost, cloudNioPath.cloudPath)
-        )
+        .from(() => fileProvider.fileAttributes(cloudNioPath.cloudHost, cloudNioPath.cloudPath))
         .map(_.asInstanceOf[A])
         .getOrElse(throw new NoSuchFileException(cloudNioPath.uriAsString))
     }
@@ -237,16 +225,15 @@ abstract class CloudNioFileSystemProvider extends FileSystemProvider {
     new CloudNioDirectoryStream(fileProvider, retry, cloudNioPath, filter)
   }
 
-  override def setAttribute(path: Path, attribute: String, value: scala.Any, options: LinkOption*): Unit = {
+  override def setAttribute(path: Path, attribute: String, value: scala.Any, options: LinkOption*): Unit =
     throw new UnsupportedOperationException
-  }
 
   def canEqual(other: Any): Boolean = other.isInstanceOf[CloudNioFileSystemProvider]
 
   override def equals(other: Any): Boolean = other match {
     case that: CloudNioFileSystemProvider =>
       (that canEqual this) &&
-        config == that.config
+      config == that.config
     case _ => false
   }
 
@@ -258,7 +245,6 @@ abstract class CloudNioFileSystemProvider extends FileSystemProvider {
 
 object CloudNioFileSystemProvider {
 
-  def defaultConfig(scheme: String): Config = {
+  def defaultConfig(scheme: String): Config =
     ConfigFactory.load.getOrElse(s"cloud.nio.default.$scheme", ConfigFactory.empty)
-  }
 }

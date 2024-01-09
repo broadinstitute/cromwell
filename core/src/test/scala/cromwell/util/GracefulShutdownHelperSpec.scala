@@ -10,17 +10,17 @@ import org.scalatest.matchers.should.Matchers
 
 class GracefulShutdownHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
   behavior of "GracefulShutdownHelper"
-  
+
   it should "send ShutdownCommand to actors, wait for them to shutdown, then shut itself down" in {
     val testProbeA = TestProbe()
     val testProbeB = TestProbe()
-    
+
     val testActor = system.actorOf(Props(new Actor with GracefulShutdownHelper with ActorLogging {
-      override def receive: Receive = {
-        case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(testProbeA.ref, testProbeB.ref))
+      override def receive: Receive = { case ShutdownCommand =>
+        waitForActorsAndShutdown(NonEmptyList.of(testProbeA.ref, testProbeB.ref))
       }
     }))
-    
+
     watch(testActor)
 
     testActor ! ShutdownCommand
@@ -37,7 +37,7 @@ class GracefulShutdownHelperSpec extends TestKitSuite with AnyFlatSpecLike with 
     expectNoMessage()
 
     system stop testProbeB.ref
-    
+
     expectTerminated(testActor)
   }
 }

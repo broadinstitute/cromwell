@@ -5,7 +5,8 @@ import wdl.transforms.base.ast2wdlom.{GenericAst, GenericAstList, GenericAstNode
 import scala.jdk.CollectionConverters._
 
 case class Draft3GenericAst(ast: Ast) extends GenericAst {
-  override def getAttribute(attr: String): GenericAstNode = Option(ast.getAttribute(attr)).map(Draft3GenericAstNode.apply).orNull
+  override def getAttribute(attr: String): GenericAstNode =
+    Option(ast.getAttribute(attr)).map(Draft3GenericAstNode.apply).orNull
   override def getAttributes: Map[String, GenericAstNode] = ast.getAttributes.asScala.toMap collect {
     case (key, value) if value != null => key -> Draft3GenericAstNode(value)
   }

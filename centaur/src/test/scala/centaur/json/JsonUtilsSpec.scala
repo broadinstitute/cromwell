@@ -111,7 +111,7 @@ class JsonUtilsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
       "calls.wf_hello.hello.outputs.salutation" -> "Hello Mr. Bean!",
       "calls.wf_hello.hello.runtimeAttributes.bootDiskSizeGb" -> "10",
       "calls.wf_hello.hello.runtimeAttributes.continueOnReturnCode" -> "0",
-      "calls.wf_hello.hello.runtimeAttributes.maxRetries" -> "0",
+      "calls.wf_hello.hello.runtimeAttributes.maxRetries" -> "0"
     ).map(x => (x._1, JsString(x._2)))
 
     val actualFlattenedMetadata: Map[String, JsValue] = metadata.parseJson.asJsObject.flatten().fields
@@ -169,7 +169,7 @@ class JsonUtilsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
       "calls.wf_hello.task1.executionEvents.0.description" -> "task 1 step 1",
       "calls.wf_hello.task2.executionEvents.0.description" -> "task 2 step 1",
       "calls.wf_hello.task1.runtimeAttributes.bootDiskSizeGb" -> "10",
-      "calls.wf_hello.task2.runtimeAttributes.bootDiskSizeGb" -> "10",
+      "calls.wf_hello.task2.runtimeAttributes.bootDiskSizeGb" -> "10"
     ).map(x => (x._1, JsString(x._2)))
 
     val actualFlattenedMetadata: Map[String, JsValue] = metadata.parseJson.asJsObject.flatten().fields
@@ -249,7 +249,7 @@ class JsonUtilsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
       "wf_hello.hello.0.2.shardIndex" -> 0,
       "wf_hello.hello.1.shardIndex" -> 1,
       "wf_hello.hello.1.1.shardIndex" -> 1,
-      "wf_hello.hello.1.2.shardIndex" -> 1,
+      "wf_hello.hello.1.2.shardIndex" -> 1
     ).map(x => (x._1, JsNumber(x._2))) ++ Map(
       "id" -> "5abfaa90-570f-48d4-a35b-81d5ad4ea0f7",
       "status" -> "Succeeded",
@@ -265,7 +265,7 @@ class JsonUtilsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
       "wf_hello.hello.0.2.runtimeAttributes.memory" -> "1.1 GB",
       "wf_hello.hello.1.runtimeAttributes.memory" -> "1.1 GB",
       "wf_hello.hello.1.1.runtimeAttributes.memory" -> "1 GB",
-      "wf_hello.hello.1.2.runtimeAttributes.memory" -> "1.1 GB",
+      "wf_hello.hello.1.2.runtimeAttributes.memory" -> "1.1 GB"
     ).map(x => (x._1, JsString(x._2)))
 
     val actualFlattenedMetadata: Map[String, JsValue] = metadata.parseJson.asJsObject.flatten().fields

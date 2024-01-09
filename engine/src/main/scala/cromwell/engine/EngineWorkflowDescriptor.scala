@@ -13,7 +13,8 @@ case class EngineWorkflowDescriptor(topLevelCallable: Callable,
                                     failureMode: WorkflowFailureMode,
                                     pathBuilders: List[PathBuilder],
                                     callCachingMode: CallCachingMode,
-                                    parentWorkflow: Option[EngineWorkflowDescriptor] = None) {
+                                    parentWorkflow: Option[EngineWorkflowDescriptor] = None
+) {
 
   val rootWorkflow: EngineWorkflowDescriptor = parentWorkflow match {
     case Some(parent) => parent.rootWorkflow

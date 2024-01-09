@@ -510,6 +510,26 @@ paths:
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/ServerError'
+  '/api/workflows/{version}/{id}/metadata/failed-jobs':
+    get:
+      operationId: failed-jobs
+      summary: Get call-level metadata of failed tasks for a specified root workflow
+      parameters:
+        - $ref: '#/parameters/versionParam'
+        - $ref: '#/parameters/singleId'
+      tags:
+        - Workflows
+      responses:
+        '200':
+          description: Successful request
+          schema:
+            $ref: '#/definitions/WorkflowMetadataResponse'
+        '400':
+          $ref: '#/responses/BadRequest'
+        '404':
+          $ref: '#/responses/NotFound'
+        '500':
+          $ref: '#/responses/ServerError'
   '/api/workflows/{version}/{id}/metadata':
     get:
       operationId: metadata

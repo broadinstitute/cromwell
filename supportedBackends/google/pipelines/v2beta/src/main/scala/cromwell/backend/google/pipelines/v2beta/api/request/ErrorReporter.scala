@@ -20,28 +20,27 @@ object ErrorReporter {
 
   // This can be used to log non-critical deserialization failures and not fail the task
   implicit class ErrorOrLogger[A](val t: ErrorOr[A]) extends AnyVal {
-    private def logErrors(errors: NonEmptyList[String], workflowId: WorkflowId, operation: Operation): Unit = {
-      logger.error(s"[$workflowId] Failed to parse PAPI response. Operation Id: ${operation.getName}" + s"${errors.toList.mkString(", ")}")
+    private def logErrors(errors: NonEmptyList[String], workflowId: WorkflowId, operation: Operation): Unit =
+      logger.error(
+        s"[$workflowId] Failed to parse PAPI response. Operation Id: ${operation.getName}" + s"${errors.toList.mkString(", ")}"
+      )
+
+    def fallBack: RequestContextReader[Option[A]] = Reader { case (workflowId, operation) =>
+      t match {
+        case Valid(s) => Option(s)
+        case Invalid(f) =>
+          logErrors(f, workflowId, operation)
+          None
+      }
     }
 
-    def fallBack: RequestContextReader[Option[A]] = Reader {
-      case (workflowId, operation) =>
-        t match {
-          case Valid(s) => Option(s)
-          case Invalid(f) =>
-            logErrors(f, workflowId, operation)
-            None
-        }
-    }
-
-    def fallBackTo(to: A): RequestContextReader[A] = Reader {
-      case (workflowId, operation) =>
-        t match {
-          case Valid(s) => s
-          case Invalid(f) =>
-            logErrors(f, workflowId, operation)
-            to
-        }
+    def fallBackTo(to: A): RequestContextReader[A] = Reader { case (workflowId, operation) =>
+      t match {
+        case Valid(s) => s
+        case Invalid(f) =>
+          logErrors(f, workflowId, operation)
+          to
+      }
     }
   }
 }
@@ -53,7 +52,8 @@ class ErrorReporter(machineType: Option[String],
                     instanceName: Option[String],
                     actions: List[Action],
                     operation: Operation,
-                    workflowId: WorkflowId) {
+                    workflowId: WorkflowId
+) {
 
   def toUnsuccessfulRunStatus(error: Status, events: List[Event]): UnsuccessfulRunStatus = {
     // If for some reason the status is null, set it as UNAVAILABLE
@@ -64,7 +64,11 @@ class ErrorReporter(machineType: Option[String],
     val status = statusOption.getOrElse(GStatus.UNAVAILABLE)
     val builder = status match {
       case GStatus.UNAVAILABLE if wasPreemptible => Preempted.apply _
-      case GStatus.ABORTED if wasPreemptible && Option(error.getMessage).exists(_.contains(PipelinesApiAsyncBackendJobExecutionActor.FailedV2Style)) => Preempted.apply _
+      case GStatus.ABORTED
+          if wasPreemptible && Option(error.getMessage).exists(
+            _.contains(PipelinesApiAsyncBackendJobExecutionActor.FailedV2Style)
+          ) =>
+        Preempted.apply _
       case GStatus.CANCELLED => Cancelled.apply _
       case _ => Failed.apply _
     }
@@ -77,7 +81,7 @@ class ErrorReporter(machineType: Option[String],
   }
 
   // There's maybe one FailedEvent per operation with a summary error message
-  private def unexpectedExitStatusErrorStrings(events: List[Event], actions: List[Action]): List[String] = {
+  private def unexpectedExitStatusErrorStrings(events: List[Event], actions: List[Action]): List[String] =
     for {
       event <- events
       unexpectedStatusEvent <- Option(event.getUnexpectedExitStatus)
@@ -87,33 +91,33 @@ class ErrorReporter(machineType: Option[String],
       labelTag = action.flatMap(actionLabelTag)
       inputNameTag = action.flatMap(actionLabelInputName)
     } yield unexpectedStatusErrorString(event, stderr, labelTag, inputNameTag)
-  }
 
   // It would probably be good to define a richer error structure than String, but right now that's what the backend interface expects
-  private def unexpectedStatusErrorString(event: Event, stderr: Option[String], labelTag: Option[String], inputNameTag: Option[String]) = {
+  private def unexpectedStatusErrorString(event: Event,
+                                          stderr: Option[String],
+                                          labelTag: Option[String],
+                                          inputNameTag: Option[String]
+  ) =
     labelTag.map("[" + _ + "] ").getOrElse("") +
-      inputNameTag.map("Input name: " +  _ + " - ").getOrElse("") +
+      inputNameTag.map("Input name: " + _ + " - ").getOrElse("") +
       Option(event).flatMap(eventValue => Option(eventValue.getDescription)).getOrElse("") +
       stderr.map(": " + _).getOrElse("")
-  }
 
   // There may be one FailedEvent per operation with a summary error message
-  private def summaryFailure(events: List[Event]): Option[String] = {
+  private def summaryFailure(events: List[Event]): Option[String] =
     events.collectFirst {
       case event if event.getFailed != null => event.getFailed.getCause
     }
-  }
 
   // Try to find the stderr for the given action ID
-  private def stderrForAction(events: List[Event])(actionId: Integer) = {
+  private def stderrForAction(events: List[Event])(actionId: Integer) =
     events.collectFirst {
-      case event if event.getContainerStopped != null && event.getContainerStopped.getActionId == actionId  => event.getContainerStopped.getStderr
+      case event if event.getContainerStopped != null && event.getContainerStopped.getActionId == actionId =>
+        event.getContainerStopped.getStderr
     }
-  }
 
-  private def actionLabelValue(action: Action, k: String): Option[String] = {
+  private def actionLabelValue(action: Action, k: String): Option[String] =
     Option(action).flatMap(actionValue => Option(actionValue.getLabels)).map(_.asScala).flatMap(_.get(k))
-  }
 
   private def actionLabelTag(action: Action) = actionLabelValue(action, Key.Tag)
   private def actionLabelInputName(action: Action) = actionLabelValue(action, Key.InputName)

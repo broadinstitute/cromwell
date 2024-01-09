@@ -40,15 +40,16 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 
-
 class AwsBatchAttachedDiskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TryValues {
   val validTable = Table(
     ("unparsed", "parsed"),
     // AwsBatchEmptyMountedDisk has a toString override that uses the MD5sum of
     // the mount path in the return value, so these values are deterministic
     ("d-39de0dbcfb68c8735bd088c62fa061a4 /mnt", AwsBatchEmptyMountedDisk(DefaultPathBuilder.get("/mnt"))),
-    ("d-753b3ff55ce6e29b10951ad6190f7c84 /mnt/my_path", AwsBatchEmptyMountedDisk(DefaultPathBuilder.get("/mnt/my_path"))),
-    ("local-disk /cromwell_root", AwsBatchWorkingDisk()),
+    ("d-753b3ff55ce6e29b10951ad6190f7c84 /mnt/my_path",
+     AwsBatchEmptyMountedDisk(DefaultPathBuilder.get("/mnt/my_path"))
+    ),
+    ("local-disk /cromwell_root", AwsBatchWorkingDisk())
   )
 
   // TODO: Work through this syntax

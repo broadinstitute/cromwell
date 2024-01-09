@@ -7,5 +7,8 @@ import wom.types.WomType
 
 @typeclass
 trait UnlinkedValueGenerator[A] {
-  def generatedValueHandles(a: A, typeAliases: Map[String, WomType], callables: Map[String, Callable]): ErrorOr[Set[GeneratedValueHandle]]
+  def generatedValueHandles(a: A,
+                            typeAliases: Map[String, WomType],
+                            callables: Map[String, Callable]
+  ): ErrorOr[Set[GeneratedValueHandle]]
 }

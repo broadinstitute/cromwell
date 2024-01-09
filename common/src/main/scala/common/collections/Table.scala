@@ -3,6 +3,7 @@ package common.collections
 import scala.collection.immutable
 
 object Table {
+
   /**
     * Instantiates an empty table
     */
@@ -22,7 +23,7 @@ object Table {
   * @tparam V type of the value
   */
 case class Table[R, C, V](table: Map[R, Map[C, V]]) {
-  
+
   /**
     * Returns true if the table contains a value at row / column
     */
@@ -51,18 +52,16 @@ case class Table[R, C, V](table: Map[R, Map[C, V]]) {
   /**
     * Add a value at row / column
     */
-  def add(row: R, column: C, value: V): Table[R, C, V] = {
+  def add(row: R, column: C, value: V): Table[R, C, V] =
     this.copy(
       table = table.updated(row, table.getOrElse(row, Map.empty).updated(column, value))
     )
-  }
 
   /**
     * Add all values
     */
-  def addAll(values: Iterable[(R, C, V)]): Table[R, C, V] = {
+  def addAll(values: Iterable[(R, C, V)]): Table[R, C, V] =
     values.foldLeft(this)(_.addTriplet(_))
-  }
 
   /**
     * Add a value as a triplet

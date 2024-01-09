@@ -17,9 +17,9 @@ import wom.types.WomType
 
 package object types {
   implicit val expressionTypeEvaluator: TypeEvaluator[ExpressionElement] = new TypeEvaluator[ExpressionElement] {
-    override def evaluateType(a: ExpressionElement, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
-                             (implicit typeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
-
+    override def evaluateType(a: ExpressionElement, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(
+      implicit typeEvaluator: TypeEvaluator[ExpressionElement]
+    ): ErrorOr[WomType] =
       a match {
         // Literals:
         case a: PrimitiveLiteralExpressionElement => a.evaluateType(linkedValues)(typeEvaluator)
@@ -99,8 +99,8 @@ package object types {
         case a: StdoutElement.type => a.evaluateType(linkedValues)(typeEvaluator)
         case a: StderrElement.type => a.evaluateType(linkedValues)(typeEvaluator)
 
-        case other => s"Unable to process ${other.getClass.getSimpleName}: No evaluateType exists for that type.".invalidNel
+        case other =>
+          s"Unable to process ${other.getClass.getSimpleName}: No evaluateType exists for that type.".invalidNel
       }
-    }
   }
 }

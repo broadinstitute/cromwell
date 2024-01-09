@@ -19,9 +19,9 @@ object UnaryOperatorEvaluators {
   implicit val logicalNotEvaluator: TypeEvaluator[LogicalNot] = forOperation(_.not)
 
   private def forOperation[A <: UnaryOperation](op: WomType => Try[WomType]) = new TypeEvaluator[A] {
-    override def evaluateType(a: A, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
-                             (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
+    override def evaluateType(a: A, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
+      expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
+    ): ErrorOr[WomType] =
       a.argument.evaluateType(linkedValues) flatMap { op(_).toErrorOr }
-    }
   }
 }

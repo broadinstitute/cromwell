@@ -1,18 +1,29 @@
 package cromwell.services.metadata.impl
 
 import java.util.UUID
-
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.services.MetadataJsonResponse
 import cromwell.services.metadata.MetadataService
-import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, BuildWorkflowMetadataJsonAction, GetMetadataStreamAction, MetadataLookupStreamSuccess, MetadataQueryResponse, MetadataServiceAction, MetadataServiceResponse, RootAndSubworkflowLabelsLookupResponse}
+import cromwell.services.metadata.MetadataService.{
+  BuildMetadataJsonAction,
+  BuildWorkflowMetadataJsonAction,
+  FetchFailedJobsMetadataWithWorkflowId,
+  GetMetadataStreamAction,
+  MetadataLookupStreamSuccess,
+  MetadataQueryResponse,
+  MetadataServiceAction,
+  MetadataServiceResponse,
+  RootAndSubworkflowLabelsLookupResponse
+}
 import cromwell.services.metadata.impl.ReadMetadataRegulatorActor.PropsMaker
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
 
 import scala.collection.mutable
 
-class ReadMetadataRegulatorActor(metadataBuilderActorProps: PropsMaker, readMetadataWorkerProps: PropsMaker) extends Actor with ActorLogging {
+class ReadMetadataRegulatorActor(metadataBuilderActorProps: PropsMaker, readMetadataWorkerProps: PropsMaker)
+    extends Actor
+    with ActorLogging {
   // This actor tracks all requests coming in from the API service and spins up new builders as needed to service them.
   // If the processing of an identical request is already in flight the requester will be added to a set of requesters
   // to notify when the response from the first request becomes available.
@@ -28,12 +39,25 @@ class ReadMetadataRegulatorActor(metadataBuilderActorProps: PropsMaker, readMeta
     // This indirection via 'MetadataReadAction' lets the compiler make sure we cover all cases in the sealed trait:
     case action: BuildMetadataJsonAction =>
       action match {
+        case fetchFailedJobsMetadataAction: FetchFailedJobsMetadataWithWorkflowId =>
+          val currentRequesters = apiRequests.getOrElse(fetchFailedJobsMetadataAction, Set.empty)
+          apiRequests.put(fetchFailedJobsMetadataAction, currentRequesters + sender())
+          if (currentRequesters.isEmpty) {
+            val builderActor = context.actorOf(
+              metadataBuilderActorProps().withDispatcher(ApiDispatcher),
+              MetadataBuilderActor.uniqueActorName(fetchFailedJobsMetadataAction.workflowId.toString)
+            )
+            builderRequests.put(builderActor, fetchFailedJobsMetadataAction)
+            builderActor ! fetchFailedJobsMetadataAction
+          }
         case singleWorkflowAction: BuildWorkflowMetadataJsonAction =>
           val currentRequesters = apiRequests.getOrElse(singleWorkflowAction, Set.empty)
           apiRequests.put(singleWorkflowAction, currentRequesters + sender())
           if (currentRequesters.isEmpty) {
-
-            val builderActor = context.actorOf(metadataBuilderActorProps().withDispatcher(ApiDispatcher), MetadataBuilderActor.uniqueActorName(singleWorkflowAction.workflowId.toString))
+            val builderActor = context.actorOf(
+              metadataBuilderActorProps().withDispatcher(ApiDispatcher),
+              MetadataBuilderActor.uniqueActorName(singleWorkflowAction.workflowId.toString)
+            )
             builderRequests.put(builderActor, singleWorkflowAction)
             builderActor ! singleWorkflowAction
           }
@@ -41,7 +65,9 @@ class ReadMetadataRegulatorActor(metadataBuilderActorProps: PropsMaker, readMeta
           val currentRequesters = apiRequests.getOrElse(crossWorkflowAction, Set.empty)
           apiRequests.put(crossWorkflowAction, currentRequesters + sender())
           if (currentRequesters.isEmpty) {
-            val readMetadataActor = context.actorOf(readMetadataWorkerProps.apply().withDispatcher(ApiDispatcher), s"MetadataQueryWorker-${UUID.randomUUID()}")
+            val readMetadataActor = context.actorOf(readMetadataWorkerProps.apply().withDispatcher(ApiDispatcher),
+                                                    s"MetadataQueryWorker-${UUID.randomUUID()}"
+            )
             builderRequests.put(readMetadataActor, crossWorkflowAction)
             readMetadataActor ! crossWorkflowAction
           }
@@ -49,14 +75,17 @@ class ReadMetadataRegulatorActor(metadataBuilderActorProps: PropsMaker, readMeta
     case streamRequest: GetMetadataStreamAction =>
       val currentRequesters = apiRequests.getOrElse(streamRequest, Set.empty)
       apiRequests.put(streamRequest, currentRequesters + sender())
-      if(currentRequesters.isEmpty) {
-        val readMetadataActor = context.actorOf(readMetadataWorkerProps.apply().withDispatcher(ApiDispatcher), s"MetadataQueryWorker-${UUID.randomUUID()}")
+      if (currentRequesters.isEmpty) {
+        val readMetadataActor = context.actorOf(readMetadataWorkerProps.apply().withDispatcher(ApiDispatcher),
+                                                s"MetadataQueryWorker-${UUID.randomUUID()}"
+        )
         builderRequests.put(readMetadataActor, streamRequest)
         readMetadataActor ! streamRequest
       }
     case serviceResponse: MetadataServiceResponse =>
       serviceResponse match {
-        case response @ (_: MetadataJsonResponse | _: MetadataQueryResponse | _: RootAndSubworkflowLabelsLookupResponse | _: MetadataLookupStreamSuccess) =>
+        case response @ (_: MetadataJsonResponse | _: MetadataQueryResponse |
+            _: RootAndSubworkflowLabelsLookupResponse | _: MetadataLookupStreamSuccess) =>
           handleResponseFromMetadataWorker(response)
       }
     case other => log.error(s"Programmer Error: Unexpected message $other received from ${sender()}")
@@ -69,16 +98,20 @@ class ReadMetadataRegulatorActor(metadataBuilderActorProps: PropsMaker, readMeta
         apiRequests.get(action) match {
           case Some(requesters) =>
             apiRequests.remove(action)
-            requesters foreach { _ ! response}
+            requesters foreach { _ ! response }
           case None =>
             // unpossible: there had to have been a request that corresponded to this response
-            log.error(s"Programmer Error: MetadataBuilderRegulatorActor has no registered requesters found for action: $action")
+            log.error(
+              s"Programmer Error: MetadataBuilderRegulatorActor has no registered requesters found for action: $action"
+            )
         }
         builderRequests.remove(sndr)
         ()
       case None =>
         // unpossible: this actor should know about all the child MetadataBuilderActors it has begotten
-        log.error(s"Programmer Error: MetadataBuilderRegulatorActor received a metadata response from an unrecognized sender $sndr")
+        log.error(
+          s"Programmer Error: MetadataBuilderRegulatorActor received a metadata response from an unrecognized sender $sndr"
+        )
     }
   }
 }
@@ -86,7 +119,6 @@ class ReadMetadataRegulatorActor(metadataBuilderActorProps: PropsMaker, readMeta
 object ReadMetadataRegulatorActor {
   type PropsMaker = () => Props
 
-  def props(singleWorkflowMetadataBuilderProps: PropsMaker, summarySearcherProps: PropsMaker): Props = {
+  def props(singleWorkflowMetadataBuilderProps: PropsMaker, summarySearcherProps: PropsMaker): Props =
     Props(new ReadMetadataRegulatorActor(singleWorkflowMetadataBuilderProps, summarySearcherProps))
-  }
 }

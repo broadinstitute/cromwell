@@ -13,6 +13,6 @@ trait JobKey {
     import ExecutionIndex.IndexEnhancedIndex
     s"${getClass.getSimpleName}_${node.getClass.getSimpleName}_${node.fullyQualifiedName}:${index.fromIndex}:$attempt"
   }
-  
- def isShard = index.isDefined
+
+  def isShard = index.isDefined
 }

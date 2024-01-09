@@ -2,6 +2,7 @@ package cromwell.docker
 
 import cromwell.core.Tags.IntegrationTest
 import cromwell.docker.DockerInfoActor._
+import cromwell.docker.registryv2.flows.azure.AzureContainerRegistry
 import cromwell.docker.registryv2.flows.dockerhub.DockerHubRegistry
 import cromwell.docker.registryv2.flows.google.GoogleRegistry
 import cromwell.docker.registryv2.flows.quay.QuayRegistry
@@ -18,39 +19,46 @@ class DockerInfoActorSpec extends DockerRegistrySpec with AnyFlatSpecLike with M
   override protected lazy val registryFlows = List(
     new DockerHubRegistry(DockerRegistryConfig.default),
     new GoogleRegistry(DockerRegistryConfig.default),
-    new QuayRegistry(DockerRegistryConfig.default)
+    new QuayRegistry(DockerRegistryConfig.default),
+    new AzureContainerRegistry(DockerRegistryConfig.default)
   )
 
   it should "retrieve a public docker hash" taggedAs IntegrationTest in {
     dockerActor ! makeRequest("ubuntu:latest")
-    
-    expectMsgPF(5 second) {
-      case DockerInfoSuccessResponse(DockerInformation(DockerHashResult(alg, hash), _), _) => 
-        alg shouldBe "sha256"
-        hash should not be empty
+
+    expectMsgPF(5 second) { case DockerInfoSuccessResponse(DockerInformation(DockerHashResult(alg, hash), _), _) =>
+      alg shouldBe "sha256"
+      hash should not be empty
     }
   }
 
   it should "retrieve a public docker hash on gcr" taggedAs IntegrationTest in {
     dockerActor ! makeRequest("gcr.io/google-containers/alpine-with-bash:1.0")
 
-    expectMsgPF(5 second) {
-      case DockerInfoSuccessResponse(DockerInformation(DockerHashResult(alg, hash), _), _) =>
-        alg shouldBe "sha256"
-        hash should not be empty
+    expectMsgPF(5 second) { case DockerInfoSuccessResponse(DockerInformation(DockerHashResult(alg, hash), _), _) =>
+      alg shouldBe "sha256"
+      hash should not be empty
     }
   }
 
   it should "retrieve a public docker hash on gar" taggedAs IntegrationTest in {
     dockerActor ! makeRequest("us-central1-docker.pkg.dev/broad-dsde-cromwell-dev/bt-335/ubuntu:bt-335")
 
-    expectMsgPF(5 second) {
-      case DockerInfoSuccessResponse(DockerInformation(DockerHashResult(alg, hash), _), _) =>
-        alg shouldBe "sha256"
-        hash should not be empty
+    expectMsgPF(5 second) { case DockerInfoSuccessResponse(DockerInformation(DockerHashResult(alg, hash), _), _) =>
+      alg shouldBe "sha256"
+      hash should not be empty
     }
   }
-  
+
+  it should "retrieve a private docker hash on acr" taggedAs IntegrationTest in {
+    dockerActor ! makeRequest("terrabatchdev.azurecr.io/postgres:latest")
+
+    expectMsgPF(15 second) { case DockerInfoSuccessResponse(DockerInformation(DockerHashResult(alg, hash), _), _) =>
+      alg shouldBe "sha256"
+      hash should not be empty
+    }
+  }
+
   it should "send image not found message back if the image does not exist" taggedAs IntegrationTest in {
     val notFound = makeRequest("ubuntu:nonexistingtag")
     dockerActor ! notFound
@@ -64,38 +72,38 @@ class DockerInfoActorSpec extends DockerRegistrySpec with AnyFlatSpecLike with M
 
     expectMsgClass(5 seconds, classOf[DockerInfoUnauthorized])
   }
-  
+
   it should "send an unrecognized host message if no flow can process the docker string" taggedAs IntegrationTest in {
     val unauthorized = makeRequest("unknown.io/image:v1")
     dockerActor ! unauthorized
 
     expectMsgClass(5 seconds, classOf[DockerHashUnknownRegistry])
   }
-  
+
   it should "cache results" in {
-    
+
     val image1 = dockerImage("ubuntu:latest")
     val request = DockerInfoRequest(image1)
-    
+
     val hashSuccess = DockerHashResult("sha256", "hashvalue")
     val responseSuccess = DockerInfoSuccessResponse(DockerInformation(hashSuccess, None), request)
     val mockResponseSuccess = MockHashResponse(responseSuccess, 1)
-    
+
     val responseFailure = DockerInfoFailedResponse(new Exception("Docker hash failed - part of test flow"), request)
     val mockResponseFailure = MockHashResponse(responseFailure, 1)
-    
+
     // Send back success, failure, success, failure, ...
     val mockHttpFlow = new DockerRegistryMock(mockResponseSuccess, mockResponseFailure)
     val dockerActorWithCache = system.actorOf(
       props = DockerInfoActor.props(Seq(mockHttpFlow), 1000, 3 seconds, 10),
-      name = "dockerActorWithCache",
+      name = "dockerActorWithCache"
     )
-    
+
     dockerActorWithCache ! request
     expectMsg(DockerInfoSuccessResponse(DockerInformation(hashSuccess, None), request))
     // Necessary to give some time to the cache to be updated - as it's decoupled from sending back the response
     Thread.sleep(1000)
-    
+
     dockerActorWithCache ! request
     // Without caching, the second request would have yielded a Failure since the mock flow alternates between a success and a failure
     // Getting a success here means the request didn't make it to the stream
@@ -110,11 +118,10 @@ class DockerInfoActorSpec extends DockerRegistrySpec with AnyFlatSpecLike with M
     mockHttpFlow.count() shouldBe 2
   }
 
-
   it should "not deadlock" taggedAs IntegrationTest in {
     lazy val dockerActorScale = system.actorOf(
       props = DockerInfoActor.props(registryFlows, 1000, 20.minutes, 0),
-      name = "dockerActorScale",
+      name = "dockerActorScale"
     )
     0 until 400 foreach { _ =>
       dockerActorScale ! makeRequest("gcr.io/google-containers/alpine-with-bash:1.0")

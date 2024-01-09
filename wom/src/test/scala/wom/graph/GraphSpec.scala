@@ -12,7 +12,6 @@ import wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinition
 import wom.graph.GraphNodePort.OutputPort
 import wom.types.{WomIntegerType, WomSingleFileType, WomStringType}
 
-
 class GraphSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "Graph"
 
@@ -64,8 +63,10 @@ class GraphSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
     val psNodeBuilder = new CallNodeBuilder()
 
-    val CallNodeAndNewNodes(psCall, psGraphInputs, _, _) = psNodeBuilder.build(WomIdentifier("ps"), taskDefinition_ps, InputDefinitionFold(), Set.empty, None)
-    val ps_procsOutputPort = psCall.outputByName("ps.procs").getOrElse(fail("Unexpectedly unable to find 'ps.procs' output"))
+    val CallNodeAndNewNodes(psCall, psGraphInputs, _, _) =
+      psNodeBuilder.build(WomIdentifier("ps"), taskDefinition_ps, InputDefinitionFold(), Set.empty, None)
+    val ps_procsOutputPort =
+      psCall.outputByName("ps.procs").getOrElse(fail("Unexpectedly unable to find 'ps.procs' output"))
 
     val cgrepNodeBuilder = new CallNodeBuilder()
     val cgrepInputDefinitionFold = InputDefinitionFold(
@@ -79,8 +80,10 @@ class GraphSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
       ),
       Set(workflowInputNode)
     )
-    val CallNodeAndNewNodes(cgrepCall, cgrepGraphInputs, _, _) = cgrepNodeBuilder.build(WomIdentifier("cgrep"), taskDefinition_cgrep, cgrepInputDefinitionFold, Set.empty, None)
-    val cgrep_countOutputPort = cgrepCall.outputByName("cgrep.count").getOrElse(fail("Unexpectedly unable to find 'cgrep.count' output"))
+    val CallNodeAndNewNodes(cgrepCall, cgrepGraphInputs, _, _) =
+      cgrepNodeBuilder.build(WomIdentifier("cgrep"), taskDefinition_cgrep, cgrepInputDefinitionFold, Set.empty, None)
+    val cgrep_countOutputPort =
+      cgrepCall.outputByName("cgrep.count").getOrElse(fail("Unexpectedly unable to find 'cgrep.count' output"))
 
     val wcNodeBuilder = new CallNodeBuilder()
     val wcInputDefinitionFold = InputDefinitionFold(
@@ -93,11 +96,14 @@ class GraphSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
       Set.empty
     )
 
-    val CallNodeAndNewNodes(wcCall, wcGraphInputs, _, _) = wcNodeBuilder.build(WomIdentifier("wc"), taskDefinition_wc, wcInputDefinitionFold, Set.empty, None)
-    val wc_countOutputPort = wcCall.outputByName("wc.count").getOrElse(fail("Unexpectedly unable to find 'wc.count' output"))
+    val CallNodeAndNewNodes(wcCall, wcGraphInputs, _, _) =
+      wcNodeBuilder.build(WomIdentifier("wc"), taskDefinition_wc, wcInputDefinitionFold, Set.empty, None)
+    val wc_countOutputPort =
+      wcCall.outputByName("wc.count").getOrElse(fail("Unexpectedly unable to find 'wc.count' output"))
 
     val psProcsOutputNode = PortBasedGraphOutputNode(WomIdentifier("ps.procs"), WomSingleFileType, ps_procsOutputPort)
-    val cgrepCountOutputNode = PortBasedGraphOutputNode(WomIdentifier("cgrep.count"), WomIntegerType, cgrep_countOutputPort)
+    val cgrepCountOutputNode =
+      PortBasedGraphOutputNode(WomIdentifier("cgrep.count"), WomIntegerType, cgrep_countOutputPort)
     val wcCountOutputNode = PortBasedGraphOutputNode(WomIdentifier("wc.count"), WomIntegerType, wc_countOutputPort)
 
     val graphNodes: Set[GraphNode] =
@@ -116,7 +122,9 @@ class GraphSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     val workflowGraph = makeThreeStep
 
     workflowGraph.nodes collect { case gin: GraphInputNode => gin.localName } should be(Set("cgrep.pattern"))
-    workflowGraph.nodes collect { case gon: PortBasedGraphOutputNode => gon.localName } should be(Set("wc.count", "cgrep.count", "ps.procs"))
+    workflowGraph.nodes collect { case gon: PortBasedGraphOutputNode => gon.localName } should be(
+      Set("wc.count", "cgrep.count", "ps.procs")
+    )
     workflowGraph.nodes collect { case cn: CallNode => cn.localName } should be(Set("wc", "cgrep", "ps"))
   }
 
@@ -125,27 +133,54 @@ class GraphSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     val threeStepWorkflow = WorkflowDefinition("three_step", threeStepGraph, Map.empty, Map.empty, None)
     val threeStepNodeBuilder = new CallNodeBuilder()
 
-    val workflowInputNode = RequiredGraphInputNode(WomIdentifier("three_step.cgrep.pattern"), WomStringType, "three_step.cgrep.pattern")
+    val workflowInputNode =
+      RequiredGraphInputNode(WomIdentifier("three_step.cgrep.pattern"), WomStringType, "three_step.cgrep.pattern")
 
     val inputDefinitionFold = InputDefinitionFold(
       mappings = List.empty,
       Set.empty,
       Set(workflowInputNode)
     )
-    val CallNodeAndNewNodes(threeStepCall, threeStepInputs, _, _) = threeStepNodeBuilder.build(WomIdentifier("three_step"), threeStepWorkflow, inputDefinitionFold, Set.empty, None)
+    val CallNodeAndNewNodes(threeStepCall, threeStepInputs, _, _) =
+      threeStepNodeBuilder.build(WomIdentifier("three_step"), threeStepWorkflow, inputDefinitionFold, Set.empty, None)
 
     // This is painful manually, but it's not up to WOM to decide which subworkflow outputs are forwarded through:
-    val psProcsOutputNode = PortBasedGraphOutputNode(WomIdentifier("three_step.ps.procs"), WomSingleFileType, threeStepCall.outputByName("three_step.ps.procs").getOrElse(fail(s"Subworkflow didn't expose the ps.procs output in ${threeStepCall.outputPorts.map(_.name).mkString(", ")}")))
-    val cgrepCountOutputNode = PortBasedGraphOutputNode(WomIdentifier("three_step.cgrep.count"), WomIntegerType, threeStepCall.outputByName("three_step.cgrep.count").getOrElse(fail("Subworkflow didn't expose the cgrep.count output")))
-    val wcCountOutputNode = PortBasedGraphOutputNode(WomIdentifier("three_step.wc.count"), WomIntegerType, threeStepCall.outputByName("three_step.wc.count").getOrElse(fail("Subworkflow didn't expose the wc.count output")))
+    val psProcsOutputNode = PortBasedGraphOutputNode(
+      WomIdentifier("three_step.ps.procs"),
+      WomSingleFileType,
+      threeStepCall
+        .outputByName("three_step.ps.procs")
+        .getOrElse(
+          fail(
+            s"Subworkflow didn't expose the ps.procs output in ${threeStepCall.outputPorts.map(_.name).mkString(", ")}"
+          )
+        )
+    )
+    val cgrepCountOutputNode = PortBasedGraphOutputNode(
+      WomIdentifier("three_step.cgrep.count"),
+      WomIntegerType,
+      threeStepCall
+        .outputByName("three_step.cgrep.count")
+        .getOrElse(fail("Subworkflow didn't expose the cgrep.count output"))
+    )
+    val wcCountOutputNode = PortBasedGraphOutputNode(
+      WomIdentifier("three_step.wc.count"),
+      WomIntegerType,
+      threeStepCall.outputByName("three_step.wc.count").getOrElse(fail("Subworkflow didn't expose the wc.count output"))
+    )
 
-    val workflowGraph = Graph.validateAndConstruct(Set[GraphNode](threeStepCall, psProcsOutputNode, cgrepCountOutputNode, wcCountOutputNode).union(threeStepInputs.toSet[GraphNode])) match {
+    val workflowGraph = Graph.validateAndConstruct(
+      Set[GraphNode](threeStepCall, psProcsOutputNode, cgrepCountOutputNode, wcCountOutputNode)
+        .union(threeStepInputs.toSet[GraphNode])
+    ) match {
       case Valid(wg) => wg
       case Invalid(errors) => fail(s"Unable to validate graph: ${errors.toList.mkString("\n", "\n", "\n")}")
     }
 
     workflowGraph.nodes collect { case gin: GraphInputNode => gin.localName } should be(Set("three_step.cgrep.pattern"))
-    workflowGraph.nodes collect { case gon: GraphOutputNode => gon.localName } should be(Set("three_step.wc.count", "three_step.cgrep.count", "three_step.ps.procs"))
+    workflowGraph.nodes collect { case gon: GraphOutputNode => gon.localName } should be(
+      Set("three_step.wc.count", "three_step.cgrep.count", "three_step.ps.procs")
+    )
     workflowGraph.nodes collect { case cn: CallNode => cn.localName } should be(Set("three_step"))
   }
 
@@ -157,10 +192,11 @@ class GraphSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
     Graph.validateAndConstruct(Set(nodeA, nodeB, nodeC, nodeD)) match {
       case Valid(_) => fail("Graph should not validate")
-      case Invalid(errors) => errors.toList.toSet shouldBe Set(
-        "Two or more nodes have the same FullyQualifiedName: foo.baz",
-        "Two or more nodes have the same FullyQualifiedName: foo.bar"
-      )
+      case Invalid(errors) =>
+        errors.toList.toSet shouldBe Set(
+          "Two or more nodes have the same FullyQualifiedName: foo.baz",
+          "Two or more nodes have the same FullyQualifiedName: foo.bar"
+        )
     }
   }
 }

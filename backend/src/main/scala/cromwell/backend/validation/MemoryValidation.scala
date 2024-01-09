@@ -25,16 +25,22 @@ import scala.util.{Failure, Success}
 object MemoryValidation {
   def instance(attributeName: String = RuntimeAttributesKeys.MemoryKey): RuntimeAttributesValidation[MemorySize] =
     new MemoryValidation(attributeName)
-  def optional(attributeName: String = RuntimeAttributesKeys.MemoryKey): OptionalRuntimeAttributesValidation[MemorySize] =
+  def optional(
+    attributeName: String = RuntimeAttributesKeys.MemoryKey
+  ): OptionalRuntimeAttributesValidation[MemorySize] =
     instance(attributeName).optional
-  def configDefaultString(attributeName: String = RuntimeAttributesKeys.MemoryKey, config: Option[Config]): Option[String] =
+  def configDefaultString(attributeName: String = RuntimeAttributesKeys.MemoryKey,
+                          config: Option[Config]
+  ): Option[String] =
     instance(attributeName).configDefaultValue(config)
-  def withDefaultMemory(attributeName: String = RuntimeAttributesKeys.MemoryKey, memorySize: String): RuntimeAttributesValidation[MemorySize] = {
+  def withDefaultMemory(attributeName: String = RuntimeAttributesKeys.MemoryKey,
+                        memorySize: String
+  ): RuntimeAttributesValidation[MemorySize] =
     MemorySize.parse(memorySize) match {
       case Success(memory) => instance(attributeName).withDefault(WomLong(memory.bytes.toLong))
       case Failure(_) => instance(attributeName).withDefault(BadDefaultAttribute(WomString(memorySize.toString)))
     }
-  }
 }
 
-class MemoryValidation(attributeName: String = RuntimeAttributesKeys.MemoryKey) extends InformationValidation(attributeName, MemoryUnit.Bytes)
+class MemoryValidation(attributeName: String = RuntimeAttributesKeys.MemoryKey)
+    extends InformationValidation(attributeName, MemoryUnit.Bytes)

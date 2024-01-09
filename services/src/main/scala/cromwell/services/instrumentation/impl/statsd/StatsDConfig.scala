@@ -15,16 +15,20 @@ case class StatsDConfig(hostname: String, port: Int, prefix: Option[String], flu
 object StatsDConfig {
   def apply(serviceConfig: Config): StatsDConfig = {
 
-    val hostname: ErrorOr[String] = validate[String] { serviceConfig.as[String]("hostname") }
-    val port: ErrorOr[Int] = validate[Int] { serviceConfig.as[Int]("port") }
-    val prefix: ErrorOr[Option[String]] = validate { serviceConfig.as[Option[String]]("prefix") }
-    val flushRate: ErrorOr[FiniteDuration] = validate[FiniteDuration] { serviceConfig.as[FiniteDuration]("flush-rate") }
+    val hostname: ErrorOr[String] = validate[String](serviceConfig.as[String]("hostname"))
+    val port: ErrorOr[Int] = validate[Int](serviceConfig.as[Int]("port"))
+    val prefix: ErrorOr[Option[String]] = validate(serviceConfig.as[Option[String]]("prefix"))
+    val flushRate: ErrorOr[FiniteDuration] = validate[FiniteDuration](serviceConfig.as[FiniteDuration]("flush-rate"))
 
-    (hostname, port, prefix, flushRate).mapN({ (h, p, n, f) => 
-      new StatsDConfig(h, p, n, f)
-    }).valueOr(errors => throw new IllegalArgumentException with MessageAggregation {
-      override val exceptionContext = "StatsD config is invalid"
-      override val errorMessages = errors.toList
-    })
+    (hostname, port, prefix, flushRate)
+      .mapN { (h, p, n, f) =>
+        new StatsDConfig(h, p, n, f)
+      }
+      .valueOr(errors =>
+        throw new IllegalArgumentException with MessageAggregation {
+          override val exceptionContext = "StatsD config is invalid"
+          override val errorMessages = errors.toList
+        }
+      )
   }
 }

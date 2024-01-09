@@ -32,7 +32,7 @@ class LiquibaseChangeSetSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
         withClue("the dbms attribute must explicitly list supported databases:") {
           changeSet.getDbmsSet shouldNot be(null)
           changeSet.getDbmsSet shouldNot be(empty)
-          changeSet.getDbmsSet shouldNot contain atLeastOneOf("none", "all")
+          changeSet.getDbmsSet shouldNot contain atLeastOneOf ("none", "all")
         }
         changeSet.getDbmsSet.asScala foreach { dbms =>
           withClue("do not use dbms excludes:") {
@@ -44,7 +44,7 @@ class LiquibaseChangeSetSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
       if (dbmsSet.contains("postgresql")) {
         it should s"check object quoting in $description" in {
           withClue("""databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS" must be set for PostgreSQL:""") {
-            changeSet.getObjectQuotingStrategy should be (ObjectQuotingStrategy.QUOTE_ALL_OBJECTS)
+            changeSet.getObjectQuotingStrategy should be(ObjectQuotingStrategy.QUOTE_ALL_OBJECTS)
           }
         }
       }

@@ -12,7 +12,7 @@ object RequesterPaysErrors {
 
   def isProjectNotProvidedError(storageException: StorageException) =
     storageException.getCode == BucketIsRequesterPaysErrorCode &&
-    StringUtils.contains(storageException.getMessage, BucketIsRequesterPaysErrorMessage)
+      StringUtils.contains(storageException.getMessage, BucketIsRequesterPaysErrorMessage)
 
   def isProjectNotProvidedError(googleJsonError: GoogleJsonError) =
     googleJsonError.getCode == BucketIsRequesterPaysErrorCode &&

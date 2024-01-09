@@ -13,14 +13,13 @@ class CromwellFtpFileSystemsSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
   behavior of "CromwellFtpFileSystemsSpec"
 
   it should "parse configuration" in {
-    val config = ConfigFactory.parseString(
-      """cache-ttl = 10 days
-        |obtain-connection-timeout = 12 hours
-        |max-connection-per-server-per-user = 1
-        |idle-connection-timeout = 14 hours
-        |connection-port: 212
-        |connection-mode = "active" """.stripMargin)
-    
+    val config = ConfigFactory.parseString("""cache-ttl = 10 days
+                                             |obtain-connection-timeout = 12 hours
+                                             |max-connection-per-server-per-user = 1
+                                             |idle-connection-timeout = 14 hours
+                                             |connection-port: 212
+                                             |connection-mode = "active" """.stripMargin)
+
     val fs = new CromwellFtpFileSystems(config)
     fs.ftpFileSystems.config.cacheTTL shouldBe 10.days
     fs.ftpFileSystems.config.leaseTimeout shouldBe Some(12.hours)

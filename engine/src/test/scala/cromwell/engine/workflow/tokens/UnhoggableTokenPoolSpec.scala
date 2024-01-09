@@ -2,7 +2,12 @@ package cromwell.engine.workflow.tokens
 
 import common.assertion.CromwellTimeoutSpec
 import cromwell.core.JobToken.JobTokenType
-import cromwell.engine.workflow.tokens.UnhoggableTokenPool.{HogLimitExceeded, TokenHoggingLease, TokenTypeExhausted, TokensAvailable}
+import cromwell.engine.workflow.tokens.UnhoggableTokenPool.{
+  HogLimitExceeded,
+  TokenHoggingLease,
+  TokensAvailable,
+  TokenTypeExhausted
+}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -25,7 +30,7 @@ class UnhoggableTokenPoolSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
     JobTokenType("backend", Some(150), 200) -> Some(1),
     JobTokenType("backend", None, 1) -> None,
     JobTokenType("backend", None, 150) -> None
-  ) ++ (hogLimitingTokenTypeToHogLimit map { case (k,v) => (k, Some(v)) })
+  ) ++ (hogLimitingTokenTypeToHogLimit map { case (k, v) => (k, Some(v)) })
 
   tokenTypeToHogLimit foreach { case (tokenType, expectedHogLimit) =>
     it should s"correctly calculate hogLimit for $tokenType as $expectedHogLimit" in {
@@ -44,8 +49,12 @@ class UnhoggableTokenPoolSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
         (0 until hogLimit) foreach { index =>
           pool.tryAcquire(hogGroup) match {
             case _: TokenHoggingLease => // great!
-            case TokenTypeExhausted => fail(s"Unhoggable token pool ran out after $index tokens distributed to $hogGroupNumber")
-            case HogLimitExceeded => fail(s"Unhoggable token pool making unfounded accusations of hogging after $index tokens distributed to $hogGroupNumber")
+            case TokenTypeExhausted =>
+              fail(s"Unhoggable token pool ran out after $index tokens distributed to $hogGroupNumber")
+            case HogLimitExceeded =>
+              fail(
+                s"Unhoggable token pool making unfounded accusations of hogging after $index tokens distributed to $hogGroupNumber"
+              )
           }
 
           val acquiredTokensForGroup = index + 1
@@ -89,7 +98,7 @@ class UnhoggableTokenPoolSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
     hogLimitPool.tryAcquire("group1") should be(HogLimitExceeded)
 
     lease1.release()
-    eventually { hogLimitPool.available("group1") shouldBe TokensAvailable }
+    eventually(hogLimitPool.available("group1") shouldBe TokensAvailable)
     hogLimitPool.tryAcquire("group1") match {
       case _: TokenHoggingLease => // Great!
       case other => fail(s"expected lease but got $other")
@@ -97,7 +106,7 @@ class UnhoggableTokenPoolSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
     hogLimitPool.tryAcquire("group1") should be(HogLimitExceeded)
 
     lease2.release()
-    eventually { hogLimitPool.available("group1") shouldBe TokensAvailable }
+    eventually(hogLimitPool.available("group1") shouldBe TokensAvailable)
     hogLimitPool.tryAcquire("group1") match {
       case _: TokenHoggingLease => // Great!
       case other => fail(s"expected lease but got $other")

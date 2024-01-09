@@ -38,12 +38,11 @@ trait GraphNode {
 
   val completionPort = NodeCompletionPort(_ => this)
 
-  def outputByName(name: String): ErrorOr[GraphNodePort.OutputPort] = {
+  def outputByName(name: String): ErrorOr[GraphNodePort.OutputPort] =
     outputPorts.find(_.name == name) match {
       case Some(port) => port.validNel
       case None => s"No such output: $name".invalidNel
     }
-  }
 
   /**
     * The set of all graph nodes which are (transitively) upstream from this one.
@@ -76,7 +75,9 @@ object GraphNode {
 
   def inputPortNamesMatch(required: Set[InputPort], provided: Set[InputPort]): ErrorOr[Unit] = {
     def requiredInputFound(r: InputPort): ErrorOr[Unit] = provided.find(_.name == r.name) match {
-      case Some(p) => if (r.womType.isCoerceableFrom(p.womType)) ().validNel else s"Cannot link a ${p.womType.stableName} to the input ${r.name}: ${r.womType}".invalidNel
+      case Some(p) =>
+        if (r.womType.isCoerceableFrom(p.womType)) ().validNel
+        else s"Cannot link a ${p.womType.stableName} to the input ${r.name}: ${r.womType}".invalidNel
       case None => s"The required input ${r.name}: ${r.womType.stableName} was not provided.".invalidNel
     }
 
@@ -93,7 +94,8 @@ object GraphNode {
     def get: Unit => A = _ => getGraphNode
   }
 
-  private[wom] implicit class EnhancedGraphNodeSet(val nodes: Set[GraphNode]) extends AnyVal {
+  implicit private[wom] class EnhancedGraphNodeSet(val nodes: Set[GraphNode]) extends AnyVal {
+
     /**
       * Interpret this graph's "GraphInputNode"s as "Callable.InputDefinition"s
       */
@@ -103,12 +105,16 @@ object GraphNode {
       case optional: OptionalGraphInputNode =>
         OptionalInputDefinition(optional.identifier.localName, optional.womType)
       case withDefault: OptionalGraphInputNodeWithDefault =>
-        OverridableInputDefinitionWithDefault(withDefault.identifier.localName, withDefault.womType, withDefault.default)
+        OverridableInputDefinitionWithDefault(withDefault.identifier.localName,
+                                              withDefault.womType,
+                                              withDefault.default
+        )
     }
 
     def outputDefinitions: Set[_ <: Callable.OutputDefinition] = nodes collect {
       // TODO: FIXME: Do something for PortBasedGraphOutputNodes
-      case gin: ExpressionBasedGraphOutputNode => OutputDefinition(gin.identifier.localName, gin.womType, gin.womExpression)
+      case gin: ExpressionBasedGraphOutputNode =>
+        OutputDefinition(gin.identifier.localName, gin.womType, gin.womExpression)
     }
   }
 

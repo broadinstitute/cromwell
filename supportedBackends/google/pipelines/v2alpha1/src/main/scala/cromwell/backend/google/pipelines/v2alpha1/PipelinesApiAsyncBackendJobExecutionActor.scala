@@ -17,7 +17,15 @@ import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
 import org.apache.commons.codec.digest.DigestUtils
 import wom.core.FullyQualifiedName
 import wom.expression.FileEvaluation
-import wom.values.{GlobFunctions, WomFile, WomGlobFile, WomMaybeListedDirectory, WomMaybePopulatedFile, WomSingleFile, WomUnlistedDirectory}
+import wom.values.{
+  GlobFunctions,
+  WomFile,
+  WomGlobFile,
+  WomMaybeListedDirectory,
+  WomMaybePopulatedFile,
+  WomSingleFile,
+  WomUnlistedDirectory
+}
 
 import java.io.FileNotFoundException
 import scala.concurrent.Future
@@ -26,7 +34,7 @@ import scala.language.postfixOps
 import scala.util.control.NoStackTrace
 
 class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExecutionActorParams)
-  extends cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor(standardParams)
+    extends cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor(standardParams)
     with PipelinesApiReferenceFilesMappingOperations {
 
   // The original implementation assumes the WomFiles are all WomMaybePopulatedFiles and wraps everything in a PipelinesApiFileInput
@@ -34,31 +42,45 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   override protected def pipelinesApiInputsFromWomFiles(inputName: String,
                                                         remotePathArray: Seq[WomFile],
                                                         localPathArray: Seq[WomFile],
-                                                        jobDescriptor: BackendJobDescriptor): Iterable[PipelinesApiInput] = {
+                                                        jobDescriptor: BackendJobDescriptor
+  ): Iterable[PipelinesApiInput] =
     (remotePathArray zip localPathArray) flatMap {
       case (remotePath: WomMaybeListedDirectory, localPath) =>
         maybeListedDirectoryToPipelinesParameters(inputName, remotePath, localPath.valueString)
       case (remotePath: WomUnlistedDirectory, localPath) =>
-        Seq(PipelinesApiDirectoryInput(inputName, getPath(remotePath.valueString).get, DefaultPathBuilder.get(localPath.valueString), workingDisk))
+        Seq(
+          PipelinesApiDirectoryInput(inputName,
+                                     getPath(remotePath.valueString).get,
+                                     DefaultPathBuilder.get(localPath.valueString),
+                                     workingDisk
+          )
+        )
       case (remotePath: WomMaybePopulatedFile, localPath) =>
         maybePopulatedFileToPipelinesParameters(inputName, remotePath, localPath.valueString)
       case (remotePath, localPath) =>
-        Seq(PipelinesApiFileInput(inputName, getPath(remotePath.valueString).get, DefaultPathBuilder.get(localPath.valueString), workingDisk))
+        Seq(
+          PipelinesApiFileInput(inputName,
+                                getPath(remotePath.valueString).get,
+                                DefaultPathBuilder.get(localPath.valueString),
+                                workingDisk
+          )
+        )
     }
-  }
 
   // The original implementation recursively finds all non directory files, in V2 we can keep directory as is
   override protected lazy val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.localInputs map {
     case (key, womFile) =>
-      key -> womFile.collectAsSeq({
+      key -> womFile.collectAsSeq {
         case womFile: WomFile if !inputsToNotLocalize.contains(womFile) => womFile
-      })
+      }
   }
 
   private lazy val gcsTransferLibrary =
     Source.fromInputStream(Thread.currentThread.getContextClassLoader.getResourceAsStream("gcs_transfer.sh")).mkString
 
-  private def gcsLocalizationTransferBundle[T <: PipelinesApiInput](gcsTransferConfiguration: GcsTransferConfiguration)(bucket: String, inputs: NonEmptyList[T]): String = {
+  private def gcsLocalizationTransferBundle[T <: PipelinesApiInput](
+    gcsTransferConfiguration: GcsTransferConfiguration
+  )(bucket: String, inputs: NonEmptyList[T]): String = {
     val project = inputs.head.cloudPath.asInstanceOf[GcsPath].projectId
     val maxAttempts = gcsTransferConfiguration.transferAttempts
 
@@ -73,27 +95,29 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
 
     val filesByContainerParentDirectory = filesWithSameNames.groupBy(_.containerPath.parent.toString)
     // Deduplicate any inputs since parallel localization can't deal with this.
-    val uniqueFilesByContainerParentDirectory = filesByContainerParentDirectory map { case (p, fs) => p -> fs.toSet  }
+    val uniqueFilesByContainerParentDirectory = filesByContainerParentDirectory map { case (p, fs) => p -> fs.toSet }
 
-    val filesWithSameNamesTransferBundles: List[String] = uniqueFilesByContainerParentDirectory.toList map { case (containerParent, filesWithSameParent) =>
-      val arrayIdentifier = s"files_to_localize_" + DigestUtils.md5Hex(bucket + containerParent)
-      val entries = filesWithSameParent.map(_.cloudPath) mkString("\"", "\"\n|  \"", "\"")
+    val filesWithSameNamesTransferBundles: List[String] = uniqueFilesByContainerParentDirectory.toList map {
+      case (containerParent, filesWithSameParent) =>
+        val arrayIdentifier = s"files_to_localize_" + DigestUtils.md5Hex(bucket + containerParent)
+        val entries = filesWithSameParent.map(_.cloudPath) mkString ("\"", "\"\n|  \"", "\"")
 
-      s"""
-         |# Localize files from source bucket '$bucket' to container parent directory '$containerParent'.
-         |$arrayIdentifier=(
-         |  "$project"   # project to use if requester pays
-         |  "$maxAttempts" # max transfer attempts
-         |  "${containerParent.ensureSlashed}" # container parent directory
-         |  $entries
-         |)
-         |
-         |localize_files "$${$arrayIdentifier[@]}"
+        s"""
+           |# Localize files from source bucket '$bucket' to container parent directory '$containerParent'.
+           |$arrayIdentifier=(
+           |  "$project"   # project to use if requester pays
+           |  "$maxAttempts" # max transfer attempts
+           |  "${containerParent.ensureSlashed}" # container parent directory
+           |  $entries
+           |)
+           |
+           |localize_files "$${$arrayIdentifier[@]}"
        """.stripMargin
     }
 
     val filesWithDifferentNamesTransferBundles = filesWithDifferentNames map { f =>
-      val arrayIdentifier = s"singleton_file_to_localize_" + DigestUtils.md5Hex(f.cloudPath.pathAsString + f.containerPath.pathAsString)
+      val arrayIdentifier =
+        s"singleton_file_to_localize_" + DigestUtils.md5Hex(f.cloudPath.pathAsString + f.containerPath.pathAsString)
       s"""
          |# Localize singleton file '${f.cloudPath.pathAsString}' to '${f.containerPath.pathAsString}'.
          |$arrayIdentifier=(
@@ -109,27 +133,31 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
 
     // Only write a transfer bundle for directories if there are directories to be localized. Emptiness isn't a concern
     // for files since there is always at least the command script to be localized.
-    val directoryTransferBundle = if (directories.isEmpty) "" else {
-      val entries = directories flatMap { i => List(i.cloudPath, i.containerPath) } mkString("\"", "\"\n|  \"", "\"")
+    val directoryTransferBundle =
+      if (directories.isEmpty) ""
+      else {
+        val entries = directories flatMap { i => List(i.cloudPath, i.containerPath) } mkString ("\"", "\"\n|  \"", "\"")
 
-      val arrayIdentifier = s"directories_to_localize_" + DigestUtils.md5Hex(bucket)
+        val arrayIdentifier = s"directories_to_localize_" + DigestUtils.md5Hex(bucket)
 
-      s"""
-         |# Directories from source bucket '$bucket'.
-         |$arrayIdentifier=(
-         |  "$project"    # project to use if requester pays
-         |  "$maxAttempts" # max transfer attempts
-         |  $entries
-         |)
-         |
-         |localize_directories "$${$arrayIdentifier[@]}"
+        s"""
+           |# Directories from source bucket '$bucket'.
+           |$arrayIdentifier=(
+           |  "$project"    # project to use if requester pays
+           |  "$maxAttempts" # max transfer attempts
+           |  $entries
+           |)
+           |
+           |localize_directories "$${$arrayIdentifier[@]}"
        """.stripMargin
-    }
+      }
 
     (directoryTransferBundle :: (filesWithSameNamesTransferBundles ++ filesWithDifferentNamesTransferBundles)) mkString "\n\n"
   }
 
-  private def gcsDelocalizationTransferBundle[T <: PipelinesApiOutput](transferConfiguration: GcsTransferConfiguration)(bucket: String, outputs: NonEmptyList[T]): String = {
+  private def gcsDelocalizationTransferBundle[T <: PipelinesApiOutput](
+    transferConfiguration: GcsTransferConfiguration
+  )(bucket: String, outputs: NonEmptyList[T]): String = {
     val project = outputs.head.cloudPath.asInstanceOf[GcsPath].projectId
     val maxAttempts = transferConfiguration.transferAttempts
 
@@ -140,14 +168,16 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
         case _: PipelinesApiDirectoryOutput => "directory" // a primary directory
       }
 
-      val optional = Option(output) collectFirst { case o: PipelinesApiFileOutput if o.secondary || o.optional => "optional" } getOrElse "required"
+      val optional = Option(output) collectFirst {
+        case o: PipelinesApiFileOutput if o.secondary || o.optional => "optional"
+      } getOrElse "required"
       val contentType = output.contentType.map(_.toString).getOrElse("")
 
       List(kind, output.cloudPath.toString, output.containerPath.toString, optional, contentType)
-    } mkString("\"", "\"\n|  \"", "\"")
+    } mkString ("\"", "\"\n|  \"", "\"")
 
-    val parallelCompositeUploadThreshold = jobDescriptor.workflowDescriptor.workflowOptions.getOrElse(
-      "parallel_composite_upload_threshold", transferConfiguration.parallelCompositeUploadThreshold)
+    val parallelCompositeUploadThreshold = jobDescriptor.workflowDescriptor.workflowOptions
+      .getOrElse("parallel_composite_upload_threshold", transferConfiguration.parallelCompositeUploadThreshold)
 
     // Use a digest as bucket names can contain characters that are not legal in bash identifiers.
     val arrayIdentifier = s"delocalize_" + DigestUtils.md5Hex(bucket)
@@ -164,27 +194,27 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
       """.stripMargin
   }
 
-  private def bracketTransfersWithMessages(activity: String)(transferBody: String): String = {
+  private def bracketTransfersWithMessages(activity: String)(transferBody: String): String =
     List(
       s"timestamped_message '$activity script execution started...'",
       transferBody,
       s"timestamped_message '$activity script execution complete.'"
     ) mkString "\n"
-  }
 
   import mouse.all._
 
   private def generateGcsLocalizationScript(inputs: List[PipelinesApiInput],
-                                            referenceInputsToMountedPathsOpt: Option[Map[PipelinesApiInput, String]])
-                                           (implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
+                                            referenceInputsToMountedPathsOpt: Option[Map[PipelinesApiInput, String]]
+  )(implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
     // Generate a mapping of reference inputs to their mounted paths and a section of the localization script to
     // "faux localize" these reference inputs with symlinks to their locations on mounted reference disks.
     import cromwell.backend.google.pipelines.common.action.ActionUtils.shellEscaped
     val referenceFilesLocalizationScript = {
       val symlinkCreationCommandsOpt = referenceInputsToMountedPathsOpt map { referenceInputsToMountedPaths =>
-        referenceInputsToMountedPaths map {
-          case (input, absolutePathOnRefDisk) =>
-            s"mkdir -p ${shellEscaped(input.containerPath.parent.pathAsString)} && ln -s ${shellEscaped(absolutePathOnRefDisk)} ${shellEscaped(input.containerPath.pathAsString)}"
+        referenceInputsToMountedPaths map { case (input, absolutePathOnRefDisk) =>
+          s"mkdir -p ${shellEscaped(input.containerPath.parent.pathAsString)} && ln -s ${shellEscaped(
+              absolutePathOnRefDisk
+            )} ${shellEscaped(input.containerPath.pathAsString)}"
         }
       }
 
@@ -206,9 +236,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
       }
 
     val regularFilesLocalizationScript = {
-      val regularFiles = referenceInputsToMountedPathsOpt.map(maybeReferenceInputsToMountedPaths =>
-        inputs diff maybeReferenceInputsToMountedPaths.keySet.toList
-      ).getOrElse(inputs)
+      val regularFiles = referenceInputsToMountedPathsOpt
+        .map(maybeReferenceInputsToMountedPaths => inputs diff maybeReferenceInputsToMountedPaths.keySet.toList)
+        .getOrElse(inputs)
       if (regularFiles.nonEmpty) {
         val bundleFunction = (gcsLocalizationTransferBundle(gcsTransferConfiguration) _).tupled
         generateGcsTransferScript(regularFiles, bundleFunction)
@@ -227,45 +257,68 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
     combinedLocalizationScript |> bracketTransfersWithMessages("Localization")
   }
 
-  private def generateGcsDelocalizationScript(outputs: List[PipelinesApiOutput])(implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
+  private def generateGcsDelocalizationScript(
+    outputs: List[PipelinesApiOutput]
+  )(implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
     val bundleFunction = (gcsDelocalizationTransferBundle(gcsTransferConfiguration) _).tupled
     generateGcsTransferScript(outputs, bundleFunction) |> bracketTransfersWithMessages("Delocalization")
   }
 
-  private def generateGcsTransferScript[T <: PipelinesParameter](items: List[T], bundleFunction: ((String, NonEmptyList[T])) => String): String = {
+  private def generateGcsTransferScript[T <: PipelinesParameter](items: List[T],
+                                                                 bundleFunction: ((String, NonEmptyList[T])) => String
+  ): String = {
     val gcsItems = items collect { case i if i.cloudPath.isInstanceOf[GcsPath] => i }
     groupParametersByGcsBucket(gcsItems) map bundleFunction mkString "\n"
   }
 
   override protected def uploadGcsTransferLibrary(createPipelineParameters: CreatePipelineParameters,
                                                   cloudPath: Path,
-                                                  gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = {
-
+                                                  gcsTransferConfiguration: GcsTransferConfiguration
+  ): Future[Unit] =
     asyncIo.writeAsync(cloudPath, gcsTransferLibrary, Seq(CloudStorageOptions.withMimeType("text/plain")))
-  }
 
   override def uploadGcsLocalizationScript(createPipelineParameters: CreatePipelineParameters,
                                            cloudPath: Path,
                                            transferLibraryContainerPath: Path,
                                            gcsTransferConfiguration: GcsTransferConfiguration,
-                                           referenceInputsToMountedPathsOpt: Option[Map[PipelinesApiInput, String]]): Future[Unit] = {
-    val content = generateGcsLocalizationScript(createPipelineParameters.inputOutputParameters.fileInputParameters, referenceInputsToMountedPathsOpt)(gcsTransferConfiguration)
-    asyncIo.writeAsync(cloudPath, s"source '$transferLibraryContainerPath'\n\n" + content, Seq(CloudStorageOptions.withMimeType("text/plain")))
+                                           referenceInputsToMountedPathsOpt: Option[Map[PipelinesApiInput, String]]
+  ): Future[Unit] = {
+    val content = generateGcsLocalizationScript(createPipelineParameters.inputOutputParameters.fileInputParameters,
+                                                referenceInputsToMountedPathsOpt
+    )(gcsTransferConfiguration)
+    asyncIo.writeAsync(cloudPath,
+                       s"source '$transferLibraryContainerPath'\n\n" + content,
+                       Seq(CloudStorageOptions.withMimeType("text/plain"))
+    )
   }
 
   override def uploadGcsDelocalizationScript(createPipelineParameters: CreatePipelineParameters,
                                              cloudPath: Path,
                                              transferLibraryContainerPath: Path,
-                                             gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = {
-    val content = generateGcsDelocalizationScript(createPipelineParameters.inputOutputParameters.fileOutputParameters)(gcsTransferConfiguration)
-    asyncIo.writeAsync(cloudPath, s"source '$transferLibraryContainerPath'\n\n" + content, Seq(CloudStorageOptions.withMimeType("text/plain")))
+                                             gcsTransferConfiguration: GcsTransferConfiguration
+  ): Future[Unit] = {
+    val content = generateGcsDelocalizationScript(createPipelineParameters.inputOutputParameters.fileOutputParameters)(
+      gcsTransferConfiguration
+    )
+    asyncIo.writeAsync(cloudPath,
+                       s"source '$transferLibraryContainerPath'\n\n" + content,
+                       Seq(CloudStorageOptions.withMimeType("text/plain"))
+    )
   }
 
   // Simply create a PipelinesApiDirectoryOutput in v2 instead of globbing
-  override protected def generateUnlistedDirectoryOutputs(unlistedDirectory: WomUnlistedDirectory, fileEvaluation: FileEvaluation): List[PipelinesApiOutput] = {
+  override protected def generateUnlistedDirectoryOutputs(unlistedDirectory: WomUnlistedDirectory,
+                                                          fileEvaluation: FileEvaluation
+  ): List[PipelinesApiOutput] = {
     val destination = callRootPath.resolve(unlistedDirectory.value.stripPrefix("/"))
     val (relpath, disk) = relativePathAndAttachedDisk(unlistedDirectory.value, runtimeAttributes.disks)
-    val directoryOutput = PipelinesApiDirectoryOutput(makeSafeReferenceName(unlistedDirectory.value), destination, relpath, disk, fileEvaluation.optional, fileEvaluation.secondary)
+    val directoryOutput = PipelinesApiDirectoryOutput(makeSafeReferenceName(unlistedDirectory.value),
+                                                      destination,
+                                                      relpath,
+                                                      disk,
+                                                      fileEvaluation.optional,
+                                                      fileEvaluation.secondary
+    )
     List(directoryOutput)
   }
 
@@ -282,13 +335,27 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
     // We need both the glob directory and the glob list:
     List(
       // The glob directory:
-      PipelinesApiDirectoryOutput(makeSafeReferenceName(globDirectory), gcsGlobDirectoryDestinationPath, DefaultPathBuilder.get(globDirectory), globDirectoryDisk, optional = false, secondary = false),
+      PipelinesApiDirectoryOutput(
+        makeSafeReferenceName(globDirectory),
+        gcsGlobDirectoryDestinationPath,
+        DefaultPathBuilder.get(globDirectory),
+        globDirectoryDisk,
+        optional = false,
+        secondary = false
+      ),
       // The glob list file:
-      PipelinesApiFileOutput(makeSafeReferenceName(globListFile), gcsGlobListFileDestinationPath, DefaultPathBuilder.get(globListFile), globDirectoryDisk, optional = false, secondary = false)
+      PipelinesApiFileOutput(
+        makeSafeReferenceName(globListFile),
+        gcsGlobListFileDestinationPath,
+        DefaultPathBuilder.get(globListFile),
+        globDirectoryDisk,
+        optional = false,
+        secondary = false
+      )
     )
   }
 
-  override def womFileToGcsPath(jesOutputs: Set[PipelinesApiOutput])(womFile: WomFile): WomFile = {
+  override def womFileToGcsPath(jesOutputs: Set[PipelinesApiOutput])(womFile: WomFile): WomFile =
     womFile mapFile { path =>
       jesOutputs collectFirst {
         case jesOutput if jesOutput.name == makeSafeReferenceName(path) =>
@@ -305,65 +372,98 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
           case _: ValidFullGcsPath => path
 
           /*
-            * Strip the prefixes in RuntimeOutputMapping.prefixFilters from the path, one at a time.
-            * For instance
-            * file:///cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt will progressively become
-            *
-            * /cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
-            * bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
-            * call-A/file.txt
-            *
-            * This code is called as part of a path mapper that will be applied to the WOMified cwl.output.json.
-            * The cwl.output.json when it's being read by Cromwell from the bucket still contains local paths
-            * (as they were created by the cwl tool).
-            * In order to keep things working we need to map those local paths to where they were actually delocalized,
-            * which is determined in cromwell.backend.google.pipelines.v2alpha1.api.Delocalization.
-            */
-          case _ => (callRootPath /
-            RuntimeOutputMapping
+           * Strip the prefixes in RuntimeOutputMapping.prefixFilters from the path, one at a time.
+           * For instance
+           * file:///cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt will progressively become
+           *
+           * /cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
+           * bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
+           * call-A/file.txt
+           *
+           * This code is called as part of a path mapper that will be applied to the WOMified cwl.output.json.
+           * The cwl.output.json when it's being read by Cromwell from the bucket still contains local paths
+           * (as they were created by the cwl tool).
+           * In order to keep things working we need to map those local paths to where they were actually delocalized,
+           * which is determined in cromwell.backend.google.pipelines.v2alpha1.api.Delocalization.
+           */
+          case _ =>
+            (callRootPath /
+              RuntimeOutputMapping
                 .prefixFilters(workflowPaths.workflowRoot)
-                .foldLeft(path)({
-                  case (newPath, prefix) => newPath.stripPrefix(prefix)
-                })
-            ).pathAsString
+                .foldLeft(path) { case (newPath, prefix) =>
+                  newPath.stripPrefix(prefix)
+                }).pathAsString
         }
       }
     }
+
+  private def maybePopulatedFileToPipelinesParameters(inputName: String,
+                                                      maybePopulatedFile: WomMaybePopulatedFile,
+                                                      localPath: String
+  ) = {
+    val secondaryFiles = maybePopulatedFile.secondaryFiles.flatMap { secondaryFile =>
+      pipelinesApiInputsFromWomFiles(secondaryFile.valueString,
+                                     List(secondaryFile),
+                                     List(relativeLocalizationPath(secondaryFile)),
+                                     jobDescriptor
+      )
+    }
+
+    Seq(
+      PipelinesApiFileInput(inputName,
+                            getPath(maybePopulatedFile.valueString).get,
+                            DefaultPathBuilder.get(localPath),
+                            workingDisk
+      )
+    ) ++ secondaryFiles
   }
 
-  private def maybePopulatedFileToPipelinesParameters(inputName: String, maybePopulatedFile: WomMaybePopulatedFile, localPath: String) = {
-    val secondaryFiles = maybePopulatedFile.secondaryFiles.flatMap({ secondaryFile =>
-      pipelinesApiInputsFromWomFiles(secondaryFile.valueString, List(secondaryFile), List(relativeLocalizationPath(secondaryFile)), jobDescriptor)
-    })
-
-    Seq(PipelinesApiFileInput(inputName, getPath(maybePopulatedFile.valueString).get, DefaultPathBuilder.get(localPath), workingDisk)) ++ secondaryFiles
-  }
-
-  private def maybeListedDirectoryToPipelinesParameters(inputName: String, womMaybeListedDirectory: WomMaybeListedDirectory, localPath: String) = womMaybeListedDirectory match {
+  private def maybeListedDirectoryToPipelinesParameters(inputName: String,
+                                                        womMaybeListedDirectory: WomMaybeListedDirectory,
+                                                        localPath: String
+  ) = womMaybeListedDirectory match {
     // If there is a path, simply localize as a directory
     case WomMaybeListedDirectory(Some(path), _, _, _) =>
       List(PipelinesApiDirectoryInput(inputName, getPath(path).get, DefaultPathBuilder.get(localPath), workingDisk))
 
     // If there is a listing, recurse and call pipelinesApiInputsFromWomFiles on all the listed files
     case WomMaybeListedDirectory(_, Some(listing), _, _) if listing.nonEmpty =>
-      listing.flatMap({
+      listing.flatMap {
         case womFile: WomFile if isAdHocFile(womFile) =>
-          pipelinesApiInputsFromWomFiles(makeSafeReferenceName(womFile.valueString), List(womFile), List(fileName(womFile)), jobDescriptor)
+          pipelinesApiInputsFromWomFiles(makeSafeReferenceName(womFile.valueString),
+                                         List(womFile),
+                                         List(fileName(womFile)),
+                                         jobDescriptor
+          )
         case womFile: WomFile =>
-          pipelinesApiInputsFromWomFiles(makeSafeReferenceName(womFile.valueString), List(womFile), List(relativeLocalizationPath(womFile)), jobDescriptor)
-      })
+          pipelinesApiInputsFromWomFiles(makeSafeReferenceName(womFile.valueString),
+                                         List(womFile),
+                                         List(relativeLocalizationPath(womFile)),
+                                         jobDescriptor
+          )
+      }
     case _ => List.empty
   }
 
-  override def generateSingleFileOutputs(womFile: WomSingleFile, fileEvaluation: FileEvaluation): List[PipelinesApiFileOutput] = {
+  override def generateSingleFileOutputs(womFile: WomSingleFile,
+                                         fileEvaluation: FileEvaluation
+  ): List[PipelinesApiFileOutput] = {
     val (relpath, disk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
     // If the file is on a custom mount point, resolve it so that the full mount path will show up in the cloud path
     // For the default one (cromwell_root), the expectation is that it does not appear
-    val mountedPath = if (!disk.mountPoint.isSamePathAs(PipelinesApiWorkingDisk.Default.mountPoint)) disk.mountPoint.resolve(relpath) else relpath
+    val mountedPath =
+      if (!disk.mountPoint.isSamePathAs(PipelinesApiWorkingDisk.Default.mountPoint)) disk.mountPoint.resolve(relpath)
+      else relpath
     // Normalize the local path (to get rid of ".." and "."). Also strip any potential leading / so that it gets appended to the call root
     val normalizedPath = mountedPath.normalize().pathAsString.stripPrefix("/")
     val destination = callRootPath.resolve(normalizedPath)
-    val jesFileOutput = PipelinesApiFileOutput(makeSafeReferenceName(womFile.value), destination, relpath, disk, fileEvaluation.optional, fileEvaluation.secondary)
+    val jesFileOutput = PipelinesApiFileOutput(makeSafeReferenceName(womFile.value),
+                                               destination,
+                                               relpath,
+                                               disk,
+                                               fileEvaluation.optional,
+                                               fileEvaluation.secondary
+    )
     List(jesFileOutput)
   }
 }
@@ -381,10 +481,12 @@ object PipelinesApiAsyncBackendJobExecutionActor {
   //  - There must be at least one '/', followed by some content in the file name.
   // - Or, then, for directories:
   //  - If we got this far, we already have a valid directory path. Allow it to optionally end with a `/` character.
-  private val gcsFilePathMatcher =      "(?s)^gs://([a-zA-Z0-9][^/]+)(/[^/]+)*/[^/]+$".r
+  private val gcsFilePathMatcher = "(?s)^gs://([a-zA-Z0-9][^/]+)(/[^/]+)*/[^/]+$".r
   private val gcsDirectoryPathMatcher = "(?s)^gs://([a-zA-Z0-9][^/]+)(/[^/]+)*/?$".r
 
-  private [v2alpha1] def groupParametersByGcsBucket[T <: PipelinesParameter](parameters: List[T]): Map[String, NonEmptyList[T]] = {
+  private[v2alpha1] def groupParametersByGcsBucket[T <: PipelinesParameter](
+    parameters: List[T]
+  ): Map[String, NonEmptyList[T]] =
     parameters.map { param =>
       def pathTypeString = if (param.isFileParameter) "File" else "Directory"
       val regexToUse = if (param.isFileParameter) gcsFilePathMatcher else gcsDirectoryPathMatcher
@@ -393,8 +495,9 @@ object PipelinesApiAsyncBackendJobExecutionActor {
         case regexToUse(bucket) => Map(bucket -> NonEmptyList.of(param))
         case regexToUse(bucket, _) => Map(bucket -> NonEmptyList.of(param))
         case other =>
-          throw new Exception(s"$pathTypeString path '$other' did not match the expected regex: ${regexToUse.pattern.toString}") with NoStackTrace
+          throw new Exception(
+            s"$pathTypeString path '$other' did not match the expected regex: ${regexToUse.pattern.toString}"
+          ) with NoStackTrace
       }
     } combineAll
-  }
 }

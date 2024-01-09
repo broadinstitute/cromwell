@@ -8,9 +8,12 @@ import cromwell.engine.workflow.lifecycle.execution.ejea.HasJobSuccessResponse.S
 
 import scala.util.Success
 
-class EjeaUpdatingJobStoreSpec extends EngineJobExecutionActorSpec with HasJobSuccessResponse with HasJobFailureResponses {
+class EjeaUpdatingJobStoreSpec
+    extends EngineJobExecutionActorSpec
+    with HasJobSuccessResponse
+    with HasJobFailureResponses {
 
-  override implicit val stateUnderTest = UpdatingJobStore
+  implicit override val stateUnderTest = UpdatingJobStore
 
   "An EJEA in UpdatingJobStoreSpec" should {
 
@@ -31,7 +34,9 @@ class EjeaUpdatingJobStoreSpec extends EngineJobExecutionActorSpec with HasJobSu
     s"Create a suitable failure if the JobStore write fails" in {
       val response = successResponse
       ejea = ejeaInUpdatingJobStoreState(response)
-      val exception = new Exception("I loved Ophelia: forty thousand brothers\\ Could not, with all their quantity of love,\\ Make up my sum. What wilt thou do for her?")
+      val exception = new Exception(
+        "I loved Ophelia: forty thousand brothers\\ Could not, with all their quantity of love,\\ Make up my sum. What wilt thou do for her?"
+      )
       ejea ! JobStoreWriteFailure(exception)
       helper.replyToProbe.expectMsgPF(awaitTimeout) {
         case JobFailedNonRetryableResponse(jobDescriptorKey, reason, None) =>
@@ -43,7 +48,8 @@ class EjeaUpdatingJobStoreSpec extends EngineJobExecutionActorSpec with HasJobSu
   }
 
   def ejeaInUpdatingJobStoreState(response: BackendJobExecutionResponse) = {
-    val pendingResponseData = ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, Some(Success(SuccessfulCallCacheHashes)))
+    val pendingResponseData =
+      ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, Some(Success(SuccessfulCallCacheHashes)))
     val newData = response match {
       case success: JobSucceededResponse => pendingResponseData.withSuccessResponse(success)
       case failed: BackendJobFailedResponse => pendingResponseData.withFailedResponse(failed)

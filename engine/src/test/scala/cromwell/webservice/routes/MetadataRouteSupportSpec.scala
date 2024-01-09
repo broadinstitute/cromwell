@@ -2,7 +2,7 @@ package cromwell.webservice.routes
 
 import akka.actor.{ActorSystem, Props}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.model.headers.{HttpEncodings, `Accept-Encoding`}
+import akka.http.scaladsl.model.headers.{`Accept-Encoding`, HttpEncodings}
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, StatusCodes}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
@@ -83,7 +83,7 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
       akkaHttpService.metadataRoutes ~>
       check {
         status should be(StatusCodes.OK)
-        responseAs[JsObject].fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.Outputs)
+        responseAs[JsObject].fields.keys should contain allOf (WorkflowMetadataKeys.Id, WorkflowMetadataKeys.Outputs)
         contentType should be(ContentTypes.`application/json`)
       }
   }
@@ -116,19 +116,28 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
       akkaHttpService.metadataRoutes ~>
       check {
         status should be(StatusCodes.OK)
-        responseAs[JsObject].fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.Outputs)
+        responseAs[JsObject].fields.keys should contain allOf (WorkflowMetadataKeys.Id, WorkflowMetadataKeys.Outputs)
         contentType should be(ContentTypes.`application/json`)
       }
   }
 
-  def validateArchivedMetadataResponseMessage(responseJson: JsObject, includeAvailabilityMessage: Boolean, includeLabelsMessage: Boolean) = {
+  def validateArchivedMetadataResponseMessage(responseJson: JsObject,
+                                              includeAvailabilityMessage: Boolean,
+                                              includeLabelsMessage: Boolean
+  ) = {
     val responseMessage = responseJson.fields("message").asInstanceOf[JsString].value
     val expectedSuffix =
-      (if (includeAvailabilityMessage) " It is available in the archive bucket, or via a support request in the case of a managed instance." else "") +
-        (if (includeLabelsMessage) " As a result, new labels can't be added or existing labels can't be updated for this workflow." else "")
+      (if (includeAvailabilityMessage)
+         " It is available in the archive bucket, or via a support request in the case of a managed instance."
+       else "") +
+        (if (includeLabelsMessage)
+           " As a result, new labels can't be added or existing labels can't be updated for this workflow."
+         else "")
 
-    responseMessage should startWith("Cromwell has archived this workflow's metadata " +
-      "according to the lifecycle policy. The workflow completed at ")
+    responseMessage should startWith(
+      "Cromwell has archived this workflow's metadata " +
+        "according to the lifecycle policy. The workflow completed at "
+    )
     // The missing middle of the message looks like "The workflow completed at x timestamp, which was y milliseconds ago."
     responseMessage should endWith(s"ago.${expectedSuffix}")
   }
@@ -139,10 +148,13 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
       check {
         status should be(StatusCodes.OK)
 
-        val responseJson =  responseAs[JsObject]
-        responseJson.fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
+        val responseJson = responseAs[JsObject]
+        responseJson.fields.keys should contain allOf (WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
         responseJson.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "ArchivedAndDeleted"
-        validateArchivedMetadataResponseMessage(responseJson, includeAvailabilityMessage = true, includeLabelsMessage = false)
+        validateArchivedMetadataResponseMessage(responseJson,
+                                                includeAvailabilityMessage = true,
+                                                includeLabelsMessage = false
+        )
         contentType should be(ContentTypes.`application/json`)
       }
   }
@@ -154,11 +166,12 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
       check {
         status should be(StatusCodes.OK)
 
-        val call = responseAs[JsObject].fields("calls").convertTo[JsObject].fields("mycall").convertTo[Seq[JsObject]].head
+        val call =
+          responseAs[JsObject].fields("calls").convertTo[JsObject].fields("mycall").convertTo[Seq[JsObject]].head
         call.fields("stdout") should be(JsString("stdout.txt"))
         call.fields("stderr") should be(JsString("stderr.txt"))
         call.fields("stdout") should be(JsString("stdout.txt"))
-        call.fields("backendLogs").convertTo[JsObject].fields("log") should be (JsString("backend.log"))
+        call.fields("backendLogs").convertTo[JsObject].fields("log") should be(JsString("backend.log"))
       }
   }
 
@@ -178,11 +191,12 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
       check {
         status should be(StatusCodes.OK)
 
-        val call = responseAs[JsObject].fields("calls").convertTo[JsObject].fields("mycall").convertTo[Seq[JsObject]].head
+        val call =
+          responseAs[JsObject].fields("calls").convertTo[JsObject].fields("mycall").convertTo[Seq[JsObject]].head
         call.fields("stdout") should be(JsString("stdout.txt"))
         call.fields("stderr") should be(JsString("stderr.txt"))
         call.fields("stdout") should be(JsString("stdout.txt"))
-        call.fields("backendLogs").convertTo[JsObject].fields("log") should be (JsString("backend.log"))
+        call.fields("backendLogs").convertTo[JsObject].fields("log") should be(JsString("backend.log"))
       }
   }
 
@@ -192,11 +206,14 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
       check {
         status should be(StatusCodes.OK)
 
-        val responseJson =  responseAs[JsObject]
-        responseJson.fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
+        val responseJson = responseAs[JsObject]
+        responseJson.fields.keys should contain allOf (WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
         responseJson.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "ArchivedAndDeleted"
-        validateArchivedMetadataResponseMessage(responseJson, includeAvailabilityMessage = true, includeLabelsMessage = false)
-       }
+        validateArchivedMetadataResponseMessage(responseJson,
+                                                includeAvailabilityMessage = true,
+                                                includeLabelsMessage = false
+        )
+      }
   }
 
   behavior of "REST API /metadata endpoint"
@@ -206,7 +223,7 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
       check {
         status should be(StatusCodes.OK)
         val result = responseAs[JsObject]
-        result.fields.keys should contain allOf("testKey1a", "testKey1b", "testKey2a")
+        result.fields.keys should contain allOf ("testKey1a", "testKey1b", "testKey2a")
         result.fields.keys shouldNot contain("testKey3")
         result.fields("testKey1a") should be(JsString("myValue1a"))
         result.fields("testKey1b") should be(JsString("myValue1b"))
@@ -220,7 +237,7 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
       check {
         status should be(StatusCodes.OK)
         val result = responseAs[JsObject]
-        result.fields.keys should contain allOf("testKey1a", "testKey1b", "testKey2a")
+        result.fields.keys should contain allOf ("testKey1a", "testKey1b", "testKey2a")
         result.fields.keys shouldNot contain("testKey3")
         result.fields("testKey1a") should be(JsString("myValue1a"))
         result.fields("testKey1b") should be(JsString("myValue1b"))
@@ -229,7 +246,8 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
   }
 
   it should "return with gzip encoding when requested" in {
-    Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata").addHeader(`Accept-Encoding`(HttpEncodings.gzip)) ~>
+    Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata")
+      .addHeader(`Accept-Encoding`(HttpEncodings.gzip)) ~>
       akkaHttpService.metadataRoutes ~>
       check {
         response.headers.find(_.name == "Content-Encoding").get.value should be("gzip")
@@ -245,13 +263,15 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
   }
 
   it should "return with included metadata from the metadata route" in {
-    Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata?includeKey=testKey1&includeKey=testKey2a") ~>
+    Get(
+      s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata?includeKey=testKey1&includeKey=testKey2a"
+    ) ~>
       akkaHttpService.metadataRoutes ~>
       check {
         status should be(StatusCodes.OK)
         val result = responseAs[JsObject]
-        result.fields.keys should contain allOf("testKey1a", "testKey1b", "testKey2a")
-        result.fields.keys should contain noneOf("testKey2b", "testKey3")
+        result.fields.keys should contain allOf ("testKey1a", "testKey1b", "testKey2a")
+        result.fields.keys should contain noneOf ("testKey2b", "testKey3")
         result.fields("testKey1a") should be(JsString("myValue1a"))
         result.fields("testKey1b") should be(JsString("myValue1b"))
         result.fields("testKey2a") should be(JsString("myValue2a"))
@@ -259,28 +279,32 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
   }
 
   it should "return with excluded metadata from the metadata route" in {
-    Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata?excludeKey=testKey2&excludeKey=testKey3") ~>
+    Get(
+      s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata?excludeKey=testKey2&excludeKey=testKey3"
+    ) ~>
       akkaHttpService.metadataRoutes ~>
       check {
         status should be(StatusCodes.OK)
         val result = responseAs[JsObject]
-        result.fields.keys should contain allOf("testKey1a", "testKey1b")
-        result.fields.keys should contain noneOf("testKey2a", "testKey3")
+        result.fields.keys should contain allOf ("testKey1a", "testKey1b")
+        result.fields.keys should contain noneOf ("testKey2a", "testKey3")
         result.fields("testKey1a") should be(JsString("myValue1a"))
         result.fields("testKey1b") should be(JsString("myValue1b"))
       }
   }
 
   it should "correctly include and exclude metadata keys in workflow details requests" in {
-    Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata?includeKey=testKey1&excludeKey=testKey1a") ~>
+    Get(
+      s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata?includeKey=testKey1&excludeKey=testKey1a"
+    ) ~>
       akkaHttpService.metadataRoutes ~>
       check {
         val r = responseAs[String]
         withClue(s"From response $r") {
           status should be(StatusCodes.OK)
           val result = responseAs[JsObject]
-          result.fields.keys should contain allElementsOf(List("testKey1b"))
-          result.fields.keys should contain noneOf("testKey1a", "testKey2")
+          result.fields.keys should contain allElementsOf (List("testKey1b"))
+          result.fields.keys should contain noneOf ("testKey1a", "testKey2")
           result.fields("testKey1b") should be(JsString("myValue1b"))
         }
       }
@@ -292,7 +316,7 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
       check {
         status should be(StatusCodes.OK)
         val result = responseAs[JsObject]
-        result.fields.keys should contain allOf("testKey1a", "testKey1b", "testKey2a")
+        result.fields.keys should contain allOf ("testKey1a", "testKey1b", "testKey2a")
         result.fields.keys shouldNot contain("testKey3")
         result.fields("testKey1a") should be(JsString("myValue1a"))
         result.fields("testKey1b") should be(JsString("myValue1b"))
@@ -306,10 +330,27 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
       check {
         status should be(StatusCodes.OK)
 
-        val responseJson =  responseAs[JsObject]
-        responseJson.fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
+        val responseJson = responseAs[JsObject]
+        responseJson.fields.keys should contain allOf (WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
         responseJson.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "ArchivedAndDeleted"
-        validateArchivedMetadataResponseMessage(responseJson, includeAvailabilityMessage = true, includeLabelsMessage = false)
+        validateArchivedMetadataResponseMessage(responseJson,
+                                                includeAvailabilityMessage = true,
+                                                includeLabelsMessage = false
+        )
+      }
+  }
+
+  it should "return 200 with metadata for failed tasks on a workflow" in {
+    Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata/failed-jobs") ~>
+      akkaHttpService.metadataRoutes ~>
+      check {
+        status should be(StatusCodes.OK)
+        val result = responseAs[JsObject]
+        result.fields.keys should contain allOf ("testKey1a", "testKey1b", "testKey2a")
+        result.fields.keys shouldNot contain("testKey3")
+        result.fields("testKey1a") should be(JsString("myValue1a"))
+        result.fields("testKey1b") should be(JsString("myValue1b"))
+        result.fields("testKey2a") should be(JsString("myValue2a"))
       }
   }
 
@@ -327,7 +368,9 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
   }
 
   it should "return labels if specified in additionalQueryResultFields param" in {
-    Get(s"/workflows/$version/query?additionalQueryResultFields=labels&id=${CromwellApiServiceSpec.ExistingWorkflowId}") ~>
+    Get(
+      s"/workflows/$version/query?additionalQueryResultFields=labels&id=${CromwellApiServiceSpec.ExistingWorkflowId}"
+    ) ~>
       akkaHttpService.metadataRoutes ~>
       check {
         status should be(StatusCodes.OK)
@@ -341,7 +384,9 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
   }
 
   it should "return parentWorkflowId if specified in additionalQueryResultFields param" in {
-    Get(s"/workflows/$version/query?additionalQueryResultFields=parentWorkflowId&id=${CromwellApiServiceSpec.ExistingWorkflowId}") ~>
+    Get(
+      s"/workflows/$version/query?additionalQueryResultFields=parentWorkflowId&id=${CromwellApiServiceSpec.ExistingWorkflowId}"
+    ) ~>
       akkaHttpService.metadataRoutes ~>
       check {
         status should be(StatusCodes.OK)
@@ -368,7 +413,9 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
   }
 
   it should "return labels if specified in additionalQueryResultFields param" in {
-    Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"additionalQueryResultFields":"labels"}]""")) ~>
+    Post(s"/workflows/$version/query",
+         HttpEntity(ContentTypes.`application/json`, """[{"additionalQueryResultFields":"labels"}]""")
+    ) ~>
       akkaHttpService.metadataRoutes ~>
       check {
         assertResult(StatusCodes.OK) {
@@ -382,7 +429,9 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
   }
 
   it should "return parentWorkflowId if specified in additionalQueryResultFields param" in {
-    Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"additionalQueryResultFields":"parentWorkflowId"}]""")) ~>
+    Post(s"/workflows/$version/query",
+         HttpEntity(ContentTypes.`application/json`, """[{"additionalQueryResultFields":"parentWorkflowId"}]""")
+    ) ~>
       akkaHttpService.metadataRoutes ~>
       check {
         assertResult(StatusCodes.OK) {
@@ -466,9 +515,12 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
       check {
         status shouldBe StatusCodes.BadRequest
         val actualResult = responseAs[JsObject]
-        actualResult.fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
+        actualResult.fields.keys should contain allOf (WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
         actualResult.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "Archived"
-        validateArchivedMetadataResponseMessage(actualResult, includeAvailabilityMessage = false, includeLabelsMessage = true)
+        validateArchivedMetadataResponseMessage(actualResult,
+                                                includeAvailabilityMessage = false,
+                                                includeLabelsMessage = true
+        )
       }
   }
 
@@ -488,9 +540,12 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
       check {
         status shouldBe StatusCodes.BadRequest
         val actualResult = responseAs[JsObject]
-        actualResult.fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
+        actualResult.fields.keys should contain allOf (WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
         actualResult.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "ArchivedAndDeleted"
-        validateArchivedMetadataResponseMessage(actualResult, includeAvailabilityMessage = true, includeLabelsMessage = true)
+        validateArchivedMetadataResponseMessage(actualResult,
+                                                includeAvailabilityMessage = true,
+                                                includeLabelsMessage = true
+        )
       }
   }
 
@@ -504,7 +559,9 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
       """.stripMargin
 
     val unsummarizedId = CromwellApiServiceSpec.ExistingWorkflowId
-    Patch(s"/workflows/$version/$unsummarizedId/labels", HttpEntity(ContentTypes.`application/json`, validLabelsJson)) ~>
+    Patch(s"/workflows/$version/$unsummarizedId/labels",
+          HttpEntity(ContentTypes.`application/json`, validLabelsJson)
+    ) ~>
       akkaHttpService.metadataRoutes ~>
       check {
         status shouldBe StatusCodes.NotFound
@@ -514,7 +571,8 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
 }
 
 object MetadataRouteSupportSpec {
-  class MockMetadataRouteSupport()(implicit val system: ActorSystem, routeTestTimeout: RouteTestTimeout) extends MetadataRouteSupport {
+  class MockMetadataRouteSupport()(implicit val system: ActorSystem, routeTestTimeout: RouteTestTimeout)
+      extends MetadataRouteSupport {
     override def actorRefFactory = system
     override val ec = system.dispatcher
     override val timeout = routeTestTimeout.duration

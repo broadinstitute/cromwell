@@ -8,7 +8,9 @@ import org.scalatest.matchers.should.Matchers
   * such that the restarting tests execute sequentially to avoid a mayhem of Cromwell restarts
  */
 @DoNotDiscover
-class SequentialTestCaseSpec(cromwellBackends: List[String]) extends AbstractCentaurTestCaseSpec(cromwellBackends) with Matchers {
+class SequentialTestCaseSpec(cromwellBackends: List[String])
+    extends AbstractCentaurTestCaseSpec(cromwellBackends)
+    with Matchers {
 
   def this() = this(CentaurTestSuite.cromwellBackends)
 

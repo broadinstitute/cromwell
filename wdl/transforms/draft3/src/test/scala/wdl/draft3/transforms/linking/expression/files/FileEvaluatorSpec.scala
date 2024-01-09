@@ -12,7 +12,6 @@ import wom.expression.NoIoFunctionSet
 import wom.types.{WomCompositeType, WomSingleFileType}
 import wom.values.WomSingleFile
 
-
 class FileEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "FileEvaluator[ExpressionElement]"
@@ -21,7 +20,10 @@ class FileEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
     val expressionElement: ExpressionElement = ObjectLiteral(Map("a_file" -> StringLiteral("moo.txt")))
     val structType = WomCompositeType(Map("a_file" -> WomSingleFileType))
 
-    val evaluatedFiles = expressionElement.predictFilesNeededToEvaluate(inputs = Map.empty, ioFunctionSet = NoIoFunctionSet, coerceTo = structType)
+    val evaluatedFiles = expressionElement.predictFilesNeededToEvaluate(inputs = Map.empty,
+                                                                        ioFunctionSet = NoIoFunctionSet,
+                                                                        coerceTo = structType
+    )
     evaluatedFiles shouldBeValid Set(WomSingleFile("moo.txt"))
   }
 }

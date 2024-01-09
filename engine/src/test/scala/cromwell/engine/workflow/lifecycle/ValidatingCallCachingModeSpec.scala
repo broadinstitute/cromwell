@@ -12,7 +12,11 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 
 import scala.util.{Success, Try}
 
-class ValidatingCallCachingModeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks {
+class ValidatingCallCachingModeSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with TableDrivenPropertyChecks {
 
   def makeOptions(writeOpt: Option[Boolean], readOpt: Option[Boolean]) = {
     val writeValue = writeOpt map { v => s""""write_to_cache": $v""" }
@@ -29,54 +33,54 @@ class ValidatingCallCachingModeSpec extends AnyFlatSpec with CromwellTimeoutSpec
   val allCombinations = (for {
     writeOption <- options
     readOption <- options
-  } yield (makeOptions(writeOption, readOption))).toSet
+  } yield makeOptions(writeOption, readOption)).toSet
 
   // writeCache is ON when config is ON and write_to_cache is None or true
   val writeCacheOnCombinations = (for {
     writeOption <- options if writeOption.isEmpty || writeOption.get
     readOption <- options
-  } yield (makeOptions(writeOption, readOption))).toSet
+  } yield makeOptions(writeOption, readOption)).toSet
 
   // readCache is ON when config is ON and read_from_cache is None or true
   val readCacheOnCombinations = (for {
     writeOption <- options
     readOption <- options if readOption.isEmpty || readOption.get
-  } yield (makeOptions(writeOption, readOption))).toSet
+  } yield makeOptions(writeOption, readOption)).toSet
 
   val writeCacheOffCombinations = allCombinations -- writeCacheOnCombinations
   val readCacheOffCombinations = allCombinations -- readCacheOnCombinations
 
-  validateCallCachingMode(
-    "write cache on options",
-    writeCacheOnCombinations,
-    callCachingEnabled,
-    invalidBadCaсheResults) { _.writeToCache should be(true) }
-  validateCallCachingMode(
-    "read cache on options",
-    readCacheOnCombinations,
-    callCachingEnabled,
-    invalidBadCaсheResults) { _.readFromCache should be(true) }
-  validateCallCachingMode(
-    "write cache off options",
-    writeCacheOffCombinations,
-    callCachingEnabled,
-    invalidBadCaсheResults) { _.writeToCache should be(false) }
-  validateCallCachingMode(
-    "read cache off options",
-    readCacheOffCombinations,
-    callCachingEnabled,
-    invalidBadCaсheResults) { _.readFromCache should be(false) }
+  validateCallCachingMode("write cache on options",
+                          writeCacheOnCombinations,
+                          callCachingEnabled,
+                          invalidBadCaсheResults
+  )(_.writeToCache should be(true))
+  validateCallCachingMode("read cache on options", readCacheOnCombinations, callCachingEnabled, invalidBadCaсheResults)(
+    _.readFromCache should be(true)
+  )
+  validateCallCachingMode("write cache off options",
+                          writeCacheOffCombinations,
+                          callCachingEnabled,
+                          invalidBadCaсheResults
+  )(_.writeToCache should be(false))
+  validateCallCachingMode("read cache off options",
+                          readCacheOffCombinations,
+                          callCachingEnabled,
+                          invalidBadCaсheResults
+  )(_.readFromCache should be(false))
 
   private def validateCallCachingMode(testName: String,
                                       wfOptions: Set[Try[WorkflowOptions]],
                                       callCachingEnabled: Boolean,
-                                      invalidBadCacheResults: Boolean)
-                                      (verificationFunction: CallCachingMode => Assertion): Unit = {
+                                      invalidBadCacheResults: Boolean
+  )(verificationFunction: CallCachingMode => Assertion): Unit =
     it should s"correctly identify $testName" in {
-      wfOptions foreach  {
+      wfOptions foreach {
         case Success(wfOptions) =>
           MaterializeWorkflowDescriptorActor.validateCallCachingMode(wfOptions,
-            callCachingEnabled, invalidBadCacheResults) match {
+                                                                     callCachingEnabled,
+                                                                     invalidBadCacheResults
+          ) match {
             case Valid(activity) => verificationFunction(activity)
             case Invalid(errors) =>
               val errorsList = errors.toList.mkString(", ")
@@ -85,5 +89,4 @@ class ValidatingCallCachingModeSpec extends AnyFlatSpec with CromwellTimeoutSpec
         case x => fail(s"Unexpected test tuple: $x")
       }
     }
-  }
 }

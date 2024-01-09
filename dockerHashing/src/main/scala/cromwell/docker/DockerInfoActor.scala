@@ -14,6 +14,7 @@ import cromwell.core.actor.StreamIntegration.{BackPressure, StreamContext}
 import cromwell.core.{Dispatcher, DockerConfiguration}
 import cromwell.docker.DockerInfoActor._
 import cromwell.docker.registryv2.DockerRegistryV2Abstract
+import cromwell.docker.registryv2.flows.azure.AzureContainerRegistry
 import cromwell.docker.registryv2.flows.dockerhub.DockerHubRegistry
 import cromwell.docker.registryv2.flows.google.GoogleRegistry
 import cromwell.docker.registryv2.flows.quay.QuayRegistry
@@ -29,16 +30,21 @@ import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
 
 final class DockerInfoActor(
-                             dockerRegistryFlows: Seq[DockerRegistry],
-                             queueBufferSize: Int,
-                             cacheEntryTTL: FiniteDuration,
-                             cacheSize: Long
-                           ) extends Actor with ActorLogging {
+  dockerRegistryFlows: Seq[DockerRegistry],
+  queueBufferSize: Int,
+  cacheEntryTTL: FiniteDuration,
+  cacheSize: Long
+) extends Actor
+    with ActorLogging {
 
   implicit val system: ActorSystem = context.system
   implicit val ec: ExecutionContextExecutor = context.dispatcher
   implicit val cs: ContextShift[IO] = IO.contextShift(ec)
-  val retryPolicy: RetryPolicy[IO] = RetryPolicy[IO](RetryPolicy.exponentialBackoff(DockerConfiguration.instance.maxTimeBetweenRetries, DockerConfiguration.instance.maxRetries))
+  val retryPolicy: RetryPolicy[IO] = RetryPolicy[IO](
+    RetryPolicy.exponentialBackoff(DockerConfiguration.instance.maxTimeBetweenRetries,
+                                   DockerConfiguration.instance.maxRetries
+    )
+  )
 
   /* Use the guava CacheBuilder class that implements a thread safe map with built in cache features.
    * https://google.github.io/guava/releases/20.0/api/docs/com/google/common/cache/CacheBuilder.html
@@ -46,29 +52,29 @@ final class DockerInfoActor(
    *  - Added to the cache by the streamSink, running on a thread from the stream thread pool
    *  - Accessed by this actor on its receive method thread, to check if an element is in the cache and use it
    *  - Automatically removed from the cache by the cache itself
-   *  
+   *
    *  + Concurrency level is the number of expected threads to modify the cache.
    *      Set to "2" because the stream will add elements, and the cache itself remove them.
-   *      This value has not a critical impact: 
+   *      This value has not a critical impact:
    *        https://google.github.io/guava/releases/20.0/api/docs/com/google/common/cache/CacheBuilder.html#concurrencyLevel-int-
-   *        
-   *  + expireAfterWrite sets the time after which cache entries must expire. 
+   *
+   *  + expireAfterWrite sets the time after which cache entries must expire.
    *      We use expireAfterWrite (as opposed to expireAfterAccess because we want to the entry to expire
-   *      even if it's accessed. The goal here is to force the actor to ask again for the hash after a certain 
+   *      even if it's accessed. The goal here is to force the actor to ask again for the hash after a certain
    *      amount of time to guarantee its relative accuracy.
-   *      
-   *  + maximumSize sets the maximum amount of entries the cache can contain. 
+   *
+   *  + maximumSize sets the maximum amount of entries the cache can contain.
    *    If/when this size is reached, least used entries will be expired
    */
-  private val cache = CacheBuilder.newBuilder()
+  private val cache = CacheBuilder
+    .newBuilder()
     .concurrencyLevel(2)
     .expireAfterWrite(cacheEntryTTL._1, cacheEntryTTL._2)
     .maximumSize(cacheSize)
     .build[DockerImageIdentifier, DockerInformation]()
 
-  private def checkCache(dockerHashRequest: DockerInfoRequest) = {
+  private def checkCache(dockerHashRequest: DockerInfoRequest) =
     Option(cache.getIfPresent(dockerHashRequest.dockerImageID))
-  }
 
   override def receive: Receive = receiveBehavior(Map.empty)
 
@@ -82,26 +88,24 @@ final class DockerInfoActor(
       }
     case ShutdownCommand =>
       // Shutdown all streams by sending None to the queue
-      registries
-        .values.toList
+      registries.values.toList
         .parTraverse[IO, Unit](_.enqueue1(None))
         .unsafeRunSync()
 
       context stop self
   }
 
-  def sendToStream(registries: Map[DockerRegistry, StreamQueue], context: DockerInfoActor.DockerInfoContext): Unit = {
+  def sendToStream(registries: Map[DockerRegistry, StreamQueue], context: DockerInfoActor.DockerInfoContext): Unit =
     registries collectFirst {
       case (registry, queue) if registry.accepts(context.dockerImageID) => queue
     } match {
       case Some(queue) => enqueue(context, queue)
       case None => context.replyTo ! DockerHashUnknownRegistry(context.request)
     }
-  }
 
   def enqueue(dockerInfoContext: DockerInfoContext, queue: StreamQueue): Unit = {
     val enqueueIO = queue.offer1(Option(dockerInfoContext)).runAsync {
-      case Right(true) => IO.unit// Good !
+      case Right(true) => IO.unit // Good !
       case _ => backpressure(dockerInfoContext)
     }
 
@@ -147,13 +151,13 @@ final class DockerInfoActor(
       // If the registry imposes throttling, debounce the stream to ensure the throttling rate is respected
       val throttledSource = registry.config.throttle.map(_.delay).map(source.metered[IO]).getOrElse(source)
 
-      val stream = clientStream.flatMap({ client =>
+      val stream = clientStream.flatMap { client =>
         throttledSource
           // Run requests in parallel - allow nbThreads max concurrent requests - order doesn't matter
-          .parEvalMapUnordered(registry.config.nbThreads)({ request => registry.run(request)(client) })
+          .parEvalMapUnordered(registry.config.nbThreads)(request => registry.run(request)(client))
           // Send to the sink for finalization of the result
           .through(streamSink)
-      })
+      }
 
       // Start the stream now asynchronously. It will keep running until we terminate the queue by sending None to it
       stream.compile.drain.unsafeRunAsyncAndForget()
@@ -165,7 +169,7 @@ final class DockerInfoActor(
   override def preStart(): Unit = {
     // Force initialization of the header constants to make sure they're valid
     locally(DockerRegistryV2Abstract)
-    
+
     val registries =
       dockerRegistryFlows.toList
         .parTraverse(startAndRegisterStream)
@@ -193,12 +197,14 @@ object DockerInfoActor {
   }
 
   case class DockerInformation(dockerHash: DockerHashResult, dockerCompressedSize: Option[DockerSize])
-  case class DockerInfoSuccessResponse(dockerInformation: DockerInformation, request: DockerInfoRequest) extends DockerInfoResponse
+  case class DockerInfoSuccessResponse(dockerInformation: DockerInformation, request: DockerInfoRequest)
+      extends DockerInfoResponse
 
   sealed trait DockerHashFailureResponse extends DockerInfoResponse {
     def reason: String
   }
-  case class DockerInfoFailedResponse(failure: Throwable, request: DockerInfoRequest) extends DockerHashFailureResponse {
+  case class DockerInfoFailedResponse(failure: Throwable, request: DockerInfoRequest)
+      extends DockerHashFailureResponse {
     override val reason = s"Failed to get docker hash for ${request.dockerImageID.fullName} ${failure.getMessage}"
   }
   case class DockerHashUnknownRegistry(request: DockerInfoRequest) extends DockerHashFailureResponse {
@@ -223,20 +229,22 @@ object DockerInfoActor {
   def props(dockerRegistryFlows: Seq[DockerRegistry],
             queueBufferSize: Int = 100,
             cacheEntryTTL: FiniteDuration,
-            cacheSize: Long): Props = {
-    Props(new DockerInfoActor(dockerRegistryFlows, queueBufferSize, cacheEntryTTL, cacheSize)).withDispatcher(Dispatcher.IoDispatcher)
-  }
+            cacheSize: Long
+  ): Props =
+    Props(new DockerInfoActor(dockerRegistryFlows, queueBufferSize, cacheEntryTTL, cacheSize))
+      .withDispatcher(Dispatcher.IoDispatcher)
 
   def remoteRegistriesFromConfig(config: Config): List[DockerRegistry] = {
     import cats.syntax.traverse._
 
     // To add a new registry, simply add it to that list
     List(
+      ("azure", { c: DockerRegistryConfig => new AzureContainerRegistry(c) }),
       ("dockerhub", { c: DockerRegistryConfig => new DockerHubRegistry(c) }),
       ("google", { c: DockerRegistryConfig => new GoogleRegistry(c) }),
       ("quay", { c: DockerRegistryConfig => new QuayRegistry(c) })
-    ).traverse[ErrorOr, DockerRegistry]({
-      case (configPath, constructor) => DockerRegistryConfig.fromConfig(config.as[Config](configPath)).map(constructor)
-    }).unsafe("Docker registry configuration")
+    ).traverse[ErrorOr, DockerRegistry] { case (configPath, constructor) =>
+      DockerRegistryConfig.fromConfig(config.as[Config](configPath)).map(constructor)
+    }.unsafe("Docker registry configuration")
   }
 }

@@ -17,7 +17,6 @@ import wom.values._
 import java.security.MessageDigest
 import javax.xml.bind.DatatypeConverter
 
-
 /**
   * Actor responsible for calculating individual as well as aggregated hashes for a job.
   * First calculate the initial hashes (individual and aggregated), and send them to its parent
@@ -42,7 +41,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
                                callCachingActivity: CallCachingActivity,
                                callCachePathPrefixes: Option[CallCachePathPrefixes],
                                fileHashBatchSize: Int
-                              ) extends LoggingFSM[CallCacheHashingJobActorState, CallCacheHashingJobActorData] {
+) extends LoggingFSM[CallCacheHashingJobActorState, CallCacheHashingJobActorData] {
 
   val fileHashingActor: ActorRef = makeFileHashingActor()
 
@@ -103,9 +102,8 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
   }
 
   // In its own function so it can be overridden in the test
-  private [callcaching] def addFileHash(hashResult: HashResult, data: CallCacheHashingJobActorData) = {
+  private[callcaching] def addFileHash(hashResult: HashResult, data: CallCacheHashingJobActorData) =
     data.withFileHash(hashResult)
-  }
 
   private def stopAndStay(fileHashResult: Option[FinalFileHashingResult]) = {
     fileHashResult foreach { context.parent ! _ }
@@ -114,14 +112,15 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
     stay()
   }
 
-  private def sendToCallCacheReadingJobActor(message: Any, data: CallCacheHashingJobActorData): Unit = {
+  private def sendToCallCacheReadingJobActor(message: Any, data: CallCacheHashingJobActorData): Unit =
     data.callCacheReadingJobActor foreach { _ ! message }
-  }
 
   private def initializeCCHJA(): Unit = {
     import cromwell.core.simpleton.WomValueSimpleton._
 
-    val unqualifiedInputs = jobDescriptor.evaluatedTaskInputs map { case (declaration, value) => declaration.name -> value }
+    val unqualifiedInputs = jobDescriptor.evaluatedTaskInputs map { case (declaration, value) =>
+      declaration.name -> value
+    }
 
     val inputSimpletons = unqualifiedInputs.simplifyForCaching
     val (fileInputSimpletons, nonFileInputSimpletons) = inputSimpletons partition {
@@ -131,11 +130,12 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
 
     val initialHashes = calculateInitialHashes(nonFileInputSimpletons, fileInputSimpletons)
 
-    val fileHashRequests = fileInputSimpletons collect {
-      case WomValueSimpleton(name, x: WomFile) => SingleFileHashRequest(jobDescriptor.key, HashKey(true, "input", s"File $name"), x, initializationData)
+    val fileHashRequests = fileInputSimpletons collect { case WomValueSimpleton(name, x: WomFile) =>
+      SingleFileHashRequest(jobDescriptor.key, HashKey(true, "input", s"File $name"), x, initializationData)
     }
 
-    val hashingJobActorData = CallCacheHashingJobActorData(fileHashRequests.toList, callCacheReadingJobActor, fileHashBatchSize)
+    val hashingJobActorData =
+      CallCacheHashingJobActorData(fileHashRequests.toList, callCacheReadingJobActor, fileHashBatchSize)
     startWith(WaitingForHashFileRequest, hashingJobActorData)
 
     val aggregatedBaseHash = calculateHashAggregation(initialHashes, MessageDigest.getInstance("MD5"))
@@ -149,39 +149,65 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
     if (hashingJobActorData.callCacheReadingJobActor.isEmpty) self ! NextBatchOfFileHashesRequest
   }
 
-  private def calculateInitialHashes(nonFileInputs: Iterable[WomValueSimpleton], fileInputs: Iterable[WomValueSimpleton]): Set[HashResult] = {
+  private def calculateInitialHashes(nonFileInputs: Iterable[WomValueSimpleton],
+                                     fileInputs: Iterable[WomValueSimpleton]
+  ): Set[HashResult] = {
 
-    val commandTemplateHash = HashResult(HashKey("command template"), jobDescriptor.taskCall.callable.commandTemplateString(jobDescriptor.evaluatedTaskInputs).md5HashValue)
+    val commandTemplateHash = HashResult(
+      HashKey("command template"),
+      jobDescriptor.taskCall.callable.commandTemplateString(jobDescriptor.evaluatedTaskInputs).md5HashValue
+    )
     val backendNameHash = HashResult(HashKey("backend name"), backendNameForCallCachingPurposes.md5HashValue)
-    val inputCountHash = HashResult(HashKey("input count"), (nonFileInputs.size + fileInputs.size).toString.md5HashValue)
-    val outputCountHash = HashResult(HashKey("output count"), jobDescriptor.taskCall.callable.outputs.size.toString.md5HashValue)
+    val inputCountHash =
+      HashResult(HashKey("input count"), (nonFileInputs.size + fileInputs.size).toString.md5HashValue)
+    val outputCountHash =
+      HashResult(HashKey("output count"), jobDescriptor.taskCall.callable.outputs.size.toString.md5HashValue)
 
-    val runtimeAttributeHashes = runtimeAttributeDefinitions map { definition => jobDescriptor.runtimeAttributes.get(definition.name) match {
-      case Some(_) if definition.name == RuntimeAttributesKeys.DockerKey && callCachingEligible.dockerHash.isDefined =>
-        HashResult(HashKey(definition.usedInCallCaching, "runtime attribute", definition.name), callCachingEligible.dockerHash.get.md5HashValue)
-      case Some(womValue) => HashResult(HashKey(definition.usedInCallCaching, "runtime attribute", definition.name), womValue.valueString.md5HashValue)
-      case None => HashResult(HashKey(definition.usedInCallCaching, "runtime attribute", definition.name), UnspecifiedRuntimeAttributeHashValue)
-    }}
+    val runtimeAttributeHashes = runtimeAttributeDefinitions map { definition =>
+      jobDescriptor.runtimeAttributes.get(definition.name) match {
+        case Some(_)
+            if definition.name == RuntimeAttributesKeys.DockerKey && callCachingEligible.dockerHash.isDefined =>
+          HashResult(HashKey(definition.usedInCallCaching, "runtime attribute", definition.name),
+                     callCachingEligible.dockerHash.get.md5HashValue
+          )
+        case Some(womValue) =>
+          HashResult(HashKey(definition.usedInCallCaching, "runtime attribute", definition.name),
+                     womValue.valueString.md5HashValue
+          )
+        case None =>
+          HashResult(HashKey(definition.usedInCallCaching, "runtime attribute", definition.name),
+                     UnspecifiedRuntimeAttributeHashValue
+          )
+      }
+    }
 
-    val inputHashResults = nonFileInputs map {
-      case WomValueSimpleton(name, value) =>
-        val womTypeHashKeyString = value.womType.toHashKeyString
-        log.debug("Hashing input expression as {} {}", womTypeHashKeyString, name)
-        HashResult(HashKey("input", s"$womTypeHashKeyString $name"),  value.toWomString.md5HashValue)
+    val inputHashResults = nonFileInputs map { case WomValueSimpleton(name, value) =>
+      val womTypeHashKeyString = value.womType.toHashKeyString
+      log.debug("Hashing input expression as {} {}", womTypeHashKeyString, name)
+      HashResult(HashKey("input", s"$womTypeHashKeyString $name"), value.toWomString.md5HashValue)
     }
 
     val outputExpressionHashResults = jobDescriptor.taskCall.callable.outputs map { output =>
       val womTypeHashKeyString = output.womType.toHashKeyString
       val outputExpressionCacheString = output.expression.cacheString
-      log.debug("Hashing output expression type as '{}' and value as '{}'", womTypeHashKeyString, outputExpressionCacheString)
-      HashResult(HashKey("output expression", s"$womTypeHashKeyString ${output.name}"), outputExpressionCacheString.md5HashValue)
+      log.debug("Hashing output expression type as '{}' and value as '{}'",
+                womTypeHashKeyString,
+                outputExpressionCacheString
+      )
+      HashResult(HashKey("output expression", s"$womTypeHashKeyString ${output.name}"),
+                 outputExpressionCacheString.md5HashValue
+      )
     }
 
     // Build these all together for the final set of initial hashes:
-    Set(commandTemplateHash, backendNameHash, inputCountHash, outputCountHash) ++ runtimeAttributeHashes ++ inputHashResults ++ outputExpressionHashResults
+    Set(commandTemplateHash,
+        backendNameHash,
+        inputCountHash,
+        outputCountHash
+    ) ++ runtimeAttributeHashes ++ inputHashResults ++ outputExpressionHashResults
   }
 
-  private [callcaching] def makeFileHashingActor() = {
+  private[callcaching] def makeFileHashingActor() = {
     val fileHashingActorName = s"FileHashingActor_for_${jobDescriptor.key.tag}"
     context.actorOf(fileHashingActorProps, fileHashingActorName)
   }
@@ -199,18 +225,20 @@ object CallCacheHashingJobActor {
             callCachingActivity: CallCachingActivity,
             callCachePathPrefixes: Option[CallCachePathPrefixes],
             fileHashBatchSize: Int
-           ): Props = Props(new CallCacheHashingJobActor(
-    jobDescriptor,
-    callCacheReadingJobActor,
-    initializationData,
-    runtimeAttributeDefinitions,
-    backendNameForCallCachingPurposes,
-    fileHashingActorProps,
-    callCachingEligible,
-    callCachingActivity,
-    callCachePathPrefixes,
-    fileHashBatchSize
-  )).withDispatcher(EngineDispatcher)
+  ): Props = Props(
+    new CallCacheHashingJobActor(
+      jobDescriptor,
+      callCacheReadingJobActor,
+      initializationData,
+      runtimeAttributeDefinitions,
+      backendNameForCallCachingPurposes,
+      fileHashingActorProps,
+      callCachingEligible,
+      callCachingActivity,
+      callCachePathPrefixes,
+      fileHashBatchSize
+    )
+  ).withDispatcher(EngineDispatcher)
 
   sealed trait CallCacheHashingJobActorState
   case object WaitingForHashFileRequest extends CallCacheHashingJobActorState
@@ -227,22 +255,29 @@ object CallCacheHashingJobActor {
     val sortedHashes = hashes.toList
       .filter(_.hashKey.checkForHitOrMiss)
       .sortBy(_.hashKey.key)
-      .map({ case HashResult(hashKey, HashValue(hashValue)) => hashKey.key + hashValue })
+      .map { case HashResult(hashKey, HashValue(hashValue)) => hashKey.key + hashValue }
       .map(_.getBytes)
     sortedHashes foreach messageDigest.update
     DatatypeConverter.printHexBinary(messageDigest.digest())
   }
 
   object CallCacheHashingJobActorData {
-    def apply(fileHashRequestsRemaining: List[SingleFileHashRequest], callCacheReadingJobActor: Option[ActorRef], batchSize: Int): CallCacheHashingJobActorData = {
-      new CallCacheHashingJobActorData(fileHashRequestsRemaining.grouped(batchSize).toList, List.empty, callCacheReadingJobActor, batchSize)
-    }
+    def apply(fileHashRequestsRemaining: List[SingleFileHashRequest],
+              callCacheReadingJobActor: Option[ActorRef],
+              batchSize: Int
+    ): CallCacheHashingJobActorData =
+      new CallCacheHashingJobActorData(fileHashRequestsRemaining.grouped(batchSize).toList,
+                                       List.empty,
+                                       callCacheReadingJobActor,
+                                       batchSize
+      )
   }
 
   final case class CallCacheHashingJobActorData(fileHashRequestsRemaining: List[List[SingleFileHashRequest]],
                                                 fileHashResults: List[HashResult],
                                                 callCacheReadingJobActor: Option[ActorRef],
-                                                batchSize: Int) {
+                                                batchSize: Int
+  ) {
     private val md5Digest = MessageDigest.getInstance("MD5")
 
     /**
@@ -259,7 +294,14 @@ object CallCacheHashingJobActor {
           val updatedBatch = lastBatch.filterNot(_.hashKey == hashResult.hashKey)
           // If we're processing the last batch, and it's now empty, then we're done
           // In that case compute the aggregated hash and send that
-          if (updatedBatch.isEmpty) (List.empty, Option(CompleteFileHashingResult(newFileHashResults.toSet, calculateHashAggregation(newFileHashResults, md5Digest))))
+          if (updatedBatch.isEmpty)
+            (List.empty,
+             Option(
+               CompleteFileHashingResult(newFileHashResults.toSet,
+                                         calculateHashAggregation(newFileHashResults, md5Digest)
+               )
+             )
+            )
           // Otherwise just return the updated batch and no message
           else (List(updatedBatch), None)
         case currentBatch :: otherBatches =>
@@ -275,7 +317,9 @@ object CallCacheHashingJobActor {
           else (updatedBatch :: otherBatches, None)
       }
 
-      (this.copy(fileHashRequestsRemaining = updatedRequestsList, fileHashResults = newFileHashResults), responseMessage)
+      (this.copy(fileHashRequestsRemaining = updatedRequestsList, fileHashResults = newFileHashResults),
+       responseMessage
+      )
     }
   }
 
@@ -285,14 +329,18 @@ object CallCacheHashingJobActor {
   case object NextBatchOfFileHashesRequest extends CCHJARequest
 
   sealed trait CCHJAResponse
-  case class InitialHashingResult(initialHashes: Set[HashResult], aggregatedBaseHash: String, cacheHitHints: List[CacheHitHint] = List.empty) extends CCHJAResponse
+  case class InitialHashingResult(initialHashes: Set[HashResult],
+                                  aggregatedBaseHash: String,
+                                  cacheHitHints: List[CacheHitHint] = List.empty
+  ) extends CCHJAResponse
 
   // File Hashing responses
   sealed trait CCHJAFileHashResponse extends CCHJAResponse
   case class PartialFileHashingResult(initialHashes: NonEmptyList[HashResult]) extends CCHJAFileHashResponse
 
   sealed trait FinalFileHashingResult extends CCHJAFileHashResponse
-  case class CompleteFileHashingResult(fileHashes: Set[HashResult], aggregatedFileHash: String) extends FinalFileHashingResult
+  case class CompleteFileHashingResult(fileHashes: Set[HashResult], aggregatedFileHash: String)
+      extends FinalFileHashingResult
   case object NoFileHashesResult extends FinalFileHashingResult
 
   implicit class StringMd5er(val unhashedString: String) extends AnyVal {
@@ -303,11 +351,11 @@ object CallCacheHashingJobActor {
   }
 
   implicit class WomTypeHashString(val womType: WomType) extends AnyVal {
-    def toHashKeyString: String = {
+    def toHashKeyString: String =
       womType match {
         case c: WomCompositeType =>
-          val fieldTypes = c.typeMap map {
-            case (key, value) => s"$key -> ${value.stableName}"
+          val fieldTypes = c.typeMap map { case (key, value) =>
+            s"$key -> ${value.stableName}"
           }
           "CompositeType_digest_" + fieldTypes.mkString("\n").md5Sum
         case a: WomArrayType =>
@@ -321,6 +369,5 @@ object CallCacheHashingJobActor {
           s"Coproduct($hashStrings)"
         case o => o.stableName
       }
-    }
   }
 }

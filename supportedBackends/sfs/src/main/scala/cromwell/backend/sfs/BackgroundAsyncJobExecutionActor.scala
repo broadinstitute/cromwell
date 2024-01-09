@@ -8,9 +8,8 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
 
   lazy val backgroundScript = jobPaths.script.plusExt("background")
 
-  override def writeScriptContents(): Either[ExecutionHandle, Unit] = {
+  override def writeScriptContents(): Either[ExecutionHandle, Unit] =
     super.writeScriptContents().flatMap(_ => writeBackgroundScriptContents())
-  }
 
   /**
     * Run the command via bash in the background, and echo the PID.
@@ -18,11 +17,10 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
   private def writeBackgroundScriptContents(): Either[ExecutionHandle, Unit] = {
     val backgroundCommand = redirectOutputs(processArgs.argv.mkString("'", "' '", "'"))
     // $! contains the previous background command's process id (PID)
-    backgroundScript.write(
-      s"""|#!/bin/bash
-          |BACKGROUND_COMMAND &
-          |echo $$!
-          |""".stripMargin.replace("BACKGROUND_COMMAND", backgroundCommand))
+    backgroundScript.write(s"""|#!/bin/bash
+                               |BACKGROUND_COMMAND &
+                               |echo $$!
+                               |""".stripMargin.replace("BACKGROUND_COMMAND", backgroundCommand))
     Right(())
   }
 
@@ -38,9 +36,8 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
     StandardAsyncJob(pid)
   }
 
-  override def checkAliveArgs(job: StandardAsyncJob): SharedFileSystemCommand = {
+  override def checkAliveArgs(job: StandardAsyncJob): SharedFileSystemCommand =
     SharedFileSystemCommand("ps", job.jobId)
-  }
 
   override def killArgs(job: StandardAsyncJob): SharedFileSystemCommand = {
     val killScript = jobPaths.script.plusExt("kill")
@@ -52,21 +49,20 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
     /*
     Use pgrep to find the children of a process, and recursively kill the children before killing the parent.
      */
-    killScript.write(
-      s"""|#!/bin/bash
-          |kill_tree() {
-          |  local pid
-          |  local cpid
-          |  pid=$$1
-          |  for cpid in $$(pgrep -P "$$pid"); do
-          |    kill_tree "$$cpid"
-          |  done
-          |  echo killing "$$pid"
-          |  kill "$$pid"
-          |}
-          |
-          |kill_tree "${job.jobId}"
-          |""".stripMargin)
+    killScript.write(s"""|#!/bin/bash
+                         |kill_tree() {
+                         |  local pid
+                         |  local cpid
+                         |  pid=$$1
+                         |  for cpid in $$(pgrep -P "$$pid"); do
+                         |    kill_tree "$$cpid"
+                         |  done
+                         |  echo killing "$$pid"
+                         |  kill "$$pid"
+                         |}
+                         |
+                         |kill_tree "${job.jobId}"
+                         |""".stripMargin)
     ()
   }
 }

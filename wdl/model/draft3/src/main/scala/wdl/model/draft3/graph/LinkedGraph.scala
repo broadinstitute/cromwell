@@ -7,7 +7,7 @@ final case class LinkedGraph(elements: Set[WorkflowGraphElement],
                              edges: Set[LinkedGraphEdge],
                              generatedHandles: Set[GeneratedValueHandle],
                              consumedValueLookup: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
-                             typeAliases: Map[String, WomType]) {
-}
+                             typeAliases: Map[String, WomType]
+) {}
 
 final case class LinkedGraphEdge(upstream: WorkflowGraphElement, downstream: WorkflowGraphElement)

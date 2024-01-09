@@ -9,7 +9,6 @@ import org.scalatest.matchers.should.Matchers
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-
 class IoRetrySpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   implicit val timer = IO.timer(ExecutionContext.global)
   implicit val ioError = new StatefulIoError[Int] {
@@ -28,7 +27,8 @@ class IoRetrySpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     }
 
     val incrementOnRetry: (Throwable, Int) => Int = (_, s) => s + 1
-    val io = IORetry.withRetry(work, 1, Option(3), backoff = Backoff.staticBackoff(10.millis), onRetry = incrementOnRetry)
+    val io =
+      IORetry.withRetry(work, 1, Option(3), backoff = Backoff.staticBackoff(10.millis), onRetry = incrementOnRetry)
     val statefulException = the[Exception] thrownBy io.unsafeRunSync()
     statefulException.getCause shouldBe exception
     statefulException.getMessage shouldBe "Attempted 3 times"

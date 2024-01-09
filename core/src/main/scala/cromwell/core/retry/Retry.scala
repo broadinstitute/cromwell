@@ -34,11 +34,11 @@ object Retry extends StrictLogging {
     */
   def withRetry[A](f: () => Future[A],
                    maxRetries: Option[Int] = Option(10),
-                   backoff: Backoff = SimpleExponentialBackoff(5 seconds, 10 seconds, 1.1D),
+                   backoff: Backoff = SimpleExponentialBackoff(5 seconds, 10 seconds, 1.1d),
                    isTransient: Throwable => Boolean = throwableToFalse,
                    isFatal: Throwable => Boolean = throwableToFalse,
-                   onRetry: Throwable => Unit = noopOnRetry)
-                   (implicit actorSystem: ActorSystem): Future[A] = {
+                   onRetry: Throwable => Unit = noopOnRetry
+  )(implicit actorSystem: ActorSystem): Future[A] = {
     // In the future we might want EC passed in separately but at the moment it caused more issues than it solved to do so
     implicit val ec: ExecutionContext = actorSystem.dispatcher
     val delay = backoff.backoffMillis.millis
@@ -47,10 +47,18 @@ object Retry extends StrictLogging {
       case throwable if isFatal(throwable) => Future.failed(CromwellFatalException(throwable))
       case throwable if !isFatal(throwable) =>
         val retriesLeft = if (isTransient(throwable)) maxRetries else maxRetries map { _ - 1 }
-        
+
         if (retriesLeft.forall(_ > 0)) {
           onRetry(throwable)
-          after(delay, actorSystem.scheduler)(withRetry(f, backoff = backoff.next, maxRetries = retriesLeft, isTransient = isTransient, isFatal = isFatal, onRetry = onRetry))
+          after(delay, actorSystem.scheduler)(
+            withRetry(f,
+                      backoff = backoff.next,
+                      maxRetries = retriesLeft,
+                      isTransient = isTransient,
+                      isFatal = isFatal,
+                      onRetry = onRetry
+            )
+          )
         } else {
           Future.failed(new CromwellFatalException(throwable))
         }
@@ -69,8 +77,8 @@ object Retry extends StrictLogging {
    */
   def withRetryForTransactionRollback[A](f: () => Future[A],
                                          maxRetries: Int = 5,
-                                         backoff: Backoff = SimpleExponentialBackoff(5 seconds, 10 seconds, 1.1D))
-                                        (implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[A] = {
+                                         backoff: Backoff = SimpleExponentialBackoff(5 seconds, 10 seconds, 1.1d)
+  )(implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[A] = {
     val delay = backoff.backoffMillis.millis
 
     f() recoverWith {
@@ -85,4 +93,3 @@ object Retry extends StrictLogging {
     }
   }
 }
-

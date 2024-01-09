@@ -9,7 +9,8 @@ case class FtpFileSystemsConfiguration(cacheTTL: FiniteDuration,
                                        capacity: Int,
                                        idleConnectionTimeout: FiniteDuration,
                                        connectionPort: Int,
-                                       connectionMode: ConnectionMode)
+                                       connectionMode: ConnectionMode
+)
 
 object FtpFileSystemsConfiguration {
   sealed trait ConnectionMode

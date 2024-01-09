@@ -34,15 +34,14 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
                                pathBuilders: List[PathBuilder],
                                serviceRegistryActor: ActorRef,
                                ioActorRef: ActorRef,
-                               gcsCommandBuilder: IoCommandBuilder,
-                              )
-  extends LoggingFSM[DeleteWorkflowFilesActorState, DeleteWorkflowFilesActorStateData] with IoClientHelper {
+                               gcsCommandBuilder: IoCommandBuilder
+) extends LoggingFSM[DeleteWorkflowFilesActorState, DeleteWorkflowFilesActorStateData]
+    with IoClientHelper {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
   val asyncIO = new AsyncIo(ioActorRef, gcsCommandBuilder)
   val callCache = new CallCache(EngineServicesStore.engineDatabaseInterface)
-
 
   startWith(Pending, NoData)
 
@@ -55,8 +54,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
       if (intermediateOutputs.nonEmpty) {
         self ! DeleteFiles
         goto(DeleteIntermediateFiles) using DeletingIntermediateFilesData(intermediateOutputs)
-      }
-      else {
+      } else {
         log.info(s"Root workflow ${rootWorkflowId.id} does not have any intermediate output files to delete.")
         respondAndStop(Nil, Nil, Nil)
       }
@@ -112,7 +110,8 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
          In both these cases, we consider the deletion process a success, but warn the users of such files not found.
        */
       val newDataWithErrorUpdates = error match {
-        case EnhancedCromwellIoException(_, _: FileNotFoundException) => newData.copy(filesNotFound = newData.filesNotFound :+ command.file)
+        case EnhancedCromwellIoException(_, _: FileNotFoundException) =>
+          newData.copy(filesNotFound = newData.filesNotFound :+ command.file)
         case _ => newData.copy(deleteErrors = newData.deleteErrors :+ error)
       }
       commandState match {
@@ -120,7 +119,9 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
         case AllCommandsDone =>
           // once deletion is complete, invalidate call cache entries
           self ! InvalidateCallCache
-          goto(InvalidatingCallCache) using InvalidateCallCacheData(newDataWithErrorUpdates.deleteErrors, newDataWithErrorUpdates.filesNotFound)
+          goto(InvalidatingCallCache) using InvalidateCallCacheData(newDataWithErrorUpdates.deleteErrors,
+                                                                    newDataWithErrorUpdates.filesNotFound
+          )
       }
   }
 
@@ -159,14 +160,17 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
       val (newData: WaitingForInvalidateCCResponsesData, invalidateState) = data.commandComplete(cacheId.id)
       invalidateState match {
         case StillWaiting => stay() using newData
-        case AllCommandsDone => respondAndStop(newData.deleteErrors, newData.filesNotFound, newData.callCacheInvalidationErrors)
+        case AllCommandsDone =>
+          respondAndStop(newData.deleteErrors, newData.filesNotFound, newData.callCacheInvalidationErrors)
       }
     case Event(CallCacheInvalidatedFailure(cacheId, error), data: WaitingForInvalidateCCResponsesData) =>
       val (newData: WaitingForInvalidateCCResponsesData, invalidateState) = data.commandComplete(cacheId.id)
-      val updatedDataWithError = newData.copy(callCacheInvalidationErrors = newData.callCacheInvalidationErrors :+ error)
+      val updatedDataWithError =
+        newData.copy(callCacheInvalidationErrors = newData.callCacheInvalidationErrors :+ error)
       invalidateState match {
         case StillWaiting => stay() using updatedDataWithError
-        case AllCommandsDone => respondAndStop(newData.deleteErrors, newData.filesNotFound, updatedDataWithError.callCacheInvalidationErrors)
+        case AllCommandsDone =>
+          respondAndStop(newData.deleteErrors, newData.filesNotFound, updatedDataWithError.callCacheInvalidationErrors)
       }
   }
 
@@ -176,27 +180,36 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
       stay()
     case Event(ShutdownCommand, _) => stopSelf()
     case other =>
-      log.error(s"Programmer Error: Unexpected message to ${getClass.getSimpleName} ${self.path.name} in state $stateName with $stateData: ${other.toPrettyElidedString(1000)}")
+      log.error(
+        s"Programmer Error: Unexpected message to ${getClass.getSimpleName} ${self.path.name} in state $stateName with $stateData: ${other
+            .toPrettyElidedString(1000)}"
+      )
       stay()
   }
-
 
   private def stopSelf() = {
     context stop self
     stay()
   }
 
-
-  private def respondAndStop(errors: List[Throwable], filesNotFound: List[Path], callCacheInvalidationErrors: List[Throwable]) = {
+  private def respondAndStop(errors: List[Throwable],
+                             filesNotFound: List[Path],
+                             callCacheInvalidationErrors: List[Throwable]
+  ) = {
     val (metadataEvent, response) =
-      if (errors.isEmpty) (metadataEventForDeletionStatus(Succeeded), DeleteWorkflowFilesSucceededResponse(filesNotFound, callCacheInvalidationErrors))
-      else (metadataEventForDeletionStatus(Failed), DeleteWorkflowFilesFailedResponse(errors, filesNotFound, callCacheInvalidationErrors))
+      if (errors.isEmpty)
+        (metadataEventForDeletionStatus(Succeeded),
+         DeleteWorkflowFilesSucceededResponse(filesNotFound, callCacheInvalidationErrors)
+        )
+      else
+        (metadataEventForDeletionStatus(Failed),
+         DeleteWorkflowFilesFailedResponse(errors, filesNotFound, callCacheInvalidationErrors)
+        )
 
     serviceRegistryActor ! PutMetadataAction(metadataEvent)
     context.parent ! response
     stopSelf()
   }
-
 
   private def metadataEventForDeletionStatus(status: FileDeletionStatus): MetadataEvent = {
     val key = MetadataKey(rootWorkflowId, None, WorkflowMetadataKeys.FileDeletionStatus)
@@ -205,27 +218,28 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
     MetadataEvent(key, value)
   }
 
-
   private def fetchCallCacheEntries(callCache: CallCache): Future[Set[Long]] = {
-    val callCacheEntryIdsFuture = rootAndSubworkflowIds.map(x => callCache.callCacheEntryIdsForWorkflowId(x.toString)).map { f =>
-      f.map { Success(_) }.recover { case t => Failure(t) }}
+    val callCacheEntryIdsFuture =
+      rootAndSubworkflowIds.map(x => callCache.callCacheEntryIdsForWorkflowId(x.toString)).map { f =>
+        f.map(Success(_)).recover { case t => Failure(t) }
+      }
 
-    Future.sequence(callCacheEntryIdsFuture).map { _.flatMap {
-      case Success(callCacheEntryIds) =>
-        Option(callCacheEntryIds)
-      case Failure(e) =>
-        log.error(s"Failed to fetch call cache entry ids for workflow. Error: ${ExceptionUtils.getMessage(e)}")
-        None
-    }.flatten}
+    Future.sequence(callCacheEntryIdsFuture).map {
+      _.flatMap {
+        case Success(callCacheEntryIds) =>
+          Option(callCacheEntryIds)
+        case Failure(e) =>
+          log.error(s"Failed to fetch call cache entry ids for workflow. Error: ${ExceptionUtils.getMessage(e)}")
+          None
+      }.flatten
+    }
   }
 
-  private def toPath(womSingleFile: WomSingleFile): Option[Path] = {
+  private def toPath(womSingleFile: WomSingleFile): Option[Path] =
     Try(PathFactory.buildPath(womSingleFile.valueString, pathBuilders)).toOption
-  }
 
-  private def getWomSingleFiles(womValue: WomValue): Seq[WomSingleFile] = {
-    womValue.collectAsSeq({ case womSingleFile: WomSingleFile => womSingleFile })
-  }
+  private def getWomSingleFiles(womValue: WomValue): Seq[WomSingleFile] =
+    womValue.collectAsSeq { case womSingleFile: WomSingleFile => womSingleFile }
 
   /**
     * Returns Paths for WomSingleFiles in allOutputs that are not in finalOutputs, verifying that the Paths are contained
@@ -236,26 +250,32 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
     val allOutputFiles = allOutputs.flatMap(getWomSingleFiles)
     val finalOutputFiles = finalOutputs.flatMap(getWomSingleFiles)
     val potentialIntermediaries = allOutputFiles.diff(finalOutputFiles).flatMap(toPath)
-    val checkedIntermediaries = potentialIntermediaries.filter(p => rootWorkflowRootPaths.exists(r => p.toAbsolutePath.startsWith(r.toAbsolutePath)))
-    for ( path <- potentialIntermediaries.diff(checkedIntermediaries) ) {
-      log.info(s"Did not delete $path because it is not contained within a workflow root directory for $rootWorkflowId.")
-    }
+    val checkedIntermediaries = potentialIntermediaries.filter(p =>
+      rootWorkflowRootPaths.exists(r => p.toAbsolutePath.startsWith(r.toAbsolutePath))
+    )
+    for (path <- potentialIntermediaries.diff(checkedIntermediaries))
+      log.info(
+        s"Did not delete $path because it is not contained within a workflow root directory for $rootWorkflowId."
+      )
     checkedIntermediaries
   }
 
   override def ioActor: ActorRef = ioActorRef
 
-
-  override protected def onTimeout(message: Any, to: ActorRef): Unit = {
+  override protected def onTimeout(message: Any, to: ActorRef): Unit =
     message match {
-      case delete: IoDeleteCommand => log.error(s"The DeleteWorkflowFilesActor for root workflow $rootWorkflowId timed out " +
-        s"waiting for a response for deleting file ${delete.file}.")
-      case other => log.error(s"The DeleteWorkflowFilesActor for root workflow $rootWorkflowId timed out " +
-        s"waiting for a response for unknown operation: $other.")
+      case delete: IoDeleteCommand =>
+        log.error(
+          s"The DeleteWorkflowFilesActor for root workflow $rootWorkflowId timed out " +
+            s"waiting for a response for deleting file ${delete.file}."
+        )
+      case other =>
+        log.error(
+          s"The DeleteWorkflowFilesActor for root workflow $rootWorkflowId timed out " +
+            s"waiting for a response for unknown operation: $other."
+        )
     }
-  }
 }
-
 
 object DeleteWorkflowFilesActor {
 
@@ -289,62 +309,67 @@ object DeleteWorkflowFilesActor {
 
     def setCommandsToWaitFor(updatedCommandsToWaitFor: Set[A]): WaitingForResponseFromActorData[A]
 
-    def commandComplete(command: A): (WaitingForResponseFromActorData[A], WaitingForResponseState) = {
+    def commandComplete(command: A): (WaitingForResponseFromActorData[A], WaitingForResponseState) =
       if (commandsToWaitFor.isEmpty) (this, AllCommandsDone)
       else {
         val updatedCommandsSet = commandsToWaitFor - command
 
         val expectedCommandSetSize = updatedCommandsSet.size
         val requiredCommandSetSize = commandsToWaitFor.size - 1
-        require(expectedCommandSetSize == requiredCommandSetSize, assertionFailureMsg(expectedCommandSetSize, requiredCommandSetSize))
+        require(expectedCommandSetSize == requiredCommandSetSize,
+                assertionFailureMsg(expectedCommandSetSize, requiredCommandSetSize)
+        )
 
         if (updatedCommandsSet.isEmpty) (setCommandsToWaitFor(Set.empty), AllCommandsDone)
         else (setCommandsToWaitFor(updatedCommandsSet), StillWaiting)
       }
-    }
   }
 
   case class WaitingForIoResponsesData(commandsToWaitFor: Set[IoDeleteCommand],
                                        deleteErrors: List[Throwable] = List.empty,
-                                       filesNotFound: List[Path] = List.empty)
-    extends WaitingForResponseFromActorData[IoDeleteCommand](commandsToWaitFor) with DeleteWorkflowFilesActorStateData {
+                                       filesNotFound: List[Path] = List.empty
+  ) extends WaitingForResponseFromActorData[IoDeleteCommand](commandsToWaitFor)
+      with DeleteWorkflowFilesActorStateData {
 
-    override def assertionFailureMsg(expectedSize: Int, requiredSize: Int): String = {
+    override def assertionFailureMsg(expectedSize: Int, requiredSize: Int): String =
       s"Found updated command set size as $expectedSize instead of $requiredSize. The updated set of commands that " +
         s"DeleteWorkflowFilesActor has to wait for should be 1 less after removing a completed command."
-    }
 
-    override def setCommandsToWaitFor(updatedCommandsToWaitFor: Set[IoDeleteCommand]): WaitingForResponseFromActorData[IoDeleteCommand] = {
+    override def setCommandsToWaitFor(
+      updatedCommandsToWaitFor: Set[IoDeleteCommand]
+    ): WaitingForResponseFromActorData[IoDeleteCommand] =
       this.copy(commandsToWaitFor = updatedCommandsToWaitFor)
-    }
   }
 
   case class WaitingForInvalidateCCResponsesData(commandsToWaitFor: Set[Long],
                                                  deleteErrors: List[Throwable],
                                                  filesNotFound: List[Path],
-                                                 callCacheInvalidationErrors: List[Throwable] = List.empty)
-    extends WaitingForResponseFromActorData[Long](commandsToWaitFor) with DeleteWorkflowFilesActorStateData {
+                                                 callCacheInvalidationErrors: List[Throwable] = List.empty
+  ) extends WaitingForResponseFromActorData[Long](commandsToWaitFor)
+      with DeleteWorkflowFilesActorStateData {
 
-    override def assertionFailureMsg(expectedSize: Int, requiredSize: Int): String = {
+    override def assertionFailureMsg(expectedSize: Int, requiredSize: Int): String =
       s"Found updated call cache entries set size as $expectedSize instead of $requiredSize. The updated set of call cache entries" +
         s" that DeleteWorkflowFilesActor has to wait for should be 1 less after a call cache entry is invalidated."
-    }
 
-    override def setCommandsToWaitFor(updatedCommandsToWaitFor: Set[Long]): WaitingForResponseFromActorData[Long] = {
+    override def setCommandsToWaitFor(updatedCommandsToWaitFor: Set[Long]): WaitingForResponseFromActorData[Long] =
       this.copy(commandsToWaitFor = updatedCommandsToWaitFor)
-    }
   }
 
   // Responses
   sealed trait DeleteWorkflowFilesResponse
-  case class DeleteWorkflowFilesSucceededResponse(filesNotFound: List[Path], callCacheInvalidationErrors: List[Throwable]) extends DeleteWorkflowFilesResponse
-  case class DeleteWorkflowFilesFailedResponse(errors: List[Throwable], filesNotFound: List[Path], callCacheInvalidationErrors: List[Throwable]) extends DeleteWorkflowFilesResponse
+  case class DeleteWorkflowFilesSucceededResponse(filesNotFound: List[Path],
+                                                  callCacheInvalidationErrors: List[Throwable]
+  ) extends DeleteWorkflowFilesResponse
+  case class DeleteWorkflowFilesFailedResponse(errors: List[Throwable],
+                                               filesNotFound: List[Path],
+                                               callCacheInvalidationErrors: List[Throwable]
+  ) extends DeleteWorkflowFilesResponse
 
   // internal state to keep track of deletion of files and call cache invalidation
   sealed trait WaitingForResponseState
   private[deletion] case object StillWaiting extends WaitingForResponseState
   private[deletion] case object AllCommandsDone extends WaitingForResponseState
-
 
   def props(rootWorkflowId: RootWorkflowId,
             rootAndSubworkflowIds: Set[WorkflowId],
@@ -354,18 +379,19 @@ object DeleteWorkflowFilesActor {
             pathBuilders: List[PathBuilder],
             serviceRegistryActor: ActorRef,
             ioActor: ActorRef,
-            gcsCommandBuilder: IoCommandBuilder = GcsBatchCommandBuilder,
-           ): Props = {
-    Props(new DeleteWorkflowFilesActor(
-      rootWorkflowId = rootWorkflowId,
-      rootAndSubworkflowIds = rootAndSubworkflowIds,
-      rootWorkflowRootPaths = rootWorkflowRootPaths,
-      workflowFinalOutputs = workflowFinalOutputs,
-      workflowAllOutputs = workflowAllOutputs,
-      pathBuilders = pathBuilders,
-      serviceRegistryActor = serviceRegistryActor,
-      ioActorRef = ioActor,
-      gcsCommandBuilder = gcsCommandBuilder,
-    ))
-  }
+            gcsCommandBuilder: IoCommandBuilder = GcsBatchCommandBuilder
+  ): Props =
+    Props(
+      new DeleteWorkflowFilesActor(
+        rootWorkflowId = rootWorkflowId,
+        rootAndSubworkflowIds = rootAndSubworkflowIds,
+        rootWorkflowRootPaths = rootWorkflowRootPaths,
+        workflowFinalOutputs = workflowFinalOutputs,
+        workflowAllOutputs = workflowAllOutputs,
+        pathBuilders = pathBuilders,
+        serviceRegistryActor = serviceRegistryActor,
+        ioActorRef = ioActor,
+        gcsCommandBuilder = gcsCommandBuilder
+      )
+    )
 }

@@ -16,13 +16,13 @@ trait Callable {
   def inputs: List[_ <: InputDefinition]
   def outputs: List[_ <: OutputDefinition]
 
-  val sourceLocation : Option[SourceFileLocation] = None
+  val sourceLocation: Option[SourceFileLocation] = None
 }
 
 trait ExecutableCallable extends Callable {
   def graph: Graph
-  lazy val taskCallNodes: Set[CommandCallNode] = graph.allNodes collect {
-    case taskNode: CommandCallNode => taskNode
+  lazy val taskCallNodes: Set[CommandCallNode] = graph.allNodes collect { case taskNode: CommandCallNode =>
+    taskNode
   }
 }
 
@@ -48,37 +48,57 @@ object Callable {
   }
 
   object RequiredInputDefinition {
-    def apply(name: String, womType: WomType, valueMapper: InputValueMapper): RequiredInputDefinition = {
+    def apply(name: String, womType: WomType, valueMapper: InputValueMapper): RequiredInputDefinition =
       RequiredInputDefinition(LocalName(name), womType, valueMapper, None)
-    }
-    def apply(name: String, womType: WomType): RequiredInputDefinition = {
+    def apply(name: String, womType: WomType): RequiredInputDefinition =
       RequiredInputDefinition(LocalName(name), womType, InputDefinition.IdentityValueMapper, None)
-    }
-    def apply(name: String, womType: WomType, parameterMeta: Option[MetaValueElement]): RequiredInputDefinition = {
+    def apply(name: String, womType: WomType, parameterMeta: Option[MetaValueElement]): RequiredInputDefinition =
       RequiredInputDefinition(LocalName(name), womType, InputDefinition.IdentityValueMapper, parameterMeta)
-    }
-    def apply(name: String, womType: WomType, valueMapper: InputValueMapper, parameterMeta: Option[MetaValueElement]): RequiredInputDefinition = {
+    def apply(name: String,
+              womType: WomType,
+              valueMapper: InputValueMapper,
+              parameterMeta: Option[MetaValueElement]
+    ): RequiredInputDefinition =
       RequiredInputDefinition(LocalName(name), womType, valueMapper, parameterMeta)
-    }
   }
   final case class RequiredInputDefinition(localName: LocalName,
                                            womType: WomType,
                                            valueMapper: InputValueMapper = InputDefinition.IdentityValueMapper,
-                                           parameterMeta: Option[MetaValueElement] = None) extends InputDefinition
+                                           parameterMeta: Option[MetaValueElement] = None
+  ) extends InputDefinition
 
   object OverridableInputDefinitionWithDefault {
-    def apply(name: String, womType: WomType, default: WomExpression): OverridableInputDefinitionWithDefault = {
-      OverridableInputDefinitionWithDefault(LocalName(name), womType, default, InputDefinition.IdentityValueMapper, None)
-    }
-    def apply(name: String, womType: WomType, default: WomExpression, parameterMeta: Option[MetaValueElement]): OverridableInputDefinitionWithDefault = {
-      OverridableInputDefinitionWithDefault(LocalName(name), womType, default, InputDefinition.IdentityValueMapper, parameterMeta)
-    }
-    def apply(name: String, womType: WomType, default: WomExpression, valueMapper: InputValueMapper): OverridableInputDefinitionWithDefault = {
+    def apply(name: String, womType: WomType, default: WomExpression): OverridableInputDefinitionWithDefault =
+      OverridableInputDefinitionWithDefault(LocalName(name),
+                                            womType,
+                                            default,
+                                            InputDefinition.IdentityValueMapper,
+                                            None
+      )
+    def apply(name: String,
+              womType: WomType,
+              default: WomExpression,
+              parameterMeta: Option[MetaValueElement]
+    ): OverridableInputDefinitionWithDefault =
+      OverridableInputDefinitionWithDefault(LocalName(name),
+                                            womType,
+                                            default,
+                                            InputDefinition.IdentityValueMapper,
+                                            parameterMeta
+      )
+    def apply(name: String,
+              womType: WomType,
+              default: WomExpression,
+              valueMapper: InputValueMapper
+    ): OverridableInputDefinitionWithDefault =
       OverridableInputDefinitionWithDefault(LocalName(name), womType, default, valueMapper, None)
-    }
-    def apply(name: String, womType: WomType, default: WomExpression, valueMapper: InputValueMapper, parameterMeta: Option[MetaValueElement]): OverridableInputDefinitionWithDefault = {
+    def apply(name: String,
+              womType: WomType,
+              default: WomExpression,
+              valueMapper: InputValueMapper,
+              parameterMeta: Option[MetaValueElement]
+    ): OverridableInputDefinitionWithDefault =
       OverridableInputDefinitionWithDefault(LocalName(name), womType, default, valueMapper, parameterMeta)
-    }
   }
 
   sealed trait InputDefinitionWithDefault extends InputDefinition {
@@ -91,16 +111,25 @@ object Callable {
   final case class OverridableInputDefinitionWithDefault(localName: LocalName,
                                                          womType: WomType,
                                                          default: WomExpression,
-                                                         valueMapper: InputValueMapper = InputDefinition.IdentityValueMapper,
-                                                         parameterMeta: Option[MetaValueElement] = None) extends InputDefinitionWithDefault
+                                                         valueMapper: InputValueMapper =
+                                                           InputDefinition.IdentityValueMapper,
+                                                         parameterMeta: Option[MetaValueElement] = None
+  ) extends InputDefinitionWithDefault
 
   object FixedInputDefinitionWithDefault {
-    def apply(name: String, womType: WomType, default: WomExpression): FixedInputDefinitionWithDefault = {
+    def apply(name: String, womType: WomType, default: WomExpression): FixedInputDefinitionWithDefault =
       FixedInputDefinitionWithDefault(LocalName(name), womType, default, InputDefinition.IdentityValueMapper, None)
-    }
-    def apply(name: String, womType: WomType, default: WomExpression, parameterMeta: Option[MetaValueElement]): FixedInputDefinitionWithDefault = {
-      FixedInputDefinitionWithDefault(LocalName(name), womType, default, InputDefinition.IdentityValueMapper, parameterMeta)
-    }
+    def apply(name: String,
+              womType: WomType,
+              default: WomExpression,
+              parameterMeta: Option[MetaValueElement]
+    ): FixedInputDefinitionWithDefault =
+      FixedInputDefinitionWithDefault(LocalName(name),
+                                      womType,
+                                      default,
+                                      InputDefinition.IdentityValueMapper,
+                                      parameterMeta
+      )
   }
 
   /**
@@ -110,25 +139,37 @@ object Callable {
                                                    womType: WomType,
                                                    default: WomExpression,
                                                    valueMapper: InputValueMapper = InputDefinition.IdentityValueMapper,
-                                                   parameterMeta: Option[MetaValueElement] = None) extends InputDefinitionWithDefault
+                                                   parameterMeta: Option[MetaValueElement] = None
+  ) extends InputDefinitionWithDefault
 
   object OptionalInputDefinition {
-    def apply(name: String, womType: WomOptionalType): OptionalInputDefinition = OptionalInputDefinition(LocalName(name), womType, InputDefinition.IdentityValueMapper, None)
-    def apply(name: String, womType: WomOptionalType, parameterMeta: Option[MetaValueElement]): OptionalInputDefinition = OptionalInputDefinition(LocalName(name), womType, InputDefinition.IdentityValueMapper, parameterMeta)
-    def apply(name: String, womType: WomOptionalType, valueMapper: InputValueMapper): OptionalInputDefinition = OptionalInputDefinition(LocalName(name), womType, valueMapper, None)
-    def apply(name: String, womType: WomOptionalType, valueMapper: InputValueMapper, parameterMeta: Option[MetaValueElement]): OptionalInputDefinition = OptionalInputDefinition(LocalName(name), womType, valueMapper, parameterMeta)
+    def apply(name: String, womType: WomOptionalType): OptionalInputDefinition =
+      OptionalInputDefinition(LocalName(name), womType, InputDefinition.IdentityValueMapper, None)
+    def apply(name: String,
+              womType: WomOptionalType,
+              parameterMeta: Option[MetaValueElement]
+    ): OptionalInputDefinition =
+      OptionalInputDefinition(LocalName(name), womType, InputDefinition.IdentityValueMapper, parameterMeta)
+    def apply(name: String, womType: WomOptionalType, valueMapper: InputValueMapper): OptionalInputDefinition =
+      OptionalInputDefinition(LocalName(name), womType, valueMapper, None)
+    def apply(name: String,
+              womType: WomOptionalType,
+              valueMapper: InputValueMapper,
+              parameterMeta: Option[MetaValueElement]
+    ): OptionalInputDefinition = OptionalInputDefinition(LocalName(name), womType, valueMapper, parameterMeta)
   }
   final case class OptionalInputDefinition(localName: LocalName,
                                            womType: WomOptionalType,
                                            valueMapper: InputValueMapper = InputDefinition.IdentityValueMapper,
-                                           parameterMeta: Option[MetaValueElement] = None) extends InputDefinition
+                                           parameterMeta: Option[MetaValueElement] = None
+  ) extends InputDefinition
 
   object OutputDefinition {
-    def apply(name: String, womType: WomType, expression: WomExpression): OutputDefinition = {
+    def apply(name: String, womType: WomType, expression: WomExpression): OutputDefinition =
       OutputDefinition(LocalName(name), womType, expression)
-    }
   }
   final case class OutputDefinition(localName: LocalName, womType: WomType, expression: WomExpression) {
+
     /**
       * Alias for localName.asString
       */

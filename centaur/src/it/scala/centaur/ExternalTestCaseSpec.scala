@@ -5,7 +5,9 @@ import cats.data.Validated.{Invalid, Valid}
 import centaur.test.standard.CentaurTestCase
 import com.typesafe.scalalogging.StrictLogging
 
-class ExternalTestCaseSpec(cromwellBackends: List[String]) extends AbstractCentaurTestCaseSpec(cromwellBackends) with StrictLogging {
+class ExternalTestCaseSpec(cromwellBackends: List[String])
+    extends AbstractCentaurTestCaseSpec(cromwellBackends)
+    with StrictLogging {
 
   def this() = this(CentaurTestSuite.cromwellBackends)
 
@@ -15,11 +17,10 @@ class ExternalTestCaseSpec(cromwellBackends: List[String]) extends AbstractCenta
       logger.info("No external test to run")
   }
 
-  def runTestFile(testFile: String) = {
+  def runTestFile(testFile: String) =
     CentaurTestCase.fromFile(cromwellTracker = None)(File(testFile)) match {
       case Valid(testCase) => executeStandardTest(testCase)
       case Invalid(error) =>
         fail(s"Invalid test case: ${error.toList.mkString(", ")}")
     }
-  }
 }

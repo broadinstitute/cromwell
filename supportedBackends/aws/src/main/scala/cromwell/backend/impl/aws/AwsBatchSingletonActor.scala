@@ -7,9 +7,17 @@ import cromwell.cloudsupport.aws.auth.AwsAuthMode
 import cromwell.core.Mailbox
 import software.amazon.awssdk.regions.Region
 
-class AwsBatchSingletonActor(configRegion: Option[Region], optAwsAuthMode: Option[AwsAuthMode] = None) extends Actor with ActorLogging {
-  val awsOccasionalStatusPoller: ActorRef = context.actorOf(OccasionalStatusPollingActor.props(configRegion, optAwsAuthMode).withMailbox(Mailbox.PriorityMailbox), "OccasionalStatusPollingActor")
-  val awsIntervalLimitedSubmitActor: ActorRef = context.actorOf(IntervalLimitedAwsJobSubmitActor.props(configRegion).withMailbox(Mailbox.PriorityMailbox), "IntervalLimitedAWSSubmitActor")
+class AwsBatchSingletonActor(configRegion: Option[Region], optAwsAuthMode: Option[AwsAuthMode] = None)
+    extends Actor
+    with ActorLogging {
+  val awsOccasionalStatusPoller: ActorRef = context.actorOf(
+    OccasionalStatusPollingActor.props(configRegion, optAwsAuthMode).withMailbox(Mailbox.PriorityMailbox),
+    "OccasionalStatusPollingActor"
+  )
+  val awsIntervalLimitedSubmitActor: ActorRef = context.actorOf(
+    IntervalLimitedAwsJobSubmitActor.props(configRegion).withMailbox(Mailbox.PriorityMailbox),
+    "IntervalLimitedAWSSubmitActor"
+  )
 
   override def receive = {
 
@@ -23,5 +31,7 @@ class AwsBatchSingletonActor(configRegion: Option[Region], optAwsAuthMode: Optio
 }
 
 object AwsBatchSingletonActor {
-  def props(configRegion: Option[Region], optAwsAuthMode: Option[AwsAuthMode] = None) = Props(new AwsBatchSingletonActor(configRegion, optAwsAuthMode))
+  def props(configRegion: Option[Region], optAwsAuthMode: Option[AwsAuthMode] = None) = Props(
+    new AwsBatchSingletonActor(configRegion, optAwsAuthMode)
+  )
 }

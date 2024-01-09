@@ -77,12 +77,13 @@ object Settings {
     organization := "org.broadinstitute",
     scalaVersion := ScalaVersion,
     resolvers ++= additionalResolvers,
-    // Don't run tasks in parallel, especially helps in low CPU environments like Travis
-    Global / parallelExecution := false,
+    Global / parallelExecution := true,
+    // Seems to cause race conditions in tests, that are not pertinent to what's being tested
+    Test / parallelExecution := false,
     Global / concurrentRestrictions ++= List(
-      // Don't run any other tasks while running tests, especially helps in low CPU environments like Travis
+      // Don't run any other tasks while running tests
       Tags.exclusive(Tags.Test),
-      // Only run tests on one sub-project at a time, especially helps in low CPU environments like Travis
+      // Only run tests on one sub-project at a time
       Tags.limit(Tags.Test, 1)
     ),
     dependencyOverrides ++= cromwellDependencyOverrides,
@@ -131,14 +132,14 @@ object Settings {
       // instructions to install `crcmod`
       Instructions.Run("apt-get -y update"),
       Instructions.Run("apt-get -y install python3.11"),
-      Instructions.Run("apt -y install python3-pip"),
-      Instructions.Run("apt-get -y install gcc python3-dev python3-setuptools"),
+      Instructions.Run("apt-get -y install python3-pip"),
+      Instructions.Run("apt-get -y install wget gcc python3-dev python3-setuptools"),
       Instructions.Run("pip3 uninstall crcmod"),
       Instructions.Run("pip3 install --no-cache-dir -U crcmod"),
       Instructions.Run("update-alternatives --install /usr/bin/python python /usr/bin/python3 1"),
       Instructions.Env("CLOUDSDK_PYTHON", "python3"),
       // instructions to install Google Cloud SDK
-      Instructions.Run("curl https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.tar.gz > /tmp/google-cloud-sdk.tar.gz"),
+      Instructions.Run("wget https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.tar.gz -O /tmp/google-cloud-sdk.tar.gz"),
       Instructions.Run("""mkdir -p /usr/local/gcloud \
                          | && tar -C /usr/local/gcloud -xvf /tmp/google-cloud-sdk.tar.gz \
                          | && /usr/local/gcloud/google-cloud-sdk/install.sh""".stripMargin),

@@ -6,17 +6,16 @@ object CromwellApp extends App {
   case object Run extends Command
   case object Server extends Command
   case object Submit extends Command
-  
+
   def buildParser(): scopt.OptionParser[CommandLineArguments] = new CommandLineParser()
 
-  def runCromwell(args: CommandLineArguments): Unit = {
+  def runCromwell(args: CommandLineArguments): Unit =
     args.command match {
       case Some(Run) => CromwellEntryPoint.runSingle(args)
       case Some(Server) => CromwellEntryPoint.runServer()
       case Some(Submit) => CromwellEntryPoint.submitToServer(args)
       case None => showUsageAndExitWithError()
     }
-  }
 
   val parser = buildParser()
 

@@ -31,7 +31,6 @@ class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
     PatienceConfig(timeout = scaled(5.seconds), interval = scaled(100.millis))
 
   CromwellDatabaseType.All foreach { databaseType =>
-
     lazy val expectedSnapshot = DatabaseTestKit.inMemorySnapshot(databaseType, SlickSchemaManager)
     lazy val expectedColumns = get[Column](expectedSnapshot).sorted
     lazy val expectedPrimaryKeys = get[PrimaryKey](expectedSnapshot).sorted
@@ -40,12 +39,12 @@ class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
     lazy val expectedIndexes = get[Index](expectedSnapshot) filterNot DatabaseTestKit.isGenerated
 
     DatabaseSystem.All foreach { databaseSystem =>
-
       behavior of s"Liquibase Comparison for ${databaseType.name} ${databaseSystem.name}"
 
       val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
 
-      lazy val liquibasedDatabase = DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, databaseType, databaseSystem)
+      lazy val liquibasedDatabase =
+        DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, databaseType, databaseSystem)
 
       lazy val connectionMetadata = DatabaseTestKit.connectionMetadata(liquibasedDatabase)
 
@@ -59,7 +58,7 @@ class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
       lazy val columnMapping = getColumnMapping(databaseSystem)
 
       it should "start container if required" taggedAs DbmsTest in {
-        containerOpt.foreach { _.start }
+        containerOpt.foreach(_.start)
       }
 
       expectedColumns foreach { expectedColumn =>
@@ -71,9 +70,11 @@ class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
           }
           val actualColumn = actualColumnOption getOrElse fail(s"Did not find $description")
 
-          withClue(s"for type " +
-            s"${actualColumn.getType.getTypeName}(default = ${actualColumn.getDefaultValue}) vs. " +
-            s"${expectedColumn.getType.getTypeName}(default = ${expectedColumn.getDefaultValue}):") {
+          withClue(
+            s"for type " +
+              s"${actualColumn.getType.getTypeName}(default = ${actualColumn.getDefaultValue}) vs. " +
+              s"${expectedColumn.getType.getTypeName}(default = ${expectedColumn.getDefaultValue}):"
+          ) {
 
             val actualColumnType = ColumnType.from(actualColumn)
 
@@ -98,7 +99,7 @@ class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
                   None,
                   Option(DefaultNullBoolean),
                   Option(DefaultNullString),
-                  Option(DefaultNullFunction),
+                  Option(DefaultNullFunction)
                 )
                 List(Option(actualColumn.getDefaultValue)) should contain atLeastOneElementOf expectedOptions
               } else {
@@ -129,7 +130,7 @@ class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
             val expectedSequenceTypeOption = sequenceTypeValidationOption(
               expectedColumn,
               databaseSystem,
-              connectionMetadata,
+              connectionMetadata
             )
             expectedSequenceTypeOption foreach { expectedSequenceType =>
               val dbio = sequenceTypeDbio(expectedColumn, databaseSystem, liquibasedDatabase)
@@ -225,14 +226,14 @@ class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
       }
 
       it should "stop container if required" taggedAs DbmsTest in {
-        containerOpt.foreach { _.stop() }
+        containerOpt.foreach(_.stop())
       }
     }
   }
 }
 
 object LiquibaseComparisonSpec {
-  private def get[T <: DatabaseObject : ClassTag : Ordering](databaseSnapshot: DatabaseSnapshot): Seq[T] = {
+  private def get[T <: DatabaseObject: ClassTag: Ordering](databaseSnapshot: DatabaseSnapshot): Seq[T] = {
     val databaseObjectClass = classTag[T].runtimeClass.asInstanceOf[Class[T]]
     databaseSnapshot.get(databaseObjectClass).asScala.toSeq
   }
@@ -241,49 +242,42 @@ object LiquibaseComparisonSpec {
   private val DefaultNullString = "NULL"
   private val DefaultNullFunction = new DatabaseFunction(DefaultNullString)
 
-  private def isSlickDefaultNull(column: Column): Boolean = {
+  private def isSlickDefaultNull(column: Column): Boolean =
     Option(column.getDefaultValue).isEmpty || column.getDefaultValue == DefaultNullFunction
-  }
 
   case class ColumnDescription(tableName: String, columnName: String)
 
   object ColumnDescription {
-    def from(column: Column): ColumnDescription = {
+    def from(column: Column): ColumnDescription =
       ColumnDescription(column.getRelation.getName, column.getName)
-    }
   }
 
-  case class ColumnType
-  (
+  case class ColumnType(
     typeName: String,
-    sizeOption: Option[Int] = None,
+    sizeOption: Option[Int] = None
   )
 
   object ColumnType {
-    def from(column: Column): ColumnType = {
+    def from(column: Column): ColumnType =
       ColumnType(
         column.getType.getTypeName.toUpperCase,
-        Option(column.getType.getColumnSize).map(_.toInt),
+        Option(column.getType.getColumnSize).map(_.toInt)
       )
-    }
   }
 
-  case class ColumnDefault
-  (
+  case class ColumnDefault(
     columnType: ColumnType,
-    defaultValue: AnyRef,
+    defaultValue: AnyRef
   )
 
   object ColumnDefault {
-    def from(column: Column): ColumnDefault = {
+    def from(column: Column): ColumnDefault =
       ColumnDefault(ColumnType.from(column), column.getDefaultValue)
-    }
   }
 
-  case class ColumnMapping
-  (
+  case class ColumnMapping(
     typeMapping: PartialFunction[ColumnType, ColumnType] = PartialFunction.empty,
-    defaultMapping: Map[ColumnDefault, AnyRef] = Map.empty,
+    defaultMapping: Map[ColumnDefault, AnyRef] = Map.empty
   )
 
   /** Generate the expected PostgreSQL sequence name for a column. */
@@ -294,7 +288,7 @@ object LiquibaseComparisonSpec {
     // Postgres cuts of the length of names around this length
     val Count = 30
 
-    def shorten(name: String, isColumn: Boolean): String = {
+    def shorten(name: String, isColumn: Boolean): String =
       pad {
         // NOTE: Table and column name truncation seems slightly different.
         // This logic was empirically derived. Feel free to modify/simplify!
@@ -306,7 +300,6 @@ object LiquibaseComparisonSpec {
           name.take(Count - 1)
         }
       }
-    }
 
     val tableName = shorten(column.getRelation.getName, isColumn = false)
     val columnName = shorten(column.getName, isColumn = true)
@@ -330,19 +323,19 @@ object LiquibaseComparisonSpec {
   // Note: BIT vs. TINYINT may be yet another tabs vs. spaces
   // https://stackoverflow.com/questions/11167793/boolean-or-tinyint-confusion/17298805
   private val MysqldbColumnMapping =
-  ColumnMapping(
-    typeMapping = Map(
-      HsqldbTypeBigInt -> ColumnType("BIGINT", Option(19)),
-      HsqldbTypeBlob -> ColumnType("LONGBLOB", Option(2147483647)),
-      HsqldbTypeBoolean -> ColumnType("TINYINT", Option(3)),
-      HsqldbTypeClob -> ColumnType("LONGTEXT", Option(2147483647)),
-      HsqldbTypeInteger -> ColumnType("INT", Option(10)),
-      HsqldbTypeTimestamp -> ColumnType("DATETIME"),
-    ),
-    defaultMapping = Map(
-      HsqldbDefaultBooleanTrue -> Int.box(1)
-    ),
-  )
+    ColumnMapping(
+      typeMapping = Map(
+        HsqldbTypeBigInt -> ColumnType("BIGINT", Option(19)),
+        HsqldbTypeBlob -> ColumnType("LONGBLOB", Option(2147483647)),
+        HsqldbTypeBoolean -> ColumnType("TINYINT", Option(3)),
+        HsqldbTypeClob -> ColumnType("LONGTEXT", Option(2147483647)),
+        HsqldbTypeInteger -> ColumnType("INT", Option(10)),
+        HsqldbTypeTimestamp -> ColumnType("DATETIME")
+      ),
+      defaultMapping = Map(
+        HsqldbDefaultBooleanTrue -> Int.box(1)
+      )
+    )
 
   // MariaDB should behave similar to MySQL except that only LOBs have sizes
   private val MariadbColumnMapping =
@@ -353,11 +346,11 @@ object LiquibaseComparisonSpec {
         HsqldbTypeBoolean -> ColumnType("TINYINT"),
         HsqldbTypeClob -> ColumnType("LONGTEXT", Option(2147483647)),
         HsqldbTypeInteger -> ColumnType("INT"),
-        HsqldbTypeTimestamp -> ColumnType("DATETIME"),
+        HsqldbTypeTimestamp -> ColumnType("DATETIME")
       ),
       defaultMapping = Map(
-        HsqldbDefaultBooleanTrue -> Int.box(1),
-      ),
+        HsqldbDefaultBooleanTrue -> Int.box(1)
+      )
     )
 
   private val PostgresqlColumnMapping =
@@ -367,21 +360,20 @@ object LiquibaseComparisonSpec {
         HsqldbTypeBlob -> ColumnType("OID", None),
         HsqldbTypeBoolean -> ColumnType("BOOL", None),
         HsqldbTypeClob -> ColumnType("TEXT", None),
-        HsqldbTypeInteger -> ColumnType("INT4", None),
-      ),
+        HsqldbTypeInteger -> ColumnType("INT4", None)
+      )
     )
 
   /**
     * Returns the column mapping for the DBMS.
     */
-  private def getColumnMapping(databaseSystem: DatabaseSystem): ColumnMapping = {
+  private def getColumnMapping(databaseSystem: DatabaseSystem): ColumnMapping =
     databaseSystem.platform match {
       case HsqldbDatabasePlatform => HsqldbColumnMapping
       case MariadbDatabasePlatform => MariadbColumnMapping
       case MysqlDatabasePlatform => MysqldbColumnMapping
       case PostgresqlDatabasePlatform => PostgresqlColumnMapping
     }
-  }
 
   /**
     * Returns the column type, possibly mapped via the ColumnMapping.
@@ -394,9 +386,8 @@ object LiquibaseComparisonSpec {
   /**
     * Returns the default for the column, either from ColumnMapping or the column itself.
     */
-  private def getColumnDefault(column: Column, columnMapping: ColumnMapping): AnyRef = {
+  private def getColumnDefault(column: Column, columnMapping: ColumnMapping): AnyRef =
     columnMapping.defaultMapping.getOrElse(ColumnDefault.from(column), column.getDefaultValue)
-  }
 
   /**
     * Return the default for the auto increment column.
@@ -404,8 +395,8 @@ object LiquibaseComparisonSpec {
   private def getAutoIncrementDefault(column: Column,
                                       columnMapping: ColumnMapping,
                                       databaseSystem: DatabaseSystem,
-                                      connectionMetadata: ConnectionMetadata,
-                                     ): ColumnDefault = {
+                                      connectionMetadata: ConnectionMetadata
+  ): ColumnDefault =
     databaseSystem.platform match {
       case PostgresqlDatabasePlatform if connectionMetadata.databaseMajorVersion <= 9 =>
         val columnType = column.getType.getTypeName match {
@@ -416,7 +407,6 @@ object LiquibaseComparisonSpec {
         ColumnDefault(columnType, columnDefault)
       case _ => ColumnDefault(getColumnType(column, columnMapping), column.getDefaultValue)
     }
-  }
 
   /**
     * Returns an optional extra check to ensure that datetimes can store microseconds.
@@ -436,23 +426,23 @@ object LiquibaseComparisonSpec {
     *
     * This check also has to be done here, as Liquibase does not return the precision for Mysql datetime fields.
     */
-  private def columnTypeValidationOption(column: Column, databaseSystem: DatabaseSystem): Option[String] = {
+  private def columnTypeValidationOption(column: Column, databaseSystem: DatabaseSystem): Option[String] =
     databaseSystem.platform match {
       case MysqlDatabasePlatform | MariadbDatabasePlatform if column.getType.getTypeName == "TIMESTAMP" =>
         Option("datetime(6)")
       case _ => None
     }
-  }
 
   private def columnTypeDbio(column: Column,
                              databaseSystem: DatabaseSystem,
-                             database: SlickDatabase): database.dataAccess.driver.api.DBIO[String] = {
+                             database: SlickDatabase
+  ): database.dataAccess.driver.api.DBIO[String] = {
     import database.dataAccess.driver.api._
     databaseSystem.platform match {
       case MysqlDatabasePlatform | MariadbDatabasePlatform if column.getType.getTypeName == "TIMESTAMP" =>
         val getType = GetResult(_.rs.getString("Type"))
 
-        //noinspection SqlDialectInspection
+        // noinspection SqlDialectInspection
         sql"""SHOW COLUMNS
               FROM #${column.getRelation.getName}
               WHERE FIELD = '#${column.getName}'
@@ -472,23 +462,23 @@ object LiquibaseComparisonSpec {
     */
   private def sequenceTypeValidationOption(column: Column,
                                            databaseSystem: DatabaseSystem,
-                                           connectionMetadata: ConnectionMetadata,
-                                          ): Option[String] = {
+                                           connectionMetadata: ConnectionMetadata
+  ): Option[String] =
     databaseSystem.platform match {
       case PostgresqlDatabasePlatform if column.isAutoIncrement && connectionMetadata.databaseMajorVersion <= 9 =>
         // "this is currently always bigint" --> https://www.postgresql.org/docs/9.6/infoschema-sequences.html
         Option("bigint")
       case _ => None
     }
-  }
 
   private def sequenceTypeDbio(column: Column,
                                databaseSystem: DatabaseSystem,
-                               database: SlickDatabase): database.dataAccess.driver.api.DBIO[String] = {
+                               database: SlickDatabase
+  ): database.dataAccess.driver.api.DBIO[String] = {
     import database.dataAccess.driver.api._
     databaseSystem.platform match {
       case PostgresqlDatabasePlatform if column.isAutoIncrement =>
-        //noinspection SqlDialectInspection
+        // noinspection SqlDialectInspection
         sql"""select data_type
               from INFORMATION_SCHEMA.sequences
               where sequence_name = '#${postgresqlSeqName(column)}'
@@ -498,11 +488,11 @@ object LiquibaseComparisonSpec {
   }
 
   private def unsupportedColumnTypeException(column: Column,
-                                             databaseSystem: DatabaseSystem): UnsupportedOperationException = {
+                                             databaseSystem: DatabaseSystem
+  ): UnsupportedOperationException =
     new UnsupportedOperationException(
       s"${databaseSystem.name} ${column.getRelation.getName}.${column.getName}: ${column.getType.getTypeName}"
     )
-  }
 
   /**
     * Returns columns that are nullable, but shouldn't be.
@@ -512,7 +502,8 @@ object LiquibaseComparisonSpec {
     * TODO: make a changelog to fix, and then remove list of mistakes.
     */
   private def getNullTodos(databaseSystem: DatabaseSystem,
-                           databaseType: CromwellDatabaseType[_ <: SlickDatabase]): Seq[ColumnDescription] = {
+                           databaseType: CromwellDatabaseType[_ <: SlickDatabase]
+  ): Seq[ColumnDescription] =
     (databaseSystem.platform, databaseType) match {
       case (MysqlDatabasePlatform, EngineDatabaseType) =>
         List(
@@ -538,16 +529,15 @@ object LiquibaseComparisonSpec {
           ColumnDescription("JOB_STORE_SIMPLETON_ENTRY", "JOB_STORE_ENTRY_ID"),
           ColumnDescription("WORKFLOW_STORE_ENTRY", "IMPORTS_ZIP"),
           ColumnDescription("WORKFLOW_STORE_ENTRY", "WORKFLOW_EXECUTION_UUID"),
-          ColumnDescription("WORKFLOW_STORE_ENTRY", "WORKFLOW_STATE"),
+          ColumnDescription("WORKFLOW_STORE_ENTRY", "WORKFLOW_STATE")
         )
       case (MysqlDatabasePlatform, MetadataDatabaseType) =>
         List(
           ColumnDescription("CUSTOM_LABEL_ENTRY", "CUSTOM_LABEL_KEY"),
           ColumnDescription("CUSTOM_LABEL_ENTRY", "CUSTOM_LABEL_VALUE"),
           ColumnDescription("SUMMARY_STATUS_ENTRY", "SUMMARY_NAME"),
-          ColumnDescription("SUMMARY_STATUS_ENTRY", "SUMMARY_POSITION"),
+          ColumnDescription("SUMMARY_STATUS_ENTRY", "SUMMARY_POSITION")
         )
       case _ => Nil
     }
-  }
 }

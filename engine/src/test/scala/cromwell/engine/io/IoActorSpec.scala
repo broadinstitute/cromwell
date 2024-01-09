@@ -37,7 +37,7 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
   it should "copy a file" in {
     val testActor = TestActorRef(
       factory = new IoActor(IoActorConfig, TestProbe("serviceRegistryActorCopy").ref, "cromwell test"),
-      name = "testActorCopy",
+      name = "testActorCopy"
     )
 
     val src = DefaultPathBuilder.createTempFile()
@@ -59,7 +59,7 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
   it should "write to a file" in {
     val testActor = TestActorRef(
       factory = new IoActor(IoActorConfig, TestProbe("serviceRegistryActorWrite").ref, "cromwell test"),
-      name = "testActorWrite",
+      name = "testActorWrite"
     )
 
     val src = DefaultPathBuilder.createTempFile()
@@ -79,7 +79,7 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
   it should "delete a file" in {
     val testActor = TestActorRef(
       factory = new IoActor(IoActorConfig, TestProbe("serviceRegistryActorDelete").ref, "cromwell test"),
-      name = "testActorDelete",
+      name = "testActorDelete"
     )
 
     val src = DefaultPathBuilder.createTempFile()
@@ -98,7 +98,7 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
   it should "read a file" in {
     val testActor = TestActorRef(
       factory = new IoActor(IoActorConfig, TestProbe("serviceRegistryActorRead").ref, "cromwell test"),
-      name = "testActorRead",
+      name = "testActorRead"
     )
 
     val src = DefaultPathBuilder.createTempFile()
@@ -120,7 +120,7 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
   it should "read only the first bytes of file" in {
     val testActor = TestActorRef(
       factory = new IoActor(IoActorConfig, TestProbe("serviceRegistryActorFirstBytes").ref, "cromwell test"),
-      name = "testActorFirstBytes",
+      name = "testActorFirstBytes"
     )
 
     val src = DefaultPathBuilder.createTempFile()
@@ -142,7 +142,7 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
   it should "read the file if it's under the byte limit" in {
     val testActor = TestActorRef(
       factory = new IoActor(IoActorConfig, TestProbe("serviceRegistryActorByteLimit").ref, "cromwell test"),
-      name = "testActorByteLimit",
+      name = "testActorByteLimit"
     )
 
     val src = DefaultPathBuilder.createTempFile()
@@ -164,7 +164,7 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
   it should "fail if the file is larger than the read limit" in {
     val testActor = TestActorRef(
       factory = new IoActor(IoActorConfig, TestProbe("serviceRegistryActorReadLimit").ref, "cromwell test"),
-      name = "testActorReadLimit",
+      name = "testActorReadLimit"
     )
 
     val src = DefaultPathBuilder.createTempFile()
@@ -174,8 +174,10 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
 
     testActor ! readCommand
     expectMsgPF(5 seconds) {
-      case _: IoSuccess[_] => fail("Command should have failed because the read limit was < file size and failOnOverflow was true")
-      case response: IoFailure[_] => response.failure.getMessage shouldBe s"[Attempted 1 time(s)] - IOException: Could not read from ${src.pathAsString}: File ${src.pathAsString} is larger than requested maximum of 2 Bytes."
+      case _: IoSuccess[_] =>
+        fail("Command should have failed because the read limit was < file size and failOnOverflow was true")
+      case response: IoFailure[_] =>
+        response.failure.getMessage shouldBe s"[Attempted 1 time(s)] - IOException: Could not read from ${src.pathAsString}: File ${src.pathAsString} is larger than requested maximum of 2 Bytes."
     }
 
     src.delete()
@@ -184,7 +186,7 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
   it should "return a file size" in {
     val testActor = TestActorRef(
       factory = new IoActor(IoActorConfig, TestProbe("serviceRegistryActorSize").ref, "cromwell test"),
-      name = "testActorSize",
+      name = "testActorSize"
     )
 
     val src = DefaultPathBuilder.createTempFile()
@@ -206,7 +208,7 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
   it should "return a file md5 hash (local)" in {
     val testActor = TestActorRef(
       factory = new IoActor(IoActorConfig, TestProbe("serviceRegistryActorHash").ref, "cromwell test"),
-      name = "testActorHash",
+      name = "testActorHash"
     )
 
     val src = DefaultPathBuilder.createTempFile()
@@ -228,7 +230,7 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
   it should "touch a file (local)" in {
     val testActor = TestActorRef(
       factory = new IoActor(IoActorConfig, TestProbe("serviceRegistryActorTouch").ref, "cromwell test"),
-      name = "testActorTouch",
+      name = "testActorTouch"
     )
 
     val src = DefaultPathBuilder.createTempFile()
@@ -259,25 +261,45 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
       new SocketException(),
       new SocketTimeoutException(),
       new IOException("text Error getting access token for service account some other text"),
-
-      new IOException("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 500 Internal Server Error\nBackend Error"),
-      new IOException("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 500 Internal Server Error Backend Error"),
-
-      new IOException("Could not read from gs://broad-epi-cromwell/workflows/ChipSeq/ce6a5671-baf6-4734-a32b-abf3d9138e9b/call-epitope_classifier/memory_retry_rc: 503 Service Unavailable\nBackend Error"),
-      new IOException("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 503 Service Unavailable Backend Error"),
-
-      new IOException("Could not read from gs://mccarroll-mocha/cromwell/cromwell-executions/mocha/86d47e9a-5745-4ec0-b4eb-0164f073e5f4/call-idat2gtc/shard-73/rc: 504 Gateway Timeout\nGET https://storage.googleapis.com/download/storage/v1/b/mccarroll-mocha/o/cromwell%2Fcromwell-executions%2Fmocha%2F86d47e9a-5745-4ec0-b4eb-0164f073e5f4%2Fcall-idat2gtc%2Fshard-73%2Frc?alt=media"),
+      new IOException(
+        "Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 500 Internal Server Error\nBackend Error"
+      ),
+      new IOException(
+        "Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 500 Internal Server Error Backend Error"
+      ),
+      new IOException(
+        "Could not read from gs://broad-epi-cromwell/workflows/ChipSeq/ce6a5671-baf6-4734-a32b-abf3d9138e9b/call-epitope_classifier/memory_retry_rc: 503 Service Unavailable\nBackend Error"
+      ),
+      new IOException(
+        "Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 503 Service Unavailable Backend Error"
+      ),
+      new IOException(
+        "Could not read from gs://mccarroll-mocha/cromwell/cromwell-executions/mocha/86d47e9a-5745-4ec0-b4eb-0164f073e5f4/call-idat2gtc/shard-73/rc: 504 Gateway Timeout\nGET https://storage.googleapis.com/download/storage/v1/b/mccarroll-mocha/o/cromwell%2Fcromwell-executions%2Fmocha%2F86d47e9a-5745-4ec0-b4eb-0164f073e5f4%2Fcall-idat2gtc%2Fshard-73%2Frc?alt=media"
+      ),
 
       // Prove that `isRetryable` successfully recurses to unwrap the lowest-level Throwable
-      new IOException(new Throwable("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 500 Internal Server Error Backend Error")),
-      new IOException(new Throwable("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 503 Service Unavailable Backend Error")),
-
-      new IOException("Some other text. Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 503 Service Unavailable"),
-      new IOException("Some other text. Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 504 Gateway Timeout"),
+      new IOException(
+        new Throwable(
+          "Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 500 Internal Server Error Backend Error"
+        )
+      ),
+      new IOException(
+        new Throwable(
+          "Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 503 Service Unavailable Backend Error"
+        )
+      ),
+      new IOException(
+        "Some other text. Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 503 Service Unavailable"
+      ),
+      new IOException(
+        "Some other text. Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 504 Gateway Timeout"
+      )
     )
 
-    retryables foreach { e => withClue(e) {
-      RetryableRequestSupport.isRetryable(e) shouldBe true }
+    retryables foreach { e =>
+      withClue(e) {
+        RetryableRequestSupport.isRetryable(e) shouldBe true
+      }
     }
   }
 
@@ -288,7 +310,9 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
       new IOException("502 HTTP Status Code"),
       new Exception("502 HTTP Status Code"),
       new Exception("5xx HTTP Status Code"),
-      new IOException("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-500/rc: 404 File Not Found")
+      new IOException(
+        "Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-500/rc: 404 File Not Found"
+      )
     )
 
     nonRetryables foreach { RetryableRequestSupport.isRetryable(_) shouldBe false }

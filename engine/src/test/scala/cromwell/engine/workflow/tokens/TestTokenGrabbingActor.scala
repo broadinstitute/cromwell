@@ -13,8 +13,8 @@ class TestTokenGrabbingActor(tokenDispenser: ActorRef, tokenType: JobTokenType) 
 
   var hasToken: Boolean = false
 
-  override def receive = stoppingReceive orElse {
-    case JobTokenDispensed => hasToken = true
+  override def receive = stoppingReceive orElse { case JobTokenDispensed =>
+    hasToken = true
   }
 
   tokenDispenser ! JobTokenRequest(HogGroup("hogGroupA"), tokenType)
@@ -22,7 +22,9 @@ class TestTokenGrabbingActor(tokenDispenser: ActorRef, tokenType: JobTokenType) 
 
 object TestTokenGrabbingActor {
 
-  def props(tokenDispenserActor: ActorRef, tokenType: JobTokenType) = Props(new TestTokenGrabbingActor(tokenDispenserActor, tokenType))
+  def props(tokenDispenserActor: ActorRef, tokenType: JobTokenType) = Props(
+    new TestTokenGrabbingActor(tokenDispenserActor, tokenType)
+  )
 
   class StoppingSupervisor extends Actor {
     override val supervisorStrategy = SupervisorStrategy.stoppingStrategy

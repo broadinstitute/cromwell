@@ -11,7 +11,14 @@ import cromwell.core.path.{Path, PathFactory}
 import wom.expression.IoFunctionSet.{IoDirectory, IoElement, IoFile}
 import wom.expression.{IoFunctionSet, IoFunctionSetAdapter}
 import wom.graph.CommandCallNode
-import wom.values.{WomFile, WomGlobFile, WomMaybeListedDirectory, WomMaybePopulatedFile, WomSingleFile, WomUnlistedDirectory}
+import wom.values.{
+  WomFile,
+  WomGlobFile,
+  WomMaybeListedDirectory,
+  WomMaybePopulatedFile,
+  WomSingleFile,
+  WomUnlistedDirectory
+}
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -21,13 +28,18 @@ trait DirectoryFunctions extends IoFunctionSet with PathFactory with AsyncIoFunc
   private lazy val evaluateFileFunctions = new IoFunctionSetAdapter(this) with FileEvaluationIoFunctionSet
 
   def findDirectoryOutputs(call: CommandCallNode,
-                           jobDescriptor: BackendJobDescriptor): ErrorOr[List[WomUnlistedDirectory]] = {
+                           jobDescriptor: BackendJobDescriptor
+  ): ErrorOr[List[WomUnlistedDirectory]] =
     call.callable.outputs.flatTraverse[ErrorOr, WomUnlistedDirectory] { outputDefinition =>
-      outputDefinition.expression.evaluateFiles(jobDescriptor.localInputs, evaluateFileFunctions, outputDefinition.womType) map {
-        _.toList.flatMap(_.file.flattenFiles) collect { case unlistedDirectory: WomUnlistedDirectory => unlistedDirectory }
+      outputDefinition.expression.evaluateFiles(jobDescriptor.localInputs,
+                                                evaluateFileFunctions,
+                                                outputDefinition.womType
+      ) map {
+        _.toList.flatMap(_.file.flattenFiles) collect { case unlistedDirectory: WomUnlistedDirectory =>
+          unlistedDirectory
+        }
       }
     }
-  }
 
   override def isDirectory(path: String) = asyncIo.isDirectory(buildPath(path))
 
@@ -39,7 +51,7 @@ trait DirectoryFunctions extends IoFunctionSet with PathFactory with AsyncIoFunc
    * implementation which lists files and directories children. What we need is the unix behavior, even for cloud filesystems.
    * 3) It uses the isDirectory function directly on the path, which cannot be trusted for GCS paths. It should use asyncIo.isDirectory instead.
    */
-  override def listDirectory(path: String)(visited: Vector[String] = Vector.empty): Future[Iterator[IoElement]] = {
+  override def listDirectory(path: String)(visited: Vector[String] = Vector.empty): Future[Iterator[IoElement]] =
     Future.fromTry(Try {
       val visitedPaths = visited.map(buildPath)
       val cromwellPath = buildPath(path.ensureSlashed)
@@ -47,21 +59,21 @@ trait DirectoryFunctions extends IoFunctionSet with PathFactory with AsyncIoFunc
       // To prevent infinite recursion through symbolic links make sure we don't visit the same directory twice
       def hasBeenVisited(other: Path) = visitedPaths.exists(_.isSameFileAs(other))
 
-      cromwellPath.list.collect({
-        case directory if directory.isDirectory &&
-          !cromwellPath.isSamePathAs(directory) &&
-          !hasBeenVisited(directory) => IoDirectory(directory.pathAsString)
+      cromwellPath.list.collect {
+        case directory
+            if directory.isDirectory &&
+              !cromwellPath.isSamePathAs(directory) &&
+              !hasBeenVisited(directory) =>
+          IoDirectory(directory.pathAsString)
         case file => IoFile(file.pathAsString)
-      })
+      }
     })
-  }
 
-  override def listAllFilesUnderDirectory(dirPath: String): Future[Seq[String]] = {
+  override def listAllFilesUnderDirectory(dirPath: String): Future[Seq[String]] =
     temporaryImplListPaths(dirPath)
-  }
 
   // TODO: WOM: WOMFILE: This will likely use a Tuple2(tar file, dir list file) for each dirPath.
-  private final def temporaryImplListPaths(dirPath: String): Future[Seq[String]] = {
+  final private def temporaryImplListPaths(dirPath: String): Future[Seq[String]] = {
     val errorOrPaths = for {
       dir <- validate(buildPath(dirPath.ensureSlashed))
       files <- listFiles(dir)
@@ -74,7 +86,7 @@ object DirectoryFunctions {
   def listFiles(path: Path): ErrorOr[List[Path]] = path.listRecursively.filterNot(_.isDirectory).toList.validNel
 
   def listWomSingleFiles(womFile: WomFile, pathFactory: PathFactory): ErrorOr[List[WomSingleFile]] = {
-    def listWomSingleFiles(womFile: WomFile): ErrorOr[List[WomSingleFile]] = {
+    def listWomSingleFiles(womFile: WomFile): ErrorOr[List[WomSingleFile]] =
       womFile match {
         case womSingleFile: WomSingleFile => List(womSingleFile).valid
 
@@ -99,7 +111,6 @@ object DirectoryFunctions {
 
         case _: WomGlobFile => s"Unexpected glob / unable to list glob files at this time: $womFile".invalidNel
       }
-    }
 
     listWomSingleFiles(womFile)
   }

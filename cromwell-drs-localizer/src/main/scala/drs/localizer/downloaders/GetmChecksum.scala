@@ -3,17 +3,16 @@ package drs.localizer.downloaders
 import cats.syntax.validated._
 import cloud.nio.impl.drs.AccessUrl
 import common.validation.ErrorOr.ErrorOr
-import drs.localizer.downloaders.AccessUrlDownloader.Hashes
+import drs.localizer.downloaders.BulkAccessUrlDownloader.Hashes
 import org.apache.commons.codec.binary.Base64.encodeBase64String
 import org.apache.commons.codec.binary.Hex.decodeHex
 import org.apache.commons.text.StringEscapeUtils
-
 
 sealed trait GetmChecksum {
   def getmAlgorithm: String
   def rawValue: String
   def value: ErrorOr[String] = rawValue.validNel
-  def args: ErrorOr[String] = {
+  def args: ErrorOr[String] =
     // The value for `--checksum-algorithm` is constrained by the algorithm names in the `sealed` hierarchy of
     // `GetmChecksum`, but the value for `--checksum` is largely a function of data returned by the DRS server.
     // Shell escape this to avoid injection.
@@ -21,7 +20,6 @@ sealed trait GetmChecksum {
       val escapedValue = StringEscapeUtils.escapeXSI(v)
       s"--checksum-algorithm '$getmAlgorithm' --checksum $escapedValue"
     }
-  }
 }
 
 case class Md5(override val rawValue: String) extends GetmChecksum {
@@ -33,7 +31,8 @@ case class Crc32c(override val rawValue: String) extends GetmChecksum {
   // The DRS spec says that all hash values should be hex strings,
   // but getm expects crc32c values to be base64.
   override def value: ErrorOr[String] =
-    GetmChecksum.validateHex(rawValue)
+    GetmChecksum
+      .validateHex(rawValue)
       .map(decodeHex)
       .map(encodeBase64String)
 
@@ -52,7 +51,7 @@ case class Unsupported(override val rawValue: String) extends GetmChecksum {
 }
 
 object GetmChecksum {
-  def apply(hashes: Hashes, accessUrl: AccessUrl): GetmChecksum = {
+  def apply(hashes: Hashes, accessUrl: AccessUrl): GetmChecksum =
     hashes match {
       case Some(hashes) if hashes.nonEmpty =>
         // `hashes` is keyed by the DRS Resolver names for these hash algorithms, which in turn are the forwarded DRS
@@ -61,8 +60,7 @@ object GetmChecksum {
         // but all of the other algorithm names currently differ between DRS providers and `getm`.
         if (hashes.contains("md5")) {
           Md5(hashes("md5"))
-        }
-        else if (hashes.contains("crc32c")) {
+        } else if (hashes.contains("crc32c")) {
           Crc32c(hashes("crc32c"))
         }
         // etags could be anything; only ask `getm` to check s3 etags if this actually looks like an s3 signed url.
@@ -81,7 +79,6 @@ object GetmChecksum {
         }
       case _ => Null // None or an empty hashes map.
     }
-  }
 
   def validateHex(s: String): ErrorOr[String] = {
     val trimmed = s.trim

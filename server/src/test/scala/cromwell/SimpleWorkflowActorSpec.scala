@@ -1,4 +1,3 @@
-
 package cromwell
 
 import java.time.OffsetDateTime
@@ -27,11 +26,11 @@ import scala.concurrent.{Await, Promise}
 
 object SimpleWorkflowActorSpec {
 
-  case class TestableWorkflowActorAndMetadataPromise
-  (
+  case class TestableWorkflowActorAndMetadataPromise(
     workflowActor: TestFSMRef[WorkflowActorState, WorkflowActorData, WorkflowActor],
     supervisor: TestProbe,
-    promise: Promise[Unit])
+    promise: Promise[Unit]
+  )
 }
 
 class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfter {
@@ -40,7 +39,8 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
   private def buildWorkflowActor(sampleWdl: SampleWdl,
                                  rawInputsOverride: String,
                                  workflowId: WorkflowId,
-                                 matchers: Matcher*): TestableWorkflowActorAndMetadataPromise = {
+                                 matchers: Matcher*
+  ): TestableWorkflowActorAndMetadataPromise = {
     val workflowSources = WorkflowSourceFilesWithoutImports(
       workflowSource = Option(sampleWdl.workflowSource()),
       workflowUrl = None,
@@ -55,33 +55,44 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
     )
 
     val promise = Promise[Unit]()
-    val watchActor = system.actorOf(MetadataWatchActor.props(promise, matchers: _*), s"service-registry-$workflowId-${UUID.randomUUID()}")
+    val watchActor = system.actorOf(MetadataWatchActor.props(promise, matchers: _*),
+                                    s"service-registry-$workflowId-${UUID.randomUUID()}"
+    )
     val supervisor = TestProbe()
     val config = ConfigFactory.load()
     val workflowToStart = WorkflowToStart(workflowId, OffsetDateTime.now(), workflowSources, Submitted, HogGroup("foo"))
-    val callCachingEnabled =false
-    val invalidateBadCacheResults =false
+    val callCachingEnabled = false
+    val invalidateBadCacheResults = false
     val workflowActor = TestFSMRef(
-      factory = new WorkflowActor(workflowToStart, config,
+      factory = new WorkflowActor(
+        workflowToStart,
+        config,
         ioActor = system.actorOf(SimpleIoActor.props),
         callCachingEnabled = callCachingEnabled,
         invalidateBadCacheResults = invalidateBadCacheResults,
         serviceRegistryActor = watchActor,
-        workflowLogCopyRouter = system.actorOf(Props.empty, s"workflow-copy-log-router-$workflowId-${UUID.randomUUID()}"),
+        workflowLogCopyRouter =
+          system.actorOf(Props.empty, s"workflow-copy-log-router-$workflowId-${UUID.randomUUID()}"),
+        workflowCallbackActor = None,
         jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props),
         subWorkflowStoreActor = system.actorOf(AlwaysHappySubWorkflowStoreActor.props),
         callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props),
         callCacheWriteActor = system.actorOf(EmptyCallCacheWriteActor.props),
         dockerHashActor = system.actorOf(EmptyDockerHashActor.props),
-        jobRestartCheckTokenDispenserActor = system.actorOf(JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running")),
-        jobExecutionTokenDispenserActor = system.actorOf(JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running")),
+        jobRestartCheckTokenDispenserActor = system.actorOf(
+          JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running")
+        ),
+        jobExecutionTokenDispenserActor = system.actorOf(
+          JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running")
+        ),
         backendSingletonCollection = BackendSingletonCollection(Map("Local" -> None)),
         serverMode = true,
         workflowStoreActor = system.actorOf(Props.empty),
         workflowHeartbeatConfig = WorkflowHeartbeatConfig(config),
         totalJobsByRootWf = new AtomicInteger(),
         fileHashCacheActorProps = None,
-        blacklistCache = None),
+        blacklistCache = None
+      ),
       supervisor = supervisor.ref,
       name = s"workflow-actor-$workflowId"
     )
@@ -95,16 +106,19 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
     workflowId = WorkflowId.randomId()
   }
 
-  def workflowManagerActorAwaitsSingleWorkCompleteMessage(workflowManagerActor: TestProbe, finalState: WorkflowState): Unit = {
-    workflowManagerActor.expectMsgPF(TestExecutionTimeout) {
-      case WorkflowActorWorkComplete(_, _, finalState) => finalState should be(finalState)
+  def workflowManagerActorAwaitsSingleWorkCompleteMessage(workflowManagerActor: TestProbe,
+                                                          finalState: WorkflowState
+  ): Unit = {
+    workflowManagerActor.expectMsgPF(TestExecutionTimeout) { case WorkflowActorWorkComplete(_, _, finalState) =>
+      finalState should be(finalState)
     }
     workflowManagerActor.expectNoMessage(AwaitAlmostNothing)
   }
 
   "A WorkflowActor" should {
     "start, run, succeed and die" in {
-      val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, _) = buildWorkflowActor(SampleWdl.HelloWorld, SampleWdl.HelloWorld.workflowJson, workflowId)
+      val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, _) =
+        buildWorkflowActor(SampleWdl.HelloWorld, SampleWdl.HelloWorld.workflowJson, workflowId)
       val probe = TestProbe()
       probe watch workflowActor
       startingCallsFilter("wf_hello.hello") {
@@ -119,7 +133,8 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
     "fail to construct with missing inputs" in {
       val expectedError = "Required workflow input 'wf_hello.hello.addressee' not specified"
       val failureMatcher = FailureMatcher(expectedError)
-      val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.HelloWorld, "{}", workflowId, failureMatcher)
+      val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) =
+        buildWorkflowActor(SampleWdl.HelloWorld, "{}", workflowId, failureMatcher)
       val probe = TestProbe()
       probe watch workflowActor
       workflowActor ! StartWorkflowCommand
@@ -139,18 +154,20 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
       // TODO WOM: restore offending offensive input name
       val expectedError = "No coercion defined from '3' of type 'spray.json.JsNumber' to 'String'."
       val failureMatcher = FailureMatcher(expectedError)
-      val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.HelloWorld, s""" { "$Addressee" : 3} """,
-        workflowId, failureMatcher)
+      val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) =
+        buildWorkflowActor(SampleWdl.HelloWorld, s""" { "$Addressee" : 3} """, workflowId, failureMatcher)
 
       val probe = TestProbe()
       probe watch workflowActor
       workflowActor ! StartWorkflowCommand
-      try {
+      try
         Await.result(promise.future, TestExecutionTimeout)
-      } catch {
+      catch {
         case _: Throwable =>
           val info = failureMatcher.nearMissInformation
-          fail(s"We didn't see the expected error message $expectedError within $TestExecutionTimeout. ${info.mkString(", ")}")
+          fail(
+            s"We didn't see the expected error message $expectedError within $TestExecutionTimeout. ${info.mkString(", ")}"
+          )
       }
       probe.expectTerminated(workflowActor, AwaitAlmostNothing)
       supervisor.expectMsgPF(AwaitAlmostNothing, "parent should get a failed response") {
@@ -164,9 +181,11 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
     }
 
     "fail when a call fails" in {
-      val expectedError = "Job wf_goodbye.goodbye:NA:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details."
+      val expectedError =
+        "Job wf_goodbye.goodbye:NA:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details."
       val failureMatcher = FailureMatcher(expectedError)
-      val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.GoodbyeWorld, SampleWdl.GoodbyeWorld.workflowJson, workflowId, failureMatcher)
+      val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) =
+        buildWorkflowActor(SampleWdl.GoodbyeWorld, SampleWdl.GoodbyeWorld.workflowJson, workflowId, failureMatcher)
       val probe = TestProbe()
       probe watch workflowActor
       startingCallsFilter("wf_goodbye.goodbye") {
@@ -187,18 +206,24 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
     "gracefully handle malformed WDL" in {
       val expectedError = "No input bfile found evaluating inputs for expression bfile"
       val failureMatcher = FailureMatcher(expectedError)
-      val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.CoercionNotDefined, SampleWdl.CoercionNotDefined.workflowJson, workflowId, failureMatcher)
+      val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) =
+        buildWorkflowActor(SampleWdl.CoercionNotDefined,
+                           SampleWdl.CoercionNotDefined.workflowJson,
+                           workflowId,
+                           failureMatcher
+        )
       val probe = TestProbe()
       probe watch workflowActor
       workflowActor ! StartWorkflowCommand
-      try {
+      try
         Await.result(promise.future, TestExecutionTimeout)
-      } catch {
+      catch {
         case _: Throwable =>
           val info = failureMatcher.nearMissInformation
           val errorString =
             if (info.nonEmpty) "We had a near miss: " + info.mkString(", ")
-            else s"The expected key was never seen. We saw: [\n  ${failureMatcher.fullEventList.map(e => s"${e.key} -> ${e.value}").mkString("\n  ")}\n]."
+            else
+              s"The expected key was never seen. We saw: [\n  ${failureMatcher.fullEventList.map(e => s"${e.key} -> ${e.value}").mkString("\n  ")}\n]."
           fail(s"We didn't see the expected error message '$expectedError' within $TestExecutionTimeout. $errorString}")
       }
       probe.expectTerminated(workflowActor, AwaitAlmostNothing)
@@ -222,4 +247,3 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
     }
   }
 }
-

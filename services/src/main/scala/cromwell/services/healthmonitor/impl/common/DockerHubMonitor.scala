@@ -24,7 +24,8 @@ trait DockerHubMonitor {
   implicit val timeout = Timeout(5.seconds)
 
   lazy val dockerHubFlow = List(new DockerHubRegistry(DockerRegistryConfig.default))
-  lazy val dockerHashActor = system.actorOf(DockerInfoActor.props(dockerHubFlow, 500, 0.minutes, 0), "HealthMonitorDockerHashActor")
+  lazy val dockerHashActor =
+    system.actorOf(DockerInfoActor.props(dockerHubFlow, 500, 0.minutes, 0), "HealthMonitorDockerHashActor")
 
   lazy val DockerHub = MonitoredSubsystem("DockerHub", checkDockerhub _)
 
@@ -32,13 +33,15 @@ trait DockerHubMonitor {
     * Demonstrates connectivity to Docker Hub by periodically pulling the hash of an image. If the hash is not returned
     * we assume that there is no connection to Docker Hub.
     */
-  private def checkDockerhub(): Future[SubsystemStatus] = {
+  private def checkDockerhub(): Future[SubsystemStatus] =
     dockerHashActor.ask(UbuntuLatestHashRequest).mapTo[DockerInfoResponse] map {
       case _: DockerInfoSuccessResponse => OkStatus
       case f: DockerInfoFailedResponse => throw f.failure
-      case huh => throw new RuntimeException("Encountered unexpected error when trying to contact DockerHub: " + huh.getClass.getCanonicalName)
+      case huh =>
+        throw new RuntimeException(
+          "Encountered unexpected error when trying to contact DockerHub: " + huh.getClass.getCanonicalName
+        )
     }
-  }
 }
 
 object DockerHubMonitor {

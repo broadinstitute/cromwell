@@ -39,7 +39,11 @@ import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend.CommonBackendConfigurationAttributes
-import cromwell.backend.impl.aws.callcaching.{AwsBatchCacheHitDuplicationStrategy, CopyCachedOutputs, UseOriginalCachedOutputs}
+import cromwell.backend.impl.aws.callcaching.{
+  AwsBatchCacheHitDuplicationStrategy,
+  CopyCachedOutputs,
+  UseOriginalCachedOutputs
+}
 import cromwell.cloudsupport.aws.AwsConfiguration
 import cromwell.cloudsupport.aws.auth.AwsAuthMode
 import eu.timepit.refined._
@@ -57,7 +61,8 @@ case class AwsBatchAttributes(fileSystem: String,
                               executionBucket: String,
                               duplicationStrategy: AwsBatchCacheHitDuplicationStrategy,
                               submitAttempts: Int Refined Positive,
-                              createDefinitionAttempts: Int Refined Positive)
+                              createDefinitionAttempts: Int Refined Positive
+)
 
 object AwsBatchAttributes {
   lazy val Logger = LoggerFactory.getLogger(this.getClass)
@@ -77,49 +82,54 @@ object AwsBatchAttributes {
 
   private val context = "AwsBatch"
 
-  implicit val urlReader: ValueReader[URL] = StringReader.stringValueReader.map { URI.create(_).toURL }
+  implicit val urlReader: ValueReader[URL] = StringReader.stringValueReader.map(URI.create(_).toURL)
 
   def fromConfigs(awsConfig: AwsConfiguration, backendConfig: Config): AwsBatchAttributes = {
-    val configKeys = backendConfig.entrySet().asScala.toSet map { entry: java.util.Map.Entry[String, ConfigValue] => entry.getKey }
+    val configKeys = backendConfig.entrySet().asScala.toSet map { entry: java.util.Map.Entry[String, ConfigValue] =>
+      entry.getKey
+    }
     warnNotRecognized(configKeys, availableConfigKeys, context, Logger)
 
     def warnDeprecated(keys: Set[String], deprecated: Map[String, String], context: String, logger: Logger) = {
       val deprecatedKeys = keys.intersect(deprecated.keySet)
-      deprecatedKeys foreach { key => logger.warn(s"Found deprecated configuration key $key, replaced with ${deprecated.get(key)}") }
+      deprecatedKeys foreach { key =>
+        logger.warn(s"Found deprecated configuration key $key, replaced with ${deprecated.get(key)}")
+      }
     }
 
     warnDeprecated(configKeys, deprecatedAwsBatchKeys, context, Logger)
 
-    val executionBucket: ErrorOr[String] = validate { backendConfig.as[String]("root") }
+    val executionBucket: ErrorOr[String] = validate(backendConfig.as[String]("root"))
 
-    val fileSysStr:ErrorOr[String] =  validate {backendConfig.hasPath("filesystems.s3") match {
-      case true => "s3"
-      case false => "local"
-    }}
+    val fileSysStr: ErrorOr[String] = validate {
+      backendConfig.hasPath("filesystems.s3") match {
+        case true => "s3"
+        case false => "local"
+      }
+    }
 
     val fileSysPath = backendConfig.hasPath("filesystems.s3") match {
       case true => "filesystems.s3"
       case false => "filesystems.local"
     }
-    val filesystemAuthMode: ErrorOr[AwsAuthMode] = {
+    val filesystemAuthMode: ErrorOr[AwsAuthMode] =
       (for {
         authName <- validate {
           backendConfig.as[String](s"${fileSysPath}.auth")
         }.toEither
         validAuth <- awsConfig.auth(authName).toEither
       } yield validAuth).toValidated
-    }
-
 
     val duplicationStrategy: ErrorOr[AwsBatchCacheHitDuplicationStrategy] =
       validate {
-        backendConfig.
-          as[Option[String]](s"${fileSysPath}.caching.duplication-strategy").
-          getOrElse("copy") match {
-            case "copy" => CopyCachedOutputs
-            case "reference" => UseOriginalCachedOutputs
-            case other => throw new IllegalArgumentException(s"Unrecognized caching duplication strategy: $other. Supported strategies are copy and reference. See reference.conf for more details.")
-          }
+        backendConfig.as[Option[String]](s"${fileSysPath}.caching.duplication-strategy").getOrElse("copy") match {
+          case "copy" => CopyCachedOutputs
+          case "reference" => UseOriginalCachedOutputs
+          case other =>
+            throw new IllegalArgumentException(
+              s"Unrecognized caching duplication strategy: $other. Supported strategies are copy and reference. See reference.conf for more details."
+            )
+        }
       }
 
     (
@@ -144,8 +154,6 @@ object AwsBatchAttributes {
       override def read(config: Config, path: String): ErrorOr[Refined[Int, Positive]] = {
         val int = config.getInt(path)
         refineV[Positive](int).toValidatedNel
+      }
     }
-  }
 }
-
-

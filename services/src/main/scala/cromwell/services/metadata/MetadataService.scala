@@ -27,13 +27,15 @@ object MetadataService {
                                        labels: Option[Map[String, String]],
                                        parentWorkflowId: Option[String],
                                        rootWorkflowId: Option[String],
-                                       metadataArchiveStatus: MetadataArchiveStatus)
+                                       metadataArchiveStatus: MetadataArchiveStatus
+  )
 
   final case class WorkflowQueryResponse(results: Seq[WorkflowQueryResult], totalResultsCount: Int)
 
   final case class QueryMetadata(page: Option[Int], pageSize: Option[Int], totalRecords: Option[Int])
 
   trait MetadataServiceMessage
+
   /**
     * Command Actions
     */
@@ -66,8 +68,13 @@ object MetadataService {
         serviceRegistryActor ! PutMetadataAction(events)
       }
 
-      def putMetadataWithRawKey(workflowId: WorkflowId, jobKey: Option[(FullyQualifiedName, Option[Int], Int)], keyValue: Map[String, Any]) = {
-        val metadataJobKey = jobKey map { case (fullyQualifiedName, index, attempt) => MetadataJobKey(fullyQualifiedName, index, attempt) }
+      def putMetadataWithRawKey(workflowId: WorkflowId,
+                                jobKey: Option[(FullyQualifiedName, Option[Int], Int)],
+                                keyValue: Map[String, Any]
+      ) = {
+        val metadataJobKey = jobKey map { case (fullyQualifiedName, index, attempt) =>
+          MetadataJobKey(fullyQualifiedName, index, attempt)
+        }
 
         val events = keyValue map { case (key, value) =>
           val metadataKey = MetadataKey(workflowId, metadataJobKey, key)
@@ -85,8 +92,12 @@ object MetadataService {
   }
 
   val MaximumMetadataActionAttempts = 10
-  final case class PutMetadataAction(events: Iterable[MetadataEvent], maxAttempts: Int = MaximumMetadataActionAttempts) extends MetadataWriteAction
-  final case class PutMetadataActionAndRespond(events: Iterable[MetadataEvent], replyTo: ActorRef, maxAttempts: Int = MaximumMetadataActionAttempts) extends MetadataWriteAction
+  final case class PutMetadataAction(events: Iterable[MetadataEvent], maxAttempts: Int = MaximumMetadataActionAttempts)
+      extends MetadataWriteAction
+  final case class PutMetadataActionAndRespond(events: Iterable[MetadataEvent],
+                                               replyTo: ActorRef,
+                                               maxAttempts: Int = MaximumMetadataActionAttempts
+  ) extends MetadataWriteAction
 
   final case object ListenToMetadataWriteActor extends MetadataServiceAction with ListenToMessage
 
@@ -95,14 +106,13 @@ object MetadataService {
     def apply(workflowId: WorkflowId,
               includeKeysOption: Option[NonEmptyList[String]],
               excludeKeysOption: Option[NonEmptyList[String]],
-              expandSubWorkflows: Boolean): BuildWorkflowMetadataJsonAction = {
+              expandSubWorkflows: Boolean
+    ): BuildWorkflowMetadataJsonAction =
       GetMetadataAction(MetadataQuery(workflowId, None, None, includeKeysOption, excludeKeysOption, expandSubWorkflows))
-    }
   }
 
-  final case class GetMetadataAction(key: MetadataQuery,
-                                     checkTotalMetadataRowNumberBeforeQuerying: Boolean = true)
-    extends BuildWorkflowMetadataJsonWithOverridableSourceAction {
+  final case class GetMetadataAction(key: MetadataQuery, checkTotalMetadataRowNumberBeforeQuerying: Boolean = true)
+      extends BuildWorkflowMetadataJsonWithOverridableSourceAction {
 
     override def workflowId: WorkflowId = key.workflowId
   }
@@ -112,7 +122,8 @@ object MetadataService {
   final case class GetStatus(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
   final case class GetLabels(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
   final case class GetRootAndSubworkflowLabels(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
-  final case class QueryForWorkflowsMatchingParameters(parameters: Seq[(String, String)]) extends BuildMetadataJsonAction
+  final case class QueryForWorkflowsMatchingParameters(parameters: Seq[(String, String)])
+      extends BuildMetadataJsonAction
   final case class WorkflowOutputs(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonWithOverridableSourceAction
   final case class GetLogs(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonWithOverridableSourceAction
   case object RefreshSummary extends MetadataServiceAction
@@ -127,6 +138,7 @@ object MetadataService {
   final case class ValidateWorkflowIdInMetadata(possibleWorkflowId: WorkflowId) extends MetadataServiceAction
   final case class ValidateWorkflowIdInMetadataSummaries(possibleWorkflowId: WorkflowId) extends MetadataServiceAction
   final case class FetchWorkflowMetadataArchiveStatusAndEndTime(workflowId: WorkflowId) extends MetadataServiceAction
+  final case class FetchFailedJobsMetadataWithWorkflowId(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
 
   /**
     * Responses
@@ -136,22 +148,33 @@ object MetadataService {
     def reason: Throwable
   }
 
-  final case class MetadataLookupStreamSuccess(id: WorkflowId, result: DatabasePublisher[MetadataEntry]) extends MetadataServiceResponse
+  final case class MetadataLookupStreamSuccess(id: WorkflowId, result: DatabasePublisher[MetadataEntry])
+      extends MetadataServiceResponse
   final case class MetadataLookupStreamFailed(id: WorkflowId, reason: Throwable) extends MetadataServiceResponse
-  final case class MetadataLookupFailedTooLargeResponse(query: MetadataQuery, metadataSizeRows: Int) extends MetadataServiceResponse
+  final case class MetadataLookupFailedTooLargeResponse(query: MetadataQuery, metadataSizeRows: Int)
+      extends MetadataServiceResponse
   final case class MetadataLookupFailedTimeoutResponse(query: MetadataQuery) extends MetadataServiceResponse
-
-  final case class MetadataLookupResponse(query: MetadataQuery, eventList: Seq[MetadataEvent]) extends MetadataServiceResponse
-  final case class MetadataServiceKeyLookupFailed(query: MetadataQuery, reason: Throwable) extends MetadataServiceFailure
+  final case class FetchFailedTasksTimeoutResponse(workflowId: WorkflowId) extends MetadataServiceResponse
+  final case class MetadataLookupResponse(query: MetadataQuery, eventList: Seq[MetadataEvent])
+      extends MetadataServiceResponse
+  final case class FetchFailedJobsMetadataLookupResponse(events: Seq[MetadataEvent]) extends MetadataServiceResponse
+  final case class FetchFailedJobsMetadataLookupFailed(workflowId: WorkflowId, reason: Throwable)
+      extends MetadataServiceFailure
+  final case class MetadataServiceKeyLookupFailed(query: MetadataQuery, reason: Throwable)
+      extends MetadataServiceFailure
 
   final case class StatusLookupResponse(workflowId: WorkflowId, status: WorkflowState) extends MetadataServiceResponse
   final case class StatusLookupFailed(workflowId: WorkflowId, reason: Throwable) extends MetadataServiceFailure
 
-  final case class LabelLookupResponse(workflowId: WorkflowId, labels: Map[String, String]) extends MetadataServiceResponse
+  final case class LabelLookupResponse(workflowId: WorkflowId, labels: Map[String, String])
+      extends MetadataServiceResponse
   final case class LabelLookupFailed(workflowId: WorkflowId, reason: Throwable) extends MetadataServiceFailure
 
-  final case class RootAndSubworkflowLabelsLookupResponse(rootWorkflowId: WorkflowId, labels: Map[WorkflowId, Map[String, String]]) extends MetadataServiceResponse
-  final case class RootAndSubworkflowLabelsLookupFailed(rootWorkflowId: WorkflowId, reason: Throwable) extends MetadataServiceFailure
+  final case class RootAndSubworkflowLabelsLookupResponse(rootWorkflowId: WorkflowId,
+                                                          labels: Map[WorkflowId, Map[String, String]]
+  ) extends MetadataServiceResponse
+  final case class RootAndSubworkflowLabelsLookupFailed(rootWorkflowId: WorkflowId, reason: Throwable)
+      extends MetadataServiceFailure
 
   final case class WorkflowOutputsResponse(id: WorkflowId, outputs: Seq[MetadataEvent]) extends MetadataServiceResponse
   final case class WorkflowOutputsFailure(id: WorkflowId, reason: Throwable) extends MetadataServiceFailure
@@ -160,7 +183,8 @@ object MetadataService {
   final case class LogsFailure(id: WorkflowId, reason: Throwable) extends MetadataServiceFailure
 
   final case class MetadataWriteSuccess(events: Iterable[MetadataEvent]) extends MetadataServiceResponse
-  final case class MetadataWriteFailure(reason: Throwable, events: Iterable[MetadataEvent]) extends MetadataServiceFailure
+  final case class MetadataWriteFailure(reason: Throwable, events: Iterable[MetadataEvent])
+      extends MetadataServiceFailure
 
   sealed abstract class WorkflowValidationResponse extends MetadataServiceResponse
   case object RecognizedWorkflowId extends WorkflowValidationResponse
@@ -168,26 +192,32 @@ object MetadataService {
   final case class FailedToCheckWorkflowId(cause: Throwable) extends WorkflowValidationResponse
 
   sealed abstract class FetchWorkflowArchiveStatusAndEndTimeResponse extends MetadataServiceResponse
-  final case class WorkflowMetadataArchivedStatusAndEndTime(archiveStatus: MetadataArchiveStatus, endTime: Option[OffsetDateTime]) extends FetchWorkflowArchiveStatusAndEndTimeResponse
-  final case class FailedToGetArchiveStatusAndEndTime(reason: Throwable) extends FetchWorkflowArchiveStatusAndEndTimeResponse
+  final case class WorkflowMetadataArchivedStatusAndEndTime(archiveStatus: MetadataArchiveStatus,
+                                                            endTime: Option[OffsetDateTime]
+  ) extends FetchWorkflowArchiveStatusAndEndTimeResponse
+  final case class FailedToGetArchiveStatusAndEndTime(reason: Throwable)
+      extends FetchWorkflowArchiveStatusAndEndTimeResponse
 
   sealed abstract class MetadataQueryResponse extends MetadataServiceResponse
-  final case class WorkflowQuerySuccess(response: WorkflowQueryResponse, meta: Option[QueryMetadata]) extends MetadataQueryResponse
+  final case class WorkflowQuerySuccess(response: WorkflowQueryResponse, meta: Option[QueryMetadata])
+      extends MetadataQueryResponse
   final case class WorkflowQueryFailure(reason: Throwable) extends MetadataQueryResponse
 
-  private implicit class EnhancedWomTraversable(val womValues: Iterable[WomValue]) extends AnyVal {
+  implicit private class EnhancedWomTraversable(val womValues: Iterable[WomValue]) extends AnyVal {
     def toEvents(metadataKey: MetadataKey): List[MetadataEvent] = if (womValues.isEmpty) {
       List(MetadataEvent.empty(metadataKey.copy(key = s"${metadataKey.key}[]")))
     } else {
-      womValues.toList
-        .zipWithIndex
-        .flatMap { case (value, index) => womValueToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}[$index]"), value) }
+      womValues.toList.zipWithIndex
+        .flatMap { case (value, index) =>
+          womValueToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}[$index]"), value)
+        }
     }
   }
 
   private def toPrimitiveEvent(metadataKey: MetadataKey, valueName: String)(value: Option[Any]) = value match {
     case Some(v) => MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:$valueName"), MetadataValue(v))
-    case None => MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:$valueName"), MetadataValue("", MetadataNull))
+    case None =>
+      MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:$valueName"), MetadataValue("", MetadataNull))
   }
 
   def womValueToMetadataEvents(metadataKey: MetadataKey, womValue: WomValue): Iterable[MetadataEvent] = womValue match {
@@ -196,13 +226,17 @@ object MetadataService {
       if (valueMap.isEmpty) {
         List(MetadataEvent.empty(metadataKey))
       } else {
-        valueMap.toList flatMap { case (key, value) => womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + s":${key.valueString}"), value) }
+        valueMap.toList flatMap { case (key, value) =>
+          womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + s":${key.valueString}"), value)
+        }
       }
     case objectLike: WomObjectLike =>
       if (objectLike.values.isEmpty) {
         List(MetadataEvent.empty(metadataKey))
       } else {
-        objectLike.values.toList flatMap { case (key, value) => womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + s":$key"), value) }
+        objectLike.values.toList flatMap { case (key, value) =>
+          womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + s":$key"), value)
+        }
       }
     case WomOptionalValue(_, Some(value)) =>
       womValueToMetadataEvents(metadataKey, value)
@@ -211,7 +245,8 @@ object MetadataService {
         womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + ":right"), right)
     case populated: WomMaybePopulatedFile =>
       import mouse.all._
-      val secondaryFiles = populated.secondaryFiles.toEvents(metadataKey.copy(key = s"${metadataKey.key}:secondaryFiles"))
+      val secondaryFiles =
+        populated.secondaryFiles.toEvents(metadataKey.copy(key = s"${metadataKey.key}:secondaryFiles"))
 
       List(
         MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:class"), MetadataValue("File")),
@@ -223,7 +258,8 @@ object MetadataService {
       ) ++ secondaryFiles
     case listedDirectory: WomMaybeListedDirectory =>
       import mouse.all._
-      val listing = listedDirectory.listingOption.toList.flatten.toEvents(metadataKey.copy(key = s"${metadataKey.key}:listing"))
+      val listing =
+        listedDirectory.listingOption.toList.flatten.toEvents(metadataKey.copy(key = s"${metadataKey.key}:listing"))
       List(
         MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:class"), MetadataValue("Directory")),
         listedDirectory.valueOption |> toPrimitiveEvent(metadataKey, "location")
@@ -232,13 +268,22 @@ object MetadataService {
       List(MetadataEvent(metadataKey, MetadataValue(value)))
   }
 
-  def throwableToMetadataEvents(metadataKey: MetadataKey, t: Throwable, failureIndex: Int = Random.nextInt(Int.MaxValue)): List[MetadataEvent] = {
-    val emptyCauseList = List(MetadataEvent.empty(metadataKey.copy(key = metadataKey.key + s"[$failureIndex]:causedBy[]")))
+  def throwableToMetadataEvents(metadataKey: MetadataKey,
+                                t: Throwable,
+                                failureIndex: Int = Random.nextInt(Int.MaxValue)
+  ): List[MetadataEvent] = {
+    val emptyCauseList = List(
+      MetadataEvent.empty(metadataKey.copy(key = metadataKey.key + s"[$failureIndex]:causedBy[]"))
+    )
     val metadataKeyAndFailureIndex = s"${metadataKey.key}[$failureIndex]"
 
     t match {
       case aggregation: ThrowableAggregation =>
-        val message = List(MetadataEvent(metadataKey.copy(key = s"$metadataKeyAndFailureIndex:message"), MetadataValue(aggregation.exceptionContext)))
+        val message = List(
+          MetadataEvent(metadataKey.copy(key = s"$metadataKeyAndFailureIndex:message"),
+                        MetadataValue(aggregation.exceptionContext)
+          )
+        )
         val indexedCauses = aggregation.throwables.toList.zipWithIndex
         val indexedCauseEvents = if (indexedCauses.nonEmpty) {
           indexedCauses flatMap { case (cause, index) =>
@@ -250,7 +295,11 @@ object MetadataService {
         }
         message ++ indexedCauseEvents
       case aggregation: MessageAggregation =>
-        val message = List(MetadataEvent(metadataKey.copy(key = s"$metadataKeyAndFailureIndex:message"), MetadataValue(aggregation.exceptionContext)))
+        val message = List(
+          MetadataEvent(metadataKey.copy(key = s"$metadataKeyAndFailureIndex:message"),
+                        MetadataValue(aggregation.exceptionContext)
+          )
+        )
         val indexedCauses = aggregation.errorMessages.toList.zipWithIndex
         val indexedCauseEvents = if (indexedCauses.nonEmpty) {
           indexedCauses flatMap { case (cause, index) =>
@@ -264,11 +313,14 @@ object MetadataService {
         message ++ indexedCauseEvents
 
       case _ =>
-        val message = List(MetadataEvent(metadataKey.copy(key = s"$metadataKeyAndFailureIndex:message"), MetadataValue(t.getMessage)))
+        val message = List(
+          MetadataEvent(metadataKey.copy(key = s"$metadataKeyAndFailureIndex:message"), MetadataValue(t.getMessage))
+        )
         val causeKey = metadataKey.copy(key = s"$metadataKeyAndFailureIndex:causedBy")
-        val cause = Option(t.getCause) map { cause => throwableToMetadataEvents(causeKey, cause, 0) } getOrElse emptyCauseList
+        val cause = Option(t.getCause) map { cause =>
+          throwableToMetadataEvents(causeKey, cause, 0)
+        } getOrElse emptyCauseList
         message ++ cause
     }
   }
 }
-

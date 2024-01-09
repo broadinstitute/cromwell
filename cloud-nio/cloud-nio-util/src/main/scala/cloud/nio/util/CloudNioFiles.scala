@@ -12,13 +12,12 @@ object CloudNioFiles {
   /**
     * Lists all files under a path.
     */
-  def listRegularFiles(path: Path): Iterator[Path] = {
+  def listRegularFiles(path: Path): Iterator[Path] =
     Files
       .walk(path, Int.MaxValue)
       .iterator
       .asScala
       .filter(Files.isRegularFile(_))
-  }
 
   /**
     * Returns an iterator of all regular files under sourcePath mapped relatively to targetPath.

@@ -8,6 +8,7 @@ import org.slf4j.bridge.SLF4JBridgeHandler
 import scala.jdk.CollectionConverters._
 
 object JavaLoggingBridge {
+
   /**
     * Replace java.util.logging with SLF4J while ensuring Logback is configured with a LevelChangePropogator.
     *

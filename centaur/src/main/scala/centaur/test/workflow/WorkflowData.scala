@@ -34,7 +34,8 @@ case class WorkflowData(workflowContent: Option[String],
                         labels: List[Label],
                         zippedImports: Option[File],
                         secondOptions: Option[IO[String]] = None,
-                        thirdOptions: Option[IO[String]] = None)
+                        thirdOptions: Option[IO[String]] = None
+)
 
 object WorkflowData {
   val blockingEC = ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(5))
@@ -47,55 +48,64 @@ object WorkflowData {
     val workflowSourcePath = filesConfig.as[Option[String]]("workflow")
 
     (workflowSourcePath, workflowUrl) match {
-      case (Some(workflowPath), None) => Valid(WorkflowData(
-        workflowPath = Option(workflowPath),
-        workflowUrl = None,
-        filesConfig = filesConfig,
-        fullConfig = fullConfig,
-        basePath = basePath))
-      case (None, Some(_)) => Valid(WorkflowData(
-        workflowPath = None,
-        workflowUrl = workflowUrl,
-        filesConfig = filesConfig,
-        fullConfig = fullConfig,
-        basePath = basePath))
+      case (Some(workflowPath), None) =>
+        Valid(
+          WorkflowData(workflowPath = Option(workflowPath),
+                       workflowUrl = None,
+                       filesConfig = filesConfig,
+                       fullConfig = fullConfig,
+                       basePath = basePath
+          )
+        )
+      case (None, Some(_)) =>
+        Valid(
+          WorkflowData(workflowPath = None,
+                       workflowUrl = workflowUrl,
+                       filesConfig = filesConfig,
+                       fullConfig = fullConfig,
+                       basePath = basePath
+          )
+        )
       case (Some(_), Some(_)) => invalidNel(s"Both 'workflow' path or 'workflowUrl' can't be provided.")
       case (None, None) => invalidNel(s"No 'workflow' path or 'workflowUrl' provided.")
     }
   }
 
-  def apply(workflowPath: Option[String], workflowUrl: Option[String], filesConfig: Config, fullConfig: Config, basePath: File): WorkflowData = {
+  def apply(workflowPath: Option[String],
+            workflowUrl: Option[String],
+            filesConfig: Config,
+            fullConfig: Config,
+            basePath: File
+  ): WorkflowData = {
     def slurp(file: String): IO[String] = file match {
-      case http if http.startsWith("http://") || http.startsWith("https://") => 
+      case http if http.startsWith("http://") || http.startsWith("https://") =>
         httpClient.expect[String](http)
       case gcs if gcs.startsWith("gs://") =>
         val noScheme = gcs.stripPrefix("gs://")
         val firstSlashPosition = noScheme.indexOf("/")
         val blob = BlobId.of(noScheme.substring(0, firstSlashPosition), noScheme.substring(firstSlashPosition + 1))
-        IO { gcsStorage.readAllBytes(blob).map(_.toChar).mkString }
+        IO(gcsStorage.readAllBytes(blob).map(_.toChar).mkString)
       case local =>
-        IO { basePath./(local).contentAsString }
+        IO(basePath./(local).contentAsString)
     }
-    
-    def getOptionalFileContent(name: String): Option[IO[String]] = {
+
+    def getOptionalFileContent(name: String): Option[IO[String]] =
       filesConfig.getAs[String](name).map(slurp)
-    }
 
     def getImports = filesConfig.get[List[String]]("imports") match {
       case Success(paths) => zipImports(paths map basePath./)
       case Failure(_) => None
     }
 
-    def getImportsDirName(workflowPath: Option[File], workflowUrl: Option[String]): String = {
+    def getImportsDirName(workflowPath: Option[File], workflowUrl: Option[String]): String =
       workflowPath match {
         case Some(file) => file.name.replaceAll("\\.[^.]*$", "")
         case None => // workflow url is defined
           val fileName = workflowUrl.get.split("/").last
           fileName.replaceAll("\\.[^.]*$", "")
       }
-    }
 
-    def zipImports(imports: List[File]): Option[File] = {
+    def zipImports(imports: List[File]): Option[File] =
       imports match {
         case Nil => None
         case _ =>
@@ -109,7 +119,6 @@ object WorkflowData {
 
           Option(importsDir.zip())
       }
-    }
 
     def getLabels: List[Label] = {
       import cromwell.api.model.LabelsJsonFormatter._

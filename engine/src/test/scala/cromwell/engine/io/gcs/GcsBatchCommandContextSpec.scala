@@ -13,7 +13,11 @@ import org.scalatest.matchers.should.Matchers
 import scala.util.{Failure, Success}
 
 class GcsBatchCommandContextSpec
-  extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Eventually with BeforeAndAfter {
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with Eventually
+    with BeforeAndAfter {
   behavior of "GcsBatchCommandContext"
 
   it should "handle exceptions in success handlers" in {
@@ -34,7 +38,10 @@ class GcsBatchCommandContextSpec
 
     exceptionSpewingCommandContext.promise.future.value.get match {
       case Success(oops) => fail(s"Should not have produced a success: $oops")
-      case Failure(error) => error.getMessage should be("Error processing IO response in onSuccessCallback: Ill behaved code that throws in mapGoogleResponse")
+      case Failure(error) =>
+        error.getMessage should be(
+          "Error processing IO response in onSuccessCallback: Ill behaved code that throws in mapGoogleResponse"
+        )
     }
   }
 
@@ -48,7 +55,7 @@ class GcsBatchCommandContextSpec
     exceptionSpewingCommandContext.promise.isCompleted should be(false)
 
     // Simulate a failure response from an underlying IO operation:
-    exceptionSpewingCommandContext.callback.onFailure(new GoogleJsonError { }, new HttpHeaders())
+    exceptionSpewingCommandContext.callback.onFailure(new GoogleJsonError {}, new HttpHeaders())
 
     eventually {
       exceptionSpewingCommandContext.promise.isCompleted should be(true)
@@ -56,7 +63,10 @@ class GcsBatchCommandContextSpec
 
     exceptionSpewingCommandContext.promise.future.value.get match {
       case Success(oops) => fail(s"Should not have produced a success: $oops")
-      case Failure(error) => error.getMessage should be("Error processing IO response in onFailureCallback: Ill behaved code that throws in onFailure")
+      case Failure(error) =>
+        error.getMessage should be(
+          "Error processing IO response in onFailureCallback: Ill behaved code that throws in onFailure"
+        )
     }
   }
 
@@ -78,7 +88,10 @@ class GcsBatchCommandContextSpec
 
     errorReturningCommandContext.promise.future.value.get match {
       case Success(oops) => fail(s"Should not have produced a success: $oops")
-      case Failure(error) => error.getMessage should be("Unexpected result in successful Google API call:\nWell behaved code that returns an error in mapGoogleResponse")
+      case Failure(error) =>
+        error.getMessage should be(
+          "Unexpected result in successful Google API call:\nWell behaved code that returns an error in mapGoogleResponse"
+        )
     }
   }
 }

@@ -22,7 +22,8 @@ class ServiceInfoSpec extends AsyncFlatSpec with ScalatestRouteTest with Matcher
 
   behavior of "ServiceInfo"
 
-  val expectedResponse = WesStatusInfoResponse(Map("WDL" -> Set("draft-2", "1.0", "biscayne", "cascades")),
+  val expectedResponse = WesStatusInfoResponse(
+    Map("WDL" -> Set("draft-2", "1.0", "biscayne", "cascades")),
     List("1.0"),
     Set("ftp", "s3", "drs", "gcs", "http"),
     Map("Cromwell" -> CromwellApiService.cromwellVersion),
@@ -30,8 +31,8 @@ class ServiceInfoSpec extends AsyncFlatSpec with ScalatestRouteTest with Matcher
     Map(WesState.Running -> 5, WesState.Queued -> 3, WesState.Canceling -> 2),
     "https://cromwell.readthedocs.io/en/stable/",
     "https://cromwell.readthedocs.io/en/stable/",
-    Map())
-
+    Map()
+  )
 
   it should "should eventually build the right WesResponse" in {
     ServiceInfo.toWesResponse(workflowStoreActor) map { r =>

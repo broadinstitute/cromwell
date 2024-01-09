@@ -12,4 +12,3 @@ trait Evaluator {
   def functions: Functions
   def evaluate(ast: AstNode): Try[T]
 }
-

@@ -14,4 +14,4 @@ docker run \
     --env POSTGRES_DB=cromwell_test \
     --volume ./postgresql-initdb.d:/docker-entrypoint-initdb.d \
     --publish 5432:5432 \
-    --rm postgres:11.3
+    --rm postgres:14

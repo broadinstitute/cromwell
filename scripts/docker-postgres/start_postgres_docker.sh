@@ -7,11 +7,13 @@
 
 set -euo pipefail
 
+CURRENT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 docker run \
     --name=cromwell_postgres_test_db \
     --env POSTGRES_USER=cromwell \
     --env POSTGRES_PASSWORD=test \
     --env POSTGRES_DB=cromwell_test \
-    --volume ./postgresql-initdb.d:/docker-entrypoint-initdb.d \
+    --volume ${CURRENT_DIR}/postgresql-initdb.d:/docker-entrypoint-initdb.d \
     --publish 5432:5432 \
     --rm postgres:14

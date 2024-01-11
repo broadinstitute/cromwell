@@ -18,13 +18,15 @@ final case class GcpLabel(key: String, value: String)
 object GcpLabel {
 
   val MaxLabelLength = 63
-  val GoogleLabelRegexPattern = "[a-z]([-a-z0-9]*[a-z0-9])?"
-  val GoogleLabelRegex = GoogleLabelRegexPattern.r
+  val GoogleLabelKeyRegexPattern = "[a-z]([-a-z_0-9]*[a-z0-9])?" // label key must start with letter
+  val GoogleLabelValueRegexPattern = "[a-z0-9]([-a-z_0-9]*[a-z0-9])?"
+  val GoogleLabelKeyRegex = GoogleLabelKeyRegexPattern.r
+  val GoogleLabelValueRegex = GoogleLabelValueRegexPattern.r
 
-  // This function is used to coerce a string into one that meets the requirements for a label submission to Google Pipelines API.
-  // See 'labels' in https://cloud.google.com/genomics/reference/rpc/google.genomics.v1alpha2#google.genomics.v1alpha2.RunPipelineArgs
+  // This function is used to coerce a string into one that meets the requirements for a label submission to Google Batch API.
+  // https://cloud.google.com/compute/docs/labeling-resources#requirements
   def safeGoogleName(mainText: String, emptyAllowed: Boolean = false): String =
-    validateLabelRegex(mainText) match {
+    validateLabelRegex(mainText, true) match {
       case Valid(labelText) => labelText
       case invalid @ _ if mainText.equals("") && emptyAllowed => mainText
       case invalid @ _ =>
@@ -57,15 +59,19 @@ object GcpLabel {
         }
     }
 
-  def validateLabelRegex(s: String): ErrorOr[String] =
-    (GoogleLabelRegex.pattern.matcher(s).matches, s.length <= MaxLabelLength) match {
+  def validateLabelRegex(s: String, isKey: Boolean): ErrorOr[String] = {
+    val regexPattern = if (isKey) GoogleLabelKeyRegex.pattern else GoogleLabelValueRegex.pattern
+    val field = if (isKey) "label key" else "label value"
+
+    (regexPattern.matcher(s).matches, s.length <= MaxLabelLength) match {
       case (true, true) => s.validNel
       case (false, false) =>
-        s"Invalid label field: `$s` did not match regex '$GoogleLabelRegexPattern' and it is ${s.length} characters. The maximum is $MaxLabelLength.".invalidNel
-      case (false, _) => s"Invalid label field: `$s` did not match the regex '$GoogleLabelRegexPattern'".invalidNel
+        s"Invalid $field field: `$s` did not match regex '$regexPattern' and it is ${s.length} characters. The maximum is $MaxLabelLength.".invalidNel
+      case (false, _) => s"Invalid $field field: `$s` did not match the regex '$regexPattern'".invalidNel
       case (_, false) =>
-        s"Invalid label field: `$s` is ${s.length} characters. The maximum is $MaxLabelLength.".invalidNel
+        s"Invalid $field field: `$s` is ${s.length} characters. The maximum is $MaxLabelLength.".invalidNel
     }
+  }
 
   def safeLabels(values: (String, String)*): Seq[GcpLabel] = {
     def safeGoogleLabel(kvp: (String, String)): GcpLabel =
@@ -74,7 +80,7 @@ object GcpLabel {
   }
 
   def validateLabel(key: String, value: String): ErrorOr[GcpLabel] =
-    (validateLabelRegex(key), validateLabelRegex(value)).mapN { (validKey, validValue) =>
+    (validateLabelRegex(key, true), validateLabelRegex(value, false)).mapN { (validKey, validValue) =>
       GcpLabel(validKey, validValue)
     }
 

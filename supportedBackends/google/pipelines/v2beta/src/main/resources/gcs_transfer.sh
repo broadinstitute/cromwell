@@ -34,9 +34,9 @@ private::delocalize_file() {
   cloud_parent=$(dirname "$cloud")"/"
 
   if [[ -f "$container" && -n "$content" ]]; then
-    rm -f "$HOME/.config/gcloud/gce" && gcloud storage ${rpflag} --content-type="$content" cp "$container" "$cloud_parent" > "$gsutil_log" 2>&1
+    rm -f "$HOME/.config/gcloud/gce" && gcloud storage cp ${rpflag} --content-type="$content" "$container" "$cloud_parent" > "$gsutil_log" 2>&1
   elif [[ -f "$container" ]]; then
-    rm -f "$HOME/.config/gcloud/gce" && gcloud storage ${rpflag} cp "$container" "$cloud_parent" > "$gsutil_log" 2>&1
+    rm -f "$HOME/.config/gcloud/gce" && gcloud storage cp ${rpflag} "$container" "$cloud_parent" > "$gsutil_log" 2>&1
   elif [[ -e "$container" ]]; then
     echo "File output '$container' exists but is not a file"
     exit 1
@@ -164,7 +164,7 @@ localize_files() {
 
   # We need to determine requester pays status of the first file attempting at most `max_attempts` times.
   NO_REQUESTER_PAYS_COMMAND="mkdir -p '$container_parent' && rm -f "$HOME/.config/gcloud/gce" && gcloud storage cp '$first_cloud_file' '$container_parent'"
-  REQUESTER_PAYS_COMMAND="rm -f "$HOME/.config/gcloud/gce" && gcloud storage --billing-project $project cp '$first_cloud_file' '$container_parent'"
+  REQUESTER_PAYS_COMMAND="rm -f "$HOME/.config/gcloud/gce" && gcloud storage cp --billing-project $project '$first_cloud_file' '$container_parent'"
 
   basefile=$(basename "$first_cloud_file")
   private::localize_message "$first_cloud_file" "${container_parent}${basefile}"
@@ -193,7 +193,7 @@ localize_files() {
     while [[ ${attempt} -le ${max_attempts} ]]; do
       # parallel transfer the remaining files
       rm -f "$HOME/.config/gcloud/gce"
-      if cat files_to_localize.txt | gcloud storage ${rpflag} cp --read-paths-from-stdin "$container_parent"; then
+      if cat files_to_localize.txt | gcloud storage cp ${rpflag} --read-paths-from-stdin "$container_parent"; then
         break
       else
         attempt=$((attempt + 1))

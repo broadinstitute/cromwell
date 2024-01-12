@@ -34,9 +34,11 @@ private::delocalize_file() {
   cloud_parent=$(dirname "$cloud")"/"
 
   if [[ -f "$container" && -n "$content" ]]; then
-    rm -f "$HOME/.config/gcloud/gce" && gsutil ${rpflag} -m -h "Content-Type: $content" -o GSUtil:parallel_composite_upload_threshold="$parallel_composite_upload_threshold" cp "$container" "$cloud_parent" > "$gsutil_log" 2>&1
+    # TODO weird error caused by headers
+    # https://broadinstitute.slack.com/archives/C3GMDRWCS/p1705084799477529
+    rm -f "$HOME/.config/gcloud/gce" && gcloud storage ${rpflag} --additional-headers=Content-Type="$content" cp "$container" "$cloud_parent" > "$gsutil_log" 2>&1
   elif [[ -f "$container" ]]; then
-    rm -f "$HOME/.config/gcloud/gce" && gsutil ${rpflag} -m -o GSUtil:parallel_composite_upload_threshold="$parallel_composite_upload_threshold" cp "$container" "$cloud_parent" > "$gsutil_log" 2>&1
+    rm -f "$HOME/.config/gcloud/gce" && gcloud storage ${rpflag} cp "$container" "$cloud_parent" > "$gsutil_log" 2>&1
   elif [[ -e "$container" ]]; then
     echo "File output '$container' exists but is not a file"
     exit 1
@@ -163,15 +165,16 @@ localize_files() {
   fi
 
   # We need to determine requester pays status of the first file attempting at most `max_attempts` times.
-  NO_REQUESTER_PAYS_COMMAND="mkdir -p '$container_parent' && rm -f "$HOME/.config/gcloud/gce" && gsutil -o 'GSUtil:parallel_thread_count=1' -o 'GSUtil:sliced_object_download_max_components=${num_cpus}' cp '$first_cloud_file' '$container_parent'"
-  REQUESTER_PAYS_COMMAND="rm -f "$HOME/.config/gcloud/gce" && gsutil -o 'GSUtil:parallel_thread_count=1' -o 'GSUtil:sliced_object_download_max_components=${num_cpus}' -u $project cp '$first_cloud_file' '$container_parent'"
+  NO_REQUESTER_PAYS_COMMAND="mkdir -p '$container_parent' && rm -f "$HOME/.config/gcloud/gce" && gcloud storage cp '$first_cloud_file' '$container_parent'"
+  REQUESTER_PAYS_COMMAND="rm -f "$HOME/.config/gcloud/gce" && gcloud storage --billing-project $project cp '$first_cloud_file' '$container_parent'"
 
   basefile=$(basename "$first_cloud_file")
   private::localize_message "$first_cloud_file" "${container_parent}${basefile}"
   private::determine_requester_pays ${max_attempts}
 
   if [[ ${USE_REQUESTER_PAYS} = true ]]; then
-    rpflag="-u $project"
+    # https://cloud.google.com/storage/docs/using-requester-pays#using
+    rpflag="--billing-project $project"
   else
     rpflag=""
   fi
@@ -192,7 +195,7 @@ localize_files() {
     while [[ ${attempt} -le ${max_attempts} ]]; do
       # parallel transfer the remaining files
       rm -f "$HOME/.config/gcloud/gce"
-      if cat files_to_localize.txt | gsutil -o "GSUtil:parallel_thread_count=1" -o "GSUtil:sliced_object_download_max_components=${num_cpus}" -m ${rpflag} cp -I "$container_parent"; then
+      if cat files_to_localize.txt | gcloud storage ${rpflag} cp --read-paths-from-stdin "$container_parent"; then
         break
       else
         attempt=$((attempt + 1))
@@ -247,7 +250,7 @@ localize_directories() {
   private::determine_requester_pays ${max_attempts}
 
   if [[ ${USE_REQUESTER_PAYS} = true ]]; then
-    rpflag="-u $project"
+    rpflag="--billing-project $project"
   else
     rpflag=""
   fi
@@ -311,7 +314,7 @@ delocalize() {
     while [[ ${attempt} -le ${max_attempts} ]]; do
 
       if [[ ${use_requester_pays} = true ]]; then
-        rpflag="-u ${project}"
+        rpflag="--billing-project ${project}"
       else
         rpflag=""
       fi

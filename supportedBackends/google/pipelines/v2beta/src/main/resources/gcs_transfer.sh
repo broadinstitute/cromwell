@@ -34,9 +34,7 @@ private::delocalize_file() {
   cloud_parent=$(dirname "$cloud")"/"
 
   if [[ -f "$container" && -n "$content" ]]; then
-    # TODO weird error caused by headers
-    # https://broadinstitute.slack.com/archives/C3GMDRWCS/p1705084799477529
-    rm -f "$HOME/.config/gcloud/gce" && gcloud storage ${rpflag} --additional-headers=Content-Type="$content" cp "$container" "$cloud_parent" > "$gsutil_log" 2>&1
+    rm -f "$HOME/.config/gcloud/gce" && gcloud storage ${rpflag} --content-type="$content" cp "$container" "$cloud_parent" > "$gsutil_log" 2>&1
   elif [[ -f "$container" ]]; then
     rm -f "$HOME/.config/gcloud/gce" && gcloud storage ${rpflag} cp "$container" "$cloud_parent" > "$gsutil_log" 2>&1
   elif [[ -e "$container" ]]; then

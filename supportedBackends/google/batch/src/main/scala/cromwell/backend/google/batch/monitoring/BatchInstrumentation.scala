@@ -29,4 +29,6 @@ trait BatchInstrumentation extends CromwellInstrumentation {
   def abortSuccess() = increment(BatchAbortKey.concatNel(SuccessKey), BackendPrefix)
   def abortFailed() = increment(BatchAbortFailedKey.concatNel(FailureKey), BackendPrefix)
 
+  def updateQueueSize(size: Int) = sendGauge(BatchKey.concatNel("queue_size"), size.toLong, BackendPrefix)
+
 }

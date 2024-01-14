@@ -1,6 +1,7 @@
 package cromwell.backend.google.batch.actors
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
+import cromwell.backend.google.batch.api.BatchApiRequestManager.SystemPAPIApiException
 import cromwell.backend.google.batch.models.GcpBatchRequest
 import cromwell.backend.google.batch.monitoring.BatchInstrumentation
 import cromwell.backend.standard.StandardAsyncJob
@@ -46,4 +47,16 @@ trait BatchApiRunCreationClient { this: Actor with ActorLogging with BatchInstru
         runCreationClientPromise = Option(newPromise)
         newPromise.future
     }
+}
+
+object BatchApiRunCreationClient {
+
+  /**
+   * Exception used to represent the fact that a job was aborted before a creation attempt was made.
+   * Meaning it was in the queue when the abort request was made, so it was just removed from the queue.
+   */
+  case object JobAbortedException
+      extends SystemPAPIApiException(
+        new Exception("The job was removed from the queue before a PAPI creation request was made")
+      )
 }

@@ -1,17 +1,17 @@
 package cromwell.backend.google.batch.api
 
 import akka.actor.{ActorLogging, ActorRef, Props}
-import akka.testkit.{TestActorRef, TestProbe, _}
+import akka.testkit._
 import cats.data.NonEmptyList
 import com.google.api.client.googleapis.batch.BatchRequest
 import cromwell.backend.BackendSingletonActorAbortWorkflow
 import cromwell.backend.google.batch.api.BatchApiRequestManager.{
-  NoWorkToDo,
-  PAPIRunCreationRequest,
-  PAPIStatusPollRequest,
-  PipelinesApiRunCreationQueryFailed,
-  PipelinesApiWorkBatch,
-  PipelinesWorkerRequestWork
+  BatchApiRunCreationQueryFailed,
+  BatchApiWorkBatch,
+  BatchRunCreationRequest,
+  BatchStatusPollRequest,
+  BatchWorkerRequestWork,
+  NoWorkToDo
 }
 import cromwell.backend.google.batch.api.TestBatchApiRequestManagerSpec.intWithTimes
 import cromwell.backend.standard.StandardAsyncJob
@@ -41,12 +41,12 @@ class BatchApiRequestManagerSpec extends TestKitSuite with AnyFlatSpecLike with 
   val workflowId: WorkflowId = WorkflowId.randomId()
 
   private def makePollRequest(snd: ActorRef, jobId: StandardAsyncJob) =
-    new PAPIStatusPollRequest(workflowId, snd, null, jobId) {
+    new BatchStatusPollRequest(workflowId, snd, null, jobId) {
       override def contentLength = 0
     }
 
   private def makeCreateRequest(contentSize: Long, snd: ActorRef, workflowId: WorkflowId = workflowId) =
-    new PAPIRunCreationRequest(workflowId, snd, null) {
+    new BatchRunCreationRequest(workflowId, snd, null) {
       override def contentLength: Long = contentSize
     }
 
@@ -61,7 +61,7 @@ class BatchApiRequestManagerSpec extends TestKitSuite with AnyFlatSpecLike with 
     var statusRequesters = ((0 until BatchSize * 2) map { i => i -> TestProbe(name = s"StatusRequester_$i") }).toMap
 
     // Initially, we should have no work:
-    jaqmActor.tell(msg = BatchApiRequestManager.PipelinesWorkerRequestWork(BatchSize), sender = statusPoller.ref)
+    jaqmActor.tell(msg = BatchApiRequestManager.BatchWorkerRequestWork(BatchSize), sender = statusPoller.ref)
     statusPoller.expectMsg(max = TestExecutionTimeout, obj = BatchApiRequestManager.NoWorkToDo)
 
     // Send a few status poll requests:
@@ -74,23 +74,23 @@ class BatchApiRequestManagerSpec extends TestKitSuite with AnyFlatSpecLike with 
 
     // Verify batches:
     2 times {
-      jaqmActor.tell(msg = BatchApiRequestManager.PipelinesWorkerRequestWork(BatchSize), sender = statusPoller.ref)
+      jaqmActor.tell(msg = BatchApiRequestManager.BatchWorkerRequestWork(BatchSize), sender = statusPoller.ref)
       statusPoller.expectMsgPF(max = TestExecutionTimeout) {
-        case BatchApiRequestManager.PipelinesApiWorkBatch(workBatch) =>
+        case BatchApiRequestManager.BatchApiWorkBatch(workBatch) =>
           val requesters = statusRequesters.take(BatchSize)
           statusRequesters = statusRequesters.drop(BatchSize)
 
           val zippedWithRequesters = workBatch.toList.zip(requesters)
           zippedWithRequesters foreach { case (pollQuery, (index, testProbe)) =>
             pollQuery.requester should be(testProbe.ref)
-            pollQuery.asInstanceOf[PAPIStatusPollRequest].jobId should be(StandardAsyncJob(index.toString))
+            pollQuery.asInstanceOf[BatchStatusPollRequest].jobId should be(StandardAsyncJob(index.toString))
           }
         case other => fail(s"Unexpected message: $other")
       }
     }
 
     // Finally, we should have no work:
-    jaqmActor.tell(msg = BatchApiRequestManager.PipelinesWorkerRequestWork(BatchSize), sender = statusPoller.ref)
+    jaqmActor.tell(msg = BatchApiRequestManager.BatchWorkerRequestWork(BatchSize), sender = statusPoller.ref)
     statusPoller.expectMsg(max = TestExecutionTimeout, obj = BatchApiRequestManager.NoWorkToDo)
 
     jaqmActor.underlyingActor.testPollerCreations should be(1)
@@ -110,7 +110,7 @@ class BatchApiRequestManagerSpec extends TestKitSuite with AnyFlatSpecLike with 
     val request = makeCreateRequest(15 * 1024 * 1024, statusRequester.ref)
     jaqmActor.tell(msg = request, sender = statusRequester.ref)
 
-    statusRequester.expectMsgClass(classOf[PipelinesApiRunCreationQueryFailed])
+    statusRequester.expectMsgClass(classOf[BatchApiRunCreationQueryFailed])
 
     jaqmActor.underlyingActor.queueSize shouldBe 0
   }
@@ -132,11 +132,11 @@ class BatchApiRequestManagerSpec extends TestKitSuite with AnyFlatSpecLike with 
     }
 
     // ask for a batch
-    jaqmActor.tell(msg = BatchApiRequestManager.PipelinesWorkerRequestWork(BatchSize), sender = statusPoller.ref)
+    jaqmActor.tell(msg = BatchApiRequestManager.BatchWorkerRequestWork(BatchSize), sender = statusPoller.ref)
 
     // We should get only 2 requests back
     statusPoller.expectMsgPF(max = TestExecutionTimeout) {
-      case BatchApiRequestManager.PipelinesApiWorkBatch(workBatch) => workBatch.toList.size shouldBe 2
+      case BatchApiRequestManager.BatchApiWorkBatch(workBatch) => workBatch.toList.size shouldBe 2
       case other => fail(s"Unexpected message: $other")
     }
 
@@ -257,7 +257,7 @@ class BatchApiRequestManagerSpec extends TestKitSuite with AnyFlatSpecLike with 
     eventually {
       jaqmActor.underlyingActor.queueSize shouldBe 1
       jaqmActor.underlyingActor.workQueue.head
-        .asInstanceOf[BatchApiRequestManager.PAPIRunCreationRequest]
+        .asInstanceOf[BatchApiRequestManager.BatchRunCreationRequest]
         .workflowId shouldBe workflowIdB
     }
   }
@@ -340,7 +340,7 @@ class TestBatchWorkerActor() extends DeathTestActor with ActorLogging {
 
   override def receive: Receive = stoppingReceive orElse {
 
-    case PipelinesApiWorkBatch(work) =>
+    case BatchApiWorkBatch(work) =>
       log.info(s"received ${work.size} requests from ${sender().path.name}")
       workToDo = Some(work)
     case NoWorkToDo =>
@@ -349,11 +349,11 @@ class TestBatchWorkerActor() extends DeathTestActor with ActorLogging {
     case SpecOnly_TriggerRequestForWork(manager, batchSize) => requestWork(manager, batchSize)
   }
 
-  def requestWork(papiRequestManager: ActorRef, batchSize: Int): Unit =
-    papiRequestManager ! PipelinesWorkerRequestWork(batchSize)
+  def requestWork(batchRequestManager: ActorRef, batchSize: Int): Unit =
+    batchRequestManager ! BatchWorkerRequestWork(batchSize)
 }
 
-case class SpecOnly_TriggerRequestForWork(papiRequestManager: ActorRef, batchSize: Int)
+case class SpecOnly_TriggerRequestForWork(batchRequestManager: ActorRef, batchSize: Int)
 
 class MockBatchRequestHandler extends GcpBatchApiRequestHandler {
   override def makeBatchRequest = throw new UnsupportedOperationException

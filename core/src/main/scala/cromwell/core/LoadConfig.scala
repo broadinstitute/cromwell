@@ -19,4 +19,5 @@ object LoadConfig {
   val MetadataWriteThreshold = conf.as[Int]("metadata-write")
   val MonitoringFrequency = conf.as[FiniteDuration]("monitoring-frequency")
   val PAPIThreshold = conf.as[Int]("papi-requests")
+  val BatchThreshold = conf.as[Int]("batch-requests")
 }

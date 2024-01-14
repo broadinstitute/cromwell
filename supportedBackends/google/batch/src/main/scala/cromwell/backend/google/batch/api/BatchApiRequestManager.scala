@@ -26,7 +26,7 @@ import scala.concurrent.duration._
 import scala.util.control.NoStackTrace
 
 /**
- * Holds a set of PAPI request until a PipelinesApiRequestActor pulls the work.
+ * Holds a set of Batch request until a BatchApiRequestActor pulls the work.
  */
 class BatchApiRequestManager(val qps: Int Refined Positive,
                              requestWorkers: Int Refined Positive,
@@ -70,10 +70,10 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
    * and com.google.api.client.http.javanet.NetHttpRequest
    *
    */
-  private val maxBatchRequestSize: Long = 14L * 1024L * 1024L
-  private val requestTooLargeException = new UserPAPIApiException(
+  private val maxBatchRequestSize: Long = 14L * 1024L * 1024L // TODO: Alex what's the value for this?
+  private val requestTooLargeException = new UserBatchApiException(
     cause = new IllegalArgumentException(
-      s"The task run request has exceeded the maximum PAPI request size ($maxBatchRequestSize bytes)."
+      s"The task run request has exceeded the maximum Batch request size ($maxBatchRequestSize bytes)."
     ),
     helpfulHint = Option(
       "If you have a task with a very large number of inputs and / or outputs in your workflow you should try to reduce it. " +
@@ -88,12 +88,12 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
 
   // workQueue is protected for the unit tests, not intended to be generally overridden
   protected[api] var workQueue: Queue[BatchApiRequest] = Queue.empty
-  private var workInProgress: Map[ActorRef, PipelinesApiWorkBatch] = Map.empty
+  private var workInProgress: Map[ActorRef, BatchApiWorkBatch] = Map.empty
   // Queries that have been scheduled to be retried through the actor's timer. They will boomerang back to this actor after
   // the scheduled delay, unless the workflow is aborted in the meantime in which case they will be cancelled.
   private var queriesWaitingForRetry: Set[BatchApiRequest] = Set.empty[BatchApiRequest]
 
-  private def papiRequestWorkerProps =
+  private def batchRequestWorkerProps =
     BatchApiRequestWorker.props(self, workerBatchInterval, serviceRegistryActor).withMailbox(Mailbox.PriorityMailbox)
 
   // statusPollers is protected for the unit tests, not intended to be generally overridden
@@ -103,43 +103,43 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
   private var previousLoad: LoadLevel = NormalLoad
 
   override def preStart() = {
-    log.info("Running with {} PAPI request workers", requestWorkers.value)
+    log.info("Running with {} Batch request workers", requestWorkers.value)
     startInstrumentationTimer()
     super.preStart()
   }
 
   def monitorQueueSize() = {
-    // TODO remove PAPIThreshold
-    val newLoad = if (workQueue.size > LoadConfig.PAPIThreshold) HighLoad else NormalLoad
+    // TODO remove BatchThreshold
+    val newLoad = if (workQueue.size > LoadConfig.BatchThreshold) HighLoad else NormalLoad
 
     if (previousLoad == NormalLoad && newLoad == HighLoad)
       log.warning(
-        s"PAPI Request Manager transitioned to HighLoad with queue size ${workQueue.size} exceeding limit of ${LoadConfig.PAPIThreshold}"
+        s"Batch Request Manager transitioned to HighLoad with queue size ${workQueue.size} exceeding limit of ${LoadConfig.BatchThreshold}"
       )
     else if (previousLoad == HighLoad && newLoad == NormalLoad)
-      log.info("PAPI Request Manager transitioned back to NormaLoad")
+      log.info("Batch Request Manager transitioned back to NormaLoad")
 
     previousLoad = newLoad
 
-    serviceRegistryActor ! LoadMetric("PAPIQueryManager", newLoad)
+    serviceRegistryActor ! LoadMetric("BatchQueryManager", newLoad)
     updateQueueSize(workQueue.size)
   }
 
   val requestManagerReceive: Receive = {
     case ResetAllRequestWorkers => resetAllWorkers()
     case BackendSingletonActorAbortWorkflow(id) => abort(id)
-    case status: PAPIStatusPollRequest => workQueue :+= status
-    case create: PAPIRunCreationRequest =>
+    case status: BatchStatusPollRequest => workQueue :+= status
+    case create: BatchRunCreationRequest =>
       if (create.contentLength > maxBatchRequestSize) {
-        create.requester ! PipelinesApiRunCreationQueryFailed(create, requestTooLargeException)
+        create.requester ! BatchApiRunCreationQueryFailed(create, requestTooLargeException)
       } else workQueue :+= create
-    case abort: PAPIAbortRequest => workQueue :+= abort
-    case PipelinesWorkerRequestWork(maxBatchSize) => handleWorkerAskingForWork(sender(), maxBatchSize)
+    case abort: BatchAbortRequest => workQueue :+= abort
+    case BatchWorkerRequestWork(maxBatchSize) => handleWorkerAskingForWork(sender(), maxBatchSize)
     case failure: BatchApiRequestFailed =>
       handleQueryFailure(failure)
     case Terminated(actorRef) =>
       onFailure(actorRef,
-                new RuntimeException("PipelinesApiRequestHandler actor termination caught by manager") with NoStackTrace
+                new RuntimeException("BatchApiRequestHandler actor termination caught by manager") with NoStackTrace
       )
     case other =>
       log.error(s"Unexpected message from {} to ${this.getClass.getSimpleName}: {}", sender().path.name, other)
@@ -147,19 +147,19 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
 
   override def receive = instrumentationReceive(monitorQueueSize _).orElse(requestManagerReceive)
 
-  private def abort(workflowId: WorkflowId) = {
-    def aborted(query: PAPIRunCreationRequest) =
-      query.requester ! PipelinesApiRunCreationQueryFailed(query, JobAbortedException)
+  private def abort(workflowId: WorkflowId): Unit = {
+    def aborted(query: BatchRunCreationRequest) =
+      query.requester ! BatchApiRunCreationQueryFailed(query, JobAbortedException)
 
     workQueue = workQueue.filterNot {
-      case query: PAPIRunCreationRequest if query.workflowId == workflowId =>
+      case query: BatchRunCreationRequest if query.workflowId == workflowId =>
         aborted(query)
         true
       case _ => false
     }
 
     queriesWaitingForRetry = queriesWaitingForRetry.filterNot {
-      case query: PAPIRunCreationRequest if query.workflowId == workflowId =>
+      case query: BatchRunCreationRequest if query.workflowId == workflowId =>
         timers.cancel(query)
         queriesWaitingForRetry = queriesWaitingForRetry - query
         aborted(query)
@@ -168,15 +168,16 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
     }
   }
 
-  private def handleQueryFailure(failure: BatchApiRequestFailed) = {
-    val userError: Boolean = failure.cause.isInstanceOf[UserPAPIApiException]
+  private def handleQueryFailure(failure: BatchApiRequestFailed): Unit = {
+    val userError: Boolean = failure.cause.isInstanceOf[UserBatchApiException]
 
     def failQuery(): Unit = {
-      // NB: we don't count user errors towards the PAPI failed queries count in our metrics:
+      // NB: we don't count user errors towards the Batch failed queries count in our metrics:
       if (!userError) {
+        // TODO: Alex - enable me
 //        failedQuery(failure)
         log.warning(
-          s"PAPI request workers tried and failed ${failure.query.failedAttempts} times to make ${failure.query.getClass.getSimpleName} request to PAPI"
+          s"Batch request workers tried and failed ${failure.query.failedAttempts} times to make ${failure.query.getClass.getSimpleName} request to Batch"
         )
       }
 
@@ -184,6 +185,7 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
     }
 
     def retryQuery(): Unit = {
+      // TODO: Alex - enable me
 //      retriedQuery(failure)
       val nextRequest = failure.query.withFailedAttempt
       val delay = nextRequest.backoff.backoffMillis.millis
@@ -198,25 +200,25 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
     }
   }
 
-  private def handleWorkerAskingForWork(papiRequestWorkerActor: ActorRef, maxBatchSize: Int) = {
+  private def handleWorkerAskingForWork(batchRequestWorkerActor: ActorRef, maxBatchSize: Int): Unit = {
     log.debug(
-      "Request for PAPI requests received from {} (max batch size is {}, current queue size is {})",
-      papiRequestWorkerActor.path.name,
+      "Request for Batch requests received from {} (max batch size is {}, current queue size is {})",
+      batchRequestWorkerActor.path.name,
       maxBatchSize,
       workQueue.size
     )
 
-    workInProgress -= papiRequestWorkerActor
+    workInProgress -= batchRequestWorkerActor
     val beheaded = beheadWorkQueue(maxBatchSize)
     beheaded.workToDo match {
       case Some(work) =>
-        log.debug("Sending work to PAPI request worker {}", papiRequestWorkerActor.path.name)
-        val workBatch = PipelinesApiWorkBatch(work)
-        papiRequestWorkerActor ! workBatch
-        workInProgress += (papiRequestWorkerActor -> workBatch)
+        log.debug("Sending work to Batch request worker {}", batchRequestWorkerActor.path.name)
+        val workBatch = BatchApiWorkBatch(work)
+        batchRequestWorkerActor ! workBatch
+        workInProgress += (batchRequestWorkerActor -> workBatch)
       case None =>
-        log.debug("No work for PAPI request worker {}", papiRequestWorkerActor.path.name)
-        papiRequestWorkerActor ! NoWorkToDo
+        log.debug("No work for Batch request worker {}", batchRequestWorkerActor.path.name)
+        batchRequestWorkerActor ! NoWorkToDo
     }
 
     workQueue = beheaded.newWorkQueue
@@ -241,7 +243,7 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
   /*
      Triggered by the 'case Terminated' receive handle whenever an actor being watched (ie a worker) terminates.
    */
-  private def onFailure(terminee: ActorRef, throwable: => Throwable) = {
+  private def onFailure(terminee: ActorRef, throwable: => Throwable): Unit = {
     // We assume this is a polling actor. Might change in a future update:
     workInProgress.get(terminee) match {
       case Some(work) =>
@@ -253,19 +255,19 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
         var abortRequests = 0
 
         work.workBatch.toList.foreach {
-          case statusQuery: PAPIStatusPollRequest =>
+          case statusQuery: BatchStatusPollRequest =>
             statusPolls += 1
-            self ! PipelinesApiStatusQueryFailed(statusQuery, new SystemPAPIApiException(throwable))
-          case runCreationQuery: PAPIRunCreationRequest =>
+            self ! BatchApiStatusQueryFailed(statusQuery, new SystemBatchApiException(throwable))
+          case runCreationQuery: BatchRunCreationRequest =>
             runCreations += 1
-            self ! PipelinesApiRunCreationQueryFailed(runCreationQuery, new SystemPAPIApiException(throwable))
-          case abortQuery: PAPIAbortRequest =>
+            self ! BatchApiRunCreationQueryFailed(runCreationQuery, new SystemBatchApiException(throwable))
+          case abortQuery: BatchAbortRequest =>
             abortRequests += 1
-            self ! PipelinesApiAbortQueryFailed(abortQuery, new SystemPAPIApiException(throwable))
+            self ! BatchApiAbortQueryFailed(abortQuery, new SystemBatchApiException(throwable))
         }
 
         log.warning(
-          s"PAPI request worker ${terminee.path.name} terminated. " +
+          s"Batch request worker ${terminee.path.name} terminated. " +
             s"$runCreations run creation requests, $statusPolls status poll requests, and $abortRequests abort requests will be reconsidered. " +
             "If any of those succeeded in the cloud before the batch request failed, they might be run twice. " +
             s"Exception details: $throwable"
@@ -273,7 +275,7 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
       case None =>
         log.error(
           throwable,
-          "The PAPI request worker '{}' terminated ({}). The request manager did not know what work the actor was doing so cannot resubmit any requests or inform any requesters of failures. This should never happen - please report this as a programmer error.",
+          "The Batch request worker '{}' terminated ({}). The request manager did not know what work the actor was doing so cannot resubmit any requests or inform any requesters of failures. This should never happen - please report this as a programmer error.",
           terminee.path.name,
           throwable.getMessage
         )
@@ -285,7 +287,7 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
   private def resetWorker(worker: ActorRef): Unit = {
     if (!statusPollers.contains(worker)) {
       log.warning(
-        "PAPI request worker {} is being reset but was never registered in the pool of workers. This should never happen - please report this as a programmer error.",
+        "Batch request worker {} is being reset but was never registered in the pool of workers. This should never happen - please report this as a programmer error.",
         worker.path.name
       )
     }
@@ -295,7 +297,7 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
 
     statusPollers = stillGoodWorkers :+ newWorker
 
-    log.info("PAPI request worker {} has been removed and replaced by {} in the pool of {} workers",
+    log.info("Batch request worker {} has been removed and replaced by {} in the pool of {} workers",
              worker.path.name,
              newWorker.path.name,
              statusPollers.size
@@ -316,9 +318,9 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
 
   // Separate method to allow overriding in tests:
   private[api] def makeWorkerActor(): ActorRef = {
-    val result = context.actorOf(papiRequestWorkerProps, s"PAPIQueryWorker-${UUID.randomUUID()}")
+    val result = context.actorOf(batchRequestWorkerProps, s"BatchQueryWorker-${UUID.randomUUID()}")
     log.info(
-      s"Request manager ${self.path.name} created new PAPI request worker ${result.path.name} with batch interval of ${workerBatchInterval}"
+      s"Request manager ${self.path.name} created new Batch request worker ${result.path.name} with batch interval of ${workerBatchInterval}"
     )
     result
   }
@@ -333,6 +335,7 @@ object BatchApiRequestManager {
   ): Props =
     Props(new BatchApiRequestManager(qps, requestWorkers, serviceRegistryActor)).withDispatcher(BackendDispatcher)
 
+  // TODO: Alex, what about Batch API?
   /**
    * Given the Genomics API queries per 100 seconds and given MaxBatchSize will determine a batch interval which
    * is at 90% of the quota. The (still crude) delta is to provide some room at the edges for things like new
@@ -361,51 +364,51 @@ object BatchApiRequestManager {
     def backoff: Backoff = SimpleExponentialBackoff(1.second, 1000.seconds, 1.5d)
   }
 
-  case class PAPIStatusPollRequest(workflowId: WorkflowId,
-                                   requester: ActorRef,
-                                   httpRequest: HttpRequest,
-                                   jobId: StandardAsyncJob,
-                                   failedAttempts: Int = 0,
-                                   backoff: Backoff = BatchApiRequest.backoff
-  ) extends BatchApiRequest {
-    override def withFailedAttempt = this.copy(failedAttempts = failedAttempts + 1, backoff = backoff.next)
-  }
-
-  case class PAPIRunCreationRequest(workflowId: WorkflowId,
+  case class BatchStatusPollRequest(workflowId: WorkflowId,
                                     requester: ActorRef,
                                     httpRequest: HttpRequest,
+                                    jobId: StandardAsyncJob,
                                     failedAttempts: Int = 0,
                                     backoff: Backoff = BatchApiRequest.backoff
   ) extends BatchApiRequest {
     override def withFailedAttempt = this.copy(failedAttempts = failedAttempts + 1, backoff = backoff.next)
   }
 
-  case class PAPIAbortRequest(workflowId: WorkflowId,
-                              requester: ActorRef,
-                              httpRequest: HttpRequest,
-                              jobId: StandardAsyncJob,
-                              failedAttempts: Int = 0,
-                              backoff: Backoff = BatchApiRequest.backoff
+  case class BatchRunCreationRequest(workflowId: WorkflowId,
+                                     requester: ActorRef,
+                                     httpRequest: HttpRequest,
+                                     failedAttempts: Int = 0,
+                                     backoff: Backoff = BatchApiRequest.backoff
+  ) extends BatchApiRequest {
+    override def withFailedAttempt = this.copy(failedAttempts = failedAttempts + 1, backoff = backoff.next)
+  }
+
+  case class BatchAbortRequest(workflowId: WorkflowId,
+                               requester: ActorRef,
+                               httpRequest: HttpRequest,
+                               jobId: StandardAsyncJob,
+                               failedAttempts: Int = 0,
+                               backoff: Backoff = BatchApiRequest.backoff
   ) extends BatchApiRequest {
     override def withFailedAttempt = this.copy(failedAttempts = failedAttempts + 1, backoff = backoff.next)
   }
 
   sealed trait BatchApiRequestFailed {
     val query: BatchApiRequest
-    val cause: PAPIApiException
+    val cause: BatchApiException
   }
 
-  final case class PipelinesApiStatusQueryFailed(query: BatchApiRequest, cause: PAPIApiException)
+  final case class BatchApiStatusQueryFailed(query: BatchApiRequest, cause: BatchApiException)
       extends BatchApiRequestFailed
-  final case class PipelinesApiRunCreationQueryFailed(query: BatchApiRequest, cause: PAPIApiException)
+  final case class BatchApiRunCreationQueryFailed(query: BatchApiRequest, cause: BatchApiException)
       extends BatchApiRequestFailed
-  final case class PipelinesApiAbortQueryFailed(query: BatchApiRequest, cause: PAPIApiException)
+  final case class BatchApiAbortQueryFailed(query: BatchApiRequest, cause: BatchApiException)
       extends BatchApiRequestFailed
 
-  final private[api] case class PipelinesApiWorkBatch(workBatch: NonEmptyList[BatchApiRequest])
+  final private[api] case class BatchApiWorkBatch(workBatch: NonEmptyList[BatchApiRequest])
   private[api] case object NoWorkToDo
 
-  final private[api] case class PipelinesWorkerRequestWork(maxBatchSize: Int) extends ControlMessage
+  final private[api] case class BatchWorkerRequestWork(maxBatchSize: Int) extends ControlMessage
 
   final case class GoogleJsonException(e: GoogleJsonError, responseHeaders: HttpHeaders)
       extends IOException
@@ -413,18 +416,18 @@ object BatchApiRequestManager {
     override def getMessage: String = e.getMessage
   }
 
-  sealed trait PAPIApiException extends RuntimeException with CromwellFatalExceptionMarker {
+  sealed trait BatchApiException extends RuntimeException with CromwellFatalExceptionMarker {
     def cause: Throwable
     override def getCause: Throwable = cause
   }
 
-  class SystemPAPIApiException(val cause: Throwable) extends PAPIApiException {
+  class SystemBatchApiException(val cause: Throwable) extends BatchApiException {
     override def getMessage: String =
-      s"Unable to complete PAPI request due to system or connection error (${cause.getMessage})"
+      s"Unable to complete Batch request due to system or connection error (${cause.getMessage})"
   }
 
-  final class UserPAPIApiException(val cause: Throwable, helpfulHint: Option[String]) extends PAPIApiException {
+  final class UserBatchApiException(val cause: Throwable, helpfulHint: Option[String]) extends BatchApiException {
     override def getMessage: String =
-      s"Unable to complete PAPI request due to a problem with the request (${cause.getMessage}). ${helpfulHint.getOrElse("")}"
+      s"Unable to complete Batch request due to a problem with the request (${cause.getMessage}). ${helpfulHint.getOrElse("")}"
   }
 }

@@ -34,8 +34,8 @@ class BatchApiRequestWorker(val pollingManager: ActorRef,
   private lazy val batch = batchHandler.makeBatchRequest
 
   override def receive = {
-    case PipelinesApiWorkBatch(workBatch) =>
-      log.debug(s"Got a PAPI request batch with ${workBatch.tail.size + 1} requests.")
+    case BatchApiWorkBatch(workBatch) =>
+      log.debug(s"Got a Batch request batch with ${workBatch.tail.size + 1} requests.")
       handleBatch(workBatch).andThen(interstitialRecombobulation)
       ()
     case NoWorkToDo =>
@@ -66,7 +66,7 @@ class BatchApiRequestWorker(val pollingManager: ActorRef,
     catch {
       case e: java.io.IOException =>
         val msg =
-          s"A batch of PAPI status requests failed. The request manager will retry automatically up to 10 times. The error was: ${e.getMessage}"
+          s"A batch of Batch status requests failed. The request manager will retry automatically up to 10 times. The error was: ${e.getMessage}"
         throw new Exception(msg, e.getCause) with NoStackTrace
     }
 
@@ -78,7 +78,7 @@ class BatchApiRequestWorker(val pollingManager: ActorRef,
     case Success(someFailures) =>
       val errors = someFailures collect { case Failure(t) => t.getMessage }
       log.warning(
-        "PAPI request worker had {} failures making {} requests: {}",
+        "Batch request worker had {} failures making {} requests: {}",
         errors.size,
         someFailures.size,
         errors.mkString(System.lineSeparator, "," + System.lineSeparator, "")
@@ -98,7 +98,7 @@ class BatchApiRequestWorker(val pollingManager: ActorRef,
    */
   private def scheduleCheckForWork(): Unit = {
     context.system.scheduler.scheduleOnce(batchInterval) {
-      pollingManager ! BatchApiRequestManager.PipelinesWorkerRequestWork(MaxBatchSize)
+      pollingManager ! BatchApiRequestManager.BatchWorkerRequestWork(MaxBatchSize)
     }
     ()
   }

@@ -1,7 +1,7 @@
 package cromwell.backend.google.batch.api
 
 import akka.actor.{ActorRef, Props}
-import akka.testkit.{TestActorRef, TestProbe, _}
+import akka.testkit._
 import cats.data.NonEmptyList
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback
@@ -9,9 +9,9 @@ import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.{HttpHeaders, HttpRequest}
 import cromwell.backend.google.batch.api.BatchApiRequestManager.{
   BatchApiRequestFailed,
-  PAPIApiException,
-  PAPIStatusPollRequest,
-  PipelinesWorkerRequestWork
+  BatchApiException,
+  BatchStatusPollRequest,
+  BatchWorkerRequestWork
 }
 import cromwell.backend.google.batch.api.TestBatchApiRequestWorker.{
   BatchApiBatchCallbackResponse,
@@ -42,7 +42,7 @@ class BatchApiRequestWorkerSpec
 
   // TODO: Shall this be a string?
   implicit val batchHandler: TestBatchApiBatchHandler[String] = new TestBatchApiBatchHandler[String] {
-    override def statusPollResultHandler(pollRequest: PAPIStatusPollRequest,
+    override def statusPollResultHandler(pollRequest: BatchStatusPollRequest,
                                          completionPromise: Promise[Try[Unit]]
     ): JsonBatchCallback[String] = new JsonBatchCallback[String] {
       override def onFailure(e: GoogleJsonError, responseHeaders: HttpHeaders): Unit =
@@ -73,22 +73,22 @@ class BatchApiRequestWorkerSpec
 
   it should "query for work and wait for a reply" in {
     managerProbe.expectMsgClass(max = TestExecutionTimeout,
-                                c = classOf[BatchApiRequestManager.PipelinesWorkerRequestWork]
+                                c = classOf[BatchApiRequestManager.BatchWorkerRequestWork]
     )
     managerProbe.expectNoMessage(max = AwaitAlmostNothing)
   }
 
   it should "respond correctly with various run statuses" in {
     managerProbe.expectMsgClass(max = TestExecutionTimeout,
-                                c = classOf[BatchApiRequestManager.PipelinesWorkerRequestWork]
+                                c = classOf[BatchApiRequestManager.BatchWorkerRequestWork]
     )
 
     val requester1 = TestProbe("requester1")
-    val query1 = PAPIStatusPollRequest(null, requester1.ref, null, null)
+    val query1 = BatchStatusPollRequest(null, requester1.ref, null, null)
     val requester2 = TestProbe("requester2")
-    val query2 = PAPIStatusPollRequest(null, requester2.ref, null, null)
+    val query2 = BatchStatusPollRequest(null, requester2.ref, null, null)
     val requester3 = TestProbe("requester3")
-    val query3 = PAPIStatusPollRequest(null, requester3.ref, null, null)
+    val query3 = BatchStatusPollRequest(null, requester3.ref, null, null)
 
     // For two requests the callback succeeds (first with RunStatus.Success, then RunStatus.Failed). The third callback fails (simulating a network timeout, for example):
     batchHandler.callbackResponses :+= CallbackSuccess
@@ -112,7 +112,7 @@ class BatchApiRequestWorkerSpec
     batchHandler.operationStatusResponses :+= successStatus
     batchHandler.operationStatusResponses :+= failureStatus
 
-    workerActor.tell(msg = BatchApiRequestManager.PipelinesApiWorkBatch(NonEmptyList(query1, List(query2, query3))),
+    workerActor.tell(msg = BatchApiRequestManager.BatchApiWorkBatch(NonEmptyList(query1, List(query2, query3))),
                      sender = managerProbe.ref
     )
     eventually(batchHandler.runBatchRequested should be(true))
@@ -129,11 +129,11 @@ class BatchApiRequestWorkerSpec
 
     // Requester3 expected nothing... Instead, the manager expects an API failure notification and then a request for more work:
     managerProbe.expectMsgPF(TestExecutionTimeout) { case failure: BatchApiRequestFailed =>
-      if (!failure.cause.isInstanceOf[PAPIApiException])
+      if (!failure.cause.isInstanceOf[BatchApiException])
         fail("Unexpected failure cause class: " + failure.cause.getClass.getSimpleName)
       if (failure.query != query2 && failure.query != query3) fail("Unexpected query caused failure: " + failure.query)
     }
-    managerProbe.expectMsg(PipelinesWorkerRequestWork(BatchApiRequestWorker.MaxBatchSize))
+    managerProbe.expectMsg(BatchWorkerRequestWork(BatchApiRequestWorker.MaxBatchSize))
     managerProbe.expectNoMessage(max = AwaitAlmostNothing)
   }
 }
@@ -166,14 +166,14 @@ abstract class TestBatchApiBatchHandler[O >: Null] extends GcpBatchApiRequestHan
       }
     }
 
-  def enqueueStatusPollInBatch(pollingRequest: PAPIStatusPollRequest, batch: BatchRequest): Future[Try[Unit]] = {
+  def enqueueStatusPollInBatch(pollingRequest: BatchStatusPollRequest, batch: BatchRequest): Future[Try[Unit]] = {
     val completionPromise = Promise[Try[Unit]]()
     val resultHandler = statusPollResultHandler(pollingRequest, completionPromise)
     addStatusPollToBatch(null, batch, resultHandler)
     completionPromise.future
   }
 
-  def statusPollResultHandler(pollRequest: PAPIStatusPollRequest,
+  def statusPollResultHandler(pollRequest: BatchStatusPollRequest,
                               completionPromise: Promise[Try[Unit]]
   ): JsonBatchCallback[O]
 

@@ -8,8 +8,8 @@ import com.google.api.client.googleapis.batch.json.JsonBatchCallback
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.{HttpHeaders, HttpRequest}
 import cromwell.backend.google.batch.api.BatchApiRequestManager.{
-  BatchApiRequestFailed,
   BatchApiException,
+  BatchApiRequestFailed,
   BatchStatusPollRequest,
   BatchWorkerRequestWork
 }
@@ -72,16 +72,12 @@ class BatchApiRequestWorkerSpec
   }
 
   it should "query for work and wait for a reply" in {
-    managerProbe.expectMsgClass(max = TestExecutionTimeout,
-                                c = classOf[BatchApiRequestManager.BatchWorkerRequestWork]
-    )
+    managerProbe.expectMsgClass(max = TestExecutionTimeout, c = classOf[BatchApiRequestManager.BatchWorkerRequestWork])
     managerProbe.expectNoMessage(max = AwaitAlmostNothing)
   }
 
   it should "respond correctly with various run statuses" in {
-    managerProbe.expectMsgClass(max = TestExecutionTimeout,
-                                c = classOf[BatchApiRequestManager.BatchWorkerRequestWork]
-    )
+    managerProbe.expectMsgClass(max = TestExecutionTimeout, c = classOf[BatchApiRequestManager.BatchWorkerRequestWork])
 
     val requester1 = TestProbe("requester1")
     val query1 = BatchStatusPollRequest(null, requester1.ref, null, null)

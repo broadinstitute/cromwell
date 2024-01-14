@@ -8,7 +8,7 @@ run-name: ${{ github.actor }} Docker Build Test
 
 on:
   workflow_dispatch:
-  push:
+  # push:
   merge_group:
 
 permissions:

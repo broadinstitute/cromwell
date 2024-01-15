@@ -57,6 +57,6 @@ object BatchApiRunCreationClient {
    */
   case object JobAbortedException
       extends SystemBatchApiException(
-        new Exception("The job was removed from the queue before a PAPI creation request was made")
+        new Exception("The job was removed from the queue before a Batch creation request was made")
       )
 }

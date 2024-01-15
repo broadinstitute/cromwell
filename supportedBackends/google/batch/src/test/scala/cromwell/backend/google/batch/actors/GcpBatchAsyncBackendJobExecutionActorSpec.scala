@@ -6,8 +6,11 @@ import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration, TestProbe}
 import cats.data.NonEmptyList
+import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
+import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, GoogleOauthDrsCredentials}
 import com.google.cloud.NoCredentials
 import com.google.cloud.batch.v1.{Job, JobName}
+import com.typesafe.config.{Config, ConfigFactory}
 import common.collections.EnhancedCollections._
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend._
@@ -56,6 +59,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 import common.mock.MockSugar
+import cromwell.filesystems.drs.DrsPathBuilder
 import org.mockito.Mockito._
 
 class GcpBatchAsyncBackendJobExecutionActorSpec
@@ -394,6 +398,56 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         Map("baz" -> NonEmptyList.of(inputs(5)))
 
     GcpBatchAsyncBackendJobExecutionActor.groupParametersByGcsBucket(inputs) shouldEqual expected
+  }
+
+  it should "generate a CSV manifest for DRS inputs, ignoring non-DRS inputs" in {
+    def makeDrsPathBuilder: DrsPathBuilder = {
+      val drsResolverConfig: Config = ConfigFactory.parseString(
+        """resolver {
+          |   url = "http://drshub-url"
+          |}
+          |""".stripMargin
+      )
+
+      val fakeCredentials = NoCredentials.getInstance
+
+      val drsReadInterpreter: DrsReadInterpreter = (_, _) =>
+        throw new UnsupportedOperationException(
+          "PipelinesApiAsyncBackendJobExecutionActorSpec doesn't need to use drs read interpreter."
+        )
+
+      DrsPathBuilder(
+        new DrsCloudNioFileSystemProvider(drsResolverConfig,
+                                          GoogleOauthDrsCredentials(fakeCredentials, 1.minutes),
+                                          drsReadInterpreter
+        ),
+        None
+      )
+    }
+
+    val mount = GcpBatchWorkingDisk(DiskType.LOCAL, 1)
+
+    def makeDrsInput(name: String, drsUri: String, containerPath: String): GcpBatchFileInput = {
+      val drsPath = makeDrsPathBuilder.build(drsUri).get
+      val containerRelativePath = DefaultPathBuilder.get(containerPath)
+      GcpBatchFileInput(name, drsPath, containerRelativePath, mount)
+    }
+
+    val nonDrsInput: GcpBatchFileInput = GcpBatchFileInput("nnn",
+                                                           DefaultPathBuilder.get("/local/nnn.bai"),
+                                                           DefaultPathBuilder.get("/path/to/nnn.bai"),
+                                                           mount
+    )
+
+    val inputs = List(
+      makeDrsInput("aaa", "drs://drs.example.org/aaa", "path/to/aaa.bai"),
+      nonDrsInput,
+      makeDrsInput("bbb", "drs://drs.example.org/bbb", "path/to/bbb.bai")
+    )
+
+    // TODO: Alex - double check that the output should start with /mnt/disks/cromwell_root instead of /cromwell_root
+    GcpBatchAsyncBackendJobExecutionActor.generateDrsLocalizerManifest(inputs) shouldEqual
+      "drs://drs.example.org/aaa,/mnt/disks/cromwell_root/path/to/aaa.bai\r\ndrs://drs.example.org/bbb,/mnt/disks/cromwell_root/path/to/bbb.bai\r\n"
   }
 
   it should "send proper value for \"number of reference files used gauge\" metric, or don't send anything if reference disks feature is disabled" in {

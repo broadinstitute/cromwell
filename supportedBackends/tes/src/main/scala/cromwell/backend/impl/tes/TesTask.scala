@@ -373,7 +373,7 @@ final case class Input(name: Option[String],
 
     // Remove query that may contain SAS token
     val cleanUrl = url map { Uri(_).copy(rawQueryString = None).toString() }
-    this.getClass.getCanonicalName + Seq(name, description, cleanUrl, path, `type`, content).mkString("(",",",")")
+    this.getClass.getName + Seq(name, description, cleanUrl, path, `type`, content).mkString("(",",",")")
   }
 }
 

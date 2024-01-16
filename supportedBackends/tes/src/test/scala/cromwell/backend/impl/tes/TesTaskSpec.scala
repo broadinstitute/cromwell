@@ -230,4 +230,17 @@ class TesTaskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
 
     input.toString shouldBe "cromwell.backend.impl.tes.Input(Some(asdf),Some(asdf),Some(https://example.com),asdf,Some(asdf),Some(asdf))"
   }
+
+  it should "not crash if the URL is missing" in {
+    val input = Input(
+      Option("asdf"),
+      Option("asdf"),
+      url = None,
+      "asdf",
+      Option("asdf"),
+      Option("asdf")
+    )
+
+    input.toString shouldBe "cromwell.backend.impl.tes.Input(Some(asdf),Some(asdf),None,asdf,Some(asdf),Some(asdf))"
+  }
 }

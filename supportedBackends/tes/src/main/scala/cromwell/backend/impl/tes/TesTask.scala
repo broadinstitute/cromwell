@@ -367,7 +367,15 @@ final case class Input(name: Option[String],
                        path: String,
                        `type`: Option[String],
                        content: Option[String]
-)
+) {
+  override def toString: String = {
+    import akka.http.scaladsl.model.Uri
+
+    // Remove query that may contain SAS token
+    val cleanUrl = url map { Uri(_).copy(rawQueryString = None).toString() }
+    this.getClass.getCanonicalName + Seq(name, description, cleanUrl, path, `type`, content).mkString("(",",",")")
+  }
+}
 
 final case class Output(name: Option[String],
                         description: Option[String],

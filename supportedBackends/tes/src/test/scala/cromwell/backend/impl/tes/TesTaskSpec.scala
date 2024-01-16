@@ -217,4 +217,17 @@ class TesTaskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
       "parent_workflow_id" -> Option(subWorkflowId.toString)
     )
   }
+
+  it should "not leak secrets when printing file paths" in {
+    val input = Input(
+      Option("asdf"),
+      Option("asdf"),
+      url = Option("https://example.com?secret=Zardoz&password=Blah"),
+      "asdf",
+      Option("asdf"),
+      Option("asdf")
+    )
+
+    input.toString shouldBe "cromwell.backend.impl.tes.Input(Some(asdf),Some(asdf),Some(https://example.com),asdf,Some(asdf),Some(asdf))"
+  }
 }

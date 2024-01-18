@@ -84,7 +84,8 @@ object UriUtil {
   private val SensitiveKeyParts =
     List(
       "credential",
-      "signature"
+      "signature",
+      "sig"
     )
 
   private def isSensitiveKey(name: String): Boolean = {

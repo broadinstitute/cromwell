@@ -369,11 +369,10 @@ final case class Input(name: Option[String],
                        content: Option[String]
 ) {
   override def toString: String = {
-    import akka.http.scaladsl.model.Uri
+    import common.util.StringUtil.EnhancedString
 
-    // Remove query that may contain SAS token
-    val cleanUrl = url map { Uri(_).copy(rawQueryString = None).toString() }
-    this.getClass.getName + Seq(name, description, cleanUrl, path, `type`, content).mkString("(",",",")")
+    // Mask SAS token signature in query
+    this.getClass.getName + Seq(name, description, url.map(_.maskSensitiveUri), path, `type`, content).mkString("(",",",")")
   }
 }
 

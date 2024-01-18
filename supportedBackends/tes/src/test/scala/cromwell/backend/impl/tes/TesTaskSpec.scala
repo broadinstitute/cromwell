@@ -222,10 +222,8 @@ class TesTaskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
     val input = Input(
       Option("asdf"),
       Option("asdf"),
-      url = Option(
-        "https://lz304a1e79fd7359e5327eda.blob.core.windows.net/sc-705b830a-d699-478e-9da6-49661b326e77" +
-          "?sv=2021-12-02&spr=https&st=2023-12-13T20%3A27%3A55Z&se=2023-12-14T04%3A42%3A55Z&sr=c&sp=racwdlt&sig=SECRET&rscd=foo"
-      ),
+      url = Option("https://lz304a1e79fd7359e5327eda.blob.core.windows.net/sc-705b830a-d699-478e-9da6-49661b326e77" +
+        "?sv=2021-12-02&spr=https&st=2023-12-13T20%3A27%3A55Z&se=2023-12-14T04%3A42%3A55Z&sr=c&sp=racwdlt&sig=SECRET&rscd=foo"),
       "asdf",
       Option("asdf"),
       Option("asdf")

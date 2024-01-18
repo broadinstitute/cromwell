@@ -30,30 +30,6 @@ object UriUtil {
         .getOrElse(uri)
   }
 
-  private def maskSensitiveQuery(query: String): String = {
-    val parsedQuery: Array[Seq[String]] =
-      query
-        .split("&")
-        .map { param =>
-          param.split("=", 2).toSeq match {
-            case seq @ Seq(_, _) => seq
-            case _ => Seq(param)
-          }
-        }
-
-    if (!parsedQuery.exists(param => isSensitiveKey(param.head))) {
-      // Mask the entire query just in case
-      "masked"
-    } else {
-      parsedQuery
-        .map {
-          case Seq(name, _) if isSensitiveKey(name) => s"$name=masked"
-          case seq => seq.mkString("=")
-        }
-        .mkString("&")
-    }
-  }
-
   /*
   Parts of these examples have been redacted even if they will not be masked.
 
@@ -87,6 +63,30 @@ object UriUtil {
       "signature",
       "sig"
     )
+
+  private def maskSensitiveQuery(query: String): String = {
+    val parsedQuery: Array[Seq[String]] =
+      query
+        .split("&")
+        .map { param =>
+          param.split("=", 2).toSeq match {
+            case seq @ Seq(_, _) => seq
+            case _ => Seq(param)
+          }
+        }
+
+    if (!parsedQuery.exists(param => isSensitiveKey(param.head))) {
+      // Mask the entire query just in case
+      "masked"
+    } else {
+      parsedQuery
+        .map {
+          case Seq(name, _) if isSensitiveKey(name) => s"$name=masked"
+          case seq => seq.mkString("=")
+        }
+        .mkString("&")
+    }
+  }
 
   private def isSensitiveKey(name: String): Boolean = {
     val lower = name.toLowerCase

@@ -32,51 +32,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          mapCommandLineWomFile: WomFile => WomFile,
                          jobShell: String,
                          outputMode: OutputMode
-) {
-
-  private val workflowDescriptor = jobDescriptor.workflowDescriptor
-  private val workflowName = workflowDescriptor.callable.name
-  private val fullyQualifiedTaskName = jobDescriptor.taskCall.fullyQualifiedName
-  private val workflowExecutionIdentityConfig: Option[WorkflowExecutionIdentityConfig] =
-    configurationDescriptor.backendConfig
-      .getAs[String]("workflow-execution-identity")
-      .map(WorkflowExecutionIdentityConfig)
-  private val workflowExecutionIdentityOption: Option[WorkflowExecutionIdentityOption] =
-    workflowDescriptor.workflowOptions
-      .get(TesWorkflowOptionKeys.WorkflowExecutionIdentity)
-      .toOption
-      .map(WorkflowExecutionIdentityOption)
-  val name: String = fullyQualifiedTaskName
-  val description: String = jobDescriptor.toString
-
-  // TODO validate "project" field of workflowOptions
-  val project =
-    workflowDescriptor.workflowOptions.getOrElse("project", "")
-
-  // contains the script to be executed
-  private val commandScript = Input(
-    name = Option("commandScript"),
-    description = Option(fullyQualifiedTaskName + ".commandScript"),
-    url = Option(tesPaths.script.pathAsString),
-    path = tesPaths.callExecutionDockerRoot.resolve("script").toString,
-    `type` = Option("FILE"),
-    content = None
-  )
-
-  private val commandScriptOut = Output(
-    name = Option("commandScript"),
-    description = Option(fullyQualifiedTaskName + ".commandScript"),
-    url = Option(tesPaths.script.toString),
-    path = tesPaths.callExecutionDockerRoot.resolve("script").toString,
-    `type` = Option("FILE")
-  )
-  private def writeFunctionFiles: Map[FullyQualifiedName, Seq[WomFile]] =
-    instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f.file) } toMap
-
-  private val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.fullyQualifiedInputs
-    .safeMapValues {
-      _.collectAsSeq { case w: WomFile => w }
-    }
+                        ) {
 
   lazy val inputs: Seq[Input] = {
     val result =
@@ -85,15 +41,13 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       )
     jobLogger.info(
       s"Calculated TES inputs (found ${result.size}): " + result.mkString(System.lineSeparator(),
-                                                                          System.lineSeparator(),
-                                                                          System.lineSeparator()
+        System.lineSeparator(),
+        System.lineSeparator()
       )
     )
     result
   }
-
   // TODO add TES logs to standard outputs
-  // no-op
   private lazy val standardOutputs = Seq("rc", "stdout", "stderr").map { f =>
     Output(
       name = Option(f),
@@ -103,6 +57,57 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       `type` = Option("FILE")
     )
   }
+  private lazy val cwdOutput = Output(
+    name = Option("execution.dir.output"),
+    description = Option(fullyQualifiedTaskName + "." + "execution.dir.output"),
+    url = Option(tesPaths.callExecutionRoot.pathAsString),
+    path = containerWorkDir.pathAsString,
+    `type` = Option("DIRECTORY")
+  )
+  val name: String = fullyQualifiedTaskName
+  val description: String = jobDescriptor.toString
+  // TODO validate "project" field of workflowOptions
+  val project =
+    workflowDescriptor.workflowOptions.getOrElse("project", "")
+  val outputs: Seq[Output] = {
+    val result = outputMode match {
+      case OutputMode.GRANULAR => standardOutputs ++ Seq(commandScriptOut) ++ womOutputs ++ additionalGlobOutput
+      case OutputMode.ROOT => List(cwdOutput) ++ additionalGlobOutput
+    }
+
+    jobLogger.info(
+      s"Calculated TES outputs (found ${result.size}): " + result.mkString(System.lineSeparator(),
+        System.lineSeparator(),
+        System.lineSeparator()
+      )
+    )
+
+    result
+  }
+  val preferedWorkflowExecutionIdentity = TesTask.getPreferredWorkflowExecutionIdentity(
+    workflowExecutionIdentityConfig,
+    workflowExecutionIdentityOption
+  )
+  val executors = Seq(
+    Executor(
+      image = dockerImageUsed,
+      command = Seq(jobShell, commandScript.path),
+      workdir = runtimeAttributes.dockerWorkingDir,
+      stdout = Option(tesPaths.containerOutput(containerWorkDir, "stdout")),
+      stderr = Option(tesPaths.containerOutput(containerWorkDir, "stderr")),
+      stdin = None,
+      env = None
+    )
+  )
+  val resources: Resources = TesTask.makeResources(
+    runtimeAttributes,
+    preferedWorkflowExecutionIdentity,
+    Option(tesPaths.tesTaskRoot)
+  )
+  val tags: Map[String, Option[String]] = TesTask.makeTags(jobDescriptor.workflowDescriptor)
+  private val workflowDescriptor = jobDescriptor.workflowDescriptor
+  private val workflowName = workflowDescriptor.callable.name
+  private val fullyQualifiedTaskName = jobDescriptor.taskCall.fullyQualifiedName
 
   // TODO extract output file variable names and match with Files below
   // The problem is that we only care about the files CREATED, so stdout and input redirects are ignored and
@@ -111,7 +116,35 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   //  private val outputFileNames = jobDescriptor.call.task.outputs
   //    .filter(o => o.womType.toWdlString == "Array[File]" || o.womType.toWdlString == "File")
   //    .map(_.unqualifiedName)
-
+  private val workflowExecutionIdentityConfig: Option[WorkflowExecutionIdentityConfig] =
+    configurationDescriptor.backendConfig
+      .getAs[String]("workflow-execution-identity")
+      .map(WorkflowExecutionIdentityConfig)
+  private val workflowExecutionIdentityOption: Option[WorkflowExecutionIdentityOption] =
+    workflowDescriptor.workflowOptions
+      .get(TesWorkflowOptionKeys.WorkflowExecutionIdentity)
+      .toOption
+      .map(WorkflowExecutionIdentityOption)
+  // contains the script to be executed
+  private val commandScript = Input(
+    name = Option("commandScript"),
+    description = Option(fullyQualifiedTaskName + ".commandScript"),
+    url = Option(tesPaths.script.pathAsString),
+    path = tesPaths.callExecutionDockerRoot.resolve("script").toString,
+    `type` = Option("FILE"),
+    content = None
+  )
+  private val commandScriptOut = Output(
+    name = Option("commandScript"),
+    description = Option(fullyQualifiedTaskName + ".commandScript"),
+    url = Option(tesPaths.script.toString),
+    path = tesPaths.callExecutionDockerRoot.resolve("script").toString,
+    `type` = Option("FILE")
+  )
+  private val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.fullyQualifiedInputs
+    .safeMapValues {
+      _.collectAsSeq { case w: WomFile => w }
+    }
   // extract output files
   // if output paths are absolute we will ignore them here and assume they are redirects
   private val outputWomFiles: Seq[WomFile] = {
@@ -131,31 +164,6 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       .flatMap(evaluateFiles)
       .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
   }
-
-  def handleGlobFile(g: WomGlobFile, index: Int) = {
-    val globName = GlobFunctions.globName(g.value)
-    val globDirName = "globDir." + index
-    val globDirectory = globName + "/"
-    val globListName = "globList." + index
-    val globListFile = globName + ".list"
-    Seq(
-      Output(
-        name = Option(globDirName),
-        description = Option(fullyQualifiedTaskName + "." + globDirName),
-        url = Option(tesPaths.storageOutput(globDirectory)),
-        path = tesPaths.containerOutput(containerWorkDir, globDirectory),
-        `type` = Option("DIRECTORY")
-      ),
-      Output(
-        name = Option(globListName),
-        description = Option(fullyQualifiedTaskName + "." + globListName),
-        url = Option(tesPaths.storageOutput(globListFile)),
-        path = tesPaths.containerOutput(containerWorkDir, globListFile),
-        `type` = Option("FILE")
-      )
-    )
-  }
-
   private val womOutputs = outputWomFiles
     .flatMap(_.flattenFiles)
     .zipWithIndex
@@ -194,70 +202,47 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
           )
         )
     }
-
   private val additionalGlobOutput =
     jobDescriptor.taskCall.callable.additionalGlob.toList.flatMap(handleGlobFile(_, womOutputs.size))
 
-  private lazy val cwdOutput = Output(
-    name = Option("execution.dir.output"),
-    description = Option(fullyQualifiedTaskName + "." + "execution.dir.output"),
-    url = Option(tesPaths.callExecutionRoot.pathAsString),
-    path = containerWorkDir.pathAsString,
-    `type` = Option("DIRECTORY")
-  )
-
-  val outputs: Seq[Output] = {
-    val result = outputMode match {
-      case OutputMode.GRANULAR => standardOutputs ++ Seq(commandScriptOut) ++ womOutputs ++ additionalGlobOutput
-      case OutputMode.ROOT => List(cwdOutput) ++ additionalGlobOutput
-    }
-
-    jobLogger.info(
-      s"Calculated TES outputs (found ${result.size}): " + result.mkString(System.lineSeparator(),
-                                                                           System.lineSeparator(),
-                                                                           System.lineSeparator()
+  def handleGlobFile(g: WomGlobFile, index: Int) = {
+    val globName = GlobFunctions.globName(g.value)
+    val globDirName = "globDir." + index
+    val globDirectory = globName + "/"
+    val globListName = "globList." + index
+    val globListFile = globName + ".list"
+    Seq(
+      Output(
+        name = Option(globDirName),
+        description = Option(fullyQualifiedTaskName + "." + globDirName),
+        url = Option(tesPaths.storageOutput(globDirectory)),
+        path = tesPaths.containerOutput(containerWorkDir, globDirectory),
+        `type` = Option("DIRECTORY")
+      ),
+      Output(
+        name = Option(globListName),
+        description = Option(fullyQualifiedTaskName + "." + globListName),
+        url = Option(tesPaths.storageOutput(globListFile)),
+        path = tesPaths.containerOutput(containerWorkDir, globListFile),
+        `type` = Option("FILE")
       )
     )
-
-    result
   }
 
-  val preferedWorkflowExecutionIdentity = TesTask.getPreferredWorkflowExecutionIdentity(
-    workflowExecutionIdentityConfig,
-    workflowExecutionIdentityOption
-  )
-
-  val executors = Seq(
-    Executor(
-      image = dockerImageUsed,
-      command = Seq(jobShell, commandScript.path),
-      workdir = runtimeAttributes.dockerWorkingDir,
-      stdout = Option(tesPaths.containerOutput(containerWorkDir, "stdout")),
-      stderr = Option(tesPaths.containerOutput(containerWorkDir, "stderr")),
-      stdin = None,
-      env = None
-    )
-  )
-
-  val resources: Resources = TesTask.makeResources(
-    runtimeAttributes,
-    preferedWorkflowExecutionIdentity,
-    Option(tesPaths.tesTaskRoot)
-  )
-
-  val tags: Map[String, Option[String]] = TesTask.makeTags(jobDescriptor.workflowDescriptor)
+  private def writeFunctionFiles: Map[FullyQualifiedName, Seq[WomFile]] =
+    instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f.file) } toMap
 }
 
 object TesTask {
   // Helper to determine which source to use for a workflowExecutionIdentity
   def getPreferredWorkflowExecutionIdentity(configIdentity: Option[WorkflowExecutionIdentityConfig],
                                             workflowOptionsIdentity: Option[WorkflowExecutionIdentityOption]
-  ): Option[String] =
+                                           ): Option[String] =
     configIdentity.map(_.value).orElse(workflowOptionsIdentity.map(_.value))
   def makeResources(runtimeAttributes: TesRuntimeAttributes,
                     workflowExecutionId: Option[String],
                     internalPathPrefix: Option[String]
-  ): Resources = {
+                   ): Resources = {
     /*
      * workflowExecutionId: This was added in BT-409 to let us pass information to an Azure
      * TES server about which user identity to run tasks as.
@@ -294,7 +279,7 @@ object TesTask {
   def buildTaskInputs(taskFiles: Map[FullyQualifiedName, Seq[WomFile]],
                       workflowName: String,
                       womMapFn: WomFile => WomFile
-  ): List[Input] =
+                     ): List[Input] =
     taskFiles.flatMap { case (fullyQualifiedName, files) =>
       files.flatMap(_.flattenFiles).zipWithIndex.map { case (f, index) =>
         val inputType = f match {
@@ -351,7 +336,7 @@ final case class Task(id: Option[String],
                       volumes: Option[Seq[String]],
                       tags: Option[Map[String, Option[String]]],
                       logs: Option[Seq[TaskLog]]
-)
+                     )
 
 final case class Executor(image: String,
                           command: Seq[String],
@@ -360,7 +345,7 @@ final case class Executor(image: String,
                           stderr: Option[String],
                           stdin: Option[String],
                           env: Option[Map[String, String]]
-)
+                         )
 
 final case class Input(name: Option[String],
                        description: Option[String],
@@ -368,14 +353,22 @@ final case class Input(name: Option[String],
                        path: String,
                        `type`: Option[String],
                        content: Option[String]
-)
+                      ) {
+  override def toString: String = {
+    import common.util.StringUtil.EnhancedString
+
+    // Mask SAS token signature in query
+    this.getClass.getName + Seq(name, description, url.map(_.maskSensitiveUri), path, `type`, content)
+      .mkString("(", ",", ")")
+  }
+}
 
 final case class Output(name: Option[String],
                         description: Option[String],
                         url: Option[String],
                         path: String,
                         `type`: Option[String]
-)
+                       )
 
 final case class Resources(cpu_cores: Option[Int],
                            ram_gb: Option[Double],
@@ -383,7 +376,7 @@ final case class Resources(cpu_cores: Option[Int],
                            preemptible: Option[Boolean],
                            zones: Option[Seq[String]],
                            backend_parameters: Option[Map[String, Option[String]]]
-)
+                          )
 
 final case class OutputFileLog(url: String, path: String, size_bytes: Int)
 
@@ -393,11 +386,11 @@ final case class TaskLog(start_time: Option[String],
                          logs: Option[Seq[ExecutorLog]],
                          outputs: Option[Seq[OutputFileLog]],
                          system_logs: Option[Seq[String]]
-)
+                        )
 
 final case class ExecutorLog(start_time: Option[String],
                              end_time: Option[String],
                              stdout: Option[String],
                              stderr: Option[String],
                              exit_code: Option[Int]
-)
+                            )

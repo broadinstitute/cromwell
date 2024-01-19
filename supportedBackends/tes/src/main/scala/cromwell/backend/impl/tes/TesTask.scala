@@ -372,7 +372,8 @@ final case class Input(name: Option[String],
     import common.util.StringUtil.EnhancedString
 
     // Mask SAS token signature in query
-    this.getClass.getName + Seq(name, description, url.map(_.maskSensitiveUri), path, `type`, content).mkString("(",",",")")
+    this.getClass.getName + Seq(name, description, url.map(_.maskSensitiveUri), path, `type`, content)
+      .mkString("(", ",", ")")
   }
 }
 

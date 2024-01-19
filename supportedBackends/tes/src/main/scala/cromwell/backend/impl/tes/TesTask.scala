@@ -32,7 +32,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          mapCommandLineWomFile: WomFile => WomFile,
                          jobShell: String,
                          outputMode: OutputMode
-                        ) {
+) {
 
   lazy val inputs: Seq[Input] = {
     val result =
@@ -41,8 +41,8 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       )
     jobLogger.info(
       s"Calculated TES inputs (found ${result.size}): " + result.mkString(System.lineSeparator(),
-        System.lineSeparator(),
-        System.lineSeparator()
+                                                                          System.lineSeparator(),
+                                                                          System.lineSeparator()
       )
     )
     result
@@ -77,8 +77,8 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
     jobLogger.info(
       s"Calculated TES outputs (found ${result.size}): " + result.mkString(System.lineSeparator(),
-        System.lineSeparator(),
-        System.lineSeparator()
+                                                                           System.lineSeparator(),
+                                                                           System.lineSeparator()
       )
     )
 
@@ -237,12 +237,12 @@ object TesTask {
   // Helper to determine which source to use for a workflowExecutionIdentity
   def getPreferredWorkflowExecutionIdentity(configIdentity: Option[WorkflowExecutionIdentityConfig],
                                             workflowOptionsIdentity: Option[WorkflowExecutionIdentityOption]
-                                           ): Option[String] =
+  ): Option[String] =
     configIdentity.map(_.value).orElse(workflowOptionsIdentity.map(_.value))
   def makeResources(runtimeAttributes: TesRuntimeAttributes,
                     workflowExecutionId: Option[String],
                     internalPathPrefix: Option[String]
-                   ): Resources = {
+  ): Resources = {
     /*
      * workflowExecutionId: This was added in BT-409 to let us pass information to an Azure
      * TES server about which user identity to run tasks as.
@@ -279,7 +279,7 @@ object TesTask {
   def buildTaskInputs(taskFiles: Map[FullyQualifiedName, Seq[WomFile]],
                       workflowName: String,
                       womMapFn: WomFile => WomFile
-                     ): List[Input] =
+  ): List[Input] =
     taskFiles.flatMap { case (fullyQualifiedName, files) =>
       files.flatMap(_.flattenFiles).zipWithIndex.map { case (f, index) =>
         val inputType = f match {
@@ -336,7 +336,7 @@ final case class Task(id: Option[String],
                       volumes: Option[Seq[String]],
                       tags: Option[Map[String, Option[String]]],
                       logs: Option[Seq[TaskLog]]
-                     )
+)
 
 final case class Executor(image: String,
                           command: Seq[String],
@@ -345,7 +345,7 @@ final case class Executor(image: String,
                           stderr: Option[String],
                           stdin: Option[String],
                           env: Option[Map[String, String]]
-                         )
+)
 
 final case class Input(name: Option[String],
                        description: Option[String],
@@ -353,7 +353,7 @@ final case class Input(name: Option[String],
                        path: String,
                        `type`: Option[String],
                        content: Option[String]
-                      ) {
+) {
   override def toString: String = {
     import common.util.StringUtil.EnhancedString
 
@@ -368,7 +368,7 @@ final case class Output(name: Option[String],
                         url: Option[String],
                         path: String,
                         `type`: Option[String]
-                       )
+)
 
 final case class Resources(cpu_cores: Option[Int],
                            ram_gb: Option[Double],
@@ -376,7 +376,7 @@ final case class Resources(cpu_cores: Option[Int],
                            preemptible: Option[Boolean],
                            zones: Option[Seq[String]],
                            backend_parameters: Option[Map[String, Option[String]]]
-                          )
+)
 
 final case class OutputFileLog(url: String, path: String, size_bytes: Int)
 
@@ -386,11 +386,11 @@ final case class TaskLog(start_time: Option[String],
                          logs: Option[Seq[ExecutorLog]],
                          outputs: Option[Seq[OutputFileLog]],
                          system_logs: Option[Seq[String]]
-                        )
+)
 
 final case class ExecutorLog(start_time: Option[String],
                              end_time: Option[String],
                              stdout: Option[String],
                              stderr: Option[String],
                              exit_code: Option[Int]
-                            )
+)

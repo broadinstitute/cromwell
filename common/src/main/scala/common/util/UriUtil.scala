@@ -7,14 +7,14 @@ object UriUtil {
   implicit class EnhancedUri(val uri: URI) extends AnyVal {
 
     /**
-      * Removes userInfo and sensitive query parts from instances of java.net.URI.
-      *
-      * If the URI query does not contain any detected sensitive information, then the entire query will be masked.
-      *
-      * Depending on the encoding used in the input URI the masked output may have unexpected encoding. See:
-      * - the StringUtilSpec for current expectations
-      * - https://stackoverflow.com/questions/4571346/how-to-encode-url-to-avoid-special-characters-in-java#answer-4571518
-      */
+     * Removes userInfo and sensitive query parts from instances of java.net.URI.
+     *
+     * If the URI query does not contain any detected sensitive information, then the entire query will be masked.
+     *
+     * Depending on the encoding used in the input URI the masked output may have unexpected encoding. See:
+     * - the StringUtilSpec for current expectations
+     * - https://stackoverflow.com/questions/4571346/how-to-encode-url-to-avoid-special-characters-in-java#answer-4571518
+     */
     def maskSensitive: URI =
       Try {
         new URI(
@@ -28,25 +28,6 @@ object UriUtil {
         )
       }
         .getOrElse(uri)
-  }
-
-  private def maskSensitiveQuery(query: String): String = {
-    val parsedQuery: Array[Seq[String]] = query.split("&").map { param =>param.split("=", 2).toSeq match { case seq @ Seq(_, _) => seq
-        case _ => Seq(param)
-      }
-    }
-
-    if (!parsedQuery.exists(param => isSensitiveKey(param.head))) {
-      // Mask the entire query just in case
-      "masked"
-    } else {
-      parsedQuery
-        .map {
-          case Seq(name, _) if isSensitiveKey(name) => s"$name=masked"
-          case seq => seq.mkString("=")
-        }
-        .mkString("&")
-    }
   }
 
   /*
@@ -79,8 +60,33 @@ object UriUtil {
   private val SensitiveKeyParts =
     List(
       "credential",
-      "signature"
+      "signature",
+      "sig"
     )
+
+  private def maskSensitiveQuery(query: String): String = {
+    val parsedQuery: Array[Seq[String]] =
+      query
+        .split("&")
+        .map { param =>
+          param.split("=", 2).toSeq match {
+            case seq @ Seq(_, _) => seq
+            case _ => Seq(param)
+          }
+        }
+
+    if (!parsedQuery.exists(param => isSensitiveKey(param.head))) {
+      // Mask the entire query just in case
+      "masked"
+    } else {
+      parsedQuery
+        .map {
+          case Seq(name, _) if isSensitiveKey(name) => s"$name=masked"
+          case seq => seq.mkString("=")
+        }
+        .mkString("&")
+    }
+  }
 
   private def isSensitiveKey(name: String): Boolean = {
     val lower = name.toLowerCase

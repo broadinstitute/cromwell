@@ -31,15 +31,10 @@ object UriUtil {
   }
 
   private def maskSensitiveQuery(query: String): String = {
-    val parsedQuery: Array[Seq[String]] =
-      query
-        .split("&")
-        .map { param =>
-          param.split("=", 2).toSeq match {
-            case seq @ Seq(_, _) => seq
-            case _ => Seq(param)
-          }
-        }
+    val parsedQuery: Array[Seq[String]] = query.split("&").map { param =>param.split("=", 2).toSeq match { case seq @ Seq(_, _) => seq
+        case _ => Seq(param)
+      }
+    }
 
     if (!parsedQuery.exists(param => isSensitiveKey(param.head))) {
       // Mask the entire query just in case

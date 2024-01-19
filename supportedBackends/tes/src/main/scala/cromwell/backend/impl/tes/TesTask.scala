@@ -93,6 +93,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   }
 
   // TODO add TES logs to standard outputs
+  // no-op
   private lazy val standardOutputs = Seq("rc", "stdout", "stderr").map { f =>
     Output(
       name = Option(f),

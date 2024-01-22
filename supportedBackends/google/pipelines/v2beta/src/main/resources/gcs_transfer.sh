@@ -34,9 +34,9 @@ private::delocalize_file() {
   cloud_parent=$(dirname "$cloud")"/"
 
   if [[ -f "$container" && -n "$content" ]]; then
-    rm -f "$HOME/.config/gcloud/gce" && gcloud storage cp ${rpflag} --content-type="$content" "$container" "$cloud_parent" > "$gsutil_log" 2>&1
+    rm -f "$HOME/.config/gcloud/gce" && gsutil ${rpflag} -m -h "Content-Type: $content" -o GSUtil:parallel_composite_upload_threshold="$parallel_composite_upload_threshold" cp "$container"
   elif [[ -f "$container" ]]; then
-    rm -f "$HOME/.config/gcloud/gce" && gcloud storage cp ${rpflag} "$container" "$cloud_parent" > "$gsutil_log" 2>&1
+    rm -f "$HOME/.config/gcloud/gce" && gsutil ${rpflag} -m -o GSUtil:parallel_composite_upload_threshold="$parallel_composite_upload_threshold" cp "$container"
   elif [[ -e "$container" ]]; then
     echo "File output '$container' exists but is not a file"
     exit 1
@@ -172,9 +172,9 @@ localize_files() {
 
   if [[ ${USE_REQUESTER_PAYS} = true ]]; then
     # https://cloud.google.com/storage/docs/using-requester-pays#using
-    rpflag="--billing-project $project"
+    gcloud_storage_rpflag="--billing-project $project"
   else
-    rpflag=""
+    gcloud_storage_rpflag=""
   fi
 
 
@@ -193,7 +193,7 @@ localize_files() {
     while [[ ${attempt} -le ${max_attempts} ]]; do
       # parallel transfer the remaining files
       rm -f "$HOME/.config/gcloud/gce"
-      if cat files_to_localize.txt | gcloud storage cp ${rpflag} --read-paths-from-stdin "$container_parent"; then
+      if cat files_to_localize.txt | gcloud storage cp ${gcloud_storage_rpflag} --read-paths-from-stdin "$container_parent"; then
         break
       else
         attempt=$((attempt + 1))
@@ -248,7 +248,7 @@ localize_directories() {
   private::determine_requester_pays ${max_attempts}
 
   if [[ ${USE_REQUESTER_PAYS} = true ]]; then
-    rpflag="--billing-project $project"
+    rpflag="-u $project"
   else
     rpflag=""
   fi
@@ -312,7 +312,7 @@ delocalize() {
     while [[ ${attempt} -le ${max_attempts} ]]; do
 
       if [[ ${use_requester_pays} = true ]]; then
-        rpflag="--billing-project ${project}"
+        rpflag="-u $project"
       else
         rpflag=""
       fi

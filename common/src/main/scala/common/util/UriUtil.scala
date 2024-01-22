@@ -87,8 +87,13 @@ object UriUtil {
       "signature"
     )
 
+  private val SensitiveKeys =
+    List(
+      "sig"
+    )
+
   private def isSensitiveKey(name: String): Boolean = {
     val lower = name.toLowerCase
-    SensitiveKeyParts.exists(lower.contains(_))
+    SensitiveKeyParts.exists(lower.contains(_)) || SensitiveKeys.exists(lower.equals(_))
   }
 }

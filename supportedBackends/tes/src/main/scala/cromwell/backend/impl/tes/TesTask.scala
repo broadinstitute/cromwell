@@ -367,7 +367,15 @@ final case class Input(name: Option[String],
                        path: String,
                        `type`: Option[String],
                        content: Option[String]
-)
+) {
+  override def toString: String = {
+    import common.util.StringUtil.EnhancedString
+
+    // Mask SAS token signature in query
+    this.getClass.getName + Seq(name, description, url.map(_.maskSensitiveUri), path, `type`, content)
+      .mkString("(", ",", ")")
+  }
+}
 
 final case class Output(name: Option[String],
                         description: Option[String],

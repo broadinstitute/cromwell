@@ -312,7 +312,7 @@ delocalize() {
     while [[ ${attempt} -le ${max_attempts} ]]; do
 
       if [[ ${use_requester_pays} = true ]]; then
-        rpflag="-u $project"
+        rpflag="-u ${project}"
       else
         rpflag=""
       fi

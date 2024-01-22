@@ -210,13 +210,13 @@ private::localize_directory() {
   local cloud="$1"
   local container="$2"
   local max_attempts="$3"
-  local rpflag="$4"
+  local gcloud_storage_rpflag="$4"
 
   local attempt=1
   private::localize_message "$cloud" "$container"
   while [[ ${attempt} -lt ${max_attempts} ]]; do
-    # Do not quote rpflag, when that is set it will be -u project which should be two distinct arguments.
-    if mkdir -p "${container}" && rm -f "$HOME/.config/gcloud/gce" && gsutil ${rpflag} -m rsync -r "${cloud}" "${container}" > /dev/null 2>&1; then
+    # Do not quote gcloud_storage_rpflag, when that is set it will be `--billing-project project` which should be two distinct arguments.
+    if mkdir -p "${container}" && rm -f "$HOME/.config/gcloud/gce" && gcloud storage ${gcloud_storage_rpflag} rsync -r "${cloud}" "${container}" > /dev/null 2>&1; then
       break
     else
       attempt=$(($attempt + 1))
@@ -243,21 +243,21 @@ localize_directories() {
 
   BASE_COMMAND="private::localize_directory '${cloud_directory}' '${container_directory}' '${max_attempts}'"
   NO_REQUESTER_PAYS_COMMAND="${BASE_COMMAND} ''"
-  REQUESTER_PAYS_COMMAND="${BASE_COMMAND} '-u $project'"
+  REQUESTER_PAYS_COMMAND="${BASE_COMMAND} '--billing-project $project'"
 
   private::determine_requester_pays ${max_attempts}
 
   if [[ ${USE_REQUESTER_PAYS} = true ]]; then
-    rpflag="-u $project"
+    gcloud_storage_rpflag="--billing-project $project"
   else
-    rpflag=""
+    gcloud_storage_rpflag=""
   fi
 
   while [[ $# -gt 0 ]]; do
     cloud_directory="$1"
     container_directory="$2"
     shift 2
-    private::localize_directory "$cloud_directory" "$container_directory" "$max_attempts" "$rpflag"
+    private::localize_directory "$cloud_directory" "$container_directory" "$max_attempts" "$gcloud_storage_rpflag"
   done
 }
 

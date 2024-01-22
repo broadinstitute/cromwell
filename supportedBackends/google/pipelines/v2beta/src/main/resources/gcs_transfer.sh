@@ -34,9 +34,9 @@ private::delocalize_file() {
   cloud_parent=$(dirname "$cloud")"/"
 
   if [[ -f "$container" && -n "$content" ]]; then
-    rm -f "$HOME/.config/gcloud/gce" && gsutil ${rpflag} -m -h "Content-Type: $content" -o GSUtil:parallel_composite_upload_threshold="$parallel_composite_upload_threshold" cp "$container"
+    rm -f "$HOME/.config/gcloud/gce" && gsutil ${rpflag} -m -h "Content-Type: $content" -o GSUtil:parallel_composite_upload_threshold="$parallel_composite_upload_threshold" cp "$container" "$cloud_parent" > "$gsutil_log" 2>&1
   elif [[ -f "$container" ]]; then
-    rm -f "$HOME/.config/gcloud/gce" && gsutil ${rpflag} -m -o GSUtil:parallel_composite_upload_threshold="$parallel_composite_upload_threshold" cp "$container"
+    rm -f "$HOME/.config/gcloud/gce" && gsutil ${rpflag} -m -o GSUtil:parallel_composite_upload_threshold="$parallel_composite_upload_threshold" cp "$container" "$cloud_parent" > "$gsutil_log" 2>&1
   elif [[ -e "$container" ]]; then
     echo "File output '$container' exists but is not a file"
     exit 1

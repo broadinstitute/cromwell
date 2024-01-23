@@ -217,4 +217,34 @@ class TesTaskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
       "parent_workflow_id" -> Option(subWorkflowId.toString)
     )
   }
+
+  it should "not leak secrets when printing file paths" in {
+    val input = Input(
+      Option("asdf"),
+      Option("asdf"),
+      url = Option(
+        "https://lz304a1e79fd7359e5327eda.blob.core.windows.net/sc-705b830a-d699-478e-9da6-49661b326e77" +
+          "?sv=2021-12-02&spr=https&st=2023-12-13T20%3A27%3A55Z&se=2023-12-14T04%3A42%3A55Z&sr=c&sp=racwdlt&sig=SECRET&rscd=foo"
+      ),
+      "asdf",
+      Option("asdf"),
+      Option("asdf")
+    )
+
+    input.toString shouldBe "cromwell.backend.impl.tes.Input(Some(asdf),Some(asdf),Some(https://lz304a1e79fd7359e5327eda.blob.core.windows.net/sc-705b830a-d699-478e-9da6-49661b326e77" +
+      "?sv=2021-12-02&spr=https&st=2023-12-13T20:27:55Z&se=2023-12-14T04:42:55Z&sr=c&sp=racwdlt&sig=masked&rscd=foo),asdf,Some(asdf),Some(asdf))"
+  }
+
+  it should "not crash if the URL is missing" in {
+    val input = Input(
+      Option("asdf"),
+      Option("asdf"),
+      url = None,
+      "asdf",
+      Option("asdf"),
+      Option("asdf")
+    )
+
+    input.toString shouldBe "cromwell.backend.impl.tes.Input(Some(asdf),Some(asdf),None,asdf,Some(asdf),Some(asdf))"
+  }
 }

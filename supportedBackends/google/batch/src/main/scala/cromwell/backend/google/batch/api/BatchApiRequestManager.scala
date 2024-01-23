@@ -25,6 +25,7 @@ import scala.collection.immutable.Queue
 import scala.concurrent.duration._
 import scala.util.control.NoStackTrace
 
+// TODO: Alex - porting this file is almost done
 /**
  * Holds a set of Batch request until a BatchApiRequestActor pulls the work.
  */
@@ -69,6 +70,7 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
    * see sun.net.www.protocol.http.HttpURLConnection
    * and com.google.api.client.http.javanet.NetHttpRequest
    *
+   * TODO: Alex - do we still care about this? the github ticket was closed in 2016 and we don't use the batch API anyway
    */
   private val maxBatchRequestSize: Long = 14L * 1024L * 1024L // TODO: Alex what's the value for this?
   private val requestTooLargeException = new UserBatchApiException(
@@ -108,7 +110,7 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
     super.preStart()
   }
 
-  def monitorQueueSize(): Unit = {
+  private def monitorQueueSize(): Unit = {
     val newLoad = if (workQueue.size > LoadConfig.BatchThreshold) HighLoad else NormalLoad
 
     if (previousLoad == NormalLoad && newLoad == HighLoad)
@@ -124,7 +126,7 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
     updateQueueSize(workQueue.size)
   }
 
-  val requestManagerReceive: Receive = {
+  private val requestManagerReceive: Receive = {
     case ResetAllRequestWorkers => resetAllWorkers()
     case BackendSingletonActorAbortWorkflow(id) => abort(id)
     case status: BatchStatusPollRequest => workQueue :+= status
@@ -246,8 +248,8 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
     // We assume this is a polling actor. Might change in a future update:
     workInProgress.get(terminee) match {
       case Some(work) =>
-//         Most likely due to an unexpected HTTP error.
-//         Do some book-keeping, log the error, and then push the work back onto the queue and keep going
+        // Most likely due to an unexpected HTTP error.
+        // Do some book-keeping, log the error, and then push the work back onto the queue and keep going
         workInProgress -= terminee
         var runCreations = 0
         var statusPolls = 0
@@ -303,7 +305,7 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
     )
   }
 
-  private[api] def resetAllWorkers() = {
+  private[api] def resetAllWorkers(): Unit = {
     log.info("'resetAllWorkers()' called to fill vector with {} new workers", nbWorkers)
     val result = Vector.fill(nbWorkers)(makeAndWatchWorkerActor())
     statusPollers = result
@@ -327,6 +329,7 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
 
 object BatchApiRequestManager {
   case object ResetAllRequestWorkers
+  // TODO: Alex - should we remove these unused items? they are not unsed in PAPIv2 either
   case object QueueMonitoringTimerKey
   case object QueueMonitoringTimerAction extends ControlMessage
   def props(qps: Int Refined Positive, requestWorkers: Int Refined Positive, serviceRegistryActor: ActorRef)(implicit
@@ -352,6 +355,7 @@ object BatchApiRequestManager {
     def requester: ActorRef
     def withFailedAttempt: BatchApiRequest
     def backoff: Backoff
+    // TODO: Alex - is this correct for batch?
     def httpRequest: HttpRequest
     def contentLength: Long = (for {
       r <- Option(httpRequest)

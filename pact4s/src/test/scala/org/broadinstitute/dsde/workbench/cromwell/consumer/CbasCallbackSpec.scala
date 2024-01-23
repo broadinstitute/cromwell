@@ -28,7 +28,7 @@ import java.util.UUID
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
 
-class CbasClientSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with RequestResponsePactForger {
+class CbasCallbackSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with RequestResponsePactForger {
 
   implicit val ec: ExecutionContextExecutor = system.dispatcher
 

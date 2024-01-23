@@ -58,9 +58,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - uses: ./.github/set_up_cromwell_action #Exectute this reusable github action. It will set up java/sbt/git-secrets/cromwell.
-        with:
-          cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
 
       # Construct a version string like `87-9c6c439`. Adapted from `chart_update_on_merge.yml`.
       - name: Find Cromwell short SHA

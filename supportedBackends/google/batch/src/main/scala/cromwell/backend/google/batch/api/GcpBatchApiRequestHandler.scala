@@ -103,6 +103,7 @@ public void execute() throws IOException {
 object GcpBatchGroupedRequests {
   def execute(grouped: GcpBatchGroupedRequests): Unit = {
     grouped.requests.map { request =>
+      // this already handles retries
       request.httpRequest.execute()
     }
     ???

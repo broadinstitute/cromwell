@@ -1,59 +1,65 @@
 package org.broadinstitute.dsde.workbench.cromwell.consumer
 
-import au.com.dius.pact.consumer.dsl.LambdaDsl.newJsonBody
+import akka.testkit._
 import au.com.dius.pact.consumer.dsl._
 import au.com.dius.pact.consumer.{ConsumerPactBuilder, PactTestExecutionContext}
 import au.com.dius.pact.core.model.RequestResponsePact
-import cats.effect.IO
-import cromwell.engine.workflow.lifecycle.finalization.{CallbackMessage, WorkflowCallbackJsonSupport}
+import cromwell.core.retry.SimpleExponentialBackoff
+import cromwell.core.{CallOutputs, TestKitSuite, WorkflowId, WorkflowSucceeded}
+import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackActor.PerformCallbackCommand
+import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackConfig.StaticTokenAuth
+import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackJsonSupport._
+import cromwell.engine.workflow.lifecycle.finalization.{CallbackMessage, WorkflowCallbackActor, WorkflowCallbackConfig}
+import cromwell.services.metadata.MetadataKey
+import cromwell.services.metadata.MetadataService.PutMetadataAction
+import cromwell.util.GracefulShutdownHelper
 import org.broadinstitute.dsde.workbench.cromwell.consumer.PactHelper._
-import org.http4s.blaze.client.BlazeClientBuilder
-import org.http4s.client.Client
-import org.http4s.headers.Authorization
-import org.http4s.{AuthScheme, Credentials, Uri}
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import pact4s.scalatest.RequestResponsePactForger
+import pact4s.sprayjson.implicits._
+import wom.graph.GraphNodePort.GraphNodeOutputPort
+import wom.graph.WomIdentifier
+import wom.types.WomStringType
 import wom.values._
 
-import java.util.concurrent.Executors
-import scala.concurrent.ExecutionContext
+import java.net.URI
+import java.util.UUID
+import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.duration._
 
-class CbasClientSpec extends AnyFlatSpec with Matchers with RequestResponsePactForger {
-  val ec: ExecutionContext = ExecutionContext.fromExecutorService(Executors.newCachedThreadPool())
-  implicit val cs = IO.contextShift(ec)
-  /*
-    Define the folder that the pact contracts get written to upon completion of this test suite.
-   */
+class CbasClientSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with RequestResponsePactForger {
+
+  implicit val ec: ExecutionContextExecutor = system.dispatcher
+
+  // Akka test setup
+  private val msgWait = 10.second.dilated
+  private val serviceRegistryActor = TestProbe("testServiceRegistryActor")
+  private val deathWatch = TestProbe("deathWatch")
+
+  private val callbackEndpoint = "/api/batch/v1/runs/results"
+  private val bearerToken = "my-token"
+  private val workflowId = WorkflowId(UUID.fromString("12345678-1234-1234-1111-111111111111"))
+  private val basicOutputs = CallOutputs(
+    Map(
+      GraphNodeOutputPort(WomIdentifier("foo", "wf.foo"), WomStringType, null) -> WomString("bar"),
+      GraphNodeOutputPort(WomIdentifier("hello", "wf.hello.hello"), WomStringType, null) -> WomString("Hello")
+    )
+  )
+
+  // This is the message that we expect Cromwell to send CBAS in this test
+  private val expectedCallbackMessage = CallbackMessage(
+    workflowId.toString,
+    "Succeeded",
+    Map(("wf.foo", WomString("bar")), ("wf.hello.hello", WomString("Hello"))),
+    List.empty
+  )
+
+  // Define the folder that the pact contracts get written to upon completion of this test suite.
   override val pactTestExecutionContext: PactTestExecutionContext =
     new PactTestExecutionContext(
       "./target/pacts"
     )
-
-  val bearerToken = "my-token"
-  val workflowId = "12345678-1234-1234-1111-111111111111"
-  val completedState = "Succeeded"
-  val workflowOutputs = Map(("wf.foo", WomString("bar")), ("wf.hello.hello", WomString("Hello")))
-  val failures = List.empty[String]
-
-  val workflowCallback: CallbackMessage = CallbackMessage(
-    workflowId,
-    completedState,
-    workflowOutputs,
-    failures
-  )
-  /*
-      Get a json representation of a workflowCallback object.
-   */
-  val workflowCallbackJson = WorkflowCallbackJsonSupport.callbackMessageFormat.write(workflowCallback)
-
-  val updateCompletedRunDsl = newJsonBody { o =>
-    o.stringType("workflowId", workflowCallback.workflowId)
-    o.stringType("state", workflowCallback.state)
-    o.stringType("outputs", workflowCallbackJson.asJsObject.fields("outputs").toString())
-    o.array("failures", f => workflowCallback.failures.foreach(f.stringType))
-    ()
-  }.build
 
   val consumerPactBuilder: ConsumerPactBuilder = ConsumerPactBuilder
     .consumer("cromwell")
@@ -66,23 +72,47 @@ class CbasClientSpec extends AnyFlatSpec with Matchers with RequestResponsePactF
     state = "post completed workflow results",
     uponReceiving = "Request to post workflow results",
     method = "POST",
-    path = "/api/batch/v1/runs/results",
+    path = callbackEndpoint,
     requestHeaders = Seq("Authorization" -> "Bearer %s".format(bearerToken), "Content-type" -> "application/json"),
-    requestBody = updateCompletedRunDsl,
+    requestBody = expectedCallbackMessage,
     status = 200
   )
   override val pact: RequestResponsePact = pactUpdateCompletedRunDslResponse.toPact
 
-  val client: Client[IO] =
-    BlazeClientBuilder[IO](ExecutionContext.global).resource.allocated.unsafeRunSync()._1
+  it should "send the right callback to the right URI" in {
+    // Create actor
+    val callbackConfig = WorkflowCallbackConfig.empty
+      .copy(enabled = true)
+      .copy(retryBackoff = SimpleExponentialBackoff(100.millis, 200.millis, 1.1))
+      .copy(authMethod = Option(StaticTokenAuth(bearerToken)))
+      .copy(defaultUri = Option(new URI(mockServer.getUrl + callbackEndpoint)))
 
-  it should "successfully post workflow results" in {
-    new CbasClientImpl[IO](client, Uri.unsafeFromString(mockServer.getUrl))
-      .postWorkflowResults(
-        Authorization(Credentials.Token(AuthScheme.Bearer, bearerToken)),
-        CallbackMessage(workflowId, completedState, workflowOutputs, failures)
-      )
-      .attempt
-      .unsafeRunSync() shouldBe Right(true)
+    val props = WorkflowCallbackActor.props(
+      serviceRegistryActor.ref,
+      callbackConfig
+    )
+    val workflowCallbackActor = system.actorOf(props, "testWorkflowCallbackActorPact")
+
+    // Send a command to trigger callback
+    val cmd = PerformCallbackCommand(
+      workflowId = workflowId,
+      uri = None,
+      terminalState = WorkflowSucceeded,
+      workflowOutputs = basicOutputs,
+      List.empty
+    )
+    workflowCallbackActor ! cmd
+
+    // Confirm the callback was successful
+    serviceRegistryActor.expectMsgPF(msgWait) {
+      case PutMetadataAction(List(resultEvent, _, _), _) =>
+        resultEvent.key shouldBe MetadataKey(workflowId, None, "workflowCallback", "successful")
+      case _ =>
+    }
+
+    // Shut the actor down
+    deathWatch.watch(workflowCallbackActor)
+    workflowCallbackActor ! GracefulShutdownHelper.ShutdownCommand
+    deathWatch.expectTerminated(workflowCallbackActor, msgWait)
   }
 }

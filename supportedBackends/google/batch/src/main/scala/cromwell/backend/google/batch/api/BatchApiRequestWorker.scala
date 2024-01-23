@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
+import com.google.api.client.http.javanet.NetHttpTransport
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.services.instrumentation.CromwellInstrumentationActor
 
@@ -44,25 +45,24 @@ class BatchApiRequestWorker(val pollingManager: ActorRef,
 
   private def handleBatch(workBatch: NonEmptyList[BatchApiRequest]): Future[List[Try[Unit]]] = {
     // Assume that the auth for the first element is also good enough for everything else:
-    val batch: BatchRequest = createBatch()
+    val batch: GcpBatchGroupedRequests = createBatch()
 
     // Create the batch:
     // TODO: WARNING: These call change 'batch' as a side effect. Things might go awry if map runs items in parallel?
-//    val batchFutures = workBatch map { batchHandler.enqueue(_, batch, pollingManager) }
+    val batchFutures = workBatch map { batchHandler.enqueue(_, batch, pollingManager) }
 
     // Execute the batch and return the list of successes and failures:
     // NB: Blocking and error prone. If this fails, let the supervisor in the BatchApiRequestManager catch and resubmit
     // the work.
     runBatch(batch)
-//    Future.sequence(batchFutures.toList)
-    Future(List(Try(())))
+    Future.sequence(batchFutures.toList)
   }
 
   // These are separate functions so that the tests can hook in and replace the JES-side stuff
-  private[api] def createBatch(): BatchRequest = batch
-  private[api] def runBatch(batch: BatchRequest): Unit =
+  private[api] def createBatch(): GcpBatchGroupedRequests = batch
+  private[api] def runBatch(batch: GcpBatchGroupedRequests): Unit =
     try
-      if (batch.size() > 0) batch.execute()
+      if (batch.size > 0) batch.execute()
     catch {
       case e: java.io.IOException =>
         val msg =
@@ -107,12 +107,14 @@ class BatchApiRequestWorker(val pollingManager: ActorRef,
 object BatchApiRequestWorker {
   def props(pollingManager: ActorRef, batchInterval: FiniteDuration, serviceRegistryActor: ActorRef)(implicit
     batchHandler: GcpBatchApiRequestHandler
-  ) =
+  ): Props =
     Props(new BatchApiRequestWorker(pollingManager, batchInterval, serviceRegistryActor))
       .withDispatcher(BackendDispatcher)
 
+  // TODO: Verify this fact applies to GCP Batch
+  // https://cloud.google.com/batch/quotas
   // The Batch API limits us to 100 at a time
   val MaxBatchSize = 100
 
-  val HttpTransport = GoogleNetHttpTransport.newTrustedTransport
+  val HttpTransport: NetHttpTransport = GoogleNetHttpTransport.newTrustedTransport
 }

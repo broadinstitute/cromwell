@@ -108,8 +108,7 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
     super.preStart()
   }
 
-  def monitorQueueSize() = {
-    // TODO remove BatchThreshold
+  def monitorQueueSize(): Unit = {
     val newLoad = if (workQueue.size > LoadConfig.BatchThreshold) HighLoad else NormalLoad
 
     if (previousLoad == NormalLoad && newLoad == HighLoad)
@@ -410,6 +409,7 @@ object BatchApiRequestManager {
 
   final private[api] case class BatchWorkerRequestWork(maxBatchSize: Int) extends ControlMessage
 
+  // TODO: Alex - is this necessary?
   final case class GoogleJsonException(e: GoogleJsonError, responseHeaders: HttpHeaders)
       extends IOException
       with CromwellFatalExceptionMarker {

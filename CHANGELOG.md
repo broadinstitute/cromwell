@@ -17,7 +17,7 @@ In a future release, **delocalization** will also migrate to `gcloud storage`. A
 
 [1] [Throughput scales with vCPU count](https://cloud.google.com/compute/docs/disks/performance#n2_vms) with a plateau at 16 vCPUs.
 
-[2] [Throughput scales with disk size.](https://cloud.google.com/compute/docs/disks/performance#throughput_limits_for_zonal) To achieve maximum performance: 1200 MB/s ÷ 0.48 MB/s per GB = 2500 GB.
+[2] [Throughput scales with disk size and type](https://cloud.google.com/compute/docs/disks/performance#throughput_limits_for_zonal) with at a plateau at 2.5 TB SSD. Worked example: 1200 MB/s ÷ 0.48 MB/s per GB = 2500 GB.
 
 [3] Cromwell itself uses crc32c hashes for call caching and is not affected
 

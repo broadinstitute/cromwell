@@ -1,5 +1,18 @@
 # Cromwell Change Log
 
+## 87 Release Notes
+
+### Replacement of `gsutil` with `gcloud storage`
+In this release, all _localization_ functionality on the GCP backend migrates to use the more modern and performant `gcloud storage`. With sufficiently powerful worker VMs, Cromwell can now localize at up to 1200 MB/s [0][1][2].
+
+In a future release, _delocalization_ will also migrate to `gcloud storage`. As part of that upcoming change, we are considering turning on [parallel composite uploads](https://cromwell.readthedocs.io/en/stable/backends/Google/#parallel-composite-uploads) by default to maximize performance. If you have compatibility concerns for your workflow, please [submit an issue](https://github.com/broadinstitute/cromwell/issues). 
+
+[0] Tested with Intel Ice Lake CPU platform, 16 vCPU, 32 GB RAM, 2500 GB SSD
+
+[1] [Throughput scales with vCPU count](https://cloud.google.com/compute/docs/disks/performance#n2_vms) with a plateau at 16 vCPUs.
+
+[2] [Throughput scales with disk size.](https://cloud.google.com/compute/docs/disks/performance#throughput_limits_for_zonal) To achieve maximum performance: 1200 MB/s ÷ 0.48 MB/s per GB = 2500 GB.
+
 ## 86 Release Notes
 
 ### GCP Batch

@@ -15,30 +15,25 @@ object ActionUtils {
   /** Port mappings for the ssh container. */
   val sshPortMappings = Map("22" -> Int.box(22))
 
-  /*
-   * At the moment, cloud-sdk (924MB for 276.0.0-slim) and stedolan/jq (182MB) decompressed ~= 1.1 GB
-   */
-  val cromwellImagesSizeRoundedUpInGB = 1
-
   private val config = ConfigFactory.load().getConfig("google")
 
   /**
     * An image with the Google Cloud SDK installed.
     * http://gcr.io/google.com/cloudsdktool/cloud-sdk
     *
-    * FYI additional older versions are available on DockerHub at:
-    * https://hub.docker.com/r/google/cloud-sdk
+    * As of PROD-918 in January 2024, we are re-hosting ourselves due to quota issues pulling the official image.
     *
-    * When updating this value, also consider updating the CromwellImagesSizeRoundedUpInGB below.
+    * When updating this value, also consider updating the `cromwellImagesSizeRoundedUpInGB` below.
+    *
+    * Also update `cromwell.backend.google.batch.runnable.RunnableUtils`
     */
   val CloudSdkImage: String =
     config.getOrElse("cloud-sdk-image-url", "us.gcr.io/broad-dsp-gcr-public/cloudsdktool/cloud-sdk:460.0.0-alpine")
 
   /*
-   * At the moment, cloud-sdk (584MB for 354.0.0-alpine) and stedolan/jq (182MB) decompressed ~= 0.8 GB
+   * At the moment, cloud-sdk (960MB for 460.0.0-alpine) ~= 1.0 GB
    */
-  val CromwellImagesSizeRoundedUpInGB: Int =
-    config.getOrElse("cloud-sdk-image-size-gb", 1)
+  val cromwellImagesSizeRoundedUpInGB: Int = config.getOrElse("cloud-sdk-image-size-gb", 1)
 
   /** Quotes a string such that it's compatible as a string argument in the shell. */
   def shellEscaped(any: Any): String = {

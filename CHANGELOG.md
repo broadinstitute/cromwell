@@ -6,7 +6,7 @@
 
 In this release, all **localization** functionality on the GCP backend migrates to use the more modern and performant `gcloud storage`. With sufficiently powerful worker VMs, Cromwell can now localize at up to 1200 MB/s [0][1][2].
 
-In a future release, **delocalization** will also migrate to `gcloud storage`. As part of that upcoming change, we are considering turning on [parallel composite uploads](https://cromwell.readthedocs.io/en/stable/backends/Google/#parallel-composite-uploads) by default to maximize performance. Delocalized composite objects will no longer have an md5 checksum in the bucket; refer to the matrix below [3]. If you have compatibility concerns for your workflow, please [submit an issue](https://github.com/broadinstitute/cromwell/issues).
+In a future release, **delocalization** will also migrate to `gcloud storage`. As part of that upcoming change, we are considering turning on [parallel composite uploads](https://cromwell.readthedocs.io/en/stable/backends/Google/#parallel-composite-uploads) by default to maximize performance. Delocalized composite objects will no longer have an md5 checksum in their metadata; refer to the matrix below [3]. If you have compatibility concerns for your workflow, please [submit an issue](https://github.com/broadinstitute/cromwell/issues).
 
 | Delocalization Strategy | Performance   | crc32c | md5 |
 |-------------------------|---------------|--------|-----|

@@ -2,7 +2,7 @@ package cromwell.backend.google.batch.api
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
-import com.google.api.client.googleapis.batch.BatchRequest
+//import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.http.javanet.NetHttpTransport
 import cromwell.core.Dispatcher.BackendDispatcher
@@ -13,6 +13,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success, Try}
 
+// TODO: Alex - porting this file is almost done
 /**
  * Sends batched requests to JES as a worker to the JesApiQueryManager
  */
@@ -116,5 +117,6 @@ object BatchApiRequestWorker {
   // The Batch API limits us to 100 at a time
   val MaxBatchSize = 100
 
+  // TODO: Alex - seems unused
   val HttpTransport: NetHttpTransport = GoogleNetHttpTransport.newTrustedTransport
 }

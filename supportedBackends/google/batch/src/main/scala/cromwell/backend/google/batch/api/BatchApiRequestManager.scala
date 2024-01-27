@@ -6,7 +6,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props, SupervisorStrategy, Ter
 import akka.dispatch.ControlMessage
 import cats.data.NonEmptyList
 import com.google.api.client.googleapis.json.GoogleJsonError
-import com.google.api.client.http.{HttpHeaders, HttpRequest}
+import com.google.api.client.http.HttpHeaders
 import common.util.Backoff
 import cromwell.backend.BackendSingletonActorAbortWorkflow
 import cromwell.backend.google.batch.actors.BatchApiRunCreationClient.JobAbortedException
@@ -14,7 +14,6 @@ import cromwell.backend.google.batch.monitoring.BatchInstrumentation
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.retry.SimpleExponentialBackoff
-//import cromwell.core.{CromwellFatalExceptionMarker, LoadConfig, WorkflowId}
 import cromwell.core.{CromwellFatalExceptionMarker, LoadConfig, Mailbox, WorkflowId}
 import cromwell.services.instrumentation.CromwellInstrumentationScheduler
 import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadLevel, LoadMetric, NormalLoad}
@@ -355,12 +354,7 @@ object BatchApiRequestManager {
     def requester: ActorRef
     def withFailedAttempt: BatchApiRequest
     def backoff: Backoff
-    // TODO: Alex - is this correct for batch?
-    def httpRequest: HttpRequest
-    def contentLength: Long = (for {
-      r <- Option(httpRequest)
-      content <- Option(r.getContent)
-    } yield content.getLength).getOrElse(0L)
+    def contentLength: Long
   }
   private object BatchApiRequest {
     // This must be a def, we want a new one each time (they're mutable! Boo!)
@@ -369,31 +363,47 @@ object BatchApiRequestManager {
 
   case class BatchStatusPollRequest(workflowId: WorkflowId,
                                     requester: ActorRef,
-                                    httpRequest: HttpRequest,
+                                    httpRequest: com.google.cloud.batch.v1.GetJobRequest,
                                     jobId: StandardAsyncJob,
                                     failedAttempts: Int = 0,
                                     backoff: Backoff = BatchApiRequest.backoff
   ) extends BatchApiRequest {
     override def withFailedAttempt = this.copy(failedAttempts = failedAttempts + 1, backoff = backoff.next)
+
+    def contentLength: Long = (for {
+      r <- Option(httpRequest)
+      size <- Option(r.getSerializedSize)
+    } yield size).getOrElse(0L)
   }
 
   case class BatchRunCreationRequest(workflowId: WorkflowId,
                                      requester: ActorRef,
-                                     httpRequest: HttpRequest,
+                                     httpRequest: com.google.cloud.batch.v1.CreateJobRequest,
                                      failedAttempts: Int = 0,
                                      backoff: Backoff = BatchApiRequest.backoff
   ) extends BatchApiRequest {
+
     override def withFailedAttempt = this.copy(failedAttempts = failedAttempts + 1, backoff = backoff.next)
+
+    def contentLength: Long = (for {
+      r <- Option(httpRequest)
+      size <- Option(r.getSerializedSize)
+    } yield size).getOrElse(0L)
   }
 
   case class BatchAbortRequest(workflowId: WorkflowId,
                                requester: ActorRef,
-                               httpRequest: HttpRequest,
+                               httpRequest: com.google.cloud.batch.v1.DeleteJobRequest,
                                jobId: StandardAsyncJob,
                                failedAttempts: Int = 0,
                                backoff: Backoff = BatchApiRequest.backoff
   ) extends BatchApiRequest {
     override def withFailedAttempt = this.copy(failedAttempts = failedAttempts + 1, backoff = backoff.next)
+
+    def contentLength: Long = (for {
+      r <- Option(httpRequest)
+      size <- Option(r.getSerializedSize)
+    } yield size).getOrElse(0L)
   }
 
   sealed trait BatchApiRequestFailed {

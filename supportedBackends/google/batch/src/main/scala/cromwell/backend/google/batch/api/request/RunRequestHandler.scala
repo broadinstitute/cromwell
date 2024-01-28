@@ -13,7 +13,11 @@ trait RunRequestHandler { this: RequestHandler =>
                                        completionPromise: Promise[Try[Unit]],
                                        pollingManager: ActorRef
   ) = new OperationCallback {
-    override def onSuccess(operation: BatchApiRequest, jobName: String): Unit = {
+    override def onSuccess(request: BatchApiRequest,
+                           jobName: String,
+                           operation: Option[com.google.longrunning.Operation]
+    ): Unit = {
+      // TOOD: Alex - this likely needs to be an actor msg
       originalRequest.requester ! getJob(jobName)
       completionPromise.trySuccess(Success(()))
       ()
@@ -37,6 +41,7 @@ trait RunRequestHandler { this: RequestHandler =>
 //        new SystemPAPIApiException(GoogleJsonException(e, responseHeaders))
 //      }
 
+      // TODO: Alex - This likely needs to be a different msg
       pollingManager ! BatchApiRunCreationQueryFailed(originalRequest, failureException)
       completionPromise.trySuccess(Failure(failureException))
       ()

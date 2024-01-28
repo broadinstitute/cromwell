@@ -2,6 +2,7 @@ package cromwell.backend.google.batch.api
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
+import cromwell.backend.google.batch.api.request.{GcpBatchGroupedRequests, RequestHandler}
 //import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.http.javanet.NetHttpTransport
@@ -20,7 +21,7 @@ import scala.util.{Failure, Success, Try}
 class BatchApiRequestWorker(val pollingManager: ActorRef,
                             val batchInterval: FiniteDuration,
                             override val serviceRegistryActor: ActorRef
-)(implicit val batchHandler: GcpBatchApiRequestHandler)
+)(implicit val batchHandler: RequestHandler)
     extends Actor
     with ActorLogging
     with CromwellInstrumentationActor {
@@ -107,7 +108,7 @@ class BatchApiRequestWorker(val pollingManager: ActorRef,
 
 object BatchApiRequestWorker {
   def props(pollingManager: ActorRef, batchInterval: FiniteDuration, serviceRegistryActor: ActorRef)(implicit
-    batchHandler: GcpBatchApiRequestHandler
+    batchHandler: RequestHandler
   ): Props =
     Props(new BatchApiRequestWorker(pollingManager, batchInterval, serviceRegistryActor))
       .withDispatcher(BackendDispatcher)

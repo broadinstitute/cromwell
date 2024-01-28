@@ -1,3 +1,3 @@
 package cromwell.backend.google.batch.api.request
 
-class AbortRequestHandler {}
+trait AbortRequestHandler { this: RequestHandler => }

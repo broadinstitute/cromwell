@@ -10,6 +10,7 @@ import com.google.api.client.http.HttpHeaders
 import common.util.Backoff
 import cromwell.backend.BackendSingletonActorAbortWorkflow
 import cromwell.backend.google.batch.actors.BatchApiRunCreationClient.JobAbortedException
+import cromwell.backend.google.batch.api.request.RequestHandler
 import cromwell.backend.google.batch.monitoring.BatchInstrumentation
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.Dispatcher.BackendDispatcher
@@ -31,7 +32,7 @@ import scala.util.control.NoStackTrace
 class BatchApiRequestManager(val qps: Int Refined Positive,
                              requestWorkers: Int Refined Positive,
                              override val serviceRegistryActor: ActorRef
-)(implicit batchHandler: GcpBatchApiRequestHandler)
+)(implicit batchHandler: RequestHandler)
     extends Actor
     with ActorLogging
     with BatchInstrumentation
@@ -332,7 +333,7 @@ object BatchApiRequestManager {
   case object QueueMonitoringTimerKey
   case object QueueMonitoringTimerAction extends ControlMessage
   def props(qps: Int Refined Positive, requestWorkers: Int Refined Positive, serviceRegistryActor: ActorRef)(implicit
-    batchHandler: GcpBatchApiRequestHandler
+    batchHandler: RequestHandler
   ): Props =
     Props(new BatchApiRequestManager(qps, requestWorkers, serviceRegistryActor)).withDispatcher(BackendDispatcher)
 
@@ -373,7 +374,7 @@ object BatchApiRequestManager {
     def contentLength: Long = (for {
       r <- Option(httpRequest)
       size <- Option(r.getSerializedSize)
-    } yield size).getOrElse(0L)
+    } yield size).getOrElse(0).toLong
   }
 
   case class BatchRunCreationRequest(workflowId: WorkflowId,
@@ -388,7 +389,7 @@ object BatchApiRequestManager {
     def contentLength: Long = (for {
       r <- Option(httpRequest)
       size <- Option(r.getSerializedSize)
-    } yield size).getOrElse(0L)
+    } yield size).getOrElse(0).toLong
   }
 
   case class BatchAbortRequest(workflowId: WorkflowId,
@@ -403,7 +404,7 @@ object BatchApiRequestManager {
     def contentLength: Long = (for {
       r <- Option(httpRequest)
       size <- Option(r.getSerializedSize)
-    } yield size).getOrElse(0L)
+    } yield size).getOrElse(0).toLong
   }
 
   sealed trait BatchApiRequestFailed {

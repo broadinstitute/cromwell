@@ -5,7 +5,9 @@ import com.google.cloud.batch.v1.JobName
 import com.google.longrunning.Operation
 import cromwell.backend.BackendSingletonActorAbortWorkflow
 import cromwell.backend.google.batch.api.BatchApiRequestManager.BatchApiRequest
-import cromwell.backend.google.batch.api.{BatchApiRequestManager, GcpBatchApiRequestHandler, GcpBatchRequestFactory}
+import cromwell.backend.google.batch.api.request.RequestHandler
+//import cromwell.backend.google.batch.api.{BatchApiRequestManager, GcpBatchApiRequestHandler, GcpBatchRequestFactory}
+import cromwell.backend.google.batch.api.{BatchApiRequestManager, GcpBatchRequestFactory}
 import cromwell.backend.google.batch.models.GcpBatchRequest
 import cromwell.backend.google.batch.monitoring.BatchInstrumentation
 import cromwell.core.Dispatcher.BackendDispatcher
@@ -22,9 +24,7 @@ object GcpBatchBackendSingletonActor {
             requestWorkers: Int Refined Positive,
             requestFactory: GcpBatchRequestFactory,
             serviceRegistryActor: ActorRef
-  )(implicit
-    requestHandler: GcpBatchApiRequestHandler
-  ): Props =
+  )(implicit requestHandler: RequestHandler): Props =
     Props(
       new GcpBatchBackendSingletonActor(qps = qps,
                                         requestWorkers = requestWorkers,
@@ -57,7 +57,7 @@ final class GcpBatchBackendSingletonActor(qps: Int Refined Positive,
                                           requestWorkers: Int Refined Positive,
                                           requestFactory: GcpBatchRequestFactory,
                                           override val serviceRegistryActor: ActorRef
-)(implicit requestHandler: GcpBatchApiRequestHandler)
+)(implicit requestHandler: RequestHandler)
     extends Actor
     with ActorLogging
     with BatchInstrumentation

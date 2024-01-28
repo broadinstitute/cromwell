@@ -1,20 +1,19 @@
 package cromwell.backend.google.batch.api.request
 
 import akka.actor.ActorRef
-import com.google.api.client.googleapis.batch.BatchRequest
-import com.google.api.client.googleapis.json.GoogleJsonError
+//import com.google.api.client.googleapis.batch.BatchRequest
+//import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.gax.rpc.FixedHeaderProvider
-import com.google.api.services.lifesciences.v2beta.CloudLifeSciences
 import com.google.cloud.batch.v1.BatchServiceSettings
 import com.google.common.collect.ImmutableMap
 import cromwell.backend.google.batch.api.BatchApiRequestManager
 import cromwell.backend.google.batch.api.BatchApiRequestManager._
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.BatchRequestTimeoutConfiguration
-import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
+//import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import org.slf4j.{Logger, LoggerFactory}
 
-import java.net.URL
-import scala.jdk.CollectionConverters._
+//import java.net.URL
+//import scala.jdk.CollectionConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
@@ -23,7 +22,7 @@ object RequestHandler {
 }
 
 class RequestHandler(applicationName: String,
-                     endpointUrl: URL,
+//                     endpointUrl: URL,
                      batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration
 ) /*extends PipelinesApiRequestHandler with*/
     extends RunRequestHandler
@@ -41,21 +40,30 @@ class RequestHandler(applicationName: String,
                                                            batchRequest: GcpBatchGroupedRequests,
                                                            pollingManager: ActorRef
   )(implicit ec: ExecutionContext): Future[Try[Unit]] = papiApiRequest match {
-    case create: BatchRunCreationRequest => handleRequest(create, batchRequest, pollingManager)
-    case status: BatchStatusPollRequest => handleRequest(status, batchRequest, pollingManager)
-    case abort: BatchAbortRequest => handleRequest(abort, batchRequest, pollingManager)
+    case create: BatchRunCreationRequest =>
+      // TODO: Alex - Remove this
+      println(ec.hashCode())
+      handleRequest(create, batchRequest, pollingManager)
+    case _: BatchStatusPollRequest =>
+      println("ToDo BatchStatusPollRequest")
+      Future.failed(new RuntimeException("BatchStatusPollRequest not implemented yet"))
+//      handleRequest(status, batchRequest, pollingManager)
+    case _: BatchAbortRequest =>
+      println("ToDo BatchAbortRequest")
+      Future.failed(new RuntimeException("BatchAbortRequest not implemented yet"))
+//      handleRequest(abort, batchRequest, pollingManager)
   }
 
-  private def withClient[T](f: BatchServiceClient => T): T = {
-    // set user agent to cromwell so requests can be differentiated on batch
-    val headers = ImmutableMap.of("user-agent", "cromwell")
-    val headerProvider = FixedHeaderProvider.create(headers)
-    val batchSettings = BatchServiceSettings.newBuilder.setHeaderProvider(headerProvider).build
-    val client = BatchServiceClient.create(batchSettings)
-    try
-      f(client)
-    finally
-      client.close()
-  }
+//  private def withClient[T](f: BatchServiceClient => T): T = {
+//    // set user agent to cromwell so requests can be differentiated on batch
+//    val headers = ImmutableMap.of("user-agent", "cromwell")
+//    val headerProvider = FixedHeaderProvider.create(headers)
+//    val batchSettings = BatchServiceSettings.newBuilder.setHeaderProvider(headerProvider).build
+//    val client = BatchServiceClient.create(batchSettings)
+//    try
+//      f(client)
+//    finally
+//      client.close()
+//  }
 //  protected def mkErrorString(e: GoogleJsonError): String = e.getErrors.asScala.toList.mkString(", ")
 }

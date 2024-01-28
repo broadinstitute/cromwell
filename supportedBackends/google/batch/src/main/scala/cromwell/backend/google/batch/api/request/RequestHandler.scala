@@ -44,10 +44,9 @@ class RequestHandler(applicationName: String,
       // TODO: Alex - Remove this
       println(ec.hashCode())
       handleRequest(create, batchRequest, pollingManager)
-    case _: BatchStatusPollRequest =>
-      println("ToDo BatchStatusPollRequest")
-      Future.failed(new RuntimeException("BatchStatusPollRequest not implemented yet"))
-//      handleRequest(status, batchRequest, pollingManager)
+    case status: BatchStatusPollRequest =>
+      handleRequest(status, batchRequest, pollingManager)
+
     case abort: BatchAbortRequest =>
       handleRequest(abort, batchRequest, pollingManager)
   }

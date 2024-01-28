@@ -9,7 +9,9 @@ import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory.{
   unexpectedRetryCountKey
 }
 import cromwell.backend.google.batch.actors._
-import cromwell.backend.google.batch.api.{GcpBatchApiRequestHandler, GcpBatchRequestFactoryImpl}
+import cromwell.backend.google.batch.api.request.RequestHandler
+//import cromwell.backend.google.batch.api.{GcpBatchApiRequestHandler, GcpBatchRequestFactoryImpl}
+import cromwell.backend.google.batch.api.GcpBatchRequestFactoryImpl
 import cromwell.backend.google.batch.models.{GcpBatchConfiguration, GcpBatchConfigurationAttributes}
 import cromwell.backend.google.batch.callcaching.{BatchBackendCacheHitCopyingActor, BatchBackendFileHashingActor}
 import cromwell.backend.standard._
@@ -93,9 +95,13 @@ class GcpBatchBackendLifecycleActorFactory(override val name: String,
   )
 
   override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = {
-    val requestHandler = new GcpBatchApiRequestHandler
+//    val requestHandler = new GcpBatchApiRequestHandler
     val requestFactory = new GcpBatchRequestFactoryImpl()(batchConfiguration.batchAttributes.gcsTransferConfiguration)
-
+    implicit val requestHandler: RequestHandler =
+      new RequestHandler(
+        googleConfig.applicationName,
+        batchConfiguration.batchAttributes.batchRequestTimeoutConfiguration
+      )
     Option(
       GcpBatchBackendSingletonActor.props(
         qps = batchConfiguration.batchAttributes.qps,

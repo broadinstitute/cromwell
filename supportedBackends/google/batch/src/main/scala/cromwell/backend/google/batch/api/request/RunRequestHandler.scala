@@ -1,7 +1,7 @@
 package cromwell.backend.google.batch.api.request
 
 import akka.actor.ActorRef
-import com.google.cloud.batch.v1.CreateJobRequest
+//import com.google.cloud.batch.v1.{CreateJobRequest, Job}
 import cromwell.backend.google.batch.api.BatchApiRequestManager._
 import cromwell.backend.standard.StandardAsyncJob
 
@@ -13,15 +13,15 @@ trait RunRequestHandler { this: RequestHandler =>
                                        completionPromise: Promise[Try[Unit]],
                                        pollingManager: ActorRef
   ) = new OperationCallback {
-    override def onSuccess(operation: BatchApiRequest): Unit = {
-      originalRequest.requester ! getJob(operation)
+    override def onSuccess(operation: BatchApiRequest, jobName: String): Unit = {
+      originalRequest.requester ! getJob(jobName)
       completionPromise.trySuccess(Success(()))
       ()
     }
 
-    override def onFailure(e: String): Unit = {
+    override def onFailure(ex: Throwable): Unit = {
       // TODO: Alex - find a better way to report errors
-      val rootCause = new Exception(e)
+      val rootCause = ex
 //      val rootCause = new Exception(mkErrorString(e))
 
       // TODO: Alex - differentiate between system and user errors
@@ -49,11 +49,11 @@ trait RunRequestHandler { this: RequestHandler =>
   ): Future[Try[Unit]] = {
     val completionPromise = Promise[Try[Unit]]()
     val resultHandler = runCreationResultHandler(runCreationQuery, completionPromise, pollingManager)
-    addRunCreationToBatch(runCreationQuery.httpRequest, batch, resultHandler)
+    addRunCreationToBatch(runCreationQuery, batch, resultHandler)
     completionPromise.future
   }
 
-  private def addRunCreationToBatch(request: CreateJobRequest,
+  private def addRunCreationToBatch(request: BatchRunCreationRequest,
                                     batch: GcpBatchGroupedRequests,
                                     resultHandler: OperationCallback
   ): Unit = {
@@ -65,8 +65,7 @@ trait RunRequestHandler { this: RequestHandler =>
     ()
   }
 
-  // TODO: Alex - replace operation type by the batch one
-  private def getJob(operation: BatchApiRequest) = StandardAsyncJob(operation.getName)
+  private def getJob(jobName: String) = StandardAsyncJob(jobName)
 }
 
 object RunRequestHandler {

@@ -1,5 +1,3 @@
 package cromwell.backend.google.batch.api.request
 
-class GetRequestHandler {
-
-}
+trait GetRequestHandler { this: RequestHandler => }

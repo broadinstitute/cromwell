@@ -36,10 +36,10 @@ class RequestHandler(applicationName: String,
     new GcpBatchGroupedRequests(batchSettings)
   }
 
-  def enqueue[T <: BatchApiRequestManager.BatchApiRequest](papiApiRequest: T,
+  def enqueue[T <: BatchApiRequestManager.BatchApiRequest](request: T,
                                                            batchRequest: GcpBatchGroupedRequests,
                                                            pollingManager: ActorRef
-  )(implicit ec: ExecutionContext): Future[Try[Unit]] = papiApiRequest match {
+  )(implicit ec: ExecutionContext): Future[Try[Unit]] = request match {
     case create: BatchRunCreationRequest =>
       // TODO: Alex - Remove this
       println(ec.hashCode())
@@ -48,22 +48,9 @@ class RequestHandler(applicationName: String,
       println("ToDo BatchStatusPollRequest")
       Future.failed(new RuntimeException("BatchStatusPollRequest not implemented yet"))
 //      handleRequest(status, batchRequest, pollingManager)
-    case _: BatchAbortRequest =>
-      println("ToDo BatchAbortRequest")
-      Future.failed(new RuntimeException("BatchAbortRequest not implemented yet"))
-//      handleRequest(abort, batchRequest, pollingManager)
+    case abort: BatchAbortRequest =>
+      handleRequest(abort, batchRequest, pollingManager)
   }
 
-//  private def withClient[T](f: BatchServiceClient => T): T = {
-//    // set user agent to cromwell so requests can be differentiated on batch
-//    val headers = ImmutableMap.of("user-agent", "cromwell")
-//    val headerProvider = FixedHeaderProvider.create(headers)
-//    val batchSettings = BatchServiceSettings.newBuilder.setHeaderProvider(headerProvider).build
-//    val client = BatchServiceClient.create(batchSettings)
-//    try
-//      f(client)
-//    finally
-//      client.close()
-//  }
 //  protected def mkErrorString(e: GoogleJsonError): String = e.getErrors.asScala.toList.mkString(", ")
 }

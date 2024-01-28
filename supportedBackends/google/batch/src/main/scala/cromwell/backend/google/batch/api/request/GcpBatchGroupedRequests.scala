@@ -9,7 +9,7 @@ import scala.util.control.NonFatal
 // Like PAPIv2 JsonBatchCallback
 // TODO: Alex - this can likely be removed
 trait OperationCallback {
-  def onSuccess(operation: BatchApiRequest, jobName: String): Unit
+  def onSuccess(request: BatchApiRequest, jobName: String, operation: Option[com.google.longrunning.Operation]): Unit
   def onFailure(error: Throwable): Unit
 }
 
@@ -31,17 +31,17 @@ class GcpBatchGroupedRequests(batchSettings: BatchServiceSettings) {
       // TODO: Alex - complete the responses with the result
       _requests.map { case (request, callback) =>
         try {
-          val jobName = request match {
+          val (jobName, operation) = request match {
             case r: BatchStatusPollRequest =>
-              client.getJob(r.httpRequest).getName
+              client.getJob(r.httpRequest).getName -> None
 
             case r: BatchRunCreationRequest =>
-              client.createJob(r.httpRequest).getName
+              client.createJob(r.httpRequest).getName -> None
 
             case r: BatchAbortRequest =>
-              client.deleteJobCallable().call(r.httpRequest).getName
+              r.httpRequest.getName -> Option(client.deleteJobCallable().call(r.httpRequest))
           }
-          callback.onSuccess(request, jobName)
+          callback.onSuccess(request, jobName, operation)
         } catch {
           case NonFatal(ex) => callback.onFailure(ex)
         }

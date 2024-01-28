@@ -37,14 +37,20 @@ object GcpBatchBackendSingletonActor {
   // This is the only type of messages that can be processed by this actor from this actor
   sealed trait Action extends Product with Serializable
   object Action {
+    // TODO: Alex - This does not seem to be used which is wrong
     final case class SubmitJob(request: GcpBatchRequest) extends Action
+
+    // TODO: Alex - This does not seem to be used which is wrong
     final case class QueryJob(jobName: JobName) extends Action
+
+    // TODO: Alex - This does not seem to be used which is wrong
     final case class AbortJob(jobName: JobName) extends Action
   }
 
   // This is the only type of messages produced from this actor while reacting to received messages
   sealed trait Event extends Product with Serializable
   object Event {
+    // TODO: Alex - This does not seem to be used which is wrong
     final case class JobSubmitted(job: com.google.cloud.batch.v1.Job) extends Event
     final case class JobStatusRetrieved(job: com.google.cloud.batch.v1.Job) extends Event
     final case class JobAbortRequestSent(operation: Operation) extends Event

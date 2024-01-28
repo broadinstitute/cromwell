@@ -1,6 +1,8 @@
 package cromwell.backend.google.batch.api.request
 
 import akka.actor.ActorRef
+import com.google.cloud.batch.v1.Job
+import com.google.longrunning.Operation
 //import com.google.api.client.googleapis.batch.BatchRequest
 //import com.google.api.client.googleapis.json.GoogleJsonError
 //import com.google.api.client.http.HttpHeaders
@@ -24,15 +26,12 @@ trait AbortRequestHandler extends LazyLogging { this: RequestHandler =>
                                         completionPromise: Promise[Try[Unit]],
                                         pollingManager: ActorRef
   ) = new OperationCallback {
-    override def onSuccess(request: BatchApiRequest,
-                           jobName: String,
-                           operation: Option[com.google.longrunning.Operation]
-    ): Unit = {
-      operation match {
-        case Some(value) =>
-          originalRequest.requester ! GcpBatchBackendSingletonActor.Event.JobAbortRequestSent(value)
+    override def onSuccess(request: BatchApiRequest, result: Either[Job, Operation]): Unit = {
+      result match {
+        case Right(operation) =>
+          originalRequest.requester ! GcpBatchBackendSingletonActor.Event.JobAbortRequestSent(operation)
           completionPromise.trySuccess(Success(()))
-        case None =>
+        case Left(_) =>
           // TODO: Alex - we can likely avoid this by using generics on the callback object
           onFailure(
             new RuntimeException("This is likely a programming error, onSuccess was called without an Operation object")

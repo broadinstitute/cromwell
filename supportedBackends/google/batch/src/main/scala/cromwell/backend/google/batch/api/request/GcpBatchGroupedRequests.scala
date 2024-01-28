@@ -1,15 +1,16 @@
 package cromwell.backend.google.batch.api.request
 
-import com.google.cloud.batch.v1.{BatchServiceClient, BatchServiceSettings}
+import com.google.cloud.batch.v1.{BatchServiceClient, BatchServiceSettings, Job}
 import cromwell.backend.google.batch.api.BatchApiRequestManager._
 
 import scala.util.{Failure, Success}
 import scala.util.control.NonFatal
+import com.google.longrunning.Operation
 
 // Like PAPIv2 JsonBatchCallback
 // TODO: Alex - this can likely be removed
 trait OperationCallback {
-  def onSuccess(request: BatchApiRequest, jobName: String, operation: Option[com.google.longrunning.Operation]): Unit
+  def onSuccess(request: BatchApiRequest, result: Either[Job, Operation]): Unit
   def onFailure(error: Throwable): Unit
 }
 
@@ -31,17 +32,17 @@ class GcpBatchGroupedRequests(batchSettings: BatchServiceSettings) {
       // TODO: Alex - complete the responses with the result
       _requests.map { case (request, callback) =>
         try {
-          val (jobName, operation) = request match {
+          val res = request match {
             case r: BatchStatusPollRequest =>
-              client.getJob(r.httpRequest).getName -> None
+              Left(client.getJob(r.httpRequest))
 
             case r: BatchRunCreationRequest =>
-              client.createJob(r.httpRequest).getName -> None
+              Left(client.createJob(r.httpRequest))
 
             case r: BatchAbortRequest =>
-              r.httpRequest.getName -> Option(client.deleteJobCallable().call(r.httpRequest))
+              Right(client.deleteJobCallable().call(r.httpRequest))
           }
-          callback.onSuccess(request, jobName, operation)
+          callback.onSuccess(request, res)
         } catch {
           case NonFatal(ex) => callback.onFailure(ex)
         }

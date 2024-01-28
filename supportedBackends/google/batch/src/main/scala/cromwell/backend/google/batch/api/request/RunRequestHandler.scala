@@ -1,7 +1,8 @@
 package cromwell.backend.google.batch.api.request
 
 import akka.actor.ActorRef
-//import com.google.cloud.batch.v1.{CreateJobRequest, Job}
+import com.google.cloud.batch.v1.Job
+import com.google.longrunning.Operation
 import cromwell.backend.google.batch.api.BatchApiRequestManager._
 import cromwell.backend.standard.StandardAsyncJob
 
@@ -13,13 +14,19 @@ trait RunRequestHandler { this: RequestHandler =>
                                        completionPromise: Promise[Try[Unit]],
                                        pollingManager: ActorRef
   ) = new OperationCallback {
-    override def onSuccess(request: BatchApiRequest,
-                           jobName: String,
-                           operation: Option[com.google.longrunning.Operation]
-    ): Unit = {
-      // TOOD: Alex - this likely needs to be an actor msg
-      originalRequest.requester ! getJob(jobName)
-      completionPromise.trySuccess(Success(()))
+    override def onSuccess(request: BatchApiRequest, result: Either[Job, Operation]): Unit = {
+      result match {
+        case Right(_) =>
+          // TODO: Alex - we can likely avoid this by using generics on the callback object
+          onFailure(
+            new RuntimeException("This is likely a programming error, onSuccess was called without an Operation object")
+          )
+
+        case Left(job) =>
+          // TODO: Alex - this likely needs to be an actor msg
+          originalRequest.requester ! getJob(job.getName)
+          completionPromise.trySuccess(Success(()))
+      }
       ()
     }
 

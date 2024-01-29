@@ -3,9 +3,9 @@ package cromwell.backend.google.batch.api
 import akka.actor.{ActorLogging, ActorRef, Props}
 import akka.testkit._
 import cats.data.NonEmptyList
-import com.google.api.client.googleapis.batch.BatchRequest
 import cromwell.backend.BackendSingletonActorAbortWorkflow
 import cromwell.backend.google.batch.api.BatchApiRequestManager.{
+  BatchApiRequest,
   BatchApiRunCreationQueryFailed,
   BatchApiWorkBatch,
   BatchRunCreationRequest,
@@ -14,6 +14,7 @@ import cromwell.backend.google.batch.api.BatchApiRequestManager.{
   NoWorkToDo
 }
 import cromwell.backend.google.batch.api.TestBatchApiRequestManagerSpec.intWithTimes
+import cromwell.backend.google.batch.api.request.{BatchApiRequestHandler, GcpBatchGroupedRequests}
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.util.AkkaTestUtil
@@ -356,10 +357,12 @@ class TestBatchWorkerActor() extends DeathTestActor with ActorLogging {
 
 case class SpecOnly_TriggerRequestForWork(batchRequestManager: ActorRef, batchSize: Int)
 
-class MockBatchRequestHandler extends GcpBatchApiRequestHandler {
+class MockBatchRequestHandler extends BatchApiRequestHandler {
   override def makeBatchRequest = throw new UnsupportedOperationException
-  override def enqueue(request: BatchApiRequest, batchRequest: BatchRequest, pollingManager: ActorRef)(implicit
-    ec: ExecutionContext
-  ): Future[Try[Unit]] = throw new UnsupportedOperationException
 
+  override def enqueue[T <: BatchApiRequest](request: T,
+                                             batchRequest: GcpBatchGroupedRequests,
+                                             pollingManager: ActorRef
+  )(implicit ec: ExecutionContext): Future[Try[Unit]] =
+    throw new UnsupportedOperationException
 }

@@ -19,4 +19,24 @@
       <option name="RunConfigurationTask" enabled="true" run_configuration_name="renderCiResources" run_configuration_type="SbtRunConfiguration" />
     </method>
   </configuration>
+  <configuration default="false" name="Repo template: Cromwell server TES" type="Application" factoryName="Application">
+    <option name="ALTERNATIVE_JRE_PATH" value="$PROJECT_DIR$/../.sdkman/candidates/java/current" />
+    <envs>
+      <env name="CROMWELL_BUILD_CENTAUR_SLICK_PROFILE" value="slick.jdbc.MySQLProfile$" />
+      <env name="CROMWELL_BUILD_CENTAUR_JDBC_DRIVER" value="com.mysql.cj.jdbc.Driver" />
+      <env name="CROMWELL_BUILD_CENTAUR_JDBC_URL" value="jdbc:mysql://localhost:3306/cromwell_test?allowPublicKeyRetrieval=true&amp;useSSL=false&amp;rewriteBatchedStatements=true&amp;serverTimezone=UTC&amp;useInformationSchema=true" />
+      <env name="CROMWELL_BUILD_RESOURCES_DIRECTORY" value="target/ci/resources" />
+      <env name="CROMWELL_BUILD_PAPI_JSON_FILE" value="target/ci/resources/cromwell-centaur-service-account.json" />
+      <env name="CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT" value="128000" />
+      <env name="CROMWELL_BUILD_CENTAUR_256_BITS_KEY" value="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" />
+    </envs>
+    <option name="MAIN_CLASS_NAME" value="cromwell.CromwellApp" />
+    <module name="cromwell" />
+    <option name="PROGRAM_PARAMETERS" value="server" />
+    <option name="VM_PARAMETERS" value="-Dconfig.file=target/ci/resources/tes_application.conf" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+      <option name="RunConfigurationTask" enabled="false" run_configuration_name="renderCiResources" run_configuration_type="SbtRunConfiguration" />
+    </method>
+  </configuration>
 </component>

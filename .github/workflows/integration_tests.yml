@@ -32,6 +32,9 @@ jobs:
           - build_type: centaurPapiV2beta
             build_mysql: 5.7
             friendly_name: Centaur Papi V2 Beta with MySQL 5.7
+          - build_type: centaurPapiV2betaRestart
+            build_mysql: 5.7
+            friendly_name: Centaur Papi V2 Beta (restart)
           - build_type: dbms
             friendly_name: DBMS
           - build_type: centaurTes

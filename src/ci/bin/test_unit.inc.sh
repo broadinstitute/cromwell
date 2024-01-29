@@ -18,12 +18,6 @@ source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
 cromwell::build::unit::setup_scale_factor() {
     case "${CROMWELL_BUILD_PROVIDER}" in
-        "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
-            CROMWELL_BUILD_UNIT_SPAN_SCALE_FACTOR=2
-            ;;
-        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
-            CROMWELL_BUILD_UNIT_SPAN_SCALE_FACTOR=10
-            ;;
         *)
             CROMWELL_BUILD_UNIT_SPAN_SCALE_FACTOR=1
             ;;
@@ -33,12 +27,6 @@ cromwell::build::unit::setup_scale_factor() {
 
 cromwell::build::unit::setup_exclude_tags() {
     case "${CROMWELL_BUILD_PROVIDER}" in
-        "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
-            CROMWELL_BUILD_UNIT_EXCLUDE_TAGS="AwsTest,CromwellIntegrationTest,DbmsTest,GcsIntegrationTest"
-            ;;
-        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
-            CROMWELL_BUILD_UNIT_EXCLUDE_TAGS="AwsTest,CromwellIntegrationTest,DockerTest,DbmsTest,GcsIntegrationTest"
-            ;;
         *)
             # Use the full list of excludes listed in Testing.scala
             CROMWELL_BUILD_UNIT_EXCLUDE_TAGS=""

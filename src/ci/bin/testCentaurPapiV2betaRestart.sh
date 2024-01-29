@@ -16,14 +16,10 @@ cromwell::build::papi::setup_papi_centaur_environment
 
 cromwell::build::assemble_jars
 
-cromwell::build::build_cromwell_docker
-
 cromwell::build::run_centaur \
     -p 100 \
-    -e localdockertest \
-    -e relative_output_paths \
-    -e relative_output_paths_colliding \
-    -e standard_output_paths_colliding_prevented \
-    -e papi_v2beta_gcsa \
+    -i restart \
 
 cromwell::build::generate_code_coverage
+
+cromwell::build::print_workflow_statistics

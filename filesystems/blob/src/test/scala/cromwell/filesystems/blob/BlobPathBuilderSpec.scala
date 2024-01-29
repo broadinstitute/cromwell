@@ -27,6 +27,23 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     }
   }
 
+  it should "reject a path that is otherwise valid, but has a preexisting SAS token" in {
+    import cromwell.filesystems.blob.BlobPathBuilder.UnparsableBlobPath
+
+    // The `.asInstanceOf[UnparsableBlobPath].errorMessage.getMessage` malarkey is necessary
+    // because Java exceptions compare by reference, while strings are by value
+
+    val sasBlob = "https://lz304a1e79fd7359e5327eda.blob.core.windows.net/sc-705b830a-d699-478e-9da6-49661b326e77" +
+      "?sv=2021-12-02&spr=https&st=2023-12-13T20%3A27%3A55Z&se=2023-12-14T04%3A42%3A55Z&sr=c&sp=racwdlt&sig=blah&rscd=foo"
+    BlobPathBuilder.validateBlobPath(sasBlob).asInstanceOf[UnparsableBlobPath].errorMessage.getMessage should equal(
+      UnparsableBlobPath(
+        new IllegalArgumentException(
+          "Rejecting pre-signed SAS URL so that filesystem selection falls through to HTTP filesystem"
+        )
+      ).errorMessage.getMessage
+    )
+  }
+
   it should "provide a readable error when getting an illegal nioPath" in {
     val endpoint = BlobPathBuilderSpec.buildEndpoint("storageAccount")
     val container = BlobContainerName("container")
@@ -39,8 +56,9 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     testException should contain(exception)
   }
 
-  private def testBlobNioStringCleaning(input: String, expected: String) =
-    BlobPath.cleanedNioPathString(input) shouldBe expected
+  // The following tests use the `centaurtesting` account injected into CI. They depend on access to the
+  // container specified below. You may need to log in to az cli locally to get them to pass.
+  private val subscriptionId: SubscriptionId = SubscriptionId(UUID.fromString("62b22893-6bc1-46d9-8a90-806bb3cce3c9"))
 
   it should "clean the NIO path string when it has a garbled http protocol" in {
     testBlobNioStringCleaning(
@@ -69,10 +87,6 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
       ""
     )
   }
-
-  // The following tests use the `centaurtesting` account injected into CI. They depend on access to the
-  // container specified below. You may need to log in to az cli locally to get them to pass.
-  private val subscriptionId: SubscriptionId = SubscriptionId(UUID.fromString("62b22893-6bc1-46d9-8a90-806bb3cce3c9"))
   private val endpoint: EndpointURL = BlobPathBuilderSpec.buildEndpoint("centaurtesting")
   private val container: BlobContainerName = BlobContainerName("test-blob")
 
@@ -81,6 +95,9 @@ class BlobPathBuilderSpec extends AnyFlatSpec with Matchers with MockSugar {
     val fsm = new BlobFileSystemManager(10, blobTokenGenerator)
     new BlobPathBuilder()(fsm)
   }
+
+  private def testBlobNioStringCleaning(input: String, expected: String) =
+    BlobPath.cleanedNioPathString(input) shouldBe expected
 
   it should "read md5 from small files <5g" in {
     val builder = makeBlobPathBuilder()

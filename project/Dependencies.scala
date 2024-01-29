@@ -78,7 +78,7 @@ object Dependencies {
   private val kindProjectorV = "0.13.2"
   private val kittensV = "2.3.2"
   private val liquibaseV = "4.8.0"
-  private val logbackV = "1.2.11"
+  private val logbackV = "1.2.13"
   private val lz4JavaV = "1.8.0"
   private val mariadbV = "2.7.4"
   /*
@@ -499,7 +499,7 @@ object Dependencies {
     List("scalatest", "mysql", "mariadb", "postgresql")
       .map(name => "com.dimafeng" %% s"testcontainers-scala-$name" % testContainersScalaV % Test)
 
-  val blobFileSystemDependencies: List[ModuleID] = azureDependencies ++ wsmDependencies
+  val blobFileSystemDependencies: List[ModuleID] = azureDependencies ++ wsmDependencies ++ akkaHttpDependencies
 
   val s3FileSystemDependencies: List[ModuleID] = junitDependencies
 
@@ -628,7 +628,7 @@ object Dependencies {
     "org.lz4" % "lz4-java" % lz4JavaV
   )
   val scalaTest = "org.scalatest" %% "scalatest" % scalatestV
-  
+
   val testDependencies: List[ModuleID] = List(
     "org.scalatest" %% "scalatest" % scalatestV,
     // Use mockito Java DSL directly instead of the numerous and often hard to keep updated Scala DSLs.

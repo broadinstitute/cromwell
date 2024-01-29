@@ -1,5 +1,6 @@
 package cromwell.filesystems.blob
 
+import akka.http.scaladsl.model.Uri
 import com.azure.storage.blob.nio.AzureBlobFileAttributes
 import com.google.common.net.UrlEscapers
 import cromwell.core.path.{NioPath, Path, PathBuilder}
@@ -21,6 +22,8 @@ object BlobPathBuilder {
     s"Malformed Blob URL for this builder: The endpoint $endpoint doesn't contain the expected host string '{SA}.blob.core.windows.net/'"
   def invalidBlobContainerMessage(endpoint: EndpointURL) =
     s"Malformed Blob URL for this builder: Could not parse container"
+  val externalToken =
+    "Rejecting pre-signed SAS URL so that filesystem selection falls through to HTTP filesystem"
   def parseURI(string: String): Try[URI] = Try(URI.create(UrlEscapers.urlFragmentEscaper().escape(string)))
   def parseStorageAccount(uri: URI): Try[StorageAccountName] = uri.getHost
     .split("\\.")
@@ -50,18 +53,33 @@ object BlobPathBuilder {
   def validateBlobPath(string: String): BlobPathValidation = {
     val blobValidation = for {
       testUri <- parseURI(string)
-      testEndpoint = EndpointURL(testUri.getScheme + "://" + testUri.getHost())
-      testStorageAccount <- parseStorageAccount(testUri)
+      testEndpoint = EndpointURL(testUri.getScheme + "://" + testUri.getHost)
+      _ <- parseStorageAccount(testUri)
       testContainer = testUri.getPath.split("/").find(_.nonEmpty)
-      isBlobHost = testUri.getHost().contains(blobHostnameSuffix) && testUri.getScheme().contains("https")
-      blobPathValidation = (isBlobHost, testContainer) match {
-        case (true, Some(container)) =>
+      isBlobHost = testUri.getHost.contains(blobHostnameSuffix) && testUri.getScheme.contains("https")
+      hasToken = hasSasToken(string)
+      blobPathValidation = (isBlobHost, testContainer, hasToken) match {
+        case (true, Some(container), false) =>
           ValidBlobPath(testUri.getPath.replaceFirst("/" + container, ""), BlobContainerName(container), testEndpoint)
-        case (false, _) => UnparsableBlobPath(new MalformedURLException(invalidBlobHostMessage(testEndpoint)))
-        case (true, None) => UnparsableBlobPath(new MalformedURLException(invalidBlobContainerMessage(testEndpoint)))
+        case (false, _, false) =>
+          UnparsableBlobPath(new MalformedURLException(invalidBlobHostMessage(testEndpoint)))
+        case (true, None, false) =>
+          UnparsableBlobPath(new MalformedURLException(invalidBlobContainerMessage(testEndpoint)))
+        case (_, _, true) =>
+          UnparsableBlobPath(new IllegalArgumentException(externalToken))
       }
     } yield blobPathValidation
     blobValidation recover { case t => UnparsableBlobPath(t) } get
+  }
+
+  private def hasSasToken(uri: Uri) = {
+    // These keys are required for all SAS tokens.
+    // https://learn.microsoft.com/en-us/rest/api/storageservices/create-service-sas#construct-a-service-sas
+    val SignedVersionKey = "sv"
+    val SignatureKey = "sig"
+
+    val query = uri.query().toMap
+    query.isDefinedAt(SignedVersionKey) && query.isDefinedAt(SignatureKey)
   }
 }
 

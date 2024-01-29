@@ -9,7 +9,7 @@ import cats.data.NonEmptyList
 import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
 import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, GoogleOauthDrsCredentials}
 import com.google.cloud.NoCredentials
-import com.google.cloud.batch.v1.{Job, JobName}
+import com.google.cloud.batch.v1.{CreateJobRequest, DeleteJobRequest, GetJobRequest, Job, JobName}
 import com.typesafe.config.{Config, ConfigFactory}
 import common.collections.EnhancedCollections._
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
@@ -59,6 +59,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 import common.mock.MockSugar
+import cromwell.backend.google.batch.api.GcpBatchRequestFactory
 import cromwell.filesystems.drs.DrsPathBuilder
 import org.mockito.Mockito._
 
@@ -135,7 +136,22 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     )
     val runtimeAttributesBuilder = GcpBatchRuntimeAttributes.runtimeAttributesBuilder(configuration)
 
-    GcpBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, null, None, None, None)
+    val requestFactory: GcpBatchRequestFactory = new GcpBatchRequestFactory {
+      override def submitRequest(data: GcpBatchRequest): CreateJobRequest = null
+
+      override def queryRequest(jobName: JobName): GetJobRequest = null
+
+      override def abortRequest(jobName: JobName): DeleteJobRequest = null
+    }
+    GcpBackendInitializationData(workflowPaths,
+                                 runtimeAttributesBuilder,
+                                 configuration,
+                                 null,
+                                 None,
+                                 None,
+                                 None,
+                                 requestFactory
+    )
   }
 
   class TestableGcpBatchJobExecutionActor(params: StandardAsyncExecutionActorParams,

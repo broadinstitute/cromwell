@@ -175,7 +175,12 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     case _ => false
   }
 
-  override def tryAbort(job: StandardAsyncJob): Unit = abortJob(JobName.parse(job.jobId), backendSingletonActor)
+  override def tryAbort(job: StandardAsyncJob): Unit =
+    abortJob(workflowId = workflowId,
+             jobName = JobName.parse(job.jobId),
+             backendSingletonActor = backendSingletonActor,
+             requestFactory = initializationData.requestFactory
+    )
 
   val backendSingletonActor: ActorRef = standardParams.backendSingletonActorOption
     .getOrElse(throw new RuntimeException("GCP Batch actor cannot exist without its backend singleton 2"))
@@ -960,7 +965,11 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       _ = createParameters.privateDockerKeyAndEncryptedToken.isDefined
       jobName = "job-" + java.util.UUID.randomUUID.toString
       request = GcpBatchRequest(workflowId, createParameters, jobName = jobName, gcpBatchParameters)
-      response <- runBatchJob(request = request, backendSingletonActor = backendSingletonActor)
+      response <- runBatchJob(request = request,
+                              backendSingletonActor = backendSingletonActor,
+                              requestFactory = initializationData.requestFactory,
+                              jobLogger = jobLogger
+      )
       _ = sendGoogleLabelsToMetadata(customLabels)
       _ = sendIncrementMetricsForReferenceFiles(referenceInputsToMountedPathsOpt.map(_.keySet))
 
@@ -1024,7 +1033,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       _ <- Future.unit // trick to get into a future context
       _ = log.info(s"started polling for $jobNameStr")
       jobName = JobName.parse(jobNameStr)
-      job <- fetchJob(jobName, backendSingletonActor)
+      job <- fetchJob(workflowId, jobName, backendSingletonActor, initializationData.requestFactory)
     } yield RunStatus.fromJobStatus(job.getStatus.getState)
   }
 

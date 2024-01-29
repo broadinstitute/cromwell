@@ -84,6 +84,12 @@ final class GcpBatchBackendSingletonActor(qps: Int Refined Positive,
     case apiQuery: BatchApiRequest =>
       log.debug("Forwarding API query to PAPI request manager actor")
       jesApiQueryManager.forward(apiQuery)
+    case query: GcpBatchBackendSingletonActor.Action.SubmitJob =>
+      log.warning(s"GcpBatchBackendSingletonActor -> received SubmitJob which is not handled right now: ${query}")
+
+    case msg =>
+      log.warning(s"GcpBatchBackendSingletonActor -> unknown message received: ${msg}")
+
   }
 
   // TODO: Alex - code from here until the end of the file relates to the previous version

@@ -17,6 +17,15 @@ import org.slf4j.{Logger, LoggerFactory}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
+trait BatchApiRequestHandler {
+  def makeBatchRequest: GcpBatchGroupedRequests
+
+  def enqueue[T <: BatchApiRequestManager.BatchApiRequest](request: T,
+                                                           batchRequest: GcpBatchGroupedRequests,
+                                                           pollingManager: ActorRef
+  )(implicit ec: ExecutionContext): Future[Try[Unit]]
+}
+
 object RequestHandler {
   val logger: Logger = LoggerFactory.getLogger("BatchApiRequestHandler")
 }
@@ -24,21 +33,21 @@ object RequestHandler {
 class RequestHandler(applicationName: String,
 //                     endpointUrl: URL,
                      batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration
-) /*extends PipelinesApiRequestHandler with*/
-    extends RunRequestHandler
+) extends BatchApiRequestHandler
+    with RunRequestHandler
     with GetRequestHandler
     with AbortRequestHandler {
 
-  def makeBatchRequest: GcpBatchGroupedRequests = {
+  override def makeBatchRequest: GcpBatchGroupedRequests = {
     val headers = ImmutableMap.of("user-agent", "cromwell")
     val headerProvider = FixedHeaderProvider.create(headers)
     val batchSettings = BatchServiceSettings.newBuilder.setHeaderProvider(headerProvider).build
     new GcpBatchGroupedRequests(batchSettings)
   }
 
-  def enqueue[T <: BatchApiRequestManager.BatchApiRequest](request: T,
-                                                           batchRequest: GcpBatchGroupedRequests,
-                                                           pollingManager: ActorRef
+  override def enqueue[T <: BatchApiRequestManager.BatchApiRequest](request: T,
+                                                                    batchRequest: GcpBatchGroupedRequests,
+                                                                    pollingManager: ActorRef
   )(implicit ec: ExecutionContext): Future[Try[Unit]] = request match {
     case create: BatchRunCreationRequest =>
       // TODO: Alex - Remove this

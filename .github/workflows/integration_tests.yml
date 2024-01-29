@@ -8,7 +8,7 @@ run-name: ${{ github.event_name == 'schedule' && 'Nightly Integration Testing' |
 #What will trigger the workflow to run.
 on:
   workflow_dispatch: #Manual trigger from GitHub UI
-  # push:
+  push:
   schedule:
     - cron: '0 0 * * 1-5'
   merge_group:

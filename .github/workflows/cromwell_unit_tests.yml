@@ -8,7 +8,7 @@ run-name: ${{ github.actor }} running Cromwell sbt unit tests.
 #What will trigger the workflow to run. 
 on:
   workflow_dispatch: #Manual trigger from GitHub UI
-  # push:
+  push:
   merge_group:
 
 permissions: 

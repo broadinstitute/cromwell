@@ -19,6 +19,7 @@ import cromwell.core.{CromwellFatalExceptionMarker, LoadConfig, Mailbox, Workflo
 import cromwell.services.instrumentation.CromwellInstrumentationScheduler
 import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadLevel, LoadMetric, NormalLoad}
 import eu.timepit.refined.api.Refined
+import com.google.cloud.batch.v1.{CreateJobRequest, DeleteJobRequest, GetJobRequest}
 import eu.timepit.refined.numeric._
 
 import scala.collection.immutable.Queue
@@ -364,7 +365,7 @@ object BatchApiRequestManager {
 
   case class BatchStatusPollRequest(workflowId: WorkflowId,
                                     requester: ActorRef,
-                                    httpRequest: com.google.cloud.batch.v1.GetJobRequest,
+                                    httpRequest: GetJobRequest,
                                     jobId: StandardAsyncJob,
                                     failedAttempts: Int = 0,
                                     backoff: Backoff = BatchApiRequest.backoff
@@ -379,7 +380,7 @@ object BatchApiRequestManager {
 
   case class BatchRunCreationRequest(workflowId: WorkflowId,
                                      requester: ActorRef,
-                                     httpRequest: com.google.cloud.batch.v1.CreateJobRequest,
+                                     httpRequest: CreateJobRequest,
                                      failedAttempts: Int = 0,
                                      backoff: Backoff = BatchApiRequest.backoff
   ) extends BatchApiRequest {
@@ -394,7 +395,7 @@ object BatchApiRequestManager {
 
   case class BatchAbortRequest(workflowId: WorkflowId,
                                requester: ActorRef,
-                               httpRequest: com.google.cloud.batch.v1.DeleteJobRequest,
+                               httpRequest: DeleteJobRequest,
                                jobId: StandardAsyncJob,
                                failedAttempts: Int = 0,
                                backoff: Backoff = BatchApiRequest.backoff

@@ -14,6 +14,8 @@ trait OperationCallback {
   def onFailure(error: Throwable): Unit
 }
 
+// Mirrors com.google.api.client.googleapis.batch.BatchRequest
+// TODO: Alex - This is not Thread-safe yet
 class GcpBatchGroupedRequests(batchSettings: BatchServiceSettings) {
   private var _requests: List[(BatchApiRequest, OperationCallback)] = List.empty
   def queue(that: BatchApiRequest, callback: OperationCallback): Unit = {
@@ -24,12 +26,12 @@ class GcpBatchGroupedRequests(batchSettings: BatchServiceSettings) {
 
   def size: Int = _requests.size
 
+  // TODO: Alex - add retries and the logic from BatchRequest
   def execute(): Unit = {
     println(s"GcpBatchGroupedRequests: execute ${size} requests")
     // TODO: Alex - handle errors?
     val result = scala.util.Using(BatchServiceClient.create(batchSettings)) { client =>
       // TODO: Alex - Verify whether this already handles retries
-      // TODO: Alex - complete the responses with the result
       _requests.map { case (request, callback) =>
         try {
           val res = request match {
@@ -58,5 +60,7 @@ class GcpBatchGroupedRequests(batchSettings: BatchServiceSettings) {
         println(s"GcpBatchGroupedRequests: successfully executed ${size} requests")
         ()
     }
+    // its important to clear the queue after executing the requests
+    _requests = List.empty
   }
 }

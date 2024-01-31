@@ -58,6 +58,14 @@ object cascadesExpressionValueConsumers {
         expressionValueConsumer.expressionConsumedValueHooks(a.arg2)(expressionValueConsumer)
   }
 
+  implicit val suffixExpressionValueConsumer: ExpressionValueConsumer[Suffix] = new ExpressionValueConsumer[Suffix] {
+    override def expressionConsumedValueHooks(a: Suffix)(implicit
+      expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
+    ): Set[UnlinkedConsumedValueHook] =
+      expressionValueConsumer.expressionConsumedValueHooks(a.arg1)(expressionValueConsumer) ++
+        expressionValueConsumer.expressionConsumedValueHooks(a.arg2)(expressionValueConsumer)
+  }
+
   implicit val noneLiteralExpressionValueConsumer: ExpressionValueConsumer[NoneLiteralElement.type] =
     new ExpressionValueConsumer[NoneLiteralElement.type] {
       override def expressionConsumedValueHooks(a: NoneLiteralElement.type)(implicit

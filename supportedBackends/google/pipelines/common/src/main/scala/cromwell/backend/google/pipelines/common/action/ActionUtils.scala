@@ -21,17 +21,15 @@ object ActionUtils {
     * An image with the Google Cloud SDK installed.
     * http://gcr.io/google.com/cloudsdktool/cloud-sdk
     *
-    * As of PROD-918 in January 2024, we are re-hosting ourselves due to quota issues pulling the official image.
-    *
     * When updating this value, also consider updating the `cromwellImagesSizeRoundedUpInGB` below.
     *
     * Also update `cromwell.backend.google.batch.runnable.RunnableUtils`
     */
   val CloudSdkImage: String =
-    config.getOrElse("cloud-sdk-image-url", "us.gcr.io/broad-dsp-gcr-public/cloudsdktool/cloud-sdk:460.0.0-alpine")
+    config.getOrElse("cloud-sdk-image-url", "gcr.io/google.com/cloudsdktool/cloud-sdk:461.0.0-alpine")
 
   /*
-   * At the moment, cloud-sdk (960MB for 460.0.0-alpine) ~= 1.0 GB
+   * At the moment, cloud-sdk (955MB for 460.0.0-alpine) ~= 1.0 GB
    */
   val cromwellImagesSizeRoundedUpInGB: Int = config.getOrElse("cloud-sdk-image-size-gb", 1)
 

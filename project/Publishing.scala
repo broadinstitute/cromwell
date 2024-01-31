@@ -44,8 +44,8 @@ object Publishing {
           // Tags look like `85`, `85-443a6fc`
           s"$cromwellVersion,${version.value}"
         } else {
-          // Tag looks like `85-443a6fc`
-          version.value
+          // Tag looks like `85-443a6fc`, `latest`
+          s"${version.value},latest"
         }
       }
 

@@ -22,12 +22,10 @@ object RunnableUtils {
     * An image with the Google Cloud SDK installed.
     * http://gcr.io/google.com/cloudsdktool/cloud-sdk
     *
-    * As of PROD-918 in January 2024, we are re-hosting ourselves due to quota issues pulling the official image.
-    *
     * Also update `cromwell.backend.google.pipelines.common.action.ActionUtils`
     */
   val CloudSdkImage: String =
-    config.getOrElse("cloud-sdk-image-url", "us.gcr.io/broad-dsp-gcr-public/cloudsdktool/cloud-sdk:460.0.0-alpine")
+    config.getOrElse("cloud-sdk-image-url", "gcr.io/google.com/cloudsdktool/cloud-sdk:461.0.0-alpine")
 
   /** Quotes a string such that it's compatible as a string argument in the shell. */
   def shellEscaped(any: Any): String = {

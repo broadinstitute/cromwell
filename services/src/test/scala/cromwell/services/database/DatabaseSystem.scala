@@ -53,7 +53,7 @@ case object MysqlEarliestDatabaseSystem extends NetworkDatabaseSystem {
 case object MysqlLatestDatabaseSystem extends NetworkDatabaseSystem {
   override val name: String = "MySQL (latest)"
   override val platform: MysqlDatabasePlatform.type = MysqlDatabasePlatform
-  override val dockerImageVersion: String = "latest"
+  override val dockerImageVersion: String = "8.0"
 }
 
 case object PostgresqlEarliestDatabaseSystem extends NetworkDatabaseSystem {

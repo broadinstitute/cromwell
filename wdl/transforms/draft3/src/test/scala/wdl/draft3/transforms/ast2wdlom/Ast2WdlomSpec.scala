@@ -52,6 +52,12 @@ class Ast2WdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     expr shouldBeInvalid "Failed to parse expression (reason 1 of 1): Unknown engine function: 'collect_by_key'"
   }
 
+  it should "not parse the new suffix function" in {
+    val str = "suffix(aStr, anArray)"
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeInvalid "Failed to parse expression (reason 1 of 1): Unknown engine function: 'suffix'"
+  }
+
   it should "parse the (biscayne) None keyword as a plain old identifier" in {
     val str = "None"
     val expr = fromString[ExpressionElement](str, parser.parse_e)

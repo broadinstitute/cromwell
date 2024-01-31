@@ -97,4 +97,10 @@ class Ast2WdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     val expr = fromString[ExpressionElement](str, parser.parse_e)
     expr shouldBeValid NoneLiteralElement
   }
+
+  it should "parse the new suffix function" in {
+    val str = "suffix(some_str, some_arr)"
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeValid (Suffix(IdentifierLookup("some_str"), IdentifierLookup("some_arr")))
+  }
 }

@@ -1,0 +1,15 @@
+name: suffix
+testFormat: workflowsuccess
+
+files {
+  workflow: suffix/suffix.wdl
+  # https://github.com/broadinstitute/cromwell/issues/4590
+  options: suffix/suffix.options
+}
+
+metadata {
+  workflowName: suffix
+  status: Succeeded
+  "outputs.suffix.out": "logs.txt cmd.txt output.txt"
+  "calls.suffix.sfx.commandLine": "echo \"logs.txt cmd.txt output.txt\""
+}

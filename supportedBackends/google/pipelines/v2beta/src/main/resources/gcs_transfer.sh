@@ -163,17 +163,18 @@ localize_files() {
   fi
 
   # We need to determine requester pays status of the first file attempting at most `max_attempts` times.
-  NO_REQUESTER_PAYS_COMMAND="mkdir -p '$container_parent' && rm -f "$HOME/.config/gcloud/gce" && gsutil -o 'GSUtil:parallel_thread_count=1' -o 'GSUtil:sliced_object_download_max_components=${num_cpus}' cp '$first_cloud_file' '$container_parent'"
-  REQUESTER_PAYS_COMMAND="rm -f "$HOME/.config/gcloud/gce" && gsutil -o 'GSUtil:parallel_thread_count=1' -o 'GSUtil:sliced_object_download_max_components=${num_cpus}' -u $project cp '$first_cloud_file' '$container_parent'"
+  NO_REQUESTER_PAYS_COMMAND="mkdir -p '$container_parent' && rm -f "$HOME/.config/gcloud/gce" && gcloud storage cp '$first_cloud_file' '$container_parent'"
+  REQUESTER_PAYS_COMMAND="rm -f "$HOME/.config/gcloud/gce" && gcloud storage cp --billing-project $project '$first_cloud_file' '$container_parent'"
 
   basefile=$(basename "$first_cloud_file")
   private::localize_message "$first_cloud_file" "${container_parent}${basefile}"
   private::determine_requester_pays ${max_attempts}
 
   if [[ ${USE_REQUESTER_PAYS} = true ]]; then
-    rpflag="-u $project"
+    # https://cloud.google.com/storage/docs/using-requester-pays#using
+    gcloud_storage_rpflag="--billing-project $project"
   else
-    rpflag=""
+    gcloud_storage_rpflag=""
   fi
 
 
@@ -192,7 +193,7 @@ localize_files() {
     while [[ ${attempt} -le ${max_attempts} ]]; do
       # parallel transfer the remaining files
       rm -f "$HOME/.config/gcloud/gce"
-      if cat files_to_localize.txt | gsutil -o "GSUtil:parallel_thread_count=1" -o "GSUtil:sliced_object_download_max_components=${num_cpus}" -m ${rpflag} cp -I "$container_parent"; then
+      if cat files_to_localize.txt | gcloud storage cp ${gcloud_storage_rpflag} --read-paths-from-stdin "$container_parent"; then
         break
       else
         attempt=$((attempt + 1))
@@ -209,13 +210,13 @@ private::localize_directory() {
   local cloud="$1"
   local container="$2"
   local max_attempts="$3"
-  local rpflag="$4"
+  local gcloud_storage_rpflag="$4"
 
   local attempt=1
   private::localize_message "$cloud" "$container"
   while [[ ${attempt} -lt ${max_attempts} ]]; do
-    # Do not quote rpflag, when that is set it will be -u project which should be two distinct arguments.
-    if mkdir -p "${container}" && rm -f "$HOME/.config/gcloud/gce" && gsutil ${rpflag} -m rsync -r "${cloud}" "${container}" > /dev/null 2>&1; then
+    # Do not quote gcloud_storage_rpflag, when that is set it will be `--billing-project project` which should be two distinct arguments.
+    if mkdir -p "${container}" && rm -f "$HOME/.config/gcloud/gce" && gcloud storage ${gcloud_storage_rpflag} rsync -r "${cloud}" "${container}" > /dev/null 2>&1; then
       break
     else
       attempt=$(($attempt + 1))
@@ -242,21 +243,21 @@ localize_directories() {
 
   BASE_COMMAND="private::localize_directory '${cloud_directory}' '${container_directory}' '${max_attempts}'"
   NO_REQUESTER_PAYS_COMMAND="${BASE_COMMAND} ''"
-  REQUESTER_PAYS_COMMAND="${BASE_COMMAND} '-u $project'"
+  REQUESTER_PAYS_COMMAND="${BASE_COMMAND} '--billing-project $project'"
 
   private::determine_requester_pays ${max_attempts}
 
   if [[ ${USE_REQUESTER_PAYS} = true ]]; then
-    rpflag="-u $project"
+    gcloud_storage_rpflag="--billing-project $project"
   else
-    rpflag=""
+    gcloud_storage_rpflag=""
   fi
 
   while [[ $# -gt 0 ]]; do
     cloud_directory="$1"
     container_directory="$2"
     shift 2
-    private::localize_directory "$cloud_directory" "$container_directory" "$max_attempts" "$rpflag"
+    private::localize_directory "$cloud_directory" "$container_directory" "$max_attempts" "$gcloud_storage_rpflag"
   done
 }
 

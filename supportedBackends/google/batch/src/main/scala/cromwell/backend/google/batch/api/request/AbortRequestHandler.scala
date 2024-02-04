@@ -3,11 +3,8 @@ package cromwell.backend.google.batch.api.request
 import akka.actor.ActorRef
 import com.google.cloud.batch.v1.Job
 import com.google.longrunning.Operation
-//import com.google.api.client.googleapis.batch.BatchRequest
-//import com.google.api.client.googleapis.json.GoogleJsonError
-//import com.google.api.client.http.HttpHeaders
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.backend.google.batch.actors.GcpBatchBackendSingletonActor
+import cromwell.backend.google.batch.actors.BatchApiAbortClient.BatchAbortRequestSuccessful
 import cromwell.backend.google.batch.api.BatchApiRequestManager.{
   BatchAbortRequest,
   BatchApiAbortQueryFailed,
@@ -15,23 +12,22 @@ import cromwell.backend.google.batch.api.BatchApiRequestManager.{
   SystemBatchApiException
 }
 
-//import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
-//import org.apache.commons.lang3.StringUtils
-
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
 
 trait AbortRequestHandler extends LazyLogging { this: RequestHandler =>
-  private def abortRequestResultHandler(originalRequest: BatchAbortRequest,
-                                        completionPromise: Promise[Try[Unit]],
-                                        pollingManager: ActorRef
+  private def abortRequestResultHandler(
+    originalRequest: BatchAbortRequest,
+    completionPromise: Promise[Try[Unit]],
+    pollingManager: ActorRef
   ) = new OperationCallback {
     override def onSuccess(request: BatchApiRequest, result: Either[Job, Operation]): Unit = {
       result match {
-        case Right(operation) =>
-          originalRequest.requester ! GcpBatchBackendSingletonActor.Event.JobAbortRequestSent(operation)
+        case Right(operation @ _) =>
+          originalRequest.requester ! BatchAbortRequestSuccessful(originalRequest.jobId.jobId)
           completionPromise.trySuccess(Success(()))
-        case Left(_) =>
+
+        case Left(job @ _) =>
           // TODO: Alex - we can likely avoid this by using generics on the callback object
           onFailure(
             new RuntimeException("This is likely a programming error, onSuccess was called without an Operation object")
@@ -64,19 +60,21 @@ trait AbortRequestHandler extends LazyLogging { this: RequestHandler =>
     }
   }
 
-  def handleRequest(abortQuery: BatchAbortRequest, batch: GcpBatchGroupedRequests, pollingManager: ActorRef)(implicit
-    ec: ExecutionContext
+  def handleRequest(
+    abortQuery: BatchAbortRequest,
+    batch: GcpBatchGroupedRequests,
+    pollingManager: ActorRef
   ): Future[Try[Unit]] = {
-    println(ec.hashCode())
     val completionPromise = Promise[Try[Unit]]()
     val resultHandler = abortRequestResultHandler(abortQuery, completionPromise, pollingManager)
     addAbortQueryToBatch(abortQuery, batch, resultHandler)
     completionPromise.future
   }
 
-  private def addAbortQueryToBatch(request: BatchAbortRequest,
-                                   batch: GcpBatchGroupedRequests,
-                                   resultHandler: OperationCallback
+  private def addAbortQueryToBatch(
+    request: BatchAbortRequest,
+    batch: GcpBatchGroupedRequests,
+    resultHandler: OperationCallback
   ): Unit = {
     /*
      * Manually enqueue the request instead of doing it through the RunPipelineRequest
@@ -85,18 +83,4 @@ trait AbortRequestHandler extends LazyLogging { this: RequestHandler =>
     batch.queue(request, resultHandler)
     ()
   }
-
-//  def abortJob(jobName: JobName, backendSingletonActor: ActorRef): Unit =
-//    backendSingletonActor ! GcpBatchBackendSingletonActor.Action.AbortJob(jobName)
-//
-//  def abortActorClientReceive: Actor.Receive = {
-//    case GcpBatchBackendSingletonActor.Event.JobAbortRequestSent(job) =>
-//      log.info(s"Job aborted on GCP: ${job.getName}")
-//      abortSuccess()
-//
-//    case GcpBatchBackendSingletonActor.Event.ActionFailed(jobName, cause) =>
-//      val msg = s"Failed to abort job ($jobName) from GCP"
-//      log.error(cause, msg)
-//      abortFailed()
-//  }
 }

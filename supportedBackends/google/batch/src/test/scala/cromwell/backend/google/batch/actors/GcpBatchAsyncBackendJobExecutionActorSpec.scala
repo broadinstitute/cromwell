@@ -59,6 +59,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 import common.mock.MockSugar
+import cromwell.backend.google.batch.api.BatchApiRequestManager.BatchStatusPollRequest
 import cromwell.backend.google.batch.api.GcpBatchRequestFactory
 import cromwell.filesystems.drs.DrsPathBuilder
 import org.mockito.Mockito._
@@ -337,23 +338,20 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
 
     val backend = executionActor(jobDescriptor, promise, statusPoller.ref, expectPreemptible)
     backend ! Execute
-    statusPoller.expectMsgPF(max = Timeout, hint = "awaiting status poll") {
-      case GcpBatchBackendSingletonActor.Action.QueryJob(jobName) =>
-        println(s"Message received to query job: $jobName")
-        val internalStatus = runStatus match {
-          case RunStatus.Failed(_) => com.google.cloud.batch.v1.JobStatus.State.FAILED
-          case RunStatus.Succeeded(_) => com.google.cloud.batch.v1.JobStatus.State.SUCCEEDED
-          case RunStatus.Running => com.google.cloud.batch.v1.JobStatus.State.RUNNING
-          case RunStatus.DeletionInProgress => com.google.cloud.batch.v1.JobStatus.State.DELETION_IN_PROGRESS
-          case RunStatus.StateUnspecified => com.google.cloud.batch.v1.JobStatus.State.STATE_UNSPECIFIED
-          case RunStatus.Unrecognized => com.google.cloud.batch.v1.JobStatus.State.UNRECOGNIZED
-        }
+    statusPoller.expectMsgPF(max = Timeout, hint = "awaiting status poll") { case _: BatchStatusPollRequest =>
+      val internalStatus = runStatus match {
+        case RunStatus.Failed(_) => com.google.cloud.batch.v1.JobStatus.State.FAILED
+        case RunStatus.Succeeded(_) => com.google.cloud.batch.v1.JobStatus.State.SUCCEEDED
+        case RunStatus.Running => com.google.cloud.batch.v1.JobStatus.State.RUNNING
+        case RunStatus.DeletionInProgress => com.google.cloud.batch.v1.JobStatus.State.DELETION_IN_PROGRESS
+        case RunStatus.StateUnspecified => com.google.cloud.batch.v1.JobStatus.State.STATE_UNSPECIFIED
+        case RunStatus.Unrecognized => com.google.cloud.batch.v1.JobStatus.State.UNRECOGNIZED
+      }
 
-        backend ! GcpBatchBackendSingletonActor.Event.JobStatusRetrieved(
-          Job.newBuilder
-            .setStatus(com.google.cloud.batch.v1.JobStatus.newBuilder.setState(internalStatus).build())
-            .build()
-        )
+      backend ! Job.newBuilder
+        .setStatus(com.google.cloud.batch.v1.JobStatus.newBuilder.setState(internalStatus).build())
+        .build()
+
     }
 
     Await.result(promise.future, Timeout)

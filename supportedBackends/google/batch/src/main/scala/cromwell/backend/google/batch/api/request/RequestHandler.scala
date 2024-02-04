@@ -50,9 +50,8 @@ class RequestHandler(applicationName: String,
                                                                     pollingManager: ActorRef
   )(implicit ec: ExecutionContext): Future[Try[Unit]] = request match {
     case create: BatchRunCreationRequest =>
-      // TODO: Alex - Remove this
-      println(ec.hashCode())
       handleRequest(create, batchRequest, pollingManager)
+
     case status: BatchStatusPollRequest =>
       handleRequest(status, batchRequest, pollingManager)
 

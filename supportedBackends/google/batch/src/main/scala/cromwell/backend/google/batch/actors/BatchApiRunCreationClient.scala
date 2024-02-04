@@ -15,7 +15,7 @@ import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
 
 /**
-  * Handles the flow for submitting a single job to GCP, we can't do anything when that fails
+  * Handles the flow for submitting a single job to GCP
   */
 trait BatchApiRunCreationClient { this: Actor with ActorLogging with BatchInstrumentation =>
   private var runCreationClientPromise: Option[Promise[StandardAsyncJob]] = None
@@ -29,18 +29,6 @@ trait BatchApiRunCreationClient { this: Actor with ActorLogging with BatchInstru
     case BatchApiRunCreationQueryFailed(_, e) =>
       log.error(e, s"runCreationClientReceive -> BatchApiRunCreationQueryFailed: ${e.getMessage}")
       completePromise(Failure(e))
-
-    // TODO: Alex - we should either keep the typed way or the PAPIv2 way
-    case GcpBatchBackendSingletonActor.Event.JobSubmitted(job) =>
-      log.info(s"Job submitted to GCP: ${job.getName}")
-      runSuccess()
-      completePromise(Success(StandardAsyncJob(job.getName)))
-
-    case GcpBatchBackendSingletonActor.Event.ActionFailed(jobName, cause) =>
-      val msg = s"Failed to submit job ($jobName) to GCP"
-      log.error(cause, msg)
-      runFailed()
-      completePromise(Failure(cause))
   }
 
   private def completePromise(job: Try[StandardAsyncJob]): Unit = {
@@ -67,8 +55,6 @@ trait BatchApiRunCreationClient { this: Actor with ActorLogging with BatchInstru
           self,
           requestFactory.submitRequest(request)
         )
-        // TODO: Alex - should we keep this which is the typed-way or the PAPIv2 way?
-//        backendSingletonActor ! GcpBatchBackendSingletonActor.Action.SubmitJob(request)
         val newPromise = Promise[StandardAsyncJob]()
         runCreationClientPromise = Option(newPromise)
         newPromise.future
@@ -77,6 +63,7 @@ trait BatchApiRunCreationClient { this: Actor with ActorLogging with BatchInstru
 
 object BatchApiRunCreationClient {
 
+  // TODO: Alex - this is thrown but we don't handle this anywhere (yet)
   /**
    * Exception used to represent the fact that a job was aborted before a creation attempt was made.
    * Meaning it was in the queue when the abort request was made, so it was just removed from the queue.

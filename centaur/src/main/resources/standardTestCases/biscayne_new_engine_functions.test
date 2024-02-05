@@ -56,6 +56,6 @@ metadata {
   "outputs.biscayne_new_engine_functions.maxIntVsMaxFloat": 1.79769313E+308
 
   "outputs.biscayne_new_engine_functions.with_suffixes.0": "aaaS"
-  "outputs.biscayne_new_engine_functions.with_suffixes.0": "bbbS"
-  "outputs.biscayne_new_engine_functions.with_suffixes.0": "cccS"
+  "outputs.biscayne_new_engine_functions.with_suffixes.1": "bbbS"
+  "outputs.biscayne_new_engine_functions.with_suffixes.2": "cccS"
 }

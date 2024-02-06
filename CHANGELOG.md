@@ -1,5 +1,26 @@
 # Cromwell Change Log
 
+## 87 Release Notes
+
+### Replacement of `gsutil` with `gcloud storage`
+
+In this release, all **localization** functionality on the GCP backend migrates to use the more modern and performant `gcloud storage`. With sufficiently powerful worker VMs, Cromwell can now localize at up to 1200 MB/s [0][1][2].
+
+In a future release, **delocalization** will also migrate to `gcloud storage`. As part of that upcoming change, we are considering turning on [parallel composite uploads](https://cromwell.readthedocs.io/en/stable/backends/Google/#parallel-composite-uploads) by default to maximize performance. Delocalized composite objects will no longer have an md5 checksum in their metadata; refer to the matrix below [3]. If you have compatibility concerns for your workflow, please [submit an issue](https://github.com/broadinstitute/cromwell/issues).
+
+| Delocalization Strategy | Performance   | crc32c | md5 |
+|-------------------------|---------------|--------|-----|
+| Classic                 | Baseline/slow | ✅     | ✅  |
+| Parallel Composite      | Fast          | ✅     | ❌  |
+
+[0] Tested with Intel Ice Lake CPU platform, 16 vCPU, 32 GB RAM, 2500 GB SSD
+
+[1] [Throughput scales with vCPU count](https://cloud.google.com/compute/docs/disks/performance#n2_vms) with a plateau at 16 vCPUs.
+
+[2] [Throughput scales with disk size and type](https://cloud.google.com/compute/docs/disks/performance#throughput_limits_for_zonal) with at a plateau at 2.5 TB SSD. Worked example: 1200 MB/s ÷ 0.48 MB/s per GB = 2500 GB.
+
+[3] Cromwell itself uses crc32c hashes for call caching and is not affected
+
 ## 86 Release Notes
 
 ### GCP Batch

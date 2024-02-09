@@ -81,6 +81,7 @@ package object consumed {
         case a: Length => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: Flatten => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: Prefix => a.expressionConsumedValueHooks(expressionValueConsumer)
+        case a: Suffix => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: SelectFirst => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: SelectAll => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: Defined => a.expressionConsumedValueHooks(expressionValueConsumer)

@@ -218,7 +218,7 @@ object ImportResolver {
 
     def authHeaders(uri: Uri): Map[String, String] = {
       authProviders collectFirst {
-        case provider if provider.validHosts.contains(uri.host) => provider.authHeader()
+        case provider if provider.validHosts.contains(uri.host) => Await.result(provider.authHeader(), 10.seconds)
       } getOrElse Map.empty[String, String]
     }
 

@@ -11,7 +11,8 @@ import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import common.util.StringUtil._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend._
-import cromwell.backend.async.{ExecutionHandle, PendingExecutionHandle}
+import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, PendingExecutionHandle}
+import cromwell.backend.google.batch.actors.BatchApiRunCreationClient.JobAbortedException
 import cromwell.backend.google.batch.api.GcpBatchRequestFactory._
 import cromwell.backend.google.batch.io._
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
@@ -975,14 +976,15 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     } yield response
 
-    // TODO: Handle when the job gets aborted before it starts being processed
-    runBatchResponse.map { runId =>
-      PendingExecutionHandle(jobDescriptor = jobDescriptor,
-                             pendingJob = runId,
-                             runInfo = Option(Run(runId)),
-                             previousState = None
-      )
-    }
+    runBatchResponse
+      .map { runId =>
+        PendingExecutionHandle(jobDescriptor = jobDescriptor,
+                               pendingJob = runId,
+                               runInfo = Option(Run(runId)),
+                               previousState = None
+        )
+      }
+      .recover { case JobAbortedException => AbortedExecutionHandle }
   }
 
   override def reconnectAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = {

@@ -63,7 +63,6 @@ trait BatchApiRunCreationClient { this: Actor with ActorLogging with BatchInstru
 
 object BatchApiRunCreationClient {
 
-  // TODO: Alex - this is thrown but we don't handle this anywhere (yet)
   /**
    * Exception used to represent the fact that a job was aborted before a creation attempt was made.
    * Meaning it was in the queue when the abort request was made, so it was just removed from the queue.

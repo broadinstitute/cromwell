@@ -5,8 +5,7 @@ import java.util.UUID
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, SupervisorStrategy, Terminated, Timers}
 import akka.dispatch.ControlMessage
 import cats.data.NonEmptyList
-import com.google.api.client.googleapis.json.GoogleJsonError
-import com.google.api.client.http.HttpHeaders
+import com.google.api.gax.rpc.ApiException
 import common.util.Backoff
 import cromwell.backend.BackendSingletonActorAbortWorkflow
 import cromwell.backend.google.batch.actors.BatchApiRunCreationClient.JobAbortedException
@@ -426,10 +425,9 @@ object BatchApiRequestManager {
   final private[api] case class BatchWorkerRequestWork(maxBatchSize: Int) extends ControlMessage
 
   // TODO: Alex - is this necessary?
-  final case class GoogleJsonException(e: GoogleJsonError, responseHeaders: HttpHeaders)
-      extends IOException
-      with CromwellFatalExceptionMarker {
+  final case class GoogleBatchException(e: ApiException) extends IOException with CromwellFatalExceptionMarker {
     override def getMessage: String = e.getMessage
+    def retryable: Boolean = e.isRetryable
   }
 
   sealed trait BatchApiException extends RuntimeException with CromwellFatalExceptionMarker {

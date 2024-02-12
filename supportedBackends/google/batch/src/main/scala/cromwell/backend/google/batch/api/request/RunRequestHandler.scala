@@ -17,40 +17,24 @@ trait RunRequestHandler { this: RequestHandler =>
     override def onSuccess(request: BatchApiRequest, result: Either[Job, Operation]): Unit = {
       result match {
         case Right(_) =>
-          // TODO: Alex - we can likely avoid this by using generics on the callback object
           onFailure(
-            new RuntimeException("This is likely a programming error, onSuccess was called without an Operation object")
+            new SystemBatchApiException(
+              new RuntimeException(
+                "This is likely a programming error, onSuccess was called without the job object"
+              )
+            )
           )
 
         case Left(job) =>
-          // TODO: Alex - this likely needs to be an actor msg
           originalRequest.requester ! getJob(job.getName)
           completionPromise.trySuccess(Success(()))
       }
       ()
     }
 
-    override def onFailure(ex: Throwable): Unit = {
-      // TODO: Alex - find a better way to report errors
-      val rootCause = ex
-//      val rootCause = new Exception(mkErrorString(e))
-
-      // TODO: Alex - differentiate between system and user errors
-      // See com.google.api.gax.rpc.ApiException
-      val failureException = new SystemBatchApiException(rootCause)
-//      val failureException = if (e.getCode.toString.startsWith(HttpUserErrorCodeInitialNumber)) {
-//        val helpfulHint = if (rootCause.getMessage.contains("unsupported accelerator")) {
-//          Option("See https://cloud.google.com/compute/docs/gpus/ for a list of supported accelerators.")
-//        } else None
-//
-//        new UserPAPIApiException(GoogleJsonException(e, responseHeaders), helpfulHint)
-//      } else {
-//        new SystemPAPIApiException(GoogleJsonException(e, responseHeaders))
-//      }
-
-      // TODO: Alex - This likely needs to be a different msg
-      pollingManager ! BatchApiRunCreationQueryFailed(originalRequest, failureException)
-      completionPromise.trySuccess(Failure(failureException))
+    override def onFailure(ex: BatchApiException): Unit = {
+      pollingManager ! BatchApiRunCreationQueryFailed(originalRequest, ex)
+      completionPromise.trySuccess(Failure(ex))
       ()
     }
   }
@@ -78,9 +62,4 @@ trait RunRequestHandler { this: RequestHandler =>
   }
 
   private def getJob(jobName: String) = StandardAsyncJob(jobName)
-}
-
-object RunRequestHandler {
-  // Because HTTP 4xx errors indicate user error:
-  val HttpUserErrorCodeInitialNumber: String = "4"
 }

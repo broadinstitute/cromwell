@@ -4,6 +4,7 @@ import akka.actor.ActorRef
 import com.google.cloud.batch.v1.Job
 import com.google.longrunning.Operation
 import cromwell.backend.google.batch.api.BatchApiRequestManager.{
+  BatchApiException,
   BatchApiRequest,
   BatchApiStatusQueryFailed,
   BatchStatusPollRequest,
@@ -23,38 +24,23 @@ trait GetRequestHandler { this: RequestHandler =>
         case Right(_) =>
           // TODO: Alex - we can likely avoid this by using generics on the callback object
           onFailure(
-            new RuntimeException("This is likely a programming error, onSuccess was called without an Operation object")
+            new SystemBatchApiException(
+              new RuntimeException(
+                "This is likely a programming error, onSuccess was called without an the job object"
+              )
+            )
           )
 
         case Left(job) =>
-          // TODO: Alex - this likely needs to be an actor msg
           originalRequest.requester ! job
           completionPromise.trySuccess(Success(()))
       }
       ()
     }
 
-    override def onFailure(ex: Throwable): Unit = {
-      // TODO: Alex - find a better way to report errors
-      val rootCause = ex
-      //      val rootCause = new Exception(mkErrorString(e))
-
-      // TODO: Alex - differentiate between system and user errors
-      // See com.google.api.gax.rpc.ApiException
-      val failureException = new SystemBatchApiException(rootCause)
-      //      val failureException = if (e.getCode.toString.startsWith(HttpUserErrorCodeInitialNumber)) {
-      //        val helpfulHint = if (rootCause.getMessage.contains("unsupported accelerator")) {
-      //          Option("See https://cloud.google.com/compute/docs/gpus/ for a list of supported accelerators.")
-      //        } else None
-      //
-      //        new UserPAPIApiException(GoogleJsonException(e, responseHeaders), helpfulHint)
-      //      } else {
-      //        new SystemPAPIApiException(GoogleJsonException(e, responseHeaders))
-      //      }
-
-      // TODO: Alex - This likely needs to be a different msg
-      pollingManager ! BatchApiStatusQueryFailed(originalRequest, failureException)
-      completionPromise.trySuccess(Failure(failureException))
+    override def onFailure(ex: BatchApiException): Unit = {
+      pollingManager ! BatchApiStatusQueryFailed(originalRequest, ex)
+      completionPromise.trySuccess(Failure(ex))
       ()
     }
   }

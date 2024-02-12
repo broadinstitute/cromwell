@@ -1,5 +1,6 @@
 package cromwell.backend.google.batch.api.request
 
+import com.google.api.gax.rpc.ApiException
 import com.google.cloud.batch.v1.{BatchServiceClient, BatchServiceSettings, Job}
 import cromwell.backend.google.batch.api.BatchApiRequestManager._
 
@@ -11,12 +12,13 @@ import com.google.longrunning.Operation
 // TODO: Alex - this can likely be removed
 trait OperationCallback {
   def onSuccess(request: BatchApiRequest, result: Either[Job, Operation]): Unit
-  def onFailure(error: Throwable): Unit
+  def onFailure(error: BatchApiException): Unit
 }
 
 // Mirrors com.google.api.client.googleapis.batch.BatchRequest
 // TODO: Alex - This is not Thread-safe yet
 class GcpBatchGroupedRequests(batchSettings: BatchServiceSettings) {
+
   private var _requests: List[(BatchApiRequest, OperationCallback)] = List.empty
   def queue(that: BatchApiRequest, callback: OperationCallback): Unit = {
     println("GcpBatchGroupedRequests: Enqueue request")
@@ -32,6 +34,8 @@ class GcpBatchGroupedRequests(batchSettings: BatchServiceSettings) {
     // TODO: Alex - handle errors?
     val result = scala.util.Using(BatchServiceClient.create(batchSettings)) { client =>
       // TODO: Alex - Verify whether this already handles retries
+      // TODO: The sdk calls seem to be blocking, consider using a Future + scala.concurrent.blocking
+      //       Check whether sending many requests in parallel could be an issue
       _requests.map { case (request, callback) =>
         try {
           val res = request match {
@@ -46,7 +50,20 @@ class GcpBatchGroupedRequests(batchSettings: BatchServiceSettings) {
           }
           callback.onSuccess(request, res)
         } catch {
-          case NonFatal(ex) => callback.onFailure(ex)
+          case apiException: ApiException =>
+            // Because HTTP 4xx errors indicate user error:
+            val HttpUserErrorCodeInitialNumber: String = "4"
+            val failureException =
+              if (
+                apiException.getStatusCode.getCode.getHttpStatusCode.toString.startsWith(HttpUserErrorCodeInitialNumber)
+              ) {
+                new UserBatchApiException(GoogleBatchException(apiException), None)
+              } else {
+                new SystemBatchApiException(GoogleBatchException(apiException))
+              }
+            callback.onFailure(failureException)
+
+          case NonFatal(ex) => callback.onFailure(new SystemBatchApiException(ex))
         }
       }
     }

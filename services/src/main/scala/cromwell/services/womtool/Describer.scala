@@ -2,7 +2,7 @@ package cromwell.services.womtool
 
 import cats.data.Validated.{Invalid, Valid}
 import cromwell.core.WorkflowSourceFilesCollection
-import cromwell.languages.util.ImportResolver.HttpResolver
+import cromwell.languages.util.ImportResolver.{HttpResolver, ImportAuthProvider, ImportResolver}
 import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil}
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import cromwell.services.womtool.WomtoolServiceMessages.{DescribeFailure, DescribeResult, DescribeSuccess}
@@ -13,9 +13,9 @@ import wom.expression.NoIoFunctionSet
 
 object Describer {
 
-  def describeWorkflow(wsfc: WorkflowSourceFilesCollection): DescribeResult = {
+  def describeWorkflow(wsfc: WorkflowSourceFilesCollection, authProviders: List[ImportAuthProvider]): DescribeResult = {
 
-    val initialResolvers = List(HttpResolver(None, Map.empty))
+    val initialResolvers: List[ImportResolver] = List(HttpResolver(None, Map.empty, authProviders))
 
     // The HTTP resolver is used to pull down workflows submitted by URL
     LanguageFactoryUtil.findWorkflowSource(wsfc.workflowSource, wsfc.workflowUrl, initialResolvers) match {

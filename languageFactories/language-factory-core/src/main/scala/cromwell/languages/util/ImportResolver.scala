@@ -22,11 +22,11 @@ import java.nio.file.{Path => NioPath}
 import java.security.MessageDigest
 import cromwell.core.WorkflowId
 import wom.ResolvedImportRecord
-import wom.core.WorkflowSource
+import wom.core.{WorkflowSource, WorkflowUrl}
 import wom.values._
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 object ImportResolver {
@@ -36,6 +36,11 @@ object ImportResolver {
                                   newResolvers: List[ImportResolver],
                                   resolvedImportRecord: ResolvedImportRecord
   )
+
+  trait ImportAuthProvider {
+    def validHosts: List[String]
+    def authHeader(): Future[Map[String, String]]
+  }
 
   trait ImportResolver {
     def name: String
@@ -179,7 +184,7 @@ object ImportResolver {
     }
   }
 
-  case class HttpResolver(relativeTo: Option[String], headers: Map[String, String], hostAllowlist: Option[List[String]])
+  case class HttpResolver(relativeTo: Option[String], headers: Map[String, String], hostAllowlist: Option[List[String]], authProviders: List[ImportAuthProvider])
       extends ImportResolver {
     import HttpResolver._
 
@@ -192,7 +197,7 @@ object ImportResolver {
     def newResolverList(newRoot: String): List[ImportResolver] = {
       val rootWithoutFilename = newRoot.split('/').init.mkString("", "/", "/")
       List(
-        HttpResolver(relativeTo = Some(canonicalize(rootWithoutFilename)), headers, hostAllowlist)
+        HttpResolver(relativeTo = Some(canonicalize(rootWithoutFilename)), headers, hostAllowlist, authProviders)
       )
     }
 
@@ -211,8 +216,14 @@ object ImportResolver {
       case None => true
     }
 
+    def authHeaders(uri: Uri): Map[String, String] = {
+      authProviders collectFirst {
+        case provider if provider.validHosts.contains(uri.host) => provider.authHeader()
+      } getOrElse Map.empty[String, String]
+    }
+
     override def innerResolver(str: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle] =
-      pathToLookup(str) flatMap { toLookup: WorkflowSource =>
+      pathToLookup(str) flatMap { toLookup: WorkflowUrl =>
         (Try {
           val uri: Uri = uri"$toLookup"
 
@@ -227,9 +238,11 @@ object ImportResolver {
         }).contextualizeErrors(s"download $toLookup")
       }
 
-    private def getUri(toLookup: WorkflowSource): Either[NonEmptyList[WorkflowSource], ResolvedImportBundle] = {
+    private def getUri(toLookup: WorkflowUrl): Either[NonEmptyList[WorkflowSource], ResolvedImportBundle] = {
       implicit val sttpBackend = HttpResolver.sttpBackend()
-      val responseIO: IO[Response[WorkflowSource]] = sttp.get(uri"$toLookup").headers(headers).send()
+
+      val authAmendedHeaders = headers ++ authHeaders(uri"$toLookup")
+      val responseIO: IO[Response[WorkflowSource]] = sttp.get(uri"$toLookup").headers(authAmendedHeaders).send()
 
       // temporary situation to get functionality working before
       // starting in on async-ifying the entire WdlNamespace flow
@@ -252,7 +265,7 @@ object ImportResolver {
     import common.util.IntrospectableLazy
     import common.util.IntrospectableLazy._
 
-    def apply(relativeTo: Option[String] = None, headers: Map[String, String] = Map.empty): HttpResolver = {
+    def apply(relativeTo: Option[String] = None, headers: Map[String, String] = Map.empty, authProviders: List[ImportAuthProvider] = List.empty): HttpResolver = {
       val config = ConfigFactory.load().getConfig("languages.WDL.http-allow-list")
       val allowListEnabled = config.as[Option[Boolean]]("enabled").getOrElse(false)
       val allowList: Option[List[String]] =
@@ -260,7 +273,7 @@ object ImportResolver {
           config.as[Option[List[String]]]("allowed-http-hosts")
         else None
 
-      new HttpResolver(relativeTo, headers, allowList)
+      new HttpResolver(relativeTo, headers, allowList, authProviders)
     }
 
     val sttpBackend: IntrospectableLazy[SttpBackend[IO, Nothing]] = lazily {

@@ -18,7 +18,7 @@ import cromwell.webservice.WebServiceUtils.EnhancedThrowable
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
-trait WomtoolRouteSupport extends WebServiceUtils with GithubAuthVendingSupport with StrictLogging {
+trait WomtoolRouteSupport extends WebServiceUtils with GithubAuthVendingSupport {
 
   implicit def actorRefFactory: ActorRefFactory
   implicit val ec: ExecutionContext
@@ -32,7 +32,6 @@ trait WomtoolRouteSupport extends WebServiceUtils with GithubAuthVendingSupport 
       post {
         entity(as[Multipart.FormData]) { formData: Multipart.FormData =>
           extractCredentials { creds =>
-            logger.info(s"Received a POST request to /womtool/describe with creds: ${creds}")
             val authProviders: List[ImportAuthProvider] = creds match {
               case Some(OAuth2BearerToken(token)) => List(importAuthProvider(token))
               case _ => List.empty

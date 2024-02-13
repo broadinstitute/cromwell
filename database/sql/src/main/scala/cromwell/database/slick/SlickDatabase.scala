@@ -72,6 +72,19 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
   // NOTE: if you want to refactor database is inner-class type: this.dataAccess.driver.backend.DatabaseFactory
   val database = slickConfig.db
 
+  /*
+  In some cases we want to write Postgres Large Objects (corresponding to Clob/Blob in Slick)
+  with a role other than the database user we are authenticated as. This is important
+  when we want multiple login users to be able to access the records. We can SET ROLE to
+  a role granted to all of them, and they'll all be able to access the Large Objects.
+  This SO thread also has a good explanation:
+  https://dba.stackexchange.com/questions/147607/postgres-large-objects-multiple-users
+   */
+  private lazy val pgLargeObjectWriteRole: Option[String] =
+    originalDatabaseConfig.as[Option[String]]("pgLargeObjectWriteRole")
+  private lazy val roleSetCmd =
+    pgLargeObjectWriteRole.map(role => sqlu"""SET LOCAL ROLE TO "#$role"""")
+
   override lazy val connectionDescription: String = databaseConfig.getString(urlKey)
 
   SlickDatabase.log.info(s"Running with database $urlKey = $connectionDescription")
@@ -167,7 +180,17 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
                                         isolationLevel: TransactionIsolation = TransactionIsolation.RepeatableRead,
                                         timeout: Duration = Duration.Inf
   ): Future[R] =
-    runActionInternal(action.transactionally.withTransactionIsolation(isolationLevel), timeout = timeout)
+    runActionInternal(withLobRole(action).transactionally.withTransactionIsolation(isolationLevel), timeout = timeout)
+
+  /*
+  If we're using Postgres and have been configured to do so, set the desired role on the transaction.
+  See comments on `roleSetCmd` above for more information.
+   */
+  private def withLobRole[R](action: DBIO[R]): DBIO[R] =
+    (dataAccess.driver, roleSetCmd) match {
+      case (PostgresProfile, Some(roleSet)) => roleSet.andThen(action)
+      case _ => action
+    }
 
   /* Note that this is only appropriate for actions that do not involve Blob
    * or Clob fields in Postgres, since large object support requires running

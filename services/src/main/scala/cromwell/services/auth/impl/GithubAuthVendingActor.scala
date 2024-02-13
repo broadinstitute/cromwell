@@ -14,8 +14,8 @@ import scala.concurrent.{ExecutionContext, Future}
 class GithubAuthVendingActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with LazyLogging {
 
   override def receive: Receive = {
-    case GithubAuthRequest(_, replyTo) =>
-      replyTo ! GithubAuthVendingActor.GithubAuthVendingSuccess(serviceConfig.getString("access-token"))
+    case GithubAuthRequest(_) =>
+      sender() ! GithubAuthVendingActor.GithubAuthVendingSuccess(serviceConfig.getString("access-token"))
   }
 }
 
@@ -29,7 +29,7 @@ object GithubAuthVendingActor {
     override def serviceName: String = "GithubAuthVending"
   }
 
-  case class GithubAuthRequest(terraToken: String, replyTo: ActorRef) extends GithubAuthVendingMessage
+  case class GithubAuthRequest(terraToken: String) extends GithubAuthVendingMessage
 
   sealed trait GithubAuthVendingResponse extends GithubAuthVendingMessage
   case class GithubAuthVendingSuccess(accessToken: String) extends GithubAuthVendingResponse
@@ -41,9 +41,9 @@ object GithubAuthVendingActor {
     implicit val ec: ExecutionContext
 
     def importAuthProvider(token: String): ImportAuthProvider = new ImportAuthProvider {
-      override def validHosts: List[String] = List("github.com")
+      override def validHosts: List[String] = List("github.com", "githubusercontent.com", "raw.githubusercontent.com")
       override def authHeader(): Future[Map[String, String]] = {
-        serviceRegistryActor.ask(replyTo => GithubAuthRequest(token, replyTo)).mapTo[GithubAuthVendingResponse].flatMap {
+        serviceRegistryActor.ask(GithubAuthRequest(token)).mapTo[GithubAuthVendingResponse].flatMap {
           case GithubAuthVendingSuccess(token) => Future.successful(Map("Authorization" -> s"Bearer ${token}"))
           case GithubAuthVendingFailure(error) => Future.failed(error)
         }

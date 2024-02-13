@@ -7,6 +7,7 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
+import com.typesafe.scalalogging.StrictLogging
 import cromwell.core.{WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.languages.util.ImportResolver.ImportAuthProvider
 import cromwell.services.auth.impl.GithubAuthVendingActor.GithubAuthVendingSupport
@@ -17,7 +18,7 @@ import cromwell.webservice.WebServiceUtils.EnhancedThrowable
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
-trait WomtoolRouteSupport extends WebServiceUtils with GithubAuthVendingSupport {
+trait WomtoolRouteSupport extends WebServiceUtils with GithubAuthVendingSupport with StrictLogging {
 
   implicit def actorRefFactory: ActorRefFactory
   implicit val ec: ExecutionContext
@@ -31,6 +32,7 @@ trait WomtoolRouteSupport extends WebServiceUtils with GithubAuthVendingSupport 
       post {
         entity(as[Multipart.FormData]) { formData: Multipart.FormData =>
           extractCredentials { creds =>
+            logger.info(s"Received a POST request to /womtool/describe with creds: ${creds}")
             val authProviders: List[ImportAuthProvider] = creds match {
               case Some(OAuth2BearerToken(token)) => List(importAuthProvider(token))
               case _ => List.empty

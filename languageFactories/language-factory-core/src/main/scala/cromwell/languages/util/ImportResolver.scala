@@ -10,6 +10,7 @@ import cats.syntax.validated._
 import com.softwaremill.sttp._
 import com.softwaremill.sttp.asynchttpclient.cats.AsyncHttpClientCatsBackend
 import com.typesafe.config.ConfigFactory
+import com.typesafe.scalalogging.StrictLogging
 import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.ErrorOr._
@@ -185,13 +186,18 @@ object ImportResolver {
   }
 
   case class HttpResolver(relativeTo: Option[String], headers: Map[String, String], hostAllowlist: Option[List[String]], authProviders: List[ImportAuthProvider])
-      extends ImportResolver {
+      extends ImportResolver with StrictLogging {
     import HttpResolver._
 
-    override def name: String = relativeTo match {
-      case Some(relativeToPath) => s"http importer (relative to $relativeToPath)"
-      case None => "http importer (no 'relative-to' origin)"
+    override def name: String = {
+      val relativeToSuffix = relativeTo match {
+        case Some(relativeToPath) => s"(relative to $relativeToPath)"
+        case None => "(no 'relative-to' origin)"
+      }
+      val authProviderValidUrls = authProviders.flatMap(_.validHosts).mkString(", ")
+      val authProviderSuffix = if (authProviderValidUrls.nonEmpty) s"(authenticating for $authProviderValidUrls)" else "(without auth)"
 
+      s"HTTP resolver $relativeToSuffix $authProviderSuffix"
     }
 
     def newResolverList(newRoot: String): List[ImportResolver] = {
@@ -217,8 +223,14 @@ object ImportResolver {
     }
 
     def authHeaders(uri: Uri): Map[String, String] = {
+      def checkAuthProvider(provider: ImportAuthProvider, uri: Uri): Boolean = {
+        val result = provider.validHosts.contains(uri.host)
+        logger.info(s"Validity of using 'auth provider for {${provider.validHosts.mkString(",")}} with uri: ${uri}': ${result}")
+        result
+      }
+
       authProviders collectFirst {
-        case provider if provider.validHosts.contains(uri.host) => Await.result(provider.authHeader(), 10.seconds)
+        case provider if checkAuthProvider(provider, uri) => Await.result(provider.authHeader(), 10.seconds)
       } getOrElse Map.empty[String, String]
     }
 
@@ -242,6 +254,7 @@ object ImportResolver {
       implicit val sttpBackend = HttpResolver.sttpBackend()
 
       val authAmendedHeaders = headers ++ authHeaders(uri"$toLookup")
+      logger.info(s"Fetching $toLookup with headers: $authAmendedHeaders")
       val responseIO: IO[Response[WorkflowSource]] = sttp.get(uri"$toLookup").headers(authAmendedHeaders).send()
 
       // temporary situation to get functionality working before

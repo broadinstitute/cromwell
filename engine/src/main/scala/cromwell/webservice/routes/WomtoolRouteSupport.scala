@@ -7,7 +7,6 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import com.typesafe.scalalogging.StrictLogging
 import cromwell.core.{WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.languages.util.ImportResolver.ImportAuthProvider
 import cromwell.services.auth.impl.GithubAuthVendingActor.GithubAuthVendingSupport

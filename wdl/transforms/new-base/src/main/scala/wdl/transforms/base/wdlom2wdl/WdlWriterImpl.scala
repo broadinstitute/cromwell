@@ -439,6 +439,7 @@ object WdlWriterImpl {
           case _: AsMap => "as_map"
           case _: AsPairs => "as_pairs"
           case _: CollectByKey => "collect_by_key"
+          case _: Unzip => "unzip"
         }
 
         s"$fn(${a.param.toWdlV1})"

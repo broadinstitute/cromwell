@@ -217,4 +217,25 @@ object cascadesValueEvaluators {
         EvaluatedValue(WomString(arr.value.map(v => v.valueString).mkString(sepvalue.value)), Seq.empty).validNel
       }
   }
-}
+
+  implicit val unzipFunctionEvaluator: ValueEvaluator[Unzip] = new ValueEvaluator[Unzip] {
+    override def evaluateValue(a: Unzip,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
+                              )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomPair]] = {
+
+      processValidatedSingleValue[WomArray, WomPair](a.param: WomArray)
+      processTwoValidatedValues[WomArray, WomArray, WomArray](
+        a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions),
+        a.arg2.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
+      ) { (arr1, arr2) =>
+        val pairs = for {
+          a <- arr1.value
+          b <- arr2.value
+        } yield WomPair(a, b)
+        EvaluatedValue(WomArray(WomArrayType(WomPairType(arr1.arrayType.memberType, arr2.arrayType.memberType)), pairs),
+          Seq.empty
+        ).validNel
+      }
+  }

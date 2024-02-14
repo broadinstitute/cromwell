@@ -194,10 +194,8 @@ object ImportResolver {
         case Some(relativeToPath) => s"(relative to $relativeToPath)"
         case None => "(no 'relative-to' origin)"
       }
-      val authProviderValidUrls = authProviders.flatMap(_.validHosts).mkString(", ")
-      val authProviderSuffix = if (authProviderValidUrls.nonEmpty) s"(authenticating for $authProviderValidUrls)" else "(without auth)"
 
-      s"HTTP resolver $relativeToSuffix $authProviderSuffix"
+      s"HTTP resolver $relativeToSuffix"
     }
 
     def newResolverList(newRoot: String): List[ImportResolver] = {

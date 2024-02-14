@@ -1,8 +1,6 @@
 package cromwell.services.auth.impl
 
 import akka.actor.{Actor, ActorRef, Props}
-import akka.pattern.AskSupport
-import akka.util.Timeout
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.core.Dispatcher.ServiceDispatcher

@@ -235,26 +235,33 @@ object cascadesValueEvaluators {
         EvaluatedValue(WomArray(arr.value.map(v => WomString(v.valueString + suffix.value))), Seq.empty).validNel
       }
   }
-
+  // Pair[Array[X], Array[Y]] unzip(Array[Pair[X, Y]])
+  // Creates a Pair of Arrays, the first containing the elements from the left members of an Array of Pairs, and the second containing the right members.
+  // This is the inverse of the zip function.
+  // @params : Array[Pair[X,Y]]
+  // @returns : Pair[Array[X], Array[Y]]
   implicit val unzipFunctionEvaluator: ValueEvaluator[Unzip] = new ValueEvaluator[Unzip] {
     override def evaluateValue(a: Unzip,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
                               )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomPair]] = {
-
-      processValidatedSingleValue[WomArray, WomPair](a.param: WomArray)
-      processTwoValidatedValues[WomArray, WomArray, WomArray](
-        a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions),
-        a.arg2.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
-      ) { (arr1, arr2) =>
-        val pairs = for {
-          a <- arr1.value
-          b <- arr2.value
-        } yield WomPair(a, b)
-        EvaluatedValue(WomArray(WomArrayType(WomPairType(arr1.arrayType.memberType, arr2.arrayType.memberType)), pairs),
-          Seq.empty
-        ).validNel
+      processValidatedSingleValue[WomArray, WomPair](
+        expressionValueEvaluator.evaluateValue(a.param, inputs, ioFunctionSet, forCommandInstantiationOptions)(
+          expressionValueEvaluator
+        )
+      ) {
+        case WomArray(WomArrayType(WomPairType(leftType, rightType)), values) =>
+          val zippedPairs: List[WomPair] = values.toList map { case pair: WomPair =>
+            WomPair(pair.left, pair.right)
+          }
+          val left: WomArray = WomArray(zippedPairs.map(pair => pair.left))
+          val right: WomArray = WomArray(zippedPairs.map(pair => pair.right))
+          val unzippedPairs: WomPair = WomPair(left, right)
+          EvaluatedValue(unzippedPairs, Seq.empty).validNel
+        case other =>
+          s"Invalid call of 'unzip' on parameter of type '${other.womType.stableName}' (expected Array[Pair[X, Y]])".invalidNel
       }
     }
+  }
 }

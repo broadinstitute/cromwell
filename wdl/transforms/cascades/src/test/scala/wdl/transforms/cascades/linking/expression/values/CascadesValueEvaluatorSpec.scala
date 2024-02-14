@@ -200,4 +200,21 @@ class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
       e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedString, Seq.empty)
     }
   }
+
+  it should "evaluate a suffix expression correctly" in {
+    val str = """ suffix("S", ["a", "b", "c"]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(
+      Seq(
+        WomString("aS"),
+        WomString("bS"),
+        WomString("cS")
+      )
+    )
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
 }

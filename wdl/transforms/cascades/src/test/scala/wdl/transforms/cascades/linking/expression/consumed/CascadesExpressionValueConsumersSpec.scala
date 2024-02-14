@@ -57,4 +57,22 @@ class CascadesExpressionValueConsumersSpec extends AnyFlatSpec with CromwellTime
       e.expressionConsumedValueHooks should be(Set(UnlinkedIdentifierHook("my_separator"), UnlinkedIdentifierHook("c")))
     }
   }
+
+  it should "discover the variable lookups within a suffix() call" in {
+    val str = """ suffix(my_suffix, ["a", "b", c]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    expr.shouldBeValidPF { case e =>
+      e.expressionConsumedValueHooks should be(Set(UnlinkedIdentifierHook("my_suffix"), UnlinkedIdentifierHook("c")))
+    }
+  }
+
+  it should "discover an array variable lookup within a suffix() call" in {
+    val str = """ suffix("SFX", my_array) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    expr.shouldBeValidPF { case e =>
+      e.expressionConsumedValueHooks should be(Set(UnlinkedIdentifierHook("my_array")))
+    }
+  }
 }

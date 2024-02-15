@@ -14,8 +14,7 @@ import org.slf4j.{Logger, LoggerFactory}
 
 //import java.net.URL
 //import scala.jdk.CollectionConverters._
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
+import scala.concurrent.ExecutionContext
 
 trait BatchApiRequestHandler {
   def makeBatchRequest: GcpBatchGroupedRequests
@@ -23,7 +22,7 @@ trait BatchApiRequestHandler {
   def enqueue[T <: BatchApiRequestManager.BatchApiRequest](request: T,
                                                            batchRequest: GcpBatchGroupedRequests,
                                                            pollingManager: ActorRef
-  )(implicit ec: ExecutionContext): Future[Try[Unit]]
+  )(implicit ec: ExecutionContext): GcpBatchGroupedRequests
 }
 
 object RequestHandler {
@@ -48,7 +47,7 @@ class RequestHandler(applicationName: String,
   override def enqueue[T <: BatchApiRequestManager.BatchApiRequest](request: T,
                                                                     batchRequest: GcpBatchGroupedRequests,
                                                                     pollingManager: ActorRef
-  )(implicit ec: ExecutionContext): Future[Try[Unit]] = request match {
+  )(implicit ec: ExecutionContext): GcpBatchGroupedRequests = request match {
     case create: BatchRunCreationRequest =>
       handleRequest(create, batchRequest, pollingManager)
 

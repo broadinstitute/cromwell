@@ -10,8 +10,7 @@ import cromwell.backend.google.batch.api.BatchApiRequestManager.{
   SystemBatchApiException
 }
 
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.control.NonFatal
+import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
 
 trait AbortRequestHandler extends LazyLogging { this: RequestHandler =>
@@ -20,19 +19,22 @@ trait AbortRequestHandler extends LazyLogging { this: RequestHandler =>
     abortQuery: BatchAbortRequest,
     batch: GcpBatchGroupedRequests,
     pollingManager: ActorRef
-  )(implicit ec: ExecutionContext): Future[Try[Unit]] = {
+  )(implicit ec: ExecutionContext): GcpBatchGroupedRequests = {
     def onFailure(ex: BatchApiException): Try[Unit] = {
       pollingManager ! BatchApiAbortQueryFailed(abortQuery, ex)
       Failure(ex)
     }
 
-    batch
+    val (newBatch, resultF) = batch
       .queue(abortQuery)
+    resultF
       .map {
         case Success(Right(operation @ _)) =>
+          println(s"AbortRequestHandler: operation succeeded ${operation.getName}")
           abortQuery.requester ! BatchAbortRequestSuccessful(abortQuery.jobId.jobId)
           Success(())
         case Success(Left(job @ _)) =>
+          println("AbortRequestHandler: operation failed due to no operation object")
           // TODO: Alex - we can likely avoid this by using generics on the callback object
           onFailure(
             new SystemBatchApiException(
@@ -41,11 +43,20 @@ trait AbortRequestHandler extends LazyLogging { this: RequestHandler =>
               )
             )
           )
-        case Failure(ex: BatchApiException) => onFailure(ex)
-        case Failure(ex) => onFailure(new SystemBatchApiException(ex))
+        case Failure(ex: BatchApiException) =>
+          println(s"AbortRequestHandler: operation failed (BatchApiException) -${ex.getMessage}")
+          onFailure(ex)
+        case Failure(ex) =>
+          println(s"AbortRequestHandler: operation failed (unknown) - ${ex.getMessage}")
+          onFailure(new SystemBatchApiException(ex))
       }
-      .recover { case NonFatal(ex) =>
-        onFailure(new SystemBatchApiException(ex))
+      .onComplete {
+        case Success(_) =>
+        case Failure(ex) =>
+          println(s"AbortRequestHandler: operation failed (global) - ${ex.getMessage}")
+          onFailure(new SystemBatchApiException(ex))
       }
+
+    newBatch
   }
 }

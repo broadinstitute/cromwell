@@ -14,10 +14,7 @@ import org.scalatest.matchers.should.Matchers
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 
-class GithubAuthVendingSupportSpec extends TestKitSuite
-  with AnyFlatSpecLike
-  with Matchers
-  with Eventually {
+class GithubAuthVendingSupportSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually {
 
   behavior of "GithubAuthVendingSupport"
 
@@ -94,8 +91,9 @@ class GithubAuthVendingSupportSpec extends TestKitSuite
 }
 
 object GithubAuthVendingSupportSpec {
-  class TestGithubAuthVendingSupport(val serviceRegistryActor: ActorRef, val timeout: Timeout = 10.seconds) extends GithubAuthVendingSupport {
-    override implicit val ec: ExecutionContext = ExecutionContext.global
+  class TestGithubAuthVendingSupport(val serviceRegistryActor: ActorRef, val timeout: Timeout = 10.seconds)
+      extends GithubAuthVendingSupport {
+    implicit override val ec: ExecutionContext = ExecutionContext.global
   }
 
 }

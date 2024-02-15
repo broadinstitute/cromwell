@@ -189,8 +189,12 @@ object ImportResolver {
     }
   }
 
-  case class HttpResolver(relativeTo: Option[String], headers: Map[String, String], hostAllowlist: Option[List[String]], authProviders: List[ImportAuthProvider])
-      extends ImportResolver with StrictLogging {
+  case class HttpResolver(relativeTo: Option[String],
+                          headers: Map[String, String],
+                          hostAllowlist: Option[List[String]],
+                          authProviders: List[ImportAuthProvider]
+  ) extends ImportResolver
+      with StrictLogging {
     import HttpResolver._
 
     override def name: String = {
@@ -224,11 +228,10 @@ object ImportResolver {
       case None => true
     }
 
-    def fetchAuthHeaders(uri: Uri): Future[Map[String, String]] = {
+    def fetchAuthHeaders(uri: Uri): Future[Map[String, String]] =
       authProviders collectFirst {
         case provider if provider.validHosts.contains(uri.host) => provider.authHeader()
       } getOrElse Future.successful(Map.empty[String, String])
-    }
 
     override def innerResolver(str: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle] =
       pathToLookup(str) flatMap { toLookup: WorkflowUrl =>
@@ -287,7 +290,10 @@ object ImportResolver {
     import common.util.IntrospectableLazy
     import common.util.IntrospectableLazy._
 
-    def apply(relativeTo: Option[String] = None, headers: Map[String, String] = Map.empty, authProviders: List[ImportAuthProvider] = List.empty): HttpResolver = {
+    def apply(relativeTo: Option[String] = None,
+              headers: Map[String, String] = Map.empty,
+              authProviders: List[ImportAuthProvider] = List.empty
+    ): HttpResolver = {
       val config = ConfigFactory.load().getConfig("languages.WDL.http-allow-list")
       val allowListEnabled = config.as[Option[Boolean]]("enabled").getOrElse(false)
       val allowList: Option[List[String]] =

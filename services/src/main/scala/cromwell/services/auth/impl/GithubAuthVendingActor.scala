@@ -6,7 +6,9 @@ import com.typesafe.scalalogging.LazyLogging
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.services.auth.GithubAuthVending.{GithubAuthRequest, GithubAuthTokenResponse, NoGithubAuthResponse}
 
-class GithubAuthVendingActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with LazyLogging {
+class GithubAuthVendingActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
+    extends Actor
+    with LazyLogging {
 
   lazy val enabled = serviceConfig.getBoolean("enabled")
 

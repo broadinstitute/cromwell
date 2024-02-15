@@ -14,5 +14,4 @@ object GithubAuthVending {
   case object NoGithubAuthResponse extends GithubAuthVendingResponse
   case class GithubAuthVendingFailure(error: Exception) extends GithubAuthVendingResponse
 
-
 }

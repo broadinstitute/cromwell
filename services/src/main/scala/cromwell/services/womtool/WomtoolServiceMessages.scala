@@ -13,7 +13,8 @@ object WomtoolServiceMessages {
     override def serviceName: String = WomtoolServiceName
   }
 
-  case class DescribeRequest(filesCollection: WorkflowSourceFilesCollection, authProviders: List[ImportAuthProvider]) extends WomtoolServiceMessage
+  case class DescribeRequest(filesCollection: WorkflowSourceFilesCollection, authProviders: List[ImportAuthProvider])
+      extends WomtoolServiceMessage
 
   sealed trait DescribeResult extends WomtoolServiceMessage
   case class DescribeSuccess(description: WorkflowDescription) extends DescribeResult

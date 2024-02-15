@@ -10,7 +10,12 @@ import akka.util.Timeout
 import cromwell.core.{WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.languages.util.ImportResolver.ImportAuthProvider
 import cromwell.services.auth.GithubAuthVendingSupport
-import cromwell.services.womtool.WomtoolServiceMessages.{DescribeFailure, DescribeRequest, DescribeResult, DescribeSuccess}
+import cromwell.services.womtool.WomtoolServiceMessages.{
+  DescribeFailure,
+  DescribeRequest,
+  DescribeResult,
+  DescribeSuccess
+}
 import cromwell.webservice.WebServiceUtils
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
 
@@ -46,7 +51,9 @@ trait WomtoolRouteSupport extends WebServiceUtils with GithubAuthVendingSupport 
       }
     }
 
-  private def validateAndSubmitRequest(data: MaterializedFormData, importAuthProviders: List[ImportAuthProvider]): Route = {
+  private def validateAndSubmitRequest(data: MaterializedFormData,
+                                       importAuthProviders: List[ImportAuthProvider]
+  ): Route = {
     // TODO: move constants to WebServiceUtils, adopt in PartialWorkflowSources
     val workflowSource = data.get("workflowSource").map(_.utf8String)
     val workflowUrl = data.get("workflowUrl").map(_.utf8String)

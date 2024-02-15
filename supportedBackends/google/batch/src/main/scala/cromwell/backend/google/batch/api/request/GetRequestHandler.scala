@@ -1,69 +1,48 @@
 package cromwell.backend.google.batch.api.request
 
 import akka.actor.ActorRef
-import com.google.cloud.batch.v1.Job
-import com.google.longrunning.Operation
 import cromwell.backend.google.batch.api.BatchApiRequestManager.{
   BatchApiException,
-  BatchApiRequest,
   BatchApiStatusQueryFailed,
   BatchStatusPollRequest,
   SystemBatchApiException
 }
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
 trait GetRequestHandler { this: RequestHandler =>
-  private def pollRequestResultHandler(originalRequest: BatchApiRequest,
-                                       completionPromise: Promise[Try[Unit]],
-                                       pollingManager: ActorRef
-  ) = new OperationCallback {
-    override def onSuccess(request: BatchApiRequest, result: Either[Job, Operation]): Unit = {
-      result match {
-        case Right(_) =>
-          // TODO: Alex - we can likely avoid this by using generics on the callback object
+
+  def handleRequest(pollRequest: BatchStatusPollRequest, batch: GcpBatchGroupedRequests, pollingManager: ActorRef)(
+    implicit ec: ExecutionContext
+  ): Future[Try[Unit]] = {
+    def onFailure(ex: BatchApiException): Try[Unit] = {
+      pollingManager ! BatchApiStatusQueryFailed(pollRequest, ex)
+      Failure(ex)
+    }
+
+    batch
+      .queue(pollRequest)
+      .map {
+        case Success(Right(operation @ _)) =>
           onFailure(
             new SystemBatchApiException(
               new RuntimeException(
-                "This is likely a programming error, onSuccess was called without an the job object"
+                "This is likely a programming error, onSuccess was called without a job object"
               )
             )
           )
 
-        case Left(job) =>
-          originalRequest.requester ! job
-          completionPromise.trySuccess(Success(()))
+        case Success(Left(job @ _)) =>
+          pollRequest.requester ! job
+          Success(())
+
+        case Failure(ex: BatchApiException) => onFailure(ex)
+        case Failure(ex) => onFailure(new SystemBatchApiException(ex))
       }
-      ()
-    }
-
-    override def onFailure(ex: BatchApiException): Unit = {
-      pollingManager ! BatchApiStatusQueryFailed(originalRequest, ex)
-      completionPromise.trySuccess(Failure(ex))
-      ()
-    }
-  }
-
-  def handleRequest(pollRequest: BatchStatusPollRequest,
-                    batch: GcpBatchGroupedRequests,
-                    pollingManager: ActorRef
-  ): Future[Try[Unit]] = {
-    val completionPromise = Promise[Try[Unit]]()
-    val resultHandler = pollRequestResultHandler(pollRequest, completionPromise, pollingManager)
-    addPollRequestToBatch(pollRequest, batch, resultHandler)
-    completionPromise.future
-  }
-
-  private def addPollRequestToBatch(request: BatchStatusPollRequest,
-                                    batch: GcpBatchGroupedRequests,
-                                    resultHandler: OperationCallback
-  ): Unit = {
-    /*
-     * Manually enqueue the request instead of doing it through the RunPipelineRequest
-     * as it would unnecessarily rebuild the request (which we already have)
-     */
-    batch.queue(request, resultHandler)
-    ()
+      .recover { case NonFatal(ex) =>
+        onFailure(new SystemBatchApiException(ex))
+      }
   }
 }

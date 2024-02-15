@@ -1,34 +1,38 @@
 package cromwell.backend.google.batch.api.request
 
 import akka.actor.ActorRef
-import com.google.cloud.batch.v1.Job
-import com.google.longrunning.Operation
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.google.batch.actors.BatchApiAbortClient.BatchAbortRequestSuccessful
 import cromwell.backend.google.batch.api.BatchApiRequestManager.{
   BatchAbortRequest,
   BatchApiAbortQueryFailed,
   BatchApiException,
-  BatchApiRequest,
   SystemBatchApiException
 }
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
 trait AbortRequestHandler extends LazyLogging { this: RequestHandler =>
-  private def abortRequestResultHandler(
-    originalRequest: BatchAbortRequest,
-    completionPromise: Promise[Try[Unit]],
-    pollingManager: ActorRef
-  ) = new OperationCallback {
-    override def onSuccess(request: BatchApiRequest, result: Either[Job, Operation]): Unit = {
-      result match {
-        case Right(operation @ _) =>
-          originalRequest.requester ! BatchAbortRequestSuccessful(originalRequest.jobId.jobId)
-          completionPromise.trySuccess(Success(()))
 
-        case Left(job @ _) =>
+  def handleRequest(
+    abortQuery: BatchAbortRequest,
+    batch: GcpBatchGroupedRequests,
+    pollingManager: ActorRef
+  )(implicit ec: ExecutionContext): Future[Try[Unit]] = {
+    def onFailure(ex: BatchApiException): Try[Unit] = {
+      pollingManager ! BatchApiAbortQueryFailed(abortQuery, ex)
+      Failure(ex)
+    }
+
+    batch
+      .queue(abortQuery)
+      .map {
+        case Success(Right(operation @ _)) =>
+          abortQuery.requester ! BatchAbortRequestSuccessful(abortQuery.jobId.jobId)
+          Success(())
+        case Success(Left(job @ _)) =>
           // TODO: Alex - we can likely avoid this by using generics on the callback object
           onFailure(
             new SystemBatchApiException(
@@ -37,38 +41,11 @@ trait AbortRequestHandler extends LazyLogging { this: RequestHandler =>
               )
             )
           )
+        case Failure(ex: BatchApiException) => onFailure(ex)
+        case Failure(ex) => onFailure(new SystemBatchApiException(ex))
       }
-      ()
-    }
-
-    override def onFailure(ex: BatchApiException): Unit = {
-      pollingManager ! BatchApiAbortQueryFailed(originalRequest, ex)
-      completionPromise.trySuccess(Failure(ex))
-      ()
-    }
-  }
-
-  def handleRequest(
-    abortQuery: BatchAbortRequest,
-    batch: GcpBatchGroupedRequests,
-    pollingManager: ActorRef
-  ): Future[Try[Unit]] = {
-    val completionPromise = Promise[Try[Unit]]()
-    val resultHandler = abortRequestResultHandler(abortQuery, completionPromise, pollingManager)
-    addAbortQueryToBatch(abortQuery, batch, resultHandler)
-    completionPromise.future
-  }
-
-  private def addAbortQueryToBatch(
-    request: BatchAbortRequest,
-    batch: GcpBatchGroupedRequests,
-    resultHandler: OperationCallback
-  ): Unit = {
-    /*
-     * Manually enqueue the request instead of doing it through the RunPipelineRequest
-     * as it would unnecessarily rebuild the request (which we already have)
-     */
-    batch.queue(request, resultHandler)
-    ()
+      .recover { case NonFatal(ex) =>
+        onFailure(new SystemBatchApiException(ex))
+      }
   }
 }

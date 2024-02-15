@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <!-- The 'engineSharedCromwellDbRole' can be set via JAVA_OPTS if desired (eg -DengineSharedCromwellDbRole=...). -->
+    <property  name="engineSharedCromwellDbRole" value=""/>
+
+    <!--
+        This changeset will be applied whenever the 'sharedCromwellDbRole' property is set.
+        It runs every time to ensure the role is set correctly after all other changesets.
+     -->
+    <changeSet runAlways="true" runOnChange="true" author="jdewar" id="set_table_role" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <!-- check that 'engineSharedCromwellDbRole' role is set, and matches something in the pg_roles table -->
+            <sqlCheck expectedResult="1">
+                SELECT count(1)
+                FROM pg_roles
+                where '${engineSharedCromwellDbRole}' != '' and pg_roles.rolname = '${engineSharedCromwellDbRole}';
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            ALTER TABLE "CALL_CACHING_AGGREGATION_ENTRY" OWNER TO ${engineSharedCromwellDbRole};
+            ALTER TABLE "CALL_CACHING_DETRITUS_ENTRY" OWNER TO ${engineSharedCromwellDbRole};
+            ALTER TABLE "CALL_CACHING_ENTRY" OWNER TO ${engineSharedCromwellDbRole};
+            ALTER TABLE "CALL_CACHING_HASH_ENTRY" OWNER TO ${engineSharedCromwellDbRole};
+            ALTER TABLE "CALL_CACHING_SIMPLETON_ENTRY" OWNER TO ${engineSharedCromwellDbRole};
+            ALTER TABLE "DOCKER_HASH_STORE_ENTRY" OWNER TO ${engineSharedCromwellDbRole};
+            ALTER TABLE "JOB_KEY_VALUE_ENTRY" OWNER TO ${engineSharedCromwellDbRole};
+            ALTER TABLE "JOB_STORE_ENTRY" OWNER TO ${engineSharedCromwellDbRole};
+            ALTER TABLE "JOB_STORE_SIMPLETON_ENTRY" OWNER TO ${engineSharedCromwellDbRole};
+            ALTER TABLE "SUB_WORKFLOW_STORE_ENTRY" OWNER TO ${engineSharedCromwellDbRole};
+            ALTER TABLE "WORKFLOW_STORE_ENTRY" OWNER TO ${engineSharedCromwellDbRole};
+            ALTER TABLE "databasechangelog" OWNER TO ${engineSharedCromwellDbRole};
+            ALTER TABLE "databasechangeloglock" OWNER TO ${engineSharedCromwellDbRole};
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

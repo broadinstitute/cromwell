@@ -4,7 +4,7 @@ workflow biscayne_new_engine_functions {
 
   meta {
     description: "This test makes sure that these functions work in a real workflow"
-    functions_under_test: [ "keys", "as_map", "as_pairs", "collect_by_key", "suffix" ]
+    functions_under_test: [ "keys", "as_map", "as_pairs", "collect_by_key", "suffix", "unzip" ]
   }
 
   Map[String, Int] x_map_in = {"a": 1, "b": 2, "c": 3}
@@ -25,6 +25,12 @@ workflow biscayne_new_engine_functions {
   Int maxInt = 2147483647
   # max float... near enough:
   Float maxFloat = 179769313000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0
+
+  Array[Pair[String,String]] zipped_a = []
+  Array[Pair[String,String]] zipped_b = [("A","a")]
+  Array[Pair[String,String]] zipped_c = [("A","a"),("B","b")]
+  Array[Pair[String,String]] zipped_d = [("A","a"),("B","b"),("C","c")]
+  Array[Pair[String,Float]] zipped_e = [("one",1.0),("two",2.0),("three",3.0)]
 
   output {
 
@@ -54,6 +60,14 @@ workflow biscayne_new_engine_functions {
     # suffix():
     # =================================================
     Array[String] with_suffixes = suffix("S", some_strings)
+
+    # unzip():
+    # =================================================
+    Pair[Array[String], Array[String]] unzipped_a = unzip(zipped_a)
+    Pair[Array[String], Array[String]] unzipped_b = unzip(zipped_b)
+    Pair[Array[String], Array[String]] unzipped_c = unzip(zipped_c)
+    Pair[Array[String], Array[String]] unzipped_d = unzip(zipped_d)
+    Pair[Array[String], Array[Float]] unzipped_e = unzip(zipped_e)
   }
 }
 

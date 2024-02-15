@@ -252,12 +252,11 @@ object cascadesValueEvaluators {
         )
       ) {
         case WomArray(WomArrayType(WomPairType(leftType, rightType)), values) =>
-          val zippedPairs: List[WomPair] = values.toList map { case pair: WomPair =>
-            WomPair(pair.left, pair.right)
+          val zippedPairs: Seq[(WomValue, WomValue)] = values map { case pair: WomPair =>
+            Tuple2(pair.left, pair.right)
           }
-          val left: WomArray = WomArray(zippedPairs.map(pair => pair.left))
-          val right: WomArray = WomArray(zippedPairs.map(pair => pair.right))
-          val unzippedPairs: WomPair = WomPair(left, right)
+          val (left, right) = zippedPairs.unzip
+          val unzippedPairs: WomPair = WomPair(WomArray(left), WomArray(right))
           EvaluatedValue(unzippedPairs, Seq.empty).validNel
         case other =>
           s"Invalid call of 'unzip' on parameter of type '${other.womType.stableName}' (expected Array[Pair[X, Y]])".invalidNel

@@ -97,6 +97,7 @@ package object types {
 
         case a: Zip => a.evaluateType(linkedValues)(typeEvaluator)
         case a: Cross => a.evaluateType(linkedValues)(typeEvaluator)
+        case a: Unzip => a.evaluateType(linkedValues)(typeEvaluator)
 
         case a: Sub => a.evaluateType(linkedValues)(typeEvaluator)
 

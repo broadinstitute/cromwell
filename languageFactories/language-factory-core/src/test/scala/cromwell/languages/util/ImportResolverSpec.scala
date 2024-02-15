@@ -7,9 +7,12 @@ import common.assertion.CromwellTimeoutSpec
 import common.assertion.ErrorOrAssertions._
 import cromwell.core.WorkflowId
 import cromwell.core.path.DefaultPath
-import cromwell.languages.util.ImportResolver.{DirectoryResolver, HttpResolver}
+import cromwell.languages.util.ImportResolver.{DirectoryResolver, GithubImportAuthProvider, HttpResolver, ImportAuthProvider}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import wom.core.{WorkflowSource, WorkflowUrl}
+
+import scala.concurrent.Future
 
 class ImportResolverSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "HttpResolver"
@@ -152,6 +155,99 @@ class ImportResolverSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     resolvedBundle.map(_.resolvedImportRecord) match {
       case Left(e) => fail(s"Expected ResolvedImportBundle but got $e")
       case Right(resolvedImport) => resolvedImport.importPath shouldBe resolvedHttpPath
+    }
+  }
+
+  behavior of "HttpResolver with an ImportAuthProvider"
+
+  class RecordingHttpResolver(unauthedResponse: Response[String], authedResponse: Response[String], authProvider: ImportAuthProvider) extends HttpResolver(None, Map.empty, None, List(authProvider)) {
+
+    case class RequestRecord(url: WorkflowUrl, headers: Map[String, String], response: Response[String])
+    var requestRecords: List[RequestRecord] = List.empty
+
+    override protected def getUriInner(toLookup: WorkflowUrl, authHeaders: Map[String, String]): Response[WorkflowSource] = {
+      val result = if (Uri.parse(toLookup).get.host == "raw.githubusercontent.com" && authHeaders.get("Authorization").contains("Bearer 1234")) {
+        authedResponse
+      } else if (headers.contains("Authorization")) {
+        throw new RuntimeException(s"Unexpected auth header applied")
+      } else {
+        unauthedResponse
+      }
+
+      requestRecords = requestRecords :+ RequestRecord(toLookup, authHeaders, result)
+      result
+    }
+  }
+
+  it should "lookup headers from auth provider after a 404 for valid host" in {
+    val unauthedResponse = new Response[String](Left("Not found or no permissions".getBytes), StatusCodes.NotFound, "NotFound", Nil, List.empty)
+    val authedResponse = new Response[String](Right("Hello World"), 200, "OK", Nil, List.empty)
+    val authProvider = new GithubImportAuthProvider {
+      override def authHeader() = Future.successful(Map("Authorization" -> "Bearer 1234"))
+    }
+    val resolver = new RecordingHttpResolver(unauthedResponse, authedResponse, authProvider)
+    val importUri = "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/hello/hello.wdl"
+    val resolvedBundle = resolver.innerResolver(importUri, List(resolver))
+
+    resolvedBundle match {
+      case Left(e) => fail(s"Expected ResolvedImportBundle but got $e")
+      case Right(bundle) => {
+        bundle.resolvedImportRecord.importPath shouldBe importUri
+        bundle.source shouldBe "Hello World"
+
+        resolver.requestRecords.size shouldBe 2
+        resolver.requestRecords.head.url shouldBe importUri
+        resolver.requestRecords.head.headers shouldBe Map.empty
+        resolver.requestRecords(1).url shouldBe importUri
+        resolver.requestRecords(1).headers should be(Map(("Authorization", "Bearer 1234")))
+      }
+    }
+  }
+
+  it should "not lookup headers for urls which require no auth" in {
+    val unauthedResponse = new Response[String](Right("Hello World"), 200, "OK", Nil, List.empty)
+    val authedResponse = new Response[String](Left("Shouldn't be authed".getBytes), 500, "BAD", Nil, List.empty)
+    val authProvider = new GithubImportAuthProvider {
+      override def authHeader() = Future.failed(new Exception("Should not be called"))
+    }
+    val resolver = new RecordingHttpResolver(unauthedResponse, authedResponse, authProvider)
+    val importUri = "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/hello/hello.wdl"
+    val resolvedBundle = resolver.innerResolver(importUri, List(resolver))
+
+    resolvedBundle match {
+      case Left(e) => fail(s"Expected ResolvedImportBundle but got $e")
+      case Right(bundle) => {
+        bundle.resolvedImportRecord.importPath shouldBe importUri
+        bundle.source shouldBe "Hello World"
+
+        resolver.requestRecords.size shouldBe 1
+        resolver.requestRecords.head.url shouldBe importUri
+        resolver.requestRecords.head.headers shouldBe Map.empty
+      }
+    }
+  }
+
+  it should "not lookup headers for urls which failed with other errors" in {
+    val unauthedResponse = new Response[String](Left("Some other error".getBytes), StatusCodes.ServiceUnavailable, "ServiceUnavailable", Nil, List.empty)
+    val authedResponse = new Response[String](Left("Shouldn't be authed".getBytes), 500, "BAD", Nil, List.empty)
+    val authProvider = new GithubImportAuthProvider {
+      override def authHeader() = Future.failed(new Exception("Should not be called"))
+    }
+    val resolver = new RecordingHttpResolver(unauthedResponse, authedResponse, authProvider)
+    val importUri = "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/hello/hello.wdl"
+    val resolvedBundle = resolver.innerResolver(importUri, List(resolver))
+
+    resolvedBundle match {
+      case Left(e) => {
+        e.length should be(1)
+        e.head.contains("Some other error") should be(true)
+        resolver.requestRecords.size shouldBe 1
+        resolver.requestRecords.head.url shouldBe importUri
+        resolver.requestRecords.head.headers shouldBe Map.empty
+      }
+      case Right(bundle) => {
+        fail(s"Expected an error but got $bundle")
+      }
     }
   }
 

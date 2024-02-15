@@ -43,6 +43,10 @@ object ImportResolver {
     def authHeader(): Future[Map[String, String]]
   }
 
+  trait GithubImportAuthProvider extends ImportAuthProvider {
+    override def validHosts: List[String] = List("github.com", "githubusercontent.com", "raw.githubusercontent.com")
+  }
+
   trait ImportResolver {
     def name: String
     protected def innerResolver(path: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle]
@@ -266,7 +270,7 @@ object ImportResolver {
       }
     }
 
-    private def getUriInner(toLookup: WorkflowUrl, authHeaders: Map[String, String]): Response[WorkflowSource] = {
+    protected def getUriInner(toLookup: WorkflowUrl, authHeaders: Map[String, String]): Response[WorkflowSource] = {
       implicit val sttpBackend = HttpResolver.sttpBackend()
 
       val responseIO: IO[Response[WorkflowSource]] = sttp.get(uri"$toLookup").headers(headers ++ authHeaders).send()

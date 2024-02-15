@@ -26,9 +26,8 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import scala.collection.immutable.Queue
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.util.Try
 
 // Enabled tests are passing
 class BatchApiRequestManagerSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually {
@@ -363,6 +362,6 @@ class MockBatchRequestHandler extends BatchApiRequestHandler {
   override def enqueue[T <: BatchApiRequest](request: T,
                                              batchRequest: GcpBatchGroupedRequests,
                                              pollingManager: ActorRef
-  )(implicit ec: ExecutionContext): Future[Try[Unit]] =
+  )(implicit ec: ExecutionContext): GcpBatchGroupedRequests =
     throw new UnsupportedOperationException
 }

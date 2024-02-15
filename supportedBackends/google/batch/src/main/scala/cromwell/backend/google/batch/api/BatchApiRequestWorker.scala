@@ -33,9 +33,6 @@ class BatchApiRequestWorker(val pollingManager: ActorRef,
 
   implicit val ec: ExecutionContext = context.dispatcher
 
-  // Batches can be re-used, and since this actor only executes one at a time, we only need one
-  private lazy val batch = batchHandler.makeBatchRequest
-
   override def receive = {
     case BatchApiWorkBatch(workBatch) =>
       log.debug(s"Got a Batch request batch with ${workBatch.tail.size + 1} requests.")
@@ -46,23 +43,21 @@ class BatchApiRequestWorker(val pollingManager: ActorRef,
   }
 
   private def handleBatch(workBatch: NonEmptyList[BatchApiRequest]): Future[List[Try[Unit]]] = {
-    // Assume that the auth for the first element is also good enough for everything else:
-    val batch: GcpBatchGroupedRequests = createBatch()
-
     // Create the batch:
-    // TODO: WARNING: These call change 'batch' as a side effect. Things might go awry if map runs items in parallel?
-    // TODO: Alex - this value can be discarded because its already returned by runBatch
-    val _ = workBatch map { batchHandler.enqueue(_, batch, pollingManager) }
+    val batch = workBatch.foldLeft(createBatch()) { case (batch, request) =>
+      batchHandler.enqueue(request, batch, pollingManager)
+    }
 
     // Execute the batch and return the list of successes and failures:
     // NB: Blocking and error prone. If this fails, let the supervisor in the BatchApiRequestManager catch and resubmit
     // the work.
-//    Future.sequence(batchFutures.toList)
+    //
+    // TODO: Alex - verify that the work is actually resubmitted on failures
     runBatch(batch)
   }
 
   // These are separate functions so that the tests can hook in and replace the JES-side stuff
-  private[api] def createBatch(): GcpBatchGroupedRequests = batch
+  private[api] def createBatch(): GcpBatchGroupedRequests = batchHandler.makeBatchRequest
   private[api] def runBatch(batch: GcpBatchGroupedRequests): Future[List[Try[Unit]]] = {
     val result =
       if (batch.size > 0) batch.execute(ec)

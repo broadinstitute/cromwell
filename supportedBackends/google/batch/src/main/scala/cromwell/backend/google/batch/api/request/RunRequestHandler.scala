@@ -4,8 +4,7 @@ import akka.actor.ActorRef
 import cromwell.backend.google.batch.api.BatchApiRequestManager._
 import cromwell.backend.standard.StandardAsyncJob
 
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.control.NonFatal
+import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
 
 trait RunRequestHandler { this: RequestHandler =>
@@ -13,16 +12,18 @@ trait RunRequestHandler { this: RequestHandler =>
   def handleRequest(runCreationQuery: BatchRunCreationRequest,
                     batch: GcpBatchGroupedRequests,
                     pollingManager: ActorRef
-  )(implicit ec: ExecutionContext): Future[Try[Unit]] = {
+  )(implicit ec: ExecutionContext): GcpBatchGroupedRequests = {
     def onFailure(ex: BatchApiException): Try[Unit] = {
       pollingManager ! BatchApiRunCreationQueryFailed(runCreationQuery, ex)
       Failure(ex)
     }
 
-    batch
-      .queue(runCreationQuery)
+    println("RunRequestHandler: enqueue request")
+    val (newBatch, resultF) = batch.queue(runCreationQuery)
+    resultF
       .map {
         case Success(Right(operation @ _)) =>
+          println("RunRequestHandler: operation failed due to no job object")
           onFailure(
             new SystemBatchApiException(
               new RuntimeException(
@@ -32,15 +33,25 @@ trait RunRequestHandler { this: RequestHandler =>
           )
 
         case Success(Left(job @ _)) =>
+          println(s"RunRequestHandler: operation succeeded ${job.getName}")
           runCreationQuery.requester ! getJob(job.getName)
           Success(())
 
-        case Failure(ex: BatchApiException) => onFailure(ex)
-        case Failure(ex) => onFailure(new SystemBatchApiException(ex))
+        case Failure(ex: BatchApiException) =>
+          println(s"RunRequestHandler: operation failed (BatchApiException) -${ex.getMessage}")
+          onFailure(ex)
+
+        case Failure(ex) =>
+          println(s"RunRequestHandler: operation failed (unknown) - ${ex.getMessage}")
+          onFailure(new SystemBatchApiException(ex))
       }
-      .recover { case NonFatal(ex) =>
-        onFailure(new SystemBatchApiException(ex))
+      .onComplete {
+        case Success(_) =>
+        case Failure(ex) =>
+          println(s"RunRequestHandler: operation failed (global) - ${ex.getMessage}")
+          onFailure(new SystemBatchApiException(ex))
       }
+    newBatch
   }
 
   private def getJob(jobName: String) = StandardAsyncJob(jobName)

@@ -12,28 +12,34 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 
 // Mirrors com.google.api.client.googleapis.batch.BatchRequest
 // TODO: Alex - This is not Thread-safe yet
-class GcpBatchGroupedRequests(batchSettings: BatchServiceSettings) {
+class GcpBatchGroupedRequests(batchSettings: BatchServiceSettings,
+                              requests: List[(BatchApiRequest, Promise[Try[Either[Job, Operation]]])] = List.empty
+) {
 
-  private var _requests: List[(BatchApiRequest, Promise[Try[Either[Job, Operation]]])] = List.empty
-  def queue(that: BatchApiRequest): Future[Try[Either[Job, Operation]]] = {
+//  private var _requests: List[(BatchApiRequest, Promise[Try[Either[Job, Operation]]])] = List.empty
+  def queue(that: BatchApiRequest): (GcpBatchGroupedRequests, Future[Try[Either[Job, Operation]]]) = {
     // TODO: Alex - remove log
-    println("GcpBatchGroupedRequests: Enqueue request")
+    println(s"GcpBatchGroupedRequests: Enqueue request, queue has ${size} items")
 
     val promise = Promise[Try[Either[Job, Operation]]]()
-    _requests = (that, promise) :: _requests
-    promise.future
+    val newRequests = (that, promise) :: requests
+    new GcpBatchGroupedRequests(batchSettings, newRequests) -> promise.future
   }
 //  def requests: List[BatchApiRequest] = _requests.reverse.map(_._1)
 
-  def size: Int = _requests.size
+  def size: Int = requests.size
 
   private def internalExecute(client: BatchServiceClient, request: BatchApiRequest): Try[Either[Job, Operation]] =
     try {
       val result = request match {
         case r: BatchStatusPollRequest =>
+          // TODO: Alex - remove log
+          println(s"GcpBatchGroupedRequests: getJob")
           Left(client.getJob(r.httpRequest))
 
         case r: BatchRunCreationRequest =>
+          // TODO: Alex - remove log
+          println(s"GcpBatchGroupedRequests: createJob")
           Left(client.createJob(r.httpRequest))
 
         case r: BatchAbortRequest =>
@@ -41,8 +47,13 @@ class GcpBatchGroupedRequests(batchSettings: BatchServiceSettings) {
           // then, throw BatchOperationIsAlreadyTerminal
           // different to PAPIv2, this call does not abort the job but deletes it, so, we need to be careful
           // to not delete jobs in a terminal state
+
+          // TODO: Alex - remove log
+          println(s"GcpBatchGroupedRequests: deleteJob")
+
           Right(client.deleteJobCallable().call(r.httpRequest))
       }
+      println(s"GcpBatchGroupedRequests: result = ${result.map(_.getName).left.map(_.getName)}")
       Success(result)
     } catch {
       case apiException: ApiException =>
@@ -56,9 +67,12 @@ class GcpBatchGroupedRequests(batchSettings: BatchServiceSettings) {
           } else {
             new SystemBatchApiException(GoogleBatchException(apiException))
           }
+        println(s"GcpBatchGroupedRequests: failure = ${apiException.getMessage}")
         Failure(failureException)
 
-      case NonFatal(ex) => Failure(new SystemBatchApiException(ex))
+      case NonFatal(ex) =>
+        println(s"GcpBatchGroupedRequests: failure (nonfatal) = ${ex.getMessage}")
+        Failure(new SystemBatchApiException(ex))
     }
 
   // TODO: Alex - add retries and the logic from BatchRequest
@@ -67,13 +81,10 @@ class GcpBatchGroupedRequests(batchSettings: BatchServiceSettings) {
 
     val client = BatchServiceClient.create(batchSettings)
 
-    // its important to clear the queue to not executing the same requests again
-    _requests = List.empty
-
     // TODO: Alex - Verify whether this already handles retries
     // TODO: The sdk calls seem to be blocking, consider using a Future + scala.concurrent.blocking
     //       Check whether sending many requests in parallel could be an issue
-    val futures = _requests.map { case (request, promise) =>
+    val futures = requests.reverse.map { case (request, promise) =>
       Future {
         scala.concurrent.blocking {
           val result = internalExecute(client, request)
@@ -86,7 +97,13 @@ class GcpBatchGroupedRequests(batchSettings: BatchServiceSettings) {
     val result = Future.sequence(futures.map(_.map(_.map(_ => ()))))
 
     result.onComplete { _ =>
-      client.close()
+      println("GcpBatchGroupedRequests: closing client")
+      try
+        client.close()
+      catch {
+        case NonFatal(ex) =>
+          println(s"GcpBatchGroupedRequests: failed to close client${ex.getMessage}")
+      }
     }
 
     result

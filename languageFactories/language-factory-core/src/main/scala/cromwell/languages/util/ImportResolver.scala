@@ -242,21 +242,35 @@ object ImportResolver {
         }).contextualizeErrors(s"download $toLookup")
       }
 
-    private def getUri(toLookup: WorkflowUrl): Either[NonEmptyList[WorkflowSource], ResolvedImportBundle] = {
-      implicit val sttpBackend = HttpResolver.sttpBackend()
-
+    private def getUri(toLookup: WorkflowUrl): Checked[ResolvedImportBundle] = {
       // Temporary situation to get functionality working before
       // starting in on async-ifying the entire WdlNamespace flow
       // Note: this will cause the calling thread to block for up to 30 seconds
       // (15 for the auth header lookup, 15 for the http request)
-      val authHeaders = Await.result(fetchAuthHeaders(uri"$toLookup"), 15.seconds)
-      val responseIO: IO[Response[WorkflowSource]] = sttp.get(uri"$toLookup").headers(headers ++ authHeaders).send()
-      val result: Checked[WorkflowSource] = Await.result(responseIO.unsafeToFuture(), 15.seconds).body.leftMap { e =>
-        NonEmptyList(e.toString.trim, List.empty)
+      val unauthedAttempt = getUriInner(toLookup, Map.empty)
+      val result = if (StatusCodes.NotFound == unauthedAttempt.code) {
+        val authHeaders = Await.result(fetchAuthHeaders(uri"$toLookup"), 15.seconds)
+        if (authHeaders.nonEmpty) {
+          getUriInner(toLookup, authHeaders)
+        } else {
+          unauthedAttempt
+        }
+      } else {
+        unauthedAttempt
       }
-      result map {
+
+      result.body.leftMap { e =>
+        NonEmptyList.of(s"${result.code}: ${e.trim}")
+      } map {
         ResolvedImportBundle(_, newResolverList(toLookup), ResolvedImportRecord(toLookup))
       }
+    }
+
+    private def getUriInner(toLookup: WorkflowUrl, authHeaders: Map[String, String]): Response[WorkflowSource] = {
+      implicit val sttpBackend = HttpResolver.sttpBackend()
+
+      val responseIO: IO[Response[WorkflowSource]] = sttp.get(uri"$toLookup").headers(headers ++ authHeaders).send()
+      Await.result(responseIO.unsafeToFuture(), 15.seconds)
     }
 
     override def cleanupIfNecessary(): ErrorOr[Unit] = ().validNel

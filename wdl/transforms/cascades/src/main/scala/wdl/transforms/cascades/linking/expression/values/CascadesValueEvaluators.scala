@@ -217,4 +217,22 @@ object cascadesValueEvaluators {
         EvaluatedValue(WomString(arr.value.map(v => v.valueString).mkString(sepvalue.value)), Seq.empty).validNel
       }
   }
+
+  implicit val suffixFunctionEvaluator: ValueEvaluator[Suffix] = new ValueEvaluator[Suffix] {
+    override def evaluateValue(a: Suffix,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
+    )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] =
+      processTwoValidatedValues[WomString, WomArray, WomArray](
+        expressionValueEvaluator.evaluateValue(a.arg1, inputs, ioFunctionSet, forCommandInstantiationOptions)(
+          expressionValueEvaluator
+        ),
+        expressionValueEvaluator.evaluateValue(a.arg2, inputs, ioFunctionSet, forCommandInstantiationOptions)(
+          expressionValueEvaluator
+        )
+      ) { (suffix, arr) =>
+        EvaluatedValue(WomArray(arr.value.map(v => WomString(v.valueString + suffix.value))), Seq.empty).validNel
+      }
+  }
 }

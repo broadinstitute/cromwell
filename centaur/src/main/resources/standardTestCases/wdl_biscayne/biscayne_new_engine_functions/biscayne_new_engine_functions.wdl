@@ -4,7 +4,7 @@ workflow biscayne_new_engine_functions {
 
   meta {
     description: "This test makes sure that these functions work in a real workflow"
-    functions_under_test: [ "keys", "as_map", "as_pairs", "collect_by_key" ]
+    functions_under_test: [ "keys", "as_map", "as_pairs", "collect_by_key", "suffix" ]
   }
 
   Map[String, Int] x_map_in = {"a": 1, "b": 2, "c": 3}
@@ -14,6 +14,8 @@ workflow biscayne_new_engine_functions {
   Array[Pair[String,Pair[File,File]]] y_pairs_in = [("a", ("a.bam", "a.bai")), ("b", ("b.bam", "b.bai"))]
 
   Array[Pair[String,Int]] z_pairs_in = [("a", 1), ("b", 2), ("a", 3)]
+
+  Array[String] some_strings = ["aaa", "bbb", "ccc"]
 
   Int smallestInt = 1
   Float smallFloat = 2.718
@@ -48,6 +50,10 @@ workflow biscayne_new_engine_functions {
     Float bigIntFloatComparison = max(bigFloat, biggestInt) # 10.0
     Float minMaxIntFloatComposition = min(max(biggestInt, smallFloat), smallestInt) # 1.0
     Float maxIntVsMaxFloat = max(maxInt, maxFloat)
+
+    # suffix():
+    # =================================================
+    Array[String] with_suffixes = suffix("S", some_strings)
   }
 }
 

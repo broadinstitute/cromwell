@@ -164,6 +164,12 @@ object ExpressionElement {
     override def arg1: ExpressionElement = prefix
     override def arg2: ExpressionElement = array
   }
+
+  final case class Suffix(suffix: ExpressionElement, array: ExpressionElement) extends TwoParamFunctionCallElement {
+    override def arg1: ExpressionElement = suffix
+    override def arg2: ExpressionElement = array
+  }
+
   final case class Min(arg1: ExpressionElement, arg2: ExpressionElement) extends TwoParamFunctionCallElement
   final case class Max(arg1: ExpressionElement, arg2: ExpressionElement) extends TwoParamFunctionCallElement
   final case class Sep(arg1: ExpressionElement, arg2: ExpressionElement) extends TwoParamFunctionCallElement

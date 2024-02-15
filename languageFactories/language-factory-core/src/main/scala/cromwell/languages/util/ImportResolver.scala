@@ -220,10 +220,10 @@ object ImportResolver {
       case None => true
     }
 
-    def authHeaders(uri: Uri): Map[String, String] = {
+    def fetchAuthHeaders(uri: Uri): Future[Map[String, String]] = {
       authProviders collectFirst {
-        case provider if provider.validHosts.contains(uri.host) => Await.result(provider.authHeader(), 10.seconds)
-      } getOrElse Map.empty[String, String]
+        case provider if provider.validHosts.contains(uri.host) => provider.authHeader()
+      } getOrElse Future.successful(Map.empty[String, String])
     }
 
     override def innerResolver(str: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle] =
@@ -245,15 +245,15 @@ object ImportResolver {
     private def getUri(toLookup: WorkflowUrl): Either[NonEmptyList[WorkflowSource], ResolvedImportBundle] = {
       implicit val sttpBackend = HttpResolver.sttpBackend()
 
-      val authAmendedHeaders = headers ++ authHeaders(uri"$toLookup")
-      val responseIO: IO[Response[WorkflowSource]] = sttp.get(uri"$toLookup").headers(authAmendedHeaders).send()
-
-      // temporary situation to get functionality working before
+      // Temporary situation to get functionality working before
       // starting in on async-ifying the entire WdlNamespace flow
+      // Note: this will cause the calling thread to block for up to 30 seconds
+      // (15 for the auth header lookup, 15 for the http request)
+      val authHeaders = Await.result(fetchAuthHeaders(uri"$toLookup"), 15.seconds)
+      val responseIO: IO[Response[WorkflowSource]] = sttp.get(uri"$toLookup").headers(headers ++ authHeaders).send()
       val result: Checked[WorkflowSource] = Await.result(responseIO.unsafeToFuture(), 15.seconds).body.leftMap { e =>
         NonEmptyList(e.toString.trim, List.empty)
       }
-
       result map {
         ResolvedImportBundle(_, newResolverList(toLookup), ResolvedImportRecord(toLookup))
       }

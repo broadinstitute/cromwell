@@ -51,26 +51,31 @@ class BatchApiRequestWorker(val pollingManager: ActorRef,
 
     // Create the batch:
     // TODO: WARNING: These call change 'batch' as a side effect. Things might go awry if map runs items in parallel?
-    val batchFutures = workBatch map { batchHandler.enqueue(_, batch, pollingManager) }
+    // TODO: Alex - this value can be discarded because its already returned by runBatch
+    val _ = workBatch map { batchHandler.enqueue(_, batch, pollingManager) }
 
     // Execute the batch and return the list of successes and failures:
     // NB: Blocking and error prone. If this fails, let the supervisor in the BatchApiRequestManager catch and resubmit
     // the work.
+//    Future.sequence(batchFutures.toList)
     runBatch(batch)
-    Future.sequence(batchFutures.toList)
   }
 
   // These are separate functions so that the tests can hook in and replace the JES-side stuff
   private[api] def createBatch(): GcpBatchGroupedRequests = batch
-  private[api] def runBatch(batch: GcpBatchGroupedRequests): Unit =
-    try
-      if (batch.size > 0) batch.execute()
-    catch {
+  private[api] def runBatch(batch: GcpBatchGroupedRequests): Future[List[Try[Unit]]] = {
+    val result =
+      if (batch.size > 0) batch.execute(ec)
+      else Future.successful(List.empty)
+
+    result.recover {
+      // TODO: Alex - this seems unnecessary
       case e: java.io.IOException =>
         val msg =
           s"A batch of Batch status requests failed. The request manager will retry automatically up to 10 times. The error was: ${e.getMessage}"
         throw new Exception(msg, e.getCause) with NoStackTrace
     }
+  }
 
   // TODO: FSMify this actor?
   private def interstitialRecombobulation: PartialFunction[Try[List[Try[Unit]]], Unit] = {

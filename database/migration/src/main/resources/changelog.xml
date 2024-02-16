@@ -90,6 +90,12 @@
     <include file="changesets/enlarge_docker_hash_store_entry_id.xml" relativeToChangelogFile="true" />
     <include file="changesets/enlarge_workflow_store_entry_id.xml" relativeToChangelogFile="true" />
     <include file="changesets/enlarge_sub_workflow_store_entry_id.xml" relativeToChangelogFile="true" />
+    <!-- WARNING!
+      This changeset should always be last.
+      It is always run (and should always run last) to set table ownership correctly.
+      If your changeset adds a new table, make sure it is also owned by the sharedCromwellDbRole.
+    -->
+    <include file="changesets/set_table_role.xml" relativeToChangelogFile="true" />
     <!-- REMINDER!
       Before appending here, did you remember to include the 'objectQuotingStrategy="QUOTE_ALL_OBJECTS"' line in your changeset/xyz.xml...?
     -->

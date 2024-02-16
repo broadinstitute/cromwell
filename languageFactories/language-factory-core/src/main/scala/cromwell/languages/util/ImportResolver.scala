@@ -197,13 +197,9 @@ object ImportResolver {
       with StrictLogging {
     import HttpResolver._
 
-    override def name: String = {
-      val relativeToSuffix = relativeTo match {
-        case Some(relativeToPath) => s"(relative to $relativeToPath)"
-        case None => "(no 'relative-to' origin)"
-      }
-
-      s"HTTP resolver $relativeToSuffix"
+    override def name: String = relativeTo match {
+      case Some(relativeToPath) => s"http importer (relative to $relativeToPath)"
+      case None => "http importer (no 'relative-to' origin)"
     }
 
     def newResolverList(newRoot: String): List[ImportResolver] = {

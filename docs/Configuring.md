@@ -324,6 +324,34 @@ database {
 }
 ```
 
+If you want multiple database users to be able to read Cromwell's data from a Postgresql database, you'll need to create a
+role that all relevant users have access to, and adjust Cromwell to use this role. This is because each Large Object is owned
+by, and only readable by, the role that wrote it.
+
+First, pass these options when executing Cromwell. They will ensure that Cromwell's database tables are 
+owned by the role, not the initial login user.
+ * `-DengineSharedCromwellDbRole=your_role` to control the role that owns the engine tables
+ * `-DsharedCromwellDbRole=your_role` to control the role that owns the metadata tables
+
+Next, use the config key `pgLargeObjectWriteRole` to set the role that should own all large objects, as shown below. 
+This config will have no effect if you aren't using Postgresql. The configured login user can be any user that is
+granted the shared role.
+
+```hocon
+database {
+  profile = "slick.jdbc.PostgresProfile$"
+  pgLargeObjectWriteRole = "your_role"
+  db {
+    driver = "org.postgresql.Driver"
+    url = "jdbc:postgresql://localhost:5432/cromwell"
+    user = "user"
+    password = "pass"
+    port = 5432
+    connectionTimeout = 5000
+  }
+}
+```
+
 **Using Cromwell with file-based database (No server required)**
 
 SQLite is currently not supported. However, HSQLDB does support running with a persistence file.

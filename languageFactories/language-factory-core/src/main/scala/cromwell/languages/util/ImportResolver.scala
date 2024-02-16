@@ -263,7 +263,7 @@ object ImportResolver {
       }
 
       result.body.leftMap { e =>
-        NonEmptyList.of(s"${result.code}: ${e.trim}")
+        NonEmptyList.of(e.trim)
       } map {
         ResolvedImportBundle(_, newResolverList(toLookup), ResolvedImportRecord(toLookup))
       }

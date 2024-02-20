@@ -252,7 +252,8 @@ object BiscayneValueEvaluators {
           expressionValueEvaluator
         )
       ) {
-        case WomArray(WomArrayType(WomPairType(leftType, rightType)), values) =>
+        case WomArray(WomArrayType(WomAnyType), Seq()) => EvaluatedValue(WomPair(WomArray(WomArrayType(WomAnyType), Seq.empty), WomArray(WomArrayType(WomAnyType), Seq.empty)),Seq.empty).validNel
+        case WomArray(WomArrayType(WomPairType(_,_)), values) =>
           val zippedPairs: Seq[(WomValue, WomValue)] = values map { case pair: WomPair =>
             Tuple2(pair.left, pair.right)
           }

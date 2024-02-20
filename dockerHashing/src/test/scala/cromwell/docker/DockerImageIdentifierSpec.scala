@@ -42,6 +42,7 @@ class DockerImageIdentifierSpec
       ),
       ("terrabatchdev.azurecr.io/postgres:latest", Option("terrabatchdev.azurecr.io"), None, "postgres", "latest"),
       ("python:3", None, None, "python", "3"),
+      ("localhost:443/ubuntu", Option("localhost:443"), None, "ubuntu", "latest"),
       // Very long tags with trailing spaces cause problems for the re engine
       ("someuser/someimage:supercalifragilisticexpialidociouseventhoughthesoundofitissomethingquiteatrociousifyousayitloudenoughyoullalwayssoundprecocious ",
        None,

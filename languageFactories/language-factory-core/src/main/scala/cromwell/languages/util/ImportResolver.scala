@@ -248,11 +248,11 @@ object ImportResolver {
     private def getUri(toLookup: WorkflowUrl): Checked[ResolvedImportBundle] = {
       // Temporary situation to get functionality working before
       // starting in on async-ifying the entire WdlNamespace flow
-      // Note: this will cause the calling thread to block for up to 30 seconds
-      // (15 for the auth header lookup, 15 for the http request)
+      // Note: this will cause the calling thread to block for up to 20 seconds
+      // (5 for the auth header lookup, 15 for the http request)
       val unauthedAttempt = getUriInner(toLookup, Map.empty)
-      val result = if (StatusCodes.NotFound == unauthedAttempt.code) {
-        val authHeaders = Await.result(fetchAuthHeaders(uri"$toLookup"), 15.seconds)
+      val result = if (unauthedAttempt.code == StatusCodes.NotFound) {
+        val authHeaders = Await.result(fetchAuthHeaders(uri"$toLookup"), 5.seconds)
         if (authHeaders.nonEmpty) {
           getUriInner(toLookup, authHeaders)
         } else {

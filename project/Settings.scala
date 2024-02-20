@@ -101,7 +101,6 @@ object Settings {
 
   val pact4sSettings = sharedSettings ++ List(
     libraryDependencies ++= pact4sDependencies,
-
     /**
       * Invoking pact tests from root project (sbt "project pact" test)
       * will launch tests in a separate JVM context that ensures contracts
@@ -110,9 +109,6 @@ object Settings {
       */
     Test / fork := true
   ) ++ assemblySettings
-
-  lazy val pact4s = project.in(file("pact4s"))
-    .settings(pact4sSettings)
 
   /*
       Docker instructions to install Google Cloud SDK image in docker image. It also installs `crcmod` which

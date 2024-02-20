@@ -8,6 +8,7 @@ pact4s is used for contract testing.
   val pact4sDependencies = Seq(
     pact4sScalaTest,
     pact4sCirce,
+    pact4sSpray
     http4sEmberClient,
     http4sDsl,
     http4sEmberServer,
@@ -47,4 +48,5 @@ docker run --rm -v $PWD:/working \
 
 The generated contracts can be found in the `./target/pacts` folder
 - `cromwell-drshub.json`
+- `cromwell-cbas.json`
 

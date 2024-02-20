@@ -108,7 +108,7 @@ object PactHelper {
                        requestBody: DslPart,
                        status: Int,
                        responseHeaders: Seq[(String, String)],
-                       responsBody: DslPart
+                       responseBody: DslPart
   ): PactDslResponse =
     builder
       .`given`(state, scala.jdk.CollectionConverters.MapHasAsJava(stateParams).asJava)
@@ -120,7 +120,26 @@ object PactHelper {
       .willRespondWith()
       .status(status)
       .headers(scala.jdk.CollectionConverters.MapHasAsJava(responseHeaders.toMap).asJava)
-      .body(responsBody)
+      .body(responseBody)
+
+  def buildInteraction[A](builder: PactDslWithProvider,
+                          state: String,
+                          uponReceiving: String,
+                          method: String,
+                          path: String,
+                          requestHeaders: Seq[(String, String)],
+                          requestBody: A,
+                          status: Int
+  )(implicit ev: PactBodyJsonEncoder[A]): PactDslResponse =
+    builder
+      .`given`(state)
+      .uponReceiving(uponReceiving)
+      .method(method)
+      .path(path)
+      .headers(scala.jdk.CollectionConverters.MapHasAsJava(requestHeaders.toMap).asJava)
+      .body(ev.toJsonString(requestBody))
+      .willRespondWith()
+      .status(status)
 
   def buildInteraction(builder: PactDslResponse,
                        state: String,

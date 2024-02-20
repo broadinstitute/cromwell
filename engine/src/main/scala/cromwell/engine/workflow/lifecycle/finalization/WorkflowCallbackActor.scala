@@ -11,7 +11,7 @@ import akka.http.scaladsl.model.headers.RawHeader
 import akka.routing.Broadcast
 import akka.util.ByteString
 import cats.data.Validated.{Invalid, Valid}
-import cats.implicits.toTraverseOps
+import cats.implicits.{catsSyntaxValidatedId, toTraverseOps}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import common.validation.ErrorOr
@@ -48,6 +48,10 @@ object WorkflowCallbackConfig extends LazyLogging {
   sealed trait AuthMethod { def getAccessToken: ErrorOr.ErrorOr[String] }
   case object AzureAuth extends AuthMethod {
     override def getAccessToken: ErrorOr.ErrorOr[String] = AzureCredentials.getAccessToken()
+  }
+
+  case class StaticTokenAuth(token: String) extends AuthMethod {
+    override def getAccessToken: ErrorOr.ErrorOr[String] = token.validNel
   }
 
   private lazy val defaultNumThreads = 5

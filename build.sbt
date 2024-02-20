@@ -399,7 +399,9 @@ lazy val `cromwell-drs-localizer` = project
 
 lazy val pact4s = project.in(file("pact4s"))
   .settings(pact4sSettings)
+  .dependsOn(engine)
   .dependsOn(services)
+  .dependsOn(engine % "test->test")
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
 lazy val server = project

@@ -138,7 +138,7 @@ class DrsHubClientSpec extends AnyFlatSpec with Matchers with RequestResponsePac
     requestBody = resourceRequestDsl,
     status = 200,
     responseHeaders = Seq(),
-    responsBody = resourceMetadataResponseDsl
+    responseBody = resourceMetadataResponseDsl
   )
 
   pactDslResponse = buildInteraction(

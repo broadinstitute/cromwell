@@ -41,6 +41,7 @@ class DockerImageIdentifierSpec
        "0.8.1.1--htslib1.5_0"
       ),
       ("terrabatchdev.azurecr.io/postgres:latest", Option("terrabatchdev.azurecr.io"), None, "postgres", "latest"),
+      ("python:3", None, None, "python", "3"),
       // Very long tags with trailing spaces cause problems for the re engine
       ("someuser/someimage:supercalifragilisticexpialidociouseventhoughthesoundofitissomethingquiteatrociousifyousayitloudenoughyoullalwayssoundprecocious ",
        None,

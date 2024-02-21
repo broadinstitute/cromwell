@@ -164,7 +164,8 @@ package object values {
         case a: Zip => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
         case a: Cross =>
           a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
-        case a: Unzip => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
+        case a: Unzip =>
+          a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
 
         case a: Sub => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
 

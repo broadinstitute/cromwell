@@ -246,14 +246,18 @@ object cascadesValueEvaluators {
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
-                              )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomPair]] = {
+    )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomPair]] =
       processValidatedSingleValue[WomArray, WomPair](
         expressionValueEvaluator.evaluateValue(a.param, inputs, ioFunctionSet, forCommandInstantiationOptions)(
           expressionValueEvaluator
         )
       ) {
-        case WomArray(WomArrayType(WomAnyType), Seq()) => EvaluatedValue(WomPair(WomArray(WomArrayType(WomAnyType), Seq.empty), WomArray(WomArrayType(WomAnyType), Seq.empty)),Seq.empty).validNel
-        case WomArray(WomArrayType(WomPairType(_,_)), values) =>
+        case WomArray(WomArrayType(WomAnyType), Seq()) =>
+          EvaluatedValue(
+            WomPair(WomArray(WomArrayType(WomAnyType), Seq.empty), WomArray(WomArrayType(WomAnyType), Seq.empty)),
+            Seq.empty
+          ).validNel
+        case WomArray(WomArrayType(WomPairType(_, _)), values) =>
           val zippedPairs: Seq[(WomValue, WomValue)] = values map { case pair: WomPair =>
             Tuple2(pair.left, pair.right)
           }
@@ -263,6 +267,5 @@ object cascadesValueEvaluators {
         case other =>
           s"Invalid call of 'unzip' on parameter of type '${other.womType.stableName}' (expected Array[Pair[X, Y]])".invalidNel
       }
-    }
   }
 }

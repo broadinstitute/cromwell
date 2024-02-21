@@ -14,7 +14,8 @@ object cascadesFileEvaluators {
     EngineFunctionEvaluators.singleParameterPassthroughFileEvaluator
   implicit val collectByKeyFileEvaluator: FileEvaluator[CollectByKey] =
     EngineFunctionEvaluators.singleParameterPassthroughFileEvaluator
-  implicit val unzipFunctionEvaluator: FileEvaluator[Unzip] = EngineFunctionEvaluators.singleParameterPassthroughFileEvaluator
+  implicit val unzipFunctionEvaluator: FileEvaluator[Unzip] =
+    EngineFunctionEvaluators.singleParameterPassthroughFileEvaluator
 
   implicit val sepFunctionEvaluator: FileEvaluator[Sep] = twoParameterFunctionPassthroughFileEvaluator[Sep]
   implicit val suffixFunctionEvaluator: FileEvaluator[Suffix] = twoParameterFunctionPassthroughFileEvaluator[Suffix]

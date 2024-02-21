@@ -149,9 +149,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     SimpleExponentialBackoff(initialInterval = 3 seconds, maxInterval = 20 seconds, multiplier = 1.1)
 
   override lazy val runtimeEnvironment: RuntimeEnvironment =
-    RuntimeEnvironmentBuilder(PipelinesApiWorkingDisk.MountPoint,
-                              PipelinesApiWorkingDisk.MountPoint
-    )(standardParams.minimumRuntimeSettings)
+    RuntimeEnvironmentBuilder(PipelinesApiWorkingDisk.MountPoint)(standardParams.minimumRuntimeSettings)
 
   protected lazy val cmdInput: PipelinesApiFileInput =
     PipelinesApiFileInput(PipelinesApiJobPaths.JesExecParamName,

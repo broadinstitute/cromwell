@@ -13,18 +13,14 @@ import wom.format.MemorySize
 
 object RuntimeEnvironmentBuilder {
 
-  def apply(callRoot: Path,
-            callExecutionRoot: Path
-  ): MinimumRuntimeSettings => RuntimeEnvironment = { _ =>
-    val outputPath: String = callExecutionRoot.pathAsString
-
+  def apply(callRoot: Path): MinimumRuntimeSettings => RuntimeEnvironment = { _ =>
     val tempPath: String = {
       val uuid = UUID.randomUUID().toString
       val hash = uuid.substring(0, uuid.indexOf('-'))
       callRoot.resolve(s"tmp.$hash").pathAsString
     }
 
-    RuntimeEnvironment(outputPath, tempPath)
+    RuntimeEnvironment(tempPath)
   }
 
   /**
@@ -34,7 +30,7 @@ object RuntimeEnvironmentBuilder {
     * during the expression evaluation time, it should report back the minimal requested amount."
     */
   def apply(jobPaths: JobPaths): MinimumRuntimeSettings => RuntimeEnvironment =
-    this.apply(jobPaths.callRoot, jobPaths.callExecutionRoot)
+    this.apply(jobPaths.callRoot)
 }
 
 case class MinimumRuntimeSettings(cores: Int Refined Positive = refineMV(1),

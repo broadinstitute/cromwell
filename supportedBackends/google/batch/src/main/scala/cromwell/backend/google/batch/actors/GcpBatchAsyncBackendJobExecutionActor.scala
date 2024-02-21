@@ -1019,9 +1019,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     SimpleExponentialBackoff(initialInterval = 5.seconds, maxInterval = 20.seconds, multiplier = 1.1)
 
   override lazy val runtimeEnvironment: RuntimeEnvironment =
-    RuntimeEnvironmentBuilder(GcpBatchWorkingDisk.MountPoint,
-                              GcpBatchWorkingDisk.MountPoint
-    )(standardParams.minimumRuntimeSettings)
+    RuntimeEnvironmentBuilder(GcpBatchWorkingDisk.MountPoint)(standardParams.minimumRuntimeSettings)
 
   protected def sendIncrementMetricsForReferenceFiles(referenceInputFilesOpt: Option[Set[GcpBatchInput]]): Unit =
     referenceInputFilesOpt match {

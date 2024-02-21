@@ -514,7 +514,7 @@ trait StandardAsyncExecutionActor
 
   def runtimeEnvironmentPathMapper(env: RuntimeEnvironment): RuntimeEnvironment = {
     def localize(path: String): String = (WomSingleFile(path) |> commandLineValueMapper).valueString
-    env.copy(outputPath = env.outputPath |> localize, tempPath = env.tempPath |> localize)
+    env.copy(tempPath = env.tempPath |> localize)
   }
 
   lazy val runtimeEnvironment: RuntimeEnvironment =

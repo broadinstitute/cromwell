@@ -11,7 +11,7 @@ import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wdl.transforms.biscayne.Ast2WdlomSpec.{fromString, parser}
 import wdl.transforms.biscayne.ast2wdlom._
 import wom.expression.NoIoFunctionSet
-import wom.types.{WomArrayType, WomIntegerType, WomMapType, WomOptionalType, WomStringType}
+import wom.types.{WomAnyType, WomArrayType, WomIntegerType, WomMapType, WomOptionalType, WomStringType}
 import wom.values.{WomArray, WomInteger, WomMap, WomOptionalValue, WomPair, WomString}
 
 class BiscayneValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
@@ -235,8 +235,8 @@ class BiscayneValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
     val str = """ unzip([])"""
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-    val left: WomArray = WomArray(WomArrayType(WomStringType), Seq())
-    val right: WomArray = WomArray(WomArrayType(WomIntegerType), Seq())
+    val left: WomArray = WomArray(WomArrayType(WomAnyType), Seq())
+    val right: WomArray = WomArray(WomArrayType(WomAnyType), Seq())
     val expectedPair: WomPair = WomPair(left, right)
 
     expr.shouldBeValidPF { case e =>

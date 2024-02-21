@@ -92,7 +92,6 @@ sealed trait CommandTaskDefinition extends TaskDefinition {
   def adHocFileCreation: Set[ContainerizedInputExpression]
   def environmentExpressions: Map[String, WomExpression]
   def additionalGlob: Option[WomGlobFile]
-  def homeOverride: Option[RuntimeEnvironment => String]
 
   /**
     * Provides a custom way to evaluate outputs of the task definition.
@@ -162,7 +161,6 @@ final case class CallableTaskDefinition(name: String,
                                         additionalGlob: Option[WomGlobFile] = None,
                                         private[wom] val customizedOutputEvaluation: OutputEvaluationFunction =
                                           OutputEvaluationFunction.none,
-                                        homeOverride: Option[RuntimeEnvironment => String] = None,
                                         dockerOutputDirectory: Option[String] = None,
                                         override val sourceLocation: Option[SourceFileLocation]
 ) extends CommandTaskDefinition {
@@ -197,7 +195,6 @@ final case class ExecutableTaskDefinition private (callableTaskDefinition: Calla
   override def additionalGlob = callableTaskDefinition.additionalGlob
   override private[wom] def customizedOutputEvaluation = callableTaskDefinition.customizedOutputEvaluation
   override def toExecutable = this.validNel
-  override def homeOverride = callableTaskDefinition.homeOverride
   override def dockerOutputDirectory = callableTaskDefinition.dockerOutputDirectory
 }
 

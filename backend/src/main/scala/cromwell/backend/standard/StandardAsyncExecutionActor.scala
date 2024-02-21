@@ -431,7 +431,7 @@ trait StandardAsyncExecutionActor
       s"""export $k="$v""""
     } mkString ("", "\n", "\n")
 
-    val home = jobDescriptor.taskCall.callable.homeOverride.map(_(runtimeEnvironment)).getOrElse("$HOME")
+    val home = "$HOME"
     val shortId = jobDescriptor.workflowDescriptor.id.shortString
     // Give the out and error FIFO variables names that are unlikely to conflict with anything the user is doing.
     val (out, err) = (s"out$shortId", s"err$shortId")

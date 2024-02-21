@@ -104,8 +104,7 @@ sealed trait CommandTaskDefinition extends TaskDefinition {
 
   def instantiateCommand(taskInputs: WomEvaluatedCallInputs,
                          functions: IoFunctionSet,
-                         valueMapper: WomValue => WomValue,
-                         runtimeEnvironment: RuntimeEnvironment
+                         valueMapper: WomValue => WomValue
   ): ErrorOr[InstantiatedCommand] = {
 
     val inputsByLocalName = taskInputs map { case (k, v) => k.localName -> v }
@@ -115,7 +114,7 @@ sealed trait CommandTaskDefinition extends TaskDefinition {
     // Just raw command parts, no separators.
     val rawCommandParts: List[ErrorOr[InstantiatedCommand]] =
       commandTemplate(taskInputs).toList.flatMap { commandPart =>
-        commandPart.instantiate(inputsByLocalName, functions, valueMapper, runtimeEnvironment).sequence
+        commandPart.instantiate(inputsByLocalName, functions, valueMapper).sequence
       }
 
     // Add separator command parts and monoid smash down to one `ErrorOr[InstantiatedCommand]`.

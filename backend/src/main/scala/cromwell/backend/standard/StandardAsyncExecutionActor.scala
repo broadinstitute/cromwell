@@ -685,8 +685,7 @@ trait StandardAsyncExecutionActor
       jobDescriptor,
       backendEngineFunctions,
       mutatingPreProcessor,
-      commandLineValueMapper,
-      runtimeEnvironment
+      commandLineValueMapper
     )
 
     def makeStringKeyedMap(list: List[(LocalName, WomValue)]): Map[String, WomValue] = list.toMap map { case (k, v) =>

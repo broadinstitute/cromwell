@@ -10,12 +10,10 @@ import eu.timepit.refined.refineMV
 import wdl4s.parser.MemoryUnit
 import wom.callable.RuntimeEnvironment
 import wom.format.MemorySize
-import wom.values.WomValue
 
 object RuntimeEnvironmentBuilder {
 
-  def apply(runtimeAttributes: Map[String, WomValue],
-            callRoot: Path,
+  def apply(callRoot: Path,
             callExecutionRoot: Path
   ): MinimumRuntimeSettings => RuntimeEnvironment = { minimums =>
     val outputPath: String = callExecutionRoot.pathAsString
@@ -35,10 +33,8 @@ object RuntimeEnvironmentBuilder {
     * "For cores, ram, outdirSize and tmpdirSize, if an implementation can't provide the actual number of reserved cores
     * during the expression evaluation time, it should report back the minimal requested amount."
     */
-  def apply(runtimeAttributes: Map[String, WomValue],
-            jobPaths: JobPaths
-  ): MinimumRuntimeSettings => RuntimeEnvironment =
-    this.apply(runtimeAttributes, jobPaths.callRoot, jobPaths.callExecutionRoot)
+  def apply(jobPaths: JobPaths): MinimumRuntimeSettings => RuntimeEnvironment =
+    this.apply(jobPaths.callRoot, jobPaths.callExecutionRoot)
 }
 
 case class MinimumRuntimeSettings(cores: Int Refined Positive = refineMV(1),

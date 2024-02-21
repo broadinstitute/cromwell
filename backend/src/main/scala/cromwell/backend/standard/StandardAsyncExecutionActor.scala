@@ -518,7 +518,7 @@ trait StandardAsyncExecutionActor
   }
 
   lazy val runtimeEnvironment: RuntimeEnvironment =
-    RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(
+    RuntimeEnvironmentBuilder(jobPaths)(
       standardParams.minimumRuntimeSettings
     ) |> runtimeEnvironmentPathMapper
 

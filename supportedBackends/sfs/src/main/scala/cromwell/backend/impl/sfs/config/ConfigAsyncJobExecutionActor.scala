@@ -105,7 +105,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     } yield optional -> WomOptionalValue.none(optional.womType.memberType)
 
     val runtimeEnvironment =
-      RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(standardParams.minimumRuntimeSettings)
+      RuntimeEnvironmentBuilder(jobPaths)(standardParams.minimumRuntimeSettings)
     val allInputs = providedWomInputs ++ optionalsForciblyInitializedToNone
     val womInstantiation = taskDefinition.instantiateCommand(allInputs, NoIoFunctionSet, identity, runtimeEnvironment)
 

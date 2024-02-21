@@ -3,7 +3,6 @@ package cromwell.backend
 import java.util.UUID
 
 import cromwell.backend.io.JobPaths
-import cromwell.backend.validation.{CpuValidation, MemoryValidation}
 import cromwell.core.path.Path
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
@@ -27,21 +26,7 @@ object RuntimeEnvironmentBuilder {
       callRoot.resolve(s"tmp.$hash").pathAsString
     }
 
-    val cores: Int Refined Positive = CpuValidation.instanceMin.validate(runtimeAttributes).getOrElse(minimums.cores)
-
-    val memoryInMB: Double =
-      MemoryValidation
-        .instance()
-        .validate(runtimeAttributes)
-        .map(_.to(MemoryUnit.MB).amount)
-        .getOrElse(minimums.ram.amount)
-
-    // TODO: Read these from somewhere else
-    val outputPathSize: Long = minimums.outputPathSize
-
-    val tempPathSize: Long = minimums.outputPathSize
-
-    RuntimeEnvironment(outputPath, tempPath, cores, memoryInMB, outputPathSize, tempPathSize)
+    RuntimeEnvironment(outputPath, tempPath)
   }
 
   /**

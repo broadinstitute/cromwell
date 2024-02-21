@@ -64,4 +64,12 @@ class CascadesTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
       e.evaluateType(Map.empty) shouldBeValid WomArrayType(WomStringType)
     }
   }
+
+  it should "evaluate the type of an unzip() function on an empty collection as Pair[Array[Any], Array[Any]]" in {
+    val empty = """ unzip([]) """
+    val empty_unzip_expr = fromString[ExpressionElement](empty, parser.parse_e)
+    empty_unzip_expr.shouldBeValidPF { case e =>
+      e.evaluateType(Map.empty) shouldBeValid WomPairType(WomArrayType(WomAnyType), WomArrayType(WomAnyType))
+    }
+  }
 }

@@ -74,4 +74,11 @@ object cascadesExpressionValueConsumers {
         // None literals consume no values:
         Set.empty[UnlinkedConsumedValueHook]
     }
+
+  implicit val unzipExpressionValueConsumer: ExpressionValueConsumer[Unzip] = new ExpressionValueConsumer[Unzip] {
+    override def expressionConsumedValueHooks(a: Unzip)(implicit
+                                                          expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
+    ): Set[UnlinkedConsumedValueHook] =
+      expressionValueConsumer.expressionConsumedValueHooks(a.param)(expressionValueConsumer)
+  }
 }

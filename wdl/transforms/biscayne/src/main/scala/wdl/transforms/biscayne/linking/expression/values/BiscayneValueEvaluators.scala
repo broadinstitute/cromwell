@@ -236,9 +236,9 @@ object BiscayneValueEvaluators {
       }
   }
 
-  // Pair[Array[X], Array[Y]] unzip(Array[Pair[X, Y]])
-  // Creates a Pair of Arrays, the first containing the elements from the left members of an Array of Pairs, and the second containing the right members.
+  // Creates a Pair of Arrays, the first containing the elements from the left members of an array of pairs, and the second containing the right members.
   // This is the inverse of the zip function.
+  // https://github.com/openwdl/wdl/blob/main/versions/1.1/SPEC.md#-pairarrayx-arrayy-unziparraypairx-y
   // @params : Array[Pair[X,Y]]
   // @returns : Pair[Array[X], Array[Y]]
   implicit val unzipFunctionEvaluator: ValueEvaluator[Unzip] = new ValueEvaluator[Unzip] {

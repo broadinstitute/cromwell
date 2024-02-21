@@ -11,7 +11,7 @@ import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wdl.transforms.cascades.Ast2WdlomSpec.{fromString, parser}
 import wdl.transforms.cascades.ast2wdlom._
 import wom.expression.NoIoFunctionSet
-import wom.types.{WomIntegerType, WomMapType, WomOptionalType, WomStringType}
+import wom.types.{WomAnyType, WomArrayType, WomIntegerType, WomMapType, WomOptionalType, WomStringType}
 import wom.values.{WomArray, WomInteger, WomMap, WomOptionalValue, WomPair, WomString}
 
 class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
@@ -215,6 +215,31 @@ class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
 
     expr.shouldBeValidPF { case e =>
       e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
+  it should "evaluate an unzip expression correctly" in {
+    val str = """ unzip([("one", 1),("two", 2),("three", 3)]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val left: WomArray = WomArray(WomArrayType(WomStringType), Seq(WomString("one"), WomString("two"), WomString("three")))
+    val right: WomArray = WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(1), WomInteger(2), WomInteger(3)))
+    val expectedPair: WomPair = WomPair(left, right)
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedPair, Seq.empty)
+    }
+  }
+
+  it should "evaluate an unzip on an empty collection correctly" in {
+    val str = """ unzip([])"""
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val left: WomArray = WomArray(WomArrayType(WomAnyType), Seq())
+    val right: WomArray = WomArray(WomArrayType(WomAnyType), Seq())
+    val expectedPair: WomPair = WomPair(left, right)
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedPair, Seq.empty)
     }
   }
 }

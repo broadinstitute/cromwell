@@ -63,4 +63,10 @@ class Ast2WdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     val expr = fromString[ExpressionElement](str, parser.parse_e)
     expr shouldBeValid (IdentifierLookup("None"))
   }
+
+  it should "not parse the new unzip function" in {
+    val str = "unzip(some_array_of_pairs)"
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeInvalid "Failed to parse expression (reason 1 of 1): Unknown engine function: 'unzip'"
+  }
 }

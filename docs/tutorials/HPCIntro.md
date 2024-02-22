@@ -289,4 +289,3 @@ You might find the following tutorials interesting to tackle next:
 
 * [Persisting Data Between Restarts](PersistentServer)
 * [Server Mode](ServerMode.md)
-* If you'd like to configure Cromwell to use a local scratch device, see instructions here [HPCSlurmWithLocalScratch.md](HPCSlurmWithLocalScratch.md)

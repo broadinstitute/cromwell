@@ -28,9 +28,6 @@ object Command {
                   valueMapper: WomValue => WomValue
   ): ErrorOr[InstantiatedCommand] =
     inputsPreProcessor(jobDescriptor.evaluatedTaskInputs).toErrorOr flatMap { mappedInputs =>
-      jobDescriptor.taskCall.callable.instantiateCommand(mappedInputs,
-                                                         callEngineFunction,
-                                                         valueMapper
-      )
+      jobDescriptor.taskCall.callable.instantiateCommand(mappedInputs, callEngineFunction, valueMapper)
     }
 }

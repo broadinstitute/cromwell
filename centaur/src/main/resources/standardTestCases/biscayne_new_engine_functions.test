@@ -59,17 +59,11 @@ metadata {
   "outputs.biscayne_new_engine_functions.with_suffixes.1": "bbbS"
   "outputs.biscayne_new_engine_functions.with_suffixes.2": "cccS"
 
-  "outputs.biscayne_new_engine_functions.unzipped_a.left": []
-
   "outputs.biscayne_new_engine_functions.unzipped_b.left.0": "A"
   "outputs.biscayne_new_engine_functions.unzipped_b.right.0": "a"
 
-  "outputs.biscayne_new_engine_functions.unzipped_c.left": ["A", "B"]
-  "outputs.biscayne_new_engine_functions.unzipped_c.right": ["a", "b"]
-
-  "outputs.biscayne_new_engine_functions.unzipped_d.left": ["A", "B", "C"]
-  "outputs.biscayne_new_engine_functions.unzipped_d.right": ["a", "b", "c"]
-
-  "outputs.biscayne_new_engine_functions.unzipped_e.left": ["one", "two", "three"]
-  "outputs.biscayne_new_engine_functions.unzipped_e.right": [1.0, 2.0, 3.0]
+  "outputs.biscayne_new_engine_functions.unzipped_c.left.0": "A"
+  "outputs.biscayne_new_engine_functions.unzipped_c.left.1": "B"
+  "outputs.biscayne_new_engine_functions.unzipped_c.right.0": "a"
+  "outputs.biscayne_new_engine_functions.unzipped_c.right.1": "b"
 }

@@ -5,7 +5,6 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.services.auth.GithubAuthVending.{GithubAuthRequest, GithubAuthTokenResponse, NoGithubAuthResponse}
-import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 class GithubAuthVendingActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
     extends Actor

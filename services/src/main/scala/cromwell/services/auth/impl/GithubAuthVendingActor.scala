@@ -16,7 +16,7 @@ class GithubAuthVendingActor(serviceConfig: Config, globalConfig: Config, servic
   override def receive: Receive = {
     case GithubAuthRequest(_) if enabled =>
       sender() ! GithubAuthTokenResponse(serviceConfig.getString("access-token"))
-    case ShutdownCommand => context stop self
+//    case ShutdownCommand => context stop self
     case _ =>
       sender() ! NoGithubAuthResponse
   }

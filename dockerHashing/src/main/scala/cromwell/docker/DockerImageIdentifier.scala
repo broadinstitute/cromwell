@@ -56,7 +56,7 @@ object DockerImageIdentifier {
 
        (                                        # Begin capturing group for name
           [a-z0-9]+(?:[._-][a-z0-9]+)*          # API v2 name component regex - see https://docs.docker.com/registry/spec/api/#/overview
-          (?::[0-9]+)?                          # Optional port
+          (?::[0-9]{4,5}|:443)?                 # Optional port (expect 4 or 5 digits OR :443)
           (?:/[a-z0-9]+(?:[._-][a-z0-9]+)*)*    # Optional additional name components separated by /
        )                                        # End capturing group for name
 

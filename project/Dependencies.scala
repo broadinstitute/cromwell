@@ -839,14 +839,16 @@ object Dependencies {
   val http4sCirce = "org.http4s" %% "http4s-circe" % http4sV
   val pact4sScalaTest = "io.github.jbwheatley" %% "pact4s-scalatest" % pact4sV % Test
   val pact4sCirce = "io.github.jbwheatley" %% "pact4s-circe" % pact4sV
+  val pact4sSpray = "io.github.jbwheatley" %% "pact4s-spray-json" % pact4sV
 
   val pact4sDependencies = Seq(
     pact4sScalaTest,
     pact4sCirce,
+    pact4sSpray,
     http4sEmberClient,
     http4sDsl,
     http4sEmberServer,
     http4sCirce,
     scalaTest,
-  )
+  ) ++ akkaDependencies
 }

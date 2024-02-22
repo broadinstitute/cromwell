@@ -33,8 +33,6 @@ object DeclarationValidation {
       case name if name == DockerValidation.instance.key =>
         new DeclarationValidation(declaration, DockerValidation.instance, usedInCallCachingOverride = None)
       case RuntimeAttributesKeys.CpuKey => new CpuDeclarationValidation(declaration, CpuValidation.instance)
-      case RuntimeAttributesKeys.CpuMinKey => new CpuDeclarationValidation(declaration, CpuValidation.instanceMin)
-      case RuntimeAttributesKeys.CpuMaxKey => new CpuDeclarationValidation(declaration, CpuValidation.instanceMax)
       // See MemoryDeclarationValidation for more info
       case name
           if MemoryDeclarationValidation.isMemoryDeclaration(name,
@@ -42,18 +40,6 @@ object DeclarationValidation {
                                                              MemoryRuntimeAttributePrefix
           ) =>
         new MemoryDeclarationValidation(declaration, MemoryRuntimeAttribute, MemoryRuntimeAttributePrefix)
-      case name
-          if MemoryDeclarationValidation.isMemoryDeclaration(name,
-                                                             MemoryMinRuntimeAttribute,
-                                                             MemoryRuntimeAttributePrefix
-          ) =>
-        new MemoryDeclarationValidation(declaration, MemoryMinRuntimeAttribute, MemoryMinRuntimeAttributePrefix)
-      case name
-          if MemoryDeclarationValidation.isMemoryDeclaration(name,
-                                                             MemoryMaxRuntimeAttribute,
-                                                             MemoryRuntimeAttributePrefix
-          ) =>
-        new MemoryDeclarationValidation(declaration, MemoryMaxRuntimeAttribute, MemoryMaxRuntimeAttributePrefix)
       case name
           if MemoryDeclarationValidation.isMemoryDeclaration(name, DiskRuntimeAttribute, DiskRuntimeAttributePrefix) =>
         new MemoryDeclarationValidation(declaration, DiskRuntimeAttribute, DiskRuntimeAttributePrefix)

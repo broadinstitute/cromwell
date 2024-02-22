@@ -248,7 +248,7 @@ object cascadesValueEvaluators {
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
-                              )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomPair]] =
+    )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomPair]] =
       processValidatedSingleValue[WomArray, WomPair](
         expressionValueEvaluator.evaluateValue(a.param, inputs, ioFunctionSet, forCommandInstantiationOptions)(
           expressionValueEvaluator

@@ -51,7 +51,7 @@ import org.apache.commons.io.output.ByteArrayOutputStream
 import wdl4s.parser.MemoryUnit
 import wom.callable.Callable.OutputDefinition
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
-import wom.callable.{AdHocValue, RuntimeEnvironment}
+import wom.callable.AdHocValue
 import wom.core.FullyQualifiedName
 import wom.expression.{FileEvaluation, NoIoFunctionSet}
 import wom.format.MemorySize
@@ -1017,9 +1017,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override lazy val executeOrRecoverBackOff: SimpleExponentialBackoff =
     SimpleExponentialBackoff(initialInterval = 5.seconds, maxInterval = 20.seconds, multiplier = 1.1)
-
-  override lazy val runtimeEnvironment: RuntimeEnvironment =
-    RuntimeEnvironmentBuilder(GcpBatchWorkingDisk.MountPoint)(standardParams.minimumRuntimeSettings)
 
   protected def sendIncrementMetricsForReferenceFiles(referenceInputFilesOpt: Option[Set[GcpBatchInput]]): Unit =
     referenceInputFilesOpt match {

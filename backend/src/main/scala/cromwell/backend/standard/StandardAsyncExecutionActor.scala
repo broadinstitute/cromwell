@@ -431,7 +431,6 @@ trait StandardAsyncExecutionActor
       s"""export $k="$v""""
     } mkString ("", "\n", "\n")
 
-    val home = "$HOME"
     val shortId = jobDescriptor.workflowDescriptor.id.shortString
     // Give the out and error FIFO variables names that are unlikely to conflict with anything the user is doing.
     val (out, err) = (s"out$shortId", s"err$shortId")
@@ -479,7 +478,7 @@ trait StandardAsyncExecutionActor
           |$tmpDirPermissionsAdjustment
           |export _JAVA_OPTIONS=-Djava.io.tmpdir="$$tmpDir"
           |export TMPDIR="$$tmpDir"
-          |export HOME="$home"
+          |export HOME="$$HOME"
           |
           |SCRIPT_PREAMBLE
           |

@@ -40,6 +40,9 @@ jobs:
           - build_type: centaurTes
             build_mysql: 5.7
             friendly_name: Centaur TES with MySQL 5.7
+          - build_type: centaurTesRestart
+            build_mysql: 5.7
+            friendly_name: Centaur TES (restart)
           - build_type: centaurLocal
             build_mysql: 5.7
             friendly_name: Centaur Local with MySQL 5.7

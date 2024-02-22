@@ -73,6 +73,6 @@ cromwell::build::run_centaur \
     -e write_lines_files \
     -e draft3_read_write_functions_local \
     -e directory_type_local \
-    -e restart
+    -i restart
 
 cromwell::build::generate_code_coverage

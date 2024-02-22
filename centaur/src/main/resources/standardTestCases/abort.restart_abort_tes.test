@@ -3,6 +3,7 @@ name: abort.restart_abort_tes
 testFormat: ScheduledAbortWithRestart
 callMark: scheduled_abort.aborted
 backends: [TES]
+tags: [restart]
 
 files {
   workflow: abort/scheduled_abort.wdl

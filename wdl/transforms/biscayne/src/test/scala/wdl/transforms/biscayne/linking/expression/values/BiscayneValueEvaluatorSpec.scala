@@ -222,7 +222,8 @@ class BiscayneValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
     val str = """ unzip([("one", 1),("two", 2),("three", 3)]) """
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-    val left: WomArray = WomArray(WomArrayType(WomStringType), Seq(WomString("one"), WomString("two"), WomString("three")))
+    val left: WomArray =
+      WomArray(WomArrayType(WomStringType), Seq(WomString("one"), WomString("two"), WomString("three")))
     val right: WomArray = WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(1), WomInteger(2), WomInteger(3)))
     val expectedPair: WomPair = WomPair(left, right)
 

@@ -236,11 +236,13 @@ object BiscayneValueEvaluators {
       }
   }
 
-  // Creates a Pair of Arrays, the first containing the elements from the left members of an array of pairs, and the second containing the right members.
-  // This is the inverse of the zip function.
-  // https://github.com/openwdl/wdl/blob/main/versions/1.1/SPEC.md#-pairarrayx-arrayy-unziparraypairx-y
-  // @params : Array[Pair[X,Y]]
-  // @returns : Pair[Array[X], Array[Y]]
+  /**
+   * Unzip: Creates a pair of arrays, the first containing the elements from the left members of an array of pairs,
+   * and the second containing the right members. This is the inverse of the zip function.
+   * https://github.com/openwdl/wdl/blob/main/versions/1.1/SPEC.md#-pairarrayx-arrayy-unziparraypairx-y
+   * input: Array[Pair[X,Y]]
+   * output: Pair[Array[X], Array[Y]]
+   */
   implicit val unzipFunctionEvaluator: ValueEvaluator[Unzip] = new ValueEvaluator[Unzip] {
     override def evaluateValue(a: Unzip,
                                inputs: Map[String, WomValue],
@@ -258,12 +260,12 @@ object BiscayneValueEvaluators {
             Seq.empty
           ).validNel
         case WomArray(WomArrayType(WomPairType(_, _)), values) =>
-          val zippedPairs: Seq[(WomValue, WomValue)] = values map { case pair: WomPair =>
+          val zippedArrayOfPairs: Seq[(WomValue, WomValue)] = values map { case pair: WomPair =>
             Tuple2(pair.left, pair.right)
           }
-          val (left, right) = zippedPairs.unzip
-          val unzippedPairs: WomPair = WomPair(WomArray(left), WomArray(right))
-          EvaluatedValue(unzippedPairs, Seq.empty).validNel
+          val (left, right) = zippedArrayOfPairs.unzip
+          val unzippedPairOfArrays: WomPair = WomPair(WomArray(left), WomArray(right))
+          EvaluatedValue(unzippedPairOfArrays, Seq.empty).validNel
         case other =>
           s"Invalid call of 'unzip' on parameter of type '${other.womType.stableName}' (expected Array[Pair[X, Y]])".invalidNel
       }

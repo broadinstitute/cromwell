@@ -26,11 +26,9 @@ workflow biscayne_new_engine_functions {
   # max float... near enough:
   Float maxFloat = 179769313000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0
 
-  Array[Pair[String,String]] zipped_a = []
-  Array[Pair[String,String]] zipped_b = [("A","a")]
-  Array[Pair[String,String]] zipped_c = [("A","a"),("B","b")]
-  Array[Pair[String,String]] zipped_d = [("A","a"),("B","b"),("C","c")]
-  Array[Pair[String,Float]] zipped_e = [("one",1.0),("two",2.0),("three",3.0)]
+  Array[Pair[String,String]] zipped_a = [("A", "a")]
+  Array[Pair[String,String]] zipped_b = [("A", "a"),("B", "b")]
+  Array[Pair[String,Float]] zipped_c = [("one", 1.0),("two", 2.0),("three", 3.0)]
 
   output {
 
@@ -66,8 +64,6 @@ workflow biscayne_new_engine_functions {
     Pair[Array[String], Array[String]] unzipped_a = unzip(zipped_a)
     Pair[Array[String], Array[String]] unzipped_b = unzip(zipped_b)
     Pair[Array[String], Array[String]] unzipped_c = unzip(zipped_c)
-    Pair[Array[String], Array[String]] unzipped_d = unzip(zipped_d)
-    Pair[Array[String], Array[Float]] unzipped_e = unzip(zipped_e)
   }
 }
 

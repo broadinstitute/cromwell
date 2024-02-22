@@ -170,7 +170,7 @@ object PipelinesApiRuntimeAttributes {
         cpuPlatformValidation(runtimeConfig),
         useDockerImageCacheValidation(runtimeConfig),
         checkpointFileValidationInstance,
-        dockerValidation,
+        dockerValidation
       )
   }
 

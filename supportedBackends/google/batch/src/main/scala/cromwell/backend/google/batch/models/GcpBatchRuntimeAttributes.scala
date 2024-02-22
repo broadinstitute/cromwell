@@ -169,7 +169,7 @@ object GcpBatchRuntimeAttributes {
         bootDiskSizeValidation(runtimeConfig),
         useDockerImageCacheValidation(runtimeConfig),
         checkpointFileValidationInstance,
-        dockerValidation,
+        dockerValidation
       )
   }
 

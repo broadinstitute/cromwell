@@ -219,8 +219,8 @@ object EngineFunctionEvaluators {
   implicit val crossFunctionEvaluator: FileEvaluator[Cross] = twoParameterFunctionPassthroughFileEvaluator[Cross]
   implicit val prefixFunctionEvaluator: FileEvaluator[Prefix] = twoParameterFunctionPassthroughFileEvaluator[Prefix]
 
-  implicit val subFunctionEvaluator: FileEvaluator[Sub] = new FileEvaluator[Sub] {
-    override def predictFilesNeededToEvaluate(a: Sub,
+  def threeParameterFunctionPassthroughFileEvaluator[A <: ThreeParamFunctionCallElement] = new FileEvaluator[A] {
+    override def predictFilesNeededToEvaluate(a: A,
                                               inputs: Map[String, WomValue],
                                               ioFunctionSet: IoFunctionSet,
                                               coerceTo: WomType
@@ -228,9 +228,13 @@ object EngineFunctionEvaluators {
       fileEvaluator: FileEvaluator[ExpressionElement],
       valueEvaluator: ValueEvaluator[ExpressionElement]
     ): ErrorOr[Set[WomFile]] =
-      (a.pattern.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo),
-       a.input.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo),
-       a.replace.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
-      ) mapN { _ ++ _ ++ _ }
+      (a.arg1.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo),
+       a.arg2.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo),
+       a.arg3.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
+      ) mapN {
+        _ ++ _ ++ _
+      }
   }
+
+  implicit val subFunctionEvaluator: FileEvaluator[Sub] = threeParameterFunctionPassthroughFileEvaluator[Sub]
 }

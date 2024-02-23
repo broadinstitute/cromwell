@@ -1,6 +1,6 @@
 package wdl.transforms.biscayne.linking.expression.types
 
-import cats.implicits.catsSyntaxTuple2Semigroupal
+import cats.implicits.{catsSyntaxTuple2Semigroupal, catsSyntaxTuple3Semigroupal}
 import cats.syntax.validated._
 import common.validation.ErrorOr._
 import wdl.model.draft3.elements.ExpressionElement
@@ -100,6 +100,16 @@ object BiscayneTypeEvaluators {
         case other => s"Cannot invoke 'sep' on type '${other.stableName}'. Expected an Array[String].".invalidNel
 
       }
+  }
+
+  implicit val subPosixFunctionEvaluator: TypeEvaluator[SubPosix] = new TypeEvaluator[SubPosix] {
+    override def evaluateType(a: SubPosix, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
+      expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
+    ): ErrorOr[WomType] =
+      (validateParamType(a.input, linkedValues, WomSingleFileType),
+       validateParamType(a.pattern, linkedValues, WomSingleFileType),
+       validateParamType(a.replace, linkedValues, WomSingleFileType)
+      ) mapN { (_, _, _) => WomStringType }
   }
 
   implicit val suffixFunctionEvaluator: TypeEvaluator[Suffix] = new TypeEvaluator[Suffix] {

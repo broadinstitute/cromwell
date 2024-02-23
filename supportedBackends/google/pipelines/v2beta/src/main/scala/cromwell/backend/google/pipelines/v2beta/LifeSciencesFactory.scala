@@ -75,7 +75,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
           case _ => new Network().setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
         }
 
-      val allDisksToBeMounted = createPipelineParameters.adjustedSizeDisks ++
+      val allDisksToBeMounted = createPipelineParameters.disks ++
         createPipelineParameters.referenceDisksForLocalizationOpt.getOrElse(List.empty)
 
       // Disks defined in the runtime attributes and reference-files-localization disks

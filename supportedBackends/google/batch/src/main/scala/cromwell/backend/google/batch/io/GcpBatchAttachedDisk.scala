@@ -7,8 +7,6 @@ import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import cromwell.backend.DiskPatterns._
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import wdl4s.parser.MemoryUnit
-import wom.format.MemorySize
 import wom.values._
 
 import scala.util.Try
@@ -58,15 +56,6 @@ object GcpBatchAttachedDisk {
       case _: IllegalArgumentException => s"$value not convertible to a Long".invalidNel
     }
 
-  implicit class EnhancedDisks(val disks: Seq[GcpBatchAttachedDisk]) extends AnyVal {
-    def adjustWorkingDiskWithNewMin(minimum: MemorySize, onAdjustment: => Unit): Seq[GcpBatchAttachedDisk] = disks map {
-      case disk: GcpBatchWorkingDisk
-          if disk == GcpBatchWorkingDisk.Default && disk.sizeGb < minimum.to(MemoryUnit.GB).amount.toInt =>
-        onAdjustment
-        disk.copy(sizeGb = minimum.to(MemoryUnit.GB).amount.toInt)
-      case other => other
-    }
-  }
 }
 
 trait GcpBatchAttachedDisk {

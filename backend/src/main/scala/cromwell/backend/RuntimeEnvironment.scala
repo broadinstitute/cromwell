@@ -3,7 +3,7 @@ package cromwell.backend
 import java.util.UUID
 
 import cromwell.backend.io.JobPaths
-import cromwell.backend.validation.{CpuValidation, MemoryValidation}
+import cromwell.backend.validation.MemoryValidation
 import cromwell.core.path.Path
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
@@ -27,7 +27,8 @@ object RuntimeEnvironmentBuilder {
       callRoot.resolve(s"tmp.$hash").pathAsString
     }
 
-    val cores: Int Refined Positive = CpuValidation.instanceMin.validate(runtimeAttributes).getOrElse(minimums.cores)
+    // This class is going away in https://github.com/broadinstitute/cromwell/pull/7369
+    val cores: Int Refined Positive = minimums.cores
 
     val memoryInMB: Double =
       MemoryValidation

@@ -244,4 +244,16 @@ class BiscayneValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
       e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedPair, Seq.empty)
     }
   }
+
+  it should "fail to evaluate unzip on invalid pair" in {
+    val invalidPair = """ unzip([()])"""
+    val invalidPairExpr = fromString[ExpressionElement](invalidPair, parser.parse_e)
+    invalidPairExpr.shouldBeInvalid("Failed to parse expression (reason 1 of 1): No WDL support for 0-tuples")
+  }
+
+  it should "fail to evaluate unzip on heterogeneous pairs" in {
+    val invalidPair = """ unzip([ (1, 11.0), ([1,2,3], 2.0) ])"""
+    val invalidPairExpr = fromString[ExpressionElement](invalidPair, parser.parse_e)
+    invalidPairExpr.map(e => e.evaluateValue(Map.empty, NoIoFunctionSet, None).shouldBeInvalid("Could not construct array of type WomMaybeEmptyArrayType(WomPairType(WomIntegerType,WomFloatType)) with this value: List(WomPair(WomInteger(1),WomFloat(11.0)), WomPair([1, 2, 3],WomFloat(2.0)))"))
+  }
 }

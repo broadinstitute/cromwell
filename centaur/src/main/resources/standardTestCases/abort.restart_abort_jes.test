@@ -3,7 +3,6 @@ name: abort.restart_abort_jes
 testFormat: ScheduledAbortWithRestart
 callMark: scheduled_abort.aborted
 backends: [Papi]
-tags: [restart]
 
 files {
   workflow: abort/scheduled_abort.wdl

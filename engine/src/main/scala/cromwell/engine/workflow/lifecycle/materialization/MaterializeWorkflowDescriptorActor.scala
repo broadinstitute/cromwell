@@ -2,6 +2,7 @@ package cromwell.engine.workflow.lifecycle.materialization
 
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props, Status}
 import akka.pattern.pipe
+import akka.util.Timeout
 import cats.data.EitherT._
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
@@ -19,6 +20,7 @@ import common.validation.ErrorOr._
 import common.validation.IOChecked._
 import common.validation.Validation.MemoryRetryMultiplier
 import cromwell.backend.BackendWorkflowDescriptor
+import cromwell.cloudsupport.azure.AzureCredentials
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.{ReadFromCache, WorkflowOption, WriteToCache}
 import cromwell.core._
@@ -36,6 +38,7 @@ import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.languages.util.ImportResolver._
 import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
+import cromwell.services.auth.GithubAuthVendingSupport
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import eu.timepit.refined.refineV
@@ -50,6 +53,7 @@ import wom.runtime.WomOutputRuntimeExtractor
 import wom.values.{WomString, WomValue}
 
 import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -180,10 +184,27 @@ object MaterializeWorkflowDescriptorActor {
         s"'$optionName' is specified in workflow options but value is not of expected Double type: ${e.getMessage}".invalidNel
     }
   }
+
+  def getImportAuthProviders(conf: Config,
+                             authProviderFunc: String => ImportAuthProvider
+  ): ErrorOr[List[ImportAuthProvider]] = {
+    val isPrivateWorkflowsEnabled = conf.as[Boolean]("private-workflows.enabled")
+    val isAuthAzure = if (conf.hasPath("private-workflows.auth.azure")) {
+      conf.as[Boolean]("private-workflows.auth.azure")
+    } else false
+
+    if (isPrivateWorkflowsEnabled && isAuthAzure) {
+      val azureToken = AzureCredentials.getAccessToken()
+      azureToken match {
+        case Valid(token) => List(authProviderFunc(token)).validNel
+        case Invalid(err) => s"Failed to fetch Azure token. Error: ${err.toString}".invalidNel
+      }
+    } else List.empty.validNel
+  }
 }
 
 // TODO WOM: need to decide where to draw the line between language specific initialization and WOM
-class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
+class MaterializeWorkflowDescriptorActor(override val serviceRegistryActor: ActorRef,
                                          workflowId: WorkflowId,
                                          cromwellBackends: => CromwellBackends,
                                          importLocalFilesystem: Boolean,
@@ -191,7 +212,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                          hogGroup: HogGroup
 ) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, Unit]
     with StrictLogging
-    with WorkflowLogging {
+    with WorkflowLogging
+    with GithubAuthVendingSupport {
 
   import MaterializeWorkflowDescriptorActor._
   val tag = self.path.name
@@ -201,6 +223,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
   val iOExecutionContext = context.system.dispatchers.lookup("akka.dispatchers.io-dispatcher")
   implicit val ec = context.dispatcher
+  implicit val timeout = Timeout(5.seconds)
 
   protected val pathBuilderFactories: List[PathBuilderFactory] = EngineFilesystems.configuredPathBuilderFactories
 
@@ -346,7 +369,11 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     for {
       _ <- publishLabelsToMetadata(id, labels.asMap, serviceRegistryActor)
       zippedImportResolver <- zippedResolverCheck
-      importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver(None, Map.empty)
+      importAuthProviders <- getImportAuthProviders(conf, importAuthProvider).toIOChecked
+      importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver(None,
+                                                                                                Map.empty,
+                                                                                                importAuthProviders
+      )
       sourceAndResolvers <- fromEither[IO](
         LanguageFactoryUtil.findWorkflowSource(sourceFiles.workflowSource, sourceFiles.workflowUrl, importResolvers)
       )

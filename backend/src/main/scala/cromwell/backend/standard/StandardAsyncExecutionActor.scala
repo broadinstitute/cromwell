@@ -478,7 +478,6 @@ trait StandardAsyncExecutionActor
           |$tmpDirPermissionsAdjustment
           |export _JAVA_OPTIONS=-Djava.io.tmpdir="$$tmpDir"
           |export TMPDIR="$$tmpDir"
-          |export HOME="$$HOME"
           |
           |SCRIPT_PREAMBLE
           |

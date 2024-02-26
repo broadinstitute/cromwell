@@ -13,7 +13,6 @@ import cromwell.backend.validation.{BooleanRuntimeAttributesValidation, _}
 import eu.timepit.refined._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
-import wdl4s.parser.MemoryUnit
 import wom.RuntimeAttributesKeys
 import wom.format.MemorySize
 import wom.types._
@@ -101,10 +100,6 @@ object PipelinesApiRuntimeAttributes {
   private def cpuPlatformValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] =
     cpuPlatformValidationInstance
 
-  private def cpuMinValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int Refined Positive] =
-    CpuValidation.instanceMin
-      .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
-
   private def gpuTypeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[GpuType] =
     GpuTypeValidation.optional
 
@@ -115,10 +110,6 @@ object PipelinesApiRuntimeAttributes {
   private def gpuCountValidation(
     runtimeConfig: Option[Config]
   ): OptionalRuntimeAttributesValidation[Int Refined Positive] = GpuValidation.optional
-
-  private def gpuMinValidation(
-    runtimeConfig: Option[Config]
-  ): OptionalRuntimeAttributesValidation[Int Refined Positive] = GpuValidation.optionalMin
 
   private def failOnStderrValidation(runtimeConfig: Option[Config]) = FailOnStderrValidation.default(runtimeConfig)
 
@@ -144,13 +135,6 @@ object PipelinesApiRuntimeAttributes {
       MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, runtimeConfig) getOrElse MemoryDefaultValue
     )
 
-  private def memoryMinValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[MemorySize] =
-    MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryMinKey,
-                                       MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryMinKey,
-                                                                            runtimeConfig
-                                       ) getOrElse MemoryDefaultValue
-    )
-
   private def bootDiskSizeValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] =
     bootDiskValidationInstance
       .withDefault(bootDiskValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse BootDiskDefaultValue)
@@ -166,15 +150,6 @@ object PipelinesApiRuntimeAttributes {
 
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
 
-  private val outDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] =
-    InformationValidation.optional(RuntimeAttributesKeys.OutDirMinKey, MemoryUnit.MB, allowZero = true)
-
-  private val tmpDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] =
-    InformationValidation.optional(RuntimeAttributesKeys.TmpDirMinKey, MemoryUnit.MB, allowZero = true)
-
-  private val inputDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] =
-    InformationValidation.optional(RuntimeAttributesKeys.DnaNexusInputDirMinKey, MemoryUnit.MB, allowZero = true)
-
   def runtimeAttributesBuilder(
     jesConfiguration: PipelinesApiConfiguration
   ): StandardValidatedRuntimeAttributesBuilder = {
@@ -186,22 +161,16 @@ object PipelinesApiRuntimeAttributes {
         gpuTypeValidation(runtimeConfig),
         gpuDriverValidation(runtimeConfig),
         cpuValidation(runtimeConfig),
-        cpuMinValidation(runtimeConfig),
-        gpuMinValidation(runtimeConfig),
         disksValidation(runtimeConfig),
         zonesValidation(runtimeConfig),
         preemptibleValidation(runtimeConfig),
         memoryValidation(runtimeConfig),
-        memoryMinValidation(runtimeConfig),
         bootDiskSizeValidation(runtimeConfig),
         noAddressValidation(runtimeConfig),
         cpuPlatformValidation(runtimeConfig),
         useDockerImageCacheValidation(runtimeConfig),
         checkpointFileValidationInstance,
-        dockerValidation,
-        outDirMinValidation,
-        tmpDirMinValidation,
-        inputDirMinValidation
+        dockerValidation
       )
   }
 
@@ -261,21 +230,6 @@ object PipelinesApiRuntimeAttributes {
       validatedRuntimeAttributes
     )
 
-    val outDirMin: Option[MemorySize] =
-      RuntimeAttributesValidation.extractOption(outDirMinValidation.key, validatedRuntimeAttributes)
-    val tmpDirMin: Option[MemorySize] =
-      RuntimeAttributesValidation.extractOption(tmpDirMinValidation.key, validatedRuntimeAttributes)
-    val inputDirMin: Option[MemorySize] =
-      RuntimeAttributesValidation.extractOption(inputDirMinValidation.key, validatedRuntimeAttributes)
-
-    val totalExecutionDiskSizeBytes = List(inputDirMin.map(_.bytes),
-                                           outDirMin.map(_.bytes),
-                                           tmpDirMin.map(_.bytes)
-    ).flatten.fold(MemorySize(0, MemoryUnit.Bytes).bytes)(_ + _)
-    val totalExecutionDiskSize = MemorySize(totalExecutionDiskSizeBytes, MemoryUnit.Bytes)
-
-    val adjustedDisks = disks.adjustWorkingDiskWithNewMin(totalExecutionDiskSize, ())
-
     new PipelinesApiRuntimeAttributes(
       cpu,
       cpuPlatform,
@@ -284,7 +238,7 @@ object PipelinesApiRuntimeAttributes {
       preemptible,
       bootDiskSize,
       memory,
-      adjustedDisks,
+      disks,
       docker,
       failOnStderr,
       continueOnReturnCode,

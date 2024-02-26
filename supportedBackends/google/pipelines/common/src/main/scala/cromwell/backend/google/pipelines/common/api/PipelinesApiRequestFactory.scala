@@ -83,7 +83,7 @@ object PipelinesApiRequestFactory {
                                       jobShell: String,
                                       privateDockerKeyAndEncryptedToken: Option[CreatePipelineDockerKeyAndToken],
                                       womOutputRuntimeExtractor: Option[WomOutputRuntimeExtractor],
-                                      adjustedSizeDisks: Seq[PipelinesApiAttachedDisk],
+                                      disks: Seq[PipelinesApiAttachedDisk],
                                       virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
                                       retryWithMoreMemoryKeys: Option[List[String]],
                                       fuseEnabled: Boolean,

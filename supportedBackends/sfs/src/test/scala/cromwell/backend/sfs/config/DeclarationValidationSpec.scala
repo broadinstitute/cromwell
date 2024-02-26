@@ -32,9 +32,7 @@ class DeclarationValidationSpec
   it should "validate cpu attributes" in {
     val keys = Table(
       "key",
-      "cpu",
-      "cpuMin",
-      "cpuMax"
+      "cpu"
     )
 
     forAll(keys)(validateCpu)

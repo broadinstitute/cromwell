@@ -73,7 +73,7 @@ class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     //
     // N.B. the `asJson` is highly significant as it exercises the entire serialization module and compares
     // the end product instead of an intermediate case class hierarchy
-    Describer.describeWorkflow(wsfc).asInstanceOf[DescribeSuccess].description.asJson shouldBe expectedJson
+    Describer.describeWorkflow(wsfc, List.empty).asInstanceOf[DescribeSuccess].description.asJson shouldBe expectedJson
   }
 }
 

@@ -80,7 +80,7 @@ object GcpBatchRequestFactory {
                                       jobShell: String,
                                       privateDockerKeyAndEncryptedToken: Option[CreateBatchDockerKeyAndToken],
                                       womOutputRuntimeExtractor: Option[WomOutputRuntimeExtractor],
-                                      adjustedSizeDisks: Seq[GcpBatchAttachedDisk],
+                                      disks: Seq[GcpBatchAttachedDisk],
                                       virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
                                       retryWithMoreMemoryKeys: Option[List[String]],
                                       fuseEnabled: Boolean,

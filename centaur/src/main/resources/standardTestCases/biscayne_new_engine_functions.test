@@ -55,7 +55,7 @@ metadata {
   "outputs.biscayne_new_engine_functions.minMaxIntFloatComposition": 1.0
   "outputs.biscayne_new_engine_functions.maxIntVsMaxFloat": 1.79769313E+308
 
-  "outputs.biscaybe_new_engine_functions.substituted": "WATtheWAT"
+  "outputs.biscayne_new_engine_functions.substituted": "WATtheWAT"
 
   "outputs.biscayne_new_engine_functions.with_suffixes.0": "aaaS"
   "outputs.biscayne_new_engine_functions.with_suffixes.1": "bbbS"

@@ -101,6 +101,7 @@ services:
       - cromwell-norefresh
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - ${CROMWELL_BUILD_DOCKER_DIRECTORY}/deadlock_haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     ports:
       - 8000:80
     depends_on:

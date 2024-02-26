@@ -3,6 +3,8 @@
 # Installing the Cromwell To Use Local Scratch Device
 #### These instructions are a community contribution
 
+### In the process of being updated as of 2024-02
+
 In this section we will install the Cromwell Workflow Management system and configure it, so it can use the local scratch device on the compute nodes.
 (these installations are done in a ```centos 8``` enviornment)
 

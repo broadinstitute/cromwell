@@ -9,6 +9,7 @@ import cromwell.core.JobToken.JobTokenType
 import cromwell.core.path.Path
 import cromwell.core.path.PathFactory.PathBuilders
 import net.ceedubs.ficus.Ficus._
+import wom.CloudProvider
 import wom.expression.{IoFunctionSet, NoIoFunctionSet}
 import wom.graph.CommandCallNode
 
@@ -162,6 +163,11 @@ trait BackendLifecycleActorFactory {
   def dockerHashCredentials(workflowDescriptor: BackendWorkflowDescriptor,
                             initializationDataOption: Option[BackendInitializationData]
   ): List[Any] = List.empty
+
+  /**
+    * Allows Cromwell to self-identify
+    */
+  def cloudProvider: Option[CloudProvider] = None
 }
 
 object BackendLifecycleActorFactory {

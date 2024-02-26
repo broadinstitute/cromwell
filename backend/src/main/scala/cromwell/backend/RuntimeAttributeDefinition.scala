@@ -7,7 +7,7 @@ import common.validation.ErrorOr.ErrorOr
 import wom.callable.Callable.InputDefinition
 import wom.expression.IoFunctionSet
 import wom.values.WomValue
-import wom.{RuntimeAttributes, WomExpressionException}
+import wom.{CloudProvider, RuntimeAttributes, WomExpressionException}
 
 import scala.util.{Success, Try}
 
@@ -22,7 +22,8 @@ object RuntimeAttributeDefinition {
 
   def evaluateRuntimeAttributes(unevaluated: RuntimeAttributes,
                                 wdlFunctions: IoFunctionSet,
-                                evaluatedInputs: Map[InputDefinition, WomValue]
+                                evaluatedInputs: Map[InputDefinition, WomValue],
+                                cloudProvider: Option[CloudProvider] = None
   ): ErrorOr[Map[String, WomValue]] = {
     import common.validation.ErrorOr._
     val inputsMap = evaluatedInputs map { case (x, y) => x.name -> y }

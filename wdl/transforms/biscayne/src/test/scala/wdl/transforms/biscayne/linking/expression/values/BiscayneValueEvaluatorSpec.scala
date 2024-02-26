@@ -217,4 +217,128 @@ class BiscayneValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
       e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
     }
   }
+
+  it should "evaluate a quote expression correctly with an empty array" in {
+    val str = """ quote([]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(Seq())
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
+
+  it should "evaluate a quote expression correctly with an array of integers" in {
+    val str = """ quote([1, 2, 3]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(
+      Seq(
+        WomString("\"1\""),
+        WomString("\"2\""),
+        WomString("\"3\"")
+      )
+    )
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
+
+  it should "evaluate a quote expression correctly with an array of strings" in {
+    val str = """ quote(["a", "b", "c"]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(
+      Seq(
+        WomString("\"a\""),
+        WomString("\"b\""),
+        WomString("\"c\"")
+      )
+    )
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
+
+  it should "evaluate a quote expression correctly with an array of strings that are already in quotes" in {
+    val str = """ quote(["\"a\"", "\"b", "c\""]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(
+      Seq(
+        WomString("\"\"a\"\""),
+        WomString("\"\"b\""),
+        WomString("\"c\"\"")
+      )
+    )
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
+
+  it should "evaluate a squote expression correctly with an empty array" in {
+    val str = """ squote([]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(Seq())
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
+
+  it should "evaluate a squote expression correctly with an array of integers" in {
+    val str = """ squote([1, 2, 3]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(
+      Seq(
+        WomString("\'1\'"),
+        WomString("\'2\'"),
+        WomString("\'3\'")
+      )
+    )
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
+
+  it should "evaluate a squote expression correctly with an array of strings" in {
+    val str = """ squote(["a", "b", "c"]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(
+      Seq(
+        WomString("\'a\'"),
+        WomString("\'b\'"),
+        WomString("\'c\'")
+      )
+    )
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
+
+  it should "evaluate a squote expression correctly with an array of strings that are already in quotes" in {
+    val str = """ squote(["\'a\'", "\'b", "c\'"]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(
+      Seq(
+        WomString("\'\'a\'\'"),
+        WomString("\'\'b\'"),
+        WomString("\'c\'\'")
+      )
+    )
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
 }

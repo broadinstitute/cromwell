@@ -4,7 +4,7 @@ workflow biscayne_new_engine_functions {
 
   meta {
     description: "This test makes sure that these functions work in a real workflow"
-    functions_under_test: [ "keys", "as_map", "as_pairs", "collect_by_key", "suffix" ]
+    functions_under_test: [ "keys", "as_map", "as_pairs", "collect_by_key", "suffix", "quote", 'squote' ]
   }
 
   Map[String, Int] x_map_in = {"a": 1, "b": 2, "c": 3}
@@ -16,6 +16,8 @@ workflow biscayne_new_engine_functions {
   Array[Pair[String,Int]] z_pairs_in = [("a", 1), ("b", 2), ("a", 3)]
 
   Array[String] some_strings = ["aaa", "bbb", "ccc"]
+
+  Array[Int] some_ints = [1, 2, 3]
 
   Int smallestInt = 1
   Float smallFloat = 2.718
@@ -54,6 +56,16 @@ workflow biscayne_new_engine_functions {
     # suffix():
     # =================================================
     Array[String] with_suffixes = suffix("S", some_strings)
+
+    # quote():
+    # =================================================
+    Array[String] with_quotes = quote(some_ints)
+    Array[String] string_with_quotes = quote(some_strings)
+
+    # squote():
+    # =================================================
+    Array[String] with_squotes = squote(some_ints)
+    Array[String] string_with_squotes = squote(some_strings)
   }
 }
 

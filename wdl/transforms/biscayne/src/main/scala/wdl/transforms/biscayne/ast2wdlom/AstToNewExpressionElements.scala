@@ -3,7 +3,7 @@ package wdl.transforms.biscayne.ast2wdlom
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.elements.ExpressionElement
-import wdl.model.draft3.elements.ExpressionElement.{AsMap, AsPairs, CollectByKey, Keys, Max, Min, Sep, Suffix}
+import wdl.model.draft3.elements.ExpressionElement.{AsMap, AsPairs, CollectByKey, Keys, Max, Min, Quote, Sep, Suffix, SQuote}
 import wdl.transforms.base.ast2wdlom.AstNodeToExpressionElement
 
 object AstToNewExpressionElements {
@@ -16,6 +16,8 @@ object AstToNewExpressionElements {
     "max" -> AstNodeToExpressionElement.validateTwoParamEngineFunction(Max, "max"),
     "sep" -> AstNodeToExpressionElement.validateTwoParamEngineFunction(Sep, "sep"),
     "suffix" -> AstNodeToExpressionElement.validateTwoParamEngineFunction(Suffix, "suffix"),
+    "quote" -> AstNodeToExpressionElement.validateOneParamEngineFunction(Quote, "quote"),
+    "squote" -> AstNodeToExpressionElement.validateOneParamEngineFunction(SQuote, "squote"),
     "read_object" -> (_ =>
       "read_object is no longer available in this WDL version. Consider using read_json instead".invalidNel
     ),

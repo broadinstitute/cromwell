@@ -95,7 +95,7 @@ services:
       cromwell-norefresh:
         condition: service_healthy
   load-balancer:
-    image: dockercloud/haproxy
+    image: haproxy:lts-alpine
     links:
       - cromwell-master
       - cromwell-norefresh

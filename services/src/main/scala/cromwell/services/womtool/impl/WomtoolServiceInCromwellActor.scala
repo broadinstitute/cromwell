@@ -18,11 +18,11 @@ class WomtoolServiceInCromwellActor(serviceConfig: Config, globalConfig: Config,
   implicit val ec: ExecutionContext = context.dispatcher
 
   override def receive: Receive = {
-    case DescribeRequest(filesCollection) =>
+    case DescribeRequest(filesCollection, authProviders) =>
       // We are consciously wrapping a Future around the Await.result way down in the HTTP import resolver until we can update the whole call hierarchy to async
       // https://doc.akka.io/docs/akka/2.5.16/actors.html?language=scala#ask-send-and-receive-future
       Future {
-        Describer.describeWorkflow(filesCollection)
+        Describer.describeWorkflow(filesCollection, authProviders)
       } pipeTo sender()
       ()
     case ShutdownCommand =>

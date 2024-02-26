@@ -97,10 +97,6 @@ object AwsBatchRuntimeAttributes {
     CpuValidation.instance
       .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
 
-  private def cpuMinValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int Refined Positive] =
-    CpuValidation.instanceMin
-      .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
-
   private def failOnStderrValidation(runtimeConfig: Option[Config]) = FailOnStderrValidation.default(runtimeConfig)
 
   private def continueOnReturnCodeValidation(runtimeConfig: Option[Config]) =
@@ -118,13 +114,6 @@ object AwsBatchRuntimeAttributes {
     MemoryValidation.withDefaultMemory(
       RuntimeAttributesKeys.MemoryKey,
       MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, runtimeConfig) getOrElse MemoryDefaultValue
-    )
-
-  private def memoryMinValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[MemorySize] =
-    MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryMinKey,
-                                       MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryMinKey,
-                                                                            runtimeConfig
-                                       ) getOrElse MemoryDefaultValue
     )
 
   private def noAddressValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
@@ -152,11 +141,9 @@ object AwsBatchRuntimeAttributes {
       .default(runtimeConfig)
       .withValidation(
         cpuValidation(runtimeConfig),
-        cpuMinValidation(runtimeConfig),
         disksValidation(runtimeConfig),
         zonesValidation(runtimeConfig),
         memoryValidation(runtimeConfig),
-        memoryMinValidation(runtimeConfig),
         noAddressValidation(runtimeConfig),
         dockerValidation,
         queueArnValidation(runtimeConfig),
@@ -166,11 +153,9 @@ object AwsBatchRuntimeAttributes {
       .default(runtimeConfig)
       .withValidation(
         cpuValidation(runtimeConfig),
-        cpuMinValidation(runtimeConfig),
         disksValidation(runtimeConfig),
         zonesValidation(runtimeConfig),
         memoryValidation(runtimeConfig),
-        memoryMinValidation(runtimeConfig),
         noAddressValidation(runtimeConfig),
         dockerValidation,
         queueArnValidation(runtimeConfig)

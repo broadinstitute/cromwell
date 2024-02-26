@@ -48,13 +48,11 @@ import shapeless.Coproduct
 import org.apache.commons.codec.digest.DigestUtils
 import org.apache.commons.csv.{CSVFormat, CSVPrinter}
 import org.apache.commons.io.output.ByteArrayOutputStream
-import wdl4s.parser.MemoryUnit
 import wom.callable.Callable.OutputDefinition
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
 import wom.callable.{AdHocValue, RuntimeEnvironment}
 import wom.core.FullyQualifiedName
 import wom.expression.{FileEvaluation, NoIoFunctionSet}
-import wom.format.MemorySize
 import wom.values._
 
 import java.io.OutputStreamWriter
@@ -590,30 +588,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           token <- data.privateDockerEncryptedToken
         } yield CreateBatchDockerKeyAndToken(key, token)
 
-        /*
-         * Right now this doesn't cost anything, because sizeOption returns the size if it was previously already fetched
-         * for some reason (expression evaluation for instance), but otherwise does not retrieve it and returns None.
-         * In CWL-land we tend to be aggressive in pre-fetching the size in order to be able to evaluate JS expressions,
-         * but less in WDL as we can get it last minute and on demand because size is a WDL function, whereas in CWL
-         * we don't inspect the JS to know if size is called and therefore always pre-fetch it.
-         *
-         * We could decide to call withSize before in which case we would retrieve the size for all files and have
-         * a guaranteed more accurate total size, but there might be performance impacts ?
-         */
-        val inputFileSize = Option(callInputFiles.values.flatMap(_.flatMap(_.sizeOption)).sum)
-
-        // Attempt to adjust the disk size by taking into account the size of input files
-        val adjustedSizeDisks =
-          inputFileSize.map(size => MemorySize.apply(size.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB)) map {
-            inputFileSizeInformation =>
-              runtimeAttributes.disks.adjustWorkingDiskWithNewMin(
-                inputFileSizeInformation,
-                jobLogger.info(
-                  s"Adjusted working disk size to ${inputFileSizeInformation.amount} GB to account for input files"
-                )
-              )
-          } getOrElse runtimeAttributes.disks
-
         val inputFilePaths = inputOutputParameters.jobInputParameters.map(_.cloudPath.pathAsString).toSet
 
         val referenceDisksToMount =
@@ -667,7 +641,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           jobShell = batchConfiguration.jobShell,
           privateDockerKeyAndEncryptedToken = dockerKeyAndToken,
           womOutputRuntimeExtractor = jobDescriptor.workflowDescriptor.outputRuntimeExtractor,
-          adjustedSizeDisks = adjustedSizeDisks,
+          disks = runtimeAttributes.disks,
           virtualPrivateCloudConfiguration = batchAttributes.virtualPrivateCloudConfiguration,
           retryWithMoreMemoryKeys = retryWithMoreMemoryKeys,
           fuseEnabled = fuseEnabled(jobDescriptor.workflowDescriptor),

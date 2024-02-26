@@ -3,7 +3,18 @@ package wdl.transforms.cascades.ast2wdlom
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.elements.ExpressionElement
-import wdl.model.draft3.elements.ExpressionElement.{AsMap, AsPairs, CollectByKey, Keys, Max, Min, Quote, Sep, Suffix, SQuote}
+import wdl.model.draft3.elements.ExpressionElement.{
+  AsMap,
+  AsPairs,
+  CollectByKey,
+  Keys,
+  Max,
+  Min,
+  Quote,
+  Sep,
+  SQuote,
+  Suffix
+}
 import wdl.transforms.base.ast2wdlom.AstNodeToExpressionElement
 
 object AstToNewExpressionElements {

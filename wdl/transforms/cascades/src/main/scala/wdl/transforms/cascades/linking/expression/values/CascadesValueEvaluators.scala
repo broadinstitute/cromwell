@@ -247,11 +247,11 @@ object cascadesValueEvaluators {
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
-                              )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] =
+    )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] =
       processValidatedSingleValue[WomArray, WomArray](
         expressionValueEvaluator.evaluateValue(a.param, inputs, ioFunctionSet, forCommandInstantiationOptions)(
           expressionValueEvaluator
-        ),
+        )
       ) { arr =>
         EvaluatedValue(WomArray(arr.value.map(v => WomString("\"" + v.valueString + "\""))), Seq.empty).validNel
       }
@@ -268,11 +268,11 @@ object cascadesValueEvaluators {
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
-                              )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] =
+    )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] =
       processValidatedSingleValue[WomArray, WomArray](
         expressionValueEvaluator.evaluateValue(a.param, inputs, ioFunctionSet, forCommandInstantiationOptions)(
           expressionValueEvaluator
-        ),
+        )
       ) { arr =>
         EvaluatedValue(WomArray(arr.value.map(v => WomString("\'" + v.valueString + "\'"))), Seq.empty).validNel
       }

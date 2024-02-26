@@ -126,7 +126,7 @@ object cascadesTypeEvaluators {
 
   implicit val sQuoteFunctionEvaluator: TypeEvaluator[SQuote] = new TypeEvaluator[SQuote] {
     override def evaluateType(a: SQuote, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
-                                                                                                            expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
+      expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
       validateParamType(a.param, linkedValues, WomArrayType(WomAnyType)) flatMap {
         case WomArrayType(_: WomPrimitiveType) => WomArrayType(WomStringType).validNel

@@ -1,6 +1,17 @@
 package wdl.transforms.cascades.linking.expression.files
 
-import wdl.model.draft3.elements.ExpressionElement.{AsMap, AsPairs, CollectByKey, Keys, Max, Min, Quote, Sep, Suffix, SQuote}
+import wdl.model.draft3.elements.ExpressionElement.{
+  AsMap,
+  AsPairs,
+  CollectByKey,
+  Keys,
+  Max,
+  Min,
+  Quote,
+  Sep,
+  SQuote,
+  Suffix
+}
 import wdl.model.draft3.graph.expression.FileEvaluator
 import wdl.transforms.base.linking.expression.files.EngineFunctionEvaluators
 import wdl.transforms.base.linking.expression.files.EngineFunctionEvaluators.twoParameterFunctionPassthroughFileEvaluator

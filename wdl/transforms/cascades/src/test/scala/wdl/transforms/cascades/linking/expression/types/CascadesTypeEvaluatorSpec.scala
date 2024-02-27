@@ -56,6 +56,15 @@ class CascadesTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     }
   }
 
+  it should "evaluate the type of a sub() function as String" in {
+    val str = """ sub("input", "^pattern$", "s") """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateType(Map.empty) shouldBeValid WomStringType
+    }
+  }
+
   it should "evaluate the type of a suffix() function as Array[String]" in {
     val str = """ suffix('S', ["a", "b", "c"]) """
     val expr = fromString[ExpressionElement](str, parser.parse_e)

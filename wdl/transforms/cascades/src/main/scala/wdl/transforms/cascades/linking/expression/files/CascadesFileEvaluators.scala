@@ -10,11 +10,15 @@ import wdl.model.draft3.elements.ExpressionElement.{
   Quote,
   Sep,
   SQuote,
+  SubPosix,
   Suffix
 }
 import wdl.model.draft3.graph.expression.FileEvaluator
 import wdl.transforms.base.linking.expression.files.EngineFunctionEvaluators
-import wdl.transforms.base.linking.expression.files.EngineFunctionEvaluators.twoParameterFunctionPassthroughFileEvaluator
+import wdl.transforms.base.linking.expression.files.EngineFunctionEvaluators.{
+  threeParameterFunctionPassthroughFileEvaluator,
+  twoParameterFunctionPassthroughFileEvaluator
+}
 
 object cascadesFileEvaluators {
 
@@ -27,6 +31,8 @@ object cascadesFileEvaluators {
     EngineFunctionEvaluators.singleParameterPassthroughFileEvaluator
 
   implicit val sepFunctionEvaluator: FileEvaluator[Sep] = twoParameterFunctionPassthroughFileEvaluator[Sep]
+  implicit val subPosixFunctionEvaluator: FileEvaluator[SubPosix] =
+    threeParameterFunctionPassthroughFileEvaluator[SubPosix]
   implicit val suffixFunctionEvaluator: FileEvaluator[Suffix] = twoParameterFunctionPassthroughFileEvaluator[Suffix]
   implicit val quoteFunctionEvaluator: FileEvaluator[Quote] =
     EngineFunctionEvaluators.singleParameterPassthroughFileEvaluator

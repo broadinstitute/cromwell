@@ -4,7 +4,7 @@ workflow biscayne_new_engine_functions {
 
   meta {
     description: "This test makes sure that these functions work in a real workflow"
-    functions_under_test: [ "keys", "as_map", "as_pairs", "collect_by_key", "suffix", "quote", 'squote' ]
+    functions_under_test: [ "keys", "as_map", "as_pairs", "collect_by_key", "quote", "squote", "sub", "suffix" ]
   }
 
   Map[String, Int] x_map_in = {"a": 1, "b": 2, "c": 3}
@@ -52,6 +52,11 @@ workflow biscayne_new_engine_functions {
     Float bigIntFloatComparison = max(bigFloat, biggestInt) # 10.0
     Float minMaxIntFloatComposition = min(max(biggestInt, smallFloat), smallestInt) # 1.0
     Float maxIntVsMaxFloat = max(maxInt, maxFloat)
+
+    # sub():
+    # (Exists before Biscayne, but uses different regex flavor here)
+    # =================================================
+    String substituted = sub("AtheZ", "[[:upper:]]", "WAT")
 
     # suffix():
     # =================================================

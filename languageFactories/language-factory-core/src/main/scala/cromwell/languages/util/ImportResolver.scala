@@ -10,6 +10,7 @@ import cats.syntax.validated._
 import com.softwaremill.sttp._
 import com.softwaremill.sttp.asynchttpclient.cats.AsyncHttpClientCatsBackend
 import com.typesafe.config.ConfigFactory
+import com.typesafe.scalalogging.StrictLogging
 import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.ErrorOr._
@@ -22,11 +23,11 @@ import java.nio.file.{Path => NioPath}
 import java.security.MessageDigest
 import cromwell.core.WorkflowId
 import wom.ResolvedImportRecord
-import wom.core.WorkflowSource
+import wom.core.{WorkflowSource, WorkflowUrl}
 import wom.values._
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 object ImportResolver {
@@ -36,6 +37,15 @@ object ImportResolver {
                                   newResolvers: List[ImportResolver],
                                   resolvedImportRecord: ResolvedImportRecord
   )
+
+  trait ImportAuthProvider {
+    def validHosts: List[String]
+    def authHeader(): Future[Map[String, String]]
+  }
+
+  trait GithubImportAuthProvider extends ImportAuthProvider {
+    override def validHosts: List[String] = List("github.com", "githubusercontent.com", "raw.githubusercontent.com")
+  }
 
   trait ImportResolver {
     def name: String
@@ -179,20 +189,23 @@ object ImportResolver {
     }
   }
 
-  case class HttpResolver(relativeTo: Option[String], headers: Map[String, String], hostAllowlist: Option[List[String]])
-      extends ImportResolver {
+  case class HttpResolver(relativeTo: Option[String],
+                          headers: Map[String, String],
+                          hostAllowlist: Option[List[String]],
+                          authProviders: List[ImportAuthProvider]
+  ) extends ImportResolver
+      with StrictLogging {
     import HttpResolver._
 
     override def name: String = relativeTo match {
       case Some(relativeToPath) => s"http importer (relative to $relativeToPath)"
       case None => "http importer (no 'relative-to' origin)"
-
     }
 
     def newResolverList(newRoot: String): List[ImportResolver] = {
       val rootWithoutFilename = newRoot.split('/').init.mkString("", "/", "/")
       List(
-        HttpResolver(relativeTo = Some(canonicalize(rootWithoutFilename)), headers, hostAllowlist)
+        HttpResolver(relativeTo = Some(canonicalize(rootWithoutFilename)), headers, hostAllowlist, authProviders)
       )
     }
 
@@ -211,8 +224,13 @@ object ImportResolver {
       case None => true
     }
 
+    def fetchAuthHeaders(uri: Uri): Future[Map[String, String]] =
+      authProviders collectFirst {
+        case provider if provider.validHosts.contains(uri.host) => provider.authHeader()
+      } getOrElse Future.successful(Map.empty[String, String])
+
     override def innerResolver(str: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle] =
-      pathToLookup(str) flatMap { toLookup: WorkflowSource =>
+      pathToLookup(str) flatMap { toLookup: WorkflowUrl =>
         (Try {
           val uri: Uri = uri"$toLookup"
 
@@ -227,19 +245,35 @@ object ImportResolver {
         }).contextualizeErrors(s"download $toLookup")
       }
 
-    private def getUri(toLookup: WorkflowSource): Either[NonEmptyList[WorkflowSource], ResolvedImportBundle] = {
-      implicit val sttpBackend = HttpResolver.sttpBackend()
-      val responseIO: IO[Response[WorkflowSource]] = sttp.get(uri"$toLookup").headers(headers).send()
-
-      // temporary situation to get functionality working before
+    private def getUri(toLookup: WorkflowUrl): Checked[ResolvedImportBundle] = {
+      // Temporary situation to get functionality working before
       // starting in on async-ifying the entire WdlNamespace flow
-      val result: Checked[WorkflowSource] = Await.result(responseIO.unsafeToFuture(), 15.seconds).body.leftMap { e =>
-        NonEmptyList(e.toString.trim, List.empty)
+      // Note: this will cause the calling thread to block for up to 20 seconds
+      // (5 for the auth header lookup, 15 for the http request)
+      val unauthedAttempt = getUriInner(toLookup, Map.empty)
+      val result = if (unauthedAttempt.code == StatusCodes.NotFound) {
+        val authHeaders = Await.result(fetchAuthHeaders(uri"$toLookup"), 5.seconds)
+        if (authHeaders.nonEmpty) {
+          getUriInner(toLookup, authHeaders)
+        } else {
+          unauthedAttempt
+        }
+      } else {
+        unauthedAttempt
       }
 
-      result map {
+      result.body.leftMap { e =>
+        NonEmptyList(e.trim, List.empty)
+      } map {
         ResolvedImportBundle(_, newResolverList(toLookup), ResolvedImportRecord(toLookup))
       }
+    }
+
+    protected def getUriInner(toLookup: WorkflowUrl, authHeaders: Map[String, String]): Response[WorkflowSource] = {
+      implicit val sttpBackend = HttpResolver.sttpBackend()
+
+      val responseIO: IO[Response[WorkflowSource]] = sttp.get(uri"$toLookup").headers(headers ++ authHeaders).send()
+      Await.result(responseIO.unsafeToFuture(), 15.seconds)
     }
 
     override def cleanupIfNecessary(): ErrorOr[Unit] = ().validNel
@@ -252,7 +286,10 @@ object ImportResolver {
     import common.util.IntrospectableLazy
     import common.util.IntrospectableLazy._
 
-    def apply(relativeTo: Option[String] = None, headers: Map[String, String] = Map.empty): HttpResolver = {
+    def apply(relativeTo: Option[String] = None,
+              headers: Map[String, String] = Map.empty,
+              authProviders: List[ImportAuthProvider] = List.empty
+    ): HttpResolver = {
       val config = ConfigFactory.load().getConfig("languages.WDL.http-allow-list")
       val allowListEnabled = config.as[Option[Boolean]]("enabled").getOrElse(false)
       val allowList: Option[List[String]] =
@@ -260,7 +297,7 @@ object ImportResolver {
           config.as[Option[List[String]]]("allowed-http-hosts")
         else None
 
-      new HttpResolver(relativeTo, headers, allowList)
+      new HttpResolver(relativeTo, headers, allowList, authProviders)
     }
 
     val sttpBackend: IntrospectableLazy[SttpBackend[IO, Nothing]] = lazily {

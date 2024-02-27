@@ -58,6 +58,15 @@ class BiscayneExpressionValueConsumersSpec extends AnyFlatSpec with CromwellTime
     }
   }
 
+  it should "discover the variable lookups within a sub() call" in {
+    val str = """ sub(my_input, "^[A-Z]$", "0") """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    expr.shouldBeValidPF { case e =>
+      e.expressionConsumedValueHooks should be(Set(UnlinkedIdentifierHook("my_input")))
+    }
+  }
+
   it should "discover the variable lookups within a suffix() call" in {
     val str = """ suffix(my_suffix, ["a", "b", c]) """
     val expr = fromString[ExpressionElement](str, parser.parse_e)

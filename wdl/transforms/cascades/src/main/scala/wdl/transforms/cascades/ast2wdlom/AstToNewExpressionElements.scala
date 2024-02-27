@@ -13,6 +13,7 @@ import wdl.model.draft3.elements.ExpressionElement.{
   Quote,
   Sep,
   SQuote,
+  SubPosix,
   Suffix
 }
 import wdl.transforms.base.ast2wdlom.AstNodeToExpressionElement
@@ -26,6 +27,7 @@ object AstToNewExpressionElements {
     "min" -> AstNodeToExpressionElement.validateTwoParamEngineFunction(Min, "min"),
     "max" -> AstNodeToExpressionElement.validateTwoParamEngineFunction(Max, "max"),
     "sep" -> AstNodeToExpressionElement.validateTwoParamEngineFunction(Sep, "sep"),
+    "sub" -> AstNodeToExpressionElement.validateThreeParamEngineFunction(SubPosix, "sub"),
     "suffix" -> AstNodeToExpressionElement.validateTwoParamEngineFunction(Suffix, "suffix"),
     "quote" -> AstNodeToExpressionElement.validateOneParamEngineFunction(Quote, "quote"),
     "squote" -> AstNodeToExpressionElement.validateOneParamEngineFunction(SQuote, "squote"),

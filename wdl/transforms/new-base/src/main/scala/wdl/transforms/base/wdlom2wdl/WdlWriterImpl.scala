@@ -401,6 +401,7 @@ object WdlWriterImpl {
       case a: OneOrTwoParamFunctionCallElement => a.toWdlV1
       case a: TwoParamFunctionCallElement => a.toWdlV1
       case a: Sub => s"sub(${a.input.toWdlV1}, ${a.pattern.toWdlV1}, ${a.replace.toWdlV1})"
+      case a: SubPosix => s"sub(${a.input.toWdlV1}, ${a.pattern.toWdlV1}, ${a.replace.toWdlV1})"
     }
   }
 

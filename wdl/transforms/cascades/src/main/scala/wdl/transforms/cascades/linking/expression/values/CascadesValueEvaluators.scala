@@ -4,12 +4,15 @@ import cats.data.NonEmptyList
 import cats.syntax.validated._
 import cats.syntax.traverse._
 import cats.instances.list._
+import com.google.re2j.{Pattern => RE2JPattern}
 import common.validation.ErrorOr._
 import common.collections.EnhancedCollections._
+import common.validation.ErrorOr
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
 import wdl.transforms.base.linking.expression.values.EngineFunctionEvaluators.{
+  processThreeValidatedValues,
   processTwoValidatedValues,
   processValidatedSingleValue
 }
@@ -215,6 +218,36 @@ object cascadesValueEvaluators {
         )
       ) { (sepvalue, arr) =>
         EvaluatedValue(WomString(arr.value.map(v => v.valueString).mkString(sepvalue.value)), Seq.empty).validNel
+      }
+  }
+
+  implicit val subPosixFunctionEvaluator: ValueEvaluator[SubPosix] = new ValueEvaluator[SubPosix] {
+    override def evaluateValue(a: SubPosix,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
+    )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomString]] =
+      processThreeValidatedValues[WomString, WomString, WomString, WomString](
+        expressionValueEvaluator.evaluateValue(a.input, inputs, ioFunctionSet, forCommandInstantiationOptions)(
+          expressionValueEvaluator
+        ),
+        expressionValueEvaluator.evaluateValue(a.pattern, inputs, ioFunctionSet, forCommandInstantiationOptions)(
+          expressionValueEvaluator
+        ),
+        expressionValueEvaluator.evaluateValue(a.replace, inputs, ioFunctionSet, forCommandInstantiationOptions)(
+          expressionValueEvaluator
+        )
+      ) { (input, pattern, replace) =>
+        ErrorOr(
+          EvaluatedValue(WomString(
+                           RE2JPattern
+                             .compile(pattern.valueString)
+                             .matcher(input.valueString)
+                             .replaceAll(replace.valueString)
+                         ),
+                         Seq.empty
+          )
+        )
       }
   }
 

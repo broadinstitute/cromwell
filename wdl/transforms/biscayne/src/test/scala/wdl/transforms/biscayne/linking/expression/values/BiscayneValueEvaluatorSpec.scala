@@ -201,6 +201,29 @@ class BiscayneValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
     }
   }
 
+  it should "evaluate a POSIX-flavor regex in a sub expression correctly" in {
+    val str = """ sub("aB", "[[:lower:]]", "9") """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedString: WomString = WomString("9B")
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedString, Seq.empty)
+    }
+  }
+
+  it should "fail to evaluate a Java-flavor regex in a sub expression" in {
+    val str = """ sub("aB", "\\p{Lower}", "9") """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None)
+        .shouldBeInvalid(
+          """error parsing regexp: invalid character class range: `\p{Lower}`"""
+        )
+    }
+  }
+
   it should "evaluate a suffix expression correctly" in {
     val str = """ suffix("S", ["a", "b", "c"]) """
     val expr = fromString[ExpressionElement](str, parser.parse_e)

@@ -12,11 +12,14 @@ import wdl.model.draft3.elements.ExpressionElement.{
   SQuote,
   SubPosix,
   Suffix
+  Unzip
 }
 import wdl.model.draft3.graph.expression.FileEvaluator
+import wdl.transforms.base.linking.expression.files.EngineFunctionEvaluators.{
+  threeParameterFunctionPassthroughFileEvaluator,
+  twoParameterFunctionPassthroughFileEvaluator
+}
 import wdl.transforms.base.linking.expression.files.EngineFunctionEvaluators.singleParameterPassthroughFileEvaluator
-import wdl.transforms.base.linking.expression.files.EngineFunctionEvaluators.twoParameterFunctionPassthroughFileEvaluator
-import wdl.transforms.base.linking.expression.files.EngineFunctionEvaluators.threeParameterFunctionPassthroughFileEvaluator
 
 object BiscayneFileEvaluators {
 
@@ -35,4 +38,6 @@ object BiscayneFileEvaluators {
   implicit val minFunctionEvaluator: FileEvaluator[Min] = twoParameterFunctionPassthroughFileEvaluator[Min]
   implicit val maxFunctionEvaluator: FileEvaluator[Max] = twoParameterFunctionPassthroughFileEvaluator[Max]
 
+  implicit val unzipFunctionEvaluator: FileEvaluator[Unzip] =
+    EngineFunctionEvaluators.singleParameterPassthroughFileEvaluator
 }

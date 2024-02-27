@@ -15,6 +15,7 @@ import wdl.model.draft3.elements.ExpressionElement.{
   SQuote,
   SubPosix,
   Suffix
+  Unzip
 }
 import wdl.transforms.base.ast2wdlom.AstNodeToExpressionElement
 
@@ -31,6 +32,8 @@ object AstToNewExpressionElements {
     "suffix" -> AstNodeToExpressionElement.validateTwoParamEngineFunction(Suffix, "suffix"),
     "quote" -> AstNodeToExpressionElement.validateOneParamEngineFunction(Quote, "quote"),
     "squote" -> AstNodeToExpressionElement.validateOneParamEngineFunction(SQuote, "squote"),
+    "unzip" -> AstNodeToExpressionElement.validateOneParamEngineFunction(Unzip, "unzip"),
+
     "read_object" -> (_ =>
       "read_object is no longer available in this WDL version. Consider using read_json instead".invalidNel
     ),

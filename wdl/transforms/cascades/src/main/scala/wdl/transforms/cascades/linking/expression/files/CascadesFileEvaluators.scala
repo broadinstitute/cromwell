@@ -12,6 +12,7 @@ import wdl.model.draft3.elements.ExpressionElement.{
   SQuote,
   SubPosix,
   Suffix
+  Unzip
 }
 import wdl.model.draft3.graph.expression.FileEvaluator
 import wdl.transforms.base.linking.expression.files.EngineFunctionEvaluators
@@ -28,6 +29,8 @@ object cascadesFileEvaluators {
   implicit val asPairsFileEvaluator: FileEvaluator[AsPairs] =
     EngineFunctionEvaluators.singleParameterPassthroughFileEvaluator
   implicit val collectByKeyFileEvaluator: FileEvaluator[CollectByKey] =
+    EngineFunctionEvaluators.singleParameterPassthroughFileEvaluator
+  implicit val unzipFunctionEvaluator: FileEvaluator[Unzip] =
     EngineFunctionEvaluators.singleParameterPassthroughFileEvaluator
 
   implicit val sepFunctionEvaluator: FileEvaluator[Sep] = twoParameterFunctionPassthroughFileEvaluator[Sep]

@@ -138,6 +138,7 @@ object ExpressionElement {
   final case class Glob(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class Quote(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class SQuote(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class Unzip(param: ExpressionElement) extends OneParamFunctionCallElement
 
   // 1- or 2-param functions:
   sealed trait OneOrTwoParamFunctionCallElement extends FunctionCallElement {

@@ -9,7 +9,6 @@ import wdl.model.draft3.graph.{ExpressionValueConsumer, GeneratedValueHandle}
 import wdl.model.draft3.graph.expression._
 import wdl.transforms.base.linking.graph.LinkedGraphMaker
 import wdl.transforms.base.wdlom2wom.expression.WdlomWomExpression
-import wom.callable.RuntimeEnvironment
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.LocalName
 import wom.types.{WomArrayType, WomPrimitiveType, WomType}
@@ -52,8 +51,7 @@ case class WdlomWomStringCommandPart(stringCommandPartElement: StringCommandPart
   override def toString: String = stringCommandPartElement.value
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
-                           valueMapper: WomValue => WomValue,
-                           runtimeEnvironment: RuntimeEnvironment
+                           valueMapper: WomValue => WomValue
   ): ErrorOr[List[InstantiatedCommand]] = List(InstantiatedCommand(stringCommandPartElement.value)).validNel
 }
 
@@ -65,8 +63,7 @@ case class WdlomWomPlaceholderCommandPart(attributes: PlaceholderAttributeSet, e
 
   override def instantiate(inputsMap: Map[LocalName, WomValue],
                            functions: IoFunctionSet,
-                           valueMapper: WomValue => WomValue,
-                           runtimeEnvironment: RuntimeEnvironment
+                           valueMapper: WomValue => WomValue
   ): ErrorOr[List[InstantiatedCommand]] = {
     val inputsValues = inputsMap map { case (localName, value) => localName.value -> value }
     expression.evaluateValueForPlaceholder(inputsValues,

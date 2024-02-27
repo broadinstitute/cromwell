@@ -748,7 +748,7 @@ object CromwellApiServiceSpec {
             )
           case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
         }
-      case DescribeRequest(sourceFiles) =>
+      case DescribeRequest(sourceFiles, _) =>
         sourceFiles.workflowSource match {
           case Some("fail to describe") =>
             sender() ! DescribeFailure("as requested, failing to describe")

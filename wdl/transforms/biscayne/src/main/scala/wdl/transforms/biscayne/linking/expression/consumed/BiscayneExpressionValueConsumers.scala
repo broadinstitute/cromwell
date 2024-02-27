@@ -76,6 +76,13 @@ object BiscayneExpressionValueConsumers {
         expressionValueConsumer.expressionConsumedValueHooks(a.arg2)(expressionValueConsumer)
   }
 
+  implicit val unzipExpressionValueConsumer: ExpressionValueConsumer[Unzip] = new ExpressionValueConsumer[Unzip] {
+    override def expressionConsumedValueHooks(a: Unzip)(implicit
+      expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
+    ): Set[UnlinkedConsumedValueHook] =
+      expressionValueConsumer.expressionConsumedValueHooks(a.param)(expressionValueConsumer)
+  }
+
   implicit val noneLiteralExpressionValueConsumer: ExpressionValueConsumer[NoneLiteralElement.type] =
     new ExpressionValueConsumer[NoneLiteralElement.type] {
       override def expressionConsumedValueHooks(a: NoneLiteralElement.type)(implicit

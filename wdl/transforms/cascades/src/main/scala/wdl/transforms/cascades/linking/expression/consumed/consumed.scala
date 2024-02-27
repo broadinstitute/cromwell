@@ -95,6 +95,7 @@ package object consumed {
 
         case a: Zip => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: Cross => a.expressionConsumedValueHooks(expressionValueConsumer)
+        case a: Unzip => a.expressionConsumedValueHooks(expressionValueConsumer)
 
         case a: SubPosix => a.expressionConsumedValueHooks(expressionValueConsumer)
 

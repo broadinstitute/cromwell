@@ -37,7 +37,7 @@ import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
 import shapeless.Coproduct
-import wom.callable.{AdHocValue, CommandTaskDefinition, ContainerizedInputExpression, RuntimeEnvironment}
+import wom.callable.{AdHocValue, CommandTaskDefinition, ContainerizedInputExpression}
 import wom.expression.WomExpression
 import wom.graph.LocalName
 import wom.values._
@@ -141,7 +141,7 @@ trait StandardAsyncExecutionActor
 
   lazy val temporaryDirectory: String = configurationDescriptor.backendConfig.getOrElse(
     path = "temporary-directory",
-    default = s"""$$(mkdir -p "${runtimeEnvironment.tempPath}" && echo "${runtimeEnvironment.tempPath}")"""
+    default = """$(mktemp -d "$PWD"/tmp.XXXXXX)"""
   )
 
   val logJobIds: Boolean = true
@@ -431,7 +431,6 @@ trait StandardAsyncExecutionActor
       s"""export $k="$v""""
     } mkString ("", "\n", "\n")
 
-    val home = jobDescriptor.taskCall.callable.homeOverride.map(_(runtimeEnvironment)).getOrElse("$HOME")
     val shortId = jobDescriptor.workflowDescriptor.id.shortString
     // Give the out and error FIFO variables names that are unlikely to conflict with anything the user is doing.
     val (out, err) = (s"out$shortId", s"err$shortId")
@@ -479,7 +478,6 @@ trait StandardAsyncExecutionActor
           |$tmpDirPermissionsAdjustment
           |export _JAVA_OPTIONS=-Djava.io.tmpdir="$$tmpDir"
           |export TMPDIR="$$tmpDir"
-          |export HOME="$home"
           |
           |SCRIPT_PREAMBLE
           |
@@ -511,16 +509,6 @@ trait StandardAsyncExecutionActor
         .replace("DOCKER_OUTPUT_DIR_LINK", dockerOutputDir)
     )
   }
-
-  def runtimeEnvironmentPathMapper(env: RuntimeEnvironment): RuntimeEnvironment = {
-    def localize(path: String): String = (WomSingleFile(path) |> commandLineValueMapper).valueString
-    env.copy(outputPath = env.outputPath |> localize, tempPath = env.tempPath |> localize)
-  }
-
-  lazy val runtimeEnvironment: RuntimeEnvironment =
-    RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(
-      standardParams.minimumRuntimeSettings
-    ) |> runtimeEnvironmentPathMapper
 
   /**
    * Turns WomFiles into relative paths.  These paths are relative to the working disk.
@@ -685,8 +673,7 @@ trait StandardAsyncExecutionActor
       jobDescriptor,
       backendEngineFunctions,
       mutatingPreProcessor,
-      commandLineValueMapper,
-      runtimeEnvironment
+      commandLineValueMapper
     )
 
     def makeStringKeyedMap(list: List[(LocalName, WomValue)]): Map[String, WomValue] = list.toMap map { case (k, v) =>

@@ -1,6 +1,7 @@
 package cromwell.services.womtool
 
 import cromwell.core.WorkflowSourceFilesCollection
+import cromwell.languages.util.ImportResolver.ImportAuthProvider
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import cromwell.services.womtool.models.WorkflowDescription
 
@@ -12,7 +13,8 @@ object WomtoolServiceMessages {
     override def serviceName: String = WomtoolServiceName
   }
 
-  case class DescribeRequest(filesCollection: WorkflowSourceFilesCollection) extends WomtoolServiceMessage
+  case class DescribeRequest(filesCollection: WorkflowSourceFilesCollection, authProviders: List[ImportAuthProvider])
+      extends WomtoolServiceMessage
 
   sealed trait DescribeResult extends WomtoolServiceMessage
   case class DescribeSuccess(description: WorkflowDescription) extends DescribeResult

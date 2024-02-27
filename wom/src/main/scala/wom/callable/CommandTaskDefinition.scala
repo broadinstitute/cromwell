@@ -92,7 +92,6 @@ sealed trait CommandTaskDefinition extends TaskDefinition {
   def adHocFileCreation: Set[ContainerizedInputExpression]
   def environmentExpressions: Map[String, WomExpression]
   def additionalGlob: Option[WomGlobFile]
-  def homeOverride: Option[RuntimeEnvironment => String]
 
   /**
     * Provides a custom way to evaluate outputs of the task definition.
@@ -104,8 +103,7 @@ sealed trait CommandTaskDefinition extends TaskDefinition {
 
   def instantiateCommand(taskInputs: WomEvaluatedCallInputs,
                          functions: IoFunctionSet,
-                         valueMapper: WomValue => WomValue,
-                         runtimeEnvironment: RuntimeEnvironment
+                         valueMapper: WomValue => WomValue
   ): ErrorOr[InstantiatedCommand] = {
 
     val inputsByLocalName = taskInputs map { case (k, v) => k.localName -> v }
@@ -115,7 +113,7 @@ sealed trait CommandTaskDefinition extends TaskDefinition {
     // Just raw command parts, no separators.
     val rawCommandParts: List[ErrorOr[InstantiatedCommand]] =
       commandTemplate(taskInputs).toList.flatMap { commandPart =>
-        commandPart.instantiate(inputsByLocalName, functions, valueMapper, runtimeEnvironment).sequence
+        commandPart.instantiate(inputsByLocalName, functions, valueMapper).sequence
       }
 
     // Add separator command parts and monoid smash down to one `ErrorOr[InstantiatedCommand]`.
@@ -163,7 +161,6 @@ final case class CallableTaskDefinition(name: String,
                                         additionalGlob: Option[WomGlobFile] = None,
                                         private[wom] val customizedOutputEvaluation: OutputEvaluationFunction =
                                           OutputEvaluationFunction.none,
-                                        homeOverride: Option[RuntimeEnvironment => String] = None,
                                         dockerOutputDirectory: Option[String] = None,
                                         override val sourceLocation: Option[SourceFileLocation]
 ) extends CommandTaskDefinition {
@@ -198,7 +195,6 @@ final case class ExecutableTaskDefinition private (callableTaskDefinition: Calla
   override def additionalGlob = callableTaskDefinition.additionalGlob
   override private[wom] def customizedOutputEvaluation = callableTaskDefinition.customizedOutputEvaluation
   override def toExecutable = this.validNel
-  override def homeOverride = callableTaskDefinition.homeOverride
   override def dockerOutputDirectory = callableTaskDefinition.dockerOutputDirectory
 }
 

@@ -4,7 +4,6 @@ import java.nio.file.FileAlreadyExistsException
 import java.time.Instant
 
 import common.validation.Validation._
-import cromwell.backend.RuntimeEnvironmentBuilder
 import cromwell.backend.impl.sfs.config.ConfigConstants._
 import cromwell.backend.sfs._
 import cromwell.backend.standard.{StandardAsyncExecutionActorParams, StandardAsyncJob}
@@ -104,10 +103,8 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
       if !inputs.contains(optional.localName.value)
     } yield optional -> WomOptionalValue.none(optional.womType.memberType)
 
-    val runtimeEnvironment =
-      RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(standardParams.minimumRuntimeSettings)
     val allInputs = providedWomInputs ++ optionalsForciblyInitializedToNone
-    val womInstantiation = taskDefinition.instantiateCommand(allInputs, NoIoFunctionSet, identity, runtimeEnvironment)
+    val womInstantiation = taskDefinition.instantiateCommand(allInputs, NoIoFunctionSet, identity)
 
     val command = womInstantiation.toTry.get.commandString
     jobLogger.info(s"executing: $command")

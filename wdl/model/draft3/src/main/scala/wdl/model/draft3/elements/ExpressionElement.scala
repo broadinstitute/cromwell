@@ -180,7 +180,17 @@ object ExpressionElement {
     def arg2: ExpressionElement
     def arg3: ExpressionElement
   }
+
+  // Pre-1.1 WDL versions have undefined regex flavor. Cromwell uses the standard Java flavor.
   final case class Sub(input: ExpressionElement, pattern: ExpressionElement, replace: ExpressionElement)
+      extends ThreeParamFunctionCallElement {
+    override def arg1: ExpressionElement = input
+    override def arg2: ExpressionElement = pattern
+    override def arg3: ExpressionElement = replace
+  }
+
+  // As of WDL 1.1, WDL regular expressions are expected to be POSIX ERE flavor.
+  final case class SubPosix(input: ExpressionElement, pattern: ExpressionElement, replace: ExpressionElement)
       extends ThreeParamFunctionCallElement {
     override def arg1: ExpressionElement = input
     override def arg2: ExpressionElement = pattern

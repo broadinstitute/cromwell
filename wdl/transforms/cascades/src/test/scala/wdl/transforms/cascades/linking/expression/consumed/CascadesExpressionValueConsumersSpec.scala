@@ -100,6 +100,8 @@ class CascadesExpressionValueConsumersSpec extends AnyFlatSpec with CromwellTime
 
     expr.shouldBeValidPF { case e =>
       e.expressionConsumedValueHooks should be(Set(UnlinkedIdentifierHook("my_array")))
+    }
+  }
       
   it should "discover an array variable lookup within a unzip() call" in {
     val str = """ unzip(my_array_of_pairs) """

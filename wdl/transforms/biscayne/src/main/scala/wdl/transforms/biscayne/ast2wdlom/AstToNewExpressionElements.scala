@@ -14,7 +14,7 @@ import wdl.model.draft3.elements.ExpressionElement.{
   Sep,
   SQuote,
   SubPosix,
-  Suffix
+  Suffix,
   Unzip
 }
 import wdl.transforms.base.ast2wdlom.AstNodeToExpressionElement

@@ -1,6 +1,17 @@
 package wdl.transforms.biscayne.linking.expression.files
 
-import wdl.model.draft3.elements.ExpressionElement.{AsMap, AsPairs, CollectByKey, Keys, Max, Min, Sep, SubPosix, Suffix, Unzip}
+import wdl.model.draft3.elements.ExpressionElement.{
+  AsMap,
+  AsPairs,
+  CollectByKey,
+  Keys,
+  Max,
+  Min,
+  Sep,
+  SubPosix,
+  Suffix,
+  Unzip
+}
 import wdl.model.draft3.graph.expression.FileEvaluator
 import wdl.transforms.base.linking.expression.files.EngineFunctionEvaluators
 import wdl.transforms.base.linking.expression.files.EngineFunctionEvaluators.{

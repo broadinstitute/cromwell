@@ -1,8 +1,8 @@
 package wdl.draft3.transforms.ast2wdlom
 
 import cats.instances.either._
-import java.util
 
+import java.util
 import common.Checked
 import common.assertion.CromwellTimeoutSpec
 import common.assertion.ErrorOrAssertions._
@@ -11,14 +11,15 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.draft3.parser.WdlParser
 import wdl.draft3.parser.WdlParser.{ParseTree, SyntaxErrorFormatter}
+import wdl.draft3.transforms.ast2wdlom.Ast2WdlomSpec.{fromString, parser}
 import wdl.draft3.transforms.parsing.WdlDraft3SyntaxErrorFormatter
-import wdl.model.draft3.elements.ExpressionElement.IdentifierLookup
+import wdl.model.draft3.elements.ExpressionElement.{IdentifierLookup, StringLiteral, Sub}
 import wdl.model.draft3.elements._
 import wdl.transforms.base.ast2wdlom.GenericAstNode
 
 import scala.jdk.CollectionConverters._
 
-class Ast2WdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
+object Ast2WdlomSpec {
 
   val parser = new WdlParser()
 
@@ -29,10 +30,15 @@ class Ast2WdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     val versionedExpression = "version 1.0\n" + expression
     // That "version 1.0" means we'll have 2 unwanted tokens at the start of the list, so drop 'em:
     val tokens = parser.lex(versionedExpression, "string").asScala.drop(2).asJava
-    val terminalMap = (tokens.asScala.toVector map { (_, expression) }).toMap
+    val terminalMap = (tokens.asScala.toVector map {
+      (_, expression)
+    }).toMap
     val parseTree = parseFunction(tokens, WdlDraft3SyntaxErrorFormatter(terminalMap))
     (wrapAstNode andThen converter).run(parseTree.toAst)
   }
+}
+
+class Ast2WdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   it should "not parse the new as_map function" in {
     val str = "as_map(some_pairs)"
@@ -50,6 +56,12 @@ class Ast2WdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     val str = "collect_by_key(some_map)"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
     expr shouldBeInvalid "Failed to parse expression (reason 1 of 1): Unknown engine function: 'collect_by_key'"
+  }
+
+  it should "get the non-posix version when parsing the sub function" in {
+    val str = """sub("my input", "[A-Za-z]", "repl")"""
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeValid (Sub(StringLiteral("my input"), StringLiteral("[A-Za-z]"), StringLiteral("repl")))
   }
 
   it should "not parse the new suffix function" in {

@@ -59,7 +59,7 @@ import mouse.all._
 import shapeless.Coproduct
 import wom.callable.Callable.OutputDefinition
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
-import wom.callable.{AdHocValue, RuntimeEnvironment}
+import wom.callable.AdHocValue
 import wom.core.FullyQualifiedName
 import wom.expression.{FileEvaluation, NoIoFunctionSet}
 import wom.types.{WomArrayType, WomSingleFileType}
@@ -145,12 +145,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override lazy val executeOrRecoverBackOff: SimpleExponentialBackoff =
     SimpleExponentialBackoff(initialInterval = 3 seconds, maxInterval = 20 seconds, multiplier = 1.1)
-
-  override lazy val runtimeEnvironment: RuntimeEnvironment =
-    RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes,
-                              PipelinesApiWorkingDisk.MountPoint,
-                              PipelinesApiWorkingDisk.MountPoint
-    )(standardParams.minimumRuntimeSettings)
 
   protected lazy val cmdInput: PipelinesApiFileInput =
     PipelinesApiFileInput(PipelinesApiJobPaths.JesExecParamName,

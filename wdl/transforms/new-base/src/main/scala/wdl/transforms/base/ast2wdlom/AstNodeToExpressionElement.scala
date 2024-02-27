@@ -43,7 +43,7 @@ object AstNodeToExpressionElement {
         (a.getAttributeAsVector[ExpressionElement]("values") flatMap {
           case pair if pair.length == 2 => PairLiteral(pair.head, pair(1)).validNelCheck
           case singleton if singleton.length == 1 => singleton.head.validNelCheck
-          case more => s"No WDL support for ${more.size}-tuples in draft 3".invalidNelCheck
+          case more => s"No WDL support for ${more.size}-tuples".invalidNelCheck
         }).toValidated
       case a: GenericAst if a.getName == "ArrayLiteral" =>
         a.getAttributeAsVector[ExpressionElement]("values").toValidated.map(ArrayLiteral)
@@ -231,7 +231,7 @@ object AstNodeToExpressionElement {
       s"Function $functionName expects exactly 2 arguments but got ${params.size}".invalidNel
     }
 
-  private def validateThreeParamEngineFunction(
+  def validateThreeParamEngineFunction(
     elementMaker: (ExpressionElement, ExpressionElement, ExpressionElement) => ExpressionElement,
     functionName: String
   )(params: Vector[ExpressionElement]): ErrorOr[ExpressionElement] =

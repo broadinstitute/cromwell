@@ -4,12 +4,15 @@ import cats.data.NonEmptyList
 import cats.syntax.validated._
 import cats.syntax.traverse._
 import cats.instances.list._
+import com.google.re2j.{Pattern => RE2JPattern}
 import common.validation.ErrorOr._
 import common.collections.EnhancedCollections._
+import common.validation.ErrorOr
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
 import wdl.transforms.base.linking.expression.values.EngineFunctionEvaluators.{
+  processThreeValidatedValues,
   processTwoValidatedValues,
   processValidatedSingleValue
 }
@@ -218,6 +221,36 @@ object cascadesValueEvaluators {
       }
   }
 
+  implicit val subPosixFunctionEvaluator: ValueEvaluator[SubPosix] = new ValueEvaluator[SubPosix] {
+    override def evaluateValue(a: SubPosix,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
+    )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomString]] =
+      processThreeValidatedValues[WomString, WomString, WomString, WomString](
+        expressionValueEvaluator.evaluateValue(a.input, inputs, ioFunctionSet, forCommandInstantiationOptions)(
+          expressionValueEvaluator
+        ),
+        expressionValueEvaluator.evaluateValue(a.pattern, inputs, ioFunctionSet, forCommandInstantiationOptions)(
+          expressionValueEvaluator
+        ),
+        expressionValueEvaluator.evaluateValue(a.replace, inputs, ioFunctionSet, forCommandInstantiationOptions)(
+          expressionValueEvaluator
+        )
+      ) { (input, pattern, replace) =>
+        ErrorOr(
+          EvaluatedValue(WomString(
+                           RE2JPattern
+                             .compile(pattern.valueString)
+                             .matcher(input.valueString)
+                             .replaceAll(replace.valueString)
+                         ),
+                         Seq.empty
+          )
+        )
+      }
+  }
+
   implicit val suffixFunctionEvaluator: ValueEvaluator[Suffix] = new ValueEvaluator[Suffix] {
     override def evaluateValue(a: Suffix,
                                inputs: Map[String, WomValue],
@@ -233,6 +266,41 @@ object cascadesValueEvaluators {
         )
       ) { (suffix, arr) =>
         EvaluatedValue(WomArray(arr.value.map(v => WomString(v.valueString + suffix.value))), Seq.empty).validNel
+      }
+  }
+
+  /**
+   * Unzip: Creates a pair of arrays, the first containing the elements from the left members of an array of pairs,
+   * and the second containing the right members. This is the inverse of the zip function.
+   * https://github.com/openwdl/wdl/blob/main/versions/1.1/SPEC.md#-pairarrayx-arrayy-unziparraypairx-y
+   * input: Array[Pair[X,Y]]
+   * output: Pair[Array[X], Array[Y]]
+   */
+  implicit val unzipFunctionEvaluator: ValueEvaluator[Unzip] = new ValueEvaluator[Unzip] {
+    override def evaluateValue(a: Unzip,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
+    )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomPair]] =
+      processValidatedSingleValue[WomArray, WomPair](
+        expressionValueEvaluator.evaluateValue(a.param, inputs, ioFunctionSet, forCommandInstantiationOptions)(
+          expressionValueEvaluator
+        )
+      ) {
+        case WomArray(WomArrayType(WomAnyType), Seq()) =>
+          EvaluatedValue(
+            WomPair(WomArray(WomArrayType(WomAnyType), Seq.empty), WomArray(WomArrayType(WomAnyType), Seq.empty)),
+            Seq.empty
+          ).validNel
+        case WomArray(WomArrayType(WomPairType(_, _)), values) =>
+          val zippedArrayOfPairs: Seq[(WomValue, WomValue)] = values map { case pair: WomPair =>
+            Tuple2(pair.left, pair.right)
+          }
+          val (left, right) = zippedArrayOfPairs.unzip
+          val unzippedPairOfArrays: WomPair = WomPair(WomArray(left), WomArray(right))
+          EvaluatedValue(unzippedPairOfArrays, Seq.empty).validNel
+        case other =>
+          s"Invalid call of 'unzip' on parameter of type '${other.womType.stableName}' (expected Array[Pair[X, Y]])".invalidNel
       }
   }
 }

@@ -401,6 +401,7 @@ object WdlWriterImpl {
       case a: OneOrTwoParamFunctionCallElement => a.toWdlV1
       case a: TwoParamFunctionCallElement => a.toWdlV1
       case a: Sub => s"sub(${a.input.toWdlV1}, ${a.pattern.toWdlV1}, ${a.replace.toWdlV1})"
+      case a: SubPosix => s"sub(${a.input.toWdlV1}, ${a.pattern.toWdlV1}, ${a.replace.toWdlV1})"
     }
   }
 
@@ -439,6 +440,7 @@ object WdlWriterImpl {
           case _: AsMap => "as_map"
           case _: AsPairs => "as_pairs"
           case _: CollectByKey => "collect_by_key"
+          case _: Unzip => "unzip"
         }
 
         s"$fn(${a.param.toWdlV1})"

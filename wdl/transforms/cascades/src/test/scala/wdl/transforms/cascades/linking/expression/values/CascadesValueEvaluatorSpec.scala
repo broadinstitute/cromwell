@@ -11,7 +11,7 @@ import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wdl.transforms.cascades.Ast2WdlomSpec.{fromString, parser}
 import wdl.transforms.cascades.ast2wdlom._
 import wom.expression.NoIoFunctionSet
-import wom.types.{WomIntegerType, WomMapType, WomOptionalType, WomStringType}
+import wom.types.{WomAnyType, WomArrayType, WomIntegerType, WomMapType, WomOptionalType, WomStringType}
 import wom.values.{WomArray, WomInteger, WomMap, WomOptionalValue, WomPair, WomString}
 
 class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
@@ -201,6 +201,29 @@ class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
     }
   }
 
+  it should "evaluate a POSIX-flavor regex in a sub expression correctly" in {
+    val str = """ sub("aB", "[[:lower:]]", "9") """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedString: WomString = WomString("9B")
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedString, Seq.empty)
+    }
+  }
+
+  it should "fail to evaluate a Java-flavor regex in a sub expression" in {
+    val str = """ sub("aB", "\\p{Lower}", "9") """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None)
+        .shouldBeInvalid(
+          """error parsing regexp: invalid character class range: `\p{Lower}`"""
+        )
+    }
+  }
+
   it should "evaluate a suffix expression correctly" in {
     val str = """ suffix("S", ["a", "b", "c"]) """
     val expr = fromString[ExpressionElement](str, parser.parse_e)
@@ -216,5 +239,49 @@ class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
     expr.shouldBeValidPF { case e =>
       e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
     }
+  }
+
+  it should "evaluate an unzip expression correctly" in {
+    val str = """ unzip([("one", 1),("two", 2),("three", 3)]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val left: WomArray =
+      WomArray(WomArrayType(WomStringType), Seq(WomString("one"), WomString("two"), WomString("three")))
+    val right: WomArray = WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(1), WomInteger(2), WomInteger(3)))
+    val expectedPair: WomPair = WomPair(left, right)
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedPair, Seq.empty)
+    }
+  }
+
+  it should "evaluate an unzip on an empty collection correctly" in {
+    val str = """ unzip([])"""
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val left: WomArray = WomArray(WomArrayType(WomAnyType), Seq())
+    val right: WomArray = WomArray(WomArrayType(WomAnyType), Seq())
+    val expectedPair: WomPair = WomPair(left, right)
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedPair, Seq.empty)
+    }
+  }
+
+  it should "fail to evaluate unzip on invalid pair" in {
+    val invalidPair = """ unzip([()])"""
+    val invalidPairExpr = fromString[ExpressionElement](invalidPair, parser.parse_e)
+    invalidPairExpr.shouldBeInvalid("Failed to parse expression (reason 1 of 1): No WDL support for 0-tuples")
+  }
+
+  it should "fail to evaluate unzip on heterogeneous pairs" in {
+    val invalidPair = """ unzip([ (1, 11.0), ([1,2,3], 2.0) ])"""
+    val invalidPairExpr = fromString[ExpressionElement](invalidPair, parser.parse_e)
+    invalidPairExpr.map(e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None)
+        .shouldBeInvalid(
+          "Could not construct array of type WomMaybeEmptyArrayType(WomPairType(WomIntegerType,WomFloatType)) with this value: List(WomPair(WomInteger(1),WomFloat(11.0)), WomPair([1, 2, 3],WomFloat(2.0)))"
+        )
+    )
   }
 }

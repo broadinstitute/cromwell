@@ -3,7 +3,7 @@ package wdl.transforms.biscayne.ast2wdlom
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.elements.ExpressionElement
-import wdl.model.draft3.elements.ExpressionElement.{AsMap, AsPairs, CollectByKey, Keys, Max, Min, Sep, Suffix, Unzip}
+import wdl.model.draft3.elements.ExpressionElement.{AsMap, AsPairs, CollectByKey, Keys, Max, Min, Sep, SubPosix, Suffix, Unzip}
 import wdl.transforms.base.ast2wdlom.AstNodeToExpressionElement
 
 object AstToNewExpressionElements {
@@ -15,6 +15,7 @@ object AstToNewExpressionElements {
     "min" -> AstNodeToExpressionElement.validateTwoParamEngineFunction(Min, "min"),
     "max" -> AstNodeToExpressionElement.validateTwoParamEngineFunction(Max, "max"),
     "sep" -> AstNodeToExpressionElement.validateTwoParamEngineFunction(Sep, "sep"),
+    "sub" -> AstNodeToExpressionElement.validateThreeParamEngineFunction(SubPosix, "sub"),
     "suffix" -> AstNodeToExpressionElement.validateTwoParamEngineFunction(Suffix, "suffix"),
     "unzip" -> AstNodeToExpressionElement.validateOneParamEngineFunction(Unzip, "unzip"),
     "read_object" -> (_ =>

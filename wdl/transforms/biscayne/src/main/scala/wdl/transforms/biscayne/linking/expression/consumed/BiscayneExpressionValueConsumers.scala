@@ -58,6 +58,16 @@ object BiscayneExpressionValueConsumers {
         expressionValueConsumer.expressionConsumedValueHooks(a.arg2)(expressionValueConsumer)
   }
 
+  implicit val subPosixExpressionValueConsumer: ExpressionValueConsumer[SubPosix] =
+    new ExpressionValueConsumer[SubPosix] {
+      override def expressionConsumedValueHooks(a: SubPosix)(implicit
+        expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
+      ): Set[UnlinkedConsumedValueHook] =
+        expressionValueConsumer.expressionConsumedValueHooks(a.arg1)(expressionValueConsumer) ++
+          expressionValueConsumer.expressionConsumedValueHooks(a.arg2)(expressionValueConsumer) ++
+          expressionValueConsumer.expressionConsumedValueHooks(a.arg3)(expressionValueConsumer)
+    }
+
   implicit val suffixExpressionValueConsumer: ExpressionValueConsumer[Suffix] = new ExpressionValueConsumer[Suffix] {
     override def expressionConsumedValueHooks(a: Suffix)(implicit
       expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]

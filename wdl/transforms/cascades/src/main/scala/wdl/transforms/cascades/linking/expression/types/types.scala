@@ -99,7 +99,7 @@ package object types {
         case a: Cross => a.evaluateType(linkedValues)(typeEvaluator)
         case a: Unzip => a.evaluateType(linkedValues)(typeEvaluator)
 
-        case a: Sub => a.evaluateType(linkedValues)(typeEvaluator)
+        case a: SubPosix => a.evaluateType(linkedValues)(typeEvaluator)
 
         case a: StdoutElement.type => a.evaluateType(linkedValues)(typeEvaluator)
         case a: StderrElement.type => a.evaluateType(linkedValues)(typeEvaluator)

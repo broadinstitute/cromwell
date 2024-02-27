@@ -97,7 +97,7 @@ package object consumed {
         case a: Cross => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: Unzip => a.expressionConsumedValueHooks(expressionValueConsumer)
 
-        case a: Sub => a.expressionConsumedValueHooks(expressionValueConsumer)
+        case a: SubPosix => a.expressionConsumedValueHooks(expressionValueConsumer)
 
         // New WDL biscayne expressions:
         case a: Keys => a.expressionConsumedValueHooks(expressionValueConsumer)

@@ -155,7 +155,8 @@ package object files {
         case a: Cross => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
         case a: Unzip => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
 
-        case a: Sub => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
+        case a: SubPosix =>
+          a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
 
         case a: Keys => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
         case a: AsMap => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)

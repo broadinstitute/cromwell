@@ -55,6 +55,11 @@ workflow biscayne_new_engine_functions {
     Float minMaxIntFloatComposition = min(max(biggestInt, smallFloat), smallestInt) # 1.0
     Float maxIntVsMaxFloat = max(maxInt, maxFloat)
 
+    # sub():
+    # (Exists before Biscayne, but uses different regex flavor here)
+    # =================================================
+    String substituted = sub("AtheZ", "[[:upper:]]", "WAT")
+
     # suffix():
     # =================================================
     Array[String] with_suffixes = suffix("S", some_strings)

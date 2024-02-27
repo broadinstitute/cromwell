@@ -231,7 +231,7 @@ object AstNodeToExpressionElement {
       s"Function $functionName expects exactly 2 arguments but got ${params.size}".invalidNel
     }
 
-  private def validateThreeParamEngineFunction(
+  def validateThreeParamEngineFunction(
     elementMaker: (ExpressionElement, ExpressionElement, ExpressionElement) => ExpressionElement,
     functionName: String
   )(params: Vector[ExpressionElement]): ErrorOr[ExpressionElement] =

@@ -1,7 +1,6 @@
 package wdl.transforms.biscayne
 
 import java.util
-
 import common.Checked
 import common.assertion.ErrorOrAssertions._
 import common.transforms.CheckedAtoB
@@ -96,6 +95,12 @@ class Ast2WdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     val str = "None"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
     expr shouldBeValid NoneLiteralElement
+  }
+
+  it should "get the posix version when parsing the sub function" in {
+    val str = """sub("my input", "[A-Za-z]", "repl")"""
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeValid (SubPosix(StringLiteral("my input"), StringLiteral("[A-Za-z]"), StringLiteral("repl")))
   }
 
   it should "parse the new suffix function" in {

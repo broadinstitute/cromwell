@@ -9,35 +9,28 @@ import wdl.model.draft3.elements.ExpressionElement.{
   Min,
   Quote,
   Sep,
-  SubPosix
   SQuote,
+  SubPosix,
   Suffix
 }
 import wdl.model.draft3.graph.expression.FileEvaluator
-import wdl.transforms.base.linking.expression.files.EngineFunctionEvaluators
-import wdl.transforms.base.linking.expression.files.EngineFunctionEvaluators.{
-  threeParameterFunctionPassthroughFileEvaluator,
-  twoParameterFunctionPassthroughFileEvaluator
-}
+import wdl.transforms.base.linking.expression.files.EngineFunctionEvaluators.singleParameterPassthroughFileEvaluator
+import wdl.transforms.base.linking.expression.files.EngineFunctionEvaluators.twoParameterFunctionPassthroughFileEvaluator
+import wdl.transforms.base.linking.expression.files.EngineFunctionEvaluators.threeParameterFunctionPassthroughFileEvaluator
 
 object BiscayneFileEvaluators {
 
-  implicit val keysFileEvaluator: FileEvaluator[Keys] = EngineFunctionEvaluators.singleParameterPassthroughFileEvaluator
-  implicit val asMapFileEvaluator: FileEvaluator[AsMap] =
-    EngineFunctionEvaluators.singleParameterPassthroughFileEvaluator
-  implicit val asPairsFileEvaluator: FileEvaluator[AsPairs] =
-    EngineFunctionEvaluators.singleParameterPassthroughFileEvaluator
-  implicit val collectByKeyFileEvaluator: FileEvaluator[CollectByKey] =
-    EngineFunctionEvaluators.singleParameterPassthroughFileEvaluator
+  implicit val keysFileEvaluator: FileEvaluator[Keys] = singleParameterPassthroughFileEvaluator
+  implicit val asMapFileEvaluator: FileEvaluator[AsMap] = singleParameterPassthroughFileEvaluator
+  implicit val asPairsFileEvaluator: FileEvaluator[AsPairs] = singleParameterPassthroughFileEvaluator
+  implicit val collectByKeyFileEvaluator: FileEvaluator[CollectByKey] = singleParameterPassthroughFileEvaluator
 
   implicit val sepFunctionEvaluator: FileEvaluator[Sep] = twoParameterFunctionPassthroughFileEvaluator[Sep]
   implicit val subPosixFunctionEvaluator: FileEvaluator[SubPosix] =
     threeParameterFunctionPassthroughFileEvaluator[SubPosix]
   implicit val suffixFunctionEvaluator: FileEvaluator[Suffix] = twoParameterFunctionPassthroughFileEvaluator[Suffix]
-  implicit val quoteFunctionEvaluator: FileEvaluator[Quote] =
-    EngineFunctionEvaluators.singleParameterPassthroughFileEvaluator
-  implicit val sQuoteFunctionEvaluator: FileEvaluator[SQuote] =
-    EngineFunctionEvaluators.singleParameterPassthroughFileEvaluator
+  implicit val quoteFunctionEvaluator: FileEvaluator[Quote] = singleParameterPassthroughFileEvaluator
+  implicit val sQuoteFunctionEvaluator: FileEvaluator[SQuote] = singleParameterPassthroughFileEvaluator
 
   implicit val minFunctionEvaluator: FileEvaluator[Min] = twoParameterFunctionPassthroughFileEvaluator[Min]
   implicit val maxFunctionEvaluator: FileEvaluator[Max] = twoParameterFunctionPassthroughFileEvaluator[Max]

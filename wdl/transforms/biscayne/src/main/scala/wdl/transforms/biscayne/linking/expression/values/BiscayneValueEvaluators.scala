@@ -286,7 +286,10 @@ object BiscayneValueEvaluators {
           expressionValueEvaluator
         )
       ) { arr =>
-        EvaluatedValue(WomArray(arr.value.map(v => WomString("\"" + v.valueString + "\""))), Seq.empty).validNel
+        EvaluatedValue(
+          WomArray(arr.value.map(v => WomString("\"" + v.valueString.replaceAll(""""""", "\"") + "\""))),
+          Seq.empty
+        ).validNel
       }
   }
 
@@ -307,7 +310,10 @@ object BiscayneValueEvaluators {
           expressionValueEvaluator
         )
       ) { arr =>
-        EvaluatedValue(WomArray(arr.value.map(v => WomString("\'" + v.valueString + "\'"))), Seq.empty).validNel
+        EvaluatedValue(
+          WomArray(arr.value.map(v => WomString("\'" + v.valueString.replaceAll("""'""", "\'") + "\'"))),
+          Seq.empty
+        ).validNel
       }
   }
 }

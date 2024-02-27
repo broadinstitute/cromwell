@@ -232,6 +232,20 @@ class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
     }
   }
 
+  it should "evaluate an unzip expression correctly" in {
+    val str = """ unzip([("one", 1),("two", 2),("three", 3)]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val left: WomArray =
+      WomArray(WomArrayType(WomStringType), Seq(WomString("one"), WomString("two"), WomString("three")))
+    val right: WomArray = WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(1), WomInteger(2), WomInteger(3)))
+    val expectedPair: WomPair = WomPair(left, right)
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedPair, Seq.empty)
+    }
+  }
+
   it should "evaluate an unzip on an empty collection correctly" in {
     val str = """ unzip([])"""
     val expr = fromString[ExpressionElement](str, parser.parse_e)

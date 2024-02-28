@@ -11,7 +11,7 @@ import wdl.model.draft3.elements.ExpressionElement.{
   Sep,
   SQuote,
   SubPosix,
-  Suffix
+  Suffix,
   Unzip
 }
 import wdl.model.draft3.graph.expression.FileEvaluator

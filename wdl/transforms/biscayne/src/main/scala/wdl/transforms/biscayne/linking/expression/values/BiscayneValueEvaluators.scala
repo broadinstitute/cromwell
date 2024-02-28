@@ -304,7 +304,7 @@ object BiscayneValueEvaluators {
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
-    )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] =
+                              )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] =
       processValidatedSingleValue[WomArray, WomArray](
         expressionValueEvaluator.evaluateValue(a.param, inputs, ioFunctionSet, forCommandInstantiationOptions)(
           expressionValueEvaluator
@@ -314,7 +314,10 @@ object BiscayneValueEvaluators {
           WomArray(arr.value.map(v => WomString("\'" + v.valueString.replaceAll("""'""", "\'") + "\'"))),
           Seq.empty
         ).validNel
-        
+      }
+  }
+
+  /**
    * Unzip: Creates a pair of arrays, the first containing the elements from the left members of an array of pairs,
    * and the second containing the right members. This is the inverse of the zip function.
    * https://github.com/openwdl/wdl/blob/main/versions/1.1/SPEC.md#-pairarrayx-arrayy-unziparraypairx-y

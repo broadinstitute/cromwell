@@ -144,6 +144,8 @@ object BiscayneTypeEvaluators {
           s"Cannot invoke squote on type Array[${other.stableName}]. Expected an Array[Primitive type]".invalidNel
         case other =>
           s"Cannot invoke squote on type ${other.stableName}. Expected an Array[Primitive type]".invalidNel
+      }
+  }
 
   implicit val unzipFunctionEvaluator: TypeEvaluator[Unzip] = new TypeEvaluator[Unzip] {
     override def evaluateType(a: Unzip, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit

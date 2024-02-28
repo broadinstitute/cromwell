@@ -38,6 +38,5 @@ object BiscayneFileEvaluators {
   implicit val minFunctionEvaluator: FileEvaluator[Min] = twoParameterFunctionPassthroughFileEvaluator[Min]
   implicit val maxFunctionEvaluator: FileEvaluator[Max] = twoParameterFunctionPassthroughFileEvaluator[Max]
 
-  implicit val unzipFunctionEvaluator: FileEvaluator[Unzip] =
-    singleParameterPassthroughFileEvaluator
+  implicit val unzipFunctionEvaluator: FileEvaluator[Unzip] = singleParameterPassthroughFileEvaluator
 }

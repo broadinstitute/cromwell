@@ -364,7 +364,7 @@ class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
       e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
     }
   }
-  
+
   it should "evaluate an unzip expression correctly" in {
     val str = """ unzip([("one", 1),("two", 2),("three", 3)]) """
     val expr = fromString[ExpressionElement](str, parser.parse_e)

@@ -136,11 +136,11 @@ object cascadesTypeEvaluators {
 
   implicit val sQuoteFunctionEvaluator: TypeEvaluator[SQuote] = new TypeEvaluator[SQuote] {
     override def evaluateType(a: SQuote, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
-                                                                                                             expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
+      expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
       validateParamType(a.param, linkedValues, WomArrayType(WomAnyType)) flatMap {
         case WomArrayType(_: WomPrimitiveType) => WomArrayType(WomStringType).validNel
-        case other@WomArrayType(_) =>
+        case other @ WomArrayType(_) =>
           s"Cannot invoke quote on type Array[${other.stableName}]. Expected an Array[Primitive type]".invalidNel
         case other =>
           s"Cannot invoke quote on type ${other.stableName}. Expected an Array[Primitive type]".invalidNel

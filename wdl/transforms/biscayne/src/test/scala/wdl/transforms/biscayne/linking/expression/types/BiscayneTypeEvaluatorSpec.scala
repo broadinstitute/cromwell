@@ -83,12 +83,30 @@ class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     }
   }
 
+  it should "evaluate the type of a quote() function with an empty array as Array[Nothing]" in {
+    val str = """ quote([]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateType(Map.empty) shouldBeValid WomArrayType(WomNothingType)
+    }
+  }
+
   it should "evaluate the type of a squote() function as Array[String]" in {
     val str = """ squote([1, 2, 3]) """
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
     expr.shouldBeValidPF { case e =>
       e.evaluateType(Map.empty) shouldBeValid WomArrayType(WomStringType)
+    }
+  }
+
+  it should "evaluate the type of an squote() function with an empty array as Array[Nothing]" in {
+    val str = """ squote([]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateType(Map.empty) shouldBeValid WomArrayType(WomNothingType)
     }
   }
 

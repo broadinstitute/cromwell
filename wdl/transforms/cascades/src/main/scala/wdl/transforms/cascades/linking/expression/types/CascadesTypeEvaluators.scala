@@ -126,6 +126,7 @@ object cascadesTypeEvaluators {
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
       validateParamType(a.param, linkedValues, WomArrayType(WomAnyType)) flatMap {
+        case WomArrayType(WomNothingType) => WomArrayType(WomNothingType).validNel
         case WomArrayType(_: WomPrimitiveType) => WomArrayType(WomStringType).validNel
         case other @ WomArrayType(_) =>
           s"Cannot invoke quote on type Array[${other.stableName}]. Expected an Array[Primitive type]".invalidNel
@@ -139,6 +140,7 @@ object cascadesTypeEvaluators {
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
       validateParamType(a.param, linkedValues, WomArrayType(WomAnyType)) flatMap {
+        case WomArrayType(WomNothingType) => WomArrayType(WomNothingType).validNel
         case WomArrayType(_: WomPrimitiveType) => WomArrayType(WomStringType).validNel
         case other @ WomArrayType(_) =>
           s"Cannot invoke quote on type Array[${other.stableName}]. Expected an Array[Primitive type]".invalidNel

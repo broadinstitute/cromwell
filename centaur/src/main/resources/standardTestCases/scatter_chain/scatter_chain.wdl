@@ -1,7 +1,9 @@
 version 1.0
 
 task increment {
-  Int i
+  input {
+    Int i
+  }
 
   command {
     echo $(( ${i} + 1 ))
@@ -16,9 +18,10 @@ task increment {
 }
 
 task sum {
-  Int i
-  Int j
-
+  input {
+    Int i
+    Int j
+  }
   command {
     echo $(( ${i} + ${j} ))
     exit 1

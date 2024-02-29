@@ -406,6 +406,7 @@ grammar {
       (*:left) $e = $e <=> :dot :identifier -> MemberAccess(value=$0, member=$2)
       # TODO: is there a better object literal syntax?
       (*:left) $e = :object :lbrace list($object_kv, :comma) :rbrace -> ObjectLiteral(map=$2)
+      (*:left) $e = :identifier :lbrace list($object_kv, :comma) :rbrace -> ObjectLiteral(map=$2)
       (*:left) $e = :lsquare list($e, :comma) :rsquare -> ArrayLiteral(values=$1)
       (*:left) $e = :lbrace list($map_kv, :comma) :rbrace -> MapLiteral(map=$1)
       (*:left) $e = :lparen list($e, :comma) :rparen -> TupleLiteral(values=$1)

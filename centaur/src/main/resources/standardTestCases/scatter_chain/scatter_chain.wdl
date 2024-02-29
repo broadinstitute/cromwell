@@ -1,3 +1,5 @@
+version 1.0
+
 workflow scatter_chain {
   Array[Int] is = [ 1, 2, 3, 4, 5 ]
 

@@ -68,6 +68,28 @@ class CascadesFileEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     }
   }
 
+  it should "discover the file which would be required to evaluate a quote() function" in {
+    val str = """ quote(read_lines("foo.txt")) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    expr.shouldBeValidPF { case e =>
+      e.predictFilesNeededToEvaluate(Map.empty, NoIoFunctionSet, WomStringType) shouldBeValid Set(
+        WomSingleFile("foo.txt")
+      )
+    }
+  }
+
+  it should "discover the file which would be required to evaluate a squote() function" in {
+    val str = """ squote(read_lines("foo.txt")) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    expr.shouldBeValidPF { case e =>
+      e.predictFilesNeededToEvaluate(Map.empty, NoIoFunctionSet, WomStringType) shouldBeValid Set(
+        WomSingleFile("foo.txt")
+      )
+    }
+  }
+
   it should "discover the file which would be required to evaluate a unzip() function" in {
     val str = """ unzip(read_lines("foo.txt")) """
     val expr = fromString[ExpressionElement](str, parser.parse_e)

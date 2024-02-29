@@ -121,6 +121,34 @@ object cascadesTypeEvaluators {
       ) mapN { (_, _) => WomArrayType(WomStringType) }
   }
 
+  implicit val quoteFunctionEvaluator: TypeEvaluator[Quote] = new TypeEvaluator[Quote] {
+    override def evaluateType(a: Quote, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
+      expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
+    ): ErrorOr[WomType] =
+      validateParamType(a.param, linkedValues, WomArrayType(WomAnyType)) flatMap {
+        case WomArrayType(WomNothingType) => WomArrayType(WomNothingType).validNel
+        case WomArrayType(_: WomPrimitiveType) => WomArrayType(WomStringType).validNel
+        case other @ WomArrayType(_) =>
+          s"Cannot invoke quote on type Array[${other.stableName}]. Expected an Array of primitive type".invalidNel
+        case other =>
+          s"Cannot invoke quote on type ${other.stableName}. Expected an Array of primitive type".invalidNel
+      }
+  }
+
+  implicit val sQuoteFunctionEvaluator: TypeEvaluator[SQuote] = new TypeEvaluator[SQuote] {
+    override def evaluateType(a: SQuote, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
+      expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
+    ): ErrorOr[WomType] =
+      validateParamType(a.param, linkedValues, WomArrayType(WomAnyType)) flatMap {
+        case WomArrayType(WomNothingType) => WomArrayType(WomNothingType).validNel
+        case WomArrayType(_: WomPrimitiveType) => WomArrayType(WomStringType).validNel
+        case other @ WomArrayType(_) =>
+          s"Cannot invoke quote on type Array[${other.stableName}]. Expected an Array of primitive type".invalidNel
+        case other =>
+          s"Cannot invoke quote on type ${other.stableName}. Expected an Array of primitive type".invalidNel
+      }
+  }
+
   implicit val unzipFunctionEvaluator: TypeEvaluator[Unzip] = new TypeEvaluator[Unzip] {
     override def evaluateType(a: Unzip, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]

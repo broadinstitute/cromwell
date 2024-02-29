@@ -84,6 +84,8 @@ package object types {
         case a: Flatten => a.evaluateType(linkedValues)(typeEvaluator)
         case a: Prefix => a.evaluateType(linkedValues)(typeEvaluator)
         case a: Suffix => a.evaluateType(linkedValues)(typeEvaluator)
+        case a: Quote => a.evaluateType(linkedValues)(typeEvaluator)
+        case a: SQuote => a.evaluateType(linkedValues)(typeEvaluator)
         case a: SelectFirst => a.evaluateType(linkedValues)(typeEvaluator)
         case a: SelectAll => a.evaluateType(linkedValues)(typeEvaluator)
         case a: Defined => a.evaluateType(linkedValues)(typeEvaluator)

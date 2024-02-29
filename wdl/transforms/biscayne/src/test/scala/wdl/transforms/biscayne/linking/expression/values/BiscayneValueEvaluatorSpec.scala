@@ -241,6 +241,232 @@ class BiscayneValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
     }
   }
 
+  it should "evaluate a quote expression correctly with an empty array" in {
+    val str = """ quote([]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(Seq())
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
+
+  it should "evaluate a quote expression correctly with an array of integers" in {
+    val str = """ quote([1, 2, 3]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(
+      Seq(
+        WomString("\"1\""),
+        WomString("\"2\""),
+        WomString("\"3\"")
+      )
+    )
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
+
+  it should "evaluate a quote expression correctly with an array of booleans" in {
+    val str = """ quote([true, false, true]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(
+      Seq(
+        WomString("\"true\""),
+        WomString("\"false\""),
+        WomString("\"true\"")
+      )
+    )
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
+
+  it should "evaluate a quote expression correctly with an array of floats" in {
+    val str = """ quote([1.1, 2.2, 3]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(
+      Seq(
+        WomString("\"1.1\""),
+        WomString("\"2.2\""),
+        WomString("\"3.0\"")
+      )
+    )
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
+
+  it should "evaluate a quote expression correctly with an array of files" in {
+    val str = """ quote(["/home/someFile.txt", "/rootFile.exe", "./anotherFile.py"]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(
+      Seq(
+        WomString("\"/home/someFile.txt\""),
+        WomString("\"/rootFile.exe\""),
+        WomString("\"./anotherFile.py\"")
+      )
+    )
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
+
+  it should "evaluate a quote expression correctly with an array of strings" in {
+    val str = """ quote(["a", "b", "c"]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(
+      Seq(
+        WomString("\"a\""),
+        WomString("\"b\""),
+        WomString("\"c\"")
+      )
+    )
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
+
+  it should "evaluate a quote expression correctly with an array of strings that are already in quotes" in {
+    val str = """ quote(["\"a\"", "\"b", "c\""]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(
+      Seq(
+        WomString("\"\"a\"\""),
+        WomString("\"\"b\""),
+        WomString("\"c\"\"")
+      )
+    )
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
+
+  it should "evaluate a squote expression correctly with an empty array" in {
+    val str = """ squote([]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(Seq())
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
+
+  it should "evaluate a squote expression correctly with an array of integers" in {
+    val str = """ squote([1, 2, 3]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(
+      Seq(
+        WomString("\'1\'"),
+        WomString("\'2\'"),
+        WomString("\'3\'")
+      )
+    )
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
+
+  it should "evaluate a squote expression correctly with an array of booleans" in {
+    val str = """ squote([true, false, true]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(
+      Seq(
+        WomString("\'true\'"),
+        WomString("\'false\'"),
+        WomString("\'true\'")
+      )
+    )
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
+
+  it should "evaluate a squote expression correctly with an array of floats" in {
+    val str = """ squote([1.1, 2.2, 3]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(
+      Seq(
+        WomString("\'1.1\'"),
+        WomString("\'2.2\'"),
+        WomString("\'3.0\'")
+      )
+    )
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
+
+  it should "evaluate a squote expression correctly with an array of files" in {
+    val str = """ squote(["/home/someFile.txt", "/rootFile.exe", "./anotherFile.py"]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(
+      Seq(
+        WomString("\'/home/someFile.txt\'"),
+        WomString("\'/rootFile.exe\'"),
+        WomString("\'./anotherFile.py\'")
+      )
+    )
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
+
+  it should "evaluate a squote expression correctly with an array of strings" in {
+    val str = """ squote(["a", "b", "c"]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(
+      Seq(
+        WomString("\'a\'"),
+        WomString("\'b\'"),
+        WomString("\'c\'")
+      )
+    )
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
+
+  it should "evaluate a squote expression correctly with an array of strings that are already in quotes" in {
+    val str = """ squote(["'a'", "'b", "c'"]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedArray: WomArray = WomArray(
+      Seq(
+        WomString("""''a''"""),
+        WomString("""''b'"""),
+        WomString("""'c''""")
+      )
+    )
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedArray, Seq.empty)
+    }
+  }
+
   it should "evaluate an unzip expression correctly" in {
     val str = """ unzip([("one", 1),("two", 2),("three", 3)]) """
     val expr = fromString[ExpressionElement](str, parser.parse_e)

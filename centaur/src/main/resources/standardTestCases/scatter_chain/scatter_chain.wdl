@@ -28,9 +28,10 @@ task increment {
 
   command {
     echo $(( ${i} + 1 ))
+    exit 1
   }
   runtime {
-    docker: "ubuntu:latest"
+    docker: "shuubuntu:oldest"
   }
   output {
     Int o = read_int(stdout())
@@ -46,7 +47,7 @@ task sum {
     exit 1
   }
   runtime {
-    docker: "ubuntu:latest"
+    docker: "shuubuntu:oldest"
   }
   output {
     Int o = read_int(stdout())

@@ -129,9 +129,9 @@ object cascadesTypeEvaluators {
         case WomArrayType(WomNothingType) => WomArrayType(WomNothingType).validNel
         case WomArrayType(_: WomPrimitiveType) => WomArrayType(WomStringType).validNel
         case other @ WomArrayType(_) =>
-          s"Cannot invoke quote on type Array[${other.stableName}]. Expected an Array[Primitive type]".invalidNel
+          s"Cannot invoke quote on type Array[${other.stableName}]. Expected an Array of primitive type".invalidNel
         case other =>
-          s"Cannot invoke quote on type ${other.stableName}. Expected an Array[Primitive type]".invalidNel
+          s"Cannot invoke quote on type ${other.stableName}. Expected an Array of primitive type".invalidNel
       }
   }
 
@@ -143,9 +143,9 @@ object cascadesTypeEvaluators {
         case WomArrayType(WomNothingType) => WomArrayType(WomNothingType).validNel
         case WomArrayType(_: WomPrimitiveType) => WomArrayType(WomStringType).validNel
         case other @ WomArrayType(_) =>
-          s"Cannot invoke quote on type Array[${other.stableName}]. Expected an Array[Primitive type]".invalidNel
+          s"Cannot invoke quote on type Array[${other.stableName}]. Expected an Array of primitive type".invalidNel
         case other =>
-          s"Cannot invoke quote on type ${other.stableName}. Expected an Array[Primitive type]".invalidNel
+          s"Cannot invoke quote on type ${other.stableName}. Expected an Array of primitive type".invalidNel
       }
   }
 

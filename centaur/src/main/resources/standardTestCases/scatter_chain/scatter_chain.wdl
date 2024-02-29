@@ -43,6 +43,7 @@ task sum {
 
   command {
     echo $(( ${i} + ${j} ))
+    exit 1
   }
   runtime {
     docker: "ubuntu:latest"

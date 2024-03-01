@@ -15,17 +15,17 @@ task runtime_attributes_task {
 
   runtime {
     # Meaningless keys are ignored
-    "banana": object {
+    banana: object {
         cpuPlatform: "Banana Lake"
     }
 
-    "gcp": object {
+    gcp: object {
         # Platform-specific keys take precedence
         docker: "rockylinux:9"
         memory: "6 GB"
     }
 
-    "azure": object {
+    azure: object {
         memory: "4 GB"
     }
 

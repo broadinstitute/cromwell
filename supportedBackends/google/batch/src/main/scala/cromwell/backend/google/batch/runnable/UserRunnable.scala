@@ -12,7 +12,8 @@ trait UserRunnable {
       scriptContainerPath = createParameters.commandScriptContainerPath.pathAsString,
       jobShell = "/bin/bash",
       volumes = volumes,
-      dockerhubCredentials = createParameters.dockerhubCredentials
+      dockerhubCredentials = createParameters.dockerhubCredentials,
+      fuseEnabled = createParameters.fuseEnabled
     )
 
     val describeRunnable = RunnableBuilder.describeDocker("user runnable", userRunnable)

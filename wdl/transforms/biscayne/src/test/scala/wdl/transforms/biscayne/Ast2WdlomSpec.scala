@@ -18,7 +18,7 @@ import wdl.transforms.biscayne.ast2wdlom._
 import wdl.transforms.biscayne.parsing.WdlBiscayneSyntaxErrorFormatter
 import wom.callable.MetaValueElement.MetaValueElementInteger
 import wom.types.WomIntegerType
-import wom.values.WomInteger
+import wom.values.{WomBoolean, WomInteger}
 
 import scala.jdk.CollectionConverters._
 
@@ -125,5 +125,11 @@ class Ast2WdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     val str = "unzip(some_array_of_pairs)"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
     expr shouldBeValid (Unzip(IdentifierLookup("some_array_of_pairs")))
+  }
+
+  it should "parse a struct literal" in {
+    val str = """Dog{breed: "fluffy", isGood: true}"""
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeValid (ObjectLiteral(Map("breed" -> StringLiteral("fluffy"), "isGood" -> PrimitiveLiteralExpressionElement(WomBoolean(true)))))
   }
 }

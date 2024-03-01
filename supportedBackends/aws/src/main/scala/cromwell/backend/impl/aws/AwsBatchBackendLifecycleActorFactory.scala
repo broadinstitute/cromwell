@@ -32,8 +32,22 @@
 package cromwell.backend.impl.aws
 
 import akka.actor.{ActorRef, Props}
-import cromwell.backend.{Aws, BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, JobExecutionMap, Platform}
-import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardFinalizationActor, StandardFinalizationActorParams, StandardInitializationActor, StandardInitializationActorParams, StandardLifecycleActorFactory}
+import cromwell.backend.{
+  Aws,
+  BackendConfigurationDescriptor,
+  BackendInitializationData,
+  BackendWorkflowDescriptor,
+  JobExecutionMap,
+  Platform
+}
+import cromwell.backend.standard.{
+  StandardAsyncExecutionActor,
+  StandardFinalizationActor,
+  StandardFinalizationActorParams,
+  StandardInitializationActor,
+  StandardInitializationActorParams,
+  StandardLifecycleActorFactory
+}
 import cromwell.core.CallOutputs
 import wom.graph.CommandCallNode
 

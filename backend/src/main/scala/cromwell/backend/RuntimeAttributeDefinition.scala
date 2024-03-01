@@ -34,7 +34,7 @@ object RuntimeAttributeDefinition {
 
   def applyPlatform(attributes: Map[String, WomValue], maybePlatform: Option[Platform]): Map[String, WomValue] = {
 
-    def extractPlatformAttributes(platform: Platform): Map[String, WomValue] = {
+    def extractPlatformAttributes(platform: Platform): Map[String, WomValue] =
       attributes.get(platform.runtimeKey) match {
         case Some(obj: WomObject) =>
           // WDL spec: "Use objects to avoid collisions"
@@ -44,7 +44,6 @@ object RuntimeAttributeDefinition {
           // A malformed non-object override such as "gcp": "banana" is ignored
           Map.empty
       }
-    }
 
     val platformAttributes = maybePlatform match {
       case Some(platform) =>

@@ -10,4 +10,5 @@ files {
 metadata {
   "calls.runtime_attributes_wf.runtime_attributes_task.runtimeAttributes.docker": "rockylinux:9",
   "calls.runtime_attributes_wf.runtime_attributes_task.runtimeAttributes.cpu": 4
+  "calls.runtime_attributes_wf.runtime_attributes_task.runtimeAttributes.memory": "6 GB"
 }

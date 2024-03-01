@@ -161,7 +161,7 @@ sealed trait Platform {
 }
 
 object Platform {
-  def all: Seq[Platform] = Seq(Gcp, Azure)
+  def all: Seq[Platform] = Seq(Gcp, Azure, Aws)
 
   def apply(str: String): Option[Platform] =
     all.find(_.runtimeKey == str)
@@ -170,6 +170,7 @@ object Platform {
 object Gcp extends Platform {
   override def runtimeKey: String = "gcp"
 }
+
 object Azure extends Platform {
   override def runtimeKey: String = "azure"
 }

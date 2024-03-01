@@ -19,13 +19,19 @@ task runtime_attributes_task {
         cpuPlatform: "Banana Lake"
     }
 
-    "gcp" : object {
+    "gcp": object {
         # Platform-specific keys take precedence
         docker: "rockylinux:9"
+        memory: "6 GB"
+    }
+
+    "azure": object {
+        memory: "4 GB"
     }
 
     # Generic keys are ignored in favor of platform ones
     docker: "ubuntu:latest"
+    memory: "8 GB"
 
     # We still read generic keys that are not overridden
     cpu: 4

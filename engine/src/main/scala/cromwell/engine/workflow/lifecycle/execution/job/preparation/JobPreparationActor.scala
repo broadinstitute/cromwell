@@ -326,7 +326,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     evaluateRuntimeAttributes(unevaluatedRuntimeAttributes,
                               expressionLanguageFunctions,
                               inputEvaluation,
-                              factory.cloudProvider
+                              factory.platform
     ) map curriedAddDefaultsToAttributes
   }
 }

@@ -4,16 +4,9 @@ import akka.actor.{ActorRef, Props}
 import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend._
-import cromwell.backend.google.pipelines.common.PipelinesApiBackendLifecycleActorFactory.{
-  preemptionCountKey,
-  robustBuildAttributes,
-  unexpectedRetryCountKey
-}
+import cromwell.backend.google.pipelines.common.PipelinesApiBackendLifecycleActorFactory.{preemptionCountKey, robustBuildAttributes, unexpectedRetryCountKey}
 import cromwell.backend.google.pipelines.common.authentication.PipelinesApiDockerCredentials
-import cromwell.backend.google.pipelines.common.callcaching.{
-  PipelinesApiBackendCacheHitCopyingActor,
-  PipelinesApiBackendFileHashingActor
-}
+import cromwell.backend.google.pipelines.common.callcaching.{PipelinesApiBackendCacheHitCopyingActor, PipelinesApiBackendFileHashingActor}
 import cromwell.backend.standard._
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardFileHashingActor}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
@@ -118,6 +111,8 @@ abstract class PipelinesApiBackendLifecycleActorFactory(
         List(dockerCredentials, googleCredentials).flatten
       case _ => List.empty[Any]
     }
+
+  override def platform: Option[Platform] = Option(Gcp)
 }
 
 object PipelinesApiBackendLifecycleActorFactory extends StrictLogging {

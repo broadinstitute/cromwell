@@ -9,7 +9,6 @@ import cromwell.core.JobToken.JobTokenType
 import cromwell.core.path.Path
 import cromwell.core.path.PathFactory.PathBuilders
 import net.ceedubs.ficus.Ficus._
-import wom.CloudProvider
 import wom.expression.{IoFunctionSet, NoIoFunctionSet}
 import wom.graph.CommandCallNode
 
@@ -165,9 +164,9 @@ trait BackendLifecycleActorFactory {
   ): List[Any] = List.empty
 
   /**
-    * Allows Cromwell to self-identify
+    * Allows Cromwell to self-identify which cloud it's running on for runtime attribute purposes
     */
-  def cloudProvider: Option[CloudProvider] = None
+  def platform: Option[Platform] = None
 }
 
 object BackendLifecycleActorFactory {

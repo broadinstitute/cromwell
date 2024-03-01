@@ -155,3 +155,25 @@ object CommonBackendConfigurationAttributes {
 final case class AttemptedLookupResult(name: String, value: Try[WomValue]) {
   def toPair = name -> value
 }
+
+sealed trait Platform {
+  def runtimeKey: String
+}
+
+object Platform {
+  def all: Seq[Platform] = Seq(Gcp, Azure)
+
+  def apply(str: String): Option[Platform] =
+    all.find(_.runtimeKey == str)
+}
+
+object Gcp extends Platform {
+  override def runtimeKey: String = "gcp"
+}
+object Azure extends Platform {
+  override def runtimeKey: String = "azure"
+}
+
+object Aws extends Platform {
+  override def runtimeKey: String = "aws"
+}

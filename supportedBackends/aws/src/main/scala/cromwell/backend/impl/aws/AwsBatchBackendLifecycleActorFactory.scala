@@ -32,20 +32,8 @@
 package cromwell.backend.impl.aws
 
 import akka.actor.{ActorRef, Props}
-import cromwell.backend.{
-  BackendConfigurationDescriptor,
-  BackendInitializationData,
-  BackendWorkflowDescriptor,
-  JobExecutionMap
-}
-import cromwell.backend.standard.{
-  StandardAsyncExecutionActor,
-  StandardFinalizationActor,
-  StandardFinalizationActorParams,
-  StandardInitializationActor,
-  StandardInitializationActorParams,
-  StandardLifecycleActorFactory
-}
+import cromwell.backend.{Aws, BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, JobExecutionMap, Platform}
+import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardFinalizationActor, StandardFinalizationActorParams, StandardInitializationActor, StandardInitializationActorParams, StandardLifecycleActorFactory}
 import cromwell.core.CallOutputs
 import wom.graph.CommandCallNode
 
@@ -106,4 +94,6 @@ case class AwsBatchBackendLifecycleActorFactory(name: String, configurationDescr
 
   override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] =
     Option(AwsBatchSingletonActor.props(configuration.awsConfig.region, Option(configuration.awsAuth)))
+
+  override def platform: Option[Platform] = Option(Aws)
 }

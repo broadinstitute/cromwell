@@ -1,0 +1,13 @@
+name: biscayne_new_runtime_attributes_lifesciences
+testFormat: workflowsuccess
+tags: ["wdl_biscayne"]
+backends: [TES]
+
+files {
+  workflow: wdl_biscayne/biscayne_new_runtime_attributes/biscayne_new_runtime_attributes.wdl
+}
+
+metadata {
+  "calls.runtime_attributes_wf.runtime_attributes_task.runtimeAttributes.docker": "ubuntu:latest",
+  "calls.runtime_attributes_wf.runtime_attributes_task.runtimeAttributes.cpu": 4
+}

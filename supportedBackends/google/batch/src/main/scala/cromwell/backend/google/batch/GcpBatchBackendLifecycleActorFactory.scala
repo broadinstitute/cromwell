@@ -3,23 +3,14 @@ package cromwell.backend.google.batch
 import akka.actor.{ActorRef, Props}
 import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.scalalogging.StrictLogging
-import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory.{
-  preemptionCountKey,
-  robustBuildAttributes,
-  unexpectedRetryCountKey
-}
+import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory.{preemptionCountKey, robustBuildAttributes, unexpectedRetryCountKey}
 import cromwell.backend.google.batch.actors._
 import cromwell.backend.google.batch.api.{GcpBatchApiRequestHandler, GcpBatchRequestFactoryImpl}
 import cromwell.backend.google.batch.models.{GcpBatchConfiguration, GcpBatchConfigurationAttributes}
 import cromwell.backend.google.batch.callcaching.{BatchBackendCacheHitCopyingActor, BatchBackendFileHashingActor}
 import cromwell.backend.standard._
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardFileHashingActor}
-import cromwell.backend.{
-  BackendConfigurationDescriptor,
-  BackendInitializationData,
-  BackendWorkflowDescriptor,
-  JobExecutionMap
-}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, Gcp, JobExecutionMap, Platform}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.CallOutputs
 import wom.graph.CommandCallNode
@@ -97,6 +88,8 @@ class GcpBatchBackendLifecycleActorFactory(override val name: String,
       GcpBatchBackendSingletonActor.props(requestFactory, serviceRegistryActor = serviceRegistryActor)(requestHandler)
     )
   }
+
+  override def platform: Option[Platform] = Option(Gcp)
 }
 
 object GcpBatchBackendLifecycleActorFactory extends StrictLogging {

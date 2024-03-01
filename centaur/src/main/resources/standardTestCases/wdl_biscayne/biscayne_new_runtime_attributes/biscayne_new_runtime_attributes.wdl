@@ -21,7 +21,7 @@ task runtime_attributes_task {
 
     gcp: object {
         # Platform-specific keys take precedence
-        docker: "rockylinux:9"
+        docker: "rockylinux:9",
         memory: "6 GB"
     }
 

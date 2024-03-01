@@ -10,7 +10,7 @@ import wdl.model.draft3.elements._
 import wdl.transforms.biscayne.ast2wdlom.WdlFileToWdlomSpec._
 import wom.SourceFileLocation
 import wom.types._
-import wom.values.WomInteger
+import wom.values.{WomBoolean, WomInteger}
 
 class WdlFileToWdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
@@ -367,6 +367,76 @@ object WdlFileToWdlomSpec {
           )
         ),
         tasks = Vector.empty
+      ),
+    "struct_literal" -> FileElement(
+      Vector(),
+      Vector(
+        StructElement("Animal",
+                      Vector(StructEntryElement("name", PrimitiveTypeElement(WomStringType)),
+                             StructEntryElement("isGood", PrimitiveTypeElement(WomBooleanType))
+                      )
+        )
+      ),
+      Vector(
+        WorkflowDefinitionElement(
+          "struct_literal",
+          None,
+          Set(
+            CallElement("create_dog",
+                        None,
+                        Vector(),
+                        Some(CallBodyElement(Vector(KvPair("name_input", StringLiteral("doggo"))))),
+                        Some(SourceFileLocation(20))
+            )
+          ),
+          Some(
+            OutputsSectionElement(
+              Vector(
+                OutputDeclarationElement(PrimitiveTypeElement(WomStringType),
+                                         "name_output",
+                                         IdentifierMemberAccess("create_dog", "dog", Vector("name"))
+                )
+              )
+            )
+          ),
+          None,
+          None,
+          Some(SourceFileLocation(19))
+        )
+      ),
+      Vector(
+        TaskDefinitionElement(
+          "create_dog",
+          Some(
+            InputsSectionElement(
+              Vector(InputDeclarationElement(PrimitiveTypeElement(WomStringType), "name_input", None))
+            )
+          ),
+          Vector(),
+          Some(
+            OutputsSectionElement(
+              Vector(
+                OutputDeclarationElement(
+                  TypeAliasElement("Animal"),
+                  "dog",
+                  ObjectLiteral(
+                    Map("name" -> IdentifierLookup("name_input"),
+                        "isGood" -> PrimitiveLiteralExpressionElement(WomBoolean(true))
+                    )
+                  )
+                )
+              )
+            )
+          ),
+          CommandSectionElement(
+            List(CommandSectionLine(Vector(StringCommandPartElement("""echo "all dogs are good" """))))
+          ),
+          None,
+          None,
+          None,
+          Some(SourceFileLocation(8))
+        )
       )
+    )
   )
 }

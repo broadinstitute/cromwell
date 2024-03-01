@@ -270,6 +270,54 @@ object BiscayneValueEvaluators {
   }
 
   /**
+   * Quote: Given an array of primitives, produce a new array in which all elements of the original are in quotes (").
+   * https://github.com/openwdl/wdl/blob/main/versions/1.1/SPEC.md#-arraystring-quotearrayp
+   * input: Array[Primitive]
+   * output: Array[String]
+   */
+  implicit val quoteFunctionEvaluator: ValueEvaluator[Quote] = new ValueEvaluator[Quote] {
+    override def evaluateValue(a: Quote,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
+    )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] =
+      processValidatedSingleValue[WomArray, WomArray](
+        expressionValueEvaluator.evaluateValue(a.param, inputs, ioFunctionSet, forCommandInstantiationOptions)(
+          expressionValueEvaluator
+        )
+      ) { arr =>
+        EvaluatedValue(
+          WomArray(arr.value.map(v => WomString("\"" + v.valueString.replaceAll(""""""", "\"") + "\""))),
+          Seq.empty
+        ).validNel
+      }
+  }
+
+  /**
+   * SQuote: Given an array of primitives, produce a new array in which all elements of the original are in single quotes (').
+   * https://github.com/openwdl/wdl/blob/main/versions/1.1/SPEC.md#-arraystring-squotearrayp
+   * input: Array[Primitive]
+   * output: Array[String]
+   */
+  implicit val sQuoteFunctionEvaluator: ValueEvaluator[SQuote] = new ValueEvaluator[SQuote] {
+    override def evaluateValue(a: SQuote,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
+    )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] =
+      processValidatedSingleValue[WomArray, WomArray](
+        expressionValueEvaluator.evaluateValue(a.param, inputs, ioFunctionSet, forCommandInstantiationOptions)(
+          expressionValueEvaluator
+        )
+      ) { arr =>
+        EvaluatedValue(
+          WomArray(arr.value.map(v => WomString("\'" + v.valueString.replaceAll("""'""", "\'") + "\'"))),
+          Seq.empty
+        ).validNel
+      }
+  }
+
+  /**
    * Unzip: Creates a pair of arrays, the first containing the elements from the left members of an array of pairs,
    * and the second containing the right members. This is the inverse of the zip function.
    * https://github.com/openwdl/wdl/blob/main/versions/1.1/SPEC.md#-pairarrayx-arrayy-unziparraypairx-y

@@ -61,6 +61,21 @@ metadata {
   "outputs.biscayne_new_engine_functions.with_suffixes.1": "bbbS"
   "outputs.biscayne_new_engine_functions.with_suffixes.2": "cccS"
 
+  "outputs.biscayne_new_engine_functions.with_quotes.0": "\"1\""
+  "outputs.biscayne_new_engine_functions.with_quotes.1": "\"2\""
+  "outputs.biscayne_new_engine_functions.with_quotes.2": "\"3\""
+
+  "outputs.biscayne_new_engine_functions.string_with_quotes.0": "\"aaa\""
+  "outputs.biscayne_new_engine_functions.string_with_quotes.1": "\"bbb\""
+  "outputs.biscayne_new_engine_functions.string_with_quotes.2": "\"ccc\""
+
+  "outputs.biscayne_new_engine_functions.with_squotes.0": "'1'"
+  "outputs.biscayne_new_engine_functions.with_squotes.1": "'2'"
+  "outputs.biscayne_new_engine_functions.with_squotes.2": "'3'"
+
+  "outputs.biscayne_new_engine_functions.string_with_squotes.0": "'aaa'"
+  "outputs.biscayne_new_engine_functions.string_with_squotes.1": "'bbb'"
+  "outputs.biscayne_new_engine_functions.string_with_squotes.2": "'ccc'"
   "outputs.biscayne_new_engine_functions.unzipped_a.left.0": "A"
   "outputs.biscayne_new_engine_functions.unzipped_a.right.0": "a"
 

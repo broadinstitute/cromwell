@@ -10,7 +10,9 @@ import wdl.model.draft3.elements.ExpressionElement.{
   Keys,
   Max,
   Min,
+  Quote,
   Sep,
+  SQuote,
   SubPosix,
   Suffix,
   Unzip
@@ -28,6 +30,8 @@ object AstToNewExpressionElements {
     "sep" -> AstNodeToExpressionElement.validateTwoParamEngineFunction(Sep, "sep"),
     "sub" -> AstNodeToExpressionElement.validateThreeParamEngineFunction(SubPosix, "sub"),
     "suffix" -> AstNodeToExpressionElement.validateTwoParamEngineFunction(Suffix, "suffix"),
+    "quote" -> AstNodeToExpressionElement.validateOneParamEngineFunction(Quote, "quote"),
+    "squote" -> AstNodeToExpressionElement.validateOneParamEngineFunction(SQuote, "squote"),
     "unzip" -> AstNodeToExpressionElement.validateOneParamEngineFunction(Unzip, "unzip"),
     "read_object" -> (_ =>
       "read_object is no longer available in this WDL version. Consider using read_json instead".invalidNel

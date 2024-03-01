@@ -7,7 +7,9 @@ import wdl.model.draft3.elements.ExpressionElement.{
   Keys,
   Max,
   Min,
+  Quote,
   Sep,
+  SQuote,
   SubPosix,
   Suffix,
   Unzip
@@ -35,6 +37,10 @@ object cascadesFileEvaluators {
   implicit val subPosixFunctionEvaluator: FileEvaluator[SubPosix] =
     threeParameterFunctionPassthroughFileEvaluator[SubPosix]
   implicit val suffixFunctionEvaluator: FileEvaluator[Suffix] = twoParameterFunctionPassthroughFileEvaluator[Suffix]
+  implicit val quoteFunctionEvaluator: FileEvaluator[Quote] =
+    EngineFunctionEvaluators.singleParameterPassthroughFileEvaluator
+  implicit val sQuoteFunctionEvaluator: FileEvaluator[SQuote] =
+    EngineFunctionEvaluators.singleParameterPassthroughFileEvaluator
 
   implicit val minFunctionEvaluator: FileEvaluator[Min] = twoParameterFunctionPassthroughFileEvaluator[Min]
   implicit val maxFunctionEvaluator: FileEvaluator[Max] = twoParameterFunctionPassthroughFileEvaluator[Max]

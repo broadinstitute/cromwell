@@ -103,6 +103,18 @@ class Ast2WdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     expr shouldBeValid (Suffix(IdentifierLookup("some_str"), IdentifierLookup("some_arr")))
   }
 
+  it should "parse the new quote function" in {
+    val str = "quote(some_arr)"
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeValid (Quote(IdentifierLookup("some_arr")))
+  }
+
+  it should "parse the new squote function" in {
+    val str = "squote(some_arr)"
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeValid (SQuote(IdentifierLookup("some_arr")))
+  }
+
   it should "parse the new unzip function" in {
     val str = "unzip(some_array_of_pairs)"
     val expr = fromString[ExpressionElement](str, parser.parse_e)

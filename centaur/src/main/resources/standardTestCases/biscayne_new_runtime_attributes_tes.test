@@ -1,4 +1,4 @@
-name: biscayne_new_runtime_attributes_lifesciences
+name: biscayne_new_runtime_attributes_tes
 testFormat: workflowsuccess
 tags: ["wdl_biscayne"]
 backends: [TES]

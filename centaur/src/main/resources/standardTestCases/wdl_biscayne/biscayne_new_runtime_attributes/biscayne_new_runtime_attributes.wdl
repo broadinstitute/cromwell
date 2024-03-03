@@ -13,6 +13,10 @@ task runtime_attributes_task {
     echo "Zardoz"
   >>>
 
+  meta {
+    volatile: true
+  }
+
   runtime {
     # Meaningless keys are ignored
     banana: object {

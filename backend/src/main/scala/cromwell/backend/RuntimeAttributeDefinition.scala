@@ -21,6 +21,14 @@ case class RuntimeAttributeDefinition(name: String, factoryDefault: Option[WomVa
 
 object RuntimeAttributeDefinition {
 
+  /**
+    * "Evaluate" means hydrating the runtime attributes with information from the
+    * @param unevaluated WOM expressions that may or may not reference inputs
+    * @param wdlFunctions The set of IO for the current backend
+    * @param evaluatedInputs The inputs
+    * @param platform Optional, directs platform-based prioritization
+    * @return Evaluated
+    */
   def evaluateRuntimeAttributes(unevaluated: RuntimeAttributes,
                                 wdlFunctions: IoFunctionSet,
                                 evaluatedInputs: Map[InputDefinition, WomValue],
@@ -29,6 +37,11 @@ object RuntimeAttributeDefinition {
     import common.validation.ErrorOr._
     val inputsMap = evaluatedInputs map { case (x, y) => x.name -> y }
     val evaluated = unevaluated.attributes.traverseValues(_.evaluateValue(inputsMap, wdlFunctions))
+
+    // Platform mapping must come after evaluation because we need to evaluate
+    // e.g. `gcp: userDefinedObject` to find out what its runtime value is.
+    // The type system informs us of this because a `WomExpression` in `unevaluated`
+    // cannot be safely read as a `WomObject` with a `values` map until evaluation
     evaluated.map(e => applyPlatform(e, platform))
   }
 
@@ -41,7 +54,7 @@ object RuntimeAttributeDefinition {
           // https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#conventions-and-best-practices
           obj.values
         case _ =>
-          // A malformed non-object override such as "gcp": "banana" is ignored
+          // A malformed non-object override such as gcp: "banana" is ignored
           Map.empty
       }
 

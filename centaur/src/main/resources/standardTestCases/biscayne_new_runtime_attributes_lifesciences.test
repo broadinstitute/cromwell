@@ -1,7 +1,7 @@
 name: biscayne_new_runtime_attributes_lifesciences
 testFormat: workflowsuccess
 tags: ["wdl_biscayne"]
-backends: [Papi, Papiv2]
+backends: [Papi, Papiv2, GCPBATCH]
 
 files {
   workflow: wdl_biscayne/biscayne_new_runtime_attributes/biscayne_new_runtime_attributes.wdl

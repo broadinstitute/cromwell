@@ -14,7 +14,6 @@ import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDes
   MaterializeWorkflowDescriptorFailureResponse,
   MaterializeWorkflowDescriptorSuccessResponse
 }
-import cromwell.languages.util.ImportResolver.GithubImportAuthProvider
 import cromwell.services.auth.GithubAuthVendingSupport
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.{CromwellTestKitSpec, CromwellTestKitWordSpec}
@@ -55,22 +54,7 @@ class MaterializeWorkflowDescriptorActorSpec
         |""".stripMargin
     )
     .withFallback(CromwellTestKitSpec.DefaultConfig)
-  private val azurePrivateWorkflowConfig = ConfigFactory
-    .parseString(
-      """
-        |backend {
-        |  default = "Local"
-        |}
-        |
-        |private-workflows {
-        |  enabled = true
-        |  auth {
-        |    azure = true
-        |  }
-        |}
-        |""".stripMargin
-    )
-    .withFallback(CromwellTestKitSpec.DefaultConfig)
+
   val unstructuredFile = "fubar badness!"
   private val validOptions = WorkflowOptions.fromJsonString(""" { "write_to_cache": true } """).get
   val validCustomLabelsFile = """{ "label1": "value1", "label2": "value2", "Label1": "valu£1" }"""
@@ -757,23 +741,6 @@ class MaterializeWorkflowDescriptorActorSpec
       }
 
       system.stop(materializeWfActor)
-    }
-
-    "return Github import auth provider when private workflows in Azure is enabled" in {
-      MaterializeWorkflowDescriptorActor.getImportAuthProviders(azurePrivateWorkflowConfig, importAuthProvider) match {
-        case Valid(providers) =>
-          providers.size shouldBe 1
-          providers.head.isInstanceOf[GithubImportAuthProvider] shouldBe true
-          providers.head.validHosts shouldBe List("github.com", "githubusercontent.com", "raw.githubusercontent.com")
-        case Invalid(e) => fail(s"Unexpected failure: $e")
-      }
-    }
-
-    "return no import auth provider when private workflows is disabled" in {
-      MaterializeWorkflowDescriptorActor.getImportAuthProviders(minimumConf, importAuthProvider) match {
-        case Valid(providers) => providers.size shouldBe 0
-        case Invalid(e) => fail(s"Unexpected failure: $e")
-      }
     }
   }
 }

@@ -20,7 +20,6 @@ import common.validation.ErrorOr._
 import common.validation.IOChecked._
 import common.validation.Validation.MemoryRetryMultiplier
 import cromwell.backend.BackendWorkflowDescriptor
-import cromwell.cloudsupport.azure.AzureCredentials
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.{ReadFromCache, WorkflowOption, WriteToCache}
 import cromwell.core._
@@ -184,23 +183,6 @@ object MaterializeWorkflowDescriptorActor {
         s"'$optionName' is specified in workflow options but value is not of expected Double type: ${e.getMessage}".invalidNel
     }
   }
-
-  def getImportAuthProviders(conf: Config,
-                             authProviderFunc: String => ImportAuthProvider
-  ): ErrorOr[List[ImportAuthProvider]] = {
-    val isPrivateWorkflowsEnabled = conf.as[Boolean]("private-workflows.enabled")
-    val isAuthAzure = if (conf.hasPath("private-workflows.auth.azure")) {
-      conf.as[Boolean]("private-workflows.auth.azure")
-    } else false
-
-    if (isPrivateWorkflowsEnabled && isAuthAzure) {
-      val azureToken = AzureCredentials.getAccessToken()
-      azureToken match {
-        case Valid(token) => List(authProviderFunc(token)).validNel
-        case Invalid(err) => s"Failed to fetch Azure token. Error: ${err.toString}".invalidNel
-      }
-    } else List.empty.validNel
-  }
 }
 
 // TODO WOM: need to decide where to draw the line between language specific initialization and WOM
@@ -223,9 +205,10 @@ class MaterializeWorkflowDescriptorActor(override val serviceRegistryActor: Acto
 
   val iOExecutionContext = context.system.dispatchers.lookup("akka.dispatchers.io-dispatcher")
   implicit val ec = context.dispatcher
-  implicit val timeout = Timeout(5.seconds)
 
   protected val pathBuilderFactories: List[PathBuilderFactory] = EngineFilesystems.configuredPathBuilderFactories
+
+  final private val githubAuthVendingTimeout = Timeout(60.seconds)
 
   startWith(ReadyToMaterializeState, ())
 
@@ -369,10 +352,11 @@ class MaterializeWorkflowDescriptorActor(override val serviceRegistryActor: Acto
     for {
       _ <- publishLabelsToMetadata(id, labels.asMap, serviceRegistryActor)
       zippedImportResolver <- zippedResolverCheck
-      importAuthProviders <- getImportAuthProviders(conf, importAuthProvider).toIOChecked
-      importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver(None,
-                                                                                                Map.empty,
-                                                                                                importAuthProviders
+      importAuthProviderOpt <- importAuthProvider(conf)(githubAuthVendingTimeout).toIOChecked
+      importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver(
+        None,
+        Map.empty,
+        importAuthProviderOpt.toList
       )
       sourceAndResolvers <- fromEither[IO](
         LanguageFactoryUtil.findWorkflowSource(sourceFiles.workflowSource, sourceFiles.workflowUrl, importResolvers)

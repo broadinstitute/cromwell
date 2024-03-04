@@ -54,7 +54,6 @@ class MaterializeWorkflowDescriptorActorSpec
         |""".stripMargin
     )
     .withFallback(CromwellTestKitSpec.DefaultConfig)
-
   val unstructuredFile = "fubar badness!"
   private val validOptions = WorkflowOptions.fromJsonString(""" { "write_to_cache": true } """).get
   val validCustomLabelsFile = """{ "label1": "value1", "label2": "value2", "Label1": "valu£1" }"""

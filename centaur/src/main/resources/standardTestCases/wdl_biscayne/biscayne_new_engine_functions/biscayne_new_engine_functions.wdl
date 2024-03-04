@@ -4,7 +4,7 @@ workflow biscayne_new_engine_functions {
 
   meta {
     description: "This test makes sure that these functions work in a real workflow"
-    functions_under_test: [ "keys", "as_map", "as_pairs", "collect_by_key", "sub", "suffix" ]
+    functions_under_test: [ "keys", "as_map", "as_pairs", "collect_by_key", "quote", "squote", "sub", "suffix", "unzip" ]
   }
 
   Map[String, Int] x_map_in = {"a": 1, "b": 2, "c": 3}
@@ -17,6 +17,8 @@ workflow biscayne_new_engine_functions {
 
   Array[String] some_strings = ["aaa", "bbb", "ccc"]
 
+  Array[Int] some_ints = [1, 2, 3]
+
   Int smallestInt = 1
   Float smallFloat = 2.718
   Float bigFloat = 3.141
@@ -25,6 +27,10 @@ workflow biscayne_new_engine_functions {
   Int maxInt = 2147483647
   # max float... near enough:
   Float maxFloat = 179769313000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0
+
+  Array[Pair[String,String]] zipped_a = [("A", "a")]
+  Array[Pair[String,String]] zipped_b = [("A", "a"),("B", "b")]
+  Array[Pair[String,Float]] zipped_c = [("one", 1.0),("two", 2.0),("three", 3.0)]
 
   output {
 
@@ -59,6 +65,22 @@ workflow biscayne_new_engine_functions {
     # suffix():
     # =================================================
     Array[String] with_suffixes = suffix("S", some_strings)
+
+    # quote():
+    # =================================================
+    Array[String] with_quotes = quote(some_ints)
+    Array[String] string_with_quotes = quote(some_strings)
+
+    # squote():
+    # =================================================
+    Array[String] with_squotes = squote(some_ints)
+    Array[String] string_with_squotes = squote(some_strings)
+    
+    # unzip():
+    # =================================================
+    Pair[Array[String], Array[String]] unzipped_a = unzip(zipped_a)
+    Pair[Array[String], Array[String]] unzipped_b = unzip(zipped_b)
+    Pair[Array[String], Array[String]] unzipped_c = unzip(zipped_c)
   }
 }
 

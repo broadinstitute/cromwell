@@ -76,6 +76,20 @@ object cascadesExpressionValueConsumers {
         expressionValueConsumer.expressionConsumedValueHooks(a.arg2)(expressionValueConsumer)
   }
 
+  implicit val quoteExpressionValueConsumer: ExpressionValueConsumer[Quote] = new ExpressionValueConsumer[Quote] {
+    override def expressionConsumedValueHooks(a: Quote)(implicit
+      expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
+    ): Set[UnlinkedConsumedValueHook] =
+      expressionValueConsumer.expressionConsumedValueHooks(a.param)(expressionValueConsumer)
+  }
+
+  implicit val sQuoteExpressionValueConsumer: ExpressionValueConsumer[SQuote] = new ExpressionValueConsumer[SQuote] {
+    override def expressionConsumedValueHooks(a: SQuote)(implicit
+      expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
+    ): Set[UnlinkedConsumedValueHook] =
+      expressionValueConsumer.expressionConsumedValueHooks(a.param)(expressionValueConsumer)
+  }
+
   implicit val noneLiteralExpressionValueConsumer: ExpressionValueConsumer[NoneLiteralElement.type] =
     new ExpressionValueConsumer[NoneLiteralElement.type] {
       override def expressionConsumedValueHooks(a: NoneLiteralElement.type)(implicit
@@ -84,4 +98,11 @@ object cascadesExpressionValueConsumers {
         // None literals consume no values:
         Set.empty[UnlinkedConsumedValueHook]
     }
+
+  implicit val unzipExpressionValueConsumer: ExpressionValueConsumer[Unzip] = new ExpressionValueConsumer[Unzip] {
+    override def expressionConsumedValueHooks(a: Unzip)(implicit
+      expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
+    ): Set[UnlinkedConsumedValueHook] =
+      expressionValueConsumer.expressionConsumedValueHooks(a.param)(expressionValueConsumer)
+  }
 }

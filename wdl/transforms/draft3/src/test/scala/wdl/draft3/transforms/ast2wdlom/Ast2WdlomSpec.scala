@@ -70,9 +70,27 @@ class Ast2WdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     expr shouldBeInvalid "Failed to parse expression (reason 1 of 1): Unknown engine function: 'suffix'"
   }
 
+  it should "not parse the new quote function" in {
+    val str = "quote(anArray)"
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeInvalid "Failed to parse expression (reason 1 of 1): Unknown engine function: 'quote'"
+  }
+
+  it should "not parse the new squote function" in {
+    val str = "squote(anArray)"
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeInvalid "Failed to parse expression (reason 1 of 1): Unknown engine function: 'squote'"
+  }
+
   it should "parse the (biscayne) None keyword as a plain old identifier" in {
     val str = "None"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
     expr shouldBeValid (IdentifierLookup("None"))
+  }
+
+  it should "not parse the new unzip function" in {
+    val str = "unzip(some_array_of_pairs)"
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeInvalid "Failed to parse expression (reason 1 of 1): Unknown engine function: 'unzip'"
   }
 }

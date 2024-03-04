@@ -136,6 +136,8 @@ package object files {
           a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
         case a: Prefix => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
         case a: Suffix => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
+        case a: Quote => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
+        case a: SQuote => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
         case a: SelectFirst =>
           a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
         case a: SelectAll =>
@@ -153,6 +155,7 @@ package object files {
 
         case a: Zip => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
         case a: Cross => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
+        case a: Unzip => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
 
         case a: SubPosix =>
           a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)

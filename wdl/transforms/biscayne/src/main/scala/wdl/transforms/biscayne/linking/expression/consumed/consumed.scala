@@ -104,6 +104,9 @@ package object consumed {
         case a: AsPairs => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: CollectByKey => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: Sep => sepExpressionValueConsumer.expressionConsumedValueHooks(a)(expressionValueConsumer)
+        case a: Quote => a.expressionConsumedValueHooks(expressionValueConsumer)
+        case a: SQuote => a.expressionConsumedValueHooks(expressionValueConsumer)
+        case a: Unzip => a.expressionConsumedValueHooks(expressionValueConsumer)
 
         case a: Min => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: Max => a.expressionConsumedValueHooks(expressionValueConsumer)

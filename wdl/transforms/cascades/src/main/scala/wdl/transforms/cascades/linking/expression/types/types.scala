@@ -84,6 +84,8 @@ package object types {
         case a: Flatten => a.evaluateType(linkedValues)(typeEvaluator)
         case a: Prefix => a.evaluateType(linkedValues)(typeEvaluator)
         case a: Suffix => a.evaluateType(linkedValues)(typeEvaluator)
+        case a: Quote => a.evaluateType(linkedValues)(typeEvaluator)
+        case a: SQuote => a.evaluateType(linkedValues)(typeEvaluator)
         case a: SelectFirst => a.evaluateType(linkedValues)(typeEvaluator)
         case a: SelectAll => a.evaluateType(linkedValues)(typeEvaluator)
         case a: Defined => a.evaluateType(linkedValues)(typeEvaluator)
@@ -97,6 +99,7 @@ package object types {
 
         case a: Zip => a.evaluateType(linkedValues)(typeEvaluator)
         case a: Cross => a.evaluateType(linkedValues)(typeEvaluator)
+        case a: Unzip => a.evaluateType(linkedValues)(typeEvaluator)
 
         case a: SubPosix => a.evaluateType(linkedValues)(typeEvaluator)
 

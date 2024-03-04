@@ -144,6 +144,10 @@ package object values {
           a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
         case a: Suffix =>
           a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
+        case a: Quote =>
+          a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
+        case a: SQuote =>
+          a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
         case a: SelectFirst =>
           a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
         case a: SelectAll =>
@@ -163,6 +167,8 @@ package object values {
 
         case a: Zip => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
         case a: Cross =>
+          a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
+        case a: Unzip =>
           a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
 
         case a: SubPosix =>

@@ -91,12 +91,14 @@ package object types {
         case a: Ceil => a.evaluateType(linkedValues)(typeEvaluator)
         case a: Round => a.evaluateType(linkedValues)(typeEvaluator)
         case a: Glob => a.evaluateType(linkedValues)(typeEvaluator)
-
+        case a: Quote => a.evaluateType(linkedValues)(typeEvaluator)
+        case a: SQuote => a.evaluateType(linkedValues)(typeEvaluator)
         case a: Size => a.evaluateType(linkedValues)(typeEvaluator)
         case a: Basename => a.evaluateType(linkedValues)(typeEvaluator)
 
         case a: Zip => a.evaluateType(linkedValues)(typeEvaluator)
         case a: Cross => a.evaluateType(linkedValues)(typeEvaluator)
+        case a: Unzip => a.evaluateType(linkedValues)(typeEvaluator)
 
         case a: SubPosix => a.evaluateType(linkedValues)(typeEvaluator)
 

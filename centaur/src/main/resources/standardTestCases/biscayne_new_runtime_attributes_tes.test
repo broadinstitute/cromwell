@@ -1,9 +1,6 @@
 name: biscayne_new_runtime_attributes_tes
 testFormat: workflowsuccess
 tags: ["wdl_biscayne"]
-
-# Will run on a Cromwell that supports ANY of these backends
-backendsMode: any
 backends: [TES]
 
 files {

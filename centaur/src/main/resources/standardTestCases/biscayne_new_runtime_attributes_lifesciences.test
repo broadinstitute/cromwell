@@ -1,7 +1,10 @@
 name: biscayne_new_runtime_attributes_lifesciences
 testFormat: workflowsuccess
 tags: ["wdl_biscayne"]
-backends: [Papi, Papiv2, gcpbatch]
+
+# Will run on a Cromwell that supports ANY of these backends
+backendsMode: any
+backends: [Papi, Papiv2, GCPBatch]
 
 files {
   workflow: wdl_biscayne/biscayne_new_runtime_attributes/biscayne_new_runtime_attributes.wdl

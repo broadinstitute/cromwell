@@ -6,6 +6,7 @@ import cats.syntax.all._
 import centaur.CromwellTracker
 import centaur.test._
 import centaur.test.formulas.TestFormulas
+import centaur.test.standard.CentaurTestCase.isSupported
 import centaur.test.standard.CentaurTestFormat._
 import centaur.test.submit.{SubmitHttpResponse, SubmitResponse}
 import centaur.test.workflow._
@@ -48,9 +49,15 @@ case class CentaurTestCase(workflow: Workflow,
 
   def isIgnored(supportedBackends: List[String]): Boolean = {
     val backendSupported = workflow.backends match {
-      case AllBackendsRequired(allBackends) => allBackends forall supportedBackends.contains
-      case AnyBackendRequired(anyBackend) => anyBackend exists supportedBackends.contains
-      case OnlyBackendsAllowed(onlyBackends) => supportedBackends forall onlyBackends.contains
+      case AllBackendsRequired(testBackends) =>
+        // Test will run on servers that support all of the test's backends (or more)
+        testBackends forall supportedBackends.contains
+      case AnyBackendRequired(testBackends) =>
+        // Test will run on servers that support at least one of the test's backends (or more)
+        testBackends exists supportedBackends.contains
+      case OnlyBackendsAllowed(testBackends) =>
+        // Test will run on servers that only support backends the test specifies (or fewer)
+        supportedBackends forall testBackends.contains
     }
 
     testOptions.ignore || !backendSupported

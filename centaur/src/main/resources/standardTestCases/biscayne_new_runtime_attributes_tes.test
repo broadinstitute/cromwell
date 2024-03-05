@@ -1,7 +1,10 @@
 name: biscayne_new_runtime_attributes_tes
 testFormat: workflowsuccess
 tags: ["wdl_biscayne"]
-backends: [tes]
+
+# Will run on a Cromwell that supports ANY of these backends
+backendsMode: any
+backends: [TES]
 
 files {
   workflow: wdl_biscayne/biscayne_new_runtime_attributes/biscayne_new_runtime_attributes.wdl

@@ -24,6 +24,7 @@ object CentaurTestSuite extends StrictLogging {
     }
 
   val cromwellBackends = CentaurCromwellClient.backends.unsafeRunSync().supportedBackends.map(_.toLowerCase)
+  logger.info(s"Cromwell under test configured with backends ${cromwellBackends.mkString(", ")}")
 
   def isWdlUpgradeTest(testCase: CentaurTestCase): Boolean = testCase.containsTag("wdl_upgrade")
 

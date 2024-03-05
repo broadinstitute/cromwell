@@ -6,7 +6,6 @@ import cats.syntax.all._
 import centaur.CromwellTracker
 import centaur.test._
 import centaur.test.formulas.TestFormulas
-import centaur.test.standard.CentaurTestCase.isSupported
 import centaur.test.standard.CentaurTestFormat._
 import centaur.test.submit.{SubmitHttpResponse, SubmitResponse}
 import centaur.test.workflow._

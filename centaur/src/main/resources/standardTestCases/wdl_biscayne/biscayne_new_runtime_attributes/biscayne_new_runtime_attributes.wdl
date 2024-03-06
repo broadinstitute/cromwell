@@ -31,7 +31,7 @@ task runtime_attributes_task {
 
     azure: object {
         memory: "4 GB",
-        docker: "ubuntu:jammy"
+        docker: "debian:latest"
     }
 
     # Generic keys are ignored in favor of platform ones

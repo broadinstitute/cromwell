@@ -30,7 +30,7 @@ task runtime_attributes_task {
     }
 
     azure: object {
-        memory: "4 GB"
+        memory: "4 GB",
         docker: "alpine:latest"
     }
 

@@ -24,10 +24,8 @@ object BackendConfiguration {
   private val BackendProviders = BackendConfig.getConfig("providers")
   private val BackendNames: Set[String] =
     BackendProviders.entrySet().asScala.map(_.getKey.split("\\.").toSeq.head).toSet
-  private val EnabledBackendNames: Set[String] =
-    BackendConfig.config.as[Option[Set[String]]]("enabled").getOrElse(BackendNames)
 
-  val AllBackendEntries: List[BackendConfigurationEntry] = EnabledBackendNames.toList map { backendName =>
+  val AllBackendEntries: List[BackendConfigurationEntry] = BackendNames.toList map { backendName =>
     val entry = BackendProviders.getConfig(backendName)
     BackendConfigurationEntry(
       backendName,
@@ -39,7 +37,7 @@ object BackendConfiguration {
   val DefaultBackendEntry: BackendConfigurationEntry = AllBackendEntries.find(_.name == DefaultBackendName) getOrElse {
     throw new IllegalArgumentException(
       s"Could not find specified default backend name '$DefaultBackendName' " +
-        s"in '${EnabledBackendNames.mkString("', '")}'."
+        s"in '${BackendNames.mkString("', '")}'."
     )
   }
 

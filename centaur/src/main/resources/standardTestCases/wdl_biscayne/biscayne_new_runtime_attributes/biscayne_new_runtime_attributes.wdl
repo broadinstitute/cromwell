@@ -31,7 +31,7 @@ task runtime_attributes_task {
 
     azure: object {
         memory: "4 GB",
-        docker: "alpine:latest"
+        docker: "ubuntu:jammy"
     }
 
     # Generic keys are ignored in favor of platform ones

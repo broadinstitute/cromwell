@@ -7,7 +7,6 @@ import wom.callable.MetaValueElement
 import wom.callable.MetaValueElement._
 import wom.types._
 import WdlWriter._
-import common.collections.EnhancedCollections._
 import org.apache.commons.text.StringEscapeUtils
 
 object WdlWriterImpl {
@@ -194,49 +193,6 @@ object WdlWriterImpl {
   implicit val primitiveTypeElementWriter: WdlWriter[WomPrimitiveType] = new WdlWriter[WomPrimitiveType] {
     override def toWdlV1(a: WomPrimitiveType) = a.stableName
   }
-
-  implicit val workflowDefinitionElementWriter: WdlWriter[WorkflowDefinitionElement] =
-    new WdlWriter[WorkflowDefinitionElement] {
-      override def toWdlV1(a: WorkflowDefinitionElement) = {
-        val inputs = a.inputsSection match {
-          case Some(i) => i.toWdlV1
-          case None => ""
-        }
-        val outputs = a.outputsSection match {
-          case Some(o) => o.toWdlV1
-          case None => ""
-        }
-
-        // Readability / cosmetic reordering
-        // TODO: use graph ordering
-        // https://github.com/broadinstitute/cromwell/issues/3796
-        val inputDeclarationElements: List[InputDeclarationElement] =
-          a.graphElements.toList.filterByType[InputDeclarationElement]
-        val intermediateValueDeclarationElements: List[IntermediateValueDeclarationElement] =
-          a.graphElements.toList.filterByType[IntermediateValueDeclarationElement]
-        val ifElements: List[IfElement] =
-          a.graphElements.toList.filterByType[IfElement]
-        val scatterElements: List[ScatterElement] =
-          a.graphElements.toList.filterByType[ScatterElement]
-        val callElements: List[CallElement] =
-          a.graphElements.toList.filterByType[CallElement]
-        val outputDeclarationElements: List[OutputDeclarationElement] =
-          a.graphElements.toList.filterByType[OutputDeclarationElement]
-
-        val combined: List[WorkflowGraphElement] = inputDeclarationElements ++
-          intermediateValueDeclarationElements ++
-          ifElements ++
-          scatterElements ++
-          callElements ++
-          outputDeclarationElements
-
-        s"""workflow ${a.name} {
-           |${indent(inputs)}
-           |${indentAndCombine(combined.map(_.toWdlV1))}
-           |${indent(outputs)}
-           |}""".stripMargin
-      }
-    }
 
   implicit val runtimeAttributesSectionElementWriter: WdlWriter[RuntimeAttributesSectionElement] =
     new WdlWriter[RuntimeAttributesSectionElement] {
@@ -476,33 +432,6 @@ object WdlWriterImpl {
         }
       }
     }
-
-  implicit val structElementWriter: WdlWriter[StructElement] = new WdlWriter[StructElement] {
-    override def toWdlV1(a: StructElement): String =
-      s"""struct ${a.name} {
-         |${indentAndCombine(a.entries.map(_.toWdlV1))}}""".stripMargin
-  }
-
-  implicit val structEntryElementWriter: WdlWriter[StructEntryElement] = new WdlWriter[StructEntryElement] {
-    override def toWdlV1(a: StructEntryElement): String = s"${a.typeElement.toWdlV1} ${a.identifier}"
-  }
-
-  implicit val importElementWriter: WdlWriter[ImportElement] = new WdlWriter[ImportElement] {
-    override def toWdlV1(a: ImportElement): String =
-      a.namespace match {
-        case Some(namespace) => s"""import "${a.importUrl}" as $namespace"""
-        case None => s"""import "${a.importUrl}""""
-      }
-  }
-
-  implicit val fileElementWriter: WdlWriter[FileElement] = new WdlWriter[FileElement] {
-    override def toWdlV1(a: FileElement) =
-      "version 1.0" + System.lineSeparator +
-        combine(a.imports.map(_.toWdlV1)) +
-        combine(a.structs.map(_.toWdlV1)) +
-        combine(a.workflows.map(_.toWdlV1)) +
-        combine(a.tasks.map(_.toWdlV1))
-  }
 
   implicit val kvPairWriter: WdlWriter[KvPair] = new WdlWriter[KvPair] {
     override def toWdlV1(a: KvPair): String = s"${a.key} = ${a.value.toWdlV1}"

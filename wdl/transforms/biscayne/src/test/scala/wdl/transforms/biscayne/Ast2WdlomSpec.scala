@@ -1,7 +1,6 @@
 package wdl.transforms.biscayne
 
 import java.util
-
 import common.Checked
 import common.assertion.ErrorOrAssertions._
 import common.transforms.CheckedAtoB
@@ -98,9 +97,33 @@ class Ast2WdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     expr shouldBeValid NoneLiteralElement
   }
 
+  it should "get the posix version when parsing the sub function" in {
+    val str = """sub("my input", "[A-Za-z]", "repl")"""
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeValid (SubPosix(StringLiteral("my input"), StringLiteral("[A-Za-z]"), StringLiteral("repl")))
+  }
+
   it should "parse the new suffix function" in {
     val str = "suffix(some_str, some_arr)"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
     expr shouldBeValid (Suffix(IdentifierLookup("some_str"), IdentifierLookup("some_arr")))
+  }
+
+  it should "parse the new quote function" in {
+    val str = "quote(some_arr)"
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeValid (Quote(IdentifierLookup("some_arr")))
+  }
+
+  it should "parse the new squote function" in {
+    val str = "squote(some_arr)"
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeValid (SQuote(IdentifierLookup("some_arr")))
+  }
+
+  it should "parse the new unzip function" in {
+    val str = "unzip(some_array_of_pairs)"
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeValid (Unzip(IdentifierLookup("some_array_of_pairs")))
   }
 }

@@ -96,7 +96,7 @@ package object consumed {
         case a: Zip => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: Cross => a.expressionConsumedValueHooks(expressionValueConsumer)
 
-        case a: Sub => a.expressionConsumedValueHooks(expressionValueConsumer)
+        case a: SubPosix => a.expressionConsumedValueHooks(expressionValueConsumer)
 
         // New WDL biscayne expressions:
         case a: Keys => a.expressionConsumedValueHooks(expressionValueConsumer)
@@ -104,6 +104,9 @@ package object consumed {
         case a: AsPairs => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: CollectByKey => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: Sep => sepExpressionValueConsumer.expressionConsumedValueHooks(a)(expressionValueConsumer)
+        case a: Quote => a.expressionConsumedValueHooks(expressionValueConsumer)
+        case a: SQuote => a.expressionConsumedValueHooks(expressionValueConsumer)
+        case a: Unzip => a.expressionConsumedValueHooks(expressionValueConsumer)
 
         case a: Min => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: Max => a.expressionConsumedValueHooks(expressionValueConsumer)

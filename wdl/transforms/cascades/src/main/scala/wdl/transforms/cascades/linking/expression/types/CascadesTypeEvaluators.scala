@@ -1,6 +1,6 @@
 package wdl.transforms.biscayne.linking.expression.types
 
-import cats.implicits.catsSyntaxTuple2Semigroupal
+import cats.implicits.{catsSyntaxTuple2Semigroupal, catsSyntaxTuple3Semigroupal}
 import cats.syntax.validated._
 import common.validation.ErrorOr._
 import wdl.model.draft3.elements.ExpressionElement
@@ -102,6 +102,16 @@ object cascadesTypeEvaluators {
       }
   }
 
+  implicit val subPosixFunctionEvaluator: TypeEvaluator[SubPosix] = new TypeEvaluator[SubPosix] {
+    override def evaluateType(a: SubPosix, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
+      expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
+    ): ErrorOr[WomType] =
+      (validateParamType(a.input, linkedValues, WomSingleFileType),
+       validateParamType(a.pattern, linkedValues, WomSingleFileType),
+       validateParamType(a.replace, linkedValues, WomSingleFileType)
+      ) mapN { (_, _, _) => WomStringType }
+  }
+
   implicit val suffixFunctionEvaluator: TypeEvaluator[Suffix] = new TypeEvaluator[Suffix] {
     override def evaluateType(a: Suffix, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
@@ -109,5 +119,44 @@ object cascadesTypeEvaluators {
       (validateParamType(a.suffix, linkedValues, WomStringType),
        validateParamType(a.array, linkedValues, WomArrayType(WomStringType))
       ) mapN { (_, _) => WomArrayType(WomStringType) }
+  }
+
+  implicit val quoteFunctionEvaluator: TypeEvaluator[Quote] = new TypeEvaluator[Quote] {
+    override def evaluateType(a: Quote, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
+      expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
+    ): ErrorOr[WomType] =
+      validateParamType(a.param, linkedValues, WomArrayType(WomAnyType)) flatMap {
+        case WomArrayType(WomNothingType) => WomArrayType(WomNothingType).validNel
+        case WomArrayType(_: WomPrimitiveType) => WomArrayType(WomStringType).validNel
+        case other @ WomArrayType(_) =>
+          s"Cannot invoke quote on type Array[${other.stableName}]. Expected an Array of primitive type".invalidNel
+        case other =>
+          s"Cannot invoke quote on type ${other.stableName}. Expected an Array of primitive type".invalidNel
+      }
+  }
+
+  implicit val sQuoteFunctionEvaluator: TypeEvaluator[SQuote] = new TypeEvaluator[SQuote] {
+    override def evaluateType(a: SQuote, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
+      expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
+    ): ErrorOr[WomType] =
+      validateParamType(a.param, linkedValues, WomArrayType(WomAnyType)) flatMap {
+        case WomArrayType(WomNothingType) => WomArrayType(WomNothingType).validNel
+        case WomArrayType(_: WomPrimitiveType) => WomArrayType(WomStringType).validNel
+        case other @ WomArrayType(_) =>
+          s"Cannot invoke quote on type Array[${other.stableName}]. Expected an Array of primitive type".invalidNel
+        case other =>
+          s"Cannot invoke quote on type ${other.stableName}. Expected an Array of primitive type".invalidNel
+      }
+  }
+
+  implicit val unzipFunctionEvaluator: TypeEvaluator[Unzip] = new TypeEvaluator[Unzip] {
+    override def evaluateType(a: Unzip, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
+      expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
+    ): ErrorOr[WomType] =
+      validateParamType(a.param, linkedValues, WomArrayType(WomPairType(WomAnyType, WomAnyType))) flatMap {
+        case WomArrayType(WomNothingType) => WomPairType(WomArrayType(WomAnyType), WomArrayType(WomAnyType)).validNel
+        case WomArrayType(WomPairType(x, y)) => WomPairType(WomArrayType(x), WomArrayType(y)).validNel
+        case other => s"Cannot invoke 'unzip' on type '${other.stableName}'. Expected an array of pairs".invalidNel
+      }
   }
 }

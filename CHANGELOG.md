@@ -2,6 +2,10 @@
 
 ## 87 Release Notes
 
+### `upgrade` command removed from Womtool
+
+Womtool previously supported a `womtool upgrade` command for upgrading draft-2 WDLs to 1.0. With WDL 1.1 taking over as the latest supported version, this functionality is retiring.
+
 ### Replacement of `gsutil` with `gcloud storage`
 
 In this release, all **localization** functionality on the GCP backend migrates to use the more modern and performant `gcloud storage`. With sufficiently powerful worker VMs, Cromwell can now localize at up to 1200 MB/s [0][1][2].

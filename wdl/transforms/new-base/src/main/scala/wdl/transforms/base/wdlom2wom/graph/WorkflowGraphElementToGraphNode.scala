@@ -17,7 +17,7 @@ import wom.graph._
 import wom.graph.expression.ExposedExpressionNode
 import wom.types.WomType
 import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
-import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.{typeElementWriter, expressionElementWriter}
+import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.{expressionElementWriter, typeElementWriter}
 
 object WorkflowGraphElementToGraphNode {
   def convert(a: GraphNodeMakerInputs)(implicit

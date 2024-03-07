@@ -15,7 +15,7 @@ import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.types.{WomOptionalType, WomType}
 import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
-import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.{typeElementWriter, expressionElementWriter}
+import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.{expressionElementWriter, typeElementWriter}
 
 object InputDeclarationElementToGraphNode {
   def convert(a: GraphInputNodeMakerInputs)(implicit

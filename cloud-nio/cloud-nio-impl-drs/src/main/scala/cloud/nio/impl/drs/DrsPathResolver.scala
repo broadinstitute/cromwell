@@ -187,6 +187,10 @@ object DrsResolverField extends Enumeration {
   val LocalizationPath: DrsResolverField.Value = Value("localizationPath")
 }
 
+// We supply a cloud platform value to the DRS service. In cases where the DRS repository
+// has multiple cloud files associated with a DRS link, it will prefer sending a file on the same
+// platform as this Cromwell instance. That is, if a DRS file has copies on both GCP and Azure,
+// we'll get the GCP one when running on GCP and the Azure one when running on Azure.
 object DrsCloudPlatform extends Enumeration {
   val GoogleStorage: DrsCloudPlatform.Value = Value("gs")
   val Azure: DrsCloudPlatform.Value = Value("azure")

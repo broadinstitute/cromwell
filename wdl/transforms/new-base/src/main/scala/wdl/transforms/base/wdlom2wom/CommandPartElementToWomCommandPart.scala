@@ -18,7 +18,7 @@ import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
 import wdl.model.draft3.graph.expression.WomExpressionMaker.ops._
 import wdl.transforms.base.linking.expression._
 import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
-import wdl.transforms.base.wdlom2wdl.WdlWriterImpl._
+import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.{placeholderAttributeSetWriter, expressionElementWriter}
 
 object CommandPartElementToWomCommandPart {
   def convert(commandPart: CommandPartElement,

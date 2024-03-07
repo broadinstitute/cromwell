@@ -11,8 +11,6 @@ import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values._
-import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
-import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.indexAccessWriter
 
 object LookupEvaluators {
 
@@ -87,19 +85,19 @@ object LookupEvaluators {
             if (array.value.length > index)
               array.value(index).validNel
             else
-              s"Bad array access ${a.toWdlV1}: Array size ${array.value.length} does not have an index value '$index'".invalidNel
+              s"Bad array access $a: Array size ${array.value.length} does not have an index value '$index'".invalidNel
           case (WomObject(values, _), WomString(index)) =>
             if (values.contains(index))
               values(index).validNel
             else
-              s"Bad Object access ${a.toWdlV1}: Object with keys [${values.keySet.mkString(", ")}] does not have an index value [$index]".invalidNel
+              s"Bad Object access $a: Object with keys [${values.keySet.mkString(", ")}] does not have an index value [$index]".invalidNel
           case (WomMap(mapType, values), index) =>
             if (values.contains(index))
               values(index).validNel
             else
-              s"Bad Map access ${a.toWdlV1}: This ${mapType.stableName} does not have a ${index.womType.stableName} index value [${index.toWomString}]".invalidNel
+              s"Bad Map access $a: This ${mapType.stableName} does not have a ${index.womType.stableName} index value [${index.toWomString}]".invalidNel
           case (otherCollection, otherKey) =>
-            s"Bad index access ${a.toWdlV1}: Cannot use '${otherKey.womType.stableName}' to index '${otherCollection.womType.stableName}'".invalidNel
+            s"Bad index access $a: Cannot use '${otherKey.womType.stableName}' to index '${otherCollection.womType.stableName}'".invalidNel
         }
 
         value map { EvaluatedValue(_, lhs.sideEffectFiles ++ rhs.sideEffectFiles) }

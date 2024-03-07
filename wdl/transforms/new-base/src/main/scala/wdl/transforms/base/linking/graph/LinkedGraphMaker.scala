@@ -13,8 +13,6 @@ import wom.callable.Callable
 import wom.types.WomType
 import scalax.collection.Graph
 import scalax.collection.GraphEdge.DiEdge
-import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
-import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.graphElementWriter
 
 object LinkedGraphMaker {
   def make(nodes: Set[WorkflowGraphElement],
@@ -43,9 +41,6 @@ object LinkedGraphMaker {
 
   def getOrdering(linkedGraph: LinkedGraph): ErrorOr[List[WorkflowGraphElement]] = {
 
-    def nodeName(workflowGraphElement: WorkflowGraphElement): String =
-      workflowGraphElement.toWdlV1.linesIterator.toList.headOption.getOrElse("Unnamed Element").replace("\"", "")
-
     // Find the topological order in which we must create the graph nodes:
     val edges = linkedGraph.edges map { case LinkedGraphEdge(from, to) => DiEdge(from, to) }
 
@@ -63,7 +58,7 @@ object LinkedGraphMaker {
             // we want to start the cycle with the edge "a -> b"
             val edgeDict: Map[String, String] =
               cycle.value.edges.map { case graph.EdgeT(from, to) =>
-                nodeName(from) -> nodeName(to)
+                from.toString -> to.toString
               }.toMap
             val startPoint = edgeDict.keys.toVector.sorted.head
             var cursor = startPoint
@@ -83,7 +78,7 @@ object LinkedGraphMaker {
 
           case _ =>
             val edgeStrings = linkedGraph.edges map { case LinkedGraphEdge(from, to) =>
-              s""""${nodeName(from)}" -> "${nodeName(to)}""""
+              s""""${from.toString}" -> "${to.toString}""""
             }
             // sort the edges for determinism
             val edges = edgeStrings.toVector.sorted

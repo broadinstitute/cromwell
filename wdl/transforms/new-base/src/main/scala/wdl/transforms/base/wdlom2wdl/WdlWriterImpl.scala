@@ -1,6 +1,5 @@
 package wdl.transforms.base.wdlom2wdl
 
-import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.elements._
 import wom.callable.MetaValueElement
@@ -201,29 +200,29 @@ object WdlWriterImpl {
       }
     }
 
-  implicit val commandSectionElementWriter: WdlWriter[CommandSectionElement] = new WdlWriter[CommandSectionElement] {
-    override def toWdlV1(a: CommandSectionElement): String =
-      s"""  command <<<
-         |${combine(a.parts.map(_.toWdlV1))}  >>>""".stripMargin
-  }
+//  implicit val commandSectionElementWriter: WdlWriter[CommandSectionElement] = new WdlWriter[CommandSectionElement] {
+//    override def toWdlV1(a: CommandSectionElement): String =
+//      s"""  command <<<
+//         |${combine(a.parts.map(_.toWdlV1))}  >>>""".stripMargin
+//  }
 
-  implicit val commandSectionLineWriter: WdlWriter[CommandSectionLine] = new WdlWriter[CommandSectionLine] {
-    override def toWdlV1(a: CommandSectionLine): String =
-      a.parts.map(_.toWdlV1).mkString
-  }
+//  implicit val commandSectionLineWriter: WdlWriter[CommandSectionLine] = new WdlWriter[CommandSectionLine] {
+//    override def toWdlV1(a: CommandSectionLine): String =
+//      a.parts.map(_.toWdlV1).mkString
+//  }
 
-  implicit val commandPartElementWriter: WdlWriter[CommandPartElement] = new WdlWriter[CommandPartElement] {
-    override def toWdlV1(a: CommandPartElement): String = a match {
-      case a: StringCommandPartElement => a.value // .trim?
-      case a: PlaceholderCommandPartElement =>
-        val attributes = a.attributes.toWdlV1
-
-        if (attributes.nonEmpty)
-          s"~{$attributes ${a.expressionElement.toWdlV1}}"
-        else
-          s"~{${a.expressionElement.toWdlV1}}"
-    }
-  }
+//  implicit val commandPartElementWriter: WdlWriter[CommandPartElement] = new WdlWriter[CommandPartElement] {
+//    override def toWdlV1(a: CommandPartElement): String = a match {
+//      case a: StringCommandPartElement => a.value // .trim?
+//      case a: PlaceholderCommandPartElement =>
+//        val attributes = a.attributes.toWdlV1
+//
+//        if (attributes.nonEmpty)
+//          s"~{$attributes ${a.expressionElement.toWdlV1}}"
+//        else
+//          s"~{${a.expressionElement.toWdlV1}}"
+//    }
+//  }
 
   implicit val placeholderAttributeSetWriter: WdlWriter[PlaceholderAttributeSet] =
     new WdlWriter[PlaceholderAttributeSet] {

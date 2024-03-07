@@ -25,7 +25,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.{Channels, ReadableByteChannel}
 import scala.util.Try
 
-abstract class DrsPathResolver(drsConfig: DrsConfig) {
+class DrsPathResolver(drsConfig: DrsConfig, drsCredentials: DrsCredentials) {
 
   protected lazy val httpClientBuilder: HttpClientBuilder = {
     val clientBuilder = HttpClientBuilder.create()
@@ -38,7 +38,7 @@ abstract class DrsPathResolver(drsConfig: DrsConfig) {
     clientBuilder
   }
 
-  def getAccessToken: ErrorOr[String]
+  def getAccessToken: ErrorOr[String] = drsCredentials.getAccessToken
 
   private lazy val determineCloudPlatform: DrsCloudPlatform.Value = ???
 
@@ -109,11 +109,10 @@ abstract class DrsPathResolver(drsConfig: DrsConfig) {
     } yield httpResponse
 
   def rawDrsResolverResponse(drsPath: String,
-                             cloudPlatform: DrsCloudPlatform.Value,
                              fields: NonEmptyList[DrsResolverField.Value]
   ): Resource[IO, HttpResponse] =
     for {
-      httpPost <- makeHttpRequestToDrsResolver(drsPath, cloudPlatform, fields)
+      httpPost <- makeHttpRequestToDrsResolver(drsPath, determineCloudPlatform, fields)
       response <- executeDrsResolverRequest(httpPost)
     } yield response
 
@@ -121,11 +120,8 @@ abstract class DrsPathResolver(drsConfig: DrsConfig) {
     * Resolves the DRS path through DRS Resolver url provided in the config.
     * Please note, this method returns an IO that would make a synchronous HTTP request to DRS Resolver when run.
     */
-  def resolveDrs(drsPath: String,
-                 cloudPlatform: DrsCloudPlatform.Value,
-                 fields: NonEmptyList[DrsResolverField.Value]
-  ): IO[DrsResolverResponse] =
-    rawDrsResolverResponse(drsPath, cloudPlatform, fields).use(
+  def resolveDrs(drsPath: String, fields: NonEmptyList[DrsResolverField.Value]): IO[DrsResolverResponse] =
+    rawDrsResolverResponse(drsPath, fields).use(
       httpResponseToDrsResolverResponse(drsPathForDebugging = drsPath)
     )
 

@@ -15,15 +15,15 @@ class MockDrsCloudNioFileSystemProvider(config: Config = mockConfig,
                                           IO.raiseError(
                                             new UnsupportedOperationException("mock did not specify a read interpreter")
                                           ),
-                                        mockResolver: Option[EngineDrsPathResolver] = None
+                                        mockResolver: Option[DrsPathResolver] = None
 ) extends DrsCloudNioFileSystemProvider(config,
                                         GoogleOauthDrsCredentials(NoCredentials.getInstance, config),
                                         drsReadInterpreter
     ) {
 
-  override lazy val drsPathResolver: EngineDrsPathResolver =
+  override lazy val drsPathResolver: DrsPathResolver =
     mockResolver getOrElse
-      new MockEngineDrsPathResolver(
+      new MockDrsPathResolver(
         drsConfig = drsConfig,
         httpClientBuilderOverride = httpClientBuilder,
         accessTokenAcceptableTTL = Duration.Inf

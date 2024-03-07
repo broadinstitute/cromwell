@@ -10,12 +10,10 @@ import common.mock.MockSugar
 
 import scala.concurrent.duration.Duration
 
-class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfig,
-                                httpClientBuilderOverride: Option[HttpClientBuilder] = None,
-                                accessTokenAcceptableTTL: Duration = Duration.Inf
-) extends EngineDrsPathResolver(drsConfig,
-                                GoogleOauthDrsCredentials(NoCredentials.getInstance, accessTokenAcceptableTTL)
-    ) {
+class MockDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfig,
+                          httpClientBuilderOverride: Option[HttpClientBuilder] = None,
+                          accessTokenAcceptableTTL: Duration = Duration.Inf
+) extends DrsPathResolver(drsConfig, GoogleOauthDrsCredentials(NoCredentials.getInstance, accessTokenAcceptableTTL)) {
 
   override protected lazy val httpClientBuilder: HttpClientBuilder =
     httpClientBuilderOverride getOrElse MockSugar.mock[HttpClientBuilder]

@@ -40,7 +40,11 @@ class DrsPathResolver(drsConfig: DrsConfig, drsCredentials: DrsCredentials) {
 
   def getAccessToken: ErrorOr[String] = drsCredentials.getAccessToken
 
-  private lazy val determineCloudPlatform: DrsCloudPlatform.Value = ???
+  private lazy val currentCloudPlatform: DrsCloudPlatform.Value = drsCredentials match {
+    case _: GoogleOauthDrsCredentials => DrsCloudPlatform.GoogleStorage
+    case GoogleAppDefaultTokenStrategy => DrsCloudPlatform.GoogleStorage
+    case _: AzureDrsCredentials => DrsCloudPlatform.Azure
+  }
 
   private def makeHttpRequestToDrsResolver(drsPath: String,
                                            cloudPlatform: DrsCloudPlatform.Value,
@@ -112,7 +116,7 @@ class DrsPathResolver(drsConfig: DrsConfig, drsCredentials: DrsCredentials) {
                              fields: NonEmptyList[DrsResolverField.Value]
   ): Resource[IO, HttpResponse] =
     for {
-      httpPost <- makeHttpRequestToDrsResolver(drsPath, determineCloudPlatform, fields)
+      httpPost <- makeHttpRequestToDrsResolver(drsPath, currentCloudPlatform, fields)
       response <- executeDrsResolverRequest(httpPost)
     } yield response
 
@@ -233,6 +237,8 @@ object DrsResolverResponseSupport {
 
   implicit lazy val drsResolverFieldEncoder: Encoder[DrsResolverField.Value] =
     Encoder.encodeEnumeration(DrsResolverField)
+  implicit lazy val drsResolverCloudPlatformEncoder: Encoder[DrsCloudPlatform.Value] =
+    Encoder.encodeEnumeration(DrsCloudPlatform)
   implicit lazy val drsResolverRequestEncoder: Encoder[DrsResolverRequest] = deriveEncoder
 
   implicit lazy val saDataObjectDecoder: Decoder[SADataObject] = deriveDecoder

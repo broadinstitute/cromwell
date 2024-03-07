@@ -22,7 +22,7 @@ case class RuntimeAttributeDefinition(name: String, factoryDefault: Option[WomVa
 object RuntimeAttributeDefinition {
 
   /**
-    * "Evaluate" means hydrating the runtime attributes with information from the
+    * "Evaluate" means hydrating the runtime attributes with information from the inputs
     * @param unevaluated WOM expressions that may or may not reference inputs
     * @param wdlFunctions The set of IO for the current backend
     * @param evaluatedInputs The inputs

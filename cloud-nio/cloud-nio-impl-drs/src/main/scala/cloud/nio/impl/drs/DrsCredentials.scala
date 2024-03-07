@@ -9,6 +9,7 @@ import com.google.auth.oauth2.{AccessToken, GoogleCredentials, OAuth2Credentials
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
 import net.ceedubs.ficus.Ficus._
+import cromwell.cloudsupport.azure.AzureCredentials
 
 import scala.concurrent.duration._
 import scala.jdk.DurationConverters._
@@ -76,38 +77,6 @@ case object GoogleAppDefaultTokenStrategy extends DrsCredentials {
   * If you need to disambiguate among multiple active user-assigned managed identities, pass
   * in the client id of the identity that should be used.
   */
-case class AzureDrsCredentials(identityClientId: Option[String]) extends DrsCredentials {
-
-  final val tokenAcquisitionTimeout = 5.seconds
-
-  val azureProfile = new AzureProfile(AzureEnvironment.AZURE)
-  val tokenScope = "https://management.azure.com/.default"
-
-  def tokenRequestContext: TokenRequestContext = {
-    val trc = new TokenRequestContext()
-    trc.addScopes(tokenScope)
-    trc
-  }
-
-  def defaultCredentialBuilder: DefaultAzureCredentialBuilder =
-    new DefaultAzureCredentialBuilder()
-      .authorityHost(azureProfile.getEnvironment.getActiveDirectoryEndpoint)
-
-  def getAccessToken: ErrorOr[String] = {
-    val credentials = identityClientId
-      .foldLeft(defaultCredentialBuilder) { (builder, clientId) =>
-        builder.managedIdentityClientId(clientId)
-      }
-      .build()
-
-    Try(
-      credentials
-        .getToken(tokenRequestContext)
-        .block(tokenAcquisitionTimeout.toJava)
-    ) match {
-      case Success(null) => "null token value attempting to obtain access token".invalidNel
-      case Success(token) => token.getToken.validNel
-      case Failure(error) => s"Failed to refresh access token: ${error.getMessage}".invalidNel
-    }
-  }
+case class AzureDrsCredentials(identityClientId: Option[String]) extends AzureCredentials with DrsCredentials {
+  def getAccessToken: ErrorOr[String] = getAccessToken(identityClientId)
 }

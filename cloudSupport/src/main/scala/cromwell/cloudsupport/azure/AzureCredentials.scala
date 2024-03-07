@@ -16,7 +16,7 @@ import scala.util.{Failure, Success, Try}
   * If you need to disambiguate among multiple active user-assigned managed identities, pass
   * in the client id of the identity that should be used.
   */
-case object AzureCredentials {
+class AzureCredentials {
 
   final val tokenAcquisitionTimeout = 5.seconds
 

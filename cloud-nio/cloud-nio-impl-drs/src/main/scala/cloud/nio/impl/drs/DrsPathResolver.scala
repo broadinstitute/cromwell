@@ -40,14 +40,17 @@ abstract class DrsPathResolver(drsConfig: DrsConfig) {
 
   def getAccessToken: ErrorOr[String]
 
+  private lazy val determineCloudPlatform: DrsCloudPlatform.Value = ???
+
   private def makeHttpRequestToDrsResolver(drsPath: String,
+                                           cloudPlatform: DrsCloudPlatform.Value,
                                            fields: NonEmptyList[DrsResolverField.Value]
   ): Resource[IO, HttpPost] = {
     val io = getAccessToken match {
       case Valid(token) =>
         IO {
           val postRequest = new HttpPost(drsConfig.drsResolverUrl)
-          val requestJson = DrsResolverRequest(drsPath, fields).asJson.noSpaces
+          val requestJson = DrsResolverRequest(drsPath, cloudPlatform, fields).asJson.noSpaces
           postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
           postRequest.setHeader("Authorization", s"Bearer $token")
           postRequest
@@ -106,10 +109,11 @@ abstract class DrsPathResolver(drsConfig: DrsConfig) {
     } yield httpResponse
 
   def rawDrsResolverResponse(drsPath: String,
+                             cloudPlatform: DrsCloudPlatform.Value,
                              fields: NonEmptyList[DrsResolverField.Value]
   ): Resource[IO, HttpResponse] =
     for {
-      httpPost <- makeHttpRequestToDrsResolver(drsPath, fields)
+      httpPost <- makeHttpRequestToDrsResolver(drsPath, cloudPlatform, fields)
       response <- executeDrsResolverRequest(httpPost)
     } yield response
 
@@ -117,8 +121,13 @@ abstract class DrsPathResolver(drsConfig: DrsConfig) {
     * Resolves the DRS path through DRS Resolver url provided in the config.
     * Please note, this method returns an IO that would make a synchronous HTTP request to DRS Resolver when run.
     */
-  def resolveDrs(drsPath: String, fields: NonEmptyList[DrsResolverField.Value]): IO[DrsResolverResponse] =
-    rawDrsResolverResponse(drsPath, fields).use(httpResponseToDrsResolverResponse(drsPathForDebugging = drsPath))
+  def resolveDrs(drsPath: String,
+                 cloudPlatform: DrsCloudPlatform.Value,
+                 fields: NonEmptyList[DrsResolverField.Value]
+  ): IO[DrsResolverResponse] =
+    rawDrsResolverResponse(drsPath, cloudPlatform, fields).use(
+      httpResponseToDrsResolverResponse(drsPathForDebugging = drsPath)
+    )
 
   def openChannel(accessUrl: AccessUrl): IO[ReadableByteChannel] =
     IO {
@@ -178,7 +187,16 @@ object DrsResolverField extends Enumeration {
   val LocalizationPath: DrsResolverField.Value = Value("localizationPath")
 }
 
-final case class DrsResolverRequest(url: String, fields: NonEmptyList[DrsResolverField.Value])
+object DrsCloudPlatform extends Enumeration {
+  val GoogleStorage: DrsCloudPlatform.Value = Value("gs")
+  val Azure: DrsCloudPlatform.Value = Value("azure")
+  val AmazonS3: DrsCloudPlatform.Value = Value("s3") // supported by DRSHub but not currently used by us
+}
+
+final case class DrsResolverRequest(url: String,
+                                    cloudPlatform: DrsCloudPlatform.Value,
+                                    fields: NonEmptyList[DrsResolverField.Value]
+)
 
 final case class SADataObject(data: Json)
 

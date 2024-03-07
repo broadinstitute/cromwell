@@ -1,10 +1,6 @@
 package cloud.nio.impl.drs
 
 import cats.syntax.validated._
-import com.azure.core.credential.TokenRequestContext
-import com.azure.core.management.AzureEnvironment
-import com.azure.core.management.profile.AzureProfile
-import com.azure.identity.DefaultAzureCredentialBuilder
 import com.google.auth.oauth2.{AccessToken, GoogleCredentials, OAuth2Credentials}
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
@@ -12,7 +8,6 @@ import net.ceedubs.ficus.Ficus._
 import cromwell.cloudsupport.azure.AzureCredentials
 
 import scala.concurrent.duration._
-import scala.jdk.DurationConverters._
 import scala.util.{Failure, Success, Try}
 
 /**

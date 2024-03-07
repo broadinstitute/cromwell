@@ -3,7 +3,10 @@ package cromwell.services.auth
 import akka.actor.ActorRef
 import akka.testkit.TestProbe
 import akka.util.Timeout
+import cats.data.Validated.{Invalid, Valid}
+import com.typesafe.config.ConfigFactory
 import cromwell.core.TestKitSuite
+import cromwell.languages.util.ImportResolver.GithubImportAuthProvider
 import cromwell.services.ServiceRegistryActor.ServiceRegistryFailure
 import cromwell.services.auth.GithubAuthVending.GithubAuthRequest
 import cromwell.services.auth.GithubAuthVendingSupportSpec.TestGithubAuthVendingSupport
@@ -15,6 +18,21 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 
 class GithubAuthVendingSupportSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually {
+
+  private def azureGithubAuthVendingConfig(enabled: Boolean = true) = ConfigFactory
+    .parseString(
+      s"""
+         |services {
+         |  GithubAuthVending {
+         |    config {
+         |      auth.azure = ${enabled}
+         |    }
+         |  }
+         |}
+         |""".stripMargin
+    )
+
+  implicit val timeout = Timeout(10.seconds)
 
   behavior of "GithubAuthVendingSupport"
 
@@ -60,8 +78,8 @@ class GithubAuthVendingSupportSpec extends TestKitSuite with AnyFlatSpecLike wit
 
   it should "handle timeouts" in {
     val serviceRegistryActor = TestProbe()
-    val testSupport = new TestGithubAuthVendingSupport(serviceRegistryActor.ref, 1.millisecond)
-    val provider = testSupport.importAuthProvider("user-token")
+    val testSupport = new TestGithubAuthVendingSupport(serviceRegistryActor.ref)
+    val provider = testSupport.importAuthProvider("user-token")(Timeout(1.millisecond))
     val authHeader: Future[Map[String, String]] = provider.authHeader()
 
     eventually {
@@ -88,11 +106,32 @@ class GithubAuthVendingSupportSpec extends TestKitSuite with AnyFlatSpecLike wit
     }
   }
 
+  it should "return Github import auth provider when Azure auth is enabled" in {
+    val serviceRegistryActor = TestProbe()
+    val testSupport = new TestGithubAuthVendingSupport(serviceRegistryActor.ref)
+
+    testSupport.importAuthProvider(azureGithubAuthVendingConfig()) match {
+      case Valid(providerOpt) =>
+        providerOpt.isEmpty shouldBe false
+        providerOpt.get.isInstanceOf[GithubImportAuthProvider] shouldBe true
+        providerOpt.get.validHosts shouldBe List("github.com", "githubusercontent.com", "raw.githubusercontent.com")
+      case Invalid(e) => fail(s"Unexpected failure: $e")
+    }
+  }
+
+  it should "return no import auth provider when Azure auth is disabled" in {
+    val serviceRegistryActor = TestProbe()
+    val testSupport = new TestGithubAuthVendingSupport(serviceRegistryActor.ref)
+
+    testSupport.importAuthProvider(azureGithubAuthVendingConfig(false)) match {
+      case Valid(providerOpt) => providerOpt.isEmpty shouldBe true
+      case Invalid(e) => fail(s"Unexpected failure: $e")
+    }
+  }
 }
 
 object GithubAuthVendingSupportSpec {
-  class TestGithubAuthVendingSupport(val serviceRegistryActor: ActorRef, val timeout: Timeout = 10.seconds)
-      extends GithubAuthVendingSupport {
+  class TestGithubAuthVendingSupport(val serviceRegistryActor: ActorRef) extends GithubAuthVendingSupport {
     implicit override val ec: ExecutionContext = ExecutionContext.global
   }
 

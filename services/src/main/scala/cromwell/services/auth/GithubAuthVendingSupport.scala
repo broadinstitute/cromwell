@@ -3,7 +3,12 @@ package cromwell.services.auth
 import akka.actor.ActorRef
 import akka.pattern.{AskSupport, AskTimeoutException}
 import akka.util.Timeout
+import cats.data.Validated.{Invalid, Valid}
+import cats.implicits.catsSyntaxValidatedId
+import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
+import common.validation.ErrorOr.ErrorOr
+import cromwell.cloudsupport.azure.AzureCredentials
 import cromwell.languages.util.ImportResolver.{GithubImportAuthProvider, ImportAuthProvider}
 import cromwell.services.auth.GithubAuthVending.{
   GithubAuthRequest,
@@ -13,16 +18,16 @@ import cromwell.services.auth.GithubAuthVending.{
   NoGithubAuthResponse
 }
 
+import net.ceedubs.ficus.Ficus._
 import scala.concurrent.{ExecutionContext, Future}
 
 trait GithubAuthVendingSupport extends AskSupport with StrictLogging {
 
   def serviceRegistryActor: ActorRef
 
-  implicit val timeout: Timeout
   implicit val ec: ExecutionContext
 
-  def importAuthProvider(token: String): ImportAuthProvider = new GithubImportAuthProvider {
+  def importAuthProvider(token: String)(implicit timeout: Timeout): ImportAuthProvider = new GithubImportAuthProvider {
     override def authHeader(): Future[Map[String, String]] =
       serviceRegistryActor
         .ask(GithubAuthRequest(token))
@@ -41,5 +46,17 @@ trait GithubAuthVendingSupport extends AskSupport with StrictLogging {
           case GithubAuthVendingFailure(error) =>
             Future.failed(new Exception("Failed to resolve github auth token", error))
         }
+  }
+
+  def importAuthProvider(config: Config)(implicit timeout: Timeout): ErrorOr[Option[ImportAuthProvider]] = {
+    val isAuthAzure = config.as[Boolean]("services.GithubAuthVending.config.auth.azure")
+
+    if (isAuthAzure) {
+      val azureToken = AzureCredentials.getAccessToken()
+      azureToken match {
+        case Valid(token) => Option(importAuthProvider(token)).validNel
+        case Invalid(err) => s"Failed to fetch Azure token. Error: ${err.toString}".invalidNel
+      }
+    } else None.validNel
   }
 }

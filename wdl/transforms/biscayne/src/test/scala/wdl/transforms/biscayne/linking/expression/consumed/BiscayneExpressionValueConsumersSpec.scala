@@ -58,6 +58,15 @@ class BiscayneExpressionValueConsumersSpec extends AnyFlatSpec with CromwellTime
     }
   }
 
+  it should "discover the variable lookups within a sub() call" in {
+    val str = """ sub(my_input, "^[A-Z]$", "0") """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    expr.shouldBeValidPF { case e =>
+      e.expressionConsumedValueHooks should be(Set(UnlinkedIdentifierHook("my_input")))
+    }
+  }
+
   it should "discover the variable lookups within a suffix() call" in {
     val str = """ suffix(my_suffix, ["a", "b", c]) """
     val expr = fromString[ExpressionElement](str, parser.parse_e)
@@ -73,6 +82,33 @@ class BiscayneExpressionValueConsumersSpec extends AnyFlatSpec with CromwellTime
 
     expr.shouldBeValidPF { case e =>
       e.expressionConsumedValueHooks should be(Set(UnlinkedIdentifierHook("my_array")))
+    }
+  }
+
+  it should "discover an array variable lookup within a quote() call" in {
+    val str = """ quote(my_array) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    expr.shouldBeValidPF { case e =>
+      e.expressionConsumedValueHooks should be(Set(UnlinkedIdentifierHook("my_array")))
+    }
+  }
+
+  it should "discover an array variable lookup within a squote() call" in {
+    val str = """ squote(my_array) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    expr.shouldBeValidPF { case e =>
+      e.expressionConsumedValueHooks should be(Set(UnlinkedIdentifierHook("my_array")))
+    }
+  }
+
+  it should "discover an array variable lookup within a unzip() call" in {
+    val str = """ unzip(my_array_of_pairs) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    expr.shouldBeValidPF { case e =>
+      e.expressionConsumedValueHooks should be(Set(UnlinkedIdentifierHook("my_array_of_pairs")))
     }
   }
 }

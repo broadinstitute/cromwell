@@ -835,7 +835,7 @@ object EngineFunctionEvaluators {
         s"Expected (${coercerA.toDisplayString}, ${coercerB.toDisplayString}) argument but got (${otherA.value.womType.stableName}, ${otherB.value.womType.stableName})".invalidNel
     }
 
-  private def processThreeValidatedValues[A <: WomValue, B <: WomValue, C <: WomValue, R <: WomValue](
+  def processThreeValidatedValues[A <: WomValue, B <: WomValue, C <: WomValue, R <: WomValue](
     arg1: ErrorOr[EvaluatedValue[_ <: WomValue]],
     arg2: ErrorOr[EvaluatedValue[_ <: WomValue]],
     arg3: ErrorOr[EvaluatedValue[_ <: WomValue]]

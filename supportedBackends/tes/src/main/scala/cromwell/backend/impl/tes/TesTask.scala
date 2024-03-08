@@ -160,13 +160,15 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     .zipWithIndex
     .flatMap {
       case (f: WomSingleFile, index) =>
+        val file = f
         val outputFile = f.value
         Seq(
           Output(
             name = Option(fullyQualifiedTaskName + ".output." + index),
             description = Option(fullyQualifiedTaskName + ".output." + index),
             url = Option(tesPaths.storageOutput(outputFile)),
-            path = tesPaths.containerOutput(containerWorkDir, outputFile),
+            path = mapCommandLineWomFile(file).valueString,
+              //tesPaths.containerOutput(containerWorkDir, outputFile),
             `type` = Option("FILE")
           )
         )

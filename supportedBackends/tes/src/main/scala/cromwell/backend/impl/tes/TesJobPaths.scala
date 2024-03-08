@@ -53,14 +53,21 @@ case class TesJobPaths private[tes] (override val workflowPaths: TesWorkflowPath
     callExecutionRoot.resolve(path).toString
 
   // Given an output path, return a path localized to the container file system
-  def containerOutput(cwd: Path, path: String): String = containerExec(cwd, path)
+  def containerOutput(cwd: Path, path: String): String = {
+    val str = containerExec(cwd, path)
+    return str
+  }
 
   // TODO this could be used to create a separate directory for outputs e.g.
   // callDockerRoot.resolve("outputs").resolve(name).toString
 
   // Given an file name, return a path localized to the container's execution directory
-  def containerExec(cwd: Path, path: String): String =
-    cwd.resolve(path).toString
+  def containerExec(cwd: Path, path: String): String = {
+    val workingDir = cwd
+    val thePath = path
+    val str = workingDir.resolve(thePath).toString
+    return str
+  }
 
   override def forCallCacheCopyAttempts: JobPaths = this.copy(isCallCacheCopyAttempt = true)
 }

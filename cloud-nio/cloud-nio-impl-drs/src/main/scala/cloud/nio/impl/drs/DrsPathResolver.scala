@@ -40,21 +40,24 @@ class DrsPathResolver(drsConfig: DrsConfig, drsCredentials: DrsCredentials) {
 
   def getAccessToken: ErrorOr[String] = drsCredentials.getAccessToken
 
-  private lazy val currentCloudPlatform: DrsCloudPlatform.Value = drsCredentials match {
-    case _: GoogleOauthDrsCredentials => DrsCloudPlatform.GoogleStorage
-    case GoogleAppDefaultTokenStrategy => DrsCloudPlatform.GoogleStorage
-    case _: AzureDrsCredentials => DrsCloudPlatform.Azure
+  private lazy val currentCloudPlatform: Option[DrsCloudPlatform.Value] = drsCredentials match {
+    case _: GoogleOauthDrsCredentials => Option(DrsCloudPlatform.GoogleStorage)
+    case GoogleAppDefaultTokenStrategy => Option(DrsCloudPlatform.GoogleStorage)
+    case _: AzureDrsCredentials => Option(DrsCloudPlatform.Azure)
+    case _ => None
   }
 
+  def makeDrsResolverRequest(drsPath: String, fields: NonEmptyList[DrsResolverField.Value]): DrsResolverRequest =
+    DrsResolverRequest(drsPath, currentCloudPlatform, fields)
+
   private def makeHttpRequestToDrsResolver(drsPath: String,
-                                           cloudPlatform: DrsCloudPlatform.Value,
                                            fields: NonEmptyList[DrsResolverField.Value]
   ): Resource[IO, HttpPost] = {
     val io = getAccessToken match {
       case Valid(token) =>
         IO {
           val postRequest = new HttpPost(drsConfig.drsResolverUrl)
-          val requestJson = DrsResolverRequest(drsPath, cloudPlatform, fields).asJson.noSpaces
+          val requestJson = makeDrsResolverRequest(drsPath, fields).asJson.noSpaces
           postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
           postRequest.setHeader("Authorization", s"Bearer $token")
           postRequest
@@ -116,7 +119,7 @@ class DrsPathResolver(drsConfig: DrsConfig, drsCredentials: DrsCredentials) {
                              fields: NonEmptyList[DrsResolverField.Value]
   ): Resource[IO, HttpResponse] =
     for {
-      httpPost <- makeHttpRequestToDrsResolver(drsPath, currentCloudPlatform, fields)
+      httpPost <- makeHttpRequestToDrsResolver(drsPath, fields)
       response <- executeDrsResolverRequest(httpPost)
     } yield response
 
@@ -198,7 +201,7 @@ object DrsCloudPlatform extends Enumeration {
 }
 
 final case class DrsResolverRequest(url: String,
-                                    cloudPlatform: DrsCloudPlatform.Value,
+                                    cloudPlatform: Option[DrsCloudPlatform.Value],
                                     fields: NonEmptyList[DrsResolverField.Value]
 )
 

@@ -72,6 +72,6 @@ case object GoogleAppDefaultTokenStrategy extends DrsCredentials {
   * If you need to disambiguate among multiple active user-assigned managed identities, pass
   * in the client id of the identity that should be used.
   */
-case class AzureDrsCredentials(identityClientId: Option[String]) extends DrsCredentials {
+case class AzureDrsCredentials(identityClientId: Option[String] = None) extends DrsCredentials {
   def getAccessToken: ErrorOr[String] = AzureCredentials.getAccessToken(identityClientId)
 }

@@ -7,8 +7,6 @@ import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.http.impl.client.HttpClientBuilder
 
-import scala.concurrent.duration.Duration
-
 class MockDrsCloudNioFileSystemProvider(config: Config = mockConfig,
                                         httpClientBuilder: Option[HttpClientBuilder] = None,
                                         drsReadInterpreter: DrsReadInterpreter = (_, _) =>
@@ -25,8 +23,7 @@ class MockDrsCloudNioFileSystemProvider(config: Config = mockConfig,
     mockResolver getOrElse
       new MockDrsPathResolver(
         drsConfig = drsConfig,
-        httpClientBuilderOverride = httpClientBuilder,
-        accessTokenAcceptableTTL = Duration.Inf
+        httpClientBuilderOverride = httpClientBuilder
       )
 }
 

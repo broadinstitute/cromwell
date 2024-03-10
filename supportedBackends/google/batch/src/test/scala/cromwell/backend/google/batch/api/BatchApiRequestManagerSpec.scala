@@ -329,7 +329,6 @@ class TestBatchApiRequestManager(qps: Int Refined Positive,
   }
 
   def queueSize: Int = workQueue.size
-  def statusPollerEquals(otherStatusPoller: ActorRef): Boolean = statusPollers == Vector(otherStatusPoller)
 }
 
 /**

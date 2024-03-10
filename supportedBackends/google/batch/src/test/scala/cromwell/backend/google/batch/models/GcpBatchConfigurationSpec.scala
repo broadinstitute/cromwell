@@ -124,9 +124,14 @@ class GcpBatchConfigurationSpec
     ).root shouldBe "gs://my-cromwell-workflows-bucket"
   }
 
-  // it should "have correct docker" in {
-  //  val dockerConf = new GcpBatchConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), googleConfiguration, batchAttributes).dockerCredentials
-  //  dockerConf shouldBe defined
-  //  dockerConf.get.token shouldBe "dockerToken"
-  // }
+  it should "have correct docker" in {
+    val dockerConf = new GcpBatchConfiguration(
+      BackendConfigurationDescriptor(backendConfig, globalConfig),
+      googleConfiguration,
+      batchAttributes
+    ).dockerCredentials
+
+    dockerConf shouldBe defined
+    dockerConf.get.token shouldBe "dockerToken"
+  }
 }

@@ -4,8 +4,7 @@ import cats.data.NonEmptyList
 import cromwell.backend.RuntimeAttributeDefinition
 import cromwell.backend.google.batch.models.GcpBatchTestConfig._
 import cromwell.backend.validation.ContinueOnReturnCodeSet
-//import cromwell.backend.google.batch.io.{DiskType, GcpBatchAttachedDisk}
-import cromwell.backend.google.batch.io.{DiskType, GcpBatchWorkingDisk}
+import cromwell.backend.google.batch.io.{DiskType, GcpBatchAttachedDisk, GcpBatchWorkingDisk}
 import cromwell.core.WorkflowOptions
 import eu.timepit.refined.refineMV
 import org.scalatest.TestSuite
@@ -48,9 +47,8 @@ final class GcpBatchRuntimeAttributesSpec
     }
 
     "fail to validate an invalid Docker entry" in {
-      pending
       val runtimeAttributes = Map("docker" -> WomInteger(1))
-      assertBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting docker runtime attribute to be String")
+      assertBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting docker runtime attribute to be a String")
     }
 
     "validate a valid failOnStderr entry" in {
@@ -152,21 +150,31 @@ final class GcpBatchRuntimeAttributesSpec
       )
     }
 
-    //    "validate a valid disks entry" in {
-    //      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomString("local-disk 20 SSD"))
-    //      val expectedRuntimeAttributes = expectedDefaults.copy(disks = Seq(GcpBatchAttachedDisk.parse("local-disk 20 SSD").get))
-    //      assertBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
-    //    }
+    "validate a valid disks entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomString("local-disk 20 SSD"))
+      val expectedRuntimeAttributes =
+        expectedDefaults.copy(disks = Seq(GcpBatchAttachedDisk.parse("local-disk 20 SSD").get))
+      assertBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
+    }
 
-    // "fail to validate an invalid disks entry" in {
-    //  val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomInteger(10))
-    //  assertBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting disks runtime attribute to be a comma separated String or Array[String]")
-    // }
+    "fail to validate an invalid disks entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomInteger(10))
+      assertBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Expecting disks runtime attribute to be a comma separated String or Array[String]"
+      )
+    }
 
-    // "fail to validate a valid disks array entry" in {
-    //  val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomArray(WomArrayType(WomStringType), List(WomString("blah"), WomString("blah blah"))))
-    //  assertBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE'")
-    // }
+    "fail to validate a valid disks array entry" in {
+      val runtimeAttributes =
+        Map("docker" -> WomString("ubuntu:latest"),
+            "disks" -> WomArray(WomArrayType(WomStringType), List(WomString("blah"), WomString("blah blah")))
+        )
+      assertBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE'"
+      )
+    }
 
     "validate a valid memory entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "memory" -> WomString("1 GB"))

@@ -27,20 +27,20 @@ trait GetRequestHandler { this: RequestHandler =>
 
     resultF
       .map {
-        case Success(Right(operation @ _)) =>
-          println("GetRequestHandler: operation failed due to no job object")
+        case Success(BatchResponse.StatusQueried(status)) =>
+          println(s"GetRequestHandler: operation succeeded")
+          pollRequest.requester ! status
+          Success(())
+
+        case Success(_) =>
+          println("GetRequestHandler: operation failed due to no status object")
           onFailure(
             new SystemBatchApiException(
               new RuntimeException(
-                "This is likely a programming error, onSuccess was called without a job object"
+                "This is likely a programming error, onSuccess was called without a status object"
               )
             )
           )
-
-        case Success(Left(job @ _)) =>
-          println(s"GetRequestHandler: operation succeeded ${job.getName}")
-          pollRequest.requester ! job
-          Success(())
 
         case Failure(ex: BatchApiException) =>
           println(s"GetRequestHandler: operation failed (BatchApiException) -${ex.getMessage}")

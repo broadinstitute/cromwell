@@ -349,7 +349,7 @@ object BatchApiRequestManager {
     interval.milliseconds
   }
 
-  sealed trait BatchApiRequest {
+  sealed trait BatchApiRequest extends Product with Serializable {
     def workflowId: WorkflowId
     val failedAttempts: Int
     def requester: ActorRef

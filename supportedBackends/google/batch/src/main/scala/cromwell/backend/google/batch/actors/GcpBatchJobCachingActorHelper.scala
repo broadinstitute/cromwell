@@ -27,6 +27,8 @@ trait GcpBatchJobCachingActorHelper extends StandardCachingActorHelper {
 
   lazy val maxPreemption: Int = runtimeAttributes.preemptible
 
+  def preemptible: Boolean
+
   lazy val workingDisk: GcpBatchAttachedDisk = runtimeAttributes.disks.find(_.name == GcpBatchWorkingDisk.Name).get
 
   lazy val callRootPath: Path = gcpBatchCallPaths.callExecutionRoot

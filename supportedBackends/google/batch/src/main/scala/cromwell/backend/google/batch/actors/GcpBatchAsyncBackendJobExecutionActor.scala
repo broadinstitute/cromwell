@@ -1,19 +1,28 @@
 package cromwell.backend.google.batch.actors
 
+import _root_.io.grpc.{Status => GrpcStatus}
 import akka.actor.{ActorLogging, ActorRef}
 import akka.http.scaladsl.model.{ContentType, ContentTypes}
 import akka.pattern.AskSupport
 import cats.data.NonEmptyList
-import cats.data.Validated.Valid
+import cats.data.Validated.{Invalid, Valid}
 import cats.implicits._
 import com.google.cloud.batch.v1.JobName
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import common.util.StringUtil._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend._
-import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, PendingExecutionHandle}
+import cromwell.backend.async.{
+  AbortedExecutionHandle,
+  ExecutionHandle,
+  FailedNonRetryableExecutionHandle,
+  FailedRetryableExecutionHandle,
+  PendingExecutionHandle
+}
+import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory
 import cromwell.backend.google.batch.actors.BatchApiRunCreationClient.JobAbortedException
 import cromwell.backend.google.batch.api.GcpBatchRequestFactory._
+import cromwell.backend.google.batch.errors.FailedToDelocalizeFailure
 import cromwell.backend.google.batch.io._
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.batch.models.GcpBatchJobPaths.GcsTransferLibraryName
@@ -43,6 +52,7 @@ import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.sra.SraPath
 import cromwell.services.instrumentation.CromwellInstrumentation
+import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, KvPair, ScopedKey}
 import cromwell.services.metadata.CallMetadataKeys
 import mouse.all._
 import shapeless.Coproduct
@@ -57,6 +67,7 @@ import wom.expression.{FileEvaluation, NoIoFunctionSet}
 import wom.values._
 
 import java.io.OutputStreamWriter
+import java.net.SocketTimeoutException
 import java.nio.charset.Charset
 import java.util.Base64
 import scala.concurrent.Future
@@ -67,6 +78,34 @@ import scala.util.{Failure, Success, Try}
 import scala.util.control.NoStackTrace
 
 object GcpBatchAsyncBackendJobExecutionActor {
+  // TODO: Clean these up
+  val maxUnexpectedRetries = 2
+
+  val JesFailedToDelocalize = 5
+  val JesUnexpectedTermination = 13
+  val JesPreemption = 14
+
+  val BatchFailedPreConditionErrorCode = 9
+  val BatchMysteriouslyCrashedErrorCode = 10
+
+  // If the JES code is 2 (UNKNOWN), this sub-string indicates preemption:
+  val FailedToStartDueToPreemptionSubstring = "failed to start due to preemption"
+  val FailedV2Style = "The assigned worker has failed to complete the operation"
+
+  def StandardException(errorCode: GrpcStatus,
+                        message: String,
+                        jobTag: String,
+                        returnCodeOption: Option[Int],
+                        stderrPath: Path
+  ): Exception = {
+    val returnCodeMessage = returnCodeOption match {
+      case Some(returnCode) if returnCode == 0 => "Job exited without an error, exit code 0."
+      case Some(returnCode) => s"Job exit code $returnCode. Check $stderrPath for more information."
+      case None => "The job was stopped before the command finished."
+    }
+
+    new Exception(s"Task $jobTag failed. $returnCodeMessage Batch error code ${errorCode.getCode.value}. $message")
+  }
 
   // GCS path regexes comments:
   // - The (?s) option at the start makes '.' expression to match any symbol, including '\n'
@@ -165,13 +204,11 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override def dockerImageUsed: Option[String] = Option(jobDockerImage)
 
-  // noinspection ActorMutableStateInspection
-
   // Need to add previousRetryReasons and preemptible in order to get preemptible to work in the tests
   protected val previousRetryReasons: ErrorOr[PreviousRetryReasons] =
     PreviousRetryReasons.tryApply(jobDescriptor.prefetchedKvStoreEntries, jobDescriptor.key.attempt)
 
-  lazy val preemptible: Boolean = previousRetryReasons match {
+  override lazy val preemptible: Boolean = previousRetryReasons match {
     case Valid(PreviousRetryReasons(p, _)) => p < maxPreemption
     case _ => false
   }
@@ -731,6 +768,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   private val DockerMonitoringScriptPath: Path =
     GcpBatchWorkingDisk.MountPoint.resolve(gcpBatchCallPaths.batchMonitoringScriptFilename)
 
+  // noinspection ActorMutableStateInspection
+  private var hasDockerCredentials: Boolean = false
+
   override def scriptPreamble: ErrorOr[ScriptPreambleData] =
     if (monitoringOutput.isDefined)
       ScriptPreambleData(s"""|touch $DockerMonitoringLogPath
@@ -739,7 +779,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     else ScriptPreambleData("").valid
 
   private[actors] def generateInputs(jobDescriptor: BackendJobDescriptor): Set[GcpBatchInput] = {
-    // We need to tell PAPI about files that were created as part of command instantiation (these need to be defined
+    // We need to tell Batch about files that were created as part of command instantiation (these need to be defined
     // as inputs that will be localized down to the VM). Make up 'names' for these files that are just the short
     // md5's of their paths.
     val writeFunctionFiles = instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f) } toMap
@@ -963,7 +1003,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                          transferLibraryContainerPath,
                                          gcsTransferConfiguration
       )
-      _ = createParameters.privateDockerKeyAndEncryptedToken.isDefined
+      _ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
       jobName = "job-" + java.util.UUID.randomUUID.toString
       request = GcpBatchRequest(workflowId, createParameters, jobName = jobName, gcpBatchParameters)
       response <- runBatchJob(request = request,
@@ -986,6 +1026,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       }
       .recover { case JobAbortedException => AbortedExecutionHandle }
   }
+
+  val futureKvJobKey: KvJobKey =
+    KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
 
   override def reconnectAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = {
     log.info("reconnect async runs") // in for debugging remove later
@@ -1035,8 +1078,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       _ <- Future.unit // trick to get into a future context
       _ = log.info(s"started polling for $jobNameStr")
       jobName = JobName.parse(jobNameStr)
-      job <- fetchJob(workflowId, jobName, backendSingletonActor, initializationData.requestFactory)
-    } yield RunStatus.fromJobStatus(job.getStatus.getState)
+      status <- pollStatus(workflowId, jobName, backendSingletonActor, initializationData.requestFactory)
+    } yield status // RunStatus.fromJobStatus(job.getStatus.getState)
   }
 
   override def isTerminal(runStatus: RunStatus): Boolean =
@@ -1051,28 +1094,205 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override def isDone(runStatus: RunStatus): Boolean =
     runStatus match {
-      case _: RunStatus.Succeeded =>
-        log.info("GCP batch job succeeded matched isDone")
-        true
-      case _: RunStatus.UnsuccessfulRunStatus =>
-        log.info("GCP batch job unsuccessful matched isDone")
-        false
+      case _: RunStatus.Success => true
+      case _: RunStatus.UnsuccessfulRunStatus => false
       case _ =>
-        log.info(s"did not match isDone: $runStatus")
         throw new RuntimeException(
-          s"Cromwell programmer blunder: isDone was called on an incomplete RunStatus ($runStatus)."
+          s"Cromwell programmer blunder: isSuccess was called on an incomplete RunStatus ($runStatus)."
         )
     }
+//  override def isDone(runStatus: RunStatus): Boolean =
+//    runStatus match {
+//      case _: RunStatus.Succeeded =>
+//        log.info("GCP batch job succeeded matched isDone")
+//        true
+//      case _: RunStatus.UnsuccessfulRunStatus =>
+//        log.info("GCP batch job unsuccessful matched isDone")
+//        false
+//      case _ =>
+//        log.info(s"did not match isDone: $runStatus")
+//        throw new RuntimeException(
+//          s"Cromwell programmer blunder: isDone was called on an incomplete RunStatus ($runStatus)."
+//        )
+//    }
 
   override def getTerminalEvents(runStatus: RunStatus): Seq[ExecutionEvent] =
     runStatus match {
-      case t: RunStatus.TerminalRunStatus =>
-        log.warning(s"Tried to get terminal events on a terminal status without events: $runStatus")
-        t.eventList
-
+      case successStatus: RunStatus.Success => successStatus.eventList
       case unknown =>
         throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
     }
+//  override def getTerminalEvents(runStatus: RunStatus): Seq[ExecutionEvent] =
+//    runStatus match {
+//      case t: RunStatus.TerminalRunStatus =>
+//        log.warning(s"Tried to get terminal events on a terminal status without events: $runStatus")
+//        t.eventList
+//
+//      case unknown =>
+//        throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
+//    }
+
+  // TODO: Find methods that are overriden by papi but we are not overriding them
+  override def retryEvaluateOutputs(exception: Exception): Boolean =
+    exception match {
+      case aggregated: CromwellAggregatedException =>
+        aggregated.throwables.collectFirst { case s: SocketTimeoutException => s }.isDefined
+      case _ => false
+    }
+
+  private lazy val standardPaths = jobPaths.standardPaths
+
+  override def handleExecutionFailure(runStatus: RunStatus, returnCode: Option[Int]): Future[ExecutionHandle] = {
+
+    def generateBetterErrorMsg(runStatus: RunStatus.UnsuccessfulRunStatus, errorMsg: String): String =
+      if (
+        runStatus.errorCode.getCode.value() == BatchFailedPreConditionErrorCode
+        && errorMsg.contains("Execution failed")
+        && (errorMsg.contains("Localization") || errorMsg.contains("Delocalization"))
+      ) {
+        s"Please check the log file for more details: $gcpBatchLogPath."
+      }
+      // If error code 10, add some extra messaging to the server logging
+      else if (runStatus.errorCode.getCode.value() == BatchMysteriouslyCrashedErrorCode) {
+        jobLogger.info(s"Job Failed with Error Code 10 for a machine where Preemptible is set to $preemptible")
+        errorMsg
+      } else errorMsg
+
+    // Inner function: Handles a 'Failed' runStatus (or Preempted if preemptible was false)
+    def handleFailedRunStatus(runStatus: RunStatus.UnsuccessfulRunStatus, returnCode: Option[Int]): ExecutionHandle = {
+
+      lazy val prettyError = runStatus.prettyPrintedError
+
+      def isDockerPullFailure: Boolean = prettyError.contains("not found: does not exist or no pull access")
+
+      (runStatus.errorCode, runStatus.jesCode) match {
+        case (GrpcStatus.NOT_FOUND, Some(JesFailedToDelocalize)) =>
+          FailedNonRetryableExecutionHandle(
+            FailedToDelocalizeFailure(prettyError, jobTag, Option(standardPaths.error)),
+            kvPairsToSave = None
+          )
+        case (GrpcStatus.ABORTED, Some(JesUnexpectedTermination)) =>
+          handleUnexpectedTermination(runStatus.errorCode, prettyError, returnCode)
+        case _ if isDockerPullFailure =>
+          val unable = s"Unable to pull Docker image '$jobDockerImage' "
+          val details =
+            if (hasDockerCredentials)
+              "but Docker credentials are present; is this Docker account authorized to pull the image? "
+            else
+              "and there are effectively no Docker credentials present (one or more of token, authorization, or Google KMS key may be missing). " +
+                "Please check your private Docker configuration and/or the pull access for this image. "
+          val message = unable + details + prettyError
+          FailedNonRetryableExecutionHandle(
+            StandardException(runStatus.errorCode, message, jobTag, returnCode, standardPaths.error),
+            returnCode,
+            None
+          )
+        case _ =>
+          val finalPrettyPrintedError = generateBetterErrorMsg(runStatus, prettyError)
+          FailedNonRetryableExecutionHandle(
+            StandardException(runStatus.errorCode, finalPrettyPrintedError, jobTag, returnCode, standardPaths.error),
+            returnCode,
+            None
+          )
+      }
+    }
+
+    Future.fromTry {
+      Try {
+        runStatus match {
+          case preemptedStatus: RunStatus.Preempted if preemptible => handlePreemption(preemptedStatus, returnCode)
+          case _: RunStatus.Cancelled => AbortedExecutionHandle
+          case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus, returnCode)
+          case unknown =>
+            throw new RuntimeException(
+              s"handleExecutionFailure not called with RunStatus.Failed or RunStatus.Preempted. Instead got $unknown"
+            )
+        }
+      }
+    }
+  }
+
+  private def nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(p: Int, ur: Int): Seq[KvPair] =
+    Seq(
+      KvPair(ScopedKey(workflowId, futureKvJobKey, GcpBatchBackendLifecycleActorFactory.unexpectedRetryCountKey),
+             ur.toString
+      ),
+      KvPair(ScopedKey(workflowId, futureKvJobKey, GcpBatchBackendLifecycleActorFactory.preemptionCountKey), p.toString)
+    )
+
+  private def handleUnexpectedTermination(errorCode: GrpcStatus,
+                                          errorMessage: String,
+                                          jobReturnCode: Option[Int]
+  ): ExecutionHandle = {
+    val msg = s"Retrying. $errorMessage"
+    previousRetryReasons match {
+      case Valid(PreviousRetryReasons(p, ur)) =>
+        val thisUnexpectedRetry = ur + 1
+        if (thisUnexpectedRetry <= maxUnexpectedRetries) {
+          val preemptionAndUnexpectedRetryCountsKvPairs =
+            nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(p, thisUnexpectedRetry)
+          // Increment unexpected retry count and preemption count stays the same
+          FailedRetryableExecutionHandle(
+            StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error),
+            jobReturnCode,
+            kvPairsToSave = Option(preemptionAndUnexpectedRetryCountsKvPairs)
+          )
+        } else {
+          FailedNonRetryableExecutionHandle(
+            StandardException(errorCode, errorMessage, jobTag, jobReturnCode, standardPaths.error),
+            jobReturnCode,
+            None
+          )
+        }
+      case Invalid(_) =>
+        FailedNonRetryableExecutionHandle(
+          StandardException(errorCode, errorMessage, jobTag, jobReturnCode, standardPaths.error),
+          jobReturnCode,
+          None
+        )
+    }
+  }
+
+  private def handlePreemption(runStatus: RunStatus.Preempted, jobReturnCode: Option[Int]): ExecutionHandle = {
+    import common.numeric.IntegerUtil._
+
+    val errorCode: GrpcStatus = runStatus.errorCode
+    val prettyPrintedError: String = runStatus.prettyPrintedError
+    previousRetryReasons match {
+      case Valid(PreviousRetryReasons(p, ur)) =>
+        val thisPreemption = p + 1
+        val taskName = s"${workflowDescriptor.id}:${call.localName}"
+        val baseMsg = s"Task $taskName was preempted for the ${thisPreemption.toOrdinal} time."
+
+        val preemptionAndUnexpectedRetryCountsKvPairs =
+          nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(thisPreemption, ur)
+        if (thisPreemption < maxPreemption) {
+          // Increment preemption count and unexpectedRetryCount stays the same
+          val msg =
+            s"$baseMsg The call will be restarted with another preemptible VM (max preemptible attempts number is " +
+              s"$maxPreemption). Error code $errorCode.$prettyPrintedError"
+          FailedRetryableExecutionHandle(
+            StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error),
+            jobReturnCode,
+            kvPairsToSave = Option(preemptionAndUnexpectedRetryCountsKvPairs)
+          )
+        } else {
+          val msg = s"$baseMsg The maximum number of preemptible attempts ($maxPreemption) has been reached. The " +
+            s"call will be restarted with a non-preemptible VM. Error code $errorCode.$prettyPrintedError)"
+          FailedRetryableExecutionHandle(
+            StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error),
+            jobReturnCode,
+            kvPairsToSave = Option(preemptionAndUnexpectedRetryCountsKvPairs)
+          )
+        }
+      case Invalid(_) =>
+        FailedNonRetryableExecutionHandle(
+          StandardException(errorCode, prettyPrintedError, jobTag, jobReturnCode, standardPaths.error),
+          jobReturnCode,
+          None
+        )
+    }
+  }
 
   override lazy val startMetadataKeyValues: Map[String, Any] =
     super[GcpBatchJobCachingActorHelper].startMetadataKeyValues
@@ -1186,7 +1406,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       }
     }
 
-  // No need for Cromwell-performed localization in the PAPI backend, ad hoc values are localized directly from GCS to the VM by PAPI.
+  // No need for Cromwell-performed localization in the Batch backend, ad hoc values are localized directly from GCS to the VM by Batch.
   override lazy val localizeAdHocValues: List[AdHocValue] => ErrorOr[List[StandardAdHocValue]] =
     _.map(Coproduct[StandardAdHocValue](_)).validNel
 }

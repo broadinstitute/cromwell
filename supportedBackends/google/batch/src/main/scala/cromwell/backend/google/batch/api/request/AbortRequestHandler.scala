@@ -29,11 +29,12 @@ trait AbortRequestHandler extends LazyLogging { this: RequestHandler =>
       .queue(abortQuery)
     resultF
       .map {
-        case Success(Right(operation @ _)) =>
+        case Success(BatchResponse.DeleteJobRequested(operation)) =>
           println(s"AbortRequestHandler: operation succeeded ${operation.getName}")
           abortQuery.requester ! BatchAbortRequestSuccessful(abortQuery.jobId.jobId)
           Success(())
-        case Success(Left(job @ _)) =>
+
+        case Success(_) =>
           println("AbortRequestHandler: operation failed due to no operation object")
           // TODO: Alex - we can likely avoid this by using generics on the callback object
           onFailure(

@@ -22,7 +22,12 @@ trait RunRequestHandler { this: RequestHandler =>
     val (newBatch, resultF) = batch.queue(runCreationQuery)
     resultF
       .map {
-        case Success(Right(operation @ _)) =>
+        case Success(BatchResponse.JobCreated(job)) =>
+          println(s"RunRequestHandler: operation succeeded ${job.getName}")
+          runCreationQuery.requester ! getJob(job.getName)
+          Success(())
+
+        case Success(_) =>
           println("RunRequestHandler: operation failed due to no job object")
           onFailure(
             new SystemBatchApiException(
@@ -31,11 +36,6 @@ trait RunRequestHandler { this: RequestHandler =>
               )
             )
           )
-
-        case Success(Left(job @ _)) =>
-          println(s"RunRequestHandler: operation succeeded ${job.getName}")
-          runCreationQuery.requester ! getJob(job.getName)
-          Success(())
 
         case Failure(ex: BatchApiException) =>
           println(s"RunRequestHandler: operation failed (BatchApiException) -${ex.getMessage}")

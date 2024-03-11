@@ -9,7 +9,7 @@ import cats.data.NonEmptyList
 import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
 import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, GoogleOauthDrsCredentials}
 import com.google.cloud.NoCredentials
-import com.google.cloud.batch.v1.{CreateJobRequest, DeleteJobRequest, GetJobRequest, Job, JobName}
+import com.google.cloud.batch.v1.{CreateJobRequest, DeleteJobRequest, GetJobRequest, JobName}
 import com.typesafe.config.{Config, ConfigFactory}
 import common.collections.EnhancedCollections._
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
@@ -326,8 +326,14 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
                  expectPreemptible: Boolean
   ): BackendJobExecutionResponse = {
 
-    val runStatus: RunStatus = RunStatus.Failed(List.empty)
-    //    val runStatus = UnsuccessfulRunStatus(errorCode, Option(innerErrorMessage), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), expectPreemptible)
+    val runStatus = RunStatus.UnsuccessfulRunStatus(errorCode,
+                                                    Option(innerErrorMessage),
+                                                    Seq.empty,
+                                                    Option("fakeMachine"),
+                                                    Option("fakeZone"),
+                                                    Option("fakeInstance"),
+                                                    expectPreemptible
+    )
     val statusPoller = TestProbe("statusPoller")
 
     val promise = Promise[BackendJobExecutionResponse]()
@@ -339,19 +345,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     val backend = executionActor(jobDescriptor, promise, statusPoller.ref, expectPreemptible)
     backend ! Execute
     statusPoller.expectMsgPF(max = Timeout, hint = "awaiting status poll") { case _: BatchStatusPollRequest =>
-      val internalStatus = runStatus match {
-        case RunStatus.Failed(_) => com.google.cloud.batch.v1.JobStatus.State.FAILED
-        case RunStatus.Succeeded(_) => com.google.cloud.batch.v1.JobStatus.State.SUCCEEDED
-        case RunStatus.Running => com.google.cloud.batch.v1.JobStatus.State.RUNNING
-        case RunStatus.DeletionInProgress => com.google.cloud.batch.v1.JobStatus.State.DELETION_IN_PROGRESS
-        case RunStatus.StateUnspecified => com.google.cloud.batch.v1.JobStatus.State.STATE_UNSPECIFIED
-        case RunStatus.Unrecognized => com.google.cloud.batch.v1.JobStatus.State.UNRECOGNIZED
-      }
-
-      backend ! Job.newBuilder
-        .setStatus(com.google.cloud.batch.v1.JobStatus.newBuilder.setState(internalStatus).build())
-        .build()
-
+      backend ! runStatus
     }
 
     Await.result(promise.future, Timeout)
@@ -620,7 +614,15 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     val runId = generateStandardAsyncJob
     val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
 
-    val failedStatus = RunStatus.Failed(List.empty)
+    val failedStatus = RunStatus.UnsuccessfulRunStatus(
+      Status.ABORTED,
+      Option("14: VM XXX shut down unexpectedly."),
+      Seq.empty,
+      Option("fakeMachine"),
+      Option("fakeZone"),
+      Option("fakeInstance"),
+      wasPreemptible = true
+    )
     val executionResult = batchBackend.handleExecutionResult(failedStatus, handle)
     val result = Await.result(executionResult, timeout)
     result.isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
@@ -636,7 +638,15 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
 
     def checkFailedResult(errorCode: Status, errorMessage: Option[String]): ExecutionHandle = {
-      val failed = RunStatus.Failed(List.empty)
+      val failed = RunStatus.UnsuccessfulRunStatus(
+        errorCode,
+        errorMessage,
+        Seq.empty,
+        Option("fakeMachine"),
+        Option("fakeZone"),
+        Option("fakeInstance"),
+        wasPreemptible = true
+      )
       Await.result(batchBackend.handleExecutionResult(failed, handle), timeout)
     }
 

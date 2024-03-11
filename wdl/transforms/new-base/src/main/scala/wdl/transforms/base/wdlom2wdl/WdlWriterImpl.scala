@@ -3,7 +3,6 @@ package wdl.transforms.base.wdlom2wdl
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.elements._
 import wom.types._
-import WdlWriter._
 import org.apache.commons.text.StringEscapeUtils
 
 object WdlWriterImpl {
@@ -135,18 +134,6 @@ object WdlWriterImpl {
   implicit val primitiveTypeElementWriter: WdlWriter[WomPrimitiveType] = new WdlWriter[WomPrimitiveType] {
     override def toWdlV1(a: WomPrimitiveType) = a.stableName
   }
-
-  implicit val runtimeAttributesSectionElementWriter: WdlWriter[RuntimeAttributesSectionElement] =
-    new WdlWriter[RuntimeAttributesSectionElement] {
-      override def toWdlV1(a: RuntimeAttributesSectionElement): String = {
-        val runtimeMap = a.runtimeAttributes map { pair =>
-          s"${pair.key}: ${pair.value.toWdlV1}"
-        }
-
-        s"""runtime {
-           |${indentAndCombine(runtimeMap)}}""".stripMargin
-      }
-    }
 
   implicit val placeholderAttributeSetWriter: WdlWriter[PlaceholderAttributeSet] =
     new WdlWriter[PlaceholderAttributeSet] {

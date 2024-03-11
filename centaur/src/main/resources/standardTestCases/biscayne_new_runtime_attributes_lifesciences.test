@@ -1,0 +1,17 @@
+name: biscayne_new_runtime_attributes_lifesciences
+testFormat: workflowsuccess
+tags: ["wdl_biscayne"]
+
+# Will run on a Cromwell that supports any one of these backends
+backendsMode: any
+backends: [Papi, Papiv2, GCPBatch]
+
+files {
+  workflow: wdl_biscayne/biscayne_new_runtime_attributes/biscayne_new_runtime_attributes.wdl
+}
+
+metadata {
+  "calls.runtime_attributes_wf.runtime_attributes_task.runtimeAttributes.docker": "rockylinux:9",
+  "calls.runtime_attributes_wf.runtime_attributes_task.runtimeAttributes.cpu": 4
+  "calls.runtime_attributes_wf.runtime_attributes_task.runtimeAttributes.memory": "6 GB"
+}

@@ -2,8 +2,6 @@ package wdl.transforms.base.wdlom2wdl
 
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.elements._
-import wom.callable.MetaValueElement
-import wom.callable.MetaValueElement._
 import wom.types._
 import WdlWriter._
 import org.apache.commons.text.StringEscapeUtils
@@ -157,46 +155,6 @@ object WdlWriterImpl {
 
         s"""runtime {
            |${indentAndCombine(runtimeMap)}}""".stripMargin
-      }
-    }
-
-  implicit val metaValueElementWriter: WdlWriter[MetaValueElement] = new WdlWriter[MetaValueElement] {
-    override def toWdlV1(a: MetaValueElement): String = a match {
-      case _: MetaValueElementNull.type => "null"
-      case a: MetaValueElementBoolean => a.value.toString
-      case a: MetaValueElementFloat => a.value.toString
-      case a: MetaValueElementInteger => a.value.toString
-      case a: MetaValueElementString => "\"" + a.value + "\""
-      case a: MetaValueElementObject =>
-        "{" + a.value
-          .map { pair =>
-            s"${pair._1}: ${metaValueElementWriter.toWdlV1(pair._2)}"
-          }
-          .mkString(", ") + "}"
-      case a: MetaValueElementArray => "[" + a.value.map(metaValueElementWriter.toWdlV1).mkString(", ") + "]"
-    }
-  }
-
-  implicit val metaSectionElementWriter: WdlWriter[MetaSectionElement] = new WdlWriter[MetaSectionElement] {
-    override def toWdlV1(a: MetaSectionElement): String = {
-      val map = a.meta.map { pair =>
-        s"${pair._1}: ${pair._2.toWdlV1}"
-      }
-      s"""meta {
-         |${indentAndCombine(map)}
-         |}""".stripMargin
-    }
-  }
-
-  implicit val parameterMetaSectionElementWriter: WdlWriter[ParameterMetaSectionElement] =
-    new WdlWriter[ParameterMetaSectionElement] {
-      override def toWdlV1(a: ParameterMetaSectionElement): String = {
-        val map = a.metaAttributes.map { pair =>
-          s"${pair._1}: ${pair._2.toWdlV1}"
-        }
-        s"""parameter_meta {
-           |${indentAndCombine(map)}
-           |}""".stripMargin
       }
     }
 

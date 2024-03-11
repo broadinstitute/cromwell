@@ -58,7 +58,7 @@ object LinkedGraphMaker {
             // we want to start the cycle with the edge "a -> b"
             val edgeDict: Map[String, String] =
               cycle.value.edges.map { case graph.EdgeT(from, to) =>
-                from.toString -> to.toString
+                from.value.toString -> to.value.toString
               }.toMap
             val startPoint = edgeDict.keys.toVector.sorted.head
             var cursor = startPoint

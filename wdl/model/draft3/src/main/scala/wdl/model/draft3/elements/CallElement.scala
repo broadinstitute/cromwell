@@ -7,4 +7,6 @@ final case class CallElement(callableReference: String,
                              body: Option[CallBodyElement],
                              override val sourceLocation: Option[SourceFileLocation]
 ) extends LanguageElement
-    with WorkflowGraphElement
+    with WorkflowGraphElement {
+  override def toString: String = s"""Call "$callableReference""""
+}

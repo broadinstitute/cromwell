@@ -57,8 +57,9 @@ case class WdlomWomStringCommandPart(stringCommandPartElement: StringCommandPart
 
 case class WdlomWomPlaceholderCommandPart(attributes: PlaceholderAttributeSet, expression: WdlomWomExpression)
     extends CommandPart {
-  def attributesToString: String = attributes.toWdlV1
+  private def attributesToString: String = attributes.toWdlV1
   // Yes, it's sad that we need to put ${} here, but otherwise we won't cache hit from draft-2 command sections
+  // Re-writes e.g. `echo $((5 + ~{x.a}))` commands to `echo $((5 + ${x.a}))` so they evaluate to equal
   override def toString: String = "${" + s"$attributesToString${expression.expressionElement.toWdlV1}" + "}"
 
   override def instantiate(inputsMap: Map[LocalName, WomValue],

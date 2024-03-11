@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import akka.testkit.TestDuration
 import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.ConfigFactory
@@ -14,6 +14,7 @@ import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDes
   MaterializeWorkflowDescriptorFailureResponse,
   MaterializeWorkflowDescriptorSuccessResponse
 }
+import cromwell.services.auth.GithubAuthVendingSupport
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.{CromwellTestKitSpec, CromwellTestKitWordSpec}
 import org.scalatest.BeforeAndAfter
@@ -23,7 +24,10 @@ import wom.values.{WomInteger, WomString}
 
 import scala.concurrent.duration._
 
-class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec with BeforeAndAfter {
+class MaterializeWorkflowDescriptorActorSpec
+    extends CromwellTestKitWordSpec
+    with BeforeAndAfter
+    with GithubAuthVendingSupport {
 
   private val ioActor = system.actorOf(SimpleIoActor.props)
   private val workflowId = WorkflowId.randomId()
@@ -88,6 +92,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
   }
 
   private val fooHogGroup = HogGroup("foo")
+
+  override def serviceRegistryActor: ActorRef = NoBehaviorActor
 
   "MaterializeWorkflowDescriptorActor" should {
     "accept valid WDL, inputs and options files" in {

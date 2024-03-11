@@ -104,16 +104,6 @@ object WdlWriterImpl {
     }
   }
 
-  implicit val callBodyElement: WdlWriter[CallBodyElement] = new WdlWriter[CallBodyElement] {
-    override def toWdlV1(a: CallBodyElement): String =
-      if (a.inputs.nonEmpty) {
-        s"""input:
-           |${indent(indent(a.inputs.map(_.toWdlV1).mkString(",\n")))}""".stripMargin
-      } else {
-        ""
-      }
-  }
-
   object CallElementWriter {
     def withoutBody(a: CallElement): String = {
       val aliasExpression = a.alias match {

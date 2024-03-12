@@ -86,9 +86,6 @@ object LiteralEvaluators {
           ) mapN { (key, value) => key -> value }
       }
 
-      // Expose `flatten` to handle the `ErrorOr[ErrorOr[]]` [WX-757]
-      import common.validation.ErrorOr.NestedErrorOr
-
       (evaluated map { kvps =>
         val value = kvps.map(entry => entry._1.value -> entry._2.value).toMap
         val sideEffectFiles = kvps.flatMap(entry => entry._1.sideEffectFiles ++ entry._2.sideEffectFiles)
@@ -108,11 +105,11 @@ object LiteralEvaluators {
         entry.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
       }
 
-      evaluated map { evaluateds =>
+      (evaluated map { evaluateds =>
         val value = evaluateds.map(_.value)
         val sideEffectFiles = evaluateds.flatMap(_.sideEffectFiles)
-        EvaluatedValue(WomArray(value), sideEffectFiles)
-      }
+        ErrorOr(EvaluatedValue(WomArray.apply(value), sideEffectFiles))
+      }).flatten
     }
   }
 

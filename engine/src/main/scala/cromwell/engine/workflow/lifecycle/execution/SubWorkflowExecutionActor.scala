@@ -65,7 +65,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
 
   override def preStart(): Unit = {
     context.system.eventStream.publish(SubWorkflowStart(self))
-    super.preStart()
+        super.preStart()
   }
 
   private var eventList: Seq[ExecutionEvent] = Seq(ExecutionEvent(stateName.toString))
@@ -311,6 +311,8 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
           )
         }
     }
+
+    jobLogger.info(s"Running subworkflow: ${subWorkflowDescriptor.id}, root: ${parentWorkflow.rootWorkflow.id}")
 
     val workflowRootEvents = buildWorkflowRootMetadataEvents(subWorkflowDescriptor)
 

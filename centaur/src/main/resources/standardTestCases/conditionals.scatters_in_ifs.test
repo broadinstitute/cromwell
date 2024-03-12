@@ -1,6 +1,6 @@
 name: scatters_in_ifs
 testFormat: workflowsuccess
-tags: [ conditionals, "wdl_upgrade" ]
+tags: [ conditionals ]
 
 files {
   workflow: conditionals_tests/scatters_in_ifs/scatters_in_ifs.wdl

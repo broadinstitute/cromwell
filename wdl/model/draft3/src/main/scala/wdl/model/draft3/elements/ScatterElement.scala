@@ -23,4 +23,6 @@ final case class ScatterElement(scatterName: String,
   // Shorthand to only include certain members for hashing purposes
   // https://stackoverflow.com/a/31915429/818054
   override def hashCode(): Int = (scatterExpression, scatterVariableName, graphElements).##
+
+  override def toString: String = s"""Scatter "$scatterName" ($scatterExpression)"""
 }

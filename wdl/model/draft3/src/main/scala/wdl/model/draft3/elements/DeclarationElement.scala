@@ -12,7 +12,9 @@ final case class IntermediateValueDeclarationElement(typeElement: TypeElement,
                                                      name: String,
                                                      expression: ExpressionElement
 ) extends WorkflowGraphElement
-    with TaskSectionElement
+    with TaskSectionElement {
+  override def toString: String = s"""Declaration "$name" ($typeElement)"""
+}
 
 object IntermediateValueDeclarationElement {
   def fromContent(content: DeclarationContent): IntermediateValueDeclarationElement =
@@ -24,7 +26,9 @@ object IntermediateValueDeclarationElement {
   */
 final case class OutputDeclarationElement(typeElement: TypeElement, name: String, expression: ExpressionElement)
     extends LanguageElement
-    with WorkflowGraphElement
+    with WorkflowGraphElement {
+  override def toString: String = s"""Output "$name" ($typeElement)"""
+}
 
 object OutputDeclarationElement {
   def fromContent(content: DeclarationContent): OutputDeclarationElement =
@@ -36,7 +40,9 @@ object OutputDeclarationElement {
   */
 final case class InputDeclarationElement(typeElement: TypeElement, name: String, expression: Option[ExpressionElement])
     extends LanguageElement
-    with WorkflowGraphElement
+    with WorkflowGraphElement {
+  override def toString: String = s"""Input "$name" ($typeElement)"""
+}
 
 object DeclarationElement {
   /* Custom unapply so that elsewhere we can do things like this, and otherwise treat all declarations the same:

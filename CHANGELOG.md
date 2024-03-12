@@ -4,7 +4,7 @@
 
 ### `upgrade` command removed from Womtool
 
-Womtool previously supported a `womtool upgrade` command for upgrading draft-2 WDLs to 1.0. With WDL 1.1 taking over as the latest supported version, this functionality is retiring.
+Womtool previously supported a `womtool upgrade` command for upgrading draft-2 WDLs to 1.0. With WDL 1.1 soon to become the latest supported version, this functionality is retiring.
 
 ### Replacement of `gsutil` with `gcloud storage`
 

@@ -6,6 +6,7 @@ import cats.syntax.validated._
 import cats.instances.list._
 import common.validation.ErrorOr
 import common.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.NestedErrorOr
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}

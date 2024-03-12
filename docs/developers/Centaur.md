@@ -133,7 +133,6 @@ our tests into groups depending on which configuration files they require. Below
 | PAPI Upgrade                  | `PapiUpgradeTestCaseSpec`   | `papiUpgradeTestCases`              |
 | PAPI Upgrade<br>New Workflows | `CentaurTestSuite`          | `papiUpgradeNewWorkflowsTestCases`  |
 | Azure Blob                    | `CentaurTestSuite      `    | `azureBlobTestCases`                |
-| WDL Upgrade                   | `WdlUpgradeTestCaseSpec`    | `standardTestCases`****             |
 | (other)                       | `CentaurTestSuite`          | `standardTestCases`                 |
 
 <small>
@@ -143,9 +142,7 @@ or `papi_v2beta_centaur_application.conf`
 \*\* Cromwell Config overrides
   ([47 link](https://github.com/broadinstitute/cromwell/blob/47/src/ci/bin/test.inc.sh#L213-L221))  
 \*\*\* Test Directory overrides
-  ([47 link](https://github.com/broadinstitute/cromwell/blob/47/src/ci/bin/test.inc.sh#L440-L449))  
-\*\*\*\* Test Directory only tests tagged with `wdl_upgrade`
-  ([47 link](https://github.com/broadinstitute/cromwell/blob/47/centaur/src/main/resources/standardTestCases/write_lines.test#L3))  
+  ([47 link](https://github.com/broadinstitute/cromwell/blob/47/src/ci/bin/test.inc.sh#L440-L449))
 </small>
 
 - Engine Upgrade: Retrieves the [Cromwell Version](https://github.com/broadinstitute/cromwell/blob/47/project/Version.scala#L8) then retrieves the previous jar/docker-image from DockerHub. Centaur starts with the prior version, then restarts with the compiled source code.

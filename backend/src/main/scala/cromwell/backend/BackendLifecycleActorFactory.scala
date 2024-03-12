@@ -162,6 +162,11 @@ trait BackendLifecycleActorFactory {
   def dockerHashCredentials(workflowDescriptor: BackendWorkflowDescriptor,
                             initializationDataOption: Option[BackendInitializationData]
   ): List[Any] = List.empty
+
+  /**
+    * Allows Cromwell to self-identify which cloud it's running on for runtime attribute purposes
+    */
+  def platform: Option[Platform] = None
 }
 
 object BackendLifecycleActorFactory {

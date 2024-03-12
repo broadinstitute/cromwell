@@ -118,6 +118,8 @@ abstract class PipelinesApiBackendLifecycleActorFactory(
         List(dockerCredentials, googleCredentials).flatten
       case _ => List.empty[Any]
     }
+
+  override def platform: Option[Platform] = Option(Gcp)
 }
 
 object PipelinesApiBackendLifecycleActorFactory extends StrictLogging {

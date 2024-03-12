@@ -18,7 +18,9 @@ import cromwell.backend.{
   BackendConfigurationDescriptor,
   BackendInitializationData,
   BackendWorkflowDescriptor,
-  JobExecutionMap
+  Gcp,
+  JobExecutionMap,
+  Platform
 }
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.CallOutputs
@@ -97,6 +99,8 @@ class GcpBatchBackendLifecycleActorFactory(override val name: String,
       GcpBatchBackendSingletonActor.props(requestFactory, serviceRegistryActor = serviceRegistryActor)(requestHandler)
     )
   }
+
+  override def platform: Option[Platform] = Option(Gcp)
 }
 
 object GcpBatchBackendLifecycleActorFactory extends StrictLogging {

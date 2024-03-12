@@ -33,10 +33,12 @@ package cromwell.backend.impl.aws
 
 import akka.actor.{ActorRef, Props}
 import cromwell.backend.{
+  Aws,
   BackendConfigurationDescriptor,
   BackendInitializationData,
   BackendWorkflowDescriptor,
-  JobExecutionMap
+  JobExecutionMap,
+  Platform
 }
 import cromwell.backend.standard.{
   StandardAsyncExecutionActor,
@@ -106,4 +108,6 @@ case class AwsBatchBackendLifecycleActorFactory(name: String, configurationDescr
 
   override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] =
     Option(AwsBatchSingletonActor.props(configuration.awsConfig.region, Option(configuration.awsAuth)))
+
+  override def platform: Option[Platform] = Option(Aws)
 }

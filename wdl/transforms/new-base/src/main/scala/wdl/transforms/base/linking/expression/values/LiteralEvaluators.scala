@@ -5,12 +5,15 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import cats.instances.list._
 import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation.TryValidation
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wom.expression.IoFunctionSet
 import wom.values.{WomArray, WomMap, WomObject, WomPair, WomString, WomValue}
+
+import scala.util.Try
 
 object LiteralEvaluators {
 
@@ -84,11 +87,17 @@ object LiteralEvaluators {
           ) mapN { (key, value) => key -> value }
       }
 
-      evaluated map { kvps =>
-        val value = kvps.map(entry => entry._1.value -> entry._2.value).toMap
-        val sideEffectFiles = kvps.flatMap(entry => entry._1.sideEffectFiles ++ entry._2.sideEffectFiles)
-        EvaluatedValue(WomMap(value.toMap), sideEffectFiles)
-      }
+      // Expose `flatten` to handle the `ErrorOr[ErrorOr[]]`
+      import common.validation.ErrorOr.NestedErrorOr
+
+      (evaluated map { kvps =>
+        val tryResult: Try[EvaluatedValue[_ <: WomValue]] = Try {
+          val value = kvps.map(entry => entry._1.value -> entry._2.value).toMap
+          val sideEffectFiles = kvps.flatMap(entry => entry._1.sideEffectFiles ++ entry._2.sideEffectFiles)
+          EvaluatedValue(WomMap.apply(value.toMap), sideEffectFiles)
+        }
+        tryResult.toErrorOr
+      }).flatten
     }
   }
 

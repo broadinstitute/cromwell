@@ -20,7 +20,7 @@ class WomtoolMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
     WomtoolMain.runWomtool(Seq.empty[String]) match {
       case BadUsageTermination(msg) =>
         msg should include(
-          "Usage: java -jar womtool.jar [validate|inputs|outputs|parse|highlight|graph|upgrade|womgraph] [options] workflow-source"
+          "Usage: java -jar womtool.jar [validate|inputs|outputs|parse|highlight|graph|womgraph] [options] workflow-source"
         )
       case other => fail(s"Expected BadUsageTermination but got $other")
     }

@@ -1,6 +1,5 @@
 name: hello
 testFormat: workflowsuccess
-tags: ["wdl_upgrade"]
 
 files {
   workflow: hello/hello.wdl

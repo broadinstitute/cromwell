@@ -2,16 +2,12 @@ package womtool
 
 import java.nio.file.Paths
 
-import better.files.File
 import com.typesafe.scalalogging.StrictLogging
 import common.validation.Validation._
-import cromwell.core.path.{DefaultPathBuilder, Path}
+import cromwell.core.path.Path
 import cromwell.languages.util.ImportResolver.HttpResolver
-import languages.wdl.draft2.WdlDraft2LanguageFactory
 import wdl.draft2.model.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter, SyntaxHighlighter}
 import wdl.draft2.model.{AstTools, WdlNamespace}
-import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
-import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.fileElementWriter
 import wom.views.GraphPrint
 import womtool.cmdline.HighlightMode.{ConsoleHighlighting, HtmlHighlighting, UnrecognizedHighlightingMode}
 import womtool.cmdline._
@@ -20,9 +16,8 @@ import womtool.input.WomGraphMaker
 import womtool.inputs.Inputs
 import womtool.outputs.Outputs
 import womtool.validate.Validate
-import womtool.wom2wdlom.WomToWdlom.womBundleToFileElement
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 object WomtoolMain extends App with StrictLogging {
 
@@ -58,7 +53,6 @@ object WomtoolMain extends App with StrictLogging {
     case o: OutputsCommandLine => Outputs.outputsJson(o.workflowSource)
     case g: WomtoolGraphCommandLine => graph(g.workflowSource)
     case g: WomtoolWomGraphCommandLine => womGraph(g.workflowSource)
-    case u: WomtoolWdlUpgradeCommandLine => upgrade(u.workflowSource.pathAsString)
     case _ => BadUsageTermination(WomtoolCommandLineParser.instance.usage)
   }
 
@@ -78,59 +72,6 @@ object WomtoolMain extends App with StrictLogging {
 
   def parse(workflowSourcePath: String): Termination =
     SuccessfulTermination(AstTools.getAst(Paths.get(workflowSourcePath)).toPrettyString)
-
-  def upgrade(workflowSourcePath: String): Termination = {
-    import wdl.draft2.model.Import
-    import wdl.model.draft3.elements.ImportElement
-
-    // Get imports directly from WdlNamespace, because they are erased during WOMification
-    val maybeWdlNamespace: Try[WdlNamespace] =
-      WdlNamespace.loadUsingPath(
-        Paths.get(workflowSourcePath),
-        None,
-        Option(
-          List(
-            WdlNamespace.directoryResolver(File(workflowSourcePath).parent),
-            WdlNamespace.fileResolver,
-            WdlDraft2LanguageFactory.httpResolver
-          )
-        )
-      )
-
-    def upgradeImport(draft2Import: Import): ImportElement =
-      if (draft2Import.namespaceName.nonEmpty)
-        // draft-2 does not have structs, so the source WDL will not have any for us to rename
-        ImportElement(draft2Import.uri, Option(draft2Import.namespaceName), Map())
-      else
-        ImportElement(draft2Import.uri, None, Map())
-
-    val maybeWdl: Try[Path] = DefaultPathBuilder.build(workflowSourcePath)
-
-    (maybeWdl, maybeWdlNamespace) match {
-      case (Success(wdl), Success(wdlNamespace)) =>
-        val maybeWomBundle = WomGraphMaker.getBundle(wdl)
-        maybeWomBundle match {
-          case Right(womBundle) =>
-            val maybeFileElement = womBundleToFileElement.run(womBundle)
-            maybeFileElement match {
-              case Right(fileElement) =>
-                SuccessfulTermination(fileElement.copy(imports = wdlNamespace.imports.map(upgradeImport)).toWdlV1)
-              case Left(errors) =>
-                UnsuccessfulTermination(
-                  s"WDL parsing succeeded but could not create WOM: ${errors.toList.mkString("[", ",", "]")}"
-                )
-            }
-          case Left(errors) =>
-            UnsuccessfulTermination(
-              s"WDL parsing succeeded but could not create WOM: ${errors.toList.mkString("[", ",", "]")}"
-            )
-        }
-      case (Failure(throwable), _) =>
-        UnsuccessfulTermination(s"Failed to load WDL source: ${throwable.getMessage}")
-      case (_, Failure(throwable)) =>
-        UnsuccessfulTermination(s"Failed to load WDL source: ${throwable.getMessage}")
-    }
-  }
 
   def graph(workflowSourcePath: Path): Termination =
     WomGraphMaker

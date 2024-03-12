@@ -12,7 +12,7 @@ import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values._
 import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
-import wdl.transforms.base.wdlom2wdl.WdlWriterImpl._
+import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.indexAccessWriter
 
 object LookupEvaluators {
 

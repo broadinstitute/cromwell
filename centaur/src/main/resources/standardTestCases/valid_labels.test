@@ -1,6 +1,6 @@
 name: valid_labels
 testFormat: workflowsuccess
-tags: [ labels, "wdl_upgrade" ]
+tags: [ labels ]
 
 files {
   workflow: hello/hello.wdl

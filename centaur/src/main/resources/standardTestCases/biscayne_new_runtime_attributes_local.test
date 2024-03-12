@@ -1,0 +1,16 @@
+name: biscayne_new_runtime_attributes_local
+testFormat: workflowsuccess
+tags: ["wdl_biscayne"]
+
+# This test should only run in the Local suite, on its default `Local` backend. Unfortunately the `Local` backend
+# leaks into other suites, so require an irrelevant `LocalNoDocker` backend that is only found in Local suite.
+backends: [Local, LocalNoDocker]
+
+files {
+  workflow: wdl_biscayne/biscayne_new_runtime_attributes/biscayne_new_runtime_attributes.wdl
+}
+
+# CPU, memory attributes not applicable for Local backend
+metadata {
+  "calls.runtime_attributes_wf.runtime_attributes_task.runtimeAttributes.docker": "ubuntu:latest",
+}

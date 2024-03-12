@@ -1,0 +1,14 @@
+name: biscayne_new_runtime_attributes_tes
+testFormat: workflowsuccess
+tags: ["wdl_biscayne"]
+backends: [TES]
+
+files {
+  workflow: wdl_biscayne/biscayne_new_runtime_attributes/biscayne_new_runtime_attributes.wdl
+}
+
+metadata {
+  "calls.runtime_attributes_wf.runtime_attributes_task.runtimeAttributes.docker": "debian:latest",
+  "calls.runtime_attributes_wf.runtime_attributes_task.runtimeAttributes.cpu": 4
+  "calls.runtime_attributes_wf.runtime_attributes_task.runtimeAttributes.memory": "4 GB"
+}

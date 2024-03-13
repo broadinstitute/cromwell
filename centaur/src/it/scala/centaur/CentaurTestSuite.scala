@@ -28,8 +28,6 @@ object CentaurTestSuite extends StrictLogging {
   logger.info(s"Cromwell under test configured with backends ${cromwellBackends.mkString(", ")}")
   logger.info(s"Unless overridden by workflow options file, tests use default backend: $defaultBackend")
 
-  def isWdlUpgradeTest(testCase: CentaurTestCase): Boolean = testCase.containsTag("wdl_upgrade")
-
   def isEngineUpgradeTest(testCase: CentaurTestCase): Boolean = testCase.containsTag("engine_upgrade")
 
   def isPapiUpgradeTest(testCase: CentaurTestCase): Boolean = testCase.containsTag("papi_upgrade")

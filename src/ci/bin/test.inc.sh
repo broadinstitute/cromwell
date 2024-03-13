@@ -169,7 +169,6 @@ cromwell::private::create_build_variables() {
     backend_type="${CROMWELL_BUILD_TYPE}"
     backend_type="${backend_type#centaurEngineUpgrade}"
     backend_type="${backend_type#centaurPapiUpgrade}"
-    backend_type="${backend_type#centaurWdlUpgrade}"
     backend_type="${backend_type#centaurHoricromtal}"
     backend_type="${backend_type#centaur}"
     backend_type="$(echo "${backend_type}" | sed 's/\([A-Z]\)/_\1/g' | tr '[:upper:]' '[:lower:]' | cut -c 2-)"

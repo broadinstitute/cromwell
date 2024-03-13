@@ -18,7 +18,7 @@ import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
 import wdl.model.draft3.graph.expression.WomExpressionMaker.ops._
 import wdl.transforms.base.linking.expression._
 import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
-import wdl.transforms.base.wdlom2wdl.WdlWriterImpl._
+import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.{expressionElementWriter, placeholderAttributeSetWriter}
 
 object CommandPartElementToWomCommandPart {
   def convert(commandPart: CommandPartElement,
@@ -57,8 +57,9 @@ case class WdlomWomStringCommandPart(stringCommandPartElement: StringCommandPart
 
 case class WdlomWomPlaceholderCommandPart(attributes: PlaceholderAttributeSet, expression: WdlomWomExpression)
     extends CommandPart {
-  def attributesToString: String = attributes.toWdlV1
+  private def attributesToString: String = attributes.toWdlV1
   // Yes, it's sad that we need to put ${} here, but otherwise we won't cache hit from draft-2 command sections
+  // Re-writes e.g. `echo $((5 + ~{x.a}))` commands to `echo $((5 + ${x.a}))` so they evaluate to equal
   override def toString: String = "${" + s"$attributesToString${expression.expressionElement.toWdlV1}" + "}"
 
   override def instantiate(inputsMap: Map[LocalName, WomValue],

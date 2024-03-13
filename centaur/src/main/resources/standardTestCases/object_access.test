@@ -1,6 +1,5 @@
 name: object_access
 testFormat: workflowsuccess
-tags: ["wdl_upgrade"]
 
 files {
   workflow: object_access/object_access.wdl

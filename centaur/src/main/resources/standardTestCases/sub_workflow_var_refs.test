@@ -1,6 +1,6 @@
 name: sub_workflow_var_refs
 testFormat: workflowsuccess
-tags: [subworkflow, "wdl_upgrade"]
+tags: [subworkflow]
 
 files {
   workflow: sub_workflow_var_refs/sub_workflow_var_refs.wdl

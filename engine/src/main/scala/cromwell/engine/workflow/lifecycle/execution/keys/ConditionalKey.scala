@@ -1,7 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.keys
 
 import cats.syntax.validated._
-import common.validation.ErrorOr
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.ExecutionIndex.ExecutionIndex
@@ -69,10 +68,9 @@ private[execution] case class ConditionalKey(node: ConditionalNode, index: Execu
           node.conditionalOutputPorts.map(op => ValueKey(op, index) -> op.womType.none).toMap
         } else Map.empty
 
-        populate(b.value) map { populated =>
-          WorkflowExecutionDiff(executionStoreChanges = populated + (this -> conditionalStatus),
-            valueStoreAdditions = valueStoreAdditions)
-        }
+        WorkflowExecutionDiff(executionStoreChanges = populate(b.value) + (this -> conditionalStatus),
+                              valueStoreAdditions = valueStoreAdditions
+        ).validNel
       case Some(v: WomValue) =>
         s"'if' condition ${node.conditionExpression.womExpression.sourceString} must evaluate to a boolean but instead got ${v.womType.stableName}".invalidNel
       case None =>

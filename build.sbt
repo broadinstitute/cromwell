@@ -383,6 +383,7 @@ lazy val `cloud-nio-impl-ftp` = (project in cloudNio / "cloud-nio-impl-ftp")
 lazy val `cloud-nio-impl-drs` = (project in cloudNio / "cloud-nio-impl-drs")
   .withLibrarySettings(libraryName = "cloud-nio-impl-drs", dependencies = implDrsDependencies)
   .dependsOn(`cloud-nio-util`)
+  .dependsOn(cloudSupport)
   .dependsOn(common)
   .dependsOn(common % "test->test")
 

@@ -4,7 +4,7 @@ import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO}
 import cats.syntax.validated._
 import drs.localizer.MockDrsPaths.{fakeAccessUrls, fakeDrsUrlWithGcsResolutionOnly, fakeGoogleUrls}
-import cloud.nio.impl.drs.{AccessUrl, DrsConfig, DrsCredentials, DrsResolverField, DrsResolverResponse}
+import cloud.nio.impl.drs.{AccessUrl, DrsConfig, DrsCredentials, DrsPathResolver, DrsResolverField, DrsResolverResponse}
 import common.assertion.CromwellTimeoutSpec
 import common.validation.ErrorOr.ErrorOr
 import drs.localizer.MockDrsLocalizerDrsPathResolver.{FakeAccessTokenStrategy, FakeHashes}
@@ -372,11 +372,11 @@ class MockDrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
                            requesterPaysProjectIdOption
     ) {
 
-  override def getDrsPathResolver: IO[DrsLocalizerDrsPathResolver] =
+  override def getDrsPathResolver: IO[DrsPathResolver] =
     IO {
       new MockDrsLocalizerDrsPathResolver(cloud.nio.impl.drs.MockDrsPaths.mockDrsConfig)
     }
-  override def resolveSingleUrl(resolverObject: DrsLocalizerDrsPathResolver,
+  override def resolveSingleUrl(resolverObject: DrsPathResolver,
                                 drsUrlToResolve: UnresolvedDrsUrl
   ): IO[ResolvedDrsUrl] =
     IO {
@@ -391,7 +391,7 @@ class MockDrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
 }
 
 class MockDrsLocalizerDrsPathResolver(drsConfig: DrsConfig)
-    extends DrsLocalizerDrsPathResolver(drsConfig, FakeAccessTokenStrategy) {
+    extends DrsPathResolver(drsConfig, FakeAccessTokenStrategy) {
 
   override def resolveDrs(drsPath: String, fields: NonEmptyList[DrsResolverField.Value]): IO[DrsResolverResponse] = {
 

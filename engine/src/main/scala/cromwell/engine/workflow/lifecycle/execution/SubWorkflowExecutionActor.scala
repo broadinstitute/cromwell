@@ -65,7 +65,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
 
   override def preStart(): Unit = {
     context.system.eventStream.publish(SubWorkflowStart(self))
-        super.preStart()
+    super.preStart()
   }
 
   private var eventList: Seq[ExecutionEvent] = Seq(ExecutionEvent(stateName.toString))

@@ -1,0 +1,14 @@
+name: nested_struct_bad_instantiation
+testFormat: workflowfailure
+
+files {
+  workflow: failures/nested_struct_bad_instantiation/nested_struct_bad_instantiation.wdl
+  inputs: failures/nested_struct_bad_instantiation/nested_struct_bad_instantiation.inputs
+}
+
+metadata {
+  workflowName: MinimalStructExample
+  status: Failed
+  "failures.0.message": "Workflow failed"
+  "failures.0.causedBy.0.message": "Failed to evaluate 'example2' (reason 1 of 1): Evaluating { \"second\": test, \"lowerLayer\": example1 } failed: Cannot construct WomMapType(WomStringType,WomAnyType) with mixed types in map values: [WomString(Hello World), WomObject(Map(first -> WomString(Hello World), number -> WomInteger(2)),WomCompositeType(Map(first -> WomStringType, number -> WomIntegerType),Some(firstLayer)))]"
+}

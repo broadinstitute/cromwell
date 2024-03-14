@@ -4,7 +4,9 @@ import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import cats.instances.list._
+import common.validation.ErrorOr
 import common.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.NestedErrorOr
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
@@ -84,11 +86,11 @@ object LiteralEvaluators {
           ) mapN { (key, value) => key -> value }
       }
 
-      evaluated map { kvps =>
+      (evaluated map { kvps =>
         val value = kvps.map(entry => entry._1.value -> entry._2.value).toMap
         val sideEffectFiles = kvps.flatMap(entry => entry._1.sideEffectFiles ++ entry._2.sideEffectFiles)
-        EvaluatedValue(WomMap(value.toMap), sideEffectFiles)
-      }
+        ErrorOr(EvaluatedValue(WomMap.apply(value.toMap), sideEffectFiles))
+      }).flatten
     }
   }
 
@@ -103,11 +105,11 @@ object LiteralEvaluators {
         entry.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
       }
 
-      evaluated map { evaluateds =>
+      (evaluated map { evaluateds =>
         val value = evaluateds.map(_.value)
         val sideEffectFiles = evaluateds.flatMap(_.sideEffectFiles)
-        EvaluatedValue(WomArray(value), sideEffectFiles)
-      }
+        ErrorOr(EvaluatedValue(WomArray.apply(value), sideEffectFiles))
+      }).flatten
     }
   }
 

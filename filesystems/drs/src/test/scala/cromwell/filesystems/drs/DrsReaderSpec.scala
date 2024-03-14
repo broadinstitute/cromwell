@@ -1,6 +1,6 @@
 package cromwell.filesystems.drs
 
-import cloud.nio.impl.drs.{AccessUrl, DrsPathResolver, DrsResolverResponse, MockEngineDrsPathResolver}
+import cloud.nio.impl.drs.{AccessUrl, DrsPathResolver, DrsResolverResponse, MockDrsPathResolver}
 import common.assertion.CromwellTimeoutSpec
 import cromwell.cloudsupport.gcp.auth.MockAuthMode
 import cromwell.core.WorkflowOptions
@@ -26,7 +26,7 @@ class DrsReaderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matche
     val googleAuthMode = MockAuthMode("unused")
     val workflowOptions = WorkflowOptions.empty
     val requesterPaysProjectIdOption = None
-    val drsPathResolver = new MockEngineDrsPathResolver()
+    val drsPathResolver = new MockDrsPathResolver()
     val gsUri = "gs://bucket/object"
     val googleServiceAccount = None
     val drsResolverResponse = DrsResolverResponse(gsUri = Option(gsUri), googleServiceAccount = googleServiceAccount)
@@ -46,7 +46,7 @@ class DrsReaderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matche
     val googleAuthMode = MockAuthMode("unused")
     val workflowOptions = WorkflowOptions.empty
     val requesterPaysProjectIdOption = None
-    val drsPathResolver = new MockEngineDrsPathResolver()
+    val drsPathResolver = new MockDrsPathResolver()
     val accessUrl = AccessUrl("https://host/object/path", Option(Map("hello" -> "world")))
     val drsResolverResponse = DrsResolverResponse(accessUrl = Option(accessUrl))
     val readerIo =
@@ -65,7 +65,7 @@ class DrsReaderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matche
     val googleAuthMode = MockAuthMode("unused")
     val workflowOptions = WorkflowOptions.empty
     val requesterPaysProjectIdOption = None
-    val drsPathResolver = new MockEngineDrsPathResolver()
+    val drsPathResolver = new MockDrsPathResolver()
     val drsResolverResponse = DrsResolverResponse()
     val readerIo =
       DrsReader.reader(Option(googleAuthMode),
@@ -90,7 +90,7 @@ class DrsReaderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matche
     val httpClientBuilder = mock[HttpClientBuilder]
     httpClientBuilder.build() returns httpClient
 
-    val drsPathResolver = new MockEngineDrsPathResolver(httpClientBuilderOverride = Option(httpClientBuilder))
+    val drsPathResolver = new MockDrsPathResolver(httpClientBuilderOverride = Option(httpClientBuilder))
 
     val accessUrl = AccessUrl("https://host/object/path", Option(Map("hello" -> "world")))
     val drsResolverResponse = DrsResolverResponse(accessUrl = Option(accessUrl))

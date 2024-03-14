@@ -66,7 +66,7 @@ object Dependencies {
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.6.1"
   private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
-  private val jacksonV = "2.13.3"
+  private val jacksonV = "2.14.2" //"2.13.3"
   private val jakartaActivationV = "1.2.1"
   private val jakartaAnnotationV = "1.3.5"
   private val jakartaInjectV = "2.6.1"
@@ -269,6 +269,10 @@ object Dependencies {
     "org.glassfish.jersey.inject" % "jersey-hk2" % jerseyV
       exclude("com.sun.activation", "jakarta.activation"),
     "jakarta.activation" % "jakarta.activation-api" % jakartaActivationV,
+  )
+
+  val ecmDependencies: List[ModuleID] = List(
+    "bio.terra" % "externalcreds-client-resttemplate" % "1.15.0-SNAPSHOT"
   )
 
   val implFtpDependencies = List(
@@ -593,7 +597,7 @@ object Dependencies {
   val servicesDependencies: List[ModuleID] = List(
     "com.google.api" % "gax-grpc" % googleGaxGrpcV,
     "org.apache.commons" % "commons-csv" % commonsCsvV,
-  ) ++ testDatabaseDependencies
+  ) ++ testDatabaseDependencies ++ ecmDependencies
 
   val serverDependencies: List[ModuleID] = slf4jBindingDependencies
 

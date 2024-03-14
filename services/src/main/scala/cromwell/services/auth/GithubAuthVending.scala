@@ -12,6 +12,6 @@ object GithubAuthVending {
   sealed trait GithubAuthVendingResponse extends GithubAuthVendingMessage
   case class GithubAuthTokenResponse(accessToken: String) extends GithubAuthVendingResponse
   case object NoGithubAuthResponse extends GithubAuthVendingResponse
-  case class GithubAuthVendingFailure(error: Exception) extends GithubAuthVendingResponse
+  case class GithubAuthVendingFailure(errorMsg: String) extends GithubAuthVendingResponse
 
 }

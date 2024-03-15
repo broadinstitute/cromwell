@@ -419,7 +419,8 @@ object WdlFileToWdlomSpec {
                 OutputDeclarationElement(
                   TypeAliasElement("Animal"),
                   "dog",
-                  ObjectLiteral(
+                  StructLiteral(
+                    "Animal",
                     Map("name" -> IdentifierLookup("name_input"),
                         "isGood" -> PrimitiveLiteralExpressionElement(WomBoolean(true))
                     )

@@ -312,6 +312,8 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
         }
     }
 
+    jobLogger.info(s"Running subworkflow: ${subWorkflowDescriptor.id}, root: ${parentWorkflow.rootWorkflow.id}")
+
     val workflowRootEvents = buildWorkflowRootMetadataEvents(subWorkflowDescriptor)
 
     serviceRegistryActor ! PutMetadataAction(events ++ inputEvents ++ workflowRootEvents)

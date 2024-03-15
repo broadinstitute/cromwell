@@ -1,6 +1,5 @@
 name: declarations_as_nodes
 testFormat: workflowsuccess
-tags: ["wdl_upgrade"]
 
 files {
   workflow: declarations_as_nodes/declarations_as_nodes.wdl

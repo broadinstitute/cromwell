@@ -1,6 +1,5 @@
 name: write_lines
 testFormat: workflowsuccess
-tags: ["wdl_upgrade"]
 
 files {
   workflow: write_lines/write_lines.wdl
@@ -13,4 +12,3 @@ metadata {
   "calls.write_lines.f2a.executionStatus": Done
   "outputs.write_lines.a2f_second.x": "a\nb\nc\nd"
 }
-

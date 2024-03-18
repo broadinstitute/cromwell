@@ -67,8 +67,7 @@ cromwell::private::batch::gcr_image_push() {
 
     cromwell::build::build_docker_image "${executable_name}" "${docker_image}"
     echo "${docker_image}" >> "${CROMWELL_BUILD_BATCH_GCR_IMAGES}"
-    # Use cat to quiet docker: https://github.com/moby/moby/issues/36655#issuecomment-375136087
-    docker push "${docker_image}" | cat
+    docker push --quiet "${docker_image}"
 }
 
 cromwell::private::batch::gcr_image_delete() {

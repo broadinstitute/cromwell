@@ -1,31 +1,31 @@
 package cromwell.backend.google.batch.api
 
-import java.io.IOException
-import java.util.UUID
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, SupervisorStrategy, Terminated, Timers}
 import akka.dispatch.ControlMessage
 import cats.data.NonEmptyList
 import com.google.api.gax.rpc.ApiException
+import com.google.cloud.batch.v1.{CreateJobRequest, DeleteJobRequest, GetJobRequest, Job}
+import com.google.longrunning.Operation
 import common.util.Backoff
 import cromwell.backend.BackendSingletonActorAbortWorkflow
 import cromwell.backend.google.batch.actors.BatchApiRunCreationClient.JobAbortedException
 import cromwell.backend.google.batch.api.request.BatchApiRequestHandler
+import cromwell.backend.google.batch.models.RunStatus
 import cromwell.backend.google.batch.monitoring.BatchInstrumentation
 import cromwell.backend.standard.StandardAsyncJob
-import cromwell.core.Dispatcher.BackendDispatcher
+import cromwell.core._
 import cromwell.core.retry.SimpleExponentialBackoff
-import cromwell.core.{CromwellFatalExceptionMarker, LoadConfig, Mailbox, WorkflowId}
 import cromwell.services.instrumentation.CromwellInstrumentationScheduler
 import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadLevel, LoadMetric, NormalLoad}
 import eu.timepit.refined.api.Refined
-import com.google.cloud.batch.v1.{CreateJobRequest, DeleteJobRequest, GetJobRequest}
 import eu.timepit.refined.numeric._
 
+import java.io.IOException
+import java.util.UUID
 import scala.collection.immutable.Queue
 import scala.concurrent.duration._
 import scala.util.control.NoStackTrace
 
-// TODO: Alex - porting this file is almost done
 /**
  * Holds a set of Batch request until a BatchApiRequestActor pulls the work.
  */
@@ -175,8 +175,7 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
     def failQuery(): Unit = {
       // NB: we don't count user errors towards the Batch failed queries count in our metrics:
       if (!userError) {
-        // TODO: Alex - enable me
-//        failedQuery(failure)
+        failedQuery(failure)
         log.warning(
           s"Batch request workers tried and failed ${failure.query.failedAttempts} times to make ${failure.query.getClass.getSimpleName} request to Batch"
         )
@@ -186,8 +185,7 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
     }
 
     def retryQuery(): Unit = {
-      // TODO: Alex - enable me
-//      retriedQuery(failure)
+      retriedQuery(failure)
       val nextRequest = failure.query.withFailedAttempt
       val delay = nextRequest.backoff.backoffMillis.millis
       queriesWaitingForRetry = queriesWaitingForRetry + nextRequest
@@ -329,13 +327,11 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
 
 object BatchApiRequestManager {
   case object ResetAllRequestWorkers
-  // TODO: Alex - should we remove these unused items? they are not unsed in PAPIv2 either
-  case object QueueMonitoringTimerKey
-  case object QueueMonitoringTimerAction extends ControlMessage
   def props(qps: Int Refined Positive, requestWorkers: Int Refined Positive, serviceRegistryActor: ActorRef)(implicit
     batchHandler: BatchApiRequestHandler
   ): Props =
-    Props(new BatchApiRequestManager(qps, requestWorkers, serviceRegistryActor)).withDispatcher(BackendDispatcher)
+    Props(new BatchApiRequestManager(qps, requestWorkers, serviceRegistryActor))
+      .withDispatcher(Dispatcher.BackendDispatcher)
 
   // TODO: Alex, what about Batch API?
   /**
@@ -424,7 +420,6 @@ object BatchApiRequestManager {
 
   final private[api] case class BatchWorkerRequestWork(maxBatchSize: Int) extends ControlMessage
 
-  // TODO: Alex - is this necessary?
   final case class GoogleBatchException(e: ApiException) extends IOException with CromwellFatalExceptionMarker {
     override def getMessage: String = e.getMessage
     def retryable: Boolean = e.isRetryable
@@ -444,4 +439,11 @@ object BatchApiRequestManager {
     override def getMessage: String =
       s"Unable to complete Batch request due to a problem with the request (${cause.getMessage}). ${helpfulHint.getOrElse("")}"
   }
+}
+
+sealed trait BatchApiResponse extends Product with Serializable
+object BatchApiResponse {
+  case class JobCreated(job: Job) extends BatchApiResponse
+  case class DeleteJobRequested(operation: Operation) extends BatchApiResponse
+  case class StatusQueried(status: RunStatus) extends BatchApiResponse
 }

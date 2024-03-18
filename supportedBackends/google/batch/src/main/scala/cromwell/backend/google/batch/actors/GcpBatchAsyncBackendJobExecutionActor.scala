@@ -20,7 +20,6 @@ import cromwell.backend.async.{
   PendingExecutionHandle
 }
 import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory
-import cromwell.backend.google.batch.actors.BatchApiRunCreationClient.JobAbortedException
 import cromwell.backend.google.batch.api.GcpBatchRequestFactory._
 import cromwell.backend.google.batch.errors.FailedToDelocalizeFailure
 import cromwell.backend.google.batch.io._
@@ -164,7 +163,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     extends BackendJobLifecycleActor
     with StandardAsyncExecutionActor
     with BatchApiRunCreationClient
-    with BatchApiFetchJobClient
+    with BatchApiStatusRequestClient
     with BatchApiAbortClient
     with AskSupport
     with GcpBatchJobCachingActorHelper
@@ -1024,7 +1023,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                previousState = None
         )
       }
-      .recover { case JobAbortedException => AbortedExecutionHandle }
+      .recover { case BatchApiRunCreationClient.JobAbortedException => AbortedExecutionHandle }
   }
 
   val futureKvJobKey: KvJobKey =
@@ -1079,7 +1078,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       _ = log.info(s"started polling for $jobNameStr")
       jobName = JobName.parse(jobNameStr)
       status <- pollStatus(workflowId, jobName, backendSingletonActor, initializationData.requestFactory)
-    } yield status // RunStatus.fromJobStatus(job.getStatus.getState)
+    } yield status
   }
 
   override def isTerminal(runStatus: RunStatus): Boolean =
@@ -1101,20 +1100,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           s"Cromwell programmer blunder: isSuccess was called on an incomplete RunStatus ($runStatus)."
         )
     }
-//  override def isDone(runStatus: RunStatus): Boolean =
-//    runStatus match {
-//      case _: RunStatus.Succeeded =>
-//        log.info("GCP batch job succeeded matched isDone")
-//        true
-//      case _: RunStatus.UnsuccessfulRunStatus =>
-//        log.info("GCP batch job unsuccessful matched isDone")
-//        false
-//      case _ =>
-//        log.info(s"did not match isDone: $runStatus")
-//        throw new RuntimeException(
-//          s"Cromwell programmer blunder: isDone was called on an incomplete RunStatus ($runStatus)."
-//        )
-//    }
 
   override def getTerminalEvents(runStatus: RunStatus): Seq[ExecutionEvent] =
     runStatus match {
@@ -1122,15 +1107,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       case unknown =>
         throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
     }
-//  override def getTerminalEvents(runStatus: RunStatus): Seq[ExecutionEvent] =
-//    runStatus match {
-//      case t: RunStatus.TerminalRunStatus =>
-//        log.warning(s"Tried to get terminal events on a terminal status without events: $runStatus")
-//        t.eventList
-//
-//      case unknown =>
-//        throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
-//    }
 
   // TODO: Find methods that are overriden by papi but we are not overriding them
   override def retryEvaluateOutputs(exception: Exception): Boolean =

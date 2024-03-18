@@ -12,11 +12,10 @@ import cromwell.core.WorkflowId
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
 
-// TODO: Rename to BatchApiStatusRequestClient
 /**
   * Allows fetching a job status
   */
-trait BatchApiFetchJobClient { this: Actor with ActorLogging with BatchInstrumentation =>
+trait BatchApiStatusRequestClient { this: Actor with ActorLogging with BatchInstrumentation =>
 
   private var pollingActorClientPromise: Option[Promise[RunStatus]] = None
 

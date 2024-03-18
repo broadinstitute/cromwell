@@ -1,17 +1,20 @@
 package cromwell.backend.google.batch.api.request
 
 import akka.actor.ActorRef
+import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.google.batch.api.BatchApiRequestManager.{
   BatchApiException,
   BatchApiStatusQueryFailed,
   BatchStatusPollRequest,
   SystemBatchApiException
 }
+import cromwell.backend.google.batch.api.BatchApiResponse
 
 import scala.concurrent.ExecutionContext
+import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
-trait GetRequestHandler { this: RequestHandler =>
+trait GetRequestHandler extends LazyLogging { this: RequestHandler =>
 
   def handleRequest(pollRequest: BatchStatusPollRequest, batch: GcpBatchGroupedRequests, pollingManager: ActorRef)(
     implicit ec: ExecutionContext
@@ -21,19 +24,17 @@ trait GetRequestHandler { this: RequestHandler =>
       Failure(ex)
     }
 
-    println("GetRequestHandler: enqueue request")
-    val (newBatch, resultF) = batch
-      .queue(pollRequest)
+    val (newBatch, resultF) = batch.queue(pollRequest)
 
-    resultF
+    val _ = resultF
       .map {
-        case Success(BatchResponse.StatusQueried(status)) =>
-          println(s"GetRequestHandler: operation succeeded")
+        case Success(BatchApiResponse.StatusQueried(status)) =>
+          logger.info(s"Get operation succeeded for ${pollRequest.jobId}: $status")
           pollRequest.requester ! status
           Success(())
 
-        case Success(_) =>
-          println("GetRequestHandler: operation failed due to no status object")
+        case Success(result) =>
+          logger.error(s"Get operation failed due to no status object, got this insteaed: $result")
           onFailure(
             new SystemBatchApiException(
               new RuntimeException(
@@ -43,17 +44,16 @@ trait GetRequestHandler { this: RequestHandler =>
           )
 
         case Failure(ex: BatchApiException) =>
-          println(s"GetRequestHandler: operation failed (BatchApiException) -${ex.getMessage}")
+          logger.error(s"Get operation failed (BatchApiException)", ex)
           onFailure(ex)
+
         case Failure(ex) =>
-          println(s"GetRequestHandler: operation failed (unknown) - ${ex.getMessage}")
+          logger.error(s"GetRequestHandler: operation failed (unknown)", ex)
           onFailure(new SystemBatchApiException(ex))
       }
-      .onComplete {
-        case Success(_) =>
-        case Failure(ex) =>
-          println(s"GetRequestHandler: operation failed (global) - ${ex.getMessage}")
-          onFailure(new SystemBatchApiException(ex))
+      .recover { case NonFatal(ex) =>
+        logger.error(s"Get operation failed (global)", ex)
+        onFailure(new SystemBatchApiException(ex))
       }
 
     newBatch

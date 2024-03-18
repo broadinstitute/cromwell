@@ -3,9 +3,6 @@ package cromwell.backend.google.batch.api
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
 import cromwell.backend.google.batch.api.request.{BatchApiRequestHandler, GcpBatchGroupedRequests}
-//import com.google.api.client.googleapis.batch.BatchRequest
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
-import com.google.api.client.http.javanet.NetHttpTransport
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.services.instrumentation.CromwellInstrumentationActor
 
@@ -26,8 +23,8 @@ class BatchApiRequestWorker(val pollingManager: ActorRef,
     with ActorLogging
     with CromwellInstrumentationActor {
 
-  import BatchApiRequestWorker._
   import BatchApiRequestManager._
+  import BatchApiRequestWorker._
 
   self ! NoWorkToDo // Starts the check-for-work cycle when the actor is fully initialized.
 
@@ -117,7 +114,4 @@ object BatchApiRequestWorker {
   // https://cloud.google.com/batch/quotas
   // The Batch API limits us to 100 at a time
   val MaxBatchSize = 100
-
-  // TODO: Alex - seems unused
-  val HttpTransport: NetHttpTransport = GoogleNetHttpTransport.newTrustedTransport
 }

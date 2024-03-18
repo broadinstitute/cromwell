@@ -1,12 +1,10 @@
 package cromwell.backend.google.batch.api.request
 
-import com.google.api.gax.rpc.ApiException
-import com.google.cloud.batch.v1.{BatchServiceClient, BatchServiceSettings, Job, JobStatus, StatusEvent}
+import com.google.api.gax.rpc.{ApiException, StatusCode}
+import com.google.cloud.batch.v1._
+import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.google.batch.api.BatchApiRequestManager._
-
-import scala.util.{Failure, Success, Try}
-import scala.util.control.NonFatal
-import com.google.longrunning.Operation
+import cromwell.backend.google.batch.api.BatchApiResponse
 import cromwell.backend.google.batch.models.RunStatus
 import cromwell.core.ExecutionEvent
 import io.grpc.Status
@@ -14,40 +12,78 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.jdk.CollectionConverters.ListHasAsScala
+import scala.util.control.NonFatal
+import scala.util.{Failure, Success, Try}
 
-sealed trait BatchResponse extends Product with Serializable
-object BatchResponse {
-  case class JobCreated(job: Job) extends BatchResponse
-  case class DeleteJobRequested(operation: Operation) extends BatchResponse
-  case class StatusQueried(status: RunStatus) extends BatchResponse
-}
-
-// Mirrors com.google.api.client.googleapis.batch.BatchRequest
-// TODO: Alex - This is not Thread-safe yet
+// Mirrors com.google.api.client.googleapis.batch.BatchRequest but this is immutable
 class GcpBatchGroupedRequests(
   batchSettings: BatchServiceSettings,
-  requests: List[(BatchApiRequest, Promise[Try[BatchResponse]])] = List.empty
+  requests: List[(BatchApiRequest, Promise[Try[BatchApiResponse]])] = List.empty
 ) {
 
-  def queue(that: BatchApiRequest): (GcpBatchGroupedRequests, Future[Try[BatchResponse]]) = {
-    // TODO: Alex - remove log
-    println(s"GcpBatchGroupedRequests: Enqueue request, queue has ${size} items")
-
-    val promise = Promise[Try[BatchResponse]]()
+  def queue(that: BatchApiRequest): (GcpBatchGroupedRequests, Future[Try[BatchApiResponse]]) = {
+    val promise = Promise[Try[BatchApiResponse]]()
     val newRequests = (that, promise) :: requests
     new GcpBatchGroupedRequests(batchSettings, newRequests) -> promise.future
   }
-//  def requests: List[BatchApiRequest] = _requests.reverse.map(_._1)
 
   def size: Int = requests.size
 
-  private def internalGetHandler(client: BatchServiceClient, request: BatchStatusPollRequest): Try[BatchResponse] =
-    try {
-      val job = client.getJob(request.httpRequest)
-      val result = interpretOperationStatus(job, request)
-      Success(BatchResponse.StatusQueried(result))
-    } catch {
-      // TODO: We could detect rate limits/quote exceeded, preemptible vms, etc
+  // TODO: Alex - add retries and the logic from BatchRequest
+  def execute(implicit ec: ExecutionContext): Future[List[Try[Unit]]] = {
+    println(s"GcpBatchGroupedRequests: execute ${size} requests")
+
+    val client = BatchServiceClient.create(batchSettings)
+
+    // TODO: Alex - Verify whether this already handles retries
+    // TODO: The sdk calls seem to be blocking, consider using a Future + scala.concurrent.blocking
+    //       Check whether sending many requests in parallel could be an issue
+    val futures = requests.reverse.map { case (request, promise) =>
+      Future {
+        scala.concurrent.blocking {
+          val result = GcpBatchGroupedRequests.internalExecute(client, request)
+          promise.success(result)
+          result
+        }
+      }
+    }
+
+    val result = Future.sequence(futures.map(_.map(_.map(_ => ()))))
+
+    result.onComplete { _ =>
+      try
+        client.close()
+      catch {
+        case NonFatal(ex) =>
+          println(s"GcpBatchGroupedRequests: failed to close client${ex.getMessage}")
+      }
+    }
+
+    result
+  }
+}
+
+object GcpBatchGroupedRequests extends LazyLogging {
+
+  private def internalExecute(client: BatchServiceClient, request: BatchApiRequest): Try[BatchApiResponse] =
+    try
+      request match {
+        case r: BatchStatusPollRequest => internalGetHandler(client, r)
+
+        case r: BatchRunCreationRequest =>
+          val result = BatchApiResponse.JobCreated(client.createJob(r.httpRequest))
+          Success(result)
+
+        case r: BatchAbortRequest =>
+          // TODO: Alex - we should find a way to detect when the operation is already terminal
+          // then, throw BatchOperationIsAlreadyTerminal
+          // different to PAPIv2, this call does not abort the job but deletes it, so, we need to be careful
+          // to not delete jobs in a terminal state
+
+          val result = BatchApiResponse.DeleteJobRequested(client.deleteJobCallable().call(r.httpRequest))
+          Success(result)
+      }
+    catch {
       case apiException: ApiException =>
         // Because HTTP 4xx errors indicate user error:
         val HttpUserErrorCodeInitialNumber: String = "4"
@@ -59,12 +95,21 @@ class GcpBatchGroupedRequests(
           } else {
             new SystemBatchApiException(GoogleBatchException(apiException))
           }
-        println(s"GcpBatchGroupedRequests: failure = ${apiException.getMessage}")
         Failure(failureException)
 
-      case NonFatal(ex) =>
-        println(s"GcpBatchGroupedRequests: failure (nonfatal) = ${ex.getMessage}")
-        Failure(new SystemBatchApiException(ex))
+      case NonFatal(ex) => Failure(new SystemBatchApiException(ex))
+    }
+
+  // A different handler is used when fetching the job status to map exceptions to the correct RunStatus
+  private def internalGetHandler(client: BatchServiceClient, request: BatchStatusPollRequest): Try[BatchApiResponse] =
+    try {
+      val job = client.getJob(request.httpRequest)
+      val result = interpretOperationStatus(job, request)
+      Success(BatchApiResponse.StatusQueried(result))
+    } catch {
+      // TODO: We could detect preemptible vms
+      case apiException: ApiException if apiException.getStatusCode.getCode == StatusCode.Code.RESOURCE_EXHAUSTED =>
+        Success(BatchApiResponse.StatusQueried(RunStatus.AwaitingCloudQuota))
     }
 
   private[request] def interpretOperationStatus(job: Job, pollingRequest: BatchStatusPollRequest): RunStatus =
@@ -89,8 +134,6 @@ class GcpBatchGroupedRequests(
         if (job.getStatus.getState == JobStatus.State.SUCCEEDED) {
           // TODO: We are likely better by removing the params we don't have
           RunStatus.Success(getEventList(events), None, None, None)
-        } else if (isQuotaDelayed(events)) {
-          RunStatus.AwaitingCloudQuota
         } else if (job.getStatus.getState == JobStatus.State.FAILED) {
           // TODO: How do we get these values? how do we detect is this was a preemptible vm?
           // Status.OK is hardcoded because the request succeeded, we don't have access to the internal response code
@@ -116,86 +159,4 @@ class GcpBatchGroupedRequests(
     // TODO: How do we map these events to the cromwell event type?
     List.empty
 
-  // TODO: How do we detect the quota delayed event? is it even available?
-  private def isQuotaDelayed(events: List[StatusEvent]): Boolean =
-    false
-
-  private def internalExecute(client: BatchServiceClient, request: BatchApiRequest): Try[BatchResponse] =
-    try
-      request match {
-        case r: BatchStatusPollRequest =>
-          // TODO: Alex - remove log
-          println(s"GcpBatchGroupedRequests: getJob")
-          internalGetHandler(client, r)
-
-        case r: BatchRunCreationRequest =>
-          // TODO: Alex - remove log
-          println(s"GcpBatchGroupedRequests: createJob")
-          val result = BatchResponse.JobCreated(client.createJob(r.httpRequest))
-          Success(result)
-
-        case r: BatchAbortRequest =>
-          // TODO: Alex - we should find a way to detect when the operation is already terminal
-          // then, throw BatchOperationIsAlreadyTerminal
-          // different to PAPIv2, this call does not abort the job but deletes it, so, we need to be careful
-          // to not delete jobs in a terminal state
-
-          // TODO: Alex - remove log
-          println(s"GcpBatchGroupedRequests: deleteJob")
-          val result = BatchResponse.DeleteJobRequested(client.deleteJobCallable().call(r.httpRequest))
-          Success(result)
-      }
-    catch {
-      case apiException: ApiException =>
-        // Because HTTP 4xx errors indicate user error:
-        val HttpUserErrorCodeInitialNumber: String = "4"
-        val failureException =
-          if (
-            apiException.getStatusCode.getCode.getHttpStatusCode.toString.startsWith(HttpUserErrorCodeInitialNumber)
-          ) {
-            new UserBatchApiException(GoogleBatchException(apiException), None)
-          } else {
-            new SystemBatchApiException(GoogleBatchException(apiException))
-          }
-        println(s"GcpBatchGroupedRequests: failure = ${apiException.getMessage}")
-        Failure(failureException)
-
-      case NonFatal(ex) =>
-        println(s"GcpBatchGroupedRequests: failure (nonfatal) = ${ex.getMessage}")
-        Failure(new SystemBatchApiException(ex))
-    }
-
-  // TODO: Alex - add retries and the logic from BatchRequest
-  def execute(implicit ec: ExecutionContext): Future[List[Try[Unit]]] = {
-    println(s"GcpBatchGroupedRequests: execute ${size} requests")
-
-    val client = BatchServiceClient.create(batchSettings)
-
-    // TODO: Alex - Verify whether this already handles retries
-    // TODO: The sdk calls seem to be blocking, consider using a Future + scala.concurrent.blocking
-    //       Check whether sending many requests in parallel could be an issue
-    val futures = requests.reverse.map { case (request, promise) =>
-      Future {
-        scala.concurrent.blocking {
-          val result = internalExecute(client, request)
-          promise.success(result)
-          result
-        }
-      }
-    }
-
-    val result = Future.sequence(futures.map(_.map(_.map(_ => ()))))
-
-    result.onComplete { _ =>
-      println("GcpBatchGroupedRequests: closing client")
-      try
-        client.close()
-      catch {
-        case NonFatal(ex) =>
-          println(s"GcpBatchGroupedRequests: failed to close client${ex.getMessage}")
-      }
-    }
-
-    result
-  }
 }

@@ -9,8 +9,10 @@ import cromwell.backend.google.batch.api.BatchApiRequestManager.{
   BatchApiException,
   SystemBatchApiException
 }
+import cromwell.backend.google.batch.api.BatchApiResponse
 
 import scala.concurrent.ExecutionContext
+import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
 trait AbortRequestHandler extends LazyLogging { this: RequestHandler =>
@@ -25,18 +27,18 @@ trait AbortRequestHandler extends LazyLogging { this: RequestHandler =>
       Failure(ex)
     }
 
-    val (newBatch, resultF) = batch
-      .queue(abortQuery)
-    resultF
+    val (newBatch, resultF) = batch.queue(abortQuery)
+
+    val _ = resultF
       .map {
-        case Success(BatchResponse.DeleteJobRequested(operation)) =>
-          println(s"AbortRequestHandler: operation succeeded ${operation.getName}")
+        case Success(BatchApiResponse.DeleteJobRequested(operation)) =>
+          // TODO: Do we need to do anything with operation.getResultCase?
+          logger.info(s"Operation succeeded ${operation.getName}, result = ${operation.getResultCase}")
           abortQuery.requester ! BatchAbortRequestSuccessful(abortQuery.jobId.jobId)
           Success(())
 
-        case Success(_) =>
-          println("AbortRequestHandler: operation failed due to no operation object")
-          // TODO: Alex - we can likely avoid this by using generics on the callback object
+        case Success(result) =>
+          logger.error(s"Abort operation failed due to no operation object, got this instead: $result")
           onFailure(
             new SystemBatchApiException(
               new RuntimeException(
@@ -44,18 +46,19 @@ trait AbortRequestHandler extends LazyLogging { this: RequestHandler =>
               )
             )
           )
+
         case Failure(ex: BatchApiException) =>
-          println(s"AbortRequestHandler: operation failed (BatchApiException) -${ex.getMessage}")
+          // TODO: Do we need to do anything about this error? perhaps we could detect whether the job was already in a final state or already deleted
+          logger.error(s"Abort operation failed (BatchApiException)", ex)
           onFailure(ex)
+
         case Failure(ex) =>
-          println(s"AbortRequestHandler: operation failed (unknown) - ${ex.getMessage}")
+          logger.error(s"Abort operation failed (unknown reason)", ex)
           onFailure(new SystemBatchApiException(ex))
       }
-      .onComplete {
-        case Success(_) =>
-        case Failure(ex) =>
-          println(s"AbortRequestHandler: operation failed (global) - ${ex.getMessage}")
-          onFailure(new SystemBatchApiException(ex))
+      .recover { case NonFatal(ex) =>
+        logger.error(s"Abort operation failed (global)", ex)
+        onFailure(new SystemBatchApiException(ex))
       }
 
     newBatch

@@ -1,13 +1,16 @@
 package cromwell.backend.google.batch.api.request
 
 import akka.actor.ActorRef
+import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.google.batch.api.BatchApiRequestManager._
+import cromwell.backend.google.batch.api.BatchApiResponse
 import cromwell.backend.standard.StandardAsyncJob
 
 import scala.concurrent.ExecutionContext
+import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
-trait RunRequestHandler { this: RequestHandler =>
+trait RunRequestHandler extends LazyLogging { this: RequestHandler =>
 
   def handleRequest(runCreationQuery: BatchRunCreationRequest,
                     batch: GcpBatchGroupedRequests,
@@ -18,17 +21,16 @@ trait RunRequestHandler { this: RequestHandler =>
       Failure(ex)
     }
 
-    println("RunRequestHandler: enqueue request")
     val (newBatch, resultF) = batch.queue(runCreationQuery)
-    resultF
+    val _ = resultF
       .map {
-        case Success(BatchResponse.JobCreated(job)) =>
-          println(s"RunRequestHandler: operation succeeded ${job.getName}")
+        case Success(BatchApiResponse.JobCreated(job)) =>
+          logger.info(s"Run operation succeeded ${job.getName}")
           runCreationQuery.requester ! getJob(job.getName)
           Success(())
 
-        case Success(_) =>
-          println("RunRequestHandler: operation failed due to no job object")
+        case Success(result) =>
+          logger.error(s"Run operation failed due to no job object. got this instead: ${result}")
           onFailure(
             new SystemBatchApiException(
               new RuntimeException(
@@ -38,19 +40,18 @@ trait RunRequestHandler { this: RequestHandler =>
           )
 
         case Failure(ex: BatchApiException) =>
-          println(s"RunRequestHandler: operation failed (BatchApiException) -${ex.getMessage}")
+          logger.error(s"Run operation failed (BatchApiException)", ex)
           onFailure(ex)
 
         case Failure(ex) =>
-          println(s"RunRequestHandler: operation failed (unknown) - ${ex.getMessage}")
+          logger.error(s"Run operation failed (unknown)", ex)
           onFailure(new SystemBatchApiException(ex))
       }
-      .onComplete {
-        case Success(_) =>
-        case Failure(ex) =>
-          println(s"RunRequestHandler: operation failed (global) - ${ex.getMessage}")
-          onFailure(new SystemBatchApiException(ex))
+      .recover { case NonFatal(ex) =>
+        logger.error(s"Run operation failed (global)", ex)
+        onFailure(new SystemBatchApiException(ex))
       }
+
     newBatch
   }
 

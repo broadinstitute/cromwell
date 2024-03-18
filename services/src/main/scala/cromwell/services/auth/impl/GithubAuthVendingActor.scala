@@ -30,8 +30,10 @@ class GithubAuthVendingActor(serviceConfig: Config, globalConfig: Config, servic
         case Some(ecmClientProvider) =>
           val ecmOauthApi = ecmClientProvider.getOauthApi(userToken)
           ecmOauthApi.getGithubAccessToken match {
-            case Valid(githubToken) => sender() ! GithubAuthTokenResponse(githubToken)
-            case Invalid(e) => sender() ! GithubAuthVendingFailure(e.head)
+            case Valid(githubToken) =>
+              sender() ! GithubAuthTokenResponse(githubToken)
+            case Invalid(e) =>
+              sender() ! GithubAuthVendingFailure(e.head)
           }
         case None =>
           sender() ! GithubAuthVendingFailure(

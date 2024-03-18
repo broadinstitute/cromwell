@@ -15,6 +15,9 @@ object RuntimeAttributesKeys {
   val MemoryKey = "memory"
   val FailOnStderrKey = "failOnStderr"
   val ContinueOnReturnCodeKey = "continueOnReturnCode"
+
+  // New for WDL 1.1
+  val ReturnCodesKey = "returnCodes"
 }
 
 case class RuntimeAttributes(attributes: Map[String, WomExpression])

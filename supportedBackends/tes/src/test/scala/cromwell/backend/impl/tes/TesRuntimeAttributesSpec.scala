@@ -1,7 +1,7 @@
 package cromwell.backend.impl.tes
 
 import common.assertion.CromwellTimeoutSpec
-import cromwell.backend.validation.ContinueOnReturnCodeSet
+import cromwell.backend.validation.{ContinueOnReturnCodeSet, ReturnCodesSet, ReturnCodesString}
 import cromwell.backend.{BackendConfigurationDescriptor, RuntimeAttributeDefinition, TestConfig}
 import cromwell.core.WorkflowOptions
 import eu.timepit.refined.numeric.Positive
@@ -18,6 +18,7 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
 
   val expectedDefaults = new TesRuntimeAttributes(
     ContinueOnReturnCodeSet(Set(0)),
+    ReturnCodesSet(Set(0)),
     "ubuntu:latest",
     None,
     false,
@@ -158,6 +159,48 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
       assertFailure(
         runtimeAttributes,
         "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
+      )
+    }
+
+    "validate a valid returnCodes int entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "returnCodes" -> WomInteger(1))
+      val expectedRuntimeAttributes =
+        expectedDefaultsPlusUbuntuDocker.copy(returnCodes = ReturnCodesSet(Set(1)))
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "validate a valid returnCodes String entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "returnCodes" -> WomString("*"))
+      val expectedRuntimeAttributes =
+        expectedDefaultsPlusUbuntuDocker.copy(returnCodes = ReturnCodesString("*"))
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "validate a valid returnCodes array entry" in {
+      val runtimeAttributes =
+        Map("docker" -> WomString("ubuntu:latest"),
+            "returnCodes" -> WomArray(WomArrayType(WomIntegerType), List(WomInteger(1), WomInteger(2)))
+        )
+      val expectedRuntimeAttributes =
+        expectedDefaultsPlusUbuntuDocker.copy(returnCodes = ReturnCodesSet(Set(1, 2)))
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "coerce then validate a valid returnCodes array entry" in {
+      val runtimeAttributes =
+        Map("docker" -> WomString("ubuntu:latest"),
+            "returnCodes" -> WomArray(WomArrayType(WomStringType), List(WomString("1"), WomString("2")))
+        )
+      val expectedRuntimeAttributes =
+        expectedDefaultsPlusUbuntuDocker.copy(returnCodes = ReturnCodesSet(Set(1, 2)))
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "fail to validate an invalid returnCodes entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "returnCodes" -> WomString("value"))
+      assertFailure(
+        runtimeAttributes,
+        "Expecting returnCodes runtime attribute to be either a String '*' or an Array[Int]"
       )
     }
 

@@ -228,6 +228,73 @@ class RuntimeAttributesValidationSpec
       }
     }
 
+    "return success when tries to validate a valid returnCodes string entry" in {
+      val returnCodesValue = Some(WomString("*"))
+      val result = RuntimeAttributesValidation.validateReturnCodes(
+        returnCodesValue,
+        "Failed to get return code mandatory key from runtime attributes".invalidNel
+      )
+      result match {
+        case Valid(x) => assert(x == ReturnCodesString("*"))
+        case Invalid(e) => fail(e.toList.mkString(" "))
+      }
+    }
+
+    "return success when tries to validate a returnCodes int entry" in {
+      val returnCodesValue = Some(WomInteger(12))
+      val result = RuntimeAttributesValidation.validateReturnCodes(
+        returnCodesValue,
+        "Failed to get returnCodes mandatory key from runtime attributes".invalidNel
+      )
+      result match {
+        case Valid(x) => assert(x == ReturnCodesSet(Set(12)))
+        case Invalid(e) => fail(e.toList.mkString(" "))
+      }
+    }
+
+    "return success when there is a valid integer array in returnCodes runtime attribute" in {
+      val returnCodesValue = Some(WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(1), WomInteger(2))))
+      val result = RuntimeAttributesValidation.validateReturnCodes(
+        returnCodesValue,
+        "Failed to get returnCode mandatory key from runtime attributes".invalidNel
+      )
+      result match {
+        case Valid(x) => assert(x == ReturnCodesSet(Set(1, 2)))
+        case Invalid(e) => fail(e.toList.mkString(" "))
+      }
+    }
+
+    "return failure when there is an invalid array in returnCodes runtime attribute" in {
+      val returnCodesValue =
+        Some(WomArray(WomArrayType(WomStringType), Seq(WomString("one"), WomString("two"))))
+      val result = RuntimeAttributesValidation.validateReturnCodes(
+        returnCodesValue,
+        "Failed to get returnCodes mandatory key from runtime attributes".invalidNel
+      )
+      result match {
+        case Valid(_) => fail("A failure was expected.")
+        case Invalid(e) =>
+          assert(
+            e.head == "Expecting returnCodes runtime attribute to be either a String '*' or an Array[Int]"
+          )
+      }
+    }
+
+    "return failure when there is an invalid returnCodes runtime attribute defined" in {
+      val returnCodesValue = Some(WomString("yes"))
+      val result = RuntimeAttributesValidation.validateReturnCodes(
+        returnCodesValue,
+        "Failed to get returnCodes mandatory key from runtime attributes".invalidNel
+      )
+      result match {
+        case Valid(_) => fail("A failure was expected.")
+        case Invalid(e) =>
+          assert(
+            e.head == "Expecting returnCodes runtime attribute to be either a String '*' or an Array[Int]"
+          )
+      }
+    }
+
     "return success when tries to validate a valid Integer memory entry" in {
       val expectedGb = 1
       val memoryValue = Some(WomInteger(1 << 30))

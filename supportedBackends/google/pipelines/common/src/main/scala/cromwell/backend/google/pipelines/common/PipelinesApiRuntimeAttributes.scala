@@ -50,6 +50,7 @@ final case class PipelinesApiRuntimeAttributes(cpu: Int Refined Positive,
                                                dockerImage: String,
                                                failOnStderr: Boolean,
                                                continueOnReturnCode: ContinueOnReturnCode,
+                                               returnCodes: ReturnCodes,
                                                noAddress: Boolean,
                                                googleLegacyMachineSelection: Boolean,
                                                useDockerImageCache: Option[Boolean],
@@ -115,6 +116,9 @@ object PipelinesApiRuntimeAttributes {
 
   private def continueOnReturnCodeValidation(runtimeConfig: Option[Config]) =
     ContinueOnReturnCodeValidation.default(runtimeConfig)
+
+  private def returnCodesValidation(runtimeConfig: Option[Config]) =
+    ReturnCodesValidation.default(runtimeConfig)
 
   private def disksValidation(
     runtimeConfig: Option[Config]
@@ -223,6 +227,10 @@ object PipelinesApiRuntimeAttributes {
       continueOnReturnCodeValidation(runtimeAttrsConfig),
       validatedRuntimeAttributes
     )
+    val returnCodes: ReturnCodes = RuntimeAttributesValidation.extract(
+      returnCodesValidation(runtimeAttrsConfig),
+      validatedRuntimeAttributes
+    )
     val noAddress: Boolean =
       RuntimeAttributesValidation.extract(noAddressValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val useDockerImageCache: Option[Boolean] = RuntimeAttributesValidation.extractOption(
@@ -242,6 +250,7 @@ object PipelinesApiRuntimeAttributes {
       docker,
       failOnStderr,
       continueOnReturnCode,
+      returnCodes,
       noAddress,
       googleLegacyMachineSelection,
       useDockerImageCache,

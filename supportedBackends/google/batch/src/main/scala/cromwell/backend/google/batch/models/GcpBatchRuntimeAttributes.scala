@@ -47,6 +47,7 @@ final case class GcpBatchRuntimeAttributes(cpu: Int Refined Positive,
                                            dockerImage: String,
                                            failOnStderr: Boolean,
                                            continueOnReturnCode: ContinueOnReturnCode,
+                                           returnCodes: ReturnCodes,
                                            noAddress: Boolean,
                                            useDockerImageCache: Option[Boolean],
                                            checkpointFilename: Option[String]
@@ -113,6 +114,9 @@ object GcpBatchRuntimeAttributes {
 
   private def continueOnReturnCodeValidation(runtimeConfig: Option[Config]) =
     ContinueOnReturnCodeValidation.default(runtimeConfig)
+
+  private def returnCodesValidation(runtimeConfig: Option[Config]) =
+    ReturnCodesValidation.default(runtimeConfig)
 
   private def disksValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Seq[GcpBatchAttachedDisk]] =
     DisksValidation
@@ -211,6 +215,10 @@ object GcpBatchRuntimeAttributes {
       continueOnReturnCodeValidation(runtimeAttrsConfig),
       validatedRuntimeAttributes
     )
+    val returnCodes: ReturnCodes = RuntimeAttributesValidation.extract(
+      returnCodesValidation(runtimeAttrsConfig),
+      validatedRuntimeAttributes
+    )
     val noAddress: Boolean =
       RuntimeAttributesValidation.extract(noAddressValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val zones: Vector[String] = RuntimeAttributesValidation.extract(ZonesValidation, validatedRuntimeAttributes)
@@ -239,6 +247,7 @@ object GcpBatchRuntimeAttributes {
       docker,
       failOnStderr,
       continueOnReturnCode,
+      returnCodes,
       noAddress,
       useDockerImageCache,
       checkpointFileName

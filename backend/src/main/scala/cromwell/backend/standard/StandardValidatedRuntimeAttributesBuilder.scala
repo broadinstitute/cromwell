@@ -32,6 +32,7 @@ object StandardValidatedRuntimeAttributesBuilder {
   def default(backendRuntimeConfig: Option[Config]): StandardValidatedRuntimeAttributesBuilder = {
     val required = Seq(
       ContinueOnReturnCodeValidation.default(backendRuntimeConfig),
+      ReturnCodesValidation.default(backendRuntimeConfig),
       FailOnStderrValidation.default(backendRuntimeConfig),
       MaxRetriesValidation.default(backendRuntimeConfig)
     )

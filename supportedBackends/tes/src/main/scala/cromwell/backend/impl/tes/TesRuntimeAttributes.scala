@@ -23,6 +23,7 @@ import wom.values._
 import java.util.regex.Pattern
 
 case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
+                                returnCodes: ReturnCodes,
                                 dockerImage: String,
                                 dockerWorkingDir: Option[String],
                                 failOnStderr: Boolean,
@@ -47,6 +48,9 @@ object TesRuntimeAttributes {
 
   private def continueOnReturnCodeValidation(runtimeConfig: Option[Config]) =
     ContinueOnReturnCodeValidation.default(runtimeConfig)
+
+  private def returnCodesValidation(runtimeConfig: Option[Config]) =
+    ReturnCodesValidation.default(runtimeConfig)
 
   private def diskSizeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[MemorySize] =
     MemoryValidation.optional(DiskSizeKey)
@@ -158,6 +162,10 @@ object TesRuntimeAttributes {
       RuntimeAttributesValidation.extract(continueOnReturnCodeValidation(backendRuntimeConfig),
                                           validatedRuntimeAttributes
       )
+    val returnCodes: ReturnCodes =
+      RuntimeAttributesValidation.extract(returnCodesValidation(backendRuntimeConfig),
+        validatedRuntimeAttributes
+      )
     val preemptible: Boolean =
       RuntimeAttributesValidation.extract(preemptibleValidation(backendRuntimeConfig), validatedRuntimeAttributes)
     val localizedSas: Option[String] =
@@ -175,6 +183,7 @@ object TesRuntimeAttributes {
       diskSizeCompatValidation(backendRuntimeConfig),
       failOnStderrValidation(backendRuntimeConfig),
       continueOnReturnCodeValidation(backendRuntimeConfig),
+      returnCodesValidation(backendRuntimeConfig),
       preemptibleValidation(backendRuntimeConfig),
       localizedSasValidation
     )
@@ -186,6 +195,7 @@ object TesRuntimeAttributes {
 
     new TesRuntimeAttributes(
       continueOnReturnCode,
+      returnCodes,
       docker,
       dockerWorkingDir,
       failOnStderr,

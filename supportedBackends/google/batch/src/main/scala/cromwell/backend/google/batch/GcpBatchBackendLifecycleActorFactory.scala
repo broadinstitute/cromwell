@@ -10,18 +10,11 @@ import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory.{
 }
 import cromwell.backend.google.batch.actors._
 import cromwell.backend.google.batch.api.request.RequestHandler
-import cromwell.backend.google.batch.models.{GcpBatchConfiguration, GcpBatchConfigurationAttributes}
 import cromwell.backend.google.batch.callcaching.{BatchBackendCacheHitCopyingActor, BatchBackendFileHashingActor}
+import cromwell.backend.google.batch.models.{GcpBatchConfiguration, GcpBatchConfigurationAttributes}
 import cromwell.backend.standard._
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardFileHashingActor}
-import cromwell.backend.{
-  BackendConfigurationDescriptor,
-  BackendInitializationData,
-  BackendWorkflowDescriptor,
-  Gcp,
-  JobExecutionMap,
-  Platform
-}
+import cromwell.backend._
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.CallOutputs
 import wom.graph.CommandCallNode
@@ -70,7 +63,6 @@ class GcpBatchBackendLifecycleActorFactory(override val name: String,
 
   override def workflowFinalizationActorParams(workflowDescriptor: BackendWorkflowDescriptor,
                                                ioActor: ActorRef,
-                                               // batchConfiguration: GcpBatchConfiguration,
                                                calls: Set[CommandCallNode],
                                                jobExecutionMap: JobExecutionMap,
                                                workflowOutputs: CallOutputs,
@@ -93,11 +85,7 @@ class GcpBatchBackendLifecycleActorFactory(override val name: String,
   )
 
   override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = {
-    implicit val requestHandler: RequestHandler =
-      new RequestHandler(
-        googleConfig.applicationName,
-        batchConfiguration.batchAttributes.batchRequestTimeoutConfiguration
-      )
+    implicit val requestHandler: RequestHandler = new RequestHandler
     Option(
       GcpBatchBackendSingletonActor.props(
         qps = batchConfiguration.batchAttributes.qps,

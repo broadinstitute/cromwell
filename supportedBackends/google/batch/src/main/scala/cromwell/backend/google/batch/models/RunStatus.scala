@@ -129,10 +129,6 @@ object RunStatus {
   case object StateUnspecified extends RunStatus
   case object Unrecognized extends RunStatus
 
-//  case class Succeeded(override val eventList: Seq[ExecutionEvent]) extends TerminalRunStatus {
-//    override def toString = "Succeeded"
-//  }
-
   final case class Failed(errorCode: Status,
                           jesCode: Option[Int],
                           errorMessages: List[String],

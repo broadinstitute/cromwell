@@ -163,9 +163,7 @@ object TesRuntimeAttributes {
                                           validatedRuntimeAttributes
       )
     val returnCodes: ReturnCodes =
-      RuntimeAttributesValidation.extract(returnCodesValidation(backendRuntimeConfig),
-        validatedRuntimeAttributes
-      )
+      RuntimeAttributesValidation.extract(returnCodesValidation(backendRuntimeConfig), validatedRuntimeAttributes)
     val preemptible: Boolean =
       RuntimeAttributesValidation.extract(preemptibleValidation(backendRuntimeConfig), validatedRuntimeAttributes)
     val localizedSas: Option[String] =

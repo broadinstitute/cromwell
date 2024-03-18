@@ -1431,9 +1431,8 @@ trait StandardAsyncExecutionActor
       } else {
         tryReturnCodeAsInt match {
           case Success(returnCodeAsInt)
-            if outOfMemoryDetected && memoryRetryRequested && (!continueOnReturnCode.continueFor(
-              returnCodeAsInt)
-              || !returnCode.continueFor(returnCodeAsInt)) =>
+              if outOfMemoryDetected && memoryRetryRequested && (!continueOnReturnCode.continueFor(returnCodeAsInt)
+                || !returnCode.continueFor(returnCodeAsInt)) =>
             val executionHandle = Future.successful(
               FailedNonRetryableExecutionHandle(
                 RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys, log),

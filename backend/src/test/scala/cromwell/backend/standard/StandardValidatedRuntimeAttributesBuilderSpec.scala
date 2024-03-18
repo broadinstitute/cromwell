@@ -176,8 +176,8 @@ class StandardValidatedRuntimeAttributesBuilderSpec
       )
       val runtimeAttributes = Map.empty[String, WomValue]
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes,
-        expectedRuntimeAttributes,
-        workflowOptions = workflowOptions
+                                                expectedRuntimeAttributes,
+                                                workflowOptions = workflowOptions
       )
     }
 

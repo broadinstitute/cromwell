@@ -4,7 +4,12 @@ import cats.data.NonEmptyList
 import cromwell.backend.RuntimeAttributeDefinition
 import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig.{googleConfiguration, papiAttributes, _}
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiAttachedDisk, PipelinesApiWorkingDisk}
-import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, ReturnCodesSet, ReturnCodesString}
+import cromwell.backend.validation.{
+  ContinueOnReturnCodeFlag,
+  ContinueOnReturnCodeSet,
+  ReturnCodesSet,
+  ReturnCodesString
+}
 import cromwell.core.WorkflowOptions
 import eu.timepit.refined.refineMV
 import org.scalatest.TestSuite
@@ -118,7 +123,7 @@ final class PipelinesApiRuntimeAttributesSpec
     "validate a valid returnCodes array entry" in {
       val runtimeAttributes =
         Map("docker" -> WomString("ubuntu:latest"),
-          "returnCodes" -> WomArray(WomArrayType(WomIntegerType), List(WomInteger(1), WomInteger(2)))
+            "returnCodes" -> WomArray(WomArrayType(WomIntegerType), List(WomInteger(1), WomInteger(2)))
         )
       val expectedRuntimeAttributes = expectedDefaults.copy(returnCodes = ReturnCodesSet(Set(1, 2)))
       assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
@@ -127,7 +132,7 @@ final class PipelinesApiRuntimeAttributesSpec
     "coerce then validate a valid returnCodes array entry" in {
       val runtimeAttributes =
         Map("docker" -> WomString("ubuntu:latest"),
-          "returnCodes" -> WomArray(WomArrayType(WomStringType), List(WomString("1"), WomString("2")))
+            "returnCodes" -> WomArray(WomArrayType(WomStringType), List(WomString("1"), WomString("2")))
         )
       val expectedRuntimeAttributes = expectedDefaults.copy(returnCodes = ReturnCodesSet(Set(1, 2)))
       assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)

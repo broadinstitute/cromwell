@@ -38,7 +38,7 @@ case class EcmOauthApi(oauthApi: OauthApi) {
   private def extractErrorMessage(exception: Throwable): String = {
 
     // if the exception message format in the case it ErrorReport JSON in it, is generally as below:
-    //    "<status_code> <status_code_test>: {<EOL> "message":<error_msg>,<EOL> "status_code":<code><EOL>}"
+    //    "<status_code> <status_code_test>: {<EOL> "message":<actual_error_msg>,<EOL> "statusCode":<code><EOL>}"
     // this method attempts to extract the value associated with "message" key and return it. In case its not
     // successful it will return exception.getMessage()
     def getMessageFromErrorReport(e: HttpClientErrorException) = {

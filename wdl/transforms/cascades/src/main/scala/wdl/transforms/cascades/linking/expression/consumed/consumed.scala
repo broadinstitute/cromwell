@@ -82,6 +82,8 @@ package object consumed {
         case a: Flatten => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: Prefix => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: Suffix => a.expressionConsumedValueHooks(expressionValueConsumer)
+        case a: Quote => a.expressionConsumedValueHooks(expressionValueConsumer)
+        case a: SQuote => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: SelectFirst => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: SelectAll => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: Defined => a.expressionConsumedValueHooks(expressionValueConsumer)
@@ -95,6 +97,7 @@ package object consumed {
 
         case a: Zip => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: Cross => a.expressionConsumedValueHooks(expressionValueConsumer)
+        case a: Unzip => a.expressionConsumedValueHooks(expressionValueConsumer)
 
         case a: SubPosix => a.expressionConsumedValueHooks(expressionValueConsumer)
 

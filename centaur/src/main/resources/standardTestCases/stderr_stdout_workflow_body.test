@@ -1,0 +1,13 @@
+name: stderr_stdout_workflow_body
+testFormat: workflowfailure
+
+files {
+  workflow: failures/stderr_stdout_workflow_body/stderr_stdout_workflow_body.wdl
+}
+
+metadata {
+  workflowName: break_with_stderr
+  status: Failed
+  "failures.0.message": "Workflow failed"
+  "failures.0.causedBy.0.message": "Failed to evaluate 'break_with_stderr.load_data_csv' (reason 1 of 2): Evaluating select_first([stdout(), stderr()]) failed: stdout is not implemented at the workflow level, Failed to evaluate 'break_with_stderr.load_data_csv' (reason 2 of 2): Evaluating select_first([stdout(), stderr()]) failed: stderr is not implemented at the workflow level"
+}

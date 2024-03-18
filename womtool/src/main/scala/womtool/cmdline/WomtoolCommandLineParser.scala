@@ -27,8 +27,6 @@ object WomtoolCommandLineParser {
       Option(WomtoolGraphCommandLine(mainFile))
     case PartialWomtoolCommandLineArguments(Some(WomGraph), Some(mainFile), None, None, None, None) =>
       Option(WomtoolWomGraphCommandLine(mainFile))
-    case PartialWomtoolCommandLineArguments(Some(Upgrade), Some(mainFile), None, None, None, None) =>
-      Option(WomtoolWdlUpgradeCommandLine(mainFile))
     case _ => None
   }
 }
@@ -106,10 +104,6 @@ class WomtoolCommandLineParser extends scopt.OptionParser[PartialWomtoolCommandL
   cmd("graph")
     .action((_, c) => c.copy(command = Option(Graph)))
     .text("Generate and output a graph visualization of the workflow in .dot format" + System.lineSeparator)
-
-  cmd("upgrade")
-    .action((_, c) => c.copy(command = Option(Upgrade)))
-    .text("Automatically upgrade the WDL to version 1.0 and output the result." + System.lineSeparator)
 
   cmd("womgraph")
     .action((_, c) => c.copy(command = Option(WomGraph)))

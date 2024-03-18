@@ -101,5 +101,6 @@ cromwell::private::batch::setup_batch_service_account() {
 
 cromwell::build::batch::setup_batch_centaur_environment() {
     cromwell::private::batch::setup_batch_gcloud
+    cromwell::private::batch::setup_batch_gcr
     cromwell::private::batch::setup_batch_service_account
 }

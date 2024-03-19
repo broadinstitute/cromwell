@@ -85,7 +85,7 @@ cromwell::private::batch::setup_batch_gcr() {
     elif command -v docker; then
         # Upload images built from this commit
         gcloud auth configure-docker --quiet
-        CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS="gcr.io/${CROMWELL_BUILD_BATCH_PROJECT_ID}/cromwell-drs-localizer:${CROMWELL_BUILD_DOCKER_TAG}-batch"
+        CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS="gcr.io/${CROMWELL_BUILD_BATCH_PROJECT_ID}/cromwell-drs-localizer:${CROMWELL_BUILD_DOCKER_TAG}"
         cromwell::private::batch::gcr_image_push cromwell-drs-localizer "${CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS}"
         export CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS
     else

@@ -84,7 +84,7 @@ cromwell::private::papi::setup_papi_gcr() {
     elif command -v docker; then
         # Upload images built from this commit
         gcloud auth configure-docker --quiet
-        CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="gcr.io/${CROMWELL_BUILD_PAPI_PROJECT_ID}/cromwell-drs-localizer:${CROMWELL_BUILD_DOCKER_TAG}-papi"
+        CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="gcr.io/${CROMWELL_BUILD_PAPI_PROJECT_ID}/cromwell-drs-localizer:${CROMWELL_BUILD_DOCKER_TAG}"
         cromwell::private::papi::gcr_image_push cromwell-drs-localizer "${CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS}"
         export CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
     else

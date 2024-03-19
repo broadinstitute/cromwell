@@ -33,6 +33,14 @@ object Merging {
       } match {
         case "spring.tooling" :: _ =>
           MergeStrategy.discard
+        case "spring-configuration-metadata.json" :: Nil =>
+          MergeStrategy.discard
+        case "spring.factories" :: Nil =>
+          MergeStrategy.discard
+        case "spring" :: "aot.factories" :: Nil =>
+          MergeStrategy.discard
+        case "additional-spring-configuration-metadata.json" :: Nil =>
+          MergeStrategy.discard
         case "io.netty.versions.properties" :: Nil =>
           MergeStrategy.first
         case "maven" :: "com.google.guava" :: _ =>

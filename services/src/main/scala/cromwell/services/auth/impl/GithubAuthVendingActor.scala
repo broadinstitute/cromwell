@@ -11,14 +11,14 @@ import cromwell.services.auth.GithubAuthVending.{
   GithubAuthVendingFailure,
   NoGithubAuthResponse
 }
-import cromwell.services.auth.externalcreds.{EcmConfig, HttpEcmApiClientProvider}
+import cromwell.services.auth.ecm.{EcmConfig, HttpEcmApiClientProvider}
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 class GithubAuthVendingActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
     extends Actor
     with LazyLogging {
 
-  lazy val enabled = serviceConfig.getBoolean("enabled")
+  lazy val enabled: Boolean = serviceConfig.getBoolean("enabled")
 
   private lazy val ecmConfigOpt: Option[EcmConfig] = EcmConfig.apply(serviceConfig)
   private lazy val ecmClientProviderOpt: Option[HttpEcmApiClientProvider] =

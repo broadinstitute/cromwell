@@ -1,4 +1,4 @@
-package cromwell.services.auth.externalcreds
+package cromwell.services.auth.ecm
 
 import bio.terra.externalcreds.api.OauthApi
 import bio.terra.externalcreds.client.ApiClient

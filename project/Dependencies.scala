@@ -66,7 +66,7 @@ object Dependencies {
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.6.1"
   private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
-  private val jacksonV = "2.14.2" //"2.13.3"
+  private val jacksonV = "2.14.2"
   private val jakartaActivationV = "1.2.1"
   private val jakartaAnnotationV = "1.3.5"
   private val jakartaInjectV = "2.6.1"
@@ -273,6 +273,8 @@ object Dependencies {
 
   val ecmDependencies: List[ModuleID] = List(
     "bio.terra" % "externalcreds-client-resttemplate" % "1.15.0-SNAPSHOT"
+      exclude("org.springframework", "spring-aop")
+      exclude("org.springframework", "spring-jcl")
   )
 
   val implFtpDependencies = List(

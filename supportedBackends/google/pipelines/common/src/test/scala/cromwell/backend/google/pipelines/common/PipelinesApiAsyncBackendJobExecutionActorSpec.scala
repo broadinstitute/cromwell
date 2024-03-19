@@ -951,7 +951,6 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
       )
       .get
 
-  // TODO: Shall we migrate this to batch?
   it should "generate correct JesFileInputs from a WdlMap" in {
     val inputs: Map[String, WomValue] = Map(
       "stringToFileMap" -> WomMap(
@@ -1165,7 +1164,6 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     }
   }
 
-  // TODO: Shall we migrate this to batch?
   it should "generate correct JesOutputs" in {
     val womFile = WomSingleFile("gs://blah/b/c.txt")
     val workflowInputs = Map("file_passing.f" -> womFile)
@@ -1200,7 +1198,6 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     )
   }
 
-  // TODO: Shall we migrate this to batch?
   it should "generate correct JesInputs when a command line contains a write_lines call in it" in {
     val inputs = Map(
       "strs" -> WomArray(WomArrayType(WomStringType), Seq("A", "B", "C").map(WomString))
@@ -1229,7 +1226,6 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     jesOutputs should have size 0
   }
 
-  // TODO: Shall we migrate this to batch?
   it should "generate correct JesFileInputs from a WdlArray" in {
     val inputs: Map[String, WomValue] = Map(
       "fileArray" ->
@@ -1305,7 +1301,6 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     }
   }
 
-  // TODO: Shall we migrate this to batch?
   it should "generate correct JesFileInputs from a WdlFile" in {
     val inputs: Map[String, WomValue] = Map(
       "file1" -> WomSingleFile("gs://path/to/file1"),
@@ -1380,7 +1375,6 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     }
   }
 
-  // TODO: Shall we migrate this to batch?
   it should "convert local Paths back to corresponding GCS paths in JesOutputs" in {
     val jesOutputs = Set(
       PipelinesApiFileOutput(

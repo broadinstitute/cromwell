@@ -1,54 +1,14 @@
 package cromwell.backend.google.batch.models
 
-//import com.google.cloud.batch.v1.JobStatus
 import cromwell.backend.google.batch.actors.GcpBatchAsyncBackendJobExecutionActor
 import cromwell.core.ExecutionEvent
 import io.grpc.Status
-//import org.slf4j.{Logger, LoggerFactory}
 
 import scala.util.Try
 
 sealed trait RunStatus
 
 object RunStatus {
-
-//  private val log: Logger = LoggerFactory.getLogger(RunStatus.toString)
-//  def fromJobStatus(status: JobStatus.State): RunStatus = {
-//    log.error(s"REmove me: $status")
-//    ???
-//  }
-
-  // TODO: Fix this
-
-//  def fromJobStatus(status: JobStatus.State): RunStatus = status match {
-//    case JobStatus.State.QUEUED =>
-//      log.info("job queued")
-//      Running
-//    case JobStatus.State.SCHEDULED =>
-//      log.info("job scheduled")
-//      Running
-//    case JobStatus.State.RUNNING =>
-//      log.info("job running")
-//      Running
-//    case JobStatus.State.SUCCEEDED =>
-//      log.info("job scheduled")
-//      Succeeded(List(ExecutionEvent("complete in GCP Batch"))) // update to more specific
-//    case JobStatus.State.FAILED =>
-//      log.info("job failed")
-//      Failed(List.empty)
-//    case JobStatus.State.DELETION_IN_PROGRESS =>
-//      log.info("deletion in progress")
-//      DeletionInProgress
-//    case JobStatus.State.STATE_UNSPECIFIED =>
-//      log.info("state unspecified")
-//      StateUnspecified
-//    case JobStatus.State.UNRECOGNIZED =>
-//      log.info("state unrecognized")
-//      Unrecognized
-//    case _ =>
-//      log.info(s"job status not matched: $status")
-//      Running
-//  }
 
   case object Initializing extends RunStatus
 

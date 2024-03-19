@@ -29,7 +29,6 @@ import scala.collection.immutable.Queue
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-// Enabled tests are passing
 class BatchApiRequestManagerSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually {
 
   behavior of "BatchApiRequestManager"

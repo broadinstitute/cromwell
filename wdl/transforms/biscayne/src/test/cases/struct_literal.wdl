@@ -9,6 +9,9 @@ task create_dog {
     input {
         String name_input
     }
+    runtime {
+        docker: "ubuntu:latest"
+    }
 
     command { echo "all dogs are good" }
     output {

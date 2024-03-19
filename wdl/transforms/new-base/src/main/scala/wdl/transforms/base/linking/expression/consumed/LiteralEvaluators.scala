@@ -32,6 +32,14 @@ object LiteralEvaluators {
         o.elements.values.toSet[ExpressionElement].expressionConsumedValueHooks
     }
 
+  implicit val structLiteralUnlinkedValueConsumer: ExpressionValueConsumer[StructLiteral] =
+    new ExpressionValueConsumer[StructLiteral] {
+      override def expressionConsumedValueHooks(o: StructLiteral)(implicit
+                                                                  expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
+      ): Set[UnlinkedConsumedValueHook] =
+        o.elements.values.toSet[ExpressionElement].expressionConsumedValueHooks
+    }
+
   implicit val mapLiteralUnlinkedValueConsumer: ExpressionValueConsumer[MapLiteral] =
     new ExpressionValueConsumer[MapLiteral] {
       override def expressionConsumedValueHooks(m: MapLiteral)(implicit

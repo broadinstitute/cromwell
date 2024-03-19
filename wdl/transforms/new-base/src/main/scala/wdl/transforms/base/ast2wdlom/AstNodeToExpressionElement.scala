@@ -58,11 +58,7 @@ object AstNodeToExpressionElement {
           asMap = objectKvs.map(kv => kv.key -> kv.value).toMap
         } yield ObjectLiteral(asMap)).toValidated
       case a: GenericAst if a.getName == "StructLiteral" =>
-        (for {
-          name <- a.getAttributeAs[String]("name")
-          objectKvs <- a.getAttributeAsVector[KvPair]("map")
-          asMap = objectKvs.map(kv => kv.key -> kv.value).toMap
-        } yield StructLiteral(name, asMap)).toValidated
+        validateStructLiteral(a)
       case a: GenericAst if a.getName == "MapLiteral" =>
         final case class MapKvPair(key: ExpressionElement, value: ExpressionElement)
         def convertOnePair(astNode: GenericAstNode): ErrorOr[MapKvPair] = astNode match {
@@ -246,6 +242,18 @@ object AstNodeToExpressionElement {
     } else {
       s"Function $functionName expects exactly 3 arguments but got ${params.size}".invalidNel
     }
+  private def validateStructLiteral(ast: GenericAst)(implicit astNodeToExpressionElement: CheckedAtoB[GenericAstNode, KvPair]): ErrorOr[ExpressionElement] =
+  {
+    val structTypeName = ast.getAttributeAs[String]("name")
+    val structMembers = ast.getAttributeAsVector[KvPair]("map")
+
+
+    val e: ErrorOr[ExpressionElement] = for {
+      name <- structTypeName
+      members <- structMembers
+      map = members.map(kv => kv.key -> kv.value).toMap
+    } yield StructLiteral(name, map).validNelCheck.toValidated
+  }
 
   private def handleMemberAccess(
     ast: GenericAst

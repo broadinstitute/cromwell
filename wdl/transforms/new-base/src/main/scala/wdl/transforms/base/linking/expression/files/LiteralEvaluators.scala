@@ -67,6 +67,33 @@ object LiteralEvaluators {
     }
   }
 
+  implicit val structLiteralEvaluator: FileEvaluator[StructLiteral] = new FileEvaluator[StructLiteral] {
+    override def predictFilesNeededToEvaluate(a: StructLiteral,
+                                              inputs: Map[String, WomValue],
+                                              ioFunctionSet: IoFunctionSet,
+                                              coerceTo: WomType
+                                             )(implicit
+                                               fileEvaluator: FileEvaluator[ExpressionElement],
+                                               valueEvaluator: ValueEvaluator[ExpressionElement]
+                                             ): ErrorOr[Set[WomFile]] = {
+      def filesInObjectField(fieldAndWomTypeTuple: (String, WomType)): ErrorOr[Set[WomFile]] = {
+        val (field, womType) = fieldAndWomTypeTuple
+        a.elements.get(field) match {
+          case Some(fieldElement) => fieldElement.predictFilesNeededToEvaluate(inputs, ioFunctionSet, womType)
+          case None => s"Invalid assignment to struct. Required field $field was not specified.".invalidNel
+        }
+      }
+
+      coerceTo match {
+        case WomCompositeType(mapping, _) => mapping.toList.traverse(filesInObjectField).map(_.flatten.toSet)
+        case _ =>
+          a.elements.values.toList
+            .traverse(_.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo))
+            .map(_.toSet.flatten)
+      }
+    }
+  }
+
   implicit val mapLiteralEvaluator: FileEvaluator[MapLiteral] = new FileEvaluator[MapLiteral] {
     override def predictFilesNeededToEvaluate(a: MapLiteral,
                                               inputs: Map[String, WomValue],

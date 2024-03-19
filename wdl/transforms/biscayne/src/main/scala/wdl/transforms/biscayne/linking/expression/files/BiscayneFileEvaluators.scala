@@ -1,25 +1,8 @@
 package wdl.transforms.biscayne.linking.expression.files
 
-import wdl.model.draft3.elements.ExpressionElement.{
-  AsMap,
-  AsPairs,
-  CollectByKey,
-  Keys,
-  Max,
-  Min,
-  Quote,
-  Sep,
-  SQuote,
-  SubPosix,
-  Suffix,
-  Unzip
-}
+import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.FileEvaluator
-import wdl.transforms.base.linking.expression.files.EngineFunctionEvaluators.{
-  threeParameterFunctionPassthroughFileEvaluator,
-  twoParameterFunctionPassthroughFileEvaluator
-}
-import wdl.transforms.base.linking.expression.files.EngineFunctionEvaluators.singleParameterPassthroughFileEvaluator
+import wdl.transforms.base.linking.expression.files.EngineFunctionEvaluators.{singleParameterPassthroughFileEvaluator, threeParameterFunctionPassthroughFileEvaluator, twoParameterFunctionPassthroughFileEvaluator}
 
 object BiscayneFileEvaluators {
 

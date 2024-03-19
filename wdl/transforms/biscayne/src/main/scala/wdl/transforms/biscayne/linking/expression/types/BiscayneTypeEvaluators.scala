@@ -159,4 +159,14 @@ object BiscayneTypeEvaluators {
         case other => s"Cannot invoke 'unzip' on type '${other.stableName}'. Expected an array of pairs".invalidNel
       }
   }
+
+  implicit val structLiteralTypeEvaluator: TypeEvaluator[StructLiteral] = new TypeEvaluator[StructLiteral] {
+    override def evaluateType(a: StructLiteral, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(
+      implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
+    ): ErrorOr[WomType] = {
+      val i = 3+4;
+      println(i)
+      WomObjectType.validNel
+    }
+  }
 }

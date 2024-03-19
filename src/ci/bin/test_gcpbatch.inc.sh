@@ -67,8 +67,7 @@ cromwell::private::batch::gcr_image_push() {
 
     cromwell::build::build_docker_image "${executable_name}" "${docker_image}"
     echo "${docker_image}" >> "${CROMWELL_BUILD_BATCH_GCR_IMAGES}"
-    # Use cat to quiet docker: https://github.com/moby/moby/issues/36655#issuecomment-375136087
-    docker push "${docker_image}" | cat
+    docker push --quiet "${docker_image}"
 }
 
 cromwell::private::batch::gcr_image_delete() {
@@ -86,7 +85,7 @@ cromwell::private::batch::setup_batch_gcr() {
     elif command -v docker; then
         # Upload images built from this commit
         gcloud auth configure-docker --quiet
-        CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS="gcr.io/${CROMWELL_BUILD_BATCH_PROJECT_ID}/cromwell-drs-localizer:${CROMWELL_BUILD_DOCKER_TAG}-batch"
+        CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS="gcr.io/${CROMWELL_BUILD_BATCH_PROJECT_ID}/cromwell-drs-localizer:${CROMWELL_BUILD_DOCKER_TAG}"
         cromwell::private::batch::gcr_image_push cromwell-drs-localizer "${CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS}"
         export CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS
     else
@@ -102,5 +101,6 @@ cromwell::private::batch::setup_batch_service_account() {
 
 cromwell::build::batch::setup_batch_centaur_environment() {
     cromwell::private::batch::setup_batch_gcloud
+    cromwell::private::batch::setup_batch_gcr
     cromwell::private::batch::setup_batch_service_account
 }

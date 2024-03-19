@@ -80,6 +80,7 @@ object GcpBatchGroupedRequests extends LazyLogging {
           // different to PAPIv2, this call does not abort the job but deletes it, so, we need to be careful
           // to not delete jobs in a terminal state
 
+          // TODO: Do the query and throw an error when we are in a terminal state
           val result = BatchApiResponse.DeleteJobRequested(client.deleteJobCallable().call(r.httpRequest))
           Success(result)
       }

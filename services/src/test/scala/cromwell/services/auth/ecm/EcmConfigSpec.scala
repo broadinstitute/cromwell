@@ -4,14 +4,13 @@ import com.typesafe.config.ConfigFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class EcmConfigSpec extends AnyFlatSpec with Matchers{
+class EcmConfigSpec extends AnyFlatSpec with Matchers {
 
   it should "parse ECM base url when present" in {
-    val config = ConfigFactory.parseString(
-      s"""
-         |enabled = true
-         |auth.azure = true
-         |ecm.base-url = "https://mock-ecm-url.org"
+    val config = ConfigFactory.parseString(s"""
+                                              |enabled = true
+                                              |auth.azure = true
+                                              |ecm.base-url = "https://mock-ecm-url.org"
       """.stripMargin)
 
     val actualEcmConfig = EcmConfig.apply(config)
@@ -21,10 +20,9 @@ class EcmConfigSpec extends AnyFlatSpec with Matchers{
   }
 
   it should "return None when ECM base url is absent" in {
-    val config = ConfigFactory.parseString(
-      s"""
-         |enabled = true
-         |auth.azure = true
+    val config = ConfigFactory.parseString(s"""
+                                              |enabled = true
+                                              |auth.azure = true
       """.stripMargin)
 
     EcmConfig.apply(config) shouldBe None

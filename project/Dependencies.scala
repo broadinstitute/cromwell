@@ -68,11 +68,10 @@ object Dependencies {
   private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
   private val jacksonV = "2.14.2"
   private val jakartaActivationV = "1.2.1"
-  private val jakartaAnnotationV = "1.3.5"
+  private val jakartaAnnotationV = "2.1.1"
   private val jakartaInjectV = "2.6.1"
   private val jakartaXmlBindApiV = "2.3.2"
   private val janinoV = "3.1.7"
-  private val jerseyV = "2.32" // Use a jersey compatible with WSM. See notes in wsmDependencies below.
   private val jsr305V = "3.0.2"
   private val junitV = "4.13.2"
   private val kindProjectorV = "0.13.2"
@@ -242,33 +241,7 @@ object Dependencies {
   ) ++ azureBlobNioDependencies
 
   val wsmDependencies: List[ModuleID] = List(
-    "bio.terra" % "workspace-manager-client" % "0.254.452-SNAPSHOT"
-      exclude("com.sun.activation", "jakarta.activation"),
-    /*
-    1. WSM is looking for the rs-api under javax.*.
-
-    Jersey 3.x switched to jakarta.ws.rs-api 3.x. If one uses jakarta's rs-api, 3.x will automatically evict 2.x.
-
-    However, jakarta's rs-api 2.x provides packages javax.* while 3.x provides jakarta.* instead.
-     - https://javadoc.io/doc/jakarta.ws.rs/jakarta.ws.rs-api/2.1.6/javax/ws/rs/package-summary.html
-     - https://javadoc.io/doc/jakarta.ws.rs/jakarta.ws.rs-api/3.1.0/jakarta.ws.rs/module-summary.html
-
-    TODO: Perhaps coordinate with the WSM team to use the jakarta 3.x rs-api and jakarta.* instead of javax.*.
-
-    2. Use the exact version of jersey that WSM is using.
-
-    Jersey libraries cannot be mixed and matched as the various modules cannot be mixed and matched.
-    For example jersey-client 2.32 is not compatible with jersey-common 2.37.
-
-    If needed one may also explicitly enumerate the list of jersey artifacts and explicitly set the versions similar to
-    catsDepeendencies, akkaHttpDependencies, etc.
-     - https://broadinstitute.jfrog.io/ui/repos/tree/PomView/libs-snapshot-local/bio/terra/workspace-manager-client/0.254.452-SNAPSHOT/workspace-manager-client-0.254.452-20221114.190249-1.pom
-     - https://github.com/eclipse-ee4j/jersey/blob/2.32/core-client/src/main/java/org/glassfish/jersey/client/ClientExecutorProvidersConfigurator.java#L139
-     - https://github.com/eclipse-ee4j/jersey/blob/2.37/core-client/src/main/java/org/glassfish/jersey/client/ClientExecutorProvidersConfigurator.java#L136-L137
-     */
-    "org.glassfish.jersey.inject" % "jersey-hk2" % jerseyV
-      exclude("com.sun.activation", "jakarta.activation"),
-    "jakarta.activation" % "jakarta.activation-api" % jakartaActivationV,
+    "bio.terra" % "workspace-manager-client" % "0.254.1050-SNAPSHOT",
   )
 
   val ecmDependencies: List[ModuleID] = List(

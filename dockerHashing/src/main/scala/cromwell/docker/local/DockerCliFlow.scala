@@ -29,7 +29,7 @@ class DockerCliFlow(implicit ec: ExecutionContext) extends DockerRegistry {
     implicit val timer = IO.timer(ec)
 
     DockerCliFlow
-      .lookupHashOrTimeout(firstLookupTimeout)(dockerInfoContext)
+      .lookupHashOrTimeout(firstLookupTimeout, true)(dockerInfoContext)
       .flatMap {
         // If the image isn't there, pull it and try again
         case (_: DockerInfoNotFound, _) =>
@@ -50,10 +50,11 @@ object DockerCliFlow {
     * @param context The image to lookup.
     * @return The docker hash response plus the context of our flow.
     */
-  private def lookupHash(context: DockerInfoContext): (DockerInfoResponse, DockerInfoContext) = {
+  private def lookupHash(context: DockerInfoContext, useDirect: Boolean): (DockerInfoResponse, DockerInfoContext) = {
     val dockerCliKey = cliKeyFromImageId(context)
     DockerInfoActor.logger.debug("Looking up hash of {}", dockerCliKey.fullName)
-    val result = DockerCliClient.lookupHash(dockerCliKey) match {
+    val lookupFunction = if (useDirect) DockerCliClient.lookupHashDirect(_) else DockerCliClient.lookupHash(_)
+    val result = lookupFunction(dockerCliKey) match {
       case Success(None) => DockerInfoNotFound(context.request)
       case Success(Some(hash)) =>
         DockerHashResult.fromString(hash) match {
@@ -75,10 +76,10 @@ object DockerCliFlow {
     * @param context   The image to lookup.
     * @return The docker hash response plus the context of our flow.
     */
-  private def lookupHashOrTimeout(timeout: FiniteDuration)(
+  private def lookupHashOrTimeout(timeout: FiniteDuration, useDirect: Boolean = false)(
     context: DockerInfoContext
-  )(implicit cs: ContextShift[IO], timer: Timer[IO]): IO[(DockerInfoResponse, DockerInfoContext)] =
-    IO(lookupHash(context))
+  )(implicit cs: ContextShift[IO], timer: Timer[IO]): IO[(DockerInfoResponse, DockerInfoContext)] = 
+    IO(lookupHash(context, useDirect))
       .timeout(timeout)
       .handleErrorWith {
         case _: TimeoutException =>

@@ -2,7 +2,8 @@ package cromwell.docker.local
 
 import scala.Function.const
 import scala.util.Try
-
+import sys.process._
+import io.circe.parser._
 /**
   * Wrapper around the docker cli.
   * https://docs.docker.com/engine/reference/commandline/docker/
@@ -27,6 +28,39 @@ trait DockerCliClient {
     forRun("docker", "images", "--digests", "--format", """{{printf "%s\t%s\t%s" .Repository .Tag .Digest}}""") {
       _.flatMap(parseHashLine).find(_.key == dockerCliKey).map(_.digest)
     }
+
+  /**
+    * Looks up a docker hash from manifest
+    *
+    * @param dockerCliKey The docker hash to lookup.
+    * @return The hash if found, None if not found, and Failure if an error occurs.
+    */
+   def lookupHashDirect(dockerCliKey: DockerCliKey): Try[Option[String]] = {
+  Try {
+    val cmd = Seq("docker", "manifest", "inspect", "-v", dockerCliKey.fullName)
+    val output = new StringBuilder
+    val logger = ProcessLogger(
+      (o: String) => output.append(o + "\n"),
+      (e: String) => System.err.println(e)
+    )
+
+    val exitValue = cmd.!(logger)
+
+    if (exitValue == 0) {
+      val outputJson: String = output.toString()
+      parse(outputJson) match {
+        case Left(failure) => throw new RuntimeException("Failed to parse JSON: " + failure.message)
+        case Right(json) =>
+          json.hcursor.downField("Descriptor").downField("digest").as[String] match {
+            case Left(failure) => throw new RuntimeException("Unexpected JSON structure: " + failure.message)
+            case Right(digest) => Some(digest)
+          }
+      }
+    } else {
+      throw new RuntimeException(s"Process ran with error. Exit code: $exitValue")
+    }
+  }
+   }
 
   /**
     * Pulls a docker image.

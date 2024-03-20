@@ -72,6 +72,7 @@ object Dependencies {
   private val jakartaInjectV = "2.6.1"
   private val jakartaXmlBindApiV = "2.3.2"
   private val janinoV = "3.1.7"
+  private val jerseyV = "3.1.2" // Use a jersey compatible with WSM. See notes in wsmDependencies below.
   private val jsr305V = "3.0.2"
   private val junitV = "4.13.2"
   private val kindProjectorV = "0.13.2"
@@ -242,6 +243,7 @@ object Dependencies {
 
   val wsmDependencies: List[ModuleID] = List(
     "bio.terra" % "workspace-manager-client" % "0.254.1050-SNAPSHOT",
+    "org.glassfish.jersey.inject" % "jersey-hk2" % jerseyV
   )
 
   val ecmDependencies: List[ModuleID] = List(

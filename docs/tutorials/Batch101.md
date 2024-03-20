@@ -122,7 +122,7 @@ backend {
 
   providers {
     batch {
-      actor-factory = "cromwell.backend.google.pipelines.batch.GcpBatchBackendLifecycleActorFactory"
+      actor-factory = "cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory"
       config {
         # Google project
         project = "my-cromwell-workflows"
